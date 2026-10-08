@@ -6482,6 +6482,10 @@ function isRivalryMatch(teamA, teamB){
   return { isRivalry: false, derbyName: '' };
 }
 
+function checkRivalry(teamA, teamB){
+  return isRivalryMatch(teamA, teamB);
+}
+
 function getMatchWeather(dateStr, round){
   const seed = hashStr((dateStr||'2026-01-01') + '|' + (round||0));
   const val = seed % 100;
@@ -6950,13 +6954,25 @@ function openPressConferenceModal(type = 'post', context = null, onComplete = nu
       overlay.remove();
       save();
       render();
-      if(typeof onComplete === 'function') onComplete();
+      if(typeof onComplete === 'function'){
+        try {
+          onComplete();
+        } catch(err){
+          console.error('Erro no callback da coletiva:', err);
+        }
+      }
     };
   });
 
   $('#btnClosePressRoom').onclick = () => {
     overlay.remove();
-    if(typeof onComplete === 'function') onComplete();
+    if(typeof onComplete === 'function'){
+      try {
+        onComplete();
+      } catch(err){
+        console.error('Erro ao encerrar coletiva:', err);
+      }
+    }
   };
 }
 
@@ -8222,16 +8238,6 @@ function startLiveMatch(){
   const comp = curComp();
   const isKO = comp.type === 'knockout';
   const isUserHome = home === state.club;
-
-  // Coletiva de Imprensa Pré-Jogo antes do pontapé inicial
-  if(!state.preMatchInterviewDone){
-    state.preMatchInterviewDone = true;
-    openPressConferenceModal('pre', { opp: (isUserHome ? away : home), isHome: isUserHome }, () => {
-      startLiveMatch();
-    });
-    return;
-  }
-  state.preMatchInterviewDone = false;
   
   const otherResults = [];
   const winners = [];
@@ -8259,7 +8265,7 @@ function startLiveMatch(){
   const stadiumName = isUserHome 
     ? (state.namingRights?.stadiumName || hostClubObj.stadium || 'Estádio do Clube')
     : (hostClubObj.stadium || 'Estádio Municipal');
-  const stadiumCap = isUserHome ? (state.infrastructure.stadium?.capacity || 18000) : (hostClubObj.capacity || 22000);
+  const stadiumCap = isUserHome ? (state.infrastructure?.stadium?.capacity || 18000) : (hostClubObj.capacity || 22000);
   const stadiumPitch = isUserHome ? (state.stadiumPitchType || 'natural') : 'natural';
   const stadiumUpgrades = isUserHome ? (state.stadiumUpgrades || {}) : { chairs: true, screen: false, ledRing: false, flares: false, ledLights: true };
   const attendance = isUserHome ? proj.attendance : Math.round(stadiumCap * clamp(0.3 + (hs/150), 0.15, 0.95));
@@ -8345,7 +8351,7 @@ function startLiveMatch(){
   const homePlayers = buildMatchTeam(home, home === state.club, true);
   const awayPlayers = buildMatchTeam(away, away === state.club, false);
 
-  const rivalry = checkRivalry(home, away);
+  const rivalry = isRivalryMatch(home, away);
 
   liveMatchState = {
     home, away, isKO,
@@ -19378,7 +19384,9 @@ function bind(){
         if(state.answeredPressKey === pressKey){
           toast('Você já respondeu à coletiva de imprensa desta rodada. Uma nova coletiva estará disponível no próximo jogo!');
         } else {
-          openPressConferenceModal();
+          const uFix = userFixture();
+          const opp = uFix ? (uFix[0] === state.club ? uFix[1] : uFix[0]) : null;
+          openPressConferenceModal('pre', { opp, isHome: uFix ? uFix[0] === state.club : true });
         }
       };
     }
@@ -19605,8 +19613,7 @@ function bind(){
 
   if(view==='calendario'){
     $$('[data-cal-filter]').forEach(b=>b.onclick=()=>{calendarFilter=b.dataset.calFilter;render()});
-    const playBtn=$('.btnCalPlayNow');
-    if(playBtn) playBtn.onclick=startLiveMatch;
+    $$('.btnCalPlayNow').forEach(b => b.onclick = startLiveMatch);
   }
 
   if(view==='estrutura'){

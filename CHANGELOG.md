@@ -4,6 +4,15 @@ Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027*
 
 ---
 
+## [3.1.1] - 2026-10-08 (Correção Crítica: Entrada Direta na Partida & Coletivas)
+
+### ⚽ Correção do Botão "JOGAR" & Sala de Imprensa
+- **Início Imediato da Partida**: O botão "JOGAR" agora leva o treinador diretamente para o campo e transmissão ao vivo da partida, sem ser interceptado ou bloqueado pela coletiva de imprensa pré-jogo.
+- **Resolução de Erro de Execução**: Corrigida a chamada de rivalidade interna (`isRivalryMatch`), prevenindo falha que impedia o carregamento do estádio 2.5D.
+- **Coletiva Pré-Jogo Acessível**: O botão dedicado `🎙️ COLETIVA` na Central agora abre diretamente a coletiva pré-jogo contra o adversário da rodada, mantendo a coletiva pós-jogo dinâmica após o apito final.
+
+---
+
 ## [3.1.0] - 2026-10-08 (Versão 61 - Revolução Tática & Auditoria Pro)
 
 ### 🛡️ Linhas de Pressão & Blocos Defensivos
