@@ -6,13 +6,19 @@ echo =====================================================
 echo   ENVIANDO ATUALIZACOES PARA O GITHUB (AFMMANAGER)
 echo =====================================================
 echo.
+echo [1/4] Configurando autor oficial do GitHub...
+git config user.name "Aquino1M"
+git config user.email "243838973+Aquino1M@users.noreply.github.com"
+
+echo [2/4] Verificando arquivos modificados...
 git status
 echo.
-echo Adicionando arquivos modificados...
+echo [3/4] Adicionando arquivos e gerando commit validado...
 git add .
-echo Criando commit com as novas funcionalidades...
-git commit -m "feat: atualiza vercel.json com no-cache e build script para deploy no vercel"
-echo Enviando para https://github.com/Aquino1M/AFMMANAGER.git...
+git commit --author="Aquino1M <243838973+Aquino1M@users.noreply.github.com>" -m "feat: botao de pesquisar nos filtros do mercado e sistema bancario de emprestimos com parcelas, juros e antecipacao"
+
+echo.
+echo [4/4] Enviando para https://github.com/Aquino1M/AFMMANAGER.git...
 git push origin main
 echo.
 if errorlevel 1 (
@@ -20,6 +26,7 @@ if errorlevel 1 (
 ) else (
   echo =====================================================
   echo   TUDO ENVIADO COM SUCESSO PARA O GITHUB!
+  echo   O Vercel iniciara o deploy automaticamente com autor validado.
   echo =====================================================
 )
 echo.

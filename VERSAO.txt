@@ -636,7 +636,25 @@ Novidades desta versão:
         * Verificado o módulo js/database.js conectado à URL oficial https://yulsnzvgxtwbazqvetpe.supabase.co.
         * Confirmado o mecanismo híbrido Local-First: persistência imediata em LocalStorage combinada com sincronização assíncrona na nuvem (tabelas afm_users e afm_saves), garantindo que o jogo nunca trave ou perca progresso mesmo com oscilações de rede.
 
-
-
-
-
+77. Sistema Bancário de Empréstimos & Botão de Pesquisa no Mercado de Jogadores:
+    - Botão "🔍 Pesquisar" e "Limpar" no Mercado de Empréstimos e Compra:
+        * Adicionado botão com destaque visual "🔍 Pesquisar" tanto na aba de Empréstimos de Jogadores (Pedir Emprestado) quanto na aba de Compra de Atletas.
+        * Suporte à tecla [Enter] no campo de busca por nome de jogador ou clube.
+        * Botão "Limpar" para resetar simultaneamente filtros em cascata (Região, País, Campeonato, Clube, Posição, Overall Mínimo e Apenas no Caixa) e recarregar os dados na hora sem atraso.
+    - Oitava Estrutura no Campus do Clube: 🏦 Banco & Financiamento:
+        * Preenchimento do slot vago da grade de Estrutura & Estádio ao lado do Departamento de Marketing com a nova instalação "Banco & Financiamento".
+        * Evolução de infraestrutura do Banco do nível 1 ao 8, ampliando o teto de crédito do clube e reduzindo o spread de juros.
+        * Acesso direto pelo Campus do Clube (com botão de atalho no topo e card na grade) e pelo Escritório & Finanças.
+    - Mecânica Completa de Empréstimos Bancários e Linhas de Crédito:
+        * Linhas de crédito emergenciais e estruturais baseadas na força e reputação do clube (de R$ 500 mil até R$ 30 milhões).
+        * Taxas de juros dinâmicas proporcionais ao risco e montante: empréstimos maiores e prazos mais longos carregam juros mais elevados.
+        * Opção de escolha das parcelas em 6x, 12x, 24x ou 36x com cálculo e simulação imediata do Custo Efetivo Total (CET) e valor da parcela por rodada.
+        * Crédito cai instantaneamente no saldo de caixa do clube para contratações ou obras.
+    - Aba de Pagamento, Amortização e Antecipação com Bônus:
+        * Visualização de todos os contratos de empréstimo ativos, parcelas pagas/restantes, saldo devedor atual e próxima rodada de vencimento.
+        * Pagamento manual de parcelas individuais e quitação antecipada total do contrato.
+        * Bônus financeiro de antecipação: desconto de 5% a 15% nos juros não incorridos ao antecipar parcelas ou liquidar o saldo devedor antes do prazo.
+    - Cobrança de Vencimento e Juros de Mora Cumulativos:
+        * Verificação automática a cada rodada do calendário durante a virada financeira (`finalizeRound`).
+        * Se a parcela vencer e o clube não tiver saldo suficiente em caixa, o contrato é marcado como inadimplente e incide multa com juros punitivos (+2% acumulativos por rodada de atraso).
+        * Alertas no feed de notícias e sinalização visual em vermelho na estrutura do banco alertando a diretoria.

@@ -3511,6 +3511,79 @@ select, .saas-select {
   box-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
 }
 
+/* ------------------------------------------------------------- */
+/* BANCO & SISTEMA FINANCEIRO DE EMPRÉSTIMOS                    */
+/* ------------------------------------------------------------- */
+.afm-bank-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.afm-bank-box {
+  background: #110e1f;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 12px;
+  padding: 14px;
+}
+.afm-bank-box.danger {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.06);
+}
+.afm-bank-box.good {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.06);
+}
+.afm-loan-card {
+  background: #161229;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  transition: all 0.2s;
+}
+.afm-loan-card:hover {
+  border-color: #8b5cf6;
+}
+.afm-loan-card.overdue {
+  border-color: #ef4444;
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.25);
+  background: linear-gradient(135deg, #1f1019, #28111e);
+}
+.afm-loan-pill-rate {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(139, 92, 246, 0.2);
+  color: #c084fc;
+}
+.afm-btn-preset-loan {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.afm-btn-preset-loan:hover, .afm-btn-preset-loan.active {
+  background: #7c3aed;
+  border-color: #a855f7;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.4);
+}
+.afm-pulse-warning {
+  animation: afmPulseWarn 1.6s infinite ease-in-out;
+}
+@keyframes afmPulseWarn {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.01); }
+}
+
+
 
 
 

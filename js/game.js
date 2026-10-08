@@ -240,7 +240,8 @@ const FACILITIES={
  store:{name:'Loja oficial',icon:'🛍️',base:350000,max:8,effect:'Gera receita extra em jogos e por mês.'},
  museum:{name:'Museu do clube',icon:'🏆',base:500000,max:8,effect:'Aumenta vínculo e alegria da torcida.'},
  press:{name:'Sala de imprensa',icon:'🎙️',base:300000,max:8,effect:'Ajuda a imagem do clube e confiança.'},
- marketing:{name:'Departamento de marketing',icon:'📢',base:450000,max:8,effect:'Alavanca patrocínios, atrai público aos jogos e valoriza a marca.'}
+ marketing:{name:'Departamento de marketing',icon:'📢',base:450000,max:8,effect:'Alavanca patrocínios, atrai público aos jogos e valoriza a marca.'},
+ bank:{name:'Banco & Financiamento',icon:'🏦',base:500000,max:8,effect:'Linhas de crédito para o clube, antecipação com bônus e controle de dívidas.'}
 };
 
 const SPONSOR_BRANDS=[
@@ -5334,7 +5335,7 @@ function defaultInfrastructure(club){
   return {
     stadium:{level:1,capacity:cap},
     parking:{level:0,spots:0},
-    training:{level:1},academy:{level:1},medical:{level:1},admin:{level:1},store:{level:1},museum:{level:1},press:{level:1},marketing:{level:1}
+    training:{level:1},academy:{level:1},medical:{level:1},admin:{level:1},store:{level:1},museum:{level:1},press:{level:1},marketing:{level:1},bank:{level:1}
   };
 }
 
@@ -6257,6 +6258,8 @@ function migrate(s){
   s.infrastructure=s.infrastructure||defaultInfrastructure(clubByName(s.club)||{atk:65,mid:65,def:65});
   if(!s.infrastructure.parking) s.infrastructure.parking = {level:0, spots:0};
   if(!s.infrastructure.marketing) s.infrastructure.marketing = {level:1};
+  if(!s.infrastructure.bank) s.infrastructure.bank = {level:1};
+  s.bankLoans = Array.isArray(s.bankLoans) ? s.bankLoans : [];
   for(const k of Object.keys(FACILITIES)) s.infrastructure[k]=s.infrastructure[k]||{level:1};
   s.ticketPrice=+s.ticketPrice||Math.round(clamp(18+(strength(clubByName(s.club)||{atk:65,mid:65,def:65})-58)*1.7,15,130));
   s.parkingPrice=+s.parkingPrice||25;
@@ -7291,6 +7294,7 @@ function finalizeRound(userRes, winners, isKO){
   processFitness();
   processDevelopment();
   processYouthDevelopment();
+  processBankLoansOnRound();
   const d=new Date(state.date+'T12:00:00');
   d.setDate(d.getDate()+7);
   state.date=d.toISOString().slice(0,10);
@@ -11513,6 +11517,7 @@ function upgradeFacility(key){
   if(key==='museum'||key==='stadium') state.trust.fans=clamp(state.trust.fans+2,0,100);
   if(key==='press') state.trust.board=clamp(state.trust.board+1,0,100);
   if(key==='academy') boostYouthAcademyOnUpgrade(f.level);
+  if(key==='bank') state.news.unshift(`🏦 Banco & Financiamento evoluído para o nível ${f.level}! Limite de crédito ampliado e taxas de juros reduzidas.`);
   state.news.unshift(`${d.name} foi ampliado para o nível ${f.level}, por ${fmtMoney(cost)}.`);
   save();render();toast(`${d.name}: nível ${f.level}.`);
 }
@@ -12766,9 +12771,17 @@ function marketPage(){
             </select>
           </div>
           <div class="filter-field" style="align-self:flex-end;margin-bottom:8px">
-            <label class="check" style="cursor:pointer">
+            <label class="check" style="cursor:pointer;white-space:nowrap">
               <input type="checkbox" id="onlyAffordable"> Apenas no caixa
             </label>
+          </div>
+          <div class="filter-field" style="display:flex;gap:6px;align-self:flex-end;margin-bottom:6px">
+            <button id="btnSearchBuy" class="btn primary" style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-weight:900;padding:8px 18px;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(124,58,237,0.35)">
+              🔍 Pesquisar
+            </button>
+            <button id="btnClearBuyFilters" class="btn" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);font-size:11px;padding:8px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer">
+              Limpar
+            </button>
           </div>
         </div>
       </div>
@@ -12852,9 +12865,17 @@ function marketPage(){
               </select>
             </div>
             <div class="filter-field" style="align-self:flex-end;margin-bottom:8px">
-              <label class="check" style="cursor:pointer">
+              <label class="check" style="cursor:pointer;white-space:nowrap">
                 <input type="checkbox" id="onlyAffordableLoan"> Apenas no caixa
               </label>
+            </div>
+            <div class="filter-field" style="display:flex;gap:6px;align-self:flex-end;margin-bottom:6px">
+              <button id="btnSearchLoan" class="btn primary" style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-weight:900;padding:8px 18px;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(124,58,237,0.35)">
+                🔍 Pesquisar
+              </button>
+              <button id="btnClearLoanFilters" class="btn" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);font-size:11px;padding:8px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer">
+                Limpar
+              </button>
             </div>
           </div>
         </div>
@@ -13736,7 +13757,7 @@ function structurePage(){
 
     ${structureSubTab==='facilities' ? `
       <!-- Atalhos Rápidos Interativos dos Screenshots -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:16px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:16px">
       <button class="btn" id="btnOpenParkingInteractive" style="background:#26180f;border:1px solid #f97316;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:6px">
         <span>🚗</span> <span style="font-size:11px">ESTACIONAMENTO INTERATIVO</span>
       </button>
@@ -13748,6 +13769,9 @@ function structurePage(){
       </button>
       <button class="btn" id="btnOpenTrainingInteractive" style="background:#132e22;border:1px solid #10b981;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px">
         <span>⚽</span> <span>CENTRO DE TREINAMENTO & FOCO</span>
+      </button>
+      <button class="btn" id="btnOpenBankInteractive" style="background:linear-gradient(135deg, #102a1c, #0d3824);border:1px solid #10b981;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px;color:#fff">
+        <span>🏦</span> <span>BANCO & EMPRÉSTIMOS</span>
       </button>
     </div>
 
@@ -13767,12 +13791,22 @@ function structurePage(){
                 ${k==='parking'?`<div class="facility-stat">Vagas: <b>${parkingSpots(x.level).toLocaleString('pt-BR')} vagas</b></div>`:''}
                 ${k==='academy'?`<div class="facility-stat" style="color:var(--neon)">Atletas na Base: <b>${(state.youthAcademy||[]).length} atletas (15 a 18 anos)</b></div>`:''}
                 ${k==='marketing'?`<div class="facility-stat" style="color:var(--cyan)">Aporte Semanal: <b>${fmtMoney(state.marketingWeekly||12000)}/semana</b></div>`:''}
+                ${k==='bank'?`
+                  <div class="facility-stat" style="color:${(state.bankLoans||[]).some(l=>l.overdue)?'#ef4444':'#f59e0b'}">
+                    Dívida Ativa: <b>${fmtMoney(totalBankDebt())}</b> (${(state.bankLoans||[]).length} empréstimo(s))
+                  </div>
+                  <div class="facility-stat" style="color:var(--neon);font-size:11px">
+                    Limite Disponível: <b>${fmtMoney(bankAvailableCredit())}</b>
+                  </div>
+                  ${(state.bankLoans||[]).some(l=>l.overdue)?`<div class="facility-stat" style="color:#ef4444;font-weight:900;font-size:11px">🚨 PARCELA VENCIDA COM JUROS!</div>`:''}
+                `:''}
                 <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
                   <button class="btn ${!max&&state.balance>=cost?'primary':''} upgrade" data-facility="${k}" ${max||state.balance<cost?'disabled':''}>
                     ${max?'Nível Máximo':`Evoluir • ${fmtMoney(cost)}`}
                   </button>
                   ${k==='academy'?`<button class="btn btnOpenAcademy" style="background:#059669;color:#fff;border:none">🌱 Ver Jogadores da Base</button>`:''}
                   ${k==='marketing'?`<button class="btn btnOpenMarketing" style="background:#0284c7;color:#fff;border:none">📢 Gerenciar Marketing</button>`:''}
+                  ${k==='bank'?`<button class="btn btnOpenBank" style="background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;font-weight:900">🏦 Gerenciar Empréstimos</button>`:''}
                 </div>
               </div>
             </div>
@@ -14336,6 +14370,42 @@ function officePage(){
     </div>
 
     ${renderSocioTorcedorCard()}
+
+    <div class="card" style="margin-top:16px;border:1px solid #10b981;background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(6,95,70,0.12))">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:24px">🏦</span>
+            <h2 style="margin:0;color:#fff">Banco & Linhas de Empréstimo do Clube</h2>
+          </div>
+          <div class="small muted" style="margin-top:4px">
+            Crédito financeiro institucional. Contrate empréstimos parcelados, acompanhe parcelas e antecipe com descontos!
+          </div>
+        </div>
+        <button class="btn primary" id="btnOpenBankFromOffice" style="background:linear-gradient(135deg,#10b981,#059669);border:none;font-weight:900;padding:10px 18px;display:flex;align-items:center;gap:8px">
+          🏦 Acessar Banco do Clube
+        </button>
+      </div>
+      <div class="grid g3" style="margin-top:14px">
+        <div class="revenue-metric-tile">
+          <div class="title">Dívida Bancária Ativa</div>
+          <div class="number" style="color:${(state.bankLoans||[]).some(l=>l.overdue)?'#ef4444':'#f59e0b'}">${fmtMoney(totalBankDebt())}</div>
+          <div class="small muted">${(state.bankLoans||[]).length} contrato(s) ativo(s)</div>
+        </div>
+        <div class="revenue-metric-tile">
+          <div class="title">Limite Disponível para Empréstimo</div>
+          <div class="number good">${fmtMoney(bankAvailableCredit())}</div>
+          <div class="small muted">Baseado na infraestrutura e divisão</div>
+        </div>
+        <div class="revenue-metric-tile">
+          <div class="title">Situação Financeira com o Banco</div>
+          <div class="number" style="color:${(state.bankLoans||[]).some(l=>l.overdue)?'#ef4444':'#10b981'}">
+            ${(state.bankLoans||[]).some(l=>l.overdue)?'🚨 Inadimplente (Multa)':(state.bankLoans||[]).length>0?'✓ Em dia (Regular)':'✓ Crédito Livre'}
+          </div>
+          <div class="small muted">${(state.bankLoans||[]).some(l=>l.overdue)?'Regularize para evitar juros crescentes':'Possibilidade de antecipar com bônus'}</div>
+        </div>
+      </div>
+    </div>
 
     <div class="card" style="margin-top:16px">
       <h3>Propostas de Patrocínio Recebidas</h3>
@@ -17475,6 +17545,23 @@ function bind(){
       ['marketQ','marketPos','marketMin','onlyAffordable'].forEach(id=>{
         const e=$('#'+id); if(e){e.oninput=renderMarketBuy;e.onchange=renderMarketBuy}
       });
+      const btnSrchBuy = $('#btnSearchBuy');
+      if(btnSrchBuy) btnSrchBuy.onclick = () => renderMarketBuy();
+      const btnClrBuy = $('#btnClearBuyFilters');
+      if(btnClrBuy) btnClrBuy.onclick = () => {
+        if($('#marketRegion')) $('#marketRegion').value = '';
+        if($('#marketCountry')) $('#marketCountry').value = '';
+        if($('#marketComp')) $('#marketComp').value = '';
+        if($('#marketClub')) $('#marketClub').value = '';
+        if($('#marketQ')) $('#marketQ').value = '';
+        if($('#marketPos')) $('#marketPos').value = '';
+        if($('#marketMin')) $('#marketMin').value = '0';
+        if($('#onlyAffordable')) $('#onlyAffordable').checked = false;
+        bindMarketFilters();
+        renderMarketBuy();
+      };
+      const mq = $('#marketQ');
+      if(mq) mq.onkeydown = (e) => { if(e.key === 'Enter') renderMarketBuy(); };
     } else if(marketTab==='loan'){
       $$('.btn-loan-sub').forEach(b => b.onclick = () => { loanSubTab = b.dataset.loanSub; render(); });
       if(loanSubTab === 'borrow'){
@@ -17482,6 +17569,24 @@ function bind(){
         ['loanQ','loanPos','loanMin','onlyAffordableLoan','selectLoanOrder'].forEach(id=>{
           const e=$('#'+id); if(e){ e.oninput=renderMarketLoans; e.onchange=renderMarketLoans; }
         });
+        const btnSrchLoan = $('#btnSearchLoan');
+        if(btnSrchLoan) btnSrchLoan.onclick = () => renderMarketLoans();
+        const btnClrLoan = $('#btnClearLoanFilters');
+        if(btnClrLoan) btnClrLoan.onclick = () => {
+          if($('#loanRegion')) $('#loanRegion').value = '';
+          if($('#loanCountry')) $('#loanCountry').value = '';
+          if($('#loanComp')) $('#loanComp').value = '';
+          if($('#loanClub')) $('#loanClub').value = '';
+          if($('#loanQ')) $('#loanQ').value = '';
+          if($('#loanPos')) $('#loanPos').value = '';
+          if($('#loanMin')) $('#loanMin').value = '0';
+          if($('#onlyAffordableLoan')) $('#onlyAffordableLoan').checked = false;
+          loanPosFilter = 'TODAS';
+          bindLoanFilters();
+          renderMarketLoans();
+        };
+        const lq = $('#loanQ');
+        if(lq) lq.onkeydown = (e) => { if(e.key === 'Enter') renderMarketLoans(); };
         $$('.btn-loan-pos-pill').forEach(b => b.onclick = () => {
           loanPosFilter = b.dataset.pos;
           const posSel = $('#loanPos');
@@ -17513,6 +17618,9 @@ function bind(){
     $$('.upgrade').forEach(b=>b.onclick=()=>upgradeFacility(b.dataset.facility));
     $$('.btnOpenAcademy').forEach(b=>b.onclick=openYouthAcademyModal);
     $$('.btnOpenMarketing').forEach(b=>b.onclick=openMarketingModal);
+    $$('.btnOpenBank').forEach(b=>b.onclick=openBankLoansModal);
+    const bnkInteractive = $('#btnOpenBankInteractive');
+    if(bnkInteractive) bnkInteractive.onclick = openBankLoansModal;
     const r=$('#ticketPrice');
     const p=$('#parkingPrice');
 
@@ -17552,6 +17660,8 @@ function bind(){
   }
 
   if(view==='escritorio'){
+    const bnkOfficeBtn = $('#btnOpenBankFromOffice');
+    if(bnkOfficeBtn) bnkOfficeBtn.onclick = openBankLoansModal;
     const mktOfficeBtn = $('#btnOpenMarketingFromOffice');
     if(mktOfficeBtn) mktOfficeBtn.onclick = openMarketingModal;
     $$('.btnSignSponsor').forEach(b=>{
