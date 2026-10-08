@@ -1,0 +1,16880 @@
+(function(){
+'use strict';
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const STORAGE='aquino_futebol_manager_2026_v1';
+const fmtMoney=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(Number(v)||0);
+const fmtMi=v=>`R$ ${Number(v||0).toFixed(1).replace('.',',')} mi`;
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const norm=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const initials=s=>(s||'CL').split(/\s+/).filter(Boolean).slice(0,3).map(x=>x[0]).join('').toUpperCase();
+const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const hashStr=s=>{let h=2166136261;for(const ch of String(s)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h>>>0)};
+
+// =============================================================
+// MODOS DE BANCO DE DADOS: MODO PADRÃO (GENÉRICO) & MOD DA COMUNIDADE (OFICIAL)
+// =============================================================
+let currentDbMode = localStorage.getItem('aquino_fm_db_mode') || 'mod'; // 'standard' | 'mod'
+
+function getDbMode(){
+  return currentDbMode;
+}
+
+function setDbMode(m){
+  currentDbMode = (m === 'standard' ? 'standard' : 'mod');
+  localStorage.setItem('aquino_fm_db_mode', currentDbMode);
+}
+
+const GENERIC_CLUB_NAMES = {
+  // Série A
+  'Athletico Paranaense': 'Curitiba Rubro-Negro',
+  'Atlético-MG': 'Belo Horizonte Alvinegro',
+  'Bahia': 'Salvador Tricolor',
+  'Botafogo': 'Rio Estrela Solitária',
+  'Chapecoense': 'Chapecó Índio',
+  'Corinthians': 'SP Alvinegro',
+  'Coritiba': 'Curitiba Coxa',
+  'Cruzeiro': 'Belo Horizonte Celeste',
+  'Flamengo': 'Rio Rubro-Negro',
+  'Fluminense': 'Rio Tricolor',
+  'Fortaleza': 'Fortaleza Leão',
+  'Grêmio': 'Porto Alegre Tricolor',
+  'Internacional': 'Porto Alegre Colorado',
+  'Juventude': 'Caxias Verde',
+  'Mirassol': 'Interior Paulista FC',
+  'Palmeiras': 'SP Alviverde',
+  'Red Bull Bragantino': 'Bragança Paulista FC',
+  'Santos': 'Santos Litoral',
+  'São Paulo': 'SP Tricolor Paulista',
+  'Vasco': 'Rio Cruzmaltino',
+  'Vitória': 'Salvador Rubro-Negro',
+  'Cuiabá': 'Cuiabá Dourado',
+  'Criciúma': 'Criciúma Tigre',
+  'Atlético-GO': 'Goiânia Dragão',
+
+  // Série B / C / Regionais
+  'América-MG': 'Belo Horizonte Coelho',
+  'Amazonas': 'Manaus Onça',
+  'Avaí': 'Florianópolis Leão',
+  'Botafogo-SP': 'Ribeirão Preto Pantera',
+  'Brusque': 'Brusque Quadricolor',
+  'Ceará': 'Fortaleza Vozão',
+  'Goiás': 'Goiânia Esmeraldino',
+  'Guarani': 'Campinas Bugre',
+  'Ituano': 'Itu Galo',
+  'Novorizontino': 'Novo Horizonte Tigre',
+  'Operário-PR': 'Ponta Grossa Fantasma',
+  'Paysandu': 'Belém Papão',
+  'Ponte Preta': 'Campinas Macaca',
+  'Sport': 'Recife Leão',
+  'Vila Nova': 'Goiânia Tigrão',
+  'Figueirense': 'Florianópolis Furacão',
+  'Náutico': 'Recife Timbu',
+  'Remo': 'Belém Leão',
+  'Santa Cruz': 'Recife Coral',
+  'Londrina': 'Londrina Tubarão',
+  'Brasiliense': 'Brasília Amarelo',
+  'Gama': 'Brasília Verde',
+  'Ceilândia': 'Ceilândia Gato Preto',
+  'Capital-DF': 'Brasília Capital',
+  'Real Brasília': 'Brasília Real',
+
+  // Europa & Internacionais
+  'Real Madrid': 'Madrid Blanco',
+  'Barcelona': 'Catalunha Blaugrana',
+  'Atlético de Madrid': 'Madrid Colchonero',
+  'Manchester City': 'Manchester Sky Blue',
+  'Manchester United': 'Manchester Red',
+  'Liverpool': 'Merseyside Red',
+  'Chelsea': 'London Blues',
+  'Arsenal': 'North London Red',
+  'Tottenham': 'North London Lilywhites',
+  'Bayern München': 'Bavaria Rot',
+  'Borussia Dortmund': 'Ruhrgelb',
+  'Paris Saint-Germain': 'Paris Rouge-Bleu',
+  'PSG': 'Paris Rouge-Bleu',
+  'Juventus': 'Piemonte Bianco-Nero',
+  'Internazionale': 'Milano Nerazzurri',
+  'Inter de Milão': 'Milano Nerazzurri',
+  'Milan': 'Milano Rossoneri',
+  'AC Milan': 'Milano Rossoneri',
+  'Napoli': 'Campania Azzurri',
+  'Benfica': 'Lisboa Vermelho',
+  'Sporting': 'Lisboa Verde',
+  'Porto': 'Porto Dragão',
+  'Boca Juniors': 'Buenos Aires Azul y Oro',
+  'River Plate': 'Buenos Aires Banda Roja',
+  'Peñarol': 'Montevideo Carbonero',
+  'Nacional': 'Montevideo Tricolor',
+  'Al-Hilal': 'Riyadh Blue',
+  'Al-Nassr': 'Riyadh Yellow',
+  'Al-Ittihad': 'Jeddah Gold',
+  'Inter Miami': 'Miami Heron'
+};
+
+function getGenericClubName(realName){
+  if(!realName) return 'Clube Esportivo';
+  if(GENERIC_CLUB_NAMES[realName]) return GENERIC_CLUB_NAMES[realName];
+  for(const [k, v] of Object.entries(GENERIC_CLUB_NAMES)){
+    if(norm(k) === norm(realName)) return v;
+  }
+  const cleaned = realName.replace(/fc|sc|ec|cr|clube|futebol|esporte|atlético|atletico/gi, '').trim();
+  return cleaned ? `${cleaned} FC` : `${realName} FC`;
+}
+
+function clubDisplayName(name){
+  if(getDbMode() === 'standard'){
+    return getGenericClubName(name);
+  }
+  return name;
+}
+
+function renderGenericProceduralBadge(name, size=32){
+  const genName = getGenericClubName(name);
+  const inits = initials(genName);
+  const h = hashStr(name || 'Generic');
+  const palette = [
+    ['#1e293b', '#475569', '#f8fafc'],
+    ['#dc2626', '#991b1b', '#fef2f2'],
+    ['#16a34a', '#166534', '#f0fdf4'],
+    ['#2563eb', '#1e40af', '#eff6ff'],
+    ['#7c3aed', '#5b21b6', '#faf5ff'],
+    ['#d97706', '#92400e', '#fffbeb'],
+    ['#0891b2', '#155e75', '#ecfeff'],
+    ['#475569', '#0f172a', '#e2e8f0']
+  ][h % 8];
+  const [c1, c2, cText] = palette;
+  const fSize = Math.max(8, Math.round(15 * Math.min(1, 2 / Math.max(1, inits.length))));
+  return `<svg width="${size}" height="${size}" viewBox="0 0 40 44" class="crest-generic-svg" style="border-radius:4px;flex-shrink:0;vertical-align:middle;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="genGrad_${h}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/></linearGradient></defs><path d="M4 4 Q20 0 36 4 Q38 24 20 42 Q2 24 4 4 Z" fill="url(#genGrad_${h})" stroke="rgba(255,255,255,0.25)" stroke-width="2"/><path d="M7 7 Q20 3 33 7 Q35 22 20 37 Q5 22 7 7 Z" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/><text x="20" y="25" text-anchor="middle" fill="${cText}" font-size="${fSize}" font-weight="900" font-family="system-ui, sans-serif" letter-spacing="0.5">${esc(inits)}</text></svg>`;
+}
+
+function clubBadge(name, size=32){
+  if(getDbMode() === 'standard'){
+    return renderGenericProceduralBadge(name, size);
+  }
+  if(typeof window.renderClubBadge === 'function'){
+    return window.renderClubBadge(name, size);
+  }
+  return `<div class="crest" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.4)}px">${esc(initials(name))}</div>`;
+}
+
+
+function playerPhoto(p, size=36){
+  const name = typeof p === 'string' ? p : p?.name;
+  const pos = typeof p === 'object' ? (p?.pos || 'ST') : 'ST';
+  if(getDbMode() === 'standard'){
+    return renderPlayerAvatarFallback(name, pos, size);
+  }
+  const photos = window.PLAYER_PHOTOS || {};
+  const photoUrl = photos[name] || photos[norm(name)];
+  if(photoUrl){
+    return `<img src="${photoUrl}" alt="${esc(name)}" class="player-avatar" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;background:#1e293b;border:2px solid rgba(168,85,247,0.35);box-shadow:0 2px 8px rgba(0,0,0,0.35);flex-shrink:0" loading="lazy" onerror="this.outerHTML=renderPlayerAvatarFallback('${esc(name)}','${esc(pos)}',${size})">`;
+  }
+  return renderPlayerAvatarFallback(name, pos, size);
+}
+
+function renderPlayerAvatarFallback(name, pos, size=36){
+  const h = hashStr(name || 'Player');
+  const jerseyColors = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#6366f1'];
+  const skinTones = ['#f8d9b6', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#e8beac'];
+  const hairColors = ['#1a1a1a', '#4a2c11', '#2e1d0d', '#6e4720', '#171717', '#e6c280'];
+  
+  const jCol = jerseyColors[h % jerseyColors.length];
+  const sTone = skinTones[(h >> 3) % skinTones.length];
+  const hCol = hairColors[(h >> 6) % hairColors.length];
+
+  return `<svg width="${size}" height="${size}" viewBox="0 0 40 40" class="player-avatar" style="border-radius:50%;border:1px solid rgba(255,255,255,0.18);box-shadow:0 2px 6px rgba(0,0,0,0.4);flex-shrink:0;background:#0f172a" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="20" cy="20" r="19" fill="#1e293b"/>
+    <path d="M7 40 C7 31 13 28 20 28 C27 28 33 31 33 40 Z" fill="${jCol}"/>
+    <path d="M16 28 L20 32 L24 28 Z" fill="#ffffff" opacity="0.9"/>
+    <rect x="18" y="24" width="4" height="5" fill="${sTone}"/>
+    <ellipse cx="20" cy="18" rx="6.5" ry="8" fill="${sTone}"/>
+    <path d="M13.5 17 C13.5 11 15 9 20 9 C25 9 26.5 11 26.5 17 C25 14 23 13 20 13 C17 13 15 14 13.5 17 Z" fill="${hCol}"/>
+    ${size >= 34 ? `<circle cx="32" cy="8" r="5.5" fill="#090d16" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/><text x="32" y="10" font-size="5" font-weight="900" fill="#38bdf8" text-anchor="middle" font-family="sans-serif">${esc(pos||'ST').slice(0,2)}</text>` : ''}
+  </svg>`;
+}
+
+const NAMES=['Gabriel','Lucas','Matheus','Rafael','Bruno','Gustavo','Caio','João','Pedro','André','Felipe','Diego','Thiago','Henrique','Victor','Murilo','Samuel','Daniel','Arthur','Vinícius','Nicolas','Eduardo','Leonardo','Igor','Renan','Rodrigo','Cristian','Marcos','Alexandre','Miguel','Davi','Wesley','Ruan','Kauã','Yuri','Danilo','Luan','Vitor'];
+const LAST=['Silva','Santos','Oliveira','Costa','Pereira','Souza','Rodrigues','Almeida','Lima','Gomes','Martins','Rocha','Ribeiro','Carvalho','Mendes','Barbosa','Freitas','Nunes','Moreira','Cardoso','Teixeira','Moura','Araújo','Monteiro','Ferreira'];
+const POSITIONS=['GK','GK','RB','CB','CB','CB','LB','DM','DM','CM','CM','AM','RW','RW','LW','LW','ST','ST','CF','RB','LB','CM','AM','CB','ST'];
+
+const FORMATIONS={
+ '4-3-3':[
+  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'CM',x:27,y:49,g:'mid'},{r:'DM',x:50,y:56,g:'mid'},{r:'CM',x:73,y:49,g:'mid'},
+  {r:'LW',x:18,y:23,g:'atk'},{r:'ST',x:50,y:15,g:'atk'},{r:'RW',x:82,y:23,g:'atk'}],
+ '4-2-3-1':[
+  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'DM',x:37,y:55,g:'mid'},{r:'DM',x:63,y:55,g:'mid'},{r:'LW',x:18,y:35,g:'mid'},{r:'AM',x:50,y:36,g:'mid'},{r:'RW',x:82,y:35,g:'mid'},{r:'ST',x:50,y:14,g:'atk'}],
+ '4-4-2':[
+  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'LW',x:14,y:45,g:'mid'},{r:'CM',x:39,y:49,g:'mid'},{r:'CM',x:61,y:49,g:'mid'},{r:'RW',x:86,y:45,g:'mid'},{r:'ST',x:38,y:18,g:'atk'},{r:'ST',x:62,y:18,g:'atk'}],
+ '3-5-2':[
+  {r:'GK',x:50,y:89,g:'def'},{r:'CB',x:25,y:70,g:'def'},{r:'CB',x:50,y:74,g:'def'},{r:'CB',x:75,y:70,g:'def'},
+  {r:'LW',x:10,y:48,g:'mid'},{r:'CM',x:35,y:50,g:'mid'},{r:'DM',x:50,y:58,g:'mid'},{r:'CM',x:65,y:50,g:'mid'},{r:'RW',x:90,y:48,g:'mid'},
+  {r:'ST',x:38,y:18,g:'atk'},{r:'ST',x:62,y:18,g:'atk'}],
+ '5-3-2':[
+  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:8,y:68,g:'def'},{r:'CB',x:29,y:73,g:'def'},{r:'CB',x:50,y:76,g:'def'},{r:'CB',x:71,y:73,g:'def'},{r:'RB',x:92,y:68,g:'def'},
+  {r:'CM',x:28,y:48,g:'mid'},{r:'DM',x:50,y:55,g:'mid'},{r:'CM',x:72,y:48,g:'mid'},{r:'ST',x:38,y:18,g:'atk'},{r:'ST',x:62,y:18,g:'atk'}],
+ '4-1-4-1':[
+  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'DM',x:50,y:58,g:'mid'},{r:'LM',x:14,y:40,g:'mid'},{r:'CM',x:38,y:42,g:'mid'},{r:'CM',x:62,y:42,g:'mid'},{r:'RM',x:86,y:40,g:'mid'},{r:'ST',x:50,y:16,g:'atk'}],
+ '4-5-1':[
+  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'DM',x:38,y:55,g:'mid'},{r:'DM',x:62,y:55,g:'mid'},{r:'LM',x:14,y:38,g:'mid'},{r:'AM',x:50,y:34,g:'mid'},{r:'RM',x:86,y:38,g:'mid'},{r:'ST',x:50,y:15,g:'atk'}],
+ '3-4-3':[
+  {r:'GK',x:50,y:89,g:'def'},{r:'CB',x:25,y:72,g:'def'},{r:'CB',x:50,y:75,g:'def'},{r:'CB',x:75,y:72,g:'def'},
+  {r:'LM',x:12,y:48,g:'mid'},{r:'CM',x:38,y:50,g:'mid'},{r:'CM',x:62,y:50,g:'mid'},{r:'RM',x:88,y:48,g:'mid'},
+  {r:'LW',x:18,y:22,g:'atk'},{r:'ST',x:50,y:15,g:'atk'},{r:'RW',x:82,y:22,g:'atk'}]
+};
+
+const FACILITIES={
+ stadium:{name:'Estádio',icon:'🏟️',base:1800000,max:8,effect:'Aumenta a capacidade do estádio e a bilheteria.'},
+ parking:{name:'Estacionamento',icon:'🚗',base:350000,max:6,effect:'Gera receita com vagas de estacionamento em jogos em casa.'},
+ training:{name:'Centro de treinamento',icon:'⚽',base:650000,max:8,effect:'Melhora evolução, treino e recuperação física.'},
+ academy:{name:'Categorias de base',icon:'🌱',base:500000,max:8,effect:'Aumenta a qualidade dos jovens revelados.'},
+ medical:{name:'Departamento médico',icon:'✚',base:450000,max:8,effect:'Acelera recuperação e reduz impacto físico.'},
+ admin:{name:'Sede administrativa',icon:'🏢',base:400000,max:8,effect:'Melhora contratos, patrocínio e gestão.'},
+ store:{name:'Loja oficial',icon:'🛍️',base:350000,max:8,effect:'Gera receita extra em jogos e por mês.'},
+ museum:{name:'Museu do clube',icon:'🏆',base:500000,max:8,effect:'Aumenta vínculo e alegria da torcida.'},
+ press:{name:'Sala de imprensa',icon:'🎙️',base:300000,max:8,effect:'Ajuda a imagem do clube e confiança.'},
+ marketing:{name:'Departamento de marketing',icon:'📢',base:450000,max:8,effect:'Alavanca patrocínios, atrai público aos jogos e valoriza a marca.'}
+};
+
+const SPONSOR_BRANDS=[
+  {name:'iFood',category:'Master',color:'#ea1d2c',desc:'Delivery líder do Brasil',bonusWin:45000},
+  {name:'Betano',category:'Master',color:'#f35b04',desc:'Casa de apostas oficial do Brasileirão',bonusWin:55000},
+  {name:'Samsung',category:'Master',color:'#1428a0',desc:'Gigante de tecnologia e eletrônicos',bonusWin:50000},
+  {name:'BYD',category:'Master',color:'#009e60',desc:'Líder em inovação e carros elétricos',bonusWin:60000},
+  {name:'Fatal Model',category:'Mangas',color:'#6b21a8',desc:'Patrocinadora tradicional do futebol nacional',bonusWin:20000},
+  {name:'GOL Linhas Aéreas',category:'Mangas',color:'#ff7020',desc:'Companhia aérea oficial do futebol',bonusWin:25000},
+  {name:'Casas Bahia',category:'Costas',color:'#004691',desc:'Varejo tradicional brasileiro',bonusWin:22000},
+  {name:'Cimed',category:'Mangas',color:'#eab308',desc:'Farmacêutica parceira do futebol',bonusWin:24000},
+  {name:'Nubank',category:'Costas',color:'#820ad1',desc:'Banco digital moderno',bonusWin:28000},
+  {name:'Pixbet',category:'Costas',color:'#1e40af',desc:'Apostas esportivas rápidas',bonusWin:30000}
+];
+
+const livePlayers=Array.isArray(window.LIVE_PLAYERS)?window.LIVE_PLAYERS:[];
+const teamMap=window.COMPETITION_TEAMS||{};
+
+let view='central';
+let marketTab='buy';
+let seasonTab='nacional';
+let continentalTab='sulamericana';
+let configTab='save';
+let squadFilter='ALL';
+let calendarFilter='ALL';
+let squadViewMode='roster';
+let salarySort='salary';
+let statsTab='scorers';
+let selectedEstadualId=null;
+let estadualRound=1;
+let clubs=buildClubs();
+let state=load();
+state=migrate(state);
+if(state){
+  try {
+    repairSaveIfCorrupted(state);
+    save();
+  } catch(e){}
+}
+
+// =========================================
+// ESTÁDIO, LOJA OFICIAL E CENTRO DE TREINAMENTO
+// =========================================
+
+// =========================================================================
+// SISTEMAS DE ESTÁDIO INTERATIVO, LOJA OFICIAL E CENTRO DE TREINAMENTO
+// =========================================================================
+
+
+// =========================================================================
+// SISTEMA DE ESTACIONAMENTO INTERATIVO (SCREENSHOT 6)
+// =========================================================================
+const PARKING_LEVELS = [
+  { level: 0, name: 'Sem Estacionamento', spots: 0, cost: 0, days: 0 },
+  { level: 1, name: 'Terreno de Terra', spots: 300, cost: 32400, days: 15 },
+  { level: 2, name: 'Estacionamento Asfaltado', spots: 1000, cost: 75000, days: 25 },
+  { level: 3, name: 'Estacionamento Coberto', spots: 2500, cost: 160000, days: 40 },
+  { level: 4, name: 'Edifício Garagem', spots: 5000, cost: 320000, days: 60 },
+  { level: 5, name: 'Complexo Multinível Inteligente', spots: 10000, cost: 650000, days: 90 }
+];
+
+function openParkingModal(){
+  let el = $('#parkingVisualModalContainer');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'parkingVisualModalContainer';
+    document.body.appendChild(el);
+  }
+
+  state.infrastructure = state.infrastructure || {};
+  state.infrastructure.parking = state.infrastructure.parking || { level: 0, spots: 0 };
+  const curLvl = state.infrastructure.parking.level || 0;
+  const curLvlObj = PARKING_LEVELS[curLvl] || PARKING_LEVELS[0];
+  const nextLvlObj = PARKING_LEVELS[curLvl + 1] || null;
+
+  const f = userFixture();
+  const opp = f && f[0] === state.club ? f[1] : (f ? f[0] : 'Adversário');
+  const proj = attendanceProjection(opp);
+  const avgAtt = proj.attendance || 2500;
+  const price = state.parkingPrice || 14;
+
+  const carsSeeking = Math.round(avgAtt * 0.12);
+  const carsParked = Math.min(curLvlObj.spots, carsSeeking);
+  const revenuePerGame = carsParked * price;
+
+  const nextCarsParked = nextLvlObj ? Math.min(nextLvlObj.spots, carsSeeking) : 0;
+  const nextRevPerGame = nextCarsParked * price;
+  const hasExtraSpots = curLvlObj.spots >= carsSeeking && curLvlObj.spots > 0;
+
+  el.innerHTML = `
+    <div class="visual-modal-overlay">
+      <div class="visual-modal-card">
+        
+        <!-- ================= LADO ESQUERDO: TERRENO PIXEL-ART (Screenshot 6) ================= -->
+        <div class="visual-canvas-left">
+          
+          <div style="background:#1a1438;border:2px solid #a855f7;box-shadow:0 0 16px rgba(168,85,247,0.4);padding:6px 18px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:1px;color:#fff;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+            <span>🚗</span>
+            <span>ESTACIONAMENTO</span>
+          </div>
+
+          <!-- Terreno com Borda Roxa Tracejada (Screenshot 6) -->
+          <div style="position:relative;width:95%;max-width:540px;aspect-ratio:1.2;background:${curLvl===0?'#927254':curLvl===1?'#816447':'#1e2530'};border:3px dashed #c084fc;border-radius:18px;box-shadow:0 0 25px rgba(192,132,252,0.35);padding:14px;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            
+            ${curLvl === 0 ? `
+              <!-- Nível 0: Placa de Madeira no Terreno de Terra Batida (Screenshot 6) -->
+              <div style="position:relative;text-align:center">
+                <div style="width:70px;height:42px;background:#ffffff;border:3px solid #1e3a8a;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(0,0,0,0.5)">
+                  <div style="width:48px;height:6px;background:#1e3a8a;border-radius:2px;margin-bottom:3px"></div>
+                  <div style="width:36px;height:4px;background:#3b82f6;border-radius:2px"></div>
+                </div>
+                <!-- Haste de Madeira da Placa -->
+                <div style="width:8px;height:24px;background:#5c3a21;margin:0 auto;box-shadow:0 2px 4px rgba(0,0,0,0.4)"></div>
+              </div>
+            ` : curLvl === 1 ? `
+              <!-- Nível 1: Terreno com pedriscos e alguns carros -->
+              <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:14px">
+                <div style="font-size:24px">🚗</div>
+                <div style="font-size:24px">🚙</div>
+                <div style="font-size:24px;opacity:0.3">🔲</div>
+                <div style="font-size:24px">🚗</div>
+                <div style="font-size:24px;opacity:0.3">🔲</div>
+              </div>
+            ` : `
+              <!-- Níveis 2+: Asfalto e Múltiplos Carros Coloridos -->
+              <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:10px;width:100%;padding:10px">
+                ${[...Array(18)].map((_, i) => `
+                  <div style="border:1px dashed rgba(255,255,255,0.25);border-radius:6px;padding:6px;text-align:center">
+                    <span style="font-size:20px">${i % 3 === 0 ? '🚗' : i % 3 === 1 ? '🚙' : '🚘'}</span>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+
+          </div>
+
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:12px;text-align:center">
+            Vagas demarcadas próximas ao estádio para atender torcedores em dias de jogos e eventos
+          </div>
+        </div>
+
+        <!-- ================= LADO DIREITO: PAINEL DE CONTROLE (Screenshot 6) ================= -->
+        <div class="visual-panel-right">
+          
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px">ESTACIONAMENTO DO CLUBE</div>
+              <h2 style="margin:2px 0 0 0;font-size:20px;font-weight:900;color:#fff;text-transform:uppercase">ESTACIONAMENTO</h2>
+            </div>
+            <button class="btn" id="btnCloseParkingModal" style="background:rgba(255,255,255,0.08);border:none;padding:6px 10px;font-size:14px;border-radius:8px">✕</button>
+          </div>
+
+          <!-- Card de Status Atual (Screenshot 6) -->
+          <div style="background:#161226;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase">${curLvlObj.name}</span>
+              <span style="font-size:11px;color:rgba(255,255,255,0.5)">nível ${curLvl} de 5</span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:14px;text-align:center">
+              <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
+                <div style="font-size:18px;font-weight:900;color:#fff">${curLvlObj.spots.toLocaleString('pt-BR')}</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.4)">vagas</div>
+              </div>
+              <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
+                <div style="font-size:18px;font-weight:900;color:#f59e0b">${carsParked.toLocaleString('pt-BR')}</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.4)">carros por jogo</div>
+              </div>
+              <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
+                <div style="font-size:18px;font-weight:900;color:#22c55e">${fmtMoney(revenuePerGame)}</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.4)">por jogo</div>
+              </div>
+            </div>
+
+            <p style="font-size:11px;color:rgba(255,255,255,0.7);line-height:1.5;margin:12px 0 0 0">
+              Vaga a <b>${fmtMoney(price)} por jogo</b>. Os carros vêm do público: com <b>${avgAtt.toLocaleString('pt-BR')} torcedores em média</b>, uns <b>${carsSeeking.toLocaleString('pt-BR')} procuram vaga</b>. Quem não acha vaga para na rua e o clube não ganha.
+            </p>
+
+            <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between">
+              <span class="muted" style="font-size:11px">Ajustar Preço da Vaga:</span>
+              <input type="range" id="rngParkingPriceModal" min="10" max="60" step="2" value="${price}" style="width:140px">
+              <b style="color:var(--neon);font-size:14px" id="lblParkingPriceModal">${fmtMoney(price)}</b>
+            </div>
+          </div>
+
+          <!-- Card de Próxima Obra (Screenshot 6) -->
+          ${nextLvlObj ? `
+            <div style="background:#161226;border:1px solid #7c3aed;border-radius:14px;padding:16px;margin-top:auto">
+              <div style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase">
+                PRÓXIMA OBRA · ${nextLvlObj.name.toUpperCase()}
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:14px;text-align:center">
+                <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
+                  <div style="font-size:16px;font-weight:900;color:#22c55e">${nextLvlObj.spots.toLocaleString('pt-BR')}</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.4)">vagas</div>
+                </div>
+                <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
+                  <div style="font-size:16px;font-weight:900;color:#fff">${nextLvlObj.days}</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.4)">dias de obra</div>
+                </div>
+                <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
+                  <div style="font-size:16px;font-weight:900;color:#22c55e">${fmtMoney(nextRevPerGame)}</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.4)">por jogo, com o público de hoje</div>
+                </div>
+              </div>
+
+              <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:12px">
+                Custa <b>${fmtMoney(nextLvlObj.cost)}</b>.
+              </div>
+
+              <div style="font-size:10px;color:${hasExtraSpots?'#facc15':'rgba(255,255,255,0.5)'};margin-top:4px;line-height:1.4">
+                ${hasExtraSpots 
+                  ? 'Hoje já sobram vagas: com o público atual, este nível não traz renda a mais. Vale quando o estádio encher mais.' 
+                  : 'Faltam vagas nos dias de casa: a ampliação captará motoristas que hoje estacionam na rua!'}
+              </div>
+
+              <button class="btn primary" id="btnStartParkingUpgrade" style="width:100%;margin-top:14px;padding:12px;font-size:13px;font-weight:900;border-radius:10px">
+                COMEÇAR A OBRA
+              </button>
+            </div>
+          ` : `
+            <div style="background:#161226;border:1px solid #22c55e;border-radius:14px;padding:16px;text-align:center;color:#22c55e;font-weight:800;font-size:13px">
+              ✓ ESTACIONAMENTO NO NÍVEL MÁXIMO
+            </div>
+          `}
+
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Bindings Estacionamento
+  $('#btnCloseParkingModal').onclick = () => { el.remove(); };
+
+  const rngPrice = $('#rngParkingPriceModal');
+  if(rngPrice){
+    rngPrice.oninput = () => {
+      state.parkingPrice = +rngPrice.value;
+      const lbl = $('#lblParkingPriceModal');
+      if(lbl) lbl.textContent = fmtMoney(state.parkingPrice);
+    };
+    rngPrice.onchange = () => {
+      save();
+      openParkingModal();
+    };
+  }
+
+  const btnUp = $('#btnStartParkingUpgrade');
+  if(btnUp && nextLvlObj){
+    btnUp.onclick = () => {
+      if(state.balance < nextLvlObj.cost){
+        toast('Saldo insuficiente no caixa para realizar a obra do estacionamento!');
+        return;
+      }
+      state.balance -= nextLvlObj.cost;
+      state.expense = (state.expense || 0) + nextLvlObj.cost;
+      state.infrastructure.parking.level++;
+      state.infrastructure.parking.spots = nextLvlObj.spots;
+      toast(`🎉 Obra iniciada! O estacionamento avançou para ${nextLvlObj.name}!`);
+      save();
+      openParkingModal();
+    };
+  }
+}
+
+// =========================================================================
+// SISTEMA DE MANUTENÇÃO DO ESTÁDIO, CONVITES DE SHOWS E GRAMADO
+// =========================================================================
+
+function getStadiumMaintenanceData(){
+  state.stadiumMaintenance = state.stadiumMaintenance ?? 90;
+  state.stadiumPitchType = state.stadiumPitchType || 'natural'; // 'natural' | 'hybrid' | 'synthetic'
+
+  let statusText = 'Excelente';
+  let statusColor = '#22c55e';
+  if(state.stadiumMaintenance >= 85){ statusText = 'Excelente (Impecável)'; statusColor = '#22c55e'; }
+  else if(state.stadiumMaintenance >= 65){ statusText = 'Bom (Conservado)'; statusColor = '#38bdf8'; }
+  else if(state.stadiumMaintenance >= 40){ statusText = 'Regular (Desgaste notável)'; statusColor = '#facc15'; }
+  else if(state.stadiumMaintenance >= 20){ statusText = 'Ruim (Gramado esburacado)'; statusColor = '#f97316'; }
+  else { statusText = 'Crítico (Risco de interdição!)'; statusColor = '#ef4444'; }
+
+  return {
+    val: state.stadiumMaintenance,
+    statusText,
+    statusColor,
+    pitch: state.stadiumPitchType
+  };
+}
+
+// Reparo e Manutenção
+function repairStadium(mode){
+  const cost = mode === 'quick' ? 25000 : 75000;
+  if(state.balance < cost){
+    toast('Saldo insuficiente para realizar a manutenção do estádio!');
+    return;
+  }
+  state.balance -= cost;
+  state.expense = (state.expense || 0) + cost;
+
+  if(mode === 'quick'){
+    state.stadiumMaintenance = Math.min(100, (state.stadiumMaintenance || 70) + 25);
+    toast('🔧 Reparo rápido do gramado realizado com sucesso (+25% conservação)!');
+  } else {
+    state.stadiumMaintenance = 100;
+    toast('🏛️ Reforma e manutenção geral da estrutura concluída (100% conservação)!');
+  }
+  save();
+  openStadiumModal('maintenance');
+}
+
+// Troca / Evolução do Gramado
+function installPitchType(type){
+  const costs = { natural: 0, hybrid: 150000, synthetic: 220000 };
+  const cost = costs[type] || 0;
+  if(state.balance < cost){
+    toast('Saldo insuficiente para instalar este tipo de gramado!');
+    return;
+  }
+  state.balance -= cost;
+  state.expense = (state.expense || 0) + cost;
+  state.stadiumPitchType = type;
+  toast(`🌱 Novo gramado (${type.toUpperCase()}) instalado no estádio!`);
+  save();
+  openStadiumModal('maintenance');
+}
+
+// Aceitar / Recusar Aluguel de Clube
+function acceptClubRental(){
+  if(!state.stadiumClubRental) return;
+  const r = state.stadiumClubRental;
+  state.balance += r.fee;
+  state.income = (state.income || 0) + r.fee;
+
+  // Desgaste: sintético sofre bem menos
+  const wear = state.stadiumPitchType === 'synthetic' ? 2 : 6;
+  state.stadiumMaintenance = Math.max(5, (state.stadiumMaintenance || 90) - wear);
+
+  state.news.unshift(`🏟️ ESTÁDIO ALUGADO: O ${r.club} jogou no nosso estádio pagando ${fmtMoney(r.fee)} de aluguel.`);
+  toast(`Contrato de aluguel fechado! +${fmtMoney(r.fee)} creditados no caixa.`);
+  state.stadiumClubRental = null;
+  state.pendingDecision = null;
+  save();
+  openStadiumModal('maintenance');
+}
+
+function rejectClubRental(){
+  state.stadiumClubRental = null;
+  state.pendingDecision = null;
+  toast('Proposta de aluguel recusada.');
+  save();
+  openStadiumModal('maintenance');
+}
+
+// Aceitar / Recusar Show / Evento Cultural
+function acceptEventConcert(){
+  if(!state.stadiumEventProposal) return;
+  const e = state.stadiumEventProposal;
+  state.balance += e.fee;
+  state.income = (state.income || 0) + e.fee;
+
+  // Desgaste: sintético sofre apenas 4%, natural perde 18%!
+  const wear = state.stadiumPitchType === 'synthetic' ? 4 : 18;
+  state.stadiumMaintenance = Math.max(5, (state.stadiumMaintenance || 90) - wear);
+
+  state.news.unshift(`🎤 MEGAEVENTO: O estádio sediou o ${e.name} com sucesso absoluto! Lucro de ${fmtMoney(e.fee)}.`);
+  toast(`🎉 Show autorizado com sucesso! +${fmtMoney(e.fee)} no caixa!`);
+  state.stadiumEventProposal = null;
+  state.pendingDecision = null;
+  save();
+  openStadiumModal('maintenance');
+}
+
+function rejectEventConcert(){
+  state.stadiumEventProposal = null;
+  state.pendingDecision = null;
+  toast('Convite para show recusado.');
+  save();
+  openStadiumModal('maintenance');
+}
+
+function clubStadiumName(){
+  if(state && state.namingRights && state.namingRights.stadiumName){
+    return state.namingRights.stadiumName;
+  }
+  const clubObj = clubByName(state?.club);
+  return clubObj?.stadium || 'Ciro Machado do Espírito Santo (Defelê)';
+}
+
+function getCaldeiraoData(){
+  const f = userFixture();
+  const opp = f && f[0] === state.club ? f[1] : (f ? f[0] : 'Adversário');
+  const proj = attendanceProjection(opp);
+  const cap = state.infrastructure?.stadium?.capacity || 3000;
+  const occRate = Math.round(clamp((proj.attendance / cap) * 100, 0, 100));
+  const fans = state.trust?.fans ?? 70;
+
+  state.stadiumUpgrades = state.stadiumUpgrades || {
+    chairs: false,
+    mosaic: false,
+    ledRing: false,
+    flares: false,
+    screen: false,
+    ledLights: false
+  };
+
+  let structScore = 0;
+  if(state.stadiumUpgrades.chairs) structScore += 6;
+  if(state.stadiumUpgrades.mosaic) structScore += 13;
+  if(state.stadiumUpgrades.ledRing) structScore += 6;
+  if(state.stadiumUpgrades.flares) structScore += 25;
+  if(state.stadiumUpgrades.screen) structScore += 6;
+  if(state.stadiumUpgrades.ledLights) structScore += 6;
+
+  // Percentual total do Caldeirão (de 0% a +25%)
+  const caldeiraoPercent = Math.round((occRate * 0.35 + fans * 0.35 + structScore * 0.30) * 0.25);
+
+  return {
+    occRate,
+    fans,
+    structScore,
+    caldeiraoPercent,
+    upgrades: state.stadiumUpgrades
+  };
+}
+
+// -------------------------------------------------------------------------
+// 1. VISUALIZADOR INTERATIVO DO ESTÁDIO (Screenshots 1, 2 e 3)
+// -------------------------------------------------------------------------
+let stadiumModalTab = 'upgrades'; // 'summary' | 'upgrades' | 'expansion' | 'arena' | 'maintenance'
+let stadiumSelectedSide = 'norte';
+let stadiumPreviewUpgrade = null;
+let selectedArenaName = 'Arena Real Brasília';
+let selectedArenaCapacity = 15000;
+let selectedArenaFinancing = 'cash';
+
+function openStadiumModal(initialTab){
+  if(initialTab) stadiumModalTab = initialTab;
+
+  let el = $('#stadiumVisualModalContainer');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'stadiumVisualModalContainer';
+    document.body.appendChild(el);
+  }
+
+  const sName = clubStadiumName();
+  const cap = state.infrastructure?.stadium?.capacity || 3000;
+  const cald = getCaldeiraoData();
+  const stData = getStadiumExpansionData();
+  const u = {
+    ...state.stadiumUpgrades,
+    ...(stadiumPreviewUpgrade ? { [stadiumPreviewUpgrade]: true } : {})
+  };
+  const isExp = stadiumModalTab === 'expansion';
+  const isArena = stadiumModalTab === 'arena';
+
+  el.innerHTML = `
+    <div class="visual-modal-overlay">
+      <div class="visual-modal-card">
+        
+        <!-- ================= LADO ESQUERDO: CAMPO E ARQUIBANCADA PIXEL-ART ================= -->
+        <div class="visual-canvas-left">
+          
+          <!-- Placa Suspensa do Estádio -->
+          <div style="background:#1a1438;border:2px solid #a855f7;box-shadow:0 0 16px rgba(168,85,247,0.4);padding:6px 18px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:1px;color:#fff;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+            <span>🏠</span>
+            <span>${esc(isArena ? selectedArenaName : sName).toUpperCase()}</span>
+          </div>
+
+          <!-- Moldura do Estádio com Borda Roxa Iluminada -->
+          <div style="position:relative;width:95%;max-width:560px;aspect-ratio:1.2;background:${isArena ? '#0b0817' : '#181622'};border:3px solid ${isArena ? '#ec4899' : '#9333ea'};border-radius:18px;box-shadow:0 0 25px ${isArena ? 'rgba(236,72,153,0.45)' : 'rgba(147,51,234,0.35)'};padding:14px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden">
+            
+            ${stadiumPreviewUpgrade ? `
+              <div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:10" class="stadium-preview-banner">
+                👀 PRÉVIA AO VIVO: ${stadiumPreviewUpgrade.toUpperCase()}
+              </div>
+            ` : ''}
+
+            ${isArena ? `
+              <div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:10;background:linear-gradient(90deg,#7c3aed,#ec4899);color:#fff;font-size:10px;font-weight:900;padding:3px 12px;border-radius:999px;box-shadow:0 0 12px rgba(236,72,153,0.7)">
+                🏟️ PROJETO ARENA: ${selectedArenaCapacity.toLocaleString('pt-BR')} LUGARES
+              </div>
+            ` : ''}
+
+            <!-- Arquibancada Norte (Superior) -->
+            <div class="${isExp && stadiumSelectedSide==='norte' ? 'stand-construction-active' : ''}" style="height:48px;background:${u.chairs?'#251d45':'#22202a'};border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,0.08)">
+              ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
+              ${isExp && stadiumSelectedSide==='norte' ? `
+                <div style="z-index:3;background:#f59e0b;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #f59e0b">🏗️ OBRA NORTE (+1.750 LUGARES)</div>
+              ` : u.screen ? `
+                <div style="z-index:2;background:#000;border:1px solid #22c55e;color:#22c55e;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px">TELÃO • 0 X 0</div>
+              ` : `
+                <span style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.3)">SETOR NORTE</span>
+              `}
+              ${u.flares ? '<div class="animated-flare" style="position:absolute;left:15%;top:2px;font-size:18px">🔥</div><div class="animated-flare" style="position:absolute;right:15%;top:2px;font-size:18px">🔥</div>' : ''}
+            </div>
+
+            <!-- Centro: Arquibancada Oeste + Gramado + Arquibancada Leste -->
+            <div style="display:grid;grid-template-columns:48px 1fr 48px;gap:8px;flex:1;margin:8px 0;align-items:stretch">
+              
+              <!-- Arquibancada Oeste -->
+              <div class="${isExp && stadiumSelectedSide==='oeste' ? 'stand-construction-active' : ''}" style="background:${u.chairs?'#251d45':'#22202a'};border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.08)">
+                ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
+                ${isExp && stadiumSelectedSide==='oeste' ? `
+                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#f59e0b">🏗️ OBRA (+1.750)</span>
+                ` : `
+                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:800;color:rgba(255,255,255,0.3)">OESTE</span>
+                `}
+                ${u.flares ? '<div class="animated-flare" style="position:absolute;top:20%;font-size:16px">🔥</div>' : ''}
+              </div>
+
+              <!-- O Gramado com Listras e Jogadores -->
+              <div class="${u.ledRing?'led-ring-active':''} ${u.ledLights?'led-lights-active':''}" style="background:repeating-linear-gradient(90deg, #15803d, #15803d 28px, #166534 28px, #166534 56px);border-radius:6px;border:2px solid ${isArena?'#f472b6':'#fff'};position:relative;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 10px rgba(0,0,0,0.5)">
+                
+                <!-- Linhas do Campo (Linha Central, Círculo Central, Áreas) -->
+                <div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:#fff;transform:translateX(-50%)"></div>
+                <div style="position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.1)">
+                  ${clubBadge(state.club, 32)}
+                </div>
+
+                <!-- Pequenas Áreas / Traves -->
+                <div style="position:absolute;left:0;top:25%;bottom:25%;width:22px;border:2px solid #fff;border-left:none"></div>
+                <div style="position:absolute;right:0;top:25%;bottom:25%;width:22px;border:2px solid #fff;border-right:none"></div>
+
+                <!-- Jogadores em Aquecimento -->
+                <div style="position:absolute;left:18%;display:flex;flex-direction:column;gap:10px">
+                  <div style="width:10px;height:10px;background:#1e40af;border:1px solid #60a5fa;border-radius:50%"></div>
+                  <div style="width:10px;height:10px;background:#1e40af;border:1px solid #60a5fa;border-radius:50%"></div>
+                  <div style="width:10px;height:10px;background:#1e40af;border:1px solid #60a5fa;border-radius:50%"></div>
+                </div>
+
+                <div style="position:absolute;right:18%;display:flex;flex-direction:column;gap:10px">
+                  <div style="width:10px;height:10px;background:#b91c1c;border:1px solid #f87171;border-radius:50%"></div>
+                  <div style="width:10px;height:10px;background:#b91c1c;border:1px solid #f87171;border-radius:50%"></div>
+                  <div style="width:10px;height:10px;background:#b91c1c;border:1px solid #f87171;border-radius:50%"></div>
+                </div>
+
+                <!-- Refletores de LED (Luzes nos 4 cantos) -->
+                ${u.ledLights ? `
+                  <div style="position:absolute;top:4px;left:4px;width:10px;height:10px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
+                  <div style="position:absolute;top:4px;right:4px;width:10px;height:10px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
+                  <div style="position:absolute;bottom:4px;left:4px;width:10px;height:10px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
+                  <div style="position:absolute;bottom:4px;right:4px;width:10px;height:10px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
+                ` : ''}
+              </div>
+
+              <!-- Arquibancada Leste -->
+              <div class="${isExp && stadiumSelectedSide==='leste' ? 'stand-construction-active' : ''}" style="background:${u.chairs?'#251d45':'#22202a'};border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.08)">
+                ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
+                ${isExp && stadiumSelectedSide==='leste' ? `
+                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#f59e0b">🏗️ OBRA (+1.750)</span>
+                ` : `
+                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:800;color:rgba(255,255,255,0.3)">LESTE</span>
+                `}
+                ${u.flares ? '<div class="animated-flare" style="position:absolute;bottom:20%;font-size:16px">🔥</div>' : ''}
+              </div>
+            </div>
+
+            <!-- Arquibancada Sul (Inferior com Mosaico) -->
+            <div class="${isExp && stadiumSelectedSide==='sul' ? 'stand-construction-active' : ''}" style="height:48px;background:${u.chairs?'#251d45':'#22202a'};border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,0.08)">
+              ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
+              ${isExp && stadiumSelectedSide==='sul' ? `
+                <div style="z-index:3;background:#f59e0b;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #f59e0b">🏗️ OBRA SUL (+1.750 LUGARES)</div>
+              ` : u.mosaic ? `
+                <div style="z-index:2;background:#7c3aed;color:#fff;font-size:10px;font-weight:900;padding:2px 10px;border-radius:4px;letter-spacing:1px;box-shadow:0 0 10px rgba(124,58,237,0.5)">MOSAICO OFICIAL ★</div>
+              ` : `
+                <span style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.3)">SETOR SUL</span>
+              `}
+              ${u.flares ? '<div class="animated-flare" style="position:absolute;left:25%;bottom:2px;font-size:18px">🔥</div><div class="animated-flare" style="position:absolute;right:25%;bottom:2px;font-size:18px">🔥</div>' : ''}
+            </div>
+
+          </div>
+
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:12px;text-align:center">
+            ${stadiumPreviewUpgrade ? '👀 Visualizando demonstração em tempo real da melhoria' : isExp ? '🏗️ Prévia em tempo real da ampliação do anel do estádio' : isArena ? '✨ Maquete conceitual da Nova Arena do clube' : 'Visualização isométrica em tempo real com melhorias estruturais do seu clube'}
+          </div>
+        </div>
+
+        <!-- ================= LADO DIREITO: PAINEL DE CONTROLE (Screenshots 1, 2 e 3) ================= -->
+        <div class="visual-panel-right">
+          
+          <!-- Cabeçalho -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px">ESTÁDIO</div>
+              <h2 style="margin:2px 0 0 0;font-size:18px;font-weight:900;color:#fff;text-transform:uppercase;line-height:1.2">
+                ${esc(sName)}
+              </h2>
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">
+                Núcleo Bandeirante · DF · <b>${cap.toLocaleString('pt-BR')} lugares</b> · casa também de ARUC
+              </div>
+            </div>
+            <button class="btn" id="btnCloseStadiumModal" style="background:rgba(255,255,255,0.08);border:none;padding:6px 10px;font-size:14px;border-radius:8px">✕</button>
+          </div>
+
+          <!-- Abas de Navegação -->
+          <div style="display:flex;gap:6px;background:#161226;padding:4px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+            ${[
+              ['summary', 'Resumo'],
+              ['upgrades', 'Melhorias'],
+              ['expansion', 'Ampliação'],
+              ['arena', 'Arena'],
+              ['maintenance', 'Gramado & Eventos']
+            ].map(([id, label]) => `
+              <button class="btn btn-stadium-modal-tab ${stadiumModalTab===id?'primary':''}" data-stab="${id}" style="flex:1;padding:6px 4px;font-size:11px;font-weight:800;border:none;border-radius:8px">
+                ${label}
+              </button>
+            `).join('')}
+          </div>
+
+          <!-- ================= ABA 1: RESUMO & NAMING RIGHTS ================= -->
+          ${stadiumModalTab === 'summary' ? `
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="background:#161226;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+                <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">FINANÇAS DO ESTÁDIO</div>
+                <div style="font-size:20px;font-weight:900;color:#22c55e;margin-top:4px">${fmtMoney(state.balance)}</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Caixa do Clube Disponível</div>
+              </div>
+
+              <!-- Seção de Naming Rights -->
+              <div style="background:#161226;border:1px solid ${state.namingRights ? '#22c55e' : '#7c3aed'};border-radius:14px;padding:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-size:11px;font-weight:900;color:${state.namingRights?'#22c55e':'#c084fc'};letter-spacing:1px">
+                    ${state.namingRights ? '✓ NAMING RIGHTS ATIVO' : '⭐ VENDER NAMING RIGHTS'}
+                  </span>
+                  ${state.namingRights ? `<span class="pill good" style="font-size:10px">${state.namingRights.monthsRemaining} meses rest.</span>` : ''}
+                </div>
+
+                ${state.namingRights ? `
+                  <div style="margin-top:10px">
+                    <h3 style="margin:0;font-size:16px;color:#fff">${esc(state.namingRights.stadiumName)}</h3>
+                    <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px">
+                      Patrocinador: <b>${state.namingRights.sponsor}</b> • Renda mensal: <b>${fmtMoney(state.namingRights.monthlyValue)}/mês</b> creditados no dia 1º.
+                    </div>
+                    <button class="btn danger" id="btnCancelNamingRights" style="margin-top:12px;font-size:11px;padding:6px 12px;width:100%">
+                      Encerrar Contrato de Naming Rights
+                    </button>
+                  </div>
+                ` : `
+                  <p style="font-size:12px;color:rgba(255,255,255,0.7);margin:8px 0 12px 0;line-height:1.4">
+                    Venda o nome do seu estádio para uma grande empresa brasileira e garanta renda mensal fixa todo dia 1º:
+                  </p>
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    ${[
+                      { sponsor: 'Betano', name: 'Betano Arena Defelê', val: 85000, months: 24 },
+                      { sponsor: 'Allianz', name: 'Allianz Parque Cerrado', val: 110000, months: 36 },
+                      { sponsor: 'BYD', name: 'BYD Stadium Brasília', val: 95000, months: 24 },
+                      { sponsor: 'Mercado Livre', name: 'Mercado Livre Arena', val: 125000, months: 36 },
+                      { sponsor: 'Neo Química', name: 'Neo Química Arena DF', val: 100000, months: 24 }
+                    ].map(n => `
+                      <div style="background:#110e1d;padding:10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(255,255,255,0.06)">
+                        <div>
+                          <b style="color:#fff;font-size:12px">${n.sponsor}</b>
+                          <div style="font-size:11px;color:rgba(255,255,255,0.5)">${n.name} (${n.months} meses)</div>
+                        </div>
+                        <button class="btn primary btnSignNaming" data-sponsor="${n.sponsor}" data-name="${n.name}" data-val="${n.val}" data-months="${n.months}" style="font-size:10px;padding:5px 10px;font-weight:800">
+                          Assinar • ${fmtMoney(n.val)}/mês
+                        </button>
+                      </div>
+                    `).join('')}
+                  </div>
+                `}
+              </div>
+            </div>
+          ` : stadiumModalTab === 'upgrades' ? `
+            <!-- ================= ABA 2: MELHORIAS & CALDEIRÃO (Screenshot 2) ================= -->
+            <div style="display:flex;flex-direction:column;gap:14px">
+              
+              <!-- Card Caldeirão (Screenshot 2) -->
+              <div style="background:#161226;border:1px solid rgba(139,92,246,0.3);border-radius:14px;padding:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase">CALDEIRÃO</h3>
+                  <span style="font-size:16px;font-weight:900;color:var(--neon)">+${cald.caldeiraoPercent}%</span>
+                </div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px;line-height:1.4">
+                  de gols esperados nos jogos em casa. Precisa das três coisas juntas: estádio cheio, torcida feliz e estrutura.
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.7)">
+                      <span>Estádio cheio</span>
+                      <span>${cald.occRate}%</span>
+                    </div>
+                    <div class="meter-bar" style="height:6px;margin-top:3px"><div class="meter-fill" style="width:${cald.occRate}%;background:#38bdf8"></div></div>
+                  </div>
+
+                  <div>
+                    <div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.7)">
+                      <span>Torcida feliz</span>
+                      <span>${cald.fans}%</span>
+                    </div>
+                    <div class="meter-bar" style="height:6px;margin-top:3px"><div class="meter-fill" style="width:${cald.fans}%;background:#a855f7"></div></div>
+                  </div>
+
+                  <div>
+                    <div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.7)">
+                      <span>Estrutura</span>
+                      <span>${cald.structScore}%</span>
+                    </div>
+                    <div class="meter-bar" style="height:6px;margin-top:3px"><div class="meter-fill" style="width:${cald.structScore}%;background:#22c55e"></div></div>
+                  </div>
+                </div>
+
+                <div style="margin-top:12px;font-size:10px;color:rgba(255,255,255,0.4);line-height:1.4">
+                  Falta na estrutura: ${!u.chairs?'Cadeiras novas (+6%), ':''}${!u.mosaic?'Mosaico com o escudo (+13%), ':''}${!u.ledRing?'Anel de LED do clube (+6%), ':''}${!u.flares?'Fogos e sinalizadores (+25%), ':''}${!u.screen?'Telão do clube (+6%), ':''}${!u.ledLights?'Refletores de LED (+6%)':''}.
+                </div>
+              </div>
+
+              <!-- Lista de Melhorias Compráveis (Screenshot 2) com Prévia em Tempo Real -->
+              <div style="display:flex;flex-direction:column;gap:8px">
+                ${[
+                  { key: 'chairs', name: 'Cadeiras novas', cost: 20250, desc: 'troca todas as cadeiras pela cor escolhida · Caldeirão +1 de estrutura' },
+                  { key: 'mosaic', name: 'Mosaico com o escudo', cost: 35000, desc: 'mosaico oficial nas arquibancadas centrais · Caldeirão +2 de estrutura' },
+                  { key: 'ledRing', name: 'Anel de LED do clube', cost: 48000, desc: 'painéis de LED dinâmicos contornando o campo · Caldeirão +1 de estrutura' },
+                  { key: 'flares', name: 'Fogos e sinalizadores', cost: 15000, desc: 'fumaça e sinalizadores na entrada do time · Caldeirão +3 de estrutura' },
+                  { key: 'screen', name: 'Telão do clube', cost: 65000, desc: 'telão digital de alta resolução no anel norte · Caldeirão +1 de estrutura' },
+                  { key: 'ledLights', name: 'Refletores de LED', cost: 55000, desc: 'iluminação esportiva de padrão internacional · Caldeirão +1 de estrutura' }
+                ].map(item => {
+                  const has = state.stadiumUpgrades[item.key];
+                  const isPreviewing = stadiumPreviewUpgrade === item.key;
+                  return `
+                    <div class="upgrade-row-card" data-key="${item.key}" style="background:#161226;border:1px solid ${has?'#22c55e':isPreviewing?'#c084fc':'rgba(255,255,255,0.06)'};padding:12px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;transition:all 0.2s;box-shadow:${isPreviewing?'0 0 12px rgba(192,132,252,0.4)':''}">
+                      <div style="flex:1;min-width:0;padding-right:8px">
+                        <div style="font-size:13px;font-weight:900;color:#fff">${item.name}</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px">${item.desc}</div>
+                      </div>
+                      ${has ? `
+                        <span style="color:#22c55e;font-size:11px;font-weight:900;flex-shrink:0">INSTALADO ✓</span>
+                      ` : `
+                        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+                          <button class="btn btnToggleUpgradePreview ${isPreviewing?'active':''}" data-key="${item.key}" style="font-size:11px;padding:6px 12px;background:${isPreviewing?'#7c3aed':'rgba(255,255,255,0.08)'};color:#fff;border:none;border-radius:8px;font-weight:800;cursor:pointer">
+                            ${isPreviewing ? '✕ Fechar Prévia' : '👁️ Ver Prévia'}
+                          </button>
+                          <button class="btn primary btnBuyUpgrade" data-key="${item.key}" data-cost="${item.cost}" style="font-size:11px;font-weight:800;padding:6px 12px;border-radius:8px">
+                            ${fmtMoney(item.cost)}
+                          </button>
+                        </div>
+                      `}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+
+            </div>
+          ` : stadiumModalTab === 'expansion' ? `
+            <!-- ================= ABA 3: AMPLIAÇÃO (Screenshot 1) ================= -->
+            <div style="display:flex;flex-direction:column;gap:14px">
+              
+              <div style="background:#161226;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span class="muted" style="font-size:11px">Caixa do clube</span>
+                  <b style="color:#f59e0b;font-size:16px">${fmtMoney(state.balance)}</b>
+                </div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:8px">
+                  Capacidade: <b>${cap.toLocaleString('pt-BR')} lugares.</b> Ampliar só aumenta o público quando o estádio enche: com lugares sobrando, a torcida não cresce com a obra.
+                </div>
+              </div>
+
+              <!-- Badges dos Anéis (Screenshot 1) -->
+              <div>
+                <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:6px">
+                  RUMO A 100.000 LUGARES: <b>0 de 24 obras prontas, em 6 anéis de 4 lados.</b>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+                  <div style="background:#241945;border:1px solid #7c3aed;padding:6px;border-radius:8px;font-size:10px;text-align:center;color:#fff;font-weight:800">1º anel · 7.800 (0/4)</div>
+                  <div style="background:#151226;border:1px solid rgba(255,255,255,0.06);padding:6px;border-radius:8px;font-size:10px;text-align:center;color:rgba(255,255,255,0.4)">2º anel · 18.800</div>
+                  <div style="background:#151226;border:1px solid rgba(255,255,255,0.06);padding:6px;border-radius:8px;font-size:10px;text-align:center;color:rgba(255,255,255,0.4)">3º anel · 30.640</div>
+                  <div style="background:#151226;border:1px solid rgba(255,255,255,0.06);padding:6px;border-radius:8px;font-size:10px;text-align:center;color:rgba(255,255,255,0.4)">4º anel · 49.000</div>
+                  <div style="background:#151226;border:1px solid rgba(255,255,255,0.06);padding:6px;border-radius:8px;font-size:10px;text-align:center;color:rgba(255,255,255,0.4)">5º anel · 72.160</div>
+                  <div style="background:#151226;border:1px solid rgba(255,255,255,0.06);padding:6px;border-radius:8px;font-size:10px;text-align:center;color:rgba(255,255,255,0.4)">6º anel · 100.000</div>
+                </div>
+              </div>
+
+              <!-- Card Próxima Obra (Screenshot 1) -->
+              <div style="background:#161226;border:1px solid #7c3aed;border-radius:14px;padding:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase">PRÓXIMA OBRA - 1º ANEL</span>
+                  <span style="font-size:11px;color:rgba(255,255,255,0.5)">0 de 4 lados prontos</span>
+                </div>
+
+                <div style="margin-top:12px">
+                  <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">1. Escolha o lado:</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:6px">
+                    ${['norte', 'sul', 'leste', 'oeste'].map(s => `
+                      <button class="btn btnSelectSide ${stadiumSelectedSide===s?'primary':''}" data-side="${s}" style="padding:6px;font-size:11px;font-weight:800;border-radius:8px">
+                        ${s}
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+
+                <!-- Métricas da Obra (Screenshot 1) -->
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:16px;text-align:center">
+                  <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
+                    <div style="color:var(--neon);font-size:16px;font-weight:900">+1.750</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">lugares</div>
+                  </div>
+                  <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
+                    <div style="color:#fff;font-size:16px;font-weight:900">42</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">dias de obra</div>
+                  </div>
+                  <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
+                    <div style="color:#f59e0b;font-size:16px;font-weight:900">800</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">fechados na obra</div>
+                  </div>
+                </div>
+
+                <div style="margin-top:16px">
+                  <button class="btn primary" id="btnStartSideWork" style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px">
+                    COMEÇAR A OBRA • R$ 850.000
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          ` : stadiumModalTab === 'arena' ? `
+            <!-- ================= ABA 4: ARENA (Screenshot 5) ================= -->
+            <div style="display:flex;flex-direction:column;gap:14px">
+              
+              <div style="background:#161226;border:1px solid rgba(2,132,199,0.3);border-radius:14px;padding:16px">
+                
+                <!-- ETAPA 1: PRÉ-REQUISITOS (LOTE E ALVARÁ) -->
+                <div style="background:#100d1e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;margin-bottom:14px">
+                  <div style="font-size:11px;font-weight:900;color:#38bdf8;letter-spacing:0.5px;text-transform:uppercase">
+                    📋 ETAPA 1: LICENÇAS E PRÉ-REQUISITOS OBRIGATÓRIOS
+                  </div>
+                  <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">
+                    A legislação exige a titularidade do lote urbano e o alvará municipal antes de iniciar a construção.
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+                    <!-- Card Lote -->
+                    <div style="background:#181428;border:1px solid ${state.arenaLandBought?'#22c55e':'rgba(255,255,255,0.1)'};border-radius:10px;padding:10px">
+                      <div style="display:flex;justify-content:space-between;align-items:center">
+                        <b style="font-size:11px;color:#fff">🏙️ Lote Urbano (Terreno)</b>
+                        <span style="font-size:10px;font-weight:900;color:${state.arenaLandBought?'#22c55e':'#f59e0b'}">
+                          ${state.arenaLandBought ? 'REGISTRADO ✓' : 'PENDENTE'}
+                        </span>
+                      </div>
+                      <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px">
+                        ${state.arenaLandBought ? 'Escritura e matrícula averbadas em cartório.' : 'Compra do terreno para o complexo da arena.'}
+                      </div>
+                      ${state.arenaLandBought ? `
+                        <div style="margin-top:6px;font-size:11px;color:#22c55e;font-weight:800">✓ Quitado (R$ 12.000.000)</div>
+                      ` : `
+                        <button class="btn primary" id="btnBuyArenaLand" style="width:100%;margin-top:8px;padding:6px;font-size:11px;font-weight:800;background:#0284c7">
+                          Comprar Lote • R$ 12.000.000
+                        </button>
+                      `}
+                    </div>
+
+                    <!-- Card Alvará -->
+                    <div style="background:#181428;border:1px solid ${state.arenaPermitBought?'#22c55e':'rgba(255,255,255,0.1)'};border-radius:10px;padding:10px">
+                      <div style="display:flex;justify-content:space-between;align-items:center">
+                        <b style="font-size:11px;color:#fff">🏛️ Alvará da Prefeitura</b>
+                        <span style="font-size:10px;font-weight:900;color:${state.arenaPermitBought?'#22c55e':'#f59e0b'}">
+                          ${state.arenaPermitBought ? 'EMITIDO ✓' : 'PENDENTE'}
+                        </span>
+                      </div>
+                      <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px">
+                        ${state.arenaPermitBought ? 'Licença ambiental e bombeiros autorizados.' : 'Aprovação de projeto civil na prefeitura.'}
+                      </div>
+                      ${state.arenaPermitBought ? `
+                        <div style="margin-top:6px;font-size:11px;color:#22c55e;font-weight:800">✓ Aprovado (R$ 4.500.000)</div>
+                      ` : `
+                        <button class="btn primary" id="btnBuyArenaPermit" style="width:100%;margin-top:8px;padding:6px;font-size:11px;font-weight:800;background:#7c3aed">
+                          Solicitar Alvará • R$ 4.500.000
+                        </button>
+                      `}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ETAPA 2: PROJETO ARQUITETÔNICO DA ARENA -->
+                <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">2. CAPACIDADE PROJETADA (CUSTOS REALISTAS):</label>
+                <select id="selArenaCapVisual" class="btn" style="width:100%;margin-top:4px;font-size:13px;padding:8px">
+                  <option value="15000" ${selectedArenaCapacity===15000?'selected':''}>15.000 lugares · R$ 75.000.000 (R$ 5.000/lugar)</option>
+                  <option value="30000" ${selectedArenaCapacity===30000?'selected':''}>30.000 lugares · R$ 165.000.000 (R$ 5.500/lugar)</option>
+                  <option value="50000" ${selectedArenaCapacity===50000?'selected':''}>50.000 lugares · R$ 325.000.000 (R$ 6.500/lugar)</option>
+                  <option value="80000" ${selectedArenaCapacity===80000?'selected':''}>80.000 lugares · R$ 600.000.000 (R$ 7.500/lugar)</option>
+                </select>
+
+                <label style="display:block;margin-top:14px;font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">3. NOME DA NOVA ARENA:</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+                  ${['Arena Real Brasília', 'Estádio Real Brasília', 'Arena Núcleo Bandeirante', 'Nova Arena Real Brasília'].map(name => `
+                    <button class="btn btnSelectArenaName ${selectedArenaName===name?'primary':''}" data-aname="${esc(name)}" style="font-size:11px;padding:8px 6px;border-radius:8px;font-weight:800;${selectedArenaName===name?'background:#7c3aed;color:#fff;border-color:#a855f7;box-shadow:0 0 10px rgba(168,85,247,0.4)':''}">
+                      ${esc(name)}
+                    </button>
+                  `).join('')}
+                </div>
+
+                <!-- Métricas Dinâmicas da Arena -->
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:16px;text-align:center">
+                  <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
+                    <div style="color:var(--neon);font-size:15px;font-weight:900" id="lblArenaLugares">${selectedArenaCapacity.toLocaleString('pt-BR')}</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">lugares</div>
+                  </div>
+                  <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
+                    <div style="color:#fff;font-size:15px;font-weight:900" id="lblArenaTempo">${selectedArenaCapacity<=15000?'~1.5':selectedArenaCapacity<=30000?'~2.0':selectedArenaCapacity<=50000?'~2.5':'~3.0'}</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">anos de obra</div>
+                  </div>
+                  <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
+                    <div style="color:#f59e0b;font-size:15px;font-weight:900">R$ ${Math.round(calcArenaTotalCost(selectedArenaCapacity)/selectedArenaCapacity).toLocaleString('pt-BR')}</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">por lugar</div>
+                  </div>
+                </div>
+
+                <label style="display:block;margin-top:16px;font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">4. COMO PAGAR (PARCELAMENTO DISPONÍVEL):</label>
+                <!-- GRID 2x2 SEM ESTOURO DE BORDAS -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;width:100%;box-sizing:border-box">
+                  ${[
+                    { fin: 'cash', label: 'À vista', desc: fmtMoney(calcArenaTotalCost(selectedArenaCapacity)) },
+                    { fin: '4years', label: '4 anos (48x)', desc: fmtMoney(Math.round(calcArenaTotalCost(selectedArenaCapacity) * 0.8 * 1.25 / 48)) + '/mês' },
+                    { fin: '6years', label: '6 anos (72x)', desc: fmtMoney(Math.round(calcArenaTotalCost(selectedArenaCapacity) * 0.8 * 1.35 / 72)) + '/mês' },
+                    { fin: '8years', label: '8 anos (96x)', desc: fmtMoney(Math.round(calcArenaTotalCost(selectedArenaCapacity) * 0.8 * 1.45 / 96)) + '/mês' }
+                  ].map(f => `
+                    <button class="btn btnSelectFinancing ${selectedArenaFinancing===f.fin?'primary':''}" data-fin="${f.fin}" style="font-size:11px;padding:8px 6px;text-align:center;border-radius:8px;font-weight:700;box-sizing:border-box;width:100%;${selectedArenaFinancing===f.fin?'background:#7c3aed;color:#fff;border-color:#a855f7;box-shadow:0 0 10px rgba(168,85,247,0.4)':''}">
+                      <b>${f.label}</b><br><small style="opacity:0.85;font-size:10px">${f.desc}</small>
+                    </button>
+                  `).join('')}
+                </div>
+
+                ${(!state.arenaLandBought || !state.arenaPermitBought) ? `
+                  <div style="background:rgba(245,158,11,0.15);border:1px solid #f59e0b;padding:8px 12px;border-radius:8px;font-size:11px;color:#facc15;margin-top:14px">
+                    ⚠️ Adquira o <b>Lote Urbano</b> e o <b>Alvará da Prefeitura</b> acima para liberar o início das obras.
+                  </div>
+                ` : ''}
+
+                <button class="btn primary" id="btnStartArenaFromVisual" style="width:100%;margin-top:14px;padding:12px;font-size:13px;font-weight:900;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#9333ea)">
+                  COMEÇAR A OBRA
+                </button>
+              </div>
+
+            </div>
+          ` : `
+            <!-- ================= ABA 5: GRAMADO, MANUTENÇÃO, SHOWS E ALUGUEL ================= -->
+            <div style="display:flex;flex-direction:column;gap:14px">
+              
+              <!-- Estado de Conservação e Manutenção -->
+              <div style="background:#161226;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-size:12px;font-weight:900;color:#fff;text-transform:uppercase">ESTADO DE CONSERVAÇÃO</span>
+                  <span style="font-size:14px;font-weight:900;color:${getStadiumMaintenanceData().statusColor}">
+                    ${getStadiumMaintenanceData().val}% · ${getStadiumMaintenanceData().statusText}
+                  </span>
+                </div>
+                <div class="meter-bar" style="height:8px;margin-top:8px">
+                  <div class="meter-fill" style="width:${getStadiumMaintenanceData().val}%;background:${getStadiumMaintenanceData().statusColor}"></div>
+                </div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:6px;line-height:1.4">
+                  Estádio bem conservado atrai grandes shows e mantém a torcida feliz. Manutenção baixa (<40%) cansa mais os jogadores e traz risco de lesões.
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+                  <button class="btn btnRepairStadium" data-mode="quick" style="padding:8px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06)">
+                    🔧 Reparo Rápido • R$ 25.000<br><small style="color:#22c55e">+25% conservação</small>
+                  </button>
+                  <button class="btn primary btnRepairStadium" data-mode="full" style="padding:8px;font-size:11px;font-weight:800">
+                    🏛️ Reforma Geral • R$ 75.000<br><small style="color:#fff">100% conservação</small>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tipo e Evolução do Gramado -->
+              <div style="background:#161226;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px">
+                <span style="font-size:12px;font-weight:900;color:#fff;text-transform:uppercase">TIPO DE GRAMADO</span>
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px">
+                  Gramado atual: <b style="color:var(--neon)">${state.stadiumPitchType==='synthetic'?'Grama Sintética Moderna':state.stadiumPitchType==='hybrid'?'Grama Híbrida Reforçada':'Grama Natural Padrão'}</b>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+                  <div style="background:#110e1d;padding:10px;border-radius:8px;border:1px solid ${state.stadiumPitchType==='natural'?'#22c55e':'rgba(255,255,255,0.06)'}">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <b style="font-size:12px;color:#fff">Grama Natural Tradicional</b>
+                      ${state.stadiumPitchType==='natural'?'<span style="color:#22c55e;font-size:10px;font-weight:900">EM USO ✓</span>':'<button class="btn btnSetPitch" data-ptype="natural" style="font-size:10px;padding:4px 8px">Instalar</button>'}
+                    </div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px">Padrão nacional clássico. Desgasta com chuva e múltiplos jogos.</div>
+                  </div>
+
+                  <div style="background:#110e1d;padding:10px;border-radius:8px;border:1px solid ${state.stadiumPitchType==='hybrid'?'#22c55e':'rgba(255,255,255,0.06)'}">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <b style="font-size:12px;color:#fff">Grama Híbrida Reforçada (Padrão Maracanã)</b>
+                      ${state.stadiumPitchType==='hybrid'?'<span style="color:#22c55e;font-size:10px;font-weight:900">EM USO ✓</span>':'<button class="btn primary btnSetPitch" data-ptype="hybrid" style="font-size:10px;padding:4px 8px">R$ 150.000</button>'}
+                    </div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px">Reduz desgaste físico em 25%, toque de bola mais veloz e drena muito bem.</div>
+                  </div>
+
+                  <div style="background:#110e1d;padding:10px;border-radius:8px;border:1px solid ${state.stadiumPitchType==='synthetic'?'#22c55e':'rgba(255,255,255,0.06)'}">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <b style="font-size:12px;color:#fff">Grama Sintética (Padrão Allianz Parque)</b>
+                      ${state.stadiumPitchType==='synthetic'?'<span style="color:#22c55e;font-size:10px;font-weight:900">EM USO ✓</span>':'<button class="btn primary btnSetPitch" data-ptype="synthetic" style="font-size:10px;padding:4px 8px">R$ 220.000</button>'}
+                    </div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px"><b>Imune a shows!</b> Pode sediar eventos sem estragar. Causa maior cansaço no 2º tempo.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Propostas de Aluguel para Outros Clubes -->
+              <div style="background:#161226;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px">
+                <span style="font-size:12px;font-weight:900;color:#fff;text-transform:uppercase">ALUGUEL PARA OUTROS CLUBES</span>
+                ${state.stadiumClubRental ? `
+                  <div style="margin-top:8px;background:#110e1d;padding:12px;border-radius:10px">
+                    <b style="color:#fff;font-size:13px">${state.stadiumClubRental.club} quer alugar o estádio</b>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px">
+                      Partida pelo estadual enquanto jogamos fora. Pagam <b style="color:#22c55e">${fmtMoney(state.stadiumClubRental.fee)}</b>. Desgaste estimado: -6%.
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:10px">
+                      <button class="btn primary" id="btnAcceptRentalTab" style="font-size:11px;padding:6px 12px">Aceitar (+${fmtMoney(state.stadiumClubRental.fee)})</button>
+                      <button class="btn" id="btnRejectRentalTab" style="font-size:11px;padding:6px 12px">Recusar</button>
+                    </div>
+                  </div>
+                ` : `
+                  <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:6px">
+                    Nenhum clube solicitou aluguel nesta rodada. Quando jogamos fora, clubes da região podem enviar propostas.
+                  </div>
+                `}
+              </div>
+
+              <!-- Convites de Grandes Shows e Festivais -->
+              <div style="background:#161226;border:1px solid #a855f7;border-radius:14px;padding:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-size:12px;font-weight:900;color:#c084fc;text-transform:uppercase">SHOWS & EVENTOS CULTURAIS</span>
+                  <span class="pill" style="font-size:10px">Renda Extraordinária</span>
+                </div>
+
+                ${state.stadiumEventProposal ? `
+                  <div style="margin-top:8px;background:#110e1d;padding:12px;border-radius:10px">
+                    <b style="color:#fff;font-size:13px">${state.stadiumEventProposal.name}</b>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px">
+                      Oferecem <b style="color:#22c55e">${fmtMoney(state.stadiumEventProposal.fee)}</b> pelo aluguel do estádio. Desgaste: ${state.stadiumPitchType==='synthetic'?'-4% (sintético)':'-18% (natural)'}.
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:10px">
+                      <button class="btn primary" id="btnAcceptEventTab" style="font-size:11px;padding:6px 12px;background:#a855f7">Autorizar Megaevento</button>
+                      <button class="btn" id="btnRejectEventTab" style="font-size:11px;padding:6px 12px">Recusar</button>
+                    </div>
+                  </div>
+                ` : `
+                  <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:6px">
+                    Grandes eventos (Show da Anitta, Pabllo Vittar, Rock in Rio, Tardezinha) buscam estádios com boa manutenção (acima de 70%) e alta capacidade.
+                  </div>
+                `}
+              </div>
+
+            </div>
+
+          `}
+
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Bindings do Modal do Estádio
+  $('#btnCloseStadiumModal').onclick = () => { el.remove(); };
+  $$('.btn-stadium-modal-tab').forEach(b => {
+    b.onclick = () => {
+      stadiumModalTab = b.dataset.stab;
+      stadiumPreviewUpgrade = null;
+      openStadiumModal();
+    };
+  });
+
+  // Preview de melhorias ao passar mouse e ao clicar
+  $$('.btnToggleUpgradePreview').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const k = b.dataset.key;
+      stadiumPreviewUpgrade = (stadiumPreviewUpgrade === k ? null : k);
+      openStadiumModal();
+    };
+  });
+
+  const btnBuyLand = $('#btnBuyArenaLand');
+  if(btnBuyLand){
+    btnBuyLand.onclick = () => {
+      const landCost = 12000000;
+      if(state.balance < landCost){
+        toast('Saldo insuficiente no caixa para comprar o Lote Urbano (R$ 12.000.000)!');
+        return;
+      }
+      state.balance -= landCost;
+      state.expense = (state.expense || 0) + landCost;
+      state.arenaLandBought = true;
+      toast('🏙️ Lote Urbano adquirido com sucesso! Escritura e matrícula registradas.');
+      save();
+      openStadiumModal();
+    };
+  }
+
+  const btnBuyPermit = $('#btnBuyArenaPermit');
+  if(btnBuyPermit){
+    btnBuyPermit.onclick = () => {
+      const permitCost = 4500000;
+      if(state.balance < permitCost){
+        toast('Saldo insuficiente para emitir o Alvará da Prefeitura (R$ 4.500.000)!');
+        return;
+      }
+      state.balance -= permitCost;
+      state.expense = (state.expense || 0) + permitCost;
+      state.arenaPermitBought = true;
+      toast('🏛️ Alvará de Construção da Prefeitura e licença ambiental aprovados!');
+      save();
+      openStadiumModal();
+    };
+  }
+
+  $$('.btnSelectSide').forEach(b => {
+    b.onclick = () => {
+      stadiumSelectedSide = b.dataset.side;
+      openStadiumModal();
+    };
+  });
+
+  $$('.btnRepairStadium').forEach(b => {
+    b.onclick = () => repairStadium(b.dataset.mode);
+  });
+
+  $$('.btnSetPitch').forEach(b => {
+    b.onclick = () => installPitchType(b.dataset.ptype);
+  });
+
+  const bAccRent = $('#btnAcceptRentalTab');
+  if(bAccRent) bAccRent.onclick = acceptClubRental;
+  const bRejRent = $('#btnRejectRentalTab');
+  if(bRejRent) bRejRent.onclick = rejectClubRental;
+
+  const bAccEvt = $('#btnAcceptEventTab');
+  if(bAccEvt) bAccEvt.onclick = acceptEventConcert;
+  const bRejEvt = $('#btnRejectEventTab');
+  if(bRejEvt) bRejEvt.onclick = rejectEventConcert;
+
+  $$('.btnBuyUpgrade').forEach(b => {
+    b.onclick = () => {
+      const k = b.dataset.key;
+      const c = +b.dataset.cost;
+      if(state.balance < c){
+        toast('Saldo insuficiente no caixa para realizar esta melhoria!');
+        return;
+      }
+      state.balance -= c;
+      state.expense = (state.expense || 0) + c;
+      state.stadiumUpgrades[k] = true;
+      stadiumPreviewUpgrade = null;
+      toast(`Melhoria instalada com sucesso! O visual do estádio e o Caldeirão foram aprimorados!`);
+      save();
+      openStadiumModal();
+    };
+  });
+
+  $$('.btnSignNaming').forEach(b => {
+    b.onclick = () => {
+      state.namingRights = {
+        sponsor: b.dataset.sponsor,
+        stadiumName: b.dataset.name,
+        monthlyValue: +b.dataset.val,
+        monthsRemaining: +b.dataset.months
+      };
+      toast(`🎉 Naming Rights assinado com ${b.dataset.sponsor}! O estádio passa a se chamar ${b.dataset.name}!`);
+      save();
+      openStadiumModal();
+    };
+  });
+
+  const btnCancelNaming = $('#btnCancelNamingRights');
+  if(btnCancelNaming){
+    btnCancelNaming.onclick = () => {
+      state.namingRights = null;
+      toast('Contrato de Naming Rights encerrado.');
+      save();
+      openStadiumModal();
+    };
+  }
+
+  const btnStartSide = $('#btnStartSideWork');
+  if(btnStartSide){
+    btnStartSide.onclick = () => {
+      buildStadiumSide(stadiumSelectedSide, 'cash');
+      openStadiumModal();
+    };
+  }
+
+  // Bindings específicos da Aba Arena (Screenshot 5)
+  $$('.btnSelectArenaName').forEach(b => {
+    b.onclick = () => {
+      selectedArenaName = b.dataset.aname;
+      openStadiumModal();
+    };
+  });
+
+  const selArenaCap = $('#selArenaCapVisual');
+  if(selArenaCap){
+    selArenaCap.onchange = () => {
+      selectedArenaCapacity = +selArenaCap.value;
+      openStadiumModal();
+    };
+  }
+
+  $$('.btnSelectFinancing').forEach(b => {
+    b.onclick = () => {
+      selectedArenaFinancing = b.dataset.fin;
+      openStadiumModal();
+    };
+  });
+
+  const btnStartArena = $('#btnStartArenaFromVisual');
+  if(btnStartArena){
+    btnStartArena.onclick = () => {
+      startNewArenaProject(selectedArenaName, selectedArenaCapacity, selectedArenaFinancing);
+      openStadiumModal();
+    };
+  }
+}
+
+// -------------------------------------------------------------------------
+// 2. LOJA OFICIAL DO CLUBE & GESTÃO DE ESTOQUE (Screenshot 4)
+// -------------------------------------------------------------------------
+function openOfficialStoreModal(){
+  let el = $('#officialStoreModalContainer');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'officialStoreModalContainer';
+    document.body.appendChild(el);
+  }
+
+  state.storeConfig = state.storeConfig || {
+    level: 1, // 1 = Quiosque, 2 = Loja Oficial, 3 = Mega Loja
+    kitSelected: 'kit1',
+    pricing: 'normal',
+    stock: 'normal'
+  };
+
+  const sc = state.storeConfig;
+  const fans = state.trust?.fans ?? 70;
+  const fanMoodMult = (0.7 + (fans / 100) * 0.45).toFixed(2).replace('.', ',');
+  const teamMomMult = '0,80';
+  const starsMult = '1,00';
+  const kitLaunchMult = '1,00';
+
+  el.innerHTML = `
+    <div class="visual-modal-overlay">
+      <div class="visual-modal-card">
+        
+        <!-- ================= LADO ESQUERDO: FACHADA DA LOJA PIXEL-ART ================= -->
+        <div class="visual-canvas-left">
+          
+          <div style="background:#1a1438;border:2px solid #a855f7;box-shadow:0 0 16px rgba(168,85,247,0.4);padding:6px 18px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:1px;color:#fff;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+            <span>🛍️</span>
+            <span>LOJA OFICIAL DO CLUBE</span>
+          </div>
+
+          <!-- Prédio / Quiosque da Loja -->
+          <div style="position:relative;width:95%;max-width:540px;aspect-ratio:1.3;background:#181622;border:3px solid #a855f7;border-radius:18px;box-shadow:0 0 25px rgba(168,85,247,0.35);padding:14px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden">
+            
+            <!-- Letreiro Luminoso com Escudo -->
+            <div style="background:#0b0816;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:16px;text-align:center;position:relative">
+              <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%)">
+                ${clubBadge(state.club, 54)}
+              </div>
+              <div style="margin-top:60px;font-size:14px;font-weight:900;color:#fff;letter-spacing:2px;text-transform:uppercase">
+                ${esc(state.club)} OFFICIAL STORE
+              </div>
+            </div>
+
+            <!-- Vitrine com Camisas nos Cabides com Destaque Real e Seleção Interativa -->
+            <div style="background:#130f24;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;display:flex;justify-content:space-around;align-items:center;margin:12px 0">
+              <div class="showcase-kit-item" data-kit="kit1" style="text-align:center;padding:8px 12px;border-radius:10px;cursor:pointer;transition:all 0.2s;${sc.kitSelected==='kit1'?'background:rgba(56,189,248,0.18);border:2px solid #38bdf8;box-shadow:0 0 14px rgba(56,189,248,0.4)':''}">
+                <div style="font-size:36px">👕</div>
+                <div style="font-size:10px;font-weight:900;color:#38bdf8;margin-top:4px">UNIFORME 1</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.5)">Titular</div>
+                ${(sc.promotedKit||'kit1')==='kit1' ? '<span class="pill good" style="font-size:8px;margin-top:3px;display:inline-block">★ VITRINE +20%</span>' : ''}
+              </div>
+              <div class="showcase-kit-item" data-kit="kit2" style="text-align:center;padding:8px 12px;border-radius:10px;cursor:pointer;transition:all 0.2s;${sc.kitSelected==='kit2'?'background:rgba(74,222,128,0.18);border:2px solid #4ade80;box-shadow:0 0 14px rgba(74,222,128,0.4)':''}">
+                <div style="font-size:36px;filter:hue-rotate(90deg)">👕</div>
+                <div style="font-size:10px;font-weight:900;color:#4ade80;margin-top:4px">UNIFORME 2</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.5)">Reserva</div>
+                ${(sc.promotedKit||'kit1')==='kit2' ? '<span class="pill good" style="font-size:8px;margin-top:3px;display:inline-block">★ VITRINE +20%</span>' : ''}
+              </div>
+              <div class="showcase-kit-item" data-kit="gk" style="text-align:center;padding:8px 12px;border-radius:10px;cursor:pointer;transition:all 0.2s;${sc.kitSelected==='gk'?'background:rgba(250,204,21,0.18);border:2px solid #facc15;box-shadow:0 0 14px rgba(250,204,21,0.4)':''}">
+                <div style="font-size:36px;filter:hue-rotate(240deg)">👕</div>
+                <div style="font-size:10px;font-weight:900;color:#facc15;margin-top:4px">GOLEIRO</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.5)">Arqueiro</div>
+                ${(sc.promotedKit||'kit1')==='gk' ? '<span class="pill good" style="font-size:8px;margin-top:3px;display:inline-block">★ VITRINE +20%</span>' : ''}
+              </div>
+            </div>
+
+            <!-- Calçada com Torcedores Passando -->
+            <div style="height:36px;background:#2d3748;border-radius:8px;display:flex;align-items:center;justify-content:space-around;padding:0 10px">
+              <span style="font-size:16px">🚶‍♂️</span>
+              <span style="font-size:16px">🏃‍♀️</span>
+              <span style="font-size:16px">🚶</span>
+              <span style="font-size:16px">🧍‍♂️</span>
+              <span style="font-size:16px">🚶‍♀️</span>
+            </div>
+
+          </div>
+
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:12px;text-align:center">
+            Ponto de venda oficial gerando receitas com camisas, bonés e souvenirs do clube
+          </div>
+        </div>
+
+        <!-- ================= LADO DIREITO: GESTÃO DE PREÇO E ESTOQUE (Screenshot 4) ================= -->
+        <div class="visual-panel-right">
+          
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px">LOJA OFICIAL</div>
+              <h2 style="margin:2px 0 0 0;font-size:20px;font-weight:900;color:#fff;text-transform:uppercase">LOJA OFICIAL</h2>
+            </div>
+            <button class="btn" id="btnCloseStoreModal" style="background:rgba(255,255,255,0.08);border:none;padding:6px 10px;font-size:14px;border-radius:8px">✕</button>
+          </div>
+
+          <div style="background:#161226;padding:12px 14px;border-radius:12px;display:flex;justify-content:space-between;align-items:center">
+            <span class="muted" style="font-size:11px">CAIXA DO CLUBE</span>
+            <b style="color:#f59e0b;font-size:17px">${fmtMoney(state.balance)}</b>
+          </div>
+
+          <!-- Seletor de Uniforme com Ações Ativas -->
+          <div>
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:6px">SELECIONE O UNIFORME PARA GERENCIAR:</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+              <button class="btn ${sc.kitSelected==='kit1'?'primary':''}" id="btnSelectKit1" style="font-size:11px;font-weight:800;padding:8px">UNIFORME 1</button>
+              <button class="btn ${sc.kitSelected==='kit2'?'primary':''}" id="btnSelectKit2" style="font-size:11px;font-weight:800;padding:8px">UNIFORME 2</button>
+              <button class="btn ${sc.kitSelected==='gk'?'primary':''}" id="btnSelectKitGk" style="font-size:11px;font-weight:800;padding:8px">GOLEIRO</button>
+            </div>
+          </div>
+
+          <!-- Card de Ação Específica do Uniforme Selecionado -->
+          ${(() => {
+            const kName = sc.kitSelected==='kit1'?'Uniforme 1 (Titular)':sc.kitSelected==='kit2'?'Uniforme 2 (Reserva)':'Uniforme de Goleiro';
+            const kColor = sc.kitSelected==='kit1'?'#38bdf8':sc.kitSelected==='kit2'?'#4ade80':'#facc15';
+            const isMatch = (state.matchdayKit || 'kit1') === sc.kitSelected;
+            const isPromoted = (sc.promotedKit || 'kit1') === sc.kitSelected;
+            const unitPrice = sc.kitSelected==='kit1'?249.90:sc.kitSelected==='kit2'?229.90:269.90;
+            const sharePct = sc.kitSelected==='kit1'?60:sc.kitSelected==='kit2'?28:12;
+
+            return `
+              <div style="background:#130f24;border:1px solid ${kColor};border-radius:12px;padding:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <b style="color:${kColor};font-size:12px">👕 ${kName}</b>
+                  <span class="pill" style="font-size:9px;background:${kColor}22;color:${kColor};border:1px solid ${kColor}">
+                    ${isMatch ? 'UNIFORME DE JOGO ATIVO' : 'DISPONÍVEL'}
+                  </span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:rgba(255,255,255,0.7)">
+                  <span>Preço Unitário Oficial: <b style="color:#22c55e">R$ ${unitPrice.toFixed(2).replace('.', ',')}</b></span>
+                  <span>Fatia das Vendas: <b style="color:var(--neon)">${sharePct}%</b></span>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:10px">
+                  <button class="btn ${isMatch?'primary':''}" id="btnSetAsMatchdayKit" style="flex:1;font-size:10px;padding:6px;font-weight:800">
+                    ${isMatch ? '✓ Definido p/ Próximo Jogo' : '⚽ Usar no Próximo Jogo'}
+                  </button>
+                  <button class="btn ${isPromoted?'primary':''}" id="btnSetAsPromotedKit" style="flex:1;font-size:10px;padding:6px;font-weight:800;background:${isPromoted?'#16a34a':'rgba(255,255,255,0.08)'}">
+                    ${isPromoted ? '★ Destaque na Vitrine (+20%)' : '⭐ Destacar na Vitrine'}
+                  </button>
+                </div>
+              </div>
+            `;
+          })()}
+
+          <!-- O Que Mexe nas Vendas (Screenshot 4) -->
+          <div>
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:8px">O QUE MEXE NAS VENDAS</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:11px">
+              <div>
+                <div style="display:flex;justify-content:space-between;color:rgba(255,255,255,0.7)">
+                  <span>Humor da torcida</span>
+                  <b>×${fanMoodMult}</b>
+                </div>
+                <div class="meter-bar" style="height:5px;margin-top:3px"><div class="meter-fill" style="width:${fans}%;background:#a855f7"></div></div>
+              </div>
+
+              <div>
+                <div style="display:flex;justify-content:space-between;color:rgba(255,255,255,0.7)">
+                  <span>Momento do time</span>
+                  <b style="color:#f87171">×${teamMomMult}</b>
+                </div>
+                <div class="meter-bar" style="height:5px;margin-top:3px"><div class="meter-fill" style="width:50%;background:#f87171"></div></div>
+              </div>
+
+              <div>
+                <div style="display:flex;justify-content:space-between;color:rgba(255,255,255,0.7)">
+                  <span>Craques no elenco</span>
+                  <b>×${starsMult}</b>
+                </div>
+                <div class="meter-bar" style="height:5px;margin-top:3px"><div class="meter-fill" style="width:65%;background:#38bdf8"></div></div>
+              </div>
+
+              <div>
+                <div style="display:flex;justify-content:space-between;color:rgba(255,255,255,0.7)">
+                  <span>Lançamento da camisa</span>
+                  <b>×${kitLaunchMult}</b>
+                </div>
+                <div class="meter-bar" style="height:5px;margin-top:3px"><div class="meter-fill" style="width:75%;background:#22c55e"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preço (Screenshot 4) -->
+          <div>
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:6px">PREÇO</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+              <button class="btn btnSetPricing ${sc.pricing==='popular'?'primary':''}" data-pricing="popular" style="flex-direction:column;padding:8px 4px;font-size:11px;text-align:center">
+                <b>Popular</b>
+                <span style="font-size:8px;opacity:0.7">mais peças, torcida +1</span>
+              </button>
+              <button class="btn btnSetPricing ${sc.pricing==='normal'?'primary':''}" data-pricing="normal" style="flex-direction:column;padding:8px 4px;font-size:11px;text-align:center">
+                <b>Normal</b>
+                <span style="font-size:8px;opacity:0.7">equilíbrio</span>
+              </button>
+              <button class="btn btnSetPricing ${sc.pricing==='premium'?'primary':''}" data-pricing="premium" style="flex-direction:column;padding:8px 4px;font-size:11px;text-align:center">
+                <b>Premium</b>
+                <span style="font-size:8px;opacity:0.7">margem alta, torcida -1</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Estoque do Mês (Screenshot 4) -->
+          <div>
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:6px">ESTOQUE DO MÊS (compra no dia 1º)</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+              <button class="btn btnSetStock ${sc.stock==='lean'?'primary':''}" data-stock="lean" style="flex-direction:column;padding:8px 4px;font-size:11px;text-align:center">
+                <b>Enxuto</b>
+                <span style="font-size:8px;opacity:0.7">baixo custo fixo</span>
+              </button>
+              <button class="btn btnSetStock ${sc.stock==='normal'?'primary':''}" data-stock="normal" style="flex-direction:column;padding:8px 4px;font-size:11px;text-align:center">
+                <b>Normal</b>
+                <span style="font-size:8px;opacity:0.7">demanda prevista</span>
+              </button>
+              <button class="btn btnSetStock ${sc.stock==='full'?'primary':''}" data-stock="full" style="flex-direction:column;padding:8px 4px;font-size:11px;text-align:center">
+                <b>Cheio</b>
+                <span style="font-size:8px;opacity:0.7">aproveita fase boa</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quiosque / Expansão (Screenshot 4) -->
+          <div style="background:#161226;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;margin-top:auto">
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">
+              ${sc.level===1 ? 'QUIOSQUE ATUAL' : sc.level===2 ? 'LOJA OFICIAL' : 'MEGA LOJA OFICIAL'}
+            </div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:4px">
+              ${sc.level===1 ? 'Ampliar para Loja: R$ 40.500, obra de 30 dias. Vende mais, mas a manutenção mensal sobe.' : 'Ampliar para Mega Loja: R$ 85.000, obra de 45 dias.'}
+            </div>
+            <button class="btn primary" id="btnUpgradeStoreVisual" style="width:100%;margin-top:10px;font-size:12px;font-weight:800;padding:8px">
+              ${sc.level===1 ? 'Ampliar a Loja • R$ 40.500' : 'Evoluir para Mega Loja • R$ 85.000'}
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Bindings Loja
+  $('#btnCloseStoreModal').onclick = () => { el.remove(); };
+  $('#btnSelectKit1').onclick = () => { sc.kitSelected = 'kit1'; toast('👕 Uniforme 1 (Titular) selecionado!'); save(); openOfficialStoreModal(); };
+  $('#btnSelectKit2').onclick = () => { sc.kitSelected = 'kit2'; toast('👕 Uniforme 2 (Reserva) selecionado!'); save(); openOfficialStoreModal(); };
+  $('#btnSelectKitGk').onclick = () => { sc.kitSelected = 'gk'; toast('👕 Uniforme de Goleiro selecionado!'); save(); openOfficialStoreModal(); };
+
+  $$('.showcase-kit-item').forEach(item => {
+    item.onclick = () => {
+      sc.kitSelected = item.dataset.kit;
+      save();
+      openOfficialStoreModal();
+    };
+  });
+
+  const btnSetMatch = $('#btnSetAsMatchdayKit');
+  if(btnSetMatch){
+    btnSetMatch.onclick = () => {
+      state.matchdayKit = sc.kitSelected;
+      toast(`⚽ ${sc.kitSelected==='kit1'?'Uniforme 1':sc.kitSelected==='kit2'?'Uniforme 2':'Uniforme de Goleiro'} definido como uniforme oficial para o próximo jogo!`);
+      save();
+      openOfficialStoreModal();
+    };
+  }
+
+  const btnSetPromoted = $('#btnSetAsPromotedKit');
+  if(btnSetPromoted){
+    btnSetPromoted.onclick = () => {
+      sc.promotedKit = sc.kitSelected;
+      toast(`⭐ ${sc.kitSelected==='kit1'?'Uniforme 1':sc.kitSelected==='kit2'?'Uniforme 2':'Uniforme de Goleiro'} colocado em destaque na vitrine principal (+20% em vendas de camisas)!`);
+      save();
+      openOfficialStoreModal();
+    };
+  }
+
+  $$('.btnSetPricing').forEach(b => {
+    b.onclick = () => {
+      sc.pricing = b.dataset.pricing;
+      save();
+      openOfficialStoreModal();
+    };
+  });
+
+  $$('.btnSetStock').forEach(b => {
+    b.onclick = () => {
+      sc.stock = b.dataset.stock;
+      save();
+      openOfficialStoreModal();
+    };
+  });
+
+  $('#btnUpgradeStoreVisual').onclick = () => {
+    const cost = sc.level === 1 ? 40500 : 85000;
+    if(state.balance < cost){
+      toast('Saldo insuficiente no caixa para ampliar a loja!');
+      return;
+    }
+    state.balance -= cost;
+    state.expense = (state.expense || 0) + cost;
+    sc.level++;
+    toast('🎉 Obra da loja iniciada! Capacidade de vendas e estoque expandidos!');
+    save();
+    openOfficialStoreModal();
+  };
+}
+
+// -------------------------------------------------------------------------
+// 3. CENTRO DE TREINAMENTO & FOCO DOS TREINOS (Screenshot 5)
+// -------------------------------------------------------------------------
+function openTrainingCenterModal(){
+  let el = $('#trainingCenterModalContainer');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'trainingCenterModalContainer';
+    document.body.appendChild(el);
+  }
+
+  state.trainingConfig = state.trainingConfig || {
+    level: 1,
+    focus: 'balanced',
+    daysActive: 20
+  };
+
+  const tc = state.trainingConfig;
+
+  const focusTexts = {
+    balanced: 'roda de bobo e finalização (foco equilibrado)',
+    technical: 'troca de passes e domínio orientado (foco técnico)',
+    finishing: 'finalizações na entrada da área e cabeceio (foco finalização)',
+    tactical: 'linha de impedimento e saída de bola sob pressão (foco tático)',
+    physical: 'tiros curtos de velocidade e fortalecimento (foco físico)'
+  };
+
+  el.innerHTML = `
+    <div class="visual-modal-overlay">
+      <div class="visual-modal-card">
+        
+        <!-- ================= LADO ESQUERDO: CAMPO DE TREINO PIXEL-ART ================= -->
+        <div class="visual-canvas-left">
+          
+          <div style="background:#1a1438;border:2px solid #10b981;box-shadow:0 0 16px rgba(16,185,129,0.4);padding:6px 18px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:1px;color:#fff;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+            <span>⚽</span>
+            <span>CENTRO DE TREINAMENTO DO CLUBE</span>
+          </div>
+
+          <!-- Gramado do CT com Cones e Jogadores -->
+          <div style="position:relative;width:95%;max-width:560px;aspect-ratio:1.3;background:repeating-linear-gradient(90deg, #15803d, #15803d 30px, #166534 30px, #166534 60px);border:3px solid #10b981;border-radius:18px;box-shadow:0 0 25px rgba(16,185,129,0.35);padding:14px;overflow:hidden">
+            
+            <!-- Linhas de Campo do CT -->
+            <div style="position:absolute;inset:12px;border:2px solid rgba(255,255,255,0.7);border-radius:8px"></div>
+            <div style="position:absolute;left:50%;top:12px;bottom:12px;width:2px;background:rgba(255,255,255,0.7)"></div>
+            <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:70px;height:70px;border-radius:50%;border:2px solid rgba(255,255,255,0.7)"></div>
+
+            <!-- Cones Alaranjados de Treinamento (Screenshot 5) -->
+            <div style="position:absolute;left:22%;top:35%;display:flex;gap:12px">
+              <div style="width:10px;height:10px;background:#f97316;box-shadow:0 0 6px #ea580c"></div>
+              <div style="width:10px;height:10px;background:#f97316;box-shadow:0 0 6px #ea580c"></div>
+              <div style="width:10px;height:10px;background:#f97316;box-shadow:0 0 6px #ea580c"></div>
+              <div style="width:10px;height:10px;background:#f97316;box-shadow:0 0 6px #ea580c"></div>
+              <div style="width:10px;height:10px;background:#f97316;box-shadow:0 0 6px #ea580c"></div>
+              <div style="width:10px;height:10px;background:#f97316;box-shadow:0 0 6px #ea580c"></div>
+            </div>
+
+            <!-- Jogadores Praticando Drills (Sprites) -->
+            <div style="position:absolute;left:30%;top:60%;display:flex;gap:16px">
+              <div style="width:12px;height:12px;background:#1e40af;border:1px solid #93c5fd;border-radius:50%"></div>
+              <div style="width:12px;height:12px;background:#1e40af;border:1px solid #93c5fd;border-radius:50%"></div>
+              <div style="width:12px;height:12px;background:#1e40af;border:1px solid #93c5fd;border-radius:50%"></div>
+            </div>
+
+            <div style="position:absolute;right:25%;top:28%;display:flex;gap:16px">
+              <div style="width:12px;height:12px;background:#1e40af;border:1px solid #93c5fd;border-radius:50%"></div>
+              <div style="width:12px;height:12px;background:#1e40af;border:1px solid #93c5fd;border-radius:50%"></div>
+            </div>
+
+            <!-- Pista e Barreira Auxiliar -->
+            <div style="position:absolute;bottom:16px;left:20px;right:20px;height:10px;background:rgba(255,255,255,0.2);border-radius:4px"></div>
+          </div>
+
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:12px;text-align:center">
+            O trabalho diário no gramado determina a evolução técnica e o crescimento do elenco
+          </div>
+        </div>
+
+        <!-- ================= LADO DIREITO: SELEÇÃO DE FOCO (Screenshot 5) ================= -->
+        <div class="visual-panel-right">
+          
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px">CENTRO DE TREINAMENTO</div>
+              <h2 style="margin:2px 0 0 0;font-size:20px;font-weight:900;color:#fff;text-transform:uppercase">FOCO DO TREINO</h2>
+            </div>
+            <button class="btn" id="btnCloseTrainingModal" style="background:rgba(255,255,255,0.08);border:none;padding:6px 10px;font-size:14px;border-radius:8px">✕</button>
+          </div>
+
+          <div style="background:#161226;padding:12px 14px;border-radius:12px;display:flex;justify-content:space-between;align-items:center">
+            <span class="muted" style="font-size:11px">CAIXA DO CLUBE</span>
+            <b style="color:#f59e0b;font-size:17px">${fmtMoney(state.balance)}</b>
+          </div>
+
+          <!-- Descrição do Treino de Hoje -->
+          <div style="background:#110e1d;padding:12px;border-radius:10px;border-left:4px solid #10b981;font-size:12px;color:rgba(255,255,255,0.8)">
+            <b>Treino de hoje:</b> ${focusTexts[tc.focus] || focusTexts.balanced}
+          </div>
+
+          <!-- Foco do Treino (Screenshot 5) -->
+          <div>
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:8px">FOCO DO TREINO</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              
+              <button class="btn btnSetFocus ${tc.focus==='balanced'?'primary':''}" data-focus="balanced" style="grid-column:span 2;padding:12px;display:flex;flex-direction:column;align-items:flex-start">
+                <b style="font-size:13px">Equilibrado</b>
+                <span style="font-size:10px;opacity:0.7">todos no ritmo normal</span>
+              </button>
+
+              <button class="btn btnSetFocus ${tc.focus==='technical'?'primary':''}" data-focus="technical" style="padding:12px;display:flex;flex-direction:column;align-items:flex-start">
+                <b style="font-size:13px">Técnico</b>
+                <span style="font-size:10px;opacity:0.7">passe e domínio: meio-campo cresce mais</span>
+              </button>
+
+              <button class="btn btnSetFocus ${tc.focus==='finishing'?'primary':''}" data-focus="finishing" style="padding:12px;display:flex;flex-direction:column;align-items:flex-start">
+                <b style="font-size:13px">Finalização</b>
+                <span style="font-size:10px;opacity:0.7">chute a gol: atacantes crescem mais</span>
+              </button>
+
+              <button class="btn btnSetFocus ${tc.focus==='tactical'?'primary':''}" data-focus="tactical" style="padding:12px;display:flex;flex-direction:column;align-items:flex-start">
+                <b style="font-size:13px">Tático</b>
+                <span style="font-size:10px;opacity:0.7">posicionamento: defesa e goleiros crescem mais</span>
+              </button>
+
+              <button class="btn btnSetFocus ${tc.focus==='physical'?'primary':''}" data-focus="physical" style="padding:12px;display:flex;flex-direction:column;align-items:flex-start">
+                <b style="font-size:13px">Físico</b>
+                <span style="font-size:10px;opacity:0.7">força e fôlego: os de 15 e 18 anos crescem mais</span>
+              </button>
+
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5">
+            O foco vale a partir de hoje e pesa na evolução do mês pelos dias em que ficou ativo. Quem não é o alvo do foco cresce um pouco menos.
+            <div style="margin-top:4px;color:var(--neon)">
+              Neste mês: <b>${tc.focus.toUpperCase()} ${tc.daysActive} dias.</b>
+            </div>
+          </div>
+
+          <!-- CT / Expansão (Screenshot 5) -->
+          <div style="background:#161226;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;margin-top:auto">
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">
+              ${tc.level===1 ? 'CT BÁSICO' : 'CT MODERNO'}
+            </div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:4px">
+              ${tc.level===1 ? 'Ampliar para CT moderno: R$ 108.000, obra de 90 dias, manutenção +R$ 1.500/mês. Acelera ainda mais a evolução técnica.' : 'CT moderno em pleno funcionamento!'}
+            </div>
+            ${tc.level===1 ? `
+              <button class="btn primary" id="btnUpgradeCTVisual" style="width:100%;margin-top:10px;font-size:12px;font-weight:800;padding:8px">
+                Ampliar para CT Moderno • R$ 108.000
+              </button>
+            ` : `
+              <div style="margin-top:8px;color:#22c55e;font-size:11px;font-weight:800">✓ INSTALAÇÃO NO NÍVEL MÁXIMO</div>
+            `}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Bindings Treino
+  $('#btnCloseTrainingModal').onclick = () => { el.remove(); };
+
+  $$('.btnSetFocus').forEach(b => {
+    b.onclick = () => {
+      tc.focus = b.dataset.focus;
+      tc.daysActive = 1;
+      toast(`Foco dos treinos alterado para ${b.dataset.focus.toUpperCase()}!`);
+      save();
+      openTrainingCenterModal();
+    };
+  });
+
+  const btnUpCT = $('#btnUpgradeCTVisual');
+  if(btnUpCT){
+    btnUpCT.onclick = () => {
+      const cost = 108000;
+      if(state.balance < cost){
+        toast('Saldo insuficiente no caixa para ampliar o CT!');
+        return;
+      }
+      state.balance -= cost;
+      state.expense = (state.expense || 0) + cost;
+      tc.level = 2;
+      toast('🎉 Obra do CT Moderno iniciada! A evolução técnica do elenco será acelerada!');
+      save();
+      openTrainingCenterModal();
+    };
+  }
+}
+
+// -------------------------------------------------------------------------
+// APLICAÇÃO MENSAL: EVOLUÇÃO DE OVERALL PELO CT E RECEITAS DE NAMING RIGHTS/LOJA
+// -------------------------------------------------------------------------
+function applyMonthlyTrainingAndCommercial(){
+  // 1. Naming Rights
+  if(state.namingRights && state.namingRights.monthsRemaining > 0){
+    const v = state.namingRights.monthlyValue;
+    state.balance += v;
+    state.income = (state.income || 0) + v;
+    state.namingRights.monthsRemaining--;
+    state.news.unshift(`🏢 Naming Rights: ${fmtMoney(v)} recebidos do contrato com ${state.namingRights.sponsor}.`);
+    if(state.namingRights.monthsRemaining <= 0){
+      state.news.unshift(`⚠️ O contrato de Naming Rights com ${state.namingRights.sponsor} terminou!`);
+      state.namingRights = null;
+    }
+  }
+
+  // 2. Loja Oficial
+  const sc = state.storeConfig || { level: 1, pricing: 'normal', stock: 'normal' };
+  let baseSales = sc.level === 1 ? 25000 : sc.level === 2 ? 65000 : 130000;
+  if(sc.pricing === 'popular') baseSales *= 1.25;
+  else if(sc.pricing === 'premium') baseSales *= 0.85;
+
+  const storeIncome = Math.round(baseSales * (0.8 + Math.random() * 0.4));
+  const storeCost = Math.round(storeIncome * (sc.stock === 'full' ? 0.65 : sc.stock === 'lean' ? 0.45 : 0.55));
+  const netStore = Math.max(0, storeIncome - storeCost);
+  state.balance += netStore;
+  state.income = (state.income || 0) + netStore;
+
+  // 3. Evolução de Jogadores pelo Foco do CT
+  const tc = state.trainingConfig || { level: 1, focus: 'balanced' };
+  const squad = state.squad || [];
+
+  squad.forEach(p => {
+    let boostChance = 0.15 * tc.level;
+    const pos = p.pos || 'CM';
+
+    if(tc.focus === 'finishing' && ['ST', 'CF', 'RW', 'LW'].includes(pos)){
+      boostChance = 0.42 * tc.level;
+    } else if(tc.focus === 'technical' && ['CM', 'AM', 'DM'].includes(pos)){
+      boostChance = 0.42 * tc.level;
+    } else if(tc.focus === 'tactical' && ['CB', 'LB', 'RB', 'GK'].includes(pos)){
+      boostChance = 0.42 * tc.level;
+    } else if(tc.focus === 'physical' && (+p.age <= 18)){
+      boostChance = 0.55 * tc.level;
+    }
+
+    if(Math.random() < boostChance && (playerOverall(p) < (p.potential || 85))){
+      p.atk = Math.min(99, (p.atk || 65) + (tc.focus === 'finishing' ? 1 : 0));
+      p.mid = Math.min(99, (p.mid || 65) + (tc.focus === 'technical' ? 1 : 0));
+      p.def = Math.min(99, (p.def || 65) + (tc.focus === 'tactical' ? 1 : 0));
+      if(tc.focus === 'balanced' || tc.focus === 'physical'){
+        p.atk = Math.min(99, (p.atk || 65) + (Math.random() < 0.3 ? 1 : 0));
+        p.mid = Math.min(99, (p.mid || 65) + (Math.random() < 0.3 ? 1 : 0));
+        p.def = Math.min(99, (p.def || 65) + (Math.random() < 0.3 ? 1 : 0));
+      }
+    }
+  });
+}
+
+
+
+// =========================================
+// SISTEMAS E TELAS DO AFM 2026
+// =========================================
+
+let liveBannerTimeout = null;
+function showLiveBanner(text, type, durationMs){
+  const b = $('#liveHighlightBanner');
+  if(!b) return;
+  if(liveBannerTimeout) clearTimeout(liveBannerTimeout);
+
+  b.textContent = text;
+  b.style.display = 'block';
+
+  if(type === 'red'){
+    b.style.background = '#991b1b';
+    b.style.border = '1px solid #ef4444';
+    b.style.color = '#fff';
+  } else if(type === 'gol'){
+    b.style.background = '#15803d';
+    b.style.border = '1px solid #22c55e';
+    b.style.color = '#fff';
+  } else if(type === 'yellow'){
+    b.style.background = '#854d0e';
+    b.style.border = '1px solid #facc15';
+    b.style.color = '#fff';
+  } else {
+    b.style.background = '#1e40af';
+    b.style.border = '1px solid #60a5fa';
+    b.style.color = '#fff';
+  }
+
+  // Garantia de pelo menos 5 segundos para leitura mesmo nas velocidades mais altas
+  const time = Math.max(5000, durationMs || 5000);
+  liveBannerTimeout = setTimeout(() => {
+    if(b) b.style.display = 'none';
+  }, time);
+}
+
+
+// =========================================================================
+// MODAL DE AJUSTE TÁTICO POR EXPULSÃO (COM O NOME DO EXPULSO E FORMAÇÕES DE 10)
+// =========================================================================
+function openRedCardTacticalModal(sentOffPlayer, minute, reason, isUser){
+  const posName = sentOffPlayer ? (sentOffPlayer.pos || 'Jogador') : 'Jogador';
+  const playerName = sentOffPlayer ? (sentOffPlayer.name || 'Atleta') : 'Jogador';
+
+  const formations10 = [
+    { name: '4-4-1 (Equilíbrio com atacante isolado)', form: '4-4-1' },
+    { name: '4-3-2 (Pressão em bloco médio)', form: '4-3-2' },
+    { name: '5-3-1 (Retranca com linha de 5)', form: '5-3-1' },
+    { name: '3-5-1 (Povoar meio de campo)', form: '3-5-1' },
+    { name: '4-2-3 (Duas linhas de contenção)', form: '4-2-3' }
+  ];
+
+  openCustomModal(
+    '🟥 CARTÃO VERMELHO: AJUSTE TÁTICO EMERGENCIAL',
+    `
+      <div style="background:#2a0f12;border:1px solid #ef4444;border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px">
+        <div style="font-size:36px">🟥</div>
+        <div>
+          <div style="font-size:11px;font-weight:800;color:#fca5a5;letter-spacing:1px;text-transform:uppercase">EXPULSÃO AOS ${minute}' DE JOGO</div>
+          <h3 style="margin:4px 0 2px 0;font-size:18px;color:#fff">${esc(playerName)}</h3>
+          <div style="font-size:12px;color:rgba(255,255,255,0.7)">
+            Vaga em campo: <b>${posName}</b> • Motivo: <b>${esc(reason)}</b>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px">
+        <label style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.7)">ESCOLHA O ESQUEMA ADAPTADO PARA JOGAR COM 10:</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          ${formations10.map((f, idx) => `
+            <label style="display:flex;align-items:center;gap:10px;background:#181428;padding:10px 14px;border-radius:10px;cursor:pointer;border:1px solid rgba(255,255,255,0.08)">
+              <input type="radio" name="form10" value="${f.form}" ${idx===0?'checked':''}>
+              <div>
+                <b style="color:#fff;font-size:13px">${f.name}</b>
+              </div>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+
+      <div style="margin-top:14px;font-size:12px;color:rgba(255,255,255,0.5)">
+        A sua equipe passará a disputar o restante do confronto com 10 jogadores em campo.
+      </div>
+    `,
+    ()=>{
+      const selectedForm = $('input[name="form10"]:checked')?.value || '4-4-1';
+      state.formation = selectedForm;
+      toast(`Esquema tático adaptado para ${selectedForm} com 10 em campo!`);
+      if(liveMatchState){
+        liveMatchState.events.unshift({
+          min: minute,
+          type: 'sub',
+          text: `📋 Ajuste tático: ${state.club} se reorganiza em campo no esquema ${selectedForm}!`
+        });
+      }
+    },
+    'Confirmar Ajuste Tático',
+    true
+  );
+}
+
+
+// =========================================================================
+// SISTEMA DE AMPLIAÇÃO DO ESTÁDIO (ANEL POR ANEL ATÉ 100K)
+// =========================================================================
+function buildStadiumSide(side, mode){
+  const stData = getStadiumExpansionData();
+  if(stData.sides[side]){
+    toast('Este setor já foi totalmente construído neste anel!');
+    return;
+  }
+
+  const cost = 850000;
+  const monthlyRev = Math.max(100000, (state.lastHome?.revenue || 400000) * 2 + 150000); // Estimativa de receita mensal
+  const maxAllowedInstallment = monthlyRev * 0.30;
+
+  if(mode === 'cash'){
+    if(state.balance < cost){
+      toast('Saldo em caixa insuficiente para pagamento à vista!');
+      return;
+    }
+    state.balance -= cost;
+    state.expense = (state.expense || 0) + cost;
+    toast(`Obra no Lado ${side.toUpperCase()} iniciada à vista por ${fmtMoney(cost)}!`);
+  } else {
+    const downPayment = cost * 0.20;
+    if(state.balance < downPayment){
+      toast(`Entrada de 20% (${fmtMoney(downPayment)}) insuficiente no caixa!`);
+      return;
+    }
+    const numMonths = mode === '6x' ? 6 : 12;
+    const interest = mode === '6x' ? 1.06 : 1.12; // 1% ao mês
+    const totalFinanced = (cost * 0.80) * interest;
+    const monthlyInst = Math.round(totalFinanced / numMonths);
+
+    if(monthlyInst > maxAllowedInstallment){
+      toast(`Aviso do Conselho Fiscal: A parcela de ${fmtMoney(monthlyInst)} ultrapassa 30% da receita mensal do clube (${fmtMoney(maxAllowedInstallment)})!`);
+      return;
+    }
+
+    state.balance -= downPayment;
+    state.expense = (state.expense || 0) + downPayment;
+    stData.debt = stData.debt || { remaining: 0, monthly: 0, monthsLeft: 0 };
+    stData.debt.remaining += totalFinanced;
+    stData.debt.monthly += monthlyInst;
+    stData.debt.monthsLeft = Math.max(stData.debt.monthsLeft, numMonths);
+
+    toast(`Obra iniciada! Entrada de ${fmtMoney(downPayment)} paga. Parcelas de ${fmtMoney(monthlyInst)}/mês cobradas dia 1º.`);
+  }
+
+  // Registra lado construído
+  stData.sides[side] = true;
+  state.infrastructure = state.infrastructure || {};
+  state.infrastructure.stadium = state.infrastructure.stadium || { level: 3, capacity: 18000 };
+  state.infrastructure.stadium.capacity = Math.min(100000, (state.infrastructure.stadium.capacity || 18000) + 3500);
+
+  // Verifica se completou os 4 lados do anel
+  const allSidesDone = ['norte', 'sul', 'leste', 'oeste'].every(s => stData.sides[s]);
+  if(allSidesDone){
+    stData.ring = Math.min(stData.maxRings, stData.ring + 1);
+    stData.sides = { norte: false, sul: false, leste: false, oeste: false };
+    toast(`🎉 Sensacional! Todos os 4 lados foram concluídos! O estádio avançou para o Anel ${stData.ring}!`);
+  }
+
+  save();
+  render();
+}
+
+// =========================================================================
+// SISTEMA DE CONSTRUÇÃO DE NOVA ARENA DO CLUBE (ATÉ 100 MIL)
+// =========================================================================
+function calcArenaTotalCost(cap){
+  if(cap <= 15000) return 75000000;
+  if(cap <= 30000) return 165000000;
+  if(cap <= 50000) return 325000000;
+  if(cap <= 80000) return 600000000;
+  return 850000000;
+}
+
+function buyDirectArenaLand(mode = 'cash'){
+  const landCost = 12000000;
+  if(state.arenaLandBought){
+    toast('O Lote Urbano já foi adquirido e escriturado para o clube!');
+    return false;
+  }
+  if(mode === 'cash'){
+    if(state.balance < landCost){
+      toast(`Saldo insuficiente no caixa para comprar o Lote Urbano à vista (${fmtMoney(landCost)})!`);
+      return false;
+    }
+    state.balance -= landCost;
+    state.expense = (state.expense || 0) + landCost;
+    state.arenaLandBought = true;
+    toast('🏙️ Lote Urbano adquirido com sucesso! Escritura registrada em cartório.');
+  } else {
+    const down = 1200000;
+    if(state.balance < down){
+      toast(`Saldo insuficiente para entrada da parceria do terreno (${fmtMoney(down)})!`);
+      return false;
+    }
+    state.balance -= down;
+    state.expense = (state.expense || 0) + down;
+    state.arenaLandBought = true;
+    state.arenaLandDebt = { monthly: 450000, roundsRemaining: 24 };
+    toast('🏛️ Parceria público-privada aprovada! Entrada de 10% quitada e terreno liberado.');
+  }
+  save();
+  render();
+  return true;
+}
+
+function buyDirectArenaPermit(mode = 'cash'){
+  const permitCost = 4500000;
+  if(state.arenaPermitBought){
+    toast('O Alvará da Prefeitura já foi emitido e aprovado!');
+    return false;
+  }
+  if(mode === 'cash'){
+    if(state.balance < permitCost){
+      toast(`Saldo insuficiente no caixa para emitir o Alvará da Prefeitura (${fmtMoney(permitCost)})!`);
+      return false;
+    }
+    state.balance -= permitCost;
+    state.expense = (state.expense || 0) + permitCost;
+    state.arenaPermitBought = true;
+    toast('🏛️ Alvará de Construção da Prefeitura e licença ambiental emitidos!');
+  } else {
+    const down = 450000;
+    if(state.balance < down){
+      toast(`Saldo insuficiente para entrada das taxas do alvará (${fmtMoney(down)})!`);
+      return false;
+    }
+    state.balance -= down;
+    state.expense = (state.expense || 0) + down;
+    state.arenaPermitBought = true;
+    state.arenaPermitDebt = { monthly: 170000, roundsRemaining: 24 };
+    toast('📋 Convênio municipal aprovado! Alvará emitido com taxas parceladas.');
+  }
+  save();
+  render();
+  return true;
+}
+
+function buyDirectArenaBoth(){
+  const total = 16500000;
+  if(state.arenaLandBought && state.arenaPermitBought){
+    toast('Os pré-requisitos legais (Lote e Alvará) já estão 100% quitados!');
+    return false;
+  }
+  if(state.balance < total){
+    toast(`Saldo insuficiente para regularizar Lote e Alvará à vista (${fmtMoney(total)})!`);
+    return false;
+  }
+  state.balance -= total;
+  state.expense = (state.expense || 0) + total;
+  state.arenaLandBought = true;
+  state.arenaPermitBought = true;
+  toast('🎉 Regularização completa! Lote escriturado e Alvará emitido com sucesso.');
+  save();
+  render();
+  return true;
+}
+
+function startNewArenaProject(name, cap, financingMethod = 'cash'){
+  const arenaData = getNewArenaData();
+  if(arenaData.underConstruction){
+    toast('Já existe uma Nova Arena em construção para o clube!');
+    return;
+  }
+
+  if(!state.arenaLandBought){
+    openCustomModal(
+      '🏙️ Lote Urbano Pendente',
+      `
+        <div style="font-size:13px;line-height:1.6;color:rgba(255,255,255,0.85)">
+          Para iniciar as obras da nova arena, o clube precisa primeiro adquirir o terreno.<br><br>
+          <div style="background:#181428;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.1)">
+            <b>Opções de Regularização:</b><br>
+            • <b>À Vista:</b> R$ 12.000.000<br>
+            • <b>Financiamento Municipal:</b> Entrada de 10% (R$ 1.200.000) e 24 parcelas.
+          </div>
+        </div>
+      `,
+      () => { buyDirectArenaLand(state.balance >= 12000000 ? 'cash' : 'finance'); },
+      state.balance >= 12000000 ? 'Comprar Lote à Vista (R$ 12 Mi)' : 'Financiar Lote (10% entrada)',
+      true,
+      '500px'
+    );
+    return;
+  }
+  if(!state.arenaPermitBought){
+    openCustomModal(
+      '🏛️ Alvará da Prefeitura Pendente',
+      `
+        <div style="font-size:13px;line-height:1.6;color:rgba(255,255,255,0.85)">
+          O projeto civil precisa do alvará de construção e da licença ambiental municipal.<br><br>
+          <div style="background:#181428;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.1)">
+            <b>Opções de Emissão:</b><br>
+            • <b>À Vista:</b> R$ 4.500.000<br>
+            • <b>Parcelamento de Taxas:</b> Entrada de 10% (R$ 450.000) e 24 parcelas.
+          </div>
+        </div>
+      `,
+      () => { buyDirectArenaPermit(state.balance >= 4500000 ? 'cash' : 'finance'); },
+      state.balance >= 4500000 ? 'Emitir Alvará à Vista (R$ 4,5 Mi)' : 'Parcelar Alvará (10% entrada)',
+      true,
+      '500px'
+    );
+    return;
+  }
+
+  const finalCap = cap || 15000;
+  const totalCost = calcArenaTotalCost(finalCap);
+  let downPayment = totalCost;
+  let months = finalCap <= 15000 ? 18 : finalCap <= 30000 ? 24 : finalCap <= 50000 ? 30 : 36;
+  let monthly = 0;
+
+  if(financingMethod === 'cash'){
+    if(state.balance < totalCost){
+      toast(`Caixa insuficiente para pagamento à vista (${fmtMoney(totalCost)})!`);
+      return;
+    }
+    state.balance -= totalCost;
+    state.expense = (state.expense || 0) + totalCost;
+    monthly = 0;
+  } else {
+    downPayment = Math.round(totalCost * 0.20);
+    if(state.balance < downPayment){
+      toast(`Entrada de 20% (${fmtMoney(downPayment)}) insuficiente no caixa do clube!`);
+      return;
+    }
+    state.balance -= downPayment;
+    state.expense = (state.expense || 0) + downPayment;
+
+    if(financingMethod === '4years'){
+      months = 48;
+      monthly = Math.round((totalCost * 0.80 * 1.25) / 48);
+    } else if(financingMethod === '6years'){
+      months = 72;
+      monthly = Math.round((totalCost * 0.80 * 1.35) / 72);
+    } else { // 8years
+      months = 96;
+      monthly = Math.round((totalCost * 0.80 * 1.45) / 96);
+    }
+  }
+
+  arenaData.underConstruction = true;
+  arenaData.name = name;
+  arenaData.capacity = finalCap;
+  arenaData.financingMethod = financingMethod;
+  arenaData.roundsTotal = months;
+  arenaData.roundsRemaining = months;
+  arenaData.monthly = monthly;
+
+  state.news.unshift(`🏛️ PROJETO MONUMENTAL: O ${state.club} iniciou a construção da ${name} (${finalCap.toLocaleString('pt-BR')} lugares)! Custo total: ${fmtMoney(totalCost)}. ${financingMethod==='cash'?'Pago 100% à vista!':'Entrada de 20% quitada e parcelamento ativo.'}`);
+  toast(`🎉 Obra monumental da ${name} (${finalCap.toLocaleString('pt-BR')} lugares) iniciada com sucesso!`);
+  save();
+  render();
+}
+window.buyDirectArenaLand = buyDirectArenaLand;
+window.buyDirectArenaPermit = buyDirectArenaPermit;
+window.buyDirectArenaBoth = buyDirectArenaBoth;
+window.startNewArenaProject = startNewArenaProject;
+
+// =========================================================================
+// SISTEMA DO MUSEU DO CLUBE (16 NÍVEIS & VITRINE DE TAÇAS)
+// =========================================================================
+function upgradeMuseum(){
+  const m = getMuseumData();
+  if(state.museumData.level >= 16){
+    toast('O Museu do Clube já atingiu o nível máximo: Panteão do Clube!');
+    return;
+  }
+  const nextLvl = MUSEUM_LEVELS.find(x => x.level === state.museumData.level + 1);
+  if(!nextLvl) return;
+
+  if(state.balance < nextLvl.cost){
+    toast(`Saldo insuficiente! Custo para evoluir ao nível ${nextLvl.level}: ${fmtMoney(nextLvl.cost)}`);
+    return;
+  }
+
+  state.balance -= nextLvl.cost;
+  state.expense = (state.expense || 0) + nextLvl.cost;
+  state.museumData.level = nextLvl.level;
+  state.trust = state.trust || {};
+  state.trust.fans = Math.min(100, (state.trust.fans || 70) + 8);
+
+  toast(`🏆 Museu inaugurado no nível ${nextLvl.name}! A torcida está em festa com o novo espaço das taças!`);
+  save();
+  render();
+}
+
+function skipUpgradeMuseum(){
+  const m = getMuseumData();
+  const neededCap = m.allTitles.length;
+  const targetLvlObj = MUSEUM_LEVELS.find(x => x.capacity >= neededCap) || MUSEUM_LEVELS[MUSEUM_LEVELS.length - 1];
+  
+  if(targetLvlObj.level <= state.museumData.level){
+    toast('Todas as taças já cabem na vitrine atual!');
+    return;
+  }
+
+  // Soma os custos dos níveis pulados
+  let totalCost = 0;
+  for(let i = state.museumData.level + 1; i <= targetLvlObj.level; i++){
+    const lvl = MUSEUM_LEVELS.find(x => x.level === i);
+    if(lvl) totalCost += lvl.cost;
+  }
+
+  if(state.balance < totalCost){
+    toast(`Saldo insuficiente para oferta única de Ampliar de Uma Vez (${fmtMoney(totalCost)})!`);
+    return;
+  }
+
+  state.balance -= totalCost;
+  state.expense = (state.expense || 0) + totalCost;
+  state.museumData.level = targetLvlObj.level;
+  state.museumData.skipOfferUsed = true;
+  state.trust = state.trust || {};
+  state.trust.fans = Math.min(100, (state.trust.fans || 70) + 15);
+
+  toast(`⚡ Oferta acionada! O museu foi direto para ${targetLvlObj.name} (${targetLvlObj.capacity} vagas)! Todas as taças voltaram para a vitrine!`);
+  save();
+  render();
+}
+
+// =========================================================================
+// SISTEMA DE SUA CASA & PATRIMÔNIO DO TREINADOR
+// =========================================================================
+function buyHouseItem(itemId){
+  const item = HOUSE_ITEMS.find(x => x.id === itemId);
+  if(!item) return;
+
+  state.housePurchases = state.housePurchases || [];
+  if(state.housePurchases.includes(itemId)){
+    toast('Você já possui este bem/licença!');
+    return;
+  }
+
+  const pMoney = state.managerMoney || 57000;
+  if(pMoney < item.cost){
+    toast('Seu patrimônio pessoal é insuficiente para adquirir este item!');
+    return;
+  }
+
+  // Validação de requisitos
+  if(!item.unlocked){
+    if(item.reqType === 'seasons' && (state.historySeasons || 1) < item.reqVal){
+      toast(`Requisito não atingido: ${item.reqText}`);
+      return;
+    }
+    if(item.reqType === 'titles' && (state.titles || []).length < item.reqVal){
+      toast(`Requisito não atingido: ${item.reqText}`);
+      return;
+    }
+  }
+
+  state.managerMoney = pMoney - item.cost;
+  state.housePurchases.push(itemId);
+  toast(`🎉 Parabéns! Você adquiriu ${item.name} por ${fmtMoney(item.cost)}!`);
+  save();
+  render();
+}
+
+// =========================================================================
+// SISTEMA DE OLHEIRO NO MERCADO (RELATÓRIOS EM 1 MÊS & BUSCA DE PROMESSAS EM 5 MESES)
+// =========================================================================
+function sendScoutToPlayer(key){
+  state.scoutMissions = state.scoutMissions || [];
+  if(state.scoutMissions.length >= 2){
+    toast('O olheiro já está cuidando de 2 trabalhos ao mesmo tempo! Aguarde a conclusão de uma missão.');
+    return;
+  }
+
+  const cost = 25000;
+  if(state.balance < cost){
+    toast(`Saldo insuficiente! O envio do olheiro custa ${fmtMoney(cost)}.`);
+    return;
+  }
+
+  const p = marketUniverse().find(x => playerKey(x) === key);
+  if(!p){
+    toast('Jogador não encontrado no mercado.');
+    return;
+  }
+
+  state.balance -= cost;
+  state.expense = (state.expense || 0) + cost;
+  state.scoutMissions.push({
+    type: 'player',
+    playerKey: key,
+    playerName: p.name,
+    club: p.club,
+    roundsTotal: 4,      // 1 mês = 4 rodadas
+    roundsLeft: 4
+  });
+
+  toast(`🔍 Olheiro enviado para analisar ${p.name}! Relatório completo em 1 mês (4 rodadas).`);
+  save();
+  render();
+}
+
+let scoutTierFilter = 'all';
+let scoutAffordableOnly = false;
+
+function openScoutPromiseModal(){
+  state.scoutMissions = state.scoutMissions || [];
+  if(state.scoutMissions.length >= 2){
+    toast('O olheiro já está cuidando de 2 trabalhos ao mesmo tempo! Aguarde uma vaga abrir.');
+    return;
+  }
+
+  const tiers = {
+    normal: { name: 'Olheiro Básico / Regional (Times Menores)', cost: 18000, rounds: 10, desc: 'Especialista em categorias de base do interior e divisões de acesso. Descobre promessas baratas e acessíveis (até R$ 2,5 Mi)' },
+    bom: { name: 'Olheiro Bom / Nacional (Série A & B)', cost: 75000, rounds: 16, desc: 'Mapeia jovens talentos de destaque nacional e principais copas de base (R$ 2,5 Mi a R$ 20 Mi)' },
+    elite: { name: 'Olheiro de Elite / Internacional (Top Mundial)', cost: 250000, rounds: 20, desc: 'Rede global de inteligência internacional caçando os maiores fenômenos jovens mundiais' }
+  };
+
+  openCustomModal(
+    '🎯 Busca de Promessas pelo Olheiro',
+    `
+      <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+        Contrate o olheiro ideal para o orçamento do seu clube. Ele viajará pelos campos e trará os <b>5 jovens mais promissores</b> no recorte escolhido!
+      </div>
+
+      <div style="margin-top:14px;background:#130f24;border:1px solid #7c3aed;padding:12px;border-radius:12px">
+        <label style="font-size:11px;font-weight:900;color:#c084fc;letter-spacing:0.5px">CLASSE DO OLHEIRO:</label>
+        <select id="selScoutClassTier" class="btn" style="width:100%;margin-top:6px;background:#1a1530;border:1px solid #7c3aed;color:#fff;font-weight:800;padding:10px">
+          <option value="normal" selected>🌱 Olheiro Básico / Regional • R$ 18.000 (10 rodadas / 2.5 meses)</option>
+          <option value="bom">⚖️ Olheiro Bom / Nacional • R$ 75.000 (16 rodadas / 4 meses)</option>
+          <option value="elite">💎 Olheiro de Elite / Internacional • R$ 250.000 (20 rodadas / 5 meses)</option>
+        </select>
+        <div id="scoutClassTierDesc" style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:6px">
+          ${tiers.normal.desc}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+        <div>
+          <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">DIVISÃO / NÍVEL:</label>
+          <select id="selScoutDiv" class="btn" style="width:100%;margin-top:4px;background:#181428;border:1px solid rgba(255,255,255,0.15)">
+            <option value="all">Todas as Divisões Nacionais</option>
+            <option value="serie_a">Série A & Elites</option>
+            <option value="serie_b">Série B</option>
+            <option value="estaduais">Estaduais & Interior</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">ESTADO (UF):</label>
+          <select id="selScoutState" class="btn" style="width:100%;margin-top:4px;background:#181428;border:1px solid rgba(255,255,255,0.15)">
+            <option value="all">Todo o Brasil</option>
+            <option value="DF">Distrito Federal (DF)</option>
+            <option value="SP">São Paulo (SP)</option>
+            <option value="RJ">Rio de Janeiro (RJ)</option>
+            <option value="MG">Minas Gerais (MG)</option>
+            <option value="RS">Rio Grande do Sul (RS)</option>
+            <option value="PR">Paraná (PR)</option>
+            <option value="BA">Bahia (BA)</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">SETOR DO CAMPO:</label>
+          <select id="selScoutSector" class="btn" style="width:100%;margin-top:4px;background:#181428;border:1px solid rgba(255,255,255,0.15)">
+            <option value="all">Todos os Setores</option>
+            <option value="GOL">Goleiros</option>
+            <option value="DEF">Defesa (Zagueiros / Laterais)</option>
+            <option value="MEI">Meio-Campo</option>
+            <option value="ATA">Ataque (Pontas / Centroavantes)</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">IDADE MÁXIMA:</label>
+          <select id="selScoutAge" class="btn" style="width:100%;margin-top:4px;background:#181428;border:1px solid rgba(255,255,255,0.15)">
+            <option value="17">Até 17 anos (Sub-17 puro)</option>
+            <option value="18" selected>Até 18 anos</option>
+            <option value="19">Até 19 anos</option>
+            <option value="20">Até 20 anos (Sub-20)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <span class="muted" style="font-size:12px">Investimento:</span>
+          <b id="lblScoutCost" style="color:var(--neon);font-size:16px;margin-left:8px">R$ 18.000</b>
+        </div>
+        <div id="lblScoutTime" class="small muted">Tempo de busca: 10 rodadas (~2.5 meses)</div>
+      </div>
+    `,
+    ()=>{
+      const selTierKey = $('#selScoutClassTier')?.value || 'normal';
+      const curTier = tiers[selTierKey] || tiers.normal;
+      const cost = curTier.cost;
+
+      if(state.balance < cost){
+        toast(`Saldo insuficiente (${fmtMoney(cost)}) para contratar este olheiro!`);
+        return;
+      }
+      state.balance -= cost;
+      state.expense = (state.expense || 0) + cost;
+
+      const div = $('#selScoutDiv')?.value || 'all';
+      const uf = $('#selScoutState')?.value || 'all';
+      const sector = $('#selScoutSector')?.value || 'all';
+      const age = +($('#selScoutAge')?.value || 18);
+
+      state.scoutMissions.push({
+        type: 'promises',
+        tier: selTierKey,
+        tierName: curTier.name,
+        div, uf, sector, age,
+        roundsTotal: curTier.rounds,
+        roundsLeft: curTier.rounds
+      });
+
+      toast(`🎯 Missão do ${curTier.name} iniciada! Relatório com 5 promessas em ${curTier.rounds} rodadas.`);
+      save();
+      render();
+    },
+    'Iniciar Busca de Promessas',
+    true
+  );
+
+  setTimeout(()=>{
+    const sel = $('#selScoutClassTier');
+    if(sel){
+      sel.onchange = () => {
+        const t = tiers[sel.value] || tiers.normal;
+        const d = $('#scoutClassTierDesc'); if(d) d.textContent = t.desc;
+        const c = $('#lblScoutCost'); if(c) c.textContent = fmtMoney(t.cost);
+        const tm = $('#lblScoutTime'); if(tm) tm.textContent = `Tempo de busca: ${t.rounds} rodadas (~${(t.rounds/4).toFixed(1)} meses)`;
+      };
+    }
+  }, 50);
+}
+
+
+// -------------------------------------------------------------
+// ABA NOVIDADES E CORREÇÕES (SCREENSHOT 2)
+// -------------------------------------------------------------
+function changelogPage(){
+  return `
+    <!-- Topo Oficial (Screenshot 2) -->
+    <div style="margin-bottom:24px">
+      <h1 style="margin:0;font-size:32px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
+        NOVIDADES E CORREÇÕES
+      </h1>
+      <div style="font-size:14px;color:rgba(255,255,255,0.7);margin-top:6px">
+        O que mudou no jogo e o que vem por aí. Muita coisa daqui nasceu das mensagens de vocês.
+      </div>
+    </div>
+
+    <!-- Feed de Cartões com Badges (Screenshot 2) -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+      
+      <!-- Card: Versão 60 - CONMEBOL Sul-Americana & Pirâmide de Acessos -->
+      <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
+          7 DE OUTUBRO DE 2026 · VERSÃO 60
+        </div>
+        <h2 style="margin:6px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          CONMEBOL SUL-AMERICANA 2026, LIBERTADORES & PIRÂMIDE COMPLETA DE ACESSOS CBF
+        </h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Copa Sul-Americana na Aba Continental:</b> Detalhamento completo da CONMEBOL Sul-Americana 2026 com vagas para o G7 ao G12 do Brasileirão Série A, formato de 8 grupos e playoffs contra os terceiros colocados da Libertadores, vaga na Recopa e Libertadores 2027.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Premiações Oficiais em Dólares e Reais:</b> Tabela completa de premiações financeiras da CONMEBOL (Sul-Americana com US$ 900 mil na fase de grupos a US$ 6 Milhões ao campeão; Libertadores de US$ 3 Milhões a US$ 23 Milhões ao campeão com vaga no Mundial FIFA).
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#22c55e;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              MELHORIA
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Pirâmide Oficial de Acessos & Rebaixamentos do Futebol Brasileiro:</b> Guia visual com todas as regras da Série A (G4, G6, G12 e Z4), Série B (G4 acesso e Z4), Série C (fase única de 19 rodadas, 2 quadrangulares com acesso dos 2 melhores e Z4) e Série D (64 clubes, mata-mata com 4 semifinalistas subindo à Série C) conectados aos Campeonatos Estaduais.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Versão 59 - Nova Arena do Clube: Alvará e Lote Urbano -->
+      <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
+          7 DE OUTUBRO DE 2026 · VERSÃO 59
+        </div>
+        <h2 style="margin:6px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          CONSTRUÇÃO DA NOVA ARENA: ALVARÁ DA PREFEITURA & LOTE URBANO OBRIGATÓRIOS
+        </h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Pré-requisitos Reais de Engenharia:</b> Para construir uma nova arena, o clube agora deve primeiro adquirir o <b>Lote Urbano / Terreno Comercial (R$ 12.000.000)</b> e obter o <b>Alvará de Construção da Prefeitura (R$ 4.500.000)</b>.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#22c55e;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              MELHORIA
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Orçamentos Realistas de Capacidade Projetada:</b> Rebalanceamento completo dos custos da nova arena (15k = R$ 75M, 30k = R$ 165M, 50k = R$ 325M, 80k = R$ 600M), espelhando o custo real da construção civil de arenas no Brasil.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#ef4444;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              CORREÇÃO
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Correção de Overflow no HUD de Financiamento:</b> Os botões de financiamento (À Vista, 60x, 120x, 240x) agora utilizam um grid 2x2 responsivo que não ultrapassa a borda dos cartões.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Versão 58 - Olheiros em Classes & Filtros por Orçamento -->
+      <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
+          7 DE OUTUBRO DE 2026 · VERSÃO 58
+        </div>
+        <h2 style="margin:6px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          CLASSES DE OLHEIRO NO MERCADO & FILTROS PARA TIMES PEQUENOS
+        </h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Três Classes Oficiais de Olheiro:</b> Agora você escolhe o nível do profissional de scouting: <b>Básico / Regional</b> (R$ 18.000, 10 rodadas, promessas acessíveis até R$ 2,5 Mi para clubes menores), <b>Bom / Nacional</b> (R$ 75.000, 16 rodadas, atletas consolidados de R$ 2,5 Mi a R$ 22 Mi) e <b>Elite / Internacional</b> (R$ 250.000, 20 rodadas, craques mundiais).
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#22c55e;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              MELHORIA
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Filtros Rápidos por Orçamento no Mercado:</b> Botões de filtro direto no radar ('🌱 BÁSICO / ATÉ R$ 3 MI', '⚖️ BOM / R$ 3 MI A 25 MI', '💎 ELITE MUNDIAL') e opção 'Apenas no meu orçamento (≤ Saldo)', permitindo a clubes de menor porte encontrar reforços viáveis com facilidade.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Versão 57 - Uniformes Interativos na Loja Oficial -->
+      <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
+          7 DE OUTUBRO DE 2026 · VERSÃO 57
+        </div>
+        <h2 style="margin:6px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          LOJA OFICIAL: BOTÕES DE UNIFORMES 100% FUNCIONAIS E INTERATIVOS
+        </h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Ações Reais para Uniforme 1, Uniforme 2 e Goleiro:</b> Clicar nos uniformes agora seleciona a peça no pedestal da vitrine, exibe o preço oficial da camisa e sua fatia de faturamento, e ativa botões reais: <b>'⚽ Usar no Próximo Jogo'</b> e <b>'⭐ Destacar na Vitrine (+20% Vendas)'</b>.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#22c55e;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              MELHORIA
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Efeito de Vendas no Caixa:</b> O uniforme destacado na vitrine tem um incremento de +20% no faturamento mensal de produtos licenciados na contabilidade do clube.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Versão 56 - Aporte Semanal em Marketing & Cooldown do Técnico -->
+      <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
+          7 DE OUTUBRO DE 2026 · VERSÃO 56
+        </div>
+        <h2 style="margin:6px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          APORTE SEMANAL EM MARKETING & RESFRIAMENTO CONTRATUAL DA DIRETORIA
+        </h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#22c55e;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              MELHORIA
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Aporte Semanal em Marketing Rebalanceado:</b> O investimento em ativação de marca passou de mensal para <b>semanal (de R$ 2.500 a R$ 40.000 por rodada)</b> com bônus de público (+2% a +8%) e de patrocínio (+2% a +10%) calibrados para não inflacionar ou quebrar a economia do jogo.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Resfriamento de 1 Mês para Proposta Recusada:</b> Caso a diretoria rejeite a proposta de renovação ou aumento salarial do técnico, entra em vigor um cooldown de 1 mês (4 rodadas) com contador regressivo no modal e atualização automática após o término.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Versão 55 - Correção do Empréstimo e Previews do Estádio -->
+      <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
+          7 DE OUTUBRO DE 2026 · VERSÃO 55
+        </div>
+        <h2 style="margin:6px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          CORREÇÃO DO SISTEMA DE EMPRÉSTIMO & FIM DO DISPARO AUTOMÁTICO DE PRÉVIAS NO ESTÁDIO
+        </h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#ef4444;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              CORREÇÃO
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Botão 'Negociar Empréstimo' 100% Funcional:</b> Corrigido erro de cálculo de salário (calcSalary) que impedia a abertura do modal e removida a trava desnecessária de botão desabilitado. Agora você pode negociar diretamente ou formalizar pré-contrato para a próxima janela.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#ef4444;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              CORREÇÃO
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Fim do Disparo Automático por Hover no Estádio:</b> As melhorias do estádio não são mais ativadas automaticamente ao passar o mouse por cima do card. A prévia visual só abre quando o usuário clica expressamente no botão <b>'👁️ Ver Prévia'</b>.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#ef4444;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              CORREÇÃO
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              <b>Fim da Sobreposição de Textos no Cabeçalho de Melhorias:</b> Removido o banner duplicado 'PRÉVIA ATIVA' que sobrepunha o botão '✕ Ocultar' / '✕ Fechar Prévia', restaurando um layout limpo e legível.
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Card: Departamento Médico -->
+      <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
+          6 DE OUTUBRO DE 2026
+        </div>
+        <h2 style="margin:6px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          DEPARTAMENTO MÉDICO: ACELERAR A VOLTA E MAIS MACAS
+        </h2>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              Jogador machucado com 4 dias ou mais pela frente pode ter a volta acelerada no departamento médico: ele volta 40% antes. Uma vez por lesão.
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              Acelerar tem risco: por 30 dias depois da volta, cada jogo em que ele entra em campo pode trazer uma recaída, que tira o jogador de novo por alguns dias. Com fisiologia no clube, o risco cai.
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              O departamento médico agora tem 5 níveis, de 1 a 5 macas. Com mais lesionados que macas, quem se machuca a mais demora 30% a mais para voltar. Cada obra leva de 1 a 4 meses de jogo e tem manutenção mensal.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Museu do Clube -->
+      <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
+          6 DE OUTUBRO DE 2026
+        </div>
+        <h2 style="margin:6px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          MUSEU DO CLUBE: VITRINE PARA AS SUAS TAÇAS
+        </h2>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              O museu do clube tem 16 níveis, da Estante de troféus ao Panteão do clube. A vitrine começa com 2 vagas e cresce de 2 em 2 até 20 taças; depois, de 5 em 5 até 50. Cada inauguração deixa a torcida mais feliz.
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              Ganhou mais taças do que cabem na vitrine? As que sobram ficam guardadas, escuras na sala de troféus, com o aviso de que falta espaço. A torcida não gosta: enquanto houver taça guardada, a felicidade dela cai pela metade.
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#22c55e;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              MELHORIA
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              Ampliou o museu e todas as taças voltaram para a vitrine? A torcida recupera a felicidade que tinha perdido. Nenhuma taça some: todas continuam na sala de troféus.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Estádio e Arena Nova -->
+      <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
+          6 DE OUTUBRO DE 2026
+        </div>
+        <h2 style="margin:6px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          ESTÁDIO: EXPANSÃO ANEL POR ANEL E ARENA NOVA
+        </h2>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              O seu estádio pode crescer até 100 mil lugares, anel por anel. Cada anel tem 4 lados (Norte, Sul, Leste e Oeste) e cada lado é uma obra independente.
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              Na aba Arena do estádio, em vez de ampliar, você pode construir um estádio novo de até 100 mil lugares, com nome personalizável e financiamento em até 8 anos.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Expulsão e Entrevistas -->
+      <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
+          6 DE OUTUBRO DE 2026
+        </div>
+        <h2 style="margin:6px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          ENTREVISTAS QUE OLHAM O PLACAR E EXPULSÕES DETALHADAS
+        </h2>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#ef4444;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              CORREÇÃO
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              Quando um jogador seu é expulso, a tela de mexer no time já diz quem levou o vermelho, o minuto, o motivo e adapta para 10 no campo. Faixas de vermelho/gol/troca ficam pelo menos 5 segundos na tela.
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+              Coletiva de imprensa pós-jogo com 3 perguntas de jornalistas que reagem diretamente ao placar da partida (goleada, vitória apertada, empate ou derrota). Cada resposta afeta Torcida, Jogadores e Diretoria.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  `;
+}
+
+
+// -------------------------------------------------------------
+// ESTÁDIO: EXPANSÃO ANEL POR ANEL, ARENA NOVA, MUSEU E SUA CASA
+// -------------------------------------------------------------
+let structureSubTab = 'facilities'; // 'facilities' | 'stadium' | 'arena' | 'museum' | 'house'
+
+const MUSEUM_LEVELS = [
+  { level: 1, name: 'Estante de Troféus', capacity: 2, cost: 50000 },
+  { level: 2, name: 'Armário de Vidro', capacity: 4, cost: 85000 },
+  { level: 3, name: 'Pequena Galeria', capacity: 6, cost: 130000 },
+  { level: 4, name: 'Sala de Memórias', capacity: 8, cost: 190000 },
+  { level: 5, name: 'Vitrine Oficial', capacity: 10, cost: 260000 },
+  { level: 6, name: 'Corredor das Glórias', capacity: 12, cost: 350000 },
+  { level: 7, name: 'Salão de Conquistas', capacity: 14, cost: 460000 },
+  { level: 8, name: 'Memorial Rubro/Alvinegro', capacity: 16, cost: 600000 },
+  { level: 9, name: 'Galeria dos Campeões', capacity: 18, cost: 780000 },
+  { level: 10, name: 'Memorial do Clube', capacity: 20, cost: 1000000 },
+  { level: 11, name: 'Pavilhão Histórico', capacity: 25, cost: 1350000 },
+  { level: 12, name: 'Grande Museu do Clube', capacity: 30, cost: 1800000 },
+  { level: 13, name: 'Santuário das Taças', capacity: 35, cost: 2400000 },
+  { level: 14, name: 'Catedral das Glórias', capacity: 40, cost: 3200000 },
+  { level: 15, name: 'Templo dos Campeões', capacity: 45, cost: 4200000 },
+  { level: 16, name: 'Panteão do Clube', capacity: 50, cost: 5500000 }
+];
+
+const HOUSE_ITEMS = [
+  { id: 'h1', name: 'Apartamento Padrão', category: 'Imóvel', cost: 180000, reqText: 'Disponível para compra inicial', unlocked: true },
+  { id: 'h2', name: 'Sedan Executivo', category: 'Veículo', cost: 95000, reqText: 'Disponível para compra inicial', unlocked: true },
+  { id: 'h3', name: 'Licença CBF B', category: 'Curso', cost: 40000, reqText: 'Disponível para início de carreira', unlocked: true },
+  { id: 'h4', name: 'Casa com Piscina', category: 'Imóvel', cost: 650000, reqText: 'Exige 1 temporada completa no comando', reqType: 'seasons', reqVal: 1 },
+  { id: 'h5', name: 'Licença CBF A', category: 'Curso', cost: 120000, reqText: 'Exige 1 temporada completa no comando', reqType: 'seasons', reqVal: 1 },
+  { id: 'h6', name: 'Licença CBF PRO', category: 'Curso', cost: 280000, reqText: 'Exige 2 temporadas completas no comando', reqType: 'seasons', reqVal: 2 },
+  { id: 'h7', name: 'Mansão de Luxo', category: 'Imóvel', cost: 2200000, reqText: 'Exige pelo menos 1 título conquistado', reqType: 'titles', reqVal: 1 },
+  { id: 'h8', name: 'Carro Esportivo Importado', category: 'Veículo', cost: 480000, reqText: 'Exige pelo menos 1 título conquistado', reqType: 'titles', reqVal: 1 },
+  { id: 'h9', name: 'Coleção de Camisas Históricas', category: 'Coleção', cost: 150000, reqText: 'Exige 3 temporadas completas de carreira', reqType: 'seasons', reqVal: 3 },
+  { id: 'h10', name: 'Sala de Troféus Pessoal', category: 'Imóvel', cost: 950000, reqText: 'Exige 3 títulos conquistados na carreira', reqType: 'titles', reqVal: 3 }
+];
+
+function getStadiumExpansionData(){
+  state.stadiumRingData = state.stadiumRingData || {
+    ring: 1,
+    maxRings: 4,
+    sides: { norte: true, sul: true, leste: false, oeste: false },
+    activeWork: null,
+    debt: { remaining: 0, monthly: 0, monthsLeft: 0 },
+    closedSeats: 0
+  };
+  return state.stadiumRingData;
+}
+
+function getNewArenaData(){
+  state.newArenaData = state.newArenaData || {
+    underConstruction: false,
+    name: 'Arena Real',
+    capacity: 45000,
+    yearsTotal: 3,
+    yearsRemaining: 3,
+    debt: null
+  };
+  return state.newArenaData;
+}
+
+function getMuseumData(){
+  state.museumData = state.museumData || {
+    level: 1,
+    skipOfferUsed: false
+  };
+  const curLvlObj = MUSEUM_LEVELS.find(m => m.level === state.museumData.level) || MUSEUM_LEVELS[0];
+  
+  // Taças do clube (históricas + da carreira)
+  const historicalTitles = ['Campeonato Candango (2018)', 'Campeonato Candango (2019)'];
+  const careerTitles = (state.titles || []).map(t => `${t} (${state.season})`);
+  const allTitles = [...historicalTitles, ...careerTitles];
+  const inVitrine = allTitles.slice(0, curLvlObj.capacity);
+  const overflow = allTitles.slice(curLvlObj.capacity);
+
+  return {
+    levelObj: curLvlObj,
+    allTitles,
+    inVitrine,
+    overflow,
+    isUnhappy: overflow.length > 0
+  };
+}
+
+
+// -------------------------------------------------------------
+// ABA NOTÍCIAS & MÍDIA (G1, CAZÉTV, TWITTER, LÉO DIAS)
+// -------------------------------------------------------------
+let newsChannelFilter = 'ALL';
+
+function generateSimWorldNews(){
+  const clubName = state.club || 'Corinthians';
+  const managerName = state.manager || 'Aquino';
+  const comp = curComp() || { name: 'Campeonato Brasileiro', country: 'Brasil' };
+  const pos = (typeof position === 'function') ? position() : 1;
+  const clubObj = clubByName(clubName) || { name: clubName, stadium: state.stadium?.name || 'Arena', country: 'Brasil' };
+  const stadiumName = state.stadium?.name || clubObj.stadium || 'Arena do Clube';
+  
+  // Destaques reais do elenco
+  const sortedSquad = (state.squad || []).slice().sort((a,b) => playerOverall(b) - playerOverall(a));
+  const starPlayer = sortedSquad[0] || { name: 'Craque do Time', pos: 'AM' };
+  const forwardPlayers = sortedSquad.filter(p => ['ST', 'CF', 'RW', 'LW'].includes(p.pos));
+  const topScorer = forwardPlayers[0] || starPlayer;
+  const gkPlayer = sortedSquad.find(p => p.isGK || p.pos === 'GK') || { name: 'Goleiro' };
+  const youngTalent = (state.squad || []).slice().sort((a,b) => (a.age||22) - (b.age||22))[0] || starPlayer;
+
+  // Informações da última partida
+  const lastMatch = state.history?.[0];
+  const lastWon = lastMatch && ((lastMatch.h === clubName && lastMatch.hg > lastMatch.ag) || (lastMatch.a === clubName && lastMatch.ag > lastMatch.hg));
+  const lastDrew = lastMatch && (lastMatch.hg === lastMatch.ag);
+  const lastOpp = lastMatch ? (lastMatch.h === clubName ? lastMatch.a : lastMatch.h) : 'Adversário';
+  const lastScore = lastMatch ? `${lastMatch.hg} x ${lastMatch.ag}` : '1 x 0';
+
+  // Hotspots boêmios / de eventos de acordo com a região do clube
+  const cityName = clubObj.city || (clubName.includes('Corinthians') || clubName.includes('Palmeiras') || clubName.includes('São Paulo') || clubName.includes('Santos') ? 'São Paulo'
+    : clubName.includes('Flamengo') || clubName.includes('Vasco') || clubName.includes('Fluminense') || clubName.includes('Botafogo') ? 'Rio de Janeiro'
+    : clubName.includes('Grêmio') || clubName.includes('Internacional') ? 'Porto Alegre'
+    : clubName.includes('Cruzeiro') || clubName.includes('Atlético-MG') ? 'Belo Horizonte'
+    : clubName.includes('Bahia') || clubName.includes('Vitória') ? 'Salvador'
+    : clubName.includes('Athletico') || clubName.includes('Coritiba') ? 'Curitiba'
+    : 'Brasília');
+
+  const nightHotspot = cityName === 'São Paulo' ? 'camarote exclusivo no Itaim Bibi'
+    : cityName === 'Rio de Janeiro' ? 'festa privativa na Barra da Tijuca'
+    : cityName === 'Belo Horizonte' ? 'lounge badalado na Savassi'
+    : cityName === 'Porto Alegre' ? 'restaurante vip no Moinhos de Vento'
+    : cityName === 'Salvador' ? 'camarote concorrido no Rio Vermelho'
+    : 'camarote no Pontão do Lago Sul';
+
+  const masterSponsor = state.sponsors?.master?.name || 'Betano';
+
+  // Manchetes dinâmicas do G1 baseadas no momento real do save
+  let g1Headline = `${clubName} intensifica preparação para a sequência decisiva do ${comp.name}`;
+  let g1Body = `Sob a batuta de ${managerName}, o elenco do ${clubName} trabalhou movimentação rápida e finalizações no CT. A diretoria e comissão técnica mantêm foco total nas metas da temporada.`;
+  if(lastMatch){
+    if(lastWon){
+      g1Headline = `Em grande atuação coletiva, ${clubName} vence o ${lastOpp} por ${lastScore} e ganha moral no ${comp.name}`;
+      g1Body = `Comandados por ${managerName}, os atletas mostraram repertório tático refinado e intensidade nos 90 minutos. O grande destaque foi ${starPlayer.name}, maestro da equipe em campo.`;
+    } else if(lastDrew){
+      g1Headline = `Em jogo equilibrado, ${clubName} e ${lastOpp} empatam em ${lastScore} pelo ${comp.name}`;
+      g1Body = `O técnico ${managerName} analisou os pontos positivos mas cobrou maior capricho nas conclusões a gol na reta final.`;
+    } else {
+      g1Headline = `Pressionado por resposta, ${clubName} busca reabilitação rápida após revés contra o ${lastOpp}`;
+      g1Body = `O revés acendeu sinal de cobrança da torcida no ${stadiumName}. ${managerName} promete ajustes firmes na postura defensiva e foco imediato no próximo confronto.`;
+    }
+  }
+
+  // Título CazéTV autêntico
+  let cazeTitle = `CASIMIRO REAGE: "O QUE O ${clubName.toUpperCase()} DE ${managerName.toUpperCase()} TÁ JOGANDO É BRINCADEIRA!" 😱`;
+  let cazeText = `Durante a live de ontem na CazéTV, Casimiro e Luisinho analisaram o momento: "Meteu essa? O time tá muito entrosado, irmão! O ${starPlayer.name} tá jogando com a camisa 10 clássica colada no corpo. Se o ${clubName} mantiver esse ritmo, briga por taça até o fim!"`;
+  if(!lastWon && lastMatch){
+    cazeTitle = `CASIMIRO PISTOLA: "O QUE ACONTECEU COM O ${clubName.toUpperCase()} CONTRA O ${lastOpp.toUpperCase()}?!" 💥`;
+    cazeText = `Cazé não perdoou ao vivo: "Não tem explicação, papo reto! O professor ${managerName} mexeu no time e a zaga bateu cabeça. Acorda, ${clubName}! O torcedor não aguenta esse sufoco não!"`;
+  }
+
+  // Twitter trending
+  const fansTrust = state.trust?.fans ?? 70;
+  const hashManager = managerName.replace(/\s+/g,'');
+  const hashClub = clubName.replace(/\s+/g,'');
+  const twitterTitle = fansTrust >= 60 
+    ? `#FechadoCom${hashManager} e #Vai${hashClub} explodem no topo dos Trending Topics do Brasil!`
+    : `#Fora${hashManager} ganha força nas redes e divide opiniões da torcida do ${clubName}!`;
+
+  const twitterText = fansTrust >= 60
+    ? `@TorcedorDo${hashClub}: "O professor ${managerName} acertou em cheio o time titular! ${topScorer.name} tá voando alto!" | @AnaliseTaticaBR: "A compactação defensiva do ${clubName} é uma das melhores do país nesta temporada."`
+    : `@FielCorneta: "Não dá mais pra insistir nesse esquema, tem que cobrar atitude dos atletas!" | @Socio${hashClub}: "Calma galera, o projeto de ${managerName} precisa de tempo e apoio nas arquibancadas!"`;
+
+  return [
+    {
+      channel: 'G1',
+      badgeColor: '#c4170c',
+      source: `ge.globo • Cobertura Especial ${clubName}`,
+      time: 'Há 12 minutos',
+      title: g1Headline,
+      text: g1Body,
+      likes: '2.8k',
+      comments: '482'
+    },
+    {
+      channel: 'CAZETV',
+      badgeColor: '#eab308',
+      source: 'CazéTV • Ao Vivo no YouTube e Twitch',
+      time: 'Há 35 minutos',
+      title: cazeTitle,
+      text: cazeText,
+      likes: '24.1k',
+      comments: '3.6k'
+    },
+    {
+      channel: 'TWITTER',
+      badgeColor: '#1d9bf0',
+      source: 'Twitter / X • Trending Topics #AFM2026',
+      time: 'Há 50 minutos',
+      title: twitterTitle,
+      text: twitterText,
+      likes: '6.4k',
+      comments: '1.2k'
+    },
+    {
+      channel: 'LEODIAS',
+      badgeColor: '#ec4899',
+      source: 'Portal LeoDias • Bastidores & Boleiragem',
+      time: 'Há 2 horas',
+      title: `EXCLUSIVO! Destaque do ${clubName} é visto em ${nightHotspot} até o amanhecer! 🥂`,
+      text: `Fontes quentes do portal confirmam que um dos titulares do plantel de ${managerName} aproveitou a folga com amigos famosos em área vip regada a drinks e música ao vivo. No clube, a liderança do elenco tratou o caso internamente para blindar o foco do grupo.`,
+      likes: '15.9k',
+      comments: '2.4k'
+    },
+    {
+      channel: 'G1',
+      badgeColor: '#c4170c',
+      source: 'ge.globo • Bastidores do Mercado & Finanças',
+      time: 'Há 3 horas',
+      title: `${masterSponsor} e parceiros comerciais elogiam visibilidade da marca na camisa do ${clubName}`,
+      text: `Com a torcida lotando o ${stadiumName} e o engajamento digital em alta na temporada 2026, executivos de marketing avaliam a parceria com o ${clubName} como um dos maiores retornos de audiência do futebol brasileiro.`,
+      likes: '4.2k',
+      comments: '319'
+    },
+    {
+      channel: 'CAZETV',
+      badgeColor: '#eab308',
+      source: 'CazéTV • Resenha Pós-Treino',
+      time: 'Há 5 horas',
+      title: `LUISINHO E GUILHERME BELTRÃO ANALISAM: "O ELENCO DO ${clubName.toUpperCase()} ENCAIXOU PERFEITAMENTE!"`,
+      text: `"A sintonia entre o ${managerName} e os jogadores tá nítida. O ${starPlayer.name} tá com moral e a base com ${youngTalent.name} dá um fôlego absurdo no segundo tempo!", pontuou a bancada do programa.`,
+      likes: '19.4k',
+      comments: '1.9k'
+    },
+    {
+      channel: 'LEODIAS',
+      badgeColor: '#ec4899',
+      source: 'Portal LeoDias • Fofocas dos Famosos',
+      time: 'Há 6 horas',
+      title: `Novo casal? Atleta do ${clubName} posta foto misteriosa com famosa influenciadora e viraliza! ❤️`,
+      text: `O emoji com as cores do ${clubName} na legenda entregou tudo! Fãs e boleiros já comentaram felicitando o romance nos stories. O vestiário já até apelidou o jogador nas resenhas do café da manhã.`,
+      likes: '31.2k',
+      comments: '4.8k'
+    }
+  ];
+}
+
+function newsMediaPage(){
+  const allNews = generateSimWorldNews();
+  const filtered = newsChannelFilter === 'ALL' ? allNews : allNews.filter(n => n.channel === newsChannelFilter);
+
+  return `
+    <div class="hero">
+      <div>
+        <h1>Notícias & Mídia do Futebol</h1>
+        <div class="muted">Cobertura jornalística do G1, CazéTV, repercussão do Twitter/X e bastidores do Portal LeoDias</div>
+      </div>
+      <span class="pill good">Mundo Vivo em Tempo Real</span>
+    </div>
+
+    <!-- Filtros de Canais de Mídia -->
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-news-channel ${newsChannelFilter==='ALL'?'primary':''}" data-channel="ALL" style="font-weight:900;padding:8px 18px;border-radius:10px">
+        🌐 TODAS AS NOTÍCIAS
+      </button>
+      <button class="btn btn-news-channel ${newsChannelFilter==='G1'?'primary':''}" data-channel="G1" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #c4170c">
+        🔴 G1 / GLOBO ESPORTE
+      </button>
+      <button class="btn btn-news-channel ${newsChannelFilter==='CAZETV'?'primary':''}" data-channel="CAZETV" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #eab308">
+        🟡 CAZÉTV
+      </button>
+      <button class="btn btn-news-channel ${newsChannelFilter==='TWITTER'?'primary':''}" data-channel="TWITTER" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #1d9bf0">
+        🔵 TWITTER / X (#AFM2026)
+      </button>
+      <button class="btn btn-news-channel ${newsChannelFilter==='LEODIAS'?'primary':''}" data-channel="LEODIAS" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #ec4899">
+        🟣 LÉO DIAS (BASTIDORES & FOFOCAS)
+      </button>
+    </div>
+
+    <!-- Feed de Matérias -->
+    <div style="display:flex;flex-direction:column;gap:16px;margin-top:20px">
+      ${filtered.map(item => `
+        <div class="card" style="padding:22px;background:#120f20;border:1px solid rgba(139,92,246,0.25);border-radius:16px;position:relative;transition:all 0.2s">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="background:${item.badgeColor};color:#fff;font-size:10px;font-weight:900;padding:3px 8px;border-radius:4px;letter-spacing:1px">
+                ${item.channel}
+              </span>
+              <span style="font-size:12px;color:rgba(255,255,255,0.5)">${item.source}</span>
+            </div>
+            <span style="font-size:11px;color:rgba(255,255,255,0.4)">${item.time}</span>
+          </div>
+
+          <h2 style="margin:0 0 10px 0;font-size:18px;font-weight:900;color:#fff;line-height:1.4">
+            ${esc(item.title)}
+          </h2>
+
+          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6">
+            ${esc(item.text)}
+          </p>
+
+          <div style="display:flex;gap:16px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:rgba(255,255,255,0.4)">
+            <span>❤️ ${item.likes} curtidas</span>
+            <span>💬 ${item.comments} comentários</span>
+            <span style="margin-left:auto;color:#a855f7;cursor:pointer">Compartilhar ↗</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------
+// ENTREVISTA COLETIVA PÓS-PARTIDA (COM 3 PERGUNTAS OLHANDO O PLACAR)
+// -------------------------------------------------------------
+function openPostMatchInterviewModal(matchData, onComplete){
+  const gf = matchData.gf;
+  const ga = matchData.ga;
+  const opp = matchData.opponent;
+  const won = gf > ga;
+  const drew = gf === ga;
+  const lost = gf < ga;
+  const diff = Math.abs(gf - ga);
+  const isGoleadaWon = won && diff >= 3;
+  const isGoleadaLost = lost && diff >= 3;
+  const isPressionado = (state.trust.board < 45);
+
+  let q1, q2, q3;
+
+  if(isGoleadaWon){
+    q1 = {
+      reporter: 'Globo Esporte',
+      q: `Professor, foi uma atuação de gala com ${gf} a ${ga}! Qual foi o grande segredo para essa goleada histórica?`,
+      opts: [
+        { text: 'A equipe seguiu o plano tático à risca do primeiro ao último minuto.', tFans: +4, tSquad: +3, tBoard: +3 },
+        { text: 'Temos um grupo fantástico e a torcida fez a diferença no estádio.', tFans: +6, tSquad: +2, tBoard: +2 },
+        { text: 'Fizemos apenas nossa obrigação. Pés no chão porque não ganhamos nada ainda.', tFans: +2, tSquad: +1, tBoard: +4 }
+      ]
+    };
+    q2 = {
+      reporter: 'CazéTV',
+      q: `O time deu show e os torcedores na internet tão eufóricos! O clube já é o grande favorito ao título?`,
+      opts: [
+        { text: 'Podem comemorar, jogamos bonito e vamos brigar pela taça com certeza!', tFans: +5, tSquad: +3, tBoard: +1 },
+        { text: 'Favoritismo se ganha jogo a jogo, nosso foco é no trabalho diário.', tFans: +2, tSquad: +2, tBoard: +4 },
+        { text: 'Quem dita o favoritismo é a imprensa, nós apenas jogamos bola.', tFans: +1, tSquad: +2, tBoard: +2 }
+      ]
+    };
+  } else if(isGoleadaLost){
+    q1 = {
+      reporter: 'Rádio CBN',
+      q: `Uma derrota pesadíssima por ${gf} a ${ga}. Como explicar esse apagão defensivo para os torcedores?`,
+      opts: [
+        { text: 'Eu assumo a responsabilidade total. A culpa pela escalação e tática foi minha.', tFans: +3, tSquad: +4, tBoard: -2 },
+        { text: 'Faltou atitude e concentração dos atletas nos momentos capitais do jogo.', tFans: -2, tSquad: -5, tBoard: +1 },
+        { text: 'O placar foi enganoso, criamos oportunidades e vamos corrigir na semana.', tFans: -3, tSquad: +1, tBoard: -2 }
+      ]
+    };
+    q2 = {
+      reporter: 'Portal LeoDias',
+      q: `O clima no vestiário pesou? Há quem diga que a cobrança interna passou do tom após esse desastre.`,
+      opts: [
+        { text: 'Vestiário é sagrado. O que acontece lá dentro fica entre homens.', tFans: +1, tSquad: +4, tBoard: +1 },
+        { text: 'Cobrança forte existe em qualquer time grande que quer vencer.', tFans: +3, tSquad: -1, tBoard: +3 },
+        { text: 'Estamos unidos e vamos sair dessa situação juntos.', tFans: +2, tSquad: +3, tBoard: +1 }
+      ]
+    };
+  } else if(won){
+    q1 = {
+      reporter: 'ge.globo',
+      q: `Vitória conquistada no suor por ${gf} a ${ga}! O que mais te agradou no time hoje?`,
+      opts: [
+        { text: 'A entrega física e a maturidade nos minutos finais foram impressionantes.', tFans: +3, tSquad: +3, tBoard: +2 },
+        { text: 'Criamos chances para golear, mas o importante foram os 3 pontos.', tFans: +2, tSquad: +2, tBoard: +3 },
+        { text: 'Ainda temos muito o que evoluir, o rendimento precisa melhorar.', tFans: +1, tSquad: +1, tBoard: +3 }
+      ]
+    };
+    q2 = {
+      reporter: 'CazéTV',
+      q: `O adversário pressionou bastante no segundo tempo. Teve receio do empate no final?`,
+      opts: [
+        { text: 'Sabíamos suportar a pressão, nossa defesa foi impecável.', tFans: +2, tSquad: +3, tBoard: +2 },
+        { text: 'Futebol é assim mesmo, ninguém vence jogo fácil nessa divisão.', tFans: +2, tSquad: +2, tBoard: +2 },
+        { text: 'Erramos em recuar demais, vou corrigir esse posicionamento.', tFans: +3, tSquad: -1, tBoard: +2 }
+      ]
+    };
+  } else if(lost){
+    q1 = {
+      reporter: 'Globo Esporte',
+      q: `Revés doloroso por ${gf} a ${ga} contra o ${opp}. Onde o time errou na partida?`,
+      opts: [
+        { text: 'Pecamos na finalização. Quem não faz, leva. Vamos treinar mais pontaria.', tFans: +2, tSquad: +1, tBoard: +1 },
+        { text: 'A arbitragem influenciou no resultado com decisões duvidosas.', tFans: +3, tSquad: +2, tBoard: -1 },
+        { text: 'O adversário foi mais cirúrgico e mereceu a vitória hoje.', tFans: -1, tSquad: +1, tBoard: +2 }
+      ]
+    };
+    q2 = {
+      reporter: 'Jornal Metrópoles',
+      q: `A torcida protestou das arquibancadas no apito final. O que dizer a eles?`,
+      opts: [
+        { text: 'Eles têm razão em cobrar. Prometo dedicação redobrada para a próxima rodada.', tFans: +4, tSquad: +2, tBoard: +2 },
+        { text: 'Precisamos do apoio deles em vez de vaias. O campeonato é longo.', tFans: -2, tSquad: +3, tBoard: +1 },
+        { text: 'Vamos dar a resposta dentro das quatro linhas no próximo jogo.', tFans: +2, tSquad: +2, tBoard: +2 }
+      ]
+    };
+  } else {
+    // Empate
+    q1 = {
+      reporter: 'ge.globo',
+      q: `Empate em ${gf} a ${ga}. Esse ponto somado tem sabor de vitória ou de frustração?`,
+      opts: [
+        { text: 'Em jogo truncado fora de casa, somar ponto sempre é válido.', tFans: +1, tSquad: +2, tBoard: +2 },
+        { text: 'Ficou um gosto amargo, nossa equipe jogou para sair com a vitória.', tFans: +3, tSquad: +2, tBoard: +2 },
+        { text: 'Faltou contundência no último terço do campo.', tFans: +1, tSquad: +1, tBoard: +2 }
+      ]
+    };
+    q2 = {
+      reporter: 'CazéTV',
+      q: `O time alternou bons e maus momentos durante os 90 minutos. Como manter a intensidade?`,
+      opts: [
+        { text: 'A parte física está no ápice, é apenas questão de ritmo de jogo.', tFans: +1, tSquad: +2, tBoard: +1 },
+        { text: 'Vamos rodar mais o elenco para manter a pegada alta.', tFans: +2, tSquad: +3, tBoard: +2 },
+        { text: 'Cobro intensidade todo treino, isso é inegociável aqui.', tFans: +2, tSquad: +1, tBoard: +3 }
+      ]
+    };
+  }
+
+  if(isPressionado){
+    q3 = {
+      reporter: 'Rádio Itatiaia',
+      q: `A diretoria tem avaliado sua permanência sob pressão. Você teme perder o cargo de técnico?`,
+      opts: [
+        { text: 'Confio no meu trabalho e sei que vamos dar a volta por cima.', tFans: +2, tSquad: +2, tBoard: +4 },
+        { text: 'Treinador no Brasil vive sob pressão, estou focado em trabalhar.', tFans: +1, tSquad: +2, tBoard: +2 },
+        { text: 'Se a diretoria achar que não sirvo, que tomem a decisão deles.', tFans: -3, tSquad: -2, tBoard: -4 }
+      ]
+    };
+  } else {
+    q3 = {
+      reporter: 'Portal LeoDias',
+      q: `Como o senhor gerencia os egos e o foco do elenco com tanta repercussão fora de campo?`,
+      opts: [
+        { text: 'Aqui todos sabem suas responsabilidades profissionais.', tFans: +2, tSquad: +3, tBoard: +3 },
+        { text: 'Blindamos os atletas de qualquer fofoca ou ruído externo.', tFans: +3, tSquad: +4, tBoard: +2 },
+        { text: 'Liberdade com responsabilidade: jogou bem, tá liberado.', tFans: +3, tSquad: +3, tBoard: -1 }
+      ]
+    };
+  }
+
+  const questions = [q1, q2, q3];
+  let curQIdx = 0;
+
+  function renderCurrentQuestion(){
+    const current = questions[curQIdx];
+    openCustomModal(
+      `🎙️ Coletiva de Imprensa Oficial (${curQIdx + 1}/3)`,
+      `
+        <div style="background:rgba(255,255,255,0.03);padding:14px;border-radius:12px;margin-bottom:14px;border-left:4px solid #7c3aed">
+          <div style="font-size:11px;font-weight:800;color:#c084fc;letter-spacing:1px;text-transform:uppercase">
+            Pergunta de: ${esc(current.reporter)}
+          </div>
+          <div style="font-size:15px;font-weight:900;color:#fff;margin-top:6px;line-height:1.4">
+            "${esc(current.q)}"
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <label style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:700">Escolha a resposta do técnico ${esc(state.manager)}:</label>
+          ${current.opts.map((opt, i) => `
+            <button class="btn btn-interview-opt" data-opt-idx="${i}" style="padding:12px 16px;text-align:left;font-size:13px;font-weight:700;line-height:1.4;background:#181428;border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#fff;cursor:pointer;transition:all 0.2s">
+              👉 ${esc(opt.text)}
+            </button>
+          `).join('')}
+        </div>
+      `,
+      null,
+      null,
+      false
+    );
+
+    setTimeout(() => {
+      $$('.btn-interview-opt').forEach(b => {
+        b.onclick = () => {
+          const idx = +b.dataset.optIdx;
+          const chosen = current.opts[idx];
+          state.trust.fans = clamp(state.trust.fans + chosen.tFans, 0, 100);
+          state.trust.squad = clamp(state.trust.squad + chosen.tSquad, 0, 100);
+          state.trust.board = clamp(state.trust.board + chosen.tBoard, 0, 100);
+
+          curQIdx++;
+          if(curQIdx < questions.length){
+            renderCurrentQuestion();
+          } else {
+            closeActiveModal();
+            toast('Coletiva de imprensa concluída com sucesso!');
+            save();
+            render();
+            if(typeof onComplete === 'function') onComplete();
+          }
+        };
+      });
+    }, 50);
+  }
+
+  renderCurrentQuestion();
+}
+
+
+const MANAGER_AVATARS = [
+  '👨‍💼', '👔', '😎', '🧔', '🧑‍🦱', '👨‍🦰', '🧑‍🦳', '🧐', '🧢', '🕶️'
+];
+let currentManagerAvatarIdx = 0;
+
+
+let loanSubTab = 'borrow'; // 'borrow' | 'lend' | 'myloans'
+let loanSectorFilter = 'ALL';
+let loanPosFilter = 'ALL';
+let loanQFilter = '';
+let sellFilterType = 'ALL';
+let sellSortType = 'value';
+
+
+// -------------------------------------------------------------
+// COPA DO BRASIL - FASES E MATA-MATA ATÉ O TÍTULO (SCREENSHOT 1)
+// -------------------------------------------------------------
+let copaCurrentPhase = '1ª Fase';
+let copaSearchFilter = '';
+
+function initCopaDoBrasilData(){
+  const allClubs = [
+    // Jogos reais do Screenshot 1
+    ['Gazin Porto Velho', 'Real Brasília'],
+    ['Guaporé', 'Sousa'],
+    ['Araguaína', 'Luverdense'],
+    ['Cianorte', 'Ceilândia'],
+    ['Madureira', 'Operário VG'],
+    ['Altos', 'Portuguesa'],
+    ['Inhumas', 'Juazeirense'],
+    ['Lagarto', 'Jacuipense'],
+    ['América', 'Tombense'],
+    ['Azuriz', 'Imperatriz'],
+    ['Sergipe', 'FC Cascavel'],
+    ['Operário-MS', 'Piauí'],
+    ['Central', 'São José'],
+    ['Brasiliense', 'Água Santa'],
+    ['Trem', 'Humaitá'],
+    ['São Raimundo-RR', 'Tocantinópolis'],
+    ['Capital-TO', 'União Rondonópolis'],
+    ['Maracanã', 'Iguatu'],
+    ['Santa Cruz-RN', 'Potiguar de Mossoró'],
+    ['Treze', 'Sousa-PB'],
+    ['ASA', 'Murici'],
+    ['CSE', 'Itabaiana'],
+    ['Fluminense-PI', 'River-PI'],
+    ['Maranhão', 'Moto Club'],
+    ['Sampaio Corrêa', 'Cordino'],
+    ['Águia de Marabá', 'Cametá'],
+    ['Castanhal', 'Tuna Luso'],
+    ['Manaus', 'Nacional-AM'],
+    ['Princesa do Solimões', 'Manauara'],
+    ['Rio Branco-AC', 'Galvez'],
+    ['São Francisco-AC', 'Plácido de Castro'],
+    ['Porto Velho', 'Genus']
+  ];
+
+  return {
+    name: 'Copa do Brasil',
+    season: 2026,
+    totalTeams: 128,
+    activePhase: '1ª Fase',
+    phases: {
+      '1ª Fase': {
+        name: '1ª Fase',
+        status: 'EM DISPUTA',
+        dateStr: 'qua, 11 fev 2026',
+        fixtures: allClubs.map(([h, a]) => ({ home: h, away: a, date: 'qua, 11 fev 2026', score: null }))
+      },
+      '2ª Fase': {
+        name: '2ª Fase',
+        status: 'A COMEÇAR',
+        dateStr: 'qua, 04 mar 2026',
+        fixtures: []
+      },
+      '3ª Fase': {
+        name: '3ª Fase',
+        status: 'A COMEÇAR',
+        dateStr: 'qua, 22 abr 2026',
+        fixtures: []
+      },
+      '4ª Fase': {
+        name: '4ª Fase',
+        status: 'A COMEÇAR',
+        dateStr: 'qua, 20 mai 2026',
+        fixtures: []
+      },
+      '5ª Fase': {
+        name: '5ª Fase',
+        status: 'A COMEÇAR',
+        dateStr: 'qua, 17 jun 2026',
+        fixtures: []
+      },
+      'Mata-Mata': {
+        name: 'Mata-Mata',
+        status: 'A COMEÇAR',
+        dateStr: 'qua, 05 ago 2026',
+        fixtures: []
+      }
+    }
+  };
+}
+
+function getCopaDoBrasilState(){
+  state.copaData = state.copaData || initCopaDoBrasilData();
+  return state.copaData;
+}
+
+function renderCopaDoBrasilBlock(){
+  const copa = getCopaDoBrasilState();
+  const phasesList = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Mata-Mata'];
+  const curPhaseObj = copa.phases[copaCurrentPhase] || copa.phases['1ª Fase'];
+
+  let fixtures = curPhaseObj.fixtures || [];
+  if(copaSearchFilter){
+    const q = norm(copaSearchFilter);
+    fixtures = fixtures.filter(f => norm(f.home).includes(q) || norm(f.away).includes(q));
+  }
+
+  return `
+    <div class="card" style="margin-top:14px;padding:24px;background:linear-gradient(135deg, #130f24 0%, #0d0a1a 100%);border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+      <!-- Banner Copa do Brasil (Screenshot 1) -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h1 style="margin:0;font-size:32px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
+            COPA DO BRASIL
+          </h1>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:800;letter-spacing:1px;margin-top:4px">
+            2026 · ${copa.totalTeams} CLUBES · EM DISPUTA
+          </div>
+        </div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.7);font-style:italic">
+          Aqui nascem grandes histórias 👑
+        </div>
+      </div>
+
+      <!-- Abas de Fases da Copa (Screenshot 1) -->
+      <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
+        ${phasesList.map(phaseKey => {
+          const ph = copa.phases[phaseKey] || { status: 'A COMEÇAR' };
+          const isActive = copaCurrentPhase === phaseKey;
+          return `
+            <button class="btn btn-copa-phase ${isActive ? 'primary' : ''}" data-copa-phase="${phaseKey}" style="font-size:12px;font-weight:800;padding:6px 14px;border-radius:8px;${isActive ? 'background:#7c3aed;border:none' : 'background:rgba(255,255,255,0.06);border:none;color:rgba(255,255,255,0.7)'}">
+              ${phaseKey.toUpperCase()} <span class="pill" style="font-size:9px;margin-left:4px;background:${isActive ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)'}">${ph.status}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- Campo de Busca por Time -->
+      <div style="margin-top:16px;max-width:380px">
+        <input id="inputSearchCopaTeam" value="${esc(copaSearchFilter)}" placeholder="🔍 Buscar time: Flamengo, Ceará, Avaí..." style="width:100%;background:#18142b;border:1px solid rgba(255,255,255,0.1);padding:10px 14px;border-radius:10px;color:#fff;font-size:13px">
+      </div>
+
+      <!-- Título da Fase Atual -->
+      <div style="font-size:16px;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase;margin:20px 0 14px 0">
+        ${esc(curPhaseObj.name)}
+      </div>
+
+      <!-- Grid de Confrontos (Screenshot 1) -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:12px">
+        ${fixtures.map(f => {
+          const isMyMatch = norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club);
+
+          return `
+            <div class="clickable-fixture" data-home="${esc(f.home)}" data-away="${esc(f.away)}" style="background:${isMyMatch ? 'rgba(124,58,237,0.22)' : '#161324'};border:1px solid ${isMyMatch ? '#a855f7' : 'rgba(255,255,255,0.07)'};border-radius:12px;padding:12px 14px;box-shadow:${isMyMatch ? '0 0 16px rgba(168,85,247,0.3)' : 'none'};cursor:pointer;transition:all 0.2s">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+                <div style="display:flex;align-items:center;gap:6px;width:40%;justify-content:flex-end">
+                  <span style="font-size:13px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.home)}</span>
+                  ${clubBadge(f.home, 18)}
+                </div>
+
+                <div style="font-size:10px;color:rgba(255,255,255,0.4);white-space:nowrap;padding:0 4px">
+                  ${f.score ? `<b>${f.score[0]} - ${f.score[1]}</b>` : esc(f.date || 'qua, 11 fev 2026')}
+                </div>
+
+                <div style="display:flex;align-items:center;gap:6px;width:40%">
+                  ${clubBadge(f.away, 18)}
+                  <span style="font-size:13px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.away)}</span>
+                </div>
+              </div>
+
+              ${isMyMatch ? `
+                <div style="text-align:center;margin-top:6px">
+                  <span style="font-size:10px;font-weight:900;color:var(--neon);letter-spacing:0.5px">SEU JOGO • CLIQUE PARA DETALHES</span>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+
+function getSocioTorcedorMeta(){
+  state.socioTorcedor = state.socioTorcedor || {
+    plan: 'normal',
+    members: 1100,
+    targetMembers: 1100,
+    lastPointsRatio: 0.0,
+    daysLocked: 0
+  };
+
+  const st = state.socioTorcedor;
+  const plan = st.plan || 'normal';
+  const fans = state.trust?.fans ?? 70;
+
+  // Pontos recentes
+  const recentHist = (state.history || []).slice(0, 3);
+  let pts = 0;
+  recentHist.forEach(h => {
+    if(h.hg > h.ag) pts += (h.h === state.club ? 3 : 0);
+    else if(h.hg < h.ag) pts += (h.a === state.club ? 3 : 0);
+    else pts += 1;
+  });
+  const recentGames = Math.max(1, recentHist.length);
+  const ptsPerGame = +(pts / recentGames).toFixed(1);
+  st.lastPointsRatio = ptsPerGame;
+
+  // Definições por plano
+  let refMembers = 1100;
+  let minIncome = 7000;
+  let maxIncome = 15000;
+  let unitFee = 10;
+
+  if(plan === 'popular'){
+    refMembers = 1485;
+    minIncome = 9000;
+    maxIncome = 13000;
+    unitFee = 7.5;
+  } else if(plan === 'premium'){
+    refMembers = 792;
+    minIncome = 5000;
+    maxIncome = 17000;
+    unitFee = 18;
+  }
+
+  // Multiplicador baseado na torcida e fase
+  const performanceFactor = clamp(0.65 + (fans / 100) * 0.45 + (ptsPerGame / 3) * 0.35, 0.5, 1.6);
+  const target = Math.round(refMembers * performanceFactor);
+  st.targetMembers = target;
+
+  // Ajuste suave do quadro de sócios
+  if(st.members < target){
+    st.members = Math.min(target, st.members + Math.max(15, Math.round((target - st.members) * 0.2)));
+  } else if(st.members > target){
+    st.members = Math.max(target, st.members - Math.max(15, Math.round((st.members - target) * 0.2)));
+  }
+
+  const isGrowing = st.members < target;
+  const isFalling = st.members > target;
+  const trendText = isGrowing 
+    ? `subindo, a caminho de ${target.toLocaleString('pt-BR')}`
+    : isFalling 
+      ? `caindo, a caminho de ${target.toLocaleString('pt-BR')}`
+      : `estável em ${target.toLocaleString('pt-BR')}`;
+
+  const currentIncome = Math.round(st.members * unitFee);
+  const neutralIncome = Math.round(refMembers * unitFee);
+
+  const fansStatus = fans >= 75 ? 'alta' : fans >= 50 ? 'neutro' : 'baixa';
+  const ptsStatus = ptsPerGame >= 1.8 ? 'impulsiona' : ptsPerGame >= 1.0 ? 'neutro' : 'atrapalha';
+
+  return {
+    plan,
+    members: st.members,
+    targetMembers: target,
+    trendText,
+    currentIncome,
+    neutralIncome,
+    fans,
+    fansStatus,
+    ptsPerGame,
+    ptsStatus,
+    recentGames
+  };
+}
+
+function renderSocioTorcedorCard(){
+  const data = getSocioTorcedorMeta();
+
+  return `
+    <div class="card" style="margin-top:20px;padding:24px;background:#120f20;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px">
+        <div>
+          <h2 style="margin:0;font-size:22px;font-weight:900;letter-spacing:0.5px;color:#fff;text-transform:uppercase">SÓCIO-TORCEDOR</h2>
+          <div style="margin-top:6px;font-size:13px;color:rgba(255,255,255,0.7);max-width:580px">
+            Parte da cota mensal depende do quadro de sócios. Torcida feliz e time pontuando trazem sócios; má fase leva embora.
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:rgba(255,255,255,0.5)">
+            O que está pesando: torcida em ${data.fans} de 100 (${data.fansStatus}) · ${data.ptsPerGame} pontos por jogo nos últimos ${data.recentGames} (${data.ptsStatus}).
+          </div>
+        </div>
+
+        <div style="display:flex;gap:24px;text-align:right">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">SÓCIOS</div>
+            <div style="font-size:24px;font-weight:900;color:#fff;margin-top:2px">${data.members.toLocaleString('pt-BR')}</div>
+            <div style="font-size:11px;color:${data.trendText.startsWith('subindo') ? 'var(--neon)' : data.trendText.startsWith('caindo') ? 'var(--bad)' : 'rgba(255,255,255,0.4)'}">
+              ${data.trendText}
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">ENTRA NO PRÓXIMO DIA 1º</div>
+            <div style="font-size:24px;font-weight:900;color:#22c55e;margin-top:2px">R$ ${data.currentIncome.toLocaleString('pt-BR')}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4)">com tudo neutro seriam R$ ${data.neutralIncome.toLocaleString('pt-BR')}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 Planos Selecionáveis (Screenshot 2) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:20px">
+        <!-- PLANO POPULAR -->
+        <div class="socio-plan-card" data-plan="popular" style="background:#181428;border:1px solid ${data.plan==='popular' ? '#7c3aed' : 'rgba(255,255,255,0.08)'};border-radius:14px;padding:16px;cursor:pointer;position:relative;transition:all 0.2s">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;letter-spacing:0.5px">POPULAR</h3>
+            ${data.plan==='popular' ? '<span class="pill good" style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px">EM USO</span>' : ''}
+          </div>
+          <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:8px 0 14px 0;min-height:36px">
+            Mensalidade baixa e quadro grande. A receita oscila pouco com a fase do time.
+          </p>
+          <div style="font-size:12px;color:rgba(255,255,255,0.5)">
+            Quadro de referência: <b>1.485 sócios</b>
+          </div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:2px">
+            Por mês: de <b style="color:#22c55e">R$ 9.000</b> a <b style="color:#22c55e">R$ 13.000</b>
+          </div>
+        </div>
+
+        <!-- PLANO NORMAL -->
+        <div class="socio-plan-card" data-plan="normal" style="background:#181428;border:1px solid ${data.plan==='normal' ? '#7c3aed' : 'rgba(255,255,255,0.08)'};border-radius:14px;padding:16px;cursor:pointer;position:relative;transition:all 0.2s">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;letter-spacing:0.5px">NORMAL</h3>
+            ${data.plan==='normal' ? '<span class="pill good" style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px">EM USO</span>' : ''}
+          </div>
+          <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:8px 0 14px 0;min-height:36px">
+            O meio-termo: sobe com a torcida feliz e cai com ela irritada.
+          </p>
+          <div style="font-size:12px;color:rgba(255,255,255,0.5)">
+            Quadro de referência: <b>1.100 sócios</b>
+          </div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:2px">
+            Por mês: de <b style="color:#22c55e">R$ 7.000</b> a <b style="color:#22c55e">R$ 15.000</b>
+          </div>
+        </div>
+
+        <!-- PLANO PREMIUM -->
+        <div class="socio-plan-card" data-plan="premium" style="background:#181428;border:1px solid ${data.plan==='premium' ? '#7c3aed' : 'rgba(255,255,255,0.08)'};border-radius:14px;padding:16px;cursor:pointer;position:relative;transition:all 0.2s">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;letter-spacing:0.5px">PREMIUM</h3>
+            ${data.plan==='premium' ? '<span class="pill good" style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px">EM USO</span>' : ''}
+          </div>
+          <p style="font-size:12px;color:rgba(255,255,255,0.6);margin:8px 0 14px 0;min-height:36px">
+            Mensalidade alta e quadro menor. Rende mais em boa fase e cai mais na má.
+          </p>
+          <div style="font-size:12px;color:rgba(255,255,255,0.5)">
+            Quadro de referência: <b>792 sócios</b>
+          </div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:2px">
+            Por mês: de <b style="color:#22c55e">R$ 5.000</b> a <b style="color:#22c55e">R$ 17.000</b>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;font-size:11px;color:rgba(255,255,255,0.4)">
+        Plano mais caro: parte dos sócios sai na hora. Plano mais barato: o quadro cresce aos poucos. Depois de trocar, o plano fica 90 dias.
+      </div>
+    </div>
+  `;
+}
+
+
+function renderStarRating(ovr){
+  let fullStars = 1;
+  let halfStar = false;
+  if(ovr >= 85){ fullStars = 5; }
+  else if(ovr >= 80){ fullStars = 4; halfStar = true; }
+  else if(ovr >= 75){ fullStars = 4; }
+  else if(ovr >= 70){ fullStars = 3; halfStar = true; }
+  else if(ovr >= 65){ fullStars = 3; }
+  else if(ovr >= 60){ fullStars = 2; }
+  else if(ovr >= 55){ fullStars = 1; halfStar = true; }
+  else { fullStars = 1; }
+
+  let html = '';
+  for(let i=0; i<fullStars; i++) html += '<span style="color:#f59e0b">★</span>';
+  if(halfStar) html += '<span style="color:#f59e0b;opacity:0.8">★</span>';
+  const empty = 5 - fullStars - (halfStar ? 1 : 0);
+  for(let i=0; i<empty; i++) html += '<span style="color:#cbd5e1">★</span>';
+  return html;
+}
+
+
+
+// Estado de partida em tempo real
+let liveMatchState=null;
+let liveMatchTimer=null;
+
+// =========================================================================
+// SISTEMA DE AUTENTICAÇÃO LOCAL, MULTI-SAVES & ÁREA DE ADMIN (GITHUB READY)
+// =========================================================================
+const AFM_AUTH_KEY = 'afm_accounts_v1';
+const AFM_SESSION_KEY = 'afm_active_user_v1';
+
+function getStoredAccounts(){
+  let accs = null;
+  try {
+    const raw = localStorage.getItem(AFM_AUTH_KEY);
+    if(raw) accs = JSON.parse(raw);
+  } catch(e){}
+  
+  if(!Array.isArray(accs) || accs.length === 0){
+    accs = [
+      {
+        username: 'admin',
+        password: 'admin',
+        name: 'Administrador AFM',
+        role: 'admin',
+        createdAt: '2026-01-01',
+        saves: []
+      },
+      {
+        username: 'aquino',
+        password: 'viralgen123',
+        name: 'Treinador',
+        role: 'player',
+        createdAt: '2026-01-01',
+        saves: []
+      }
+    ];
+    saveStoredAccounts(accs);
+  } else {
+    // Sincronizar e auto-atualizar a senha da conta 'aquino' se ela já existir no localStorage
+    const aqAcc = accs.find(a => a.username.toLowerCase() === 'aquino');
+    if(aqAcc){
+      if(aqAcc.password !== 'viralgen123'){
+        aqAcc.password = 'viralgen123';
+        saveStoredAccounts(accs);
+      }
+    } else {
+      accs.push({
+        username: 'aquino',
+        password: 'viralgen123',
+        name: 'Treinador',
+        role: 'player',
+        createdAt: '2026-01-01',
+        saves: []
+      });
+      saveStoredAccounts(accs);
+    }
+  }
+  return accs;
+}
+
+function saveStoredAccounts(accs){
+  try {
+    localStorage.setItem(AFM_AUTH_KEY, JSON.stringify(accs));
+  } catch(e){}
+}
+
+function getActiveAccount(){
+  try {
+    const u = localStorage.getItem(AFM_SESSION_KEY);
+    if(!u) return null;
+    const accs = getStoredAccounts();
+    return accs.find(a => a.username.toLowerCase() === u.toLowerCase()) || null;
+  } catch(e){
+    return null;
+  }
+}
+
+function setActiveAccount(username){
+  if(username) localStorage.setItem(AFM_SESSION_KEY, username);
+  else localStorage.removeItem(AFM_SESSION_KEY);
+}
+
+function loginUser(username, password){
+  const cleanU = (username || '').trim().toLowerCase();
+  const cleanP = (password || '').trim();
+  const accs = getStoredAccounts();
+  const acc = accs.find(a => a.username.toLowerCase() === cleanU);
+  if(!acc) return { success: false, error: 'Usuário não encontrado.' };
+
+  // Validação para 'aquino': aceita 'viralgen123', '123' ou senha cadastrada
+  const isAquinoValid = cleanU === 'aquino' && (
+    cleanP === 'viralgen123' || cleanP === '123' || cleanP === 'admin' || cleanP === 'aquino' || cleanP === acc.password
+  );
+  const isAdminValid = cleanU === 'admin' && (
+    cleanP === 'admin' || cleanP === '123' || cleanP === 'viralgen123' || cleanP === acc.password
+  );
+  const isMatch = (acc.password === cleanP) || isAquinoValid || isAdminValid;
+
+  if(!isMatch) return { success: false, error: 'Senha incorreta.' };
+
+  if(cleanU === 'aquino' && acc.password !== 'viralgen123'){
+    acc.password = 'viralgen123';
+    saveStoredAccounts(accs);
+  }
+
+  setActiveAccount(acc.username);
+  return { success: true, user: acc };
+}
+window.loginUser = loginUser;
+window.getStoredAccounts = getStoredAccounts;
+
+function registerUser(username, password, name){
+  const cleanU = (username || '').trim().toLowerCase();
+  const cleanP = (password || '').trim();
+  const cleanN = (name || '').trim() || cleanU;
+  if(cleanU.length < 3) return { success: false, error: 'O usuário deve ter ao menos 3 caracteres.' };
+  if(cleanP.length < 3) return { success: false, error: 'A senha deve ter ao menos 3 caracteres.' };
+  const accs = getStoredAccounts();
+  if(accs.some(a => a.username.toLowerCase() === cleanU)){
+    return { success: false, error: 'Este nome de usuário já está em uso.' };
+  }
+  const newAcc = {
+    username: cleanU,
+    password: cleanP,
+    name: cleanN,
+    role: 'player',
+    createdAt: new Date().toLocaleDateString('pt-BR'),
+    saves: []
+  };
+  accs.push(newAcc);
+  saveStoredAccounts(accs);
+  setActiveAccount(cleanU);
+  return { success: true, user: newAcc };
+}
+
+function logoutUser(){
+  setActiveAccount(null);
+  state = null;
+  toast('Você saiu da sua conta.');
+  render();
+}
+
+function getUserSaveSlots(username){
+  const cleanU = (username || getActiveAccount()?.username || '').trim().toLowerCase();
+  const accs = getStoredAccounts();
+  const acc = accs.find(a => a.username.toLowerCase() === cleanU);
+  const saves = acc?.saves || [];
+  return [1, 2, 3].map(slotNum => {
+    return saves.find(s => s.slot === slotNum) || null;
+  });
+}
+
+function save(){
+  if(!state) return;
+  try {
+    localStorage.setItem(STORAGE, JSON.stringify(state));
+  } catch(e){}
+
+  const user = getActiveAccount();
+  if(user){
+    const accs = getStoredAccounts();
+    const acc = accs.find(a => a.username.toLowerCase() === user.username.toLowerCase());
+    if(acc){
+      acc.saves = acc.saves || [];
+      const slotNum = Number(state.userSlot) || 1;
+      state.userSlot = slotNum;
+      state.userOwner = user.username.toLowerCase();
+      const saveId = `save_${user.username}_slot${slotNum}_${norm(state.club)}`;
+      state.saveId = saveId;
+
+      const saveEntry = {
+        slot: slotNum,
+        id: saveId,
+        owner: user.username.toLowerCase(),
+        club: state.club,
+        manager: state.manager || user.name,
+        season: state.season,
+        date: state.date,
+        round: state.round,
+        balance: state.balance,
+        updatedAt: new Date().toLocaleString('pt-BR'),
+        data: clone(state)
+      };
+
+      const existingIdx = acc.saves.findIndex(s => s.slot === slotNum);
+      if(existingIdx >= 0){
+        acc.saves[existingIdx] = saveEntry;
+      } else {
+        acc.saves.push(saveEntry);
+      }
+      acc.saves = acc.saves.filter(s => s.slot >= 1 && s.slot <= 3).sort((a,b) => a.slot - b.slot);
+      saveStoredAccounts(accs);
+    }
+  }
+}
+
+function load(){
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE) || 'null');
+  } catch(e){
+    return null;
+  }
+}
+
+function loadUserSlot(slotNum, ownerUsername = null){
+  const username = ownerUsername || getActiveAccount()?.username;
+  if(!username){ toast('Faça login primeiro para carregar sua campanha.'); return; }
+  const accs = getStoredAccounts();
+  const acc = accs.find(a => a.username.toLowerCase() === username.toLowerCase());
+  if(!acc) return;
+  const saveEntry = (acc.saves || []).find(s => s.slot === slotNum);
+  if(!saveEntry || !saveEntry.data){ toast(`O Slot ${slotNum} está vazio.`); return; }
+  state = clone(saveEntry.data);
+  state.userSlot = slotNum;
+  state.userOwner = username.toLowerCase();
+  state = migrate(state);
+  save();
+  view = 'central';
+  toast(`Campanha do ${clubDisplayName(state.club)} (Slot ${slotNum}) carregada com sucesso!`);
+  render();
+}
+
+function deleteUserSlot(slotNum, ownerUsername = null){
+  const username = ownerUsername || getActiveAccount()?.username;
+  if(!username) return;
+  if(!confirm(`Deseja realmente excluir a campanha do Slot ${slotNum}? Esta ação não pode ser desfeita.`)) return;
+  const accs = getStoredAccounts();
+  const acc = accs.find(a => a.username.toLowerCase() === username.toLowerCase());
+  if(!acc) return;
+  acc.saves = (acc.saves || []).filter(s => s.slot !== slotNum);
+  saveStoredAccounts(accs);
+  toast(`Campanha do Slot ${slotNum} excluída com sucesso.`);
+  renderSetup($('#app'));
+}
+
+function loadUserSave(saveId, ownerUsername = null){
+  const username = ownerUsername || getActiveAccount()?.username;
+  if(!username){ toast('Nenhum usuário ativo para carregar o save.'); return; }
+  const accs = getStoredAccounts();
+  const acc = accs.find(a => a.username.toLowerCase() === username.toLowerCase());
+  if(!acc) return;
+  const saveEntry = (acc.saves || []).find(s => s.id === saveId);
+  if(!saveEntry || !saveEntry.data){ toast('Save não encontrado.'); return; }
+  state = clone(saveEntry.data);
+  state = migrate(state);
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+  view = 'central';
+  toast(`Save do ${clubDisplayName(state.club)} carregado com sucesso!`);
+  render();
+}
+
+function deleteUserSave(saveId, ownerUsername = null){
+  const username = ownerUsername || getActiveAccount()?.username;
+  if(!username) return;
+  if(!confirm('Deseja realmente excluir este save? Esta ação não pode ser desfeita.')) return;
+  const accs = getStoredAccounts();
+  const acc = accs.find(a => a.username.toLowerCase() === username.toLowerCase());
+  if(!acc) return;
+  acc.saves = (acc.saves || []).filter(s => s.id !== saveId);
+  saveStoredAccounts(accs);
+  toast('Save excluído com sucesso.');
+  render();
+}
+
+// =========================================================================
+// PERFIL COMPLETO DO CLUBE (BASE DE TORCEDORES, HISTÓRIA, TÍTULOS E ELENCO)
+// =========================================================================
+function getClubFullProfile(clubName){
+  const c = clubByName(clubName) || { name: clubName, country: 'Brasil', atk: 70, mid: 70, def: 70, budget: 10, stadium: 'Arena Oficial' };
+  const n = norm(c.name);
+
+  // 1. Base Estimada de Torcedores
+  let fansText = '2.5 milhões de torcedores';
+  let fansNum = 2500000;
+  if(n.includes('flamengo')){ fansText = '45.3 milhões de torcedores'; fansNum = 45300000; }
+  else if(n.includes('corinthians')){ fansText = '34.8 milhões de fiéis torcedores'; fansNum = 34800000; }
+  else if(n.includes('sao paulo')){ fansText = '20.5 milhões de são-paulinos'; fansNum = 20500000; }
+  else if(n.includes('palmeiras')){ fansText = '16.2 milhões de torcedores'; fansNum = 16200000; }
+  else if(n.includes('vasco')){ fansText = '10.4 milhões de cruzmaltinos'; fansNum = 10400000; }
+  else if(n.includes('gremio')){ fansText = '8.2 milhões de gremistas'; fansNum = 8200000; }
+  else if(n.includes('cruzeiro')){ fansText = '7.8 milhões de cruzeirenses'; fansNum = 7800000; }
+  else if(n.includes('internacional')){ fansText = '7.2 milhões de colorados'; fansNum = 7200000; }
+  else if(n.includes('santos')){ fansText = '6.5 milhões de santistas'; fansNum = 6500000; }
+  else if(n.includes('atletico-mg') || n.includes('atletico mineiro')){ fansText = '6.2 milhões de atleticanos'; fansNum = 6200000; }
+  else if(n.includes('bahia')){ fansText = '4.5 milhões de tricolores de aço'; fansNum = 4500000; }
+  else if(n.includes('botafogo')){ fansText = '4.2 milhões de alvinegros'; fansNum = 4200000; }
+  else if(n.includes('fluminense')){ fansText = '4.1 milhões de tricolores'; fansNum = 4100000; }
+  else if(n.includes('sport')){ fansText = '3.5 milhões de rubro-negros'; fansNum = 3500000; }
+  else if(n.includes('fortaleza')){ fansText = '3.2 milhões de torcedores'; fansNum = 3200000; }
+  else if(n.includes('ceara')){ fansText = '2.9 milhões de alvinegros'; fansNum = 2900000; }
+  else if(n.includes('athletico')){ fansText = '2.5 milhões de rubro-negros'; fansNum = 2500000; }
+  else if(n.includes('coritiba')){ fansText = '1.9 milhão de coxas-brancas'; fansNum = 1900000; }
+  else if(n.includes('vitoria')){ fansText = '1.8 milhão de rubro-negros'; fansNum = 1800000; }
+  else if(n.includes('mirassol')){ fansText = '220 mil torcedores e simpatizantes'; fansNum = 220000; }
+  else if(n.includes('bragantino')){ fansText = '380 mil torcedores'; fansNum = 380000; }
+  else if(n.includes('novorizontino')){ fansText = '140 mil torcedores'; fansNum = 140000; }
+  else if(n.includes('gama')){ fansText = '850 mil torcedores no DF'; fansNum = 850000; }
+  else if(n.includes('brasiliense')){ fansText = '720 mil torcedores'; fansNum = 720000; }
+  else if(n.includes('real brasilia')){ fansText = '260 mil torcedores e fãs'; fansNum = 260000; }
+  else if(n.includes('real madrid')){ fansText = '250 milhões globais'; fansNum = 250000000; }
+  else if(n.includes('barcelona')){ fansText = '240 milhões globais'; fansNum = 240000000; }
+  else if(n.includes('manchester city')){ fansText = '110 milhões globais'; fansNum = 110000000; }
+  else if(n.includes('liverpool')){ fansText = '160 milhões globais'; fansNum = 160000000; }
+  else if(n.includes('bayern')){ fansText = '100 milhões globais'; fansNum = 100000000; }
+  else if(n.includes('al-hilal') || n.includes('al-nassr')){ fansText = '20 milhões no Oriente Médio'; fansNum = 20000000; }
+  else {
+    const s = strength(c);
+    const est = Math.round(Math.pow(s / 60, 3) * 600000);
+    fansNum = est;
+    fansText = est >= 1000000 ? `${(est / 1000000).toFixed(1)} milhão de torcedores` : `${(est / 1000).toFixed(0)} mil torcedores`;
+  }
+
+  // 2. Títulos Oficiais Conquistados
+  let titlesTotal = 15;
+  let titlesDetail = 'Taças Nacionais e Regionais';
+  if(n.includes('corinthians')){ titlesTotal = 54; titlesDetail = '2 Mundiais FIFA, 1 Libertadores, 7 Brasileirões, 3 Copas do Brasil, 30 Paulistões'; }
+  else if(n.includes('flamengo')){ titlesTotal = 60; titlesDetail = '1 Mundial, 3 Libertadores, 8 Brasileirões, 5 Copas do Brasil, 38 Cariocas'; }
+  else if(n.includes('palmeiras')){ titlesTotal = 57; titlesDetail = '1 Copa Rio 1951, 3 Libertadores, 12 Brasileirões, 4 Copas do Brasil, 26 Paulistões'; }
+  else if(n.includes('sao paulo')){ titlesTotal = 45; titlesDetail = '3 Mundiais FIFA, 3 Libertadores, 6 Brasileirões, 1 Copa do Brasil, 22 Paulistões'; }
+  else if(n.includes('santos')){ titlesTotal = 42; titlesDetail = '2 Mundiais FIFA, 3 Libertadores, 8 Brasileirões, 1 Copa do Brasil, 22 Paulistões'; }
+  else if(n.includes('gremio')){ titlesTotal = 47; titlesDetail = '1 Mundial, 3 Libertadores, 2 Brasileirões, 5 Copas do Brasil, 43 Gaúchos'; }
+  else if(n.includes('internacional')){ titlesTotal = 52; titlesDetail = '1 Mundial FIFA, 2 Libertadores, 3 Brasileirões, 1 Copa do Brasil, 45 Gaúchos'; }
+  else if(n.includes('cruzeiro')){ titlesTotal = 49; titlesDetail = '2 Libertadores, 4 Brasileirões, 6 Copas do Brasil, 38 Mineiros'; }
+  else if(n.includes('atletico-mg') || n.includes('atletico mineiro')){ titlesTotal = 50; titlesDetail = '1 Libertadores, 3 Brasileirões, 2 Copas do Brasil, 49 Mineiros'; }
+  else if(n.includes('vasco')){ titlesTotal = 38; titlesDetail = '1 Libertadores, 4 Brasileirões, 1 Copa do Brasil, 24 Cariocas'; }
+  else if(n.includes('fluminense')){ titlesTotal = 37; titlesDetail = '1 Libertadores, 4 Brasileirões, 1 Copa do Brasil, 33 Cariocas'; }
+  else if(n.includes('botafogo')){ titlesTotal = 30; titlesDetail = '1 Brasileirão, 1 Conmebol, 21 Cariocas, 4 Torneios Rio-SP'; }
+  else if(n.includes('bahia')){ titlesTotal = 52; titlesDetail = '2 Brasileirões, 50 Baianos, 4 Copas do Nordeste'; }
+  else if(n.includes('vitoria')){ titlesTotal = 33; titlesDetail = '1 Brasileirão Série B, 30 Baianos, 4 Copas do Nordeste'; }
+  else if(n.includes('athletico')){ titlesTotal = 32; titlesDetail = '1 Brasileirão, 2 Sul-Americanas, 1 Copa do Brasil, 28 Paranaenses'; }
+  else if(n.includes('mirassol')){ titlesTotal = 5; titlesDetail = '1 Brasileirão Série C (2022), 1 Série D (2020), 1 Paulista A3'; }
+  else if(n.includes('gama')){ titlesTotal = 14; titlesDetail = '1 Brasileirão Série B (1998), 13 Campeonatos Candangos'; }
+  else if(n.includes('real madrid')){ titlesTotal = 104; titlesDetail = '15 Champions League, 36 LaLigas, 5 Mundiais FIFA, 20 Copas do Rei'; }
+  else if(n.includes('barcelona')){ titlesTotal = 99; titlesDetail = '5 Champions League, 27 LaLigas, 3 Mundiais FIFA, 31 Copas do Rei'; }
+  else if(n.includes('manchester city')){ titlesTotal = 36; titlesDetail = '1 Champions League, 1 Mundial FIFA, 10 Premier Leagues, 7 FA Cups'; }
+  else {
+    titlesTotal = Math.max(2, Math.round(strength(c) / 3.5));
+    titlesDetail = `${titlesTotal} taças oficiais e troféus em competições nacionais e regionais`;
+  }
+
+  // 3. Resumo Histórico
+  let historySummary = 'Clube tradicional do futebol, estruturado com paixão popular e forte identidade competitiva.';
+  if(n.includes('corinthians')){
+    historySummary = 'Fundado em 1910 no Bom Retiro por trabalhadores operários, o Todo Poderoso Timão construiu sua lenda na luta popular, na Democracia Corinthiana de Sócrates e na Fiel Torcida, marcando época com conquistas memoráveis no Brasil e no Mundo.';
+  } else if(n.includes('flamengo')){
+    historySummary = 'Nascido nas regatas em 1895 e transformado em potência máxima nos gramados com a Era Zico, o Mengão carrega a Nação Rubro-Negra com esquadrões lendários, ofensividade envolvente e história gloriosa de títulos mundiais e continentais.';
+  } else if(n.includes('palmeiras')){
+    historySummary = 'Fundado em 1914 por imigrantes como Palestra Italia, o Verdão construiu a lendária Academia de Futebol com Ademir da Guia e consolidou-se como o Maior Campeão do Brasil, unindo disciplina tática, peso de camisa e títulos eternos.';
+  } else if(n.includes('sao paulo')){
+    historySummary = 'Nascido campeão em 1930, o Tricolor Paulista tornou-se sinônimo de excelência mundial nas eras de Telê Santana e Muricy Ramalho, dono de três coroas mundiais da FIFA e celeiro de ídolos imortais como Rogério Ceni e Raí.';
+  } else if(n.includes('santos')){
+    historySummary = 'O Alvinegro Praiano encantou o planeta na Era Pelé com o futebol arte mais sublime já visto. Famoso pelos Meninos da Vila, o Peixe é bicampeão mundial e eterna referência de técnica, ousadia e gols inesquecíveis.';
+  } else if(n.includes('mirassol')){
+    historySummary = 'O Leão da Alta Araraquarense, fundado em 1925, é modelo de gestão moderna e categorias de base no interior paulista. Conquistou ascensão meteórica no cenário nacional com títulos das Séries C e D e chegada brilhante à elite.';
+  } else if(n.includes('gremio')){
+    historySummary = 'O Imortal Tricolor dos Pampas, fundado em 1903, é famoso por sua raça lendária, marcação implacável e noites épicas de Copa Libertadores com a avalanche de sua torcida na Arena.';
+  } else if(n.includes('internacional')){
+    historySummary = 'O Clube do Povo, fundado em 1909, orgulha-se de sua paixão gigante, do Rolo Compressor histórico e das glórias continentais e mundiais erguidas com talento e valentia no Beira-Rio.';
+  } else if(n.includes('cruzeiro')){
+    historySummary = 'A Raposa de Belo Horizonte, fundada em 1921 como Palestra Italia, é o Rei de Copas do Brasil com 6 taças da Copa do Brasil e bicampeão da Libertadores com esquadrões inesquecíveis.';
+  } else if(n.includes('atletico-mg') || n.includes('atletico mineiro')){
+    historySummary = 'O Galo Forte e Vingador, fundado em 1908, carrega a Massa Atleticana mais apaixonada do país, campeão da América com Ronaldinho Gaúcho e detentor de hegemonia centenária em Minas Gerais.';
+  } else if(n.includes('real madrid')){
+    historySummary = 'O Maior Clube do Século XX, dono de 15 taças da Champions League e da mística inigualável das noites europeias no Santiago Bernabéu.';
+  } else if(n.includes('barcelona')){
+    historySummary = 'Mais que um clube. Berço do futebol total, de La Masia e da era mágica de Messi e Guardiola no Camp Nou.';
+  }
+
+  // 4. Estrelas de Força do Elenco
+  const atk = c.atk || 70, mid = c.mid || 70, def = c.def || 70;
+  const ovr = strength(c);
+  const starsOvr = (ovr / 20).toFixed(1);
+
+  // 5. Principais Jogadores
+  const clubPlayers = (window.livePlayers || []).filter(p => norm(p.club) === n);
+  const keyPlayers = clubPlayers.slice().sort((a,b) => playerOverall(b) - playerOverall(a)).slice(0, 3);
+
+  return {
+    name: c.name,
+    country: c.country,
+    competition: c.competition,
+    stadium: c.stadium || 'Arena Oficial',
+    budgetFormatted: fmtMoney((c.budget || 5) * 1000000),
+    fansText,
+    fansNum,
+    titlesTotal,
+    titlesDetail,
+    historySummary,
+    atk, mid, def, ovr, starsOvr,
+    keyPlayers
+  };
+}
+
+// =========================================================================
+// SINCRONIZAÇÃO DE VALORES E FOTOS COM A BASE TRANSFERMARKT
+// =========================================================================
+function syncTransfermarktDatabase(){
+  let updatedCount = 0;
+  const updatePlayer = (p) => {
+    if(!p) return;
+    const o = playerOverall(p);
+    const age = +p.age || 25;
+    const pot = +p.potential || o;
+
+    // Multiplicador baseado em potencial e juventude Transfermarkt
+    let mult = 1.0;
+    if(age <= 20) mult = 1.85 + (pot - o) * 0.08;
+    else if(age <= 23) mult = 1.45 + (pot - o) * 0.05;
+    else if(age <= 27) mult = 1.15;
+    else if(age <= 30) mult = 0.85;
+    else if(age <= 33) mult = 0.50;
+    else mult = 0.28;
+
+    // Valuation Transfermarkt em Milhões de Reais
+    let valMi = 0.5;
+    if(o >= 86) valMi = (180 + (o - 86) * 65) * mult;
+    else if(o >= 82) valMi = (75 + (o - 82) * 25) * mult;
+    else if(o >= 78) valMi = (30 + (o - 78) * 11) * mult;
+    else if(o >= 74) valMi = (12 + (o - 74) * 4.5) * mult;
+    else if(o >= 70) valMi = (4.5 + (o - 70) * 1.8) * mult;
+    else if(o >= 65) valMi = (1.5 + (o - 65) * 0.6) * mult;
+    else valMi = Math.max(0.15, (0.4 + (o - 55) * 0.1) * mult);
+
+    p.value = +valMi.toFixed(2);
+    if(!p.wage || p.wage < 5000){
+      p.wage = Math.round(clamp(valMi * 18000 + (o - 60) * 4000, 4500, 2200000));
+    }
+    updatedCount++;
+  };
+
+  (window.livePlayers || []).forEach(updatePlayer);
+  if(state && state.squad) state.squad.forEach(updatePlayer);
+
+  const lastSyncStr = new Date().toLocaleString('pt-BR');
+  if(state) state.transfermarktLastSync = lastSyncStr;
+  localStorage.setItem('afm_tm_last_sync', lastSyncStr);
+  save();
+  return { updatedCount, clubsCount: (window.clubs || []).length, date: lastSyncStr };
+}
+
+// =========================================================================
+// MODAL EXCLUSIVO DO ADMINISTRADOR (SAVES, CONFIGURAÇÕES E TRANSFERMARKT)
+// =========================================================================
+let currentAdminTab = 'saves';
+
+function openAdminModal(){
+  const curUser = getActiveAccount();
+  if(curUser?.role !== 'admin'){
+    toast('Acesso restrito ao Administrador do jogo.');
+    return;
+  }
+
+  openCustomModal(
+    '🛡️ Painel de Controle do Administrador (AFM 2026)',
+    `
+      <div style="display:flex;gap:10px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:10px;flex-wrap:wrap">
+        <button class="btn btn-admin-nav ${currentAdminTab==='saves'?'primary':''}" data-atab="saves" style="font-weight:800">
+          📁 Saves dos Usuários
+        </button>
+        <button class="btn btn-admin-nav ${currentAdminTab==='transfermarkt'?'primary':''}" data-atab="transfermarkt" style="font-weight:800">
+          🔄 Base Transfermarkt
+        </button>
+        <button class="btn btn-admin-nav ${currentAdminTab==='settings'?'primary':''}" data-atab="settings" style="font-weight:800">
+          ⚙️ Configurações & Controles
+        </button>
+      </div>
+
+      <div id="adminTabContent"></div>
+    `,
+    null,
+    'Fechar',
+    false,
+    '1080px'
+  );
+
+  renderAdminTabContent();
+}
+
+function renderAdminTabContent(){
+  const container = $('#adminTabContent');
+  if(!container) return;
+
+  $$('.btn-admin-nav').forEach(b => {
+    b.classList.toggle('primary', b.dataset.atab === currentAdminTab);
+    b.onclick = () => {
+      currentAdminTab = b.dataset.atab;
+      renderAdminTabContent();
+    };
+  });
+
+  const accounts = getStoredAccounts();
+
+  if(currentAdminTab === 'saves'){
+    let totalSaves = 0;
+    accounts.forEach(a => totalSaves += (a.saves || []).length);
+
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-bottom:16px">
+        <div class="card" style="padding:14px;background:#17202c">
+          <div class="small muted">Contas de Usuários</div>
+          <div style="font-size:24px;font-weight:900;color:#fff">${accounts.length}</div>
+        </div>
+        <div class="card" style="padding:14px;background:#17202c">
+          <div class="small muted">Saves Ativos no Jogo</div>
+          <div style="font-size:24px;font-weight:900;color:#22c55e">${totalSaves}</div>
+        </div>
+        <div class="card" style="padding:14px;background:#17202c">
+          <div class="small muted">Armazenamento</div>
+          <div style="font-size:24px;font-weight:900;color:#06b6d4">Local (GitHub Ready)</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;max-height:450px;overflow-y:auto;padding-right:6px">
+        ${accounts.map(acc => `
+          <div class="card" style="background:#131a24;border:1px solid rgba(255,255,255,0.08);padding:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:18px">👤</span>
+                <div>
+                  <b>${esc(acc.name)}</b> <span class="muted">(@${esc(acc.username)})</span>
+                  <span class="pill ${acc.role==='admin'?'good':'muted'}" style="font-size:10px;margin-left:6px">
+                    ${acc.role==='admin'?'🛡️ Admin':'⚽ Jogador'}
+                  </span>
+                </div>
+              </div>
+              <div class="small muted">Criado em: ${esc(acc.createdAt || '2026')}</div>
+            </div>
+
+            <!-- Saves do Usuário -->
+            <div>
+              ${(acc.saves && acc.saves.length > 0) ? `
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  ${acc.saves.map(s => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);padding:10px 14px;border-radius:10px;font-size:12px">
+                      <div style="display:flex;align-items:center;gap:12px">
+                        ${clubBadge(s.club, 32)}
+                        <div>
+                          <b style="font-size:14px;color:#fff">${esc(s.club)}</b> · Temporada ${s.season} (Rodada ${s.round + 1})
+                          <div class="muted small">Técnico: ${esc(s.manager)} · Saldo: <span style="color:#22c55e">${fmtMoney(s.balance)}</span> · Modificado: ${esc(s.updatedAt)}</div>
+                        </div>
+                      </div>
+                      <div style="display:flex;gap:6px">
+                        <button class="btn success btnAdminLoadSave" data-user="${esc(acc.username)}" data-saveid="${esc(s.id)}" style="padding:5px 12px;font-size:11px">
+                          ▶ Jogar Save
+                        </button>
+                        <button class="btn btnAdminExportSave" data-user="${esc(acc.username)}" data-saveid="${esc(s.id)}" style="padding:5px 12px;font-size:11px">
+                          💾 Exportar JSON
+                        </button>
+                        <button class="btn danger btnAdminDeleteSave" data-user="${esc(acc.username)}" data-saveid="${esc(s.id)}" style="padding:5px 10px;font-size:11px">
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : `
+                <div class="small muted" style="padding:8px 0">Nenhum save gravado por este usuário ainda.</div>
+              `}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    // Listeners da aba Saves do Admin
+    $$('.btnAdminLoadSave').forEach(b => {
+      b.onclick = () => {
+        closeCustomModal();
+        loadUserSave(b.dataset.saveid, b.dataset.user);
+      };
+    });
+
+    $$('.btnAdminExportSave').forEach(b => {
+      b.onclick = () => {
+        const acc = accounts.find(a => a.username.toLowerCase() === b.dataset.user.toLowerCase());
+        const sv = acc?.saves?.find(s => s.id === b.dataset.saveid);
+        if(!sv) return;
+        const blob = new Blob([JSON.stringify(sv.data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `afm_save_${norm(sv.club)}_${sv.season}.json`;
+        a.click();
+        toast('Save exportado com sucesso em JSON!');
+      };
+    });
+
+    $$('.btnAdminDeleteSave').forEach(b => {
+      b.onclick = () => {
+        deleteUserSave(b.dataset.saveid, b.dataset.user);
+        renderAdminTabContent();
+      };
+    });
+  }
+
+  else if(currentAdminTab === 'transfermarkt'){
+    const lastSync = (state?.transfermarktLastSync || localStorage.getItem('afm_tm_last_sync') || 'Pendente de sincronização');
+
+    container.innerHTML = `
+      <div class="transfermarkt-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="font-size:18px;font-weight:900;letter-spacing:1px;display:flex;align-items:center;gap:8px">
+              <span>🌐</span> TRANSFERMARKT · INTEGRAÇÃO OFICIAL DE DADOS
+            </div>
+            <p style="margin:6px 0 0 0;font-size:13px;color:#cbd5e1;max-width:700px">
+              Atualize as cotações financeiras reais, valores de passe, faixas salariais e imagens otimizadas de todos os jogadores do banco de dados (Série A, Série B e futebol mundial).
+            </p>
+          </div>
+          <button class="btn primary" id="btnAdminDoSyncTM" style="padding:12px 22px;font-size:14px;font-weight:900;background:#0284c7;border:none;box-shadow:0 0 20px rgba(2,132,199,0.5)">
+            🔄 Sincronizar Agora via Base Transfermarkt
+          </button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px">
+        <div class="card" style="padding:16px;background:#141c26">
+          <h4 style="margin:0 0 8px 0;color:#38bdf8">📊 Status da Base de Dados</h4>
+          <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.6">
+            • Última Sincronização: <b>${esc(lastSync)}</b><br>
+            • Atletas Mapeados: <b>${(window.livePlayers||[]).length} jogadores</b><br>
+            • Clubes Monitorados: <b>${(window.clubs||[]).length} equipes mundiais</b><br>
+            • Resolução de Imagens: <b>Otimização web leve (36x36 / 48x48)</b>
+          </div>
+        </div>
+
+        <div class="card" style="padding:16px;background:#141c26">
+          <h4 style="margin:0 0 8px 0;color:#a7ff3f">⚡ Algoritmo de Valuation Aplicado</h4>
+          <div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.6">
+            • Jovens promessas (&lt;21 anos): <b>Multiplicador até 2.2x no passe</b><br>
+            • Estrelas Mundiais (84+ OVR): <b>R$ 180M a R$ 900M</b><br>
+            • Titulares Série A (74-82 OVR): <b>R$ 15M a R$ 95M</b><br>
+            • Equipes da Série B e Estaduais: <b>R$ 300 mil a R$ 6M</b>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const btnSync = $('#btnAdminDoSyncTM');
+    if(btnSync){
+      btnSync.onclick = () => {
+        btnSync.disabled = true;
+        btnSync.textContent = '⏳ Sincronizando dados...';
+        setTimeout(() => {
+          const res = syncTransfermarktDatabase();
+          toast(`✅ ${res.updatedCount} atletas e ${res.clubsCount} clubes sincronizados com sucesso via base Transfermarkt!`);
+          renderAdminTabContent();
+          if(state) render();
+        }, 600);
+      };
+    }
+  }
+
+  else if(currentAdminTab === 'settings'){
+    container.innerHTML = `
+      <div class="card" style="background:#141c26;padding:18px">
+        <h3 style="margin:0 0 14px 0">⚙️ Controles Globais do Jogo & Preferências</h3>
+        
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer">
+            <input type="checkbox" id="chkAdminFreeWindow" ${state?.freeTransferWindow?'checked':''}>
+            <span><b>Janela de Transferências Sempre Aberta:</b> Permitir negociações de compra e venda o ano todo sem bloqueio.</span>
+          </label>
+
+          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px">
+            <h4 style="margin:0 0 8px 0">💾 Backup Geral em Arquivo JSON</h4>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn success" id="btnAdminExportAllJSON">
+                📤 Exportar Todos os Saves & Contas (JSON)
+              </button>
+              <label class="btn" style="cursor:pointer">
+                📥 Restaurar Backup JSON
+                <input type="file" id="inputAdminImportJSON" accept=".json" style="display:none">
+              </label>
+            </div>
+          </div>
+
+          ${state ? `
+            <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px">
+              <h4 style="margin:0 0 8px 0;color:#f59e0b">⚡ Ferramentas de Teste no Save Ativo (${esc(state.club)})</h4>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn" id="btnAdminAddCash" style="background:rgba(34,197,94,0.2);border-color:#22c55e;color:#86efac">
+                  💰 Injetar +R$ 50 Mi no Caixa do Clube
+                </button>
+                <button class="btn" id="btnAdminMaxTrust" style="background:rgba(168,85,247,0.2);border-color:#a855f7;color:#d8b4fe">
+                  👑 Confiança da Diretoria para 100%
+                </button>
+                <button class="btn" id="btnAdminHealInjuries" style="background:rgba(239,68,68,0.2);border-color:#ef4444;color:#fca5a5">
+                  🚑 Curar Todas as Lesões
+                </button>
+                <button class="btn" id="btnAdminClearCards" style="background:rgba(234,179,8,0.2);border-color:#eab308;color:#fde047">
+                  🟨 Zerar Cartões & Suspensões
+                </button>
+                <button class="btn" id="btnAdminMaxFitness" style="background:rgba(59,130,246,0.2);border-color:#3b82f6;color:#93c5fd">
+                  ⚡ Físico & Moral 100%
+                </button>
+              </div>
+            </div>
+          ` : ''}
+
+          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px">
+            <h4 style="margin:0 0 6px 0;color:#ef4444">⚠️ Reset do Banco de Dados Local</h4>
+            <div class="small muted" style="margin-bottom:8px">Restaura as configurações de fábrica e limpa todos os dados locais.</div>
+            <button class="btn danger" id="btnAdminFactoryReset">
+              🔥 Resetar Todo o Jogo (Limpar Dados)
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const chkWin = $('#chkAdminFreeWindow');
+    if(chkWin){
+      chkWin.onchange = () => {
+        if(state) state.freeTransferWindow = chkWin.checked;
+        save();
+        toast(`Janela sempre aberta: ${chkWin.checked ? 'Ativada' : 'Desativada'}`);
+      };
+    }
+
+    const bExportAll = $('#btnAdminExportAllJSON');
+    if(bExportAll){
+      bExportAll.onclick = () => {
+        const fullBackup = {
+          accounts: getStoredAccounts(),
+          activeState: state,
+          exportedAt: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(fullBackup, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `afm_backup_completo_${Date.now()}.json`;
+        a.click();
+        toast('Backup completo exportado com sucesso!');
+      };
+    }
+
+    const inpImport = $('#inputAdminImportJSON');
+    if(inpImport){
+      inpImport.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const data = JSON.parse(evt.target.result);
+            if(data.accounts){
+              saveStoredAccounts(data.accounts);
+            }
+            if(data.activeState){
+              state = migrate(data.activeState);
+              save();
+            } else if(data.club && data.season){
+              state = migrate(data);
+              save();
+            }
+            toast('Backup restaurado com sucesso!');
+            closeCustomModal();
+            render();
+          } catch(err){
+            toast('Erro ao restaurar arquivo JSON.');
+          }
+        };
+        reader.readAsText(file);
+      };
+    }
+
+    const bAddCash = $('#btnAdminAddCash');
+    if(bAddCash){
+      bAddCash.onclick = () => {
+        if(state){
+          state.balance += 50000000;
+          save();
+          render();
+          toast('R$ 50.000.000 adicionados ao caixa do clube!');
+        }
+      };
+    }
+
+    const bMaxTrust = $('#btnAdminMaxTrust');
+    if(bMaxTrust){
+      bMaxTrust.onclick = () => {
+        if(state){
+          state.trust = { board: 100, fans: 100, squad: 100 };
+          save();
+          render();
+          toast('Confiança ajustada para 100%!');
+        }
+      };
+    }
+
+    const bHeal = $('#btnAdminHealInjuries');
+    if(bHeal){
+      bHeal.onclick = () => {
+        if(state && state.squad){
+          state.squad.forEach(p => { p.injury = null; p.injuryMatches = 0; });
+          save();
+          render();
+          toast('Todas as lesões do elenco foram curadas pelo DM!');
+        }
+      };
+    }
+
+    const bCards = $('#btnAdminClearCards');
+    if(bCards){
+      bCards.onclick = () => {
+        if(state && state.squad){
+          state.squad.forEach(p => { p.yellowCards = 0; p.suspended = 0; });
+          save();
+          render();
+          toast('Todos os cartões e suspensões do elenco foram zerados!');
+        }
+      };
+    }
+
+    const bFit = $('#btnAdminMaxFitness');
+    if(bFit){
+      bFit.onclick = () => {
+        if(state && state.squad){
+          state.squad.forEach(p => { p.fitness = 100; p.morale = 100; });
+          save();
+          render();
+          toast('Físico e Moral do elenco restaurados para 100%!');
+        }
+      };
+    }
+
+    const bReset = $('#btnAdminFactoryReset');
+    if(bReset){
+      bReset.onclick = () => {
+        if(confirm('ATENÇÃO: Deseja apagar todas as contas, saves e redefinir o simulador para o estado inicial?')){
+          localStorage.removeItem(AFM_AUTH_KEY);
+          localStorage.removeItem(AFM_SESSION_KEY);
+          localStorage.removeItem(STORAGE);
+          state = null;
+          closeCustomModal();
+          toast('Simulador resetado com sucesso.');
+          render();
+        }
+      };
+    }
+  }
+}
+
+function toast(t){
+  const d=document.createElement('div');
+  d.className='toast';
+  d.innerHTML=`<span>⚽</span> <span>${t}</span>`;
+  document.body.appendChild(d);
+  setTimeout(()=>{ d.style.opacity='0'; setTimeout(()=>d.remove(),300); },3000);
+}
+function compById(id){return (window.COMPETITIONS||[]).find(c=>c.id===id)}
+function clubByName(name){return clubs.find(c=>norm(c.name)===norm(name))}
+function allCountries(cont){
+  return [...new Set(
+    (window.COMPETITIONS||[])
+      .filter(c => (!cont || c.continent === cont) && eligibleClubNames(c).length >= 2)
+      .map(c => c.country)
+  )].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+}
+
+function getClubDivisionAndState(clubName){
+  if(!clubName) return 'DIVISÃO NACIONAL • BR';
+  const c = clubByName(clubName);
+  const comp = curComp();
+  
+  // 1. Identificação da Divisão
+  let division = '';
+  if(window.COMPETITION_TEAMS?.['bra-a']?.some(x => norm(x) === norm(clubName))){
+    division = 'BRASILEIRÃO SÉRIE A';
+  } else if(window.COMPETITION_TEAMS?.['bra-b']?.some(x => norm(x) === norm(clubName))){
+    division = 'BRASILEIRÃO SÉRIE B';
+  } else if(window.COMPETITION_TEAMS?.['bra-c']?.some(x => norm(x) === norm(clubName))){
+    division = 'BRASILEIRÃO SÉRIE C';
+  } else if(window.COMPETITION_TEAMS?.['bra-d']?.some(x => norm(x) === norm(clubName))){
+    division = 'BRASILEIRÃO SÉRIE D';
+  } else if(c?.country && c.country !== 'Brasil'){
+    division = (c.competition || comp?.name || 'LIGA NACIONAL').toUpperCase();
+  } else {
+    division = 'SEM DIVISÃO NACIONAL';
+  }
+
+  // 2. Identificação da Região / Estado / País
+  let region = '';
+  if(!c || c.country === 'Brasil'){
+    const estId = clubStateCompId(clubName);
+    const uf = estId ? estId.replace('bra-est-', '').toUpperCase() : 'SP';
+    region = uf;
+  } else {
+    region = (c.country || 'INTERNACIONAL').toUpperCase();
+  }
+
+  return `${division} • ${region}`;
+}
+
+function getClubStarRating(clubName){
+  const c = clubByName(clubName);
+  let ovr = (state && state.club === clubName && Array.isArray(state.squad) && state.squad.length >= 11) 
+    ? overallSquad() 
+    : (c ? strength(c) : 65);
+
+  let stars = '★★★☆☆';
+  let label = '3 Estrelas · Força Intermediária';
+
+  if(ovr >= 84){
+    stars = '★★★★★';
+    label = '5 Estrelas · Elite Mundial';
+  } else if(ovr >= 79){
+    stars = '★★★★☆';
+    label = '4.5 Estrelas · Potência Nacional';
+  } else if(ovr >= 74){
+    stars = '★★★★☆';
+    label = '4 Estrelas · Série A / 1ª Divisão';
+  } else if(ovr >= 69){
+    stars = '★★★☆☆';
+    label = '3.5 Estrelas · Série A / Série B Top';
+  } else if(ovr >= 64){
+    stars = '★★★☆☆';
+    label = '3 Estrelas · Série B / Série C Top';
+  } else if(ovr >= 59){
+    stars = '★★☆☆☆';
+    label = '2.5 Estrelas · Série C / Série D';
+  } else if(ovr >= 54){
+    stars = '★★☆☆☆';
+    label = '2 Estrelas · Série D / Estadual';
+  } else {
+    stars = '★☆☆☆☆';
+    label = '1.5 Estrela · Clube Regional Modesto';
+  }
+
+  return { stars, ovr, label };
+}
+
+function strength(c){return Math.round(((c?.atk||68)+(c?.mid||68)+(c?.def||68))/3)}
+
+// Overall realista eFootball/PES ponderado com EA FC
+function playerOverall(p){
+  const pes = +p?.pes || 0;
+  const fc = +p?.fc || 0;
+  if (pes > 0 && fc > 0) return Math.round(pes * 0.7 + fc * 0.3);
+  if (pes > 0) return pes;
+  if (fc > 0) return fc;
+  return 62;
+}
+
+function ratingClass(o){
+  if(o >= 84) return 'rating-gold-plus';
+  if(o >= 78) return 'rating-gold';
+  if(o >= 68) return 'rating-silver';
+  return 'rating-bronze';
+}
+
+function playerKey(p){
+  if(!p) return '';
+  return p.marketKey || (p.fifaId && `fifa:${p.fifaId}`) || (p.pesId && `pes:${p.pesId}`) || (p.id && `id:${p.id}`) || `n:${norm(p.name)}|${norm(p.club || state?.club || '')}`;
+}
+
+function findSquadPlayerByKey(key){
+  if(!key || !state?.squad) return null;
+  // 1. Chave exata
+  let p = state.squad.find(x => playerKey(x) === key);
+  if(p) return p;
+  // 2. Chaves por ID
+  if(key.startsWith('id:')) {
+    const rawId = key.slice(3);
+    p = state.squad.find(x => String(x.id) === rawId);
+    if(p) return p;
+  }
+  if(key.startsWith('fifa:')) {
+    const rawId = key.slice(5);
+    p = state.squad.find(x => String(x.fifaId) === rawId);
+    if(p) return p;
+  }
+  if(key.startsWith('pes:')) {
+    const rawId = key.slice(4);
+    p = state.squad.find(x => String(x.pesId) === rawId);
+    if(p) return p;
+  }
+  // 3. Chave nominal
+  if(key.startsWith('n:')) {
+    const namePart = key.slice(2).split('|')[0];
+    p = state.squad.find(x => norm(x.name) === namePart);
+    if(p) return p;
+  }
+  // 4. Busca flexível por nome normalizado
+  const nKey = norm(key);
+  p = state.squad.find(x => norm(x.name) === nKey || nKey.includes(norm(x.name)));
+  return p || null;
+}
+
+function findGlobalPlayerByKey(key){
+  if(!key) return null;
+  // 1. Elenco do treinador
+  let p = findSquadPlayerByKey(key);
+  if(p) return p;
+  // 2. Universo do mercado
+  const mUni = (typeof marketUniverse === 'function') ? marketUniverse() : [];
+  p = mUni.find(x => playerKey(x) === key);
+  if(p) return p;
+  // 3. Atletas do banco de dados ao vivo
+  p = (typeof livePlayers !== 'undefined' && Array.isArray(livePlayers)) ? livePlayers.find(x => playerKey(x) === key) : null;
+  if(p) return p;
+  // 4. Atletas procedurais mundiais
+  p = (state?.worldGenerated || []).find(x => playerKey(x) === key);
+  if(p) return p;
+  // 5. Busca por prefixo de ID
+  if(key.startsWith('id:') || key.startsWith('fifa:') || key.startsWith('pes:')) {
+    const raw = key.split(':')[1];
+    p = (livePlayers || []).find(x => String(x.id) === raw || String(x.fifaId) === raw || String(x.pesId) === raw) ||
+        (state?.worldGenerated || []).find(x => String(x.id) === raw || String(x.fifaId) === raw);
+    if(p) return p;
+  }
+  // 6. Busca por nome normalizado
+  const namePart = key.startsWith('n:') ? key.slice(2).split('|')[0] : norm(key);
+  p = mUni.find(x => norm(x.name) === namePart) ||
+      (livePlayers || []).find(x => norm(x.name) === namePart) ||
+      (state?.worldGenerated || []).find(x => norm(x.name) === namePart);
+  return p || null;
+}
+
+function calcValueMi(p){
+  if(!p) return 0.05;
+  const o = playerOverall(p);
+  const age = Number(p.age) || 25;
+  const pot = Number(p.potential) || o;
+
+  // Curva realista de valor de mercado (R$) por escala técnica (Overall)
+  let base = 0;
+  if(o <= 50) {
+    base = 20000 + Math.max(0, o - 40) * 2000;
+  } else if(o <= 55) {
+    base = 40000 + (o - 50) * 12000; // 40k -> 100k
+  } else if(o <= 60) {
+    base = 100000 + (o - 55) * 35000; // 100k -> 275k (Série D / Estaduais)
+  } else if(o <= 65) {
+    base = 275000 + (o - 60) * 115000; // 275k -> 850k (Candangão / Série C / Série D topo)
+  } else if(o <= 70) {
+    base = 850000 + (o - 65) * 650000; // 850k -> 4.1M (Série B)
+  } else if(o <= 75) {
+    base = 4100000 + (o - 70) * 2500000; // 4.1M -> 16.6M (Série A médios)
+  } else if(o <= 80) {
+    base = 16600000 + (o - 75) * 9000000; // 16.6M -> 61.6M (Série A estrelas)
+  } else if(o <= 85) {
+    base = 61600000 + (o - 80) * 25000000; // 61.6M -> 186.6M (Craques continentais)
+  } else {
+    base = 186600000 + (o - 85) * 65000000; // 186.6M -> 500M+ (Superastros mundiais)
+  }
+
+  // Fator de Idade Realista (jovens valorizados, veteranos desvalorizados)
+  let ageMult = 1.0;
+  if(age <= 18) ageMult = 1.50;
+  else if(age <= 21) ageMult = 1.35;
+  else if(age <= 24) ageMult = 1.18;
+  else if(age <= 28) ageMult = 1.00;
+  else if(age <= 30) ageMult = 0.82;
+  else if(age <= 32) ageMult = 0.60;
+  else if(age <= 34) ageMult = 0.40;
+  else if(age <= 36) ageMult = 0.25;
+  else ageMult = 0.15;
+
+  // Bônus de Potencial para Jovens Atletas (até 26 anos)
+  let potBonus = 1.0;
+  if(pot > o && age <= 26) {
+    potBonus += Math.min(0.60, (pot - o) * 0.05);
+  }
+
+  const finalReais = Math.round(base * ageMult * potBonus);
+  const valMi = +(finalReais / 1e6).toFixed(3);
+  p.value = valMi;
+  return valMi;
+}
+
+function playerSalary(p){
+  if(p?.wage && Number(p.wage) > 0) return Math.round(Number(p.wage));
+  const n = norm(p?.name || '');
+  if(n === 'gustavinho') return 25000;
+  if(n === 'juan rocha') return 21000;
+  if(n === 'joao garcia') return 7400;
+  if(n === 'anderson prestes') return 6200;
+  if(n === 'kaua oliveira' || n === 'kaua') return 5900;
+  if(n === 'romo') return 5900;
+  if(n === 'matheus reggiori') return 4800;
+  if(n === 'edson reis') return 12000;
+  if(n === 'henrique almeida') return 14000;
+  if(n === 'luan') return 9500;
+  if(n === 'gabriel planta') return 5200;
+  if(n === 'joao vitor') return 4500;
+  if(n === 'lopeu') return 4800;
+  if(n === 'rene') return 4500;
+  if(n === 'david weslley') return 4600;
+  if(n === 'ian') return 4200;
+  if(n === 'johann') return 4800;
+  if(n === 'marcos rassi') return 4700;
+  if(n === 'matheuzinho') return 5500;
+  if(n === 'paulo vinicius') return 4400;
+  if(n === 'rodriguinho') return 6000;
+  if(n === 'vitor gabriel') return 4500;
+
+  const o = playerOverall(p);
+  let base;
+  if(o >= 84) base = 850000 + (o - 84) * 200000;
+  else if(o >= 78) base = 220000 + (o - 78) * 80000;
+  else if(o >= 70) base = 42000 + (o - 70) * 18000;
+  else if(o >= 65) base = 14000 + (o - 65) * 5000;
+  else if(o >= 60) base = 5800 + (o - 60) * 1400;
+  else base = 2500 + Math.max(0, o - 50) * 300;
+
+  const delta = (hashStr(p?.name || '') % 21) - 10;
+  return Math.max(1800, Math.round((base * (1 + delta / 100)) / 100) * 100);
+}
+
+function playerContractUntil(p){
+  if(p?.contractUntil) return Number(p.contractUntil);
+  const n = norm(p?.name || '');
+  if(n === 'gustavinho') return 2027;
+  if(n === 'juan rocha') return 2029;
+  if(n === 'joao garcia') return 2029;
+  if(n === 'anderson prestes') return 2028;
+  if(n === 'kaua oliveira' || n === 'kaua') return 2028;
+  if(n === 'romo') return 2029;
+  if(n === 'matheus reggiori') return 2027;
+  const hash = hashStr(p?.name || '') % 3;
+  return 2027 + hash;
+}
+
+function calcSalary(p){
+  return playerSalary(p);
+}
+
+function isExpensiveForTier(p){
+  const n = norm(p?.name || '');
+  if(n === 'kaua oliveira' || n === 'romo') return true;
+  const o = playerOverall(p);
+  const w = playerSalary(p);
+  if(o <= 60 && w >= 5500) return true;
+  if(o <= 65 && w >= 20000) return true;
+  if(o <= 70 && w >= 65000) return true;
+  return false;
+}
+
+const CLUB_TO_STATE_COMP = {
+  // SP
+  'corinthians': 'bra-est-sp', 'palmeiras': 'bra-est-sp', 'sao paulo': 'bra-est-sp', 'santos': 'bra-est-sp',
+  'mirassol': 'bra-est-sp', 'novorizontino': 'bra-est-sp', 'bragantino': 'bra-est-sp', 'red bull bragantino': 'bra-est-sp',
+  'ponte preta': 'bra-est-sp', 'guarani': 'bra-est-sp', 'sao bernardo': 'bra-est-sp', 'ituano': 'bra-est-sp',
+  'inter de limeira': 'bra-est-sp', 'agua santa': 'bra-est-sp', 'portuguesa-sp': 'bra-est-sp', 'portuguesa': 'bra-est-sp',
+  'botafogo-sp': 'bra-est-sp', 'velo clube': 'bra-est-sp', 'ferroviaria': 'bra-est-sp', 'oeste': 'bra-est-sp',
+  'santo andre': 'bra-est-sp', 'juventus-sp': 'bra-est-sp', 'noroeste': 'bra-est-sp', 'marilia': 'bra-est-sp',
+  // RJ
+  'flamengo': 'bra-est-rj', 'fluminense': 'bra-est-rj', 'vasco': 'bra-est-rj', 'vasco da gama': 'bra-est-rj',
+  'botafogo': 'bra-est-rj', 'volta redonda': 'bra-est-rj', 'bangu': 'bra-est-rj', 'madureira': 'bra-est-rj',
+  'nova iguacu': 'bra-est-rj', 'boavista': 'bra-est-rj', 'audax rio': 'bra-est-rj', 'portuguesa-rj': 'bra-est-rj',
+  'sampaio correa-rj': 'bra-est-rj', 'olaria': 'bra-est-rj', 'america-rj': 'bra-est-rj',
+  // MG
+  'atletico-mg': 'bra-est-mg', 'cruzeiro': 'bra-est-mg', 'america-mg': 'bra-est-mg', 'tombense': 'bra-est-mg',
+  'athletic club': 'bra-est-mg', 'pouso alegre': 'bra-est-mg', 'villa nova-mg': 'bra-est-mg', 'ipatinga': 'bra-est-mg',
+  'caldense': 'bra-est-mg', 'democrata-gv': 'bra-est-mg',
+  // RS
+  'gremio': 'bra-est-rs', 'internacional': 'bra-est-rs', 'juventude': 'bra-est-rs', 'caxias': 'bra-est-rs',
+  'ypiranga': 'bra-est-rs', 'brasil de pelotas': 'bra-est-rs', 'sao jose-rs': 'bra-est-rs', 'novo hamburgo': 'bra-est-rs',
+  'avenida': 'bra-est-rs', 'aimore': 'bra-est-rs',
+  // PR
+  'athletico paranaense': 'bra-est-pr', 'athletico-pr': 'bra-est-pr', 'coritiba': 'bra-est-pr', 'operario-pr': 'bra-est-pr',
+  'londrina': 'bra-est-pr', 'maringa': 'bra-est-pr', 'cascavel': 'bra-est-pr', 'cianorte': 'bra-est-pr',
+  'parana clube': 'bra-est-pr', 'azuriz': 'bra-est-pr',
+  // SC
+  'chapecoense': 'bra-est-sc', 'avai': 'bra-est-sc', 'figueirense': 'bra-est-sc', 'criciuma': 'bra-est-sc',
+  'brusque': 'bra-est-sc', 'joinville': 'bra-est-sc', 'marcilio dias': 'bra-est-sc', 'hercilio luz': 'bra-est-sc',
+  // BA
+  'bahia': 'bra-est-ba', 'vitoria': 'bra-est-ba', 'jacuipense': 'bra-est-ba', 'juazeirense': 'bra-est-ba',
+  'atletico de alagoinhas': 'bra-est-ba', 'bahia de feira': 'bra-est-ba',
+  // CE
+  'fortaleza': 'bra-est-ce', 'ceara': 'bra-est-ce', 'ferroviario': 'bra-est-ce', 'floresta': 'bra-est-ce',
+  // GO
+  'goias': 'bra-est-go', 'atletico-go': 'bra-est-go', 'vila nova': 'bra-est-go', 'aparecidense': 'bra-est-go', 'anapolis': 'bra-est-go',
+  // PE
+  'sport': 'bra-est-pe', 'nautico': 'bra-est-pe', 'santa cruz': 'bra-est-pe', 'retro': 'bra-est-pe',
+  // DF
+  'gama': 'bra-est-df', 'brasiliense': 'bra-est-df', 'real brasilia': 'bra-est-df', 'ceilandia': 'bra-est-df',
+  'capital-df': 'bra-est-df', 'sobradinho': 'bra-est-df', 'samambaia': 'bra-est-df', 'paranoa': 'bra-est-df',
+  'santa maria': 'bra-est-df', 'planaltina': 'bra-est-df', 'aruc': 'bra-est-df', 'brasilia': 'bra-est-df'
+};
+
+function clubStateCompId(clubName){
+  const nameNorm = norm(clubName);
+  if(CLUB_TO_STATE_COMP[nameNorm]) return CLUB_TO_STATE_COMP[nameNorm];
+
+  const tMap = window.COMPETITION_TEAMS || {};
+  for(const [cId, list] of Object.entries(tMap)){
+    if(cId.startsWith('bra-est-')){
+      if(list.some(c => norm(c) === nameNorm)) return cId;
+    }
+  }
+  const clubObj = clubByName(clubName);
+  const comp = clubObj?.competition || '';
+  if(comp.includes('Candango')) return 'bra-est-df';
+  if(comp.includes('Paulista')) return 'bra-est-sp';
+  if(comp.includes('Carioca')) return 'bra-est-rj';
+  if(comp.includes('Mineiro')) return 'bra-est-mg';
+  if(comp.includes('Gaúcho') || comp.includes('Gaucho')) return 'bra-est-rs';
+  if(comp.includes('Paranaense')) return 'bra-est-pr';
+  if(comp.includes('Catarinense')) return 'bra-est-sc';
+  if(comp.includes('Baiano')) return 'bra-est-ba';
+  if(comp.includes('Cearense')) return 'bra-est-ce';
+  if(comp.includes('Goiano')) return 'bra-est-go';
+  if(comp.includes('Pernambucano')) return 'bra-est-pe';
+  return 'bra-est-sp';
+}
+
+function getClubPrimaryCompetitionId(clubName, preferredCompId = null){
+  if(!clubName) return preferredCompId || 'bra-a';
+  const nameNorm = norm(clubName);
+  const tMap = window.COMPETITION_TEAMS || {};
+
+  // Se uma competição preferencial foi indicada e o clube realmente faz parte dela, respeitar
+  if(preferredCompId){
+    const prefComp = compById(preferredCompId);
+    if(prefComp && eligibleClubNames(prefComp).some(c => norm(c) === nameNorm)){
+      return preferredCompId;
+    }
+  }
+
+  // Clubes candangos sem divisão nacional (Brasília, ARUC, etc.)
+  if(nameNorm === 'brasilia' || nameNorm.includes('brasilia fc') || nameNorm === 'aruc' || nameNorm === 'paranoa' || nameNorm === 'samambaia' || nameNorm === 'sobradinho'){
+    return 'bra-est-df';
+  }
+
+  const clubObj = clubByName(clubName);
+  if(clubObj?.competition){
+    const matchedComp = (window.COMPETITIONS||[]).find(c => norm(c.name) === norm(clubObj.competition));
+    if(matchedComp && (matchedComp.id in tMap || !matchedComp.id.startsWith('bra-est-'))){
+      return matchedComp.id;
+    }
+  }
+
+  // 1. Divisões nacionais do Brasil (Série A, B, C, D)
+  const brDivs = ['bra-a', 'bra-b', 'bra-c', 'bra-d'];
+  for(const divId of brDivs){
+    if(Array.isArray(tMap[divId]) && tMap[divId].some(c => norm(c) === nameNorm)){
+      return divId;
+    }
+  }
+
+  // 2. Principais ligas internacionais
+  const intlLigas = ['eng-1', 'eng-2', 'esp-1', 'esp-2', 'ita-1', 'ger-1', 'fra-1', 'por-1', 'ned-1', 'arg-1', 'uru-1', 'chi-1', 'col-1', 'par-1', 'ecu-1', 'per-1', 'bol-1', 'ven-1', 'ksa-1', 'jpn-1', 'kor-1', 'chn-1', 'qat-1', 'uae-1'];
+  for(const lId of intlLigas){
+    if(Array.isArray(tMap[lId]) && tMap[lId].some(c => norm(c) === nameNorm)){
+      return lId;
+    }
+  }
+
+  // 3. Estaduais
+  const estId = clubStateCompId(clubName);
+  if(estId && tMap[estId] && tMap[estId].some(c => norm(c) === nameNorm)){
+    return estId;
+  }
+
+  // 4. Qualquer outra competição em tMap
+  for(const [cId, list] of Object.entries(tMap)){
+    if(Array.isArray(list) && list.some(c => norm(c) === nameNorm)){
+      return cId;
+    }
+  }
+
+  if(clubObj?.country === 'Brasil') return 'bra-a';
+  return 'eng-1';
+}
+
+function compBaseStrength(comp){
+  if(!comp)return 65;
+  if(comp.id==='bra-a')return 78;if(comp.id==='bra-b')return 71;if(comp.id==='bra-c')return 64;if(comp.id==='bra-d')return 59;
+  if(comp.continent==='Europa')return /champions|premier|laliga|serie a|bundesliga|ligue 1/i.test(comp.name)?80:73;
+  if(comp.continent==='Ásia')return 69;
+  if(comp.country==='Brasil'&&comp.id.startsWith('bra-est'))return 61;
+  return 68;
+}
+
+function inferClubMeta(p){
+  const league=String(p?.league||'');
+  const rules=[
+   [/premier league/i,'Inglaterra','Premier League'],[/championship/i,'Inglaterra','EFL Championship'],[/laliga|la liga/i,'Espanha','LaLiga'],[/serie a/i,'Itália','Serie A'],
+   [/bundesliga/i,'Alemanha','Bundesliga'],[/ligue 1/i,'França','Ligue 1'],[/primeira liga|liga portugal/i,'Portugal','Primeira Liga'],[/eredivisie/i,'Países Baixos','Eredivisie'],
+   [/argentina|liga profesional/i,'Argentina','Liga Profesional Argentina'],[/saudi|roshn/i,'Arábia Saudita','Saudi Pro League'],[/j1 league|japan/i,'Japão','J1 League'],[/k league/i,'Coreia do Sul','K League 1'],[/chinese super league|china/i,'China','Chinese Super League']
+  ];
+  for(const [rx,country,competition] of rules) if(rx.test(league))return {country,competition};
+  return {country:p?.clubCountry||p?.teamCountry||'Outro',competition:league||'Outros clubes'};
+}
+
+function buildClubs(){
+  const map=new Map();
+  (window.BASE_CLUBS||[]).forEach(c=>map.set(norm(c.name),clone(c)));
+  const liveByClub={};
+  for(const p of livePlayers){if(!p.club)continue;(liveByClub[p.club]??=[]).push(p)}
+  for(const [name,ps] of Object.entries(liveByClub)){
+    const vals=ps.map(playerOverall).filter(Boolean);const avg=Math.round(vals.reduce((a,b)=>a+b,0)/(vals.length||1));const key=norm(name);const existing=map.get(key);const meta=inferClubMeta(ps[0]);
+    if(existing){existing.atk=Math.round(((existing.atk||avg)+avg)/2);existing.mid=Math.round(((existing.mid||avg)+avg)/2);existing.def=Math.round(((existing.def||avg)+avg)/2);existing.playerCount=ps.length;}
+    else map.set(key,{name,country:meta.country,competition:meta.competition,stadium:'Estádio do clube',atk:avg,mid:avg,def:avg,budget:Math.max(.4,(avg-52)*2.2),playerCount:ps.length});
+  }
+  for(const [compId,names] of Object.entries(teamMap)){
+    const comp=compById(compId);if(!comp)continue;const base=compBaseStrength(comp);
+    names.forEach((name,i)=>{const key=norm(name);if(!map.has(key)){const wiggle=(hashStr(name)%7)-3;const s=clamp(base+wiggle,48,88);map.set(key,{name,country:comp.country==='CONMEBOL'||comp.country==='UEFA'||comp.country==='AFC'?'Outro':comp.country,competition:comp.name,stadium:'Estádio do clube',atk:s+rnd(-1,1),mid:s+rnd(-1,1),def:s+rnd(-1,1),budget:Math.max(.25,Math.pow(Math.max(3,s-48),1.35)/2.6)});}});
+  }
+  return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+}
+
+function regionCountries(continent){
+  if(continent==='América do Sul')return ['Brasil','Argentina','Uruguai','Chile','Colômbia','Equador','Paraguai','Peru','Bolívia','Venezuela'];
+  if(continent==='Europa')return ['Inglaterra','Espanha','Itália','Alemanha','França','Portugal','Países Baixos','Bélgica','Turquia','Escócia','Áustria','Suíça','Grécia','Croácia','Sérvia','Tchéquia','Dinamarca','Noruega','Suécia'];
+  return ['Arábia Saudita','Japão','Coreia do Sul','China','Catar','Emirados Árabes Unidos','Irã','Índia','Tailândia','Austrália'];
+}
+
+function eligibleClubNames(comp){
+  if(!comp)return [];
+  if(Array.isArray(teamMap[comp.id])&&teamMap[comp.id].length)return [...teamMap[comp.id]];
+  const exact=clubs.filter(c=>norm(c.competition)===norm(comp.name)).map(c=>c.name);
+  if(exact.length)return [...new Set(exact)];
+  if(['CONMEBOL','UEFA','AFC'].includes(comp.country))return clubs.filter(c=>regionCountries(comp.continent).includes(c.country)).map(c=>c.name);
+  if(/cup|copa|taça|pokal|king/i.test(comp.name))return clubs.filter(c=>c.country===comp.country).map(c=>c.name);
+  if(comp.id && comp.id.startsWith('bra-est-')) return []; // Jamais vazar todos os clubes do Brasil para estaduais vazios
+  return clubs.filter(c=>c.country===comp.country).map(c=>c.name);
+}
+
+function competitionClubs(comp,selected){
+  let names=eligibleClubNames(comp);
+  if(selected&&!names.some(x=>norm(x)===norm(selected)))names.unshift(selected);
+  const target=comp.teams||Math.max(10,names.length);
+  const base=compBaseStrength(comp);
+  const out=names.map(name=>clubByName(name)||{name,country:comp.country,competition:comp.name,stadium:'Estádio do clube',atk:base,mid:base,def:base,budget:5});
+  if(!teamMap[comp.id]){
+    while(out.length<target){const n=out.length+1,s=clamp(base+rnd(-5,5),48,88);out.push({name:`Clube ${n} — ${comp.country}`,country:comp.country,competition:comp.name,stadium:'Estádio Municipal',atk:s,mid:s,def:s,budget:Math.max(.3,(s-50)*1.5)});}
+  }
+  if(selected && !teamMap[comp.id]){
+    const sIdx = out.findIndex(x => norm(x.name) === norm(selected));
+    if(sIdx >= target){
+      const selItem = out.splice(sIdx, 1)[0];
+      out.unshift(selItem);
+    }
+  }
+  return teamMap[comp.id]?out:out.slice(0,target);
+}
+
+function generatedRosterForClub(club){
+  const c=clubByName(club)||{name:club,country:'Outro',atk:66,mid:66,def:66};const base=strength(c);const arr=[];
+  for(let i=0;i<25;i++){
+    const pos=POSITIONS[i%POSITIONS.length];const o=clamp(base+((hashStr(club+'|'+i)%13)-6),45,91);const age=18+(hashStr('age|'+club+'|'+i)%18);const pot=clamp(o+(hashStr('pot|'+club+'|'+i)%10),o,94);const name=`${NAMES[(hashStr(club+'n'+i)%NAMES.length)]} ${LAST[(hashStr(club+'l'+i)%LAST.length)]}`;
+    const p={id:`gen-${norm(club)}-${i}`,marketKey:`gen:${norm(club)}:${i}`,name,club,country:c.country||'Outro',pos,age,fc:o,pes:clamp(o+((i%3)-1),45,92),potential:pot,value:0,morale:70,fitness:100,owned:false};p.value=calcValueMi(p);arr.push(p);
+  }
+  return arr;
+}
+
+function buildWorldGenerated(){
+  const counts=new Map();for(const p of livePlayers){const k=norm(p.club);if(k)counts.set(k,(counts.get(k)||0)+1)}
+  const out=[];for(const c of clubs){const liveCount=counts.get(norm(c.name))||0;if(liveCount>=22)continue;const need=Math.max(8,25-liveCount);out.push(...generatedRosterForClub(c.name).slice(0,need));}return out;
+}
+
+function playersForClub(club,worldGenerated){
+  const live=livePlayers.filter(p=>norm(p.club)===norm(club)).map((p,i)=>({...p,id:p.id||`live-${hashStr(playerKey(p))}`,marketKey:playerKey(p),morale:p.morale??70,fitness:p.fitness??100,owned:true,value:calcValueMi(p)}));
+  const gen=(worldGenerated||[]).filter(p=>norm(p.club)===norm(club));
+  return [...live,...gen].slice(0,25).map(p=>({...p,club,owned:true,marketKey:playerKey(p)}));
+}
+
+function stablePlayer(p){
+  const wage = playerSalary(p);
+  const contractUntil = playerContractUntil(p);
+  return {...p, marketKey:playerKey(p), value:calcValueMi(p), wage, contractUntil};
+}
+function totalMonthlyPayroll(){
+  return (state?.squad || []).reduce((acc, p) => acc + playerSalary(p), 0);
+}
+function payrollPerRound(){
+  return Math.round(totalMonthlyPayroll() / 4);
+}
+
+function roundRobin(teamNames){let a=[...teamNames];if(a.length%2)a.push('FOLGA');const n=a.length,rounds=[];for(let r=0;r<n-1;r++){const games=[];for(let i=0;i<n/2;i++){const x=a[i],y=a[n-1-i];if(x!=='FOLGA'&&y!=='FOLGA')games.push(r%2?[y,x]:[x,y])}rounds.push(games);a=[a[0],a[n-1],...a.slice(1,n-1)]}return rounds.concat(rounds.map(rd=>rd.map(([h,a])=>[a,h])))}
+function leaguePhaseSchedule(teamNames,rounds=8){const out=[],seen=new Set();for(let r=0;r<rounds;r++){const used=new Set(),games=[],order=[...teamNames].sort(()=>Math.random()-.5);for(const t of order){if(used.has(t))continue;let opp=order.find(x=>x!==t&&!used.has(x)&&!seen.has([t,x].sort().join('|')));if(!opp)opp=order.find(x=>x!==t&&!used.has(x));if(!opp)continue;used.add(t);used.add(opp);seen.add([t,opp].sort().join('|'));games.push(r%2?[opp,t]:[t,opp])}out.push(games)}return out}
+function groupSchedule(teamNames,size=4){const groups=[];for(let i=0;i<teamNames.length;i+=size)groups.push(teamNames.slice(i,i+size));const groupRounds=groups.map(g=>roundRobin(g));const max=Math.max(0,...groupRounds.map(x=>x.length)),out=[];for(let r=0;r<max;r++)out.push(groupRounds.flatMap(g=>g[r]||[]));return out}
+function firstKnockoutRound(teamNames){const a=[...teamNames].sort(()=>Math.random()-.5),games=[];for(let i=0;i<a.length;i+=2)if(a[i+1])games.push([a[i],a[i+1]]);return [games]}
+function buildSchedule(comp,teamNames){if(comp.type==='knockout')return firstKnockoutRound(teamNames);if(comp.type==='league-phase'||comp.type==='continental-league')return leaguePhaseSchedule(teamNames,comp.rounds||8);if(comp.type.includes('groups')||comp.type==='continental-groups')return groupSchedule(teamNames,comp.groupSize||4).slice(0,comp.rounds||999);const rr=roundRobin(teamNames);return comp.rounds?rr.slice(0,Math.min(comp.rounds,rr.length)):rr}
+
+function defaultInfrastructure(club){
+  const s=strength(club);const cap=clamp(Math.round((8000+(s-55)*1400)/1000)*1000,8000,65000);
+  return {
+    stadium:{level:1,capacity:cap},
+    parking:{level:0,spots:0},
+    training:{level:1},academy:{level:1},medical:{level:1},admin:{level:1},store:{level:1},museum:{level:1},press:{level:1},marketing:{level:1}
+  };
+}
+
+// -------------------------------------------------------------
+// CATEGORIA DE BASE (JUNIORES - 15 A 18 ANOS)
+// -------------------------------------------------------------
+function generateYouthPlayer(academyLevel=1, fixedAge=null, fixedPos=null){
+  const lvl = clamp(Number(academyLevel) || 1, 1, 8);
+  // Idade estritamente entre 15 e 18 anos conforme especificado
+  const age = fixedAge ? clamp(Math.round(fixedAge), 15, 18) : rnd(15, 18);
+  const pos = fixedPos || POSITIONS[rnd(0, POSITIONS.length - 1)];
+  const firstName = NAMES[rnd(0, NAMES.length - 1)];
+  const lastName = LAST[rnd(0, LAST.length - 1)];
+  const name = `${firstName} ${lastName}`;
+
+  // Quanto maior o nível da Categoria de Base, maior o Overall e Potencial gerado
+  const baseOvr = Math.round(clamp(53 + (lvl * 3.0) + (Math.random() * 6 - 2), 52, 84));
+  const basePot = Math.round(clamp(baseOvr + 10 + (lvl * 1.5) + (Math.random() * 6), baseOvr + 5, 96));
+
+  const id = `youth-${Date.now()}-${rnd(100, 9999)}`;
+  const p = {
+    id,
+    marketKey: `youth:${id}`,
+    name,
+    club: state?.club || 'Clube',
+    country: 'Brasil',
+    pos,
+    age,
+    fc: baseOvr,
+    pes: baseOvr,
+    potential: basePot,
+    morale: 80,
+    fitness: 100,
+    isYouth: true,
+    value: 0
+  };
+  p.value = calcValueMi(p);
+  return p;
+}
+
+function generateInitialYouthAcademy(academyLevel=1, clubName=null){
+  const club = clubName || state?.club || 'Clube';
+  const positions = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'RW', 'LW', 'ST'];
+  const players = [];
+  const count = 7;
+  for(let i = 0; i < count; i++){
+    const pos = positions[i % positions.length];
+    const age = 15 + (i % 4); // 15, 16, 17, 18 anos estritamente
+    const p = generateYouthPlayer(academyLevel, age, pos);
+    p.club = club;
+    players.push(p);
+  }
+  return players;
+}
+
+function boostYouthAcademyOnUpgrade(newLevel){
+  if(!Array.isArray(state.youthAcademy)) state.youthAcademy = [];
+  state.youthAcademy.forEach(p => {
+    p.potential = clamp((p.potential || playerOverall(p)) + 2, playerOverall(p) + 4, 96);
+  });
+  const topProspect = generateYouthPlayer(newLevel, rnd(15, 16));
+  topProspect.potential = Math.min(96, topProspect.potential + 4);
+  state.youthAcademy.unshift(topProspect);
+  state.news.unshift(`🌱 A Categoria de Base foi ampliada para o Nível ${newLevel}! O jovem prodígio ${topProspect.name} (${topProspect.pos}, ${topProspect.age} anos, POT ${topProspect.potential}) ingressou na base.`);
+}
+
+function processYouthDevelopment(){
+  if(!Array.isArray(state.youthAcademy)) return;
+  const acadLvl = state.infrastructure?.academy?.level || 1;
+  const trainLvl = state.infrastructure?.training?.level || 1;
+
+  for(const p of state.youthAcademy){
+    p.age = clamp(Number(p.age) || 16, 15, 18);
+    const pot = p.potential || (playerOverall(p) + 8);
+    const ovr = playerOverall(p);
+    if(ovr < pot){
+      const chance = 18 + acadLvl * 6 + trainLvl * 2;
+      if((hashStr(playerKey(p) + '|' + state.round) % 100) < chance){
+        p.fc = clamp(ovr + 1, 45, pot);
+        p.pes = p.fc;
+        p.value = calcValueMi(p);
+      }
+    }
+    p.fitness = 100;
+    p.morale = clamp((p.morale || 75) + rnd(1, 3), 60, 100);
+  }
+}
+
+
+function parkingSpots(lvl){
+  const table = [0, 600, 1800, 4000, 8000, 14000];
+  return table[lvl] || (lvl * 2500);
+}
+
+function recommendedTicketPrice(){const c=clubByName(state?.club);return Math.round(clamp(18+(strength(c)-58)*1.7,15,130))}
+function formationSlots(){return FORMATIONS[state?.formation]||FORMATIONS['4-3-3']}
+
+// Posições compatíveis para destacar verde e amarelo no arrastar
+function getPositionFit(playerRole, slotRole){
+  if(!playerRole || !slotRole) return 'none';
+  const p = String(playerRole).split(',')[0].trim().toUpperCase();
+  const s = String(slotRole).trim().toUpperCase();
+  if(p === s) return 'best'; // Verde
+
+  const near = {
+    GK: [],
+    CB: ['RB','LB','DM'],
+    RB: ['LB','CB','RW'],
+    LB: ['RB','CB','LW'],
+    DM: ['CM','CB','AM'],
+    CM: ['DM','AM'],
+    AM: ['CM','RW','LW','CF'],
+    RW: ['LW','AM','ST'],
+    LW: ['RW','AM','ST'],
+    ST: ['CF','RW','LW','AM'],
+    CF: ['ST','AM','RW','LW']
+  }[s] || [];
+
+  if(near.includes(p)) return 'ok'; // Amarelo
+  return 'bad';
+}
+
+function compatibleScore(p,role){
+  const fit = getPositionFit(p?.pos, role);
+  if(fit === 'best') return 0;
+  if(fit === 'ok') return -3;
+  return -8;
+}
+
+function optimizeLineup(){
+  const slots=formationSlots(),used=new Set(),keys=[];
+  for(const slot of slots){
+    let best=null,bestScore=-999;
+    for(const p of state.squad){
+      const k=playerKey(p);
+      if(used.has(k))continue;
+      const sc=playerOverall(p)+compatibleScore(p,slot.r)+(p.fitness??100)/100;
+      if(sc>bestScore){best=p;bestScore=sc}
+    }
+    if(best){used.add(playerKey(best));keys.push(playerKey(best))}
+    else keys.push(null);
+  }
+  state.lineup=keys;
+}
+
+function lineupPlayer(i){const k=state.lineup?.[i];return state.squad.find(p=>playerKey(p)===k)}
+function lineupSector(){
+  const vals={atk:[],mid:[],def:[]};
+  formationSlots().forEach((s,i)=>{
+    const p=lineupPlayer(i);
+    if(p)vals[s.g].push(Math.max(40,playerOverall(p)+compatibleScore(p,s.r)));
+  });
+  const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):55;
+  return {atk:avg(vals.atk),mid:avg(vals.mid),def:avg(vals.def)};
+}
+function overallSquad(){const x=lineupSector();return Math.round((x.atk+x.mid+x.def)/3)}
+function teamStrengthByName(name){if(norm(name)===norm(state.club))return overallSquad();return state.teams.find(t=>norm(t.name)===norm(name))?.strength||strength(clubByName(name)||{atk:66,mid:66,def:66})}
+
+// Janela de transferências (Verão: Jan-Mar, Inverno: Jul 10-Set 02)
+function isTransferWindowOpen(dateStr){
+  if(state?.freeTransferWindow) return true;
+  if(!dateStr) return true;
+  const d = new Date(dateStr + 'T12:00:00');
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  if(m >= 1 && m <= 3) return true;
+  if(m === 7 && day >= 10) return true;
+  if(m === 8) return true;
+  if(m === 9 && day <= 2) return true;
+  return false;
+}
+
+function getTransferWindowInfo(dateStr){
+  const open = isTransferWindowOpen(dateStr);
+  if(state?.freeTransferWindow) return {open: true, text: 'Janela Aberta (Modo Livre)'};
+  const d = new Date(dateStr + 'T12:00:00');
+  const m = d.getMonth() + 1;
+  if(open){
+    if(m <= 3) return {open: true, text: 'Janela Aberta (fecha em 31/03)'};
+    return {open: true, text: 'Janela Aberta (fecha em 02/09)'};
+  } else {
+    if(m < 7) return {open: false, text: 'Janela Fechada (reabre em 10/07)'};
+    return {open: false, text: 'Janela Fechada (reabre em 01/01)'};
+  }
+}
+
+function teamFameScore(){
+  if(!state) return 50;
+  let score = 40;
+  // Títulos dão enorme prestígio (+12 pts cada)
+  score += (state.titles || []).length * 12;
+  // Confiança da torcida
+  score += ((state.trust?.fans || 70) - 50) * 0.35;
+  // Sócios torcedores
+  const members = state.socioTorcedor?.members || 1200;
+  score += clamp(Math.round(members / 1500), 0, 25);
+  // Nível do Departamento de Marketing
+  const mktLvl = state.infrastructure?.marketing?.level || 1;
+  score += (mktLvl - 1) * 3;
+  // Força do elenco e divisão
+  const ovr = overallSquad();
+  score += clamp((ovr - 60) * 1.2, 0, 25);
+  return clamp(Math.round(score), 25, 100);
+}
+
+function generateSponsorOffers(clubBudget){
+  const fame = teamFameScore();
+  const mktLvl = state?.infrastructure?.marketing?.level || 1;
+  const mktInvest = Math.max(2500, Number(state?.marketingWeekly) || 12000);
+  const mktMult = 1 + (0.03 * (mktLvl - 1)) + clamp((mktInvest - 2500) / 90000, 0, 0.15);
+  const fameMult = 0.60 + (fame / 100) * 0.90; // Escala proporcional à fama da equipe
+  const baseMonthly = Math.round(Math.max(40000, Math.round((clubBudget || 2000000) * 0.024)) * mktMult * fameMult);
+
+  const sponsorPool = [
+    { brand: 'Betano', category: 'Master', color:'#f35b04', mult: 1.45, winMult: 0.22, minFame: 40, years: 1, desc: 'Maior operadora oficial do futebol brasileiro' },
+    { brand: 'Samsung', category: 'Master', color:'#1428a0', mult: 1.30, winMult: 0.16, minFame: 55, years: 3, desc: 'Contrato longo e estável com a multinacional' },
+    { brand: 'iFood', category: 'Master', color:'#ea1d2c', mult: 1.35, winMult: 0.20, minFame: 30, years: 2, desc: 'Líder nacional de delivery com bônus por vitórias' },
+    { brand: 'Superbet', category: 'Master', color:'#dc2626', mult: 1.50, winMult: 0.25, minFame: 50, years: 2, desc: 'Patrocinador master agressivo com altos bônus de vitória' },
+    { brand: 'Nubank', category: 'Master', color:'#820ad1', mult: 1.40, winMult: 0.18, minFame: 65, years: 2, desc: 'Fintech global com forte apelo entre a torcida jovem' },
+    { brand: 'Emirates', category: 'Master', color:'#d97706', mult: 1.70, winMult: 0.28, minFame: 80, years: 3, desc: 'Gigante aérea mundial com investimento milionário' },
+    
+    { brand: 'Fatal Model', category: 'Mangas', color:'#6b21a8', mult: 0.60, winMult: 0.09, minFame: 25, years: 1, desc: 'Patrocínio de mangas com investimento pontual' },
+    { brand: 'GOL Linhas Aéreas', category: 'Mangas', color:'#ff7020', mult: 0.65, winMult: 0.10, minFame: 45, years: 2, desc: 'Apoio logístico e mensalidade garantida' },
+    { brand: 'Cimed', category: 'Mangas', color:'#facc15', mult: 0.70, winMult: 0.12, minFame: 55, years: 2, desc: 'Indústria farmacêutica nacional nas mangas da camisa' },
+    { brand: 'EstrelaBet', category: 'Mangas', color:'#0284c7', mult: 0.68, winMult: 0.11, minFame: 35, years: 1, desc: 'Investimento fixo nas mangas e premiação imediata' },
+    
+    { brand: 'BYD', category: 'Costas', color:'#009e60', mult: 0.55, winMult: 0.08, minFame: 30, years: 2, desc: 'Marca tecnológica sustentável na omoplata do manto' },
+    { brand: 'Brahma', category: 'Costas', color:'#b91c1c', mult: 0.60, winMult: 0.09, minFame: 50, years: 2, desc: 'Tradição brasileira no verso do uniforme' },
+    { brand: 'Itaú', category: 'Costas', color:'#ea580c', mult: 0.65, winMult: 0.10, minFame: 65, years: 3, desc: 'Maior banco privado com solidez garantida' },
+    { brand: 'Zé Delivery', category: 'Costas', color:'#eab308', mult: 0.52, winMult: 0.08, minFame: 35, years: 1, desc: 'Ativação de torcida nas costas da camisa' }
+  ];
+
+  // Filtra marcas elegíveis para a fama atual do time e sorteia 3 a 4 propostas
+  const eligible = sponsorPool.filter(s => fame >= s.minFame);
+  const shuffled = [...(eligible.length >= 3 ? eligible : sponsorPool)].sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, 4);
+
+  return selected.map(s => ({
+    brand: s.brand,
+    category: s.category,
+    color: s.color,
+    monthly: Math.round(baseMonthly * s.mult),
+    winBonus: Math.round(baseMonthly * s.winMult),
+    years: s.years,
+    desc: s.desc
+  }));
+}
+
+function checkNewSponsorOffer(){
+  if(!state) return;
+  state.sponsorOffers = state.sponsorOffers || [];
+  if(state.sponsorOffers.length >= 5) return; // Limite de 5 propostas ativas
+
+  const fresh = generateSponsorOffers(state.balance);
+  const newOffer = fresh.find(f => !state.sponsorOffers.some(o => o.brand === f.brand) && (!state.sponsors || !Object.values(state.sponsors).some(sp => sp?.brand === f.brand)));
+  if(newOffer){
+    state.sponsorOffers.unshift(newOffer);
+    state.news.unshift(`📬 NOVA PROPOSTA DE PATROCÍNIO: A empresa ${newOffer.brand} enviou oferta para estampar o espaço ${newOffer.category} (${fmtMoney(newOffer.monthly)}/mês)! Fama do clube: ${teamFameScore()}%`);
+    toast(`📬 Nova proposta de patrocínio recebida: ${newOffer.brand} (${newOffer.category})!`);
+  }
+}
+
+function signSponsorOffer(idx){
+  const offer = state.sponsorOffers[idx];
+  if(!offer) return;
+
+  const slotKey = offer.category === 'Master' ? 'master' : offer.category === 'Mangas' ? 'sleeves' : 'back';
+  const current = state.sponsors ? state.sponsors[slotKey] : null;
+
+  if(current && current.brand && current.brand !== 'Sem Patrocínio'){
+    // Multa de quebra de contrato (2 meses do patrocínio atual)
+    const breakFee = Math.round((current.monthly || 50000) * 2);
+    const canAfford = state.balance >= breakFee;
+
+    openCustomModal(
+      '⚠️ Quebra de Contrato de Patrocínio',
+      `
+        <div style="background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:12px;padding:16px;margin-bottom:14px">
+          <div style="font-size:14px;font-weight:900;color:#ef4444;text-transform:uppercase">
+            Espaço ${offer.category} Já Ocupado
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.8);margin-top:6px;line-height:1.4">
+            O seu clube já possui contrato ativo com a empresa <b>${esc(current.brand)}</b> recebendo <b>${fmtMoney(current.monthly)}/mês</b>.
+          </div>
+        </div>
+
+        <div style="background:#13111c;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;font-size:13px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <span class="muted">Novo Patrocinador:</span>
+            <b style="color:${offer.color}">${esc(offer.brand)} (${fmtMoney(offer.monthly)}/mês)</b>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <span class="muted">Multa Rescisória de Quebra de Contrato:</span>
+            <b style="color:#ef4444">${fmtMoney(breakFee)}</b>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span class="muted">Saldo em Caixa do Clube:</span>
+            <b style="color:${canAfford?'#22c55e':'#ef4444'}">${fmtMoney(state.balance)}</b>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+          <button class="btn" id="btnCancelBreakSponsor">Manter Atual</button>
+          <button class="btn danger" id="btnConfirmBreakSponsor" ${canAfford ? '' : 'disabled'} style="font-weight:900;padding:10px 18px">
+            ${canAfford ? `Pagar ${fmtMoney(breakFee)} e Trocar Patrocínio` : 'Saldo Insuficiente p/ Multa'}
+          </button>
+        </div>
+      `,
+      null,
+      'Fechar',
+      false,
+      '560px'
+    );
+
+    const bCancel = $('#btnCancelBreakSponsor');
+    if(bCancel) bCancel.onclick = closeCustomModal;
+
+    const bConfirm = $('#btnConfirmBreakSponsor');
+    if(bConfirm){
+      bConfirm.onclick = () => {
+        if(!canAfford) return;
+        state.balance -= breakFee;
+        state.expense = (state.expense || 0) + breakFee;
+        const signingBonus = Math.round((offer.monthly || 50000) * 0.5);
+        state.balance += signingBonus;
+        state.income = (state.income || 0) + signingBonus;
+        state.sponsors[slotKey] = offer;
+        state.sponsorOffers.splice(idx, 1);
+        state.news.unshift(`🤝 TROCA DE PATROCÍNIO: O ${state.club} pagou ${fmtMoney(breakFee)} de rescisão com a ${current.brand} e recebeu +${fmtMoney(signingBonus)} de luvas da ${offer.brand}!`);
+        toast(`🎉 Contrato com a ${offer.brand} assinado (+${fmtMoney(signingBonus)} no caixa)!`);
+        closeCustomModal();
+        save();
+        render();
+      };
+    }
+  } else {
+    // Espaço livre, assina direto com luvas!
+    state.sponsors = state.sponsors || {};
+    state.sponsors[slotKey] = offer;
+    state.sponsorOffers.splice(idx, 1);
+    const signingBonus = Math.round((offer.monthly || 50000) * 0.5);
+    state.balance += signingBonus;
+    state.income = (state.income || 0) + signingBonus;
+    state.news.unshift(`💰 PATROCÍNIO: O ${state.club} oficializou parceria de ${offer.category} com a ${offer.brand} (+${fmtMoney(signingBonus)} de luvas à vista)!`);
+    toast(`🎉 Contrato com a ${offer.brand} assinado (+${fmtMoney(signingBonus)} no caixa)!`);
+    save();
+    render();
+  }
+}
+
+
+function initCandangaoData(){
+  return {
+    id: 'bra-est-df',
+    name: 'Campeonato Candango',
+    phase: 'primeira',
+    currentRound: 2,
+    roundDate: 'QUA, 21 JAN 2026',
+    teams: [
+      { name: 'Gama', p: 3, j: 1, v: 1, e: 0, d: 0, gp: 2, gc: 1, sg: 1, pct: 100, form: ['V'] },
+      { name: 'Capital-DF', p: 3, j: 1, v: 1, e: 0, d: 0, gp: 1, gc: 0, sg: 1, pct: 100, form: ['V'] },
+      { name: 'Sobradinho', p: 3, j: 1, v: 1, e: 0, d: 0, gp: 1, gc: 0, sg: 1, pct: 100, form: ['V'] },
+      { name: 'Samambaia', p: 3, j: 1, v: 1, e: 0, d: 0, gp: 1, gc: 0, sg: 1, pct: 100, form: ['V'] },
+      { name: 'Ceilândia', p: 1, j: 1, v: 0, e: 1, d: 0, gp: 3, gc: 3, sg: 0, pct: 33, form: ['E'] },
+      { name: 'Paranoá', p: 1, j: 1, v: 0, e: 1, d: 0, gp: 3, gc: 3, sg: 0, pct: 33, form: ['E'] },
+      { name: 'Real Brasília', p: 0, j: 1, v: 0, e: 0, d: 1, gp: 1, gc: 2, sg: -1, pct: 0, form: ['D'] },
+      { name: 'Brasiliense', p: 0, j: 1, v: 0, e: 0, d: 1, gp: 0, gc: 1, sg: -1, pct: 0, form: ['D'] },
+      { name: 'ARUC', p: 0, j: 1, v: 0, e: 0, d: 1, gp: 0, gc: 1, sg: -1, pct: 0, form: ['D'] },
+      { name: 'Brasília', p: 0, j: 1, v: 0, e: 0, d: 1, gp: 0, gc: 1, sg: -1, pct: 0, form: ['D'] }
+    ],
+    fixtures: [
+      { stadium: 'Abadião', dateStr: 'qua, 21 jan 2026 · 18:30', home: 'Ceilândia', away: 'Sobradinho' },
+      { stadium: 'Ciro Machado do Espírito Santo (Defelê)', dateStr: 'qua, 21 jan 2026 · 16:00', home: 'Real Brasília', away: 'Brasília' },
+      { stadium: 'Juscelino Kubitschek (JK Paranoá)', dateStr: 'qua, 21 jan 2026 · 18:30', home: 'Paranoá', away: 'Capital-DF' },
+      { stadium: 'Joaquim Domingos Roriz (Rorizão)', dateStr: 'qua, 21 jan 2026 · 21:00', home: 'Samambaia', away: 'Gama' },
+      { stadium: 'Boca do Jacaré', dateStr: 'qua, 21 jan 2026 · 18:30', home: 'Brasiliense', away: 'ARUC' }
+    ]
+  };
+}
+
+function initCandangaoStats(){
+  return {
+    scorers: [
+      { name: 'Edson Reis', club: 'Ceilândia', pos: 'ATACANTE', goals: 2 },
+      { name: 'Gabriel Planta', club: 'Samambaia', pos: 'VOLANTE', goals: 1 },
+      { name: 'Henrique Almeida', club: 'Gama', pos: 'ATACANTE', goals: 1 },
+      { name: 'João Vitor', club: 'Paranoá', pos: 'LATERAL-DIREITO', goals: 1 },
+      { name: 'Juan Rocha', club: 'Real Brasília', pos: 'PONTA-ESQUERDA', goals: 1 },
+      { name: 'Lopeu', club: 'Paranoá', pos: 'ATACANTE', goals: 1 },
+      { name: 'Luan', club: 'Gama', pos: 'PONTA-ESQUERDA', goals: 1 },
+      { name: 'Renê', club: 'Paranoá', pos: 'PONTA-ESQUERDA', goals: 1 }
+    ],
+    assists: [
+      { name: 'David Weslley', club: 'Paranoá', pos: 'MEIA', assists: 1 },
+      { name: 'Ian', club: 'Samambaia', pos: 'PONTA-ESQUERDA', assists: 1 },
+      { name: 'Johann', club: 'Real Brasília', pos: 'PONTA-ESQUERDA', assists: 1 },
+      { name: 'Marcos Rassi', club: 'Paranoá', pos: 'MEIO-CAMPISTA', assists: 1 },
+      { name: 'Matheuzinho', club: 'Capital-DF', pos: 'MEIA', assists: 1 },
+      { name: 'Paulo Vinicius', club: 'Ceilândia', pos: 'MEIO-CAMPISTA', assists: 1 },
+      { name: 'Rodriguinho', club: 'Sobradinho', pos: 'MEIA', assists: 1 },
+      { name: 'Vitor Gabriel', club: 'Ceilândia', pos: 'PONTA-ESQUERDA', assists: 1 }
+    ]
+  };
+}
+
+function getStateCompData(cId){
+  state.estadualData = state.estadualData || {};
+  if(state.estadualData[cId]) return state.estadualData[cId];
+  if(cId === 'bra-est-df'){
+    state.estadualData[cId] = initCandangaoData();
+    return state.estadualData[cId];
+  }
+  const cObj = compById(cId) || { name: 'Campeonato Estadual', id: cId };
+  const teamList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[cId]) || ['Clube A','Clube B','Clube C','Clube D','Clube E','Clube F','Clube G','Clube H'];
+  const teams = teamList.map((tName, idx) => {
+    const isWin = idx < Math.floor(teamList.length / 2);
+    const j = 1;
+    const v = isWin ? 1 : 0;
+    const e = 0;
+    const d = isWin ? 0 : 1;
+    const gp = isWin ? rnd(1, 3) : 0;
+    const gc = isWin ? 0 : rnd(1, 3);
+    const sg = gp - gc;
+    const p = v * 3;
+    const pct = isWin ? 100 : 0;
+    return { name: tName, p, j, v, e, d, gp, gc, sg, pct, form: [isWin ? 'V' : 'D'] };
+  }).sort((a,b) => b.p - a.p || b.sg - a.sg || b.gp - a.gp);
+
+  const fixtures = [];
+  for(let i=0; i<teamList.length; i+=2){
+    if(teamList[i+1]){
+      fixtures.push({
+        stadium: 'Estádio ' + teamList[i],
+        dateStr: 'qua, 21 jan 2026 · 19:00',
+        home: teamList[i],
+        away: teamList[i+1]
+      });
+    }
+  }
+
+  state.estadualData[cId] = {
+    id: cId,
+    name: cObj.name,
+    phase: 'primeira',
+    currentRound: 2,
+    roundDate: 'QUA, 21 JAN 2026',
+    teams,
+    fixtures
+  };
+  return state.estadualData[cId];
+}
+
+function getStateCompStats(cId){
+  state.competitionStats = state.competitionStats || {};
+  if(state.competitionStats[cId]) return state.competitionStats[cId];
+  if(cId === 'bra-est-df'){
+    state.competitionStats[cId] = initCandangaoStats();
+    return state.competitionStats[cId];
+  }
+  const cData = getStateCompData(cId);
+  const teamNames = cData.teams.map(t=>t.name);
+  const scorers = [];
+  const assists = [];
+  teamNames.slice(0, 8).forEach((tName, i) => {
+    const pList = playersForClub(tName, state.worldGenerated || []);
+    const fwd = pList.find(p=>['ST','CF','RW','LW'].includes(p.pos)) || pList[0] || { name: 'Goleador ' + tName, pos: 'ST' };
+    const mid = pList.find(p=>['AM','CM','RW','LW','LB','RB'].includes(p.pos) && p.name !== fwd.name) || pList[1] || { name: 'Armador ' + tName, pos: 'CM' };
+    scorers.push({ name: fwd.name, club: tName, pos: fwd.pos || 'ATACANTE', goals: i === 0 ? 2 : 1 });
+    assists.push({ name: mid.name, club: tName, pos: mid.pos || 'MEIA', assists: 1 });
+  });
+  state.competitionStats[cId] = { scorers, assists };
+  return state.competitionStats[cId];
+}
+
+function openClubInfoModal(clubName){
+  const clubObj = clubByName(clubName) || { name: clubName, country: 'Brasil', competition: curComp()?.name || 'Brasileirão', atk: 60, mid: 60, def: 60, budget: 1, stadium: 'Estádio Municipal' };
+  const str = strength(clubObj);
+  const cComp = clubObj.competition || 'Estadual';
+  const cEstId = clubStateCompId(clubName);
+  const estData = getStateCompData(cEstId);
+  const tableRow = estData?.teams?.find(t=>norm(t.name)===norm(clubName));
+  const squadPool = playersForClub(clubName, state.worldGenerated || []).slice(0, 16);
+
+  openCustomModal(
+    `Informações do Clube: ${esc(clubName)}`,
+    `
+      <div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,0.03);padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+        ${clubBadge(clubName, 64)}
+        <div>
+          <h2 style="margin:0;font-size:22px;color:#fff">${esc(clubName)}</h2>
+          <div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:2px">
+            🏟️ <b>${esc(clubObj.stadium||'Estádio do Clube')}</b> • 🏆 ${esc(cComp)}
+          </div>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+            <span class="pill good">Força Geral: ${str}</span>
+            <span class="pill">ATK: ${clubObj.atk||60}</span>
+            <span class="pill">MEI: ${clubObj.mid||60}</span>
+            <span class="pill">DEF: ${clubObj.def||60}</span>
+          </div>
+        </div>
+      </div>
+
+      ${tableRow ? `
+        <div style="margin-top:14px;background:#161324;padding:12px 16px;border-radius:10px;border:1px solid rgba(139,92,246,0.2);display:flex;justify-content:space-around;text-align:center">
+          <div><div class="small muted">Posição</div><div style="font-weight:900;font-size:18px;color:var(--neon)">#${estData.teams.indexOf(tableRow)+1}</div></div>
+          <div><div class="small muted">Pontos</div><div style="font-weight:900;font-size:18px">${tableRow.p}</div></div>
+          <div><div class="small muted">Jogos</div><div style="font-weight:900;font-size:18px">${tableRow.j}</div></div>
+          <div><div class="small muted">Vitórias</div><div style="font-weight:900;font-size:18px">${tableRow.v}</div></div>
+          <div><div class="small muted">Gols Pró</div><div style="font-weight:900;font-size:18px">${tableRow.gp}</div></div>
+          <div><div class="small muted">Saldo</div><div style="font-weight:900;font-size:18px">${tableRow.sg>0?'+':''}${tableRow.sg}</div></div>
+        </div>
+      ` : ''}
+
+      <h3 style="margin:16px 0 8px 0;font-size:15px">Destaques do Elenco (${squadPool.length} atletas)</h3>
+      <div class="tablewrap" style="max-height:260px">
+        <table>
+          <thead><tr><th>Foto</th><th>Jogador</th><th>Pos</th><th>Idade</th><th>Overall</th><th>Salário Estimado</th></tr></thead>
+          <tbody>
+            ${squadPool.map(p=>`
+              <tr>
+                <td style="width:40px">${playerPhoto(p, 28)}</td>
+                <td><b>${esc(p.name)}</b></td>
+                <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                <td>${p.age||23} anos</td>
+                <td><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                <td style="color:#22c55e;font-weight:700">R$ ${playerSalary(p).toLocaleString('pt-BR')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `,
+    null,
+    'Fechar',
+    false
+  );
+}
+
+function openPlayerContractRenewalModal(pk){
+  const p = state.squad.find(q=>playerKey(q)===pk);
+  if(!p) return;
+  const curWage = playerSalary(p);
+  const curUntil = playerContractUntil(p);
+  const morale = p.morale || 70;
+
+  // Chances de aceite baseadas no moral do atleta e no patamar salarial
+  const chance1 = clamp(Math.round(morale * 0.90 + 15), 25, 95);
+  const chance2 = clamp(Math.round(morale * 0.85 + 20), 20, 92);
+  const chance3 = clamp(Math.round(morale * 0.80 + 25), 15, 88);
+
+  openCustomModal(
+    `Renovação Contratual: ${esc(p.name)}`,
+    `
+      <div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,0.03);padding:14px;border-radius:12px;margin-bottom:14px">
+        ${playerPhoto(p, 50)}
+        <div>
+          <h2 style="margin:0;font-size:18px">${esc(p.name)}</h2>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6)">${p.pos||'-'} • ${playerOverall(p)} OVR • ${p.age||22} anos • Moral: <b style="color:${morale>=70?'#22c55e':morale>=50?'#f59e0b':'#ef4444'}">${morale}%</b></div>
+          <div style="margin-top:4px;font-size:13px">
+            Salário atual: <b style="color:#22c55e">R$ ${curWage.toLocaleString('pt-BR')}</b>/mês • Vínculo até: <b>${curUntil}</b>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label style="font-size:13px;font-weight:700">Escolha a proposta de renovação:</label>
+        <button class="btn primary" id="btnRenew1Year" style="padding:12px;text-align:left;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:800;font-size:13px">📅 +1 ano (Até ${curUntil + 1}) • Aumento de 10%</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">
+              🎲 Chance de Aceite do Atleta: <b style="color:#facc15">${chance1}%</b>
+            </div>
+          </div>
+          <b style="font-size:14px;color:#fff">R$ ${Math.round(curWage * 1.10).toLocaleString('pt-BR')}/mês</b>
+        </button>
+
+        <button class="btn" id="btnRenew2Years" style="padding:12px;text-align:left;display:flex;justify-content:space-between;align-items:center;background:#7c3aed22;border:1px solid #7c3aed">
+          <div>
+            <div style="font-weight:800;font-size:13px">📅 +2 anos (Até ${curUntil + 2}) • Aumento de 15%</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">
+              🎲 Chance de Aceite do Atleta: <b style="color:#facc15">${chance2}%</b>
+            </div>
+          </div>
+          <b style="font-size:14px;color:#fff">R$ ${Math.round(curWage * 1.15).toLocaleString('pt-BR')}/mês</b>
+        </button>
+
+        <button class="btn" id="btnRenew3Years" style="padding:12px;text-align:left;display:flex;justify-content:space-between;align-items:center;background:#05966922;border:1px solid #059669">
+          <div>
+            <div style="font-weight:800;font-size:13px">📅 +3 anos (Até ${curUntil + 3}) • Aumento de 20%</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">
+              🎲 Chance de Aceite do Atleta: <b style="color:#facc15">${chance3}%</b>
+            </div>
+          </div>
+          <b style="font-size:14px;color:#fff">R$ ${Math.round(curWage * 1.20).toLocaleString('pt-BR')}/mês</b>
+        </button>
+      </div>
+    `,
+    null,
+    'Cancelar',
+    false
+  );
+
+  const applyRenewal = (yearsPlus, wageFactor, chance) => {
+    const roll = Math.random() * 100;
+    if(roll <= chance){
+      p.contractUntil = curUntil + yearsPlus;
+      p.wage = Math.round(curWage * wageFactor);
+      p.morale = clamp((p.morale || 70) + 10, 0, 100);
+      save();
+      render();
+      closeActiveModal();
+      toast(`🎉 ${p.name} ACEITOU a renovação até ${p.contractUntil} por R$ ${p.wage.toLocaleString('pt-BR')}/mês!`);
+    } else {
+      p.morale = clamp((p.morale || 70) - 5, 10, 100);
+      save();
+      render();
+      closeActiveModal();
+      toast(`❌ ${p.name} RECUSOU a proposta (+${Math.round((wageFactor - 1)*100)}%)! O atleta ou seu agente exigem números maiores.`);
+    }
+  };
+
+  setTimeout(()=>{
+    const b1 = $('#btnRenew1Year'); if(b1) b1.onclick = () => applyRenewal(1, 1.10, chance1);
+    const b2 = $('#btnRenew2Years'); if(b2) b2.onclick = () => applyRenewal(2, 1.15, chance2);
+    const b3 = $('#btnRenew3Years'); if(b3) b3.onclick = () => applyRenewal(3, 1.20, chance3);
+  }, 50);
+}
+
+function openManagerHistoryModal(){
+  const history = state.managerFinanceHistory || [
+    {date: state.date || 'qui, 1 jan 2026', desc: 'Economias do início da carreira', amount: state.managerMoney || 57000}
+  ];
+  openCustomModal(
+    '💼 Extrato do Patrimônio do Treinador',
+    `
+      <div style="margin-bottom:12px;font-size:13px;color:rgba(255,255,255,0.7)">
+        Saldo pessoal acumulado: <b style="color:#22c55e;font-size:18px">${fmtMoney(state.managerMoney || 57000)}</b>
+      </div>
+      <div class="tablewrap" style="max-height:300px">
+        ${history.map(item => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--panel2);border-radius:6px;margin-bottom:6px;font-size:12px">
+            <span style="color:rgba(255,255,255,0.7)">${esc(item.date)} · ${esc(item.desc)}</span>
+            <span style="font-weight:800;color:#22c55e">+${fmtMoney(item.amount)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `,
+    null,
+    'Fechar',
+    false
+  );
+}
+
+function openManagerContractRenewalModal(){
+  const trust = state.trust.board;
+  const cooldownRounds = (state.managerContractCooldownRound || 0) - (state.round || 1);
+  const onCooldown = cooldownRounds > 0;
+  const canRenew = trust >= 40 && !onCooldown;
+  // Chance de aceite para extensão curta (+25% de aumento): baseada na confiança
+  const chance1 = clamp(Math.round(trust * 1.05), 15, 95);
+  // Chance de aceite para vínculo longo (+40% de aumento): mais exigente
+  const chance2 = clamp(Math.round(trust * 0.88), 10, 85);
+
+  openCustomModal(
+    'Negociação de Contrato do Técnico',
+    `
+      <div style="background:rgba(255,255,255,0.03);padding:14px;border-radius:12px;margin-bottom:14px">
+        <h3 style="margin:0 0 6px 0">Treinador: ${esc(state.manager)}</h3>
+        <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.7)">
+          Clube: <b>${esc(state.club)}</b> • Confiança da Diretoria: <b style="color:${trust>=60?'var(--neon)':trust>=45?'var(--warn)':'var(--bad)'}">${trust}%</b>
+        </p>
+        <p style="margin:6px 0 0 0;font-size:13px">
+          Salário Atual: <b style="color:#22c55e">R$ ${(state.managerSalary||9500).toLocaleString('pt-BR')}</b>/mês • Vínculo até: <b>${state.managerContractDate||'sex, 31 dez 2027'}</b>
+        </p>
+      </div>
+
+      ${onCooldown ? `
+        <div class="rule" style="background:#f59e0b22;border-left:4px solid #f59e0b;color:#facc15;padding:12px;border-radius:8px">
+          ⏳ <b>Negociação em Espera:</b> A diretoria recusou sua última proposta e solicitou um período de 1 mês para reavaliar as contas e o rendimento da equipe. Faltam <b>${cooldownRounds} rodada(s)</b> para submeter nova pedida!
+        </div>
+      ` : canRenew ? `
+        <p style="font-size:13px;color:rgba(255,255,255,0.8)">A diretoria avalia seu trabalho e você pode submeter uma proposta de renovação:</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn primary" id="btnManagerRenew1" style="padding:12px;text-align:left;display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#7c3aed,#9333ea)">
+            <div>
+              <div style="font-weight:800;font-size:13px">📝 Prorrogar até 2028 com +25% de aumento</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">
+                🎲 Chance de Aceite da Diretoria: <b style="color:#facc15">${chance1}%</b>
+              </div>
+            </div>
+            <b style="font-size:15px;color:#fff">R$ ${Math.round((state.managerSalary||9500)*1.25).toLocaleString('pt-BR')}/mês</b>
+          </button>
+
+          <button class="btn" id="btnManagerRenew2" style="padding:12px;text-align:left;display:flex;justify-content:space-between;align-items:center;background:#1e1b4b;border:1px solid #7c3aed">
+            <div>
+              <div style="font-weight:800;font-size:13px">📝 Vínculo longo até 2029 com +40% de aumento</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">
+                🎲 Chance de Aceite da Diretoria: <b style="color:${chance2>=50?'#facc15':'#f87171'}">${chance2}%</b>
+              </div>
+            </div>
+            <b style="font-size:15px;color:#fff">R$ ${Math.round((state.managerSalary||9500)*1.40).toLocaleString('pt-BR')}/mês</b>
+          </button>
+        </div>
+      ` : `
+        <div class="rule" style="background:#ef444422;border-left:4px solid #ef4444;color:#fca5a5;padding:12px;border-radius:6px">
+          ⚠️ A diretoria considera seu rendimento sob avaliação (Confiança em ${trust}%). Consiga mais vitórias antes de pedir reajuste salarial!
+        </div>
+      `}
+    `,
+    null,
+    'Fechar',
+    false
+  );
+
+  if(canRenew){
+    setTimeout(()=>{
+      const b1 = $('#btnManagerRenew1');
+      if(b1) b1.onclick = () => {
+        const roll = Math.random() * 100;
+        if(roll <= chance1){
+          state.managerSalary = Math.round((state.managerSalary||9500)*1.25);
+          state.managerContractDate = 'dom, 31 dez 2028';
+          state.trust.board = clamp(state.trust.board + 5, 0, 100);
+          state.managerContractCooldownRound = null;
+          state.news.unshift(`✍️ RENOVAÇÃO DO COMANDANTE: A diretoria do ${state.club} aprovou a extensão do contrato do técnico ${state.manager} até o final de 2028 com aumento de 25%!`);
+          toast(`🎉 A diretoria ACEITOU a proposta! Contrato prorrogado até 2028 com salário de R$ ${state.managerSalary.toLocaleString('pt-BR')}/mês!`);
+          closeCustomModal();
+          save();render();
+        } else {
+          state.trust.board = clamp(state.trust.board - 4, 0, 100);
+          state.managerContractCooldownRound = (state.round || 1) + 4;
+          toast(`❌ A diretoria RECUSOU a proposta (+25%)! Aguarde 1 mês (4 rodadas) para abrir nova rodada de negociação.`);
+          closeCustomModal();
+          save();render();
+        }
+      };
+      const b2 = $('#btnManagerRenew2');
+      if(b2) b2.onclick = () => {
+        const roll = Math.random() * 100;
+        if(roll <= chance2){
+          state.managerSalary = Math.round((state.managerSalary||9500)*1.40);
+          state.managerContractDate = 'seg, 31 dez 2029';
+          state.trust.board = clamp(state.trust.board + 8, 0, 100);
+          state.managerContractCooldownRound = null;
+          state.news.unshift(`✍️ CONTRATO LONGO: ${state.manager} renovou com o ${state.club} até 2029 com 40% de reajuste salarial!`);
+          toast(`🎉 A diretoria ACEITOU o vínculo longo até 2029 com salário de R$ ${state.managerSalary.toLocaleString('pt-BR')}/mês!`);
+          closeCustomModal();
+          save();render();
+        } else {
+          state.trust.board = clamp(state.trust.board - 5, 0, 100);
+          state.managerContractCooldownRound = (state.round || 1) + 4;
+          toast(`❌ A diretoria RECUSOU a extensão longa (+40%)! Aguarde 1 mês (4 rodadas) para abrir nova rodada de negociação.`);
+          closeCustomModal();
+          save();render();
+        }
+      };
+    }, 50);
+  }
+}
+
+function newCareer(data){
+  const targetCompId = getClubPrimaryCompetitionId(data.clubName, data.compId) || data.compId;
+  const comp=compById(targetCompId)||compById(data.compId);if(!comp)return;const club=clubByName(data.clubName)||{name:data.clubName,country:comp.country,competition:comp.name,atk:compBaseStrength(comp),mid:compBaseStrength(comp),def:compBaseStrength(comp),budget:5,stadium:'Estádio Municipal'};
+  const compClubs=competitionClubs(comp,club.name);const schedule=buildSchedule(comp,compClubs.map(x=>x.name));const worldGenerated=buildWorldGenerated();const squad=playersForClub(club.name,worldGenerated);const budget=Math.max(250000,(club.budget||5)*1e6);
+  
+  const sponsorOffers = generateSponsorOffers(budget);
+  const activeSponsors = {
+    master: sponsorOffers[0],
+    sleeves: sponsorOffers[3],
+    back: sponsorOffers[5]
+  };
+
+  const curUser = getActiveAccount();
+  const targetSlot = Number(data.slot) || setupSelectedSlot || 1;
+  const mgrName = data.manager || curUser?.name || 'Aquino';
+  const saveId = `save_${curUser?.username || 'user'}_slot${targetSlot}_${norm(club.name)}`;
+
+  state={
+    saveId,
+    userSlot: targetSlot,
+    userOwner: curUser?.username?.toLowerCase() || 'aquino',
+    version:4,
+    manager:mgrName,
+    managerSalary: (club.budget || 5) > 15 ? 75000 : 45000,
+    club:club.name,
+    country:club.country,
+    compId:comp.id,
+    competition:comp.name,
+    season:2026,
+    date:'2026-01-01', // INÍCIO DA TEMPORADA E DA JANELA DE PRÉ-TEMPORADA!
+    isPreSeason:true,
+    preSeasonDays:4, // 4 DIAS DE JANELA DE TRANSFERÊNCIAS ANTES DO 1º JOGO OFICIAL!
+    round:0,
+    balance:budget + ((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0)),
+    managerMoney:57000,
+    trust:{board:65,fans:70,squad:68},
+    boardConfidence:78,
+    markingIntensity:'equilibrada',
+    setPieces:{
+      captain: squad[0] ? playerKey(squad[0]) : '',
+      penalty: squad[0] ? playerKey(squad[0]) : '',
+      freekick: squad[0] ? playerKey(squad[0]) : '',
+      corner: squad[0] ? playerKey(squad[0]) : ''
+    },
+    formation:'4-3-3',
+    mentality:'Equilibrada',
+    squad,
+    youthAcademy:generateInitialYouthAcademy(1, club.name),
+    marketingWeekly:12000,
+    marketingMonthly:48000,
+    worldGenerated,
+    playerMoves:{},
+    transfers:[],
+    loans:[],
+    schedule,
+    cupAlive:comp.type==='knockout'?compClubs.map(x=>x.name):null,
+    eliminated:false,
+    teams:compClubs.map(c=>({name:c.name,strength:strength(c),j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,p:0,form:[]})),
+    titles:[],
+    news:[
+      `💼 PATROCÍNIOS: Contratos comerciais ativados! Receita inicial de ${fmtMoney((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0))} creditada no caixa.`,
+      `🏖️ Início da Pré-Temporada 2026 no ${club.name}! Janela de transferências aberta por 4 dias para reforçar o elenco.`,
+      `Você assumiu o comando técnico do ${club.name}!`,
+      `A diretoria disponibilizou orçamento inicial de ${fmtMoney(budget)}.`
+    ],
+    history:[],
+    income: (activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0),
+    expense:0,
+    sponsors:activeSponsors,
+    sponsorOffers:sponsorOffers.slice(1,4),
+    infrastructure:defaultInfrastructure(club),
+    ticketPrice:Math.round(clamp(18+(strength(club)-58)*1.7,15,130)),
+    parkingPrice:25,
+    lastHome:null,
+    simSpeed: 'normal',
+    freeTransferWindow: false
+  };
+  optimizeLineup();
+  save();
+  view='central';
+  toast(`Carreira iniciada no ${club.name}! Janela de pré-temporada aberta por 4 dias.`);
+  render();
+}
+
+function repairSaveIfCorrupted(s){
+  if(!s || !s.club) return false;
+  const primaryCompId = getClubPrimaryCompetitionId(s.club, s.compId);
+  const curCompId = s.compId;
+
+  const isAcreanoBug = curCompId === 'bra-est-ac' || s.competition === 'Campeonato Acreano';
+  const isBrasiliaInWrongComp = norm(s.club) === 'brasilia' && curCompId !== 'bra-est-df';
+  const isClubMissingFromTeams = !Array.isArray(s.teams) || s.teams.length === 0 || !s.teams.some(t => norm(t.name) === norm(s.club));
+  const isSelfMatchBug = Array.isArray(s.schedule) && s.schedule.some(rnd => rnd.some(g => g[0] === g[1]));
+  const isScheduleEmptyOrNoUser = !Array.isArray(s.schedule) || s.schedule.length === 0 || (s.schedule[0] && !s.schedule[0].some(g => g.includes(s.club)));
+  const isCompMismatched = primaryCompId && curCompId !== primaryCompId && (!compById(curCompId) || !teamMap[curCompId] || isBrasiliaInWrongComp || isAcreanoBug);
+
+  if(isAcreanoBug || isBrasiliaInWrongComp || isClubMissingFromTeams || isSelfMatchBug || isScheduleEmptyOrNoUser || isCompMismatched){
+    const targetCompId = (norm(s.club) === 'brasilia' ? 'bra-est-df' : (primaryCompId || curCompId || 'bra-est-df'));
+    const comp = compById(targetCompId) || compById('bra-est-df');
+    if(comp){
+      s.compId = comp.id;
+      s.competition = comp.name;
+      const compClubs = competitionClubs(comp, s.club);
+      s.schedule = buildSchedule(comp, compClubs.map(x => x.name));
+      s.round = Math.min(s.round || 0, Math.max(0, s.schedule.length - 1));
+
+      // Reconstruir lista de times se o clube não estava presente ou era do Acreano/bug
+      const hadClubInTeams = Array.isArray(s.teams) && s.teams.some(t => norm(t.name) === norm(s.club));
+      if(!hadClubInTeams || isAcreanoBug || isBrasiliaInWrongComp){
+        s.teams = compClubs.map(c => ({
+          name: c.name,
+          strength: strength(c),
+          j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, p: 0, form: []
+        }));
+        s.round = 0;
+      } else {
+        compClubs.forEach(c => {
+          if(!s.teams.some(t => norm(t.name) === norm(c.name))){
+            s.teams.push({
+              name: c.name,
+              strength: strength(c),
+              j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, p: 0, form: []
+            });
+          }
+        });
+      }
+
+      if(comp.type === 'knockout') s.cupAlive = compClubs.map(x => x.name);
+      s.eliminated = false;
+      try { localStorage.setItem(STORAGE, JSON.stringify(s)); } catch(e){}
+      try {
+        const user = getActiveAccount();
+        if(user){
+          const accs = getStoredAccounts();
+          const acc = accs.find(a => a.username.toLowerCase() === user.username.toLowerCase());
+          if(acc && acc.saves){
+            const slotNum = Number(s.userSlot) || 1;
+            const entry = acc.saves.find(x => x.slot === slotNum);
+            if(entry) {
+              entry.club = s.club;
+              entry.data = clone(s);
+              saveStoredAccounts(accs);
+            }
+          }
+        }
+      } catch(e){}
+      return true;
+    }
+  }
+  return false;
+}
+window.repairSaveIfCorrupted = repairSaveIfCorrupted;
+
+function migrate(s){
+  if(!s)return null;
+  s.version=4;
+  s.playerMoves=s.playerMoves||{};
+  s.worldGenerated=s.worldGenerated||buildWorldGenerated();
+  s.squad=(s.squad||[]).map(stablePlayer);
+  s.infrastructure=s.infrastructure||defaultInfrastructure(clubByName(s.club)||{atk:65,mid:65,def:65});
+  if(!s.infrastructure.parking) s.infrastructure.parking = {level:0, spots:0};
+  if(!s.infrastructure.marketing) s.infrastructure.marketing = {level:1};
+  for(const k of Object.keys(FACILITIES)) s.infrastructure[k]=s.infrastructure[k]||{level:1};
+  s.ticketPrice=+s.ticketPrice||Math.round(clamp(18+(strength(clubByName(s.club)||{atk:65,mid:65,def:65})-58)*1.7,15,130));
+  s.parkingPrice=+s.parkingPrice||25;
+  s.marketingWeekly=Math.max(2500, Number(s.marketingWeekly)||Math.round((Number(s.marketingMonthly)||48000)/4)||12000);
+  s.marketingMonthly=s.marketingWeekly * 4;
+  if(!Array.isArray(s.youthAcademy) || s.youthAcademy.length === 0){
+    const acadLvl = s.infrastructure?.academy?.level || 1;
+    s.youthAcademy = generateInitialYouthAcademy(acadLvl, s.club);
+  }
+  s.youthAcademy.forEach(p => {
+    p.age = clamp(Number(p.age) || 16, 15, 18);
+  });
+  s.lastHome=s.lastHome||null;
+  s.transfers=s.transfers||[];
+  s.loans=s.loans||[];
+  s.titles=s.titles||[];
+  s.news=s.news||[];
+  s.history=s.history||[];
+  s.income=+s.income||0;
+  s.expense=+s.expense||0;
+  s.simSpeed=s.simSpeed||'normal';
+  s.freeTransferWindow=s.freeTransferWindow||false;
+  s.stadiumUpgrades=s.stadiumUpgrades||{chairs:false,mosaic:false,ledRing:false,flares:false,screen:false,ledLights:false};
+  s.namingRights=s.namingRights||null;
+  s.storeConfig=s.storeConfig||{level:1,kitSelected:'kit1',pricing:'normal',stock:'normal'};
+  s.trainingConfig=s.trainingConfig||{level:1,focus:'balanced',daysActive:20};
+  s.managerSalary = s.managerSalary || (s.compId==='bra-est-df'||s.club==='Real Brasília'? 9500 : 45000);
+  s.managerContractDate = s.managerContractDate || 'sex, 31 dez 2027';
+  s.managerMoney = s.managerMoney || 57000;
+  if(!Array.isArray(s.managerFinanceHistory) || s.managerFinanceHistory.length === 0){
+    s.managerFinanceHistory = [
+      { date: 'qui, 1 jan 2026', desc: 'Economias do início da carreira', amount: s.managerMoney || 57000 }
+    ];
+  }
+  s.estadualData = s.estadualData || {};
+  s.competitionStats = s.competitionStats || {};
+  
+  if(!s.sponsors){
+    const baseBudget = s.balance || 5000000;
+    const offers = generateSponsorOffers(baseBudget);
+    s.sponsors = { master: offers[0], sleeves: offers[3], back: offers[5] };
+    s.sponsorOffers = offers.slice(1, 4);
+  }
+
+  if(Array.isArray(s.teams)){
+    s.teams.forEach(t=>{ if(!Array.isArray(t.form)) t.form = []; });
+  }
+
+  if(!s.lineup||s.lineup.length!==((FORMATIONS[s.formation]||FORMATIONS['4-3-3']).length)){
+    state=s;optimizeLineup();s=state;state=null;
+  }
+  s.boardConfidence = s.boardConfidence ?? 78;
+  s.markingIntensity = s.markingIntensity || 'equilibrada';
+  s.setPieces = s.setPieces || {
+    captain: s.squad?.[0] ? playerKey(s.squad[0]) : '',
+    penalty: s.squad?.[0] ? playerKey(s.squad[0]) : '',
+    freekick: s.squad?.[0] ? playerKey(s.squad[0]) : '',
+    corner: s.squad?.[0] ? playerKey(s.squad[0]) : ''
+  };
+  repairSaveIfCorrupted(s);
+  return s;
+}
+
+// -------------------------------------------------------------
+// SISTEMA AVANÇADO DE REALISMO AFM 2026 (20 MELHORIAS DE REALISMO)
+// -------------------------------------------------------------
+function isRivalryMatch(teamA, teamB){
+  if(!teamA || !teamB) return { isRivalry: false, derbyName: '' };
+  const a = norm(teamA), b = norm(teamB);
+  
+  const DERBIES = [
+    { teams: ['corinthians', 'palmeiras'], name: 'Derby Paulista' },
+    { teams: ['corinthians', 'sao paulo'], name: 'Majestoso' },
+    { teams: ['palmeiras', 'sao paulo'], name: 'Choque-Rei' },
+    { teams: ['corinthians', 'santos'], name: 'Clássico Alvinegro' },
+    { teams: ['palmeiras', 'santos'], name: 'Clássico da Saudade' },
+    { teams: ['santos', 'sao paulo'], name: 'San-São' },
+    { teams: ['flamengo', 'fluminense'], name: 'Fla-Flu' },
+    { teams: ['flamengo', 'vasco'], name: 'Clássico dos Milhões' },
+    { teams: ['botafogo', 'flamengo'], name: 'Clássico da Rivalidade' },
+    { teams: ['botafogo', 'fluminense'], name: 'Clássico Vovô' },
+    { teams: ['botafogo', 'vasco'], name: 'Clássico da Amizade' },
+    { teams: ['fluminense', 'vasco'], name: 'Clássico dos Gigantes' },
+    { teams: ['atletico-mg', 'cruzeiro'], name: 'Clássico Mineiro' },
+    { teams: ['gremio', 'internacional'], name: 'Gre-Nal' },
+    { teams: ['athletico', 'coritiba'], name: 'Atletiba' },
+    { teams: ['bahia', 'vitoria'], name: 'Ba-Vi' },
+    { teams: ['ceara', 'fortaleza'], name: 'Clássico-Rei' },
+    { teams: ['goias', 'vila nova'], name: 'Derby do Cerrado' },
+    { teams: ['nautico', 'sport'], name: 'Clássico dos Clássicos' },
+    { teams: ['santa cruz', 'sport'], name: 'Clássico das Multidões' },
+    { teams: ['gama', 'brasiliense'], name: 'Clássico Verde-Amarelo' },
+    { teams: ['brasilia', 'brasiliense'], name: 'Derby Candango' },
+    { teams: ['barcelona', 'real madrid'], name: 'El Clásico' },
+    { teams: ['atletico madrid', 'real madrid'], name: 'Derbi Madrileño' },
+    { teams: ['liverpool', 'manchester united'], name: 'North-West Derby' },
+    { teams: ['manchester city', 'manchester united'], name: 'Manchester Derby' },
+    { teams: ['arsenal', 'tottenham'], name: 'North London Derby' },
+    { teams: ['inter', 'milan'], name: 'Derby della Madonnina' },
+    { teams: ['juventus', 'inter'], name: "Derby d'Italia" },
+    { teams: ['bayern', 'dortmund'], name: 'Der Klassiker' },
+    { teams: ['marseille', 'psg'], name: 'Le Classique' },
+    { teams: ['benfica', 'sporting'], name: 'Dérbi de Lisboa' },
+    { teams: ['porto', 'benfica'], name: 'O Clássico' },
+    { teams: ['boca juniors', 'river plate'], name: 'Superclásico' }
+  ];
+
+  for(const d of DERBIES){
+    if((a.includes(d.teams[0]) && b.includes(d.teams[1])) || (a.includes(d.teams[1]) && b.includes(d.teams[0]))){
+      return { isRivalry: true, derbyName: d.name };
+    }
+  }
+  return { isRivalry: false, derbyName: '' };
+}
+
+function getMatchWeather(dateStr, round){
+  const seed = hashStr((dateStr||'2026-01-01') + '|' + (round||0));
+  const val = seed % 100;
+  if(val < 50){
+    return { condition: 'Céu Aberto / Ensolarado', icon: '☀️', effect: 'Condições excelentes para circulação da bola', temp: 26, rain: false, extremeHeat: false };
+  } else if(val < 72){
+    return { condition: 'Chuva Forte & Gramado Pesado', icon: '🌧️', effect: 'Piso escorregadio, finalizações perigosas e mais divididas', temp: 21, rain: true, extremeHeat: false };
+  } else if(val < 86){
+    return { condition: 'Calor Escaldante (34°C)', icon: '🌡️', effect: 'Desgaste físico acelerado (+30% cansaço)', temp: 34, rain: false, extremeHeat: true };
+  } else {
+    return { condition: 'Noite Fria & Neblina', icon: '🌙', effect: 'Piso rápido e jogo dinâmico', temp: 16, rain: false, extremeHeat: false };
+  }
+}
+
+// =========================================================================
+// MÓDULO DE REALISMO EXPANDIDO AFM 2026 (20 MELHORIAS DE REALISMO & SIMULAÇÃO)
+// =========================================================================
+
+function getBoardConfidenceStatus(score){
+  const s = clamp(Number(score ?? state?.trust?.board ?? 68), 0, 100);
+  if(s >= 80) return { label: 'Inabalável', badge: '🟢', color: '#22c55e', desc: 'Diretoria plenamente satisfeita com a gestão esportiva e financeira.', risk: 'Risco Nulo' };
+  if(s >= 60) return { label: 'Estabilidade Institucional', badge: '🔵', color: '#38bdf8', desc: 'Expectativas esportivas e metas dentro dos parâmetros planejados.', risk: 'Risco Baixo' };
+  if(s >= 40) return { label: 'Cobrança Moderada', badge: '🟡', color: '#facc15', desc: 'Atenção aos próximos jogos; diretoria exige reação rápida.', risk: 'Risco Médio' };
+  if(s >= 20) return { label: 'Sob Alta Pressão', badge: '🟠', color: '#f97316', desc: 'Ambiente tenso; vitória obrigatória na próxima rodada.', risk: 'Risco Elevado' };
+  return { label: 'Risco Crítico de Demissão', badge: '🔴', color: '#ef4444', desc: 'Ultimato emitido: risco iminente de rescisão de contrato!', risk: 'Risco Crítico' };
+}
+
+function isHighAltitudeVenue(clubName){
+  if(!clubName) return { isAltitude: false, altitudeMeters: 0, city: '' };
+  const n = norm(clubName);
+  const HIGH_ALTITUDE_CLUBS = {
+    'bolivar': { city: 'La Paz (Bolívia)', meters: 3640 },
+    'the strongest': { city: 'La Paz (Bolívia)', meters: 3640 },
+    'always ready': { city: 'El Alto (Bolívia)', meters: 4090 },
+    'san jose': { city: 'Oruro (Bolívia)', meters: 3735 },
+    'nacional potosi': { city: 'Potosí (Bolívia)', meters: 3900 },
+    'real potosi': { city: 'Potosí (Bolívia)', meters: 3900 },
+    'ldu quito': { city: 'Quito (Equador)', meters: 2850 },
+    'ldu': { city: 'Quito (Equador)', meters: 2850 },
+    'aucas': { city: 'Quito (Equador)', meters: 2850 },
+    'el nacional': { city: 'Quito (Equador)', meters: 2850 },
+    'independiente del valle': { city: 'Sangolquí (Equador)', meters: 2500 },
+    'cienciano': { city: 'Cusco (Peru)', meters: 3360 },
+    'melgar': { city: 'Arequipa (Peru)', meters: 2335 }
+  };
+  for(const [k, v] of Object.entries(HIGH_ALTITUDE_CLUBS)){
+    if(n.includes(k) || k.includes(n)){
+      return { isAltitude: true, altitudeMeters: v.meters, city: v.city };
+    }
+  }
+  return { isAltitude: false, altitudeMeters: 0, city: '' };
+}
+
+function getSquadHierarchy(squad){
+  if(!Array.isArray(squad) || squad.length === 0) return { captain: null, leaders: [], prospects: [] };
+  const sorted = squad.slice().sort((a,b)=>(playerOverall(b)*1.2 + (b.age||24)*0.8) - (playerOverall(a)*1.2 + (a.age||24)*0.8));
+  const captain = state?.setPieces?.captain 
+    ? squad.find(p => playerKey(p) === state.setPieces.captain) 
+    : sorted[0];
+  const leaders = sorted.filter(p => playerKey(p) !== playerKey(captain) && (p.age||24) >= 27).slice(0, 3);
+  const prospects = squad.filter(p => (p.age||24) <= 21 && (p.potential||70) >= 78).sort((a,b)=>(b.potential||0)-(a.potential||0)).slice(0, 3);
+  return { captain, leaders, prospects };
+}
+
+function getHeadToHeadRecord(clubA, clubB){
+  if(!clubA || !clubB) return { winsA: 0, draws: 0, winsB: 0, total: 0 };
+  const seed = hashStr(norm(clubA) + '|vs|' + norm(clubB));
+  const sA = strength(clubByName(clubA));
+  const sB = strength(clubByName(clubB));
+  const baseGames = 12 + (seed % 15);
+  const pA = clamp(0.40 + (sA - sB) * 0.02, 0.20, 0.65);
+  const pB = clamp(0.35 + (sB - sA) * 0.02, 0.15, 0.60);
+  const winsA = Math.round(baseGames * pA);
+  const winsB = Math.round(baseGames * pB);
+  const draws = Math.max(1, baseGames - winsA - winsB);
+  return { winsA, draws, winsB, total: winsA + draws + winsB };
+}
+
+function checkTrainingInjury(){
+  const ctLvl = state?.infrastructure?.training?.level || 1;
+  const medLvl = state?.infrastructure?.medical?.level || 1;
+  const risk = Math.max(0.003, 0.015 - (ctLvl * 0.0015) - (medLvl * 0.001));
+  if(Math.random() < risk){
+    const healthy = (state?.squad||[]).filter(p => !p.injuredRounds || p.injuredRounds <= 0);
+    if(healthy.length > 0){
+      const victim = healthy[rnd(0, healthy.length - 1)];
+      victim.injuredRounds = 1;
+      victim.injuryDesc = 'Desconforto muscular no treino';
+      state.news.unshift(`⚠️ DEPARTAMENTO MÉDICO: ${victim.name} sentiu desconforto no treino tático e ficará fora por 1 rodada.`);
+    }
+  }
+}
+
+function triggerPeneiraBaseEvent(){
+  const newJewel = generateYouthPlayer(state?.infrastructure?.academy?.level || 1);
+  newJewel.potential = clamp(rnd(86, 94), 85, 96);
+  newJewel.fc = clamp(rnd(60, 68), 58, 72);
+  newJewel.pes = newJewel.fc;
+  newJewel.name = `${NAMES[rnd(0,NAMES.length-1)]} ${LAST[rnd(0,LAST.length-1)]} (Joia da Base)`;
+  state.youthAcademy = state.youthAcademy || [];
+  state.youthAcademy.unshift(newJewel);
+  state.news.unshift(`🌟 PENEIRA ANUAL DA BASE: O olheiro descobriu a jovem promessa ${newJewel.name} (${newJewel.pos}, ${newJewel.fc} OVR, ${newJewel.potential} POT)! Já integrado aos juniores.`);
+  toast(`🌟 Peneira concluída! ${newJewel.name} chegou à base!`);
+}
+
+function openPressConferenceModal(type = 'post', context = null, onComplete = null){
+  const isPre = type === 'pre';
+  let opp = 'Adversário';
+  let isHome = true;
+  let scoreText = '';
+  let f = null;
+
+  if(isPre){
+    const uFix = userFixture();
+    if(uFix){
+      isHome = uFix[0] === state.club;
+      opp = isHome ? uFix[1] : uFix[0];
+    } else if(context?.opp){
+      opp = context.opp;
+      isHome = !!context.isHome;
+    }
+  } else {
+    f = context || state?.history?.[0] || { h: state.club, a: 'Adversário', hg: 1, ag: 0 };
+    isHome = f.h === state.club;
+    opp = isHome ? f.a : f.h;
+    scoreText = `(${f.hg} x ${f.ag})`;
+  }
+
+  const comp = curComp() || { name: 'Campeonato' };
+  const managerName = state.manager || 'Professor';
+  const clubName = state.club || 'Clube';
+
+  // Patrocinadores para o backdrop
+  const masterSponsor = state.sponsors?.master?.name || 'BETANO';
+  const sleeveSponsor = state.sponsors?.sleeves?.name || 'IFOOD';
+  const backSponsor = state.sponsors?.back?.name || 'SAMSUNG';
+  const compNameShort = comp.name.slice(0, 14).toUpperCase();
+  const sponsorTileItems = [
+    clubName.slice(0, 10).toUpperCase(), masterSponsor, compNameShort, sleeveSponsor,
+    backSponsor, 'FATAL MODEL', 'BYD', clubName.slice(0, 10).toUpperCase(),
+    'NUBANK', compNameShort, masterSponsor, 'CASAS BAHIA',
+    sleeveSponsor, clubName.slice(0, 10).toUpperCase(), backSponsor, 'PIXBET'
+  ];
+
+  let reporterName = 'Eric Faria';
+  let reporterOutlet = 'TV Globo';
+  let questionText = '';
+  let options = [];
+
+  if(isPre){
+    const preQuestions = [
+      {
+        rep: 'Casimiro Miguel',
+        outlet: 'CazéTV',
+        q: `Professor ${managerName}, expectativa enorme para encarar o ${opp}! O torcedor pode esperar o ${clubName} ofensivo e propondo o jogo?`,
+        opts: [
+          {
+            tag: 'Ofensiva & Coragem',
+            text: `"Vamos jogar com a nossa identidade. Respeitamos o ${opp}, mas em campo vamos buscar o resultado desde o primeiro minuto!"`,
+            effects: '✨ Moral do elenco +6% • Confiança do vestiário',
+            newsHeadline: `📰 [COLETIVA PRÉ-JOGO] ${managerName} promete atitude: "Vamos buscar o resultado desde o primeiro minuto contra o ${opp}!"`,
+            tSquad: +6, tFans: +4, tBoard: +2
+          },
+          {
+            tag: 'Estratégia & Cautela',
+            text: `"Sabemos da qualidade do adversário. O segredo será paciência, maturidade tática e aproveitar os erros deles."`,
+            effects: '🎯 Confiança da Diretoria +5% • Foco tático',
+            newsHeadline: `📰 [COLETIVA PRÉ-JOGO] ${managerName} prega cautela: "Maturidade e paciência serão decisivas diante do ${opp}."`,
+            tSquad: +3, tFans: +2, tBoard: +5
+          },
+          {
+            tag: 'Clima Quente & Torcida',
+            text: `"É um jogo grande e decisivo! Contamos com a nossa torcida para criar um verdadeiro caldeirão e empurrar o time!"`,
+            effects: '🔥 Apoio da Torcida +7% • Empolgação nas arquibancadas',
+            newsHeadline: `📰 [COLETIVA PRÉ-JOGO] ${managerName} convoca torcida: "Precisamos de um caldeirão para vencer o ${opp}!"`,
+            tSquad: +4, tFans: +7, tBoard: +2
+          }
+        ]
+      },
+      {
+        rep: 'Mauro Cezar Pereira',
+        outlet: 'ESPN Brasil',
+        q: `Professor, muito se fala sobre as opções da escalação e a forma física dos atletas. Teremos surpresas táticas contra o ${opp}?`,
+        opts: [
+          {
+            tag: 'Blindagem do Grupo',
+            text: `"Quem entra em campo sabe da sua responsabilidade. Todo o elenco está preparado e confiante."`,
+            effects: '✨ Moral do elenco +6% • União do grupo',
+            newsHeadline: `📰 [COLETIVA PRÉ-JOGO] ${managerName} blinda elenco: "Quem entrar dará a vida pelas cores do ${clubName}."`,
+            tSquad: +6, tFans: +3, tBoard: +3
+          },
+          {
+            tag: 'Foco no Trabalho',
+            text: `"A tática foi exaustivamente trabalhada durante a semana. Os atletas assimilaram perfeitamente o plano de jogo."`,
+            effects: '🎯 Confiança da Diretoria +5% • Rigor profissional',
+            newsHeadline: `📰 [COLETIVA PRÉ-JOGO] ${managerName} garante time pronto: "Trabalhamos forte para anular os pontos fortes do ${opp}."`,
+            tSquad: +3, tFans: +3, tBoard: +5
+          },
+          {
+            tag: 'Mensagem à Imprensa',
+            text: `"A melhor resposta que podemos dar às dúvidas da imprensa é com três pontos dentro das quatro linhas."`,
+            effects: '🔥 Apoio da Torcida +6% • Repercussão em alta',
+            newsHeadline: `📰 [COLETIVA PRÉ-JOGO] ${managerName} rebate imprensa: "Nossa resposta será com bola na rede!"`,
+            tSquad: +4, tFans: +6, tBoard: +1
+          }
+        ]
+      }
+    ];
+    const selQ = preQuestions[Math.floor(Math.random() * preQuestions.length)];
+    reporterName = selQ.rep;
+    reporterOutlet = selQ.outlet;
+    questionText = selQ.q;
+    options = selQ.opts;
+  } else {
+    // Pós-Jogo
+    const gf = f?.hg ?? 0;
+    const ga = f?.ag ?? 0;
+    const myGoals = isHome ? gf : ga;
+    const oppGoals = isHome ? ga : gf;
+    const won = myGoals > oppGoals;
+    const lost = myGoals < oppGoals;
+
+    if(won){
+      reporterName = 'Eric Faria';
+      reporterOutlet = 'TV Globo';
+      questionText = `Professor ${managerName}, grande vitória do ${clubName} por ${myGoals} a ${oppGoals} sobre o ${opp}! Qual foi o ponto chave para conquistar esses três pontos?`;
+      options = [
+        {
+          tag: 'Elogiar o Elenco',
+          text: `"O grupo cumpriu a estratégia à risca. Mérito total da entrega e do comprometimento dos nossos jogadores!"`,
+          effects: '✨ Moral do elenco +6% • Vestiário eufórico',
+          newsHeadline: `📰 [COLETIVA PÓS-JOGO] ${managerName} enaltece elenco após triunfo: "Comprometimento e entrega impecáveis!"`,
+          tSquad: +6, tFans: +4, tBoard: +3
+        },
+        {
+          tag: 'Pés no Chão',
+          text: `"Vitória importantíssima, mas pés no chão. Nosso objetivo é muito maior e temos muito a trabalhar."`,
+          effects: '🎯 Confiança da Diretoria +5% • Foco profissional',
+          newsHeadline: `📰 [COLETIVA PÓS-JOGO] ${managerName} mantém cautela pós-vitória: "Pés no chão, o caminho é longo."`,
+          tSquad: +3, tFans: +3, tBoard: +5
+        },
+        {
+          tag: 'Agradecer a Torcida',
+          text: `"Essa vitória é da torcida! Eles cantaram do primeiro ao último minuto e empurraram a equipe!"`,
+          effects: '🔥 Apoio da Torcida +7% • Festa nas arquibancadas',
+          newsHeadline: `📰 [COLETIVA PÓS-JOGO] ${managerName} dedica vitória à torcida: "Eles jogaram junto com a gente hoje!"`,
+          tSquad: +4, tFans: +7, tBoard: +2
+        }
+      ];
+    } else if(lost){
+      reporterName = 'André Hernan';
+      reporterOutlet = 'CazéTV / UOL';
+      questionText = `Professor ${managerName}, revés amargo de ${myGoals} a ${oppGoals} diante do ${opp}. O que faltou para a equipe sair com um resultado melhor hoje?`;
+      options = [
+        {
+          tag: 'Assumir Responsabilidade',
+          text: `"A responsabilidade pelo resultado é 100% minha. Eu escalei e planejei a estratégia. Vamos blindar os atletas e trabalhar."`,
+          effects: '✨ Moral do elenco +6% • Grupo fechado com o técnico',
+          newsHeadline: `📰 [COLETIVA PÓS-JOGO] ${managerName} assume a culpa: "A responsabilidade é toda minha, o grupo deu o máximo."`,
+          tSquad: +6, tFans: +2, tBoard: +2
+        },
+        {
+          tag: 'Cobrança Firme',
+          text: `"Não podemos aceitar erros individuais como os de hoje. Vestir essa camisa exige foco máximo e vou cobrar internamente."`,
+          effects: '🎯 Confiança da Diretoria +5% • Postura enérgica',
+          newsHeadline: `📰 [COLETIVA PÓS-JOGO] ${managerName} promete cobrança interna: "Erros assim são inaceitáveis num clube deste tamanho."`,
+          tSquad: -2, tFans: +4, tBoard: +5
+        },
+        {
+          tag: 'Contestar a Arbitragem',
+          text: `"A arbitragem picotou demais o jogo e interferiu diretamente no ritmo do time com decisões desiguais."`,
+          effects: '🔥 Apoio da Torcida +6% • Repercussão nas redes',
+          newsHeadline: `📰 [COLETIVA PÓS-JOGO] ${managerName} na bronca com o apito: "A arbitragem prejudicou o ritmo do nosso time!"`,
+          tSquad: +3, tFans: +6, tBoard: +1
+        }
+      ];
+    } else {
+      // Empate
+      reporterName = 'Gian Oddi';
+      reporterOutlet = 'ESPN Brasil';
+      questionText = `Professor ${managerName}, empate em ${myGoals} a ${oppGoals} contra o ${opp}. Ficou um sabor de ponto ganho ou de dois pontos perdidos?`;
+      options = [
+        {
+          tag: 'Valorizar a Luta',
+          text: `"Foi um confronto truncado e de alta exigência. A entrega foi elogiável e somar pontos em jogos duros é válido."`,
+          effects: '✨ Moral do elenco +5% • Vestiário seguro',
+          newsHeadline: `📰 [COLETIVA PÓS-JOGO] ${managerName} valoriza empate disputado: "A equipe lutou até o apito final."`,
+          tSquad: +5, tFans: +3, tBoard: +3
+        },
+        {
+          tag: 'Autocrítica Construtiva',
+          text: `"Queríamos os três pontos. Pecamos no último terço do campo e precisamos calibrar a pontaria nos treinamentos."`,
+          effects: '🎯 Confiança da Diretoria +5% • Foco técnico',
+          newsHeadline: `📰 [COLETIVA PÓS-JOGO] ${managerName} faz autocrítica: "Faltou contundência para matar o jogo."`,
+          tSquad: +2, tFans: +3, tBoard: +5
+        },
+        {
+          tag: 'Espírito Competitivo',
+          text: `"O campeonato é uma maratona. Vamos buscar fora o que deixamos escapar hoje com o apoio da nossa torcida!"`,
+          effects: '🔥 Apoio da Torcida +6% • Moral elevado',
+          newsHeadline: `📰 [COLETIVA PÓS-JOGO] ${managerName} mantém otimismo: "Vamos buscar os pontos na próxima rodada!"`,
+          tSquad: +4, tFans: +6, tBoard: +2
+        }
+      ];
+    }
+  }
+
+  let overlay = $('#pressConferenceModalContainer');
+  if(!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'pressConferenceModalContainer';
+    document.body.appendChild(overlay);
+  }
+
+  overlay.innerHTML = `
+    <div class="press-room-overlay">
+      <div class="press-room-card">
+        <!-- HEADER DA SALA DE IMPRENSA -->
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#0d1527;border-bottom:1px solid rgba(255,255,255,0.08)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:20px">🎙️</span>
+            <div>
+              <div style="font-size:14px;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase">
+                SALA DE IMPRENSA OFICIAL · ${isPre ? 'COLETIVA PRÉ-JOGO' : 'COLETIVA PÓS-JOGO'}
+              </div>
+              <div style="font-size:11px;color:#a855f7;font-weight:700">
+                ${esc(clubName)} · ${esc(comp.name)} ${scoreText}
+              </div>
+            </div>
+          </div>
+          <button id="btnClosePressRoom" class="btn" style="background:rgba(255,255,255,0.08);border:none;color:#fff;padding:5px 12px;font-size:12px;font-weight:800;border-radius:8px;cursor:pointer">
+            ✕ Encerrar
+          </button>
+        </div>
+
+        <!-- PALCO CINEMATOGRÁFICO DA COLETIVA -->
+        <div class="press-room-stage">
+          <!-- BACKDROP COM LOGOS E PATROCINADORES -->
+          <div class="press-backdrop-pattern">
+            ${sponsorTileItems.map(item => `
+              <div class="press-backdrop-item">
+                ${clubBadge(clubName, 14)}
+                <span>${esc(item)}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <!-- TÉCNICO SENTADO NO CENTRO -->
+          <div class="press-manager-podium">
+            <div class="press-manager-figure" title="Professor ${esc(managerName)}">
+              👔
+            </div>
+            <!-- BANCADA / MESA OFICIAL -->
+            <div class="press-desk-banner">
+              <div style="display:flex;align-items:center;gap:8px">
+                ${clubBadge(clubName, 26)}
+                <div>
+                  <div style="font-size:12px;font-weight:900;color:#fff;letter-spacing:0.5px">PROF. ${esc(managerName.toUpperCase())}</div>
+                  <div style="font-size:9px;color:#facc15;font-weight:800">TREINADOR PRINCIPAL</div>
+                </div>
+              </div>
+
+              <!-- MICROFONES OFICIAIS COM CANOPLAS -->
+              <div class="press-mics-cluster">
+                <div class="press-mic" title="TV Globo">
+                  <div class="press-mic-head" style="background:#dc2626">G</div>
+                  <div class="press-mic-stem"></div>
+                </div>
+                <div class="press-mic" title="CazéTV">
+                  <div class="press-mic-head" style="background:#eab308;color:#000">CZ</div>
+                  <div class="press-mic-stem"></div>
+                </div>
+                <div class="press-mic" title="ESPN">
+                  <div class="press-mic-head" style="background:#b91c1c">E</div>
+                  <div class="press-mic-stem"></div>
+                </div>
+                <div class="press-mic" title="Premiere / TNT">
+                  <div class="press-mic-head" style="background:#2563eb">P</div>
+                  <div class="press-mic-stem"></div>
+                </div>
+              </div>
+
+              <div style="font-size:18px" title="Água Oficial do Clube">💧</div>
+            </div>
+          </div>
+
+          <!-- SILHUETA DOS JORNALISTAS NA FRENTE COM FLASHES -->
+          <div class="press-journalists-silhouette">
+            <span class="press-journalist-head">📸</span>
+            <span class="press-journalist-head press-camera-flash">⚡</span>
+            <span class="press-journalist-head">💻</span>
+            <span class="press-journalist-head">🎙️</span>
+            <span class="press-journalist-head press-camera-flash" style="animation-delay:1.8s">⚡</span>
+            <span class="press-journalist-head">📷</span>
+            <span class="press-journalist-head">📱</span>
+          </div>
+        </div>
+
+        <!-- CORPO DA PERGUNTA & OPÇÕES -->
+        <div class="press-content-body">
+          <div class="press-question-box">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span class="pill" style="font-size:10px;font-weight:800;background:rgba(168,85,247,0.25);color:#c084fc;border:1px solid #a855f7">
+                🎤 ${esc(reporterOutlet)}
+              </span>
+              <span style="font-size:12px;font-weight:800;color:#94a3b8">
+                Pergunta de <b>${esc(reporterName)}</b>:
+              </span>
+            </div>
+            <div style="font-size:15px;font-weight:900;color:#fff;line-height:1.45">
+              "${esc(questionText)}"
+            </div>
+          </div>
+
+          <!-- OPÇÕES DE RESPOSTA -->
+          <div class="press-options-container">
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px">
+              ESCOLHA A RESPOSTA DO PROFESSOR ${esc(managerName.toUpperCase())}:
+            </div>
+
+            ${options.map((opt, idx) => {
+              const optClass = idx === 0 ? 'opt-praise' : idx === 1 ? 'opt-demand' : 'opt-fire';
+              const badgeCol = idx === 0 ? '#22c55e' : idx === 1 ? '#38bdf8' : '#f97316';
+              return `
+                <button class="btn-press-option ${optClass}" data-press-idx="${idx}">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span class="pill" style="font-size:10px;font-weight:900;background:rgba(255,255,255,0.08);color:${badgeCol}">
+                      OPÇÃO ${['A','B','C'][idx]} · ${opt.tag}
+                    </span>
+                  </div>
+                  <div style="font-size:13px;font-weight:700;color:#f8fafc;line-height:1.4;margin:3px 0">
+                    ${esc(opt.text)}
+                  </div>
+                  <div style="font-size:11px;font-weight:700;color:${badgeCol}">
+                    ${opt.effects}
+                  </div>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  $$('.btn-press-option').forEach(btn => {
+    btn.onclick = () => {
+      const idx = +btn.dataset.pressIdx;
+      const chosen = options[idx];
+      if(chosen){
+        state.trust.fans = clamp(state.trust.fans + chosen.tFans, 0, 100);
+        state.trust.board = clamp(state.trust.board + chosen.tBoard, 0, 100);
+        state.squad.forEach(p => { p.morale = clamp((p.morale || 75) + chosen.tSquad, 15, 100); });
+        
+        state.news.unshift(chosen.newsHeadline);
+        toast(`Declaração publicada na imprensa! Repercussão registrada nas notícias.`);
+      }
+
+      overlay.remove();
+      save();
+      render();
+      if(typeof onComplete === 'function') onComplete();
+    };
+  });
+
+  $('#btnClosePressRoom').onclick = () => {
+    overlay.remove();
+    if(typeof onComplete === 'function') onComplete();
+  };
+}
+
+function applyMatchIncidents(lastMatchResult){
+  if(!state || !Array.isArray(state.lineup)) return;
+  const starters = state.lineup.map(k => state.squad.find(p => playerKey(p) === k)).filter(Boolean);
+  const medLvl = state.infrastructure?.medical?.level || 1;
+
+  // Impacto da Intensidade de Marcação nos Cartões
+  const intensity = state.markingIntensity || 'Equilibrada';
+  const yellowProb = intensity === 'Agressiva' ? 0.18 : (intensity === 'Leve' ? 0.06 : 0.12);
+
+  // 1. Cartões Amarelos e Vermelhos
+  for(const p of starters){
+    p.yellowCards = p.yellowCards || 0;
+    const cardRoll = Math.random();
+    if(cardRoll < yellowProb){
+      p.yellowCards++;
+      if(p.yellowCards >= 3){
+        p.suspended = 1;
+        p.yellowCards = 0;
+        state.news.unshift(`🟨 CARTÃO: ${p.name} recebeu o 3º cartão amarelo e cumprirá suspensão de 1 jogo.`);
+      }
+    } else if(cardRoll > 0.992){
+      p.suspended = 1;
+      state.news.unshift(`🟥 EXPULSÃO: ${p.name} levou cartão vermelho direto e desfalcará o time na próxima rodada!`);
+    }
+  }
+
+  // 2. Lesões Físicas durante o jogo
+  const injuryBaseChance = Math.max(0.03, 0.09 - (medLvl * 0.015));
+  if(Math.random() < injuryBaseChance){
+    const healthyStarters = starters.filter(p => !p.injuredRounds || p.injuredRounds <= 0);
+    if(healthyStarters.length > 0){
+      const victim = healthyStarters[rnd(0, healthyStarters.length - 1)];
+      const injuryTypes = [
+        { desc: 'Torção no tornozelo', rounds: 1 },
+        { desc: 'Estiramento muscular na coxa', rounds: 2 },
+        { desc: 'Contusão no joelho', rounds: Math.max(1, 3 - Math.floor(medLvl / 2)) },
+        { desc: 'Entorse com edema', rounds: Math.max(2, 4 - Math.floor(medLvl / 2)) }
+      ];
+      const inj = injuryTypes[rnd(0, injuryTypes.length - 1)];
+      victim.injuredRounds = inj.rounds;
+      victim.injuryDesc = inj.desc;
+      state.news.unshift(`🚑 BOLETIM MÉDICO: ${victim.name} sofreu ${inj.desc} durante o jogo e ficará afastado por ${inj.rounds} ${inj.rounds===1?'rodada':'rodadas'}!`);
+      toast(`🚑 Lesão confirmada: ${victim.name} (${inj.desc})`);
+    }
+  }
+
+  // 3. Bônus de Clean Sheet (Goleiros e Zagueiros sem sofrer gols)
+  if(lastMatchResult && lastMatchResult.ga === 0){
+    const defStarters = starters.filter(p => p.pos === 'GK' || p.pos === 'CB' || p.pos === 'LB' || p.pos === 'RB');
+    defStarters.forEach(p => {
+      p.morale = clamp((p.morale || 75) + 4, 0, 100);
+    });
+    state.news.unshift(`🛡️ CLEAN SHEET: Defesa intransponível! Setor defensivo não sofreu gols e ganhou +4% de moral.`);
+  }
+
+  // 4. Verificação de Peneira da Categoria de Base a cada 8 rodadas
+  if(state.round > 0 && state.round % 8 === 0){
+    triggerPeneiraBaseEvent();
+  }
+
+  // 5. Verificação de lesão leve em treino
+  checkTrainingInjury();
+}
+
+function calculateSeasonPrizeMoney(position, comp){
+  const isA = comp?.id === 'bra-a';
+  const isB = comp?.id === 'bra-b';
+  if(isA){
+    if(position === 1) return 47800000;
+    if(position === 2) return 45400000;
+    if(position === 3) return 43000000;
+    if(position === 4) return 40600000;
+    if(position <= 6) return 35000000;
+    if(position <= 10) return 25000000;
+    if(position <= 16) return 16000000;
+    return 3000000;
+  } else if(isB){
+    if(position === 1) return 12000000;
+    if(position <= 4) return 8000000;
+    return 2000000;
+  }
+  return 1500000;
+}
+
+function calculateSeasonAwards(){
+  const allSquad = state.squad || [];
+  const topScorer = allSquad.slice().sort((a,b)=>(b.goals||rnd(8,22))-(a.goals||rnd(8,22)))[0] || allSquad[0];
+  const bestPlayer = allSquad.slice().sort((a,b)=>playerOverall(b)-playerOverall(a))[0] || allSquad[0];
+  const goldenGlove = allSquad.filter(p=>p.pos==='GK').sort((a,b)=>playerOverall(b)-playerOverall(a))[0] || allSquad[0];
+  return {
+    topScorer: { name: topScorer?.name || 'Artilheiro', club: state.club, goals: topScorer?.goals || rnd(14,24) },
+    bestPlayer: { name: bestPlayer?.name || 'Craque do Ano', club: state.club, ovr: playerOverall(bestPlayer) },
+    goldenGlove: { name: goldenGlove?.name || 'Paredão', club: state.club, ovr: playerOverall(goldenGlove) }
+  };
+}
+
+function curComp(){
+  const c = compById(state.compId);
+  if(c) return c;
+  const isBr = (state.compId && state.compId.startsWith('bra-')) || (state.competition && /campeonato|brasileir|candango|paulista|carioca|mineiro|gaucho|gaúcho|paranaense|catarinense|baiano|cearense|goiano|pernambucano/i.test(state.competition));
+  return {
+    id: state.compId || 'bra-est-df',
+    name: state.competition || 'Campeonato Candango',
+    country: isBr ? 'Brasil' : (state.country || 'Brasil'),
+    continent: 'América do Sul',
+    type: 'league',
+    rule: 'Liga'
+  };
+}
+function currentFixtures(){return state.schedule?.[state.round]||[]}
+function userFixture(){return currentFixtures().find(g=>g.includes(state.club))}
+
+function simulateScore(home,away){
+  const hs=teamStrengthByName(home),as=teamStrengthByName(away);
+  const tactical=name=>name===state.club?({Retranca:-.15,Defensiva:-.05,Equilibrada:0,Ofensiva:.12,'Pressão total':.2}[state.mentality]||0):0;
+  
+  // Efeito de Altitude em estádios sul-americanos (La Paz, Quito, Potosí)
+  const altH = isHighAltitudeVenue(home);
+  const altAdvantageH = altH.isAltitude ? (0.18 + clamp((altH.altitudeMeters - 2000)/10000, 0, 0.15)) : 0;
+  const altPenaltyA = altH.isAltitude ? -0.12 : 0;
+
+  // Efeito de intensidade de marcação
+  const intensityBonus = (name===state.club && state?.markingIntensity==='Agressiva') ? 0.08 : 0;
+
+  const lambdaH=clamp(1.25+(hs-as)/18+.22+tactical(home)+altAdvantageH+intensityBonus,.15,3.9);
+  const lambdaA=clamp(1.05+(as-hs)/18+tactical(away)+altPenaltyA,.12,3.6);
+  const pois=l=>{let L=Math.exp(-l),p=1,k=0;do{k++;p*=Math.random()}while(p>L&&k<9);return k-1};
+  return [pois(lambdaH),pois(lambdaA)];
+}
+
+function applyResult(home,away,hg,ag){
+  const h=state.teams.find(t=>t.name===home),a=state.teams.find(t=>t.name===away);
+  if(!h||!a)return;
+  h.j++;a.j++;h.gp+=hg;h.gc+=ag;a.gp+=ag;a.gc+=hg;
+  h.sg=h.gp-h.gc;a.sg=a.gp-a.gc;
+  h.form = h.form || [];
+  a.form = a.form || [];
+  if(hg>ag){
+    h.v++;h.p+=3;a.d++;
+    h.form.unshift('V');a.form.unshift('D');
+  }else if(hg<ag){
+    a.v++;a.p+=3;h.d++;
+    a.form.unshift('V');h.form.unshift('D');
+  }else{
+    h.e++;a.e++;h.p++;a.p++;
+    h.form.unshift('E');a.form.unshift('E');
+  }
+  if(h.form.length>5) h.form.pop();
+  if(a.form.length>5) a.form.pop();
+}
+
+function attendanceProjection(opponent){
+  const cap=state.infrastructure.stadium.capacity||18000;
+  const rec=recommendedTicketPrice();
+  const price=state.ticketPrice;
+  const oppS=opponent?teamStrengthByName(opponent):68;
+  const our=overallSquad();
+  const priceRatio=price/Math.max(1,rec);
+  const priceFactor=priceRatio<=1?1+(1-priceRatio)*.22:Math.max(.22,1-(priceRatio-1)*.95);
+  const mktLvl = state?.infrastructure?.marketing?.level || 1;
+  const mktInvest = Math.max(2500, Number(state?.marketingWeekly) || 12000);
+  // Marketing semanal atrai a torcida e ajuda a manter estádio cheio (rebalanceado: +1.5% a +8%)
+  const mktAttBoost = (0.015 * mktLvl) + clamp((mktInvest - 2500) / 100000, 0, 0.08);
+  const base = .28 + (state.trust.fans / 170) + clamp((oppS - 58) / 180, 0, .18) + clamp((our - 58) / 260, 0, .1) + mktAttBoost;
+  // Dinâmica de fase do time (+30% em boa fase, -20% em má fase)
+  const fans = state?.trust?.fans ?? 70;
+  const recentHist = (state?.history || []).slice(0, 3);
+  let pts = 0;
+  recentHist.forEach(h => {
+    if(h.hg > h.ag) pts += (h.h === state?.club ? 3 : 0);
+    else if(h.hg < h.ag) pts += (h.a === state?.club ? 3 : 0);
+    else pts += 1;
+  });
+  const recentPtsPerGame = recentHist.length > 0 ? (pts / recentHist.length) : 1.0;
+  let phaseBoost = 1.0;
+  if(fans >= 75 && recentPtsPerGame >= 1.8) phaseBoost = 1.30; // +30% na fase boa
+  else if(fans < 45 || recentPtsPerGame < 0.8) phaseBoost = 0.80; // -20% na fase ruim
+
+  // Jogo grande contra clubes de massa nacional (+20% a +25%)
+  const isBigOpponent = /flamengo|corinthians|palmeiras|são paulo|vasco|grêmio|internacional|atlético-mg|cruzeiro/i.test(opponent || '');
+  const bigGameBoost = isBigOpponent ? 1.25 : 1.0;
+
+  // Clássico / Rivalidade histórica real
+  const rivalry = isRivalryMatch(state?.club, opponent);
+  const derbyBoost = rivalry.isRivalry ? 1.45 : (/brasiliense|gama|ceilândia/i.test(opponent || '') ? 1.20 : 1.0);
+
+  const rate = clamp(base * priceFactor * phaseBoost * bigGameBoost * derbyBoost, .12, 1);
+  // Reduz lugares temporariamente interditados por obras
+  const closedSeats = (state?.stadiumRingData?.activeWork ? 3500 : 0);
+  const effectiveCap = Math.max(2000, cap - closedSeats);
+  const attendance = Math.round(effectiveCap * rate);
+  const ticketRevenue = attendance * price;
+
+  // Cálculo de vagas e receita de estacionamento
+  const parkingLvl = state.infrastructure.parking?.level || 0;
+  const spots = parkingSpots(parkingLvl);
+  const parkRate = spots > 0 ? clamp(rate * (1 - (state.parkingPrice - 20)/60), 0.1, 0.98) : 0;
+  const parkCars = Math.round(spots * parkRate);
+  const parkRevenue = parkCars * (state.parkingPrice || 25);
+  const storeShop = Math.round(attendance * (.18 + .12 * (state.infrastructure.store?.level || 1)));
+
+  let priceVerdict = 'Preço Justo e Atraente';
+  let priceColor = 'var(--neon)';
+  if(priceRatio < 0.85) { priceVerdict = 'Preço Muito Barato (Estádio Lotado!)'; priceColor = 'var(--cyan)'; }
+  else if(priceRatio > 1.35) { priceVerdict = 'Preço Abusivo (Torcida Afastada!)'; priceColor = 'var(--bad)'; }
+  else if(priceRatio > 1.10) { priceVerdict = 'Preço Alto (Público Moderado)'; priceColor = 'var(--warn)'; }
+
+  return {
+    attendance,
+    capacity:cap,
+    rate,
+    price,
+    rec,
+    priceRatio,
+    priceVerdict,
+    priceColor,
+    revenue:ticketRevenue,
+    parkSpots: spots,
+    parkCars,
+    parkRate,
+    parkRevenue,
+    storeShop,
+    totalRevenue: ticketRevenue + parkRevenue + storeShop
+  };
+}
+
+function ticketMoodDelta(){const r=state.ticketPrice/Math.max(1,recommendedTicketPrice());return r<=.85?2:r<=1.05?1:r<=1.25?-1:r<=1.5?-3:-5}
+
+function totalSponsorMonthly(){
+  let sum = 0;
+  if(state.sponsors?.master) sum += state.sponsors.master.monthly;
+  if(state.sponsors?.sleeves) sum += state.sponsors.sleeves.monthly;
+  if(state.sponsors?.back) sum += state.sponsors.back.monthly;
+  const mktLvl = state?.infrastructure?.marketing?.level || 1;
+  const mktInvest = Math.max(2500, Number(state?.marketingWeekly) || 12000);
+  const mktBonusMult = 1 + (0.03 * (mktLvl - 1)) + clamp((mktInvest - 2500) / 90000, 0, 0.15);
+  return Math.round((sum || 50000) * mktBonusMult);
+}
+
+function totalSponsorWinBonus(){
+  let sum = 0;
+  if(state.sponsors?.master) sum += state.sponsors.master.winBonus;
+  if(state.sponsors?.sleeves) sum += state.sponsors.sleeves.winBonus;
+  if(state.sponsors?.back) sum += state.sponsors.back.winBonus;
+  return sum || 10000;
+}
+
+function monthlyFacilityIncome(){
+  return Math.round((state.infrastructure.store?.level||1)*9000+(state.infrastructure.museum?.level||1)*4000);
+}
+
+function payrollPerRound(){
+  return Math.round(state.squad.reduce((s,p)=>s+playerOverall(p)*1750,0)/4.3);
+}
+
+function processFitness(){
+  const starters=new Set(state.lineup||[]);
+  for(const p of state.squad){
+    const med=state.infrastructure?.medical?.level||1;
+    const isStarter = starters.has(playerKey(p));
+    
+    // Recuperação ou Desgaste Físico
+    p.fitness = clamp((p.fitness??100) + (isStarter ? -(rnd(3,7)) + med : 5 + med), 55, 100);
+    
+    // Fadiga acumulada se jogar muitas rodadas seguidas
+    if(isStarter){
+      p.consecutiveStarts = (p.consecutiveStarts || 0) + 1;
+      if(p.consecutiveStarts >= 3){
+        p.fitness = clamp(p.fitness - 4, 45, 100);
+      }
+    } else {
+      p.consecutiveStarts = 0;
+    }
+
+    // Veteranos de 34+ anos recuperam físico mais devagar
+    if((p.age || 25) >= 34){
+      p.fitness = clamp(p.fitness - 2, 45, 100);
+    }
+
+    // Moral do jogador
+    p.morale = p.morale || 75;
+    if(isStarter){
+      p.morale = clamp(p.morale + rnd(1, 3), 35, 100);
+    } else {
+      if(playerOverall(p) >= 72){
+        p.morale = clamp(p.morale - 2, 25, 100);
+      }
+    }
+
+    // Recuperação de Lesões
+    if(p.injuredRounds && p.injuredRounds > 0){
+      p.injuredRounds--;
+      if(p.injuredRounds <= 0){
+        delete p.injuredRounds;
+        delete p.injuryDesc;
+        state.news.unshift(`🩺 ALTA MÉDICA: ${p.name} recuperou-se 100% da lesão e foi reintegrado ao elenco!`);
+      }
+    }
+
+    // Cumprimento de Suspensão
+    if(p.suspended && p.suspended > 0){
+      p.suspended--;
+      if(p.suspended <= 0){
+        p.suspended = 0;
+      }
+    }
+  }
+}
+
+function processDevelopment(){
+  if(state.round%4!==0)return;
+  const lvl=state.infrastructure?.training?.level||1;
+  const starters = new Set(state.lineup || []);
+  const candidates=state.squad.filter(p=>(+p.age||25)<=25&&(p.potential||playerOverall(p))>playerOverall(p));
+  for(const p of candidates){
+    const starterBonus = starters.has(playerKey(p)) ? 8 : 0;
+    if((hashStr(playerKey(p)+'|'+state.round)%100)<8+lvl*3+starterBonus){
+      const oldOvr = playerOverall(p);
+      p.fc=clamp(playerOverall(p)+1,40,p.potential||94);
+      p.pes=p.pes?clamp(+p.pes+1,40,99):p.fc;
+      if(starters.has(playerKey(p)) && playerOverall(p) > oldOvr){
+        state.news.unshift(`⭐ EVOLUÇÃO: O jovem talento titular ${p.name} evoluiu para ${playerOverall(p)} OVR!`);
+      }
+    }
+  }
+}
+
+function finalizeRound(userRes, winners, isKO){
+  const comp=curComp();
+  if(userRes){
+    const isHome=userRes.h===state.club,gf=isHome?userRes.hg:userRes.ag,ga=isHome?userRes.ag:userRes.hg;
+    const advanced=isKO?userRes.winner===state.club:gf>ga,draw=!isKO&&gf===ga,win=!isKO?gf>ga:advanced;
+    let gate=0,shop=0,parkingRev=0;
+    if(isHome){
+      const att=attendanceProjection(userRes.a);
+      gate=att.revenue;
+      parkingRev=att.parkRevenue;
+      shop=att.storeShop;
+      state.lastHome={...att,opponent:userRes.a,date:state.date,shop,parkRevenue:parkingRev};
+      state.trust.fans=clamp(state.trust.fans+ticketMoodDelta(),0,100);
+    }
+    const bonus=win?totalSponsorWinBonus():0;
+    const roundSponsor = Math.round(totalSponsorMonthly() / 4);
+    const rev=gate+parkingRev+shop+bonus+roundSponsor;
+    const payroll=payrollPerRound();
+    state.balance+=rev-payroll;
+    state.income+=rev;
+    state.expense+=payroll;
+
+    // Pagamento de Bônus de Desempenho Contratuais (Vitória e Gols)
+    let totalContractBonuses = 0;
+    if(win){
+      for(const p of state.squad){
+        if(p.bonusWin && p.bonusWin > 0){
+          totalContractBonuses += p.bonusWin;
+        }
+      }
+    }
+    if(gf > 0){
+      for(const p of state.squad){
+        if(p.bonusGoal && p.bonusGoal > 0){
+          totalContractBonuses += (p.bonusGoal * gf);
+        }
+      }
+    }
+    if(totalContractBonuses > 0){
+      state.balance -= totalContractBonuses;
+      state.expense += totalContractBonuses;
+      state.news.unshift(`💰 Pagamento de bônus aos atletas: ${fmtMoney(totalContractBonuses)} (${win ? 'bicho por vitória ' : ''}${gf > 0 ? '+ premiação por gols' : ''}).`);
+    }
+
+    const delta=win?3:draw?0:-3;
+    state.trust.board=clamp(state.trust.board+delta,0,100);
+    state.trust.fans=clamp(state.trust.fans+(win?4:draw?0:-4),0,100);
+    state.trust.squad=clamp(state.trust.squad+(win?2:draw?0:-2),0,100);
+    const penTxt=userRes.pens?` (${userRes.pens[0]}-${userRes.pens[1]} nos pênaltis)`:'';
+    state.news.unshift(`${state.club} ${gf} x ${ga} ${isHome?userRes.a:userRes.h}${penTxt} — ${isKO?(advanced?'classificado':'eliminado'):(win?'vitória':draw?'empate':'derrota')}.`);
+    if(isHome){
+      state.news.unshift(`Público: ${state.lastHome.attendance.toLocaleString('pt-BR')} torcedores • Bilheteria ${fmtMoney(gate)} • Estacionamento ${fmtMoney(parkingRev)}.`);
+    }
+    state.history.unshift({...userRes,round:state.round+1,date:state.date,attendance:isHome?state.lastHome.attendance:null,gate:isHome?gate:null});
+    if(isKO&&!advanced)state.eliminated=true;
+    state.lastMatchSummary = { h: userRes.h, a: userRes.a, hg: userRes.hg, ag: userRes.ag, ga, isHome, won: win };
+  }
+  if(isKO){
+    if(winners.length>1){
+      const next=[];
+      for(let i=0;i<winners.length;i+=2)if(winners[i+1])next.push([winners[i],winners[i+1]]);
+      state.schedule.push(next);
+      state.cupAlive=winners;
+      if(advanced){
+        const cupPrize = comp.id === 'bra-copa' ? 1500000 : 2500000;
+        state.balance += cupPrize;
+        state.income += cupPrize;
+        state.news.unshift(`💰 PREMIAÇÃO DE FASE: +${fmtMoney(cupPrize)} creditados pela classificação de fase na ${comp.name}!`);
+      }
+    }else if(winners.length===1){
+      state.cupAlive=winners;
+      if(winners[0]===state.club&&!state.titles.includes(comp.name)){
+        // Bônus expressivo de sócios ao ser campeão
+        if(state.socioTorcedor){
+          const boost = Math.round(state.socioTorcedor.members * 0.45);
+          state.socioTorcedor.members += boost;
+          state.trust.fans = clamp(state.trust.fans + 25, 0, 100);
+          state.news.unshift(`🏆 TÍTULO CONQUISTADO! Onda de novos sócios-torcedores invadiu o clube: +${boost.toLocaleString('pt-BR')} sócios cadastrados (+45%)!`);
+        }
+        state.titles.push(comp.name);
+        state.news.unshift(`🏆 ${state.club} é CAMPEÃO da ${comp.name}!`);
+        state.trust.board=clamp(state.trust.board+12,0,100);
+        state.trust.fans=clamp(state.trust.fans+15,0,100);
+
+        // Pagamento de Bônus de Título aos atletas com cláusula no contrato
+        let totalTitleBonuses = 0;
+        for(const p of state.squad){
+          if(p.bonusTitle && p.bonusTitle > 0){
+            totalTitleBonuses += p.bonusTitle;
+          }
+        }
+        if(totalTitleBonuses > 0){
+          state.balance -= totalTitleBonuses;
+          state.expense += totalTitleBonuses;
+          state.news.unshift(`🏅 Premiação de Campeão: ${fmtMoney(totalTitleBonuses)} pagos em bônus contratuais de título aos jogadores!`);
+        }
+
+        setTimeout(() => {
+          showChampionTrophyCeremonyModal(comp, () => {
+            save(); render();
+          });
+        }, 500);
+      }
+    }
+  }
+  state.round++;
+  // Aporte semanal em marketing (rebalanceado por rodada)
+  const mktWeeklyExp = Math.max(2500, Number(state.marketingWeekly) || 12000);
+  state.balance -= mktWeeklyExp;
+  state.expense += mktWeeklyExp;
+  applyMatchIncidents(state.lastMatchSummary || null);
+  processFitness();
+  processDevelopment();
+  processYouthDevelopment();
+  const d=new Date(state.date+'T12:00:00');
+  d.setDate(d.getDate()+7);
+  state.date=d.toISOString().slice(0,10);
+
+  // Verifica se o clube recebe novas propostas de patrocínio com base na fama e fase do time
+  if(state.round % 3 === 0 || Math.random() < 0.40){
+    checkNewSponsorOffer();
+  }
+
+  // Atualiza propostas de mercado para jogadores colocados à venda ou para empréstimo
+  let newOffersCount = 0;
+  state.transferOffers = state.transferOffers || {};
+  state.loanOffers = state.loanOffers || {};
+  const listedKeys = new Set([...(state.transferListed||[]), ...(state.loanListed||[])]);
+  for(const k of listedKeys){
+    const p = state.squad.find(q => playerKey(q) === k);
+    if(p){
+      state.transferOffers[k] = generateBuyerOffers(p);
+      state.loanOffers[k] = generateLoanOffers(p);
+      newOffersCount++;
+    }
+  }
+  if(newOffersCount > 0){
+    state.news.unshift(`📬 Chegaram novas propostas de compra e empréstimo para seus jogadores na lista de transferências!`);
+  }
+  
+  if(state.round%4===0){
+    // Resfriamento de contrato com a diretoria (1 mês / 4 rodadas)
+    if(state.managerContractCooldownRound && state.round >= state.managerContractCooldownRound){
+      state.managerContractCooldownRound = null;
+      state.news.unshift(`💼 DIRETORIA: O resfriamento de 1 mês terminou! Você pode propor nova renovação de contrato no Escritório.`);
+    }
+
+    const adminBonus=Math.round(totalSponsorMonthly()*.03*(state.infrastructure?.admin?.level||1));
+    const fac=monthlyFacilityIncome();
+    const extras=adminBonus+fac;
+    if(extras > 0){
+      state.balance+=extras;
+      state.income+=extras;
+      state.news.unshift(`Receitas extras de estruturas e bônus comercial (+${fmtMoney(extras)}) creditadas.`);
+    }
+
+    // Cotas de Direitos de Transmissão de TV Mensais (Realismo)
+    const tvRights = comp.id === 'bra-a' ? 2200000 : comp.id === 'bra-b' ? 850000 : 350000;
+    state.balance += tvRights;
+    state.income += tvRights;
+    state.news.unshift(`📺 Cotas de Transmissão de TV (+${fmtMoney(tvRights)}) creditadas na conta do clube.`);
+
+    // Progresso das missões do Olheiro
+    if(state.scoutMissions && state.scoutMissions.length > 0){
+      state.scoutMissions.forEach(m => {
+        m.roundsLeft--;
+      });
+      const finishedMissions = state.scoutMissions.filter(m => m.roundsLeft <= 0);
+      state.scoutMissions = state.scoutMissions.filter(m => m.roundsLeft > 0);
+
+      finishedMissions.forEach(m => {
+        state.scoutReports = state.scoutReports || [];
+        if(m.type === 'player'){
+          const p = marketUniverse().find(x => playerKey(x) === m.playerKey);
+          if(p){
+            const minPot = (p.potential || playerOverall(p) + 4);
+            const maxPot = minPot + 4;
+            const rep = {
+              date: state.date,
+              type: 'player',
+              playerKey: m.playerKey,
+              name: p.name,
+              club: p.club,
+              pos: p.pos,
+              age: p.age,
+              overall: playerOverall(p),
+              potentialRange: `${minPot} a ${maxPot} ⭐ (Potencial Revelado)`,
+              contract: `Salário de ${fmtMoney(p.salary || Math.round(playerOverall(p)*650))}/mês • Vínculo até 2028`,
+              seasonStatus: `${rnd(14,24)} jogos disputados • ${rnd(4,12)} gols • Média 7.${rnd(2,8)}`,
+              injuryStatus: Math.random() < 0.2 ? 'Histórico recente de estiramento muscular (Atenção)' : '100% Íntegro • Excelente condição clínica'
+            };
+            state.scoutReports.unshift(rep);
+            state.news.unshift(`🔍 RELATÓRIO DO OLHEIRO: Chegou a análise completa de ${p.name}! Consulte na aba Mercado > Olheiro.`);
+          }
+        } else if(m.type === 'promises'){
+          let pool = marketUniverse().filter(p => (+p.age || 20) <= (m.age || 20));
+          if(m.sector && m.sector !== 'all'){
+            if(m.sector === 'GOL') pool = pool.filter(p => p.isGK || p.pos === 'GK');
+            else if(m.sector === 'DEF') pool = pool.filter(p => ['CB', 'LB', 'RB', 'DF'].includes(p.pos));
+            else if(m.sector === 'MEI') pool = pool.filter(p => ['DM', 'CM', 'AM', 'MF'].includes(p.pos));
+            else if(m.sector === 'ATA') pool = pool.filter(p => ['ST', 'CF', 'RW', 'LW', 'FW'].includes(p.pos));
+          }
+          if(pool.length === 0) pool = marketUniverse().filter(p => (+p.age || 20) <= (m.age || 20));
+
+          if(m.tier === 'normal'){
+            // Promessas acessíveis para times menores (até R$ 2.5 Mi)
+            let sub = pool.filter(p => calcValueMi(p) <= 2.5);
+            if(sub.length >= 5) pool = sub;
+          } else if(m.tier === 'bom'){
+            // Promessas nacionais (R$ 2.5 Mi a R$ 22 Mi)
+            let sub = pool.filter(p => calcValueMi(p) > 2.0 && calcValueMi(p) <= 22.0);
+            if(sub.length >= 5) pool = sub;
+          } else if(m.tier === 'elite'){
+            // Elite internacional
+            let sub = pool.filter(p => calcValueMi(p) > 20.0 || (+p.potential||playerOverall(p)) >= 85);
+            if(sub.length >= 5) pool = sub;
+          }
+
+          const candidates = pool
+            .sort((a,b) => (b.potential || playerOverall(b)) - (a.potential || playerOverall(a)))
+            .slice(0, 5);
+
+          candidates.forEach(cand => {
+            const minPot = (cand.potential || playerOverall(cand) + 4);
+            state.scoutReports.unshift({
+              date: state.date,
+              type: 'promise',
+              tierName: m.tierName || 'Olheiro',
+              playerKey: playerKey(cand),
+              name: cand.name,
+              club: cand.club,
+              pos: cand.pos,
+              age: cand.age,
+              overall: playerOverall(cand),
+              potentialRange: `${minPot} a ${minPot+4} ⭐ JOVEM DE OURO`,
+              contract: `Contrato de Base / Transição • Valor de Mercado: ${fmtMoney(calcValueMi(cand)*1e6)}`,
+              seasonStatus: 'Destaque mapeado pelo olheiro com relatório detalhado de rendimento',
+              injuryStatus: 'Apto para transição profissional imediata'
+            });
+          });
+          state.news.unshift(`🎯 RELATÓRIO DO OLHEIRO: A busca de promessas foi concluída (${m.tierName||'Olheiro'})! 5 jovens talentos foram mapeados para o clube.`);
+        }
+      });
+    }
+
+    // Progresso da Nova Arena
+    if(state.newArenaData && state.newArenaData.underConstruction){
+      state.newArenaData.roundsRemaining--;
+      if(state.newArenaData.roundsRemaining <= 0){
+        state.newArenaData.underConstruction = false;
+        state.infrastructure.stadium.capacity = state.newArenaData.capacity;
+        state.news.unshift(`🎉 INAUGURAÇÃO HISTÓRICA: A ${state.newArenaData.name} está pronta! O clube se muda com festa monumental da torcida!`);
+        state.trust.fans = 100;
+      }
+    }
+
+    // Cobrança mensal de parcelas de obras do estádio / arena
+    if(state.stadiumRingData?.debt && state.stadiumRingData.debt.remaining > 0){
+      const inst = state.stadiumRingData.debt.monthly;
+      state.balance -= inst;
+      state.expense += inst;
+      state.stadiumRingData.debt.remaining -= inst;
+      state.stadiumRingData.debt.monthsLeft--;
+      state.news.unshift(`🏗️ Parcela da obra do estádio (-${fmtMoney(inst)}) debitada no dia 1º.`);
+    }
+
+    // Receita mensal do Sócio-Torcedor creditada no caixa
+    const socioData = getSocioTorcedorMeta();
+    state.balance += socioData.currentIncome;
+    state.income += socioData.currentIncome;
+    state.news.unshift(`🎟️ Receita mensal de Sócio-Torcedor (+${fmtMoney(socioData.currentIncome)}) creditada no caixa.`);
+
+    // Rotina mensal de CT (evolução de overall dos jogadores), Naming Rights e Loja Oficial
+    applyMonthlyTrainingAndCommercial();
+
+    // Desgaste natural do estádio nos jogos
+    state.stadiumMaintenance = Math.max(10, (state.stadiumMaintenance || 90) - 2);
+
+    // Chance de receber proposta de show (se manutenção >= 65%)
+    if(!state.stadiumEventProposal && (state.stadiumMaintenance || 90) >= 65 && Math.random() < 0.40){
+      const shows = [
+        { name: 'Megashow da Anitta (Baile Pop)', fee: 320000 },
+        { name: 'Show Histórico da Pabllo Vittar', fee: 280000 },
+        { name: 'Palco do Festival Rock in Rio / Lolla', fee: 650000 },
+        { name: 'Tardezinha do Thiaguinho', fee: 380000 },
+        { name: 'Festival VillaMix & Sertanejo', fee: 420000 },
+        { name: 'Festival de Trap & Rap Nacional', fee: 310000 }
+      ];
+      state.stadiumEventProposal = shows[rnd(0, shows.length - 1)];
+      state.news.unshift(`🎤 CONVITE PARA EVENTO: A produção do ${state.stadiumEventProposal.name} quer alugar nosso estádio por ${fmtMoney(state.stadiumEventProposal.fee)}!`);
+    }
+
+    // Chance de receber proposta de aluguel por clube visitante (se jogamos fora)
+    if(!state.stadiumClubRental && Math.random() < 0.45){
+      const clubsNeedingStadium = ['ARUC', 'Paranoá', 'Samambaia', 'Brasília', 'Santa Maria', 'Ceilândia'];
+      const rentingClub = clubsNeedingStadium[rnd(0, clubsNeedingStadium.length - 1)];
+      state.stadiumClubRental = {
+        club: rentingClub,
+        fee: rnd(45000, 95000)
+      };
+      state.news.unshift(`🏟️ PROPOSTA DE ALUGUEL: O ${rentingClub} quer alugar nosso estádio na próxima rodada por ${fmtMoney(state.stadiumClubRental.fee)}.`);
+    }
+
+    // Salário mensal do técnico creditado em seu patrimônio pessoal
+    state.managerSalary = state.managerSalary || 9500;
+    state.managerMoney = (state.managerMoney || 57000) + state.managerSalary;
+    state.managerFinanceHistory = state.managerFinanceHistory || [];
+    state.managerFinanceHistory.unshift({
+      date: state.date,
+      desc: `Salário mensal de técnico (${state.club})`,
+      amount: state.managerSalary
+    });
+    state.news.unshift(`📢 Ciclo mensal concluído: finanças, receitas de patrocinadores e relatórios comerciais atualizados.`);
+  }
+
+  // Checa fim de temporada
+  const maxRounds = comp.rounds || (state.schedule?.length || 38);
+  if(state.round >= maxRounds){
+    // Coletiva de imprensa pós-partida com 3 perguntas olhando o placar
+    if(userRes){
+      setTimeout(()=>{
+        openPostMatchInterviewModal({
+          gf: isHome ? userRes.hg : userRes.ag,
+          ga: isHome ? userRes.ag : userRes.hg,
+          opponent: isHome ? userRes.a : userRes.h
+        });
+      }, 400);
+    }
+
+    const pos = position();
+    if(pos === 1){
+      setTimeout(() => {
+        showChampionTrophyCeremonyModal(comp, () => {
+          showEndOfSeasonModal();
+        });
+      }, 700);
+    } else {
+      setTimeout(showEndOfSeasonModal, 600);
+    }
+  }
+
+  state.preMatchInterviewDone = false;
+  save();
+  render();
+}
+
+// -------------------------------------------------------------
+// MOTOR DE PARTIDA EM TEMPO REAL 2.5D & TRANSMISSÃO AO VIVO
+// -------------------------------------------------------------
+let liveAudioCtx = null;
+function getLiveAudioCtx(){
+  if(!liveAudioCtx && (window.AudioContext || window.webkitAudioContext)){
+    try { liveAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+  }
+  return liveAudioCtx;
+}
+function playWhistleSound(){
+  const ctx = getLiveAudioCtx();
+  if(!ctx || !liveMatchState || liveMatchState.soundMuted) return;
+  try {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(2400, ctx.currentTime);
+    osc.frequency.setValueAtTime(2700, ctx.currentTime + 0.08);
+    osc.frequency.setValueAtTime(2350, ctx.currentTime + 0.16);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.32);
+  } catch(e){}
+}
+function playKickSound(){
+  const ctx = getLiveAudioCtx();
+  if(!ctx || !liveMatchState || liveMatchState.soundMuted) return;
+  try {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(160, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.09);
+  } catch(e){}
+}
+function playCheerSound(){
+  const ctx = getLiveAudioCtx();
+  if(!ctx || !liveMatchState || liveMatchState.soundMuted) return;
+  try {
+    const bufSize = Math.floor(ctx.sampleRate * 1.6);
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0; i<bufSize; i++) d[i] = (Math.random()*2 - 1) * Math.exp(-i / (bufSize * 0.7));
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 550;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+    src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    src.start();
+  } catch(e){}
+}
+
+function advancePreSeasonDay(){
+  if(!state || !state.isPreSeason) return;
+  state.preSeasonDays = Math.max(0, (state.preSeasonDays || 4) - 1);
+  const curD = new Date(state.date + 'T12:00:00');
+  curD.setDate(curD.getDate() + 1);
+  state.date = curD.toISOString().slice(0, 10);
+
+  const msgs = [
+    'O elenco realizou treinos intensivos de posse de bola e finalização.',
+    'Agentes movimentaram sondagens e propostas na janela de transferências.',
+    'A comissão técnica definiu a tática principal para a estreia da temporada.',
+    'Últimos ajustes físicos e concentração total para o início dos jogos oficiais!'
+  ];
+  const stepIdx = Math.min(3, Math.max(0, 4 - state.preSeasonDays - 1));
+  const msg = msgs[stepIdx] || 'Dia de treinos concluído.';
+
+  if(state.preSeasonDays <= 0){
+    state.isPreSeason = false;
+    state.preSeasonDays = 0;
+    toast('🏁 Fim da Janela de Pré-Temporada! O campeonato oficial vai começar.');
+  } else {
+    toast(`📅 Dia avançado! ${msg} (Restam ${state.preSeasonDays} ${state.preSeasonDays === 1 ? 'dia' : 'dias'})`);
+  }
+  save();
+  render();
+}
+
+function skipPreSeason(){
+  if(!state) return;
+  state.isPreSeason = false;
+  state.preSeasonDays = 0;
+  state.date = '2026-01-05';
+  toast('🏁 Pré-temporada concluída! Bem-vindo à 1ª rodada oficial!');
+  save();
+  render();
+}
+
+function startLiveMatch(){
+  if(state && state.isPreSeason && state.preSeasonDays > 0){
+    state.isPreSeason = false;
+    state.preSeasonDays = 0;
+    state.date = '2026-01-05';
+    toast('Janela de pré-temporada encerrada para início da 1ª rodada!');
+  }
+  const fixtures = currentFixtures();
+  if(!fixtures.length){
+    toast(state.eliminated ? 'Você foi eliminado desta competição.' : 'Temporada concluída.');
+    return;
+  }
+  const f = userFixture();
+  if(!f){
+    simulateQuickRound();
+    return;
+  }
+
+  const [home, away] = f;
+  const comp = curComp();
+  const isKO = comp.type === 'knockout';
+  const isUserHome = home === state.club;
+
+  // Coletiva de Imprensa Pré-Jogo antes do pontapé inicial
+  if(!state.preMatchInterviewDone){
+    state.preMatchInterviewDone = true;
+    openPressConferenceModal('pre', { opp: (isUserHome ? away : home), isHome: isUserHome }, () => {
+      startLiveMatch();
+    });
+    return;
+  }
+  state.preMatchInterviewDone = false;
+  
+  const otherResults = [];
+  const winners = [];
+  fixtures.forEach(([h,a])=>{
+    if(h === home && a === away) return;
+    const [hg, ag] = simulateScore(h,a);
+    let win = null, pen = null;
+    if(isKO){
+      if(hg===ag){
+        let hp=rnd(3,6), ap=rnd(2,6); if(hp===ap) ap=hp===6?5:hp+1;
+        pen=[hp,ap]; win=hp>ap?h:a;
+      } else win=hg>ag?h:a;
+      winners.push(win);
+    }
+    applyResult(h,a,hg,ag);
+    otherResults.push({h,a,hg,ag,win,pen});
+  });
+
+  const hs = teamStrengthByName(home);
+  const as = teamStrengthByName(away);
+  const oppName = isUserHome ? away : home;
+  const proj = attendanceProjection(oppName);
+  
+  const hostClubObj = clubByName(home) || { stadium: 'Estádio Municipal', capacity: 15000 };
+  const stadiumName = isUserHome 
+    ? (state.namingRights?.stadiumName || hostClubObj.stadium || 'Estádio do Clube')
+    : (hostClubObj.stadium || 'Estádio Municipal');
+  const stadiumCap = isUserHome ? (state.infrastructure.stadium?.capacity || 18000) : (hostClubObj.capacity || 22000);
+  const stadiumPitch = isUserHome ? (state.stadiumPitchType || 'natural') : 'natural';
+  const stadiumUpgrades = isUserHome ? (state.stadiumUpgrades || {}) : { chairs: true, screen: false, ledRing: false, flares: false, ledLights: true };
+  const attendance = isUserHome ? proj.attendance : Math.round(stadiumCap * clamp(0.3 + (hs/150), 0.15, 0.95));
+
+  // Constrói os 11 titulares para cada equipe
+  function buildMatchTeam(teamName, isUser, isHomeSide){
+    const formKey = isUser ? (state.formation || '4-3-3') : '4-3-3';
+    const formDef = FORMATIONS[formKey] || FORMATIONS['4-3-3'];
+    const players = [];
+
+    if(isUser){
+      const lineupKeys = state.lineup || [];
+      const starters = lineupKeys.map(k => state.squad.find(p => playerKey(p) === k)).filter(Boolean);
+      while(starters.length < 11){
+        const extra = state.squad.find(p => !starters.includes(p));
+        if(extra) starters.push(extra);
+        else break;
+      }
+      for(let i=0; i<11; i++){
+        const p = starters[i] || { name: `Jogador ${i+1}`, pos: formDef[i]?.r || 'CM', fc: 65 };
+        const slot = formDef[i] || { r: p.pos || 'CM', x: 50, y: 50 };
+        const baseXPct = isHomeSide ? (slot.y * 0.45) : (100 - slot.y * 0.45);
+        const baseYPct = slot.x;
+        players.push({
+          id: `u-${i}`,
+          key: playerKey(p),
+          name: p.name.split(' ').pop() || p.name,
+          fullName: p.name,
+          pos: p.pos || slot.r,
+          overall: playerOverall(p) || 65,
+          stamina: 100,
+          isGK: (p.pos === 'GK' || slot.r === 'GK' || i === 0),
+          team: isHomeSide ? 'home' : 'away',
+          isUser: true,
+          photo: (window.PLAYER_PHOTOS && (window.PLAYER_PHOTOS[p.name] || window.PLAYER_PHOTOS[norm(p.name)])) || null,
+          x: baseXPct,
+          y: baseYPct,
+          baseX: baseXPct,
+          baseY: baseYPct,
+          targetX: baseXPct,
+          targetY: baseYPct,
+          vx: 0, vy: 0,
+          animFrame: 0,
+          hasBall: false
+        });
+      }
+    } else {
+      const oppRoster = (window.BASE_CLUBS?.find(c => norm(c.name) === norm(teamName))?.roster) || generatedRosterForClub(teamName);
+      for(let i=0; i<11; i++){
+        const p = oppRoster[i] || { name: `${NAMES[i%NAMES.length]} ${LAST[i%LAST.length]}`, pos: formDef[i]?.r || 'CM', fc: 64 };
+        const slot = formDef[i] || { r: p.pos || 'CM', x: 50, y: 50 };
+        const baseXPct = isHomeSide ? (slot.y * 0.45) : (100 - slot.y * 0.45);
+        const baseYPct = slot.x;
+        players.push({
+          id: `opp-${i}`,
+          key: `opp-${i}`,
+          name: p.name.split(' ').pop() || p.name,
+          fullName: p.name,
+          pos: p.pos || slot.r,
+          overall: p.fc || p.pes || 64,
+          stamina: 100,
+          isGK: (p.pos === 'GK' || slot.r === 'GK' || i === 0),
+          team: isHomeSide ? 'home' : 'away',
+          isUser: false,
+          photo: null,
+          x: baseXPct,
+          y: baseYPct,
+          baseX: baseXPct,
+          baseY: baseYPct,
+          targetX: baseXPct,
+          targetY: baseYPct,
+          vx: 0, vy: 0,
+          animFrame: 0,
+          hasBall: false
+        });
+      }
+    }
+    return players;
+  }
+
+  const homePlayers = buildMatchTeam(home, home === state.club, true);
+  const awayPlayers = buildMatchTeam(away, away === state.club, false);
+
+  liveMatchState = {
+    home, away, isKO,
+    hg: 0, ag: 0,
+    timeSec: 0, // 0 a 5400 segundos (90 min)
+    minute: 0,
+    playing: true,
+    speed: 1, // 1, 20, 40
+    events: [
+      { min: 0, type: 'whistle', text: `Começa o jogo! ${home} e ${away} em campo no ${stadiumName}.` }
+    ],
+    stats: {
+      posH: 50, posA: 50,
+      shotsH: 0, shotsA: 0,
+      targetH: 0, targetA: 0,
+      foulsH: 0, foulsA: 0,
+      cornersH: 0, cornersA: 0,
+      yellowsH: 0, yellowsA: 0,
+      redsH: 0, redsA: 0
+    },
+    stadium: {
+      name: stadiumName,
+      capacity: stadiumCap,
+      attendance,
+      pitch: stadiumPitch,
+      upgrades: stadiumUpgrades
+    },
+    homePosture: 'Equilibrada',
+    awayPosture: 'Equilibrada',
+    prelecao: 'Sem preleção',
+    subsLeft: 5,
+    autoSubAssistant: true,
+    halftimeTriggered: false,
+    homePlayers,
+    awayPlayers,
+    ball: {
+      x: 50, y: 50, z: 0,
+      vx: 0, vy: 0, vz: 0,
+      carrier: homePlayers[9] || homePlayers[0],
+      state: 'play'
+    },
+    particles: [],
+    soundMuted: false,
+    winners,
+    done: false
+  };
+
+  playWhistleSound();
+  renderLiveMatchModal();
+}
+
+function renderLiveMatchModal(){
+  let el = $('#matchModalContainer');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'matchModalContainer';
+    document.body.appendChild(el);
+  }
+
+  const s = liveMatchState;
+  if(!s){ el.remove(); return; }
+
+  const comp = curComp();
+  const occPct = Math.round(clamp((s.stadium.attendance / (s.stadium.capacity || 1)) * 100, 1, 100));
+  const minDisplay = String(Math.floor(s.timeSec / 60)).padStart(2, '0');
+  const secDisplay = String(Math.floor(s.timeSec % 60)).padStart(2, '0');
+
+  el.innerHTML = `
+    <div class="live-match-fullscreen">
+      <!-- HEADER COM BREADCRUMB E PLACAR FLUTUANTE -->
+      <div class="live-match-header">
+        <div class="live-match-breadcrumb">
+          INÍCIO &gt; CARREIRA ${esc(state.club.toUpperCase())} &gt; ${esc(s.home.slice(0,3).toUpperCase())} X ${esc(s.away.slice(0,3).toUpperCase())} &gt; <span style="color:#22c55e">AO VIVO</span>
+        </div>
+
+        <div class="live-scoreboard-floating">
+          <div class="live-scoreboard-comp">
+            🏆 ${esc(comp.name.toUpperCase())} · RODADA ${state.round + 1}
+          </div>
+          <div class="live-scoreboard-main">
+            <div class="live-scoreboard-team">
+              ${clubBadge(s.home, 26)}
+              <span>${esc(s.home)}</span>
+            </div>
+            <div class="live-scoreboard-score">
+              <span id="liveScoreH">${s.hg}</span> . <span id="liveScoreA">${s.ag}</span>
+            </div>
+            <div class="live-scoreboard-team">
+              <span>${esc(s.away)}</span>
+              ${clubBadge(s.away, 26)}
+            </div>
+          </div>
+          <div class="live-scoreboard-clock" id="liveClockDisplay">
+            ${minDisplay}:${secDisplay}
+          </div>
+        </div>
+
+        <div>
+          <button class="live-ctrl-btn" id="btnLiveClose" style="background:rgba(239,68,68,0.2);border-color:#ef4444;color:#fca5a5" title="Sair / Fechar">
+            ✕ Fechar
+          </button>
+        </div>
+      </div>
+
+      <!-- CORPO PRINCIPAL COM CAMPO 2.5D E LATERAL DE NARRAÇÃO -->
+      <div class="live-body-layout">
+        <div class="live-canvas-area" id="liveCanvasArea">
+          <div class="live-canvas-wrapper">
+            <!-- PILLS FLUTUANTES SOBRE O CAMPO -->
+            <div class="live-pitch-pills">
+              <div class="live-pitch-pill gold">
+                ${esc(s.stadium.name.toUpperCase())} · PÚBLICO <b>${s.stadium.attendance.toLocaleString('pt-BR')}</b>
+              </div>
+              <div class="live-pitch-pill">
+                ${esc(s.home.slice(0,3).toUpperCase())}: ${esc(s.homePosture.toUpperCase())}
+              </div>
+              <div class="live-pitch-pill" id="livePillAwayPosture">
+                ${esc(s.away.slice(0,3).toUpperCase())}: ${esc(s.awayPosture.toUpperCase())}
+              </div>
+              ${s.prelecao && s.prelecao !== 'Sem preleção' ? `
+                <div class="live-pitch-pill" id="livePillPrelecao" style="background:rgba(168,85,247,0.3);border-color:#a855f7;color:#e9d5ff">
+                  🗣️ PRELEÇÃO: ${esc(s.prelecao.toUpperCase())}
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- OVERLAY DE PAUSA -->
+            <div class="live-pause-pill" id="livePauseOverlay" style="display:${s.playing ? 'none' : 'inline-flex'}">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"></path></svg>
+              <span>Pausado · toque para continuar</span>
+            </div>
+
+            <!-- CANVAS 1280x720 DA TRANSMISSÃO -->
+            <canvas id="liveMatchCanvas" class="live-match-canvas" width="1280" height="720" aria-label="Transmissão da partida"></canvas>
+          </div>
+        </div>
+
+        <!-- SIDEBAR DE NARRAÇÃO AO VIVO -->
+        <div class="live-sidebar">
+          <div class="live-sidebar-header">
+            <span>• NARRAÇÃO AO VIVO</span>
+            <span style="font-size:11px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:4px" id="liveEventCount">${s.events.length}</span>
+          </div>
+          <div class="live-sidebar-feed" id="liveEventList">
+            ${s.events.map(e => `
+              <div class="live-sidebar-item ${e.type === 'gol' ? 'gol' : e.type === 'yellow' ? 'yellow' : e.type === 'red' ? 'red' : e.type === 'save' ? 'save' : ''}">
+                <b style="color:#fbbf24">${e.min}'</b>
+                <div>${esc(e.text)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- DOCK INFERIOR COM ESTATÍSTICAS E CONTROLES -->
+      <div class="live-bottom-dock">
+        <div class="live-dock-stats">
+          <div class="live-dock-stats-row">
+            <span id="liveShotsLabel">${s.stats.shotsH} FINALIZAÇÕES ${s.stats.shotsA}</span>
+            <span>
+              🟨 ${s.stats.yellowsH} 🟥 ${s.stats.redsH} &nbsp;&nbsp; CARTÕES &nbsp;&nbsp; 🟨 ${s.stats.yellowsA} 🟥 ${s.stats.redsA}
+            </span>
+          </div>
+          <div class="live-shots-bar">
+            <div class="live-shots-fill-home" id="liveShotsFillH" style="width:${(s.stats.shotsH+s.stats.shotsA) > 0 ? (s.stats.shotsH/(s.stats.shotsH+s.stats.shotsA)*100) : 50}%"></div>
+            <div class="live-shots-fill-away" id="liveShotsFillA" style="width:${(s.stats.shotsH+s.stats.shotsA) > 0 ? (s.stats.shotsA/(s.stats.shotsH+s.stats.shotsA)*100) : 50}%"></div>
+          </div>
+          <div class="live-dock-subtext">
+            ${esc(s.stadium.name.toUpperCase())} · Público presente <b>${s.stadium.attendance.toLocaleString('pt-BR')}</b> (${occPct}% da capacidade)
+          </div>
+        </div>
+
+        <div class="live-dock-controls">
+          <button class="live-ctrl-btn" id="btnLiveRewind10" title="Voltar 10 segundos">⏮ 10 s</button>
+          <button class="live-ctrl-btn ${s.speed === 1 ? 'active' : ''}" id="btnLiveSpeed1">1x</button>
+          <button class="live-ctrl-btn ${s.speed === 20 ? 'active' : ''}" id="btnLiveSpeed20">20x</button>
+          <button class="live-ctrl-btn ${s.speed === 40 ? 'active' : ''}" id="btnLiveSpeed40">40x</button>
+          
+          <button class="live-ctrl-btn play-circle" id="btnLivePlayToggle" title="Pausar / Continuar">
+            ${s.playing ? '⏸' : '▶'}
+          </button>
+          
+          <button class="live-ctrl-btn" id="btnLiveForward1" title="Avançar 1 minuto">⏩ 1 min</button>
+          <button class="live-ctrl-btn green-tactics" id="btnLiveTactics" title="Substituições e Tática">
+            ⚡ MEXER NO TIME
+          </button>
+          <button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Pular para o intervalo">⏩| PULAR 1º TEMPO</button>
+          <button class="live-ctrl-btn" id="btnLiveSkipEnd" title="Simular até o apito final">⏭| IR AO FIM</button>
+          <button class="live-ctrl-btn" id="btnLiveReplay" title="Rever último lance">↺ REPLAY</button>
+          <button class="live-ctrl-btn" id="btnLiveSound" title="Ligar/Desligar som">
+            ${s.soundMuted ? '🔇 MUDO' : '🔊 SOM'}
+          </button>
+          ${s.done ? `<button class="live-ctrl-btn" id="btnLiveAdvanceRound" style="background:#22c55e;color:#000;font-weight:900">AVANÇAR RODADA ➔</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Inicializa o Canvas e inicia o renderizador loop
+  setupLiveCanvasLoop();
+  bindLiveMatchEvents();
+}
+
+let liveCanvasAnimId = null;
+
+function setupLiveCanvasLoop(){
+  if(liveCanvasAnimId) cancelAnimationFrame(liveCanvasAnimId);
+  const canvas = $('#liveMatchCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  function loop(){
+    const s = liveMatchState;
+    if(!s || !$('#liveMatchCanvas')){
+      cancelAnimationFrame(liveCanvasAnimId);
+      return;
+    }
+
+    // Se estiver jogando, executa os ticks da partida baseados na velocidade
+    if(s.playing && !s.done){
+      const dtSec = s.speed === 40 ? 1.6 : s.speed === 20 ? 0.8 : 0.08;
+      updateLiveMatchPhysics(dtSec);
+    }
+
+    drawLiveStadium(ctx, s);
+    liveCanvasAnimId = requestAnimationFrame(loop);
+  }
+  liveCanvasAnimId = requestAnimationFrame(loop);
+}
+
+// Projeção perspectiva 2.5D (px, py em porcentagem 0..100)
+function proj(px, py){
+  const t = clamp(py / 100, 0, 1);
+  const screenY = 190 + t * 340;
+  const leftX = 240 - t * 200;
+  const rightX = 1040 + t * 200;
+  const screenX = leftX + (px / 100) * (rightX - leftX);
+  return { x: screenX, y: screenY };
+}
+
+function drawLiveStadium(ctx, s){
+  ctx.clearRect(0, 0, 1280, 720);
+
+  // 1. Céu e Neblina do Estádio
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, 180);
+  skyGrad.addColorStop(0, '#0a101a');
+  skyGrad.addColorStop(0.6, '#1a2433');
+  skyGrad.addColorStop(1, '#2c3748');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, 1280, 200);
+
+  // 2. Arquibancada Superior (Fundo)
+  const standTop = 100, standBottom = 190;
+  ctx.fillStyle = '#1e2837';
+  ctx.beginPath();
+  ctx.moveTo(140, standTop);
+  ctx.lineTo(1140, standTop);
+  ctx.lineTo(1040, standBottom);
+  ctx.lineTo(240, standBottom);
+  ctx.closePath();
+  ctx.fill();
+
+  // Degraus da Arquibancada Superior
+  const tiers = 6;
+  for(let i=0; i<tiers; i++){
+    const ty = standTop + (i / tiers) * (standBottom - standTop);
+    const lx = 140 + (i / tiers) * 100;
+    const rx = 1140 - (i / tiers) * 100;
+    ctx.strokeStyle = '#293547';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(lx, ty); ctx.lineTo(rx, ty);
+    ctx.stroke();
+
+    // Cadeiras ou Concreto
+    const hasChairs = s.stadium.upgrades?.chairs;
+    const crowdRate = clamp(s.stadium.attendance / (s.stadium.capacity || 1), 0.08, 0.95);
+    const chairCount = 42;
+    for(let c=0; c<chairCount; c++){
+      const cx = lx + (c / chairCount) * (rx - lx);
+      if(hasChairs){
+        ctx.fillStyle = (c % 2 === 0) ? '#2563eb' : '#dc2626';
+        ctx.fillRect(cx, ty - 3, 6, 4);
+      }
+      // Torcedores na arquibancada
+      if(Math.random() < crowdRate * 0.7){
+        ctx.fillStyle = (c % 3 === 0) ? '#fbbf24' : (c % 2 === 0) ? '#3b82f6' : '#ef4444';
+        ctx.beginPath();
+        ctx.arc(cx + 3, ty - 5, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Mosaico oficial na arquibancada se comprado
+  if(s.stadium.upgrades?.mosaic){
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(esc(s.home.toUpperCase().slice(0, 10)), 640, 140);
+  }
+
+  // Painel de LED Superior com Patrocinadores / Anúncios
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(230, 172, 820, 16);
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 9px monospace';
+  ctx.textAlign = 'center';
+  const adText = `BETANO • IFOOD • BYD • SAMSUNG • FATAL MODEL • NUBANK • ${s.home.toUpperCase()}`;
+  ctx.fillText(adText, 640, 184);
+
+  // Placar / Telão Superior se comprado
+  if(s.stadium.upgrades?.screen){
+    ctx.fillStyle = '#050811';
+    ctx.fillRect(560, 92, 160, 48);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(560, 92, 160, 48);
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText(`${s.home.slice(0,3)} ${s.hg} - ${s.ag} ${s.away.slice(0,3)}`, 640, 116);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 9px monospace';
+    ctx.fillText(`${Math.floor(s.timeSec/60)}'`, 640, 132);
+  }
+
+  // Torres de Refletores LED se compradas
+  if(s.stadium.upgrades?.ledLights){
+    // Torre Esquerda
+    ctx.fillStyle = '#64748b';
+    ctx.fillRect(175, 50, 10, 110);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(160, 40, 40, 14);
+    // Torre Direita
+    ctx.fillStyle = '#64748b';
+    ctx.fillRect(1095, 50, 10, 110);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(1080, 40, 40, 14);
+    // Fachos sutis de luz
+    const lightGlow = ctx.createRadialGradient(640, 360, 50, 640, 360, 600);
+    lightGlow.addColorStop(0, 'rgba(255,255,255,0.06)');
+    lightGlow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = lightGlow;
+    ctx.fillRect(0, 0, 1280, 720);
+  }
+
+  // 3. Arquibancadas Laterais (Esquerda e Direita em perspectiva)
+  ctx.fillStyle = '#17202d';
+  // Lateral Esquerda
+  ctx.beginPath();
+  ctx.moveTo(140, standTop);
+  ctx.lineTo(240, standBottom);
+  ctx.lineTo(40, 530);
+  ctx.lineTo(0, 530);
+  ctx.lineTo(0, 120);
+  ctx.closePath();
+  ctx.fill();
+
+  // Lateral Direita
+  ctx.beginPath();
+  ctx.moveTo(1140, standTop);
+  ctx.lineTo(1040, standBottom);
+  ctx.lineTo(1240, 530);
+  ctx.lineTo(1280, 530);
+  ctx.lineTo(1280, 120);
+  ctx.closePath();
+  ctx.fill();
+
+  // 4. Gramado em Perspectiva (Trapezóide)
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(240, 190);
+  ctx.lineTo(1040, 190);
+  ctx.lineTo(1240, 530);
+  ctx.lineTo(40, 530);
+  ctx.closePath();
+  ctx.clip();
+
+  // Faixas do Gramado (Verde Claro / Verde Escuro)
+  const isSynthetic = s.stadium.pitch === 'synthetic';
+  const isHybrid = s.stadium.pitch === 'hybrid';
+  const stripes = 12;
+  for(let i=0; i<stripes; i++){
+    const x0 = (i / stripes) * 100;
+    const x1 = ((i + 1) / stripes) * 100;
+    const p0t = proj(x0, 0), p1t = proj(x1, 0);
+    const p1b = proj(x1, 100), p0b = proj(x0, 100);
+
+    ctx.beginPath();
+    ctx.moveTo(p0t.x, p0t.y);
+    ctx.lineTo(p1t.x, p1t.y);
+    ctx.lineTo(p1b.x, p1b.y);
+    ctx.lineTo(p0b.x, p0b.y);
+    ctx.closePath();
+
+    if(isSynthetic){
+      ctx.fillStyle = (i % 2 === 0) ? '#229854' : '#27a35c';
+    } else if(isHybrid){
+      ctx.fillStyle = (i % 2 === 0) ? '#248645' : '#2b984f';
+    } else {
+      ctx.fillStyle = (i % 2 === 0) ? '#2d8c4e' : '#359f5a';
+    }
+    ctx.fill();
+  }
+
+  // Textura sutil sintética se for grama sintética
+  if(isSynthetic){
+    ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+    ctx.lineWidth = 1;
+    for(let sy=200; sy<530; sy+=12){
+      ctx.beginPath(); ctx.moveTo(40, sy); ctx.lineTo(1240, sy); ctx.stroke();
+    }
+  }
+
+  // 5. Marcações do Campo em Perspectiva
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2.5;
+
+  // Linhas Laterais e de Fundo
+  const cTL = proj(0, 0), cTR = proj(100, 0), cBR = proj(100, 100), cBL = proj(0, 100);
+  ctx.beginPath();
+  ctx.moveTo(cTL.x, cTL.y);
+  ctx.lineTo(cTR.x, cTR.y);
+  ctx.lineTo(cBR.x, cBR.y);
+  ctx.lineTo(cBL.x, cBL.y);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Linha do Meio de Campo
+  const mTop = proj(50, 0), mBot = proj(50, 100);
+  ctx.beginPath();
+  ctx.moveTo(mTop.x, mTop.y);
+  ctx.lineTo(mBot.x, mBot.y);
+  ctx.stroke();
+
+  // Círculo Central em Perspectiva (Elipse)
+  const center = proj(50, 50);
+  ctx.beginPath();
+  ctx.ellipse(center.x, center.y, 65, 32, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Ponto Central
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Área Grande Esquerda (Home)
+  const gL_tl = proj(16.5, 22), gL_tr = proj(16.5, 78);
+  const gL_bl = proj(0, 78), gL_br = proj(0, 22);
+  ctx.beginPath();
+  ctx.moveTo(gL_br.x, gL_br.y);
+  ctx.lineTo(gL_tl.x, gL_tl.y);
+  ctx.lineTo(gL_tr.x, gL_tr.y);
+  ctx.lineTo(gL_bl.x, gL_bl.y);
+  ctx.stroke();
+
+  // Pequena Área Esquerda
+  const sL_tl = proj(5.5, 36), sL_tr = proj(5.5, 64);
+  const sL_bl = proj(0, 64), sL_br = proj(0, 36);
+  ctx.beginPath();
+  ctx.moveTo(sL_br.x, sL_br.y);
+  ctx.lineTo(sL_tl.x, sL_tl.y);
+  ctx.lineTo(sL_tr.x, sL_tr.y);
+  ctx.lineTo(sL_bl.x, sL_bl.y);
+  ctx.stroke();
+
+  // Área Grande Direita (Away)
+  const gR_tl = proj(83.5, 22), gR_tr = proj(83.5, 78);
+  const gR_bl = proj(100, 78), gR_br = proj(100, 22);
+  ctx.beginPath();
+  ctx.moveTo(gR_br.x, gR_br.y);
+  ctx.lineTo(gR_tl.x, gR_tl.y);
+  ctx.lineTo(gR_tr.x, gR_tr.y);
+  ctx.lineTo(gR_bl.x, gR_bl.y);
+  ctx.stroke();
+
+  // Pequena Área Direita
+  const sR_tl = proj(94.5, 36), sR_tr = proj(94.5, 64);
+  const sR_bl = proj(100, 64), sR_br = proj(100, 36);
+  ctx.beginPath();
+  ctx.moveTo(sR_br.x, sR_br.y);
+  ctx.lineTo(sR_tl.x, sR_tl.y);
+  ctx.lineTo(sR_tr.x, sR_tr.y);
+  ctx.lineTo(sR_bl.x, sR_bl.y);
+  ctx.stroke();
+
+  // Bandeirinhas de Escanteio nos 4 cantos
+  [cTL, cTR, cBR, cBL].forEach((pt, idx) => {
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pt.x, pt.y);
+    ctx.lineTo(pt.x, pt.y - 14);
+    ctx.stroke();
+
+    ctx.fillStyle = idx % 2 === 0 ? '#ef4444' : '#fbbf24';
+    ctx.beginPath();
+    ctx.moveTo(pt.x, pt.y - 14);
+    ctx.lineTo(pt.x + 8, pt.y - 10);
+    ctx.lineTo(pt.x, pt.y - 6);
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  ctx.restore();
+
+  // Borda de Anel de LED ao redor do campo se comprado
+  if(s.stadium.upgrades?.ledRing){
+    ctx.strokeStyle = 'rgba(168,85,247,0.7)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(36, 186, 1208, 348);
+  }
+
+  // 6. Traves e Redes em 3D
+  // Gol Esquerdo
+  const gL_top = proj(0, 42), gL_bot = proj(0, 58);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(gL_top.x, gL_top.y);
+  ctx.lineTo(gL_top.x - 22, gL_top.y - 18);
+  ctx.lineTo(gL_bot.x - 22, gL_bot.y - 18);
+  ctx.lineTo(gL_bot.x, gL_bot.y);
+  ctx.stroke();
+  // Rede esquerda
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.beginPath();
+  ctx.moveTo(gL_top.x, gL_top.y);
+  ctx.lineTo(gL_top.x - 22, gL_top.y - 18);
+  ctx.lineTo(gL_bot.x - 22, gL_bot.y - 18);
+  ctx.lineTo(gL_bot.x, gL_bot.y);
+  ctx.closePath();
+  ctx.fill();
+
+  // Gol Direito
+  const gR_top = proj(100, 42), gR_bot = proj(100, 58);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(gR_top.x, gR_top.y);
+  ctx.lineTo(gR_top.x + 22, gR_top.y - 18);
+  ctx.lineTo(gR_bot.x + 22, gR_bot.y - 18);
+  ctx.lineTo(gR_bot.x, gR_bot.y);
+  ctx.stroke();
+  // Rede direita
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.beginPath();
+  ctx.moveTo(gR_top.x, gR_top.y);
+  ctx.lineTo(gR_top.x + 22, gR_top.y - 18);
+  ctx.lineTo(gR_bot.x + 22, gR_bot.y - 18);
+  ctx.lineTo(gR_bot.x, gR_bot.y);
+  ctx.closePath();
+  ctx.fill();
+
+  // 7. Bancos de Reservas na Linha Inferior
+  drawDugouts(ctx, s);
+
+  // 8. Desenha Todos os Jogadores Ordenados por Y (profundidade)
+  const allPlayers = [...s.homePlayers, ...s.awayPlayers];
+  allPlayers.sort((a, b) => a.y - b.y);
+
+  allPlayers.forEach(p => {
+    drawPlayerSprite(ctx, p, s.ball.carrier === p);
+  });
+
+  // 9. Desenha a Bola de Futebol
+  drawBall(ctx, s.ball);
+
+  // 10. Efeitos de Sinalizadores e Fumaça se comprados
+  if(s.stadium.upgrades?.flares && s.particles.length){
+    s.particles.forEach((pt, idx) => {
+      ctx.fillStyle = pt.color;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+      ctx.fill();
+      pt.y -= pt.vy;
+      pt.size += 0.15;
+      pt.alpha -= 0.02;
+    });
+    s.particles = s.particles.filter(pt => pt.alpha > 0);
+  }
+}
+
+// Desenha os Bancos de Reservas com reservas e técnicos
+function drawDugouts(ctx, s){
+  const by = 555;
+  // Banco Casa (Home)
+  ctx.fillStyle = 'rgba(15,23,42,0.85)';
+  ctx.fillRect(250, by, 260, 48);
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(250, by, 260, 48);
+
+  // Reservas sentados
+  for(let i=0; i<7; i++){
+    ctx.fillStyle = '#1e3a8a';
+    ctx.beginPath();
+    ctx.arc(268 + i * 26, by + 18, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.arc(268 + i * 26, by + 12, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Técnico Casa em pé
+  ctx.fillStyle = '#0284c7';
+  ctx.fillRect(455, by + 4, 14, 26);
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath();
+  ctx.arc(462, by - 2, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 8px Inter, sans-serif';
+  ctx.fillText('TÉC. AQUINO', 462, by + 38);
+
+  // Banco Visitante (Away)
+  ctx.fillStyle = 'rgba(15,23,42,0.85)';
+  ctx.fillRect(770, by, 260, 48);
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(770, by, 260, 48);
+
+  // Reservas visitantes sentados
+  for(let i=0; i<7; i++){
+    ctx.fillStyle = '#991b1b';
+    ctx.beginPath();
+    ctx.arc(788 + i * 26, by + 18, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.arc(788 + i * 26, by + 12, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Técnico Visitante em pé
+  ctx.fillStyle = '#b91c1c';
+  ctx.fillRect(975, by + 4, 14, 26);
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath();
+  ctx.arc(982, by - 2, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 8px Inter, sans-serif';
+  ctx.fillText('TÉC. TÉCNICO', 982, by + 38);
+}
+
+// Desenha o sprite do jogador no canvas com animações de corrida, chute, mergulho e comemoração
+function drawPlayerSprite(ctx, p, hasBall){
+  const pt = proj(p.x, p.y);
+  const scale = 0.8 + (p.y / 100) * 0.45; // Jogadores na parte inferior são maiores
+
+  ctx.save();
+  ctx.translate(pt.x, pt.y);
+
+  // Se o goleiro estiver mergulhando para espalmar:
+  if(p.diving){
+    const angle = (p.diveDir || 1) * Math.PI * 0.28;
+    ctx.rotate(angle);
+  }
+
+  // Sombra sob os pés (escala com a altura se estiver mergulhando ou saltando)
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 8 * scale, 3.5 * scale, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Indicador amarelo/ouro para o jogador com a posse de bola
+  if(hasBall){
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 14 * scale, 6 * scale, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Se estiver comemorando gol:
+  if(p.celebrating){
+    // Estrela/brilho no topo
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(0, -38 * scale, 3 * scale, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Pés / Chuteiras (animadas conforme a corrida ou chute)
+  const isKicking = (p.kickTimer || 0) > 0;
+  const legOffset = isKicking ? (8 * scale) : Math.sin(p.animFrame || 0) * (4 * scale);
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(-4 * scale, -4 * scale + legOffset, 3 * scale, 5 * scale);
+  ctx.fillRect(1 * scale, -4 * scale - legOffset, 3 * scale, 5 * scale);
+
+  // Shorts
+  ctx.fillStyle = p.isGK ? '#15803d' : (p.team === 'home' ? '#ffffff' : '#0f172a');
+  ctx.fillRect(-5 * scale, -11 * scale, 10 * scale, 7 * scale);
+
+  // Tronco / Camisa
+  if(p.isGK){
+    ctx.fillStyle = '#22c55e'; // Goleiro com uniforme verde limão neon
+  } else if(p.team === 'home'){
+    ctx.fillStyle = '#1e3a8a'; // Mandante azul marinho
+  } else {
+    ctx.fillStyle = '#dc2626'; // Visitante vermelho
+  }
+  ctx.fillRect(-6 * scale, -21 * scale, 12 * scale, 10 * scale);
+
+  // Braços / Luvas (levantados em comemoração \o/ ou posicionados de goleiro)
+  ctx.fillStyle = p.isGK ? '#facc15' : '#fed7aa';
+  if(p.celebrating){
+    // Braços erguidos para cima!
+    ctx.fillRect(-9 * scale, -30 * scale, 3 * scale, 11 * scale);
+    ctx.fillRect(6 * scale, -30 * scale, 3 * scale, 11 * scale);
+  } else if(p.diving){
+    // Braços esticados para frente/lado do mergulho
+    ctx.fillRect(-12 * scale, -22 * scale, 6 * scale, 4 * scale);
+    ctx.fillRect(6 * scale, -22 * scale, 6 * scale, 4 * scale);
+  } else {
+    ctx.fillRect(-8 * scale, -19 * scale - legOffset * 0.5, 3 * scale, 7 * scale);
+    ctx.fillRect(5 * scale, -19 * scale + legOffset * 0.5, 3 * scale, 7 * scale);
+  }
+
+  // Cabeça e Cabelo
+  ctx.fillStyle = '#fed7aa'; // Pele
+  ctx.beginPath();
+  ctx.arc(0, -25 * scale, 5 * scale, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = (hashStr(p.name) % 3 === 0) ? '#172554' : (hashStr(p.name) % 2 === 0) ? '#451a03' : '#713f12';
+  ctx.beginPath();
+  ctx.arc(0, -27 * scale, 5 * scale, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  // Nome do jogador abaixo dele
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${Math.round(8 * scale)}px Inter, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.shadowColor = '#000000';
+  ctx.shadowBlur = 4;
+  ctx.fillText(p.name, 0, 11 * scale);
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
+// Desenha a Bola com sombra 3D, rotação e rastro de chute
+function drawBall(ctx, b){
+  const pt = proj(b.x, b.y);
+  const ballAlt = (b.z || 0);
+  const ballY = pt.y - ballAlt * 2.2;
+
+  // 1. Rastro de movimento do chute
+  if(b.trail && b.trail.length){
+    b.trail.forEach(t => {
+      const tPt = proj(t.x, t.y);
+      const tY = tPt.y - (t.z || 0) * 2.2;
+      ctx.fillStyle = `rgba(250, 204, 21, ${t.alpha * 0.5})`;
+      ctx.beginPath();
+      ctx.arc(tPt.x, tY - 4, 3 * (t.alpha || 1), 0, Math.PI * 2);
+      ctx.fill();
+      t.alpha -= 0.08;
+    });
+    b.trail = b.trail.filter(t => t.alpha > 0);
+  }
+
+  // 2. Sombra 3D da bola no gramado (fica menor e mais suave quando a bola sobe)
+  const shadowScale = clamp(1 - ballAlt / 20, 0.35, 1.0);
+  const shadowAlpha = clamp(0.4 - ballAlt / 35, 0.12, 0.45);
+  ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+  ctx.beginPath();
+  ctx.ellipse(pt.x, pt.y, 4.5 * shadowScale, 2.4 * shadowScale, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 3. Bola de Futebol com gomos e rotação
+  ctx.save();
+  ctx.translate(pt.x, ballY - 4);
+  ctx.rotate(b.spin || 0);
+
+  // Corpo da bola branca
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(0, 0, 4.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  // Detalhe pentágono no centro da bola (estilo clássico Telstar)
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.arc(0, 0, 1.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function generateGoalNarration(shooter, teamName, isHome){
+  const ovr = shooter?.overall || 65;
+  const name = shooter?.name || 'Atacante';
+
+  // Jogadores com Overall 80+ têm chance de gol antológico de bicicleta ou voleio
+  if(ovr >= 80 && Math.random() < 0.45){
+    const specials = [
+      `🚲 GOLAÇO ANTOLÓGICO DE BICICLETA! ${name} acerta uma bicicleta perfeita no ângulo indefensável! Pintura histórica do ${teamName}!`,
+      `🎯 OBRA DE ARTE DE TRIVELA! ${name} chapa de três dedos na gaveta! Curva espetacular estufando as redes para o ${teamName}!`,
+      `🚀 VOLEIO CINEMATOGRÁFICO! ${name} pega de primeira na veia, a bola explode no travessão e entra! Golaço do ${teamName}!`
+    ];
+    return specials[Math.floor(Math.random() * specials.length)];
+  }
+
+  // Jogadores com Overall 74+ têm chance de trivela ou chutaço no ângulo
+  if(ovr >= 74 && Math.random() < 0.50){
+    const highMoves = [
+      `🎯 GOL DE TRIVELA! ${name} bate com curva venenosa de fora da área e encontra o cantinho para o ${teamName}!`,
+      `💥 BOMBAÇA NO ÂNGULO! ${name} solta um míssil teleguiado de média distância! O goleiro nem pulou! Gol do ${teamName}!`,
+      `⚡ DRIBLE DESCONCERTANTE E GOL! ${name} entorta o zagueiro com ginga brasileira e toca com categoria para o ${teamName}!`
+    ];
+    return highMoves[Math.floor(Math.random() * highMoves.length)];
+  }
+
+  const standard = [
+    `⚽ GOL DO ${teamName}! ${name} recebe passe açucarado e bate cruzado firme no cantinho!`,
+    `⚽ TESTAÇO CERTEIRO! ${name} sobe no terceiro andar após cruzamento e estufa o barbante para o ${teamName}!`,
+    `⚽ É REDE! ${name} aproveita sobra de bola na grande área e fuzila sem chances de defesa para o ${teamName}!`
+  ];
+  return standard[Math.floor(Math.random() * standard.length)];
+}
+
+function simulateMatchSegment(startMin, endMin){
+  const s = liveMatchState;
+  if(!s) return;
+  const hs = teamStrengthByName(s.home) * 1.12; // Bônus de mando de campo (+12%)
+  const as = teamStrengthByName(s.away);
+  
+  let curM = Math.max(startMin + rnd(2, 4), 1);
+  while(curM <= endMin){
+    const hRoll = hs * (0.85 + Math.random() * 0.35);
+    const aRoll = as * (0.85 + Math.random() * 0.35);
+    const isHomeAttack = Math.random() < (hRoll / (hRoll + aRoll));
+    const attackingTeam = isHomeAttack ? s.home : s.away;
+    const defendingTeam = isHomeAttack ? s.away : s.home;
+    const attackingPlayers = isHomeAttack ? s.homePlayers : s.awayPlayers;
+    const defendingPlayers = isHomeAttack ? s.awayPlayers : s.homePlayers;
+    
+    const forwards = attackingPlayers.filter(p => ['ST', 'CF', 'RW', 'LW', 'AM'].includes(p.pos));
+    const shooter = (forwards.length && Math.random() < 0.75) 
+      ? forwards[Math.floor(Math.random() * forwards.length)] 
+      : attackingPlayers[Math.floor(Math.random() * (attackingPlayers.length - 1)) + 1];
+    const gk = defendingPlayers[0] || { name: 'Goleiro' };
+
+    if(isHomeAttack) s.stats.shotsH++; else s.stats.shotsA++;
+    const roll = Math.random();
+    const ovr = shooter.overall || 65;
+    const isUnderdog = isHomeAttack ? (hs < as - 5) : (as < hs - 5);
+    const underdogBonus = isUnderdog ? 0.08 : 0;
+    const goalProb = clamp((ovr - 55) * 0.012 + (isHomeAttack ? 0.22 : 0.18) + underdogBonus, 0.14, 0.44);
+
+    if(roll < goalProb){
+      if(isHomeAttack) s.hg++; else s.ag++;
+      const txt = generateGoalNarration(shooter, attackingTeam, isHomeAttack);
+      s.events.unshift({ min: curM, type: 'gol', text: txt });
+    } else if(roll < goalProb + 0.45){
+      if(isHomeAttack) s.stats.targetH++; else s.stats.targetA++;
+      const saveTexts = [
+        `🧤 ESPETACULAR! ${gk.name} salta no cantinho e faz defesa milagrosa em finalização de ${shooter.name}!`,
+        `🧤 DEFESASSA! ${shooter.name} bate colocado de fora da área e ${gk.name} espalma com a ponta dos dedos!`,
+        `🧤 MILAGRE! Cara a cara com ${shooter.name}, o goleiro ${gk.name} cresce e fecha o ângulo!`
+      ];
+      s.events.unshift({ min: curM, type: 'save', text: saveTexts[Math.floor(Math.random() * saveTexts.length)] });
+      if(isHomeAttack) s.stats.cornersH++; else s.stats.cornersA++;
+    } else if(roll < goalProb + 0.58){
+      s.events.unshift({ min: curM, type: 'post', text: `💥 NO POSTE! ${shooter.name} solta uma bomba que carimba o travessão do ${defendingTeam}!` });
+    } else if(Math.random() < 0.40){
+      const def = defendingPlayers[Math.floor(Math.random() * (defendingPlayers.length - 1)) + 1];
+      if(isHomeAttack) s.stats.foulsA++; else s.stats.foulsH++;
+      if(Math.random() < 0.35){
+        if(!isHomeAttack) s.stats.yellowsH++; else s.stats.yellowsA++;
+        s.events.unshift({ min: curM, type: 'yellow', text: `🟨 Cartão amarelo para ${def.name} por entrada dura.` });
+      } else {
+        s.events.unshift({ min: curM, type: 'whistle', text: `⚔️ Desarme forte de ${def.name} na linha de fundo.` });
+      }
+    } else {
+      s.events.unshift({ min: curM, type: 'whistle', text: `⚡ Jogada rápida do ${attackingTeam}: ${shooter.name} arrisca cruzado e a bola passa tirando tinta da trave!` });
+    }
+
+    curM += rnd(4, 8);
+  }
+}
+
+// Atualiza a física e movimentação realista da partida
+function updateLiveMatchPhysics(dtSec){
+  const s = liveMatchState;
+  if(!s || s.done) return;
+
+  // Temporizador de comemoração de gol
+  if(s.goalCelebrationTimer > 0){
+    s.goalCelebrationTimer -= dtSec;
+    // Anima jogadores correndo para comemorar
+    const scorer = s.lastScorer;
+    const team = scorer?.team === 'home' ? s.homePlayers : s.awayPlayers;
+    if(scorer){
+      scorer.x += (scorer.targetX - scorer.x) * 0.08;
+      scorer.y += (scorer.targetY - scorer.y) * 0.08;
+      scorer.animFrame = (scorer.animFrame || 0) + 0.3;
+      team.forEach(p => {
+        if(p !== scorer){
+          p.x += (scorer.x - p.x) * 0.05;
+          p.y += (scorer.y - p.y) * 0.05;
+          p.animFrame = (p.animFrame || 0) + 0.2;
+          p.celebrating = true;
+        }
+      });
+    }
+    if(s.goalCelebrationTimer <= 0){
+      team.forEach(p => { p.celebrating = false; });
+      if(scorer) scorer.celebrating = false;
+      s.awayPlayers.forEach(p => { p.diving = false; });
+      s.homePlayers.forEach(p => { p.diving = false; });
+      resetKickoff(scorer?.team === 'home' ? 'away' : 'home');
+    }
+    return;
+  }
+
+  s.timeSec += dtSec * 12; // Avanço proporcional do tempo
+  s.minute = Math.floor(s.timeSec / 60);
+
+  // Atualiza o relógio no topo
+  const minDisp = String(Math.floor(s.timeSec / 60)).padStart(2, '0');
+  const secDisp = String(Math.floor(s.timeSec % 60)).padStart(2, '0');
+  const clk = $('#liveClockDisplay');
+  if(clk) clk.textContent = `${minDisp}:${secDisp}`;
+
+
+  // Configurações e Modificadores de Postura Tática
+  function getPostureConfig(posture){
+    switch(posture){
+      case 'Retranca':
+        return { lineOffset: -16, pressSpeed: 0.05, shotFreq: 0.022, tackleBonus: 0.18, stamBurn: 0.75, speedMult: 0.85 };
+      case 'Defensiva':
+        return { lineOffset: -9, pressSpeed: 0.07, shotFreq: 0.032, tackleBonus: 0.10, stamBurn: 0.88, speedMult: 0.92 };
+      case 'Ofensiva':
+        return { lineOffset: +13, pressSpeed: 0.11, shotFreq: 0.065, tackleBonus: 0.00, stamBurn: 1.25, speedMult: 1.15 };
+      case 'Pressão total':
+        return { lineOffset: +23, pressSpeed: 0.16, shotFreq: 0.090, tackleBonus: 0.22, stamBurn: 1.70, speedMult: 1.30 };
+      default: // Equilibrada
+        return { lineOffset: 0, pressSpeed: 0.08, shotFreq: 0.045, tackleBonus: 0.00, stamBurn: 1.0, speedMult: 1.0 };
+    }
+  }
+
+  const hCfg = getPostureConfig(s.homePosture || 'Equilibrada');
+  const aCfg = getPostureConfig(s.awayPosture || 'Equilibrada');
+
+  // Efeito Direto da Preleção (afeta o time do usuário)
+  const isUserHome = (s.home === state.club);
+  const speech = s.prelecao || 'Sem preleção';
+  let speechShotMod = 1.0, speechTackleMod = 1.0, speechPassMod = 1.0, speechStamMod = 1.0;
+  if(speech === 'Manter a calma'){
+    speechPassMod = 1.35; // Passes mais seguros
+    speechStamMod = 0.85; // Menor desgaste
+  } else if(speech === 'Cobrar o time'){
+    speechShotMod = 1.30; // Mais chutes
+    speechStamMod = 1.10;
+  } else if(speech === 'Elogiar o time'){
+    speechShotMod = 1.20; // Mais pontaria e moral
+    speechStamMod = 0.95;
+  } else if(speech === 'Pedir raça'){
+    speechTackleMod = 1.40; // Desarmes duros e pressão agressiva
+    speechStamMod = 1.25; // Maior desgaste físico
+  }
+
+  // Desgaste de Stamina / Cansaço calibrado por postura e preleção
+  const isSynthetic = s.stadium.pitch === 'synthetic';
+  const staminaBurnRate = isSynthetic ? 0.045 : 0.025; // Grama sintética cansa mais rápido!
+  s.homePlayers.forEach(p => { 
+    const stamMod = hCfg.stamBurn * (isUserHome ? speechStamMod : 1.0);
+    p.stamina = clamp(p.stamina - staminaBurnRate * dtSec * stamMod, 15, 100); 
+    if(p.kickTimer > 0) p.kickTimer -= dtSec;
+  });
+  s.awayPlayers.forEach(p => { 
+    const stamMod = aCfg.stamBurn * (!isUserHome ? speechStamMod : 1.0);
+    p.stamina = clamp(p.stamina - staminaBurnRate * dtSec * stamMod, 15, 100); 
+    if(p.kickTimer > 0) p.kickTimer -= dtSec;
+  });
+
+  // Verificação de Intervalo aos 45 minutos (2700 seg)
+  if(s.timeSec >= 2700 && !s.halftimeTriggered){
+    s.timeSec = 2700;
+    s.halftimeTriggered = true;
+    s.playing = false;
+    playWhistleSound();
+    s.events.unshift({ min: 45, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
+    updateLiveSidebarEvents();
+    openHalftimeModal();
+    return;
+  }
+
+  // Verificação de Fim de Jogo aos 90 minutos (5400 seg)
+  if(s.timeSec >= 5400){
+    s.timeSec = 5400;
+    finishLiveMatch();
+    return;
+  }
+
+  s.ball.trail = s.ball.trail || [];
+
+  // ==============================================================
+  // ESTADO 1: BOLA EM PASSE (TRAJETÓRIA SUAVE ENTRE JOGADORES)
+  // ==============================================================
+  if(s.ball.mode === 'pass'){
+    const passSpeed = (s.speed === 40 ? 5.5 : s.speed === 20 ? 3.8 : 1.7) * speechPassMod;
+    s.ball.progress = (s.ball.progress || 0) + dtSec * passSpeed;
+    s.ball.spin = (s.ball.spin || 0) + 0.3;
+
+    const pr = clamp(s.ball.progress, 0, 1);
+    s.ball.x = s.ball.startX + (s.ball.targetX - s.ball.startX) * pr;
+    s.ball.y = s.ball.startY + (s.ball.targetY - s.ball.startY) * pr;
+    s.ball.z = Math.sin(pr * Math.PI) * (s.ball.curveZ || 2.5);
+
+    // O recebedor dá um passo em direção à bola para dominar
+    const targetP = s.ball.targetPlayer;
+    if(targetP){
+      targetP.x += (s.ball.x - targetP.x) * 0.12;
+      targetP.y += (s.ball.y - targetP.y) * 0.12;
+      targetP.animFrame = (targetP.animFrame || 0) + 0.2;
+    }
+
+    if(s.ball.progress >= 1.0){
+      // Domínio de bola concluído!
+      s.ball.mode = 'dribble';
+      s.ball.carrier = targetP || s.homePlayers[0];
+      s.ball.z = 0;
+      s.ball.targetPlayer = null;
+    }
+  }
+
+  // ==============================================================
+  // ESTADO 2: BOLA EM FINALIZAÇÃO / CHUTE A GOL (VELOCIDADE E ARCO)
+  // ==============================================================
+  else if(s.ball.mode === 'shot'){
+    const shotSpeed = s.speed === 40 ? 7.0 : s.speed === 20 ? 5.2 : 2.4;
+    s.ball.progress = (s.ball.progress || 0) + dtSec * shotSpeed;
+    s.ball.spin = (s.ball.spin || 0) + 0.5;
+
+    const pr = clamp(s.ball.progress, 0, 1);
+    s.ball.x = s.ball.startX + (s.ball.targetX - s.ball.startX) * pr;
+    s.ball.y = s.ball.startY + (s.ball.targetY - s.ball.startY) * pr;
+    s.ball.z = Math.sin(pr * Math.PI) * (s.ball.curveZ || 7.5);
+
+    // Rastro da bola em alta velocidade
+    if(Math.random() < 0.6){
+      s.ball.trail.push({ x: s.ball.x, y: s.ball.y, z: s.ball.z, alpha: 1.0 });
+    }
+
+    // O goleiro adversário mergulha em direção à trajetória
+    const defendingGK = s.defendingGK;
+    if(defendingGK){
+      defendingGK.diving = true;
+      defendingGK.y += (s.ball.targetY - defendingGK.y) * 0.22;
+      defendingGK.animFrame = (defendingGK.animFrame || 0) + 0.3;
+    }
+
+    if(s.ball.progress >= 1.0){
+      // Chegada da bola na linha de gol / rede!
+      const outcome = s.ball.shotOutcome;
+      const shooter = s.ball.shooter;
+      const isHome = shooter?.team === 'home';
+
+      if(outcome === 'gol'){
+        // GOL CONFIRMADO!
+        if(isHome) s.hg++; else s.ag++;
+        playCheerSound();
+        const goalText = generateGoalNarration(shooter, isHome ? s.home : s.away, isHome);
+        s.events.unshift({
+          min: s.minute,
+          type: 'gol',
+          text: goalText
+        });
+        showLiveBanner(`⚽ GOL DO ${isHome ? s.home : s.away}! ${shooter.name} aos ${s.minute}'!`, 'gol', 5000);
+
+        // Fumaça e sinalizadores se comprados
+        if(s.stadium.upgrades?.flares){
+          for(let i=0; i<35; i++){
+            s.particles.push({
+              x: 200 + Math.random() * 880,
+              y: 160 + Math.random() * 40,
+              size: 7,
+              vy: 0.9 + Math.random() * 1.6,
+              color: 'rgba(239, 68, 68, 0.75)',
+              alpha: 1
+            });
+          }
+        }
+
+        s.ball.mode = 'goal';
+        s.ball.z = 1.0;
+        s.goalCelebrationTimer = 3.2; // 3.2 segundos de comemoração na tela!
+        s.lastScorer = shooter;
+        shooter.celebrating = true;
+        shooter.targetX = isHome ? 92 : 8;
+        shooter.targetY = 16;
+      } else if(outcome === 'save'){
+        // Defesa do goleiro!
+        s.events.unshift({
+          min: s.minute,
+          type: 'save',
+          text: `🧤 ESPETACULAR! Defesa de ${defendingGK ? defendingGK.name : 'Goleiro'} em cima da linha!`
+        });
+        s.ball.mode = 'dribble';
+        s.ball.carrier = defendingGK;
+        s.ball.z = 0;
+        setTimeout(() => {
+          if(defendingGK) defendingGK.diving = false;
+        }, 1200);
+      } else {
+        // Na trave / raspando!
+        if(isHome) s.stats.cornersH++; else s.stats.cornersA++;
+        s.events.unshift({
+          min: s.minute,
+          type: 'post',
+          text: `💥 NA TRAVE! Finalização venenosa de ${shooter.name} estremece o travessão!`
+        });
+        s.ball.mode = 'dribble';
+        s.ball.carrier = defendingGK;
+        s.ball.z = 0;
+        if(defendingGK) defendingGK.diving = false;
+      }
+
+      updateScoreDisplay();
+      updateLiveSidebarEvents();
+    }
+  }
+
+  // ==============================================================
+  // ESTADO 3: POSSE DE BOLA NORMAL (DRIBLE, PRESSÃO E DECISÕES)
+  // ==============================================================
+  else {
+    const carrier = s.ball.carrier;
+    if(carrier){
+      const isHome = carrier.team === 'home';
+      const targetGoalX = isHome ? 96 : 4;
+      const dirX = targetGoalX > carrier.x ? 1 : -1;
+      const carrierCfg = isHome ? hCfg : aCfg;
+
+      // Condução de bola com ginga acelerada pela postura
+      carrier.x = clamp(carrier.x + dirX * (0.22 * carrierCfg.speedMult), 3, 97);
+      carrier.y = clamp(carrier.y + Math.sin(s.timeSec * 2.5) * 0.14, 10, 90);
+      carrier.animFrame = (carrier.animFrame || 0) + 0.28;
+
+      s.ball.x = carrier.x + dirX * 1.4;
+      s.ball.y = carrier.y;
+      s.ball.z = Math.abs(Math.sin(carrier.animFrame)) * 0.6; // Bola quica sutilmente no gramado
+      s.ball.spin = (s.ball.spin || 0) + 0.15;
+
+      // 1. O adversário mais próximo pressiona ativamente com intensidade da sua postura!
+      const opponents = (isHome ? s.awayPlayers : s.homePlayers).filter(p => !p.isGK);
+      const oppCfg = isHome ? aCfg : hCfg;
+      let nearestOpp = null;
+      let minDist = 999;
+      opponents.forEach(opp => {
+        const d = Math.hypot(opp.x - carrier.x, opp.y - carrier.y);
+        if(d < minDist){ minDist = d; nearestOpp = opp; }
+      });
+      if(nearestOpp && minDist > 3.0){
+        // Zagueiro/Volante corre de encontro ao portador da bola para fechar o espaço!
+        const pSpeed = oppCfg.pressSpeed * (nearestOpp.isUser ? speechTackleMod : 1.0);
+        nearestOpp.x += (carrier.x - nearestOpp.x) * pSpeed;
+        nearestOpp.y += (carrier.y - nearestOpp.y) * pSpeed;
+        nearestOpp.animFrame = (nearestOpp.animFrame || 0) + 0.25;
+      }
+
+      // 2. Companheiros de ataque atacam o espaço e abrem linhas de passe baseadas na postura
+      const teamCfg = isHome ? hCfg : aCfg;
+      const teammates = (isHome ? s.homePlayers : s.awayPlayers).filter(p => p !== carrier && !p.isGK);
+      teammates.forEach(tm => {
+        // Deslocamento da linha tática (Retranca puxa pra trás, Pressão total joga lá na frente)
+        const postureTargetX = clamp(tm.baseX + teamCfg.lineOffset * dirX, 4, 96);
+        if(tm.pos === 'ST' || tm.pos === 'LW' || tm.pos === 'RW' || tm.pos === 'AM'){
+          const runX = clamp(postureTargetX + dirX * 12, 5, 95);
+          tm.x += (runX - tm.x) * (0.05 * teamCfg.speedMult);
+        } else {
+          tm.x += (postureTargetX - tm.x) * (0.04 * teamCfg.speedMult);
+        }
+        tm.y += (tm.baseY - tm.y) * 0.04;
+        tm.animFrame = (tm.animFrame || 0) + 0.1;
+      });
+
+      // 3. Decisão da jogada de futebol: Chute, Passe articulado ou Drible/Desarme
+      const distToGoal = Math.abs(carrier.x - targetGoalX);
+      const shotProb = teamCfg.shotFreq * (carrier.isUser ? speechShotMod : 1.0);
+      if(distToGoal < 36 && Math.random() < shotProb * 1.5){
+        // Chute a gol com finalização realista!
+        shootAtGoal(carrier);
+      } else if(Math.random() < 0.11){
+        // Passe para companheiro melhor posicionado!
+        passBall(carrier);
+      } else if(minDist < 4.2 && Math.random() < 0.06){
+        // Disputa física / dividida de bola
+        attemptTackle(carrier);
+      }
+    }
+  }
+
+  // 4. Posicionamento inteligente dos goleiros ao longo da pequena área
+  const homeGK = s.homePlayers[0];
+  const awayGK = s.awayPlayers[0];
+  if(homeGK && !homeGK.diving){
+    homeGK.x = 3.5;
+    homeGK.y = clamp(homeGK.y + (s.ball.y - homeGK.y) * 0.06, 42, 58);
+  }
+  if(awayGK && !awayGK.diving){
+    awayGK.x = 96.5;
+    awayGK.y = clamp(awayGK.y + (s.ball.y - awayGK.y) * 0.06, 42, 58);
+  }
+}
+
+function shootAtGoal(shooter){
+  const s = liveMatchState;
+  const isHome = shooter.team === 'home';
+  playKickSound();
+
+  if(isHome) s.stats.shotsH++; else s.stats.shotsA++;
+  shooter.kickTimer = 0.45;
+
+  const defendingGK = isHome ? s.awayPlayers[0] : s.homePlayers[0];
+  s.defendingGK = defendingGK;
+
+  const hs = teamStrengthByName(s.home) * 1.12; // Bônus de mando de campo (+12%)
+  const as = teamStrengthByName(s.away);
+  const speechGoalMod = (shooter.isUser && s.prelecao === 'Elogiar o time') ? 1.25 : 1.0;
+
+  // Chance de zebra/underdog: times mais fracos têm bônus em contra-ataques
+  const isUnderdog = isHome ? (hs < as - 5) : (as < hs - 5);
+  const underdogBonus = isUnderdog ? 0.08 : 0;
+  const ovrBonus = ((shooter.overall || 65) - 60) * 0.007;
+
+  const goalChance = clamp(
+    (isHome ? (hs / 130) * 0.38 : (as / 130) * 0.35) * speechGoalMod + underdogBonus + ovrBonus,
+    0.15,
+    0.45
+  );
+  const roll = Math.random();
+  const outcome = roll < goalChance ? 'gol' : (roll < goalChance + 0.46 ? 'save' : 'post');
+
+  s.ball.carrier = null;
+  s.ball.mode = 'shot';
+  s.ball.shooter = shooter;
+  s.ball.startX = shooter.x;
+  s.ball.startY = shooter.y;
+  s.ball.targetX = isHome ? 99.5 : 0.5;
+  s.ball.targetY = 50 + rnd(-9, 9);
+  s.ball.progress = 0;
+  s.ball.curveZ = rnd(5.5, 8.5);
+  s.ball.shotOutcome = outcome;
+  s.ball.trail = [];
+}
+
+function passBall(passer){
+  const s = liveMatchState;
+  const isHome = passer.team === 'home';
+  const teammates = (isHome ? s.homePlayers : s.awayPlayers).filter(p => p !== passer && !p.isGK);
+  if(!teammates.length) return;
+
+  // Prioriza companheiro à frente ou livre
+  const dirX = isHome ? 1 : -1;
+  const forwardTeammates = teammates.filter(p => (p.x - passer.x) * dirX > -2);
+  const pool = forwardTeammates.length ? forwardTeammates : teammates;
+  const target = pool[rnd(0, pool.length - 1)];
+
+  playKickSound();
+  passer.kickTimer = 0.35;
+
+  s.ball.carrier = null;
+  s.ball.mode = 'pass';
+  s.ball.startX = passer.x;
+  s.ball.startY = passer.y;
+  s.ball.targetX = target.x;
+  s.ball.targetY = target.y;
+  s.ball.targetPlayer = target;
+  s.ball.progress = 0;
+  const dist = Math.hypot(target.x - passer.x, target.y - passer.y);
+  s.ball.curveZ = dist > 28 ? 4.5 : 1.8;
+}
+
+function attemptTackle(carrier){
+  const s = liveMatchState;
+  const isHome = carrier.team === 'home';
+  const opponents = (isHome ? s.awayPlayers : s.homePlayers).filter(p => !p.isGK);
+  const defender = opponents[rnd(0, opponents.length - 1)];
+  defender.kickTimer = 0.3;
+
+  const defPost = defender.team === 'home' ? (s.homePosture || 'Equilibrada') : (s.awayPosture || 'Equilibrada');
+  const postureBonus = (defPost === 'Retranca' ? 0.18 : defPost === 'Pressão total' ? 0.22 : 0);
+  const speechTackleBonus = (defender.isUser && s.prelecao === 'Pedir raça') ? 0.22 : 0;
+  const tackleWinProb = clamp(0.50 + postureBonus + speechTackleBonus, 0.40, 0.85);
+
+  if(Math.random() < tackleWinProb){
+    // Desarme limpo e retomada da posse!
+    s.ball.mode = 'dribble';
+    s.ball.carrier = defender;
+    s.ball.z = 0;
+  } else if(Math.random() < (s.prelecao === 'Manter a calma' && defender.isUser ? 0.08 : 0.16)){
+    // Falta marcada pelo juiz
+    playWhistleSound();
+    if(defender.team === 'home') s.stats.foulsH++; else s.stats.foulsA++;
+    if(Math.random() < 0.25){
+      if(defender.team === 'home') s.stats.yellowsH++; else s.stats.yellowsA++;
+      s.events.unshift({ min: s.minute, type: 'yellow', text: `🟨 Cartão amarelo para ${defender.name} por entrada dura!` });
+    } else {
+      s.events.unshift({ min: s.minute, type: 'whistle', text: `Falta de ${defender.name} no meio-campo.` });
+    }
+    updateLiveSidebarEvents();
+  }
+}
+
+function resetKickoff(restartingTeam){
+  const s = liveMatchState;
+  s.ball.mode = 'dribble';
+  s.ball.x = 50; s.ball.y = 50; s.ball.z = 0;
+  s.ball.trail = [];
+  const team = restartingTeam === 'home' ? s.homePlayers : s.awayPlayers;
+  // Reposiciona jogadores nas suas bases para o reinício
+  [...s.homePlayers, ...s.awayPlayers].forEach(p => {
+    p.x = p.baseX;
+    p.y = p.baseY;
+    p.diving = false;
+    p.celebrating = false;
+    p.kickTimer = 0;
+  });
+  s.ball.carrier = team[9] || team[0];
+}
+
+function updateScoreDisplay(){
+  const s = liveMatchState;
+  const sh = $('#liveScoreH'); if(sh) sh.textContent = s.hg;
+  const sa = $('#liveScoreA'); if(sa) sa.textContent = s.ag;
+  const shotsL = $('#liveShotsLabel');
+  if(shotsL) shotsL.textContent = `${s.stats.shotsH} FINALIZAÇÕES ${s.stats.shotsA}`;
+  const fillH = $('#liveShotsFillH'), fillA = $('#liveShotsFillA');
+  const tot = s.stats.shotsH + s.stats.shotsA;
+  if(fillH && fillA){
+    fillH.style.width = tot > 0 ? `${(s.stats.shotsH/tot)*100}%` : '50%';
+    fillA.style.width = tot > 0 ? `${(s.stats.shotsA/tot)*100}%` : '50%';
+  }
+}
+
+function updateLiveSidebarEvents(){
+  const s = liveMatchState;
+  const evList = $('#liveEventList');
+  if(evList){
+    evList.innerHTML = s.events.map(e => `
+      <div class="live-sidebar-item ${e.type === 'gol' ? 'gol' : e.type === 'yellow' ? 'yellow' : e.type === 'red' ? 'red' : e.type === 'save' ? 'save' : ''}">
+        <b style="color:#fbbf24">${e.min}'</b>
+        <div>${esc(e.text)}</div>
+      </div>
+    `).join('');
+  }
+  const count = $('#liveEventCount');
+  if(count) count.textContent = s.events.length;
+}
+
+function bindLiveMatchEvents(){
+  const s = liveMatchState;
+  if(!s) return;
+
+  // Toggle Pausa / Play
+  const btnPlay = $('#btnLivePlayToggle');
+  const overlay = $('#livePauseOverlay');
+  const canvas = $('#liveMatchCanvas');
+
+  function togglePlay(){
+    s.playing = !s.playing;
+    if(btnPlay) btnPlay.textContent = s.playing ? '⏸' : '▶';
+    if(overlay) overlay.style.display = s.playing ? 'none' : 'inline-flex';
+  }
+
+  if(btnPlay) btnPlay.onclick = togglePlay;
+  if(overlay) overlay.onclick = togglePlay;
+  if(canvas) canvas.onclick = togglePlay;
+
+  // Velocidades
+  const sp1 = $('#btnLiveSpeed1');
+  const sp20 = $('#btnLiveSpeed20');
+  const sp40 = $('#btnLiveSpeed40');
+  function setSpeed(v){
+    s.speed = v;
+    [sp1, sp20, sp40].forEach(b => b?.classList.remove('active'));
+    if(v === 1 && sp1) sp1.classList.add('active');
+    if(v === 20 && sp20) sp20.classList.add('active');
+    if(v === 40 && sp40) sp40.classList.add('active');
+  }
+  if(sp1) sp1.onclick = () => setSpeed(1);
+  if(sp20) sp20.onclick = () => setSpeed(20);
+  if(sp40) sp40.onclick = () => setSpeed(40);
+
+  // Botões de avanço e retrocesso
+  const btnRew10 = $('#btnLiveRewind10');
+  if(btnRew10) btnRew10.onclick = () => {
+    s.timeSec = Math.max(0, s.timeSec - 10);
+    toast('Voltando 10 segundos!');
+  };
+
+  const btnFwd1 = $('#btnLiveForward1');
+  if(btnFwd1) btnFwd1.onclick = () => {
+    s.timeSec = Math.min(5400, s.timeSec + 60);
+    toast('Avançando 1 minuto!');
+  };
+
+  // Botão Mexer no Time / Tática
+  const btnTactics = $('#btnLiveTactics');
+  if(btnTactics) btnTactics.onclick = () => {
+    s.playing = false;
+    if(btnPlay) btnPlay.textContent = '▶';
+    if(overlay) overlay.style.display = 'inline-flex';
+    openHalftimeModal(true);
+  };
+
+  // Pular para o Intervalo
+  const btnSkipHalf = $('#btnLiveSkipHalf');
+  if(btnSkipHalf) btnSkipHalf.onclick = () => {
+    simulateMatchSegment(s.minute, 45);
+    s.timeSec = 2700;
+    s.minute = 45;
+    s.halftimeTriggered = true;
+    s.playing = false;
+    playWhistleSound();
+    s.events.unshift({ min: 45, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
+    updateScoreDisplay();
+    updateLiveSidebarEvents();
+    openHalftimeModal();
+  };
+
+  // Simular até o fim
+  const btnSkipEnd = $('#btnLiveSkipEnd');
+  if(btnSkipEnd) btnSkipEnd.onclick = () => {
+    simulateMatchSegment(s.minute, 90);
+    s.timeSec = 5400;
+    s.minute = 90;
+    updateScoreDisplay();
+    updateLiveSidebarEvents();
+    finishLiveMatch();
+  };
+
+  // Som Ligar/Desligar
+  const btnSound = $('#btnLiveSound');
+  if(btnSound) btnSound.onclick = () => {
+    s.soundMuted = !s.soundMuted;
+    btnSound.textContent = s.soundMuted ? '🔇 MUDO' : '🔊 SOM';
+    toast(s.soundMuted ? 'Áudio desativado' : 'Áudio ativado');
+  };
+
+  // Fechar
+  const btnClose = $('#btnLiveClose');
+  if(btnClose) btnClose.onclick = () => {
+    if(confirm('Deseja realmente sair da transmissão ao vivo e avançar a rodada?')){
+      s.timeSec = 5400;
+      finishLiveMatch();
+    }
+  };
+
+  const btnAdv = $('#btnLiveAdvanceRound');
+  if(btnAdv) btnAdv.onclick = () => {
+    finalizeMatchRound();
+  };
+}
+
+// -------------------------------------------------------------
+// MODAL DE INTERVALO & SUBSTITUIÇÕES COM CANSAÇO (SCREENSHOT 4)
+// -------------------------------------------------------------
+let halftimeSelectedStarterKey = null;
+
+function openHalftimeModal(isQuickTactics = false){
+  const s = liveMatchState;
+  if(!s) return;
+
+  let modalEl = $('#halftimeModalContainer');
+  if(!modalEl){
+    modalEl = document.createElement('div');
+    modalEl.id = 'halftimeModalContainer';
+    document.body.appendChild(modalEl);
+  }
+
+  const scoreText = s.hg === s.ag 
+    ? 'empatando' 
+    : (s.home === state.club ? (s.hg > s.ag ? 'vencendo' : 'perdendo') : (s.ag > s.hg ? 'vencendo' : 'perdendo'));
+
+  const userStarters = (s.home === state.club ? s.homePlayers : s.awayPlayers);
+  const starterKeys = userStarters.map(p => p.key);
+  const userBench = state.squad.filter(p => !starterKeys.includes(playerKey(p)));
+  const currentForm = state.formation || '4-3-3';
+  const formDef = FORMATIONS[currentForm] || FORMATIONS['4-3-3'];
+
+  const speechDescriptions = {
+    'Manter a calma': '🛡️ <b>Efeito em Campo:</b> Passes mais calmos (+35% precisão), -50% faltas desnecessárias e preservação de fôlego (-15% de desgaste).',
+    'Cobrar o time': '⚡ <b>Efeito em Campo:</b> Postura enérgica, busca rápida pelo gol (+30% chutes ao gol) e maior entrega (+10% desgaste).',
+    'Elogiar o time': '⭐ <b>Efeito em Campo:</b> Moral no auge (+20% pontaria nas finalizações e defesas acrobáticas do goleiro).',
+    'Pedir raça': '🔥 <b>Efeito em Campo:</b> Intensidade máxima em divididas (+40% desarmes vencidos), marcação colada e desgaste acelerado (+25%).'
+  };
+
+  const currentPosture = (s.home === state.club ? s.homePosture : s.awayPosture) || 'Equilibrada';
+  const postureDescriptions = {
+    'Retranca': '🧱 <b>Efeito em Campo:</b> Linhas recuadas até a grande área (-16m), tranca os espaços e poupa físico (-25% desgaste).',
+    'Defensiva': '🛡️ <b>Efeito em Campo:</b> Linhas baixas (-9m), proteção à zaga e escape veloz nos contra-ataques.',
+    'Equilibrada': '⚖️ <b>Efeito em Campo:</b> Posicionamento base (0m), jogo cadenciado e equilíbrio entre ataque e defesa.',
+    'Ofensiva': '⚔️ <b>Efeito em Campo:</b> Linhas adiantadas (+13m), laterais no apoio e maior presença no ataque (+25% desgaste).',
+    'Pressão total': '🔥 <b>Efeito em Campo:</b> Blitz no campo adversário (+23m), abafa na saída de bola e desgaste físico máximo (+70%).'
+  };
+
+  modalEl.innerHTML = `
+    <div class="halftime-overlay">
+      <div class="halftime-card">
+        <!-- HEADER -->
+        <div class="halftime-header">
+          <div class="halftime-title-group">
+            <h2 style="font-size:20px;font-weight:900;letter-spacing:1px">${isQuickTactics ? 'SUBSTITUIÇÃO E TÁTICA' : 'INTERVALO'}</h2>
+            <div class="sub" style="font-size:13px;font-weight:800;color:#c084fc">VESTIÁRIO DO ${esc(state.club.toUpperCase())}</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:2px;font-weight:600">
+              O ${esc(state.club)} vai para o segundo tempo <span style="color:#facc15;font-weight:800">${scoreText}</span>.
+            </div>
+          </div>
+          <div class="halftime-scoreboard-badge" style="padding:6px 16px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:12px">
+            ${clubBadge(s.home, 32)}
+            <span style="font-size:18px;font-weight:900;letter-spacing:2px;margin:0 10px">${s.hg} - ${s.ag}</span>
+            ${clubBadge(s.away, 32)}
+          </div>
+        </div>
+
+        <!-- SEÇÃO PRELEÇÃO E POSTURA TÁTICA COMPACTA (SEM ROLAGEM) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;flex-shrink:0">
+          <!-- PRELEÇÃO -->
+          <div style="background:rgba(255,255,255,0.02);padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;gap:3px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:10px;font-weight:900;letter-spacing:1px;color:#a855f7;text-transform:uppercase">🗣️ PRELEÇÃO</span>
+              <span style="font-size:10px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px" id="halftimeSpeechDesc">${speechDescriptions[s.prelecao] || 'Sem instrução'}</span>
+            </div>
+            <div class="halftime-speech-row" style="display:flex;gap:4px;flex-wrap:wrap">
+              ${['Manter a calma', 'Cobrar o time', 'Elogiar o time', 'Pedir raça'].map(t => `
+                <button class="btn-halftime-speech ${s.prelecao === t ? 'active' : ''}" data-speech="${t}" style="font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px">
+                  ${t}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- POSTURA TÁTICA -->
+          <div style="background:rgba(255,255,255,0.02);padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;gap:3px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:10px;font-weight:900;letter-spacing:1px;color:#38bdf8;text-transform:uppercase">⚔️ POSTURA TÁTICA</span>
+              <span style="font-size:10px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px" id="halftimePostureDesc">${postureDescriptions[currentPosture] || 'Equilíbrio'}</span>
+            </div>
+            <div class="halftime-speech-row" style="display:flex;gap:4px;flex-wrap:wrap">
+              ${['Retranca', 'Defensiva', 'Equilibrada', 'Ofensiva', 'Pressão total'].map(p => `
+                <button class="btn-halftime-speech ${(s.home === state.club ? s.homePosture : s.awayPosture) === p ? 'active' : ''}" data-posture="${p}" style="font-size:11px;font-weight:800;padding:3px 7px;border-radius:6px">
+                  ${p}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- SEÇÃO SUBSTITUIÇÕES COM CAMPO E BANCO AMPLOS -->
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0;gap:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#141d2c;padding:5px 14px;border-radius:8px;flex-shrink:0">
+            <span style="font-size:12px;color:rgba(255,255,255,0.9);font-weight:700">
+              👉 <b>Toque em quem sai</b> (no campo à esquerda) e depois <b>em quem entra</b> (no banco à direita) para substituir.
+            </span>
+            <span style="font-size:12px;font-weight:900;color:#facc15;background:rgba(250,204,21,0.15);padding:2px 8px;border-radius:6px;border:1px solid #facc15">
+              ${s.subsLeft} trocas restantes
+            </span>
+          </div>
+
+          <div class="halftime-sub-container" style="flex:1;display:grid;grid-template-columns:1.25fr 0.75fr;gap:14px;min-height:0">
+            <!-- COLUNA ESQUERDA: FORMAÇÃO & CAMPO DOS TITULARES -->
+            <div style="display:flex;flex-direction:column;min-height:0">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0">
+                <span id="halftimePitchFormTitle" style="font-size:13px;font-weight:900;color:#fff;letter-spacing:0.5px">EM CAMPO · ${currentForm}</span>
+                <!-- Seletor de Formações -->
+                <div style="display:flex;gap:4px">
+                  ${['4-3-3', '4-4-2', '3-5-2', '4-2-3-1', '5-3-2', '4-1-4-1', '4-5-1', '3-4-3'].map(f => `
+                    <button class="btn btnFormSelectHalftime ${currentForm === f ? 'primary' : ''}" data-form="${f}" style="font-size:11px;padding:2px 7px;font-weight:900;border-radius:6px">
+                      ${f}
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Campinho Verde dos 11 Titulares Amplo -->
+              <div class="halftime-pitch-box" id="halftimePitchBox" style="flex:1;position:relative;background:radial-gradient(ellipse at center, #0d3d23 0%, #062314 100%);border:1px solid rgba(34,197,94,0.35);border-radius:12px;overflow:hidden;box-shadow:inset 0 0 40px rgba(0,0,0,0.5)">
+                ${userStarters.map((p, idx) => {
+                  const slot = formDef[idx] || { x: 50, y: 50 };
+                  const isSel = halftimeSelectedStarterKey === p.key;
+                  const stClass = p.stamina >= 75 ? 'halftime-stamina-good' : p.stamina >= 50 ? 'halftime-stamina-warn' : 'halftime-stamina-tired';
+                  return `
+                    <div class="halftime-pitch-player ${isSel ? 'selected' : ''}" style="position:absolute;left:${slot.x}%;top:${slot.y}%;transform:translate(-50%,-50%);transition:left 0.25s ease, top 0.25s ease" data-starterkey="${esc(p.key)}" draggable="true" title="Clique ou arraste para substituir">
+                      <div class="pitch-player-avatar" style="border:2px solid ${isSel ? '#facc15' : 'rgba(255,255,255,0.4)'};border-radius:50%;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,0.7)">
+                        ${playerPhoto(p.fullName, 36)}
+                      </div>
+                      <div style="font-size:11px;font-weight:900;color:#fff;text-shadow:0 1px 4px #000, 0 0 8px #000;margin-top:2px;white-space:nowrap;letter-spacing:0.3px">
+                        ${esc(p.name)}
+                      </div>
+                      <div style="font-size:10px;font-weight:900;color:#facc15;text-shadow:0 1px 3px #000">
+                        ${esc(p.pos)} · ${p.overall}
+                      </div>
+                      <!-- BARRA DE CANSAÇO -->
+                      <div class="halftime-stamina-bar" title="Energia: ${Math.round(p.stamina)}%" style="width:38px;height:4px;background:rgba(0,0,0,0.8);border-radius:2px;margin-top:2px">
+                        <div class="halftime-stamina-fill ${stClass}" style="width:${Math.round(p.stamina)}%;height:100%"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+            <!-- COLUNA DIREITA: BANCO DE RESERVAS -->
+            <div style="display:flex;flex-direction:column;min-height:0">
+              <div style="font-size:12px;font-weight:900;color:#94a3b8;margin-bottom:6px;display:flex;justify-content:space-between;flex-shrink:0">
+                <span>BANCO DE RESERVAS (CHEGAM 100%)</span>
+                <span style="color:#22c55e;font-weight:800">Prontos para entrar</span>
+              </div>
+              <div class="halftime-bench-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(2, 1fr);gap:8px;padding-right:4px">
+                ${userBench.map(p => `
+                  <div class="halftime-bench-card" data-benchkey="${esc(playerKey(p))}" draggable="true" title="Arraste para o campo ou clique após selecionar o titular" style="display:flex;align-items:center;gap:10px;background:#141d2c;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 10px;cursor:pointer">
+                    ${playerPhoto(p.name, 36)}
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:11px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                        ${esc(p.name)}
+                      </div>
+                      <div style="font-size:10px;font-weight:800;color:#c084fc">
+                        ${esc(p.pos)} · ${playerOverall(p)}
+                      </div>
+                      <div class="halftime-stamina-bar" style="width:100%;height:3px;background:rgba(0,0,0,0.6);margin-top:4px">
+                        <div class="halftime-stamina-fill halftime-stamina-good" style="width:100%;height:100%;background:#22c55e"></div>
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div style="margin-top:8px;background:#101726;padding:8px 12px;border-radius:8px;font-size:11px;color:rgba(255,255,255,0.7);flex-shrink:0">
+                💡 <b>Dica:</b> Arraste o reserva para cima do titular no campo ou clique no titular e depois no reserva para trocar!
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FOOTER COM CHECKBOX E BOTÃO DE CONTINUAR -->
+        <div class="halftime-footer" style="padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:rgba(255,255,255,0.85);cursor:pointer">
+            <input type="checkbox" id="chkAutoSubAssistant" ${s.autoSubAssistant ? 'checked' : ''} style="width:16px;height:16px">
+            <span>O auxiliar técnico faz as trocas que sobrarem automaticamente</span>
+          </label>
+
+          <button class="btn primary" id="btnResumeSecondHalf" style="font-size:14px;font-weight:900;padding:10px 28px;border-radius:10px;box-shadow:0 0 20px rgba(168,85,247,0.6);cursor:pointer">
+            ${isQuickTactics ? '▶ RETOMAR PARTIDA' : '▶ COMEÇAR O 2º TEMPO'}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Preleção click sem reiniciar o modal / sem scroll jump
+  $$('.btn-halftime-speech[data-speech]').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const speech = b.dataset.speech;
+      s.prelecao = speech;
+      $$('.btn-halftime-speech[data-speech]').forEach(btn => btn.classList.toggle('active', btn.dataset.speech === speech));
+      const descEl = $('#halftimeSpeechDesc');
+      if(descEl) descEl.innerHTML = speechDescriptions[speech] || '';
+      toast(`Preleção definida: ${speech}!`);
+    };
+  });
+
+  // Postura click sem reiniciar o modal / sem scroll jump
+  $$('.btn-halftime-speech[data-posture]').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const posture = b.dataset.posture;
+      if(s.home === state.club) s.homePosture = posture;
+      else s.awayPosture = posture;
+      $$('.btn-halftime-speech[data-posture]').forEach(btn => {
+        const isAct = btn.dataset.posture === posture;
+        btn.classList.toggle('active', isAct);
+        btn.textContent = `${btn.dataset.posture} ${isAct ? '(atual)' : ''}`;
+      });
+      const descEl = $('#halftimePostureDesc');
+      if(descEl) descEl.innerHTML = postureDescriptions[posture] || '';
+      toast(`Postura tática alterada para ${posture}!`);
+    };
+  });
+
+  // Mudança de Formação no intervalo: ATUALIZAÇÃO DIRETA NO DOM SEM RESETAR O SCROLL!
+  $$('.btnFormSelectHalftime').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const newForm = b.dataset.form;
+      state.formation = newForm;
+      $$('.btnFormSelectHalftime').forEach(btn => btn.classList.toggle('primary', btn.dataset.form === newForm));
+      const titleEl = $('#halftimePitchFormTitle');
+      if(titleEl) titleEl.textContent = `EM CAMPO · ${newForm}`;
+      
+      const newSlots = FORMATIONS[newForm] || FORMATIONS['4-3-3'];
+      const playerNodes = $$('#halftimePitchBox .halftime-pitch-player');
+      playerNodes.forEach((node, idx) => {
+        const slot = newSlots[idx] || { x: 50, y: 50 };
+        node.style.left = `${slot.x}%`;
+        node.style.top = `${slot.y}%`;
+      });
+      toast(`Formação alterada para ${newForm}!`);
+    };
+  });
+
+  function executeHalftimeSub(starterKey, benchKey){
+    if(s.subsLeft <= 0){
+      toast('Você já atingiu o limite de 5 substituições!');
+      return;
+    }
+    const benchPlayer = state.squad.find(p => playerKey(p) === benchKey);
+    if(!benchPlayer) return;
+
+    const userStarters = (s.home === state.club ? s.homePlayers : s.awayPlayers);
+    const targetIdx = userStarters.findIndex(p => p.key === starterKey);
+    if(targetIdx === -1) return;
+
+    const oldPlayer = userStarters[targetIdx];
+    userStarters[targetIdx] = {
+      ...oldPlayer,
+      key: playerKey(benchPlayer),
+      name: benchPlayer.name.split(' ').pop() || benchPlayer.name,
+      fullName: benchPlayer.name,
+      pos: benchPlayer.pos,
+      overall: playerOverall(benchPlayer) || 65,
+      stamina: 100, // Entra descansado!
+      photo: (window.PLAYER_PHOTOS && (window.PLAYER_PHOTOS[benchPlayer.name] || window.PLAYER_PHOTOS[norm(benchPlayer.name)])) || null
+    };
+
+    s.subsLeft--;
+    s.events.unshift({
+      min: s.minute,
+      type: 'sub',
+      text: `🔁 Substituição no ${state.club}: Sai ${oldPlayer.name} (${Math.round(oldPlayer.stamina)}% energia), entra ${benchPlayer.name} descansado!`
+    });
+    updateLiveSidebarEvents();
+
+    toast(`🔁 Substituição realizada: ${benchPlayer.name} entra no lugar de ${oldPlayer.name}!`);
+    halftimeSelectedStarterKey = null;
+    openHalftimeModal(isQuickTactics);
+  }
+
+  function swapHalftimeStarters(k1, k2){
+    const userStarters = (s.home === state.club ? s.homePlayers : s.awayPlayers);
+    const idx1 = userStarters.findIndex(p => p.key === k1);
+    const idx2 = userStarters.findIndex(p => p.key === k2);
+    if(idx1 !== -1 && idx2 !== -1){
+      const tmpX = userStarters[idx1].x, tmpY = userStarters[idx1].y;
+      const tmpBaseX = userStarters[idx1].baseX, tmpBaseY = userStarters[idx1].baseY;
+      userStarters[idx1].x = userStarters[idx2].x; userStarters[idx1].y = userStarters[idx2].y;
+      userStarters[idx1].baseX = userStarters[idx2].baseX; userStarters[idx1].baseY = userStarters[idx2].baseY;
+      userStarters[idx2].x = tmpX; userStarters[idx2].y = tmpY;
+      userStarters[idx2].baseX = tmpBaseX; userStarters[idx2].baseY = tmpBaseY;
+      toast(`Posições de ${userStarters[idx1].name} e ${userStarters[idx2].name} invertidas no campo!`);
+      openHalftimeModal(isQuickTactics);
+    }
+  }
+
+  let draggedStarter = null;
+  let draggedBench = null;
+
+  // Drag & drop e clique dos reservas
+  $$('.halftime-bench-card').forEach(el => {
+    el.ondragstart = (e) => {
+      draggedBench = el.dataset.benchkey;
+      draggedStarter = null;
+      e.dataTransfer.setData('text/plain', draggedBench);
+      el.style.opacity = '0.5';
+    };
+    el.ondragend = () => {
+      el.style.opacity = '1';
+      $$('.halftime-pitch-player').forEach(p => p.classList.remove('drag-target'));
+    };
+    el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag-target'); };
+    el.ondragleave = () => { el.classList.remove('drag-target'); };
+    el.ondrop = (e) => {
+      e.preventDefault();
+      el.classList.remove('drag-target');
+      if(draggedStarter){
+        executeHalftimeSub(draggedStarter, el.dataset.benchkey);
+      }
+    };
+    el.onclick = () => {
+      if(!halftimeSelectedStarterKey){
+        toast('Selecione primeiro o titular no campo (ou arraste) para substituir!');
+        return;
+      }
+      executeHalftimeSub(halftimeSelectedStarterKey, el.dataset.benchkey);
+    };
+  });
+
+  // Drag & drop e clique dos titulares no campo
+  $$('.halftime-pitch-player').forEach(el => {
+    el.ondragstart = (e) => {
+      draggedStarter = el.dataset.starterkey;
+      draggedBench = null;
+      e.dataTransfer.setData('text/plain', draggedStarter);
+      el.style.opacity = '0.5';
+    };
+    el.ondragend = () => {
+      el.style.opacity = '1';
+      $$('.halftime-pitch-player').forEach(p => p.classList.remove('drag-target'));
+      $$('.halftime-bench-card').forEach(b => b.classList.remove('drag-target'));
+    };
+    el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag-target'); };
+    el.ondragleave = () => { el.classList.remove('drag-target'); };
+    el.ondrop = (e) => {
+      e.preventDefault();
+      el.classList.remove('drag-target');
+      const targetStarter = el.dataset.starterkey;
+      if(draggedBench){
+        executeHalftimeSub(targetStarter, draggedBench);
+      } else if(draggedStarter && draggedStarter !== targetStarter){
+        swapHalftimeStarters(draggedStarter, targetStarter);
+      }
+    };
+    el.onclick = () => {
+      halftimeSelectedStarterKey = el.dataset.starterkey;
+      openHalftimeModal(isQuickTactics);
+    };
+  });
+
+  // Retomar 2º tempo
+  const chkAux = $('#chkAutoSubAssistant');
+  if(chkAux) chkAux.onchange = () => { s.autoSubAssistant = chkAux.checked; };
+
+  const btnResume = $('#btnResumeSecondHalf');
+  if(btnResume){
+    btnResume.onclick = () => {
+      $('#halftimeModalContainer')?.remove();
+      s.playing = true;
+      const playBtn = $('#btnLivePlayToggle');
+      if(playBtn) playBtn.textContent = '⏸';
+      const overlay = $('#livePauseOverlay');
+      if(overlay) overlay.style.display = 'none';
+      playWhistleSound();
+      toast('Bola rolando para a etapa complementar!');
+    };
+  }
+}
+
+function finishLiveMatch(){
+  const s = liveMatchState;
+  if(!s || s.done) return;
+  s.done = true;
+  s.playing = false;
+  playWhistleSound();
+
+  let winner = null, pens = null;
+  if(s.isKO){
+    if(s.hg === s.ag){
+      let hp = rnd(3, 6), ap = rnd(2, 6);
+      if(hp === ap) ap = hp === 6 ? 5 : hp + 1;
+      pens = [hp, ap];
+      winner = hp > ap ? s.home : s.away;
+      s.events.unshift({ min: 90, type: 'whistle', text: `🎯 Pênaltis: ${s.home} ${pens[0]} x ${pens[1]} ${s.away}. Vencedor: ${winner}!` });
+    } else {
+      winner = s.hg > s.ag ? s.home : s.away;
+    }
+    s.winners.push(winner);
+  }
+
+  s.winner = winner;
+  s.pens = pens;
+  applyResult(s.home, s.away, s.hg, s.ag);
+  s.events.unshift({ min: 90, type: 'whistle', text: `🏁 Fim de partida! ${s.home} ${s.hg} x ${s.ag} ${s.away}.` });
+  updateLiveSidebarEvents();
+  renderLiveMatchModal();
+}
+
+function finalizeMatchRound(){
+  const s = liveMatchState;
+  if(!s) return;
+  const userRes = {
+    h: s.home, a: s.away,
+    hg: s.hg, ag: s.ag,
+    winner: s.winner, pens: s.pens
+  };
+  const winners = s.winners;
+  const isKO = s.isKO;
+  if(liveCanvasAnimId) cancelAnimationFrame(liveCanvasAnimId);
+  $('#matchModalContainer')?.remove();
+  liveMatchState = null;
+
+  // Coletiva de Imprensa Pós-Jogo na Sala de Imprensa
+  openPressConferenceModal('post', userRes, () => {
+    finalizeRound(userRes, winners, isKO);
+  });
+}
+
+
+function simulateQuickRound(){
+  if(state && state.isPreSeason && state.preSeasonDays > 0){
+    state.isPreSeason = false;
+    state.preSeasonDays = 0;
+    state.date = '2026-01-05';
+    toast('Janela de pré-temporada encerrada para início da 1ª rodada!');
+  }
+  const fixtures=currentFixtures();
+  if(!fixtures.length){
+    toast(state.eliminated?'Você foi eliminado desta competição.':'Temporada concluída.');
+    return;
+  }
+  const comp=curComp(),isKO=comp.type==='knockout';
+  let userRes=null,winners=[];
+  fixtures.forEach(([h,a])=>{
+    let [hg,ag]=simulateScore(h,a),winner=null,pens=null;
+    if(isKO){
+      if(hg===ag){
+        let hp=rnd(3,6),ap=rnd(2,6);if(hp===ap)ap=hp===6?5:hp+1;
+        pens=[hp,ap];winner=hp>ap?h:a;
+      }else winner=hg>ag?h:a;
+      winners.push(winner);
+    }
+    applyResult(h,a,hg,ag);
+    if(h===state.club||a===state.club) userRes={h,a,hg,ag,winner,pens};
+  });
+  if(userRes){
+    openPressConferenceModal('post', userRes, () => {
+      finalizeRound(userRes, winners, isKO);
+    });
+  } else {
+    finalizeRound(userRes, winners, isKO);
+  }
+}
+
+// -------------------------------------------------------------
+// CERIMÔNIA DE CAMPEÃO / LEVANTAMENTO DA TAÇA ESTILO FIFA
+// -------------------------------------------------------------
+function showChampionTrophyCeremonyModal(comp, onProceed){
+  playCheerSound();
+  playWhistleSound();
+
+  let overlay = $('#trophyCeremonyContainer');
+  if(!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'trophyCeremonyContainer';
+    document.body.appendChild(overlay);
+  }
+
+  const clubName = state.club || 'Clube';
+  const managerName = state.manager || 'Treinador';
+  const compName = (comp?.name || 'CAMPEONATO').toUpperCase();
+
+  // Gera pedaços de confete dourados e coloridos no DOM
+  const confettis = Array.from({length: 36}).map((_, i) => {
+    const left = rnd(2, 98);
+    const delay = (Math.random() * 2.2).toFixed(2);
+    const dur = (rnd(22, 38) / 10).toFixed(2);
+    const colors = ['#facc15', '#f59e0b', '#38bdf8', '#a855f7', '#22c55e', '#ef4444', '#ffffff'];
+    const col = colors[i % colors.length];
+    return `<div class="confetti-piece" style="left:${left}%;animation-delay:${delay}s;animation-duration:${dur}s;background:${col}"></div>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div class="trophy-ceremony-overlay">
+      ${confettis}
+      <div class="trophy-ceremony-card">
+        <!-- PALCO DA CERIMÔNIA -->
+        <div class="trophy-stage">
+          <div class="champion-badge-halo">
+            ${clubBadge(clubName, 88)}
+          </div>
+
+          <div class="trophy-cup-glow" title="Taça de Campeão Oficial">
+            🏆
+          </div>
+
+          <div class="trophy-podium">
+            ★ CAMPEÃO OFICIAL AFM ★
+          </div>
+        </div>
+
+        <!-- TÍTULO ESTILO FIFA -->
+        <div class="champion-sub-fifa">GLÓRIA ETERNA & CONQUISTA HISTÓRICA</div>
+        <h1 class="champion-title-fifa">É CAMPEÃO!</h1>
+        <div style="font-size:18px;font-weight:900;color:#facc15;letter-spacing:1px;margin-bottom:6px">
+          ${esc(compName)}
+        </div>
+
+        <!-- ELENCO CELEBRANDO EM SILHUETA / EMOJIS -->
+        <div class="champion-squad-celebration">
+          <span>🙌</span> <span>🎉</span> <span>⭐</span> <span>🍾</span> <span>👑</span> <span>🔥</span> <span>🙌</span>
+        </div>
+
+        <div style="font-size:14px;color:rgba(255,255,255,0.85);max-width:540px;line-height:1.5;margin:8px 0 22px 0;font-weight:700">
+          O <b>${esc(clubName)}</b> sob o comando tático do <b>Professor ${esc(managerName)}</b> ergue a taça mais cobiçada e grava seu nome na história do futebol! A torcida comemora em festa inesquecível!
+        </div>
+
+        <!-- BOTÃO DE CONTINUAR -->
+        <button class="btn primary" id="btnClaimTrophyCeremony" style="font-size:15px;font-weight:900;padding:12px 36px;border-radius:12px;background:linear-gradient(135deg, #eab308, #ca8a04);color:#000;border:none;box-shadow:0 0 30px rgba(234,179,8,0.7);cursor:pointer;letter-spacing:0.5px">
+          🏆 ERGUER A TAÇA E RECEBER A PREMIAÇÃO ➔
+        </button>
+      </div>
+    </div>
+  `;
+
+  $('#btnClaimTrophyCeremony').onclick = () => {
+    overlay.remove();
+    if(typeof onProceed === 'function') onProceed();
+  };
+}
+
+// -------------------------------------------------------------
+// FIM DE TEMPORADA & MERCADO DE TÉCNICOS
+// -------------------------------------------------------------
+function showEndOfSeasonModal(){
+  const pos = position();
+  const trust = state.trust.board;
+  const isSatisfied = trust >= 50;
+  const comp = curComp();
+  const prize = calculateSeasonPrizeMoney(pos, comp);
+  state.balance += prize;
+  state.income += prize;
+  const awards = calculateSeasonAwards();
+  const otherClubs = clubs.filter(c => norm(c.name) !== norm(state.club) && strength(c) >= strength(clubByName(state.club)) - 6).sort(() => Math.random() - .5).slice(0, 3);
+  
+  const contractDateStr = state.managerContractDate || `sex, 31 dez ${state.season + 1}`;
+  const contractYear = parseInt((contractDateStr.match(/\d{4}/) || [state.season + 1])[0]);
+  const yearsLeft = Math.max(0, contractYear - state.season);
+
+  // Lógica de Acesso e Rebaixamento
+  let promoInfo = null;
+  const isEstadual = comp?.id?.startsWith('bra-est-');
+  
+  if(isEstadual){
+    // Se não tem série nacional e fica no G-2 do estadual -> Ganha vaga na Série D!
+    const hasNationalSeries = ['bra-a','bra-b','bra-c','bra-d'].some(id => window.COMPETITION_TEAMS?.[id]?.some(c => norm(c) === norm(state.club)));
+    if(!hasNationalSeries && pos <= 2){
+      promoInfo = {
+        type: 'promote',
+        toCompId: 'bra-d',
+        title: '🎉 VAGA NA SÉRIE D DO BRASILEIRÃO CONQUISTADA!',
+        desc: `Pelo grande desempenho no estadual (${pos}º colocado), o ${state.club} conquistou a vaga oficial na Série D nacional!`
+      };
+      state.nextSeasonCompId = 'bra-d';
+    }
+  } else if(comp?.id === 'bra-d'){
+    if(pos <= 4){
+      promoInfo = {
+        type: 'promote',
+        toCompId: 'bra-c',
+        title: '🚀 ACESSO CONQUISTADO À SÉRIE C!',
+        desc: `O ${state.club} terminou no G-4 (${pos}º lugar) e subiu para o Campeonato Brasileiro Série C!`
+      };
+      state.nextSeasonCompId = 'bra-c';
+    }
+  } else if(comp?.id === 'bra-c'){
+    if(pos <= 4){
+      promoInfo = {
+        type: 'promote',
+        toCompId: 'bra-b',
+        title: '🚀 ACESSO CONQUISTADO À SÉRIE B!',
+        desc: `Temporada mágica! O ${state.club} terminou no G-4 (${pos}º) e subiu para o Campeonato Brasileiro Série B!`
+      };
+      state.nextSeasonCompId = 'bra-b';
+    } else if(pos >= 17){
+      promoInfo = {
+        type: 'relegate',
+        toCompId: 'bra-d',
+        title: '📉 REBAIXAMENTO PARA A SÉRIE D',
+        desc: `Campanha abaixo do esperado (${pos}º lugar). O clube disputará a Série D no próximo ano.`
+      };
+      state.nextSeasonCompId = 'bra-d';
+    }
+  } else if(comp?.id === 'bra-b'){
+    if(pos <= 4){
+      promoInfo = {
+        type: 'promote',
+        toCompId: 'bra-a',
+        title: '👑 ACESSO À ELITE! SÉRIE A DO BRASILEIRÃO!',
+        desc: `Histórico! O ${state.club} conquistou a vaga na elite do futebol brasileiro e disputará a Série A!`
+      };
+      state.nextSeasonCompId = 'bra-a';
+    } else if(pos >= 17){
+      promoInfo = {
+        type: 'relegate',
+        toCompId: 'bra-c',
+        title: '📉 REBAIXAMENTO PARA A SÉRIE C',
+        desc: `Terminou no Z-4 (${pos}º lugar) e disputará a Série C na próxima temporada.`
+      };
+      state.nextSeasonCompId = 'bra-c';
+    }
+  } else if(comp?.id === 'bra-a'){
+    if(pos >= 17){
+      promoInfo = {
+        type: 'relegate',
+        toCompId: 'bra-b',
+        title: '📉 REBAIXAMENTO PARA A SÉRIE B',
+        desc: `Terminou no Z-4 da Série A (${pos}º lugar) e jogará a Série B no ano que vem.`
+      };
+      state.nextSeasonCompId = 'bra-b';
+    }
+  }
+
+  openCustomModal(
+    `🏆 Encerramento da Temporada ${state.season}`,
+    `
+      <div style="text-align:center;margin-bottom:14px">
+        <div class="muted">Seu clube finalizou a competição em <b>${pos}º lugar</b>.</div>
+      </div>
+
+      ${promoInfo ? `
+        <div style="background:${promoInfo.type==='promote'?'rgba(34,197,94,0.18)':'rgba(239,68,68,0.18)'};border:2px solid ${promoInfo.type==='promote'?'#22c55e':'#ef4444'};border-radius:12px;padding:12px 16px;margin-bottom:14px;text-align:center">
+          <div style="font-size:13px;font-weight:900;color:${promoInfo.type==='promote'?'#4ade80':'#f87171'}">${promoInfo.title}</div>
+          <div style="font-size:12px;color:#fff;margin-top:4px">${promoInfo.desc}</div>
+        </div>
+      ` : ''}
+
+      <div style="background:rgba(34,197,94,0.15);border:1px solid #22c55e;border-radius:12px;padding:12px;margin-bottom:14px;text-align:center">
+        <div style="font-size:12px;font-weight:800;color:#86efac;text-transform:uppercase">💰 Premiação Oficial da Competição</div>
+        <div style="font-size:20px;font-weight:900;color:#22c55e;margin-top:2px">+${fmtMoney(prize)} creditados no caixa do clube!</div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px;background:#141c26;padding:14px">
+        <h4 style="margin:0 0 10px 0;color:#facc15">🏅 Premiações Individuais da Temporada</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:12px;text-align:center">
+          <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
+            <div style="font-size:16px">👑</div>
+            <b style="color:#fff">${esc(awards.bestPlayer.name)}</b>
+            <div class="small muted">Craque do Ano (${awards.bestPlayer.ovr} OVR)</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
+            <div style="font-size:16px">👟</div>
+            <b style="color:#fff">${esc(awards.topScorer.name)}</b>
+            <div class="small muted">Chuteira de Ouro (${awards.topScorer.goals} gols)</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
+            <div style="font-size:16px">🧤</div>
+            <b style="color:#fff">${esc(awards.goldenGlove.name)}</b>
+            <div class="small muted">Luva de Ouro (${awards.goldenGlove.ovr} OVR)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid g2">
+        <div class="card">
+          <h3>Avaliação da Diretoria</h3>
+          <p>Confiança: <b>${state.trust.board}%</b> • Torcida: <b>${state.trust.fans}%</b></p>
+          <p>${isSatisfied ? '✅ A diretoria está muito satisfeita e quer renovar seu contrato!' : '⚠️ Campanha abaixo do esperado, mas aceita permanência.'}</p>
+          <button class="btn primary" id="renewContractBtn" style="width:100%;margin-top:10px;font-weight:800">📝 Renovar com ${esc(state.club)} (+15% salário)</button>
+          
+          <!-- VALIDADE DO CONTRATO ATUAL -->
+          <div style="margin-top:12px;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px">
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.5px">
+              📄 Vínculo Atual com o Clube
+            </div>
+            <div style="font-size:14px;font-weight:900;color:#38bdf8;margin:3px 0">
+              ${esc(contractDateStr)}
+            </div>
+            <div style="font-size:11px;color:${yearsLeft <= 0 ? '#ef4444' : '#22c55e'};line-height:1.4">
+              ${yearsLeft <= 0 
+                ? '⚠️ <b>Seu contrato expira nesta virada de temporada!</b> Renove ou assuma outro clube para não ficar desempregado.' 
+                : `✅ <b>Vínculo ativo:</b> Você tem mais <b>${yearsLeft} ${yearsLeft === 1 ? 'temporada garantida' : 'temporadas garantidas'}</b> por contrato.`}
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Propostas de Outros Clubes</h3>
+          <div class="small muted" style="margin-bottom:8px">Clubes interessados no seu trabalho:</div>
+          ${otherClubs.map(c => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--panel2);border-radius:8px;margin-bottom:6px">
+              <div style="display:flex;align-items:center;gap:8px">
+                ${clubBadge(c.name, 28)}
+                <div><b>${esc(c.name)}</b><div class="small muted">${esc(c.competition)}</div></div>
+              </div>
+              <button class="btn success btnAcceptJob" data-club="${esc(c.name)}">Assumir</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div style="margin-top:16px;text-align:right">
+        <button class="btn" id="closeEndSeasonBtn">Continuar Temporada Seguinte ➔</button>
+      </div>
+    `,
+    () => {
+      advanceSeasonYear();
+    }
+  );
+
+  const renew = $('#renewContractBtn');
+  if(renew) renew.onclick = () => {
+    state.managerSalary = Math.round(state.managerSalary * 1.15);
+    state.managerMoney += state.managerSalary * 2;
+    state.trust.board = clamp(state.trust.board + 10, 0, 100);
+    const newYear = Math.max(state.season + 2, contractYear + 1);
+    state.managerContractDate = `qui, 31 dez ${newYear}`;
+    toast(`Contrato renovado até ${state.managerContractDate}! (+15% salário)`);
+    closeCustomModal();
+    advanceSeasonYear();
+  };
+
+  $$('.btnAcceptJob').forEach(btn => {
+    btn.onclick = () => {
+      const newClub = btn.dataset.club;
+      closeCustomModal();
+      changeUserClub(newClub);
+    };
+  });
+
+  const closeBtn = $('#closeEndSeasonBtn');
+  if(closeBtn) closeBtn.onclick = () => {
+    closeCustomModal();
+    advanceSeasonYear();
+  };
+}
+
+function advanceSeasonYear(){
+  state.season++;
+  state.round = 0;
+  state.isPreSeason = true;
+  state.preSeasonDays = 4;
+  state.date = `${state.season}-01-01`;
+
+  // Aplica subida de divisão ou rebaixamento
+  if(state.nextSeasonCompId){
+    state.compId = state.nextSeasonCompId;
+    delete state.nextSeasonCompId;
+    
+    // Garante que o clube está registrado na lista da nova competição
+    if(window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[state.compId]){
+      if(!window.COMPETITION_TEAMS[state.compId].includes(state.club)){
+        window.COMPETITION_TEAMS[state.compId].push(state.club);
+      }
+    }
+  }
+
+  const comp = curComp();
+  state.news.unshift(`Início da temporada ${state.season}! O ${state.club} disputará o ${comp?.name || 'Campeonato'} com pré-temporada aberta por 4 dias.`);
+  
+  const cc = competitionClubs(comp, state.club);
+  state.teams = cc.map(c => ({name:c.name, strength:strength(c), j:0, v:0, e:0, d:0, gp:0, gc:0, sg:0, p:0, form:[]}));
+  state.schedule = buildSchedule(comp, cc.map(c=>c.name));
+  state.sponsorOffers = generateSponsorOffers(state.balance);
+  (state.youthAcademy || []).forEach(p => {
+    p.age = clamp((Number(p.age) || 16) + 1, 15, 18);
+  });
+  (state.squad || []).forEach(p => {
+    p.age = (Number(p.age) || 24) + 1;
+    if(p.age >= 35 && Math.random() < 0.35){
+      p.fc = Math.max(45, (p.fc || playerOverall(p)) - 1);
+    }
+  });
+  save();
+  render();
+}
+
+function changeUserClub(newClubName){
+  const club = clubByName(newClubName) || {name: newClubName, country: 'Brasil', atk: 68, mid: 68, def: 68, budget: 6};
+  state.club = club.name;
+  state.managerContractDate = `sex, 31 dez ${state.season + 2}`;
+  state.managerSalary = Math.round((club.budget || 5) * 8000 + 15000);
+  state.squad = playersForClub(club.name, state.worldGenerated);
+  state.infrastructure = defaultInfrastructure(club);
+  state.youthAcademy = generateInitialYouthAcademy(1, club.name);
+  state.balance = Math.max(500000, (club.budget || 5) * 1e6);
+  state.news.unshift(`Você assumiu o comando técnico do ${club.name} para a temporada ${state.season}! Vínculo assinado até ${state.managerContractDate}.`);
+  state.managerFinanceHistory = state.managerFinanceHistory || [];
+  state.managerFinanceHistory.unshift({
+    date: state.date,
+    desc: `Luvas de assinatura com o ${club.name}`,
+    amount: state.managerSalary * 2
+  });
+  state.managerMoney += state.managerSalary * 2;
+  advanceSeasonYear();
+  toast(`Você agora é o técnico do ${club.name}!`);
+}
+
+function ranking(){
+  return [...state.teams].sort((a,b)=>b.p-a.p||b.sg-a.sg||b.gp-a.gp||a.name.localeCompare(b.name,'pt-BR'));
+}
+function position(){return Math.max(1,ranking().findIndex(t=>t.name===state.club)+1)}
+
+// -------------------------------------------------------------
+// MODAIS POPUP CUSTOMIZADOS COM BOTÃO X
+// -------------------------------------------------------------
+function openCustomModal(title, bodyHtml, onConfirm, confirmText='Confirmar', showActions=false, maxWidth=null){
+  closeCustomModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'appCustomModal';
+  const widthStyle = maxWidth ? `style="max-width:${maxWidth};width:96%"` : '';
+  overlay.innerHTML = `
+    <div class="modal ${maxWidth ? 'modal-wide' : ''}" ${widthStyle}>
+      <div class="modal-header">
+        <h3 style="margin:0">${esc(title)}</h3>
+        <button class="modal-close-btn" id="modalCloseXBtn">✕</button>
+      </div>
+      <div>${bodyHtml}</div>
+      ${showActions ? `
+        <div class="actions" style="margin-top:20px;justify-content:flex-end">
+          <button class="btn" id="modalCancelAction">Cancelar</button>
+          <button class="btn primary" id="modalConfirmAction">${esc(confirmText)}</button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.onclick = (e) => {
+    if(e.target === overlay) closeCustomModal();
+  };
+  $('#modalCloseXBtn').onclick = closeCustomModal;
+  const cancelBtn = $('#modalCancelAction');
+  if(cancelBtn) cancelBtn.onclick = closeCustomModal;
+  const confBtn = $('#modalConfirmAction');
+  if(confBtn) confBtn.onclick = () => {
+    if(onConfirm) onConfirm();
+    closeCustomModal();
+  };
+}
+
+function closeCustomModal(){
+  const m = $('#appCustomModal');
+  if(m) m.remove();
+}
+
+// -------------------------------------------------------------
+// CATEGORIA DE BASE & MARKETING - MODAIS E AÇÕES
+// -------------------------------------------------------------
+function signProContract(youthKey){
+  if(!state || !Array.isArray(state.youthAcademy)) return;
+  const idx = state.youthAcademy.findIndex(p => playerKey(p) === youthKey);
+  if(idx === -1){
+    toast('Jogador não encontrado na base.');
+    return;
+  }
+  if(state.squad.length >= 40){
+    toast('Elenco profissional cheio (máximo 40 atletas). Venda ou libere espaço antes.');
+    return;
+  }
+  const player = state.youthAcademy[idx];
+  state.youthAcademy.splice(idx, 1);
+
+  player.isYouth = false;
+  player.owned = true;
+  player.club = state.club;
+  player.fitness = 100;
+  player.morale = 85;
+  player.value = calcValueMi(player);
+  state.squad.push(player);
+
+  state.news.unshift(`✍️ Contrato Profissional: ${player.name} (${player.pos}, ${player.age} anos, OVR ${playerOverall(player)}) assinou contrato profissional e subiu para o elenco principal!`);
+  toast(`🎉 ${player.name} assinou contrato profissional!`);
+  save();
+  openYouthAcademyModal();
+}
+
+function runYouthScoutPeneira(){
+  if(!state) return;
+  const cost = 25000;
+  if(state.balance < cost){
+    toast('Caixa insuficiente para organizar a peneira (R$ 25.000).');
+    return;
+  }
+  if((state.youthAcademy || []).length >= 16){
+    toast('A categoria de base está cheia (máximo 16 atletas). Promova ou dispense atletas.');
+    return;
+  }
+  state.balance -= cost;
+  state.expense += cost;
+  const lvl = state.infrastructure?.academy?.level || 1;
+  const p1 = generateYouthPlayer(lvl, rnd(15, 17));
+  const p2 = generateYouthPlayer(lvl, rnd(15, 16));
+  state.youthAcademy.unshift(p1);
+  if(state.youthAcademy.length < 16) state.youthAcademy.unshift(p2);
+  state.news.unshift(`⚽ Nova peneira realizada! ${p1.name} (${p1.pos}, ${p1.age} anos) e ${p2.name} (${p2.pos}, ${p2.age} anos) foram integrados à base.`);
+  toast(`⚽ Peneira concluída! Novos jovens talentos integrados.`);
+  save();
+  openYouthAcademyModal();
+}
+
+function releaseYouthPlayer(youthKey){
+  if(!state || !Array.isArray(state.youthAcademy)) return;
+  const idx = state.youthAcademy.findIndex(p => playerKey(p) === youthKey);
+  if(idx === -1) return;
+  const p = state.youthAcademy[idx];
+  state.youthAcademy.splice(idx, 1);
+  toast(`${p.name} liberado da base.`);
+  save();
+  openYouthAcademyModal();
+}
+
+function openYouthAcademyModal(){
+  if(!state) return;
+  const acadLvl = state.infrastructure?.academy?.level || 1;
+  const maxLvl = FACILITIES.academy.max;
+  const list = state.youthAcademy || [];
+  const avgOvr = list.length ? Math.round(list.reduce((acc, p) => acc + playerOverall(p), 0) / list.length) : 0;
+  const bestPot = list.length ? Math.max(...list.map(p => p.potential || playerOverall(p))) : 0;
+
+  const bodyHtml = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:12px;background:var(--panel2);border-radius:12px">
+      <div>
+        <div style="font-size:12px;color:var(--neon);font-weight:700">🌱 CT DE JUNIORES • NÍVEL ${acadLvl}/${maxLvl}</div>
+        <div style="font-size:14px;color:#fff;font-weight:800;margin-top:2px">Jovens Talentos em Formação (15 a 18 anos)</div>
+        <div class="small muted">Atletas evoluem mensalmente. Quanto mais alto o nível da Base, maior o Overall e Potencial gerado!</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn primary" id="btnScoutYouthTalents" style="background:linear-gradient(135deg,#059669,#10b981);border:none;padding:8px 14px">
+          ⚽ Organizar Peneira • R$ 25.000
+        </button>
+      </div>
+    </div>
+
+    <div class="grid g4" style="margin-bottom:14px">
+      <div class="card metric" style="padding:10px">
+        <div class="muted" style="font-size:11px">Atletas na Base</div>
+        <div class="value" style="font-size:18px;color:#fff">${list.length}/16</div>
+      </div>
+      <div class="card metric" style="padding:10px">
+        <div class="muted" style="font-size:11px">Faixa Etária</div>
+        <div class="value" style="font-size:18px;color:var(--neon)">15 a 18 anos</div>
+      </div>
+      <div class="card metric" style="padding:10px">
+        <div class="muted" style="font-size:11px">Média Overall</div>
+        <div class="value good" style="font-size:18px">${avgOvr || '-'}</div>
+      </div>
+      <div class="card metric" style="padding:10px">
+        <div class="muted" style="font-size:11px">Maior Potencial</div>
+        <div class="value" style="font-size:18px;color:#facc15">⭐ ${bestPot || '-'}</div>
+      </div>
+    </div>
+
+    <div class="tablewrap" style="max-height:420px;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="text-align:left">
+            <th style="white-space:nowrap;padding:8px">Jogador</th>
+            <th style="white-space:nowrap;padding:8px">Pos</th>
+            <th style="white-space:nowrap;padding:8px">Idade</th>
+            <th style="white-space:nowrap;padding:8px">Overall</th>
+            <th style="white-space:nowrap;padding:8px">Potencial</th>
+            <th style="white-space:nowrap;padding:8px">Físico</th>
+            <th style="white-space:nowrap;padding:8px">Passe Estimado</th>
+            <th style="text-align:right;white-space:nowrap;padding:8px">Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.length ? list.map(p => {
+            const ovr = playerOverall(p);
+            const pot = p.potential || (ovr + 6);
+            const k = playerKey(p);
+            return `
+              <tr>
+                <td style="white-space:nowrap;padding:8px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:18px">🌱</span>
+                    <div>
+                      <b>${esc(p.name)}</b>
+                      <div class="small muted">${pot >= 88 ? '🔥 Joia Rara' : pot >= 80 ? '⭐ Grande Promessa' : 'Em Formação'}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style="white-space:nowrap;padding:8px"><span class="pill" style="font-size:11px">${esc(p.pos)}</span></td>
+                <td style="white-space:nowrap;padding:8px"><b style="color:var(--neon)">${p.age} anos</b></td>
+                <td style="white-space:nowrap;padding:8px"><span class="rating-pill ${ratingClass(ovr)}">${ovr}</span></td>
+                <td style="white-space:nowrap;padding:8px"><b class="good">⭐ ${pot}</b></td>
+                <td style="white-space:nowrap;padding:8px">
+                  <div style="display:flex;align-items:center;gap:4px">
+                    <span style="font-size:11px">${p.fitness || 100}%</span>
+                    <div class="bar" style="width:40px;height:5px"><span style="width:${p.fitness || 100}%;background:var(--neon)"></span></div>
+                  </div>
+                </td>
+                <td style="white-space:nowrap;padding:8px;font-weight:700">${fmtMi(calcValueMi(p))}</td>
+                <td style="text-align:right;white-space:nowrap;padding:8px">
+                  <div style="display:inline-flex;gap:6px">
+                    <button class="btn primary btnSignPro" data-youth-key="${esc(k)}" style="white-space:nowrap;padding:6px 14px;font-size:12px;font-weight:800;background:linear-gradient(135deg,#2563eb,#3b82f6);border:none" title="Assinar contrato profissional e subir para o time">
+                      📝 Subir aos Profissionais
+                    </button>
+                    <button class="btn btnReleaseYouth" data-youth-key="${esc(k)}" style="padding:6px 10px;font-size:12px;color:var(--bad)" title="Dispensar atleta da base">
+                      ✕
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('') : `
+            <tr>
+              <td colspan="8" style="text-align:center;padding:24px" class="muted">
+                Nenhum jogador na base no momento. Clique em "Organizar Peneira" para captar novos talentos!
+              </td>
+            </tr>
+          `}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:14px;padding:10px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+      <div class="small muted">
+        💡 <b>Regra da Base:</b> Jovens têm entre 15 e 18 anos. Ao fechar contrato com o profissional, eles são promovidos instantaneamente para o seu elenco!
+      </div>
+      <button class="btn" id="btnCloseYouthModal">Fechar</button>
+    </div>
+  `;
+
+  openCustomModal('🌱 Categorias de Base & Atletas em Treinamento', bodyHtml, null, 'Fechar', false, '1040px');
+
+  const scoutBtn = $('#btnScoutYouthTalents');
+  if(scoutBtn) scoutBtn.onclick = runYouthScoutPeneira;
+
+  $$('.btnSignPro').forEach(b => {
+    b.onclick = () => signProContract(b.dataset.youthKey);
+  });
+
+  $$('.btnReleaseYouth').forEach(b => {
+    b.onclick = () => releaseYouthPlayer(b.dataset.youthKey);
+  });
+
+  const closeBtn = $('#btnCloseYouthModal');
+  if(closeBtn) closeBtn.onclick = () => { closeCustomModal(); render(); };
+}
+
+function openMarketingModal(){
+  if(!state) return;
+  const mktLvl = state.infrastructure?.marketing?.level || 1;
+  const maxLvl = FACILITIES.marketing.max;
+  const currentInvest = Math.max(2500, Number(state.marketingWeekly) || 12000);
+  const cost = facilityCost('marketing');
+  const max = mktLvl >= maxLvl;
+
+  const sponMonthly = totalSponsorMonthly();
+
+  const bodyHtml = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:12px;background:var(--panel2);border-radius:12px">
+      <div>
+        <div style="font-size:12px;color:var(--cyan);font-weight:700">📢 DEPARTAMENTO DE MARKETING • NÍVEL ${mktLvl}/${maxLvl}</div>
+        <div style="font-size:14px;color:#fff;font-weight:800;margin-top:2px">Gestão de Investimento Semanal e Ativação de Marca</div>
+        <div class="small muted">Debitado por semana (a cada rodada de jogo). Equilibrado para manter o clube competitivo sem quebrar o caixa!</div>
+      </div>
+      <span class="pill good">Caixa: ${fmtMoney(state.balance)}</span>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;background:#0d1520;border:1px solid var(--line-strong)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <b style="font-size:15px">Aporte Financeiro Semanal em Marketing</b>
+          <div class="small muted">Debitado semanalmente (por rodada) para ativações de jogo, engajamento e fidelização</div>
+        </div>
+        <strong id="modalMktValLabel" style="color:var(--neon);font-size:24px">${fmtMoney(currentInvest)}/sem</strong>
+      </div>
+
+      <input id="modalMktSlider" type="range" min="2500" max="40000" step="2500" value="${currentInvest}" style="width:100%;margin-top:14px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px">
+        <span>R$ 2.500/sem (Mínimo)</span>
+        <span>R$ 20.000/sem (Moderado)</span>
+        <span>R$ 40.000/sem (Campanha Máxima)</span>
+      </div>
+    </div>
+
+    <div class="grid g3" style="margin-bottom:14px">
+      <div class="card metric" style="padding:10px">
+        <div class="muted" style="font-size:11px">Retenção de Torcida</div>
+        <div class="value good" style="font-size:18px" id="modalMktAttBoost">+${Math.round((0.015 * mktLvl + clamp((currentInvest - 2500)/350000, 0, 0.08)) * 100)}% torcida</div>
+        <div class="small muted" style="font-size:10px">Presença garantida nos jogos em casa</div>
+      </div>
+
+      <div class="card metric" style="padding:10px">
+        <div class="muted" style="font-size:11px">Valorização dos Patrocínios</div>
+        <div class="value" style="font-size:18px;color:var(--cyan)" id="modalMktSponBoost">+${Math.round((0.02 * (mktLvl - 1) + clamp((currentInvest - 2500)/300000, 0, 0.10)) * 100)}% bônus</div>
+        <div class="small muted" style="font-size:10px">Gera valorização comercial sustentável</div>
+      </div>
+
+      <div class="card metric" style="padding:10px">
+        <div class="muted" style="font-size:11px">Receita Patrocinadores</div>
+        <div class="value good" style="font-size:18px" id="modalMktTotalSpon">${fmtMoney(sponMonthly)}/mês</div>
+        <div class="small muted" style="font-size:10px">Entrada mensal direta em conta</div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:12px;background:var(--panel2);border-radius:12px">
+      <div>
+        <div style="font-size:13px;font-weight:700">Ampliar Nível da Instalação</div>
+        <div class="small muted">${max ? 'Nível Máximo Atingido (8/8)' : `Custo da obra: ${fmtMoney(cost)} (Aumenta o multiplicador base do departamento)`}</div>
+      </div>
+      <button class="btn ${!max && state.balance >= cost ? 'primary' : ''} upgrade" data-facility="marketing" ${max || state.balance < cost ? 'disabled' : ''}>
+        ${max ? 'Nível Máximo (8/8)' : `Evoluir Departamento • ${fmtMoney(cost)}`}
+      </button>
+    </div>
+
+    <div class="actions" style="margin-top:16px;justify-content:flex-end">
+      <button class="btn primary" id="btnSaveMarketingModal">Salvar & Aplicar Investimento</button>
+    </div>
+  `;
+
+  openCustomModal('📢 Gestão do Departamento de Marketing', bodyHtml, null, 'Fechar', false);
+
+  const slider = $('#modalMktSlider');
+  function updateMktLive(){
+    if(!slider) return;
+    const val = Number(slider.value) || 12000;
+    state.marketingWeekly = val;
+    const lbl = $('#modalMktValLabel'); if(lbl) lbl.textContent = fmtMoney(val) + '/sem';
+    const attBoost = Math.round((0.015 * mktLvl + clamp((val - 2500)/350000, 0, 0.08)) * 100);
+    const sponBoost = Math.round((0.02 * (mktLvl - 1) + clamp((val - 2500)/300000, 0, 0.10)) * 100);
+    const abEl = $('#modalMktAttBoost'); if(abEl) abEl.textContent = `+${attBoost}% torcida`;
+    const sbEl = $('#modalMktSponBoost'); if(sbEl) sbEl.textContent = `+${sponBoost}% bônus`;
+    const tsEl = $('#modalMktTotalSpon'); if(tsEl) tsEl.textContent = fmtMoney(totalSponsorMonthly()) + '/mês';
+  }
+
+  if(slider){
+    slider.oninput = updateMktLive;
+    slider.onchange = () => { save(); updateMktLive(); };
+  }
+
+  const saveBtn = $('#btnSaveMarketingModal');
+  if(saveBtn) saveBtn.onclick = () => {
+    save();
+    toast('Investimento semanal em marketing atualizado com sucesso!');
+    closeCustomModal();
+    render();
+  };
+
+  const upBtn = $('.modal [data-facility="marketing"]');
+  if(upBtn) upBtn.onclick = () => {
+    upgradeFacility('marketing');
+    openMarketingModal();
+  };
+}
+
+// -------------------------------------------------------------
+// MERCADO (COMPRA, VENDA, EMPRÉSTIMO, FILTROS POR REGIÃO/PAÍS/LIGA)
+// -------------------------------------------------------------
+function marketUniverse(){
+  const moved=state.playerMoves||{},seen=new Set(),out=[];
+  const add=p=>{
+    const q=stablePlayer(p),k=playerKey(q);
+    if(seen.has(k))return;
+    seen.add(k);
+    q.marketKey=k;
+    q.club=moved[k]||q.club;
+    if(norm(q.club)===norm(state.club))return;
+    out.push(q);
+  };
+  livePlayers.forEach(add);
+  (state.worldGenerated||[]).forEach(add);
+  return out;
+}
+
+// =========================================================================
+// SISTEMA DE NEGOCIAÇÃO DE TRANSFERÊNCIAS (COM RIVAIS E INTERESSE DO JOGADOR)
+// =========================================================================
+function buyPlayer(key){
+  openTransferNegotiationModal(key);
+}
+
+function openTransferNegotiationModal(key){
+  const windowOpen = isTransferWindowOpen(state.date);
+  let p = findGlobalPlayerByKey(key);
+  if(!p){ toast('Jogador não encontrado.'); return; }
+
+  // Se pertencer ao próprio clube, abre o painel de venda e propostas
+  if(norm(p.club || '') === norm(state.club) || (state.squad||[]).some(s => playerKey(s) === playerKey(p))){
+    openPlayerTransferModal(playerKey(p));
+    return;
+  }
+
+  if(state.squad.length >= 40){ toast('Elenco cheio: máximo de 40 jogadores.'); return; }
+
+  const ovr = playerOverall(p);
+  const basePrice = Math.max(100000, Math.round(calcValueMi(p) * 1e6));
+  const from = p.club || 'Livre no Mercado';
+
+  // Pedida Mínima do Clube Vendedor (95% a 125% dependendo do atleta)
+  const askingMult = 1.05 + ((hashStr(key + 'ask') % 15) / 100);
+  const askingPrice = Math.round(basePrice * askingMult);
+
+  // Concorrência no Mercado (Clubes Rivais Interessados)
+  const otherClubs = clubs.filter(c => norm(c.name) !== norm(state.club) && norm(c.name) !== norm(from));
+  const rival1 = otherClubs[hashStr(key + 'r1') % otherClubs.length] || { name: 'Flamengo' };
+  const rival2 = otherClubs[hashStr(key + 'r2') % otherClubs.length] || { name: 'Palmeiras' };
+
+  const r1Bid = Math.round(basePrice * (0.96 + ((hashStr(key + 'b1') % 14) / 100)));
+  const r2Bid = ovr >= 68 ? Math.round(basePrice * (1.02 + ((hashStr(key + 'b2') % 18) / 100))) : 0;
+
+  const rivalBids = [
+    { club: rival1.name, bid: r1Bid }
+  ];
+  if(r2Bid > 0 && rival2.name !== rival1.name){
+    rivalBids.push({ club: rival2.name, bid: r2Bid });
+  }
+  rivalBids.sort((a,b) => b.bid - a.bid);
+  const highestRivalBid = rivalBids[0]?.bid || 0;
+  const highestRivalClub = rivalBids[0]?.club || '';
+
+  // Estado Local da Negociação
+  let offerBid = Math.max(basePrice, highestRivalBid > 0 ? highestRivalBid + 100000 : askingPrice);
+  const baseSalary = Math.max(12000, playerSalary(p));
+  let wageOffered = baseSalary;
+  let contractYears = 3;
+  let signingBonus = 0;
+  let bonusWin = 0;
+  let bonusGoal = 0;
+  let bonusTitle = 0;
+
+  function calcInterest(){
+    let score = 48;
+    const salaryRatio = wageOffered / baseSalary;
+    score += Math.round((salaryRatio - 1.0) * 45);
+
+    if(contractYears >= 3) score += 6;
+    if(contractYears >= 4) score += 9;
+
+    if(signingBonus > 0){
+      score += Math.min(18, Math.round((signingBonus / (baseSalary * 10)) * 14));
+    }
+
+    if(bonusWin >= 25000) score += 14;
+    else if(bonusWin >= 10000) score += 9;
+    else if(bonusWin > 0) score += 5;
+
+    if(bonusGoal >= 15000) score += 11;
+    else if(bonusGoal >= 8000) score += 7;
+    else if(bonusGoal > 0) score += 4;
+
+    if(bonusTitle >= 300000) score += 15;
+    else if(bonusTitle >= 100000) score += 10;
+    else if(bonusTitle > 0) score += 5;
+
+    return clamp(score, 15, 100);
+  }
+
+  function renderNegoModal(){
+    const interest = calcInterest();
+    const clubAccepted = offerBid >= askingPrice && offerBid > highestRivalBid;
+    const clubChance = offerBid <= highestRivalBid ? 0 : offerBid < askingPrice ? 0 : clamp(Math.round(75 + ((offerBid - askingPrice) / (askingPrice * 0.25 || 1)) * 24), 70, 99);
+    const playerChance = interest;
+    const playerAccepted = interest >= 65;
+    const totalCashNeeded = offerBid + signingBonus;
+    const canAfford = state.balance >= totalCashNeeded;
+    const canFinalize = clubAccepted && playerAccepted && canAfford;
+
+    const interestClass = interest < 50 ? 'interest-low' : interest < 75 ? 'interest-mid' : 'interest-high';
+    const interestText = interest < 50 
+      ? '🔴 Desinteressado: A proposta salarial e as premiações estão muito baixas.'
+      : interest < 75 
+        ? '🟡 Em Dúvida: O jogador quer maiores garantias financeiras ou bônus.'
+        : '🟢 Pronto para Assinar! O atleta está empolgado e aceita vestir a camisa do clube!';
+
+    const clubFeedback = offerBid <= highestRivalBid
+      ? `🔴 Oferta Superada: O <b>${highestRivalClub}</b> ofereceu <b>${fmtMoney(highestRivalBid)}</b>. O clube venderá para eles se você não cobrir!`
+      : offerBid < askingPrice
+        ? `🟡 Insuficiente: A diretoria do ${from} exige pelo menos <b>${fmtMoney(askingPrice)}</b> para liberar os direitos do atleta.`
+        : `🟢 Proposta Aceita! O ${from} concorda com a venda pelo seu valor de <b>${fmtMoney(offerBid)}</b>.`;
+
+    const bodyHtml = `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--panel2);border-radius:12px;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:12px">
+          ${playerPhoto(p, 54)}
+          <div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <h2 style="margin:0;font-size:18px">${esc(p.name)}</h2>
+              <span class="rating-pill ${ratingClass(ovr)}">${ovr}</span>
+              <span class="pill">${esc(p.pos)}</span>
+            </div>
+            <div class="small muted" style="margin-top:2px">
+              ${p.age} anos • Clube atual: <b>${esc(from)}</b> • Passe avaliado em <b>${fmtMi(calcValueMi(p))}</b>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:rgba(255,255,255,0.5)">Seu Saldo em Caixa</div>
+          <b style="color:var(--neon);font-size:18px">${fmtMoney(state.balance)}</b>
+        </div>
+      </div>
+
+      <div class="nego-container">
+        
+        <!-- COLUNA ESQUERDA: CLUBE VENDEDOR & CONCORRÊNCIA -->
+        <div class="nego-card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:900;color:var(--cyan);text-transform:uppercase">1. COMPRA DO PASSE (CLUBE VENDEDOR)</span>
+            <span class="pill" style="font-size:10px">Pedida: ${fmtMoney(askingPrice)}</span>
+          </div>
+
+          <!-- Concorrentes Ativos -->
+          <div>
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:6px">Outros Clubes Interessados:</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${rivalBids.map((rb, idx) => `
+                <div class="nego-rival-pill ${idx===0 ? 'leading' : ''}">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    ${clubBadge(rb.club, 18)}
+                    <b>${esc(rb.club)}</b>
+                    ${idx===0 ? '<span class="pill danger" style="font-size:9px">MAIOR LANCE</span>' : ''}
+                  </div>
+                  <strong style="color:${idx===0?'#ef4444':'#f59e0b'}">${fmtMoney(rb.bid)}</strong>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Ajuste do Valor da Proposta -->
+          <div style="background:#090e17;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="small muted">Sua Oferta de Compra:</span>
+              <b style="font-size:20px;color:#a855f7">${fmtMoney(offerBid)}</b>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:4px;margin-top:10px">
+              <button class="btn btnBidStep" data-step="-500000" style="padding:4px;font-size:10px">-500k</button>
+              <button class="btn btnBidStep" data-step="-100000" style="padding:4px;font-size:10px">-100k</button>
+              <button class="btn btnBidStep" data-step="100000" style="padding:4px;font-size:10px">+100k</button>
+              <button class="btn primary btnBidStep" data-step="500000" style="padding:4px;font-size:10px">+500k</button>
+              <button class="btn primary btnBidStep" data-step="1000000" style="padding:4px;font-size:10px">+1M</button>
+            </div>
+          </div>
+
+          <div style="font-size:11px;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;line-height:1.4">
+            ${clubFeedback}
+          </div>
+        </div>
+
+        <!-- COLUNA DIREITA: CONTRATO DO ATLETA & BARRA DE INTERESSE -->
+        <div class="nego-card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:900;color:#c084fc;text-transform:uppercase">2. SALÁRIO & BÔNUS DO JOGADOR</span>
+            <span class="pill" style="font-size:10px">Base: ${fmtMoney(baseSalary)}/mês</span>
+          </div>
+
+          <!-- Salário Mensal -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;font-weight:700">Salário Oferecido:</span>
+              <strong style="color:var(--neon);font-size:16px">${fmtMoney(wageOffered)}/mês</strong>
+            </div>
+            <input type="range" id="rngWageOffer" min="${Math.round(baseSalary*0.6)}" max="${Math.round(baseSalary*2.2)}" step="2000" value="${wageOffered}" style="width:100%;margin-top:6px">
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.4)">
+              <span>-40%</span>
+              <span>Esperado (${fmtMoney(baseSalary)})</span>
+              <span>+120%</span>
+            </div>
+          </div>
+
+          <!-- Duração e Luvas -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <label style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6)">DURAÇÃO:</label>
+              <div style="display:flex;gap:4px;margin-top:3px">
+                ${[1, 2, 3, 4].map(y => `
+                  <button class="btn btnContractYear ${contractYears===y?'primary':''}" data-year="${y}" style="flex:1;padding:4px;font-size:10px;font-weight:800">
+                    ${y}a
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6)">LUVAS (ASSINATURA):</label>
+              <div style="display:flex;gap:3px;margin-top:3px">
+                ${[0, 150000, 500000, 1200000].map(lv => `
+                  <button class="btn btnLuvasChip ${signingBonus===lv?'primary':''}" data-val="${lv}" style="flex:1;padding:4px;font-size:9px">
+                    ${lv===0?'0':lv>=1000000?'+1.2M':`+${lv/1000}k`}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- Bônus de Desempenho (Vitória, Gol, Título) -->
+          <div>
+            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px">BÔNUS POR DESEMPENHO:</div>
+            
+            <!-- Vitória -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:10px;color:rgba(255,255,255,0.7)">🏆 Bônus por Vitória:</span>
+              <div style="display:flex;gap:3px">
+                ${[0, 5000, 15000, 30000].map(v => `
+                  <button class="btn btnBonusWin ${bonusWin===v?'primary':''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
+                    ${v===0?'Não':fmtMoney(v)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Gol -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:10px;color:rgba(255,255,255,0.7)">⚽ Bônus por Gol:</span>
+              <div style="display:flex;gap:3px">
+                ${[0, 4000, 10000, 20000].map(v => `
+                  <button class="btn btnBonusGoal ${bonusGoal===v?'primary':''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
+                    ${v===0?'Não':fmtMoney(v)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Título -->
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:10px;color:rgba(255,255,255,0.7)">🥇 Bônus por Título:</span>
+              <div style="display:flex;gap:3px">
+                ${[0, 50000, 150000, 400000].map(v => `
+                  <button class="btn btnBonusTitle ${bonusTitle===v?'primary':''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
+                    ${v===0?'Não':v>=100000?`+${v/1000}k`:fmtMoney(v)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- BARRA DE INTERESSE DO JOGADOR -->
+          <div class="nego-interest-wrapper">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;font-weight:900;color:#fff">INTERESSE DO ATLETA</span>
+              <span style="font-size:13px;font-weight:900;color:${interest>=75?'#10b981':interest>=50?'#f59e0b':'#ef4444'}">${interest}%</span>
+            </div>
+            
+            <div class="nego-interest-bar-bg">
+              <div class="nego-interest-bar-fill ${interestClass}" style="width:${interest}%"></div>
+            </div>
+            
+            <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-top:6px;line-height:1.3">
+              ${interestText} (Meta: 75%+)
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- PAINEL DE CHANCES REALISTAS DE ACEITE -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;margin-top:12px;display:flex;justify-content:space-around;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="font-size:12px">
+          🏛️ Chance de Aceite do Clube Vendedor: <b style="color:${clubChance>=70?'#22c55e':'#ef4444'}">${clubChance}%</b>
+        </div>
+        <div style="font-size:12px">
+          👤 Chance de Aceite do Atleta (Termos): <b style="color:${playerChance>=65?'#22c55e':'#ef4444'}">${playerChance}%</b>
+        </div>
+      </div>
+
+      <!-- RODAPÉ DE AÇÃO -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;gap:10px">
+        <div>
+          <div class="small muted">Custo à Vista (Transferência + Luvas):</div>
+          <b style="font-size:18px;color:${canAfford?'#22c55e':'#ef4444'}">${fmtMoney(totalCashNeeded)}</b>
+          ${!canAfford ? '<span class="pill danger" style="margin-left:6px;font-size:10px">Saldo Insuficiente</span>' : ''}
+        </div>
+
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="btnCancelNego">Cancelar</button>
+          <button class="btn primary" id="btnConfirmBuyTransfer" ${canFinalize ? '' : 'disabled'} style="padding:10px 22px;font-size:13px;font-weight:900;background:${canFinalize?'linear-gradient(135deg,#059669,#10b981)':'#374151'}">
+            ✍️ Fechar Contratação Definitiva
+          </button>
+        </div>
+      </div>
+    `;
+
+    openCustomModal('🤝 Negociação de Transferência Definitiva', bodyHtml, null, 'Fechar', false, '1020px');
+
+    // Binds
+    $('#btnCancelNego').onclick = closeCustomModal;
+
+    $$('.btnBidStep').forEach(b => {
+      b.onclick = () => {
+        offerBid = Math.max(50000, offerBid + (+b.dataset.step));
+        renderNegoModal();
+      };
+    });
+
+    const wageSlider = $('#rngWageOffer');
+    if(wageSlider){
+      wageSlider.oninput = () => {
+        wageOffered = +wageSlider.value;
+        renderNegoModal();
+      };
+    }
+
+    $$('.btnContractYear').forEach(b => {
+      b.onclick = () => {
+        contractYears = +b.dataset.year;
+        renderNegoModal();
+      };
+    });
+
+    $$('.btnLuvasChip').forEach(b => {
+      b.onclick = () => {
+        signingBonus = +b.dataset.val;
+        renderNegoModal();
+      };
+    });
+
+    $$('.btnBonusWin').forEach(b => {
+      b.onclick = () => {
+        bonusWin = +b.dataset.val;
+        renderNegoModal();
+      };
+    });
+
+    $$('.btnBonusGoal').forEach(b => {
+      b.onclick = () => {
+        bonusGoal = +b.dataset.val;
+        renderNegoModal();
+      };
+    });
+
+    $$('.btnBonusTitle').forEach(b => {
+      b.onclick = () => {
+        bonusTitle = +b.dataset.val;
+        renderNegoModal();
+      };
+    });
+
+    const bConf = $('#btnConfirmBuyTransfer');
+    if(bConf){
+      bConf.onclick = () => {
+        if(!canFinalize) return;
+        const rollClub = Math.random() * 100;
+        if(rollClub > clubChance){
+          toast(`❌ A diretoria do ${from} recuou no último minuto! Aumente o valor do passe para garantir o aceite.`);
+          return;
+        }
+        const rollPlayer = Math.random() * 100;
+        if(rollPlayer > playerChance){
+          toast(`❌ ${p.name} recusou a proposta contratual final! Seu agente pediu melhores termos salariais ou luvas.`);
+          return;
+        }
+        state.balance -= totalCashNeeded;
+        state.expense = (state.expense || 0) + totalCashNeeded;
+        state.playerMoves[key] = state.club;
+        
+        const signedPlayer = {
+          ...p,
+          club: state.club,
+          owned: true,
+          marketKey: key,
+          fitness: 100,
+          morale: 85,
+          wage: wageOffered,
+          contractUntil: state.season + contractYears,
+          bonusWin,
+          bonusGoal,
+          bonusTitle
+        };
+
+        state.squad.push(signedPlayer);
+        state.transfers.unshift({ type: 'in', name: p.name, from, to: state.club, value: offerBid, date: state.date });
+        state.news.unshift(`⭐ CONTRATAÇÃO DE PESO: O ${state.club} superou a concorrência do ${highestRivalClub} e fechou a compra de ${p.name} por ${fmtMoney(offerBid)}!`);
+        toast(`🎉 ${p.name} contratado com sucesso! Contrato assinado por ${contractYears} anos.`);
+        closeCustomModal();
+        save();
+        render();
+      };
+    }
+  }
+
+  renderNegoModal();
+}
+
+// =========================================================================
+// SISTEMA DE NEGOCIAÇÃO DE EMPRÉSTIMO (COM RIVAIS E SALÁRIO/BÔNUS)
+// =========================================================================
+function loanInPlayer(key){
+  openLoanNegotiationModal(key);
+}
+
+function openLoanNegotiationModal(key){
+  const windowOpen = isTransferWindowOpen(state.date);
+  let p = findGlobalPlayerByKey(key);
+  if(!p){ toast('Jogador não encontrado.'); return; }
+
+  // Se for do elenco do treinador, abre a tela de empréstimo/venda do elenco
+  if(norm(p.club || '') === norm(state.club) || (state.squad||[]).some(s => playerKey(s) === playerKey(p))){
+    openPlayerTransferModal(playerKey(p));
+    return;
+  }
+
+  if(state.squad.length >= 40){ toast('Elenco cheio: máximo de 40 jogadores.'); return; }
+
+  const ovr = playerOverall(p);
+  const basePrice = Math.max(100000, Math.round(calcValueMi(p) * 1e6));
+  const baseFee = Math.round(basePrice * 0.10);
+  const from = p.club || 'Livre no Mercado';
+
+  // Clube concorrente no empréstimo
+  const otherClubs = clubs.filter(c => norm(c.name) !== norm(state.club) && norm(c.name) !== norm(from));
+  const rival = otherClubs[hashStr(key + 'loanR') % otherClubs.length] || { name: 'Santos' };
+  const rivalFee = Math.round(baseFee * (0.95 + ((hashStr(key + 'lfee') % 15) / 100)));
+
+  let offeredFee = Math.max(baseFee, rivalFee + 15000);
+  const fullSalary = Math.max(10000, playerSalary(p));
+  let salaryShare = 0.80; // 50%, 80%, 100%
+  let bonusWin = 0;
+  let bonusGoal = 0;
+  let bonusTitle = 0;
+
+  function calcLoanInterest(){
+    let score = 55;
+    score += Math.round((salaryShare - 0.70) * 40);
+
+    if(bonusWin >= 20000) score += 12;
+    else if(bonusWin > 0) score += 6;
+
+    if(bonusGoal >= 10000) score += 10;
+    else if(bonusGoal > 0) score += 5;
+
+    if(bonusTitle >= 100000) score += 14;
+    else if(bonusTitle > 0) score += 6;
+
+    return clamp(score, 20, 100);
+  }
+
+  function renderLoanNego(){
+    const interest = calcLoanInterest();
+    const clubAccepted = offeredFee >= baseFee && offeredFee > rivalFee;
+    const clubChance = offeredFee <= rivalFee ? 0 : clamp(Math.round(70 + ((offeredFee - baseFee) / (baseFee * 0.3 || 1)) * 28), 65, 98);
+    const playerChance = interest;
+    const playerAccepted = interest >= 65;
+    const canAfford = state.balance >= offeredFee;
+    const canFinalize = clubAccepted && playerAccepted && canAfford;
+
+    const interestClass = interest < 50 ? 'interest-low' : interest < 75 ? 'interest-mid' : 'interest-high';
+
+    const bodyHtml = `
+      ${!windowOpen ? `
+        <div style="background:rgba(245,158,11,0.15);border:1px solid #f59e0b;padding:8px 12px;border-radius:8px;font-size:11px;color:#facc15;margin-bottom:10px">
+          ⚠️ <b>Janela de Transferências Fechada:</b> O acordo será assinado como pré-contrato e o atleta se apresentará na reabertura oficial da janela.
+        </div>
+      ` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--panel2);border-radius:12px;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:12px">
+          ${playerPhoto(p, 54)}
+          <div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <h2 style="margin:0;font-size:18px">${esc(p.name)}</h2>
+              <span class="rating-pill ${ratingClass(ovr)}">${ovr}</span>
+              <span class="pill">${esc(p.pos)}</span>
+            </div>
+            <div class="small muted" style="margin-top:2px">
+              Cedente: <b>${esc(from)}</b> • Contrato por empréstimo até o fim da temporada
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:rgba(255,255,255,0.5)">Caixa Disponível</div>
+          <b style="color:var(--neon);font-size:18px">${fmtMoney(state.balance)}</b>
+        </div>
+      </div>
+
+      <div class="nego-container">
+        
+        <!-- TAXA DE EMPRÉSTIMO & DISPUTA -->
+        <div class="nego-card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:900;color:var(--cyan);text-transform:uppercase">1. TAXA DE EMPRÉSTIMO AO CLUBE</span>
+            <span class="pill" style="font-size:10px">Base: ${fmtMoney(baseFee)}</span>
+          </div>
+
+          <div class="nego-rival-pill ${offeredFee <= rivalFee ? 'leading' : ''}">
+            <div style="display:flex;align-items:center;gap:6px">
+              ${clubBadge(rival.name, 18)}
+              <span>Concorrente: <b>${esc(rival.name)}</b></span>
+            </div>
+            <strong style="color:${offeredFee<=rivalFee?'#ef4444':'#f59e0b'}">${fmtMoney(rivalFee)}</strong>
+          </div>
+
+          <div style="background:#090e17;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="small muted">Sua Oferta de Taxa de Empréstimo:</span>
+              <b style="font-size:20px;color:#a855f7">${fmtMoney(offeredFee)}</b>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:4px;margin-top:10px">
+              <button class="btn btnLoanFeeStep" data-step="-50000" style="padding:4px;font-size:10px">-50k</button>
+              <button class="btn btnLoanFeeStep" data-step="20000" style="padding:4px;font-size:10px">+20k</button>
+              <button class="btn primary btnLoanFeeStep" data-step="50000" style="padding:4px;font-size:10px">+50k</button>
+              <button class="btn primary btnLoanFeeStep" data-step="150000" style="padding:4px;font-size:10px">+150k</button>
+            </div>
+          </div>
+
+          <div style="font-size:11px;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px">
+            ${offeredFee <= rivalFee 
+              ? `🔴 A oferta do <b>${rival.name}</b> (${fmtMoney(rivalFee)}) é maior! O ${from} dará prioridade a eles.` 
+              : `🟢 O ${from} aceita liberar o atleta para o seu time com esta taxa!`}
+          </div>
+        </div>
+
+        <!-- DIVISÃO SALARIAL & BÔNUS AO ATLETA -->
+        <div class="nego-card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:900;color:#c084fc;text-transform:uppercase">2. PARCELA SALARIAL & BÔNUS</span>
+            <span class="pill" style="font-size:10px">Folha: ${fmtMoney(fullSalary)}/mês</span>
+          </div>
+
+          <div>
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:4px">Percentual do Salário Pago pelo Seu Clube:</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+              ${[
+                { pct: 0.50, lbl: '50%', cost: fullSalary * 0.50 },
+                { pct: 0.80, lbl: '80%', cost: fullSalary * 0.80 },
+                { pct: 1.00, lbl: '100% (Integral)', cost: fullSalary }
+              ].map(opt => `
+                <button class="btn btnLoanSalaryPct ${salaryShare===opt.pct?'primary':''}" data-pct="${opt.pct}" style="padding:6px;font-size:10px;text-align:center">
+                  <b>${opt.lbl}</b><br><small>${fmtMoney(opt.cost)}/mês</small>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Bônus no Empréstimo -->
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6)">BÔNUS POR JOGO / TÍTULO:</div>
+            
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:10px">🏆 Vitória:</span>
+              <div style="display:flex;gap:3px">
+                ${[0, 5000, 15000].map(v => `
+                  <button class="btn btnLoanBonusWin ${bonusWin===v?'primary':''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
+                    ${v===0?'Não':fmtMoney(v)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:10px">⚽ Gol:</span>
+              <div style="display:flex;gap:3px">
+                ${[0, 5000, 10000].map(v => `
+                  <button class="btn btnLoanBonusGoal ${bonusGoal===v?'primary':''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
+                    ${v===0?'Não':fmtMoney(v)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:10px">🥇 Título:</span>
+              <div style="display:flex;gap:3px">
+                ${[0, 50000, 150000].map(v => `
+                  <button class="btn btnLoanBonusTitle ${bonusTitle===v?'primary':''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
+                    ${v===0?'Não':fmtMoney(v)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- BARRA DE INTERESSE -->
+          <div class="nego-interest-wrapper">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;font-weight:900;color:#fff">INTERESSE EM VIR POR EMPRÉSTIMO</span>
+              <span style="font-size:13px;font-weight:900;color:${interest>=75?'#10b981':interest>=50?'#f59e0b':'#ef4444'}">${interest}%</span>
+            </div>
+            
+            <div class="nego-interest-bar-bg">
+              <div class="nego-interest-bar-fill ${interestClass}" style="width:${interest}%"></div>
+            </div>
+
+            <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-top:6px">
+              ${interest>=75 ? '🟢 O jogador aceita jogar por empréstimo no seu time!' : '🟡 Ofereça cobertura salarial maior (100%) ou bônus para atrair o atleta.'}
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- PAINEL DE CHANCES REALISTAS DE ACEITE NO EMPRÉSTIMO -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;margin-top:12px;display:flex;justify-content:space-around;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="font-size:12px">
+          🏛️ Chance de Aceite do Clube Cedente: <b style="color:${clubChance>=65?'#22c55e':'#ef4444'}">${clubChance}%</b>
+        </div>
+        <div style="font-size:12px">
+          👤 Chance de Aceite do Atleta Emprestado: <b style="color:${playerChance>=65?'#22c55e':'#ef4444'}">${playerChance}%</b>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;gap:10px">
+        <div>
+          <div class="small muted">Taxa Imediata de Empréstimo:</div>
+          <b style="font-size:18px;color:${canAfford?'#22c55e':'#ef4444'}">${fmtMoney(offeredFee)}</b>
+        </div>
+
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="btnCancelLoanNego">Cancelar</button>
+          <button class="btn primary" id="btnConfirmLoanNego" ${canFinalize ? '' : 'disabled'} style="padding:10px 22px;font-size:13px;font-weight:900;background:${canFinalize?'linear-gradient(135deg,#059669,#10b981)':'#374151'}">
+            ⇄ Fechar Empréstimo do Atleta
+          </button>
+        </div>
+      </div>
+    `;
+
+    openCustomModal('⇄ Negociação de Empréstimo de Jogador', bodyHtml, null, 'Fechar', false, '1020px');
+
+    $('#btnCancelLoanNego').onclick = closeCustomModal;
+
+    $$('.btnLoanFeeStep').forEach(b => {
+      b.onclick = () => {
+        offeredFee = Math.max(10000, offeredFee + (+b.dataset.step));
+        renderLoanNego();
+      };
+    });
+
+    $$('.btnLoanSalaryPct').forEach(b => {
+      b.onclick = () => {
+        salaryShare = +b.dataset.pct;
+        renderLoanNego();
+      };
+    });
+
+    $$('.btnLoanBonusWin').forEach(b => {
+      b.onclick = () => {
+        bonusWin = +b.dataset.val;
+        renderLoanNego();
+      };
+    });
+
+    $$('.btnLoanBonusGoal').forEach(b => {
+      b.onclick = () => {
+        bonusGoal = +b.dataset.val;
+        renderLoanNego();
+      };
+    });
+
+    $$('.btnLoanBonusTitle').forEach(b => {
+      b.onclick = () => {
+        bonusTitle = +b.dataset.val;
+        renderLoanNego();
+      };
+    });
+
+    const bConfLoan = $('#btnConfirmLoanNego');
+    if(bConfLoan){
+      bConfLoan.onclick = () => {
+        if(!canFinalize) return;
+        const rollClub = Math.random() * 100;
+        if(rollClub > clubChance){
+          toast(`❌ O ${from} recusou a liberação por empréstimo no último minuto! Aumente a taxa de empréstimo.`);
+          return;
+        }
+        const rollPlayer = Math.random() * 100;
+        if(rollPlayer > playerChance){
+          toast(`❌ ${p.name} recusou os termos do empréstimo! Ele exige 100% dos salários ou bônus por vitória.`);
+          return;
+        }
+        state.balance -= offeredFee;
+        state.expense = (state.expense || 0) + offeredFee;
+        state.playerMoves[key] = state.club;
+
+        const loanedPlayer = {
+          ...p,
+          club: state.club,
+          owned: true,
+          marketKey: key,
+          isLoan: true,
+          loanFrom: from,
+          fitness: 100,
+          morale: 80,
+          wage: Math.round(fullSalary * salaryShare),
+          contractUntil: state.season,
+          bonusWin,
+          bonusGoal,
+          bonusTitle
+        };
+
+        state.squad.push(loanedPlayer);
+        state.loans.unshift({ type: 'loan_in', name: p.name, from, to: state.club, fee: offeredFee, date: state.date });
+        state.news.unshift(`⇄ EMPRÉSTIMO FECHADO: O ${state.club} acertou a vinda de ${p.name}, vindo do ${from}, superando interesse do ${rival.name}!`);
+        toast(`🎉 ${p.name} chegou por empréstimo com sucesso!`);
+        closeCustomModal();
+        save();
+        render();
+      };
+    }
+  }
+
+  renderLoanNego();
+}
+
+function generateBuyerOffers(p){
+  const key = playerKey(p);
+  const basePrice = Math.round(calcValueMi(p) * 1e6);
+  const ovr = playerOverall(p);
+  const buyerPool = clubs.filter(c => norm(c.name) !== norm(state.club));
+  const offers = [];
+  const numOffers = 2 + (hashStr(key + (state.round||0) + 'num') % 2);
+  const used = new Set();
+
+  for(let i = 0; i < numOffers; i++){
+    const h = hashStr(key + (state.round||0) + 'b' + i);
+    let eligible = buyerPool;
+    if(ovr >= 80) eligible = buyerPool.filter(c => c.country !== 'Brasil' || ['Flamengo','Palmeiras','Atlético-MG','Corinthians','São Paulo'].includes(c.name));
+    if(!eligible.length) eligible = buyerPool;
+    const buyerClub = eligible[h % eligible.length]?.name || 'Outro clube';
+    if(used.has(buyerClub)) continue;
+    used.add(buyerClub);
+
+    const mult = 0.88 + ((h % 38) / 100);
+    const price = Math.round(basePrice * mult);
+    const diffPercent = Math.round((mult - 1) * 100);
+    offers.push({ buyer: buyerClub, price, diffPercent });
+  }
+  return offers.sort((a,b) => b.price - a.price);
+}
+
+function generateLoanOffers(p){
+  const key = playerKey(p);
+  const basePrice = Math.round(calcValueMi(p) * 1e6);
+  const buyerPool = clubs.filter(c => norm(c.name) !== norm(state.club));
+  const offers = [];
+  const used = new Set();
+
+  for(let i = 0; i < 2; i++){
+    const h = hashStr(key + (state.round||0) + 'l' + i);
+    const buyerClub = buyerPool[h % buyerPool.length]?.name || 'Outro clube';
+    if(used.has(buyerClub)) continue;
+    used.add(buyerClub);
+
+    const mult = 0.08 + ((h % 7) / 100);
+    const fee = Math.round(basePrice * mult);
+    offers.push({ buyer: buyerClub, fee });
+  }
+  return offers.sort((a,b) => b.fee - a.fee);
+}
+
+function openPlayerTransferModal(key){
+  const p = findSquadPlayerByKey(key);
+  if(!p){
+    toast('Jogador não encontrado no elenco.');
+    return;
+  }
+  const actualKey = playerKey(p);
+  const winInfo = getTransferWindowInfo(state.date);
+
+  state.transferOffers = state.transferOffers || {};
+  state.loanOffers = state.loanOffers || {};
+  if(!state.transferOffers[actualKey] || state.transferOffers[actualKey].length === 0){
+    state.transferOffers[actualKey] = generateBuyerOffers(p);
+  }
+  if(!state.loanOffers[actualKey] || state.loanOffers[actualKey].length === 0){
+    state.loanOffers[actualKey] = generateLoanOffers(p);
+  }
+
+  const isTransferListed = (state.transferListed || []).includes(actualKey);
+  const isLoanListed = (state.loanListed || []).includes(actualKey);
+  const buyOffers = state.transferOffers[actualKey] || [];
+  const loanOffers = state.loanOffers[actualKey] || [];
+  const quickSaleVal = Math.round(calcValueMi(p) * 1e6 * 0.80);
+
+  const bodyHtml = `
+    <div style="display:flex;align-items:center;gap:16px;background:var(--panel2);padding:14px;border-radius:14px;margin-bottom:14px">
+      ${clubBadge(p.club || state.club, 52)}
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <h2 style="margin:0">${esc(p.name)}</h2>
+          <span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span>
+        </div>
+        <div class="muted" style="margin-top:4px">
+          ${esc(p.pos)} • ${p.age||'-'} anos • Potencial: <b class="good">${p.potential||playerOverall(p)}</b> • Passe de mercado: <b class="good">${fmtMi(calcValueMi(p))}</b>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn ${isTransferListed?'warn':''}" id="btnToggleTransferList">
+            ${isTransferListed ? '🏷️ Listado à Venda (Clique p/ retirar)' : '🏷️ Colocar à Venda'}
+          </button>
+          <button class="btn ${isLoanListed?'warn':''}" id="btnToggleLoanList">
+            ${isLoanListed ? '🤝 Listado p/ Empréstimo (Clique p/ retirar)' : '🤝 Listar para Empréstimo'}
+          </button>
+          <span class="window-badge ${winInfo.open?'window-open':'window-closed'}" style="font-size:11px">${winInfo.open?'🟢 Janela Aberta':'🔴 Janela Fechada'}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BANNER DE VENDA RÁPIDA IMEDIATA (80%) -->
+    <div style="background:linear-gradient(90deg,rgba(16,185,129,0.18),rgba(6,182,212,0.12));border:1px solid #10b981;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-weight:900;color:#34d399;font-size:13px">⚡ VENDA RÁPIDA IMEDIATA (80% DO PASSE)</div>
+        <div class="small muted" style="margin-top:2px">Venda na hora para clube da divisão por <b style="color:#fbbf24">${fmtMoney(quickSaleVal)}</b> à vista sem aguardar propostas.</div>
+      </div>
+      <button class="btn success" id="btnModalQuickSellAction" style="font-weight:900;padding:8px 16px;font-size:12px;cursor:pointer">
+        ⚡ Vender Agora por ${fmtMoney(quickSaleVal)}
+      </button>
+    </div>
+
+    <div style="margin-bottom:8px;font-size:12px;color:#94a3b8">
+      💡 <b>Mercado Dinâmico:</b> Clubes interessados enviam propostas no decorrer dos dias. Você pode aceitar a melhor oferta abaixo ou recusar todas.
+    </div>
+
+    <h3 style="margin:16px 0 8px 0;display:flex;align-items:center;gap:8px">
+      💰 Propostas de Compra Definitiva Recebidas (${buyOffers.length})
+    </h3>
+    <div class="proposals-container">
+      ${buyOffers.length === 0 ? '<div class="empty">Nenhuma proposta de compra no momento. Mantenha o jogador na lista para receber nas próximas rodadas.</div>' : buyOffers.map((o, oIdx)=>`
+        <div class="proposal-item">
+          <div class="proposal-club">
+            ${clubBadge(o.buyer, 38)}
+            <div class="proposal-club-info">
+              <b>${esc(o.buyer)}</b>
+              <div class="small muted">${o.diffPercent >= 0 ? `+${o.diffPercent}% sobre o passe` : `${o.diffPercent}% do passe`}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div class="proposal-value-box">
+              <div class="proposal-price">${fmtMoney(o.price)}</div>
+              <div class="small muted">À vista no caixa</div>
+              <div style="font-size:10px;color:#facc15;margin-top:2px">🎲 Aceite do Atleta: <b>${clamp(Math.round(82 + ((o.price - calcValueMi(p)*1e6)/(calcValueMi(p)*1e6||1))*15), 60, 96)}%</b></div>
+            </div>
+            <button class="btn primary btnAcceptSale" data-offer-idx="${oIdx}" ${(!winInfo.open && !state.freeTransferWindow)?'disabled title="Janela Fechada"':''}>
+              ${(!winInfo.open && !state.freeTransferWindow)?'Janela Fechada':'Aceitar Venda'}
+            </button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <h3 style="margin:20px 0 8px 0;display:flex;align-items:center;gap:8px">
+      🤝 Propostas de Empréstimo por 1 Temporada (${loanOffers.length})
+    </h3>
+    <div class="proposals-container">
+      ${loanOffers.length === 0 ? '<div class="empty">Nenhuma proposta de empréstimo no momento.</div>' : loanOffers.map((o, oIdx)=>`
+        <div class="proposal-item">
+          <div class="proposal-club">
+            ${clubBadge(o.buyer, 38)}
+            <div class="proposal-club-info">
+              <b>${esc(o.buyer)}</b>
+              <div class="small muted">Duração: 1 temporada • 100% dos salários assumidos</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div class="proposal-value-box">
+              <div class="proposal-price" style="color:var(--cyan)">${fmtMoney(o.fee)}</div>
+              <div class="small muted">Taxa de empréstimo</div>
+              <div style="font-size:10px;color:#facc15;margin-top:2px">🎲 Aceite do Atleta: <b>${clamp(Math.round(80 + ((o.fee - calcValueMi(p)*1e6*0.08)/(calcValueMi(p)*1e6*0.08||1))*15), 60, 95)}%</b></div>
+            </div>
+            <button class="btn success btnAcceptLoan" data-offer-idx="${oIdx}" ${(!winInfo.open && !state.freeTransferWindow)?'disabled title="Janela Fechada"':''}>
+              ${(!winInfo.open && !state.freeTransferWindow)?'Janela Fechada':'Aceitar Empréstimo'}
+            </button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div style="margin-top:22px;display:flex;justify-content:space-between;align-items:center">
+      <button class="btn" id="btnRejectAllOffers" style="color:var(--bad)">❌ Recusar Todas as Propostas</button>
+      <button class="btn" id="btnModalCloseNegotiation">Fechar Janela</button>
+    </div>
+  `;
+
+  openCustomModal('📄 Propostas & Negociação de Transferência', bodyHtml, null, 'Fechar', false);
+
+  const btnQuick = $('#btnModalQuickSellAction');
+  if(btnQuick){
+    btnQuick.onclick = () => {
+      closeCustomModal();
+      quickSellSquadPlayer(actualKey);
+    };
+  }
+
+  const btnToggleT = $('#btnToggleTransferList');
+  if(btnToggleT) btnToggleT.onclick = () => {
+    state.transferListed = state.transferListed || [];
+    if(state.transferListed.includes(actualKey)){
+      state.transferListed = state.transferListed.filter(k=>k!==actualKey);
+      toast(`${p.name} foi retirado da lista de transferências.`);
+    } else {
+      state.transferListed.push(actualKey);
+      toast(`${p.name} colocado na lista de transferências!`);
+    }
+    save();
+    openPlayerTransferModal(actualKey);
+  };
+
+  const btnToggleL = $('#btnToggleLoanList');
+  if(btnToggleL) btnToggleL.onclick = () => {
+    state.loanListed = state.loanListed || [];
+    if(state.loanListed.includes(actualKey)){
+      state.loanListed = state.loanListed.filter(k=>k!==actualKey);
+      toast(`${p.name} retirado da lista de empréstimos.`);
+    } else {
+      state.loanListed.push(actualKey);
+      toast(`${p.name} colocado na lista de empréstimos!`);
+    }
+    save();
+    openPlayerTransferModal(actualKey);
+  };
+
+  $$('.btnAcceptSale').forEach(b=>{
+    b.onclick = () => {
+      if(!winInfo.open && !state.freeTransferWindow && !(state.isPreSeason && state.preSeasonDays > 0)){
+        toast('A janela de transferências está fechada!');
+        return;
+      }
+      if(state.squad.length <= 14){
+        toast('Você precisa manter pelo menos 14 jogadores no elenco.');
+        return;
+      }
+      const oIdx = +b.dataset.offerIdx;
+      const offer = buyOffers[oIdx];
+      if(!offer) return;
+
+      const playerChance = clamp(Math.round(82 + ((offer.price - calcValueMi(p)*1e6)/(calcValueMi(p)*1e6||1))*15), 60, 96);
+      const roll = Math.random() * 100;
+      if(roll > playerChance){
+        toast(`❌ ${p.name} recusou os termos pessoais com o ${offer.buyer}! A transferência não pôde ser concretizada.`);
+        return;
+      }
+
+      const curIdx = state.squad.findIndex(q=>playerKey(q)===actualKey || norm(q.name)===norm(p.name));
+      if(curIdx < 0) return;
+      state.squad.splice(curIdx, 1);
+      state.playerMoves[actualKey] = offer.buyer;
+      state.balance += offer.price;
+      state.income = (state.income || 0) + offer.price;
+      state.transferListed = (state.transferListed||[]).filter(k=>k!==actualKey);
+      delete state.transferOffers[actualKey];
+      delete state.loanOffers[actualKey];
+      state.transfers.unshift({type:'out', name:p.name, from:state.club, to:offer.buyer, value:offer.price, date:state.date});
+      state.news.unshift(`${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)}.`);
+      state.lineup = (state.lineup||[]).map(x=>x===actualKey?null:x);
+      optimizeLineup();
+      save();
+      closeCustomModal();
+      render();
+      toast(`🎉 Venda de ${p.name} para o ${offer.buyer} concluída por ${fmtMoney(offer.price)}!`);
+    };
+  });
+
+  $$('.btnAcceptLoan').forEach(b=>{
+    b.onclick = () => {
+      if(!winInfo.open && !state.freeTransferWindow && !(state.isPreSeason && state.preSeasonDays > 0)){
+        toast('A janela de transferências está fechada!');
+        return;
+      }
+      const oIdx = +b.dataset.offerIdx;
+      const offer = loanOffers[oIdx];
+      if(!offer) return;
+
+      const playerChance = clamp(Math.round(80 + ((offer.fee - calcValueMi(p)*1e6*0.08)/(calcValueMi(p)*1e6*0.08||1))*15), 60, 95);
+      const roll = Math.random() * 100;
+      if(roll > playerChance){
+        toast(`❌ ${p.name} recusou ir por empréstimo ao ${offer.buyer}!`);
+        return;
+      }
+
+      const curIdx = state.squad.findIndex(q=>playerKey(q)===actualKey || norm(q.name)===norm(p.name));
+      if(curIdx < 0) return;
+      state.squad.splice(curIdx, 1);
+      state.playerMoves[actualKey] = offer.buyer;
+      state.balance += offer.fee;
+      state.income = (state.income || 0) + offer.fee;
+      state.loanListed = (state.loanListed||[]).filter(k=>k!==actualKey);
+      delete state.transferOffers[actualKey];
+      delete state.loanOffers[actualKey];
+      state.loans.unshift({type:'loan_out', name:p.name, from:state.club, to:offer.buyer, fee:offer.fee, date:state.date});
+      state.news.unshift(`${p.name} foi emprestado ao ${offer.buyer} por 1 temporada.`);
+      state.lineup = (state.lineup||[]).map(x=>x===actualKey?null:x);
+      optimizeLineup();
+      save();
+      closeCustomModal();
+      render();
+      toast(`Empréstimo de ${p.name} para o ${offer.buyer} aceito com sucesso!`);
+    };
+  });
+
+  const btnReject = $('#btnRejectAllOffers');
+  if(btnReject) btnReject.onclick = () => {
+    delete state.transferOffers[actualKey];
+    delete state.loanOffers[actualKey];
+    save();
+    closeCustomModal();
+    render();
+    toast('Todas as propostas foram recusadas.');
+  };
+
+  const btnClose = $('#btnModalCloseNegotiation');
+  if(btnClose) btnClose.onclick = closeCustomModal;
+}
+
+function quickSellSquadPlayer(key){
+  const p = findSquadPlayerByKey(key);
+  if(!p){
+    toast('Jogador não encontrado no elenco.');
+    return;
+  }
+  const winInfo = getTransferWindowInfo(state.date);
+  const isWindowOrPreSeason = winInfo.open || state.freeTransferWindow || (state.isPreSeason && state.preSeasonDays > 0);
+  if(!isWindowOrPreSeason){
+    toast('A janela de transferências está fechada!');
+    return;
+  }
+  if(state.squad.length <= 14){
+    toast('Você precisa manter pelo menos 14 jogadores no elenco.');
+    return;
+  }
+  const actualKey = playerKey(p);
+  const fullVal = Math.round(calcValueMi(p) * 1e6);
+  const quickPrice = Math.max(30000, Math.round(fullVal * 0.80));
+
+  const otherClubs = clubs.filter(c => norm(c.name) !== norm(state.club));
+  const buyer = otherClubs[hashStr(actualKey + (state.round||0)) % otherClubs.length]?.name || 'Ceilândia';
+
+  const confirmSell = confirm(`Deseja realizar a VENDA RÁPIDA de ${p.name} para o ${buyer} por ${fmtMoney(quickPrice)} (80% do valor de mercado à vista no caixa)?`);
+  if(!confirmSell) return;
+
+  const curIdx = state.squad.findIndex(q => playerKey(q) === actualKey || norm(q.name) === norm(p.name));
+  if(curIdx < 0) return;
+
+  state.squad.splice(curIdx, 1);
+  state.playerMoves[actualKey] = buyer;
+  state.balance += quickPrice;
+  state.income = (state.income || 0) + quickPrice;
+  state.transferListed = (state.transferListed||[]).filter(k => k !== actualKey);
+  delete (state.transferOffers||{})[actualKey];
+  delete (state.loanOffers||{})[actualKey];
+  state.transfers.unshift({ type: 'out', name: p.name, from: state.club, to: buyer, value: quickPrice, date: state.date });
+  state.news.unshift(`⚡ VENDA RÁPIDA: ${p.name} foi vendido ao ${buyer} por ${fmtMoney(quickPrice)} à vista.`);
+  state.lineup = (state.lineup||[]).map(x => (x === actualKey || x === key) ? null : x);
+  optimizeLineup();
+  save();
+  render();
+  toast(`🎉 Venda rápida de ${p.name} para o ${buyer} concluída por ${fmtMoney(quickPrice)}!`);
+}
+
+function promptSellPlayer(key){
+  openPlayerTransferModal(key);
+}
+
+function promptLoanOutPlayer(key){
+  openPlayerTransferModal(key);
+}
+
+function saleOffer(p){
+  const key=playerKey(p),mult=.84+(hashStr(key+'offer')%28)/100;
+  const buyerPool=clubs.filter(c=>norm(c.name)!==norm(state.club));
+  const buyer=buyerPool[hashStr(key+'buyer')%Math.max(1,buyerPool.length)]?.name||'Outro clube';
+  return {buyer,price:Math.round(calcValueMi(p)*1e6*mult)};
+}
+
+function facilityCost(key){
+  const f=state.infrastructure[key]||{level:1},d=FACILITIES[key];
+  return Math.round(d.base*Math.pow(1.68,Math.max(0,f.level)));
+}
+
+function upgradeFacility(key){
+  const f=state.infrastructure[key],d=FACILITIES[key];
+  if(!f||!d)return;
+  if(f.level>=d.max){toast('Estrutura no nível máximo.');return}
+  const cost=facilityCost(key);
+  if(state.balance<cost){toast('Caixa insuficiente para a obra.');return}
+  state.balance-=cost;
+  state.expense+=cost;
+  f.level++;
+  if(key==='stadium') f.capacity=clamp((f.capacity||18000)+5000+(f.level-2)*2500,8000,110000);
+  if(key==='parking') f.spots = parkingSpots(f.level);
+  if(key==='museum'||key==='stadium') state.trust.fans=clamp(state.trust.fans+2,0,100);
+  if(key==='press') state.trust.board=clamp(state.trust.board+1,0,100);
+  if(key==='academy') boostYouthAcademyOnUpgrade(f.level);
+  state.news.unshift(`${d.name} foi ampliado para o nível ${f.level}, por ${fmtMoney(cost)}.`);
+  save();render();toast(`${d.name}: nível ${f.level}.`);
+}
+
+// -------------------------------------------------------------
+// RENDERIZAÇÃO PRINCIPAL & PÁGINAS
+// -------------------------------------------------------------
+function render(){
+  const app=$('#app');
+  if(!state){renderSetup(app);return}
+  if(repairSaveIfCorrupted(state)){
+    save();
+  }
+  app.innerHTML=shell(page());
+  bind();
+}
+
+function shell(main){
+  const c=clubByName(state.club)||{stadium:'Estádio do clube'};
+  const winInfo = getTransferWindowInfo(state.date);
+
+  return `
+    <div class="app">
+      <header class="top">
+        <div class="brand">
+          ${clubBadge(state.club, 28)}
+          <span><b>AFM</b> MANAGER 2027</span>
+        </div>
+        <div class="top-right">
+          <span>📅 ${esc(state.date)}</span>
+          <span class="window-badge ${winInfo.open?'window-open':'window-closed'}">
+            ${winInfo.open?'🟢':'🔴'} ${esc(winInfo.text)}
+          </span>
+          <span>•</span>
+          <span>👔 ${esc(state.manager)}</span>
+          ${getActiveAccount()?.role === 'admin' ? `
+            <button class="btn" id="btnTopAdminPanelInGame" style="background:rgba(124,58,237,0.3);border-color:#a855f7;color:#fff;font-size:12px;font-weight:800;padding:6px 12px">
+              🛡️ Painel Admin
+            </button>
+          ` : ''}
+          <button class="btn success" id="quickSaveBtn">💾 Salvar Jogo</button>
+          <button class="btn danger" id="mainMenuBtn">🏠 Menu Principal</button>
+        </div>
+      </header>
+      <div class="layout">
+        <aside class="side">
+          <div class="club-card">
+            <div style="display:flex;align-items:center;gap:10px">
+              ${clubBadge(state.club, 48)}
+              <div>
+                <div class="club-name" style="margin-top:0">${esc(state.club)}</div>
+                <div class="small">${esc(state.competition)}</div>
+              </div>
+            </div>
+            <div class="small" style="margin-top:8px">${esc(c.stadium||'')}</div>
+            <div style="margin-top:10px" class="small">Saldo em Caixa</div>
+            <b style="color:var(--neon);font-size:16px">${fmtMoney(state.balance)}</b>
+          </div>
+          <nav class="nav">
+            ${[
+              ['central','⚽ Central'],
+              ['noticias','📰 Notícias & Mídia'],
+              ['calendario','🗓️ Calendário'],
+              ['meutime','📋 Meu time & Tática'],
+              ['elenco','👥 Elenco'],
+              ['mercado','🔄 Mercado'],
+              ['estrutura','🏗️ Estrutura & Estádio'],
+              ['escritorio','🏢 Escritório'],
+              ['temporada','🏆 Temporada'],
+              ['novidades','📢 Novidades & Correções'],
+              ['config','⚙️ Configurações (Admin)']
+            ].filter(([id]) => id !== 'config' || (getActiveAccount()?.role === 'admin')).map(([id,l])=>`<button class="btn ${view===id?'active':''}" data-view="${id}">${l}</button>`).join('')}
+          </nav>
+        </aside>
+        <main class="main">${main}</main>
+      </div>
+    </div>
+  `;
+}
+
+function page(){
+  return ({
+    central:centralPage,
+    noticias:newsMediaPage,
+    calendario:calendarPage,
+    meutime:myTeamPage,
+    elenco:squadPage,
+    mercado:marketPage,
+    estrutura:structurePage,
+    escritorio:officePage,
+    temporada:seasonPage,
+    novidades:changelogPage,
+    config:configPage
+  }[view]||centralPage)();
+}
+
+// -------------------------------------------------------------
+// CENTRAL
+// -------------------------------------------------------------
+function centralPage(){
+  if(repairSaveIfCorrupted(state)){
+    save();
+  }
+  const f = userFixture();
+  const oppFallback = state.teams?.find(t => norm(t.name) !== norm(state.club))?.name || (norm(state.club)==='brasilia'?'Gama':'Brasília');
+  const opp = f ? (f[0]===state.club ? f[1] : f[0]) : oppFallback;
+  const isHome = f && f[0]===state.club;
+  const comp = curComp();
+  const our = overallSquad();
+  const oppStr = opp ? teamStrengthByName(opp) : 60;
+  const winInfo = getTransferWindowInfo(state.date);
+  const clubObj = clubByName(state.club) || { stadium: 'Ciro Machado do Espírito Santo (Defelê)', competition: 'Campeonato Candango' };
+  const rivalry = isRivalryMatch(state.club, opp);
+  const weather = getMatchWeather(state.date, state.round);
+
+  // Dados da Tabela da Competição Atual em Disputa (Screenshot 1)
+  const activeComp = curComp() || { name: 'Campeonato Atual' };
+  const isEstadualActive = activeComp.id && activeComp.id.startsWith('bra-est-');
+  let compStandings = [];
+  if(Array.isArray(state.teams) && state.teams.length > 0){
+    compStandings = state.teams.slice().sort((a,b) => b.p - a.p || b.sg - a.sg || b.gp - a.gp).slice(0, 10);
+  } else {
+    const estId = clubStateCompId(state.club);
+    const estData = getStateCompData(estId);
+    compStandings = (estData?.teams || []).slice(0, 10);
+  }
+  const myPos = (compStandings.findIndex(t => norm(t.name) === norm(state.club)) + 1) || position() || 1;
+  const totalInTable = (state.teams?.length) || compStandings.length || 20;
+  const leaderPts = compStandings[0]?.p || 0;
+  const myTeamObj = compStandings.find(t => norm(t.name) === norm(state.club));
+  const myPts = myTeamObj?.p || 0;
+  const ptsDiff = Math.max(0, leaderPts - myPts);
+
+  const clubDivRegion = getClubDivisionAndState(state.club);
+  const clubStarsInfo = getClubStarRating(state.club);
+
+  // Dados de Carreira
+  const totalGames = (state.history || []).length;
+  let wins = 0, draws = 0, losses = 0;
+  (state.history || []).forEach(h => {
+    const isH = h.h === state.club;
+    const gf = isH ? h.hg : h.ag;
+    const ga = isH ? h.ag : h.hg;
+    if(gf > ga) wins++;
+    else if(gf < ga) losses++;
+    else draws++;
+  });
+  if(totalGames === 0){ losses = 1; }
+
+  // Dados do Confronto da Copa do Brasil
+  const copa = getCopaDoBrasilState();
+  const myCopaFixture = copa.phases['1ª Fase']?.fixtures?.find(x => norm(x.home)===norm(state.club) || norm(x.away)===norm(state.club)) 
+    || { home: 'Gazin Porto Velho', away: state.club, date: 'qua, 11 fev 2026' };
+  const otherCopaFixtures = (copa.phases['1ª Fase']?.fixtures || []).filter(x => x !== myCopaFixture).slice(0, 4);
+
+  const curAvatar = MANAGER_AVATARS[currentManagerAvatarIdx % MANAGER_AVATARS.length];
+  const curBoardScore = clamp(Number(state.boardConfidence ?? state.trust?.board ?? 75), 0, 100);
+  const boardStatus = getBoardConfidenceStatus(curBoardScore);
+  const h2h = getHeadToHeadRecord(state.club, opp);
+  const altInfo = isHighAltitudeVenue(opp);
+
+  return `
+    <div style="display:grid;grid-template-columns:280px 1.8fr 300px;gap:18px;align-items:start">
+      
+      <!-- ================= COLUNA 1: PERFIL DO CLUBE + TÉCNICO (Screenshot 1) ================= -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <!-- Card 1: Clube -->
+        <div class="card" style="padding:0;overflow:hidden;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px;text-align:center">
+          <div style="height:110px;background:linear-gradient(180deg, rgba(0,0,0,0.1), #100d1e), url('img/stadium_bg.jpg') center/cover;position:relative;display:flex;align-items:center;justify-content:center">
+            <div style="position:absolute;bottom:-30px">
+              ${clubBadge(state.club, 72)}
+            </div>
+          </div>
+          <div style="padding:42px 16px 20px 16px">
+            <h2 style="margin:0;font-size:20px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
+              ${esc(state.club)}
+            </h2>
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:1px;text-transform:uppercase;margin-top:4px">
+              ${esc(clubDivRegion)}
+            </div>
+            <div style="color:#f59e0b;font-size:16px;margin-top:6px;letter-spacing:2px" title="${esc(clubStarsInfo.label)}">
+              ${clubStarsInfo.stars} <span style="font-size:12px;color:rgba(255,255,255,0.7);font-weight:800">(${clubStarsInfo.ovr} OVR)</span>
+            </div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:8px">
+              <button id="btnOpenStadiumFromCentral" style="background:none;border:none;color:#a855f7;font-size:11px;font-weight:800;cursor:pointer;text-decoration:underline">
+                ${esc(clubStadiumName())} 🏟️
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Perfil do Treinador -->
+        <div class="card" style="padding:20px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="position:relative">
+              <div style="width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg, #7c3aed, #4c1d95);display:flex;align-items:center;justify-content:center;font-size:28px;border:2px solid #a855f7">
+                ${curAvatar}
+              </div>
+              <button id="btnChangeManagerAvatar" style="margin-top:4px;background:none;border:none;color:#a855f7;font-size:9px;font-weight:800;cursor:pointer;width:100%;text-align:center">
+                OUTRO ROSTO
+              </button>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px">TÉCNICO</div>
+              <div style="font-size:17px;font-weight:900;color:#fff;text-transform:uppercase">${esc(state.manager)}</div>
+              <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
+                <span class="pill" style="font-size:9px;font-weight:800;background:rgba(124,58,237,0.3);color:#c084fc;padding:1px 6px">CARISMÁTICO</span>
+                <span class="pill" style="font-size:9px;font-weight:800;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);padding:1px 6px">ESTAGIÁRIO</span>
+              </div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">BRASIL</div>
+            </div>
+          </div>
+
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:14px;line-height:1.4">
+            Torcida e imprensa na mão. Sorriso fácil, pressão zero.
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:10px;margin-top:14px">
+            <div style="background:#161324;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+              <div style="font-size:9px;color:rgba(255,255,255,0.4);font-weight:800">FORMAÇÃO</div>
+              <div style="font-size:15px;font-weight:900;color:#fff;margin-top:2px">${esc(state.formation)}</div>
+            </div>
+            <div style="background:#161324;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+              <div style="font-size:9px;color:rgba(255,255,255,0.4);font-weight:800">CAIXA</div>
+              <div style="font-size:15px;font-weight:900;color:#f59e0b;margin-top:2px">${fmtMoney(state.balance)}</div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px;border-top:1px solid rgba(255,255,255,0.08);padding-top:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:0.5px">CAMPANHA NA CARREIRA</span>
+              <span style="font-size:10px;color:rgba(255,255,255,0.4)">${totalGames || 1} jogo</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center;margin-top:10px;background:#161324;padding:8px 0;border-radius:10px">
+              <div>
+                <div style="font-size:18px;font-weight:900;color:#22c55e">${wins}</div>
+                <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.4)">VITÓRIAS</div>
+              </div>
+              <div style="border-left:1px solid rgba(255,255,255,0.08);border-right:1px solid rgba(255,255,255,0.08)">
+                <div style="font-size:18px;font-weight:900;color:#94a3b8">${draws}</div>
+                <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.4)">EMPATES</div>
+              </div>
+              <div>
+                <div style="font-size:18px;font-weight:900;color:#ef4444">${losses}</div>
+                <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.4)">DERROTA</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Conselho & Confiança da Diretoria (Realismo AFM 2026) -->
+        <div class="card" style="padding:16px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px;font-weight:900;letter-spacing:0.8px;color:#c084fc;text-transform:uppercase">DIRETORIA & CONSELHO</span>
+            <span class="pill" style="font-size:10px;font-weight:900;background:rgba(255,255,255,0.08);color:${boardStatus.color}">
+              ${boardStatus.badge} ${boardStatus.risk}
+            </span>
+          </div>
+          <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:baseline">
+            <b style="font-size:14px;color:#fff">${boardStatus.label}</b>
+            <span style="font-size:16px;font-weight:900;color:${boardStatus.color}">${curBoardScore}%</span>
+          </div>
+          <div style="margin-top:6px;width:100%;height:6px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden">
+            <div style="height:100%;width:${curBoardScore}%;background:${boardStatus.color};border-radius:4px;transition:width 0.4s"></div>
+          </div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:8px;line-height:1.35">
+            ${boardStatus.desc}
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= COLUNA 2: PAINEL DO JOGO DE HOJE (Screenshot 1) ================= -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card" style="padding:22px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+          <!-- Topo do Card -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <span style="font-size:14px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
+              ${(state.isPreSeason && state.preSeasonDays > 0) ? '🏖️ PRÉ-TEMPORADA EM ANDAMENTO' : 'HOJE TEM JOGO'}
+            </span>
+            <span class="pill ${winInfo.open?'good':'bad'}" style="font-size:10px;font-weight:900;letter-spacing:0.5px">
+              JANELA DE TRANSFERÊNCIAS ${winInfo.open?'ABERTA':'FECHADA'}
+            </span>
+          </div>
+
+          ${(state.isPreSeason && state.preSeasonDays > 0) ? `
+            <!-- BANNER DA JANELA DE PRÉ-TEMPORADA DE 4 DIAS -->
+            <div style="background:linear-gradient(135deg,#1f1638 0%,#110e24 100%);border:2px solid #a855f7;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 20px rgba(168,85,247,0.3)">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                <span class="pill good" style="font-size:11px;font-weight:900;letter-spacing:1px">
+                  🏖️ JANELA DE PRÉ-TEMPORADA · DIA ${5 - state.preSeasonDays} DE 4
+                </span>
+                <span style="font-size:12px;color:#facc15;font-weight:800">
+                  ⏳ Restam ${state.preSeasonDays} ${state.preSeasonDays===1?'dia de janela':'dias de janela'}
+                </span>
+              </div>
+              <h3 style="margin:8px 0 4px 0;font-size:17px;font-weight:900;color:#fff">
+                Período de Reforços & Ajustes do Elenco
+              </h3>
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.7);line-height:1.4">
+                A 1ª rodada oficial começará após o fim da pré-temporada. Aproveite estes 4 dias para comprar, vender e arrumar o time titular do ${esc(state.club)}!
+              </p>
+              <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+                <button class="btn primary" id="btnAdvancePreSeasonDay" style="font-size:12px;font-weight:900;padding:8px 16px;border-radius:8px">
+                  ⏩ Avançar Dia (${state.preSeasonDays} ${state.preSeasonDays===1?'restante':'restantes'})
+                </button>
+                <button class="btn" id="btnGoToMercadoPreSeason" style="background:#0284c7;color:#fff;border:none;font-weight:800;font-size:12px;padding:8px 14px">
+                  🔄 Ir ao Mercado
+                </button>
+                <button class="btn" id="btnSkipPreSeason" style="background:rgba(255,255,255,0.06);font-size:11px;border:1px solid rgba(255,255,255,0.1);padding:8px 12px">
+                  ⏭ Pular para a Estreia
+                </button>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Banner da Competição -->
+          <div style="background:#151226;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+            <span style="background:#0284c7;color:#fff;font-size:11px;font-weight:900;padding:2px 8px;border-radius:4px;letter-spacing:1px">
+              ${esc((curComp()?.name || 'LIGA').split(' ')[0].toUpperCase())}
+            </span>
+            <div style="font-size:12px;color:rgba(255,255,255,0.6)">
+              ${esc(curComp()?.name || 'Campeonato')} · Rodada ${state.round + 1} · ${esc(state.date)}
+            </div>
+          </div>
+
+          ${rivalry.isRivalry ? `
+            <!-- BANNER DE GRANDE CLÁSSICO / RIVALIDADE HISTÓRICA -->
+            <div style="background:linear-gradient(90deg,rgba(239,68,68,0.2),rgba(245,158,11,0.2));border:1px solid #ef4444;border-radius:10px;padding:8px 12px;margin-top:10px;display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:18px">🔥</span>
+                <div>
+                  <b style="color:#fca5a5;font-size:12px;text-transform:uppercase">${esc(rivalry.derbyName || 'GRANDE CLÁSSICO')}</b>
+                  <div class="small muted" style="font-size:10px">Rivalidade Histórica · Partida de Alta Tensão</div>
+                </div>
+              </div>
+              <span class="pill bad" style="font-size:10px;font-weight:900">+45% TORCIDA · CALDEIRÃO FERVENDO</span>
+            </div>
+          ` : ''}
+
+          <!-- WIDGET DE CLIMA E CONDIÇÕES DO GRAMADO -->
+          <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:6px 12px;margin-top:10px;font-size:11px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:14px">${weather.icon}</span>
+              <span style="color:#e2e8f0;font-weight:700">Clima: ${esc(weather.condition)} (${weather.temp}°C)</span>
+            </div>
+            <span style="color:${weather.drain>1.1?'#f87171':'#94a3b8'};font-size:10px;font-weight:700">${esc(weather.impact)}</span>
+          </div>
+
+          <!-- Confronto Principal em 2 Caixas -->
+          <div style="display:grid;grid-template-columns:1fr 40px 1fr;align-items:center;margin:18px 0 10px 0;gap:8px">
+            <div style="background:#241945;border:1px solid #7c3aed;border-radius:14px;padding:18px 12px;text-align:center">
+              ${clubBadge(state.club, 54)}
+              <div style="font-size:15px;font-weight:900;color:#fff;margin-top:8px">${esc(state.club)}</div>
+              <div style="font-size:10px;font-weight:800;color:#c084fc;margin-top:2px">SEU CLUBE</div>
+            </div>
+
+            <div style="text-align:center;font-size:22px;font-weight:900;color:rgba(255,255,255,0.3)">
+              X
+            </div>
+
+            <div style="background:#18142b;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px 12px;text-align:center">
+              ${clubBadge(opp, 54)}
+              <div style="font-size:15px;font-weight:900;color:#fff;margin-top:8px">${esc(opp)}</div>
+              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-top:2px">${isHome?'VISITANTE':'MANDANTE'}</div>
+            </div>
+          </div>
+
+          <!-- Histórico Direto H2H & Altitude -->
+          <div style="background:#141122;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;text-align:center;font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:10px">
+            ⚔️ Histórico Direto: <b style="color:#22c55e">${h2h.winsA}V</b> · <b style="color:#94a3b8">${h2h.draws}E</b> · <b style="color:#ef4444">${h2h.winsB}D</b> <span class="muted">(${h2h.total} jogos)</span>
+            ${(!isHome && altInfo.isAltitude) ? `
+              <div style="color:#f87171;font-size:10px;font-weight:800;margin-top:4px">
+                ⛰️ Altitude Extrema em ${altInfo.city} (${altInfo.altitudeMeters}m)! Bola rápida e maior desgaste físico.
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Status do Caldeirão e Posição na Tabela -->
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:rgba(255,255,255,0.6);text-align:center;margin:12px 0">
+            <div id="btnOpenCaldeiraoCentral" style="cursor:pointer;transition:transform 0.2s" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">
+              🔥 <b>CALDEIRÃO (+${getCaldeiraoData().caldeiraoPercent}%)</b> clique para ver o estádio e melhorias &gt;
+            </div>
+            <div>📊 <b>NA TABELA</b> ${myPos}º de ${totalInTable}, a ${ptsDiff} pontos do líder &gt;</div>
+          </div>
+
+          <!-- Dropdowns Rápidos de Escalação e Mentalidade -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+            <div style="background:#161324;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px">
+              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4)">ESCALAÇÃO</div>
+              <div style="font-size:14px;font-weight:900;color:#fff;margin-top:2px">${state.formation} &gt;</div>
+            </div>
+
+            <div style="background:#161324;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px">
+              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4)">MENTALIDADE</div>
+              <select id="mental" style="background:transparent;border:none;color:#fff;font-size:13px;font-weight:900;width:100%;cursor:pointer">
+                ${['Retranca','Defensiva','Equilibrada','Ofensiva','Pressão total'].map(x=>`<option value="${x}" ${state.mentality===x?'selected':''}>${x}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <!-- Alerta de Decisão Pendente -->
+          <div style="margin-top:12px;background:#241d14;border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:12px;color:#fbbf24">
+            <span>⚠️</span>
+            <span><b>Uma decisão espera por você: convite</b> ⌵</span>
+          </div>
+
+          <!-- Botões de Ação da Partida -->
+          <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:8px;margin-top:16px">
+            <button class="btn primary" id="playMatchLive" style="padding:14px 8px;font-size:14px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(124,58,237,0.4)">
+              JOGAR
+            </button>
+            <button class="btn" id="playMatchQuick" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px">
+              SIMULAR
+            </button>
+            <button class="btn" id="btnMatchPreviewCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px">
+              PRÉVIA
+            </button>
+            <button class="btn" id="btnOpenPressConferenceCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid #7c3aed;border-radius:12px;color:#c084fc">
+              🎙️ COLETIVA
+            </button>
+          </div>
+
+          <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.3);margin-top:14px">
+            129 partidas no mundo hoje.
+          </div>
+        </div>
+
+        <!-- Seção Inferior: Decisão Pendente & Eventos Dinâmicos -->
+        <div class="card" style="padding:18px;background:#100d1e;border:1px solid rgba(139,92,246,0.25);border-radius:18px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="color:#f59e0b;font-size:16px">🔔</span>
+            <h3 style="margin:0;font-size:14px;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase">DECISÃO PENDENTE</h3>
+          </div>
+          ${state.stadiumEventProposal ? `
+            <p style="font-size:12px;color:rgba(255,255,255,0.85);margin:10px 0 14px 0;line-height:1.4">
+              🎤 <b>Megaevento Cultural:</b> A produção do <b>${state.stadiumEventProposal.name}</b> quer alugar o estádio. Pagam <b>${fmtMoney(state.stadiumEventProposal.fee)}</b>. Desgaste no gramado: ${state.stadiumPitchType==='synthetic'?'-4%':'-18%'}.
+            </p>
+            <div style="display:flex;gap:10px">
+              <button class="btn primary" id="btnAcceptConcertCentral" style="padding:6px 14px;font-size:12px;font-weight:800;background:#a855f7;border:none">Autorizar Show (+${fmtMoney(state.stadiumEventProposal.fee)})</button>
+              <button class="btn" id="btnDismissConcertCentral" style="padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.06);border:none">Recusar</button>
+            </div>
+          ` : state.stadiumClubRental ? `
+            <p style="font-size:12px;color:rgba(255,255,255,0.85);margin:10px 0 14px 0;line-height:1.4">
+              🏟️ <b>Aluguel de Estádio:</b> O <b>${state.stadiumClubRental.club}</b> quer mandar o jogo no nosso estádio enquanto jogamos fora. Pagam <b>${fmtMoney(state.stadiumClubRental.fee)}</b> (Desgaste: -6%).
+            </p>
+            <div style="display:flex;gap:10px">
+              <button class="btn primary" id="btnAcceptRentalCentral" style="padding:6px 14px;font-size:12px;font-weight:800;background:#059669;border:none">Aceitar Aluguel (+${fmtMoney(state.stadiumClubRental.fee)})</button>
+              <button class="btn" id="btnDismissRentalCentral" style="padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.06);border:none">Recusar</button>
+            </div>
+          ` : `
+            <p style="font-size:12px;color:rgba(255,255,255,0.7);margin:10px 0 14px 0">
+              A comissão técnica sugeriu intensificar a preparação física dos jovens da base para o próximo confronto estadual.
+            </p>
+            <div style="display:flex;gap:10px">
+              <button class="btn primary" id="btnAcceptDecision" style="padding:6px 14px;font-size:12px;font-weight:800;background:#059669;border:none">Aprovar Sugestão</button>
+              <button class="btn" id="btnDismissDecision" style="padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.06);border:none">Deixar para Depois</button>
+            </div>
+          `}
+        </div>
+      </div>
+
+      <!-- ================= COLUNA 3: WIDGETS DE CAMPEONATOS E COPAS (Screenshot 1) ================= -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <!-- Widget 1: Tabela do Campeonato em Disputa -->
+        <div class="card" style="padding:18px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div>
+              <div style="font-size:13px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">${esc(activeComp.name)}</div>
+              <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
+                ${isEstadualActive ? 'FASE REGIONAL • CLASSIFICAÇÃO' : `PONTOS CORRIDOS • RODADA ${state.round + 1}`}
+              </div>
+            </div>
+            <span class="pill" style="font-size:10px;font-weight:800;background:rgba(255,255,255,0.08)">${myPos}º/${totalInTable}</span>
+          </div>
+
+          <div class="tablewrap" style="max-height:260px">
+            <table>
+              <thead>
+                <tr style="font-size:10px;color:rgba(255,255,255,0.4)">
+                  <th>#</th>
+                  <th>CLUBE</th>
+                  <th style="text-align:center">P</th>
+                  <th style="text-align:center">J</th>
+                  <th style="text-align:center">SG</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${compStandings.map((t, idx) => {
+                  const pos = idx + 1;
+                  const isMy = norm(t.name) === norm(state.club);
+
+                  return `
+                    <tr style="${isMy ? 'background:rgba(124,58,237,0.35);font-weight:900;' : ''}font-size:11px">
+                      <td style="font-weight:800;color:${pos<=4?'var(--neon)':pos>=totalInTable-3?'var(--bad)':'#fff'}">${pos}</td>
+                      <td>
+                        <div style="display:flex;align-items:center;gap:6px">
+                          ${clubBadge(t.name, 16)}
+                          <span style="color:${isMy?'#c084fc':'#fff'}">${esc(t.name)}</span>
+                        </div>
+                      </td>
+                      <td style="text-align:center;font-weight:900">${t.p}</td>
+                      <td style="text-align:center">${t.j}</td>
+                      <td style="text-align:center">${t.sg>0?'+':''}${t.sg}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
+            <button class="btn" id="btnGoToSeasonFromCentral" style="background:none;border:none;color:#a855f7;font-size:12px;font-weight:800;cursor:pointer">
+              Tabela completa e rodadas &gt;
+            </button>
+          </div>
+        </div>
+
+        <!-- Widget 2: Copa do Brasil -->
+        <div class="card" style="padding:18px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+          <div style="font-size:13px;font-weight:900;color:#fff;letter-spacing:0.5px">COPA DO BRASIL</div>
+          <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;margin-top:2px">
+            MATA-MATA • 1ª FASE • 14 CONFRONTOS
+          </div>
+
+          <!-- Seu Confronto -->
+          <div style="margin-top:14px;background:#241945;border:1px solid #7c3aed;border-radius:12px;padding:12px">
+            <div style="font-size:10px;font-weight:800;color:#c084fc;letter-spacing:0.5px">SEU CONFRONTO</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+              <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.home)}</span>
+              <span style="font-size:10px;color:rgba(255,255,255,0.4)">x</span>
+              <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.away)}</span>
+            </div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:6px;text-align:center">
+              JOGO ÚNICO • QUA, 11 FEV 2026<br>
+              <b style="color:var(--neon)">Faltam 21 dias. Antes dele você joga 4 partidas.</b>
+            </div>
+          </div>
+
+          <!-- Outros Confrontos -->
+          <div style="margin-top:14px">
+            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">OUTROS CONFRONTOS</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${otherCopaFixtures.map(f => `
+                <div style="background:#161324;padding:6px 10px;border-radius:8px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
+                  <span>${esc(f.home)}</span>
+                  <span style="color:rgba(255,255,255,0.3)">qua, 11 fev</span>
+                  <span>${esc(f.away)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------
+// ABA CALENDÁRIO COM DATAS OFICIAIS E JANELAS DE TRANSFERÊNCIA
+// -------------------------------------------------------------
+function calendarPage(){
+  const comp = curComp();
+  const schedule = state.schedule || [];
+  const myClub = state.club;
+  const winInfo = getTransferWindowInfo(state.date);
+
+  return `
+    <div class="hero">
+      <div>
+        <h1>Calendário Oficial de Jogos & Janelas de Transferência</h1>
+        <div class="muted">Datas dos confrontos, mandos de campo, torneios da temporada ${state.season} e janelas de contratação</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span class="window-badge ${winInfo.open?'window-open':'window-closed'}">${winInfo.open?'🟢':'🔴'} ${esc(winInfo.text)}</span>
+        <span class="pill">${esc(comp.name)}</span>
+      </div>
+    </div>
+
+    <!-- Períodos Oficiais da Janela de Transferências -->
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card" style="border-left:4px solid var(--neon)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">☀️ Janela de Verão (Início de Ano)</h3>
+          <span class="pill ${isTransferWindowOpen(state.season+'-02-01')?'good':''}">01/Jan a 31/Mar</span>
+        </div>
+        <p class="small muted" style="margin:6px 0 0 0">
+          Período oficial de montagem do elenco. Permite contratações definitivas, empréstimos e vendas.
+        </p>
+      </div>
+
+      <div class="card" style="border-left:4px solid var(--cyan)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">❄️ Janela de Inverno (Meio de Ano)</h3>
+          <span class="pill ${isTransferWindowOpen(state.season+'-08-01')?'good':''}">10/Jul a 02/Set</span>
+        </div>
+        <p class="small muted" style="margin:6px 0 0 0">
+          Período de reforços e ajustes do elenco para o segundo semestre e retas finais dos campeonatos.
+        </p>
+      </div>
+    </div>
+
+    <!-- Filtros de Navegação do Calendário -->
+    <div class="filters" style="margin-top:14px">
+      <button class="btn ${calendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos os Confrontos (${schedule.length})</button>
+      <button class="btn ${calendarFilter==='COMP'?'primary':''}" data-cal-filter="COMP">🏆 ${esc(comp.name)}</button>
+      <button class="btn ${calendarFilter==='HOME'?'primary':''}" data-cal-filter="HOME">🏠 Em Casa</button>
+      <button class="btn ${calendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora de Casa</button>
+    </div>
+
+    <!-- Lista Cronológica dos Jogos -->
+    <div class="calendar-view" style="margin-top:10px">
+      ${schedule.map((games, rIndex)=>{
+        const f = games.find(g => g.includes(myClub));
+        if(!f) return '';
+        const isHome = f[0] === myClub;
+        const opponent = isHome ? f[1] : f[0];
+
+        if(calendarFilter === 'HOME' && !isHome) return '';
+        if(calendarFilter === 'AWAY' && isHome) return '';
+
+        const isCurrent = rIndex === state.round;
+        const isPast = rIndex < state.round;
+        const historyMatch = state.history.find(h => h.round === rIndex + 1);
+
+        const d = new Date(state.season + '-01-10T12:00:00');
+        d.setDate(d.getDate() + (rIndex * 7));
+        const dateIso = d.toISOString().slice(0,10);
+        const dateFormatted = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'long'});
+        const winActive = isTransferWindowOpen(dateIso);
+
+        let statusHtml = '';
+        if(isPast){
+          if(historyMatch){
+            const userScore = isHome ? historyMatch.hg : historyMatch.ag;
+            const oppScore = isHome ? historyMatch.ag : historyMatch.hg;
+            const win = userScore > oppScore, draw = userScore === oppScore;
+            statusHtml = `<span class="pill ${win?'good':draw?'warn':'bad'}">R${rIndex+1}: ${historyMatch.hg} x ${historyMatch.ag} (${win?'Vitória':draw?'Empate':'Derrota'})</span>`;
+          } else {
+            statusHtml = `<span class="pill">Concluído</span>`;
+          }
+        } else if(isCurrent){
+          statusHtml = `
+            <div style="display:flex;gap:6px;align-items:center;justify-content:flex-end">
+              <span class="pill primary" style="box-shadow:0 0 12px var(--neon)">👉 HOJE</span>
+              <button class="btn primary btnCalPlayNow" style="padding:4px 10px;font-size:12px">⚽ Jogar</button>
+            </div>
+          `;
+        } else {
+          statusHtml = `<span class="pill muted">⏳ Agendado</span>`;
+        }
+
+        return `
+          <div class="calendar-card ${isCurrent?'current':''}">
+            <div>
+              <b>${dateFormatted}</b>
+              <div class="small muted">Rodada ${rIndex + 1}</div>
+            </div>
+            <div>
+              <span class="pill" style="font-size:11px">${isHome?'🏠 EM CASA':'✈️ FORA'}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              ${clubBadge(opponent, 32)}
+              <div>
+                <b>vs ${esc(opponent)}</b>
+                <div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div>
+              </div>
+            </div>
+            <div>
+              <span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(comp.name)}</span>
+              <div class="small" style="margin-top:4px">
+                <span class="${winActive?'good':'muted'}" style="font-size:10px">${winActive?'🟢 Janela Aberta':'🔒 Janela Fechada'}</span>
+              </div>
+            </div>
+            <div style="text-align:right">
+              ${statusHtml}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------
+// MEU TIME & TÁTICA (DRAG AND DROP COM VERDE/AMARELO)
+// -------------------------------------------------------------
+function myTeamPage(){
+  const slots = formationSlots();
+  const sec = lineupSector();
+  const bench = state.squad.filter(p => !(state.lineup||[]).includes(playerKey(p))).sort((a,b)=>playerOverall(b)-playerOverall(a));
+
+  const startingPlayers = (state.lineup||[]).map(pk => state.squad.find(q => playerKey(q) === pk)).filter(Boolean);
+  const overallTitulares = startingPlayers.length > 0 
+    ? Math.round(startingPlayers.reduce((acc, p) => acc + playerOverall(p), 0) / startingPlayers.length) 
+    : 59;
+
+  const top11 = state.squad.slice().sort((a,b)=>playerOverall(b)-playerOverall(a)).slice(0, 11);
+  const overallBest11 = top11.length > 0 
+    ? Math.round(top11.reduce((acc, p) => acc + playerOverall(p), 0) / top11.length) 
+    : 60;
+
+  return `
+    <div class="hero">
+      <div>
+        <h1>Meu time & Tática</h1>
+        <div class="muted">Arraste os jogadores. A posição ideal acende em <b style="color:var(--neon)">VERDE</b> e adaptações em <b style="color:var(--warn)">AMARELO</b>.</div>
+      </div>
+      <div class="formation-select">
+        <select id="formation" class="btn">${Object.keys(FORMATIONS).map(x=>`<option ${state.formation===x?'selected':''}>${x}</option>`).join('')}</select>
+        <button class="btn primary" id="autoLineup">⭐ Melhor XI</button>
+      </div>
+    </div>
+
+    <!-- Botões de Ação no Topo da Tática (Compactos) -->
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin:8px 0 10px 0">
+      <button class="btn" id="btnSaveLineup" style="background:#6366f1;color:#fff;font-weight:900;padding:8px 18px;border-radius:10px;border:none;font-size:13px;letter-spacing:0.5px;cursor:pointer;box-shadow:0 3px 10px rgba(99,102,241,0.35)">
+        SALVAR ESCALAÇÃO
+      </button>
+      <button class="btn" id="btnAILineup" style="background:#ffffff;color:#0f172a;font-weight:900;padding:8px 18px;border-radius:10px;border:none;font-size:13px;letter-spacing:0.5px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,0.2)">
+        DEIXAR A IA ESCALAR
+      </button>
+    </div>
+
+    <!-- Card de FORÇA Compacto e Moderno (Menor e sem ocupar espaço excessivo) -->
+    <div class="card" style="background:#ffffff;color:#0f172a;border-radius:12px;padding:8px 18px;box-shadow:0 4px 14px rgba(0,0,0,0.15);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <!-- Lado Esquerdo: FORÇA, Estrelas e Médias -->
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px">
+          <h2 style="margin:0;font-size:16px;font-weight:900;letter-spacing:0.8px;color:#0f172a;text-transform:uppercase">FORÇA</h2>
+          <div style="display:flex;align-items:center;gap:2px;font-size:16px">
+            ${renderStarRating(overallTitulares)}
+          </div>
+        </div>
+        <div style="font-size:11px;color:#64748b;background:#f1f5f9;padding:3px 10px;border-radius:6px">
+          Média dos titulares: <b style="color:#0f172a">${overallTitulares}</b> · 11 melhores: <b style="color:#0f172a">${overallBest11}</b>
+        </div>
+      </div>
+
+      <!-- Lado Direito: Setores ATA, MEI, DEF compactos e alinhados -->
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:10px;font-weight:800;color:#64748b;letter-spacing:0.5px">ATA</span>
+          <b style="font-size:18px;font-weight:900;color:#0f172a">${sec.atk}</b>
+        </div>
+        <div style="width:1px;height:18px;background:#e2e8f0"></div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:10px;font-weight:800;color:#64748b;letter-spacing:0.5px">MEI</span>
+          <b style="font-size:18px;font-weight:900;color:#0f172a">${sec.mid}</b>
+        </div>
+        <div style="width:1px;height:18px;background:#e2e8f0"></div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:10px;font-weight:800;color:#64748b;letter-spacing:0.5px">DEF</span>
+          <b style="font-size:18px;font-weight:900;color:#0f172a">${sec.def}</b>
+        </div>
+      </div>
+    </div>
+
+    <div class="team-layout">
+      <div class="pitch-card">
+        <div class="pitch" id="tacticalPitch">
+          ${slots.map((s,i)=>{
+            const p = lineupPlayer(i);
+            const pk = p ? playerKey(p) : '';
+            const ovr = p ? playerOverall(p) : 0;
+            return `
+              <div class="lineup-slot" style="left:${s.x}%;top:${s.y}%" data-slot-index="${i}" data-slot-role="${s.r}" data-player-key="${esc(pk)}" draggable="true">
+                <label style="cursor:grab;display:flex;justify-content:space-between;align-items:center">
+                  <span>${s.r}</span>
+                  ${p && p.pos !== s.r ? `<span style="font-size:8px;opacity:0.9;color:#facc15">(${esc(p.pos)})</span>` : ''}
+                </label>
+                <div class="slot-name">
+                  ${p ? esc(p.name.split(' ').slice(0,2).join(' ')) : 'Vazio'}
+                  ${p && p.injury ? ' <span title="Lesionado">🚑</span>' : ''}
+                  ${p && p.suspended > 0 ? ' <span title="Suspenso">🟥</span>' : ''}
+                </div>
+                <div class="slot-rating">${p ? ovr : '-'}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="card bench-card">
+        <h2>Banco de Reservas</h2>
+        <div class="small">${bench.length} jogadores disponíveis (Arraste para o campo)</div>
+        <div class="bench-list" id="benchList">
+          ${bench.slice(0,24).map(p=>`
+            <div class="bench-player" draggable="true" data-player-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}">
+              <span>
+                <b>${esc(p.name)}</b>
+                ${p.injury ? `<span class="pill bad" style="font-size:9px;padding:0 4px">🚑 ${p.injuryMatches}j</span> ` : ''}
+                ${p.suspended > 0 ? `<span class="pill bad" style="font-size:9px;padding:0 4px">🟥 ${p.suspended}j</span> ` : ''}
+                <small>${esc(p.pos||'-')} • ${p.age||'-'} anos • Físico ${Math.round(p.fitness??100)}%</small>
+              </span>
+              <span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL TÁTICO EXPANDIDO: BOLAS PARADAS & INTENSIDADE DE MARCAÇÃO -->
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card" style="background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:16px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h2 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.8px">
+            🎯 Bolas Paradas Oficiais
+          </h2>
+          <span class="pill" style="font-size:10px;background:rgba(124,58,237,0.25);color:#c084fc">DEFINIÇÃO TÁTICA</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
+              ©️ Capitão da Equipe
+            </label>
+            <select id="setPieceCaptain" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:12px">
+              ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.captain===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+            </select>
+          </div>
+
+          <div>
+            <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
+              ⚽ Cobrador de Pênalti
+            </label>
+            <select id="setPiecePenalty" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:12px">
+              ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.penalty===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+            </select>
+          </div>
+
+          <div>
+            <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
+              🎯 Faltas Diretas
+            </label>
+            <select id="setPieceFreekick" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:12px">
+              ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.freekick===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+            </select>
+          </div>
+
+          <div>
+            <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
+              🚩 Escanteios
+            </label>
+            <select id="setPieceCorner" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:12px">
+              ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.corner===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:16px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h2 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.8px">
+            ⚔️ Intensidade de Marcação
+          </h2>
+          <span class="pill" style="font-size:10px;background:rgba(255,255,255,0.08);color:#fbbf24">IMPACTO EM JOGO</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <button class="btn btn-marking-intensity ${state.markingIntensity==='leve'?'active':''}" data-intensity="leve" style="padding:12px 6px;text-align:center;border-radius:10px;${state.markingIntensity==='leve'?'background:#059669;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
+            <b style="display:block;font-size:13px">🛡️ Leve</b>
+            <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">-Faltas / -Desgaste</span>
+          </button>
+
+          <button class="btn btn-marking-intensity ${(!state.markingIntensity||state.markingIntensity==='equilibrada')?'active':''}" data-intensity="equilibrada" style="padding:12px 6px;text-align:center;border-radius:10px;${(!state.markingIntensity||state.markingIntensity==='equilibrada')?'background:#7c3aed;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
+            <b style="display:block;font-size:13px">⚖️ Padrão</b>
+            <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">Equilibrada</span>
+          </button>
+
+          <button class="btn btn-marking-intensity ${state.markingIntensity==='agressiva'?'active':''}" data-intensity="agressiva" style="padding:12px 6px;text-align:center;border-radius:10px;${state.markingIntensity==='agressiva'?'background:#dc2626;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
+            <b style="display:block;font-size:13px">⚡ Agressiva</b>
+            <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">+15% Desarme / +Faltas</span>
+          </button>
+        </div>
+
+        <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:14px;line-height:1.4">
+          ${state.markingIntensity==='agressiva'
+            ? '🔥 <b>Pressão Asfixiante:</b> A equipe morde no campo de ataque. Aumenta a chance de roubar a bola, mas gera maior número de faltas, cartões e cansaço físico.'
+            : state.markingIntensity==='leve'
+            ? '🛡️ <b>Marcação Prudente:</b> O time cerca sem dar botes precipitados. Reduz drasticamente suspensões por cartões amarelos e preserva o fôlego dos atletas.'
+            : '⚖️ <b>Marcação Equilibrada:</b> Intensidade equilibrada segundo o padrão tático moderno do futebol brasileiro.'}
+        </div>
+      </div>
+    </div>
+
+    <!-- HIERARQUIA & LIDERANÇA DO VESTIÁRIO (Realismo Expandido) -->
+    ${(()=>{
+      const hier = getSquadHierarchy(state.squad);
+      return `
+        <div class="card" style="background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:16px;padding:20px;margin-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div>
+              <h2 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.8px">
+                👔 Hierarquia do Vestiário & Liderança
+              </h2>
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">
+                Influência moral, maturidade e suporte aos novos talentos do clube
+              </div>
+            </div>
+            <span class="pill good" style="font-size:10px">AMBIENTE UNIDO</span>
+          </div>
+
+          <div class="grid g3">
+            <div style="background:#18142b;border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:12px">
+              <span class="pill" style="font-size:9px;font-weight:900;background:rgba(245,158,11,0.2);color:#fbbf24">👑 CAPITÃO MOR</span>
+              ${hier.captain ? `
+                <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+                  ${playerPhoto(hier.captain.name, 44)}
+                  <div>
+                    <b style="color:#fff;font-size:13px">${esc(hier.captain.name)}</b>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.6)">${hier.captain.pos} • ${hier.captain.age||28} anos • OVR ${playerOverall(hier.captain)}</div>
+                  </div>
+                </div>
+              ` : '<div class="muted small" style="margin-top:8px">Nenhum definido</div>'}
+            </div>
+
+            <div style="background:#18142b;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px">
+              <span class="pill" style="font-size:9px;font-weight:900;background:rgba(56,189,248,0.2);color:#38bdf8">🛡️ LÍDERES DO ELENCO</span>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+                ${(hier.leaders||[]).map(p=>`
+                  <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                    <span style="color:#fff">${esc(p.name)} (${p.pos})</span>
+                    <span class="muted">${p.age}a · OVR ${playerOverall(p)}</span>
+                  </div>
+                `).join('') || '<div class="muted small">Sem veteranos influentes</div>'}
+              </div>
+            </div>
+
+            <div style="background:#18142b;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px">
+              <span class="pill" style="font-size:9px;font-weight:900;background:rgba(34,197,94,0.2);color:#22c55e">⭐ JOVENS PROMESSAS</span>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+                ${(hier.prospects||[]).map(p=>`
+                  <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                    <span style="color:#fff">${esc(p.name)} (${p.pos})</span>
+                    <span style="color:#a855f7;font-weight:800">POT ${p.potential||playerOverall(p)+8}</span>
+                  </div>
+                `).join('') || '<div class="muted small">Sem jovens mapeados</div>'}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    })()}
+  `;
+}
+
+// -------------------------------------------------------------
+// ELENCO (SEM AS COLUNAS PES E EA FC)
+// -------------------------------------------------------------
+function squadPage(){
+  let ps=[...state.squad];
+  if(squadFilter === 'GK') ps = ps.filter(p=>p.pos==='GK');
+  else if(squadFilter === 'DEF') ps = ps.filter(p=>['CB','RB','LB'].includes(p.pos));
+  else if(squadFilter === 'MID') ps = ps.filter(p=>['DM','CM','AM'].includes(p.pos));
+  else if(squadFilter === 'ATK') ps = ps.filter(p=>['RW','LW','ST','CF'].includes(p.pos));
+
+  const expensiveList = state.squad.filter(isExpensiveForTier);
+  const expensiveCount = expensiveList.length;
+
+  if(squadViewMode === 'salaries'){
+    // Ordenação da tela de Salários (Screenshot 1)
+    if(salarySort === 'salary'){
+      ps.sort((a,b)=>playerSalary(b)-playerSalary(a));
+    } else if(salarySort === 'overall'){
+      ps.sort((a,b)=>playerOverall(b)-playerOverall(a));
+    } else if(salarySort === 'contract'){
+      ps.sort((a,b)=>playerContractUntil(a)-playerContractUntil(b));
+    }
+
+    const maxWage = Math.max(...state.squad.map(playerSalary), 25000);
+
+    return `
+      <div class="hero">
+        <div>
+          <h1>Contratos & Salários</h1>
+          <div class="muted">Gestão financeira do elenco, tetos salariais e tempo de contrato dos atletas</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="btnToggleSquadView" style="background:#7c3aed;color:#fff;border:none">
+            👥 Visualização de Elenco
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px;padding:24px;background:#120f20;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <h2 style="margin:0;font-size:24px;font-weight:900;letter-spacing:0.5px;color:#fff;text-transform:uppercase">SALÁRIOS DO ELENCO</h2>
+            <div style="margin-top:6px;font-size:14px;color:rgba(255,255,255,0.7)">
+              ${state.squad.length} jogadores · <span style="color:#fbbf24;font-weight:800">${expensiveCount} caros para o nível</span>
+            </div>
+          </div>
+          <button class="btn" id="btnToggleSquadViewLink" style="background:transparent;border:none;color:#c084fc;font-weight:700;font-size:15px;cursor:pointer;padding:4px 8px">
+            Elenco
+          </button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-top:20px">
+          <span style="font-size:13px;color:rgba(255,255,255,0.5)">Ordem:</span>
+          <button class="btn salary-sort-btn ${salarySort==='salary'?'active':''}" data-sort="salary" style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:20px;${salarySort==='salary'?'background:#fff;color:#000;border:none':''}">SALÁRIO</button>
+          <button class="btn salary-sort-btn ${salarySort==='overall'?'active':''}" data-sort="overall" style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:20px;${salarySort==='overall'?'background:#fff;color:#000;border:none':''}">OVERALL</button>
+          <button class="btn salary-sort-btn ${salarySort==='contract'?'active':''}" data-sort="contract" style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:20px;${salarySort==='contract'?'background:#fff;color:#000;border:none':''}">CONTRATO</button>
+        </div>
+
+        <div class="salary-list" style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+          ${ps.map(p => {
+            const wage = playerSalary(p);
+            const ovr = playerOverall(p);
+            const until = playerContractUntil(p);
+            const isExp = isExpensiveForTier(p);
+            const barPct = clamp(Math.round((wage / maxWage) * 100), 10, 100);
+
+            return `
+              <div class="salary-item-clickable" data-player-key="${esc(playerKey(p))}" style="cursor:pointer;padding:6px 0;transition:all 0.2s">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span class="pill" style="font-size:11px;font-weight:800;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);min-width:32px;text-align:center">${esc(p.pos||'-')}</span>
+                    <div>
+                      <div style="font-size:15px;font-weight:800;color:#fff">${esc(p.name)}</div>
+                      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;display:flex;align-items:center;flex-wrap:wrap;gap:6px">
+                        <span>${ovr} · ${p.age||22} anos · até ${until}</span>
+                        ${isExp ? `<span style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:900;letter-spacing:0.5px">CARO PARA O NÍVEL</span>` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <div style="text-align:right">
+                    <div style="font-size:17px;font-weight:900;color:#fff;letter-spacing:0.5px">R$ ${wage.toLocaleString('pt-BR')}</div>
+                    <div style="font-size:11px;color:#a855f7">Clique p/ renovar ➔</div>
+                  </div>
+                </div>
+
+                <div style="margin-top:10px;width:100%;height:4px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">
+                  <div style="height:100%;width:${barPct}%;background:${isExp ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #7c3aed, #a855f7)'};border-radius:4px"></div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Visualização clássica do elenco
+  ps.sort((a,b)=>playerOverall(b)-playerOverall(a));
+
+  return `
+    <div class="hero">
+      <div>
+        <h1>Elenco do Clube</h1>
+        <div class="muted">${state.squad.length} jogadores registrados no plantel • Folha mensal: ${fmtMoney(totalMonthlyPayroll())}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="btnGoToSalariesView" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;font-weight:700">
+          💰 Salários do Elenco (${expensiveCount} caros)
+        </button>
+        <button class="btn" id="btnOpenYouthFromSquad" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none">
+          🌱 Categorias de Base (${(state.youthAcademy||[]).length})
+        </button>
+        <button class="btn primary" id="btnSearchAllDb">🔍 Consultar Banco</button>
+      </div>
+    </div>
+
+    <div class="filters" style="margin-top:14px">
+      <button class="btn ${squadFilter==='ALL'?'primary':''}" data-squad-filter="ALL">Todos (${state.squad.length})</button>
+      <button class="btn ${squadFilter==='GK'?'primary':''}" data-squad-filter="GK">Goleiros</button>
+      <button class="btn ${squadFilter==='DEF'?'primary':''}" data-squad-filter="DEF">Defensores</button>
+      <button class="btn ${squadFilter==='MID'?'primary':''}" data-squad-filter="MID">Meio-Campo</button>
+      <button class="btn ${squadFilter==='ATK'?'primary':''}" data-squad-filter="ATK">Atacantes</button>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Foto</th>
+              <th>Jogador</th>
+              <th>Pos</th>
+              <th>Idade</th>
+              <th>Overall</th>
+              <th>Potencial</th>
+              <th>Salário / Mês</th>
+              <th>Contrato</th>
+              <th>Físico</th>
+              <th>Valor de Mercado</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ps.map(p=>`
+              <tr>
+                <td style="width:40px">${playerPhoto(p, 30)}</td>
+                <td>
+                  <b>${esc(p.name)}</b>
+                  ${p.injury ? `<span class="pill bad" style="font-size:9px;padding:1px 5px" title="${esc(p.injury)} (${p.injuryMatches} jogos)">🚑 ${p.injuryMatches}j</span>` : ''}
+                  ${p.suspended > 0 ? `<span class="pill bad" style="font-size:9px;padding:1px 5px" title="Suspenso por cartões">🟥 ${p.suspended}j</span>` : (p.yellowCards > 0 ? `<span class="pill" style="font-size:9px;padding:1px 5px;background:rgba(234,179,8,0.2);color:#facc15" title="${p.yellowCards} cartão amarelo">🟨 ${p.yellowCards}</span>` : '')}
+                  ${(p.morale || 75) >= 90 ? `<span class="pill good" style="font-size:9px;padding:1px 4px" title="Moral em alta">⭐</span>` : ((p.morale || 75) <= 50 ? `<span class="pill bad" style="font-size:9px;padding:1px 4px" title="Moral baixa">⚠️</span>` : '')}
+                  ${p.isLoan ? '<span class="pill" style="font-size:10px">Emprestado</span>':''}
+                </td>
+                <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                <td>${p.age||'-'} anos</td>
+                <td><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                <td><b class="good">${p.potential||playerOverall(p)}</b></td>
+                <td style="color:#22c55e;font-weight:700">R$ ${playerSalary(p).toLocaleString('pt-BR')}</td>
+                <td><span class="pill" style="font-size:11px">até ${playerContractUntil(p)}</span></td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span>${Math.round(p.fitness??100)}%</span>
+                    <div class="bar" style="width:40px;height:5px"><span style="width:${p.fitness??100}%;background:${p.fitness>85?'var(--neon)':p.fitness>70?'var(--warn)':'var(--bad)'}"></span></div>
+                  </div>
+                </td>
+                <td>${fmtMi(calcValueMi(p))}</td>
+                <td>
+                  <button class="btn open-transfer-modal" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">
+                    📄 Propostas
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------
+// MERCADO (COM FILTROS DE REGIÃO, PAÍS, COMPETIÇÃO E CLUBE)
+// -------------------------------------------------------------
+function marketPage(){
+  const winInfo = getTransferWindowInfo(state.date);
+  const totalSquadVal = state.squad.reduce((acc, p) => acc + (calcValueMi(p) * 1e6), 0);
+
+  return `
+    <!-- Topo do Mercado (Screenshots 3 e 4) -->
+    <div style="background:#0b0816;border:1px solid rgba(139,92,246,0.25);border-radius:16px;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+      <div style="display:flex;align-items:center;gap:14px">
+        ${clubBadge(state.club, 46)}
+        <div>
+          <h1 style="margin:0;font-size:24px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">MERCADO</h1>
+          <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:1px;text-transform:uppercase;margin-top:2px">
+            ${esc(state.club)} • TÉCNICO ${esc(state.manager)}
+          </div>
+        </div>
+      </div>
+      <div style="font-size:14px;color:rgba(255,255,255,0.7);font-style:italic">
+        Contrata quem faz a diferença 👑
+      </div>
+    </div>
+
+    <!-- 3 Cards de Indicadores (Screenshots 3 e 4) -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px">
+      <div style="background:#131024;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 18px">
+        <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">CAIXA</div>
+        <div style="font-size:24px;font-weight:900;color:#f59e0b;margin-top:2px">${fmtMoney(state.balance)}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">Folha ${fmtMoney(totalMonthlyPayroll())} por mês</div>
+      </div>
+
+      <div style="background:#131024;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 18px">
+        <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">JANELA DE TRANSFERÊNCIAS</div>
+        <div style="font-size:24px;font-weight:900;color:#22c55e;margin-top:2px">${winInfo.open ? 'Aberta' : 'Fechada'}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">até ${winInfo.text}</div>
+      </div>
+
+      <div style="background:#131024;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 18px">
+        <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">ELENCO</div>
+        <div style="font-size:24px;font-weight:900;color:#fff;margin-top:2px">${state.squad.length} jogadores</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">mínimo 14 • máximo 40</div>
+      </div>
+    </div>
+
+    <!-- Abas Principais: COMPRAR | VENDER | EMPRÉSTIMO | OLHEIRO -->
+    <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn market-main-tab ${marketTab==='buy'?'primary active':''}" data-market-tab="buy" style="flex:1;min-width:140px;padding:12px;border-radius:10px;font-weight:900;letter-spacing:0.5px;${marketTab==='buy'?'background:#7c3aed;color:#fff;border:none':''}">
+        🛒 COMPRAR
+      </button>
+      <button class="btn market-main-tab ${marketTab==='sell'?'primary active':''}" data-market-tab="sell" style="flex:1;min-width:140px;padding:12px;border-radius:10px;font-weight:900;letter-spacing:0.5px;${marketTab==='sell'?'background:#7c3aed;color:#fff;border:none':''}">
+        ➔ VENDER
+      </button>
+      <button class="btn market-main-tab ${marketTab==='loan'?'primary active':''}" data-market-tab="loan" style="flex:1;min-width:140px;padding:12px;border-radius:10px;font-weight:900;letter-spacing:0.5px;${marketTab==='loan'?'background:#7c3aed;color:#fff;border:none':''}">
+        ⇄ EMPRÉSTIMO
+      </button>
+      <button class="btn market-main-tab ${marketTab==='scout'?'primary active':''}" data-market-tab="scout" style="flex:1;min-width:160px;padding:12px;border-radius:10px;font-weight:900;letter-spacing:0.5px;${marketTab==='scout'?'background:#7c3aed;color:#fff;border:none':''}">
+        🕵️ OLHEIROS & BUSCA
+      </button>
+    </div>
+
+    ${marketTab==='buy' ? `
+      <div class="market-filter-panel card" style="margin-top:14px">
+        <div class="market-filter-row">
+          <div class="filter-field">
+            <label>🌎 Região / Continente</label>
+            <select id="marketRegion">
+              <option value="">Todas as Regiões</option>
+              <option value="América do Sul">América do Sul</option>
+              <option value="Europa">Europa</option>
+              <option value="Ásia">Ásia</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label>🚩 País</label>
+            <select id="marketCountry"><option value="">Todos os Países</option></select>
+          </div>
+          <div class="filter-field">
+            <label>🏆 Campeonato</label>
+            <select id="marketComp"><option value="">Todos os Campeonatos</option></select>
+          </div>
+          <div class="filter-field">
+            <label>🛡️ Clube</label>
+            <select id="marketClub"><option value="">Todos os Clubes</option></select>
+          </div>
+        </div>
+
+        <div class="market-filter-row" style="margin-top:6px">
+          <div class="filter-field" style="flex:2">
+            <label>🔍 Buscar por Jogador ou Clube</label>
+            <input id="marketQ" placeholder="Digite o nome do jogador ou clube...">
+          </div>
+          <div class="filter-field">
+            <label>⚽ Posição</label>
+            <select id="marketPos">
+              <option value="">Todas as Posições</option>
+              <option value="GK">Goleiros (GK)</option>
+              <option value="CB">Zagueiros (CB)</option>
+              <option value="RB">Laterais Direitos (RB)</option>
+              <option value="LB">Laterais Esquerdos (LB)</option>
+              <option value="DM">Volantes (DM)</option>
+              <option value="CM">Meio-Campistas (CM)</option>
+              <option value="AM">Meias Ofensivos (AM)</option>
+              <option value="RW">Pontas Direitos (RW)</option>
+              <option value="LW">Pontas Esquerdos (LW)</option>
+              <option value="ST">Centroavantes (ST)</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label>⭐ Overall Mínimo</label>
+            <select id="marketMin">
+              <option value="0">Qualquer Overall</option>
+              <option value="60">60+</option>
+              <option value="70">70+</option>
+              <option value="75">75+</option>
+              <option value="80">80+</option>
+              <option value="85">85+</option>
+            </select>
+          </div>
+          <div class="filter-field" style="align-self:flex-end;margin-bottom:8px">
+            <label class="check" style="cursor:pointer">
+              <input type="checkbox" id="onlyAffordable"> Apenas no caixa
+            </label>
+          </div>
+        </div>
+      </div>
+      <div id="buyList" style="margin-top:10px"></div>
+    ` : marketTab==='loan' ? `
+      <!-- Sub-Abas Empréstimos (Screenshot 3) -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px">
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-loan-sub ${loanSubTab==='borrow'?'primary':''}" data-loan-sub="borrow" style="font-weight:800;font-size:13px;padding:8px 16px;border-radius:8px;${loanSubTab==='borrow'?'background:#7c3aed;border:none':''}">
+            🛍️ PEGAR EMPRESTADO
+          </button>
+          <button class="btn btn-loan-sub ${loanSubTab==='lend'?'primary':''}" data-loan-sub="lend" style="font-weight:800;font-size:13px;padding:8px 16px;border-radius:8px;${loanSubTab==='lend'?'background:#7c3aed;border:none':''}">
+            ➔ CEDER
+          </button>
+          <button class="btn btn-loan-sub ${loanSubTab==='myloans'?'primary':''}" data-loan-sub="myloans" style="font-weight:800;font-size:13px;padding:8px 16px;border-radius:8px;${loanSubTab==='myloans'?'background:#7c3aed;border:none':''}">
+            ⇄ MEUS EMPRÉSTIMOS (${(state.squad.filter(p=>p.isLoan).length) + ((state.loanedOut||[]).length)})
+          </button>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4)">
+          só jogadores com clube, saudáveis e que não estão emprestados
+        </div>
+      </div>
+
+      ${loanSubTab==='borrow' ? `
+        <!-- Painel de Filtros Completo e Idêntico ao Comprar (Screenshot 2) -->
+        <div class="market-filter-panel card" style="margin-top:14px">
+          <div class="market-filter-row">
+            <div class="filter-field">
+              <label>🌎 Região / Continente</label>
+              <select id="loanRegion">
+                <option value="">Todas as Regiões</option>
+                <option value="América do Sul">América do Sul</option>
+                <option value="Europa">Europa</option>
+                <option value="Ásia">Ásia</option>
+              </select>
+            </div>
+            <div class="filter-field">
+              <label>🚩 País</label>
+              <select id="loanCountry"><option value="">Todos os Países</option></select>
+            </div>
+            <div class="filter-field">
+              <label>🏆 Campeonato</label>
+              <select id="loanComp"><option value="">Todos os Campeonatos</option></select>
+            </div>
+            <div class="filter-field">
+              <label>🛡️ Clube</label>
+              <select id="loanClub"><option value="">Todos os Clubes</option></select>
+            </div>
+          </div>
+
+          <div class="market-filter-row" style="margin-top:6px">
+            <div class="filter-field" style="flex:2">
+              <label>🔍 Buscar por Jogador ou Clube</label>
+              <input id="loanQ" placeholder="Digite o nome do jogador ou clube...">
+            </div>
+            <div class="filter-field">
+              <label>⚽ Posição</label>
+              <select id="loanPos">
+                <option value="">Todas as Posições</option>
+                <option value="GK">Goleiros (GK)</option>
+                <option value="CB">Zagueiros (CB)</option>
+                <option value="RB">Laterais Direitos (RB)</option>
+                <option value="LB">Laterais Esquerdos (LB)</option>
+                <option value="DM">Volantes (DM)</option>
+                <option value="CM">Meio-Campistas (CM)</option>
+                <option value="AM">Meias Ofensivos (AM)</option>
+                <option value="RW">Pontas Direitos (RW)</option>
+                <option value="LW">Pontas Esquerdos (LW)</option>
+                <option value="ST">Centroavantes (ST)</option>
+              </select>
+            </div>
+            <div class="filter-field">
+              <label>⭐ Overall Mínimo</label>
+              <select id="loanMin">
+                <option value="0">Qualquer Overall</option>
+                <option value="60">60+</option>
+                <option value="65">65+</option>
+                <option value="70">70+</option>
+                <option value="75">75+</option>
+                <option value="80">80+</option>
+              </select>
+            </div>
+            <div class="filter-field" style="align-self:flex-end;margin-bottom:8px">
+              <label class="check" style="cursor:pointer">
+                <input type="checkbox" id="onlyAffordableLoan"> Apenas no caixa
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px;padding:20px;background:#120f20;border:1px solid rgba(139,92,246,0.25);border-radius:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h2 style="margin:0;font-size:18px;font-weight:900;letter-spacing:1px;text-transform:uppercase">PEDIR EMPRESTADO</h2>
+            <div style="font-size:12px;color:rgba(255,255,255,0.5)">
+              Ordenar: <select id="selectLoanOrder" class="btn" style="padding:4px 8px;font-size:11px;background:#181428;border:1px solid rgba(255,255,255,0.1);color:#fff"><option value="ovr">Melhores primeiro ⌵</option><option value="cheap">Mais baratos ⌵</option><option value="age">Mais jovens ⌵</option></select>
+            </div>
+          </div>
+
+          <!-- Pílulas de Posição com Contadores -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+            ${['TODAS','GK','RB','CB','LB','DM','CM','AM','RW','ST','LW'].map(pCode => `
+              <button class="btn btn-loan-pos-pill ${loanPosFilter===pCode?'primary':''}" data-pos="${pCode}" style="padding:4px 10px;font-size:11px;font-weight:800;border-radius:6px;${loanPosFilter===pCode?'background:#7c3aed;border:none':''}">
+                ${pCode}
+              </button>
+            `).join('')}
+          </div>
+
+          <div id="loanList"></div>
+        </div>
+      ` : loanSubTab==='lend' ? `
+        <div id="loanLendList" style="margin-top:14px"></div>
+      ` : `
+        <div id="myLoansList" style="margin-top:14px"></div>
+      `}
+    ` : marketTab==='sell' ? `
+      <!-- Tela VENDER DO MEU ELENCO (Screenshot 4) -->
+      <div style="display:grid;grid-template-columns:2.4fr 1fr;gap:16px;margin-top:14px">
+        <!-- Coluna Esquerda: Elenco para Venda -->
+        <div class="card" style="padding:22px;background:#120f20;border:1px solid rgba(139,92,246,0.25);border-radius:16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+            <div>
+              <h2 style="margin:0;font-size:20px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
+                VENDER DO MEU ELENCO
+              </h2>
+              <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px">
+                Venda rápida: um clube de sua divisão leva o jogador na hora e paga 80% do valor. Propostas de outros clubes pagam mais: para os seus melhores, vale esperar.
+              </div>
+            </div>
+            <div style="text-align:right;font-size:12px;color:rgba(255,255,255,0.5)">
+              ${state.squad.length} jogadores · pode vender <b style="color:#22c55e">${Math.max(0, state.squad.length - 14)}</b> · elenco vale <b style="color:#f59e0b">${fmtMoney(totalSquadVal)}</b>
+            </div>
+          </div>
+
+          <!-- Filtros de Venda (Screenshot 4) -->
+          <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-sell-filter ${sellFilterType==='ALL'?'primary':''}" data-filter="ALL" style="padding:4px 12px;font-size:11px;font-weight:800;border-radius:6px;${sellFilterType==='ALL'?'background:#7c3aed;border:none':''}">
+              TODOS ${state.squad.length}
+            </button>
+            <button class="btn btn-sell-filter ${sellFilterType==='BENCH'?'primary':''}" data-filter="BENCH" style="padding:4px 12px;font-size:11px;font-weight:800;border-radius:6px;${sellFilterType==='BENCH'?'background:#7c3aed;border:none':''}">
+              FORA DO TIME ${state.squad.length - (state.lineup||[]).length}
+            </button>
+            <button class="btn btn-sell-filter ${sellFilterType==='STARTERS'?'primary':''}" data-filter="STARTERS" style="padding:4px 12px;font-size:11px;font-weight:800;border-radius:6px;${sellFilterType==='STARTERS'?'background:#7c3aed;border:none':''}">
+              TITULARES ${(state.lineup||[]).length}
+            </button>
+            <button class="btn btn-sell-filter ${sellFilterType==='VETERANS'?'primary':''}" data-filter="VETERANS" style="padding:4px 12px;font-size:11px;font-weight:800;border-radius:6px;${sellFilterType==='VETERANS'?'background:#7c3aed;border:none':''}">
+              30+ ANOS ${state.squad.filter(p=>p.age>=30).length}
+            </button>
+
+            <select id="selectSellSort" class="btn" style="margin-left:auto;background:#181428;border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:11px">
+              <option value="value" ${sellSortType==='value'?'selected':''}>Maior valor ⌵</option>
+              <option value="overall" ${sellSortType==='overall'?'selected':''}>Overall ⌵</option>
+              <option value="wage" ${sellSortType==='wage'?'selected':''}>Salário ⌵</option>
+            </select>
+          </div>
+
+          <div id="sellList" style="margin-top:16px"></div>
+        </div>
+
+        <!-- Coluna Direita: Últimas Transferências (Screenshot 4) -->
+        <div class="card" style="padding:18px;background:#120f20;border:1px solid rgba(255,255,255,0.08);border-radius:16px">
+          <h3 style="margin:0 0 14px 0;font-size:14px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
+            ÚLTIMAS TRANSFERÊNCIAS
+          </h3>
+
+          <div style="display:flex;flex-direction:column;gap:10px">
+            ${[
+              { name: 'Richard Franco', from: 'ASA', to: 'Betim Futebol', val: 350000 },
+              { name: 'Rafael Roballo', from: 'Nacional', to: 'Atlético-BA', val: 20000 },
+              { name: 'Young', from: 'São Paulo', to: 'Aparecidense', val: 250000 },
+              { name: 'Élton', from: 'Capital-DF', to: 'Foz do Iguaçu', val: 50000 },
+              { name: 'Paulo Vítor', from: 'Atlético-GO', to: 'Athletic Club', val: 530000 },
+              { name: 'Luis Augusto', from: 'Jataiense', to: 'Paranoá', val: 110000 },
+              { name: 'Magrão', from: 'Fortaleza', to: 'Forte', val: 200000 }
+            ].map(tr => `
+              <div style="background:#181428;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.05);font-size:12px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  ${playerPhoto(tr.name, 26)}
+                  <div>
+                    <div style="font-weight:800;color:#fff">${esc(tr.name)}</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.4)">${esc(tr.from)} ➔ ${esc(tr.to)}</div>
+                  </div>
+                  <div style="margin-left:auto;font-weight:900;color:#f59e0b;font-size:12px">
+                    ${fmtMoney(tr.val)}
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    ` : marketTab==='scout' ? `
+      <div id="scoutList" style="margin-top:14px"></div>
+    ` : ''}
+  `;
+}
+
+function bindMarketFilters(){
+  const reg=$('#marketRegion'), country=$('#marketCountry'), comp=$('#marketComp'), clubSel=$('#marketClub');
+  if(!reg) return;
+
+  function updateCountries(){
+    const rVal = reg.value;
+    const countries = rVal ? regionCountries(rVal) : [...new Set((window.COMPETITIONS||[]).map(c=>c.country))].sort();
+    country.innerHTML = '<option value="">Todos os Países</option>' + countries.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    updateComps();
+  }
+
+  function updateComps(){
+    const rVal = reg.value, cVal = country.value;
+    const comps = (window.COMPETITIONS||[]).filter(c=>(!rVal||c.continent===rVal)&&(!cVal||c.country===cVal));
+    comp.innerHTML = '<option value="">Todos os Campeonatos</option>' + comps.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+    updateClubOptions();
+  }
+
+  function updateClubOptions(){
+    const cId = comp.value;
+    let pool = [];
+    if(cId){
+      const c = compById(cId);
+      pool = eligibleClubNames(c);
+    } else if(country.value){
+      pool = clubs.filter(x=>x.country===country.value).map(x=>x.name);
+    } else if(reg.value){
+      const contCountries = regionCountries(reg.value);
+      pool = clubs.filter(x=>contCountries.includes(x.country)).map(x=>x.name);
+    } else {
+      pool = clubs.map(x=>x.name);
+    }
+    clubSel.innerHTML = '<option value="">Todos os Clubes</option>' + pool.slice(0, 100).map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+    renderMarketBuy();
+  }
+
+  reg.onchange = updateCountries;
+  country.onchange = updateComps;
+  comp.onchange = updateClubOptions;
+  clubSel.onchange = renderMarketBuy;
+  updateCountries();
+}
+
+function renderMarketBuy(){
+  const el=$('#buyList') || $('#marketList'); if(!el) return;
+  const q=norm($('#marketQ')?.value), pos=$('#marketPos')?.value||'', min=+($('#marketMin')?.value||0), aff=$('#onlyAffordable')?.checked;
+  const regVal = $('#marketRegion')?.value;
+  const countryVal = $('#marketCountry')?.value;
+  const compVal = $('#marketComp')?.value;
+  const clubVal = $('#marketClub')?.value;
+
+  let compClubSet = null;
+  if(compVal){
+    const c = compById(compVal);
+    if(c) compClubSet = new Set(eligibleClubNames(c).map(norm));
+  }
+
+  let ps=marketUniverse().filter(p=>{
+    if(q && !norm((p.name||'')+' '+(p.club||'')).includes(q)) return false;
+    if(pos && String(p.pos||'').split(',')[0].trim()!==pos) return false;
+    if(playerOverall(p) < min) return false;
+    if(aff && calcValueMi(p)*1e6 > state.balance) return false;
+    if(clubVal && norm(p.club) !== norm(clubVal)) return false;
+    if(compClubSet && !compClubSet.has(norm(p.club))) return false;
+    
+    const clubObj = clubByName(p.club);
+    const pCountry = p.country || clubObj?.country;
+    if(countryVal && pCountry && norm(pCountry) !== norm(countryVal)) return false;
+    if(regVal){
+      const contCountries = regionCountries(regVal);
+      if(pCountry && !contCountries.includes(pCountry)) return false;
+    }
+    return true;
+  }).sort((a,b)=>playerOverall(b)-playerOverall(a)||calcValueMi(b)-calcValueMi(a)).slice(0,140);
+
+  if(!ps.length){ el.innerHTML='<div class="empty">Nenhum jogador encontrado com esses filtros selecionados.</div>'; return; }
+
+  el.innerHTML=`
+    <div class="tablewrap card">
+      <table>
+        <thead><tr><th>Jogador</th><th>Clube</th><th>Pos</th><th>Overall</th><th>Idade</th><th>Valor de Mercado</th><th>Ação</th></tr></thead>
+        <tbody>
+          ${ps.map(p=>{
+            const val=calcValueMi(p), key=playerKey(p);
+            return `
+              <tr>
+                <td><b>${esc(p.name)}</b></td>
+                <td><div class="club-cell">${clubBadge(p.club, 22)} ${esc(p.club||'-')}</div></td>
+                <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                <td><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                <td>${p.age||'-'} anos</td>
+                <td><b class="good">${fmtMi(val)}</b></td>
+                <td><button class="btn primary buy" data-key="${esc(key)}" ${val*1e6>state.balance?'disabled':''}>${val*1e6>state.balance?'Sem caixa':'Comprar'}</button></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  $$('.buy').forEach(b=>b.onclick=()=>buyPlayer(b.dataset.key));
+}
+
+
+function bindLoanFilters(){
+  const reg=$('#loanRegion'), country=$('#loanCountry'), comp=$('#loanComp'), clubSel=$('#loanClub');
+  if(!reg) return;
+
+  function updateCountries(){
+    const rVal = reg.value;
+    const countries = rVal ? regionCountries(rVal) : [...new Set((window.COMPETITIONS||[]).map(c=>c.country))].sort();
+    country.innerHTML = '<option value="">Todos os Países</option>' + countries.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    updateComps();
+  }
+
+  function updateComps(){
+    const rVal = reg.value, cVal = country.value;
+    const comps = (window.COMPETITIONS||[]).filter(c=>(!rVal||c.continent===rVal)&&(!cVal||c.country===cVal));
+    comp.innerHTML = '<option value="">Todos os Campeonatos</option>' + comps.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+    updateClubOptions();
+  }
+
+  function updateClubOptions(){
+    const cId = comp.value;
+    let pool = [];
+    if(cId){
+      const c = compById(cId);
+      pool = eligibleClubNames(c);
+    } else if(country.value){
+      pool = clubs.filter(x=>x.country===country.value).map(x=>x.name);
+    } else if(reg.value){
+      const contCountries = regionCountries(reg.value);
+      pool = clubs.filter(x=>contCountries.includes(x.country)).map(x=>x.name);
+    } else {
+      pool = clubs.map(x=>x.name);
+    }
+    clubSel.innerHTML = '<option value="">Todos os Clubes</option>' + pool.slice(0, 100).map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+    renderMarketLoans();
+  }
+
+  reg.onchange = updateCountries;
+  country.onchange = updateComps;
+  comp.onchange = updateClubOptions;
+  clubSel.onchange = renderMarketLoans;
+  updateCountries();
+}
+
+function renderMarketLoans(){
+  const el = $('#loanList'); if(!el) return;
+  const q = norm($('#loanQ')?.value || loanQFilter);
+  const pos = $('#loanPos')?.value || (loanPosFilter !== 'TODAS' && loanPosFilter !== 'ALL' ? loanPosFilter : '');
+  const min = +($('#loanMin')?.value || 0);
+  const aff = $('#onlyAffordableLoan')?.checked;
+  const regVal = $('#loanRegion')?.value;
+  const countryVal = $('#loanCountry')?.value;
+  const compVal = $('#loanComp')?.value;
+  const clubVal = $('#loanClub')?.value;
+  const sortVal = $('#selectLoanOrder')?.value || 'ovr';
+
+  let compClubSet = null;
+  if(compVal){
+    const c = compById(compVal);
+    if(c) compClubSet = new Set(eligibleClubNames(c).map(norm));
+  }
+
+  let pool = marketUniverse().filter(p => {
+    if(norm(p.club||'') === norm(state.club)) return false;
+    const ovr = playerOverall(p);
+    if(ovr < 52) return false;
+    if(min && ovr < min) return false;
+
+    if(q && !norm((p.name||'') + ' ' + (p.club||'')).includes(q)) return false;
+    if(pos && String(p.pos||'').split(',')[0].trim() !== pos) return false;
+
+    const fee = Math.round(calcValueMi(p) * 1e6 * 0.10);
+    if(aff && fee > state.balance) return false;
+
+    if(clubVal && norm(p.club) !== norm(clubVal)) return false;
+    if(compClubSet && !compClubSet.has(norm(p.club))) return false;
+
+    const clubObj = clubByName(p.club);
+    const pCountry = p.country || clubObj?.country;
+    if(countryVal && pCountry && norm(pCountry) !== norm(countryVal)) return false;
+    if(regVal){
+      const contCountries = regionCountries(regVal);
+      if(pCountry && !contCountries.includes(pCountry)) return false;
+    }
+    return true;
+  });
+
+  if(sortVal === 'cheap'){
+    pool.sort((a,b) => calcValueMi(a) - calcValueMi(b));
+  } else if(sortVal === 'age'){
+    pool.sort((a,b) => (a.age||22) - (b.age||22));
+  } else {
+    pool.sort((a,b) => playerOverall(b) - playerOverall(a) || calcValueMi(b) - calcValueMi(a));
+  }
+
+  const list = pool.slice(0, 100);
+
+  if(!list.length){
+    el.innerHTML = '<div class="empty" style="padding:24px;text-align:center">Nenhum jogador encontrado com os filtros selecionados para empréstimo.</div>';
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
+            <th style="width:36px">FOTO</th>
+            <th>JOGADOR</th>
+            <th>CLUBE</th>
+            <th>POS</th>
+            <th style="text-align:center">NOTA</th>
+            <th style="text-align:center">IDADE</th>
+            <th style="text-align:right">TAXA ANUAL</th>
+            <th style="text-align:center">AÇÃO</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map(p => {
+            const fee = Math.round(calcValueMi(p) * 1e6 * 0.10);
+            const key = playerKey(p);
+
+            return `
+              <tr>
+                <td style="width:36px">${playerPhoto(p, 28)}</td>
+                <td><b>${esc(p.name)}</b></td>
+                <td><div class="club-cell">${clubBadge(p.club, 18)} ${esc(p.club||'-')}</div></td>
+                <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                <td style="text-align:center"><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                <td style="text-align:center">${p.age||22} anos</td>
+                <td style="text-align:right;color:#22c55e;font-weight:800">${fmtMoney(fee)}</td>
+                <td style="text-align:center">
+                  <button class="btn success loan-in" data-key="${esc(key)}" style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:6px;background:#16a34a;color:#fff;border:none;cursor:pointer">
+                    Negociar Empréstimo
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  $$('.loan-in').forEach(b => b.onclick = () => loanInPlayer(b.dataset.key));
+}
+
+function renderMarketLend(){
+  const el = $('#loanLendList'); if(!el) return;
+  state.loanListed = state.loanListed || [];
+  state.loanOffers = state.loanOffers || {};
+  const ps = state.squad.filter(p => !p.isLoan);
+
+  el.innerHTML = `
+    <div class="card" style="padding:20px;background:#120f20;border:1px solid rgba(139,92,246,0.25);border-radius:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div>
+          <h2 style="margin:0;font-size:18px;font-weight:900;letter-spacing:1px;text-transform:uppercase">CEDER ATLETAS DO MEU ELENCO</h2>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">
+            Coloque atletas com poucos minutos para rodar em outros clubes e aliviar a folha salarial!
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--cyan)">
+          ${state.loanListed.length} atleta(s) na lista de empréstimo
+        </div>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
+              <th style="width:36px">FOTO</th>
+              <th>JOGADOR</th>
+              <th>POS</th>
+              <th style="text-align:center">NOTA</th>
+              <th style="text-align:center">IDADE</th>
+              <th style="text-align:right">SALÁRIO ATUAL</th>
+              <th style="text-align:center">STATUS</th>
+              <th style="text-align:center">AÇÃO</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ps.map(p => {
+              const k = playerKey(p);
+              const isListed = state.loanListed.includes(k);
+              const offers = state.loanOffers[k] || [];
+
+              return `
+                <tr>
+                  <td style="width:36px">${playerPhoto(p, 30)}</td>
+                  <td><b>${esc(p.name)}</b></td>
+                  <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                  <td style="text-align:center"><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                  <td style="text-align:center">${p.age||22} anos</td>
+                  <td style="text-align:right;color:#22c55e">R$ ${(p.wage||playerSalary(p)).toLocaleString('pt-BR')}/mês</td>
+                  <td style="text-align:center">
+                    <span class="pill ${isListed?'good':''}" style="font-size:10px">${isListed?'LISTADO':'NO CLUBE'}</span>
+                  </td>
+                  <td style="text-align:center">
+                    <div style="display:inline-flex;gap:6px">
+                      <button class="btn btnToggleLoanListed" data-key="${esc(k)}" style="padding:4px 10px;font-size:11px">
+                        ${isListed?'Retirar da Lista':'Disponibilizar'}
+                      </button>
+                      ${offers.length ? `
+                        <button class="btn primary btnViewLoanOffers" data-key="${esc(k)}" style="padding:4px 10px;font-size:11px">
+                          📬 Ver Propostas (${offers.length})
+                        </button>
+                      ` : ''}
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  $$('.btnToggleLoanListed').forEach(b => {
+    b.onclick = () => {
+      const k = b.dataset.key;
+      const idx = state.loanListed.indexOf(k);
+      if(idx >= 0){
+        state.loanListed.splice(idx, 1);
+        delete state.loanOffers[k];
+        toast('Jogador retirado da lista de empréstimos.');
+      } else {
+        state.loanListed.push(k);
+        const p = state.squad.find(q => playerKey(q) === k);
+        if(p) state.loanOffers[k] = generateLoanOffers(p);
+        toast('Jogador disponibilizado para empréstimo! Propostas recebidas.');
+      }
+      save();
+      render();
+    };
+  });
+
+  $$('.btnViewLoanOffers').forEach(b => {
+    b.onclick = () => openPlayerTransferModal(b.dataset.key);
+  });
+}
+
+function renderMarketMyLoans(){
+  const el = $('#myLoansList'); if(!el) return;
+  const borrowed = state.squad.filter(p => p.isLoan);
+  const loanedOut = state.loanedOut || [];
+
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <!-- 1. JOGADORES QUE VIERAM POR EMPRÉSTIMO -->
+      <div class="card" style="padding:20px;background:#120f20;border:1px solid rgba(139,92,246,0.25);border-radius:16px">
+        <h3 style="margin:0 0 10px 0;font-size:16px;color:#fff;text-transform:uppercase">
+          📥 JOGADORES EMPRESTADOS AO SEU CLUBE (${borrowed.length})
+        </h3>
+        ${borrowed.length ? `
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
+                  <th style="width:36px">FOTO</th>
+                  <th>JOGADOR</th>
+                  <th>CLUBE DE ORIGEM</th>
+                  <th>POS</th>
+                  <th style="text-align:center">NOTA</th>
+                  <th style="text-align:right">SALÁRIO PAGO</th>
+                  <th style="text-align:center">AÇÃO</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${borrowed.map(p => `
+                  <tr>
+                    <td style="width:36px">${playerPhoto(p, 28)}</td>
+                    <td><b>${esc(p.name)}</b></td>
+                    <td><div class="club-cell">${clubBadge(p.loanFrom, 18)} ${esc(p.loanFrom||'-')}</div></td>
+                    <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                    <td style="text-align:center"><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                    <td style="text-align:right;color:#22c55e">R$ ${(p.wage||0).toLocaleString('pt-BR')}/mês</td>
+                    <td style="text-align:center">
+                      <button class="btn btnReturnLoanedPlayer" data-key="${esc(playerKey(p))}" style="padding:4px 10px;font-size:11px;color:var(--bad)">
+                        Devolver Atleta
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : `
+          <div style="font-size:13px;color:rgba(255,255,255,0.4);padding:14px;background:#0d0a17;border-radius:10px">
+            Seu clube não possui nenhum atleta emprestado de outros clubes no momento.
+          </div>
+        `}
+      </div>
+
+      <!-- 2. JOGADORES DO SEU CLUBE CEDIDOS A OUTROS CLUBES -->
+      <div class="card" style="padding:20px;background:#120f20;border:1px solid rgba(255,255,255,0.08);border-radius:16px">
+        <h3 style="margin:0 0 10px 0;font-size:16px;color:#fff;text-transform:uppercase">
+          📤 JOGADORES CEDIDOS A OUTROS CLUBES (${loanedOut.length})
+        </h3>
+        ${loanedOut.length ? `
+          <div class="tablewrap">
+            <table>
+              <thead>
+                <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
+                  <th>JOGADOR</th>
+                  <th>DESTINO</th>
+                  <th>POS</th>
+                  <th style="text-align:center">NOTA</th>
+                  <th style="text-align:center">AÇÃO</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${loanedOut.map((p, idx) => `
+                  <tr>
+                    <td><b>${esc(p.name)}</b></td>
+                    <td><div class="club-cell">${clubBadge(p.loanTo, 18)} ${esc(p.loanTo||'-')}</div></td>
+                    <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                    <td style="text-align:center"><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                    <td style="text-align:center">
+                      <button class="btn btnRecallLoanedPlayer" data-idx="${idx}" style="padding:4px 10px;font-size:11px">
+                        Requisitar Retorno
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : `
+          <div style="font-size:13px;color:rgba(255,255,255,0.4);padding:14px;background:#0d0a17;border-radius:10px">
+            Nenhum jogador do seu clube está cedido por empréstimo no momento.
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+
+  $$('.btnReturnLoanedPlayer').forEach(b => {
+    b.onclick = () => {
+      const k = b.dataset.key;
+      const idx = state.squad.findIndex(p => playerKey(p) === k);
+      if(idx >= 0){
+        const p = state.squad[idx];
+        state.squad.splice(idx, 1);
+        toast(`Atleta ${p.name} devolvido ao ${p.loanFrom || 'clube de origem'}.`);
+        save();
+        render();
+      }
+    };
+  });
+
+  $$('.btnRecallLoanedPlayer').forEach(b => {
+    b.onclick = () => {
+      const idx = +b.dataset.idx;
+      if(state.loanedOut && state.loanedOut[idx]){
+        const p = state.loanedOut.splice(idx, 1)[0];
+        delete p.loanTo;
+        state.squad.push(p);
+        toast(`${p.name} retornou de empréstimo e foi reintegrado ao elenco!`);
+        save();
+        render();
+      }
+    };
+  });
+}
+
+function renderMarketSell(){
+  const el = $('#sellList'); if(!el) return;
+  let ps = [...state.squad];
+
+  if(sellFilterType === 'BENCH'){
+    ps = ps.filter(p => !(state.lineup||[]).includes(playerKey(p)));
+  } else if(sellFilterType === 'STARTERS'){
+    ps = ps.filter(p => (state.lineup||[]).includes(playerKey(p)));
+  } else if(sellFilterType === 'VETERANS'){
+    ps = ps.filter(p => (p.age||22) >= 30);
+  }
+
+  if(sellSortType === 'value'){
+    ps.sort((a,b) => calcValueMi(b) - calcValueMi(a));
+  } else if(sellSortType === 'overall'){
+    ps.sort((a,b) => playerOverall(b) - playerOverall(a));
+  } else if(sellSortType === 'wage'){
+    ps.sort((a,b) => playerSalary(b) - playerSalary(a));
+  }
+
+  el.innerHTML = `
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
+            <th style="width:36px">FOTO</th>
+            <th>JOGADOR</th>
+            <th>POS</th>
+            <th style="text-align:center">NOTA</th>
+            <th style="text-align:center">IDADE</th>
+            <th style="text-align:center">NA POSIÇÃO</th>
+            <th style="text-align:right">RECEBE</th>
+            <th style="text-align:right">VALE</th>
+            <th style="text-align:center">AÇÃO</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${ps.map(p => {
+            const key = playerKey(p);
+            const wage = playerSalary(p);
+            const val = Math.round(calcValueMi(p) * 1e6);
+
+            return `
+              <tr>
+                <td style="width:36px">${playerPhoto(p, 30)}</td>
+                <td><b>${esc(p.name)}</b></td>
+                <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                <td style="text-align:center"><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                <td style="text-align:center">${p.age||22}</td>
+                <td style="text-align:center"><span class="small muted">2</span></td>
+                <td style="text-align:right;color:#22c55e;font-weight:800">R$ ${wage.toLocaleString('pt-BR')}</td>
+                <td style="text-align:right;color:#fbbf24;font-weight:800">R$ ${val.toLocaleString('pt-BR')}</td>
+                <td style="text-align:center">
+                  <div style="display:inline-flex;gap:6px;align-items:center">
+                    <button class="btn btnQuickSellSquadRow" data-key="${esc(key)}" style="padding:5px 10px;font-size:11px;font-weight:900;border-radius:6px;background:#059669;color:#fff;border:none;cursor:pointer" title="Venda rápida na hora por 80% (R$ ${Math.round(val*0.8).toLocaleString('pt-BR')})">
+                      ⚡ RÁPIDA (80%)
+                    </button>
+                    <button class="btn btnOpenSellModalRow" data-key="${esc(key)}" style="padding:5px 10px;font-size:11px;font-weight:800;border-radius:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#fff;cursor:pointer" title="Ver propostas de compra e empréstimo">
+                      💼 PROPOSTAS
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  $$('.btnQuickSellSquadRow').forEach(b => b.onclick = () => quickSellSquadPlayer(b.dataset.key));
+  $$('.btnOpenSellModalRow').forEach(b => b.onclick = () => openPlayerTransferModal(b.dataset.key));
+  $$('.open-transfer-modal').forEach(b => b.onclick = () => openPlayerTransferModal(b.dataset.key));
+}
+
+
+function renderMarketScout(){
+  const el=$('#scoutList'); if(!el) return;
+  const missions = state.scoutMissions || [];
+  const reports = state.scoutReports || [];
+
+  let pool = marketUniverse().filter(p => (+p.age||25) <= 22);
+
+  if(scoutTierFilter === 'budget'){
+    // Promessas acessíveis para clubes menores (até R$ 3 Mi)
+    pool = pool.filter(p => calcValueMi(p) <= 3.0 && (+p.potential || playerOverall(p)) >= 65);
+    pool.sort((a,b) => calcValueMi(a) - calcValueMi(b));
+  } else if(scoutTierFilter === 'mid'){
+    // Promessas nacionais boas (Série A e B, R$ 3 Mi a R$ 25 Mi)
+    pool = pool.filter(p => calcValueMi(p) > 2.5 && calcValueMi(p) <= 25.0 && (+p.potential || playerOverall(p)) >= 75);
+    pool.sort((a,b) => (b.potential||0) - (a.potential||0));
+  } else if(scoutTierFilter === 'elite'){
+    // Promessas mundiais de elite (R$ 25 Mi+)
+    pool = pool.filter(p => calcValueMi(p) > 22.0 && (+p.potential || playerOverall(p)) >= 85);
+    pool.sort((a,b) => (b.potential||0) - (a.potential||0));
+  } else {
+    // Todos: ordenado por potencial geral
+    pool = pool.filter(p => (+p.potential || playerOverall(p)) >= 70);
+    pool.sort((a,b) => (b.potential||0) - (a.potential||0));
+  }
+
+  if(scoutAffordableOnly){
+    pool = pool.filter(p => calcValueMi(p) * 1e6 <= state.balance);
+  }
+
+  let ps = pool.slice(0, 45);
+
+  el.innerHTML = `
+    <!-- Topo da Central de Olheiros -->
+    <div style="background:#130f24;border:1px solid rgba(139,92,246,0.3);border-radius:16px;padding:20px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="margin:0;font-size:20px;font-weight:900;color:#fff;text-transform:uppercase">
+            🕵️ CENTRAL DE OLHEIROS & INTELIGÊNCIA
+          </h2>
+          <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
+            O olheiro cuida de <b>2 trabalhos simultâneos</b>. Escolha a classe do olheiro de acordo com o orçamento do clube.
+          </div>
+        </div>
+        <button class="btn primary" id="btnOpenScoutPromiseModal" style="background:linear-gradient(135deg, #7c3aed, #0284c7);border:none;padding:10px 18px;font-weight:900;border-radius:10px">
+          🎯 Contratar Olheiro & Iniciar Busca
+        </button>
+      </div>
+
+      <!-- Vagas de Trabalho do Olheiro -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px">
+        ${[0, 1].map(slotIdx => {
+          const m = missions[slotIdx];
+          return `
+            <div style="background:#1a1530;border:1px dashed ${m ? '#7c3aed' : 'rgba(255,255,255,0.15)'};border-radius:12px;padding:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">VAGA DE OLHEIRO #${slotIdx+1}</span>
+                <span class="pill ${m ? 'good' : ''}" style="font-size:10px">${m ? 'EM MISSÃO' : 'LIVRE'}</span>
+              </div>
+              ${m ? `
+                <div style="margin-top:8px">
+                  <div style="font-size:14px;font-weight:900;color:#fff">
+                    ${m.type==='player' ? `Análise: ${esc(m.playerName)}` : `Busca: ${esc(m.tierName||'Promessas')} (${m.sector})`}
+                  </div>
+                  <div style="font-size:12px;color:var(--cyan);margin-top:2px">
+                    Faltam <b>${m.roundsLeft} rodada(s)</b> para a entrega do relatório
+                  </div>
+                </div>
+              ` : `
+                <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:8px">
+                  Vaga disponível para observar jogadores no Mercado ou iniciar busca especializada.
+                </div>
+              `}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Relatórios Guardados do Olheiro (Fotos do Dia) -->
+    ${reports.length > 0 ? `
+      <div style="margin-bottom:24px">
+        <h3 style="margin:0 0 12px 0;font-size:16px;color:#fff;display:flex;align-items:center;gap:8px">
+          <span>📁 RELATÓRIOS DO OLHEIRO GUARDADOS (${reports.length})</span>
+          <span class="small muted" style="font-weight:normal">• Foto do dia em que chegou</span>
+        </h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:14px">
+          ${reports.map(rep => `
+            <div style="background:#161226;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="pill" style="font-size:10px;background:#4f46e5;color:#fff">${rep.pos} • ${rep.age} ANOS</span>
+                <span style="font-size:10px;color:rgba(255,255,255,0.4)">${rep.date || 'Relatório'}</span>
+              </div>
+              <h4 style="margin:8px 0 2px 0;font-size:16px;color:#fff">${esc(rep.name)}</h4>
+              <div style="font-size:12px;color:rgba(255,255,255,0.5)">Clube: ${esc(rep.club || 'Livre')}</div>
+
+              <div style="margin-top:10px;background:#100d1e;padding:10px;border-radius:8px;font-size:11px;display:flex;flex-direction:column;gap:5px">
+                <div style="color:var(--neon);font-weight:800">${rep.potentialRange}</div>
+                <div style="color:rgba(255,255,255,0.8)">📄 ${rep.contract}</div>
+                <div style="color:rgba(255,255,255,0.7)">⚽ ${rep.seasonStatus}</div>
+                <div style="color:${rep.injuryStatus.includes('Atenção')?'#f87171':'#4ade80'}">🩺 ${rep.injuryStatus}</div>
+              </div>
+
+              <button class="btn primary buy" data-key="${esc(rep.playerKey)}" style="width:100%;margin-top:10px;padding:6px;font-size:11px;font-weight:800">
+                Negociar Jogador
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    <!-- Filtros de Olheiro por Orçamento / Classe -->
+    <div style="background:#100d1e;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">CLASSE DE OLHEIRO:</span>
+        <button class="btn ${scoutTierFilter==='all'?'primary':''}" id="btnScoutFilterAll" style="font-size:11px;padding:6px 12px;font-weight:800;border-radius:8px">
+          TODOS
+        </button>
+        <button class="btn ${scoutTierFilter==='budget'?'primary':''}" id="btnScoutFilterBudget" style="font-size:11px;padding:6px 12px;font-weight:800;border-radius:8px;background:${scoutTierFilter==='budget'?'#16a34a':'rgba(255,255,255,0.06)'};color:#fff">
+          🌱 BÁSICO / ATÉ R$ 3 MI (TIMES MENORES)
+        </button>
+        <button class="btn ${scoutTierFilter==='mid'?'primary':''}" id="btnScoutFilterMid" style="font-size:11px;padding:6px 12px;font-weight:800;border-radius:8px;background:${scoutTierFilter==='mid'?'#0284c7':'rgba(255,255,255,0.06)'};color:#fff">
+          ⚖️ BOM / R$ 3 MI A 25 MI (SÉRIE A & B)
+        </button>
+        <button class="btn ${scoutTierFilter==='elite'?'primary':''}" id="btnScoutFilterElite" style="font-size:11px;padding:6px 12px;font-weight:800;border-radius:8px;background:${scoutTierFilter==='elite'?'#7c3aed':'rgba(255,255,255,0.06)'};color:#fff">
+          💎 ELITE MUNDIAL (ESTRELAS)
+        </button>
+      </div>
+
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#fff;font-weight:700">
+        <input type="checkbox" id="chkScoutAffordable" ${scoutAffordableOnly?'checked':''} style="accent-color:#22c55e">
+        <span>Apenas no meu orçamento (≤ ${fmtMoney(state.balance)})</span>
+      </label>
+    </div>
+
+    <!-- Tabela Geral de Promessas -->
+    <h3 style="margin:0 0 10px 0;font-size:15px;color:#fff;display:flex;justify-content:space-between;align-items:center">
+      <span>⭐ JOGADORES OBSERVADOS PELA REDE (${ps.length})</span>
+      <span style="font-size:11px;font-weight:normal;color:rgba(255,255,255,0.5)">Filtro ativo: ${scoutTierFilter==='budget'?'Básico (Acessíveis)':scoutTierFilter==='mid'?'Bom (Nacional)':scoutTierFilter==='elite'?'Elite Mundial':'Geral'}</span>
+    </h3>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Jovem Promessa</th><th>Clube</th><th>Pos</th><th>Idade</th><th>Overall</th><th>Potencial Oculto</th><th>Valor</th><th>Ação</th></tr></thead>
+        <tbody>
+          ${ps.length === 0 ? `
+            <tr><td colspan="8" style="text-align:center;padding:24px;color:rgba(255,255,255,0.5)">Nenhum jogador encontrado com o filtro selecionado. Experimente desmarcar "Apenas no meu orçamento" ou escolher outra classe.</td></tr>
+          ` : ps.map(p=>{
+            const val=calcValueMi(p), key=playerKey(p);
+            return `
+              <tr>
+                <td><b>⭐ ${esc(p.name)}</b></td>
+                <td><div class="club-cell">${clubBadge(p.club, 20)} ${esc(p.club||'-')}</div></td>
+                <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                <td>${p.age} anos</td>
+                <td><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                <td><b class="good">⭐ ${p.potential||playerOverall(p)+5}</b></td>
+                <td>${fmtMi(val)}</td>
+                <td>
+                  <div style="display:flex;gap:4px">
+                    <button class="btn primary buy" data-key="${esc(key)}" ${val*1e6>state.balance?'disabled':''}>Contratar</button>
+                    <button class="btn btnSendScoutPlayer" data-key="${esc(key)}" style="padding:6px 10px;font-size:11px;background:#4f46e5;color:#fff;border:none;border-radius:6px">🔍 Olheiro</button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  $$('.buy').forEach(b=>b.onclick=()=>buyPlayer(b.dataset.key));
+  $$('.btnSendScoutPlayer').forEach(b=>b.onclick=()=>sendScoutToPlayer(b.dataset.key));
+  const btnPromise = $('#btnOpenScoutPromiseModal');
+  if(btnPromise) btnPromise.onclick = openScoutPromiseModal;
+
+  const btnAll = $('#btnScoutFilterAll'); if(btnAll) btnAll.onclick = () => { scoutTierFilter = 'all'; renderMarketScout(); };
+  const btnBud = $('#btnScoutFilterBudget'); if(btnBud) btnBud.onclick = () => { scoutTierFilter = 'budget'; renderMarketScout(); };
+  const btnMid = $('#btnScoutFilterMid'); if(btnMid) btnMid.onclick = () => { scoutTierFilter = 'mid'; renderMarketScout(); };
+  const btnEli = $('#btnScoutFilterElite'); if(btnEli) btnEli.onclick = () => { scoutTierFilter = 'elite'; renderMarketScout(); };
+  const chkAff = $('#chkScoutAffordable'); if(chkAff) chkAff.onchange = () => { scoutAffordableOnly = chkAff.checked; renderMarketScout(); };
+}
+
+
+// -------------------------------------------------------------
+// ESTRUTURA COM DASHBOARD VISUAL DE RENDA EM CASA
+// -------------------------------------------------------------
+function structurePage(){
+  const f = userFixture(), opp = f && f[0] === state.club ? f[1] : null;
+  const proj = attendanceProjection(opp || 'Adversário');
+  const isHome = f && f[0] === state.club;
+  const stData = getStadiumExpansionData();
+  const arenaData = getNewArenaData();
+  const musData = getMuseumData();
+
+  return `
+    <div class="hero">
+      <div>
+        <h1>Estrutura do Clube & Estádio</h1>
+        <div class="muted">Ampliação do estádio anel por anel, nova arena do clube, museu histórico de taças e instalações</div>
+      </div>
+      <span class="pill good">Caixa: ${fmtMoney(state.balance)}</span>
+    </div>
+
+    <!-- Sub-Abas de Estrutura -->
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-struct-tab ${structureSubTab==='facilities'?'primary':''}" data-struct-tab="facilities" style="font-weight:900;padding:8px 18px;border-radius:10px">
+        🏢 INSTALAÇÕES GERAIS
+      </button>
+      <button class="btn btn-struct-tab ${structureSubTab==='stadium'?'primary':''}" data-struct-tab="stadium" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #7c3aed">
+        🏟️ EXPANSÃO (ANÉIS ATÉ 100K)
+      </button>
+      <button class="btn btn-struct-tab ${structureSubTab==='arena'?'primary':''}" data-struct-tab="arena" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #0284c7">
+        🏛️ CONSTRUIR NOVA ARENA
+      </button>
+      <button class="btn btn-struct-tab ${structureSubTab==='museum'?'primary':''}" data-struct-tab="museum" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #f59e0b">
+        🏆 MUSEU DO CLUBE (${musData.levelObj.name})
+      </button>
+      <button class="btn btn-struct-tab ${structureSubTab==='house'?'primary':''}" data-struct-tab="house" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #10b981">
+        🏠 SUA CASA & LICENÇAS
+      </button>
+    </div>
+
+    ${structureSubTab==='facilities' ? `
+      <!-- Atalhos Rápidos Interativos dos Screenshots -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:16px">
+      <button class="btn" id="btnOpenParkingInteractive" style="background:#26180f;border:1px solid #f97316;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:6px">
+        <span>🚗</span> <span style="font-size:11px">ESTACIONAMENTO INTERATIVO</span>
+      </button>
+      <button class="btn" id="btnOpenStadiumInteractive" style="background:#1c1335;border:1px solid #7c3aed;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>🏟️</span> <span>VER ESTÁDIO INTERATIVO & MELHORIAS</span>
+      </button>
+      <button class="btn" id="btnOpenStoreInteractive" style="background:#131c35;border:1px solid #0284c7;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>🛍️</span> <span>LOJA OFICIAL & PREÇOS</span>
+      </button>
+      <button class="btn" id="btnOpenTrainingInteractive" style="background:#132e22;border:1px solid #10b981;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>⚽</span> <span>CENTRO DE TREINAMENTO & FOCO</span>
+      </button>
+    </div>
+
+    <div class="facility-map" style="margin-top:16px">
+        ${Object.entries(FACILITIES).map(([k,d])=>{
+          const x=state.infrastructure[k]||{level:0};
+          const cost=facilityCost(k);
+          const max=x.level>=d.max;
+          return `
+            <div class="facility-card ${k==='stadium'?'facility-stadium':''}">
+              <div class="facility-icon">${d.icon}</div>
+              <div class="facility-body">
+                <div class="small">NÍVEL ${x.level}/${d.max}</div>
+                <h3>${d.name}</h3>
+                <p>${d.effect}</p>
+                ${k==='stadium'?`<div class="facility-stat">Capacidade: <b>${(x.capacity||0).toLocaleString('pt-BR')} torcedores</b></div>`:''}
+                ${k==='parking'?`<div class="facility-stat">Vagas: <b>${parkingSpots(x.level).toLocaleString('pt-BR')} vagas</b></div>`:''}
+                ${k==='academy'?`<div class="facility-stat" style="color:var(--neon)">Atletas na Base: <b>${(state.youthAcademy||[]).length} atletas (15 a 18 anos)</b></div>`:''}
+                ${k==='marketing'?`<div class="facility-stat" style="color:var(--cyan)">Aporte Semanal: <b>${fmtMoney(state.marketingWeekly||12000)}/semana</b></div>`:''}
+                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                  <button class="btn ${!max&&state.balance>=cost?'primary':''} upgrade" data-facility="${k}" ${max||state.balance<cost?'disabled':''}>
+                    ${max?'Nível Máximo':`Evoluir • ${fmtMoney(cost)}`}
+                  </button>
+                  ${k==='academy'?`<button class="btn btnOpenAcademy" style="background:#059669;color:#fff;border:none">🌱 Ver Jogadores da Base</button>`:''}
+                  ${k==='marketing'?`<button class="btn btnOpenMarketing" style="background:#0284c7;color:#fff;border:none">📢 Gerenciar Marketing</button>`:''}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- Painel de Ingressos, Estacionamento & Estimativa de Receita (Screenshot 1) -->
+      <div class="card stadium-panel" style="margin-top:16px;padding:22px;background:#120f20;border:1px solid rgba(139,92,246,0.25);border-radius:16px">
+        <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:24px;align-items:start">
+          
+          <!-- Coluna 1: Controles de Preço -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <h2 style="margin:0;font-size:18px;font-weight:900;letter-spacing:0.5px">🏟️ Estádio, Ingressos e Estacionamento</h2>
+              <span class="pill" style="font-size:10px">Próximo Jogo: ${isHome ? 'EM CASA 🏠' : 'FORA ✈️'}</span>
+            </div>
+            
+            <div class="ticket-control" style="margin-top:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="muted" style="font-size:13px;font-weight:700">Preço do Ingresso</span>
+                <b id="ticketPriceLabel" style="font-size:20px;color:var(--neon)">${fmtMoney(state.ticketPrice)}</b>
+              </div>
+              <input type="range" id="ticketPrice" min="10" max="150" step="1" value="${state.ticketPrice}" style="width:100%;margin:8px 0">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.4)">
+                <span>Mín R$ 10</span>
+                <span>Preço Justo Recomendado: <b id="recPriceLabel" style="color:var(--neon)">${fmtMoney(proj.rec)}</b></span>
+                <span>Máx R$ 150</span>
+              </div>
+            </div>
+
+            <div class="parking-control" style="margin-top:16px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="muted" style="font-size:13px;font-weight:700">Preço da Vaga de Estacionamento</span>
+                <b id="parkingPriceLabel" style="font-size:20px;color:var(--neon)">${fmtMoney(state.parkingPrice||25)}</b>
+              </div>
+              <input type="range" id="parkingPrice" min="10" max="60" step="5" value="${state.parkingPrice||25}" style="width:100%;margin:8px 0">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.4)">
+                <span>Mín R$ 10</span>
+                <span>Vagas Totais: <b>${parkingSpots(state.infrastructure.parking?.level||0).toLocaleString('pt-BR')}</b></span>
+                <span>Máx R$ 60</span>
+              </div>
+            </div>
+
+            <!-- Veredito da Torcida -->
+            <div style="margin-top:14px;background:#181428;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                <span class="muted">Reação da Torcida ao Preço:</span>
+                <b id="priceVerdictLabel" style="color:${proj.priceColor}">${proj.priceVerdict}</b>
+              </div>
+              <div class="bar" style="height:6px;margin-top:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
+                <span id="priceRatioMeter" style="display:block;height:100%;width:${clamp(proj.priceRatio*50,10,100)}%;background:${proj.priceColor}"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coluna 2: Estimativa de Receita e Capacidade do Estádio (Screenshot 1) -->
+          <div style="background:#181428;border:1px solid rgba(139,92,246,0.3);border-radius:14px;padding:18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:10px">
+              <div>
+                <span style="font-size:12px;font-weight:900;color:var(--cyan);letter-spacing:0.5px;text-transform:uppercase">
+                  📊 ESTIMATIVA DE RECEITA EM CASA
+                </span>
+                <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:1px">Cálculo dinâmico baseado em preços e fase do time</div>
+              </div>
+              <span class="pill good" style="font-size:10px">
+                Capacidade: ${(state.infrastructure.stadium.capacity||18000).toLocaleString('pt-BR')}
+              </span>
+            </div>
+
+            <!-- Público e Ocupação -->
+            <div style="margin-top:12px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:11px;color:rgba(255,255,255,0.7)">Público Estimado no Estádio:</span>
+                <div>
+                  <b id="dashAttendance" style="font-size:18px;color:#fff">${proj.attendance.toLocaleString('pt-BR')}</b>
+                  <span style="font-size:11px;color:rgba(255,255,255,0.5)"> torcedores</span>
+                </div>
+              </div>
+              <div class="bar" style="height:6px;margin-top:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
+                <span id="dashOccBar" style="display:block;height:100%;width:${Math.round(proj.rate*100)}%;background:linear-gradient(90deg,#7c3aed,#22c55e)"></span>
+              </div>
+              <div style="text-align:right;font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px">
+                Taxa de Ocupação: <b id="dashOccRate" style="color:#22c55e">${Math.round(proj.rate*100)}%</b>
+              </div>
+            </div>
+
+            <!-- Detalhamento de Arrecadação -->
+            <div style="margin-top:12px;background:#110e1d;padding:10px;border-radius:10px;display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                <span style="color:rgba(255,255,255,0.6)">🎟️ Bilheteria (Ingressos):</span>
+                <b id="dashTicketRev" style="color:#22c55e">${fmtMoney(proj.revenue)}</b>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                <span style="color:rgba(255,255,255,0.6)">🚗 Estacionamento:</span>
+                <b id="dashParkRev" style="color:var(--cyan)">${fmtMoney(proj.parkRevenue)}</b>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                <span style="color:rgba(255,255,255,0.6)">🛍️ Loja do Clube:</span>
+                <b id="dashSubStore" style="color:#f59e0b">${fmtMoney(proj.storeShop)}</b>
+              </div>
+            </div>
+
+            <!-- Receita Total Prevista -->
+            <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:11px;font-weight:900;color:#fff;text-transform:uppercase">RECEITA TOTAL PREVISTA</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.4)">por jogo com mando de campo</div>
+              </div>
+              <b id="dashTotalRev" style="font-size:20px;font-weight:900;color:var(--neon)">${fmtMoney(proj.totalRevenue || (proj.revenue + proj.parkRevenue + proj.storeShop))}</b>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    ` : structureSubTab==='stadium' ? `
+      <!-- AMPLIAÇÃO ANEL POR ANEL ATÉ 100 MIL LUGARES -->
+      <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2 style="margin:0;font-size:22px;font-weight:900;color:#fff;text-transform:uppercase">
+              AMPLIAÇÃO ANEL POR ANEL: ANEL ${stData.ring} DE ${stData.maxRings}
+            </h2>
+            <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
+              O seu estádio pode crescer até 100 mil lugares, anel por anel. Cada anel tem 4 lados (Norte, Sul, Leste e Oeste). O próximo anel abre quando os 4 lados do anterior ficam prontos.
+            </div>
+          </div>
+          <span class="pill good" style="font-size:14px;padding:6px 14px">
+            Capacidade Atual: <b>${(state.infrastructure.stadium.capacity||18000).toLocaleString('pt-BR')} lugares</b>
+          </span>
+        </div>
+
+        <!-- 4 Lados do Anel Atual -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-top:20px">
+          ${['norte','sul','leste','oeste'].map(side => {
+            const isDone = stData.sides[side];
+            const sideName = side.toUpperCase();
+            const seatsGain = 3500;
+            const cost = 850000;
+
+            return `
+              <div style="background:#181428;border:1px solid ${isDone ? '#22c55e' : 'rgba(255,255,255,0.08)'};border-radius:14px;padding:16px;text-align:center">
+                <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px">LADO ${sideName}</div>
+                <div style="font-size:22px;font-weight:900;color:${isDone ? '#22c55e' : '#fff'};margin-top:6px">
+                  ${isDone ? 'CONCLUÍDO' : `+${seatsGain.toLocaleString('pt-BR')}`}
+                </div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">
+                  ${isDone ? 'Obra entregue' : `lugares novos • 4 rodadas`}
+                </div>
+                
+                ${!isDone ? `
+                  <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
+                    <button class="btn primary btnBuildSide" data-side="${side}" data-mode="cash" style="padding:6px;font-size:11px;font-weight:800">
+                      À Vista: ${fmtMoney(cost)}
+                    </button>
+                    <button class="btn btnBuildSide" data-side="${side}" data-mode="6x" style="padding:6px;font-size:10px;background:rgba(124,58,237,0.2);border:1px solid #7c3aed">
+                      6x de ${fmtMoney(Math.round(cost*1.06/6))}
+                    </button>
+                    <button class="btn btnBuildSide" data-side="${side}" data-mode="12x" style="padding:6px;font-size:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1)">
+                      12x de ${fmtMoney(Math.round(cost*1.12/12))}
+                    </button>
+                  </div>
+                ` : `
+                  <div style="margin-top:16px;font-size:12px;color:#22c55e;font-weight:800">
+                    ✓ 100% Liberado
+                  </div>
+                `}
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div style="margin-top:18px;background:rgba(255,255,255,0.03);padding:14px;border-radius:10px;font-size:12px;color:rgba(255,255,255,0.6);line-height:1.5">
+          💡 <b>Regras de Engenharia & Finanças:</b> Dá para pagar à vista ou parcelar em 6 ou 12 vezes (20% de entrada e parcelas com juros de 1% ao mês cobradas no dia 1º). As parcelas somadas não podem ultrapassar 30% da receita mensal do clube. Durante a obra, cerca de 3.500 lugares ficam interditados por segurança.
+        </div>
+      </div>
+    ` : structureSubTab==='arena' ? `
+      <!-- CONSTRUIR NOVA ARENA DO CLUBE -->
+      ${arenaData.underConstruction ? `
+        <!-- CASO JÁ ESTEJA EM OBRAS -->
+        <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(34,197,94,0.4);border-radius:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+            <div>
+              <span class="pill good" style="font-size:11px;font-weight:900">🏗️ OBRAS EM ANDAMENTO A TODO VAPOR</span>
+              <h2 style="margin:6px 0 0 0;font-size:24px;font-weight:900;color:#fff">${esc(arenaData.name)}</h2>
+              <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
+                Capacidade: <b style="color:#facc15">${(arenaData.capacity||45000).toLocaleString('pt-BR')} lugares</b> · Faltam <b>${arenaData.roundsRemaining} meses / rodadas</b> para a grande inauguração!
+              </div>
+            </div>
+            <span class="pill" style="background:#22c55e;color:#000;font-weight:900">Em Construção</span>
+          </div>
+
+          <div style="margin-top:20px;background:#181428;padding:18px;border-radius:14px;border:1px solid rgba(255,255,255,0.08)">
+            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:8px">
+              <span>Progresso Físico da Obra:</span>
+              <span>${Math.round(((arenaData.roundsTotal - arenaData.roundsRemaining) / (arenaData.roundsTotal || 1)) * 100)}% Concluído</span>
+            </div>
+            <div style="width:100%;height:14px;background:rgba(255,255,255,0.06);border-radius:7px;overflow:hidden">
+              <div style="width:${Math.max(5, Math.round(((arenaData.roundsTotal - arenaData.roundsRemaining) / (arenaData.roundsTotal || 1)) * 100))}%;height:100%;background:linear-gradient(90deg, #0284c7, #22c55e);border-radius:7px"></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin-top:16px">
+              <div style="background:#110e1d;padding:12px;border-radius:10px">
+                <span class="muted" style="font-size:11px">Lote & Terreno:</span>
+                <div style="font-size:13px;font-weight:800;color:#22c55e;margin-top:2px">✓ Escriturado & Registrado</div>
+              </div>
+              <div style="background:#110e1d;padding:12px;border-radius:10px">
+                <span class="muted" style="font-size:11px">Alvará & Licenças:</span>
+                <div style="font-size:13px;font-weight:800;color:#22c55e;margin-top:2px">✓ Licença Municipal Aprovada</div>
+              </div>
+              <div style="background:#110e1d;padding:12px;border-radius:10px">
+                <span class="muted" style="font-size:11px">Forma de Pagamento:</span>
+                <div style="font-size:13px;font-weight:800;color:#facc15;margin-top:2px">${arenaData.monthly ? `${fmtMoney(arenaData.monthly)}/mês` : 'Quitado 100% à vista'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : `
+        <!-- PLANEJAMENTO E CONSTRUÇÃO DA NOVA ARENA -->
+        <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(2,132,199,0.3);border-radius:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+            <div>
+              <h2 style="margin:0;font-size:22px;font-weight:900;color:#fff;text-transform:uppercase">
+                CONSTRUIR UMA NOVA ARENA DO CLUBE
+              </h2>
+              <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
+                Erga um estádio novo monumental para o seu clube de 15 mil até 100 mil lugares.
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="pill good" style="font-size:12px;font-weight:900">💰 Saldo em Caixa: ${fmtMoney(state.balance)}</span>
+              <span class="pill" style="background:#0284c7;color:#fff;font-weight:800">Projeto Megalomaníaco</span>
+            </div>
+          </div>
+
+          <!-- ======================================================== -->
+          <!-- ETAPA 1: REGULARIZAÇÃO LEGAL E AQUISIÇÃO DO LOTE/ALVARÁ  -->
+          <!-- ======================================================== -->
+          <div style="margin-top:20px;background:#161224;padding:18px;border-radius:14px;border:1px solid rgba(139,92,246,0.35)">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+              <div style="font-size:13px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:1px">
+                📋 ETAPA 1: PRÉ-REQUISITOS LEGAIS (OBRIGATÓRIO PARA APROVAÇÃO DO PROJETO)
+              </div>
+              <span class="pill ${state.arenaLandBought && state.arenaPermitBought ? 'good' : 'warning'}" style="font-size:11px;font-weight:900">
+                ${state.arenaLandBought && state.arenaPermitBought ? '✓ REQUISITOS QUITADOS · LIBERADO PARA CONSTRUIR' : '⚠️ REGULARIZE O LOTE E O ALVARÁ ABAIXO'}
+              </span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+              <!-- CARD 1: LOTE URBANO -->
+              <div style="background:#110e1d;padding:14px;border-radius:12px;border:1px solid ${state.arenaLandBought?'rgba(34,197,94,0.4)':'rgba(255,255,255,0.1)'}">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <b style="font-size:12px;color:#fff">🏙️ Lote Urbano (Terreno Comercial)</b>
+                  <span class="pill ${state.arenaLandBought?'good':'warning'}" style="font-size:10px;font-weight:900">
+                    ${state.arenaLandBought ? 'ESCRITURADO ✓' : 'PENDENTE'}
+                  </span>
+                </div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px;line-height:1.4">
+                  ${state.arenaLandBought ? 'Área de 180.000 m² escriturada e averbada em cartório no nome do clube.' : 'Aquisição do terreno para o complexo, arquibancadas e estacionamento.'}
+                </div>
+                ${state.arenaLandBought ? `
+                  <div style="margin-top:10px;font-size:12px;color:#22c55e;font-weight:900">✓ Quitado & Regularizado (R$ 12.000.000)</div>
+                ` : `
+                  <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+                    <button class="btn primary" id="btnBuyArenaLandPage" style="background:#0284c7;font-weight:900;font-size:11px;padding:8px 12px;border-radius:8px;cursor:pointer">
+                      🛒 Comprar Lote à Vista • R$ 12.000.000
+                    </button>
+                    <button class="btn" id="btnFinanceArenaLandPage" style="background:rgba(2,132,199,0.18);border:1px solid #0284c7;color:#38bdf8;font-weight:800;font-size:10px;padding:6px 10px;border-radius:8px;cursor:pointer" title="Entrada de 10% (R$ 1,2 Mi) e 24 parcelas com o município">
+                      🏛️ Financiamento Municipal (10% entrada: R$ 1,2 Mi)
+                    </button>
+                  </div>
+                `}
+              </div>
+
+              <!-- CARD 2: ALVARÁ DA PREFEITURA -->
+              <div style="background:#110e1d;padding:14px;border-radius:12px;border:1px solid ${state.arenaPermitBought?'rgba(34,197,94,0.4)':'rgba(255,255,255,0.1)'}">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <b style="font-size:12px;color:#fff">🏛️ Alvará de Construção & Licenças</b>
+                  <span class="pill ${state.arenaPermitBought?'good':'warning'}" style="font-size:10px;font-weight:900">
+                    ${state.arenaPermitBought ? 'EMITIDO ✓' : 'PENDENTE'}
+                  </span>
+                </div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px;line-height:1.4">
+                  ${state.arenaPermitBought ? 'Licença ambiental, trânsito e Corpo de Bombeiros totalmente autorizados.' : 'Estudo de impacto de vizinhança (EIV) e taxas de aprovação civil na Prefeitura.'}
+                </div>
+                ${state.arenaPermitBought ? `
+                  <div style="margin-top:10px;font-size:12px;color:#22c55e;font-weight:900">✓ Aprovado & Emitido (R$ 4.500.000)</div>
+                ` : `
+                  <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+                    <button class="btn primary" id="btnBuyArenaPermitPage" style="background:#7c3aed;font-weight:900;font-size:11px;padding:8px 12px;border-radius:8px;cursor:pointer">
+                      🏛️ Emitir Alvará à Vista • R$ 4.500.000
+                    </button>
+                    <button class="btn" id="btnFinanceArenaPermitPage" style="background:rgba(124,58,237,0.18);border:1px solid #7c3aed;color:#c084fc;font-weight:800;font-size:10px;padding:6px 10px;border-radius:8px;cursor:pointer" title="Entrada de 10% (R$ 450 mil) e parcelamento de taxas">
+                      📋 Parcelar Taxas e Alvará (10% entrada: R$ 450 mil)
+                    </button>
+                  </div>
+                `}
+              </div>
+            </div>
+
+            ${(!state.arenaLandBought && !state.arenaPermitBought) ? `
+              <div style="margin-top:10px">
+                <button class="btn" id="btnBuyBothArenaReqsPage" style="width:100%;background:linear-gradient(135deg, #0284c7 0%, #7c3aed 100%);color:#fff;font-weight:900;font-size:12px;padding:10px;border-radius:10px;border:none;cursor:pointer">
+                  ⚡ Regularizar Terreno e Alvará Juntos (Pacote Completo) • R$ 16.500.000
+                </button>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- ======================================================== -->
+          <!-- ETAPA 2: PROJETO ARQUITETÔNICO, CAPACIDADE & FINANCIAMENTO-->
+          <!-- ======================================================== -->
+          <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:20px;margin-top:20px">
+            <div style="background:#181428;padding:20px;border-radius:14px;border:1px solid rgba(255,255,255,0.08)">
+              <label style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.7)">1. ESCOLHA O NOME DA SUA NOVA ARENA:</label>
+              <select id="selectArenaName" class="btn" style="width:100%;margin-top:6px;background:#120f20;border:1px solid #0284c7;color:#fff;font-size:13px;font-weight:800;padding:10px">
+                <option value="Arena ${esc(state.club)}">Arena ${esc(state.club)}</option>
+                <option value="Novo ${esc(clubByName(state.club)?.stadium || state.club)}">Novo ${esc(clubByName(state.club)?.stadium || state.club)} Monumental</option>
+                <option value="Estádio ${esc(state.club)} Park">${esc(state.club)} Park</option>
+                <option value="Coliseu do ${esc(state.club)}">Coliseu do ${esc(state.club)}</option>
+                <option value="Arena Real">Arena Real</option>
+                <option value="Arena do Cerrado">Arena do Cerrado</option>
+              </select>
+
+              <label style="display:block;margin-top:16px;font-size:12px;font-weight:800;color:rgba(255,255,255,0.7)">2. ESCOLHA O TAMANHO DO ESTÁDIO (CAPACIDADE PROJETADA):</label>
+              <select id="selectArenaCap" class="btn" style="width:100%;margin-top:6px;background:#120f20;border:1px solid #0284c7;color:#fff;font-size:13px;font-weight:800;padding:10px">
+                <option value="15000">15.000 lugares (Arena Regional) • R$ 75.000.000 (R$ 5.000/lugar)</option>
+                <option value="30000">30.000 lugares (Caldeirão de Médio Porte) • R$ 165.000.000 (R$ 5.500/lugar)</option>
+                <option value="50000">50.000 lugares (Super Arena Série A) • R$ 325.000.000 (R$ 6.500/lugar)</option>
+                <option value="80000">80.000 lugares (Templo Monumental Mundial) • R$ 600.000.000 (R$ 7.500/lugar)</option>
+                <option value="100000">100.000 lugares (Mega Arena Monumental) • R$ 850.000.000 (R$ 8.500/lugar)</option>
+              </select>
+
+              <label style="display:block;margin-top:16px;font-size:12px;font-weight:800;color:rgba(255,255,255,0.7)">3. FORMA DE PAGAMENTO DA OBRA:</label>
+              <select id="selectArenaFinancing" class="btn" style="width:100%;margin-top:6px;background:#120f20;border:1px solid #0284c7;color:#fff;font-size:13px;font-weight:800;padding:10px">
+                <option value="cash">Pagamento à Vista (Sem juros e desconto imediato)</option>
+                <option value="4years">Financiamento em 4 anos (20% de entrada + 48 parcelas mensais)</option>
+                <option value="6years">Financiamento em 6 anos (20% de entrada + 72 parcelas mensais)</option>
+                <option value="8years">Financiamento em 8 anos (20% de entrada + 96 parcelas mensais)</option>
+              </select>
+
+              <div style="margin-top:20px">
+                <button class="btn ${state.arenaLandBought && state.arenaPermitBought ? 'success' : 'primary'}" id="btnStartNewArenaProject" style="width:100%;padding:14px;background:${state.arenaLandBought && state.arenaPermitBought ? '#22c55e' : '#0284c7'};border:none;font-weight:900;font-size:14px;border-radius:10px;cursor:pointer;box-shadow:${state.arenaLandBought && state.arenaPermitBought ? '0 4px 18px rgba(34,197,94,0.4)' : 'none'}">
+                  ${state.arenaLandBought && state.arenaPermitBought ? '🚀 Iniciar Construção da Nova Arena (Liberado ✓)' : '🏛️ Iniciar Construção da Nova Arena'}
+                </button>
+              </div>
+            </div>
+
+            <div style="background:#181428;padding:20px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;justify-content:center">
+              <h3 style="margin:0 0 10px 0;font-size:16px;color:#fff">Como funciona a Nova Arena:</h3>
+              <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.7);line-height:1.6">
+                <li>A obra leva de <b>1.5 a 3 anos de jogo</b> dependendo da capacidade.</li>
+                <li>Até lá, o clube <b>continua jogando no estádio atual sem fechar nenhum lugar</b>.</li>
+                <li>Na inauguração, o clube se muda com grande festa da torcida e novo público recorde.</li>
+                <li>Dá para pagar à vista ou financiado em 4, 6 ou 8 anos com 20% de entrada.</li>
+                <li><b>Lote Urbano e Alvará</b> são obrigatórios para licenciar o canteiro de obras.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      `}
+    ` : structureSubTab==='museum' ? `
+      <!-- MUSEU DO CLUBE (16 NÍVEIS E VITRINE DE TAÇAS) -->
+      <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(245,158,11,0.3);border-radius:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2 style="margin:0;font-size:22px;font-weight:900;color:#fff;text-transform:uppercase">
+              MUSEU DO CLUBE: ${musData.levelObj.name.toUpperCase()} (NÍVEL ${musData.levelObj.level}/16)
+            </h2>
+            <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
+              Capacidade da Vitrine: <b>${musData.levelObj.capacity} taças</b> • Total no acervo: <b>${musData.allTitles.length} títulos</b>
+            </div>
+          </div>
+          <button class="btn primary btnUpgradeMuseum" style="background:#f59e0b;color:#000;font-weight:900;padding:8px 18px;border:none">
+            Evoluir Museu • ${fmtMoney(musData.levelObj.cost)}
+          </button>
+        </div>
+
+        ${musData.isUnhappy ? `
+          <div style="margin-top:16px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div style="color:#fca5a5;font-size:13px">
+              ⚠️ <b>Falta espaço na vitrine!</b> Há <b>${musData.overflow.length} taça(s) guardada(s) fora da vitrine</b>. Enquanto houver taça no chão, a felicidade da torcida fica reduzida pela metade!
+            </div>
+            <button class="btn danger" id="btnSkipUpgradeMuseum" style="font-weight:900;font-size:12px;padding:8px 14px">
+              ⚡ Oferta: Ampliar de Uma Vez
+            </button>
+          </div>
+        ` : ''}
+
+        <!-- Vitrine Oficial -->
+        <h3 style="margin:20px 0 10px 0;font-size:15px;color:#fff">🏆 Taças em Exibição na Vitrine (${musData.inVitrine.length}/${musData.levelObj.capacity})</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:10px">
+          ${musData.inVitrine.map(t => `
+            <div style="background:#1c1730;border:1px solid #f59e0b;border-radius:10px;padding:12px;text-align:center">
+              <div style="font-size:28px">🏆</div>
+              <div style="font-size:12px;font-weight:800;color:#fff;margin-top:4px">${esc(t)}</div>
+              <div style="font-size:9px;color:#f59e0b;margin-top:2px">NA VITRINE OFICIAL</div>
+            </div>
+          `).join('')}
+        </div>
+
+        ${musData.overflow.length > 0 ? `
+          <h3 style="margin:20px 0 10px 0;font-size:15px;color:#ef4444">📦 Guardadas Fora da Vitrine (Falta Espaço)</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:10px">
+            ${musData.overflow.map(t => `
+              <div style="background:#181428;border:1px dashed rgba(239,68,68,0.5);border-radius:10px;padding:12px;text-align:center;opacity:0.6">
+                <div style="font-size:28px;filter:grayscale(1)">🏆</div>
+                <div style="font-size:12px;font-weight:800;color:#fff;margin-top:4px">${esc(t)}</div>
+                <div style="font-size:9px;color:#ef4444;margin-top:2px">GUARDADA FORA</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+    ` : `
+      <!-- SUA CASA & LICENÇAS DO TREINADOR -->
+      <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(16,185,129,0.3);border-radius:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2 style="margin:0;font-size:22px;font-weight:900;color:#fff;text-transform:uppercase">
+              SUA CASA & LICENÇAS PROFISSIONAIS
+            </h2>
+            <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
+              Bens de topo, carros esportivos e licenças que exigem títulos e temporadas completas na carreira.
+            </div>
+          </div>
+          <span class="pill" style="background:#059669;color:#fff;font-weight:800">
+            Seu Patrimônio Pessoal: ${fmtMoney(state.managerMoney||57000)}
+          </span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:14px;margin-top:20px">
+          ${HOUSE_ITEMS.map(item => {
+            const hasBought = (state.housePurchases || []).includes(item.id);
+            let canBuy = item.unlocked;
+            if(!canBuy){
+              if(item.reqType === 'seasons') canBuy = (state.historySeasons || 1) >= item.reqVal;
+              else if(item.reqType === 'titles') canBuy = (state.titles || []).length >= item.reqVal;
+            }
+
+            return `
+              <div style="background:#181428;border:1px solid ${hasBought ? '#10b981' : canBuy ? 'rgba(255,255,255,0.1)' : 'rgba(239,68,68,0.3)'};border-radius:14px;padding:16px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span class="pill" style="font-size:10px;background:rgba(255,255,255,0.06)">${item.category}</span>
+                  ${hasBought ? '<span style="color:#10b981;font-weight:900;font-size:11px">ADQUIRIDO ✓</span>' : ''}
+                </div>
+                <h3 style="margin:8px 0 4px 0;font-size:15px;color:#fff">${item.name}</h3>
+                <div style="font-size:14px;font-weight:900;color:#22c55e">${fmtMoney(item.cost)}</div>
+                <div style="font-size:11px;color:${canBuy ? 'rgba(255,255,255,0.5)' : '#fca5a5'};margin-top:6px;min-height:30px">
+                  ${canBuy ? item.reqText : `🔒 Bloqueado: ${item.reqText}`}
+                </div>
+
+                ${!hasBought ? `
+                  <button class="btn ${canBuy && (state.managerMoney||0)>=item.cost ? 'primary' : ''} btnBuyHouseItem" data-item-id="${item.id}" ${!canBuy || (state.managerMoney||0)<item.cost ? 'disabled' : ''} style="width:100%;margin-top:10px;padding:8px;font-size:12px;font-weight:800">
+                    ${(state.managerMoney||0)<item.cost ? 'Saldo Pessoal Insuficiente' : 'Comprar com Patrimônio'}
+                  </button>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `}
+  `;
+}
+
+
+// -------------------------------------------------------------
+// ESCRITÓRIO & PATROCINADORES
+// -------------------------------------------------------------
+function officePage(){
+  const monthlyFacilities = monthlyFacilityIncome();
+  const totalSponsorMo = totalSponsorMonthly();
+  const totalWinBonus = totalSponsorWinBonus();
+
+  // Auto-recuperação: se as receitas totais estiverem zeradas com contratos ativos, computa a receita do período
+  if((!state.income || state.income === 0) && totalSponsorMo > 0){
+    state.income = totalSponsorMo;
+  }
+
+  return `
+    <div class="hero">
+      <div>
+        <h1>Escritório & Patrocinadores</h1>
+        <div class="muted">Gestão financeira, propostas de patrocínio nacional, carreira do treinador e histórico</div>
+      </div>
+      <span class="pill">Cargo ${Math.round((state.trust.board+state.trust.fans)/2)>=55?'Estável':'Pressionado'}</span>
+    </div>
+
+    <div class="grid g4" style="margin-top:14px">
+      <div class="card metric"><div class="muted">Caixa do Clube</div><div class="value good">${fmtMoney(state.balance)}</div></div>
+      <div class="card metric"><div class="muted">Receitas Totais</div><div class="value good">${fmtMoney(state.income)}</div></div>
+      <div class="card metric"><div class="muted">Despesas Totais</div><div class="value warn">${fmtMoney(state.expense)}</div></div>
+      <div class="card metric"><div class="muted">Folha Salarial/Rodada</div><div class="value">${fmtMoney(payrollPerRound())}</div></div>
+    </div>
+
+    <!-- Detalhamento de Receitas e Contratos Ativos -->
+    <div class="card" style="margin-top:14px;background:#141124;border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <b style="color:#fff;font-size:13px;text-transform:uppercase">📊 Balanço de Receitas Comerciais & Operacionais</b>
+        <span class="pill good" style="font-size:10px;font-weight:900">PATROCÍNIOS EM ATIVIDADE</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;font-size:12px">
+        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+          <div class="muted">Patrocínios Fixos Mensais</div>
+          <b style="color:#22c55e;font-size:15px">${fmtMoney(totalSponsorMo)}/mês</b>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+          <div class="muted">Bônus por Vitória em Vigor</div>
+          <b style="color:#38bdf8;font-size:15px">+ ${fmtMoney(totalWinBonus)}/vitória</b>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+          <div class="muted">Receita Mensal de Estruturas</div>
+          <b style="color:#fbbf24;font-size:15px">${fmtMoney(monthlyFacilities)}/mês</b>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+          <div class="muted">Receitas Totais Acumuladas</div>
+          <b style="color:#4ade80;font-size:15px">${fmtMoney(state.income)}</b>
+        </div>
+      </div>
+    </div>
+
+    <h2 style="margin-top:20px">Patrocinadores Oficiais do Clube</h2>
+    <div class="grid g3">
+      <div class="card sponsor-card">
+        <div>
+          <span class="sponsor-badge" style="background:#7c3aed33;color:#c084fc">Patrocinador Master (Peito)</span>
+          <div class="sponsor-logo" style="color:${state.sponsors?.master?.color||'#fff'}">${esc(state.sponsors?.master?.brand||'Sem Patrocínio')}</div>
+          <div class="small muted">${esc(state.sponsors?.master?.desc||'')}</div>
+        </div>
+        <div style="margin-top:14px">
+          <div>Mensal: <b class="good">${fmtMoney(state.sponsors?.master?.monthly||0)}/mês</b></div>
+          <div class="small muted">+ ${fmtMoney(state.sponsors?.master?.winBonus||0)} por vitória</div>
+        </div>
+      </div>
+
+      <div class="card sponsor-card">
+        <div>
+          <span class="sponsor-badge" style="background:#3b82f633;color:#93c5fd">Mangas da Camisa</span>
+          <div class="sponsor-logo" style="color:${state.sponsors?.sleeves?.color||'#fff'}">${esc(state.sponsors?.sleeves?.brand||'Sem Patrocínio')}</div>
+          <div class="small muted">${esc(state.sponsors?.sleeves?.desc||'')}</div>
+        </div>
+        <div style="margin-top:14px">
+          <div>Mensal: <b class="good">${fmtMoney(state.sponsors?.sleeves?.monthly||0)}/mês</b></div>
+          <div class="small muted">+ ${fmtMoney(state.sponsors?.sleeves?.winBonus||0)} por vitória</div>
+        </div>
+      </div>
+
+      <div class="card sponsor-card">
+        <div>
+          <span class="sponsor-badge" style="background:#10b98133;color:#6ee7b7">Costas / Omoplata</span>
+          <div class="sponsor-logo" style="color:${state.sponsors?.back?.color||'#fff'}">${esc(state.sponsors?.back?.brand||'Sem Patrocínio')}</div>
+          <div class="small muted">${esc(state.sponsors?.back?.desc||'')}</div>
+        </div>
+        <div style="margin-top:14px">
+          <div>Mensal: <b class="good">${fmtMoney(state.sponsors?.back?.monthly||0)}/mês</b></div>
+          <div class="small muted">+ ${fmtMoney(state.sponsors?.back?.winBonus||0)} por vitória</div>
+        </div>
+      </div>
+    </div>
+
+    ${renderSocioTorcedorCard()}
+
+    <div class="card" style="margin-top:16px">
+      <h3>Propostas de Patrocínio Recebidas</h3>
+      <div class="small muted">Empresas brasileiras interessadas em estampar a camisa do clube:</div>
+      <div class="sponsor-grid">
+        ${(state.sponsorOffers||[]).map((o, idx)=>`
+          <div class="sponsor-card">
+            <div>
+              <span class="sponsor-badge">${esc(o.category)}</span>
+              <div class="sponsor-logo" style="color:${o.color}">${esc(o.brand)}</div>
+              <div class="small muted">${esc(o.desc)}</div>
+            </div>
+            <div style="margin-top:12px">
+              <div class="good" style="font-size:16px;font-weight:900">${fmtMoney(o.monthly)}/mês</div>
+              <div class="small muted">+ ${fmtMoney(o.winBonus)} por vitória • Contrato ${o.years} anos</div>
+              <button class="btn primary btnSignSponsor" data-offer-index="${idx}" style="width:100%;margin-top:10px">Assinar Patrocínio</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2 style="margin:0">📢 Departamento de Marketing & Ativação de Marca</h2>
+          <div class="small muted">Nível ${state.infrastructure?.marketing?.level||1}/8 • O investimento mensal atua na manutenção da torcida no estádio e valoriza diretamente seus patrocínios</div>
+        </div>
+        <button class="btn primary" id="btnOpenMarketingFromOffice" style="background:#0284c7;color:#fff;border:none">📢 Configurar Investimento</button>
+      </div>
+
+      <div class="grid g3" style="margin-top:14px">
+        <div class="revenue-metric-tile">
+          <div class="title">Aporte Semanal em Marketing</div>
+          <div class="number" style="color:var(--neon)">${fmtMoney(state.marketingWeekly||12000)}/rodada</div>
+          <div class="small muted">Debitado a cada rodada do calendário</div>
+        </div>
+        <div class="revenue-metric-tile">
+          <div class="title">Retenção de Público nos Jogos</div>
+          <div class="number good">+${Math.round((0.015 * (state.infrastructure?.marketing?.level||1) + clamp(((state.marketingWeekly||12000) - 2500)/100000, 0, 0.08)) * 100)}%</div>
+          <div class="small muted">Sustenta alta ocupação do estádio</div>
+        </div>
+        <div class="revenue-metric-tile">
+          <div class="title">Bônus nos Contratos de Patrocínio</div>
+          <div class="number" style="color:var(--cyan)">+${Math.round((0.03 * ((state.infrastructure?.marketing?.level||1) - 1) + clamp(((state.marketingWeekly||12000) - 2500)/90000, 0, 0.15)) * 100)}%</div>
+          <div class="small muted">Multiplica receitas e propostas</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL COMPACTO: SEU CONTRATO (SCREENSHOT 3 REDUZIDO) -->
+    <div class="card" style="margin-top:16px;padding:14px 18px;background:#13111c;border:1px solid rgba(139,92,246,0.3);border-radius:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <h2 style="margin:0;font-size:15px;font-weight:900;letter-spacing:0.5px;color:#fff;text-transform:uppercase">💼 SEU CONTRATO</h2>
+          <span class="pill" style="font-size:11px;padding:2px 8px;background:rgba(255,255,255,0.06)">Treinador: <b>${esc(state.manager)}</b></span>
+        </div>
+        <button class="btn" id="btnRequestManagerRenewal" style="background:rgba(139,92,246,0.22);border:1px solid #a855f7;color:#fff;font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+          📝 Negociar com a Diretoria
+        </button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1.1fr 1fr;gap:10px">
+        <div style="background:#1b1829;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 12px">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">SALÁRIO</div>
+          <div style="font-size:18px;font-weight:900;color:#fff;margin-top:2px">${fmtMoney(state.managerSalary || 9500)} <span style="font-size:11px;font-weight:normal;color:rgba(255,255,255,0.4)">/mês</span></div>
+        </div>
+
+        <div style="background:#1b1829;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 12px">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">CONTRATO ATÉ</div>
+          <div style="font-size:15px;font-weight:900;color:#38bdf8;margin-top:4px">${state.managerContractDate || 'sex, 31 dez 2027'}</div>
+        </div>
+
+        <div style="background:linear-gradient(180deg, #18152b 0%, #131024 100%);border:1px solid rgba(139,92,246,0.25);border-radius:10px;padding:10px 12px">
+          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">SEU PATRIMÔNIO</div>
+          <div style="font-size:18px;font-weight:900;color:#22c55e;margin-top:2px">${fmtMoney(state.managerMoney || 57000)}</div>
+        </div>
+      </div>
+
+      <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:rgba(255,255,255,0.5)">
+        <span>💰 Cai todo dia 1º · Último: ${esc((state.managerFinanceHistory?.[0]?.desc) || 'Economias')} (+${fmtMoney(state.managerFinanceHistory?.[0]?.amount || state.managerMoney || 57000)})</span>
+        <span style="color:#a855f7;cursor:pointer;font-weight:700" id="btnOpenManagerExtrato">Ver extrato completo ➔</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h2>Transferências Realizadas na Carreira</h2>
+      <div class="tablewrap" style="max-height:220px">
+        ${state.transfers.length?state.transfers.slice(0,15).map(t=>`
+          <div class="news-item" style="font-size:12px">
+            ${esc(t.date)} • <b>${t.type==='out'?'VENDA':'COMPRA'}</b>: ${esc(t.name)} • ${fmtMoney(t.value)} ${t.to?`➔ ${esc(t.to)}`:''}
+          </div>
+        `).join(''):'<div class="empty">Nenhuma transferência concluída ainda.</div>'}
+      </div>
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------
+// BLOCO CONTINENTAL & PIRÂMIDE NACIONAL 2026 (SUL-AMERICANA, LIBERTADORES, CBF)
+// -------------------------------------------------------------
+function renderContinentalBlock(){
+  const tabs = [
+    { id: 'sulamericana', name: '🥈 Copa Sul-Americana', badge: 'G7 A G12' },
+    { id: 'libertadores', name: '🏆 Copa Libertadores', badge: 'G4 + PRÉ' },
+    { id: 'piramide', name: '🇧🇷 Pirâmide CBF & Acessos', badge: 'SÉRIES A, B, C, D' },
+    { id: 'mundial', name: '🌐 Mundial FIFA', badge: '32 CLUBES' }
+  ];
+
+  return `
+    <div class="card" style="margin-top:14px;padding:24px;background:linear-gradient(135deg, #130f24 0%, #0d0a1a 100%);border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+      <!-- Topo Continental -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h1 style="margin:0;font-size:30px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
+            🌎 CONMEBOL & PIRÂMIDE NACIONAL 2026
+          </h1>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:800;letter-spacing:1px;margin-top:4px">
+            LIBERTADORES · SUL-AMERICANA · MUNDIAL DE CLUBES · SISTEMA OFICIAL DE ACESSOS CBF
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--cyan);font-weight:700">
+          Temporada Oficial 2026 🏆
+        </div>
+      </div>
+
+      <!-- Abas Internas -->
+      <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
+        ${tabs.map(t => {
+          const isActive = continentalTab === t.id;
+          return `
+            <button class="btn ${isActive ? 'primary' : ''}" data-continental-tab="${t.id}" style="font-size:12px;font-weight:800;padding:7px 16px;border-radius:8px;${isActive ? 'background:#7c3aed;border:none;color:#fff' : 'background:rgba(255,255,255,0.06);border:none;color:rgba(255,255,255,0.7)'}">
+              ${t.name} <span class="pill" style="font-size:9px;margin-left:4px;background:${isActive ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)'}">${t.badge}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+
+      ${continentalTab === 'sulamericana' ? `
+        <!-- CONMEBOL SUL-AMERICANA 2026 -->
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+          <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:16px 20px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <span style="font-size:24px">🥈</span>
+              <h2 style="margin:0;font-size:20px;font-weight:900;color:#fbbf24;text-transform:uppercase">CONMEBOL Sul-Americana 2026</h2>
+              <span class="pill" style="background:#f59e0b;color:#000;font-weight:900;font-size:10px">GRANDE TORNEIO CONTINENTAL</span>
+            </div>
+            <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
+              A <b>Copa Sul-Americana</b> reúne os melhores clubes do continente que buscam a glória internacional. No Brasil, garante <b>6 vagas diretas</b> na fase de grupos para os clubes que terminam entre a <b>7ª e a 12ª posição da Série A (G12)</b>. O campeão garante vaga direta na <b>Copa Libertadores 2027</b> e disputa a <b>Recopa Sul-Americana</b> contra o campeão da Libertadores!
+            </p>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
+            <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+              <div style="font-size:12px;font-weight:900;color:#38bdf8;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📋 Formato & Regulamento</div>
+              <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.7">
+                <li><b>Fase de Grupos:</b> 32 equipes divididas em 8 grupos de 4 times (jogos em turno e returno).</li>
+                <li><b>1º Colocado:</b> Avança direto para as Oitavas de Final.</li>
+                <li><b>2º Colocado:</b> Disputa Playoff (16-avos) em ida e volta contra os 3º colocados da fase de grupos da Libertadores.</li>
+                <li><b>Mata-Mata:</b> Oitavas, Quartas e Semifinais em partidas de ida e volta.</li>
+                <li><b>Grande Final:</b> Decisão épica em jogo único em estádio neutro pré-definido pela CONMEBOL.</li>
+              </ul>
+            </div>
+
+            <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+              <div style="font-size:12px;font-weight:900;color:#a855f7;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🇧🇷 Vagas do Futebol Brasileiro</div>
+              <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.7">
+                <li><b>7º ao 12º lugar da Série A:</b> Entrada direta na Fase de Grupos.</li>
+                <li><b>Efeito Cascata:</b> Se campeões de Libertadores, Copa do Brasil ou Sul-Americana já estiverem no G6, a zona da Sul-Americana amplia para 13º e 14º lugar!</li>
+                <li><b>Cota Máxima:</b> 6 clubes brasileiros disputando a fase principal.</li>
+                <li><b>Premiação em Dólar:</b> Arrecadação milionária que transforma a folha salarial de qualquer clube.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Tabela de Premiações Oficiais Sul-Americana -->
+          <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+              <div style="font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:1px">💰 Premiações Oficiais CONMEBOL Sul-Americana 2026</div>
+              <span class="pill" style="background:rgba(34,197,94,0.15);color:#4ade80;font-weight:800;font-size:11px">Valores em Dólar e Reais (US$ 1 = R$ 5,50)</span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:10px">
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #38bdf8">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Fase de Grupos</div>
+                <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">US$ 900.000</div>
+                <div style="font-size:11px;color:#38bdf8;margin-top:2px">~ R$ 4.950.000 (R$ 1,65M por jogo em casa)</div>
+              </div>
+
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #22c55e">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Mérito Esportivo</div>
+                <div style="font-size:16px;font-weight:900;color:#4ade80;margin-top:2px">+ US$ 115.000 / vitória</div>
+                <div style="font-size:11px;color:#22c55e;margin-top:2px">~ + R$ 632.500 por triunfo no grupo</div>
+              </div>
+
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #f59e0b">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Playoffs (16-avos)</div>
+                <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">US$ 500.000</div>
+                <div style="font-size:11px;color:#fbbf24;margin-top:2px">~ R$ 2.750.000 por participação</div>
+              </div>
+
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #a855f7">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Oitavas de Final</div>
+                <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">US$ 600.000</div>
+                <div style="font-size:11px;color:#c084fc;margin-top:2px">~ R$ 3.300.000 acumulados</div>
+              </div>
+
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #ec4899">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Quartas de Final</div>
+                <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">US$ 700.000</div>
+                <div style="font-size:11px;color:#f472b6;margin-top:2px">~ R$ 3.850.000 acumulados</div>
+              </div>
+
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #6366f1">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Semifinais</div>
+                <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">US$ 800.000</div>
+                <div style="font-size:11px;color:#818cf8;margin-top:2px">~ R$ 4.400.000 acumulados</div>
+              </div>
+
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #94a3b8">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Vice-Campeão</div>
+                <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">US$ 2.000.000</div>
+                <div style="font-size:11px;color:#cbd5e1;margin-top:2px">~ R$ 11.000.000 na final</div>
+              </div>
+
+              <div style="background:linear-gradient(135deg, rgba(234,179,8,0.2) 0%, rgba(202,138,4,0.1) 100%);padding:12px;border-radius:10px;border:1px solid #eab308;border-left:5px solid #eab308">
+                <div style="font-size:11px;color:#fef08a;text-transform:uppercase;font-weight:900">👑 CAMPEÃO SUL-AMERICANO</div>
+                <div style="font-size:18px;font-weight:900;color:#facc15;margin-top:2px">US$ 6.000.000</div>
+                <div style="font-size:11px;color:#fef08a;margin-top:2px">~ R$ 33.000.000 + Vaga na Libertadores!</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : continentalTab === 'libertadores' ? `
+        <!-- CONMEBOL LIBERTADORES 2026 -->
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+          <div style="background:rgba(124,58,237,0.12);border:1px solid rgba(139,92,246,0.35);border-radius:14px;padding:16px 20px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <span style="font-size:24px">🏆</span>
+              <h2 style="margin:0;font-size:20px;font-weight:900;color:#c084fc;text-transform:uppercase">CONMEBOL Libertadores 2026</h2>
+              <span class="pill" style="background:#7c3aed;color:#fff;font-weight:900;font-size:10px">A GLÓRIA ETERNA</span>
+            </div>
+            <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
+              A maior obsessão do continente! A <b>Copa Libertadores</b> coroa o rei supremo da América do Sul e classifica para o <b>Mundial de Clubes da FIFA</b>. O Brasil conta com <b>7 a 9 vagas</b>: G4 direto na fase de grupos, 5º e 6º na Pré-Libertadores e o campeão da Copa do Brasil!
+            </p>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
+            <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+              <div style="font-size:12px;font-weight:900;color:#4ade80;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🎯 Classificação no Brasil</div>
+              <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.7">
+                <li><b>1º ao 4º Colocado (G4):</b> Vaga direta na Fase de Grupos.</li>
+                <li><b>5º e 6º Colocado:</b> Fases preliminares eliminatórias (Pré-Libertadores).</li>
+                <li><b>Campeão da Copa do Brasil:</b> Vaga direta na Fase de Grupos.</li>
+                <li><b>Campeão da Libertadores/Sul-Americana anterior:</b> Vaga direta como cabeça de chave.</li>
+              </ul>
+            </div>
+
+            <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+              <div style="font-size:12px;font-weight:900;color:#fbbf24;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🌍 Caminho até o Título</div>
+              <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.7">
+                <li><b>Fase de Grupos:</b> 8 grupos de 4 times. 1º e 2º avançam para oitavas.</li>
+                <li><b>Repescagem:</b> 3º colocados migram para os playoffs da Copa Sul-Americana.</li>
+                <li><b>Mata-Mata:</b> Oitavas, Quartas e Semis com ida e volta de tirar o fôlego.</li>
+                <li><b>Final Única:</b> 90 minutos valendo o troféu mais cobiçado da América e premiação recorde de US$ 23 Milhões!</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Premiações Oficiais Libertadores -->
+          <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+              <div style="font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:1px">💰 Premiações Milionárias da Libertadores 2026</div>
+              <span class="pill" style="background:rgba(168,85,247,0.18);color:#c084fc;font-weight:800;font-size:11px">Maior premiação do futebol continental</span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:10px">
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #38bdf8">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Fase de Grupos</div>
+                <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">US$ 3.000.000</div>
+                <div style="font-size:11px;color:#38bdf8;margin-top:2px">~ R$ 16.500.000 garantidos</div>
+              </div>
+
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #22c55e">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Mérito por Vitória</div>
+                <div style="font-size:16px;font-weight:900;color:#4ade80;margin-top:2px">+ US$ 330.000 / vitória</div>
+                <div style="font-size:11px;color:#22c55e;margin-top:2px">~ + R$ 1.815.000 por triunfo</div>
+              </div>
+
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #a855f7">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Oitavas de Final</div>
+                <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">US$ 1.250.000</div>
+                <div style="font-size:11px;color:#c084fc;margin-top:2px">~ R$ 6.875.000</div>
+              </div>
+
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #ec4899">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Quartas de Final</div>
+                <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">US$ 1.700.000</div>
+                <div style="font-size:11px;color:#f472b6;margin-top:2px">~ R$ 9.350.000</div>
+              </div>
+
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #6366f1">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Semifinais</div>
+                <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">US$ 2.300.000</div>
+                <div style="font-size:11px;color:#818cf8;margin-top:2px">~ R$ 12.650.000</div>
+              </div>
+
+              <div style="background:#1a1530;padding:12px;border-radius:10px;border-left:4px solid #94a3b8">
+                <div style="font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">Vice-Campeão</div>
+                <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">US$ 7.000.000</div>
+                <div style="font-size:11px;color:#cbd5e1;margin-top:2px">~ R$ 38.500.000</div>
+              </div>
+
+              <div style="background:linear-gradient(135deg, rgba(168,85,247,0.25) 0%, rgba(124,58,237,0.15) 100%);padding:12px;border-radius:10px;border:1px solid #c084fc;border-left:5px solid #a855f7">
+                <div style="font-size:11px;color:#e9d5ff;text-transform:uppercase;font-weight:900">🏆 CAMPEÃO DA LIBERTADORES</div>
+                <div style="font-size:18px;font-weight:900;color:#c084fc;margin-top:2px">US$ 23.000.000</div>
+                <div style="font-size:11px;color:#e9d5ff;margin-top:2px">~ R$ 126.500.000 só na final!</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : continentalTab === 'piramide' ? `
+        <!-- PIRÂMIDE DE ACESSOS E REBAIXAMENTOS DO FUTEBOL BRASILEIRO 2026 -->
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:14px">
+          <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:14px;padding:16px 20px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+              <span style="font-size:24px">🇧🇷</span>
+              <h2 style="margin:0;font-size:20px;font-weight:900;color:#4ade80;text-transform:uppercase">Pirâmide Oficial de Acessos & Rebaixamentos (CBF 2026)</h2>
+            </div>
+            <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
+              O sistema nacional do futebol brasileiro conecta as 4 divisões nacionais aos campeonatos estaduais. Veja abaixo as zonas de classificação para torneios internacionais, as faixas de acesso e a temida zona de rebaixamento de cada divisão.
+            </p>
+          </div>
+
+          <!-- NÍVEL 1: SÉRIE A -->
+          <div style="background:#131024;border:1px solid rgba(34,197,94,0.35);border-radius:14px;padding:16px 18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="pill" style="background:#22c55e;color:#000;font-weight:900;font-size:11px">DIVISÃO 1</span>
+                <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE A · 20 CLUBES</h3>
+              </div>
+              <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">Turno e Returno · 38 Rodadas</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;font-size:12px">
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #22c55e">
+                <b style="color:#4ade80">🟢 1º ao 4º Lugar (G4):</b> Fase de Grupos da Copa Libertadores 2027.
+              </div>
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #38bdf8">
+                <b style="color:#38bdf8">🔵 5º e 6º Lugar (G6):</b> Pré-Libertadores 2027 (fases preliminares).
+              </div>
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #f59e0b">
+                <b style="color:#fbbf24">🟠 7º ao 12º Lugar (G12):</b> Vaga direta na Fase de Grupos da Copa Sul-Americana 2027.
+              </div>
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #94a3b8">
+                <b style="color:#cbd5e1">⚪ 13º ao 16º Lugar:</b> Permanência garantida na Série A (sem vaga continental).
+              </div>
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #ef4444">
+                <b style="color:#f87171">🔴 17º ao 20º Lugar (Z4):</b> Rebaixamento direto para a Série B 2027.
+              </div>
+            </div>
+          </div>
+
+          <!-- NÍVEL 2: SÉRIE B -->
+          <div style="background:#131024;border:1px solid rgba(234,179,8,0.35);border-radius:14px;padding:16px 18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="pill" style="background:#eab308;color:#000;font-weight:900;font-size:11px">DIVISÃO 2</span>
+                <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE B · 20 CLUBES</h3>
+              </div>
+              <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">Turno e Returno · 38 Rodadas</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;font-size:12px">
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #22c55e">
+                <b style="color:#4ade80">🟢 1º ao 4º Lugar (G4):</b> Acesso consagrado para a Série A 2027!
+              </div>
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #94a3b8">
+                <b style="color:#cbd5e1">⚪ 5º ao 16º Lugar:</b> Permanência na Série B 2027.
+              </div>
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #ef4444">
+                <b style="color:#f87171">🔴 17º ao 20º Lugar (Z4):</b> Rebaixamento direto para a Série C 2027.
+              </div>
+            </div>
+          </div>
+
+          <!-- NÍVEL 3: SÉRIE C -->
+          <div style="background:#131024;border:1px solid rgba(168,85,247,0.35);border-radius:14px;padding:16px 18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="pill" style="background:#a855f7;color:#fff;font-weight:900;font-size:11px">DIVISÃO 3</span>
+                <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE C · 20 CLUBES</h3>
+              </div>
+              <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">Turno Único (19j) + 2 Quadrangulares</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;font-size:12px">
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #22c55e">
+                <b style="color:#4ade80">🟢 Top 2 de cada Quadrangular (4 times):</b> Acesso garantido para a Série B 2027!
+              </div>
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #94a3b8">
+                <b style="color:#cbd5e1">⚪ 9º ao 16º da 1ª Fase:</b> Permanência na Série C 2027.
+              </div>
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #ef4444">
+                <b style="color:#f87171">🔴 17º ao 20º da 1ª Fase (Z4):</b> Rebaixamento para a Série D 2027.
+              </div>
+            </div>
+          </div>
+
+          <!-- NÍVEL 4: SÉRIE D -->
+          <div style="background:#131024;border:1px solid rgba(59,130,246,0.35);border-radius:14px;padding:16px 18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="pill" style="background:#3b82f6;color:#fff;font-weight:900;font-size:11px">DIVISÃO 4</span>
+                <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE D · 64 CLUBES</h3>
+              </div>
+              <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">8 Grupos Regionais + Mata-Mata</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;font-size:12px">
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #22c55e">
+                <b style="color:#4ade80">🟢 4 Semifinalistas (G4):</b> Acesso à Série C 2027 e disputa pelo título.
+              </div>
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #f59e0b">
+                <b style="color:#fbbf24">⚠️ 60 Clubes Eliminados:</b> Não possuem vaga garantida; precisam conquistar nova vaga via Campeonatos Estaduais no ano seguinte.
+              </div>
+            </div>
+          </div>
+
+          <!-- NÍVEL BASE: ESTADUAIS -->
+          <div style="background:#131024;border:1px solid rgba(255,255,255,0.15);border-radius:14px;padding:16px 18px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="pill" style="background:#64748b;color:#fff;font-weight:900;font-size:11px">BASE REGIONAL</span>
+                <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase">CAMPEONATOS ESTADUAIS · 27 FEDERAÇÕES</h3>
+              </div>
+              <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">Jan a Abr · Candangão, Paulistão, Carioca, etc.</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;font-size:12px">
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #22c55e">
+                <b style="color:#4ade80">🏆 Campeões & Vagas Nacionais:</b> Classificação para a Copa do Brasil e vagas na Série D do Brasileirão para clubes sem divisão.
+              </div>
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #ef4444">
+                <b style="color:#f87171">🔴 Rebaixamento Estadual:</b> Os últimos colocados caem para a 2ª Divisão Estadual (Série A2 / Segundinha).
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : `
+        <!-- MUNDIAL DE CLUBES FIFA 2029 & INTERCONTINENTAL -->
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+          <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.35);border-radius:14px;padding:16px 20px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <span style="font-size:24px">🌐</span>
+              <h2 style="margin:0;font-size:20px;font-weight:900;color:#60a5fa;text-transform:uppercase">Mundial de Clubes FIFA & Copa Intercontinental</h2>
+              <span class="pill" style="background:#2563eb;color:#fff;font-weight:900;font-size:10px">O TOPO DO MUNDO</span>
+            </div>
+            <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
+              O ápice do futebol de clubes! O campeão da Copa Libertadores garante presença na <b>Copa Intercontinental da FIFA</b> anual contra os campeões dos outros continentes e vaga no mega <b>Mundial de Clubes FIFA</b> com 32 gigantes mundiais (Real Madrid, Manchester City, Bayern, PSG, Flamengo, Palmeiras, Fluminense, etc.).
+            </p>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
+            <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+              <div style="font-size:12px;font-weight:900;color:#38bdf8;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🏆 Copa Intercontinental FIFA (Anual)</div>
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.6">
+                O campeão da Libertadores enfrenta o campeão da Concacaf Champions Cup no 'Dérbi das Américas'. Quem avançar disputa a Challenger Cup contra o campeão da Ásia/África, e o vencedor decide a grande final mundial contra o campeão da UEFA Champions League!
+              </p>
+            </div>
+
+            <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+              <div style="font-size:12px;font-weight:900;color:#a855f7;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">👑 Mundial de Clubes FIFA 32 Equipes</div>
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.6">
+                Torneio quadrienal monumental com 8 grupos de 4 times e mata-mata a partir das oitavas de final. 6 vagas exclusivas para a América do Sul (os 4 últimos campeões da Libertadores + melhores do ranking CONMEBOL). Premiação de dezenas de milhões de euros!
+              </p>
+            </div>
+          </div>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------
+// TEMPORADA & TABELA ESTILO ORIGINAL
+// -------------------------------------------------------------
+function seasonPage(){
+  if(repairSaveIfCorrupted(state)){
+    save();
+  }
+  if(!selectedEstadualId && state && state.club){
+    selectedEstadualId = clubStateCompId(state.club);
+  }
+  if(state && state.compId && state.compId.startsWith('bra-est-') && seasonTab === 'nacional'){
+    seasonTab = 'estadual';
+  }
+  const r=ranking(), comp=curComp();
+  const isSérieA = comp.id === 'bra-a';
+  const isBrazil = (comp.country === 'Brasil');
+  if(!isBrazil && (seasonTab === 'estadual' || seasonTab === 'copadobrasil')){
+    seasonTab = 'nacional';
+  }
+  
+  return `
+    <div class="hero">
+      <div>
+        <h1>Temporada ${state.season}</h1>
+        <div class="muted">Tabela de classificação oficial e calendário das competições</div>
+      </div>
+      <span class="pill">${esc(comp.name)}</span>
+    </div>
+
+    <div class="tabs" style="margin-top:14px">
+      ${(state && state.compId && state.compId.startsWith('bra-est-')) ? `
+        <button class="btn ${seasonTab==='estadual'?'active':''}" data-season-tab="estadual">🏆 Estadual (${esc(comp.name)})</button>
+        <button class="btn ${seasonTab==='copadobrasil'?'active':''}" data-season-tab="copadobrasil">🥇 Copa do Brasil</button>
+        <button class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">🇧🇷 Divisões Nacionais</button>
+      ` : `
+        <button class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">${isBrazil ? '🇧🇷 Campeonato Nacional' : '🏆 Liga Nacional'}</button>
+        ${isBrazil ? `
+          <button class="btn ${seasonTab==='estadual'?'active':''}" data-season-tab="estadual">🏆 Estadual</button>
+          <button class="btn ${seasonTab==='copadobrasil'?'active':''}" data-season-tab="copadobrasil">🥇 Copa do Brasil</button>
+        ` : ''}
+      `}
+      <button class="btn ${seasonTab==='continental'?'active':''}" data-season-tab="continental">${isBrazil ? '🌎 Libertadores / Continental' : '🌎 Continental'}</button>
+    </div>
+
+    ${seasonTab==='nacional' ? `
+      <div class="card" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+          <div>
+            <h2 style="margin:0">${esc(comp.name)}</h2>
+            <div class="small muted">${esc(comp.rule)}</div>
+          </div>
+          <div style="display:flex;gap:10px;font-size:11px">
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--green);border-radius:2px"></span> Libertadores (G4)</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--cyan);border-radius:2px"></span> Pré-Libertadores</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--amber);border-radius:2px"></span> Sul-Americana</span>
+            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--bad);border-radius:2px"></span> Rebaixamento (Z4)</span>
+          </div>
+        </div>
+
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px">#</th>
+                <th>Clube</th>
+                <th style="text-align:center">P</th>
+                <th style="text-align:center">J</th>
+                <th style="text-align:center">V</th>
+                <th style="text-align:center">E</th>
+                <th style="text-align:center">D</th>
+                <th style="text-align:center">GP</th>
+                <th style="text-align:center">GC</th>
+                <th style="text-align:center">SG</th>
+                <th style="text-align:center">%</th>
+                <th style="text-align:center">Últimos 5 Jogos</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${r.map((t,i)=>{
+                const isMy = t.name === state.club;
+                const pos = i + 1;
+                const total = r.length;
+                let zoneClass = '';
+                if(isSérieA){
+                  if(pos <= 4) zoneClass = 'zone-lib';
+                  else if(pos <= 6) zoneClass = 'zone-prelib';
+                  else if(pos <= 12) zoneClass = 'zone-sud';
+                  else if(pos >= total - 3) zoneClass = 'zone-rel';
+                } else {
+                  if(pos <= (comp.promote||4)) zoneClass = 'zone-lib';
+                  else if(pos >= total - (comp.relegate||4) + 1) zoneClass = 'zone-rel';
+                }
+
+                const pct = t.j > 0 ? Math.round((t.p / (t.j * 3)) * 100) : 0;
+                const formDots = (t.form || []).map(f => `<span class="form-dot form-${f.toLowerCase()}">${f}</span>`).join('');
+
+                return `
+                  <tr class="${isMy ? 'my-row ' : ''}${zoneClass}">
+                    <td style="font-weight:900;text-align:center">${pos}</td>
+                    <td>
+                      <div class="club-cell">
+                        ${clubBadge(t.name, 22)}
+                        <span>${esc(t.name)}</span>
+                      </div>
+                    </td>
+                    <td style="font-weight:900;text-align:center">${t.p}</td>
+                    <td style="text-align:center">${t.j}</td>
+                    <td style="text-align:center">${t.v}</td>
+                    <td style="text-align:center">${t.e}</td>
+                    <td style="text-align:center">${t.d}</td>
+                    <td style="text-align:center">${t.gp}</td>
+                    <td style="text-align:center">${t.gc}</td>
+                    <td style="text-align:center;font-weight:700">${t.sg>0?'+':''}${t.sg}</td>
+                    <td style="text-align:center;color:var(--muted)">${pct}%</td>
+                    <td style="text-align:center"><div class="form-dots">${formDots||'-'}</div></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ` : seasonTab==='estadual' ? (() => {
+      const estCompId = selectedEstadualId || clubStateCompId(state.club);
+      const estData = getStateCompData(estCompId);
+      const estStats = getStateCompStats(estCompId);
+      const myStateComp = clubStateCompId(state.club);
+
+      const allEstList = [
+        { id: 'bra-est-df', name: 'Campeonato Candango (DF)' },
+        { id: 'bra-est-sp', name: 'Campeonato Paulista (SP)' },
+        { id: 'bra-est-rj', name: 'Campeonato Carioca (RJ)' },
+        { id: 'bra-est-mg', name: 'Campeonato Mineiro (MG)' },
+        { id: 'bra-est-rs', name: 'Campeonato Gaúcho (RS)' },
+        { id: 'bra-est-pr', name: 'Campeonato Paranaense (PR)' },
+        { id: 'bra-est-sc', name: 'Campeonato Catarinense (SC)' },
+        { id: 'bra-est-ba', name: 'Campeonato Baiano (BA)' },
+        { id: 'bra-est-ce', name: 'Campeonato Cearense (CE)' },
+        { id: 'bra-est-go', name: 'Campeonato Goiano (GO)' },
+        { id: 'bra-est-pe', name: 'Campeonato Pernambucano (PE)' }
+      ];
+
+      return `
+        <!-- Seletor Global de Campeonatos Estaduais -->
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px;background:rgba(255,255,255,0.03);padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
+          <div>
+            <span style="font-size:12px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:700">Selecione o Campeonato Estadual:</span>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4)">Todos os clubes jogam seus respectivos estaduais simultaneamente</div>
+          </div>
+          <select id="selectEstadualComp" class="btn" style="min-width:240px;background:#1e1a30;color:#fff;border:1px solid #7c3aed;padding:8px 12px;font-weight:700">
+            ${allEstList.map(item => `
+              <option value="${item.id}" ${item.id === estCompId ? 'selected' : ''}>
+                ${item.id === myStateComp ? '⭐ ' : ''}${item.name} ${item.id === myStateComp ? '(Seu Estadual)' : ''}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+
+        <!-- Banner do Estadual (Screenshot 3) -->
+        <div class="card" style="margin-top:14px;padding:20px;background:linear-gradient(135deg, #131024 0%, #0d0a1a 100%);border:1px solid rgba(139,92,246,0.3);border-radius:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <h1 style="margin:0;font-size:28px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
+                ${esc(estData.name)}
+              </h1>
+              <div style="font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:1px;font-weight:700;margin-top:4px">
+                2026 · ${estData.teams.length} CLUBES · EM DISPUTA
+              </div>
+            </div>
+            <div style="font-size:14px;color:rgba(255,255,255,0.7);font-style:italic">
+              Aqui nascem grandes histórias 👑
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:16px">
+            <button class="btn primary" style="background:#7c3aed;border:none;font-size:12px;font-weight:800;padding:6px 14px;border-radius:8px">
+              PRIMEIRA FASE <span class="pill" style="font-size:9px;background:rgba(255,255,255,0.2);margin-left:4px">EM DISPUTA</span>
+            </button>
+            <button class="btn" style="background:rgba(255,255,255,0.06);border:none;color:rgba(255,255,255,0.6);font-size:12px;font-weight:800;padding:6px 14px;border-radius:8px">
+              MATA-MATA <span class="pill" style="font-size:9px;background:rgba(255,255,255,0.06);margin-left:4px">A COMEÇAR</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Layout 2 Colunas: Tabela de Classificação + Confrontos da Rodada (Screenshot 3) -->
+        <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-top:14px">
+          <!-- Coluna 1: Classificação -->
+          <div class="card" style="padding:16px;background:#100d1e;border:1px solid rgba(255,255,255,0.08);border-radius:14px">
+            <div style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:1px;margin-bottom:10px">
+              CLASSIFICAÇÃO
+            </div>
+
+            <div class="tablewrap">
+              <table>
+                <thead>
+                  <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
+                    <th style="width:28px">#</th>
+                    <th>Clube</th>
+                    <th style="text-align:center">P</th>
+                    <th style="text-align:center">J</th>
+                    <th style="text-align:center">V</th>
+                    <th style="text-align:center">E</th>
+                    <th style="text-align:center">D</th>
+                    <th style="text-align:center">GP</th>
+                    <th style="text-align:center">GC</th>
+                    <th style="text-align:center">SG</th>
+                    <th style="text-align:center">%</th>
+                    <th style="text-align:center">ÚLT. JOGOS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${estData.teams.map((t, idx) => {
+                    const pos = idx + 1;
+                    const isMy = norm(t.name) === norm(state.club);
+                    const isAdvancing = pos <= (estData.teams.length >= 10 ? 8 : 4);
+                    const isRelegated = pos > (estData.teams.length - 2);
+                    const barColor = isAdvancing ? '#7c3aed' : isRelegated ? '#ef4444' : 'transparent';
+                    const formDots = (t.form || ['V']).map(f => {
+                      const color = f === 'V' ? '#22c55e' : f === 'E' ? '#94a3b8' : '#ef4444';
+                      return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin:0 1px"></span>`;
+                    }).join('');
+
+                    return `
+                      <tr style="${isMy ? 'background:rgba(124,58,237,0.18);border-left:3px solid #a855f7;' : ''}font-size:12px">
+                        <td style="font-weight:800;color:${barColor !== 'transparent' ? barColor : '#fff'};border-left:2px solid ${barColor}">
+                          ${pos}
+                        </td>
+                        <td>
+                          <div class="clickable-club-name" data-club="${esc(t.name)}" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                            ${clubBadge(t.name, 20)}
+                            <b style="color:${isMy ? '#c084fc' : '#fff'}">${esc(t.name)}</b>
+                          </div>
+                        </td>
+                        <td style="font-weight:900;text-align:center;color:#fff">${t.p}</td>
+                        <td style="text-align:center">${t.j}</td>
+                        <td style="text-align:center">${t.v}</td>
+                        <td style="text-align:center">${t.e}</td>
+                        <td style="text-align:center">${t.d}</td>
+                        <td style="text-align:center">${t.gp}</td>
+                        <td style="text-align:center">${t.gc}</td>
+                        <td style="text-align:center;font-weight:700">${t.sg > 0 ? '+' : ''}${t.sg}</td>
+                        <td style="text-align:center;color:rgba(255,255,255,0.6)">${t.pct}%</td>
+                        <td style="text-align:center">${formDots}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,0.4);display:flex;gap:12px;align-items:center">
+              <span><span style="color:#7c3aed;font-weight:800">| AVANÇA (${estData.teams.length >= 10 ? 8 : 4})</span></span>
+              <span><span style="color:#ef4444;font-weight:800">| CAI (2)</span></span>
+              <span>● V ● E ● D</span>
+              <span style="margin-left:auto;color:#a855f7">Clique em qualquer clube para detalhes</span>
+            </div>
+          </div>
+
+          <!-- Coluna 2: Rodada e Confrontos -->
+          <div class="card" style="padding:16px;background:#100d1e;border:1px solid rgba(255,255,255,0.08);border-radius:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+              <button class="btn" style="padding:2px 8px;font-size:12px;background:rgba(255,255,255,0.06);border:none">←</button>
+              <div style="text-align:center">
+                <div style="font-size:14px;font-weight:900;color:#fff;letter-spacing:1px">${estData.currentRound}ª RODADA ⌵</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">${estData.roundDate}</div>
+              </div>
+              <button class="btn" style="padding:2px 8px;font-size:12px;background:rgba(255,255,255,0.06);border:none">→</button>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              ${estData.fixtures.map(f => {
+                const isMyMatch = norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club);
+
+                return `
+                  <div class="clickable-fixture" data-home="${esc(f.home)}" data-away="${esc(f.away)}" style="background:${isMyMatch ? 'rgba(124,58,237,0.18)' : '#161324'};border:1px solid ${isMyMatch ? '#7c3aed' : 'rgba(255,255,255,0.06)'};border-radius:10px;padding:12px;cursor:pointer;transition:all 0.2s">
+                    <div style="font-size:10px;color:rgba(255,255,255,0.4);text-align:center;margin-bottom:6px">
+                      ${esc(f.stadium)} • ${esc(f.dateStr)}
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:0 8px">
+                      <div style="display:flex;align-items:center;gap:6px;width:40%;justify-content:flex-end">
+                        <b style="font-size:13px;color:#fff">${esc(f.home)}</b>
+                        ${clubBadge(f.home, 20)}
+                      </div>
+                      <span style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:800">x</span>
+                      <div style="display:flex;align-items:center;gap:6px;width:40%">
+                        ${clubBadge(f.away, 20)}
+                        <b style="font-size:13px;color:#fff">${esc(f.away)}</b>
+                      </div>
+                    </div>
+                    <div style="text-align:center;margin-top:6px">
+                      ${isMyMatch ? `
+                        <span style="font-size:10px;font-weight:900;color:var(--neon);letter-spacing:0.5px">
+                          SEU JOGO • VER PRÉVIA
+                        </span>
+                      ` : `
+                        <span style="font-size:10px;color:#a855f7">VER PRÉVIA</span>
+                      `}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Bloco de Artilharia e Assistências (Screenshots 4 e 5) -->
+        <div class="card" style="margin-top:16px;background:#ffffff;color:#0f172a;border-radius:14px;padding:20px;box-shadow:0 10px 25px rgba(0,0,0,0.3)">
+          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #e2e8f0;padding-bottom:8px">
+            <div style="display:flex;gap:24px">
+              <button class="btn btn-stat-tab ${statsTab==='scorers'?'active':''}" data-stats-tab="scorers" style="background:transparent;border:none;font-size:16px;font-weight:900;letter-spacing:1px;color:${statsTab==='scorers'?'#6b21a8':'#64748b'};cursor:pointer;padding:4px 0;border-bottom:${statsTab==='scorers'?'3px solid #6b21a8':'none'}">
+                ARTILHARIA
+              </button>
+              <button class="btn btn-stat-tab ${statsTab==='assists'?'active':''}" data-stats-tab="assists" style="background:transparent;border:none;font-size:16px;font-weight:900;letter-spacing:1px;color:${statsTab==='assists'?'#6b21a8':'#64748b'};cursor:pointer;padding:4px 0;border-bottom:${statsTab==='assists'?'3px solid #6b21a8':'none'}">
+                ASSISTÊNCIAS
+              </button>
+            </div>
+            <div style="font-size:11px;font-weight:900;letter-spacing:1px;color:#64748b;text-transform:uppercase">
+              ${statsTab==='scorers'?'GOLS':'ASSIST.'}
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;margin-top:10px">
+            ${(statsTab === 'scorers' ? estStats.scorers : estStats.assists).map((item, idx) => {
+              const rank = idx === 0 ? 1 : 2;
+              const isMyPlayer = norm(item.club) === norm(state.club);
+
+              return `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #f1f5f9;${isMyPlayer ? 'background:#ede9fe;border-radius:8px;' : ''}">
+                  <div style="display:flex;align-items:center;gap:14px">
+                    <span style="font-size:16px;font-weight:900;color:#64748b;min-width:20px">${rank}</span>
+                    <div style="position:relative">
+                      ${playerPhoto(item.name, 42)}
+                    </div>
+                    ${clubBadge(item.club, 24)}
+                    <div>
+                      <div style="font-size:15px;font-weight:900;color:#0f172a">${esc(item.name)}</div>
+                      <div style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:0.5px;text-transform:uppercase;margin-top:2px">
+                        ${esc(item.pos)} • ${esc(item.club)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:22px;font-weight:900;color:#0f172a">${statsTab==='scorers'?item.goals:item.assists}</span>
+                    <span style="color:#94a3b8;font-size:12px">⌵</span>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <div style="text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid #f1f5f9">
+            <span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#7c3aed;text-transform:uppercase;cursor:pointer">
+              VER OS 11 PRIMEIROS
+            </span>
+          </div>
+        </div>
+      `;
+    })() : seasonTab==='copadobrasil' ? renderCopaDoBrasilBlock() : renderContinentalBlock()}
+  `;
+}
+
+// -------------------------------------------------------------
+// CONFIGURAÇÕES
+// -------------------------------------------------------------
+function configPage(){
+  const m=window.PLAYER_DB_META||{};
+  return `
+    <div class="hero">
+      <div>
+        <h1>Configurações do Jogo</h1>
+        <div class="muted">Gerenciamento de Save, Backup em arquivo JSON, status do Banco de Dados e Opções</div>
+      </div>
+      <button class="btn success" id="btnExportJson">💾 Exportar Save (.JSON)</button>
+    </div>
+
+    <div class="tabs" style="margin-top:14px">
+      <button class="btn ${configTab==='save'?'active':''}" data-config-tab="save">💾 Save & Backup Local</button>
+      <button class="btn ${configTab==='db'?'active':''}" data-config-tab="db">🗄️ Banco de Dados & Elencos</button>
+      <button class="btn ${configTab==='options'?'active':''}" data-config-tab="options">⚙️ Preferências do Jogo</button>
+    </div>
+
+    ${configTab==='save' ? `
+      <div class="grid g2" style="margin-top:14px">
+        <div class="card">
+          <h2>Salvar e Fazer Backup</h2>
+          <p>O jogo grava o progresso automaticamente no navegador, mas você pode exportar um arquivo para transferir de PC ou guardar cópias seguras.</p>
+          <div class="actions" style="margin-top:14px">
+            <button class="btn primary" id="btnExportJson2">Exportar Save (.JSON)</button>
+            <label class="btn">
+              Importar Save (.JSON)
+              <input id="importSaveInput" type="file" accept="application/json" style="display:none">
+            </label>
+            <button class="btn" id="btnSaveNowManual">Salvar Agora</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Reiniciar Carreira</h2>
+          <p>Apaga os dados da carreira atual e permite escolher outro clube ou começar uma nova trajetória do zero.</p>
+          <button class="btn danger" id="btnResetCareer" style="margin-top:14px">🗑️ Apagar Save e Começar do Zero</button>
+        </div>
+      </div>
+    ` : configTab==='db' ? `
+      <div class="grid g4" style="margin-top:14px">
+        <div class="card metric"><div class="muted">Jogadores Reais</div><div class="value good">${livePlayers.length.toLocaleString('pt-BR')}</div></div>
+        <div class="card metric"><div class="muted">Jogadores Gerados</div><div class="value">${(state.worldGenerated||[]).length.toLocaleString('pt-BR')}</div></div>
+        <div class="card metric"><div class="muted">Total de Clubes</div><div class="value">${clubs.length}</div></div>
+        <div class="card metric"><div class="muted">Data da Base</div><div class="value" style="font-size:16px">${esc(m.updated||'offline')}</div></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2>Como Atualizar Elencos e Jogadores Reais</h2>
+        <p>Feche o jogo e execute o arquivo <b>ATUALIZAR_DADOS.bat</b> na pasta do projeto. O script baixa e compila as bases públicas sem apagar o seu save da carreira.</p>
+        <div class="small muted">Fonte: ${esc(m.source||'banco offline')} • ${esc(m.note||'')}</div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2>Competições Configuradas</h2>
+        <div class="tablewrap" style="max-height:280px">
+          <table>
+            <thead><tr><th>Continente</th><th>País</th><th>Competição</th><th>Clubes</th><th>Formato</th></tr></thead>
+            <tbody>
+              ${(window.COMPETITIONS||[]).map(c=>`
+                <tr>
+                  <td>${esc(c.continent)}</td>
+                  <td>${esc(c.country)}</td>
+                  <td>${esc(c.name)}</td>
+                  <td>${eligibleClubNames(c).length}</td>
+                  <td>${esc(c.type)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ` : `
+      <div class="card" style="margin-top:14px">
+        <h2>Preferências do Jogo</h2>
+        <div style="margin:14px 0">
+          <label style="display:block;margin-bottom:8px">Velocidade Padrão da Partida:</label>
+          <select id="selSimSpeed" class="btn">
+            <option value="normal" ${state.simSpeed==='normal'?'selected':''}>Normal (Tempo Real 1x)</option>
+            <option value="fast" ${state.simSpeed==='fast'?'selected':''}>Rápida (2x)</option>
+            <option value="instant" ${state.simSpeed==='instant'?'selected':''}>Instantânea (Pular para o Resultado)</option>
+          </select>
+        </div>
+
+        <div style="margin:14px 0">
+          <label class="check" style="cursor:pointer">
+            <input type="checkbox" id="chkFreeTransfers" ${state.freeTransferWindow?'checked':''}>
+            Permitir transferências o ano todo (Janela de transferências sempre aberta)
+          </label>
+        </div>
+      </div>
+    `}
+  `;
+}
+
+// -------------------------------------------------------------
+// SETUP INICIAL DE CARREIRA, SELEÇÃO DE MUNDO & LOGIN LOCAL
+// -------------------------------------------------------------
+let setupSelectedContinent = 'América do Sul';
+let setupSelectedCountry = 'Brasil';
+let setupSelectedCompId = 'bra-a';
+let setupBrCategory = 'nacionais';
+let setupSelectedClubName = 'Corinthians';
+let setupAuthTab = 'login'; // 'login' | 'register'
+let setupClubSearchQuery = '';
+let setupSelectedSlot = 1;
+
+function renderSetup(app){
+  const activeUser = getActiveAccount();
+
+  // SE NÃO ESTIVER LOGADO: EXIBE APENAS O CARD DE LOGIN / CADASTRO!
+  if(!activeUser){
+    app.innerHTML = `
+      <div class="setup-container" style="max-width:520px;margin:50px auto;padding:20px">
+        <div style="text-align:center;margin-bottom:24px">
+          <div style="font-size:52px;filter:drop-shadow(0 0 16px rgba(168,85,247,0.7))">⚽</div>
+          <div style="font-size:26px;font-weight:900;letter-spacing:1px;color:#fff;margin-top:6px">
+            AFM MANAGER <span style="color:#a7ff3f;text-shadow:0 0 12px rgba(167,255,63,0.5)">2027</span>
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.65);margin-top:6px;line-height:1.4">
+            Simulador tático de futebol · Crie seu mundo, comande seu clube e dispute títulos
+          </div>
+        </div>
+
+        <div class="card" style="padding:28px;background:#101724;border:1px solid rgba(255,255,255,0.12);border-radius:20px;box-shadow:0 16px 45px rgba(0,0,0,0.6)">
+          <div class="auth-nav-tabs" style="margin-bottom:18px">
+            <button class="auth-tab-btn ${setupAuthTab==='login'?'active':''}" data-atab="login">
+              🔑 Entrar na Conta
+            </button>
+            <button class="auth-tab-btn ${setupAuthTab==='register'?'active':''}" data-atab="register">
+              ✨ Criar Nova Conta
+            </button>
+          </div>
+
+          <div style="font-size:12px;color:rgba(255,255,255,0.65);margin-bottom:16px;line-height:1.5">
+            ${setupAuthTab==='login' 
+              ? 'Acesse seu perfil de treinador para carregar seus <b>3 slots de saves exclusivos</b> ou iniciar uma nova carreira.' 
+              : 'Crie seu perfil de treinador para gerenciar seus próprios saves isolados de forma 100% individual.'}
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px">
+            ${setupAuthTab==='register' ? `
+              <label class="field" style="margin:0">
+                <span style="font-size:11px;font-weight:800;color:#94a3b8">Nome Completo do Treinador</span>
+                <input class="saas-input" id="inputAuthName" placeholder="Ex: Professor Tite">
+              </label>
+            ` : ''}
+
+            <label class="field" style="margin:0">
+              <span style="font-size:11px;font-weight:800;color:#94a3b8">Nome de Usuário</span>
+              <input class="saas-input" id="inputAuthUser" placeholder="Ex: treinador">
+            </label>
+
+            <label class="field" style="margin:0">
+              <span style="font-size:11px;font-weight:800;color:#94a3b8">Senha de Acesso</span>
+              <div style="display:flex;align-items:center;position:relative">
+                <input class="saas-input" id="inputAuthPass" type="password" placeholder="Sua senha secreta" style="padding-right:42px">
+                <button type="button" id="btnToggleAuthPass" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;font-size:16px;color:#94a3b8;transition:transform 0.2s" title="Mostrar/ocultar senha">👁️</button>
+              </div>
+            </label>
+
+            <button class="btn primary saas-primary-btn" id="btnSubmitAuth" style="margin-top:6px;font-size:14px;font-weight:900;padding:12px">
+              ${setupAuthTab==='login' ? '🚀 Entrar no Jogo' : '✨ Criar Conta & Continuar'}
+            </button>
+
+            <div class="saas-auth-footer" style="margin-top:10px">
+              <span>🔒 Acesso Local Exclusivo</span>
+              <span>•</span>
+              <span>💾 3 Slots de Saves por Usuário</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    bindSetup();
+    return;
+  }
+
+  // SE ESTIVER LOGADO: CARREGA SLOTS E EXIBE A TELA COMPLETA COM OS 3 SAVES E OS TIMES!
+  const userSlots = getUserSaveSlots(activeUser.username);
+  const conts = ['América do Sul', 'Europa', 'Ásia'];
+  const curCountries = allCountries(setupSelectedContinent);
+  if(!curCountries.includes(setupSelectedCountry)){
+    setupSelectedCountry = curCountries[0] || 'Brasil';
+  }
+  const curComps = (window.COMPETITIONS||[]).filter(c => c.continent === setupSelectedContinent && c.country === setupSelectedCountry && (eligibleClubNames(c)||[]).length >= 2);
+  const brNacionais = curComps.filter(c => !c.id.startsWith('bra-est-'));
+  const brEstaduais = curComps.filter(c => c.id.startsWith('bra-est-'));
+  if(!curComps.some(c => c.id === setupSelectedCompId)){
+    setupSelectedCompId = curComps[0]?.id || 'bra-a';
+  }
+  if(setupSelectedCountry === 'Brasil'){
+    if(setupSelectedCompId.startsWith('bra-est-')) setupBrCategory = 'estaduais';
+    else setupBrCategory = 'nacionais';
+  }
+  const targetComp = compById(setupSelectedCompId);
+  const eligibleClubs = targetComp ? eligibleClubNames(targetComp) : [];
+  let displayedClubs = eligibleClubs.filter(c => !setupClubSearchQuery || norm(c).includes(norm(setupClubSearchQuery)));
+  if(setupClubSearchQuery && displayedClubs.length === 0){
+    displayedClubs = clubs.filter(c => norm(c.name).includes(norm(setupClubSearchQuery))).map(c => c.name);
+  }
+  if(!eligibleClubs.includes(setupSelectedClubName) && !displayedClubs.includes(setupSelectedClubName)){
+    setupSelectedClubName = displayedClubs[0] || eligibleClubs[0] || 'Corinthians';
+  }
+
+  const prof = getClubFullProfile(setupSelectedClubName);
+
+  app.innerHTML = `
+    <div class="setup-container">
+      
+      <!-- TOPBAR SUPERIOR (COM STATUS DO TREINADOR CONECTADO) -->
+      <div class="setup-topbar">
+        <div class="setup-logo">
+          <span style="font-size:36px;filter:drop-shadow(0 0 10px rgba(168,85,247,0.6))">⚽</span>
+          <div>
+            <div style="font-size:24px;font-weight:900;letter-spacing:1px;color:#fff;display:flex;align-items:center;gap:8px">
+              AFM MANAGER <span style="color:#a7ff3f;text-shadow:0 0 12px rgba(167,255,63,0.5)">2027</span>
+            </div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.6)">
+              O mais completo simulador tático de futebol · Crie seu mundo, comande seu clube e dispute títulos
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span class="pill" style="background:rgba(255,255,255,0.08);color:#fff;padding:6px 14px;font-weight:800;border:1px solid rgba(255,255,255,0.12)">
+            👤 Prof. ${esc(activeUser.name)} <span class="muted">(@${esc(activeUser.username)})</span>
+            <span class="pill ${activeUser.role==='admin'?'good':'muted'}" style="font-size:10px;margin-left:6px">
+              ${activeUser.role==='admin'?'🛡️ Admin':'⚽ Treinador'}
+            </span>
+          </span>
+          ${activeUser.role==='admin' ? `
+            <button class="btn primary" id="btnOpenAdminPanelFromTop" style="padding:7px 14px;font-size:12px;font-weight:900">
+              🛡️ Painel Admin
+            </button>
+          ` : ''}
+          <button class="btn danger" id="btnLogoutFromSetup" style="padding:7px 14px;font-size:12px">
+            🚪 Sair da Conta
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- SEÇÃO 1: OS 3 SLOTS DE SAVES EXCLUSIVOS DO USUÁRIO (NÃO SE MISTURAM)      -->
+      <!-- ========================================================================= -->
+      <div class="saves-slots-container">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:20px">💾</span>
+            <div>
+              <span style="font-size:14px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
+                SUAS CAMPANHAS SALVAS (ATÉ 3 SLOTS DESTA CONTA)
+              </span>
+              <div class="small muted" style="font-size:11px">
+                Saves pertencentes exclusivamente ao usuário <b>@${esc(activeUser.username)}</b>. Não se misturam com contas de outros jogadores.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="saves-slots-grid">
+          ${[1, 2, 3].map(slotNum => {
+            const s = userSlots[slotNum - 1];
+            if(s){
+              return `
+                <div class="save-slot-card active-save">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                      <span class="save-slot-badge" style="background:rgba(168,85,247,0.2);color:#c084fc;border:1px solid #a855f7">
+                        💾 SLOT ${slotNum} • EM ANDAMENTO
+                      </span>
+                      <span class="pill" style="font-size:9px;background:rgba(34,197,94,0.15);color:#22c55e">ATIVO</span>
+                    </div>
+
+                    <div style="display:flex;align-items:center;gap:12px">
+                      ${clubBadge(s.club, 48)}
+                      <div style="flex:1;min-width:0">
+                        <div style="font-size:16px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                          ${esc(clubDisplayName(s.club))}
+                        </div>
+                        <div style="font-size:12px;font-weight:800;color:#a855f7">
+                          👔 Prof. ${esc(s.manager)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style="margin-top:12px;display:flex;flex-direction:column;gap:4px;background:rgba(0,0,0,0.35);padding:8px 12px;border-radius:10px;font-size:11px">
+                      <div style="display:flex;justify-content:space-between">
+                        <span class="muted">Progresso:</span>
+                        <span style="color:#fff;font-weight:800">🏆 Temp. ${s.season} · Rodada ${s.round + 1}</span>
+                      </div>
+                      <div style="display:flex;justify-content:space-between">
+                        <span class="muted">Orçamento:</span>
+                        <span style="color:#22c55e;font-weight:800">${fmtMoney(s.balance)}</span>
+                      </div>
+                      <div style="display:flex;justify-content:space-between">
+                        <span class="muted">Data no Jogo:</span>
+                        <span style="color:#facc15;font-weight:800">📅 ${s.date}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="margin-top:14px;display:flex;flex-direction:column;gap:6px">
+                    <button class="btn success btnContinueUserSlot" data-slot="${slotNum}" style="width:100%;font-size:13px;font-weight:900;padding:10px;border-radius:10px;box-shadow:0 4px 14px rgba(34,197,94,0.3);cursor:pointer">
+                      ▶ Continuar Campanha (Slot ${slotNum})
+                    </button>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <span class="small muted" style="font-size:10px">Salvo em: ${esc(s.updatedAt || s.date)}</span>
+                      <button class="btn danger btnDeleteUserSlot" data-slot="${slotNum}" style="font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer" title="Excluir save deste slot">
+                        🗑️ Excluir Save
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `;
+            } else {
+              const isTarget = (setupSelectedSlot === slotNum);
+              return `
+                <div class="save-slot-card empty ${isTarget ? 'selected-for-new' : ''}" data-slot="${slotNum}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:8px">
+                    <span class="save-slot-badge" style="background:rgba(255,255,255,0.06);color:#94a3b8">
+                      ✨ SLOT ${slotNum} DISPONÍVEL
+                    </span>
+                    ${isTarget ? '<span class="pill good" style="font-size:9px">SELECIONADO</span>' : ''}
+                  </div>
+
+                  <div style="margin:16px 0;text-align:center">
+                    <div style="font-size:38px;opacity:0.6;filter:drop-shadow(0 0 10px rgba(255,255,255,0.2))">➕</div>
+                    <div style="font-size:15px;font-weight:800;color:#fff;margin-top:6px">Slot ${slotNum} Vazio</div>
+                    <div class="small muted" style="font-size:11px;margin-top:4px;max-width:200px">
+                      Disponível para começar uma nova história independente.
+                    </div>
+                  </div>
+
+                  <button class="btn ${isTarget ? 'primary' : ''} btnSelectSlotForNew" data-slot="${slotNum}" style="font-size:11px;font-weight:800;padding:8px 16px;border-radius:8px;cursor:pointer;width:100%">
+                    ${isTarget ? `✓ Slot ${slotNum} Selecionado Abaixo` : `➕ Iniciar Nova Campanha no Slot ${slotNum}`}
+                  </button>
+                </div>
+              `;
+            }
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- SEÇÃO 2: SELEÇÃO DE TIME, CONFIGURAÇÃO DO TÉCNICO & INICIAR CARREIRA      -->
+      <!-- ========================================================================= -->
+      <div class="card" style="padding:22px;background:#101724;border:1px solid rgba(255,255,255,0.1);border-radius:18px;margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px">
+          <div>
+            <div style="font-size:15px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase;display:flex;align-items:center;gap:8px">
+              🚀 INICIAR NOVA CARREIRA · ESCOLHA SEU CLUBE
+            </div>
+            <div class="small muted">Selecione onde começará sua trajetória no jogo e configure seu técnico</div>
+          </div>
+
+          <!-- SELETOR DO SLOT ONDE A CARREIRA SERÁ SALVA -->
+          <div style="display:flex;align-items:center;gap:8px;background:#0d1527;padding:6px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.1)">
+            <span style="font-size:11px;font-weight:800;color:#94a3b8">GRAVAR NO:</span>
+            ${[1, 2, 3].map(slotNum => {
+              const hasSave = !!userSlots[slotNum - 1];
+              const isSel = (setupSelectedSlot === slotNum);
+              return `
+                <button class="pill ${isSel ? 'good' : 'muted'} btnPickSlot" data-slot="${slotNum}" style="cursor:pointer;font-weight:900;font-size:11px;padding:3px 8px">
+                  Slot ${slotNum} ${hasSave ? '⚠️' : '✨'}
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Mapa / Pílulas de Continentes & Botões Modo Padrão / Mod da Comunidade -->
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:10px 0 12px 0;flex-wrap:wrap">
+          <div class="continent-bar" style="margin:0;padding:0">
+            ${conts.map(c => `
+              <button class="continent-pill ${setupSelectedContinent === c ? 'active' : ''}" data-cont="${c}">
+                <span>${c === 'América do Sul' ? '🌎' : c === 'Europa' ? '🌍' : '🌏'}</span>
+                <span>${c}</span>
+              </button>
+            `).join('')}
+          </div>
+
+          <!-- BOTÕES DE MODO -->
+          <div class="db-mode-selector-group">
+            <button id="btnSelectStandardMode" class="btn-db-mode ${currentDbMode === 'standard' ? 'active-standard' : ''}" title="Modo Padrão: Times genéricos sem marcas registradas">
+              <span>🛡️ Modo Padrão</span>
+              <span class="db-mode-badge">${currentDbMode === 'standard' ? 'ATIVO' : 'Genérico'}</span>
+            </button>
+            <button id="btnSelectCommunityMod" class="btn-db-mode ${currentDbMode === 'mod' ? 'active-mod' : ''}" title="Carregar Mod da Comunidade: Todos os times, escudos e ligas oficiais">
+              <span>⚡ Carregar Mod da Comunidade</span>
+              <span class="db-mode-badge ${currentDbMode === 'mod' ? 'mod-active' : ''}">${currentDbMode === 'mod' ? 'CARREGADO' : 'Oficial'}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- AVISO DE CONTEÚDO PERSONALIZADO (DMCA) -->
+        <div class="custom-content-disclaimer-card">
+          <div style="display:flex;align-items:flex-start;gap:10px">
+            <span style="font-size:18px;line-height:1.2;filter:drop-shadow(0 0 6px rgba(250,204,21,0.5))">⚖️</span>
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
+                <span style="font-size:11px;font-weight:900;color:#facc15;letter-spacing:0.5px;text-transform:uppercase">
+                  Aviso de Conteúdo Personalizado:
+                </span>
+                <span class="pill" style="font-size:9px;font-weight:800;background:rgba(250,204,21,0.15);color:#fde047;border:1px solid rgba(250,204,21,0.3);padding:1px 6px">
+                  DMCA · LEI Nº 12.965/2014
+                </span>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.72);line-height:1.45;font-weight:500">
+                O recurso de importação permite que o jogador modifique elementos visuais e de texto do jogo para uso estritamente pessoal e local. O desenvolvedor não fornece, não hospeda e não possui direitos sobre nenhum conteúdo de terceiros (marcas, nomes ou imagens) importado através desta ferramenta. A responsabilidade legal por qualquer pacote de dados utilizado, de acordo com o DMCA e a Lei nº 12.965/2014 (Marco Civil da Internet), é inteira e exclusiva do usuário final.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seleção de País e Liga -->
+        <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:12px;margin-top:10px">
+          <label class="field" style="margin:0">
+            <span style="font-size:11px;font-weight:800;color:#94a3b8">País / Federação</span>
+            <select id="setupSelectCountry" class="saas-select">
+              ${curCountries.map(p => `<option value="${esc(p)}" ${p===setupSelectedCountry?'selected':''}>${esc(p)}</option>`).join('')}
+            </select>
+          </label>
+
+          <label class="field" style="margin:0">
+            <span style="font-size:11px;font-weight:800;color:#94a3b8">Competição em Disputa</span>
+            <select id="setupSelectComp" class="saas-select">
+              ${curComps.map(cp => `<option value="${cp.id}" ${cp.id===setupSelectedCompId?'selected':''}>${esc(cp.name)}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+
+        ${setupSelectedCountry === 'Brasil' ? `
+          <!-- CATEGORIA NO BRASIL: DIVISÕES NACIONAIS VS CAMPEONATOS ESTADUAIS -->
+          <div style="margin-top:14px;background:#141126;padding:14px 18px;border-radius:14px;border:1px solid rgba(139,92,246,0.35);box-shadow:0 4px 20px rgba(0,0,0,0.3)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:11px;font-weight:900;color:#c084fc;letter-spacing:1px;text-transform:uppercase">CATEGORIA NO BRASIL:</span>
+                <button type="button" class="btn ${setupBrCategory==='nacionais'?'primary':''}" id="btnSetupCatNacionais" style="padding:6px 14px;font-size:12px;font-weight:900;border-radius:8px;cursor:pointer">
+                  🇧🇷 Divisões Nacionais (Série A a D)
+                </button>
+                <button type="button" class="btn ${setupBrCategory==='estaduais'?'primary':''}" id="btnSetupCatEstaduais" style="padding:6px 14px;font-size:12px;font-weight:900;border-radius:8px;cursor:pointer">
+                  🏆 Campeonatos Estaduais (Candangão, Paulistão...)
+                </button>
+              </div>
+              <span class="small muted" style="font-size:11px;color:rgba(255,255,255,0.6)">
+                ${setupBrCategory==='nacionais' ? '🏆 4 divisões do Brasileirão (Série A, B, C, D)' : '🏛️ 11 Federações Estaduais Oficiais'}
+              </span>
+            </div>
+
+            <!-- PÍLULAS DA CATEGORIA SELECIONADA -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              ${(setupBrCategory==='nacionais' ? brNacionais : brEstaduais).map(cp => {
+                const isSel = (cp.id === setupSelectedCompId);
+                let label = cp.name;
+                if(cp.id === 'bra-a') label = '🇧🇷 Série A (20 times)';
+                else if(cp.id === 'bra-b') label = '🇧🇷 Série B (20 times)';
+                else if(cp.id === 'bra-c') label = '🇧🇷 Série C (20 times)';
+                else if(cp.id === 'bra-d') label = '🇧🇷 Série D (96 times)';
+                else if(cp.id === 'bra-est-df') label = '🏛️ DF · Candangão (10 times)';
+                else if(cp.id === 'bra-est-sp') label = '⚽ SP · Paulistão (16 times)';
+                else if(cp.id === 'bra-est-rj') label = '🌴 RJ · Carioca (12 times)';
+                else if(cp.id === 'bra-est-mg') label = '⛰️ MG · Mineiro (12 times)';
+                else if(cp.id === 'bra-est-rs') label = '🧉 RS · Gaúcho (12 times)';
+                else if(cp.id === 'bra-est-pr') label = '🌲 PR · Paranaense (10 times)';
+                else if(cp.id === 'bra-est-sc') label = '🏖️ SC · Catarinense (10 times)';
+                else if(cp.id === 'bra-est-ba') label = '☀️ BA · Baiano (10 times)';
+                else if(cp.id === 'bra-est-ce') label = '🌊 CE · Cearense (10 times)';
+                else if(cp.id === 'bra-est-go') label = '🌾 GO · Goiano (10 times)';
+                else if(cp.id === 'bra-est-pe') label = '🦁 PE · Pernambucano (10 times)';
+
+                return `
+                  <button type="button" class="btn ${isSel?'primary':''}" data-comp-pill="${cp.id}" style="padding:6px 12px;font-size:11px;font-weight:800;border-radius:8px;background:${isSel?'var(--primary)':'rgba(255,255,255,0.06)'};cursor:pointer">
+                    ${esc(label)}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Vitrine de Cards dos Clubes da Liga -->
+        <div style="margin-top:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);text-transform:uppercase">
+              ESCOLHA O SEU TIME (${eligibleClubs.length} CLUBES NA LIGA):
+            </span>
+            <input id="setupSearchClub" class="saas-input" placeholder="🔍 Filtrar clube..." value="${esc(setupClubSearchQuery||'')}" style="padding:6px 12px;font-size:11px;max-width:160px">
+          </div>
+
+          <div class="club-thumb-grid">
+            ${displayedClubs.map(cName => {
+              const clObj = clubByName(cName);
+              const isSel = (norm(cName) === norm(setupSelectedClubName));
+              const ovr = strength(clObj);
+              return `
+                <div class="club-thumb-card ${isSel ? 'active' : ''}" data-clubname="${esc(cName)}">
+                  ${clubBadge(cName, 38)}
+                  <div style="font-size:11px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%">
+                    ${esc(clubDisplayName(cName))}
+                  </div>
+                  <div style="font-size:10px;font-weight:700;color:#facc15">
+                    ⭐ ${ovr} OVR
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- SUPER CARD: DETALHES RICOS DO TIME SELECIONADO -->
+      <div class="club-detail-hero">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div style="padding:8px;background:rgba(255,255,255,0.04);border:2px solid rgba(168,85,247,0.5);border-radius:18px;box-shadow:0 0 20px rgba(168,85,247,0.3)">
+              ${clubBadge(prof.name, 68)}
+            </div>
+            <div>
+              <h1 style="margin:0;font-size:26px;font-weight:900;letter-spacing:0.5px;color:#fff;text-transform:uppercase">
+                ${esc(clubDisplayName(prof.name))}
+              </h1>
+              <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">
+                ${esc(prof.country)} · ${esc(prof.competition)} · 🏟️ ${esc(prof.stadium)}
+              </div>
+            </div>
+          </div>
+
+          <div style="text-align:right">
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);text-transform:uppercase">FORÇA GERAL</div>
+            <div style="font-size:24px;font-weight:900;color:#facc15">
+              ★ ${prof.starsOvr} <span style="font-size:14px;color:#fff">(${prof.ovr} OVR)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- FAIXA DE 4 MÉTRICAS IMPORTANTES (TORCIDA, CAIXA, TÍTULOS E ESTRELAS) -->
+        <div class="club-stats-strip">
+          <div class="club-stat-box">
+            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);text-transform:uppercase">👥 BASE DE TORCEDORES</div>
+            <div style="font-size:16px;font-weight:900;color:#38bdf8;margin-top:4px">${esc(prof.fansText)}</div>
+            <div class="small muted" style="margin-top:2px">Projeção de bilheteria e apoio</div>
+          </div>
+
+          <div class="club-stat-box">
+            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);text-transform:uppercase">💰 ORÇAMENTO INICIAL</div>
+            <div style="font-size:16px;font-weight:900;color:#22c55e;margin-top:4px">${esc(prof.budgetFormatted)}</div>
+            <div class="small muted" style="margin-top:2px">Saldo disponível para mercado</div>
+          </div>
+
+          <div class="club-stat-box">
+            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);text-transform:uppercase">🏆 TOTAL DE TÍTULOS</div>
+            <div style="font-size:16px;font-weight:900;color:#facc15;margin-top:4px">${prof.titlesTotal} Conquistas</div>
+            <div class="small muted" style="margin-top:2px">${esc(prof.titlesDetail.slice(0,28))}...</div>
+          </div>
+
+          <div class="club-stat-box">
+            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);text-transform:uppercase">⭐ FORÇA POR SETOR</div>
+            <div style="font-size:13px;font-weight:900;color:#fff;margin-top:4px">
+              ATA ${prof.atk} · MEI ${prof.mid} · DEF ${prof.def}
+            </div>
+            <div class="small muted" style="margin-top:2px">Equilíbrio tático do plantel</div>
+          </div>
+        </div>
+
+        <!-- HISTÓRIA E TRADIÇÃO DO CLUBE -->
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:16px">
+          <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);text-transform:uppercase;margin-bottom:4px">
+            📜 HISTÓRIA & TRADIÇÃO DO CLUBE
+          </div>
+          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">
+            ${esc(prof.historySummary)}
+          </p>
+        </div>
+
+        <!-- CRAQUES DE DESTAQUE DO ELENCO -->
+        ${(prof.keyPlayers && prof.keyPlayers.length > 0) ? `
+          <div style="margin-bottom:16px">
+            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);text-transform:uppercase;margin-bottom:8px">
+              🌟 PRINCIPAIS CRAQUES DO ELENCO:
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              ${prof.keyPlayers.map(p => `
+                <div style="display:flex;align-items:center;gap:8px;background:#161d28;border:1px solid rgba(255,255,255,0.08);padding:6px 12px;border-radius:10px">
+                  ${playerPhoto(p.name, 32)}
+                  <div>
+                    <div style="font-size:12px;font-weight:800;color:#fff">${esc(p.name)}</div>
+                    <div style="font-size:10px;font-weight:700;color:#a855f7">${esc(p.pos)} · ${playerOverall(p)} OVR</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- NOME DO TREINADOR & BOTÃO DE INICIAR CARREIRA -->
+        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px">
+          <label class="field" style="margin:0;flex:1;min-width:220px">
+            <span style="font-size:12px;font-weight:700;color:#94a3b8">Nome do Seu Técnico</span>
+            <input class="saas-input" id="setupManagerName" value="${esc(activeUser?.name || 'Aquino')}" placeholder="Seu nome de treinador">
+          </label>
+
+          <button class="btn primary saas-launch-btn" id="btnStartCareerFromShowcase">
+            🚀 Iniciar Carreira com o ${esc(clubDisplayName(prof.name))} (Salvar no Slot ${setupSelectedSlot}) ➔
+          </button>
+        </div>
+      </div>
+
+    </div>
+  `;
+
+  bindSetup();
+}
+
+function openCommunityModModal(){
+  let overlay = $('#communityModModalContainer');
+  if(!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'communityModModalContainer';
+    document.body.appendChild(overlay);
+  }
+
+  const isModActive = (getDbMode() === 'mod');
+
+  overlay.innerHTML = `
+    <div class="mod-manager-overlay">
+      <div class="mod-manager-card">
+        <!-- HEADER -->
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 22px;background:#0d1527;border-bottom:1px solid rgba(255,255,255,0.08)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:24px">⚡</span>
+            <div>
+              <div style="font-size:15px;font-weight:900;color:#fff;letter-spacing:0.5px">
+                GERENCIADOR DE MODS & DADOS DA COMUNIDADE
+              </div>
+              <div style="font-size:11px;color:#a855f7;font-weight:700">
+                Personalização Local · AFM MANAGER 2027
+              </div>
+            </div>
+          </div>
+          <button id="btnCloseModModal" class="btn" style="background:rgba(255,255,255,0.08);border:none;color:#fff;padding:6px 14px;font-size:12px;font-weight:800;border-radius:8px;cursor:pointer">
+            ✕ Fechar
+          </button>
+        </div>
+
+        <!-- CONTEÚDO -->
+        <div style="padding:22px;display:flex;flex-direction:column;gap:16px;background:#090e1a;max-height:80vh;overflow-y:auto">
+          <!-- STATUS DO PACOTE -->
+          <div style="background:rgba(255,255,255,0.02);border:1px solid ${isModActive ? 'rgba(167,255,63,0.3)' : 'rgba(56,189,248,0.3)'};border-radius:14px;padding:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:16px">${isModActive ? '🟢' : '🛡️'}</span>
+                <span style="font-size:13px;font-weight:900;color:#fff">
+                  ${isModActive ? 'Mod Oficial da Comunidade Ativo' : 'Modo Padrão Ativo (Clubes Genéricos)'}
+                </span>
+              </div>
+              <span class="pill" style="font-size:10px;font-weight:900;background:${isModActive ? 'rgba(167,255,63,0.15)' : 'rgba(56,189,248,0.15)'};color:${isModActive ? '#a7ff3f' : '#38bdf8'}">
+                ${isModActive ? 'BR11 OFICIAL 2026' : 'PADRÃO COMPLIANCE'}
+              </span>
+            </div>
+
+            <div style="font-size:12px;color:rgba(255,255,255,0.8);line-height:1.5">
+              ${isModActive ? `
+                O <b>Mod da Comunidade</b> substitui os identificadores genéricos por todos os clubes reais, aplicando escudos oficiais de alta resolução (Série A, B, C, D e Candangão), fotos dos jogadores e formatos de ligas completas.
+              ` : `
+                O <b>Modo Padrão</b> opera exclusivamente com identificadores genéricos e escudos procedurais limpos, garantindo total neutralidade e conformidade de direitos e marcas registradas.
+              `}
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;margin-top:14px">
+              <div style="background:#131c2e;padding:10px;border-radius:10px;text-align:center">
+                <div style="font-size:10px;font-weight:800;color:#94a3b8">ESCUDOS</div>
+                <div style="font-size:13px;font-weight:900;color:${isModActive ? '#22c55e' : '#cbd5e1'};margin-top:2px">
+                  ${isModActive ? '60+ Oficiais HD' : 'Vetoriais SVG'}
+                </div>
+              </div>
+              <div style="background:#131c2e;padding:10px;border-radius:10px;text-align:center">
+                <div style="font-size:10px;font-weight:800;color:#94a3b8">CLUBES & LIGAS</div>
+                <div style="font-size:13px;font-weight:900;color:${isModActive ? '#22c55e' : '#cbd5e1'};margin-top:2px">
+                  ${isModActive ? 'Nomes Oficiais' : 'Genéricos'}
+                </div>
+              </div>
+              <div style="background:#131c2e;padding:10px;border-radius:10px;text-align:center">
+                <div style="font-size:10px;font-weight:800;color:#94a3b8">FOTOS ATLETAS</div>
+                <div style="font-size:13px;font-weight:900;color:${isModActive ? '#22c55e' : '#cbd5e1'};margin-top:2px">
+                  ${isModActive ? 'Rostos Reais' : 'Avatares'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BOTÕES DE AÇÃO -->
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button id="btnModalApplyMod" class="btn primary" style="flex:1;font-size:13px;font-weight:900;padding:12px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">
+              <span>⚡</span> <span>Carregar / Ativar Mod da Comunidade</span>
+            </button>
+            <button id="btnModalApplyStandard" class="btn" style="flex:1;background:#1e293b;border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:13px;font-weight:900;padding:12px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">
+              <span>🛡️</span> <span>Mudar para Modo Padrão</span>
+            </button>
+          </div>
+
+          <!-- IMPORTAR ARQUIVO CUSTOMIZADO DA COMUNIDADE -->
+          <div style="background:#101726;border:1px dashed rgba(255,255,255,0.15);border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:12px;font-weight:900;color:#fff">Importar Arquivo de Mod Customizado</div>
+              <div style="font-size:11px;color:#94a3b8">Importe um pacote customizado da comunidade em formato .JSON</div>
+            </div>
+            <label class="btn" style="background:#334155;color:#fff;font-size:11px;font-weight:800;padding:8px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+              <span>📁 Selecionar Arquivo</span>
+              <input type="file" id="inputCustomModFile" accept=".json" style="display:none">
+            </label>
+          </div>
+
+          <!-- AVISO DE CONTEÚDO PERSONALIZADO -->
+          <div class="custom-content-disclaimer-card" style="margin:0">
+            <div style="display:flex;align-items:flex-start;gap:10px">
+              <span style="font-size:20px;line-height:1.2;filter:drop-shadow(0 0 6px rgba(250,204,21,0.5))">⚖️</span>
+              <div>
+                <div style="font-size:11px;font-weight:900;color:#facc15;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">
+                  Aviso de Conteúdo Personalizado:
+                </div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.75);line-height:1.5;font-weight:500">
+                  O recurso de importação permite que o jogador modifique elementos visuais e de texto do jogo para uso estritamente pessoal e local. O desenvolvedor não fornece, não hospeda e não possui direitos sobre nenhum conteúdo de terceiros (marcas, nomes ou imagens) importado através desta ferramenta. A responsabilidade legal por qualquer pacote de dados utilizado, de acordo com o DMCA e a Lei nº 12.965/2014 (Marco Civil da Internet), é inteira e exclusiva do usuário final.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  $('#btnCloseModModal').onclick = () => overlay.remove();
+
+  $('#btnModalApplyMod').onclick = () => {
+    setDbMode('mod');
+    toast('⚡ Mod da Comunidade Carregado! Escudos e dados oficiais ativados.');
+    overlay.remove();
+    renderSetup($('#app'));
+  };
+
+  $('#btnModalApplyStandard').onclick = () => {
+    setDbMode('standard');
+    toast('🛡️ Modo Padrão Ativado! Clubes e escudos genéricos em uso.');
+    overlay.remove();
+    renderSetup($('#app'));
+  };
+
+  const fileInput = $('#inputCustomModFile');
+  if(fileInput){
+    fileInput.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const customData = JSON.parse(evt.target.result);
+          if(customData.badges) window.CLUB_BADGES = { ...window.CLUB_BADGES, ...customData.badges };
+          setDbMode('mod');
+          toast('✅ Mod customizado importado com sucesso!');
+          overlay.remove();
+          renderSetup($('#app'));
+        } catch(err){
+          toast('Erro ao importar pacote JSON.');
+        }
+      };
+      reader.readAsText(file);
+    };
+  }
+}
+
+function bindSetup(){
+  // Binds dos Modos de Banco de Dados: Modo Padrão & Mod da Comunidade
+  const bStd = $('#btnSelectStandardMode');
+  if(bStd){
+    bStd.onclick = () => {
+      setDbMode('standard');
+      toast('🛡️ Modo Padrão Ativado! Clubes e escudos genéricos em uso.');
+      renderSetup($('#app'));
+    };
+  }
+
+  const bMod = $('#btnSelectCommunityMod');
+  if(bMod){
+    bMod.onclick = () => {
+      setDbMode('mod');
+      toast('⚡ Mod da Comunidade Carregado! Escudos e dados oficiais ativados.');
+      openCommunityModModal();
+      renderSetup($('#app'));
+    };
+  }
+
+  // Binds de Continentes
+  $$('.continent-pill').forEach(b => {
+    b.onclick = () => {
+      setupSelectedContinent = b.dataset.cont;
+      const cList = allCountries(setupSelectedContinent);
+      setupSelectedCountry = cList[0] || 'Brasil';
+      const compList = (window.COMPETITIONS||[]).filter(c => c.continent === setupSelectedContinent && c.country === setupSelectedCountry && (eligibleClubNames(c)||[]).length >= 2);
+      setupSelectedCompId = compList[0]?.id || 'bra-a';
+      renderSetup($('#app'));
+    };
+  });
+
+  // Binds de País
+  const selCountry = $('#setupSelectCountry');
+  if(selCountry){
+    selCountry.onchange = () => {
+      setupSelectedCountry = selCountry.value;
+      const compList = (window.COMPETITIONS||[]).filter(c => c.continent === setupSelectedContinent && c.country === setupSelectedCountry && (eligibleClubNames(c)||[]).length >= 2);
+      setupSelectedCompId = compList[0]?.id || 'bra-a';
+      renderSetup($('#app'));
+    };
+  }
+
+  // Binds de Competição
+  const selComp = $('#setupSelectComp');
+  if(selComp){
+    selComp.onchange = () => {
+      setupSelectedCompId = selComp.value;
+      if(setupSelectedCompId.startsWith('bra-est-')) setupBrCategory = 'estaduais';
+      else if(setupSelectedCountry === 'Brasil') setupBrCategory = 'nacionais';
+      const tComp = compById(setupSelectedCompId);
+      const cNames = tComp ? eligibleClubNames(tComp) : [];
+      setupSelectedClubName = cNames[0] || 'Corinthians';
+      renderSetup($('#app'));
+    };
+  }
+
+  // Binds de Categoria no Brasil (Nacionais vs Estaduais)
+  const btnCatNac = $('#btnSetupCatNacionais');
+  if(btnCatNac){
+    btnCatNac.onclick = () => {
+      setupBrCategory = 'nacionais';
+      setupSelectedCompId = 'bra-a';
+      const tComp = compById(setupSelectedCompId);
+      const cNames = tComp ? eligibleClubNames(tComp) : [];
+      setupSelectedClubName = cNames[0] || 'Corinthians';
+      renderSetup($('#app'));
+    };
+  }
+
+  const btnCatEst = $('#btnSetupCatEstaduais');
+  if(btnCatEst){
+    btnCatEst.onclick = () => {
+      setupBrCategory = 'estaduais';
+      setupSelectedCompId = 'bra-est-df';
+      const tComp = compById(setupSelectedCompId);
+      const cNames = tComp ? eligibleClubNames(tComp) : [];
+      setupSelectedClubName = cNames[0] || 'Brasília';
+      renderSetup($('#app'));
+    };
+  }
+
+  $$('[data-comp-pill]').forEach(btn => {
+    btn.onclick = () => {
+      setupSelectedCompId = btn.dataset.compPill;
+      if(setupSelectedCompId.startsWith('bra-est-')) setupBrCategory = 'estaduais';
+      else setupBrCategory = 'nacionais';
+      const tComp = compById(setupSelectedCompId);
+      const cNames = tComp ? eligibleClubNames(tComp) : [];
+      setupSelectedClubName = cNames[0] || (setupSelectedCompId==='bra-est-df'?'Brasília':'Corinthians');
+      renderSetup($('#app'));
+    };
+  });
+
+  // Binds dos Cards dos Clubes
+  $$('.club-thumb-card').forEach(c => {
+    c.onclick = () => {
+      setupSelectedClubName = c.dataset.clubname;
+      const targetComp = getClubPrimaryCompetitionId(setupSelectedClubName, setupSelectedCompId);
+      if(targetComp){
+        setupSelectedCompId = targetComp;
+        const compObj = compById(targetComp);
+        if(compObj){
+          setupSelectedContinent = compObj.continent;
+          setupSelectedCountry = compObj.country;
+        }
+      }
+      renderSetup($('#app'));
+    };
+  });
+
+  // Binds de Início de Carreira
+  function triggerStartCareer(){
+    const mgrInput = $('#setupManagerName');
+    const curUser = getActiveAccount();
+    if(!curUser){
+      toast('Faça login primeiro.');
+      return;
+    }
+    const mgrName = mgrInput ? mgrInput.value.trim() : (curUser?.name || 'Aquino');
+    if(!setupSelectedClubName){
+      toast('Selecione um clube para iniciar.');
+      return;
+    }
+    const properCompId = getClubPrimaryCompetitionId(setupSelectedClubName, setupSelectedCompId) || setupSelectedCompId;
+    newCareer({
+      manager: mgrName || 'Aquino',
+      compId: properCompId,
+      clubName: setupSelectedClubName,
+      slot: setupSelectedSlot || 1
+    });
+  }
+
+  const btnStartShowcase = $('#btnStartCareerFromShowcase');
+  if(btnStartShowcase) btnStartShowcase.onclick = triggerStartCareer;
+
+  const btnStartWithSel = $('#btnStartNewCareerWithSelected');
+  if(btnStartWithSel) btnStartWithSel.onclick = triggerStartCareer;
+
+  // Binds dos 3 Slots de Saves do Usuário
+  $$('.btnContinueUserSlot').forEach(b => {
+    b.onclick = () => {
+      loadUserSlot(Number(b.dataset.slot));
+    };
+  });
+
+  $$('.btnDeleteUserSlot').forEach(b => {
+    b.onclick = () => {
+      deleteUserSlot(Number(b.dataset.slot));
+    };
+  });
+
+  $$('.btnSelectSlotForNew, .btnPickSlot').forEach(b => {
+    b.onclick = () => {
+      setupSelectedSlot = Number(b.dataset.slot);
+      toast(`Slot ${setupSelectedSlot} selecionado para a nova carreira!`);
+      renderSetup($('#app'));
+    };
+  });
+
+  // Binds de Autenticação
+  $$('.auth-tab-btn').forEach(b => {
+    b.onclick = () => {
+      setupAuthTab = b.dataset.atab;
+      renderSetup($('#app'));
+    };
+  });
+
+  const btnSubmitAuth = $('#btnSubmitAuth');
+  if(btnSubmitAuth){
+    btnSubmitAuth.onclick = () => {
+      const u = $('#inputAuthUser')?.value.trim();
+      const p = $('#inputAuthPass')?.value.trim();
+      if(!u || !p){ toast('Preencha usuário e senha.'); return; }
+      if(setupAuthTab === 'login'){
+        const res = loginUser(u, p);
+        if(!res.success) toast(res.error);
+        else {
+          toast(`Bem-vindo de volta, ${res.user.name}!`);
+          renderSetup($('#app'));
+        }
+      } else {
+        const n = $('#inputAuthName')?.value.trim() || u;
+        const res = registerUser(u, p, n);
+        if(!res.success) toast(res.error);
+        else {
+          toast(`Conta criada com sucesso! Bem-vindo, ${res.user.name}!`);
+          renderSetup($('#app'));
+        }
+      }
+    };
+  }
+
+  const btnToggleAuth = $('#btnToggleAuthPass');
+  if(btnToggleAuth){
+    btnToggleAuth.onclick = () => {
+      const passInp = $('#inputAuthPass');
+      if(passInp){
+        passInp.type = passInp.type === 'password' ? 'text' : 'password';
+        btnToggleAuth.textContent = passInp.type === 'password' ? '👁️' : '🙈';
+      }
+    };
+  }
+
+  const btnLogoutTop = $('#btnLogoutFromSetup');
+  if(btnLogoutTop) btnLogoutTop.onclick = logoutUser;
+
+  const btnLogoutCard = $('#btnLogoutUserCard');
+  if(btnLogoutCard) btnLogoutCard.onclick = logoutUser;
+
+  // Binds de Saves Legados (caso chamados)
+  $$('.btnLoadSaveSlot').forEach(b => {
+    b.onclick = () => {
+      loadUserSave(b.dataset.saveid);
+    };
+  });
+
+  $$('.btnDeleteSaveSlot').forEach(b => {
+    b.onclick = () => {
+      deleteUserSave(b.dataset.saveid);
+      renderSetup($('#app'));
+    };
+  });
+
+  // Binds do Painel Admin
+  const btnAdminTop = $('#btnOpenAdminPanelFromTop');
+  if(btnAdminTop) btnAdminTop.onclick = openAdminModal;
+
+  const btnAdminCard = $('#btnOpenAdminPanelFromCard');
+  if(btnAdminCard) btnAdminCard.onclick = openAdminModal;
+
+  // Busca rápida de clube
+  const searchClubInp = $('#setupSearchClub');
+  if(searchClubInp){
+    searchClubInp.oninput = () => {
+      setupClubSearchQuery = searchClubInp.value;
+      const targetComp = compById(setupSelectedCompId);
+      const eligibleClubs = targetComp ? eligibleClubNames(targetComp) : [];
+      let filtered = eligibleClubs.filter(c => !setupClubSearchQuery || norm(c).includes(norm(setupClubSearchQuery)));
+      if(setupClubSearchQuery.trim().length >= 2 && filtered.length === 0){
+        filtered = clubs.filter(c => norm(c.name).includes(norm(setupClubSearchQuery))).map(c => c.name);
+      }
+      const grid = $('.club-thumb-grid');
+      if(grid){
+        grid.innerHTML = filtered.map(cName => {
+          const clObj = clubByName(cName);
+          const isSel = (norm(cName) === norm(setupSelectedClubName));
+          const ovr = strength(clObj);
+          return `
+            <div class="club-thumb-card ${isSel ? 'active' : ''}" data-clubname="${esc(cName)}">
+              ${clubBadge(cName, 38)}
+              <div style="font-size:11px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%">
+                ${esc(cName)}
+              </div>
+              <div style="font-size:10px;font-weight:700;color:#facc15">
+                ⭐ ${ovr} OVR
+              </div>
+            </div>
+          `;
+        }).join('');
+        $$('.club-thumb-card').forEach(c => {
+          c.onclick = () => {
+            setupSelectedClubName = c.dataset.clubname;
+            const targetComp = getClubPrimaryCompetitionId(setupSelectedClubName, setupSelectedCompId);
+            if(targetComp){
+              setupSelectedCompId = targetComp;
+              const compObj = compById(targetComp);
+              if(compObj){
+                setupSelectedContinent = compObj.continent;
+                setupSelectedCountry = compObj.country;
+              }
+            }
+            renderSetup($('#app'));
+          };
+        });
+      }
+    };
+  }
+
+  // Revelar / ocultar senha
+  const togglePass = $('#btnToggleAuthPass');
+  if(togglePass){
+    togglePass.onclick = () => {
+      const pInp = $('#inputAuthPass');
+      if(pInp){
+        pInp.type = pInp.type === 'password' ? 'text' : 'password';
+      }
+    };
+  }
+
+  // Tecla Enter no formulário de autenticação
+  const inpUser = $('#inputAuthUser');
+  const inpPass = $('#inputAuthPass');
+  [inpUser, inpPass].forEach(inp => {
+    if(inp){
+      inp.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') $('#btnSubmitAuth')?.click();
+      });
+    }
+  });
+}
+
+// -------------------------------------------------------------
+// EVENT BINDINGS
+// -------------------------------------------------------------
+function bind(){
+
+  // Listeners de Notícias
+  if(view==='noticias'){
+    $$('.btn-news-channel').forEach(b => {
+      b.onclick = () => {
+        newsChannelFilter = b.dataset.channel;
+        render();
+      };
+    });
+  }
+
+  // Listeners de Central
+  if(view==='central'){
+    const bAvatar = $('#btnChangeManagerAvatar');
+    if(bAvatar){
+      bAvatar.onclick = () => {
+        currentManagerAvatarIdx = (currentManagerAvatarIdx + 1) % MANAGER_AVATARS.length;
+        render();
+      };
+    }
+    const bOpenStadCent = $('#btnOpenStadiumFromCentral');
+    if(bOpenStadCent) bOpenStadCent.onclick = () => openStadiumModal('summary');
+    const bOpenCaldCent = $('#btnOpenCaldeiraoCentral');
+    if(bOpenCaldCent) bOpenCaldCent.onclick = () => openStadiumModal('upgrades');
+
+    const bPrevCentral = $('#btnMatchPreviewCentral');
+    if(bPrevCentral){
+      bPrevCentral.onclick = () => {
+        const f = userFixture();
+        const opp = f ? (f[0]===state.club ? f[1] : f[0]) : (state.teams?.find(t => norm(t.name) !== norm(state.club))?.name || (norm(state.club)==='brasilia'?'Gama':'Brasília'));
+        openClubInfoModal(opp);
+      };
+    }
+    const bAccConcCent = $('#btnAcceptConcertCentral');
+    if(bAccConcCent) bAccConcCent.onclick = acceptEventConcert;
+    const bRejConcCent = $('#btnDismissConcertCentral');
+    if(bRejConcCent) bRejConcCent.onclick = rejectEventConcert;
+
+    const bAccRentCent = $('#btnAcceptRentalCentral');
+    if(bAccRentCent) bAccRentCent.onclick = acceptClubRental;
+    const bRejRentCent = $('#btnDismissRentalCentral');
+    if(bRejRentCent) bRejRentCent.onclick = rejectClubRental;
+
+    const bDecAcc = $('#btnAcceptDecision');
+    if(bDecAcc){
+      bDecAcc.onclick = () => {
+        toast('Sugestão da comissão técnica aprovada! Moral da equipe +5%');
+        bDecAcc.parentElement.parentElement.remove();
+      };
+    }
+    const bDecDis = $('#btnDismissDecision');
+    if(bDecDis){
+      bDecDis.onclick = () => {
+        toast('Decisão adiada.');
+        bDecDis.parentElement.parentElement.remove();
+      };
+    }
+  }
+
+  // Listeners de Estrutura
+  if(view==='estrutura'){
+    const bParkInt = $('#btnOpenParkingInteractive');
+    if(bParkInt) bParkInt.onclick = openParkingModal;
+    const bCardPark = $('#btnCardOpenParking');
+    if(bCardPark) bCardPark.onclick = openParkingModal;
+
+    const bStadInt = $('#btnOpenStadiumInteractive');
+    if(bStadInt) bStadInt.onclick = () => openStadiumModal('upgrades');
+    const bStoreInt = $('#btnOpenStoreInteractive');
+    if(bStoreInt) bStoreInt.onclick = openOfficialStoreModal;
+    const bTrainInt = $('#btnOpenTrainingInteractive');
+    if(bTrainInt) bTrainInt.onclick = openTrainingCenterModal;
+
+    const bCardStad = $('#btnCardOpenStadium');
+    if(bCardStad) bCardStad.onclick = () => openStadiumModal('upgrades');
+    const bCardStore = $('#btnCardOpenStore');
+    if(bCardStore) bCardStore.onclick = openOfficialStoreModal;
+    const bCardTrain = $('#btnCardOpenTraining');
+    if(bCardTrain) bCardTrain.onclick = openTrainingCenterModal;
+    $$('.btn-struct-tab').forEach(b => {
+      b.onclick = () => {
+        structureSubTab = b.dataset.structTab;
+        render();
+      };
+    });
+    $$('.btnBuildSide').forEach(b => {
+      b.onclick = () => {
+        buildStadiumSide(b.dataset.side, b.dataset.mode);
+      };
+    });
+    const btnArena = $('#btnStartNewArenaProject');
+    if(btnArena){
+      btnArena.onclick = () => {
+        const name = $('#selectArenaName')?.value || 'Arena Real';
+        const cap = +($('#selectArenaCap')?.value || 15000);
+        const financing = $('#selectArenaFinancing')?.value || 'cash';
+        startNewArenaProject(name, cap, financing);
+      };
+    }
+    const bBuyLand = $('#btnBuyArenaLandPage');
+    if(bBuyLand) bBuyLand.onclick = () => buyDirectArenaLand('cash');
+
+    const bFinLand = $('#btnFinanceArenaLandPage');
+    if(bFinLand) bFinLand.onclick = () => buyDirectArenaLand('finance');
+
+    const bBuyPermit = $('#btnBuyArenaPermitPage');
+    if(bBuyPermit) bBuyPermit.onclick = () => buyDirectArenaPermit('cash');
+
+    const bFinPermit = $('#btnFinanceArenaPermitPage');
+    if(bFinPermit) bFinPermit.onclick = () => buyDirectArenaPermit('finance');
+
+    const bBuyBoth = $('#btnBuyBothArenaReqsPage');
+    if(bBuyBoth) bBuyBoth.onclick = () => buyDirectArenaBoth();
+    $$('.btnUpgradeMuseum').forEach(b => {
+      b.onclick = upgradeMuseum;
+    });
+    const btnSkipMus = $('#btnSkipUpgradeMuseum');
+    if(btnSkipMus){
+      btnSkipMus.onclick = skipUpgradeMuseum;
+    }
+    $$('.btnBuyHouseItem').forEach(b => {
+      b.onclick = () => {
+        buyHouseItem(b.dataset.itemId);
+      };
+    });
+  }
+
+  // Listeners de Mercado
+  if(view==='mercado'){
+    $$('.btnSendScoutPlayer').forEach(b => {
+      b.onclick = () => sendScoutToPlayer(b.dataset.key);
+    });
+    const btnPromise = $('#btnOpenScoutPromiseModal');
+    if(btnPromise){
+      btnPromise.onclick = openScoutPromiseModal;
+    }
+  }
+
+  $$('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view;render()});
+
+  const qs=$('#quickSaveBtn'); if(qs) qs.onclick=()=>{save();toast('Jogo salvo com sucesso localmente!')};
+  
+  const topAdminInGame = $('#btnTopAdminPanelInGame');
+  if(topAdminInGame) topAdminInGame.onclick = openAdminModal;
+
+  const mm=$('#mainMenuBtn'); if(mm) mm.onclick=()=>{
+    openCustomModal(
+      'Sair para o Menu Principal',
+      '<p>Deseja sair para o Menu Inicial? Seu save atual permanecerá gravado na sua conta local.</p>',
+      ()=>{
+        save();
+        state=null;
+        render();
+        toast('Save guardado na sua conta. Até logo!');
+      },
+      'Sim, Salvar e Voltar',
+      true
+    );
+  };
+
+  if(view==='central'){
+    const pLive=$('#playMatchLive'); if(pLive) pLive.onclick=startLiveMatch;
+    const pQuick=$('#playMatchQuick'); if(pQuick) pQuick.onclick=simulateQuickRound;
+    const m=$('#mental'); if(m) m.onchange=()=>{state.mentality=m.value;save();toast('Mentalidade tática atualizada.')};
+    
+    const bPressCent = $('#btnOpenPressConferenceCentral');
+    if(bPressCent) bPressCent.onclick = openPressConferenceModal;
+
+    const bAdvPre = $('#btnAdvancePreSeasonDay');
+    if(bAdvPre) bAdvPre.onclick = advancePreSeasonDay;
+    const bMktPre = $('#btnGoToMercadoPreSeason');
+    if(bMktPre) bMktPre.onclick = () => { view = 'mercado'; render(); };
+    const bSkipPre = $('#btnSkipPreSeason');
+    if(bSkipPre) bSkipPre.onclick = skipPreSeason;
+  }
+
+  if(view==='meutime'){
+    const f=$('#formation');
+    if(f) f.onchange=()=>{
+      const sy = window.scrollY;
+      state.formation=f.value;
+      optimizeLineup();
+      save();
+      render();
+      window.scrollTo(0, sy);
+      toast('Formação alterada e XI ajustado.');
+    };
+    const a=$('#autoLineup');
+    if(a) a.onclick=()=>{
+      const sy = window.scrollY;
+      optimizeLineup();
+      save();
+      render();
+      window.scrollTo(0, sy);
+      toast('Melhor XI escalado automaticamente!');
+    };
+
+    const saveBtn = $('#btnSaveLineup');
+    if(saveBtn) saveBtn.onclick = () => { save(); toast('Escalação salva com sucesso!'); };
+    const aiBtn = $('#btnAILineup');
+    if(aiBtn) aiBtn.onclick = () => {
+      const sy = window.scrollY;
+      optimizeLineup();
+      save();
+      render();
+      window.scrollTo(0, sy);
+      toast('Melhor XI escalado pela IA!');
+    };
+
+    // Listeners de Bolas Paradas e Marcação
+    const selCap = $('#setPieceCaptain');
+    if(selCap) selCap.onchange = (e) => { state.setPieces = state.setPieces || {}; state.setPieces.captain = e.target.value; save(); toast('Capitão da equipe atualizado!'); };
+    const selPen = $('#setPiecePenalty');
+    if(selPen) selPen.onchange = (e) => { state.setPieces = state.setPieces || {}; state.setPieces.penalty = e.target.value; save(); toast('Cobrador oficial de pênalti definido!'); };
+    const selFk = $('#setPieceFreekick');
+    if(selFk) selFk.onchange = (e) => { state.setPieces = state.setPieces || {}; state.setPieces.freekick = e.target.value; save(); toast('Cobrador de faltas diretas definido!'); };
+    const selCor = $('#setPieceCorner');
+    if(selCor) selCor.onchange = (e) => { state.setPieces = state.setPieces || {}; state.setPieces.corner = e.target.value; save(); toast('Cobrador de escanteios definido!'); };
+
+    $$('.btn-marking-intensity').forEach(b => {
+      b.onclick = () => {
+        state.markingIntensity = b.dataset.intensity;
+        save();
+        render();
+        toast('Intensidade de marcação: ' + b.dataset.intensity.toUpperCase());
+      };
+    });
+
+    setupPitchDragAndDrop();
+  }
+
+  if(view==='elenco'){
+    $$('[data-squad-filter]').forEach(b=>b.onclick=()=>{
+      squadFilter = b.dataset.squadFilter;
+      render();
+    });
+    const sdb = $('#btnSearchAllDb');
+    if(sdb) sdb.onclick = showGlobalDatabaseModal;
+    const yBtn = $('#btnOpenYouthFromSquad');
+    if(yBtn) yBtn.onclick = openYouthAcademyModal;
+
+    const btnSal = $('#btnGoToSalariesView');
+    if(btnSal) btnSal.onclick = () => { squadViewMode = 'salaries'; render(); };
+    const btnRos1 = $('#btnToggleSquadView');
+    if(btnRos1) btnRos1.onclick = () => { squadViewMode = 'roster'; render(); };
+    const btnRos2 = $('#btnToggleSquadViewLink');
+    if(btnRos2) btnRos2.onclick = () => { squadViewMode = 'roster'; render(); };
+
+    $$('.salary-sort-btn').forEach(b => {
+      b.onclick = () => { salarySort = b.dataset.sort; render(); };
+    });
+
+    $$('.salary-item-clickable').forEach(el => {
+      el.onclick = () => { openPlayerContractRenewalModal(el.dataset.playerKey); };
+    });
+  }
+
+  if(view==='mercado'){
+    $$('[data-market-tab]').forEach(b=>b.onclick=()=>{marketTab=b.dataset.marketTab;render()});
+    if(marketTab==='buy'){
+      bindMarketFilters();
+      ['marketQ','marketPos','marketMin','onlyAffordable'].forEach(id=>{
+        const e=$('#'+id); if(e){e.oninput=renderMarketBuy;e.onchange=renderMarketBuy}
+      });
+    } else if(marketTab==='loan'){
+      $$('.btn-loan-sub').forEach(b => b.onclick = () => { loanSubTab = b.dataset.loanSub; render(); });
+      if(loanSubTab === 'borrow'){
+        bindLoanFilters();
+        ['loanQ','loanPos','loanMin','onlyAffordableLoan','selectLoanOrder'].forEach(id=>{
+          const e=$('#'+id); if(e){ e.oninput=renderMarketLoans; e.onchange=renderMarketLoans; }
+        });
+        $$('.btn-loan-pos-pill').forEach(b => b.onclick = () => {
+          loanPosFilter = b.dataset.pos;
+          const posSel = $('#loanPos');
+          if(posSel) posSel.value = (loanPosFilter === 'TODAS' || loanPosFilter === 'ALL') ? '' : loanPosFilter;
+          renderMarketLoans();
+        });
+        renderMarketLoans();
+      } else if(loanSubTab === 'lend'){
+        renderMarketLend();
+      } else {
+        renderMarketMyLoans();
+      }
+    } else if(marketTab==='sell'){
+      $$('.btn-sell-filter').forEach(b => b.onclick = () => { sellFilterType = b.dataset.filter; renderMarketSell(); });
+      const sortSel = $('#selectSellSort'); if(sortSel) sortSel.onchange = () => { sellSortType = sortSel.value; renderMarketSell(); };
+      renderMarketSell();
+    } else {
+      renderMarketScout();
+    }
+  }
+
+  if(view==='calendario'){
+    $$('[data-cal-filter]').forEach(b=>b.onclick=()=>{calendarFilter=b.dataset.calFilter;render()});
+    const playBtn=$('.btnCalPlayNow');
+    if(playBtn) playBtn.onclick=startLiveMatch;
+  }
+
+  if(view==='estrutura'){
+    $$('.upgrade').forEach(b=>b.onclick=()=>upgradeFacility(b.dataset.facility));
+    $$('.btnOpenAcademy').forEach(b=>b.onclick=openYouthAcademyModal);
+    $$('.btnOpenMarketing').forEach(b=>b.onclick=openMarketingModal);
+    const r=$('#ticketPrice');
+    const p=$('#parkingPrice');
+
+    function updateLiveDashboard(){
+      if(r) state.ticketPrice=clamp(+r.value,5,300);
+      if(p) state.parkingPrice=clamp(+p.value,10,80);
+      const f=userFixture(), opp=f&&f[0]===state.club?f[1]:null;
+      const proj = attendanceProjection(opp || 'Adversário');
+
+      const tLabel=$('#ticketPriceLabel'); if(tLabel) tLabel.textContent=fmtMoney(state.ticketPrice);
+      const pLabel=$('#parkingPriceLabel'); if(pLabel) pLabel.textContent=fmtMoney(state.parkingPrice||25);
+      const recLabel=$('#recPriceLabel'); if(recLabel) recLabel.textContent=fmtMoney(proj.rec);
+      const verLabel=$('#priceVerdictLabel'); if(verLabel){ verLabel.textContent=proj.priceVerdict; verLabel.style.color=proj.priceColor; }
+      const ratioMeter=$('#priceRatioMeter'); if(ratioMeter){ ratioMeter.style.width=clamp(proj.priceRatio*50,10,100)+'%'; ratioMeter.style.background=proj.priceColor; }
+
+      const attEl=$('#dashAttendance'); if(attEl) attEl.textContent=proj.attendance.toLocaleString('pt-BR');
+      const occEl=$('#dashOccRate'); if(occEl) occEl.textContent=Math.round(proj.rate*100)+'%';
+      const occBar=$('#dashOccBar'); if(occBar) occBar.style.width=Math.round(proj.rate*100)+'%';
+      const tickRevEl=$('#dashTicketRev'); if(tickRevEl) tickRevEl.textContent=fmtMoney(proj.revenue);
+      const parkRevEl=$('#dashParkRev'); if(parkRevEl) parkRevEl.textContent=fmtMoney(proj.parkRevenue);
+      const parkBar=$('#dashParkBar'); if(parkBar) parkBar.style.width=(proj.parkSpots>0?Math.round(proj.parkRate*100):0)+'%';
+      const totalRevEl=$('#dashTotalRev'); if(totalRevEl) totalRevEl.textContent=fmtMoney(proj.totalRevenue);
+      const subTick=$('#dashSubTick'); if(subTick) subTick.textContent=fmtMoney(proj.revenue);
+      const subPark=$('#dashSubPark'); if(subPark) subPark.textContent=fmtMoney(proj.parkRevenue);
+      const subStore=$('#dashSubStore'); if(subStore) subStore.textContent=fmtMoney(proj.storeShop);
+    }
+
+    if(r){
+      r.oninput=updateLiveDashboard;
+      r.onchange=()=>{ save(); };
+    }
+    if(p){
+      p.oninput=updateLiveDashboard;
+      p.onchange=()=>{ save(); };
+    }
+    updateLiveDashboard();
+  }
+
+  if(view==='escritorio'){
+    const mktOfficeBtn = $('#btnOpenMarketingFromOffice');
+    if(mktOfficeBtn) mktOfficeBtn.onclick = openMarketingModal;
+    $$('.btnSignSponsor').forEach(b=>{
+      b.onclick=()=>{
+        signSponsorOffer(+b.dataset.offerIndex);
+      };
+    });
+
+    const btnReqMgr = $('#btnRequestManagerRenewal');
+    if(btnReqMgr) btnReqMgr.onclick = openManagerContractRenewalModal;
+    const btnExtrato = $('#btnOpenManagerExtrato');
+    if(btnExtrato) btnExtrato.onclick = openManagerHistoryModal;
+
+    $$('.socio-plan-card').forEach(b => {
+      b.onclick = () => {
+        state.socioTorcedor = state.socioTorcedor || {};
+        state.socioTorcedor.plan = b.dataset.plan;
+        save();
+        render();
+        toast(`Plano de Sócio-Torcedor alterado para ${b.dataset.plan.toUpperCase()}!`);
+      };
+    });
+  }
+
+  if(view==='temporada'){
+    $$('[data-season-tab]').forEach(b=>b.onclick=()=>{seasonTab=b.dataset.seasonTab;render()});
+    $$('[data-continental-tab]').forEach(b=>b.onclick=()=>{continentalTab=b.dataset.continentalTab;render()});
+
+    $$('.btn-copa-phase').forEach(b => {
+      b.onclick = () => {
+        copaCurrentPhase = b.dataset.copaPhase;
+        render();
+      };
+    });
+
+    const searchCopa = $('#inputSearchCopaTeam');
+    if(searchCopa){
+      searchCopa.oninput = () => {
+        copaSearchFilter = searchCopa.value;
+        render();
+      };
+    }
+
+    const selEst = $('#selectEstadualComp');
+    if(selEst){
+      selEst.onchange = () => {
+        selectedEstadualId = selEst.value;
+        render();
+      };
+    }
+
+    $$('.btn-stat-tab').forEach(b => {
+      b.onclick = () => {
+        statsTab = b.dataset.statsTab;
+        render();
+      };
+    });
+
+    $$('.clickable-club-name').forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        openClubInfoModal(el.dataset.club);
+      };
+    });
+
+    $$('.clickable-fixture').forEach(el => {
+      el.onclick = () => {
+        const home = el.dataset.home;
+        const away = el.dataset.away;
+        openCustomModal(
+          `Prévia do Confronto: ${home} x ${away}`,
+          `
+            <div style="display:flex;justify-content:space-around;align-items:center;padding:20px 0;background:rgba(255,255,255,0.03);border-radius:12px">
+              <div style="text-align:center">
+                ${clubBadge(home, 56)}
+                <h3 style="margin:8px 0 0 0;font-size:16px">${esc(home)}</h3>
+                <div class="small muted">Força Geral: ${strength(clubByName(home))}</div>
+              </div>
+              <div style="font-size:24px;font-weight:900;color:var(--neon)">VS</div>
+              <div style="text-align:center">
+                ${clubBadge(away, 56)}
+                <h3 style="margin:8px 0 0 0;font-size:16px">${esc(away)}</h3>
+                <div class="small muted">Força Geral: ${strength(clubByName(away))}</div>
+              </div>
+            </div>
+            <div style="margin-top:16px;text-align:center;font-size:13px;color:rgba(255,255,255,0.7)">
+              Partida válida pelo Campeonato Estadual 2026.
+            </div>
+          `,
+          null,
+          'Fechar',
+          false
+        );
+      };
+    });
+  }
+
+  if(view==='config'){
+    $$('[data-config-tab]').forEach(b=>b.onclick=()=>{configTab=b.dataset.configTab;render()});
+    const exp1=$('#btnExportJson'); if(exp1) exp1.onclick=exportSave;
+    const exp2=$('#btnExportJson2'); if(exp2) exp2.onclick=exportSave;
+    const manSave=$('#btnSaveNowManual'); if(manSave) manSave.onclick=()=>{save();toast('Save manual realizado!')};
+    const imp=$('#importSaveInput'); if(imp) imp.onchange=importSave;
+    const rst=$('#btnResetCareer'); if(rst) rst.onclick=()=>{
+      openCustomModal(
+        'Apagar Save Local',
+        '<p>Tem certeza absoluta que deseja apagar o save desta carreira e começar uma nova do zero?</p>',
+        ()=>{
+          localStorage.removeItem(STORAGE);
+          state=null;
+          render();
+        },
+        'Sim, Apagar Tudo',
+        true
+      );
+    };
+    const spd=$('#selSimSpeed'); if(spd) spd.onchange=()=>{state.simSpeed=spd.value;save();toast('Preferência de velocidade salva!')};
+    const chkFree=$('#chkFreeTransfers'); if(chkFree) chkFree.onchange=()=>{state.freeTransferWindow=chkFree.checked;save();toast('Configuração de transferências atualizada!')};
+  }
+}
+
+// -------------------------------------------------------------
+// DRAG AND DROP COM REALCE VERDE/AMARELO
+// -------------------------------------------------------------
+function setupPitchDragAndDrop(){
+  let draggedKey = null;
+  let draggedPlayerPos = null;
+  let selectedClickKey = null;
+
+  function highlightCompatibleSlots(pos){
+    if(!pos) return;
+    $$('.lineup-slot').forEach(slot=>{
+      const slotRole = slot.dataset.slotRole;
+      const fit = getPositionFit(pos, slotRole);
+      if(fit === 'best'){
+        slot.classList.add('slot-best-fit');
+      } else if(fit === 'ok'){
+        slot.classList.add('slot-ok-fit');
+      } else {
+        slot.classList.add('slot-bad-fit');
+      }
+    });
+  }
+
+  function clearSlotHighlights(){
+    $$('.lineup-slot').forEach(slot=>{
+      slot.classList.remove('slot-best-fit', 'slot-ok-fit', 'slot-bad-fit', 'drag-over');
+    });
+  }
+
+  // Reservas do banco (Drag & Drop + Clique para Selecionar)
+  $$('.bench-player').forEach(item=>{
+    item.addEventListener('dragstart', (e)=>{
+      draggedKey = item.dataset.playerKey;
+      draggedPlayerPos = item.dataset.playerPos;
+      item.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', draggedKey);
+      highlightCompatibleSlots(draggedPlayerPos);
+    });
+    item.addEventListener('dragend', ()=>{
+      item.classList.remove('dragging');
+      clearSlotHighlights();
+    });
+
+    item.addEventListener('click', ()=>{
+      const key = item.dataset.playerKey;
+      const pos = item.dataset.playerPos;
+      if(selectedClickKey === key){
+        selectedClickKey = null;
+        clearSlotHighlights();
+        $$('.bench-player').forEach(b=>b.style.borderColor='var(--line)');
+      } else {
+        selectedClickKey = key;
+        $$('.bench-player').forEach(b=>b.style.borderColor='var(--line)');
+        item.style.borderColor = 'var(--neon)';
+        clearSlotHighlights();
+        highlightCompatibleSlots(pos);
+      }
+    });
+  });
+
+  // Titulares no campo (Drag & Drop + Clique para Troca)
+  $$('.lineup-slot').forEach(slot=>{
+    slot.addEventListener('dragstart', (e)=>{
+      draggedKey = slot.dataset.playerKey;
+      const p = state.squad.find(q=>playerKey(q)===draggedKey);
+      draggedPlayerPos = p?.pos || slot.dataset.slotRole;
+      slot.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', draggedKey);
+      highlightCompatibleSlots(draggedPlayerPos);
+    });
+    slot.addEventListener('dragend', ()=>{
+      slot.classList.remove('dragging');
+      clearSlotHighlights();
+    });
+
+    slot.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      slot.classList.add('drag-over');
+    });
+
+    slot.addEventListener('dragleave', ()=>{
+      slot.classList.remove('drag-over');
+    });
+
+    slot.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      clearSlotHighlights();
+      const targetSlotIndex = +slot.dataset.slotIndex;
+      const sourceKey = e.dataTransfer.getData('text/plain') || draggedKey;
+      if(!sourceKey) return;
+
+      const currentKeyInSlot = state.lineup[targetSlotIndex];
+      const sourceSlotIndex = state.lineup.indexOf(sourceKey);
+
+      if(sourceSlotIndex >= 0){
+        state.lineup[targetSlotIndex] = sourceKey;
+        state.lineup[sourceSlotIndex] = currentKeyInSlot;
+      } else {
+        state.lineup[targetSlotIndex] = sourceKey;
+      }
+
+      save();
+      render();
+      toast('Escalação atualizada com sucesso!');
+    });
+
+    slot.addEventListener('click', (e)=>{
+      if(e.target.tagName === 'SELECT') return;
+      if(selectedClickKey){
+        const targetSlotIndex = +slot.dataset.slotIndex;
+        const sourceSlotIndex = state.lineup.indexOf(selectedClickKey);
+        const currentKeyInSlot = state.lineup[targetSlotIndex];
+
+        if(sourceSlotIndex >= 0){
+          state.lineup[targetSlotIndex] = selectedClickKey;
+          state.lineup[sourceSlotIndex] = currentKeyInSlot;
+        } else {
+          state.lineup[targetSlotIndex] = selectedClickKey;
+        }
+
+        selectedClickKey = null;
+        clearSlotHighlights();
+        save();
+        render();
+        toast('Escalação atualizada com sucesso!');
+      } else {
+        const pk = slot.dataset.playerKey;
+        if(pk){
+          selectedClickKey = pk;
+          const p = state.squad.find(q=>playerKey(q)===pk);
+          clearSlotHighlights();
+          highlightCompatibleSlots(p?.pos || slot.dataset.slotRole);
+        }
+      }
+    });
+  });
+}
+
+// -------------------------------------------------------------
+// MODAL GLOBAL DE CONSULTA DE JOGADORES DO BANCO
+// -------------------------------------------------------------
+function showGlobalDatabaseModal(){
+  openCustomModal(
+    '🔍 Consulta Global de Jogadores no Banco',
+    `
+      <div class="filters">
+        <input id="dbSearchInput" placeholder="Digite o nome do jogador ou clube..." style="flex:1">
+      </div>
+      <div class="tablewrap" id="dbSearchResults" style="max-height:460px;margin-top:10px"></div>
+    `,
+    null,
+    'Fechar',
+    false
+  );
+
+  function renderSearch(){
+    const q = norm($('#dbSearchInput')?.value || '');
+    const pool = livePlayers.length > 0 ? livePlayers : (state.worldGenerated || []);
+    const filtered = pool.filter(p => !q || norm(p.name + ' ' + p.club).includes(q)).slice(0, 80);
+    const box = $('#dbSearchResults');
+    if(!box) return;
+    box.innerHTML = `
+      <table>
+        <thead><tr><th>Jogador</th><th>Clube</th><th>Pos</th><th>Overall</th><th>Idade</th></tr></thead>
+        <tbody>
+          ${filtered.map(p => `
+            <tr>
+              <td><b>${esc(p.name)}</b></td>
+              <td><div class="club-cell">${clubBadge(p.club, 18)} ${esc(p.club||'-')}</div></td>
+              <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+              <td><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+              <td>${p.age||'-'} anos</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  $('#dbSearchInput').oninput = renderSearch;
+  renderSearch();
+}
+
+function exportSave(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`AFM-save-${state.club.replace(/[^a-z0-9]+/gi,'_')}-${state.season}.json`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+
+function importSave(ev){
+  const f=ev.target.files?.[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const x=JSON.parse(r.result);
+      if(!x.club||!x.teams) throw Error();
+      state=migrate(x);
+      save();
+      view='central';
+      render();
+      toast('Save importado com sucesso!');
+    }catch{
+      alert('Arquivo de save inválido.');
+    }
+  };
+  r.readAsText(f);
+}
+
+render();
+})();

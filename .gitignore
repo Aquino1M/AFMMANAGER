@@ -1,0 +1,21 @@
+# Dependency and build
+node_modules/
+.vercel/
+
+# Large backup archives
+BR11.zip
+*.zip
+*.tar.gz
+
+# Development scratchpad & temporary scripts
+scratch/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment & local logs
+.env
+.env.local
+*.log

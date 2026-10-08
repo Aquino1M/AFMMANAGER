@@ -1,0 +1,39 @@
+NOVIDADES v0.2
+
+1. ESCOLHA DE CLUBE POR COMPETIÇÃO
+- O clube agora é filtrado pela competição selecionada.
+- Séries A, B, C e D de 2026 possuem listas próprias.
+- A Série D usa 96 clubes e não mistura clubes da Série A.
+- Candangão 2026 possui lista própria com 10 clubes.
+- Principais ligas de Europa e Ásia também possuem listas próprias.
+
+2. MERCADO
+- Comprar: busca jogadores dos demais clubes.
+- Vender: mostra comprador e oferta para cada atleta do seu elenco.
+- O mercado usa jogadores reais do banco carregado e completa clubes sem elenco suficiente com jogadores gerados.
+
+3. MEU TIME
+- Campo tático visual.
+- Formações: 4-3-3, 4-2-3-1, 4-4-2, 3-5-2 e 5-3-2.
+- Troca de jogador por posição.
+- Botão Melhor XI.
+- Força separada em ataque, meio, defesa e geral.
+
+4. ESTRUTURA
+- Estádio
+- Centro de treinamento
+- Categorias de base
+- Departamento médico
+- Sede administrativa
+- Loja oficial
+- Museu do clube
+- Sala de imprensa
+Cada área possui níveis, custo e efeitos na carreira.
+
+5. INGRESSOS E TORCIDA
+- O técnico define o preço do ingresso.
+- Existe preço recomendado conforme nível do clube.
+- Preço alto reduz a procura e pode baixar a alegria da torcida.
+- Preço competitivo aumenta ocupação.
+- A bilheteria passa a usar público real x preço do ingresso.
+- Evoluir o estádio aumenta a capacidade máxima.

@@ -1,0 +1,226 @@
+window.COMPETITIONS = [
+  {id:'bra-a',continent:'América do Sul',country:'Brasil',name:'Campeonato Brasileiro Série A',type:'league',teams:20,rounds:38,promote:0,relegate:4,continentalSlots:8,rule:'Pontos corridos, turno e returno. 20 clubes. 4 rebaixados.'},
+  {id:'bra-b',continent:'América do Sul',country:'Brasil',name:'Campeonato Brasileiro Série B',type:'league',teams:20,rounds:38,promote:4,relegate:4,rule:'Pontos corridos, turno e returno. 4 sobem e 4 descem.'},
+  {id:'bra-c',continent:'América do Sul',country:'Brasil',name:'Campeonato Brasileiro Série C',type:'league-groups',teams:20,rounds:19,promote:4,relegate:4,rule:'Primeira fase em pontos corridos; fase decisiva define acesso e título.'},
+  {id:'bra-d',continent:'América do Sul',country:'Brasil',name:'Campeonato Brasileiro Série D',type:'groups-knockout',teams:96,rounds:10,groupSize:6,qualify:4,promote:6,rule:'2026: 96 clubes em 16 grupos de 6, turno e returno. Os 4 melhores de cada grupo avançam; mata-matas em ida e volta e playoffs definem 6 acessos à Série C.'},
+  {id:'bra-cup',continent:'América do Sul',country:'Brasil',name:'Copa do Brasil',type:'knockout',teams:92,rule:'Mata-mata nacional com fases de entrada distintas conforme classificação.'},
+  {id:'arg-1',continent:'América do Sul',country:'Argentina',name:'Liga Profesional Argentina',type:'league',teams:30,rounds:29,relegate:2,rule:'Liga nacional em pontos corridos com classificação continental e rebaixamento.'},
+  {id:'uru-1',continent:'América do Sul',country:'Uruguai',name:'Primera División Uruguaya',type:'league-split',teams:16,rule:'Apertura/Intermedio/Clausura, tabela anual e definição de campeão.'},
+  {id:'chi-1',continent:'América do Sul',country:'Chile',name:'Primera División de Chile',type:'league',teams:16,rounds:30,relegate:2,rule:'Pontos corridos em turno e returno.'},
+  {id:'col-1',continent:'América do Sul',country:'Colômbia',name:'Categoría Primera A',type:'league-playoff',teams:20,rule:'Fase todos contra todos seguida por quadrangulares/fase final.'},
+  {id:'par-1',continent:'América do Sul',country:'Paraguai',name:'Primera División Paraguaya',type:'apertura-clausura',teams:12,rule:'Torneios Apertura e Clausura.'},
+  {id:'ecu-1',continent:'América do Sul',country:'Equador',name:'LigaPro Serie A',type:'league-playoff',teams:16,rule:'Temporada de liga com fase decisiva conforme regulamento vigente.'},
+  {id:'per-1',continent:'América do Sul',country:'Peru',name:'Liga 1',type:'apertura-clausura',teams:18,rule:'Apertura e Clausura com tabela acumulada.'},
+  {id:'bol-1',continent:'América do Sul',country:'Bolívia',name:'División Profesional',type:'league',teams:16,rule:'Liga nacional com classificação continental.'},
+  {id:'ven-1',continent:'América do Sul',country:'Venezuela',name:'Liga FUTVE',type:'league-playoff',teams:14,rule:'Fase regular e fase final.'},
+  {id:'lib',continent:'América do Sul',country:'CONMEBOL',name:'Copa Libertadores',type:'continental-groups',teams:32,rule:'8 grupos de 4. Dois primeiros avançam ao mata-mata; classificação continental.'},
+  {id:'sud',continent:'América do Sul',country:'CONMEBOL',name:'Copa Sul-Americana',type:'continental-groups',teams:32,rule:'8 grupos de 4. Líderes avançam; segundos disputam playoff de acesso às oitavas.'},
+
+  {id:'eng-1',continent:'Europa',country:'Inglaterra',name:'Premier League',type:'league',teams:20,rounds:38,relegate:3,rule:'20 clubes, turno e returno. 3 rebaixados.'},
+  {id:'eng-2',continent:'Europa',country:'Inglaterra',name:'EFL Championship',type:'league-playoff',teams:24,rounds:46,promote:3,relegate:3,rule:'24 clubes. 2 sobem direto; 3º ao 6º disputam playoff.'},
+  {id:'esp-1',continent:'Europa',country:'Espanha',name:'LaLiga',type:'league',teams:20,rounds:38,relegate:3,rule:'20 clubes, turno e returno. 3 rebaixados.'},
+  {id:'esp-2',continent:'Europa',country:'Espanha',name:'LaLiga Hypermotion',type:'league-playoff',teams:22,rounds:42,promote:3,relegate:4,rule:'2 sobem direto e vagas restantes por playoff.'},
+  {id:'ita-1',continent:'Europa',country:'Itália',name:'Serie A',type:'league',teams:20,rounds:38,relegate:3,rule:'20 clubes, turno e returno.'},
+  {id:'ger-1',continent:'Europa',country:'Alemanha',name:'Bundesliga',type:'league',teams:18,rounds:34,relegate:2,rule:'18 clubes. 2 rebaixados diretos e playoff de permanência.'},
+  {id:'fra-1',continent:'Europa',country:'França',name:'Ligue 1',type:'league',teams:18,rounds:34,relegate:2,rule:'18 clubes. Rebaixamento e playoff conforme posição final.'},
+  {id:'por-1',continent:'Europa',country:'Portugal',name:'Primeira Liga',type:'league',teams:18,rounds:34,relegate:2,rule:'18 clubes, turno e returno.'},
+  {id:'ned-1',continent:'Europa',country:'Países Baixos',name:'Eredivisie',type:'league-playoff',teams:18,rounds:34,relegate:2,rule:'18 clubes com playoffs europeus/rebaixamento.'},
+  {id:'bel-1',continent:'Europa',country:'Bélgica',name:'Belgian Pro League',type:'league-playoff',teams:16,rule:'Fase regular seguida por playoffs de campeonato/europa/rebaixamento.'},
+  {id:'tur-1',continent:'Europa',country:'Turquia',name:'Süper Lig',type:'league',teams:18,rule:'Liga em pontos corridos.'},
+  {id:'sco-1',continent:'Europa',country:'Escócia',name:'Scottish Premiership',type:'league-split',teams:12,rounds:38,rule:'Após 33 rodadas, liga divide em top 6 e bottom 6.'},
+  {id:'aut-1',continent:'Europa',country:'Áustria',name:'Austrian Bundesliga',type:'league-split',teams:12,rule:'Liga regular e grupos de campeonato/rebaixamento.'},
+  {id:'sui-1',continent:'Europa',country:'Suíça',name:'Swiss Super League',type:'league-split',teams:12,rule:'Liga regular e divisão em grupos finais.'},
+  {id:'gre-1',continent:'Europa',country:'Grécia',name:'Super League Greece',type:'league-playoff',teams:14,rule:'Fase regular e playoffs/playouts.'},
+  {id:'cro-1',continent:'Europa',country:'Croácia',name:'HNL',type:'league',teams:10,rounds:36,rule:'10 clubes, quatro turnos.'},
+  {id:'ser-1',continent:'Europa',country:'Sérvia',name:'Serbian SuperLiga',type:'league-split',teams:16,rule:'Fase regular e divisão em grupos.'},
+  {id:'cze-1',continent:'Europa',country:'Tchéquia',name:'Czech First League',type:'league-split',teams:16,rule:'Fase regular e grupos finais.'},
+  {id:'den-1',continent:'Europa',country:'Dinamarca',name:'Danish Superliga',type:'league-split',teams:12,rule:'Fase regular e grupos de campeonato/rebaixamento.'},
+  {id:'nor-1',continent:'Europa',country:'Noruega',name:'Eliteserien',type:'league',teams:16,rounds:30,rule:'16 clubes em turno e returno.'},
+  {id:'swe-1',continent:'Europa',country:'Suécia',name:'Allsvenskan',type:'league',teams:16,rounds:30,rule:'16 clubes em turno e returno.'},
+  {id:'ucl',continent:'Europa',country:'UEFA',name:'UEFA Champions League',type:'league-phase',teams:36,rounds:8,rule:'Fase de liga com 36 clubes e 8 jogos por equipe; top 8 vai às oitavas, 9º-24º ao playoff.'},
+  {id:'uel',continent:'Europa',country:'UEFA',name:'UEFA Europa League',type:'league-phase',teams:36,rounds:8,rule:'Fase de liga com 36 clubes e 8 jogos; mata-mata após playoff.'},
+  {id:'uecl',continent:'Europa',country:'UEFA',name:'UEFA Conference League',type:'league-phase',teams:36,rounds:6,rule:'Fase de liga com 36 clubes e 6 jogos; mata-mata após playoff.'},
+
+  {id:'ksa-1',continent:'Ásia',country:'Arábia Saudita',name:'Saudi Pro League',type:'league',teams:18,rounds:34,relegate:3,rule:'18 clubes, turno e returno.'},
+  {id:'jpn-1',continent:'Ásia',country:'Japão',name:'J1 League',type:'league',teams:20,rounds:38,relegate:3,rule:'20 clubes, turno e returno.'},
+  {id:'kor-1',continent:'Ásia',country:'Coreia do Sul',name:'K League 1',type:'league-split',teams:12,rule:'Fase regular seguida por split em grupo de título e grupo de rebaixamento.'},
+  {id:'chn-1',continent:'Ásia',country:'China',name:'Chinese Super League',type:'league',teams:16,rounds:30,relegate:2,rule:'16 clubes, turno e returno.'},
+  {id:'qat-1',continent:'Ásia',country:'Catar',name:'Qatar Stars League',type:'league',teams:12,rounds:22,rule:'12 clubes, turno e returno.'},
+  {id:'uae-1',continent:'Ásia',country:'Emirados Árabes Unidos',name:'UAE Pro League',type:'league',teams:14,rounds:26,rule:'14 clubes, turno e returno.'},
+  {id:'irn-1',continent:'Ásia',country:'Irã',name:'Persian Gulf Pro League',type:'league',teams:16,rounds:30,rule:'16 clubes, turno e returno.'},
+  {id:'ind-1',continent:'Ásia',country:'Índia',name:'Indian Super League',type:'league-playoff',teams:14,rule:'Fase de liga e playoffs.'},
+  {id:'tha-1',continent:'Ásia',country:'Tailândia',name:'Thai League 1',type:'league',teams:16,rounds:30,rule:'16 clubes, turno e returno.'},
+  {id:'aus-1',continent:'Ásia',country:'Austrália',name:'A-League Men',type:'league-playoff',teams:14,rule:'Temporada regular seguida por finals series.'},
+  {id:'afc-el',continent:'Ásia',country:'AFC',name:'AFC Champions League Elite',type:'continental-league',teams:24,rounds:8,rule:'Fases de liga regionais Leste/Oeste; 8 jogos por clube e mata-mata continental.'},
+  {id:'afc2',continent:'Ásia',country:'AFC',name:'AFC Champions League Two',type:'continental-groups',teams:32,rule:'Fase de grupos regionalizada seguida por mata-mata.'}
+];
+
+// Competições adicionais separadas por regulamento. O motor usa o tipo de cada uma para montar a fase inicial.
+window.COMPETITIONS.push(
+  {id:'eng-fa',continent:'Europa',country:'Inglaterra',name:'FA Cup',type:'knockout',teams:64,rule:'Mata-mata em jogo único; fases preliminares e entradas progressivas dos clubes profissionais.'},
+  {id:'eng-efl',continent:'Europa',country:'Inglaterra',name:'EFL Cup',type:'knockout',teams:64,rule:'Mata-mata entre clubes das divisões profissionais inglesas.'},
+  {id:'esp-cup',continent:'Europa',country:'Espanha',name:'Copa del Rey',type:'knockout',teams:64,rule:'Mata-mata nacional, predominantemente em jogo único até as fases finais.'},
+  {id:'ita-cup',continent:'Europa',country:'Itália',name:'Coppa Italia',type:'knockout',teams:44,rule:'Mata-mata nacional com entradas por fase conforme ranking/divisão.'},
+  {id:'ger-cup',continent:'Europa',country:'Alemanha',name:'DFB-Pokal',type:'knockout',teams:64,rule:'64 clubes em mata-mata de jogo único.'},
+  {id:'fra-cup',continent:'Europa',country:'França',name:'Coupe de France',type:'knockout',teams:64,rule:'Mata-mata nacional com entrada progressiva das divisões profissionais.'},
+  {id:'por-cup',continent:'Europa',country:'Portugal',name:'Taça de Portugal',type:'knockout',teams:64,rule:'Mata-mata nacional com clubes profissionais e não profissionais.'},
+  {id:'ned-cup',continent:'Europa',country:'Países Baixos',name:'KNVB Cup',type:'knockout',teams:64,rule:'Mata-mata nacional em jogo único.'},
+  {id:'tur-cup',continent:'Europa',country:'Turquia',name:'Türkiye Kupası',type:'groups-knockout',teams:24,rule:'Fase inicial conforme regulamento da temporada e mata-mata decisivo.'},
+  {id:'jpn-cup',continent:'Ásia',country:'Japão',name:'Emperor’s Cup',type:'knockout',teams:64,rule:'Copa nacional em mata-mata.'},
+  {id:'jpn-leaguecup',continent:'Ásia',country:'Japão',name:'J.League Cup',type:'groups-knockout',teams:20,rule:'Competição de copa da liga com fases preliminares/grupos e mata-mata.'},
+  {id:'kor-cup',continent:'Ásia',country:'Coreia do Sul',name:'Korea Cup',type:'knockout',teams:32,rule:'Copa nacional em mata-mata.'},
+  {id:'ksa-cup',continent:'Ásia',country:'Arábia Saudita',name:'King’s Cup',type:'knockout',teams:32,rule:'Mata-mata nacional saudita.'},
+  {id:'qat-cup',continent:'Ásia',country:'Catar',name:'Emir of Qatar Cup',type:'knockout',teams:16,rule:'Copa nacional em mata-mata.'},
+  {id:'uae-cup',continent:'Ásia',country:'Emirados Árabes Unidos',name:'UAE President’s Cup',type:'knockout',teams:16,rule:'Copa nacional em mata-mata.'},
+  {id:'arg-cup',continent:'América do Sul',country:'Argentina',name:'Copa Argentina',type:'knockout',teams:64,rule:'64 clubes em mata-mata nacional.'},
+  {id:'chi-cup',continent:'América do Sul',country:'Chile',name:'Copa Chile',type:'groups-knockout',teams:32,rule:'Fases regionais/grupos conforme edição e mata-mata.'},
+  {id:'col-cup',continent:'América do Sul',country:'Colômbia',name:'Copa Colombia',type:'knockout',teams:32,rule:'Copa nacional com fases eliminatórias.'}
+);
+
+const BR_ESTADUAIS = [
+  ['SP','Campeonato Paulista',16],
+  ['RJ','Campeonato Carioca',12],
+  ['MG','Campeonato Mineiro',12],
+  ['RS','Campeonato Gaúcho',12],
+  ['PR','Campeonato Paranaense',10],
+  ['SC','Campeonato Catarinense',10],
+  ['BA','Campeonato Baiano',10],
+  ['CE','Campeonato Cearense',10],
+  ['GO','Campeonato Goiano',10],
+  ['PE','Campeonato Pernambucano',10],
+  ['DF','Campeonato Candango',10]
+];
+BR_ESTADUAIS.forEach(([uf,name,tCount])=>window.COMPETITIONS.push({id:'bra-est-'+uf.toLowerCase(),continent:'América do Sul',country:'Brasil',name,type:'league-playoff',teams:tCount||10,rule:`Estadual ${uf}: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.`}));
+
+window.BASE_CLUBS = [
+  // Brasil - Série A (dados de força inspirados no material enviado)
+  {name:'Flamengo',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Maracanã',atk:82,mid:79,def:81,budget:95},
+  {name:'Palmeiras',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena Barueri',atk:81,mid:80,def:81,budget:100},
+  {name:'Fluminense',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Maracanã',atk:81,mid:75,def:79,budget:55},
+  {name:'Santos',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Vila Belmiro',atk:82,mid:77,def:78,budget:45},
+  {name:'Atlético-MG',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena MRV',atk:79,mid:79,def:78,budget:65},
+  {name:'Corinthians',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Neo Química Arena',atk:80,mid:77,def:78,budget:50},
+  {name:'Cruzeiro',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Mineirão',atk:79,mid:78,def:78,budget:60},
+  {name:'Grêmio',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena do Grêmio',atk:79,mid:77,def:77,budget:42},
+  {name:'São Paulo',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'MorumBIS',atk:79,mid:78,def:78,budget:52},
+  {name:'Vasco da Gama',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'São Januário',atk:78,mid:78,def:79,budget:48},
+  {name:'Bahia',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena Fonte Nova',atk:78,mid:77,def:77,budget:70},
+  {name:'Botafogo',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Nilton Santos',atk:79,mid:78,def:77,budget:75},
+  {name:'Bragantino',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Cícero de Souza Marques',atk:78,mid:76,def:77,budget:58},
+  {name:'Vitória',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Barradão',atk:79,mid:76,def:76,budget:25},
+  {name:'Athletico Paranaense',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Ligga Arena',atk:78,mid:75,def:76,budget:40},
+  {name:'Internacional',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Beira-Rio',atk:77,mid:76,def:77,budget:45},
+  {name:'Coritiba',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Couto Pereira',atk:76,mid:75,def:76,budget:28},
+  {name:'Mirassol',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Maião',atk:76,mid:75,def:75,budget:22},
+  {name:'Remo',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Mangueirão',atk:76,mid:73,def:75,budget:18},
+  {name:'Chapecoense',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena Condá',atk:75,mid:75,def:75,budget:18},
+  {name:'Real Brasília',country:'Brasil',competition:'Campeonato Candango',stadium:'Ciro Machado do Espírito Santo (Defelê)',atk:58,mid:60,def:59,budget:0.5},
+  {name:'Brasília',country:'Brasil',competition:'Campeonato Candango',stadium:'Bezerrão',atk:57,mid:57,def:58,budget:0.4},
+  {name:'Gama',country:'Brasil',competition:'Campeonato Candango',stadium:'Bezerrão',atk:61,mid:60,def:61,budget:0.8},
+  {name:'Brasiliense',country:'Brasil',competition:'Campeonato Candango',stadium:'Serejão',atk:62,mid:62,def:61,budget:1.2},
+
+  // Argentina / América do Sul
+  {name:'River Plate',country:'Argentina',competition:'Liga Profesional Argentina',stadium:'Monumental',atk:81,mid:80,def:79,budget:75},
+  {name:'Boca Juniors',country:'Argentina',competition:'Liga Profesional Argentina',stadium:'La Bombonera',atk:79,mid:78,def:79,budget:68},
+  {name:'Racing Club',country:'Argentina',competition:'Liga Profesional Argentina',stadium:'El Cilindro',atk:77,mid:77,def:76,budget:35},
+  {name:'Independiente',country:'Argentina',competition:'Liga Profesional Argentina',stadium:'Libertadores de América',atk:75,mid:75,def:75,budget:28},
+  {name:'San Lorenzo',country:'Argentina',competition:'Liga Profesional Argentina',stadium:'Pedro Bidegain',atk:74,mid:75,def:75,budget:25},
+  {name:'Estudiantes',country:'Argentina',competition:'Liga Profesional Argentina',stadium:'Jorge Luis Hirschi',atk:76,mid:76,def:77,budget:30},
+  {name:'Nacional',country:'Uruguai',competition:'Primera División Uruguaya',stadium:'Gran Parque Central',atk:75,mid:74,def:74,budget:18},
+  {name:'Peñarol',country:'Uruguai',competition:'Primera División Uruguaya',stadium:'Campeón del Siglo',atk:75,mid:74,def:75,budget:18},
+  {name:'Colo-Colo',country:'Chile',competition:'Primera División de Chile',stadium:'Monumental David Arellano',atk:74,mid:74,def:74,budget:20},
+  {name:'Universidad de Chile',country:'Chile',competition:'Primera División de Chile',stadium:'Nacional',atk:73,mid:73,def:72,budget:16},
+  {name:'Atlético Nacional',country:'Colômbia',competition:'Categoría Primera A',stadium:'Atanasio Girardot',atk:74,mid:74,def:73,budget:20},
+  {name:'Millonarios',country:'Colômbia',competition:'Categoría Primera A',stadium:'El Campín',atk:73,mid:74,def:73,budget:18},
+  {name:'LDU Quito',country:'Equador',competition:'LigaPro Serie A',stadium:'Rodrigo Paz Delgado',atk:73,mid:73,def:74,budget:17},
+  {name:'Barcelona SC',country:'Equador',competition:'LigaPro Serie A',stadium:'Monumental Isidro Romero',atk:73,mid:72,def:72,budget:16},
+  {name:'Olimpia',country:'Paraguai',competition:'Primera División Paraguaya',stadium:'Manuel Ferreira',atk:72,mid:72,def:72,budget:15},
+  {name:'Cerro Porteño',country:'Paraguai',competition:'Primera División Paraguaya',stadium:'La Nueva Olla',atk:73,mid:72,def:73,budget:16},
+  {name:'Alianza Lima',country:'Peru',competition:'Liga 1',stadium:'Alejandro Villanueva',atk:71,mid:71,def:71,budget:12},
+  {name:'Universitario',country:'Peru',competition:'Liga 1',stadium:'Monumental',atk:72,mid:71,def:72,budget:13},
+
+  // Inglaterra
+  {name:'Manchester City',country:'Inglaterra',competition:'Premier League',stadium:'Etihad Stadium',atk:86,mid:86,def:85,budget:180},
+  {name:'Arsenal',country:'Inglaterra',competition:'Premier League',stadium:'Emirates Stadium',atk:85,mid:85,def:85,budget:170},
+  {name:'Liverpool',country:'Inglaterra',competition:'Premier League',stadium:'Anfield',atk:86,mid:84,def:84,budget:165},
+  {name:'Chelsea',country:'Inglaterra',competition:'Premier League',stadium:'Stamford Bridge',atk:83,mid:84,def:82,budget:160},
+  {name:'Manchester United',country:'Inglaterra',competition:'Premier League',stadium:'Old Trafford',atk:81,mid:81,def:80,budget:145},
+  {name:'Tottenham Hotspur',country:'Inglaterra',competition:'Premier League',stadium:'Tottenham Hotspur Stadium',atk:82,mid:81,def:80,budget:125},
+  {name:'Newcastle United',country:'Inglaterra',competition:'Premier League',stadium:'St James’ Park',atk:82,mid:82,def:81,budget:135},
+  {name:'Aston Villa',country:'Inglaterra',competition:'Premier League',stadium:'Villa Park',atk:81,mid:80,def:80,budget:100},
+
+  // Espanha
+  {name:'Real Madrid',country:'Espanha',competition:'LaLiga',stadium:'Santiago Bernabéu',atk:90,mid:87,def:85,budget:220},
+  {name:'FC Barcelona',country:'Espanha',competition:'LaLiga',stadium:'Camp Nou',atk:88,mid:86,def:83,budget:180},
+  {name:'Atlético de Madrid',country:'Espanha',competition:'LaLiga',stadium:'Metropolitano',atk:84,mid:83,def:84,budget:130},
+  {name:'Athletic Club',country:'Espanha',competition:'LaLiga',stadium:'San Mamés',atk:81,mid:80,def:81,budget:80},
+  {name:'Villarreal',country:'Espanha',competition:'LaLiga',stadium:'La Cerámica',atk:80,mid:79,def:78,budget:72},
+  {name:'Real Betis',country:'Espanha',competition:'LaLiga',stadium:'Benito Villamarín',atk:79,mid:80,def:78,budget:70},
+
+  // Itália
+  {name:'Inter',country:'Itália',competition:'Serie A',stadium:'San Siro',atk:86,mid:85,def:86,budget:145},
+  {name:'Juventus',country:'Itália',competition:'Serie A',stadium:'Allianz Stadium',atk:83,mid:82,def:83,budget:125},
+  {name:'AC Milan',country:'Itália',competition:'Serie A',stadium:'San Siro',atk:83,mid:82,def:82,budget:120},
+  {name:'Napoli',country:'Itália',competition:'Serie A',stadium:'Diego Armando Maradona',atk:84,mid:83,def:82,budget:115},
+  {name:'Roma',country:'Itália',competition:'Serie A',stadium:'Olimpico',atk:81,mid:81,def:80,budget:90},
+  {name:'Atalanta',country:'Itália',competition:'Serie A',stadium:'New Balance Arena',atk:82,mid:82,def:81,budget:95},
+
+  // Alemanha
+  {name:'Bayern München',country:'Alemanha',competition:'Bundesliga',stadium:'Allianz Arena',atk:88,mid:86,def:84,budget:180},
+  {name:'Borussia Dortmund',country:'Alemanha',competition:'Bundesliga',stadium:'Signal Iduna Park',atk:83,mid:82,def:81,budget:115},
+  {name:'Bayer Leverkusen',country:'Alemanha',competition:'Bundesliga',stadium:'BayArena',atk:84,mid:84,def:83,budget:120},
+  {name:'RB Leipzig',country:'Alemanha',competition:'Bundesliga',stadium:'Red Bull Arena',atk:82,mid:82,def:81,budget:105},
+
+  // França / Portugal / Países Baixos
+  {name:'Paris Saint-Germain',country:'França',competition:'Ligue 1',stadium:'Parc des Princes',atk:88,mid:86,def:84,budget:210},
+  {name:'Marseille',country:'França',competition:'Ligue 1',stadium:'Vélodrome',atk:81,mid:80,def:79,budget:85},
+  {name:'Monaco',country:'França',competition:'Ligue 1',stadium:'Louis II',atk:81,mid:81,def:79,budget:90},
+  {name:'Benfica',country:'Portugal',competition:'Primeira Liga',stadium:'Estádio da Luz',atk:82,mid:82,def:81,budget:100},
+  {name:'FC Porto',country:'Portugal',competition:'Primeira Liga',stadium:'Estádio do Dragão',atk:81,mid:81,def:81,budget:90},
+  {name:'Sporting CP',country:'Portugal',competition:'Primeira Liga',stadium:'José Alvalade',atk:83,mid:82,def:81,budget:95},
+  {name:'Ajax',country:'Países Baixos',competition:'Eredivisie',stadium:'Johan Cruijff Arena',atk:80,mid:79,def:78,budget:75},
+  {name:'PSV',country:'Países Baixos',competition:'Eredivisie',stadium:'Philips Stadion',atk:82,mid:81,def:79,budget:80},
+  {name:'Feyenoord',country:'Países Baixos',competition:'Eredivisie',stadium:'De Kuip',atk:81,mid:80,def:80,budget:75},
+
+  // Ásia
+  {name:'Al-Hilal',country:'Arábia Saudita',competition:'Saudi Pro League',stadium:'Kingdom Arena',atk:84,mid:83,def:81,budget:180},
+  {name:'Al-Nassr',country:'Arábia Saudita',competition:'Saudi Pro League',stadium:'Al-Awwal Park',atk:84,mid:81,def:78,budget:170},
+  {name:'Al-Ittihad',country:'Arábia Saudita',competition:'Saudi Pro League',stadium:'King Abdullah Sports City',atk:82,mid:81,def:79,budget:150},
+  {name:'Al-Ahli',country:'Arábia Saudita',competition:'Saudi Pro League',stadium:'King Abdullah Sports City',atk:82,mid:81,def:79,budget:145},
+  {name:'Kashima Antlers',country:'Japão',competition:'J1 League',stadium:'Kashima Soccer Stadium',atk:72,mid:72,def:72,budget:24},
+  {name:'Urawa Red Diamonds',country:'Japão',competition:'J1 League',stadium:'Saitama Stadium',atk:73,mid:73,def:72,budget:28},
+  {name:'Yokohama F. Marinos',country:'Japão',competition:'J1 League',stadium:'Nissan Stadium',atk:73,mid:72,def:71,budget:27},
+  {name:'Vissel Kobe',country:'Japão',competition:'J1 League',stadium:'Noevir Stadium Kobe',atk:74,mid:73,def:73,budget:30},
+  {name:'Ulsan HD',country:'Coreia do Sul',competition:'K League 1',stadium:'Ulsan Munsu',atk:72,mid:72,def:72,budget:22},
+  {name:'Jeonbuk Hyundai Motors',country:'Coreia do Sul',competition:'K League 1',stadium:'Jeonju World Cup Stadium',atk:72,mid:72,def:71,budget:24},
+  {name:'Shanghai Port',country:'China',competition:'Chinese Super League',stadium:'SAIC Motor Pudong Arena',atk:73,mid:72,def:71,budget:36},
+  {name:'Shanghai Shenhua',country:'China',competition:'Chinese Super League',stadium:'Shanghai Stadium',atk:72,mid:72,def:72,budget:34},
+  {name:'Al-Sadd',country:'Catar',competition:'Qatar Stars League',stadium:'Jassim Bin Hamad',atk:73,mid:73,def:71,budget:42},
+  {name:'Al-Ain',country:'Emirados Árabes Unidos',competition:'UAE Pro League',stadium:'Hazza bin Zayed',atk:73,mid:72,def:72,budget:42},
+  {name:'Persepolis',country:'Irã',competition:'Persian Gulf Pro League',stadium:'Azadi Stadium',atk:71,mid:71,def:72,budget:18},
+  {name:'Buriram United',country:'Tailândia',competition:'Thai League 1',stadium:'Chang Arena',atk:69,mid:69,def:69,budget:15}
+];
+
+// Ajustes confirmados para 2026 em competições com formato especial.
+{
+  const c = window.COMPETITIONS.find(x=>x.id==='bra-est-df');
+  if(c){
+    c.teams=10;
+    c.rounds=9;
+    c.rule='Candangão 2026: 10 clubes em turno único na primeira fase. Os 4 melhores avançam às semifinais em ida e volta; final no Mané Garrincha.';
+  }
+}
+
+// Filtra competições: Remove ligas sem clubes (0 times) ou com apenas 1 time
+if(Array.isArray(window.COMPETITIONS)){
+  const validCompIds = new Set([
+    'bra-a', 'bra-b', 'bra-c', 'bra-d', 'bra-cup',
+    'bra-est-sp', 'bra-est-rj', 'bra-est-mg', 'bra-est-rs', 'bra-est-pr',
+    'bra-est-sc', 'bra-est-ba', 'bra-est-ce', 'bra-est-go', 'bra-est-pe', 'bra-est-df',
+    'lib', 'sud', 'cwc',
+    'eng-1', 'esp-1', 'ita-1', 'ger-1', 'fra-1', 'por-1', 'ned-1',
+    'ksa-1', 'jpn-1', 'kor-1', 'chn-1', 'qat-1', 'uae-1'
+  ]);
+  window.COMPETITIONS = window.COMPETITIONS.filter(c => validCompIds.has(c.id));
+}
+

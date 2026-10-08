@@ -1,0 +1,18 @@
+REFERÊNCIA DO ZIP ENVIADO
+- Foram usados como referência os fluxos salvos de: Nova carreira, Central, Elenco, Mercado, Escritório, Temporada e Mapa.
+- Exemplos do Real Brasília encontrados no ZIP foram usados para a base offline inicial (formação, elenco visível, caixa/finanças como referência de mecânica).
+- A interface deste projeto foi recriada com identidade própria e não depende do site original.
+
+ATUALIZAÇÃO EXTERNA
+- PlayersDB: https://playersdb.app/ (PES/eFootball e cruzamento de IDs; base comunitária).
+- EA FC 26 DataHub: https://github.com/ismailoksuz/EAFC26-DataHub (fallback/complemento de atributos EA FC).
+
+ARQUITETURA
+index.html                -> entrada do jogo
+css/app.css               -> visual
+js/competitions.js        -> regras e catálogo de competições/clubes base
+js/game.js                -> motor da carreira/simulação/UI/save
+data/players_live.js      -> banco local de jogadores
+ATUALIZAR_DADOS.bat       -> atualização de elencos/ratings
+JOGAR.bat                 -> abre o jogo no Windows
+tools/update-data.ps1     -> importador/conversor das bases externas

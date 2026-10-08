@@ -1,0 +1,31 @@
+AQUINO FUTEBOL MANAGER 2026 — v0.2
+
+COMO JOGAR
+1. Extraia o ZIP inteiro para uma pasta.
+2. Execute JOGAR.bat.
+3. Escolha continente, país, competição e depois o clube. O campo Clube é filtrado pela competição.
+4. Comece a carreira.
+
+PRINCIPAIS ABAS
+- Central: próximo jogo, caixa, confiança, torcida e projeção de público.
+- Meu time: escolha formação, titulares e use Melhor XI.
+- Elenco: veja todos os jogadores, ratings, potencial, físico e valor.
+- Mercado: Comprar busca jogadores dos demais clubes; Vender mostra ofertas pelo seu elenco.
+- Estrutura: evolua estádio, CT, base, médico, sede, loja, museu e sala de imprensa.
+- Escritório: receitas, despesas, patrocínio e histórico de transferências.
+- Temporada: regulamento, classificação e resultados.
+- Banco de dados: situação do banco de jogadores e competições.
+- Save/Backup: exporte ou importe sua carreira em JSON.
+
+INGRESSOS E TORCIDA
+Em Estrutura > Estádio e ingressos, ajuste o preço. O jogo calcula um preço recomendado.
+Preço acima do recomendado reduz procura e pode baixar a alegria da torcida.
+Preço competitivo aumenta a chance de estádio cheio, mas você precisa equilibrar público e receita por ingresso.
+A capacidade do estádio cresce quando você evolui o Estádio.
+
+ATUALIZAR JOGADORES
+Execute ATUALIZAR_DADOS.bat com o jogo fechado. O save não é apagado.
+O mercado usa a base real carregada e completa clubes sem dados suficientes com jogadores gerados, para não deixar times vazios.
+
+SAVE
+O save é automático. Para trocar de navegador/computador, use Exportar save e depois Importar save.

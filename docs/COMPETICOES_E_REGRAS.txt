@@ -1,0 +1,184 @@
+AQUINO FUTEBOL MANAGER 2026 - COMPETIÇÕES E REGRAS
+Gerado em 2026-10-06. O motor implementa os formatos principais; regulamentos muito complexos são simulados de forma simplificada.
+
+
+[América do Sul > Argentina]
+- Copa Argentina | formato: knockout | clubes: 64 | 64 clubes em mata-mata nacional.
+- Liga Profesional Argentina | formato: league | clubes: 30 | Liga nacional em pontos corridos com classificação continental e rebaixamento.
+
+[América do Sul > Bolívia]
+- División Profesional | formato: league | clubes: 16 | Liga nacional com classificação continental.
+
+[América do Sul > Brasil]
+- Campeonato Acreano | formato: league-playoff | clubes: 12 | Estadual AC: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Alagoano | formato: league-playoff | clubes: 12 | Estadual AL: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Amapaense | formato: league-playoff | clubes: 12 | Estadual AP: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Amazonense | formato: league-playoff | clubes: 12 | Estadual AM: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Baiano | formato: league-playoff | clubes: 12 | Estadual BA: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Brasileiro Série A | formato: league | clubes: 20 | Pontos corridos, turno e returno. 20 clubes. 4 rebaixados.
+- Campeonato Brasileiro Série B | formato: league | clubes: 20 | Pontos corridos, turno e returno. 4 sobem e 4 descem.
+- Campeonato Brasileiro Série C | formato: league-groups | clubes: 20 | Primeira fase em pontos corridos; fase decisiva define acesso e título.
+- Campeonato Brasileiro Série D | formato: groups-knockout | clubes: 96 | 2026: 96 clubes em 16 grupos de 6, turno e returno; 4 por grupo avançam e 6 clubes conquistam o acesso.
+- Campeonato Candango | formato: league-playoff | clubes: 12 | Estadual DF: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Capixaba | formato: league-playoff | clubes: 12 | Estadual ES: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Carioca | formato: league-playoff | clubes: 12 | Estadual RJ: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Catarinense | formato: league-playoff | clubes: 12 | Estadual SC: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Cearense | formato: league-playoff | clubes: 12 | Estadual CE: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Gaúcho | formato: league-playoff | clubes: 12 | Estadual RS: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Goiano | formato: league-playoff | clubes: 12 | Estadual GO: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Maranhense | formato: league-playoff | clubes: 12 | Estadual MA: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Mato-Grossense | formato: league-playoff | clubes: 12 | Estadual MT: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Mineiro | formato: league-playoff | clubes: 12 | Estadual MG: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Paraense | formato: league-playoff | clubes: 12 | Estadual PA: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Paraibano | formato: league-playoff | clubes: 12 | Estadual PB: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Paranaense | formato: league-playoff | clubes: 12 | Estadual PR: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Paulista | formato: league-playoff | clubes: 12 | Estadual SP: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Pernambucano | formato: league-playoff | clubes: 12 | Estadual PE: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Piauiense | formato: league-playoff | clubes: 12 | Estadual PI: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Potiguar | formato: league-playoff | clubes: 12 | Estadual RN: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Rondoniense | formato: league-playoff | clubes: 12 | Estadual RO: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Roraimense | formato: league-playoff | clubes: 12 | Estadual RR: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Sergipano | formato: league-playoff | clubes: 12 | Estadual SE: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Sul-Mato-Grossense | formato: league-playoff | clubes: 12 | Estadual MS: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Campeonato Tocantinense | formato: league-playoff | clubes: 12 | Estadual TO: fase inicial definida pela federação local e fase decisiva/mata-mata quando aplicável.
+- Copa do Brasil | formato: knockout | clubes: 92 | Mata-mata nacional com fases de entrada distintas conforme classificação.
+
+[América do Sul > Chile]
+- Copa Chile | formato: groups-knockout | clubes: 32 | Fases regionais/grupos conforme edição e mata-mata.
+- Primera División de Chile | formato: league | clubes: 16 | Pontos corridos em turno e returno.
+
+[América do Sul > Colômbia]
+- Categoría Primera A | formato: league-playoff | clubes: 20 | Fase todos contra todos seguida por quadrangulares/fase final.
+- Copa Colombia | formato: knockout | clubes: 32 | Copa nacional com fases eliminatórias.
+
+[América do Sul > CONMEBOL]
+- Copa Libertadores | formato: continental-groups | clubes: 32 | 8 grupos de 4. Dois primeiros avançam ao mata-mata; classificação continental.
+- Copa Sul-Americana | formato: continental-groups | clubes: 32 | 8 grupos de 4. Líderes avançam; segundos disputam playoff de acesso às oitavas.
+
+[América do Sul > Equador]
+- LigaPro Serie A | formato: league-playoff | clubes: 16 | Temporada de liga com fase decisiva conforme regulamento vigente.
+
+[América do Sul > Paraguai]
+- Primera División Paraguaya | formato: apertura-clausura | clubes: 12 | Torneios Apertura e Clausura.
+
+[América do Sul > Peru]
+- Liga 1 | formato: apertura-clausura | clubes: 18 | Apertura e Clausura com tabela acumulada.
+
+[América do Sul > Uruguai]
+- Primera División Uruguaya | formato: league-split | clubes: 16 | Apertura/Intermedio/Clausura, tabela anual e definição de campeão.
+
+[América do Sul > Venezuela]
+- Liga FUTVE | formato: league-playoff | clubes: 14 | Fase regular e fase final.
+
+[Ásia > AFC]
+- AFC Champions League Elite | formato: continental-league | clubes: 24 | Fases de liga regionais Leste/Oeste; 8 jogos por clube e mata-mata continental.
+- AFC Champions League Two | formato: continental-groups | clubes: 32 | Fase de grupos regionalizada seguida por mata-mata.
+
+[Ásia > Arábia Saudita]
+- King’s Cup | formato: knockout | clubes: 32 | Mata-mata nacional saudita.
+- Saudi Pro League | formato: league | clubes: 18 | 18 clubes, turno e returno.
+
+[Ásia > Austrália]
+- A-League Men | formato: league-playoff | clubes: 14 | Temporada regular seguida por finals series.
+
+[Ásia > Catar]
+- Emir of Qatar Cup | formato: knockout | clubes: 16 | Copa nacional em mata-mata.
+- Qatar Stars League | formato: league | clubes: 12 | 12 clubes, turno e returno.
+
+[Ásia > China]
+- Chinese Super League | formato: league | clubes: 16 | 16 clubes, turno e returno.
+
+[Ásia > Coreia do Sul]
+- K League 1 | formato: league-split | clubes: 12 | Fase regular seguida por split em grupo de título e grupo de rebaixamento.
+- Korea Cup | formato: knockout | clubes: 32 | Copa nacional em mata-mata.
+
+[Ásia > Emirados Árabes Unidos]
+- UAE President’s Cup | formato: knockout | clubes: 16 | Copa nacional em mata-mata.
+- UAE Pro League | formato: league | clubes: 14 | 14 clubes, turno e returno.
+
+[Ásia > Índia]
+- Indian Super League | formato: league-playoff | clubes: 14 | Fase de liga e playoffs.
+
+[Ásia > Irã]
+- Persian Gulf Pro League | formato: league | clubes: 16 | 16 clubes, turno e returno.
+
+[Ásia > Japão]
+- Emperor’s Cup | formato: knockout | clubes: 64 | Copa nacional em mata-mata.
+- J.League Cup | formato: groups-knockout | clubes: 20 | Competição de copa da liga com fases preliminares/grupos e mata-mata.
+- J1 League | formato: league | clubes: 20 | 20 clubes, turno e returno.
+
+[Ásia > Tailândia]
+- Thai League 1 | formato: league | clubes: 16 | 16 clubes, turno e returno.
+
+[Europa > Alemanha]
+- Bundesliga | formato: league | clubes: 18 | 18 clubes. 2 rebaixados diretos e playoff de permanência.
+- DFB-Pokal | formato: knockout | clubes: 64 | 64 clubes em mata-mata de jogo único.
+
+[Europa > Áustria]
+- Austrian Bundesliga | formato: league-split | clubes: 12 | Liga regular e grupos de campeonato/rebaixamento.
+
+[Europa > Bélgica]
+- Belgian Pro League | formato: league-playoff | clubes: 16 | Fase regular seguida por playoffs de campeonato/europa/rebaixamento.
+
+[Europa > Croácia]
+- HNL | formato: league | clubes: 10 | 10 clubes, quatro turnos.
+
+[Europa > Dinamarca]
+- Danish Superliga | formato: league-split | clubes: 12 | Fase regular e grupos de campeonato/rebaixamento.
+
+[Europa > Escócia]
+- Scottish Premiership | formato: league-split | clubes: 12 | Após 33 rodadas, liga divide em top 6 e bottom 6.
+
+[Europa > Espanha]
+- Copa del Rey | formato: knockout | clubes: 64 | Mata-mata nacional, predominantemente em jogo único até as fases finais.
+- LaLiga | formato: league | clubes: 20 | 20 clubes, turno e returno. 3 rebaixados.
+- LaLiga Hypermotion | formato: league-playoff | clubes: 22 | 2 sobem direto e vagas restantes por playoff.
+
+[Europa > França]
+- Coupe de France | formato: knockout | clubes: 64 | Mata-mata nacional com entrada progressiva das divisões profissionais.
+- Ligue 1 | formato: league | clubes: 18 | 18 clubes. Rebaixamento e playoff conforme posição final.
+
+[Europa > Grécia]
+- Super League Greece | formato: league-playoff | clubes: 14 | Fase regular e playoffs/playouts.
+
+[Europa > Inglaterra]
+- EFL Championship | formato: league-playoff | clubes: 24 | 24 clubes. 2 sobem direto; 3º ao 6º disputam playoff.
+- EFL Cup | formato: knockout | clubes: 64 | Mata-mata entre clubes das divisões profissionais inglesas.
+- FA Cup | formato: knockout | clubes: 64 | Mata-mata em jogo único; fases preliminares e entradas progressivas dos clubes profissionais.
+- Premier League | formato: league | clubes: 20 | 20 clubes, turno e returno. 3 rebaixados.
+
+[Europa > Itália]
+- Coppa Italia | formato: knockout | clubes: 44 | Mata-mata nacional com entradas por fase conforme ranking/divisão.
+- Serie A | formato: league | clubes: 20 | 20 clubes, turno e returno.
+
+[Europa > Noruega]
+- Eliteserien | formato: league | clubes: 16 | 16 clubes em turno e returno.
+
+[Europa > Países Baixos]
+- Eredivisie | formato: league-playoff | clubes: 18 | 18 clubes com playoffs europeus/rebaixamento.
+- KNVB Cup | formato: knockout | clubes: 64 | Mata-mata nacional em jogo único.
+
+[Europa > Portugal]
+- Primeira Liga | formato: league | clubes: 18 | 18 clubes, turno e returno.
+- Taça de Portugal | formato: knockout | clubes: 64 | Mata-mata nacional com clubes profissionais e não profissionais.
+
+[Europa > Sérvia]
+- Serbian SuperLiga | formato: league-split | clubes: 16 | Fase regular e divisão em grupos.
+
+[Europa > Suécia]
+- Allsvenskan | formato: league | clubes: 16 | 16 clubes em turno e returno.
+
+[Europa > Suíça]
+- Swiss Super League | formato: league-split | clubes: 12 | Liga regular e divisão em grupos finais.
+
+[Europa > Tchéquia]
+- Czech First League | formato: league-split | clubes: 16 | Fase regular e grupos finais.
+
+[Europa > Turquia]
+- Süper Lig | formato: league | clubes: 18 | Liga em pontos corridos.
+- Türkiye Kupası | formato: groups-knockout | clubes: 24 | Fase inicial conforme regulamento da temporada e mata-mata decisivo.
+
+[Europa > UEFA]
+- UEFA Champions League | formato: league-phase | clubes: 36 | Fase de liga com 36 clubes e 8 jogos por equipe; top 8 vai às oitavas, 9º-24º ao playoff.
+- UEFA Conference League | formato: league-phase | clubes: 36 | Fase de liga com 36 clubes e 6 jogos; mata-mata após playoff.
+- UEFA Europa League | formato: league-phase | clubes: 36 | Fase de liga com 36 clubes e 8 jogos; mata-mata após playoff.
