@@ -4095,6 +4095,15 @@ function getUserSaveSlots(username){
 
 function save(){
   if(!state) return;
+  if(Array.isArray(state.news) && state.news.length > 50){
+    state.news = state.news.slice(0, 50);
+  }
+  if(Array.isArray(state.marketWorldFeed) && state.marketWorldFeed.length > 30){
+    state.marketWorldFeed = state.marketWorldFeed.slice(0, 30);
+  }
+  if(Array.isArray(state.seasonHistory) && state.seasonHistory.length > 20){
+    state.seasonHistory = state.seasonHistory.slice(0, 20);
+  }
   try {
     localStorage.setItem(STORAGE, JSON.stringify(state));
   } catch(e){}
