@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="gradSud" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#090d16"/>
+    </linearGradient>
+    <linearGradient id="silverSud" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="50%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <filter id="glowSud">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0284c7" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="190" height="190" x="5" y="5" rx="30" fill="url(#gradSud)" stroke="#0284c7" stroke-width="4"/>
+  <!-- Silver Cup & Sun Arc -->
+  <g transform="translate(100, 85) scale(0.9) translate(-100, -85)">
+    <!-- Sun Ring -->
+    <path d="M 50 85 A 50 50 0 0 1 150 85" fill="none" stroke="#38bdf8" stroke-width="4" stroke-dasharray="6,4"/>
+    <!-- Cup -->
+    <path d="M 65 45 L 135 45 L 128 100 C 128 118 116 128 100 128 C 84 128 72 118 72 100 Z" fill="url(#silverSud)"/>
+    <!-- Handles -->
+    <path d="M 65 52 C 45 52 45 80 68 85" fill="none" stroke="url(#silverSud)" stroke-width="5" stroke-linecap="round"/>
+    <path d="M 135 52 C 155 52 155 80 132 85" fill="none" stroke="url(#silverSud)" stroke-width="5" stroke-linecap="round"/>
+    <!-- Base -->
+    <path d="M 94 128 L 106 128 L 106 142 L 94 142 Z" fill="url(#silverSud)"/>
+    <path d="M 80 142 L 120 142 L 122 150 L 78 150 Z" fill="url(#silverSud)"/>
+  </g>
+  <text x="100" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="12" fill="#38bdf8" letter-spacing="2.5">CONMEBOL</text>
+  <text x="100" y="168" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="16" fill="#ffffff" letter-spacing="1.5">SUL-AMERICANA</text>
+</svg>

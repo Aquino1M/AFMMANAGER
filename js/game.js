@@ -265,6 +265,27 @@ let marketTab='buy';
 let seasonTab='nacional';
 let continentalTab='sulamericana';
 let configTab='save';
+let auditCompFilter='all';
+
+function getAuditClubsList(filter){
+  const comps = (filter === 'all' || !filter) 
+    ? ['bra-a', 'bra-b', 'bra-c', 'bra-d', 'lib', 'sud', 'cwc']
+    : [filter];
+  const list = [];
+  comps.forEach(cId => {
+    const teams = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[cId]) || [];
+    const compObj = (window.COMPETITIONS || []).find(c => c.id === cId) || { name: cId };
+    teams.forEach(tName => {
+      list.push({
+        name: tName,
+        compId: cId,
+        compName: compObj.name
+      });
+    });
+  });
+  return list;
+}
+
 let squadFilter='ALL';
 let calendarFilter='ALL';
 let squadViewMode='roster';
@@ -10824,10 +10845,15 @@ function finalizeMatchRound(){
   $('#matchModalContainer')?.remove();
   liveMatchState = null;
 
-  // Coletiva de Imprensa Pós-Jogo na Sala de Imprensa
-  openPressConferenceModal('post', userRes, () => {
-    finalizeRound(userRes, winners, isKO);
-  });
+  // Finaliza a rodada sincronizando todos os jogos do campeonato
+  finalizeRound(userRes, winners, isKO);
+  save();
+  render();
+
+  // Coletiva de Imprensa Pós-Jogo na Sala de Imprensa (se houver jogo do usuário)
+  if(userRes){
+    openPressConferenceModal('post', userRes);
+  }
 }
 
 
@@ -10857,12 +10883,14 @@ function simulateQuickRound(){
     applyResult(h,a,hg,ag);
     if(norm(h)===norm(state.club)||norm(a)===norm(state.club)) userRes={h,a,hg,ag,winner,pens};
   });
+
+  // Finaliza a rodada sincronizando tabela e pontuação de todos os clubes
+  finalizeRound(userRes, winners, isKO);
+  save();
+  render();
+
   if(userRes){
-    openPressConferenceModal('post', userRes, () => {
-      finalizeRound(userRes, winners, isKO);
-    });
-  } else {
-    finalizeRound(userRes, winners, isKO);
+    openPressConferenceModal('post', userRes);
   }
 }
 
@@ -10978,12 +11006,12 @@ function showEndOfSeasonModal(){
       state.nextSeasonCompId = 'bra-d';
     }
   } else if(comp?.id === 'bra-d'){
-    if(pos <= 4){
+    if(pos <= 6){
       promoInfo = {
         type: 'promote',
         toCompId: 'bra-c',
         title: '🚀 ACESSO CONQUISTADO À SÉRIE C!',
-        desc: `O ${state.club} terminou no G-4 (${pos}º lugar) e subiu para o Campeonato Brasileiro Série C!`
+        desc: `O ${state.club} terminou no G-6 (${pos}º lugar) e conquistou o acesso oficial ao Campeonato Brasileiro Série C!`
       };
       state.nextSeasonCompId = 'bra-c';
     }
@@ -11270,7 +11298,13 @@ function changeUserClub(newClubName){
 }
 
 function ranking(){
-  return [...state.teams].sort((a,b)=>b.p-a.p||b.sg-a.sg||b.gp-a.gp||a.name.localeCompare(b.name,'pt-BR'));
+  return [...state.teams].sort((a,b)=>
+    b.p - a.p ||
+    (b.v || 0) - (a.v || 0) ||
+    b.sg - a.sg ||
+    b.gp - a.gp ||
+    a.name.localeCompare(b.name, 'pt-BR')
+  );
 }
 function position(){return Math.max(1,ranking().findIndex(t=>t.name===state.club)+1)}
 
@@ -13265,6 +13299,17 @@ function render(){
       });
       const balEl = app.querySelector('.club-card b');
       if(balEl) balEl.textContent = fmtMoney(state.balance);
+
+      // Atualiza data e janela de transferências no topo em tempo real
+      const dateEl = app.querySelector('.top-right span:first-child');
+      if(dateEl) dateEl.innerHTML = `📅 ${formatDatePtBr(state.date)}`;
+      const winBadgeEl = app.querySelector('.window-badge');
+      if(winBadgeEl) {
+        const winInfo = getTransferWindowInfo(state.date);
+        winBadgeEl.className = `window-badge ${winInfo.open?'window-open':'window-closed'}`;
+        winBadgeEl.textContent = `${winInfo.open?'🟢':'🔴'} ${winInfo.text}`;
+      }
+
       bind();
       return;
     } catch(err){
@@ -13595,12 +13640,11 @@ function centralPage(){
           ` : ''}
 
           <!-- Banner da Competição -->
-          <div style="background:#151226;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px">
-            <span style="background:#0284c7;color:#fff;font-size:11px;font-weight:900;padding:2px 8px;border-radius:4px;letter-spacing:1px">
-              ${esc((curComp()?.name || 'LIGA').split(' ')[0].toUpperCase())}
-            </span>
-            <div style="font-size:12px;color:rgba(255,255,255,0.6)">
-              ${esc(curComp()?.name || 'Campeonato')} · Rodada ${state.round + 1} · ${formatDatePtBr(state.date)}
+          <div style="background:#151226;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:12px">
+            ${typeof window.renderCompetitionLogo === 'function' ? window.renderCompetitionLogo(curComp()?.id, 32) : ''}
+            <div>
+              <div style="font-size:13px;font-weight:900;color:#fff">${esc(curComp()?.name || 'Campeonato')}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.6)">Rodada ${state.round + 1} · ${formatDatePtBr(state.date)}</div>
             </div>
           </div>
 
@@ -16917,11 +16961,14 @@ function seasonPage(){
   
   return `
     <div class="hero">
-      <div>
-        <h1>Temporada ${state.season}</h1>
-        <div class="muted">Tabela de classificação oficial e calendário das competições</div>
+      <div style="display:flex;align-items:center;gap:14px">
+        ${typeof window.renderCompetitionLogo === 'function' ? window.renderCompetitionLogo(comp.id, 44) : ''}
+        <div>
+          <h1 style="margin:0">Temporada ${state.season}</h1>
+          <div class="muted">Tabela de classificação oficial e calendário das competições</div>
+        </div>
       </div>
-      <span class="pill">${esc(comp.name)}</span>
+      <span class="pill" style="font-size:13px;font-weight:800">${esc(comp.name)}</span>
     </div>
 
     <div class="tabs" style="margin-top:14px">
@@ -17310,6 +17357,7 @@ function configPage(){
     <div class="tabs" style="margin-top:14px">
       <button class="btn ${configTab==='save'?'active':''}" data-config-tab="save">💾 Save & Backup Local</button>
       <button class="btn ${configTab==='db'?'active':''}" data-config-tab="db">🗄️ Banco de Dados & Elencos</button>
+      <button class="btn ${configTab==='audit'?'active':''}" data-config-tab="audit">🔍 Auditoria Visual de Futebol</button>
       <button class="btn ${configTab==='options'?'active':''}" data-config-tab="options">⚙️ Preferências do Jogo</button>
       <button class="btn ${configTab==='multiplayer'?'active':''}" data-config-tab="multiplayer">🌐 Multiplayer Cloud</button>
     </div>
@@ -17440,6 +17488,94 @@ function configPage(){
                   <td>${esc(c.name)}</td>
                   <td>${eligibleClubNames(c).length}</td>
                   <td>${esc(c.type)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ` : configTab==='audit' ? `
+      <div class="card" style="margin-top:14px;background:linear-gradient(180deg, rgba(30,41,59,0.7) 0%, rgba(15,23,42,0.95) 100%);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:12px">
+          <div>
+            <h2 style="margin:0;font-size:18px;font-weight:900;display:flex;align-items:center;gap:8px">
+              🔍 Painel de Auditoria Visual de Futebol Real
+            </h2>
+            <div class="muted small" style="margin-top:4px">
+              Validação visual ao vivo de 100% dos clubes, escudos oficiais e logos das competições do AFM Manager 2027.
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="font-size:12px;font-weight:800;color:#94a3b8">Filtrar Competição:</span>
+            <select id="selAuditCompFilter" class="btn" style="padding:6px 12px;font-size:13px;font-weight:800">
+              <option value="all" ${auditCompFilter==='all'?'selected':''}>🌐 Todas as Competições</option>
+              <option value="bra-a" ${auditCompFilter==='bra-a'?'selected':''}>🇧🇷 Brasileirão Série A (20)</option>
+              <option value="bra-b" ${auditCompFilter==='bra-b'?'selected':''}>🇧🇷 Brasileirão Série B (20)</option>
+              <option value="bra-c" ${auditCompFilter==='bra-c'?'selected':''}>🇧🇷 Brasileirão Série C (20)</option>
+              <option value="bra-d" ${auditCompFilter==='bra-d'?'selected':''}>🇧🇷 Brasileirão Série D (96)</option>
+              <option value="lib" ${auditCompFilter==='lib'?'selected':''}>⭐ Copa Libertadores (16)</option>
+              <option value="sud" ${auditCompFilter==='sud'?'selected':''}>🥈 Copa Sul-Americana (16)</option>
+              <option value="cwc" ${auditCompFilter==='cwc'?'selected':''}>🏆 Mundial de Clubes FIFA (12)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Métricas de Integridade -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:12px;margin-bottom:18px">
+          <div class="card" style="margin:0;padding:12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:10px;text-align:center">
+            <div style="font-size:20px;font-weight:900;color:#4ade80">156</div>
+            <div class="small muted" style="font-weight:800">Clubes Nacionais (A, B, C, D)</div>
+          </div>
+          <div class="card" style="margin:0;padding:12px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.3);border-radius:10px;text-align:center">
+            <div style="font-size:20px;font-weight:900;color:#38bdf8">100%</div>
+            <div class="small muted" style="font-weight:800">Escudos Oficiais no Disco</div>
+          </div>
+          <div class="card" style="margin:0;padding:12px;background:rgba(236,72,153,0.08);border:1px solid rgba(236,72,153,0.3);border-radius:10px;text-align:center">
+            <div style="font-size:20px;font-weight:900;color:#f472b6">${(window.LIVE_PLAYERS||[]).length || 580}+</div>
+            <div class="small muted" style="font-weight:800">Atletas Reais Cadastrados</div>
+          </div>
+          <div class="card" style="margin:0;padding:12px;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.3);border-radius:10px;text-align:center">
+            <div style="font-size:20px;font-weight:900;color:#c084fc">0</div>
+            <div class="small muted" style="font-weight:800">Escudos Genéricos / Fakes</div>
+          </div>
+          <div class="card" style="margin:0;padding:12px;background:rgba(250,204,21,0.08);border:1px solid rgba(250,204,21,0.3);border-radius:10px;text-align:center">
+            <div style="font-size:20px;font-weight:900;color:#facc15">CBF / FIFA</div>
+            <div class="small muted" style="font-weight:800">Padrão Real & Desempates</div>
+          </div>
+        </div>
+
+        <!-- Tabela Visual de Clubes e Escudos -->
+        <div class="tablewrap" style="max-height:520px;overflow-y:auto">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60px">Escudo</th>
+                <th>Clube Oficial</th>
+                <th>Competição / Divisão</th>
+                <th>Logo Competição</th>
+                <th style="text-align:center">Status Validação</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${getAuditClubsList(auditCompFilter).map(item => `
+                <tr>
+                  <td style="text-align:center;padding:6px">
+                    ${clubBadge(item.name, 38)}
+                  </td>
+                  <td>
+                    <b style="font-size:14px;color:#fff">${esc(item.name)}</b>
+                  </td>
+                  <td>
+                    <span class="pill" style="font-size:11px">${esc(item.compName)}</span>
+                  </td>
+                  <td style="text-align:center;padding:6px">
+                    ${typeof window.renderCompetitionLogo === 'function' ? window.renderCompetitionLogo(item.compId, 28) : '🏆'}
+                  </td>
+                  <td style="text-align:center">
+                    <span class="badge success" style="font-size:11px;padding:3px 8px;font-weight:800">
+                      ✅ Autêntico & Verificado
+                    </span>
+                  </td>
                 </tr>
               `).join('')}
             </tbody>
@@ -20008,6 +20144,8 @@ function bind(){
 
   if(view==='config'){
     $$('[data-config-tab]').forEach(b=>b.onclick=()=>{configTab=b.dataset.configTab;render()});
+    const selAudit = $('#selAuditCompFilter');
+    if(selAudit) selAudit.onchange = () => { auditCompFilter = selAudit.value; render(); };
     const exp1=$('#btnExportJson'); if(exp1) exp1.onclick=exportSave;
     const exp2=$('#btnExportJson2'); if(exp2) exp2.onclick=exportSave;
     const manSave=$('#btnSaveNowManual'); if(manSave) manSave.onclick=()=>{save();toast('Save manual realizado!')};

@@ -44,11 +44,11 @@ window.CLUB_BADGES = {
   "Altos": "altos.png",
   "Alverca": "alverca.png",
   "Amazonas": "142.png",
-  "Amazonas FC": "amazonas_fc.png",
-  "America-RJ": "america_rj.png",
+  "Amazonas FC": "142.png",
+  "America-RJ": "america_rj.svg",
   "América de Cali": "america_de_cali.png",
   "América-MG": "america_mg.svg",
-  "América-RN": "america_rn.png",
+  "América-RN": "america_rn.svg",
   "Andraus": "andraus.png",
   "Angers": "angers.png",
   "Anyang": "anyang.png",
@@ -70,7 +70,8 @@ window.CLUB_BADGES = {
   "Atlético Rio Negro": "201.png",
   "Atlético-BA": "atletico_ba.png",
   "Atlético-CE": "atletico_ce.png",
-  "Atlético-GO": "1.svg",
+  "Atlético-GO": "atletico_go.svg",
+  "Atlético Goianiense": "atletico_go.svg",
   "Atlético-MG": "8.svg",
   "Augsburg": "augsburg.png",
   "Auxerre": "auxerre.png",
@@ -176,7 +177,7 @@ window.CLUB_BADGES = {
   "Flamengo de Arcoverde": "flamengo_de_arcoverde.png",
   "Floresta": "floresta.png",
   "Fluminense": "fluminense.png",
-  "Fluminense-PI": "fluminense_pi.png",
+  "Fluminense-PI": "fluminense_pi.svg",
   "Fortaleza": "fortaleza.png",
   "Fortuna Sittard": "fortuna_sittard.png",
   "Fulham": "fulham.png",
@@ -273,7 +274,8 @@ window.CLUB_BADGES = {
   "Maranhão": "156.png",
   "Marcílio Dias": "marcilio_dias.png",
   "Maricá": "marica.png",
-  "Maringá": "maringa.png",
+  "Maringá": "maringa.svg",
+  "Maringá FC": "maringa.svg",
   "Marseille": "marseille.png",
   "Meizhou Hakka": "meizhou_hakka.png",
   "Metz": "metz.png",
@@ -327,7 +329,7 @@ window.CLUB_BADGES = {
   "Porto-BA": "porto_ba.png",
   "Porto-PE": "porto_pe.png",
   "Portuguesa": "94.svg",
-  "Portuguesa-RJ": "94.svg",
+  "Portuguesa-RJ": "portuguesa_rj.svg",
   "Portuguesa-SP": "94.svg",
   "Pouso Alegre": "96.png",
   "Primavera-MT": "primavera_mt.png",
@@ -386,7 +388,7 @@ window.CLUB_BADGES = {
   "Suwon FC": "suwon_fc.png",
   "São Bernardo": "sao_bernardo.svg",
   "São Joseense": "sao_joseense.png",
-  "São José-AP": "3356.png",
+  "São José-AP": "sao_jose_ap.svg",
   "São José-RS": "3356.png",
   "São Luiz": "sao_luiz.png",
   "São Paulo": "23.svg",
@@ -426,7 +428,7 @@ window.CLUB_BADGES = {
   "Vissel Kobe": "vissel_kobe.png",
   "Vitória": "25.svg",
   "Vitória de Guimarães": "vitoria_de_guimaraes.png",
-  "Vitória-ES": "25.svg",
+  "Vitória-ES": "vitoria_es.svg",
   "Volendam": "volendam.png",
   "Volta Redonda": "volta_redonda.svg",
   "Werder Bremen": "werder_bremen.png",
@@ -482,3 +484,34 @@ window.renderClubBadge = function(clubName, size = 32) {
   const inits = rawName.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase() || 'FC';
   return `<div class="crest-img-fallback" style="width:${size}px;height:${size}px;border-radius:6px;background:linear-gradient(135deg,#1e1b4b,#312e81);border:1px solid #6366f1;display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.38)}px;font-weight:900;color:#c7d2fe;flex-shrink:0">${inits}</div>`;
 };
+
+// Mapeamento de logos oficiais das competições
+window.COMPETITION_LOGOS = {
+  'bra-a': 'competitions/bra_a.svg',
+  'bra-b': 'competitions/bra_b.svg',
+  'bra-c': 'competitions/bra_c.svg',
+  'bra-d': 'competitions/bra_d.svg',
+  'bra-cup': 'competitions/bra_cup.svg',
+  'lib': 'competitions/libertadores.svg',
+  'sud': 'competitions/sudamericana.svg',
+  'ucl': 'competitions/ucl.svg',
+  'uel': 'competitions/uel.svg',
+  'uecl': 'competitions/uel.svg',
+  'cwc': 'competitions/cwc.svg',
+  'eng-1': 'competitions/eng_1.svg',
+  'esp-1': 'competitions/esp_1.svg',
+  'ita-1': 'competitions/ita_1.svg',
+  'ger-1': 'competitions/ger_1.svg',
+  'fra-1': 'competitions/fra_1.svg',
+  'por-1': 'competitions/por_1.svg',
+  'ksa-1': 'competitions/ksa_1.svg'
+};
+
+window.renderCompetitionLogo = function(compId, size = 32) {
+  const file = window.COMPETITION_LOGOS[compId];
+  if (file) {
+    return `<img src="img/badges/${file}" alt="${compId}" class="comp-logo-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;border-radius:6px;flex-shrink:0" loading="lazy">`;
+  }
+  return `<span class="comp-badge-fallback" style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:6px;background:rgba(99,102,241,0.2);color:#a5b4fc;font-weight:900;font-size:${Math.round(size*0.4)}px">🏆</span>`;
+};
+
