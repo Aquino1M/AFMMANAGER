@@ -551,3 +551,15 @@ Novidades desta versão:
         * Senha padrão da conta 'aquino' oficialmente configurada para: "viralgen123".
         * Mecanismo de tolerância e auto-migração: a conta agora aceita tanto "viralgen123" quanto "123", atualizando o LocalStorage para garantir acesso sem bloqueios.
         * Usuário: "aquino" | Senha: "viralgen123".
+
+71. Preparação para Deploy no Vercel e Sincronização com GitHub:
+    - Configuração Pronta para Produção no Vercel:
+        * Criado o arquivo vercel.json configurado com roteamento limpo, cleanUrls e regras de cache otimizadas para arquivos estáticos e single-page application.
+        * Criado package.json com metadados do projeto, dependências e scripts de execução.
+        * Criado .gitignore com exclusão de arquivos temporários, archives pesados (BR11.zip) e scripts locais de raspagem (scratch/).
+        * Criado README.md moderno documentando todas as funcionalidades do simulador e o guia de execução local e deploy no Vercel.
+    - Sincronização Completa com o Repositório Remoto:
+        * Repositório Git local inicializado na branch principal (main).
+        * Conectado ao remote oficial https://github.com/Aquino1M/AFMMANAGER.git.
+        * Todos os 605 arquivos essenciais do jogo (código-fonte, escudos oficiais, fotos de atletas, banco de dados e estilos) comitados e enviados via push com sucesso para o GitHub.
+
