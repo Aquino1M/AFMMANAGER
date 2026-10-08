@@ -4,6 +4,7 @@
   "description": "AFM MANAGER 2027 - Simulador Tático de Futebol",
   "main": "index.html",
   "scripts": {
+    "build": "echo Static build ready",
     "start": "npx serve .",
     "dev": "npx serve ."
   },
