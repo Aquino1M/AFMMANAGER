@@ -7304,6 +7304,20 @@ function finalizeRound(userRes, winners, isKO){
   processDevelopment();
   processYouthDevelopment();
   processBankLoansOnRound();
+  if(window.AFM30){
+    try {
+      window.AFM30.advanceTraining(state);
+      window.AFM30.simulateYouthAcademy(state);
+      window.AFM30.financialAudit(state);
+      if(win){
+        window.AFM30.audio.play('crowdCheer');
+      } else {
+        window.AFM30.audio.play('whistle');
+      }
+    } catch(err){
+      console.warn('AFM30 round cycle error:', err);
+    }
+  }
   const d=new Date(state.date+'T12:00:00');
   d.setDate(d.getDate()+7);
   state.date=d.toISOString().slice(0,10);
@@ -9070,6 +9084,7 @@ function simulateMatchSegment(startMin, endMin){
       if(isHomeAttack) s.hg++; else s.ag++;
       const txt = generateGoalNarration(shooter, attackingTeam, isHomeAttack);
       s.events.unshift({ min: curM, type: 'gol', text: txt });
+      if(window.AFM30) window.AFM30.audio.play('goal');
     } else if(roll < goalProb + 0.45){
       if(isHomeAttack) s.stats.targetH++; else s.stats.targetA++;
       const saveTexts = [
@@ -10700,7 +10715,10 @@ function showEndOfSeasonModal(){
           `).join('')}
         </div>
       </div>
-      <div style="margin-top:20px;display:flex;justify-content:flex-end">
+      <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <button class="btn" id="btnOpenBallonDorTop" style="padding:14px 22px;font-size:14px;font-weight:900;background:linear-gradient(135deg,#eab308,#ca8a04);color:#000;border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:8px">
+          <span>🏆 GALA DA BOLA DE OURO & SELEÇÃO DO ANO</span> <span>🌟</span>
+        </button>
         <button class="btn primary" id="closeEndSeasonBtn" style="padding:16px 28px;font-size:15px;font-weight:900;background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;border-radius:12px;box-shadow:0 8px 25px rgba(16,185,129,0.45);cursor:pointer;display:flex;align-items:center;gap:8px">
           <span>🚀 VIRAR O ANO & INICIAR TEMPORADA ${state.season + 1}</span> <span>➔</span>
         </button>
@@ -10710,6 +10728,9 @@ function showEndOfSeasonModal(){
       advanceSeasonYear();
     }
   );
+
+  const bGala = $('#btnOpenBallonDorTop');
+  if(bGala) bGala.onclick = () => window.AFM30 && window.AFM30.openBallonDorGalaModal(state);
 
   const renew = $('#renewContractBtn');
   if(renew) renew.onclick = () => {
@@ -12761,6 +12782,14 @@ function shell(main){
               🛡️ Painel Admin
             </button>
           ` : ''}
+          <button class="afm-sound-btn" id="btnToggleSoundTop" title="Ativar/Desativar Efeitos Sonoros">
+            ${window.AFM30 && window.AFM30.audio.isEnabled() ? '🔊 Som Ativo' : '🔇 Mudo'}
+          </button>
+          <select id="selectThemeTop" class="afm-theme-selector" title="Tema Visual">
+            <option value="neon" ${localStorage.getItem('afm_theme')==='neon'?'selected':''}>🎨 Neon</option>
+            <option value="oled" ${localStorage.getItem('afm_theme')==='oled'?'selected':''}>🌑 OLED</option>
+            <option value="emerald" ${localStorage.getItem('afm_theme')==='emerald'?'selected':''}>🌿 Esmeralda</option>
+          </select>
           <button class="btn success" id="quickSaveBtn">💾 Salvar Jogo</button>
           <button class="btn danger" id="mainMenuBtn">🏠 Menu Principal</button>
         </div>
@@ -13487,6 +13516,33 @@ function myTeamPage(){
       <div class="formation-select">
         <select id="formation" class="btn">${Object.keys(FORMATIONS).map(x=>`<option ${state.formation===x?'selected':''}>${x}</option>`).join('')}</select>
         <button class="btn primary" id="autoLineup">⭐ Melhor XI</button>
+      </div>
+    </div>
+
+    <!-- Painel de Bolas Paradas e Capitães (AFM30) -->
+    <div style="background:#130f26;border:1px solid rgba(139,92,246,0.3);border-radius:12px;padding:10px 16px;margin:8px 0 12px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div>
+          <span style="font-size:11px;font-weight:900;color:#facc15">🎯 PÊNALTIS:</span>
+          <select id="selPenaltyTaker" class="btn" style="padding:4px 8px;font-size:11px;background:#1e1838;color:#fff;border-radius:6px;border:1px solid rgba(255,255,255,0.15)">
+            ${startingPlayers.map(p=>`<option value="${playerKey(p)}" ${state.setPieceTakers?.penalties===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <span style="font-size:11px;font-weight:900;color:#38bdf8">⚡ FALTAS:</span>
+          <select id="selFreekickTaker" class="btn" style="padding:4px 8px;font-size:11px;background:#1e1838;color:#fff;border-radius:6px;border:1px solid rgba(255,255,255,0.15)">
+            ${startingPlayers.map(p=>`<option value="${playerKey(p)}" ${state.setPieceTakers?.freekicks===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <span style="font-size:11px;font-weight:900;color:#eab308">👑 CAPITÃO:</span>
+          <select id="selCaptain" class="btn" style="padding:4px 8px;font-size:11px;background:#1e1838;color:#fff;border-radius:6px;border:1px solid rgba(255,255,255,0.15)">
+            ${startingPlayers.map(p=>`<option value="${esc(p.name)}" ${state.captains?.[0]===p.name?'selected':''}>${esc(p.name)} (${p.pos})</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:900;color:#22c55e;display:flex;align-items:center;gap:6px">
+        <span>⚡ Sinergia Tática:</span> <span style="background:rgba(34,197,94,0.15);padding:3px 8px;border-radius:6px;border:1px solid #22c55e">+3 OVR Ativo</span>
       </div>
     </div>
 
@@ -16600,6 +16656,7 @@ function configPage(){
       <button class="btn ${configTab==='save'?'active':''}" data-config-tab="save">💾 Save & Backup Local</button>
       <button class="btn ${configTab==='db'?'active':''}" data-config-tab="db">🗄️ Banco de Dados & Elencos</button>
       <button class="btn ${configTab==='options'?'active':''}" data-config-tab="options">⚙️ Preferências do Jogo</button>
+      <button class="btn ${configTab==='multiplayer'?'active':''}" data-config-tab="multiplayer">🌐 Multiplayer Cloud</button>
     </div>
 
     ${configTab==='save' ? `
@@ -16656,7 +16713,7 @@ function configPage(){
           </table>
         </div>
       </div>
-    ` : `
+    ` : configTab==='options' ? `
       <div class="card" style="margin-top:14px">
         <h2>Preferências do Jogo</h2>
         <div style="margin:14px 0">
@@ -16673,6 +16730,25 @@ function configPage(){
             <input type="checkbox" id="chkFreeTransfers" ${state.freeTransferWindow?'checked':''}>
             Permitir transferências o ano todo (Janela de transferências sempre aberta)
           </label>
+        </div>
+      </div>
+    ` : `
+      <div class="card" style="margin-top:14px;background:#130f26;border:1px solid #38bdf8;padding:24px;border-radius:18px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <span style="font-size:32px">🌐</span>
+          <div>
+            <h2 style="color:#38bdf8;margin:0">Amistosos Multiplayer Assíncronos (Supabase Cloud)</h2>
+            <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:4px 0 0 0">
+              Desafie o time salvo de qualquer outro treinador registrado no Supabase! Digite o nome de usuário do seu amigo para simular um grande amistoso interestadual.
+            </p>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:18px;max-width:540px">
+          <input type="text" id="inputFriendUsername" placeholder="Ex: @treinador_silva" class="btn" style="flex:1;background:#1b1533;border:1px solid rgba(255,255,255,0.2);color:#fff;padding:12px;font-size:14px">
+          <button class="btn primary" id="btnChallengeFriend" style="background:#38bdf8;color:#000;font-weight:900;padding:12px 24px;font-size:14px">Desafiar ⚽</button>
+        </div>
+        <div style="margin-top:20px;padding:14px;background:rgba(56,189,248,0.08);border-radius:10px;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.5">
+          ℹ️ <b>Como funciona:</b> A inteligência do jogo busca na nuvem o elenco mais recente do adversário, carrega a tática escalada por ele e realiza uma partida neutra completa, registrando estatísticas e confrontos diretos.
         </div>
       </div>
     `}
@@ -18607,6 +18683,19 @@ function bindSetup(){
 // EVENT BINDINGS
 // -------------------------------------------------------------
 function bind(){
+  const bSnd = $('#btnToggleSoundTop');
+  if(bSnd && window.AFM30){
+    bSnd.onclick = () => {
+      window.AFM30.audio.toggleMute();
+    };
+  }
+
+  const selTh = $('#selectThemeTop');
+  if(selTh && window.AFM30){
+    selTh.onchange = () => {
+      window.AFM30.applyTheme(selTh.value);
+    };
+  }
 
   // Listeners de Notícias
   if(view==='noticias'){
@@ -18818,6 +18907,28 @@ function bind(){
       render();
       window.scrollTo(0, sy);
       toast('Melhor XI escalado automaticamente!');
+    };
+
+    const pTak = $('#selPenaltyTaker');
+    if(pTak) pTak.onchange = () => {
+      state.setPieceTakers = state.setPieceTakers || {};
+      state.setPieceTakers.penalties = pTak.value;
+      save();
+      toast('Cobrador oficial de pênaltis definido!');
+    };
+    const fTak = $('#selFreekickTaker');
+    if(fTak) fTak.onchange = () => {
+      state.setPieceTakers = state.setPieceTakers || {};
+      state.setPieceTakers.freekicks = fTak.value;
+      save();
+      toast('Cobrador oficial de faltas definido!');
+    };
+    const cTak = $('#selCaptain');
+    if(cTak) cTak.onchange = () => {
+      state.captains = state.captains || [];
+      state.captains[0] = cTak.value;
+      save();
+      toast(`Capitão da equipe definido: ${cTak.value}`);
     };
 
     const saveBtn = $('#btnSaveLineup');
@@ -19122,6 +19233,15 @@ function bind(){
     };
     const spd=$('#selSimSpeed'); if(spd) spd.onchange=()=>{state.simSpeed=spd.value;save();toast('Preferência de velocidade salva!')};
     const chkFree=$('#chkFreeTransfers'); if(chkFree) chkFree.onchange=()=>{state.freeTransferWindow=chkFree.checked;save();toast('Configuração de transferências atualizada!')};
+    const btnChal = $('#btnChallengeFriend');
+    const inpFriend = $('#inputFriendUsername');
+    if(btnChal && inpFriend && window.AFM30){
+      btnChal.onclick = () => {
+        const u = inpFriend.value.trim().replace(/^@/, '');
+        if(!u) return toast('Digite o nome de usuário do treinador!');
+        window.AFM30.challengeFriendSquad(u);
+      };
+    }
   }
 }
 

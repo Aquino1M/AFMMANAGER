@@ -15,7 +15,7 @@ git status
 echo.
 echo [3/4] Adicionando arquivos e gerando commit validado...
 git add .
-git commit --author="Aquino1M <243838973+Aquino1M@users.noreply.github.com>" -m "docs & fix: higienizacao de arquivos MD, AGENTS.md, guardas de LocalStorage e otimizacoes"
+git commit --author="Aquino1M <243838973+Aquino1M@users.noreply.github.com>" -m "feat(v3.0): AFM Next-Gen - Prancheta 2.5D, Base Pro, Treino XP, WebAudio SFX, Multiplayer Cloud, Capitao e Bolas Paradas"
 
 echo.
 echo [4/4] Enviando para https://github.com/Aquino1M/AFMMANAGER.git...

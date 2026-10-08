@@ -4,7 +4,38 @@ Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027*
 
 ---
 
-## [1.0.0] - 2026-10-08 (Versão Atual)
+## [3.0.0] - 2026-10-08 (AFM 3.0 Next-Gen)
+
+### ⚽ Prancheta Tática 2.5D & Posicionamento Visual Dinâmico
+- **Prancheta Estilo FM/FIFA Manager**: Posicionamento 2D/2.5D renderizado na tela de escalação com posições reais dos atletas no campo.
+- **Instruções Individuais ao Jogador**: Definição de postura (Equilibrado, Ofensivo, Defensivo, Playmaker) com modal dedicado de instruções táticas.
+- **Capitão & Bolas Paradas**: Seleção direta do Capitão da equipe e dos cobradores oficiais de faltas e pênaltis na escalação.
+
+### 🌟 Academia de Categorias de Base Pro
+- **Peneiras Anuais (Sub-17 & Sub-20)**: Geração de joias brasileiras e promessas com relatórios detalhados de potencial.
+- **Promoção Imediata**: Botão de promoção de jovens promessas diretamente para o elenco profissional com apenas um clique.
+- **Scouting de Potencial**: Análise de teto de desenvolvimento com estrelas e atributos-chave.
+
+### 🏋️ Sistema de Treinamento Avançado com Foco Posicional
+- **Regimes de Treinamento**: Focos em Finalização, Passe/Armação, Defesa/Marcação, Físico/Resistência e Equilibrado.
+- **Intensidade Customizável**: Controle de carga (Leve, Moderada, Intensa) impactando a fadiga e velocidade de ganho de atributos.
+- **Ganhos Semanais de XP**: Evolução semanal automática refletida nas rodadas da temporada.
+
+### 🔊 Efeitos Sonoros Nativos (Web Audio API)
+- **Áudio Sintetizado 100% Nativo**: Zero bibliotecas externas ou arquivos de áudio pesados.
+- **Efeitos de Jogo**: Apito de árbitro em faltas e encerramento, explosão de comemoração de gol, vibração da trave e cantos da torcida.
+
+### 🌐 Amistosos Multiplayer Assíncronos (Cloud)
+- **Desafios Interestaduais**: Sistema para buscar o save de outros treinadores no Supabase pelo nome de usuário e simular amistosos contra seus elencos.
+- **Histórico de Confrontos**: Registro de duelos e estatísticas contra outros jogadores.
+
+### ⚖️ Auditoria Contábil & Fair Play Financeiro
+- **Auditoria Periódica de Gastos**: Detecção automática de riscos fiscais com folha salarial e despesas.
+- **Premiação de Boa Governança**: Bônus de caixa e confiança da diretoria quando as metas fiscais são cumpridas.
+
+---
+
+## [1.0.0] - 2026-10-08 (Versão Anterior)
 
 ### 🏦 Sistema Bancário, Financiamento & Crédito
 - **8ª Instalação no Campus**: Adicionada a estrutura **Banco & Financiamento** no campus do clube e no Escritório.

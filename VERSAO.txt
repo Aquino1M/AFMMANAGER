@@ -1,14 +1,15 @@
 Aquino Futebol Manager 2027 (AFM MANAGER)
-Versão: 1.0.0 (Build 2026-10-08)
+Versão: 3.0.0 (Build 2026-10-08 - AFM 3.0 Next-Gen)
 Histórico completo disponível em: CHANGELOG.md
 
 Destaques da Versão Atual:
-1. Sistema Bancário de Empréstimos & Financiamento (8ª Estrutura no Campus, taxas dinâmicas, antecipação com bônus e juros de mora com Transfer Ban).
-2. Botão Pesquisar e Limpar dedicado nos filtros de mercado e busca por Enter.
-3. Giro do Mercado Mundial da IA (5ª aba com transferências da CPU em tempo real).
-4. Propostas Oficiais Milionárias por atletas titulares com cláusula de 20% e contraproposta.
-5. Sincronização em tempo real da tabela dos 11 Estaduais.
-6. Inteligência coletiva tática 2.5D na marcação e movimentação ofensiva.
-7. Sistema de encerramento e virada de temporada com premiação e Hall da Fama.
-8. Widget social Voz da Torcida (#AFM2027) com reações pós-jogo.
-9. Persistência híbrida Local-First com sincronização em nuvem Supabase.
+1. Prancheta Tática 2.5D Estilo FM/FIFA Manager com Posicionamento Visual Dinâmico e Instruções de Jogador.
+2. Academia de Categorias de Base Pro (Peneiras sub-17/sub-20 anuais com geração de joias e promoção ao elenco principal).
+3. Sistema de Treinamento Especializado com Focos Posicionais, Controle de Carga/Intensidade e Ganho Semanal de XP.
+4. Efeitos Sonoros 100% Nativos via Web Audio API (Apito de início/fim, celebração da torcida, grito de gol e vibração de campeão).
+5. Multiplayer Assíncrono via Nuvem Supabase (Desafios interestaduais entre treinadores registrados).
+6. Central de Capitão e Bolas Paradas (Definição de capitão e cobradores oficiais de faltas e pênaltis na escalação).
+7. Auditoria Contábil & Fair Play Financeiro com Alertas de Gastos e Premiações por Boa Governança.
+8. Sistema Bancário de Empréstimos & Financiamento (8ª Estrutura no Campus, taxas dinâmicas, antecipação com bônus e juros de mora).
+9. Filtro e Busca com Botão Dedicado no Mercado de Empréstimos e Transferências.
+10. Persistência Local-First com Sincronização em Nuvem Supabase e PWA Offline com Service Worker v3.

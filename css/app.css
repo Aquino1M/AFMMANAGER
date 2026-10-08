@@ -3583,12 +3583,49 @@ select, .saas-select {
   50% { opacity: 0.85; transform: scale(1.01); }
 }
 
+/* =========================================================================
+   AFM30 — TEMAS VISUAIS & CONTROLES DE ÁUDIO
+   ========================================================================= */
+body.theme-oled {
+  --bg-main: #000000;
+  --bg-card: #080808;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  background-color: #000000 !important;
+}
 
+body.theme-emerald {
+  --bg-main: #061a12;
+  --bg-card: #0a261b;
+  --border-subtle: rgba(16, 185, 129, 0.2);
+  --neon: #10b981;
+  background-color: #061a12 !important;
+}
 
+.afm-sound-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
 
+.afm-sound-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
 
-
-
-
-
+.afm-theme-selector {
+  background: #151128;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+}
 
