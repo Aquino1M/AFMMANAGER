@@ -47,7 +47,7 @@ window.CLUB_BADGES = {
   "Amazonas FC": "amazonas_fc.png",
   "America-RJ": "america_rj.png",
   "América de Cali": "america_de_cali.png",
-  "América-MG": "america_mg.png",
+  "América-MG": "america_mg.svg",
   "América-RN": "america_rn.png",
   "Andraus": "andraus.png",
   "Angers": "angers.png",
@@ -61,7 +61,8 @@ window.CLUB_BADGES = {
   "ASA": "asa.png",
   "Aston Villa": "aston_villa.png",
   "Atalanta": "atalanta.png",
-  "Athletic Club": "8.svg",
+  "Athletic Bilbao": "athletic_bilbao.png",
+  "Athletic Club": "athletic_club.svg",
   "Athletico Paranaense": "7.svg",
   "Athletico-PR": "7.svg",
   "Atlético de Madrid": "atletico_de_madrid.png",
@@ -69,7 +70,7 @@ window.CLUB_BADGES = {
   "Atlético Rio Negro": "201.png",
   "Atlético-BA": "atletico_ba.png",
   "Atlético-CE": "atletico_ce.png",
-  "Atlético-GO": "8.svg",
+  "Atlético-GO": "1.svg",
   "Atlético-MG": "8.svg",
   "Augsburg": "augsburg.png",
   "Auxerre": "auxerre.png",
@@ -100,8 +101,8 @@ window.CLUB_BADGES = {
   "Borussia Dortmund": "borussia_dortmund.png",
   "Borussia Mönchengladbach": "borussia_monchengladbach.png",
   "Botafogo": "10.svg",
-  "Botafogo-PB": "10.svg",
-  "Botafogo-SP": "10.svg",
+  "Botafogo-PB": "botafogo_pb.svg",
+  "Botafogo-SP": "botafogo_sp.svg",
   "Bournemouth": "bournemouth.png",
   "Braga": "braga.png",
   "Bragantino": "20.png",
@@ -111,14 +112,14 @@ window.CLUB_BADGES = {
   "Brentford": "brentford.png",
   "Brest": "brest.png",
   "Brighton & Hove Albion": "brighton_hove_albion.png",
-  "Brusque": "11.svg",
+  "Brusque": "brusque.svg",
   "Burnley": "burnley.png",
   "Cagliari": "cagliari.png",
   "Capital-DF": "43.png",
   "Casa Pia": "casa_pia.png",
   "Caucaia": "caucaia.png",
   "Caxias": "147.svg",
-  "Ceará": "26.svg",
+  "Ceará": "ceara.svg",
   "Ceilândia": "44.png",
   "Celta de Vigo": "celta_de_vigo.png",
   "Central": "central.png",
@@ -135,9 +136,9 @@ window.CLUB_BADGES = {
   "Corinthians": "12.png",
   "Coritiba": "13.svg",
   "CRAC": "crac.png",
-  "CRB": "35.png",
+  "CRB": "crb.svg",
   "Cremonese": "cremonese.png",
-  "Criciúma": "11.svg",
+  "Criciúma": "criciuma.svg",
   "Cruzeiro": "14.svg",
   "Crystal Palace": "crystal_palace.png",
   "CSA": "csa.png",
@@ -197,7 +198,7 @@ window.CLUB_BADGES = {
   "Groningen": "groningen.png",
   "Grêmio": "16.svg",
   "Guaporé": "60.png",
-  "Guarani": "guarani.png",
+  "Guarani": "guarani.svg",
   "Guarany de Bagé": "guarany_de_bage.png",
   "Guaraní": "guarani.png",
   "Gwangju FC": "gwangju_fc.png",
@@ -218,14 +219,14 @@ window.CLUB_BADGES = {
   "Independência": "independencia.png",
   "Inhumas": "67.png",
   "Inter": "inter.png",
-  "Inter de Limeira": "46.png",
+  "Inter de Limeira": "inter_de_limeira.svg",
   "Internacional": "17.svg",
   "Ipatinga": "ipatinga.png",
   "Iporá": "ipora.png",
   "Itabaiana": "154.png",
   "Itabirito": "itabirito.png",
   "Itabuna": "itabuna.png",
-  "Ituano": "43.png",
+  "Ituano": "ituano.svg",
   "Ivinhema": "68.png",
   "Jacuipense": "jacuipense.png",
   "Jeju SK": "jeju_sk.png",
@@ -233,7 +234,7 @@ window.CLUB_BADGES = {
   "Jequié": "jequie.png",
   "Joinville": "joinville.png",
   "Juazeirense": "71.png",
-  "Juventude": "125.svg",
+  "Juventude": "juventude.svg",
   "Juventus": "juventus.png",
   "Kalba": "kalba.png",
   "Kashima Antlers": "kashima_antlers.png",
@@ -255,7 +256,7 @@ window.CLUB_BADGES = {
   "Libertad": "libertad.png",
   "Lille": "lille.png",
   "Liverpool": "liverpool.png",
-  "Londrina": "46.png",
+  "Londrina": "londrina.svg",
   "Lorient": "lorient.png",
   "Luverdense": "74.png",
   "Lyon": "lyon.png",
@@ -298,12 +299,12 @@ window.CLUB_BADGES = {
   "Nottingham Forest": "nottingham_forest.png",
   "Nova Iguaçu": "nova_iguacu.png",
   "Novo Hamburgo": "novo_hamburgo.png",
-  "Novorizontino": "18.png",
-  "Náutico": "26.svg",
+  "Novorizontino": "novorizontino.svg",
+  "Náutico": "nautico.svg",
   "Olimpia": "olimpia.png",
   "Operário VG": "89.png",
   "Operário-MS": "operario_ms.png",
-  "Operário-PR": "89.png",
+  "Operário-PR": "operario_pr.svg",
   "Oratório": "oratorio.png",
   "Osasuna": "osasuna.png",
   "Palestino": "palestino.png",
@@ -314,14 +315,14 @@ window.CLUB_BADGES = {
   "Paris Saint-Germain": "paris_saint_germain.png",
   "Parma": "parma.png",
   "Parnahyba": "91.png",
-  "Paysandu": "21.svg",
+  "Paysandu": "paysandu.svg",
   "PEC Zwolle": "pec_zwolle.png",
   "Petrolina": "petrolina.png",
   "Peñarol": "penarol.png",
   "Piauí": "piaui.png",
   "Pisa": "pisa.png",
   "Pohang Steelers": "pohang_steelers.png",
-  "Ponte Preta": "46.png",
+  "Ponte Preta": "ponte_preta.svg",
   "Porto Velho": "58.png",
   "Porto-BA": "porto_ba.png",
   "Porto-PE": "porto_pe.png",
@@ -358,7 +359,7 @@ window.CLUB_BADGES = {
   "Sanfrecce Hiroshima": "sanfrecce_hiroshima.png",
   "Santa Catarina": "santa_catarina.png",
   "Santa Clara": "santa_clara.png",
-  "Santa Cruz": "110.png",
+  "Santa Cruz": "santa_cruz.svg",
   "Santos": "22.png",
   "Sassuolo": "sassuolo.png",
   "SC Freiburg": "sc_freiburg.png",
@@ -376,13 +377,14 @@ window.CLUB_BADGES = {
   "Sobradinho": "3396.png",
   "Sousa": "110.png",
   "Sparta Rotterdam": "sparta_rotterdam.png",
-  "Sport": "25.svg",
+  "Sport": "sport.svg",
+  "Sport Recife": "sport.svg",
   "Sporting CP": "sporting_cp.png",
   "St. Pauli": "st_pauli.png",
   "Strasbourg": "strasbourg.png",
   "Sunderland": "sunderland.png",
   "Suwon FC": "suwon_fc.png",
-  "São Bernardo": "18.png",
+  "São Bernardo": "sao_bernardo.svg",
   "São Joseense": "sao_joseense.png",
   "São José-AP": "3356.png",
   "São José-RS": "3356.png",
@@ -417,7 +419,7 @@ window.CLUB_BADGES = {
   "Vasco da Gama": "24.png",
   "Velo Clube": "velo_clube.png",
   "VfB Stuttgart": "vfb_stuttgart.png",
-  "Vila Nova": "59.png",
+  "Vila Nova": "vila_nova.svg",
   "Vilavelhense": "6398.png",
   "Villa Nova": "villa_nova.png",
   "Villarreal": "villarreal.png",
@@ -426,7 +428,7 @@ window.CLUB_BADGES = {
   "Vitória de Guimarães": "vitoria_de_guimaraes.png",
   "Vitória-ES": "25.svg",
   "Volendam": "volendam.png",
-  "Volta Redonda": "10.svg",
+  "Volta Redonda": "volta_redonda.svg",
   "Werder Bremen": "werder_bremen.png",
   "West Ham United": "west_ham_united.png",
   "Wolfsburg": "wolfsburg.png",
@@ -435,10 +437,10 @@ window.CLUB_BADGES = {
   "XV de Piracicaba": "xv_de_piracicaba.png",
   "Yokohama F. Marinos": "yokohama_f_marinos.png",
   "Yokohama FC": "yokohama_fc.png",
-  "Ypiranga-RS": "16.svg",
+  "Ypiranga-RS": "ypiranga_rs.svg",
   "Yunnan Yukun": "yunnan_yukun.png",
   "Zhejiang": "zhejiang.png",
-  "Água Santa": "43.png",
+  "Água Santa": "agua_santa.svg",
   "Águia de Marabá": "aguia_de_maraba.png"
 };
 
@@ -446,7 +448,7 @@ function normClub(s) {
   return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
-// Retorna o escudo oficial do clube otimizado (56x56 PNG, ~2KB)
+// Retorna o escudo oficial do clube otimizado
 window.renderClubBadge = function(clubName, size = 32) {
   if (!clubName) clubName = 'Club';
   const rawName = String(clubName).trim();
@@ -454,8 +456,19 @@ window.renderClubBadge = function(clubName, size = 32) {
 
   let file = window.CLUB_BADGES[rawName];
   if (!file) {
+    // 1. Prioridade absoluta para match exato normalizado
     for (const [k, v] of Object.entries(window.CLUB_BADGES)) {
-      if (normClub(k) === n || n.includes(normClub(k)) || normClub(k).includes(n)) {
+      if (normClub(k) === n) {
+        file = v;
+        break;
+      }
+    }
+  }
+  if (!file) {
+    // 2. Prefixo ou sufixo com fronteira de palavra
+    for (const [k, v] of Object.entries(window.CLUB_BADGES)) {
+      const kn = normClub(k);
+      if (n.startsWith(kn + ' ') || n.endsWith(' ' + kn)) {
         file = v;
         break;
       }

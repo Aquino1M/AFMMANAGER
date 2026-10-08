@@ -1,5 +1,5 @@
 Aquino Futebol Manager 2027 (AFM MANAGER)
-Versão: 3.1.1 (Build 2026-10-08 - Versão 62)
+Versão: 3.1.2 (Build 2026-10-08 - Versão 63)
 Histórico completo disponível em: CHANGELOG.md
 
 Destaques da Versão Atual:

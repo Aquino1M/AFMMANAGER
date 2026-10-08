@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <!-- 6 Golden Stars on top (Hexacampeonato Pernambucano) -->
+  <g fill="#f1c40f" stroke="#b7950b" stroke-width="0.8">
+    <polygon points="105,25 108,35 119,35 110,42 113,52 105,46 97,52 100,42 91,35 102,35" />
+    <polygon points="142,16 145,26 156,26 147,33 150,43 142,37 134,43 137,33 128,26 139,26" />
+    <polygon points="180,10 183,20 194,20 185,27 188,37 180,31 172,37 175,27 166,20 177,20" />
+    <polygon points="220,10 223,20 234,20 225,27 228,37 220,31 212,37 215,27 206,20 217,20" />
+    <polygon points="258,16 261,26 272,26 263,33 266,43 258,37 250,43 253,33 244,26 255,26" />
+    <polygon points="295,25 298,35 309,35 300,42 303,52 295,46 287,52 290,42 281,35 292,35" />
+  </g>
+  <!-- Outer Shield Border -->
+  <path d="M40,65 C40,65 200,55 200,55 C200,55 360,65 360,65 C360,260 330,375 200,465 C70,375 40,260 40,65 Z" fill="#ffffff" stroke="#d31027" stroke-width="6"/>
+  <clipPath id="nauticoClip">
+    <path d="M46,71 C46,71 200,61 200,61 C200,61 354,71 354,71 C354,255 325,368 200,455 C75,368 46,255 46,71 Z"/>
+  </clipPath>
+  <g clip-path="url(#nauticoClip)">
+    <!-- White background -->
+    <rect x="40" y="55" width="320" height="420" fill="#ffffff"/>
+    <!-- Red vertical stripes -->
+    <rect x="40" y="55" width="45" height="420" fill="#d31027"/>
+    <rect x="125" y="55" width="45" height="420" fill="#d31027"/>
+    <rect x="230" y="55" width="45" height="420" fill="#d31027"/>
+    <rect x="315" y="55" width="45" height="420" fill="#d31027"/>
+    <!-- Center Lifebuoy / Circle and Crossed Oars -->
+    <line x1="80" y1="120" x2="320" y2="360" stroke="#d31027" stroke-width="14" stroke-linecap="round"/>
+    <line x1="80" y1="120" x2="320" y2="360" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="68,108 92,106 82,128" fill="#d31027" stroke="#ffffff" stroke-width="2"/>
+    <line x1="320" y1="120" x2="80" y2="360" stroke="#d31027" stroke-width="14" stroke-linecap="round"/>
+    <line x1="320" y1="120" x2="80" y2="360" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="332,108 318,128 308,106" fill="#d31027" stroke="#ffffff" stroke-width="2"/>
+    <!-- Center Round Shield with CNC -->
+    <circle cx="200" cy="240" r="88" fill="#ffffff" stroke="#d31027" stroke-width="8"/>
+    <circle cx="200" cy="240" r="76" fill="#d31027"/>
+    <!-- CNC text in white -->
+    <text x="200" y="255" font-family="'Arial Black', Impact, sans-serif" font-size="44" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="4">CNC</text>
+    <!-- Foundation year 1901 -->
+    <rect x="155" y="278" width="90" height="22" rx="11" fill="#ffffff"/>
+    <text x="200" y="295" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#d31027" text-anchor="middle">1901</text>
+    <!-- NÁUTICO text at bottom -->
+    <text x="200" y="420" font-family="'Arial Black', sans-serif" font-size="18" font-weight="900" fill="#d31027" text-anchor="middle" letter-spacing="3">NÁUTICO</text>
+  </g>
+</svg>

@@ -3383,7 +3383,6 @@ function newsMediaPage(){
           <div style="display:flex;gap:16px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:rgba(255,255,255,0.4)">
             <span>❤️ ${item.likes} curtidas</span>
             <span>💬 ${item.comments} comentários</span>
-            <span style="margin-left:auto;color:#a855f7;cursor:pointer">Compartilhar ↗</span>
           </div>
         </div>
       `).join('')}
@@ -4157,12 +4156,19 @@ function logoutUser(){
 }
 
 function getUserSaveSlots(username){
-  const cleanU = (username || getActiveAccount()?.username || '').trim().toLowerCase();
+  const cleanU = (username || getActiveAccount()?.username || 'aquino').trim().toLowerCase();
   const accs = getStoredAccounts();
-  const acc = accs.find(a => a.username.toLowerCase() === cleanU);
+  const acc = accs.find(a => a.username.toLowerCase() === cleanU) || accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0];
   const saves = acc?.saves || [];
   return [1, 2, 3].map(slotNum => {
-    return saves.find(s => s.slot === slotNum) || null;
+    let s = saves.find(x => x.slot === slotNum);
+    if(!s || !s.data){
+      try {
+        const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
+        if(raw) s = JSON.parse(raw);
+      } catch(e){}
+    }
+    return s || null;
   });
 }
 
@@ -4181,45 +4187,52 @@ function save(){
     localStorage.setItem(STORAGE, JSON.stringify(state));
   } catch(e){}
 
-  const user = getActiveAccount();
-  if(user){
-    const accs = getStoredAccounts();
-    const acc = accs.find(a => a.username.toLowerCase() === user.username.toLowerCase());
-    if(acc){
-      acc.saves = acc.saves || [];
-      const slotNum = Number(state.userSlot) || 1;
-      state.userSlot = slotNum;
-      state.userOwner = user.username.toLowerCase();
-      const saveId = `save_${user.username}_slot${slotNum}_${norm(state.club)}`;
-      state.saveId = saveId;
+  const slotNum = Math.max(1, Math.min(3, Number(state.userSlot) || 1));
+  state.userSlot = slotNum;
+  const user = getActiveAccount() || { username: 'aquino', name: state.manager || 'Treinador' };
+  state.userOwner = (user.username || 'aquino').toLowerCase();
+  const saveId = `save_${state.userOwner}_slot${slotNum}_${norm(state.club)}`;
+  state.saveId = saveId;
 
-      const saveEntry = {
-        slot: slotNum,
-        id: saveId,
-        owner: user.username.toLowerCase(),
-        club: state.club,
-        manager: state.manager || user.name,
-        season: state.season,
-        date: state.date,
-        round: state.round,
-        balance: state.balance,
-        updatedAt: new Date().toLocaleString('pt-BR'),
-        data: clone(state)
-      };
+  const saveEntry = {
+    slot: slotNum,
+    id: saveId,
+    owner: state.userOwner,
+    club: state.club,
+    manager: state.manager || user.name || 'Treinador',
+    season: state.season,
+    date: state.date,
+    round: state.round,
+    balance: state.balance,
+    updatedAt: new Date().toLocaleString('pt-BR'),
+    data: clone(state)
+  };
 
-      const existingIdx = acc.saves.findIndex(s => s.slot === slotNum);
-      if(existingIdx >= 0){
-        acc.saves[existingIdx] = saveEntry;
-      } else {
-        acc.saves.push(saveEntry);
-      }
-      acc.saves = acc.saves.filter(s => s.slot >= 1 && s.slot <= 3).sort((a,b) => a.slot - b.slot);
-      saveStoredAccounts(accs);
+  // 1. Salvar no slot dedicado no localStorage (garante persistência mesmo sem login ativo)
+  try {
+    localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(saveEntry));
+  } catch(e){}
 
-      // Sincronizar save com o Supabase Cloud
-      if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
-        window.AFM_DB.saveSlot(user.username, slotNum, saveEntry).catch(()=>{});
-      }
+  // 2. Salvar na lista de contas do sistema
+  const accs = getStoredAccounts();
+  let acc = accs.find(a => a.username.toLowerCase() === state.userOwner);
+  if(!acc){
+    acc = accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0];
+  }
+  if(acc){
+    acc.saves = acc.saves || [];
+    const existingIdx = acc.saves.findIndex(s => s.slot === slotNum);
+    if(existingIdx >= 0){
+      acc.saves[existingIdx] = saveEntry;
+    } else {
+      acc.saves.push(saveEntry);
+    }
+    acc.saves = acc.saves.filter(s => s.slot >= 1 && s.slot <= 3).sort((a,b) => a.slot - b.slot);
+    saveStoredAccounts(accs);
+
+    // 3. Sincronizar save com o Supabase Cloud
+    if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
+      window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry).catch(()=>{});
     }
   }
 }
@@ -4233,16 +4246,26 @@ function load(){
 }
 
 function loadUserSlot(slotNum, ownerUsername = null){
-  const username = ownerUsername || getActiveAccount()?.username;
-  if(!username){ toast('Faça login primeiro para carregar sua campanha.'); return; }
+  slotNum = Math.max(1, Math.min(3, Number(slotNum) || 1));
+  const username = (ownerUsername || getActiveAccount()?.username || 'aquino').toLowerCase();
   const accs = getStoredAccounts();
-  const acc = accs.find(a => a.username.toLowerCase() === username.toLowerCase());
-  if(!acc) return;
-  const saveEntry = (acc.saves || []).find(s => s.slot === slotNum);
-  if(!saveEntry || !saveEntry.data){ toast(`O Slot ${slotNum} está vazio.`); return; }
+  const acc = accs.find(a => a.username.toLowerCase() === username) || accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0];
+  
+  let saveEntry = (acc?.saves || []).find(s => s.slot === slotNum);
+  if(!saveEntry || !saveEntry.data){
+    try {
+      const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
+      if(raw) saveEntry = JSON.parse(raw);
+    } catch(e){}
+  }
+
+  if(!saveEntry || !saveEntry.data){
+    toast(`O Slot ${slotNum} está vazio.`);
+    return;
+  }
   state = clone(saveEntry.data);
   state.userSlot = slotNum;
-  state.userOwner = username.toLowerCase();
+  state.userOwner = username;
   state = migrate(state);
   save();
   view = 'central';
@@ -4251,14 +4274,20 @@ function loadUserSlot(slotNum, ownerUsername = null){
 }
 
 function deleteUserSlot(slotNum, ownerUsername = null){
-  const username = ownerUsername || getActiveAccount()?.username;
-  if(!username) return;
+  slotNum = Math.max(1, Math.min(3, Number(slotNum) || 1));
+  const username = (ownerUsername || getActiveAccount()?.username || 'aquino').toLowerCase();
   if(!confirm(`Deseja realmente excluir a campanha do Slot ${slotNum}? Esta ação não pode ser desfeita.`)) return;
+  
   const accs = getStoredAccounts();
-  const acc = accs.find(a => a.username.toLowerCase() === username.toLowerCase());
-  if(!acc) return;
-  acc.saves = (acc.saves || []).filter(s => s.slot !== slotNum);
-  saveStoredAccounts(accs);
+  const acc = accs.find(a => a.username.toLowerCase() === username) || accs.find(a => a.username.toLowerCase() === 'aquino');
+  if(acc){
+    acc.saves = (acc.saves || []).filter(s => s.slot !== slotNum);
+    saveStoredAccounts(accs);
+  }
+
+  try {
+    localStorage.removeItem(`afm_save_slot_${slotNum}`);
+  } catch(e){}
 
   // Deletar da nuvem (Supabase)
   if(window.AFM_DB && typeof window.AFM_DB.deleteSlot === 'function'){
@@ -4266,7 +4295,15 @@ function deleteUserSlot(slotNum, ownerUsername = null){
   }
 
   toast(`Campanha do Slot ${slotNum} excluída com sucesso.`);
-  renderSetup($('#app'));
+  if(state && Number(state.userSlot) === slotNum){
+    state = null;
+    localStorage.removeItem(STORAGE);
+    render();
+  } else if(state){
+    render();
+  } else {
+    renderSetup($('#app'));
+  }
 }
 
 function loadUserSave(saveId, ownerUsername = null){
@@ -5392,11 +5429,14 @@ function generatedRosterForClub(club){
 
 function buildWorldGenerated(){
   const counts=new Map();for(const p of livePlayers){const k=norm(p.club);if(k)counts.set(k,(counts.get(k)||0)+1)}
-  const out=[];for(const c of clubs){const liveCount=counts.get(norm(c.name))||0;if(liveCount>=22)continue;const need=Math.max(8,25-liveCount);out.push(...generatedRosterForClub(c.name).slice(0,need));}return out;
+  const out=[];for(const c of clubs){const liveCount=counts.get(norm(c.name))||0;if(liveCount>=11)continue;const need=Math.max(4,22-liveCount);out.push(...generatedRosterForClub(c.name).slice(0,need));}return out;
 }
 
 function playersForClub(club,worldGenerated){
   const live=livePlayers.filter(p=>norm(p.club)===norm(club)).map((p,i)=>({...p,id:p.id||`live-${hashStr(playerKey(p))}`,marketKey:playerKey(p),morale:p.morale??70,fitness:p.fitness??100,owned:true,value:calcValueMi(p)}));
+  if(live.length >= 11){
+    return live.map(p=>({...p,club,owned:true,marketKey:playerKey(p)}));
+  }
   const gen=(worldGenerated||[]).filter(p=>norm(p.club)===norm(club));
   return [...live,...gen].slice(0,25).map(p=>({...p,club,owned:true,marketKey:playerKey(p)}));
 }
@@ -8313,8 +8353,8 @@ function startLiveMatch(){
           hasBall: false
         });
       }
-    } else {
-      const oppRoster = (window.BASE_CLUBS?.find(c => norm(c.name) === norm(teamName))?.roster) || generatedRosterForClub(teamName);
+      const liveOpp = livePlayers.filter(p => norm(p.club) === norm(teamName));
+      const oppRoster = (liveOpp.length >= 11 ? liveOpp : null) || (window.BASE_CLUBS?.find(c => norm(c.name) === norm(teamName))?.roster) || generatedRosterForClub(teamName);
       for(let i=0; i<11; i++){
         const p = oppRoster[i] || { name: `${NAMES[i%NAMES.length]} ${LAST[i%LAST.length]}`, pos: formDef[i]?.r || 'CM', fc: 64 };
         const slot = formDef[i] || { r: p.pos || 'CM', x: 50, y: 50 };
@@ -11714,6 +11754,9 @@ function openTransferNegotiationModal(key){
         <div style="text-align:right">
           <div style="font-size:11px;color:rgba(255,255,255,0.5)">Seu Saldo em Caixa</div>
           <b style="color:var(--neon);font-size:18px">${fmtMoney(state.balance)}</b>
+          <div style="font-size:11px;color:#38bdf8;font-weight:800;margin-top:2px">
+            Folha Atual: ${fmtMoney(totalMonthlyPayroll())}/mês
+          </div>
         </div>
       </div>
 
@@ -11766,21 +11809,26 @@ function openTransferNegotiationModal(key){
 
         <!-- COLUNA DIREITA: CONTRATO DO ATLETA & BARRA DE INTERESSE -->
         <div class="nego-card">
-          <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
             <span style="font-size:12px;font-weight:900;color:#c084fc;text-transform:uppercase">2. SALÁRIO & BÔNUS DO JOGADOR</span>
-            <span class="pill" style="font-size:10px">Base: ${fmtMoney(baseSalary)}/mês</span>
+            <div style="display:flex;gap:6px">
+              <span class="pill" style="font-size:10px;background:rgba(56,189,248,0.12);color:#38bdf8;border:1px solid rgba(56,189,248,0.3)">
+                Folha Atual: ${fmtMoney(totalMonthlyPayroll())}/mês
+              </span>
+              <span class="pill" style="font-size:10px">Base: ${fmtMoney(baseSalary)}/mês</span>
+            </div>
           </div>
 
           <!-- Salário Mensal -->
           <div>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="font-size:11px;font-weight:700">Salário Oferecido:</span>
-              <strong style="color:var(--neon);font-size:16px">${fmtMoney(wageOffered)}/mês</strong>
+              <strong id="dispWageOffered" style="color:var(--neon);font-size:16px">${fmtMoney(wageOffered)}/mês</strong>
             </div>
             <input type="range" id="rngWageOffer" min="${Math.round(baseSalary*0.6)}" max="${Math.round(baseSalary*2.2)}" step="2000" value="${wageOffered}" style="width:100%;margin-top:6px">
             <div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.4)">
               <span>-40%</span>
-              <span>Esperado (${fmtMoney(baseSalary)})</span>
+              <span id="dispNewPayrollImpact" style="color:#38bdf8;font-weight:800">Nova Folha: ${fmtMoney(totalMonthlyPayroll() + wageOffered)}/mês</span>
               <span>+120%</span>
             </div>
           </div>
@@ -11855,14 +11903,14 @@ function openTransferNegotiationModal(key){
           <div class="nego-interest-wrapper">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="font-size:11px;font-weight:900;color:#fff">INTERESSE DO ATLETA</span>
-              <span style="font-size:13px;font-weight:900;color:${interest>=75?'#10b981':interest>=50?'#f59e0b':'#ef4444'}">${interest}%</span>
+              <span id="dispInterestPct" style="font-size:13px;font-weight:900;color:${interest>=75?'#10b981':interest>=50?'#f59e0b':'#ef4444'}">${interest}%</span>
             </div>
             
             <div class="nego-interest-bar-bg">
-              <div class="nego-interest-bar-fill ${interestClass}" style="width:${interest}%"></div>
+              <div id="dispInterestBarFill" class="nego-interest-bar-fill ${interestClass}" style="width:${interest}%"></div>
             </div>
             
-            <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-top:6px;line-height:1.3">
+            <div id="dispInterestDesc" style="font-size:10px;color:rgba(255,255,255,0.6);margin-top:6px;line-height:1.3">
               ${interestText} (Meta: 75%+)
             </div>
           </div>
@@ -11874,10 +11922,10 @@ function openTransferNegotiationModal(key){
       <!-- PAINEL DE CHANCES REALISTAS DE ACEITE -->
       <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;margin-top:12px;display:flex;justify-content:space-around;align-items:center;flex-wrap:wrap;gap:8px">
         <div style="font-size:12px">
-          🏛️ Chance de Aceite do Clube Vendedor: <b style="color:${clubChance>=70?'#22c55e':'#ef4444'}">${clubChance}%</b>
+          🏛️ Chance de Aceite do Clube Vendedor: <b id="dispClubChance" style="color:${clubChance>=70?'#22c55e':'#ef4444'}">${clubChance}%</b>
         </div>
         <div style="font-size:12px">
-          👤 Chance de Aceite do Atleta (Termos): <b style="color:${playerChance>=65?'#22c55e':'#ef4444'}">${playerChance}%</b>
+          👤 Chance de Aceite do Atleta (Termos): <b id="dispPlayerChance" style="color:${playerChance>=65?'#22c55e':'#ef4444'}">${playerChance}%</b>
         </div>
       </div>
 
@@ -11914,7 +11962,40 @@ function openTransferNegotiationModal(key){
     if(wageSlider){
       wageSlider.oninput = () => {
         wageOffered = +wageSlider.value;
-        renderNegoModal();
+        const dw = $('#dispWageOffered');
+        if(dw) dw.textContent = fmtMoney(wageOffered) + '/mês';
+        const dp = $('#dispNewPayrollImpact');
+        if(dp) dp.textContent = `Nova Folha: ${fmtMoney(totalMonthlyPayroll() + wageOffered)}/mês`;
+
+        const sRatio = wageOffered / (baseSalary || 1);
+        let dynInt = Math.round(50 + (sRatio - 1) * 35 + (contractYears >= 3 ? 10 : 0) + (signingBonus > 0 ? (signingBonus/150000)*4 : 0));
+        dynInt = clamp(dynInt, 10, 99);
+        interest = dynInt;
+        const dynClass = dynInt >= 75 ? 'good' : (dynInt >= 50 ? 'warning' : 'danger');
+
+        const pi = $('#dispInterestPct');
+        if(pi){
+          pi.textContent = dynInt + '%';
+          pi.style.color = dynInt >= 75 ? '#10b981' : (dynInt >= 50 ? '#f59e0b' : '#ef4444');
+        }
+        const bf = $('#dispInterestBarFill');
+        if(bf){
+          bf.style.width = dynInt + '%';
+          bf.className = `nego-interest-bar-fill ${dynClass}`;
+        }
+        const pc = $('#dispPlayerChance');
+        if(pc){
+          playerChance = Math.min(99, Math.round(dynInt * 0.95));
+          pc.textContent = playerChance + '%';
+          pc.style.color = playerChance >= 65 ? '#22c55e' : '#ef4444';
+        }
+        const bConfirm = $('#btnConfirmBuyTransfer');
+        if(bConfirm){
+          const canFin = canAfford && clubChance >= 50 && playerChance >= 50;
+          canFinalize = canFin;
+          bConfirm.disabled = !canFin;
+          bConfirm.style.background = canFin ? 'linear-gradient(135deg,#059669,#10b981)' : '#374151';
+        }
       };
     }
 
@@ -13252,7 +13333,6 @@ function centralPage(){
     else if(gf < ga) losses++;
     else draws++;
   });
-  if(totalGames === 0){ losses = 1; }
 
   // Dados do Confronto da Copa do Brasil
   const copa = getCopaDoBrasilState();
@@ -13336,7 +13416,7 @@ function centralPage(){
           <div style="margin-top:16px;border-top:1px solid rgba(255,255,255,0.08);padding-top:14px">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:0.5px">CAMPANHA NA CARREIRA</span>
-              <span style="font-size:10px;color:rgba(255,255,255,0.4)">${totalGames || 1} jogo</span>
+              <span style="font-size:10px;color:rgba(255,255,255,0.4)">${totalGames} ${totalGames === 1 ? 'jogo' : 'jogos'}</span>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center;margin-top:10px;background:#161324;padding:8px 0;border-radius:10px">
               <div>
@@ -13349,7 +13429,7 @@ function centralPage(){
               </div>
               <div>
                 <div style="font-size:18px;font-weight:900;color:#ef4444">${losses}</div>
-                <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.4)">DERROTA</div>
+                <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.4)">DERROTAS</div>
               </div>
             </div>
             <button id="btnOpenHallOfFame" class="btn" style="background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;font-size:11px;font-weight:800;border-radius:8px;padding:8px 12px;cursor:pointer;width:100%;margin-top:12px">
@@ -13537,26 +13617,31 @@ function centralPage(){
                 🏆 TEMPORADA ${state.season} CONCLUÍDA — VER CONQUISTAS & VIRAR O ANO 🚀
               </button>
             </div>
+          ` : (state.isPreSeason && state.preSeasonDays > 0) ? `
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:8px">
+                <button class="btn primary" id="btnAdvancePreSeasonDayCard" style="padding:13px 10px;font-size:13px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;cursor:pointer">
+                  ⏩ AVANÇAR DIA (${state.preSeasonDays} rest.)
+                </button>
+                <button class="btn" id="btnSkipPreSeasonCard" style="padding:13px 8px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
+                  ⏭️ PULAR P/ ESTREIA
+                </button>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);text-align:center">
+                ⚽ A 1ª rodada oficial começará após o fechamento da janela de pré-temporada.
+              </div>
+            </div>
           ` : `
-            <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:8px;margin-top:16px">
-              <button class="btn primary" id="playMatchLive" style="padding:14px 8px;font-size:14px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(124,58,237,0.4)">
-                JOGAR
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-top:16px">
+              <button class="btn primary" id="playMatchLive" style="padding:14px 10px;font-size:15px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(124,58,237,0.4);cursor:pointer">
+                ▶ JOGAR
               </button>
-              <button class="btn" id="playMatchQuick" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px">
-                SIMULAR
+              <button class="btn" id="playMatchQuick" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
+                ⚡ SIMULAR
               </button>
-              <button class="btn" id="btnMatchPreviewCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px">
-                PRÉVIA
+              <button class="btn" id="btnMatchPreviewCentral" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
+                📋 PRÉVIA
               </button>
-              ${(state.answeredPressKey === `${state.season || 2026}_${state.round || 0}`) ? `
-                <button class="btn" id="btnOpenPressConferenceCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:rgba(255,255,255,0.35);cursor:not-allowed" title="Coletiva já realizada nesta rodada. Disponível após a próxima partida.">
-                  🎙️ COLETIVA (OK)
-                </button>
-              ` : `
-                <button class="btn" id="btnOpenPressConferenceCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid #7c3aed;border-radius:12px;color:#c084fc">
-                  🎙️ COLETIVA
-                </button>
-              `}
             </div>
           `}
 
@@ -17135,6 +17220,9 @@ function seasonPage(){
 // -------------------------------------------------------------
 function configPage(){
   const m=window.PLAYER_DB_META||{};
+  const activeUser = getActiveAccount() || { username: state?.userOwner || 'aquino', name: state?.manager || 'Treinador' };
+  const userSlots = getUserSaveSlots(activeUser.username);
+  const currentSlot = Math.max(1, Math.min(3, Number(state?.userSlot) || 1));
   return `
     <div class="hero">
       <div>
@@ -17152,6 +17240,84 @@ function configPage(){
     </div>
 
     ${configTab==='save' ? `
+      <div class="card" style="margin-top:14px;background:linear-gradient(180deg, rgba(30,41,59,0.7) 0%, rgba(15,23,42,0.95) 100%);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:12px">
+          <div>
+            <h2 style="margin:0;font-size:18px;font-weight:900;display:flex;align-items:center;gap:8px">
+              💾 Gerenciador de Gravações (Slots 1, 2 e 3)
+            </h2>
+            <div class="muted small" style="margin-top:4px">
+              Treinador: <b>${esc(activeUser.name || activeUser.username)}</b> • Cada slot salva uma carreira 100% independente no seu navegador.
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn success" id="btnSaveCurrentSlotNow" style="font-weight:800;padding:8px 14px;border-radius:8px">
+              💾 Salvar no Slot ${currentSlot}
+            </button>
+            <button class="btn secondary" id="btnExitToMainMenu" style="font-weight:700;padding:8px 14px;border-radius:8px">
+              🏠 Menu Principal / Trocar Carreira
+            </button>
+          </div>
+        </div>
+
+        <div class="grid g3" style="gap:14px">
+          ${[1, 2, 3].map(slotNum => {
+            const s = userSlots[slotNum - 1];
+            const isCurrent = (currentSlot === slotNum);
+            if(s && s.data){
+              return `
+                <div class="card" style="margin:0;background:${isCurrent ? 'rgba(34,197,94,0.07)' : 'rgba(255,255,255,0.02)'};border:${isCurrent ? '2px solid rgba(34,197,94,0.5)' : '1px solid rgba(255,255,255,0.08)'};border-radius:12px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                      <span style="font-size:11px;font-weight:900;letter-spacing:1px;color:${isCurrent ? '#4ade80' : '#94a3b8'};text-transform:uppercase">SLOT ${slotNum}</span>
+                      ${isCurrent ? '<span class="badge success" style="font-size:10px;padding:2px 8px;font-weight:800">● ATIVO AGORA</span>' : '<span class="badge" style="font-size:10px;padding:2px 8px;opacity:0.7">Salvo</span>'}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                      ${typeof renderClubBadge === 'function' ? renderClubBadge(s.club, 38) : ''}
+                      <div style="overflow:hidden">
+                        <div style="font-size:15px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(clubDisplayName(s.club))}</div>
+                        <div class="muted small">${esc(s.manager || 'Técnico')} • Temp. ${esc(s.season || 2026)}</div>
+                      </div>
+                    </div>
+                    <div class="small muted" style="line-height:1.6;background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:8px;margin-bottom:12px">
+                      <div>🏆 <b>Fase:</b> ${s.round > 0 ? `Rodada ${s.round}` : 'Pré-temporada'}</div>
+                      <div>📅 <b>Data:</b> ${esc(s.date || '2026-01-01')}</div>
+                      <div>💰 <b>Caixa:</b> ${fmtMoney(s.balance || 0)}</div>
+                      <div style="font-size:10px;color:#94a3b8;margin-top:4px">🕒 <b>Atualizado:</b> ${esc(s.updatedAt || 'Recentemente')}</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:8px;align-items:center;margin-top:auto">
+                    ${isCurrent ? `
+                      <button class="btn success" disabled style="flex:1;opacity:0.75;font-size:12px;cursor:default">✓ Carreira Aberta</button>
+                    ` : `
+                      <button class="btn primary btnConfigLoadSlot" data-slot="${slotNum}" style="flex:1;font-size:12px;font-weight:800">▶ Carregar</button>
+                    `}
+                    <button class="btn danger btnConfigDeleteSlot" data-slot="${slotNum}" style="font-size:11px;padding:6px 10px;border-radius:6px" title="Excluir save deste slot">🗑️</button>
+                  </div>
+                </div>
+              `;
+            } else {
+              return `
+                <div class="card" style="margin:0;background:rgba(255,255,255,0.01);border:1px dashed rgba(255,255,255,0.15);border-radius:12px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;text-align:center">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                      <span style="font-size:11px;font-weight:900;letter-spacing:1px;color:#64748b;text-transform:uppercase">SLOT ${slotNum}</span>
+                      <span class="badge" style="font-size:10px;padding:2px 8px;opacity:0.5">Vazio</span>
+                    </div>
+                    <div style="font-size:32px;margin:12px 0 6px;opacity:0.3">📁</div>
+                    <div style="font-size:14px;font-weight:800;color:#94a3b8">Espaço Disponível</div>
+                    <div class="muted small" style="margin-top:4px">Nenhuma carreira salva neste slot.</div>
+                  </div>
+                  <button class="btn secondary btnConfigStartNewInSlot" data-slot="${slotNum}" style="margin-top:16px;font-size:12px;font-weight:700">
+                    + Iniciar Novo Jogo Aqui
+                  </button>
+                </div>
+              `;
+            }
+          }).join('')}
+        </div>
+      </div>
+
       <div class="grid g2" style="margin-top:14px">
         <div class="card">
           <h2>Salvar e Fazer Backup</h2>
@@ -17167,9 +17333,9 @@ function configPage(){
         </div>
 
         <div class="card">
-          <h2>Reiniciar Carreira</h2>
-          <p>Apaga os dados da carreira atual e permite escolher outro clube ou começar uma nova trajetória do zero.</p>
-          <button class="btn danger" id="btnResetCareer" style="margin-top:14px">🗑️ Apagar Save e Começar do Zero</button>
+          <h2>Reiniciar Carreira Atual</h2>
+          <p>Apaga os dados da carreira ativa atual (Slot ${currentSlot}) e permite escolher outro clube ou começar uma nova trajetória do zero.</p>
+          <button class="btn danger" id="btnResetCareer" style="margin-top:14px">🗑️ Apagar Save Deste Slot e Começar do Zero</button>
         </div>
       </div>
     ` : configTab==='db' ? `
@@ -19393,10 +19559,14 @@ function bind(){
 
     const bAdvPre = $('#btnAdvancePreSeasonDay');
     if(bAdvPre) bAdvPre.onclick = advancePreSeasonDay;
+    const bAdvPreCard = $('#btnAdvancePreSeasonDayCard');
+    if(bAdvPreCard) bAdvPreCard.onclick = advancePreSeasonDay;
     const bMktPre = $('#btnGoToMercadoPreSeason');
     if(bMktPre) bMktPre.onclick = () => { view = 'mercado'; render(); };
     const bSkipPre = $('#btnSkipPreSeason');
     if(bSkipPre) bSkipPre.onclick = skipPreSeason;
+    const bSkipPreCard = $('#btnSkipPreSeasonCard');
+    if(bSkipPreCard) bSkipPreCard.onclick = skipPreSeason;
   }
 
   if(view==='meutime'){
@@ -19767,16 +19937,53 @@ function bind(){
     const exp2=$('#btnExportJson2'); if(exp2) exp2.onclick=exportSave;
     const manSave=$('#btnSaveNowManual'); if(manSave) manSave.onclick=()=>{save();toast('Save manual realizado!')};
     const imp=$('#importSaveInput'); if(imp) imp.onchange=importSave;
+    
+    const curSlotBtn = $('#btnSaveCurrentSlotNow');
+    if(curSlotBtn) curSlotBtn.onclick = () => {
+      save();
+      toast(`Carreira salva com sucesso no Slot ${Number(state?.userSlot) || 1}!`);
+      render();
+    };
+
+    const exitMenuBtn = $('#btnExitToMainMenu');
+    if(exitMenuBtn) exitMenuBtn.onclick = () => {
+      save();
+      state = null;
+      render();
+    };
+
+    $$('.btnConfigLoadSlot').forEach(b => {
+      b.onclick = () => {
+        const slot = Number(b.dataset.slot);
+        loadUserSlot(slot);
+      };
+    });
+
+    $$('.btnConfigDeleteSlot').forEach(b => {
+      b.onclick = () => {
+        const slot = Number(b.dataset.slot);
+        deleteUserSlot(slot);
+      };
+    });
+
+    $$('.btnConfigStartNewInSlot').forEach(b => {
+      b.onclick = () => {
+        save();
+        setupSelectedSlot = Number(b.dataset.slot) || 1;
+        state = null;
+        render();
+      };
+    });
+
     const rst=$('#btnResetCareer'); if(rst) rst.onclick=()=>{
+      const targetSlot = Number(state?.userSlot) || 1;
       openCustomModal(
         'Apagar Save Local',
-        '<p>Tem certeza absoluta que deseja apagar o save desta carreira e começar uma nova do zero?</p>',
+        `<p>Tem certeza absoluta que deseja apagar o save da carreira ativa (Slot ${targetSlot}) e voltar ao menu principal?</p>`,
         ()=>{
-          localStorage.removeItem(STORAGE);
-          state=null;
-          render();
+          deleteUserSlot(targetSlot);
         },
-        'Sim, Apagar Tudo',
+        'Sim, Apagar Este Slot',
         true
       );
     };
