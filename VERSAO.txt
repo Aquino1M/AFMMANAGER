@@ -658,3 +658,16 @@ Novidades desta versão:
         * Verificação automática a cada rodada do calendário durante a virada financeira (`finalizeRound`).
         * Se a parcela vencer e o clube não tiver saldo suficiente em caixa, o contrato é marcado como inadimplente e incide multa com juros punitivos (+2% acumulativos por rodada de atraso).
         * Alertas no feed de notícias e sinalização visual em vermelho na estrutura do banco alertando a diretoria.
+
+78. Sincronização em Tempo Real da Tabela Estadual, IA Coletiva na Transmissão 2.5D & Sistema de Virada de Temporada:
+    - Sincronização Oficial em Tempo Real da Tabela do Estadual com o Jogo:
+        * Corrigida a divergência na aba Temporada > Estadual, onde os dados de pontuação, jogos, vitórias e saldo eram estáticos e não refletiam os resultados reais das partidas jogadas (ex: vitória de 4x0 do Brasília agora credita imediatamente 3 pontos e liderança da tabela para o time do jogador).
+        * A tabela do estadual em disputa agora espelha dinamicamente `state.teams` e a função oficial de classificação (`ranking()`), atualizando rodada a rodada.
+    - Inteligência Artificial Coletiva e Movimentação Realista na Transmissão 2.5D:
+        * O time adversário agora marca e pressiona de forma coordenada em bloco: o marcador mais próximo fecha em velocidade sobre o portador da bola para abafar o lance, o segundo defensor fecha a cobertura central, e os demais zagueiros e laterais fazem o balanço lateral defensivo.
+        * Os companheiros de ataque atacam ativamente os espaços vazios com infiltrações em diagonal de pontas e centroavantes, aproximação dos meio-campistas para triangulações e toque de bola inteligente quando sob pressão.
+    - Sistema de Encerramento de Temporada & Botão de Passar de Ano:
+        * Quando a última rodada da temporada é concluída, a Central de Jogos exibe um botão de grande destaque "🏆 TEMPORADA CONCLUÍDA — VER CONQUISTAS & VIRAR O ANO 🚀", eliminando o antigo bloqueio com toast estático.
+        * O modal de encerramento (`showEndOfSeasonModal`) exibe a cerimônia de campeão se terminar em 1º lugar (com registro de troféu no museu e notícias), vaga continental/acesso de divisão para o G4, ou rebaixamento para divisões inferiores em caso de Z4.
+        * Premiação milionária da colocação final creditada no caixa do clube, prêmios individuais da temporada (Craque, Chuteira de Ouro, Luva de Ouro) e renovação/troca de contrato.
+        * Botão de confirmação proeminente "🚀 VIRAR O ANO & INICIAR TEMPORADA SEGUINTE ➔" que avança o calendário para o novo ano, gera nova tabela de jogos, envelhece o elenco e abre a nova pré-temporada.

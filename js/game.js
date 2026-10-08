@@ -7634,8 +7634,8 @@ function startLiveMatch(){
     toast('Janela de pré-temporada encerrada para início da 1ª rodada!');
   }
   const fixtures = currentFixtures();
-  if(!fixtures.length){
-    toast(state.eliminated ? 'Você foi eliminado desta competição.' : 'Temporada concluída.');
+  if(!fixtures.length || (state.round >= (state.schedule?.length || 1))){
+    showEndOfSeasonModal();
     return;
   }
   const f = userFixture();
@@ -8919,50 +8919,74 @@ function updateLiveMatchPhysics(dtSec){
       s.ball.z = Math.abs(Math.sin(carrier.animFrame)) * 0.6; // Bola quica sutilmente no gramado
       s.ball.spin = (s.ball.spin || 0) + 0.15;
 
-      // 1. O adversário mais próximo pressiona ativamente com intensidade da sua postura!
+      // 1. MARCAÇÃO COLETIVA EM BLOCO & PRESSÃO DINÂMICA
       const opponents = (isHome ? s.awayPlayers : s.homePlayers).filter(p => !p.isGK);
       const oppCfg = isHome ? aCfg : hCfg;
-      let nearestOpp = null;
-      let minDist = 999;
-      opponents.forEach(opp => {
-        const d = Math.hypot(opp.x - carrier.x, opp.y - carrier.y);
-        if(d < minDist){ minDist = d; nearestOpp = opp; }
-      });
-      if(nearestOpp && minDist > 3.0){
-        // Zagueiro/Volante corre de encontro ao portador da bola para fechar o espaço!
-        const pSpeed = oppCfg.pressSpeed * (nearestOpp.isUser ? speechTackleMod : 1.0);
+      const sortedOpps = opponents.slice().sort((a,b) => Math.hypot(a.x - carrier.x, a.y - carrier.y) - Math.hypot(b.x - carrier.x, b.y - carrier.y));
+      const nearestOpp = sortedOpps[0] || null;
+      const secondOpp = sortedOpps[1] || null;
+      const minDist = nearestOpp ? Math.hypot(nearestOpp.x - carrier.x, nearestOpp.y - carrier.y) : 999;
+
+      // 1.1 O primeiro defensor fecha em cima do portador para abafar a jogada
+      if(nearestOpp && minDist > 2.2){
+        const pSpeed = (oppCfg.pressSpeed * 1.25) * (nearestOpp.isUser ? speechTackleMod : 1.0);
         nearestOpp.x += (carrier.x - nearestOpp.x) * pSpeed;
         nearestOpp.y += (carrier.y - nearestOpp.y) * pSpeed;
-        nearestOpp.animFrame = (nearestOpp.animFrame || 0) + 0.25;
+        nearestOpp.animFrame = (nearestOpp.animFrame || 0) + 0.28;
       }
 
-      // 2. Companheiros de ataque atacam o espaço e abrem linhas de passe baseadas na postura
+      // 1.2 O segundo defensor fecha a cobertura e corta a linha de passe central
+      if(secondOpp){
+        const coverTargetX = carrier.x - (dirX * 4.5);
+        const coverTargetY = carrier.y + ((carrier.y > 50 ? -6 : 6));
+        secondOpp.x += (coverTargetX - secondOpp.x) * (oppCfg.pressSpeed * 0.75);
+        secondOpp.y += (coverTargetY - secondOpp.y) * (oppCfg.pressSpeed * 0.75);
+        secondOpp.animFrame = (secondOpp.animFrame || 0) + 0.20;
+      }
+
+      // 1.3 Todo o restante do bloco defensivo sobe/recua junto e faz o balanço lateral
+      const defLineTargetX = isHome ? clamp(carrier.x + 14, 25, 82) : clamp(carrier.x - 14, 18, 75);
+      opponents.slice(2).forEach(def => {
+        const targetY = clamp(def.baseY + (carrier.y - def.baseY) * 0.35, 12, 88);
+        const targetX = clamp(def.baseX + (defLineTargetX - def.baseX) * 0.28, 6, 94);
+        def.x += (targetX - def.x) * 0.05;
+        def.y += (targetY - def.y) * 0.05;
+        def.animFrame = (def.animFrame || 0) + 0.12;
+      });
+
+      // 2. CONSTRUÇÃO OFENSIVA COLETIVA, DESMARCAÇÕES & TRIANGULAÇÕES
       const teamCfg = isHome ? hCfg : aCfg;
       const teammates = (isHome ? s.homePlayers : s.awayPlayers).filter(p => p !== carrier && !p.isGK);
       teammates.forEach(tm => {
-        // Deslocamento da linha tática (Retranca puxa pra trás, Pressão total joga lá na frente)
-        const postureTargetX = clamp(tm.baseX + teamCfg.lineOffset * dirX, 4, 96);
+        const postureTargetX = clamp(tm.baseX + teamCfg.lineOffset * dirX, 5, 95);
         if(tm.pos === 'ST' || tm.pos === 'LW' || tm.pos === 'RW' || tm.pos === 'AM'){
-          const runX = clamp(postureTargetX + dirX * 12, 5, 95);
-          tm.x += (runX - tm.x) * (0.05 * teamCfg.speedMult);
+          const attackRunX = clamp(carrier.x + dirX * 16, 6, 94);
+          const attackRunY = clamp(tm.baseY + Math.sin(s.timeSec * 3 + tm.x) * 6, 12, 88);
+          tm.x += (attackRunX - tm.x) * (0.07 * teamCfg.speedMult);
+          tm.y += (attackRunY - tm.y) * (0.06 * teamCfg.speedMult);
+        } else if(tm.pos === 'LB' || tm.pos === 'RB'){
+          const wingRunX = clamp(carrier.x + dirX * 6, 8, 92);
+          tm.x += (wingRunX - tm.x) * (0.05 * teamCfg.speedMult);
+          tm.y += (tm.baseY - tm.y) * 0.04;
         } else {
-          tm.x += (postureTargetX - tm.x) * (0.04 * teamCfg.speedMult);
+          const supportX = clamp(carrier.x - dirX * 7, 6, 94);
+          const supportY = clamp(carrier.y + (tm.baseY > 50 ? 8 : -8), 14, 86);
+          tm.x += (supportX - tm.x) * (0.06 * teamCfg.speedMult);
+          tm.y += (supportY - tm.y) * (0.06 * teamCfg.speedMult);
         }
-        tm.y += (tm.baseY - tm.y) * 0.04;
-        tm.animFrame = (tm.animFrame || 0) + 0.1;
+        tm.animFrame = (tm.animFrame || 0) + 0.15;
       });
 
-      // 3. Decisão da jogada de futebol: Chute, Passe articulado ou Drible/Desarme
+      // 3. TOMADA DE DECISÃO REALISTA: CHUTE, TOQUE DE BOLA OU DRIBLE
       const distToGoal = Math.abs(carrier.x - targetGoalX);
       const shotProb = teamCfg.shotFreq * (carrier.isUser ? speechShotMod : 1.0);
-      if(distToGoal < 36 && Math.random() < shotProb * 1.5){
-        // Chute a gol com finalização realista!
+      const isUnderHeavyPressure = minDist < 3.8;
+
+      if(distToGoal < 32 && Math.random() < shotProb * 1.8){
         shootAtGoal(carrier);
-      } else if(Math.random() < 0.11){
-        // Passe para companheiro melhor posicionado!
+      } else if(isUnderHeavyPressure ? (Math.random() < 0.28) : (Math.random() < 0.16)){
         passBall(carrier);
-      } else if(minDist < 4.2 && Math.random() < 0.06){
-        // Disputa física / dividida de bola
+      } else if(minDist < 3.2 && Math.random() < 0.12){
         attemptTackle(carrier);
       }
     }
@@ -9671,8 +9695,8 @@ function simulateQuickRound(){
     toast('Janela de pré-temporada encerrada para início da 1ª rodada!');
   }
   const fixtures=currentFixtures();
-  if(!fixtures.length){
-    toast(state.eliminated?'Você foi eliminado desta competição.':'Temporada concluída.');
+  if(!fixtures.length || (state.round >= (state.schedule?.length || 1))){
+    showEndOfSeasonModal();
     return;
   }
   const comp=curComp(),isKO=comp.type==='knockout';
@@ -9867,6 +9891,14 @@ function showEndOfSeasonModal(){
     }
   }
 
+  if(pos === 1){
+    state.titles = state.titles || [];
+    if(!state.titles.includes(comp.name)){
+      state.titles.push(comp.name);
+      state.news.unshift(`🏆 TÍTULO HISTÓRICO: O ${state.club} sagrou-se CAMPEÃO do ${comp.name} na Temporada ${state.season}!`);
+    }
+  }
+
   openCustomModal(
     `🏆 Encerramento da Temporada ${state.season}`,
     `
@@ -9943,8 +9975,10 @@ function showEndOfSeasonModal(){
           `).join('')}
         </div>
       </div>
-      <div style="margin-top:16px;text-align:right">
-        <button class="btn" id="closeEndSeasonBtn">Continuar Temporada Seguinte ➔</button>
+      <div style="margin-top:20px;display:flex;justify-content:flex-end">
+        <button class="btn primary" id="closeEndSeasonBtn" style="padding:16px 28px;font-size:15px;font-weight:900;background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;border-radius:12px;box-shadow:0 8px 25px rgba(16,185,129,0.45);cursor:pointer;display:flex;align-items:center;gap:8px">
+          <span>🚀 VIRAR O ANO & INICIAR TEMPORADA ${state.season + 1}</span> <span>➔</span>
+        </button>
       </div>
     `,
     () => {
@@ -12318,27 +12352,35 @@ function centralPage(){
             <span><b>Uma decisão espera por você: convite</b> ⌵</span>
           </div>
 
-          <!-- Botões de Ação da Partida -->
-          <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:8px;margin-top:16px">
-            <button class="btn primary" id="playMatchLive" style="padding:14px 8px;font-size:14px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(124,58,237,0.4)">
-              JOGAR
-            </button>
-            <button class="btn" id="playMatchQuick" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px">
-              SIMULAR
-            </button>
-            <button class="btn" id="btnMatchPreviewCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px">
-              PRÉVIA
-            </button>
-            ${(state.answeredPressKey === `${state.season || 2026}_${state.round || 0}`) ? `
-              <button class="btn" id="btnOpenPressConferenceCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:rgba(255,255,255,0.35);cursor:not-allowed" title="Coletiva já realizada nesta rodada. Disponível após a próxima partida.">
-                🎙️ COLETIVA (OK)
+          <!-- Botões de Ação da Partida ou Fim de Temporada -->
+          ${(!currentFixtures().length || (state.round >= (state.schedule?.length || 1))) ? `
+            <div style="margin-top:16px">
+              <button class="btn primary" id="btnOpenEndOfSeasonCentral" style="padding:16px;font-size:14px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #f59e0b, #d97706);color:#000;border:none;border-radius:12px;box-shadow:0 8px 24px rgba(245,158,11,0.5);width:100%;cursor:pointer">
+                🏆 TEMPORADA ${state.season} CONCLUÍDA — VER CONQUISTAS & VIRAR O ANO 🚀
               </button>
-            ` : `
-              <button class="btn" id="btnOpenPressConferenceCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid #7c3aed;border-radius:12px;color:#c084fc">
-                🎙️ COLETIVA
+            </div>
+          ` : `
+            <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:8px;margin-top:16px">
+              <button class="btn primary" id="playMatchLive" style="padding:14px 8px;font-size:14px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(124,58,237,0.4)">
+                JOGAR
               </button>
-            `}
-          </div>
+              <button class="btn" id="playMatchQuick" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px">
+                SIMULAR
+              </button>
+              <button class="btn" id="btnMatchPreviewCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px">
+                PRÉVIA
+              </button>
+              ${(state.answeredPressKey === `${state.season || 2026}_${state.round || 0}`) ? `
+                <button class="btn" id="btnOpenPressConferenceCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:rgba(255,255,255,0.35);cursor:not-allowed" title="Coletiva já realizada nesta rodada. Disponível após a próxima partida.">
+                  🎙️ COLETIVA (OK)
+                </button>
+              ` : `
+                <button class="btn" id="btnOpenPressConferenceCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid #7c3aed;border-radius:12px;color:#c084fc">
+                  🎙️ COLETIVA
+                </button>
+              `}
+            </div>
+          `}
 
           <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.3);margin-top:14px">
             129 partidas no mundo hoje.
@@ -15407,6 +15449,39 @@ function seasonPage(){
       const estStats = getStateCompStats(estCompId);
       const myStateComp = clubStateCompId(state.club);
 
+      // Sincronização em tempo real: se for a competição atual do clube em disputa
+      if((estCompId === state.compId || (state.compId && state.compId.startsWith('bra-est-') && estCompId === myStateComp)) && Array.isArray(state.teams) && state.teams.length > 0){
+        estData.teams = ranking().map(t => {
+          const pct = t.j > 0 ? Math.round((t.p / (t.j * 3)) * 100) : 0;
+          return {
+            name: t.name,
+            p: t.p,
+            j: t.j,
+            v: t.v,
+            e: t.e,
+            d: t.d,
+            gp: t.gp,
+            gc: t.gc,
+            sg: t.sg,
+            pct: pct,
+            form: (t.form && t.form.length > 0) ? t.form : ['-']
+          };
+        });
+        estData.currentRound = Math.min((state.round || 0) + 1, (state.schedule?.length || 1));
+        estData.roundDate = state.date ? new Date(state.date+'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short', year:'numeric' }).toUpperCase() : 'RODADA ATUAL';
+        if(state.schedule && state.schedule[state.round]){
+          estData.fixtures = state.schedule[state.round].map(([h, a]) => {
+            const hClub = clubByName(h) || {};
+            return {
+              stadium: hClub.stadium || ('Estádio do ' + h),
+              dateStr: (state.date || '2026-01-05'),
+              home: h,
+              away: a
+            };
+          });
+        }
+      }
+
       const allEstList = [
         { id: 'bra-est-df', name: 'Campeonato Candango (DF)' },
         { id: 'bra-est-sp', name: 'Campeonato Paulista (SP)' },
@@ -17827,6 +17902,7 @@ function bind(){
   };
 
   if(view==='central'){
+    const pEndSeason = $('#btnOpenEndOfSeasonCentral'); if(pEndSeason) pEndSeason.onclick = showEndOfSeasonModal;
     const pLive=$('#playMatchLive'); if(pLive) pLive.onclick=startLiveMatch;
     const pQuick=$('#playMatchQuick'); if(pQuick) pQuick.onclick=simulateQuickRound;
     const m=$('#mental'); if(m) m.onchange=()=>{state.mentality=m.value;save();toast('Mentalidade tática atualizada.')};
