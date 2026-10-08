@@ -6318,7 +6318,7 @@ function repairSaveIfCorrupted(s){
   const isBrasiliaInWrongComp = norm(s.club) === 'brasilia' && curCompId !== 'bra-est-df';
   const isClubMissingFromTeams = !Array.isArray(s.teams) || s.teams.length === 0 || !s.teams.some(t => norm(t.name) === norm(s.club));
   const isSelfMatchBug = Array.isArray(s.schedule) && s.schedule.some(rnd => rnd.some(g => g[0] === g[1]));
-  const isScheduleEmptyOrNoUser = !Array.isArray(s.schedule) || s.schedule.length === 0 || (s.schedule[0] && !s.schedule[0].some(g => g.includes(s.club)));
+  const isScheduleEmptyOrNoUser = !Array.isArray(s.schedule) || s.schedule.length === 0 || (s.schedule[0] && !s.schedule[0].some(g => Array.isArray(g) && (norm(g[0]) === norm(s.club) || norm(g[1]) === norm(s.club))));
   const isCompMismatched = primaryCompId && curCompId !== primaryCompId && (!compById(curCompId) || !teamMap[curCompId] || isBrasiliaInWrongComp || isAcreanoBug);
 
   if(isAcreanoBug || isBrasiliaInWrongComp || isClubMissingFromTeams || isSelfMatchBug || isScheduleEmptyOrNoUser || isCompMismatched){
@@ -6387,6 +6387,41 @@ function repairSaveIfCorrupted(s){
       s.news = s.news || [];
       s.news.unshift(`⚖️ AUDITORIA FINANCEIRA: Identificada cobrança indevida de folha semanal por rodada na versão anterior. Estorno de ${fmtMoney(refund)} creditado ao caixa do clube!`);
       if(s.news.length > 50) s.news = s.news.slice(0, 50);
+      try { localStorage.setItem(STORAGE, JSON.stringify(s)); } catch(e){}
+      return true;
+    }
+  }
+
+  // Auditoria da Tabela de Classificação e Sincronização de Jogos e Datas (Evita times com 4 jogos e outros com 1)
+  if(s && Array.isArray(s.teams) && s.teams.length > 0){
+    const targetGames = Math.max(0, Number(s.round) || 0);
+    const hasDiscrepancy = s.teams.some(t => (Number(t.j) || 0) !== targetGames);
+    if(hasDiscrepancy){
+      s.teams.forEach(t => {
+        const curJ = Number(t.j) || 0;
+        if(curJ !== targetGames){
+          if(curJ > 0 && targetGames > 0){
+            const ratio = targetGames / curJ;
+            t.v = Math.round((t.v || 0) * ratio);
+            t.e = Math.round((t.e || 0) * ratio);
+            t.d = Math.max(0, targetGames - t.v - t.e);
+            t.gp = Math.round((t.gp || 0) * ratio);
+            t.gc = Math.round((t.gc || 0) * ratio);
+            t.sg = t.gp - t.gc;
+            t.p = (t.v * 3) + t.e;
+          } else {
+            t.v = 0; t.e = 0; t.d = 0; t.gp = 0; t.gc = 0; t.sg = 0; t.p = 0;
+          }
+          t.j = targetGames;
+          if(Array.isArray(t.form)) t.form = t.form.slice(0, targetGames);
+        }
+      });
+      // Sincroniza a data do jogo com a rodada atual
+      if(!s.isPreSeason || s.preSeasonDays <= 0){
+        const d = new Date((s.season || 2026) + '-01-10T12:00:00');
+        d.setDate(d.getDate() + (targetGames * 7));
+        s.date = d.toISOString().slice(0, 10);
+      }
       try { localStorage.setItem(STORAGE, JSON.stringify(s)); } catch(e){}
       return true;
     }
@@ -7125,8 +7160,39 @@ function curComp(){
     rule: 'Liga'
   };
 }
-function currentFixtures(){return state.schedule?.[state.round]||[]}
-function userFixture(){return currentFixtures().find(g=>g.includes(state.club))}
+function getDateForRound(roundIndex, season = state?.season || 2026){
+  const d = new Date(season + '-01-10T12:00:00');
+  d.setDate(d.getDate() + (Math.max(0, Number(roundIndex) || 0) * 7));
+  return d.toISOString().slice(0, 10);
+}
+
+function formatDatePtBr(isoDate){
+  if(!isoDate) return '';
+  try {
+    const d = new Date(isoDate + 'T12:00:00');
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  } catch(e){
+    return isoDate;
+  }
+}
+
+function currentFixtures(){
+  if(!state || !Array.isArray(state.schedule)) return [];
+  const curRound = Math.max(0, Number(state.round) || 0);
+  return state.schedule[curRound] || [];
+}
+
+function userFixture(){
+  if(!state || !state.club) return null;
+  const target = norm(state.club);
+  const curFix = currentFixtures();
+  let found = curFix.find(g => Array.isArray(g) && (norm(g[0]) === target || norm(g[1]) === target));
+  if(!found && Array.isArray(state.schedule)){
+    const roundFix = state.schedule[state.round] || [];
+    found = roundFix.find(g => Array.isArray(g) && (norm(g[0]) === target || norm(g[1]) === target));
+  }
+  return found || null;
+}
 
 function simulateScore(home,away){
   const hs=teamStrengthByName(home),as=teamStrengthByName(away);
@@ -7160,7 +7226,7 @@ function simulateScore(home,away){
 }
 
 function applyResult(home,away,hg,ag){
-  const h=state.teams.find(t=>t.name===home),a=state.teams.find(t=>t.name===away);
+  const h=state.teams.find(t=>norm(t.name)===norm(home)), a=state.teams.find(t=>norm(t.name)===norm(away));
   if(!h||!a)return;
   h.j++;a.j++;h.gp+=hg;h.gc+=ag;a.gp+=ag;a.gc+=hg;
   h.sg=h.gp-h.gc;a.sg=a.gp-a.gc;
@@ -7496,9 +7562,7 @@ function finalizeRound(userRes, winners, isKO){
       console.warn('AFM30 round cycle error:', err);
     }
   }
-  const d=new Date(state.date+'T12:00:00');
-  d.setDate(d.getDate()+7);
-  state.date=d.toISOString().slice(0,10);
+  state.date = getDateForRound(state.round, state.season);
 
   // Verifica se o clube recebe novas propostas de patrocínio com base na fama e fase do time
   if(state.round % 3 === 0 || Math.random() < 0.40){
@@ -8238,6 +8302,7 @@ function advancePreSeasonDay(){
   if(state.preSeasonDays <= 0){
     state.isPreSeason = false;
     state.preSeasonDays = 0;
+    state.date = getDateForRound(state.round || 0, state.season);
     toast('🏁 Fim da Janela de Pré-Temporada! O campeonato oficial vai começar.');
   } else {
     toast(`📅 Dia avançado! ${msg} (Restam ${state.preSeasonDays} ${state.preSeasonDays === 1 ? 'dia' : 'dias'})`);
@@ -8250,7 +8315,7 @@ function skipPreSeason(){
   if(!state) return;
   state.isPreSeason = false;
   state.preSeasonDays = 0;
-  state.date = '2026-01-05';
+  state.date = getDateForRound(state.round || 0, state.season);
   toast('🏁 Pré-temporada concluída! Bem-vindo à 1ª rodada oficial!');
   save();
   render();
@@ -8260,7 +8325,7 @@ function startLiveMatch(){
   if(state && state.isPreSeason && state.preSeasonDays > 0){
     state.isPreSeason = false;
     state.preSeasonDays = 0;
-    state.date = '2026-01-05';
+    state.date = getDateForRound(state.round || 0, state.season);
     toast('Janela de pré-temporada encerrada para início da 1ª rodada!');
   }
   const fixtures = currentFixtures();
@@ -8268,21 +8333,24 @@ function startLiveMatch(){
     showEndOfSeasonModal();
     return;
   }
-  const f = userFixture();
+  let f = userFixture();
   if(!f){
-    simulateQuickRound();
-    return;
+    const opp = state.teams?.find(t => norm(t.name) !== norm(state.club))?.name || 'Adversário';
+    f = [state.club, opp];
+    if(Array.isArray(state.schedule) && state.schedule[state.round]){
+      state.schedule[state.round].push(f);
+    }
   }
 
   const [home, away] = f;
   const comp = curComp();
   const isKO = comp.type === 'knockout';
-  const isUserHome = home === state.club;
+  const isUserHome = norm(home) === norm(state.club);
   
   const otherResults = [];
   const winners = [];
   fixtures.forEach(([h,a])=>{
-    if(h === home && a === away) return;
+    if((norm(h) === norm(home) && norm(a) === norm(away)) || (norm(h) === norm(state.club) || norm(a) === norm(state.club))) return;
     const [hg, ag] = simulateScore(h,a);
     let win = null, pen = null;
     if(isKO){
@@ -8292,7 +8360,7 @@ function startLiveMatch(){
       } else win=hg>ag?h:a;
       winners.push(win);
     }
-    applyResult(h,a,hg,ag);
+    // Armazena para aplicar SOMENTE após o apito final do jogo
     otherResults.push({h,a,hg,ag,win,pen});
   });
 
@@ -8338,7 +8406,7 @@ function startLiveMatch(){
           overall: playerOverall(p) || 65,
           stamina: 100,
           isGK: (p.pos === 'GK' || slot.r === 'GK' || i === 0),
-          isCaptain: isUser ? (state.setPieces?.captain === playerKey(p) || (!state.setPieces?.captain && i === 1)) : (i === 1),
+          isCaptain: (state.setPieces?.captain === playerKey(p) || (!state.setPieces?.captain && i === 1)),
           team: isHomeSide ? 'home' : 'away',
           isUser: true,
           photo: (window.PLAYER_PHOTOS && (window.PLAYER_PHOTOS[p.name] || window.PLAYER_PHOTOS[norm(p.name)])) || null,
@@ -8353,6 +8421,7 @@ function startLiveMatch(){
           hasBall: false
         });
       }
+    } else {
       const liveOpp = livePlayers.filter(p => norm(p.club) === norm(teamName));
       const oppRoster = (liveOpp.length >= 11 ? liveOpp : null) || (window.BASE_CLUBS?.find(c => norm(c.name) === norm(teamName))?.roster) || generatedRosterForClub(teamName);
       for(let i=0; i<11; i++){
@@ -8388,8 +8457,8 @@ function startLiveMatch(){
     return players;
   }
 
-  const homePlayers = buildMatchTeam(home, home === state.club, true);
-  const awayPlayers = buildMatchTeam(away, away === state.club, false);
+  const homePlayers = buildMatchTeam(home, norm(home) === norm(state.club), true);
+  const awayPlayers = buildMatchTeam(away, norm(away) === norm(state.club), false);
 
   const rivalry = isRivalryMatch(home, away);
 
@@ -8431,6 +8500,7 @@ function startLiveMatch(){
     halftimeTriggered: false,
     homePlayers,
     awayPlayers,
+    otherResults,
     ball: {
       x: 50, y: 50, z: 0,
       vx: 0, vy: 0, vz: 0,
@@ -10730,6 +10800,11 @@ function finishLiveMatch(){
   s.winner = winner;
   s.pens = pens;
   applyResult(s.home, s.away, s.hg, s.ag);
+  if(Array.isArray(s.otherResults)){
+    s.otherResults.forEach(res => {
+      applyResult(res.h, res.a, res.hg, res.ag);
+    });
+  }
   s.events.unshift({ min: 90, type: 'whistle', text: `🏁 Fim de partida! ${s.home} ${s.hg} x ${s.ag} ${s.away}.` });
   updateLiveSidebarEvents();
   renderLiveMatchModal();
@@ -10760,7 +10835,7 @@ function simulateQuickRound(){
   if(state && state.isPreSeason && state.preSeasonDays > 0){
     state.isPreSeason = false;
     state.preSeasonDays = 0;
-    state.date = '2026-01-05';
+    state.date = getDateForRound(state.round || 0, state.season);
     toast('Janela de pré-temporada encerrada para início da 1ª rodada!');
   }
   const fixtures=currentFixtures();
@@ -10780,7 +10855,7 @@ function simulateQuickRound(){
       winners.push(winner);
     }
     applyResult(h,a,hg,ag);
-    if(h===state.club||a===state.club) userRes={h,a,hg,ag,winner,pens};
+    if(norm(h)===norm(state.club)||norm(a)===norm(state.club)) userRes={h,a,hg,ag,winner,pens};
   });
   if(userRes){
     openPressConferenceModal('post', userRes, () => {
@@ -13212,7 +13287,7 @@ function shell(main){
           <span><b>AFM</b> MANAGER 2027</span>
         </div>
         <div class="top-right">
-          <span>📅 ${esc(state.date)}</span>
+          <span>📅 ${formatDatePtBr(state.date)}</span>
           <span class="window-badge ${winInfo.open?'window-open':'window-closed'}">
             ${winInfo.open?'🟢':'🔴'} ${esc(winInfo.text)}
           </span>
@@ -13525,7 +13600,7 @@ function centralPage(){
               ${esc((curComp()?.name || 'LIGA').split(' ')[0].toUpperCase())}
             </span>
             <div style="font-size:12px;color:rgba(255,255,255,0.6)">
-              ${esc(curComp()?.name || 'Campeonato')} · Rodada ${state.round + 1} · ${esc(state.date)}
+              ${esc(curComp()?.name || 'Campeonato')} · Rodada ${state.round + 1} · ${formatDatePtBr(state.date)}
             </div>
           </div>
 
