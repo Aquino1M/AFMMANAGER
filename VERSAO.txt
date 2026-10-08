@@ -671,3 +671,22 @@ Novidades desta versão:
         * O modal de encerramento (`showEndOfSeasonModal`) exibe a cerimônia de campeão se terminar em 1º lugar (com registro de troféu no museu e notícias), vaga continental/acesso de divisão para o G4, ou rebaixamento para divisões inferiores em caso de Z4.
         * Premiação milionária da colocação final creditada no caixa do clube, prêmios individuais da temporada (Craque, Chuteira de Ouro, Luva de Ouro) e renovação/troca de contrato.
         * Botão de confirmação proeminente "🚀 VIRAR O ANO & INICIAR TEMPORADA SEGUINTE ➔" que avança o calendário para o novo ano, gera nova tabela de jogos, envelhece o elenco e abre a nova pré-temporada.
+
+79. Mercado Mundial da IA em Tempo Real, Propostas Oficiais por Titulares, Voz da Torcida & Hall da Fama:
+    - Giro do Mercado Mundial da IA (Aba Exclusiva & Tabela de Transferências):
+        * Adicionada a 5ª aba oficial no Mercado: "🌐 GIRO DO MERCADO (IA)", permitindo ao jogador acompanhar todas as negociações em tempo real realizadas entre outros clubes do país e do exterior.
+        * O motor de simulação de rodada (`simulateAITransfers`) gera movimentações verossímeis de compra e venda entre clubes controlados pela CPU, com valores de R$ 15M a R$ 65M, posições e dados do atleta.
+        * A tabela lateral de "Últimas Transferências" na aba de Venda agora consome dinamicamente o histórico em tempo real das transferências simuladas.
+    - Sistema de Propostas Oficiais Milionárias por Titulares do Treinador:
+        * Durante o avanço das rodadas, clubes de ponta (Flamengo, Palmeiras, Real Madrid, Chelsea, PSG, Al-Hilal, etc.) passam a enviar propostas oficiais com documento timbrado pelos atletas titulares mais valorizados do seu clube.
+        * Alerta de alta visibilidade na Central de Jogos ("PROPOSTA MILIONÁRIA OFICIAL RECEBIDA!") com atalho direto para a negociação.
+        * Modal oficial de proposta timbrada (`openIncomingBidModal`): permite "✅ Aceitar e Vender" (com valor à vista + cláusula contratual de 20% de venda futura), "📈 Pedir +20%" (com probabilidade realista do comprador aceitar ou encerrar o negócio), ou "❌ Recusar".
+    - Widget Dinâmico "Voz da Torcida (#AFM2027)" na Central de Jogos:
+        * Novo feed de comentários simulados da arquibancada e influenciadores digitais reagindo a cada desfecho de partida do seu time.
+        * Posts e reações contextuais: euforia e zoeira contra o rival em goleadas, elogios ao esquema tático do professor Aquino em vitórias normais, cobranças da arquibancada por intensidade em empates, e pressão sobre a zaga e diretoria em derrotas.
+    - Hall da Fama & Histórico Completo de Temporadas:
+        * Botão de acesso direto "🏛️ Hall da Fama & Histórico de Temporadas" integrado no card de perfil do técnico e clube na Central.
+        * Registro permanente e imortalizado de todas as temporadas concluídas da carreira do treinador: ano da temporada, divisão/campeonato, posição final do clube, campeão, vice-campeão e saldo em caixa no encerramento.
+    - Fair Play Financeiro & Transfer Ban Automático:
+        * Verificação periódica de saúde contábil: se o clube acumular 2 ou mais parcelas bancárias em atraso no Banco & Financiamento, o sistema ativa o Transfer Ban impedindo a inscrição de novos atletas até a regularização do débito.
+

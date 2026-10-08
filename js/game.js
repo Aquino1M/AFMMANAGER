@@ -7320,6 +7320,21 @@ function finalizeRound(userRes, winners, isKO){
   if(newOffersCount > 0){
     state.news.unshift(`📬 Chegaram novas propostas de compra e empréstimo para seus jogadores na lista de transferências!`);
   }
+
+  // 1. Simulação do Mercado Vivo da IA (Clubes da CPU negociam entre si)
+  simulateAITransfers();
+
+  // 2. Propostas Espontâneas da IA para Titulares do Usuário
+  checkIncomingPlayerBids();
+
+  // 3. Atualização das Estatísticas de Carreira do Treinador
+  updateManagerCareerStats(userRes);
+
+  // 4. Rede Social do Clube ("Voz da Torcida")
+  updateFansSocialFeed(userRes);
+
+  // 5. Fair Play Financeiro & Trava de Contratações se Dívida Estiver Atrasada
+  checkFinancialFairPlay();
   
   if(state.round%4===0){
     // Resfriamento de contrato com a diretoria (1 mês / 4 rodadas)
@@ -7527,6 +7542,292 @@ function finalizeRound(userRes, winners, isKO){
   render();
 }
 
+function simulateAITransfers(){
+  if(!state) return;
+  state.marketWorldFeed = state.marketWorldFeed || [];
+  
+  if(!isTransferWindowOpen(state.date) && Math.random() < 0.65) return;
+  
+  const allClubs = (window.BASE_CLUBS || []).filter(c => norm(c.name) !== norm(state.club));
+  if(allClubs.length < 2) return;
+  
+  const count = rnd(1, 3);
+  for(let i=0; i<count; i++){
+    const buyer = allClubs[rnd(0, allClubs.length - 1)];
+    const seller = allClubs.filter(c => c !== buyer)[rnd(0, allClubs.length - 2)];
+    if(!buyer || !seller) continue;
+    
+    const firstNames = ['Enzo', 'Gabriel', 'Rodrigo', 'Arthur', 'Felipe', 'Matheus', 'Lucas', 'Thiago', 'Guilherme', 'Bruno', 'Nicolas', 'Gustavo', 'Luan'];
+    const lastNames = ['Silva', 'Santos', 'Oliveira', 'Ferreira', 'Souza', 'Almeida', 'Pereira', 'Ribeiro', 'Costa', 'Rodrigues', 'Barbosa', 'Carvalho'];
+    const pName = `${firstNames[rnd(0, firstNames.length - 1)]} ${lastNames[rnd(0, lastNames.length - 1)]}`;
+    const pos = ['CB', 'LB', 'RB', 'CM', 'RW', 'LW', 'ST'][rnd(0, 6)];
+    const ovr = rnd(66, 84);
+    const fee = Math.round(rnd(15, 65) * 1000000);
+    
+    state.marketWorldFeed.unshift({
+      date: state.date,
+      playerName: pName,
+      pos,
+      ovr,
+      buyer: buyer.name,
+      seller: seller.name,
+      fee
+    });
+  }
+  
+  if(state.marketWorldFeed.length > 30){
+    state.marketWorldFeed = state.marketWorldFeed.slice(0, 30);
+  }
+}
+
+function checkIncomingPlayerBids(){
+  if(!state || !state.squad || !state.squad.length) return;
+  
+  // Chance de 25% por rodada de receber proposta por um titular
+  if(Math.random() > 0.28) return;
+  
+  const lineupKeys = state.lineup || [];
+  const starters = state.squad.filter(p => lineupKeys.includes(playerKey(p)));
+  if(!starters.length) return;
+  
+  // Escolhe o titular mais valorizado
+  const target = starters.sort((a,b) => calcValueMi(b) - calcValueMi(a))[0];
+  if(!target) return;
+  
+  const richClubs = ['Flamengo', 'Palmeiras', 'Atlético-MG', 'Botafogo', 'São Paulo', 'Corinthians', 'Grêmio', 'Internacional', 'Real Madrid', 'Chelsea', 'PSG', 'Al-Hilal'];
+  const interestedClub = richClubs.filter(c => norm(c) !== norm(state.club))[rnd(0, richClubs.length - 2)] || 'Flamengo';
+  
+  const baseVal = Math.max(1, calcValueMi(target));
+  const bidFee = Math.round(baseVal * 1.35 * 1000000);
+  const sellOnPct = 20; // 20% de venda futura!
+  
+  state.incomingBids = state.incomingBids || [];
+  state.incomingBids.unshift({
+    id: `bid_${Date.now()}`,
+    date: state.date,
+    playerKey: playerKey(target),
+    playerName: target.name,
+    ovr: playerOverall(target),
+    club: interestedClub,
+    fee: bidFee,
+    sellOnPct
+  });
+  
+  state.news.unshift(`💰 PROPOSTA OFICIAL MILIONÁRIA: O ${interestedClub} ofereceu ${fmtMoney(bidFee)} + 20% de venda futura pelo seu titular ${target.name}!`);
+}
+
+function openIncomingBidModal(bidId){
+  const bid = (state.incomingBids || []).find(b => b.id === bidId) || (state.incomingBids || [])[0];
+  if(!bid){ toast('Nenhuma proposta ativa no momento.'); return; }
+
+  const p = (state.squad || []).find(x => playerKey(x) === bid.playerKey);
+  if(!p){
+    state.incomingBids = (state.incomingBids || []).filter(b => b.id !== bid.id);
+    toast('Jogador não faz mais parte do elenco.');
+    return;
+  }
+
+  openCustomModal(
+    '💼 Proposta Oficial de Transferência Recebida',
+    `
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:38px;margin-bottom:6px">💰</div>
+        <div style="font-size:18px;font-weight:900;color:#fff">${esc(bid.club)} quer contratar seu atleta!</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.6)">Chegou um documento timbrado com oferta oficial irrevogável.</div>
+      </div>
+      <div style="background:#161c2b;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px">
+          <div>
+            <div style="font-size:16px;font-weight:900;color:#facc15">${esc(p.name)}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6)">Posição: <b>${p.pos}</b> • Overall: <b>${playerOverall(p)} OVR</b> • Idade: <b>${p.age||24} anos</b></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:10px;text-transform:uppercase;color:rgba(255,255,255,0.5)">Clube Comprador</div>
+            <div style="font-size:14px;font-weight:800;color:#38bdf8">${esc(bid.club)}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center;margin-top:12px">
+          <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:10px">
+            <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">Valor à Vista</div>
+            <div style="font-size:18px;font-weight:900;color:#22c55e">${fmtMoney(bid.fee)}</div>
+          </div>
+          <div style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);border-radius:10px;padding:10px">
+            <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">Cláusula Futura</div>
+            <div style="font-size:18px;font-weight:900;color:#38bdf8">${bid.sellOnPct}% de Venda Futura</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <button id="btnAcceptBid" class="btn primary" style="background:#16a34a;border:none;font-weight:900;padding:12px">
+          ✅ Aceitar e Vender
+        </button>
+        <button id="btnCounterBid" class="btn" style="background:#7c3aed;color:#fff;border:none;font-weight:900;padding:12px">
+          📈 Pedir +20%
+        </button>
+        <button id="btnRejectBid" class="btn" style="background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid rgba(239,68,68,0.4);font-weight:900;padding:12px">
+          ❌ Recusar
+        </button>
+      </div>
+    `,
+    null,
+    'Fechar',
+    false
+  );
+
+  $('#btnAcceptBid').onclick = () => {
+    state.balance += bid.fee;
+    state.income = (state.income || 0) + bid.fee;
+    state.squad = state.squad.filter(x => playerKey(x) !== bid.playerKey);
+    state.lineup = (state.lineup || []).filter(k => k !== bid.playerKey);
+    state.incomingBids = (state.incomingBids || []).filter(b => b.id !== bid.id);
+    state.news.unshift(`🤝 TRANSFERÊNCIA CONCLUÍDA: ${p.name} foi vendido ao ${bid.club} por ${fmtMoney(bid.fee)} com 20% de venda futura!`);
+    closeCustomModal();
+    save();
+    render();
+    toast(`🎉 Venda concretizada! ${fmtMoney(bid.fee)} creditados no caixa.`);
+  };
+
+  $('#btnCounterBid').onclick = () => {
+    if(Math.random() < 0.60){
+      bid.fee = Math.round(bid.fee * 1.20);
+      toast(`O ${bid.club} aceitou a contraproposta de ${fmtMoney(bid.fee)}!`);
+      openIncomingBidModal(bid.id);
+    } else {
+      toast(`O ${bid.club} recusou pagar mais e retirou a proposta.`);
+      state.incomingBids = (state.incomingBids || []).filter(b => b.id !== bid.id);
+      closeCustomModal();
+      save();
+      render();
+    }
+  };
+
+  $('#btnRejectBid').onclick = () => {
+    state.incomingBids = (state.incomingBids || []).filter(b => b.id !== bid.id);
+    toast(`Proposta do ${bid.club} recusada.`);
+    closeCustomModal();
+    save();
+    render();
+  };
+}
+
+function updateManagerCareerStats(userRes){
+  if(!state) return;
+  state.managerCareer = state.managerCareer || {
+    matches: 0,
+    wins: 0,
+    draws: 0,
+    losses: 0,
+    goalsFor: 0,
+    goalsAgainst: 0,
+    titles: 0
+  };
+  
+  if(userRes){
+    state.managerCareer.matches++;
+    const isHome = userRes.h === state.club;
+    const gf = isHome ? userRes.hg : userRes.ag;
+    const ga = isHome ? userRes.ag : userRes.hg;
+    state.managerCareer.goalsFor += gf;
+    state.managerCareer.goalsAgainst += ga;
+    
+    if(gf > ga) state.managerCareer.wins++;
+    else if(gf === ga) state.managerCareer.draws++;
+    else state.managerCareer.losses++;
+  }
+}
+
+function updateFansSocialFeed(userRes){
+  if(!state) return;
+  state.fansSocialFeed = state.fansSocialFeed || [];
+  
+  const club = state.club;
+  const isHome = userRes ? userRes.h === club : true;
+  const gf = userRes ? (isHome ? userRes.hg : userRes.ag) : 2;
+  const ga = userRes ? (isHome ? userRes.ag : userRes.hg) : 0;
+  const opp = userRes ? (isHome ? userRes.a : userRes.h) : 'Adversário';
+  
+  let tweets = [];
+  if(gf > ga + 1){
+    tweets = [
+      { user: '@torcedor_fiel', handle: '@fiel_torcida', time: '12m', text: `SIMPLESMENTE UMA AULA DE FUTEBOL! ${gf}x${ga} no ${opp}! O professor acertou a tática em cheio! 🔥🚀 #Vamo${club.replace(/[\s.-]/g,'')}` },
+      { user: '@resenha_arquibancada', handle: '@resenha_fut', time: '28m', text: `O time tá jogando por música sob o comando do técnico Aquino! Que partida monumental hoje! 👏🎩` },
+      { user: '@futebol_zoeira', handle: '@zoeira_fc', time: '45m', text: `Cadê a torcida do ${opp}? Sumiram todos depois do chocolate de hoje! Kkkk 🍫😂 #AFM2027` }
+    ];
+  } else if(gf > ga){
+    tweets = [
+      { user: '@loucos_pelo_clube', handle: '@loucos_1910', time: '15m', text: `Vitória gigante! 3 pontos na conta e rumo ao título! Valeu rapaziada! ⚽💪 #AFM2027` },
+      { user: '@tatico_raiz', handle: '@tatico_br', time: '34m', text: `A defesa se portou muito bem nos minutos finais. Resultado justo e suado contra o ${opp}.` },
+      { user: '@camilo_futebol', handle: '@camilo_analise', time: '52m', text: `Importantíssimo somar pontos nessa rodada. O elenco tá focado no objetivo da temporada!` }
+    ];
+  } else if(gf === ga){
+    tweets = [
+      { user: '@corneta_oficial', handle: '@corneta_fc', time: '8m', text: `Dava pra ter vencido se o time tivesse caprichado na finalização. Empate amargo contra o ${opp}... 😐` },
+      { user: '@central_do_torcedor', handle: '@central_torcida', time: '20m', text: `Pelo menos não perdemos, mas precisa de mais intensidade no meio campo na próxima rodada.` },
+      { user: '@alvinegro_cerrado', handle: '@cerrado_fiel', time: '41m', text: `Bora levantar a cabeça que tem muito campeonato pela frente! ⚽🔥 #AFM2027` }
+    ];
+  } else {
+    tweets = [
+      { user: '@revoltados_fc', handle: '@revoltados_br', time: '5m', text: `Inadmissível perder essa partida! A diretoria tem que cobrar atitude desse elenco agora mesmo! 😤😡` },
+      { user: '@corneteiros_net', handle: '@corneteiros_net', time: '18m', text: `Tivemos chances e tomamos gol bobo na falha defensiva. Tem que treinar essa zaga! 🤦‍♂️` },
+      { user: '@voz_das_arquibancadas', handle: '@voz_arquibancada', time: '37m', text: `Fase ruim, mas na boa e na ruim tamo junto. O professor precisa ajustar o esquema pro próximo jogo.` }
+    ];
+  }
+  
+  state.fansSocialFeed = tweets;
+}
+
+function checkFinancialFairPlay(){
+  if(!state || !Array.isArray(state.bankLoans)) return;
+  const overdueCount = state.bankLoans.filter(l => l.overdue).length;
+  if(overdueCount >= 2){
+    state.transferBan = true;
+    state.news.unshift(`🚨 FAIR PLAY FINANCEIRO: Devido a múltiplas parcelas bancárias em atraso, novas contratações estão temporariamente bloqueadas! Regularize no Banco.`);
+  } else {
+    state.transferBan = false;
+  }
+}
+
+function openSeasonHistoryModal(){
+  const list = state.seasonHistory || [];
+  openCustomModal(
+    '🏛️ Hall da Fama & Histórico de Temporadas',
+    `
+      <div style="margin-bottom:16px;text-align:center">
+        <div style="font-size:12px;color:rgba(255,255,255,0.6)">Registro oficial de todas as campanhas e troféus disputados na sua carreira</div>
+      </div>
+      ${list.length === 0 ? `
+        <div style="text-align:center;padding:30px;background:rgba(255,255,255,0.03);border-radius:12px;color:rgba(255,255,255,0.6)">
+          <div style="font-size:36px;margin-bottom:10px">📜</div>
+          <b>Nenhuma temporada concluída ainda!</b>
+          <div style="font-size:12px;margin-top:4px">Ao concluir a primeira temporada oficial e virar o ano, o registro completo da campanha ficará imortalizado aqui.</div>
+        </div>
+      ` : `
+        <div style="display:flex;flex-direction:column;gap:12px">
+          ${list.map(s => `
+            <div style="background:#161c2b;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 18px">
+              <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;margin-bottom:10px">
+                <div style="font-size:15px;font-weight:900;color:#facc15">TEMPORADA ${s.season} • ${esc(s.compName)}</div>
+                <div style="font-size:12px;font-weight:800;color:${s.userPosition === 1 ? '#22c55e' : '#38bdf8'}">
+                  ${s.userPosition === 1 ? '🏆 CAMPEÃO!' : `${s.userPosition}º Colocado`}
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;font-size:12px">
+                <div><span class="muted">Clube do Treinador:</span> <b>${esc(s.userClub)}</b></div>
+                <div><span class="muted">Campeão da Liga:</span> <b style="color:#22c55e">${esc(s.champion)}</b></div>
+                <div><span class="muted">Vice-Campeão:</span> <b>${esc(s.runnerUp)}</b></div>
+                <div><span class="muted">Saldo em Caixa:</span> <b style="color:var(--neon)">${fmtMoney(s.balance)}</b></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    `,
+    null,
+    'Fechar',
+    false
+  );
+}
+
 // -------------------------------------------------------------
 // MOTOR DE PARTIDA EM TEMPO REAL 2.5D & TRANSMISSÃO AO VIVO
 // -------------------------------------------------------------
@@ -7718,6 +8019,7 @@ function startLiveMatch(){
           overall: playerOverall(p) || 65,
           stamina: 100,
           isGK: (p.pos === 'GK' || slot.r === 'GK' || i === 0),
+          isCaptain: isUser ? (state.setPieces?.captain === playerKey(p) || (!state.setPieces?.captain && i === 1)) : (i === 1),
           team: isHomeSide ? 'home' : 'away',
           isUser: true,
           photo: (window.PLAYER_PHOTOS && (window.PLAYER_PHOTOS[p.name] || window.PLAYER_PHOTOS[norm(p.name)])) || null,
@@ -7748,6 +8050,7 @@ function startLiveMatch(){
           overall: p.fc || p.pes || 64,
           stamina: 100,
           isGK: (p.pos === 'GK' || slot.r === 'GK' || i === 0),
+          isCaptain: (i === 1),
           team: isHomeSide ? 'home' : 'away',
           isUser: false,
           photo: null,
@@ -7769,6 +8072,8 @@ function startLiveMatch(){
   const homePlayers = buildMatchTeam(home, home === state.club, true);
   const awayPlayers = buildMatchTeam(away, away === state.club, false);
 
+  const rivalry = checkRivalry(home, away);
+
   liveMatchState = {
     home, away, isKO,
     hg: 0, ag: 0,
@@ -7776,8 +8081,12 @@ function startLiveMatch(){
     minute: 0,
     playing: true,
     speed: 1, // 1, 20, 40
+    isNight: (Math.random() < 0.50) || (state.weather && state.weather.includes('Noite')),
+    derby: rivalry?.isRivalry ? rivalry.derbyName : '',
+    balloons: [],
+    varCheck: null,
     events: [
-      { min: 0, type: 'whistle', text: `Começa o jogo! ${home} e ${away} em campo no ${stadiumName}.` }
+      { min: 0, type: 'whistle', text: `${rivalry?.isRivalry ? `🔥 GRANDE CLÁSSICO: ${rivalry.derbyName.toUpperCase()}! ` : ''}Começa o jogo! ${home} e ${away} em campo no ${stadiumName}.` }
     ],
     stats: {
       posH: 50, posA: 50,
@@ -8350,6 +8659,124 @@ function drawLiveStadium(ctx, s){
     });
     s.particles = s.particles.filter(pt => pt.alpha > 0);
   }
+
+  // 11. Desenha Balões de HQ / Expressões de Gol
+  drawLiveBalloons(ctx, s);
+
+  // 12. Desenha Overlay do VAR se ativo
+  if(s.varCheck) drawVarOverlay(ctx, s);
+
+  // 13. Iluminação de Holofotes Noturnos se jogo à noite
+  if(s.isNight) drawFloodlights(ctx, s);
+}
+
+function drawLiveBalloons(ctx, s){
+  if(!s.balloons || !s.balloons.length) return;
+  s.balloons.forEach(b => {
+    const pt = proj(b.x, b.y);
+    const rise = (1 - (b.life / b.maxLife)) * 35;
+    const alpha = clamp(b.life / (b.maxLife * 0.4), 0, 1);
+    
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(pt.x, pt.y - 30 - rise);
+
+    ctx.font = '900 13px Inter, sans-serif';
+    const textWidth = ctx.measureText(b.text).width;
+    const bw = textWidth + 24;
+    const bh = 28;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+    ctx.strokeStyle = b.color || '#fbbf24';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = b.color || '#fbbf24';
+    ctx.shadowBlur = 10;
+
+    ctx.beginPath();
+    ctx.roundRect(-bw/2, -bh/2, bw, bh, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-4, bh/2);
+    ctx.lineTo(0, bh/2 + 6);
+    ctx.lineTo(4, bh/2);
+    ctx.closePath();
+    ctx.fillStyle = b.color || '#fbbf24';
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(b.text, 0, 0);
+
+    ctx.restore();
+
+    b.life -= 0.04;
+  });
+  s.balloons = s.balloons.filter(b => b.life > 0);
+}
+
+function drawVarOverlay(ctx, s){
+  const v = s.varCheck;
+  if(!v) return;
+
+  const p1 = proj(35, 10), p2 = proj(35, 90);
+  const p3 = proj(37, 10), p4 = proj(37, 90);
+  
+  ctx.save();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#3b82f6';
+  ctx.setLineDash([8, 6]);
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#ef4444';
+  ctx.beginPath();
+  ctx.moveTo(p3.x, p3.y);
+  ctx.lineTo(p4.x, p4.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = 'rgba(5, 8, 22, 0.92)';
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#0284c7';
+  ctx.shadowBlur = 18;
+  ctx.fillRect(440, 20, 400, 50);
+  ctx.strokeRect(440, 20, 400, 50);
+  
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = '900 13px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(v.text || '🖥️ VAR - CHECANDO LANCE NO MONITOR...', 640, 42);
+
+  const pr = clamp(1 - (v.timer / 2.4), 0, 1);
+  ctx.fillStyle = '#10b981';
+  ctx.fillRect(450, 58, 380 * pr, 4);
+
+  ctx.restore();
+}
+
+function drawFloodlights(ctx, s){
+  ctx.save();
+  const lights = [
+    { x: 180, y: 70, targetX: 520, targetY: 360 },
+    { x: 1100, y: 70, targetX: 760, targetY: 360 }
+  ];
+
+  lights.forEach(l => {
+    const grad = ctx.createRadialGradient(l.targetX, l.targetY, 40, l.targetX, l.targetY, 450);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1280, 720);
+  });
+  ctx.restore();
 }
 
 // Desenha os Bancos de Reservas com reservas e técnicos
@@ -8416,6 +8843,7 @@ function drawDugouts(ctx, s){
 
 // Desenha o sprite do jogador no canvas com animações de corrida, chute, mergulho e comemoração
 function drawPlayerSprite(ctx, p, hasBall){
+  if(p.redCard) return; // Jogador expulso não aparece no campo!
   const pt = proj(p.x, p.y);
   const scale = 0.8 + (p.y / 100) * 0.45; // Jogadores na parte inferior são maiores
 
@@ -8472,6 +8900,12 @@ function drawPlayerSprite(ctx, p, hasBall){
     ctx.fillStyle = '#dc2626'; // Visitante vermelho
   }
   ctx.fillRect(-6 * scale, -21 * scale, 12 * scale, 10 * scale);
+
+  // Braçadeira de Capitão Amarela 'C'
+  if(p.isCaptain){
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-8 * scale, -18 * scale, 3.2 * scale, 4.5 * scale);
+  }
 
   // Braços / Luvas (levantados em comemoração \o/ ou posicionados de goleiro)
   ctx.fillStyle = p.isGK ? '#facc15' : '#fed7aa';
@@ -8867,29 +9301,40 @@ function updateLiveMatchPhysics(dtSec){
         shooter.targetX = isHome ? 92 : 8;
         shooter.targetY = 16;
       } else if(outcome === 'save'){
-        // Defesa do goleiro!
+        // Defesa do goleiro! 45% de chance de espalmar para escanteio!
         s.events.unshift({
           min: s.minute,
           type: 'save',
           text: `🧤 ESPETACULAR! Defesa de ${defendingGK ? defendingGK.name : 'Goleiro'} em cima da linha!`
         });
-        s.ball.mode = 'dribble';
-        s.ball.carrier = defendingGK;
-        s.ball.z = 0;
+        showLiveBalloon(s.ball.x, s.ball.y, '🧤 DEFESASSA!', '#22c55e');
+        
+        if(Math.random() < 0.45){
+          triggerCorner(isHome);
+        } else {
+          s.ball.mode = 'dribble';
+          s.ball.carrier = defendingGK;
+          s.ball.z = 0;
+        }
         setTimeout(() => {
           if(defendingGK) defendingGK.diving = false;
         }, 1200);
       } else {
         // Na trave / raspando!
-        if(isHome) s.stats.cornersH++; else s.stats.cornersA++;
         s.events.unshift({
           min: s.minute,
           type: 'post',
           text: `💥 NA TRAVE! Finalização venenosa de ${shooter.name} estremece o travessão!`
         });
-        s.ball.mode = 'dribble';
-        s.ball.carrier = defendingGK;
-        s.ball.z = 0;
+        showLiveBalloon(s.ball.x, s.ball.y, '💥 NA TRAVE!', '#f87171');
+        
+        if(Math.random() < 0.50){
+          triggerCorner(isHome);
+        } else {
+          s.ball.mode = 'dribble';
+          s.ball.carrier = defendingGK;
+          s.ball.z = 0;
+        }
         if(defendingGK) defendingGK.diving = false;
       }
 
@@ -8899,7 +9344,91 @@ function updateLiveMatchPhysics(dtSec){
   }
 
   // ==============================================================
-  // ESTADO 3: POSSE DE BOLA NORMAL (DRIBLE, PRESSÃO E DECISÕES)
+  // ESTADO 3: ESPERANDO COBRANÇA DE PÊNALTI
+  // ==============================================================
+  else if(s.ball.mode === 'penalty_wait'){
+    s.ball.penaltyTimer = (s.ball.penaltyTimer || 1.8) - dtSec;
+    if(s.ball.penaltyTimer <= 0){
+      const kicker = s.ball.penaltyKicker;
+      const isHome = s.ball.isHomeAttacking;
+      const defendingGK = isHome ? s.awayPlayers[0] : s.homePlayers[0];
+      playKickSound();
+      s.ball.mode = 'shot';
+      s.ball.shooter = kicker;
+      s.ball.startX = kicker.x;
+      s.ball.startY = kicker.y;
+      s.ball.targetX = isHome ? 99.5 : 0.5;
+      s.ball.targetY = 50 + rnd(-7, 7);
+      s.ball.progress = 0;
+      s.ball.curveZ = rnd(2.5, 4.5);
+      
+      const roll = Math.random();
+      const kickOvr = kicker?.overall || 68;
+      const gkOvr = defendingGK?.overall || 65;
+      const goalProb = clamp(0.76 + (kickOvr - gkOvr) * 0.005, 0.60, 0.90);
+      s.ball.shotOutcome = roll < goalProb ? 'gol' : (roll < goalProb + 0.16 ? 'save' : 'post');
+      if(isHome) s.stats.shotsH++; else s.stats.shotsA++;
+      kicker.kickTimer = 0.5;
+    }
+  }
+
+  // ==============================================================
+  // ESTADO 4: ESPERANDO COBRANÇA DE FALTA PERIGOSA COM BARREIRA
+  // ==============================================================
+  else if(s.ball.mode === 'freekick_wait'){
+    s.ball.freekickTimer = (s.ball.freekickTimer || 1.8) - dtSec;
+    if(s.ball.freekickTimer <= 0){
+      const kicker = s.ball.freekickKicker;
+      const isHome = s.ball.isHomeAttacking;
+      playKickSound();
+      s.ball.mode = 'shot';
+      s.ball.shooter = kicker;
+      s.ball.startX = kicker.x;
+      s.ball.startY = kicker.y;
+      s.ball.targetX = isHome ? 99.5 : 0.5;
+      s.ball.targetY = 50 + rnd(-7, 7);
+      s.ball.progress = 0;
+      s.ball.curveZ = rnd(5.5, 7.5);
+      
+      const roll = Math.random();
+      s.ball.shotOutcome = roll < 0.35 ? 'gol' : (roll < 0.72 ? 'save' : 'post');
+      if(isHome) s.stats.shotsH++; else s.stats.shotsA++;
+      kicker.kickTimer = 0.5;
+    }
+  }
+
+  // ==============================================================
+  // ESTADO 5: ESPERANDO COBRANÇA DE ESCANTEIO COM CABECEIO NA ÁREA
+  // ==============================================================
+  else if(s.ball.mode === 'corner_wait'){
+    s.ball.cornerTimer = (s.ball.cornerTimer || 1.6) - dtSec;
+    if(s.ball.cornerTimer <= 0){
+      const taker = s.ball.cornerTaker;
+      const isHome = s.ball.isHomeAttacking;
+      playKickSound();
+      
+      s.ball.mode = 'pass';
+      s.ball.startX = taker.x;
+      s.ball.startY = taker.y;
+      s.ball.targetX = isHome ? 92 : 8;
+      s.ball.targetY = 50 + rnd(-8, 8);
+      s.ball.progress = 0;
+      s.ball.curveZ = 6.5;
+      
+      const attackingPlayers = isHome ? s.homePlayers : s.awayPlayers;
+      const headerTarget = attackingPlayers.filter(p => !p.isGK && p !== taker).sort((a,b)=>(b.overall||65)-(a.overall||65))[0] || attackingPlayers[9];
+      s.ball.targetPlayer = headerTarget;
+      
+      setTimeout(() => {
+        if(s.ball && s.ball.carrier === headerTarget && Math.random() < 0.65){
+          shootAtGoal(headerTarget);
+        }
+      }, 700);
+    }
+  }
+
+  // ==============================================================
+  // ESTADO 6: POSSE DE BOLA NORMAL (DRIBLE, PRESSÃO E DECISÕES)
   // ==============================================================
   else {
     const carrier = s.ball.carrier;
@@ -8909,14 +9438,15 @@ function updateLiveMatchPhysics(dtSec){
       const dirX = targetGoalX > carrier.x ? 1 : -1;
       const carrierCfg = isHome ? hCfg : aCfg;
 
-      // Condução de bola com ginga acelerada pela postura
-      carrier.x = clamp(carrier.x + dirX * (0.22 * carrierCfg.speedMult), 3, 97);
+      // Condução de bola com ginga acelerada pela postura e atenuada pelo cansaço (stamina)
+      const carrierStamFactor = 0.60 + 0.40 * ((carrier.stamina || 100) / 100);
+      carrier.x = clamp(carrier.x + dirX * (0.22 * carrierCfg.speedMult * carrierStamFactor), 3, 97);
       carrier.y = clamp(carrier.y + Math.sin(s.timeSec * 2.5) * 0.14, 10, 90);
       carrier.animFrame = (carrier.animFrame || 0) + 0.28;
 
       s.ball.x = carrier.x + dirX * 1.4;
       s.ball.y = carrier.y;
-      s.ball.z = Math.abs(Math.sin(carrier.animFrame)) * 0.6; // Bola quica sutilmente no gramado
+      s.ball.z = Math.abs(Math.sin(carrier.animFrame)) * 0.6;
       s.ball.spin = (s.ball.spin || 0) + 0.15;
 
       // 1. MARCAÇÃO COLETIVA EM BLOCO & PRESSÃO DINÂMICA
@@ -9073,10 +9603,159 @@ function passBall(passer){
   s.ball.curveZ = dist > 28 ? 4.5 : 1.8;
 }
 
+function showLiveBalloon(pctX, pctY, text, color = '#fbbf24'){
+  const s = liveMatchState;
+  if(!s) return;
+  s.balloons = s.balloons || [];
+  s.balloons.push({
+    x: pctX,
+    y: pctY,
+    text: text,
+    color: color,
+    life: 2.2,
+    maxLife: 2.2
+  });
+}
+
+function triggerPenalty(carrier, defender, isHomeAttacking){
+  const s = liveMatchState;
+  playWhistleSound();
+  
+  if(Math.random() < 0.35){
+    s.varCheck = {
+      type: 'penalty',
+      timer: 2.4,
+      text: '🖥️ VAR CHECANDO POSSÍVEL PÊNALTI...',
+      confirmed: true
+    };
+  }
+
+  showLiveBalloon(carrier.x, carrier.y, '🎯 PÊNALTI!', '#facc15');
+  showLiveBanner(`🎯 PÊNALTI PARA O ${isHomeAttacking ? s.home : s.away}!`, 'penalty', 4500);
+  s.events.unshift({
+    min: s.minute,
+    type: 'penalty',
+    text: `🎯 PÊNALTI MARCADO! ${carrier.name} foi derrubado dentro da grande área por ${defender.name}!`
+  });
+  updateLiveSidebarEvents();
+
+  const attackingPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
+  let kicker = null;
+  if(isHomeAttacking && carrier.isUser && state.setPieces?.penalty){
+    kicker = attackingPlayers.find(p => p.key === state.setPieces.penalty) || attackingPlayers[9];
+  } else {
+    kicker = attackingPlayers.filter(p => !p.isGK).sort((a,b)=>(b.overall||65)-(a.overall||65))[0] || attackingPlayers[9];
+  }
+
+  s.ball.mode = 'penalty_wait';
+  s.ball.penaltyTimer = 1.8;
+  s.ball.penaltyKicker = kicker;
+  s.ball.isHomeAttacking = isHomeAttacking;
+  s.ball.x = isHomeAttacking ? 88.5 : 11.5;
+  s.ball.y = 50;
+  s.ball.z = 0;
+  s.ball.carrier = null;
+  
+  kicker.x = isHomeAttacking ? 85 : 15;
+  kicker.y = 50;
+
+  const defendingGK = isHomeAttacking ? s.awayPlayers[0] : s.homePlayers[0];
+  if(defendingGK){
+    defendingGK.x = isHomeAttacking ? 96.5 : 3.5;
+    defendingGK.y = 50;
+    defendingGK.diving = false;
+  }
+}
+
+function triggerFreeKick(carrier, defender, isHomeAttacking){
+  const s = liveMatchState;
+  playWhistleSound();
+  
+  showLiveBalloon(carrier.x, carrier.y, '🎯 FALTA PERIGOSA!', '#38bdf8');
+  showLiveBanner(`🎯 FALTA PERIGOSA NA ENTRADA DA ÁREA!`, 'freekick', 3500);
+  s.events.unshift({
+    min: s.minute,
+    type: 'whistle',
+    text: `🎯 FALTA PERIGOSA! Entrada cometida por ${defender.name} próximo à grande área.`
+  });
+  updateLiveSidebarEvents();
+
+  const attackingPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
+  const defendingPlayers = isHomeAttacking ? s.awayPlayers : s.homePlayers;
+  
+  let kicker = null;
+  if(isHomeAttacking && carrier.isUser && state.setPieces?.freekick){
+    kicker = attackingPlayers.find(p => p.key === state.setPieces.freekick) || carrier;
+  } else {
+    kicker = attackingPlayers.filter(p => !p.isGK).sort((a,b)=>(b.overall||65)-(a.overall||65))[0] || carrier;
+  }
+
+  const dirX = isHomeAttacking ? 1 : -1;
+  const wallDefenders = defendingPlayers.filter(p => !p.isGK && !p.redCard).slice(0, 3);
+  wallDefenders.forEach((w, idx) => {
+    w.x = carrier.x + (dirX * 9);
+    w.y = carrier.y + (idx - 1) * 3.5;
+  });
+
+  s.ball.mode = 'freekick_wait';
+  s.ball.freekickTimer = 1.8;
+  s.ball.freekickKicker = kicker;
+  s.ball.isHomeAttacking = isHomeAttacking;
+  s.ball.x = carrier.x;
+  s.ball.y = carrier.y;
+  s.ball.z = 0;
+  s.ball.carrier = null;
+  
+  kicker.x = carrier.x - (dirX * 3.2);
+  kicker.y = carrier.y;
+}
+
+function triggerCorner(isHomeAttacking){
+  const s = liveMatchState;
+  const cornerX = isHomeAttacking ? 99.0 : 1.0;
+  const cornerY = Math.random() < 0.5 ? 4.0 : 96.0;
+  
+  showLiveBalloon(cornerX, cornerY, '🚩 ESCANTEIO!', '#38bdf8');
+  if(isHomeAttacking) s.stats.cornersH++; else s.stats.cornersA++;
+  s.events.unshift({
+    min: s.minute,
+    type: 'corner',
+    text: `🚩 ESCANTEIO para o ${isHomeAttacking ? s.home : s.away}!`
+  });
+  updateLiveSidebarEvents();
+
+  const attackingPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
+  let taker = null;
+  if(isHomeAttacking && state.setPieces?.corner){
+    taker = attackingPlayers.find(p => p.key === state.setPieces.corner) || attackingPlayers[7];
+  } else {
+    taker = attackingPlayers.filter(p => !p.isGK && ['LB','RB','LM','RM','CM'].includes(p.pos))[0] || attackingPlayers[7];
+  }
+
+  taker.x = cornerX;
+  taker.y = cornerY;
+
+  const boxX = isHomeAttacking ? 92 : 8;
+  attackingPlayers.filter(p => p !== taker && !p.isGK && !p.redCard).forEach(p => {
+    p.x = boxX + rnd(-4, 4);
+    p.y = 50 + rnd(-16, 16);
+  });
+
+  s.ball.mode = 'corner_wait';
+  s.ball.cornerTimer = 1.6;
+  s.ball.cornerTaker = taker;
+  s.ball.isHomeAttacking = isHomeAttacking;
+  s.ball.x = cornerX;
+  s.ball.y = cornerY;
+  s.ball.z = 0;
+  s.ball.carrier = null;
+}
+
 function attemptTackle(carrier){
   const s = liveMatchState;
   const isHome = carrier.team === 'home';
-  const opponents = (isHome ? s.awayPlayers : s.homePlayers).filter(p => !p.isGK);
+  const opponents = (isHome ? s.awayPlayers : s.homePlayers).filter(p => !p.isGK && !p.redCard);
+  if(!opponents.length) return;
   const defender = opponents[rnd(0, opponents.length - 1)];
   defender.kickTimer = 0.3;
 
@@ -9090,17 +9769,54 @@ function attemptTackle(carrier){
     s.ball.mode = 'dribble';
     s.ball.carrier = defender;
     s.ball.z = 0;
-  } else if(Math.random() < (s.prelecao === 'Manter a calma' && defender.isUser ? 0.08 : 0.16)){
-    // Falta marcada pelo juiz
-    playWhistleSound();
+  } else if(Math.random() < (s.prelecao === 'Manter a calma' && defender.isUser ? 0.08 : 0.18)){
+    // Falta marcada pelo juiz!
     if(defender.team === 'home') s.stats.foulsH++; else s.stats.foulsA++;
-    if(Math.random() < 0.25){
-      if(defender.team === 'home') s.stats.yellowsH++; else s.stats.yellowsA++;
-      s.events.unshift({ min: s.minute, type: 'yellow', text: `🟨 Cartão amarelo para ${defender.name} por entrada dura!` });
-    } else {
-      s.events.unshift({ min: s.minute, type: 'whistle', text: `Falta de ${defender.name} no meio-campo.` });
+    
+    // Checa Cartões: Amarelo ou Vermelho Direto!
+    const isHardFoul = Math.random() < 0.28;
+    if(isHardFoul){
+      defender.yellowCards = (defender.yellowCards || 0) + 1;
+      if(defender.yellowCards >= 2 || Math.random() < 0.08){
+        // EXPULSÃO / CARTÃO VERMELHO!
+        defender.redCard = true;
+        defender.x = -999;
+        defender.y = -999;
+        if(defender.team === 'home') s.stats.redsH = (s.stats.redsH || 0) + 1;
+        else s.stats.redsA = (s.stats.redsA || 0) + 1;
+        playWhistleSound();
+        showLiveBalloon(carrier.x, carrier.y, '🟥 EXPULSO!', '#ef4444');
+        showLiveBanner(`🟥 EXPULSÃO! Cartão vermelho para ${defender.name}!`, 'red', 5000);
+        s.events.unshift({ min: s.minute, type: 'red', text: `🟥 EXPULSÃO! Cartão vermelho para ${defender.name}! Equipe jogando com 10!` });
+        updateLiveSidebarEvents();
+      } else {
+        if(defender.team === 'home') s.stats.yellowsH++; else s.stats.yellowsA++;
+        showLiveBalloon(carrier.x, carrier.y, '🟨 CARTÃO AMARELO', '#facc15');
+        s.events.unshift({ min: s.minute, type: 'yellow', text: `🟨 Cartão amarelo para ${defender.name} por entrada dura!` });
+      }
     }
-    updateLiveSidebarEvents();
+
+    // Checa se a falta foi dentro da grande área -> PÊNALTI!
+    const isInsideBox = isHome 
+      ? (carrier.x >= 83.5 && carrier.y >= 22 && carrier.y <= 78)
+      : (carrier.x <= 16.5 && carrier.y >= 22 && carrier.y <= 78);
+    
+    const isNearBox = isHome
+      ? (carrier.x >= 66 && carrier.x < 83.5 && carrier.y >= 20 && carrier.y <= 80)
+      : (carrier.x <= 34 && carrier.x > 16.5 && carrier.y >= 20 && carrier.y <= 80);
+
+    if(isInsideBox){
+      triggerPenalty(carrier, defender, isHome);
+    } else if(isNearBox){
+      triggerFreeKick(carrier, defender, isHome);
+    } else {
+      // Falta no meio-campo: posse continua com o time que sofreu a falta
+      playWhistleSound();
+      s.events.unshift({ min: s.minute, type: 'whistle', text: `Falta de ${defender.name} no meio-campo.` });
+      updateLiveSidebarEvents();
+      s.ball.carrier = carrier;
+      s.ball.mode = 'dribble';
+    }
   }
 }
 
@@ -10014,6 +10730,22 @@ function showEndOfSeasonModal(){
 }
 
 function advanceSeasonYear(){
+  // 1. Registra Snapshot Histórico no Hall da Fama da Carreira
+  const finishedYear = state.season;
+  const compFinished = curComp();
+  const rankingTable = ranking();
+  state.seasonHistory = state.seasonHistory || [];
+  state.seasonHistory.unshift({
+    season: finishedYear,
+    compName: compFinished?.name || 'Campeonato',
+    champion: rankingTable[0]?.name || state.club,
+    runnerUp: rankingTable[1]?.name || 'Vice-Campeão',
+    userPosition: position(),
+    userClub: state.club,
+    titlesWon: [...(state.titles || [])],
+    balance: state.balance
+  });
+
   state.season++;
   state.round = 0;
   state.isPreSeason = true;
@@ -10034,7 +10766,7 @@ function advanceSeasonYear(){
   }
 
   const comp = curComp();
-  state.news.unshift(`Início da temporada ${state.season}! O ${state.club} disputará o ${comp?.name || 'Campeonato'} com pré-temporada aberta por 4 dias.`);
+  state.news.unshift(`🎆 Feliz Ano Novo! Início da temporada ${state.season}! O ${state.club} disputará o ${comp?.name || 'Campeonato'} com pré-temporada aberta por 4 dias.`);
   
   const cc = competitionClubs(comp, state.club);
   state.teams = cc.map(c => ({name:c.name, strength:strength(c), j:0, v:0, e:0, d:0, gp:0, gc:0, sg:0, p:0, form:[]}));
@@ -10045,12 +10777,41 @@ function advanceSeasonYear(){
   });
   (state.squad || []).forEach(p => {
     p.age = (Number(p.age) || 24) + 1;
+    p.stamina = 100;
+    p.yellowCards = 0;
+    p.redCard = false;
     if(p.age >= 35 && Math.random() < 0.35){
       p.fc = Math.max(45, (p.fc || playerOverall(p)) - 1);
     }
   });
+
+  // 2. Geração Contínua de Regens / Novas Promessas da Base Mundial (16 a 18 anos)
+  generateWorldRegens();
+
   save();
   render();
+}
+
+function generateWorldRegens(){
+  state.worldRegens = state.worldRegens || [];
+  const firsts = ['Enzo', 'Cauã', 'Matheus', 'Arthur', 'Bryan', 'Davi', 'Gustavo', 'Luan', 'Murilo', 'Rayan', 'Estêvão', 'Endrick', 'Lamine', 'Arda', 'Kauã', 'Vinícius', 'Gabriel', 'Kaio'];
+  const lasts = ['Alves', 'Pereira', 'Ribeiro', 'Carvalho', 'Gomes', 'Martins', 'Barbosa', 'Monteiro', 'Moreira', 'Nascimento', 'Teixeira', 'Cardoso', 'Silveira', 'Moraes', 'Dantas'];
+  const count = rnd(18, 28);
+  for(let i=0; i<count; i++){
+    const name = `${firsts[rnd(0, firsts.length - 1)]} ${lasts[rnd(0, lasts.length - 1)]}`;
+    const pos = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'RW', 'LW', 'ST'][rnd(0, 8)];
+    const ovr = rnd(62, 74);
+    const pot = rnd(80, 94);
+    state.worldRegens.push({
+      name,
+      pos,
+      age: rnd(16, 18),
+      fc: ovr,
+      potential: pot,
+      club: 'Livre no Mercado',
+      salary: Math.round(ovr * 450)
+    });
+  }
 }
 
 function changeUserClub(newClubName){
@@ -10451,6 +11212,7 @@ function marketUniverse(){
   };
   livePlayers.forEach(add);
   (state.worldGenerated||[]).forEach(add);
+  (state.worldRegens||[]).forEach(add);
   _marketUniverseCache = out;
   _marketUniverseCacheRound = (state.round||0);
   _marketUniverseCacheMoves = movesCount;
@@ -10462,6 +11224,10 @@ function marketUniverse(){
 // SISTEMA DE NEGOCIAÇÃO DE TRANSFERÊNCIAS (COM RIVAIS E INTERESSE DO JOGADOR)
 // =========================================================================
 function buyPlayer(key){
+  if(state && state.transferBan){
+    toast('🚨 TRANSFER BAN ATIVO: Devido a parcelas de empréstimo atrasadas no Banco, novas contratações estão bloqueadas até quitação!');
+    return;
+  }
   openTransferNegotiationModal(key);
 }
 
@@ -12193,6 +12959,9 @@ function centralPage(){
                 <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.4)">DERROTA</div>
               </div>
             </div>
+            <button id="btnOpenHallOfFame" class="btn" style="background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;font-size:11px;font-weight:800;border-radius:8px;padding:8px 12px;cursor:pointer;width:100%;margin-top:12px">
+              🏛️ Hall da Fama & Histórico de Temporadas
+            </button>
           </div>
         </div>
 
@@ -12258,6 +13027,22 @@ function centralPage(){
                   ⏭ Pular para a Estreia
                 </button>
               </div>
+            </div>
+          ` : ''}
+
+          ${(state.incomingBids && state.incomingBids.length > 0) ? `
+            <!-- BANNER DE PROPOSTA MILIONÁRIA RECEBIDA -->
+            <div style="background:linear-gradient(135deg,rgba(234,179,8,0.22),rgba(34,197,94,0.15));border:1.5px solid #eab308;border-radius:14px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 0 15px rgba(234,179,8,0.2)">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="font-size:26px">💰</span>
+                <div>
+                  <b style="color:#fef08a;font-size:13px;letter-spacing:0.5px">PROPOSTA MILIONÁRIA OFICIAL!</b>
+                  <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">O <b>${esc(state.incomingBids[0].club)}</b> ofereceu <b>${fmtMoney(state.incomingBids[0].fee)}</b> por <b>${esc(state.incomingBids[0].playerName)}</b> (+20% futura)</div>
+                </div>
+              </div>
+              <button id="btnOpenIncomingBidFromCentral" class="btn primary" style="background:#eab308;color:#000;font-weight:900;border:none;padding:8px 14px;border-radius:8px;cursor:pointer">
+                Ver Proposta &gt;
+              </button>
             </div>
           ` : ''}
 
@@ -12510,6 +13295,28 @@ function centralPage(){
                 </div>
               `).join('')}
             </div>
+          </div>
+        </div>
+
+        <!-- Widget 3: Voz da Torcida (#AFM2027) -->
+        <div class="card" style="padding:16px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-size:12px;font-weight:900;letter-spacing:0.8px;color:#fff;text-transform:uppercase">💬 VOZ DA TORCIDA</span>
+            <span class="pill" style="font-size:9px;font-weight:800;background:rgba(56,189,248,0.15);color:#38bdf8">#AFM2027</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${((state.fansSocialFeed && state.fansSocialFeed.length) ? state.fansSocialFeed : [
+              { user: '@torcedor_fiel', handle: '@fiel_torcida', time: '10m', text: `Confiante demais no trabalho do professor! Hoje é dia de vitória e festa na arquibancada! 🔥⚽ #AFM2027` },
+              { user: '@resenha_arquibancada', handle: '@resenha_fut', time: '25m', text: `Expectativa alta para a rodada. O time precisa entrar focado desde o primeiro minuto!` }
+            ]).map(tw => `
+              <div style="background:#18142a;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 10px;font-size:11px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                  <div><b style="color:#facc15">${esc(tw.user)}</b> <span class="muted" style="font-size:9px">${esc(tw.handle||'')}</span></div>
+                  <span class="muted" style="font-size:9px">${esc(tw.time||'15m')}</span>
+                </div>
+                <div style="color:rgba(255,255,255,0.85);line-height:1.3">${esc(tw.text)}</div>
+              </div>
+            `).join('')}
           </div>
         </div>
       </div>
@@ -13146,6 +13953,9 @@ function marketPage(){
       <button class="btn market-main-tab ${marketTab==='scout'?'primary active':''}" data-market-tab="scout" style="flex:1;min-width:160px;padding:12px;border-radius:10px;font-weight:900;letter-spacing:0.5px;${marketTab==='scout'?'background:#7c3aed;color:#fff;border:none':''}">
         🕵️ OLHEIROS & BUSCA
       </button>
+      <button class="btn market-main-tab ${marketTab==='feed'?'primary active':''}" data-market-tab="feed" style="flex:1;min-width:160px;padding:12px;border-radius:10px;font-weight:900;letter-spacing:0.5px;${marketTab==='feed'?'background:#7c3aed;color:#fff;border:none':''}">
+        🌐 GIRO DO MERCADO (IA)
+      </button>
     </div>
 
     ${marketTab==='buy' ? `
@@ -13391,24 +14201,24 @@ function marketPage(){
           </h3>
 
           <div style="display:flex;flex-direction:column;gap:10px">
-            ${[
-              { name: 'Richard Franco', from: 'ASA', to: 'Betim Futebol', val: 350000 },
-              { name: 'Rafael Roballo', from: 'Nacional', to: 'Atlético-BA', val: 20000 },
-              { name: 'Young', from: 'São Paulo', to: 'Aparecidense', val: 250000 },
-              { name: 'Élton', from: 'Capital-DF', to: 'Foz do Iguaçu', val: 50000 },
-              { name: 'Paulo Vítor', from: 'Atlético-GO', to: 'Athletic Club', val: 530000 },
-              { name: 'Luis Augusto', from: 'Jataiense', to: 'Paranoá', val: 110000 },
-              { name: 'Magrão', from: 'Fortaleza', to: 'Forte', val: 200000 }
-            ].map(tr => `
+            ${((state.marketWorldFeed && state.marketWorldFeed.length) ? state.marketWorldFeed.slice(0, 7) : [
+              { playerName: 'Richard Franco', seller: 'ASA', buyer: 'Betim Futebol', fee: 350000 },
+              { playerName: 'Rafael Roballo', seller: 'Nacional', buyer: 'Atlético-BA', fee: 20000 },
+              { playerName: 'Young', seller: 'São Paulo', buyer: 'Aparecidense', fee: 250000 },
+              { playerName: 'Élton', seller: 'Capital-DF', buyer: 'Foz do Iguaçu', fee: 50000 },
+              { playerName: 'Paulo Vítor', seller: 'Atlético-GO', buyer: 'Athletic Club', fee: 530000 },
+              { playerName: 'Luis Augusto', seller: 'Jataiense', buyer: 'Paranoá', fee: 110000 },
+              { playerName: 'Magrão', seller: 'Fortaleza', buyer: 'Forte', fee: 200000 }
+            ]).map(tr => `
               <div style="background:#181428;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.05);font-size:12px">
                 <div style="display:flex;align-items:center;gap:8px">
-                  ${playerPhoto(tr.name, 26)}
+                  ${playerPhoto(tr.playerName, 26)}
                   <div>
-                    <div style="font-weight:800;color:#fff">${esc(tr.name)}</div>
-                    <div style="font-size:10px;color:rgba(255,255,255,0.4)">${esc(tr.from)} ➔ ${esc(tr.to)}</div>
+                    <div style="font-weight:800;color:#fff">${esc(tr.playerName)}</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.4)">${esc(tr.seller)} ➔ ${esc(tr.buyer)}</div>
                   </div>
                   <div style="margin-left:auto;font-weight:900;color:#f59e0b;font-size:12px">
-                    ${fmtMoney(tr.val)}
+                    ${fmtMoney(tr.fee)}
                   </div>
                 </div>
               </div>
@@ -13418,6 +14228,53 @@ function marketPage(){
       </div>
     ` : marketTab==='scout' ? `
       <div id="scoutList" style="margin-top:14px"></div>
+    ` : marketTab==='feed' ? `
+      <div class="card" style="margin-top:14px;padding:22px;background:#120f20;border:1px solid rgba(139,92,246,0.3);border-radius:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div>
+            <h2 style="margin:0;font-size:18px;font-weight:900;letter-spacing:1px;text-transform:uppercase">🌐 GIRO DO MERCADO MUNDIAL DA IA</h2>
+            <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">Negociações, transferências e reforços em tempo real realizados pelos outros clubes</div>
+          </div>
+          <span class="pill good" style="font-size:11px;font-weight:800;padding:6px 12px">
+            🟢 MERCADO SIMULADO ATIVO
+          </span>
+        </div>
+
+        <div style="overflow-x:auto">
+          <table class="table" style="width:100%;text-align:left;font-size:12px">
+            <thead>
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6)">
+                <th style="padding:10px">DATA</th>
+                <th style="padding:10px">JOGADOR</th>
+                <th style="padding:10px">POS</th>
+                <th style="padding:10px">OVR</th>
+                <th style="padding:10px">ORIGEM (VENDEDOR)</th>
+                <th style="padding:10px">DESTINO (COMPRADOR)</th>
+                <th style="padding:10px;text-align:right">VALOR</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${((state.marketWorldFeed && state.marketWorldFeed.length) ? state.marketWorldFeed : [
+                { date: state.date, playerName: 'Gabriel Pec', pos: 'RW', ovr: 77, seller: 'Vasco', buyer: 'LA Galaxy', fee: 52000000 },
+                { date: state.date, playerName: 'Léo Ortiz', pos: 'CB', ovr: 80, seller: 'Red Bull Bragantino', buyer: 'Flamengo', fee: 38000000 },
+                { date: state.date, playerName: 'Maurício', pos: 'AM', ovr: 78, seller: 'Internacional', buyer: 'Palmeiras', fee: 60000000 },
+                { date: state.date, playerName: 'Matheus Cunha', pos: 'GK', ovr: 74, seller: 'Flamengo', buyer: 'Cruzeiro', fee: 18000000 },
+                { date: state.date, playerName: 'Alerrandro', pos: 'ST', ovr: 73, seller: 'Red Bull Bragantino', buyer: 'Vitória', fee: 12000000 }
+              ]).map(f => `
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+                  <td style="padding:10px;color:rgba(255,255,255,0.5)">${esc(f.date)}</td>
+                  <td style="padding:10px;font-weight:800;color:#fff">${esc(f.playerName)}</td>
+                  <td style="padding:10px"><span class="pill" style="font-size:10px;padding:2px 6px">${esc(f.pos)}</span></td>
+                  <td style="padding:10px;font-weight:900;color:#facc15">${f.ovr}</td>
+                  <td style="padding:10px;color:rgba(255,255,255,0.7)">${esc(f.seller)}</td>
+                  <td style="padding:10px;font-weight:800;color:#38bdf8">➔ ${esc(f.buyer)}</td>
+                  <td style="padding:10px;text-align:right;font-weight:900;color:#22c55e">${fmtMoney(f.fee)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
     ` : ''}
   `;
 }
@@ -17765,6 +18622,12 @@ function bind(){
     if(bOpenStadCent) bOpenStadCent.onclick = () => openStadiumModal('summary');
     const bOpenCaldCent = $('#btnOpenCaldeiraoCentral');
     if(bOpenCaldCent) bOpenCaldCent.onclick = () => openStadiumModal('upgrades');
+
+    const bHall = $('#btnOpenHallOfFame');
+    if(bHall) bHall.onclick = openSeasonHistoryModal;
+
+    const bOpenBid = $('#btnOpenIncomingBidFromCentral');
+    if(bOpenBid) bOpenBid.onclick = () => openIncomingBidModal();
 
     const bPrevCentral = $('#btnMatchPreviewCentral');
     if(bPrevCentral){

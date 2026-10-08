@@ -15,7 +15,7 @@ git status
 echo.
 echo [3/4] Adicionando arquivos e gerando commit validado...
 git add .
-git commit --author="Aquino1M <243838973+Aquino1M@users.noreply.github.com>" -m "feat: sincroniza tabela estadual em tempo real, melhora IA e marcacao 2.5D e adiciona sistema de virada de temporada"
+git commit --author="Aquino1M <243838973+Aquino1M@users.noreply.github.com>" -m "feat: banco de emprestimos, pesquisa no mercado, giro mundial IA, propostas de compra, voz da torcida e hall da fama"
 
 echo.
 echo [4/4] Enviando para https://github.com/Aquino1M/AFMMANAGER.git...
