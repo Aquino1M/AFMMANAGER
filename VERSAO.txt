@@ -1,15 +1,15 @@
 Aquino Futebol Manager 2027 (AFM MANAGER)
-Versão: 3.0.0 (Build 2026-10-08 - AFM 3.0 Next-Gen)
+Versão: 3.1.0 (Build 2026-10-08 - Versão 61)
 Histórico completo disponível em: CHANGELOG.md
 
 Destaques da Versão Atual:
-1. Prancheta Tática 2.5D Estilo FM/FIFA Manager com Posicionamento Visual Dinâmico e Instruções de Jogador.
-2. Academia de Categorias de Base Pro (Peneiras sub-17/sub-20 anuais com geração de joias e promoção ao elenco principal).
-3. Sistema de Treinamento Especializado com Focos Posicionais, Controle de Carga/Intensidade e Ganho Semanal de XP.
-4. Efeitos Sonoros 100% Nativos via Web Audio API (Apito de início/fim, celebração da torcida, grito de gol e vibração de campeão).
-5. Multiplayer Assíncrono via Nuvem Supabase (Desafios interestaduais entre treinadores registrados).
-6. Central de Capitão e Bolas Paradas (Definição de capitão e cobradores oficiais de faltas e pênaltis na escalação).
-7. Auditoria Contábil & Fair Play Financeiro com Alertas de Gastos e Premiações por Boa Governança.
-8. Sistema Bancário de Empréstimos & Financiamento (8ª Estrutura no Campus, taxas dinâmicas, antecipação com bônus e juros de mora).
-9. Filtro e Busca com Botão Dedicado no Mercado de Empréstimos e Transferências.
-10. Persistência Local-First com Sincronização em Nuvem Supabase e PWA Offline com Service Worker v3.
+1. Linhas de Pressão & Blocos Defensivos na Tática (Bloco Baixo, Médio e Alto com cálculo de gols Poisson).
+2. Clamor da Beira do Campo: Gritos do Treinador em tempo real durante a simulação da partida.
+3. Copinha Sub-20 (Copa São Paulo de Juniores): Disputa oficial na base com premiação de R$ 350k e joias de POT 84-94.
+4. Mentoria de Atletas Veteranos (30+ orientando Sub-21) e Comparador Visual Head-to-Head no Elenco.
+5. Cláusula de Venda Futura (Sell-On 20%) retida em transferências com giro de mercado internacional.
+6. Auditoria e Recalibração Contábil da Folha Salarial com estorno de despesas em saves afetados.
+7. Atalhos de Teclado Inteligentes (Ctrl+C liberado para copiar) e Proteção contra cópia de código via Ctrl+S.
+8. Prancheta Tática 2.5D, Treinamento Posicional com XP e Categorias de Base Avançadas.
+9. Efeitos Sonoros Nativos via Web Audio API (Apito de árbitro, trave, moedas e comemoração).
+10. Persistência Local-First com Sincronização em Nuvem Supabase e PWA Offline.

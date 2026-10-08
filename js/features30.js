@@ -132,6 +132,28 @@ window.AFM30 = (function(){
     playGoal: () => {
       audio.playWhistle(0.5);
       setTimeout(() => audio.playCheer(), 200);
+    },
+    // Som Brilhante de Moedas / Recebimento de Dinheiro
+    playCoin: () => {
+      if(!soundEnabled) return;
+      const ctx = getAudioContext();
+      if(!ctx) return;
+      try {
+        const now = ctx.currentTime;
+        const freqs = [987.77, 1318.51, 1975.53];
+        freqs.forEach((f, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, now + idx * 0.08);
+          gain.gain.setValueAtTime(0.2, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.35);
+        });
+      } catch(e){}
     }
   };
 
@@ -618,8 +640,32 @@ window.AFM30 = (function(){
   // -------------------------------------------------------------
   // 28. ATALHOS RÁPIDOS DE TECLADO
   // -------------------------------------------------------------
+  // 28. ATALHOS DE TECLADO INTELIGENTES & PROTEÇÃO CONTRA CÓPIA
+  // -------------------------------------------------------------
   function initKeyboardShortcuts(){
     window.addEventListener('keydown', (e) => {
+      // 1. Proteção de Propriedade Intelectual: Bloqueia Ctrl+S (Salvar página como HTML)
+      if((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')){
+        e.preventDefault();
+        e.stopPropagation();
+        const saveBtn = document.getElementById('quickSaveBtn');
+        if(saveBtn) saveBtn.click();
+        if(window.toast) window.toast('🔒 Download de página bloqueado! Jogo salvo internamente com sucesso.');
+        return;
+      }
+
+      // 2. Proteção contra visualização de código-fonte (Ctrl+U)
+      if((e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 'U')){
+        e.preventDefault();
+        e.stopPropagation();
+        if(window.toast) window.toast('🔒 Visualização de código-fonte desativada.');
+        return;
+      }
+
+      // 3. SE CTRL, META (CMD) OU ALT ESTIVEREM PRESSIONADOS:
+      // Jamais disparar atalhos de navegação (ex: Ctrl+C para copiar texto não vai para Central!)
+      if(e.ctrlKey || e.metaKey || e.altKey) return;
+
       // Ignorar se o usuário estiver digitando em um input
       if(['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
 
@@ -632,7 +678,7 @@ window.AFM30 = (function(){
         const btn = document.querySelector('[data-view="mercado"]');
         if(btn) btn.click();
       } else if(key === 't'){
-        const btn = document.querySelector('[data-view="tatica"]');
+        const btn = document.querySelector('[data-view="tatica"]') || document.querySelector('[data-view="meutime"]');
         if(btn) btn.click();
       } else if(key === 'e'){
         const btn = document.querySelector('[data-view="elenco"]');

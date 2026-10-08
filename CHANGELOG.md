@@ -4,6 +4,30 @@ Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027*
 
 ---
 
+## [3.1.0] - 2026-10-08 (Versão 61 - Revolução Tática & Auditoria Pro)
+
+### 🛡️ Linhas de Pressão & Blocos Defensivos
+- **Postura Tática Ativa**: Seleção de Bloco Baixo ("Ônibus" na Área), Bloco Médio (Equilibrado) e Bloco Alto (Pressão na Saída) com influência matemática na distribuição de gols Poisson.
+
+### 🔥 Gritos do Treinador na Simulação Ao Vivo
+- **Comandos à Beira do Gramado**: Comande o time em tempo real (Subir Linhas, Calma & Posse, Fechar Espaços) com apito de arbitragem e narração dinâmica.
+
+### 🏆 Copinha Sub-20 (Copa São Paulo de Juniores)
+- **Torneio de Base Oficial**: Disputa direta no modal de Categorias de Base com premiação de R$ 350.000 e geração de até 2 wonderkids (POT 84-94).
+
+### 🤝 Mentoria de Veteranos & Comparador Head-to-Head
+- **Tutela de Jovens**: Atletas 30+ orientam promessas Sub-21 acelerando o ganho de OVR.
+- **Comparador Lado a Lado**: Análise direta de dois atletas na aba Elenco com gráficos comparativos de atributos e custos.
+
+### 💰 Cláusula de Venda Futura (Sell-On Fee 20%)
+- **Direitos Econômicos Retidos**: 20% retidos automaticamente ao vender atletas para outros clubes, faturando milhões quando são revendidos no exterior.
+
+### ⚖️ Auditoria Contábil da Folha & Proteção de Código
+- **Correção da Folha por Rodada**: Eliminação da duplicação de fórmulas e escalonamento de salários por divisão, estornando valores em saves afetados.
+- **Atalhos Inteligentes & Proteção**: Atalho Ctrl+C desvinculado da Central (livre para copiar), e bloqueio de download de página via Ctrl+S.
+
+---
+
 ## [3.0.0] - 2026-10-08 (AFM 3.0 Next-Gen)
 
 ### ⚽ Prancheta Tática 2.5D & Posicionamento Visual Dinâmico

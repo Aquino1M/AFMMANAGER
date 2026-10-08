@@ -2677,6 +2677,79 @@ function changelogPage(){
     <!-- Feed de Cartões com Badges (Screenshot 2) -->
     <div style="display:flex;flex-direction:column;gap:18px">
       
+      <!-- Card: Versão 61 - AFM 3.0 & Revolução Tática, Copinha e Gestão Financeira Realista -->
+      <div class="card" style="padding:24px;background:#100d1e;border:2px solid rgba(139,92,246,0.5);box-shadow:0 0 25px rgba(139,92,246,0.15);border-radius:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="font-size:11px;font-weight:900;color:#a78bfa;letter-spacing:1px;text-transform:uppercase">
+            8 DE OUTUBRO DE 2026 · VERSÃO 61 (ATUAL)
+          </div>
+          <span style="background:rgba(34,197,94,0.2);border:1px solid #22c55e;color:#4ade80;font-size:10px;font-weight:900;padding:2px 8px;border-radius:999px">
+            VERSÃO ATIVA EM JOGO
+          </span>
+        </div>
+        <h2 style="margin:8px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          AFM 3.0: BLOCOS TÁTICOS, GRITOS DO TREINADOR, COPINHA SUB-20 E GESTÃO FINANCEIRA PRO
+        </h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Linhas de Pressão & Bloco Defensivo:</b> Escolha a postura tática do elenco na aba Meu Time (🚌 <i>Bloco Baixo / Contra-Ataque</i>, ⚖️ <i>Bloco Médio / Equilibrado</i> ou 🚀 <i>Bloco Alto / Pressão Total</i>) com impacto matemático real no cálculo de gols Poisson.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Gritos do Treinador na Simulação Ao Vivo:</b> Comande sua equipe em tempo real nos 90 minutos com três reações à beira do gramado (<i>🔥 Subir Linhas</i>, <i>🧠 Calma & Posse</i> e <i>🎯 Fechar Espaços</i>) com apito dinâmico e narração lance a lance.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Copa São Paulo de Juniores (Copinha Sub-20):</b> Dispute o maior torneio de base do futebol brasileiro no modal das Categorias de Base. Conquiste premiação de R$ 350.000 e promova 2 joias raras com Potencial de 84 a 94!
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#22c55e;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              MELHORIA
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Mentoria de Veteranos & Comparador Head-to-Head:</b> Atletas de 30+ anos agora orientam promessas Sub-21 com ganho semanal de XP de Overall, e a aba Elenco agora conta com comparador visual completo lado a lado.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#22c55e;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              MELHORIA
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Cláusula de Venda Futura (Sell-On 20%) & Giro de Mercado:</b> Venda de jogadores agora retém 20% sobre negociações futuras. Quando outros clubes revendem seu atleta, seu caixa recebe injeção financeira milionária.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#ef4444;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              CORREÇÃO
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Auditoria e Recalibração Contábil da Folha Salarial:</b> Correção completa da folha cobrada por rodada proporcionalmente à divisão do clube (evitando despesas infladas de Série A em clubes menores). Saves anteriores com cobrança indevida recebem estorno automático de saldo via auditoria.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#0284c7;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              PROTEÇÃO
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Atalhos de Teclado Inteligentes & Bloqueio de Cópia:</b> Atalho Ctrl+C restaurado para copiar textos sem redirecionar para a Central. Bloqueio de segurança em Ctrl+S para impedir download externo de código da aplicação.
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <!-- Card: Versão 60 - CONMEBOL Sul-Americana & Pirâmide de Acessos -->
       <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
         <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
@@ -7614,6 +7687,93 @@ function finalizeRound(userRes, winners, isKO){
   render();
 }
 
+function showSellOnFeeNotificationModal(clause, destClub, resoldFee, myProfit){
+  const modalId = 'afm_sell_on_clause_modal';
+  const old = document.getElementById(modalId);
+  if(old) old.remove();
+
+  const pct = clause.sharePct || 20;
+  const m = document.createElement('div');
+  m.id = modalId;
+  m.className = 'modal-backdrop';
+  m.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:100005;padding:16px;animation:fadeIn 0.25s ease';
+
+  m.innerHTML = `
+    <div style="background:linear-gradient(145deg,#16122b,#0f0c1e);border:2px solid #f59e0b;box-shadow:0 0 45px rgba(245,158,11,0.35);border-radius:22px;padding:28px;max-width:540px;width:100%;color:#fff;text-align:center;position:relative">
+      
+      <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(245,158,11,0.15);border:1px solid #f59e0b;color:#fbbf24;font-size:11px;font-weight:900;letter-spacing:1px;padding:4px 14px;border-radius:999px;text-transform:uppercase;margin-bottom:14px">
+        <span>💰</span> DIREITOS ECONÔMICOS ATIVADOS
+      </div>
+
+      <h2 style="margin:0 0 8px 0;font-size:24px;font-weight:900;letter-spacing:0.5px;color:#fff;text-transform:uppercase">
+        EX-JOGADOR VENDIDO!
+      </h2>
+      <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:20px;line-height:1.5">
+        Seu clube manteve <b>${pct}% dos direitos econômicos</b> de <b>${esc(clause.playerName)}</b> e acabou de faturar uma bolada milionária na revenda do atleta!
+      </div>
+
+      <!-- Card do Negócio -->
+      <div style="background:#1b1633;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:16px">
+          ${playerPhoto(clause.playerName, 56)}
+          <div style="text-align:left">
+            <div style="font-size:18px;font-weight:900;color:#fff">${esc(clause.playerName)}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.5)">Ex-jogador do ${esc(state?.club || 'Seu Clube')}</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-around;padding:12px;background:rgba(0,0,0,0.3);border-radius:12px;margin-bottom:14px">
+          <div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.45);font-weight:800;text-transform:uppercase">Vendido por</div>
+            <div style="font-size:15px;font-weight:900;color:#fff;margin-top:2px">${esc(clause.buyer)}</div>
+          </div>
+          <div style="font-size:22px;color:#f59e0b">➔</div>
+          <div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.45);font-weight:800;text-transform:uppercase">Comprado por</div>
+            <div style="font-size:15px;font-weight:900;color:#38bdf8;margin-top:2px">${esc(destClub)}</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:left;font-size:12px">
+          <div style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+            <div style="color:rgba(255,255,255,0.5);font-size:11px">Valor Total da Venda</div>
+            <b style="color:#fff;font-size:14px">${fmtMoney(resoldFee)}</b>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+            <div style="color:rgba(255,255,255,0.5);font-size:11px">Sua Parcela Retida</div>
+            <b style="color:#fbbf24;font-size:14px">${pct}% dos Direitos</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- Destaque do Lucro Creditado -->
+      <div style="background:rgba(34,197,94,0.12);border:1px solid #22c55e;border-radius:14px;padding:16px;margin-bottom:22px">
+        <div style="font-size:12px;color:#86efac;font-weight:800;text-transform:uppercase;letter-spacing:0.5px">
+          Depósito Direto no Caixa do Clube
+        </div>
+        <div style="font-size:32px;font-weight:900;color:#4ade80;margin-top:4px">
+          + ${fmtMoney(myProfit)}
+        </div>
+      </div>
+
+      <button id="btnCloseSellOnModal" class="btn primary" style="width:100%;padding:14px;font-size:14px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border:none;border-radius:12px;cursor:pointer;box-shadow:0 6px 20px rgba(245,158,11,0.35)">
+        🎉 RECEBER ${fmtMoney(myProfit)} & CELEBRAR ➔
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(m);
+  try { window.AFM30?.audio?.playCoin?.(); } catch(e){}
+
+  const close = () => {
+    m.remove();
+    save();
+    render();
+  };
+  m.querySelector('#btnCloseSellOnModal').onclick = close;
+}
+window.showSellOnFeeNotificationModal = showSellOnFeeNotificationModal;
+
 function simulateAITransfers(){
   if(!state) return;
   state.marketWorldFeed = state.marketWorldFeed || [];
@@ -7681,6 +7841,11 @@ function simulateAITransfers(){
 
       toast(`💰 Cláusula de Revenda: +${fmtMoney(myProfit)} em caixa pela venda de ${clause.playerName} ao ${destClub}!`);
       try { window.AFM30?.audio?.playCoin?.(); } catch(e){}
+
+      // Notificação em destaque e Modal Oficial de Direitos Econômicos
+      setTimeout(() => {
+        showSellOnFeeNotificationModal(clause, destClub, resoldFee, myProfit);
+      }, 500);
 
       // Remove a cláusula concretizada
       state.futureSaleClauses.splice(cIdx, 1);
@@ -12495,12 +12660,24 @@ function quickSellSquadPlayer(key){
   delete (state.transferOffers||{})[actualKey];
   delete (state.loanOffers||{})[actualKey];
   state.transfers.unshift({ type: 'out', name: p.name, from: state.club, to: buyer, value: quickPrice, date: state.date });
-  state.news.unshift(`⚡ VENDA RÁPIDA: ${p.name} foi vendido ao ${buyer} por ${fmtMoney(quickPrice)} à vista.`);
+  state.news.unshift(`⚡ VENDA RÁPIDA: ${p.name} foi vendido ao ${buyer} por ${fmtMoney(quickPrice)} à vista (20% de revenda futura retidos).`);
+  
+  // Retenção de 20% de direitos econômicos para revenda futura
+  state.futureSaleClauses = state.futureSaleClauses || [];
+  state.futureSaleClauses.push({
+    playerName: p.name,
+    buyer: buyer,
+    sharePct: 20,
+    initialPrice: quickPrice,
+    soldDate: state.date
+  });
+  if(state.futureSaleClauses.length > 20) state.futureSaleClauses = state.futureSaleClauses.slice(-20);
+
   state.lineup = (state.lineup||[]).map(x => (x === actualKey || x === key) ? null : x);
   optimizeLineup();
   save();
   render();
-  toast(`🎉 Venda rápida de ${p.name} para o ${buyer} concluída por ${fmtMoney(quickPrice)}!`);
+  toast(`🎉 Venda rápida de ${p.name} para o ${buyer} concluída por ${fmtMoney(quickPrice)}! (20% de revenda retidos)`);
 }
 
 function promptSellPlayer(key){
