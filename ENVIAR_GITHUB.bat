@@ -15,7 +15,7 @@ git status
 echo.
 echo [3/4] Adicionando arquivos e gerando commit validado...
 git add .
-git commit --author="Aquino1M <243838973+Aquino1M@users.noreply.github.com>" -m "feat: botao de pesquisar nos filtros do mercado e sistema bancario de emprestimos com parcelas, juros e antecipacao"
+git commit --author="Aquino1M <243838973+Aquino1M@users.noreply.github.com>" -m "fix: define outputDirectory como '.' no vercel.json para deploy estatico"
 
 echo.
 echo [4/4] Enviando para https://github.com/Aquino1M/AFMMANAGER.git...
