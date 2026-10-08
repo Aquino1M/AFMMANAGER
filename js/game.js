@@ -5067,8 +5067,15 @@ function playerSalary(p){
   else if(o >= 60) base = 5800 + (o - 60) * 1400;
   else base = 2500 + Math.max(0, o - 50) * 300;
 
+  // Ajuste por divisão/nível competitivo do clube (Série A/B/C/D e Estaduais)
+  const comp = state?.compId || '';
+  let tierMult = 1.0;
+  if(comp.startsWith('bra-est-') || comp === 'bra-d') tierMult = 0.35;
+  else if(comp === 'bra-c') tierMult = 0.52;
+  else if(comp === 'bra-b') tierMult = 0.75;
+
   const delta = (hashStr(p?.name || '') % 21) - 10;
-  return Math.max(1800, Math.round((base * (1 + delta / 100)) / 100) * 100);
+  return Math.max(1800, Math.round(((base * tierMult) * (1 + delta / 100)) / 100) * 100);
 }
 
 function playerContractUntil(p){
@@ -6254,6 +6261,24 @@ function repairSaveIfCorrupted(s){
       return true;
     }
   }
+
+  // Recalibração e Auditoria Financeira Automática para Saves com Despesas Infladas
+  if(s && Number(s.expense) > 2000000 && Number(s.round) <= 18){
+    const realMonthly = (s.squad || []).reduce((acc, p) => acc + playerSalary(p), 0);
+    const realRoundPayroll = Math.round(realMonthly / 4);
+    const estimatedRealExpense = Math.max(100000, Math.round((Number(s.round) || 1) * realRoundPayroll + (Number(s.round) || 1) * 8000));
+    if(s.expense > estimatedRealExpense + 800000){
+      const refund = s.expense - estimatedRealExpense;
+      s.balance = (Number(s.balance) || 0) + refund;
+      s.expense = estimatedRealExpense;
+      s.news = s.news || [];
+      s.news.unshift(`⚖️ AUDITORIA FINANCEIRA: Identificada cobrança indevida de folha semanal por rodada na versão anterior. Estorno de ${fmtMoney(refund)} creditado ao caixa do clube!`);
+      if(s.news.length > 50) s.news = s.news.slice(0, 50);
+      try { localStorage.setItem(STORAGE, JSON.stringify(s)); } catch(e){}
+      return true;
+    }
+  }
+
   return false;
 }
 window.repairSaveIfCorrupted = repairSaveIfCorrupted;
@@ -6983,11 +7008,24 @@ function simulateScore(home,away){
   const altAdvantageH = altH.isAltitude ? (0.18 + clamp((altH.altitudeMeters - 2000)/10000, 0, 0.15)) : 0;
   const altPenaltyA = altH.isAltitude ? -0.12 : 0;
 
-  // Efeito de intensidade de marcação
-  const intensityBonus = (name===state.club && state?.markingIntensity==='Agressiva') ? 0.08 : 0;
+  // Efeito de intensidade de marcação e bloco defensivo
+  const isUserHome = home === state?.club;
+  const isUserAway = away === state?.club;
+  const intensityBonusH = (isUserHome && state?.markingIntensity === 'agressiva') ? 0.08 : 0;
+  const intensityBonusA = (isUserAway && state?.markingIntensity === 'agressiva') ? 0.08 : 0;
 
-  const lambdaH=clamp(1.25+(hs-as)/18+.22+tactical(home)+altAdvantageH+intensityBonus,.15,3.9);
-  const lambdaA=clamp(1.05+(as-hs)/18+tactical(away)+altPenaltyA,.12,3.6);
+  let blockAttH = 0, blockDefAgainstH = 0;
+  let blockAttA = 0, blockDefAgainstA = 0;
+  if(isUserHome){
+    if(state?.defensiveBlock === 'baixo'){ blockAttH = -0.12; blockDefAgainstA = -0.22; }
+    else if(state?.defensiveBlock === 'alto'){ blockAttH = 0.16; blockDefAgainstA = 0.08; }
+  } else if(isUserAway){
+    if(state?.defensiveBlock === 'baixo'){ blockAttA = -0.12; blockDefAgainstH = -0.22; }
+    else if(state?.defensiveBlock === 'alto'){ blockAttA = 0.16; blockDefAgainstH = 0.08; }
+  }
+
+  const lambdaH=clamp(1.25+(hs-as)/18+.22+tactical(home)+altAdvantageH+intensityBonusH+blockAttH+blockDefAgainstH,.15,3.9);
+  const lambdaA=clamp(1.05+(as-hs)/18+tactical(away)+altPenaltyA+intensityBonusA+blockAttA+blockDefAgainstA,.12,3.6);
   const pois=l=>{let L=Math.exp(-l),p=1,k=0;do{k++;p*=Math.random()}while(p>L&&k<9);return k-1};
   return [pois(lambdaH),pois(lambdaA)];
 }
@@ -7113,10 +7151,6 @@ function monthlyFacilityIncome(){
   return Math.round((state.infrastructure.store?.level||1)*9000+(state.infrastructure.museum?.level||1)*4000);
 }
 
-function payrollPerRound(){
-  return Math.round(state.squad.reduce((s,p)=>s+playerOverall(p)*1750,0)/4.3);
-}
-
 function processFitness(){
   const starters=new Set(state.lineup||[]);
   for(const p of state.squad){
@@ -7184,6 +7218,21 @@ function processDevelopment(){
       p.pes=p.pes?clamp(+p.pes+1,40,99):p.fc;
       if(starters.has(playerKey(p)) && playerOverall(p) > oldOvr){
         state.news.unshift(`⭐ EVOLUÇÃO: O jovem talento titular ${p.name} evoluiu para ${playerOverall(p)} OVR!`);
+      }
+    }
+  }
+
+  // Bônus de Mentoria de Atleta Veterano
+  if(state.activeMentorship && state.activeMentorship.menteeKey){
+    const mentee = state.squad.find(p => playerKey(p) === state.activeMentorship.menteeKey);
+    const mentor = state.squad.find(p => playerKey(p) === state.activeMentorship.mentorKey);
+    if(mentee && mentor && Math.random() < 0.50 && playerOverall(mentee) < (mentee.potential || 90)){
+      const old = playerOverall(mentee);
+      mentee.fc = clamp(playerOverall(mentee) + 1, 40, mentee.potential || 94);
+      mentee.pes = mentee.fc;
+      mentee.morale = 100;
+      if(playerOverall(mentee) > old){
+        state.news.unshift(`🤝 MENTORIA: Sob a tutela do experiente ${mentor.name}, o jovem ${mentee.name} deu um salto para ${playerOverall(mentee)} OVR!`);
       }
     }
   }
@@ -7600,6 +7649,42 @@ function simulateAITransfers(){
   
   if(state.marketWorldFeed.length > 30){
     state.marketWorldFeed = state.marketWorldFeed.slice(0, 30);
+  }
+
+  // Melhoria 10: Processamento de Cláusulas de Venda Futura (Sell-On 20%)
+  if(Array.isArray(state.futureSaleClauses) && state.futureSaleClauses.length > 0 && Math.random() < 0.22){
+    const cIdx = rnd(0, state.futureSaleClauses.length - 1);
+    const clause = state.futureSaleClauses[cIdx];
+    if(clause){
+      const euroClubs = ['Real Madrid', 'Manchester City', 'Arsenal', 'Paris SG', 'Bayern de Munique', 'Chelsea', 'Juventus', 'Sporting CP', 'Benfica', 'Porto', 'Al-Hilal', 'Inter de Milão'];
+      const destClub = euroClubs[rnd(0, euroClubs.length - 1)];
+      const baseVal = clause.initialPrice || 12000000;
+      const resoldFee = Math.round(baseVal * (rnd(135, 275) / 100));
+      const sellOnPct = (clause.sharePct || 20) / 100;
+      const myProfit = Math.round(resoldFee * sellOnPct);
+
+      state.balance = (state.balance || 0) + myProfit;
+      state.income = (state.income || 0) + myProfit;
+      state.news = state.news || [];
+      state.news.unshift(`💰 VENDA FUTURA CONFIRMADA! ${clause.buyer} revendeu ${clause.playerName} para o ${destClub} por ${fmtMoney(resoldFee)}. Seu clube recebeu ${fmtMoney(myProfit)} referente aos 20% da cláusula de revenda!`);
+      if(state.news.length > 50) state.news = state.news.slice(0, 50);
+
+      state.marketWorldFeed.unshift({
+        date: state.date,
+        playerName: clause.playerName,
+        pos: 'EX-ATLETA',
+        ovr: 82,
+        buyer: destClub,
+        seller: clause.buyer,
+        fee: resoldFee
+      });
+
+      toast(`💰 Cláusula de Revenda: +${fmtMoney(myProfit)} em caixa pela venda de ${clause.playerName} ao ${destClub}!`);
+      try { window.AFM30?.audio?.playCoin?.(); } catch(e){}
+
+      // Remove a cláusula concretizada
+      state.futureSaleClauses.splice(cIdx, 1);
+    }
   }
 }
 
@@ -8270,6 +8355,21 @@ function renderLiveMatchModal(){
           <div class="live-dock-subtext">
             ${esc(s.stadium.name.toUpperCase())} · Público presente <b>${s.stadium.attendance.toLocaleString('pt-BR')}</b> (${occPct}% da capacidade)
           </div>
+        </div>
+
+        <!-- BARRA DE GRITOS DA BEIRA DO CAMPO (Melhoria 3) -->
+        <div class="live-coach-shouts" style="display:flex;gap:8px;align-items:center;padding:8px 14px;background:rgba(15,23,42,0.92);border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap">
+          <span style="font-size:11px;font-weight:900;color:#38bdf8;letter-spacing:0.5px">🗣️ BEIRA DO CAMPO:</span>
+          <button class="live-shout-btn" data-shout="press" style="background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#fca5a5;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+            🔥 Subir Linhas & Pressão
+          </button>
+          <button class="live-shout-btn" data-shout="calm" style="background:rgba(56,189,248,0.2);border:1px solid #38bdf8;color:#bae6fd;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+            🧠 Calma & Posse de Bola
+          </button>
+          <button class="live-shout-btn" data-shout="counter" style="background:rgba(234,179,8,0.2);border:1px solid #eab308;color:#fef08a;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+            🎯 Fechar Espaços & Contragolpe
+          </button>
+          ${s.coachShout ? `<span style="font-size:11px;color:#22c55e;font-weight:800;margin-left:auto">✓ Instrução em andamento</span>` : ''}
         </div>
 
         <div class="live-dock-controls">
@@ -9993,6 +10093,24 @@ function bindLiveMatchEvents(){
   if(btnAdv) btnAdv.onclick = () => {
     finalizeMatchRound();
   };
+
+  // Gritos da Beira do Campo (Melhoria 3)
+  $$('.live-shout-btn').forEach(btn => {
+    btn.onclick = () => {
+      const type = btn.dataset.shout;
+      playWhistleSound();
+      s.coachShout = type;
+      const desc = type === 'press' 
+        ? 'Professor gesticula na beira do gramado e manda adiantar as linhas com marcação alta!'
+        : type === 'calm'
+        ? 'Professor pede calma, valorização da posse de bola e paciência na armação.'
+        : 'Professor fecha o bloco na entrada da área e aposta no contra-ataque em velocidade!';
+      s.events.unshift({ min: Math.floor(s.timeSec/60), type: 'whistle', text: `🗣️ INSTRUÇÃO DO TREINADOR: ${desc}` });
+      updateLiveSidebarEvents();
+      showLiveBanner(`🗣️ BEIRA DO CAMPO: ${btn.textContent.trim()}!`, 'tactics', 3500);
+      toast('Instrução repassada aos atletas em campo!');
+    };
+  });
 }
 
 // -------------------------------------------------------------
@@ -10969,6 +11087,47 @@ function runYouthScoutPeneira(){
   openYouthAcademyModal();
 }
 
+function runCopinhaSub20(){
+  if(!state) return;
+  const cost = 50000;
+  if(state.balance < cost){
+    toast('Saldo insuficiente para inscrever o time na Copinha (R$ 50.000).');
+    return;
+  }
+  if((state.youthAcademy || []).length >= 16){
+    toast('A base está cheia (máximo 16 atletas). Promova ou dispense atletas.');
+    return;
+  }
+  state.balance -= cost;
+  state.expense = (state.expense || 0) + cost;
+  const lvl = state.infrastructure?.academy?.level || 1;
+
+  const p1 = generateYouthPlayer(Math.min(10, lvl + 2), rnd(16, 18));
+  p1.potential = clamp((p1.potential || 82) + 5, 84, 94);
+  const p2 = generateYouthPlayer(Math.min(10, lvl + 2), rnd(16, 17));
+  p2.potential = clamp((p2.potential || 80) + 6, 83, 92);
+
+  state.youthAcademy = state.youthAcademy || [];
+  state.youthAcademy.unshift(p1);
+  if(state.youthAcademy.length < 16) state.youthAcademy.unshift(p2);
+
+  const wonTitle = Math.random() < 0.45;
+  const prize = wonTitle ? 350000 : 120000;
+  state.balance += prize;
+  state.income = (state.income || 0) + prize;
+
+  if(window.AFM30 && window.AFM30.audio) window.AFM30.audio.playGoal();
+
+  const titleMsg = wonTitle 
+    ? `🏆 É CAMPEÃO DA COPINHA SUB-20! Nossos juniores conquistaram a taça e faturaram ${fmtMoney(prize)} de premiação!`
+    : `⭐ GRANDE CAMPANHA NA COPINHA: O time de juniores avançou até as semifinais e faturou ${fmtMoney(prize)}!`;
+
+  state.news.unshift(`${titleMsg} Destaques: ${p1.name} (Potencial ⭐${p1.potential}) e ${p2.name} (Potencial ⭐${p2.potential}) promovidos.`);
+  toast(wonTitle ? '🏆 Campeão da Copinha Sub-20! +R$ 350k no caixa!' : '⭐ Grande campanha na Copinha! Joias reveladas.');
+  save();
+  openYouthAcademyModal();
+}
+
 function releaseYouthPlayer(youthKey){
   if(!state || !Array.isArray(state.youthAcademy)) return;
   const idx = state.youthAcademy.findIndex(p => playerKey(p) === youthKey);
@@ -10995,9 +11154,12 @@ function openYouthAcademyModal(){
         <div style="font-size:14px;color:#fff;font-weight:800;margin-top:2px">Jovens Talentos em Formação (15 a 18 anos)</div>
         <div class="small muted">Atletas evoluem mensalmente. Quanto mais alto o nível da Base, maior o Overall e Potencial gerado!</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="btn primary" id="btnScoutYouthTalents" style="background:linear-gradient(135deg,#059669,#10b981);border:none;padding:8px 14px">
           ⚽ Organizar Peneira • R$ 25.000
+        </button>
+        <button class="btn primary" id="btnPlayCopinhaSub20" style="background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;padding:8px 14px">
+          🏆 Disputar Copinha Sub-20 • R$ 50.000
         </button>
       </div>
     </div>
@@ -11097,6 +11259,9 @@ function openYouthAcademyModal(){
 
   const scoutBtn = $('#btnScoutYouthTalents');
   if(scoutBtn) scoutBtn.onclick = runYouthScoutPeneira;
+
+  const copinhaBtn = $('#btnPlayCopinhaSub20');
+  if(copinhaBtn) copinhaBtn.onclick = runCopinhaSub20;
 
   $$('.btnSignPro').forEach(b => {
     b.onclick = () => signProContract(b.dataset.youthKey);
@@ -12220,13 +12385,25 @@ function openPlayerTransferModal(key){
       delete state.transferOffers[actualKey];
       delete state.loanOffers[actualKey];
       state.transfers.unshift({type:'out', name:p.name, from:state.club, to:offer.buyer, value:offer.price, date:state.date});
-      state.news.unshift(`${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)}.`);
+      state.news.unshift(`${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)} (20% de revenda futura retidos).`);
+      
+      // Melhoria 10: Cláusula de Venda Futura (Sell-On Fee) de 20%
+      state.futureSaleClauses = state.futureSaleClauses || [];
+      state.futureSaleClauses.push({
+        playerName: p.name,
+        buyer: offer.buyer,
+        sharePct: 20,
+        initialPrice: offer.price,
+        soldDate: state.date
+      });
+      if(state.futureSaleClauses.length > 20) state.futureSaleClauses = state.futureSaleClauses.slice(-20);
+
       state.lineup = (state.lineup||[]).map(x=>x===actualKey?null:x);
       optimizeLineup();
       save();
       closeCustomModal();
       render();
-      toast(`🎉 Venda de ${p.name} para o ${offer.buyer} concluída por ${fmtMoney(offer.price)}!`);
+      toast(`🎉 Venda de ${p.name} para o ${offer.buyer} concluída por ${fmtMoney(offer.price)}! (20% retidos)`);
     };
   });
 
@@ -12785,11 +12962,6 @@ function shell(main){
           <button class="afm-sound-btn" id="btnToggleSoundTop" title="Ativar/Desativar Efeitos Sonoros">
             ${window.AFM30 && window.AFM30.audio.isEnabled() ? '🔊 Som Ativo' : '🔇 Mudo'}
           </button>
-          <select id="selectThemeTop" class="afm-theme-selector" title="Tema Visual">
-            <option value="neon" ${localStorage.getItem('afm_theme')==='neon'?'selected':''}>🎨 Neon</option>
-            <option value="oled" ${localStorage.getItem('afm_theme')==='oled'?'selected':''}>🌑 OLED</option>
-            <option value="emerald" ${localStorage.getItem('afm_theme')==='emerald'?'selected':''}>🌿 Esmeralda</option>
-          </select>
           <button class="btn success" id="quickSaveBtn">💾 Salvar Jogo</button>
           <button class="btn danger" id="mainMenuBtn">🏠 Menu Principal</button>
         </div>
@@ -13718,6 +13890,46 @@ function myTeamPage(){
       </div>
     </div>
 
+    <!-- LINHA DE PRESSÃO & BLOCO DEFENSIVO -->
+    <div class="card" style="background:#100d1e;border:1px solid rgba(56,189,248,0.3);border-radius:16px;padding:20px;margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div>
+          <h2 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.8px">
+            🛡️ Linha de Pressão & Bloco Defensivo
+          </h2>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">
+            Altura das linhas defensivas e compactação dos setores
+          </div>
+        </div>
+        <span class="pill" style="font-size:10px;background:rgba(56,189,248,0.15);color:#38bdf8">TÁTICA REAL</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <button class="btn btn-defensive-block ${state.defensiveBlock==='baixo'?'active':''}" data-block="baixo" style="padding:12px 6px;text-align:center;border-radius:10px;${state.defensiveBlock==='baixo'?'background:#2563eb;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
+          <b style="display:block;font-size:13px">🚌 Bloco Baixo</b>
+          <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">"Ônibus" na Área / Contra-Ataque</span>
+        </button>
+
+        <button class="btn btn-defensive-block ${(!state.defensiveBlock||state.defensiveBlock==='medio')?'active':''}" data-block="medio" style="padding:12px 6px;text-align:center;border-radius:10px;${(!state.defensiveBlock||state.defensiveBlock==='medio')?'background:#7c3aed;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
+          <b style="display:block;font-size:13px">⚖️ Bloco Médio</b>
+          <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">Linhas Equilibradas</span>
+        </button>
+
+        <button class="btn btn-defensive-block ${state.defensiveBlock==='alto'?'active':''}" data-block="alto" style="padding:12px 6px;text-align:center;border-radius:10px;${state.defensiveBlock==='alto'?'background:#ea580c;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
+          <b style="display:block;font-size:13px">🚀 Bloco Alto</b>
+          <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">Pressão na Saída Rival</span>
+        </button>
+      </div>
+
+      <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:14px;line-height:1.4">
+        ${state.defensiveBlock==='baixo'
+          ? '🚌 <b>Retranca Fechada:</b> Time recua para a grande área e anula infiltrações do adversário (-25% chances concedidas, ideal contra favoritos).'
+          : state.defensiveBlock==='alto'
+          ? '🚀 <b>Pressão Asfixiante:</b> Zagueiros sobem até o círculo central para morder a saída de bola (+30% de roubadas no terço de ataque).'
+          : '⚖️ <b>Compactação Equilibrada:</b> Postura tática balanceada padrão do futebol moderno.'}
+      </div>
+    </div>
+
     <!-- HIERARQUIA & LIDERANÇA DO VESTIÁRIO (Realismo Expandido) -->
     ${(()=>{
       const hier = getSquadHierarchy(state.squad);
@@ -13773,6 +13985,45 @@ function myTeamPage(){
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- MENTORIA DE VETERANOS (Melhoria 27) -->
+        <div class="card" style="background:#100d1e;border:1px solid rgba(234,179,8,0.3);border-radius:16px;padding:20px;margin-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div>
+              <h2 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.8px">
+                🤝 Mentoria de Atletas Veteranos
+              </h2>
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">
+                Craques com experiência transmitem liderança e aceleram o ganho de atributos dos jovens
+              </div>
+            </div>
+            <span class="pill" style="background:rgba(234,179,8,0.2);color:#facc15;font-size:10px">FORMAÇÃO ACELERADA</span>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <label style="font-size:11px;color:rgba(255,255,255,0.6);display:block;margin-bottom:4px">Veterano Mentor (30+ anos):</label>
+              <select id="selMentorVeteran" class="btn" style="width:100%;font-size:12px">
+                <option value="">Selecione um Mentor...</option>
+                ${(state.squad||[]).filter(p=>(p.age||25)>=30).map(p=>`<option value="${playerKey(p)}" ${state.activeMentorship?.mentorKey===playerKey(p)?'selected':''}>${esc(p.name)} (${p.pos} · ${p.age}a · OVR ${playerOverall(p)})</option>`).join('')}
+              </select>
+            </div>
+            <div style="flex:1;min-width:200px">
+              <label style="font-size:11px;color:rgba(255,255,255,0.6);display:block;margin-bottom:4px">Jovem Aprendiz (até 21 anos):</label>
+              <select id="selMenteeYoung" class="btn" style="width:100%;font-size:12px">
+                <option value="">Selecione um Aprendiz...</option>
+                ${(state.squad||[]).filter(p=>(p.age||25)<=21).map(p=>`<option value="${playerKey(p)}" ${state.activeMentorship?.menteeKey===playerKey(p)?'selected':''}>${esc(p.name)} (${p.pos} · ${p.age}a · OVR ${playerOverall(p)})</option>`).join('')}
+              </select>
+            </div>
+            <button class="btn primary" id="btnAssignMentorship" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-weight:900;border:none;padding:10px 16px">
+              ✓ Fixar Mentoria
+            </button>
+          </div>
+          ${state.activeMentorship ? `
+            <div style="margin-top:12px;font-size:11px;color:#a3e635;background:rgba(163,230,53,0.1);border:1px solid rgba(163,230,53,0.25);padding:8px 12px;border-radius:8px">
+              ✨ <b>Mentoria Ativa:</b> ${esc(state.activeMentorship.mentorName || 'Veterano')} está mentorando ${esc(state.activeMentorship.menteeName || 'Jovem')}. Bônus de desenvolvimento de atributos ativo!
+            </div>
+          ` : ''}
         </div>
       `;
     })()}
@@ -13886,7 +14137,10 @@ function squadPage(){
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" id="btnGoToSalariesView" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;font-weight:700">
-          💰 Salários do Elenco (${expensiveCount} caros)
+          💰 Salários (${expensiveCount} caros)
+        </button>
+        <button class="btn" id="btnOpenCompareModalSquad" style="background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;font-weight:700">
+          ⚖️ Comparar Atletas
         </button>
         <button class="btn" id="btnOpenYouthFromSquad" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none">
           🌱 Categorias de Base (${(state.youthAcademy||[]).length})
@@ -14019,7 +14273,7 @@ function marketPage(){
         🕵️ OLHEIROS & BUSCA
       </button>
       <button class="btn market-main-tab ${marketTab==='feed'?'primary active':''}" data-market-tab="feed" style="flex:1;min-width:160px;padding:12px;border-radius:10px;font-weight:900;letter-spacing:0.5px;${marketTab==='feed'?'background:#7c3aed;color:#fff;border:none':''}">
-        🌐 GIRO DO MERCADO (IA)
+        🌐 GIRO DO MERCADO
       </button>
     </div>
 
@@ -14081,16 +14335,16 @@ function marketPage(){
               <option value="85">85+</option>
             </select>
           </div>
-          <div class="filter-field" style="align-self:flex-end;margin-bottom:8px">
-            <label class="check" style="cursor:pointer;white-space:nowrap">
-              <input type="checkbox" id="onlyAffordable"> Apenas no caixa
+          <div class="filter-field-check">
+            <label>
+              <input type="checkbox" id="onlyAffordable"> APENAS NO CAIXA
             </label>
           </div>
-          <div class="filter-field" style="display:flex;gap:6px;align-self:flex-end;margin-bottom:6px">
-            <button id="btnSearchBuy" class="btn primary" style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-weight:900;padding:8px 18px;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(124,58,237,0.35)">
+          <div class="filter-field-actions">
+            <button id="btnSearchBuy" class="btn primary" style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-weight:900;padding:8px 18px;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(124,58,237,0.35);height:38px">
               🔍 Pesquisar
             </button>
-            <button id="btnClearBuyFilters" class="btn" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);font-size:11px;padding:8px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer">
+            <button id="btnClearBuyFilters" class="btn" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);font-size:12px;font-weight:700;padding:8px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer;white-space:nowrap;height:38px">
               Limpar
             </button>
           </div>
@@ -14175,20 +14429,20 @@ function marketPage(){
                 <option value="80">80+</option>
               </select>
             </div>
-            <div class="filter-field" style="align-self:flex-end;margin-bottom:8px">
-              <label class="check" style="cursor:pointer;white-space:nowrap">
-                <input type="checkbox" id="onlyAffordableLoan"> Apenas no caixa
-              </label>
-            </div>
-            <div class="filter-field" style="display:flex;gap:6px;align-self:flex-end;margin-bottom:6px">
-              <button id="btnSearchLoan" class="btn primary" style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-weight:900;padding:8px 18px;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(124,58,237,0.35)">
-                🔍 Pesquisar
-              </button>
-              <button id="btnClearLoanFilters" class="btn" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);font-size:11px;padding:8px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer">
-                Limpar
-              </button>
-            </div>
+          <div class="filter-field-check">
+            <label>
+              <input type="checkbox" id="onlyAffordableLoan"> APENAS NO CAIXA
+            </label>
           </div>
+          <div class="filter-field-actions">
+            <button id="btnSearchLoan" class="btn primary" style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-weight:900;padding:8px 18px;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(124,58,237,0.35);height:38px">
+              🔍 Pesquisar
+            </button>
+            <button id="btnClearLoanFilters" class="btn" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);font-size:12px;font-weight:700;padding:8px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer;white-space:nowrap;height:38px">
+              Limpar
+            </button>
+          </div>
+        </div>
         </div>
 
         <div class="card" style="margin-top:14px;padding:20px;background:#120f20;border:1px solid rgba(139,92,246,0.25);border-radius:16px">
@@ -14290,6 +14544,27 @@ function marketPage(){
             `).join('')}
           </div>
         </div>
+        ${(state.futureSaleClauses && state.futureSaleClauses.length > 0) ? `
+        <div class="card" style="grid-column:1 / -1;margin-top:16px;padding:16px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.25);border-radius:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <h4 style="margin:0;font-size:13px;font-weight:900;color:#fbbf24;text-transform:uppercase;display:flex;align-items:center;gap:6px">
+              <span>💰</span> CLÁUSULAS DE VENDA FUTURA ATIVAS (${state.futureSaleClauses.length})
+            </h4>
+            <span style="font-size:11px;color:rgba(255,255,255,0.6)">Seu clube receberá 20% do valor quando o comprador revender o atleta</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:8px">
+            ${state.futureSaleClauses.map(c => `
+              <div style="background:#181428;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);font-size:11px;display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <b style="color:#fff">${esc(c.playerName)}</b>
+                  <div style="font-size:10px;color:rgba(255,255,255,0.4)">Clube atual: ${esc(c.buyer)}</div>
+                </div>
+                <span class="pill good" style="font-size:10px;padding:3px 8px;font-weight:800">+20% Retido</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
       </div>
     ` : marketTab==='scout' ? `
       <div id="scoutList" style="margin-top:14px"></div>
@@ -14297,7 +14572,7 @@ function marketPage(){
       <div class="card" style="margin-top:14px;padding:22px;background:#120f20;border:1px solid rgba(139,92,246,0.3);border-radius:16px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
           <div>
-            <h2 style="margin:0;font-size:18px;font-weight:900;letter-spacing:1px;text-transform:uppercase">🌐 GIRO DO MERCADO MUNDIAL DA IA</h2>
+            <h2 style="margin:0;font-size:18px;font-weight:900;letter-spacing:1px;text-transform:uppercase">🌐 GIRO DO MERCADO MUNDIAL</h2>
             <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">Negociações, transferências e reforços em tempo real realizados pelos outros clubes</div>
           </div>
           <span class="pill good" style="font-size:11px;font-weight:800;padding:6px 12px">
@@ -15656,17 +15931,21 @@ function officePage(){
     </div>
 
     <div class="grid g4" style="margin-top:14px">
-      <div class="card metric"><div class="muted">Caixa do Clube</div><div class="value good">${fmtMoney(state.balance)}</div></div>
+      <div class="card metric"><div class="muted">Caixa do Clube</div><div class="value ${state.balance >= 0 ? 'good' : 'warn'}">${fmtMoney(state.balance)}</div></div>
       <div class="card metric"><div class="muted">Receitas Totais</div><div class="value good">${fmtMoney(state.income)}</div></div>
       <div class="card metric"><div class="muted">Despesas Totais</div><div class="value warn">${fmtMoney(state.expense)}</div></div>
-      <div class="card metric"><div class="muted">Folha Salarial/Rodada</div><div class="value">${fmtMoney(payrollPerRound())}</div></div>
+      <div class="card metric">
+        <div class="muted">Folha Salarial Mensal</div>
+        <div class="value">${fmtMoney(totalMonthlyPayroll())}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Custo: ${fmtMoney(payrollPerRound())}/rodada</div>
+      </div>
     </div>
 
     <!-- Detalhamento de Receitas e Contratos Ativos -->
     <div class="card" style="margin-top:14px;background:#141124;border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <b style="color:#fff;font-size:13px;text-transform:uppercase">📊 Balanço de Receitas Comerciais & Operacionais</b>
-        <span class="pill good" style="font-size:10px;font-weight:900">PATROCÍNIOS EM ATIVIDADE</span>
+        <span class="pill good" style="font-size:10px;font-weight:900">ENTRADAS DE CAIXA</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;font-size:12px">
         <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
@@ -15684,6 +15963,36 @@ function officePage(){
         <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
           <div class="muted">Receitas Totais Acumuladas</div>
           <b style="color:#4ade80;font-size:15px">${fmtMoney(state.income)}</b>
+        </div>
+      </div>
+    </div>
+
+    <!-- Extrato Operacional Detalhado de Despesas da Temporada -->
+    <div class="card" style="margin-top:14px;background:#141124;border:1px solid rgba(239,68,68,0.25);border-radius:14px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <b style="color:#fff;font-size:13px;text-transform:uppercase">📉 Extrato Consolidado de Despesas da Temporada</b>
+        <span class="pill warn" style="font-size:10px;font-weight:900">SAÍDAS DE CAIXA</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;font-size:12px">
+        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+          <div class="muted">Salários Pagos no Período</div>
+          <b style="color:#f87171;font-size:15px">${fmtMoney(Math.round((state.round || 0) * payrollPerRound()))}</b>
+          <div style="font-size:10px;color:rgba(255,255,255,0.4)">${fmtMoney(payrollPerRound())} por rodada (${(state.round || 0)} rodadas)</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+          <div class="muted">Marketing Semanal</div>
+          <b style="color:#fb923c;font-size:15px">${fmtMoney(Math.round((state.round || 0) * (Number(state.marketingWeekly) || 2500)))}</b>
+          <div style="font-size:10px;color:rgba(255,255,255,0.4)">${fmtMoney(Number(state.marketingWeekly) || 2500)} por rodada</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+          <div class="muted">Contratos, Obras & Empréstimos</div>
+          <b style="color:#fca5a5;font-size:15px">${fmtMoney(Math.max(0, state.expense - Math.round((state.round || 0) * payrollPerRound()) - Math.round((state.round || 0) * (Number(state.marketingWeekly) || 2500))))}</b>
+          <div style="font-size:10px;color:rgba(255,255,255,0.4)">Bônus de atletas, parcelas e reformas</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+          <div class="muted">Despesas Totais Acumuladas</div>
+          <b style="color:#ef4444;font-size:15px">${fmtMoney(state.expense)}</b>
+          <div style="font-size:10px;color:rgba(255,255,255,0.4)">Total debitado do caixa até agora</div>
         </div>
       </div>
     </div>
@@ -16730,6 +17039,15 @@ function configPage(){
             <input type="checkbox" id="chkFreeTransfers" ${state.freeTransferWindow?'checked':''}>
             Permitir transferências o ano todo (Janela de transferências sempre aberta)
           </label>
+        </div>
+
+        <div style="margin:14px 0">
+          <label style="display:block;margin-bottom:8px">🎨 Tema Visual da Interface:</label>
+          <select id="selThemeOptions" class="btn" style="min-width:240px">
+            <option value="neon" ${(!localStorage.getItem('afm_theme') || localStorage.getItem('afm_theme')==='neon')?'selected':''}>🎨 Neon Roxo (Padrão)</option>
+            <option value="oled" ${localStorage.getItem('afm_theme')==='oled'?'selected':''}>🌑 Dark Carbon (OLED)</option>
+            <option value="emerald" ${localStorage.getItem('afm_theme')==='emerald'?'selected':''}>🌿 Esmeralda Caldeirão</option>
+          </select>
         </div>
       </div>
     ` : `
@@ -18844,6 +19162,14 @@ function bind(){
 
   const qs=$('#quickSaveBtn'); if(qs) qs.onclick=()=>{save();toast('Jogo salvo com sucesso localmente!')};
   
+  const bToggleSnd = $('#btnToggleSoundTop');
+  if(bToggleSnd && window.AFM30){
+    bToggleSnd.onclick = () => {
+      window.AFM30.audio.toggleMute();
+      render();
+    };
+  }
+
   const topAdminInGame = $('#btnTopAdminPanelInGame');
   if(topAdminInGame) topAdminInGame.onclick = openAdminModal;
 
@@ -18962,6 +19288,43 @@ function bind(){
       };
     });
 
+    $$('.btn-defensive-block').forEach(b => {
+      b.onclick = () => {
+        state.defensiveBlock = b.dataset.block;
+        save();
+        render();
+        toast('Bloco defensivo: ' + b.dataset.block.toUpperCase());
+      };
+    });
+
+    const btnMentorship = $('#btnAssignMentorship');
+    if(btnMentorship){
+      btnMentorship.onclick = () => {
+        const vKey = $('#selMentorVeteran')?.value;
+        const yKey = $('#selMenteeYoung')?.value;
+        if(!vKey || !yKey){
+          toast('Selecione um mentor veterano e um jovem aprendiz!');
+          return;
+        }
+        if(vKey === yKey){
+          toast('O mentor e o aprendiz não podem ser a mesma pessoa!');
+          return;
+        }
+        const vPlayer = state.squad.find(p => playerKey(p) === vKey);
+        const yPlayer = state.squad.find(p => playerKey(p) === yKey);
+        state.activeMentorship = {
+          mentorKey: vKey,
+          mentorName: vPlayer?.name || 'Veterano',
+          menteeKey: yKey,
+          menteeName: yPlayer?.name || 'Jovem',
+          startDate: state.date
+        };
+        save();
+        render();
+        toast(`🤝 Mentoria fixada: ${vPlayer?.name} orientará ${yPlayer?.name}!`);
+      };
+    }
+
     setupPitchDragAndDrop();
   }
 
@@ -18974,6 +19337,8 @@ function bind(){
     if(sdb) sdb.onclick = showGlobalDatabaseModal;
     const yBtn = $('#btnOpenYouthFromSquad');
     if(yBtn) yBtn.onclick = openYouthAcademyModal;
+    const btnCmp = $('#btnOpenCompareModalSquad');
+    if(btnCmp) btnCmp.onclick = () => openPlayerCompareModal();
 
     const btnSal = $('#btnGoToSalariesView');
     if(btnSal) btnSal.onclick = () => { squadViewMode = 'salaries'; render(); };
@@ -19233,6 +19598,7 @@ function bind(){
     };
     const spd=$('#selSimSpeed'); if(spd) spd.onchange=()=>{state.simSpeed=spd.value;save();toast('Preferência de velocidade salva!')};
     const chkFree=$('#chkFreeTransfers'); if(chkFree) chkFree.onchange=()=>{state.freeTransferWindow=chkFree.checked;save();toast('Configuração de transferências atualizada!')};
+    const selThm=$('#selThemeOptions'); if(selThm) selThm.onchange=()=>{ if(window.AFM30 && window.AFM30.applyTheme) window.AFM30.applyTheme(selThm.value); };
     const btnChal = $('#btnChallengeFriend');
     const inpFriend = $('#inputFriendUsername');
     if(btnChal && inpFriend && window.AFM30){
@@ -19381,6 +19747,105 @@ function setupPitchDragAndDrop(){
       }
     });
   });
+}
+
+// -------------------------------------------------------------
+// COMPARADOR VISUAL DE JOGADORES LADO A LADO (Melhoria 46)
+// -------------------------------------------------------------
+function openPlayerCompareModal(key1, key2){
+  const pool = state?.squad || [];
+  if(pool.length === 0) return toast('Elenco vazio para comparação.');
+  const p1 = pool.find(p => playerKey(p) === key1) || pool[0];
+  const p2 = pool.find(p => playerKey(p) === key2) || pool[1] || pool[0];
+
+  function buildHtml(pA, pB){
+    const ovrA = playerOverall(pA), ovrB = playerOverall(pB);
+    const valA = calcValueMi(pA), valB = calcValueMi(pB);
+    const wageA = playerSalary(pA), wageB = playerSalary(pB);
+    const fitA = pA.fitness ?? 100, fitB = pB.fitness ?? 100;
+    const potA = pA.potential || (ovrA + 5), potB = pB.potential || (ovrB + 5);
+
+    function compBar(label, val1, val2, unit=''){
+      const max = Math.max(val1, val2, 1);
+      const pct1 = Math.round((val1 / max) * 100);
+      const pct2 = Math.round((val2 / max) * 100);
+      const win1 = val1 > val2, win2 = val2 > val1;
+      return `
+        <div style="margin:10px 0">
+          <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;margin-bottom:4px">
+            <span style="color:${win1 ? 'var(--neon)' : '#fff'}">${val1}${unit}</span>
+            <span style="color:rgba(255,255,255,0.6);text-transform:uppercase;font-size:11px">${label}</span>
+            <span style="color:${win2 ? 'var(--cyan)' : '#fff'}">${val2}${unit}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;height:8px">
+            <div style="display:flex;justify-content:flex-end;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">
+              <div style="width:${pct1}%;background:${win1 ? 'var(--neon)' : '#64748b'};border-radius:4px"></div>
+            </div>
+            <div style="display:flex;justify-content:flex-start;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">
+              <div style="width:${pct2}%;background:${win2 ? 'var(--cyan)' : '#64748b'};border-radius:4px"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div style="background:#16122c;border:2px solid var(--neon);border-radius:14px;padding:16px;text-align:center">
+          ${playerPhoto(pA.name, 60)}
+          <h3 style="margin:8px 0 2px 0;font-size:16px;color:#fff">${esc(pA.name)}</h3>
+          <div class="small" style="color:var(--neon);font-weight:900">${pA.pos} · OVR ${ovrA}</div>
+          <select id="selCompPlayerA" class="btn" style="width:100%;margin-top:10px;font-size:11px">
+            ${pool.map(p => `<option value="${playerKey(p)}" ${playerKey(p)===playerKey(pA)?'selected':''}>${esc(p.name)} (${p.pos} · ${playerOverall(p)})</option>`).join('')}
+          </select>
+        </div>
+
+        <div style="background:#16122c;border:2px solid var(--cyan);border-radius:14px;padding:16px;text-align:center">
+          ${playerPhoto(pB.name, 60)}
+          <h3 style="margin:8px 0 2px 0;font-size:16px;color:#fff">${esc(pB.name)}</h3>
+          <div class="small" style="color:var(--cyan);font-weight:900">${pB.pos} · OVR ${ovrB}</div>
+          <select id="selCompPlayerB" class="btn" style="width:100%;margin-top:10px;font-size:11px">
+            ${pool.map(p => `<option value="${playerKey(p)}" ${playerKey(p)===playerKey(pB)?'selected':''}>${esc(p.name)} (${p.pos} · ${playerOverall(p)})</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <div style="background:#100d1e;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px">
+        ${compBar('Overall (Habilidade)', ovrA, ovrB)}
+        ${compBar('Potencial Futuro', potA, potB)}
+        ${compBar('Condição Física', fitA, fitB, '%')}
+        ${compBar('Idade (Juventude)', 40 - (pA.age||25), 40 - (pB.age||25), ' anos')}
+        ${compBar('Valor de Mercado (Mi)', valA, valB, ' Mi')}
+        ${compBar('Salário Mensal', Math.round(wageA/1000), Math.round(wageB/1000), 'k')}
+      </div>
+    `;
+  }
+
+  openCustomModal(
+    '⚖️ Comparador Oficial de Jogadores (Head-to-Head)',
+    `<div id="compareModalBody">${buildHtml(p1, p2)}</div>`,
+    null,
+    'Fechar',
+    false,
+    '650px'
+  );
+
+  function wireSelects(){
+    const selA = $('#selCompPlayerA'), selB = $('#selCompPlayerB');
+    if(selA) selA.onchange = () => {
+      const curA = pool.find(p => playerKey(p) === selA.value);
+      const curB = pool.find(p => playerKey(p) === selB.value);
+      const box = $('#compareModalBody');
+      if(box && curA && curB){ box.innerHTML = buildHtml(curA, curB); wireSelects(); }
+    };
+    if(selB) selB.onchange = () => {
+      const curA = pool.find(p => playerKey(p) === selA.value);
+      const curB = pool.find(p => playerKey(p) === selB.value);
+      const box = $('#compareModalBody');
+      if(box && curA && curB){ box.innerHTML = buildHtml(curA, curB); wireSelects(); }
+    };
+  }
+  wireSelects();
 }
 
 // -------------------------------------------------------------

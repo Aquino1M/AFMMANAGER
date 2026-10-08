@@ -733,6 +733,68 @@ window.AFM30 = (function(){
     m.querySelector('#btnCloseMultiplayerMatch').onclick = () => m.remove();
   }
 
+  // -------------------------------------------------------------
+  // 21. ROTINA DE TREINAMENTOS FOCADOS (advanceTraining)
+  // -------------------------------------------------------------
+  function advanceTraining(st){
+    if(!st || !Array.isArray(st.squad)) return;
+    const ctLvl = st.infrastructure?.training?.level || 1;
+    st.squad.forEach(p => {
+      if(!p.trainingFocus || p.trainingFocus === 'geral') return;
+      p.trainingXp = (p.trainingXp || 0) + (6 + ctLvl * 3);
+      if(p.trainingXp >= 100){
+        p.trainingXp = 0;
+        const curOvr = p.fc || p.pes || 65;
+        if(curOvr < (p.potential || 90)){
+          p.fc = Math.min(p.potential || 90, curOvr + 1);
+          p.pes = p.fc;
+          if(Array.isArray(st.news)){
+            st.news.unshift(`🎯 TREINO FOCADO: O atleta ${p.name} concluiu o ciclo de treino em ${p.trainingFocus} e atingiu ${p.fc} OVR!`);
+          }
+        }
+      }
+    });
+  }
+
+  // -------------------------------------------------------------
+  // 22. SIMULAÇÃO DAS CATEGORIAS DE BASE (simulateYouthAcademy)
+  // -------------------------------------------------------------
+  function simulateYouthAcademy(st){
+    if(!st || !Array.isArray(st.youthAcademy) || st.youthAcademy.length === 0) return;
+    const acadLvl = st.infrastructure?.academy?.level || 1;
+    st.youthAcademy.forEach(yp => {
+      yp.academyXp = (yp.academyXp || 0) + (7 + acadLvl * 4);
+      if(yp.academyXp >= 100){
+        yp.academyXp = 0;
+        const curOvr = yp.fc || yp.pes || 60;
+        if(curOvr < (yp.potential || 86)){
+          yp.fc = Math.min(yp.potential || 86, curOvr + 1);
+          yp.pes = yp.fc;
+        }
+      }
+    });
+  }
+
+  // -------------------------------------------------------------
+  // 23. AUDITORIA FINANCEIRA & SANITIZAÇÃO DE CAIXA (financialAudit)
+  // -------------------------------------------------------------
+  function financialAudit(st){
+    if(!st) return;
+    st.balance = Math.round(Number(st.balance) || 0);
+    st.income = Math.max(0, Math.round(Number(st.income) || 0));
+    st.expense = Math.max(0, Math.round(Number(st.expense) || 0));
+
+    st.financialAudit = {
+      lastAuditRound: st.round || 0,
+      lastAuditDate: st.date,
+      balance: st.balance,
+      income: st.income,
+      expense: st.expense,
+      isSolvent: st.balance >= 0,
+      deficitRisk: st.balance < -1000000 ? 'ALTO' : st.balance < 0 ? 'MODERADO' : 'BAIXO'
+    };
+  }
+
   // Inicializar atalhos de teclado na carga
   if(typeof window !== 'undefined'){
     window.addEventListener('DOMContentLoaded', initKeyboardShortcuts);
@@ -767,6 +829,9 @@ window.AFM30 = (function(){
     openBallonDorGalaModal,
     compression,
     applyTheme,
-    challengeFriendSquad
+    challengeFriendSquad,
+    advanceTraining,
+    simulateYouthAcademy,
+    financialAudit
   };
 })();
