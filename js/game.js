@@ -10395,7 +10395,16 @@ function openMarketingModal(){
 // -------------------------------------------------------------
 // MERCADO (COMPRA, VENDA, EMPRÉSTIMO, FILTROS POR REGIÃO/PAÍS/LIGA)
 // -------------------------------------------------------------
+let _marketUniverseCache = null;
+let _marketUniverseCacheRound = -1;
+let _marketUniverseCacheMoves = -1;
+let _marketUniverseCacheClub = '';
+
 function marketUniverse(){
+  const movesCount = Object.keys(state.playerMoves||{}).length;
+  if(_marketUniverseCache && _marketUniverseCacheRound === (state.round||0) && _marketUniverseCacheMoves === movesCount && _marketUniverseCacheClub === (state.club||'')){
+    return _marketUniverseCache;
+  }
   const moved=state.playerMoves||{},seen=new Set(),out=[];
   const add=p=>{
     const q=stablePlayer(p),k=playerKey(q);
@@ -10408,6 +10417,10 @@ function marketUniverse(){
   };
   livePlayers.forEach(add);
   (state.worldGenerated||[]).forEach(add);
+  _marketUniverseCache = out;
+  _marketUniverseCacheRound = (state.round||0);
+  _marketUniverseCacheMoves = movesCount;
+  _marketUniverseCacheClub = (state.club||'');
   return out;
 }
 
@@ -11523,13 +11536,394 @@ function upgradeFacility(key){
 }
 
 // -------------------------------------------------------------
+// SISTEMA BANCÁRIO & EMPRÉSTIMOS FINANCEIROS DO CLUBE
+// -------------------------------------------------------------
+function totalBankDebt(){
+  if(!state || !Array.isArray(state.bankLoans)) return 0;
+  return state.bankLoans.reduce((acc, l) => acc + (Number(l.remainingDebt) || 0), 0);
+}
+
+function bankAvailableCredit(){
+  if(!state) return 0;
+  const club = clubByName(state.club) || { atk:65, mid:65, def:65 };
+  const str = strength(club);
+  const lvl = Number(state.infrastructure?.bank?.level) || 1;
+  const maxLimit = Math.round((2500000 + (str * 200000) + (lvl * 4000000)) / 100000) * 100000;
+  const debt = totalBankDebt();
+  return Math.max(0, maxLimit - debt);
+}
+
+function calcBankInterestRate(amount, installments){
+  const lvl = Number(state.infrastructure?.bank?.level) || 1;
+  let rate = 2.0;
+  if(amount > 15000000) rate += 3.5;
+  else if(amount > 8000000) rate += 2.4;
+  else if(amount > 3000000) rate += 1.5;
+  else if(amount > 1000000) rate += 0.8;
+
+  if(installments >= 36) rate += 1.8;
+  else if(installments >= 24) rate += 1.1;
+  else if(installments >= 12) rate += 0.5;
+
+  rate = Math.max(1.4, rate - ((lvl - 1) * 0.2));
+  return Math.round(rate * 10) / 10;
+}
+
+function calcBankInstallment(amount, installments, monthlyRate){
+  const totalInterest = amount * (monthlyRate / 100) * (installments / 4);
+  const totalDebt = amount + totalInterest;
+  return Math.round(totalDebt / installments);
+}
+
+function processBankLoansOnRound(){
+  if(!state || !Array.isArray(state.bankLoans) || state.bankLoans.length === 0) return;
+  state.bankLoans.forEach((loan) => {
+    if(loan.remainingInstallments <= 0 || loan.remainingDebt <= 0) return;
+    if((state.round || 0) >= (loan.nextDueRound || 0)){
+      const instVal = Math.round(loan.installmentValue || (loan.remainingDebt / Math.max(1, loan.remainingInstallments)));
+      if(state.balance >= instVal){
+        state.balance -= instVal;
+        state.expense = (state.expense || 0) + instVal;
+        loan.paidInstallments = (loan.paidInstallments || 0) + 1;
+        loan.remainingInstallments = Math.max(0, (loan.remainingInstallments || 1) - 1);
+        loan.remainingDebt = Math.max(0, loan.remainingDebt - instVal);
+        loan.nextDueRound = (state.round || 0) + 2;
+        loan.overdue = false;
+        loan.penalty = 0;
+        state.news.unshift(`🏦 Banco & Finanças: Parcela de ${fmtMoney(instVal)} debitada com sucesso (${loan.paidInstallments}/${loan.totalInstallments}).`);
+      } else {
+        loan.overdue = true;
+        const penaltyFee = Math.round(instVal * 0.02);
+        loan.penalty = (loan.penalty || 0) + penaltyFee;
+        loan.remainingDebt += penaltyFee;
+        state.news.unshift(`🚨 ALERTA BANCÁRIO: Saldo insuficiente para honrar a parcela de ${fmtMoney(instVal)}! Incidência de juros por atraso: +${fmtMoney(penaltyFee)}.`);
+      }
+    }
+  });
+  state.bankLoans = state.bankLoans.filter(l => l.remainingDebt > 0 && l.remainingInstallments > 0);
+}
+
+let activeBankModalTab = 'borrow';
+let selectedLoanAmount = 2500000;
+let selectedLoanInstallments = 12;
+
+function openBankLoansModal(){
+  state.bankLoans = Array.isArray(state.bankLoans) ? state.bankLoans : [];
+  const creditLimit = bankAvailableCredit();
+  if(selectedLoanAmount > creditLimit && creditLimit > 0) selectedLoanAmount = creditLimit;
+
+  let overlay = $('#bankLoansModalOverlay');
+  if(!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'bankLoansModalOverlay';
+    document.body.appendChild(overlay);
+  }
+
+  function renderModalContent(){
+    const currentRate = calcBankInterestRate(selectedLoanAmount, selectedLoanInstallments);
+    const instVal = calcBankInstallment(selectedLoanAmount, selectedLoanInstallments, currentRate);
+    const totalPay = instVal * selectedLoanInstallments;
+    const totalInterest = totalPay - selectedLoanAmount;
+    const totalDebt = totalBankDebt();
+    const hasOverdue = state.bankLoans.some(l => l.overdue);
+
+    overlay.innerHTML = `
+      <div style="position:fixed;inset:0;background:rgba(5,7,15,0.85);backdrop-filter:blur(10px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn 0.2s ease">
+        <div style="background:#0f1220;border:1px solid rgba(16,185,129,0.3);box-shadow:0 25px 70px rgba(0,0,0,0.8),0 0 35px rgba(16,185,129,0.15);border-radius:20px;max-width:880px;width:100%;max-height:92vh;overflow-y:auto;color:#fff;display:flex;flex-direction:column">
+          
+          <!-- Header do Banco -->
+          <div style="padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,rgba(16,185,129,0.12),transparent)">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="font-size:32px;background:rgba(16,185,129,0.15);width:52px;height:52px;display:flex;align-items:center;justify-content:center;border-radius:14px;border:1px solid #10b981">🏦</div>
+              <div>
+                <h2 style="margin:0;font-size:20px;font-weight:900;letter-spacing:0.5px">BANCO & CRÉDITO DO CLUBE</h2>
+                <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">
+                  Linhas de financiamento institucional • Nível da Estrutura: <b>${state.infrastructure?.bank?.level||1}/8</b>
+                </div>
+              </div>
+            </div>
+            <button id="btnCloseBankModal" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.2s">✕</button>
+          </div>
+
+          <!-- Resumo Financeiro Superior -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:16px 24px;background:rgba(0,0,0,0.25);border-bottom:1px solid rgba(255,255,255,0.06)">
+            <div style="background:#161a2e;padding:12px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:800;letter-spacing:0.5px">SALDO EM CAIXA</div>
+              <div style="font-size:18px;font-weight:900;color:var(--neon);margin-top:2px">${fmtMoney(state.balance)}</div>
+            </div>
+            <div style="background:#161a2e;padding:12px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:800;letter-spacing:0.5px">LIMITE DISPONÍVEL</div>
+              <div style="font-size:18px;font-weight:900;color:#10b981;margin-top:2px">${fmtMoney(creditLimit)}</div>
+            </div>
+            <div style="background:#161a2e;padding:12px 16px;border-radius:12px;border:1px solid ${hasOverdue?'#ef4444':'rgba(255,255,255,0.06)'}">
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:800;letter-spacing:0.5px">DÍVIDA BANCÁRIA ATIVA</div>
+              <div style="font-size:18px;font-weight:900;color:${hasOverdue?'#ef4444':'#f59e0b'};margin-top:2px">${fmtMoney(totalDebt)}</div>
+            </div>
+          </div>
+
+          <!-- Abas de Navegação do Modal -->
+          <div style="display:flex;gap:12px;padding:14px 24px 0 24px">
+            <button id="tabBankBorrow" style="padding:10px 20px;border-radius:10px 10px 0 0;font-weight:900;font-size:13px;cursor:pointer;border:none;background:${activeBankModalTab==='borrow'?'linear-gradient(135deg,#10b981,#059669)':'rgba(255,255,255,0.06)'};color:#fff;display:flex;align-items:center;gap:6px">
+              <span>💰</span> <span>SOLICITAR NOVO EMPRÉSTIMO</span>
+            </button>
+            <button id="tabBankActive" style="padding:10px 20px;border-radius:10px 10px 0 0;font-weight:900;font-size:13px;cursor:pointer;border:none;background:${activeBankModalTab==='active'?'linear-gradient(135deg,#3b82f6,#1d4ed8)':'rgba(255,255,255,0.06)'};color:#fff;display:flex;align-items:center;gap:6px">
+              <span>📋</span> <span>MINHAS PARCELAS & ANTECIPAÇÃO (${state.bankLoans.length})</span>
+            </button>
+          </div>
+
+          <!-- Conteúdo da Aba 1: SOLICITAR EMPRÉSTIMO -->
+          ${activeBankModalTab==='borrow' ? `
+            <div style="padding:24px;display:flex;flex-direction:column;gap:20px">
+              
+              <!-- Seleção Rápida de Valores -->
+              <div>
+                <label style="font-size:13px;font-weight:800;color:rgba(255,255,255,0.8);letter-spacing:0.5px">1. ESCOLHA O VALOR DO EMPRÉSTIMO</label>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:10px">
+                  ${[500000, 1000000, 2500000, 5000000, 10000000, 20000000].map(v => `
+                    <button class="afm-btn-preset-loan ${selectedLoanAmount===v?'active':''}" data-val="${v}" ${v>creditLimit?'disabled style="opacity:0.35;cursor:not-allowed"':''}>
+                      ${fmtMoney(v)}
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Escolha de Parcelas -->
+              <div>
+                <label style="font-size:13px;font-weight:800;color:rgba(255,255,255,0.8);letter-spacing:0.5px">2. NÚMERO DE PARCELAS (DURAÇÃO)</label>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px">
+                  ${[6, 12, 24, 36].map(inst => `
+                    <button class="btn btn-loan-inst ${selectedLoanInstallments===inst?'primary':''}" data-inst="${inst}" style="padding:14px 8px;border-radius:12px;font-weight:900;text-align:center;background:${selectedLoanInstallments===inst?'linear-gradient(135deg,#7c3aed,#4f46e5)':'rgba(255,255,255,0.06)'};border:1px solid ${selectedLoanInstallments===inst?'#a855f7':'rgba(255,255,255,0.1)'}">
+                      <div style="font-size:18px">${inst}x</div>
+                      <div style="font-size:10px;opacity:0.75;margin-top:2px">${inst*2} rodadas</div>
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Simulação em Tempo Real -->
+              <div style="background:#161a2e;border:1px solid rgba(16,185,129,0.25);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:14px">
+                <div style="font-size:12px;font-weight:800;color:#10b981;letter-spacing:1px;text-transform:uppercase">📊 SIMULAÇÃO DETALHADA DAS CONDIÇÕES</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px">
+                  <div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.5)">Taxa de Juros Mensal</div>
+                    <div style="font-size:20px;font-weight:900;color:${currentRate>3.5?'#ef4444':'#f59e0b'};margin-top:2px">${currentRate}% a.m.</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.4)">Reduzida pelo nível do Banco</div>
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.5)">Valor de Cada Parcela</div>
+                    <div style="font-size:20px;font-weight:900;color:#fff;margin-top:2px">${fmtMoney(instVal)}</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.4)">Debitado a cada 2 rodadas</div>
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.5)">Juros Totais do Financiamento</div>
+                    <div style="font-size:20px;font-weight:900;color:#ef4444;margin-top:2px">+${fmtMoney(totalInterest)}</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.4)">Custo Efetivo Total (CET)</div>
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.5)">Total a Pagar</div>
+                    <div style="font-size:20px;font-weight:900;color:var(--neon);margin-top:2px">${fmtMoney(totalPay)}</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.4)">Principal + Juros</div>
+                  </div>
+                </div>
+
+                <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;font-size:11px;color:rgba(255,255,255,0.6);line-height:1.5">
+                  💡 <b>Aviso Financeiro:</b> O crédito cai imediatamente na conta do clube. As parcelas são cobradas a cada 2 rodadas. Caso não haja saldo na virada da rodada, serão cobrados <b>juros de mora de 2% acumulativos por rodada</b> de inadimplência. Você poderá <b>antecipar parcelas</b> a qualquer momento com <b>bônus de desconto</b>!
+                </div>
+              </div>
+
+              <!-- Botão Contratar -->
+              <button id="btnConfirmTakeLoan" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:16px;font-weight:900;padding:16px;border:none;border-radius:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 8px 24px rgba(16,185,129,0.3);transition:all 0.2s" ${selectedLoanAmount>creditLimit||creditLimit<=0?'disabled style="opacity:0.4;cursor:not-allowed"':''}>
+                <span>🏦</span> <span>CONTRATAR EMPRÉSTIMO DE ${fmtMoney(selectedLoanAmount)}</span>
+              </button>
+            </div>
+          ` : `
+            <!-- Conteúdo da Aba 2: MINHAS PARCELAS & ANTECIPAÇÃO -->
+            <div style="padding:24px;display:flex;flex-direction:column;gap:16px">
+              ${state.bankLoans.length === 0 ? `
+                <div style="text-align:center;padding:48px 20px;background:#161a2e;border-radius:16px;border:1px dashed rgba(255,255,255,0.15)">
+                  <div style="font-size:42px">✓</div>
+                  <h3 style="margin:12px 0 4px 0;font-size:18px">Nenhum Empréstimo Ativo</h3>
+                  <div class="muted" style="font-size:13px">Seu clube está sem dívidas bancárias. Seu limite de crédito está 100% liberado!</div>
+                </div>
+              ` : `
+                <div style="display:flex;flex-direction:column;gap:14px">
+                  ${state.bankLoans.map((loan, idx) => {
+                    const instVal = Math.round(loan.installmentValue || (loan.remainingDebt / Math.max(1, loan.remainingInstallments)));
+                    const bonusPayoff = Math.round(loan.remainingDebt * 0.90);
+                    const roundsUntilDue = Math.max(0, (loan.nextDueRound || 0) - (state.round || 0));
+                    return `
+                      <div style="background:#161a2e;border:1px solid ${loan.overdue?'#ef4444':'rgba(255,255,255,0.1)'};border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 4px 16px rgba(0,0,0,0.3)">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                          <div>
+                            <div style="display:flex;align-items:center;gap:8px">
+                              <span style="font-size:16px;font-weight:900">Contrato #${idx+1} — ${fmtMoney(loan.principal)}</span>
+                              <span class="pill" style="font-size:10px;background:${loan.overdue?'#ef4444':'#10b981'};color:#fff;font-weight:900">
+                                ${loan.overdue ? '🚨 PARCELA EM ATRASO (+2% juros)' : `✓ Em dia (Vence em ${roundsUntilDue} rodadas)`}
+                              </span>
+                            </div>
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">
+                              Taxa original: <b>${loan.interestRate}% a.m.</b> • Parcelas pagas: <b>${loan.paidInstallments}/${loan.totalInstallments}</b>
+                            </div>
+                          </div>
+                          <div style="text-align:right">
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5)">Saldo Devedor Restante:</div>
+                            <div style="font-size:18px;font-weight:900;color:${loan.overdue?'#ef4444':'#f59e0b'}">${fmtMoney(loan.remainingDebt)}</div>
+                          </div>
+                        </div>
+
+                        <!-- Barra de Progresso da Quitação -->
+                        <div>
+                          <div style="display:flex;justify-content:space-between;font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:6px">
+                            <span>Progresso da Quitação: ${loan.paidInstallments} de ${loan.totalInstallments} parcelas</span>
+                            <span>${Math.round((loan.paidInstallments / loan.totalInstallments) * 100)}% pago</span>
+                          </div>
+                          <div style="width:100%;height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden">
+                            <div style="width:${Math.max(4, Math.round((loan.paidInstallments / loan.totalInstallments) * 100))}%;height:100%;background:linear-gradient(90deg,#3b82f6,#10b981);border-radius:4px"></div>
+                          </div>
+                        </div>
+
+                        <!-- Ações de Pagamento e Antecipação -->
+                        <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,0.06);padding-top:12px">
+                          <button class="btn btnPayInstallment" data-idx="${idx}" style="background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15);font-size:12px;font-weight:800;padding:8px 14px;border-radius:8px;cursor:pointer" ${state.balance < instVal ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
+                            💳 Pagar Próxima Parcela (${fmtMoney(instVal)})
+                          </button>
+                          <button class="btn btnPayoffLoan" data-idx="${idx}" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;font-size:12px;font-weight:900;padding:8px 16px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px" ${state.balance < bonusPayoff ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
+                            <span>⚡</span> <span>Quitar Tudo com 10% Bônus (${fmtMoney(bonusPayoff)})</span>
+                          </button>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              `}
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+
+    $('#btnCloseBankModal').onclick = () => { overlay.remove(); };
+    overlay.onclick = (e) => { if(e.target === overlay.firstElementChild) overlay.remove(); };
+
+    const tabBorrow = $('#tabBankBorrow');
+    if(tabBorrow) tabBorrow.onclick = () => { activeBankModalTab = 'borrow'; renderModalContent(); };
+    const tabActive = $('#tabBankActive');
+    if(tabActive) tabActive.onclick = () => { activeBankModalTab = 'active'; renderModalContent(); };
+
+    $$('.afm-btn-preset-loan').forEach(b => {
+      b.onclick = () => { selectedLoanAmount = +b.dataset.val; renderModalContent(); };
+    });
+
+    $$('.btn-loan-inst').forEach(b => {
+      b.onclick = () => { selectedLoanInstallments = +b.dataset.inst; renderModalContent(); };
+    });
+
+    const btnConfirm = $('#btnConfirmTakeLoan');
+    if(btnConfirm){
+      btnConfirm.onclick = () => {
+        const rate = calcBankInterestRate(selectedLoanAmount, selectedLoanInstallments);
+        const inst = calcBankInstallment(selectedLoanAmount, selectedLoanInstallments, rate);
+        const total = inst * selectedLoanInstallments;
+
+        state.bankLoans.push({
+          id: 'loan_' + Date.now(),
+          principal: selectedLoanAmount,
+          interestRate: rate,
+          totalDebt: total,
+          remainingDebt: total,
+          totalInstallments: selectedLoanInstallments,
+          paidInstallments: 0,
+          remainingInstallments: selectedLoanInstallments,
+          installmentValue: inst,
+          nextDueRound: (state.round || 0) + 2,
+          overdue: false,
+          penalty: 0
+        });
+
+        state.balance += selectedLoanAmount;
+        state.income = (state.income || 0) + selectedLoanAmount;
+        state.news.unshift(`🏦 CRÉDITO LIBERADO: Empréstimo bancário de ${fmtMoney(selectedLoanAmount)} depositado no caixa do clube!`);
+        save();
+        toast(`🎉 Empréstimo de ${fmtMoney(selectedLoanAmount)} creditado na conta do clube!`);
+        overlay.remove();
+        render();
+      };
+    }
+
+    $$('.btnPayInstallment').forEach(b => {
+      b.onclick = () => {
+        const idx = +b.dataset.idx;
+        const loan = state.bankLoans[idx];
+        if(!loan) return;
+        const instVal = Math.round(loan.installmentValue || (loan.remainingDebt / Math.max(1, loan.remainingInstallments)));
+        if(state.balance < instVal){ toast('Saldo insuficiente no caixa para pagar a parcela.'); return; }
+
+        state.balance -= instVal;
+        state.expense = (state.expense || 0) + instVal;
+        loan.paidInstallments = (loan.paidInstallments || 0) + 1;
+        loan.remainingInstallments = Math.max(0, loan.remainingInstallments - 1);
+        loan.remainingDebt = Math.max(0, loan.remainingDebt - instVal);
+        loan.nextDueRound = (state.round || 0) + 2;
+        loan.overdue = false;
+        loan.penalty = 0;
+
+        if(loan.remainingDebt <= 0 || loan.remainingInstallments <= 0){
+          state.bankLoans.splice(idx, 1);
+          toast('🎉 Empréstimo 100% quitado com sucesso!');
+        } else {
+          toast(`Parcela de ${fmtMoney(instVal)} paga com sucesso!`);
+        }
+        save();
+        renderModalContent();
+        render();
+      };
+    });
+
+    $$('.btnPayoffLoan').forEach(b => {
+      b.onclick = () => {
+        const idx = +b.dataset.idx;
+        const loan = state.bankLoans[idx];
+        if(!loan) return;
+        const bonusPayoff = Math.round(loan.remainingDebt * 0.90);
+        if(state.balance < bonusPayoff){ toast('Saldo insuficiente no caixa para quitar com desconto.'); return; }
+
+        state.balance -= bonusPayoff;
+        state.expense = (state.expense || 0) + bonusPayoff;
+        const savedMoney = loan.remainingDebt - bonusPayoff;
+        state.bankLoans.splice(idx, 1);
+        state.news.unshift(`🏦 QUITAÇÃO ANTECIPADA: Dívida quitada com sucesso! Economia de ${fmtMoney(savedMoney)} em bônus.`);
+        save();
+        toast(`🎉 Empréstimo quitado antecipadamente! Você economizou ${fmtMoney(savedMoney)}!`);
+        renderModalContent();
+        render();
+      };
+    });
+  }
+
+  renderModalContent();
+}
+
+// -------------------------------------------------------------
 // RENDERIZAÇÃO PRINCIPAL & PÁGINAS
 // -------------------------------------------------------------
 function render(){
   const app=$('#app');
   if(!state){renderSetup(app);return}
-  if(repairSaveIfCorrupted(state)){
-    save();
+  const mainEl = app.querySelector('.main');
+  const sideNav = app.querySelector('.nav');
+  if(mainEl && sideNav && app.querySelector('.app')){
+    try {
+      mainEl.innerHTML = page();
+      sideNav.querySelectorAll('[data-view]').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === view);
+      });
+      const balEl = app.querySelector('.club-card b');
+      if(balEl) balEl.textContent = fmtMoney(state.balance);
+      bind();
+      return;
+    } catch(err){
+      console.warn('Erro ao atualizar tela via mainEl, fazendo render completo:', err);
+    }
   }
   app.innerHTML=shell(page());
   bind();
