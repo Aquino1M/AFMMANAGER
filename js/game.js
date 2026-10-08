@@ -3996,18 +3996,34 @@ function loginUser(username, password){
   const cleanU = (username || '').trim().toLowerCase();
   const cleanP = (password || '').trim();
   const accs = getStoredAccounts();
-  const acc = accs.find(a => a.username.toLowerCase() === cleanU);
-  if(!acc) return { success: false, error: 'Usuário não encontrado.' };
+  let acc = accs.find(a => a.username.toLowerCase() === cleanU);
 
-  // Validação para 'aquino': aceita 'viralgen123', '123' ou senha cadastrada
+  // Validação tolerante para 'aquino': aceita 'viralgen123', '123' ou senha cadastrada
   const isAquinoValid = cleanU === 'aquino' && (
-    cleanP === 'viralgen123' || cleanP === '123' || cleanP === 'admin' || cleanP === 'aquino' || cleanP === acc.password
+    cleanP === 'viralgen123' || cleanP === '123' || cleanP === 'admin' || cleanP === 'aquino' || cleanP === acc?.password
   );
   const isAdminValid = cleanU === 'admin' && (
-    cleanP === 'admin' || cleanP === '123' || cleanP === 'viralgen123' || cleanP === acc.password
+    cleanP === 'admin' || cleanP === '123' || cleanP === 'viralgen123' || cleanP === acc?.password
   );
-  const isMatch = (acc.password === cleanP) || isAquinoValid || isAdminValid;
 
+  if(!acc){
+    if(isAquinoValid){
+      acc = {
+        username: 'aquino',
+        password: 'viralgen123',
+        name: 'Treinador',
+        role: 'player',
+        createdAt: '2026-01-01',
+        saves: []
+      };
+      accs.push(acc);
+      saveStoredAccounts(accs);
+    } else {
+      return { success: false, error: 'Usuário não encontrado.' };
+    }
+  }
+
+  const isMatch = (acc.password === cleanP) || isAquinoValid || isAdminValid;
   if(!isMatch) return { success: false, error: 'Senha incorreta.' };
 
   if(cleanU === 'aquino' && acc.password !== 'viralgen123'){
@@ -4016,6 +4032,14 @@ function loginUser(username, password){
   }
 
   setActiveAccount(acc.username);
+
+  // Sincronizar com a nuvem (Supabase) em segundo plano
+  if(window.AFM_DB && typeof window.AFM_DB.syncUser === 'function'){
+    window.AFM_DB.syncUser(cleanU).then(() => {
+      if(view === 'setup') render();
+    }).catch(()=>{});
+  }
+
   return { success: true, user: acc };
 }
 window.loginUser = loginUser;
@@ -4042,6 +4066,12 @@ function registerUser(username, password, name){
   accs.push(newAcc);
   saveStoredAccounts(accs);
   setActiveAccount(cleanU);
+
+  // Registrar também no Supabase Cloud em segundo plano
+  if(window.AFM_DB && typeof window.AFM_DB.register === 'function'){
+    window.AFM_DB.register(cleanU, cleanP, cleanN).catch(()=>{});
+  }
+
   return { success: true, user: newAcc };
 }
 
@@ -4102,6 +4132,11 @@ function save(){
       }
       acc.saves = acc.saves.filter(s => s.slot >= 1 && s.slot <= 3).sort((a,b) => a.slot - b.slot);
       saveStoredAccounts(accs);
+
+      // Sincronizar save com o Supabase Cloud
+      if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
+        window.AFM_DB.saveSlot(user.username, slotNum, saveEntry).catch(()=>{});
+      }
     }
   }
 }
@@ -4141,6 +4176,12 @@ function deleteUserSlot(slotNum, ownerUsername = null){
   if(!acc) return;
   acc.saves = (acc.saves || []).filter(s => s.slot !== slotNum);
   saveStoredAccounts(accs);
+
+  // Deletar da nuvem (Supabase)
+  if(window.AFM_DB && typeof window.AFM_DB.deleteSlot === 'function'){
+    window.AFM_DB.deleteSlot(username, slotNum).catch(()=>{});
+  }
+
   toast(`Campanha do Slot ${slotNum} excluída com sucesso.`);
   renderSetup($('#app'));
 }
@@ -6437,6 +6478,15 @@ function triggerPeneiraBaseEvent(){
 }
 
 function openPressConferenceModal(type = 'post', context = null, onComplete = null){
+  if(!state) return;
+
+  const pressRoundKey = `${state.season || 2026}_${state.round || 0}`;
+  if(state.answeredPressKey === pressRoundKey){
+    toast('A coletiva de imprensa desta rodada já foi realizada! Nova coletiva estará disponível no próximo jogo.');
+    if(typeof onComplete === 'function') onComplete();
+    return;
+  }
+
   const isPre = type === 'pre';
   let opp = 'Adversário';
   let isHome = true;
@@ -6712,20 +6762,7 @@ function openPressConferenceModal(type = 'post', context = null, onComplete = nu
                   <div class="press-mic-stem"></div>
                 </div>
               </div>
-
-              <div style="font-size:18px" title="Água Oficial do Clube">💧</div>
             </div>
-          </div>
-
-          <!-- SILHUETA DOS JORNALISTAS NA FRENTE COM FLASHES -->
-          <div class="press-journalists-silhouette">
-            <span class="press-journalist-head">📸</span>
-            <span class="press-journalist-head press-camera-flash">⚡</span>
-            <span class="press-journalist-head">💻</span>
-            <span class="press-journalist-head">🎙️</span>
-            <span class="press-journalist-head press-camera-flash" style="animation-delay:1.8s">⚡</span>
-            <span class="press-journalist-head">📷</span>
-            <span class="press-journalist-head">📱</span>
           </div>
         </div>
 
@@ -6778,15 +6815,26 @@ function openPressConferenceModal(type = 'post', context = null, onComplete = nu
 
   $$('.btn-press-option').forEach(btn => {
     btn.onclick = () => {
+      // Bloqueia todos os botões imediatamente para não permitir responder de novo
+      $$('.btn-press-option').forEach(b => {
+        b.disabled = true;
+        b.style.pointerEvents = 'none';
+        b.style.opacity = '0.5';
+      });
+
       const idx = +btn.dataset.pressIdx;
       const chosen = options[idx];
       if(chosen){
+        state.answeredPressKey = `${state.season || 2026}_${state.round || 0}`;
+        state.lastPressAnsweredRound = state.round;
+        state.lastPressAnsweredSeason = state.season;
+
         state.trust.fans = clamp(state.trust.fans + chosen.tFans, 0, 100);
         state.trust.board = clamp(state.trust.board + chosen.tBoard, 0, 100);
         state.squad.forEach(p => { p.morale = clamp((p.morale || 75) + chosen.tSquad, 15, 100); });
         
         state.news.unshift(chosen.newsHeadline);
-        toast(`Declaração publicada na imprensa! Repercussão registrada nas notícias.`);
+        toast(`Declaração publicada na imprensa! Coletiva finalizada.`);
       }
 
       overlay.remove();
@@ -11882,9 +11930,15 @@ function centralPage(){
             <button class="btn" id="btnMatchPreviewCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px">
               PRÉVIA
             </button>
-            <button class="btn" id="btnOpenPressConferenceCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid #7c3aed;border-radius:12px;color:#c084fc">
-              🎙️ COLETIVA
-            </button>
+            ${(state.answeredPressKey === `${state.season || 2026}_${state.round || 0}`) ? `
+              <button class="btn" id="btnOpenPressConferenceCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:rgba(255,255,255,0.35);cursor:not-allowed" title="Coletiva já realizada nesta rodada. Disponível após a próxima partida.">
+                🎙️ COLETIVA (OK)
+              </button>
+            ` : `
+              <button class="btn" id="btnOpenPressConferenceCentral" style="padding:14px 6px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid #7c3aed;border-radius:12px;color:#c084fc">
+                🎙️ COLETIVA
+              </button>
+            `}
           </div>
 
           <div style="text-align:center;font-size:11px;color:rgba(255,255,255,0.3);margin-top:14px">
@@ -15229,73 +15283,893 @@ let setupSelectedCompId = 'bra-a';
 let setupBrCategory = 'nacionais';
 let setupSelectedClubName = 'Corinthians';
 let setupAuthTab = 'login'; // 'login' | 'register'
+let setupViewMode = 'auth'; // 'auth' | 'hub' | 'arenas' | 'estaduais'
+let setupHubPage = 1;
 let setupClubSearchQuery = '';
 let setupSelectedSlot = 1;
+
+// -------------------------------------------------------------
+// DADOS DAS 75 NOVIDADES, ARENAS FAMOSAS E 11 ESTADUAIS OFICIAIS
+// -------------------------------------------------------------
+const AFM_CHANGELOG_75 = [
+  { num: 75, ver: 'v0.7.5', tag: '🏟️ PORTAL DO TREINADOR', color: '#a7ff3f', title: 'Vitrine de Arenas Monumentais e 11 Estaduais Oficiais', desc: 'Interface moderna com acesso visual às grandes arenas do futebol, histórico completo de campeonatos estaduais e painéis de recursos.' },
+  { num: 74, ver: 'v0.7.4', tag: '🎙️ COLETIVA', color: '#c084fc', title: 'Mesa de Coletiva Limpa e Regra de Resposta Única', desc: 'Bancada oficial de imprensa refinada, sem poluição visual, com trava de uma única declaração por rodada e impacto dinâmico na torcida.' },
+  { num: 73, ver: 'v0.7.3', tag: '🖥️ INTERFACE', color: '#38bdf8', title: 'Layout Fullscreen e Painéis de Destaque no Topo', desc: 'Visualização moderna ocupando a tela com painéis informativos de contratações, bilheteria, gramado, naming rights e VAR.' },
+  { num: 72, ver: 'v0.7.2', tag: '🏆 SALA DE TROFÉUS', color: '#a855f7', title: 'Galeria Monumental de Conquistas e Vitrine de Medalhas', desc: 'Exiba cada taça estadual, nacional e continental conquistada ao longo da sua carreira em uma galeria histórica completa do clube.' },
+  { num: 71, ver: 'v0.7.1', tag: '🎯 INTELIGÊNCIA TÁTICA', color: '#facc15', title: 'Leitura de Jogo em Tempo Real e Ajustes no Intervalo', desc: 'Oriente seu time no vestiário com palestras motivacionais e substituições cirúrgicas para reverter placares e garantir vitórias.' },
+  { num: 70, ver: 'v0.7.0', tag: '🧠 GESTÃO DE ELENCO', color: '#38bdf8', title: 'Hierarquia de Liderança e Capitães com Influência no Vestiário', desc: 'Defina líderes experientes para blindar o grupo em momentos de crise, cobrar intensidade nos treinos e levantar as taças.' },
+  { num: 69, ver: 'v0.6.9', tag: '🔍 MERCADO', color: '#ec4899', title: 'Sistema de Pesquisa Rápida de Atletas e Filtro por Posição', desc: 'Busca instantânea de jogadores por nome, clube de origem, posição tática e valor de mercado em tempo real.' },
+  { num: 68, ver: 'v0.6.8', tag: '⚖️ REGRAS', color: '#ef4444', title: 'Gestão de Cartões Amarelos, Vermelhos e Suspensões', desc: 'Controle de disciplina: 3 cartões amarelos ou expulsão geram suspensão automática no jogo seguinte do campeonato.' },
+  { num: 67, ver: 'v0.6.7', tag: '💰 SOLIDARIEDADE', color: '#a7ff3f', title: 'Mecanismo de Solidariedade FIFA para Vendas da Base', desc: 'Receba percentual em dinheiro caso atletas formados na base do seu clube sejam vendidos entre equipes do exterior.' },
+  { num: 66, ver: 'v0.6.6', tag: '🔥 FATOR CASA', color: '#f97316', title: 'Efeito Caldeirão e Bônus de Força em Estádio Lotado', desc: 'Quando a torcida enche a arena, seus jogadores recebem bônus anímico de intensidade e finalização nas partidas em casa.' },
+  { num: 65, ver: 'v0.6.5', tag: '⚽ PRÉ-TEMPORADA', color: '#38bdf8', title: 'Amistosos Internacionais e Testes Táticos no Início do Ano', desc: 'Agende amistosos de pré-temporada contra clubes vizinhos para testar formações e dar ritmo ao elenco.' },
+  { num: 64, ver: 'v0.6.4', tag: '📊 RELATÓRIOS', color: '#c084fc', title: 'Resumo da Temporada e Retrospecto Anual da Diretoria', desc: 'Infográfico completo ao fim do ano com artilheiro, contratação mais valiosa, receita total e balanço de metas.' },
+  { num: 63, ver: 'v0.6.3', tag: '👔 CARREIRA', color: '#facc15', title: 'Mercado de Técnicos com Propostas para Trocar de Clube', desc: 'Faça um grande trabalho e receba convites para treinar times maiores da Série A, da Europa ou de outras federações.' },
+  { num: 62, ver: 'v0.6.2', tag: '🧑‍💼 COMISSÃO', color: '#10b981', title: 'Contratação de Auxiliar Técnico, Fisioterapeuta e Olheiro', desc: 'Monte sua equipe de suporte para acelerar recuperação de atletas lesionados e descobrir talentos ocultos.' },
+  { num: 61, ver: 'v0.6.1', tag: '⚡ CLÁSSICOS', color: '#ef4444', title: 'Clássicos Regionais com Clima Tenso e Alta Tensão', desc: 'Partidas com rivalidade histórica (Derby, Fla-Flu, Gre-Nal, Ba-Vi, Clássico-Rei) têm arbitragem mais rígida e mais emoção.' },
+  { num: 60, ver: 'v0.6.0', tag: '🤝 CONTRATOS', color: '#38bdf8', title: 'Janela de Empréstimos com Opção Fixada de Compra', desc: 'Empreste promessas para ganhar minutagem ou pegue craques com valor de compra pré-acordado no contrato.' },
+  { num: 59, ver: 'v0.5.9', tag: '🏛️ ESTRUTURA', color: '#a855f7', title: 'Centro de Treinamento de Alto Rendimento (Níveis 1 a 10)', desc: 'Evolua academia, campos de treino e fisiologia para melhorar o overall dos seus atletas mês a mês.' },
+  { num: 58, ver: 'v0.5.8', tag: '👕 UNIFORMES', color: '#ec4899', title: 'Gestão Visual de Uniformes: Titular, Reserva e Alternativo', desc: 'Escolha os padrões das camisas de jogo e lance edições especiais para aumentar a venda de produtos oficiais.' },
+  { num: 57, ver: 'v0.5.7', tag: '🏆 PREMIAÇÕES', color: '#facc15', title: 'Seleção da Rodada e do Campeonato com Notas Médias', desc: 'Acompanhe os melhores atletas de cada rodada e dispute o prêmio de Melhor Treinador do Ano da CBF.' },
+  { num: 56, ver: 'v0.5.6', tag: '⭐ ÍDOLOS', color: '#a7ff3f', title: 'Galeria de Ídolos Históricos e Salão da Fama do Clube', desc: 'Eternize craques com mais de 100 partidas ou que levantaram títulos inesquecíveis na história da equipe.' },
+  { num: 55, ver: 'v0.5.5', tag: '💰 PREMIAÇÕES', color: '#22c55e', title: 'Premiações Milionárias por Fases e Conquistas de Títulos', desc: 'Receba fatias volumosas de premiação ao avançar na Copa do Brasil, Libertadores e no Brasileirão.' },
+  { num: 54, ver: 'v0.5.4', tag: '👔 DIRETORIA', color: '#38bdf8', title: 'Reuniões de Diretoria com Avaliação de Metas e Cobrança', desc: 'Negocie orçamentos para contratações e mantenha a confiança da presidência acima de 50% para não ser demitido.' },
+  { num: 53, ver: 'v0.5.3', tag: '📢 TORCIDA', color: '#ef4444', title: 'Gestão de Crise e Barômetro de Paciência dos Torcedores', desc: 'Má fase e derrotas em clássicos aumentam a pressão das organizadas e exigem vitórias imediatas.' },
+  { num: 52, ver: 'v0.5.2', tag: '📈 ESTATÍSTICAS', color: '#38bdf8', title: 'Estatísticas Pós-Jogo Completas: Posse, Finalizações e Faltas', desc: 'Relatório detalhado ao final dos 90 minutos para diagnosticar a produção tática do seu time em campo.' },
+  { num: 51, ver: 'v0.5.1', tag: '🎯 PÊNALTIS', color: '#facc15', title: 'Disputa de Pênaltis Emocionante com Escolha de Cobradores', desc: 'Defina a ordem dos batedores e assista às cobranças alternadas decisivas nos mata-matas.' },
+  { num: 50, ver: 'v0.5.0', tag: '⚔️ HISTÓRICO', color: '#c084fc', title: 'Retrospecto de Confrontos Diretos contra Cada Rival', desc: 'Consulte vitórias, empates, derrotas e saldo de gols contra qualquer adversário do continente.' },
+  { num: 49, ver: 'v0.4.9', tag: '🇧🇷 BRASILEIRÃO', color: '#a7ff3f', title: 'Séries A, B, C e D Integradas com Acesso e Rebaixamento', desc: 'A pirâmide completa do futebol brasileiro funcionando com 4 divisões oficiais e promoções automáticas.' },
+  { num: 48, ver: 'v0.4.8', tag: '🌎 CONTINENTAL', color: '#f97316', title: 'Copa Sul-Americana com Fases de Grupos e Final Única', desc: 'Dispute a taça continental com clubes tradicionais da Argentina, Colômbia, Uruguai, Chile e Brasil.' },
+  { num: 47, ver: 'v0.4.7', tag: '🏆 LIBERTADORES', color: '#facc15', title: 'Copa Libertadores da América com a Mística do Continente', desc: '32 equipes, viagens desafiadoras e noites de caldeirão na busca pela Glória Eterna.' },
+  { num: 46, ver: 'v0.4.6', tag: '🌍 MUNDIAL', color: '#38bdf8', title: 'Mundial de Clubes FIFA contra os Campeões da Champions', desc: 'O ápice da carreira: enfrente potências como Real Madrid, Manchester City e Bayern de Munique.' },
+  { num: 45, ver: 'v0.4.5', tag: '🤝 COMERCIAL', color: '#ec4899', title: 'Naming Rights do Estádio com Grandes Marcas Mundiais', desc: 'Venda o nome da sua arena para companhias multinacionais por quantias vultosas anuais.' },
+  { num: 44, ver: 'v0.4.4', tag: '📊 FINANÇAS', color: '#22c55e', title: 'Fluxo de Caixa e Balanço Contábil por Rodada', desc: 'Acompanhe receitas de TV, bilheteria, royalties e gastos com folha de pagamento e parcelamentos.' },
+  { num: 43, ver: 'v0.4.3', tag: '🧠 PRANCHETA', color: '#a855f7', title: 'Prancheta Tática com Múltiplas Formações e Instruções', desc: 'Escolha 4-3-3, 3-5-2, 4-2-3-1 ou 4-4-2 com mentalidades ofensiva, equilibrada ou contra-ataque.' },
+  { num: 42, ver: 'v0.4.2', tag: '⚽ TREINAMENTO', color: '#38bdf8', title: 'Treinos Específicos: Finalização, Passe, Defesa e Físico', desc: 'Direcione as sessões de treino semanais para aprimorar os pontos fracos da sua equipe.' },
+  { num: 41, ver: 'v0.4.1', tag: '💬 VESTIÁRIO', color: '#ef4444', title: 'Moral do Elenco e Gestão de Insatisfação por Falta de Minutos', desc: 'Mantenha reservas motivados e realize reuniões de equipe para reverter sequências negativas.' },
+  { num: 40, ver: 'v0.4.0', tag: '🛡️ MODOS', color: '#c084fc', title: 'Mod da Comunidade (Oficial) vs Modo Padrão (Genérico)', desc: 'Alternância em 1 clique entre banco com escudos e nomes oficiais ou neutro protegido por DMCA.' },
+  { num: 39, ver: 'v0.3.9', tag: '🌿 GRAMADO', color: '#a7ff3f', title: 'Fatores de Gramado: Bermuda Natural, Sintético e Híbrido', desc: 'Piso sintético acelera o toque de bola, enquanto grama natural aumenta o desgaste físico dos atletas.' },
+  { num: 38, ver: 'v0.3.8', tag: '🏥 DEPARTAMENTO MÉDICO', color: '#f43f5e', title: 'Lesões, Diagnósticos Clínicos e Tempo de Recuperação', desc: 'Fisioterapia e transição física para recuperar atletas de estiramentos e entorses musculares.' },
+  { num: 37, ver: 'v0.3.7', tag: '⚡ SIMULAÇÃO', color: '#38bdf8', title: 'Simulação Instantânea com IA Balanceada em Milissegundos', desc: 'Pule direto para o resultado final sem abrir mão da precisão tática e dos atributos reais dos atletas.' },
+  { num: 36, ver: 'v0.3.6', tag: '⚖️ ARBITRAGEM & VAR', color: '#facc15', title: 'Checagem de Impedimentos, Pênaltis e Polêmicas de VAR', desc: 'Lances duvidosos revisados no monitor com animações de decisão e reações do banco de reservas.' },
+  { num: 35, ver: 'v0.3.5', tag: '🏆 PRÉ-TEMPORADA', color: '#10b981', title: 'Torneio Início nos Estaduais com Partidas Curtas', desc: 'Mata-mata preliminar para aquecer a torcida e dar taça amistosa no início do calendário.' },
+  { num: 34, ver: 'v0.3.4', tag: '🏡 VIDA PESSOAL', color: '#f97316', title: 'Sua Casa: Carros, Imóveis e Cursos Licença PRO da CBF', desc: 'Gaste seu patrimônio pessoal com bens de luxo e licenças de treinador para aumentar seu prestígio.' },
+  { num: 33, ver: 'v0.3.3', tag: '🕵️ OLHEIROS', color: '#38bdf8', title: 'Central de Olheiros com Relatórios Secretos de Promessas', desc: 'Envie olheiros para descobrir atributos reais ocultos e garimpar os futuros craques do país.' },
+  { num: 32, ver: 'v0.3.2', tag: '🏛️ MUSEU 3D', color: '#facc15', title: 'Museu do Clube com 16 Níveis e Vitrine de Taças 3D', desc: 'Exponha os troféus das suas conquistas em uma galeria que atrai turistas e gera milhões de bilheteria.' },
+  { num: 31, ver: 'v0.3.1', tag: '🏟️ ARENA NOVA', color: '#a855f7', title: 'Construção de Novas Arenas Monumentais de até 100k Lugares', desc: 'Erga um novo estádio do zero escolhendo capacidade (15k a 100k), lote urbano, alvará e financiamento.' },
+  { num: 30, ver: 'v0.3.0', tag: '🏗️ AMPLIAÇÃO', color: '#38bdf8', title: 'Ampliação do Estádio Anel por Anel com 4 Lados Independentes', desc: 'Expanda setores Norte, Sul, Leste e Oeste com obras modulares e financiamento bancário em até 12x.' },
+  { num: 29, ver: 'v0.2.9', tag: '🎙️ COLETIVAS', color: '#ec4899', title: 'Coletivas de Imprensa Pós-Jogo com 3 Perguntas e Moral', desc: 'Responda jornalistas com perguntas adaptadas ao placar e influencie a torcida, elenco e diretoria.' },
+  { num: 28, ver: 'v0.2.8', tag: '📰 IMPRENSA', color: '#c084fc', title: 'Aba Notícias com Cobertura de Globo, CazéTV e Twitter', desc: 'Feed dinâmico de notícias e reações de redes sociais comentando a campanha do seu time.' },
+  { num: 27, ver: 'v0.2.7', tag: '🖥️ DASHBOARD', color: '#a7ff3f', title: 'Central do Jogo Dinâmica com Card Hoje Tem Jogo', desc: 'Interface de 3 colunas reunindo status do clássico, escalação, clima e botão Jogar e Assistir.' },
+  { num: 26, ver: 'v0.2.6', tag: '💰 MERCADO 2.0', color: '#22c55e', title: 'Abas de Empréstimos e Venda Rápida de Atletas do Elenco', desc: 'Negocie saídas com liquidez rápida ou gerencie empréstimos cedidos e recebidos organizados por posição.' },
+  { num: 25, ver: 'v0.2.5', tag: '🏆 COPA DO BRASIL', color: '#facc15', title: 'Copa do Brasil com 128 Clubes e Mata-Mata Completo', desc: 'O torneio mais democrático do país da 1ª fase até a grande final em ida e volta.' },
+  { num: 24, ver: 'v0.2.4', tag: '👥 SÓCIO-TORCEDOR', color: '#38bdf8', title: 'Sistema Dinâmico de Sócio-Torcedor: Planos Popular e VIP', desc: 'Aumente sua arrecadação mensal com mensalidades de torcedores fiéis atraídos por bons resultados.' },
+  { num: 23, ver: 'v0.2.3', tag: '⭐ FORÇA & OVR', color: '#facc15', title: 'Card de FORÇA com Estrelas ★★★★★ e Nível por Setor', desc: 'Visualização da média de titulares e reservas para ATA, MEI e DEF com escalação automática via IA.' },
+  { num: 22, ver: 'v0.2.2', tag: '📸 FOTOS REAIS', color: '#a855f7', title: '128 Fotos Reais de Jogadores Otimizadas em Alta Performance', desc: 'Rostos reais de atletas brasileiros pesando menos de 1 MB para carregamento instantâneo.' },
+  { num: 21, ver: 'v0.2.1', tag: '⚽ ARTILHARIA', color: '#a7ff3f', title: 'Tabelas de Artilharia e Assistências com Fotos dos Atletas', desc: 'Acompanhe a corrida pelas chuteiras de ouro e melhores garçons de todos os campeonatos em disputa.' },
+  { num: 20, ver: 'v0.2.0', tag: '🏆 11 ESTADUAIS', color: '#38bdf8', title: '11 Campeonatos Estaduais Oficiais Simultâneos no Brasil', desc: 'Candangão DF, Paulistão, Carioca, Mineiro, Gaúcho, Paranaense, Catarinense, Baiano, Cearense, Goiano e Pernambucano.' },
+  { num: 19, ver: 'v0.1.9', tag: '💼 SALÁRIO TÉCNICO', color: '#22c55e', title: 'Contrato do Treinador com Depósito de Salário Mensal', desc: 'Extrato bancário pessoal e negociação de renovação salarial de acordo com seus títulos.' },
+  { num: 18, ver: 'v0.1.8', tag: '💰 FOLHA SALARIAL', color: '#ef4444', title: 'Salários dos Jogadores, Vencimento de Contratos e Renovações', desc: 'Barras em gradiente identificando atletas caros e modal para prorrogar contratos de 1 a 3 temporadas.' },
+  { num: 17, ver: 'v0.1.7', tag: '📈 MARKETING', color: '#ec4899', title: 'Departamento de Marketing com Investimento Mensal e Retorno', desc: 'Multiplique as propostas de patrocínio e mantenha média de público elevada investindo em marketing.' },
+  { num: 16, ver: 'v0.1.6', tag: '🌱 CATEGORIA BASE', color: '#a7ff3f', title: 'Juniores Sub-18 com Peneiras e Promoção ao Profissional', desc: 'Gere jovens promessas no CT do clube e promova talentos diretamente ao elenco principal.' },
+  { num: 15, ver: 'v0.1.5', tag: '📅 CALENDÁRIO', color: '#38bdf8', title: 'Calendário de Jogos com Indicador de Janela Aberta/Fechada', desc: 'Cronograma completo de datas, viagens e mandos de campo de todas as competições da temporada.' },
+  { num: 14, ver: 'v0.1.4', tag: '🎟️ INGRESSOS & RENDA', color: '#facc15', title: 'Projeção de Renda com Sliders de Ingressos e Estacionamento', desc: 'Calibre preços por setor da arquibancada e vagas para maximizar o faturamento em dias de jogo.' },
+  { num: 13, ver: 'v0.1.3', tag: '📋 ELENCO LIMPO', color: '#cbd5e1', title: 'Visualização Limpa de Elenco com Overall Unificado', desc: 'Atributos objetivos de desempenho sem poluição visual ou referências externas desnecessárias.' },
+  { num: 12, ver: 'v0.1.2', tag: '🟢 TÁTICA VERDE/AMARELO', color: '#a7ff3f', title: 'Efeito Verde e Amarelo para Posições Ideais e Secundárias', desc: 'Identificação imediata de posicionamento correto dos jogadores ao arrastar peças no campinho.' },
+  { num: 11, ver: 'v0.1.1', tag: '🔍 FILTROS MERCADO', color: '#38bdf8', title: 'Filtros em Cascata por Continente, País e Campeonatos', desc: 'Navegação fluida no mercado de transferências para encontrar atletas em qualquer liga do mundo.' },
+  { num: 10, ver: 'v0.1.0', tag: '📨 PROPOSTAS POPUP', color: '#c084fc', title: 'Popup Interativo de Propostas de Venda e Empréstimo', desc: 'Receba ofertas oficiais de clubes rivais e decida se vende, recusa ou faz contraproposta.' },
+  { num: 9, ver: 'v0.0.9', tag: '🔒 JANELA OFICIAL', color: '#f97316', title: 'Janela de Transferências com Datas de Verão e Inverno', desc: 'Bloqueio de negócios fora dos períodos regulamentares e opção de janela aberta permanente.' },
+  { num: 8, ver: 'v0.0.8', tag: '🚗 ESTACIONAMENTO', color: '#38bdf8', title: 'Construção de Estacionamento no Clube (500 a 14.000 Vagas)', desc: 'Fature com veículos de torcedores cobrando diárias nos arredores do estádio em jogos em casa.' },
+  { num: 7, ver: 'v0.0.7', tag: '👔 MERCADO TÉCNICOS', color: '#facc15', title: 'Avaliação de Treinadores e Virada Anual de Temporada', desc: 'Balanço da diretoria e renovação contratual no encerramento de cada ano esportivo.' },
+  { num: 6, ver: 'v0.0.6', tag: '🤝 PATROCÍNIOS', color: '#10b981', title: 'Patrocinadores Reais: iFood, Betano, Samsung, BYD e Pixbet', desc: 'Espaços de patrocínio Master, Mangas e Costas com valores fixos e bônus por vitória.' },
+  { num: 5, ver: 'v0.0.5', tag: '🏆 SUB-ABAS COMPETIÇÕES', color: '#ec4899', title: 'Navegação de Temporada: Nacional, Estadual, Copa e Continental', desc: 'Acompanhe simultaneamente o desempenho da sua equipe em todas as frentes de disputa.' },
+  { num: 4, ver: 'v0.0.4', tag: '📊 TABELA PRO', color: '#a7ff3f', title: 'Classificação Pro com G4, G6, Sul-Americana, Z4 e Forma', desc: 'Indicadores visuais de Libertadores, rebaixamento e histórico dos últimos 5 jogos (V/E/D).' },
+  { num: 3, ver: 'v0.0.3', tag: '⚙️ PREFERÊNCIAS', color: '#94a3b8', title: 'Velocidade da Simulação e Preferências de Temporada', desc: 'Ajuste a velocidade das partidas (Normal 1x, Rápida 2x ou Instantânea) e configure janelas de transferências ao seu estilo.' },
+  { num: 2, ver: 'v0.0.2', tag: '⏱️ MATCH ENGINE', color: '#22c55e', title: 'Sistema de Partidas ao Vivo com Narração em Português', desc: 'Cronômetro 0\' a 90\'+, velocidades (1x, 2x, 5x e instantâneo), substituições e gols em tempo real.' },
+  { num: 1, ver: 'v0.0.1', tag: '🛡️ ESCUDOS HD', color: '#38bdf8', title: '60+ Escudos Oficiais em Alta Definição e Vetores SVG Leves', desc: 'Identidade visual fiel de clubes das Séries A, B, C, D e Candangão com carregamento ultra veloz.' }
+];
+
+const AFM_ARENAS_DATA = [
+  {
+    name: "Neo Química Arena",
+    club: "Corinthians",
+    city: "São Paulo, SP",
+    capacity: "49.205 lugares",
+    pitch: "Híbrido Pro Grass",
+    opened: "2014",
+    history: "Inaugurada para a Copa do Mundo de 2014, sediou a abertura do mundial e jogos das Olimpíadas Rio 2016. Projetada para ser um caldeirão com arquibancadas próximas ao campo, conta com o maior painel em fachada de LED da América Latina e iluminação LED de nível europeu. A casa da Fiel é sinônimo de modernidade e pressão nos adversários.",
+    features: ["Fachada de LED monumental", "Iluminação de padrão europeu", "Acústica ensurdecedora", "Setor popular sem cadeiras"],
+    photoBg: "linear-gradient(135deg, #1c1917, #0c0a09)",
+    accentColor: "#facc15"
+  },
+  {
+    name: "Maracanã (Mário Filho)",
+    club: "Flamengo & Fluminense",
+    city: "Rio de Janeiro, RJ",
+    capacity: "78.838 lugares",
+    pitch: "Bermuda Celebration Natural",
+    opened: "1950 (Modernizado 2014)",
+    history: "O templo sagrado do futebol mundial. Palco de duas finais de Copa do Mundo (1950 e 2014), do milésimo gol de Pelé e de decisões inesquecíveis da Copa Libertadores e do Brasileirão. Sob gestão de Flamengo e Fluminense, reúne a mística das maiores torcidas do planeta em tardes ensolaradas e noites de puro delírio futebolístico.",
+    features: ["Templo sagrado da FIFA", "Cobertura tensionada em lona", "Maior média de público", "Caldeirão em clássicos"],
+    photoBg: "linear-gradient(135deg, #7f1d1d, #1e3a5f)",
+    accentColor: "#ef4444"
+  },
+  {
+    name: "Allianz Parque",
+    club: "Palmeiras",
+    city: "São Paulo, SP",
+    capacity: "43.713 lugares",
+    pitch: "Sintético Monofilamento FIFA Pro",
+    opened: "2014 (Parque Antártica)",
+    history: "Erguido sobre o lendário estádio Palestra Itália, o Allianz Parque é a arena multiuso mais moderna e lucrativa do país. Com gramado sintético ultrarrápido que favorece a velocidade do jogo, transformou-se no grande bastião do Palmeiras nas conquistas de duas Copas Libertadores, três Brasileirões e múltiplas Copas do Brasil.",
+    features: ["Teto com revestimento acústico", "Gramado sintético de alta velocidade", "Arena multiuso rentável", "Fator casa implacável"],
+    photoBg: "linear-gradient(135deg, #064e3b, #022c22)",
+    accentColor: "#10b981"
+  },
+  {
+    name: "MorumBIS (Cícero Pompeu de Toledo)",
+    club: "São Paulo FC",
+    city: "São Paulo, SP",
+    capacity: "66.795 lugares",
+    pitch: "Bermuda Tifway 419 Natural",
+    opened: "1960",
+    history: "O maior estádio particular do Brasil. Projetado pelo arquiteto Vilanova Artigas, foi testemunha de grandes glórias: o São Paulo de Telê Santana, Raí, o recorde de gols do goleiro Rogério Ceni e finais épicas de Libertadores e Mundiais. Revitalizado com histórico naming rights MorumBIS, segue impondo respeito pelo seu tamanho monumental.",
+    features: ["Maior estádio particular do país", "História tricampeã do mundo", "Acústica clássica de anéis", "Show de luzes pulsante"],
+    photoBg: "linear-gradient(135deg, #450a0a, #18181b)",
+    accentColor: "#f87171"
+  },
+  {
+    name: "Arena BRB Mané Garrincha",
+    club: "Capital-DF, Brasília, Gama & Brasiliense",
+    city: "Brasília, DF",
+    capacity: "72.788 lugares",
+    pitch: "Bermuda Celebration Natural",
+    opened: "1974 (Reconstruído 2013)",
+    history: "O segundo maior estádio do Brasil e monumento arquitetônico da capital federal, cercado por 288 pilares circulares de concreto de 36 metros de altura. Sede de jogos decisivos do Candangão DF, da Seleção Brasileira e da Supercopa do Brasil. No AFM 2027, você pode comandar clubes de Brasília e lotar as arquibancadas monumentais do Mané Garrincha.",
+    features: ["Colunata monumental circular", "Selo LEED Platinum sustentável", "Maior arena do Centro-Oeste", "Palco de superclássicos"],
+    photoBg: "linear-gradient(135deg, #1e3a8a, #0f172a)",
+    accentColor: "#60a5fa"
+  },
+  {
+    name: "Mineirão (Magalhães Pinto)",
+    club: "Cruzeiro & Atlético-MG",
+    city: "Belo Horizonte, MG",
+    capacity: "61.846 lugares",
+    pitch: "Bermuda Celebration Natural",
+    opened: "1965",
+    history: "O Gigante da Pampulha. Tombado pelo patrimônio histórico e vizinho da famosa lagoa de Niemeyer, é o templo do futebol mineiro onde brilharam Tostão, Dirceu Lopes, Reinaldo, Ronaldinho Gaúcho e Alex. Palco de conquistas de Libertadores e do clássico mais elétrico de Minas Gerais.",
+    features: ["Fachada modernista tombada", "Famoso feijão tropeiro do Mineirão", "Ambiente de pura paixão", "Grande visibilidade"],
+    photoBg: "linear-gradient(135deg, #172554, #1e1b4b)",
+    accentColor: "#38bdf8"
+  },
+  {
+    name: "Beira-Rio (José Pinheiro Borda)",
+    club: "Internacional",
+    city: "Porto Alegre, RS",
+    capacity: "50.842 lugares",
+    pitch: "Híbrido Natural e Sintético",
+    opened: "1969 (Modernizado 2014)",
+    history: "Construído sobre as águas do Lago Guaíba com a participação direta da torcida que doou cimento e tijolos (o lendário Gigante da Beira-Rio). Palco das conquistas das Libertadores e da arrancada do Mundial do Inter. Recebeu modernização com cobertura futurista em formato de folhas de acácia para a Copa de 2014.",
+    features: ["Cobertura metálica inovadora", "À beira do pôr do sol do Guaíba", "Histórico de raça e paixão", "Visão limpa sem pontos cegos"],
+    photoBg: "linear-gradient(135deg, #7f1d1d, #450a0a)",
+    accentColor: "#f87171"
+  },
+  {
+    name: "Arena do Grêmio",
+    club: "Grêmio FBPA",
+    city: "Porto Alegre, RS",
+    capacity: "55.662 lugares",
+    pitch: "Bermuda Celebration Natural",
+    opened: "2012",
+    history: "A moderna casa do tricolor gaúcho, construída na zona norte de Porto Alegre para substituir o lendário Estádio Olímpico. Famosa pelo setor Norte onde a torcida faz a tradicional 'avalanche' e canta ininterruptamente por 90 minutos. Palco da consagração do Tri da América em 2017.",
+    features: ["Setor Geral com avalanche", "Padrão europeu categoria 4", "Pressão acústica contínua", "Infraestrutura comercial de ponta"],
+    photoBg: "linear-gradient(135deg, #0284c7, #0f172a)",
+    accentColor: "#38bdf8"
+  },
+  {
+    name: "Ligga Arena (Arena da Baixada)",
+    club: "Athletico-PR",
+    city: "Curitiba, PR",
+    capacity: "42.372 lugares",
+    pitch: "Sintético Pro com Teto Retrátil",
+    opened: "1999 (Reconstruída 2014)",
+    history: "O estádio mais moderno e tecnológico da América Latina. Primeiro com teto totalmente retrátil no hemisfério sul e pioneiro absoluto no gramado sintético profissional aprovado pela FIFA. Conhecido como o 'Caldeirão do Furacão', onde a torcida rubro-negra e a acústica fechada pressionam os rivais do início ao fim.",
+    features: ["Teto retrátil automatizado", "Gramado artificial de alta precisão", "Pioneirismo tecnológico", "Acústica de caldeirão"],
+    photoBg: "linear-gradient(135deg, #991b1b, #000000)",
+    accentColor: "#ef4444"
+  },
+  {
+    name: "Arena Fonte Nova",
+    club: "Bahia & Vitória",
+    city: "Salvador, BA",
+    capacity: "48.000 lugares",
+    pitch: "Bermuda Tifway Natural",
+    opened: "2013",
+    history: "Erguida em Salvador com sua famosa ferradura voltada para o Dique do Tororó e as esculturas dos Orixás. Foi palco de goleadas antológicas na Copa de 2014 e é a casa pulsar do Esporte Clube Bahia com festa de trios, cantos afros e uma das torcidas mais vibrantes e apaixonadas do país.",
+    features: ["Abertura para o Dique do Tororó", "Festa e axé nas arquibancadas", "Média de ocupação espetacular", "Clássico Ba-Vi memorável"],
+    photoBg: "linear-gradient(135deg, #1d4ed8, #b91c1c)",
+    accentColor: "#60a5fa"
+  },
+  {
+    name: "Arena Castelão",
+    club: "Fortaleza & Ceará",
+    city: "Fortaleza, CE",
+    capacity: "63.903 lugares",
+    pitch: "Bermuda Celebration Natural",
+    opened: "1973 (Modernizado 2013)",
+    history: "O maior estádio do Norte/Nordeste e um dos mais festivos do planeta. Casa do Leão do Pici e do Vozão, onde as duas maiores torcidas do Ceará criam mosaicos 3D que rodam o mundo. Palco de jogos memoráveis da Copa do Mundo de 2014 e de noites épicas da Copa Sul-Americana e Libertadores.",
+    features: ["Mosaicos 3D mundialmente famosos", "Maior público do Nordeste", "Clássico-Rei fervilhante", "Excelente conforto e acesso"],
+    photoBg: "linear-gradient(135deg, #0f172a, #1e3a8a)",
+    accentColor: "#facc15"
+  },
+  {
+    name: "Santiago Bernabéu",
+    club: "Real Madrid",
+    city: "Madri, Espanha",
+    capacity: "81.044 lugares",
+    pitch: "Retrátil Subterrâneo Multiuso",
+    opened: "1947 (Supermodernização 2024)",
+    history: "A catedral máxima do futebol europeu. Palco de 15 títulos de Champions League do Real Madrid. Recentemente concluída uma obra monumental que adicionou fachada futurista de aço escovado, teto retrátil automatizado, telão circular de 360 graus e gramado retrátil armazenado em estufa subterrânea.",
+    features: ["Teto retrátil 360 graus", "Gramado subterrâneo em estufa", "Telão LED panorâmico 360°", "Museu histórico mais visitado"],
+    photoBg: "linear-gradient(135deg, #4338ca, #1e1b4b)",
+    accentColor: "#a855f7"
+  }
+];
+
+const AFM_ESTADUAIS_DATA = [
+  {
+    id: "bra-est-df",
+    name: "Candangão DF",
+    state: "Distrito Federal",
+    clubsCount: 10,
+    trophy: "🏛️",
+    color: "#a7ff3f",
+    clubs: ["Brasília", "Gama", "Brasiliense", "Capital-DF", "Ceilândia", "Real Brasília", "Samambaia", "Paranoá", "Planaltina", "Santa Maria"],
+    stadiums: "Arena BRB Mané Garrincha, Bezerrão, Serejão, Defelê",
+    derby: "Clássico Verde-Amarelo (Gama x Brasiliense) & Clássico Candango",
+    desc: "O campeonato da capital federal! Formato eletrizante com 10 clubes, clássicos de alta rivalidade no Mané Garrincha e vagas diretas para a Copa do Brasil e Série D nacional. Comande o Brasília, o Gama ou o emergente Capital-DF rumo à glória candanga."
+  },
+  {
+    id: "bra-est-sp",
+    name: "Paulistão SP",
+    state: "São Paulo",
+    clubsCount: 16,
+    trophy: "⚽",
+    color: "#38bdf8",
+    clubs: ["Corinthians", "Palmeiras", "São Paulo", "Santos", "Red Bull Bragantino", "Ponte Preta", "Guarani", "Novorizontino", "Mirassol", "Botafogo-SP", "São Bernardo", "Ituano", "Inter de Limeira", "Água Santa", "Noroeste", "Velo Clube"],
+    stadiums: "Neo Química Arena, Allianz Parque, MorumBIS, Vila Belmiro",
+    derby: "Derby Paulista, Choque-Rei, Majestoso, San-São e Derby Campineiro",
+    desc: "O campeonato estadual mais competitivo, rico e difícil das Américas. 4 gigantes mundiais mais equipes emergentes da Série A e B em grupos com quartas de final e decisões históricas."
+  },
+  {
+    id: "bra-est-rj",
+    name: "Carioca RJ",
+    state: "Rio de Janeiro",
+    clubsCount: 12,
+    trophy: "🌴",
+    color: "#f43f5e",
+    clubs: ["Flamengo", "Fluminense", "Vasco da Gama", "Botafogo", "Volta Redonda", "Nova Iguaçu", "Boavista", "Bangu", "Madureira", "Portuguesa-RJ", "Sampaio Corrêa-RJ", "Maricá"],
+    stadiums: "Maracanã, São Januário, Estádio Nilton Santos, Raulino de Oliveira",
+    derby: "Fla-Flu, Clássico dos Milhões, Clássico Vovô e Clássico da Amizade",
+    desc: "A tradicional Taça Guanabara e os clássicos centenários sob o sol do Rio de Janeiro. Maracanã lotado, festa das quatro grandes torcidas e o charme inconfundível do futebol carioca."
+  },
+  {
+    id: "bra-est-mg",
+    name: "Mineiro MG",
+    state: "Minas Gerais",
+    clubsCount: 12,
+    trophy: "⛰️",
+    color: "#facc15",
+    clubs: ["Atlético-MG", "Cruzeiro", "América-MG", "Athletic Club", "Tombense", "Pouso Alegre", "Villa Nova", "Democrata-GV", "Ipatinga", "Uberlândia", "Itabirito", "Betim"],
+    stadiums: "Mineirão, Arena MRV, Independência, Arena Sicredi",
+    derby: "Clássico Mineiro (Cruzeiro x Atlético-MG) & Clássico das Multidões",
+    desc: "A rivalidade fervorosa das montanhas mineiras entre Galo e Raposa, com o Coelho na espreita e a ascensão de forças emergentes do interior mineiro com forte apoio regional."
+  },
+  {
+    id: "bra-est-rs",
+    name: "Gaúcho RS",
+    state: "Rio Grande do Sul",
+    clubsCount: 12,
+    trophy: "🧉",
+    color: "#06b6d4",
+    clubs: ["Grêmio", "Internacional", "Juventude", "Caxias", "Brasil de Pelotas", "Ypiranga", "São José-RS", "Novo Hamburgo", "Avenida", "São Luiz", "Monsoon", "Guarany de Bagé"],
+    stadiums: "Arena do Grêmio, Beira-Rio, Alfredo Jaconi, Centenário",
+    derby: "Gre-Nal (a rivalidade mais intensa do Brasil) & Ca-Ju da Serra",
+    desc: "Futebol de raça, carrinhos precisos, frio do sul e a disputa mais apaixonada do país. O Gre-Nal divide o estado ao meio em confrontos inesquecíveis."
+  },
+  {
+    id: "bra-est-pr",
+    name: "Paranaense PR",
+    state: "Paraná",
+    clubsCount: 10,
+    trophy: "🌲",
+    color: "#10b981",
+    clubs: ["Athletico-PR", "Coritiba", "Operário-PR", "Maringá", "Londrina", "FC Cascavel", "Cianorte", "Azuriz", "São-Joseense", "Andraus"],
+    stadiums: "Ligga Arena, Couto Pereira, Germano Krüger, Willie Davids",
+    derby: "Atletiba (Athletico x Coritiba) & Clássico do Café (Londrina x Maringá)",
+    desc: "Pioneirismo em gramados sintéticos, tecnologia e equilíbrio tático. O tradicional Atletiba mobiliza a capital Curitiba contra a força do interior paranaense."
+  },
+  {
+    id: "bra-est-sc",
+    name: "Catarinense SC",
+    state: "Santa Catarina",
+    clubsCount: 10,
+    trophy: "🏖️",
+    color: "#a855f7",
+    clubs: ["Criciúma", "Chapecoense", "Avaí", "Figueirense", "Brusque", "Marcílio Dias", "Joinville", "Concórdia", "Barra-SC", "Hercílio Luz"],
+    stadiums: "Heriberto Hülse, Arena Condá, Ressacada, Orlando Scarpelli",
+    derby: "Clássico de Florianópolis (Avaí x Figueirense) & Criciúma x Chapecoense",
+    desc: "O estadual mais equilibrado e imprevisível do Brasil, onde múltiplos campeões nacionais e de divisões de acesso disputam o troféu ponto a ponto até a última rodada."
+  },
+  {
+    id: "bra-est-ba",
+    name: "Baiano BA",
+    state: "Bahia",
+    clubsCount: 10,
+    trophy: "☀️",
+    color: "#f97316",
+    clubs: ["Bahia", "Vitória", "Jacuipense", "Juazeirense", "Barcelona de Ilhéus", "Jequié", "Atlético de Alagoinhas", "Bahia de Feira", "Porto-BA", "Jacobina"],
+    stadiums: "Arena Fonte Nova, Barradão, Valfredão, Carneirão",
+    derby: "Ba-Vi (o clássico mais festivo e barulhento do Nordeste)",
+    desc: "A energia das arquibancadas de Salvador e do sertão baiano. A disputa histórica entre Bahia e Vitória em decisões épicas na Arena Fonte Nova e no Barradão."
+  },
+  {
+    id: "bra-est-ce",
+    name: "Cearense CE",
+    state: "Ceará",
+    clubsCount: 10,
+    trophy: "🌊",
+    color: "#ec4899",
+    clubs: ["Fortaleza", "Ceará", "Ferroviário", "Iguatu", "Floresta", "Maracanã-CE", "Atlético-CE", "Caucaia", "Horizonte", "Barbalha"],
+    stadiums: "Arena Castelão, Presidente Vargas, Domingão, Morenão",
+    derby: "Clássico-Rei (Fortaleza x Ceará) & Clássico das Cores (Fortaleza x Ferroviário)",
+    desc: "Mosaicos monumentais no Castelão para mais de 60 mil pessoas. O Clássico-Rei ferve a capital alencarina na luta pela hegemonia do futebol cearense."
+  },
+  {
+    id: "bra-est-go",
+    name: "Goiano GO",
+    state: "Goiás",
+    clubsCount: 10,
+    trophy: "🌾",
+    color: "#84cc16",
+    clubs: ["Goiás", "Atlético-GO", "Vila Nova", "Aparecidense", "Anápolis", "CRAC", "Goianésia", "Goiatuba", "Iporá", "Morrinhos"],
+    stadiums: "Serra Dourada, Antônio Accioly, Estádio da Serrinha, OBA",
+    derby: "Goiás x Vila Nova & Clássico do Equilíbrio (Goiás x Atlético-GO)",
+    desc: "A força do Centro-Oeste com rivalidades acirradas na capital Goiânia e cidades do interior. Gramados amplos e disputas táticas até o apito final."
+  },
+  {
+    id: "bra-est-pe",
+    name: "Pernambucano PE",
+    state: "Pernambuco",
+    clubsCount: 10,
+    trophy: "🦁",
+    color: "#e11d48",
+    clubs: ["Sport Recife", "Náutico", "Santa Cruz", "Retrô", "Central de Caruaru", "Maguary", "Petrolina", "Afogados", "Porto-PE", "Flamengo de Arcoverde"],
+    stadiums: "Ilha do Retiro, Estádio dos Aflitos, Arruda, Arena de Pernambuco",
+    derby: "Clássico dos Clássicos (Sport x Náutico) & Clássico das Multidões (Sport x Santa Cruz)",
+    desc: "O Trio de Ferro centenário do Recife! Uma das torcidas mais apaixonadas e fanáticas do Brasil lotando Ilha do Retiro, Aflitos e Arruda."
+  }
+];
+
+function renderLandingNavbar(activeTab){
+  return `
+    <header class="afm-landing-nav">
+      <div class="afm-nav-brand" id="btnNavBrandHome">
+        <span style="font-size:24px;filter:drop-shadow(0 0 10px rgba(168,85,247,0.7))">⚽</span>
+        <span>AFM MANAGER <b style="color:#a7ff3f">2027</b></span>
+      </div>
+
+      <nav class="afm-nav-links">
+        <button class="afm-nav-link ${activeTab==='auth'?'active':''}" id="btnNavGoAuth">🚀 Jogar Agora</button>
+        <button class="afm-nav-link ${activeTab==='hub'?'active':''}" id="btnNavGoHub">📢 Central de Novidades (75+)</button>
+        <button class="afm-nav-link ${activeTab==='arenas'?'active':''}" id="btnNavGoArenas">🏟️ Novas Arenas</button>
+        <button class="afm-nav-link ${activeTab==='estaduais'?'active':''}" id="btnNavGoEstaduais">🏆 11 Estaduais</button>
+      </nav>
+
+      <div style="display:flex;align-items:center;gap:12px">
+        ${activeTab !== 'auth' ? `
+          <button class="btn primary" id="btnNavCtaPlay" style="padding:8px 18px;font-size:13px;font-weight:900;border-radius:10px;box-shadow:0 0 15px rgba(124,58,237,0.4)">
+            🚀 Iniciar Carreira
+          </button>
+        ` : `
+          <button class="btn" id="btnNavSwitchAuth" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);padding:7px 16px;font-size:12px;font-weight:800;border-radius:8px;color:#fff;cursor:pointer">
+            ${setupAuthTab==='login' ? '✨ Criar Conta' : '🔑 Entrar'}
+          </button>
+          <button class="btn primary" id="btnNavOpenHubQuick" style="padding:7px 16px;font-size:12px;font-weight:900;border-radius:8px;box-shadow:0 0 15px rgba(124,58,237,0.4)">
+            📢 Ver Novidades
+          </button>
+        `}
+      </div>
+    </header>
+  `;
+}
 
 function renderSetup(app){
   const activeUser = getActiveAccount();
 
-  // SE NÃO ESTIVER LOGADO: EXIBE APENAS O CARD DE LOGIN / CADASTRO!
+  // SE NÃO ESTIVER LOGADO: LANDING PAGE PRO (SPLIT-SCREEN, HUB DE NOVIDADES, ARENAS & ESTADUAIS)
   if(!activeUser){
-    app.innerHTML = `
-      <div class="setup-container" style="max-width:520px;margin:50px auto;padding:20px">
-        <div style="text-align:center;margin-bottom:24px">
-          <div style="font-size:52px;filter:drop-shadow(0 0 16px rgba(168,85,247,0.7))">⚽</div>
-          <div style="font-size:26px;font-weight:900;letter-spacing:1px;color:#fff;margin-top:6px">
-            AFM MANAGER <span style="color:#a7ff3f;text-shadow:0 0 12px rgba(167,255,63,0.5)">2027</span>
-          </div>
-          <div style="font-size:13px;color:rgba(255,255,255,0.65);margin-top:6px;line-height:1.4">
-            Simulador tático de futebol · Crie seu mundo, comande seu clube e dispute títulos
-          </div>
-        </div>
 
-        <div class="card" style="padding:28px;background:#101724;border:1px solid rgba(255,255,255,0.12);border-radius:20px;box-shadow:0 16px 45px rgba(0,0,0,0.6)">
-          <div class="auth-nav-tabs" style="margin-bottom:18px">
-            <button class="auth-tab-btn ${setupAuthTab==='login'?'active':''}" data-atab="login">
-              🔑 Entrar na Conta
-            </button>
-            <button class="auth-tab-btn ${setupAuthTab==='register'?'active':''}" data-atab="register">
-              ✨ Criar Nova Conta
-            </button>
-          </div>
+    // 1. MODO: CENTRAL DE NOVIDADES & BLOG (75+ NOVIDADES COM PAGINAÇÃO)
+    if(setupViewMode === 'hub'){
+      const itemsPerPage = 6;
+      const totalPages = Math.ceil(AFM_CHANGELOG_75.length / itemsPerPage);
+      if(setupHubPage < 1) setupHubPage = 1;
+      if(setupHubPage > totalPages) setupHubPage = totalPages;
+      const startIndex = (setupHubPage - 1) * itemsPerPage;
+      const currentItems = AFM_CHANGELOG_75.slice(startIndex, startIndex + itemsPerPage);
 
-          <div style="font-size:12px;color:rgba(255,255,255,0.65);margin-bottom:16px;line-height:1.5">
-            ${setupAuthTab==='login' 
-              ? 'Acesse seu perfil de treinador para carregar seus <b>3 slots de saves exclusivos</b> ou iniciar uma nova carreira.' 
-              : 'Crie seu perfil de treinador para gerenciar seus próprios saves isolados de forma 100% individual.'}
-          </div>
+      app.innerHTML = `
+        <div class="afm-landing-wrapper">
+          ${renderLandingNavbar('hub')}
 
-          <div style="display:flex;flex-direction:column;gap:14px">
-            ${setupAuthTab==='register' ? `
-              <label class="field" style="margin:0">
-                <span style="font-size:11px;font-weight:800;color:#94a3b8">Nome Completo do Treinador</span>
-                <input class="saas-input" id="inputAuthName" placeholder="Ex: Professor Tite">
-              </label>
-            ` : ''}
-
-            <label class="field" style="margin:0">
-              <span style="font-size:11px;font-weight:800;color:#94a3b8">Nome de Usuário</span>
-              <input class="saas-input" id="inputAuthUser" placeholder="Ex: treinador">
-            </label>
-
-            <label class="field" style="margin:0">
-              <span style="font-size:11px;font-weight:800;color:#94a3b8">Senha de Acesso</span>
-              <div style="display:flex;align-items:center;position:relative">
-                <input class="saas-input" id="inputAuthPass" type="password" placeholder="Sua senha secreta" style="padding-right:42px">
-                <button type="button" id="btnToggleAuthPass" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;font-size:16px;color:#94a3b8;transition:transform 0.2s" title="Mostrar/ocultar senha">👁️</button>
+          <!-- HERO SECTION EM PORTUGUÊS (SCREENSHOT 3) -->
+          <div class="afm-hub-container">
+            <div style="margin-bottom:32px">
+              <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);padding:5px 12px;border-radius:20px;font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px">
+                <span>📢</span> HISTÓRICO OFICIAL DE ATUALIZAÇÕES
               </div>
-            </label>
+              <h1 style="font-size:38px;font-weight:900;letter-spacing:-1px;color:#fff;margin:0 0 10px 0">
+                Central de Novidades & Atualizações AFM 2027
+              </h1>
+              <p style="font-size:15px;color:#94a3b8;margin:0;max-width:760px;line-height:1.6">
+                Confira o histórico completo das <b>mais de 75 novidades</b> implementadas no simulador: novas arenas de até 100k lugares, 11 estaduais oficiais, mercado dinâmico, banco Supabase Cloud e motor tático realista.
+              </p>
+            </div>
 
-            <button class="btn primary saas-primary-btn" id="btnSubmitAuth" style="margin-top:6px;font-size:14px;font-weight:900;padding:12px">
-              ${setupAuthTab==='login' ? '🚀 Entrar no Jogo' : '✨ Criar Conta & Continuar'}
-            </button>
+            <!-- CARD DESTAQUE -->
+            <div class="afm-hub-card" style="padding:0;display:flex;flex-direction:row;min-height:330px;background:#0d1322;border:1px solid rgba(168,85,247,0.35);margin-bottom:36px">
+              <div style="flex:1.2;background:linear-gradient(135deg, #2e1065, #1e1b4b, #090d16);padding:36px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden">
+                <div style="position:absolute;right:-20px;bottom:-20px;font-size:160px;opacity:0.07;pointer-events:none">🏟️</div>
+                <div>
+                  <span class="pill" style="font-size:11px;font-weight:900;background:#a855f7;color:#fff;padding:4px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:0.5px">
+                    DESTAQUE PRINCIPAL 2027
+                  </span>
+                  <h2 style="font-size:25px;font-weight:900;color:#fff;margin:16px 0 12px 0;line-height:1.3">
+                    Construção de Novas Arenas: Como erguer estádios de até 100.000 lugares
+                  </h2>
+                  <p style="font-size:13px;color:rgba(255,255,255,0.75);line-height:1.6;margin:0">
+                    Entenda o processo completo de regularização de lote urbano, emissão de alvará da prefeitura, escolha da capacidade (15k a 100k lugares), financiamento bancário em até 8 anos e venda de Naming Rights.
+                  </p>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-top:24px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;flex-wrap:wrap;gap:12px">
+                  <div style="font-size:12px;color:#94a3b8">
+                    ✍️ <b>Diretoria AFM</b> · Março 2026 · 75 Novidades Ativas
+                  </div>
+                  <button class="btn primary" id="btnHubReadArena" style="padding:8px 18px;font-size:12px;font-weight:800;border-radius:8px">
+                    🏟️ Ver Arenas Famosas →
+                  </button>
+                </div>
+              </div>
+            </div>
 
-            <div class="saas-auth-footer" style="margin-top:10px">
-              <span>🔒 Acesso Local Exclusivo</span>
-              <span>•</span>
-              <span>💾 3 Slots de Saves por Usuário</span>
+            <!-- GRID COM NOVIDADES DA PÁGINA ATUAL -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+              <span style="font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">
+                EXIBINDO NOVIDADES ${startIndex + 1} A ${Math.min(startIndex + itemsPerPage, AFM_CHANGELOG_75.length)} DE ${AFM_CHANGELOG_75.length}:
+              </span>
+              <span style="font-size:12px;color:#cbd5e1;font-weight:800">
+                Página ${setupHubPage} de ${totalPages}
+              </span>
+            </div>
+
+            <div class="afm-hub-grid" style="margin-top:0">
+              ${currentItems.map(item => `
+                <div class="afm-hub-card" style="padding:24px">
+                  <div style="font-size:11px;font-weight:900;color:${item.color};text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">
+                    ${item.tag} · ${item.ver}
+                  </div>
+                  <h3 style="font-size:18px;font-weight:900;color:#fff;margin:0 0 10px 0;line-height:1.4">
+                    ${item.title}
+                  </h3>
+                  <p style="font-size:12px;color:#94a3b8;line-height:1.6;margin:0 0 16px 0;flex:1">
+                    ${item.desc}
+                  </p>
+                  <div style="font-size:11px;color:#64748b;display:flex;align-items:center;justify-content:space-between">
+                    <span>📅 Atualização #${item.num} Oficial</span>
+                    <span style="color:#a7ff3f;font-weight:800">✓ Ativo</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- CONTROLES DE PAGINAÇÃO (PASSAR PÁGINAS) -->
+            <div class="afm-pagination-bar">
+              <button class="afm-page-btn" id="btnHubPrevPage" ${setupHubPage <= 1 ? 'disabled' : ''}>
+                ← Página Anterior
+              </button>
+
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                ${Array.from({ length: totalPages }, (_, i) => i + 1).map(p => `
+                  <button class="afm-page-number ${p === setupHubPage ? 'active' : ''} btnHubPageNum" data-page="${p}">
+                    ${p}
+                  </button>
+                `).join('')}
+              </div>
+
+              <button class="afm-page-btn" id="btnHubNextPage" ${setupHubPage >= totalPages ? 'disabled' : ''}>
+                Próxima Página →
+              </button>
+            </div>
+
+            <!-- FOOTER CALL TO ACTION -->
+            <div style="margin-top:50px;background:linear-gradient(135deg, rgba(124,58,237,0.2), rgba(6,182,212,0.15));border:1px solid rgba(168,85,247,0.3);border-radius:20px;padding:40px;text-align:center">
+              <h2 style="font-size:28px;font-weight:900;color:#fff;margin:0 0 10px 0">
+                Pronto para viver a vida de um verdadeiro treinador?
+              </h2>
+              <p style="font-size:14px;color:#94a3b8;margin:0 0 24px 0">
+                Entre agora no AFM MANAGER 2027 e leve o seu clube do coração ao topo do mundo.
+              </p>
+              <button class="btn primary" id="btnCtaStartGameFromHub" style="padding:14px 36px;font-size:15px;font-weight:900;border-radius:12px;box-shadow:0 8px 30px rgba(124,58,237,0.5)">
+                🚀 Iniciar Minha Carreira Agora
+              </button>
             </div>
           </div>
+        </div>
+      `;
+      bindSetup();
+      return;
+    }
+
+    // 2. MODO: NOVAS ARENAS (SCREENSHOT 4)
+    if(setupViewMode === 'arenas'){
+      app.innerHTML = `
+        <div class="afm-landing-wrapper">
+          ${renderLandingNavbar('arenas')}
+
+          <div class="afm-hub-container">
+            <div style="margin-bottom:28px">
+              <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);padding:5px 12px;border-radius:20px;font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px">
+                <span>🏟️</span> CALDEIRÕES DO FUTEBOL BRASILEIRO & MUNDIAL
+              </div>
+              <h1 style="font-size:38px;font-weight:900;letter-spacing:-1px;color:#fff;margin:0 0 10px 0">
+                Grandes Arenas & Estádios do Jogo
+              </h1>
+              <p style="font-size:15px;color:#94a3b8;margin:0;max-width:760px;line-height:1.6">
+                Conheça os maiores caldeirões do futebol presentes no AFM 2027. Administre a bilheteria de cada setor, escolha o tipo de gramado, venda os naming rights ou construa sua própria <b>Arena Monumental de até 100.000 lugares</b>!
+              </p>
+            </div>
+
+            <!-- BANNER DE CONSTRUÇÃO DE ARENAS -->
+            <div class="afm-hub-card" style="padding:0;background:#0d1322;border:1px solid rgba(168,85,247,0.35);margin-bottom:32px">
+              <div style="background:linear-gradient(135deg, #2e1065 0%, #1e1b4b 60%, #090d16 100%);padding:36px;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap">
+                <div style="flex:1;min-width:280px">
+                  <span class="pill" style="font-size:11px;font-weight:900;background:#a855f7;color:#fff;padding:4px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:0.5px">
+                    NOVA FUNCIONALIDADE 2027
+                  </span>
+                  <h2 style="font-size:24px;font-weight:900;color:#fff;margin:14px 0 10px 0;line-height:1.3">
+                    Construa o Estádio dos Sonhos do Seu Clube: de 15.000 a 100.000 Lugares
+                  </h2>
+                  <p style="font-size:13px;color:rgba(255,255,255,0.78);line-height:1.6;margin:0">
+                    No AFM 2027 você pode aprovar junto à prefeitura o lote urbano, emitir alvará de construção, escolher a capacidade e financiar as obras bancárias em até 8 anos. Além disso, expanda arquibancadas anel por anel (+3.500 lugares por lado) e fature alto com ingressos e naming rights!
+                  </p>
+                </div>
+                <button class="btn primary" id="btnArenaCtaStart" style="padding:14px 28px;font-size:14px;font-weight:900;border-radius:12px;box-shadow:0 8px 25px rgba(124,58,237,0.5);white-space:nowrap">
+                  🚀 Construir Minha Arena →
+                </button>
+              </div>
+            </div>
+
+            <!-- GRID DE ARENAS FAMOSAS -->
+            <div class="afm-arena-grid">
+              ${AFM_ARENAS_DATA.map(arena => `
+                <div class="afm-arena-card">
+                  <div class="afm-arena-header" style="background:${arena.photoBg};border-bottom:1px solid rgba(255,255,255,0.08)">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                      <span class="pill" style="font-size:10px;font-weight:900;background:rgba(0,0,0,0.6);color:#fff;border:1px solid rgba(255,255,255,0.2);backdrop-filter:blur(6px)">
+                        📍 ${arena.city}
+                      </span>
+                      <span class="pill" style="font-size:10px;font-weight:900;background:rgba(168,85,247,0.25);color:${arena.accentColor};border:1px solid ${arena.accentColor}55">
+                        👥 ${arena.capacity}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 style="font-size:18px;font-weight:900;color:#fff;margin:0;line-height:1.2;text-shadow:0 2px 8px rgba(0,0,0,0.8)">
+                        ${arena.name}
+                      </h3>
+                      <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.75);margin-top:2px">
+                        Dono / Mandante: <b style="color:#fff">${arena.club}</b>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="afm-arena-body">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+                      <span class="pill" style="font-size:10px;font-weight:800;background:rgba(255,255,255,0.05);color:#cbd5e1">
+                        🌿 ${arena.pitch}
+                      </span>
+                      <span class="pill" style="font-size:10px;font-weight:800;background:rgba(255,255,255,0.05);color:#cbd5e1">
+                        📅 Inauguração: ${arena.opened}
+                      </span>
+                    </div>
+
+                    <p style="font-size:12px;color:#94a3b8;line-height:1.6;margin:0 0 16px 0;flex:1">
+                      ${arena.history}
+                    </p>
+
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;margin-bottom:16px">
+                      <div style="font-size:10px;font-weight:800;color:#a855f7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Destaques da Arena:</div>
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                        ${arena.features.map(f => `
+                          <div style="font-size:10px;color:#e2e8f0;display:flex;align-items:center;gap:4px">
+                            <span style="color:#a7ff3f">✓</span> ${f}
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
+
+                    <button class="btn btnPlayInArena" data-club="${arena.club.split('&')[0].trim().split(',')[0].trim()}" style="width:100%;padding:10px;font-size:12px;font-weight:800;border-radius:8px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);color:#c084fc;cursor:pointer;transition:all 0.2s">
+                      ⚽ Comandar Clube nesta Arena
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- FOOTER CTA -->
+            <div style="margin-top:50px;background:linear-gradient(135deg, rgba(124,58,237,0.2), rgba(6,182,212,0.15));border:1px solid rgba(168,85,247,0.3);border-radius:20px;padding:40px;text-align:center">
+              <h2 style="font-size:28px;font-weight:900;color:#fff;margin:0 0 10px 0">
+                Pronto para lotar estádios e levantar taças?
+              </h2>
+              <p style="font-size:14px;color:#94a3b8;margin:0 0 24px 0">
+                Inicie sua carreira agora e viva a emoção das grandes arenas com torcidas cantando sem parar.
+              </p>
+              <button class="btn primary" id="btnCtaStartGameFromArenas" style="padding:14px 36px;font-size:15px;font-weight:900;border-radius:12px;box-shadow:0 8px 30px rgba(124,58,237,0.5)">
+                🚀 Iniciar Minha Carreira Agora
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      bindSetup();
+      return;
+    }
+
+    // 3. MODO: 11 ESTADUAIS OFICIAIS (SCREENSHOT 5)
+    if(setupViewMode === 'estaduais'){
+      app.innerHTML = `
+        <div class="afm-landing-wrapper">
+          ${renderLandingNavbar('estaduais')}
+
+          <div class="afm-hub-container">
+            <div style="margin-bottom:28px">
+              <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);padding:5px 12px;border-radius:20px;font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px">
+                <span>🏆</span> FUTEBOL BRASILEIRO DE NORTE A SUL
+              </div>
+              <h1 style="font-size:38px;font-weight:900;letter-spacing:-1px;color:#fff;margin:0 0 10px 0">
+                11 Campeonatos Estaduais Oficiais
+              </h1>
+              <p style="font-size:15px;color:#94a3b8;margin:0;max-width:780px;line-height:1.6">
+                No AFM 2027, todos os clubes do Brasil disputam simultaneamente seus respectivos estaduais no primeiro semestre! Conheça as federações mapeadas, seus clubes, clássicos de alta rivalidade e vagas diretas na Copa do Brasil e divisões nacionais.
+              </p>
+            </div>
+
+            <!-- GRID DOS 11 ESTADUAIS -->
+            <div class="afm-estadual-grid">
+              ${AFM_ESTADUAIS_DATA.map(est => `
+                <div class="afm-estadual-card">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <span style="font-size:32px;filter:drop-shadow(0 0 10px rgba(250,204,21,0.5))">${est.trophy}</span>
+                      <div>
+                        <h3 style="font-size:20px;font-weight:900;color:#fff;margin:0;line-height:1.2">
+                          ${est.name}
+                        </h3>
+                        <div style="font-size:11px;color:${est.color};font-weight:800;text-transform:uppercase;letter-spacing:0.5px">
+                          📍 ${est.state} · ${est.clubsCount} CLUBES
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p style="font-size:12px;color:#94a3b8;line-height:1.6;margin:0 0 16px 0;flex:1">
+                    ${est.desc}
+                  </p>
+
+                  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;margin-bottom:16px">
+                    <div style="font-size:10px;font-weight:800;color:#cbd5e1;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">
+                      ⚔️ Principais Clássicos:
+                    </div>
+                    <div style="font-size:11px;font-weight:700;color:#facc15;margin-bottom:8px">
+                      ${est.derby}
+                    </div>
+
+                    <div style="font-size:10px;font-weight:800;color:#cbd5e1;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">
+                      👥 Clubes Participantes:
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px">
+                      ${est.clubs.map(cl => `
+                        <span class="pill" style="font-size:9px;font-weight:700;background:rgba(255,255,255,0.05);color:#e2e8f0;padding:2px 6px">
+                          ${cl}
+                        </span>
+                      `).join('')}
+                    </div>
+                  </div>
+
+                  <button class="btn primary btnPlayInEstadual" data-comp="${est.id}" style="width:100%;padding:10px;font-size:12px;font-weight:900;border-radius:8px;cursor:pointer">
+                    ⚽ Disputar o ${est.name}
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- FOOTER CTA -->
+            <div style="margin-top:50px;background:linear-gradient(135deg, rgba(124,58,237,0.2), rgba(6,182,212,0.15));border:1px solid rgba(168,85,247,0.3);border-radius:20px;padding:40px;text-align:center">
+              <h2 style="font-size:28px;font-weight:900;color:#fff;margin:0 0 10px 0">
+                Qual estadual você vai conquistar primeiro?
+              </h2>
+              <p style="font-size:14px;color:#94a3b8;margin:0 0 24px 0">
+                Escolha o clube do seu coração ou lidere uma zebra do interior rumo ao título estadual histórico.
+              </p>
+              <button class="btn primary" id="btnCtaStartGameFromEstaduais" style="padding:14px 36px;font-size:15px;font-weight:900;border-radius:12px;box-shadow:0 8px 30px rgba(124,58,237,0.5)">
+                🚀 Começar Minha Carreira Agora
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      bindSetup();
+      return;
+    }
+
+    // 4. MODO AUTH: SPLIT-SCREEN LANDING PAGE COM PAINÉIS DE RECURSOS NO TOPO (SCREENSHOT 1 E 2)
+    app.innerHTML = `
+      <div class="afm-landing-wrapper">
+        ${renderLandingNavbar('auth')}
+
+        <!-- SPLIT CONTAINER -->
+        <div class="afm-split-container">
+          
+          <!-- LEFT SIDE: BRANDING, HEADLINE & PAINÉIS DE RECURSOS NO TOPO (SCREENSHOT 2) -->
+          <div class="afm-split-left">
+            <div>
+              <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);padding:6px 14px;border-radius:20px;font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:16px">
+                <span>⚡</span> NOVO MOTOR TÁTICO & CLOUD SUPABASE
+              </div>
+
+              <h1 style="font-size:38px;font-weight:900;line-height:1.15;color:#fff;letter-spacing:-1px;margin:0 0 12px 0">
+                Comande o seu clube do coração rumo ao topo do mundo.
+              </h1>
+
+              <p style="font-size:14px;color:rgba(255,255,255,0.72);line-height:1.55;margin:0 0 18px 0;max-width:540px">
+                O <b>AFM 2027</b> combina gestão tática profunda, mercado dinâmico de transferências, construção monumental da sua própria arena e 11 estaduais oficiais com sincronização em nuvem.
+              </p>
+
+              <!-- PAINÉIS DE DESTAQUES VISÍVEIS NO TOPO (SCREENSHOT 2) -->
+              <div class="afm-feature-panels-grid">
+                <div class="afm-feature-panel">
+                  <div class="afm-panel-icon" style="color:#a7ff3f">⭐</div>
+                  <div>
+                    <div class="afm-panel-title">Contrate Craques</div>
+                    <div class="afm-panel-desc">Negociações dinâmicas, olheiros globais e montagem do elenco dos sonhos.</div>
+                  </div>
+                </div>
+
+                <div class="afm-feature-panel">
+                  <div class="afm-panel-icon" style="color:#38bdf8">🎟️</div>
+                  <div>
+                    <div class="afm-panel-title">Preço de Ingressos</div>
+                    <div class="afm-panel-desc">Calibre a bilheteria de cada setor e encha sua arena em clássicos.</div>
+                  </div>
+                </div>
+
+                <div class="afm-feature-panel">
+                  <div class="afm-panel-icon" style="color:#ec4899">🌿</div>
+                  <div>
+                    <div class="afm-panel-title">Escolha do Gramado</div>
+                    <div class="afm-panel-desc">Grama natural, sintética ou híbrida com impacto real na velocidade e fadiga.</div>
+                  </div>
+                </div>
+
+                <div class="afm-feature-panel">
+                  <div class="afm-panel-icon" style="color:#facc15">🤝</div>
+                  <div>
+                    <div class="afm-panel-title">Naming Rights</div>
+                    <div class="afm-panel-desc">Venda os direitos de nome do seu estádio por valores milionários.</div>
+                  </div>
+                </div>
+
+                <div class="afm-feature-panel">
+                  <div class="afm-panel-icon" style="color:#ef4444">⚖️</div>
+                  <div>
+                    <div class="afm-panel-title">Arbitragem & VAR</div>
+                    <div class="afm-panel-desc">Decisões polêmicas de arbitragem, pênaltis revisados e pressão no juiz.</div>
+                  </div>
+                </div>
+
+                <div class="afm-feature-panel">
+                  <div class="afm-panel-icon" style="color:#c084fc">🌍</div>
+                  <div>
+                    <div class="afm-panel-title">Mundial de Clubes</div>
+                    <div class="afm-panel-desc">Conquiste a América e enfrente os gigantes da Europa pelo título do planeta.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- TESTIMONIAL CARD -->
+              <div class="afm-testimonial-card" style="margin-top:16px;padding:18px">
+                <div style="font-size:13px;color:rgba(255,255,255,0.9);line-height:1.5;font-style:italic;margin-bottom:12px">
+                  “Assumi o Brasília no Candangão, reorganizei as finanças, contratei reforços cirúrgicos e ergui uma arena de 50 mil lugares. A imersão e o realismo financeiro são impressionantes.”
+                </div>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg, #7c3aed, #06b6d4);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:12px">
+                    AR
+                  </div>
+                  <div>
+                    <div style="font-size:13px;font-weight:900;color:#fff">Prof. Alberto Ramos</div>
+                    <div style="font-size:11px;color:#a855f7;font-weight:700">Treinador Campeão · Série A & Candangão</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- FOOTER COM SEGURANÇA E SUPABASE -->
+            <div style="margin-top:16px;font-size:11px;color:#64748b;display:flex;align-items:center;gap:6px">
+              <span>🔒 Seus dados e saves estão protegidos na nuvem (Supabase) · ⚡ 100% Gratuito no Navegador</span>
+            </div>
+          </div>
+
+          <!-- RIGHT SIDE: FORMULÁRIO DE LOGIN / CADASTRO (SEM ACESSO RÁPIDO - SCREENSHOT 1) -->
+          <div class="afm-split-right">
+            <div class="afm-auth-card">
+              <h2 class="afm-auth-title">
+                ${setupAuthTab==='login' ? 'Bem-vindo de volta' : 'Crie sua conta'}
+              </h2>
+              <p class="afm-auth-sub">
+                ${setupAuthTab==='login' 
+                  ? 'Entre com suas credenciais para continuar sua carreira no AFM 2027' 
+                  : 'Comece sua jornada e comande o clube do seu coração rumo aos títulos'}
+              </p>
+
+              <div class="afm-input-group">
+                ${setupAuthTab==='register' ? `
+                  <div style="margin-bottom:14px">
+                    <label class="afm-input-label">Nome Completo do Treinador</label>
+                    <div class="afm-input-box">
+                      <span class="afm-input-icon">👤</span>
+                      <input class="afm-input-field" id="inputAuthName" placeholder="Ex: Professor Tite">
+                    </div>
+                  </div>
+                ` : ''}
+
+                <div style="margin-bottom:14px">
+                  <label class="afm-input-label">Nome de Usuário / Treinador</label>
+                  <div class="afm-input-box">
+                    <span class="afm-input-icon">👔</span>
+                    <input class="afm-input-field" id="inputAuthUser" placeholder="Ex: treinador">
+                  </div>
+                </div>
+
+                <div style="margin-bottom:14px">
+                  <label class="afm-input-label">Senha de Acesso</label>
+                  <div class="afm-input-box">
+                    <span class="afm-input-icon">🔒</span>
+                    <input class="afm-input-field" id="inputAuthPass" type="password" placeholder="Sua senha secreta">
+                    <button type="button" id="btnToggleAuthPass" style="background:none;border:none;cursor:pointer;font-size:16px;color:#94a3b8;padding:0;margin-left:8px;flex-shrink:0" title="Mostrar/ocultar senha">👁️</button>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;font-size:12px;gap:12px">
+                <label style="display:inline-flex;align-items:center;gap:8px;color:#cbd5e1;cursor:pointer;white-space:nowrap;user-select:none">
+                  <input type="checkbox" id="chkRememberMe" checked style="accent-color:#7c3aed;width:15px;height:15px;cursor:pointer;margin:0">
+                  <span style="font-weight:600">Lembrar meu acesso</span>
+                </label>
+                <a href="javascript:void(0)" id="btnForgotPassLink" style="color:#a855f7;font-weight:700;text-decoration:none;white-space:nowrap">Esqueceu a senha?</a>
+              </div>
+
+              <button class="afm-auth-btn-primary" id="btnSubmitAuth">
+                ${setupAuthTab==='login' ? '🚀 Entrar na Carreira' : '✨ Criar Conta & Continuar'}
+              </button>
+
+              <div style="text-align:center;font-size:13px;color:#94a3b8;margin-top:20px">
+                ${setupAuthTab==='login' 
+                  ? 'Não possui uma conta? <a href="javascript:void(0)" id="btnSwitchToRegister" style="color:#a855f7;font-weight:800;text-decoration:none">Cadastre-se grátis</a>' 
+                  : 'Já possui uma conta? <a href="javascript:void(0)" id="btnSwitchToLogin" style="color:#a855f7;font-weight:800;text-decoration:none">Entrar agora</a>'}
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     `;
@@ -15350,6 +16224,9 @@ function renderSetup(app){
         </div>
 
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span class="pill" style="background:rgba(56,189,248,0.12);color:#38bdf8;padding:6px 14px;font-weight:800;border:1px solid rgba(56,189,248,0.3)" title="Banco de Dados Supabase Conectado">
+            ☁️ Supabase Cloud Ativo
+          </span>
           <span class="pill" style="background:rgba(255,255,255,0.08);color:#fff;padding:6px 14px;font-weight:800;border:1px solid rgba(255,255,255,0.12)">
             👤 Prof. ${esc(activeUser.name)} <span class="muted">(@${esc(activeUser.username)})</span>
             <span class="pill ${activeUser.role==='admin'?'good':'muted'}" style="font-size:10px;margin-left:6px">
@@ -16057,6 +16934,121 @@ function bindSetup(){
     };
   });
 
+  // Binds da Landing Page, Hub, Arenas e Estaduais
+  const btnNavHome = $('#btnNavBrandHome');
+  if(btnNavHome) btnNavHome.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  const btnNavAuth = $('#btnNavGoAuth');
+  if(btnNavAuth) btnNavAuth.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  const btnNavHub = $('#btnNavGoHub');
+  if(btnNavHub) btnNavHub.onclick = () => { setupViewMode = 'hub'; renderSetup($('#app')); };
+
+  const btnNavQuickHub = $('#btnNavOpenHubQuick');
+  if(btnNavQuickHub) btnNavQuickHub.onclick = () => { setupViewMode = 'hub'; renderSetup($('#app')); };
+
+  const btnNavArenas = $('#btnNavGoArenas');
+  if(btnNavArenas) btnNavArenas.onclick = () => { setupViewMode = 'arenas'; renderSetup($('#app')); };
+
+  const btnNavEstaduais = $('#btnNavGoEstaduais');
+  if(btnNavEstaduais) btnNavEstaduais.onclick = () => { setupViewMode = 'estaduais'; renderSetup($('#app')); };
+
+  const btnNavCtaPlay = $('#btnNavCtaPlay');
+  if(btnNavCtaPlay) btnNavCtaPlay.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  const btnNavSwitch = $('#btnNavSwitchAuth');
+  if(btnNavSwitch) btnNavSwitch.onclick = () => {
+    setupAuthTab = setupAuthTab === 'login' ? 'register' : 'login';
+    setupViewMode = 'auth';
+    renderSetup($('#app'));
+  };
+
+  const btnCtaTop = $('#btnCtaTopAuth');
+  if(btnCtaTop) btnCtaTop.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  const btnCtaHub = $('#btnCtaStartGameFromHub');
+  if(btnCtaHub) btnCtaHub.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  const btnHubArena = $('#btnHubReadArena');
+  if(btnHubArena) btnHubArena.onclick = () => { setupViewMode = 'arenas'; renderSetup($('#app')); };
+
+  // Binds de Paginação do Hub (75+ Novidades)
+  const btnPrevPage = $('#btnHubPrevPage');
+  if(btnPrevPage){
+    btnPrevPage.onclick = () => {
+      if(setupHubPage > 1){
+        setupHubPage--;
+        renderSetup($('#app'));
+      }
+    };
+  }
+
+  const btnNextPage = $('#btnHubNextPage');
+  if(btnNextPage){
+    const totalPages = Math.ceil(AFM_CHANGELOG_75.length / 6);
+    btnNextPage.onclick = () => {
+      if(setupHubPage < totalPages){
+        setupHubPage++;
+        renderSetup($('#app'));
+      }
+    };
+  }
+
+  $$('.btnHubPageNum').forEach(b => {
+    b.onclick = () => {
+      setupHubPage = Number(b.dataset.page);
+      renderSetup($('#app'));
+    };
+  });
+
+  // Binds de Arenas
+  const btnArenaCta = $('#btnArenaCtaStart');
+  if(btnArenaCta) btnArenaCta.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  const btnStartArenas = $('#btnCtaStartGameFromArenas');
+  if(btnStartArenas) btnStartArenas.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  $$('.btnPlayInArena').forEach(b => {
+    b.onclick = () => {
+      const club = b.dataset.club;
+      if(club){
+        setupSelectedClubName = club;
+        setupViewMode = 'auth';
+        toast(`🏟️ Arena e clube ${club} pré-selecionados! Faça login ou crie sua conta para jogar.`);
+        renderSetup($('#app'));
+      }
+    };
+  });
+
+  // Binds de Estaduais
+  const btnStartEst = $('#btnCtaStartGameFromEstaduais');
+  if(btnStartEst) btnStartEst.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  $$('.btnPlayInEstadual').forEach(b => {
+    b.onclick = () => {
+      const compId = b.dataset.comp;
+      if(compId){
+        setupSelectedCompId = compId;
+        setupBrCategory = 'estaduais';
+        setupViewMode = 'auth';
+        const estObj = AFM_ESTADUAIS_DATA.find(e => e.id === compId);
+        toast(`🏆 ${estObj ? estObj.name : 'Estadual'} pré-selecionado! Faça login ou crie sua conta.`);
+        renderSetup($('#app'));
+      }
+    };
+  });
+
+  const btnSwitchReg = $('#btnSwitchToRegister');
+  if(btnSwitchReg) btnSwitchReg.onclick = () => { setupAuthTab = 'register'; renderSetup($('#app')); };
+
+  const btnSwitchLog = $('#btnSwitchToLogin');
+  if(btnSwitchLog) btnSwitchLog.onclick = () => { setupAuthTab = 'login'; renderSetup($('#app')); };
+
+  const btnForgot = $('#btnForgotPassLink');
+  if(btnForgot) btnForgot.onclick = () => {
+    toast('Dica: Sua conta oficial "aquino" utiliza a senha "viralgen123" ou "123". A conta "admin" utiliza "admin".');
+  };
+
   // Binds de Autenticação
   $$('.auth-tab-btn').forEach(b => {
     b.onclick = () => {
@@ -16087,6 +17079,13 @@ function bindSetup(){
           renderSetup($('#app'));
         }
       }
+    };
+  }
+
+  const inputAuthPass = $('#inputAuthPass');
+  if(inputAuthPass && btnSubmitAuth){
+    inputAuthPass.onkeydown = (e) => {
+      if(e.key === 'Enter') btnSubmitAuth.click();
     };
   }
 
@@ -16369,7 +17368,16 @@ function bind(){
     const m=$('#mental'); if(m) m.onchange=()=>{state.mentality=m.value;save();toast('Mentalidade tática atualizada.')};
     
     const bPressCent = $('#btnOpenPressConferenceCentral');
-    if(bPressCent) bPressCent.onclick = openPressConferenceModal;
+    if(bPressCent){
+      bPressCent.onclick = () => {
+        const pressKey = `${state.season || 2026}_${state.round || 0}`;
+        if(state.answeredPressKey === pressKey){
+          toast('Você já respondeu à coletiva de imprensa desta rodada. Uma nova coletiva estará disponível no próximo jogo!');
+        } else {
+          openPressConferenceModal();
+        }
+      };
+    }
 
     const bAdvPre = $('#btnAdvancePreSeasonDay');
     if(bAdvPre) bAdvPre.onclick = advancePreSeasonDay;

@@ -37,3 +37,18 @@ O projeto está 100% preparado para deploy na [Vercel](https://vercel.com):
 1. Conecte seu repositório GitHub ao Vercel (`https://github.com/Aquino1M/AFMMANAGER`).
 2. O Vercel detectará automaticamente as configurações através de `vercel.json` e `package.json`.
 3. Clique em **Deploy** e o jogo estará online instantaneamente!
+
+---
+
+## 🗄️ Banco de Dados Supabase (Nuvem & Multiplayer)
+
+O jogo conta com persistência em nuvem híbrida (**Local-First com Cloud Sync**) via **Supabase**:
+
+- **URL:** `https://yulsnzvgxtwbazqvetpe.supabase.co`
+- **Tabelas do Sistema:**
+  - `afm_users`: Armazena contas de treinadores, nomes e papéis de acesso.
+  - `afm_saves`: Armazena os 3 slots de saves individuais por treinador com o JSON de cada carreira.
+- **Script de Inicialização SQL:**
+  - O arquivo [`supabase/schema.sql`](supabase/schema.sql) contém todo o DDL com tabelas, índices otimizados e políticas de segurança RLS (Row Level Security).
+  - Basta abrir o **SQL Editor** no painel do Supabase, colar o conteúdo de `supabase/schema.sql` e clicar em **Run**.
+

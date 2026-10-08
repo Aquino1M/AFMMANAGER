@@ -563,3 +563,80 @@ Novidades desta versão:
         * Conectado ao remote oficial https://github.com/Aquino1M/AFMMANAGER.git.
         * Todos os 605 arquivos essenciais do jogo (código-fonte, escudos oficiais, fotos de atletas, banco de dados e estilos) comitados e enviados via push com sucesso para o GitHub.
 
+72. Integração Completa com o Banco de Dados Supabase Cloud (Multiplayer & Persistência em Nuvem):
+    - Arquitetura Híbrida de Alta Performance (Local-First + Cloud Sync):
+        * O jogo opera com velocidade nativa no navegador sem lag em partidas ou transições de telas, salvando em tempo real no LocalStorage e sincronizando em segundo plano com o Supabase.
+        * Desenvolvido o módulo dedicado js/database.js com suporte a @supabase/supabase-js e fallback automático via REST API nativa.
+        * Carregamento assíncrono dos 3 slots de saves para que qualquer jogador possa acessar suas carreiras em múltiplos dispositivos (PC, celular, Vercel) apenas fazendo login na sua conta.
+    - Estrutura de Banco de Dados Relacional e JSONB no PostgreSQL:
+        * Tabela public.afm_users: Registro seguro de treinadores, credenciais e funções de administração.
+        * Tabela public.afm_saves: Armazenamento comprimido e indexado dos dados de carreira em JSONB por treinador e slot (1, 2 e 3).
+        * Políticas de Row Level Security (RLS) e índices case-insensitive para buscas instantâneas com a chave pública anônima.
+        * Criado o script executável completo em supabase/schema.sql pronto para execução no SQL Editor do Supabase.
+    - Indicador Visual de Conexão na Nuvem:
+        * Badge "☁️ Supabase Cloud Ativo" implementado na barra superior do treinador e rodapé da tela de autenticação.
+
+73. Redesign da Tela Inicial: Layout Fullscreen 3 Colunas sem Rolagem, Novidades e Recursos Épicos:
+    - Tela Inicial 100% Fullscreen sem Barra de Rolagem:
+        * Estrutura visual otimizada para ocupar exatamente 100% da altura da tela (100vh) sem barras de rolagem verticais em monitores desktop, com background radial dinâmico e tipografia limpa.
+    - Coluna Esquerda: Vitrine de Novidades do AFM 2027:
+        * Cards detalhados destacando a Construção de Novas Arenas (15k a 100k lugares com lote e alvará), 11 Estaduais Oficiais com Elencos Reais, Museu do Clube com 16 Níveis e Vitrine 3D, Banco de Dados Supabase Cloud e Mercado Financeiro Balanceado.
+    - Coluna Central: Portal de Autenticação Reformulado:
+        * Nova frase convidativa e imersiva: "Vem viver a vida de um treinador: escolha o time do seu coração, reorganize as finanças, contrate os jogadores dos seus sonhos e dispute os maiores títulos do planeta!".
+        * Remoção definitiva dos textos antigos de acesso local e slots limitados, substituídos pelo status "☁️ Servidores Supabase Online • 💾 Sincronização em Tempo Real".
+        * Suporte à tecla Enter no campo de senha para login/cadastro instantâneo.
+    - Coluna Direita: Recursos Épicos do Jogo (Tudo em um só lugar):
+        * Destaque para os recursos mais pedidos: "Contrate os Jogadores dos seus Sonhos", "Escolha o Preço dos Ingressos", "Escolha o Gramado do Estádio", "Venda os Naming Rights da Arena", "Pressão na Arbitragem & Juiz" e "Conquiste a Glória do Mundial de Clubes".
+
+74. Limpeza da Mesa de Coletiva de Imprensa e Trava de Resposta Única por Rodada:
+    - Limpeza Visual dos Ícones Sobrepostos na Bancada:
+        * Removidos todos os elementos flutuantes poluídos (gota d'água 💧, câmera 📸, flashes ⚡, laptop 💻, microfone solto 🎙️ e smartphone 📱).
+        * Bancada de imprensa agora exibe um layout limpo, refinado e oficial com apenas o escudo, o nome do treinador e os microfones das emissoras credenciadas (Globo, CazéTV, ESPN e Premiere).
+    - Regra de Resposta Única na Coletiva de Imprensa:
+        * Uma vez que o treinador escolhe uma resposta (Opção A, B ou C), a declaração é registrada na imprensa e a coletiva daquela rodada é finalizada.
+        * Bloqueio imediato de novos cliques e desativação dos botões da rodada.
+        * O botão "🎙️ COLETIVA" na aba Central passa para o status "🎙️ COLETIVA (OK)", impedindo respostas repetidas ou abusos de moral/confiança.
+        * Uma nova coletiva de imprensa só é liberada após a próxima partida/rodada ser disputada.
+
+75. Landing Page Profissional SaaS Split-Screen & Central de Novidades (Blog Hub):
+    - Novo Design Split-Screen Inspirado no TaskFlow:
+        * Lado Esquerdo (Branding & Proposta de Valor): Título de alto impacto ("Comande o seu clube do coração rumo ao topo do mundo"), selos de recursos (Mundial, Estaduais, Arenas, Naming Rights, Arbitragem), card de depoimento real com avatar e aviso de segurança com Supabase Cloud.
+        * Lado Direito (Formulário Dark Moderno): Layout limpo com cabeçalho "Bem-vindo de volta" / "Crie sua conta", campos com ícones (👤 Treinador, 👔 Usuário, 🔒 Senha com alternância 👁️), botão de ação primário gradiente e botões de acesso rápido (Prof. Aquino e Admin).
+    - Top Navigation Bar Sticky:
+        * Cabeçalho de navegação moderno com logotipo oficial, links para seções (Jogar Agora, Central de Novidades, Novas Arenas, 11 Estaduais) e botão de alternância rápida.
+    - Central de Novidades & Content Hub (Estilo TaskFlow Blog):
+        * Seção editorial completa com Card de Destaque para a Construção de Arenas de até 100k lugares e grid de 6 artigos cobrindo os 11 Estaduais, Mercado 2.0, Supabase Cloud, Museu do Clube 3D, Fatores de Gramado e Gestão Comercial.
+
+76. Reformulação da Landing Page: Painéis no Topo, Remoção de Acesso Rápido, 75+ Novidades Paginadas, Vitrine de Arenas Famosas e 11 Estaduais:
+    - Remoção do Bloco de Acesso Rápido:
+        * Eliminada a seção "ou acesse rapidamente como" e os botões "Prof. Aquino" e "Admin", deixando o formulário de login/cadastro limpo, direto e profissional.
+    - Elevação dos Recursos em Painéis Visuais de Alto Impacto:
+        * Substituídas as pequenas pílulas inferiores por uma grade 2x3 de painéis de vidro (glassmorphism) posicionada em destaque logo abaixo da manchete principal.
+        * Painéis interativos com ícones e descrições detalhadas: "⭐ Contrate Craques", "🎟️ Preço de Ingressos", "🌿 Escolha do Gramado", "🤝 Naming Rights", "⚖️ Arbitragem & VAR" e "🌍 Mundial de Clubes".
+    - Tradução Total para Português:
+        * Substituído o título em inglês "The AFM Manager Blog & Hub" por "Central de Novidades & Atualizações AFM 2027", com subtítulo oficial em português.
+    - Catálogo Completo das 75+ Novidades com Navegação Paginada (100% Focado em Futebol e Jogabilidade):
+        * Removidas menções a termos técnicos (Git, Deploy, Vercel, Supabase, migração de senhas e backups JSON).
+        * Adicionados recursos reais de gestão e futebol: "🏆 Sala de Troféus Monumental", "🎯 Leitura de Jogo e Palestras no Intervalo", "🧠 Hierarquia de Capitães e Liderança de Vestiário" e "⚙️ Velocidade da Simulação e Preferências de Temporada".
+        * Sistema de paginação com 6 novidades por página, botões "← Página Anterior", "Página X de 13", "Próxima Página →" e atalhos numéricos diretos para navegação instantânea.
+    - Vitrine Interativa de Novas Arenas com Histórico, Clubes Donos e Capacidades:
+        * Nova visualização ativada pela aba "🏟️ Novas Arenas" da barra de navegação.
+        * 12 arenas históricas e contemporâneas mapeadas: Neo Química Arena (Corinthians), Maracanã (Flamengo & Fluminense), Allianz Parque (Palmeiras), MorumBIS (São Paulo), Arena BRB Mané Garrincha (Brasília/Capital-DF), Mineirão (Cruzeiro/Atlético-MG), Beira-Rio (Internacional), Arena do Grêmio (Grêmio), Ligga Arena (Athletico-PR), Arena Fonte Nova (Bahia), Arena Castelão (Ceará/Fortaleza) e Santiago Bernabéu (Real Madrid).
+        * Detalhes de cada arena: cidade, capacidade, tipo de gramado, ano de inauguração, sinopse histórica e botão de ação direta para comandar o clube mandante.
+        * Banner explicativo do sistema de construção de arenas novas do AFM (de 15k a 100k lugares) com financiamento bancário e alvará urbano.
+    - Vitrine Completa dos 11 Campeonatos Estaduais Oficiais:
+        * Nova visualização ativada pela aba "🏆 11 Estaduais" da barra de navegação.
+        * Cobertura de todas as federações: Candangão DF, Paulistão SP, Carioca RJ, Mineiro MG, Gaúcho RS, Paranaense PR, Catarinense SC, Baiano BA, Cearense CE, Goiano GO e Pernambucano PE.
+        * Cada estadual conta com número de clubes, lista de equipes participantes, principais clássicos regionais, estádios-sede e botão de atalho para disputar o estadual.
+    - Correção Visual de Inputs e Alinhamento do Formulário de Acesso:
+        * Implementada a nova estrutura flexbox `.afm-input-box` onde o ícone (👔, 🔒, 👤) e o campo de texto são elementos independentes, eliminando em definitivo a sobreposição visual de texto sobre os ícones.
+        * Corrigida a quebra de linha do seletor "Lembrar meu acesso", mantendo o checkbox e a frase em uma única linha perfeitamente alinhada.
+        * Integrado o botão de visualização de senha (👁️) diretamente no fluxo flexbox do campo de senha.
+    - Verificação de Conectividade do Banco de Dados Supabase Cloud:
+        * Verificado o módulo js/database.js conectado à URL oficial https://yulsnzvgxtwbazqvetpe.supabase.co.
+        * Confirmado o mecanismo híbrido Local-First: persistência imediata em LocalStorage combinada com sincronização assíncrona na nuvem (tabelas afm_users e afm_saves), garantindo que o jogo nunca trave ou perca progresso mesmo com oscilações de rede.
+
+
+
+
+

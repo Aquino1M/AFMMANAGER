@@ -3008,6 +3008,512 @@ select, .saas-select {
   gap: 4px;
 }
 
+/* Fullscreen Hero Auth Screen (AFM 2027) */
+.auth-fullscreen-container {
+  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* ========================================================================= */
+/* AFM MANAGER 2027 - PRO SAAS SPLIT-SCREEN LANDING & CONTENT HUB            */
+/* ========================================================================= */
+
+.afm-landing-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #070a13;
+  color: #f8fafc;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+.afm-landing-nav {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 36px;
+  background: rgba(9, 13, 22, 0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 999;
+}
+
+.afm-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.afm-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.afm-nav-link {
+  font-size: 13px;
+  font-weight: 700;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.afm-nav-link:hover, .afm-nav-link.active {
+  color: #fff;
+}
+
+.afm-split-container {
+  display: flex;
+  flex: 1;
+  min-height: calc(100vh - 64px);
+}
+
+.afm-split-left {
+  flex: 1;
+  background: linear-gradient(145deg, #180d38 0%, #0d0f22 55%, #070a13 100%);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 50px 60px;
+  box-sizing: border-box;
+}
+
+.afm-split-left::before {
+  content: '';
+  position: absolute;
+  top: -150px;
+  left: -150px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.afm-split-right {
+  flex: 1;
+  background: #080c14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.afm-auth-card {
+  width: 100%;
+  max-width: 420px;
+}
+
+.afm-auth-title {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: #fff;
+  margin: 0 0 6px 0;
+}
+
+.afm-auth-sub {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.afm-input-group {
+  margin-bottom: 16px;
+}
+
+.afm-input-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.afm-input-box, .afm-input-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  background: #111827 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 10px !important;
+  padding: 0 14px !important;
+  height: 48px !important;
+  position: relative !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
+
+.afm-input-box:focus-within, .afm-input-wrapper:focus-within {
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25) !important;
+  background: #131b2e !important;
+}
+
+.afm-input-icon {
+  position: static !important;
+  font-size: 16px !important;
+  color: #94a3b8 !important;
+  margin-right: 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  user-select: none !important;
+  pointer-events: none !important;
+  line-height: 1 !important;
+}
+
+.afm-input-field {
+  flex: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  color: #fff !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+.afm-input-field::placeholder {
+  color: #64748b !important;
+  font-weight: 500 !important;
+}
+
+.afm-auth-btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+  transition: all 0.2s;
+}
+
+.afm-auth-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 25px rgba(124, 58, 237, 0.6);
+}
+
+.afm-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.afm-divider::before, .afm-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.afm-divider span {
+  padding: 0 12px;
+}
+
+.afm-quick-accounts {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.afm-quick-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px;
+  border-radius: 10px;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.afm-quick-btn:hover {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+  color: #fff;
+}
+
+.afm-testimonial-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 22px;
+  backdrop-filter: blur(12px);
+  margin-top: 24px;
+}
+
+.afm-hub-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.afm-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 30px;
+}
+
+.afm-hub-card {
+  background: #101626;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.afm-hub-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 1024px) {
+  .afm-split-container {
+    flex-direction: column;
+    min-height: auto;
+  }
+  .afm-split-left {
+    padding: 30px 24px;
+  }
+  .afm-hub-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .afm-arena-grid, .afm-estadual-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .afm-hub-grid {
+    grid-template-columns: 1fr;
+  }
+  .afm-arena-grid, .afm-estadual-grid, .afm-feature-panels-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* PAINÉIS DE DESTAQUES VISÍVEIS NO TOPO (SCREENSHOT 2) */
+.afm-feature-panels-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 18px 0 22px 0;
+}
+
+.afm-feature-panel {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  padding: 13px 15px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+}
+
+.afm-feature-panel:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(168, 85, 247, 0.45);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.afm-panel-icon {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.afm-panel-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.afm-panel-desc {
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+/* VITRINE DE ARENAS FAMOSAS (SCREENSHOT 4) */
+.afm-arena-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  margin-top: 24px;
+}
+
+.afm-arena-card {
+  background: #0d1322;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.afm-arena-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(168, 85, 247, 0.5);
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.55);
+}
+
+.afm-arena-header {
+  height: 125px;
+  position: relative;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.afm-arena-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* VITRINE DE 11 ESTADUAIS (SCREENSHOT 5) */
+.afm-estadual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  margin-top: 24px;
+}
+
+.afm-estadual-card {
+  background: #0d1322;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.afm-estadual-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(168, 85, 247, 0.5);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* CONTROLES DE PAGINAÇÃO DE NOVIDADES (75+ NOVIDADES) */
+.afm-pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 40px;
+  flex-wrap: wrap;
+}
+
+.afm-page-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.afm-page-btn:hover:not(:disabled) {
+  background: #7c3aed;
+  border-color: #a855f7;
+  box-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
+}
+
+.afm-page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.afm-page-number {
+  min-width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.afm-page-number:hover, .afm-page-number.active {
+  background: #7c3aed;
+  color: #fff;
+  border-color: #a855f7;
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
+}
+
+
+
+
 
 
 
