@@ -4079,12 +4079,115 @@ body.theme-emerald {
 
 /* Efeito de Seleção Pulsante e Brilhante */
 .selected-glow,
-.fifa-mini-card.selected-glow {
+.fifa-mini-card.selected-glow,
+.pitch-player-pill.selected-glow {
   box-shadow: 0 0 20px #fbbf24, 0 0 35px rgba(251, 191, 36, 0.85) !important;
   border-color: #fef08a !important;
   transform: translate(-50%, -50%) scale(1.1) !important;
   z-index: 120 !important;
 }
+
+/* ==========================================================================
+   PÍLULAS HORIZONTAIS LIMPAS DO CAMPO TÁTICO (.pitch-player-pill)
+   ========================================================================== */
+.pitch-player-pill {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  padding: 4px 10px 4px 6px;
+  color: #fff;
+  cursor: pointer;
+  user-select: none;
+  z-index: 15;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 2px rgba(255, 255, 255, 0.2);
+  transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.18s ease, border-color 0.18s ease;
+  white-space: nowrap;
+}
+
+.pitch-player-pill:hover {
+  transform: translate(-50%, -50%) scale(1.08);
+  border-color: #38bdf8;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 12px rgba(56, 189, 248, 0.6);
+  z-index: 30;
+}
+
+.pitch-player-pill.selected,
+.pitch-player-pill.selected-glow {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 0 18px #f59e0b, 0 0 30px rgba(245, 158, 11, 0.85) !important;
+  transform: translate(-50%, -50%) scale(1.14) !important;
+  background: #1e1b4b !important;
+  z-index: 50 !important;
+}
+
+.pitch-player-pill .pill-pos {
+  background: #2563eb;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.pitch-player-pill .pill-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: #f8fafc;
+  max-width: 95px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.2px;
+}
+
+.pitch-player-pill .pill-ovr {
+  font-size: 11px;
+  font-weight: 900;
+  color: #fbbf24;
+  margin-left: 2px;
+}
+
+.pitch-player-pill .pill-stamina {
+  position: absolute;
+  bottom: -4px;
+  left: 12px;
+  right: 12px;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.pitch-player-pill .pill-stamina-fill {
+  height: 100%;
+}
+.pitch-player-pill .pill-stamina-fill.stamina-good { background: #22c55e; }
+.pitch-player-pill .pill-stamina-fill.stamina-warn { background: #facc15; }
+.pitch-player-pill .pill-stamina-fill.stamina-tired { background: #ef4444; }
+
+/* Pointer events bloqueados nos filhos durante arrasto */
+.is-dragging .pitch-player-pill * {
+  pointer-events: none !important;
+}
+
+/* Gramado Horizontal de Alta Definição */
+.horizontal-pitch-field {
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  position: relative;
+  border-radius: 12px;
+  background: repeating-linear-gradient(90deg, #15803d, #15803d 48px, #166534 48px, #166534 96px);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
 
 
 

@@ -329,6 +329,125 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
   `;
 }
 
+// =========================================================================
+// CAMPO TÁTICO HORIZONTAL (LEFT-TO-RIGHT) & PÍLULAS COMPACTAS (AFM 2027)
+// =========================================================================
+const HORIZONTAL_FORMATIONS = {
+  '4-3-3': [
+    { r: 'GK', x: 10, y: 50 },
+    { r: 'LB', x: 26, y: 18 }, { r: 'CB', x: 25, y: 38 }, { r: 'CB', x: 25, y: 62 }, { r: 'RB', x: 26, y: 82 },
+    { r: 'CM', x: 48, y: 28 }, { r: 'DM', x: 44, y: 50 }, { r: 'CM', x: 48, y: 72 },
+    { r: 'LW', x: 80, y: 20 }, { r: 'ST', x: 84, y: 50 }, { r: 'RW', x: 80, y: 80 }
+  ],
+  '4-3-3 Holding': [
+    { r: 'GK', x: 10, y: 50 },
+    { r: 'LB', x: 26, y: 18 }, { r: 'CB', x: 25, y: 38 }, { r: 'CB', x: 25, y: 62 }, { r: 'RB', x: 26, y: 82 },
+    { r: 'DM', x: 44, y: 36 }, { r: 'DM', x: 44, y: 64 }, { r: 'AM', x: 58, y: 50 },
+    { r: 'LW', x: 80, y: 20 }, { r: 'ST', x: 84, y: 50 }, { r: 'RW', x: 80, y: 80 }
+  ],
+  '4-4-2': [
+    { r: 'GK', x: 10, y: 50 },
+    { r: 'LB', x: 26, y: 18 }, { r: 'CB', x: 25, y: 38 }, { r: 'CB', x: 25, y: 62 }, { r: 'RB', x: 26, y: 82 },
+    { r: 'LM', x: 52, y: 20 }, { r: 'CM', x: 48, y: 40 }, { r: 'CM', x: 48, y: 60 }, { r: 'RM', x: 52, y: 80 },
+    { r: 'ST', x: 82, y: 38 }, { r: 'ST', x: 82, y: 62 }
+  ],
+  '4-2-3-1': [
+    { r: 'GK', x: 10, y: 50 },
+    { r: 'LB', x: 26, y: 18 }, { r: 'CB', x: 25, y: 38 }, { r: 'CB', x: 25, y: 62 }, { r: 'RB', x: 26, y: 82 },
+    { r: 'DM', x: 44, y: 38 }, { r: 'DM', x: 44, y: 62 },
+    { r: 'LM', x: 64, y: 20 }, { r: 'AM', x: 66, y: 50 }, { r: 'RM', x: 64, y: 80 },
+    { r: 'ST', x: 84, y: 50 }
+  ],
+  '3-5-2': [
+    { r: 'GK', x: 10, y: 50 },
+    { r: 'CB', x: 25, y: 26 }, { r: 'CB', x: 24, y: 50 }, { r: 'CB', x: 25, y: 74 },
+    { r: 'LM', x: 48, y: 16 }, { r: 'CM', x: 48, y: 38 }, { r: 'DM', x: 42, y: 50 }, { r: 'CM', x: 48, y: 62 }, { r: 'RM', x: 48, y: 84 },
+    { r: 'ST', x: 82, y: 38 }, { r: 'ST', x: 82, y: 62 }
+  ],
+  '5-3-2': [
+    { r: 'GK', x: 10, y: 50 },
+    { r: 'LB', x: 26, y: 14 }, { r: 'CB', x: 24, y: 32 }, { r: 'CB', x: 24, y: 50 }, { r: 'CB', x: 24, y: 68 }, { r: 'RB', x: 26, y: 86 },
+    { r: 'CM', x: 48, y: 30 }, { r: 'DM', x: 44, y: 50 }, { r: 'CM', x: 48, y: 70 },
+    { r: 'ST', x: 82, y: 40 }, { r: 'ST', x: 82, y: 60 }
+  ]
+};
+window.HORIZONTAL_FORMATIONS = HORIZONTAL_FORMATIONS;
+
+function renderPitchPlayerPill(p, slot = {}, opts = {}) {
+  const i = slot.index ?? 0;
+  const role = slot.role || (p?.pos || 'ST');
+  const x = slot.x ?? 50;
+  const y = slot.y ?? 50;
+  const pk = p ? (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.key || p.name)) : '';
+  const ovr = p ? (p.overall || p.ovr || (typeof playerOverall === 'function' ? playerOverall(p) : 60)) : '-';
+  const pos = p ? (p.pos || role) : role;
+  const isSelected = !!opts.isSelected;
+  const isHalftime = !!opts.isHalftime;
+  const stamina = p ? Math.round(p.stamina ?? p.fitness ?? 100) : 100;
+  const stClass = stamina >= 75 ? 'stamina-good' : stamina >= 50 ? 'stamina-warn' : 'stamina-tired';
+  const shortName = p ? (p.name.split(' ').pop() || p.name) : 'Vazio';
+  const customClass = opts.customClass || '';
+
+  return `
+    <div class="pitch-player-pill ${isSelected ? 'selected selected-glow' : ''} ${customClass}"
+         style="left:${x}%;top:${y}%;"
+         data-slot-index="${i}"
+         data-slot-role="${esc(role)}"
+         data-player-key="${esc(pk)}"
+         data-starterkey="${esc(pk)}"
+         draggable="true"
+         title="${p ? `${esc(p.name)} (${esc(pos)}) • OVR ${ovr}` : 'Vazio'}">
+      <span class="pill-pos">${esc(pos)}</span>
+      <span class="pill-name">${esc(shortName)}</span>
+      <span class="pill-ovr">${ovr}</span>
+      ${isHalftime ? `
+        <div class="pill-stamina" title="Energia: ${stamina}%">
+          <div class="pill-stamina-fill ${stClass}" style="width:${stamina}%;"></div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+window.renderPitchPlayerPill = renderPitchPlayerPill;
+
+function renderHorizontalTacticsPitch(players, formationName = '4-3-3', opts = {}) {
+  const form = HORIZONTAL_FORMATIONS[formationName] || HORIZONTAL_FORMATIONS['4-3-3'];
+  const selectedKey = opts.selectedKey || null;
+  const isHalftime = !!opts.isHalftime;
+  const customClass = opts.customClass || '';
+
+  return `
+    <div class="horizontal-pitch-field" style="position:relative;width:100%;height:100%;min-height:380px;background:repeating-linear-gradient(90deg, #15803d, #15803d 48px, #166534 48px, #166534 96px);border-radius:12px;overflow:hidden;box-shadow:inset 0 0 45px rgba(0,0,0,0.6)">
+      <!-- Linhas Oficiais do Campo Horizontal (Transmissão de TV) -->
+      <!-- Linha Central e Círculo Central -->
+      <div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:rgba(255,255,255,0.45);transform:translateX(-50%)"></div>
+      <div style="position:absolute;left:50%;top:50%;width:80px;height:80px;border-radius:50%;border:2px solid rgba(255,255,255,0.45);transform:translate(-50%,-50%)"></div>
+      <div style="position:absolute;left:50%;top:50%;width:6px;height:6px;border-radius:50%;background:#fff;transform:translate(-50%,-50%)"></div>
+
+      <!-- Área Defensiva Esquerda (GK) -->
+      <div style="position:absolute;left:0;top:20%;bottom:20%;width:18%;border:2px solid rgba(255,255,255,0.45);border-left:none"></div>
+      <div style="position:absolute;left:0;top:35%;bottom:35%;width:7%;border:2px solid rgba(255,255,255,0.45);border-left:none"></div>
+
+      <!-- Área Ofensiva Direita (Ataque) -->
+      <div style="position:absolute;right:0;top:20%;bottom:20%;width:18%;border:2px solid rgba(255,255,255,0.45);border-right:none"></div>
+      <div style="position:absolute;right:0;top:35%;bottom:35%;width:7%;border:2px solid rgba(255,255,255,0.45);border-right:none"></div>
+
+      <!-- Jogadores em Pílulas Horizontais -->
+      ${players.map((p, idx) => {
+        const slot = form[idx] || { r: p?.pos || 'CM', x: 10 + idx * 8, y: 50 };
+        const pk = p ? (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.key || p.name)) : '';
+        const isSel = selectedKey && selectedKey === pk;
+        return renderPitchPlayerPill(p, { index: idx, role: slot.r, x: slot.x, y: slot.y }, {
+          isSelected: isSel,
+          isHalftime,
+          customClass
+        });
+      }).join('')}
+    </div>
+  `;
+}
+window.renderHorizontalTacticsPitch = renderHorizontalTacticsPitch;
+
 
 const NAMES=['Gabriel','Lucas','Matheus','Rafael','Bruno','Gustavo','Caio','João','Pedro','André','Felipe','Diego','Thiago','Henrique','Victor','Murilo','Samuel','Daniel','Arthur','Vinícius','Nicolas','Eduardo','Leonardo','Igor','Renan','Rodrigo','Cristian','Marcos','Alexandre','Miguel','Davi','Wesley','Ruan','Kauã','Yuri','Danilo','Luan','Vitor'];
 const LAST=['Silva','Santos','Oliveira','Costa','Pereira','Souza','Rodrigues','Almeida','Lima','Gomes','Martins','Rocha','Ribeiro','Carvalho','Mendes','Barbosa','Freitas','Nunes','Moreira','Cardoso','Teixeira','Moura','Araújo','Monteiro','Ferreira'];
@@ -12573,13 +12692,13 @@ function openHalftimeModal(isQuickTactics = false){
                 </div>
               </div>
 
-              <!-- Campinho Verde dos 11 Titulares Amplo com FIFA Mini-Cards -->
-              <div class="halftime-pitch-box" id="halftimePitchBox" style="flex:1;position:relative;background:radial-gradient(ellipse at center, #0d3d23 0%, #062314 100%);border:1px solid rgba(34,197,94,0.35);border-radius:12px;overflow:hidden;box-shadow:inset 0 0 40px rgba(0,0,0,0.5)">
-                ${userStarters.map((p, idx) => {
-                  const slot = formDef[idx] || { x: 50, y: 50 };
-                  const isSel = halftimeSelectedStarterKey === p.key;
-                  return renderFifaMiniCard(p, { index: idx, role: p.pos, x: slot.x, y: slot.y }, { isHalftime: true, isSelected: isSel, customClass: 'halftime-pitch-player' });
-                }).join('')}
+              <!-- Campinho Verde dos 11 Titulares Amplo com Campo Horizontal e Pílulas Limpas -->
+              <div class="halftime-pitch-box" id="halftimePitchBox" style="flex:1;position:relative;border-radius:12px;overflow:hidden;box-shadow:inset 0 0 40px rgba(0,0,0,0.5)">
+                ${renderHorizontalTacticsPitch(userStarters, currentForm, {
+                  selectedKey: halftimeSelectedStarterKey,
+                  isHalftime: true,
+                  customClass: 'halftime-pitch-player'
+                })}
               </div>
             </div>
 
@@ -12592,7 +12711,7 @@ function openHalftimeModal(isQuickTactics = false){
               <div class="halftime-bench-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(2, 1fr);gap:8px;padding-right:4px">
                 ${userBench.map(p => `
                   <div class="halftime-bench-card" data-benchkey="${esc(playerKey(p))}" draggable="true" title="Arraste para o campo ou clique para substituir" style="display:flex;align-items:center;gap:10px;background:#141d2c;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 10px;cursor:pointer">
-                    ${playerPhoto(p, 36)}
+                    ${window.renderPlayerPhoto ? window.renderPlayerPhoto(p.name, 36) : playerPhoto(p, 36)}
                     <div style="flex:1;min-width:0">
                       <div style="font-size:11px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                         ${esc(p.name)}
@@ -16398,13 +16517,12 @@ function myTeamPage(){
     </div>
 
     <div class="team-layout">
-      <div class="pitch-card">
-        <div class="pitch" id="tacticalPitch">
-          ${slots.map((s,i)=>{
-            const p = lineupPlayer(i);
-            return renderFifaMiniCard(p, { index: i, role: s.r, x: s.x, y: s.y }, { isHalftime: false, customClass: 'lineup-slot' });
-          }).join('')}
-        </div>
+      <div class="pitch-card" style="padding:0;background:transparent;overflow:hidden;border:none">
+        ${renderHorizontalTacticsPitch(
+          [0,1,2,3,4,5,6,7,8,9,10].map(i => lineupPlayer(i)),
+          state.formation || '4-3-3',
+          { selectedKey: (typeof tacticalSelectedKey !== 'undefined' ? tacticalSelectedKey : window.tacticalSelectedKey), isHalftime: false, customClass: 'lineup-slot' }
+        )}
       </div>
 
       <div class="card bench-card">
@@ -22850,7 +22968,8 @@ function bind(){
 // -------------------------------------------------------------
 // DRAG AND DROP & CLICK-TO-SWAP HÍBRIDO (AFM 2027)
 // -------------------------------------------------------------
-let tacticalSelectedKey = null;
+var tacticalSelectedKey = null;
+window.tacticalSelectedKey = null;
 
 function executeSwap(sourceKey, targetKey, targetSlotIndex = null) {
   if (!sourceKey) return;

@@ -167,7 +167,16 @@ window.CLUB_ALIASES = window.CLUB_ALIASES || {
   'al nassr': 'al_nassr.png'
 };
 
-// Renderização otimizada do escudo do clube
+const DEFAULT_PLAYER_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='%2364748b'><circle cx='32' cy='22' r='14'/><path d='M12 56c0-11 9-20 20-20s20 9 20 20z'/></svg>";
+window.DEFAULT_PLAYER_AVATAR = DEFAULT_PLAYER_AVATAR;
+
+window.renderPlayerPhoto = function(playerName, size = 32) {
+  const pName = typeof playerName === 'object' && playerName !== null ? (playerName.name || 'Jogador') : String(playerName || 'Jogador');
+  const localFile = (window.PLAYER_PHOTOS && (window.PLAYER_PHOTOS[pName] || window.PLAYER_PHOTOS[window.normSlug?.(pName)])) || DEFAULT_PLAYER_AVATAR;
+  return `<img src="${localFile}" alt="${pName}" class="player-photo-img" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;vertical-align:middle;display:inline-block;" onerror="this.onerror=null;this.src='${DEFAULT_PLAYER_AVATAR}';" />`;
+};
+
+// Renderização otimizada do escudo do clube com caminhos relativos locais e fallback nativo
 window.renderClubBadge = function(clubName, size = 32) {
   const rawName = (typeof clubName === 'object' && clubName !== null ? (clubName.name || clubName.club || '') : String(clubName || '')).trim() || 'Clube';
   const n = window.normClub(rawName);
@@ -175,7 +184,6 @@ window.renderClubBadge = function(clubName, size = 32) {
   let file = (window.CLUB_ALIASES && window.CLUB_ALIASES[n]) || (window.CLUB_BADGES && window.CLUB_BADGES[rawName]);
 
   if (!file && window.CLUB_BADGES) {
-    // 1. Match exato normalizado
     for (const [k, v] of Object.entries(window.CLUB_BADGES)) {
       if (window.normClub(k) === n) {
         file = v;
@@ -184,23 +192,15 @@ window.renderClubBadge = function(clubName, size = 32) {
     }
   }
 
-  if (!file && window.CLUB_BADGES) {
-    // 2. Prefixo ou sufixo com fronteira de palavra
-    for (const [k, v] of Object.entries(window.CLUB_BADGES)) {
-      const kn = window.normClub(k);
-      if (kn && (n.startsWith(kn + ' ') || n.endsWith(' ' + kn) || kn.startsWith(n + ' ') || kn.endsWith(' ' + n))) {
-        file = v;
-        break;
-      }
-    }
-  }
+  const inits = (rawName.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('') || 'FC').slice(0, 3).toUpperCase();
+  const fallbackPill = `<span class="badge-fallback-pill" style="display:inline-flex;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
 
   if (file) {
-    return `<img src="img/badges/${file}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;border-radius:4px;flex-shrink:0" loading="lazy" onerror="if(!this.dataset.retried){this.dataset.retried=1;this.src='./img/badges/${file}';}else{this.style.display='inline-flex';}">`;
+    const cleanPath = file.startsWith('img/badges/') ? file : `img/badges/${file}`;
+    return `<img src="${cleanPath}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';" /><span class="badge-fallback-pill" style="display:none;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
   }
 
-  const inits = rawName.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase() || 'FC';
-  return `<div class="crest-img-fallback" style="width:${size}px;height:${size}px;border-radius:6px;background:linear-gradient(135deg,#1e1b4b,#312e81);border:1px solid #6366f1;display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.38)}px;font-weight:900;color:#c7d2fe;flex-shrink:0">${inits}</div>`;
+  return fallbackPill;
 };
 
 // Logos oficiais das competições

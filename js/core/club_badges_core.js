@@ -180,7 +180,16 @@ window.CLUB_ALIASES = window.CLUB_ALIASES || {
   'al ahli': 'asia/al_ahli.png'
 };
 
-// Renderização oficial de escudos de clubes
+const DEFAULT_PLAYER_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='%2364748b'><circle cx='32' cy='22' r='14'/><path d='M12 56c0-11 9-20 20-20s20 9 20 20z'/></svg>";
+window.DEFAULT_PLAYER_AVATAR = DEFAULT_PLAYER_AVATAR;
+
+window.renderPlayerPhoto = function(playerName, size = 32) {
+  const pName = typeof playerName === 'object' && playerName !== null ? (playerName.name || 'Jogador') : String(playerName || 'Jogador');
+  const localFile = (window.PLAYER_PHOTOS && (window.PLAYER_PHOTOS[pName] || window.PLAYER_PHOTOS[window.normSlug?.(pName)])) || DEFAULT_PLAYER_AVATAR;
+  return `<img src="${localFile}" alt="${pName}" class="player-photo-img" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;vertical-align:middle;display:inline-block;" onerror="this.onerror=null;this.src='${DEFAULT_PLAYER_AVATAR}';" />`;
+};
+
+// Renderização oficial de escudos de clubes com caminhos locais e fallback nativo
 window.renderClubBadge = function(clubName, size = 32) {
   const rawName = (typeof clubName === 'object' && clubName !== null ? (clubName.name || clubName.club || '') : String(clubName || '')).trim() || 'Clube';
   const n = window.normClub(rawName);
@@ -196,51 +205,15 @@ window.renderClubBadge = function(clubName, size = 32) {
     }
   }
 
+  const inits = (rawName.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('') || 'FC').slice(0, 3).toUpperCase();
+  const fallbackPill = `<span class="badge-fallback-pill" style="display:inline-flex;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
+
   if (file) {
     const cleanPath = file.startsWith('img/badges/') ? file : `img/badges/${file}`;
-    const escapedName = rawName.replace(/'/g, "\\'");
-    return `<img src="${cleanPath}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;border-radius:4px;flex-shrink:0" loading="lazy" onerror="this.onerror=null; this.outerHTML=window.renderDefaultBadge('${escapedName}',${size});">`;
+    return `<img src="${cleanPath}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';" /><span class="badge-fallback-pill" style="display:none;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
   }
 
-  return window.renderDefaultBadge(rawName, size);
-};
-
-window.renderDefaultBadge = function(rawName, size = 32) {
-  const inits = rawName.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase() || 'FC';
-  const n = typeof window.normClub === 'function' ? window.normClub(rawName) : rawName.toLowerCase();
-  
-  const colorMap = {
-    'flamengo': ['#b91c1c', '#ffffff'],
-    'palmeiras': ['#047857', '#ffffff'],
-    'corinthians': ['#09090b', '#ffffff'],
-    'sao paulo': ['#b91c1c', '#ffffff'],
-    'santos': ['#ffffff', '#09090b'],
-    'gremio': ['#0284c7', '#ffffff'],
-    'internacional': ['#dc2626', '#ffffff'],
-    'vasco': ['#09090b', '#ffffff'],
-    'cruzeiro': ['#1d4ed8', '#ffffff'],
-    'atletico mg': ['#09090b', '#ffffff'],
-    'botafogo': ['#09090b', '#ffffff'],
-    'fluminense': ['#047857', '#b91c1c'],
-    'bahia': ['#0284c7', '#dc2626'],
-    'sport': ['#b91c1c', '#facc15'],
-    'sport recife': ['#b91c1c', '#facc15'],
-    'america mg': ['#15803d', '#ffffff'],
-    'brasilia': ['#dc2626', '#ffffff'],
-    'coritiba': ['#047857', '#ffffff'],
-    'chapecoense': ['#059669', '#ffffff'],
-    'goias': ['#047857', '#ffffff'],
-    'ceara': ['#09090b', '#ffffff'],
-    'fortaleza': ['#1d4ed8', '#dc2626'],
-    'sao bernardo': ['#ca8a04', '#09090b'],
-    'pantanal': ['#047857', '#eab308']
-  };
-
-  const pair = colorMap[n] || ['#1e1b4b', '#c7d2fe'];
-  const bg = pair[0];
-  const fg = pair[1] || '#ffffff';
-
-  return `<div class="crest-img-fallback" style="width:${size}px;height:${size}px;border-radius:6px;background:${bg};border:1.5px solid rgba(255,255,255,0.25);display:inline-flex;align-items:center;justify-content:center;font-size:${Math.max(8, Math.round(size*0.38))}px;font-weight:900;color:${fg};flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.5);letter-spacing:0.5px" title="${rawName}">${inits}</div>`;
+  return fallbackPill;
 };
 
 // Renderização oficial de fotos de jogadores
