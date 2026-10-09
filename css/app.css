@@ -1663,6 +1663,14 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
   z-index: 2;
 }
 
+.halftime-pitch-player * {
+  pointer-events: none;
+}
+
+.halftime-bench-card * {
+  pointer-events: none;
+}
+
 .halftime-pitch-player:hover {
   transform: translate(-50%, -50%) scale(1.12);
   z-index: 5;

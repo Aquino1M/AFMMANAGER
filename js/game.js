@@ -713,6 +713,10 @@ function openStadiumModal(initialTab){
   const cap = state.infrastructure?.stadium?.capacity || 3000;
   const cald = getCaldeiraoData();
   const stData = getStadiumExpansionData();
+  const unbuiltSide = ['norte', 'sul', 'leste', 'oeste'].find(s => !stData.sides[s]);
+  if(stData.sides[stadiumSelectedSide] && unbuiltSide){
+    stadiumSelectedSide = unbuiltSide;
+  }
   const u = {
     ...state.stadiumUpgrades,
     ...(stadiumPreviewUpgrade ? { [stadiumPreviewUpgrade]: true } : {})
@@ -1041,41 +1045,52 @@ function openStadiumModal(initialTab){
               <!-- Card Próxima Obra (Screenshot 1) -->
               <div style="background:#161226;border:1px solid #7c3aed;border-radius:14px;padding:16px">
                 <div style="display:flex;justify-content:space-between;align-items:center">
-                  <span style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase">PRÓXIMA OBRA - 1º ANEL</span>
-                  <span style="font-size:11px;color:rgba(255,255,255,0.5)">0 de 4 lados prontos</span>
+                  <span style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase">PRÓXIMA OBRA - ANEL ${stData.ring || 1}</span>
+                  <span style="font-size:11px;color:rgba(255,255,255,0.5)">
+                    ${['norte', 'sul', 'leste', 'oeste'].filter(s => stData.sides[s]).length} de 4 lados prontos
+                  </span>
                 </div>
 
                 <div style="margin-top:12px">
                   <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">1. Escolha o lado:</div>
                   <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:6px">
-                    ${['norte', 'sul', 'leste', 'oeste'].map(s => `
-                      <button class="btn btnSelectSide ${stadiumSelectedSide===s?'primary':''}" data-side="${s}" style="padding:6px;font-size:11px;font-weight:800;border-radius:8px">
-                        ${s}
-                      </button>
-                    `).join('')}
+                    ${['norte', 'sul', 'leste', 'oeste'].map(s => {
+                      const isSideDone = !!stData.sides[s];
+                      return `
+                        <button class="btn btnSelectSide ${stadiumSelectedSide===s?'primary':''}" data-side="${s}" style="padding:6px;font-size:11px;font-weight:800;border-radius:8px">
+                          ${s.toUpperCase()} ${isSideDone ? '✓' : ''}
+                        </button>
+                      `;
+                    }).join('')}
                   </div>
                 </div>
 
                 <!-- Métricas da Obra (Screenshot 1) -->
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:16px;text-align:center">
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
-                    <div style="color:var(--neon);font-size:16px;font-weight:900">+1.750</div>
-                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">lugares</div>
+                    <div style="color:var(--neon);font-size:16px;font-weight:900">+3.500</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">lugares novos</div>
                   </div>
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
-                    <div style="color:#fff;font-size:16px;font-weight:900">42</div>
-                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">dias de obra</div>
+                    <div style="color:#fff;font-size:16px;font-weight:900">Entrega</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">imediata no caixa</div>
                   </div>
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
-                    <div style="color:#f59e0b;font-size:16px;font-weight:900">800</div>
-                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">fechados na obra</div>
+                    <div style="color:#f59e0b;font-size:16px;font-weight:900">R$ 850k</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">custo da obra</div>
                   </div>
                 </div>
 
                 <div style="margin-top:16px">
-                  <button class="btn primary" id="btnStartSideWork" style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px">
-                    COMEÇAR A OBRA • R$ 850.000
-                  </button>
+                  ${stData.sides[stadiumSelectedSide] ? `
+                    <button class="btn" id="btnStartSideWork" disabled style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;background:#22c55e;color:#000;cursor:not-allowed;opacity:0.9">
+                      ✓ LADO ${stadiumSelectedSide.toUpperCase()} JÁ CONCLUÍDO NESTE ANEL
+                    </button>
+                  ` : `
+                    <button class="btn primary" id="btnStartSideWork" style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;cursor:pointer">
+                      COMEÇAR A OBRA • R$ 850.000 (LADO ${stadiumSelectedSide.toUpperCase()})
+                    </button>
+                  `}
                 </div>
               </div>
 
@@ -2145,67 +2160,91 @@ function openRedCardTacticalModal(sentOffPlayer, minute, reason, isUser){
 // =========================================================================
 // SISTEMA DE AMPLIAÇÃO DO ESTÁDIO (ANEL POR ANEL ATÉ 100K)
 // =========================================================================
-function buildStadiumSide(side, mode){
+let isBuildingStadiumSide = false;
+function buildStadiumSide(side, mode = 'cash'){
+  if(isBuildingStadiumSide) return;
   const stData = getStadiumExpansionData();
-  if(stData.sides[side]){
-    toast('Este setor já foi totalmente construído neste anel!');
+  const unbuiltSide = ['norte', 'sul', 'leste', 'oeste'].find(s => !stData.sides[s]);
+  if(!unbuiltSide){
+    toast('Todos os setores deste anel já foram concluídos! Avance para o próximo anel.');
     return;
   }
 
-  const cost = 850000;
-  const monthlyRev = Math.max(100000, (state.lastHome?.revenue || 400000) * 2 + 150000); // Estimativa de receita mensal
-  const maxAllowedInstallment = monthlyRev * 0.30;
-
-  if(mode === 'cash'){
-    if(state.balance < cost){
-      toast('Saldo em caixa insuficiente para pagamento à vista!');
-      return;
-    }
-    state.balance -= cost;
-    state.expense = (state.expense || 0) + cost;
-    toast(`Obra no Lado ${side.toUpperCase()} iniciada à vista por ${fmtMoney(cost)}!`);
-  } else {
-    const downPayment = cost * 0.20;
-    if(state.balance < downPayment){
-      toast(`Entrada de 20% (${fmtMoney(downPayment)}) insuficiente no caixa!`);
-      return;
-    }
-    const numMonths = mode === '6x' ? 6 : 12;
-    const interest = mode === '6x' ? 1.06 : 1.12; // 1% ao mês
-    const totalFinanced = (cost * 0.80) * interest;
-    const monthlyInst = Math.round(totalFinanced / numMonths);
-
-    if(monthlyInst > maxAllowedInstallment){
-      toast(`Aviso do Conselho Fiscal: A parcela de ${fmtMoney(monthlyInst)} ultrapassa 30% da receita mensal do clube (${fmtMoney(maxAllowedInstallment)})!`);
-      return;
-    }
-
-    state.balance -= downPayment;
-    state.expense = (state.expense || 0) + downPayment;
-    stData.debt = stData.debt || { remaining: 0, monthly: 0, monthsLeft: 0 };
-    stData.debt.remaining += totalFinanced;
-    stData.debt.monthly += monthlyInst;
-    stData.debt.monthsLeft = Math.max(stData.debt.monthsLeft, numMonths);
-
-    toast(`Obra iniciada! Entrada de ${fmtMoney(downPayment)} paga. Parcelas de ${fmtMoney(monthlyInst)}/mês cobradas dia 1º.`);
+  let targetSide = side || stadiumSelectedSide;
+  if(!targetSide || stData.sides[targetSide]){
+    targetSide = unbuiltSide;
+    stadiumSelectedSide = unbuiltSide;
   }
 
-  // Registra lado construído
-  stData.sides[side] = true;
-  state.infrastructure = state.infrastructure || {};
-  state.infrastructure.stadium = state.infrastructure.stadium || { level: 3, capacity: 18000 };
-  state.infrastructure.stadium.capacity = Math.min(100000, (state.infrastructure.stadium.capacity || 18000) + 3500);
+  isBuildingStadiumSide = true;
+  try {
+    const cost = 850000;
+    const monthlyRev = Math.max(100000, (state.lastHome?.revenue || 400000) * 2 + 150000); // Estimativa de receita mensal
+    const maxAllowedInstallment = monthlyRev * 0.30;
 
-  // Verifica se completou os 4 lados do anel
-  const allSidesDone = ['norte', 'sul', 'leste', 'oeste'].every(s => stData.sides[s]);
-  if(allSidesDone){
-    stData.ring = Math.min(stData.maxRings, stData.ring + 1);
-    stData.sides = { norte: false, sul: false, leste: false, oeste: false };
-    toast(`🎉 Sensacional! Todos os 4 lados foram concluídos! O estádio avançou para o Anel ${stData.ring}!`);
+    if(mode === 'cash'){
+      if(state.balance < cost){
+        toast('Saldo em caixa insuficiente para pagamento à vista!');
+        return;
+      }
+      state.balance -= cost;
+      state.expense = (state.expense || 0) + cost;
+      toast(`Obra no Setor ${targetSide.toUpperCase()} concluída à vista por ${fmtMoney(cost)}! Capacidade aumentada.`);
+    } else {
+      const downPayment = cost * 0.20;
+      if(state.balance < downPayment){
+        toast(`Entrada de 20% (${fmtMoney(downPayment)}) insuficiente no caixa!`);
+        return;
+      }
+      const numMonths = mode === '6x' ? 6 : 12;
+      const interest = mode === '6x' ? 1.06 : 1.12; // 1% ao mês
+      const totalFinanced = (cost * 0.80) * interest;
+      const monthlyInst = Math.round(totalFinanced / numMonths);
+
+      if(monthlyInst > maxAllowedInstallment){
+        toast(`Aviso do Conselho Fiscal: A parcela de ${fmtMoney(monthlyInst)} ultrapassa 30% da receita mensal do clube (${fmtMoney(maxAllowedInstallment)})!`);
+        return;
+      }
+
+      state.balance -= downPayment;
+      state.expense = (state.expense || 0) + downPayment;
+      stData.debt = stData.debt || { remaining: 0, monthly: 0, monthsLeft: 0 };
+      stData.debt.remaining += totalFinanced;
+      stData.debt.monthly += monthlyInst;
+      stData.debt.monthsLeft = Math.max(stData.debt.monthsLeft, numMonths);
+
+      toast(`Obra iniciada! Entrada de ${fmtMoney(downPayment)} paga. Parcelas de ${fmtMoney(monthlyInst)}/mês cobradas dia 1º.`);
+    }
+
+    // Registra lado construído
+    stData.sides[targetSide] = true;
+    state.infrastructure = state.infrastructure || {};
+    state.infrastructure.stadium = state.infrastructure.stadium || { level: 3, capacity: 18000 };
+    state.infrastructure.stadium.capacity = Math.min(100000, (state.infrastructure.stadium.capacity || 18000) + 3500);
+    if(state.stadium){
+      state.stadium.capacity = state.infrastructure.stadium.capacity;
+    }
+
+    // Próximo lado não construído para selecionar automaticamente
+    const nextUnbuilt = ['norte', 'sul', 'leste', 'oeste'].find(s => !stData.sides[s]);
+    if(nextUnbuilt){
+      stadiumSelectedSide = nextUnbuilt;
+    }
+
+    // Verifica se completou os 4 lados do anel
+    const allSidesDone = ['norte', 'sul', 'leste', 'oeste'].every(s => stData.sides[s]);
+    if(allSidesDone){
+      stData.ring = Math.min(stData.maxRings, stData.ring + 1);
+      stData.sides = { norte: false, sul: false, leste: false, oeste: false };
+      stadiumSelectedSide = 'norte';
+      toast(`🎉 Sensacional! Todos os 4 lados foram concluídos! O estádio avançou para o Anel ${stData.ring}!`);
+    }
+
+    save();
+    render();
+  } finally {
+    setTimeout(() => { isBuildingStadiumSide = false; }, 400);
   }
-
-  save();
-  render();
 }
 
 // =========================================================================
@@ -3144,14 +3183,23 @@ const HOUSE_ITEMS = [
 ];
 
 function getStadiumExpansionData(){
-  state.stadiumRingData = state.stadiumRingData || {
-    ring: 1,
-    maxRings: 4,
-    sides: { norte: true, sul: true, leste: false, oeste: false },
-    activeWork: null,
-    debt: { remaining: 0, monthly: 0, monthsLeft: 0 },
-    closedSeats: 0
-  };
+  if(!state.stadiumRingData){
+    state.stadiumRingData = {
+      ring: 1,
+      maxRings: 4,
+      sides: { norte: false, sul: false, leste: false, oeste: false },
+      activeWork: null,
+      debt: { remaining: 0, monthly: 0, monthsLeft: 0 },
+      closedSeats: 0
+    };
+  }
+  if(!state.stadiumRingData.sides){
+    state.stadiumRingData.sides = { norte: false, sul: false, leste: false, oeste: false };
+  }
+  // Correção de saves antigos onde norte e sul vinham travados como true
+  if(state.stadiumRingData.ring === 1 && state.stadiumRingData.sides.norte === true && state.stadiumRingData.sides.sul === true && state.stadiumRingData.sides.leste === false && state.stadiumRingData.sides.oeste === false && !state.stadiumRingData.activeWork && (!state.stadiumRingData.debt || state.stadiumRingData.debt.remaining === 0)){
+    state.stadiumRingData.sides = { norte: false, sul: false, leste: false, oeste: false };
+  }
   return state.stadiumRingData;
 }
 
@@ -3664,6 +3712,10 @@ function initCopaDoBrasilData(){
     ['Porto Velho', 'Genus']
   ];
 
+  if(state?.club && !allClubs.some(([h,a]) => norm(h)===norm(state.club) || norm(a)===norm(state.club))){
+    allClubs[0][1] = state.club;
+  }
+
   return {
     name: 'Copa do Brasil',
     season: 2026,
@@ -3673,41 +3725,98 @@ function initCopaDoBrasilData(){
       '1ª Fase': {
         name: '1ª Fase',
         status: 'EM DISPUTA',
+        isoDate: '2026-02-11',
         dateStr: 'qua, 11 fev 2026',
-        fixtures: allClubs.map(([h, a]) => ({ home: h, away: a, date: 'qua, 11 fev 2026', score: null }))
+        fixtures: allClubs.map(([h, a]) => ({ home: h, away: a, date: 'qua, 11 fev 2026', isoDate: '2026-02-11', score: null, winner: null }))
       },
       '2ª Fase': {
         name: '2ª Fase',
         status: 'A COMEÇAR',
+        isoDate: '2026-03-04',
         dateStr: 'qua, 04 mar 2026',
         fixtures: []
       },
       '3ª Fase': {
         name: '3ª Fase',
         status: 'A COMEÇAR',
+        isoDate: '2026-04-22',
         dateStr: 'qua, 22 abr 2026',
         fixtures: []
       },
       '4ª Fase': {
         name: '4ª Fase',
         status: 'A COMEÇAR',
+        isoDate: '2026-05-20',
         dateStr: 'qua, 20 mai 2026',
         fixtures: []
       },
       '5ª Fase': {
         name: '5ª Fase',
         status: 'A COMEÇAR',
+        isoDate: '2026-06-17',
         dateStr: 'qua, 17 jun 2026',
         fixtures: []
       },
       'Mata-Mata': {
         name: 'Mata-Mata',
         status: 'A COMEÇAR',
+        isoDate: '2026-08-05',
         dateStr: 'qua, 05 ago 2026',
         fixtures: []
       }
     }
   };
+}
+
+function processCopaDoBrasilCalendar(currentDate = state?.date){
+  if(!state || !currentDate) return;
+  const copa = getCopaDoBrasilState();
+  if(!copa || !copa.phases) return;
+
+  const phaseKeys = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Mata-Mata'];
+  for(let i = 0; i < phaseKeys.length; i++){
+    const k = phaseKeys[i];
+    const ph = copa.phases[k];
+    if(!ph || !ph.isoDate) continue;
+
+    // Se a data desta fase já passou no calendário atual:
+    if(ph.isoDate < currentDate){
+      const winners = [];
+      (ph.fixtures || []).forEach(f => {
+        if(!f.score){
+          const [hg, ag] = simulateScore(f.home, f.away);
+          let w = hg > ag ? f.home : (ag > hg ? f.away : (Math.random() < 0.5 ? f.home : f.away));
+          f.score = [hg, ag];
+          f.winner = w;
+        }
+        if(f.winner) winners.push(f.winner);
+      });
+
+      ph.status = 'CONCLUÍDO';
+
+      // Preenche a próxima fase se ainda não tiver confrontos
+      const nextKey = phaseKeys[i + 1];
+      if(nextKey && copa.phases[nextKey] && (!copa.phases[nextKey].fixtures || !copa.phases[nextKey].fixtures.length) && winners.length >= 2){
+        const nextFixtures = [];
+        for(let w = 0; w < winners.length - 1; w += 2){
+          nextFixtures.push({
+            home: winners[w],
+            away: winners[w+1],
+            date: copa.phases[nextKey].dateStr,
+            isoDate: copa.phases[nextKey].isoDate,
+            score: null,
+            winner: null
+          });
+        }
+        copa.phases[nextKey].fixtures = nextFixtures;
+      }
+    } else if(ph.isoDate === currentDate){
+      ph.status = 'EM DISPUTA';
+      copa.activePhase = k;
+    } else {
+      if(ph.status !== 'CONCLUÍDO') ph.status = 'A COMEÇAR';
+    }
+  }
 }
 
 function getCopaDoBrasilState(){
@@ -5644,31 +5753,53 @@ function lineupSector(){
 function overallSquad(){const x=lineupSector();return Math.round((x.atk+x.mid+x.def)/3)}
 function teamStrengthByName(name){if(norm(name)===norm(state.club))return overallSquad();return state.teams.find(t=>norm(t.name)===norm(name))?.strength||strength(clubByName(name)||{atk:66,mid:66,def:66})}
 
-// Janela de transferências (Verão: Jan-Mar, Inverno: Jul 10-Set 02)
+// =========================================================================
+// CONFIGURAÇÃO CENTRAL DAS JANELAS DE TRANSFERÊNCIA ANUAIS
+// =========================================================================
+const TRANSFER_WINDOWS = [
+  { startMonth: 1, startDay: 1, endMonth: 3, endDay: 1, name: 'Janela de Início de Temporada' },
+  { startMonth: 6, startDay: 1, endMonth: 8, endDay: 1, name: 'Janela de Meio de Temporada' }
+];
+
 function isTransferWindowOpen(dateStr){
   if(state?.freeTransferWindow) return true;
   if(!dateStr) return true;
-  const d = new Date(dateStr + 'T12:00:00');
-  const m = d.getMonth() + 1;
-  const day = d.getDate();
-  if(m >= 1 && m <= 3) return true;
-  if(m === 7 && day >= 10) return true;
-  if(m === 8) return true;
-  if(m === 9 && day <= 2) return true;
+  const parts = String(dateStr).split('-');
+  if(parts.length < 3) return true;
+  const m = parseInt(parts[1], 10);
+  const day = parseInt(parts[2], 10);
+
+  // Janela 1: 01/01 a 01/03 (inclusive)
+  if((m === 1) || (m === 2) || (m === 3 && day <= 1)){
+    return true;
+  }
+  // Janela 2: 01/06 a 01/08 (inclusive)
+  if((m === 6) || (m === 7) || (m === 8 && day <= 1)){
+    return true;
+  }
   return false;
 }
 
 function getTransferWindowInfo(dateStr){
+  if(state?.freeTransferWindow) {
+    return { open: true, text: 'Janela Aberta (Modo Livre)', nextOpenDate: 'Sempre Aberto', currentWindow: 'Livre' };
+  }
+  const parts = String(dateStr || '2026-01-01').split('-');
+  const m = parseInt(parts[1], 10) || 1;
+  const day = parseInt(parts[2], 10) || 1;
   const open = isTransferWindowOpen(dateStr);
-  if(state?.freeTransferWindow) return {open: true, text: 'Janela Aberta (Modo Livre)'};
-  const d = new Date(dateStr + 'T12:00:00');
-  const m = d.getMonth() + 1;
+
   if(open){
-    if(m <= 3) return {open: true, text: 'Janela Aberta (fecha em 31/03)'};
-    return {open: true, text: 'Janela Aberta (fecha em 02/09)'};
+    if(m <= 3){
+      return { open: true, text: 'Janela Aberta (fecha em 01/03)', nextOpenDate: '01/06', currentWindow: 'Início de Temporada' };
+    }
+    return { open: true, text: 'Janela Aberta (fecha em 01/08)', nextOpenDate: '01/01', currentWindow: 'Meio de Temporada' };
   } else {
-    if(m < 7) return {open: false, text: 'Janela Fechada (reabre em 10/07)'};
-    return {open: false, text: 'Janela Fechada (reabre em 01/01)'};
+    // Fora da janela: 02/03 -> 31/05 ou 02/08 -> 31/12
+    if(m < 6 || (m === 3 && day > 1)){
+      return { open: false, text: 'Janela Fechada (reabre em 01/06)', nextOpenDate: '01/06', currentWindow: null };
+    }
+    return { open: false, text: 'Janela Fechada (reabre em 01/01)', nextOpenDate: '01/01', currentWindow: null };
   }
 }
 
@@ -7215,6 +7346,176 @@ function userFixture(){
   return found || null;
 }
 
+// -------------------------------------------------------------
+// CENTRAL DE VALIDAÇÃO DE PARTIDA & FONTE DA VERDADE (CALENDÁRIO)
+// -------------------------------------------------------------
+function canStartMatch(fixture, gameState = state){
+  if(!gameState) return { canStart: false, reason: 'Nenhuma carreira ativa carregada.', status: 'invalid_state' };
+
+  // 1. Partida já em andamento
+  if(liveMatchState && !liveMatchState.done){
+    return { canStart: false, reason: 'Já existe uma partida ao vivo em andamento!', status: 'in_progress' };
+  }
+
+  // 2. Fim de temporada
+  const fixtures = currentFixtures();
+  if(!fixtures.length || (gameState.round >= (gameState.schedule?.length || 1))){
+    return { canStart: false, reason: 'A temporada atual já foi concluída.', status: 'season_finished' };
+  }
+
+  // 3. Partida existe
+  const uFix = fixture || userFixture();
+  if(!uFix || !Array.isArray(uFix) || uFix.length < 2){
+    return { canStart: false, reason: 'Nenhuma partida agendada para o seu clube nesta rodada.', status: 'no_fixture' };
+  }
+
+  // 4. Pertence ao clube
+  const myClubNorm = norm(gameState.club);
+  if(norm(uFix[0]) !== myClubNorm && norm(uFix[1]) !== myClubNorm){
+    return { canStart: false, reason: 'O confronto agendado não pertence ao seu clube.', status: 'wrong_club' };
+  }
+
+  // 5. Partida já foi disputada nesta rodada?
+  const alreadyPlayed = Array.isArray(gameState.history) && gameState.history.some(h => h.round === (gameState.round + 1) && h.season === gameState.season);
+  if(alreadyPlayed){
+    return { canStart: false, reason: 'A partida desta rodada já foi disputada e finalizada.', status: 'already_played' };
+  }
+
+  // 6. Data da Partida vs Data Atual (CALENDÁRIO É A FONTE DA VERDADE)
+  const matchDate = getDateForRound(gameState.round, gameState.season);
+  const curDate = gameState.date;
+
+  if(curDate < matchDate){
+    const d1 = new Date(curDate + 'T12:00:00');
+    const d2 = new Date(matchDate + 'T12:00:00');
+    const diffDays = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+    return {
+      canStart: false,
+      reason: `Partida futura! Faltam ${diffDays} ${diffDays === 1 ? 'dia' : 'dias'} até o confronto (${formatDatePtBr(matchDate)}). Avance o calendário até a data do jogo!`,
+      status: 'future',
+      daysDiff: diffDays,
+      matchDate,
+      curDate
+    };
+  }
+
+  // Se curDate > matchDate: situação de partida retroativa/atrasada (MISSED_FIXTURE)
+  if(curDate > matchDate){
+    return {
+      canStart: false,
+      reason: `Partida retroativa! A data desta rodada (${formatDatePtBr(matchDate)}) já passou em relação ao calendário atual (${formatDatePtBr(curDate)}).`,
+      status: 'missed',
+      matchDate,
+      curDate
+    };
+  }
+
+  // 7. Escalação mínima de 11 jogadores disponíveis
+  const starters = (gameState.lineup && gameState.lineup.length >= 11) ? gameState.lineup : (gameState.squad || []).slice(0, 11);
+  if(starters.length < 11){
+    return { canStart: false, reason: 'Escalação insuficiente: você precisa de pelo menos 11 atletas disponíveis no elenco.', status: 'invalid_lineup' };
+  }
+
+  return { canStart: true, reason: 'Partida pronta para o apito inicial!', status: 'playable', matchDate, curDate: gameState.date };
+}
+
+let isAdvancingTime = false;
+function advanceCalendarDays(days = 1, stopAtMatch = true){
+  if(!state || isAdvancingTime) return;
+  isAdvancingTime = true;
+  try {
+    const matchDate = getDateForRound(state.round, state.season);
+    let daysAdvanced = 0;
+
+    for(let i = 0; i < days; i++){
+      if(stopAtMatch && state.date >= matchDate){
+        break;
+      }
+
+      const curD = new Date(state.date + 'T12:00:00');
+      curD.setDate(curD.getDate() + 1);
+      const nextDateStr = curD.toISOString().slice(0, 10);
+      state.date = nextDateStr;
+      daysAdvanced++;
+
+      // 1. Pré-temporada (se ativa)
+      if(state.isPreSeason && state.preSeasonDays > 0){
+        state.preSeasonDays = Math.max(0, state.preSeasonDays - 1);
+        if(state.preSeasonDays <= 0){
+          state.isPreSeason = false;
+          state.news.unshift(`🏁 Fim da Janela de Pré-Temporada! Concentração total para os jogos oficiais.`);
+        }
+      }
+
+      // 2. Recuperação física dos atletas (+5% de energia por dia de descanso)
+      if(Array.isArray(state.squad)){
+        state.squad.forEach(p => {
+          p.stamina = Math.min(100, (p.stamina || 90) + 5);
+          if(p.injuryDays && p.injuryDays > 0){
+            p.injuryDays--;
+            if(p.injuryDays <= 0){
+              delete p.injuryDays;
+              delete p.injury;
+              delete p.injuryDesc;
+              state.news.unshift(`🩺 ALTA MÉDICA: ${p.name} recuperou-se 100% da lesão e foi reintegrado ao elenco!`);
+            }
+          }
+        });
+      }
+
+      // 3. Processamento bancário / mensalidade dia 1º
+      if(nextDateStr.endsWith('-01')){
+        if(typeof processBankLoansOnRound === 'function'){
+          processBankLoansOnRound();
+        }
+      }
+
+      // 4. Sincronização e avanço de fases da Copa do Brasil
+      processCopaDoBrasilCalendar(state.date);
+
+      if(stopAtMatch && state.date >= matchDate){
+        break;
+      }
+    }
+
+    save();
+    render();
+
+    if(state.date === matchDate){
+      const f = userFixture();
+      const opp = f ? (f[0] === state.club ? f[1] : f[0]) : 'Adversário';
+      toast(`🎯 Chegamos ao dia do jogo contra o ${opp}! O vestiário está pronto.`);
+    } else {
+      toast(`📅 Calendário avançado em ${daysAdvanced} ${daysAdvanced === 1 ? 'dia' : 'dias'}! Data atual: ${formatDatePtBr(state.date)}.`);
+    }
+  } finally {
+    setTimeout(() => { isAdvancingTime = false; }, 300);
+  }
+}
+
+// -------------------------------------------------------------
+// MÁQUINA DE ESTADOS DA PARTIDA AO VIVO
+// PRE_MATCH -> FIRST_HALF -> HALF_TIME -> SECOND_HALF -> FULL_TIME -> POST_MATCH
+// -------------------------------------------------------------
+function transitionMatchPhase(newPhase){
+  if(!liveMatchState) return false;
+  const validTransitions = {
+    'PRE_MATCH': ['FIRST_HALF'],
+    'FIRST_HALF': ['HALF_TIME'],
+    'HALF_TIME': ['SECOND_HALF'],
+    'SECOND_HALF': ['FULL_TIME'],
+    'FULL_TIME': ['POST_MATCH'],
+    'POST_MATCH': []
+  };
+  const current = liveMatchState.phase || 'FIRST_HALF';
+  if(validTransitions[current]?.includes(newPhase)){
+    liveMatchState.phase = newPhase;
+    return true;
+  }
+  console.warn(`[AFM] Transição de estado de partida bloqueada: ${current} -> ${newPhase}`);
+  return false;
+}
+
 function simulateScore(home,away){
   const hs=teamStrengthByName(home),as=teamStrengthByName(away);
   const tactical=name=>name===state.club?({Retranca:-.15,Defensiva:-.05,Equilibrada:0,Ofensiva:.12,'Pressão total':.2}[state.mentality]||0):0;
@@ -7583,7 +7884,15 @@ function finalizeRound(userRes, winners, isKO){
       console.warn('AFM30 round cycle error:', err);
     }
   }
-  state.date = getDateForRound(state.round, state.season);
+
+  // Avança a data para o dia seguinte ao confronto concluído
+  try {
+    const curD = new Date(state.date + 'T12:00:00');
+    curD.setDate(curD.getDate() + 1);
+    state.date = curD.toISOString().slice(0, 10);
+  } catch(e){
+    state.date = getDateForRound(state.round, state.season);
+  }
 
   // Verifica se o clube recebe novas propostas de patrocínio com base na fama e fase do time
   if(state.round % 3 === 0 || Math.random() < 0.40){
@@ -8342,19 +8651,28 @@ function skipPreSeason(){
   render();
 }
 
+let isStartingLiveMatch = false;
 function startLiveMatch(){
-  if(state && state.isPreSeason && state.preSeasonDays > 0){
-    state.isPreSeason = false;
-    state.preSeasonDays = 0;
-    state.date = getDateForRound(state.round || 0, state.season);
-    toast('Janela de pré-temporada encerrada para início da 1ª rodada!');
-  }
-  const fixtures = currentFixtures();
-  if(!fixtures.length || (state.round >= (state.schedule?.length || 1))){
-    showEndOfSeasonModal();
+  if(isStartingLiveMatch) return;
+  const matchGate = canStartMatch();
+  if(!matchGate.canStart){
+    toast(`⚠️ ${matchGate.reason}`);
     return;
   }
-  let f = userFixture();
+
+  isStartingLiveMatch = true;
+  try {
+    if(state && state.isPreSeason && state.preSeasonDays > 0){
+      state.isPreSeason = false;
+      state.preSeasonDays = 0;
+      state.date = getDateForRound(state.round || 0, state.season);
+    }
+    const fixtures = currentFixtures();
+    if(!fixtures.length || (state.round >= (state.schedule?.length || 1))){
+      showEndOfSeasonModal();
+      return;
+    }
+    let f = userFixture();
   if(!f){
     const opp = state.teams?.find(t => norm(t.name) !== norm(state.club))?.name || 'Adversário';
     f = [state.club, opp];
@@ -8399,7 +8717,7 @@ function startLiveMatch(){
   const stadiumUpgrades = isUserHome ? (state.stadiumUpgrades || {}) : { chairs: true, screen: false, ledRing: false, flares: false, ledLights: true };
   const attendance = isUserHome ? proj.attendance : Math.round(stadiumCap * clamp(0.3 + (hs/150), 0.15, 0.95));
 
-  // Constrói os 11 titulares para cada equipe
+  // Constrói os 11 titulares para cada equipe com validação rigorosa de posições
   function buildMatchTeam(teamName, isUser, isHomeSide){
     const formKey = isUser ? (state.formation || '4-3-3') : '4-3-3';
     const formDef = FORMATIONS[formKey] || FORMATIONS['4-3-3'];
@@ -8418,17 +8736,24 @@ function startLiveMatch(){
         const slot = formDef[i] || { r: p.pos || 'CM', x: 50, y: 50 };
         const baseXPct = isHomeSide ? (slot.y * 0.45) : (100 - slot.y * 0.45);
         const baseYPct = slot.x;
+        const isGoalkeeper = (i === 0);
         players.push({
+          type: 'PLAYER',
           id: `u-${i}`,
           key: playerKey(p),
           name: p.name.split(' ').pop() || p.name,
           fullName: p.name,
-          pos: p.pos || slot.r,
+          pos: isGoalkeeper ? 'GK' : (slot.r || p.pos || 'CM'),
           overall: playerOverall(p) || 65,
           stamina: 100,
-          isGK: (p.pos === 'GK' || slot.r === 'GK' || i === 0),
+          isGK: isGoalkeeper,
+          canScore: !isGoalkeeper,
+          canShoot: !isGoalkeeper,
+          canAssist: true,
           isCaptain: (state.setPieces?.captain === playerKey(p) || (!state.setPieces?.captain && i === 1)),
           team: isHomeSide ? 'home' : 'away',
+          clubId: teamName,
+          teamId: isHomeSide ? 'home' : 'away',
           isUser: true,
           photo: (window.PLAYER_PHOTOS && (window.PLAYER_PHOTOS[p.name] || window.PLAYER_PHOTOS[norm(p.name)])) || null,
           x: baseXPct,
@@ -8445,22 +8770,38 @@ function startLiveMatch(){
     } else {
       const liveOpp = livePlayers.filter(p => norm(p.club) === norm(teamName));
       const oppRoster = (liveOpp.length >= 11 ? liveOpp : null) || (window.BASE_CLUBS?.find(c => norm(c.name) === norm(teamName))?.roster) || generatedRosterForClub(teamName);
+      // Separa estritamente o goleiro dos jogadores de linha para nunca colocar 2 GKs em campo
+      const oppGK = oppRoster.find(p => p.pos === 'GK') || oppRoster[0];
+      const oppOutfield = oppRoster.filter(p => p !== oppGK && p.pos !== 'GK');
+
       for(let i=0; i<11; i++){
-        const p = oppRoster[i] || { name: `${NAMES[i%NAMES.length]} ${LAST[i%LAST.length]}`, pos: formDef[i]?.r || 'CM', fc: 64 };
-        const slot = formDef[i] || { r: p.pos || 'CM', x: 50, y: 50 };
+        const isGoalkeeper = (i === 0);
+        let p;
+        if(isGoalkeeper){
+          p = oppGK;
+        } else {
+          p = oppOutfield[i - 1] || oppRoster.find(x => x !== oppGK && !players.some(pl => pl.fullName === x.name)) || { name: `${NAMES[i%NAMES.length]} ${LAST[i%LAST.length]}`, pos: formDef[i]?.r || 'CM', fc: 64 };
+        }
+        const slot = formDef[i] || { r: isGoalkeeper ? 'GK' : 'CM', x: 50, y: 50 };
         const baseXPct = isHomeSide ? (slot.y * 0.45) : (100 - slot.y * 0.45);
         const baseYPct = slot.x;
         players.push({
+          type: 'PLAYER',
           id: `opp-${i}`,
           key: `opp-${i}`,
           name: p.name.split(' ').pop() || p.name,
           fullName: p.name,
-          pos: p.pos || slot.r,
+          pos: isGoalkeeper ? 'GK' : (slot.r || p.pos || 'CM'),
           overall: p.fc || p.pes || 64,
           stamina: 100,
-          isGK: (p.pos === 'GK' || slot.r === 'GK' || i === 0),
+          isGK: isGoalkeeper,
+          canScore: !isGoalkeeper,
+          canShoot: !isGoalkeeper,
+          canAssist: true,
           isCaptain: (i === 1),
           team: isHomeSide ? 'home' : 'away',
+          clubId: teamName,
+          teamId: isHomeSide ? 'home' : 'away',
           isUser: false,
           photo: null,
           x: baseXPct,
@@ -8482,25 +8823,54 @@ function startLiveMatch(){
   const awayPlayers = buildMatchTeam(away, norm(away) === norm(state.club), false);
 
   const rivalry = isRivalryMatch(home, away);
+  const matchSeed = (Date.now() ^ (Math.random() * 0x100000000)) >>> 0;
+
+  const referee = {
+    type: 'REFEREE',
+    id: `ref_${matchSeed}`,
+    name: 'Árbitro Principal',
+    x: 50,
+    y: 50,
+    baseX: 50,
+    baseY: 50,
+    animFrame: 0,
+    canScore: false,
+    canShoot: false,
+    canAssist: false,
+    isGK: false
+  };
 
   liveMatchState = {
+    matchId: 'MAT_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+    seed: matchSeed,
+    prng: createMatchPRNG(matchSeed),
+    simMinute: 0,
+    simTicks: 0,
+    renderTicks: 0,
+    simAccumulator: 0,
+    lastLoopTime: performance.now(),
+    debugMode: true,
     home, away, isKO,
     hg: 0, ag: 0,
     timeSec: 0, // 0 a 5400 segundos (90 min)
     minute: 0,
     playing: true,
-    speed: 1, // 1, 20, 40
+    speed: 1, // 1, 2, 5, 10, 20, 40
     isNight: (Math.random() < 0.50) || (state.weather && state.weather.includes('Noite')),
     derby: rivalry?.isRivalry ? rivalry.derbyName : '',
     balloons: [],
     varCheck: null,
     events: [
-      { min: 0, type: 'whistle', text: `${rivalry?.isRivalry ? `🔥 GRANDE CLÁSSICO: ${rivalry.derbyName.toUpperCase()}! ` : ''}Começa o jogo! ${home} e ${away} em campo no ${stadiumName}.` }
+      { id: `MAT_${Date.now()}_ev_0`, matchId: 'MAT_' + Date.now(), min: 0, type: 'whistle', text: `${rivalry?.isRivalry ? `🔥 GRANDE CLÁSSICO: ${rivalry.derbyName.toUpperCase()}! ` : ''}Começa o jogo! ${home} e ${away} em campo no ${stadiumName}.` }
     ],
+    timeline: [],
+    recentPlayPatterns: [],
+    referee,
     stats: {
       posH: 50, posA: 50,
       shotsH: 0, shotsA: 0,
       targetH: 0, targetA: 0,
+      xGH: 0.0, xGA: 0.0,
       foulsH: 0, foulsA: 0,
       cornersH: 0, cornersA: 0,
       yellowsH: 0, yellowsA: 0,
@@ -8530,12 +8900,17 @@ function startLiveMatch(){
     },
     particles: [],
     soundMuted: false,
+    phase: 'FIRST_HALF',
+    subbedOut: [],
     winners,
     done: false
   };
 
   playWhistleSound();
   renderLiveMatchModal();
+  } finally {
+    setTimeout(() => { isStartingLiveMatch = false; }, 400);
+  }
 }
 
 function renderLiveMatchModal(){
@@ -8619,6 +8994,9 @@ function renderLiveMatchModal(){
               <span>Pausado · toque para continuar</span>
             </div>
 
+            <!-- PAINEL DE TELEMETRIA DO MATCH ENGINE -->
+            <div id="liveTelemetryHud" style="position:absolute;top:14px;left:14px;background:rgba(15,23,42,0.92);border:1px solid rgba(56,189,248,0.4);border-radius:10px;padding:8px 12px;font-family:monospace;font-size:11px;color:#bae6fd;line-height:1.45;z-index:90;display:${s.debugMode?'block':'none'};pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,0.5)"></div>
+
             <!-- CANVAS 1280x720 DA TRANSMISSÃO -->
             <canvas id="liveMatchCanvas" class="live-match-canvas" width="1280" height="720" aria-label="Transmissão da partida"></canvas>
           </div>
@@ -8675,8 +9053,10 @@ function renderLiveMatchModal(){
         </div>
 
         <div class="live-dock-controls">
-          <button class="live-ctrl-btn" id="btnLiveRewind10" title="Voltar 10 segundos">⏮ 10 s</button>
           <button class="live-ctrl-btn ${s.speed === 1 ? 'active' : ''}" id="btnLiveSpeed1">1x</button>
+          <button class="live-ctrl-btn ${s.speed === 2 ? 'active' : ''}" id="btnLiveSpeed2">2x</button>
+          <button class="live-ctrl-btn ${s.speed === 5 ? 'active' : ''}" id="btnLiveSpeed5">5x</button>
+          <button class="live-ctrl-btn ${s.speed === 10 ? 'active' : ''}" id="btnLiveSpeed10">10x</button>
           <button class="live-ctrl-btn ${s.speed === 20 ? 'active' : ''}" id="btnLiveSpeed20">20x</button>
           <button class="live-ctrl-btn ${s.speed === 40 ? 'active' : ''}" id="btnLiveSpeed40">40x</button>
           
@@ -8684,15 +9064,17 @@ function renderLiveMatchModal(){
             ${s.playing ? '⏸' : '▶'}
           </button>
           
-          <button class="live-ctrl-btn" id="btnLiveForward1" title="Avançar 1 minuto">⏩ 1 min</button>
+          <button class="live-ctrl-btn" id="btnLiveForward1" title="Avançar 1 minuto no jogo">⏩ 1 min</button>
           <button class="live-ctrl-btn green-tactics" id="btnLiveTactics" title="Substituições e Tática">
             ⚡ MEXER NO TIME
           </button>
-          <button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Pular para o intervalo">⏩| PULAR 1º TEMPO</button>
+          ${s.phase === 'FIRST_HALF' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Pular para o intervalo">⏩| PULAR 1º TEMPO</button>` : (s.phase === 'HALF_TIME' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Iniciar 2º Tempo">▶ INICIAR 2º TEMPO</button>` : '')}
           <button class="live-ctrl-btn" id="btnLiveSkipEnd" title="Simular até o apito final">⏭| IR AO FIM</button>
-          <button class="live-ctrl-btn" id="btnLiveReplay" title="Rever último lance">↺ REPLAY</button>
           <button class="live-ctrl-btn" id="btnLiveSound" title="Ligar/Desligar som">
             ${s.soundMuted ? '🔇 MUDO' : '🔊 SOM'}
+          </button>
+          <button class="live-ctrl-btn" id="btnToggleTelemetry" title="Ligar/Desligar Painel de Telemetria" style="font-size:10px">
+            🐞 HUD
           </button>
           ${s.done ? `<button class="live-ctrl-btn" id="btnLiveAdvanceRound" style="background:#22c55e;color:#000;font-weight:900">AVANÇAR RODADA ➔</button>` : ''}
         </div>
@@ -8720,13 +9102,34 @@ function setupLiveCanvasLoop(){
       return;
     }
 
-    // Se estiver jogando, executa os ticks da partida baseados na velocidade
-    if(s.playing && !s.done){
-      const dtSec = s.speed === 40 ? 1.6 : s.speed === 20 ? 0.8 : 0.08;
-      updateLiveMatchPhysics(dtSec);
+    s.renderTicks = (s.renderTicks || 0) + 1;
+
+    // Simulation Clock Step (Desacoplado da taxa de quadros do monitor)
+    if(s.playing && !s.done && s.phase !== 'HALF_TIME'){
+      const now = performance.now();
+      if(!s.lastLoopTime) s.lastLoopTime = now;
+      const dtMs = Math.min(now - s.lastLoopTime, 250);
+      s.lastLoopTime = now;
+
+      // Velocidade do motor: milissegundos reais por minuto simulado
+      // 1x = 1000ms, 2x = 500ms, 5x = 200ms, 10x = 100ms, 20x = 50ms, 40x = 25ms
+      const msPerMin = Math.max(15, Math.round(1000 / (s.speed || 1)));
+      s.simAccumulator = (s.simAccumulator || 0) + dtMs;
+
+      while(s.simAccumulator >= msPerMin && s.playing && !s.done && s.phase !== 'HALF_TIME'){
+        s.simAccumulator -= msPerMin;
+        if(s.minute < 90){
+          simulateMinute(s, s.minute + 1);
+        }
+      }
+    } else {
+      s.lastLoopTime = performance.now();
     }
 
+    updateLiveCanvasPositions(s);
     drawLiveStadium(ctx, s);
+    updateTelemetryHud(s);
+
     liveCanvasAnimId = requestAnimationFrame(loop);
   }
   liveCanvasAnimId = requestAnimationFrame(loop);
@@ -9060,12 +9463,17 @@ function drawLiveStadium(ctx, s){
   // 7. Bancos de Reservas na Linha Inferior
   drawDugouts(ctx, s);
 
-  // 8. Desenha Todos os Jogadores Ordenados por Y (profundidade)
-  const allPlayers = [...s.homePlayers, ...s.awayPlayers];
-  allPlayers.sort((a, b) => a.y - b.y);
+  // 8. Desenha Todos os Jogadores e Árbitro Ordenados por Y (profundidade)
+  const pitchEntities = [...s.homePlayers, ...s.awayPlayers];
+  if(s.referee) pitchEntities.push(s.referee);
+  pitchEntities.sort((a, b) => a.y - b.y);
 
-  allPlayers.forEach(p => {
-    drawPlayerSprite(ctx, p, s.ball.carrier === p);
+  pitchEntities.forEach(ent => {
+    if(ent.type === 'REFEREE'){
+      drawRefereeSprite(ctx, ent);
+    } else {
+      drawPlayerSprite(ctx, ent, s.ball?.carrier === ent);
+    }
   });
 
   // 9. Desenha a Bola de Futebol
@@ -9370,6 +9778,67 @@ function drawPlayerSprite(ctx, p, hasBall){
   ctx.restore();
 }
 
+// Desenha o sprite do árbitro no gramado com uniforme e movimentação distinta
+function drawRefereeSprite(ctx, ref){
+  if(!ref) return;
+  const pt = proj(ref.x, ref.y);
+  const scale = 0.8 + (ref.y / 100) * 0.45;
+  ctx.save();
+  ctx.translate(pt.x, pt.y);
+
+  // Sombra
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 7 * scale, 3 * scale, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pernas
+  const legOffset = Math.sin(ref.animFrame || 0) * (3 * scale);
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(-3 * scale, -4 * scale + legOffset, 2.5 * scale, 5 * scale);
+  ctx.fillRect(1 * scale, -4 * scale - legOffset, 2.5 * scale, 5 * scale);
+
+  // Shorts
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(-4.5 * scale, -10 * scale, 9 * scale, 6 * scale);
+
+  // Camisa de Árbitro (Amarelo Neon fluorescente #eab308)
+  ctx.fillStyle = '#eab308';
+  ctx.fillRect(-5 * scale, -20 * scale, 10 * scale, 10 * scale);
+
+  // Gola preta
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(-2 * scale, -20 * scale, 4 * scale, 2.5 * scale);
+
+  // Braços
+  ctx.fillStyle = '#fed7aa';
+  ctx.fillRect(-7 * scale, -18 * scale, 2.5 * scale, 7 * scale);
+  ctx.fillRect(4.5 * scale, -18 * scale, 2.5 * scale, 7 * scale);
+
+  // Cabeça
+  ctx.fillStyle = '#fed7aa';
+  ctx.beginPath();
+  ctx.arc(0, -25 * scale, 4.5 * scale, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Cabelo preto
+  ctx.fillStyle = '#1e293b';
+  ctx.beginPath();
+  ctx.arc(0, -26.5 * scale, 4.5 * scale, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  // Nome "Árbitro"
+  ctx.fillStyle = '#fef08a';
+  ctx.font = `bold ${Math.round(7.5 * scale)}px Inter, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.shadowColor = '#000000';
+  ctx.shadowBlur = 4;
+  ctx.fillText('Árbitro', 0, 11 * scale);
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
 // Desenha a Bola com sombra 3D, rotação e rastro de chute
 function drawBall(ctx, b){
   const pt = proj(b.x, b.y);
@@ -9453,218 +9922,673 @@ function generateGoalNarration(shooter, teamName, isHome){
   return standard[Math.floor(Math.random() * standard.length)];
 }
 
-function simulateMatchSegment(startMin, endMin){
-  const s = liveMatchState;
-  if(!s) return;
-  const hs = teamStrengthByName(s.home) * 1.12; // Bônus de mando de campo (+12%)
-  const as = teamStrengthByName(s.away);
-  
-  let curM = Math.max(startMin + rnd(2, 4), 1);
-  while(curM <= endMin){
-    const hRoll = hs * (0.85 + Math.random() * 0.35);
-    const aRoll = as * (0.85 + Math.random() * 0.35);
-    const isHomeAttack = Math.random() < (hRoll / (hRoll + aRoll));
-    const attackingTeam = isHomeAttack ? s.home : s.away;
-    const defendingTeam = isHomeAttack ? s.away : s.home;
-    const attackingPlayers = isHomeAttack ? s.homePlayers : s.awayPlayers;
-    const defendingPlayers = isHomeAttack ? s.awayPlayers : s.homePlayers;
-    
-    const forwards = attackingPlayers.filter(p => ['ST', 'CF', 'RW', 'LW', 'AM'].includes(p.pos));
-    const shooter = (forwards.length && Math.random() < 0.75) 
-      ? forwards[Math.floor(Math.random() * forwards.length)] 
-      : attackingPlayers[Math.floor(Math.random() * (attackingPlayers.length - 1)) + 1];
-    const gk = defendingPlayers[0] || { name: 'Goleiro' };
-
-    if(isHomeAttack) s.stats.shotsH++; else s.stats.shotsA++;
-    const roll = Math.random();
-    const ovr = shooter.overall || 65;
-    const isUnderdog = isHomeAttack ? (hs < as - 5) : (as < hs - 5);
-    const underdogBonus = isUnderdog ? 0.08 : 0;
-    const goalProb = clamp((ovr - 55) * 0.012 + (isHomeAttack ? 0.22 : 0.18) + underdogBonus, 0.14, 0.44);
-
-    if(roll < goalProb){
-      if(isHomeAttack) s.hg++; else s.ag++;
-      const txt = generateGoalNarration(shooter, attackingTeam, isHomeAttack);
-      s.events.unshift({ min: curM, type: 'gol', text: txt });
-      if(window.AFM30) window.AFM30.audio.play('goal');
-    } else if(roll < goalProb + 0.45){
-      if(isHomeAttack) s.stats.targetH++; else s.stats.targetA++;
-      const saveTexts = [
-        `🧤 ESPETACULAR! ${gk.name} salta no cantinho e faz defesa milagrosa em finalização de ${shooter.name}!`,
-        `🧤 DEFESASSA! ${shooter.name} bate colocado de fora da área e ${gk.name} espalma com a ponta dos dedos!`,
-        `🧤 MILAGRE! Cara a cara com ${shooter.name}, o goleiro ${gk.name} cresce e fecha o ângulo!`
-      ];
-      s.events.unshift({ min: curM, type: 'save', text: saveTexts[Math.floor(Math.random() * saveTexts.length)] });
-      if(isHomeAttack) s.stats.cornersH++; else s.stats.cornersA++;
-    } else if(roll < goalProb + 0.58){
-      s.events.unshift({ min: curM, type: 'post', text: `💥 NO POSTE! ${shooter.name} solta uma bomba que carimba o travessão do ${defendingTeam}!` });
-    } else if(Math.random() < 0.40){
-      const def = defendingPlayers[Math.floor(Math.random() * (defendingPlayers.length - 1)) + 1];
-      if(isHomeAttack) s.stats.foulsA++; else s.stats.foulsH++;
-      if(Math.random() < 0.35){
-        if(!isHomeAttack) s.stats.yellowsH++; else s.stats.yellowsA++;
-        s.events.unshift({ min: curM, type: 'yellow', text: `🟨 Cartão amarelo para ${def.name} por entrada dura.` });
-      } else {
-        s.events.unshift({ min: curM, type: 'whistle', text: `⚔️ Desarme forte de ${def.name} na linha de fundo.` });
-      }
-    } else {
-      s.events.unshift({ min: curM, type: 'whistle', text: `⚡ Jogada rápida do ${attackingTeam}: ${shooter.name} arrisca cruzado e a bola passa tirando tinta da trave!` });
-    }
-
-    curM += rnd(4, 8);
+function getPostureConfig(posture){
+  switch(posture){
+    case 'Retranca':
+      return { lineOffset: -16, pressSpeed: 0.05, shotFreq: 0.022, tackleBonus: 0.18, stamBurn: 0.75, speedMult: 0.85 };
+    case 'Defensiva':
+      return { lineOffset: -9, pressSpeed: 0.07, shotFreq: 0.032, tackleBonus: 0.10, stamBurn: 0.88, speedMult: 0.92 };
+    case 'Ofensiva':
+      return { lineOffset: +13, pressSpeed: 0.11, shotFreq: 0.065, tackleBonus: 0.00, stamBurn: 1.25, speedMult: 1.15 };
+    case 'Pressão total':
+      return { lineOffset: +23, pressSpeed: 0.16, shotFreq: 0.090, tackleBonus: 0.22, stamBurn: 1.70, speedMult: 1.30 };
+    default: // Equilibrada
+      return { lineOffset: 0, pressSpeed: 0.08, shotFreq: 0.045, tackleBonus: 0.00, stamBurn: 1.0, speedMult: 1.0 };
   }
 }
 
-// Atualiza a física e movimentação realista da partida
-function updateLiveMatchPhysics(dtSec){
-  const s = liveMatchState;
+// =========================================================================
+// MATCH ENGINE DESACOPLADO E DETERMINÍSTICO (Mulberry32 PRNG & Phase Engine)
+// =========================================================================
+
+function createMatchPRNG(seed){
+  let s = (Number(seed) >>> 0) || 123456789;
+  return function(){
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function simulateMinute(s, min){
   if(!s || s.done) return;
+  s.minute = min;
+  s.simMinute = min;
+  s.simTicks = (s.simTicks || 0) + 1;
+  s.timeSec = min * 60;
 
-  // Temporizador de comemoração de gol
-  if(s.goalCelebrationTimer > 0){
-    s.goalCelebrationTimer -= dtSec;
-    // Anima jogadores correndo para comemorar
-    const scorer = s.lastScorer;
-    const team = scorer?.team === 'home' ? s.homePlayers : s.awayPlayers;
-    if(scorer){
-      scorer.x += (scorer.targetX - scorer.x) * 0.08;
-      scorer.y += (scorer.targetY - scorer.y) * 0.08;
-      scorer.animFrame = (scorer.animFrame || 0) + 0.3;
-      team.forEach(p => {
-        if(p !== scorer){
-          p.x += (scorer.x - p.x) * 0.05;
-          p.y += (scorer.y - p.y) * 0.05;
-          p.animFrame = (p.animFrame || 0) + 0.2;
-          p.celebrating = true;
-        }
-      });
-    }
-    if(s.goalCelebrationTimer <= 0){
-      team.forEach(p => { p.celebrating = false; });
-      if(scorer) scorer.celebrating = false;
-      s.awayPlayers.forEach(p => { p.diving = false; });
-      s.homePlayers.forEach(p => { p.diving = false; });
-      resetKickoff(scorer?.team === 'home' ? 'away' : 'home');
-    }
-    return;
-  }
-
-  s.timeSec += dtSec * 12; // Avanço proporcional do tempo
-  s.minute = Math.floor(s.timeSec / 60);
-
-  // Atualiza o relógio no topo
-  const minDisp = String(Math.floor(s.timeSec / 60)).padStart(2, '0');
-  const secDisp = String(Math.floor(s.timeSec % 60)).padStart(2, '0');
+  // Atualiza relógio visual
+  const minDisp = String(min).padStart(2, '0');
   const clk = $('#liveClockDisplay');
-  if(clk) clk.textContent = `${minDisp}:${secDisp}`;
+  if(clk) clk.textContent = `${minDisp}:00`;
 
-
-  // Configurações e Modificadores de Postura Tática
-  function getPostureConfig(posture){
-    switch(posture){
-      case 'Retranca':
-        return { lineOffset: -16, pressSpeed: 0.05, shotFreq: 0.022, tackleBonus: 0.18, stamBurn: 0.75, speedMult: 0.85 };
-      case 'Defensiva':
-        return { lineOffset: -9, pressSpeed: 0.07, shotFreq: 0.032, tackleBonus: 0.10, stamBurn: 0.88, speedMult: 0.92 };
-      case 'Ofensiva':
-        return { lineOffset: +13, pressSpeed: 0.11, shotFreq: 0.065, tackleBonus: 0.00, stamBurn: 1.25, speedMult: 1.15 };
-      case 'Pressão total':
-        return { lineOffset: +23, pressSpeed: 0.16, shotFreq: 0.090, tackleBonus: 0.22, stamBurn: 1.70, speedMult: 1.30 };
-      default: // Equilibrada
-        return { lineOffset: 0, pressSpeed: 0.08, shotFreq: 0.045, tackleBonus: 0.00, stamBurn: 1.0, speedMult: 1.0 };
-    }
-  }
-
+  // 1. Postura tática e desgaste de Stamina por minuto de jogo
   const hCfg = getPostureConfig(s.homePosture || 'Equilibrada');
   const aCfg = getPostureConfig(s.awayPosture || 'Equilibrada');
+  const pitchBurn = s.stadium.pitch === 'synthetic' ? 1.25 : 1.0;
+  const baseBurnPerMin = 0.38 * pitchBurn;
 
-  // Efeito Direto da Preleção (afeta o time do usuário)
   const isUserHome = (s.home === state.club);
   const speech = s.prelecao || 'Sem preleção';
   let speechShotMod = 1.0, speechTackleMod = 1.0, speechPassMod = 1.0, speechStamMod = 1.0;
-  if(speech === 'Manter a calma'){
-    speechPassMod = 1.35; // Passes mais seguros
-    speechStamMod = 0.85; // Menor desgaste
-  } else if(speech === 'Cobrar o time'){
-    speechShotMod = 1.30; // Mais chutes
-    speechStamMod = 1.10;
-  } else if(speech === 'Elogiar o time'){
-    speechShotMod = 1.20; // Mais pontaria e moral
-    speechStamMod = 0.95;
-  } else if(speech === 'Pedir raça'){
-    speechTackleMod = 1.40; // Desarmes duros e pressão agressiva
-    speechStamMod = 1.25; // Maior desgaste físico
+  if(speech === 'Manter a calma'){ speechPassMod = 1.25; speechStamMod = 0.85; }
+  else if(speech === 'Cobrar o time'){ speechShotMod = 1.25; speechStamMod = 1.10; }
+  else if(speech === 'Elogiar o time'){ speechShotMod = 1.15; speechStamMod = 0.95; }
+  else if(speech === 'Pedir raça'){ speechTackleMod = 1.30; speechStamMod = 1.25; }
+
+  s.homePlayers.forEach(p => {
+    if(!p.isGK){
+      const stamMod = hCfg.stamBurn * (isUserHome ? speechStamMod : 1.0);
+      p.stamina = Math.max(15, (p.stamina || 100) - baseBurnPerMin * stamMod);
+    }
+  });
+  s.awayPlayers.forEach(p => {
+    if(!p.isGK){
+      const stamMod = aCfg.stamBurn * (!isUserHome ? speechStamMod : 1.0);
+      p.stamina = Math.max(15, (p.stamina || 100) - baseBurnPerMin * stamMod);
+    }
+  });
+
+  // 2. Força e posse de bola relativa
+  const hs = teamStrengthByName(s.home) * 1.08; // 8% fator casa
+  const as = teamStrengthByName(s.away);
+  const hStamAvg = s.homePlayers.reduce((acc, p) => acc + (p.stamina || 100), 0) / 11;
+  const aStamAvg = s.awayPlayers.reduce((acc, p) => acc + (p.stamina || 100), 0) / 11;
+  const hStamFactor = 0.85 + 0.15 * (hStamAvg / 100);
+  const aStamFactor = 0.85 + 0.15 * (aStamAvg / 100);
+
+  const effH = hs * hStamFactor * (hCfg.speedMult || 1.0);
+  const effA = as * aStamFactor * (aCfg.speedMult || 1.0);
+
+  const posShareH = effH / (effH + effA);
+  s.stats.posH = Math.round(s.stats.posH * 0.94 + (posShareH * 100) * 0.06);
+  s.stats.posA = 100 - s.stats.posH;
+
+  const isHomeAttacking = s.prng() < posShareH;
+  const attTeam = isHomeAttacking ? s.home : s.away;
+  const defTeam = isHomeAttacking ? s.away : s.home;
+  const attPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
+  const defPlayers = isHomeAttacking ? s.awayPlayers : s.homePlayers;
+  const attCfg = isHomeAttacking ? hCfg : aCfg;
+  const defCfg = isHomeAttacking ? aCfg : hCfg;
+
+  // Atualiza portador visual da bola
+  const carrierPool = attPlayers.filter(p => !p.isGK && !p.redCard);
+  s.ball.carrier = carrierPool[Math.floor(s.prng() * carrierPool.length)] || attPlayers[9];
+  s.ball.isHomeAttacking = isHomeAttacking;
+
+  // 3. Chance de Ataque Perigoso no minuto (~34% base)
+  const attackChance = 0.34 * (attCfg.speedMult || 1.0);
+  const isDangerousPhase = s.prng() < attackChance;
+
+  if(isDangerousPhase){
+    // Checagem de combate defensivo (Falta ou Desarme)
+    const foulChance = 0.18 + (defCfg.tackleBonus || 0);
+    const isFoul = s.prng() < foulChance;
+
+    if(isFoul){
+      if(isHomeAttacking) s.stats.foulsA++; else s.stats.foulsH++;
+      const defPool = defPlayers.filter(p => !p.isGK && !p.redCard);
+      const def = defPool[Math.floor(s.prng() * defPool.length)] || defPlayers[1];
+      const attPool = attPlayers.filter(p => !p.isGK && !p.redCard);
+      const att = attPool[Math.floor(s.prng() * attPool.length)] || attPlayers[9];
+
+      // Pênalti (~7% das faltas)
+      if(s.prng() < 0.07){
+        executePenaltySim(s, min, att, def, isHomeAttacking);
+      }
+      // Falta perigosa (~20% das faltas)
+      else if(s.prng() < 0.20){
+        executeFreeKickSim(s, min, att, def, isHomeAttacking);
+      }
+      // Falta tática/comum
+      else {
+        const isYellow = s.prng() < 0.22;
+        if(isYellow){
+          if(isHomeAttacking) s.stats.yellowsA++; else s.stats.yellowsH++;
+          s.events.unshift({ min, type: 'yellow', text: `🟨 Cartão amarelo para ${def.name} (${defTeam}) por falta tática.` });
+        } else {
+          s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta cometida por ${def.name} em ${att.name} no meio de campo.` });
+        }
+      }
+    } else {
+      // Chance de finalização / chute a gol (~65% das fases de ataque)
+      const isShot = s.prng() < 0.65;
+      if(isShot){
+        executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg, attTeam, defTeam);
+      } else {
+        // Bloqueio da defesa que vira escanteio (~40%)
+        if(s.prng() < 0.40){
+          if(isHomeAttacking) s.stats.cornersH++; else s.stats.cornersA++;
+          s.events.unshift({ min, type: 'corner', text: `🚩 Escanteio para o ${attTeam} após corte da zaga!` });
+          showLiveBalloon(isHomeAttacking ? 99 : 1, 50, '🚩 ESCANTEIO!', '#38bdf8');
+        }
+      }
+    }
   }
 
-  // Desgaste de Stamina / Cansaço calibrado por postura e preleção
-  const isSynthetic = s.stadium.pitch === 'synthetic';
-  const staminaBurnRate = isSynthetic ? 0.045 : 0.025; // Grama sintética cansa mais rápido!
-  s.homePlayers.forEach(p => { 
-    const stamMod = hCfg.stamBurn * (isUserHome ? speechStamMod : 1.0);
-    p.stamina = clamp(p.stamina - staminaBurnRate * dtSec * stamMod, 15, 100); 
-    if(p.kickTimer > 0) p.kickTimer -= dtSec;
-  });
-  s.awayPlayers.forEach(p => { 
-    const stamMod = aCfg.stamBurn * (!isUserHome ? speechStamMod : 1.0);
-    p.stamina = clamp(p.stamina - staminaBurnRate * dtSec * stamMod, 15, 100); 
-    if(p.kickTimer > 0) p.kickTimer -= dtSec;
-  });
+  // Atualiza placar e feed na interface
+  updateScoreDisplay();
+  updateLiveSidebarEvents();
 
-  // Verificação de Intervalo aos 45 minutos (2700 seg)
-  if(s.timeSec >= 2700 && !s.halftimeTriggered){
-    s.timeSec = 2700;
+  // Verificação de Intervalo aos 45 minutos
+  if(min === 45 && s.phase === 'FIRST_HALF'){
     s.halftimeTriggered = true;
     s.playing = false;
+    transitionMatchPhase('HALF_TIME');
     playWhistleSound();
     s.events.unshift({ min: 45, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
+    updateScoreDisplay();
     updateLiveSidebarEvents();
+    renderLiveMatchModal();
     openHalftimeModal();
     return;
   }
 
-  // Verificação de Fim de Jogo aos 90 minutos (5400 seg)
-  if(s.timeSec >= 5400){
-    s.timeSec = 5400;
+  // Verificação de Fim de Jogo aos 90 minutos
+  if(min >= 90 && (s.phase === 'SECOND_HALF' || s.phase === 'HALF_TIME')){
+    s.playing = false;
+    transitionMatchPhase('FULL_TIME');
     finishLiveMatch();
     return;
   }
+}
 
-  s.ball.trail = s.ball.trail || [];
+// =========================================================================
+// PADRÕES DE JOGADA, VALIDAÇÃO DE ENTIDADES E EVENTOS DO MATCH ENGINE
+// =========================================================================
+const PLAY_PATTERNS = [
+  { id: 'short_build', name: 'Construção Curta', text: 'troca passes curtos com paciência', xGMod: 0.95 },
+  { id: 'left_wing', name: 'Ataque pela Esquerda', text: 'avança pelo corredor esquerdo em velocidade', xGMod: 1.05 },
+  { id: 'right_wing', name: 'Ataque pela Direita', text: 'costura a jogada pelo flanco direito', xGMod: 1.05 },
+  { id: 'central_attack', name: 'Ataque Central', text: 'encontra espaço pelo meio da zaga adversária', xGMod: 1.10 },
+  { id: 'through_ball', name: 'Passe em Profundidade', text: 'descola belo passe enfiado nas costas dos zagueiros', xGMod: 1.20 },
+  { id: 'crossing', name: 'Cruzamento na Área', text: 'alça bola açucarada na grande área', xGMod: 1.12 },
+  { id: 'tabela_one_two', name: 'Tabela Rápida', text: 'faz tabela de primeira na entrada da área', xGMod: 1.15 },
+  { id: 'counter_attack', name: 'Contra-Ataque Rápido', text: 'dispara em contra-ataque fulminante com superioridade numérica', xGMod: 1.30 },
+  { id: 'dribble_run', name: 'Jogada Individual', text: 'deixa a marcação para trás com lindo drible de corpo', xGMod: 1.18 },
+  { id: 'long_ball', name: 'Lançamento Longo', text: 'faz lançamento longo direto para o ataque', xGMod: 0.90 },
+  { id: 'defensive_error', name: 'Erro do Adversário', text: 'aproveita bobeada feia da defesa na saída de bola', xGMod: 1.35 },
+  { id: 'ball_recovery', name: 'Pressão Alta', text: 'morde a saída de bola com pressão agressiva e recupera', xGMod: 1.22 },
+  { id: 'long_shot', name: 'Chute de Longe', text: 'limpa a jogada e solta uma bomba de fora da área', xGMod: 0.85 },
+  { id: 'in_box_finish', name: 'Infiltração na Área', text: 'aparece livre na pequena área para empurrar pro gol', xGMod: 1.25 }
+];
 
-  // ==============================================================
-  // ESTADO 1: BOLA EM PASSE (TRAJETÓRIA SUAVE ENTRE JOGADORES)
-  // ==============================================================
-  if(s.ball.mode === 'pass'){
-    const passSpeed = (s.speed === 40 ? 5.5 : s.speed === 20 ? 3.8 : 1.7) * speechPassMod;
-    s.ball.progress = (s.ball.progress || 0) + dtSec * passSpeed;
-    s.ball.spin = (s.ball.spin || 0) + 0.3;
+function selectPlayPattern(s, attCfg, isHomeAttacking){
+  s.recentPlayPatterns = s.recentPlayPatterns || [];
+  const posture = attCfg?.posture || 'Equilibrada';
 
-    const pr = clamp(s.ball.progress, 0, 1);
-    s.ball.x = s.ball.startX + (s.ball.targetX - s.ball.startX) * pr;
-    s.ball.y = s.ball.startY + (s.ball.targetY - s.ball.startY) * pr;
-    s.ball.z = Math.sin(pr * Math.PI) * (s.ball.curveZ || 2.5);
+  const weights = PLAY_PATTERNS.map(pat => {
+    let w = 1.0;
+    if(posture === 'Retranca' && (pat.id === 'counter_attack' || pat.id === 'long_ball')) w *= 2.4;
+    if(posture === 'Pressão total' && (pat.id === 'ball_recovery' || pat.id === 'through_ball')) w *= 2.2;
+    if(posture === 'Ofensiva' && (pat.id === 'central_attack' || pat.id === 'tabela_one_two' || pat.id === 'in_box_finish')) w *= 1.8;
+    if(posture === 'Defensiva' && pat.id === 'short_build') w *= 1.5;
 
-    // O recebedor dá um passo em direção à bola para dominar
-    const targetP = s.ball.targetPlayer;
-    if(targetP){
-      targetP.x += (s.ball.x - targetP.x) * 0.12;
-      targetP.y += (s.ball.y - targetP.y) * 0.12;
-      targetP.animFrame = (targetP.animFrame || 0) + 0.2;
+    // Reduz drasticamente probabilidade de repetição imediata
+    if(s.recentPlayPatterns.slice(-3).includes(pat.name)){
+      w *= 0.20;
     }
+    return w;
+  });
 
-    if(s.ball.progress >= 1.0){
-      // Domínio de bola concluído!
-      s.ball.mode = 'dribble';
-      s.ball.carrier = targetP || s.homePlayers[0];
-      s.ball.z = 0;
-      s.ball.targetPlayer = null;
+  const total = weights.reduce((a, b) => a + b, 0);
+  let roll = s.prng() * total;
+  let chosen = PLAY_PATTERNS[0];
+  for(let i = 0; i < PLAY_PATTERNS.length; i++){
+    roll -= weights[i];
+    if(roll <= 0){
+      chosen = PLAY_PATTERNS[i];
+      break;
     }
   }
+
+  s.recentPlayPatterns.push(chosen.name);
+  if(s.recentPlayPatterns.length > 8) s.recentPlayPatterns.shift();
+  return chosen;
+}
+
+function validateGoalScorer(shooter, attTeam, s){
+  if(!shooter) return false;
+  if(shooter.type !== 'PLAYER') return false;
+  if(shooter.canScore === false && !shooter.isPenalty) return false;
+  const isHome = (attTeam === s.home);
+  const teamList = isHome ? s.homePlayers : s.awayPlayers;
+  const found = teamList.find(p => p.id === shooter.id);
+  if(!found) return false;
+  if(found.redCard) return false;
+  return true;
+}
+
+function validateAssist(assist, attTeam, s){
+  if(!assist) return false;
+  if(assist.type !== 'PLAYER') return false;
+  const isHome = (attTeam === s.home);
+  const teamList = isHome ? s.homePlayers : s.awayPlayers;
+  return !!teamList.find(p => p.id === assist.id && !p.redCard);
+}
+
+function validateMatchEntity(ent, s){
+  if(!ent) return false;
+  if(ent.type === 'REFEREE') return true;
+  if(ent.type === 'PLAYER'){
+    return (s.homePlayers.some(p => p.id === ent.id) || s.awayPlayers.some(p => p.id === ent.id));
+  }
+  return false;
+}
+
+function validateMatchEvent(evt, s){
+  if(!evt) return false;
+  if(!evt.matchId || evt.matchId !== s.matchId) return false;
+  return true;
+}
+
+function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg, attTeam, defTeam){
+  const forwards = attPlayers.filter(p => ['ST', 'CF', 'RW', 'LW', 'AM'].includes(p.pos) && !p.redCard && !p.isGK);
+  const shooter = (forwards.length && s.prng() < 0.78)
+    ? forwards[Math.floor(s.prng() * forwards.length)]
+    : attPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng() * 10)] || attPlayers[9];
+
+  if(!validateMatchEntity(shooter, s) || shooter.isGK) return;
+
+  const gk = defPlayers[0] || { name: 'Goleiro', overall: 65 };
+  const pattern = selectPlayPattern(s, attCfg, isHomeAttacking);
+
+  // Assistente em potencial
+  const assistCandidates = attPlayers.filter(p => !p.isGK && p !== shooter && !p.redCard);
+  let assist = (assistCandidates.length && s.prng() < 0.72)
+    ? assistCandidates[Math.floor(s.prng() * assistCandidates.length)]
+    : null;
+  if(assist && !validateAssist(assist, attTeam, s)) assist = null;
+
+  if(isHomeAttacking) s.stats.shotsH++; else s.stats.shotsA++;
+
+  const ovr = shooter.overall || 65;
+  const gkOvr = gk.overall || 65;
+  const baseShotXG = (0.12 + (ovr - gkOvr) * 0.005 + (attCfg.shotFreq || 0.04) * 0.7) * (pattern.xGMod || 1.0);
+  const shotXG = clamp(baseShotXG, 0.05, 0.40);
+
+  if(isHomeAttacking) s.stats.xGH = +(s.stats.xGH + shotXG).toFixed(2);
+  else s.stats.xGA = +(s.stats.xGA + shotXG).toFixed(2);
+
+  // Prepara animação visual no canvas
+  s.ball.carrier = null;
+  s.ball.mode = 'shot';
+  s.ball.shooter = shooter;
+  s.ball.passer = assist;
+  s.ball.startX = shooter.x;
+  s.ball.startY = shooter.y;
+  s.ball.targetX = isHomeAttacking ? 99.5 : 0.5;
+  s.ball.targetY = 50 + ((s.prng() * 16) - 8);
+  s.ball.progress = 0;
+  s.ball.curveZ = 6.0;
+
+  const roll = s.prng();
+  const second = Math.floor(s.prng() * 59);
+
+  if(roll < shotXG){
+    // Validação estrita do artilheiro antes de registrar o gol
+    if(!validateGoalScorer(shooter, attTeam, s)) return;
+
+    s.ball.shotOutcome = 'gol';
+    if(isHomeAttacking) s.hg++; else s.ag++;
+    playCheerSound();
+
+    const assistTxt = assist ? `${assist.name} encontra ${shooter.name}, que ` : `${shooter.name} `;
+    const goalTxt = `⚽ GOL DO ${attTeam}! Em jogada de ${pattern.name.toLowerCase()}, ${assistTxt}completa com categoria para o fundo das redes aos ${min}'!`;
+
+    const evt = {
+      id: `${s.matchId}_ev_${s.events.length + 1}`,
+      matchId: s.matchId,
+      min,
+      second,
+      type: 'gol',
+      teamId: attTeam,
+      playerId: shooter.id,
+      relatedPlayerId: assist?.id || null,
+      pattern: pattern.name,
+      context: `Placar: ${s.home} ${s.hg} x ${s.ag} ${s.away}`,
+      text: goalTxt,
+      xG: shotXG,
+      scorer: shooter.name,
+      assist: assist?.name || null
+    };
+
+    if(validateMatchEvent(evt, s)){
+      s.events.unshift(evt);
+    }
+    showLiveBanner(`⚽ GOL DO ${attTeam}! ${shooter.name} aos ${min}'!`, 'gol', 3500);
+    s.lastScorer = shooter;
+  } else if(roll < shotXG + 0.44){
+    s.ball.shotOutcome = 'save';
+    if(isHomeAttacking) s.stats.targetH++; else s.stats.targetA++;
+    const saveTexts = [
+      `🧤 ESPETACULAR! Defesaça de ${gk.name} em jogada de ${pattern.name.toLowerCase()} finalizada por ${shooter.name}!`,
+      `🧤 DEFESASSA! ${shooter.name} bate firme após ${pattern.text} e ${gk.name} espalma para longe!`,
+      `🧤 MILAGRE! Cara a cara com ${shooter.name}, o goleiro ${gk.name} salva o ${defTeam}!`
+    ];
+    const saveTxt = saveTexts[Math.floor(s.prng() * saveTexts.length)];
+    const evt = {
+      id: `${s.matchId}_ev_${s.events.length + 1}`,
+      matchId: s.matchId,
+      min,
+      second,
+      type: 'save',
+      teamId: attTeam,
+      playerId: shooter.id,
+      relatedPlayerId: gk?.id || null,
+      pattern: pattern.name,
+      text: saveTxt,
+      xG: shotXG
+    };
+    if(validateMatchEvent(evt, s)) s.events.unshift(evt);
+    showLiveBalloon(s.ball.targetX, s.ball.targetY, '🧤 DEFESASSA!', '#22c55e');
+    if(s.prng() < 0.45){
+      if(isHomeAttacking) s.stats.cornersH++; else s.stats.cornersA++;
+    }
+  } else if(roll < shotXG + 0.56){
+    s.ball.shotOutcome = 'post';
+    const evt = {
+      id: `${s.matchId}_ev_${s.events.length + 1}`,
+      matchId: s.matchId,
+      min,
+      second,
+      type: 'post',
+      teamId: attTeam,
+      playerId: shooter.id,
+      pattern: pattern.name,
+      text: `💥 NA TRAVE! Em jogada de ${pattern.name.toLowerCase()}, ${shooter.name} solta uma bomba que explode na trave!`,
+      xG: shotXG
+    };
+    if(validateMatchEvent(evt, s)) s.events.unshift(evt);
+    showLiveBalloon(s.ball.targetX, s.ball.targetY, '💥 NA TRAVE!', '#f87171');
+  } else {
+    s.ball.shotOutcome = 'miss';
+    const evt = {
+      id: `${s.matchId}_ev_${s.events.length + 1}`,
+      matchId: s.matchId,
+      min,
+      second,
+      type: 'miss',
+      teamId: attTeam,
+      playerId: shooter.id,
+      pattern: pattern.name,
+      text: `⚡ Em jogada de ${pattern.name.toLowerCase()}, ${shooter.name} arrisca a finalização mas a bola sai pela linha de fundo.`
+    };
+    if(validateMatchEvent(evt, s)) s.events.unshift(evt);
+  }
+}
+
+function executePenaltySim(s, min, att, def, isHomeAttacking){
+  const attTeam = isHomeAttacking ? s.home : s.away;
+  const defTeam = isHomeAttacking ? s.away : s.home;
+  const attPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
+  const defPlayers = isHomeAttacking ? s.awayPlayers : s.homePlayers;
+  const kicker = attPlayers.filter(p => !p.isGK && !p.redCard).sort((a,b)=>(b.overall||65)-(a.overall||65))[0] || att;
+  const gk = defPlayers[0] || { name: 'Goleiro', overall: 65 };
+
+  if(!validateMatchEntity(kicker, s)) return;
+  kicker.isPenalty = true;
+
+  if(isHomeAttacking) s.stats.shotsH++; else s.stats.shotsA++;
+  const penXG = 0.76;
+  if(isHomeAttacking) s.stats.xGH = +(s.stats.xGH + penXG).toFixed(2);
+  else s.stats.xGA = +(s.stats.xGA + penXG).toFixed(2);
+
+  s.ball.carrier = null;
+  s.ball.mode = 'shot';
+  s.ball.shooter = kicker;
+  s.ball.startX = isHomeAttacking ? 88.5 : 11.5;
+  s.ball.startY = 50;
+  s.ball.targetX = isHomeAttacking ? 99.5 : 0.5;
+  s.ball.targetY = 50 + ((s.prng() * 12) - 6);
+  s.ball.progress = 0;
+  s.ball.curveZ = 3.5;
+
+  const roll = s.prng();
+  const second = Math.floor(s.prng() * 59);
+
+  if(roll < penXG){
+    if(!validateGoalScorer(kicker, attTeam, s)) return;
+    s.ball.shotOutcome = 'gol';
+    if(isHomeAttacking) s.hg++; else s.ag++;
+    playCheerSound();
+    const evt = {
+      id: `${s.matchId}_ev_${s.events.length + 1}`,
+      matchId: s.matchId,
+      min,
+      second,
+      type: 'gol',
+      teamId: attTeam,
+      playerId: kicker.id,
+      pattern: 'Pênalti',
+      context: `Pênalti convertido | Placar: ${s.home} ${s.hg} x ${s.ag} ${s.away}`,
+      text: `🎯 GOL DE PÊNALTI! ${kicker.name} desloca ${gk.name} e marca com categoria para o ${attTeam}!`,
+      xG: penXG,
+      scorer: kicker.name
+    };
+    if(validateMatchEvent(evt, s)) s.events.unshift(evt);
+    showLiveBanner(`⚽ GOL DE PÊNALTI DO ${attTeam}!`, 'gol', 3500);
+    s.lastScorer = kicker;
+  } else {
+    s.ball.shotOutcome = 'save';
+    if(isHomeAttacking) s.stats.targetH++; else s.stats.targetA++;
+    const evt = {
+      id: `${s.matchId}_ev_${s.events.length + 1}`,
+      matchId: s.matchId,
+      min,
+      second,
+      type: 'save',
+      teamId: attTeam,
+      playerId: kicker.id,
+      relatedPlayerId: gk?.id || null,
+      pattern: 'Pênalti',
+      text: `🧤 DEFENDEU O PÊNALTI! ${gk.name} salta no canto e espalma a cobrança de ${kicker.name}!`,
+      xG: penXG
+    };
+    if(validateMatchEvent(evt, s)) s.events.unshift(evt);
+    showLiveBalloon(s.ball.targetX, s.ball.targetY, '🧤 PÊNALTI DEFENDIDO!', '#22c55e');
+  }
+}
+
+function executeFreeKickSim(s, min, att, def, isHomeAttacking){
+  const attTeam = isHomeAttacking ? s.home : s.away;
+  const defTeam = isHomeAttacking ? s.away : s.home;
+  const attPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
+  const defPlayers = isHomeAttacking ? s.awayPlayers : s.homePlayers;
+  const kicker = attPlayers.filter(p => !p.isGK && !p.redCard).sort((a,b)=>(b.overall||65)-(a.overall||65))[0] || att;
+  const gk = defPlayers[0] || { name: 'Goleiro', overall: 65 };
+
+  if(!validateMatchEntity(kicker, s)) return;
+
+  if(isHomeAttacking) s.stats.shotsH++; else s.stats.shotsA++;
+  const fkXG = 0.12;
+  if(isHomeAttacking) s.stats.xGH = +(s.stats.xGH + fkXG).toFixed(2);
+  else s.stats.xGA = +(s.stats.xGA + fkXG).toFixed(2);
+
+  s.ball.carrier = null;
+  s.ball.mode = 'shot';
+  s.ball.shooter = kicker;
+  s.ball.startX = att.x;
+  s.ball.startY = att.y;
+  s.ball.targetX = isHomeAttacking ? 99.5 : 0.5;
+  s.ball.targetY = 50 + ((s.prng() * 12) - 6);
+  s.ball.progress = 0;
+  s.ball.curveZ = 6.5;
+
+  const roll = s.prng();
+  const second = Math.floor(s.prng() * 59);
+
+  if(roll < fkXG){
+    if(!validateGoalScorer(kicker, attTeam, s)) return;
+    s.ball.shotOutcome = 'gol';
+    if(isHomeAttacking) s.hg++; else s.ag++;
+    playCheerSound();
+    const evt = {
+      id: `${s.matchId}_ev_${s.events.length + 1}`,
+      matchId: s.matchId,
+      min,
+      second,
+      type: 'gol',
+      teamId: attTeam,
+      playerId: kicker.id,
+      pattern: 'Falta Direta',
+      text: `🎯 GOLAÇO DE FALTA! ${kicker.name} acerta o ângulo com efeito sem chances para ${gk.name}!`,
+      xG: fkXG,
+      scorer: kicker.name
+    };
+    if(validateMatchEvent(evt, s)) s.events.unshift(evt);
+    showLiveBanner(`⚽ GOLAÇO DE FALTA DO ${attTeam}!`, 'gol', 3500);
+    s.lastScorer = kicker;
+  } else if(roll < fkXG + 0.40){
+    s.ball.shotOutcome = 'save';
+    if(isHomeAttacking) s.stats.targetH++; else s.stats.targetA++;
+    const evt = {
+      id: `${s.matchId}_ev_${s.events.length + 1}`,
+      matchId: s.matchId,
+      min,
+      second,
+      type: 'save',
+      teamId: attTeam,
+      playerId: kicker.id,
+      relatedPlayerId: gk?.id || null,
+      pattern: 'Falta Direta',
+      text: `🧤 DEFESA! ${gk.name} espalma cobrança de falta venenosa de ${kicker.name} para escanteio.`,
+      xG: fkXG
+    };
+    if(validateMatchEvent(evt, s)) s.events.unshift(evt);
+    showLiveBalloon(s.ball.targetX, s.ball.targetY, '🧤 DEFESA!', '#22c55e');
+    if(isHomeAttacking) s.stats.cornersH++; else s.stats.cornersA++;
+  } else {
+    s.ball.shotOutcome = 'miss';
+    const evt = {
+      id: `${s.matchId}_ev_${s.events.length + 1}`,
+      matchId: s.matchId,
+      min,
+      second,
+      type: 'whistle',
+      teamId: attTeam,
+      playerId: kicker.id,
+      pattern: 'Falta Direta',
+      text: `⚠️ Falta perigosa cobrada por ${kicker.name} explode na barreira defensiva.`
+    };
+    if(validateMatchEvent(evt, s)) s.events.unshift(evt);
+  }
+}
+
+function simulateMatchSegment(startMin, endMin){
+  const s = liveMatchState;
+  if(!s || s.done) return;
+  const targetMin = Math.min(90, endMin);
+  while(s.minute < targetMin && !s.done){
+    simulateMinute(s, s.minute + 1);
+  }
+}
+
+function updateLiveCanvasPositions(s){
+  if(!s) return;
+  // Animação visual suave das posições de campo (desacoplada da simulação)
+  const isHomeAttacking = s.ball?.isHomeAttacking ?? true;
+  const targetGoalX = isHomeAttacking ? 94 : 6;
+
+  // Se a bola estiver em voo (chute / passe)
+  if(s.ball && s.ball.mode === 'shot'){
+    s.ball.progress = Math.min(1.0, (s.ball.progress || 0) + 0.08);
+    const pr = s.ball.progress;
+    s.ball.x = s.ball.startX + (s.ball.targetX - s.ball.startX) * pr;
+    s.ball.y = s.ball.startY + (s.ball.targetY - s.ball.startY) * pr;
+    s.ball.z = Math.sin(pr * Math.PI) * (s.ball.curveZ || 5.0);
+    if(pr >= 1.0){
+      s.ball.mode = 'dribble';
+      s.ball.z = 0;
+    }
+  } else if(s.ball && s.ball.carrier){
+    const c = s.ball.carrier;
+    const dirX = targetGoalX > c.x ? 1 : -1;
+    c.x = clamp(c.x + dirX * 0.18, 5, 95);
+    c.y = clamp(c.y + Math.sin(s.renderTicks * 0.1) * 0.2, 12, 88);
+    c.animFrame = (c.animFrame || 0) + 0.25;
+    s.ball.x = c.x + dirX * 1.4;
+    s.ball.y = c.y;
+    s.ball.z = Math.abs(Math.sin(c.animFrame)) * 0.4;
+  }
+
+  // Jogadores de linha oscilam e mantêm formação
+  const hTeam = s.homePlayers || [];
+  const aTeam = s.awayPlayers || [];
+  hTeam.forEach(p => {
+    p.animFrame = (p.animFrame || 0) + 0.15;
+    if(!p.isGK && p !== s.ball?.carrier){
+      p.x = clamp(p.baseX + (isHomeAttacking ? 8 : -4) + Math.sin(p.animFrame * 0.5) * 1.2, 4, 96);
+      p.y = clamp(p.baseY + Math.cos(p.animFrame * 0.5) * 1.2, 10, 90);
+    }
+  });
+  aTeam.forEach(p => {
+    p.animFrame = (p.animFrame || 0) + 0.15;
+    if(!p.isGK && p !== s.ball?.carrier){
+      p.x = clamp(p.baseX + (!isHomeAttacking ? -8 : 4) + Math.sin(p.animFrame * 0.5) * 1.2, 4, 96);
+      p.y = clamp(p.baseY + Math.cos(p.animFrame * 0.5) * 1.2, 10, 90);
+    }
+  });
+
+  // Goleiros posicionados
+  if(hTeam[0]) { hTeam[0].x = 3.5; hTeam[0].y = clamp(hTeam[0].baseY + (s.ball?.y - 50) * 0.15, 42, 58); }
+  if(aTeam[0]) { aTeam[0].x = 96.5; aTeam[0].y = clamp(aTeam[0].baseY + (s.ball?.y - 50) * 0.15, 42, 58); }
+
+  // Movimentação do Árbitro acompanhando a jogada
+  if(s.referee){
+    const bx = s.ball?.x ?? 50;
+    const by = s.ball?.y ?? 50;
+    const targetRefX = clamp(bx + (bx > 50 ? -12 : 12), 18, 82);
+    const targetRefY = clamp(by + (by > 50 ? -14 : 14), 22, 78);
+    s.referee.x += (targetRefX - s.referee.x) * 0.04;
+    s.referee.y += (targetRefY - s.referee.y) * 0.04;
+    s.referee.animFrame = (s.referee.animFrame || 0) + 0.15;
+  }
+}
+
+function updateTelemetryHud(s){
+  const el = $('#liveTelemetryHud');
+  if(!el) return;
+  if(!s.debugMode){
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  const hStam = Math.round((s.homePlayers || []).reduce((acc, p) => acc + (p.stamina || 100), 0) / 11);
+  const aStam = Math.round((s.awayPlayers || []).reduce((acc, p) => acc + (p.stamina || 100), 0) / 11);
+  el.innerHTML = `
+    <div style="font-weight:900;color:#38bdf8;border-bottom:1px solid rgba(56,189,248,0.25);padding-bottom:2px;margin-bottom:3px">
+      📊 TELEMETRIA DO MATCH ENGINE
+    </div>
+    <div><b>Match ID:</b> ${esc(s.matchId || 'MAT')} | <b>Seed:</b> ${s.seed}</div>
+    <div><b>Entidades no Campo:</b> 11 ${esc(s.home)}, 11 ${esc(s.away)}, 1 Árbitro</div>
+    <div><b>Últimos Padrões:</b> ${esc(s.recentPlayPatterns?.slice(-3).join(' ➔ ') || 'Nenhum')}</div>
+    <div><b>Minuto:</b> ${s.minute}' | <b>Velocidade:</b> ${s.speed}x</div>
+    <div><b>Sim Ticks:</b> ${s.simTicks || 0} | <b>Render Ticks:</b> ${s.renderTicks || 0}</div>
+    <div><b>Placar:</b> ${esc(s.home)} ${s.hg} x ${s.ag} ${esc(s.away)}</div>
+    <div><b>Chutes:</b> ${s.stats.shotsH} x ${s.stats.shotsA} (Alvo: ${s.stats.targetH} x ${s.stats.targetA})</div>
+    <div><b>xG Acumulado:</b> ${Number(s.stats.xGH || 0).toFixed(2)} x ${Number(s.stats.xGA || 0).toFixed(2)}</div>
+    <div><b>Posse:</b> ${s.stats.posH}% x ${s.stats.posA}% | <b>Eventos:</b> ${s.events.length}</div>
+    <div><b>Stamina Média:</b> ${hStam}% x ${aStam}% | <b>Fase:</b> ${s.phase}</div>
+  `;
+}
+
+// Atualiza a física e movimentação realista da partida (delegado ao renderer desacoplado)
+function updateLiveMatchPhysics(dtSec){
+  const s = liveMatchState;
+  if(!s || s.done) return;
+  updateLiveCanvasPositions(s);
+}
+function _legacyPhysicsSim(dtSec){
+  const s = liveMatchState;
+  if(!s) return;
 
   // ==============================================================
   // ESTADO 2: BOLA EM FINALIZAÇÃO / CHUTE A GOL (VELOCIDADE E ARCO)
   // ==============================================================
-  else if(s.ball.mode === 'shot'){
+  if(s.ball.mode === 'shot'){
     const shotSpeed = s.speed === 40 ? 7.0 : s.speed === 20 ? 5.2 : 2.4;
     s.ball.progress = (s.ball.progress || 0) + dtSec * shotSpeed;
     s.ball.spin = (s.ball.spin || 0) + 0.5;
@@ -10348,19 +11272,32 @@ function bindLiveMatchEvents(){
     openHalftimeModal(true);
   };
 
-  // Pular para o Intervalo
+  // Pular para o Intervalo ou Iniciar 2º Tempo (Contextual)
   const btnSkipHalf = $('#btnLiveSkipHalf');
   if(btnSkipHalf) btnSkipHalf.onclick = () => {
-    simulateMatchSegment(s.minute, 45);
-    s.timeSec = 2700;
-    s.minute = 45;
-    s.halftimeTriggered = true;
-    s.playing = false;
-    playWhistleSound();
-    s.events.unshift({ min: 45, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
-    updateScoreDisplay();
-    updateLiveSidebarEvents();
-    openHalftimeModal();
+    if(s.phase === 'FIRST_HALF'){
+      simulateMatchSegment(s.minute, 45);
+      s.timeSec = 2700;
+      s.minute = 45;
+      s.halftimeTriggered = true;
+      transitionMatchPhase('HALF_TIME');
+      s.playing = false;
+      playWhistleSound();
+      s.events.unshift({ min: 45, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
+      updateScoreDisplay();
+      updateLiveSidebarEvents();
+      renderLiveMatchModal();
+      openHalftimeModal();
+    } else if(s.phase === 'HALF_TIME'){
+      $('#halftimeModalContainer')?.remove();
+      transitionMatchPhase('SECOND_HALF');
+      s.playing = true;
+      playWhistleSound();
+      renderLiveMatchModal();
+      toast('Bola rolando para a etapa complementar!');
+    } else {
+      toast('A primeira etapa da partida já foi encerrada!');
+    }
   };
 
   // Simular até o fim
@@ -10437,7 +11374,8 @@ function openHalftimeModal(isQuickTactics = false){
 
   const userStarters = (s.home === state.club ? s.homePlayers : s.awayPlayers);
   const starterKeys = userStarters.map(p => p.key);
-  const userBench = state.squad.filter(p => !starterKeys.includes(playerKey(p)));
+  s.subbedOut = Array.isArray(s.subbedOut) ? s.subbedOut : [];
+  const userBench = state.squad.filter(p => !starterKeys.includes(playerKey(p)) && !s.subbedOut.includes(playerKey(p)));
   const currentForm = state.formation || '4-3-3';
   const formDef = FORMATIONS[currentForm] || FORMATIONS['4-3-3'];
 
@@ -10663,27 +11601,58 @@ function openHalftimeModal(isQuickTactics = false){
 
   function executeHalftimeSub(starterKey, benchKey){
     if(s.subsLeft <= 0){
-      toast('Você já atingiu o limite de 5 substituições!');
+      toast('Você já atingiu o limite de 5 substituições na partida!');
       return;
     }
     const benchPlayer = state.squad.find(p => playerKey(p) === benchKey);
     if(!benchPlayer) return;
+
+    s.subbedOut = Array.isArray(s.subbedOut) ? s.subbedOut : [];
+    if(s.subbedOut.includes(benchKey)){
+      toast('Este atleta já foi substituído nesta partida e não pode retornar ao gramado!');
+      return;
+    }
 
     const userStarters = (s.home === state.club ? s.homePlayers : s.awayPlayers);
     const targetIdx = userStarters.findIndex(p => p.key === starterKey);
     if(targetIdx === -1) return;
 
     const oldPlayer = userStarters[targetIdx];
-    userStarters[targetIdx] = {
+    s.subbedOut.push(oldPlayer.key);
+
+    const newPlayerObj = {
       ...oldPlayer,
+      id: playerKey(benchPlayer),
       key: playerKey(benchPlayer),
       name: benchPlayer.name.split(' ').pop() || benchPlayer.name,
       fullName: benchPlayer.name,
       pos: benchPlayer.pos,
       overall: playerOverall(benchPlayer) || 65,
-      stamina: 100, // Entra descansado!
+      stamina: 100, // Entra 100% descansado
+      speed: benchPlayer.vel || benchPlayer.speed || playerOverall(benchPlayer),
+      pass: benchPlayer.pas || benchPlayer.pass || playerOverall(benchPlayer),
+      shoot: benchPlayer.fin || benchPlayer.shoot || playerOverall(benchPlayer),
+      defense: benchPlayer.des || benchPlayer.defense || playerOverall(benchPlayer),
+      isUser: true,
+      team: s.home === state.club ? 'home' : 'away',
+      isGK: (benchPlayer.pos === 'GK' || benchPlayer.pos === 'GOL'),
       photo: (window.PLAYER_PHOTOS && (window.PLAYER_PHOTOS[benchPlayer.name] || window.PLAYER_PHOTOS[norm(benchPlayer.name)])) || null
     };
+
+    userStarters[targetIdx] = newPlayerObj;
+
+    // Se o jogador substituído estava com a bola, passa a posse ao novo atleta
+    if(s.ball && s.ball.carrier && s.ball.carrier.key === oldPlayer.key){
+      s.ball.carrier = newPlayerObj;
+    }
+
+    // Sincroniza com a escalação persistida do clube
+    if(Array.isArray(state.lineup)){
+      const lineIdx = state.lineup.indexOf(oldPlayer.key);
+      if(lineIdx !== -1){
+        state.lineup[lineIdx] = playerKey(benchPlayer);
+      }
+    }
 
     s.subsLeft--;
     s.events.unshift({
@@ -10693,8 +11662,9 @@ function openHalftimeModal(isQuickTactics = false){
     });
     updateLiveSidebarEvents();
 
-    toast(`🔁 Substituição realizada: ${benchPlayer.name} entra no lugar de ${oldPlayer.name}!`);
+    toast(`🔁 Substituição confirmada: ${benchPlayer.name} entra no lugar de ${oldPlayer.name}!`);
     halftimeSelectedStarterKey = null;
+    save();
     openHalftimeModal(isQuickTactics);
   }
 
@@ -10717,19 +11687,34 @@ function openHalftimeModal(isQuickTactics = false){
   let draggedStarter = null;
   let draggedBench = null;
 
+  // Suporte a Drop no container do campinho
+  const pitchBox = $('#halftimePitchBox');
+  if(pitchBox){
+    pitchBox.ondragover = (e) => {
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    };
+  }
+
   // Drag & drop e clique dos reservas
   $$('.halftime-bench-card').forEach(el => {
     el.ondragstart = (e) => {
       draggedBench = el.dataset.benchkey;
       draggedStarter = null;
       e.dataTransfer.setData('text/plain', draggedBench);
+      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
       el.style.opacity = '0.5';
     };
     el.ondragend = () => {
       el.style.opacity = '1';
       $$('.halftime-pitch-player').forEach(p => p.classList.remove('drag-target'));
+      $$('.halftime-bench-card').forEach(b => b.classList.remove('drag-target'));
     };
-    el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag-target'); };
+    el.ondragover = (e) => {
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      el.classList.add('drag-target');
+    };
     el.ondragleave = () => { el.classList.remove('drag-target'); };
     el.ondrop = (e) => {
       e.preventDefault();
@@ -10740,7 +11725,7 @@ function openHalftimeModal(isQuickTactics = false){
     };
     el.onclick = () => {
       if(!halftimeSelectedStarterKey){
-        toast('Selecione primeiro o titular no campo (ou arraste) para substituir!');
+        toast('Selecione primeiro o titular no campo à esquerda (ou arraste) para substituir!');
         return;
       }
       executeHalftimeSub(halftimeSelectedStarterKey, el.dataset.benchkey);
@@ -10753,6 +11738,7 @@ function openHalftimeModal(isQuickTactics = false){
       draggedStarter = el.dataset.starterkey;
       draggedBench = null;
       e.dataTransfer.setData('text/plain', draggedStarter);
+      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
       el.style.opacity = '0.5';
     };
     el.ondragend = () => {
@@ -10760,7 +11746,11 @@ function openHalftimeModal(isQuickTactics = false){
       $$('.halftime-pitch-player').forEach(p => p.classList.remove('drag-target'));
       $$('.halftime-bench-card').forEach(b => b.classList.remove('drag-target'));
     };
-    el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag-target'); };
+    el.ondragover = (e) => {
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      el.classList.add('drag-target');
+    };
     el.ondragleave = () => { el.classList.remove('drag-target'); };
     el.ondrop = (e) => {
       e.preventDefault();
@@ -10774,7 +11764,11 @@ function openHalftimeModal(isQuickTactics = false){
     };
     el.onclick = () => {
       halftimeSelectedStarterKey = el.dataset.starterkey;
-      openHalftimeModal(isQuickTactics);
+      $$('.halftime-pitch-player').forEach(pNode => {
+        pNode.classList.toggle('selected', pNode.dataset.starterkey === halftimeSelectedStarterKey);
+      });
+      const stPlayer = userStarters.find(p => p.key === halftimeSelectedStarterKey);
+      toast(`👉 Titular selecionado: ${stPlayer?.name || 'Jogador'}. Agora clique no reserva no banco para confirmar a troca.`);
     };
   });
 
@@ -10786,12 +11780,14 @@ function openHalftimeModal(isQuickTactics = false){
   if(btnResume){
     btnResume.onclick = () => {
       $('#halftimeModalContainer')?.remove();
+      transitionMatchPhase('SECOND_HALF');
       s.playing = true;
       const playBtn = $('#btnLivePlayToggle');
       if(playBtn) playBtn.textContent = '⏸';
       const overlay = $('#livePauseOverlay');
       if(overlay) overlay.style.display = 'none';
       playWhistleSound();
+      renderLiveMatchModal();
       toast('Bola rolando para a etapa complementar!');
     };
   }
@@ -10802,6 +11798,7 @@ function finishLiveMatch(){
   if(!s || s.done) return;
   s.done = true;
   s.playing = false;
+  transitionMatchPhase('FULL_TIME');
   playWhistleSound();
 
   let winner = null, pens = null;
@@ -10857,40 +11854,52 @@ function finalizeMatchRound(){
 }
 
 
+let isSimulatingQuickRound = false;
 function simulateQuickRound(){
-  if(state && state.isPreSeason && state.preSeasonDays > 0){
-    state.isPreSeason = false;
-    state.preSeasonDays = 0;
-    state.date = getDateForRound(state.round || 0, state.season);
-    toast('Janela de pré-temporada encerrada para início da 1ª rodada!');
-  }
-  const fixtures=currentFixtures();
-  if(!fixtures.length || (state.round >= (state.schedule?.length || 1))){
-    showEndOfSeasonModal();
+  if(isSimulatingQuickRound) return;
+  const matchGate = canStartMatch();
+  if(!matchGate.canStart){
+    toast(`⚠️ ${matchGate.reason}`);
     return;
   }
-  const comp=curComp(),isKO=comp.type==='knockout';
-  let userRes=null,winners=[];
-  fixtures.forEach(([h,a])=>{
-    let [hg,ag]=simulateScore(h,a),winner=null,pens=null;
-    if(isKO){
-      if(hg===ag){
-        let hp=rnd(3,6),ap=rnd(2,6);if(hp===ap)ap=hp===6?5:hp+1;
-        pens=[hp,ap];winner=hp>ap?h:a;
-      }else winner=hg>ag?h:a;
-      winners.push(winner);
+
+  isSimulatingQuickRound = true;
+  try {
+    if(state && state.isPreSeason && state.preSeasonDays > 0){
+      state.isPreSeason = false;
+      state.preSeasonDays = 0;
+      state.date = getDateForRound(state.round || 0, state.season);
     }
-    applyResult(h,a,hg,ag);
-    if(norm(h)===norm(state.club)||norm(a)===norm(state.club)) userRes={h,a,hg,ag,winner,pens};
-  });
+    const fixtures=currentFixtures();
+    if(!fixtures.length || (state.round >= (state.schedule?.length || 1))){
+      showEndOfSeasonModal();
+      return;
+    }
+    const comp=curComp(),isKO=comp.type==='knockout';
+    let userRes=null,winners=[];
+    fixtures.forEach(([h,a])=>{
+      let [hg,ag]=simulateScore(h,a),winner=null,pens=null;
+      if(isKO){
+        if(hg===ag){
+          let hp=rnd(3,6),ap=rnd(2,6);if(hp===ap)ap=hp===6?5:hp+1;
+          pens=[hp,ap];winner=hp>ap?h:a;
+        }else winner=hg>ag?h:a;
+        winners.push(winner);
+      }
+      applyResult(h,a,hg,ag);
+      if(norm(h)===norm(state.club)||norm(a)===norm(state.club)) userRes={h,a,hg,ag,winner,pens};
+    });
 
-  // Finaliza a rodada sincronizando tabela e pontuação de todos os clubes
-  finalizeRound(userRes, winners, isKO);
-  save();
-  render();
+    // Finaliza a rodada sincronizando tabela e pontuação de todos os clubes
+    finalizeRound(userRes, winners, isKO);
+    save();
+    render();
 
-  if(userRes){
-    openPressConferenceModal('post', userRes);
+    if(userRes){
+      openPressConferenceModal('post', userRes);
+    }
+  } finally {
+    setTimeout(() => { isSimulatingQuickRound = false; }, 400);
   }
 }
 
@@ -11739,6 +12748,11 @@ function marketUniverse(){
 // SISTEMA DE NEGOCIAÇÃO DE TRANSFERÊNCIAS (COM RIVAIS E INTERESSE DO JOGADOR)
 // =========================================================================
 function buyPlayer(key){
+  if(!isTransferWindowOpen(state?.date)){
+    const win = getTransferWindowInfo(state?.date);
+    toast(`🔒 MERCADO FECHADO: A janela de transferências está fechada! Próxima abertura em ${win.nextOpenDate}.`);
+    return;
+  }
   if(state && state.transferBan){
     toast('🚨 TRANSFER BAN ATIVO: Devido a parcelas de empréstimo atrasadas no Banco, novas contratações estão bloqueadas até quitação!');
     return;
@@ -12193,6 +13207,11 @@ function openTransferNegotiationModal(key){
 // SISTEMA DE NEGOCIAÇÃO DE EMPRÉSTIMO (COM RIVAIS E SALÁRIO/BÔNUS)
 // =========================================================================
 function loanInPlayer(key){
+  if(!isTransferWindowOpen(state?.date)){
+    const win = getTransferWindowInfo(state?.date);
+    toast(`🔒 MERCADO FECHADO: A janela de empréstimos está fechada! Próxima abertura em ${win.nextOpenDate}.`);
+    return;
+  }
   openLoanNegotiationModal(key);
 }
 
@@ -13420,6 +14439,9 @@ function centralPage(){
   const clubObj = clubByName(state.club) || { stadium: 'Ciro Machado do Espírito Santo (Defelê)', competition: 'Campeonato Candango' };
   const rivalry = isRivalryMatch(state.club, opp);
   const weather = getMatchWeather(state.date, state.round);
+  const matchGate = canStartMatch();
+  const matchDate = getDateForRound(state.round, state.season);
+  const isMatchDay = state.date === matchDate;
 
   // Dados da Tabela da Competição Atual em Disputa (Screenshot 1)
   const activeComp = curComp() || { name: 'Campeonato Atual' };
@@ -13454,11 +14476,46 @@ function centralPage(){
     else draws++;
   });
 
-  // Dados do Confronto da Copa do Brasil
+  // Dados do Confronto da Copa do Brasil (Sincronizado Dinamicamente com a Data Atual)
+  processCopaDoBrasilCalendar(state.date);
   const copa = getCopaDoBrasilState();
-  const myCopaFixture = copa.phases['1ª Fase']?.fixtures?.find(x => norm(x.home)===norm(state.club) || norm(x.away)===norm(state.club)) 
-    || { home: 'Gazin Porto Velho', away: state.club, date: 'qua, 11 fev 2026' };
-  const otherCopaFixtures = (copa.phases['1ª Fase']?.fixtures || []).filter(x => x !== myCopaFixture).slice(0, 4);
+  const phaseKeys = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Mata-Mata'];
+  
+  let activeCopaPhaseKey = '1ª Fase';
+  let myCopaFixture = null;
+  for(const pk of phaseKeys){
+    const ph = copa.phases[pk];
+    if(!ph) continue;
+    const fix = (ph.fixtures || []).find(x => norm(x.home) === norm(state.club) || norm(x.away) === norm(state.club));
+    if(fix){
+      myCopaFixture = fix;
+      activeCopaPhaseKey = pk;
+      if(!fix.score || ph.isoDate >= state.date) break;
+    }
+  }
+
+  if(!myCopaFixture){
+    const firstPh = copa.phases['1ª Fase'];
+    myCopaFixture = firstPh?.fixtures?.[0] || { home: 'Gazin Porto Velho', away: 'Real Brasília', date: 'qua, 11 fev 2026', isoDate: '2026-02-11' };
+  }
+
+  const curPhaseObj = copa.phases[activeCopaPhaseKey] || copa.phases['1ª Fase'];
+  const otherCopaFixtures = (curPhaseObj.fixtures || []).filter(x => x !== myCopaFixture).slice(0, 4);
+
+  // Calcula contagem regressiva real para o jogo da Copa
+  let copaCountdownHtml = '';
+  if(myCopaFixture.score){
+    copaCountdownHtml = `<b style="color:#4ade80">PARTIDA FINALIZADA: ${myCopaFixture.score[0]} x ${myCopaFixture.score[1]}</b>`;
+  } else if(myCopaFixture.isoDate === state.date){
+    copaCountdownHtml = `<b style="color:#22c55e">🔥 HOJE É DIA DE JOGO NA COPA DO BRASIL!</b>`;
+  } else if(myCopaFixture.isoDate > state.date){
+    const d1 = new Date(state.date + 'T12:00:00');
+    const d2 = new Date(myCopaFixture.isoDate + 'T12:00:00');
+    const diffD = Math.max(1, Math.round((d2 - d1) / 86400000));
+    copaCountdownHtml = `<b style="color:var(--neon)">Faltam ${diffD} ${diffD === 1 ? 'dia' : 'dias'} para a decisão.</b>`;
+  } else {
+    copaCountdownHtml = `<b style="color:#94a3b8">Confronto da fase anterior concluído.</b>`;
+  }
 
   const curAvatar = MANAGER_AVATARS[currentManagerAvatarIdx % MANAGER_AVATARS.length];
   const curBoardScore = clamp(Number(state.boardConfidence ?? state.trust?.board ?? 75), 0, 100);
@@ -13585,7 +14642,7 @@ function centralPage(){
           <!-- Topo do Card -->
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <span style="font-size:14px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
-              ${(state.isPreSeason && state.preSeasonDays > 0) ? '🏖️ PRÉ-TEMPORADA EM ANDAMENTO' : 'HOJE TEM JOGO'}
+              ${(state.isPreSeason && state.preSeasonDays > 0) ? '🏖️ PRÉ-TEMPORADA EM ANDAMENTO' : (isMatchDay ? '🔥 HOJE TEM JOGO!' : '📅 PRÓXIMO COMPROMISSO')}
             </span>
             <span class="pill ${winInfo.open?'good':'bad'}" style="font-size:10px;font-weight:900;letter-spacing:0.5px">
               JANELA DE TRANSFERÊNCIAS ${winInfo.open?'ABERTA':'FECHADA'}
@@ -13644,7 +14701,9 @@ function centralPage(){
             ${typeof window.renderCompetitionLogo === 'function' ? window.renderCompetitionLogo(curComp()?.id, 32) : ''}
             <div>
               <div style="font-size:13px;font-weight:900;color:#fff">${esc(curComp()?.name || 'Campeonato')}</div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.6)">Rodada ${state.round + 1} · ${formatDatePtBr(state.date)}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.6)">
+                Rodada ${state.round + 1} · ${isMatchDay ? `Hoje (${formatDatePtBr(state.date)})` : `Data do Jogo: ${formatDatePtBr(matchDate)} (Hoje: ${formatDatePtBr(state.date)})`}
+              </div>
             </div>
           </div>
 
@@ -13750,17 +14809,44 @@ function centralPage(){
                 ⚽ A 1ª rodada oficial começará após o fechamento da janela de pré-temporada.
               </div>
             </div>
+          ` : matchGate.status === 'future' ? `
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
+              <div style="background:rgba(56,189,248,0.12);border:1px solid #38bdf8;border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:12px;color:#bae6fd;font-weight:700">📅 Próxima Partida em <b>${matchGate.daysDiff} ${matchGate.daysDiff === 1 ? 'dia' : 'dias'}</b></span>
+                <span style="font-size:11px;color:#38bdf8;font-weight:800">${formatDatePtBr(matchDate)}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px">
+                <button class="btn primary" id="btnAdvanceToMatchCentral" style="padding:14px 10px;font-size:13px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #0284c7, #0369a1);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(2,132,199,0.4);cursor:pointer">
+                  ⏩ ATÉ O JOGO (${matchGate.daysDiff}d)
+                </button>
+                <button class="btn" id="btnAdvanceOneDayCentral" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
+                  ➕ +1 DIA
+                </button>
+                <button class="btn" id="btnMatchPreviewCentral" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
+                  📋 PRÉVIA
+                </button>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);text-align:center">
+                ⚽ Avance os dias no calendário até a data da rodada para liberar o início da partida.
+              </div>
+            </div>
           ` : `
-            <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-top:16px">
-              <button class="btn primary" id="playMatchLive" style="padding:14px 10px;font-size:15px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(124,58,237,0.4);cursor:pointer">
-                ▶ JOGAR
-              </button>
-              <button class="btn" id="playMatchQuick" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
-                ⚡ SIMULAR
-              </button>
-              <button class="btn" id="btnMatchPreviewCentral" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
-                📋 PRÉVIA
-              </button>
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
+              <div style="background:rgba(34,197,94,0.15);border:1px solid #22c55e;border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:12px;color:#86efac;font-weight:900">🔥 HOJE É DIA DE JOGO!</span>
+                <span style="font-size:11px;color:#22c55e;font-weight:800">${formatDatePtBr(state.date)}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px">
+                <button class="btn primary" id="playMatchLive" style="padding:14px 10px;font-size:15px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(124,58,237,0.4);cursor:pointer">
+                  ▶ JOGAR AO VIVO
+                </button>
+                <button class="btn" id="playMatchQuick" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
+                  ⚡ SIMULAR
+                </button>
+                <button class="btn" id="btnMatchPreviewCentral" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
+                  📋 PRÉVIA
+                </button>
+              </div>
             </div>
           `}
 
@@ -13863,31 +14949,31 @@ function centralPage(){
         <div class="card" style="padding:18px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
           <div style="font-size:13px;font-weight:900;color:#fff;letter-spacing:0.5px">COPA DO BRASIL</div>
           <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;margin-top:2px">
-            MATA-MATA • 1ª FASE • 14 CONFRONTOS
+            MATA-MATA • ${esc(activeCopaPhaseKey.toUpperCase())}
           </div>
 
           <!-- Seu Confronto -->
           <div style="margin-top:14px;background:#241945;border:1px solid #7c3aed;border-radius:12px;padding:12px">
-            <div style="font-size:10px;font-weight:800;color:#c084fc;letter-spacing:0.5px">SEU CONFRONTO</div>
+            <div style="font-size:10px;font-weight:800;color:#c084fc;letter-spacing:0.5px">${esc(activeCopaPhaseKey.toUpperCase())} • SEU CONFRONTO</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
               <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.home)}</span>
               <span style="font-size:10px;color:rgba(255,255,255,0.4)">x</span>
               <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.away)}</span>
             </div>
             <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:6px;text-align:center">
-              JOGO ÚNICO • QUA, 11 FEV 2026<br>
-              <b style="color:var(--neon)">Faltam 21 dias. Antes dele você joga 4 partidas.</b>
+              JOGO ÚNICO • ${esc((myCopaFixture.date || curPhaseObj.dateStr)).toUpperCase()}<br>
+              ${copaCountdownHtml}
             </div>
           </div>
 
           <!-- Outros Confrontos -->
           <div style="margin-top:14px">
-            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">OUTROS CONFRONTOS</div>
+            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">OUTROS CONFRONTOS (${esc(activeCopaPhaseKey)})</div>
             <div style="display:flex;flex-direction:column;gap:6px">
               ${otherCopaFixtures.map(f => `
                 <div style="background:#161324;padding:6px 10px;border-radius:8px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
                   <span>${esc(f.home)}</span>
-                  <span style="color:rgba(255,255,255,0.3)">qua, 11 fev</span>
+                  <span style="color:rgba(255,255,255,0.4);font-weight:700">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(f.date || curPhaseObj.dateStr)}</span>
                   <span>${esc(f.away)}</span>
                 </div>
               `).join('')}
@@ -14722,6 +15808,20 @@ function marketPage(){
               <option value="85">85+</option>
             </select>
           </div>
+          <div class="filter-field">
+            <label>🔃 Ordenar por</label>
+            <select id="marketSort">
+              <option value="recommended">Recomendado</option>
+              <option value="name_asc">Nome (A - Z)</option>
+              <option value="name_desc">Nome (Z - A)</option>
+              <option value="age_asc">Idade (Menor primeiro)</option>
+              <option value="age_desc">Idade (Maior primeiro)</option>
+              <option value="price_asc">Preço (Menor primeiro)</option>
+              <option value="price_desc">Preço (Maior primeiro)</option>
+              <option value="ovr_desc">Overall (Maior primeiro)</option>
+              <option value="ovr_asc">Overall (Menor primeiro)</option>
+            </select>
+          </div>
           <div class="filter-field-check">
             <label>
               <input type="checkbox" id="onlyAffordable"> APENAS NO CAIXA
@@ -14737,6 +15837,23 @@ function marketPage(){
           </div>
         </div>
       </div>
+
+      ${!winInfo.open ? `
+        <div class="card" style="margin-top:14px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:12px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:26px">🔒</span>
+            <div>
+              <div style="font-size:14px;font-weight:900;color:#f87171;letter-spacing:0.5px">JANELA DE TRANSFERÊNCIAS FECHADA</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.7)">Novas aquisições e transferências normais estão bloqueadas até a reabertura oficial.</div>
+            </div>
+          </div>
+          <div style="background:rgba(0,0,0,0.35);padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);text-align:right">
+            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5)">PRÓXIMA JANELA:</div>
+            <div style="font-size:16px;font-weight:900;color:#38bdf8">${winInfo.nextOpenDate}</div>
+          </div>
+        </div>
+      ` : ''}
+
       <div id="buyList" style="margin-top:10px"></div>
     ` : marketTab==='loan' ? `
       <!-- Sub-Abas Empréstimos (Screenshot 3) -->
@@ -15046,6 +16163,8 @@ function bindMarketFilters(){
   country.onchange = updateComps;
   comp.onchange = updateClubOptions;
   clubSel.onchange = renderMarketBuy;
+  const sortSel = $('#marketSort');
+  if(sortSel) sortSel.onchange = renderMarketBuy;
   updateCountries();
 }
 
@@ -15056,6 +16175,8 @@ function renderMarketBuy(){
   const countryVal = $('#marketCountry')?.value;
   const compVal = $('#marketComp')?.value;
   const clubVal = $('#marketClub')?.value;
+  const windowOpen = isTransferWindowOpen(state.date);
+  const sortMode = $('#marketSort')?.value || 'recommended';
 
   let compClubSet = null;
   if(compVal){
@@ -15079,7 +16200,33 @@ function renderMarketBuy(){
       if(pCountry && !contCountries.includes(pCountry)) return false;
     }
     return true;
-  }).sort((a,b)=>playerOverall(b)-playerOverall(a)||calcValueMi(b)-calcValueMi(a)).slice(0,140);
+  });
+
+  // Pipeline de ordenação estável (não muta atributos do jogador e desempata por nome e ID)
+  ps.sort((a,b) => {
+    const ovrA = playerOverall(a), ovrB = playerOverall(b);
+    const valA = calcValueMi(a), valB = calcValueMi(b);
+    const ageA = a.age || 25, ageB = b.age || 25;
+    const nameA = a.name || '', nameB = b.name || '';
+    const idA = a.id || a.marketKey || '', idB = b.id || b.marketKey || '';
+
+    let diff = 0;
+    switch(sortMode){
+      case 'name_asc': diff = nameA.localeCompare(nameB, 'pt-BR'); break;
+      case 'name_desc': diff = nameB.localeCompare(nameA, 'pt-BR'); break;
+      case 'age_asc': diff = ageA - ageB; break;
+      case 'age_desc': diff = ageB - ageA; break;
+      case 'price_asc': diff = valA - valB; break;
+      case 'price_desc': diff = valB - valA; break;
+      case 'ovr_asc': diff = ovrA - ovrB; break;
+      case 'ovr_desc': diff = ovrB - ovrA; break;
+      default: // recommended
+        diff = (ovrB - ovrA) || (valB - valA); break;
+    }
+    return diff || nameA.localeCompare(nameB, 'pt-BR') || idA.localeCompare(idB);
+  });
+
+  ps = ps.slice(0, 140);
 
   if(!ps.length){ el.innerHTML='<div class="empty">Nenhum jogador encontrado com esses filtros selecionados.</div>'; return; }
 
@@ -15090,6 +16237,10 @@ function renderMarketBuy(){
         <tbody>
           ${ps.map(p=>{
             const val=calcValueMi(p), key=playerKey(p);
+            const canAfford = val*1e6 <= state.balance;
+            const canBuy = windowOpen && canAfford;
+            const btnText = !windowOpen ? 'Janela Fechada' : (!canAfford ? 'Sem caixa' : 'Comprar');
+            const btnTitle = !windowOpen ? 'Mercado de transferências fechado fora da janela' : (!canAfford ? 'Saldo em caixa insuficiente' : 'Iniciar negociação');
             return `
               <tr>
                 <td><b>${esc(p.name)}</b></td>
@@ -15098,7 +16249,7 @@ function renderMarketBuy(){
                 <td><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
                 <td>${p.age||'-'} anos</td>
                 <td><b class="good">${fmtMi(val)}</b></td>
-                <td><button class="btn primary buy" data-key="${esc(key)}" ${val*1e6>state.balance?'disabled':''}>${val*1e6>state.balance?'Sem caixa':'Comprar'}</button></td>
+                <td><button class="btn primary buy" data-key="${esc(key)}" title="${esc(btnTitle)}" ${!canBuy?'disabled':''}>${btnText}</button></td>
               </tr>
             `;
           }).join('')}
@@ -15230,6 +16381,10 @@ function renderMarketLoans(){
           ${list.map(p => {
             const fee = Math.round(calcValueMi(p) * 1e6 * 0.10);
             const key = playerKey(p);
+            const windowOpen = isTransferWindowOpen(state?.date);
+            const canLoan = windowOpen && fee <= state.balance;
+            const btnText = !windowOpen ? 'Janela Fechada' : (fee > state.balance ? 'Sem caixa' : 'Negociar Empréstimo');
+            const btnTitle = !windowOpen ? 'Mercado de transferências fechado fora da janela' : 'Negociar contratação por empréstimo';
 
             return `
               <tr>
@@ -15241,8 +16396,8 @@ function renderMarketLoans(){
                 <td style="text-align:center">${p.age||22} anos</td>
                 <td style="text-align:right;color:#22c55e;font-weight:800">${fmtMoney(fee)}</td>
                 <td style="text-align:center">
-                  <button class="btn success loan-in" data-key="${esc(key)}" style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:6px;background:#16a34a;color:#fff;border:none;cursor:pointer">
-                    Negociar Empréstimo
+                  <button class="btn success loan-in" data-key="${esc(key)}" title="${esc(btnTitle)}" ${!canLoan?'disabled':''} style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:6px;${!canLoan?'background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);cursor:not-allowed':'background:#16a34a;color:#fff;cursor:pointer'};border:none">
+                    ${btnText}
                   </button>
                 </td>
               </tr>
@@ -19752,6 +20907,15 @@ function bind(){
     const pEndSeason = $('#btnOpenEndOfSeasonCentral'); if(pEndSeason) pEndSeason.onclick = showEndOfSeasonModal;
     const pLive=$('#playMatchLive'); if(pLive) pLive.onclick=startLiveMatch;
     const pQuick=$('#playMatchQuick'); if(pQuick) pQuick.onclick=simulateQuickRound;
+    const pAdvToMatch = $('#btnAdvanceToMatchCentral');
+    if(pAdvToMatch) pAdvToMatch.onclick = () => {
+      const gate = canStartMatch();
+      advanceCalendarDays(gate.daysDiff || 7, true);
+    };
+    const pAdvOneDay = $('#btnAdvanceOneDayCentral');
+    if(pAdvOneDay) pAdvOneDay.onclick = () => {
+      advanceCalendarDays(1, true);
+    };
     const m=$('#mental'); if(m) m.onchange=()=>{state.mentality=m.value;save();toast('Mentalidade tática atualizada.')};
     
     const bPressCent = $('#btnOpenPressConferenceCentral');

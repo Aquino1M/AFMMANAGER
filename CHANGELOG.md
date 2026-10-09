@@ -4,6 +4,29 @@ Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027*
 
 ---
 
+## [3.1.4] - 2026-10-08 (Janelas Anuais, Match Engine Dinâmico, Correção de Entidades & Ordenação do Mercado)
+
+### 📅 Janelas de Transferência Anuais Multitemporada
+- **Duas Janelas por Temporada**: Configuração dinâmica `TRANSFER_WINDOWS` com Janela 1 (01/01 a 01/03) e Janela 2 (01/06 a 01/08), válida para qualquer ano de carreira.
+- **Mercado Fechado Fora da Janela**: Bloqueio ativo de compras e empréstimos fora do período com banner explicativo e data da próxima janela na interface.
+- **Abertura e Fechamento Automáticos**: Acompanhamento do avanço diário do calendário (31/12 ➔ 01/01 aberto, 01/03 ➔ 02/03 fechado, 31/05 ➔ 01/06 aberto, 01/08 ➔ 02/08 fechado).
+
+### ⚽ Fim do "Cara Parado" & Entidades no Gramado
+- **Isolamento Estrito do Goleiro**: Apenas o índice 0 de cada time recebe a condição `isGK = true`. Reservas ou atletas com posição GK escalados na linha recebem posição de linha, movimentam-se normalmente e vestem o uniforme correto.
+- **Árbitro Oficial no Gramado**: Inclusão de entidade oficial `REFEREE` com uniforme amarelo neon fluorescente, posicionamento dinâmico acompanhando a bola e bloqueio absoluto de participação em chutes, assistências e gols.
+- **Validação Rigorosa de Scorer e Eventos**: Funções `validateGoalScorer()`, `validateAssist()` e `validateMatchEvent()` impedem qualquer entidade inválida, fantasma ou do time adversário de marcar gols.
+
+### 🎮 Match Engine Variado & Simulações Únicas
+- **14 Padrões Táticos de Ataque**: Introdução de jogadas dinâmicas (construção curta, bola longa, contra-ataque rápido, infiltração, cruzamento, tabela rápida, drible desequilibrante, pressão alta e chutes de longe) ponderadas pela postura tática.
+- **Histórico Anti-Repetição**: `recentPlayPatterns` penaliza sequências idênticas em 80%, gerando partidas imprevisíveis e com narrativa fluida.
+- **Identidade Única por Partida**: Cada partida possui `matchId`, `seed` PRNG independente, timeline própria e eventos estruturados com causa, minuto, segundo, artilheiro e assistente.
+
+### 🛒 Ordenação Estável e Imutável no Mercado
+- **Seletor de Ordenação**: Novo controle no Mercado com opções: Recomendado, Nome (A-Z / Z-A), Idade (menor / maior), Preço (menor / maior) e Overall (maior / menor).
+- **Pipeline Seguro**: Dados do atleta não são alterados; pipeline filtra, ordena estavelmente com critérios de desempate e renderiza com alta performance.
+
+---
+
 ## [3.1.3] - 2026-10-08 (Sincronização Total da Tabela, Início Confiável de Partida & Calendário)
 
 ### 📊 Sincronização Absoluta da Tabela (Fim dos Jogos Desiguais)
