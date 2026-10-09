@@ -1,7 +1,42 @@
 // ==============================================================================
 // AFM MANAGER 2027 — ESCUDOS: UCL
-// Clubes mapeados: 1
+// Clubes mapeados: 36
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Barcelona": "barcelona.png"
+  "Real Madrid": "europe/real_madrid.png",
+  "Manchester City": "europe/manchester_city.png",
+  "Bayern München": "europe/bayern_munchen.png",
+  "Paris Saint-Germain": "europe/paris_saint_germain.png",
+  "Liverpool": "europe/liverpool.png",
+  "Inter": "europe/inter.png",
+  "Borussia Dortmund": "europe/borussia_dortmund.png",
+  "RB Leipzig": "europe/rb_leipzig.png",
+  "Barcelona": "europe/barcelona.png",
+  "Bayer Leverkusen": "europe/bayer_leverkusen.png",
+  "Atlético de Madrid": "europe/atletico_de_madrid.png",
+  "Atalanta": "europe/atalanta.png",
+  "Juventus": "europe/juventus.png",
+  "Benfica": "europe/benfica.png",
+  "Arsenal": "europe/arsenal.png",
+  "Club Brugge": "europe/club_brugge.png",
+  "Shakhtar Donetsk": "europe/shakhtar_donetsk.png",
+  "AC Milan": "europe/ac_milan.png",
+  "Feyenoord": "europe/feyenoord.png",
+  "Sporting CP": "europe/sporting_cp.png",
+  "PSV": "europe/psv.png",
+  "Dinamo Zagreb": "europe/dinamo_zagreb.png",
+  "Salzburg": "europe/salzburg.png",
+  "Lille": "europe/lille.png",
+  "Crvena zvezda": "europe/crvena_zvezda.png",
+  "Young Boys": "europe/young_boys.png",
+  "Celtic": "europe/celtic.png",
+  "Slovan Bratislava": "europe/slovan_bratislava.png",
+  "Monaco": "europe/monaco.png",
+  "Sparta Praha": "europe/sparta_praha.png",
+  "Aston Villa": "europe/aston_villa.png",
+  "Bologna": "europe/bologna.png",
+  "Girona": "europe/girona.png",
+  "VfB Stuttgart": "europe/vfb_stuttgart.png",
+  "Sturm Graz": "europe/sturm_graz.png",
+  "Brest": "europe/brest.png"
 });

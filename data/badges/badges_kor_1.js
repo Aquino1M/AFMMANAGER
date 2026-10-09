@@ -3,16 +3,16 @@
 // Clubes mapeados: 12
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Anyang": "anyang.png",
-  "Daegu FC": "daegu_fc.png",
-  "Daejeon Hana Citizen": "daejeon_hana_citizen.png",
-  "FC Seoul": "fc_seoul.png",
-  "Gangwon FC": "gangwon_fc.png",
-  "Gimcheon Sangmu": "gimcheon_sangmu.png",
-  "Gwangju FC": "gwangju_fc.png",
-  "Jeju SK": "jeju_sk.png",
-  "Jeonbuk Hyundai Motors": "jeonbuk_hyundai_motors.png",
-  "Pohang Steelers": "pohang_steelers.png",
-  "Suwon FC": "suwon_fc.png",
-  "Ulsan HD": "ulsan_hd.png"
+  "Ulsan HD": "asia/ulsan_hd.png",
+  "Jeonbuk Hyundai Motors": "asia/jeonbuk_hyundai_motors.png",
+  "Pohang Steelers": "asia/pohang_steelers.png",
+  "FC Seoul": "asia/fc_seoul.png",
+  "Gimcheon Sangmu": "asia/gimcheon_sangmu.png",
+  "Daejeon Hana Citizen": "asia/daejeon_hana_citizen.png",
+  "Gangwon FC": "asia/gangwon_fc.png",
+  "Gwangju FC": "asia/gwangju_fc.png",
+  "Jeju SK": "asia/jeju_sk.png",
+  "Suwon FC": "asia/suwon_fc.png",
+  "Daegu FC": "asia/daegu_fc.png",
+  "Anyang": "asia/anyang.png"
 });
