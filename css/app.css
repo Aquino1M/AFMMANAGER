@@ -188,8 +188,8 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
 .zone-rel{border-left:4px solid var(--bad)!important;background:linear-gradient(90deg,#ef444415,transparent)!important}
 
 /* Tactical Pitch & Drag and Drop with Green/Yellow Compatibility */
-.team-layout{display:grid;grid-template-columns:minmax(480px,1.4fr) minmax(280px,.6fr);gap:16px;margin-top:14px}
-.pitch-card{background:#0e1620;border:1px solid var(--line);border-radius:16px;padding:16px}
+.team-layout{display:grid;grid-template-columns:minmax(440px,1.15fr) minmax(360px,0.85fr);gap:20px;margin-top:14px;align-items:start}
+.pitch-card{background:#0e1620;border:1px solid var(--line);border-radius:16px;padding:16px;max-width:650px;width:100%}
 .pitch{
   position:relative;
   min-height:640px;
@@ -353,20 +353,26 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
 .strength-strip b{font-size:22px}
 
 /* Bench list */
-.bench-card{max-height:760px;overflow:auto}
+.bench-card{max-height:760px;overflow:auto;min-width:340px}
 .bench-list{display:grid;gap:8px;margin-top:12px}
 .bench-player{
   display:flex;
   justify-content:space-between;
-  gap:10px;
+  gap:12px;
   align-items:center;
-  padding:10px 12px;
-  border:1px solid var(--line);
+  padding:10px 14px;
+  border:1px solid rgba(255,255,255,0.08);
   border-radius:10px;
-  background:var(--panel2);
-  cursor:grab;
-  transition:all .15s ease;
+  background:#141c2b;
 }
+
+/* Acordeão Tático Retrátil (Economia de Espaço & Organização) */
+.tactical-accordion{background:#100d1e;border:1px solid rgba(255,255,255,0.08);border-radius:14px;margin-top:12px;overflow:hidden;transition:all .2s ease}
+.tactical-accordion[open]{border-color:rgba(139,92,246,0.4);box-shadow:0 4px 20px rgba(0,0,0,0.4)}
+.tactical-accordion summary{padding:14px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#141026;font-weight:900;list-style:none;user-select:none;transition:background .15s ease}
+.tactical-accordion summary::-webkit-details-marker{display:none}
+.tactical-accordion summary:hover{background:#1b1633}
+.tactical-accordion-body{padding:20px;border-top:1px solid rgba(255,255,255,0.06)}
 .bench-player:hover{border-color:var(--accent);background:#223042}
 .bench-player:active{cursor:grabbing}
 .bench-player.dragging{opacity:.35;transform:scale(.97)}
@@ -3957,60 +3963,74 @@ body.theme-emerald {
   transform: translate(-50%, -50%) scale(0.96);
 }
 
-/* Fit Tático: Posição Ideal (Verde) */
-.fifa-mini-card.slot-best-fit {
-  border-color: #34d399 !important;
-  box-shadow: 0 0 16px rgba(52, 211, 153, 0.8), inset 0 0 8px rgba(52, 211, 153, 0.3) !important;
-  z-index: 60 !important;
+/* Fit Tático: Posição Ideal (Verde Neon Forte) */
+.fifa-mini-card.slot-best-fit,
+.halftime-pitch-player.slot-best-fit,
+.lineup-slot.slot-best-fit {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 22px #22c55e, 0 0 35px rgba(34, 197, 94, 0.85), inset 0 0 10px rgba(34, 197, 94, 0.5) !important;
+  transform: translate(-50%, -50%) scale(1.14) !important;
+  z-index: 120 !important;
+  background: radial-gradient(circle at 50% 30%, #064e3b, #022c22) !important;
 }
-.fifa-mini-card.slot-best-fit::before {
-  content: '★ IDEAL';
-  position: absolute;
-  top: -16px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #059669;
-  color: #ffffff;
-  font-size: 8px;
-  font-weight: 900;
-  padding: 1px 5px;
-  border-radius: 999px;
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
-  border: 1px solid #6ee7b7;
-  z-index: 200;
+.fifa-mini-card.slot-best-fit::before,
+.halftime-pitch-player.slot-best-fit::before,
+.lineup-slot.slot-best-fit::before {
+  content: '★ IDEAL' !important;
+  position: absolute !important;
+  top: -18px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: #16a34a !important;
+  color: #ffffff !important;
+  font-size: 8.5px !important;
+  font-weight: 900 !important;
+  padding: 2px 7px !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 10px #22c55e !important;
+  border: 1px solid #86efac !important;
+  z-index: 300 !important;
 }
 
 /* Fit Tático: Posição Adaptada (Amarelo) */
-.fifa-mini-card.slot-ok-fit {
-  border-color: #fbbf24 !important;
-  box-shadow: 0 0 14px rgba(251, 191, 36, 0.75), inset 0 0 6px rgba(251, 191, 36, 0.25) !important;
-  z-index: 50 !important;
+.fifa-mini-card.slot-ok-fit,
+.halftime-pitch-player.slot-ok-fit,
+.lineup-slot.slot-ok-fit {
+  border-color: #facc15 !important;
+  box-shadow: 0 0 16px rgba(250, 204, 21, 0.85), inset 0 0 8px rgba(250, 204, 21, 0.3) !important;
+  transform: translate(-50%, -50%) scale(1.06) !important;
+  z-index: 90 !important;
+  background: radial-gradient(circle at 50% 30%, #713f12, #451a03) !important;
 }
-.fifa-mini-card.slot-ok-fit::before {
-  content: 'ADAPTADA';
-  position: absolute;
-  top: -16px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #b45309;
-  color: #ffffff;
-  font-size: 7.5px;
-  font-weight: 900;
-  padding: 1px 5px;
-  border-radius: 999px;
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
-  border: 1px solid #fcd34d;
-  z-index: 200;
+.fifa-mini-card.slot-ok-fit::before,
+.halftime-pitch-player.slot-ok-fit::before,
+.lineup-slot.slot-ok-fit::before {
+  content: 'ADAPTADA' !important;
+  position: absolute !important;
+  top: -18px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: #ca8a04 !important;
+  color: #ffffff !important;
+  font-size: 8px !important;
+  font-weight: 900 !important;
+  padding: 2px 6px !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.8) !important;
+  border: 1px solid #fef08a !important;
+  z-index: 300 !important;
 }
 
 /* Fit Tático: Posição Incompatível */
-.fifa-mini-card.slot-bad-fit {
+.fifa-mini-card.slot-bad-fit,
+.halftime-pitch-player.slot-bad-fit,
+.lineup-slot.slot-bad-fit {
   opacity: 0.35 !important;
-  filter: grayscale(0.85) !important;
+  filter: grayscale(0.7) !important;
 }
 
 /* PREVENÇÃO DE CONFLITO DE EVENTOS NO DRAG & DROP (SEM PISCAR / TRAVAR) */
