@@ -3676,3 +3676,350 @@ body.theme-emerald {
   font-size: 11px;
 }
 
+/* ==========================================================================
+   MINI-CARDS TÁTICOS ESTILO FIFA ULTIMATE TEAM (FUT MINI-CARDS)
+   ========================================================================== */
+.fifa-mini-card {
+  position: absolute;
+  width: 74px;
+  height: 98px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(180deg, #1e293b 0%, #111827 50%, #030712 100%);
+  border: 1.5px solid rgba(217, 119, 6, 0.75);
+  border-radius: 9px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 3px 2px 3px;
+  cursor: grab;
+  user-select: none;
+  z-index: 10;
+  transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.18s ease, border-color 0.18s ease;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.fifa-mini-card:active {
+  cursor: grabbing;
+}
+
+.fifa-mini-card:hover {
+  transform: translate(-50%, -50%) scale(1.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85), 0 0 14px rgba(245, 158, 11, 0.45);
+  z-index: 30;
+}
+
+/* Tiers visuais dos cards baseados no Overall */
+.fifa-mini-card.tier-gold-rare {
+  border-color: #fbbf24;
+  background: linear-gradient(180deg, #2b220d 0%, #181307 55%, #080602 100%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 8px rgba(251, 191, 36, 0.25), inset 0 1px 2px rgba(254, 240, 138, 0.35);
+}
+.fifa-mini-card.tier-gold {
+  border-color: #d97706;
+  background: linear-gradient(180deg, #241c0e 0%, #141007 55%, #050402 100%);
+}
+.fifa-mini-card.tier-silver {
+  border-color: #94a3b8;
+  background: linear-gradient(180deg, #1e2634 0%, #111722 55%, #05080e 100%);
+}
+.fifa-mini-card.tier-bronze {
+  border-color: #b45309;
+  background: linear-gradient(180deg, #221711 0%, #150e09 55%, #060403 100%);
+}
+
+/* Topo do Mini-Card: OVR e POS à esquerda, Escudo à direita */
+.fifa-mini-card-top {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1px 1px;
+  box-sizing: border-box;
+  z-index: 3;
+}
+
+.fifa-mini-card-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1;
+}
+
+.fifa-mini-card-ovr {
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  color: #fbbf24;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  letter-spacing: -0.5px;
+}
+
+.fifa-mini-card.tier-silver .fifa-mini-card-ovr {
+  color: #e2e8f0;
+}
+.fifa-mini-card.tier-bronze .fifa-mini-card-ovr {
+  color: #fdba74;
+}
+
+.fifa-mini-card-pos {
+  font-size: 8px;
+  font-weight: 800;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  margin-top: 1px;
+}
+
+.fifa-mini-card-role-adapted {
+  font-size: 7px;
+  font-weight: 900;
+  color: #facc15;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 1px 2px;
+  border-radius: 3px;
+  margin-top: 1px;
+  line-height: 1;
+}
+
+.fifa-mini-card-crest {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.fifa-mini-card-crest img {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+
+/* Centro: Recorte de Foto Oficial do Jogador */
+.fifa-mini-card-photo-wrap {
+  position: absolute;
+  top: 12px;
+  bottom: 22px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.fifa-mini-card-photo {
+  height: 50px;
+  width: auto;
+  max-width: 58px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.85));
+  transition: transform 0.2s ease;
+}
+
+.fifa-mini-card-avatar-fallback {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #334155, #090d16);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.fifa-mini-card-avatar-fallback svg {
+  width: 28px;
+  height: 28px;
+  fill: #94a3b8;
+}
+
+/* Base: Faixa de Nome e Barra de Condição Física */
+.fifa-mini-card-bottom {
+  width: 100%;
+  z-index: 3;
+  margin-top: auto;
+  box-sizing: border-box;
+}
+
+.fifa-mini-card-name {
+  background: rgba(3, 7, 18, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 2px 1px;
+  font-size: 8.5px;
+  font-weight: 900;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.fifa-mini-card-stamina {
+  width: 100%;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.fifa-mini-card-stamina-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+.fifa-mini-card-stamina-fill.stamina-good,
+.fifa-mini-card-stamina-fill.halftime-stamina-good {
+  background: #22c55e;
+}
+.fifa-mini-card-stamina-fill.stamina-warn,
+.fifa-mini-card-stamina-fill.halftime-stamina-warn {
+  background: #facc15;
+}
+.fifa-mini-card-stamina-fill.stamina-tired,
+.fifa-mini-card-stamina-fill.halftime-stamina-tired {
+  background: #ef4444;
+}
+
+/* Ícones de Lesão e Suspensão */
+.fifa-mini-card-status {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  font-size: 10px;
+  z-index: 4;
+}
+
+/* ==========================================================================
+   ESTADOS DE INTERAÇÃO (SELEÇÃO, DRAG-AND-DROP E FIT TÁTICO)
+   ========================================================================== */
+@keyframes fifaCardSelectedPulse {
+  0% {
+    box-shadow: 0 0 10px #f59e0b, 0 0 20px rgba(245, 158, 11, 0.5);
+    border-color: #f59e0b;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+  50% {
+    box-shadow: 0 0 24px #fbbf24, 0 0 38px rgba(251, 191, 36, 0.85);
+    border-color: #fef08a;
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+  100% {
+    box-shadow: 0 0 10px #f59e0b, 0 0 20px rgba(245, 158, 11, 0.5);
+    border-color: #f59e0b;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
+/* Card Titular Selecionado para Troca */
+.fifa-mini-card.selected {
+  animation: fifaCardSelectedPulse 1.2s infinite ease-in-out !important;
+  border-color: #fbbf24 !important;
+  z-index: 100 !important;
+}
+
+/* Card Reserva Selecionado para Troca */
+.bench-player.selected,
+.halftime-bench-card.selected {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.6) !important;
+  background: #251e3e !important;
+}
+
+/* Card onde o mouse/drag está passando por cima */
+.fifa-mini-card.drag-over {
+  border-color: #c084fc !important;
+  box-shadow: 0 0 25px #a855f7, 0 0 45px rgba(168, 85, 247, 0.75) !important;
+  transform: translate(-50%, -50%) scale(1.16) !important;
+  z-index: 110 !important;
+}
+
+.bench-player.drag-over,
+.halftime-bench-card.drag-over {
+  border-color: #c084fc !important;
+  box-shadow: 0 0 20px #a855f7 !important;
+  background: #251e3e !important;
+}
+
+.fifa-mini-card.dragging {
+  opacity: 0.45;
+  transform: translate(-50%, -50%) scale(0.96);
+}
+
+/* Fit Tático: Posição Ideal (Verde) */
+.fifa-mini-card.slot-best-fit {
+  border-color: #34d399 !important;
+  box-shadow: 0 0 16px rgba(52, 211, 153, 0.8), inset 0 0 8px rgba(52, 211, 153, 0.3) !important;
+  z-index: 60 !important;
+}
+.fifa-mini-card.slot-best-fit::before {
+  content: '★ IDEAL';
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #059669;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 900;
+  padding: 1px 5px;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  border: 1px solid #6ee7b7;
+  z-index: 200;
+}
+
+/* Fit Tático: Posição Adaptada (Amarelo) */
+.fifa-mini-card.slot-ok-fit {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.75), inset 0 0 6px rgba(251, 191, 36, 0.25) !important;
+  z-index: 50 !important;
+}
+.fifa-mini-card.slot-ok-fit::before {
+  content: 'ADAPTADA';
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #b45309;
+  color: #ffffff;
+  font-size: 7.5px;
+  font-weight: 900;
+  padding: 1px 5px;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  border: 1px solid #fcd34d;
+  z-index: 200;
+}
+
+/* Fit Tático: Posição Incompatível */
+.fifa-mini-card.slot-bad-fit {
+  opacity: 0.35 !important;
+  filter: grayscale(0.85) !important;
+}
+
+/* PREVENÇÃO DE CONFLITO DE EVENTOS NO DRAG & DROP (SEM PISCAR / TRAVAR) */
+.pointer-events-none,
+.is-dragging .fifa-mini-card *,
+.is-dragging .halftime-pitch-player *,
+.is-dragging .bench-player *,
+.is-dragging .halftime-bench-card * {
+  pointer-events: none !important;
+}
+
+

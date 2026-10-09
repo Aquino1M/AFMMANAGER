@@ -1,42 +1,6 @@
 // ==============================================================================
 // AFM MANAGER 2027 — ESCUDOS: UEL
-// Clubes mapeados: 36
+// Clubes mapeados: 0
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Roma": "europe/roma.png",
-  "Manchester United": "europe/manchester_united.png",
-  "FC Porto": "europe/fc_porto.png",
-  "Ajax": "europe/ajax.png",
-  "Rangers": "europe/rangers.png",
-  "Eintracht Frankfurt": "europe/eintracht_frankfurt.png",
-  "Lazio": "europe/lazio.png",
-  "Tottenham Hotspur": "europe/tottenham_hotspur.png",
-  "Slavia Praha": "europe/slavia_praha.png",
-  "Real Sociedad": "europe/real_sociedad.png",
-  "AZ Alkmaar": "europe/az_alkmaar.png",
-  "Braga": "europe/braga.png",
-  "Olympiacos": "europe/olympiacos.png",
-  "Lyon": "europe/lyon.png",
-  "PAOK": "europe/paok.png",
-  "Fenerbahçe": "europe/fenerbahce.png",
-  "Maccabi Tel Aviv": "europe/maccabi_tel_aviv.png",
-  "Ferencváros": "europe/ferencvaros.png",
-  "Qarabağ": "europe/qarabag.png",
-  "Galatasaray": "europe/galatasaray.png",
-  "Viktoria Plzeň": "europe/viktoria_plzen.png",
-  "Bodø/Glimt": "europe/bod_glimt.png",
-  "Union Saint-Gilloise": "europe/union_saint_gilloise.png",
-  "Dynamo Kyiv": "europe/dynamo_kyiv.png",
-  "Ludogorets": "europe/ludogorets.png",
-  "Midtjylland": "europe/midtjylland.png",
-  "Malmö FF": "europe/malmo_ff.png",
-  "Athletic Club": "bra_b/athletic_club.svg",
-  "Hoffenheim": "europe/hoffenheim.png",
-  "Nice": "europe/nice.png",
-  "Anderlecht": "europe/anderlecht.png",
-  "Twente": "europe/twente.png",
-  "Beşiktaş": "europe/besiktas.png",
-  "FCSB": "europe/fcsb.png",
-  "RFS": "europe/rfs.png",
-  "Elfsborg": "europe/elfsborg.png"
 });

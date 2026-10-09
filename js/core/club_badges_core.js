@@ -198,8 +198,8 @@ window.renderClubBadge = function(clubName, size = 32) {
 
   if (file) {
     const cleanPath = file.startsWith('img/badges/') ? file : `img/badges/${file}`;
-    const baseName = file.split('/').pop();
-    return `<img src="${cleanPath}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;border-radius:4px;flex-shrink:0" loading="lazy" onerror="if(!this.dataset.retried){this.dataset.retried=1;this.src='img/badges/${baseName}';}else{this.onerror=null;this.parentElement.innerHTML=renderDefaultBadge('${rawName.replace(/'/g, "\\'")}',${size});}">`;
+    const escapedName = rawName.replace(/'/g, "\\'");
+    return `<img src="${cleanPath}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;border-radius:4px;flex-shrink:0" loading="lazy" onerror="this.onerror=null; this.outerHTML=window.renderDefaultBadge('${escapedName}',${size});">`;
   }
 
   return window.renderDefaultBadge(rawName, size);
@@ -207,7 +207,40 @@ window.renderClubBadge = function(clubName, size = 32) {
 
 window.renderDefaultBadge = function(rawName, size = 32) {
   const inits = rawName.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase() || 'FC';
-  return `<div class="crest-img-fallback" style="width:${size}px;height:${size}px;border-radius:6px;background:linear-gradient(135deg,#1e1b4b,#312e81);border:1px solid rgba(99,102,241,0.4);display:inline-flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.38)}px;font-weight:900;color:#c7d2fe;flex-shrink:0">${inits}</div>`;
+  const n = typeof window.normClub === 'function' ? window.normClub(rawName) : rawName.toLowerCase();
+  
+  const colorMap = {
+    'flamengo': ['#b91c1c', '#ffffff'],
+    'palmeiras': ['#047857', '#ffffff'],
+    'corinthians': ['#09090b', '#ffffff'],
+    'sao paulo': ['#b91c1c', '#ffffff'],
+    'santos': ['#ffffff', '#09090b'],
+    'gremio': ['#0284c7', '#ffffff'],
+    'internacional': ['#dc2626', '#ffffff'],
+    'vasco': ['#09090b', '#ffffff'],
+    'cruzeiro': ['#1d4ed8', '#ffffff'],
+    'atletico mg': ['#09090b', '#ffffff'],
+    'botafogo': ['#09090b', '#ffffff'],
+    'fluminense': ['#047857', '#b91c1c'],
+    'bahia': ['#0284c7', '#dc2626'],
+    'sport': ['#b91c1c', '#facc15'],
+    'sport recife': ['#b91c1c', '#facc15'],
+    'america mg': ['#15803d', '#ffffff'],
+    'brasilia': ['#dc2626', '#ffffff'],
+    'coritiba': ['#047857', '#ffffff'],
+    'chapecoense': ['#059669', '#ffffff'],
+    'goias': ['#047857', '#ffffff'],
+    'ceara': ['#09090b', '#ffffff'],
+    'fortaleza': ['#1d4ed8', '#dc2626'],
+    'sao bernardo': ['#ca8a04', '#09090b'],
+    'pantanal': ['#047857', '#eab308']
+  };
+
+  const pair = colorMap[n] || ['#1e1b4b', '#c7d2fe'];
+  const bg = pair[0];
+  const fg = pair[1] || '#ffffff';
+
+  return `<div class="crest-img-fallback" style="width:${size}px;height:${size}px;border-radius:6px;background:${bg};border:1.5px solid rgba(255,255,255,0.25);display:inline-flex;align-items:center;justify-content:center;font-size:${Math.max(8, Math.round(size*0.38))}px;font-weight:900;color:${fg};flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,0.5);letter-spacing:0.5px" title="${rawName}">${inits}</div>`;
 };
 
 // Renderização oficial de fotos de jogadores

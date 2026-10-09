@@ -151,40 +151,154 @@ function clubBadge(name, size=32){
 
 
 
-function playerPhoto(p, size=36){
-  const name = typeof p === 'string' ? p : p?.name;
-  const pos = typeof p === 'object' ? (p?.pos || 'ST') : 'ST';
-  if(getDbMode() === 'standard'){
-    return renderPlayerAvatarFallback(name, pos, size);
+// ==============================================================================
+// SISTEMA OFICIAL DE FOTOS DE JOGADORES & CARDS FUT (AFM 2027)
+// ==============================================================================
+
+function resolvePlayerPhotoUrl(p) {
+  if (!p) return null;
+  const name = typeof p === 'string' ? p : (p.name || '');
+  if (!name) return null;
+
+  // 1. Verificar se o atleta já possui foto explícita
+  if (typeof p === 'object' && p.photo && typeof p.photo === 'string') {
+    return p.photo.startsWith('img/') ? p.photo : `img/${p.photo}`;
   }
+
+  // 2. Verificar no mapeamento global window.PLAYER_PHOTOS (exato, norm, lowercase, slug)
   const photos = window.PLAYER_PHOTOS || {};
-  const photoUrl = photos[name] || photos[norm(name)];
-  if(photoUrl){
-    return `<img src="${photoUrl}" alt="${esc(name)}" class="player-avatar" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;background:#1e293b;border:2px solid rgba(168,85,247,0.35);box-shadow:0 2px 8px rgba(0,0,0,0.35);flex-shrink:0" loading="lazy" onerror="this.outerHTML=renderPlayerAvatarFallback('${esc(name)}','${esc(pos)}',${size})">`;
+  const normName = typeof norm === 'function' ? norm(name) : name.toLowerCase();
+  const slugName = typeof normSlug === 'function' ? normSlug(name) : name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+  let match = photos[name] || photos[normName] || photos[name.toLowerCase()] || photos[slugName];
+  if (match) {
+    return match.startsWith('img/') ? match : `img/${match}`;
   }
+
+  // 3. Buscar na árvore física padrão: img/players/${league}/${club_slug}/${player_slug}.png
+  const club = typeof p === 'object' ? (p.club || state?.club || '') : (state?.club || '');
+  if (club) {
+    const clubSlug = typeof normSlug === 'function' ? normSlug(club) : club.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const compId = (typeof curComp === 'function' ? curComp()?.id : '') || 'bra-a';
+    const leagueMap = {
+      'bra-a': 'bra_a', 'bra-b': 'bra_b', 'bra-c': 'bra_c', 'bra-d': 'bra_d',
+      'bra-est-df': 'bra_estaduais', 'bra-est-sp': 'bra_estaduais', 'bra-est-rj': 'bra_estaduais',
+      'bra-est-mg': 'bra_estaduais', 'bra-est-rs': 'bra_estaduais', 'bra-est-pr': 'bra_estaduais',
+      'bra-est-sc': 'bra_estaduais', 'bra-est-ba': 'bra_estaduais', 'bra-est-ce': 'bra_estaduais',
+      'bra-est-go': 'bra_estaduais', 'bra-est-pe': 'bra_estaduais',
+      'arg-1': 'arg_1', 'arg-2': 'arg_2', 'europe': 'europe', 'asia': 'asia'
+    };
+    const leagueFolder = leagueMap[compId] || (compId.startsWith('bra-est') ? 'bra_estaduais' : 'bra_a');
+    return `img/players/${leagueFolder}/${clubSlug}/${slugName}.png`;
+  }
+
+  return null;
+}
+
+function playerPhoto(p, size = 36) {
+  const name = typeof p === 'string' ? p : (p?.name || 'Jogador');
+  const pos = typeof p === 'object' ? (p?.pos || 'ST') : 'ST';
+  const photoUrl = resolvePlayerPhotoUrl(p);
+
+  if (photoUrl) {
+    const escapedName = esc(name);
+    const escapedPos = esc(pos);
+    return `<img src="${photoUrl}" alt="${escapedName}" class="player-avatar" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;background:#0f172a;border:2px solid rgba(148,163,184,0.3);box-shadow:0 2px 8px rgba(0,0,0,0.4);vertical-align:middle;flex-shrink:0" loading="lazy" onerror="this.onerror=null; this.outerHTML=renderPlayerAvatarFallback('${escapedName}','${escapedPos}',${size});">`;
+  }
+
   return renderPlayerAvatarFallback(name, pos, size);
 }
 
-function renderPlayerAvatarFallback(name, pos, size=36){
-  const h = hashStr(name || 'Player');
-  const jerseyColors = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#6366f1'];
-  const skinTones = ['#f8d9b6', '#e0ac69', '#c68642', '#8d5524', '#ffdbac', '#e8beac'];
-  const hairColors = ['#1a1a1a', '#4a2c11', '#2e1d0d', '#6e4720', '#171717', '#e6c280'];
-  
-  const jCol = jerseyColors[h % jerseyColors.length];
-  const sTone = skinTones[(h >> 3) % skinTones.length];
-  const hCol = hairColors[(h >> 6) % hairColors.length];
-
-  return `<svg width="${size}" height="${size}" viewBox="0 0 40 40" class="player-avatar" style="border-radius:50%;border:1px solid rgba(255,255,255,0.18);box-shadow:0 2px 6px rgba(0,0,0,0.4);flex-shrink:0;background:#0f172a" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="20" cy="20" r="19" fill="#1e293b"/>
-    <path d="M7 40 C7 31 13 28 20 28 C27 28 33 31 33 40 Z" fill="${jCol}"/>
-    <path d="M16 28 L20 32 L24 28 Z" fill="#ffffff" opacity="0.9"/>
-    <rect x="18" y="24" width="4" height="5" fill="${sTone}"/>
-    <ellipse cx="20" cy="18" rx="6.5" ry="8" fill="${sTone}"/>
-    <path d="M13.5 17 C13.5 11 15 9 20 9 C25 9 26.5 11 26.5 17 C25 14 23 13 20 13 C17 13 15 14 13.5 17 Z" fill="${hCol}"/>
-    ${size >= 34 ? `<circle cx="32" cy="8" r="5.5" fill="#090d16" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/><text x="32" y="10" font-size="5" font-weight="900" fill="#38bdf8" text-anchor="middle" font-family="sans-serif">${esc(pos||'ST').slice(0,2)}</text>` : ''}
-  </svg>`;
+function renderPlayerAvatarFallback(name, pos = 'CM', size = 36) {
+  return `<div class="player-avatar" style="width:${size}px;height:${size}px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #1e293b, #090d16);border:1.5px solid rgba(148,163,184,0.35);box-shadow:0 2px 6px rgba(0,0,0,0.45);display:inline-flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;vertical-align:middle" title="${esc(name || '')}">
+    <svg width="${Math.round(size * 0.72)}" height="${Math.round(size * 0.72)}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.85">
+      <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="#94a3b8"/>
+    </svg>
+    ${size >= 34 ? `<span style="position:absolute;bottom:-2px;right:-2px;background:#0f172a;border:1px solid rgba(255,255,255,0.2);color:#fbbf24;font-size:${Math.max(7, Math.round(size * 0.22))}px;font-weight:900;padding:1px 3px;border-radius:4px;line-height:1">${esc(pos || 'ST').slice(0, 2)}</span>` : ''}
+  </div>`;
 }
+
+function renderFifaCardFallbackSvg() {
+  return `<div class="fifa-mini-card-avatar-fallback">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="#94a3b8"/>
+    </svg>
+  </div>`;
+}
+
+function renderFifaMiniCard(p, slot = {}, opts = {}) {
+  const i = slot.index ?? 0;
+  const role = slot.role || (p?.pos || 'ST');
+  const x = slot.x ?? 50;
+  const y = slot.y ?? 50;
+  const pk = p ? (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.key || p.name)) : '';
+  const ovr = p ? (typeof playerOverall === 'function' ? playerOverall(p) : (p.ovr || p.overall || 60)) : '-';
+  const pos = p ? (p.pos || role) : role;
+  const isAdapted = p && p.pos !== role;
+  const isSelected = !!opts.isSelected;
+  const isHalftime = !!opts.isHalftime;
+  const stamina = p ? Math.round(p.stamina ?? p.fitness ?? 100) : 100;
+  const staminaClass = stamina >= 75 ? 'stamina-good' : stamina >= 50 ? 'stamina-warn' : 'stamina-tired';
+  const shortName = p ? (p.name.split(' ').pop() || p.name).toUpperCase() : 'VAZIO';
+  const photoUrl = p ? resolvePlayerPhotoUrl(p) : null;
+  const clubName = p?.club || state?.club || '';
+
+  const ovrNum = Number(ovr) || 0;
+  const tierClass = ovrNum >= 80 ? 'tier-gold-rare' : ovrNum >= 70 ? 'tier-gold' : ovrNum >= 60 ? 'tier-silver' : 'tier-bronze';
+  const customClass = opts.customClass || '';
+
+  return `
+    <div class="fifa-mini-card ${tierClass} ${isSelected ? 'selected' : ''} ${customClass}" 
+         style="left:${x}%;top:${y}%;" 
+         data-slot-index="${i}" 
+         data-slot-role="${esc(role)}" 
+         data-player-key="${esc(pk)}" 
+         data-starterkey="${esc(pk)}" 
+         draggable="true" 
+         title="${p ? `${esc(p.name)} (${esc(pos)}) • OVR ${ovr}` : 'Slot Vazio'}">
+      
+      <!-- Topo: OVR, POS e Escudo -->
+      <div class="fifa-mini-card-top">
+        <div class="fifa-mini-card-badge">
+          <span class="fifa-mini-card-ovr">${ovr}</span>
+          <span class="fifa-mini-card-pos">${esc(pos)}</span>
+          ${isAdapted ? `<span class="fifa-mini-card-role-adapted" title="Função tática: ${esc(role)}">(${esc(role)})</span>` : ''}
+        </div>
+        <div class="fifa-mini-card-crest">
+          ${typeof clubBadge === 'function' ? clubBadge(clubName, 15) : ''}
+        </div>
+      </div>
+
+      <!-- Centro: Foto Oficial Recortada ou Silhueta Atlética FUT -->
+      <div class="fifa-mini-card-photo-wrap">
+        ${photoUrl ? `
+          <img src="${photoUrl}" 
+               alt="${esc(p?.name || '')}" 
+               class="fifa-mini-card-photo" 
+               loading="lazy" 
+               onerror="this.onerror=null; this.parentElement.innerHTML='${renderFifaCardFallbackSvg()}';">
+        ` : renderFifaCardFallbackSvg()}
+      </div>
+
+      <!-- Base: Nome do Atleta e Barra de Stamina -->
+      <div class="fifa-mini-card-bottom">
+        <div class="fifa-mini-card-name">
+          ${esc(shortName)}
+        </div>
+        ${isHalftime ? `
+          <div class="fifa-mini-card-stamina" title="Energia: ${stamina}%">
+            <div class="fifa-mini-card-stamina-fill ${staminaClass}" style="width:${stamina}%"></div>
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- Ícones de Lesão e Suspensão -->
+      ${p?.injury ? '<span class="fifa-mini-card-status" title="Lesionado">🚑</span>' : ''}
+      ${p?.suspended > 0 ? '<span class="fifa-mini-card-status" title="Suspenso">🟥</span>' : ''}
+    </div>
+  `;
+}
+
 
 const NAMES=['Gabriel','Lucas','Matheus','Rafael','Bruno','Gustavo','Caio','João','Pedro','André','Felipe','Diego','Thiago','Henrique','Victor','Murilo','Samuel','Daniel','Arthur','Vinícius','Nicolas','Eduardo','Leonardo','Igor','Renan','Rodrigo','Cristian','Marcos','Alexandre','Miguel','Davi','Wesley','Ruan','Kauã','Yuri','Danilo','Luan','Vitor'];
 const LAST=['Silva','Santos','Oliveira','Costa','Pereira','Souza','Rodrigues','Almeida','Lima','Gomes','Martins','Rocha','Ribeiro','Carvalho','Mendes','Barbosa','Freitas','Nunes','Moreira','Cardoso','Teixeira','Moura','Araújo','Monteiro','Ferreira'];
@@ -12316,29 +12430,12 @@ function openHalftimeModal(isQuickTactics = false){
                 </div>
               </div>
 
-              <!-- Campinho Verde dos 11 Titulares Amplo -->
+              <!-- Campinho Verde dos 11 Titulares Amplo com FIFA Mini-Cards -->
               <div class="halftime-pitch-box" id="halftimePitchBox" style="flex:1;position:relative;background:radial-gradient(ellipse at center, #0d3d23 0%, #062314 100%);border:1px solid rgba(34,197,94,0.35);border-radius:12px;overflow:hidden;box-shadow:inset 0 0 40px rgba(0,0,0,0.5)">
                 ${userStarters.map((p, idx) => {
                   const slot = formDef[idx] || { x: 50, y: 50 };
                   const isSel = halftimeSelectedStarterKey === p.key;
-                  const stClass = p.stamina >= 75 ? 'halftime-stamina-good' : p.stamina >= 50 ? 'halftime-stamina-warn' : 'halftime-stamina-tired';
-                  return `
-                    <div class="halftime-pitch-player ${isSel ? 'selected' : ''}" style="position:absolute;left:${slot.x}%;top:${slot.y}%;transform:translate(-50%,-50%);transition:left 0.25s ease, top 0.25s ease" data-starterkey="${esc(p.key)}" draggable="true" title="Clique ou arraste para substituir">
-                      <div class="pitch-player-avatar" style="border:2px solid ${isSel ? '#facc15' : 'rgba(255,255,255,0.4)'};border-radius:50%;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,0.7)">
-                        ${playerPhoto(p.fullName, 36)}
-                      </div>
-                      <div style="font-size:11px;font-weight:900;color:#fff;text-shadow:0 1px 4px #000, 0 0 8px #000;margin-top:2px;white-space:nowrap;letter-spacing:0.3px">
-                        ${esc(p.name)}
-                      </div>
-                      <div style="font-size:10px;font-weight:900;color:#facc15;text-shadow:0 1px 3px #000">
-                        ${esc(p.pos)} · ${p.overall}
-                      </div>
-                      <!-- BARRA DE CANSAÇO -->
-                      <div class="halftime-stamina-bar" title="Energia: ${Math.round(p.stamina)}%" style="width:38px;height:4px;background:rgba(0,0,0,0.8);border-radius:2px;margin-top:2px">
-                        <div class="halftime-stamina-fill ${stClass}" style="width:${Math.round(p.stamina)}%;height:100%"></div>
-                      </div>
-                    </div>
-                  `;
+                  return renderFifaMiniCard(p, { index: idx, role: p.pos, x: slot.x, y: slot.y }, { isHalftime: true, isSelected: isSel, customClass: 'halftime-pitch-player' });
                 }).join('')}
               </div>
             </div>
@@ -12351,8 +12448,8 @@ function openHalftimeModal(isQuickTactics = false){
               </div>
               <div class="halftime-bench-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(2, 1fr);gap:8px;padding-right:4px">
                 ${userBench.map(p => `
-                  <div class="halftime-bench-card" data-benchkey="${esc(playerKey(p))}" draggable="true" title="Arraste para o campo ou clique após selecionar o titular" style="display:flex;align-items:center;gap:10px;background:#141d2c;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 10px;cursor:pointer">
-                    ${playerPhoto(p.name, 36)}
+                  <div class="halftime-bench-card" data-benchkey="${esc(playerKey(p))}" draggable="true" title="Arraste para o campo ou clique para substituir" style="display:flex;align-items:center;gap:10px;background:#141d2c;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 10px;cursor:pointer">
+                    ${playerPhoto(p, 36)}
                     <div style="flex:1;min-width:0">
                       <div style="font-size:11px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                         ${esc(p.name)}
@@ -12529,75 +12626,120 @@ function openHalftimeModal(isQuickTactics = false){
 
   let draggedStarter = null;
   let draggedBench = null;
+  let halftimeSelectedBenchKey = null;
 
   // Suporte a Drop no container do campinho
   const pitchBox = $('#halftimePitchBox');
   if(pitchBox){
+    pitchBox.ondragenter = (e) => { e.preventDefault(); };
     pitchBox.ondragover = (e) => {
       e.preventDefault();
       if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     };
   }
 
-  // Drag & drop e clique dos reservas
+  function clearHalftimeDragStates(){
+    document.body.classList.remove('is-dragging');
+    $$('.halftime-pitch-player').forEach(p => p.classList.remove('drag-target', 'drag-over'));
+    $$('.halftime-bench-card').forEach(b => b.classList.remove('drag-target', 'drag-over'));
+  }
+
+  function updateHalftimeSelectedVisuals(){
+    $$('.halftime-pitch-player').forEach(pNode => {
+      pNode.classList.toggle('selected', pNode.dataset.starterkey === halftimeSelectedStarterKey);
+    });
+    $$('.halftime-bench-card').forEach(bNode => {
+      const isBenchSel = (bNode.dataset.benchkey === halftimeSelectedBenchKey);
+      bNode.style.borderColor = isBenchSel ? '#fbbf24' : 'rgba(255,255,255,0.08)';
+      bNode.style.boxShadow = isBenchSel ? '0 0 12px rgba(251,191,36,0.5)' : 'none';
+    });
+  }
+
+  // 1. Drag & drop e clique dos reservas
   $$('.halftime-bench-card').forEach(el => {
     el.ondragstart = (e) => {
       draggedBench = el.dataset.benchkey;
       draggedStarter = null;
+      document.body.classList.add('is-dragging');
       e.dataTransfer.setData('text/plain', draggedBench);
       if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
       el.style.opacity = '0.5';
     };
     el.ondragend = () => {
       el.style.opacity = '1';
-      $$('.halftime-pitch-player').forEach(p => p.classList.remove('drag-target'));
-      $$('.halftime-bench-card').forEach(b => b.classList.remove('drag-target'));
+      clearHalftimeDragStates();
+    };
+    el.ondragenter = (e) => {
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      el.classList.add('drag-target');
     };
     el.ondragover = (e) => {
       e.preventDefault();
       if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
       el.classList.add('drag-target');
     };
-    el.ondragleave = () => { el.classList.remove('drag-target'); };
+    el.ondragleave = (e) => {
+      if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+      el.classList.remove('drag-target');
+    };
     el.ondrop = (e) => {
       e.preventDefault();
-      el.classList.remove('drag-target');
+      clearHalftimeDragStates();
       if(draggedStarter){
         executeHalftimeSub(draggedStarter, el.dataset.benchkey);
       }
     };
     el.onclick = () => {
-      if(!halftimeSelectedStarterKey){
-        toast('Selecione primeiro o titular no campo à esquerda (ou arraste) para substituir!');
+      const bKey = el.dataset.benchkey;
+      // Se já temos um titular selecionado, troca imediatamente!
+      if(halftimeSelectedStarterKey){
+        executeHalftimeSub(halftimeSelectedStarterKey, bKey);
         return;
       }
-      executeHalftimeSub(halftimeSelectedStarterKey, el.dataset.benchkey);
+      // Alternar seleção do reserva
+      if(halftimeSelectedBenchKey === bKey){
+        halftimeSelectedBenchKey = null;
+      } else {
+        halftimeSelectedBenchKey = bKey;
+        const bPlayer = userBench.find(p => playerKey(p) === bKey);
+        toast(`👉 Reserva selecionado: ${bPlayer?.name || 'Jogador'}. Clique em um titular no campo para substituir!`);
+      }
+      updateHalftimeSelectedVisuals();
     };
   });
 
-  // Drag & drop e clique dos titulares no campo
+  // 2. Drag & drop e clique dos titulares no campo
   $$('.halftime-pitch-player').forEach(el => {
     el.ondragstart = (e) => {
       draggedStarter = el.dataset.starterkey;
       draggedBench = null;
+      document.body.classList.add('is-dragging');
       e.dataTransfer.setData('text/plain', draggedStarter);
       if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
       el.style.opacity = '0.5';
     };
     el.ondragend = () => {
       el.style.opacity = '1';
-      $$('.halftime-pitch-player').forEach(p => p.classList.remove('drag-target'));
-      $$('.halftime-bench-card').forEach(b => b.classList.remove('drag-target'));
+      clearHalftimeDragStates();
+    };
+    el.ondragenter = (e) => {
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      el.classList.add('drag-target');
     };
     el.ondragover = (e) => {
       e.preventDefault();
       if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
       el.classList.add('drag-target');
     };
-    el.ondragleave = () => { el.classList.remove('drag-target'); };
+    el.ondragleave = (e) => {
+      if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+      el.classList.remove('drag-target');
+    };
     el.ondrop = (e) => {
       e.preventDefault();
-      el.classList.remove('drag-target');
+      clearHalftimeDragStates();
       const targetStarter = el.dataset.starterkey;
       if(draggedBench){
         executeHalftimeSub(targetStarter, draggedBench);
@@ -12606,12 +12748,31 @@ function openHalftimeModal(isQuickTactics = false){
       }
     };
     el.onclick = () => {
-      halftimeSelectedStarterKey = el.dataset.starterkey;
-      $$('.halftime-pitch-player').forEach(pNode => {
-        pNode.classList.toggle('selected', pNode.dataset.starterkey === halftimeSelectedStarterKey);
-      });
-      const stPlayer = userStarters.find(p => p.key === halftimeSelectedStarterKey);
-      toast(`👉 Titular selecionado: ${stPlayer?.name || 'Jogador'}. Agora clique no reserva no banco para confirmar a troca.`);
+      const sKey = el.dataset.starterkey;
+
+      // Se um reserva já estava selecionado no banco, substitui imediatamente!
+      if(halftimeSelectedBenchKey){
+        executeHalftimeSub(sKey, halftimeSelectedBenchKey);
+        halftimeSelectedBenchKey = null;
+        return;
+      }
+
+      // Se outro titular já estava selecionado, troca as posições de campo entre eles!
+      if(halftimeSelectedStarterKey && halftimeSelectedStarterKey !== sKey){
+        swapHalftimeStarters(halftimeSelectedStarterKey, sKey);
+        halftimeSelectedStarterKey = null;
+        return;
+      }
+
+      // Alternar seleção deste titular
+      if(halftimeSelectedStarterKey === sKey){
+        halftimeSelectedStarterKey = null;
+      } else {
+        halftimeSelectedStarterKey = sKey;
+        const stPlayer = userStarters.find(p => p.key === sKey);
+        toast(`👉 Titular selecionado: ${stPlayer?.name || 'Jogador'}. Clique em um reserva no banco para confirmar a troca.`);
+      }
+      updateHalftimeSelectedVisuals();
     };
   });
 
@@ -16098,37 +16259,23 @@ function myTeamPage(){
         <div class="pitch" id="tacticalPitch">
           ${slots.map((s,i)=>{
             const p = lineupPlayer(i);
-            const pk = p ? playerKey(p) : '';
-            const ovr = p ? playerOverall(p) : 0;
-            return `
-              <div class="lineup-slot" style="left:${s.x}%;top:${s.y}%" data-slot-index="${i}" data-slot-role="${s.r}" data-player-key="${esc(pk)}" draggable="true">
-                <label style="cursor:grab;display:flex;justify-content:space-between;align-items:center">
-                  <span>${s.r}</span>
-                  ${p && p.pos !== s.r ? `<span style="font-size:8px;opacity:0.9;color:#facc15">(${esc(p.pos)})</span>` : ''}
-                </label>
-                <div class="slot-name">
-                  ${p ? esc(p.name.split(' ').slice(0,2).join(' ')) : 'Vazio'}
-                  ${p && p.injury ? ' <span title="Lesionado">🚑</span>' : ''}
-                  ${p && p.suspended > 0 ? ' <span title="Suspenso">🟥</span>' : ''}
-                </div>
-                <div class="slot-rating">${p ? ovr : '-'}</div>
-              </div>
-            `;
+            return renderFifaMiniCard(p, { index: i, role: s.r, x: s.x, y: s.y }, { isHalftime: false, customClass: 'lineup-slot' });
           }).join('')}
         </div>
       </div>
 
       <div class="card bench-card">
         <h2>Banco de Reservas</h2>
-        <div class="small">${bench.length} jogadores disponíveis (Arraste para o campo)</div>
+        <div class="small">${bench.length} jogadores disponíveis (Arraste ou clique para trocar)</div>
         <div class="bench-list" id="benchList">
           ${bench.slice(0,24).map(p=>`
-            <div class="bench-player" draggable="true" data-player-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}">
-              <span>
-                <b>${esc(p.name)}</b>
+            <div class="bench-player" draggable="true" data-player-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer">
+              ${playerPhoto(p, 36)}
+              <span style="flex:1;min-width:0">
+                <b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</b>
                 ${p.injury ? `<span class="pill bad" style="font-size:9px;padding:0 4px">🚑 ${p.injuryMatches}j</span> ` : ''}
                 ${p.suspended > 0 ? `<span class="pill bad" style="font-size:9px;padding:0 4px">🟥 ${p.suspended}j</span> ` : ''}
-                <small>${esc(p.pos||'-')} • ${p.age||'-'} anos • Físico ${Math.round(p.fitness??100)}%</small>
+                <small style="display:block;margin-top:2px;color:#94a3b8">${esc(p.pos||'-')} • ${p.age||'-'} anos • Físico ${Math.round(p.fitness??100)}%</small>
               </span>
               <span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span>
             </div>
@@ -16740,7 +16887,7 @@ function squadPage(){
           <tbody>
             ${ps.map(p=>`
               <tr>
-                <td style="width:40px">${playerPhoto(p, 30)}</td>
+                <td style="width:46px;text-align:center">${playerPhoto(p, 36)}</td>
                 <td>
                   <b>${esc(p.name)}</b>
                   ${p.injury ? `<span class="pill bad" style="font-size:9px;padding:1px 5px" title="${esc(p.injury)} (${p.injuryMatches} jogos)">🚑 ${p.injuryMatches}j</span>` : ''}
@@ -22558,18 +22705,49 @@ function bind(){
 }
 
 // -------------------------------------------------------------
-// DRAG AND DROP COM REALCE VERDE/AMARELO
+// DRAG AND DROP & CLICK-TO-SWAP HÍBRIDO (AFM 2027)
 // -------------------------------------------------------------
+let tacticalSelectedKey = null;
+
+function executeSwap(sourceKey, targetKey, targetSlotIndex = null) {
+  if (!sourceKey) return;
+  if (!Array.isArray(state.lineup)) state.lineup = [];
+
+  const sourceLineupIdx = state.lineup.indexOf(sourceKey);
+  let targetLineupIdx = targetKey ? state.lineup.indexOf(targetKey) : -1;
+
+  if (targetLineupIdx === -1 && targetSlotIndex !== null && targetSlotIndex !== undefined && targetSlotIndex >= 0) {
+    targetLineupIdx = targetSlotIndex;
+  }
+
+  if (sourceLineupIdx >= 0 && targetLineupIdx >= 0) {
+    // Troca atômica entre dois titulares
+    [state.lineup[sourceLineupIdx], state.lineup[targetLineupIdx]] = 
+      [state.lineup[targetLineupIdx], state.lineup[sourceLineupIdx]];
+  } else if (targetLineupIdx >= 0) {
+    // Reserva entra no slot do titular
+    state.lineup[targetLineupIdx] = sourceKey;
+  } else if (sourceLineupIdx >= 0 && targetKey) {
+    // Titular sai e reserva entra
+    state.lineup[sourceLineupIdx] = targetKey;
+  }
+
+  tacticalSelectedKey = null;
+  save();
+  render();
+  toast('🔄 Escalação atualizada com sucesso!');
+}
+
 function setupPitchDragAndDrop(){
   let draggedKey = null;
   let draggedPlayerPos = null;
-  let selectedClickKey = null;
 
   function highlightCompatibleSlots(pos){
     if(!pos) return;
     $$('.lineup-slot').forEach(slot=>{
       const slotRole = slot.dataset.slotRole;
       const fit = getPositionFit(pos, slotRole);
+      slot.classList.remove('slot-best-fit', 'slot-ok-fit', 'slot-bad-fit');
       if(fit === 'best'){
         slot.classList.add('slot-best-fit');
       } else if(fit === 'ok'){
@@ -22581,20 +22759,41 @@ function setupPitchDragAndDrop(){
   }
 
   function clearSlotHighlights(){
+    document.body.classList.remove('is-dragging');
     $$('.lineup-slot').forEach(slot=>{
       slot.classList.remove('slot-best-fit', 'slot-ok-fit', 'slot-bad-fit', 'drag-over');
     });
   }
 
-  // Reservas do banco (Drag & Drop + Clique para Selecionar)
+  function updateSelectedVisuals(){
+    $$('.lineup-slot').forEach(slot=>{
+      const pk = slot.dataset.playerKey;
+      slot.classList.toggle('selected', !!(tacticalSelectedKey && pk === tacticalSelectedKey));
+    });
+    $$('.bench-player').forEach(item=>{
+      const bk = item.dataset.playerKey;
+      if (tacticalSelectedKey && bk === tacticalSelectedKey) {
+        item.style.borderColor = '#fbbf24';
+        item.style.boxShadow = '0 0 12px rgba(251,191,36,0.5)';
+      } else {
+        item.style.borderColor = 'var(--line)';
+        item.style.boxShadow = 'none';
+      }
+    });
+  }
+
+  // 1. Reservas do banco (Drag & Drop + Click-to-Swap)
   $$('.bench-player').forEach(item=>{
     item.addEventListener('dragstart', (e)=>{
       draggedKey = item.dataset.playerKey;
       draggedPlayerPos = item.dataset.playerPos;
+      document.body.classList.add('is-dragging');
       item.classList.add('dragging');
       e.dataTransfer.setData('text/plain', draggedKey);
+      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
       highlightCompatibleSlots(draggedPlayerPos);
     });
+
     item.addEventListener('dragend', ()=>{
       item.classList.remove('dragging');
       clearSlotHighlights();
@@ -22603,96 +22802,109 @@ function setupPitchDragAndDrop(){
     item.addEventListener('click', ()=>{
       const key = item.dataset.playerKey;
       const pos = item.dataset.playerPos;
-      if(selectedClickKey === key){
-        selectedClickKey = null;
+
+      // Se já havia um titular selecionado no campo, troca imediatamente!
+      if (tacticalSelectedKey && tacticalSelectedKey !== key) {
+        executeSwap(key, tacticalSelectedKey);
+        return;
+      }
+
+      // Alternar seleção do reserva
+      if (tacticalSelectedKey === key) {
+        tacticalSelectedKey = null;
         clearSlotHighlights();
-        $$('.bench-player').forEach(b=>b.style.borderColor='var(--line)');
       } else {
-        selectedClickKey = key;
-        $$('.bench-player').forEach(b=>b.style.borderColor='var(--line)');
-        item.style.borderColor = 'var(--neon)';
+        tacticalSelectedKey = key;
         clearSlotHighlights();
         highlightCompatibleSlots(pos);
+        toast('👉 Reserva selecionado! Agora clique no titular no campo para substituir.');
       }
+      updateSelectedVisuals();
     });
   });
 
-  // Titulares no campo (Drag & Drop + Clique para Troca)
+  // 2. Titulares no campo (Drag & Drop + Click-to-Swap)
   $$('.lineup-slot').forEach(slot=>{
     slot.addEventListener('dragstart', (e)=>{
       draggedKey = slot.dataset.playerKey;
       const p = state.squad.find(q=>playerKey(q)===draggedKey);
       draggedPlayerPos = p?.pos || slot.dataset.slotRole;
+      document.body.classList.add('is-dragging');
       slot.classList.add('dragging');
       e.dataTransfer.setData('text/plain', draggedKey);
+      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
       highlightCompatibleSlots(draggedPlayerPos);
     });
+
     slot.addEventListener('dragend', ()=>{
       slot.classList.remove('dragging');
       clearSlotHighlights();
     });
 
-    slot.addEventListener('dragover', (e)=>{
+    slot.addEventListener('dragenter', (e)=>{
       e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
       slot.classList.add('drag-over');
     });
 
-    slot.addEventListener('dragleave', ()=>{
+    slot.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      slot.classList.add('drag-over');
+    });
+
+    slot.addEventListener('dragleave', (e)=>{
+      if (e.relatedTarget && slot.contains(e.relatedTarget)) return;
       slot.classList.remove('drag-over');
     });
 
     slot.addEventListener('drop', (e)=>{
       e.preventDefault();
+      slot.classList.remove('drag-over');
       clearSlotHighlights();
+
       const targetSlotIndex = +slot.dataset.slotIndex;
       const sourceKey = e.dataTransfer.getData('text/plain') || draggedKey;
-      if(!sourceKey) return;
+      const targetKey = slot.dataset.playerKey;
 
-      const currentKeyInSlot = state.lineup[targetSlotIndex];
-      const sourceSlotIndex = state.lineup.indexOf(sourceKey);
-
-      if(sourceSlotIndex >= 0){
-        state.lineup[targetSlotIndex] = sourceKey;
-        state.lineup[sourceSlotIndex] = currentKeyInSlot;
-      } else {
-        state.lineup[targetSlotIndex] = sourceKey;
-      }
-
-      save();
-      render();
-      toast('Escalação atualizada com sucesso!');
+      if (!sourceKey) return;
+      executeSwap(sourceKey, targetKey, targetSlotIndex);
     });
 
     slot.addEventListener('click', (e)=>{
-      if(e.target.tagName === 'SELECT') return;
-      if(selectedClickKey){
-        const targetSlotIndex = +slot.dataset.slotIndex;
-        const sourceSlotIndex = state.lineup.indexOf(selectedClickKey);
-        const currentKeyInSlot = state.lineup[targetSlotIndex];
+      if (e.target.tagName === 'SELECT' || e.target.closest('select')) return;
 
-        if(sourceSlotIndex >= 0){
-          state.lineup[targetSlotIndex] = selectedClickKey;
-          state.lineup[sourceSlotIndex] = currentKeyInSlot;
-        } else {
-          state.lineup[targetSlotIndex] = selectedClickKey;
-        }
+      const pk = slot.dataset.playerKey;
+      const targetSlotIndex = +slot.dataset.slotIndex;
 
-        selectedClickKey = null;
-        clearSlotHighlights();
-        save();
-        render();
-        toast('Escalação atualizada com sucesso!');
-      } else {
-        const pk = slot.dataset.playerKey;
-        if(pk){
-          selectedClickKey = pk;
-          const p = state.squad.find(q=>playerKey(q)===pk);
+      // Se já temos alguém selecionado (reserva ou outro titular):
+      if (tacticalSelectedKey) {
+        if (tacticalSelectedKey === pk) {
+          // Clicou no mesmo titular: cancela a seleção
+          tacticalSelectedKey = null;
           clearSlotHighlights();
-          highlightCompatibleSlots(p?.pos || slot.dataset.slotRole);
+          updateSelectedVisuals();
+          return;
         }
+        // Troca atômica imediata entre os dois
+        executeSwap(tacticalSelectedKey, pk, targetSlotIndex);
+        return;
+      }
+
+      // Primeiro clique: seleciona este titular no campo (ganha borda dourada pulsante)
+      if (pk) {
+        tacticalSelectedKey = pk;
+        const p = state.squad.find(q=>playerKey(q)===pk);
+        clearSlotHighlights();
+        highlightCompatibleSlots(p?.pos || slot.dataset.slotRole);
+        updateSelectedVisuals();
+        toast(`👉 Titular selecionado: ${p?.name || 'Jogador'}. Clique em um reserva no banco ou em outro titular para trocar.`);
       }
     });
   });
+
+  // Atualizar visuais na inicialização caso haja algo selecionado
+  updateSelectedVisuals();
 }
 
 // -------------------------------------------------------------

@@ -1,26 +1,25 @@
 // ==============================================================================
 // AFM MANAGER 2027 — ESCUDOS: ESP-1
-// Clubes mapeados: 20
+// Clubes mapeados: 19
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Athletic Club": "bra_b/athletic_club.svg",
-  "Atlético de Madrid": "europe/atletico_de_madrid.png",
-  "FC Barcelona": "europe/fc_barcelona.png",
-  "Celta de Vigo": "europe/celta_de_vigo.png",
-  "Alavés": "europe/alaves.png",
-  "Elche": "europe/elche.png",
-  "Espanyol": "europe/espanyol.png",
-  "Getafe": "europe/getafe.png",
-  "Girona": "europe/girona.png",
-  "Levante": "europe/levante.png",
-  "Mallorca": "europe/mallorca.png",
-  "Osasuna": "europe/osasuna.png",
-  "Real Oviedo": "europe/real_oviedo.png",
-  "Rayo Vallecano": "europe/rayo_vallecano.png",
-  "Real Betis": "europe/real_betis.png",
-  "Real Madrid": "europe/real_madrid.png",
-  "Real Sociedad": "europe/real_sociedad.png",
-  "Sevilla": "europe/sevilla.png",
-  "Valencia": "europe/valencia.png",
-  "Villarreal": "europe/villarreal.png"
+  "Alavés": "alaves.png",
+  "Atlético de Madrid": "atletico_de_madrid.png",
+  "Celta de Vigo": "celta_de_vigo.png",
+  "Elche": "elche.png",
+  "Espanyol": "espanyol.png",
+  "FC Barcelona": "barcelona.png",
+  "Getafe": "getafe.png",
+  "Girona": "girona.png",
+  "Levante": "levante.png",
+  "Mallorca": "mallorca.png",
+  "Osasuna": "osasuna.png",
+  "Rayo Vallecano": "rayo_vallecano.png",
+  "Real Betis": "real_betis.png",
+  "Real Madrid": "real_madrid.png",
+  "Real Oviedo": "real_oviedo.png",
+  "Real Sociedad": "real_sociedad.png",
+  "Sevilla": "sevilla.png",
+  "Valencia": "valencia.png",
+  "Villarreal": "villarreal.png"
 });
