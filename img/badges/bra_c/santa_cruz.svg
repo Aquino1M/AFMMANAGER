@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <!-- 3 Stars on top -->
+  <polygon points="200,8 205,23 220,23 208,33 212,48 200,38 188,48 192,33 180,23 195,23" fill="#f1c40f" stroke="#b7950b" stroke-width="1"/>
+  <polygon points="150,16 153,28 165,28 155,36 159,48 150,40 141,48 145,36 135,28 147,28" fill="#d5d8dc" stroke="#95a5a6" stroke-width="1"/>
+  <polygon points="250,16 253,28 265,28 255,36 259,48 250,40 241,48 245,36 235,28 247,28" fill="#d5d8dc" stroke="#95a5a6" stroke-width="1"/>
+  <!-- Outer Circular Shield with borders -->
+  <circle cx="200" cy="255" r="190" fill="#ffffff" stroke="#111111" stroke-width="8"/>
+  <clipPath id="santaClip">
+    <circle cx="200" cy="255" r="182"/>
+  </clipPath>
+  <g clip-path="url(#santaClip)">
+    <!-- Top Section: Black -->
+    <rect x="0" y="60" width="400" height="135" fill="#111111"/>
+    <!-- Middle Section: White -->
+    <rect x="0" y="195" width="400" height="120" fill="#ffffff"/>
+    <!-- Bottom Section: Red -->
+    <rect x="0" y="315" width="400" height="145" fill="#cc1111"/>
+    <!-- Center Diamond / Monogram Shield -->
+    <polygon points="200,140 310,255 200,370 90,255" fill="#ffffff" stroke="#111111" stroke-width="8"/>
+    <!-- S.C.F.C. text -->
+    <text x="200" y="270" font-family="'Arial Black', Impact, sans-serif" font-size="44" font-weight="900" fill="#111111" text-anchor="middle" letter-spacing="2">SCFC</text>
+    <!-- Foundation year 1914 -->
+    <text x="200" y="305" font-family="'Arial Black', sans-serif" font-size="16" font-weight="900" fill="#cc1111" text-anchor="middle">1914</text>
+    <!-- SANTA CRUZ Header in white on black -->
+    <text x="200" y="130" font-family="'Arial Black', sans-serif" font-size="22" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="4">SANTA CRUZ</text>
+    <!-- RECIFE PE at bottom -->
+    <text x="200" y="415" font-family="'Arial Black', sans-serif" font-size="18" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="3">RECIFE • PE</text>
+  </g>
+</svg>

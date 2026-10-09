@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="gradBraB" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+    <filter id="glowBraB">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <rect width="190" height="190" x="5" y="5" rx="30" fill="url(#gradBraB)" stroke="#38bdf8" stroke-width="4" filter="url(#glowBraB)"/>
+  <!-- Diamond Shape -->
+  <polygon points="100,25 170,100 100,175 30,100" fill="#ffffff" fill-opacity="0.95"/>
+  <!-- Central Circle -->
+  <circle cx="100" cy="100" r="50" fill="#0f172a"/>
+  <!-- Lettering 'SÉRIE B' -->
+  <text x="100" y="80" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="20" fill="#38bdf8" letter-spacing="1">BRASILEIRÃO</text>
+  <text x="100" y="132" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="30" fill="#ffffff" letter-spacing="2">SÉRIE B</text>
+  <polygon points="100,86 102,91 107,91 103,94 105,99 100,96 95,99 97,94 93,91 98,91" fill="#38bdf8"/>
+</svg>

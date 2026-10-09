@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <!-- Outer Shield Border -->
+  <path d="M40,50 L360,50 L360,250 C360,375 200,465 200,465 C200,465 40,375 40,250 Z" fill="#ffffff" stroke="#c0392b" stroke-width="6"/>
+  <clipPath id="crbClip">
+    <path d="M46,56 L354,56 L354,247 C354,367 200,455 200,455 C200,455 46,367 46,247 Z"/>
+  </clipPath>
+  <g clip-path="url(#crbClip)">
+    <!-- White background -->
+    <rect x="40" y="50" width="320" height="420" fill="#ffffff"/>
+    <!-- Red vertical stripes on bottom half -->
+    <rect x="75" y="160" width="35" height="310" fill="#cc1111"/>
+    <rect x="145" y="160" width="35" height="310" fill="#cc1111"/>
+    <rect x="220" y="160" width="35" height="310" fill="#cc1111"/>
+    <rect x="290" y="160" width="35" height="310" fill="#cc1111"/>
+    <!-- Upper Red Canton / Flag area -->
+    <rect x="40" y="50" width="320" height="130" fill="#cc1111"/>
+    <!-- Crossed Rowing Oars in White & Gold -->
+    <line x1="80" y1="70" x2="320" y2="150" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="68,64 92,62 82,82" fill="#ffffff"/>
+    <line x1="320" y1="70" x2="80" y2="150" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="332,64 318,82 308,62" fill="#ffffff"/>
+    <!-- Diagonal Red Sash across the crest with white borders -->
+    <polygon points="30,260 370,140 370,225 30,345" fill="#ffffff"/>
+    <polygon points="30,268 370,148 370,217 30,337" fill="#cc1111"/>
+    <!-- "C R B" lettering in white bold -->
+    <text x="200" y="260" font-family="'Arial Black', Impact, sans-serif" font-size="56" font-weight="900" fill="#ffffff" text-anchor="middle" transform="rotate(-18, 200, 245)" letter-spacing="8">CRB</text>
+    <!-- Foundation year pill at bottom -->
+    <rect x="150" y="380" width="100" height="30" rx="15" fill="#cc1111" stroke="#ffffff" stroke-width="3"/>
+    <text x="200" y="401" font-family="'Arial Black', sans-serif" font-size="16" font-weight="900" fill="#ffffff" text-anchor="middle">1912</text>
+  </g>
+</svg>

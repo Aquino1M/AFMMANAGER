@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <!-- Outer Shield Border -->
+  <path d="M40,50 L360,50 L360,250 C360,375 200,465 200,465 C200,465 40,375 40,250 Z" fill="#ffffff" stroke="#0055b8" stroke-width="8"/>
+  <clipPath id="asClip">
+    <path d="M46,56 L354,56 L354,247 C354,367 200,455 200,455 C200,455 46,367 46,247 Z"/>
+  </clipPath>
+  <g clip-path="url(#asClip)">
+    <!-- Royal Blue Background -->
+    <rect x="40" y="50" width="320" height="420" fill="#0055b8"/>
+    <!-- Center Emblem Circle in White -->
+    <circle cx="200" cy="245" r="110" fill="#ffffff" stroke="#0055b8" stroke-width="8"/>
+    <circle cx="200" cy="245" r="98" fill="#0055b8"/>
+    <!-- Outer Ring Text Path: E.C. ÁGUA SANTA -->
+    <path id="asCircleTop" d="M 112,245 A 88,88 0 0,1 288,245" fill="none"/>
+    <text font-family="'Arial Black', sans-serif" font-size="18" font-weight="900" fill="#ffffff" letter-spacing="2">
+      <textPath href="#asCircleTop" startOffset="50%" text-anchor="middle">
+        E.C. ÁGUA SANTA
+      </textPath>
+    </text>
+    <path id="asCircleBottom" d="M 288,245 A 88,88 0 0,1 112,245" fill="none"/>
+    <text font-family="'Arial Black', sans-serif" font-size="15" font-weight="900" fill="#ffffff" letter-spacing="4">
+      <textPath href="#asCircleBottom" startOffset="50%" text-anchor="middle">
+        DIADEMA • 1981
+      </textPath>
+    </text>
+    <!-- Water Drop in Center -->
+    <path d="M200,195 C200,195 170,240 170,260 C170,278 183,292 200,292 C217,292 230,278 230,260 C230,240 200,195 200,195 Z" fill="#ffffff"/>
+    <path d="M200,210 C200,210 178,245 178,260 C178,274 188,284 200,284 C212,284 222,274 222,260 C222,245 200,210 200,210 Z" fill="#0055b8"/>
+    <!-- NETUNO Banner -->
+    <rect x="145" y="380" width="110" height="28" rx="14" fill="#ffffff"/>
+    <text x="200" y="399" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#0055b8" text-anchor="middle">NETUNO</text>
+  </g>
+</svg>

@@ -4,6 +4,36 @@ Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027*
 
 ---
 
+## [3.3.0] - 2026-10-09 (Motor Dual de Áudio Imersivo, Sanitização Visual do Match Engine & Governança Modular)
+
+### 🔊 Motor Dual de Áudio de Alta Fidelidade (`AFMAudioManager`)
+- **Dois Canais Independentes**: Canal Ambiente (cantos reais de torcida em loop contínuo) e Canal SFX (efeitos sonoros de baixa latência para apito, faltas, cartões, gols e traves).
+- **Detecção Inteligente de Torcida**: O motor detecta o clube mandante e a competição ativa, buscando arquivos de torcida específicos (`sounds/crowd/<liga>/<clube>.mp3`) com hierarquia de fallback até a síntese de drone procedural via Web Audio API.
+- **Síntese Procedural Fallback**: Caso arquivos MP3 não estejam presentes localmente, a Web Audio API sintetiza apitos em frequência harmônica (2.8 kHz / 3.5 kHz), clamor de torcida, batidas na trave e reações de perigo, garantindo som imediato 100% offline.
+- **Gatilhos Automáticos no Match Engine**:
+  - Apito inicial aos 0' (`whistle_start`) e início da atmosfera de torcida.
+  - Faltas marcadas (`whistle_foul`) e advertências com cartão (`whistle_card`).
+  - Intervalo aos 45' (`whistle_halftime`) e reinício aos 46' (`whistle_start`).
+  - Apito final aos 90' (`whistle_end`) com fade-out gradual da torcida.
+  - Explosão sonora no gol (`goal_celebration`) com elevação dinâmica do clamor da torcida (+30dB temporário).
+  - Bola na trave (`goal_post`) e suspiros da torcida em defesas e chutes perigosos (`crowd_gasp`).
+- **Persistência de Preferências**: Controles salvos no `localStorage` (`afm_crowd_audio_enabled`, `afm_sfx_audio_enabled`, `afm_crowd_volume`, `afm_sfx_volume`).
+
+### 🎛️ Nova Interface de Configurações de Áudio
+- Painel modular (`AFMSettingsUI`) integrado à aba de Configurações / Opções do jogo.
+- Toggles neon para ativação independente de Torcida e SFX, com sliders de volume de 0 a 100% e botões para teste imediato de áudio.
+
+### 📺 Sanitização Visual da Transmissão do Match Engine
+- **Experiência de Transmissão Autêntica**: Remoção definitiva do HUD técnico de telemetria crua (`#liveTelemetryHud`), botões de depuração (`🐞 HUD`) e logs de coordenadas na tela.
+- **Foco no Espetáculo**: Transmissão cinematográfica focada exclusivamente no placar oficial, relógio dinâmico, narração futebolística envolvente e movimentação ativa dos 22 atletas no gramado 2.5D.
+
+### 📁 Governança de Mídias e Automação de Estrutura Física
+- Criação do script automatizador `create_audio_structure.js` e executável `create_audio_structure.bat`.
+- Estruturação da taxonomia física oficial em `sounds/sfx/` e `sounds/crowd/<leagues>/`.
+- Geração do manifesto de áudios `sounds/sounds_manifest.json` e documentação técnica em `sounds/README.md`.
+
+---
+
 ## [3.2.0] - 2026-10-08 (Expansão Mundial Oficial & Overhaul do Match Engine 2.5D)
 
 ### 🌎 Expansão Internacional Oficial (América do Sul & Europa)

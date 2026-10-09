@@ -1,9 +1,10 @@
 Aquino Futebol Manager 2027 (AFM MANAGER)
-Versão: 3.2.0 (Build 2026-10-08 - Expansão Mundial & Match Engine 2.5D)
+Versão: 3.3.0 (Build 2026-10-09 - Motor Dual de Áudio Imersivo & Match Engine Broadcast)
 Histórico completo disponível em: CHANGELOG.md
 
 Destaques da Versão Atual:
-1. Linhas de Pressão & Blocos Defensivos na Tática (Bloco Baixo, Médio e Alto com cálculo de gols Poisson).
+0. Motor Dual de Áudio Imersivo (AFMAudioManager): SFX + Torcidas Reais por Clube/Liga e síntese procedural Web Audio API.
+1. Transmissão Sanitizada do Match Engine: Remoção total de telemetria crua na tela (#liveTelemetryHud) para visual autêntico de TV.
 2. Clamor da Beira do Campo: Gritos do Treinador em tempo real durante a simulação da partida.
 3. Copinha Sub-20 (Copa São Paulo de Juniores): Disputa oficial na base com premiação de R$ 350k e joias de POT 84-94.
 4. Mentoria de Atletas Veteranos (30+ orientando Sub-21) e Comparador Visual Head-to-Head no Elenco.

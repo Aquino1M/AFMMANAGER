@@ -1,6 +1,7 @@
 // ==============================================================================
-// AFM MANAGER 2027 — JOGADORES RESIDUAIS / OUTROS
+// AFM MANAGER 2027 — JOGADORES: OTHER
 // Total de atletas: 0
 // ==============================================================================
 window.LIVE_PLAYERS = (window.LIVE_PLAYERS || []).concat([
+
 ]);

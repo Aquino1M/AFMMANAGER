@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="serieAGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#002d72"/>
+      <stop offset="100%" stop-color="#001433"/>
+    </linearGradient>
+  </defs>
+  <rect width="190" height="190" x="5" y="5" rx="30" fill="url(#serieAGrad)" stroke="#008fd7" stroke-width="4"/>
+  <!-- Serie A Diamond 'A' -->
+  <g transform="translate(100, 85) scale(0.9) translate(-100, -85)">
+    <!-- Cyan Diamond Top -->
+    <polygon points="100,30 145,100 100,85 55,100" fill="#008fd7"/>
+    <!-- Bottom Prisms with Italian Tricolor accent -->
+    <polygon points="55,100 100,85 100,135 70,135" fill="#009246"/>
+    <polygon points="145,100 100,85 100,135 130,135" fill="#ce2b37"/>
+    <polygon points="100,85 85,135 115,135" fill="#ffffff"/>
+  </g>
+  <text x="100" y="165" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="20" fill="#ffffff" letter-spacing="3">SERIE A</text>
+</svg>

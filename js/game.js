@@ -2626,11 +2626,7 @@ function buildStadiumSide(side, mode = 'cash'){
     return false;
   }
 
-  let targetSide = side || stadiumSelectedSide;
-  if(!targetSide || stData.rings[curRing][targetSide]){
-    targetSide = unbuiltSide;
-    stadiumSelectedSide = unbuiltSide;
-  }
+  const targetSide = side || stadiumSelectedSide || unbuiltSide;
 
   // Validação: setor já construído no anel atual?
   if(stData.rings[curRing][targetSide]){
@@ -2722,7 +2718,7 @@ function buildStadiumSide(side, mode = 'cash'){
     render();
     return true;
   } finally {
-    setTimeout(() => { isBuildingStadiumSide = false; }, 300);
+    isBuildingStadiumSide = false;
   }
 }
 
@@ -3692,10 +3688,10 @@ function getStadiumExpansionData(){
   st.purchasedSectors = Array.isArray(st.purchasedSectors) ? st.purchasedSectors : [];
 
   // Migração transparente de saves legados que só tinham st.sides
-  if(st.sides){
+  if(st.sides && st.ring === 1 && (!st.purchasedSectors || st.purchasedSectors.length === 0)){
     ['norte', 'sul', 'leste', 'oeste'].forEach(side => {
-      if(st.sides[side] && !st.rings[st.ring][side]){
-        st.rings[st.ring][side] = true;
+      if(st.sides[side] && !st.rings[1][side]){
+        st.rings[1][side] = true;
       }
     });
   }
@@ -4827,13 +4823,16 @@ function getUserSaveSlots(username){
   return [1, 2, 3].map(slotNum => {
     let s = saves.find(x => x.slot === slotNum);
 
-    // 1. Fallback: procurar no slot dedicado do localStorage
-    if(!s || (!s.data && !s.club)){
-      try {
-        const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
-        if(raw) s = JSON.parse(raw);
-      } catch(e){}
-    }
+    // 1. Carregar/complementar a partir do slot dedicado do localStorage
+    try {
+      const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(parsed && parsed.club){
+          s = s ? { ...s, ...parsed } : parsed;
+        }
+      }
+    } catch(e){}
 
     // 2. Fallback Crítico para o Slot 1: procurar no save primário STORAGE ('aquino_futebol_manager_2026_v1')
     if(slotNum === 1 && (!s || (!s.data && !s.club))){
@@ -4879,15 +4878,6 @@ function getUserSaveSlots(username){
       try { localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(s)); } catch(e){}
     }
 
-    // 4. Sincronizar de volta com a lista de contas para manter consistência
-    if(s && s.data && acc){
-      acc.saves = acc.saves || [];
-      const exIdx = acc.saves.findIndex(x => x.slot === slotNum);
-      if(exIdx >= 0) acc.saves[exIdx] = s;
-      else acc.saves.push(s);
-      saveStoredAccounts(accs);
-    }
-
     return s || null;
   });
 }
@@ -4904,19 +4894,26 @@ function save(){
     state.seasonHistory = state.seasonHistory.slice(0, 20);
   }
 
-  // 1. Sempre salvar no STORAGE primário
-  try {
-    localStorage.setItem(STORAGE, JSON.stringify(state));
-  } catch(e){}
-
   const slotNum = Math.max(1, Math.min(3, Number(state.userSlot) || 1));
   state.userSlot = slotNum;
+
+  // Prepara payload compacto omitindo worldGenerated (recriado dinamicamente no load para economizar 95% de quota)
+  const savePayload = clone(state);
+  delete savePayload.worldGenerated;
+
+  // 1. Salvar no STORAGE primário apenas se for Slot 1 (evita corrupção de outros slots)
+  if(slotNum === 1){
+    try {
+      localStorage.setItem(STORAGE, JSON.stringify(savePayload));
+    } catch(e){}
+  }
+
   const user = getActiveAccount() || { username: 'aquino', name: state.manager || 'Treinador' };
-  state.userOwner = (user.username || 'aquino').toLowerCase();
+  state.userOwner = (state.userOwner || user.username || 'aquino').toLowerCase();
   const saveId = `save_${state.userOwner}_slot${slotNum}_${norm(state.club)}`;
   state.saveId = saveId;
 
-  const saveEntry = {
+  const saveHeader = {
     slot: slotNum,
     id: saveId,
     owner: state.userOwner,
@@ -4926,16 +4923,20 @@ function save(){
     date: state.date,
     round: state.round,
     balance: state.balance,
-    updatedAt: new Date().toLocaleString('pt-BR'),
-    data: clone(state)
+    updatedAt: new Date().toLocaleString('pt-BR')
   };
 
-  // 2. Salvar no slot dedicado no localStorage (garante persistência mesmo sem login ativo)
+  const saveEntry = {
+    ...saveHeader,
+    data: savePayload
+  };
+
+  // 2. Salvar no slot dedicado no localStorage (garante persistência isolada e completa de cada slot)
   try {
     localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(saveEntry));
   } catch(e){}
 
-  // 3. Salvar na lista de contas do sistema
+  // 3. Salvar na lista de contas do sistema (armazena cabeçalho leve para economizar 95% de quota)
   const accs = getStoredAccounts();
   let acc = accs.find(a => a.username.toLowerCase() === state.userOwner);
   if(!acc){
@@ -4944,10 +4945,11 @@ function save(){
   if(acc){
     acc.saves = acc.saves || [];
     const existingIdx = acc.saves.findIndex(s => s.slot === slotNum);
+    const lightweightHeader = { ...saveHeader };
     if(existingIdx >= 0){
-      acc.saves[existingIdx] = saveEntry;
+      acc.saves[existingIdx] = lightweightHeader;
     } else {
-      acc.saves.push(saveEntry);
+      acc.saves.push(lightweightHeader);
     }
     acc.saves = acc.saves.filter(s => s.slot >= 1 && s.slot <= 3).sort((a,b) => a.slot - b.slot);
     saveStoredAccounts(accs);
@@ -4971,27 +4973,41 @@ function load(){
 
 function loadUserSlot(slotNum, ownerUsername = null){
   slotNum = Math.max(1, Math.min(3, Number(slotNum) || 1));
-  const username = (ownerUsername || getActiveAccount()?.username || 'aquino').toLowerCase();
+  const username = (ownerUsername || state?.userOwner || getActiveAccount()?.username || 'aquino').toLowerCase();
   const accs = getStoredAccounts();
   const acc = accs.find(a => a.username.toLowerCase() === username) || accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0];
   
-  let saveEntry = (acc?.saves || []).find(s => s.slot === slotNum);
-  if(!saveEntry || (!saveEntry.data && !saveEntry.club)){
-    try {
-      const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
-      if(raw) saveEntry = JSON.parse(raw);
-    } catch(e){}
-  }
+  let saveEntry = null;
 
-  // Fallback primário se slot 1
-  if(slotNum === 1 && (!saveEntry || (!saveEntry.data && !saveEntry.club))){
+  // 1. Carrega do slot dedicado primário persistido
+  try {
+    const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
+    if(raw) saveEntry = JSON.parse(raw);
+  } catch(e){}
+
+  const hasCompleteData = (e) => e && ((e.data && e.data.squad) || (e.squad && e.club));
+
+  // 2. Se o slot dedicado não possuir payload completo e for slot 1, consulta STORAGE
+  if(!hasCompleteData(saveEntry) && slotNum === 1){
     try {
       const legRaw = localStorage.getItem(STORAGE);
       if(legRaw){
         const leg = JSON.parse(legRaw);
-        if(leg && leg.club) saveEntry = { data: leg, club: leg.club, userSlot: 1 };
+        if(leg && leg.club && Array.isArray(leg.squad)) {
+          saveEntry = { data: leg, club: leg.club, userSlot: 1 };
+        }
       }
     } catch(e){}
+  }
+
+  // 3. Se ainda não encontrado, busca na conta
+  if(!hasCompleteData(saveEntry)){
+    const accSave = (acc?.saves || []).find(s => s.slot === slotNum);
+    if(accSave && hasCompleteData(accSave)){
+      saveEntry = accSave;
+    } else if(accSave && !saveEntry){
+      saveEntry = accSave;
+    }
   }
 
   if(!saveEntry || (!saveEntry.data && !saveEntry.club)){
@@ -7002,13 +7018,14 @@ function newCareer(data){
 
   const curUser = getActiveAccount();
   const targetSlot = Number(data.slot) || setupSelectedSlot || 1;
+  const targetOwner = (data.owner || curUser?.username || 'aquino').toLowerCase();
   const mgrName = data.manager || curUser?.name || 'Aquino';
-  const saveId = `save_${curUser?.username || 'user'}_slot${targetSlot}_${norm(club.name)}`;
+  const saveId = `save_${targetOwner}_slot${targetSlot}_${norm(club.name)}`;
 
   state={
     saveId,
     userSlot: targetSlot,
-    userOwner: curUser?.username?.toLowerCase() || 'aquino',
+    userOwner: targetOwner,
     version:4,
     manager:mgrName,
     managerSalary: (club.budget || 5) > 15 ? 75000 : 45000,
@@ -7139,7 +7156,7 @@ function repairSaveIfCorrupted(s){
   }
 
   // Recalibração e Auditoria Financeira Automática para Saves com Despesas Infladas
-  if(s && Number(s.expense) > 2000000 && Number(s.round) <= 18){
+  if(s && (!s.version || s.version < 4) && Number(s.expense) > 2000000 && Number(s.round) <= 18){
     const realMonthly = (s.squad || []).reduce((acc, p) => acc + playerSalary(p), 0);
     const realRoundPayroll = Math.round(realMonthly / 4);
     const estimatedRealExpense = Math.max(100000, Math.round((Number(s.round) || 1) * realRoundPayroll + (Number(s.round) || 1) * 8000));
@@ -8294,9 +8311,9 @@ function attendanceProjection(opponent){
   const mktInvest = Math.max(2500, Number(state?.marketingWeekly) || 12000);
   // Marketing semanal atrai a torcida e ajuda a manter estádio cheio (rebalanceado: +1.5% a +8%)
   const mktAttBoost = (0.015 * mktLvl) + clamp((mktInvest - 2500) / 100000, 0, 0.08);
-  const base = .28 + (state.trust.fans / 170) + clamp((oppS - 58) / 180, 0, .18) + clamp((our - 58) / 260, 0, .1) + mktAttBoost;
+  const fans = Number(state?.trust?.fans ?? 70);
+  const base = .28 + (fans / 170) + clamp((oppS - 58) / 180, 0, .18) + clamp((our - 58) / 260, 0, .1) + mktAttBoost;
   // Dinâmica de fase do time (+30% em boa fase, -20% em má fase)
-  const fans = state?.trust?.fans ?? 70;
   const recentHist = (state?.history || []).slice(0, 3);
   let pts = 0;
   recentHist.forEach(h => {
@@ -9769,7 +9786,7 @@ function startLiveMatch(){
     renderTicks: 0,
     simAccumulator: 0,
     lastLoopTime: performance.now(),
-    debugMode: true,
+    debugMode: false,
     home, away, isKO,
     hg: 0, ag: 0,
     timeSec: 0, // 0 a 5400 segundos (90 min)
@@ -9826,7 +9843,12 @@ function startLiveMatch(){
     done: false
   };
 
-  playWhistleSound();
+  if (window.afmAudio) {
+    window.afmAudio.startCrowdAmbient(home, comp?.id);
+    window.afmAudio.playSFX('whistle_start');
+  } else {
+    playWhistleSound();
+  }
   renderLiveMatchModal();
   } finally {
     setTimeout(() => { isStartingLiveMatch = false; }, 400);
@@ -9913,9 +9935,6 @@ function renderLiveMatchModal(){
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"></path></svg>
               <span>Pausado · toque para continuar</span>
             </div>
-
-            <!-- PAINEL DE TELEMETRIA DO MATCH ENGINE -->
-            <div id="liveTelemetryHud" style="position:absolute;top:14px;left:14px;background:rgba(15,23,42,0.92);border:1px solid rgba(56,189,248,0.4);border-radius:10px;padding:8px 12px;font-family:monospace;font-size:11px;color:#bae6fd;line-height:1.45;z-index:90;display:${s.debugMode?'block':'none'};pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,0.5)"></div>
 
             <!-- CANVAS 1280x720 DA TRANSMISSÃO -->
             <canvas id="liveMatchCanvas" class="live-match-canvas" width="1280" height="720" aria-label="Transmissão da partida"></canvas>
@@ -10023,9 +10042,6 @@ function renderLiveMatchModal(){
           <button class="live-ctrl-btn" id="btnLiveSkipEnd" title="Simular até o apito final">⏭| IR AO FIM</button>
           <button class="live-ctrl-btn" id="btnLiveSound" title="Ligar/Desligar som">
             ${s.soundMuted ? '🔇 MUDO' : '🔊 SOM'}
-          </button>
-          <button class="live-ctrl-btn" id="btnToggleTelemetry" title="Ligar/Desligar Painel de Telemetria" style="font-size:10px">
-            🐞 HUD
           </button>
           ${s.done ? `<button class="live-ctrl-btn" id="btnLiveAdvanceRound" style="background:#22c55e;color:#000;font-weight:900">AVANÇAR RODADA ➔</button>` : ''}
         </div>
@@ -10366,7 +10382,6 @@ function setupLiveCanvasLoop(){
 
       updateLiveCanvasPositions(s);
       drawLiveStadium(ctx, s);
-      updateTelemetryHud(s);
     } catch(err){
       console.warn('Live match render loop error:', err);
     }
@@ -11363,6 +11378,7 @@ function simulateMinute(s, min){
     if(isHome) s.stats.foulsA++; else s.stats.foulsH++;
     const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[2];
     s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta tática de ${defP.name} (${defTeam}) travando o início da jogada do ${attTeam}.` });
+    if(window.afmAudio) window.afmAudio.playSFX('whistle_foul');
     possessionPhase = 'RESTART';
   } else if(buildUpRoll < 0.52){
     // Circulação paciente de bola entre zagueiros e laterais (manutenção de posse)
@@ -11390,8 +11406,10 @@ function simulateMinute(s, min){
         defP.yellowCards = 1;
         if(isHome) s.stats.yellowsA++; else s.stats.yellowsH++;
         s.events.unshift({ min, type: 'yellow', text: `🟨 Cartão amarelo para ${defP.name} (${defTeam}) por entrada dura no círculo central.` });
+        if(window.afmAudio) window.afmAudio.playSFX('whistle_card');
       } else {
         s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta marcada de ${defP.name} sobre o meia do ${attTeam}.` });
+        if(window.afmAudio) window.afmAudio.playSFX('whistle_foul');
       }
     } else {
       // Infiltração e passe vertical bem-sucedido: avança ao terço final!
@@ -11441,7 +11459,11 @@ function simulateMinute(s, min){
     s.halftimeTriggered = true;
     s.playing = false;
     transitionMatchPhase('HALF_TIME');
-    playWhistleSound();
+    if(window.afmAudio){
+      window.afmAudio.playSFX('whistle_halftime');
+    } else {
+      playWhistleSound();
+    }
     s.events.unshift({ min: 45, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
     updateScoreDisplay();
     updateLiveSidebarEvents();
@@ -11632,7 +11654,12 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
     s.ball.shotOutcome = 'gol';
     if(isHomeAttacking) { s.hg++; s.stats.targetH++; }
     else { s.ag++; s.stats.targetA++; }
-    playCheerSound();
+    if(window.afmAudio){
+      window.afmAudio.playSFX('goal_celebration');
+      window.afmAudio.boostCrowdCheer(4);
+    } else {
+      playCheerSound();
+    }
 
     const goalTxt = `⚽ GOL DO ${attTeam}! ${causalChainText}, que chapa com precisão estufando a rede de ${gk.name}! (xG: ${shotXG}) aos ${min}'!`;
 
@@ -11662,6 +11689,7 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
     s.ball.shotOutcome = 'save';
     if(isHomeAttacking) { s.stats.targetH++; s.stats.savesA++; }
     else { s.stats.targetA++; s.stats.savesH++; }
+    if(window.afmAudio) window.afmAudio.playSFX('crowd_gasp');
 
     const defRoll = s.prng();
     if(defRoll < 0.42){
@@ -11745,6 +11773,7 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
   // 4. BOLA NA TRAVE
   else if(roll < shotXG + 0.62){
     s.ball.shotOutcome = 'post';
+    if(window.afmAudio) window.afmAudio.playSFX('goal_post');
     const evt = {
       id: `${s.matchId}_ev_${s.events.length + 1}`,
       matchId: s.matchId,
@@ -11763,6 +11792,7 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
   // 5. CHUTE PARA FORA
   else {
     s.ball.shotOutcome = 'miss';
+    if(window.afmAudio && roll < shotXG + 0.76) window.afmAudio.playSFX('crowd_gasp');
     const evt = {
       id: `${s.matchId}_ev_${s.events.length + 1}`,
       matchId: s.matchId,
@@ -11811,7 +11841,12 @@ function executePenaltySim(s, min, att, def, isHomeAttacking){
     if(!validateGoalScorer(kicker, attTeam, s)) return;
     s.ball.shotOutcome = 'gol';
     if(isHomeAttacking) s.hg++; else s.ag++;
-    playCheerSound();
+    if(window.afmAudio){
+      window.afmAudio.playSFX('goal_celebration');
+      window.afmAudio.boostCrowdCheer(4);
+    } else {
+      playCheerSound();
+    }
     const evt = {
       id: `${s.matchId}_ev_${s.events.length + 1}`,
       matchId: s.matchId,
@@ -11833,6 +11868,7 @@ function executePenaltySim(s, min, att, def, isHomeAttacking){
     s.ball.shotOutcome = 'save';
     if(isHomeAttacking) { s.stats.targetH++; s.stats.savesA++; }
     else { s.stats.targetA++; s.stats.savesH++; }
+    if(window.afmAudio) window.afmAudio.playSFX('crowd_gasp');
     const evt = {
       id: `${s.matchId}_ev_${s.events.length + 1}`,
       matchId: s.matchId,
@@ -11883,7 +11919,12 @@ function executeFreeKickSim(s, min, att, def, isHomeAttacking){
     if(!validateGoalScorer(kicker, attTeam, s)) return;
     s.ball.shotOutcome = 'gol';
     if(isHomeAttacking) s.hg++; else s.ag++;
-    playCheerSound();
+    if(window.afmAudio){
+      window.afmAudio.playSFX('goal_celebration');
+      window.afmAudio.boostCrowdCheer(4);
+    } else {
+      playCheerSound();
+    }
     const evt = {
       id: `${s.matchId}_ev_${s.events.length + 1}`,
       matchId: s.matchId,
@@ -11903,6 +11944,7 @@ function executeFreeKickSim(s, min, att, def, isHomeAttacking){
   } else if(roll < fkXG + 0.40){
     s.ball.shotOutcome = 'save';
     if(isHomeAttacking) s.stats.targetH++; else s.stats.targetA++;
+    if(window.afmAudio) window.afmAudio.playSFX('crowd_gasp');
     const evt = {
       id: `${s.matchId}_ev_${s.events.length + 1}`,
       matchId: s.matchId,
@@ -11946,30 +11988,7 @@ function simulateMatchSegment(startMin, endMin){
 }
 
 function updateTelemetryHud(s){
-  const el = $('#liveTelemetryHud');
-  if(!el) return;
-  if(!s.debugMode){
-    el.style.display = 'none';
-    return;
-  }
-  el.style.display = 'block';
-  const hStam = Math.round((s.homePlayers || []).reduce((acc, p) => acc + (p.stamina || 100), 0) / 11);
-  const aStam = Math.round((s.awayPlayers || []).reduce((acc, p) => acc + (p.stamina || 100), 0) / 11);
-  el.innerHTML = `
-    <div style="font-weight:900;color:#38bdf8;border-bottom:1px solid rgba(56,189,248,0.25);padding-bottom:2px;margin-bottom:3px">
-      📊 TELEMETRIA DO MATCH ENGINE
-    </div>
-    <div><b>Match ID:</b> ${esc(s.matchId || 'MAT')} | <b>Seed:</b> ${s.seed}</div>
-    <div><b>Entidades no Campo:</b> 11 ${esc(s.home)}, 11 ${esc(s.away)}, 1 Árbitro</div>
-    <div><b>Últimos Padrões:</b> ${esc(s.recentPlayPatterns?.slice(-3).join(' ➔ ') || 'Nenhum')}</div>
-    <div><b>Minuto:</b> ${s.minute}' | <b>Velocidade:</b> ${s.speed}x</div>
-    <div><b>Sim Ticks:</b> ${s.simTicks || 0} | <b>Render Ticks:</b> ${s.renderTicks || 0}</div>
-    <div><b>Placar:</b> ${esc(s.home)} ${s.hg} x ${s.ag} ${esc(s.away)}</div>
-    <div><b>Chutes:</b> ${s.stats.shotsH} x ${s.stats.shotsA} (Alvo: ${s.stats.targetH} x ${s.stats.targetA})</div>
-    <div><b>xG Acumulado:</b> ${Number(s.stats.xGH || 0).toFixed(2)} x ${Number(s.stats.xGA || 0).toFixed(2)}</div>
-    <div><b>Posse:</b> ${s.stats.posH}% x ${s.stats.posA}% | <b>Eventos:</b> ${s.events.length}</div>
-    <div><b>Stamina Média:</b> ${hStam}% x ${aStam}% | <b>Fase:</b> ${s.phase}</div>
-  `;
+  // Telemetria interna desativada na interface visual de transmissão
 }
 
 function updateLiveMatchPhysics(dtSec){
@@ -12091,7 +12110,11 @@ function bindLiveMatchEvents(){
       s.halftimeTriggered = true;
       transitionMatchPhase('HALF_TIME');
       s.playing = false;
-      playWhistleSound();
+      if(window.afmAudio){
+        window.afmAudio.playSFX('whistle_halftime');
+      } else {
+        playWhistleSound();
+      }
       s.events.unshift({ min: 45, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
       updateScoreDisplay();
       updateLiveSidebarEvents();
@@ -12101,7 +12124,11 @@ function bindLiveMatchEvents(){
       $('#halftimeModalContainer')?.remove();
       transitionMatchPhase('SECOND_HALF');
       s.playing = true;
-      playWhistleSound();
+      if(window.afmAudio){
+        window.afmAudio.playSFX('whistle_start');
+      } else {
+        playWhistleSound();
+      }
       renderLiveMatchModal();
       toast('Bola rolando para a etapa complementar!');
     } else {
@@ -12124,8 +12151,15 @@ function bindLiveMatchEvents(){
   const btnSound = $('#btnLiveSound');
   if(btnSound) btnSound.onclick = () => {
     s.soundMuted = !s.soundMuted;
+    if(window.afmAudio){
+      if(s.soundMuted){
+        window.afmAudio.stopCrowdAmbient();
+      } else {
+        window.afmAudio.startCrowdAmbient(s.home, comp?.id);
+      }
+    }
     btnSound.textContent = s.soundMuted ? '🔇 MUDO' : '🔊 SOM';
-    toast(s.soundMuted ? 'Áudio desativado' : 'Áudio ativado');
+    toast(s.soundMuted ? 'Áudio da partida desativado' : 'Áudio da partida ativado');
   };
 
   // Fechar
@@ -12595,7 +12629,11 @@ function openHalftimeModal(isQuickTactics = false){
       if(playBtn) playBtn.textContent = '⏸';
       const overlay = $('#livePauseOverlay');
       if(overlay) overlay.style.display = 'none';
-      playWhistleSound();
+      if(window.afmAudio){
+        window.afmAudio.playSFX('whistle_start');
+      } else {
+        playWhistleSound();
+      }
       renderLiveMatchModal();
       toast('Bola rolando para a etapa complementar!');
     };
@@ -12608,7 +12646,12 @@ function finishLiveMatch(){
   s.done = true;
   s.playing = false;
   transitionMatchPhase('FULL_TIME');
-  playWhistleSound();
+  if(window.afmAudio){
+    window.afmAudio.playSFX('whistle_end');
+    window.afmAudio.stopCrowdAmbient();
+  } else {
+    playWhistleSound();
+  }
 
   let winner = null, pens = null;
   if(s.isKO){
@@ -22945,6 +22988,8 @@ window.renderSetup = renderSetup;
 window.render = render;
 window.getActiveAccount = getActiveAccount;
 window.setActiveAccount = setActiveAccount;
+window.getStoredAccounts = getStoredAccounts;
+window.saveStoredAccounts = saveStoredAccounts;
 
 render();
 })();

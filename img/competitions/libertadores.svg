@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="gradLib" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="goldLib" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </linearGradient>
+    <filter id="glowLib">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#eab308" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <rect width="190" height="190" x="5" y="5" rx="30" fill="url(#gradLib)" stroke="url(#goldLib)" stroke-width="4"/>
+  <!-- Iconic Libertadores Trophy Silhouette & South America Map / Rings -->
+  <g transform="translate(100, 85) scale(0.9) translate(-100, -85)">
+    <!-- Athlete figure on top of globe -->
+    <circle cx="100" cy="38" r="5" fill="url(#goldLib)"/>
+    <path d="M 97 44 L 103 44 L 102 52 L 98 52 Z" fill="url(#goldLib)"/>
+    <!-- Globe -->
+    <circle cx="100" cy="62" r="14" fill="url(#goldLib)"/>
+    <!-- Pedestal / Ribbed Base -->
+    <path d="M 94 77 L 106 77 L 112 125 L 88 125 Z" fill="url(#goldLib)"/>
+    <!-- Horizontal Plaque rings -->
+    <path d="M 85 125 L 115 125 L 118 135 L 82 135 Z" fill="#ffffff" fill-opacity="0.9"/>
+    <path d="M 80 135 L 120 135 L 122 145 L 78 145 Z" fill="url(#goldLib)"/>
+  </g>
+  <text x="100" y="32" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="12" fill="url(#goldLib)" letter-spacing="2.5">CONMEBOL</text>
+  <text x="100" y="168" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="17" fill="#ffffff" letter-spacing="2">LIBERTADORES</text>
+  <!-- Stars -->
+  <polygon points="40,25 42,29 47,29 43,32 45,36 40,34 35,36 37,32 33,29 38,29" fill="#fde047"/>
+  <polygon points="160,25 162,29 167,29 163,32 165,36 160,34 155,36 157,32 153,29 158,29" fill="#fde047"/>
+</svg>

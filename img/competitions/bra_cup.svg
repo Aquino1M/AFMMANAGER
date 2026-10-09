@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="gradCopaBr" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#00a859"/>
+    </linearGradient>
+    <linearGradient id="goldCup" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#ca8a04"/>
+    </linearGradient>
+    <filter id="glowCopaBr">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <rect width="190" height="190" x="5" y="5" rx="30" fill="url(#gradCopaBr)" stroke="#eab308" stroke-width="4" filter="url(#glowCopaBr)"/>
+  <!-- Trophy Silhouette -->
+  <g transform="translate(100, 85) scale(0.95) translate(-100, -85)">
+    <path d="M 70 45 L 130 45 L 126 95 C 126 115 115 125 100 125 C 85 125 74 115 74 95 Z" fill="url(#goldCup)"/>
+    <!-- Handles -->
+    <path d="M 70 55 C 50 55 50 85 73 88" fill="none" stroke="url(#goldCup)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M 130 55 C 150 55 150 85 127 88" fill="none" stroke="url(#goldCup)" stroke-width="6" stroke-linecap="round"/>
+    <!-- Stem & Base -->
+    <path d="M 94 125 L 106 125 L 106 142 L 94 142 Z" fill="url(#goldCup)"/>
+    <path d="M 78 142 L 122 142 L 126 150 L 74 150 Z" fill="url(#goldCup)"/>
+  </g>
+  <text x="100" y="38" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="16" fill="#eab308" letter-spacing="2">COPA DO</text>
+  <text x="100" y="174" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="22" fill="#ffffff" letter-spacing="3">BRASIL</text>
+</svg>

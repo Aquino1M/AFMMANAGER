@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <!-- Stars on top -->
+  <polygon points="200,10 205,25 220,25 208,35 212,50 200,40 188,50 192,35 180,25 195,25" fill="#f1c40f" stroke="#b7950b" stroke-width="1"/>
+  <!-- Outer Shield -->
+  <path d="M40,65 L360,65 L360,250 C360,375 200,465 200,465 C200,465 40,375 40,250 Z" fill="#ffffff" stroke="#111111" stroke-width="6"/>
+  <!-- Inner Clip for 3 vertical stripes: Red (left), White (middle), Black (right) -->
+  <g>
+    <clipPath id="bspClip">
+      <path d="M46,71 L354,71 L354,248 C354,368 200,455 200,455 C200,455 46,368 46,248 Z"/>
+    </clipPath>
+    <g clip-path="url(#bspClip)">
+      <!-- Left Red Stripe -->
+      <rect x="40" y="65" width="107" height="410" fill="#cc1111"/>
+      <!-- Middle White Stripe -->
+      <rect x="147" y="65" width="106" height="410" fill="#ffffff"/>
+      <!-- Right Black Stripe -->
+      <rect x="253" y="65" width="107" height="410" fill="#111111"/>
+      <!-- Horizontal header or central crest -->
+      <circle cx="200" cy="235" r="88" fill="#ffffff" stroke="#111111" stroke-width="6"/>
+      <!-- Inner circular border -->
+      <circle cx="200" cy="235" r="76" fill="#ffffff" stroke="#cc1111" stroke-width="3"/>
+      <!-- B.F.C. text -->
+      <text x="200" y="248" font-family="'Arial Black', Impact, sans-serif" font-size="46" font-weight="900" fill="#111111" text-anchor="middle" letter-spacing="2">B.F.C.</text>
+      <!-- Year 1918 -->
+      <text x="200" y="280" font-family="'Arial Black', sans-serif" font-size="14" font-weight="900" fill="#cc1111" text-anchor="middle">1918</text>
+      <!-- Ribeirão Preto banner -->
+      <rect x="100" y="340" width="200" height="28" rx="6" fill="#111111" stroke="#ffffff" stroke-width="2"/>
+      <text x="200" y="359" font-family="'Arial Black', sans-serif" font-size="12" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="1">RIBEIRÃO PRETO</text>
+    </g>
+  </g>
+</svg>

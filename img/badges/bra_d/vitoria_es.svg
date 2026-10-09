@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <defs>
+    <radialGradient id="vitoriaBlue" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1565c0"/>
+      <stop offset="100%" stop-color="#0d47a1"/>
+    </radialGradient>
+  </defs>
+  <!-- Outer Blue Ring -->
+  <circle cx="150" cy="150" r="142" fill="url(#vitoriaBlue)" stroke="#ffffff" stroke-width="6"/>
+  <!-- Inner White Ring -->
+  <circle cx="150" cy="150" r="126" fill="#ffffff"/>
+  <!-- Circular Text VITÓRIA F.C. - 1912 -->
+  <path id="textCircle" d="M 45 150 A 105 105 0 0 1 255 150" fill="none"/>
+  <path id="textCircleBottom" d="M 255 150 A 105 105 0 0 1 45 150" fill="none"/>
+  <text font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="21" fill="#0d47a1" letter-spacing="3.5">
+    <textPath href="#textCircle" startOffset="50%" text-anchor="middle">VITÓRIA F. C.</textPath>
+  </text>
+  <text font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="19" fill="#0d47a1" letter-spacing="4">
+    <textPath href="#textCircleBottom" startOffset="50%" text-anchor="middle">★ 1912 ★</textPath>
+  </text>
+  <!-- Center Shield -->
+  <circle cx="150" cy="150" r="82" fill="url(#vitoriaBlue)" stroke="#ffffff" stroke-width="4"/>
+  <g transform="translate(150, 150) scale(0.9) translate(-150, -150)">
+    <!-- Shield Outline -->
+    <path d="M 105 110 L 195 110 C 195 180, 150 205, 150 205 C 150 205, 105 180, 105 110 Z" fill="#ffffff" stroke="#0d47a1" stroke-width="3"/>
+    <!-- Blue Stripes -->
+    <path d="M 118 110 L 132 110 C 132 165, 126 182, 118 174 Z" fill="#0d47a1"/>
+    <path d="M 143 110 L 157 110 C 157 190, 150 203, 143 194 Z" fill="#0d47a1"/>
+    <path d="M 168 110 L 182 110 C 182 174, 175 165, 168 152 Z" fill="#0d47a1"/>
+    <!-- VFC Monogram / Header -->
+    <path d="M 105 110 L 195 110 L 195 130 L 105 130 Z" fill="#0d47a1"/>
+    <text x="150" y="125" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="14" fill="#ffffff" letter-spacing="1">V.F.C.</text>
+  </g>
+</svg>

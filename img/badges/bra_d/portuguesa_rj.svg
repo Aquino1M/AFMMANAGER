@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 340" width="300" height="340">
+  <defs>
+    <filter id="lusaRjShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- Outer Shield Border -->
+  <path d="M 150 10 C 230 10, 280 20, 280 40 C 280 180, 230 290, 150 330 C 70 290, 20 180, 20 40 C 20 20, 70 10, 150 10 Z" fill="#ffffff" stroke="#007a33" stroke-width="8" filter="url(#lusaRjShadow)"/>
+  <path d="M 150 18 C 224 18, 270 28, 270 46 C 270 174, 222 280, 150 318 C 78 280, 30 174, 30 46 C 30 28, 76 18, 150 18 Z" fill="#ffffff" stroke="#c8102e" stroke-width="4"/>
+  <!-- Diagonal stripes (Green and Red) -->
+  <clipPath id="innerShieldClip">
+    <path d="M 150 22 C 220 22, 264 32, 264 48 C 264 170, 218 274, 150 310 C 82 274, 36 170, 36 48 C 36 32, 80 22, 150 22 Z"/>
+  </clipPath>
+  <g clip-path="url(#innerShieldClip)">
+    <!-- Top banner with A.A.P. -->
+    <path d="M 30 20 L 270 20 L 270 70 L 30 70 Z" fill="#007a33"/>
+    <text x="150" y="55" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="24" fill="#ffffff" letter-spacing="4">A. A. PORTUGUESA</text>
+    <path d="M 30 70 L 270 70 L 270 76 L 30 76 Z" fill="#c8102e"/>
+    <!-- Central Official Cruz de Avis (Portuguese Green Fleury Cross) -->
+    <g transform="translate(150, 190) scale(1.15)">
+      <!-- Cross vertical -->
+      <path d="M -12 -75 L 12 -75 L 12 -30 L 12 30 L 12 75 L -12 75 L -12 30 L -12 -30 Z" fill="#007a33"/>
+      <!-- Cross horizontal -->
+      <path d="M -75 -12 L 75 -12 L 75 12 L -75 12 Z" fill="#007a33"/>
+      <!-- Fleur-de-lis Top -->
+      <path d="M 0 -95 C -15 -85, -18 -70, 0 -70 C 18 -70, 15 -85, 0 -95 Z" fill="#007a33"/>
+      <path d="M -12 -80 C -28 -80, -28 -65, -12 -65 Z" fill="#007a33"/>
+      <path d="M 12 -80 C 28 -80, 28 -65, 12 -65 Z" fill="#007a33"/>
+      <!-- Fleur-de-lis Bottom -->
+      <path d="M 0 95 C -15 85, -18 70, 0 70 C 18 70, 15 85, 0 95 Z" fill="#007a33"/>
+      <path d="M -12 80 C -28 80, -28 65, -12 65 Z" fill="#007a33"/>
+      <path d="M 12 80 C 28 80, 28 65, 12 65 Z" fill="#007a33"/>
+      <!-- Fleur-de-lis Left -->
+      <path d="M -95 0 C -85 -15, -70 -18, -70 0 C -70 18, -85 15, -95 0 Z" fill="#007a33"/>
+      <path d="M -80 -12 C -80 -28, -65 -28, -65 -12 Z" fill="#007a33"/>
+      <path d="M -80 12 C -80 28, -65 28, -65 12 Z" fill="#007a33"/>
+      <!-- Fleur-de-lis Right -->
+      <path d="M 95 0 C 85 -15, 70 -18, 70 0 C 70 18, 85 15, 95 0 Z" fill="#007a33"/>
+      <path d="M 80 -12 C 80 -28, 65 -28, 65 -12 Z" fill="#007a33"/>
+      <path d="M 80 12 C 80 28, 65 28, 65 12 Z" fill="#007a33"/>
+      <!-- Red Center Cross highlight -->
+      <circle cx="0" cy="0" r="16" fill="#c8102e" stroke="#ffffff" stroke-width="2"/>
+    </g>
+    <!-- Rio de Janeiro identification -->
+    <text x="150" y="295" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="14" fill="#c8102e" letter-spacing="2">RIO DE JANEIRO</text>
+  </g>
+</svg>

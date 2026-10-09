@@ -31,6 +31,8 @@
 <script src="data/player_photos.js"></script>
 <script src="js/database.js"></script>
 <script src="js/features30.js"></script>
+<script src="js/core/audio_engine.js"></script>
+<script src="js/core/match_engine.js"></script>
 <script src="js/game.js"></script>
 
 <script>
@@ -63,6 +65,14 @@ window.addEventListener('load', async () => {
 
     const genericTest = (window.clubBadge || window.renderClubBadge)('Flamengo', 32);
     assert('Teste H.2 — clubBadge() não usa SVG procedural', !genericTest.includes('crest-generic-svg'), 'clubBadge() chamou diretamente renderClubBadge() oficial');
+
+    // -------------------------------------------------------------
+    // TESTE I: Motor de Áudio e Sanitização Visual de Telemetria
+    // -------------------------------------------------------------
+    console.log('--- TESTE I: Áudio e Sanitização ---');
+    assert('Teste I.1 — Inicialização do AFMAudioManager', !!window.afmAudio && typeof window.afmAudio.playSFX === 'function', 'window.afmAudio instanciado com suporte a SFX e Torcida');
+    assert('Teste I.2 — Sanitização de HUD de Telemetria', !document.getElementById('liveTelemetryHud') && !document.getElementById('btnToggleTelemetry'), 'Interface limpa de transmissão sem overlays de depuração crua');
+    assert('Teste I.3 — Módulo Desacoplado AFMMatchEngine', !!window.AFMMatchEngine && window.AFMMatchEngine.broadcastMode === 'AUTHENTIC_TV', 'AFMMatchEngine ativo em modo de transmissão autêntica');
 
     // -------------------------------------------------------------
     // TESTE A & G: Partida Completa e Integridade do Placar

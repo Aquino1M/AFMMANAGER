@@ -32,6 +32,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/database.js"></script>
 <script src="js/features30.js"></script>
+<script src="js/core/audio_engine.js"></script>
 <script src="js/game.js"></script>
 
 <script>
@@ -62,6 +63,18 @@ window.addEventListener('load', async () => {
   const realSlot3 = localStorage.getItem('afm_save_slot_3');
   const realAccounts = localStorage.getItem('afm_accounts_v1');
   const realSession = localStorage.getItem('afm_active_user_v1');
+
+  // Isolamento do ambiente de teste para o usuário 'aquino'
+  setActiveAccount('aquino');
+  const testAccs = [
+    { username: 'admin', password: 'admin', name: 'Administrador AFM', role: 'admin', createdAt: '2026-01-01', saves: [] },
+    { username: 'aquino', password: 'viralgen123', name: 'Treinador', role: 'player', createdAt: '2026-01-01', saves: [] }
+  ];
+  saveStoredAccounts(testAccs);
+  localStorage.removeItem('afm_save_slot_1');
+  localStorage.removeItem('afm_save_slot_2');
+  localStorage.removeItem('afm_save_slot_3');
+  localStorage.removeItem('aquino_futebol_manager_2026_v1');
 
   try {
     console.log('=== INICIANDO BATERIA DE TESTES OFICIAIS ===');
@@ -261,11 +274,17 @@ window.addEventListener('load', async () => {
   } finally {
     // Restaurar dados originais do usuário para não afetar saves pré-existentes
     if(realStorage !== null) localStorage.setItem('aquino_futebol_manager_2026_v1', realStorage);
+    else localStorage.removeItem('aquino_futebol_manager_2026_v1');
     if(realSlot1 !== null) localStorage.setItem('afm_save_slot_1', realSlot1);
+    else localStorage.removeItem('afm_save_slot_1');
     if(realSlot2 !== null) localStorage.setItem('afm_save_slot_2', realSlot2);
+    else localStorage.removeItem('afm_save_slot_2');
     if(realSlot3 !== null) localStorage.setItem('afm_save_slot_3', realSlot3);
+    else localStorage.removeItem('afm_save_slot_3');
     if(realAccounts !== null) localStorage.setItem('afm_accounts_v1', realAccounts);
+    else localStorage.removeItem('afm_accounts_v1');
     if(realSession !== null) localStorage.setItem('afm_active_user_v1', realSession);
+    else localStorage.removeItem('afm_active_user_v1');
   }
 
   // Renderizar relatório visual na página

@@ -3,18 +3,18 @@
 // Clubes mapeados: 14
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Ajman": "ajman.png",
-  "Al-Ain": "al_ain.png",
-  "Al-Bataeh": "al_bataeh.png",
-  "Al-Jazira": "al_jazira.png",
-  "Al-Nasr Dubai": "al_nasr_dubai.png",
-  "Al-Orooba": "al_orooba.png",
-  "Al-Wahda": "al_wahda.png",
-  "Al-Wasl": "al_wasl.png",
-  "Baniyas": "baniyas.png",
-  "Dibba Al-Hisn": "dibba_al_hisn.png",
-  "Kalba": "kalba.png",
-  "Khor Fakkan": "khor_fakkan.png",
-  "Shabab Al-Ahli": "shabab_al_ahli.png",
-  "Sharjah": "sharjah.png"
+  "Al-Ain": "asia/al_ain.png",
+  "Shabab Al-Ahli": "asia/shabab_al_ahli.png",
+  "Al-Wasl": "asia/al_wasl.png",
+  "Al-Jazira": "asia/al_jazira.png",
+  "Al-Wahda": "asia/al_wahda.png",
+  "Sharjah": "asia/sharjah.png",
+  "Baniyas": "asia/baniyas.png",
+  "Ajman": "asia/ajman.png",
+  "Al-Nasr Dubai": "asia/al_nasr_dubai.png",
+  "Khor Fakkan": "asia/khor_fakkan.png",
+  "Kalba": "asia/kalba.png",
+  "Al-Bataeh": "asia/al_bataeh.png",
+  "Dibba Al-Hisn": "asia/dibba_al_hisn.png",
+  "Al-Orooba": "asia/al_orooba.png"
 });
