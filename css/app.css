@@ -4022,4 +4022,69 @@ body.theme-emerald {
   pointer-events: none !important;
 }
 
+/* ==========================================================================
+   RESTAURAÇÃO DO LAYOUT DE 2 COLUNAS (TÁTICA E SUBSTITUIÇÃO)
+   ========================================================================== */
+.tactics-layout,
+.team-layout {
+  display: flex !important;
+  flex-direction: row !important;
+  width: 100% !important;
+  min-height: 520px !important;
+  gap: 20px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.tactics-pitch-container,
+.pitch-card {
+  flex: 1 1 70% !important;
+  position: relative !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.tactics-bench-container,
+.bench-card {
+  flex: 0 0 30% !important;
+  max-width: 380px !important;
+  min-width: 280px !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+}
+
+/* Modal de Substituição de Intervalo */
+.halftime-sub-container {
+  display: grid !important;
+  grid-template-columns: 1fr 340px !important;
+  gap: 16px !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.halftime-bench-grid {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 8px !important;
+  padding-right: 4px !important;
+  min-height: 0 !important;
+}
+
+/* Efeito de Seleção Pulsante e Brilhante */
+.selected-glow,
+.fifa-mini-card.selected-glow {
+  box-shadow: 0 0 20px #fbbf24, 0 0 35px rgba(251, 191, 36, 0.85) !important;
+  border-color: #fef08a !important;
+  transform: translate(-50%, -50%) scale(1.1) !important;
+  z-index: 120 !important;
+}
+
+
 

@@ -219,12 +219,43 @@ function renderPlayerAvatarFallback(name, pos = 'CM', size = 36) {
 }
 
 function renderFifaCardFallbackSvg() {
-  return `<div class="fifa-mini-card-avatar-fallback">
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="#94a3b8"/>
-    </svg>
-  </div>`;
+  return `<img src="img/players/default_avatar.svg" alt="Jogador" class="fifa-mini-card-photo" style="opacity:0.85;" />`;
 }
+
+function renderTacticalCard(player, index, isSelected = false) {
+  if (!player) return '';
+  const photoUrl = resolvePlayerPhotoUrl(player) || (window.PLAYER_PHOTOS && window.PLAYER_PHOTOS[player.name]) || "img/players/default_avatar.svg";
+  const fallbackUrl = "img/players/default_avatar.svg";
+  const ovr = player.overall || player.ovr || (typeof playerOverall === 'function' ? playerOverall(player) : 60);
+  const pos = player.pos || 'CM';
+  const name = (player.name || 'Jogador').toUpperCase();
+  
+  return `
+    <div class="fifa-mini-card ${isSelected ? 'selected-glow selected' : ''}" 
+         data-player-id="${player.id || index}" 
+         data-index="${index}"
+         data-player-key="${esc(playerKey(player))}"
+         onclick="window.handleTacticalCardClick ? window.handleTacticalCardClick(${index}) : null">
+      <div class="card-header fifa-mini-card-top">
+        <div class="fifa-mini-card-badge">
+          <span class="card-ovr fifa-mini-card-ovr">${ovr}</span>
+          <span class="card-pos fifa-mini-card-pos">${esc(pos)}</span>
+        </div>
+      </div>
+      <div class="card-photo-wrapper fifa-mini-card-photo-wrap">
+        <img class="card-player-img fifa-mini-card-photo" 
+             src="${photoUrl}" 
+             alt="${esc(name)}" 
+             loading="lazy"
+             onerror="this.onerror=null;this.src='${fallbackUrl}';" />
+      </div>
+      <div class="card-footer fifa-mini-card-bottom">
+        <span class="card-player-name fifa-mini-card-name">${esc(name)}</span>
+      </div>
+    </div>
+  `;
+}
+window.renderTacticalCard = renderTacticalCard;
 
 function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const i = slot.index ?? 0;
@@ -232,7 +263,7 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const x = slot.x ?? 50;
   const y = slot.y ?? 50;
   const pk = p ? (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.key || p.name)) : '';
-  const ovr = p ? (typeof playerOverall === 'function' ? playerOverall(p) : (p.ovr || p.overall || 60)) : '-';
+  const ovr = p ? (p.overall || p.ovr || (typeof playerOverall === 'function' ? playerOverall(p) : 60)) : '-';
   const pos = p ? (p.pos || role) : role;
   const isAdapted = p && p.pos !== role;
   const isSelected = !!opts.isSelected;
@@ -241,6 +272,7 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const staminaClass = stamina >= 75 ? 'stamina-good' : stamina >= 50 ? 'stamina-warn' : 'stamina-tired';
   const shortName = p ? (p.name.split(' ').pop() || p.name).toUpperCase() : 'VAZIO';
   const photoUrl = p ? resolvePlayerPhotoUrl(p) : null;
+  const fallbackUrl = "img/players/default_avatar.svg";
   const clubName = p?.club || state?.club || '';
 
   const ovrNum = Number(ovr) || 0;
@@ -248,7 +280,7 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const customClass = opts.customClass || '';
 
   return `
-    <div class="fifa-mini-card ${tierClass} ${isSelected ? 'selected' : ''} ${customClass}" 
+    <div class="fifa-mini-card ${tierClass} ${isSelected ? 'selected selected-glow' : ''} ${customClass}" 
          style="left:${x}%;top:${y}%;" 
          data-slot-index="${i}" 
          data-slot-role="${esc(role)}" 
@@ -269,15 +301,13 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
         </div>
       </div>
 
-      <!-- Centro: Foto Oficial Recortada ou Silhueta Atlética FUT -->
+      <!-- Centro: Foto Oficial Recortada ou Fallback SVG Seguro -->
       <div class="fifa-mini-card-photo-wrap">
-        ${photoUrl ? `
-          <img src="${photoUrl}" 
-               alt="${esc(p?.name || '')}" 
-               class="fifa-mini-card-photo" 
-               loading="lazy" 
-               onerror="this.onerror=null; this.parentElement.innerHTML='${renderFifaCardFallbackSvg()}';">
-        ` : renderFifaCardFallbackSvg()}
+        <img src="${photoUrl || fallbackUrl}" 
+             alt="${esc(p?.name || 'Jogador')}" 
+             class="fifa-mini-card-photo" 
+             loading="lazy" 
+             onerror="this.onerror=null;this.src='${fallbackUrl}';" />
       </div>
 
       <!-- Base: Nome do Atleta e Barra de Stamina -->
@@ -5878,12 +5908,15 @@ function strength(c){return Math.round(((c?.atk||68)+(c?.mid||68)+(c?.def||68))/
 
 // Overall realista eFootball/PES ponderado com EA FC
 function playerOverall(p){
+  if (!p) return 60;
+  const direct = +p?.overall || +p?.ovr || 0;
+  if (direct > 0) return direct;
   const pes = +p?.pes || 0;
   const fc = +p?.fc || 0;
   if (pes > 0 && fc > 0) return Math.round(pes * 0.7 + fc * 0.3);
   if (pes > 0) return pes;
   if (fc > 0) return fc;
-  return 62;
+  return 60;
 }
 
 function ratingClass(o){
@@ -6458,27 +6491,137 @@ function getPositionFit(playerRole, slotRole){
   return 'bad';
 }
 
-function compatibleScore(p,role){
-  const fit = getPositionFit(p?.pos, role);
+function compatibleScore(p, role){
+  const pPos = String(p?.pos || '').trim().toUpperCase();
+  const sRole = String(role || '').trim().toUpperCase();
+
+  // Regra Inviolável de Goleiro:
+  if(sRole === 'GK' && pPos !== 'GK') return -100;
+  if(sRole !== 'GK' && pPos === 'GK') return -100;
+
+  const fit = getPositionFit(pPos, sRole);
   if(fit === 'best') return 0;
-  if(fit === 'ok') return -3;
-  return -8;
+  if(fit === 'ok') return -6;
+  return -25;
 }
 
-function optimizeLineup(){
-  const slots=formationSlots(),used=new Set(),keys=[];
-  for(const slot of slots){
-    let best=null,bestScore=-999;
-    for(const p of state.squad){
-      const k=playerKey(p);
-      if(used.has(k))continue;
-      const sc=playerOverall(p)+compatibleScore(p,slot.r)+(p.fitness??100)/100;
-      if(sc>bestScore){best=p;bestScore=sc}
+// =========================================================================
+// ESCALAÇÃO INTELIGENTE (autoPickBestLineup) — AFM 2027
+// =========================================================================
+function autoPickBestLineup(squad, formationName = state?.formation || '4-3-3'){
+  if (!Array.isArray(squad) || squad.length === 0) return [];
+  const form = FORMATIONS[formationName] || FORMATIONS['4-3-3'];
+  const available = [...squad];
+  const chosenKeys = new Array(form.length).fill(null);
+
+  // Mapeamento rígido de preferências por posição tática
+  const rolePreferences = {
+    GK: { primary: ['GK'], secondary: [] },
+    CB: { primary: ['CB'], secondary: ['RB', 'LB', 'DM'] },
+    LB: { primary: ['LB'], secondary: ['LWB', 'RB', 'LM', 'CB'] },
+    RB: { primary: ['RB'], secondary: ['RWB', 'LB', 'RM', 'CB'] },
+    LWB: { primary: ['LB', 'LWB'], secondary: ['LM', 'RB'] },
+    RWB: { primary: ['RB', 'RWB'], secondary: ['RM', 'LB'] },
+    DM: { primary: ['DM'], secondary: ['CM', 'CB'] },
+    CM: { primary: ['CM'], secondary: ['DM', 'AM'] },
+    AM: { primary: ['AM'], secondary: ['CM', 'RW', 'LW', 'CF'] },
+    LM: { primary: ['LM', 'LW'], secondary: ['LB', 'AM', 'CM'] },
+    RM: { primary: ['RM', 'RW'], secondary: ['RB', 'AM', 'CM'] },
+    LW: { primary: ['LW', 'LM'], secondary: ['RW', 'ST', 'AM', 'CF'] },
+    RW: { primary: ['RW', 'RM'], secondary: ['LW', 'ST', 'AM', 'CF'] },
+    ST: { primary: ['ST', 'CF'], secondary: ['RW', 'LW', 'AM'] },
+    CF: { primary: ['CF', 'ST'], secondary: ['AM', 'RW', 'LW'] }
+  };
+
+  // 1. PRIMEIRA PASSAGEM: Goleiro (REGRA INVIOLÁVEL: apenas goleiro no gol se houver)
+  const gkIndex = form.findIndex(slot => slot.r === 'GK');
+  if (gkIndex !== -1) {
+    const gks = available.filter(p => (p.pos === 'GK') && (!p.suspended || p.suspended <= 0) && (!p.injury));
+    const poolGK = gks.length ? gks : available.filter(p => p.pos === 'GK');
+    if (poolGK.length) {
+      poolGK.sort((a, b) => playerOverall(b) - playerOverall(a));
+      const chosenGK = poolGK[0];
+      chosenKeys[gkIndex] = playerKey(chosenGK);
+      const rmIdx = available.indexOf(chosenGK);
+      if (rmIdx !== -1) available.splice(rmIdx, 1);
     }
-    if(best){used.add(playerKey(best));keys.push(playerKey(best))}
-    else keys.push(null);
   }
-  state.lineup=keys;
+
+  // 2. SEGUNDA PASSAGEM: Posições de ofício estritas (Primary Match)
+  const priorityOrder = ['LB', 'RB', 'LWB', 'RWB', 'CB', 'ST', 'CF', 'LW', 'RW', 'LM', 'RM', 'DM', 'AM', 'CM'];
+  const slotIndices = form.map((slot, idx) => ({ idx, role: slot.r }))
+    .filter(item => item.role !== 'GK');
+
+  slotIndices.sort((a, b) => {
+    const prioA = priorityOrder.indexOf(a.role);
+    const prioB = priorityOrder.indexOf(b.role);
+    return (prioA === -1 ? 99 : prioA) - (prioB === -1 ? 99 : prioB);
+  });
+
+  for (const { idx, role } of slotIndices) {
+    if (chosenKeys[idx]) continue;
+    const pref = rolePreferences[role] || { primary: [role], secondary: [] };
+    
+    // Candidatos aptos (sem suspensão/lesão grave primeiro)
+    const candidates = available.filter(p => {
+      if (p.pos === 'GK') return false; // NUNCA colocar goleiro na linha
+      return pref.primary.includes(p.pos);
+    });
+
+    if (candidates.length) {
+      candidates.sort((a, b) => {
+        const fitA = (a.fitness ?? 100) / 100;
+        const fitB = (b.fitness ?? 100) / 100;
+        const scoreA = playerOverall(a) * fitA;
+        const scoreB = playerOverall(b) * fitB;
+        return scoreB - scoreA;
+      });
+      const best = candidates[0];
+      chosenKeys[idx] = playerKey(best);
+      const rmIdx = available.indexOf(best);
+      if (rmIdx !== -1) available.splice(rmIdx, 1);
+    }
+  }
+
+  // 3. TERCEIRA PASSAGEM: Posições secundárias adaptadas (Secondary Match)
+  for (const { idx, role } of slotIndices) {
+    if (chosenKeys[idx]) continue;
+    const pref = rolePreferences[role] || { primary: [role], secondary: [] };
+    
+    const candidates = available.filter(p => {
+      if (p.pos === 'GK') return false;
+      return pref.secondary.includes(p.pos);
+    });
+
+    if (candidates.length) {
+      candidates.sort((a, b) => playerOverall(b) - playerOverall(a));
+      const best = candidates[0];
+      chosenKeys[idx] = playerKey(best);
+      const rmIdx = available.indexOf(best);
+      if (rmIdx !== -1) available.splice(rmIdx, 1);
+    }
+  }
+
+  // 4. QUARTA PASSAGEM: Vagas restantes preenchidas pelos melhores atletas restantes (evitando GK na linha)
+  for (let i = 0; i < form.length; i++) {
+    if (!chosenKeys[i] && available.length) {
+      const nonGKs = available.filter(p => p.pos !== 'GK');
+      const pool = nonGKs.length ? nonGKs : available;
+      pool.sort((a, b) => playerOverall(b) - playerOverall(a));
+      const best = pool[0];
+      chosenKeys[i] = playerKey(best);
+      const rmIdx = available.indexOf(best);
+      if (rmIdx !== -1) available.splice(rmIdx, 1);
+    }
+  }
+
+  return chosenKeys;
+}
+window.autoPickBestLineup = autoPickBestLineup;
+
+function optimizeLineup(){
+  if (!state?.squad || state.squad.length === 0) return;
+  state.lineup = autoPickBestLineup(state.squad, state.formation || '4-3-3');
 }
 
 function lineupPlayer(i){const k=state.lineup?.[i];return state.squad.find(p=>playerKey(p)===k)}
@@ -23175,6 +23318,31 @@ window.runTacticalEngineTests = function(numMatches = 100){
     winRateA,
     anomalies: results.anomalies
   };
+};
+
+window.tacticalSelectedCardIndex = null;
+window.handleTacticalCardClick = function(index) {
+  if (!state || !Array.isArray(state.lineup)) return;
+  if (window.tacticalSelectedCardIndex !== null && window.tacticalSelectedCardIndex !== undefined) {
+    if (window.tacticalSelectedCardIndex === index) {
+      window.tacticalSelectedCardIndex = null;
+      render();
+      return;
+    }
+    const fromIdx = window.tacticalSelectedCardIndex;
+    const toIdx = index;
+    const temp = state.lineup[fromIdx];
+    state.lineup[fromIdx] = state.lineup[toIdx];
+    state.lineup[toIdx] = temp;
+    window.tacticalSelectedCardIndex = null;
+    save();
+    render();
+    toast('🔄 Posições trocadas com sucesso!');
+    return;
+  }
+  window.tacticalSelectedCardIndex = index;
+  render();
+  toast('👉 Titular selecionado! Clique em outro titular ou em um reserva para trocar.');
 };
 
 window.simulateMinute = simulateMinute;
