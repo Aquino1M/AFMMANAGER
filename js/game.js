@@ -16667,14 +16667,31 @@ function myTeamPage(){
       </div>
     </div>
 
-    <!-- Botões de Ação no Topo da Tática (Compactos) -->
-    <div style="display:flex;justify-content:flex-end;gap:10px;margin:8px 0 10px 0">
-      <button class="btn" id="btnSaveLineup" style="background:#6366f1;color:#fff;font-weight:900;padding:8px 18px;border-radius:10px;border:none;font-size:13px;letter-spacing:0.5px;cursor:pointer;box-shadow:0 3px 10px rgba(99,102,241,0.35)">
-        SALVAR ESCALAÇÃO
-      </button>
-      <button class="btn" id="btnAILineup" style="background:#ffffff;color:#0f172a;font-weight:900;padding:8px 18px;border-radius:10px;border:none;font-size:13px;letter-spacing:0.5px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,0.2)">
-        DEIXAR A IA ESCALAR
-      </button>
+    <!-- Barra de Ações e Atalhos Táticos -->
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 10px 0">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="btn btnOpenAccordion" data-target="accordionHierarchy" style="font-size:11px;font-weight:900;padding:6px 12px;border-radius:8px;background:#18142b;color:#facc15;border:1px solid rgba(234,179,8,0.3)">
+          👔 Mentoria & Vestiário
+        </button>
+        <button class="btn btnOpenAccordion" data-target="accordionTactics" style="font-size:11px;font-weight:900;padding:6px 12px;border-radius:8px;background:#18142b;color:#a78bfa;border:1px solid rgba(139,92,246,0.3)">
+          ⚙️ Tática Coletiva (Build-Up)
+        </button>
+        <button class="btn btnOpenAccordion" data-target="accordionRoles" style="font-size:11px;font-weight:900;padding:6px 12px;border-radius:8px;background:#18142b;color:#38bdf8;border:1px solid rgba(56,189,248,0.3)">
+          👥 Funções dos 11 (Roles)
+        </button>
+        <button class="btn btnOpenAccordion" data-target="accordionSetpieces" style="font-size:11px;font-weight:900;padding:6px 12px;border-radius:8px;background:#18142b;color:#4ade80;border:1px solid rgba(34,197,94,0.3)">
+          🎯 Bolas Paradas
+        </button>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="btnAILineup" style="background:#ffffff;color:#0f172a;font-weight:900;padding:7px 14px;border-radius:8px;border:none;font-size:12px;cursor:pointer">
+          ⭐ DEIXAR A IA ESCALAR
+        </button>
+        <button class="btn" id="btnSaveLineup" style="background:#22c55e;color:#000;font-weight:900;padding:7px 18px;border-radius:8px;border:none;font-size:12px;cursor:pointer;box-shadow:0 3px 10px rgba(34,197,94,0.35)">
+          💾 SALVAR ESCALAÇÃO
+        </button>
+      </div>
     </div>
 
     <!-- Card de FORÇA Compacto e Moderno (Menor e sem ocupar espaço excessivo) -->
@@ -16745,173 +16762,171 @@ function myTeamPage(){
       </div>
     </div>
 
-    <!-- PAINEL TÁTICO AVANÇADO AFM 2027 (INSPIRADO EM ROLES/FOCUS FC 27) -->
-    <div class="card" style="background:#100d1e;border:1px solid rgba(139,92,246,0.35);border-radius:18px;padding:22px;margin-top:14px">
-      
-      <!-- Cabeçalho & Presets A, B, C -->
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px">
-        <div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <h2 style="margin:0;font-size:18px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.8px">
-              ⚙️ Tática Avançada & Funções Individuais
-            </h2>
-            <span class="pill" style="font-size:10px;background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(6,182,212,0.3));color:#38bdf8;border:1px solid #38bdf8">ENGINE FC 27</span>
+    <!-- 1. ACORDEÃO: TÁTICA AVANÇADA & ESTILO COLETIVO (FECHADO POR PADRÃO) -->
+    <details class="tactical-accordion" id="accordionTactics">
+      <summary>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:16px">⚙️</span>
+          <span style="font-size:13px;color:#fff;text-transform:uppercase">Tática Avançada & Estilo Coletivo (Build-Up & Sliders)</span>
+          <span class="pill" style="font-size:10px;background:rgba(124,58,237,0.3);color:#38bdf8;border:1px solid #38bdf8">ENGINE FC 27</span>
+        </div>
+        <span class="pill" style="font-size:10px;background:rgba(255,255,255,0.08);color:#94a3b8">▶ Clique para Abrir / Fechar</span>
+      </summary>
+      <div class="tactical-accordion-body">
+        <!-- Cabeçalho & Presets A, B, C -->
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px">
+          <div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.5)">
+              Formação tática, estilo coletivo e táticas de reserva
+            </div>
           </div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">
-            Formação tática, atribuições individuais de campo, estilo coletivo e táticas de reserva
+          <!-- Seletor de Táticas de Reserva (A, B, C) -->
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.4);text-transform:uppercase">TÁTICAS:</span>
+            ${['A','B','C'].map(pk => {
+              const isAct = curTac.activePreset === pk;
+              const pObj = curTac.presets?.[pk] || {};
+              const pLabel = pk === 'A' ? '⚡ Tática A (Equilibrada)' : pk === 'B' ? '🛡️ Tática B (Defensiva)' : '⚔️ Tática C (Ofensiva)';
+              return `
+                <button class="btn btnSelectTacticalPreset ${isAct ? 'primary' : ''}" data-preset-key="${pk}" style="font-size:11px;font-weight:900;padding:6px 12px;border-radius:8px;${isAct ? 'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;box-shadow:0 0 12px rgba(124,58,237,0.5)' : 'background:#18142b;color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)'}">
+                  ${pLabel} <span style="font-size:9px;opacity:0.8">(${pObj.formation || '4-2-3-1'})</span>
+                </button>
+              `;
+            }).join('')}
           </div>
         </div>
 
-        <!-- Seletor de Táticas de Reserva (A, B, C) -->
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.4);text-transform:uppercase">TÁTICAS:</span>
-          ${['A','B','C'].map(pk => {
-            const isAct = curTac.activePreset === pk;
-            const pObj = curTac.presets?.[pk] || {};
-            const pLabel = pk === 'A' ? '⚡ Tática A (Equilibrada)' : pk === 'B' ? '🛡️ Tática B (Defensiva)' : '⚔️ Tática C (Ofensiva)';
-            return `
-              <button class="btn btnSelectTacticalPreset ${isAct ? 'primary' : ''}" data-preset-key="${pk}" style="font-size:11px;font-weight:900;padding:6px 12px;border-radius:8px;${isAct ? 'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;box-shadow:0 0 12px rgba(124,58,237,0.5)' : 'background:#18142b;color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)'}">
-                ${pLabel} <span style="font-size:9px;opacity:0.8">(${pObj.formation || '4-2-3-1'})</span>
-              </button>
-            `;
-          }).join('')}
-        </div>
-      </div>
-
-      <!-- Análise Estrutural da Formação Ativa -->
-      <div style="background:#151228;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px;margin-bottom:18px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-          <div>
-            <b style="color:#fff;font-size:13px">${esc(formMeta.name || state.formation)}</b>
-            <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">
-              Linhas: ${(formMeta.lines||[1,4,3,3]).join('-')} · Atrás da bola: <b>${formMeta.behindBall||6}</b> · À frente: <b>${formMeta.aheadBall||4}</b>
+        <!-- Análise Estrutural da Formação Ativa -->
+        <div style="background:#151228;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px;margin-bottom:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <b style="color:#fff;font-size:13px">${esc(formMeta.name || state.formation)}</b>
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">
+                Linhas: ${(formMeta.lines||[1,4,3,3]).join('-')} · Atrás da bola: <b>${formMeta.behindBall||6}</b> · À frente: <b>${formMeta.aheadBall||4}</b>
+              </div>
+            </div>
+            <div style="display:flex;gap:14px;align-items:center">
+              <div style="text-align:center">
+                <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">COB. CENTRAL</div>
+                <div style="font-size:12px;font-weight:900;color:#a855f7">${formMeta.centralCover||75}%</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">COB. LATERAL</div>
+                <div style="font-size:12px;font-weight:900;color:#38bdf8">${formMeta.flankCover||75}%</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">PRESSÃO</div>
+                <div style="font-size:12px;font-weight:900;color:#22c55e">${formMeta.pressCapacity||75}%</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">TRANSIÇÃO</div>
+                <div style="font-size:12px;font-weight:900;color:#facc15">${formMeta.transitionCapacity||75}%</div>
+              </div>
             </div>
           </div>
-          <div style="display:flex;gap:14px;align-items:center">
-            <div style="text-align:center">
-              <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">COB. CENTRAL</div>
-              <div style="font-size:12px;font-weight:900;color:#a855f7">${formMeta.centralCover||75}%</div>
+          ${formMeta.vulnerabilities && formMeta.vulnerabilities.length > 0 ? `
+            <div style="font-size:10px;color:#f87171;margin-top:8px;background:rgba(239,68,68,0.08);padding:6px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.2)">
+              ⚠️ <b>Atenção Estrutural:</b> ${formMeta.vulnerabilities.join(' · ')}
             </div>
-            <div style="text-align:center">
-              <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">COB. LATERAL</div>
-              <div style="font-size:12px;font-weight:900;color:#38bdf8">${formMeta.flankCover||75}%</div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">PRESSÃO</div>
-              <div style="font-size:12px;font-weight:900;color:#22c55e">${formMeta.pressCapacity||75}%</div>
-            </div>
-            <div style="text-align:center">
-              <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">TRANSIÇÃO</div>
-              <div style="font-size:12px;font-weight:900;color:#facc15">${formMeta.transitionCapacity||75}%</div>
-            </div>
-          </div>
-        </div>
-        ${formMeta.vulnerabilities && formMeta.vulnerabilities.length > 0 ? `
-          <div style="font-size:10px;color:#f87171;margin-top:8px;background:rgba(239,68,68,0.08);padding:6px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.2)">
-            ⚠️ <b>Atenção Estrutural:</b> ${formMeta.vulnerabilities.join(' · ')}
-          </div>
-        ` : ''}
-      </div>
-
-      <!-- Grade de Configurações Táticas Coletivas (Estilos + Sliders) -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-        
-        <!-- Bloco 1: Estilos Globais -->
-        <div style="background:#16122b;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px">
-          <div>
-            <label style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.7);display:block;margin-bottom:6px">
-              ⚡ CONSTRUÇÃO DE JOGO (BUILD-UP)
-            </label>
-            <select id="tacBuildUpStyle" class="btn" style="width:100%;background:#1d1838;color:#fff;border:1px solid rgba(255,255,255,0.15);font-size:12px;padding:8px">
-              ${[
-                ['Balanced', 'Equilibrada (Construção Mista)'],
-                ['Short Passing', 'Passes Curtos (Retenção & Posse Paciente)'],
-                ['Fast Build-Up', 'Construção Rápida (Aceleração Vertical)'],
-                ['Direct', 'Jogo Direto (Bolas Longas & Ligação Direta)'],
-                ['Possession', 'Posse de Bola (Circulação & Linhas Altas)'],
-                ['Counter Attack', 'Contra-Ataque (Recuperação & Transição Veloz)']
-              ].map(([v, l]) => `<option value="${v}" ${curTac.buildUpStyle===v?'selected':''}>${l}</option>`).join('')}
-            </select>
-          </div>
-
-          <div>
-            <label style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.7);display:block;margin-bottom:6px">
-              🛡️ POSTURA DEFENSIVA (APPROACH)
-            </label>
-            <select id="tacDefensiveApproach" class="btn" style="width:100%;background:#1d1838;color:#fff;border:1px solid rgba(255,255,255,0.15);font-size:12px;padding:8px">
-              ${[
-                ['Balanced', 'Equilibrada (Linhas Médias)'],
-                ['Low Block', 'Bloco Baixo (Retranca & Espaço Fechado)'],
-                ['Mid Block', 'Bloco Médio (Compactação Central)'],
-                ['High', 'Linha Alta (Pressão Constante no Ataque)'],
-                ['Aggressive', 'Marcação Agressiva (Duelos Físicos & Bote)'],
-                ['Press After Loss', 'Pressão Pós-Perda (Morde Imediatamente)']
-              ].map(([v, l]) => `<option value="${v}" ${curTac.defensiveApproach===v?'selected':''}>${l}</option>`).join('')}
-            </select>
-          </div>
+          ` : ''}
         </div>
 
-        <!-- Bloco 2: Sliders Táticos Numéricos -->
-        <div style="background:#16122b;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">ALTURA DA LINHA</span>
-              <b id="tacLineHeightVal" style="font-size:11px;color:#a855f7">${curTac.lineHeight||60}</b>
+        <!-- Grade de Configurações Táticas Coletivas (Estilos + Sliders) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <!-- Bloco 1: Estilos Globais -->
+          <div style="background:#16122b;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <label style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.7);display:block;margin-bottom:6px">
+                ⚡ CONSTRUÇÃO DE JOGO (BUILD-UP)
+              </label>
+              <select id="tacBuildUpStyle" class="btn" style="width:100%;background:#1d1838;color:#fff;border:1px solid rgba(255,255,255,0.15);font-size:12px;padding:8px">
+                ${[
+                  ['Balanced', 'Equilibrada (Construção Mista)'],
+                  ['Short Passing', 'Passes Curtos (Retenção & Posse Paciente)'],
+                  ['Fast Build-Up', 'Construção Rápida (Aceleração Vertical)'],
+                  ['Direct', 'Jogo Direto (Bolas Longas & Ligação Direta)'],
+                  ['Possession', 'Posse de Bola (Circulação & Linhas Altas)'],
+                  ['Counter Attack', 'Contra-Ataque (Recuperação & Transição Veloz)']
+                ].map(([v, l]) => `<option value="${v}" ${curTac.buildUpStyle===v?'selected':''}>${l}</option>`).join('')}
+              </select>
             </div>
-            <input type="range" id="tacLineHeight" min="20" max="95" value="${curTac.lineHeight||60}" style="width:100%;accent-color:#a855f7">
+            <div>
+              <label style="font-size:11px;font-weight:900;color:rgba(255,255,255,0.7);display:block;margin-bottom:6px">
+                🛡️ POSTURA DEFENSIVA (APPROACH)
+              </label>
+              <select id="tacDefensiveApproach" class="btn" style="width:100%;background:#1d1838;color:#fff;border:1px solid rgba(255,255,255,0.15);font-size:12px;padding:8px">
+                ${[
+                  ['Balanced', 'Equilibrada (Linhas Médias)'],
+                  ['Low Block', 'Bloco Baixo (Retranca & Espaço Fechado)'],
+                  ['Mid Block', 'Bloco Médio (Compactação Central)'],
+                  ['High', 'Linha Alta (Pressão Constante no Ataque)'],
+                  ['Aggressive', 'Marcação Agressiva (Duelos Físicos & Bote)'],
+                  ['Press After Loss', 'Pressão Pós-Perda (Morde Imediatamente)']
+                ].map(([v, l]) => `<option value="${v}" ${curTac.defensiveApproach===v?'selected':''}>${l}</option>`).join('')}
+              </select>
+            </div>
           </div>
 
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">INTENSIDADE PRESSÃO</span>
-              <b id="tacPressIntensityVal" style="font-size:11px;color:#ef4444">${curTac.pressIntensity||65}</b>
+          <!-- Bloco 2: Sliders Táticos Numéricos -->
+          <div style="background:#16122b;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">ALTURA DA LINHA</span>
+                <b id="tacLineHeightVal" style="font-size:11px;color:#a855f7">${curTac.lineHeight||60}</b>
+              </div>
+              <input type="range" id="tacLineHeight" min="20" max="95" value="${curTac.lineHeight||60}" style="width:100%;accent-color:#a855f7">
             </div>
-            <input type="range" id="tacPressIntensity" min="20" max="95" value="${curTac.pressIntensity||65}" style="width:100%;accent-color:#ef4444">
-          </div>
-
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">LARGURA ATAQUE</span>
-              <b id="tacAttackingWidthVal" style="font-size:11px;color:#38bdf8">${curTac.attackingWidth||60}</b>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">INTENSIDADE PRESSÃO</span>
+                <b id="tacPressIntensityVal" style="font-size:11px;color:#ef4444">${curTac.pressIntensity||65}</b>
+              </div>
+              <input type="range" id="tacPressIntensity" min="20" max="95" value="${curTac.pressIntensity||65}" style="width:100%;accent-color:#ef4444">
             </div>
-            <input type="range" id="tacAttackingWidth" min="20" max="95" value="${curTac.attackingWidth||60}" style="width:100%;accent-color:#38bdf8">
-          </div>
-
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">LARGURA DEFESA</span>
-              <b id="tacDefensiveWidthVal" style="font-size:11px;color:#3b82f6">${curTac.defensiveWidth||50}</b>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">LARGURA ATAQUE</span>
+                <b id="tacAttackingWidthVal" style="font-size:11px;color:#38bdf8">${curTac.attackingWidth||60}</b>
+              </div>
+              <input type="range" id="tacAttackingWidth" min="20" max="95" value="${curTac.attackingWidth||60}" style="width:100%;accent-color:#38bdf8">
             </div>
-            <input type="range" id="tacDefensiveWidth" min="20" max="95" value="${curTac.defensiveWidth||50}" style="width:100%;accent-color:#3b82f6">
-          </div>
-
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">RITMO (TEMPO)</span>
-              <b id="tacTempoVal" style="font-size:11px;color:#facc15">${curTac.tempo||55}</b>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">LARGURA DEFESA</span>
+                <b id="tacDefensiveWidthVal" style="font-size:11px;color:#3b82f6">${curTac.defensiveWidth||50}</b>
+              </div>
+              <input type="range" id="tacDefensiveWidth" min="20" max="95" value="${curTac.defensiveWidth||50}" style="width:100%;accent-color:#3b82f6">
             </div>
-            <input type="range" id="tacTempo" min="20" max="95" value="${curTac.tempo||55}" style="width:100%;accent-color:#facc15">
-          </div>
-
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">VERTICALIDADE (PASSES)</span>
-              <b id="tacDirectnessVal" style="font-size:11px;color:#22c55e">${curTac.directness||50}</b>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">RITMO (TEMPO)</span>
+                <b id="tacTempoVal" style="font-size:11px;color:#facc15">${curTac.tempo||55}</b>
+              </div>
+              <input type="range" id="tacTempo" min="20" max="95" value="${curTac.tempo||55}" style="width:100%;accent-color:#facc15">
             </div>
-            <input type="range" id="tacDirectness" min="20" max="95" value="${curTac.directness||50}" style="width:100%;accent-color:#22c55e">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.6)">VERTICALIDADE (PASSES)</span>
+                <b id="tacDirectnessVal" style="font-size:11px;color:#22c55e">${curTac.directness||50}</b>
+              </div>
+              <input type="range" id="tacDirectness" min="20" max="95" value="${curTac.directness||50}" style="width:100%;accent-color:#22c55e">
+            </div>
           </div>
         </div>
       </div>
+    </details>
 
-      <!-- Tabela Interativa de Roles & Focus dos 11 Titulares -->
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <h3 style="margin:0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase">
-            👥 Funções dos 11 Titulares (Roles & Focus)
-          </h3>
-          <span style="font-size:11px;color:rgba(255,255,255,0.5)">Personalize a movimentação de cada jogador</span>
+    <!-- 2. ACORDEÃO: FUNÇÕES DOS 11 TITULARES (ROLES & FOCUS - FECHADO POR PADRÃO) -->
+    <details class="tactical-accordion" id="accordionRoles">
+      <summary>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:16px">👥</span>
+          <span style="font-size:13px;color:#fff;text-transform:uppercase">Funções dos 11 Titulares (Roles & Focus Individuais)</span>
+          <span class="pill" style="font-size:10px;background:rgba(56,189,248,0.2);color:#38bdf8">11 Titulares</span>
         </div>
-
+        <span class="pill" style="font-size:10px;background:rgba(255,255,255,0.08);color:#94a3b8">▶ Clique para Abrir / Fechar</span>
+      </summary>
+      <div class="tactical-accordion-body">
         <div style="display:flex;flex-direction:column;gap:8px">
           ${slots.map((s, idx) => {
             const p = lineupPlayer(idx);
@@ -16973,228 +16988,235 @@ function myTeamPage(){
           }).join('')}
         </div>
       </div>
+    </details>
 
-    </div>
-
-    <!-- PAINEL TÁTICO EXPANDIDO: BOLAS PARADAS & INTENSIDADE DE MARCAÇÃO -->
-    <div class="grid g2" style="margin-top:14px">
-      <div class="card" style="background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:16px;padding:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-          <h2 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.8px">
-            🎯 Bolas Paradas Oficiais
-          </h2>
-          <span class="pill" style="font-size:10px;background:rgba(124,58,237,0.25);color:#c084fc">DEFINIÇÃO TÁTICA</span>
+    <!-- 3. ACORDEÃO: BOLAS PARADAS & POSTURA DEFENSIVA (FECHADO POR PADRÃO) -->
+    <details class="tactical-accordion" id="accordionSetpieces">
+      <summary>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:16px">🎯</span>
+          <span style="font-size:13px;color:#fff;text-transform:uppercase">Bolas Paradas, Marcação & Bloco Defensivo</span>
+          <span class="pill" style="font-size:10px;background:rgba(34,197,94,0.2);color:#4ade80">Cobranças & Pressão</span>
         </div>
+        <span class="pill" style="font-size:10px;background:rgba(255,255,255,0.08);color:#94a3b8">▶ Clique para Abrir / Fechar</span>
+      </summary>
+      <div class="tactical-accordion-body">
+        <div class="grid g2">
+          <!-- Bolas Paradas -->
+          <div style="background:#16122b;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px">
+            <h3 style="margin:0 0 12px 0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase">
+              🎯 Cobradores Oficiais
+            </h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <label style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
+                  ©️ Capitão da Equipe
+                </label>
+                <select id="setPieceCaptain" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:11px">
+                  ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.captain===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+                </select>
+              </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div>
-            <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
-              ©️ Capitão da Equipe
-            </label>
-            <select id="setPieceCaptain" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:12px">
-              ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.captain===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
-            </select>
+              <div>
+                <label style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
+                  ⚽ Pênaltis
+                </label>
+                <select id="setPiecePenalty" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:11px">
+                  ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.penalty===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
+                  🎯 Faltas Diretas
+                </label>
+                <select id="setPieceFreekick" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:11px">
+                  ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.freekick===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
+                  🚩 Escanteios
+                </label>
+                <select id="setPieceCorner" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:11px">
+                  ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.corner===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
-              ⚽ Cobrador de Pênalti
-            </label>
-            <select id="setPiecePenalty" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:12px">
-              ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.penalty===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
-            </select>
-          </div>
+          <!-- Marcação & Bloco -->
+          <div style="background:#16122b;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label style="font-size:10px;font-weight:800;color:#c084fc;margin-bottom:6px;display:block">
+                🛡️ Altura do Bloco Defensivo
+              </label>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+                <button class="btn btn-defensive-block ${state.defensiveBlock==='baixo'?'active':''}" data-block="baixo" style="padding:8px 4px;font-size:11px;font-weight:900;border-radius:8px;${state.defensiveBlock==='baixo'?'background:#2563eb;color:#fff':''}">
+                  🚌 Baixo
+                </button>
+                <button class="btn btn-defensive-block ${(!state.defensiveBlock||state.defensiveBlock==='medio')?'active':''}" data-block="medio" style="padding:8px 4px;font-size:11px;font-weight:900;border-radius:8px;${(!state.defensiveBlock||state.defensiveBlock==='medio')?'background:#7c3aed;color:#fff':''}">
+                  ⚖️ Médio
+                </button>
+                <button class="btn btn-defensive-block ${state.defensiveBlock==='alto'?'active':''}" data-block="alto" style="padding:8px 4px;font-size:11px;font-weight:900;border-radius:8px;${state.defensiveBlock==='alto'?'background:#ea580c;color:#fff':''}">
+                  🚀 Alto
+                </button>
+              </div>
+            </div>
 
-          <div>
-            <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
-              🎯 Faltas Diretas
-            </label>
-            <select id="setPieceFreekick" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:12px">
-              ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.freekick===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
-            </select>
-          </div>
-
-          <div>
-            <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px;display:block">
-              🚩 Escanteios
-            </label>
-            <select id="setPieceCorner" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:12px">
-              ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.corner===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
-            </select>
+            <div>
+              <label style="font-size:10px;font-weight:800;color:#ef4444;margin-bottom:6px;display:block">
+                ⚔️ Intensidade de Marcação
+              </label>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+                <button class="btn btn-marking-intensity ${state.markingIntensity==='leve'?'active':''}" data-intensity="leve" style="padding:8px 4px;font-size:11px;font-weight:800;border-radius:8px;${state.markingIntensity==='leve'?'background:#059669;color:#fff':''}">Prudente</button>
+                <button class="btn btn-marking-intensity ${(!state.markingIntensity||state.markingIntensity==='equilibrada')?'active':''}" data-intensity="equilibrada" style="padding:8px 4px;font-size:11px;font-weight:800;border-radius:8px;${(!state.markingIntensity||state.markingIntensity==='equilibrada')?'background:#7c3aed;color:#fff':''}">Padrão</button>
+                <button class="btn btn-marking-intensity ${state.markingIntensity==='agressiva'?'active':''}" data-intensity="agressiva" style="padding:8px 4px;font-size:11px;font-weight:800;border-radius:8px;${state.markingIntensity==='agressiva'?'background:#dc2626;color:#fff':''}">Agressiva</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+    </details>
 
-      <div class="card" style="background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:16px;padding:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-          <h2 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.8px">
-            ⚔️ Intensidade de Marcação
-          </h2>
-          <span class="pill" style="font-size:10px;background:rgba(255,255,255,0.08);color:#fbbf24">IMPACTO EM JOGO</span>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <button class="btn btn-marking-intensity ${state.markingIntensity==='leve'?'active':''}" data-intensity="leve" style="padding:12px 6px;text-align:center;border-radius:10px;${state.markingIntensity==='leve'?'background:#059669;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
-            <b style="display:block;font-size:13px">🛡️ Leve</b>
-            <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">-Faltas / -Desgaste</span>
-          </button>
-
-          <button class="btn btn-marking-intensity ${(!state.markingIntensity||state.markingIntensity==='equilibrada')?'active':''}" data-intensity="equilibrada" style="padding:12px 6px;text-align:center;border-radius:10px;${(!state.markingIntensity||state.markingIntensity==='equilibrada')?'background:#7c3aed;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
-            <b style="display:block;font-size:13px">⚖️ Padrão</b>
-            <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">Equilibrada</span>
-          </button>
-
-          <button class="btn btn-marking-intensity ${state.markingIntensity==='agressiva'?'active':''}" data-intensity="agressiva" style="padding:12px 6px;text-align:center;border-radius:10px;${state.markingIntensity==='agressiva'?'background:#dc2626;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
-            <b style="display:block;font-size:13px">⚡ Agressiva</b>
-            <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">+15% Desarme / +Faltas</span>
-          </button>
-        </div>
-
-        <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:14px;line-height:1.4">
-          ${state.markingIntensity==='agressiva'
-            ? '🔥 <b>Pressão Asfixiante:</b> A equipe morde no campo de ataque. Aumenta a chance de roubar a bola, mas gera maior número de faltas, cartões e cansaço físico.'
-            : state.markingIntensity==='leve'
-            ? '🛡️ <b>Marcação Prudente:</b> O time cerca sem dar botes precipitados. Reduz drasticamente suspensões por cartões amarelos e preserva o fôlego dos atletas.'
-            : '⚖️ <b>Marcação Equilibrada:</b> Intensidade equilibrada segundo o padrão tático moderno do futebol brasileiro.'}
-        </div>
-      </div>
-    </div>
-
-    <!-- LINHA DE PRESSÃO & BLOCO DEFENSIVO -->
-    <div class="card" style="background:#100d1e;border:1px solid rgba(56,189,248,0.3);border-radius:16px;padding:20px;margin-top:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div>
-          <h2 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.8px">
-            🛡️ Linha de Pressão & Bloco Defensivo
-          </h2>
-          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">
-            Altura das linhas defensivas e compactação dos setores
-          </div>
-        </div>
-        <span class="pill" style="font-size:10px;background:rgba(56,189,248,0.15);color:#38bdf8">TÁTICA REAL</span>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <button class="btn btn-defensive-block ${state.defensiveBlock==='baixo'?'active':''}" data-block="baixo" style="padding:12px 6px;text-align:center;border-radius:10px;${state.defensiveBlock==='baixo'?'background:#2563eb;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
-          <b style="display:block;font-size:13px">🚌 Bloco Baixo</b>
-          <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">"Ônibus" na Área / Contra-Ataque</span>
-        </button>
-
-        <button class="btn btn-defensive-block ${(!state.defensiveBlock||state.defensiveBlock==='medio')?'active':''}" data-block="medio" style="padding:12px 6px;text-align:center;border-radius:10px;${(!state.defensiveBlock||state.defensiveBlock==='medio')?'background:#7c3aed;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
-          <b style="display:block;font-size:13px">⚖️ Bloco Médio</b>
-          <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">Linhas Equilibradas</span>
-        </button>
-
-        <button class="btn btn-defensive-block ${state.defensiveBlock==='alto'?'active':''}" data-block="alto" style="padding:12px 6px;text-align:center;border-radius:10px;${state.defensiveBlock==='alto'?'background:#ea580c;color:#fff;border:none':'background:#18142b;border:1px solid rgba(255,255,255,0.1)'}">
-          <b style="display:block;font-size:13px">🚀 Bloco Alto</b>
-          <span style="font-size:10px;opacity:0.75;display:block;margin-top:4px">Pressão na Saída Rival</span>
-        </button>
-      </div>
-
-      <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:14px;line-height:1.4">
-        ${state.defensiveBlock==='baixo'
-          ? '🚌 <b>Retranca Fechada:</b> Time recua para a grande área e anula infiltrações do adversário (-25% chances concedidas, ideal contra favoritos).'
-          : state.defensiveBlock==='alto'
-          ? '🚀 <b>Pressão Asfixiante:</b> Zagueiros sobem até o círculo central para morder a saída de bola (+30% de roubadas no terço de ataque).'
-          : '⚖️ <b>Compactação Equilibrada:</b> Postura tática balanceada padrão do futebol moderno.'}
-      </div>
-    </div>
-
-    <!-- HIERARQUIA & LIDERANÇA DO VESTIÁRIO (Realismo Expandido) -->
+    <!-- 4. ACORDEÃO: HIERARQUIA DO VESTIÁRIO & MENTORIA (FECHADO POR PADRÃO) -->
     ${(()=>{
       const hier = getSquadHierarchy(state.squad);
-      return `
-        <div class="card" style="background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:16px;padding:20px;margin-top:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-            <div>
-              <h2 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.8px">
-                👔 Hierarquia do Vestiário & Liderança
-              </h2>
-              <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">
-                Influência moral, maturidade e suporte aos novos talentos do clube
-              </div>
-            </div>
-            <span class="pill good" style="font-size:10px">AMBIENTE UNIDO</span>
-          </div>
+      const squad = state.squad || [];
+      const activeMentorKey = state.activeMentorship?.mentorKey;
+      const activeMenteeKey = state.activeMentorship?.menteeKey;
+      
+      // Encontrar melhor professor (veterano 29+ com maior OVR)
+      const bestMentorCandidate = squad.filter(p => (p.age||25) >= 29).sort((a,b)=>playerOverall(b)-playerOverall(a))[0] || squad.filter(p => (p.age||25) >= 26).sort((a,b)=>playerOverall(b)-playerOverall(a))[0];
+      // Encontrar melhor jovem (sub-22 com maior potencial)
+      const bestMenteeCandidate = squad.filter(p => (p.age||25) <= 22).sort((a,b)=>(b.potential||playerOverall(b)+8)-(a.potential||playerOverall(a)+8))[0] || squad.filter(p => (p.age||25) <= 24).sort((a,b)=>(b.potential||playerOverall(b)+8)-(a.potential||playerOverall(a)+8))[0];
 
-          <div class="grid g3">
-            <div style="background:#18142b;border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:12px">
-              <span class="pill" style="font-size:9px;font-weight:900;background:rgba(245,158,11,0.2);color:#fbbf24">👑 CAPITÃO MOR</span>
-              ${hier.captain ? `
-                <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
-                  ${playerPhoto(hier.captain.name, 44)}
-                  <div>
-                    <b style="color:#fff;font-size:13px">${esc(hier.captain.name)}</b>
-                    <div style="font-size:10px;color:rgba(255,255,255,0.6)">${hier.captain.pos} • ${hier.captain.age||28} anos • OVR ${playerOverall(hier.captain)}</div>
+      const currentMentor = squad.find(p => playerKey(p) === activeMentorKey) || bestMentorCandidate;
+      const currentMentee = squad.find(p => playerKey(p) === activeMenteeKey) || bestMenteeCandidate;
+
+      return `
+        <details class="tactical-accordion" id="accordionHierarchy">
+          <summary>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:16px">👔</span>
+              <span style="font-size:13px;color:#fff;text-transform:uppercase">Hierarquia do Vestiário & Mentoria de Jovens</span>
+              <span class="pill" style="font-size:10px;background:rgba(234,179,8,0.2);color:#facc15">+15% XP de Treino</span>
+            </div>
+            <span class="pill" style="font-size:10px;background:rgba(255,255,255,0.08);color:#94a3b8">▶ Clique para Abrir / Fechar</span>
+          </summary>
+          <div class="tactical-accordion-body">
+            
+            <!-- DESTAQUE CLARO: O PROFESSOR E O JOVEM APRENDIZ -->
+            <div style="background:radial-gradient(circle at 50% 30%, #1e1838, #0f0c1d);border:2px solid #eab308;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 0 20px rgba(234,179,8,0.2)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+                <span style="font-size:11px;font-weight:900;color:#facc15;letter-spacing:1px;text-transform:uppercase">
+                  🎓 PROGRAMA DE MENTORIA TÁTICA (VETERANO ➔ JOVEM)
+                </span>
+                <span class="pill" style="background:rgba(234,179,8,0.25);color:#facc15;font-size:10px;font-weight:900;border:1px solid #eab308">
+                  ${state.activeMentorship ? '✨ MENTORIA ATIVA' : '💡 PARCERIA SUGERIDA'}
+                </span>
+              </div>
+
+              <!-- CARDS LADO A LADO DO PROFESSOR E DO JOVEM -->
+              <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center">
+                
+                <!-- PROFESSOR (MENTOR) -->
+                <div style="background:#16122c;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
+                  ${playerPhoto(currentMentor?.name, 48)}
+                  <div style="flex:1;min-width:0">
+                    <span class="pill" style="font-size:9px;font-weight:900;background:rgba(56,189,248,0.2);color:#38bdf8;padding:2px 6px">
+                      PROFESSOR (MENTOR)
+                    </span>
+                    <b style="display:block;font-size:14px;color:#fff;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                      ${esc(currentMentor?.name || 'Veterano')}
+                    </b>
+                    <div style="font-size:10px;color:#94a3b8">
+                      ${currentMentor?.pos || 'CM'} · ${currentMentor?.age || 32} anos · <b style="color:#22c55e">OVR ${playerOverall(currentMentor)}</b>
+                    </div>
                   </div>
                 </div>
-              ` : '<div class="muted small" style="margin-top:8px">Nenhum definido</div>'}
-            </div>
 
-            <div style="background:#18142b;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px">
-              <span class="pill" style="font-size:9px;font-weight:900;background:rgba(56,189,248,0.2);color:#38bdf8">🛡️ LÍDERES DO ELENCO</span>
-              <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
-                ${(hier.leaders||[]).map(p=>`
-                  <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
-                    <span style="color:#fff">${esc(p.name)} (${p.pos})</span>
-                    <span class="muted">${p.age}a · OVR ${playerOverall(p)}</span>
+                <!-- CONEXÃO CENTRAL -->
+                <div style="text-align:center;padding:0 4px">
+                  <div style="font-size:22px;color:#facc15">➔ ⚡ ➔</div>
+                  <span style="font-size:9px;font-weight:900;color:#a3e635;text-transform:uppercase;white-space:nowrap">Ensinando</span>
+                </div>
+
+                <!-- JOVEM APRENDIZ (PUPILO) -->
+                <div style="background:#16122c;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
+                  ${playerPhoto(currentMentee?.name, 48)}
+                  <div style="flex:1;min-width:0">
+                    <span class="pill" style="font-size:9px;font-weight:900;background:rgba(168,85,247,0.2);color:#c084fc;padding:2px 6px">
+                      JOVEM ALUNO (APRENDIZ)
+                    </span>
+                    <b style="display:block;font-size:14px;color:#fff;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                      ${esc(currentMentee?.name || 'Promessa')}
+                    </b>
+                    <div style="font-size:10px;color:#94a3b8">
+                      ${currentMentee?.pos || 'ST'} · ${currentMentee?.age || 19} anos · <b style="color:#a855f7">POT ${currentMentee?.potential || (playerOverall(currentMentee)+8)}</b>
+                    </div>
                   </div>
-                `).join('') || '<div class="muted small">Sem veteranos influentes</div>'}
-              </div>
-            </div>
+                </div>
 
-            <div style="background:#18142b;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px">
-              <span class="pill" style="font-size:9px;font-weight:900;background:rgba(34,197,94,0.2);color:#22c55e">⭐ JOVENS PROMESSAS</span>
-              <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
-                ${(hier.prospects||[]).map(p=>`
-                  <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
-                    <span style="color:#fff">${esc(p.name)} (${p.pos})</span>
-                    <span style="color:#a855f7;font-weight:800">POT ${p.potential||playerOverall(p)+8}</span>
+              </div>
+
+              <!-- CONTROLES PARA DEFINIR / TROCAR MENTORIA -->
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;gap:8px">
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                  <div>
+                    <label style="font-size:10px;color:rgba(255,255,255,0.6);display:block;margin-bottom:2px">Trocar Professor (29+ anos):</label>
+                    <select id="selMentorVeteran" class="btn" style="padding:4px 8px;font-size:11px;background:#18142b;color:#fff;border-radius:6px">
+                      ${squad.filter(p => (p.age||25)>=28).map(p => `<option value="${playerKey(p)}" ${(currentMentor && playerKey(currentMentor)===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos} · ${p.age}a · OVR ${playerOverall(p)})</option>`).join('')}
+                    </select>
                   </div>
-                `).join('') || '<div class="muted small">Sem jovens mapeados</div>'}
-              </div>
-            </div>
-          </div>
-        </div>
+                  <div>
+                    <label style="font-size:10px;color:rgba(255,255,255,0.6);display:block;margin-bottom:2px">Trocar Aluno (Sub-22):</label>
+                    <select id="selMenteeYoung" class="btn" style="padding:4px 8px;font-size:11px;background:#18142b;color:#fff;border-radius:6px">
+                      ${squad.filter(p => (p.age||25)<=22).map(p => `<option value="${playerKey(p)}" ${(currentMentee && playerKey(currentMentee)===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos} · ${p.age}a · POT ${p.potential||playerOverall(p)+8})</option>`).join('')}
+                    </select>
+                  </div>
+                </div>
 
-        <!-- MENTORIA DE VETERANOS (Melhoria 27) -->
-        <div class="card" style="background:#100d1e;border:1px solid rgba(234,179,8,0.3);border-radius:16px;padding:20px;margin-top:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-            <div>
-              <h2 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.8px">
-                🤝 Mentoria de Atletas Veteranos
-              </h2>
-              <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">
-                Craques com experiência transmitem liderança e aceleram o ganho de atributos dos jovens
+                <button class="btn primary" id="btnAssignMentorship" style="background:#eab308;color:#000;font-weight:900;padding:7px 16px;border-radius:8px;font-size:11px">
+                  ✓ Fixar Mentoria
+                </button>
+              </div>
+
+              ${state.activeMentorship ? `
+                <div style="margin-top:10px;font-size:10px;color:#a3e635;background:rgba(163,230,53,0.1);border:1px solid rgba(163,230,53,0.25);padding:6px 10px;border-radius:6px">
+                  ✨ <b>Mentoria Ativa:</b> ${esc(state.activeMentorship.mentorName || 'Veterano')} está ensinando ${esc(state.activeMentorship.menteeName || 'Jovem')}. O jovem recebe +15% de desenvolvimento semanal!
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- CHIPS DE CAPITÃO E LÍDERES -->
+            <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px">
+              <div style="background:#161226;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+                <span style="font-size:22px">👑</span>
+                <div>
+                  <span style="font-size:9px;font-weight:900;color:#fbbf24;text-transform:uppercase">Capitão Principal</span>
+                  <b style="display:block;font-size:13px;color:#fff">${esc(hier.captain?.name || 'Não definido')}</b>
+                  <div style="font-size:10px;color:#94a3b8">${hier.captain?.pos || ''} · ${hier.captain?.age || 28} anos · OVR ${hier.captain ? playerOverall(hier.captain) : '-'}</div>
+                </div>
+              </div>
+
+              <div style="background:#161226;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 14px">
+                <span style="font-size:9px;font-weight:900;color:#38bdf8;text-transform:uppercase;display:block;margin-bottom:4px">
+                  🛡️ Líderes Influentes do Elenco
+                </span>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  ${(hier.leaders || []).map(p => `
+                    <span class="pill" style="background:#1f1938;color:#fff;font-size:10px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.1)">
+                      <b>${esc(p.name)}</b> (${p.pos} · ${p.age}a · OVR ${playerOverall(p)})
+                    </span>
+                  `).join('') || '<span class="muted small">Sem veteranos influentes</span>'}
+                </div>
               </div>
             </div>
-            <span class="pill" style="background:rgba(234,179,8,0.2);color:#facc15;font-size:10px">FORMAÇÃO ACELERADA</span>
+
           </div>
-          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-            <div style="flex:1;min-width:200px">
-              <label style="font-size:11px;color:rgba(255,255,255,0.6);display:block;margin-bottom:4px">Veterano Mentor (30+ anos):</label>
-              <select id="selMentorVeteran" class="btn" style="width:100%;font-size:12px">
-                <option value="">Selecione um Mentor...</option>
-                ${(state.squad||[]).filter(p=>(p.age||25)>=30).map(p=>`<option value="${playerKey(p)}" ${state.activeMentorship?.mentorKey===playerKey(p)?'selected':''}>${esc(p.name)} (${p.pos} · ${p.age}a · OVR ${playerOverall(p)})</option>`).join('')}
-              </select>
-            </div>
-            <div style="flex:1;min-width:200px">
-              <label style="font-size:11px;color:rgba(255,255,255,0.6);display:block;margin-bottom:4px">Jovem Aprendiz (até 21 anos):</label>
-              <select id="selMenteeYoung" class="btn" style="width:100%;font-size:12px">
-                <option value="">Selecione um Aprendiz...</option>
-                ${(state.squad||[]).filter(p=>(p.age||25)<=21).map(p=>`<option value="${playerKey(p)}" ${state.activeMentorship?.menteeKey===playerKey(p)?'selected':''}>${esc(p.name)} (${p.pos} · ${p.age}a · OVR ${playerOverall(p)})</option>`).join('')}
-              </select>
-            </div>
-            <button class="btn primary" id="btnAssignMentorship" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-weight:900;border:none;padding:10px 16px">
-              ✓ Fixar Mentoria
-            </button>
-          </div>
-          ${state.activeMentorship ? `
-            <div style="margin-top:12px;font-size:11px;color:#a3e635;background:rgba(163,230,53,0.1);border:1px solid rgba(163,230,53,0.25);padding:8px 12px;border-radius:8px">
-              ✨ <b>Mentoria Ativa:</b> ${esc(state.activeMentorship.mentorName || 'Veterano')} está mentorando ${esc(state.activeMentorship.menteeName || 'Jovem')}. Bônus de desenvolvimento de atributos ativo!
-            </div>
-          ` : ''}
-        </div>
+        </details>
       `;
     })()}
   `;
@@ -22698,6 +22720,19 @@ function bind(){
       window.scrollTo(0, sy);
       toast('Melhor XI escalado pela IA!');
     };
+
+    $$('.btnOpenAccordion').forEach(b => {
+      b.onclick = () => {
+        const targetId = b.dataset.target;
+        const el = document.getElementById(targetId);
+        if(el){
+          el.open = !el.open;
+          if(el.open){
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+      };
+    });
 
     // Listeners de Bolas Paradas e Marcação
     const selCap = $('#setPieceCaptain');
