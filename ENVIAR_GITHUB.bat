@@ -19,6 +19,10 @@ git add .
 git commit --author="Aquino1M <243838973+Aquino1M@users.noreply.github.com>" -m "feat(v3.0): AFM Next-Gen - Prancheta 2.5D, Base Pro, Treino XP, WebAudio SFX, Multiplayer Cloud, Capitao e Bolas Paradas"
 
 echo.
+echo Sincronizando com as atualizacoes do GitHub...
+git pull --rebase origin main
+
+echo.
 echo [4/4] Enviando para https://github.com/Aquino1M/AFMMANAGER.git...
 git push origin main
 echo.
