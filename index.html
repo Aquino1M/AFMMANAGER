@@ -7,7 +7,15 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#7c3aed">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>
+  window.esc = function(s) {
+    return String(s ?? '').replace(/[&<>"']/g, function(m) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
+  };
+</script>
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>

@@ -13,6 +13,14 @@
 window.CLUB_BADGES = window.CLUB_BADGES || {};
 window.PLAYER_PHOTOS = window.PLAYER_PHOTOS || {};
 
+// Função de escape sanitizado para prevenção de XSS e erros de referência
+window.esc = window.esc || function(s) {
+  return String(s ?? '').replace(/[&<>"']/g, function(m) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+  });
+};
+var esc = window.esc;
+
 // Normalização padronizada de nomes de clubes
 window.normClub = function(s) {
   if (typeof s === 'object' && s !== null) {
