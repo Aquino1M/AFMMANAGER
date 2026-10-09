@@ -155,6 +155,10 @@ function clubBadge(name, size=32){
 // SISTEMA OFICIAL DE FOTOS DE JOGADORES & CARDS FUT (AFM 2027)
 // ==============================================================================
 
+function isGoalkeeperPosition(pos) {
+  return ['gk', 'gol', 'goalkeeper', 'goleiro', 'por', 'guarda redes'].includes(typeof norm === 'function' ? norm(pos) : String(pos || '').trim().toLowerCase());
+}
+
 function resolvePlayerPhotoUrl(p) {
   if (!p) return null;
   const name = typeof p === 'string' ? p : (p.name || '');
@@ -162,7 +166,9 @@ function resolvePlayerPhotoUrl(p) {
 
   // 1. Verificar se o atleta já possui foto explícita
   if (typeof p === 'object' && p.photo && typeof p.photo === 'string') {
-    return p.photo.startsWith('img/') ? p.photo : `img/${p.photo}`;
+    const rawPhoto = p.photo.trim();
+    if (/^(?:https?:|data:|blob:|\/)/i.test(rawPhoto)) return rawPhoto;
+    return rawPhoto.startsWith('img/') ? rawPhoto : `img/${rawPhoto.replace(/^\.?\//, '')}`;
   }
 
   // 2. Verificar no mapeamento global window.PLAYER_PHOTOS (exato, norm, lowercase, slug)
@@ -171,9 +177,17 @@ function resolvePlayerPhotoUrl(p) {
   const slugName = typeof normSlug === 'function' ? normSlug(name) : name.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
   let match = photos[name] || photos[normName] || photos[name.toLowerCase()] || photos[slugName];
-  if (match) {
-    return match.startsWith('img/') ? match : `img/${match}`;
+  if (!match) {
+    const normalizedKey = Object.keys(photos).find(key => norm(key) === normName || normSlug(key) === slugName);
+    if (normalizedKey) match = photos[normalizedKey];
   }
+  if (match) {
+    return /^(?:https?:|data:|blob:|\/)/i.test(match) ? match : (match.startsWith('img/') ? match : `img/${match}`);
+  }
+
+  // Algumas fotos do acervo são nomeadas pelo ID do jogador, não pelo nome.
+  const rawPlayerId = typeof p === 'object' ? (p.photoId || p.apiId || p.id) : null;
+  if (/^\d+$/.test(String(rawPlayerId ?? ''))) return `img/players/${rawPlayerId}.png`;
 
   // 3. Buscar na árvore física padrão: img/players/${league}/${club_slug}/${player_slug}.png
   const club = typeof p === 'object' ? (p.club || state?.club || '') : (state?.club || '');
@@ -195,15 +209,42 @@ function resolvePlayerPhotoUrl(p) {
   return null;
 }
 
+function resolvePlayerPhotoCandidates(p) {
+  const primary = resolvePlayerPhotoUrl(p);
+  if (!primary) return [];
+  const name = typeof p === 'string' ? p : (p?.name || '');
+  const obj = typeof p === 'object' && p !== null ? p : null;
+  const explicit = !!(obj && [obj.photo, obj.photoUrl, obj.imageUrl].some(v => typeof v === 'string' && v.trim()));
+  const photos = window.PLAYER_PHOTOS || {};
+  const normalizedName = typeof norm === 'function' ? norm(name) : String(name).toLowerCase();
+  const slugName = typeof normSlug === 'function' ? normSlug(name) : String(name).toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const mapped = Object.keys(photos).some(key => norm(key) === normalizedName || normSlug(key) === slugName);
+  const result = [primary];
+  if (explicit || mapped) return result;
+  const rawId = obj ? (obj.photoId || obj.apiId || obj.id) : null;
+  if (/^\d+$/.test(String(rawId ?? ''))) result.push('img/players/' + rawId + '.png');
+  const club = obj ? (obj.club || state?.club || '') : (state?.club || '');
+  if (club) {
+    const clubSlug = normSlug(club);
+    const compId = (typeof curComp === 'function' ? curComp()?.id : '') || 'bra-a';
+    const leagueMap = {'bra-a':'bra_a','bra-b':'bra_b','bra-c':'bra_c','bra-d':'bra_d','bra-est-df':'bra_estaduais','bra-est-sp':'bra_estaduais','bra-est-rj':'bra_estaduais','bra-est-mg':'bra_estaduais','bra-est-rs':'bra_estaduais','bra-est-pr':'bra_estaduais','bra-est-sc':'bra_estaduais','bra-est-ba':'bra_estaduais','bra-est-ce':'bra_estaduais','bra-est-go':'bra_estaduais','bra-est-pe':'bra_estaduais','arg-1':'arg_1','arg-2':'arg_2','europe':'europe','asia':'asia'};
+    const primaryFolder = leagueMap[compId] || (compId.startsWith('bra-est') ? 'bra_estaduais' : 'bra_a');
+    const folders = [primaryFolder, 'bra_a', 'bra_b', 'bra_c', 'bra_d', 'bra_estaduais', 'arg_1', 'arg_2', 'europe', 'asia'];
+    folders.forEach(folder => result.push('img/players/' + folder + '/' + clubSlug + '/' + slugName + '.png'));
+  }
+  return [...new Set(result)];
+}
+
 function playerPhoto(p, size = 36) {
   const name = typeof p === 'string' ? p : (p?.name || 'Jogador');
   const pos = typeof p === 'object' ? (p?.pos || 'ST') : 'ST';
-  const photoUrl = resolvePlayerPhotoUrl(p);
+  const photoCandidates = resolvePlayerPhotoCandidates(p);
+  const photoUrl = photoCandidates[0] || null;
 
   if (photoUrl) {
     const escapedName = esc(name);
     const escapedPos = esc(pos);
-    return `<img src="${photoUrl}" alt="${escapedName}" class="player-avatar" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;background:#0f172a;border:2px solid rgba(148,163,184,0.3);box-shadow:0 2px 8px rgba(0,0,0,0.4);vertical-align:middle;flex-shrink:0" loading="lazy" onerror="this.onerror=null; this.outerHTML=renderPlayerAvatarFallback('${escapedName}','${escapedPos}',${size});">`;
+    return `<img src="${photoUrl}" alt="${escapedName}" class="player-avatar" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;background:#0f172a;border:2px solid rgba(148,163,184,0.3);box-shadow:0 2px 8px rgba(0,0,0,0.4);vertical-align:middle;flex-shrink:0" loading="lazy" data-photo-alternatives="${esc(JSON.stringify(photoCandidates.slice(1)))}" data-photo-fallback="${esc(renderPlayerAvatarFallback(name,pos,size))}" onerror="const a=JSON.parse(this.dataset.photoAlternatives||'[]');if(a.length){this.dataset.photoAlternatives=JSON.stringify(a.slice(1));this.src=a[0];}else{this.onerror=null;this.outerHTML=this.dataset.photoFallback;}"`;
   }
 
   return renderPlayerAvatarFallback(name, pos, size);
@@ -7590,6 +7631,7 @@ window.repairSaveIfCorrupted = repairSaveIfCorrupted;
 function migrate(s){
   if(!s)return null;
   s.version=4;
+  if(typeof s.trainingSuggestionPending !== 'boolean') s.trainingSuggestionPending = false;
   s.playerMoves=s.playerMoves||{};
   s.worldGenerated=s.worldGenerated||buildWorldGenerated();
   s.squad=(s.squad||[]).map(stablePlayer);
@@ -9897,10 +9939,16 @@ function startLiveMatch(){
 
     if(isUser){
       const lineupKeys = state.lineup || [];
-      const starters = lineupKeys.map(k => state.squad.find(p => playerKey(p) === k)).filter(Boolean);
+      const selectedStarters = lineupKeys.map(k => state.squad.find(p => playerKey(p) === k)).filter(Boolean);
+      const goalkeeper = selectedStarters.find(p => isGoalkeeperPosition(p.pos)) || state.squad.find(p => isGoalkeeperPosition(p.pos)) || {
+        id: 'emergency-gk-' + norm(state.club), marketKey: 'emergency-gk:' + norm(state.club),
+        name: 'Goleiro ' + state.club, club: state.club, pos: 'GK', fc: 60, pes: 60, morale: 70, fitness: 100
+      };
+      const starters = [goalkeeper, ...selectedStarters.filter(p => p !== goalkeeper && !isGoalkeeperPosition(p.pos)).slice(0, 10)];
+      const usedStarterKeys = new Set(starters.map(p => playerKey(p)));
       while(starters.length < 11){
-        const extra = state.squad.find(p => !starters.includes(p));
-        if(extra) starters.push(extra);
+        const extra = state.squad.find(p => !usedStarterKeys.has(playerKey(p)) && !isGoalkeeperPosition(p.pos));
+        if(extra){ starters.push(extra); usedStarterKeys.add(playerKey(extra)); }
         else break;
       }
       for(let i=0; i<11; i++){
@@ -9962,7 +10010,7 @@ function startLiveMatch(){
           clubId: teamName,
           teamId: isHomeSide ? 'home' : 'away',
           isUser: true,
-          photo: (window.PLAYER_PHOTOS && (window.PLAYER_PHOTOS[p.name] || window.PLAYER_PHOTOS[norm(p.name)])) || null,
+          photo: resolvePlayerPhotoUrl(p) || null,
           x: baseXPct,
           y: baseYPct,
           baseX: baseXPct,
@@ -9981,11 +10029,11 @@ function startLiveMatch(){
         const fallback = generatedRosterForClub(teamName);
         oppRoster = Array.isArray(oppRoster) ? [...oppRoster, ...fallback] : fallback;
       }
-      let oppGK = oppRoster.find(p => p.pos === 'GK') || oppRoster[0];
+      let oppGK = oppRoster.find(p => isGoalkeeperPosition(p.pos)) || oppRoster[0];
       if(!oppGK){
         oppGK = { name: `Goleiro ${teamName}`, pos: 'GK', fc: 65, pes: 65 };
       }
-      let oppOutfield = oppRoster.filter(p => p !== oppGK && p.pos !== 'GK');
+      let oppOutfield = oppRoster.filter(p => p !== oppGK && !isGoalkeeperPosition(p.pos));
       while(oppOutfield.length < 10){
         const idx = oppOutfield.length;
         oppOutfield.push({
@@ -10208,7 +10256,8 @@ function startLiveMatch(){
     ball: {
       x: 50, y: 50, z: 0,
       vx: 0, vy: 0, vz: 0,
-      carrier: homePlayers[9] || homePlayers[0],
+      carrier: homePlayers.find(p => !p.isGK && ['CM','DM','AM'].includes(p.pos)) || homePlayers[9] || homePlayers[0],
+      mode: 'play',
       state: 'play'
     },
     particles: [],
@@ -10460,12 +10509,54 @@ function showLiveBanner(text, type, durationMs){
   }
 }
 
+function selectLivePassTarget(players, passer, minForward = 1.5, maxDistance = 26) {
+  if(!passer) return null;
+  const direction = passer.team === 'home' ? 1 : -1;
+  const px = Number(passer.x) || 50, py = Number(passer.y) || 50;
+  const choices = (players || []).filter(p => p && p !== passer && !p.isGK && !p.redCard && p.team === passer.team).map(player => {
+    const dx = ((Number(player.x) || 50) - px) * direction;
+    const dy = Math.abs((Number(player.y) || 50) - py);
+    const distance = Math.hypot(dx, dy);
+    const score = dx * 1.35 - dy * 0.32 - distance * 0.12 + (Number(player.depthRuns) || 0) * 0.025 + (Number(player.creativePassing) || 0) * 0.004;
+    return { player, forward: dx, distance, score };
+  }).filter(row => row.forward >= minForward && row.distance <= maxDistance).sort((a, b) => b.score - a.score);
+  return choices[0]?.player || null;
+}
+
+function startLivePass(s, passer, receiver, options = {}) {
+  if(!s || !s.ball || !passer || !receiver || passer === receiver || passer.team !== receiver.team || passer.isGK || passer.redCard || receiver.isGK || receiver.redCard) return false;
+  const ball = s.ball;
+  const direction = passer.team === 'home' ? 1 : -1;
+  ball.mode = 'pass';
+  ball.startX = clamp((Number(passer.x) || 50) + direction * 1.2, 2, 98);
+  ball.startY = clamp(Number(passer.y) || 50, 6, 94);
+  ball.x = ball.startX; ball.y = ball.startY; ball.z = 0;
+  ball.vx = 0; ball.vy = 0; ball.vz = 0;
+  ball.progress = 0;
+  ball.curveZ = 2.2;
+  ball.passTarget = receiver;
+  ball.passer = passer;
+  ball.carrier = null;
+  ball.liveDecisionCooldown = Math.max(35, Number(options.cooldownFrames) || 110);
+  ball.isHomeAttacking = passer.team === 'home';
+  passer.hasBall = false;
+  receiver.hasBall = false;
+  if(s.stats){
+    if(passer.team === 'home') s.stats.passesH = (s.stats.passesH || 0) + 1;
+    else s.stats.passesA = (s.stats.passesA || 0) + 1;
+  }
+  if(options.logEvent && Array.isArray(s.events)){
+    s.events.unshift({ min: Number(s.minute) || 0, type: 'pass', text: '🔁 ' + (passer.fullName || passer.name || 'Jogador') + ' toca para ' + (receiver.fullName || receiver.name || 'companheiro') + ' e a equipe progride com a bola.' });
+  }
+  return true;
+}
 function updateLiveCanvasPositions(s){
   if(!s || !Array.isArray(s.homePlayers) || !Array.isArray(s.awayPlayers)) return;
 
   const isPlaying = s.playing && !s.done && s.phase !== 'HALF_TIME';
   const ball = s.ball || { x: 50, y: 50, z: 0, vx: 0, vy: 0, vz: 0, carrier: null, mode: 'play' };
   s.ball = ball;
+  if(isPlaying && Number(ball.liveDecisionCooldown) > 0) ball.liveDecisionCooldown--;
   const allPlayers = [...s.homePlayers, ...s.awayPlayers];
 
   // 1. Trata o modo de chute (Shot Animation)
@@ -10567,9 +10658,20 @@ function updateLiveCanvasPositions(s){
       ball.progress = 0;
       ball.z = 0;
       ball.carrier = ball.passTarget || null;
+      if(ball.carrier) ball.carrier.hasBall = true;
       ball.passTarget = null;
+      ball.passer = null;
     }
     return;
+  }
+
+  if(isPlaying && ball.mode === 'play' && ball.carrier && !ball.carrier.isGK && !ball.carrier.redCard && Number(ball.liveDecisionCooldown || 0) <= 0){
+    const carrierForPass = ball.carrier;
+    const attackingProgress = carrierForPass.team === 'home' ? carrierForPass.x : 100 - carrierForPass.x;
+    const passTarget = selectLivePassTarget(carrierForPass.team === 'home' ? s.homePlayers : s.awayPlayers, carrierForPass, 1.5, 25);
+    const passChance = attackingProgress >= 72 ? 0.56 : 0.44;
+    if(passTarget && s.prng() < passChance && startLivePass(s, carrierForPass, passTarget, { cooldownFrames: 110 })) return;
+    ball.liveDecisionCooldown = 28;
   }
 
   // 2. Valida ou transfere portador da bola (carrier)
@@ -10617,7 +10719,7 @@ function updateLiveCanvasPositions(s){
     const hasTheBall = (carrier === p);
     p.hasBall = hasTheBall;
     const isHome = (p.team === 'home');
-    const teamHasBall = carrier ? (carrier.team === p.team) : true;
+    const teamHasBall = carrier ? (carrier.team === p.team) : false;
 
     let tX = p.baseX;
     let tY = p.baseY;
@@ -10626,9 +10728,9 @@ function updateLiveCanvasPositions(s){
       // Portador conduz a bola em direção ao gol adversário
       const paceSpeed = 0.55 + ((p.attrs?.pace || p.overall || 65) - 60) * 0.005;
       if(isHome){
-        tX = clamp(p.x + paceSpeed + (p.depthRuns ? 0.25 : 0), p.baseX - 4, 91);
+        tX = clamp(p.x + paceSpeed + (p.depthRuns ? 0.25 : 0), 4, 96);
       } else {
-        tX = clamp(p.x - paceSpeed - (p.depthRuns ? 0.25 : 0), 9, p.baseX + 4);
+        tX = clamp(p.x - paceSpeed - (p.depthRuns ? 0.25 : 0), 4, 96);
       }
       tY = clamp(p.y + Math.sin(p.animFrame * 0.7) * 0.35, 14, 86);
 
@@ -10638,17 +10740,16 @@ function updateLiveCanvasPositions(s){
       ball.z = Math.abs(Math.sin(p.animFrame * 1.5)) * 0.3;
       ball.spin = (ball.spin || 0) + 0.25;
 
-      if((isHome && p.x > 84) || (!isHome && p.x < 16)){
-        p.baseX = isHome ? 35 : 65;
-      }
     } else if(teamHasBall){
       // Time atacando: avança e ocupa espaços
-      const advance = isHome ? 10 : -10;
+      const ballProgress = isHome ? ball.x : 100 - ball.x;
+      const advanceSize = clamp(8 + (ballProgress - 30) * 0.38, 6, 27);
+      const advance = isHome ? advanceSize : -advanceSize;
       const depthBonus = (p.depthRuns || 0) * (isHome ? 0.12 : -0.12);
       const halfSpaceShift = p.halfSpaceOcc ? (p.baseY < 50 ? 5 : -5) : 0;
 
       if(!p.isGK){
-        tX = clamp(p.baseX + advance + depthBonus, isHome ? 12 : 20, isHome ? 80 : 88);
+        tX = clamp(p.baseX + advance + depthBonus, 5, 95);
         tY = clamp(p.baseY + halfSpaceShift, 12, 88);
       }
     } else {
@@ -11710,7 +11811,9 @@ function simulateMinute(s, min){
   s.stats.posH = Math.round(s.stats.posH * 0.94 + (posShareH * 100) * 0.06);
   s.stats.posA = 100 - s.stats.posH;
 
-  const isHomeAttacking = s.prng() < posShareH;
+  const previousCarrier = s.ball?.carrier && !s.ball.carrier.redCard ? s.ball.carrier : null;
+  const retainPossession = !!(previousCarrier && s.ball?.mode !== 'shot' && s.prng() < 0.68);
+  const isHomeAttacking = retainPossession ? previousCarrier.team === 'home' : s.prng() < posShareH;
   let isHome = isHomeAttacking;
   let attTeam = isHome ? s.home : s.away;
   let defTeam = isHome ? s.away : s.home;
@@ -11795,35 +11898,56 @@ function simulateMinute(s, min){
 
   // FASE 3: FINAL_THIRD & CHANCE_CREATION (Último Terço e Resolução Ofensiva)
   if(possessionPhase === 'FINAL_THIRD'){
-    // Define portador ofensivo
+    // O ataque escolhe o jogador de linha mais adiantado; a finalização só acontece na zona ofensiva.
     const fwPool = attPlayers.filter(p => !p.isGK && !p.redCard && ['ST','CF','RW','LW','AM','CM'].includes(p.pos));
-    s.ball.carrier = fwPool.length ? fwPool[Math.floor(s.prng() * fwPool.length)] : attPlayers[9];
+    const goalProgressOf = p => isHome ? (Number(p?.x) || 50) : 100 - (Number(p?.x) || 50);
+    const rankedForwards = [...fwPool].sort((a, b) => goalProgressOf(b) - goalProgressOf(a));
+    const topOptions = rankedForwards.slice(0, Math.min(3, rankedForwards.length));
+    s.ball.carrier = topOptions.length ? topOptions[Math.floor(s.prng() * topOptions.length)] : (attPlayers.find(p => !p.isGK && !p.redCard) || attPlayers[9]);
     s.ball.isHomeAttacking = isHome;
 
-    const boxRoll = s.prng();
-    if(boxRoll < 0.05){
-      // PÊNALTI!
-      const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[1];
-      executePenaltySim(s, min, s.ball.carrier, defP, isHome);
-    } else if(boxRoll < 0.16){
-      // FALTA PERIGOSA NA ENTRADA DA ÁREA!
-      const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[1];
-      executeFreeKickSim(s, min, s.ball.carrier, defP, isHome);
-    } else if(boxRoll < 0.30){
-      // Desarme limpo na área desviado para ESCANTEIO
-      if(isHome) { s.stats.cornersH++; s.stats.tacklesA++; }
-      else { s.stats.cornersA++; s.stats.tacklesH++; }
-      s.events.unshift({ min, type: 'corner', text: `🚩 Escanteio para o ${attTeam}! A zaga trava a infiltração no momento exato e desvia pela linha de fundo.` });
-      showLiveBalloon(isHome ? 99 : 1, 50, '🚩 ESCANTEIO!', '#38bdf8');
+    const carrierProgress = goalProgressOf(s.ball.carrier);
+    if(carrierProgress < 72){
+      // Ainda longe da área: progride com passe para um companheiro mais adiantado, sem chute forçado do meio-campo.
+      const receiver = selectLivePassTarget(attPlayers, s.ball.carrier, 0.8, 30);
+      if(receiver){
+        startLivePass(s, s.ball.carrier, receiver, { logEvent: true, cooldownFrames: 110 });
+      } else {
+        const dir = isHome ? 1 : -1;
+        s.ball.carrier.x = clamp((Number(s.ball.carrier.x) || 50) + dir * 2.5, 4, 96);
+        s.ball.x = s.ball.carrier.x; s.ball.y = s.ball.carrier.y;
+      }
     } else {
-      // FINALIZAÇÃO A GOL!
-      executeShotSim(s, min, attPlayers, defPlayers, isHome, attCfg, attTeam, defTeam, isCounterAttack);
+      const boxRoll = s.prng();
+      if(boxRoll < 0.05){
+        // PÊNALTI!
+        const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[1];
+        executePenaltySim(s, min, s.ball.carrier, defP, isHome);
+      } else if(boxRoll < 0.16){
+        // FALTA PERIGOSA NA ENTRADA DA ÁREA!
+        const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[1];
+        executeFreeKickSim(s, min, s.ball.carrier, defP, isHome);
+      } else if(boxRoll < 0.30){
+        // Desarme limpo na área desviado para ESCANTEIO
+        if(isHome) { s.stats.cornersH++; s.stats.tacklesA++; }
+        else { s.stats.cornersA++; s.stats.tacklesH++; }
+        s.events.unshift({ min, type: 'corner', text: `🚩 Escanteio para o ${attTeam}! A zaga trava a infiltração no momento exato e desvia pela linha de fundo.` });
+        showLiveBalloon(isHome ? 99 : 1, 50, '🚩 ESCANTEIO!', '#38bdf8');
+      } else {
+        // FINALIZAÇÃO A GOL! O carregador vem do terço final.
+        executeShotSim(s, min, attPlayers, defPlayers, isHome, attCfg, attTeam, defTeam, isCounterAttack);
+      }
     }
   } else {
-    // Posse mantida sem finalização: portador conduz a bola em transição
+    // Construção: mantém a posse e tenta uma ligação curta/vertical real com um companheiro.
     const carrierPool = attPlayers.filter(p => !p.isGK && !p.redCard);
-    s.ball.carrier = carrierPool[Math.floor(s.prng() * carrierPool.length)] || attPlayers[9];
+    const activeCarrier = s.ball?.carrier && attPlayers.includes(s.ball.carrier) && !s.ball.carrier.isGK && !s.ball.carrier.redCard ? s.ball.carrier : null;
+    const builders = carrierPool.filter(p => ['CB','LB','RB','DM','CM','AM'].includes(p.pos));
+    const carrier = activeCarrier || (builders.length ? builders[Math.floor(s.prng() * builders.length)] : carrierPool[Math.floor(s.prng() * carrierPool.length)]) || attPlayers[9];
+    s.ball.carrier = carrier;
     s.ball.isHomeAttacking = isHome;
+    const receiver = selectLivePassTarget(attPlayers, carrier, 0.8, 24);
+    if(receiver) startLivePass(s, carrier, receiver, { logEvent: true, cooldownFrames: 110 });
   }
 
   // Atualiza placar e feed na interface
@@ -11948,9 +12072,12 @@ function validateMatchEvent(evt, s){
 
 function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg, attTeam, defTeam, isCounterAttack=false){
   const forwards = attPlayers.filter(p => ['ST', 'CF', 'RW', 'LW', 'AM'].includes(p.pos) && !p.redCard && !p.isGK);
-  const shooter = (forwards.length && s.prng() < 0.84)
-    ? forwards[Math.floor(s.prng() * forwards.length)]
-    : attPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng() * 10)] || attPlayers[9];
+  const liveCarrier = s.ball?.carrier;
+  const shooter = (liveCarrier && attPlayers.includes(liveCarrier) && !liveCarrier.isGK && !liveCarrier.redCard)
+    ? liveCarrier
+    : ((forwards.length && s.prng() < 0.84)
+      ? forwards[Math.floor(s.prng() * forwards.length)]
+      : attPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng() * 10)] || attPlayers[9]);
 
   if(!validateMatchEntity(shooter, s) || shooter.isGK) return;
 
@@ -12592,6 +12719,29 @@ function openHalftimeModal(isQuickTactics = false){
     : (s.home === state.club ? (s.hg > s.ag ? 'vencendo' : 'perdendo') : (s.ag > s.hg ? 'vencendo' : 'perdendo'));
 
   const userStarters = (s.home === state.club ? s.homePlayers : s.awayPlayers);
+  const rosterKeeper = state.squad.find(p => isGoalkeeperPosition(p.pos) && userStarters.some(mp => mp.key === playerKey(p)));
+  const halftimeKeeper = (rosterKeeper && userStarters.find(mp => mp.key === playerKey(rosterKeeper))) || userStarters.find(p => p.isGK || isGoalkeeperPosition(p.pos));
+  if(halftimeKeeper){
+    const keeperIndex = userStarters.indexOf(halftimeKeeper);
+    if(keeperIndex > 0){ userStarters.splice(keeperIndex, 1); userStarters.unshift(halftimeKeeper); }
+    userStarters.forEach(matchPlayer => {
+      const rosterPlayer = state.squad.find(p => playerKey(p) === matchPlayer.key);
+      matchPlayer.isGK = matchPlayer === halftimeKeeper;
+      if(matchPlayer.isGK){ matchPlayer.pos = 'GK'; matchPlayer.canScore = false; matchPlayer.canShoot = false; }
+      else if(rosterPlayer && rosterPlayer.pos){ matchPlayer.pos = rosterPlayer.pos; matchPlayer.canScore = true; matchPlayer.canShoot = true; }
+    });
+    const horizontalSlots = window.HORIZONTAL_FORMATIONS?.[state.formation || '4-3-3'] || window.HORIZONTAL_FORMATIONS?.['4-3-3'];
+    if(horizontalSlots){
+      userStarters.forEach((matchPlayer, idx) => {
+        const slot = horizontalSlots[idx];
+        if(!slot) return;
+        const targetX = s.home === state.club ? Number(slot.x) : 100 - Number(slot.x);
+        const targetY = Number(slot.y);
+        matchPlayer.baseX = targetX; matchPlayer.baseY = targetY;
+        matchPlayer.targetX = targetX; matchPlayer.targetY = targetY;
+      });
+    }
+  }
   const starterKeys = userStarters.map(p => p.key);
   s.subbedOut = Array.isArray(s.subbedOut) ? s.subbedOut : [];
   const userBench = state.squad.filter(p => !starterKeys.includes(playerKey(p)) && !s.subbedOut.includes(playerKey(p)));
@@ -12711,7 +12861,7 @@ function openHalftimeModal(isQuickTactics = false){
               <div class="halftime-bench-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(2, 1fr);gap:8px;padding-right:4px">
                 ${userBench.map(p => `
                   <div class="halftime-bench-card" data-benchkey="${esc(playerKey(p))}" draggable="true" title="Arraste para o campo ou clique para substituir" style="display:flex;align-items:center;gap:10px;background:#141d2c;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 10px;cursor:pointer">
-                    ${window.renderPlayerPhoto ? window.renderPlayerPhoto(p.name, 36) : playerPhoto(p, 36)}
+                    ${playerPhoto(p, 36)}
                     <div style="flex:1;min-width:0">
                       <div style="font-size:11px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                         ${esc(p.name)}
@@ -12790,12 +12940,19 @@ function openHalftimeModal(isQuickTactics = false){
       const titleEl = $('#halftimePitchFormTitle');
       if(titleEl) titleEl.textContent = `EM CAMPO · ${newForm}`;
       
-      const newSlots = FORMATIONS[newForm] || FORMATIONS['4-3-3'];
+      const newSlots = (window.HORIZONTAL_FORMATIONS && (window.HORIZONTAL_FORMATIONS[newForm] || window.HORIZONTAL_FORMATIONS['4-3-3'])) || FORMATIONS[newForm] || FORMATIONS['4-3-3'];
       const playerNodes = $$('#halftimePitchBox .halftime-pitch-player');
       playerNodes.forEach((node, idx) => {
         const slot = newSlots[idx] || { x: 50, y: 50 };
         node.style.left = `${slot.x}%`;
         node.style.top = `${slot.y}%`;
+        const livePlayer = userStarters[idx];
+        if(livePlayer){
+          const targetX = s.home === state.club ? Number(slot.x) : 100 - Number(slot.x);
+          const targetY = Number(slot.y);
+          livePlayer.baseX = targetX; livePlayer.baseY = targetY;
+          livePlayer.targetX = targetX; livePlayer.targetY = targetY;
+        }
       });
       toast(`Formação alterada para ${newForm}!`);
     };
@@ -12820,6 +12977,12 @@ function openHalftimeModal(isQuickTactics = false){
     if(targetIdx === -1) return;
 
     const oldPlayer = userStarters[targetIdx];
+    const oldIsGoalkeeper = !!oldPlayer.isGK || isGoalkeeperPosition(oldPlayer.pos);
+    const benchIsGoalkeeper = isGoalkeeperPosition(benchPlayer.pos);
+    if(oldIsGoalkeeper !== benchIsGoalkeeper){
+      toast(oldIsGoalkeeper ? 'Para substituir o goleiro, escolha um goleiro reserva.' : 'O goleiro reserva só pode entrar na vaga de outro goleiro.');
+      return;
+    }
     s.subbedOut.push(oldPlayer.key);
 
     const newPlayerObj = {
@@ -12828,7 +12991,7 @@ function openHalftimeModal(isQuickTactics = false){
       key: playerKey(benchPlayer),
       name: benchPlayer.name.split(' ').pop() || benchPlayer.name,
       fullName: benchPlayer.name,
-      pos: benchPlayer.pos,
+      pos: oldIsGoalkeeper ? 'GK' : benchPlayer.pos,
       overall: playerOverall(benchPlayer) || 65,
       stamina: 100, // Entra 100% descansado
       speed: benchPlayer.vel || benchPlayer.speed || playerOverall(benchPlayer),
@@ -12837,8 +13000,10 @@ function openHalftimeModal(isQuickTactics = false){
       defense: benchPlayer.des || benchPlayer.defense || playerOverall(benchPlayer),
       isUser: true,
       team: s.home === state.club ? 'home' : 'away',
-      isGK: (benchPlayer.pos === 'GK' || benchPlayer.pos === 'GOL'),
-      photo: (window.PLAYER_PHOTOS && (window.PLAYER_PHOTOS[benchPlayer.name] || window.PLAYER_PHOTOS[norm(benchPlayer.name)])) || null
+      isGK: oldIsGoalkeeper,
+      canScore: !oldIsGoalkeeper,
+      canShoot: !oldIsGoalkeeper,
+      photo: resolvePlayerPhotoUrl(benchPlayer) || null
     };
 
     userStarters[targetIdx] = newPlayerObj;
@@ -16058,9 +16223,9 @@ function centralPage(){
           </div>
 
           <!-- Alerta de Decisão Pendente -->
-          <div style="margin-top:12px;background:#241d14;border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:12px;color:#fbbf24">
+          <div style="margin-top:12px;background:#241d14;border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:10px 14px;display:${(state.stadiumEventProposal || state.stadiumClubRental || state.trainingSuggestionPending || state.pendingDecision) ? 'flex' : 'none'};align-items:center;gap:8px;font-size:12px;color:#fbbf24">
             <span>⚠️</span>
-            <span><b>Uma decisão espera por você: convite</b> ⌵</span>
+            <span><b>${state.stadiumEventProposal ? 'Convite para evento no estádio pendente' : state.stadiumClubRental ? 'Proposta de aluguel do estádio pendente' : 'Decisão pendente da comissão técnica'}</b> ⌵</span>
           </div>
 
           <!-- Botões de Ação da Partida ou Fim de Temporada -->
@@ -16131,7 +16296,7 @@ function centralPage(){
         </div>
 
         <!-- Seção Inferior: Decisão Pendente & Eventos Dinâmicos -->
-        <div class="card" style="padding:18px;background:#100d1e;border:1px solid rgba(139,92,246,0.25);border-radius:18px">
+        <div class="card" style="padding:18px;background:#100d1e;border:1px solid rgba(139,92,246,0.25);border-radius:18px;display:${(state.stadiumEventProposal || state.stadiumClubRental || state.trainingSuggestionPending || state.pendingDecision) ? 'block' : 'none'}">
           <div style="display:flex;align-items:center;gap:8px">
             <span style="color:#f59e0b;font-size:16px">🔔</span>
             <h3 style="margin:0;font-size:14px;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase">DECISÃO PENDENTE</h3>
@@ -22274,15 +22439,22 @@ function bind(){
     const bDecAcc = $('#btnAcceptDecision');
     if(bDecAcc){
       bDecAcc.onclick = () => {
+        state.trainingSuggestionPending = false;
+        state.pendingDecision = null;
+        state.squad = (state.squad || []).map(p => ({ ...p, morale: clamp((Number(p.morale) || 70) + 5, 0, 100) }));
+        save();
         toast('Sugestão da comissão técnica aprovada! Moral da equipe +5%');
-        bDecAcc.parentElement.parentElement.remove();
+        render();
       };
     }
     const bDecDis = $('#btnDismissDecision');
     if(bDecDis){
       bDecDis.onclick = () => {
-        toast('Decisão adiada.');
-        bDecDis.parentElement.parentElement.remove();
+        state.trainingSuggestionPending = false;
+        state.pendingDecision = null;
+        save();
+        toast('Decisão dispensada.');
+        render();
       };
     }
   }
