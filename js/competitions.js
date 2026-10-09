@@ -5,11 +5,17 @@ window.COMPETITIONS = [
   {id:'bra-d',continent:'América do Sul',country:'Brasil',name:'Campeonato Brasileiro Série D',type:'groups-knockout',teams:96,rounds:10,groupSize:6,qualify:4,promote:6,logo:'img/badges/competitions/bra_d.svg',rule:'2026: 96 clubes em 16 grupos de 6, turno e returno. Os 4 melhores de cada grupo avançam; mata-matas em ida e volta e playoffs definem 6 acessos à Série C.'},
   {id:'bra-cup',continent:'América do Sul',country:'Brasil',name:'Copa do Brasil',type:'knockout',teams:92,logo:'img/badges/competitions/bra_cup.svg',rule:'Mata-mata nacional com fases de entrada distintas conforme classificação.'},
   {id:'arg-1',continent:'América do Sul',country:'Argentina',name:'Liga Profesional Argentina',type:'league',teams:30,rounds:29,relegate:2,rule:'Liga nacional em pontos corridos com classificação continental e rebaixamento.'},
+  {id:'arg-2',continent:'América do Sul',country:'Argentina',name:'Primera Nacional',type:'league-playoff',teams:20,rounds:38,promote:2,relegate:2,rule:'20 clubes na divisão de acesso; campeão sobe direto e playoff define segundo acesso.'},
   {id:'uru-1',continent:'América do Sul',country:'Uruguai',name:'Primera División Uruguaya',type:'league-split',teams:16,rule:'Apertura/Intermedio/Clausura, tabela anual e definição de campeão.'},
+  {id:'uru-2',continent:'América do Sul',country:'Uruguai',name:'Segunda División Uruguaya',type:'league-playoff',teams:12,promote:2,relegate:2,rule:'12 clubes disputam acesso à primeira divisão.'},
   {id:'chi-1',continent:'América do Sul',country:'Chile',name:'Primera División de Chile',type:'league',teams:16,rounds:30,relegate:2,rule:'Pontos corridos em turno e returno.'},
+  {id:'chi-2',continent:'América do Sul',country:'Chile',name:'Primera B de Chile',type:'league-playoff',teams:14,promote:2,relegate:1,rule:'14 clubes; campeão sobe direto e liguilla define segundo acesso.'},
   {id:'col-1',continent:'América do Sul',country:'Colômbia',name:'Categoría Primera A',type:'league-playoff',teams:20,rule:'Fase todos contra todos seguida por quadrangulares/fase final.'},
+  {id:'col-2',continent:'América do Sul',country:'Colômbia',name:'Torneo BetPlay',type:'league-playoff',teams:16,promote:2,relegate:0,rule:'Torneio de acesso com duas vagas na primeira divisão.'},
   {id:'par-1',continent:'América do Sul',country:'Paraguai',name:'Primera División Paraguaya',type:'apertura-clausura',teams:12,rule:'Torneios Apertura e Clausura.'},
+  {id:'par-2',continent:'América do Sul',country:'Paraguai',name:'División Intermedia',type:'league',teams:12,promote:2,relegate:2,rule:'Divisão de acesso com duas vagas diretas na elite paraguaia.'},
   {id:'ecu-1',continent:'América do Sul',country:'Equador',name:'LigaPro Serie A',type:'league-playoff',teams:16,rule:'Temporada de liga com fase decisiva conforme regulamento vigente.'},
+  {id:'ecu-2',continent:'América do Sul',country:'Equador',name:'LigaPro Serie B',type:'league',teams:10,promote:2,relegate:2,rule:'10 clubes em turno e returno; dois melhores sobem à Serie A.'},
   {id:'per-1',continent:'América do Sul',country:'Peru',name:'Liga 1',type:'apertura-clausura',teams:18,rule:'Apertura e Clausura com tabela acumulada.'},
   {id:'bol-1',continent:'América do Sul',country:'Bolívia',name:'División Profesional',type:'league',teams:16,rule:'Liga nacional com classificação continental.'},
   {id:'ven-1',continent:'América do Sul',country:'Venezuela',name:'Liga FUTVE',type:'league-playoff',teams:14,rule:'Fase regular e fase final.'},
@@ -19,13 +25,19 @@ window.COMPETITIONS = [
 
   {id:'eng-1',continent:'Europa',country:'Inglaterra',name:'Premier League',type:'league',teams:20,rounds:38,relegate:3,logo:'img/badges/competitions/eng_1.svg',rule:'20 clubes, turno e returno. 3 rebaixados.'},
   {id:'eng-2',continent:'Europa',country:'Inglaterra',name:'EFL Championship',type:'league-playoff',teams:24,rounds:46,promote:3,relegate:3,rule:'24 clubes. 2 sobem direto; 3º ao 6º disputam playoff.'},
+  {id:'eng-3',continent:'Europa',country:'Inglaterra',name:'EFL League One',type:'league-playoff',teams:24,rounds:46,promote:3,relegate:4,rule:'24 clubes na 3ª divisão inglesa. 2 sobem direto e playoff define o 3º promovido.'},
   {id:'esp-1',continent:'Europa',country:'Espanha',name:'LaLiga',type:'league',teams:20,rounds:38,relegate:3,logo:'img/badges/competitions/esp_1.svg',rule:'20 clubes, turno e returno. 3 rebaixados.'},
   {id:'esp-2',continent:'Europa',country:'Espanha',name:'LaLiga Hypermotion',type:'league-playoff',teams:22,rounds:42,promote:3,relegate:4,rule:'2 sobem direto e vagas restantes por playoff.'},
   {id:'ita-1',continent:'Europa',country:'Itália',name:'Serie A',type:'league',teams:20,rounds:38,relegate:3,logo:'img/badges/competitions/ita_1.svg',rule:'20 clubes, turno e returno.'},
+  {id:'ita-2',continent:'Europa',country:'Itália',name:'Serie B',type:'league-playoff',teams:20,rounds:38,promote:3,relegate:3,rule:'20 clubes. 2 sobem direto e 1 por playoff.'},
   {id:'ger-1',continent:'Europa',country:'Alemanha',name:'Bundesliga',type:'league',teams:18,rounds:34,relegate:2,logo:'img/badges/competitions/ger_1.svg',rule:'18 clubes. 2 rebaixados diretos e playoff de permanência.'},
+  {id:'ger-2',continent:'Europa',country:'Alemanha',name:'2. Bundesliga',type:'league-playoff',teams:18,rounds:34,promote:2,relegate:2,rule:'18 clubes na 2ª divisão alemã. 2 sobem direto e 3º disputa playoff.'},
   {id:'fra-1',continent:'Europa',country:'França',name:'Ligue 1',type:'league',teams:18,rounds:34,relegate:2,logo:'img/badges/competitions/fra_1.svg',rule:'18 clubes. Rebaixamento e playoff conforme posição final.'},
+  {id:'fra-2',continent:'Europa',country:'França',name:'Ligue 2',type:'league-playoff',teams:18,rounds:34,promote:2,relegate:2,rule:'18 clubes na 2ª divisão francesa; acesso e playoffs decisivos.'},
   {id:'por-1',continent:'Europa',country:'Portugal',name:'Primeira Liga',type:'league',teams:18,rounds:34,relegate:2,logo:'img/badges/competitions/por_1.svg',rule:'18 clubes, turno e returno.'},
+  {id:'por-2',continent:'Europa',country:'Portugal',name:'Liga Portugal 2',type:'league-playoff',teams:18,rounds:34,promote:2,relegate:2,rule:'18 clubes na divisão de acesso portuguesa.'},
   {id:'ned-1',continent:'Europa',country:'Países Baixos',name:'Eredivisie',type:'league-playoff',teams:18,rounds:34,relegate:2,rule:'18 clubes com playoffs europeus/rebaixamento.'},
+  {id:'ned-2',continent:'Europa',country:'Países Baixos',name:'Eerste Divisie',type:'league-playoff',teams:20,rounds:38,promote:2,relegate:0,rule:'20 clubes na 2ª divisão neerlandesa; acesso direto e playoffs.'},
   {id:'bel-1',continent:'Europa',country:'Bélgica',name:'Belgian Pro League',type:'league-playoff',teams:16,rule:'Fase regular seguida por playoffs de campeonato/europa/rebaixamento.'},
   {id:'tur-1',continent:'Europa',country:'Turquia',name:'Süper Lig',type:'league',teams:18,rule:'Liga em pontos corridos.'},
   {id:'sco-1',continent:'Europa',country:'Escócia',name:'Scottish Premiership',type:'league-split',teams:12,rounds:38,rule:'Após 33 rodadas, liga divide em top 6 e bottom 6.'},
@@ -212,14 +224,18 @@ window.BASE_CLUBS = [
   }
 }
 
-// Filtra competições: Remove ligas sem clubes (0 times) ou com apenas 1 time
+// Filtra competições: Mantém todas as ligas oficiais suportadas com dados reais
 if(Array.isArray(window.COMPETITIONS)){
   const validCompIds = new Set([
     'bra-a', 'bra-b', 'bra-c', 'bra-d', 'bra-cup',
     'bra-est-sp', 'bra-est-rj', 'bra-est-mg', 'bra-est-rs', 'bra-est-pr',
     'bra-est-sc', 'bra-est-ba', 'bra-est-ce', 'bra-est-go', 'bra-est-pe', 'bra-est-df',
     'lib', 'sud', 'cwc',
-    'eng-1', 'esp-1', 'ita-1', 'ger-1', 'fra-1', 'por-1', 'ned-1',
+    'arg-1', 'arg-2', 'chi-1', 'chi-2', 'uru-1', 'uru-2', 'col-1', 'col-2',
+    'par-1', 'par-2', 'ecu-1', 'ecu-2', 'per-1', 'bol-1', 'ven-1',
+    'eng-1', 'eng-2', 'eng-3', 'esp-1', 'esp-2', 'ita-1', 'ita-2',
+    'ger-1', 'ger-2', 'fra-1', 'fra-2', 'por-1', 'por-2', 'ned-1', 'ned-2',
+    'bel-1', 'tur-1', 'sco-1', 'ucl', 'uel', 'uecl',
     'ksa-1', 'jpn-1', 'kor-1', 'chn-1', 'qat-1', 'uae-1'
   ]);
   window.COMPETITIONS = window.COMPETITIONS.filter(c => validCompIds.has(c.id));

@@ -70,3 +70,21 @@ Este documento define as regras ativas, restrições arquiteturais e padrões de
 - ❌ **Abas Separadas de "Save/Backup" e "Banco de Dados"**: Descontinuadas da barra principal. Foram unificadas na aba Configurações (⚙️).
 - ❌ **Tabelas Estáticas Rígidas**: Nunca injetar dados de classificação estáticos; usar sempre o motor dinâmico `curComp()` e `ranking()`.
 - ❌ **Changelogs Técnicos na UI**: Nunca exibir termos como "deploy git", "merge PR", "docker" ou "commit hash" para o usuário. A Central de Novidades deve conter apenas recursos imersivos de futebol.
+
+---
+
+## 6. 🛑 Regra Inviolável da Match Engine & Canvas 2.5D (Anti-Congelamento & 22 Atletas em Campo)
+
+1. **Garantia de 22 Atletas em Campo (11 vs 11)**:
+   - Em qualquer partida (ao vivo ou simulada), é **TERMINANTEMENTE PROIBIDO** iniciar um confronto sem exatamente 11 jogadores escalados para o mandante E 11 jogadores para o visitante (`homePlayers.length === 11 && awayPlayers.length === 11`).
+   - Se o clube adversário ou o próprio elenco do usuário tiver desfalques, lesões ou atletas insuficientes no banco de dados, o gerador (`buildMatchTeam`) **DEVE OBRIGATORIAMENTE** preencher as vagas faltantes com atletas válidos e posicionados nas coordenadas táticas do campo.
+2. **Proibição Absoluta de Bonecos Estáticos / Congelados**:
+   - O loop de animação do Canvas (`setupLiveCanvasLoop` e `updateLiveCanvasPositions`) deve calcular dinamicamente a movimentação contínua de todos os 22 atletas e da bola (`x`, `y`, `animFrame`, `lerp`).
+   - É **EXPRESSAMENTE PROIBIDO** invocar funções inexistentes ou deixar de declarar métodos chamados pelo loop visual (`updateLiveCanvasPositions`, `getPlayerRoleDef`, `showLiveBalloon`, `showLiveBanner`, etc.).
+   - Se houver qualquer falha ou exceção no loop, o motor deve reportar com clareza e nunca falhar silenciosamente congelando a renderização enquanto o relógio e placar avançam em segundo plano.
+3. **Sincronia Estrita entre Simulação e Visual**:
+   - Um jogo nunca pode "rolar solto" com placares avançando (ex.: 5x0) enquanto a representação visual dos bonecos estiver travada.
+   - Todo e qualquer gol, finalização ou evento registrado na narração deve ter representação física imediata no campo 2.5D (trajetória de bola `s.ball.mode === 'shot'`, comemoração do atleta e mergulho do goleiro).
+4. **Validação Obrigatória Pré-Entrega**:
+   - Toda alteração no motor de partida (`simulateMinute`, `setupLiveCanvasLoop`, `buildMatchTeam`, `executeShotSim`) deve ser validada visualmente no navegador confirmando que os 22 bonecos estão em campo e se movimentando ativamente.
+

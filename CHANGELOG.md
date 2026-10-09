@@ -4,6 +4,41 @@ Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027*
 
 ---
 
+## [3.2.0] - 2026-10-08 (Expansão Mundial Oficial & Overhaul do Match Engine 2.5D)
+
+### 🌎 Expansão Internacional Oficial (América do Sul & Europa)
+- **Regra de Preservação Absoluta (Regra Nº 1)**: Todos os 156 clubes brasileiros das Séries A, B, C, D, estaduais e torneios existentes foram 100% preservados, sem alteração de IDs ou remoções.
+- **América do Sul Completa**:
+  - **Argentina**: Liga Profesional (30 clubes reais) e Primera Nacional (20 clubes reais).
+  - **Chile**: Primera División (16 clubes reais) e Primera B (14 clubes reais).
+  - **Uruguai**: Primera División (16 clubes reais) e Segunda División (12 clubes reais).
+  - **Colômbia**: Liga BetPlay (20 clubes reais) e Torneo BetPlay (16 clubes reais).
+  - **Paraguai**: Primera División (12 clubes reais) e División Intermedia (12 clubes reais).
+  - **Equador**: LigaPro Serie A (16 clubes reais) e LigaPro Serie B (10 clubes reais).
+  - **Peru**: Liga 1 (18 clubes reais).
+  - **Bolívia**: División Profesional (16 clubes reais).
+  - **Venezuela**: Liga FUTVE (14 clubes reais).
+- **Grandes Ligas Europeias & Divisões Reais**:
+  - **Inglaterra**: Premier League (20 clubes), EFL Championship (24 clubes), EFL League One (24 clubes).
+  - **Espanha**: LaLiga (20 clubes), LaLiga Hypermotion (22 clubes).
+  - **Itália**: Serie A (20 clubes), Serie B (20 clubes).
+  - **Alemanha**: Bundesliga (18 clubes), 2. Bundesliga (18 clubes).
+  - **França**: Ligue 1 (18 clubes), Ligue 2 (18 clubes).
+  - **Portugal**: Primeira Liga (18 clubes), Liga Portugal 2 (18 clubes).
+  - **Países Baixos**: Eredivisie (18 clubes), Eerste Divisie (20 clubes).
+  - **Outras Ligas**: Bélgica (Pro League), Turquia (Süper Lig), Escócia (Premiership).
+  - **Torneios Continentais**: UEFA Champions League (36 clubes na fase de liga) e UEFA Europa League (36 clubes).
+- **Mapeamento de Escudos Oficiais**: Vinculação em `CLUB_BADGES` dos escudos reais já contidos no diretório de assets para as novas equipes.
+
+### 🎮 Overhaul do Match Engine 2.5D & Fim do "Jogo Parado 5x0"
+- **Movimentação Dinâmica em Campo**: Os bonecos agora se deslocam ativamente no gramado 2.5D. O condutor da bola progride em direção ao gol adversário, o defensor mais próximo fecha o espaço pressionando a jogada e os companheiros se desmarcam em profundidade.
+- **Transição de Bola & Passes Fluídos**: A posse agora é contínua e inteligente. Quando pressionado, o jogador efetua passe para companheiro livre com trajetória real e arco parabólico. Ao final de chutes ou defesas, o goleiro repõe a bola para os zagueiros.
+- **17 Formações Táticas Oficiais**: Adição completa de 17 esquemas táticos (4-3-3, 4-3-3 Holding, 4-2-3-1, 4-4-2, 4-4-1-1, 4-2-1-3, 4-2-2-2, 4-3-2-1, 4-3-1-2, 4-1-2-1-2, 4-1-4-1, 4-5-1, 5-3-2, 5-2-1-2, 5-2-3, 3-5-2, 3-4-2-1, 3-4-3).
+- **Funções Táticas e Foco Individual**: Goleiro Líbero, Zagueiro Construtor, Lateral Ofensivo, Volante Box-to-Box, Meia Armador, Camisa 10 Criador, Ponta Invertido e Centroavante Referência integrados aos cálculos de atributos e movimentação.
+- **Diagnóstico Tático Pós-Jogo**: Painel exclusivo ao final da partida analisando o motivo da vitória, empate ou derrota com base em xG, postura tática e volume de chances.
+
+---
+
 ## [3.1.4] - 2026-10-08 (Janelas Anuais, Match Engine Dinâmico, Correção de Entidades & Ordenação do Mercado)
 
 ### 📅 Janelas de Transferência Anuais Multitemporada

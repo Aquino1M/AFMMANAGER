@@ -1240,7 +1240,248 @@ window.LIVE_PLAYERS = [
   {name:'Kauã Oliveira',club:'Real Brasília',country:'Brasil',pos:'AM',age:21,fc:61,pes:61,potential:68,value:0.11},
   {name:'Juan Rocha',club:'Real Brasília',country:'Brasil',pos:'RW',age:23,fc:64,pes:64,potential:69,value:0.14},
   {name:'Erick',club:'Real Brasília',country:'Brasil',pos:'ST',age:26,fc:56,pes:56,potential:58,value:0.05},
-  {name:'Johann',club:'Real Brasília',country:'Brasil',pos:'LW',age:24,fc:60,pes:60,potential:64,value:0.07}
+  {name:'Johann',club:'Real Brasília',country:'Brasil',pos:'LW',age:24,fc:60,pes:60,potential:64,value:0.07},
+
+  // ==========================================
+  // RACING CLUB (Argentina)
+  // ==========================================
+  {name:'Gabriel Arias',club:'Racing Club',country:'Chile',pos:'GK',age:37,fc:77,pes:77,potential:77,value:1.2},
+  {name:'Gastón Martirena',club:'Racing Club',country:'Uruguai',pos:'RB',age:24,fc:75,pes:75,potential:80,value:4.5},
+  {name:'Marco Di Cesare',club:'Racing Club',country:'Argentina',pos:'CB',age:22,fc:75,pes:75,potential:82,value:5.0},
+  {name:'Agustín García Basso',club:'Racing Club',country:'Argentina',pos:'CB',age:32,fc:75,pes:75,potential:75,value:1.8},
+  {name:'Gabriel Rojas',club:'Racing Club',country:'Argentina',pos:'LB',age:27,fc:75,pes:75,potential:76,value:3.0},
+  {name:'Santiago Sosa',club:'Racing Club',country:'Argentina',pos:'DM',age:25,fc:76,pes:76,potential:80,value:6.0},
+  {name:'Juan Nardoni',club:'Racing Club',country:'Argentina',pos:'CM',age:22,fc:76,pes:76,potential:82,value:6.5},
+  {name:'Agustín Almendra',club:'Racing Club',country:'Argentina',pos:'CM',age:24,fc:75,pes:75,potential:79,value:4.0},
+  {name:'Juan Fernando Quintero',club:'Racing Club',country:'Colômbia',pos:'AM',age:31,fc:79,pes:79,potential:79,value:3.5},
+  {name:'Maximiliano Salas',club:'Racing Club',country:'Argentina',pos:'LW',age:26,fc:75,pes:75,potential:76,value:3.0},
+  {name:'Adrián Martínez',club:'Racing Club',country:'Argentina',pos:'ST',age:32,fc:79,pes:79,potential:79,value:4.0},
+  {name:'Roger Martínez',club:'Racing Club',country:'Colômbia',pos:'ST',age:30,fc:76,pes:76,potential:76,value:2.5},
+
+  // ==========================================
+  // INDEPENDIENTE (Argentina)
+  // ==========================================
+  {name:'Rodrigo Rey',club:'Independiente',country:'Argentina',pos:'GK',age:33,fc:76,pes:76,potential:76,value:1.8},
+  {name:'Federico Vera',club:'Independiente',country:'Argentina',pos:'RB',age:26,fc:73,pes:73,potential:75,value:2.2},
+  {name:'Kevin Lomónaco',club:'Independiente',country:'Argentina',pos:'CB',age:22,fc:75,pes:75,potential:82,value:4.5},
+  {name:'Joaquín Laso',club:'Independiente',country:'Argentina',pos:'CB',age:34,fc:72,pes:72,potential:72,value:0.8},
+  {name:'Damián Pérez',club:'Independiente',country:'Argentina',pos:'LB',age:35,fc:71,pes:71,potential:71,value:0.6},
+  {name:'Iván Marcone',club:'Independiente',country:'Argentina',pos:'DM',age:34,fc:74,pes:74,potential:74,value:1.2},
+  {name:'Felipe Loyola',club:'Independiente',country:'Chile',pos:'CM',age:23,fc:75,pes:75,potential:81,value:4.0},
+  {name:'Lucas González',club:'Independiente',country:'Argentina',pos:'CM',age:24,fc:73,pes:73,potential:77,value:2.5},
+  {name:'Santiago Montiel',club:'Independiente',country:'Argentina',pos:'LW',age:23,fc:74,pes:74,potential:79,value:3.0},
+  {name:'Santiago López',club:'Independiente',country:'Argentina',pos:'RW',age:18,fc:72,pes:72,potential:84,value:3.5},
+  {name:'Gabriel Ávalos',club:'Independiente',country:'Paraguai',pos:'ST',age:33,fc:74,pes:74,potential:74,value:1.5},
+
+  // ==========================================
+  // SAN LORENZO (Argentina)
+  // ==========================================
+  {name:'Gastón Gómez',club:'San Lorenzo',country:'Argentina',pos:'GK',age:28,fc:73,pes:73,potential:74,value:1.2},
+  {name:'Gonzalo Luján',club:'San Lorenzo',country:'Argentina',pos:'RB',age:23,fc:73,pes:73,potential:78,value:2.5},
+  {name:'Jhohan Romaña',club:'San Lorenzo',country:'Colômbia',pos:'CB',age:26,fc:75,pes:75,potential:77,value:3.0},
+  {name:'Gastón Campi',club:'San Lorenzo',country:'Argentina',pos:'CB',age:33,fc:73,pes:73,potential:73,value:0.9},
+  {name:'Malcom Braida',club:'San Lorenzo',country:'Argentina',pos:'LB',age:27,fc:75,pes:75,potential:76,value:3.2},
+  {name:'Elián Irala',club:'San Lorenzo',country:'Argentina',pos:'DM',age:20,fc:74,pes:74,potential:83,value:5.0},
+  {name:'Eric Remedi',club:'San Lorenzo',country:'Argentina',pos:'DM',age:28,fc:73,pes:73,potential:74,value:1.8},
+  {name:'Iker Muniain',club:'San Lorenzo',country:'Espanha',pos:'AM',age:31,fc:78,pes:78,potential:78,value:4.5},
+  {name:'Nahuel Bustos',club:'San Lorenzo',country:'Argentina',pos:'RW',age:26,fc:73,pes:73,potential:75,value:2.0},
+  {name:'Alexis Cuello',club:'San Lorenzo',country:'Argentina',pos:'LW',age:24,fc:73,pes:73,potential:77,value:2.2},
+  {name:'Andrés Vombergar',club:'San Lorenzo',country:'Eslovênia',pos:'ST',age:29,fc:74,pes:74,potential:74,value:1.8},
+
+  // ==========================================
+  // ESTUDIANTES DE LA PLATA (Argentina)
+  // ==========================================
+  {name:'Matías Mansilla',club:'Estudiantes',country:'Argentina',pos:'GK',age:28,fc:74,pes:74,potential:75,value:1.8},
+  {name:'Eric Meza',club:'Estudiantes',country:'Argentina',pos:'RB',age:25,fc:74,pes:74,potential:77,value:2.5},
+  {name:'Luciano Lollo',club:'Estudiantes',country:'Argentina',pos:'CB',age:37,fc:73,pes:73,potential:73,value:0.5},
+  {name:'Facundo Rodríguez',club:'Estudiantes',country:'Argentina',pos:'CB',age:24,fc:74,pes:74,potential:78,value:2.8},
+  {name:'Gastón Benedetti',club:'Estudiantes',country:'Argentina',pos:'LB',age:23,fc:73,pes:73,potential:78,value:2.2},
+  {name:'Enzo Pérez',club:'Estudiantes',country:'Argentina',pos:'DM',age:38,fc:76,pes:76,potential:76,value:1.0},
+  {name:'Santiago Ascacíbar',club:'Estudiantes',country:'Argentina',pos:'CM',age:27,fc:77,pes:77,potential:78,value:6.0},
+  {name:'José Sosa',club:'Estudiantes',country:'Argentina',pos:'CM',age:39,fc:74,pes:74,potential:74,value:0.5},
+  {name:'Tiago Palacios',club:'Estudiantes',country:'Uruguai',pos:'AM',age:23,fc:75,pes:75,potential:81,value:4.5},
+  {name:'Edwuin Cetré',club:'Estudiantes',country:'Colômbia',pos:'LW',age:26,fc:75,pes:75,potential:76,value:3.0},
+  {name:'Guido Carrillo',club:'Estudiantes',country:'Argentina',pos:'ST',age:33,fc:76,pes:76,potential:76,value:2.2},
+
+  // ==========================================
+  // VÉLEZ SARSFIELD (Argentina)
+  // ==========================================
+  {name:'Tomás Marchiori',club:'Vélez Sarsfield',country:'Argentina',pos:'GK',age:29,fc:75,pes:75,potential:76,value:2.5},
+  {name:'Joaquín García',club:'Vélez Sarsfield',country:'Argentina',pos:'RB',age:23,fc:74,pes:74,potential:80,value:3.0},
+  {name:'Emanuel Mammana',club:'Vélez Sarsfield',country:'Argentina',pos:'CB',age:28,fc:75,pes:75,potential:76,value:2.8},
+  {name:'Valentín Gómez',club:'Vélez Sarsfield',country:'Argentina',pos:'CB',age:21,fc:77,pes:77,potential:86,value:9.0},
+  {name:'Elías Gómez',club:'Vélez Sarsfield',country:'Argentina',pos:'LB',age:30,fc:74,pes:74,potential:74,value:1.8},
+  {name:'Christian Ordóñez',club:'Vélez Sarsfield',country:'Argentina',pos:'DM',age:20,fc:75,pes:75,potential:84,value:5.5},
+  {name:'Agustín Bouzat',club:'Vélez Sarsfield',country:'Argentina',pos:'CM',age:30,fc:74,pes:74,potential:74,value:1.8},
+  {name:'Claudio Aquino',club:'Vélez Sarsfield',country:'Argentina',pos:'AM',age:33,fc:77,pes:77,potential:77,value:2.2},
+  {name:'Francisco Pizzini',club:'Vélez Sarsfield',country:'Argentina',pos:'RW',age:31,fc:75,pes:75,potential:75,value:2.0},
+  {name:'Thiago Fernández',club:'Vélez Sarsfield',country:'Argentina',pos:'LW',age:20,fc:76,pes:76,potential:85,value:7.0},
+  {name:'Braian Romero',club:'Vélez Sarsfield',country:'Argentina',pos:'ST',age:33,fc:76,pes:76,potential:76,value:1.8},
+
+  // ==========================================
+  // PEÑAROL (Uruguai)
+  // ==========================================
+  {name:'Washington Aguerre',club:'Peñarol',country:'Uruguai',pos:'GK',age:31,fc:74,pes:74,potential:74,value:1.5},
+  {name:'Pedro Milans',club:'Peñarol',country:'Uruguai',pos:'RB',age:22,fc:73,pes:73,potential:79,value:2.5},
+  {name:'Javier Méndez',club:'Peñarol',country:'Uruguai',pos:'CB',age:31,fc:74,pes:74,potential:74,value:1.2},
+  {name:'Guzmán Rodríguez',club:'Peñarol',country:'Uruguai',pos:'CB',age:24,fc:75,pes:75,potential:80,value:3.0},
+  {name:'Maximiliano Olivera',club:'Peñarol',country:'Uruguai',pos:'LB',age:32,fc:74,pes:74,potential:74,value:1.0},
+  {name:'Damián García',club:'Peñarol',country:'Uruguai',pos:'DM',age:21,fc:75,pes:75,potential:83,value:4.5},
+  {name:'Eduardo Darias',club:'Peñarol',country:'Uruguai',pos:'CM',age:26,fc:74,pes:74,potential:76,value:2.0},
+  {name:'Leonardo Fernández',club:'Peñarol',country:'Uruguai',pos:'AM',age:25,fc:78,pes:78,potential:81,value:7.5},
+  {name:'Javier Cabrera',club:'Peñarol',country:'Uruguai',pos:'RW',age:32,fc:73,pes:73,potential:73,value:0.9},
+  {name:'Jaime Báez',club:'Peñarol',country:'Uruguai',pos:'LW',age:29,fc:74,pes:74,potential:74,value:1.8},
+  {name:'Maximiliano Silvera',club:'Peñarol',country:'Uruguai',pos:'ST',age:27,fc:76,pes:76,potential:77,value:3.0},
+
+  // ==========================================
+  // NACIONAL (Uruguai)
+  // ==========================================
+  {name:'Luis Mejía',club:'Nacional',country:'Panamá',pos:'GK',age:33,fc:74,pes:74,potential:74,value:1.0},
+  {name:'Leandro Lozano',club:'Nacional',country:'Uruguai',pos:'RB',age:25,fc:74,pes:74,potential:77,value:2.5},
+  {name:'Sebastián Coates',club:'Nacional',country:'Uruguai',pos:'CB',age:33,fc:77,pes:77,potential:77,value:2.5},
+  {name:'Diego Polenta',club:'Nacional',country:'Uruguai',pos:'CB',age:32,fc:74,pes:74,potential:74,value:1.0},
+  {name:'Gabriel Báez',club:'Nacional',country:'Argentina',pos:'LB',age:29,fc:73,pes:73,potential:73,value:1.2},
+  {name:'Christian Oliva',club:'Nacional',country:'Uruguai',pos:'DM',age:28,fc:74,pes:74,potential:75,value:2.0},
+  {name:'Lucas Sanabria',club:'Nacional',country:'Uruguai',pos:'CM',age:20,fc:74,pes:74,potential:82,value:3.5},
+  {name:'Alexis Castro',club:'Nacional',country:'Argentina',pos:'CM',age:29,fc:74,pes:74,potential:74,value:1.8},
+  {name:'Antonio Galeano',club:'Nacional',country:'Paraguai',pos:'RW',age:24,fc:74,pes:74,potential:78,value:2.5},
+  {name:'Jeremía Recoba',club:'Nacional',country:'Uruguai',pos:'LW',age:20,fc:73,pes:73,potential:82,value:3.0},
+  {name:'Rubén Bentancourt',club:'Nacional',country:'Uruguai',pos:'ST',age:31,fc:74,pes:74,potential:74,value:1.5},
+
+  // ==========================================
+  // COLO-COLO (Chile)
+  // ==========================================
+  {name:'Brayan Cortés',club:'Colo-Colo',country:'Chile',pos:'GK',age:29,fc:75,pes:75,potential:76,value:2.8},
+  {name:'Óscar Opazo',club:'Colo-Colo',country:'Chile',pos:'RB',age:33,fc:72,pes:72,potential:72,value:0.8},
+  {name:'Maximiliano Falcón',club:'Colo-Colo',country:'Uruguai',pos:'CB',age:27,fc:74,pes:74,potential:75,value:2.0},
+  {name:'Alan Saldivia',club:'Colo-Colo',country:'Uruguai',pos:'CB',age:22,fc:74,pes:74,potential:81,value:3.5},
+  {name:'Erick Wiemberg',club:'Colo-Colo',country:'Chile',pos:'LB',age:30,fc:73,pes:73,potential:73,value:1.0},
+  {name:'Esteban Pavez',club:'Colo-Colo',country:'Chile',pos:'DM',age:34,fc:73,pes:73,potential:73,value:0.8},
+  {name:'Arturo Vidal',club:'Colo-Colo',country:'Chile',pos:'CM',age:37,fc:77,pes:77,potential:77,value:1.5},
+  {name:'Vicente Pizarro',club:'Colo-Colo',country:'Chile',pos:'CM',age:21,fc:74,pes:74,potential:82,value:4.0},
+  {name:'Carlos Palacios',club:'Colo-Colo',country:'Chile',pos:'AM',age:24,fc:76,pes:76,potential:80,value:4.5},
+  {name:'Lucas Cepeda',club:'Colo-Colo',country:'Chile',pos:'LW',age:22,fc:73,pes:73,potential:79,value:2.5},
+  {name:'Javier Correa',club:'Colo-Colo',country:'Argentina',pos:'ST',age:31,fc:74,pes:74,potential:74,value:1.8},
+
+  // ==========================================
+  // UNIVERSIDAD DE CHILE (Chile)
+  // ==========================================
+  {name:'Gabriel Castellón',club:'Universidad de Chile',country:'Chile',pos:'GK',age:31,fc:73,pes:73,potential:73,value:1.2},
+  {name:'Fabián Hormazábal',club:'Universidad de Chile',country:'Chile',pos:'RB',age:28,fc:73,pes:73,potential:74,value:1.5},
+  {name:'Franco Calderón',club:'Universidad de Chile',country:'Argentina',pos:'CB',age:26,fc:74,pes:74,potential:76,value:2.0},
+  {name:'Matías Zaldivia',club:'Universidad de Chile',country:'Chile',pos:'CB',age:33,fc:73,pes:73,potential:73,value:0.8},
+  {name:'Marcelo Morales',club:'Universidad de Chile',country:'Chile',pos:'LB',age:21,fc:74,pes:74,potential:82,value:3.8},
+  {name:'Marcelo Díaz',club:'Universidad de Chile',country:'Chile',pos:'DM',age:37,fc:74,pes:74,potential:74,value:0.6},
+  {name:'Charles Aránguiz',club:'Universidad de Chile',country:'Chile',pos:'CM',age:35,fc:76,pes:76,potential:76,value:1.8},
+  {name:'Israel Poblete',club:'Universidad de Chile',country:'Chile',pos:'CM',age:29,fc:72,pes:72,potential:72,value:1.0},
+  {name:'Maximiliano Guerrero',club:'Universidad de Chile',country:'Chile',pos:'RW',age:24,fc:73,pes:73,potential:77,value:2.0},
+  {name:'Leandro Fernández',club:'Universidad de Chile',country:'Argentina',pos:'LW',age:33,fc:75,pes:75,potential:75,value:1.5},
+  {name:'Cristian Palacios',club:'Universidad de Chile',country:'Uruguai',pos:'ST',age:34,fc:74,pes:74,potential:74,value:1.0},
+
+  // ==========================================
+  // OLIMPIA (Paraguai)
+  // ==========================================
+  {name:'Gastón Olveira',club:'Olimpia',country:'Uruguai',pos:'GK',age:31,fc:74,pes:74,potential:74,value:1.5},
+  {name:'César Olmedo',club:'Olimpia',country:'Paraguai',pos:'RB',age:21,fc:72,pes:72,potential:79,value:2.0},
+  {name:'Manuel Capasso',club:'Olimpia',country:'Argentina',pos:'CB',age:28,fc:73,pes:73,potential:74,value:1.8},
+  {name:'Junior Barreto',club:'Olimpia',country:'Paraguai',pos:'CB',age:26,fc:73,pes:73,potential:75,value:1.6},
+  {name:'Facundo Zabala',club:'Olimpia',country:'Argentina',pos:'LB',age:25,fc:73,pes:73,potential:76,value:2.0},
+  {name:'Alex Franco',club:'Olimpia',country:'Paraguai',pos:'DM',age:23,fc:72,pes:72,potential:78,value:1.8},
+  {name:'Richard Ortiz',club:'Olimpia',country:'Paraguai',pos:'CM',age:34,fc:72,pes:72,potential:72,value:0.6},
+  {name:'Rodney Redes',club:'Olimpia',country:'Paraguai',pos:'RW',age:24,fc:74,pes:74,potential:78,value:2.5},
+  {name:'Hugo Adrián Benítez',club:'Olimpia',country:'Paraguai',pos:'ST',age:21,fc:72,pes:72,potential:80,value:2.0},
+  {name:'Lucas Pratto',club:'Olimpia',country:'Argentina',pos:'ST',age:36,fc:73,pes:73,potential:73,value:0.8},
+  {name:'Derlis González',club:'Olimpia',country:'Paraguai',pos:'LW',age:30,fc:75,pes:75,potential:75,value:2.2},
+
+  // ==========================================
+  // LIBERTAD (Paraguai)
+  // ==========================================
+  {name:'Martín Silva',club:'Libertad',country:'Uruguai',pos:'GK',age:41,fc:72,pes:72,potential:72,value:0.3},
+  {name:'Iván Ramírez',club:'Libertad',country:'Paraguai',pos:'RB',age:29,fc:73,pes:73,potential:73,value:1.2},
+  {name:'Diego Viera',club:'Libertad',country:'Paraguai',pos:'CB',age:33,fc:73,pes:73,potential:73,value:0.8},
+  {name:'Néstor Giménez',club:'Libertad',country:'Paraguai',pos:'CB',age:27,fc:72,pes:72,potential:74,value:1.0},
+  {name:'Matías Espinoza',club:'Libertad',country:'Paraguai',pos:'LB',age:27,fc:73,pes:73,potential:74,value:1.8},
+  {name:'Hernesto Caballero',club:'Libertad',country:'Paraguai',pos:'DM',age:33,fc:72,pes:72,potential:72,value:0.7},
+  {name:'Álvaro Campuzano',club:'Libertad',country:'Paraguai',pos:'CM',age:29,fc:73,pes:73,potential:73,value:1.5},
+  {name:'Rubén Lezcano',club:'Libertad',country:'Paraguai',pos:'AM',age:20,fc:74,pes:74,potential:83,value:4.0},
+  {name:'Marcelo Fernández',club:'Libertad',country:'Paraguai',pos:'RW',age:22,fc:73,pes:73,potential:80,value:2.5},
+  {name:'Lorenzo Melgarejo',club:'Libertad',country:'Paraguai',pos:'LW',age:34,fc:75,pes:75,potential:75,value:1.8},
+  {name:'Roque Santa Cruz',club:'Libertad',country:'Paraguai',pos:'ST',age:43,fc:71,pes:71,potential:71,value:0.2},
+
+  // ==========================================
+  // LDU QUITO (Equador)
+  // ==========================================
+  {name:'Alexander Domínguez',club:'LDU Quito',country:'Equador',pos:'GK',age:37,fc:75,pes:75,potential:75,value:0.8},
+  {name:'José Quintero',club:'LDU Quito',country:'Equador',pos:'RB',age:34,fc:73,pes:73,potential:73,value:0.6},
+  {name:'Ricardo Adé',club:'LDU Quito',country:'Haiti',pos:'CB',age:34,fc:74,pes:74,potential:74,value:1.0},
+  {name:'Richard Mina',club:'LDU Quito',country:'Equador',pos:'CB',age:25,fc:73,pes:73,potential:77,value:1.8},
+  {name:'Leonel Quiñónez',club:'LDU Quito',country:'Equador',pos:'LB',age:31,fc:73,pes:73,potential:73,value:1.0},
+  {name:'Ezequiel Piovi',club:'LDU Quito',country:'Argentina',pos:'DM',age:32,fc:75,pes:75,potential:75,value:2.0},
+  {name:'Fernando Cornejo',club:'LDU Quito',country:'Chile',pos:'CM',age:28,fc:73,pes:73,potential:74,value:1.5},
+  {name:'Gabriel Villamíl',club:'LDU Quito',country:'Bolívia',pos:'CM',age:23,fc:72,pes:72,potential:78,value:1.5},
+  {name:'Lisandro Alzugaray',club:'LDU Quito',country:'Argentina',pos:'RW',age:34,fc:74,pes:74,potential:74,value:1.2},
+  {name:'Jhojan Julio',club:'LDU Quito',country:'Equador',pos:'LW',age:26,fc:74,pes:74,potential:76,value:2.2},
+  {name:'Alex Arce',club:'LDU Quito',country:'Paraguai',pos:'ST',age:29,fc:77,pes:77,potential:78,value:4.5},
+
+  // ==========================================
+  // INDEPENDIENTE DEL VALLE (Equador)
+  // ==========================================
+  {name:'Moisés Ramírez',club:'Independiente del Valle',country:'Equador',pos:'GK',age:24,fc:74,pes:74,potential:79,value:2.5},
+  {name:'Matías Fernández',club:'Independiente del Valle',country:'Chile',pos:'RB',age:29,fc:73,pes:73,potential:73,value:1.5},
+  {name:'Richard Schunke',club:'Independiente del Valle',country:'Argentina',pos:'CB',age:32,fc:74,pes:74,potential:74,value:1.2},
+  {name:'Mateo Carabajal',club:'Independiente del Valle',country:'Argentina',pos:'CB',age:27,fc:74,pes:74,potential:76,value:2.5},
+  {name:'Yaimar Medina',club:'Independiente del Valle',country:'Equador',pos:'LB',age:19,fc:74,pes:74,potential:85,value:4.0},
+  {name:'João Ortiz',club:'Independiente del Valle',country:'Equador',pos:'DM',age:28,fc:74,pes:74,potential:75,value:2.0},
+  {name:'Cristian Zabala',club:'Independiente del Valle',country:'Argentina',pos:'CM',age:26,fc:73,pes:73,potential:76,value:1.8},
+  {name:'Kendry Páez',club:'Independiente del Valle',country:'Equador',pos:'AM',age:17,fc:78,pes:78,potential:90,value:14.0},
+  {name:'Junior Sornoza',club:'Independiente del Valle',country:'Equador',pos:'AM',age:30,fc:75,pes:75,potential:75,value:2.5},
+  {name:'Renato Ibarra',club:'Independiente del Valle',country:'Equador',pos:'RW',age:33,fc:73,pes:73,potential:73,value:1.0},
+  {name:'Jeison Medina',club:'Independiente del Valle',country:'Colômbia',pos:'ST',age:29,fc:75,pes:75,potential:75,value:2.5},
+
+  // ==========================================
+  // BOLÍVAR (Bolívia)
+  // ==========================================
+  {name:'Carlos Lampe',club:'Bolívar',country:'Bolívia',pos:'GK',age:37,fc:72,pes:72,potential:72,value:0.5},
+  {name:'Yomar Rocha',club:'Bolívar',country:'Bolívia',pos:'RB',age:21,fc:70,pes:70,potential:77,value:1.0},
+  {name:'Renzo Orihuela',club:'Bolívar',country:'Uruguai',pos:'CB',age:23,fc:72,pes:72,potential:78,value:1.5},
+  {name:'Anderson de Jesús',club:'Bolívar',country:'Brasil',pos:'CB',age:29,fc:72,pes:72,potential:73,value:1.2},
+  {name:'José Sagredo',club:'Bolívar',country:'Bolívia',pos:'LB',age:30,fc:71,pes:71,potential:71,value:0.8},
+  {name:'Leonel Justiniano',club:'Bolívar',country:'Bolívia',pos:'DM',age:32,fc:72,pes:72,potential:72,value:0.9},
+  {name:'Ramiro Vaca',club:'Bolívar',country:'Bolívia',pos:'CM',age:25,fc:74,pes:74,potential:78,value:2.5},
+  {name:'Fernando Saucedo',club:'Bolívar',country:'Bolívia',pos:'CM',age:34,fc:71,pes:71,potential:71,value:0.5},
+  {name:'Bruno Sávio',club:'Bolívar',country:'Brasil',pos:'RW',age:30,fc:74,pes:74,potential:74,value:2.0},
+  {name:'Patricio Rodríguez',club:'Bolívar',country:'Argentina',pos:'LW',age:34,fc:73,pes:73,potential:73,value:1.0},
+  {name:'Fábio Gomes',club:'Bolívar',country:'Brasil',pos:'ST',age:27,fc:74,pes:74,potential:75,value:2.0},
+
+  // ==========================================
+  // ATLÉTICO NACIONAL (Colômbia)
+  // ==========================================
+  {name:'David Ospina',club:'Atlético Nacional',country:'Colômbia',pos:'GK',age:36,fc:76,pes:76,potential:76,value:1.5},
+  {name:'Andrés Román',club:'Atlético Nacional',country:'Colômbia',pos:'RB',age:28,fc:74,pes:74,potential:75,value:2.5},
+  {name:'Felipe Aguirre',club:'Atlético Nacional',country:'Colômbia',pos:'CB',age:27,fc:73,pes:73,potential:75,value:2.0},
+  {name:'William Tesillo',club:'Atlético Nacional',country:'Colômbia',pos:'CB',age:34,fc:75,pes:75,potential:75,value:1.5},
+  {name:'Álvaro Angulo',club:'Atlético Nacional',country:'Colômbia',pos:'LB',age:27,fc:73,pes:73,potential:74,value:1.8},
+  {name:'Jorman Campuzano',club:'Atlético Nacional',country:'Colômbia',pos:'DM',age:28,fc:75,pes:75,potential:76,value:3.0},
+  {name:'Sebastián Guzmán',club:'Atlético Nacional',country:'Colômbia',pos:'CM',age:27,fc:72,pes:72,potential:73,value:1.2},
+  {name:'Edwin Cardona',club:'Atlético Nacional',country:'Colômbia',pos:'AM',age:31,fc:76,pes:76,potential:76,value:2.0},
+  {name:'Marino Hinestroza',club:'Atlético Nacional',country:'Colômbia',pos:'RW',age:22,fc:74,pes:74,potential:81,value:3.5},
+  {name:'Andrés Sarmiento',club:'Atlético Nacional',country:'Colômbia',pos:'LW',age:26,fc:73,pes:73,potential:75,value:1.8},
+  {name:'Alfredo Morelos',club:'Atlético Nacional',country:'Colômbia',pos:'ST',age:28,fc:76,pes:76,potential:77,value:4.0},
+
+  // ==========================================
+  // MILLONARIOS (Colômbia)
+  // ==========================================
+  {name:'Álvaro Montero',club:'Millonarios',country:'Colômbia',pos:'GK',age:29,fc:76,pes:76,potential:77,value:2.8},
+  {name:'Delvin Alfonzo',club:'Millonarios',country:'Venezuela',pos:'RB',age:23,fc:72,pes:72,potential:77,value:1.5},
+  {name:'Andrés Llinás',club:'Millonarios',country:'Colômbia',pos:'CB',age:27,fc:74,pes:74,potential:76,value:2.5},
+  {name:'Juan Pablo Vargas',club:'Millonarios',country:'Costa Rica',pos:'CB',age:29,fc:75,pes:75,potential:76,value:2.5},
+  {name:'Danovis Banguero',club:'Millonarios',country:'Colômbia',pos:'LB',age:34,fc:72,pes:72,potential:72,value:0.8},
+  {name:'Stiven Vega',club:'Millonarios',country:'Colômbia',pos:'DM',age:26,fc:73,pes:73,potential:75,value:1.8},
+  {name:'Daniel Giraldo',club:'Millonarios',country:'Colômbia',pos:'CM',age:32,fc:73,pes:73,potential:73,value:1.2},
+  {name:'David Silva',club:'Millonarios',country:'Colômbia',pos:'AM',age:37,fc:74,pes:74,potential:74,value:0.8},
+  {name:'Daniel Mantilla',club:'Millonarios',country:'Colômbia',pos:'RW',age:27,fc:73,pes:73,potential:74,value:1.5},
+  {name:'Jhon Córdoba',club:'Millonarios',country:'Colômbia',pos:'LW',age:23,fc:73,pes:73,potential:78,value:2.0},
+  {name:'Radamel Falcao',club:'Millonarios',country:'Colômbia',pos:'ST',age:38,fc:77,pes:77,potential:77,value:1.5}
 ];
 
 window.PLAYER_DB_META = {
