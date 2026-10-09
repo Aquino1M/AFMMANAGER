@@ -16,15 +16,15 @@ const hashStr=s=>{let h=2166136261;for(const ch of String(s)){h^=ch.charCodeAt(0
 // =============================================================
 // MODOS DE BANCO DE DADOS: MODO PADRÃO (GENÉRICO) & MOD DA COMUNIDADE (OFICIAL)
 // =============================================================
-let currentDbMode = localStorage.getItem('aquino_fm_db_mode') || 'mod'; // 'standard' | 'mod'
+let currentDbMode = 'mod'; // Oficial permanente AFM 2027
 
 function getDbMode(){
-  return currentDbMode;
+  return 'mod';
 }
 
 function setDbMode(m){
-  currentDbMode = (m === 'standard' ? 'standard' : 'mod');
-  localStorage.setItem('aquino_fm_db_mode', currentDbMode);
+  currentDbMode = 'mod';
+  try { localStorage.setItem('aquino_fm_db_mode', 'mod'); } catch(e){}
 }
 
 const GENERIC_CLUB_NAMES = {
@@ -125,40 +125,30 @@ function getGenericClubName(realName){
 }
 
 function clubDisplayName(name){
-  if(getDbMode() === 'standard'){
-    return getGenericClubName(name);
+  if(typeof name === 'object' && name !== null){
+    return name.name || name.club || '';
   }
-  return name;
+  return String(name || '');
 }
 
 function renderGenericProceduralBadge(name, size=32){
-  const genName = getGenericClubName(name);
-  const inits = initials(genName);
-  const h = hashStr(name || 'Generic');
-  const palette = [
-    ['#1e293b', '#475569', '#f8fafc'],
-    ['#dc2626', '#991b1b', '#fef2f2'],
-    ['#16a34a', '#166534', '#f0fdf4'],
-    ['#2563eb', '#1e40af', '#eff6ff'],
-    ['#7c3aed', '#5b21b6', '#faf5ff'],
-    ['#d97706', '#92400e', '#fffbeb'],
-    ['#0891b2', '#155e75', '#ecfeff'],
-    ['#475569', '#0f172a', '#e2e8f0']
-  ][h % 8];
-  const [c1, c2, cText] = palette;
-  const fSize = Math.max(8, Math.round(15 * Math.min(1, 2 / Math.max(1, inits.length))));
-  return `<svg width="${size}" height="${size}" viewBox="0 0 40 44" class="crest-generic-svg" style="border-radius:4px;flex-shrink:0;vertical-align:middle;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="genGrad_${h}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/></linearGradient></defs><path d="M4 4 Q20 0 36 4 Q38 24 20 42 Q2 24 4 4 Z" fill="url(#genGrad_${h})" stroke="rgba(255,255,255,0.25)" stroke-width="2"/><path d="M7 7 Q20 3 33 7 Q35 22 20 37 Q5 22 7 7 Z" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/><text x="20" y="25" text-anchor="middle" fill="${cText}" font-size="${fSize}" font-weight="900" font-family="system-ui, sans-serif" letter-spacing="0.5">${esc(inits)}</text></svg>`;
+  const realName = (typeof name === 'object' && name !== null ? (name.name || name.club || '') : String(name || '')).trim();
+  if(typeof window.renderClubBadge === 'function'){
+    return window.renderClubBadge(realName, size);
+  }
+  const inits = initials(realName);
+  return `<div class="crest" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.4)}px">${esc(inits)}</div>`;
 }
 
 function clubBadge(name, size=32){
-  if(getDbMode() === 'standard'){
-    return renderGenericProceduralBadge(name, size);
-  }
+  const realName = (typeof name === 'object' && name !== null ? (name.name || name.club || '') : String(name || '')).trim();
   if(typeof window.renderClubBadge === 'function'){
-    return window.renderClubBadge(name, size);
+    return window.renderClubBadge(realName, size);
   }
-  return `<div class="crest" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.4)}px">${esc(initials(name))}</div>`;
+  const inits = initials(realName);
+  return `<div class="crest" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.4)}px">${esc(inits)}</div>`;
 }
+
 
 
 function playerPhoto(p, size=36){
@@ -9663,7 +9653,7 @@ function renderLiveMatchModal(){
   if(!s){ el.remove(); return; }
 
   const comp = curComp();
-  const occPct = Math.round(clamp((s.stadium.attendance / (s.stadium.capacity || 1)) * 100, 1, 100));
+  const occPct = Math.round(clamp(((s.stadium?.attendance || 15000) / (s.stadium?.capacity || 20000)) * 100, 1, 100));
   const minDisplay = String(Math.floor(s.timeSec / 60)).padStart(2, '0');
   const secDisplay = String(Math.floor(s.timeSec % 60)).padStart(2, '0');
 
@@ -9711,13 +9701,13 @@ function renderLiveMatchModal(){
             <!-- PILLS FLUTUANTES SOBRE O CAMPO -->
             <div class="live-pitch-pills">
               <div class="live-pitch-pill gold">
-                ${esc(s.stadium.name.toUpperCase())} · PÚBLICO <b>${s.stadium.attendance.toLocaleString('pt-BR')}</b>
+                ${esc((s.stadium?.name || 'Estádio Municipal').toUpperCase())} · PÚBLICO <b>${(s.stadium?.attendance || 12000).toLocaleString('pt-BR')}</b>
               </div>
               <div class="live-pitch-pill">
-                ${esc(s.home.slice(0,3).toUpperCase())}: ${esc(s.homePosture.toUpperCase())}
+                ${esc(s.home.slice(0,3).toUpperCase())}: ${esc((s.homePosture || 'Equilibrada').toUpperCase())}
               </div>
               <div class="live-pitch-pill" id="livePillAwayPosture">
-                ${esc(s.away.slice(0,3).toUpperCase())}: ${esc(s.awayPosture.toUpperCase())}
+                ${esc(s.away.slice(0,3).toUpperCase())}: ${esc((s.awayPosture || 'Equilibrada').toUpperCase())}
               </div>
               ${s.prelecao && s.prelecao !== 'Sem preleção' ? `
                 <div class="live-pitch-pill" id="livePillPrelecao" style="background:rgba(168,85,247,0.3);border-color:#a855f7;color:#e9d5ff">
@@ -9771,7 +9761,7 @@ function renderLiveMatchModal(){
             <div class="live-shots-fill-away" id="liveShotsFillA" style="width:${(s.stats.shotsH+s.stats.shotsA) > 0 ? (s.stats.shotsA/(s.stats.shotsH+s.stats.shotsA)*100) : 50}%"></div>
           </div>
           <div class="live-dock-subtext">
-            ${esc(s.stadium.name.toUpperCase())} · Público presente <b>${s.stadium.attendance.toLocaleString('pt-BR')}</b> (${occPct}% da capacidade)
+            ${esc((s.stadium?.name || 'Estádio Municipal').toUpperCase())} · Público presente <b>${(s.stadium?.attendance || 12000).toLocaleString('pt-BR')}</b> (${occPct}% da capacidade)
           </div>
         </div>
 
@@ -9890,16 +9880,17 @@ function updateLiveCanvasPositions(s){
   if(!s || !Array.isArray(s.homePlayers) || !Array.isArray(s.awayPlayers)) return;
 
   const isPlaying = s.playing && !s.done && s.phase !== 'HALF_TIME';
-  const ball = s.ball || { x: 50, y: 50, z: 0, vx: 0, vy: 0, vz: 0, carrier: null };
+  const ball = s.ball || { x: 50, y: 50, z: 0, vx: 0, vy: 0, vz: 0, carrier: null, mode: 'play' };
+  s.ball = ball;
   const allPlayers = [...s.homePlayers, ...s.awayPlayers];
 
   // 1. Trata o modo de chute (Shot Animation)
   if(ball.mode === 'shot'){
-    ball.progress = (ball.progress || 0) + (isPlaying ? 0.045 : 0.01);
-    const startX = ball.startX || 50;
-    const startY = ball.startY || 50;
-    const tgtX = ball.targetX || 50;
-    const tgtY = ball.targetY || 50;
+    ball.progress = (ball.progress || 0) + (isPlaying ? 0.055 : 0.015);
+    const startX = ball.startX ?? 50;
+    const startY = ball.startY ?? 50;
+    const tgtX = ball.targetX ?? 50;
+    const tgtY = ball.targetY ?? 50;
     const p = clamp(ball.progress, 0, 1);
 
     ball.x = startX + (tgtX - startX) * p;
@@ -9908,6 +9899,15 @@ function updateLiveCanvasPositions(s){
 
     ball.trail = ball.trail || [];
     ball.trail.push({ x: ball.x, y: ball.y, z: ball.z, alpha: 1.0 });
+
+    // Goleiro adversário mergulha na direção do chute
+    const oppGk = (ball.shooter?.team === 'home' ? s.awayPlayers : s.homePlayers).find(x => x.isGK) || allPlayers[0];
+    if(oppGk){
+      oppGk.diveTimer = 1.8;
+      oppGk.diving = true;
+      oppGk.y += (tgtY - oppGk.y) * 0.18;
+      oppGk.animFrame = (oppGk.animFrame || 0) + 0.25;
+    }
 
     if(p >= 1){
       ball.mode = 'play';
@@ -9925,17 +9925,65 @@ function updateLiveCanvasPositions(s){
         const otherSide = ball.shooter?.team === 'home' ? s.awayPlayers : s.homePlayers;
         ball.carrier = otherSide.find(x => !x.isGK && !x.redCard) || otherSide[0];
       } else if(ball.shotOutcome === 'save'){
-        const oppGk = (ball.shooter?.team === 'home' ? s.awayPlayers : s.homePlayers).find(x => x.isGK) || allPlayers[0];
         if(oppGk) oppGk.diveTimer = 2.0;
-        ball.carrier = oppGk;
-        ball.x = oppGk ? oppGk.x : 50;
-        ball.y = oppGk ? oppGk.y : 50;
+        if(ball.isCorner){
+          showLiveBalloon(ball.x, ball.y, '🧤 DEFESASSA P/ ESCANTEIO!', '#38bdf8');
+          ball.x = ball.shooter?.team === 'home' ? 99 : 1;
+          ball.y = ball.y < 50 ? 5 : 95;
+          const cornerTaker = (ball.shooter?.team === 'home' ? s.homePlayers : s.awayPlayers).find(x => !x.isGK) || allPlayers[0];
+          ball.carrier = cornerTaker;
+        } else if(ball.isRebound){
+          showLiveBalloon(ball.x, ball.y, '🧤 ESPALMOU! REBOTE VIVO!', '#f97316');
+          ball.mode = 'loose';
+          ball.x = clamp(ball.x + (ball.shooter?.team === 'home' ? -12 : 12), 14, 86);
+          ball.y = clamp(ball.y + ((ball.y > 50) ? -8 : 8), 20, 80);
+          ball.carrier = null;
+        } else {
+          showLiveBalloon(ball.x, ball.y, '🧤 DEFESA SEGURA!', '#22c55e');
+          ball.carrier = oppGk;
+          ball.x = oppGk ? oppGk.x : 50;
+          ball.y = oppGk ? oppGk.y : 50;
+        }
+      } else if(ball.shotOutcome === 'blocked'){
+        showLiveBalloon(ball.x, ball.y, '🛡️ CHUTE TRAVADO NA ZAGA!', '#38bdf8');
+        ball.mode = 'loose';
+        ball.x = clamp(ball.x + (ball.shooter?.team === 'home' ? -6 : 6), 12, 88);
+        ball.y = clamp(ball.y + ((ball.y > 50) ? 10 : -10), 10, 90);
+        ball.carrier = null;
+      } else if(ball.shotOutcome === 'post'){
+        showLiveBalloon(ball.x, ball.y, '💥 NA TRAVE!', '#ef4444');
+        ball.mode = 'loose';
+        ball.x = clamp(ball.x + (ball.shooter?.team === 'home' ? -8 : 8), 12, 88);
+        ball.y = clamp(ball.y + ((ball.y > 50) ? 6 : -6), 15, 85);
+        ball.carrier = null;
       } else {
-        const oppGk = (ball.shooter?.team === 'home' ? s.awayPlayers : s.homePlayers).find(x => x.isGK) || allPlayers[0];
+        showLiveBalloon(ball.x, ball.y, '⚡ TIRO DE META!', '#94a3b8');
         ball.carrier = oppGk;
-        ball.x = oppGk ? oppGk.x : 50;
+        ball.x = oppGk ? oppGk.x : (ball.shooter?.team === 'home' ? 95 : 5);
         ball.y = oppGk ? oppGk.y : 50;
       }
+    }
+    return;
+  }
+
+  // 1.1 Trata o modo de passe (Pass Animation)
+  if(ball.mode === 'pass'){
+    ball.progress = (ball.progress || 0) + (isPlaying ? 0.08 : 0.02);
+    const startX = ball.startX ?? 50;
+    const startY = ball.startY ?? 50;
+    const tgt = ball.passTarget || { x: 50, y: 50 };
+    const p = clamp(ball.progress, 0, 1);
+
+    ball.x = startX + (tgt.x - startX) * p;
+    ball.y = startY + (tgt.y - startY) * p;
+    ball.z = Math.sin(p * Math.PI) * (ball.curveZ || 2.2);
+
+    if(p >= 1){
+      ball.mode = 'play';
+      ball.progress = 0;
+      ball.z = 0;
+      ball.carrier = ball.passTarget || null;
+      ball.passTarget = null;
     }
     return;
   }
@@ -9956,10 +10004,19 @@ function updateLiveCanvasPositions(s){
       const d = Math.hypot(p.x - ball.x, p.y - ball.y);
       if(d < minDist){ minDist = d; nearest = p; }
     });
-    if(nearest && minDist < 4.0){
+    if(nearest && minDist < 5.0){
       carrier = nearest;
       ball.carrier = nearest;
       ball.vx = 0; ball.vy = 0; ball.z = 0;
+      ball.mode = 'play';
+    } else if(nearest){
+      // Jogador mais próximo corre até a bola
+      const dx = ball.x - nearest.x;
+      const dy = ball.y - nearest.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      nearest.x += (dx / dist) * 0.45;
+      nearest.y += (dy / dist) * 0.45;
+      nearest.animFrame = (nearest.animFrame || 0) + 0.25;
     }
   }
 
@@ -9983,17 +10040,18 @@ function updateLiveCanvasPositions(s){
 
     if(hasTheBall){
       // Portador conduz a bola em direção ao gol adversário
+      const paceSpeed = 0.55 + ((p.attrs?.pace || p.overall || 65) - 60) * 0.005;
       if(isHome){
-        tX = clamp(p.x + 0.6 + (p.depthRuns ? 0.25 : 0), p.baseX - 4, 91);
+        tX = clamp(p.x + paceSpeed + (p.depthRuns ? 0.25 : 0), p.baseX - 4, 91);
       } else {
-        tX = clamp(p.x - 0.6 - (p.depthRuns ? 0.25 : 0), 9, p.baseX + 4);
+        tX = clamp(p.x - paceSpeed - (p.depthRuns ? 0.25 : 0), 9, p.baseX + 4);
       }
-      tY = clamp(p.y + Math.sin(p.animFrame * 0.7) * 0.4, 14, 86);
+      tY = clamp(p.y + Math.sin(p.animFrame * 0.7) * 0.35, 14, 86);
 
       // Bola conduzida nos pés
-      ball.x = p.x + (isHome ? 1.5 : -1.5);
+      ball.x = p.x + (isHome ? 1.4 : -1.4);
       ball.y = p.y;
-      ball.z = 0;
+      ball.z = Math.abs(Math.sin(p.animFrame * 1.5)) * 0.3;
       ball.spin = (ball.spin || 0) + 0.25;
 
       if((isHome && p.x > 84) || (!isHome && p.x < 16)){
@@ -10020,7 +10078,7 @@ function updateLiveCanvasPositions(s){
       }
 
       // Pressão ativa no portador da bola
-      if(carrier && p.pressIntensity > 50){
+      if(carrier && (p.pressIntensity > 45 || p.attrs?.tackling > 70)){
         const dist = Math.hypot(p.x - carrier.x, p.y - carrier.y);
         if(dist < 22){
           tX += (carrier.x - p.x) * 0.35;
@@ -10043,7 +10101,7 @@ function updateLiveCanvasPositions(s){
   });
 
   // 4. Movimento de bola solta
-  if(!carrier && ball.mode !== 'shot'){
+  if(!carrier && ball.mode !== 'shot' && ball.mode !== 'pass'){
     ball.x += (ball.vx || 0);
     ball.y += (ball.vy || 0);
     ball.z = Math.max(0, (ball.z || 0) + (ball.vz || 0));
@@ -11070,87 +11128,116 @@ function simulateMinute(s, min){
   s.stats.posA = 100 - s.stats.posH;
 
   const isHomeAttacking = s.prng() < posShareH;
-  const attTeam = isHomeAttacking ? s.home : s.away;
-  const defTeam = isHomeAttacking ? s.away : s.home;
-  const attPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
-  const defPlayers = isHomeAttacking ? s.awayPlayers : s.homePlayers;
-  const attCfg = isHomeAttacking ? hCfg : aCfg;
-  const defCfg = isHomeAttacking ? aCfg : hCfg;
+  let isHome = isHomeAttacking;
+  let attTeam = isHome ? s.home : s.away;
+  let defTeam = isHome ? s.away : s.home;
+  let attPlayers = isHome ? s.homePlayers : s.awayPlayers;
+  let defPlayers = isHome ? s.awayPlayers : s.homePlayers;
+  let attCfg = isHome ? hCfg : aCfg;
+  let defCfg = isHome ? aCfg : hCfg;
 
-  // Atualiza passes computados
-  if(isHomeAttacking){
-    s.stats.passesH += Math.round(7 + s.prng() * 5);
-    s.stats.passesA += Math.round(2 + s.prng() * 3);
+  // Atualiza passes computados da rodada do minuto
+  if(isHome){
+    s.stats.passesH += Math.round(5 + s.prng() * 4);
+    s.stats.passesA += Math.round(2 + s.prng() * 2);
   } else {
-    s.stats.passesA += Math.round(7 + s.prng() * 5);
-    s.stats.passesH += Math.round(2 + s.prng() * 3);
+    s.stats.passesA += Math.round(5 + s.prng() * 4);
+    s.stats.passesH += Math.round(2 + s.prng() * 2);
   }
 
-  // Atualiza portador visual da bola
-  const carrierPool = attPlayers.filter(p => !p.isGK && !p.redCard);
-  s.ball.carrier = carrierPool[Math.floor(s.prng() * carrierPool.length)] || attPlayers[9];
-  s.ball.isHomeAttacking = isHomeAttacking;
+  // =========================================================================
+  // MÁQUINA DE ESTADOS TÁTICA (BUILD_UP -> PROGRESSION -> FINAL_THIRD -> SHOT)
+  // =========================================================================
+  let possessionPhase = 'BUILD_UP';
+  let isCounterAttack = false;
 
-  // 4. MÁQUINA DE ESTADOS TÁTICOS (BUILD_UP -> PROGRESSION -> ATTACK -> FINAL_THIRD)
-  const attackChance = 0.35 * (attCfg.speedMult || 1.0);
-  const isDangerousPhase = s.prng() < attackChance;
+  // FASE 1: BUILD_UP (Construção / Saída de Bola sob pressão)
+  const defPressBonus = (defCfg.posture === 'Pressão total' ? 0.08 : defCfg.posture === 'Ofensiva' ? 0.04 : 0);
+  const buildUpRoll = s.prng();
+  if(buildUpRoll < 0.08 + defPressBonus){
+    // TURNOVER: Perda de bola pressionada na zaga gerando contra-ataque veloz!
+    if(isHome) s.stats.interceptionsA++; else s.stats.interceptionsH++;
+    isHome = !isHome;
+    attTeam = isHome ? s.home : s.away;
+    defTeam = isHome ? s.away : s.home;
+    attPlayers = isHome ? s.homePlayers : s.awayPlayers;
+    defPlayers = isHome ? s.awayPlayers : s.homePlayers;
+    attCfg = isHome ? hCfg : aCfg;
+    defCfg = isHome ? aCfg : hCfg;
+    isCounterAttack = true;
+    possessionPhase = 'FINAL_THIRD';
+  } else if(buildUpRoll < 0.14 + defPressBonus){
+    // Falta tática da equipe adversária travando a saída de bola
+    if(isHome) s.stats.foulsA++; else s.stats.foulsH++;
+    const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[2];
+    s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta tática de ${defP.name} (${defTeam}) travando o início da jogada do ${attTeam}.` });
+    possessionPhase = 'RESTART';
+  } else if(buildUpRoll < 0.52){
+    // Circulação paciente de bola entre zagueiros e laterais (manutenção de posse)
+    if(isHome) s.stats.passesH += 4; else s.stats.passesA += 4;
+    possessionPhase = 'RESTART';
+  } else {
+    possessionPhase = 'PROGRESSION';
+  }
 
-  if(isDangerousPhase){
-    // Combate Defensivo (Desarme ou Falta)
-    const foulChance = 0.17 + (defCfg.tackleBonus || 0);
-    const isFoul = s.prng() < foulChance;
-
-    if(isFoul){
-      if(isHomeAttacking) { s.stats.foulsA++; s.stats.tacklesA++; }
-      else { s.stats.foulsH++; s.stats.tacklesH++; }
-      
-      const defPool = defPlayers.filter(p => !p.isGK && !p.redCard);
-      const def = defPool[Math.floor(s.prng() * defPool.length)] || defPlayers[1];
-      const attPool = attPlayers.filter(p => !p.isGK && !p.redCard);
-      const att = attPool[Math.floor(s.prng() * attPool.length)] || attPlayers[9];
-
-      // Pênalti (~7% das faltas)
-      if(s.prng() < 0.07){
-        executePenaltySim(s, min, att, def, isHomeAttacking);
-      }
-      // Falta perigosa (~20% das faltas)
-      else if(s.prng() < 0.20){
-        executeFreeKickSim(s, min, att, def, isHomeAttacking);
-      }
-      // Falta tática com possível amarelo
-      else {
-        // Jogadores com cartão amarelo dosam o combate para evitar expulsão
-        const isYellow = (def.yellowCards ? s.prng() < 0.08 : s.prng() < 0.22);
-        if(isYellow){
-          if(isHomeAttacking) s.stats.yellowsA++; else s.stats.yellowsH++;
-          def.yellowCards = (def.yellowCards || 0) + 1;
-          if(def.yellowCards >= 2){
-            def.redCard = true;
-            if(isHomeAttacking) s.stats.redsA = (s.stats.redsA || 0) + 1;
-            else s.stats.redsH = (s.stats.redsH || 0) + 1;
-            s.events.unshift({ min, type: 'red', text: `🟥 SEGUNDO AMARELO E EXPULSÃO! ${def.name} (${defTeam}) comete falta dura e está expulso!` });
-          } else {
-            s.events.unshift({ min, type: 'yellow', text: `🟨 Cartão amarelo para ${def.name} (${defTeam}) por falta tática interrompendo o avanço.` });
-          }
-        } else {
-          s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta marcada! ${def.name} derruba ${att.name} no meio de campo.` });
-        }
+  // FASE 2: PROGRESSION (Meio de Campo / Transição)
+  if(possessionPhase === 'PROGRESSION'){
+    const midRoll = s.prng();
+    if(midRoll < 0.32){
+      // Interceptação ou desarme da zaga no meio-campo
+      if(isHome) { s.stats.interceptionsA++; s.stats.tacklesA++; }
+      else { s.stats.interceptionsH++; s.stats.tacklesH++; }
+    } else if(midRoll < 0.62){
+      // RECYCLE_POSSESSION: Meio-campo recua e inverte o corredor pacientemente
+      if(isHome) s.stats.passesH += 5; else s.stats.passesA += 5;
+    } else if(midRoll < 0.70){
+      // Falta no meio-campo com possível cartão amarelo
+      if(isHome) s.stats.foulsA++; else s.stats.foulsH++;
+      const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*5)+1] || defPlayers[2];
+      if(s.prng() < 0.16 && !defP.yellowCards){
+        defP.yellowCards = 1;
+        if(isHome) s.stats.yellowsA++; else s.stats.yellowsH++;
+        s.events.unshift({ min, type: 'yellow', text: `🟨 Cartão amarelo para ${defP.name} (${defTeam}) por entrada dura no círculo central.` });
+      } else {
+        s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta marcada de ${defP.name} sobre o meia do ${attTeam}.` });
       }
     } else {
-      // Chance de Finalização / Chute a Gol
-      const isShot = s.prng() < 0.65;
-      if(isShot){
-        executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg, attTeam, defTeam);
-      } else {
-        // Desarme limpo ou corte da zaga que vira escanteio
-        if(isHomeAttacking) s.stats.interceptionsA++; else s.stats.interceptionsH++;
-        if(s.prng() < 0.40){
-          if(isHomeAttacking) s.stats.cornersH++; else s.stats.cornersA++;
-          s.events.unshift({ min, type: 'corner', text: `🚩 Escanteio para o ${attTeam}! A zaga trava a infiltração e desvia pela linha de fundo.` });
-          showLiveBalloon(isHomeAttacking ? 99 : 1, 50, '🚩 ESCANTEIO!', '#38bdf8');
-        }
-      }
+      // Infiltração e passe vertical bem-sucedido: avança ao terço final!
+      possessionPhase = 'FINAL_THIRD';
     }
+  }
+
+  // FASE 3: FINAL_THIRD & CHANCE_CREATION (Último Terço e Resolução Ofensiva)
+  if(possessionPhase === 'FINAL_THIRD'){
+    // Define portador ofensivo
+    const fwPool = attPlayers.filter(p => !p.isGK && !p.redCard && ['ST','CF','RW','LW','AM','CM'].includes(p.pos));
+    s.ball.carrier = fwPool.length ? fwPool[Math.floor(s.prng() * fwPool.length)] : attPlayers[9];
+    s.ball.isHomeAttacking = isHome;
+
+    const boxRoll = s.prng();
+    if(boxRoll < 0.05){
+      // PÊNALTI!
+      const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[1];
+      executePenaltySim(s, min, s.ball.carrier, defP, isHome);
+    } else if(boxRoll < 0.16){
+      // FALTA PERIGOSA NA ENTRADA DA ÁREA!
+      const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[1];
+      executeFreeKickSim(s, min, s.ball.carrier, defP, isHome);
+    } else if(boxRoll < 0.30){
+      // Desarme limpo na área desviado para ESCANTEIO
+      if(isHome) { s.stats.cornersH++; s.stats.tacklesA++; }
+      else { s.stats.cornersA++; s.stats.tacklesH++; }
+      s.events.unshift({ min, type: 'corner', text: `🚩 Escanteio para o ${attTeam}! A zaga trava a infiltração no momento exato e desvia pela linha de fundo.` });
+      showLiveBalloon(isHome ? 99 : 1, 50, '🚩 ESCANTEIO!', '#38bdf8');
+    } else {
+      // FINALIZAÇÃO A GOL!
+      executeShotSim(s, min, attPlayers, defPlayers, isHome, attCfg, attTeam, defTeam, isCounterAttack);
+    }
+  } else {
+    // Posse mantida sem finalização: portador conduz a bola em transição
+    const carrierPool = attPlayers.filter(p => !p.isGK && !p.redCard);
+    s.ball.carrier = carrierPool[Math.floor(s.prng() * carrierPool.length)] || attPlayers[9];
+    s.ball.isHomeAttacking = isHome;
   }
 
   // Atualiza placar e feed na interface
@@ -11269,15 +11356,15 @@ function validateMatchEvent(evt, s){
   return true;
 }
 
-function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg, attTeam, defTeam){
+function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg, attTeam, defTeam, isCounterAttack=false){
   const forwards = attPlayers.filter(p => ['ST', 'CF', 'RW', 'LW', 'AM'].includes(p.pos) && !p.redCard && !p.isGK);
-  const shooter = (forwards.length && s.prng() < 0.82)
+  const shooter = (forwards.length && s.prng() < 0.84)
     ? forwards[Math.floor(s.prng() * forwards.length)]
     : attPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng() * 10)] || attPlayers[9];
 
   if(!validateMatchEntity(shooter, s) || shooter.isGK) return;
 
-  const gk = defPlayers[0] || { name: 'Goleiro', overall: 65, attrs: { reactions: 65, positioning: 65 } };
+  const gk = defPlayers.find(p => p.isGK) || defPlayers[0] || { name: 'Goleiro', overall: 65, attrs: { reactions: 65, positioning: 65 } };
   
   // Assistente em potencial
   const assistCandidates = attPlayers.filter(p => !p.isGK && p !== shooter && !p.redCard);
@@ -11286,7 +11373,9 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
     : null;
   if(assist && !validateAssist(assist, attTeam, s)) assist = null;
 
-  const pattern = selectPlayPattern(s, attCfg, isHomeAttacking, shooter, assist);
+  const pattern = isCounterAttack 
+    ? PLAY_PATTERNS.find(p => p.id === 'counter_attack') || PLAY_PATTERNS[3]
+    : selectPlayPattern(s, attCfg, isHomeAttacking, shooter, assist);
 
   if(isHomeAttacking) s.stats.shotsH++; else s.stats.shotsA++;
   if(pattern.id === 'crossing'){
@@ -11298,9 +11387,8 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
   const defLineHeight = Number(defTac.lineHeight) || 60;
   let throughBallBonus = 0;
   if(shooter.roleName === 'Advanced Forward' && defLineHeight >= 65){
-    throughBallBonus = 0.08; // Linha alta explorada com sucesso
-    // Checagem de impedimento (offside)
-    if(s.prng() < 0.16){
+    throughBallBonus = 0.08;
+    if(s.prng() < 0.14){
       if(isHomeAttacking) s.stats.offsidesH++; else s.stats.offsidesA++;
       s.events.unshift({
         min,
@@ -11311,19 +11399,21 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
     }
   }
 
-  // Cálculo granular de xG baseado em atributos do finalizador e da assistência
+  // Cálculo granular de xG baseado em atributos técnicos e contexto do lance
   const finishAttr = shooter.attrs?.finishing || shooter.overall || 65;
   const compAttr = shooter.attrs?.composure || shooter.overall || 65;
   const assistPassAttr = assist?.attrs?.passing || 65;
   const gkReactAttr = gk.attrs?.reactions || gk.overall || 65;
+  const gkPosAttr = gk.attrs?.positioning || gk.overall || 65;
+  const gkQuality = (gkReactAttr * 0.6 + gkPosAttr * 0.4);
 
-  const baseShotXG = (0.10 + (finishAttr - gkReactAttr) * 0.004 + (compAttr - 65) * 0.002 + (assistPassAttr - 65) * 0.002 + throughBallBonus) * (pattern.xGMod || 1.0);
-  const shotXG = clamp(+baseShotXG.toFixed(2), 0.06, 0.44);
+  const baseShotXG = (0.12 + (finishAttr - gkQuality) * 0.0035 + (compAttr - 65) * 0.0018 + (assistPassAttr - 65) * 0.0015 + throughBallBonus) * (pattern.xGMod || 1.0);
+  const shotXG = clamp(+baseShotXG.toFixed(2), 0.06, 0.45);
 
   if(isHomeAttacking) s.stats.xGH = +(s.stats.xGH + shotXG).toFixed(2);
   else s.stats.xGA = +(s.stats.xGA + shotXG).toFixed(2);
 
-  // Animação no campo 2.5D
+  // Configuração da trajetória visual do chute no campo 2.5D
   s.ball.carrier = null;
   s.ball.mode = 'shot';
   s.ball.shooter = shooter;
@@ -11338,13 +11428,13 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
   const roll = s.prng();
   const second = Math.floor(s.prng() * 59);
 
-  // Sequência causal narrativa
   const assistRoleName = assist ? (assist.roleName || 'Meia') : '';
   const shooterRoleName = shooter.roleName || 'Atacante';
   const causalChainText = assist 
     ? `${assist.name} (${assistRoleName}) ${pattern.text} e acha ${shooter.name} (${shooterRoleName})`
     : `${shooter.name} (${shooterRoleName}) ${pattern.text}`;
 
+  // 1. GOL CONFIRMADO
   if(roll < shotXG){
     if(!validateGoalScorer(shooter, attTeam, s)) return;
     s.ball.shotOutcome = 'gol';
@@ -11352,7 +11442,7 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
     else { s.ag++; s.stats.targetA++; }
     playCheerSound();
 
-    const goalTxt = `⚽ GOL DO ${attTeam}! ${causalChainText}, que fuzila cruzado sem chances para ${gk.name}! (xG: ${shotXG}) aos ${min}'!`;
+    const goalTxt = `⚽ GOL DO ${attTeam}! ${causalChainText}, que chapa com precisão estufando a rede de ${gk.name}! (xG: ${shotXG}) aos ${min}'!`;
 
     const evt = {
       id: `${s.matchId}_ev_${s.events.length + 1}`,
@@ -11374,36 +11464,94 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
     if(validateMatchEvent(evt, s)) s.events.unshift(evt);
     showLiveBanner(`⚽ GOL DO ${attTeam}! ${shooter.name} aos ${min}'!`, 'gol', 3500);
     s.lastScorer = shooter;
-  } else if(roll < shotXG + 0.44){
+  }
+  // 2. DEFESA DO GOLEIRO (No alvo)
+  else if(roll < shotXG + 0.38){
     s.ball.shotOutcome = 'save';
     if(isHomeAttacking) { s.stats.targetH++; s.stats.savesA++; }
     else { s.stats.targetA++; s.stats.savesH++; }
 
-    // Interação Sweeper Keeper (Líbero fora da área)
-    const isSweeperIntervention = (gk.roleName?.includes('Sweeper') && pattern.id === 'through_ball');
-    const saveTxt = isSweeperIntervention
-      ? `🧤 COBERTURA DE LÍBERO! ${gk.name} (Goleiro Líbero) sai veloz da grande área e antecipa o lançamento para ${shooter.name}!`
-      : `🧤 ESPETACULAR! ${causalChainText}, mas ${gk.name} salta com agilidade e espalma a finalização de ${shooter.name}! (xG: ${shotXG})`;
-
+    const defRoll = s.prng();
+    if(defRoll < 0.42){
+      // Espalma para escanteio
+      s.ball.isCorner = true;
+      if(isHomeAttacking) s.stats.cornersH++; else s.stats.cornersA++;
+      const evt = {
+        id: `${s.matchId}_ev_${s.events.length + 1}`,
+        matchId: s.matchId,
+        min,
+        second,
+        type: 'save',
+        teamId: attTeam,
+        playerId: shooter.id,
+        relatedPlayerId: gk?.id || null,
+        pattern: pattern.name,
+        text: `🧤 ESPALMOU! ${causalChainText}, mas ${gk.name} salta com agilidade incrível e espalma para escanteio! (xG: ${shotXG})`,
+        xG: shotXG
+      };
+      if(validateMatchEvent(evt, s)) s.events.unshift(evt);
+      showLiveBalloon(s.ball.targetX, s.ball.targetY, '🧤 DEFESASSA P/ ESCANTEIO!', '#38bdf8');
+    } else if(defRoll < 0.70){
+      // Rebote vivo na área
+      s.ball.isRebound = true;
+      const evt = {
+        id: `${s.matchId}_ev_${s.events.length + 1}`,
+        matchId: s.matchId,
+        min,
+        second,
+        type: 'save',
+        teamId: attTeam,
+        playerId: shooter.id,
+        relatedPlayerId: gk?.id || null,
+        pattern: pattern.name,
+        text: `🧤 REBOTE VIVO! ${causalChainText}. Chute cruzado espalmado por ${gk.name}, e a bola fica viva dentro da área! (xG: ${shotXG})`,
+        xG: shotXG
+      };
+      if(validateMatchEvent(evt, s)) s.events.unshift(evt);
+      showLiveBalloon(s.ball.targetX, s.ball.targetY, '🧤 REBOTE VIVO!', '#f97316');
+    } else {
+      // Defesa segura
+      const evt = {
+        id: `${s.matchId}_ev_${s.events.length + 1}`,
+        matchId: s.matchId,
+        min,
+        second,
+        type: 'save',
+        teamId: attTeam,
+        playerId: shooter.id,
+        relatedPlayerId: gk?.id || null,
+        pattern: pattern.name,
+        text: `🧤 DEFESA SEGURA! ${causalChainText}. Finalização rasteira bem defendida e segurada por ${gk.name}.`,
+        xG: shotXG
+      };
+      if(validateMatchEvent(evt, s)) s.events.unshift(evt);
+      showLiveBalloon(s.ball.targetX, s.ball.targetY, '🧤 DEFESA SEGURA!', '#22c55e');
+    }
+  }
+  // 3. CHUTE BLOQUEADO PELA ZAGA
+  else if(roll < shotXG + 0.52){
+    s.ball.shotOutcome = 'blocked';
+    const def = defPlayers.filter(p => !p.isGK && ['CB','LB','RB','DM'].includes(p.pos))[0] || defPlayers[1];
+    if(isHomeAttacking) s.stats.interceptionsA++; else s.stats.interceptionsH++;
+    if(s.prng() < 0.40){
+      if(isHomeAttacking) s.stats.cornersH++; else s.stats.cornersA++;
+    }
     const evt = {
       id: `${s.matchId}_ev_${s.events.length + 1}`,
       matchId: s.matchId,
       min,
       second,
-      type: 'save',
+      type: 'whistle',
       teamId: attTeam,
       playerId: shooter.id,
-      relatedPlayerId: gk?.id || null,
       pattern: pattern.name,
-      text: saveTxt,
-      xG: shotXG
+      text: `🛡️ BLOQUEIO PROVIDENCIAL! ${causalChainText}. ${def?.name || 'Zagueiro'} se atira no carrinho e trava a finalização de ${shooter.name}!`
     };
     if(validateMatchEvent(evt, s)) s.events.unshift(evt);
-    showLiveBalloon(s.ball.targetX, s.ball.targetY, '🧤 DEFESASSA!', '#22c55e');
-    if(s.prng() < 0.45){
-      if(isHomeAttacking) s.stats.cornersH++; else s.stats.cornersA++;
-    }
-  } else if(roll < shotXG + 0.56){
+    showLiveBalloon(shooter.x + (isHomeAttacking ? 5 : -5), shooter.y, '🛡️ TRAVADO!', '#38bdf8');
+  }
+  // 4. BOLA NA TRAVE
+  else if(roll < shotXG + 0.62){
     s.ball.shotOutcome = 'post';
     const evt = {
       id: `${s.matchId}_ev_${s.events.length + 1}`,
@@ -11414,12 +11562,14 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
       teamId: attTeam,
       playerId: shooter.id,
       pattern: pattern.name,
-      text: `💥 NA TRAVE! ${causalChainText}. ${shooter.name} solta uma bomba que explode na trave! (xG: ${shotXG})`,
+      text: `💥 NA TRAVE! ${causalChainText}. ${shooter.name} solta uma bomba que explode no travessão! (xG: ${shotXG})`,
       xG: shotXG
     };
     if(validateMatchEvent(evt, s)) s.events.unshift(evt);
-    showLiveBalloon(s.ball.targetX, s.ball.targetY, '💥 NA TRAVE!', '#f87171');
-  } else {
+    showLiveBalloon(s.ball.targetX, s.ball.targetY, '💥 NA TRAVE!', '#ef4444');
+  }
+  // 5. CHUTE PARA FORA
+  else {
     s.ball.shotOutcome = 'miss';
     const evt = {
       id: `${s.matchId}_ev_${s.events.length + 1}`,
@@ -11430,7 +11580,7 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
       teamId: attTeam,
       playerId: shooter.id,
       pattern: pattern.name,
-      text: `⚡ ${causalChainText}. A finalização de ${shooter.name} tira tinta da trave e sai pela linha de fundo.`
+      text: `⚡ PRA FORA! ${causalChainText}. O arremate de ${shooter.name} tira tinta da trave e se perde pela linha de fundo.`
     };
     if(validateMatchEvent(evt, s)) s.events.unshift(evt);
   }
@@ -11442,7 +11592,7 @@ function executePenaltySim(s, min, att, def, isHomeAttacking){
   const attPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
   const defPlayers = isHomeAttacking ? s.awayPlayers : s.homePlayers;
   const kicker = attPlayers.filter(p => !p.isGK && !p.redCard).sort((a,b)=>(b.overall||65)-(a.overall||65))[0] || att;
-  const gk = defPlayers[0] || { name: 'Goleiro', overall: 65 };
+  const gk = defPlayers.find(p => p.isGK) || defPlayers[0] || { name: 'Goleiro', overall: 65 };
 
   if(!validateMatchEntity(kicker, s)) return;
   kicker.isPenalty = true;
@@ -11489,7 +11639,8 @@ function executePenaltySim(s, min, att, def, isHomeAttacking){
     s.lastScorer = kicker;
   } else {
     s.ball.shotOutcome = 'save';
-    if(isHomeAttacking) s.stats.targetH++; else s.stats.targetA++;
+    if(isHomeAttacking) { s.stats.targetH++; s.stats.savesA++; }
+    else { s.stats.targetA++; s.stats.savesH++; }
     const evt = {
       id: `${s.matchId}_ev_${s.events.length + 1}`,
       matchId: s.matchId,
@@ -11500,7 +11651,7 @@ function executePenaltySim(s, min, att, def, isHomeAttacking){
       playerId: kicker.id,
       relatedPlayerId: gk?.id || null,
       pattern: 'Pênalti',
-      text: `🧤 DEFENDEU O PÊNALTI! ${gk.name} salta no canto e espalma a cobrança de ${kicker.name}!`,
+      text: `🧤 DEFENDEU O PÊNALTI! ${gk.name} salta com agilidade no canto e espalma a cobrança de ${kicker.name}!`,
       xG: penXG
     };
     if(validateMatchEvent(evt, s)) s.events.unshift(evt);
@@ -11514,7 +11665,7 @@ function executeFreeKickSim(s, min, att, def, isHomeAttacking){
   const attPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
   const defPlayers = isHomeAttacking ? s.awayPlayers : s.homePlayers;
   const kicker = attPlayers.filter(p => !p.isGK && !p.redCard).sort((a,b)=>(b.overall||65)-(a.overall||65))[0] || att;
-  const gk = defPlayers[0] || { name: 'Goleiro', overall: 65 };
+  const gk = defPlayers.find(p => p.isGK) || defPlayers[0] || { name: 'Goleiro', overall: 65 };
 
   if(!validateMatchEntity(kicker, s)) return;
 
@@ -11550,7 +11701,7 @@ function executeFreeKickSim(s, min, att, def, isHomeAttacking){
       teamId: attTeam,
       playerId: kicker.id,
       pattern: 'Falta Direta',
-      text: `🎯 GOLAÇO DE FALTA! ${kicker.name} acerta o ângulo com efeito sem chances para ${gk.name}!`,
+      text: `🎯 GOLAÇO DE FALTA! ${kicker.name} acerta o ângulo com curva perfeita sem chances para ${gk.name}!`,
       xG: fkXG,
       scorer: kicker.name
     };
@@ -11602,248 +11753,6 @@ function simulateMatchSegment(startMin, endMin){
   }
 }
 
-function updateLiveCanvasPositions(s){
-  if(!s) return;
-  const hTeam = s.homePlayers || [];
-  const aTeam = s.awayPlayers || [];
-  if(!hTeam.length || !aTeam.length) return;
-
-  if(!s.ball){
-    s.ball = { x: 50, y: 50, z: 0, mode: 'dribble', carrier: hTeam[5] || hTeam[1], isHomeAttacking: true };
-  }
-
-  const isHomeAttacking = s.ball.isHomeAttacking ?? true;
-  const targetGoalX = isHomeAttacking ? 94 : 6;
-  const attTeam = isHomeAttacking ? hTeam : aTeam;
-  const defTeam = isHomeAttacking ? aTeam : hTeam;
-
-  // 1. RECUPERAÇÃO DE BOLA: Se não houver condutor e a bola não estiver em chute
-  if(!s.ball.carrier && s.ball.mode !== 'shot' && s.ball.mode !== 'pass'){
-    let closestP = null;
-    let minDist = 9999;
-    const allOutfield = [...hTeam.slice(1), ...aTeam.slice(1)].filter(p => !p.redCard);
-    for(const p of allOutfield){
-      const d = Math.hypot(p.x - s.ball.x, p.y - s.ball.y);
-      if(d < minDist){
-        minDist = d;
-        closestP = p;
-      }
-    }
-    // Goleiros recolhem dentro da pequena área
-    if(s.ball.x < 7 && hTeam[0]){
-      s.ball.carrier = hTeam[0];
-      s.ball.isHomeAttacking = true;
-    } else if(s.ball.x > 93 && aTeam[0]){
-      s.ball.carrier = aTeam[0];
-      s.ball.isHomeAttacking = false;
-    } else if(closestP && minDist < 4.0){
-      s.ball.carrier = closestP;
-      s.ball.isHomeAttacking = (closestP.team === 'home');
-      s.ball.dribbleTicks = 0;
-    } else if(closestP){
-      // Jogador mais próximo corre até a bola para recuperá-la
-      const dx = s.ball.x - closestP.x;
-      const dy = s.ball.y - closestP.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      closestP.x += (dx / dist) * 0.45;
-      closestP.y += (dy / dist) * 0.45;
-      closestP.animFrame = (closestP.animFrame || 0) + 0.25;
-    }
-  }
-
-  // 2. FÍSICA E ESTADOS DA BOLA
-  if(s.ball.mode === 'shot'){
-    s.ball.progress = Math.min(1.0, (s.ball.progress || 0) + 0.06);
-    const pr = s.ball.progress;
-    s.ball.x = s.ball.startX + (s.ball.targetX - s.ball.startX) * pr;
-    s.ball.y = s.ball.startY + (s.ball.targetY - s.ball.startY) * pr;
-    s.ball.z = Math.sin(pr * Math.PI) * (s.ball.curveZ || 6.0);
-
-    // Goleiro defensor salta/mergulha em direção à bola
-    const defendingGK = isHomeAttacking ? aTeam[0] : hTeam[0];
-    if(defendingGK){
-      defendingGK.y += (s.ball.targetY - defendingGK.y) * 0.18;
-      defendingGK.animFrame = (defendingGK.animFrame || 0) + 0.3;
-    }
-
-    if(pr >= 1.0){
-      s.ball.z = 0;
-      if(s.ball.shotOutcome === 'gol'){
-        // Gol! Bola na rede, prepara reinício no centro
-        setTimeout(() => {
-          if(s && s.ball){
-            s.ball.x = 50; s.ball.y = 50;
-            s.ball.carrier = (!isHomeAttacking ? hTeam[10] : aTeam[10]) || null;
-            s.ball.isHomeAttacking = !isHomeAttacking;
-            s.ball.mode = 'dribble';
-            s.ball.dribbleTicks = 0;
-          }
-        }, 1200);
-      } else if(s.ball.shotOutcome === 'save'){
-        const gk = isHomeAttacking ? aTeam[0] : hTeam[0];
-        s.ball.carrier = gk;
-        s.ball.isHomeAttacking = !isHomeAttacking;
-        s.ball.mode = 'dribble';
-        s.ball.dribbleTicks = 0;
-      } else {
-        // Bola fora / tiro de meta
-        const gk = isHomeAttacking ? aTeam[0] : hTeam[0];
-        if(gk){
-          s.ball.x = isHomeAttacking ? 94 : 6;
-          s.ball.y = 50;
-          s.ball.carrier = gk;
-          s.ball.isHomeAttacking = !isHomeAttacking;
-          s.ball.mode = 'dribble';
-          s.ball.dribbleTicks = 0;
-        }
-      }
-    }
-  } else if(s.ball.mode === 'pass'){
-    s.ball.progress = Math.min(1.0, (s.ball.progress || 0) + 0.08);
-    const pr = s.ball.progress;
-    const tgt = s.ball.passTarget;
-    if(tgt){
-      s.ball.x = s.ball.startX + (tgt.x - s.ball.startX) * pr;
-      s.ball.y = s.ball.startY + (tgt.y - s.ball.startY) * pr;
-      s.ball.z = Math.sin(pr * Math.PI) * 1.8;
-      if(pr >= 1.0){
-        s.ball.mode = 'dribble';
-        s.ball.carrier = tgt;
-        s.ball.isHomeAttacking = (tgt.team === 'home');
-        s.ball.dribbleTicks = 0;
-        s.ball.z = 0;
-      }
-    } else {
-      s.ball.mode = 'dribble';
-      s.ball.z = 0;
-    }
-  } else if(s.ball.carrier){
-    const c = s.ball.carrier;
-    s.ball.dribbleTicks = (s.ball.dribbleTicks || 0) + 1;
-
-    // Se o goleiro tem a bola, dá passe rápido para a zaga
-    if(c.isGK){
-      if(s.ball.dribbleTicks > 20){
-        const defs = (c.team === 'home' ? hTeam : aTeam).filter(p => !p.isGK && ['CB','LB','RB','DM'].includes(p.pos));
-        const receiver = defs[Math.floor(Math.random() * defs.length)] || (c.team === 'home' ? hTeam[1] : aTeam[1]);
-        s.ball.mode = 'pass';
-        s.ball.startX = c.x;
-        s.ball.startY = c.y;
-        s.ball.passTarget = receiver;
-        s.ball.progress = 0;
-        s.ball.carrier = null;
-      }
-    } else {
-      // Drible ativo em direção ao gol adversário
-      const dirX = targetGoalX > c.x ? 1 : -1;
-      const speed = 0.16 + ((c.attrs?.pace || c.overall || 65) - 60) * 0.0018;
-      c.x = clamp(c.x + dirX * speed, 5, 95);
-      c.y = clamp(c.y + Math.sin(s.renderTicks * 0.08) * 0.15, 12, 88);
-      c.animFrame = (c.animFrame || 0) + 0.3;
-
-      s.ball.x = c.x + dirX * 1.3;
-      s.ball.y = c.y;
-      s.ball.z = Math.abs(Math.sin(c.animFrame * 2)) * 0.25;
-
-      // Pressionamento: defensor adversário mais próximo combate
-      const opponents = (c.team === 'home' ? aTeam : hTeam).filter(p => !p.isGK && !p.redCard);
-      let closestOpp = null;
-      let oppDist = 999;
-      for(const opp of opponents){
-        const d = Math.hypot(opp.x - c.x, opp.y - c.y);
-        if(d < oppDist){
-          oppDist = d;
-          closestOpp = opp;
-        }
-      }
-
-      // Se o adversário chegar perto (< 5.5%) ou após muito tempo com a bola, efetua passe inteligente
-      if((oppDist < 5.5 || s.ball.dribbleTicks > 55) && !s.ball.mode_locked){
-        const teammates = (c.team === 'home' ? hTeam : aTeam).filter(p => p !== c && !p.isGK && !p.redCard);
-        // Prioriza companheiro desmarcado à frente
-        const forwardTeammates = teammates.filter(p => (dirX > 0 ? p.x > c.x - 2 : p.x < c.x + 2));
-        const pool = forwardTeammates.length ? forwardTeammates : teammates;
-        const receiver = pool[Math.floor(Math.random() * pool.length)];
-        if(receiver){
-          s.ball.mode = 'pass';
-          s.ball.startX = c.x;
-          s.ball.startY = c.y;
-          s.ball.passTarget = receiver;
-          s.ball.progress = 0;
-          s.ball.carrier = null;
-        }
-      }
-    }
-  }
-
-  // 3. MOVIMENTAÇÃO TÁTICA DOS JOGADORES DE LINHA (DESLOCAMENTO COLETIVO REAL)
-  const ballX = s.ball?.x ?? 50;
-  const ballY = s.ball?.y ?? 50;
-
-  // Linhas do time mandante
-  hTeam.forEach(p => {
-    p.animFrame = (p.animFrame || 0) + 0.16;
-    if(p.isGK || p === s.ball?.carrier) return;
-
-    // Se o time estiver atacando, avança bloco; se defendendo, recua bloco
-    const blockShiftX = isHomeAttacking ? 12 : -7;
-    const tacticalBaseX = clamp(p.baseX + blockShiftX, 10, 90);
-    const tacticalBaseY = clamp(p.baseY + (ballY - 50) * 0.2, 10, 90);
-
-    // Marcação / Pressão individual
-    if(!isHomeAttacking && s.ball?.carrier && Math.hypot(p.x - s.ball.carrier.x, p.y - s.ball.carrier.y) < 14){
-      p.x += (s.ball.carrier.x - p.x) * 0.08;
-      p.y += (s.ball.carrier.y - p.y) * 0.08;
-    } else {
-      p.x += (tacticalBaseX - p.x) * 0.05 + Math.sin(p.animFrame) * 0.12;
-      p.y += (tacticalBaseY - p.y) * 0.05 + Math.cos(p.animFrame) * 0.12;
-    }
-    p.x = clamp(p.x, 6, 94);
-    p.y = clamp(p.y, 8, 92);
-  });
-
-  // Linhas do time visitante
-  aTeam.forEach(p => {
-    p.animFrame = (p.animFrame || 0) + 0.16;
-    if(p.isGK || p === s.ball?.carrier) return;
-
-    const blockShiftX = !isHomeAttacking ? -12 : 7;
-    const tacticalBaseX = clamp(p.baseX + blockShiftX, 10, 90);
-    const tacticalBaseY = clamp(p.baseY + (ballY - 50) * 0.2, 10, 90);
-
-    if(isHomeAttacking && s.ball?.carrier && Math.hypot(p.x - s.ball.carrier.x, p.y - s.ball.carrier.y) < 14){
-      p.x += (s.ball.carrier.x - p.x) * 0.08;
-      p.y += (s.ball.carrier.y - p.y) * 0.08;
-    } else {
-      p.x += (tacticalBaseX - p.x) * 0.05 + Math.sin(p.animFrame) * 0.12;
-      p.y += (tacticalBaseY - p.y) * 0.05 + Math.cos(p.animFrame) * 0.12;
-    }
-    p.x = clamp(p.x, 6, 94);
-    p.y = clamp(p.y, 8, 92);
-  });
-
-  // 4. POSICIONAMENTO E COBERTURA DOS GOLEIROS
-  if(hTeam[0] && s.ball.mode !== 'shot'){
-    hTeam[0].x = 3.5;
-    hTeam[0].y = clamp(50 + (ballY - 50) * 0.28, 41, 59);
-    hTeam[0].animFrame = (hTeam[0].animFrame || 0) + 0.1;
-  }
-  if(aTeam[0] && s.ball.mode !== 'shot'){
-    aTeam[0].x = 96.5;
-    aTeam[0].y = clamp(50 + (ballY - 50) * 0.28, 41, 59);
-    aTeam[0].animFrame = (aTeam[0].animFrame || 0) + 0.1;
-  }
-
-  // 5. MOVIMENTAÇÃO DINÂMICA DO ÁRBITRO
-  if(s.referee){
-    const refTargetX = clamp(ballX + (ballX > 50 ? -14 : 14), 20, 80);
-    const refTargetY = clamp(ballY + (ballY > 50 ? -12 : 12), 24, 76);
-    s.referee.x += (refTargetX - s.referee.x) * 0.05;
-    s.referee.y += (refTargetY - s.referee.y) * 0.05;
-    s.referee.animFrame = (s.referee.animFrame || 0) + 0.18;
-  }
-}
-
 function updateTelemetryHud(s){
   const el = $('#liveTelemetryHud');
   if(!el) return;
@@ -11871,600 +11780,12 @@ function updateTelemetryHud(s){
   `;
 }
 
-// Atualiza a física e movimentação realista da partida (delegado ao renderer desacoplado)
 function updateLiveMatchPhysics(dtSec){
   const s = liveMatchState;
   if(!s || s.done) return;
   updateLiveCanvasPositions(s);
 }
-function _legacyPhysicsSim(dtSec){
-  const s = liveMatchState;
-  if(!s) return;
 
-  // ==============================================================
-  // ESTADO 2: BOLA EM FINALIZAÇÃO / CHUTE A GOL (VELOCIDADE E ARCO)
-  // ==============================================================
-  if(s.ball.mode === 'shot'){
-    const shotSpeed = s.speed === 40 ? 7.0 : s.speed === 20 ? 5.2 : 2.4;
-    s.ball.progress = (s.ball.progress || 0) + dtSec * shotSpeed;
-    s.ball.spin = (s.ball.spin || 0) + 0.5;
-
-    const pr = clamp(s.ball.progress, 0, 1);
-    s.ball.x = s.ball.startX + (s.ball.targetX - s.ball.startX) * pr;
-    s.ball.y = s.ball.startY + (s.ball.targetY - s.ball.startY) * pr;
-    s.ball.z = Math.sin(pr * Math.PI) * (s.ball.curveZ || 7.5);
-
-    // Rastro da bola em alta velocidade
-    if(Math.random() < 0.6){
-      s.ball.trail.push({ x: s.ball.x, y: s.ball.y, z: s.ball.z, alpha: 1.0 });
-    }
-
-    // O goleiro adversário mergulha em direção à trajetória
-    const defendingGK = s.defendingGK;
-    if(defendingGK){
-      defendingGK.diving = true;
-      defendingGK.y += (s.ball.targetY - defendingGK.y) * 0.22;
-      defendingGK.animFrame = (defendingGK.animFrame || 0) + 0.3;
-    }
-
-    if(s.ball.progress >= 1.0){
-      // Chegada da bola na linha de gol / rede!
-      const outcome = s.ball.shotOutcome;
-      const shooter = s.ball.shooter;
-      const isHome = shooter?.team === 'home';
-
-      if(outcome === 'gol'){
-        // GOL CONFIRMADO!
-        if(isHome) s.hg++; else s.ag++;
-        playCheerSound();
-        const goalText = generateGoalNarration(shooter, isHome ? s.home : s.away, isHome);
-        s.events.unshift({
-          min: s.minute,
-          type: 'gol',
-          text: goalText
-        });
-        showLiveBanner(`⚽ GOL DO ${isHome ? s.home : s.away}! ${shooter.name} aos ${s.minute}'!`, 'gol', 5000);
-
-        // Fumaça e sinalizadores se comprados
-        if(s.stadium.upgrades?.flares){
-          for(let i=0; i<35; i++){
-            s.particles.push({
-              x: 200 + Math.random() * 880,
-              y: 160 + Math.random() * 40,
-              size: 7,
-              vy: 0.9 + Math.random() * 1.6,
-              color: 'rgba(239, 68, 68, 0.75)',
-              alpha: 1
-            });
-          }
-        }
-
-        s.ball.mode = 'goal';
-        s.ball.z = 1.0;
-        s.goalCelebrationTimer = 3.2; // 3.2 segundos de comemoração na tela!
-        s.lastScorer = shooter;
-        shooter.celebrating = true;
-        shooter.targetX = isHome ? 92 : 8;
-        shooter.targetY = 16;
-      } else if(outcome === 'save'){
-        // Defesa do goleiro! 45% de chance de espalmar para escanteio!
-        s.events.unshift({
-          min: s.minute,
-          type: 'save',
-          text: `🧤 ESPETACULAR! Defesa de ${defendingGK ? defendingGK.name : 'Goleiro'} em cima da linha!`
-        });
-        showLiveBalloon(s.ball.x, s.ball.y, '🧤 DEFESASSA!', '#22c55e');
-        
-        if(Math.random() < 0.45){
-          triggerCorner(isHome);
-        } else {
-          s.ball.mode = 'dribble';
-          s.ball.carrier = defendingGK;
-          s.ball.z = 0;
-        }
-        setTimeout(() => {
-          if(defendingGK) defendingGK.diving = false;
-        }, 1200);
-      } else {
-        // Na trave / raspando!
-        s.events.unshift({
-          min: s.minute,
-          type: 'post',
-          text: `💥 NA TRAVE! Finalização venenosa de ${shooter.name} estremece o travessão!`
-        });
-        showLiveBalloon(s.ball.x, s.ball.y, '💥 NA TRAVE!', '#f87171');
-        
-        if(Math.random() < 0.50){
-          triggerCorner(isHome);
-        } else {
-          s.ball.mode = 'dribble';
-          s.ball.carrier = defendingGK;
-          s.ball.z = 0;
-        }
-        if(defendingGK) defendingGK.diving = false;
-      }
-
-      updateScoreDisplay();
-      updateLiveSidebarEvents();
-    }
-  }
-
-  // ==============================================================
-  // ESTADO 3: ESPERANDO COBRANÇA DE PÊNALTI
-  // ==============================================================
-  else if(s.ball.mode === 'penalty_wait'){
-    s.ball.penaltyTimer = (s.ball.penaltyTimer || 1.8) - dtSec;
-    if(s.ball.penaltyTimer <= 0){
-      const kicker = s.ball.penaltyKicker;
-      const isHome = s.ball.isHomeAttacking;
-      const defendingGK = isHome ? s.awayPlayers[0] : s.homePlayers[0];
-      playKickSound();
-      s.ball.mode = 'shot';
-      s.ball.shooter = kicker;
-      s.ball.startX = kicker.x;
-      s.ball.startY = kicker.y;
-      s.ball.targetX = isHome ? 99.5 : 0.5;
-      s.ball.targetY = 50 + rnd(-7, 7);
-      s.ball.progress = 0;
-      s.ball.curveZ = rnd(2.5, 4.5);
-      
-      const roll = Math.random();
-      const kickOvr = kicker?.overall || 68;
-      const gkOvr = defendingGK?.overall || 65;
-      const goalProb = clamp(0.76 + (kickOvr - gkOvr) * 0.005, 0.60, 0.90);
-      s.ball.shotOutcome = roll < goalProb ? 'gol' : (roll < goalProb + 0.16 ? 'save' : 'post');
-      if(isHome) s.stats.shotsH++; else s.stats.shotsA++;
-      kicker.kickTimer = 0.5;
-    }
-  }
-
-  // ==============================================================
-  // ESTADO 4: ESPERANDO COBRANÇA DE FALTA PERIGOSA COM BARREIRA
-  // ==============================================================
-  else if(s.ball.mode === 'freekick_wait'){
-    s.ball.freekickTimer = (s.ball.freekickTimer || 1.8) - dtSec;
-    if(s.ball.freekickTimer <= 0){
-      const kicker = s.ball.freekickKicker;
-      const isHome = s.ball.isHomeAttacking;
-      playKickSound();
-      s.ball.mode = 'shot';
-      s.ball.shooter = kicker;
-      s.ball.startX = kicker.x;
-      s.ball.startY = kicker.y;
-      s.ball.targetX = isHome ? 99.5 : 0.5;
-      s.ball.targetY = 50 + rnd(-7, 7);
-      s.ball.progress = 0;
-      s.ball.curveZ = rnd(5.5, 7.5);
-      
-      const roll = Math.random();
-      s.ball.shotOutcome = roll < 0.35 ? 'gol' : (roll < 0.72 ? 'save' : 'post');
-      if(isHome) s.stats.shotsH++; else s.stats.shotsA++;
-      kicker.kickTimer = 0.5;
-    }
-  }
-
-  // ==============================================================
-  // ESTADO 5: ESPERANDO COBRANÇA DE ESCANTEIO COM CABECEIO NA ÁREA
-  // ==============================================================
-  else if(s.ball.mode === 'corner_wait'){
-    s.ball.cornerTimer = (s.ball.cornerTimer || 1.6) - dtSec;
-    if(s.ball.cornerTimer <= 0){
-      const taker = s.ball.cornerTaker;
-      const isHome = s.ball.isHomeAttacking;
-      playKickSound();
-      
-      s.ball.mode = 'pass';
-      s.ball.startX = taker.x;
-      s.ball.startY = taker.y;
-      s.ball.targetX = isHome ? 92 : 8;
-      s.ball.targetY = 50 + rnd(-8, 8);
-      s.ball.progress = 0;
-      s.ball.curveZ = 6.5;
-      
-      const attackingPlayers = isHome ? s.homePlayers : s.awayPlayers;
-      const headerTarget = attackingPlayers.filter(p => !p.isGK && p !== taker).sort((a,b)=>(b.overall||65)-(a.overall||65))[0] || attackingPlayers[9];
-      s.ball.targetPlayer = headerTarget;
-      
-      setTimeout(() => {
-        if(s.ball && s.ball.carrier === headerTarget && Math.random() < 0.65){
-          shootAtGoal(headerTarget);
-        }
-      }, 700);
-    }
-  }
-
-  // ==============================================================
-  // ESTADO 6: POSSE DE BOLA NORMAL (DRIBLE, PRESSÃO E DECISÕES)
-  // ==============================================================
-  else {
-    const carrier = s.ball.carrier;
-    if(carrier){
-      const isHome = carrier.team === 'home';
-      const targetGoalX = isHome ? 96 : 4;
-      const dirX = targetGoalX > carrier.x ? 1 : -1;
-      const carrierCfg = isHome ? hCfg : aCfg;
-
-      // Condução de bola com ginga acelerada pela postura e atenuada pelo cansaço (stamina)
-      const carrierStamFactor = 0.60 + 0.40 * ((carrier.stamina || 100) / 100);
-      carrier.x = clamp(carrier.x + dirX * (0.22 * carrierCfg.speedMult * carrierStamFactor), 3, 97);
-      carrier.y = clamp(carrier.y + Math.sin(s.timeSec * 2.5) * 0.14, 10, 90);
-      carrier.animFrame = (carrier.animFrame || 0) + 0.28;
-
-      s.ball.x = carrier.x + dirX * 1.4;
-      s.ball.y = carrier.y;
-      s.ball.z = Math.abs(Math.sin(carrier.animFrame)) * 0.6;
-      s.ball.spin = (s.ball.spin || 0) + 0.15;
-
-      // 1. MARCAÇÃO COLETIVA EM BLOCO & PRESSÃO DINÂMICA
-      const opponents = (isHome ? s.awayPlayers : s.homePlayers).filter(p => !p.isGK);
-      const oppCfg = isHome ? aCfg : hCfg;
-      const sortedOpps = opponents.slice().sort((a,b) => Math.hypot(a.x - carrier.x, a.y - carrier.y) - Math.hypot(b.x - carrier.x, b.y - carrier.y));
-      const nearestOpp = sortedOpps[0] || null;
-      const secondOpp = sortedOpps[1] || null;
-      const minDist = nearestOpp ? Math.hypot(nearestOpp.x - carrier.x, nearestOpp.y - carrier.y) : 999;
-
-      // 1.1 O primeiro defensor fecha em cima do portador para abafar a jogada
-      if(nearestOpp && minDist > 2.2){
-        const pSpeed = (oppCfg.pressSpeed * 1.25) * (nearestOpp.isUser ? speechTackleMod : 1.0);
-        nearestOpp.x += (carrier.x - nearestOpp.x) * pSpeed;
-        nearestOpp.y += (carrier.y - nearestOpp.y) * pSpeed;
-        nearestOpp.animFrame = (nearestOpp.animFrame || 0) + 0.28;
-      }
-
-      // 1.2 O segundo defensor fecha a cobertura e corta a linha de passe central
-      if(secondOpp){
-        const coverTargetX = carrier.x - (dirX * 4.5);
-        const coverTargetY = carrier.y + ((carrier.y > 50 ? -6 : 6));
-        secondOpp.x += (coverTargetX - secondOpp.x) * (oppCfg.pressSpeed * 0.75);
-        secondOpp.y += (coverTargetY - secondOpp.y) * (oppCfg.pressSpeed * 0.75);
-        secondOpp.animFrame = (secondOpp.animFrame || 0) + 0.20;
-      }
-
-      // 1.3 Todo o restante do bloco defensivo sobe/recua junto e faz o balanço lateral
-      const defLineTargetX = isHome ? clamp(carrier.x + 14, 25, 82) : clamp(carrier.x - 14, 18, 75);
-      opponents.slice(2).forEach(def => {
-        const targetY = clamp(def.baseY + (carrier.y - def.baseY) * 0.35, 12, 88);
-        const targetX = clamp(def.baseX + (defLineTargetX - def.baseX) * 0.28, 6, 94);
-        def.x += (targetX - def.x) * 0.05;
-        def.y += (targetY - def.y) * 0.05;
-        def.animFrame = (def.animFrame || 0) + 0.12;
-      });
-
-      // 2. CONSTRUÇÃO OFENSIVA COLETIVA, DESMARCAÇÕES & TRIANGULAÇÕES
-      const teamCfg = isHome ? hCfg : aCfg;
-      const teammates = (isHome ? s.homePlayers : s.awayPlayers).filter(p => p !== carrier && !p.isGK);
-      teammates.forEach(tm => {
-        const postureTargetX = clamp(tm.baseX + teamCfg.lineOffset * dirX, 5, 95);
-        if(tm.pos === 'ST' || tm.pos === 'LW' || tm.pos === 'RW' || tm.pos === 'AM'){
-          const attackRunX = clamp(carrier.x + dirX * 16, 6, 94);
-          const attackRunY = clamp(tm.baseY + Math.sin(s.timeSec * 3 + tm.x) * 6, 12, 88);
-          tm.x += (attackRunX - tm.x) * (0.07 * teamCfg.speedMult);
-          tm.y += (attackRunY - tm.y) * (0.06 * teamCfg.speedMult);
-        } else if(tm.pos === 'LB' || tm.pos === 'RB'){
-          const wingRunX = clamp(carrier.x + dirX * 6, 8, 92);
-          tm.x += (wingRunX - tm.x) * (0.05 * teamCfg.speedMult);
-          tm.y += (tm.baseY - tm.y) * 0.04;
-        } else {
-          const supportX = clamp(carrier.x - dirX * 7, 6, 94);
-          const supportY = clamp(carrier.y + (tm.baseY > 50 ? 8 : -8), 14, 86);
-          tm.x += (supportX - tm.x) * (0.06 * teamCfg.speedMult);
-          tm.y += (supportY - tm.y) * (0.06 * teamCfg.speedMult);
-        }
-        tm.animFrame = (tm.animFrame || 0) + 0.15;
-      });
-
-      // 3. TOMADA DE DECISÃO REALISTA: CHUTE, TOQUE DE BOLA OU DRIBLE
-      const distToGoal = Math.abs(carrier.x - targetGoalX);
-      const shotProb = teamCfg.shotFreq * (carrier.isUser ? speechShotMod : 1.0);
-      const isUnderHeavyPressure = minDist < 3.8;
-
-      if(distToGoal < 32 && Math.random() < shotProb * 1.8){
-        shootAtGoal(carrier);
-      } else if(isUnderHeavyPressure ? (Math.random() < 0.28) : (Math.random() < 0.16)){
-        passBall(carrier);
-      } else if(minDist < 3.2 && Math.random() < 0.12){
-        attemptTackle(carrier);
-      }
-    }
-  }
-
-  // 4. Posicionamento inteligente dos goleiros ao longo da pequena área
-  const homeGK = s.homePlayers[0];
-  const awayGK = s.awayPlayers[0];
-  if(homeGK && !homeGK.diving){
-    homeGK.x = 3.5;
-    homeGK.y = clamp(homeGK.y + (s.ball.y - homeGK.y) * 0.06, 42, 58);
-  }
-  if(awayGK && !awayGK.diving){
-    awayGK.x = 96.5;
-    awayGK.y = clamp(awayGK.y + (s.ball.y - awayGK.y) * 0.06, 42, 58);
-  }
-}
-
-function shootAtGoal(shooter){
-  const s = liveMatchState;
-  const isHome = shooter.team === 'home';
-  playKickSound();
-
-  if(isHome) s.stats.shotsH++; else s.stats.shotsA++;
-  shooter.kickTimer = 0.45;
-
-  const defendingGK = isHome ? s.awayPlayers[0] : s.homePlayers[0];
-  s.defendingGK = defendingGK;
-
-  const hs = teamStrengthByName(s.home) * 1.12; // Bônus de mando de campo (+12%)
-  const as = teamStrengthByName(s.away);
-  const speechGoalMod = (shooter.isUser && s.prelecao === 'Elogiar o time') ? 1.25 : 1.0;
-
-  // Chance de zebra/underdog: times mais fracos têm bônus em contra-ataques
-  const isUnderdog = isHome ? (hs < as - 5) : (as < hs - 5);
-  const underdogBonus = isUnderdog ? 0.08 : 0;
-  const ovrBonus = ((shooter.overall || 65) - 60) * 0.007;
-
-  const goalChance = clamp(
-    (isHome ? (hs / 130) * 0.38 : (as / 130) * 0.35) * speechGoalMod + underdogBonus + ovrBonus,
-    0.15,
-    0.45
-  );
-  const roll = Math.random();
-  const outcome = roll < goalChance ? 'gol' : (roll < goalChance + 0.46 ? 'save' : 'post');
-
-  s.ball.carrier = null;
-  s.ball.mode = 'shot';
-  s.ball.shooter = shooter;
-  s.ball.startX = shooter.x;
-  s.ball.startY = shooter.y;
-  s.ball.targetX = isHome ? 99.5 : 0.5;
-  s.ball.targetY = 50 + rnd(-9, 9);
-  s.ball.progress = 0;
-  s.ball.curveZ = rnd(5.5, 8.5);
-  s.ball.shotOutcome = outcome;
-  s.ball.trail = [];
-}
-
-function passBall(passer){
-  const s = liveMatchState;
-  const isHome = passer.team === 'home';
-  const teammates = (isHome ? s.homePlayers : s.awayPlayers).filter(p => p !== passer && !p.isGK);
-  if(!teammates.length) return;
-
-  // Prioriza companheiro à frente ou livre
-  const dirX = isHome ? 1 : -1;
-  const forwardTeammates = teammates.filter(p => (p.x - passer.x) * dirX > -2);
-  const pool = forwardTeammates.length ? forwardTeammates : teammates;
-  const target = pool[rnd(0, pool.length - 1)];
-
-  playKickSound();
-  passer.kickTimer = 0.35;
-
-  s.ball.carrier = null;
-  s.ball.mode = 'pass';
-  s.ball.startX = passer.x;
-  s.ball.startY = passer.y;
-  s.ball.targetX = target.x;
-  s.ball.targetY = target.y;
-  s.ball.targetPlayer = target;
-  s.ball.progress = 0;
-  const dist = Math.hypot(target.x - passer.x, target.y - passer.y);
-  s.ball.curveZ = dist > 28 ? 4.5 : 1.8;
-}
-
-function showLiveBalloon(pctX, pctY, text, color = '#fbbf24'){
-  const s = liveMatchState;
-  if(!s) return;
-  s.balloons = s.balloons || [];
-  s.balloons.push({
-    x: pctX,
-    y: pctY,
-    text: text,
-    color: color,
-    life: 2.2,
-    maxLife: 2.2
-  });
-}
-
-function triggerPenalty(carrier, defender, isHomeAttacking){
-  const s = liveMatchState;
-  playWhistleSound();
-  
-  if(Math.random() < 0.35){
-    s.varCheck = {
-      type: 'penalty',
-      timer: 2.4,
-      text: '🖥️ VAR CHECANDO POSSÍVEL PÊNALTI...',
-      confirmed: true
-    };
-  }
-
-  showLiveBalloon(carrier.x, carrier.y, '🎯 PÊNALTI!', '#facc15');
-  showLiveBanner(`🎯 PÊNALTI PARA O ${isHomeAttacking ? s.home : s.away}!`, 'penalty', 4500);
-  s.events.unshift({
-    min: s.minute,
-    type: 'penalty',
-    text: `🎯 PÊNALTI MARCADO! ${carrier.name} foi derrubado dentro da grande área por ${defender.name}!`
-  });
-  updateLiveSidebarEvents();
-
-  const attackingPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
-  let kicker = null;
-  if(isHomeAttacking && carrier.isUser && state.setPieces?.penalty){
-    kicker = attackingPlayers.find(p => p.key === state.setPieces.penalty) || attackingPlayers[9];
-  } else {
-    kicker = attackingPlayers.filter(p => !p.isGK).sort((a,b)=>(b.overall||65)-(a.overall||65))[0] || attackingPlayers[9];
-  }
-
-  s.ball.mode = 'penalty_wait';
-  s.ball.penaltyTimer = 1.8;
-  s.ball.penaltyKicker = kicker;
-  s.ball.isHomeAttacking = isHomeAttacking;
-  s.ball.x = isHomeAttacking ? 88.5 : 11.5;
-  s.ball.y = 50;
-  s.ball.z = 0;
-  s.ball.carrier = null;
-  
-  kicker.x = isHomeAttacking ? 85 : 15;
-  kicker.y = 50;
-
-  const defendingGK = isHomeAttacking ? s.awayPlayers[0] : s.homePlayers[0];
-  if(defendingGK){
-    defendingGK.x = isHomeAttacking ? 96.5 : 3.5;
-    defendingGK.y = 50;
-    defendingGK.diving = false;
-  }
-}
-
-function triggerFreeKick(carrier, defender, isHomeAttacking){
-  const s = liveMatchState;
-  playWhistleSound();
-  
-  showLiveBalloon(carrier.x, carrier.y, '🎯 FALTA PERIGOSA!', '#38bdf8');
-  showLiveBanner(`🎯 FALTA PERIGOSA NA ENTRADA DA ÁREA!`, 'freekick', 3500);
-  s.events.unshift({
-    min: s.minute,
-    type: 'whistle',
-    text: `🎯 FALTA PERIGOSA! Entrada cometida por ${defender.name} próximo à grande área.`
-  });
-  updateLiveSidebarEvents();
-
-  const attackingPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
-  const defendingPlayers = isHomeAttacking ? s.awayPlayers : s.homePlayers;
-  
-  let kicker = null;
-  if(isHomeAttacking && carrier.isUser && state.setPieces?.freekick){
-    kicker = attackingPlayers.find(p => p.key === state.setPieces.freekick) || carrier;
-  } else {
-    kicker = attackingPlayers.filter(p => !p.isGK).sort((a,b)=>(b.overall||65)-(a.overall||65))[0] || carrier;
-  }
-
-  const dirX = isHomeAttacking ? 1 : -1;
-  const wallDefenders = defendingPlayers.filter(p => !p.isGK && !p.redCard).slice(0, 3);
-  wallDefenders.forEach((w, idx) => {
-    w.x = carrier.x + (dirX * 9);
-    w.y = carrier.y + (idx - 1) * 3.5;
-  });
-
-  s.ball.mode = 'freekick_wait';
-  s.ball.freekickTimer = 1.8;
-  s.ball.freekickKicker = kicker;
-  s.ball.isHomeAttacking = isHomeAttacking;
-  s.ball.x = carrier.x;
-  s.ball.y = carrier.y;
-  s.ball.z = 0;
-  s.ball.carrier = null;
-  
-  kicker.x = carrier.x - (dirX * 3.2);
-  kicker.y = carrier.y;
-}
-
-function triggerCorner(isHomeAttacking){
-  const s = liveMatchState;
-  const cornerX = isHomeAttacking ? 99.0 : 1.0;
-  const cornerY = Math.random() < 0.5 ? 4.0 : 96.0;
-  
-  showLiveBalloon(cornerX, cornerY, '🚩 ESCANTEIO!', '#38bdf8');
-  if(isHomeAttacking) s.stats.cornersH++; else s.stats.cornersA++;
-  s.events.unshift({
-    min: s.minute,
-    type: 'corner',
-    text: `🚩 ESCANTEIO para o ${isHomeAttacking ? s.home : s.away}!`
-  });
-  updateLiveSidebarEvents();
-
-  const attackingPlayers = isHomeAttacking ? s.homePlayers : s.awayPlayers;
-  let taker = null;
-  if(isHomeAttacking && state.setPieces?.corner){
-    taker = attackingPlayers.find(p => p.key === state.setPieces.corner) || attackingPlayers[7];
-  } else {
-    taker = attackingPlayers.filter(p => !p.isGK && ['LB','RB','LM','RM','CM'].includes(p.pos))[0] || attackingPlayers[7];
-  }
-
-  taker.x = cornerX;
-  taker.y = cornerY;
-
-  const boxX = isHomeAttacking ? 92 : 8;
-  attackingPlayers.filter(p => p !== taker && !p.isGK && !p.redCard).forEach(p => {
-    p.x = boxX + rnd(-4, 4);
-    p.y = 50 + rnd(-16, 16);
-  });
-
-  s.ball.mode = 'corner_wait';
-  s.ball.cornerTimer = 1.6;
-  s.ball.cornerTaker = taker;
-  s.ball.isHomeAttacking = isHomeAttacking;
-  s.ball.x = cornerX;
-  s.ball.y = cornerY;
-  s.ball.z = 0;
-  s.ball.carrier = null;
-}
-
-function attemptTackle(carrier){
-  const s = liveMatchState;
-  const isHome = carrier.team === 'home';
-  const opponents = (isHome ? s.awayPlayers : s.homePlayers).filter(p => !p.isGK && !p.redCard);
-  if(!opponents.length) return;
-  const defender = opponents[rnd(0, opponents.length - 1)];
-  defender.kickTimer = 0.3;
-
-  const defPost = defender.team === 'home' ? (s.homePosture || 'Equilibrada') : (s.awayPosture || 'Equilibrada');
-  const postureBonus = (defPost === 'Retranca' ? 0.18 : defPost === 'Pressão total' ? 0.22 : 0);
-  const speechTackleBonus = (defender.isUser && s.prelecao === 'Pedir raça') ? 0.22 : 0;
-  const tackleWinProb = clamp(0.50 + postureBonus + speechTackleBonus, 0.40, 0.85);
-
-  if(Math.random() < tackleWinProb){
-    // Desarme limpo e retomada da posse!
-    s.ball.mode = 'dribble';
-    s.ball.carrier = defender;
-    s.ball.z = 0;
-  } else if(Math.random() < (s.prelecao === 'Manter a calma' && defender.isUser ? 0.08 : 0.18)){
-    // Falta marcada pelo juiz!
-    if(defender.team === 'home') s.stats.foulsH++; else s.stats.foulsA++;
-    
-    // Checa Cartões: Amarelo ou Vermelho Direto!
-    const isHardFoul = Math.random() < 0.28;
-    if(isHardFoul){
-      defender.yellowCards = (defender.yellowCards || 0) + 1;
-      if(defender.yellowCards >= 2 || Math.random() < 0.08){
-        // EXPULSÃO / CARTÃO VERMELHO!
-        defender.redCard = true;
-        defender.x = -999;
-        defender.y = -999;
-        if(defender.team === 'home') s.stats.redsH = (s.stats.redsH || 0) + 1;
-        else s.stats.redsA = (s.stats.redsA || 0) + 1;
-        playWhistleSound();
-        showLiveBalloon(carrier.x, carrier.y, '🟥 EXPULSO!', '#ef4444');
-        showLiveBanner(`🟥 EXPULSÃO! Cartão vermelho para ${defender.name}!`, 'red', 5000);
-        s.events.unshift({ min: s.minute, type: 'red', text: `🟥 EXPULSÃO! Cartão vermelho para ${defender.name}! Equipe jogando com 10!` });
-        updateLiveSidebarEvents();
-      } else {
-        if(defender.team === 'home') s.stats.yellowsH++; else s.stats.yellowsA++;
-        showLiveBalloon(carrier.x, carrier.y, '🟨 CARTÃO AMARELO', '#facc15');
-        s.events.unshift({ min: s.minute, type: 'yellow', text: `🟨 Cartão amarelo para ${defender.name} por entrada dura!` });
-      }
-    }
-
-    // Checa se a falta foi dentro da grande área -> PÊNALTI!
-    const isInsideBox = isHome 
-      ? (carrier.x >= 83.5 && carrier.y >= 22 && carrier.y <= 78)
-      : (carrier.x <= 16.5 && carrier.y >= 22 && carrier.y <= 78);
-    
-    const isNearBox = isHome
-      ? (carrier.x >= 66 && carrier.x < 83.5 && carrier.y >= 20 && carrier.y <= 80)
-      : (carrier.x <= 34 && carrier.x > 16.5 && carrier.y >= 20 && carrier.y <= 80);
-
-    if(isInsideBox){
-      triggerPenalty(carrier, defender, isHome);
-    } else if(isNearBox){
-      triggerFreeKick(carrier, defender, isHome);
-    } else {
-      // Falta no meio-campo: posse continua com o time que sofreu a falta
-      playWhistleSound();
-      s.events.unshift({ min: s.minute, type: 'whistle', text: `Falta de ${defender.name} no meio-campo.` });
-      updateLiveSidebarEvents();
-      s.ball.carrier = carrier;
-      s.ball.mode = 'dribble';
-    }
-  }
-}
 
 function resetKickoff(restartingTeam){
   const s = liveMatchState;
@@ -23408,6 +22729,13 @@ window.runTacticalEngineTests = function(numMatches = 100){
     anomalies: results.anomalies
   };
 };
+
+window.simulateMinute = simulateMinute;
+window.createMatchPRNG = createMatchPRNG;
+window.clubBadge = clubBadge;
+window.clubDisplayName = clubDisplayName;
+window.getLiveMatchState = () => liveMatchState;
+window.setLiveMatchState = (s) => { liveMatchState = s; };
 
 render();
 })();

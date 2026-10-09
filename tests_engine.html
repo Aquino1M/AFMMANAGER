@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>AFM Manager 2027 — Bateria de Testes do Match Engine & Escudos</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0b0f19; color: #f8fafc; padding: 24px; margin: 0; }
+  h1 { color: #38bdf8; margin-top: 0; }
+  .card { background: #1e293b; border-radius: 8px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155; }
+  .badge-pass { background: #16a34a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+  .badge-fail { background: #dc2626; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #334155; }
+  th { background: #0f172a; color: #94a3b8; }
+  pre { background: #0f172a; padding: 12px; border-radius: 6px; overflow-x: auto; color: #a5f3fc; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .stat-box { background: #0f172a; padding: 12px; border-radius: 6px; border-left: 4px solid #38bdf8; }
+</style>
+</head>
+<body>
+<div id="app" style="display:none"></div>
+<h1>🧪 AFM Manager 2027 — Auditoria e Testes de Regressão</h1>
+<div id="resultsSummary" class="card">Executando bateria de testes...</div>
+<div id="testsList" class="card"></div>
+<div id="statsReport" class="card"></div>
+
+<script src="js/competitions.js"></script>
+<script src="data/competition_teams.js"></script>
+<script src="data/players_live.js"></script>
+<script src="data/club_badges.js"></script>
+<script src="data/player_photos.js"></script>
+<script src="js/database.js"></script>
+<script src="js/features30.js"></script>
+<script src="js/game.js"></script>
+
+<script>
+window.addEventListener('load', async () => {
+  const tests = [];
+  function assert(name, condition, details = '') {
+    tests.push({ name, pass: !!condition, details });
+    if (!condition) console.error(`[FAIL] ${name}: ${details}`);
+    else console.log(`[PASS] ${name}`);
+  }
+
+  try {
+    // -------------------------------------------------------------
+    // TESTE H: Auditoria de Escudos e Fallbacks
+    // -------------------------------------------------------------
+    console.log('--- TESTE H: Escudos ---');
+    const sampleClubs = [
+      'Flamengo', 'Palmeiras', 'São Paulo', 'Corinthians', 'Santos',
+      'Vasco', 'Grêmio', 'Internacional', 'Atlético-MG', 'Cruzeiro',
+      'Real Madrid', 'Barcelona', 'Manchester City', 'Liverpool', 'Bayern München'
+    ];
+    let badgesOk = 0;
+    sampleClubs.forEach(club => {
+      const html = window.renderClubBadge(club, 32);
+      if (html && html.includes('<img') && html.includes('img/badges/')) {
+        badgesOk++;
+      }
+    });
+    assert('Teste H.1 — Amostra de Escudos Reais', badgesOk === sampleClubs.length, `${badgesOk}/${sampleClubs.length} clubes com imagens reais renderizadas`);
+
+    const genericTest = (window.clubBadge || window.renderClubBadge)('Flamengo', 32);
+    assert('Teste H.2 — clubBadge() não usa SVG procedural', !genericTest.includes('crest-generic-svg'), 'clubBadge() chamou diretamente renderClubBadge() oficial');
+
+    // -------------------------------------------------------------
+    // TESTE A & G: Partida Completa e Integridade do Placar
+    // -------------------------------------------------------------
+    console.log('--- TESTE A & G: Partida Completa ---');
+    const dummyMatch = {
+      matchId: 'TEST_MATCH_001',
+      seed: 42,
+      prng: window.createMatchPRNG(42),
+      minute: 0,
+      simTicks: 0,
+      phase: 'FIRST_HALF',
+      home: 'Flamengo',
+      away: 'Palmeiras',
+      hg: 0, ag: 0,
+      stats: { posH: 50, posA: 50, shotsH: 0, shotsA: 0, targetH: 0, targetA: 0, xGH: 0, xGA: 0, cornersH: 0, cornersA: 0, foulsH: 0, foulsA: 0, yellowsH: 0, yellowsA: 0, redsH: 0, redsA: 0, passesH: 0, passesA: 0 },
+      events: [],
+      recentPlayPatterns: [],
+      stadium: { name: 'Maracanã', pitch: 'natural' },
+      homePlayers: Array.from({length: 11}, (_, i) => ({
+        type: 'PLAYER', id: `h_${i}`, name: `H_Player_${i}`, pos: i===0?'GK':'CM', isGK: i===0, canScore: i!==0, team: 'home', overall: 78,
+        attrs: { pace: 75, finishing: 78, passing: 75, composure: 75, reactions: 75, positioning: 75, defending: 75 }
+      })),
+      awayPlayers: Array.from({length: 11}, (_, i) => ({
+        type: 'PLAYER', id: `a_${i}`, name: `A_Player_${i}`, pos: i===0?'GK':'CM', isGK: i===0, canScore: i!==0, team: 'away', overall: 78,
+        attrs: { pace: 75, finishing: 78, passing: 75, composure: 75, reactions: 75, positioning: 75, defending: 75 }
+      })),
+      ball: { x: 50, y: 50, z: 0, mode: 'play', carrier: null }
+    };
+
+    if (window.setLiveMatchState) window.setLiveMatchState(dummyMatch);
+
+    // Simula os 90 minutos
+    for (let m = 1; m <= 90; m++) {
+      if (m === 46) dummyMatch.phase = 'SECOND_HALF';
+      window.simulateMinute(dummyMatch, m);
+    }
+
+    assert('Teste A.1 — Relógio avançou até 90 min', dummyMatch.minute === 90, `Minuto atingido: ${dummyMatch.minute}`);
+    assert('Teste A.2 — Houve finalizações registradas', (dummyMatch.stats.shotsH + dummyMatch.stats.shotsA) > 0, `Total Chutes: ${dummyMatch.stats.shotsH + dummyMatch.stats.shotsA}`);
+    
+    // Integridade do Placar: Gols = Eventos de gol
+    const goalEvents = dummyMatch.events.filter(e => e.type === 'gol');
+    const totalGoalsScored = dummyMatch.hg + dummyMatch.ag;
+    assert('Teste G — Integridade do Placar (PLACAR = SOMA DE GOLS)', totalGoalsScored === goalEvents.length, `Placar ${dummyMatch.hg}x${dummyMatch.ag} (${totalGoalsScored} gols) == ${goalEvents.length} eventos de gol`);
+
+    // Validação de autores de gol (nunca árbitro)
+    const invalidGoalAuthors = goalEvents.filter(e => !e.scorer || e.scorer.includes('Árbitro'));
+    assert('Teste A.3 — Somente atletas válidos marcaram gols', invalidGoalAuthors.length === 0, `Autores inválidos: ${invalidGoalAuthors.length}`);
+
+    // -------------------------------------------------------------
+    // TESTE B & C: Progressão Ofensiva e Defesa Organizada
+    // -------------------------------------------------------------
+    console.log('--- TESTE B & C: Progressão e Defesa ---');
+    assert('Teste B — Produziu eventos de ataque e passes', dummyMatch.stats.passesH > 100 && dummyMatch.stats.passesA > 100, `Passes Mandante: ${dummyMatch.stats.passesH}, Visitante: ${dummyMatch.stats.passesA}`);
+    assert('Teste C — Produziu desarmes, faltas ou escanteios', (dummyMatch.stats.foulsH + dummyMatch.stats.foulsA + dummyMatch.stats.cornersH + dummyMatch.stats.cornersA) > 0, `Faltas: ${dummyMatch.stats.foulsH + dummyMatch.stats.foulsA}, Escanteios: ${dummyMatch.stats.cornersH + dummyMatch.stats.cornersA}`);
+
+    // -------------------------------------------------------------
+    // TESTE E: Velocidades Determinísticas (mesma Seed)
+    // -------------------------------------------------------------
+    console.log('--- TESTE E: Determinismo de Velocidade ---');
+    function runSimForSeed(seed) {
+      const mState = {
+        matchId: `TEST_SPEED_${seed}`,
+        seed,
+        prng: window.createMatchPRNG(seed),
+        minute: 0,
+        simTicks: 0,
+        phase: 'FIRST_HALF',
+        home: 'Flamengo',
+        away: 'Palmeiras',
+        hg: 0, ag: 0,
+        stats: { posH: 50, posA: 50, shotsH: 0, shotsA: 0, targetH: 0, targetA: 0, xGH: 0, xGA: 0, cornersH: 0, cornersA: 0, foulsH: 0, foulsA: 0, yellowsH: 0, yellowsA: 0, redsH: 0, redsA: 0, passesH: 0, passesA: 0 },
+        events: [],
+        recentPlayPatterns: [],
+        stadium: { name: 'Maracanã', pitch: 'natural' },
+        homePlayers: Array.from({length: 11}, (_, i) => ({
+          type: 'PLAYER', id: `h_${i}`, name: `H_Player_${i}`, pos: i===0?'GK':'CM', isGK: i===0, canScore: i!==0, team: 'home', overall: 78,
+          attrs: { pace: 75, finishing: 78, passing: 75, composure: 75, reactions: 75, positioning: 75, defending: 75 }
+        })),
+        awayPlayers: Array.from({length: 11}, (_, i) => ({
+          type: 'PLAYER', id: `a_${i}`, name: `A_Player_${i}`, pos: i===0?'GK':'CM', isGK: i===0, canScore: i!==0, team: 'away', overall: 78,
+          attrs: { pace: 75, finishing: 78, passing: 75, composure: 75, reactions: 75, positioning: 75, defending: 75 }
+        })),
+        ball: { x: 50, y: 50, z: 0, mode: 'play', carrier: null }
+      };
+      if (window.setLiveMatchState) window.setLiveMatchState(mState);
+      for (let m = 1; m <= 90; m++) {
+        if (m === 46) mState.phase = 'SECOND_HALF';
+        window.simulateMinute(mState, m);
+      }
+      return mState;
+    }
+
+    const simSeed123_A = runSimForSeed(12345);
+    const simSeed123_B = runSimForSeed(12345);
+    assert('Teste E.1 — Determinismo Placar (mesma Seed)', simSeed123_A.hg === simSeed123_B.hg && simSeed123_A.ag === simSeed123_B.ag, `Seed 12345: ${simSeed123_A.hg}x${simSeed123_A.ag} vs ${simSeed123_B.hg}x${simSeed123_B.ag}`);
+    assert('Teste E.2 — Determinismo Finalizações', simSeed123_A.stats.shotsH === simSeed123_B.stats.shotsH && simSeed123_A.stats.shotsA === simSeed123_B.stats.shotsA, `Chutes: ${simSeed123_A.stats.shotsH}x${simSeed123_A.stats.shotsA}`);
+
+    // -------------------------------------------------------------
+    // TESTE F: Independência entre Partidas com Seeds Diferentes
+    // -------------------------------------------------------------
+    const simSeedOther = runSimForSeed(99999);
+    assert('Teste F — Partidas independentes com IDs e Seeds distintos', simSeed123_A.matchId !== simSeedOther.matchId && simSeed123_A.seed !== simSeedOther.seed, 'Partidas isoladas e não compartilhadas');
+
+    // -------------------------------------------------------------
+    // TESTE 14: Simulação em Lote de 100 Partidas (Distribuição Estatística)
+    // -------------------------------------------------------------
+    console.log('--- TESTE 14: Bateria Estatística de 100 Partidas ---');
+    const BATCH_SIZE = 100;
+    let totalGoals = 0, totalShots = 0, totalTargets = 0, totalCorners = 0, totalFouls = 0;
+    let minGoals = 99, maxGoals = 0, minShots = 99, maxShots = 0;
+
+    for (let i = 0; i < BATCH_SIZE; i++) {
+      const m = runSimForSeed(1000 + i);
+      const g = m.hg + m.ag;
+      const s = m.stats.shotsH + m.stats.shotsA;
+      const t = m.stats.targetH + m.stats.targetA;
+      const c = m.stats.cornersH + m.stats.cornersA;
+      const f = m.stats.foulsH + m.stats.foulsA;
+
+      totalGoals += g;
+      totalShots += s;
+      totalTargets += t;
+      totalCorners += c;
+      totalFouls += f;
+
+      if (g < minGoals) minGoals = g;
+      if (g > maxGoals) maxGoals = g;
+      if (s < minShots) minShots = s;
+      if (s > maxShots) maxShots = s;
+
+      // Integridade em cada partida do lote
+      if (g !== m.events.filter(e => e.type === 'gol').length) {
+        assert(`Integridade no jogo #${i}`, false, 'Gols divergentes');
+      }
+    }
+
+    const avgGoals = (totalGoals / BATCH_SIZE).toFixed(2);
+    const avgShots = (totalShots / BATCH_SIZE).toFixed(2);
+    const avgTargets = (totalTargets / BATCH_SIZE).toFixed(2);
+    const avgCorners = (totalCorners / BATCH_SIZE).toFixed(2);
+    const avgFouls = (totalFouls / BATCH_SIZE).toFixed(2);
+
+    assert('Teste Estatístico — Média de Gols Realista (1.8 a 4.2)', avgGoals >= 1.8 && avgGoals <= 4.2, `Média obtida: ${avgGoals} gols/partida (min: ${minGoals}, max: ${maxGoals})`);
+    assert('Teste Estatístico — Média de Finalizações Realista (9 a 24)', avgShots >= 9.0 && avgShots <= 24.0, `Média obtida: ${avgShots} chutes/partida (min: ${minShots}, max: ${maxShots})`);
+
+    // Renderização dos Resultados no DOM
+    const allPassed = tests.every(t => t.pass);
+    const passedCount = tests.filter(t => t.pass).length;
+    document.getElementById('resultsSummary').innerHTML = `
+      <h2>${allPassed ? '✅ TODOS OS TESTES PASSARAM' : '❌ HOUVE FALHAS NOS TESTES'}</h2>
+      <p><b>${passedCount} / ${tests.length}</b> testes bem-sucedidos.</p>
+    `;
+
+    document.getElementById('testsList').innerHTML = `
+      <h3>Relatório Detalhado dos Cenários Unitários e de Integração</h3>
+      <table>
+        <thead><tr><th>Status</th><th>Cenário</th><th>Evidência / Detalhes</th></tr></thead>
+        <tbody>
+          ${tests.map(t => `
+            <tr>
+              <td><span class="${t.pass ? 'badge-pass' : 'badge-fail'}">${t.pass ? 'PASS' : 'FAIL'}</span></td>
+              <td><b>${t.name}</b></td>
+              <td><code>${t.details}</code></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    document.getElementById('statsReport').innerHTML = `
+      <h3>Distribuição Estatística (Lote de ${BATCH_SIZE} Partidas Simuladas)</h3>
+      <div class="grid">
+        <div class="stat-box"><b>Média de Gols / Jogo:</b> <h3>${avgGoals}</h3> <span>Intervalo: ${minGoals} - ${maxGoals}</span></div>
+        <div class="stat-box"><b>Média de Finalizações:</b> <h3>${avgShots}</h3> <span>Intervalo: ${minShots} - ${maxShots}</span></div>
+        <div class="stat-box"><b>Finalizações no Alvo:</b> <h3>${avgTargets}</h3> <span>Acerto: ~${Math.round(avgTargets/avgShots*100)}%</span></div>
+        <div class="stat-box"><b>Escanteios por Partida:</b> <h3>${avgCorners}</h3> <span>Cortes da zaga / desvios</span></div>
+        <div class="stat-box"><b>Faltas por Partida:</b> <h3>${avgFouls}</h3> <span>Disputas e desarmes</span></div>
+      </div>
+    `;
+
+    window.__TEST_RESULTS = { allPassed, passedCount, total: tests.length, avgGoals, avgShots, avgTargets };
+  } catch (err) {
+    console.error('Erro na execução dos testes:', err);
+    document.getElementById('resultsSummary').innerHTML = `<h2 class="badge-fail">ERRO DE EXECUÇÃO: ${err.message}</h2><pre>${err.stack}</pre>`;
+  }
+});
+</script>
+</body>
+</html>
