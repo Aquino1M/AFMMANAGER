@@ -157,7 +157,7 @@ window.CLUB_ALIASES = window.CLUB_ALIASES || {
   'lanus': 'arg_1/lanus.png',
   'estudiantes': 'arg_1/estudiantes.png',
   'penarol': 'conmebol/penarol.png',
-  'nacional': 'conmebol/nacional.png',
+  'nacional': 'nacional.png',
   'colo colo': 'conmebol/colo_colo.png',
   'ldu quito': 'conmebol/ldu_quito.png',
   'real madrid': 'europe/real_madrid.png',
@@ -190,30 +190,44 @@ window.renderPlayerPhoto = function(playerName, size = 32) {
 };
 
 // Renderização oficial de escudos de clubes com caminhos locais e fallback nativo
-window.renderClubBadge = function(clubName, size = 32) {
-  const rawName = (typeof clubName === 'object' && clubName !== null ? (clubName.name || clubName.club || '') : String(clubName || '')).trim() || 'Clube';
-  const n = window.normClub(rawName);
-
-  let file = (window.CLUB_ALIASES && window.CLUB_ALIASES[n]) || (window.CLUB_BADGES && window.CLUB_BADGES[rawName]);
-
-  if (!file && window.CLUB_BADGES) {
-    for (const [k, v] of Object.entries(window.CLUB_BADGES)) {
-      if (window.normClub(k) === n) {
-        file = v;
-        break;
+function buildClubBadgeFallbackPaths(rawName) {
+  const slug = window.normSlug(rawName);
+  if (!slug) return [];
+  let stripped = slug;
+  const suffixes = ['_futebol_clube', '_esporte_clube', '_futebol', '_esporte', '_fc', '_sc', '_ec'];
+  for (const suffix of suffixes) {
+    if (stripped.endsWith(suffix)) { stripped = stripped.slice(0, -suffix.length); break; }
+  }
+  const variants = [...new Set([slug, stripped].filter(Boolean))];
+  const folders = ['bra_a', 'bra_b', 'bra_c', 'bra_d', 'bra_estaduais', ''];
+  const paths = [];
+  for (const variant of variants) {
+    for (const ext of ['png', 'svg']) {
+      for (const folder of folders) {
+        paths.push((folder ? 'img/badges/' + folder + '/' : 'img/badges/') + variant + '.' + ext);
       }
     }
   }
+  return [...new Set(paths)];
+}
 
+window.renderClubBadge = function(clubName, size = 32) {
+  const rawName = (typeof clubName === 'object' && clubName !== null ? (clubName.name || clubName.club || '') : String(clubName || '')).trim() || 'Clube';
+  const n = window.normClub(rawName);
+  let file = (window.CLUB_ALIASES && window.CLUB_ALIASES[n]) || (window.CLUB_BADGES && window.CLUB_BADGES[rawName]);
+  if (!file && window.CLUB_BADGES) {
+    for (const [k, v] of Object.entries(window.CLUB_BADGES)) {
+      if (window.normClub(k) === n) { file = v; break; }
+    }
+  }
   const inits = (rawName.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('') || 'FC').slice(0, 3).toUpperCase();
   const fallbackPill = `<span class="badge-fallback-pill" style="display:inline-flex;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
-
-  if (file) {
-    const cleanPath = file.startsWith('img/badges/') ? file : `img/badges/${file}`;
-    return `<img src="${cleanPath}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';" /><span class="badge-fallback-pill" style="display:none;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
-  }
-
-  return fallbackPill;
+  const knownPath = file ? (file.startsWith('img/badges/') ? file : 'img/badges/' + file) : null;
+  const alternatives = buildClubBadgeFallbackPaths(rawName).filter(path => path !== knownPath);
+  const imagePath = knownPath || alternatives.shift();
+  if (!imagePath) return fallbackPill;
+  const onError = "const a=JSON.parse(this.dataset.badgeAlternatives||'[]');if(a.length){this.dataset.badgeAlternatives=JSON.stringify(a.slice(1));this.src=a[0];}else{this.onerror=null;this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';}";
+  return `<img src="${imagePath}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" data-badge-alternatives="${esc(JSON.stringify(alternatives))}" onerror="${onError}" /><span class="badge-fallback-pill" style="display:none;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
 };
 
 // Renderização oficial de fotos de jogadores
