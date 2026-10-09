@@ -5,7 +5,6 @@ color 0A
 
 echo ======================================================================
 echo   AQUINO FUTEBOL MANAGER — ENVIAR CORRECAO DEPLOY VERCEL
-echo   Correcao: "ReferenceError: esc is not defined" e Icones PWA
 echo ======================================================================
 echo.
 
@@ -16,29 +15,37 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-echo [1/3] Adicionando alteracoes corrigidas...
+echo [1/4] Adicionando alteracoes pendentes...
 git add .
 
-echo [2/3] Criando commit da correcao...
-git commit -m "fix: resolve ReferenceError esc is not defined e corrige icones PWA"
+echo [2/4] Criando commit das correcoes (se houver alteracoes)...
+git commit -m "fix: resolve ReferenceError esc is not defined e corrige icones PWA" >nul 2>nul
 
 echo.
-echo [3/3] Enviando para o GitHub (git push origin main)...
+echo [3/4] Sincronizando com o commit de merge do GitHub (git pull --rebase origin main)...
+git pull --rebase origin main
+
+echo.
+echo [4/4] Enviando tudo para o GitHub (git push origin main)...
 git push origin main
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
-    echo [AVISO] Ocorreu uma falha no git push.
-    echo Se o repositorio remoto tiver commits novos, tente rodar:
-    echo git pull --rebase origin main
-    echo e depois rode este arquivo novamente.
-) else (
+    echo [Tentativa 2] Tentando sincronizar com merge padrao...
+    git pull origin main --no-edit
+    git push origin main
+)
+
+if %ERRORLEVEL% EQU 0 (
     echo.
     echo ======================================================================
-    echo   SUCESSO! COMMIT ENVIADO PARA O GITHUB!
+    echo   SUCESSO TOTAL! ATUALIZACOES ENVIADAS COM EXITO PARA O GITHUB!
     echo   A Vercel ja iniciou o novo deploy automatico.
-    echo   Em menos de 1 minuto o site estara no ar sem a tela azul!
+    echo   Em menos de 1 minuto acesse o site e pressione Ctrl + F5!
     echo ======================================================================
+) else (
+    echo.
+    echo [ERRO] O push falhou. Veja a mensagem de erro acima.
 )
 
 echo.

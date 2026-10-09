@@ -1,0 +1,10 @@
+node_modules/
+.git/
+.vercel/
+*.zip
+*.tar.gz
+*.bat
+scratch/
+docs/
+tests_*.html
+*.tmp

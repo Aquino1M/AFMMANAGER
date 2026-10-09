@@ -17,9 +17,52 @@
   };
 </script>
 <link rel="stylesheet" href="css/app.css">
+<style>
+@keyframes afmPulse {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(50%); }
+  100% { transform: translateX(250%); }
+}
+</style>
 </head>
 <body>
-<div id="app"></div>
+<div id="app">
+  <div id="afmLoadingScreen" style="position:fixed;inset:0;background:radial-gradient(circle at center, #1b143a 0%, #0a0714 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999999;font-family:system-ui,-apple-system,sans-serif;color:#fff;">
+    <div style="margin-bottom:24px;text-align:center;">
+      <div style="width:84px;height:84px;margin:0 auto 16px auto;background:linear-gradient(135deg, #7c3aed, #2563eb);border-radius:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 35px rgba(124,58,237,0.6);border:2px solid rgba(255,255,255,0.2);">
+        <span style="font-size:42px;">⚽</span>
+      </div>
+      <h1 style="margin:0;font-size:26px;font-weight:900;letter-spacing:1.5px;background:linear-gradient(90deg,#fff,#a855f7,#38bdf8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">AFM MANAGER 2027</h1>
+      <p style="margin:6px 0 0 0;font-size:12px;color:#94a3b8;letter-spacing:3px;font-weight:700;text-transform:uppercase;">Aquino Futebol Manager</p>
+    </div>
+
+    <!-- Barra de Progresso Neon -->
+    <div style="width:280px;height:8px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;position:relative;border:1px solid rgba(255,255,255,0.12);box-shadow:0 0 15px rgba(124,58,237,0.3);">
+      <div id="afmLoadingBar" style="width:45%;height:100%;background:linear-gradient(90deg, #7c3aed, #38bdf8, #22c55e);border-radius:999px;animation:afmPulse 1.8s infinite ease-in-out;"></div>
+    </div>
+
+    <!-- Status do Carregamento -->
+    <div id="afmLoadingText" style="margin-top:14px;font-size:12px;color:#cbd5e1;font-weight:600;letter-spacing:0.5px;">
+      Carregando banco de dados & táticas...
+    </div>
+
+    <!-- Opção de Recarregar caso demore -->
+    <div id="afmLoadingTimeout" style="display:none;margin-top:20px;text-align:center;">
+      <p style="font-size:11px;color:#f87171;margin-bottom:8px;">O carregamento está demorando mais do que o esperado.</p>
+      <button onclick="localStorage.clear();location.reload();" style="background:#7c3aed;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:12px;box-shadow:0 4px 12px rgba(124,58,237,0.4);">
+        🔄 Limpar Cache e Reiniciar
+      </button>
+    </div>
+  </div>
+</div>
+<script>
+  setTimeout(() => {
+    const el = document.getElementById('afmLoadingTimeout');
+    if (el && document.getElementById('afmLoadingScreen')) {
+      el.style.display = 'block';
+    }
+  }, 7000);
+</script>
 <script src="js/competitions.js"></script>
 <script src="data/competition_teams.js"></script>
 <script src="data/players_live.js"></script>
