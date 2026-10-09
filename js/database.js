@@ -157,15 +157,21 @@ const AFM_DB = (function(){
     const slot = Number(slotNum) || 1;
     if(!cleanU || !saveEntry) return { ok: false };
 
+    const stateObj = saveEntry.data || saveEntry;
     const payload = {
       username: cleanU,
       slot: slot,
-      club: saveEntry.club || 'Clube',
-      manager: saveEntry.manager || cleanU,
-      season: Number(saveEntry.season) || 2026,
-      round: Number(saveEntry.round) || 0,
-      balance: Number(saveEntry.balance) || 0,
-      save_data: saveEntry.data || saveEntry,
+      club: saveEntry.club || stateObj.club || 'Clube',
+      manager: saveEntry.manager || stateObj.manager || cleanU,
+      season: Number(saveEntry.season || stateObj.season) || 2026,
+      round: Number(saveEntry.round || stateObj.round) || 0,
+      balance: Number(saveEntry.balance || stateObj.balance) || 0,
+      stadium_capacity: Number(stateObj.infrastructure?.stadium?.capacity || stateObj.stadium?.capacity || 18000),
+      stadium_ring: Number(stateObj.stadiumRingData?.ring || 1),
+      stadium_sectors_count: Number(stateObj.stadiumRingData?.purchasedSectors?.length || 0),
+      manager_money: Number(stateObj.managerMoney || 57000),
+      division: stateObj.competition || 'Série A',
+      save_data: stateObj,
       updated_at: new Date().toISOString()
     };
 

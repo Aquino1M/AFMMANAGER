@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>AFM Manager 2027 — Bateria de Testes: Saves & Expansão do Estádio</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #080c14; color: #f1f5f9; padding: 24px; margin: 0; }
+  h1 { color: #38bdf8; margin-top: 0; font-size: 24px; }
+  .card { background: #131b2e; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.08); }
+  .badge-pass { background: #16a34a; color: white; padding: 4px 10px; border-radius: 6px; font-weight: 800; font-size: 12px; }
+  .badge-fail { background: #dc2626; color: white; padding: 4px 10px; border-radius: 6px; font-weight: 800; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid #1e293b; }
+  th { background: #0b1120; color: #94a3b8; font-weight: 800; }
+  .summary-pill { display: inline-flex; align-items: center; gap: 8px; font-weight: 900; font-size: 14px; padding: 6px 14px; border-radius: 20px; }
+  .pill-good { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid #22c55e; }
+  .pill-bad { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid #ef4444; }
+  .test-details { font-family: monospace; font-size: 12px; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div id="app" style="display:none"></div>
+<h1>💾 🏟️ AFM Manager 2027 — Auditoria de Saves & Expansão do Estádio</h1>
+<div id="resultsSummary" class="card">Iniciando testes automatizados obrigatórios (Testes A ao H)...</div>
+<div id="testsTableCard" class="card"></div>
+
+<script src="js/competitions.js"></script>
+<script src="data/competition_teams.js"></script>
+<script src="data/players_live.js"></script>
+<script src="data/club_badges.js"></script>
+<script src="data/player_photos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/database.js"></script>
+<script src="js/features30.js"></script>
+<script src="js/game.js"></script>
+
+<script>
+window.addEventListener('load', async () => {
+  const tests = [];
+  function assert(name, condition, details = '') {
+    tests.push({ name, pass: !!condition, details });
+    if (!condition) console.error(`[FAIL] ${name}: ${details}`);
+    else console.log(`[PASS] ${name}: ${details}`);
+  }
+
+  // Mapear bindings reativos para state e stadiumSelectedSide do motor interno
+  Object.defineProperty(window, 'state', {
+    get() { return window.getState ? window.getState() : null; },
+    set(v) { if (window.setState) window.setState(v); },
+    configurable: true
+  });
+  Object.defineProperty(window, 'stadiumSelectedSide', {
+    get() { return window.getStadiumSelectedSide ? window.getStadiumSelectedSide() : 'norte'; },
+    set(v) { if (window.setStadiumSelectedSide) window.setStadiumSelectedSide(v); },
+    configurable: true
+  });
+
+  // Backup seguro dos dados reais do usuário antes de rodar os testes
+  const realStorage = localStorage.getItem('aquino_futebol_manager_2026_v1');
+  const realSlot1 = localStorage.getItem('afm_save_slot_1');
+  const realSlot2 = localStorage.getItem('afm_save_slot_2');
+  const realSlot3 = localStorage.getItem('afm_save_slot_3');
+  const realAccounts = localStorage.getItem('afm_accounts_v1');
+  const realSession = localStorage.getItem('afm_active_user_v1');
+
+  try {
+    console.log('=== INICIANDO BATERIA DE TESTES OFICIAIS ===');
+
+    // -------------------------------------------------------------
+    // TESTE A — SALVAMENTO BÁSICO (SLOT 1 PONTA A PONTA)
+    // -------------------------------------------------------------
+    console.log('--- TESTE A: Salvamento Básico ---');
+    // 1. Criar carreira de teste no Slot 1
+    newCareer({ manager: 'Treinador Teste A', compId: 'bra-a', clubName: 'Corinthians', slot: 1 });
+    const careerACreated = (state && state.club === 'Corinthians' && state.userSlot === 1);
+    assert('Teste A.1: Criar carreira no Slot 1', careerACreated, `Clube: ${state?.club}, Slot: ${state?.userSlot}`);
+
+    // Salvar explicitamente
+    const saveConfirmed = save();
+    assert('Teste A.2: Gravação confirmada', saveConfirmed === true, 'save() retornou confirmação positiva');
+
+    // Simular retorno ao menu principal
+    state = null;
+    const slotsInMenu = getUserSaveSlots('aquino');
+    const slot1Save = slotsInMenu[0];
+    assert('Teste A.3: Save aparece na lista do menu', !!slot1Save && slot1Save.club === 'Corinthians', `Slot 1 clube: ${slot1Save?.club}`);
+
+    // Carregar a carreira novamente
+    const loadedA = loadUserSlot(1);
+    assert('Teste A.4: Carregar a carreira do Slot 1', loadedA === true && state && state.club === 'Corinthians', `Clube carregado: ${state?.club}, Slot: ${state?.userSlot}`);
+    assert('Teste A.5: Preservação de dados essenciais', state?.manager === 'Treinador Teste A' && state?.balance > 0, `Treinador: ${state?.manager}, Saldo: ${state?.balance}`);
+
+    // -------------------------------------------------------------
+    // TESTE B — PERSISTÊNCIA APÓS RECARREGAR (ENCERRAMENTO DE MEMÓRIA)
+    // -------------------------------------------------------------
+    console.log('--- TESTE B: Persistência após recarregar ---');
+    // Salvar e liquidar 100% de qualquer objeto em memória RAM
+    save();
+    state = null;
+    
+    // Reinicializar consulta de carregamento a partir do armazenamento persistido
+    const freshSlots = getUserSaveSlots('aquino');
+    assert('Teste B.1: Lista de saves pós encerramento de memória', freshSlots[0] && freshSlots[0].club === 'Corinthians', `Slot 1 em disco: ${freshSlots[0]?.club}`);
+
+    // Carregar e verificar integridade
+    loadUserSlot(1);
+    assert('Teste B.2: Carreira restaurada do armazenamento frio', state && state.club === 'Corinthians' && state.userSlot === 1, `Clube: ${state?.club}`);
+
+    // -------------------------------------------------------------
+    // TESTE C — MÚLTIPLOS SLOTS (SLOTS 1, 2 E 3 INDEPENDENTES)
+    // -------------------------------------------------------------
+    console.log('--- TESTE C: Múltiplos Slots ---');
+    // Salvar Slot 1 (Corinthians)
+    state.userSlot = 1;
+    save();
+
+    // Criar Slot 2 (Flamengo)
+    newCareer({ manager: 'Treinador Fla', compId: 'bra-a', clubName: 'Flamengo', slot: 2 });
+    save();
+
+    // Criar Slot 3 (Palmeiras)
+    newCareer({ manager: 'Treinador Pal', compId: 'bra-a', clubName: 'Palmeiras', slot: 3 });
+    save();
+
+    // Voltar ao menu e conferir os 3 slots
+    state = null;
+    const multiSlots = getUserSaveSlots('aquino');
+    assert('Teste C.1: Slot 1 preservado', multiSlots[0]?.club === 'Corinthians', `Slot 1: ${multiSlots[0]?.club}`);
+    assert('Teste C.2: Slot 2 preservado', multiSlots[1]?.club === 'Flamengo', `Slot 2: ${multiSlots[1]?.club}`);
+    assert('Teste C.3: Slot 3 preservado', multiSlots[2]?.club === 'Palmeiras', `Slot 3: ${multiSlots[2]?.club}`);
+
+    // Carregar Slot 2
+    loadUserSlot(2);
+    assert('Teste C.4: Carregamento isolado do Slot 2', state?.club === 'Flamengo' && state?.userSlot === 2, `Clube: ${state?.club}`);
+
+    // Carregar Slot 1
+    loadUserSlot(1);
+    assert('Teste C.5: Carregamento isolado do Slot 1', state?.club === 'Corinthians' && state?.userSlot === 1, `Clube: ${state?.club}`);
+
+    // -------------------------------------------------------------
+    // TESTE D — PRESERVAÇÃO DO ESTÁDIO (3 SETORES COMPRADOS)
+    // -------------------------------------------------------------
+    console.log('--- TESTE D: Preservação do Estádio ---');
+    // Iniciar com estádio limpo no anel 1
+    state.stadiumRingData = {
+      ring: 1,
+      maxRings: 6,
+      sides: { norte: false, sul: false, leste: false, oeste: false },
+      rings: {
+        1: { norte: false, sul: false, leste: false, oeste: false }
+      },
+      purchasedSectors: []
+    };
+    state.balance = 50000000; // Saldo amplo para teste
+    const initialCap = state.infrastructure.stadium.capacity;
+    const initialBalance = state.balance;
+
+    // Comprar 3 setores válidos: norte, sul, leste
+    stadiumSelectedSide = 'norte';
+    buildStadiumSide('norte', 'cash');
+    stadiumSelectedSide = 'sul';
+    buildStadiumSide('sul', 'cash');
+    stadiumSelectedSide = 'leste';
+    buildStadiumSide('leste', 'cash');
+
+    const expectedCost = 850000 * 3;
+    const expectedCap = initialCap + (3500 * 3);
+
+    assert('Teste D.1: Saldo debitado exatamente 3 vezes', state.balance === (initialBalance - expectedCost), `Saldo: ${state.balance}`);
+    assert('Teste D.2: Capacidade aumentada em +10.500', state.infrastructure.stadium.capacity === expectedCap, `Capacidade: ${state.infrastructure.stadium.capacity}`);
+
+    // Inspecionar dados do estádio
+    let stDataD = getStadiumExpansionData();
+    assert('Teste D.3: Norte, Sul e Leste marcados como true', stDataD.rings[1].norte && stDataD.rings[1].sul && stDataD.rings[1].leste && !stDataD.rings[1].oeste, 'Setores no anel 1 OK');
+    assert('Teste D.4: Setores identificados estavelmente', stDataD.purchasedSectors.includes('r1_norte') && stDataD.purchasedSectors.includes('r1_sul') && stDataD.purchasedSectors.includes('r1_leste'), `Sectors: ${stDataD.purchasedSectors}`);
+
+    // Fechar e reabrir tela (simular nova invocação de getStadiumExpansionData)
+    stDataD = getStadiumExpansionData();
+    assert('Teste D.5: Setores preservados após reabrir tela', stDataD.rings[1].norte && stDataD.rings[1].sul && stDataD.rings[1].leste, 'Setores continuam comprados');
+
+    // Salvar, voltar ao menu e recarregar a carreira
+    save();
+    state = null;
+    loadUserSlot(1);
+    const reloadedSt = getStadiumExpansionData();
+    assert('Teste D.6: Setores preservados após salvar e recarregar save', reloadedSt.rings[1].norte && reloadedSt.rings[1].sul && reloadedSt.rings[1].leste, 'Persistência de disco confirmada');
+
+    // -------------------------------------------------------------
+    // TESTE E — AVANÇO PARA O PRÓXIMO ANEL
+    // -------------------------------------------------------------
+    console.log('--- TESTE E: Avanço para o Próximo Anel ---');
+    // Comprar o 4º setor (oeste) para completar o Anel 1
+    stadiumSelectedSide = 'oeste';
+    buildStadiumSide('oeste', 'cash');
+
+    const stDataE1 = getStadiumExpansionData();
+    assert('Teste E.1: Anel avançou para o 2', stDataE1.ring === 2, `Anel atual: ${stDataE1.ring}`);
+    assert('Teste E.2: Anel 1 permanece com os 4 setores 100% comprados', stDataE1.rings[1].norte && stDataE1.rings[1].sul && stDataE1.rings[1].leste && stDataE1.rings[1].oeste, 'Anel 1 não foi zerado');
+
+    // Comprar 1 setor no Anel 2 (norte)
+    stadiumSelectedSide = 'norte';
+    buildStadiumSide('norte', 'cash');
+
+    const stDataE2 = getStadiumExpansionData();
+    assert('Teste E.3: Setor Norte do Anel 2 comprado', stDataE2.rings[2].norte === true, 'Anel 2 norte OK');
+    assert('Teste E.4: Anel 1 continua 100% íntegro após compra no Anel 2', stDataE2.rings[1].norte && stDataE2.rings[1].sul && stDataE2.rings[1].leste && stDataE2.rings[1].oeste, 'Anel 1 intacto');
+    assert('Teste E.5: Total de 5 setores comprados acumulados', stDataE2.purchasedSectors.length === 5, `Total comprado: ${stDataE2.purchasedSectors.length}`);
+
+    // Salvar e recarregar
+    save();
+    state = null;
+    loadUserSlot(1);
+    const stDataE3 = getStadiumExpansionData();
+    assert('Teste E.6: Persistência do avanço de anéis confirmada', stDataE3.ring === 2 && stDataE3.rings[1].norte && stDataE3.rings[2].norte, 'Anel 1 e Anel 2 persistidos');
+
+    // -------------------------------------------------------------
+    // TESTE F — FALHA DE COMPRA (SALDO INSUFICIENTE)
+    // -------------------------------------------------------------
+    console.log('--- TESTE F: Falha de Compra ---');
+    state.balance = 50000; // Saldo inferior a 850.000
+    const balBeforeF = state.balance;
+    const capBeforeF = state.infrastructure.stadium.capacity;
+    stadiumSelectedSide = 'sul'; // Não comprado no anel 2
+    
+    const buyResultF = buildStadiumSide('sul', 'cash');
+    assert('Teste F.1: Compra rejeitada por falta de saldo', buyResultF === false, 'buildStadiumSide retornou false');
+    assert('Teste F.2: Nenhum centavo debitado indevidamente', state.balance === balBeforeF, `Saldo mantido: ${state.balance}`);
+    assert('Teste F.3: Capacidade não alterada', state.infrastructure.stadium.capacity === capBeforeF, 'Capacidade intacta');
+    assert('Teste F.4: Setor não foi marcado como comprado', getStadiumExpansionData().rings[2].sul === false, 'Setor permanece não comprado');
+
+    // -------------------------------------------------------------
+    // TESTE G — CLIQUES REPETIDOS (PROTEÇÃO ANTI-DUPLO CLIQUE)
+    // -------------------------------------------------------------
+    console.log('--- TESTE G: Cliques Repetidos ---');
+    state.balance = 10000000;
+    stadiumSelectedSide = 'sul';
+    const balBeforeG = state.balance;
+    const capBeforeG = state.infrastructure.stadium.capacity;
+
+    // Disparar duas solicitações consecutivas para o mesmo setor
+    const call1 = buildStadiumSide('sul', 'cash');
+    const call2 = buildStadiumSide('sul', 'cash');
+
+    assert('Teste G.1: Primeira chamada aceita', call1 === true, 'Primeira chamada concluída');
+    assert('Teste G.2: Segunda chamada duplicada bloqueada', call2 === false, 'Segunda chamada rejeitada com sucesso');
+    assert('Teste G.3: Cobrado apenas 1 custo de obra', state.balance === (balBeforeG - 850000), `Saldo correto: ${state.balance}`);
+    assert('Teste G.4: Capacidade aumentada apenas uma vez (+3.500)', state.infrastructure.stadium.capacity === (capBeforeG + 3500), `Capacidade: ${state.infrastructure.stadium.capacity}`);
+
+    // -------------------------------------------------------------
+    // TESTE H — REGRESSÃO GERAL
+    // -------------------------------------------------------------
+    console.log('--- TESTE H: Regressão Geral ---');
+    assert('Teste H.1: Elenco intacto com 11+ atletas', Array.isArray(state.squad) && state.squad.length >= 11, `Elenco: ${state.squad.length}`);
+    assert('Teste H.2: Calendário e equipes presentes', Array.isArray(state.schedule) && Array.isArray(state.teams), 'Calendário e times OK');
+    assert('Teste H.3: Tabela da competição funcional', state.teams.length >= 2, `Times no campeonato: ${state.teams.length}`);
+    assert('Teste H.4: Escudos de clubes oficiais ativos', typeof renderClubBadge === 'function', 'renderClubBadge disponível');
+
+  } catch(err) {
+    console.error('Erro na execução dos testes:', err);
+    assert('Erro Inesperado na Execução', false, err.message);
+  } finally {
+    // Restaurar dados originais do usuário para não afetar saves pré-existentes
+    if(realStorage !== null) localStorage.setItem('aquino_futebol_manager_2026_v1', realStorage);
+    if(realSlot1 !== null) localStorage.setItem('afm_save_slot_1', realSlot1);
+    if(realSlot2 !== null) localStorage.setItem('afm_save_slot_2', realSlot2);
+    if(realSlot3 !== null) localStorage.setItem('afm_save_slot_3', realSlot3);
+    if(realAccounts !== null) localStorage.setItem('afm_accounts_v1', realAccounts);
+    if(realSession !== null) localStorage.setItem('afm_active_user_v1', realSession);
+  }
+
+  // Renderizar relatório visual na página
+  const passedCount = tests.filter(t => t.pass).length;
+  const totalCount = tests.length;
+  const allPassed = (passedCount === totalCount);
+
+  const resDiv = document.getElementById('resultsSummary');
+  resDiv.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <h2 style="margin:0;font-size:20px;color:#fff">Resultado dos Testes: Saves & Estádio</h2>
+        <div style="color:#94a3b8;font-size:13px;margin-top:4px">Bateria de testes automatizados executada no navegador</div>
+      </div>
+      <div class="summary-pill ${allPassed ? 'pill-good' : 'pill-bad'}">
+        ${allPassed ? '✓ TODOS OS TESTES PASSARAM' : '✗ FALHA DETECTADA'} (${passedCount}/${totalCount})
+      </div>
+    </div>
+  `;
+
+  const tblDiv = document.getElementById('testsTableCard');
+  tblDiv.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th style="width:50px">Status</th>
+          <th>Cenário de Teste</th>
+          <th>Detalhes & Evidências</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tests.map(t => `
+          <tr>
+            <td><span class="${t.pass ? 'badge-pass' : 'badge-fail'}">${t.pass ? 'PASS' : 'FAIL'}</span></td>
+            <td><b>${t.name}</b></td>
+            <td class="test-details">${t.details || '-'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+
+  window.TEST_RESULTS = { passed: allPassed, count: passedCount, total: totalCount, tests };
+  console.log('=== TESTES CONCLUÍDOS ===', window.TEST_RESULTS);
+});
+</script>
+</body>
+</html>

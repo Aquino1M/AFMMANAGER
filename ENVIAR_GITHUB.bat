@@ -6,9 +6,10 @@ echo =====================================================
 echo   ENVIANDO ATUALIZACOES PARA O GITHUB (AFMMANAGER)
 echo =====================================================
 echo.
-echo [1/4] Configurando autor oficial do GitHub...
+echo [1/4] Configurando autor e ambiente oficial do GitHub...
 git config user.name "Aquino1M"
 git config user.email "243838973+Aquino1M@users.noreply.github.com"
+git config core.safecrlf false
 
 echo [2/4] Verificando arquivos modificados...
 git status

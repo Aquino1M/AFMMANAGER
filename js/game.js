@@ -1465,27 +1465,40 @@ function openStadiumModal(initialTab){
                 </div>
               </div>
 
-              <!-- Badges dos Anéis (Screenshot 1) -->
+              <!-- Badges dos Anéis Dinâmicos (1º ao 6º Anel) -->
               <div>
                 <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:6px">
-                  RUMO A 100.000 LUGARES: <b>0 de 24 obras prontas, em 6 anéis de 4 lados.</b>
+                  RUMO A 100.000 LUGARES: <b>${(() => {
+                    const totalDone = (stData.purchasedSectors || []).length;
+                    return `${totalDone} de 24 obras prontas, em 6 anéis de 4 lados.`;
+                  })()}</b>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-                  <div style="background:#241945;border:1px solid #7c3aed;padding:6px;border-radius:8px;font-size:10px;text-align:center;color:#fff;font-weight:800">1º anel · 7.800 (0/4)</div>
-                  <div style="background:#151226;border:1px solid rgba(255,255,255,0.06);padding:6px;border-radius:8px;font-size:10px;text-align:center;color:rgba(255,255,255,0.4)">2º anel · 18.800</div>
-                  <div style="background:#151226;border:1px solid rgba(255,255,255,0.06);padding:6px;border-radius:8px;font-size:10px;text-align:center;color:rgba(255,255,255,0.4)">3º anel · 30.640</div>
-                  <div style="background:#151226;border:1px solid rgba(255,255,255,0.06);padding:6px;border-radius:8px;font-size:10px;text-align:center;color:rgba(255,255,255,0.4)">4º anel · 49.000</div>
-                  <div style="background:#151226;border:1px solid rgba(255,255,255,0.06);padding:6px;border-radius:8px;font-size:10px;text-align:center;color:rgba(255,255,255,0.4)">5º anel · 72.160</div>
-                  <div style="background:#151226;border:1px solid rgba(255,255,255,0.06);padding:6px;border-radius:8px;font-size:10px;text-align:center;color:rgba(255,255,255,0.4)">6º anel · 100.000</div>
+                  ${[1, 2, 3, 4, 5, 6].map(rNum => {
+                    const rSides = stData.rings?.[rNum] || { norte: false, sul: false, leste: false, oeste: false };
+                    const doneCount = ['norte', 'sul', 'leste', 'oeste'].filter(s => rSides[s]).length;
+                    const isCur = (stData.ring === rNum);
+                    const isDone = (doneCount === 4);
+                    const capTier = [7800, 18800, 30640, 49000, 72160, 100000][rNum - 1];
+                    const bg = isDone ? 'rgba(34,197,94,0.15)' : isCur ? '#241945' : '#151226';
+                    const border = isDone ? '1px solid #22c55e' : isCur ? '1px solid #7c3aed' : '1px solid rgba(255,255,255,0.06)';
+                    const color = isDone ? '#4ade80' : isCur ? '#fff' : 'rgba(255,255,255,0.4)';
+                    const badgeTxt = isDone ? `(${doneCount}/4) ✓` : isCur ? `(${doneCount}/4) ●` : `(0/4)`;
+                    return `
+                      <div style="background:${bg};border:${border};padding:6px;border-radius:8px;font-size:10px;text-align:center;color:${color};font-weight:800">
+                        ${rNum}º anel · ${capTier.toLocaleString('pt-BR')} ${badgeTxt}
+                      </div>
+                    `;
+                  }).join('')}
                 </div>
               </div>
 
-              <!-- Card Próxima Obra (Screenshot 1) -->
+              <!-- Card Próxima Obra -->
               <div style="background:#161226;border:1px solid #7c3aed;border-radius:14px;padding:16px">
                 <div style="display:flex;justify-content:space-between;align-items:center">
                   <span style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase">PRÓXIMA OBRA - ANEL ${stData.ring || 1}</span>
                   <span style="font-size:11px;color:rgba(255,255,255,0.5)">
-                    ${['norte', 'sul', 'leste', 'oeste'].filter(s => stData.sides[s]).length} de 4 lados prontos
+                    ${['norte', 'sul', 'leste', 'oeste'].filter(s => stData.sides[s]).length} de 4 lados prontos neste anel
                   </span>
                 </div>
 
@@ -1495,7 +1508,7 @@ function openStadiumModal(initialTab){
                     ${['norte', 'sul', 'leste', 'oeste'].map(s => {
                       const isSideDone = !!stData.sides[s];
                       return `
-                        <button class="btn btnSelectSide ${stadiumSelectedSide===s?'primary':''}" data-side="${s}" style="padding:6px;font-size:11px;font-weight:800;border-radius:8px">
+                        <button class="btn btnSelectSide ${stadiumSelectedSide===s?'primary':''}" data-side="${s}" style="padding:6px;font-size:11px;font-weight:800;border-radius:8px;${isSideDone?'border:1px solid #22c55e;color:#4ade80':''}">
                           ${s.toUpperCase()} ${isSideDone ? '✓' : ''}
                         </button>
                       `;
@@ -1503,7 +1516,7 @@ function openStadiumModal(initialTab){
                   </div>
                 </div>
 
-                <!-- Métricas da Obra (Screenshot 1) -->
+                <!-- Métricas da Obra -->
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:16px;text-align:center">
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
                     <div style="color:var(--neon);font-size:16px;font-weight:900">+3.500</div>
@@ -1511,7 +1524,7 @@ function openStadiumModal(initialTab){
                   </div>
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
                     <div style="color:#fff;font-size:16px;font-weight:900">Entrega</div>
-                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">imediata no caixa</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">imediata no estádio</div>
                   </div>
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
                     <div style="color:#f59e0b;font-size:16px;font-weight:900">R$ 850k</div>
@@ -1522,11 +1535,11 @@ function openStadiumModal(initialTab){
                 <div style="margin-top:16px">
                   ${stData.sides[stadiumSelectedSide] ? `
                     <button class="btn" id="btnStartSideWork" disabled style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;background:#22c55e;color:#000;cursor:not-allowed;opacity:0.9">
-                      ✓ LADO ${stadiumSelectedSide.toUpperCase()} JÁ CONCLUÍDO NESTE ANEL
+                      ✓ LADO ${stadiumSelectedSide.toUpperCase()} JÁ CONCLUÍDO NO ANEL ${stData.ring || 1}
                     </button>
                   ` : `
                     <button class="btn primary" id="btnStartSideWork" style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;cursor:pointer">
-                      COMEÇAR A OBRA • R$ 850.000 (LADO ${stadiumSelectedSide.toUpperCase()})
+                      COMEÇAR A OBRA • R$ 850.000 (LADO ${stadiumSelectedSide.toUpperCase()} - ANEL ${stData.ring || 1})
                     </button>
                   `}
                 </div>
@@ -2600,18 +2613,29 @@ function openRedCardTacticalModal(sentOffPlayer, minute, reason, isUser){
 // =========================================================================
 let isBuildingStadiumSide = false;
 function buildStadiumSide(side, mode = 'cash'){
-  if(isBuildingStadiumSide) return;
+  if(isBuildingStadiumSide) return false;
   const stData = getStadiumExpansionData();
-  const unbuiltSide = ['norte', 'sul', 'leste', 'oeste'].find(s => !stData.sides[s]);
+  const curRing = Math.max(1, Math.min(stData.maxRings || 6, Number(stData.ring) || 1));
+  stData.ring = curRing;
+  stData.rings = stData.rings || {};
+  stData.rings[curRing] = stData.rings[curRing] || { norte: false, sul: false, leste: false, oeste: false };
+
+  const unbuiltSide = ['norte', 'sul', 'leste', 'oeste'].find(s => !stData.rings[curRing][s]);
   if(!unbuiltSide){
-    toast('Todos os setores deste anel já foram concluídos! Avance para o próximo anel.');
-    return;
+    toast(`Todos os 4 setores do Anel ${curRing} já foram concluídos! Avance para o próximo anel.`);
+    return false;
   }
 
   let targetSide = side || stadiumSelectedSide;
-  if(!targetSide || stData.sides[targetSide]){
+  if(!targetSide || stData.rings[curRing][targetSide]){
     targetSide = unbuiltSide;
     stadiumSelectedSide = unbuiltSide;
+  }
+
+  // Validação: setor já construído no anel atual?
+  if(stData.rings[curRing][targetSide]){
+    toast(`O setor ${targetSide.toUpperCase()} já foi concluído no Anel ${curRing}!`);
+    return false;
   }
 
   isBuildingStadiumSide = true;
@@ -2623,16 +2647,16 @@ function buildStadiumSide(side, mode = 'cash'){
     if(mode === 'cash'){
       if(state.balance < cost){
         toast('Saldo em caixa insuficiente para pagamento à vista!');
-        return;
+        return false;
       }
       state.balance -= cost;
       state.expense = (state.expense || 0) + cost;
-      toast(`Obra no Setor ${targetSide.toUpperCase()} concluída à vista por ${fmtMoney(cost)}! Capacidade aumentada.`);
+      toast(`Obra no Setor ${targetSide.toUpperCase()} (Anel ${curRing}) concluída à vista por ${fmtMoney(cost)}! Capacidade aumentada.`);
     } else {
       const downPayment = cost * 0.20;
       if(state.balance < downPayment){
         toast(`Entrada de 20% (${fmtMoney(downPayment)}) insuficiente no caixa!`);
-        return;
+        return false;
       }
       const numMonths = mode === '6x' ? 6 : 12;
       const interest = mode === '6x' ? 1.06 : 1.12; // 1% ao mês
@@ -2641,7 +2665,7 @@ function buildStadiumSide(side, mode = 'cash'){
 
       if(monthlyInst > maxAllowedInstallment){
         toast(`Aviso do Conselho Fiscal: A parcela de ${fmtMoney(monthlyInst)} ultrapassa 30% da receita mensal do clube (${fmtMoney(maxAllowedInstallment)})!`);
-        return;
+        return false;
       }
 
       state.balance -= downPayment;
@@ -2651,11 +2675,21 @@ function buildStadiumSide(side, mode = 'cash'){
       stData.debt.monthly += monthlyInst;
       stData.debt.monthsLeft = Math.max(stData.debt.monthsLeft, numMonths);
 
-      toast(`Obra iniciada! Entrada de ${fmtMoney(downPayment)} paga. Parcelas de ${fmtMoney(monthlyInst)}/mês cobradas dia 1º.`);
+      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()}! Entrada de ${fmtMoney(downPayment)} paga. Parcelas de ${fmtMoney(monthlyInst)}/mês.`);
     }
 
-    // Registra lado construído
-    stData.sides[targetSide] = true;
+    // Registra lado construído no anel atual
+    stData.rings[curRing][targetSide] = true;
+    stData.sides = stData.rings[curRing]; // Sincroniza espelho
+
+    // Adiciona identificador estável na lista de setores comprados
+    stData.purchasedSectors = Array.isArray(stData.purchasedSectors) ? stData.purchasedSectors : [];
+    const sectorKey = `r${curRing}_${targetSide}`;
+    if(!stData.purchasedSectors.includes(sectorKey)){
+      stData.purchasedSectors.push(sectorKey);
+    }
+
+    // Aumenta capacidade do estádio (+3.500 lugares)
     state.infrastructure = state.infrastructure || {};
     state.infrastructure.stadium = state.infrastructure.stadium || { level: 3, capacity: 18000 };
     state.infrastructure.stadium.capacity = Math.min(100000, (state.infrastructure.stadium.capacity || 18000) + 3500);
@@ -2663,25 +2697,32 @@ function buildStadiumSide(side, mode = 'cash'){
       state.stadium.capacity = state.infrastructure.stadium.capacity;
     }
 
-    // Próximo lado não construído para selecionar automaticamente
-    const nextUnbuilt = ['norte', 'sul', 'leste', 'oeste'].find(s => !stData.sides[s]);
+    // Próximo lado não construído para selecionar automaticamente no anel atual
+    const nextUnbuilt = ['norte', 'sul', 'leste', 'oeste'].find(s => !stData.rings[curRing][s]);
     if(nextUnbuilt){
       stadiumSelectedSide = nextUnbuilt;
     }
 
-    // Verifica se completou os 4 lados do anel
-    const allSidesDone = ['norte', 'sul', 'leste', 'oeste'].every(s => stData.sides[s]);
+    // Verifica se completou os 4 lados do anel atual
+    const allSidesDone = ['norte', 'sul', 'leste', 'oeste'].every(s => stData.rings[curRing][s]);
     if(allSidesDone){
-      stData.ring = Math.min(stData.maxRings, stData.ring + 1);
-      stData.sides = { norte: false, sul: false, leste: false, oeste: false };
-      stadiumSelectedSide = 'norte';
-      toast(`🎉 Sensacional! Todos os 4 lados foram concluídos! O estádio avançou para o Anel ${stData.ring}!`);
+      if(curRing < (stData.maxRings || 6)){
+        const nextRing = curRing + 1;
+        stData.ring = nextRing;
+        stData.rings[nextRing] = stData.rings[nextRing] || { norte: false, sul: false, leste: false, oeste: false };
+        stData.sides = stData.rings[nextRing];
+        stadiumSelectedSide = 'norte';
+        toast(`🎉 Sensacional! Todos os 4 setores do Anel ${curRing} foram concluídos! O estádio avançou para o Anel ${nextRing}!`);
+      } else {
+        toast(`🏆 MONUMENTAL! Todos os 6 anéis foram 100% concluídos! Capacidade máxima atingida!`);
+      }
     }
 
     save();
     render();
+    return true;
   } finally {
-    setTimeout(() => { isBuildingStadiumSide = false; }, 400);
+    setTimeout(() => { isBuildingStadiumSide = false; }, 300);
   }
 }
 
@@ -3624,21 +3665,57 @@ function getStadiumExpansionData(){
   if(!state.stadiumRingData){
     state.stadiumRingData = {
       ring: 1,
-      maxRings: 4,
+      maxRings: 6,
       sides: { norte: false, sul: false, leste: false, oeste: false },
+      rings: {
+        1: { norte: false, sul: false, leste: false, oeste: false },
+        2: { norte: false, sul: false, leste: false, oeste: false },
+        3: { norte: false, sul: false, leste: false, oeste: false },
+        4: { norte: false, sul: false, leste: false, oeste: false },
+        5: { norte: false, sul: false, leste: false, oeste: false },
+        6: { norte: false, sul: false, leste: false, oeste: false }
+      },
+      purchasedSectors: [],
       activeWork: null,
       debt: { remaining: 0, monthly: 0, monthsLeft: 0 },
       closedSeats: 0
     };
   }
-  if(!state.stadiumRingData.sides){
-    state.stadiumRingData.sides = { norte: false, sul: false, leste: false, oeste: false };
+
+  const st = state.stadiumRingData;
+  st.maxRings = 6;
+  st.ring = Math.max(1, Math.min(st.maxRings, Number(st.ring) || 1));
+  st.rings = st.rings || {};
+  for(let r = 1; r <= 6; r++){
+    st.rings[r] = st.rings[r] || { norte: false, sul: false, leste: false, oeste: false };
   }
-  // Correção de saves antigos onde norte e sul vinham travados como true
-  if(state.stadiumRingData.ring === 1 && state.stadiumRingData.sides.norte === true && state.stadiumRingData.sides.sul === true && state.stadiumRingData.sides.leste === false && state.stadiumRingData.sides.oeste === false && !state.stadiumRingData.activeWork && (!state.stadiumRingData.debt || state.stadiumRingData.debt.remaining === 0)){
-    state.stadiumRingData.sides = { norte: false, sul: false, leste: false, oeste: false };
+  st.purchasedSectors = Array.isArray(st.purchasedSectors) ? st.purchasedSectors : [];
+
+  // Migração transparente de saves legados que só tinham st.sides
+  if(st.sides){
+    ['norte', 'sul', 'leste', 'oeste'].forEach(side => {
+      if(st.sides[side] && !st.rings[st.ring][side]){
+        st.rings[st.ring][side] = true;
+      }
+    });
   }
-  return state.stadiumRingData;
+
+  // Sincroniza purchasedSectors com todos os anéis
+  for(let r = 1; r <= 6; r++){
+    ['norte', 'sul', 'leste', 'oeste'].forEach(side => {
+      if(st.rings[r][side]){
+        const key = `r${r}_${side}`;
+        if(!st.purchasedSectors.includes(key)){
+          st.purchasedSectors.push(key);
+        }
+      }
+    });
+  }
+
+  // Sincroniza st.sides com o anel atual ativo
+  st.sides = st.rings[st.ring];
+
+  return st;
 }
 
 function getNewArenaData(){
@@ -4619,18 +4696,33 @@ function saveStoredAccounts(accs){
 
 function getActiveAccount(){
   try {
-    const u = localStorage.getItem(AFM_SESSION_KEY);
-    if(!u) return null;
+    let u = localStorage.getItem(AFM_SESSION_KEY);
+    const isExplicitLogout = localStorage.getItem('afm_explicit_logout') === 'true';
     const accs = getStoredAccounts();
-    return accs.find(a => a.username.toLowerCase() === u.toLowerCase()) || null;
+
+    // Se não há usuário na sessão e não houve logout explícito, assume 'aquino' como conta padrão
+    if(!u && !isExplicitLogout){
+      const def = accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0];
+      if(def){
+        u = def.username;
+        localStorage.setItem(AFM_SESSION_KEY, u);
+        return def;
+      }
+    }
+    if(!u) return null;
+    return accs.find(a => a.username.toLowerCase() === u.toLowerCase()) || accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0] || null;
   } catch(e){
     return null;
   }
 }
 
 function setActiveAccount(username){
-  if(username) localStorage.setItem(AFM_SESSION_KEY, username);
-  else localStorage.removeItem(AFM_SESSION_KEY);
+  if(username){
+    localStorage.setItem(AFM_SESSION_KEY, username);
+    try { localStorage.removeItem('afm_explicit_logout'); } catch(e){}
+  } else {
+    localStorage.removeItem(AFM_SESSION_KEY);
+  }
 }
 
 function loginUser(username, password){
@@ -4672,6 +4764,7 @@ function loginUser(username, password){
     saveStoredAccounts(accs);
   }
 
+  try { localStorage.removeItem('afm_explicit_logout'); } catch(e){}
   setActiveAccount(acc.username);
 
   // Sincronizar com a nuvem (Supabase) em segundo plano
@@ -4706,6 +4799,7 @@ function registerUser(username, password, name){
   };
   accs.push(newAcc);
   saveStoredAccounts(accs);
+  try { localStorage.removeItem('afm_explicit_logout'); } catch(e){}
   setActiveAccount(cleanU);
 
   // Registrar também no Supabase Cloud em segundo plano
@@ -4717,6 +4811,7 @@ function registerUser(username, password, name){
 }
 
 function logoutUser(){
+  try { localStorage.setItem('afm_explicit_logout', 'true'); } catch(e){}
   setActiveAccount(null);
   state = null;
   toast('Você saiu da sua conta.');
@@ -4728,20 +4823,77 @@ function getUserSaveSlots(username){
   const accs = getStoredAccounts();
   const acc = accs.find(a => a.username.toLowerCase() === cleanU) || accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0];
   const saves = acc?.saves || [];
+
   return [1, 2, 3].map(slotNum => {
     let s = saves.find(x => x.slot === slotNum);
-    if(!s || !s.data){
+
+    // 1. Fallback: procurar no slot dedicado do localStorage
+    if(!s || (!s.data && !s.club)){
       try {
         const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
         if(raw) s = JSON.parse(raw);
       } catch(e){}
     }
+
+    // 2. Fallback Crítico para o Slot 1: procurar no save primário STORAGE ('aquino_futebol_manager_2026_v1')
+    if(slotNum === 1 && (!s || (!s.data && !s.club))){
+      try {
+        const legacyRaw = localStorage.getItem(STORAGE);
+        if(legacyRaw){
+          const leg = JSON.parse(legacyRaw);
+          if(leg && leg.club){
+            s = {
+              slot: 1,
+              id: `save_${cleanU}_slot1_${norm(leg.club)}`,
+              owner: cleanU,
+              club: leg.club,
+              manager: leg.manager || 'Treinador',
+              season: leg.season || 2026,
+              date: leg.date || '2026-01-01',
+              round: Number(leg.round) || 0,
+              balance: Number(leg.balance) || 0,
+              updatedAt: new Date().toLocaleString('pt-BR'),
+              data: leg
+            };
+            try { localStorage.setItem('afm_save_slot_1', JSON.stringify(s)); } catch(e){}
+          }
+        }
+      } catch(e){}
+    }
+
+    // 3. Normalização: se for save plano antigo (sem chave .data), embrulhar adequadamente
+    if(s && !s.data && s.club){
+      s = {
+        slot: slotNum,
+        id: s.id || `save_${cleanU}_slot${slotNum}_${norm(s.club)}`,
+        owner: s.owner || cleanU,
+        club: s.club,
+        manager: s.manager || 'Treinador',
+        season: s.season || 2026,
+        date: s.date || '2026-01-01',
+        round: Number(s.round) || 0,
+        balance: Number(s.balance) || 0,
+        updatedAt: s.updatedAt || s.date || new Date().toLocaleString('pt-BR'),
+        data: clone(s)
+      };
+      try { localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(s)); } catch(e){}
+    }
+
+    // 4. Sincronizar de volta com a lista de contas para manter consistência
+    if(s && s.data && acc){
+      acc.saves = acc.saves || [];
+      const exIdx = acc.saves.findIndex(x => x.slot === slotNum);
+      if(exIdx >= 0) acc.saves[exIdx] = s;
+      else acc.saves.push(s);
+      saveStoredAccounts(accs);
+    }
+
     return s || null;
   });
 }
 
 function save(){
-  if(!state) return;
+  if(!state) return false;
   if(Array.isArray(state.news) && state.news.length > 50){
     state.news = state.news.slice(0, 50);
   }
@@ -4751,6 +4903,8 @@ function save(){
   if(Array.isArray(state.seasonHistory) && state.seasonHistory.length > 20){
     state.seasonHistory = state.seasonHistory.slice(0, 20);
   }
+
+  // 1. Sempre salvar no STORAGE primário
   try {
     localStorage.setItem(STORAGE, JSON.stringify(state));
   } catch(e){}
@@ -4776,12 +4930,12 @@ function save(){
     data: clone(state)
   };
 
-  // 1. Salvar no slot dedicado no localStorage (garante persistência mesmo sem login ativo)
+  // 2. Salvar no slot dedicado no localStorage (garante persistência mesmo sem login ativo)
   try {
     localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(saveEntry));
   } catch(e){}
 
-  // 2. Salvar na lista de contas do sistema
+  // 3. Salvar na lista de contas do sistema
   const accs = getStoredAccounts();
   let acc = accs.find(a => a.username.toLowerCase() === state.userOwner);
   if(!acc){
@@ -4798,11 +4952,13 @@ function save(){
     acc.saves = acc.saves.filter(s => s.slot >= 1 && s.slot <= 3).sort((a,b) => a.slot - b.slot);
     saveStoredAccounts(accs);
 
-    // 3. Sincronizar save com o Supabase Cloud
+    // 4. Sincronizar save com o Supabase Cloud
     if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
       window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry).catch(()=>{});
     }
   }
+
+  return true;
 }
 
 function load(){
@@ -4820,18 +4976,31 @@ function loadUserSlot(slotNum, ownerUsername = null){
   const acc = accs.find(a => a.username.toLowerCase() === username) || accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0];
   
   let saveEntry = (acc?.saves || []).find(s => s.slot === slotNum);
-  if(!saveEntry || !saveEntry.data){
+  if(!saveEntry || (!saveEntry.data && !saveEntry.club)){
     try {
       const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
       if(raw) saveEntry = JSON.parse(raw);
     } catch(e){}
   }
 
-  if(!saveEntry || !saveEntry.data){
-    toast(`O Slot ${slotNum} está vazio.`);
-    return;
+  // Fallback primário se slot 1
+  if(slotNum === 1 && (!saveEntry || (!saveEntry.data && !saveEntry.club))){
+    try {
+      const legRaw = localStorage.getItem(STORAGE);
+      if(legRaw){
+        const leg = JSON.parse(legRaw);
+        if(leg && leg.club) saveEntry = { data: leg, club: leg.club, userSlot: 1 };
+      }
+    } catch(e){}
   }
-  state = clone(saveEntry.data);
+
+  if(!saveEntry || (!saveEntry.data && !saveEntry.club)){
+    toast(`O Slot ${slotNum} está vazio.`);
+    return false;
+  }
+
+  const rawData = saveEntry.data || saveEntry;
+  state = clone(rawData);
   state.userSlot = slotNum;
   state.userOwner = username;
   state = migrate(state);
@@ -4839,6 +5008,7 @@ function loadUserSlot(slotNum, ownerUsername = null){
   view = 'central';
   toast(`Campanha do ${clubDisplayName(state.club)} (Slot ${slotNum}) carregada com sucesso!`);
   render();
+  return true;
 }
 
 function deleteUserSlot(slotNum, ownerUsername = null){
@@ -4857,6 +5027,10 @@ function deleteUserSlot(slotNum, ownerUsername = null){
     localStorage.removeItem(`afm_save_slot_${slotNum}`);
   } catch(e){}
 
+  if(slotNum === 1){
+    try { localStorage.removeItem(STORAGE); } catch(e){}
+  }
+
   // Deletar da nuvem (Supabase)
   if(window.AFM_DB && typeof window.AFM_DB.deleteSlot === 'function'){
     window.AFM_DB.deleteSlot(username, slotNum).catch(()=>{});
@@ -4865,7 +5039,6 @@ function deleteUserSlot(slotNum, ownerUsername = null){
   toast(`Campanha do Slot ${slotNum} excluída com sucesso.`);
   if(state && Number(state.userSlot) === slotNum){
     state = null;
-    localStorage.removeItem(STORAGE);
     render();
   } else if(state){
     render();
@@ -7055,6 +7228,25 @@ function migrate(s){
   s.simSpeed=s.simSpeed||'normal';
   s.freeTransferWindow=s.freeTransferWindow||false;
   s.stadiumUpgrades=s.stadiumUpgrades||{chairs:false,mosaic:false,ledRing:false,flares:false,screen:false,ledLights:false};
+  if(s.stadiumRingData){
+    s.stadiumRingData.maxRings = 6;
+    s.stadiumRingData.ring = Math.max(1, Math.min(6, Number(s.stadiumRingData.ring) || 1));
+    s.stadiumRingData.rings = s.stadiumRingData.rings || {};
+    for(let r = 1; r <= 6; r++){
+      s.stadiumRingData.rings[r] = s.stadiumRingData.rings[r] || { norte: false, sul: false, leste: false, oeste: false };
+    }
+    s.stadiumRingData.purchasedSectors = Array.isArray(s.stadiumRingData.purchasedSectors) ? s.stadiumRingData.purchasedSectors : [];
+    if(s.stadiumRingData.sides){
+      ['norte', 'sul', 'leste', 'oeste'].forEach(side => {
+        if(s.stadiumRingData.sides[side]){
+          s.stadiumRingData.rings[s.stadiumRingData.ring][side] = true;
+          const k = `r${s.stadiumRingData.ring}_${side}`;
+          if(!s.stadiumRingData.purchasedSectors.includes(k)) s.stadiumRingData.purchasedSectors.push(k);
+        }
+      });
+    }
+    s.stadiumRingData.sides = s.stadiumRingData.rings[s.stadiumRingData.ring];
+  }
   s.namingRights=s.namingRights||null;
   s.storeConfig=s.storeConfig||{level:1,kitSelected:'kit1',pricing:'normal',stock:'normal'};
   s.trainingConfig=s.trainingConfig||{level:1,focus:'balanced',daysActive:20};
@@ -22736,6 +22928,23 @@ window.clubBadge = clubBadge;
 window.clubDisplayName = clubDisplayName;
 window.getLiveMatchState = () => liveMatchState;
 window.setLiveMatchState = (s) => { liveMatchState = s; };
+
+window.newCareer = newCareer;
+window.save = save;
+window.load = load;
+window.loadUserSlot = loadUserSlot;
+window.getUserSaveSlots = getUserSaveSlots;
+window.deleteUserSlot = deleteUserSlot;
+window.buildStadiumSide = buildStadiumSide;
+window.getStadiumExpansionData = getStadiumExpansionData;
+window.getState = () => state;
+window.setState = (s) => { state = s; };
+window.getStadiumSelectedSide = () => stadiumSelectedSide;
+window.setStadiumSelectedSide = (s) => { stadiumSelectedSide = s; };
+window.renderSetup = renderSetup;
+window.render = render;
+window.getActiveAccount = getActiveAccount;
+window.setActiveAccount = setActiveAccount;
 
 render();
 })();
