@@ -4,6 +4,11 @@ cd /d "%~dp0"
 title Aquino Futebol Manager 2026
 set "PAGE=%~dp0index.html"
 set "URL=file:///%PAGE:\=/%"
+if not exist "%PAGE%" (
+  echo ERRO: index.html nao foi encontrado nesta pasta.
+  pause
+  exit /b 1
+)
 
 if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" (
   start "" "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" --app="%URL%"

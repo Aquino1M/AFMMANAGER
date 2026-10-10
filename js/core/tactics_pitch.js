@@ -96,7 +96,6 @@ function renderPitchPlayerPill(player, slot = {}, opts = {}) {
          data-player-key="${escHtml(pk)}"
          data-starterkey="${escHtml(pk)}"
          draggable="true"
-         onclick="window.handleTacticalCardClick ? window.handleTacticalCardClick(${i}) : null"
          title="${player ? `${escHtml(player.name)} (${escHtml(pos)}) • OVR ${ovr}` : 'Slot Vazio'}">
       <span class="pill-pos">${escHtml(pos)}</span>
       <span class="pill-name">${escHtml(shortName)}</span>

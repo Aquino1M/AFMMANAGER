@@ -1,38 +1,32 @@
 @echo off
+setlocal
 chcp 65001 >nul
 cd /d "%~dp0"
-title Aquino Futebol Manager - Enviar para o GitHub
-echo =====================================================
-echo   ENVIANDO ATUALIZACOES PARA O GITHUB (AFMMANAGER)
-echo =====================================================
-echo.
-echo [1/4] Configurando autor e ambiente oficial do GitHub...
-git config user.name "Aquino1M"
-git config user.email "243838973+Aquino1M@users.noreply.github.com"
-git config core.safecrlf false
+title AFM Manager - Enviar commits ao GitHub
 
-echo [2/4] Verificando arquivos modificados...
-git status
-echo.
-echo [3/4] Adicionando arquivos e gerando commit validado...
-git add .
-git commit --author="Aquino1M <243838973+Aquino1M@users.noreply.github.com>" -m "feat(v3.0): AFM Next-Gen - Prancheta 2.5D, Base Pro, Treino XP, WebAudio SFX, Multiplayer Cloud, Capitao e Bolas Paradas"
+where git >nul 2>nul || (echo ERRO: Git nao encontrado.& pause & exit /b 1)
+git rev-parse --show-toplevel >nul 2>nul || (echo ERRO: esta pasta nao e um repositorio Git.& pause & exit /b 1)
 
-echo.
-echo Sincronizando com as atualizacoes do GitHub...
-git pull --rebase origin main
-
-echo.
-echo [4/4] Enviando para https://github.com/Aquino1M/AFMMANAGER.git...
-git push origin main
-echo.
-if errorlevel 1 (
-  echo ERRO: O push falhou. Verifique sua conexao ou permissoes do Git.
-) else (
-  echo =====================================================
-  echo   TUDO ENVIADO COM SUCESSO PARA O GITHUB!
-  echo   O Vercel iniciara o deploy automaticamente com autor validado.
-  echo =====================================================
+for /f "delims=" %%I in ('git status --porcelain') do set "DIRTY=1"
+if defined DIRTY (
+  echo Envio cancelado: ha arquivos modificados ou sem commit.
+  echo Nenhum arquivo foi adicionado ou alterado. Revise e crie o commit primeiro.
+  git status --short
+  pause
+  exit /b 1
 )
-echo.
+
+for /f "delims=" %%I in ('git branch --show-current') do set "BRANCH=%%I"
+if not defined BRANCH (echo ERRO: nao foi possivel identificar a branch atual.& pause & exit /b 1)
+
+echo Enviando somente commits ja existentes da branch "%BRANCH%".
+echo O Git recusara o envio se a branch remota tiver avancado; nenhum rebase ou reset sera feito.
+git push -u origin HEAD
+if errorlevel 1 (
+  echo ERRO: envio recusado ou indisponivel. Seu trabalho local foi mantido.
+  pause
+  exit /b 1
+)
+
+echo Envio concluido.
 pause

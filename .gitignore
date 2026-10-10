@@ -1,6 +1,7 @@
 # Dependency and build
 node_modules/
 .vercel/
+/data_cache/
 
 # Large backup archives
 BR11.zip

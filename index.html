@@ -49,8 +49,8 @@
     <!-- Opção de Recarregar caso demore -->
     <div id="afmLoadingTimeout" style="display:none;margin-top:20px;text-align:center;">
       <p style="font-size:11px;color:#f87171;margin-bottom:8px;">O carregamento está demorando mais do que o esperado.</p>
-      <button onclick="localStorage.clear();location.reload();" style="background:#7c3aed;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:12px;box-shadow:0 4px 12px rgba(124,58,237,0.4);">
-        🔄 Limpar Cache e Reiniciar
+      <button onclick="location.reload();" style="background:#7c3aed;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:12px;box-shadow:0 4px 12px rgba(124,58,237,0.4);">
+        🔄 Recarregar Jogo
       </button>
     </div>
   </div>
@@ -67,9 +67,11 @@
 <script src="data/competition_teams.js"></script>
 <script src="data/players_live.js"></script>
 <script src="data/club_badges.js"></script>
+<script src="data/club_badges_unverified.js"></script>
 <script src="js/core/club_badges_core.js"></script>
 <script src="data/player_photos.js"></script>
 <script src="data/player_photos_modular.js"></script>
+<script src="data/player_photos_blocked.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/database.js"></script>
 <script src="js/features30.js"></script>

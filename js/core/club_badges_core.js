@@ -230,6 +230,7 @@ window.renderClubBadge = function(clubName, size = 32) {
   }
   const inits = (rawName.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('') || 'FC').slice(0, 3).toUpperCase();
   const fallbackPill = `<span class="badge-fallback-pill" style="display:inline-flex;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
+  if(window.CLUB_BADGES_UNVERIFIED?.has(n)) return fallbackPill;
   const knownPath = file ? (file.startsWith('img/badges/') ? file : 'img/badges/' + file) : null;
   const alternatives = buildClubBadgeFallbackPaths(rawName).filter(path => path !== knownPath);
   const imagePath = knownPath || alternatives.shift();
@@ -238,37 +239,40 @@ window.renderClubBadge = function(clubName, size = 32) {
   return `<img src="${imagePath}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" data-badge-alternatives="${esc(JSON.stringify(alternatives))}" onerror="${onError}" /><span class="badge-fallback-pill" style="display:none;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
 };
 
-// Renderização oficial de fotos de jogadores
+// Renderização oficial de avatar de jogadores (Fotos Reais com fallback vetorial do AFM)
 window.renderPlayerPhoto = function(player, size = 64) {
   const pObj = (typeof player === 'object' && player !== null) ? player : { name: String(player || 'Jogador'), pos: 'CM', club: '' };
   const pName = pObj.name || 'Jogador';
   const pPos = pObj.pos || 'CM';
-  const pClub = pObj.club || '';
+  const photoUrl = typeof window.resolvePlayerPhotoUrl === 'function' ? window.resolvePlayerPhotoUrl(pObj) : null;
 
-  // 1. Verificar mapeamento em PLAYER_PHOTOS
-  let photoPath = window.PLAYER_PHOTOS && (window.PLAYER_PHOTOS[pName] || window.PLAYER_PHOTOS[pName.toLowerCase()]);
-
-  // 2. Fallback por convenção de slugs (img/players/<liga>/<clube>/<jogador>.png)
-  if (!photoPath && pClub) {
-    const clubSlug = window.normSlug(pClub);
-    const playerSlug = window.normSlug(pName);
-    photoPath = `img/players/bra_a/${clubSlug}/${playerSlug}.png`;
-  }
-
-  if (photoPath) {
-    const cleanPath = photoPath.startsWith('img/') ? photoPath : `img/${photoPath}`;
-    const baseName = photoPath.split('/').pop();
-    return `<img src="${cleanPath}" alt="${pName}" class="player-photo-img" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:50%;vertical-align:middle;border:2px solid rgba(255,255,255,0.15);flex-shrink:0;background:#0f172a" loading="lazy" onerror="if(!this.dataset.retried){this.dataset.retried=1;this.src='img/players/${baseName}';}else{this.onerror=null;this.parentElement.innerHTML=renderDefaultPlayerAvatar('${pName.replace(/'/g, "\\'")}',${size},'${pPos}');}">`;
+  if (photoUrl) {
+    const fallbackSvg = window.renderDefaultPlayerAvatar(pName, size, pPos);
+    return `<div class="player-photo-container" style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;position:relative;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;vertical-align:middle;box-shadow:0 2px 6px rgba(0,0,0,0.3)">
+      <img src="${String(photoUrl)}" alt="${String(pName)}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';" />
+      <div style="display:none;width:100%;height:100%">${fallbackSvg}</div>
+    </div>`;
   }
 
   return window.renderDefaultPlayerAvatar(pName, size, pPos);
 };
 
 window.renderDefaultPlayerAvatar = function(playerName, size = 64, pos = 'CM') {
-  const inits = playerName.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase() || 'AF';
-  const fontSize = Math.round(size * 0.36);
-  return `<div class="player-avatar-fallback" style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,#0f172a,#1e1b4b);border:2px solid rgba(99,102,241,0.3);display:inline-flex;align-items:center;justify-content:center;position:relative;flex-shrink:0">
-    <span style="font-size:${fontSize}px;font-weight:900;color:#e2e8f0">${inits}</span>
+  const posUpper = String(pos || 'CM').toUpperCase();
+  const posColorMap = {
+    GK: '#f59e0b',
+    CB: '#3b82f6', LB: '#38bdf8', RB: '#38bdf8',
+    DM: '#10b981', CM: '#22c55e', AM: '#a855f7',
+    LM: '#06b6d4', RM: '#06b6d4',
+    LW: '#ec4899', RW: '#ec4899', CF: '#ef4444', ST: '#f43f5e'
+  };
+  const badgeColor = posColorMap[posUpper] || '#94a3b8';
+  const iconSize = Math.round(size * 0.68);
+  return `<div class="player-avatar-fallback" style="width:${size}px;height:${size}px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #1e293b, #090d16);border:1.5px solid rgba(148,163,184,0.35);box-shadow:0 2px 6px rgba(0,0,0,0.45);display:inline-flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;vertical-align:middle" title="${String(playerName||'')}">
+    <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.95">
+      <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="${badgeColor}"/>
+    </svg>
+    ${size >= 30 ? `<span style="position:absolute;bottom:-2px;right:-2px;background:#0f172a;border:1px solid rgba(255,255,255,0.25);color:${badgeColor};font-size:${Math.max(7, Math.round(size * 0.22))}px;font-weight:900;padding:1px 3px;border-radius:4px;line-height:1">${posUpper.slice(0, 2)}</span>` : ''}
   </div>`;
 };
 

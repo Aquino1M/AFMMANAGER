@@ -1,93 +1,46 @@
 @echo off
-setlocal enabledelayedexpansion
-title AFM MANAGER — ATUALIZAR DO GITHUB
-color 0B
+setlocal
+chcp 65001 >nul
+cd /d "%~dp0"
+title AFM Manager - Atualizar com seguranca
 
-echo ======================================================================
-echo   AQUINO FUTEBOL MANAGER — ATUALIZAR REPOSITORIO DO GITHUB
-echo   Repositorio: origin/main (Aquino1M/AFMMANAGER)
-echo ======================================================================
-echo.
+where git >nul 2>nul || (echo ERRO: Git nao encontrado.& pause & exit /b 1)
+git rev-parse --show-toplevel >nul 2>nul || (echo ERRO: esta pasta nao e um repositorio Git.& pause & exit /b 1)
 
-where git >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (
-    echo [ERRO] O comando 'git' nao foi encontrado no PATH do sistema.
-    echo Certifique-se de que o Git para Windows esta instalado.
-    pause
-    exit /b 1
+for /f "delims=" %%I in ('git status --porcelain') do set "DIRTY=1"
+if defined DIRTY (
+  echo Atualizacao cancelada: existem alteracoes locais.
+  echo Salve e envie seu trabalho antes de atualizar. Nenhum arquivo foi alterado.
+  git status --short
+  pause
+  exit /b 1
 )
 
-echo Escolha como deseja atualizar:
-echo.
-echo  [1] ATUALIZAR PRESERVANDO ALTERACOES LOCAIS (Recomendado)
-echo      (Salva arquivos modificados, puxa a versao do GitHub e reaplica)
-echo.
-echo  [2] COMMITAR TUDO E ATUALIZAR (Git Add + Commit + Pull)
-echo.
-echo  [3] FORCAR ATUALIZACAO DO GITHUB (Descarta alteracoes locais nao salvas)
-echo.
-echo  [4] APENAS VER O STATUS ATUAL (git status)
-echo.
-
-set /p OPCAO="Digite a opcao desejada [1, 2, 3 ou 4]: "
-
-if "%OPCAO%"=="1" goto OP_STASH_PULL
-if "%OPCAO%"=="2" goto OP_COMMIT_PULL
-if "%OPCAO%"=="3" goto OP_HARD_RESET
-if "%OPCAO%"=="4" goto OP_STATUS
-
-echo Opcao invalida. Saindo...
-pause
-exit /b 0
-
-:OP_STASH_PULL
-echo.
-echo [1/3] Guardando alteracoes locais temporariamente (git stash)...
-git stash
-echo.
-echo [2/3] Baixando novidades do GitHub (git pull origin main)...
-git pull origin main
-echo.
-echo [3/3] Restaurando suas alteracoes locais (git stash pop)...
-git stash pop
-goto FIM
-
-:OP_COMMIT_PULL
-echo.
-echo [1/3] Adicionando alteracoes locais ao stage...
-git add .
-set /p MSG_COMMIT="Digite a mensagem de commit (ou aperte ENTER para 'Atualizacao local'): "
-if "!MSG_COMMIT!"=="" set MSG_COMMIT=Atualizacao local
-git commit -m "!MSG_COMMIT!"
-echo.
-echo [2/3] Puxando novidades do GitHub (git pull origin main)...
-git pull origin main
-goto FIM
-
-:OP_HARD_RESET
-echo.
-echo [ATENCAO] Esta opcao ira DESCARTAR alteracoes locais nao salvas no GitHub!
-set /p CONFIRMA="Tem certeza? Digite 'S' para confirmar: "
-if /I NOT "%CONFIRMA%"=="S" (
-    echo Operacao cancelada pelo usuario.
-    pause
-    exit /b 0
+for /f "delims=" %%I in ('git rev-parse --abbrev-ref --symbolic-full-name "@{upstream}" 2^>nul') do set "UPSTREAM=%%I"
+if not defined UPSTREAM (
+  echo ERRO: esta branch nao tem uma branch remota configurada.
+  pause
+  exit /b 1
 )
-echo.
-echo Baixando dados remotos do GitHub...
-git fetch origin main
-echo Resetando para origin/main...
-git reset --hard origin/main
-goto FIM
 
-:OP_STATUS
-echo.
-git status
-goto FIM
+echo Buscando referencias remotas. Os arquivos locais nao serao sobrescritos.
+git fetch || (echo ERRO: nao foi possivel buscar atualizacoes.& pause & exit /b 1)
+git merge-base --is-ancestor HEAD "%UPSTREAM%"
+if errorlevel 1 (
+  echo Atualizacao cancelada: o historico local e remoto divergiu ou esta adiantado.
+  echo Nenhum arquivo foi alterado. Envie ou revise os commits antes de atualizar.
+  pause
+  exit /b 1
+)
 
-:FIM
-echo.
-echo ======================================================================
-echo   PROCESSO CONCLUIDO!
-echo ======================================================================
+for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"') do set "STAMP=%%I"
+git branch "backup/pre-atualizacao-%STAMP%" HEAD || (echo ERRO ao criar a referencia de seguranca.& pause & exit /b 1)
+git merge --ff-only "%UPSTREAM%"
+if errorlevel 1 (
+  echo ERRO: atualizacao nao aplicada. Sua versao anterior esta na branch backup/pre-atualizacao-%STAMP%.
+  pause
+  exit /b 1
+)
+
+echo Atualizacao segura concluida. Backup local: backup/pre-atualizacao-%STAMP%.
 pause

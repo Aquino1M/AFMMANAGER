@@ -160,6 +160,13 @@ function isGoalkeeperPosition(pos) {
   return ['gk', 'gol', 'goalkeeper', 'goleiro', 'por', 'guarda redes'].includes(typeof norm === 'function' ? norm(pos) : String(pos || '').trim().toLowerCase());
 }
 
+function trustedPlayerPhotoUrl(rawPhoto){
+  if(typeof rawPhoto !== 'string' || !rawPhoto.trim()) return null;
+  const photo = /^(?:https?:|data:|blob:|\/)/i.test(rawPhoto) ? rawPhoto.trim() : (rawPhoto.startsWith('img/') ? rawPhoto : `img/${rawPhoto.replace(/^\.?\//, '')}`);
+  const localPath = photo.replace(/^\.\//, '');
+  return window.PLAYER_PHOTO_DUPLICATES?.has(localPath) ? null : photo;
+}
+
 function resolvePlayerPhotoUrl(p) {
   if (!p) return null;
   const name = typeof p === 'string' ? p : (p.name || '');
@@ -167,9 +174,7 @@ function resolvePlayerPhotoUrl(p) {
 
   // 1. Verificar se o atleta já possui foto explícita
   if (typeof p === 'object' && p.photo && typeof p.photo === 'string') {
-    const rawPhoto = p.photo.trim();
-    if (/^(?:https?:|data:|blob:|\/)/i.test(rawPhoto)) return rawPhoto;
-    return rawPhoto.startsWith('img/') ? rawPhoto : `img/${rawPhoto.replace(/^\.?\//, '')}`;
+    return trustedPlayerPhotoUrl(p.photo);
   }
 
   // 2. Verificar no mapeamento global window.PLAYER_PHOTOS (exato, norm, lowercase, slug)
@@ -182,81 +187,46 @@ function resolvePlayerPhotoUrl(p) {
     const normalizedKey = Object.keys(photos).find(key => norm(key) === normName || normSlug(key) === slugName);
     if (normalizedKey) match = photos[normalizedKey];
   }
-  if (match) {
-    return /^(?:https?:|data:|blob:|\/)/i.test(match) ? match : (match.startsWith('img/') ? match : `img/${match}`);
-  }
-
-  // Algumas fotos do acervo são nomeadas pelo ID do jogador, não pelo nome.
-  const rawPlayerId = typeof p === 'object' ? (p.photoId || p.apiId || p.id) : null;
-  if (/^\d+$/.test(String(rawPlayerId ?? ''))) return `img/players/${rawPlayerId}.png`;
-
-  // 3. Buscar na árvore física padrão: img/players/${league}/${club_slug}/${player_slug}.png
-  const club = typeof p === 'object' ? (p.club || state?.club || '') : (state?.club || '');
-  if (club) {
-    const clubSlug = typeof normSlug === 'function' ? normSlug(club) : club.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const compId = (typeof curComp === 'function' ? curComp()?.id : '') || 'bra-a';
-    const leagueMap = {
-      'bra-a': 'bra_a', 'bra-b': 'bra_b', 'bra-c': 'bra_c', 'bra-d': 'bra_d',
-      'bra-est-df': 'bra_estaduais', 'bra-est-sp': 'bra_estaduais', 'bra-est-rj': 'bra_estaduais',
-      'bra-est-mg': 'bra_estaduais', 'bra-est-rs': 'bra_estaduais', 'bra-est-pr': 'bra_estaduais',
-      'bra-est-sc': 'bra_estaduais', 'bra-est-ba': 'bra_estaduais', 'bra-est-ce': 'bra_estaduais',
-      'bra-est-go': 'bra_estaduais', 'bra-est-pe': 'bra_estaduais',
-      'arg-1': 'arg_1', 'arg-2': 'arg_2', 'europe': 'europe', 'asia': 'asia'
-    };
-    const leagueFolder = leagueMap[compId] || (compId.startsWith('bra-est') ? 'bra_estaduais' : 'bra_a');
-    return `img/players/${leagueFolder}/${clubSlug}/${slugName}.png`;
-  }
-
-  return null;
+  return match ? trustedPlayerPhotoUrl(match) : null;
 }
 
 function resolvePlayerPhotoCandidates(p) {
   const primary = resolvePlayerPhotoUrl(p);
-  if (!primary) return [];
-  const name = typeof p === 'string' ? p : (p?.name || '');
-  const obj = typeof p === 'object' && p !== null ? p : null;
-  const explicit = !!(obj && [obj.photo, obj.photoUrl, obj.imageUrl].some(v => typeof v === 'string' && v.trim()));
-  const photos = window.PLAYER_PHOTOS || {};
-  const normalizedName = typeof norm === 'function' ? norm(name) : String(name).toLowerCase();
-  const slugName = typeof normSlug === 'function' ? normSlug(name) : String(name).toLowerCase().replace(/[^a-z0-9]/g, '_');
-  const mapped = Object.keys(photos).some(key => norm(key) === normalizedName || normSlug(key) === slugName);
-  const result = [primary];
-  if (explicit || mapped) return result;
-  const rawId = obj ? (obj.photoId || obj.apiId || obj.id) : null;
-  if (/^\d+$/.test(String(rawId ?? ''))) result.push('img/players/' + rawId + '.png');
-  const club = obj ? (obj.club || state?.club || '') : (state?.club || '');
-  if (club) {
-    const clubSlug = normSlug(club);
-    const compId = (typeof curComp === 'function' ? curComp()?.id : '') || 'bra-a';
-    const leagueMap = {'bra-a':'bra_a','bra-b':'bra_b','bra-c':'bra_c','bra-d':'bra_d','bra-est-df':'bra_estaduais','bra-est-sp':'bra_estaduais','bra-est-rj':'bra_estaduais','bra-est-mg':'bra_estaduais','bra-est-rs':'bra_estaduais','bra-est-pr':'bra_estaduais','bra-est-sc':'bra_estaduais','bra-est-ba':'bra_estaduais','bra-est-ce':'bra_estaduais','bra-est-go':'bra_estaduais','bra-est-pe':'bra_estaduais','arg-1':'arg_1','arg-2':'arg_2','europe':'europe','asia':'asia'};
-    const primaryFolder = leagueMap[compId] || (compId.startsWith('bra-est') ? 'bra_estaduais' : 'bra_a');
-    const folders = [primaryFolder, 'bra_a', 'bra_b', 'bra_c', 'bra_d', 'bra_estaduais', 'arg_1', 'arg_2', 'europe', 'asia'];
-    folders.forEach(folder => result.push('img/players/' + folder + '/' + clubSlug + '/' + slugName + '.png'));
-  }
-  return [...new Set(result)];
+  return primary ? [primary] : [];
 }
 
 function playerPhoto(p, size = 36) {
   const name = typeof p === 'string' ? p : (p?.name || 'Jogador');
-  const pos = typeof p === 'object' ? (p?.pos || 'ST') : 'ST';
-  const photoCandidates = resolvePlayerPhotoCandidates(p);
-  const photoUrl = photoCandidates[0] || null;
+  const pos = typeof p === 'object' ? (p?.pos || 'CM') : 'CM';
+  const photoUrl = typeof resolvePlayerPhotoUrl === 'function' ? resolvePlayerPhotoUrl(p) : null;
 
   if (photoUrl) {
-    const escapedName = esc(name);
-    const escapedPos = esc(pos);
-    return `<img src="${photoUrl}" alt="${escapedName}" class="player-avatar" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;background:#0f172a;border:2px solid rgba(148,163,184,0.3);box-shadow:0 2px 8px rgba(0,0,0,0.4);vertical-align:middle;flex-shrink:0" loading="lazy" data-photo-alternatives="${esc(JSON.stringify(photoCandidates.slice(1)))}" data-photo-fallback="${esc(renderPlayerAvatarFallback(name,pos,size))}" onerror="const a=JSON.parse(this.dataset.photoAlternatives||'[]');if(a.length){this.dataset.photoAlternatives=JSON.stringify(a.slice(1));this.src=a[0];}else{this.onerror=null;this.outerHTML=this.dataset.photoFallback;}"`;
+    const fallbackSvg = renderPlayerAvatarFallback(name, pos, size);
+    return `<div class="player-photo-container" style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;position:relative;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;vertical-align:middle;box-shadow:0 2px 6px rgba(0,0,0,0.3)">
+      <img src="${esc(photoUrl)}" alt="${esc(name)}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';" />
+      <div style="display:none;width:100%;height:100%">${fallbackSvg}</div>
+    </div>`;
   }
 
   return renderPlayerAvatarFallback(name, pos, size);
 }
 
 function renderPlayerAvatarFallback(name, pos = 'CM', size = 36) {
+  const posUpper = String(pos || 'CM').toUpperCase();
+  const posColorMap = {
+    GK: '#f59e0b',
+    CB: '#3b82f6', LB: '#38bdf8', RB: '#38bdf8',
+    DM: '#10b981', CM: '#22c55e', AM: '#a855f7',
+    LM: '#06b6d4', RM: '#06b6d4',
+    LW: '#ec4899', RW: '#ec4899', CF: '#ef4444', ST: '#f43f5e'
+  };
+  const color = posColorMap[posUpper] || '#94a3b8';
+  const iconSize = Math.round(size * 0.68);
   return `<div class="player-avatar" style="width:${size}px;height:${size}px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #1e293b, #090d16);border:1.5px solid rgba(148,163,184,0.35);box-shadow:0 2px 6px rgba(0,0,0,0.45);display:inline-flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;vertical-align:middle" title="${esc(name || '')}">
-    <svg width="${Math.round(size * 0.72)}" height="${Math.round(size * 0.72)}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.85">
-      <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="#94a3b8"/>
+    <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.95">
+      <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="${color}"/>
     </svg>
-    ${size >= 34 ? `<span style="position:absolute;bottom:-2px;right:-2px;background:#0f172a;border:1px solid rgba(255,255,255,0.2);color:#fbbf24;font-size:${Math.max(7, Math.round(size * 0.22))}px;font-weight:900;padding:1px 3px;border-radius:4px;line-height:1">${esc(pos || 'ST').slice(0, 2)}</span>` : ''}
+    ${size >= 30 ? `<span style="position:absolute;bottom:-2px;right:-2px;background:#0f172a;border:1px solid rgba(255,255,255,0.25);color:${color};font-size:${Math.max(7, Math.round(size * 0.22))}px;font-weight:900;padding:1px 3px;border-radius:4px;line-height:1">${esc(posUpper.slice(0, 2))}</span>` : ''}
   </div>`;
 }
 
@@ -277,7 +247,6 @@ function renderTacticalCard(player, index, isSelected = false) {
          data-player-id="${player.id || index}" 
          data-index="${index}"
          data-player-key="${esc(playerKey(player))}"
-         onclick="window.handleTacticalCardClick ? window.handleTacticalCardClick(${index}) : null">
       <div class="card-header fifa-mini-card-top">
         <div class="fifa-mini-card-badge">
           <span class="card-ovr fifa-mini-card-ovr">${ovr}</span>
@@ -972,7 +941,7 @@ function ensureTacticsState(s){
 }
 
 const FACILITIES={
- stadium:{name:'Estádio',icon:'🏟️',base:1800000,max:8,effect:'Aumenta a capacidade do estádio e a bilheteria.'},
+ stadium:{name:'Estádio',icon:'🏟️',base:1800000,max:6,effect:'Libera anéis para obras; a capacidade cresce quando cada setor fica pronto.'},
  parking:{name:'Estacionamento',icon:'🚗',base:350000,max:6,effect:'Gera receita com vagas de estacionamento em jogos em casa.'},
  training:{name:'Centro de treinamento',icon:'⚽',base:650000,max:8,effect:'Melhora evolução, treino e recuperação física.'},
  academy:{name:'Categorias de base',icon:'🌱',base:500000,max:8,effect:'Aumenta a qualidade dos jovens revelados.'},
@@ -1003,6 +972,11 @@ const teamMap=window.COMPETITION_TEAMS||{};
 
 let view='central';
 let marketTab='buy';
+let marketFilterTimer = null;
+function scheduleMarketFilter(renderList){
+  clearTimeout(marketFilterTimer);
+  marketFilterTimer = setTimeout(renderList, 140);
+}
 let seasonTab='nacional';
 let continentalTab='sulamericana';
 let configTab='save';
@@ -1446,6 +1420,7 @@ function openStadiumModal(initialTab){
   if(initialTab) stadiumModalTab = initialTab;
 
   let el = $('#stadiumVisualModalContainer');
+  const prevPanelScroll = el?.querySelector('.visual-panel-right')?.scrollTop || 0;
   if(!el){
     el = document.createElement('div');
     el.id = 'stadiumVisualModalContainer';
@@ -1453,13 +1428,12 @@ function openStadiumModal(initialTab){
   }
 
   const sName = clubStadiumName();
+  const stadLevel = Number(state.infrastructure?.stadium?.level) || 1;
+  const namingMult = 1 + (stadLevel - 1) * 0.45;
   const cap = state.infrastructure?.stadium?.capacity || 3000;
   const cald = getCaldeiraoData();
   const stData = getStadiumExpansionData();
-  const unbuiltSide = ['norte', 'sul', 'leste', 'oeste'].find(s => !stData.sides[s]);
-  if(stData.sides[stadiumSelectedSide] && unbuiltSide){
-    stadiumSelectedSide = unbuiltSide;
-  }
+  if(!stadiumSelectedSide) stadiumSelectedSide = 'norte';
   const u = {
     ...state.stadiumUpgrades,
     ...(stadiumPreviewUpgrade ? { [stadiumPreviewUpgrade]: true } : {})
@@ -1496,14 +1470,16 @@ function openStadiumModal(initialTab){
             ` : ''}
 
             <!-- Arquibancada Norte (Superior) -->
-            <div class="${isExp && stadiumSelectedSide==='norte' ? 'stand-construction-active' : ''}" style="height:48px;background:${u.chairs?'#251d45':'#22202a'};border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,0.08)">
+            <div class="${isExp && stadiumSelectedSide==='norte' ? 'stand-construction-active' : ''}" style="height:48px;background:${stData.sides['norte']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='norte'?'#f59e0b':'rgba(255,255,255,0.08)'}">
               ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
-              ${isExp && stadiumSelectedSide==='norte' ? `
-                <div style="z-index:3;background:#f59e0b;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #f59e0b">🏗️ OBRA NORTE (+1.750 LUGARES)</div>
-              ` : u.screen ? `
+              ${isExp && stadiumSelectedSide==='norte' ? (
+                stData.sides['norte'] ?
+                  `<div style="z-index:3;background:#22c55e;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #22c55e">✓ NORTE CONCLUÍDO (+3.500)</div>` :
+                  `<div style="z-index:3;background:#f59e0b;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #f59e0b">🏗️ OBRA NORTE (+3.500 LUGARES)</div>`
+              ) : u.screen ? `
                 <div style="z-index:2;background:#000;border:1px solid #22c55e;color:#22c55e;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px">TELÃO • 0 X 0</div>
               ` : `
-                <span style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.3)">SETOR NORTE</span>
+                <span style="font-size:10px;font-weight:800;color:${stData.sides['norte']?'#4ade80':'rgba(255,255,255,0.3)'}">SETOR NORTE ${stData.sides['norte']?'✓':''}</span>
               `}
               ${u.flares ? '<div class="animated-flare" style="position:absolute;left:15%;top:2px;font-size:18px">🔥</div><div class="animated-flare" style="position:absolute;right:15%;top:2px;font-size:18px">🔥</div>' : ''}
             </div>
@@ -1570,14 +1546,16 @@ function openStadiumModal(initialTab){
             </div>
 
             <!-- Arquibancada Sul (Inferior com Mosaico) -->
-            <div class="${isExp && stadiumSelectedSide==='sul' ? 'stand-construction-active' : ''}" style="height:48px;background:${u.chairs?'#251d45':'#22202a'};border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(255,255,255,0.08)">
+            <div class="${isExp && stadiumSelectedSide==='sul' ? 'stand-construction-active' : ''}" style="height:48px;background:${stData.sides['sul']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='sul'?'#f59e0b':'rgba(255,255,255,0.08)'}">
               ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
-              ${isExp && stadiumSelectedSide==='sul' ? `
-                <div style="z-index:3;background:#f59e0b;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #f59e0b">🏗️ OBRA SUL (+1.750 LUGARES)</div>
-              ` : u.mosaic ? `
+              ${isExp && stadiumSelectedSide==='sul' ? (
+                stData.sides['sul'] ?
+                  `<div style="z-index:3;background:#22c55e;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #22c55e">✓ SUL CONCLUÍDO (+3.500)</div>` :
+                  `<div style="z-index:3;background:#f59e0b;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #f59e0b">🏗️ OBRA SUL (+3.500 LUGARES)</div>`
+              ) : u.mosaic ? `
                 <div style="z-index:2;background:#7c3aed;color:#fff;font-size:10px;font-weight:900;padding:2px 10px;border-radius:4px;letter-spacing:1px;box-shadow:0 0 10px rgba(124,58,237,0.5)">MOSAICO OFICIAL ★</div>
               ` : `
-                <span style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.3)">SETOR SUL</span>
+                <span style="font-size:10px;font-weight:800;color:${stData.sides['sul']?'#4ade80':'rgba(255,255,255,0.3)'}">SETOR SUL ${stData.sides['sul']?'✓':''}</span>
               `}
               ${u.flares ? '<div class="animated-flare" style="position:absolute;left:25%;bottom:2px;font-size:18px">🔥</div><div class="animated-flare" style="position:absolute;right:25%;bottom:2px;font-size:18px">🔥</div>' : ''}
             </div>
@@ -1636,7 +1614,7 @@ function openStadiumModal(initialTab){
                   <span style="font-size:11px;font-weight:900;color:${state.namingRights?'#22c55e':'#c084fc'};letter-spacing:1px">
                     ${state.namingRights ? '✓ NAMING RIGHTS ATIVO' : '⭐ VENDER NAMING RIGHTS'}
                   </span>
-                  ${state.namingRights ? `<span class="pill good" style="font-size:10px">${state.namingRights.monthsRemaining} meses rest.</span>` : ''}
+                  ${state.namingRights ? `<span class="pill good" style="font-size:10px">${state.namingRights.monthsRemaining} meses rest.</span>` : `<span class="pill" style="font-size:10px;background:rgba(34,197,94,0.15);color:#22c55e">Nível ${stadLevel}/8: +${Math.round((namingMult-1)*100)}% valor</span>`}
                 </div>
 
                 ${state.namingRights ? `
@@ -1651,26 +1629,29 @@ function openStadiumModal(initialTab){
                   </div>
                 ` : `
                   <p style="font-size:12px;color:rgba(255,255,255,0.7);margin:8px 0 12px 0;line-height:1.4">
-                    Venda o nome do seu estádio para uma grande empresa brasileira e garanta renda mensal fixa todo dia 1º:
+                    Venda o nome do seu estádio para uma grande empresa brasileira e garanta renda mensal fixa todo dia 1º. Quanto maior o nível do estádio, maiores os valores:
                   </p>
                   <div style="display:flex;flex-direction:column;gap:8px">
                     ${[
-                      { sponsor: 'Betano', name: 'Betano Arena Defelê', val: 85000, months: 24 },
-                      { sponsor: 'Allianz', name: 'Allianz Parque Cerrado', val: 110000, months: 36 },
-                      { sponsor: 'BYD', name: 'BYD Stadium Brasília', val: 95000, months: 24 },
-                      { sponsor: 'Mercado Livre', name: 'Mercado Livre Arena', val: 125000, months: 36 },
-                      { sponsor: 'Neo Química', name: 'Neo Química Arena DF', val: 100000, months: 24 }
-                    ].map(n => `
-                      <div style="background:#110e1d;padding:10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(255,255,255,0.06)">
-                        <div>
-                          <b style="color:#fff;font-size:12px">${n.sponsor}</b>
-                          <div style="font-size:11px;color:rgba(255,255,255,0.5)">${n.name} (${n.months} meses)</div>
+                      { sponsor: 'Betano', name: 'Betano Arena Defelê', baseVal: 85000, months: 24 },
+                      { sponsor: 'Allianz', name: 'Allianz Parque Cerrado', baseVal: 110000, months: 36 },
+                      { sponsor: 'BYD', name: 'BYD Stadium Brasília', baseVal: 95000, months: 24 },
+                      { sponsor: 'Mercado Livre', name: 'Mercado Livre Arena', baseVal: 125000, months: 36 },
+                      { sponsor: 'Neo Química', name: 'Neo Química Arena DF', baseVal: 100000, months: 24 }
+                    ].map(n => {
+                      const finalVal = Math.round(n.baseVal * namingMult);
+                      return `
+                        <div style="background:#110e1d;padding:10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(255,255,255,0.06)">
+                          <div>
+                            <b style="color:#fff;font-size:12px">${n.sponsor}</b>
+                            <div style="font-size:11px;color:rgba(255,255,255,0.5)">${n.name} (${n.months} meses)</div>
+                          </div>
+                          <button class="btn primary btnSignNaming" data-sponsor="${n.sponsor}" data-name="${n.name}" data-val="${finalVal}" data-months="${n.months}" style="font-size:10px;padding:5px 10px;font-weight:800">
+                            Assinar • ${fmtMoney(finalVal)}/mês
+                          </button>
                         </div>
-                        <button class="btn primary btnSignNaming" data-sponsor="${n.sponsor}" data-name="${n.name}" data-val="${n.val}" data-months="${n.months}" style="font-size:10px;padding:5px 10px;font-weight:800">
-                          Assinar • ${fmtMoney(n.val)}/mês
-                        </button>
-                      </div>
-                    `).join('')}
+                      `;
+                    }).join('')}
                   </div>
                 `}
               </div>
@@ -1720,26 +1701,36 @@ function openStadiumModal(initialTab){
                 </div>
               </div>
 
-              <!-- Lista de Melhorias Compráveis (Screenshot 2) com Prévia em Tempo Real -->
+              <!-- Lista de Melhorias Compráveis com Prévia em Tempo Real -->
               <div style="display:flex;flex-direction:column;gap:8px">
                 ${[
-                  { key: 'chairs', name: 'Cadeiras novas', cost: 20250, desc: 'troca todas as cadeiras pela cor escolhida · Caldeirão +1 de estrutura' },
-                  { key: 'mosaic', name: 'Mosaico com o escudo', cost: 35000, desc: 'mosaico oficial nas arquibancadas centrais · Caldeirão +2 de estrutura' },
-                  { key: 'ledRing', name: 'Anel de LED do clube', cost: 48000, desc: 'painéis de LED dinâmicos contornando o campo · Caldeirão +1 de estrutura' },
-                  { key: 'flares', name: 'Fogos e sinalizadores', cost: 15000, desc: 'fumaça e sinalizadores na entrada do time · Caldeirão +3 de estrutura' },
-                  { key: 'screen', name: 'Telão do clube', cost: 65000, desc: 'telão digital de alta resolução no anel norte · Caldeirão +1 de estrutura' },
-                  { key: 'ledLights', name: 'Refletores de LED', cost: 55000, desc: 'iluminação esportiva de padrão internacional · Caldeirão +1 de estrutura' }
+                  { key: 'chairs', name: 'Cadeiras novas', cost: 20250, reqLvl: 1, desc: 'troca todas as cadeiras pela cor escolhida · Caldeirão +1 de estrutura' },
+                  { key: 'mosaic', name: 'Mosaico com o escudo', cost: 35000, reqLvl: 1, desc: 'mosaico oficial nas arquibancadas centrais · Caldeirão +2 de estrutura' },
+                  { key: 'ledRing', name: 'Anel de LED do clube', cost: 48000, reqLvl: 1, desc: 'painéis de LED dinâmicos contornando o campo · Caldeirão +1 de estrutura' },
+                  { key: 'flares', name: 'Fogos e sinalizadores', cost: 15000, reqLvl: 1, desc: 'fumaça e sinalizadores na entrada do time · Caldeirão +3 de estrutura' },
+                  { key: 'screen', name: 'Telão do clube', cost: 65000, reqLvl: 1, desc: 'telão digital de alta resolução no anel norte · Caldeirão +1 de estrutura' },
+                  { key: 'ledLights', name: 'Refletores de LED', cost: 55000, reqLvl: 1, desc: 'iluminação esportiva de padrão internacional · Caldeirão +1 de estrutura' },
+                  { key: 'vipBoxes', name: 'Camarotes VIP Corporativos', cost: 85000, reqLvl: 2, desc: 'camarotes de luxo climatizados · Caldeirão +2 e renda mensal extra' },
+                  { key: 'surroundSound', name: 'Sistema de Som Acústico Caldeirão', cost: 110000, reqLvl: 3, desc: 'acústica ultra-potente que ensurdece o adversário · Caldeirão +3' },
+                  { key: 'museumTour', name: 'Tour da Arena & Museu Imersivo', cost: 145000, reqLvl: 4, desc: 'circuito turístico de visitação do clube · Caldeirão +2 e prestígio' },
+                  { key: 'solarPitch', name: 'Climatização de Gramado & Energia Solar', cost: 190000, reqLvl: 5, desc: 'energia solar sustentável · Caldeirão +3 e reduz desgaste' }
                 ].map(item => {
                   const has = state.stadiumUpgrades[item.key];
                   const isPreviewing = stadiumPreviewUpgrade === item.key;
+                  const isUnlocked = stadLevel >= (item.reqLvl || 1);
                   return `
                     <div class="upgrade-row-card" data-key="${item.key}" style="background:#161226;border:1px solid ${has?'#22c55e':isPreviewing?'#c084fc':'rgba(255,255,255,0.06)'};padding:12px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;transition:all 0.2s;box-shadow:${isPreviewing?'0 0 12px rgba(192,132,252,0.4)':''}">
                       <div style="flex:1;min-width:0;padding-right:8px">
-                        <div style="font-size:13px;font-weight:900;color:#fff">${item.name}</div>
+                        <div style="font-size:13px;font-weight:900;color:#fff;display:flex;align-items:center;gap:6px">
+                          ${item.name}
+                          ${!isUnlocked ? `<span class="pill" style="font-size:9px;background:rgba(239,68,68,0.15);color:#ef4444;border-color:rgba(239,68,68,0.3)">🔒 Requer Nível ${item.reqLvl}</span>` : ''}
+                        </div>
                         <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px">${item.desc}</div>
                       </div>
                       ${has ? `
                         <span style="color:#22c55e;font-size:11px;font-weight:900;flex-shrink:0">INSTALADO ✓</span>
+                      ` : !isUnlocked ? `
+                        <span style="color:rgba(255,255,255,0.35);font-size:11px;font-weight:800;flex-shrink:0">BLOQUEADO</span>
                       ` : `
                         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
                           <button class="btn btnToggleUpgradePreview ${isPreviewing?'active':''}" data-key="${item.key}" style="font-size:11px;padding:6px 12px;background:${isPreviewing?'#7c3aed':'rgba(255,255,255,0.08)'};color:#fff;border:none;border-radius:8px;font-weight:800;cursor:pointer">
@@ -1828,8 +1819,8 @@ function openStadiumModal(initialTab){
                     <div style="font-size:9px;color:rgba(255,255,255,0.4)">lugares novos</div>
                   </div>
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
-                    <div style="color:#fff;font-size:16px;font-weight:900">Entrega</div>
-                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">imediata no estádio</div>
+                    <div style="color:#fff;font-size:16px;font-weight:900">${stData.activeWork ? `${stData.activeWork.roundsRemaining} rodadas` : '2 rodadas'}</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">${stData.activeWork ? 'obra em andamento' : 'prazo de construção'}</div>
                   </div>
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
                     <div style="color:#f59e0b;font-size:16px;font-weight:900">R$ 850k</div>
@@ -1838,7 +1829,11 @@ function openStadiumModal(initialTab){
                 </div>
 
                 <div style="margin-top:16px">
-                  ${stData.sides[stadiumSelectedSide] ? `
+                  ${stData.activeWork ? `
+                    <button class="btn" id="btnStartSideWork" disabled style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;background:#334155;color:#cbd5e1;cursor:not-allowed">
+                      🏗️ OBRA EM ANDAMENTO • ${stData.activeWork.roundsRemaining} RODADAS
+                    </button>
+                  ` : stData.sides[stadiumSelectedSide] ? `
                     <button class="btn" id="btnStartSideWork" disabled style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;background:#22c55e;color:#000;cursor:not-allowed;opacity:0.9">
                       ✓ LADO ${stadiumSelectedSide.toUpperCase()} JÁ CONCLUÍDO NO ANEL ${stData.ring || 1}
                     </button>
@@ -2035,21 +2030,32 @@ function openStadiumModal(initialTab){
 
               <!-- Propostas de Aluguel para Outros Clubes -->
               <div style="background:#161226;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px">
-                <span style="font-size:12px;font-weight:900;color:#fff;text-transform:uppercase">ALUGUEL PARA OUTROS CLUBES</span>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-size:12px;font-weight:900;color:#fff;text-transform:uppercase">ALUGUEL PARA OUTROS CLUBES</span>
+                  ${state.stadiumClubRental ? '<span class="pill" style="font-size:10px;background:#22c55e;color:#000;font-weight:900">PROPOSTA RECEBIDA!</span>' : ''}
+                </div>
                 ${state.stadiumClubRental ? `
-                  <div style="margin-top:8px;background:#110e1d;padding:12px;border-radius:10px">
-                    <b style="color:#fff;font-size:13px">${state.stadiumClubRental.club} quer alugar o estádio</b>
-                    <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px">
-                      Partida pelo estadual enquanto jogamos fora. Pagam <b style="color:#22c55e">${fmtMoney(state.stadiumClubRental.fee)}</b>. Desgaste estimado: -6%.
+                  <div style="margin-top:8px;background:#110e1d;padding:12px;border-radius:10px;border:1px solid rgba(34,197,94,0.4)">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <b style="color:#fff;font-size:13px">${esc(state.stadiumClubRental.club)} quer alugar o estádio</b>
+                      <span style="font-size:12px;color:#22c55e;font-weight:900">+${fmtMoney(state.stadiumClubRental.fee)}</span>
+                    </div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:4px">
+                      Partida pelo campeonato enquanto o clube está sem praça esportiva. Desgaste estimado no gramado: -${state.stadiumClubRental.wear || 6}%.
                     </div>
                     <div style="display:flex;gap:8px;margin-top:10px">
-                      <button class="btn primary" id="btnAcceptRentalTab" style="font-size:11px;padding:6px 12px">Aceitar (+${fmtMoney(state.stadiumClubRental.fee)})</button>
-                      <button class="btn" id="btnRejectRentalTab" style="font-size:11px;padding:6px 12px">Recusar</button>
+                      <button class="btn primary" id="btnAcceptRentalTab" style="font-size:11px;padding:6px 14px">✓ Aceitar Aluguel (+${fmtMoney(state.stadiumClubRental.fee)})</button>
+                      <button class="btn" id="btnRejectRentalTab" style="font-size:11px;padding:6px 14px">Recusar</button>
                     </div>
                   </div>
                 ` : `
-                  <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:6px">
-                    Nenhum clube solicitou aluguel nesta rodada. Quando jogamos fora, clubes da região podem enviar propostas.
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:10px;flex-wrap:wrap">
+                    <div style="font-size:11px;color:rgba(255,255,255,0.5);flex:1;min-width:200px">
+                      Nenhum clube na fila agora. Você pode prospectar clubes parceiros da região para jogarem aqui em datas livres.
+                    </div>
+                    <button class="btn primary" id="btnSearchRentalOffers" style="font-size:11px;padding:8px 14px;white-space:nowrap;font-weight:900">
+                      🔍 Buscar Clubes Interessados
+                    </button>
                   </div>
                 `}
               </div>
@@ -2062,19 +2068,27 @@ function openStadiumModal(initialTab){
                 </div>
 
                 ${state.stadiumEventProposal ? `
-                  <div style="margin-top:8px;background:#110e1d;padding:12px;border-radius:10px">
-                    <b style="color:#fff;font-size:13px">${state.stadiumEventProposal.name}</b>
-                    <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px">
-                      Oferecem <b style="color:#22c55e">${fmtMoney(state.stadiumEventProposal.fee)}</b> pelo aluguel do estádio. Desgaste: ${state.stadiumPitchType==='synthetic'?'-4% (sintético)':'-18% (natural)'}.
+                  <div style="margin-top:8px;background:#110e1d;padding:12px;border-radius:10px;border:1px solid rgba(168,85,247,0.4)">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                      <b style="color:#fff;font-size:13px">${esc(state.stadiumEventProposal.name)}</b>
+                      <span style="font-size:12px;color:#a855f7;font-weight:900">+${fmtMoney(state.stadiumEventProposal.fee)}</span>
+                    </div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:4px">
+                      Oferecem cachê e aluguel de <b style="color:#22c55e">${fmtMoney(state.stadiumEventProposal.fee)}</b>. Desgaste estimado: ${state.stadiumPitchType==='synthetic'?'-4% (grama sintética imune)':'-18% (grama natural)'}.
                     </div>
                     <div style="display:flex;gap:8px;margin-top:10px">
-                      <button class="btn primary" id="btnAcceptEventTab" style="font-size:11px;padding:6px 12px;background:#a855f7">Autorizar Megaevento</button>
-                      <button class="btn" id="btnRejectEventTab" style="font-size:11px;padding:6px 12px">Recusar</button>
+                      <button class="btn primary" id="btnAcceptEventTab" style="font-size:11px;padding:6px 14px;background:#a855f7">✓ Autorizar Megaevento (+${fmtMoney(state.stadiumEventProposal.fee)})</button>
+                      <button class="btn" id="btnRejectEventTab" style="font-size:11px;padding:6px 14px">Recusar</button>
                     </div>
                   </div>
                 ` : `
-                  <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:6px">
-                    Grandes eventos (Show da Anitta, Pabllo Vittar, Rock in Rio, Tardezinha) buscam estádios com boa manutenção (acima de 70%) e alta capacidade.
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:10px;flex-wrap:wrap">
+                    <div style="font-size:11px;color:rgba(255,255,255,0.5);flex:1;min-width:200px">
+                      Grandes eventos (Thiaguinho, Ludmilla, Villa Mix, Festivais) geram milhões em aluguel e visibilidade ao clube.
+                    </div>
+                    <button class="btn primary" id="btnSearchConcertEvents" style="font-size:11px;padding:8px 14px;background:linear-gradient(135deg,#7c3aed,#a855f7);white-space:nowrap;font-weight:900">
+                      🎤 Convidar Produtoras de Shows
+                    </button>
                   </div>
                 `}
               </div>
@@ -2167,6 +2181,24 @@ function openStadiumModal(initialTab){
   const bRejEvt = $('#btnRejectEventTab');
   if(bRejEvt) bRejEvt.onclick = rejectEventConcert;
 
+  const bSrchRent = $('#btnSearchRentalOffers');
+  if(bSrchRent){
+    bSrchRent.onclick = () => {
+      generateStadiumRentalProposal(true);
+      toast('📬 Novo clube interessado em alugar seu estádio encontrado!');
+      openStadiumModal();
+    };
+  }
+
+  const bSrchEvt = $('#btnSearchConcertEvents');
+  if(bSrchEvt){
+    bSrchEvt.onclick = () => {
+      generateStadiumEventProposal(true);
+      toast('🎤 Produtora cultural entrou em contato com proposta de megaevento!');
+      openStadiumModal();
+    };
+  }
+
   $$('.btnBuyUpgrade').forEach(b => {
     b.onclick = () => {
       const k = b.dataset.key;
@@ -2247,6 +2279,141 @@ function openStadiumModal(initialTab){
       openStadiumModal();
     };
   }
+
+  const newPanel = el?.querySelector('.visual-panel-right');
+  if(newPanel && prevPanelScroll > 0){
+    newPanel.scrollTop = prevPanelScroll;
+  }
+}
+
+// =========================================================================
+// GESTÃO DE ESTÁDIO: ALUGUEL, SHOWS CULTURAIS, MANUTENÇÃO & GRAMADO
+// =========================================================================
+
+function generateStadiumRentalProposal(force = false){
+  if(state.stadiumClubRental && !force) return state.stadiumClubRental;
+  const currentClubNorm = norm(state.club || '');
+  const candidates = (state.teams || [])
+    .filter(t => norm(t.name) !== currentClubNorm)
+    .map(t => t.name);
+
+  const fallbackClubs = ['Ferroviária', 'Ituano', 'Botafogo-SP', 'São Bento', 'Novorizontino', 'Ponte Preta', 'Guarani', 'Mirassol', 'Londrina', 'Operário-PR'];
+  const pool = candidates.length > 0 ? candidates : fallbackClubs;
+  const randomClub = pool[Math.floor(Math.random() * pool.length)] || 'Ituano';
+
+  const cap = Math.min(48000, Math.max(0, Number(state.infrastructure?.stadium?.capacity) || 8000));
+  const feeFactor = 0.9 + Math.random() * 0.2;
+  const baseFee = Math.round(Math.max(25000, cap * (3.5 + Math.random() * 2) * feeFactor));
+
+  state.stadiumClubRental = {
+    club: randomClub,
+    fee: baseFee,
+    wear: 6
+  };
+  return state.stadiumClubRental;
+}
+
+function acceptClubRental(returnToCentral = false){
+  if(!state.stadiumClubRental) return;
+  const r = state.stadiumClubRental;
+  const fee = Number(r.fee);
+  if(!Number.isFinite(fee) || fee <= 0){ toast('Proposta de aluguel inválida.'); return; }
+  state.balance = (Number(state.balance) || 0) + fee;
+  state.income = (Number(state.income) || 0) + fee;
+  state.stadiumMaintenance = Math.max(10, (state.stadiumMaintenance || 90) - (r.wear || 6));
+  toast(`🤝 Aluguel confirmado com o ${r.club}! +${fmtMoney(r.fee)} creditados no caixa.`);
+  addNews(`Estádio alugado para o ${r.club} por ${fmtMoney(r.fee)}. Desgaste da partida: -${r.wear || 6}%.`);
+  state.stadiumClubRental = null;
+  state.pendingDecision = null;
+  save();
+  if(!returnToCentral) openStadiumModal();
+}
+
+function rejectClubRental(){
+  if(!state.stadiumClubRental) return;
+  toast('Proposta de aluguel recusada.');
+  state.stadiumClubRental = null;
+  save();
+  openStadiumModal();
+}
+
+function generateStadiumEventProposal(force = false){
+  if(state.stadiumEventProposal && !force) return state.stadiumEventProposal;
+  const events = [
+    { name: '🎤 Turnê Tardezinha (Thiaguinho)', mult: 1.4 },
+    { name: '🔥 Show Numanice (Ludmilla)', mult: 1.5 },
+    { name: '🤠 Festival Sertanejo Villa Mix', mult: 1.3 },
+    { name: '🎸 Turnê Rock Brasil Festival', mult: 1.2 },
+    { name: '🌟 Turnê Pop Mega Estádio', mult: 1.35 },
+    { name: '🎧 Festival Eletrônico Só Track Boa', mult: 1.25 }
+  ];
+  const chosen = events[Math.floor(Math.random() * events.length)];
+  const cap = state.infrastructure?.stadium?.capacity || 8000;
+  const stadLvl = Number(state.infrastructure?.stadium?.level) || 1;
+  const eventLvlMult = 1 + (stadLvl - 1) * 0.40;
+  const baseFee = Math.max(120000, Math.round(cap * (20 + Math.random() * 15) * chosen.mult * eventLvlMult));
+
+  state.stadiumEventProposal = {
+    name: chosen.name,
+    fee: baseFee
+  };
+  return state.stadiumEventProposal;
+}
+
+function acceptEventConcert(returnToCentral = false){
+  if(!state.stadiumEventProposal) return;
+  const ev = state.stadiumEventProposal;
+  const fee = Number(ev.fee);
+  if(!Number.isFinite(fee) || fee <= 0){ toast('Proposta de show inválida.'); return; }
+  state.balance = (Number(state.balance) || 0) + fee;
+  state.income = (Number(state.income) || 0) + fee;
+  const wear = state.stadiumPitchType === 'synthetic' ? 4 : 18;
+  state.stadiumMaintenance = Math.max(10, (state.stadiumMaintenance || 90) - wear);
+  toast(`🎉 ${ev.name} autorizado! +${fmtMoney(fee)} arrecadados com aluguel do estádio!`);
+  addNews(`Megaevento realizado no estádio: ${ev.name}. Renda líquida extraordinária de ${fmtMoney(fee)}.`);
+  state.stadiumEventProposal = null;
+  state.pendingDecision = null;
+  save();
+  if(!returnToCentral) openStadiumModal();
+}
+
+function rejectEventConcert(){
+  if(!state.stadiumEventProposal) return;
+  toast('Convite para show cultural recusado.');
+  state.stadiumEventProposal = null;
+  save();
+  openStadiumModal();
+}
+
+function repairStadium(mode){
+  const cost = mode === 'quick' ? 25000 : 75000;
+  if((state.balance || 0) < cost){
+    toast('Saldo insuficiente no caixa para realizar reparos no estádio!');
+    return;
+  }
+  state.balance -= cost;
+  state.expense = (state.expense || 0) + cost;
+  const curM = state.stadiumMaintenance || 80;
+  state.stadiumMaintenance = mode === 'quick' ? Math.min(100, curM + 25) : 100;
+  toast(`🔧 Manutenção concluída! Conservação do estádio em ${state.stadiumMaintenance}%.`);
+  save();
+  openStadiumModal();
+}
+
+function installPitchType(ptype){
+  const cost = ptype === 'synthetic' ? 220000 : ptype === 'hybrid' ? 150000 : 0;
+  if(cost > 0 && (state.balance || 0) < cost){
+    toast('Saldo insuficiente para trocar o tipo de gramado!');
+    return;
+  }
+  if(cost > 0){
+    state.balance -= cost;
+    state.expense = (state.expense || 0) + cost;
+  }
+  state.stadiumPitchType = ptype;
+  toast(`🌱 Novo gramado instalado com sucesso: ${ptype === 'synthetic' ? 'Grama Sintética' : ptype === 'hybrid' ? 'Grama Híbrida' : 'Grama Natural'}!`);
+  save();
+  openStadiumModal();
 }
 
 // -------------------------------------------------------------------------
@@ -2920,7 +3087,9 @@ let isBuildingStadiumSide = false;
 function buildStadiumSide(side, mode = 'cash'){
   if(isBuildingStadiumSide) return false;
   const stData = getStadiumExpansionData();
+  if(stData.activeWork){ toast(`Obra do Anel ${stData.activeWork.ring} em andamento: faltam ${stData.activeWork.roundsRemaining} rodadas.`); return false; }
   const curRing = Math.max(1, Math.min(stData.maxRings || 6, Number(stData.ring) || 1));
+  if(curRing > stData.maxUnlockedRing){ toast('Evolua o estádio para liberar esse anel.'); return false; }
   stData.ring = curRing;
   stData.rings = stData.rings || {};
   stData.rings[curRing] = stData.rings[curRing] || { norte: false, sul: false, leste: false, oeste: false };
@@ -2952,7 +3121,7 @@ function buildStadiumSide(side, mode = 'cash'){
       }
       state.balance -= cost;
       state.expense = (state.expense || 0) + cost;
-      toast(`Obra no Setor ${targetSide.toUpperCase()} (Anel ${curRing}) concluída à vista por ${fmtMoney(cost)}! Capacidade aumentada.`);
+      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()} do Anel ${curRing}. Entrega em 2 rodadas.`);
     } else {
       const downPayment = cost * 0.20;
       if(state.balance < downPayment){
@@ -2976,48 +3145,9 @@ function buildStadiumSide(side, mode = 'cash'){
       stData.debt.monthly += monthlyInst;
       stData.debt.monthsLeft = Math.max(stData.debt.monthsLeft, numMonths);
 
-      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()}! Entrada de ${fmtMoney(downPayment)} paga. Parcelas de ${fmtMoney(monthlyInst)}/mês.`);
+      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()} do Anel ${curRing}! Entrada de ${fmtMoney(downPayment)} paga; entrega em 2 rodadas.`);
     }
-
-    // Registra lado construído no anel atual
-    stData.rings[curRing][targetSide] = true;
-    stData.sides = stData.rings[curRing]; // Sincroniza espelho
-
-    // Adiciona identificador estável na lista de setores comprados
-    stData.purchasedSectors = Array.isArray(stData.purchasedSectors) ? stData.purchasedSectors : [];
-    const sectorKey = `r${curRing}_${targetSide}`;
-    if(!stData.purchasedSectors.includes(sectorKey)){
-      stData.purchasedSectors.push(sectorKey);
-    }
-
-    // Aumenta capacidade do estádio (+3.500 lugares)
-    state.infrastructure = state.infrastructure || {};
-    state.infrastructure.stadium = state.infrastructure.stadium || { level: 3, capacity: 18000 };
-    state.infrastructure.stadium.capacity = Math.min(100000, (state.infrastructure.stadium.capacity || 18000) + 3500);
-    if(state.stadium){
-      state.stadium.capacity = state.infrastructure.stadium.capacity;
-    }
-
-    // Próximo lado não construído para selecionar automaticamente no anel atual
-    const nextUnbuilt = ['norte', 'sul', 'leste', 'oeste'].find(s => !stData.rings[curRing][s]);
-    if(nextUnbuilt){
-      stadiumSelectedSide = nextUnbuilt;
-    }
-
-    // Verifica se completou os 4 lados do anel atual
-    const allSidesDone = ['norte', 'sul', 'leste', 'oeste'].every(s => stData.rings[curRing][s]);
-    if(allSidesDone){
-      if(curRing < (stData.maxRings || 6)){
-        const nextRing = curRing + 1;
-        stData.ring = nextRing;
-        stData.rings[nextRing] = stData.rings[nextRing] || { norte: false, sul: false, leste: false, oeste: false };
-        stData.sides = stData.rings[nextRing];
-        stadiumSelectedSide = 'norte';
-        toast(`🎉 Sensacional! Todos os 4 setores do Anel ${curRing} foram concluídos! O estádio avançou para o Anel ${nextRing}!`);
-      } else {
-        toast(`🏆 MONUMENTAL! Todos os 6 anéis foram 100% concluídos! Capacidade máxima atingida!`);
-      }
-    }
+    stData.activeWork = { ring: curRing, side: targetSide, roundsRemaining: 2 };
 
     save();
     render();
@@ -3025,6 +3155,31 @@ function buildStadiumSide(side, mode = 'cash'){
   } finally {
     isBuildingStadiumSide = false;
   }
+}
+
+function processStadiumConstructionRound(){
+  if(!state) return;
+  const st = getStadiumExpansionData();
+  if(!st.activeWork) return;
+  st.activeWork.roundsRemaining = Math.max(0, (Number(st.activeWork.roundsRemaining) || 1) - 1);
+  if(st.activeWork.roundsRemaining) return;
+  const { ring, side } = st.activeWork;
+  st.rings[ring][side] = true;
+  st.purchasedSectors = Array.isArray(st.purchasedSectors) ? st.purchasedSectors : [];
+  const key = `r${ring}_${side}`;
+  if(!st.purchasedSectors.includes(key)) st.purchasedSectors.push(key);
+  state.infrastructure.stadium.capacity = Math.min(100000, (Number(state.infrastructure.stadium.capacity) || 8000) + 3500);
+  if(state.stadium) state.stadium.capacity = state.infrastructure.stadium.capacity;
+  st.activeWork = null;
+  st.sides = st.rings[st.ring];
+  const nextSide = ['norte', 'sul', 'leste', 'oeste'].find(s => !st.rings[ring][s]);
+  if(nextSide) stadiumSelectedSide = nextSide;
+  else if(ring < st.maxUnlockedRing && ring < st.maxRings){
+    st.ring = ring + 1;
+    st.sides = st.rings[st.ring];
+    stadiumSelectedSide = 'norte';
+  }
+  addNews(`🏟️ Obra do setor ${side} do anel ${ring} concluída. Capacidade atual: ${state.infrastructure.stadium.capacity.toLocaleString('pt-BR')} lugares.`);
 }
 
 // =========================================================================
@@ -3965,7 +4120,7 @@ const HOUSE_ITEMS = [
 function getStadiumExpansionData(){
   if(!state.stadiumRingData){
     state.stadiumRingData = {
-      ring: 1,
+      ring: Math.max(1, Math.min(6, Number(state.infrastructure?.stadium?.level) || 1)),
       maxRings: 6,
       sides: { norte: false, sul: false, leste: false, oeste: false },
       rings: {
@@ -3986,6 +4141,7 @@ function getStadiumExpansionData(){
   const st = state.stadiumRingData;
   st.maxRings = 6;
   st.ring = Math.max(1, Math.min(st.maxRings, Number(st.ring) || 1));
+  st.maxUnlockedRing = Math.max(st.ring, Math.min(st.maxRings, Number(st.maxUnlockedRing) || Number(state.infrastructure?.stadium?.level) || 1));
   st.rings = st.rings || {};
   for(let r = 1; r <= 6; r++){
     st.rings[r] = st.rings[r] || { norte: false, sul: false, leste: false, oeste: false };
@@ -5206,10 +5362,12 @@ function save(){
   const savePayload = clone(state);
   delete savePayload.worldGenerated;
 
+  let localSaved = false;
   // 1. Salvar no STORAGE primário apenas se for Slot 1 (evita corrupção de outros slots)
   if(slotNum === 1){
     try {
       localStorage.setItem(STORAGE, JSON.stringify(savePayload));
+      localSaved = true;
     } catch(e){}
   }
 
@@ -5239,7 +5397,17 @@ function save(){
   // 2. Salvar no slot dedicado no localStorage (garante persistência isolada e completa de cada slot)
   try {
     localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(saveEntry));
+    localSaved = true;
   } catch(e){}
+
+  if(!localSaved){
+    if(!window.__afmStorageWarning){
+      toast('Falha ao salvar localmente. Libere espaço no navegador e tente novamente.', 6000);
+      window.__afmStorageWarning = true;
+    }
+    return false;
+  }
+  window.__afmStorageWarning = false;
 
   // 3. Salvar na lista de contas do sistema (armazena cabeçalho leve para economizar 95% de quota)
   const accs = getStoredAccounts();
@@ -5976,12 +6144,14 @@ function renderAdminTabContent(){
   }
 }
 
-function toast(t){
+function toast(t, duration=3000){
   const d=document.createElement('div');
   d.className='toast';
-  d.innerHTML=`<span>⚽</span> <span>${t}</span>`;
+  d.innerHTML=`<span>⚽</span> <span></span>${duration===0?'<button type="button" aria-label="Fechar aviso" style="margin-left:12px;background:transparent;border:0;color:inherit;font-size:18px;cursor:pointer">×</button>':''}`;
+  d.querySelector('span:nth-child(2)').textContent=String(t);
   document.body.appendChild(d);
-  setTimeout(()=>{ d.style.opacity='0'; setTimeout(()=>d.remove(),300); },3000);
+  if(duration===0) d.querySelector('button')?.addEventListener('click',()=>d.remove());
+  else setTimeout(()=>{ d.style.opacity='0'; setTimeout(()=>d.remove(),300); },duration);
 }
 function compById(id){return (window.COMPETITIONS||[]).find(c=>c.id===id)}
 function clubByName(name){return clubs.find(c=>norm(c.name)===norm(name))}
@@ -6526,8 +6696,10 @@ function buildSchedule(comp,teamNames){if(comp.type==='knockout')return firstKno
 
 function defaultInfrastructure(club){
   const s=strength(club);const cap=clamp(Math.round((8000+(s-55)*1400)/1000)*1000,8000,65000);
+  // shortcut: capacity remains estimated until verified seat counts are added to each club profile.
+  const stadiumLevel = cap <= 14000 ? 1 : cap <= 30640 ? 2 : cap <= 49000 ? 3 : cap <= 72160 ? 4 : cap <= 90000 ? 5 : 6;
   return {
-    stadium:{level:1,capacity:cap},
+    stadium:{level:stadiumLevel,capacity:cap},
     parking:{level:0,spots:0},
     training:{level:1},academy:{level:1},medical:{level:1},admin:{level:1},store:{level:1},museum:{level:1},press:{level:1},marketing:{level:1},bank:{level:1}
   };
@@ -6627,30 +6799,53 @@ function parkingSpots(lvl){
 function recommendedTicketPrice(){const c=clubByName(state?.club);return Math.round(clamp(18+(strength(c)-58)*1.7,15,130))}
 function formationSlots(){return FORMATIONS[state?.formation]||FORMATIONS['4-3-3']}
 
-// Posições compatíveis para destacar verde e amarelo no arrastar
+// =========================================================================
+// MATRIZ DE APTIDÃO TÁTICA (getPositionFit) — AFM MANAGER 2027
+// =========================================================================
 function getPositionFit(playerRole, slotRole){
-  if(!playerRole || !slotRole) return 'none';
+  if(!playerRole || !slotRole) return 'INCOMPATÍVEL';
   const p = String(playerRole).split(',')[0].trim().toUpperCase();
   const s = String(slotRole).trim().toUpperCase();
-  if(p === s) return 'best'; // Verde
 
-  const near = {
-    GK: [],
-    CB: ['RB','LB','DM'],
-    RB: ['LB','CB','RW'],
-    LB: ['RB','CB','LW'],
-    DM: ['CM','CB','AM'],
-    CM: ['DM','AM'],
-    AM: ['CM','RW','LW','CF'],
-    RW: ['LW','AM','ST'],
-    LW: ['RW','AM','ST'],
-    ST: ['CF','RW','LW','AM'],
-    CF: ['ST','AM','RW','LW']
-  }[s] || [];
+  // NOTA: Goleiro (GK) NUNCA é adaptado em posição de linha e vice-versa.
+  if(p === 'GK' || s === 'GK'){
+    return (p === 'GK' && s === 'GK') ? 'IDEAL' : 'INCOMPATÍVEL';
+  }
 
-  if(near.includes(p)) return 'ok'; // Amarelo
-  return 'bad';
+  // 1. 'IDEAL' (Posição de Origem): Exata mesma posição
+  if(p === s) return 'IDEAL';
+
+  // 2. 'ADAPTADA' (Posição Secundária / Compatível):
+  const adaptedMap = {
+    // Zagueiro (CB) em Lateral (LB/RB) ou Volante (DM)
+    CB: ['LB', 'RB', 'DM'],
+    // Lateral (LB/RB) em Ponta (LW/RW) ou Meia Aberto (LM/RM) ou outro lado
+    LB: ['RB', 'LW', 'LM', 'CB'],
+    RB: ['LB', 'RW', 'RM', 'CB'],
+    // Volante (DM) em Zagueiro (CB) ou Meia Central (CM)
+    DM: ['CB', 'CM'],
+    // Meia Central (CM) em Volante (DM) ou Meia Armador (AM)
+    CM: ['DM', 'AM', 'LM', 'RM'],
+    // Meia Armador (AM) em Ponta (LW/RW) ou Meia Central (CM)
+    AM: ['LW', 'RW', 'CM', 'CF'],
+    // Ponta (LW/RW) em Segundo Atacante / Meia Aberto / Centroavante
+    LW: ['RW', 'LM', 'AM', 'ST', 'CF'],
+    RW: ['LW', 'RM', 'AM', 'ST', 'CF'],
+    // Meias abertos (LM/RM)
+    LM: ['LW', 'LB', 'CM', 'AM', 'RM'],
+    RM: ['RW', 'RB', 'CM', 'AM', 'LM'],
+    // Centroavante (ST/CF) em Segundo Atacante / Ponta
+    ST: ['CF', 'LW', 'RW', 'AM'],
+    CF: ['ST', 'LW', 'RW', 'AM']
+  };
+
+  if(adaptedMap[p]?.includes(s) || adaptedMap[s]?.includes(p)){
+    return 'ADAPTADA';
+  }
+
+  return 'INCOMPATÍVEL';
 }
+window.getPositionFit = getPositionFit;
 
 function compatibleScore(p, role){
   const pPos = String(p?.pos || '').trim().toUpperCase();
@@ -6661,10 +6856,254 @@ function compatibleScore(p, role){
   if(sRole !== 'GK' && pPos === 'GK') return -100;
 
   const fit = getPositionFit(pPos, sRole);
-  if(fit === 'best') return 0;
-  if(fit === 'ok') return -6;
+  if(fit === 'IDEAL' || fit === 'best') return 0;
+  if(fit === 'ADAPTADA' || fit === 'ok') return -6;
   return -25;
 }
+
+// =========================================================================
+// RENDERIZAÇÃO DO CAMPO VERTICAL FIXO (renderVerticalTacticsPitch)
+// =========================================================================
+function renderVerticalTacticsPitch(starters, formationName = '4-3-3', opts = {}){
+  const formSlots = FORMATIONS[formationName] || FORMATIONS['4-3-3'];
+  const isHalftime = !!opts.isHalftime;
+  const selectedKey = opts.selectedStarterKey || null;
+
+  return `
+    <div class="pitch-lines">
+      <div class="pitch-half-line"></div>
+      <div class="pitch-center-circle"></div>
+      <div class="pitch-penalty-top"></div>
+      <div class="pitch-penalty-bottom"></div>
+    </div>
+    ${formSlots.map((slot, idx) => {
+      const p = starters[idx] || null;
+      const pk = p ? (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.key || p.name)) : '';
+      const isSelected = selectedKey && pk && (selectedKey === pk);
+      const slotRole = slot.r || (p?.pos || 'ST');
+      const posX = slot.x;
+      const posY = slot.y;
+
+      return `
+        <div class="pitch-slot-dropzone ${isSelected ? 'selected slot-ideal' : ''}"
+             id="pitchSlot_${idx}"
+             style="left:${posX}%;top:${posY}%;"
+             data-slot-index="${idx}"
+             data-slot-role="${esc(slotRole)}"
+             data-player-key="${esc(pk)}"
+             title="${p ? `${esc(p.name)} (${esc(p.pos)})` : 'Slot Vazio'}">
+          ${renderFifaMiniCard(p, { index: idx, role: slotRole, x: 50, y: 50 }, {
+            isSelected: isSelected,
+            isHalftime: isHalftime,
+            customClass: 'slot-card-inner'
+          })}
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+window.renderVerticalTacticsPitch = renderVerticalTacticsPitch;
+
+// =========================================================================
+// MANIPULADORES DE EVENTO DE ARRASTE E CLIQUE (setupTacticsInteractions)
+// =========================================================================
+function setupTacticsInteractions({ containerEl, starters, bench, onSwap, onStarterSwap, isHalftime }){
+  if(!containerEl) return;
+
+  let selectedStarterKey = null;
+  let selectedBenchKey = null;
+  let draggedBenchKey = null;
+  let draggedStarterKey = null;
+
+  function clearVisualHighlights(){
+    document.body.classList.remove('is-dragging');
+    const slots = containerEl.querySelectorAll('.pitch-slot-dropzone');
+    slots.forEach(s => {
+      s.classList.remove('slot-ideal', 'slot-adapted', 'slot-dimmed', 'drag-over', 'drag-target');
+    });
+    const benchRows = containerEl.querySelectorAll('.bench-player-row');
+    benchRows.forEach(b => {
+      b.classList.remove('selected', 'drag-target');
+      b.style.borderColor = 'rgba(255,255,255,0.08)';
+      b.style.boxShadow = 'none';
+    });
+  }
+
+  function applyFitnessHighlights(playerPos){
+    if(!playerPos) return;
+    const slots = containerEl.querySelectorAll('.pitch-slot-dropzone');
+    slots.forEach(slot => {
+      const slotRole = slot.dataset.slotRole;
+      const fit = getPositionFit(playerPos, slotRole);
+      slot.classList.remove('slot-ideal', 'slot-adapted', 'slot-dimmed');
+      if(fit === 'IDEAL'){
+        slot.classList.add('slot-ideal');
+      } else if(fit === 'ADAPTADA'){
+        slot.classList.add('slot-adapted');
+      } else {
+        slot.classList.add('slot-dimmed');
+      }
+    });
+  }
+
+  // Configurar Slots do Campo
+  const slots = containerEl.querySelectorAll('.pitch-slot-dropzone');
+  slots.forEach(slot => {
+    slot.ondragenter = (e) => {
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      slot.classList.add('drag-over');
+    };
+    slot.ondragover = (e) => {
+      e.preventDefault();
+      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      slot.classList.add('drag-over');
+    };
+    slot.ondragleave = (e) => {
+      if(e.relatedTarget && slot.contains(e.relatedTarget)) return;
+      slot.classList.remove('drag-over');
+    };
+    slot.ondrop = (e) => {
+      e.preventDefault();
+      slot.classList.remove('drag-over');
+      const targetStarterKey = slot.dataset.playerKey;
+      const targetSlotIndex = Number(slot.dataset.slotIndex);
+
+      if(draggedBenchKey){
+        const bKey = draggedBenchKey;
+        clearVisualHighlights();
+        draggedBenchKey = null;
+        if(typeof onSwap === 'function'){
+          onSwap(targetStarterKey, bKey, targetSlotIndex);
+        }
+      } else if(draggedStarterKey && draggedStarterKey !== targetStarterKey){
+        const sKey = draggedStarterKey;
+        clearVisualHighlights();
+        draggedStarterKey = null;
+        if(typeof onStarterSwap === 'function'){
+          onStarterSwap(sKey, targetStarterKey);
+        }
+      } else {
+        clearVisualHighlights();
+      }
+    };
+
+    // Arraste iniciando do titular
+    slot.setAttribute('draggable', 'true');
+    slot.ondragstart = (e) => {
+      draggedStarterKey = slot.dataset.playerKey;
+      draggedBenchKey = null;
+      document.body.classList.add('is-dragging');
+      e.dataTransfer.setData('text/plain', draggedStarterKey);
+      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+
+      const stPlayer = (starters || []).find(p => (p.key || (typeof playerKey === 'function' ? playerKey(p) : '')) === draggedStarterKey);
+      applyFitnessHighlights(stPlayer?.pos || slot.dataset.slotRole);
+    };
+    slot.ondragend = () => {
+      clearVisualHighlights();
+      draggedStarterKey = null;
+    };
+
+    // Click-to-swap no titular
+    slot.onclick = (e) => {
+      e.stopPropagation();
+      const sKey = slot.dataset.playerKey;
+      const slotIndex = Number(slot.dataset.slotIndex);
+
+      // 1. Se um reserva já estava selecionado no banco -> substitui imediatamente!
+      if(selectedBenchKey){
+        const bKey = selectedBenchKey;
+        selectedBenchKey = null;
+        clearVisualHighlights();
+        if(typeof onSwap === 'function'){
+          onSwap(sKey, bKey, slotIndex);
+        }
+        return;
+      }
+
+      // 2. Se outro titular já estava selecionado -> inverte as posições entre eles!
+      if(selectedStarterKey && selectedStarterKey !== sKey){
+        const prevKey = selectedStarterKey;
+        selectedStarterKey = null;
+        clearVisualHighlights();
+        if(typeof onStarterSwap === 'function'){
+          onStarterSwap(prevKey, sKey);
+        }
+        return;
+      }
+
+      // 3. Alternar seleção deste titular
+      if(selectedStarterKey === sKey){
+        selectedStarterKey = null;
+        clearVisualHighlights();
+      } else {
+        selectedStarterKey = sKey;
+        clearVisualHighlights();
+        slot.classList.add('slot-ideal');
+        const stPlayer = (starters || []).find(p => (p.key || (typeof playerKey === 'function' ? playerKey(p) : '')) === sKey);
+        applyFitnessHighlights(stPlayer?.pos || slot.dataset.slotRole);
+        toast(`👉 Titular selecionado: ${stPlayer?.name || 'Jogador'}. Clique em um reserva no banco para confirmar a troca.`);
+      }
+    };
+  });
+
+  // Configurar Linhas do Banco de Reservas
+  const benchRows = containerEl.querySelectorAll('.bench-player-row');
+  benchRows.forEach(row => {
+    row.setAttribute('draggable', 'true');
+    row.ondragstart = (e) => {
+      draggedBenchKey = row.dataset.benchKey;
+      draggedStarterKey = null;
+      document.body.classList.add('is-dragging');
+      e.dataTransfer.setData('text/plain', draggedBenchKey);
+      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+      row.style.opacity = '0.5';
+
+      const playerPos = row.dataset.playerPos;
+      applyFitnessHighlights(playerPos);
+    };
+    row.ondragend = () => {
+      row.style.opacity = '1';
+      clearVisualHighlights();
+      draggedBenchKey = null;
+    };
+
+    // Click-to-swap no reserva
+    row.onclick = (e) => {
+      e.stopPropagation();
+      const bKey = row.dataset.benchKey;
+
+      // 1. Se um titular já estava selecionado no campo -> substitui imediatamente!
+      if(selectedStarterKey){
+        const sKey = selectedStarterKey;
+        selectedStarterKey = null;
+        clearVisualHighlights();
+        if(typeof onSwap === 'function'){
+          onSwap(sKey, bKey);
+        }
+        return;
+      }
+
+      // 2. Alternar seleção do reserva
+      if(selectedBenchKey === bKey){
+        selectedBenchKey = null;
+        clearVisualHighlights();
+      } else {
+        selectedBenchKey = bKey;
+        clearVisualHighlights();
+        row.classList.add('selected');
+        row.style.borderColor = '#fbbf24';
+        row.style.boxShadow = '0 0 14px rgba(250, 204, 21, 0.6)';
+        const playerPos = row.dataset.playerPos;
+        applyFitnessHighlights(playerPos);
+        const bPlayer = (bench || []).find(p => (typeof playerKey === 'function' ? playerKey(p) : p.key) === bKey);
+        toast(`👉 Reserva ${bPlayer?.name || 'Jogador'} (${playerPos}) selecionado! Posição ideal em VERDE (★ IDEAL) no campo.`);
+      }
+    };
+  });
+}
+window.setupTacticsInteractions = setupTacticsInteractions;
 
 // =========================================================================
 // ESCALAÇÃO INTELIGENTE (autoPickBestLineup) — AFM 2027
@@ -9013,6 +9452,7 @@ function finalizeRound(userRes, winners, isKO){
     }
   }
   state.round++;
+  processStadiumConstructionRound();
   // Aporte semanal em marketing (rebalanceado por rodada)
   const mktWeeklyExp = Math.max(2500, Number(state.marketingWeekly) || 12000);
   state.balance -= mktWeeklyExp;
@@ -9049,6 +9489,14 @@ function finalizeRound(userRes, winners, isKO){
   // Verifica se o clube recebe novas propostas de patrocínio com base na fama e fase do time
   if(state.round % 3 === 0 || Math.random() < 0.40){
     checkNewSponsorOffer();
+  }
+
+  // Propostas de aluguel do estádio e convites para shows musicais / festivais
+  if(!state.stadiumClubRental && Math.random() < 0.45){
+    generateStadiumRentalProposal();
+  }
+  if(!state.stadiumEventProposal && Math.random() < 0.35){
+    generateStadiumEventProposal();
   }
 
   // Atualiza propostas de mercado para jogadores colocados à venda ou para empréstimo
@@ -9458,8 +9906,8 @@ function simulateAITransfers(){
 function checkIncomingPlayerBids(){
   if(!state || !state.squad || !state.squad.length) return;
   
-  // Chance de 25% por rodada de receber proposta por um titular
-  if(Math.random() > 0.28) return;
+  // Chance de 30% por rodada de receber proposta por um titular
+  if(Math.random() > 0.32) return;
   
   const lineupKeys = state.lineup || [];
   const starters = state.squad.filter(p => lineupKeys.includes(playerKey(p)));
@@ -9469,79 +9917,159 @@ function checkIncomingPlayerBids(){
   const target = starters.sort((a,b) => calcValueMi(b) - calcValueMi(a))[0];
   if(!target) return;
   
-  const richClubs = ['Flamengo', 'Palmeiras', 'Atlético-MG', 'Botafogo', 'São Paulo', 'Corinthians', 'Grêmio', 'Internacional', 'Real Madrid', 'Chelsea', 'PSG', 'Al-Hilal'];
-  const interestedClub = richClubs.filter(c => norm(c) !== norm(state.club))[rnd(0, richClubs.length - 2)] || 'Flamengo';
+  const richClubs = ['Flamengo', 'Palmeiras', 'Atlético-MG', 'Botafogo', 'São Paulo', 'Corinthians', 'Grêmio', 'Internacional', 'Cruzeiro', 'Fluminense', 'Real Madrid', 'Chelsea', 'PSG', 'Al-Hilal', 'Manchester City'];
+  const eligibleClubs = richClubs.filter(c => norm(c) !== norm(state.club));
+  shuffle(eligibleClubs);
+  
+  // Se for jogador de alto valor, chance de 50% de haver disputa acirrada entre 2 ou 3 clubes pelo mesmo atleta
+  const numClubs = Math.random() < 0.50 ? rnd(2, 3) : 1;
+  const pickedClubs = eligibleClubs.slice(0, numClubs);
   
   const baseVal = Math.max(1, calcValueMi(target));
-  const bidFee = Math.round(baseVal * 1.35 * 1000000);
-  const sellOnPct = 20; // 20% de venda futura!
-  
   state.incomingBids = state.incomingBids || [];
-  state.incomingBids.unshift({
-    id: `bid_${Date.now()}`,
-    date: state.date,
-    playerKey: playerKey(target),
-    playerName: target.name,
-    ovr: playerOverall(target),
-    club: interestedClub,
-    fee: bidFee,
-    sellOnPct
+
+  // Substitui propostas anteriores deste mesmo atleta por esta nova rodada de negociações
+  state.incomingBids = state.incomingBids.filter(b => b.playerKey !== playerKey(target));
+
+  pickedClubs.forEach((clubName, idx) => {
+    const mult = 1.20 + (idx * 0.12) + (Math.random() * 0.15);
+    const fee = Math.round(baseVal * mult * 1000000);
+    const sellOnPct = [15, 20, 25][rnd(0, 2)];
+
+    state.incomingBids.push({
+      id: `bid_${Date.now()}_${idx}`,
+      date: state.date,
+      playerKey: playerKey(target),
+      playerName: target.name,
+      ovr: playerOverall(target),
+      club: clubName,
+      fee: fee,
+      sellOnPct: sellOnPct,
+      counterOffered: false
+    });
   });
   
-  state.news.unshift(`💰 PROPOSTA OFICIAL MILIONÁRIA: O ${interestedClub} ofereceu ${fmtMoney(bidFee)} + 20% de venda futura pelo seu titular ${target.name}!`);
+  if(pickedClubs.length > 1){
+    state.news.unshift(`🔥 LEILÃO MILIONÁRIO: ${pickedClubs.join(', ')} estão disputando a contratação do seu titular ${target.name}!`);
+  } else {
+    state.news.unshift(`💰 PROPOSTA OFICIAL MILIONÁRIA: O ${pickedClubs[0]} ofereceu ${fmtMoney(state.incomingBids[state.incomingBids.length-1].fee)} + 20% de venda futura por ${target.name}!`);
+  }
 }
 
-function openIncomingBidModal(bidId){
-  const bid = (state.incomingBids || []).find(b => b.id === bidId) || (state.incomingBids || [])[0];
-  if(!bid){ toast('Nenhuma proposta ativa no momento.'); return; }
+function renderHomeBidsBanner(){
+  const banner = $('#incomingBidsHomeBanner');
+  if(!state.incomingBids || state.incomingBids.length === 0){
+    if(banner) banner.remove();
+    return;
+  }
+  if(banner){
+    const titleEl = banner.querySelector('b');
+    const descEl = banner.querySelector('.bid-desc-text');
+    const btnEl = banner.querySelector('#btnOpenIncomingBidFromCentral');
+    const firstBid = state.incomingBids[0];
+    if(titleEl){
+      titleEl.textContent = state.incomingBids.length > 1 ? `🔥 LEILÃO MILIONÁRIO! ${state.incomingBids.length} CLUBES NA DISPUTA!` : 'PROPOSTA MILIONÁRIA OFICIAL!';
+    }
+    if(descEl){
+      descEl.innerHTML = state.incomingBids.length > 1
+        ? `${state.incomingBids.map(b => `<b>${esc(b.club)}</b>`).join(', ')} fizeram propostas oficiais por <b>${esc(firstBid.playerName)}</b>!`
+        : `O <b>${esc(firstBid.club)}</b> ofereceu <b>${fmtMoney(firstBid.fee)}</b> por <b>${esc(firstBid.playerName)}</b> (+${firstBid.sellOnPct}% futura)`;
+    }
+    if(btnEl){
+      btnEl.textContent = state.incomingBids.length > 1 ? `Ver Propostas (${state.incomingBids.length}) >` : 'Ver Proposta >';
+    }
+  }
+}
 
-  const p = (state.squad || []).find(x => playerKey(x) === bid.playerKey);
-  if(!p){
-    state.incomingBids = (state.incomingBids || []).filter(b => b.id !== bid.id);
-    toast('Jogador não faz mais parte do elenco.');
+function openIncomingBidModal(selectedBidId){
+  if(!state.incomingBids || state.incomingBids.length === 0){
+    toast('Nenhuma proposta oficial ativa no momento.');
+    closeCustomModal();
+    renderHomeBidsBanner();
+    render();
     return;
   }
 
+  // Identifica o jogador disputado
+  const firstBid = state.incomingBids[0];
+  const p = (state.squad || []).find(x => playerKey(x) === firstBid.playerKey);
+  if(!p){
+    state.incomingBids = [];
+    toast('Jogador negociado ou não faz mais parte do elenco.');
+    closeCustomModal();
+    renderHomeBidsBanner();
+    render();
+    return;
+  }
+
+  const bidsCount = state.incomingBids.length;
+
   openCustomModal(
-    '💼 Proposta Oficial de Transferência Recebida',
+    bidsCount > 1 ? '💼 Leilão de Transferência • Múltiplos Clubes Interessados' : '💼 Proposta Oficial de Transferência Recebida',
     `
-      <div style="text-align:center;margin-bottom:16px">
-        <div style="font-size:38px;margin-bottom:6px">💰</div>
-        <div style="font-size:18px;font-weight:900;color:#fff">${esc(bid.club)} quer contratar seu atleta!</div>
-        <div style="font-size:12px;color:rgba(255,255,255,0.6)">Chegou um documento timbrado com oferta oficial irrevogável.</div>
-      </div>
-      <div style="background:#161c2b;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;margin-bottom:16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px">
-          <div>
-            <div style="font-size:16px;font-weight:900;color:#facc15">${esc(p.name)}</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.6)">Posição: <b>${p.pos}</b> • Overall: <b>${playerOverall(p)} OVR</b> • Idade: <b>${p.age||24} anos</b></div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:10px;text-transform:uppercase;color:rgba(255,255,255,0.5)">Clube Comprador</div>
-            <div style="font-size:14px;font-weight:800;color:#38bdf8">${esc(bid.club)}</div>
-          </div>
+      <!-- Cabeçalho do Atleta Alvo -->
+      <div style="background:#131826;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
+        <div style="width:52px;height:52px;border-radius:50%;background:#1e1a38;display:flex;align-items:center;justify-content:center;border:2px solid #7c3aed;overflow:hidden;flex-shrink:0">
+          ${typeof playerPhoto === 'function' ? playerPhoto(p, 52) : ''}
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center;margin-top:12px">
-          <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:10px">
-            <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">Valor à Vista</div>
-            <div style="font-size:18px;font-weight:900;color:#22c55e">${fmtMoney(bid.fee)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:17px;font-weight:900;color:#fff">${esc(p.name)}</span>
+            <span class="pill" style="font-size:10px;background:#7c3aed;color:#fff;font-weight:800">${p.pos}</span>
+            <span class="pill" style="font-size:10px;background:rgba(34,197,94,0.15);color:#22c55e;font-weight:800">${playerOverall(p)} OVR</span>
+            <span class="pill" style="font-size:10px;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6)">${p.age || 24} anos</span>
           </div>
-          <div style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);border-radius:10px;padding:10px">
-            <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">Cláusula Futura</div>
-            <div style="font-size:18px;font-weight:900;color:#38bdf8">${bid.sellOnPct}% de Venda Futura</div>
+          <div style="font-size:11px;color:${bidsCount > 1 ? '#facc15' : 'rgba(255,255,255,0.6)'};margin-top:4px;font-weight:${bidsCount > 1 ? '800' : 'normal'}">
+            ${bidsCount > 1
+              ? `🔥 ${bidsCount} CLUBES ENVIARAM OFERTAS OFICIAIS! Escolha o melhor destino ou tente contraproposta (+20%).`
+              : `Chegou uma proposta timbrada com oferta oficial irrevogável na mesa da diretoria.`}
           </div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-        <button id="btnAcceptBid" class="btn primary" style="background:#16a34a;border:none;font-weight:900;padding:12px">
-          ✅ Aceitar e Vender
-        </button>
-        <button id="btnCounterBid" class="btn" style="background:#7c3aed;color:#fff;border:none;font-weight:900;padding:12px">
-          📈 Pedir +20%
-        </button>
-        <button id="btnRejectBid" class="btn" style="background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid rgba(239,68,68,0.4);font-weight:900;padding:12px">
-          ❌ Recusar
-        </button>
+
+      <!-- Lista de Clubes Interessados e suas Propostas -->
+      <div style="max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-right:4px">
+        ${state.incomingBids.map(b => `
+          <div class="incoming-bid-card" id="card_bid_${b.id}" style="background:#161c2d;border:1px solid ${b.counterOffered ? '#22c55e' : 'rgba(255,255,255,0.1)'};border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;transition:all 0.2s">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:24px">🏛️</span>
+                <div>
+                  <div style="color:#fff;font-size:15px;font-weight:900">${esc(b.club)}</div>
+                  <div style="font-size:10px;color:rgba(255,255,255,0.5)">Proposta Oficial Irrevogável</div>
+                </div>
+              </div>
+              ${b.counterOffered ? `
+                <span class="pill good" style="font-size:10px;font-weight:900;background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid #22c55e">✓ +20% ACEITO</span>
+              ` : ''}
+            </div>
+
+            <!-- Valores Financeiros da Oferta -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center">
+              <div style="background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:8px">
+                <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">Valor à Vista</div>
+                <div id="bidFeeDisplay_${b.id}" style="font-size:18px;font-weight:900;color:#22c55e;transition:all 0.3s">${fmtMoney(b.fee)}</div>
+              </div>
+              <div style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);border-radius:10px;padding:8px">
+                <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">Cláusula Futura</div>
+                <div style="font-size:18px;font-weight:900;color:#38bdf8">${b.sellOnPct}% de Venda Futura</div>
+              </div>
+            </div>
+
+            <!-- Botões de Ação para cada Proposta -->
+            <div style="display:grid;grid-template-columns:1.3fr 1.1fr 0.8fr;gap:8px;margin-top:2px">
+              <button class="btn primary btnAcceptSingleBid" data-id="${b.id}" style="background:#16a34a;border:none;font-weight:900;padding:10px 8px;font-size:12px;border-radius:8px;cursor:pointer">
+                ✅ Aceitar e Vender
+              </button>
+              <button class="btn btnCounterSingleBid" data-id="${b.id}" ${b.counterOffered ? 'disabled style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3);border:none;padding:10px 8px;font-size:12px;border-radius:8px;cursor:not-allowed"' : 'style="background:#7c3aed;color:#fff;border:none;font-weight:900;padding:10px 8px;font-size:12px;border-radius:8px;cursor:pointer"'}>
+                ${b.counterOffered ? '✓ +20% Negociado' : '📈 Pedir +20%'}
+              </button>
+              <button class="btn btnRejectSingleBid" data-id="${b.id}" style="background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid rgba(239,68,68,0.4);font-weight:900;padding:10px 8px;font-size:12px;border-radius:8px;cursor:pointer">
+                ❌ Recusar
+              </button>
+            </div>
+          </div>
+        `).join('')}
       </div>
     `,
     null,
@@ -9549,40 +10077,233 @@ function openIncomingBidModal(bidId){
     false
   );
 
-  $('#btnAcceptBid').onclick = () => {
-    state.balance += bid.fee;
-    state.income = (state.income || 0) + bid.fee;
-    state.squad = state.squad.filter(x => playerKey(x) !== bid.playerKey);
-    state.lineup = (state.lineup || []).filter(k => k !== bid.playerKey);
-    state.incomingBids = (state.incomingBids || []).filter(b => b.id !== bid.id);
-    state.news.unshift(`🤝 TRANSFERÊNCIA CONCLUÍDA: ${p.name} foi vendido ao ${bid.club} por ${fmtMoney(bid.fee)} com 20% de venda futura!`);
-    closeCustomModal();
-    save();
-    render();
-    toast(`🎉 Venda concretizada! ${fmtMoney(bid.fee)} creditados no caixa.`);
-  };
+  // 1. ACEITAR E VENDER PARA O CLUBE ESCOLHIDO
+  $$('.btnAcceptSingleBid').forEach(btn => {
+    btn.onclick = () => {
+      const bidId = btn.dataset.id;
+      const b = (state.incomingBids || []).find(x => x.id === bidId);
+      if(!b) return;
 
-  $('#btnCounterBid').onclick = () => {
-    if(Math.random() < 0.60){
-      bid.fee = Math.round(bid.fee * 1.20);
-      toast(`O ${bid.club} aceitou a contraproposta de ${fmtMoney(bid.fee)}!`);
-      openIncomingBidModal(bid.id);
-    } else {
-      toast(`O ${bid.club} recusou pagar mais e retirou a proposta.`);
-      state.incomingBids = (state.incomingBids || []).filter(b => b.id !== bid.id);
+      const playerToSell = (state.squad || []).find(x => playerKey(x) === b.playerKey);
+      if(!playerToSell){
+        toast('Jogador não encontrado no elenco.');
+        closeCustomModal();
+        render();
+        return;
+      }
+
+      state.balance += b.fee;
+      state.income = (state.income || 0) + b.fee;
+
+      // Cláusula de Venda Futura se houver
+      if(b.sellOnPct > 0){
+        state.futureSaleClauses = state.futureSaleClauses || [];
+        state.futureSaleClauses.push({
+          playerName: playerToSell.name,
+          playerKey: b.playerKey,
+          club: b.club,
+          sellOnPct: b.sellOnPct,
+          date: state.date,
+          originalFee: b.fee
+        });
+      }
+
+      // Feed mundial do mercado
+      state.marketWorldFeed = state.marketWorldFeed || [];
+      state.marketWorldFeed.unshift({
+        player: playerToSell.name,
+        pos: playerToSell.pos,
+        ovr: playerOverall(playerToSell),
+        from: state.club,
+        to: b.club,
+        fee: b.fee,
+        date: state.date
+      });
+      state.marketWorldFeed = state.marketWorldFeed.slice(0, 30);
+
+      // Remove jogador do elenco e da escalação
+      state.squad = state.squad.filter(x => playerKey(x) !== b.playerKey);
+      state.lineup = (state.lineup || []).filter(k => k !== b.playerKey);
+
+      // Remove TODAS as propostas pendentes para este jogador (já que foi vendido!)
+      state.incomingBids = (state.incomingBids || []).filter(x => x.playerKey !== b.playerKey);
+
+      state.news.unshift(`🤝 TRANSFERÊNCIA CONCLUÍDA: ${playerToSell.name} foi vendido ao ${b.club} por ${fmtMoney(b.fee)} com ${b.sellOnPct}% de venda futura!`);
       closeCustomModal();
       save();
+      renderHomeBidsBanner();
       render();
-    }
-  };
+      toast(`🎉 Venda concretizada! ${fmtMoney(b.fee)} creditados no caixa do clube.`);
+    };
+  });
 
-  $('#btnRejectBid').onclick = () => {
-    state.incomingBids = (state.incomingBids || []).filter(b => b.id !== bid.id);
-    toast(`Proposta do ${bid.club} recusada.`);
-    closeCustomModal();
-    save();
-    render();
-  };
+  // 2. PEDIR +20% (ATUALIZA VALORES NA HORA OU RETIRA A PROPOSTA SE O TIME NEGAR)
+  $$('.btnCounterSingleBid').forEach(btn => {
+    btn.onclick = () => {
+      const bidId = btn.dataset.id;
+      const b = (state.incomingBids || []).find(x => x.id === bidId);
+      if(!b || b.counterOffered) return;
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Negociando...';
+
+      // 60% de chance do clube aceitar a contraproposta de +20%
+      const accepted = Math.random() < 0.60;
+      if(accepted){
+        b.fee = Math.round(b.fee * 1.20);
+        b.counterOffered = true;
+        save();
+        toast(`🎉 O ${b.club} aceitou pagar mais e aumentou a proposta para ${fmtMoney(b.fee)}!`);
+
+        // Atualiza os valores NA HORA visualmente no card
+        const feeEl = $(`#bidFeeDisplay_${b.id}`);
+        if(feeEl){
+          feeEl.textContent = fmtMoney(b.fee);
+          feeEl.style.transform = 'scale(1.2)';
+          feeEl.style.color = '#4ade80';
+          setTimeout(() => { feeEl.style.transform = 'scale(1)'; }, 280);
+        }
+        btn.textContent = '✓ +20% Negociado';
+        btn.style.background = 'rgba(255,255,255,0.06)';
+        btn.style.color = 'rgba(255,255,255,0.3)';
+        btn.style.cursor = 'not-allowed';
+
+        const card = $(`#card_bid_${b.id}`);
+        if(card){
+          card.style.borderColor = '#22c55e';
+          card.style.boxShadow = '0 0 16px rgba(34,197,94,0.35)';
+        }
+
+        renderHomeBidsBanner();
+      } else {
+        // Se o clube negar: retira a proposta imediatamente!
+        toast(`🚫 O ${b.club} recusou pagar mais e retirou a proposta oficial.`);
+        state.incomingBids = (state.incomingBids || []).filter(x => x.id !== bidId);
+        save();
+        renderHomeBidsBanner();
+
+        // Se ainda sobrarem propostas de outros clubes para o jogador
+        if(state.incomingBids.length > 0){
+          openIncomingBidModal();
+        } else {
+          // Se não sobrar nenhuma proposta, fecha o modal e atualiza a tela na hora
+          closeCustomModal();
+          render();
+        }
+      }
+    };
+  });
+
+  // 3. RECUSAR PROPOSTA DE UM CLUBE ESPECÍFICO
+  $$('.btnRejectSingleBid').forEach(btn => {
+    btn.onclick = () => {
+      const bidId = btn.dataset.id;
+      const b = (state.incomingBids || []).find(x => x.id === bidId);
+      const clubName = b ? b.club : 'Clube';
+      state.incomingBids = (state.incomingBids || []).filter(x => x.id !== bidId);
+      save();
+      toast(`Proposta do ${clubName} recusada.`);
+      renderHomeBidsBanner();
+
+      if(state.incomingBids.length > 0){
+        openIncomingBidModal();
+      } else {
+        closeCustomModal();
+        render();
+      }
+    };
+  });
+}
+
+// =========================================================================
+// SISTEMA DE SUGESTÕES DINÂMICAS DA COMISSÃO TÉCNICA & DIRETORIA
+// =========================================================================
+
+function getPendingSuggestion(){
+  if(!state) return null;
+  if(state.suggestionHandledRound === state.round) return null;
+  if(state.pendingSuggestion) return state.pendingSuggestion;
+
+  const suggestionsList = [
+    {
+      id: 'tatico',
+      dept: 'COMISSÃO TÉCNICA',
+      icon: '📋',
+      title: 'Compactação Tática & Treino de Bolas Paradas',
+      desc: 'O auxiliar técnico identificou brechas na defesa do próximo rival e propõe treino intensivo de posicionamento e bolas paradas.',
+      impact: 'Moral do elenco +5% e entrosamento tático elevado para o jogo.',
+      type: 'morale_tactics'
+    },
+    {
+      id: 'fisio',
+      dept: 'DEPARTAMENTO DE FISIOLOGIA',
+      icon: '🧊',
+      title: 'Sessão Regenerativa com Crioterapia & Banheira de Gelo',
+      desc: 'Os fisiologistas recomendam imersão em gelo e massoterapia para eliminar o desgaste muscular acumulado nas pernas dos atletas.',
+      impact: 'Recupera +12% de energia física de todo o elenco.',
+      type: 'energy_boost'
+    },
+    {
+      id: 'ataque',
+      dept: 'PREPARADOR OFENSIVO',
+      icon: '🎯',
+      title: 'Calibragem de Chutes a Gol & Treino de Pênaltis',
+      desc: 'O preparador de ataque sugere 1 hora extra de finalizações, pontaria calibrada e cobranças de pênalti com meias e atacantes.',
+      impact: 'Moral +8% dos homens de frente e pontaria afiada.',
+      type: 'attack_boost'
+    },
+    {
+      id: 'marketing',
+      dept: 'DIRETORIA DE MARKETING',
+      icon: '📣',
+      title: 'Treino Aberto Festivo com Apoio da Torcida',
+      desc: 'A diretoria sugere abrir as arquibancadas do estádio para um treino festivo com os torcedores para incendiar os ânimos da equipe.',
+      impact: 'Apoio da torcida +4% e moral geral da equipe +6%.',
+      type: 'fan_morale'
+    }
+  ];
+
+  const idx = Math.abs(Number(state.round || 0)) % suggestionsList.length;
+  state.pendingSuggestion = suggestionsList[idx];
+  return state.pendingSuggestion;
+}
+
+function acceptPendingSuggestion(){
+  const sug = getPendingSuggestion();
+  if(!sug) return;
+
+  if(sug.type === 'morale_tactics'){
+    state.squad = (state.squad || []).map(p => ({ ...p, morale: clamp((Number(p.morale) || 70) + 5, 0, 100) }));
+    toast('✅ Sugestão aprovada! Treino tático concluído e moral +5%!');
+  } else if(sug.type === 'energy_boost'){
+    state.squad = (state.squad || []).map(p => ({ ...p, energy: clamp((Number(p.energy) || 70) + 12, 0, 100) }));
+    toast('✅ Crioterapia realizada! Todo o time recuperou +12% de energia física!');
+  } else if(sug.type === 'attack_boost'){
+    state.squad = (state.squad || []).map(p => ['ST','CF','RW','LW','CAM','AM'].includes(p.pos) ? { ...p, morale: clamp((Number(p.morale) || 70) + 8, 0, 100) } : p);
+    toast('✅ Treino ofensivo concluído! Atacantes afiados e moral +8%!');
+  } else if(sug.type === 'fan_morale'){
+    state.squad = (state.squad || []).map(p => ({ ...p, morale: clamp((Number(p.morale) || 70) + 6, 0, 100) }));
+    state.fanSupport = clamp((Number(state.fanSupport) || 75) + 4, 0, 100);
+    toast('✅ Treino aberto realizado! A torcida compareceu em peso e inflamou o time!');
+  }
+
+  // Marca sugestão tratada para a rodada atual e remove da tela imediatamente
+  state.suggestionHandledRound = state.round;
+  state.pendingSuggestion = null;
+  state.pendingDecision = null;
+  state.trainingSuggestionPending = false;
+  save();
+  render();
+}
+
+function dismissPendingSuggestion(){
+  state.suggestionHandledRound = state.round;
+  state.pendingSuggestion = null;
+  state.pendingDecision = null;
+  state.trainingSuggestionPending = false;
+  save();
+  toast('Sugestão dispensada para esta rodada.');
+  render();
 }
 
 function updateManagerCareerStats(userRes){
@@ -10838,20 +11559,36 @@ function setupLiveCanvasLoop(){
     try {
       s.renderTicks = (s.renderTicks || 0) + 1;
 
-      // Simulation Clock Step (Desacoplado da taxa de quadros do monitor)
+      // Simulation Clock Step (Contagem contínua de segundos em tempo real rápido)
       if(s.playing && !s.done && s.phase !== 'HALF_TIME'){
         const now = performance.now();
         if(!s.lastLoopTime) s.lastLoopTime = now;
         const dtMs = Math.min(now - s.lastLoopTime, 250);
         s.lastLoopTime = now;
 
-        const msPerMin = Math.max(25, Math.round(1000 / (s.speed || 1)));
-        s.simAccumulator = (s.simAccumulator || 0) + dtMs;
+        const speed = Math.max(1, s.speed || 1);
+        // Em 1x: 1 minuto (60s) dura ~1000ms. Cada segundo dura ~16.6ms.
+        const msPerSec = Math.max(1, (1000 / 60) / speed);
+        s.secAccumulator = (s.secAccumulator || 0) + dtMs;
 
-        while(s.simAccumulator >= msPerMin && s.playing && !s.done && s.phase !== 'HALF_TIME'){
-          s.simAccumulator -= msPerMin;
-          if(s.minute < 90){
-            simulateMinute(s, s.minute + 1);
+        while(s.secAccumulator >= msPerSec && s.playing && !s.done && s.phase !== 'HALF_TIME'){
+          s.secAccumulator -= msPerSec;
+          s.liveSubSec = (s.liveSubSec || 0) + 1;
+          s.timeSec = (s.timeSec || 0) + 1;
+
+          // Atualização fluida do relógio no placar
+          const curMin = Math.floor(s.timeSec / 60);
+          const curSec = Math.floor(s.timeSec % 60);
+          const clk = $('#liveClockDisplay');
+          if(clk){
+            clk.textContent = `${String(curMin).padStart(2, '0')}:${String(curSec).padStart(2, '0')}`;
+          }
+
+          if(s.liveSubSec >= 60){
+            s.liveSubSec = 0;
+            if(s.minute < 90){
+              simulateMinute(s, s.minute + 1);
+            }
           }
         }
       } else {
@@ -11761,9 +12498,11 @@ function simulateMinute(s, min){
   s.stats.savesH = s.stats.savesH || 0;
   s.stats.savesA = s.stats.savesA || 0;
 
+  s.liveSubSec = 0;
   const minDisp = String(min).padStart(2, '0');
+  const secDisp = String(Math.floor((s.timeSec || 0) % 60)).padStart(2, '0');
   const clk = $('#liveClockDisplay');
-  if(clk) clk.textContent = `${minDisp}:00`;
+  if(clk) clk.textContent = `${minDisp}:${secDisp}`;
 
   // 1. Postura tática e desgaste de Stamina por minuto de jogo
   const hCfg = getPostureConfig(s.homePosture || 'Equilibrada');
@@ -12817,74 +13556,63 @@ function openHalftimeModal(isQuickTactics = false){
           </div>
         </div>
 
-        <!-- SEÇÃO SUBSTITUIÇÕES COM CAMPO E BANCO AMPLOS -->
+        <!-- SEÇÃO SUBSTITUIÇÕES COM ESTRUTURA RÍGIDA DE 2 COLUNAS (.tactics-modal-container) -->
         <div style="flex:1;display:flex;flex-direction:column;min-height:0;gap:6px">
-          <div style="display:flex;justify-content:space-between;align-items:center;background:#141d2c;padding:5px 14px;border-radius:8px;flex-shrink:0">
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#141d2c;padding:6px 14px;border-radius:8px;flex-shrink:0">
             <span style="font-size:12px;color:rgba(255,255,255,0.9);font-weight:700">
-              👉 <b>Toque em quem sai</b> (no campo à esquerda) e depois <b>em quem entra</b> (no banco à direita) para substituir.
+              👉 <b>Arraste ou Toque em quem sai</b> (no campo à esquerda) e <b>em quem entra</b> (no banco à direita) para substituir.
             </span>
-            <span style="font-size:12px;font-weight:900;color:#facc15;background:rgba(250,204,21,0.15);padding:2px 8px;border-radius:6px;border:1px solid #facc15">
-              ${s.subsLeft} trocas restantes
-            </span>
-          </div>
-
-          <div class="halftime-sub-container" style="flex:1;display:grid;grid-template-columns:1.25fr 0.75fr;gap:14px;min-height:0">
-            <!-- COLUNA ESQUERDA: FORMAÇÃO & CAMPO DOS TITULARES -->
-            <div style="display:flex;flex-direction:column;min-height:0">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0">
-                <span id="halftimePitchFormTitle" style="font-size:13px;font-weight:900;color:#fff;letter-spacing:0.5px">EM CAMPO · ${currentForm}</span>
-                <!-- Seletor de Formações -->
-                <div style="display:flex;gap:4px">
-                  ${['4-3-3', '4-4-2', '3-5-2', '4-2-3-1', '5-3-2', '4-1-4-1', '4-5-1', '3-4-3'].map(f => `
-                    <button class="btn btnFormSelectHalftime ${currentForm === f ? 'primary' : ''}" data-form="${f}" style="font-size:11px;padding:2px 7px;font-weight:900;border-radius:6px">
-                      ${f}
-                    </button>
-                  `).join('')}
-                </div>
-              </div>
-
-              <!-- Campinho Verde dos 11 Titulares Amplo -->
-              <div class="halftime-pitch-box" id="halftimePitchBox" style="flex:1;position:relative;border-radius:12px;overflow:hidden;box-shadow:inset 0 0 40px rgba(0,0,0,0.5)">
-                <div class="pitch" style="width:100%;height:100%;position:relative;min-height:360px">
-                  ${(FORMATIONS[currentForm] || FORMATIONS['4-3-3']).map((slot, idx) => {
-                    const p = userStarters[idx];
-                    return renderFifaMiniCard(p, { index: idx, role: slot.r, x: slot.x, y: slot.y }, {
-                      isSelected: halftimeSelectedStarterKey === (p?.key || (p ? playerKey(p) : '')),
-                      isHalftime: true,
-                      customClass: 'halftime-pitch-player'
-                    });
-                  }).join('')}
-                </div>
-              </div>
-            </div>
-
-            <!-- COLUNA DIREITA: BANCO DE RESERVAS -->
-            <div style="display:flex;flex-direction:column;min-height:0">
-              <div style="font-size:12px;font-weight:900;color:#94a3b8;margin-bottom:6px;display:flex;justify-content:space-between;flex-shrink:0">
-                <span>BANCO DE RESERVAS (CHEGAM 100%)</span>
-                <span style="color:#22c55e;font-weight:800">Prontos para entrar</span>
-              </div>
-              <div class="halftime-bench-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(2, 1fr);gap:8px;padding-right:4px">
-                ${userBench.map(p => `
-                  <div class="halftime-bench-card" data-benchkey="${esc(playerKey(p))}" draggable="true" title="Arraste para o campo ou clique para substituir" style="display:flex;align-items:center;gap:10px;background:#141d2c;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 10px;cursor:pointer">
-                    ${playerPhoto(p, 36)}
-                    <div style="flex:1;min-width:0">
-                      <div style="font-size:11px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                        ${esc(p.name)}
-                      </div>
-                      <div style="font-size:10px;font-weight:800;color:#c084fc">
-                        ${esc(p.pos)} · ${playerOverall(p)}
-                      </div>
-                      <div class="halftime-stamina-bar" style="width:100%;height:3px;background:rgba(0,0,0,0.6);margin-top:4px">
-                        <div class="halftime-stamina-fill halftime-stamina-good" style="width:100%;height:100%;background:#22c55e"></div>
-                      </div>
-                    </div>
-                  </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span id="halftimePitchFormTitle" style="font-size:12px;font-weight:900;color:#38bdf8">EM CAMPO · ${currentForm}</span>
+              <!-- Seletor de Formações Compacto -->
+              <div style="display:flex;gap:4px">
+                ${['4-3-3', '4-4-2', '3-5-2', '4-2-3-1', '5-3-2', '4-1-4-1', '4-5-1', '3-4-3'].map(f => `
+                  <button class="btn btnFormSelectHalftime ${currentForm === f ? 'primary' : ''}" data-form="${f}" style="font-size:10px;padding:2px 6px;font-weight:900;border-radius:6px">
+                    ${f}
+                  </button>
                 `).join('')}
               </div>
+              <span style="font-size:12px;font-weight:900;color:#facc15;background:rgba(250,204,21,0.15);padding:2px 8px;border-radius:6px;border:1px solid #facc15">
+                ${s.subsLeft} trocas restantes
+              </span>
+            </div>
+          </div>
 
-              <div style="margin-top:8px;background:#101726;padding:8px 12px;border-radius:8px;font-size:11px;color:rgba(255,255,255,0.7);flex-shrink:0">
-                💡 <b>Dica:</b> Arraste o reserva para cima do titular no campo ou clique no titular e depois no reserva para trocar!
+          <!-- CONTAINER OFICIAL DE 2 COLUNAS (FLEX-NOWRAP) -->
+          <div class="tactics-modal-container" id="halftimeTacticsContainer" style="flex:1;height:auto;min-height:0">
+            <!-- COLUNA 1: GRAMADO VERTICAL OFICIAL -->
+            <div class="tactics-pitch-wrapper" id="halftimePitchBox">
+              ${renderVerticalTacticsPitch(userStarters, currentForm, { isHalftime: true, selectedStarterKey: halftimeSelectedStarterKey })}
+            </div>
+
+            <!-- COLUNA 2: BANCO DE RESERVAS LATERAL ORGANIZADO -->
+            <div class="tactics-bench-wrapper" id="halftimeBenchWrapper">
+              <div style="font-size:12px;font-weight:900;color:#94a3b8;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+                <span>BANCO DE RESERVAS</span>
+                <span style="color:#22c55e;font-size:11px;font-weight:800">${userBench.length} disponíveis</span>
+              </div>
+              <div style="flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:6px;padding-right:2px">
+                ${userBench.map(p => {
+                  const pOvr = playerOverall(p);
+                  return `
+                    <div class="bench-player-row" data-bench-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}" draggable="true" title="Arraste para o campo ou clique para substituir">
+                      ${playerPhoto(p, 36)}
+                      <div style="flex:1;min-width:0;margin-left:8px">
+                        <div style="display:flex;justify-content:space-between;align-items:center">
+                          <b style="font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</b>
+                          <span class="rating-pill ${ratingClass(pOvr)}">${pOvr}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;font-size:10px">
+                          <span style="color:#c084fc;font-weight:800">${esc(p.pos)}</span>
+                          <span style="color:#22c55e;font-weight:700">100% energia</span>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+              <div style="margin-top:8px;background:#101726;padding:8px 10px;border-radius:8px;font-size:10px;color:rgba(255,255,255,0.7);flex-shrink:0;line-height:1.3">
+                💡 <b>Dica:</b> Arraste para o campo ou clique para selecionar. Slots acendem em 🟢 <b>VERDE (★ IDEAL)</b> e 🟡 <b>AMARELO (ADAPTADA)</b>!
               </div>
             </div>
           </div>
@@ -12933,35 +13661,6 @@ function openHalftimeModal(isQuickTactics = false){
       const descEl = $('#halftimePostureDesc');
       if(descEl) descEl.innerHTML = postureDescriptions[posture] || '';
       toast(`Postura tática alterada para ${posture}!`);
-    };
-  });
-
-  // Mudança de Formação no intervalo: ATUALIZAÇÃO DIRETA NO DOM SEM RESETAR O SCROLL!
-  $$('.btnFormSelectHalftime').forEach(b => {
-    b.onclick = (e) => {
-      e.stopPropagation();
-      const newForm = b.dataset.form;
-      state.formation = newForm;
-      $$('.btnFormSelectHalftime').forEach(btn => btn.classList.toggle('primary', btn.dataset.form === newForm));
-      const titleEl = $('#halftimePitchFormTitle');
-      if(titleEl) titleEl.textContent = `EM CAMPO · ${newForm}`;
-      
-      const newSlots = FORMATIONS[newForm] || FORMATIONS['4-3-3'];
-      const playerNodes = $$('#halftimePitchBox .halftime-pitch-player');
-      playerNodes.forEach((node, idx) => {
-        const slot = newSlots[idx] || { x: 50, y: 50, r: 'CM' };
-        node.style.left = `${slot.x}%`;
-        node.style.top = `${slot.y}%`;
-        node.dataset.slotRole = slot.r;
-        const livePlayer = userStarters[idx];
-        if(livePlayer){
-          const targetX = s.home === state.club ? Number(slot.x) : 100 - Number(slot.x);
-          const targetY = Number(slot.y);
-          livePlayer.baseX = targetX; livePlayer.baseY = targetY;
-          livePlayer.targetX = targetX; livePlayer.targetY = targetY;
-        }
-      });
-      toast(`Formação alterada para ${newForm}!`);
     };
   });
 
@@ -13047,190 +13746,37 @@ function openHalftimeModal(isQuickTactics = false){
     const idx1 = userStarters.findIndex(p => p.key === k1);
     const idx2 = userStarters.findIndex(p => p.key === k2);
     if(idx1 !== -1 && idx2 !== -1){
-      const tmpX = userStarters[idx1].x, tmpY = userStarters[idx1].y;
-      const tmpBaseX = userStarters[idx1].baseX, tmpBaseY = userStarters[idx1].baseY;
-      userStarters[idx1].x = userStarters[idx2].x; userStarters[idx1].y = userStarters[idx2].y;
-      userStarters[idx1].baseX = userStarters[idx2].baseX; userStarters[idx1].baseY = userStarters[idx2].baseY;
-      userStarters[idx2].x = tmpX; userStarters[idx2].y = tmpY;
-      userStarters[idx2].baseX = tmpBaseX; userStarters[idx2].baseY = tmpBaseY;
-      toast(`Posições de ${userStarters[idx1].name} e ${userStarters[idx2].name} invertidas no campo!`);
+      const tmpPlayer = userStarters[idx1];
+      userStarters[idx1] = userStarters[idx2];
+      userStarters[idx2] = tmpPlayer;
+      toast(`Posições invertidas entre ${userStarters[idx1].name} e ${userStarters[idx2].name}!`);
       openHalftimeModal(isQuickTactics);
     }
   }
 
-  let draggedStarter = null;
-  let draggedBench = null;
-  let halftimeSelectedBenchKey = null;
-
-  // Suporte a Drop no container do campinho
-  const pitchBox = $('#halftimePitchBox');
-  if(pitchBox){
-    pitchBox.ondragenter = (e) => { e.preventDefault(); };
-    pitchBox.ondragover = (e) => {
-      e.preventDefault();
-      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-    };
-  }
-
-  function highlightHalftimeSlots(pos){
-    if(!pos) return;
-    $$('.halftime-pitch-player').forEach(slot => {
-      const slotRole = slot.dataset.slotRole;
-      const fit = getPositionFit(pos, slotRole);
-      slot.classList.remove('slot-best-fit', 'slot-ok-fit', 'slot-bad-fit');
-      if(fit === 'best'){
-        slot.classList.add('slot-best-fit');
-      } else if(fit === 'ok'){
-        slot.classList.add('slot-ok-fit');
-      } else {
-        slot.classList.add('slot-bad-fit');
-      }
-    });
-  }
-
-  function clearHalftimeDragStates(){
-    document.body.classList.remove('is-dragging');
-    $$('.halftime-pitch-player').forEach(p => p.classList.remove('drag-target', 'drag-over', 'slot-best-fit', 'slot-ok-fit', 'slot-bad-fit'));
-    $$('.halftime-bench-card').forEach(b => b.classList.remove('drag-target', 'drag-over'));
-  }
-
-  function updateHalftimeSelectedVisuals(){
-    $$('.halftime-pitch-player').forEach(pNode => {
-      pNode.classList.toggle('selected', pNode.dataset.starterkey === halftimeSelectedStarterKey);
-    });
-    $$('.halftime-bench-card').forEach(bNode => {
-      const isBenchSel = (bNode.dataset.benchkey === halftimeSelectedBenchKey);
-      bNode.style.borderColor = isBenchSel ? '#fbbf24' : 'rgba(255,255,255,0.08)';
-      bNode.style.boxShadow = isBenchSel ? '0 0 12px rgba(251,191,36,0.5)' : 'none';
-    });
-  }
-
-  // 1. Drag & drop e clique dos reservas
-  $$('.halftime-bench-card').forEach(el => {
-    el.ondragstart = (e) => {
-      draggedBench = el.dataset.benchkey;
-      draggedStarter = null;
-      document.body.classList.add('is-dragging');
-      e.dataTransfer.setData('text/plain', draggedBench);
-      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
-      el.style.opacity = '0.5';
-      const bPlayer = userBench.find(p => playerKey(p) === draggedBench);
-      highlightHalftimeSlots(bPlayer?.pos);
-    };
-    el.ondragend = () => {
-      el.style.opacity = '1';
-      clearHalftimeDragStates();
-    };
-    el.ondragenter = (e) => {
-      e.preventDefault();
-      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      el.classList.add('drag-target');
-    };
-    el.ondragover = (e) => {
-      e.preventDefault();
-      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      el.classList.add('drag-target');
-    };
-    el.ondragleave = (e) => {
-      if (e.relatedTarget && el.contains(e.relatedTarget)) return;
-      el.classList.remove('drag-target');
-    };
-    el.ondrop = (e) => {
-      e.preventDefault();
-      clearHalftimeDragStates();
-      if(draggedStarter){
-        executeHalftimeSub(draggedStarter, el.dataset.benchkey);
-      }
-    };
-    el.onclick = () => {
-      const bKey = el.dataset.benchkey;
-      // Se já temos um titular selecionado, troca imediatamente!
-      if(halftimeSelectedStarterKey){
-        executeHalftimeSub(halftimeSelectedStarterKey, bKey);
-        return;
-      }
-      // Alternar seleção do reserva
-      if(halftimeSelectedBenchKey === bKey){
-        halftimeSelectedBenchKey = null;
-        clearHalftimeDragStates();
-      } else {
-        halftimeSelectedBenchKey = bKey;
-        const bPlayer = userBench.find(p => playerKey(p) === bKey);
-        clearHalftimeDragStates();
-        highlightHalftimeSlots(bPlayer?.pos);
-        toast(`👉 Reserva ${bPlayer?.name || 'Jogador'} (${bPlayer?.pos}) selecionado! Posição ideal em VERDE no campo.`);
-      }
-      updateHalftimeSelectedVisuals();
+  // Mudança de Formação no intervalo
+  $$('.btnFormSelectHalftime').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const newForm = b.dataset.form;
+      state.formation = newForm;
+      openHalftimeModal(isQuickTactics);
+      toast(`Formação alterada para ${newForm}!`);
     };
   });
 
-  // 2. Drag & drop e clique dos titulares no campo
-  $$('.halftime-pitch-player').forEach(el => {
-    el.ondragstart = (e) => {
-      draggedStarter = el.dataset.starterkey;
-      draggedBench = null;
-      document.body.classList.add('is-dragging');
-      e.dataTransfer.setData('text/plain', draggedStarter);
-      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
-      el.style.opacity = '0.5';
-      const sPlayer = userStarters.find(p => (p.key || playerKey(p)) === draggedStarter);
-      highlightHalftimeSlots(sPlayer?.pos || el.dataset.slotRole);
-    };
-    el.ondragend = () => {
-      el.style.opacity = '1';
-      clearHalftimeDragStates();
-    };
-    el.ondragenter = (e) => {
-      e.preventDefault();
-      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      el.classList.add('drag-target');
-    };
-    el.ondragover = (e) => {
-      e.preventDefault();
-      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      el.classList.add('drag-target');
-    };
-    el.ondragleave = (e) => {
-      if (e.relatedTarget && el.contains(e.relatedTarget)) return;
-      el.classList.remove('drag-target');
-    };
-    el.ondrop = (e) => {
-      e.preventDefault();
-      clearHalftimeDragStates();
-      const targetStarter = el.dataset.starterkey;
-      if(draggedBench){
-        executeHalftimeSub(targetStarter, draggedBench);
-      } else if(draggedStarter && draggedStarter !== targetStarter){
-        swapHalftimeStarters(draggedStarter, targetStarter);
-      }
-    };
-    el.onclick = () => {
-      const sKey = el.dataset.starterkey;
-
-      // Se um reserva já estava selecionado no banco, substitui imediatamente!
-      if(halftimeSelectedBenchKey){
-        executeHalftimeSub(sKey, halftimeSelectedBenchKey);
-        halftimeSelectedBenchKey = null;
-        return;
-      }
-
-      // Se outro titular já estava selecionado, troca as posições de campo entre eles!
-      if(halftimeSelectedStarterKey && halftimeSelectedStarterKey !== sKey){
-        swapHalftimeStarters(halftimeSelectedStarterKey, sKey);
-        halftimeSelectedStarterKey = null;
-        return;
-      }
-
-      // Alternar seleção deste titular
-      if(halftimeSelectedStarterKey === sKey){
-        halftimeSelectedStarterKey = null;
-      } else {
-        halftimeSelectedStarterKey = sKey;
-        const stPlayer = userStarters.find(p => p.key === sKey);
-        toast(`👉 Titular selecionado: ${stPlayer?.name || 'Jogador'}. Clique em um reserva no banco para confirmar a troca.`);
-      }
-      updateHalftimeSelectedVisuals();
-    };
+  // Ativação dos manipuladores de Arraste e Clique (Drag & Drop + Click-to-swap)
+  setupTacticsInteractions({
+    containerEl: $('#halftimeTacticsContainer'),
+    starters: userStarters,
+    bench: userBench,
+    onSwap: (targetStarterKey, benchKey) => {
+      executeHalftimeSub(targetStarterKey, benchKey);
+    },
+    onStarterSwap: (key1, key2) => {
+      swapHalftimeStarters(key1, key2);
+    },
+    isHalftime: true
   });
 
   // Retomar 2º tempo
@@ -15394,14 +15940,27 @@ function upgradeFacility(key){
   state.balance-=cost;
   state.expense+=cost;
   f.level++;
-  if(key==='stadium') f.capacity=clamp((f.capacity||18000)+5000+(f.level-2)*2500,8000,110000);
+  if(key==='stadium'){
+    state.stadiumRingData = state.stadiumRingData || { ring: 1, maxRings: 6, sides: { norte: false, sul: false, leste: false, oeste: false }, rings: {}, purchasedSectors: [] };
+    state.stadiumRingData.maxUnlockedRing = Math.min(6, Math.max(state.stadiumRingData.maxUnlockedRing || 1, f.level));
+    state.stadiumRingData.rings = state.stadiumRingData.rings || {};
+    state.stadiumRingData.purchasedSectors = Array.isArray(state.stadiumRingData.purchasedSectors) ? state.stadiumRingData.purchasedSectors : [];
+    const unlockedRing = Math.min(6, f.level);
+    state.stadiumRingData.rings[unlockedRing] = state.stadiumRingData.rings[unlockedRing] || { norte: false, sul: false, leste: false, oeste: false };
+    const currentRing = state.stadiumRingData.ring || 1;
+    if(currentRing < unlockedRing && ['norte', 'sul', 'leste', 'oeste'].every(side => state.stadiumRingData.rings[currentRing]?.[side])){
+      state.stadiumRingData.ring = currentRing + 1;
+      state.stadiumRingData.sides = state.stadiumRingData.rings[state.stadiumRingData.ring];
+    }
+    state.news.unshift(`🏟️ ESTÁDIO EVOLUÍDO PARA NÍVEL ${f.level}/8! O ${unlockedRing}º anel foi liberado para obras por setor. A capacidade não muda até a conclusão das obras.`);
+  }
   if(key==='parking') f.spots = parkingSpots(f.level);
-  if(key==='museum'||key==='stadium') state.trust.fans=clamp(state.trust.fans+2,0,100);
+  if(key==='museum'||key==='stadium') state.trust.fans=clamp(state.trust.fans+4,0,100);
   if(key==='press') state.trust.board=clamp(state.trust.board+1,0,100);
   if(key==='academy') boostYouthAcademyOnUpgrade(f.level);
   if(key==='bank') state.news.unshift(`🏦 Banco & Financiamento evoluído para o nível ${f.level}! Limite de crédito ampliado e taxas de juros reduzidas.`);
   state.news.unshift(`${d.name} foi ampliado para o nível ${f.level}, por ${fmtMoney(cost)}.`);
-  save();render();toast(`${d.name}: nível ${f.level}.`);
+  save();render();toast(`${d.name}: nível ${f.level} alcançado!`);
 }
 
 // -------------------------------------------------------------
@@ -15778,6 +16337,18 @@ function openBankLoansModal(){
 function render(){
   const app=$('#app');
   if(!state){renderSetup(app);return}
+  const restoreScroll = app.dataset.renderedView === view;
+  const windowScroll = window.scrollY;
+  const mainScroll = app.querySelector('.main')?.scrollTop || 0;
+  const nestedScroll = [...app.querySelectorAll('.tablewrap, .tactics-bench-wrapper > div[style*="overflow-y:auto"]')].map(el => el.scrollTop);
+  const restore = () => requestAnimationFrame(() => {
+    app.dataset.renderedView = view;
+    if(!restoreScroll){ window.scrollTo(0, 0); return; }
+    window.scrollTo(0, windowScroll);
+    const main = app.querySelector('.main');
+    if(main) main.scrollTop = mainScroll;
+    app.querySelectorAll('.tablewrap, .tactics-bench-wrapper > div[style*="overflow-y:auto"]').forEach((el, i) => { el.scrollTop = nestedScroll[i] || 0; });
+  });
   const mainEl = app.querySelector('.main');
   const sideNav = app.querySelector('.nav');
   if(mainEl && sideNav && app.querySelector('.app')){
@@ -15800,6 +16371,7 @@ function render(){
       }
 
       bind();
+      restore();
       return;
     } catch(err){
       console.warn('Erro ao atualizar tela via mainEl, fazendo render completo:', err);
@@ -15807,6 +16379,7 @@ function render(){
   }
   app.innerHTML=shell(page());
   bind();
+  restore();
 }
 
 function shell(main){
@@ -16152,16 +16725,22 @@ function centralPage(){
 
           ${(state.incomingBids && state.incomingBids.length > 0) ? `
             <!-- BANNER DE PROPOSTA MILIONÁRIA RECEBIDA -->
-            <div style="background:linear-gradient(135deg,rgba(234,179,8,0.22),rgba(34,197,94,0.15));border:1.5px solid #eab308;border-radius:14px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 0 15px rgba(234,179,8,0.2)">
+            <div id="incomingBidsHomeBanner" style="background:linear-gradient(135deg,rgba(234,179,8,0.22),rgba(34,197,94,0.15));border:1.5px solid #eab308;border-radius:14px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 0 15px rgba(234,179,8,0.2)">
               <div style="display:flex;align-items:center;gap:12px">
                 <span style="font-size:26px">💰</span>
                 <div>
-                  <b style="color:#fef08a;font-size:13px;letter-spacing:0.5px">PROPOSTA MILIONÁRIA OFICIAL!</b>
-                  <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">O <b>${esc(state.incomingBids[0].club)}</b> ofereceu <b>${fmtMoney(state.incomingBids[0].fee)}</b> por <b>${esc(state.incomingBids[0].playerName)}</b> (+20% futura)</div>
+                  <b style="color:#fef08a;font-size:13px;letter-spacing:0.5px">
+                    ${state.incomingBids.length > 1 ? `🔥 LEILÃO MILIONÁRIO! ${state.incomingBids.length} CLUBES NA DISPUTA!` : 'PROPOSTA MILIONÁRIA OFICIAL!'}
+                  </b>
+                  <div class="bid-desc-text" style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">
+                    ${state.incomingBids.length > 1
+                      ? `${state.incomingBids.map(b => `<b>${esc(b.club)}</b>`).join(', ')} fizeram propostas oficiais por <b>${esc(state.incomingBids[0].playerName)}</b>!`
+                      : `O <b>${esc(state.incomingBids[0].club)}</b> ofereceu <b>${fmtMoney(state.incomingBids[0].fee)}</b> por <b>${esc(state.incomingBids[0].playerName)}</b> (+${state.incomingBids[0].sellOnPct}% futura)`}
+                  </div>
                 </div>
               </div>
               <button id="btnOpenIncomingBidFromCentral" class="btn primary" style="background:#eab308;color:#000;font-weight:900;border:none;padding:8px 14px;border-radius:8px;cursor:pointer">
-                Ver Proposta &gt;
+                ${state.incomingBids.length > 1 ? `Ver Propostas (${state.incomingBids.length}) &gt;` : 'Ver Proposta &gt;'}
               </button>
             </div>
           ` : ''}
@@ -16252,11 +16831,19 @@ function centralPage(){
             </div>
           </div>
 
-          <!-- Alerta de Decisão Pendente -->
-          <div style="margin-top:12px;background:#241d14;border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:10px 14px;display:${(state.stadiumEventProposal || state.stadiumClubRental || state.trainingSuggestionPending || state.pendingDecision) ? 'flex' : 'none'};align-items:center;gap:8px;font-size:12px;color:#fbbf24">
-            <span>⚠️</span>
-            <span><b>${state.stadiumEventProposal ? 'Convite para evento no estádio pendente' : state.stadiumClubRental ? 'Proposta de aluguel do estádio pendente' : 'Decisão pendente da comissão técnica'}</b> ⌵</span>
-          </div>
+          <!-- Alerta de Decisão Pendente (Some na hora ao aceitar/negar) -->
+          ${(() => {
+            const sug = typeof getPendingSuggestion === 'function' ? getPendingSuggestion() : null;
+            const hasDecision = (state.stadiumEventProposal || state.stadiumClubRental || (sug && state.suggestionHandledRound !== state.round));
+            if(!hasDecision) return '';
+            const desc = state.stadiumEventProposal ? 'Convite para megaevento no estádio pendente' : state.stadiumClubRental ? 'Proposta de aluguel do estádio pendente' : 'Sugestão da comissão técnica & diretoria pendente';
+            return `
+              <div id="alertPendingDecisionBadge" style="margin-top:12px;background:#241d14;border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:12px;color:#fbbf24">
+                <span>⚠️</span>
+                <span><b>${desc}</b> ⌵</span>
+              </div>
+            `;
+          })()}
 
           <!-- Botões de Ação da Partida ou Fim de Temporada -->
           ${(!currentFixtures().length || (state.round >= (state.schedule?.length || 1))) ? `
@@ -16325,38 +16912,57 @@ function centralPage(){
           </div>
         </div>
 
-        <!-- Seção Inferior: Decisão Pendente & Eventos Dinâmicos -->
-        <div class="card" style="padding:18px;background:#100d1e;border:1px solid rgba(139,92,246,0.25);border-radius:18px;display:${(state.stadiumEventProposal || state.stadiumClubRental || state.trainingSuggestionPending || state.pendingDecision) ? 'block' : 'none'}">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="color:#f59e0b;font-size:16px">🔔</span>
-            <h3 style="margin:0;font-size:14px;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase">DECISÃO PENDENTE</h3>
-          </div>
-          ${state.stadiumEventProposal ? `
-            <p style="font-size:12px;color:rgba(255,255,255,0.85);margin:10px 0 14px 0;line-height:1.4">
-              🎤 <b>Megaevento Cultural:</b> A produção do <b>${state.stadiumEventProposal.name}</b> quer alugar o estádio. Pagam <b>${fmtMoney(state.stadiumEventProposal.fee)}</b>. Desgaste no gramado: ${state.stadiumPitchType==='synthetic'?'-4%':'-18%'}.
-            </p>
-            <div style="display:flex;gap:10px">
-              <button class="btn primary" id="btnAcceptConcertCentral" style="padding:6px 14px;font-size:12px;font-weight:800;background:#a855f7;border:none">Autorizar Show (+${fmtMoney(state.stadiumEventProposal.fee)})</button>
-              <button class="btn" id="btnDismissConcertCentral" style="padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.06);border:none">Recusar</button>
+        <!-- Seção Inferior: Painel de Decisão Pendente & Sugestão Dinâmica (Some na hora ao aceitar/negar) -->
+        ${(() => {
+          const sug = typeof getPendingSuggestion === 'function' ? getPendingSuggestion() : null;
+          const hasEvent = !!state.stadiumEventProposal;
+          const hasRental = !!state.stadiumClubRental;
+          const hasSug = !!sug && state.suggestionHandledRound !== state.round;
+
+          if(!hasEvent && !hasRental && !hasSug) return '';
+
+          return `
+            <div id="centralDecisionPanelCard" class="card" style="padding:18px;background:#100d1e;border:1px solid rgba(139,92,246,0.25);border-radius:18px;margin-top:14px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="color:#f59e0b;font-size:16px">🔔</span>
+                <h3 style="margin:0;font-size:14px;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase">
+                  ${hasEvent ? 'PROPOSTA DE SHOW NO ESTÁDIO' : hasRental ? 'ALUGUEL DE ESTÁDIO' : 'SUGESTÃO DA COMISSÃO TÉCNICA'}
+                </h3>
+              </div>
+              ${hasEvent ? `
+                <p style="font-size:12px;color:rgba(255,255,255,0.85);margin:10px 0 14px 0;line-height:1.4">
+                    🎤 <b>Megaevento Cultural:</b> A produção do <b>${esc(state.stadiumEventProposal.name)}</b> quer alugar o estádio. Pagam <b>${fmtMoney(state.stadiumEventProposal.fee)}</b>. Desgaste no gramado: ${state.stadiumPitchType==='synthetic'?'-4%':'-18%'}.
+                </p>
+                <div style="display:flex;gap:10px">
+                  <button class="btn primary" id="btnAcceptConcertCentral" style="padding:6px 14px;font-size:12px;font-weight:800;background:#a855f7;border:none;border-radius:8px;cursor:pointer">Autorizar Show (+${fmtMoney(state.stadiumEventProposal.fee)})</button>
+                  <button class="btn" id="btnDismissConcertCentral" style="padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;cursor:pointer">Recusar</button>
+                </div>
+              ` : hasRental ? `
+                <p style="font-size:12px;color:rgba(255,255,255,0.85);margin:10px 0 14px 0;line-height:1.4">
+                    🏟️ <b>Aluguel de Estádio:</b> O <b>${esc(state.stadiumClubRental.club)}</b> quer mandar o jogo no nosso estádio enquanto jogamos fora. Pagam <b>${fmtMoney(state.stadiumClubRental.fee)}</b> (Desgaste: -6%).
+                </p>
+                <div style="display:flex;gap:10px">
+                  <button class="btn primary" id="btnAcceptRentalCentral" style="padding:6px 14px;font-size:12px;font-weight:800;background:#059669;border:none;border-radius:8px;cursor:pointer">Aceitar Aluguel (+${fmtMoney(state.stadiumClubRental.fee)})</button>
+                  <button class="btn" id="btnDismissRentalCentral" style="padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;cursor:pointer">Recusar</button>
+                </div>
+              ` : `
+                <div style="margin:10px 0 12px 0">
+                  <div style="font-size:11px;font-weight:800;color:#c084fc;margin-bottom:3px">${sug.icon} ${sug.dept} • ${esc(sug.title)}</div>
+                  <p style="font-size:12px;color:rgba(255,255,255,0.85);margin:0 0 6px 0;line-height:1.4">
+                    ${esc(sug.desc)}
+                  </p>
+                  <div style="font-size:11px;color:#86efac;font-weight:800">
+                    Benefício: ${esc(sug.impact)}
+                  </div>
+                </div>
+                <div style="display:flex;gap:10px">
+                  <button class="btn primary" id="btnAcceptDecision" style="padding:7px 16px;font-size:12px;font-weight:800;background:#059669;border:none;border-radius:8px;cursor:pointer">Aprovar Sugestão</button>
+                  <button class="btn" id="btnDismissDecision" style="padding:7px 16px;font-size:12px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;cursor:pointer">Dispensar Sugestão</button>
+                </div>
+              `}
             </div>
-          ` : state.stadiumClubRental ? `
-            <p style="font-size:12px;color:rgba(255,255,255,0.85);margin:10px 0 14px 0;line-height:1.4">
-              🏟️ <b>Aluguel de Estádio:</b> O <b>${state.stadiumClubRental.club}</b> quer mandar o jogo no nosso estádio enquanto jogamos fora. Pagam <b>${fmtMoney(state.stadiumClubRental.fee)}</b> (Desgaste: -6%).
-            </p>
-            <div style="display:flex;gap:10px">
-              <button class="btn primary" id="btnAcceptRentalCentral" style="padding:6px 14px;font-size:12px;font-weight:800;background:#059669;border:none">Aceitar Aluguel (+${fmtMoney(state.stadiumClubRental.fee)})</button>
-              <button class="btn" id="btnDismissRentalCentral" style="padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.06);border:none">Recusar</button>
-            </div>
-          ` : `
-            <p style="font-size:12px;color:rgba(255,255,255,0.7);margin:10px 0 14px 0">
-              A comissão técnica sugeriu intensificar a preparação física dos jovens da base para o próximo confronto estadual.
-            </p>
-            <div style="display:flex;gap:10px">
-              <button class="btn primary" id="btnAcceptDecision" style="padding:6px 14px;font-size:12px;font-weight:800;background:#059669;border:none">Aprovar Sugestão</button>
-              <button class="btn" id="btnDismissDecision" style="padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.06);border:none">Deixar para Depois</button>
-            </div>
-          `}
-        </div>
+          `;
+        })()}
       </div>
 
       <!-- ================= COLUNA 3: WIDGETS DE CAMPEONATOS E COPAS (Screenshot 1) ================= -->
@@ -16728,36 +17334,45 @@ function myTeamPage(){
       </div>
     </div>
 
-    <div class="team-layout">
-      <div class="pitch-card">
-        <div class="pitch" id="tacticalPitch">
-          ${slots.map((s,i)=>{
-            const p = lineupPlayer(i);
-            return renderFifaMiniCard(p, { index: i, role: s.r, x: s.x, y: s.y }, {
-              isSelected: !!(tacticalSelectedKey && p && (playerKey(p) === tacticalSelectedKey)),
-              isHalftime: false,
-              customClass: 'lineup-slot'
-            });
-          }).join('')}
-        </div>
+    <!-- ESTRUTURA RÍGIDA DE 2 COLUNAS (.tactics-modal-container) -->
+    <div class="tactics-modal-container" id="myTeamTacticsContainer" style="height: calc(100vh - 210px); min-height: 560px; margin-bottom: 18px">
+      <!-- COLUNA 1: GRAMADO VERTICAL OFICIAL -->
+      <div class="tactics-pitch-wrapper" id="myTeamPitchWrapper">
+        ${renderVerticalTacticsPitch(startingPlayers, state.formation || '4-3-3', { isHalftime: false, selectedStarterKey: tacticalSelectedKey })}
       </div>
 
-      <div class="card bench-card">
-        <h2>Banco de Reservas</h2>
-        <div class="small">${bench.length} jogadores disponíveis (Arraste ou clique para trocar)</div>
-        <div class="bench-list" id="benchList">
-          ${bench.slice(0,24).map(p=>`
-            <div class="bench-player" draggable="true" data-player-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer">
-              ${playerPhoto(p, 36)}
-              <span style="flex:1;min-width:0">
-                <b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</b>
-                ${p.injury ? `<span class="pill bad" style="font-size:9px;padding:0 4px">🚑 ${p.injuryMatches}j</span> ` : ''}
-                ${p.suspended > 0 ? `<span class="pill bad" style="font-size:9px;padding:0 4px">🟥 ${p.suspended}j</span> ` : ''}
-                <small style="display:block;margin-top:2px;color:#94a3b8">${esc(p.pos||'-')} • ${p.age||'-'} anos • Físico ${Math.round(p.fitness??100)}%</small>
-              </span>
-              <span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span>
-            </div>
-          `).join('')}
+      <!-- COLUNA 2: BANCO DE RESERVAS LATERAL ORGANIZADO -->
+      <div class="tactics-bench-wrapper" id="myTeamBenchWrapper">
+        <div style="font-size:12px;font-weight:900;color:#94a3b8;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+          <span>BANCO DE RESERVAS</span>
+          <span style="color:#22c55e;font-size:11px;font-weight:800">${bench.length} disponíveis</span>
+        </div>
+        <div style="flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:6px;padding-right:2px">
+          ${bench.slice(0, 30).map(p => {
+            const pOvr = playerOverall(p);
+            return `
+              <div class="bench-player-row" data-bench-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}" draggable="true" title="Arraste para o campo ou clique para trocar">
+                ${playerPhoto(p, 36)}
+                <div style="flex:1;min-width:0;margin-left:8px">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <b style="font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</b>
+                    <span class="rating-pill ${ratingClass(pOvr)}">${pOvr}</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;font-size:10px">
+                    <span style="color:#c084fc;font-weight:800">
+                      ${esc(p.pos || '-')}
+                      ${p.injury ? `<span class="pill bad" style="font-size:8px;padding:0 3px">🚑 ${p.injuryMatches}j</span>` : ''}
+                      ${p.suspended > 0 ? `<span class="pill bad" style="font-size:8px;padding:0 3px">🟥 ${p.suspended}j</span>` : ''}
+                    </span>
+                    <span style="color:#94a3b8">Físico ${Math.round(p.fitness ?? 100)}%</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <div style="margin-top:8px;background:#101726;padding:8px 10px;border-radius:8px;font-size:10px;color:rgba(255,255,255,0.7);flex-shrink:0;line-height:1.3">
+          💡 <b>Dica:</b> Arraste para o campo ou clique para trocar. Slots acendem em 🟢 <b>VERDE (★ IDEAL)</b> e 🟡 <b>AMARELO (ADAPTADA)</b>!
         </div>
       </div>
     </div>
@@ -17694,7 +18309,7 @@ function marketPage(){
       `}
     ` : marketTab==='sell' ? `
       <!-- Tela VENDER DO MEU ELENCO (Screenshot 4) -->
-      <div style="display:grid;grid-template-columns:2.4fr 1fr;gap:16px;margin-top:14px">
+      <div style="display:grid;grid-template-columns:2.4fr 1fr;gap:16px;margin-top:14px;align-items:start">
         <!-- Coluna Esquerda: Elenco para Venda -->
         <div class="card" style="padding:22px;background:#120f20;border:1px solid rgba(139,92,246,0.25);border-radius:16px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
@@ -17736,32 +18351,33 @@ function marketPage(){
           <div id="sellList" style="margin-top:16px"></div>
         </div>
 
-        <!-- Coluna Direita: Últimas Transferências (Screenshot 4) -->
-        <div class="card" style="padding:18px;background:#120f20;border:1px solid rgba(255,255,255,0.08);border-radius:16px">
-          <h3 style="margin:0 0 14px 0;font-size:14px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
-            ÚLTIMAS TRANSFERÊNCIAS
-          </h3>
+        <!-- Coluna Direita: Últimas Transferências Organizadas e Contidas -->
+        <div class="card" style="padding:18px;background:#120f20;border:1px solid rgba(255,255,255,0.08);border-radius:16px;display:flex;flex-direction:column;max-height:640px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="margin:0;font-size:13px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase;display:flex;align-items:center;gap:6px">
+              <span>🔄</span> ÚLTIMAS TRANSFERÊNCIAS
+            </h3>
+            <span class="pill" style="font-size:10px;padding:2px 8px;font-weight:800;color:var(--neon)">MERCADO</span>
+          </div>
 
-          <div style="display:flex;flex-direction:column;gap:10px">
-            ${((state.marketWorldFeed && state.marketWorldFeed.length) ? state.marketWorldFeed.slice(0, 7) : [
-              { playerName: 'Richard Franco', seller: 'ASA', buyer: 'Betim Futebol', fee: 350000 },
-              { playerName: 'Rafael Roballo', seller: 'Nacional', buyer: 'Atlético-BA', fee: 20000 },
-              { playerName: 'Young', seller: 'São Paulo', buyer: 'Aparecidense', fee: 250000 },
-              { playerName: 'Élton', seller: 'Capital-DF', buyer: 'Foz do Iguaçu', fee: 50000 },
-              { playerName: 'Paulo Vítor', seller: 'Atlético-GO', buyer: 'Athletic Club', fee: 530000 },
-              { playerName: 'Luis Augusto', seller: 'Jataiense', buyer: 'Paranoá', fee: 110000 },
-              { playerName: 'Magrão', seller: 'Fortaleza', buyer: 'Forte', fee: 200000 }
+          <div style="display:flex;flex-direction:column;gap:8px;overflow-y:auto;padding-right:4px;flex:1">
+            ${((state.marketWorldFeed && state.marketWorldFeed.length) ? state.marketWorldFeed.slice(0, 20) : [
+              { playerName: 'Gabriel Santos', seller: 'Coritiba', buyer: 'Grêmio', fee: 43000000 },
+              { playerName: 'Guilherme Ribeiro', seller: 'Shanghai Port', buyer: 'Djin', fee: 13000000 },
+              { playerName: 'Rodrigo Silva', seller: 'Santos', buyer: 'Flamengo', fee: 24000000 },
+              { playerName: 'Guilherme Pereira', seller: 'Ceará', buyer: 'Red Bull', fee: 29000000 },
+              { playerName: 'Gabriel Barbosa', seller: 'Flamengo', buyer: 'Villarreal', fee: 43000000 },
+              { playerName: 'Rodrigo Oliveira', seller: 'Atlético-MG', buyer: 'Vasco', fee: 37000000 },
+              { playerName: 'Bruno Ribeiro', seller: 'Cruzeiro', buyer: 'Atlético de Madrid', fee: 33000000 }
             ]).map(tr => `
-              <div style="background:#181428;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.05);font-size:12px">
-                <div style="display:flex;align-items:center;gap:8px">
-                  ${playerPhoto(tr.playerName, 26)}
-                  <div>
-                    <div style="font-weight:800;color:#fff">${esc(tr.playerName)}</div>
-                    <div style="font-size:10px;color:rgba(255,255,255,0.4)">${esc(tr.seller)} ➔ ${esc(tr.buyer)}</div>
-                  </div>
-                  <div style="margin-left:auto;font-weight:900;color:#f59e0b;font-size:12px">
-                    ${fmtMoney(tr.fee)}
-                  </div>
+              <div style="background:#181428;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.05);font-size:12px;display:flex;align-items:center;gap:10px">
+                ${playerPhoto(tr.playerName, 28)}
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(tr.playerName)}</div>
+                  <div style="font-size:10px;color:rgba(255,255,255,0.45);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(tr.seller)} ➔ <b style="color:#38bdf8">${esc(tr.buyer)}</b></div>
+                </div>
+                <div style="margin-left:auto;font-weight:900;color:#f59e0b;font-size:11px;white-space:nowrap">
+                  ${fmtMoney(tr.fee)}
                 </div>
               </div>
             `).join('')}
@@ -18024,10 +18640,11 @@ function bindLoanFilters(){
 }
 
 function renderMarketLoans(){
-  const el = $('#loanList'); if(!el) return;
-  const q = norm($('#loanQ')?.value || loanQFilter);
-  const pos = $('#loanPos')?.value || (loanPosFilter !== 'TODAS' && loanPosFilter !== 'ALL' ? loanPosFilter : '');
-  const min = +($('#loanMin')?.value || 0);
+  try {
+    const el = $('#loanList'); if(!el) return;
+    const q = norm($('#loanQ')?.value || (typeof loanQFilter !== 'undefined' ? loanQFilter : '') || '');
+    const pos = $('#loanPos')?.value || (typeof loanPosFilter !== 'undefined' && loanPosFilter !== 'TODAS' && loanPosFilter !== 'ALL' ? loanPosFilter : '');
+    const min = +($('#loanMin')?.value || 0);
   const aff = $('#onlyAffordableLoan')?.checked;
   const regVal = $('#loanRegion')?.value;
   const countryVal = $('#loanCountry')?.value;
@@ -18128,6 +18745,9 @@ function renderMarketLoans(){
   `;
 
   $$('.loan-in').forEach(b => b.onclick = () => loanInPlayer(b.dataset.key));
+  } catch(err) {
+    console.error('Erro em renderMarketLoans:', err);
+  }
 }
 
 function renderMarketLend(){
@@ -21934,14 +22554,19 @@ function openCommunityModModal(){
 
           <!-- IMPORTAR ARQUIVO CUSTOMIZADO DA COMUNIDADE -->
           <div style="background:#101726;border:1px dashed rgba(255,255,255,0.15);border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-            <div>
+            <div style="flex:1;min-width:220px">
               <div style="font-size:12px;font-weight:900;color:#fff">Importar Arquivo de Mod Customizado</div>
-              <div style="font-size:11px;color:#94a3b8">Importe um pacote customizado da comunidade em formato .JSON</div>
+              <div style="font-size:11px;color:#94a3b8">Importe um pacote customizado da comunidade em formato .JSON ou baixe o modelo base para editar</div>
             </div>
-            <label class="btn" style="background:#334155;color:#fff;font-size:11px;font-weight:800;padding:8px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
-              <span>📁 Selecionar Arquivo</span>
-              <input type="file" id="inputCustomModFile" accept=".json" style="display:none">
-            </label>
+            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+              <label class="btn" style="background:#334155;color:#fff;font-size:11px;font-weight:800;padding:8px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                <span>📁 Selecionar Arquivo</span>
+                <input type="file" id="inputCustomModFile" accept=".json" style="display:none">
+              </label>
+              <button type="button" id="btn-export-mod-template" class="btn-mod-action btn-export-template">
+                <span>📥 Baixar Modelo / Exportar Mod (.json)</span>
+              </button>
+            </div>
           </div>
 
           <!-- AVISO DE CONTEÚDO PERSONALIZADO -->
@@ -21989,6 +22614,8 @@ function openCommunityModModal(){
         try {
           const customData = JSON.parse(evt.target.result);
           if(customData.badges) window.CLUB_BADGES = { ...window.CLUB_BADGES, ...customData.badges };
+          if(customData.competitions) window.COMPETITION_TEAMS = { ...window.COMPETITION_TEAMS, ...customData.competitions };
+          if(customData.players && Array.isArray(customData.players)) window.LIVE_PLAYERS = customData.players;
           setDbMode('mod');
           toast('✅ Mod customizado importado com sucesso!');
           overlay.remove();
@@ -22000,7 +22627,44 @@ function openCommunityModModal(){
       reader.readAsText(file);
     };
   }
+
+  const btnExport = $('#btn-export-mod-template');
+  if(btnExport){
+    btnExport.onclick = () => {
+      exportCommunityModJson();
+    };
+  }
 }
+
+function exportCommunityModJson(){
+  const modData = {
+    meta: {
+      mod_name: "Meu Mod Customizado AFM",
+      author: "Comunidade",
+      game_version: "2027",
+      version: "1.0",
+      date: new Date().toISOString().split('T')[0],
+      exported_at: new Date().toLocaleDateString('pt-BR')
+    },
+    competitions: window.COMPETITION_TEAMS || {},
+    badges: window.CLUB_BADGES || {},
+    players: window.LIVE_PLAYERS || (typeof clubs !== 'undefined' ? clubs.flatMap(c => c.players || []) : [])
+  };
+
+  const jsonString = JSON.stringify(modData, null, 2);
+  const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", url);
+  downloadAnchor.setAttribute("download", "afm_mod_customizado.json");
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+  URL.revokeObjectURL(url);
+
+  toast('Arquivo afm_mod_customizado.json gerado com sucesso! Edite e importe de volta a qualquer momento.');
+}
+window.exportCommunityModJson = exportCommunityModJson;
 
 function bindSetup(){
   // Binds dos Modos de Banco de Dados: Modo Padrão & Mod da Comunidade
@@ -22484,35 +23148,22 @@ function bind(){
       };
     }
     const bAccConcCent = $('#btnAcceptConcertCentral');
-    if(bAccConcCent) bAccConcCent.onclick = acceptEventConcert;
+    if(bAccConcCent) bAccConcCent.onclick = () => { acceptEventConcert(true); render(); };
     const bRejConcCent = $('#btnDismissConcertCentral');
     if(bRejConcCent) bRejConcCent.onclick = rejectEventConcert;
 
     const bAccRentCent = $('#btnAcceptRentalCentral');
-    if(bAccRentCent) bAccRentCent.onclick = acceptClubRental;
+    if(bAccRentCent) bAccRentCent.onclick = () => { acceptClubRental(true); render(); };
     const bRejRentCent = $('#btnDismissRentalCentral');
     if(bRejRentCent) bRejRentCent.onclick = rejectClubRental;
 
     const bDecAcc = $('#btnAcceptDecision');
     if(bDecAcc){
-      bDecAcc.onclick = () => {
-        state.trainingSuggestionPending = false;
-        state.pendingDecision = null;
-        state.squad = (state.squad || []).map(p => ({ ...p, morale: clamp((Number(p.morale) || 70) + 5, 0, 100) }));
-        save();
-        toast('Sugestão da comissão técnica aprovada! Moral da equipe +5%');
-        render();
-      };
+      bDecAcc.onclick = () => acceptPendingSuggestion();
     }
     const bDecDis = $('#btnDismissDecision');
     if(bDecDis){
-      bDecDis.onclick = () => {
-        state.trainingSuggestionPending = false;
-        state.pendingDecision = null;
-        save();
-        toast('Decisão dispensada.');
-        render();
-      };
+      bDecDis.onclick = () => dismissPendingSuggestion();
     }
   }
 
@@ -22597,7 +23248,7 @@ function bind(){
 
   $$('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view;render()});
 
-  const qs=$('#quickSaveBtn'); if(qs) qs.onclick=()=>{save();toast('Jogo salvo com sucesso localmente!')};
+  const qs=$('#quickSaveBtn'); if(qs) qs.onclick=()=>{if(save()) toast('Jogo salvo com sucesso localmente!')};
   
   const bToggleSnd = $('#btnToggleSoundTop');
   if(bToggleSnd && window.AFM30){
@@ -22710,7 +23361,7 @@ function bind(){
     };
 
     const saveBtn = $('#btnSaveLineup');
-    if(saveBtn) saveBtn.onclick = () => { save(); toast('Escalação salva com sucesso!'); };
+    if(saveBtn) saveBtn.onclick = () => { if(save()) toast('Escalação salva com sucesso!'); };
     const aiBtn = $('#btnAILineup');
     if(aiBtn) aiBtn.onclick = () => {
       const sy = window.scrollY;
@@ -22919,7 +23570,7 @@ function bind(){
     if(marketTab==='buy'){
       bindMarketFilters();
       ['marketQ','marketPos','marketMin','onlyAffordable'].forEach(id=>{
-        const e=$('#'+id); if(e){e.oninput=renderMarketBuy;e.onchange=renderMarketBuy}
+        const e=$('#'+id); if(e){e.oninput=()=>scheduleMarketFilter(renderMarketBuy);e.onchange=renderMarketBuy}
       });
       const btnSrchBuy = $('#btnSearchBuy');
       if(btnSrchBuy) btnSrchBuy.onclick = () => renderMarketBuy();
@@ -22943,7 +23594,7 @@ function bind(){
       if(loanSubTab === 'borrow'){
         bindLoanFilters();
         ['loanQ','loanPos','loanMin','onlyAffordableLoan','selectLoanOrder'].forEach(id=>{
-          const e=$('#'+id); if(e){ e.oninput=renderMarketLoans; e.onchange=renderMarketLoans; }
+          const e=$('#'+id); if(e){ e.oninput=()=>scheduleMarketFilter(renderMarketLoans); e.onchange=renderMarketLoans; }
         });
         const btnSrchLoan = $('#btnSearchLoan');
         if(btnSrchLoan) btnSrchLoan.onclick = () => renderMarketLoans();
@@ -23140,7 +23791,7 @@ function bind(){
     if(selAudit) selAudit.onchange = () => { auditCompFilter = selAudit.value; render(); };
     const exp1=$('#btnExportJson'); if(exp1) exp1.onclick=exportSave;
     const exp2=$('#btnExportJson2'); if(exp2) exp2.onclick=exportSave;
-    const manSave=$('#btnSaveNowManual'); if(manSave) manSave.onclick=()=>{save();toast('Save manual realizado!')};
+    const manSave=$('#btnSaveNowManual'); if(manSave) manSave.onclick=()=>{if(save()) toast('Save manual realizado!')};
     const imp=$('#importSaveInput'); if(imp) imp.onchange=importSave;
     
     const curSlotBtn = $('#btnSaveCurrentSlotNow');
@@ -23243,172 +23894,25 @@ function executeSwap(sourceKey, targetKey, targetSlotIndex = null) {
 }
 
 function setupPitchDragAndDrop(){
-  let draggedKey = null;
-  let draggedPlayerPos = null;
+  const myTeamContainer = $('#myTeamTacticsContainer');
+  if(myTeamContainer){
+    const startingPlayers = (state.lineup||[]).map(pk => state.squad.find(q => playerKey(q) === pk)).filter(Boolean);
+    const bench = state.squad.filter(p => !(state.lineup||[]).includes(playerKey(p))).sort((a,b)=>playerOverall(b)-playerOverall(a));
 
-  function highlightCompatibleSlots(pos){
-    if(!pos) return;
-    $$('.lineup-slot').forEach(slot=>{
-      const slotRole = slot.dataset.slotRole;
-      const fit = getPositionFit(pos, slotRole);
-      slot.classList.remove('slot-best-fit', 'slot-ok-fit', 'slot-bad-fit');
-      if(fit === 'best'){
-        slot.classList.add('slot-best-fit');
-      } else if(fit === 'ok'){
-        slot.classList.add('slot-ok-fit');
-      } else {
-        slot.classList.add('slot-bad-fit');
-      }
+    setupTacticsInteractions({
+      containerEl: myTeamContainer,
+      starters: startingPlayers,
+      bench: bench,
+      onSwap: (targetKey, benchKey, targetSlotIndex) => {
+        executeSwap(benchKey, targetKey, targetSlotIndex);
+      },
+      onStarterSwap: (key1, key2) => {
+        executeSwap(key1, key2);
+      },
+      isHalftime: false
     });
+    return;
   }
-
-  function clearSlotHighlights(){
-    document.body.classList.remove('is-dragging');
-    $$('.lineup-slot').forEach(slot=>{
-      slot.classList.remove('slot-best-fit', 'slot-ok-fit', 'slot-bad-fit', 'drag-over');
-    });
-  }
-
-  function updateSelectedVisuals(){
-    $$('.lineup-slot').forEach(slot=>{
-      const pk = slot.dataset.playerKey;
-      slot.classList.toggle('selected', !!(tacticalSelectedKey && pk === tacticalSelectedKey));
-    });
-    $$('.bench-player').forEach(item=>{
-      const bk = item.dataset.playerKey;
-      if (tacticalSelectedKey && bk === tacticalSelectedKey) {
-        item.style.borderColor = '#fbbf24';
-        item.style.boxShadow = '0 0 12px rgba(251,191,36,0.5)';
-      } else {
-        item.style.borderColor = 'var(--line)';
-        item.style.boxShadow = 'none';
-      }
-    });
-  }
-
-  // 1. Reservas do banco (Drag & Drop + Click-to-Swap)
-  $$('.bench-player').forEach(item=>{
-    item.addEventListener('dragstart', (e)=>{
-      draggedKey = item.dataset.playerKey;
-      draggedPlayerPos = item.dataset.playerPos;
-      document.body.classList.add('is-dragging');
-      item.classList.add('dragging');
-      e.dataTransfer.setData('text/plain', draggedKey);
-      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
-      highlightCompatibleSlots(draggedPlayerPos);
-    });
-
-    item.addEventListener('dragend', ()=>{
-      item.classList.remove('dragging');
-      clearSlotHighlights();
-    });
-
-    item.addEventListener('click', ()=>{
-      const key = item.dataset.playerKey;
-      const pos = item.dataset.playerPos;
-
-      // Se já havia um titular selecionado no campo, troca imediatamente!
-      if (tacticalSelectedKey && tacticalSelectedKey !== key) {
-        executeSwap(key, tacticalSelectedKey);
-        return;
-      }
-
-      // Alternar seleção do reserva
-      if (tacticalSelectedKey === key) {
-        tacticalSelectedKey = null;
-        clearSlotHighlights();
-      } else {
-        tacticalSelectedKey = key;
-        clearSlotHighlights();
-        highlightCompatibleSlots(pos);
-        toast('👉 Reserva selecionado! Agora clique no titular no campo para substituir.');
-      }
-      updateSelectedVisuals();
-    });
-  });
-
-  // 2. Titulares no campo (Drag & Drop + Click-to-Swap)
-  $$('.lineup-slot').forEach(slot=>{
-    slot.addEventListener('dragstart', (e)=>{
-      draggedKey = slot.dataset.playerKey;
-      const p = state.squad.find(q=>playerKey(q)===draggedKey);
-      draggedPlayerPos = p?.pos || slot.dataset.slotRole;
-      document.body.classList.add('is-dragging');
-      slot.classList.add('dragging');
-      e.dataTransfer.setData('text/plain', draggedKey);
-      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
-      highlightCompatibleSlots(draggedPlayerPos);
-    });
-
-    slot.addEventListener('dragend', ()=>{
-      slot.classList.remove('dragging');
-      clearSlotHighlights();
-    });
-
-    slot.addEventListener('dragenter', (e)=>{
-      e.preventDefault();
-      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      slot.classList.add('drag-over');
-    });
-
-    slot.addEventListener('dragover', (e)=>{
-      e.preventDefault();
-      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      slot.classList.add('drag-over');
-    });
-
-    slot.addEventListener('dragleave', (e)=>{
-      if (e.relatedTarget && slot.contains(e.relatedTarget)) return;
-      slot.classList.remove('drag-over');
-    });
-
-    slot.addEventListener('drop', (e)=>{
-      e.preventDefault();
-      slot.classList.remove('drag-over');
-      clearSlotHighlights();
-
-      const targetSlotIndex = +slot.dataset.slotIndex;
-      const sourceKey = e.dataTransfer.getData('text/plain') || draggedKey;
-      const targetKey = slot.dataset.playerKey;
-
-      if (!sourceKey) return;
-      executeSwap(sourceKey, targetKey, targetSlotIndex);
-    });
-
-    slot.addEventListener('click', (e)=>{
-      if (e.target.tagName === 'SELECT' || e.target.closest('select')) return;
-
-      const pk = slot.dataset.playerKey;
-      const targetSlotIndex = +slot.dataset.slotIndex;
-
-      // Se já temos alguém selecionado (reserva ou outro titular):
-      if (tacticalSelectedKey) {
-        if (tacticalSelectedKey === pk) {
-          // Clicou no mesmo titular: cancela a seleção
-          tacticalSelectedKey = null;
-          clearSlotHighlights();
-          updateSelectedVisuals();
-          return;
-        }
-        // Troca atômica imediata entre os dois
-        executeSwap(tacticalSelectedKey, pk, targetSlotIndex);
-        return;
-      }
-
-      // Primeiro clique: seleciona este titular no campo (ganha borda dourada pulsante)
-      if (pk) {
-        tacticalSelectedKey = pk;
-        const p = state.squad.find(q=>playerKey(q)===pk);
-        clearSlotHighlights();
-        highlightCompatibleSlots(p?.pos || slot.dataset.slotRole);
-        updateSelectedVisuals();
-        toast(`👉 Titular selecionado: ${p?.name || 'Jogador'}. Clique em um reserva no banco ou em outro titular para trocar.`);
-      }
-    });
-  });
-
-  // Atualizar visuais na inicialização caso haja algo selecionado
-  updateSelectedVisuals();
 }
 
 // -------------------------------------------------------------
@@ -23679,31 +24183,6 @@ window.runTacticalEngineTests = function(numMatches = 100){
     winRateA,
     anomalies: results.anomalies
   };
-};
-
-window.tacticalSelectedCardIndex = null;
-window.handleTacticalCardClick = function(index) {
-  if (!state || !Array.isArray(state.lineup)) return;
-  if (window.tacticalSelectedCardIndex !== null && window.tacticalSelectedCardIndex !== undefined) {
-    if (window.tacticalSelectedCardIndex === index) {
-      window.tacticalSelectedCardIndex = null;
-      render();
-      return;
-    }
-    const fromIdx = window.tacticalSelectedCardIndex;
-    const toIdx = index;
-    const temp = state.lineup[fromIdx];
-    state.lineup[fromIdx] = state.lineup[toIdx];
-    state.lineup[toIdx] = temp;
-    window.tacticalSelectedCardIndex = null;
-    save();
-    render();
-    toast('🔄 Posições trocadas com sucesso!');
-    return;
-  }
-  window.tacticalSelectedCardIndex = index;
-  render();
-  toast('👉 Titular selecionado! Clique em outro titular ou em um reserva para trocar.');
 };
 
 window.simulateMinute = simulateMinute;

@@ -88,3 +88,12 @@ Este documento define as regras ativas, restrições arquiteturais e padrões de
 4. **Validação Obrigatória Pré-Entrega**:
    - Toda alteração no motor de partida (`simulateMinute`, `setupLiveCanvasLoop`, `buildMatchTeam`, `executeShotSim`) deve ser validada visualmente no navegador confirmando que os 22 bonecos estão em campo e se movimentando ativamente.
 
+---
+
+## 7. 🛡️ Proteção permanente do trabalho e do histórico
+
+- Nunca executar `git reset --hard`, `git clean`, `git checkout -f`, `git restore`, `git revert`, rebase ou qualquer comando/script que descarte arquivos ou reescreva histórico sem pedido explícito do Aquino nesta tarefa.
+- Nunca sincronizar substituindo o estado local pelo GitHub. Atualizações automáticas só podem avançar por fast-forward, após confirmar que a árvore está limpa e criar uma referência local de segurança.
+- Scripts de envio não podem adicionar/commitar arquivos automaticamente nem puxar/rebasear a branch principal; só podem enviar commits já criados e devem deixar o Git rejeitar divergências.
+- Antes de qualquer operação de sincronização que altere arquivos, preservar o estado local por commit ou backup recuperável. Se não for seguro avançar, parar sem alterar arquivos e explicar o motivo.
+
