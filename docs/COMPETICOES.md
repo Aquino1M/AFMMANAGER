@@ -1,30 +1,19 @@
-# 🏆 Competições e Formatos — AFM 2027
+# Competições: estado do projeto
 
-Este documento resume as regras de disputa e formatos das ligas e copas implementadas no AFM 2027.
+Este arquivo registra o que o código atualmente modela. A presença de uma regra ou confronto na tela não significa que a competição esteja conectada ao motor de partidas.
 
----
+## Ligação com o motor
 
-## 🇧🇷 Futebol Brasileiro
+- O motor principal usa `state.schedule`, `state.teams` e `state.round` para a competição escolhida ao criar a carreira.
+- `Copa do Brasil` tem listas e simulador de calendário legado em `js/game.js`; seus resultados ainda não formam uma chave completa integrada ao motor principal.
+- Libertadores e Sul-Americana usam fixtures estáticos de 2026 em `data/continental_2026.js`. A tela ainda não mantém uma classificação persistente completa nem fases eliminatórias geradas por resultados.
+- Mundial de Clubes e acessos/rebaixamentos internacionais não devem ser descritos como sistemas dinâmicos até serem implementados e verificados.
 
-- **Campeonato Brasileiro Série A**: 20 clubes em pontos corridos (turno e returno). 4 rebaixados para a Série B. Classificação para Libertadores e Sul-Americana.
-- **Campeonato Brasileiro Série B**: 20 clubes em pontos corridos. 4 promovidos para a Série A e 4 rebaixados para a Série C.
-- **Campeonato Brasileiro Série C**: 20 clubes. Primeira fase em pontos corridos; quadrangulares de acesso e final.
-- **Campeonato Brasileiro Série D**: 96 clubes distribuídos regionalmente em 16 grupos de 6. 4 avançam por grupo para o mata-mata eliminatório; 4 semifinalistas conquistam o acesso.
-- **Copa do Brasil**: 92 clubes em mata-mata nacional direto, com fases de entrada progressivas.
-- **11 Estaduais Oficiais**: Candangão DF, Paulistão SP, Carioca RJ, Mineiro MG, Gaúcho RS, Paranaense PR, Catarinense SC, Baiano BA, Cearense CE, Goiano GO e Pernambucano PE, disputados simultaneamente durante a primeira metade da temporada com sincronização em tempo real.
+## Referência das regras
 
----
+- **Copa do Brasil 2026:** 126 clubes e nove fases. As fases 1–4 e a final são jogos únicos; as fases 5–8 são ida e volta. Os 20 clubes da Série A entram na 5ª fase; quatro campeões entram na 3ª. Consulte o regulamento oficial da [CBF](https://www.cbf.com.br/futebol-brasileiro/noticias/undefined/ponte-preta-x-ituano/cbf-divulga-tabela-basica-plano-geral-de-acoes-e-regulamento-especifico-da-copa-do-brasil-2026).
+- **Libertadores e Sul-Americana:** use os manuais CONMEBOL da temporada correspondente. Participantes, acesso e chaveamento variam por temporada; não reutilize fixtures estáticos como se fossem classificação oficial.
 
-## 🌎 Torneios Continentais
+## Critério para declarar uma competição funcional
 
-- **Copa Libertadores**: 32 clubes em 8 grupos de 4. Os 2 primeiros de cada grupo avançam para o mata-mata (oitavas, quartas, semifinal e grande final).
-- **Copa Sul-Americana**: 32 clubes em fase de grupos e playoffs eliminatórios.
-- **Mundial de Clubes**: Confronto entre os campeões continentais.
-
----
-
-## 🌍 Ligas Internacionais
-
-- **América do Sul**: Argentina (Liga Profesional & Copa Argentina), Chile, Colômbia, Uruguai, Equador, Paraguai, Bolívia, Peru e Venezuela.
-- **Europa**: Premier League, La Liga, Serie A Italiana, Bundesliga, Ligue 1 e Primeira Liga Portugal.
-- **Ásia & Arábia**: Saudi Pro League, J-League, K-League e competições asiáticas.
+Uma competição só está integrada quando calendário, início de partida ao vivo/simulada, persistência de resultados, classificação ou chaveamento, avanço de fase, campeão/título e save da carreira usam o mesmo estado. Teste jogos de usuário, simulação dos demais confrontos, empate e pênaltis quando aplicável, carregamento do save e virada de temporada.

@@ -9205,9 +9205,11 @@ function processDevelopment(){
 function finalizeRound(userRes, winners, isKO){
   const comp=curComp();
   let win = false;
+  let advanced = false;
   if(userRes){
     const isHome=userRes.h===state.club,gf=isHome?userRes.hg:userRes.ag,ga=isHome?userRes.ag:userRes.hg;
-    const advanced=isKO?userRes.winner===state.club:gf>ga,draw=!isKO&&gf===ga;
+    advanced=isKO?norm(userRes.winner)===norm(state.club):gf>ga;
+    const draw=!isKO&&gf===ga;
     win=!isKO?gf>ga:advanced;
     let gate=0,shop=0,parkingRev=0;
     if(isHome){
@@ -9268,14 +9270,15 @@ function finalizeRound(userRes, winners, isKO){
       state.schedule.push(next);
       state.cupAlive=winners;
       if(advanced){
-        const cupPrize = comp.id === 'bra-copa' ? 1500000 : 2500000;
+        const cupPrize = comp.id === 'bra-cup' ? 1500000 : 2500000;
         state.balance += cupPrize;
         state.income += cupPrize;
         state.news.unshift(`💰 PREMIAÇÃO DE FASE: +${fmtMoney(cupPrize)} creditados pela classificação de fase na ${comp.name}!`);
       }
     }else if(winners.length===1){
       state.cupAlive=winners;
-      if(winners[0]===state.club&&!state.titles.includes(comp.name)){
+      state.titles = state.titles || [];
+      if(norm(winners[0])===norm(state.club)&&!state.titles.includes(comp.name)){
         // Bônus expressivo de sócios ao ser campeão
         if(state.socioTorcedor){
           const boost = Math.round(state.socioTorcedor.members * 0.45);

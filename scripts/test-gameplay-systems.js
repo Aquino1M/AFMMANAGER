@@ -228,6 +228,17 @@ assert(mockStadiumState.stadiumRingData.ring === 2 && mockStadiumState.stadiumRi
 // =========================================================================
 console.log('\n--- TESTE 5: Auditoria Estática do Código Fonte (game.js e app.css) ---');
 
+const finalizeRoundSource = gameJsContent.slice(
+  gameJsContent.indexOf('function finalizeRound('),
+  gameJsContent.indexOf('function showChampionTrophyCeremonyModal(')
+);
+assert(/let advanced = false/.test(finalizeRoundSource),
+  'Classificação de mata-mata tem valor definido mesmo sem resultado do usuário');
+assert(/advanced=isKO\?norm\(userRes\.winner\)===norm\(state\.club\)/.test(finalizeRoundSource),
+  'Comparação do classificado de mata-mata ignora diferenças de caixa e acentuação');
+assert(/comp\.id === 'bra-cup'/.test(finalizeRoundSource),
+  'Premiação reconhece o identificador real da Copa do Brasil');
+
 assert(!gameJsContent.includes('id="btnLiveReplay"'),
   'Botão de Replay removido da barra de controles da partida ao vivo (game.js)');
 
@@ -393,5 +404,5 @@ console.log('=============================================================\n');
 if (failedTests > 0) {
   process.exit(1);
 } else {
-  console.log('🏆 TODOS OS SUBSISTEMAS AUDITADOS E VALIDADOS COM 100% DE SUCESSO!');
+  console.log('✅ Verificações automatizadas aprovadas. Fluxos não cobertos exigem validação separada.');
 }

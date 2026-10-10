@@ -1,101 +1,36 @@
-# ⚽ AFM MANAGER 2027 — Aquino Futebol Manager
+# AFM Manager
 
-> **Simulador Tático e de Gestão de Futebol Brasileiro & Internacional**  
-> *Comande seu clube, defina táticas com movimentação 2.5D, gerencie finanças e empréstimos bancários, negocie no mercado vivo da IA e erga a sua nova arena!*
+Jogo de gerenciamento de futebol em HTML, CSS e JavaScript, executado no navegador e com saves locais. A integração Supabase é opcional e sincroniza saves quando configurada.
 
----
+## Executar
 
-## 🌟 Principais Sistemas do Jogo
+Abra `index.html` ou inicie um servidor estático na pasta do projeto:
 
-- 🇧🇷 **Pirâmide Completa do Futebol Brasileiro**:
-  - Séries A, B, C e D (96 clubes) com regulamentos oficiais, acessos e rebaixamentos.
-  - **11 Campeonatos Estaduais Oficiais** sincronizados em tempo real: Candangão DF, Paulistão, Carioca, Mineiro, Gaúcho, Paranaense, Catarinense, Baiano, Cearense, Goiano e Pernambucano.
-  - Copa do Brasil em mata-mata de 92 clubes com sorteios e mandos dinâmicos.
-- 🌍 **Ligas Continentais & Internacionais**:
-  - Copa Libertadores, Copa Sul-Americana e Mundial de Clubes.
-  - Ligas de elite da América do Sul, Europa e Ásia.
-- 🏟️ **Campus do Clube & 8 Instalações**:
-  - **Estádio & Ingressos**: Gestão de capacidade, anéis de arquibancada, ingressos e estacionamento com projeção de renda em tempo real.
-  - **Vitrine de Arenas**: 12 arenas históricas mapeadas e sistema de construção de nova arena de até 100.000 lugares.
-  - **🏦 Banco & Financiamento**: Linhas de crédito de R$ 500k a R$ 30M, taxas de juros dinâmicas, parcelamento em 6x/12x/24x/36x, antecipação com bônus de 12% e juros de mora acumulativos com Fair Play Financeiro (Transfer Ban).
-  - **Instalações Estruturais**: Categorias de Base (15 a 18 anos), CT, Departamento Médico, Sede Administrativa, Loja Oficial, Museu de Troféus (16 níveis) e Sala de Imprensa.
-- 💼 **Mercado de Transferências Vivo**:
-  - Compra, venda, empréstimo e olheiros com filtros rápidos e botão dedicado `🔍 Pesquisar`.
-  - **Giro do Mercado Mundial (IA)**: Feed em tempo real de transferências entre outros clubes do país e do exterior.
-  - **Propostas Oficiais por Titulares**: Propostas com cláusula de venda futura de 20% e opção de contraproposta (+20%).
-- 🎮 **Transmissão 2.5D & Match Engine**:
-  - Simulação minuto a minuto com IA coletiva de marcação em bloco e infiltrações táticas.
-  - Visualização 2.5D em tempo real com relógio, narração de lances, cartões, substituições e estatísticas completas.
-- 🏆 **Virada de Temporada & Hall da Fama**:
-  - Encerramento com premiações, troféus, reajuste salarial, transição para o novo ano e arquivo imortalizado no Hall da Fama.
-- 💬 **Voz da Torcida (#AFM2027)**:
-  - Feed social interativo reagindo aos resultados de cada partida.
-- 💾 **Persistência Híbrida (Local-First + Supabase Cloud)**:
-  - Isolamento de contas por treinador com 3 slots de saves por perfil.
-  - Salvamento local imediato (sem lag) com sincronização assíncrona na nuvem via Supabase.
-
----
-
-## 📁 Estrutura do Projeto
-
-```text
-Aquino_Futebol_Manager_2026/
-├── index.html              # Ponto de entrada do jogo (SPA)
-├── css/
-│   └── app.css             # Design System completo (Vanilla CSS3)
-├── js/
-│   ├── game.js             # Motor de simulação, gestão de carreira, UI e áudio
-│   ├── competitions.js     # Catálogo e regras de todas as ligas e copas
-│   └── database.js         # Integração com Supabase Cloud (auth e saves)
-├── data/
-│   ├── club_badges.js      # Escudos oficiais em alta resolução
-│   ├── competition_teams.js# Mapeamento de clubes por divisão e estadual
-│   ├── player_photos.js    # Fotos otimizadas de atletas
-│   └── players_live.js     # Base local offline de atletas
-├── docs/                   # Documentação detalhada e esquemas SQL
-│   └── SUPABASE_SETUP.sql  # Script DDL com RLS para o banco de dados
-├── AGENTS.md               # Diretrizes arquiteturais e regras para IA
-├── CHANGELOG.md            # Histórico limpo e estruturado de versões
-├── package.json            # Metadados do projeto e scripts npm
-├── vercel.json             # Configurações de deploy estático sem cache
-├── JOGAR.bat               # Abre o jogo
-├── ENVIAR_GITHUB.bat       # Envia commits já criados
-└── atualizar_do_github.bat # Atualiza a cópia local por avanço seguro
-```
-
----
-
-## 🚀 Como Executar
-
-### 1. Localmente (Windows / Linux / Mac)
-Basta abrir o arquivo `index.html` em qualquer navegador web ou rodar um servidor HTTP local:
-
-```bash
-# Via npx serve (recomendado)
+```sh
 npx serve .
-
-# Ou via Python
-python -m http.server 8080
 ```
 
-No Windows, você também pode dar duplo clique em `JOGAR.bat`.
+## Estrutura
 
-### 2. Deploy no Vercel
-O projeto possui deploy contínuo integrado:
-- Repositório: [Aquino1M/AFMMANAGER](https://github.com/Aquino1M/AFMMANAGER)
-- Cada commit enviado na branch `main` dispara a publicação automática instantânea na Vercel.
+- `index.html`: carrega dados, módulos e interface.
+- `js/game.js`: fluxo da carreira e interface principal.
+- `js/core/`: motor de partidas, tática e áudio.
+- `js/competitions.js`, `data/competition_teams.js`: catálogo e clubes das competições.
+- `data/`: dados locais de clubes, jogadores, escudos e torneios.
+- `scripts/`: verificações e manutenção de dados.
+- `supabase/schema.sql`: esquema usado pela sincronização opcional.
 
----
+## Saves e sincronização
 
-## ☁️ Banco de Dados (Supabase)
+O jogo mantém três slots locais por conta. A cópia local é a fonte de recuperação offline. A sincronização na nuvem depende do projeto Supabase e de políticas RLS compatíveis com a autenticação usada pelo jogo.
 
-- **Instância**: `https://yulsnzvgxtwbazqvetpe.supabase.co`
-- **Tabelas**:
-  - `afm_users`: Contas de usuários e perfis.
-  - `afm_saves`: Armazenamento de até 3 saves independentes por usuário.
-- O script [`docs/SUPABASE_SETUP.sql`](docs/SUPABASE_SETUP.sql) contém o esquema completo, índices e políticas de Row Level Security (RLS).
+**Atenção:** o login e o esquema SQL atuais ainda usam autenticação própria com senhas em texto puro e políticas de acesso anônimo amplas. Não use a sincronização com dados sensíveis nem exponha o projeto a outros usuários antes de migrar para Supabase Auth e políticas de propriedade por usuário. Não aplique políticas mais restritivas isoladamente: o login atual não fornece `auth.uid()`.
 
----
+## Verificações
 
-## 📄 Licença
-Distribuído sob licença MIT. Desenvolvido para amantes de futebol e gerenciamento tático.
+```sh
+node scripts/test-gameplay-systems.js
+node scripts/audit-football-data.js
+```
+
+O comando `npm run build` é apenas uma mensagem de confirmação; não compila nem testa o jogo.
