@@ -29,8 +29,15 @@
 <script src="data/players_live.js"></script>
 <script src="data/club_badges.js"></script>
 <script src="data/player_photos.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/database.js"></script>
+<script>
+window.AFM_DB = {
+  init: async () => null,
+  getUser: () => null,
+  syncUser: async () => ({ ok: true }),
+  saveSlot: async () => ({ ok: true }),
+  deleteSlot: async () => ({ ok: true })
+};
+</script>
 <script src="js/features30.js"></script>
 <script src="js/core/audio_engine.js"></script>
 <script src="js/game.js"></script>
@@ -67,8 +74,7 @@ window.addEventListener('load', async () => {
   // Isolamento do ambiente de teste para o usuário 'aquino'
   setActiveAccount('aquino');
   const testAccs = [
-    { username: 'admin', password: 'admin', name: 'Administrador AFM', role: 'admin', createdAt: '2026-01-01', saves: [] },
-    { username: 'aquino', password: 'viralgen123', name: 'Treinador', role: 'player', createdAt: '2026-01-01', saves: [] }
+    { username: 'aquino', name: 'Treinador de teste', role: 'player', createdAt: '2026-01-01', saves: [] }
   ];
   saveStoredAccounts(testAccs);
   localStorage.removeItem('afm_save_slot_1');

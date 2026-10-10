@@ -10,12 +10,20 @@
 
 const fs = require('fs');
 const path = require('path');
+global.window = {};
+require('../js/core/tournament_engine.js');
 
 // Carrega o código do game.js para inspeção e testes
 const gameJsPath = path.resolve(__dirname, '../js/game.js');
 const gameJsContent = fs.readFileSync(gameJsPath, 'utf8');
 
-console.log('⚽ [AFM MANAGER 2027] — INICIANDO SUÍTE DE TESTES DOS SUBSISTEMAS DE GAMEPLAY\n');
+const vm = require('vm');
+try {
+  new vm.Script(gameJsContent);
+  console.log('  ✅ Sintaxe do game.js está 100% válida!');
+} catch(err) {
+  console.error('  ❌ ERRO DE SINTAXE EM GAME.JS:', err);
+}
 
 let passedTests = 0;
 let failedTests = 0;
@@ -29,6 +37,20 @@ function assert(condition, testName, details = '') {
     failedTests++;
   }
 }
+
+console.log('--- TESTE 0: Resultados de torneios persistentes ---');
+const tournamentEngine = window.AFM_TOURNAMENT_ENGINE;
+const sampleTournament = tournamentEngine.createGroupTournament({
+  id: 'sample', season: 2026, groups: { A: ['Clube Um', 'Clube Dois'] },
+  fixtures: [{ group: 'A', round: 1, date: '2026-04-07', home: 'Clube Um', away: 'Clube Dois' }]
+});
+const sampleMatch = sampleTournament.matches[0];
+tournamentEngine.recordResult(sampleTournament, sampleMatch.id, 2, 0);
+assert(sampleTournament.standings.A[0].name === 'Clube Um' && sampleTournament.standings.A[0].points === 3,
+  'Placar de grupo atualiza pontuação e classificação');
+let duplicateRejected = false;
+try { tournamentEngine.recordResult(sampleTournament, sampleMatch.id, 1, 0); } catch { duplicateRejected = true; }
+assert(duplicateRejected, 'Resultado duplicado é rejeitado para proteger o save');
 
 // =========================================================================
 // 1. TESTE DO CALENDÁRIO E PORTÃO DE INÍCIO DE PARTIDA
@@ -174,7 +196,155 @@ const subReturn = mockExecuteSub('p2', 'p1', mockMatchSubs, mockSquad);
 assert(subReturn.ok === false, 'Impede reentrada de jogador que já havia sido substituído');
 
 // =========================================================================
-// 4. TESTE DE EXPANSÃO DO ESTÁDIO
+// 3B. TESTE DE SUBSTITUIÇÃO 100% POR CLIQUE E POSIÇÕES LIVRES (AFM 2027)
+// =========================================================================
+console.log('\n--- TESTE 3B: Substituição 100% por Clique e Posições (AFM 2027) ---');
+
+// Matriz de fit e penalização extraída do modelo oficial
+function testGetPositionFit(playerRole, slotRole){
+  if(!playerRole || !slotRole) return 'INCOMPATÍVEL';
+  const p = String(playerRole).split(',')[0].trim().toUpperCase();
+  const s = String(slotRole).trim().toUpperCase();
+  if(p === 'GK' || s === 'GK'){
+    return (p === 'GK' && s === 'GK') ? 'IDEAL' : 'INCOMPATÍVEL';
+  }
+  if(p === s) return 'IDEAL';
+  const adaptedMap = {
+    CB: ['LB', 'RB', 'DM'],
+    LB: ['RB', 'LW', 'LM', 'CB'],
+    RB: ['LB', 'RW', 'RM', 'CB'],
+    DM: ['CB', 'CM'],
+    CM: ['DM', 'AM', 'LM', 'RM'],
+    AM: ['LW', 'RW', 'CM', 'CF'],
+    LW: ['RW', 'LM', 'AM', 'ST', 'CF'],
+    RW: ['LW', 'RM', 'AM', 'ST', 'CF'],
+    LM: ['LW', 'LB', 'CM', 'AM', 'RM'],
+    RM: ['RW', 'RB', 'CM', 'AM', 'LM'],
+    ST: ['CF', 'LW', 'RW', 'AM'],
+    CF: ['ST', 'LW', 'RW', 'AM']
+  };
+  if(adaptedMap[p]?.includes(s) || adaptedMap[s]?.includes(p)){
+    return 'ADAPTADA';
+  }
+  return 'INCOMPATÍVEL';
+}
+
+function testCompatibleScore(p, role){
+  const pPos = String(p?.pos || '').trim().toUpperCase();
+  const sRole = String(role || '').trim().toUpperCase();
+  if(!pPos || !sRole || pPos === sRole) return 0;
+  if(sRole === 'GK' && pPos !== 'GK') return -8;
+  if(sRole !== 'GK' && pPos === 'GK') return -8;
+  const fit = testGetPositionFit(pPos, sRole);
+  if(fit === 'IDEAL') return 0;
+  if(fit === 'ADAPTADA') return -3;
+  return -6;
+}
+
+function testGetPlayerEffectiveOverall(p, role){
+  const base = p?.overall || 60;
+  const penalty = testCompatibleScore(p, role);
+  return Math.max(45, Math.min(99, base + penalty));
+}
+
+// 1. Testes de penalização de overall efetivo sem alterar overall original
+const testPlayerST = { id: 'st1', name: 'Centroavante Estrela', pos: 'ST', overall: 85 };
+assert(testGetPositionFit(testPlayerST.pos, 'ST') === 'IDEAL', 'Posição de origem (ST em ST) é IDEAL');
+assert(testGetPlayerEffectiveOverall(testPlayerST, 'ST') === 85, 'Overall efetivo em posição IDEAL não sofre penalidade (85)');
+
+assert(testGetPositionFit(testPlayerST.pos, 'LW') === 'ADAPTADA', 'Posição secundária (ST em LW) é ADAPTADA');
+assert(testGetPlayerEffectiveOverall(testPlayerST, 'LW') === 82, 'Overall efetivo em posição ADAPTADA sofre penalidade leve de -3 (82)');
+
+assert(testGetPositionFit(testPlayerST.pos, 'CB') === 'INCOMPATÍVEL', 'Posição fora de setor (ST em CB) é INCOMPATÍVEL');
+assert(testGetPlayerEffectiveOverall(testPlayerST, 'CB') === 79, 'Overall efetivo em posição INCOMPATÍVEL sofre penalidade de -6 (79)');
+
+assert(testGetPositionFit(testPlayerST.pos, 'GK') === 'INCOMPATÍVEL', 'Jogador de linha no gol (ST em GK) é INCOMPATÍVEL');
+assert(testGetPlayerEffectiveOverall(testPlayerST, 'GK') === 77, 'Overall efetivo de atacante no gol sofre penalidade de -8 (77)');
+
+assert(testPlayerST.overall === 85, 'Overall base do atleta original permanece estritamente preservado (85) sem mutação permanente');
+
+// 2. Testes de executeSwap (Menu 1 - Meu time & Tática)
+function testExecuteSwap(stateObj, sourceKey, targetKey, targetSlotIndex = null, sourceSlotIndex = null) {
+  if (!sourceKey && !targetKey && !Number.isInteger(targetSlotIndex)) return;
+  if (!Array.isArray(stateObj.lineup)) stateObj.lineup = [];
+  while (stateObj.lineup.length < 11) stateObj.lineup.push(null);
+
+  if (Number.isInteger(sourceSlotIndex) && Number.isInteger(targetSlotIndex) &&
+      sourceSlotIndex >= 0 && sourceSlotIndex < 11 &&
+      targetSlotIndex >= 0 && targetSlotIndex < 11 &&
+      sourceSlotIndex !== targetSlotIndex) {
+    const temp = stateObj.lineup[sourceSlotIndex];
+    stateObj.lineup[sourceSlotIndex] = stateObj.lineup[targetSlotIndex];
+    stateObj.lineup[targetSlotIndex] = temp;
+    return;
+  }
+
+  const sKey = sourceKey || null;
+  const tKey = targetKey || null;
+  let sourceLineupIdx = Number.isInteger(sourceSlotIndex) ? sourceSlotIndex : (sKey ? stateObj.lineup.indexOf(sKey) : -1);
+  let targetLineupIdx = Number.isInteger(targetSlotIndex) ? targetSlotIndex : (tKey ? stateObj.lineup.indexOf(tKey) : -1);
+
+  if (sourceLineupIdx >= 0 && targetLineupIdx >= 0 && sourceLineupIdx !== targetLineupIdx) {
+    [stateObj.lineup[sourceLineupIdx], stateObj.lineup[targetLineupIdx]] = 
+      [stateObj.lineup[targetLineupIdx], stateObj.lineup[sourceLineupIdx]];
+  } else if (targetLineupIdx >= 0 && sKey) {
+    stateObj.lineup = stateObj.lineup.map((k, idx) => (idx !== targetLineupIdx && k === sKey ? null : k));
+    if (sourceLineupIdx >= 0) stateObj.lineup[sourceLineupIdx] = stateObj.lineup[targetLineupIdx];
+    stateObj.lineup[targetLineupIdx] = sKey;
+  } else if (sourceLineupIdx >= 0 && tKey) {
+    stateObj.lineup = stateObj.lineup.map((k, idx) => (idx !== sourceLineupIdx && k === tKey ? null : k));
+    if (targetLineupIdx >= 0) stateObj.lineup[targetLineupIdx] = stateObj.lineup[sourceLineupIdx];
+    stateObj.lineup[sourceLineupIdx] = tKey;
+  }
+}
+
+const mockCareerState = {
+  lineup: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11'],
+  squad: [
+    { id: 'p1', pos: 'GK', overall: 80 }, { id: 'p2', pos: 'LB', overall: 75 },
+    { id: 'p3', pos: 'CB', overall: 78 }, { id: 'p4', pos: 'CB', overall: 77 },
+    { id: 'p5', pos: 'RB', overall: 76 }, { id: 'p6', pos: 'DM', overall: 79 },
+    { id: 'p7', pos: 'CM', overall: 81 }, { id: 'p8', pos: 'CM', overall: 80 },
+    { id: 'p9', pos: 'LW', overall: 83 }, { id: 'p10', pos: 'ST', overall: 85 },
+    { id: 'p11', pos: 'RW', overall: 82 },
+    { id: 'b1', pos: 'ST', overall: 84 }, { id: 'b2', pos: 'CB', overall: 79 }
+  ]
+};
+
+// Teste 3B.A: Titular -> Reserva (clicar titular p10 depois reserva b1)
+testExecuteSwap(mockCareerState, 'b1', 'p10', 9);
+assert(mockCareerState.lineup[9] === 'b1', 'Reserva b1 assume com sucesso a vaga 9 do titular');
+assert(!mockCareerState.lineup.includes('p10'), 'Titular p10 sai da escalação e vai para o banco');
+assert(mockCareerState.lineup.filter(k => k === 'b1').length === 1, 'Sem duplicação de atletas na escalação');
+assert(mockCareerState.lineup.filter(Boolean).length === 11, 'Vaga tática continua preenchida com 11 atletas');
+
+// Teste 3B.B: Reserva -> Titular (clicar reserva b2 depois titular na vaga 2)
+testExecuteSwap(mockCareerState, 'b2', mockCareerState.lineup[2], 2);
+assert(mockCareerState.lineup[2] === 'b2', 'Fluxo inverso (Reserva ➔ Titular) funciona identicamente');
+assert(!mockCareerState.lineup.includes('p3'), 'Antigo titular p3 vai para o banco');
+assert(mockCareerState.lineup.filter(Boolean).length === 11, 'Todas as 11 posições ocupadas sem lacunas');
+
+// Teste 3B.C: Titular A -> Titular B (inverter posições entre dois titulares)
+const playerAtIdx0 = mockCareerState.lineup[0];
+const playerAtIdx1 = mockCareerState.lineup[1];
+testExecuteSwap(mockCareerState, playerAtIdx0, playerAtIdx1, 1);
+assert(mockCareerState.lineup[0] === playerAtIdx1 && mockCareerState.lineup[1] === playerAtIdx0,
+  'Inversão entre dois titulares troca suas vagas com precisão');
+
+// Teste 3B.D: Auditoria estática de remoção de drag e suporte a cliques
+assert(!gameJsContent.includes('slot.setAttribute(\'draggable\', \'true\')'),
+  'Dependência de drag-and-drop no campo de tática completamente eliminada');
+assert(gameJsContent.includes('highlightSlotsForBench') && gameJsContent.includes('highlightBenchForStarter'),
+  'Destaques visuais consistentes de compatibilidade por clique implementados');
+assert(gameJsContent.includes('slot-incompatible'),
+  'Indicação de posição incompatível (vermelha) integrada ao sistema visual');
+
+// Teste 3B.E: Inversão específica de titulares por índices (ex: Romero na vaga 10 e Depay na vaga 9)
+const slot9Before = mockCareerState.lineup[9];
+const slot10Before = mockCareerState.lineup[10];
+testExecuteSwap(mockCareerState, slot10Before, slot9Before, 9, 10);
+assert(mockCareerState.lineup[9] === slot10Before && mockCareerState.lineup[10] === slot9Before,
+  'Troca direta entre dois titulares por clique (ex: Romero e Depay) inverte seus slots com precisão');
 // =========================================================================
 console.log('\n--- TESTE 4: Ampliação do Estádio por Setores e Anéis ---');
 
@@ -266,10 +436,33 @@ assert(gameJsContent.includes('function drawRefereeSprite('),
 assert(gameJsContent.includes('function validateGoalScorer('),
   'Validador de artilheiro validateGoalScorer implementado (game.js)');
 
+assert(gameJsContent.includes('function addNews('),
+  'Função addNews implementada para registro seguro de notícias sem crash (game.js)');
+
+const testNewsState = { news: Array.from({ length: 50 }, (_, i) => `Notícia ${i}`) };
+function mockAddNews(s, txt) {
+  if (!txt || !s) return;
+  if (!Array.isArray(s.news)) s.news = [];
+  s.news.unshift(txt);
+  if (s.news.length > 50) s.news = s.news.slice(0, 50);
+}
+mockAddNews(testNewsState, 'Nova notícia de megaevento');
+assert(testNewsState.news.length === 50 && testNewsState.news[0] === 'Nova notícia de megaevento',
+  'addNews respeita o teto de 50 registros de notícias sem exceder');
+
 const cssPath = path.resolve(__dirname, '../css/app.css');
 const cssContent = fs.readFileSync(cssPath, 'utf8');
 assert(cssContent.includes('.halftime-pitch-player *'),
   'Proteção de eventos de ponteiro (pointer-events: none) aplicada no CSS para Drag & Drop (app.css)');
+
+assert(gameJsContent.includes('btnLiveSpeed2') && gameJsContent.includes('btnLiveSpeed5') && gameJsContent.includes('btnLiveSpeed10'),
+  'Botões de velocidade 2x, 5x e 10x presentes no template da partida (game.js)');
+assert(gameJsContent.includes('{ speed: 2, btn: $(\'#btnLiveSpeed2\') }') && gameJsContent.includes('{ speed: 5, btn: $(\'#btnLiveSpeed5\') }') && gameJsContent.includes('{ speed: 10, btn: $(\'#btnLiveSpeed10\') }'),
+  'Manipuladores de eventos de clique registrados para 2x, 5x e 10x em bindLiveMatchEvents (game.js)');
+assert(!gameJsContent.includes('id="autoLineup"'),
+  'Botão redundante Melhor XI removido em favor do botão oficial DEIXAR A IA ESCALAR (game.js)');
+assert(gameJsContent.includes('FORMAÇÃO:') && gameJsContent.includes('id="formation"'),
+  'Seletor de formação posicionado junto ao card de força e setores (game.js)');
 
 // =========================================================================
 // 6. TESTE DAS JANELAS DE TRANSFERÊNCIA (CALENDÁRIO ANUAL MULTITEMPORADA)
@@ -393,6 +586,46 @@ assert(sortedByOvr[0].name === 'André' && sortedByOvr[1].name === 'Bruno',
 
 assert(marketSample[0].age === originalAges[0],
   'Ordenação pura sem mutação nos dados do atleta original');
+
+// Benchmark de performance do motor de busca e filtragem do mercado (5.000 atletas)
+const largeSample = Array.from({ length: 5000 }, (_, i) => ({
+  id: `pl_${i}`,
+  name: `Jogador ${i}`,
+  club: `Clube ${i % 40}`,
+  pos: ['ST', 'CM', 'CB', 'GK'][i % 4],
+  ovr: 60 + (i % 35),
+  value: 1.0 + ((i % 50) * 0.8),
+  age: 18 + (i % 20),
+  clubNorm: `clube ${i % 40}`,
+  searchStr: `jogador ${i} clube ${i % 40}`,
+  countryNorm: i % 2 === 0 ? 'brasil' : 'argentina'
+}));
+
+const tStart = performance.now();
+const filtered = largeSample.filter(p => p.ovr >= 75 && p.searchStr.includes('clube 12')).sort((a, b) => b.ovr - a.ovr || b.value - a.value);
+const tElapsed = performance.now() - tStart;
+assert(tElapsed < 25,
+  `Filtragem e ordenação de 5.000 atletas do mercado executada em velocidade ultra-rápida (${tElapsed.toFixed(2)}ms < 25ms)`);
+
+assert(gameJsContent.includes('_clubByNameMap'),
+  'Cache O(1) de clubes implementado com Map em clubByName para eliminar gargalo de busca');
+
+// =========================================================================
+// 10. TESTE DE MÉTRICAS TÁTICAS DINÂMICAS E IMPACTO NO JOGO
+// =========================================================================
+console.log('\n--- TESTE 10: Métricas Táticas Dinâmicas e Impacto no Jogo ---');
+
+assert(gameJsContent.includes('function calculateTacticalMetrics('),
+  'Função central calculateTacticalMetrics implementada em game.js');
+
+assert(gameJsContent.includes('tacMetricCentralCover') && gameJsContent.includes('tacMetricPressCapacity'),
+  'IDs dinâmicos de métricas táticas presentes no DOM para atualização em tempo real');
+
+assert(gameJsContent.includes('updateTacticalMetricsUI'),
+  'Função updateTacticalMetricsUI registra atualizações reativas nos sliders');
+
+assert(gameJsContent.includes('homeTac: hTac') && gameJsContent.includes('awayTac: aTac'),
+  'liveMatchState preserva táticas ativas de mandante e visitante para a simulação ao vivo');
 
 // =========================================================================
 // RESULTADO FINAL

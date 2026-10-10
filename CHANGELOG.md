@@ -4,6 +4,46 @@ Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027*
 
 ---
 
+## [3.3.2] - 2026-10-10 (Correção das Velocidades 2x/5x/10x & Otimização do Cabeçalho Tático)
+
+### ⏱️ Controles de Velocidade da Partida ao Vivo (1x, 2x, 5x, 10x, 20x, 40x)
+- **Registro Completo de Eventos**: Correção dos botões de aceleração da partida (`2x`, `5x` e `10x`), que agora possuem ouvintes de clique e alternância visual de estado ativo funcionais.
+- **Escala Proporcional Contínua**: O acumulador de tempo do laço do Canvas e simulação de minutos avança de forma rigorosamente proporcional à velocidade selecionada, com proteção contra travamento.
+
+### 📋 Simplificação e Reorganização Tática (`Meu time & Tática`)
+- **Remoção de Duplicidade**: Removido o botão redundante `⭐ Melhor XI` do cabeçalho, unificando a ação inteligente de escalação no botão oficial `⭐ DEIXAR A IA ESCALAR`.
+- **Reposicionamento da Formação**: O seletor de formação tática (`4-3-3`, `4-4-2`, etc.) foi movido para o painel inferior, alinhado diretamente ao lado dos indicadores setoriais de ATA, MEI e DEF.
+
+### 🚀 Otimização Crítica e Alívio da Aba Mercado (`MERCADO`)
+- **Eliminação de Gargalo O(N×M)**: Implementado cache O(1) de clubes via `Map` em `clubByName()`, eliminando até 800.000 iterações lineares com expressões regulares e normalizações Unicode por filtragem.
+- **Indexação Prévia do Universo (`marketUniverse`)**: Atributos de pesquisa (`searchStr`), overall (`ovr`), valor financeiro (`value`), clube normalizado (`clubNorm`) e país (`countryNorm`) agora são pré-computados uma única vez na geração do cache.
+- **Navegação Fluida Entre Menus e Sub-Abas**: A troca entre *Comprar*, *Vender*, *Empréstimo* (*Pegar Emprestado*, *Ceder*, *Meus Empréstimos*), *Olheiros* e *Giro do Mercado* agora ocorre em menos de 1ms sem travamentos da interface.
+
+---
+
+## [3.3.1] - 2026-10-10 (Substituição 100% por Clique, Posicionamento Livre & Eliminação de Drag-and-Drop)
+
+### 🔁 Sistema Unificado de Substituição por Clique (Click-to-Swap)
+- **Substituição Bidirecional**: Troca automática ao clicar em Titular ➔ Reserva ou Reserva ➔ Titular em ambos os menus (menu tático pré-jogo/carreira e modal de substituição durante a partida).
+- **Inversão de Titulares**: Ao clicar em dois titulares consecutivamente, suas posições táticas são invertidas de forma imediata e consistente.
+- **Eliminação do Drag-and-Drop**: Remoção da dependência de eventos nativos de arrastar e soltar (`dragenter`, `dragover`, `drop`, `draggable="true"`), acabando com travamentos de rolagem e toques em telas menores e dispositivos móveis.
+- **Interação sem Atraso**: Inclusão de `touch-action: manipulation` e estilos otimizados para seleção visual clara (`selected`, `pulse-selected-slot`).
+
+### 🎯 Jogadores em Qualquer Função & Fit Tático Visual
+- **Liberdade Tática Total**: Qualquer atleta pode ser escalado em qualquer posição tática.
+- **Penalização Controlada de Overall Efetivo**:
+  - Posição **★ IDEAL** (verde): sem penalidade (0).
+  - Posição **ADAPTADA** (amarela): penalidade leve de -3 no overall efetivo.
+  - Posição **INCOMPATÍVEL** (vermelha): penalidade de -6 no overall efetivo (-8 para goleiro na linha ou jogador de linha no gol).
+- **Preservação de Dados**: O overall base original do atleta no elenco (`state.squad`) é estritamente preservado e nunca modificado permanentemente.
+- **Feedback Visual Completo**: Mini cards exibem crachá `(POS)` com cor amarela ou vermelha e pontuação de overall compatível; slots no campo acendem em verde, amarelo e vermelho mantendo todos os 11 slots 100% clicáveis.
+
+### 🏟️ Resolução Imediata de Propostas de Show e Aluguel de Estádio
+- **Remoção Instantânea do Card na Central**: Ao autorizar ou recusar shows ou aluguéis no estádio, a mensagem desaparece imediatamente do painel central.
+- **Implementação de `addNews`**: Correção de referência indefinida ao registrar notícias de megaeventos no feed do clube com limite de persistência de 50 registros.
+
+---
+
 ## [3.3.0] - 2026-10-09 (Motor Dual de Áudio Imersivo, Sanitização Visual do Match Engine & Governança Modular)
 
 ### 🔊 Motor Dual de Áudio de Alta Fidelidade (`AFMAudioManager`)

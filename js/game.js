@@ -168,9 +168,14 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const x = slot.x ?? 50;
   const y = slot.y ?? 50;
   const pk = p ? (p.key || (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.name))) : '';
-  const ovr = p ? (p.overall || p.ovr || (typeof playerOverall === 'function' ? playerOverall(p) : 60)) : '-';
+  const baseOvr = p ? (typeof playerOverall === 'function' ? playerOverall(p) : (p.overall || 60)) : 60;
+  const effectiveOvr = p ? (typeof getPlayerEffectiveOverall === 'function' ? getPlayerEffectiveOverall(p, role) : baseOvr) : '-';
+  const ovr = p ? effectiveOvr : '-';
   const pos = p ? (p.pos || role) : role;
-  const isAdapted = p && p.pos !== role;
+  const fit = p ? (typeof getPositionFit === 'function' ? getPositionFit(p.pos, role) : (p.pos === role ? 'IDEAL' : 'ADAPTADA')) : 'IDEAL';
+  const isAdapted = p && fit === 'ADAPTADA';
+  const isIncompatible = p && fit === 'INCOMPATÍVEL';
+  const ovrDiff = p ? (effectiveOvr - baseOvr) : 0;
   const isSelected = !!opts.isSelected;
   const isHalftime = !!opts.isHalftime;
   const stamina = p ? Math.round(p.stamina ?? p.fitness ?? 100) : 100;
@@ -183,22 +188,24 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const ovrNum = Number(ovr) || 0;
   const tierClass = ovrNum >= 80 ? 'tier-gold-rare' : ovrNum >= 70 ? 'tier-gold' : ovrNum >= 60 ? 'tier-silver' : 'tier-bronze';
   const customClass = opts.customClass || '';
+  const ovrColor = isIncompatible ? 'color:#f87171;' : (isAdapted ? 'color:#fde047;' : (ovrDiff < 0 ? 'color:#fca5a5;' : ''));
 
   return `
-    <div class="fifa-mini-card ${tierClass} ${isSelected ? 'selected selected-glow' : ''} ${customClass}" 
+    <div class="fifa-mini-card ${tierClass} ${isSelected ? 'selected selected-glow' : ''} ${isAdapted ? 'slot-adapted' : ''} ${isIncompatible ? 'slot-incompatible' : ''} ${customClass}" 
          style="left:${x}%;top:${y}%;" 
          data-slot-index="${i}" 
          data-slot-role="${esc(role)}" 
          data-player-key="${esc(pk)}" 
          data-starterkey="${esc(pk)}" 
-         title="${p ? `${esc(p.name)} (${esc(pos)}) • OVR ${ovr}` : 'Slot Vazio'}">
+         title="${p ? `${esc(p.name)} (${esc(pos)}) • OVR ${ovr}${ovrDiff < 0 ? ` (${ovrDiff} fora de posição: ${fit})` : ''}` : 'Slot Vazio'}">
       
       <!-- Topo: OVR, POS e Escudo -->
       <div class="fifa-mini-card-top">
         <div class="fifa-mini-card-badge">
-          <span class="fifa-mini-card-ovr">${ovr}</span>
+          <span class="fifa-mini-card-ovr" style="${ovrColor}">${ovr}</span>
           <span class="fifa-mini-card-pos">${esc(pos)}</span>
-          ${isAdapted ? `<span class="fifa-mini-card-role-adapted" title="Função tática: ${esc(role)}">(${esc(role)})</span>` : ''}
+          ${isAdapted ? `<span class="fifa-mini-card-role-adapted" style="color:#fde047;background:rgba(113,63,18,0.9);border:1px solid #eab308" title="Posição adaptada: ${esc(role)}${ovrDiff < 0 ? ` (${ovrDiff} OVR)` : ''}">(${esc(role)})</span>` : ''}
+          ${isIncompatible ? `<span class="fifa-mini-card-role-incompatible" style="color:#f87171;background:rgba(127,29,29,0.9);border:1px solid #ef4444;font-size:7px;font-weight:900;padding:1px 2px;border-radius:3px;margin-top:1px;line-height:1" title="Posição incompatível: ${esc(role)}${ovrDiff < 0 ? ` (${ovrDiff} OVR)` : ''}">(${esc(role)})</span>` : ''}
         </div>
         <div class="fifa-mini-card-crest">
           ${typeof clubBadge === 'function' ? clubBadge(clubName, 15) : ''}
@@ -2152,6 +2159,14 @@ function generateStadiumRentalProposal(force = false){
   return state.stadiumClubRental;
 }
 
+function addNews(txt){
+  if(!txt || !state) return;
+  if(!Array.isArray(state.news)) state.news = [];
+  state.news.unshift(txt);
+  if(state.news.length > 50) state.news = state.news.slice(0, 50);
+}
+window.addNews = addNews;
+
 function acceptClubRental(returnToCentral = false){
   if(!state.stadiumClubRental) return;
   const r = state.stadiumClubRental;
@@ -2167,6 +2182,7 @@ function acceptClubRental(returnToCentral = false){
   state.pendingDecision = null;
   save();
   if(!returnToCentral) openStadiumModal();
+  else render();
 }
 
 function expireStadiumEventConfirmation(){
@@ -2177,12 +2193,13 @@ function expireStadiumEventConfirmation(){
   return false;
 }
 
-function rejectClubRental(){
+function rejectClubRental(returnToCentral = false){
   if(!state.stadiumClubRental) return;
   toast('Proposta de aluguel recusada.');
   state.stadiumClubRental = null;
   save();
-  openStadiumModal();
+  if(!returnToCentral) openStadiumModal();
+  else render();
 }
 
 function generateStadiumEventProposal(force = false){
@@ -2226,16 +2243,18 @@ function acceptEventConcert(returnToCentral = false){
   state.pendingDecision = null;
   save();
   if(!returnToCentral) openStadiumModal();
+  else render();
 }
 
-function rejectEventConcert(){
+function rejectEventConcert(returnToCentral = false){
   if(!state.stadiumEventProposal) return;
   const eventName = state.stadiumEventProposal.name;
   toast('Convite para show cultural recusado.');
   state.news = (state.news || []).filter(item => !(String(item).includes('CONVITE PARA EVENTO:') && String(item).includes(eventName)));
   state.stadiumEventProposal = null;
   save();
-  openStadiumModal();
+  if(!returnToCentral) openStadiumModal();
+  else render();
 }
 
 function repairStadium(mode){
@@ -4949,53 +4968,15 @@ const AFM_AUTH_KEY = 'afm_accounts_v1';
 const AFM_SESSION_KEY = 'afm_active_user_v1';
 
 function getStoredAccounts(){
-  let accs = null;
+  let accs = [];
   try {
     const raw = localStorage.getItem(AFM_AUTH_KEY);
     if(raw) accs = JSON.parse(raw);
   } catch(e){}
-  
-  if(!Array.isArray(accs) || accs.length === 0){
-    accs = [
-      {
-        username: 'admin',
-        password: 'admin',
-        name: 'Administrador AFM',
-        role: 'admin',
-        createdAt: '2026-01-01',
-        saves: []
-      },
-      {
-        username: 'aquino',
-        password: 'viralgen123',
-        name: 'Treinador',
-        role: 'player',
-        createdAt: '2026-01-01',
-        saves: []
-      }
-    ];
-    saveStoredAccounts(accs);
-  } else {
-    // Sincronizar e auto-atualizar a senha da conta 'aquino' se ela já existir no localStorage
-    const aqAcc = accs.find(a => a.username.toLowerCase() === 'aquino');
-    if(aqAcc){
-      if(aqAcc.password !== 'viralgen123'){
-        aqAcc.password = 'viralgen123';
-        saveStoredAccounts(accs);
-      }
-    } else {
-      accs.push({
-        username: 'aquino',
-        password: 'viralgen123',
-        name: 'Treinador',
-        role: 'player',
-        createdAt: '2026-01-01',
-        saves: []
-      });
-      saveStoredAccounts(accs);
-    }
-  }
-  return accs;
+  if(!Array.isArray(accs)) accs = [];
+  const safeAccounts = accs.filter(a => a && typeof a.username === 'string').map(({ password, role, ...account }) => ({ ...account, role: 'player' }));
+  if(safeAccounts.length !== accs.length || accs.some(a => Object.hasOwn(a || {}, 'password') || a?.role === 'admin')) saveStoredAccounts(safeAccounts);
+  return safeAccounts;
 }
 
 function saveStoredAccounts(accs){
@@ -5004,124 +4985,95 @@ function saveStoredAccounts(accs){
   } catch(e){}
 }
 
+function formatSaveTimestamp(value){
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('pt-BR');
+}
+
 function getActiveAccount(){
   try {
-    let u = localStorage.getItem(AFM_SESSION_KEY);
-    const isExplicitLogout = localStorage.getItem('afm_explicit_logout') === 'true';
-    const accs = getStoredAccounts();
-
-    // Se não há usuário na sessão e não houve logout explícito, assume 'aquino' como conta padrão
-    if(!u && !isExplicitLogout){
-      const def = accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0];
-      if(def){
-        u = def.username;
-        localStorage.setItem(AFM_SESSION_KEY, u);
-        return def;
-      }
-    }
-    if(!u) return null;
-    return accs.find(a => a.username.toLowerCase() === u.toLowerCase()) || accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0] || null;
+    const user = window.AFM_DB?.getUser();
+    if(!user) return null;
+    const accounts = getStoredAccounts();
+    return accounts.find(a => a.username === user.id) || null;
   } catch(e){
     return null;
   }
 }
 
-function setActiveAccount(username){
-  if(username){
-    localStorage.setItem(AFM_SESSION_KEY, username);
-    try { localStorage.removeItem('afm_explicit_logout'); } catch(e){}
-  } else {
-    localStorage.removeItem(AFM_SESSION_KEY);
-  }
+function setActiveAccount(userId){
+  if(userId) localStorage.setItem(AFM_SESSION_KEY, userId);
+  else localStorage.removeItem(AFM_SESSION_KEY);
 }
 
-function loginUser(username, password){
-  const cleanU = (username || '').trim().toLowerCase();
-  const cleanP = (password || '').trim();
-  const accs = getStoredAccounts();
-  let acc = accs.find(a => a.username.toLowerCase() === cleanU);
-
-  // Validação tolerante para 'aquino': aceita 'viralgen123', '123' ou senha cadastrada
-  const isAquinoValid = cleanU === 'aquino' && (
-    cleanP === 'viralgen123' || cleanP === '123' || cleanP === 'admin' || cleanP === 'aquino' || cleanP === acc?.password
-  );
-  const isAdminValid = cleanU === 'admin' && (
-    cleanP === 'admin' || cleanP === '123' || cleanP === 'viralgen123' || cleanP === acc?.password
-  );
-
-  if(!acc){
-    if(isAquinoValid){
-      acc = {
-        username: 'aquino',
-        password: 'viralgen123',
-        name: 'Treinador',
-        role: 'player',
-        createdAt: '2026-01-01',
-        saves: []
-      };
-      accs.push(acc);
-      saveStoredAccounts(accs);
-    } else {
-      return { success: false, error: 'Usuário não encontrado.' };
+async function activateAuthenticatedUser(user){
+  if(!user?.id) return { success: false, error: 'A autenticação não retornou uma sessão válida.' };
+  const accounts = getStoredAccounts();
+  let account = accounts.find(a => a.username === user.id);
+  let importedLegacyState = false;
+  let importedLegacyUsername = null;
+  if(!account){
+    const previousUsername = localStorage.getItem(AFM_SESSION_KEY);
+    const legacy = accounts.find(a => a.username.toLowerCase() === (previousUsername || '').toLowerCase());
+    importedLegacyUsername = legacy?.username || null;
+    account = legacy
+      ? { ...legacy, username: user.id, saves: legacy.saves || [] }
+      : { username: user.id, saves: [], createdAt: new Date().toISOString() };
+    account.name = user.user_metadata?.display_name || account.name || user.email?.split('@')[0] || 'Treinador';
+    account.role = 'player';
+    if(legacy) accounts.splice(accounts.indexOf(legacy), 1, account);
+    else accounts.push(account);
+    if(legacy && state?.club && (!state.userOwner || state.userOwner.toLowerCase() === legacy.username.toLowerCase())){
+      state.userOwner = user.id;
+      importedLegacyState = true;
     }
   }
-
-  const isMatch = (acc.password === cleanP) || isAquinoValid || isAdminValid;
-  if(!isMatch) return { success: false, error: 'Senha incorreta.' };
-
-  if(cleanU === 'aquino' && acc.password !== 'viralgen123'){
-    acc.password = 'viralgen123';
-    saveStoredAccounts(accs);
+  account.role = 'player';
+  delete account.password;
+  saveStoredAccounts(accounts);
+  setActiveAccount(user.id);
+  if(importedLegacyUsername){
+    for(const slot of [1, 2, 3]){
+      try {
+        const key = `afm_save_slot_${slot}`;
+        const entry = JSON.parse(localStorage.getItem(key) || 'null');
+        if(entry?.club && (!entry.owner || entry.owner.toLowerCase() === importedLegacyUsername.toLowerCase())){
+          entry.owner = user.id;
+          entry.id = `save_${user.id}_slot${slot}_${norm(entry.club)}`;
+          localStorage.setItem(key, JSON.stringify(entry));
+        }
+      } catch(e){}
+    }
   }
-
-  try { localStorage.removeItem('afm_explicit_logout'); } catch(e){}
-  setActiveAccount(acc.username);
-
-  // Sincronizar com a nuvem (Supabase) em segundo plano
-  if(window.AFM_DB && typeof window.AFM_DB.syncUser === 'function'){
-    window.AFM_DB.syncUser(cleanU).then(() => {
-      if(view === 'setup') render();
-    }).catch(()=>{});
+  if(importedLegacyState) save();
+  const synced = await window.AFM_DB.syncUser();
+  if(!synced.ok) console.warn('[AFM] Sincronização de saves indisponível:', synced.error);
+  for(const entry of getUserSaveSlots(user.id)){
+    if(entry?.data?.club) await window.AFM_DB.saveSlot(user.id, entry.slot, entry);
   }
+  return { success: true, user: account };
+}
 
-  return { success: true, user: acc };
+async function loginUser(email, password){
+  const result = await window.AFM_DB.signIn(email, password);
+  if(!result.ok) return { success: false, error: result.error };
+  return activateAuthenticatedUser(result.user);
 }
 window.loginUser = loginUser;
 window.getStoredAccounts = getStoredAccounts;
 
-function registerUser(username, password, name){
-  const cleanU = (username || '').trim().toLowerCase();
-  const cleanP = (password || '').trim();
-  const cleanN = (name || '').trim() || cleanU;
-  if(cleanU.length < 3) return { success: false, error: 'O usuário deve ter ao menos 3 caracteres.' };
-  if(cleanP.length < 3) return { success: false, error: 'A senha deve ter ao menos 3 caracteres.' };
-  const accs = getStoredAccounts();
-  if(accs.some(a => a.username.toLowerCase() === cleanU)){
-    return { success: false, error: 'Este nome de usuário já está em uso.' };
-  }
-  const newAcc = {
-    username: cleanU,
-    password: cleanP,
-    name: cleanN,
-    role: 'player',
-    createdAt: new Date().toLocaleDateString('pt-BR'),
-    saves: []
-  };
-  accs.push(newAcc);
-  saveStoredAccounts(accs);
-  try { localStorage.removeItem('afm_explicit_logout'); } catch(e){}
-  setActiveAccount(cleanU);
-
-  // Registrar também no Supabase Cloud em segundo plano
-  if(window.AFM_DB && typeof window.AFM_DB.register === 'function'){
-    window.AFM_DB.register(cleanU, cleanP, cleanN).catch(()=>{});
-  }
-
-  return { success: true, user: newAcc };
+async function registerUser(email, password, name){
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '')) return { success: false, error: 'Informe um e-mail válido.' };
+  if((password || '').length < 8) return { success: false, error: 'A senha deve ter pelo menos 8 caracteres.' };
+  const result = await window.AFM_DB.signUp(email, password, name || '');
+  if(!result.ok) return { success: false, error: result.error };
+  if(result.needsConfirmation) return { success: true, needsConfirmation: true };
+  return activateAuthenticatedUser(result.user);
 }
 
-function logoutUser(){
-  try { localStorage.setItem('afm_explicit_logout', 'true'); } catch(e){}
+async function logoutUser(){
+  const result = await window.AFM_DB.signOut();
+  if(!result.ok) return toast(result.error);
   setActiveAccount(null);
   state = null;
   toast('Você saiu da sua conta.');
@@ -5131,7 +5083,7 @@ function logoutUser(){
 function getUserSaveSlots(username){
   const cleanU = (username || getActiveAccount()?.username || 'aquino').trim().toLowerCase();
   const accs = getStoredAccounts();
-  const acc = accs.find(a => a.username.toLowerCase() === cleanU) || accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0];
+  const acc = accs.find(a => a.username === cleanU);
   const saves = acc?.saves || [];
 
   return [1, 2, 3].map(slotNum => {
@@ -5142,7 +5094,7 @@ function getUserSaveSlots(username){
       const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
       if(raw){
         const parsed = JSON.parse(raw);
-        if(parsed && parsed.club){
+        if(parsed && parsed.club && (!parsed.owner || parsed.owner.toLowerCase() === cleanU)){
           s = s ? { ...s, ...parsed } : parsed;
         }
       }
@@ -5198,6 +5150,7 @@ function getUserSaveSlots(username){
 
 function save(){
   if(!state) return false;
+  processContinentalFixturesBefore(state.date);
   if(Array.isArray(state.news) && state.news.length > 50){
     state.news = state.news.slice(0, 50);
   }
@@ -5224,8 +5177,8 @@ function save(){
     } catch(e){}
   }
 
-  const user = getActiveAccount() || { username: 'aquino', name: state.manager || 'Treinador' };
-  state.userOwner = (state.userOwner || user.username || 'aquino').toLowerCase();
+  const user = getActiveAccount() || { username: state.userOwner || 'local', name: state.manager || 'Treinador' };
+  state.userOwner = user.username;
   const saveId = `save_${state.userOwner}_slot${slotNum}_${norm(state.club)}`;
   state.saveId = saveId;
 
@@ -5239,7 +5192,7 @@ function save(){
     date: state.date,
     round: state.round,
     balance: state.balance,
-    updatedAt: new Date().toLocaleString('pt-BR')
+    updatedAt: new Date().toISOString()
   };
 
   const saveEntry = {
@@ -5264,10 +5217,7 @@ function save(){
 
   // 3. Salvar na lista de contas do sistema (armazena cabeçalho leve para economizar 95% de quota)
   const accs = getStoredAccounts();
-  let acc = accs.find(a => a.username.toLowerCase() === state.userOwner);
-  if(!acc){
-    acc = accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0];
-  }
+  let acc = accs.find(a => a.username === state.userOwner);
   if(acc){
     acc.saves = acc.saves || [];
     const existingIdx = acc.saves.findIndex(s => s.slot === slotNum);
@@ -5301,7 +5251,7 @@ function loadUserSlot(slotNum, ownerUsername = null){
   slotNum = Math.max(1, Math.min(3, Number(slotNum) || 1));
   const username = (ownerUsername || state?.userOwner || getActiveAccount()?.username || 'aquino').toLowerCase();
   const accs = getStoredAccounts();
-  const acc = accs.find(a => a.username.toLowerCase() === username) || accs.find(a => a.username.toLowerCase() === 'aquino') || accs[0];
+  const acc = accs.find(a => a.username === username);
   
   let saveEntry = null;
 
@@ -5692,7 +5642,7 @@ function renderAdminTabContent(){
                         ${clubBadge(s.club, 32)}
                         <div>
                           <b style="font-size:14px;color:#fff">${esc(s.club)}</b> · Temporada ${s.season} (Rodada ${s.round + 1})
-                          <div class="muted small">Técnico: ${esc(s.manager)} · Saldo: <span style="color:#22c55e">${fmtMoney(s.balance)}</span> · Modificado: ${esc(s.updatedAt)}</div>
+                          <div class="muted small">Técnico: ${esc(s.manager)} · Saldo: <span style="color:#22c55e">${fmtMoney(s.balance)}</span> · Modificado: ${esc(formatSaveTimestamp(s.updatedAt))}</div>
                         </div>
                       </div>
                       <div style="display:flex;gap:6px">
@@ -6007,7 +5957,32 @@ function toast(t, duration=3000){
   else setTimeout(()=>{ d.style.opacity='0'; setTimeout(()=>d.remove(),300); },duration);
 }
 function compById(id){return (window.COMPETITIONS||[]).find(c=>c.id===id)}
-function clubByName(name){return clubs.find(c=>norm(c.name)===norm(name))}
+var _clubByNameMap = null;
+function getClubByNameMap(){
+  if(!_clubByNameMap){
+    _clubByNameMap = new Map();
+    if(typeof clubs !== 'undefined' && Array.isArray(clubs)){
+      for(const c of clubs){
+        if(c && c.name) _clubByNameMap.set(norm(c.name), c);
+      }
+    }
+  }
+  return _clubByNameMap;
+}
+function clubByName(name){
+  if(!name) return null;
+  const map = getClubByNameMap();
+  const k = norm(name);
+  let c = map.get(k);
+  if(c !== undefined) return c;
+  if(typeof clubs !== 'undefined' && Array.isArray(clubs)){
+    c = clubs.find(x => norm(x.name) === k) || null;
+    if(c) map.set(k, c);
+  } else {
+    c = null;
+  }
+  return c;
+}
 function allCountries(cont){
   return [...new Set(
     (window.COMPETITIONS||[])
@@ -6703,16 +6678,26 @@ window.getPositionFit = getPositionFit;
 function compatibleScore(p, role){
   const pPos = String(p?.pos || '').trim().toUpperCase();
   const sRole = String(role || '').trim().toUpperCase();
+  if(!pPos || !sRole || pPos === sRole) return 0;
 
-  // Regra Inviolável de Goleiro:
-  if(sRole === 'GK' && pPos !== 'GK') return -100;
-  if(sRole !== 'GK' && pPos === 'GK') return -100;
+  // Goleiro na linha ou jogador de linha no gol: penalidade controlada (-8)
+  if(sRole === 'GK' && pPos !== 'GK') return -8;
+  if(sRole !== 'GK' && pPos === 'GK') return -8;
 
   const fit = getPositionFit(pPos, sRole);
   if(fit === 'IDEAL' || fit === 'best') return 0;
-  if(fit === 'ADAPTADA' || fit === 'ok') return -6;
-  return -25;
+  if(fit === 'ADAPTADA' || fit === 'ok') return -3;
+  return -6; // Posição fora da origem cai um pouco (-6)
 }
+
+function getPlayerEffectiveOverall(p, role){
+  const base = typeof playerOverall === 'function' ? playerOverall(p) : (p?.overall || 60);
+  if(!p || !role) return base;
+  const penalty = compatibleScore(p, role);
+  return Math.max(45, Math.min(99, base + penalty));
+}
+window.getPlayerEffectiveOverall = getPlayerEffectiveOverall;
+window.compatibleScore = compatibleScore;
 
 // =========================================================================
 // RENDERIZAÇÃO DO CAMPO VERTICAL FIXO (renderVerticalTacticsPitch)
@@ -6738,7 +6723,7 @@ function renderVerticalTacticsPitch(starters, formationName = '4-3-3', opts = {}
       const posY = slot.y;
 
       return `
-        <div class="pitch-slot-dropzone ${isSelected ? 'selected slot-ideal' : ''}"
+        <div class="pitch-slot-dropzone ${isSelected ? 'selected' : ''}"
              id="pitchSlot_${idx}"
              style="left:${posX}%;top:${posY}%;"
              data-slot-index="${idx}"
@@ -6766,110 +6751,84 @@ function setupTacticsInteractions({ containerEl, starters, bench, onSwap, onStar
   const keyOf = p => isHalftime && p?.key ? p.key : (typeof playerKey === 'function' ? playerKey(p) : p?.key);
 
   let selectedStarterKey = null;
+  let selectedStarterIndex = null;
   let selectedBenchKey = null;
-  let draggedBenchKey = null;
-  let draggedStarterKey = null;
 
   function clearVisualHighlights(){
-    document.body.classList.remove('is-dragging');
+    if(window.__afmDragState) window.__afmDragState = { starterKey: null, benchKey: null };
     const slots = containerEl.querySelectorAll('.pitch-slot-dropzone');
     slots.forEach(s => {
-      s.classList.remove('slot-ideal', 'slot-adapted', 'slot-dimmed', 'drag-over', 'drag-target');
+      s.classList.remove('selected', 'slot-ideal', 'slot-adapted', 'slot-incompatible', 'slot-dimmed', 'drag-over', 'drag-target');
     });
     const benchRows = containerEl.querySelectorAll('.bench-player-row');
     benchRows.forEach(b => {
-      b.classList.remove('selected', 'drag-target');
-      b.style.borderColor = 'rgba(255,255,255,0.08)';
-      b.style.boxShadow = 'none';
+      b.classList.remove('selected', 'bench-ideal', 'bench-adapted', 'bench-incompatible', 'drag-over', 'drag-target');
+      b.style.borderColor = '';
+      b.style.boxShadow = '';
+      b.style.background = '';
+      b.style.opacity = '1';
     });
   }
 
-  function applyFitnessHighlights(playerPos){
+  function highlightSlotsForBench(playerPos){
     if(!playerPos) return;
     const slots = containerEl.querySelectorAll('.pitch-slot-dropzone');
     slots.forEach(slot => {
       const slotRole = slot.dataset.slotRole;
-      const fit = getPositionFit(playerPos, slotRole);
-      slot.classList.remove('slot-ideal', 'slot-adapted', 'slot-dimmed');
+      const fit = (typeof getPositionFit === 'function') ? getPositionFit(playerPos, slotRole) : 'IDEAL';
+      slot.classList.remove('slot-ideal', 'slot-adapted', 'slot-incompatible', 'slot-dimmed');
       if(fit === 'IDEAL'){
         slot.classList.add('slot-ideal');
       } else if(fit === 'ADAPTADA'){
         slot.classList.add('slot-adapted');
       } else {
-        slot.classList.add('slot-dimmed');
+        slot.classList.add('slot-incompatible');
       }
     });
   }
 
-  // Configurar Slots do Campo
+  function highlightBenchForStarter(slotRole){
+    if(!slotRole) return;
+    const benchRows = containerEl.querySelectorAll('.bench-player-row');
+    benchRows.forEach(row => {
+      const pPos = row.dataset.playerPos;
+      const fit = (typeof getPositionFit === 'function') ? getPositionFit(pPos, slotRole) : 'IDEAL';
+      row.classList.remove('bench-ideal', 'bench-adapted', 'bench-incompatible');
+      if(fit === 'IDEAL'){
+        row.classList.add('bench-ideal');
+        row.style.borderColor = 'rgba(34, 197, 94, 0.6)';
+      } else if(fit === 'ADAPTADA'){
+        row.classList.add('bench-adapted');
+        row.style.borderColor = 'rgba(234, 179, 8, 0.6)';
+      } else {
+        row.classList.add('bench-incompatible');
+        row.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+      }
+    });
+  }
+
+  // 1. Configurar Slots do Campo (Interação 100% por Clique)
   const slots = containerEl.querySelectorAll('.pitch-slot-dropzone');
   slots.forEach(slot => {
-    slot.ondragenter = (e) => {
-      e.preventDefault();
-      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      slot.classList.add('drag-over');
-    };
-    slot.ondragover = (e) => {
-      e.preventDefault();
-      if(e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      slot.classList.add('drag-over');
-    };
-    slot.ondragleave = (e) => {
-      if(e.relatedTarget && slot.contains(e.relatedTarget)) return;
-      slot.classList.remove('drag-over');
-    };
-    slot.ondrop = (e) => {
-      e.preventDefault();
-      slot.classList.remove('drag-over');
-      const targetStarterKey = slot.dataset.playerKey;
-      const targetSlotIndex = Number(slot.dataset.slotIndex);
+    slot.removeAttribute('draggable');
+    slot.ondragenter = null;
+    slot.ondragover = null;
+    slot.ondragleave = null;
+    slot.ondrop = null;
+    slot.ondragstart = null;
+    slot.ondragend = null;
 
-      if(draggedBenchKey){
-        const bKey = draggedBenchKey;
-        clearVisualHighlights();
-        draggedBenchKey = null;
-        if(typeof onSwap === 'function'){
-          onSwap(targetStarterKey, bKey, targetSlotIndex);
-        }
-      } else if(draggedStarterKey && draggedStarterKey !== targetStarterKey){
-        const sKey = draggedStarterKey;
-        clearVisualHighlights();
-        draggedStarterKey = null;
-        if(typeof onStarterSwap === 'function'){
-          onStarterSwap(sKey, targetStarterKey);
-        }
-      } else {
-        clearVisualHighlights();
-      }
-    };
-
-    // Arraste iniciando do titular
-    slot.setAttribute('draggable', 'true');
-    slot.ondragstart = (e) => {
-      draggedStarterKey = slot.dataset.playerKey;
-      draggedBenchKey = null;
-      document.body.classList.add('is-dragging');
-      e.dataTransfer.setData('text/plain', draggedStarterKey);
-      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
-
-      const stPlayer = (starters || []).find(p => keyOf(p) === draggedStarterKey);
-      applyFitnessHighlights(stPlayer?.pos || slot.dataset.slotRole);
-    };
-    slot.ondragend = () => {
-      clearVisualHighlights();
-      draggedStarterKey = null;
-    };
-
-    // Click-to-swap no titular
     slot.onclick = (e) => {
       e.stopPropagation();
-      const sKey = slot.dataset.playerKey;
+      const sKey = slot.dataset.playerKey || '';
       const slotIndex = Number(slot.dataset.slotIndex);
 
-      // 1. Se um reserva já estava selecionado no banco -> substitui imediatamente!
+      // CASO A: Reserva já estava selecionado -> Substituição imediata (Reserva ➔ Titular)!
       if(selectedBenchKey){
         const bKey = selectedBenchKey;
         selectedBenchKey = null;
+        selectedStarterKey = null;
+        selectedStarterIndex = null;
         clearVisualHighlights();
         if(typeof onSwap === 'function'){
           onSwap(sKey, bKey, slotIndex);
@@ -6877,88 +6836,105 @@ function setupTacticsInteractions({ containerEl, starters, bench, onSwap, onStar
         return;
       }
 
-      // 2. Se outro titular já estava selecionado -> inverte as posições entre eles!
-      if(selectedStarterKey && selectedStarterKey !== sKey){
+      // CASO B: Outro titular já estava selecionado -> Inverte posições entre titulares!
+      if(Number.isInteger(selectedStarterIndex) && selectedStarterIndex !== slotIndex){
         const prevKey = selectedStarterKey;
+        const prevIdx = selectedStarterIndex;
         selectedStarterKey = null;
+        selectedStarterIndex = null;
         clearVisualHighlights();
         if(typeof onStarterSwap === 'function'){
-          onStarterSwap(prevKey, sKey);
+          onStarterSwap(prevKey, sKey, prevIdx, slotIndex);
         }
         return;
       }
 
-      // 3. Alternar seleção deste titular
-      if(selectedStarterKey === sKey){
+      // CASO C: Mesmo titular clicado novamente -> Desseleciona!
+      if(Number.isInteger(selectedStarterIndex) && selectedStarterIndex === slotIndex){
         selectedStarterKey = null;
+        selectedStarterIndex = null;
         clearVisualHighlights();
-      } else {
-        selectedStarterKey = sKey;
-        clearVisualHighlights();
-        slot.classList.add('slot-ideal');
-        const stPlayer = (starters || []).find(p => keyOf(p) === sKey);
-        applyFitnessHighlights(stPlayer?.pos || slot.dataset.slotRole);
-        toast(`👉 Titular selecionado: ${stPlayer?.name || 'Jogador'}. Clique em um reserva no banco para confirmar a troca.`);
+        return;
       }
+
+      // CASO D: Seleciona este titular
+      selectedStarterKey = sKey;
+      selectedStarterIndex = slotIndex;
+      selectedBenchKey = null;
+      clearVisualHighlights();
+      slot.classList.add('selected');
+
+      const slotRole = slot.dataset.slotRole || 'ST';
+      highlightBenchForStarter(slotRole);
+
+      const stPlayer = (starters || []).find((p, idx) => idx === slotIndex || keyOf(p) === sKey);
+      toast(`👉 Titular selecionado: ${stPlayer?.name || 'Posição ' + (slotIndex + 1)} (${slotRole}). Clique em um reserva para trocar ou em outro titular para inverter.`);
     };
   });
 
-  // Configurar Linhas do Banco de Reservas
+  // 2. Configurar Linhas do Banco de Reservas (Interação 100% por Clique)
   const benchRows = containerEl.querySelectorAll('.bench-player-row');
   benchRows.forEach(row => {
-    row.setAttribute('draggable', 'true');
-    row.ondragstart = (e) => {
-      draggedBenchKey = row.dataset.benchKey;
-      draggedStarterKey = null;
-      document.body.classList.add('is-dragging');
-      e.dataTransfer.setData('text/plain', draggedBenchKey);
-      if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
-      row.style.opacity = '0.5';
+    row.removeAttribute('draggable');
+    row.ondragstart = null;
+    row.ondragend = null;
+    row.ondragenter = null;
+    row.ondragover = null;
+    row.ondragleave = null;
+    row.ondrop = null;
 
-      const playerPos = row.dataset.playerPos;
-      applyFitnessHighlights(playerPos);
-    };
-    row.ondragend = () => {
-      row.style.opacity = '1';
-      clearVisualHighlights();
-      draggedBenchKey = null;
-    };
-
-    // Click-to-swap no reserva
     row.onclick = (e) => {
       e.stopPropagation();
       const bKey = row.dataset.benchKey;
+      const bPos = row.dataset.playerPos;
 
-      // 1. Se um titular já estava selecionado no campo -> substitui imediatamente!
-      if(selectedStarterKey){
+      // CASO A: Titular já estava selecionado no campo -> Substituição imediata (Titular ➔ Reserva)!
+      if(Number.isInteger(selectedStarterIndex) || selectedStarterKey){
         const sKey = selectedStarterKey;
+        const targetSlotIndex = selectedStarterIndex;
         selectedStarterKey = null;
+        selectedStarterIndex = null;
+        selectedBenchKey = null;
         clearVisualHighlights();
         if(typeof onSwap === 'function'){
-          const targetSlot = [...slots].find(slot => slot.dataset.playerKey === sKey);
-          const targetSlotIndex = Number(targetSlot?.dataset.slotIndex);
-          onSwap(sKey, bKey, Number.isInteger(targetSlotIndex) ? targetSlotIndex : undefined);
+          onSwap(sKey, bKey, targetSlotIndex);
         }
         return;
       }
 
-      // 2. Alternar seleção do reserva
+      // CASO B: Mesmo reserva clicado novamente -> Desseleciona!
       if(selectedBenchKey === bKey){
         selectedBenchKey = null;
         clearVisualHighlights();
-      } else {
-        selectedBenchKey = bKey;
-        clearVisualHighlights();
-        row.classList.add('selected');
-        row.style.borderColor = '#fbbf24';
-        row.style.boxShadow = '0 0 14px rgba(250, 204, 21, 0.6)';
-        const playerPos = row.dataset.playerPos;
-        applyFitnessHighlights(playerPos);
-        const bPlayer = (bench || []).find(p => (typeof playerKey === 'function' ? playerKey(p) : p.key) === bKey);
-        toast(`👉 Reserva ${bPlayer?.name || 'Jogador'} (${playerPos}) selecionado! Posição ideal em VERDE (★ IDEAL) no campo.`);
+        return;
       }
+
+      // CASO C: Seleciona este reserva
+      selectedBenchKey = bKey;
+      selectedStarterKey = null;
+      selectedStarterIndex = null;
+      clearVisualHighlights();
+
+      row.classList.add('selected');
+      row.style.borderColor = '#fbbf24';
+      row.style.boxShadow = '0 0 16px rgba(250, 204, 21, 0.7)';
+      row.style.background = 'rgba(250, 204, 21, 0.15)';
+
+      highlightSlotsForBench(bPos);
+
+      const bPlayer = (bench || []).find(p => keyOf(p) === bKey);
+      toast(`👉 Reserva selecionado: ${bPlayer?.name || 'Jogador'} (${bPos}). Clique em qualquer vaga no campo para confirmar a troca.`);
     };
   });
+
+  // Clique no container desmarca seleção se não for em slot/linha
+  containerEl.onclick = (e) => {
+    if(e.target.closest('.pitch-slot-dropzone') || e.target.closest('.bench-player-row')) return;
+    selectedStarterKey = null;
+    selectedStarterIndex = null;
+    selectedBenchKey = null;
+    clearVisualHighlights();
+  };
 }
 window.setupTacticsInteractions = setupTacticsInteractions;
 
@@ -8799,6 +8775,7 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       curD.setDate(curD.getDate() + 1);
       const nextDateStr = curD.toISOString().slice(0, 10);
       state.date = nextDateStr;
+      processContinentalFixturesBefore(state.date);
       expireStadiumEventConfirmation();
       daysAdvanced++;
 
@@ -8913,12 +8890,55 @@ function getClubTacticalProfile(clubName, isUser){
   };
 }
 
+function calculateTacticalMetrics(formation, tac){
+  const fKey = formation || state?.formation || '4-3-3';
+  const fMeta = FORMATION_META[fKey] || FORMATION_META['4-3-3'] || {
+    centralCover: 75, flankCover: 75, pressCapacity: 75, transitionCapacity: 75
+  };
+  const t = tac || state?.tactics || {};
+  const lineHeight = Number(t.lineHeight ?? 60);
+  const pressIntensity = Number(t.pressIntensity ?? 65);
+  const attackingWidth = Number(t.attackingWidth ?? 60);
+  const defensiveWidth = Number(t.defensiveWidth ?? 50);
+  const tempo = Number(t.tempo ?? 55);
+  const directness = Number(t.directness ?? 50);
+  const bu = t.buildUpStyle || 'Balanced';
+  const defApp = t.defensiveApproach || 'Balanced';
+
+  // 1. Cobertura Central: Base da formação ajustada por largura defensiva, bloco e altura da linha
+  const defWidthCentralMod = Math.round((50 - defensiveWidth) * 0.35);
+  const lineHeightCentralMod = Math.round((60 - lineHeight) * 0.15);
+  const defAppCentralMod = (defApp === 'Low Block' ? 6 : (defApp === 'Mid Block' ? 4 : 0));
+  const centralCover = clamp(Math.round(fMeta.centralCover + defWidthCentralMod + lineHeightCentralMod + defAppCentralMod), 40, 99);
+
+  // 2. Cobertura Lateral: Base da formação ajustada por largura defensiva e amplitude ofensiva
+  const defWidthFlankMod = Math.round((defensiveWidth - 50) * 0.35);
+  const attWidthFlankMod = Math.round((attackingWidth - 60) * 0.20);
+  const flankCover = clamp(Math.round(fMeta.flankCover + defWidthFlankMod + attWidthFlankMod), 40, 99);
+
+  // 3. Capacidade de Pressão: Diretamente regida por Intensidade de Pressão e Altura da Linha
+  const pressMod = Math.round((pressIntensity - 65) * 0.50);
+  const linePressMod = Math.round((lineHeight - 60) * 0.28);
+  const defAppPressMod = (defApp === 'Press After Loss' ? 8 : (defApp === 'Aggressive' ? 6 : (defApp === 'High' ? 5 : (defApp === 'Low Block' ? -8 : 0))));
+  const pressCapacity = clamp(Math.round(fMeta.pressCapacity + pressMod + linePressMod + defAppPressMod), 25, 99);
+
+  // 4. Capacidade de Transição: Diretamente regida por Ritmo (Tempo), Verticalidade e Estilo de Construção
+  const tempoMod = Math.round((tempo - 55) * 0.35);
+  const directMod = Math.round((directness - 50) * 0.35);
+  const buTransMod = (bu === 'Fast Build-Up' ? 7 : (bu === 'Counter Attack' ? 8 : (bu === 'Direct' ? 6 : (bu === 'Short Passing' ? -5 : (bu === 'Possession' ? -6 : 0)))));
+  const transitionCapacity = clamp(Math.round(fMeta.transitionCapacity + tempoMod + directMod + buTransMod), 30, 99);
+
+  return { centralCover, flankCover, pressCapacity, transitionCapacity };
+}
+
 function calculateTacticalMatchDynamics(home, away, hTac, aTac, homeStrength, awayStrength, opts = {}){
   const hs = homeStrength || teamStrengthByName(home);
   const as = awayStrength || teamStrengthByName(away);
   
   const hMeta = FORMATION_META[hTac.formation] || FORMATION_META['4-3-3'];
   const aMeta = FORMATION_META[aTac.formation] || FORMATION_META['4-3-3'];
+  const hMetrics = calculateTacticalMetrics(hTac.formation, hTac);
+  const aMetrics = calculateTacticalMetrics(aTac.formation, aTac);
   
   // 1. Controle do meio de campo e duelo de posse
   let posModH = 0, posModA = 0;
@@ -8930,10 +8950,11 @@ function calculateTacticalMatchDynamics(home, away, hTac, aTac, homeStrength, aw
   else if(aTac.buildUpStyle === 'Short Passing') posModA += 4;
   else if(aTac.buildUpStyle === 'Direct' || aTac.buildUpStyle === 'Counter Attack') posModA -= 6;
   
-  // Superioridade central (comparação de centralCover)
-  const centralDiff = (hMeta.centralCover - aMeta.centralCover) * 0.15;
-  posModH += centralDiff;
-  posModA -= centralDiff;
+  // Superioridade central e capacidade de pressão dinâmicos
+  const centralDiff = (hMetrics.centralCover - aMetrics.centralCover) * 0.16;
+  const pressDiff = (hMetrics.pressCapacity - aMetrics.pressCapacity) * 0.12;
+  posModH += (centralDiff + pressDiff);
+  posModA -= (centralDiff + pressDiff);
   
   // Fator casa (+5% base) e Altitude
   const altH = isHighAltitudeVenue(home);
@@ -8949,12 +8970,12 @@ function calculateTacticalMatchDynamics(home, away, hTac, aTac, homeStrength, aw
   const awayThroughBallBonus = (hTac.lineHeight >= 65) ? 0.35 : (hTac.lineHeight <= 42 ? -0.20 : 0);
   
   // Interação B: Pressão Alta vs Zaga Construtora
-  const homePressBonus = (hTac.pressIntensity >= 70 && aTac.buildUpStyle === 'Short Passing') ? 0.25 : 0;
-  const awayPressBonus = (aTac.pressIntensity >= 70 && hTac.buildUpStyle === 'Short Passing') ? 0.25 : 0;
+  const homePressBonus = (hMetrics.pressCapacity >= 70 && aTac.buildUpStyle === 'Short Passing') ? ((hMetrics.pressCapacity - 68) * 0.015) : 0;
+  const awayPressBonus = (aMetrics.pressCapacity >= 70 && hTac.buildUpStyle === 'Short Passing') ? ((aMetrics.pressCapacity - 68) * 0.015) : 0;
   
   // Interação C: Amplitude Ofensiva vs Cobertura Lateral
-  const homeFlankBonus = (hTac.attackingWidth >= 65 && aMeta.flankCover <= 75) ? 0.20 : 0;
-  const awayFlankBonus = (aTac.attackingWidth >= 65 && hMeta.flankCover <= 75) ? 0.20 : 0;
+  const homeFlankBonus = (hTac.attackingWidth >= 60 && aMetrics.flankCover <= 78) ? ((hTac.attackingWidth - 60) * 0.012) : 0;
+  const awayFlankBonus = (aTac.attackingWidth >= 60 && hMetrics.flankCover <= 78) ? ((aTac.attackingWidth - 60) * 0.012) : 0;
   
   // Interação D: Contra-Ataque com Bloco Baixo
   const homeCounterBonus = (hTac.defensiveApproach === 'Low Block' && hTac.buildUpStyle === 'Counter Attack' && aTac.lineHeight >= 60) ? 0.30 : 0;
@@ -10456,10 +10477,11 @@ function startLiveMatch(){
   const attendance = isUserHome ? proj.attendance : Math.round(stadiumCap * clamp(0.3 + (hs/150), 0.15, 0.95));
 
   // Constrói os 11 titulares para cada equipe com validação rigorosa de posições e funções táticas
-  function buildMatchTeam(teamName, isUser, isHomeSide){
-    const formKey = isUser ? (state.formation || '4-3-3') : '4-3-3';
+  function buildMatchTeam(teamName, isUser, isHomeSide, teamTac){
+    const formKey = isUser ? (state.formation || '4-3-3') : (teamTac?.formation || '4-3-3');
     const formDef = FORMATIONS[formKey] || FORMATIONS['4-3-3'];
     const presetObj = FC27_PRESETS[formKey] || FC27_PRESETS['4-3-3'] || {};
+    const tac = teamTac || (isUser ? getClubTacticalProfile(teamName, true) : getClubTacticalProfile(teamName, false));
     const players = [];
 
     function calcPlayerAttrs(pName, pPos, ovr){
@@ -10526,23 +10548,31 @@ function startLiveMatch(){
 
     if(isUser){
       const lineupKeys = state.lineup || [];
-      const selectedStarters = lineupKeys.map(k => state.squad.find(p => playerKey(p) === k)).filter(Boolean);
-      const goalkeeper = selectedStarters.find(p => isGoalkeeperPosition(p.pos)) || state.squad.find(p => isGoalkeeperPosition(p.pos)) || {
-        id: 'emergency-gk-' + norm(state.club), marketKey: 'emergency-gk:' + norm(state.club),
-        name: 'Goleiro ' + state.club, club: state.club, pos: 'GK', fc: 60, pes: 60, morale: 70, fitness: 100
-      };
-      const starters = [goalkeeper, ...selectedStarters.filter(p => p !== goalkeeper && !isGoalkeeperPosition(p.pos)).slice(0, 10)];
+      const selectedStarters = lineupKeys.map(k => findSquadPlayerByKey(k)).filter(Boolean);
+      const starters = [...selectedStarters.slice(0, 11)];
       const usedStarterKeys = new Set(starters.map(p => playerKey(p)));
       while(starters.length < 11){
-        const extra = state.squad.find(p => !usedStarterKeys.has(playerKey(p)) && !isGoalkeeperPosition(p.pos));
+        const extra = state.squad.find(p => !usedStarterKeys.has(playerKey(p)));
         if(extra){ starters.push(extra); usedStarterKeys.add(playerKey(extra)); }
         else break;
+      }
+      while(starters.length < 11){
+        const idx = starters.length;
+        starters.push({
+          id: `emergency-${idx}-` + norm(state.club),
+          marketKey: `emergency-${idx}:` + norm(state.club),
+          name: `Atleta ${idx + 1} ` + state.club,
+          club: state.club,
+          pos: idx === 0 ? 'GK' : (formDef[idx]?.r || 'CM'),
+          fc: 60, pes: 60, morale: 70, fitness: 100
+        });
       }
       for(let i=0; i<11; i++){
         const isGoalkeeper = (i === 0);
         const p = starters[i] || { name: `Jogador ${i+1}`, pos: formDef[i]?.r || (isGoalkeeper ? 'GK' : 'CM'), fc: 65 };
         const slot = formDef[i] || { r: isGoalkeeper ? 'GK' : (p.pos || 'CM'), x: 50, y: isGoalkeeper ? 89 : 50 };
-        const ovr = playerOverall(p) || 65;
+        const effectiveOvr = (typeof getPlayerEffectiveOverall === 'function') ? getPlayerEffectiveOverall(p, isGoalkeeper ? 'GK' : slot.r) : (playerOverall(p) || 65);
+        const ovr = effectiveOvr || playerOverall(p) || 65;
         const attrs = calcPlayerAttrs(p.name, isGoalkeeper ? 'GK' : slot.r, ovr);
         
         // Atribuição de Role/Focus customizado ou preset
@@ -10559,8 +10589,17 @@ function startLiveMatch(){
           baseYPct = 50;
         } else {
           const depth = (100 - slot.y) * 0.44;
-          baseXPct = isHomeSide ? clamp(3.5 + depth, 12, 48) : clamp(100 - (3.5 + depth), 52, 88);
-          baseYPct = clamp(slot.x, 10, 90);
+          const tacLine = tac.lineHeight || 60;
+          const lineShift = (tacLine - 60) * 0.14;
+          const isBackline = slot.y > 60;
+          const depthMod = isBackline ? lineShift * 0.8 : lineShift * 0.4;
+          baseXPct = isHomeSide ? clamp(3.5 + depth + depthMod, 10, 52) : clamp(100 - (3.5 + depth + depthMod), 48, 90);
+
+          const isAttacker = slot.y < 40;
+          const widthVal = isAttacker ? (tac.attackingWidth || 60) : (tac.defensiveWidth || 50);
+          const widthDiff = isAttacker ? (widthVal - 60) : (widthVal - 50);
+          const centeredY = slot.x - 50;
+          baseYPct = clamp(50 + centeredY * (1 + widthDiff * 0.007), 8, 92);
         }
 
         players.push({
@@ -10650,8 +10689,17 @@ function startLiveMatch(){
           baseYPct = 50;
         } else {
           const depth = (100 - slot.y) * 0.44;
-          baseXPct = isHomeSide ? clamp(3.5 + depth, 12, 48) : clamp(100 - (3.5 + depth), 52, 88);
-          baseYPct = clamp(slot.x, 10, 90);
+          const tacLine = tac.lineHeight || 60;
+          const lineShift = (tacLine - 60) * 0.14;
+          const isBackline = slot.y > 60;
+          const depthMod = isBackline ? lineShift * 0.8 : lineShift * 0.4;
+          baseXPct = isHomeSide ? clamp(3.5 + depth + depthMod, 10, 52) : clamp(100 - (3.5 + depth + depthMod), 48, 90);
+
+          const isAttacker = slot.y < 40;
+          const widthVal = isAttacker ? (tac.attackingWidth || 60) : (tac.defensiveWidth || 50);
+          const widthDiff = isAttacker ? (widthVal - 60) : (widthVal - 50);
+          const centeredY = slot.x - 50;
+          baseYPct = clamp(50 + centeredY * (1 + widthDiff * 0.007), 8, 92);
         }
 
         players.push({
@@ -10767,8 +10815,10 @@ function startLiveMatch(){
     return players.slice(0, 11);
   }
 
-  const homePlayers = buildMatchTeam(home, norm(home) === norm(state.club), true);
-  const awayPlayers = buildMatchTeam(away, norm(away) === norm(state.club), false);
+  const hTac = getClubTacticalProfile(home, isUserHome);
+  const aTac = getClubTacticalProfile(away, !isUserHome);
+  const homePlayers = buildMatchTeam(home, isUserHome, true, hTac);
+  const awayPlayers = buildMatchTeam(away, !isUserHome, false, aTac);
 
   const rivalry = isRivalryMatch(home, away);
   const matchSeed = (Date.now() ^ (Math.random() * 0x100000000)) >>> 0;
@@ -10839,6 +10889,9 @@ function startLiveMatch(){
     halftimeTriggered: false,
     homePlayers,
     awayPlayers,
+    homeTac: hTac,
+    awayTac: aTac,
+    tacticsDynamics: calculateTacticalMatchDynamics(home, away, hTac, aTac, hs, as),
     otherResults,
     ball: {
       x: 50, y: 50, z: 0,
@@ -11433,10 +11486,11 @@ function setupLiveCanvasLoop(){
 
         const speed = Math.max(1, s.speed || 1);
         // Em 1x: 1 minuto (60s) dura ~1000ms. Cada segundo dura ~16.6ms.
-        const msPerSec = Math.max(1, (1000 / 60) / speed);
+        const msPerSec = Math.max(0.1, (1000 / 60) / speed);
         s.secAccumulator = (s.secAccumulator || 0) + dtMs;
 
-        while(s.secAccumulator >= msPerSec && s.playing && !s.done && s.phase !== 'HALF_TIME'){
+        let clockSteps = 0;
+        while(s.secAccumulator >= msPerSec && s.playing && !s.done && s.phase !== 'HALF_TIME' && clockSteps++ < 1200){
           s.secAccumulator -= msPerSec;
           s.liveSubSec = (s.liveSubSec || 0) + 1;
           s.timeSec = (s.timeSec || 0) + 1;
@@ -12386,14 +12440,16 @@ function simulateMinute(s, min){
   s.homePlayers.forEach(p => {
     if(!p.isGK){
       const roleStamMult = 1.0 + ((p.staminaCost || 25) - 25) * 0.015;
-      const stamMod = hCfg.stamBurn * (isUserHome ? speechStamMod : 1.0) * roleStamMult;
+      const pressMult = 1.0 + (((s.homeTac?.pressIntensity || 65) - 65) * 0.005);
+      const stamMod = hCfg.stamBurn * (isUserHome ? speechStamMod : 1.0) * roleStamMult * Math.max(0.7, pressMult);
       p.stamina = Math.max(15, (p.stamina || 100) - baseBurnPerMin * stamMod);
     }
   });
   s.awayPlayers.forEach(p => {
     if(!p.isGK){
       const roleStamMult = 1.0 + ((p.staminaCost || 25) - 25) * 0.015;
-      const stamMod = aCfg.stamBurn * (!isUserHome ? speechStamMod : 1.0) * roleStamMult;
+      const pressMult = 1.0 + (((s.awayTac?.pressIntensity || 65) - 65) * 0.005);
+      const stamMod = aCfg.stamBurn * (!isUserHome ? speechStamMod : 1.0) * roleStamMult * Math.max(0.7, pressMult);
       p.stamina = Math.max(15, (p.stamina || 100) - baseBurnPerMin * stamMod);
     }
   });
@@ -12412,7 +12468,20 @@ function simulateMinute(s, min){
   const effH = hs * hStamFactor * (hCfg.speedMult || 1.0);
   const effA = as * aStamFactor * (aCfg.speedMult || 1.0);
 
-  const posShareH = effH / (effH + effA);
+  const hBuildUp = s.homeTac?.buildUpStyle || 'Balanced';
+  const aBuildUp = s.awayTac?.buildUpStyle || 'Balanced';
+  const hPress = s.homeTac?.pressIntensity || 65;
+  const aPress = s.awayTac?.pressIntensity || 65;
+  let tacPosShareMod = 0;
+  if(hBuildUp === 'Possession') tacPosShareMod += 0.05;
+  else if(hBuildUp === 'Short Passing') tacPosShareMod += 0.03;
+  else if(hBuildUp === 'Direct' || hBuildUp === 'Counter Attack') tacPosShareMod -= 0.04;
+  if(aBuildUp === 'Possession') tacPosShareMod -= 0.05;
+  else if(aBuildUp === 'Short Passing') tacPosShareMod -= 0.03;
+  else if(aBuildUp === 'Direct' || aBuildUp === 'Counter Attack') tacPosShareMod += 0.04;
+  tacPosShareMod += (hPress - aPress) * 0.0012;
+
+  const posShareH = clamp(effH / (effH + effA) + tacPosShareMod, 0.24, 0.76);
   s.stats.posH = Math.round(s.stats.posH * 0.94 + (posShareH * 100) * 0.06);
   s.stats.posA = 100 - s.stats.posH;
 
@@ -12443,7 +12512,8 @@ function simulateMinute(s, min){
   let isCounterAttack = false;
 
   // FASE 1: BUILD_UP (Construção / Saída de Bola sob pressão)
-  const defPressBonus = (defCfg.posture === 'Pressão total' ? 0.08 : defCfg.posture === 'Ofensiva' ? 0.04 : 0);
+  const defTacPress = isHome ? (s.awayTac?.pressIntensity || 65) : (s.homeTac?.pressIntensity || 65);
+  const defPressBonus = (defCfg.posture === 'Pressão total' ? 0.08 : defCfg.posture === 'Ofensiva' ? 0.04 : 0) + ((defTacPress - 65) * 0.0018);
   const buildUpRoll = s.prng();
   if(buildUpRoll < 0.08 + defPressBonus){
     // TURNOVER: Perda de bola pressionada na zaga gerando contra-ataque veloz!
@@ -13171,20 +13241,25 @@ function bindLiveMatchEvents(){
   if(overlay) overlay.onclick = togglePlay;
   if(canvas) canvas.onclick = togglePlay;
 
-  // Velocidades
-  const sp1 = $('#btnLiveSpeed1');
-  const sp20 = $('#btnLiveSpeed20');
-  const sp40 = $('#btnLiveSpeed40');
+  // Velocidades (1x, 2x, 5x, 10x, 20x, 40x)
+  const speedButtons = [
+    { speed: 1, btn: $('#btnLiveSpeed1') },
+    { speed: 2, btn: $('#btnLiveSpeed2') },
+    { speed: 5, btn: $('#btnLiveSpeed5') },
+    { speed: 10, btn: $('#btnLiveSpeed10') },
+    { speed: 20, btn: $('#btnLiveSpeed20') },
+    { speed: 40, btn: $('#btnLiveSpeed40') },
+  ];
   function setSpeed(v){
     s.speed = v;
-    [sp1, sp20, sp40].forEach(b => b?.classList.remove('active'));
-    if(v === 1 && sp1) sp1.classList.add('active');
-    if(v === 20 && sp20) sp20.classList.add('active');
-    if(v === 40 && sp40) sp40.classList.add('active');
+    speedButtons.forEach(({ speed, btn }) => {
+      if(!btn) return;
+      btn.classList.toggle('active', speed === v);
+    });
   }
-  if(sp1) sp1.onclick = () => setSpeed(1);
-  if(sp20) sp20.onclick = () => setSpeed(20);
-  if(sp40) sp40.onclick = () => setSpeed(40);
+  speedButtons.forEach(({ speed, btn }) => {
+    if(btn) btn.onclick = () => setSpeed(speed);
+  });
 
   // Botões de avanço e retrocesso
   const btnRew10 = $('#btnLiveRewind10');
@@ -13329,7 +13404,7 @@ function openHalftimeModal(isQuickTactics = false){
   const halftimeKeeper = (rosterKeeper && userStarters.find(mp => mp.key === playerKey(rosterKeeper))) || userStarters.find(p => p.isGK || isGoalkeeperPosition(p.pos));
   if(halftimeKeeper){
     const keeperIndex = userStarters.indexOf(halftimeKeeper);
-    if(keeperIndex > 0){ userStarters.splice(keeperIndex, 1); userStarters.unshift(halftimeKeeper); }
+    // Preserva a escalação escolhida pelo treinador sem reordenar arbitrariamente
     userStarters.forEach(matchPlayer => {
       const rosterPlayer = state.squad.find(p => playerKey(p) === matchPlayer.key);
       matchPlayer.isGK = matchPlayer === halftimeKeeper;
@@ -13426,7 +13501,7 @@ function openHalftimeModal(isQuickTactics = false){
         <div style="flex:1;display:flex;flex-direction:column;min-height:0;gap:6px">
           <div style="display:flex;justify-content:space-between;align-items:center;background:#141d2c;padding:6px 14px;border-radius:8px;flex-shrink:0">
             <span style="font-size:12px;color:rgba(255,255,255,0.9);font-weight:700">
-              👉 <b>Arraste ou Toque em quem sai</b> (no campo à esquerda) e <b>em quem entra</b> (no banco à direita) para substituir.
+              👉 <b>Clique em quem sai</b> (no campo) e <b>em quem entra</b> (no banco) para substituir (ou vice-versa).
             </span>
             <div style="display:flex;align-items:center;gap:12px">
               <span id="halftimePitchFormTitle" style="font-size:12px;font-weight:900;color:#38bdf8">EM CAMPO · ${currentForm}</span>
@@ -13461,7 +13536,7 @@ function openHalftimeModal(isQuickTactics = false){
                 ${userBench.map(p => {
                   const pOvr = playerOverall(p);
                   return `
-                    <div class="bench-player-row" data-bench-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}" draggable="true" title="Arraste para o campo ou clique para substituir">
+                    <div class="bench-player-row" data-bench-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}" title="Clique para selecionar e substituir">
                       ${playerPhoto(p, 36)}
                       <div style="flex:1;min-width:0;margin-left:8px">
                         <div style="display:flex;justify-content:space-between;align-items:center">
@@ -13478,7 +13553,7 @@ function openHalftimeModal(isQuickTactics = false){
                 }).join('')}
               </div>
               <div style="margin-top:8px;background:#101726;padding:8px 10px;border-radius:8px;font-size:10px;color:rgba(255,255,255,0.7);flex-shrink:0;line-height:1.3">
-                💡 <b>Dica:</b> Arraste para o campo ou clique para selecionar. Slots acendem em 🟢 <b>VERDE (★ IDEAL)</b> e 🟡 <b>AMARELO (ADAPTADA)</b>!
+                💡 <b>Dica:</b> Clique no titular e no reserva (ou vice-versa) para trocar. Slots indicam 🟢 <b>VERDE (★ IDEAL)</b>, 🟡 <b>AMARELO (ADAPTADA)</b> e 🔴 <b>VERMELHO (INCOMPATÍVEL)</b>!
               </div>
             </div>
           </div>
@@ -13535,30 +13610,51 @@ function openHalftimeModal(isQuickTactics = false){
       toast('Você já atingiu o limite de 5 substituições na partida!');
       return;
     }
-    const benchPlayer = state.squad.find(p => playerKey(p) === benchKey);
-    if(!benchPlayer) return;
+    const userStarters = (userIsHome ? s.homePlayers : s.awayPlayers);
+    const keyOf = p => p?.key || (typeof playerKey === 'function' ? playerKey(p) : p?.id);
+
+    // Identifica com precisão quem é o titular saindo e quem é o reserva entrando
+    let actualStarterKey = starterKey;
+    let actualBenchKey = benchKey;
+    let targetIdx = userStarters.findIndex(p => keyOf(p) === starterKey);
+
+    if(targetIdx < 0 && Number.isInteger(targetSlotIndex) && targetSlotIndex >= 0 && targetSlotIndex < userStarters.length){
+      targetIdx = targetSlotIndex;
+      actualStarterKey = keyOf(userStarters[targetIdx]);
+    }
+
+    // Se estiver invertido (benchKey era o titular e starterKey era o reserva)
+    if(targetIdx < 0){
+      const revIdx = userStarters.findIndex(p => keyOf(p) === benchKey);
+      if(revIdx >= 0){
+        targetIdx = revIdx;
+        actualStarterKey = benchKey;
+        actualBenchKey = starterKey;
+      }
+    }
+
+    if(targetIdx === -1) return toast('Selecione um titular válido em campo para substituir.');
+
+    const benchPlayer = state.squad.find(p => playerKey(p) === actualBenchKey);
+    if(!benchPlayer) return toast('Jogador reserva não encontrado no elenco.');
 
     s.subbedOut = Array.isArray(s.subbedOut) ? s.subbedOut : [];
-    if(s.subbedOut.includes(benchKey)){
+    if(s.subbedOut.includes(actualBenchKey)){
       toast('Este atleta já foi substituído nesta partida e não pode retornar ao gramado!');
       return;
     }
 
-    const userStarters = (userIsHome ? s.homePlayers : s.awayPlayers);
-    const keyOf = p => p.key || playerKey(p);
-    let targetIdx = userStarters.findIndex(p => keyOf(p) === starterKey);
-    if(targetIdx < 0 && Number.isInteger(targetSlotIndex) && targetSlotIndex >= 0 && targetSlotIndex < userStarters.length) targetIdx = targetSlotIndex;
-    if(targetIdx === -1) return;
-
     const oldPlayer = userStarters[targetIdx];
     const oldKey = keyOf(oldPlayer);
-    const oldIsGoalkeeper = !!oldPlayer.isGK || isGoalkeeperPosition(oldPlayer.pos);
-    const benchIsGoalkeeper = isGoalkeeperPosition(benchPlayer.pos);
-    if(oldIsGoalkeeper !== benchIsGoalkeeper){
-      toast(oldIsGoalkeeper ? 'Para substituir o goleiro, escolha um goleiro reserva.' : 'O goleiro reserva só pode entrar na vaga de outro goleiro.');
-      return;
-    }
     s.subbedOut.push(oldKey);
+
+    const isGKSlot = (targetIdx === 0);
+    const currentForm = state.formation || '4-3-3';
+    const formDef = FORMATIONS[currentForm] || FORMATIONS['4-3-3'];
+    const slotRole = isGKSlot ? 'GK' : (formDef[targetIdx]?.r || oldPlayer.pos || 'CM');
+    const effectiveOvr = (typeof getPlayerEffectiveOverall === 'function') 
+      ? getPlayerEffectiveOverall(benchPlayer, slotRole) 
+      : (playerOverall(benchPlayer) || 65);
 
     const newPlayerObj = {
       ...oldPlayer,
@@ -13566,18 +13662,18 @@ function openHalftimeModal(isQuickTactics = false){
       key: playerKey(benchPlayer),
       name: benchPlayer.name.split(' ').pop() || benchPlayer.name,
       fullName: benchPlayer.name,
-      pos: oldIsGoalkeeper ? 'GK' : benchPlayer.pos,
-      overall: playerOverall(benchPlayer) || 65,
+      pos: isGKSlot ? 'GK' : (benchPlayer.pos || slotRole),
+      overall: effectiveOvr || 65,
       stamina: 100, // Entra 100% descansado
-      speed: benchPlayer.vel || benchPlayer.speed || playerOverall(benchPlayer),
-      pass: benchPlayer.pas || benchPlayer.pass || playerOverall(benchPlayer),
-      shoot: benchPlayer.fin || benchPlayer.shoot || playerOverall(benchPlayer),
-      defense: benchPlayer.des || benchPlayer.defense || playerOverall(benchPlayer),
+      speed: benchPlayer.vel || benchPlayer.speed || effectiveOvr,
+      pass: benchPlayer.pas || benchPlayer.pass || effectiveOvr,
+      shoot: benchPlayer.fin || benchPlayer.shoot || effectiveOvr,
+      defense: benchPlayer.des || benchPlayer.defense || effectiveOvr,
       isUser: true,
       team: userIsHome ? 'home' : 'away',
-      isGK: oldIsGoalkeeper,
-      canScore: !oldIsGoalkeeper,
-      canShoot: !oldIsGoalkeeper,
+      isGK: isGKSlot,
+      canScore: !isGKSlot,
+      canShoot: !isGKSlot,
       photo: resolvePlayerPhotoUrl(benchPlayer) || null
     };
 
@@ -13593,6 +13689,8 @@ function openHalftimeModal(isQuickTactics = false){
       const lineIdx = state.lineup.indexOf(oldKey);
       if(lineIdx !== -1){
         state.lineup[lineIdx] = playerKey(benchPlayer);
+      } else if(targetIdx >= 0 && targetIdx < 11){
+        state.lineup[targetIdx] = playerKey(benchPlayer);
       }
     }
 
@@ -13610,15 +13708,45 @@ function openHalftimeModal(isQuickTactics = false){
     openHalftimeModal(isQuickTactics);
   }
 
-  function swapHalftimeStarters(k1, k2){
+  function swapHalftimeStarters(k1, k2, idx1Arg, idx2Arg){
     const userStarters = (userIsHome ? s.homePlayers : s.awayPlayers);
-    const idx1 = userStarters.findIndex(p => (p.key || playerKey(p)) === k1);
-    const idx2 = userStarters.findIndex(p => (p.key || playerKey(p)) === k2);
-    if(idx1 !== -1 && idx2 !== -1){
+    const keyOf = p => p?.key || (typeof playerKey === 'function' ? playerKey(p) : p?.id);
+    let idx1 = userStarters.findIndex(p => keyOf(p) === k1);
+    let idx2 = userStarters.findIndex(p => keyOf(p) === k2);
+    if(idx1 < 0 && Number.isInteger(idx1Arg)) idx1 = idx1Arg;
+    if(idx2 < 0 && Number.isInteger(idx2Arg)) idx2 = idx2Arg;
+
+    if(idx1 !== -1 && idx2 !== -1 && idx1 !== idx2){
       const tmpPlayer = userStarters[idx1];
       userStarters[idx1] = userStarters[idx2];
       userStarters[idx2] = tmpPlayer;
+
+      // Atualiza funções de goleiro se um dos slots for o gol (índice 0)
+      userStarters.forEach((mp, i) => {
+        mp.isGK = (i === 0);
+        if(i === 0){
+          mp.pos = 'GK';
+          mp.canScore = false;
+          mp.canShoot = false;
+        } else {
+          mp.canScore = true;
+          mp.canShoot = true;
+        }
+      });
+
+      // Sincroniza com state.lineup
+      if(Array.isArray(state.lineup)){
+        const lIdx1 = state.lineup.indexOf(k1);
+        const lIdx2 = state.lineup.indexOf(k2);
+        if(lIdx1 !== -1 && lIdx2 !== -1){
+          [state.lineup[lIdx1], state.lineup[lIdx2]] = [state.lineup[lIdx2], state.lineup[lIdx1]];
+        } else if(idx1 < state.lineup.length && idx2 < state.lineup.length){
+          [state.lineup[idx1], state.lineup[idx2]] = [state.lineup[idx2], state.lineup[idx1]];
+        }
+      }
+
       toast(`Posições invertidas entre ${userStarters[idx1].name} e ${userStarters[idx2].name}!`);
+      save();
       openHalftimeModal(isQuickTactics);
     }
   }
@@ -13642,8 +13770,8 @@ function openHalftimeModal(isQuickTactics = false){
     onSwap: (targetStarterKey, benchKey, targetSlotIndex) => {
       executeHalftimeSub(targetStarterKey, benchKey, targetSlotIndex);
     },
-    onStarterSwap: (key1, key2) => {
-      swapHalftimeStarters(key1, key2);
+    onStarterSwap: (key1, key2, idx1, idx2) => {
+      swapHalftimeStarters(key1, key2, idx1, idx2);
     },
     isHalftime: true
   });
@@ -14600,10 +14728,10 @@ function openMarketingModal(){
 // -------------------------------------------------------------
 // MERCADO (COMPRA, VENDA, EMPRÉSTIMO, FILTROS POR REGIÃO/PAÍS/LIGA)
 // -------------------------------------------------------------
-let _marketUniverseCache = null;
-let _marketUniverseCacheRound = -1;
-let _marketUniverseCacheMoves = -1;
-let _marketUniverseCacheClub = '';
+var _marketUniverseCache = null;
+var _marketUniverseCacheRound = -1;
+var _marketUniverseCacheMoves = -1;
+var _marketUniverseCacheClub = '';
 
 function marketUniverse(){
   const movesCount = Object.keys(state.playerMoves||{}).length;
@@ -14611,13 +14739,26 @@ function marketUniverse(){
     return _marketUniverseCache;
   }
   const moved=state.playerMoves||{},seen=new Set(),out=[];
+  const userClubNorm = norm(state?.club || '');
   const add=p=>{
-    const q=stablePlayer(p),k=playerKey(q);
-    if(seen.has(k))return;
+    const k = p.marketKey || playerKey(p);
+    if(seen.has(k)) return;
     seen.add(k);
-    q.marketKey=k;
-    q.club=moved[k]||q.club;
-    if(norm(q.club)===norm(state.club))return;
+    const club = moved[k] || p.club;
+    const clubN = norm(club);
+    if(clubN === userClubNorm) return;
+
+    const q = stablePlayer(p);
+    q.marketKey = k;
+    q.club = club;
+    q.clubNorm = clubN;
+    q.nameNorm = norm(q.name || '');
+    q.searchStr = `${q.nameNorm} ${q.clubNorm}`;
+    q.ovr = playerOverall(q);
+    q.value = q.value != null ? q.value : calcValueMi(q);
+    const cObj = clubByName(q.club);
+    q.country = q.country || cObj?.country || '';
+    q.countryNorm = norm(q.country);
     out.push(q);
   };
   livePlayers.forEach(add);
@@ -16206,6 +16347,8 @@ function openBankLoansModal(){
 // -------------------------------------------------------------
 function render(){
   const app=$('#app');
+  const loader = document.getElementById('afmLoadingScreen');
+  if(loader) loader.remove();
   if(!state){renderSetup(app);return}
   const restoreScroll = app.dataset.renderedView === view;
   const windowScroll = window.scrollY;
@@ -16785,19 +16928,18 @@ function centralPage(){
         <!-- Seção Inferior: Painel de Decisão Pendente & Sugestão Dinâmica (Some na hora ao aceitar/negar) -->
         ${(() => {
           const sug = typeof getPendingSuggestion === 'function' ? getPendingSuggestion() : null;
-          const acceptedEvent = state.lastStadiumEvent?.date >= state.date ? state.lastStadiumEvent : null;
-          const hasEvent = !acceptedEvent && !!state.stadiumEventProposal;
-          const hasRental = !acceptedEvent && !!state.stadiumClubRental;
-          const hasSug = !acceptedEvent && !!sug && state.suggestionHandledRound !== state.round;
+          const hasEvent = !!state.stadiumEventProposal;
+          const hasRental = !hasEvent && !!state.stadiumClubRental;
+          const hasSug = !hasEvent && !hasRental && !!sug && state.suggestionHandledRound !== state.round;
 
-          if(!hasEvent && !hasRental && !hasSug && !acceptedEvent) return '';
+          if(!hasEvent && !hasRental && !hasSug) return '';
 
           return `
             <div id="centralDecisionPanelCard" class="card" style="padding:18px;background:#100d1e;border:1px solid rgba(139,92,246,0.25);border-radius:18px;margin-top:14px">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="color:#f59e0b;font-size:16px">🔔</span>
                 <h3 style="margin:0;font-size:14px;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase">
-                  ${hasEvent ? 'PROPOSTA DE SHOW NO ESTÁDIO' : hasRental ? 'ALUGUEL DE ESTÁDIO' : hasSug ? 'SUGESTÃO DA COMISSÃO TÉCNICA' : acceptedEvent.type === 'rental' ? 'ALUGUEL CONFIRMADO' : 'SHOW AUTORIZADO'}
+                  ${hasEvent ? 'PROPOSTA DE SHOW NO ESTÁDIO' : hasRental ? 'ALUGUEL DE ESTÁDIO' : 'SUGESTÃO DA COMISSÃO TÉCNICA'}
                 </h3>
               </div>
               ${hasEvent ? `
@@ -16830,12 +16972,6 @@ function centralPage(){
                   <button class="btn primary" id="btnAcceptDecision" style="padding:7px 16px;font-size:12px;font-weight:800;background:#059669;border:none;border-radius:8px;cursor:pointer">Aprovar Sugestão</button>
                   <button class="btn" id="btnDismissDecision" style="padding:7px 16px;font-size:12px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;cursor:pointer">Dispensar Sugestão</button>
                 </div>
-              ` : ''}
-              ${acceptedEvent ? `
-                <p style="font-size:12px;color:#86efac;margin:10px 0 12px;line-height:1.5">
-                  ✅ <b>${esc(acceptedEvent.name)}</b> ${acceptedEvent.type === 'rental' ? 'alugou o estádio' : 'foi autorizado'} em ${esc(formatDatePtBr(acceptedEvent.date))}. Receita de <b>${fmtMoney(acceptedEvent.fee)}</b> creditada no caixa.${acceptedEvent.type === 'rental' ? ` Desgaste: -${Number(acceptedEvent.wear) || 6}%.` : ''}
-                </p>
-                <button class="btn" id="btnDismissAcceptedEvent" style="padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;cursor:pointer">Fechar confirmação</button>
               ` : ''}
             </div>
           `;
@@ -16961,6 +17097,55 @@ function centralPage(){
   `;
 }
 
+function continentalFixtureId(competitionId, fixture){
+  const compact = value => norm(value).replace(/[^a-z0-9]/g, '');
+  return `${competitionId}-${state.season}-${fixture.round}-${fixture.group}-${compact(fixture.home)}-${compact(fixture.away)}`;
+}
+
+function getContinentalTournament(competitionId){
+  if(Number(state?.season) !== 2026 || !['lib','sud'].includes(competitionId) || !window.AFM_TOURNAMENT_ENGINE) return null;
+  state.tournaments = state.tournaments || {};
+  const current = state.tournaments[competitionId];
+  if(current?.season === Number(state.season)) return current;
+  const groups = window.AFM_CONTINENTAL_2026?.groups?.[competitionId];
+  if(!groups) return null;
+  const fixtures = window.AFM_CONTINENTAL_2026.groupFixtures(competitionId).flat();
+  state.tournaments[competitionId] = window.AFM_TOURNAMENT_ENGINE.createGroupTournament({
+    id: competitionId, season: Number(state.season), groups, fixtures
+  });
+  return state.tournaments[competitionId];
+}
+
+function playContinentalFixture(competitionId, matchId){
+  const tournament = getContinentalTournament(competitionId);
+  const match = tournament?.matches.find(item => item.id === matchId);
+  if(!match || match.status !== 'scheduled') return;
+  if(match.date !== state.date){ toast('Avance o calendário até a data desta partida.'); return; }
+  if(norm(match.home) !== norm(state.club) && norm(match.away) !== norm(state.club)) return;
+  const dateFixtures = tournament.matches.filter(item => item.date === match.date && item.status === 'scheduled');
+  for(const fixture of dateFixtures){
+    const [homeGoals, awayGoals] = simulateScore(fixture.home, fixture.away);
+    window.AFM_TOURNAMENT_ENGINE.recordResult(tournament, fixture.id, homeGoals, awayGoals);
+  }
+  state.news = state.news || [];
+  state.news.unshift(`🏆 ${match.competitionId === 'lib' ? 'Libertadores' : 'Sul-Americana'}: rodada ${match.round} concluída; classificação atualizada.`);
+  save();
+  toast('Partidas continentais da data simuladas; classificação salva.');
+  render();
+}
+
+function processContinentalFixturesBefore(date){
+  if(Number(state?.season) !== 2026) return;
+  for(const competitionId of ['lib','sud']){
+    const tournament = getContinentalTournament(competitionId);
+    for(const match of tournament?.matches || []){
+      if(match.status !== 'scheduled' || match.date >= date) continue;
+      const [homeGoals, awayGoals] = simulateScore(match.home, match.away);
+      window.AFM_TOURNAMENT_ENGINE.recordResult(tournament, match.id, homeGoals, awayGoals);
+    }
+  }
+}
+
 // -------------------------------------------------------------
 // ABA CALENDÁRIO COM DATAS OFICIAIS E JANELAS DE TRANSFERÊNCIA
 // -------------------------------------------------------------
@@ -16976,9 +17161,14 @@ function calendarPage(){
   if(continental){
     for(const id of ['lib','sud']){
       const all = continental.groupFixtures(id).flat();
-      extraMatches.push(...all.filter(f => calendarClubKey(f.home) === calendarClubKey(myClub) || calendarClubKey(f.away) === calendarClubKey(myClub)).map(f => ({
-        ...f, isHome: calendarClubKey(f.home) === calendarClubKey(myClub), name: id === 'lib' ? 'Copa Libertadores' : 'Copa Sul-Americana'
-      })));
+      const tournament = getContinentalTournament(id);
+      const results = new Map((tournament?.matches || []).map(match => [match.id, match]));
+      extraMatches.push(...all.filter(f => calendarClubKey(f.home) === calendarClubKey(myClub) || calendarClubKey(f.away) === calendarClubKey(myClub)).map(f => {
+        const played = results.get(continentalFixtureId(id, f));
+        return {
+          ...f, matchId: played?.id, result: played?.result, isHome: calendarClubKey(f.home) === calendarClubKey(myClub), name: id === 'lib' ? 'Copa Libertadores' : 'Copa Sul-Americana'
+        };
+      }));
     }
     for(const stage of [continental.copaDoBrasil, continental.copaDoBrasil.roundOf16, continental.copaDoBrasil.quarterfinals]){
       stage.ties.forEach(([home, away], tieIndex) => {
@@ -17083,6 +17273,10 @@ function calendarPage(){
           } else statusHtml = '<span class="pill">Concluído</span>';
         } else if(match.competitionId === 'COMP' && match.current){
           statusHtml = `<div style="display:flex;gap:6px;align-items:center;justify-content:flex-end"><span class="pill primary" style="box-shadow:0 0 12px var(--neon)">👉 HOJE</span><button class="btn primary btnCalPlayNow" style="padding:4px 10px;font-size:12px">⚽ Jogar</button></div>`;
+        } else if(match.matchId && match.result){
+          statusHtml = `<span class="pill good">${match.result[0]} x ${match.result[1]} • Concluído</span>`;
+        } else if(match.matchId && match.date === state.date){
+          statusHtml = `<button class="btn primary btnCalTournamentPlay" data-tournament="${esc(match.competitionId)}" data-match="${esc(match.matchId)}" style="padding:4px 10px;font-size:12px">⚽ Jogar</button>`;
         }
         const detail = match.competitionId === 'COMP' ? match.round : `${typeof match.round === 'number' ? `Rodada ${match.round}` : match.round || ''}${match.group ? ` • Grupo ${match.group}` : ''}`;
         return `<div class="calendar-card ${match.current?'current':''}">
@@ -17103,6 +17297,7 @@ let tacticalActiveTab = 'closed';
 function myTeamPage(){
   ensureTacticsState(state);
   const curTac = state.tactics;
+  const tacMetrics = calculateTacticalMetrics(state.formation, curTac);
   const formMeta = FORMATION_META[state.formation] || FORMATION_META['4-3-3'] || {
     name: state.formation, lines: [1, 4, 3, 3], width: 70, behindBall: 5, aheadBall: 5,
     centralCover: 75, flankCover: 75, pressCapacity: 75, transitionCapacity: 75, vulnerabilities: []
@@ -17111,9 +17306,13 @@ function myTeamPage(){
   const sec = lineupSector();
   const bench = state.squad.filter(p => !(state.lineup||[]).includes(playerKey(p))).sort((a,b)=>playerOverall(b)-playerOverall(a));
 
-  const startingPlayers = (state.lineup||[]).map(pk => state.squad.find(q => playerKey(q) === pk)).filter(Boolean);
-  const overallTitulares = startingPlayers.length > 0 
-    ? Math.round(startingPlayers.reduce((acc, p) => acc + playerOverall(p), 0) / startingPlayers.length) 
+  const startingPlayers = (slots || []).map((slot, idx) => {
+    const pk = state.lineup?.[idx];
+    return pk ? state.squad.find(q => playerKey(q) === pk) : null;
+  });
+  const validStarters = startingPlayers.filter(Boolean);
+  const overallTitulares = validStarters.length > 0 
+    ? Math.round(validStarters.reduce((acc, p) => acc + playerOverall(p), 0) / validStarters.length) 
     : 59;
 
   const top11 = state.squad.slice().sort((a,b)=>playerOverall(b)-playerOverall(a)).slice(0, 11);
@@ -17125,11 +17324,7 @@ function myTeamPage(){
     <div class="hero">
       <div>
         <h1>Meu time & Tática</h1>
-        <div class="muted">Arraste os jogadores. A posição ideal acende em <b style="color:var(--neon)">VERDE</b> e adaptações em <b style="color:var(--warn)">AMARELO</b>.</div>
-      </div>
-      <div class="formation-select">
-        <select id="formation" class="btn">${Object.keys(FORMATIONS).map(x=>`<option ${state.formation===x?'selected':''}>${x}</option>`).join('')}</select>
-        <button class="btn primary" id="autoLineup">⭐ Melhor XI</button>
+        <div class="muted">Clique no titular e no reserva para substituir (ou vice-versa). A posição ideal acende em <b style="color:var(--neon)">VERDE</b> e adaptações em <b style="color:var(--warn)">AMARELO</b>.</div>
       </div>
     </div>
 
@@ -17139,19 +17334,19 @@ function myTeamPage(){
         <div>
           <span style="font-size:11px;font-weight:900;color:#facc15">🎯 PÊNALTIS:</span>
           <select id="selPenaltyTaker" class="btn" style="padding:4px 8px;font-size:11px;background:#1e1838;color:#fff;border-radius:6px;border:1px solid rgba(255,255,255,0.15)">
-            ${startingPlayers.map(p=>`<option value="${playerKey(p)}" ${state.setPieceTakers?.penalties===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
+            ${validStarters.map(p=>`<option value="${playerKey(p)}" ${state.setPieceTakers?.penalties===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
           </select>
         </div>
         <div>
           <span style="font-size:11px;font-weight:900;color:#38bdf8">⚡ FALTAS:</span>
           <select id="selFreekickTaker" class="btn" style="padding:4px 8px;font-size:11px;background:#1e1838;color:#fff;border-radius:6px;border:1px solid rgba(255,255,255,0.15)">
-            ${startingPlayers.map(p=>`<option value="${playerKey(p)}" ${state.setPieceTakers?.freekicks===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
+            ${validStarters.map(p=>`<option value="${playerKey(p)}" ${state.setPieceTakers?.freekicks===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
           </select>
         </div>
         <div>
           <span style="font-size:11px;font-weight:900;color:#eab308">👑 CAPITÃO:</span>
           <select id="selCaptain" class="btn" style="padding:4px 8px;font-size:11px;background:#1e1838;color:#fff;border-radius:6px;border:1px solid rgba(255,255,255,0.15)">
-            ${startingPlayers.map(p=>`<option value="${esc(p.name)}" ${state.captains?.[0]===p.name?'selected':''}>${esc(p.name)} (${p.pos})</option>`).join('')}
+            ${validStarters.map(p=>`<option value="${esc(p.name)}" ${state.captains?.[0]===p.name?'selected':''}>${esc(p.name)} (${p.pos})</option>`).join('')}
           </select>
         </div>
       </div>
@@ -17202,8 +17397,15 @@ function myTeamPage(){
         </div>
       </div>
 
-      <!-- Lado Direito: Setores ATA, MEI, DEF compactos e alinhados -->
-      <div style="display:flex;align-items:center;gap:14px">
+      <!-- Lado Direito: Formação e Setores ATA, MEI, DEF compactos e alinhados -->
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;font-weight:900;color:#64748b;letter-spacing:0.5px">FORMAÇÃO:</span>
+          <select id="formation" class="btn" style="padding:4px 10px;font-weight:900;font-size:12px;border-radius:8px;background:#0f172a;color:#fff;border:1px solid #334155;cursor:pointer">
+            ${Object.keys(FORMATIONS).map(x=>`<option ${state.formation===x?'selected':''}>${x}</option>`).join('')}
+          </select>
+        </div>
+        <div style="width:1px;height:20px;background:#cbd5e1"></div>
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:10px;font-weight:800;color:#64748b;letter-spacing:0.5px">ATA</span>
           <b style="font-size:18px;font-weight:900;color:#0f172a">${sec.atk}</b>
@@ -17238,7 +17440,7 @@ function myTeamPage(){
           ${bench.slice(0, 30).map(p => {
             const pOvr = playerOverall(p);
             return `
-              <div class="bench-player-row" data-bench-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}" draggable="true" title="Arraste para o campo ou clique para trocar">
+              <div class="bench-player-row" data-bench-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}" title="Clique para selecionar e trocar">
                 ${playerPhoto(p, 36)}
                 <div style="flex:1;min-width:0;margin-left:8px">
                   <div style="display:flex;justify-content:space-between;align-items:center">
@@ -17259,7 +17461,7 @@ function myTeamPage(){
           }).join('')}
         </div>
         <div style="margin-top:8px;background:#101726;padding:8px 10px;border-radius:8px;font-size:10px;color:rgba(255,255,255,0.7);flex-shrink:0;line-height:1.3">
-          💡 <b>Dica:</b> Arraste para o campo ou clique para trocar. Slots acendem em 🟢 <b>VERDE (★ IDEAL)</b> e 🟡 <b>AMARELO (ADAPTADA)</b>!
+          💡 <b>Dica:</b> Clique no titular e no reserva (ou vice-versa) para trocar. Slots indicam 🟢 <b>VERDE (★ IDEAL)</b>, 🟡 <b>AMARELO (ADAPTADA)</b> e 🔴 <b>VERMELHO (INCOMPATÍVEL)</b>!
         </div>
       </div>
     </div>
@@ -17310,19 +17512,19 @@ function myTeamPage(){
             <div style="display:flex;gap:14px;align-items:center">
               <div style="text-align:center">
                 <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">COB. CENTRAL</div>
-                <div style="font-size:12px;font-weight:900;color:#a855f7">${formMeta.centralCover||75}%</div>
+                <div id="tacMetricCentralCover" style="font-size:12px;font-weight:900;color:#a855f7;transition:all 0.2s ease">${tacMetrics.centralCover}%</div>
               </div>
               <div style="text-align:center">
                 <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">COB. LATERAL</div>
-                <div style="font-size:12px;font-weight:900;color:#38bdf8">${formMeta.flankCover||75}%</div>
+                <div id="tacMetricFlankCover" style="font-size:12px;font-weight:900;color:#38bdf8;transition:all 0.2s ease">${tacMetrics.flankCover}%</div>
               </div>
               <div style="text-align:center">
                 <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">PRESSÃO</div>
-                <div style="font-size:12px;font-weight:900;color:#22c55e">${formMeta.pressCapacity||75}%</div>
+                <div id="tacMetricPressCapacity" style="font-size:12px;font-weight:900;color:#22c55e;transition:all 0.2s ease">${tacMetrics.pressCapacity}%</div>
               </div>
               <div style="text-align:center">
                 <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:800">TRANSIÇÃO</div>
-                <div style="font-size:12px;font-weight:900;color:#facc15">${formMeta.transitionCapacity||75}%</div>
+                <div id="tacMetricTransitionCapacity" style="font-size:12px;font-weight:900;color:#facc15;transition:all 0.2s ease">${tacMetrics.transitionCapacity}%</div>
               </div>
             </div>
           </div>
@@ -18406,36 +18608,39 @@ function renderMarketBuy(){
     if(c) compClubSet = new Set(eligibleClubNames(c).map(norm));
   }
 
+  const clubValNorm = clubVal ? norm(clubVal) : '';
+  const countryValNorm = countryVal ? norm(countryVal) : '';
+  const regCountriesSet = regVal ? new Set(regionCountries(regVal)) : null;
+
   let ps=marketUniverse().filter(p=>{
-    if(q && !norm((p.name||'')+' '+(p.club||'')).includes(q)) return false;
+    if(q && !(p.searchStr || '').includes(q)) return false;
     if(pos && String(p.pos||'').split(',')[0].trim()!==pos) return false;
-    if(playerOverall(p) < min) return false;
-    if(aff && calcValueMi(p)*1e6 > state.balance) return false;
-    if(clubVal && norm(p.club) !== norm(clubVal)) return false;
-    if(compClubSet && !compClubSet.has(norm(p.club))) return false;
+    const ovr = p.ovr != null ? p.ovr : playerOverall(p);
+    if(ovr < min) return false;
+    const val = p.value != null ? p.value : calcValueMi(p);
+    if(aff && val*1e6 > state.balance) return false;
+    if(clubValNorm && (p.clubNorm || norm(p.club)) !== clubValNorm) return false;
+    if(compClubSet && !compClubSet.has(p.clubNorm || norm(p.club))) return false;
     
-    const clubObj = clubByName(p.club);
-    const pCountry = p.country || clubObj?.country;
-    if(countryVal && pCountry && norm(pCountry) !== norm(countryVal)) return false;
-    if(regVal){
-      const contCountries = regionCountries(regVal);
-      if(pCountry && !contCountries.includes(pCountry)) return false;
-    }
+    if(countryValNorm && (p.countryNorm || norm(p.country)) !== countryValNorm) return false;
+    if(regCountriesSet && !regCountriesSet.has(p.country)) return false;
     return true;
   });
 
-  // Pipeline de ordenação estável (não muta atributos do jogador e desempata por nome e ID)
+  // Pipeline de ordenação estável ultra-rápida (usa valores pré-computados)
   ps.sort((a,b) => {
-    const ovrA = playerOverall(a), ovrB = playerOverall(b);
-    const valA = calcValueMi(a), valB = calcValueMi(b);
+    const ovrA = a.ovr != null ? a.ovr : playerOverall(a);
+    const ovrB = b.ovr != null ? b.ovr : playerOverall(b);
+    const valA = a.value != null ? a.value : calcValueMi(a);
+    const valB = b.value != null ? b.value : calcValueMi(b);
     const ageA = a.age || 25, ageB = b.age || 25;
     const nameA = a.name || '', nameB = b.name || '';
     const idA = a.id || a.marketKey || '', idB = b.id || b.marketKey || '';
 
     let diff = 0;
     switch(sortMode){
-      case 'name_asc': diff = nameA.localeCompare(nameB, 'pt-BR'); break;
-      case 'name_desc': diff = nameB.localeCompare(nameA, 'pt-BR'); break;
+      case 'name_asc': diff = (nameA > nameB ? 1 : (nameA < nameB ? -1 : 0)); break;
+      case 'name_desc': diff = (nameB > nameA ? 1 : (nameB < nameA ? -1 : 0)); break;
       case 'age_asc': diff = ageA - ageB; break;
       case 'age_desc': diff = ageB - ageA; break;
       case 'price_asc': diff = valA - valB; break;
@@ -18445,10 +18650,10 @@ function renderMarketBuy(){
       default: // recommended
         diff = (ovrB - ovrA) || (valB - valA); break;
     }
-    return diff || nameA.localeCompare(nameB, 'pt-BR') || idA.localeCompare(idB);
+    return diff || (nameA > nameB ? 1 : (nameA < nameB ? -1 : 0)) || (idA > idB ? 1 : (idA < idB ? -1 : 0));
   });
 
-  ps = ps.slice(0, 140);
+  ps = ps.slice(0, 100);
 
   if(!ps.length){ el.innerHTML='<div class="empty">Nenhum jogador encontrado com esses filtros selecionados.</div>'; return; }
 
@@ -18458,17 +18663,18 @@ function renderMarketBuy(){
         <thead><tr><th>Jogador</th><th>Clube</th><th>Pos</th><th>Overall</th><th>Idade</th><th>Valor de Mercado</th><th>Ação</th></tr></thead>
         <tbody>
           ${ps.map(p=>{
-            const val=calcValueMi(p), key=playerKey(p);
+            const val = p.value != null ? p.value : calcValueMi(p), key = p.marketKey || playerKey(p);
             const canAfford = val*1e6 <= state.balance;
             const canBuy = windowOpen && canAfford;
             const btnText = !windowOpen ? 'Janela Fechada' : (!canAfford ? 'Sem caixa' : 'Comprar');
             const btnTitle = !windowOpen ? 'Mercado de transferências fechado fora da janela' : (!canAfford ? 'Saldo em caixa insuficiente' : 'Iniciar negociação');
+            const ovr = p.ovr != null ? p.ovr : playerOverall(p);
             return `
               <tr>
                 <td><b>${esc(p.name)}</b></td>
                 <td><div class="club-cell">${clubBadge(p.club, 22)} ${esc(p.club||'-')}</div></td>
                 <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
-                <td><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                <td><span class="rating-pill ${ratingClass(ovr)}">${ovr}</span></td>
                 <td>${p.age||'-'} anos</td>
                 <td><b class="good">${fmtMi(val)}</b></td>
                 <td><button class="btn primary buy" data-key="${esc(key)}" title="${esc(btnTitle)}" ${!canBuy?'disabled':''}>${btnText}</button></td>
@@ -18545,40 +18751,39 @@ function renderMarketLoans(){
     if(c) compClubSet = new Set(eligibleClubNames(c).map(norm));
   }
 
-  let pool = marketUniverse().filter(p => {
-    if(norm(p.club||'') === norm(state.club)) return false;
-    const ovr = playerOverall(p);
-    if(ovr < 52) return false;
-    if(min && ovr < min) return false;
+    const clubValNorm = clubVal ? norm(clubVal) : '';
+    const countryValNorm = countryVal ? norm(countryVal) : '';
+    const regCountriesSet = regVal ? new Set(regionCountries(regVal)) : null;
 
-    if(q && !norm((p.name||'') + ' ' + (p.club||'')).includes(q)) return false;
-    if(pos && String(p.pos||'').split(',')[0].trim() !== pos) return false;
+    let pool = marketUniverse().filter(p => {
+      const ovr = p.ovr != null ? p.ovr : playerOverall(p);
+      if(ovr < 52) return false;
+      if(min && ovr < min) return false;
 
-    const fee = Math.round(calcValueMi(p) * 1e6 * 0.10);
-    if(aff && fee > state.balance) return false;
+      if(q && !(p.searchStr || '').includes(q)) return false;
+      if(pos && String(p.pos||'').split(',')[0].trim() !== pos) return false;
 
-    if(clubVal && norm(p.club) !== norm(clubVal)) return false;
-    if(compClubSet && !compClubSet.has(norm(p.club))) return false;
+      const val = p.value != null ? p.value : calcValueMi(p);
+      const fee = Math.round(val * 1e6 * 0.10);
+      if(aff && fee > state.balance) return false;
 
-    const clubObj = clubByName(p.club);
-    const pCountry = p.country || clubObj?.country;
-    if(countryVal && pCountry && norm(pCountry) !== norm(countryVal)) return false;
-    if(regVal){
-      const contCountries = regionCountries(regVal);
-      if(pCountry && !contCountries.includes(pCountry)) return false;
+      if(clubValNorm && (p.clubNorm || norm(p.club)) !== clubValNorm) return false;
+      if(compClubSet && !compClubSet.has(p.clubNorm || norm(p.club))) return false;
+
+      if(countryValNorm && (p.countryNorm || norm(p.country)) !== countryValNorm) return false;
+      if(regCountriesSet && !regCountriesSet.has(p.country)) return false;
+      return true;
+    });
+
+    if(sortVal === 'cheap'){
+      pool.sort((a,b) => ((a.value != null ? a.value : calcValueMi(a)) - (b.value != null ? b.value : calcValueMi(b))));
+    } else if(sortVal === 'age'){
+      pool.sort((a,b) => (a.age||22) - (b.age||22));
+    } else {
+      pool.sort((a,b) => ((b.ovr != null ? b.ovr : playerOverall(b)) - (a.ovr != null ? a.ovr : playerOverall(a))) || ((b.value != null ? b.value : calcValueMi(b)) - (a.value != null ? a.value : calcValueMi(a))));
     }
-    return true;
-  });
 
-  if(sortVal === 'cheap'){
-    pool.sort((a,b) => calcValueMi(a) - calcValueMi(b));
-  } else if(sortVal === 'age'){
-    pool.sort((a,b) => (a.age||22) - (b.age||22));
-  } else {
-    pool.sort((a,b) => playerOverall(b) - playerOverall(a) || calcValueMi(b) - calcValueMi(a));
-  }
-
-  const list = pool.slice(0, 100);
+    const list = pool.slice(0, 100);
 
   if(!list.length){
     el.innerHTML = '<div class="empty" style="padding:24px;text-align:center">Nenhum jogador encontrado com os filtros selecionados para empréstimo.</div>';
@@ -18942,24 +19147,27 @@ function renderMarketScout(){
 
   if(scoutTierFilter === 'budget'){
     // Promessas acessíveis para clubes menores (até R$ 3 Mi)
-    pool = pool.filter(p => calcValueMi(p) <= 3.0 && (+p.potential || playerOverall(p)) >= 65);
-    pool.sort((a,b) => calcValueMi(a) - calcValueMi(b));
+    pool = pool.filter(p => (p.value != null ? p.value : calcValueMi(p)) <= 3.0 && (+p.potential || p.ovr || playerOverall(p)) >= 65);
+    pool.sort((a,b) => ((a.value != null ? a.value : calcValueMi(a)) - (b.value != null ? b.value : calcValueMi(b))));
   } else if(scoutTierFilter === 'mid'){
     // Promessas nacionais boas (Série A e B, R$ 3 Mi a R$ 25 Mi)
-    pool = pool.filter(p => calcValueMi(p) > 2.5 && calcValueMi(p) <= 25.0 && (+p.potential || playerOverall(p)) >= 75);
+    pool = pool.filter(p => {
+      const v = p.value != null ? p.value : calcValueMi(p);
+      return v > 2.5 && v <= 25.0 && (+p.potential || p.ovr || playerOverall(p)) >= 75;
+    });
     pool.sort((a,b) => (b.potential||0) - (a.potential||0));
   } else if(scoutTierFilter === 'elite'){
     // Promessas mundiais de elite (R$ 25 Mi+)
-    pool = pool.filter(p => calcValueMi(p) > 22.0 && (+p.potential || playerOverall(p)) >= 85);
+    pool = pool.filter(p => (p.value != null ? p.value : calcValueMi(p)) > 22.0 && (+p.potential || p.ovr || playerOverall(p)) >= 85);
     pool.sort((a,b) => (b.potential||0) - (a.potential||0));
   } else {
     // Todos: ordenado por potencial geral
-    pool = pool.filter(p => (+p.potential || playerOverall(p)) >= 70);
+    pool = pool.filter(p => (+p.potential || p.ovr || playerOverall(p)) >= 70);
     pool.sort((a,b) => (b.potential||0) - (a.potential||0));
   }
 
   if(scoutAffordableOnly){
-    pool = pool.filter(p => calcValueMi(p) * 1e6 <= state.balance);
+    pool = pool.filter(p => (p.value != null ? p.value : calcValueMi(p)) * 1e6 <= state.balance);
   }
 
   let ps = pool.slice(0, 45);
@@ -19947,6 +20155,7 @@ function renderContinentalGroupStage(competitionId){
   const groups = data?.groups?.[competitionId];
   if(!groups) return '<div class="empty">Calendário de grupos indisponível.</div>';
   const fixtures = data.groupFixtures(competitionId);
+  const tournament = getContinentalTournament(competitionId);
   const name = competitionId === 'lib' ? 'Copa Libertadores' : 'Copa Sul-Americana';
   return `
     <section style="margin-top:18px;background:#101827;border:1px solid rgba(56,189,248,.25);border-radius:14px;padding:16px">
@@ -19961,11 +20170,22 @@ function renderContinentalGroupStage(competitionId){
             <div style="display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 10px">
               ${teams.map(team => `<span class="pill">${clubBadge(team,18)} ${esc(team)}</span>`).join('')}
             </div>
+            <div style="overflow:auto;margin:8px 0 10px">
+              <table style="width:100%;font-size:10px;border-collapse:collapse">
+                <thead><tr><th style="text-align:left">Clube</th><th>J</th><th>SG</th><th>Pts</th></tr></thead>
+                <tbody>${(tournament?.standings?.[group] || teams.map(name => ({name,played:0,gf:0,ga:0,points:0}))).map(row => `
+                  <tr><td>${clubBadge(row.name,16)} ${esc(row.name)}</td><td style="text-align:center">${row.played}</td><td style="text-align:center">${row.gf-row.ga}</td><td style="text-align:center;font-weight:800">${row.points}</td></tr>
+                `).join('')}</tbody>
+              </table>
+            </div>
             ${fixtures.map((round,index) => {
               const games = round.filter(f => f.group === group);
               return `<div style="font-size:11px;color:#cbd5e1;padding:5px 0;border-top:1px solid rgba(255,255,255,.06)">
                 <b style="color:#38bdf8">Rodada ${index+1} · ${esc(data.matchdays[index])}</b><br>
-                ${games.map(f => `${esc(f.home)} × ${esc(f.away)}`).join(' · ')}
+                ${games.map(f => {
+                  const played = tournament?.matches.find(item => item.id === continentalFixtureId(competitionId, f));
+                  return `${esc(f.home)} ${played?.result ? `${played.result[0]}–${played.result[1]}` : '×'} ${esc(f.away)}`;
+                }).join(' · ')}
               </div>`;
             }).join('')}
           </div>
@@ -20833,7 +21053,7 @@ function configPage(){
                       <div>🏆 <b>Fase:</b> ${s.round > 0 ? `Rodada ${s.round}` : 'Pré-temporada'}</div>
                       <div>📅 <b>Data:</b> ${esc(s.date || '2026-01-01')}</div>
                       <div>💰 <b>Caixa:</b> ${fmtMoney(s.balance || 0)}</div>
-                      <div style="font-size:10px;color:#94a3b8;margin-top:4px">🕒 <b>Atualizado:</b> ${esc(s.updatedAt || 'Recentemente')}</div>
+                      <div style="font-size:10px;color:#94a3b8;margin-top:4px">🕒 <b>Atualizado:</b> ${esc(formatSaveTimestamp(s.updatedAt || 'Recentemente'))}</div>
                     </div>
                   </div>
                   <div style="display:flex;gap:8px;align-items:center;margin-top:auto">
@@ -21915,10 +22135,10 @@ function renderSetup(app){
                 ` : ''}
 
                 <div style="margin-bottom:14px">
-                  <label class="afm-input-label">Nome de Usuário / Treinador</label>
+                  <label class="afm-input-label">E-mail da conta</label>
                   <div class="afm-input-box">
-                    <span class="afm-input-icon">👔</span>
-                    <input class="afm-input-field" id="inputAuthUser" placeholder="Ex: treinador">
+                    <span class="afm-input-icon">✉️</span>
+                    <input class="afm-input-field" id="inputAuthUser" type="email" autocomplete="email" placeholder="voce@exemplo.com" required>
                   </div>
                 </div>
 
@@ -21926,7 +22146,7 @@ function renderSetup(app){
                   <label class="afm-input-label">Senha de Acesso</label>
                   <div class="afm-input-box">
                     <span class="afm-input-icon">🔒</span>
-                    <input class="afm-input-field" id="inputAuthPass" type="password" placeholder="Sua senha secreta">
+                    <input class="afm-input-field" id="inputAuthPass" type="password" autocomplete="${setupAuthTab === 'login' ? 'current-password' : 'new-password'}" minlength="8" placeholder="Mínimo de 8 caracteres" required>
                     <button type="button" id="btnToggleAuthPass" style="background:none;border:none;cursor:pointer;font-size:16px;color:#94a3b8;padding:0;margin-left:8px;flex-shrink:0" title="Mostrar/ocultar senha">👁️</button>
                   </div>
                 </div>
@@ -22091,7 +22311,7 @@ function renderSetup(app){
                       ▶ Continuar Campanha (Slot ${slotNum})
                     </button>
                     <div style="display:flex;justify-content:space-between;align-items:center">
-                      <span class="small muted" style="font-size:10px">Salvo em: ${esc(s.updatedAt || s.date)}</span>
+                      <span class="small muted" style="font-size:10px">Salvo em: ${esc(formatSaveTimestamp(s.updatedAt || s.date))}</span>
                       <button class="btn danger btnDeleteUserSlot" data-slot="${slotNum}" style="font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer" title="Excluir save deste slot">
                         🗑️ Excluir Save
                       </button>
@@ -22844,8 +23064,11 @@ function bindSetup(){
   if(btnSwitchLog) btnSwitchLog.onclick = () => { setupAuthTab = 'login'; renderSetup($('#app')); };
 
   const btnForgot = $('#btnForgotPassLink');
-  if(btnForgot) btnForgot.onclick = () => {
-    toast('Dica: Sua conta oficial "aquino" utiliza a senha "viralgen123" ou "123". A conta "admin" utiliza "admin".');
+  if(btnForgot) btnForgot.onclick = async () => {
+    const email = $('#inputAuthUser')?.value.trim();
+    if(!email){ toast('Digite seu e-mail para receber o link de redefinição.'); return; }
+    const result = await window.AFM_DB.resetPassword(email);
+    toast(result.ok ? 'Se a conta existir, enviaremos um link para redefinir a senha.' : result.error);
   };
 
   // Binds de Autenticação
@@ -22858,25 +23081,36 @@ function bindSetup(){
 
   const btnSubmitAuth = $('#btnSubmitAuth');
   if(btnSubmitAuth){
-    btnSubmitAuth.onclick = () => {
+    btnSubmitAuth.onclick = async () => {
       const u = $('#inputAuthUser')?.value.trim();
-      const p = $('#inputAuthPass')?.value.trim();
-      if(!u || !p){ toast('Preencha usuário e senha.'); return; }
-      if(setupAuthTab === 'login'){
-        const res = loginUser(u, p);
-        if(!res.success) toast(res.error);
-        else {
-          toast(`Bem-vindo de volta, ${res.user.name}!`);
-          renderSetup($('#app'));
+      const p = $('#inputAuthPass')?.value;
+      if(!u || !p){ toast('Preencha seu e-mail e senha.'); return; }
+      btnSubmitAuth.disabled = true;
+      const label = btnSubmitAuth.textContent;
+      btnSubmitAuth.textContent = 'Conectando…';
+      try {
+        if(setupAuthTab === 'login'){
+          const res = await loginUser(u, p);
+          if(!res.success) toast(res.error);
+          else {
+            toast(`Bem-vindo de volta, ${res.user.name}!`);
+            renderSetup($('#app'));
+          }
+        } else {
+          const n = $('#inputAuthName')?.value.trim() || u.split('@')[0];
+          const res = await registerUser(u, p, n);
+          if(!res.success) toast(res.error);
+          else if(res.needsConfirmation) toast('Cadastro iniciado. Confirme seu e-mail antes de entrar.');
+          else {
+            toast(`Conta criada com sucesso! Bem-vindo, ${res.user.name}!`);
+            renderSetup($('#app'));
+          }
         }
-      } else {
-        const n = $('#inputAuthName')?.value.trim() || u;
-        const res = registerUser(u, p, n);
-        if(!res.success) toast(res.error);
-        else {
-          toast(`Conta criada com sucesso! Bem-vindo, ${res.user.name}!`);
-          renderSetup($('#app'));
-        }
+      } catch(error){
+        toast(error.message || 'Falha ao autenticar. Tente novamente.');
+      } finally {
+        btnSubmitAuth.disabled = false;
+        btnSubmitAuth.textContent = label;
       }
     };
   }
@@ -23054,16 +23288,14 @@ function bind(){
       };
     }
     const bAccConcCent = $('#btnAcceptConcertCentral');
-    if(bAccConcCent) bAccConcCent.onclick = () => { acceptEventConcert(true); render(); };
+    if(bAccConcCent) bAccConcCent.onclick = () => { $('#centralDecisionPanelCard')?.remove(); acceptEventConcert(true); };
     const bRejConcCent = $('#btnDismissConcertCentral');
-    if(bRejConcCent) bRejConcCent.onclick = rejectEventConcert;
-    const bDismissEventResult = $('#btnDismissAcceptedEvent');
-    if(bDismissEventResult) bDismissEventResult.onclick = () => { state.lastStadiumEvent = null; save(); render(); };
+    if(bRejConcCent) bRejConcCent.onclick = () => { $('#centralDecisionPanelCard')?.remove(); rejectEventConcert(true); };
 
     const bAccRentCent = $('#btnAcceptRentalCentral');
-    if(bAccRentCent) bAccRentCent.onclick = () => { acceptClubRental(true); render(); };
+    if(bAccRentCent) bAccRentCent.onclick = () => { $('#centralDecisionPanelCard')?.remove(); acceptClubRental(true); };
     const bRejRentCent = $('#btnDismissRentalCentral');
-    if(bRejRentCent) bRejRentCent.onclick = rejectClubRental;
+    if(bRejRentCent) bRejRentCent.onclick = () => { $('#centralDecisionPanelCard')?.remove(); rejectClubRental(true); };
 
     const bDecAcc = $('#btnAcceptDecision');
     if(bDecAcc){
@@ -23378,10 +23610,23 @@ function bind(){
       };
     });
 
+    function updateTacticalMetricsUI(){
+      const m = calculateTacticalMetrics(state?.formation, state?.tactics);
+      const elCentral = $('#tacMetricCentralCover');
+      const elFlank = $('#tacMetricFlankCover');
+      const elPress = $('#tacMetricPressCapacity');
+      const elTrans = $('#tacMetricTransitionCapacity');
+      if(elCentral) elCentral.textContent = m.centralCover + '%';
+      if(elFlank) elFlank.textContent = m.flankCover + '%';
+      if(elPress) elPress.textContent = m.pressCapacity + '%';
+      if(elTrans) elTrans.textContent = m.transitionCapacity + '%';
+    }
+
     const tacBu = $('#tacBuildUpStyle');
     if(tacBu){
       tacBu.onchange = () => {
         state.tactics.buildUpStyle = tacBu.value;
+        updateTacticalMetricsUI();
         save();
         toast(`Construção de jogo: ${tacBu.value}`);
       };
@@ -23391,6 +23636,7 @@ function bind(){
     if(tacDef){
       tacDef.onchange = () => {
         state.tactics.defensiveApproach = tacDef.value;
+        updateTacticalMetricsUI();
         save();
         toast(`Postura defensiva: ${tacDef.value}`);
       };
@@ -23410,9 +23656,11 @@ function bind(){
         inp.oninput = () => {
           if(valEl) valEl.textContent = inp.value;
           state.tactics[stateProp] = Number(inp.value);
+          updateTacticalMetricsUI();
         };
         inp.onchange = () => {
           state.tactics[stateProp] = Number(inp.value);
+          updateTacticalMetricsUI();
           save();
         };
       }
@@ -23546,6 +23794,7 @@ function bind(){
   if(view==='calendario'){
     $$('[data-cal-filter]').forEach(b=>b.onclick=()=>{calendarFilter=b.dataset.calFilter;render()});
     $$('.btnCalPlayNow').forEach(b => b.onclick = startLiveMatch);
+    $$('.btnCalTournamentPlay').forEach(b => b.onclick = () => playContinentalFixture(b.dataset.tournament, b.dataset.match));
   }
 
   if(view==='estrutura'){
@@ -23767,45 +24016,104 @@ function bind(){
 }
 
 // -------------------------------------------------------------
-// DRAG AND DROP & CLICK-TO-SWAP HÍBRIDO (AFM 2027)
+// -------------------------------------------------------------
+// SISTEMA DE SUBSTITUIÇÃO 100% POR CLIQUE (AFM 2027)
 // -------------------------------------------------------------
 var tacticalSelectedKey = null;
 window.tacticalSelectedKey = null;
 
-function executeSwap(sourceKey, targetKey, targetSlotIndex = null) {
-  if (!sourceKey) return;
+function executeSwap(sourceKey, targetKey, targetSlotIndex = null, sourceSlotIndex = null) {
+  if (!sourceKey && !targetKey && !Number.isInteger(targetSlotIndex)) return;
   if (!Array.isArray(state.lineup)) state.lineup = [];
 
-  // Normalize IDs from older saves before comparing them with the rendered lineup.
+  while (state.lineup.length < 11) {
+    state.lineup.push(null);
+  }
+
+  // CASO TITULAR ↔ TITULAR: Se ambos os índices de titulares foram passados diretamente
+  if (Number.isInteger(sourceSlotIndex) && Number.isInteger(targetSlotIndex) &&
+      sourceSlotIndex >= 0 && sourceSlotIndex < 11 &&
+      targetSlotIndex >= 0 && targetSlotIndex < 11 &&
+      sourceSlotIndex !== targetSlotIndex) {
+    const temp = state.lineup[sourceSlotIndex];
+    state.lineup[sourceSlotIndex] = state.lineup[targetSlotIndex];
+    state.lineup[targetSlotIndex] = temp;
+    tacticalSelectedKey = null;
+    save();
+    render();
+    toast('🔄 Posições trocadas com sucesso!');
+    return;
+  }
+
+  // Normaliza IDs de saves antigos
   state.lineup = state.lineup.map(key => {
+    if (!key) return null;
     const player = findSquadPlayerByKey(String(key || ''));
     return player ? playerKey(player) : key;
   });
-  const sourcePlayer = findSquadPlayerByKey(String(sourceKey));
-  if(!sourcePlayer) return toast('Não foi possível localizar o jogador selecionado no elenco.');
-  sourceKey = playerKey(sourcePlayer);
+
+  const sourcePlayer = sourceKey ? findSquadPlayerByKey(String(sourceKey)) : null;
+  const sKey = sourcePlayer ? playerKey(sourcePlayer) : (sourceKey || null);
+
   const targetPlayer = targetKey ? findSquadPlayerByKey(String(targetKey)) : null;
-  targetKey = targetPlayer ? playerKey(targetPlayer) : targetKey;
+  const tKey = targetPlayer ? playerKey(targetPlayer) : (targetKey || null);
 
-  const sourceLineupIdx = state.lineup.indexOf(sourceKey);
-  let targetLineupIdx = targetKey ? state.lineup.indexOf(targetKey) : -1;
-
-  if (Number.isInteger(targetSlotIndex) && targetSlotIndex >= 0 && targetSlotIndex < state.lineup.length) {
-    targetLineupIdx = targetSlotIndex;
+  let sourceLineupIdx = -1;
+  if (Number.isInteger(sourceSlotIndex) && sourceSlotIndex >= 0 && sourceSlotIndex < 11) {
+    sourceLineupIdx = sourceSlotIndex;
+  } else if (sKey) {
+    sourceLineupIdx = state.lineup.findIndex(k => {
+      if (!k) return false;
+      if (k === sKey || k === sourceKey) return true;
+      const p = findSquadPlayerByKey(k);
+      return p && (playerKey(p) === sKey || playerKey(p) === sourceKey);
+    });
   }
 
-  if(targetLineupIdx < 0) return toast('Selecione uma vaga titular para fazer a troca.');
+  let targetLineupIdx = -1;
+  if (Number.isInteger(targetSlotIndex) && targetSlotIndex >= 0 && targetSlotIndex < 11) {
+    targetLineupIdx = targetSlotIndex;
+  } else if (tKey) {
+    targetLineupIdx = state.lineup.findIndex(k => {
+      if (!k) return false;
+      if (k === tKey || k === targetKey) return true;
+      const p = findSquadPlayerByKey(k);
+      return p && (playerKey(p) === tKey || playerKey(p) === targetKey);
+    });
+  }
 
-  if (sourceLineupIdx >= 0 && targetLineupIdx >= 0) {
-    // Troca atômica entre dois titulares
+  // Caso 1: Dois titulares -> troca as posições entre eles
+  if (sourceLineupIdx >= 0 && targetLineupIdx >= 0 && sourceLineupIdx !== targetLineupIdx) {
     [state.lineup[sourceLineupIdx], state.lineup[targetLineupIdx]] = 
       [state.lineup[targetLineupIdx], state.lineup[sourceLineupIdx]];
-  } else if (targetLineupIdx >= 0) {
-    // Reserva entra no slot do titular
-    state.lineup[targetLineupIdx] = sourceKey;
-  } else if (sourceLineupIdx >= 0 && targetKey) {
-    // Titular sai e reserva entra
-    state.lineup[sourceLineupIdx] = targetKey;
+  }
+  // Caso 2: targetLineupIdx é a vaga titular e sKey é reserva -> reserva entra na vaga
+  else if (targetLineupIdx >= 0 && sKey) {
+    // Garante que sKey não fique duplicado em nenhuma outra posição
+    state.lineup = state.lineup.map((k, idx) => (idx !== targetLineupIdx && (k === sKey || (sKey && playerKey(findSquadPlayerByKey(k)) === sKey)) ? null : k));
+    if (sourceLineupIdx >= 0) {
+      state.lineup[sourceLineupIdx] = state.lineup[targetLineupIdx];
+    }
+    state.lineup[targetLineupIdx] = sKey;
+  }
+  // Caso 3: sourceLineupIdx é a vaga titular e tKey é reserva -> reserva entra na vaga
+  else if (sourceLineupIdx >= 0 && tKey) {
+    state.lineup = state.lineup.map((k, idx) => (idx !== sourceLineupIdx && (k === tKey || (tKey && playerKey(findSquadPlayerByKey(k)) === tKey)) ? null : k));
+    if (targetLineupIdx >= 0) {
+      state.lineup[targetLineupIdx] = state.lineup[sourceLineupIdx];
+    }
+    state.lineup[sourceLineupIdx] = tKey;
+  }
+  // Caso 4: targetSlotIndex válido com um jogador para ocupar a vaga
+  else if (Number.isInteger(targetSlotIndex) && targetSlotIndex >= 0 && targetSlotIndex < 11) {
+    const keyToInsert = sKey || tKey;
+    if (keyToInsert) {
+      state.lineup = state.lineup.map((k, idx) => (idx !== targetSlotIndex && (k === keyToInsert || playerKey(findSquadPlayerByKey(k)) === keyToInsert) ? null : k));
+      state.lineup[targetSlotIndex] = keyToInsert;
+    }
+  }
+  else {
+    return toast('Selecione uma vaga titular para fazer a troca.');
   }
 
   tacticalSelectedKey = null;
@@ -23817,7 +24125,11 @@ function executeSwap(sourceKey, targetKey, targetSlotIndex = null) {
 function setupPitchDragAndDrop(){
   const myTeamContainer = $('#myTeamTacticsContainer');
   if(myTeamContainer){
-    const startingPlayers = (state.lineup||[]).map(pk => state.squad.find(q => playerKey(q) === pk)).filter(Boolean);
+    const formSlots = formationSlots() || [];
+    const startingPlayers = formSlots.map((slot, idx) => {
+      const pk = state.lineup?.[idx];
+      return pk ? findSquadPlayerByKey(pk) : null;
+    });
     const bench = state.squad.filter(p => !(state.lineup||[]).includes(playerKey(p))).sort((a,b)=>playerOverall(b)-playerOverall(a));
 
     setupTacticsInteractions({
@@ -23825,10 +24137,10 @@ function setupPitchDragAndDrop(){
       starters: startingPlayers,
       bench: bench,
       onSwap: (targetKey, benchKey, targetSlotIndex) => {
-        executeSwap(benchKey, targetKey, targetSlotIndex);
+        executeSwap(benchKey, targetKey, targetSlotIndex, null);
       },
-      onStarterSwap: (key1, key2) => {
-        executeSwap(key1, key2);
+      onStarterSwap: (key1, key2, idx1, idx2) => {
+        executeSwap(key1, key2, idx2, idx1);
       },
       isHalftime: false
     });
@@ -24132,5 +24444,11 @@ window.setActiveAccount = setActiveAccount;
 window.getStoredAccounts = getStoredAccounts;
 window.saveStoredAccounts = saveStoredAccounts;
 
-render();
+getStoredAccounts(); // Remove credenciais legadas do armazenamento local sem apagar os saves.
+window.AFM_DB.init()
+  .then(async user => {
+    if(user) await activateAuthenticatedUser(user);
+  })
+  .catch(error => console.warn('[AFM] Sessão Supabase indisponível; saves locais preservados:', error.message))
+  .finally(render);
 })();

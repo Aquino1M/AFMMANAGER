@@ -79,7 +79,7 @@ function renderPitchPlayerPill(player, slot = {}, opts = {}) {
   const x = slot.x ?? 50;
   const y = slot.y ?? 50;
   const pk = player ? (typeof playerKey === 'function' ? playerKey(player) : (player.id || player.key || player.name)) : '';
-  const ovr = player ? (player.overall || player.ovr || (typeof playerOverall === 'function' ? playerOverall(player) : 60)) : '-';
+  const ovr = player ? ((typeof getPlayerEffectiveOverall === 'function') ? getPlayerEffectiveOverall(player, role) : (player.overall || player.ovr || (typeof playerOverall === 'function' ? playerOverall(player) : 60))) : '-';
   const pos = player ? (player.pos || role) : role;
   const isSelected = !!opts.isSelected;
   const isHalftime = !!opts.isHalftime;

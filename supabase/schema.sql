@@ -17,11 +17,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 3. TABELA DE USUÁRIOS / TREINADORES DO AFM MANAGER
+-- 3. Perfil legado sem credenciais. A autenticação fica em auth.users.
 CREATE TABLE IF NOT EXISTS public.afm_users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
     name TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'player',
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
@@ -34,6 +33,7 @@ CREATE INDEX IF NOT EXISTS idx_afm_users_username_lower ON public.afm_users (low
 -- 4. TABELA DE SAVES / CARREIRAS POR SLOT (1, 2, 3)
 CREATE TABLE IF NOT EXISTS public.afm_saves (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     username TEXT NOT NULL,
     slot INTEGER NOT NULL CHECK (slot BETWEEN 1 AND 3),
     club TEXT NOT NULL,
@@ -51,6 +51,10 @@ CREATE TABLE IF NOT EXISTS public.afm_saves (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     CONSTRAINT uq_afm_saves_username_slot UNIQUE (username, slot)
 );
+
+ALTER TABLE public.afm_saves
+    ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_afm_saves_user_slot ON public.afm_saves (user_id, slot);
 
 -- Adicionar colunas se tabela já existir em migrações anteriores
 DO $$ 
@@ -90,37 +94,30 @@ CREATE TRIGGER trg_afm_saves_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION public.set_current_timestamp_updated_at();
 
--- 5. HABILITAR ROW LEVEL SECURITY (RLS) COM POLÍTICAS PÚBLICAS / ANÔNIMAS (LOCAL-FIRST)
+-- 5. RLS: somente o dono autenticado acessa os próprios saves.
 ALTER TABLE public.afm_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.afm_saves ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public full access to afm_users" ON public.afm_users;
-CREATE POLICY "Public full access to afm_users"
-    ON public.afm_users
-    FOR ALL
-    USING (true)
-    WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public full access to afm_saves" ON public.afm_saves;
-CREATE POLICY "Public full access to afm_saves"
-    ON public.afm_saves
-    FOR ALL
-    USING (true)
-    WITH CHECK (true);
+DROP POLICY IF EXISTS afm_saves_select_own ON public.afm_saves;
+DROP POLICY IF EXISTS afm_saves_insert_own ON public.afm_saves;
+DROP POLICY IF EXISTS afm_saves_update_own ON public.afm_saves;
+DROP POLICY IF EXISTS afm_saves_delete_own ON public.afm_saves;
+CREATE POLICY afm_saves_select_own ON public.afm_saves
+    FOR SELECT TO authenticated USING ((SELECT auth.uid()) = user_id);
+CREATE POLICY afm_saves_insert_own ON public.afm_saves
+    FOR INSERT TO authenticated WITH CHECK ((SELECT auth.uid()) = user_id);
+CREATE POLICY afm_saves_update_own ON public.afm_saves
+    FOR UPDATE TO authenticated USING ((SELECT auth.uid()) = user_id)
+    WITH CHECK ((SELECT auth.uid()) = user_id);
+CREATE POLICY afm_saves_delete_own ON public.afm_saves
+    FOR DELETE TO authenticated USING ((SELECT auth.uid()) = user_id);
 
--- 6. CONCEDER PERMISSÕES COMPLETAS AO CLIENTE WEB (ANON, AUTHENTICATED E SERVICE_ROLE)
-GRANT ALL ON TABLE public.afm_users TO anon, authenticated, service_role;
-GRANT ALL ON TABLE public.afm_saves TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.set_current_timestamp_updated_at() TO anon, authenticated, service_role;
-
--- 7. USUÁRIOS PADRÃO INICIAIS (IDEMPOTENTE)
-INSERT INTO public.afm_users (username, password, name, role)
-VALUES 
-    ('admin', 'admin', 'Administrador AFM', 'admin'),
-    ('aquino', 'viralgen123', 'Aquino', 'player')
-ON CONFLICT (username) DO UPDATE 
-SET 
-    password = EXCLUDED.password,
-    name = EXCLUDED.name,
-    role = EXCLUDED.role,
-    updated_at = timezone('utc'::text, now());
+REVOKE ALL ON TABLE public.afm_users FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.afm_saves FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.afm_saves TO authenticated;
+GRANT ALL ON TABLE public.afm_saves TO service_role;
+ALTER TABLE public.afm_users DROP COLUMN IF EXISTS password;
+REVOKE EXECUTE ON FUNCTION public.set_current_timestamp_updated_at() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.set_current_timestamp_updated_at() TO authenticated;
