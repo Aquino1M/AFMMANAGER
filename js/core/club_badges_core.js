@@ -229,7 +229,11 @@ function buildClubBadgeFallbackPaths(rawName) {
 window.renderClubBadge = function(clubName, size = 32) {
   const rawName = (typeof clubName === 'object' && clubName !== null ? (clubName.name || clubName.club || '') : String(clubName || '')).trim() || 'Clube';
   const n = window.normClub(rawName);
-  const verifiedFile = window.CLUB_BADGES_VERIFIED_2026_BY_NAME?.[n] || window.CLUB_BADGE_ALIASES_VERIFIED_2026?.[n];
+  const compactName = n.replace(/[^a-z0-9]/g, '');
+  const verifiedFile = window.CLUB_BADGES_VERIFIED_2026_BY_NAME?.[n]
+    || window.CLUB_BADGE_ALIASES_VERIFIED_2026?.[n]
+    || window.CLUB_BADGES_VERIFIED_WORLD_BY_NAME?.[compactName]
+    || window.CLUB_BADGES_LOCAL_INDEX_BY_NAME?.[compactName];
   let file = verifiedFile || (window.CLUB_ALIASES && window.CLUB_ALIASES[n]) || (window.CLUB_BADGES && window.CLUB_BADGES[rawName]);
   if (!file && window.CLUB_BADGES) {
     for (const [k, v] of Object.entries(window.CLUB_BADGES)) {

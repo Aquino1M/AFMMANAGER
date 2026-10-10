@@ -17,10 +17,9 @@ console.log('='.repeat(70));
 let errorsCount = 0;
 let warningsCount = 0;
 
-function loadBrowserData(relativePath) {
-  const sandbox = { window: {} };
-  vm.runInNewContext(fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8'), sandbox);
-  return sandbox.window;
+function loadBrowserData(relativePath, window = {}) {
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8'), { window });
+  return window;
 }
 
 // 1. Carregar Competitions & Teams
@@ -35,12 +34,21 @@ function loadClubBadges() {
     path.join('data', 'club_badges.js'),
     path.join('data', 'club_badges_unverified.js'),
     path.join('js', 'core', 'club_badges_core.js'),
-    path.join('data', 'club_badges_verified_2026.js')
+    path.join('data', 'club_badges_verified_2026.js'),
+    path.join('data', 'club_badges_verified_world.js'),
+    path.join('data', 'club_badges_local_index.js')
   ]) {
     const source = fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
     vm.runInNewContext(`(function(){${source}\n})();`, { window }, { filename: relativePath });
   }
-  return { badges: window.CLUB_BADGES || {}, logos: window.COMPETITION_LOGOS || {} };
+  return {
+    badges: window.CLUB_BADGES || {}, logos: window.COMPETITION_LOGOS || {},
+    verified: window.CLUB_BADGES_VERIFIED_2026_BY_NAME || {},
+    aliases: window.CLUB_BADGE_ALIASES_VERIFIED_2026 || {},
+    world: window.CLUB_BADGES_VERIFIED_WORLD_BY_NAME || {},
+    local: window.CLUB_BADGES_LOCAL_INDEX_BY_NAME || {},
+    normalize: value => (window.normClub ? window.normClub(value) : String(value)).replace(/[^a-z0-9]/g, '')
+  };
 }
 
 // 3. Carregar Definição de Competições
@@ -50,8 +58,13 @@ function loadCompetitions() {
 }
 
 const compTeams = loadCompetitionTeams();
-const { badges: clubBadges, logos: compLogos } = loadClubBadges();
 const competitions = loadCompetitions();
+const internationalData = loadBrowserData(path.join('data', 'international_teams_2026_27.js'), {
+  COMPETITION_TEAMS: compTeams,
+  COMPETITIONS: competitions
+});
+loadBrowserData(path.join('data', 'continental_2026.js'), { COMPETITION_TEAMS: compTeams });
+const { badges: clubBadges, logos: compLogos, verified, aliases, world, local, normalize } = loadClubBadges();
 
 console.log(`\n📋 [ETAPA 1] Validando Competições Principais:`);
 const EXPECTED_TEAMS = {
@@ -59,10 +72,16 @@ const EXPECTED_TEAMS = {
   'bra-b': 20,
   'bra-c': 20,
   'bra-d': 96,
-  'lib': 16,
-  'sud': 16,
+  'lib': 32,
+  'sud': 32,
   'cwc': 12
 };
+
+function resolveBadge(clubName) {
+  const key = normalize ? normalize(clubName) : clubName;
+  return verified[key] || aliases[key] || world[key] || local[key] || clubBadges[clubName]
+    || Object.entries(clubBadges).find(([name]) => (normalize ? normalize(name) : name) === key)?.[1];
+}
 
 for (const [compId, expectedCount] of Object.entries(EXPECTED_TEAMS)) {
   const teams = compTeams[compId] || [];
@@ -83,17 +102,23 @@ for (const [compId, expectedCount] of Object.entries(EXPECTED_TEAMS)) {
 }
 
 console.log(`\n🛡️ [ETAPA 2] Validando Existência e Integridade dos Escudos dos Clubes:`);
-const allCompClubNames = new Set();
-['bra-a', 'bra-b', 'bra-c', 'bra-d', 'lib', 'sud', 'cwc'].forEach(c => {
-  (compTeams[c] || []).forEach(t => allCompClubNames.add(t));
-});
+const allCompClubNames = new Set(Object.values(compTeams).flat());
+const refreshedInternational = internationalData.AFM_INTERNATIONAL_TEAMS_2026_27 || {};
+for (const [compId, teams] of Object.entries(refreshedInternational)) {
+  const competition = competitions.find(item => item.id === compId);
+  if (!competition || competition.teams !== teams.length) {
+    console.error(`❌ [ELENCO INCONSISTENTE] ${compId}: metadados ${competition?.teams ?? 'ausentes'}, feed ${teams.length}`);
+    errorsCount++;
+  }
+  for (const team of teams) allCompClubNames.add(team);
+}
 
 let missingBadgeMapping = 0;
 let missingFileOnDisk = 0;
 let emptyFiles = 0;
 
 allCompClubNames.forEach(clubName => {
-  const badgeFile = clubBadges[clubName];
+  const badgeFile = resolveBadge(clubName);
   if (!badgeFile) {
     console.error(`❌ [MAPEAMENTO AUSENTE] Clube sem escudo em CLUB_BADGES: "${clubName}"`);
     missingBadgeMapping++;
@@ -121,6 +146,7 @@ console.log(`  Total de clubes auditados nas competições-chave: ${allCompClubN
 console.log(`  Mapeamentos ausentes: ${missingBadgeMapping}`);
 console.log(`  Arquivos inexistentes no disco: ${missingFileOnDisk}`);
 console.log(`  Arquivos vazios: ${emptyFiles}`);
+console.log(`  Elencos internacionais de temporada auditados: ${Object.keys(refreshedInternational).length}`);
 
 console.log(`\n🏆 [ETAPA 3] Validando Logos das Competições:`);
 const requiredLogos = ['bra-a', 'bra-b', 'bra-c', 'bra-d', 'bra-cup', 'lib', 'sud', 'ucl', 'uel', 'cwc', 'eng-1', 'esp-1', 'ita-1', 'ger-1', 'fra-1', 'por-1', 'ksa-1'];
