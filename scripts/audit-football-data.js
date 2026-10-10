@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const vm = require('node:vm');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const BADGES_DIR = path.join(ROOT_DIR, 'img', 'badges');
@@ -16,31 +17,30 @@ console.log('='.repeat(70));
 let errorsCount = 0;
 let warningsCount = 0;
 
+function loadBrowserData(relativePath) {
+  const sandbox = { window: {} };
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8'), sandbox);
+  return sandbox.window;
+}
+
 // 1. Carregar Competitions & Teams
 function loadCompetitionTeams() {
-  const content = fs.readFileSync(path.join(ROOT_DIR, 'data', 'competition_teams.js'), 'utf8');
-  const sandbox = { window: {} };
-  eval(content.replace('window.COMPETITION_TEAMS', 'sandbox.window.COMPETITION_TEAMS'));
-  return sandbox.window.COMPETITION_TEAMS || {};
+  return loadBrowserData(path.join('data', 'competition_teams.js')).COMPETITION_TEAMS || {};
 }
 
 // 2. Carregar Mapeamento de Escudos
 function loadClubBadges() {
-  const content = fs.readFileSync(path.join(ROOT_DIR, 'data', 'club_badges.js'), 'utf8');
-  const sandbox = { window: {} };
-  eval(content.replace(/window\.CLUB_BADGES/g, 'sandbox.window.CLUB_BADGES').replace(/window\.COMPETITION_LOGOS/g, 'sandbox.window.COMPETITION_LOGOS'));
+  const data = loadBrowserData(path.join('data', 'club_badges.js'));
   return {
-    badges: sandbox.window.CLUB_BADGES || {},
-    logos: sandbox.window.COMPETITION_LOGOS || {}
+    badges: data.CLUB_BADGES || {},
+    logos: data.COMPETITION_LOGOS || {}
   };
 }
 
 // 3. Carregar Definição de Competições
 function loadCompetitions() {
-  const content = fs.readFileSync(path.join(ROOT_DIR, 'js', 'competitions.js'), 'utf8');
-  const sandbox = { window: {} };
-  eval(content.replace(/window\.COMPETITIONS/g, 'sandbox.window.COMPETITIONS').replace(/window\.BASE_CLUBS/g, 'sandbox.window.BASE_CLUBS'));
-  return sandbox.window.COMPETITIONS || [];
+  const data = loadBrowserData(path.join('js', 'competitions.js'));
+  return data.COMPETITIONS || [];
 }
 
 const compTeams = loadCompetitionTeams();
@@ -137,10 +137,7 @@ requiredLogos.forEach(cId => {
 
 console.log(`\n⚽ [ETAPA 4] Validando Banco de Dados de Jogadores Reais (LIVE_PLAYERS):`);
 function loadLivePlayers() {
-  const content = fs.readFileSync(path.join(ROOT_DIR, 'data', 'players_live.js'), 'utf8');
-  const sandbox = { window: {} };
-  eval(content.replace(/window\.LIVE_PLAYERS/g, 'sandbox.window.LIVE_PLAYERS').replace(/window\.PLAYER_DB_META/g, 'sandbox.window.PLAYER_DB_META'));
-  return sandbox.window.LIVE_PLAYERS || [];
+  return loadBrowserData(path.join('data', 'players_live.js')).LIVE_PLAYERS || [];
 }
 
 const livePlayers = loadLivePlayers();
@@ -167,13 +164,13 @@ livePlayers.forEach(p => {
 console.log(`  Clubes com elencos cadastrados: ${uniquePlayerClubs.size}`);
 console.log(`  Clubes de atletas sem escudo: ${missingPlayerClubBadge}`);
 if (missingPlayerClubBadge === 0 && livePlayers.length > 0) {
-  console.log(`  ✅ Todos os ${livePlayers.length} atletas reais pertencem a clubes com escudos 100% autênticos e validados.`);
+  console.log(`  ✅ Todos os ${livePlayers.length} atletas reais têm clube com escudo mapeado.`);
 }
 
 console.log('\n' + '='.repeat(70));
 if (errorsCount === 0) {
   console.log(`🎉 AUDITORIA CONCLUÍDA COM SUCESSO! 0 ERROS ENCONTRADOS.`);
-  console.log(`Todos os clubes, escudos, competições, logos e elencos atendem 100% aos requisitos de fidelidade.`);
+  console.log(`Todos os mapeamentos, arquivos locais e dados cobertos por esta auditoria passaram.`);
 } else {
   console.error(`🚨 AUDITORIA ENCONTROU ${errorsCount} ERROS. CORREÇÕES NECESSÁRIAS.`);
   process.exitCode = 1;

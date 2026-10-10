@@ -2,6 +2,7 @@
 window.CLUB_BADGES = {
   "Argentinos Juniors": "argentinos_juniors.png",
   "Atlético Tucumán": "atletico_tucuman.png",
+  "Atlético Nacional": "atletico_nacional.png",
   "Banfield": "banfield.png",
   "Barracas Central": "barracas_central.png",
   "Belgrano": "belgrano.png",
@@ -323,6 +324,7 @@ window.CLUB_BADGES = {
   "NAC Breda": "nac_breda.png",
   "Nacional": "nacional.png",
   "Nacional-AM": "nacional_am.png",
+  "Millonarios": "millonarios.png",
   "Nagoya Grampus": "nagoya_grampus.png",
   "Nantes": "nantes.png",
   "Napoli": "napoli.png",

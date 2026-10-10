@@ -58,7 +58,9 @@ Aquino_Futebol_Manager_2026/
 ├── CHANGELOG.md            # Histórico limpo e estruturado de versões
 ├── package.json            # Metadados do projeto e scripts npm
 ├── vercel.json             # Configurações de deploy estático sem cache
-└── ENVIAR_GITHUB.bat       # Script automatizado de commit e push
+├── JOGAR.bat               # Abre o jogo
+├── ENVIAR_GITHUB.bat       # Envia commits já criados
+└── atualizar_do_github.bat # Atualiza a cópia local por avanço seguro
 ```
 
 ---

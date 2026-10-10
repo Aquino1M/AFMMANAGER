@@ -13,6 +13,7 @@ css/app.css               -> visual
 js/competitions.js        -> regras e catálogo de competições/clubes base
 js/game.js                -> motor da carreira/simulação/UI/save
 data/players_live.js      -> banco local de jogadores
-ATUALIZAR_DADOS.bat       -> atualização de elencos/ratings
 JOGAR.bat                 -> abre o jogo no Windows
+ENVIAR_GITHUB.bat         -> envia commits já criados
+atualizar_do_github.bat   -> atualiza a cópia local por avanço seguro
 tools/update-data.ps1     -> importador/conversor das bases externas

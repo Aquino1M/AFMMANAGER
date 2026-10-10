@@ -7,6 +7,7 @@ New-Item -ItemType Directory -Force -Path $DataDir,$CacheDir | Out-Null
 $Pdb = Join-Path $CacheDir 'playersdb.csv'
 $Fc = Join-Path $CacheDir 'fc26_players.csv'
 $Out = Join-Path $DataDir 'players_live.js'
+$TempOut = "$Out.tmp"
 $Log = Join-Path $CacheDir 'update.log'
 "Atualizacao iniciada em $(Get-Date -Format s)" | Set-Content $Log -Encoding UTF8
 
@@ -101,7 +102,7 @@ foreach($p in $pdbRows){
 if($final.Count -lt 100){throw "Poucos jogadores foram extraidos ($($final.Count)). Veja data_cache\update.log e mantenha o banco offline anterior."}
 Write-Host "Gerando arquivo local com $($final.Count) jogadores..." -ForegroundColor Yellow
 $utf8 = New-Object System.Text.UTF8Encoding($false)
-$sw = New-Object System.IO.StreamWriter($Out,$false,$utf8)
+$sw = New-Object System.IO.StreamWriter($TempOut,$false,$utf8)
 $sw.Write('window.LIVE_PLAYERS=[')
 for($i=0;$i -lt $final.Count;$i++){
   if($i -gt 0){$sw.Write(',')}
@@ -111,5 +112,12 @@ $sw.Write('];')
 $meta=[ordered]@{source='PlayersDB + EA FC dataset';updated=(Get-Date -Format 'yyyy-MM-dd');count=$final.Count;note='Atualizado localmente. EA atual vem do PlayersDB quando disponivel; dataset FC26 serve como complemento/fallback. PES/eFootball vem do PlayersDB.'} | ConvertTo-Json -Compress
 $sw.Write("window.PLAYER_DB_META=$meta;")
 $sw.Close()
+if(Test-Path -LiteralPath $Out){
+  $backup = Join-Path $CacheDir ("players_live.backup-{0}.js" -f (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+  [System.IO.File]::Replace($TempOut,$Out,$backup)
+  Write-Host "Backup salvo em $backup" -ForegroundColor Cyan
+} else {
+  [System.IO.File]::Move($TempOut,$Out)
+}
 "SUCESSO: $($final.Count) jogadores em $(Get-Date -Format s)" | Add-Content $Log
 Write-Host "OK: $($final.Count) jogadores gravados em data\players_live.js" -ForegroundColor Green

@@ -1308,60 +1308,6 @@ function installPitchType(type){
   openStadiumModal('maintenance');
 }
 
-// Aceitar / Recusar Aluguel de Clube
-function acceptClubRental(){
-  if(!state.stadiumClubRental) return;
-  const r = state.stadiumClubRental;
-  state.balance += r.fee;
-  state.income = (state.income || 0) + r.fee;
-
-  // Desgaste: sintético sofre bem menos
-  const wear = state.stadiumPitchType === 'synthetic' ? 2 : 6;
-  state.stadiumMaintenance = Math.max(5, (state.stadiumMaintenance || 90) - wear);
-
-  state.news.unshift(`🏟️ ESTÁDIO ALUGADO: O ${r.club} jogou no nosso estádio pagando ${fmtMoney(r.fee)} de aluguel.`);
-  toast(`Contrato de aluguel fechado! +${fmtMoney(r.fee)} creditados no caixa.`);
-  state.stadiumClubRental = null;
-  state.pendingDecision = null;
-  save();
-  openStadiumModal('maintenance');
-}
-
-function rejectClubRental(){
-  state.stadiumClubRental = null;
-  state.pendingDecision = null;
-  toast('Proposta de aluguel recusada.');
-  save();
-  openStadiumModal('maintenance');
-}
-
-// Aceitar / Recusar Show / Evento Cultural
-function acceptEventConcert(){
-  if(!state.stadiumEventProposal) return;
-  const e = state.stadiumEventProposal;
-  state.balance += e.fee;
-  state.income = (state.income || 0) + e.fee;
-
-  // Desgaste: sintético sofre apenas 4%, natural perde 18%!
-  const wear = state.stadiumPitchType === 'synthetic' ? 4 : 18;
-  state.stadiumMaintenance = Math.max(5, (state.stadiumMaintenance || 90) - wear);
-
-  state.news.unshift(`🎤 MEGAEVENTO: O estádio sediou o ${e.name} com sucesso absoluto! Lucro de ${fmtMoney(e.fee)}.`);
-  toast(`🎉 Show autorizado com sucesso! +${fmtMoney(e.fee)} no caixa!`);
-  state.stadiumEventProposal = null;
-  state.pendingDecision = null;
-  save();
-  openStadiumModal('maintenance');
-}
-
-function rejectEventConcert(){
-  state.stadiumEventProposal = null;
-  state.pendingDecision = null;
-  toast('Convite para show recusado.');
-  save();
-  openStadiumModal('maintenance');
-}
-
 function clubStadiumName(){
   if(state && state.namingRights && state.namingRights.stadiumName){
     return state.namingRights.stadiumName;
@@ -20966,7 +20912,7 @@ function configPage(){
 
       <div class="card" style="margin-top:14px">
         <h2>Como Atualizar Elencos e Jogadores Reais</h2>
-        <p>Feche o jogo e execute o arquivo <b>ATUALIZAR_DADOS.bat</b> na pasta do projeto. O script baixa e compila as bases públicas sem apagar o seu save da carreira.</p>
+        <p>Feche o jogo e execute <code>powershell -NoProfile -ExecutionPolicy Bypass -File tools\\update-data.ps1</code> na pasta do projeto. A base atual será guardada antes da atualização; o save da carreira não é alterado.</p>
         <div class="small muted">Fonte: ${esc(m.source||'banco offline')} • ${esc(m.note||'')}</div>
       </div>
 
