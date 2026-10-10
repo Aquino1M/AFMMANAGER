@@ -2130,6 +2130,7 @@ function openStadiumModal(initialTab){
 
 function generateStadiumRentalProposal(force = false){
   if(state.stadiumClubRental && !force) return state.stadiumClubRental;
+  if(state.lastStadiumEvent?.date === state.date) return null;
   const currentClubNorm = norm(state.club || '');
   const candidates = (state.teams || [])
     .filter(t => norm(t.name) !== currentClubNorm)
@@ -2168,6 +2169,14 @@ function acceptClubRental(returnToCentral = false){
   if(!returnToCentral) openStadiumModal();
 }
 
+function expireStadiumEventConfirmation(){
+  if(state?.lastStadiumEvent?.date && state.lastStadiumEvent.date < state.date){
+    state.lastStadiumEvent = null;
+    return true;
+  }
+  return false;
+}
+
 function rejectClubRental(){
   if(!state.stadiumClubRental) return;
   toast('Proposta de aluguel recusada.');
@@ -2178,6 +2187,7 @@ function rejectClubRental(){
 
 function generateStadiumEventProposal(force = false){
   if(state.stadiumEventProposal && !force) return state.stadiumEventProposal;
+  if(state.lastStadiumEvent?.date === state.date) return null;
   const events = [
     { name: '🎤 Turnê Tardezinha (Thiaguinho)', mult: 1.4 },
     { name: '🔥 Show Numanice (Ludmilla)', mult: 1.5 },
@@ -6721,7 +6731,7 @@ function renderVerticalTacticsPitch(starters, formationName = '4-3-3', opts = {}
     </div>
     ${formSlots.map((slot, idx) => {
       const p = starters[idx] || null;
-      const pk = p ? (p.key || (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.name))) : '';
+      const pk = p ? (opts.isHalftime && p.key ? p.key : (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.name))) : '';
       const isSelected = selectedKey && pk && (selectedKey === pk);
       const slotRole = slot.r || (p?.pos || 'ST');
       const posX = slot.x;
@@ -6752,6 +6762,8 @@ window.renderVerticalTacticsPitch = renderVerticalTacticsPitch;
 // =========================================================================
 function setupTacticsInteractions({ containerEl, starters, bench, onSwap, onStarterSwap, isHalftime }){
   if(!containerEl) return;
+
+  const keyOf = p => isHalftime && p?.key ? p.key : (typeof playerKey === 'function' ? playerKey(p) : p?.key);
 
   let selectedStarterKey = null;
   let selectedBenchKey = null;
@@ -6840,7 +6852,7 @@ function setupTacticsInteractions({ containerEl, starters, bench, onSwap, onStar
       e.dataTransfer.setData('text/plain', draggedStarterKey);
       if(e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
 
-      const stPlayer = (starters || []).find(p => (p.key || (typeof playerKey === 'function' ? playerKey(p) : '')) === draggedStarterKey);
+      const stPlayer = (starters || []).find(p => keyOf(p) === draggedStarterKey);
       applyFitnessHighlights(stPlayer?.pos || slot.dataset.slotRole);
     };
     slot.ondragend = () => {
@@ -6884,7 +6896,7 @@ function setupTacticsInteractions({ containerEl, starters, bench, onSwap, onStar
         selectedStarterKey = sKey;
         clearVisualHighlights();
         slot.classList.add('slot-ideal');
-        const stPlayer = (starters || []).find(p => (p.key || (typeof playerKey === 'function' ? playerKey(p) : '')) === sKey);
+        const stPlayer = (starters || []).find(p => keyOf(p) === sKey);
         applyFitnessHighlights(stPlayer?.pos || slot.dataset.slotRole);
         toast(`👉 Titular selecionado: ${stPlayer?.name || 'Jogador'}. Clique em um reserva no banco para confirmar a troca.`);
       }
@@ -8787,6 +8799,7 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       curD.setDate(curD.getDate() + 1);
       const nextDateStr = curD.toISOString().slice(0, 10);
       state.date = nextDateStr;
+      expireStadiumEventConfirmation();
       daysAdvanced++;
 
       // 1. Pré-temporada (se ativa)
@@ -9327,6 +9340,7 @@ function finalizeRound(userRes, winners, isKO){
     const curD = new Date(state.date + 'T12:00:00');
     curD.setDate(curD.getDate() + 1);
     state.date = curD.toISOString().slice(0, 10);
+    expireStadiumEventConfirmation();
   } catch(e){
     state.date = getDateForRound(state.round, state.season);
   }
@@ -10337,6 +10351,7 @@ function advancePreSeasonDay(){
   const curD = new Date(state.date + 'T12:00:00');
   curD.setDate(curD.getDate() + 1);
   state.date = curD.toISOString().slice(0, 10);
+  expireStadiumEventConfirmation();
 
   const msgs = [
     'O elenco realizou treinos intensivos de posse de bola e finalização.',
@@ -10351,6 +10366,7 @@ function advancePreSeasonDay(){
     state.isPreSeason = false;
     state.preSeasonDays = 0;
     state.date = getDateForRound(state.round || 0, state.season);
+    expireStadiumEventConfirmation();
     toast('🏁 Fim da Janela de Pré-Temporada! O campeonato oficial vai começar.');
   } else {
     toast(`📅 Dia avançado! ${msg} (Restam ${state.preSeasonDays} ${state.preSeasonDays === 1 ? 'dia' : 'dias'})`);
@@ -10364,6 +10380,7 @@ function skipPreSeason(){
   state.isPreSeason = false;
   state.preSeasonDays = 0;
   state.date = getDateForRound(state.round || 0, state.season);
+  expireStadiumEventConfirmation();
   toast('🏁 Pré-temporada concluída! Bem-vindo à 1ª rodada oficial!');
   save();
   render();
@@ -13291,6 +13308,7 @@ let halftimeSelectedStarterKey = null;
 function openHalftimeModal(isQuickTactics = false){
   const s = liveMatchState;
   if(!s) return;
+  const userIsHome = norm(s.home) === norm(state.club);
 
   let modalEl = $('#halftimeModalContainer');
   if(!modalEl){
@@ -13301,9 +13319,9 @@ function openHalftimeModal(isQuickTactics = false){
 
   const scoreText = s.hg === s.ag 
     ? 'empatando' 
-    : (s.home === state.club ? (s.hg > s.ag ? 'vencendo' : 'perdendo') : (s.ag > s.hg ? 'vencendo' : 'perdendo'));
+    : (userIsHome ? (s.hg > s.ag ? 'vencendo' : 'perdendo') : (s.ag > s.hg ? 'vencendo' : 'perdendo'));
 
-  const userStarters = (s.home === state.club ? s.homePlayers : s.awayPlayers);
+  const userStarters = (userIsHome ? s.homePlayers : s.awayPlayers);
   const rosterKeeper = state.squad.find(p => isGoalkeeperPosition(p.pos) && userStarters.some(mp => mp.key === playerKey(p)));
   const halftimeKeeper = (rosterKeeper && userStarters.find(mp => mp.key === playerKey(rosterKeeper))) || userStarters.find(p => p.isGK || isGoalkeeperPosition(p.pos));
   if(halftimeKeeper){
@@ -13320,7 +13338,7 @@ function openHalftimeModal(isQuickTactics = false){
       userStarters.forEach((matchPlayer, idx) => {
         const slot = horizontalSlots[idx];
         if(!slot) return;
-        const targetX = s.home === state.club ? Number(slot.x) : 100 - Number(slot.x);
+        const targetX = userIsHome ? Number(slot.x) : 100 - Number(slot.x);
         const targetY = Number(slot.y);
         matchPlayer.baseX = targetX; matchPlayer.baseY = targetY;
         matchPlayer.targetX = targetX; matchPlayer.targetY = targetY;
@@ -13340,7 +13358,7 @@ function openHalftimeModal(isQuickTactics = false){
     'Pedir raça': '🔥 <b>Efeito em Campo:</b> Intensidade máxima em divididas (+40% desarmes vencidos), marcação colada e desgaste acelerado (+25%).'
   };
 
-  const currentPosture = (s.home === state.club ? s.homePosture : s.awayPosture) || 'Equilibrada';
+  const currentPosture = (userIsHome ? s.homePosture : s.awayPosture) || 'Equilibrada';
   const postureDescriptions = {
     'Retranca': '🧱 <b>Efeito em Campo:</b> Linhas recuadas até a grande área (-16m), tranca os espaços e poupa físico (-25% desgaste).',
     'Defensiva': '🛡️ <b>Efeito em Campo:</b> Linhas baixas (-9m), proteção à zaga e escape veloz nos contra-ataques.',
@@ -13393,7 +13411,7 @@ function openHalftimeModal(isQuickTactics = false){
             </div>
             <div class="halftime-speech-row" style="display:flex;gap:4px;flex-wrap:wrap">
               ${['Retranca', 'Defensiva', 'Equilibrada', 'Ofensiva', 'Pressão total'].map(p => `
-                <button class="btn-halftime-speech ${(s.home === state.club ? s.homePosture : s.awayPosture) === p ? 'active' : ''}" data-posture="${p}" style="font-size:11px;font-weight:800;padding:3px 7px;border-radius:6px">
+                <button class="btn-halftime-speech ${(userIsHome ? s.homePosture : s.awayPosture) === p ? 'active' : ''}" data-posture="${p}" style="font-size:11px;font-weight:800;padding:3px 7px;border-radius:6px">
                   ${p}
                 </button>
               `).join('')}
@@ -13496,7 +13514,7 @@ function openHalftimeModal(isQuickTactics = false){
     b.onclick = (e) => {
       e.stopPropagation();
       const posture = b.dataset.posture;
-      if(s.home === state.club) s.homePosture = posture;
+      if(userIsHome) s.homePosture = posture;
       else s.awayPosture = posture;
       $$('.btn-halftime-speech[data-posture]').forEach(btn => {
         const isAct = btn.dataset.posture === posture;
@@ -13509,7 +13527,7 @@ function openHalftimeModal(isQuickTactics = false){
     };
   });
 
-  function executeHalftimeSub(starterKey, benchKey){
+  function executeHalftimeSub(starterKey, benchKey, targetSlotIndex){
     if(s.subsLeft <= 0){
       toast('Você já atingiu o limite de 5 substituições na partida!');
       return;
@@ -13523,18 +13541,21 @@ function openHalftimeModal(isQuickTactics = false){
       return;
     }
 
-    const userStarters = (s.home === state.club ? s.homePlayers : s.awayPlayers);
-    const targetIdx = userStarters.findIndex(p => p.key === starterKey || playerKey(p) === starterKey);
+    const userStarters = (userIsHome ? s.homePlayers : s.awayPlayers);
+    const keyOf = p => p.key || playerKey(p);
+    let targetIdx = userStarters.findIndex(p => keyOf(p) === starterKey);
+    if(targetIdx < 0 && Number.isInteger(targetSlotIndex) && targetSlotIndex >= 0 && targetSlotIndex < userStarters.length) targetIdx = targetSlotIndex;
     if(targetIdx === -1) return;
 
     const oldPlayer = userStarters[targetIdx];
+    const oldKey = keyOf(oldPlayer);
     const oldIsGoalkeeper = !!oldPlayer.isGK || isGoalkeeperPosition(oldPlayer.pos);
     const benchIsGoalkeeper = isGoalkeeperPosition(benchPlayer.pos);
     if(oldIsGoalkeeper !== benchIsGoalkeeper){
       toast(oldIsGoalkeeper ? 'Para substituir o goleiro, escolha um goleiro reserva.' : 'O goleiro reserva só pode entrar na vaga de outro goleiro.');
       return;
     }
-    s.subbedOut.push(oldPlayer.key);
+    s.subbedOut.push(oldKey);
 
     const newPlayerObj = {
       ...oldPlayer,
@@ -13550,7 +13571,7 @@ function openHalftimeModal(isQuickTactics = false){
       shoot: benchPlayer.fin || benchPlayer.shoot || playerOverall(benchPlayer),
       defense: benchPlayer.des || benchPlayer.defense || playerOverall(benchPlayer),
       isUser: true,
-      team: s.home === state.club ? 'home' : 'away',
+      team: userIsHome ? 'home' : 'away',
       isGK: oldIsGoalkeeper,
       canScore: !oldIsGoalkeeper,
       canShoot: !oldIsGoalkeeper,
@@ -13560,13 +13581,13 @@ function openHalftimeModal(isQuickTactics = false){
     userStarters[targetIdx] = newPlayerObj;
 
     // Se o jogador substituído estava com a bola, passa a posse ao novo atleta
-    if(s.ball && s.ball.carrier && s.ball.carrier.key === oldPlayer.key){
+    if(s.ball && s.ball.carrier && s.ball.carrier.key === oldKey){
       s.ball.carrier = newPlayerObj;
     }
 
     // Sincroniza com a escalação persistida do clube
     if(Array.isArray(state.lineup)){
-      const lineIdx = state.lineup.indexOf(oldPlayer.key);
+      const lineIdx = state.lineup.indexOf(oldKey);
       if(lineIdx !== -1){
         state.lineup[lineIdx] = playerKey(benchPlayer);
       }
@@ -13587,9 +13608,9 @@ function openHalftimeModal(isQuickTactics = false){
   }
 
   function swapHalftimeStarters(k1, k2){
-    const userStarters = (s.home === state.club ? s.homePlayers : s.awayPlayers);
-    const idx1 = userStarters.findIndex(p => p.key === k1);
-    const idx2 = userStarters.findIndex(p => p.key === k2);
+    const userStarters = (userIsHome ? s.homePlayers : s.awayPlayers);
+    const idx1 = userStarters.findIndex(p => (p.key || playerKey(p)) === k1);
+    const idx2 = userStarters.findIndex(p => (p.key || playerKey(p)) === k2);
     if(idx1 !== -1 && idx2 !== -1){
       const tmpPlayer = userStarters[idx1];
       userStarters[idx1] = userStarters[idx2];
@@ -13615,8 +13636,8 @@ function openHalftimeModal(isQuickTactics = false){
     containerEl: $('#halftimeTacticsContainer'),
     starters: userStarters,
     bench: userBench,
-    onSwap: (targetStarterKey, benchKey) => {
-      executeHalftimeSub(targetStarterKey, benchKey);
+    onSwap: (targetStarterKey, benchKey, targetSlotIndex) => {
+      executeHalftimeSub(targetStarterKey, benchKey, targetSlotIndex);
     },
     onStarterSwap: (key1, key2) => {
       swapHalftimeStarters(key1, key2);
@@ -14083,6 +14104,7 @@ function advanceSeasonYear(){
   state.isPreSeason = true;
   state.preSeasonDays = 4;
   state.date = `${state.season}-01-01`;
+  expireStadiumEventConfirmation();
 
   // Aplica subida de divisão ou rebaixamento
   if(state.nextSeasonCompId){
@@ -16760,10 +16782,10 @@ function centralPage(){
         <!-- Seção Inferior: Painel de Decisão Pendente & Sugestão Dinâmica (Some na hora ao aceitar/negar) -->
         ${(() => {
           const sug = typeof getPendingSuggestion === 'function' ? getPendingSuggestion() : null;
-          const hasEvent = !!state.stadiumEventProposal;
-          const hasRental = !!state.stadiumClubRental;
-          const hasSug = !!sug && state.suggestionHandledRound !== state.round;
-          const acceptedEvent = state.lastStadiumEvent;
+          const acceptedEvent = state.lastStadiumEvent?.date >= state.date ? state.lastStadiumEvent : null;
+          const hasEvent = !acceptedEvent && !!state.stadiumEventProposal;
+          const hasRental = !acceptedEvent && !!state.stadiumClubRental;
+          const hasSug = !acceptedEvent && !!sug && state.suggestionHandledRound !== state.round;
 
           if(!hasEvent && !hasRental && !hasSug && !acceptedEvent) return '';
 
@@ -16945,7 +16967,7 @@ function calendarPage(){
   const myClub = state.club;
   const calendarClubKey = name => ({'red bull bragantino':'bragantino'}[norm(name)] || norm(name));
   const winInfo = getTransferWindowInfo(state.date);
-  const continental = state.season === 2026 ? window.AFM_CONTINENTAL_2026 : null;
+  const continental = Number(state.season) === 2026 ? window.AFM_CONTINENTAL_2026 : null;
   const extraMatches = [];
   if(continental){
     for(const id of ['lib','sud']){
@@ -23787,12 +23809,25 @@ function executeSwap(sourceKey, targetKey, targetSlotIndex = null) {
   if (!sourceKey) return;
   if (!Array.isArray(state.lineup)) state.lineup = [];
 
+  // Normalize IDs from older saves before comparing them with the rendered lineup.
+  state.lineup = state.lineup.map(key => {
+    const player = findSquadPlayerByKey(String(key || ''));
+    return player ? playerKey(player) : key;
+  });
+  const sourcePlayer = findSquadPlayerByKey(String(sourceKey));
+  if(!sourcePlayer) return toast('Não foi possível localizar o jogador selecionado no elenco.');
+  sourceKey = playerKey(sourcePlayer);
+  const targetPlayer = targetKey ? findSquadPlayerByKey(String(targetKey)) : null;
+  targetKey = targetPlayer ? playerKey(targetPlayer) : targetKey;
+
   const sourceLineupIdx = state.lineup.indexOf(sourceKey);
   let targetLineupIdx = targetKey ? state.lineup.indexOf(targetKey) : -1;
 
-  if (targetLineupIdx === -1 && targetSlotIndex !== null && targetSlotIndex !== undefined && targetSlotIndex >= 0) {
+  if (Number.isInteger(targetSlotIndex) && targetSlotIndex >= 0 && targetSlotIndex < state.lineup.length) {
     targetLineupIdx = targetSlotIndex;
   }
+
+  if(targetLineupIdx < 0) return toast('Selecione uma vaga titular para fazer a troca.');
 
   if (sourceLineupIdx >= 0 && targetLineupIdx >= 0) {
     // Troca atômica entre dois titulares
