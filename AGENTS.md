@@ -12,6 +12,7 @@ Este documento define as regras ativas, restrições arquiteturais e padrões de
 2. **Idioma da Interface**: 100% Português do Brasil (pt-BR).
    - Termos futebolísticos brasileiros autênticos: *Zagueiro (CB)*, *Volante (DM)*, *Meia-Atacante (AM)*, *Artilharia*, *Mata-mata*, *Caldeirão*.
 3. **Padrão Local-First**: O jogo deve funcionar perfeitamente 100% offline via `LocalStorage` e arquivos estáticos locais, utilizando a nuvem (Supabase) como camada de sincronização assíncrona.
+4. **Preservação de mudanças aceitas**: Não reverta trabalho já aceito pelo usuário sem pedido explícito; antes de qualquer rollback, confira o histórico e preserve essas mudanças.
 
 ---
 

@@ -164,7 +164,8 @@ function trustedPlayerPhotoUrl(rawPhoto){
   if(typeof rawPhoto !== 'string' || !rawPhoto.trim()) return null;
   const photo = /^(?:https?:|data:|blob:|\/)/i.test(rawPhoto) ? rawPhoto.trim() : (rawPhoto.startsWith('img/') ? rawPhoto : `img/${rawPhoto.replace(/^\.?\//, '')}`);
   const localPath = photo.replace(/^\.\//, '');
-  return window.PLAYER_PHOTO_DUPLICATES?.has(localPath) ? null : photo;
+  const isUnverifiedMappedPhoto = window.PLAYER_PHOTO_MAPPED_PATHS?.has(localPath) && !window.PLAYER_PHOTO_VERIFIED?.has(localPath);
+  return isUnverifiedMappedPhoto || window.PLAYER_PHOTO_DUPLICATES?.has(localPath) ? null : photo;
 }
 
 function resolvePlayerPhotoUrl(p) {
@@ -236,7 +237,7 @@ function renderFifaCardFallbackSvg() {
 
 function renderTacticalCard(player, index, isSelected = false) {
   if (!player) return '';
-  const photoUrl = resolvePlayerPhotoUrl(player) || (window.PLAYER_PHOTOS && window.PLAYER_PHOTOS[player.name]) || "img/players/default_avatar.svg";
+  const photoUrl = resolvePlayerPhotoUrl(player) || "img/players/default_avatar.svg";
   const fallbackUrl = "img/players/default_avatar.svg";
   const ovr = player.overall || player.ovr || (typeof playerOverall === 'function' ? playerOverall(player) : 60);
   const pos = player.pos || 'CM';
