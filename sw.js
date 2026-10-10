@@ -1,5 +1,5 @@
 // Service Worker do AFM Manager 2027
-const CACHE_NAME = 'afm-2027-cache-v3';
+const CACHE_NAME = 'afm-2027-cache-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
