@@ -3,12 +3,12 @@
 // Clubes mapeados: 16
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Palmeiras": "bra_a/palmeiras.png",
-  "Flamengo": "bra_a/flamengo.png",
-  "Botafogo": "bra_a/botafogo.svg",
-  "Atlético-MG": "bra_a/atletico_mg.svg",
-  "São Paulo": "bra_a/sao_paulo.svg",
-  "Fluminense": "bra_a/fluminense.png",
+  "Palmeiras": "bra_a/cbf_20002.jpg",
+  "Flamengo": "bra_a/cbf_20016.jpg",
+  "Botafogo": "bra_a/cbf_60175.jpg",
+  "Atlético-MG": "bra_a/cbf_62194.jpg",
+  "São Paulo": "bra_a/cbf_20005.jpg",
+  "Fluminense": "bra_a/cbf_20014.jpg",
   "River Plate": "arg_1/river_plate.png",
   "Boca Juniors": "arg_1/boca_juniors.png",
   "Racing Club": "arg_1/racing_club.png",

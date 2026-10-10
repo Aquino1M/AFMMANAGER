@@ -229,7 +229,8 @@ function buildClubBadgeFallbackPaths(rawName) {
 window.renderClubBadge = function(clubName, size = 32) {
   const rawName = (typeof clubName === 'object' && clubName !== null ? (clubName.name || clubName.club || '') : String(clubName || '')).trim() || 'Clube';
   const n = window.normClub(rawName);
-  let file = (window.CLUB_ALIASES && window.CLUB_ALIASES[n]) || (window.CLUB_BADGES && window.CLUB_BADGES[rawName]);
+  const verifiedFile = window.CLUB_BADGES_VERIFIED_2026_BY_NAME?.[n] || window.CLUB_BADGE_ALIASES_VERIFIED_2026?.[n];
+  let file = verifiedFile || (window.CLUB_ALIASES && window.CLUB_ALIASES[n]) || (window.CLUB_BADGES && window.CLUB_BADGES[rawName]);
   if (!file && window.CLUB_BADGES) {
     for (const [k, v] of Object.entries(window.CLUB_BADGES)) {
       if (window.normClub(k) === n) { file = v; break; }
@@ -237,9 +238,9 @@ window.renderClubBadge = function(clubName, size = 32) {
   }
   const inits = (rawName.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('') || 'FC').slice(0, 3).toUpperCase();
   const fallbackPill = `<span class="badge-fallback-pill" style="display:inline-flex;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
-  if(window.CLUB_BADGES_UNVERIFIED?.has(n)) return fallbackPill;
+  if(!verifiedFile && window.CLUB_BADGES_UNVERIFIED?.has(n)) return fallbackPill;
   const knownPath = file ? (file.startsWith('img/badges/') ? file : 'img/badges/' + file) : null;
-  const alternatives = buildClubBadgeFallbackPaths(rawName).filter(path => path !== knownPath);
+  const alternatives = verifiedFile ? [] : buildClubBadgeFallbackPaths(rawName).filter(path => path !== knownPath);
   const imagePath = knownPath || alternatives.shift();
   if (!imagePath) return fallbackPill;
   const onError = "const a=JSON.parse(this.dataset.badgeAlternatives||'[]');if(a.length){this.dataset.badgeAlternatives=JSON.stringify(a.slice(1));this.src=a[0];}else{this.onerror=null;this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';}";

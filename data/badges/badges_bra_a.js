@@ -1,26 +1,23 @@
-// ==============================================================================
-// AFM MANAGER 2027 — ESCUDOS: BRA-A
-// Clubes mapeados: 20
-// ==============================================================================
+// AFM 2027 — escudos oficiais CBF 2026
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Athletico Paranaense": "bra_a/athletico_pr.svg",
-  "Atlético-MG": "bra_a/atletico_mg.svg",
-  "Bahia": "bra_a/bahia.svg",
-  "Botafogo": "bra_a/botafogo.svg",
-  "Chapecoense": "bra_a/chapecoense.svg",
-  "Corinthians": "bra_a/corinthians.png",
-  "Coritiba": "bra_a/coritiba.svg",
-  "Cruzeiro": "bra_a/cruzeiro.svg",
-  "Flamengo": "bra_a/flamengo.png",
-  "Fluminense": "bra_a/fluminense.png",
-  "Grêmio": "bra_a/gremio.svg",
-  "Internacional": "bra_a/internacional.svg",
-  "Mirassol": "bra_a/mirassol.png",
-  "Palmeiras": "bra_a/palmeiras.png",
-  "Bragantino": "bra_a/bragantino.png",
-  "Remo": "bra_a/remo.svg",
-  "Santos": "bra_a/santos.png",
-  "São Paulo": "bra_a/sao_paulo.svg",
-  "Vasco da Gama": "bra_a/vasco.png",
-  "Vitória": "bra_a/vitoria.svg"
+  "Athletico Paranaense": "bra_a/cbf_20052.jpg",
+  "Atlético-MG": "bra_a/cbf_62194.jpg",
+  "Bahia": "bra_a/cbf_61377.jpg",
+  "Botafogo": "bra_a/cbf_60175.jpg",
+  "Bragantino": "bra_a/cbf_20007.jpg",
+  "Chapecoense": "bra_a/cbf_20086.jpg",
+  "Corinthians": "bra_a/cbf_20001.jpg",
+  "Coritiba": "bra_a/cbf_61590.jpg",
+  "Cruzeiro": "bra_a/cbf_59849.jpg",
+  "Flamengo": "bra_a/cbf_20016.jpg",
+  "Fluminense": "bra_a/cbf_20014.jpg",
+  "Grêmio": "bra_a/cbf_20013.jpg",
+  "Internacional": "bra_a/cbf_20011.jpg",
+  "Mirassol": "bra_a/cbf_20385.jpg",
+  "Palmeiras": "bra_a/cbf_20002.jpg",
+  "Remo": "bra_a/cbf_20022.jpg",
+  "Santos": "bra_a/cbf_20008.jpg",
+  "São Paulo": "bra_a/cbf_20005.jpg",
+  "Vasco da Gama": "bra_a/cbf_60646.jpg",
+  "Vitória": "bra_a/cbf_20018.jpg",
 });

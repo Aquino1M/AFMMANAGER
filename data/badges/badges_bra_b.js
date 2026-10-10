@@ -1,26 +1,23 @@
-// ==============================================================================
-// AFM MANAGER 2027 — ESCUDOS: BRA-B
-// Clubes mapeados: 20
-// ==============================================================================
+// AFM 2027 — escudos oficiais CBF 2026
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "América-MG": "bra_b/america_mg.png",
-  "Athletic Club": "bra_b/athletic_club.svg",
-  "Atlético-GO": "bra_b/atletico_go.svg",
-  "Avaí": "bra_b/avai.svg",
-  "Botafogo-SP": "bra_b/botafogo_sp.svg",
-  "Ceará": "bra_b/ceara.svg",
-  "CRB": "bra_b/crb.svg",
-  "Criciúma": "bra_b/criciuma.svg",
-  "Cuiabá": "bra_b/cuiaba.png",
-  "Fortaleza": "bra_b/fortaleza.png",
-  "Goiás": "bra_b/goias.png",
-  "Juventude": "bra_b/juventude.svg",
-  "Londrina": "bra_b/londrina.svg",
-  "Náutico": "bra_b/nautico.svg",
-  "Novorizontino": "bra_b/novorizontino.svg",
-  "Operário-PR": "bra_b/operario_pr.svg",
-  "Ponte Preta": "bra_b/ponte_preta.svg",
-  "São Bernardo": "bra_b/sao_bernardo.svg",
-  "Sport": "bra_b/sport.svg",
-  "Vila Nova": "bra_b/vila_nova.svg"
+  "América-MG": "bra_b/cbf_59897.jpg",
+  "Athletic Club": "bra_b/cbf_59896.jpg",
+  "Atlético-GO": "bra_b/cbf_62261.jpg",
+  "Avaí": "bra_b/cbf_20058.jpg",
+  "Botafogo-SP": "bra_b/cbf_56654.jpg",
+  "Ceará": "bra_b/cbf_20031.jpg",
+  "CRB": "bra_b/cbf_20032.jpg",
+  "Criciúma": "bra_b/cbf_20019.jpg",
+  "Cuiabá": "bra_b/cbf_20800.jpg",
+  "Fortaleza": "bra_b/cbf_63238.jpg",
+  "Goiás": "bra_b/cbf_20028.jpg",
+  "Juventude": "bra_b/cbf_20027.jpg",
+  "Londrina": "bra_b/cbf_62726.jpg",
+  "Novorizontino": "bra_b/cbf_31514.jpg",
+  "Náutico": "bra_b/cbf_20023.jpg",
+  "Operário-PR": "bra_b/cbf_20106.jpg",
+  "Ponte Preta": "bra_b/cbf_20037.jpg",
+  "Sport": "bra_b/cbf_20010.jpg",
+  "São Bernardo": "bra_b/cbf_31790.jpg",
+  "Vila Nova": "bra_b/cbf_20079.jpg",
 });

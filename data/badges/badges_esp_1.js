@@ -3,7 +3,7 @@
 // Clubes mapeados: 20
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Athletic Club": "bra_b/athletic_club.svg",
+  "Athletic Club": "bra_b/cbf_59896.jpg",
   "Atlético de Madrid": "europe/atletico_de_madrid.png",
   "FC Barcelona": "europe/fc_barcelona.png",
   "Celta de Vigo": "europe/celta_de_vigo.png",

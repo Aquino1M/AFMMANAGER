@@ -1,0 +1,1415 @@
+[
+  {
+    "club": "Athletico Paranaense",
+    "division": "a",
+    "cbf_name": "Athletico Paranaense",
+    "uf": "PR",
+    "id": "20052",
+    "url": "https://conteudo.cbf.com.br/clubes/20052/escudo.jpg",
+    "path": "bra_a/cbf_20052.jpg"
+  },
+  {
+    "club": "Atlético-MG",
+    "division": "a",
+    "cbf_name": "Atlético Mineiro",
+    "uf": "MG",
+    "id": "62194",
+    "url": "https://conteudo.cbf.com.br/clubes/62194/escudo.jpg",
+    "path": "bra_a/cbf_62194.jpg"
+  },
+  {
+    "club": "Bahia",
+    "division": "a",
+    "cbf_name": "Bahia",
+    "uf": "BA",
+    "id": "61377",
+    "url": "https://conteudo.cbf.com.br/clubes/61377/escudo.jpg",
+    "path": "bra_a/cbf_61377.jpg"
+  },
+  {
+    "club": "Botafogo",
+    "division": "a",
+    "cbf_name": "Botafogo",
+    "uf": "RJ",
+    "id": "60175",
+    "url": "https://conteudo.cbf.com.br/clubes/60175/escudo.jpg",
+    "path": "bra_a/cbf_60175.jpg"
+  },
+  {
+    "club": "Chapecoense",
+    "division": "a",
+    "cbf_name": "Chapecoense",
+    "uf": "SC",
+    "id": "20086",
+    "url": "https://conteudo.cbf.com.br/clubes/20086/escudo.jpg",
+    "path": "bra_a/cbf_20086.jpg"
+  },
+  {
+    "club": "Corinthians",
+    "division": "a",
+    "cbf_name": "Corinthians",
+    "uf": "SP",
+    "id": "20001",
+    "url": "https://conteudo.cbf.com.br/clubes/20001/escudo.jpg",
+    "path": "bra_a/cbf_20001.jpg"
+  },
+  {
+    "club": "Coritiba",
+    "division": "a",
+    "cbf_name": "Coritiba SAF",
+    "uf": "PR",
+    "id": "61590",
+    "url": "https://conteudo.cbf.com.br/clubes/61590/escudo.jpg",
+    "path": "bra_a/cbf_61590.jpg"
+  },
+  {
+    "club": "Cruzeiro",
+    "division": "a",
+    "cbf_name": "Cruzeiro",
+    "uf": "MG",
+    "id": "59849",
+    "url": "https://conteudo.cbf.com.br/clubes/59849/escudo.jpg",
+    "path": "bra_a/cbf_59849.jpg"
+  },
+  {
+    "club": "Flamengo",
+    "division": "a",
+    "cbf_name": "Flamengo",
+    "uf": "RJ",
+    "id": "20016",
+    "url": "https://conteudo.cbf.com.br/clubes/20016/escudo.jpg",
+    "path": "bra_a/cbf_20016.jpg"
+  },
+  {
+    "club": "Fluminense",
+    "division": "a",
+    "cbf_name": "Fluminense",
+    "uf": "RJ",
+    "id": "20014",
+    "url": "https://conteudo.cbf.com.br/clubes/20014/escudo.jpg",
+    "path": "bra_a/cbf_20014.jpg"
+  },
+  {
+    "club": "Grêmio",
+    "division": "a",
+    "cbf_name": "Grêmio",
+    "uf": "RS",
+    "id": "20013",
+    "url": "https://conteudo.cbf.com.br/clubes/20013/escudo.jpg",
+    "path": "bra_a/cbf_20013.jpg"
+  },
+  {
+    "club": "Internacional",
+    "division": "a",
+    "cbf_name": "Internacional",
+    "uf": "RS",
+    "id": "20011",
+    "url": "https://conteudo.cbf.com.br/clubes/20011/escudo.jpg",
+    "path": "bra_a/cbf_20011.jpg"
+  },
+  {
+    "club": "Mirassol",
+    "division": "a",
+    "cbf_name": "Mirassol",
+    "uf": "SP",
+    "id": "20385",
+    "url": "https://conteudo.cbf.com.br/clubes/20385/escudo.jpg",
+    "path": "bra_a/cbf_20385.jpg"
+  },
+  {
+    "club": "Palmeiras",
+    "division": "a",
+    "cbf_name": "Palmeiras",
+    "uf": "SP",
+    "id": "20002",
+    "url": "https://conteudo.cbf.com.br/clubes/20002/escudo.jpg",
+    "path": "bra_a/cbf_20002.jpg"
+  },
+  {
+    "club": "Bragantino",
+    "division": "a",
+    "cbf_name": "Red Bull Bragantino",
+    "uf": "SP",
+    "id": "20007",
+    "url": "https://conteudo.cbf.com.br/clubes/20007/escudo.jpg",
+    "path": "bra_a/cbf_20007.jpg"
+  },
+  {
+    "club": "Remo",
+    "division": "a",
+    "cbf_name": "Remo",
+    "uf": "PA",
+    "id": "20022",
+    "url": "https://conteudo.cbf.com.br/clubes/20022/escudo.jpg",
+    "path": "bra_a/cbf_20022.jpg"
+  },
+  {
+    "club": "Santos",
+    "division": "a",
+    "cbf_name": "Santos FC",
+    "uf": "SP",
+    "id": "20008",
+    "url": "https://conteudo.cbf.com.br/clubes/20008/escudo.jpg",
+    "path": "bra_a/cbf_20008.jpg"
+  },
+  {
+    "club": "São Paulo",
+    "division": "a",
+    "cbf_name": "São Paulo",
+    "uf": "SP",
+    "id": "20005",
+    "url": "https://conteudo.cbf.com.br/clubes/20005/escudo.jpg",
+    "path": "bra_a/cbf_20005.jpg"
+  },
+  {
+    "club": "Vasco da Gama",
+    "division": "a",
+    "cbf_name": "Vasco da Gama Saf",
+    "uf": "RJ",
+    "id": "60646",
+    "url": "https://conteudo.cbf.com.br/clubes/60646/escudo.jpg",
+    "path": "bra_a/cbf_60646.jpg"
+  },
+  {
+    "club": "Vitória",
+    "division": "a",
+    "cbf_name": "Vitória",
+    "uf": "BA",
+    "id": "20018",
+    "url": "https://conteudo.cbf.com.br/clubes/20018/escudo.jpg",
+    "path": "bra_a/cbf_20018.jpg"
+  },
+  {
+    "club": "América-MG",
+    "division": "b",
+    "cbf_name": "América",
+    "uf": "MG",
+    "id": "59897",
+    "url": "https://conteudo.cbf.com.br/clubes/59897/escudo.jpg",
+    "path": "bra_b/cbf_59897.jpg"
+  },
+  {
+    "club": "Athletic Club",
+    "division": "b",
+    "cbf_name": "Athletic SAF",
+    "uf": "MG",
+    "id": "59896",
+    "url": "https://conteudo.cbf.com.br/clubes/59896/escudo.jpg",
+    "path": "bra_b/cbf_59896.jpg"
+  },
+  {
+    "club": "Atlético-GO",
+    "division": "b",
+    "cbf_name": "Atlético Goianiense Saf",
+    "uf": "GO",
+    "id": "62261",
+    "url": "https://conteudo.cbf.com.br/clubes/62261/escudo.jpg",
+    "path": "bra_b/cbf_62261.jpg"
+  },
+  {
+    "club": "Avaí",
+    "division": "b",
+    "cbf_name": "Avaí",
+    "uf": "SC",
+    "id": "20058",
+    "url": "https://conteudo.cbf.com.br/clubes/20058/escudo.jpg",
+    "path": "bra_b/cbf_20058.jpg"
+  },
+  {
+    "club": "Botafogo-SP",
+    "division": "b",
+    "cbf_name": "Botafogo",
+    "uf": "SP",
+    "id": "56654",
+    "url": "https://conteudo.cbf.com.br/clubes/56654/escudo.jpg",
+    "path": "bra_b/cbf_56654.jpg"
+  },
+  {
+    "club": "Ceará",
+    "division": "b",
+    "cbf_name": "Ceará",
+    "uf": "CE",
+    "id": "20031",
+    "url": "https://conteudo.cbf.com.br/clubes/20031/escudo.jpg",
+    "path": "bra_b/cbf_20031.jpg"
+  },
+  {
+    "club": "CRB",
+    "division": "b",
+    "cbf_name": "CRB",
+    "uf": "AL",
+    "id": "20032",
+    "url": "https://conteudo.cbf.com.br/clubes/20032/escudo.jpg",
+    "path": "bra_b/cbf_20032.jpg"
+  },
+  {
+    "club": "Criciúma",
+    "division": "b",
+    "cbf_name": "Criciúma",
+    "uf": "SC",
+    "id": "20019",
+    "url": "https://conteudo.cbf.com.br/clubes/20019/escudo.jpg",
+    "path": "bra_b/cbf_20019.jpg"
+  },
+  {
+    "club": "Cuiabá",
+    "division": "b",
+    "cbf_name": "Cuiabá",
+    "uf": "MT",
+    "id": "20800",
+    "url": "https://conteudo.cbf.com.br/clubes/20800/escudo.jpg",
+    "path": "bra_b/cbf_20800.jpg"
+  },
+  {
+    "club": "Fortaleza",
+    "division": "b",
+    "cbf_name": "Fortaleza SAF",
+    "uf": "CE",
+    "id": "63238",
+    "url": "https://conteudo.cbf.com.br/clubes/63238/escudo.jpg",
+    "path": "bra_b/cbf_63238.jpg"
+  },
+  {
+    "club": "Goiás",
+    "division": "b",
+    "cbf_name": "Goiás",
+    "uf": "GO",
+    "id": "20028",
+    "url": "https://conteudo.cbf.com.br/clubes/20028/escudo.jpg",
+    "path": "bra_b/cbf_20028.jpg"
+  },
+  {
+    "club": "Juventude",
+    "division": "b",
+    "cbf_name": "Juventude",
+    "uf": "RS",
+    "id": "20027",
+    "url": "https://conteudo.cbf.com.br/clubes/20027/escudo.jpg",
+    "path": "bra_b/cbf_20027.jpg"
+  },
+  {
+    "club": "Londrina",
+    "division": "b",
+    "cbf_name": "Londrina SAF",
+    "uf": "PR",
+    "id": "62726",
+    "url": "https://conteudo.cbf.com.br/clubes/62726/escudo.jpg",
+    "path": "bra_b/cbf_62726.jpg"
+  },
+  {
+    "club": "Náutico",
+    "division": "b",
+    "cbf_name": "Náutico",
+    "uf": "PE",
+    "id": "20023",
+    "url": "https://conteudo.cbf.com.br/clubes/20023/escudo.jpg",
+    "path": "bra_b/cbf_20023.jpg"
+  },
+  {
+    "club": "Novorizontino",
+    "division": "b",
+    "cbf_name": "Gremio Novorizontino - Saf",
+    "uf": "SP",
+    "id": "31514",
+    "url": "https://conteudo.cbf.com.br/clubes/31514/escudo.jpg",
+    "path": "bra_b/cbf_31514.jpg"
+  },
+  {
+    "club": "Operário-PR",
+    "division": "b",
+    "cbf_name": "Operário",
+    "uf": "PR",
+    "id": "20106",
+    "url": "https://conteudo.cbf.com.br/clubes/20106/escudo.jpg",
+    "path": "bra_b/cbf_20106.jpg"
+  },
+  {
+    "club": "Ponte Preta",
+    "division": "b",
+    "cbf_name": "Ponte Preta",
+    "uf": "SP",
+    "id": "20037",
+    "url": "https://conteudo.cbf.com.br/clubes/20037/escudo.jpg",
+    "path": "bra_b/cbf_20037.jpg"
+  },
+  {
+    "club": "São Bernardo",
+    "division": "b",
+    "cbf_name": "São Bernardo SAF",
+    "uf": "SP",
+    "id": "31790",
+    "url": "https://conteudo.cbf.com.br/clubes/31790/escudo.jpg",
+    "path": "bra_b/cbf_31790.jpg"
+  },
+  {
+    "club": "Sport",
+    "division": "b",
+    "cbf_name": "Sport Recife",
+    "uf": "PE",
+    "id": "20010",
+    "url": "https://conteudo.cbf.com.br/clubes/20010/escudo.jpg",
+    "path": "bra_b/cbf_20010.jpg"
+  },
+  {
+    "club": "Vila Nova",
+    "division": "b",
+    "cbf_name": "Vila Nova",
+    "uf": "GO",
+    "id": "20079",
+    "url": "https://conteudo.cbf.com.br/clubes/20079/escudo.jpg",
+    "path": "bra_b/cbf_20079.jpg"
+  },
+  {
+    "club": "Amazonas FC",
+    "division": "c",
+    "cbf_name": "Amazonas SAF",
+    "uf": "AM",
+    "id": "64052",
+    "url": "https://conteudo.cbf.com.br/clubes/64052/escudo.jpg",
+    "path": "bra_c/cbf_64052.jpg"
+  },
+  {
+    "club": "Anápolis",
+    "division": "c",
+    "cbf_name": "Anápolis",
+    "uf": "GO",
+    "id": "20164",
+    "url": "https://conteudo.cbf.com.br/clubes/20164/escudo.jpg",
+    "path": "bra_c/cbf_20164.jpg"
+  },
+  {
+    "club": "Barra-SC",
+    "division": "c",
+    "cbf_name": "Barra Futebol Clube",
+    "uf": "SC",
+    "id": "40387",
+    "url": "https://conteudo.cbf.com.br/clubes/40387/escudo.jpg",
+    "path": "bra_c/cbf_40387.jpg"
+  },
+  {
+    "club": "Botafogo-PB",
+    "division": "c",
+    "cbf_name": "Botafogo Pb Saf",
+    "uf": "PB",
+    "id": "63524",
+    "url": "https://conteudo.cbf.com.br/clubes/63524/escudo.jpg",
+    "path": "bra_c/cbf_63524.jpg"
+  },
+  {
+    "club": "Brusque",
+    "division": "c",
+    "cbf_name": "Brusque",
+    "uf": "SC",
+    "id": "63843",
+    "url": "https://conteudo.cbf.com.br/clubes/63843/escudo.jpg",
+    "path": "bra_c/cbf_63843.jpg"
+  },
+  {
+    "club": "Caxias",
+    "division": "c",
+    "cbf_name": "Caxias",
+    "uf": "RS",
+    "id": "20062",
+    "url": "https://conteudo.cbf.com.br/clubes/20062/escudo.jpg",
+    "path": "bra_c/cbf_20062.jpg"
+  },
+  {
+    "club": "Confiança",
+    "division": "c",
+    "cbf_name": "Confiança",
+    "uf": "SE",
+    "id": "64368",
+    "url": "https://conteudo.cbf.com.br/clubes/64368/escudo.jpg",
+    "path": "bra_c/cbf_64368.jpg"
+  },
+  {
+    "club": "Ferroviária",
+    "division": "c",
+    "cbf_name": "Ferroviária",
+    "uf": "SP",
+    "id": "20038",
+    "url": "https://conteudo.cbf.com.br/clubes/20038/escudo.jpg",
+    "path": "bra_c/cbf_20038.jpg"
+  },
+  {
+    "club": "Figueirense",
+    "division": "c",
+    "cbf_name": "Figueirense",
+    "uf": "SC",
+    "id": "59879",
+    "url": "https://conteudo.cbf.com.br/clubes/59879/escudo.jpg",
+    "path": "bra_c/cbf_59879.jpg"
+  },
+  {
+    "club": "Floresta",
+    "division": "c",
+    "cbf_name": "Floresta",
+    "uf": "CE",
+    "id": "35322",
+    "url": "https://conteudo.cbf.com.br/clubes/35322/escudo.jpg",
+    "path": "bra_c/cbf_35322.jpg"
+  },
+  {
+    "club": "Guarani",
+    "division": "c",
+    "cbf_name": "Guarani",
+    "uf": "SP",
+    "id": "20024",
+    "url": "https://conteudo.cbf.com.br/clubes/20024/escudo.jpg",
+    "path": "bra_c/cbf_20024.jpg"
+  },
+  {
+    "club": "Inter de Limeira",
+    "division": "c",
+    "cbf_name": "Inter de Limeira",
+    "uf": "SP",
+    "id": "20107",
+    "url": "https://conteudo.cbf.com.br/clubes/20107/escudo.jpg",
+    "path": "bra_c/cbf_20107.jpg"
+  },
+  {
+    "club": "Itabaiana",
+    "division": "c",
+    "cbf_name": "Itabaiana",
+    "uf": "SE",
+    "id": "20057",
+    "url": "https://conteudo.cbf.com.br/clubes/20057/escudo.jpg",
+    "path": "bra_c/cbf_20057.jpg"
+  },
+  {
+    "club": "Ituano",
+    "division": "c",
+    "cbf_name": "Ituano",
+    "uf": "SP",
+    "id": "20281",
+    "url": "https://conteudo.cbf.com.br/clubes/20281/escudo.jpg",
+    "path": "bra_c/cbf_20281.jpg"
+  },
+  {
+    "club": "Maranhão",
+    "division": "c",
+    "cbf_name": "Maranhão",
+    "uf": "MA",
+    "id": "20043",
+    "url": "https://conteudo.cbf.com.br/clubes/20043/escudo.jpg",
+    "path": "bra_c/cbf_20043.jpg"
+  },
+  {
+    "club": "Maringá",
+    "division": "c",
+    "cbf_name": "Maringá FC SAF",
+    "uf": "PR",
+    "id": "21918",
+    "url": "https://conteudo.cbf.com.br/clubes/21918/escudo.jpg",
+    "path": "bra_c/cbf_21918.jpg"
+  },
+  {
+    "club": "Paysandu",
+    "division": "c",
+    "cbf_name": "Paysandu",
+    "uf": "PA",
+    "id": "20017",
+    "url": "https://conteudo.cbf.com.br/clubes/20017/escudo.jpg",
+    "path": "bra_c/cbf_20017.jpg"
+  },
+  {
+    "club": "Santa Cruz",
+    "division": "c",
+    "cbf_name": "Santa Cruz",
+    "uf": "PE",
+    "id": "20039",
+    "url": "https://conteudo.cbf.com.br/clubes/20039/escudo.jpg",
+    "path": "bra_c/cbf_20039.jpg"
+  },
+  {
+    "club": "Volta Redonda",
+    "division": "c",
+    "cbf_name": "Volta Redonda",
+    "uf": "RJ",
+    "id": "20065",
+    "url": "https://conteudo.cbf.com.br/clubes/20065/escudo.jpg",
+    "path": "bra_c/cbf_20065.jpg"
+  },
+  {
+    "club": "Ypiranga-RS",
+    "division": "c",
+    "cbf_name": "Ypiranga",
+    "uf": "RS",
+    "id": "20379",
+    "url": "https://conteudo.cbf.com.br/clubes/20379/escudo.jpg",
+    "path": "bra_c/cbf_20379.jpg"
+  },
+  {
+    "club": "ABC",
+    "division": "d",
+    "cbf_name": "Abc F. C.",
+    "uf": "RN",
+    "id": "20042",
+    "url": "https://conteudo.cbf.com.br/clubes/20042/escudo.jpg",
+    "path": "bra_d/cbf_20042.jpg"
+  },
+  {
+    "club": "ABECAT",
+    "division": "d",
+    "cbf_name": "Abecat Saf",
+    "uf": "GO",
+    "id": "63665",
+    "url": "https://conteudo.cbf.com.br/clubes/63665/escudo.jpg",
+    "path": "bra_d/cbf_63665.jpg"
+  },
+  {
+    "club": "Água Santa",
+    "division": "d",
+    "cbf_name": "Água Santa",
+    "uf": "SP",
+    "id": "31399",
+    "url": "https://conteudo.cbf.com.br/clubes/31399/escudo.jpg",
+    "path": "bra_d/cbf_31399.jpg"
+  },
+  {
+    "club": "Águia de Marabá",
+    "division": "d",
+    "cbf_name": "Aguia de Maraba",
+    "uf": "PA",
+    "id": "20782",
+    "url": "https://conteudo.cbf.com.br/clubes/20782/escudo.jpg",
+    "path": "bra_d/cbf_20782.jpg"
+  },
+  {
+    "club": "Altos",
+    "division": "d",
+    "cbf_name": "Altos",
+    "uf": "PI",
+    "id": "53914",
+    "url": "https://conteudo.cbf.com.br/clubes/53914/escudo.jpg",
+    "path": "bra_d/cbf_53914.jpg"
+  },
+  {
+    "club": "America-RJ",
+    "division": "d",
+    "cbf_name": "América",
+    "uf": "RJ",
+    "id": "20046",
+    "url": "https://conteudo.cbf.com.br/clubes/20046/escudo.jpg",
+    "path": "bra_d/cbf_20046.jpg"
+  },
+  {
+    "club": "América-RN",
+    "division": "d",
+    "cbf_name": "America F.c. Saf",
+    "uf": "RN",
+    "id": "62025",
+    "url": "https://conteudo.cbf.com.br/clubes/62025/escudo.jpg",
+    "path": "bra_d/cbf_62025.jpg"
+  },
+  {
+    "club": "Aparecidense",
+    "division": "d",
+    "cbf_name": "Aparecidense",
+    "uf": "GO",
+    "id": "21889",
+    "url": "https://conteudo.cbf.com.br/clubes/21889/escudo.jpg",
+    "path": "bra_d/cbf_21889.jpg"
+  },
+  {
+    "club": "Araguaína",
+    "division": "d",
+    "cbf_name": "Araguaina Futebol E Regatas",
+    "uf": "TO",
+    "id": "21745",
+    "url": "https://conteudo.cbf.com.br/clubes/21745/escudo.jpg",
+    "path": "bra_d/cbf_21745.jpg"
+  },
+  {
+    "club": "ASA",
+    "division": "d",
+    "cbf_name": "Asa",
+    "uf": "AL",
+    "id": "20108",
+    "url": "https://conteudo.cbf.com.br/clubes/20108/escudo.jpg",
+    "path": "bra_d/cbf_20108.jpg"
+  },
+  {
+    "club": "Atlético-BA",
+    "division": "d",
+    "cbf_name": "Atlético de Alagoinhas",
+    "uf": "BA",
+    "id": "20236",
+    "url": "https://conteudo.cbf.com.br/clubes/20236/escudo.jpg",
+    "path": "bra_d/cbf_20236.jpg"
+  },
+  {
+    "club": "Atlético-CE",
+    "division": "d",
+    "cbf_name": "Fc Atlético Cearense",
+    "uf": "CE",
+    "id": "35316",
+    "url": "https://conteudo.cbf.com.br/clubes/35316/escudo.jpg",
+    "path": "bra_d/cbf_35316.jpg"
+  },
+  {
+    "club": "Azuriz",
+    "division": "d",
+    "cbf_name": "Azuriz",
+    "uf": "PR",
+    "id": "56804",
+    "url": "https://conteudo.cbf.com.br/clubes/56804/escudo.jpg",
+    "path": "bra_d/cbf_56804.jpg"
+  },
+  {
+    "club": "Betim",
+    "division": "d",
+    "cbf_name": "Betim Futebol",
+    "uf": "MG",
+    "id": "34709",
+    "url": "https://conteudo.cbf.com.br/clubes/34709/escudo.jpg",
+    "path": "bra_d/cbf_34709.jpg"
+  },
+  {
+    "club": "Blumenau",
+    "division": "d",
+    "cbf_name": "Blumenau",
+    "uf": "SC",
+    "id": "63571",
+    "url": "https://conteudo.cbf.com.br/clubes/63571/escudo.jpg",
+    "path": "bra_d/cbf_63571.jpg"
+  },
+  {
+    "club": "Brasil de Pelotas",
+    "division": "d",
+    "cbf_name": "Gremio Esportivo Brasil SAF",
+    "uf": "RS",
+    "id": "64810",
+    "url": "https://www.gebrasil.com.br/wp-content/uploads/2016/01/simbolos.png",
+    "path": "bra_d/bra_brasil_de_pelotas.png"
+  },
+  {
+    "club": "Brasiliense",
+    "division": "d",
+    "cbf_name": "Brasiliense",
+    "uf": "DF",
+    "id": "62652",
+    "url": "https://conteudo.cbf.com.br/clubes/62652/escudo.jpg",
+    "path": "bra_d/cbf_62652.jpg"
+  },
+  {
+    "club": "Capital-DF",
+    "division": "d",
+    "cbf_name": "Capital",
+    "uf": "DF",
+    "id": "37743",
+    "url": "https://conteudo.cbf.com.br/clubes/37743/escudo.jpg",
+    "path": "bra_d/cbf_37743.jpg"
+  },
+  {
+    "club": "Ceilândia",
+    "division": "d",
+    "cbf_name": "Ceilândia Saf",
+    "uf": "DF",
+    "id": "63519",
+    "url": "https://conteudo.cbf.com.br/clubes/63519/escudo.jpg",
+    "path": "bra_d/cbf_63519.jpg"
+  },
+  {
+    "club": "Central",
+    "division": "d",
+    "cbf_name": "Central de Caruaru",
+    "uf": "PE",
+    "id": "20112",
+    "url": "https://conteudo.cbf.com.br/clubes/20112/escudo.jpg",
+    "path": "bra_d/cbf_20112.jpg"
+  },
+  {
+    "club": "Cianorte",
+    "division": "d",
+    "cbf_name": "Leão do Vale - Cianorte",
+    "uf": "PR",
+    "id": "20816",
+    "url": "https://conteudo.cbf.com.br/clubes/20816/escudo.jpg",
+    "path": "bra_d/cbf_20816.jpg"
+  },
+  {
+    "club": "CRAC",
+    "division": "d",
+    "cbf_name": "CRAC",
+    "uf": "GO",
+    "id": "64669",
+    "url": "https://conteudo.cbf.com.br/clubes/64669/escudo.jpg",
+    "path": "bra_d/cbf_64669.jpg"
+  },
+  {
+    "club": "CSA",
+    "division": "d",
+    "cbf_name": "Csa",
+    "uf": "AL",
+    "id": "20045",
+    "url": "https://conteudo.cbf.com.br/clubes/20045/escudo.jpg",
+    "path": "bra_d/cbf_20045.jpg"
+  },
+  {
+    "club": "CSE",
+    "division": "d",
+    "cbf_name": "Cse",
+    "uf": "AL",
+    "id": "35522",
+    "url": "https://conteudo.cbf.com.br/clubes/35522/escudo.jpg",
+    "path": "bra_d/cbf_35522.jpg"
+  },
+  {
+    "club": "Decisão",
+    "division": "d",
+    "cbf_name": "Decisão",
+    "uf": "PE",
+    "id": "35768",
+    "url": "https://conteudo.cbf.com.br/clubes/35768/escudo.jpg",
+    "path": "bra_d/cbf_35768.jpg"
+  },
+  {
+    "club": "Democrata GV",
+    "division": "d",
+    "cbf_name": "EC Democrata",
+    "uf": "MG",
+    "id": "20432",
+    "url": "https://conteudo.cbf.com.br/clubes/20432/escudo.jpg",
+    "path": "bra_d/cbf_20432.jpg"
+  },
+  {
+    "club": "FC Cascavel",
+    "division": "d",
+    "cbf_name": "Cascavel",
+    "uf": "PR",
+    "id": "21922",
+    "url": "https://conteudo.cbf.com.br/clubes/21922/escudo.jpg",
+    "path": "bra_d/cbf_21922.jpg"
+  },
+  {
+    "club": "Ferroviário",
+    "division": "d",
+    "cbf_name": "Ferroviário",
+    "uf": "CE",
+    "id": "20091",
+    "url": "https://conteudo.cbf.com.br/clubes/20091/escudo.jpg",
+    "path": "bra_d/cbf_20091.jpg"
+  },
+  {
+    "club": "Fluminense-PI",
+    "division": "d",
+    "cbf_name": "Fluminense",
+    "uf": "PI",
+    "id": "35775",
+    "url": "https://conteudo.cbf.com.br/clubes/35775/escudo.jpg",
+    "path": "bra_d/cbf_35775.jpg"
+  },
+  {
+    "club": "Galvez",
+    "division": "d",
+    "cbf_name": "Galvez",
+    "uf": "AC",
+    "id": "32816",
+    "url": "https://conteudo.cbf.com.br/clubes/32816/escudo.jpg",
+    "path": "bra_d/cbf_32816.jpg"
+  },
+  {
+    "club": "Gama",
+    "division": "d",
+    "cbf_name": "Gama",
+    "uf": "DF",
+    "id": "20098",
+    "url": "https://conteudo.cbf.com.br/clubes/20098/escudo.jpg",
+    "path": "bra_d/cbf_20098.jpg"
+  },
+  {
+    "club": "GAS",
+    "division": "d",
+    "cbf_name": "Sampaio",
+    "uf": "RR",
+    "id": "20353",
+    "url": "https://conteudo.cbf.com.br/clubes/20353/escudo.jpg",
+    "path": "bra_d/cbf_20353.jpg"
+  },
+  {
+    "club": "Goiatuba",
+    "division": "d",
+    "cbf_name": "Goiatuba",
+    "uf": "GO",
+    "id": "20101",
+    "url": "https://conteudo.cbf.com.br/clubes/20101/escudo.jpg",
+    "path": "bra_d/cbf_20101.jpg"
+  },
+  {
+    "club": "Guaporé",
+    "division": "d",
+    "cbf_name": "Guaporé F.c.",
+    "uf": "RO",
+    "id": "53757",
+    "url": "https://conteudo.cbf.com.br/clubes/53757/escudo.jpg",
+    "path": "bra_d/cbf_53757.jpg"
+  },
+  {
+    "club": "Guarany de Bagé",
+    "division": "d",
+    "cbf_name": "Guarany FC",
+    "uf": "RS",
+    "id": "20225",
+    "url": "https://conteudo.cbf.com.br/clubes/20225/escudo.jpg",
+    "path": "bra_d/cbf_20225.jpg"
+  },
+  {
+    "club": "Humaitá",
+    "division": "d",
+    "cbf_name": "Humaitá",
+    "uf": "AC",
+    "id": "54133",
+    "url": "https://conteudo.cbf.com.br/clubes/54133/escudo.jpg",
+    "path": "bra_d/cbf_54133.jpg"
+  },
+  {
+    "club": "IAPE",
+    "division": "d",
+    "cbf_name": "Iape",
+    "uf": "MA",
+    "id": "21894",
+    "url": "https://conteudo.cbf.com.br/clubes/21894/escudo.jpg",
+    "path": "bra_d/cbf_21894.jpg"
+  },
+  {
+    "club": "Iguatu",
+    "division": "d",
+    "cbf_name": "Iguatu",
+    "uf": "CE",
+    "id": "35361",
+    "url": "https://conteudo.cbf.com.br/clubes/35361/escudo.jpg",
+    "path": "bra_d/cbf_35361.jpg"
+  },
+  {
+    "club": "Imperatriz",
+    "division": "d",
+    "cbf_name": "Imperatriz",
+    "uf": "MA",
+    "id": "20372",
+    "url": "https://conteudo.cbf.com.br/clubes/20372/escudo.jpg",
+    "path": "bra_d/cbf_20372.jpg"
+  },
+  {
+    "club": "Independência",
+    "division": "d",
+    "cbf_name": "Independência",
+    "uf": "AC",
+    "id": "20380",
+    "url": "https://conteudo.cbf.com.br/clubes/20380/escudo.jpg",
+    "path": "bra_d/cbf_20380.jpg"
+  },
+  {
+    "club": "Inhumas",
+    "division": "d",
+    "cbf_name": "Inhumas E. C.",
+    "uf": "GO",
+    "id": "37539",
+    "url": "https://conteudo.cbf.com.br/clubes/37539/escudo.jpg",
+    "path": "bra_d/cbf_37539.jpg"
+  },
+  {
+    "club": "Jacuipense",
+    "division": "d",
+    "cbf_name": "Jacuipense",
+    "uf": "BA",
+    "id": "35152",
+    "url": "https://conteudo.cbf.com.br/clubes/35152/escudo.jpg",
+    "path": "bra_d/cbf_35152.jpg"
+  },
+  {
+    "club": "Joinville",
+    "division": "d",
+    "cbf_name": "Joinville",
+    "uf": "SC",
+    "id": "20076",
+    "url": "https://conteudo.cbf.com.br/clubes/20076/escudo.jpg",
+    "path": "bra_d/cbf_20076.jpg"
+  },
+  {
+    "club": "Juazeirense",
+    "division": "d",
+    "cbf_name": "Juazeirense",
+    "uf": "BA",
+    "id": "35212",
+    "url": "https://conteudo.cbf.com.br/clubes/35212/escudo.jpg",
+    "path": "bra_d/cbf_35212.jpg"
+  },
+  {
+    "club": "Lagarto",
+    "division": "d",
+    "cbf_name": "Lagarto F.C.",
+    "uf": "SE",
+    "id": "35680",
+    "url": "https://conteudo.cbf.com.br/clubes/35680/escudo.jpg",
+    "path": "bra_d/cbf_35680.jpg"
+  },
+  {
+    "club": "Laguna",
+    "division": "d",
+    "cbf_name": "Laguna",
+    "uf": "RN",
+    "id": "60415",
+    "url": "https://conteudo.cbf.com.br/clubes/60415/escudo.jpg",
+    "path": "bra_d/cbf_60415.jpg"
+  },
+  {
+    "club": "Luverdense",
+    "division": "d",
+    "cbf_name": "Luverdense",
+    "uf": "MT",
+    "id": "21725",
+    "url": "https://conteudo.cbf.com.br/clubes/21725/escudo.jpg",
+    "path": "bra_d/cbf_21725.jpg"
+  },
+  {
+    "club": "Madureira",
+    "division": "d",
+    "cbf_name": "Madureira",
+    "uf": "RJ",
+    "id": "20249",
+    "url": "https://conteudo.cbf.com.br/clubes/20249/escudo.jpg",
+    "path": "bra_d/cbf_20249.jpg"
+  },
+  {
+    "club": "Maguary",
+    "division": "d",
+    "cbf_name": "Maguary",
+    "uf": "PE",
+    "id": "59116",
+    "url": "https://conteudo.cbf.com.br/clubes/59116/escudo.jpg",
+    "path": "bra_d/cbf_59116.jpg"
+  },
+  {
+    "club": "Manaus",
+    "division": "d",
+    "cbf_name": "Manaus",
+    "uf": "AM",
+    "id": "52844",
+    "url": "https://conteudo.cbf.com.br/clubes/52844/escudo.jpg",
+    "path": "bra_d/cbf_52844.jpg"
+  },
+  {
+    "club": "Manauara",
+    "division": "d",
+    "cbf_name": "Manauara",
+    "uf": "AM",
+    "id": "59102",
+    "url": "https://conteudo.cbf.com.br/clubes/59102/escudo.jpg",
+    "path": "bra_d/cbf_59102.jpg"
+  },
+  {
+    "club": "Marcílio Dias",
+    "division": "d",
+    "cbf_name": "Marcílio Dias",
+    "uf": "SC",
+    "id": "20207",
+    "url": "https://conteudo.cbf.com.br/clubes/20207/escudo.jpg",
+    "path": "bra_d/cbf_20207.jpg"
+  },
+  {
+    "club": "Maracanã",
+    "division": "d",
+    "cbf_name": "Maracana",
+    "uf": "CE",
+    "id": "35330",
+    "url": "https://conteudo.cbf.com.br/clubes/35330/escudo.jpg",
+    "path": "bra_d/cbf_35330.jpg"
+  },
+  {
+    "club": "Maricá",
+    "division": "d",
+    "cbf_name": "Maricá",
+    "uf": "RJ",
+    "id": "32036",
+    "url": "https://conteudo.cbf.com.br/clubes/32036/escudo.jpg",
+    "path": "bra_d/cbf_32036.jpg"
+  },
+  {
+    "club": "Mixto-MT",
+    "division": "d",
+    "cbf_name": "Mixto",
+    "uf": "MT",
+    "id": "20064",
+    "url": "https://conteudo.cbf.com.br/clubes/20064/escudo.jpg",
+    "path": "bra_d/cbf_20064.jpg"
+  },
+  {
+    "club": "Monte Roraima",
+    "division": "d",
+    "cbf_name": "Monte Roraima",
+    "uf": "RR",
+    "id": "62190",
+    "url": "https://conteudo.cbf.com.br/clubes/62190/escudo.jpg",
+    "path": "bra_d/cbf_62190.jpg"
+  },
+  {
+    "club": "Moto Club",
+    "division": "d",
+    "cbf_name": "Moto Club",
+    "uf": "MA",
+    "id": "20029",
+    "url": "https://conteudo.cbf.com.br/clubes/20029/escudo.jpg",
+    "path": "bra_d/cbf_20029.jpg"
+  },
+  {
+    "club": "Nacional-AM",
+    "division": "d",
+    "cbf_name": "Nacional",
+    "uf": "AM",
+    "id": "20050",
+    "url": "https://conteudo.cbf.com.br/clubes/20050/escudo.jpg",
+    "path": "bra_d/cbf_20050.jpg"
+  },
+  {
+    "club": "Noroeste",
+    "division": "d",
+    "cbf_name": "Noroeste",
+    "uf": "SP",
+    "id": "20082",
+    "url": "https://conteudo.cbf.com.br/clubes/20082/escudo.jpg",
+    "path": "bra_d/cbf_20082.jpg"
+  },
+  {
+    "club": "Nova Iguaçu",
+    "division": "d",
+    "cbf_name": "Nova Iguaçu Saf",
+    "uf": "RJ",
+    "id": "64287",
+    "url": "https://conteudo.cbf.com.br/clubes/64287/escudo.jpg",
+    "path": "bra_d/cbf_64287.jpg"
+  },
+  {
+    "club": "Operário-MS",
+    "division": "d",
+    "cbf_name": "Operário",
+    "uf": "MS",
+    "id": "20041",
+    "url": "https://conteudo.cbf.com.br/clubes/20041/escudo.jpg",
+    "path": "bra_d/cbf_20041.jpg"
+  },
+  {
+    "club": "Operário VG",
+    "division": "d",
+    "cbf_name": "Operário",
+    "uf": "MT",
+    "id": "35079",
+    "url": "https://conteudo.cbf.com.br/clubes/35079/escudo.jpg",
+    "path": "bra_d/cbf_35079.jpg"
+  },
+  {
+    "club": "Oratório",
+    "division": "d",
+    "cbf_name": "Oratório",
+    "uf": "AP",
+    "id": "21829",
+    "url": "https://conteudo.cbf.com.br/clubes/21829/escudo.jpg",
+    "path": "bra_d/cbf_21829.jpg"
+  },
+  {
+    "club": "Parnahyba",
+    "division": "d",
+    "cbf_name": "Parnahyba",
+    "uf": "PI",
+    "id": "20429",
+    "url": "https://conteudo.cbf.com.br/clubes/20429/escudo.jpg",
+    "path": "bra_d/cbf_20429.jpg"
+  },
+  {
+    "club": "Piauí",
+    "division": "d",
+    "cbf_name": "Piauí",
+    "uf": "PI",
+    "id": "20111",
+    "url": "https://conteudo.cbf.com.br/clubes/20111/escudo.jpg",
+    "path": "bra_d/cbf_20111.jpg"
+  },
+  {
+    "club": "Porto-BA",
+    "division": "d",
+    "cbf_name": "Porto Sport Club",
+    "uf": "BA",
+    "id": "62328",
+    "url": "https://conteudo.cbf.com.br/clubes/62328/escudo.jpg",
+    "path": "bra_d/cbf_62328.jpg"
+  },
+  {
+    "club": "Porto Velho",
+    "division": "d",
+    "cbf_name": "Gazin Porto Velho",
+    "uf": "RO",
+    "id": "56220",
+    "url": "https://conteudo.cbf.com.br/clubes/56220/escudo.jpg",
+    "path": "bra_d/cbf_56220.jpg"
+  },
+  {
+    "club": "Portuguesa-SP",
+    "division": "d",
+    "cbf_name": "Portuguesa Saf",
+    "uf": "SP",
+    "id": "63521",
+    "url": "https://conteudo.cbf.com.br/clubes/63521/escudo.jpg",
+    "path": "bra_d/cbf_63521.jpg"
+  },
+  {
+    "club": "Portuguesa-RJ",
+    "division": "d",
+    "cbf_name": "Portuguesa",
+    "uf": "RJ",
+    "id": "20805",
+    "url": "https://conteudo.cbf.com.br/clubes/20805/escudo.jpg",
+    "path": "bra_d/cbf_20805.jpg"
+  },
+  {
+    "club": "Pouso Alegre",
+    "division": "d",
+    "cbf_name": "Pouso Alegre Saf",
+    "uf": "MG",
+    "id": "63322",
+    "url": "https://conteudo.cbf.com.br/clubes/63322/escudo.jpg",
+    "path": "bra_d/cbf_63322.jpg"
+  },
+  {
+    "club": "Primavera-MT",
+    "division": "d",
+    "cbf_name": "Primavera Atlético Clube",
+    "uf": "MT",
+    "id": "59905",
+    "url": "https://conteudo.cbf.com.br/clubes/59905/escudo.jpg",
+    "path": "bra_d/cbf_59905.jpg"
+  },
+  {
+    "club": "Real Noroeste",
+    "division": "d",
+    "cbf_name": "Real Noroeste Capixaba F. C.",
+    "uf": "ES",
+    "id": "21942",
+    "url": "https://conteudo.cbf.com.br/clubes/21942/escudo.jpg",
+    "path": "bra_d/cbf_21942.jpg"
+  },
+  {
+    "club": "Retrô",
+    "division": "d",
+    "cbf_name": "Retrô",
+    "uf": "PE",
+    "id": "55531",
+    "url": "https://conteudo.cbf.com.br/clubes/55531/escudo.jpg",
+    "path": "bra_d/cbf_55531.jpg"
+  },
+  {
+    "club": "Rio Branco-ES",
+    "division": "d",
+    "cbf_name": "Rio Branco A.C. SAF",
+    "uf": "ES",
+    "id": "62546",
+    "url": "https://conteudo.cbf.com.br/clubes/62546/escudo.jpg",
+    "path": "bra_d/cbf_62546.jpg"
+  },
+  {
+    "club": "Sampaio Corrêa-MA",
+    "division": "d",
+    "cbf_name": "Sampaio Corrêa",
+    "uf": "MA",
+    "id": "20056",
+    "url": "https://conteudo.cbf.com.br/clubes/20056/escudo.jpg",
+    "path": "bra_d/cbf_20056.jpg"
+  },
+  {
+    "club": "Sampaio Corrêa-RJ",
+    "division": "d",
+    "cbf_name": "Sampaio Correa",
+    "uf": "RJ",
+    "id": "32387",
+    "url": "https://conteudo.cbf.com.br/clubes/32387/escudo.jpg",
+    "path": "bra_d/cbf_32387.jpg"
+  },
+  {
+    "club": "Santa Catarina",
+    "division": "d",
+    "cbf_name": "Santa Catarina Clube",
+    "uf": "SC",
+    "id": "39727",
+    "url": "https://conteudo.cbf.com.br/clubes/39727/escudo.jpg",
+    "path": "bra_d/cbf_39727.jpg"
+  },
+  {
+    "club": "São José-RS",
+    "division": "d",
+    "cbf_name": "São José",
+    "uf": "RS",
+    "id": "20319",
+    "url": "https://conteudo.cbf.com.br/clubes/20319/escudo.jpg",
+    "path": "bra_d/cbf_20319.jpg"
+  },
+  {
+    "club": "São Joseense",
+    "division": "d",
+    "cbf_name": "Sãojoseense",
+    "uf": "PR",
+    "id": "54488",
+    "url": "https://conteudo.cbf.com.br/clubes/54488/escudo.jpg",
+    "path": "bra_d/cbf_54488.jpg"
+  },
+  {
+    "club": "São Luiz",
+    "division": "d",
+    "cbf_name": "São Luiz",
+    "uf": "RS",
+    "id": "33061",
+    "url": "https://conteudo.cbf.com.br/clubes/33061/escudo.jpg",
+    "path": "bra_d/cbf_33061.jpg"
+  },
+  {
+    "club": "São Raimundo-RR",
+    "division": "d",
+    "cbf_name": "São Raimundo",
+    "uf": "RR",
+    "id": "21638",
+    "url": "https://conteudo.cbf.com.br/clubes/21638/escudo.jpg",
+    "path": "bra_d/cbf_21638.jpg"
+  },
+  {
+    "club": "Serra Branca",
+    "division": "d",
+    "cbf_name": "Serra Branca Esporte Clube",
+    "uf": "PB",
+    "id": "37846",
+    "url": "https://conteudo.cbf.com.br/clubes/37846/escudo.jpg",
+    "path": "bra_d/cbf_37846.jpg"
+  },
+  {
+    "club": "Sergipe",
+    "division": "d",
+    "cbf_name": "Sergipe",
+    "uf": "SE",
+    "id": "20034",
+    "url": "https://conteudo.cbf.com.br/clubes/20034/escudo.jpg",
+    "path": "bra_d/cbf_20034.jpg"
+  },
+  {
+    "club": "Sousa",
+    "division": "d",
+    "cbf_name": "Sousa",
+    "uf": "PB",
+    "id": "20390",
+    "url": "https://conteudo.cbf.com.br/clubes/20390/escudo.jpg",
+    "path": "bra_d/cbf_20390.jpg"
+  },
+  {
+    "club": "Tirol",
+    "division": "d",
+    "cbf_name": "Tirol - SAF",
+    "uf": "CE",
+    "id": "62217",
+    "url": "https://conteudo.cbf.com.br/clubes/62217/escudo.jpg",
+    "path": "bra_d/cbf_62217.jpg"
+  },
+  {
+    "club": "Tocantinópolis",
+    "division": "d",
+    "cbf_name": "Tocantinopolis",
+    "uf": "TO",
+    "id": "20288",
+    "url": "https://conteudo.cbf.com.br/clubes/20288/escudo.jpg",
+    "path": "bra_d/cbf_20288.jpg"
+  },
+  {
+    "club": "Tombense",
+    "division": "d",
+    "cbf_name": "Tombense",
+    "uf": "MG",
+    "id": "34027",
+    "url": "https://conteudo.cbf.com.br/clubes/34027/escudo.jpg",
+    "path": "bra_d/cbf_34027.jpg"
+  },
+  {
+    "club": "Treze",
+    "division": "d",
+    "cbf_name": "Treze",
+    "uf": "PB",
+    "id": "20071",
+    "url": "https://conteudo.cbf.com.br/clubes/20071/escudo.jpg",
+    "path": "bra_d/cbf_20071.jpg"
+  },
+  {
+    "club": "Trem",
+    "division": "d",
+    "cbf_name": "Trem",
+    "uf": "AP",
+    "id": "20810",
+    "url": "https://conteudo.cbf.com.br/clubes/20810/escudo.jpg",
+    "path": "bra_d/cbf_20810.jpg"
+  },
+  {
+    "club": "Tuna Luso",
+    "division": "d",
+    "cbf_name": "Tuna Luso",
+    "uf": "PA",
+    "id": "20100",
+    "url": "https://conteudo.cbf.com.br/clubes/20100/escudo.jpg",
+    "path": "bra_d/cbf_20100.jpg"
+  },
+  {
+    "club": "Uberlândia",
+    "division": "d",
+    "cbf_name": "Uberlândia Saf",
+    "uf": "MG",
+    "id": "64223",
+    "url": "https://conteudo.cbf.com.br/clubes/64223/escudo.jpg",
+    "path": "bra_d/cbf_64223.jpg"
+  },
+  {
+    "club": "União Rondonópolis",
+    "division": "d",
+    "cbf_name": "União",
+    "uf": "MT",
+    "id": "20287",
+    "url": "https://conteudo.cbf.com.br/clubes/20287/escudo.jpg",
+    "path": "bra_d/cbf_20287.jpg"
+  },
+  {
+    "club": "Velo Clube",
+    "division": "d",
+    "cbf_name": "Velo Clube",
+    "uf": "SP",
+    "id": "31535",
+    "url": "https://conteudo.cbf.com.br/clubes/31535/escudo.jpg",
+    "path": "bra_d/cbf_31535.jpg"
+  },
+  {
+    "club": "Vitória-ES",
+    "division": "d",
+    "cbf_name": "Vitoria F. C.",
+    "uf": "ES",
+    "id": "20081",
+    "url": "https://conteudo.cbf.com.br/clubes/20081/escudo.jpg",
+    "path": "bra_d/cbf_20081.jpg"
+  },
+  {
+    "club": "XV de Piracicaba",
+    "division": "d",
+    "cbf_name": "XV de Piracicaba",
+    "uf": "SP",
+    "id": "20072",
+    "url": "https://conteudo.cbf.com.br/clubes/20072/escudo.jpg",
+    "path": "bra_d/cbf_20072.jpg"
+  },
+  {
+    "club": "Ivinhema",
+    "division": "d",
+    "cbf_name": "Ivinhema Futebol Clube",
+    "uf": "MS",
+    "id": "21817",
+    "url": "https://conteudo.cbf.com.br/clubes/21817/escudo.jpg",
+    "path": "bra_d/cbf_21817.jpg"
+  },
+  {
+    "club": "Pantanal",
+    "division": "cup",
+    "cbf_name": "Pantanal SAF",
+    "uf": "MS",
+    "id": "63954",
+    "url": "https://conteudo.cbf.com.br/clubes/63954/escudo.jpg",
+    "path": "bra_d/cbf_63954.jpg"
+  }
+]

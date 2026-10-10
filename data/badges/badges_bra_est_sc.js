@@ -3,14 +3,14 @@
 // Clubes mapeados: 10
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Criciúma": "bra_b/criciuma.svg",
-  "Chapecoense": "bra_a/chapecoense.svg",
-  "Avaí": "bra_b/avai.svg",
-  "Figueirense": "bra_c/figueirense.png",
-  "Brusque": "bra_c/brusque.svg",
-  "Marcílio Dias": "bra_d/marcilio_dias.png",
-  "Joinville": "bra_d/joinville.png",
-  "Barra-SC": "bra_c/barra_sc.png",
-  "Santa Catarina": "bra_d/santa_catarina.png",
+  "Criciúma": "bra_b/cbf_20019.jpg",
+  "Chapecoense": "bra_a/cbf_20086.jpg",
+  "Avaí": "bra_b/cbf_20058.jpg",
+  "Figueirense": "bra_c/cbf_59879.jpg",
+  "Brusque": "bra_c/cbf_63843.jpg",
+  "Marcílio Dias": "bra_d/cbf_20207.jpg",
+  "Joinville": "bra_d/cbf_20076.jpg",
+  "Barra-SC": "bra_c/cbf_40387.jpg",
+  "Santa Catarina": "bra_d/cbf_39727.jpg",
   "Concórdia": "bra_estaduais/concordia.png"
 });

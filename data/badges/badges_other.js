@@ -25,7 +25,7 @@ window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
   "Atlético Rio Negro": "201.png",
   "Atlético Goianiense": "atletico_go.svg",
   "Gazin Porto Velho": "58.png",
-  "Ivinhema": "68.png",
+  "Ivinhema": "bra_d/cbf_21817.jpg",
   "Maringá FC": "maringa.svg",
   "Portuguesa": "94.svg",
   "Red Bull Bragantino": "20.png",

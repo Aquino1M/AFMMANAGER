@@ -3,16 +3,16 @@
 // Clubes mapeados: 12
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Atlético-MG": "bra_a/atletico_mg.svg",
-  "Cruzeiro": "bra_a/cruzeiro.svg",
-  "América-MG": "bra_b/america_mg.png",
-  "Athletic Club": "bra_b/athletic_club.svg",
-  "Tombense": "bra_d/tombense.png",
-  "Pouso Alegre": "bra_d/pouso_alegre.png",
+  "Atlético-MG": "bra_a/cbf_62194.jpg",
+  "Cruzeiro": "bra_a/cbf_59849.jpg",
+  "América-MG": "bra_b/cbf_59897.jpg",
+  "Athletic Club": "bra_b/cbf_59896.jpg",
+  "Tombense": "bra_d/cbf_34027.jpg",
+  "Pouso Alegre": "bra_d/cbf_63322.jpg",
   "Villa Nova": "bra_estaduais/villa_nova.png",
-  "Democrata GV": "bra_d/democrata_gv.png",
-  "Uberlândia": "bra_d/uberlandia.png",
-  "Betim": "bra_d/betim.png",
+  "Democrata GV": "bra_d/cbf_20432.jpg",
+  "Uberlândia": "bra_d/cbf_64223.jpg",
+  "Betim": "bra_d/cbf_34709.jpg",
   "Ipatinga": "bra_estaduais/ipatinga.png",
   "Itabirito": "bra_estaduais/itabirito.png"
 });

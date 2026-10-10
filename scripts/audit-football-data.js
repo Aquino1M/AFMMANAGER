@@ -30,11 +30,17 @@ function loadCompetitionTeams() {
 
 // 2. Carregar Mapeamento de Escudos
 function loadClubBadges() {
-  const data = loadBrowserData(path.join('data', 'club_badges.js'));
-  return {
-    badges: data.CLUB_BADGES || {},
-    logos: data.COMPETITION_LOGOS || {}
-  };
+  const window = {};
+  for (const relativePath of [
+    path.join('data', 'club_badges.js'),
+    path.join('data', 'club_badges_unverified.js'),
+    path.join('js', 'core', 'club_badges_core.js'),
+    path.join('data', 'club_badges_verified_2026.js')
+  ]) {
+    const source = fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
+    vm.runInNewContext(`(function(){${source}\n})();`, { window }, { filename: relativePath });
+  }
+  return { badges: window.CLUB_BADGES || {}, logos: window.COMPETITION_LOGOS || {} };
 }
 
 // 3. Carregar Definição de Competições

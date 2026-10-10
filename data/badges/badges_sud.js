@@ -3,12 +3,12 @@
 // Clubes mapeados: 16
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Corinthians": "bra_a/corinthians.png",
-  "Cruzeiro": "bra_a/cruzeiro.svg",
-  "Athletico Paranaense": "bra_a/athletico_pr.svg",
-  "Fortaleza": "bra_b/fortaleza.png",
-  "Internacional": "bra_a/internacional.svg",
-  "Bahia": "bra_a/bahia.svg",
+  "Corinthians": "bra_a/cbf_20001.jpg",
+  "Cruzeiro": "bra_a/cbf_59849.jpg",
+  "Athletico Paranaense": "bra_a/cbf_20052.jpg",
+  "Fortaleza": "bra_b/cbf_63238.jpg",
+  "Internacional": "bra_a/cbf_20011.jpg",
+  "Bahia": "bra_a/cbf_61377.jpg",
   "Lanús": "arg_1/lanus.png",
   "Independiente": "arg_1/independiente.png",
   "San Lorenzo": "arg_1/san_lorenzo.png",

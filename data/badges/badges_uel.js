@@ -30,7 +30,7 @@ window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
   "Ludogorets": "europe/ludogorets.png",
   "Midtjylland": "europe/midtjylland.png",
   "Malmö FF": "europe/malmo_ff.png",
-  "Athletic Club": "bra_b/athletic_club.svg",
+  "Athletic Club": "bra_b/cbf_59896.jpg",
   "Hoffenheim": "europe/hoffenheim.png",
   "Nice": "europe/nice.png",
   "Anderlecht": "europe/anderlecht.png",

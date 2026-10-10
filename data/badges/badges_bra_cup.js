@@ -3,20 +3,20 @@
 // Clubes mapeados: 16
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Flamengo": "bra_a/flamengo.png",
-  "Palmeiras": "bra_a/palmeiras.png",
-  "São Paulo": "bra_a/sao_paulo.svg",
-  "Corinthians": "bra_a/corinthians.png",
-  "Atlético-MG": "bra_a/atletico_mg.svg",
-  "Cruzeiro": "bra_a/cruzeiro.svg",
-  "Grêmio": "bra_a/gremio.svg",
-  "Internacional": "bra_a/internacional.svg",
-  "Fluminense": "bra_a/fluminense.png",
-  "Botafogo": "bra_a/botafogo.svg",
-  "Vasco da Gama": "bra_a/vasco.png",
-  "Bahia": "bra_a/bahia.svg",
-  "Athletico Paranaense": "bra_a/athletico_pr.svg",
-  "Fortaleza": "bra_b/fortaleza.png",
-  "Ceará": "bra_b/ceara.svg",
-  "Sport": "bra_b/sport.svg"
+  "Flamengo": "bra_a/cbf_20016.jpg",
+  "Palmeiras": "bra_a/cbf_20002.jpg",
+  "São Paulo": "bra_a/cbf_20005.jpg",
+  "Corinthians": "bra_a/cbf_20001.jpg",
+  "Atlético-MG": "bra_a/cbf_62194.jpg",
+  "Cruzeiro": "bra_a/cbf_59849.jpg",
+  "Grêmio": "bra_a/cbf_20013.jpg",
+  "Internacional": "bra_a/cbf_20011.jpg",
+  "Fluminense": "bra_a/cbf_20014.jpg",
+  "Botafogo": "bra_a/cbf_60175.jpg",
+  "Vasco da Gama": "bra_a/cbf_60646.jpg",
+  "Bahia": "bra_a/cbf_61377.jpg",
+  "Athletico Paranaense": "bra_a/cbf_20052.jpg",
+  "Fortaleza": "bra_b/cbf_63238.jpg",
+  "Ceará": "bra_b/cbf_20031.jpg",
+  "Sport": "bra_b/cbf_20010.jpg"
 });

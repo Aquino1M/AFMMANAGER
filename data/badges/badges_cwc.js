@@ -9,9 +9,9 @@ window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
   "Paris Saint-Germain": "europe/paris_saint_germain.png",
   "Chelsea": "europe/chelsea.png",
   "Inter": "europe/inter.png",
-  "Flamengo": "bra_a/flamengo.png",
-  "Palmeiras": "bra_a/palmeiras.png",
-  "Fluminense": "bra_a/fluminense.png",
+  "Flamengo": "bra_a/cbf_20016.jpg",
+  "Palmeiras": "bra_a/cbf_20002.jpg",
+  "Fluminense": "bra_a/cbf_20014.jpg",
   "River Plate": "arg_1/river_plate.png",
   "Boca Juniors": "arg_1/boca_juniors.png",
   "Al-Hilal": "asia/al_hilal.png"

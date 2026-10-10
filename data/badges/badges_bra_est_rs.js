@@ -3,16 +3,16 @@
 // Clubes mapeados: 12
 // ==============================================================================
 window.CLUB_BADGES = Object.assign(window.CLUB_BADGES || {}, {
-  "Grêmio": "bra_a/gremio.svg",
-  "Internacional": "bra_a/internacional.svg",
-  "Juventude": "bra_b/juventude.svg",
-  "Caxias": "bra_c/caxias.svg",
-  "Ypiranga-RS": "bra_c/ypiranga_rs.svg",
-  "Brasil de Pelotas": "bra_d/brasil_de_pelotas.png",
-  "São José-RS": "bra_d/sao_jose_rs.png",
-  "São Luiz": "bra_d/sao_luiz.png",
+  "Grêmio": "bra_a/cbf_20013.jpg",
+  "Internacional": "bra_a/cbf_20011.jpg",
+  "Juventude": "bra_b/cbf_20027.jpg",
+  "Caxias": "bra_c/cbf_20062.jpg",
+  "Ypiranga-RS": "bra_c/cbf_20379.jpg",
+  "Brasil de Pelotas": "bra_d/bra_brasil_de_pelotas.png",
+  "São José-RS": "bra_d/cbf_20319.jpg",
+  "São Luiz": "bra_d/cbf_33061.jpg",
   "Avenida": "bra_estaduais/avenida.png",
   "Monsoon": "bra_estaduais/monsoon.png",
-  "Guarany de Bagé": "bra_d/guarany_de_bage.png",
+  "Guarany de Bagé": "bra_d/cbf_20225.jpg",
   "Novo Hamburgo": "bra_estaduais/novo_hamburgo.png"
 });
