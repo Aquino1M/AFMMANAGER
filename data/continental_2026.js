@@ -1,6 +1,6 @@
 // Fase de grupos e janelas oficiais das competições CONMEBOL de 2026.
 window.AFM_CONTINENTAL_2026 = {
-  matchdays: ['07–09 abr', '14–16 abr', '28–30 abr', '05–07 mai', '19–21 mai', '26–28 mai'],
+  matchdays: ['2026-04-07', '2026-04-14', '2026-04-28', '2026-05-05', '2026-05-19', '2026-05-26'],
   groups: {
     lib: {
       A: ['Flamengo', 'Estudiantes', 'Cusco', 'Independiente Medellín'],
@@ -26,8 +26,8 @@ window.AFM_CONTINENTAL_2026 = {
   // shortcut: Copa do Brasil cobre 5ª fase às quartas; ampliar ao integrar chave oficial completa e fases finais.
   copaDoBrasil: {
     dateWindows: [
-      { round: '5ª fase • ida', date: '2026-04-22', label: '22 abr 2026' },
-      { round: '5ª fase • volta', date: '2026-05-13', label: '13 mai 2026' }
+      { round: '5ª fase • ida', date: '2026-04-21', endDate: '2026-04-23', label: '21–23 abr 2026' },
+      { round: '5ª fase • volta', date: '2026-05-12', endDate: '2026-05-14', label: '12–14 mai 2026' }
     ],
     ties: [
       ['Atlético-MG', 'Ceará'], ['Goiás', 'Cruzeiro'], ['Athletico Paranaense', 'Atlético-GO'],
@@ -39,8 +39,8 @@ window.AFM_CONTINENTAL_2026 = {
     ],
     roundOf16: {
       dateWindows: [
-        { round: 'Oitavas • ida', date: '2026-08-01', label: '01–03 ago 2026' },
-        { round: 'Oitavas • volta', date: '2026-08-04', label: '04–06 ago 2026' }
+        { round: 'Oitavas • ida', date: '2026-08-01', endDate: '2026-08-03', label: '01–03 ago 2026' },
+        { round: 'Oitavas • volta', date: '2026-08-04', endDate: '2026-08-06', label: '04–06 ago 2026' }
       ],
       ties: [
         ['Vasco da Gama', 'Fluminense'], ['Internacional', 'Corinthians'], ['Mirassol', 'Grêmio'],
@@ -50,8 +50,8 @@ window.AFM_CONTINENTAL_2026 = {
     },
     quarterfinals: {
       dateWindows: [
-        { round: 'Quartas • ida', date: '2026-08-25', label: '25–27 ago 2026' },
-        { round: 'Quartas • volta', date: '2026-09-01', label: '01–03 set 2026' }
+        { round: 'Quartas • ida', date: '2026-08-25', endDate: '2026-08-27', label: '25–27 ago 2026' },
+        { round: 'Quartas • volta', date: '2026-09-01', endDate: '2026-09-03', label: '01–03 set 2026' }
       ],
       ties: [
         ['Internacional', 'Grêmio'], ['Cruzeiro', 'Atlético-MG'],
@@ -61,15 +61,22 @@ window.AFM_CONTINENTAL_2026 = {
   },
   groupFixtures(competitionId) {
     const groups = this.groups[competitionId] || {};
+    const firstMatchDay = this.matchdays;
     const pattern = [
       [[3, 1], [2, 0]], [[1, 2], [0, 3]], [[1, 0], [3, 2]],
       [[2, 1], [3, 0]], [[0, 1], [2, 3]], [[0, 2], [1, 3]]
     ];
-    return pattern.map((matches, index) => Object.entries(groups).flatMap(([group, teams]) =>
-      matches.map(([home, away]) => ({
-        competitionId, group, round: index + 1,
-        home: teams[home], away: teams[away], dateLabel: this.matchdays[index]
-      }))
+    return pattern.map((matches, index) => Object.entries(groups).flatMap(([group, teams], groupIndex) =>
+      matches.map(([home, away]) => {
+        const date = new Date(`${firstMatchDay[index]}T12:00:00`);
+        date.setDate(date.getDate() + groupIndex % 3);
+        const isoDate = date.toISOString().slice(0, 10);
+        return {
+          competitionId, group, round: index + 1, date: isoDate,
+          home: teams[home], away: teams[away],
+          dateLabel: date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+        };
+      })
     ));
   }
 };

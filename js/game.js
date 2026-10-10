@@ -16966,6 +16966,7 @@ function calendarPage(){
   const schedule = state.schedule || [];
   const myClub = state.club;
   const calendarClubKey = name => ({'red bull bragantino':'bragantino'}[norm(name)] || norm(name));
+  const leagueDates = new Set(schedule.map((_, round) => getDateForRound(round, state.season)));
   const winInfo = getTransferWindowInfo(state.date);
   const continental = Number(state.season) === 2026 ? window.AFM_CONTINENTAL_2026 : null;
   const extraMatches = [];
@@ -16977,17 +16978,21 @@ function calendarPage(){
       })));
     }
     for(const stage of [continental.copaDoBrasil, continental.copaDoBrasil.roundOf16, continental.copaDoBrasil.quarterfinals]){
-      for(const [home, away] of stage.ties){
-        if(calendarClubKey(home) !== calendarClubKey(myClub) && calendarClubKey(away) !== calendarClubKey(myClub)) continue;
-        for(const leg of stage.dateWindows){
-          const isFirstLeg = leg.round.endsWith('ida');
+      stage.ties.forEach(([home, away], tieIndex) => {
+        if(calendarClubKey(home) !== calendarClubKey(myClub) && calendarClubKey(away) !== calendarClubKey(myClub)) return;
+        stage.dateWindows.forEach((leg, legIndex) => {
+          const isFirstLeg = legIndex === 0;
           const isHome = isFirstLeg ? calendarClubKey(home) === calendarClubKey(myClub) : calendarClubKey(away) === calendarClubKey(myClub);
+          const date = new Date(`${leg.date}T12:00:00`);
+          date.setDate(date.getDate() + tieIndex % 3);
+          while(leagueDates.has(date.toISOString().slice(0,10))) date.setDate(date.getDate() + 1);
           extraMatches.push({
             competitionId:'bra-cup', name:'Copa do Brasil', home:isHome?myClub:(isFirstLeg?away:home),
-            away:isHome?(isFirstLeg?away:home):myClub, isHome, round:leg.round, dateLabel:leg.label
+            away:isHome?(isFirstLeg?away:home):myClub, isHome, round:leg.round,
+            date:date.toISOString().slice(0,10), dateLabel:leg.label
           });
-        }
-      }
+        });
+      });
     }
   }
   const cupFilters = [
@@ -16995,6 +17000,24 @@ function calendarPage(){
   ].filter(([id]) => extraMatches.some(f => f.competitionId === id));
   const activeCalendarFilter = ['ALL','COMP','HOME','AWAY'].includes(calendarFilter) || cupFilters.some(([id]) => id === calendarFilter) ? calendarFilter : 'ALL';
   const userLeagueMatches = schedule.filter(games => games.some(g => g.includes(myClub))).length;
+  const calendarMatches = schedule.flatMap((games, rIndex) => {
+    const f = games.find(g => g.includes(myClub));
+    if(!f) return [];
+    const isHome = f[0] === myClub;
+    const date = getDateForRound(rIndex, state.season);
+    const historyMatch = state.history.find(h => h.round === rIndex + 1);
+    return [{
+      competitionId:'COMP', name:comp.name, home:f[0], away:f[1], isHome,
+      date, round:`Rodada ${rIndex + 1}`, current:rIndex === state.round,
+      past:rIndex < state.round, historyMatch
+    }];
+  }).concat(extraMatches.map(match => ({...match, current:false, past:false})))
+    .filter(match => {
+      if(activeCalendarFilter === 'COMP') return match.competitionId === 'COMP';
+      if(['HOME','AWAY'].includes(activeCalendarFilter)) return match.isHome === (activeCalendarFilter === 'HOME');
+      return activeCalendarFilter === 'ALL' || match.competitionId === activeCalendarFilter;
+    })
+    .sort((a,b) => a.date.localeCompare(b.date) || Number(b.competitionId === 'COMP') - Number(a.competitionId === 'COMP'));
 
   return `
     <div class="hero">
@@ -17042,90 +17065,31 @@ function calendarPage(){
 
     <!-- Lista Cronológica dos Jogos -->
     <div class="calendar-view" style="margin-top:10px">
-      ${schedule.map((games, rIndex)=>{
-        if(['bra-cup','lib','sud'].includes(activeCalendarFilter)) return '';
-        const f = games.find(g => g.includes(myClub));
-        if(!f) return '';
-        const isHome = f[0] === myClub;
-        const opponent = isHome ? f[1] : f[0];
-
-        if(activeCalendarFilter === 'HOME' && !isHome) return '';
-        if(activeCalendarFilter === 'AWAY' && isHome) return '';
-
-        const isCurrent = rIndex === state.round;
-        const isPast = rIndex < state.round;
-        const historyMatch = state.history.find(h => h.round === rIndex + 1);
-
-        const d = new Date(state.season + '-01-10T12:00:00');
-        d.setDate(d.getDate() + (rIndex * 7));
-        const dateIso = d.toISOString().slice(0,10);
-        const dateFormatted = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'long'});
-        const winActive = isTransferWindowOpen(dateIso);
-
-        let statusHtml = '';
-        if(isPast){
-          if(historyMatch){
-            const userScore = isHome ? historyMatch.hg : historyMatch.ag;
-            const oppScore = isHome ? historyMatch.ag : historyMatch.hg;
+      ${calendarMatches.map(match=>{
+        const opponent = match.isHome ? match.away : match.home;
+        const date = new Date(`${match.date}T12:00:00`);
+        const dateFormatted = date.toLocaleDateString('pt-BR', {day:'2-digit', month:'long'});
+        let statusHtml = '<span class="pill muted">⏳ Agendado</span>';
+        if(match.competitionId === 'COMP' && match.past){
+          const history = match.historyMatch;
+          if(history){
+            const userScore = match.isHome ? history.hg : history.ag;
+            const oppScore = match.isHome ? history.ag : history.hg;
             const win = userScore > oppScore, draw = userScore === oppScore;
-            statusHtml = `<span class="pill ${win?'good':draw?'warn':'bad'}">R${rIndex+1}: ${historyMatch.hg} x ${historyMatch.ag} (${win?'Vitória':draw?'Empate':'Derrota'})</span>`;
-          } else {
-            statusHtml = `<span class="pill">Concluído</span>`;
-          }
-        } else if(isCurrent){
-          statusHtml = `
-            <div style="display:flex;gap:6px;align-items:center;justify-content:flex-end">
-              <span class="pill primary" style="box-shadow:0 0 12px var(--neon)">👉 HOJE</span>
-              <button class="btn primary btnCalPlayNow" style="padding:4px 10px;font-size:12px">⚽ Jogar</button>
-            </div>
-          `;
-        } else {
-          statusHtml = `<span class="pill muted">⏳ Agendado</span>`;
+            statusHtml = `<span class="pill ${win?'good':draw?'warn':'bad'}">R${match.round.replace('Rodada ','')}: ${history.hg} x ${history.ag} (${win?'Vitória':draw?'Empate':'Derrota'})</span>`;
+          } else statusHtml = '<span class="pill">Concluído</span>';
+        } else if(match.competitionId === 'COMP' && match.current){
+          statusHtml = `<div style="display:flex;gap:6px;align-items:center;justify-content:flex-end"><span class="pill primary" style="box-shadow:0 0 12px var(--neon)">👉 HOJE</span><button class="btn primary btnCalPlayNow" style="padding:4px 10px;font-size:12px">⚽ Jogar</button></div>`;
         }
-
-        return `
-          <div class="calendar-card ${isCurrent?'current':''}">
-            <div>
-              <b>${dateFormatted}</b>
-              <div class="small muted">Rodada ${rIndex + 1}</div>
-            </div>
-            <div>
-              <span class="pill" style="font-size:11px">${isHome?'🏠 EM CASA':'✈️ FORA'}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px">
-              ${clubBadge(opponent, 32)}
-              <div>
-                <b>vs ${esc(opponent)}</b>
-                <div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div>
-              </div>
-            </div>
-            <div>
-              <span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(comp.name)}</span>
-              <div class="small" style="margin-top:4px">
-                <span class="${winActive?'good':'muted'}" style="font-size:10px">${winActive?'🟢 Janela Aberta':'🔒 Janela Fechada'}</span>
-              </div>
-            </div>
-            <div style="text-align:right">
-              ${statusHtml}
-            </div>
-          </div>
-        `;
+        const detail = match.competitionId === 'COMP' ? match.round : `${typeof match.round === 'number' ? `Rodada ${match.round}` : match.round || ''}${match.group ? ` • Grupo ${match.group}` : ''}`;
+        return `<div class="calendar-card ${match.current?'current':''}">
+          <div><b>${dateFormatted}</b><div class="small muted">${esc(detail)}</div></div>
+          <div><span class="pill" style="font-size:11px">${match.isHome?'🏠 EM CASA':'✈️ FORA'}</span></div>
+          <div style="display:flex;align-items:center;gap:12px">${clubBadge(opponent,32)}<div><b>vs ${esc(opponent)}</b><div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div></div></div>
+          <div><span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(match.name)}</span>${match.competitionId === 'COMP' ? `<div class="small" style="margin-top:4px"><span class="${isTransferWindowOpen(match.date)?'good':'muted'}" style="font-size:10px">${isTransferWindowOpen(match.date)?'🟢 Janela Aberta':'🔒 Janela Fechada'}</span></div>` : ''}</div>
+          <div style="text-align:right">${statusHtml}</div>
+        </div>`;
       }).join('')}
-      ${activeCalendarFilter === 'COMP' ? '' : extraMatches.filter(f => {
-        if(['HOME','AWAY'].includes(activeCalendarFilter) && ((activeCalendarFilter === 'HOME') !== f.isHome)) return false;
-        return activeCalendarFilter === 'ALL' || activeCalendarFilter === 'HOME' || activeCalendarFilter === 'AWAY' || activeCalendarFilter === f.competitionId;
-      }).map(f => `
-        <div class="calendar-card">
-          <div><b>${esc(f.dateLabel)}</b><div class="small muted">${esc(f.round ? `Rodada ${f.round}${f.group ? ` • Grupo ${f.group}` : ''}` : '')}</div></div>
-          <div><span class="pill" style="font-size:11px">${f.isHome?'🏠 EM CASA':'✈️ FORA'}</span></div>
-          <div style="display:flex;align-items:center;gap:12px">
-            ${clubBadge(f.isHome ? f.away : f.home, 32)}
-            <div><b>vs ${esc(f.isHome ? f.away : f.home)}</b><div class="small muted">${f.group ? `Grupo ${f.group}` : esc(f.round)}</div></div>
-          </div>
-          <div><span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(f.name)}</span></div>
-          <div style="text-align:right"><span class="pill muted">📋 Tabela oficial 2026</span></div>
-        </div>
-      `).join('')}
     </div>
   `;
 }
