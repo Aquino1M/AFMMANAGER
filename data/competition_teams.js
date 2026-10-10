@@ -122,7 +122,7 @@ window.COMPETITION_TEAMS = {
     'Club Brugge','Union Saint-Gilloise','Anderlecht','Genk','Antwerp','Gent','Cercle Brugge','Mechelen','Sint-Truiden','Standard Liège','Westerlo','Charleroi','OH Leuven','Kortrijk','Dender','Beerschot'
   ],
   'tur-1': [
-    'Galatasaray','Fenerbahçe','Beşiktaş','Trabzonspor','Başakşehir','Kasımpaşa','Sivasspor','Alanyaspor','Rizespor','Antalyaspor','Gaziantep','Adana Demirspor','Samsunspor','Kayserispor','Hatayspor','Konyaspor','Eyüpspor','Göztepe','Bodrum'
+    'Galatasaray','Fenerbahçe','Beşiktaş','Trabzonspor','Başakşehir','Kasımpaşa','Alanyaspor','Rizespor','Antalyaspor','Gaziantep','Samsunspor','Kayserispor','Konyaspor','Eyüpspor','Göztepe','Kocaelispor','Gençlerbirliği','Fatih Karagümrük'
   ],
   'sco-1': [
     'Celtic','Rangers','Hearts','Kilmarnock','St. Mirren','Dundee','Aberdeen','Hibernian','Motherwell','St. Johnstone','Ross County','Dundee United'

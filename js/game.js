@@ -15,114 +15,16 @@ window.esc = esc;
 const hashStr=s=>{let h=2166136261;for(const ch of String(s)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h>>>0)};
 
 // =============================================================
-// MODOS DE BANCO DE DADOS: MODO PADRÃO (GENÉRICO) & MOD DA COMUNIDADE (OFICIAL)
+// O jogo usa exclusivamente o pacote da comunidade.
 // =============================================================
-let currentDbMode = 'mod'; // Oficial permanente AFM 2027
+const currentDbMode = 'mod';
 
 function getDbMode(){
   return 'mod';
 }
 
-function setDbMode(m){
-  currentDbMode = 'mod';
+function setDbMode(){
   try { localStorage.setItem('aquino_fm_db_mode', 'mod'); } catch(e){}
-}
-
-const GENERIC_CLUB_NAMES = {
-  // Série A
-  'Athletico Paranaense': 'Curitiba Rubro-Negro',
-  'Atlético-MG': 'Belo Horizonte Alvinegro',
-  'Bahia': 'Salvador Tricolor',
-  'Botafogo': 'Rio Estrela Solitária',
-  'Chapecoense': 'Chapecó Índio',
-  'Corinthians': 'SP Alvinegro',
-  'Coritiba': 'Curitiba Coxa',
-  'Cruzeiro': 'Belo Horizonte Celeste',
-  'Flamengo': 'Rio Rubro-Negro',
-  'Fluminense': 'Rio Tricolor',
-  'Fortaleza': 'Fortaleza Leão',
-  'Grêmio': 'Porto Alegre Tricolor',
-  'Internacional': 'Porto Alegre Colorado',
-  'Juventude': 'Caxias Verde',
-  'Mirassol': 'Interior Paulista FC',
-  'Palmeiras': 'SP Alviverde',
-  'Red Bull Bragantino': 'Bragança Paulista FC',
-  'Santos': 'Santos Litoral',
-  'São Paulo': 'SP Tricolor Paulista',
-  'Vasco': 'Rio Cruzmaltino',
-  'Vitória': 'Salvador Rubro-Negro',
-  'Cuiabá': 'Cuiabá Dourado',
-  'Criciúma': 'Criciúma Tigre',
-  'Atlético-GO': 'Goiânia Dragão',
-
-  // Série B / C / Regionais
-  'América-MG': 'Belo Horizonte Coelho',
-  'Amazonas': 'Manaus Onça',
-  'Avaí': 'Florianópolis Leão',
-  'Botafogo-SP': 'Ribeirão Preto Pantera',
-  'Brusque': 'Brusque Quadricolor',
-  'Ceará': 'Fortaleza Vozão',
-  'Goiás': 'Goiânia Esmeraldino',
-  'Guarani': 'Campinas Bugre',
-  'Ituano': 'Itu Galo',
-  'Novorizontino': 'Novo Horizonte Tigre',
-  'Operário-PR': 'Ponta Grossa Fantasma',
-  'Paysandu': 'Belém Papão',
-  'Ponte Preta': 'Campinas Macaca',
-  'Sport': 'Recife Leão',
-  'Vila Nova': 'Goiânia Tigrão',
-  'Figueirense': 'Florianópolis Furacão',
-  'Náutico': 'Recife Timbu',
-  'Remo': 'Belém Leão',
-  'Santa Cruz': 'Recife Coral',
-  'Londrina': 'Londrina Tubarão',
-  'Brasiliense': 'Brasília Amarelo',
-  'Gama': 'Brasília Verde',
-  'Ceilândia': 'Ceilândia Gato Preto',
-  'Capital-DF': 'Brasília Capital',
-  'Real Brasília': 'Brasília Real',
-
-  // Europa & Internacionais
-  'Real Madrid': 'Madrid Blanco',
-  'Barcelona': 'Catalunha Blaugrana',
-  'Atlético de Madrid': 'Madrid Colchonero',
-  'Manchester City': 'Manchester Sky Blue',
-  'Manchester United': 'Manchester Red',
-  'Liverpool': 'Merseyside Red',
-  'Chelsea': 'London Blues',
-  'Arsenal': 'North London Red',
-  'Tottenham': 'North London Lilywhites',
-  'Bayern München': 'Bavaria Rot',
-  'Borussia Dortmund': 'Ruhrgelb',
-  'Paris Saint-Germain': 'Paris Rouge-Bleu',
-  'PSG': 'Paris Rouge-Bleu',
-  'Juventus': 'Piemonte Bianco-Nero',
-  'Internazionale': 'Milano Nerazzurri',
-  'Inter de Milão': 'Milano Nerazzurri',
-  'Milan': 'Milano Rossoneri',
-  'AC Milan': 'Milano Rossoneri',
-  'Napoli': 'Campania Azzurri',
-  'Benfica': 'Lisboa Vermelho',
-  'Sporting': 'Lisboa Verde',
-  'Porto': 'Porto Dragão',
-  'Boca Juniors': 'Buenos Aires Azul y Oro',
-  'River Plate': 'Buenos Aires Banda Roja',
-  'Peñarol': 'Montevideo Carbonero',
-  'Nacional': 'Montevideo Tricolor',
-  'Al-Hilal': 'Riyadh Blue',
-  'Al-Nassr': 'Riyadh Yellow',
-  'Al-Ittihad': 'Jeddah Gold',
-  'Inter Miami': 'Miami Heron'
-};
-
-function getGenericClubName(realName){
-  if(!realName) return 'Clube Esportivo';
-  if(GENERIC_CLUB_NAMES[realName]) return GENERIC_CLUB_NAMES[realName];
-  for(const [k, v] of Object.entries(GENERIC_CLUB_NAMES)){
-    if(norm(k) === norm(realName)) return v;
-  }
-  const cleaned = realName.replace(/fc|sc|ec|cr|clube|futebol|esporte|atlético|atletico/gi, '').trim();
-  return cleaned ? `${cleaned} FC` : `${realName} FC`;
 }
 
 function clubDisplayName(name){
@@ -130,15 +32,6 @@ function clubDisplayName(name){
     return name.name || name.club || '';
   }
   return String(name || '');
-}
-
-function renderGenericProceduralBadge(name, size=32){
-  const realName = (typeof name === 'object' && name !== null ? (name.name || name.club || '') : String(name || '')).trim();
-  if(typeof window.renderClubBadge === 'function'){
-    return window.renderClubBadge(realName, size);
-  }
-  const inits = initials(realName);
-  return `<div class="crest" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.4)}px">${esc(inits)}</div>`;
 }
 
 function clubBadge(name, size=32){
@@ -274,7 +167,7 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const role = slot.role || (p?.pos || 'ST');
   const x = slot.x ?? 50;
   const y = slot.y ?? 50;
-  const pk = p ? (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.key || p.name)) : '';
+  const pk = p ? (p.key || (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.name))) : '';
   const ovr = p ? (p.overall || p.ovr || (typeof playerOverall === 'function' ? playerOverall(p) : 60)) : '-';
   const pos = p ? (p.pos || role) : role;
   const isAdapted = p && p.pos !== role;
@@ -298,7 +191,6 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
          data-slot-role="${esc(role)}" 
          data-player-key="${esc(pk)}" 
          data-starterkey="${esc(pk)}" 
-         draggable="true" 
          title="${p ? `${esc(p.name)} (${esc(pos)}) • OVR ${ovr}` : 'Slot Vazio'}">
       
       <!-- Topo: OVR, POS e Escudo -->
@@ -390,7 +282,7 @@ function renderPitchPlayerPill(p, slot = {}, opts = {}) {
   const role = slot.role || (p?.pos || 'ST');
   const x = slot.x ?? 50;
   const y = slot.y ?? 50;
-  const pk = p ? (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.key || p.name)) : '';
+  const pk = p ? (p.key || (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.name))) : '';
   const ovr = p ? (p.overall || p.ovr || (typeof playerOverall === 'function' ? playerOverall(p) : 60)) : '-';
   const pos = p ? (p.pos || role) : role;
   const isSelected = !!opts.isSelected;
@@ -407,7 +299,6 @@ function renderPitchPlayerPill(p, slot = {}, opts = {}) {
          data-slot-role="${esc(role)}"
          data-player-key="${esc(pk)}"
          data-starterkey="${esc(pk)}"
-         draggable="true"
          title="${p ? `${esc(p.name)} (${esc(pos)}) • OVR ${ovr}` : 'Vazio'}">
       <span class="pill-pos">${esc(pos)}</span>
       <span class="pill-name">${esc(shortName)}</span>
@@ -2268,6 +2159,7 @@ function acceptClubRental(returnToCentral = false){
   state.balance = (Number(state.balance) || 0) + fee;
   state.income = (Number(state.income) || 0) + fee;
   state.stadiumMaintenance = Math.max(10, (state.stadiumMaintenance || 90) - (r.wear || 6));
+  state.lastStadiumEvent = { type: 'rental', name: r.club, fee, date: state.date, wear: r.wear || 6 };
   toast(`🤝 Aluguel confirmado com o ${r.club}! +${fmtMoney(r.fee)} creditados no caixa.`);
   addNews(`Estádio alugado para o ${r.club} por ${fmtMoney(r.fee)}. Desgaste da partida: -${r.wear || 6}%.`);
   state.stadiumClubRental = null;
@@ -2316,6 +2208,8 @@ function acceptEventConcert(returnToCentral = false){
   state.income = (Number(state.income) || 0) + fee;
   const wear = state.stadiumPitchType === 'synthetic' ? 4 : 18;
   state.stadiumMaintenance = Math.max(10, (state.stadiumMaintenance || 90) - wear);
+  state.lastStadiumEvent = { type: 'concert', name: ev.name, fee, date: state.date };
+  state.news = (state.news || []).filter(item => !(String(item).includes('CONVITE PARA EVENTO:') && String(item).includes(ev.name)));
   toast(`🎉 ${ev.name} autorizado! +${fmtMoney(fee)} arrecadados com aluguel do estádio!`);
   addNews(`Megaevento realizado no estádio: ${ev.name}. Renda líquida extraordinária de ${fmtMoney(fee)}.`);
   state.stadiumEventProposal = null;
@@ -2326,7 +2220,9 @@ function acceptEventConcert(returnToCentral = false){
 
 function rejectEventConcert(){
   if(!state.stadiumEventProposal) return;
+  const eventName = state.stadiumEventProposal.name;
   toast('Convite para show cultural recusado.');
+  state.news = (state.news || []).filter(item => !(String(item).includes('CONVITE PARA EVENTO:') && String(item).includes(eventName)));
   state.stadiumEventProposal = null;
   save();
   openStadiumModal();
@@ -6825,7 +6721,7 @@ function renderVerticalTacticsPitch(starters, formationName = '4-3-3', opts = {}
     </div>
     ${formSlots.map((slot, idx) => {
       const p = starters[idx] || null;
-      const pk = p ? (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.key || p.name)) : '';
+      const pk = p ? (p.key || (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.name))) : '';
       const isSelected = selectedKey && pk && (selectedKey === pk);
       const slotRole = slot.r || (p?.pos || 'ST');
       const posX = slot.x;
@@ -7027,7 +6923,9 @@ function setupTacticsInteractions({ containerEl, starters, bench, onSwap, onStar
         selectedStarterKey = null;
         clearVisualHighlights();
         if(typeof onSwap === 'function'){
-          onSwap(sKey, bKey);
+          const targetSlot = [...slots].find(slot => slot.dataset.playerKey === sKey);
+          const targetSlotIndex = Number(targetSlot?.dataset.slotIndex);
+          onSwap(sKey, bKey, Number.isInteger(targetSlotIndex) ? targetSlotIndex : undefined);
         }
         return;
       }
@@ -13626,7 +13524,7 @@ function openHalftimeModal(isQuickTactics = false){
     }
 
     const userStarters = (s.home === state.club ? s.homePlayers : s.awayPlayers);
-    const targetIdx = userStarters.findIndex(p => p.key === starterKey);
+    const targetIdx = userStarters.findIndex(p => p.key === starterKey || playerKey(p) === starterKey);
     if(targetIdx === -1) return;
 
     const oldPlayer = userStarters[targetIdx];
@@ -16865,15 +16763,16 @@ function centralPage(){
           const hasEvent = !!state.stadiumEventProposal;
           const hasRental = !!state.stadiumClubRental;
           const hasSug = !!sug && state.suggestionHandledRound !== state.round;
+          const acceptedEvent = state.lastStadiumEvent;
 
-          if(!hasEvent && !hasRental && !hasSug) return '';
+          if(!hasEvent && !hasRental && !hasSug && !acceptedEvent) return '';
 
           return `
             <div id="centralDecisionPanelCard" class="card" style="padding:18px;background:#100d1e;border:1px solid rgba(139,92,246,0.25);border-radius:18px;margin-top:14px">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="color:#f59e0b;font-size:16px">🔔</span>
                 <h3 style="margin:0;font-size:14px;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase">
-                  ${hasEvent ? 'PROPOSTA DE SHOW NO ESTÁDIO' : hasRental ? 'ALUGUEL DE ESTÁDIO' : 'SUGESTÃO DA COMISSÃO TÉCNICA'}
+                  ${hasEvent ? 'PROPOSTA DE SHOW NO ESTÁDIO' : hasRental ? 'ALUGUEL DE ESTÁDIO' : hasSug ? 'SUGESTÃO DA COMISSÃO TÉCNICA' : acceptedEvent.type === 'rental' ? 'ALUGUEL CONFIRMADO' : 'SHOW AUTORIZADO'}
                 </h3>
               </div>
               ${hasEvent ? `
@@ -16892,7 +16791,7 @@ function centralPage(){
                   <button class="btn primary" id="btnAcceptRentalCentral" style="padding:6px 14px;font-size:12px;font-weight:800;background:#059669;border:none;border-radius:8px;cursor:pointer">Aceitar Aluguel (+${fmtMoney(state.stadiumClubRental.fee)})</button>
                   <button class="btn" id="btnDismissRentalCentral" style="padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;cursor:pointer">Recusar</button>
                 </div>
-              ` : `
+              ` : hasSug ? `
                 <div style="margin:10px 0 12px 0">
                   <div style="font-size:11px;font-weight:800;color:#c084fc;margin-bottom:3px">${sug.icon} ${sug.dept} • ${esc(sug.title)}</div>
                   <p style="font-size:12px;color:rgba(255,255,255,0.85);margin:0 0 6px 0;line-height:1.4">
@@ -16906,7 +16805,13 @@ function centralPage(){
                   <button class="btn primary" id="btnAcceptDecision" style="padding:7px 16px;font-size:12px;font-weight:800;background:#059669;border:none;border-radius:8px;cursor:pointer">Aprovar Sugestão</button>
                   <button class="btn" id="btnDismissDecision" style="padding:7px 16px;font-size:12px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;cursor:pointer">Dispensar Sugestão</button>
                 </div>
-              `}
+              ` : ''}
+              ${acceptedEvent ? `
+                <p style="font-size:12px;color:#86efac;margin:10px 0 12px;line-height:1.5">
+                  ✅ <b>${esc(acceptedEvent.name)}</b> ${acceptedEvent.type === 'rental' ? 'alugou o estádio' : 'foi autorizado'} em ${esc(formatDatePtBr(acceptedEvent.date))}. Receita de <b>${fmtMoney(acceptedEvent.fee)}</b> creditada no caixa.${acceptedEvent.type === 'rental' ? ` Desgaste: -${Number(acceptedEvent.wear) || 6}%.` : ''}
+                </p>
+                <button class="btn" id="btnDismissAcceptedEvent" style="padding:6px 14px;font-size:12px;background:rgba(255,255,255,0.06);border:none;border-radius:8px;cursor:pointer">Fechar confirmação</button>
+              ` : ''}
             </div>
           `;
         })()}
@@ -17038,7 +16943,36 @@ function calendarPage(){
   const comp = curComp();
   const schedule = state.schedule || [];
   const myClub = state.club;
+  const calendarClubKey = name => ({'red bull bragantino':'bragantino'}[norm(name)] || norm(name));
   const winInfo = getTransferWindowInfo(state.date);
+  const continental = state.season === 2026 ? window.AFM_CONTINENTAL_2026 : null;
+  const extraMatches = [];
+  if(continental){
+    for(const id of ['lib','sud']){
+      const all = continental.groupFixtures(id).flat();
+      extraMatches.push(...all.filter(f => calendarClubKey(f.home) === calendarClubKey(myClub) || calendarClubKey(f.away) === calendarClubKey(myClub)).map(f => ({
+        ...f, isHome: calendarClubKey(f.home) === calendarClubKey(myClub), name: id === 'lib' ? 'Copa Libertadores' : 'Copa Sul-Americana'
+      })));
+    }
+    for(const stage of [continental.copaDoBrasil, continental.copaDoBrasil.roundOf16, continental.copaDoBrasil.quarterfinals]){
+      for(const [home, away] of stage.ties){
+        if(calendarClubKey(home) !== calendarClubKey(myClub) && calendarClubKey(away) !== calendarClubKey(myClub)) continue;
+        for(const leg of stage.dateWindows){
+          const isFirstLeg = leg.round.endsWith('ida');
+          const isHome = isFirstLeg ? calendarClubKey(home) === calendarClubKey(myClub) : calendarClubKey(away) === calendarClubKey(myClub);
+          extraMatches.push({
+            competitionId:'bra-cup', name:'Copa do Brasil', home:isHome?myClub:(isFirstLeg?away:home),
+            away:isHome?(isFirstLeg?away:home):myClub, isHome, round:leg.round, dateLabel:leg.label
+          });
+        }
+      }
+    }
+  }
+  const cupFilters = [
+    ['bra-cup','🥇 Copa do Brasil'], ['lib','🏆 Libertadores'], ['sud','🥈 Sul-Americana']
+  ].filter(([id]) => extraMatches.some(f => f.competitionId === id));
+  const activeCalendarFilter = ['ALL','COMP','HOME','AWAY'].includes(calendarFilter) || cupFilters.some(([id]) => id === calendarFilter) ? calendarFilter : 'ALL';
+  const userLeagueMatches = schedule.filter(games => games.some(g => g.includes(myClub))).length;
 
   return `
     <div class="hero">
@@ -17077,22 +17011,24 @@ function calendarPage(){
 
     <!-- Filtros de Navegação do Calendário -->
     <div class="filters" style="margin-top:14px">
-      <button class="btn ${calendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos os Confrontos (${schedule.length})</button>
-      <button class="btn ${calendarFilter==='COMP'?'primary':''}" data-cal-filter="COMP">🏆 ${esc(comp.name)}</button>
-      <button class="btn ${calendarFilter==='HOME'?'primary':''}" data-cal-filter="HOME">🏠 Em Casa</button>
-      <button class="btn ${calendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora de Casa</button>
+      <button class="btn ${activeCalendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos os Confrontos (${userLeagueMatches + extraMatches.length})</button>
+      <button class="btn ${activeCalendarFilter==='COMP'?'primary':''}" data-cal-filter="COMP">🏆 ${esc(comp.name)}</button>
+      <button class="btn ${activeCalendarFilter==='HOME'?'primary':''}" data-cal-filter="HOME">🏠 Em Casa</button>
+      <button class="btn ${activeCalendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora de Casa</button>
+      ${cupFilters.map(([id,label]) => `<button class="btn ${activeCalendarFilter===id?'primary':''}" data-cal-filter="${id}">${label}</button>`).join('')}
     </div>
 
     <!-- Lista Cronológica dos Jogos -->
     <div class="calendar-view" style="margin-top:10px">
       ${schedule.map((games, rIndex)=>{
+        if(['bra-cup','lib','sud'].includes(activeCalendarFilter)) return '';
         const f = games.find(g => g.includes(myClub));
         if(!f) return '';
         const isHome = f[0] === myClub;
         const opponent = isHome ? f[1] : f[0];
 
-        if(calendarFilter === 'HOME' && !isHome) return '';
-        if(calendarFilter === 'AWAY' && isHome) return '';
+        if(activeCalendarFilter === 'HOME' && !isHome) return '';
+        if(activeCalendarFilter === 'AWAY' && isHome) return '';
 
         const isCurrent = rIndex === state.round;
         const isPast = rIndex < state.round;
@@ -17153,6 +17089,21 @@ function calendarPage(){
           </div>
         `;
       }).join('')}
+      ${activeCalendarFilter === 'COMP' ? '' : extraMatches.filter(f => {
+        if(['HOME','AWAY'].includes(activeCalendarFilter) && ((activeCalendarFilter === 'HOME') !== f.isHome)) return false;
+        return activeCalendarFilter === 'ALL' || activeCalendarFilter === 'HOME' || activeCalendarFilter === 'AWAY' || activeCalendarFilter === f.competitionId;
+      }).map(f => `
+        <div class="calendar-card">
+          <div><b>${esc(f.dateLabel)}</b><div class="small muted">${esc(f.round ? `Rodada ${f.round}${f.group ? ` • Grupo ${f.group}` : ''}` : '')}</div></div>
+          <div><span class="pill" style="font-size:11px">${f.isHome?'🏠 EM CASA':'✈️ FORA'}</span></div>
+          <div style="display:flex;align-items:center;gap:12px">
+            ${clubBadge(f.isHome ? f.away : f.home, 32)}
+            <div><b>vs ${esc(f.isHome ? f.away : f.home)}</b><div class="small muted">${f.group ? `Grupo ${f.group}` : esc(f.round)}</div></div>
+          </div>
+          <div><span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(f.name)}</span></div>
+          <div style="text-align:right"><span class="pill muted">📋 Tabela oficial 2026</span></div>
+        </div>
+      `).join('')}
     </div>
   `;
 }
@@ -20002,6 +19953,39 @@ function officePage(){
 // -------------------------------------------------------------
 // BLOCO CONTINENTAL & PIRÂMIDE NACIONAL 2026 (SUL-AMERICANA, LIBERTADORES, CBF)
 // -------------------------------------------------------------
+function renderContinentalGroupStage(competitionId){
+  const data = window.AFM_CONTINENTAL_2026;
+  const groups = data?.groups?.[competitionId];
+  if(!groups) return '<div class="empty">Calendário de grupos indisponível.</div>';
+  const fixtures = data.groupFixtures(competitionId);
+  const name = competitionId === 'lib' ? 'Copa Libertadores' : 'Copa Sul-Americana';
+  return `
+    <section style="margin-top:18px;background:#101827;border:1px solid rgba(56,189,248,.25);border-radius:14px;padding:16px">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <h3 style="margin:0;color:#e2e8f0">Clubes e jogos da fase de grupos • ${esc(name)}</h3>
+        <span class="pill">32 clubes · 8 grupos · 6 rodadas</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">
+        ${Object.entries(groups).map(([group,teams]) => `
+          <div style="background:#141124;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px">
+            <b style="color:#c084fc">GRUPO ${group}</b>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 10px">
+              ${teams.map(team => `<span class="pill">${clubBadge(team,18)} ${esc(team)}</span>`).join('')}
+            </div>
+            ${fixtures.map((round,index) => {
+              const games = round.filter(f => f.group === group);
+              return `<div style="font-size:11px;color:#cbd5e1;padding:5px 0;border-top:1px solid rgba(255,255,255,.06)">
+                <b style="color:#38bdf8">Rodada ${index+1} · ${esc(data.matchdays[index])}</b><br>
+                ${games.map(f => `${esc(f.home)} × ${esc(f.away)}`).join(' · ')}
+              </div>`;
+            }).join('')}
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
+
 function renderContinentalBlock(){
   const tabs = [
     { id: 'sulamericana', name: '🥈 Copa Sul-Americana', badge: 'G7 A G12' },
@@ -20049,10 +20033,13 @@ function renderContinentalBlock(){
               <span class="pill" style="background:#f59e0b;color:#000;font-weight:900;font-size:10px">GRANDE TORNEIO CONTINENTAL</span>
             </div>
             <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
-              A <b>Copa Sul-Americana</b> reúne os melhores clubes do continente que buscam a glória internacional. No Brasil, garante <b>6 vagas diretas</b> na fase de grupos para os clubes que terminam entre a <b>7ª e a 12ª posição da Série A (G12)</b>. O campeão garante vaga direta na <b>Copa Libertadores 2027</b> e disputa a <b>Recopa Sul-Americana</b> contra o campeão da Libertadores!
+              A <b>Copa Sul-Americana</b> reúne clubes classificados pelas competições nacionais e fases preliminares. Em 2026, são <b>32 clubes em oito grupos</b>; o campeão garante vaga na <b>Copa Libertadores 2027</b> e disputa a <b>Recopa Sul-Americana</b>.
             </p>
           </div>
 
+          ${renderContinentalGroupStage('sud')}
+          <details style="background:#141124;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 16px">
+            <summary style="cursor:pointer;font-weight:900;color:#c084fc">Ver regulamento, vagas e premiações</summary>
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
             <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
               <div style="font-size:12px;font-weight:900;color:#38bdf8;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📋 Formato & Regulamento</div>
@@ -20061,16 +20048,15 @@ function renderContinentalBlock(){
                 <li><b>1º Colocado:</b> Avança direto para as Oitavas de Final.</li>
                 <li><b>2º Colocado:</b> Disputa Playoff (16-avos) em ida e volta contra os 3º colocados da fase de grupos da Libertadores.</li>
                 <li><b>Mata-Mata:</b> Oitavas, Quartas e Semifinais em partidas de ida e volta.</li>
-                <li><b>Grande Final:</b> Decisão épica em jogo único em estádio neutro pré-definido pela CONMEBOL.</li>
+                <li><b>Grande Final:</b> jogo único em Barranquilla, em 21 de novembro de 2026.</li>
               </ul>
             </div>
 
             <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
               <div style="font-size:12px;font-weight:900;color:#a855f7;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🇧🇷 Vagas do Futebol Brasileiro</div>
               <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.7">
-                <li><b>7º ao 12º lugar da Série A:</b> Entrada direta na Fase de Grupos.</li>
-                <li><b>Efeito Cascata:</b> Se campeões de Libertadores, Copa do Brasil ou Sul-Americana já estiverem no G6, a zona da Sul-Americana amplia para 13º e 14º lugar!</li>
-                <li><b>Cota Máxima:</b> 6 clubes brasileiros disputando a fase principal.</li>
+                <li><b>Brasil em 2026:</b> sete clubes brasileiros disputaram a fase de grupos.</li>
+                <li><b>Vagas:</b> quatro clubes vieram da Fase 3 da Libertadores; os demais foram classificados pelas competições nacionais.</li>
                 <li><b>Premiação em Dólar:</b> Arrecadação milionária que transforma a folha salarial de qualquer clube.</li>
               </ul>
             </div>
@@ -20133,6 +20119,7 @@ function renderContinentalBlock(){
               </div>
             </div>
           </div>
+          </details>
         </div>
       ` : continentalTab === 'libertadores' ? `
         <!-- CONMEBOL LIBERTADORES 2026 -->
@@ -20144,10 +20131,13 @@ function renderContinentalBlock(){
               <span class="pill" style="background:#7c3aed;color:#fff;font-weight:900;font-size:10px">A GLÓRIA ETERNA</span>
             </div>
             <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
-              A maior obsessão do continente! A <b>Copa Libertadores</b> coroa o rei supremo da América do Sul e classifica para o <b>Mundial de Clubes da FIFA</b>. O Brasil conta com <b>7 a 9 vagas</b>: G4 direto na fase de grupos, 5º e 6º na Pré-Libertadores e o campeão da Copa do Brasil!
+              A maior competição de clubes do continente. Em 2026, os <b>32 classificados</b> disputam oito grupos; os dois primeiros avançam às oitavas, e o campeão se classifica para a <b>Copa Intercontinental da FIFA</b>.
             </p>
           </div>
 
+          ${renderContinentalGroupStage('lib')}
+          <details style="background:#141124;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 16px">
+            <summary style="cursor:pointer;font-weight:900;color:#c084fc">Ver regulamento, vagas e premiações</summary>
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
             <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
               <div style="font-size:12px;font-weight:900;color:#4ade80;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🎯 Classificação no Brasil</div>
@@ -20165,7 +20155,7 @@ function renderContinentalBlock(){
                 <li><b>Fase de Grupos:</b> 8 grupos de 4 times. 1º e 2º avançam para oitavas.</li>
                 <li><b>Repescagem:</b> 3º colocados migram para os playoffs da Copa Sul-Americana.</li>
                 <li><b>Mata-Mata:</b> Oitavas, Quartas e Semis com ida e volta de tirar o fôlego.</li>
-                <li><b>Final Única:</b> 90 minutos valendo o troféu mais cobiçado da América e premiação recorde de US$ 23 Milhões!</li>
+                <li><b>Final Única:</b> decisão em Montevidéu, em 28 de novembro de 2026.</li>
               </ul>
             </div>
           </div>
@@ -20221,6 +20211,7 @@ function renderContinentalBlock(){
               </div>
             </div>
           </div>
+          </details>
         </div>
       ` : continentalTab === 'piramide' ? `
         <!-- PIRÂMIDE DE ACESSOS E REBAIXAMENTOS DO FUTEBOL BRASILEIRO 2026 -->
@@ -20235,6 +20226,8 @@ function renderContinentalBlock(){
             </p>
           </div>
 
+          <details style="background:#141124;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 16px">
+            <summary style="cursor:pointer;font-weight:900;color:#c084fc">Ver acessos e rebaixamentos oficiais</summary>
           <!-- NÍVEL 1: SÉRIE A -->
           <div style="background:#131024;border:1px solid rgba(34,197,94,0.35);border-radius:14px;padding:16px 18px">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
@@ -20246,13 +20239,13 @@ function renderContinentalBlock(){
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;font-size:12px">
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #22c55e">
-                <b style="color:#4ade80">🟢 1º ao 4º Lugar (G4):</b> Fase de Grupos da Copa Libertadores 2027.
+                <b style="color:#4ade80">🟢 Classificação continental:</b> vagas dependem do regulamento da edição seguinte e dos títulos conquistados.
               </div>
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #38bdf8">
-                <b style="color:#38bdf8">🔵 5º e 6º Lugar (G6):</b> Pré-Libertadores 2027 (fases preliminares).
+                <b style="color:#38bdf8">🔵 Classificação internacional:</b> fase de entrada definida pelo regulamento da competição de 2027.
               </div>
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #f59e0b">
-                <b style="color:#fbbf24">🟠 7º ao 12º Lugar (G12):</b> Vaga direta na Fase de Grupos da Copa Sul-Americana 2027.
+                <b style="color:#fbbf24">🟠 Vagas de copa:</b> dependem dos classificados e campeões definidos ao fim da temporada.
               </div>
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #94a3b8">
                 <b style="color:#cbd5e1">⚪ 13º ao 16º Lugar:</b> Permanência garantida na Série A (sem vaga continental).
@@ -20274,10 +20267,13 @@ function renderContinentalBlock(){
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;font-size:12px">
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #22c55e">
-                <b style="color:#4ade80">🟢 1º ao 4º Lugar (G4):</b> Acesso consagrado para a Série A 2027!
+                <b style="color:#4ade80">🟢 1º e 2º:</b> Acesso direto à Série A 2027.
+              </div>
+              <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #38bdf8">
+                <b style="color:#38bdf8">🔵 3º ao 6º:</b> Playoffs de ida e volta (3º × 6º; 4º × 5º) pelas outras duas vagas.
               </div>
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #94a3b8">
-                <b style="color:#cbd5e1">⚪ 5º ao 16º Lugar:</b> Permanência na Série B 2027.
+                <b style="color:#cbd5e1">⚪ 7º ao 16º:</b> Permanência na Série B 2027.
               </div>
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #ef4444">
                 <b style="color:#f87171">🔴 17º ao 20º Lugar (Z4):</b> Rebaixamento direto para a Série C 2027.
@@ -20292,17 +20288,17 @@ function renderContinentalBlock(){
                 <span class="pill" style="background:#a855f7;color:#fff;font-weight:900;font-size:11px">DIVISÃO 3</span>
                 <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE C · 20 CLUBES</h3>
               </div>
-              <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">Turno Único (19j) + 2 Quadrangulares</span>
+              <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">Turno único (19j) + 2 quadrangulares</span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;font-size:12px">
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #22c55e">
                 <b style="color:#4ade80">🟢 Top 2 de cada Quadrangular (4 times):</b> Acesso garantido para a Série B 2027!
               </div>
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #94a3b8">
-                <b style="color:#cbd5e1">⚪ 9º ao 16º da 1ª Fase:</b> Permanência na Série C 2027.
+                <b style="color:#cbd5e1">⚪ 9º ao 18º da 1ª fase:</b> Permanência na Série C 2027.
               </div>
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #ef4444">
-                <b style="color:#f87171">🔴 17º ao 20º da 1ª Fase (Z4):</b> Rebaixamento para a Série D 2027.
+                <b style="color:#f87171">🔴 19º e 20º:</b> Rebaixamento para a Série D 2027.
               </div>
             </div>
           </div>
@@ -20312,16 +20308,16 @@ function renderContinentalBlock(){
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
               <div style="display:flex;align-items:center;gap:8px">
                 <span class="pill" style="background:#3b82f6;color:#fff;font-weight:900;font-size:11px">DIVISÃO 4</span>
-                <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE D · 64 CLUBES</h3>
+                <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE D · 96 CLUBES</h3>
               </div>
-              <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">8 Grupos Regionais + Mata-Mata</span>
+              <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">16 grupos de 6 · ida e volta</span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;font-size:12px">
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #22c55e">
                 <b style="color:#4ade80">🟢 4 Semifinalistas (G4):</b> Acesso à Série C 2027 e disputa pelo título.
               </div>
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #f59e0b">
-                <b style="color:#fbbf24">⚠️ 60 Clubes Eliminados:</b> Não possuem vaga garantida; precisam conquistar nova vaga via Campeonatos Estaduais no ano seguinte.
+                <b style="color:#fbbf24">⚠️ Playoffs de acesso:</b> Os quatro eliminados nas quartas disputam duas vagas adicionais na Série C.
               </div>
             </div>
           </div>
@@ -20344,6 +20340,7 @@ function renderContinentalBlock(){
               </div>
             </div>
           </div>
+          </details>
         </div>
       ` : `
         <!-- MUNDIAL DE CLUBES FIFA 2029 & INTERCONTINENTAL -->
@@ -21123,7 +21120,7 @@ const AFM_CHANGELOG_75 = [
   { num: 43, ver: 'v0.4.3', tag: '🧠 PRANCHETA', color: '#a855f7', title: 'Prancheta Tática com Múltiplas Formações e Instruções', desc: 'Escolha 4-3-3, 3-5-2, 4-2-3-1 ou 4-4-2 com mentalidades ofensiva, equilibrada ou contra-ataque.' },
   { num: 42, ver: 'v0.4.2', tag: '⚽ TREINAMENTO', color: '#38bdf8', title: 'Treinos Específicos: Finalização, Passe, Defesa e Físico', desc: 'Direcione as sessões de treino semanais para aprimorar os pontos fracos da sua equipe.' },
   { num: 41, ver: 'v0.4.1', tag: '💬 VESTIÁRIO', color: '#ef4444', title: 'Moral do Elenco e Gestão de Insatisfação por Falta de Minutos', desc: 'Mantenha reservas motivados e realize reuniões de equipe para reverter sequências negativas.' },
-  { num: 40, ver: 'v0.4.0', tag: '🛡️ MODOS', color: '#c084fc', title: 'Mod da Comunidade (Oficial) vs Modo Padrão (Genérico)', desc: 'Alternância em 1 clique entre banco com escudos e nomes oficiais ou neutro protegido por DMCA.' },
+  { num: 40, ver: 'v0.4.0', tag: '🛡️ MODS', color: '#c084fc', title: 'Pacote da Comunidade', desc: 'Clubes, escudos locais e ligas carregados pelo pacote da comunidade.' },
   { num: 39, ver: 'v0.3.9', tag: '🌿 GRAMADO', color: '#a7ff3f', title: 'Fatores de Gramado: Bermuda Natural, Sintético e Híbrido', desc: 'Piso sintético acelera o toque de bola, enquanto grama natural aumenta o desgaste físico dos atletas.' },
   { num: 38, ver: 'v0.3.8', tag: '🏥 DEPARTAMENTO MÉDICO', color: '#f43f5e', title: 'Lesões, Diagnósticos Clínicos e Tempo de Recuperação', desc: 'Fisioterapia e transição física para recuperar atletas de estiramentos e entorses musculares.' },
   { num: 37, ver: 'v0.3.7', tag: '⚡ SIMULAÇÃO', color: '#38bdf8', title: 'Simulação Instantânea com IA Balanceada em Milissegundos', desc: 'Pule direto para o resultado final sem abrir mão da precisão tática e dos atributos reais dos atletas.' },
@@ -22169,7 +22166,7 @@ function renderSetup(app){
           </div>
         </div>
 
-        <!-- Mapa / Pílulas de Continentes & Botões Modo Padrão / Mod da Comunidade -->
+        <!-- Mapa / Pílulas de Continentes & Mod da Comunidade -->
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:10px 0 12px 0;flex-wrap:wrap">
           <div class="continent-bar" style="margin:0;padding:0">
             ${conts.map(c => `
@@ -22180,12 +22177,8 @@ function renderSetup(app){
             `).join('')}
           </div>
 
-          <!-- BOTÕES DE MODO -->
+          <!-- MOD DA COMUNIDADE -->
           <div class="db-mode-selector-group">
-            <button id="btnSelectStandardMode" class="btn-db-mode ${currentDbMode === 'standard' ? 'active-standard' : ''}" title="Modo Padrão: Times genéricos sem marcas registradas">
-              <span>🛡️ Modo Padrão</span>
-              <span class="db-mode-badge">${currentDbMode === 'standard' ? 'ATIVO' : 'Genérico'}</span>
-            </button>
             <button id="btnSelectCommunityMod" class="btn-db-mode ${currentDbMode === 'mod' ? 'active-mod' : ''}" title="Carregar Mod da Comunidade: Todos os times, escudos e ligas oficiais">
               <span>⚡ Carregar Mod da Comunidade</span>
               <span class="db-mode-badge ${currentDbMode === 'mod' ? 'mod-active' : ''}">${currentDbMode === 'mod' ? 'CARREGADO' : 'Oficial'}</span>
@@ -22451,39 +22444,35 @@ function openCommunityModModal(){
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="font-size:16px">${isModActive ? '🟢' : '🛡️'}</span>
                 <span style="font-size:13px;font-weight:900;color:#fff">
-                  ${isModActive ? 'Mod Oficial da Comunidade Ativo' : 'Modo Padrão Ativo (Clubes Genéricos)'}
+                  Mod da Comunidade Ativo
                 </span>
               </div>
               <span class="pill" style="font-size:10px;font-weight:900;background:${isModActive ? 'rgba(167,255,63,0.15)' : 'rgba(56,189,248,0.15)'};color:${isModActive ? '#a7ff3f' : '#38bdf8'}">
-                ${isModActive ? 'BR11 OFICIAL 2026' : 'PADRÃO COMPLIANCE'}
+                PACOTE DA COMUNIDADE
               </span>
             </div>
 
             <div style="font-size:12px;color:rgba(255,255,255,0.8);line-height:1.5">
-              ${isModActive ? `
-                O <b>Mod da Comunidade</b> substitui os identificadores genéricos por todos os clubes reais, aplicando escudos oficiais de alta resolução (Série A, B, C, D e Candangão), fotos dos jogadores e formatos de ligas completas.
-              ` : `
-                O <b>Modo Padrão</b> opera exclusivamente com identificadores genéricos e escudos procedurais limpos, garantindo total neutralidade e conformidade de direitos e marcas registradas.
-              `}
+              O <b>Mod da Comunidade</b> fornece os clubes, escudos locais e formatos de ligas disponíveis no pacote carregado.
             </div>
 
             <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;margin-top:14px">
               <div style="background:#131c2e;padding:10px;border-radius:10px;text-align:center">
                 <div style="font-size:10px;font-weight:800;color:#94a3b8">ESCUDOS</div>
                 <div style="font-size:13px;font-weight:900;color:${isModActive ? '#22c55e' : '#cbd5e1'};margin-top:2px">
-                  ${isModActive ? '60+ Oficiais HD' : 'Vetoriais SVG'}
+                  Escudos locais
                 </div>
               </div>
               <div style="background:#131c2e;padding:10px;border-radius:10px;text-align:center">
                 <div style="font-size:10px;font-weight:800;color:#94a3b8">CLUBES & LIGAS</div>
                 <div style="font-size:13px;font-weight:900;color:${isModActive ? '#22c55e' : '#cbd5e1'};margin-top:2px">
-                  ${isModActive ? 'Nomes Oficiais' : 'Genéricos'}
+                  Clubes da comunidade
                 </div>
               </div>
               <div style="background:#131c2e;padding:10px;border-radius:10px;text-align:center">
                 <div style="font-size:10px;font-weight:800;color:#94a3b8">FOTOS ATLETAS</div>
                 <div style="font-size:13px;font-weight:900;color:${isModActive ? '#22c55e' : '#cbd5e1'};margin-top:2px">
-                  ${isModActive ? 'Rostos Reais' : 'Avatares'}
+                  Avatares seguros
                 </div>
               </div>
             </div>
@@ -22493,9 +22482,6 @@ function openCommunityModModal(){
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button id="btnModalApplyMod" class="btn primary" style="flex:1;font-size:13px;font-weight:900;padding:12px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">
               <span>⚡</span> <span>Carregar / Ativar Mod da Comunidade</span>
-            </button>
-            <button id="btnModalApplyStandard" class="btn" style="flex:1;background:#1e293b;border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:13px;font-weight:900;padding:12px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">
-              <span>🛡️</span> <span>Mudar para Modo Padrão</span>
             </button>
           </div>
 
@@ -22540,13 +22526,6 @@ function openCommunityModModal(){
   $('#btnModalApplyMod').onclick = () => {
     setDbMode('mod');
     toast('⚡ Mod da Comunidade Carregado! Escudos e dados oficiais ativados.');
-    overlay.remove();
-    renderSetup($('#app'));
-  };
-
-  $('#btnModalApplyStandard').onclick = () => {
-    setDbMode('standard');
-    toast('🛡️ Modo Padrão Ativado! Clubes e escudos genéricos em uso.');
     overlay.remove();
     renderSetup($('#app'));
   };
@@ -22614,16 +22593,7 @@ function exportCommunityModJson(){
 window.exportCommunityModJson = exportCommunityModJson;
 
 function bindSetup(){
-  // Binds dos Modos de Banco de Dados: Modo Padrão & Mod da Comunidade
-  const bStd = $('#btnSelectStandardMode');
-  if(bStd){
-    bStd.onclick = () => {
-      setDbMode('standard');
-      toast('🛡️ Modo Padrão Ativado! Clubes e escudos genéricos em uso.');
-      renderSetup($('#app'));
-    };
-  }
-
+  // O único pacote disponível é o Mod da Comunidade.
   const bMod = $('#btnSelectCommunityMod');
   if(bMod){
     bMod.onclick = () => {
@@ -23098,6 +23068,8 @@ function bind(){
     if(bAccConcCent) bAccConcCent.onclick = () => { acceptEventConcert(true); render(); };
     const bRejConcCent = $('#btnDismissConcertCentral');
     if(bRejConcCent) bRejConcCent.onclick = rejectEventConcert;
+    const bDismissEventResult = $('#btnDismissAcceptedEvent');
+    if(bDismissEventResult) bDismissEventResult.onclick = () => { state.lastStadiumEvent = null; save(); render(); };
 
     const bAccRentCent = $('#btnAcceptRentalCentral');
     if(bAccRentCent) bAccRentCent.onclick = () => { acceptClubRental(true); render(); };

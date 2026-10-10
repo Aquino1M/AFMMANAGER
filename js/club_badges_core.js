@@ -200,15 +200,12 @@ window.renderClubBadge = function(clubName, size = 32) {
     }
   }
 
-  const inits = (rawName.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('') || 'FC').slice(0, 3).toUpperCase();
-  const fallbackPill = `<span class="badge-fallback-pill" style="display:inline-flex;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
-
   if (file) {
     const cleanPath = file.startsWith('img/badges/') ? file : `img/badges/${file}`;
-    return `<img src="${cleanPath}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';" /><span class="badge-fallback-pill" style="display:none;width:${size}px;height:${size}px;align-items:center;justify-content:center;background:#1e293b;border:1px solid #475569;border-radius:6px;font-size:${Math.max(9, Math.round(size*0.35))}px;font-weight:bold;color:#f8fafc;flex-shrink:0;">${inits}</span>`;
+    return `<img src="${cleanPath}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" onerror="this.onerror=null;this.remove();" />`;
   }
 
-  return fallbackPill;
+  return '';
 };
 
 // Logos oficiais das competições
