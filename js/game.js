@@ -868,6 +868,9 @@ const SPONSOR_BRANDS=[
 
 const livePlayers=Array.isArray(window.LIVE_PLAYERS)?window.LIVE_PLAYERS:[];
 const teamMap=window.COMPETITION_TEAMS||{};
+// Catálogo imutável de referência para recuperar saves legados cujo mapa dinâmico
+// de ligas foi corrompido por transições de temporadas antigas.
+const BASE_COMPETITION_TEAMS = JSON.parse(JSON.stringify(window.COMPETITION_TEAMS || {}));
 
 let view='central';
 let marketTab='buy';
@@ -4143,34 +4146,62 @@ function getStadiumExpansionData(){
     });
   }
 
-  // 1. Inicialização Consistente por Estrutura Inicial & Regra Estrita:
-  // Mapeia a capacidade atual para o nível de anéis correspondente.
+  // A capacidade inicial define quantos anéis já existiam. Cada anel até
+  // esse nível começa completo; um nível superior nunca pode pular etapas.
   const capacity = Math.max(0, Number(state.infrastructure?.stadium?.capacity) || 0);
-  const existingRingByCap = capacity >= 100000 ? 6 : capacity >= 72160 ? 5 : capacity >= 49000 ? 4 : capacity >= 30640 ? 3 : capacity >= 18000 ? 2 : capacity >= 7000 ? 1 : 0;
-  
-  // Encontra o maior anel que possui qualquer setor concluído
-  let highestRingWithSectors = 0;
-  for(let r = 1; r <= 6; r++){
-    if(['norte', 'sul', 'leste', 'oeste'].some(side => st.rings[r]?.[side] === true)){
-      highestRingWithSectors = r;
+  const capacityRing = capacity >= 100000 ? 6
+    : capacity >= 72160 ? 5
+    : capacity >= 49000 ? 4
+    : capacity >= 30640 ? 3
+    : capacity >= 18000 ? 2
+    : capacity >= 7000 ? 1 : 0;
+  let contiguousCompleteRings = 0;
+  for(let ring = 1; ring <= 6; ring++){
+    if(['norte', 'sul', 'leste', 'oeste'].every(side => st.rings[ring][side] === true)) contiguousCompleteRings = ring;
+    else break;
+  }
+  const completedThrough = Math.max(capacityRing, contiguousCompleteRings);
+  for(let ring = 1; ring <= completedThrough; ring++){
+    st.rings[ring] = { norte: true, sul: true, leste: true, oeste: true };
+  }
+  const stadiumSides = ['norte', 'sul', 'leste', 'oeste'];
+  const hasValidActiveWork = !!st.activeWork && Number(st.activeWork.ring) >= 1 && Number(st.activeWork.ring) <= 6;
+  if(hasValidActiveWork){
+    const workRing = Number(st.activeWork.ring);
+    if(!stadiumSides.includes(st.activeWork.side)){
+      st.activeWork.side = stadiumSides.find(side => st.rings[workRing][side] !== true) || 'norte';
     }
+    // Marcar a obra como pendente antes de identificar o primeiro anel incompleto.
+    st.rings[workRing][st.activeWork.side] = false;
   }
-
-  // Regra estrita: Para que um anel N esteja construído, todos os anéis anteriores (1 até N-1)
-  // obrigatoriamente devem estar marcados como concluído: true (4/4 lados).
-  const minCompletedRings = Math.max(0, existingRingByCap - (capacity >= 100000 ? 0 : 1), highestRingWithSectors - 1);
-  for(let r = 1; r <= minCompletedRings; r++){
-    st.rings[r] = { norte: true, sul: true, leste: true, oeste: true };
+  // Mantém os setores já concluídos somente no primeiro anel incompleto,
+  // removendo anéis superiores que tenham sido marcados por saves antigos.
+  let firstIncompleteRing = 6;
+  for(let ring = 1; ring <= 6; ring++){
+    const isComplete = ['norte', 'sul', 'leste', 'oeste'].every(side => st.rings[ring][side] === true);
+    if(!isComplete){ firstIncompleteRing = ring; break; }
   }
-  if(capacity >= 100000){
-    for(let r = 1; r <= 6; r++){
-      st.rings[r] = { norte: true, sul: true, leste: true, oeste: true };
+  for(let ring = firstIncompleteRing + 1; ring <= 6; ring++){
+    st.rings[ring] = { norte: false, sul: false, leste: false, oeste: false };
+  }
+  // Uma obra legada fora de sequência é migrada para o primeiro anel incompleto,
+  // para que a construção termine num setor válido sem desbloquear anéis superiores.
+  if(hasValidActiveWork){
+    let workRing = Number(st.activeWork.ring);
+    let workSide = st.activeWork.side;
+    if(workRing > firstIncompleteRing){
+      workRing = firstIncompleteRing;
+      if(st.rings[workRing][workSide] === true){
+        workSide = stadiumSides.find(side => st.rings[workRing][side] !== true) || 'norte';
+      }
+      st.activeWork.ring = workRing;
+      st.activeWork.side = workSide;
     }
+    st.rings[workRing][workSide] = false;
+    st.ring = Math.max(1, Math.min(workRing, st.maxUnlockedRing));
+  } else {
+    st.ring = Math.max(1, Math.min(firstIncompleteRing, st.maxUnlockedRing || 6));
   }
-
-  const firstIncomplete = Array.from({length: 6}, (_, i) => i + 1).find(r => !['norte', 'sul', 'leste', 'oeste'].every(side => st.rings[r][side] === true)) || 6;
-  st.ring = Math.max(1, Math.min(firstIncomplete, st.maxUnlockedRing || 6));
-
   // Sincroniza purchasedSectors com todos os anéis
   st.purchasedSectors = st.purchasedSectors.filter(key => {
     const match = /^r([1-6])_(norte|sul|leste|oeste)$/.exec(key);
@@ -5262,9 +5293,9 @@ async function loginUser(username, password){
 window.loginUser = loginUser;
 window.getStoredAccounts = getStoredAccounts;
 
-async function registerUser(email, password, name){
-  const cleanId = (email || '').trim();
-  if(!cleanId || cleanId.length < 2) return { success: false, error: 'Informe um nome de usuário ou e-mail válido.' };
+async function registerUser(username, password, name){
+  const cleanId = (username || '').trim();
+  if(!cleanId || cleanId.length < 2) return { success: false, error: 'Informe um nome de usuário válido.' };
   if((password || '').length < 4) return { success: false, error: 'A senha deve ter pelo menos 4 caracteres.' };
   const result = await window.AFM_DB.signUp(cleanId, password, name || '');
   if(!result.ok) return { success: false, error: result.error };
@@ -6792,17 +6823,28 @@ function getClubPrimaryCompetitionId(clubName, preferredCompId = null){
   const nameNorm = norm(clubName);
   const tMap = window.COMPETITION_TEAMS || {};
 
-  // Se uma competição preferencial foi indicada e o clube realmente faz parte dela, respeitar
+  // Em saves de temporadas anteriores, a divisão nacional salva é dinâmica e deve prevalecer
+  // sobre o catálogo histórico fixo do clube, desde que o clube conste na divisão salva.
+  if(['bra-a','bra-b','bra-c','bra-d'].includes(preferredCompId) && compById(preferredCompId) && Array.isArray(tMap[preferredCompId])){
+    const savedTeams = Array.isArray(state?.teams) ? state.teams : [];
+    if(savedTeams.some(team => norm(team.name) === nameNorm) || tMap[preferredCompId].some(team => norm(team) === nameNorm)) return preferredCompId;
+  }
   if(preferredCompId){
     const prefComp = compById(preferredCompId);
-    if(prefComp && eligibleClubNames(prefComp).some(c => norm(c) === nameNorm)){
-      return preferredCompId;
-    }
+    if(prefComp && eligibleClubNames(prefComp).some(c => norm(c) === nameNorm)) return preferredCompId;
   }
-
   // Clubes candangos sem divisão nacional (Brasília, ARUC, etc.)
   if(nameNorm === 'brasilia' || nameNorm.includes('brasilia fc') || nameNorm === 'aruc' || nameNorm === 'paranoa' || nameNorm === 'samambaia' || nameNorm === 'sobradinho'){
     return 'bra-est-df';
+  }
+
+  // A atribuição dinâmica da temporada prevalece sobre o campeonato histórico
+  // gravado no objeto estático do clube (que não acompanha acessos/rebaixamentos).
+  const brDivs = ['bra-a', 'bra-b', 'bra-c', 'bra-d'];
+  for(const divId of brDivs){
+    if(Array.isArray(tMap[divId]) && tMap[divId].some(c => norm(c) === nameNorm)){
+      return divId;
+    }
   }
 
   const clubObj = clubByName(clubName);
@@ -6810,14 +6852,6 @@ function getClubPrimaryCompetitionId(clubName, preferredCompId = null){
     const matchedComp = (window.COMPETITIONS||[]).find(c => norm(c.name) === norm(clubObj.competition));
     if(matchedComp && (matchedComp.id in tMap || !matchedComp.id.startsWith('bra-est-'))){
       return matchedComp.id;
-    }
-  }
-
-  // 1. Divisões nacionais do Brasil (Série A, B, C, D)
-  const brDivs = ['bra-a', 'bra-b', 'bra-c', 'bra-d'];
-  for(const divId of brDivs){
-    if(Array.isArray(tMap[divId]) && tMap[divId].some(c => norm(c) === nameNorm)){
-      return divId;
     }
   }
 
@@ -8404,8 +8438,61 @@ function newCareer(data){
   render();
 }
 
+function repairLegacyNationalCompetitionRosters(s){
+  if(!s || !s.club) return false;
+  const divisionIds = ['bra-a', 'bra-b', 'bra-c', 'bra-d'];
+  const savedMap = s.competitionTeams && typeof s.competitionTeams === 'object' ? s.competitionTeams : (window.COMPETITION_TEAMS || {});
+  const normalizeRoster = list => [...new Map((Array.isArray(list) ? list : []).filter(name => typeof name === 'string' && name.trim()).map(name => [norm(name), name])).values()];
+  const actual = Object.fromEntries(divisionIds.map(id => [id, normalizeRoster(savedMap[id])]));
+  const expectedSizes = { 'bra-a': 20, 'bra-b': 20, 'bra-c': 20, 'bra-d': 96 };
+  const flattened = divisionIds.flatMap(id => actual[id].map(norm));
+  const hasCrossDivisionDuplicates = new Set(flattened).size !== flattened.length;
+  const hasInvalidRosterSizes = divisionIds.some(id => actual[id].length !== expectedSizes[id]);
+  const activeUserDivision = divisionIds.includes(s.compId) ? s.compId : null;
+  const userMemberships = divisionIds.filter(id => actual[id].some(name => norm(name) === norm(s.club)));
+  const hasUserDivisionMismatch = !!activeUserDivision
+    && (userMemberships.length !== 1 || userMemberships[0] !== activeUserDivision);
+  if(!hasCrossDivisionDuplicates && !hasInvalidRosterSizes && !hasUserDivisionMismatch) return false;
+
+  const baseMap = BASE_COMPETITION_TEAMS || {};
+  const baseLists = Object.fromEntries(divisionIds.map(id => [id, normalizeRoster(baseMap[id])]));
+  if(divisionIds.some(id => baseLists[id].length !== expectedSizes[id])) return false;
+
+  // A rotina antiga encolhia a Série D para 20 e reaproveitava standings de outra liga.
+  // Sem standings históricos por divisão, restaura apenas os elencos nacionais de referência.
+  const savedMemberships = divisionIds.filter(id => actual[id].some(name => norm(name) === norm(s.club)));
+  const baseMemberships = divisionIds.filter(id => baseLists[id].some(name => norm(name) === norm(s.club)));
+  const targetDivision = divisionIds.includes(s.compId) ? s.compId : (baseMemberships[0] || savedMemberships[0] || null);
+  const repairedMap = { ...savedMap };
+  for(const id of divisionIds) repairedMap[id] = [...baseLists[id]];
+  if(targetDivision){
+    const userNorm = norm(s.club);
+    for(const id of divisionIds) repairedMap[id] = repairedMap[id].filter(name => norm(name) !== userNorm);
+    const sourceDivision = [...baseMemberships, ...savedMemberships].find(id => id !== targetDivision) || null;
+    const destination = repairedMap[targetDivision];
+    const capacity = expectedSizes[targetDivision];
+    const displaced = destination.length >= capacity ? destination.pop() : null;
+    destination.push(s.club);
+    if(displaced && sourceDivision && sourceDivision !== targetDivision){
+      const source = repairedMap[sourceDivision];
+      if(source.length < expectedSizes[sourceDivision]) source.push(displaced);
+      else source[source.length - 1] = displaced;
+    }
+  }
+  window.COMPETITION_TEAMS = Object.assign(window.COMPETITION_TEAMS || {}, repairedMap);
+  if(typeof teamMap === 'object' && teamMap) Object.assign(teamMap, repairedMap);
+  s.competitionTeams = clone(window.COMPETITION_TEAMS);
+  s.news = Array.isArray(s.news) ? s.news : [];
+  s.news.unshift('🛠️ RECUPERAÇÃO DE LIGAS: a carreira tinha elencos nacionais inconsistentes de uma versão anterior. As listas A–D foram reconstruídas sem apagar o save, o elenco, as finanças ou o histórico da carreira.');
+  s.news = s.news.slice(0, 50);
+  return true;
+}
+
 function repairSaveIfCorrupted(s){
   if(!s || !s.club) return false;
+  const rosterRepaired = repairLegacyNationalCompetitionRosters(s);
+  let saveRequired = rosterRepaired;
+  let metadataChanged = false;
   const primaryCompId = getClubPrimaryCompetitionId(s.club, s.compId);
   const curCompId = s.compId;
   const normalizedClub = norm(s.club);
@@ -8415,26 +8502,44 @@ function repairSaveIfCorrupted(s){
   const isAcreanoBug = curCompId === 'bra-est-ac' || s.competition === 'Campeonato Acreano';
   const isBrasiliaInWrongComp = norm(s.club) === 'brasilia' && curCompId !== 'bra-est-df';
   const isClubMissingFromTeams = !Array.isArray(s.teams) || s.teams.length === 0 || !s.teams.some(t => norm(t.name) === norm(s.club));
-  const isSelfMatchBug = Array.isArray(s.schedule) && s.schedule.some(rnd => rnd.some(g => g[0] === g[1]));
+  const isSelfMatchBug = Array.isArray(s.schedule) && s.schedule.some(rnd => Array.isArray(rnd) && rnd.some(g => Array.isArray(g) && g.length >= 2 && norm(g[0]) === norm(g[1])));
   const isScheduleEmptyOrNoUser = !Array.isArray(s.schedule) || s.schedule.length === 0 || !s.schedule.some(roundGames => Array.isArray(roundGames) && roundGames.some(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === norm(s.club) || norm(g[1]) === norm(s.club))));
   const activeRoundMissingClub = Array.isArray(s.schedule) && s.round < s.schedule.length && !hasActiveClubFixture;
-  const isOddNationalLeague = ['bra-a','bra-b','bra-c','bra-d'].includes(curCompId) && Array.isArray(s.teams) && s.teams.length !== 20;
-  const isCompMismatched = primaryCompId && curCompId !== primaryCompId && (!compById(curCompId) || !teamMap[curCompId] || isBrasiliaInWrongComp || isAcreanoBug);
+  const expectedNationalTeamCount = curCompId === 'bra-d'
+    ? Math.max(1, Number(compById(curCompId)?.teams) || 96)
+    : 20;
+  const isOddNationalLeague = ['bra-a','bra-b','bra-c','bra-d'].includes(curCompId) && Array.isArray(s.teams) && s.teams.length !== expectedNationalTeamCount;
+  const activeNationalRoster = ['bra-a','bra-b','bra-c','bra-d'].includes(curCompId)
+    ? (Array.isArray(s.competitionTeams?.[curCompId]) ? s.competitionTeams[curCompId] : (window.COMPETITION_TEAMS?.[curCompId] || []))
+    : [];
+  const activeRosterKeys = new Set(activeNationalRoster.map(norm));
+  const savedTeamKeys = new Set((Array.isArray(s.teams) ? s.teams : []).map(t => norm(t?.name)));
+  const isNationalRosterMismatch = activeNationalRoster.length === expectedNationalTeamCount
+    && Array.isArray(s.teams)
+    && (s.teams.length !== expectedNationalTeamCount
+      || s.teams.some(t => !activeRosterKeys.has(norm(t?.name)))
+      || activeNationalRoster.some(name => !savedTeamKeys.has(norm(name))));
+  // Saves de temporadas anteriores podem trazer a divisão histórica fixa no catálogo;
+  // uma divisão nacional válida salva deve prevalecer após promoção/rebaixamento.
+  const isValidSavedNationalDivision = ['bra-a','bra-b','bra-c','bra-d'].includes(curCompId) && compById(curCompId) && Array.isArray(teamMap[curCompId]);
+  const isCompMismatched = primaryCompId && curCompId !== primaryCompId && !isValidSavedNationalDivision && (!compById(curCompId) || !teamMap[curCompId] || isBrasiliaInWrongComp || isAcreanoBug);
   
   // Sincroniza s.competition e o clube do usuário com a competição ativa de curCompId
   const activeCompObj = compById(curCompId);
   if(activeCompObj){
-    if(s.competition !== activeCompObj.name) s.competition = activeCompObj.name;
-    s.currentLeague = activeCompObj.name;
+    if(s.competition !== activeCompObj.name){ s.competition = activeCompObj.name; metadataChanged = true; }
+    if(s.currentLeague !== activeCompObj.name){ s.currentLeague = activeCompObj.name; metadataChanged = true; }
     const cObj = clubByName(s.club);
     if(cObj){
+      if(cObj.competition !== activeCompObj.name || cObj.currentLeague !== activeCompObj.name) metadataChanged = true;
       cObj.competition = activeCompObj.name;
       cObj.currentLeague = activeCompObj.name;
     }
   }
 
-  // Se o save tem mais ou menos de 20 times na Série A/B/C/D (ex: 21 times), ajusta imediatamente para 20
-  if(isOddNationalLeague && activeCompObj){
+  // Corrige a quantidade incorreta de clubes no save: A/B/C têm 20; Série D tem 96.
+  if((isOddNationalLeague || isNationalRosterMismatch) && activeCompObj){
+    saveRequired = true;
     const defaultList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[curCompId]) ? [...window.COMPETITION_TEAMS[curCompId]] : [];
     const existingMap = new Map();
     (s.teams || []).forEach(t => { existingMap.set(norm(t.name), t); });
@@ -8444,7 +8549,7 @@ function repairSaveIfCorrupted(s){
     const cleanTeams = [];
     cleanTeams.push(existingMap.get(normalizedClub));
     defaultList.forEach(cName => {
-      if(cleanTeams.length < 20 && norm(cName) !== normalizedClub){
+      if(cleanTeams.length < expectedNationalTeamCount && norm(cName) !== normalizedClub){
         if(existingMap.has(norm(cName))){
           cleanTeams.push(existingMap.get(norm(cName)));
         } else {
@@ -8454,21 +8559,25 @@ function repairSaveIfCorrupted(s){
     });
     // Se ainda faltar preencher até 20 clubes
     for(const [tNorm, tObj] of existingMap.entries()){
-      if(cleanTeams.length >= 20) break;
+      if(cleanTeams.length >= expectedNationalTeamCount) break;
       if(!cleanTeams.some(x => norm(x.name) === tNorm)){
         cleanTeams.push(tObj);
       }
     }
-    s.teams = cleanTeams.slice(0, 20);
+    s.teams = cleanTeams.slice(0, expectedNationalTeamCount);
     s.schedule = buildSchedule(activeCompObj, s.teams.map(t => t.name));
     s.round = Math.min(Number(s.round) || 0, Math.max(0, s.schedule.length - 1));
   }
 
+  // Rodadas sem jogo do clube são válidas. Só reconstruímos quando há partida
+  // malformada, adversário duplicado ou calendário que nunca contém o clube.
   const hasScheduleCorrupted = Array.isArray(s.schedule) && (
-    s.schedule.some(rd => Array.isArray(rd) && rd.some(g => Array.isArray(g) && (g.includes('FOLGA') || g[0] === g[1]))) ||
-    (s.round < s.schedule.length && !hasActiveClubFixture)
+    isNationalRosterMismatch || isOddNationalLeague ||
+    s.schedule.some(rd => Array.isArray(rd) && rd.some(g => !Array.isArray(g) || g.length < 2 || !g[0] || !g[1] || norm(g[0]) === norm(g[1]))) ||
+    !s.schedule.some(roundGames => Array.isArray(roundGames) && roundGames.some(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === normalizedClub || norm(g[1]) === normalizedClub)))
   );
   if(hasScheduleCorrupted && activeCompObj && ['bra-a','bra-b','bra-c','bra-d'].includes(curCompId)){
+    saveRequired = true;
     s.schedule = buildSchedule(activeCompObj, (s.teams || []).map(t => t.name));
     s.round = Math.min(Number(s.round) || 0, Math.max(0, s.schedule.length - 1));
   }
@@ -8553,42 +8662,9 @@ function repairSaveIfCorrupted(s){
     }
   }
 
-  // Auditoria da Tabela de Classificação e Sincronização de Jogos e Datas (Evita times com 4 jogos e outros com 1)
-  if(s && Array.isArray(s.teams) && s.teams.length > 0){
-    const targetGames = Math.max(0, Number(s.round) || 0);
-    const hasDiscrepancy = s.teams.some(t => (Number(t.j) || 0) !== targetGames);
-    if(hasDiscrepancy){
-      s.teams.forEach(t => {
-        const curJ = Number(t.j) || 0;
-        if(curJ !== targetGames){
-          if(curJ > 0 && targetGames > 0){
-            const ratio = targetGames / curJ;
-            t.v = Math.round((t.v || 0) * ratio);
-            t.e = Math.round((t.e || 0) * ratio);
-            t.d = Math.max(0, targetGames - t.v - t.e);
-            t.gp = Math.round((t.gp || 0) * ratio);
-            t.gc = Math.round((t.gc || 0) * ratio);
-            t.sg = t.gp - t.gc;
-            t.p = (t.v * 3) + t.e;
-          } else {
-            t.v = 0; t.e = 0; t.d = 0; t.gp = 0; t.gc = 0; t.sg = 0; t.p = 0;
-          }
-          t.j = targetGames;
-          if(Array.isArray(t.form)) t.form = t.form.slice(0, targetGames);
-        }
-      });
-      // Sincroniza a data do jogo com a rodada atual
-      if(!s.isPreSeason || s.preSeasonDays <= 0){
-        const d = new Date((s.season || 2026) + '-01-10T12:00:00');
-        d.setDate(d.getDate() + (targetGames * 7));
-        s.date = d.toISOString().slice(0, 10);
-      }
-      try { localStorage.setItem(STORAGE, JSON.stringify(s)); } catch(e){ recordAFMError('legacy-calendar-repair', e); }
-      return true;
-    }
-  }
+  // A tabela guarda partidas realmente disputadas; folgas e rodadas fracionadas não autorizam reescrever resultados nem datas.
 
-  return false;
+  return saveRequired || metadataChanged;
 }
 window.repairSaveIfCorrupted = repairSaveIfCorrupted;
 
@@ -9545,97 +9621,69 @@ function canStartMatch(fixture, gameState = state){
 let isAdvancingTime = false;
 function advanceCalendarDays(days = 1, stopAtMatch = true){
   if(!state || isAdvancingTime) return;
+  if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save();
   isAdvancingTime = true;
   try {
-    const activeRoundFixtures = Array.isArray(state.schedule?.[state.round]) ? state.schedule[state.round] : [];
-    const currentClubFixture = activeRoundFixtures.find(g => Array.isArray(g) && (norm(g[0]) === norm(state.club) || norm(g[1]) === norm(state.club)));
-    const nextFixtureRound = currentClubFixture ? state.round : (state.schedule || []).findIndex((roundGames, idx) => idx > state.round && Array.isArray(roundGames) && roundGames.some(g => Array.isArray(g) && (norm(g[0]) === norm(state.club) || norm(g[1]) === norm(state.club))));
-    const targetRound = currentClubFixture ? state.round : nextFixtureRound;
-    const matchDate = targetRound >= 0 ? getDateForRound(targetRound, state.season) : null;
+    const clubNorm = norm(state.club);
+    const schedule = Array.isArray(state.schedule) ? state.schedule : [];
+    const activeFixtures = Array.isArray(schedule[state.round]) ? schedule[state.round] : [];
+    const clubFixture = activeFixtures.find(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === clubNorm || norm(g[1]) === clubNorm));
+    const nextFixtureRound = clubFixture ? state.round : schedule.findIndex((games, idx) => idx >= state.round && Array.isArray(games) && games.some(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === clubNorm || norm(g[1]) === clubNorm)));
+    const matchDate = nextFixtureRound >= 0 ? getDateForRound(nextFixtureRound, state.season) : null;
     let daysAdvanced = 0;
 
-    for(let i = 0; i < days; i++){
-      if(stopAtMatch && matchDate && state.date >= matchDate){
-        break;
-      }
-
-      const curD = new Date(state.date + 'T12:00:00');
-      curD.setDate(curD.getDate() + 1);
-      const nextDateStr = curD.toISOString().slice(0, 10);
-      state.date = nextDateStr;
+    for(let i = 0; i < Math.max(0, Number(days) || 0); i++){
+      // Só paramos ao chegar exatamente à data do jogo. Se a data salva já passou,
+      // esse fixture é tratado como atrasado e não pode congelar a simulação em 0 dias.
+      if(stopAtMatch && nextFixtureRound >= 0 && matchDate && state.date === matchDate) break;
+      const current = new Date(`${state.date}T12:00:00`);
+      if(!Number.isFinite(current.getTime())) break;
+      current.setDate(current.getDate() + 1);
+      const nextDate = current.toISOString().slice(0, 10);
+      state.date = nextDate;
       processStadiumConstructionDay();
       processContinentalFixturesBefore(state.date);
       expireStadiumEventConfirmation();
-      if(typeof checkIncomingPlayerBids === 'function' && isTransferWindowOpen(state.date) && Math.random() < 0.12){
-        checkIncomingPlayerBids();
-      }
+      if(typeof checkIncomingPlayerBids === 'function' && isTransferWindowOpen(state.date) && Math.random() < 0.12) checkIncomingPlayerBids();
       daysAdvanced++;
 
-      // 1. Pré-temporada (se ativa)
       if(state.isPreSeason && state.preSeasonDays > 0){
         state.preSeasonDays = Math.max(0, state.preSeasonDays - 1);
         if(state.preSeasonDays <= 0){
           state.isPreSeason = false;
-          state.news.unshift(`🏁 Fim da Janela de Pré-Temporada! Concentração total para os jogos oficiais.`);
+          state.news = Array.isArray(state.news) ? state.news : [];
+          state.news.unshift('Fim da pré-temporada. O elenco está pronto para os jogos oficiais.');
         }
       }
-
-      // 2. Recuperação física dos atletas (+5% de energia por dia de descanso)
-      if(Array.isArray(state.squad)){
-        state.squad.forEach(p => {
-          p.stamina = Math.min(100, (p.stamina || 90) + 5);
-          if(Number(p.transferDiscontentDays) > 0){
-            p.transferDiscontentDays = Math.max(0, Number(p.transferDiscontentDays) - 1);
-            if(p.transferDiscontentDays === 0){
-              delete p.transferDiscontentDays;
-              delete p.transferDiscontentReason;
-              delete p.wantsTransfer;
-              p.morale = clamp((Number(p.morale) || 65) + 8, 10, 100);
-              state.news.unshift(`🤝 CLIMA RESTABELECIDO: ${p.name} encerrou o período de insatisfação e voltou a focar no clube.`);
-            }
+      if(Array.isArray(state.squad)) state.squad.forEach(p => {
+        p.stamina = Math.min(100, (p.stamina || 90) + 5);
+        if(Number(p.transferDiscontentDays) > 0){
+          p.transferDiscontentDays = Math.max(0, Number(p.transferDiscontentDays) - 1);
+          if(p.transferDiscontentDays === 0){
+            delete p.transferDiscontentDays;
+            delete p.transferDiscontentReason;
+            delete p.wantsTransfer;
+            p.morale = clamp((Number(p.morale) || 65) + 8, 10, 100);
+            state.news.unshift(`CLIMA RESTABELECIDO: ${p.name} encerrou o período de insatisfação.`);
           }
-          if(p.injuryDays && p.injuryDays > 0){
-            p.injuryDays--;
-            if(p.injuryDays <= 0){
-              delete p.injuryDays;
-              delete p.injury;
-              delete p.injuryDesc;
-              state.news.unshift(`🩺 ALTA MÉDICA: ${p.name} recuperou-se 100% da lesão e foi reintegrado ao elenco!`);
-            }
-          }
-        });
-      }
-
-      // 3. Processamento bancário / mensalidade dia 1º
-      if(nextDateStr.endsWith('-01')){
-        if(typeof processBankLoansOnRound === 'function'){
-          processBankLoansOnRound();
         }
-      }
-
-      // 4. Sincronização e avanço de fases da Copa do Brasil
+        if(p.injuryDays && p.injuryDays > 0){
+          p.injuryDays--;
+          if(p.injuryDays <= 0){ delete p.injuryDays; delete p.injury; delete p.injuryDesc; state.news.unshift(`ALTA MÉDICA: ${p.name} recuperou-se da lesão.`); }
+        }
+      });
+      if(nextDate.endsWith('-01') && typeof processBankLoansOnRound === 'function') processBankLoansOnRound();
       processCopaDoBrasilCalendar(state.date);
-
-      if(stopAtMatch && matchDate && state.date >= matchDate){
-        break;
-      }
+      if(stopAtMatch && nextFixtureRound >= 0 && matchDate && state.date === matchDate) break;
     }
-
     save();
     render();
-
-    if(matchDate && state.date === matchDate){
-      const f = userFixture();
-      const opp = f ? (f[0] === state.club ? f[1] : f[0]) : 'Adversário';
-      toast(`🎯 Chegamos ao dia do jogo contra o ${opp}! O vestiário está pronto.`);
-    } else {
-      toast(`📅 Calendário avançado em ${daysAdvanced} ${daysAdvanced === 1 ? 'dia' : 'dias'}! Data atual: ${formatDatePtBr(state.date)}.`);
-    }
+    if(matchDate && nextFixtureRound >= 0 && state.date === matchDate) toast(`Calendário avançado até o próximo jogo (${formatDatePtBr(matchDate)}).`);
+    else toast(`Calendário avançado em ${daysAdvanced} ${daysAdvanced === 1 ? 'dia' : 'dias'}. Data atual: ${formatDatePtBr(state.date)}.`);
   } finally {
     isAdvancingTime = false;
   }
 }
-
 // -------------------------------------------------------------
 // MÁQUINA DE ESTADOS DA PARTIDA AO VIVO
 // PRE_MATCH -> FIRST_HALF -> HALF_TIME -> SECOND_HALF -> FULL_TIME -> POST_MATCH
@@ -10682,6 +10730,7 @@ function simulateAITransfers(){
       state.news.unshift(`💰 VENDA FUTURA CONFIRMADA! ${clause.buyer} revendeu ${clause.playerName} para o ${destClub} por ${fmtMoney(resoldFee)}. Seu clube recebeu ${fmtMoney(myProfit)} referente aos 20% da cláusula de revenda!`);
       if(state.news.length > 50) state.news = state.news.slice(0, 50);
 
+      state.marketWorldFeed = Array.isArray(state.marketWorldFeed) ? state.marketWorldFeed : [];
       state.marketWorldFeed.unshift({
         date: state.date,
         playerName: clause.playerName,
@@ -10691,6 +10740,7 @@ function simulateAITransfers(){
         seller: clause.buyer,
         fee: resoldFee
       });
+      state.marketWorldFeed = state.marketWorldFeed.slice(0, 30);
 
       toast(`💰 Cláusula de Revenda: +${fmtMoney(myProfit)} em caixa pela venda de ${clause.playerName} ao ${destClub}!`);
       try { window.AFM30?.audio?.playCoin?.(); } catch(e){ window.AFMErrorLog?.recordHandled(e, 'audio.playCoin'); }
@@ -11403,12 +11453,18 @@ function skipPreSeason(){
 let isStartingLiveMatch = false;
 function startLiveMatch(){
   if(isStartingLiveMatch) return;
+  if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save();
   const matchGate = canStartMatch();
   if(!matchGate.canStart){
     if(matchGate.status === 'season_finished'){ showEndOfSeasonModal(); return; }
     if(matchGate.status === 'future'){ state.date = matchGate.matchDate; }
     if(matchGate.status === 'no_fixture' || matchGate.isBye){
       toast('🏖️ Seu clube está de folga nesta rodada. Simulando os jogos dos adversários...');
+      simulateQuickRound();
+      return;
+    }
+    if(matchGate.status === 'missed'){
+      toast('⚠️ A data da partida já passou. Simulando esta rodada para recuperar o calendário.');
       simulateQuickRound();
       return;
     }
@@ -14872,6 +14928,7 @@ function finalizeMatchRound(){
 let isSimulatingQuickRound = false;
 function simulateQuickRound(){
   if(isSimulatingQuickRound) return;
+  if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save();
   const matchGate = canStartMatch();
   if(!matchGate.canStart && matchGate.status !== 'missed'){
     if(matchGate.status === 'season_finished'){
@@ -14943,9 +15000,19 @@ function simulateQuickRound(){
       state.preSeasonDays = 0;
       state.date = getDateForRound(state.round || 0, state.season);
     }
-    const fixtures=currentFixtures();
-    if(!fixtures.length || (state.round >= (state.schedule?.length || 1))){
-      showEndOfSeasonModal();
+    const fixtures = currentFixtures();
+    if(state.round >= (state.schedule?.length || 1)){ showEndOfSeasonModal(); return; }
+    if(!fixtures.length){
+      const nextRound = (state.schedule || []).findIndex((games, index) => index > state.round && Array.isArray(games) && games.some(g => Array.isArray(g) && g.length >= 2));
+      if(nextRound < 0){ showEndOfSeasonModal(); return; }
+      const skipped = state.round;
+      state.round = nextRound;
+      state.date = getDateForRound(nextRound, state.season);
+      state.news = Array.isArray(state.news) ? state.news : [];
+      state.news.unshift('Rodada sem partidas foi ignorada. O calendário retomou na próxima rodada válida.');
+      state.news = state.news.slice(0, 50);
+      save(); render();
+      toast('Rodada vazia ignorada. Avançando para a próxima rodada válida.');
       return;
     }
     const comp=curComp(),isKO=comp.type==='knockout';
@@ -15312,170 +15379,129 @@ function showEndOfSeasonModal(){
   };
 }
 
-function executeSeasonTransitions(finishedCompId = null, finishedRanking = null){
-  window.COMPETITION_TEAMS = window.COMPETITION_TEAMS || {};
-  if(state.competitionTeams){
-    window.COMPETITION_TEAMS = Object.assign(window.COMPETITION_TEAMS, state.competitionTeams);
-  }
-
-  const tMap = window.COMPETITION_TEAMS;
-  const getDivTeams = (divId) => {
-    let list = Array.isArray(tMap[divId]) ? [...tMap[divId]] : [];
-    if(!list.length && divId === 'bra-a') list = ['Flamengo','Palmeiras','São Paulo','Corinthians','Fluminense','Grêmio','Internacional','Atlético-MG','Botafogo','Vasco da Gama','Cruzeiro','Bahia','Fortaleza','Athletico Paranaense','Red Bull Bragantino','Juventude','Criciúma','Vitória','Atlético-GO','Cuiabá'];
-    if(!list.length && divId === 'bra-b') list = ['Santos','Sport','América-MG','Goiás','Coritiba','Ceará','Novorizontino','Mirassol','Operário-PR','Vila Nova','Ponte Preta','Avaí','CRB','Amazonas','Chapecoense','Botafogo-SP','Paysandu','Ituano','Brusque','Guarani'];
-    if(!list.length && divId === 'bra-c') list = ['Volta Redonda','Athletic Club','Ferroviária','Remo','São Bernardo','Londrina','Ypiranga','Botafogo-PB','Náutico','CSA','Figueirense','Confiança','ABC','Caxias','Floresta','Aparecidense','Sampaio Corrêa','Ferroviário','São José-RS','Tombense'];
-    if(!list.length && divId === 'bra-d') list = ['Retrô','Anápolis','Maringá','Itabaiana','Brasiliense','Inter de Limeira','Treze','Iguatu','Manaus','Nova Iguaçu','Altos','Porto Velho','Princesa do Solimões','Águia de Marabá','Capital-DF','Gama','Ceilândia','Sobradinho','Real Brasília','Brasília'];
-    return list;
-  };
-
-  // Simula ou lê classificação ordenada de uma divisão
-  const rankDivision = (divId) => {
-    if(finishedCompId === divId && Array.isArray(finishedRanking) && finishedRanking.length){
-      return finishedRanking.map(t => t.name);
-    }
-    if(state.compId === divId && Array.isArray(state.teams) && state.teams.length){
-      return ranking().map(t => t.name);
-    }
-    const teams = getDivTeams(divId);
-    return teams.slice().sort((a,b) => {
-      const sa = teamStrengthByName(a) + rnd(-3, 3);
-      const sb = teamStrengthByName(b) + rnd(-3, 3);
-      return sb - sa || norm(a).localeCompare(norm(b));
-    });
-  };
-
-  const rankedA = rankDivision('bra-a');
-  const rankedB = rankDivision('bra-b');
-  const rankedC = rankDivision('bra-c');
-  const rankedD = rankDivision('bra-d');
-
-  // Série A: 4 rebaixados para a B
-  const relegatedFromA = rankedA.slice(16, 20);
-  const stayInA = rankedA.slice(0, 16);
-
-  // Série B: 4 promovidos para a A, 4 rebaixados para a C
-  const promotedFromB = rankedB.slice(0, 4);
-  const stayInB = rankedB.slice(4, 16);
-  const relegatedFromB = rankedB.slice(16, 20);
-
-  // Série C: 4 promovidos para a B, 4 rebaixados para a D
-  const promotedFromC = rankedC.slice(0, 4);
-  const stayInC = rankedC.slice(4, 16);
-  const relegatedFromC = rankedC.slice(16, 20);
-
-  // Série D: 4 promovidos para a C
-  const promotedFromD = rankedD.slice(0, 4);
-
-  // Monta nova Série A (20 times)
-  const newA = [...new Set([...stayInA, ...promotedFromB])];
-
-  // Monta nova Série B (20 times)
-  const newB = [...new Set([...stayInB, ...relegatedFromA, ...promotedFromC])];
-
-  // Monta nova Série C (20 times)
-  const newC = [...new Set([...stayInC, ...relegatedFromB, ...promotedFromD])];
-
-  // Monta nova Série D:
-  // Recebe os 4 rebaixados da C + vagas dos Estaduais para clubes sem divisão superior (A, B, C)
-  const superDivNorms = new Set([...newA, ...newB, ...newC].map(norm));
-
-  // Coleta qualificados dos estaduais
-  const estQualifiers = [];
+function executeSeasonTransitions(finishedCompId = null, finishedRanking = null, requestedDestinationCompId = null, sourceNationalDivision = null){
+  const divisionIds = ['bra-a','bra-b','bra-c','bra-d'];
   const stateCompIds = ['bra-est-df','bra-est-sp','bra-est-rj','bra-est-mg','bra-est-rs','bra-est-pr','bra-est-sc','bra-est-ba','bra-est-ce','bra-est-go','bra-est-pe'];
-  for(const eId of stateCompIds){
-    const estTeams = (tMap[eId] || []).slice();
-    // Se o usuário disputou este estadual, prioriza o clube do usuário se ficou no G-2
-    if(state.compId === eId && !superDivNorms.has(norm(state.club))){
-      const userPos = position();
-      if(userPos <= 2 && !estQualifiers.some(c => norm(c) === norm(state.club))){
-        estQualifiers.push(state.club);
-      }
-    }
-    // Adiciona os melhores do estadual que não tenham divisão superior
-    const cand = estTeams.filter(c => !superDivNorms.has(norm(c)));
-    cand.sort((a,b) => teamStrengthByName(b) - teamStrengthByName(a));
-    const quota = (eId === 'bra-est-df' || eId === 'bra-est-sc' || eId === 'bra-est-ba' || eId === 'bra-est-ce' || eId === 'bra-est-go' || eId === 'bra-est-pe') ? 2 : 3;
-    cand.slice(0, quota).forEach(c => {
-      if(!estQualifiers.some(x => norm(x) === norm(c))) estQualifiers.push(c);
-    });
-  }
-
-  // Preenche a Série D com rebaixados da C + qualificados dos estaduais + clubes tradicionais de Série D
-  const newD = [...new Set([...relegatedFromC, ...estQualifiers])].filter(c => !superDivNorms.has(norm(c)));
-  if(newD.length < 20){
-    const extraPool = ['Retrô','Anápolis','Maringá','Itabaiana','Brasiliense','Capital-DF','Gama','Ceilândia','Treze','Iguatu','Manaus','Nova Iguaçu','Altos','Porto Velho','Princesa do Solimões','Águia de Marabá','Santa Cruz','América-RN','Inter de Limeira','Água Santa'];
-    extraPool.forEach(c => {
-      if(newD.length < 20 && !superDivNorms.has(norm(c)) && !newD.some(x => norm(x) === norm(c))){
-        newD.push(c);
-      }
-    });
-  }
-
-  const myClubName = state.club;
+  window.COMPETITION_TEAMS = window.COMPETITION_TEAMS || {};
+  if(state.competitionTeams && typeof state.competitionTeams === 'object') Object.assign(window.COMPETITION_TEAMS, state.competitionTeams);
+  const tMap = window.COMPETITION_TEAMS;
+  const uniqueNames = names => [...new Map((Array.isArray(names) ? names : []).filter(name => typeof name === 'string' && name.trim()).map(name => [norm(name), name])).values()];
+  const myClubName = String(state.club || '').trim();
   const myNorm = norm(myClubName);
-  if(state.compId === 'bra-a'){
-    newB = newB.filter(c => norm(c) !== myNorm);
-    newC = newC.filter(c => norm(c) !== myNorm);
-    newD = newD.filter(c => norm(c) !== myNorm);
-    if(!newA.some(c => norm(c) === myNorm)){
-      if(newA.length >= 20) newA[19] = myClubName;
-      else newA.push(myClubName);
+  const lists = Object.fromEntries(divisionIds.map(id => [id, uniqueNames(tMap[id]).slice(0, id === 'bra-d' ? Math.max(1, Number(compById('bra-d')?.teams) || 96) : 20)]));
+  // Capture todos os nomes nacionais originais antes do truncamento por capacidade;
+  // um clube descartado por excesso não pode voltar pelo pool de preenchimento.
+  const originalNationalKeys = new Set(divisionIds.flatMap(id => uniqueNames(tMap[id]).map(norm)));
+  const capacities = {
+    'bra-a': 20,
+    'bra-b': 20,
+    'bra-c': 20,
+    'bra-d': Math.max(1, Number(compById('bra-d')?.teams) || 96)
+  };
+  const destination = divisionIds.includes(requestedDestinationCompId) ? requestedDestinationCompId : null;
+  let source = divisionIds.includes(sourceNationalDivision) ? sourceNationalDivision : null;
+  if(!source && divisionIds.includes(finishedCompId)) source = finishedCompId;
+  if(!source && divisionIds.includes(state.compId)) source = state.compId;
+  if(!source && myNorm) source = divisionIds.find(id => lists[id].some(name => norm(name) === myNorm)) || null;
+  const previousNationalMemberships = divisionIds.filter(id => lists[id].some(name => norm(name) === myNorm));
+
+  const previousTargetIndex = destination ? lists[destination].findIndex(name => norm(name) === myNorm) : -1;
+  let displacedFromDestination = null;
+  if(destination && destination !== source && myNorm){
+    for(const id of divisionIds) lists[id] = lists[id].filter(name => norm(name) !== myNorm);
+    const target = lists[destination];
+    if(previousTargetIndex < 0 && target.length >= capacities[destination]) displacedFromDestination = target.pop() || null;
+    target.splice(Math.min(previousTargetIndex >= 0 ? previousTargetIndex : target.length, target.length), 0, myClubName);
+    state.compId = destination;
+    // O clube que cede a vaga no destino ocupa a vaga aberta na divisão de origem.
+    // Isso preserva o tamanho dos elencos sem perder um clube do mapa nacional.
+    if(source && source !== destination && displacedFromDestination){
+      const sourceList = lists[source];
+      if(!sourceList.some(name => norm(name) === norm(displacedFromDestination))){
+        if(sourceList.length >= capacities[source]) sourceList.pop();
+        sourceList.push(displacedFromDestination);
+      }
     }
-  } else if(state.compId === 'bra-b'){
-    newA = newA.filter(c => norm(c) !== myNorm);
-    newC = newC.filter(c => norm(c) !== myNorm);
-    newD = newD.filter(c => norm(c) !== myNorm);
-    if(!newB.some(c => norm(c) === myNorm)){
-      if(newB.length >= 20) newB[19] = myClubName;
-      else newB.push(myClubName);
+    if(!source && displacedFromDestination && stateCompIds.includes(finishedCompId) && Array.isArray(tMap[finishedCompId])){
+      const stateTeams = uniqueNames(tMap[finishedCompId]);
+      const userStateIndex = stateTeams.findIndex(name => norm(name) === myNorm);
+      if(userStateIndex >= 0){
+        stateTeams[userStateIndex] = displacedFromDestination;
+        tMap[finishedCompId] = stateTeams;
+      }
     }
-  } else if(state.compId === 'bra-c'){
-    newA = newA.filter(c => norm(c) !== myNorm);
-    newB = newB.filter(c => norm(c) !== myNorm);
-    newD = newD.filter(c => norm(c) !== myNorm);
-    if(!newC.some(c => norm(c) === myNorm)){
-      if(newC.length >= 20) newC[19] = myClubName;
-      else newC.push(myClubName);
+  } else if(source && myNorm){
+    // Sem um destino explícito, o fim de uma copa/estadual não é promoção nem rebaixamento.
+    for(const id of divisionIds){
+      if(id !== source) lists[id] = lists[id].filter(name => norm(name) !== myNorm);
     }
-  } else if(state.compId === 'bra-d'){
-    newA = newA.filter(c => norm(c) !== myNorm);
-    newB = newB.filter(c => norm(c) !== myNorm);
-    newC = newC.filter(c => norm(c) !== myNorm);
-    if(!newD.some(c => norm(c) === myNorm)){
-      if(newD.length >= 20) newD[19] = myClubName;
-      else newD.push(myClubName);
+    if(!lists[source].some(name => norm(name) === myNorm)){
+      let displaced = null;
+      if(lists[source].length >= capacities[source]) displaced = lists[source].pop() || null;
+      lists[source].push(myClubName);
+      const oldDivision = previousNationalMemberships.find(id => id !== source);
+      if(displaced && oldDivision && lists[oldDivision].length < capacities[oldDivision] && !lists[oldDivision].some(name => norm(name) === norm(displaced))){
+        lists[oldDivision].push(displaced);
+      }
     }
   }
 
-  const poolFallback = ['Santos','Sport','América-MG','Goiás','Coritiba','Ceará','Novorizontino','Mirassol','Operário-PR','Vila Nova','Ponte Preta','Avaí','CRB','Amazonas','Chapecoense','Botafogo-SP','Paysandu','Ituano','Brusque','Guarani','Retrô','Anápolis','Maringá','Itabaiana'];
-  const fillTo20 = (arr, otherLists) => {
-    const list = [...new Set(arr)];
-    for(const extra of poolFallback){
-      if(list.length >= 20) break;
-      if(!list.some(x => norm(x) === norm(extra)) && !otherLists.some(l => l.some(x => norm(x) === norm(extra)))){
-        list.push(extra);
+  // Remove sobreposições entre as divisões mantendo a primeira inscrição válida (A → D).
+  const globallyAssigned = new Set();
+  for(const id of divisionIds){
+    lists[id] = uniqueNames(lists[id]).filter(name => {
+      const key = norm(name);
+      if(globallyAssigned.has(key)) return false;
+      globallyAssigned.add(key);
+      return true;
+    });
+  }
+
+  // Só preenche vagas com clubes sem divisão nacional cadastrada; não inventa classificações.
+  // Preenche primeiro com clubes do catálogo-base da própria divisão, sem mover quem já está noutra Série.
+  for(const id of divisionIds){
+    for(const candidate of uniqueNames(BASE_COMPETITION_TEAMS?.[id])){
+      if(lists[id].length >= capacities[id]) break;
+      const key = norm(candidate);
+      if(!key || globallyAssigned.has(key)) continue;
+      lists[id].push(candidate);
+      globallyAssigned.add(key);
+    }
+  }
+  const candidatePool = [];
+  const candidateKeys = new Set();
+  const addCandidates = names => {
+    for(const name of Array.isArray(names) ? names : []){
+      if(typeof name !== 'string' || !name.trim()) continue;
+      const key = norm(name);
+      if(key && !originalNationalKeys.has(key) && !candidateKeys.has(key)){
+        candidateKeys.add(key);
+        candidatePool.push(name);
       }
     }
-    return list.slice(0, 20);
   };
+  for(const [compId, names] of Object.entries(tMap)) if(!divisionIds.includes(compId)) addCandidates(names);
+  addCandidates(['Santos','Sport','América-MG','Goiás','Coritiba','Ceará','Novorizontino','Mirassol','Operário-PR','Vila Nova','Ponte Preta','Avaí','CRB','Amazonas','Chapecoense','Botafogo-SP','Paysandu','Ituano','Brusque','Guarani','Retrô','Anápolis','Maringá','Itabaiana','Brasiliense','Capital-DF','Gama','Ceilândia','Treze','Iguatu','Manaus','Nova Iguaçu','Altos','Porto Velho','Princesa do Solimões','Águia de Marabá','Santa Cruz','América-RN','Inter de Limeira','Água Santa']);
+  for(const id of divisionIds){
+    for(const candidate of candidatePool){
+      if(lists[id].length >= capacities[id]) break;
+      const key = norm(candidate);
+      if(!globallyAssigned.has(key)){
+        lists[id].push(candidate);
+        globallyAssigned.add(key);
+      }
+    }
+  }
 
-  newA = fillTo20(newA, [newB, newC, newD]);
-  newB = fillTo20(newB, [newA, newC, newD]);
-  newC = fillTo20(newC, [newA, newB, newD]);
-  newD = fillTo20(newD, [newA, newB, newC]);
-  // Sincroniza teamMap global com tMap para que eligibleClubNames use os elencos atualizados
+  for(const id of divisionIds) tMap[id] = lists[id];
+  window.COMPETITION_TEAMS = tMap;
   if(typeof teamMap === 'object' && teamMap) Object.assign(teamMap, tMap);
-  window.COMPETITION_TEAMS = Object.assign(window.COMPETITION_TEAMS || {}, tMap);
-  // Divisões brasileiras padronizadas com exatamente 20 clubes cada
-
-  tMap['bra-a'] = newA;
-  tMap['bra-b'] = newB;
-  tMap['bra-c'] = newC;
-  tMap['bra-d'] = newD;
-
   state.competitionTeams = clone(tMap);
-
-  state.news.unshift(`🇧🇷 VIRADA DE TEMPORADA & MUNDO VIVO: Promovidos para a Série A: ${promotedFromB.slice(0,2).join(', ')}. Promovidos para a Série B: ${promotedFromC.slice(0,2).join(', ')}. Promovidos para a Série C: ${promotedFromD.slice(0,2).join(', ')}.`);
+  state.news = Array.isArray(state.news) ? state.news : [];
+  if(destination && destination !== source){
+    state.news.unshift(`🔁 VIRADA DE DIVISÃO: ${myClubName} disputará ${compById(destination)?.name || destination} na temporada ${state.season}. As outras divisões não foram reclassificadas sem tabelas simuladas.`);
+    state.news = state.news.slice(0, 50);
+  }
 }
 
 function advanceSeasonYear(){
@@ -15501,6 +15527,7 @@ function advanceSeasonYear(){
     bankDebt: totalBankDebt(),
     stadiumDebt: Math.max(0, Number(state.stadiumRingData?.debt?.remaining) || 0)
   });
+  state.seasonHistory = state.seasonHistory.slice(0, 20);
 
   // Preserve caixa and dívidas; the new season starts with clean accounting totals.
   state.income = 0;
@@ -15520,15 +15547,18 @@ function advanceSeasonYear(){
   state.date = `${state.season}-01-01`;
   expireStadiumEventConfirmation();
 
-  // Aplica subida de divisão ou rebaixamento do usuário
-  if(state.nextSeasonCompId){
-    state.compId = state.nextSeasonCompId;
-    delete state.nextSeasonCompId;
-  }
-
-  // Executa transições vivas de temporada para todas as divisões (Séries A, B, C, D e Estaduais)
-  executeSeasonTransitions(compFinished?.id || state.compId, rankingTable);
-
+  // Captura origem e destino antes de alterar o save. Só um destino explícito vindo
+  // das regras de acesso/rebaixamento pode mudar a divisão nacional do clube.
+  const nationalDivisionIds = ['bra-a','bra-b','bra-c','bra-d'];
+  const finishedCompId = compFinished?.id || state.compId;
+  const divisionMapForTransition = state.competitionTeams || window.COMPETITION_TEAMS || {};
+  const sourceNationalDivision = nationalDivisionIds.includes(finishedCompId) ? finishedCompId
+    : (nationalDivisionIds.includes(state.compId) ? state.compId
+      : nationalDivisionIds.find(id => (divisionMapForTransition[id] || []).some(name => norm(name) === norm(state.club))) || null);
+  const requestedDestinationCompId = nationalDivisionIds.includes(state.nextSeasonCompId) ? state.nextSeasonCompId : null;
+  if(requestedDestinationCompId) state.compId = requestedDestinationCompId;
+  delete state.nextSeasonCompId;
+  executeSeasonTransitions(finishedCompId, rankingTable, requestedDestinationCompId, sourceNationalDivision);
   const comp = curComp();
   if(comp){
     state.competition = comp.name;
@@ -15543,6 +15573,7 @@ function advanceSeasonYear(){
   state.financePeriodStartedDate = state.date;
   state.news.unshift(`🤝 PATROCÍNIOS REAJUSTADOS: contratos e novas propostas atualizados para ${comp?.name || 'a nova divisão'}, considerando a posição ${finishedPosition}ª de ${finishedTeamCount} na temporada anterior.`);
   state.news.unshift(`🎆 Feliz Ano Novo! Início da temporada ${state.season}! O ${state.club} disputará o ${comp?.name || 'Campeonato'} com pré-temporada aberta por 4 dias.`);
+  state.news = state.news.slice(0, 50);
   
   const cc = competitionClubs(comp, state.club);
   state.teams = cc.map(c => ({name:c.name, strength:strength(c), j:0, v:0, e:0, d:0, gp:0, gc:0, sg:0, p:0, form:[]}));
@@ -22150,8 +22181,9 @@ function seasonPage(){
   
   // Identifica a divisão nacional do clube do jogador (Série A, B, C ou D)
   const brDivs = ['bra-a', 'bra-b', 'bra-c', 'bra-d'];
-  const userNatDivId = brDivs.find(id => (window.COMPETITION_TEAMS?.[id] || []).some(c => norm(c) === norm(state.club))) 
-    || (state.compId?.startsWith('bra-') && !state.compId.startsWith('bra-est-') && state.compId !== 'bra-cup' ? state.compId : 'bra-d');
+  const userNatDivId = brDivs.includes(state.compId)
+    ? state.compId
+    : (brDivs.find(id => (window.COMPETITION_TEAMS?.[id] || []).some(c => norm(c) === norm(state.club))) || 'bra-d');
   const natCompObj = compById(userNatDivId) || compById('bra-d') || compById('bra-a');
   
   // Identifica o estadual do clube do jogador
@@ -23704,10 +23736,10 @@ function renderSetup(app){
                 ` : ''}
 
                 <div style="margin-bottom:14px">
-                  <label class="afm-input-label">Usuário ou E-mail da conta</label>
+                  <label class="afm-input-label">Nome de usuário da conta</label>
                   <div class="afm-input-box">
                     <span class="afm-input-icon">✉️</span>
-                    <input class="afm-input-field" id="inputAuthUser" type="text" autocomplete="username" placeholder="Ex: aquino ou seu e-mail" required>
+                    <input class="afm-input-field" id="inputAuthUser" type="text" autocomplete="username" placeholder="Ex: aquino" required>
                   </div>
                 </div>
 
@@ -24633,12 +24665,9 @@ function bindSetup(){
   const btnSwitchLog = $('#btnSwitchToLogin');
   if(btnSwitchLog) btnSwitchLog.onclick = () => { setupAuthTab = 'login'; renderSetup($('#app')); };
 
-  const btnForgot = $('#btnForgotPassLink');
-  if(btnForgot) btnForgot.onclick = async () => {
-    const email = $('#inputAuthUser')?.value.trim();
-    if(!email){ toast('Digite seu e-mail para receber o link de redefinição.'); return; }
-    const result = await window.AFM_DB.resetPassword(email);
-    toast(result.ok ? 'Se a conta existir, enviaremos um link para redefinir a senha.' : result.error);
+  const btnForgot = $("#btnForgotPassLink");
+  if(btnForgot) btnForgot.onclick = () => {
+    toast('O AFM usa nome de usuário e senha. Peça ao administrador para redefinir sua senha.');
   };
 
   // Binds de Autenticação
@@ -24654,7 +24683,7 @@ function bindSetup(){
     btnSubmitAuth.onclick = async () => {
       const u = $('#inputAuthUser')?.value.trim();
       const p = $('#inputAuthPass')?.value;
-      if(!u || !p){ toast('Preencha seu e-mail e senha.'); return; }
+      if(!u || !p){ toast('Preencha seu nome de usuário e senha.'); return; }
       btnSubmitAuth.disabled = true;
       const label = btnSubmitAuth.textContent;
       btnSubmitAuth.textContent = 'Conectando…';
@@ -24667,10 +24696,10 @@ function bindSetup(){
             renderSetup($('#app'));
           }
         } else {
-          const n = $('#inputAuthName')?.value.trim() || u.split('@')[0];
+          const n = $('#inputAuthName')?.value.trim() || u;
           const res = await registerUser(u, p, n);
           if(!res.success) toast(res.error);
-          else if(res.needsConfirmation) toast('Cadastro iniciado. Confirme seu e-mail antes de entrar.');
+          else if(res.needsConfirmation) toast('Cadastro iniciado. Faça login com seu nome de usuário e senha.');
           else {
             toast(`Conta criada com sucesso! Bem-vindo, ${res.user.name}!`);
             renderSetup($('#app'));
@@ -26080,6 +26109,8 @@ window.getLiveMatchState = () => liveMatchState;
 window.setLiveMatchState = (s) => { liveMatchState = s; };
 
 window.newCareer = newCareer;
+window.advanceSeasonYear = advanceSeasonYear;
+window.executeSeasonTransitions = executeSeasonTransitions;
 window.save = save;
 window.load = load;
 window.loadUserSlot = loadUserSlot;

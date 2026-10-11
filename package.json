@@ -9,6 +9,10 @@
     "badges:fetch": "node scripts/fetch-missing-team-badges.js",
     "test:finance": "node scripts/test-finance-systems.js",
     "test:service-worker": "node scripts/test-service-worker.js",
+    "test:season-transitions": "node scripts/test-season-transitions.js",
+    "test:calendar-recovery": "node scripts/test-calendar-recovery.js",
+    "test:username-login": "node scripts/test-username-login.js",
+    "test:stadium-progression": "node scripts/test-stadium-progression.js",
     "start": "npx serve .",
     "dev": "npx serve ."
   },

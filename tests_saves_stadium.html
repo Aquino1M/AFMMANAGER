@@ -157,6 +157,28 @@ window.addEventListener('load', async () => {
     assert('Teste C.5: Carregamento isolado do Slot 1', state?.club === 'Corinthians' && state?.userSlot === 1, `Clube: ${state?.club}`);
 
     // -------------------------------------------------------------
+    // TESTE C.6: Migração de anéis respeita a sequência de construção.
+    state.stadiumRingData = {
+      ring: 3, maxRings: 6, maxUnlockedRing: 6,
+      sides: { norte: false, sul: false, leste: false, oeste: false },
+      rings: {
+        1: { norte: false, sul: false, leste: false, oeste: false },
+        2: { norte: true, sul: true, leste: true, oeste: true },
+        3: { norte: true, sul: true, leste: true, oeste: true },
+        4: { norte: true, sul: true, leste: true, oeste: true },
+        5: { norte: false, sul: false, leste: false, oeste: false },
+        6: { norte: false, sul: false, leste: false, oeste: false }
+      },
+      purchasedSectors: [], activeWork: null
+    };
+    state.infrastructure.stadium.capacity = 10000;
+    const normalizedLegacyRings = getStadiumExpansionData();
+    assert('Teste C.6: Anéis superiores não pulam a sequência',
+      ['norte','sul','leste','oeste'].every(side => normalizedLegacyRings.rings[1][side]) &&
+      ['norte','sul','leste','oeste'].every(side => normalizedLegacyRings.rings[2][side]) &&
+      ['norte','sul','leste','oeste'].every(side => normalizedLegacyRings.rings[3][side]) &&
+      ['norte','sul','leste','oeste'].every(side => normalizedLegacyRings.rings[4][side]) && normalizedLegacyRings.ring === 5,
+      `Anel ativo: ${normalizedLegacyRings.ring}`);
     // TESTE D — PRESERVAÇÃO DO ESTÁDIO (3 SETORES COMPRADOS)
     // -------------------------------------------------------------
     console.log('--- TESTE D: Preservação do Estádio ---');
@@ -286,6 +308,68 @@ window.addEventListener('load', async () => {
     assert('Teste H.2: Calendário e equipes presentes', Array.isArray(state.schedule) && Array.isArray(state.teams), 'Calendário e times OK');
     assert('Teste H.3: Tabela da competição funcional', state.teams.length >= 2, `Times no campeonato: ${state.teams.length}`);
     assert('Teste H.4: Escudos de clubes oficiais ativos', typeof renderClubBadge === 'function', 'renderClubBadge disponível');
+
+    // TESTE I: A virada B→C deve mover apenas o clube do save, sem reclassificar catálogos estáticos.
+    const transitionStateBackup = JSON.parse(JSON.stringify(state));
+    const transitionMapReference = window.COMPETITION_TEAMS;
+    const transitionMapBackup = JSON.parse(JSON.stringify(window.COMPETITION_TEAMS || {}));
+    const transitionDivisions = ['bra-a','bra-b','bra-c','bra-d'];
+    const transitionNorm = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const makeTransitionNames = (prefix, count) => Array.from({ length: count }, (_, i) => `${prefix}-${String(i + 1).padStart(2, '0')}`);
+    function setupTransitionCase(compId, nextCompId = null){
+      const map = JSON.parse(JSON.stringify(transitionMapBackup));
+      map['bra-a'] = makeTransitionNames('AFM-TEST-A', 20);
+      map['bra-b'] = makeTransitionNames('AFM-TEST-B', 20);
+      map['bra-b'][17] = 'Criciúma';
+      map['bra-c'] = makeTransitionNames('AFM-TEST-C', 20);
+      map['bra-d'] = makeTransitionNames('AFM-TEST-D', 96);
+      map['bra-est-sc'] = ['Criciúma', ...makeTransitionNames('AFM-TEST-SC', 19)];
+      for(const key of Object.keys(transitionMapReference)) delete transitionMapReference[key];
+      Object.assign(transitionMapReference, map);
+      window.COMPETITION_TEAMS = transitionMapReference;
+      const testState = JSON.parse(JSON.stringify(transitionStateBackup));
+      testState.club = 'Criciúma';
+      testState.compId = compId;
+      testState.season = 2031;
+      testState.date = '2031-12-31';
+      testState.competitionTeams = JSON.parse(JSON.stringify(map));
+      testState.news = [];
+      testState.teams = map['bra-b'].map((name, i) => ({ name, strength: 68, j: 38, v: 0, e: 0, d: 0, gp: 10, gc: 30, sg: -20, p: 20 - i, form: [] }));
+      if(nextCompId) testState.nextSeasonCompId = nextCompId;
+      else delete testState.nextSeasonCompId;
+      window.setState(testState);
+    }
+    function countNationalMemberships(clubName){
+      return transitionDivisions.filter(id => (window.COMPETITION_TEAMS[id] || []).some(name => transitionNorm(name) === transitionNorm(clubName)));
+    }
+    function nationalRosterAudit(){
+      const rosters = transitionDivisions.map(id => window.COMPETITION_TEAMS[id] || []);
+      const allNames = rosters.flat().map(transitionNorm);
+      return {
+        sizesOk: (window.COMPETITION_TEAMS['bra-a'] || []).length === 20 && (window.COMPETITION_TEAMS['bra-b'] || []).length === 20 && (window.COMPETITION_TEAMS['bra-c'] || []).length === 20 && (window.COMPETITION_TEAMS['bra-d'] || []).length === 96,
+        noDuplicates: new Set(allNames).size === allNames.length
+      };
+    }
+    console.log('--- TESTE I: Transição segura de divisões ---');
+    setupTransitionCase('bra-b', 'bra-c');
+    advanceSeasonYear();
+    let transitionAudit = nationalRosterAudit();
+    assert('Teste I.1: Rebaixamento explícito B → C atualiza a carreira', state.compId === 'bra-c' && state.currentLeague === (window.COMPETITIONS || []).find(comp => comp.id === 'bra-c')?.name, `ID: ${state.compId}; liga: ${state.currentLeague}`);
+    assert('Teste I.2: Criciúma fica somente na Série C', countNationalMemberships('Criciúma').length === 1 && countNationalMemberships('Criciúma')[0] === 'bra-c', `Divisões: ${countNationalMemberships('Criciúma').join(', ')}`);
+    assert('Teste I.3: Tamanhos e unicidade das divisões', transitionAudit.sizesOk && transitionAudit.noDuplicates, `A ${(window.COMPETITION_TEAMS['bra-a'] || []).length}, B ${(window.COMPETITION_TEAMS['bra-b'] || []).length}, C ${(window.COMPETITION_TEAMS['bra-c'] || []).length}, D ${(window.COMPETITION_TEAMS['bra-d'] || []).length}; sem duplicatas: ${transitionAudit.noDuplicates}`);
+    assert('Teste I.4: Calendário recriado na divisão de destino', Array.isArray(state.schedule) && state.teams.length === 20 && state.teams.some(team => transitionNorm(team.name) === transitionNorm('Criciúma')) && state.schedule.some(round => round.some(match => match.some(name => transitionNorm(name) === transitionNorm('Criciúma')))), `Times: ${state.teams.length}; rodadas: ${state.schedule.length}`);
+    setupTransitionCase('bra-b');
+    advanceSeasonYear();
+    assert('Teste I.5: Sem destino explícito, a Série B não muda', state.compId === 'bra-b' && countNationalMemberships('Criciúma').length === 1 && countNationalMemberships('Criciúma')[0] === 'bra-b', `ID: ${state.compId}; divisão: ${countNationalMemberships('Criciúma').join(', ')}`);
+    transitionAudit = nationalRosterAudit();
+    assert('Teste I.6: Permanência preserva tamanhos e evita duplicatas', transitionAudit.sizesOk && transitionAudit.noDuplicates, `Tamanhos corretos: ${transitionAudit.sizesOk}; sem duplicatas: ${transitionAudit.noDuplicates}`);
+    setupTransitionCase('bra-est-sc');
+    advanceSeasonYear();
+    assert('Teste I.7: Estadual sem acesso preserva a divisão nacional', state.compId === 'bra-est-sc' && countNationalMemberships('Criciúma').length === 1 && countNationalMemberships('Criciúma')[0] === 'bra-b', `Competição: ${state.compId}; divisão nacional: ${countNationalMemberships('Criciúma').join(', ')}`);
+    window.setState(transitionStateBackup);
+    for(const key of Object.keys(transitionMapReference)) delete transitionMapReference[key];
+    Object.assign(transitionMapReference, transitionMapBackup);
+    window.COMPETITION_TEAMS = transitionMapReference;
 
   } catch(err) {
     console.error('Erro na execução dos testes:', err);
