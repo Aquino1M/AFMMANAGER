@@ -4,6 +4,39 @@ Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027*
 
 ---
 
+## [3.3.3] - 2026-10-11 (Mundo Vivo, Promoção à Série D via Estaduais, Negociação de Empréstimos, Táticas Estáveis & Calendário Realista)
+
+### 🏆 1. Sistema de Promoção, Rebaixamento e Vagas Continentais/Nacionais
+- **Acesso à Série D via Campeonatos Estaduais**: Clubes que terminam no G-2 do seu estadual (campeão ou vice-campeão, ex: Campeonato Candango) e que ainda não possuem divisão nacional superior garantida (Séries A, B ou C) são automaticamente qualificados para disputar o Campeonato Brasileiro Série D na temporada seguinte.
+- **Mundo Vivo & Virada de Temporada Dinâmica**: Durante a transição de ano (`advanceSeasonYear`), rebaixamentos e acessos das Séries A, B, C, D e Estaduais são calculados e sincronizados no estado (`state.competitionTeams`) e em `window.COMPETITION_TEAMS`, eliminando divisões estáticas ou vazias.
+- **Vagas Continentais por Região**: Qualificação e visualização oficial por continentes:
+  - *América do Sul*: Copa Libertadores (Fase de Grupos G4 e Pré-Libertadores G6) e Copa Sul-Americana (G7 a G12).
+  - *Europa*: Fase de Liga da UEFA Champions League (G4) e UEFA Europa League (G5/G6).
+  - *Ásia*: AFC Champions League Elite (G3) e AFC Champions League Two.
+  - *Mundial de Clubes FIFA*: Torneio oficial de 32 clubes.
+- **Unificação da Tela de Temporada**: Removida a aba redundante "Divisões Nacionais". A visualização da divisão nacional do clube (`🇧🇷 Série A/B/C/D`) foi integrada diretamente ao lado do seu respectivo Estadual (`🏆 Campeonato Estadual`), Copa do Brasil e Continental, com alternância instantânea.
+
+### 🤝 2. Gestão Completa de Empréstimos e Mercado
+- **Bloqueio de Renovação Indevida**: Atletas com vínculo de empréstimo (tag `Emprestado`) não abrem mais o modal de renovação salarial direta com o jogador.
+- **Modal de Negociação com Clube Detentor**: Ao clicar em "Propostas / Negociar", abre-se um modal dedicado com 3 opções claras de gestão:
+  1. *Comprar em Definitivo*: Exercer opção de compra pelo valor de mercado fixado.
+  2. *Solicitar Extensão de Empréstimo*: Prorrogar o empréstimo por 6 ou 12 meses mantendo o rateio salarial.
+  3. *Devolver Atleta*: Encerrar o empréstimo antecipadamente e devolver o jogador ao clube de origem.
+- **Tag Visual e Acesso Rápido**: Indicador visual nos detalhes do atleta e na tela de salários com atalho "Negociar c/ detentor ➔".
+
+### 📋 3. Táticas: Persistência do Acordeão e Sliders Automatizados
+- **Correção do Acordeão Tático**: O acordeão `<details>` não colapsa mais ao alternar entre os botões de tática (Tática A, B e C), mantendo seu estado aberto via `e.stopPropagation()` e flag de persistência `state.tacticsAccordionOpen`.
+- **Automação de Sliders por Presets**: A seleção de estilos nos seletores de "Construção de Jogo" (*Posse Paciente*, *Transição Rápida*, *Equilibrado*, *Bola Longa*) e "Postura Defensiva" (*Pressão Alta*, *Bloco Médio*, *Linha Baixa / Retranca*, *Pressão Pós-Perda*) atualiza de imediato os sliders numéricos de Altura da Linha, Pressão, Largura e Ritmo.
+
+### 📅 4. Calendário Realista Intercalado
+- **Fins de Semana para Ligas e Meio de Semana para Copas**: Jogos de campeonatos nacionais e estaduais calibrados para sábados e domingos; partidas de Copa do Brasil e competições continentais intercaladas às quartas-feiras contínuas sem semanas vazias.
+- **Badges de Dia da Semana**: Identificação visual no card de partidas com selos coloridos (`QUA` em azul, `SÁB` e `DOM` em verde).
+
+### 📰 5. Atualização da Aba "Novidades & Correções"
+- Registro oficial da Versão 62 / 3.3.3 no topo do changelog interno do jogo.
+
+---
+
 ## [3.3.2] - 2026-10-10 (Correção das Velocidades 2x/5x/10x & Otimização do Cabeçalho Tático)
 
 ### ⏱️ Controles de Velocidade da Partida ao Vivo (1x, 2x, 5x, 10x, 20x, 40x)

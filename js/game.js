@@ -3558,15 +3558,85 @@ function changelogPage(){
     <!-- Feed de Cartões com Badges (Screenshot 2) -->
     <div style="display:flex;flex-direction:column;gap:18px">
       
-      <!-- Card: Versão 61 - AFM 3.0 & Revolução Tática, Copinha e Gestão Financeira Realista -->
-      <div class="card" style="padding:24px;background:#100d1e;border:2px solid rgba(139,92,246,0.5);box-shadow:0 0 25px rgba(139,92,246,0.15);border-radius:18px">
+      <!-- Card: Versão 62 - AFM 2027: Progressão Viva de Temporada, Acesso à Série D, Negociação de Empréstimos e Táticas Pro -->
+      <div class="card" style="padding:24px;background:#100d1e;border:2px solid rgba(139,92,246,0.6);box-shadow:0 0 25px rgba(139,92,246,0.25);border-radius:18px">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
           <div style="font-size:11px;font-weight:900;color:#a78bfa;letter-spacing:1px;text-transform:uppercase">
-            8 DE OUTUBRO DE 2026 · VERSÃO 61 (ATUAL)
+            11 DE OUTUBRO DE 2026 · VERSÃO 62 (ATUAL)
           </div>
           <span style="background:rgba(34,197,94,0.2);border:1px solid #22c55e;color:#4ade80;font-size:10px;font-weight:900;padding:2px 8px;border-radius:999px">
             VERSÃO ATIVA EM JOGO
           </span>
+        </div>
+        <h2 style="margin:8px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
+          MUNDO VIVO, ACESSO À SÉRIE D VIA ESTADUAL, GESTÃO DE EMPRÉSTIMOS E TÁTICAS REFINADAS
+        </h2>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Vaga e Acesso Automático à Série D via Estaduais:</b> Clubes com grande campanha no Estadual (ex: campeão e vice-campeão do Candangão) que não possuem divisão superior garantida agora conquistam vaga oficial e disputam a Série D no ano seguinte.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Mundo Vivo & Virada de Temporada Completa:</b> Na transição de ano/temporada, todas as divisões nacionais (Séries A, B, C, D e Estaduais) atualizam suas tabelas com clubes promovidos e rebaixados, garantindo que nenhum save fique estático ou com divisões vazias.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#7c3aed;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NOVIDADE
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Competições Continentais por Região:</b> Qualificação internacional vinculada diretamente ao continente do clube gerenciado — América do Sul (Libertadores e Sul-Americana), Europa (UEFA Champions League e Europa League) e Ásia (AFC Champions League).
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#22c55e;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              MELHORIA
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Modal de Gestão de Atletas Emprestados:</b> Atletas sob empréstimo não abrem mais renovação direta. Ao clicar em negociar, abre-se o modal com o clube detentor para exercer cláusula de compra definitiva, solicitar extensão (6 ou 12 meses) ou devolver o atleta.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#22c55e;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              MELHORIA
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Calendário Realista Intercalado:</b> Partidas de copas e meio de semana alocadas às quartas-feiras, e rodadas de liga nacional e estaduais aos sábados e domingos de forma contínua e sem semanas vazias.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#ef4444;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              CORREÇÃO
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Presets Táticos & Correção nos Botões Tática A/B/C:</b> Selecionar Tática A, B ou C não colapsa mais a sanfona/acordeão (com <code>stopPropagation</code> e preservação de estado). Alterações em Construção de Jogo e Postura Defensiva agora atualizam os sliders recomendados automaticamente.
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <span style="background:#0284c7;color:#fff;font-size:11px;font-weight:900;padding:3px 10px;border-radius:6px;letter-spacing:1px;flex-shrink:0">
+              NAVEGAÇÃO
+            </span>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5">
+              <b>Navegação Unificada na Aba Temporada:</b> Remoção da aba redundante "Divisões Nacionais", exibindo diretamente a divisão nacional em que o clube está inserido (ex: Série D) lado a lado com seu Estadual.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card: Versão 61 - AFM 3.0 & Revolução Tática, Copinha e Gestão Financeira Realista -->
+      <div class="card" style="padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="font-size:11px;font-weight:900;color:#a78bfa;letter-spacing:1px;text-transform:uppercase">
+            8 DE OUTUBRO DE 2026 · VERSÃO 61
+          </div>
         </div>
         <h2 style="margin:8px 0 16px 0;font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
           AFM 3.0: BLOCOS TÁTICOS, GRITOS DO TREINADOR, COPINHA SUB-20 E GESTÃO FINANCEIRA PRO
@@ -7551,9 +7621,167 @@ function openClubInfoModal(clubName){
   );
 }
 
+function openLoanNegotiationModal(p){
+  if(!p) return;
+  const parentClub = p.loanFrom || p.originalClub || 'Clube Detentor';
+  const valMi = calcValueMi(p);
+  const buyPrice = Math.round(valMi * 1e6);
+  const extFee6m = Math.round(buyPrice * 0.05);
+  const extFee12m = Math.round(buyPrice * 0.10);
+  const canBuy = state.balance >= buyPrice;
+  const canExt6 = state.balance >= extFee6m;
+  const canExt12 = state.balance >= extFee12m;
+  
+  openCustomModal(
+    `🤝 Gestão de Empréstimo: ${esc(p.name)}`,
+    `
+      <div style="display:flex;align-items:center;gap:16px;background:rgba(255,255,255,0.03);padding:14px;border-radius:12px;margin-bottom:14px">
+        ${playerPhoto(p, 52)}
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h2 style="margin:0;font-size:18px">${esc(p.name)}</h2>
+            <span class="pill warn" style="font-weight:900;font-size:11px">🏷️ ATLETA EMPRESTADO</span>
+          </div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">
+            ${esc(p.pos||'-')} • ${p.age||22} anos • Overall: <b class="good">${playerOverall(p)}</b> • Passe de mercado: <b class="good">${fmtMi(valMi)}</b>
+          </div>
+          <div style="margin-top:6px;font-size:12px;color:#38bdf8;display:flex;align-items:center;gap:6px">
+            <span>🏛️ Clube Detentor dos Direitos:</span>
+            <b>${esc(parentClub)}</b>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:rgba(255,255,255,0.85);line-height:1.5">
+        ℹ️ Este atleta não pertence em definitivo ao <b>${esc(state.club)}</b>. Para manter ou liberar o atleta, escolha uma das opções de negociação direta com o <b>${esc(parentClub)}</b> abaixo:
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <!-- 1. COMPRA DEFINITIVA -->
+        <div style="background:#131024;border:1px solid rgba(34,197,94,0.3);border-radius:12px;padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+            <div>
+              <div style="font-weight:900;font-size:14px;color:#4ade80">💰 1. Exercer Cláusula / Comprar em Definitivo</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:3px">
+                Transfere 100% dos direitos econômicos e federativos para o ${esc(state.club)} com contrato de 3 anos.
+              </div>
+              <div style="font-size:13px;font-weight:800;color:#22c55e;margin-top:6px">
+                Valor do Passe: ${fmtMoney(buyPrice)} <span class="small muted">(Seu Caixa: ${fmtMoney(state.balance)})</span>
+              </div>
+            </div>
+            <button class="btn success" id="btnBuyoutLoanPlayer" ${!canBuy ? 'disabled title="Saldo insuficiente no caixa"' : ''} style="font-weight:900;padding:8px 16px;font-size:12px">
+              ${canBuy ? '🛒 Comprar em Definitivo' : 'Saldo Insuficiente'}
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. SOLICITAR EXTENSÃO -->
+        <div style="background:#131024;border:1px solid rgba(56,189,248,0.3);border-radius:12px;padding:14px">
+          <div style="font-weight:900;font-size:14px;color:#38bdf8;margin-bottom:4px">🤝 2. Solicitar Extensão do Empréstimo</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:10px">
+            Envia uma solicitação oficial ao ${esc(parentClub)} para estender a cessão temporária do atleta.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <button class="btn" id="btnExtendLoan6m" ${!canExt6 ? 'disabled' : ''} style="padding:10px;text-align:left;background:rgba(56,189,248,0.08);border:1px solid #38bdf8">
+              <div style="font-weight:800;font-size:12px;color:#fff">📅 Extensão por 6 Meses</div>
+              <div style="font-size:11px;color:#38bdf8;margin-top:2px">Taxa: ${fmtMoney(extFee6m)}</div>
+            </button>
+            <button class="btn" id="btnExtendLoan12m" ${!canExt12 ? 'disabled' : ''} style="padding:10px;text-align:left;background:rgba(56,189,248,0.08);border:1px solid #38bdf8">
+              <div style="font-weight:800;font-size:12px;color:#fff">📅 Extensão por 12 Meses</div>
+              <div style="font-size:11px;color:#38bdf8;margin-top:2px">Taxa: ${fmtMoney(extFee12m)}</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. DEVOLVER ATLETA -->
+        <div style="background:#131024;border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <div>
+              <div style="font-weight:900;font-size:14px;color:#f87171">↩️ 3. Devolver Atleta ao Clube de Origem</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:3px">
+                Encerra imediatamente o empréstimo antes do término e libera a vaga na folha salarial.
+              </div>
+            </div>
+            <button class="btn bad" id="btnReturnLoanPlayer" style="font-weight:900;padding:8px 16px;font-size:12px">
+              ↩️ Devolver Atleta
+            </button>
+          </div>
+        </div>
+      </div>
+    `,
+    null,
+    'Fechar',
+    false
+  );
+
+  setTimeout(() => {
+    const bBuy = $('#btnBuyoutLoanPlayer');
+    if(bBuy){
+      bBuy.onclick = () => {
+        if(state.balance < buyPrice){
+          toast('Saldo insuficiente para comprar o atleta.');
+          return;
+        }
+        state.balance -= buyPrice;
+        state.expense = (state.expense || 0) + buyPrice;
+        delete p.isLoan;
+        delete p.loanFrom;
+        p.owned = true;
+        p.contractUntil = Number(state.season) + 3;
+        state.news.unshift(`💰 COMPRA DEFINITIVA: O ${state.club} exerceu a opção de compra e adquiriu os direitos federativos de ${p.name} em definitivo por ${fmtMoney(buyPrice)} junto ao ${parentClub}!`);
+        toast(`🎉 ${p.name} agora pertence 100% ao ${state.club} em definitivo!`);
+        closeCustomModal();
+        save();
+        render();
+      };
+    }
+
+    const handleExtend = (months, fee) => {
+      if(state.balance < fee){
+        toast('Saldo insuficiente para taxa de extensão.');
+        return;
+      }
+      state.balance -= fee;
+      state.expense = (state.expense || 0) + fee;
+      p.contractUntil = (Number(p.contractUntil) || Number(state.season)) + (months === 12 ? 1 : 1);
+      state.news.unshift(`🤝 EXTENSÃO DE EMPRÉSTIMO: O ${parentClub} aceitou prorrogar o empréstimo de ${p.name} por mais ${months} meses (taxa de ${fmtMoney(fee)}).`);
+      toast(`✅ Empréstimo de ${p.name} estendido por mais ${months} meses!`);
+      closeCustomModal();
+      save();
+      render();
+    };
+
+    const bExt6 = $('#btnExtendLoan6m');
+    if(bExt6) bExt6.onclick = () => handleExtend(6, extFee6m);
+
+    const bExt12 = $('#btnExtendLoan12m');
+    if(bExt12) bExt12.onclick = () => handleExtend(12, extFee12m);
+
+    const bRet = $('#btnReturnLoanPlayer');
+    if(bRet){
+      bRet.onclick = () => {
+        if(!confirm(`Deseja realmente devolver ${p.name} ao ${parentClub} e rescindir o empréstimo?`)) return;
+        state.squad = state.squad.filter(q => playerKey(q) !== playerKey(p));
+        if(Array.isArray(state.lineup)){
+          state.lineup = state.lineup.map(k => k === playerKey(p) ? null : k);
+        }
+        state.news.unshift(`↩️ RESCISÃO DE EMPRÉSTIMO: ${p.name} foi devolvido ao ${parentClub} antes do término do vínculo.`);
+        toast(`Atleta ${p.name} devolvido ao ${parentClub}.`);
+        closeCustomModal();
+        save();
+        render();
+      };
+    }
+  }, 50);
+}
+
 function openPlayerContractRenewalModal(pk){
   const p = state.squad.find(q=>playerKey(q)===pk);
   if(!p) return;
+  if(p.isLoan){
+    openLoanNegotiationModal(p);
+    return;
+  }
   const curWage = playerSalary(p);
   const curUntil = playerContractUntil(p);
   const morale = p.morale || 70;
@@ -7988,6 +8216,7 @@ window.repairSaveIfCorrupted = repairSaveIfCorrupted;
 function migrate(s){
   if(!s)return null;
   s.version=4;
+  if(s.competitionTeams) window.COMPETITION_TEAMS = Object.assign(window.COMPETITION_TEAMS || {}, s.competitionTeams);
   if(typeof s.trainingSuggestionPending !== 'boolean') s.trainingSuggestionPending = false;
   s.playerMoves=s.playerMoves||{};
   s.worldGenerated=s.worldGenerated||buildWorldGenerated();
@@ -8787,9 +9016,34 @@ function curComp(){
   };
 }
 function getDateForRound(roundIndex, season = state?.season || 2026){
-  const d = new Date(season + '-01-10T12:00:00');
-  d.setDate(d.getDate() + (Math.max(0, Number(roundIndex) || 0) * 7));
+  const r = Math.max(0, Number(roundIndex) || 0);
+  const s = Number(season) || 2026;
+  const d = new Date(s + '-01-17T12:00:00');
+  d.setDate(d.getDate() + (r * 7));
+  const day = d.getDay();
+  if(day !== 0 && day !== 6){
+    d.setDate(d.getDate() + (6 - day));
+  }
   return d.toISOString().slice(0, 10);
+}
+
+function ensureMidweekDate(isoDate, season = null){
+  if(!isoDate) return isoDate;
+  try {
+    let dStr = String(isoDate);
+    if(season && !dStr.startsWith(String(season))){
+      dStr = String(season) + dStr.slice(4);
+    }
+    const d = new Date(dStr + 'T12:00:00');
+    if(isNaN(d.getTime())) return isoDate;
+    const day = d.getDay();
+    if(day !== 3){
+      d.setDate(d.getDate() + (3 - day));
+    }
+    return d.toISOString().slice(0, 10);
+  } catch(e){
+    return isoDate;
+  }
 }
 
 function formatDatePtBr(isoDate){
@@ -14276,24 +14530,24 @@ function showEndOfSeasonModal(){
   const isEstadual = comp?.id?.startsWith('bra-est-');
   
   if(isEstadual){
-    // Se não tem série nacional e fica no G-2 do estadual -> Ganha vaga na Série D!
-    const hasNationalSeries = ['bra-a','bra-b','bra-c','bra-d'].some(id => window.COMPETITION_TEAMS?.[id]?.some(c => norm(c) === norm(state.club)));
-    if(!hasNationalSeries && pos <= 2){
+    // Se não tem série superior garantida (Séries A, B ou C) e fica no G-2 do estadual -> Ganha vaga na Série D!
+    const hasSuperiorSeries = ['bra-a','bra-b','bra-c'].some(id => window.COMPETITION_TEAMS?.[id]?.some(c => norm(c) === norm(state.club)));
+    if(!hasSuperiorSeries && pos <= 2){
       promoInfo = {
         type: 'promote',
         toCompId: 'bra-d',
         title: '🎉 VAGA NA SÉRIE D DO BRASILEIRÃO CONQUISTADA!',
-        desc: `Pelo grande desempenho no estadual (${pos}º colocado), o ${state.club} conquistou a vaga oficial na Série D nacional!`
+        desc: `Pelo grande desempenho no campeonato estadual (${pos}º colocado), o ${state.club} conquistou a vaga oficial na Série D nacional!`
       };
       state.nextSeasonCompId = 'bra-d';
     }
   } else if(comp?.id === 'bra-d'){
-    if(pos <= 6){
+    if(pos <= 4){
       promoInfo = {
         type: 'promote',
         toCompId: 'bra-c',
         title: '🚀 ACESSO CONQUISTADO À SÉRIE C!',
-        desc: `O ${state.club} terminou no G-6 (${pos}º lugar) e conquistou o acesso oficial ao Campeonato Brasileiro Série C!`
+        desc: `O ${state.club} terminou no G-4 (${pos}º lugar) e conquistou o acesso oficial ao Campeonato Brasileiro Série C!`
       };
       state.nextSeasonCompId = 'bra-c';
     }
@@ -14345,6 +14599,29 @@ function showEndOfSeasonModal(){
     }
   }
 
+  // Qualificação Continental por Região
+  let continentalPromo = null;
+  const cContinent = comp?.continent || (comp?.country === 'Brasil' ? 'América do Sul' : 'Outro');
+  if(cContinent === 'América do Sul' && comp?.id === 'bra-a'){
+    if(pos <= 4){
+      continentalPromo = { title: '🏆 VAGA NA FASE DE GRUPOS DA LIBERTADORES!', desc: `Classificação continental épica! Pelo ${pos}º lugar no Brasileirão, o ${state.club} disputará a Copa Libertadores!` };
+    } else if(pos <= 6){
+      continentalPromo = { title: '🔵 VAGA NA PRÉ-LIBERTADORES!', desc: `Pelo ${pos}º lugar na Série A, o ${state.club} disputará a fase preliminar da Copa Libertadores!` };
+    } else if(pos <= 12){
+      continentalPromo = { title: '🥈 VAGA NA COPA SUL-AMERICANA!', desc: `Vaga internacional garantida! O ${state.club} disputará a CONMEBOL Sul-Americana!` };
+    }
+  } else if(cContinent === 'Europa' && !comp?.id?.includes('cup')){
+    if(pos <= 4){
+      continentalPromo = { title: '🌟 VAGA NA UEFA CHAMPIONS LEAGUE!', desc: `G4 europeu conquistado (${pos}º lugar)! O clube disputará a fase de liga da UEFA Champions League!` };
+    } else if(pos <= 6){
+      continentalPromo = { title: '🥈 VAGA NA UEFA EUROPA LEAGUE!', desc: `Vaga europeia garantida! O clube disputará a UEFA Europa League (${pos}º lugar)!` };
+    }
+  } else if(cContinent === 'Ásia' && !comp?.id?.includes('cup')){
+    if(pos <= 3){
+      continentalPromo = { title: '🌟 VAGA NA AFC CHAMPIONS LEAGUE ELITE!', desc: `Top 3 conquistado (${pos}º lugar)! O clube disputará a AFC Champions League Elite!` };
+    }
+  }
+
   if(pos === 1){
     state.titles = state.titles || [];
     if(!state.titles.includes(comp.name)){
@@ -14364,6 +14641,13 @@ function showEndOfSeasonModal(){
         <div style="background:${promoInfo.type==='promote'?'rgba(34,197,94,0.18)':'rgba(239,68,68,0.18)'};border:2px solid ${promoInfo.type==='promote'?'#22c55e':'#ef4444'};border-radius:12px;padding:12px 16px;margin-bottom:14px;text-align:center">
           <div style="font-size:13px;font-weight:900;color:${promoInfo.type==='promote'?'#4ade80':'#f87171'}">${promoInfo.title}</div>
           <div style="font-size:12px;color:#fff;margin-top:4px">${promoInfo.desc}</div>
+        </div>
+      ` : ''}
+
+      ${continentalPromo ? `
+        <div style="background:rgba(56,189,248,0.18);border:2px solid #38bdf8;border-radius:12px;padding:12px 16px;margin-bottom:14px;text-align:center">
+          <div style="font-size:13px;font-weight:900;color:#38bdf8">${continentalPromo.title}</div>
+          <div style="font-size:12px;color:#fff;margin-top:4px">${continentalPromo.desc}</div>
         </div>
       ` : ''}
 
@@ -14478,6 +14762,118 @@ function showEndOfSeasonModal(){
   };
 }
 
+function executeSeasonTransitions(){
+  window.COMPETITION_TEAMS = window.COMPETITION_TEAMS || {};
+  if(state.competitionTeams){
+    window.COMPETITION_TEAMS = Object.assign(window.COMPETITION_TEAMS, state.competitionTeams);
+  }
+
+  const tMap = window.COMPETITION_TEAMS;
+  const getDivTeams = (divId) => {
+    let list = Array.isArray(tMap[divId]) ? [...tMap[divId]] : [];
+    if(!list.length && divId === 'bra-a') list = ['Flamengo','Palmeiras','São Paulo','Corinthians','Fluminense','Grêmio','Internacional','Atlético-MG','Botafogo','Vasco da Gama','Cruzeiro','Bahia','Fortaleza','Athletico Paranaense','Red Bull Bragantino','Juventude','Criciúma','Vitória','Atlético-GO','Cuiabá'];
+    if(!list.length && divId === 'bra-b') list = ['Santos','Sport','América-MG','Goiás','Coritiba','Ceará','Novorizontino','Mirassol','Operário-PR','Vila Nova','Ponte Preta','Avaí','CRB','Amazonas','Chapecoense','Botafogo-SP','Paysandu','Ituano','Brusque','Guarani'];
+    if(!list.length && divId === 'bra-c') list = ['Volta Redonda','Athletic Club','Ferroviária','Remo','São Bernardo','Londrina','Ypiranga','Botafogo-PB','Náutico','CSA','Figueirense','Confiança','ABC','Caxias','Floresta','Aparecidense','Sampaio Corrêa','Ferroviário','São José-RS','Tombense'];
+    if(!list.length && divId === 'bra-d') list = ['Retrô','Anápolis','Maringá','Itabaiana','Brasiliense','Inter de Limeira','Treze','Iguatu','Manaus','Nova Iguaçu','Altos','Porto Velho','Princesa do Solimões','Águia de Marabá','Capital-DF','Gama','Ceilândia','Sobradinho','Real Brasília','Brasília'];
+    return list;
+  };
+
+  // Simula ou lê classificação ordenada de uma divisão
+  const rankDivision = (divId) => {
+    if(state.compId === divId && Array.isArray(state.teams) && state.teams.length){
+      return ranking().map(t => t.name);
+    }
+    const teams = getDivTeams(divId);
+    return teams.slice().sort((a,b) => {
+      const sa = teamStrengthByName(a) + rnd(-3, 3);
+      const sb = teamStrengthByName(b) + rnd(-3, 3);
+      return sb - sa || norm(a).localeCompare(norm(b));
+    });
+  };
+
+  const rankedA = rankDivision('bra-a');
+  const rankedB = rankDivision('bra-b');
+  const rankedC = rankDivision('bra-c');
+  const rankedD = rankDivision('bra-d');
+
+  // Série A: 4 rebaixados para a B
+  const relegatedFromA = rankedA.slice(16, 20);
+  const stayInA = rankedA.slice(0, 16);
+
+  // Série B: 4 promovidos para a A, 4 rebaixados para a C
+  const promotedFromB = rankedB.slice(0, 4);
+  const stayInB = rankedB.slice(4, 16);
+  const relegatedFromB = rankedB.slice(16, 20);
+
+  // Série C: 4 promovidos para a B, 4 rebaixados para a D
+  const promotedFromC = rankedC.slice(0, 4);
+  const stayInC = rankedC.slice(4, 16);
+  const relegatedFromC = rankedC.slice(16, 20);
+
+  // Série D: 4 promovidos para a C
+  const promotedFromD = rankedD.slice(0, 4);
+
+  // Monta nova Série A (20 times)
+  const newA = [...new Set([...stayInA, ...promotedFromB])];
+
+  // Monta nova Série B (20 times)
+  const newB = [...new Set([...stayInB, ...relegatedFromA, ...promotedFromC])];
+
+  // Monta nova Série C (20 times)
+  const newC = [...new Set([...stayInC, ...relegatedFromB, ...promotedFromD])];
+
+  // Monta nova Série D:
+  // Recebe os 4 rebaixados da C + vagas dos Estaduais para clubes sem divisão superior (A, B, C)
+  const superDivNorms = new Set([...newA, ...newB, ...newC].map(norm));
+
+  // Coleta qualificados dos estaduais
+  const estQualifiers = [];
+  const stateCompIds = ['bra-est-df','bra-est-sp','bra-est-rj','bra-est-mg','bra-est-rs','bra-est-pr','bra-est-sc','bra-est-ba','bra-est-ce','bra-est-go','bra-est-pe'];
+  for(const eId of stateCompIds){
+    const estTeams = (tMap[eId] || []).slice();
+    // Se o usuário disputou este estadual, prioriza o clube do usuário se ficou no G-2
+    if(state.compId === eId && !superDivNorms.has(norm(state.club))){
+      const userPos = position();
+      if(userPos <= 2 && !estQualifiers.some(c => norm(c) === norm(state.club))){
+        estQualifiers.push(state.club);
+      }
+    }
+    // Adiciona os melhores do estadual que não tenham divisão superior
+    const cand = estTeams.filter(c => !superDivNorms.has(norm(c)));
+    cand.sort((a,b) => teamStrengthByName(b) - teamStrengthByName(a));
+    const quota = (eId === 'bra-est-df' || eId === 'bra-est-sc' || eId === 'bra-est-ba' || eId === 'bra-est-ce' || eId === 'bra-est-go' || eId === 'bra-est-pe') ? 2 : 3;
+    cand.slice(0, quota).forEach(c => {
+      if(!estQualifiers.some(x => norm(x) === norm(c))) estQualifiers.push(c);
+    });
+  }
+
+  // Preenche a Série D com rebaixados da C + qualificados dos estaduais + clubes tradicionais de Série D
+  const newD = [...new Set([...relegatedFromC, ...estQualifiers])].filter(c => !superDivNorms.has(norm(c)));
+  if(newD.length < 20){
+    const extraPool = ['Retrô','Anápolis','Maringá','Itabaiana','Brasiliense','Capital-DF','Gama','Ceilândia','Treze','Iguatu','Manaus','Nova Iguaçu','Altos','Porto Velho','Princesa do Solimões','Águia de Marabá','Santa Cruz','América-RN','Inter de Limeira','Água Santa'];
+    extraPool.forEach(c => {
+      if(newD.length < 20 && !superDivNorms.has(norm(c)) && !newD.some(x => norm(x) === norm(c))){
+        newD.push(c);
+      }
+    });
+  }
+
+  // Se o usuário está em uma divisão específica, garante a presença do clube do usuário nela
+  if(state.compId === 'bra-a' && !newA.some(c => norm(c) === norm(state.club))) newA.push(state.club);
+  if(state.compId === 'bra-b' && !newB.some(c => norm(c) === norm(state.club))) newB.push(state.club);
+  if(state.compId === 'bra-c' && !newC.some(c => norm(c) === norm(state.club))) newC.push(state.club);
+  if(state.compId === 'bra-d' && !newD.some(c => norm(c) === norm(state.club))) newD.push(state.club);
+
+  tMap['bra-a'] = newA;
+  tMap['bra-b'] = newB;
+  tMap['bra-c'] = newC;
+  tMap['bra-d'] = newD;
+
+  state.competitionTeams = clone(tMap);
+
+  state.news.unshift(`🇧🇷 VIRADA DE TEMPORADA & MUNDO VIVO: Promovidos para a Série A: ${promotedFromB.slice(0,2).join(', ')}. Promovidos para a Série B: ${promotedFromC.slice(0,2).join(', ')}. Promovidos para a Série C: ${promotedFromD.slice(0,2).join(', ')}.`);
+}
+
 function advanceSeasonYear(){
   // 1. Registra Snapshot Histórico no Hall da Fama da Carreira
   const finishedYear = state.season;
@@ -14511,6 +14907,7 @@ function advanceSeasonYear(){
   state.season++;
   state.round = 0;
   state.competitionStats = {};
+  state.estadualData = null; // Reinicia dados do estadual para a nova temporada
   (state.bankLoans || []).forEach(loan => {
     if(loan.remainingDebt > 0 && loan.remainingInstallments > 0) loan.nextDueRound = 2;
   });
@@ -14519,18 +14916,14 @@ function advanceSeasonYear(){
   state.date = `${state.season}-01-01`;
   expireStadiumEventConfirmation();
 
-  // Aplica subida de divisão ou rebaixamento
+  // Aplica subida de divisão ou rebaixamento do usuário
   if(state.nextSeasonCompId){
     state.compId = state.nextSeasonCompId;
     delete state.nextSeasonCompId;
-    
-    // Garante que o clube está registrado na lista da nova competição
-    if(window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[state.compId]){
-      if(!window.COMPETITION_TEAMS[state.compId].includes(state.club)){
-        window.COMPETITION_TEAMS[state.compId].push(state.club);
-      }
-    }
   }
+
+  // Executa transições vivas de temporada para todas as divisões (Séries A, B, C, D e Estaduais)
+  executeSeasonTransitions();
 
   const comp = curComp();
   refreshAnnualSponsorValues(finishedPosition, finishedTeamCount, comp?.id);
@@ -15892,6 +16285,10 @@ function openPlayerTransferModal(key){
   const p = findSquadPlayerByKey(key);
   if(!p){
     toast('Jogador não encontrado no elenco.');
+    return;
+  }
+  if(p.isLoan){
+    openLoanNegotiationModal(p);
     return;
   }
   const actualKey = playerKey(p);
@@ -17473,10 +17870,11 @@ function calendarPage(){
   processCopaDoBrasilCalendar(state.date);
   Object.entries(copa.phases || {}).forEach(([phaseName, phase]) => (phase.fixtures || []).forEach((fixture, fixtureIndex) => {
     if(calendarClubKey(fixture.home) !== calendarClubKey(myClub) && calendarClubKey(fixture.away) !== calendarClubKey(myClub)) return;
+    const cDate = ensureMidweekDate(fixture.isoDate, state.season);
     extraMatches.push({
       competitionId: 'bra-cup', name: 'Copa do Brasil', home: fixture.home, away: fixture.away,
       isHome: calendarClubKey(fixture.home) === calendarClubKey(myClub), round: phaseName,
-      date: fixture.isoDate, result: fixture.score, current: fixture.isoDate === state.date,
+      date: cDate, result: fixture.score, current: cDate === state.date,
       matchIndex: fixtureIndex, phaseName
     });
   }));
@@ -17487,8 +17885,9 @@ function calendarPage(){
       const results = new Map((tournament?.matches || []).map(match => [match.id, match]));
       extraMatches.push(...all.filter(f => calendarClubKey(f.home) === calendarClubKey(myClub) || calendarClubKey(f.away) === calendarClubKey(myClub)).map(f => {
         const played = results.get(continentalFixtureId(id, f));
+        const cDate = ensureMidweekDate(f.date, state.season);
         return {
-          ...f, matchId: played?.id, result: played?.result, isHome: calendarClubKey(f.home) === calendarClubKey(myClub), name: id === 'lib' ? 'Copa Libertadores' : 'Copa Sul-Americana'
+          ...f, date: cDate, matchId: played?.id, result: played?.result, isHome: calendarClubKey(f.home) === calendarClubKey(myClub), name: id === 'lib' ? 'Copa Libertadores' : 'Copa Sul-Americana'
         };
       }));
     }
@@ -17566,6 +17965,9 @@ function calendarPage(){
       ${calendarMatches.map(match=>{
         const opponent = match.isHome ? match.away : match.home;
         const date = new Date(`${match.date}T12:00:00`);
+        const dayNames = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
+        const dayBadge = dayNames[date.getDay()] || 'JOGO';
+        const isMidweek = date.getDay() === 3;
         const dateFormatted = date.toLocaleDateString('pt-BR', {day:'2-digit', month:'long'});
         let statusHtml = '<span class="pill muted">⏳ Agendado</span>';
         if(match.competitionId === 'COMP' && match.past){
@@ -17590,7 +17992,13 @@ function calendarPage(){
         }
         const detail = match.competitionId === 'COMP' ? match.round : `${typeof match.round === 'number' ? `Rodada ${match.round}` : match.round || ''}${match.group ? ` • Grupo ${match.group}` : ''}`;
         return `<div class="calendar-card ${match.current?'current':''}">
-          <div><b>${dateFormatted}</b><div class="small muted">${esc(detail)}</div></div>
+          <div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="pill" style="font-size:9px;font-weight:900;padding:1px 5px;background:${isMidweek?'rgba(56,189,248,0.25);color:#38bdf8':'rgba(34,197,94,0.25);color:#4ade80'}">${dayBadge}</span>
+              <b>${dateFormatted}</b>
+            </div>
+            <div class="small muted" style="margin-top:2px">${esc(detail)}</div>
+          </div>
           <div><span class="pill" style="font-size:11px">${match.isHome?'🏠 EM CASA':'✈️ FORA'}</span></div>
           <div style="display:flex;align-items:center;gap:12px">${clubBadge(opponent,32)}<div><b>vs ${esc(opponent)}</b><div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div></div></div>
           <div><span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(match.name)}</span>${match.competitionId === 'COMP' ? `<div class="small" style="margin-top:4px"><span class="${isTransferWindowOpen(match.date)?'good':'muted'}" style="font-size:10px">${isTransferWindowOpen(match.date)?'🟢 Janela Aberta':'🔒 Janela Fechada'}</span></div>` : ''}</div>
@@ -17777,7 +18185,7 @@ function myTeamPage(){
     </div>
 
     <!-- 1. ACORDEÃO: TÁTICA AVANÇADA & ESTILO COLETIVO (FECHADO POR PADRÃO) -->
-    <details class="tactical-accordion" id="accordionTactics">
+    <details class="tactical-accordion" id="accordionTactics" ${(state?.tacticsAccordionOpen || tacticalActiveTab === 'open') ? 'open' : ''}>
       <summary>
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:16px">⚙️</span>
@@ -18311,13 +18719,14 @@ function squadPage(){
                       <div style="font-size:15px;font-weight:800;color:#fff">${esc(p.name)}</div>
                       <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;display:flex;align-items:center;flex-wrap:wrap;gap:6px">
                         <span>${ovr} · ${p.age||22} anos · até ${until}</span>
+                        ${p.isLoan ? `<span style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:900;letter-spacing:0.5px">EMPRESTADO (${esc(p.loanFrom||'ORIGEM')})</span>` : ''}
                         ${isExp ? `<span style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:900;letter-spacing:0.5px">CARO PARA O NÍVEL</span>` : ''}
                       </div>
                     </div>
                   </div>
                   <div style="text-align:right">
                     <div style="font-size:17px;font-weight:900;color:#fff;letter-spacing:0.5px">R$ ${wage.toLocaleString('pt-BR')}</div>
-                    <div style="font-size:11px;color:#a855f7">Clique p/ renovar ➔</div>
+                    <div style="font-size:11px;color:${p.isLoan?'#fbbf24':'#a855f7'}">${p.isLoan ? 'Negociar c/ detentor ➔' : 'Clique p/ renovar ➔'}</div>
                   </div>
                 </div>
 
@@ -20529,12 +20938,46 @@ function continentalPhaseInfo(id, phase){
 }
 
 function renderContinentalBlock(){
-  const tabs = [
-    { id: 'sulamericana', name: '🥈 Copa Sul-Americana', badge: 'G7 A G12' },
-    { id: 'libertadores', name: '🏆 Copa Libertadores', badge: 'G4 + PRÉ' },
-    { id: 'piramide', name: '🇧🇷 Pirâmide CBF & Acessos', badge: 'SÉRIES A, B, C, D' },
-    { id: 'mundial', name: '🌐 Mundial FIFA', badge: '32 CLUBES' }
-  ];
+  const curC = curComp();
+  const cContinent = curC?.continent || (curC?.country === 'Brasil' ? 'América do Sul' : (['Inglaterra','Espanha','Itália','Alemanha','França','Portugal','Holanda'].includes(curC?.country) ? 'Europa' : (['Arábia Saudita','Japão','Coreia do Sul','China','Catar','Emirados Árabes'].includes(curC?.country) ? 'Ásia' : 'América do Sul')));
+
+  let tabs = [];
+  let headerTitle = '🌎 CONMEBOL & PIRÂMIDE NACIONAL 2026';
+  let headerSubtitle = 'LIBERTADORES · SUL-AMERICANA · MUNDIAL DE CLUBES · SISTEMA OFICIAL DE ACESSOS CBF';
+
+  if(cContinent === 'Europa'){
+    headerTitle = '🇪🇺 UEFA COMPETITIONS & SUPERMUNDIAL FIFA 2026';
+    headerSubtitle = 'CHAMPIONS LEAGUE · EUROPA LEAGUE · MUNDIAL DE CLUBES FIFA · NOVO FORMATO SUÍÇO';
+    tabs = [
+      { id: 'ucl', name: '🌟 UEFA Champions League', badge: 'FASE DE LIGA' },
+      { id: 'uel', name: '🥈 UEFA Europa League', badge: '36 CLUBES' },
+      { id: 'mundial', name: '🌐 Mundial FIFA', badge: '32 CLUBES' }
+    ];
+    if(!['ucl', 'uel', 'mundial'].includes(continentalTab)){
+      continentalTab = 'ucl';
+    }
+  } else if(cContinent === 'Ásia'){
+    headerTitle = '🌏 AFC COMPETITIONS & MUNDIAL FIFA 2026';
+    headerSubtitle = 'AFC CHAMPIONS LEAGUE ELITE · ACL TWO · MUNDIAL DE CLUBES FIFA';
+    tabs = [
+      { id: 'afc_el', name: '🏆 AFC Champions League Elite', badge: '24 CLUBES' },
+      { id: 'afc_two', name: '🥈 AFC Champions League Two', badge: '32 CLUBES' },
+      { id: 'mundial', name: '🌐 Mundial FIFA', badge: '32 CLUBES' }
+    ];
+    if(!['afc_el', 'afc_two', 'mundial'].includes(continentalTab)){
+      continentalTab = 'afc_el';
+    }
+  } else {
+    tabs = [
+      { id: 'sulamericana', name: '🥈 Copa Sul-Americana', badge: 'G7 A G12' },
+      { id: 'libertadores', name: '🏆 Copa Libertadores', badge: 'G4 + PRÉ' },
+      { id: 'piramide', name: '🇧🇷 Pirâmide CBF & Acessos', badge: 'SÉRIES A, B, C, D' },
+      { id: 'mundial', name: '🌐 Mundial FIFA', badge: '32 CLUBES' }
+    ];
+    if(!['sulamericana', 'libertadores', 'piramide', 'mundial'].includes(continentalTab)){
+      continentalTab = 'sulamericana';
+    }
+  }
 
   return `
     <div class="card" style="margin-top:14px;padding:24px;background:linear-gradient(135deg, #130f24 0%, #0d0a1a 100%);border:1px solid rgba(139,92,246,0.3);border-radius:18px">
@@ -20542,10 +20985,10 @@ function renderContinentalBlock(){
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
         <div>
           <h1 style="margin:0;font-size:30px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
-            🌎 CONMEBOL & PIRÂMIDE NACIONAL 2026
+            ${headerTitle}
           </h1>
           <div style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:800;letter-spacing:1px;margin-top:4px">
-            LIBERTADORES · SUL-AMERICANA · MUNDIAL DE CLUBES · SISTEMA OFICIAL DE ACESSOS CBF
+            ${headerSubtitle}
           </div>
         </div>
         <div style="font-size:13px;color:var(--cyan);font-weight:700">
@@ -20565,7 +21008,110 @@ function renderContinentalBlock(){
         }).join('')}
       </div>
 
-      ${continentalTab === 'sulamericana' ? `
+      ${continentalTab === 'ucl' ? `
+        <!-- UEFA CHAMPIONS LEAGUE 2026 -->
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+          <div style="background:rgba(30,58,138,0.25);border:1px solid rgba(59,130,246,0.4);border-radius:14px;padding:16px 20px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <span style="font-size:24px">🌟</span>
+              <h2 style="margin:0;font-size:20px;font-weight:900;color:#60a5fa;text-transform:uppercase">UEFA Champions League 2026</h2>
+              <span class="pill" style="background:#2563eb;color:#fff;font-weight:900;font-size:10px">NOVO FORMATO DE LIGA SUÍÇA</span>
+            </div>
+            <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
+              A competição de clubes mais prestigiada do planeta! <b>36 clubes</b> competem em uma única fase de liga suíça com 8 jogos. Os <b>8 melhores</b> avançam direto às Oitavas de Final, enquanto os clubes do <b>9º ao 24º</b> disputam os playoffs eliminatórios. O campeão garante vaga no <b>Mundial de Clubes FIFA</b> e na <b>Supercopa da UEFA</b>.
+            </p>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
+            <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+              <div style="font-size:12px;font-weight:900;color:#38bdf8;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📋 Formato Suíço de 36 Clubes</div>
+              <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.7">
+                <li><b>8 Partidas na Liga:</b> 4 jogos em casa e 4 jogos fora contra adversários sorteados por potes.</li>
+                <li><b>Top 8 Direto:</b> Os 8 primeiros colocados da tabela geral avançam direto para as Oitavas de Final.</li>
+                <li><b>Playoffs (16-avos):</b> Do 9º ao 24º colocado disputam as outras 8 vagas nas Oitavas.</li>
+                <li><b>Eliminação Direta:</b> Do 25º ao 36º são eliminados sem repescagem para a Europa League.</li>
+              </ul>
+            </div>
+
+            <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+              <div style="font-size:12px;font-weight:900;color:#a855f7;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">💰 Premiação Oficial UEFA (Milhões de Euros)</div>
+              <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.7">
+                <li><b>Bônus de Participação na Liga:</b> € 18.620.000 garantidos para cada clube.</li>
+                <li><b>Vitória na Liga:</b> + € 2.100.000 por cada vitória conquistada.</li>
+                <li><b>Classificação às Oitavas:</b> + € 11.000.000.</li>
+                <li><b>Quartas e Semis:</b> + € 12.500.000 e + € 15.000.000.</li>
+                <li><b>Grande Campeão:</b> + € 25.000.000 pelo título europeu!</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      ` : continentalTab === 'uel' ? `
+        <!-- UEFA EUROPA LEAGUE 2026 -->
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+          <div style="background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.35);border-radius:14px;padding:16px 20px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <span style="font-size:24px">🥈</span>
+              <h2 style="margin:0;font-size:20px;font-weight:900;color:#fb923c;text-transform:uppercase">UEFA Europa League 2026</h2>
+              <span class="pill" style="background:#ea580c;color:#fff;font-weight:900;font-size:10px">SEGUNDO MAIOR TORNEIO DA EUROPA</span>
+            </div>
+            <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
+              A <b>UEFA Europa League</b> adota o mesmo modelo suíço revolucionário com <b>36 clubes</b> em tabela única. O campeão garante vaga direta como cabeça de chave na <b>UEFA Champions League 2027</b> e disputa a <b>Supercopa da UEFA</b>.
+            </p>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
+            <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+              <div style="font-size:12px;font-weight:900;color:#f97316;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📋 Estrutura & Vagas</div>
+              <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.7">
+                <li><b>Fase de Liga:</b> 36 clubes disputam 8 partidas cada.</li>
+                <li><b>Oitavas de Final:</b> 8 melhores da liga avançam diretamente.</li>
+                <li><b>Playoffs:</b> 9º ao 24º colocado disputam as oitavas em mata-mata.</li>
+                <li><b>Premiação:</b> € 4.310.000 fixos na liga + € 450.000 por vitória e € 13.000.000 ao campeão.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      ` : continentalTab === 'afc_el' ? `
+        <!-- AFC CHAMPIONS LEAGUE ELITE 2026 -->
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+          <div style="background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);border-radius:14px;padding:16px 20px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <span style="font-size:24px">🏆</span>
+              <h2 style="margin:0;font-size:20px;font-weight:900;color:#facc15;text-transform:uppercase">AFC Champions League Elite 2026</h2>
+              <span class="pill" style="background:#ca8a04;color:#fff;font-weight:900;font-size:10px">A ELITE DO FUTEBOL ASIÁTICO</span>
+            </div>
+            <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
+              A reformulada <b>AFC Champions League Elite</b> reúne os <b>24 maiores clubes da Ásia</b> (12 na Região Oeste e 12 na Região Leste). Com os investimentos bilionários da Arábia Saudita, Japão e Coreia do Sul, o campeão embolsa <b>US$ 12.000.000</b> e garante presença no <b>Mundial de Clubes FIFA</b>.
+            </p>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
+            <div style="background:#141124;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+              <div style="font-size:12px;font-weight:900;color:#facc15;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📋 Formato & Regiões</div>
+              <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.8);line-height:1.7">
+                <li><b>Fase de Liga:</b> 12 equipes na Região Oeste e 12 na Região Leste (8 jogos por equipe).</li>
+                <li><b>Classificação:</b> Os 8 melhores de cada região avançam para as Oitavas de Final.</li>
+                <li><b>Finais Centralizadas:</b> Quartas, Semis e Final disputadas em sede única na Arábia Saudita.</li>
+                <li><b>Premiação:</b> US$ 12.000.000 para o campeão asiático.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      ` : continentalTab === 'afc_two' ? `
+        <!-- AFC CHAMPIONS LEAGUE TWO 2026 -->
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+          <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.35);border-radius:14px;padding:16px 20px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <span style="font-size:24px">🥈</span>
+              <h2 style="margin:0;font-size:20px;font-weight:900;color:#60a5fa;text-transform:uppercase">AFC Champions League Two 2026</h2>
+              <span class="pill" style="background:#2563eb;color:#fff;font-weight:900;font-size:10px">SEGUNDO NÍVEL ASIÁTICO</span>
+            </div>
+            <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
+              A <b>AFC Champions League Two</b> conta com <b>32 clubes</b> divididos em 8 grupos de 4 times. O campeão garante vaga direta na <b>AFC Champions League Elite</b> do ano seguinte.
+            </p>
+          </div>
+        </div>
+      ` : continentalTab === 'sulamericana' ? `
         <!-- CONMEBOL SUL-AMERICANA 2026 -->
         <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
           <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:16px 20px">
@@ -20926,6 +21472,24 @@ function renderContinentalBlock(){
 // -------------------------------------------------------------
 // TEMPORADA & TABELA ESTILO ORIGINAL
 // -------------------------------------------------------------
+function getNationalCompetitionStandings(natId){
+  const teamList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[natId]) || [];
+  return teamList.map((tName) => {
+    return {
+      name: tName,
+      p: 0,
+      j: 0,
+      v: 0,
+      e: 0,
+      d: 0,
+      gp: 0,
+      gc: 0,
+      sg: 0,
+      form: []
+    };
+  });
+}
+
 function seasonPage(){
   if(repairSaveIfCorrupted(state)){
     save();
@@ -20933,15 +21497,29 @@ function seasonPage(){
   if(!selectedEstadualId && state && state.club){
     selectedEstadualId = clubStateCompId(state.club);
   }
-  if(state && state.compId && state.compId.startsWith('bra-est-') && seasonTab === 'nacional'){
-    seasonTab = 'estadual';
-  }
-  const r=ranking(), comp=curComp();
-  const isSérieA = comp.id === 'bra-a';
-  const isBrazil = (comp.country === 'Brasil');
+
+  const rawComp = curComp();
+  const isBrazil = (rawComp.country === 'Brasil' || rawComp.id?.startsWith('bra-'));
+  
+  // Identifica a divisão nacional do clube do jogador (Série A, B, C ou D)
+  const brDivs = ['bra-a', 'bra-b', 'bra-c', 'bra-d'];
+  const userNatDivId = brDivs.find(id => (window.COMPETITION_TEAMS?.[id] || []).some(c => norm(c) === norm(state.club))) 
+    || (state.compId?.startsWith('bra-') && !state.compId.startsWith('bra-est-') && state.compId !== 'bra-cup' ? state.compId : 'bra-d');
+  const natCompObj = compById(userNatDivId) || compById('bra-d') || compById('bra-a');
+  
+  // Identifica o estadual do clube do jogador
+  const estCompId = selectedEstadualId || clubStateCompId(state.club);
+  const estCompObj = compById(estCompId) || { name: 'Campeonato Estadual', id: estCompId };
+
   if(!isBrazil && (seasonTab === 'estadual' || seasonTab === 'copadobrasil')){
     seasonTab = 'nacional';
   }
+
+  // Visualização unificada: se o clube está jogando Estadual mas selecionou a aba da Divisão Nacional
+  const isViewingNationalWhileInEstadual = (isBrazil && state.compId?.startsWith('bra-est-') && seasonTab === 'nacional');
+  const comp = isViewingNationalWhileInEstadual ? natCompObj : rawComp;
+  const isSérieA = comp.id === 'bra-a';
+  const r = isViewingNationalWhileInEstadual ? getNationalCompetitionStandings(userNatDivId) : ranking();
   
   return `
     <div class="hero">
@@ -20956,16 +21534,12 @@ function seasonPage(){
     </div>
 
     <div class="tabs" style="margin-top:14px">
-      ${(state && state.compId && state.compId.startsWith('bra-est-')) ? `
-        <button class="btn ${seasonTab==='estadual'?'active':''}" data-season-tab="estadual">🏆 Estadual (${esc(comp.name)})</button>
+      ${isBrazil ? `
+        <button class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">🇧🇷 ${esc(natCompObj.name)}</button>
+        <button class="btn ${seasonTab==='estadual'?'active':''}" data-season-tab="estadual">🏆 ${esc(estCompObj.name)}</button>
         <button class="btn ${seasonTab==='copadobrasil'?'active':''}" data-season-tab="copadobrasil">🥇 Copa do Brasil</button>
-        <button class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">🇧🇷 Divisões Nacionais</button>
       ` : `
-        <button class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">${isBrazil ? '🇧🇷 Campeonato Nacional' : '🏆 Liga Nacional'}</button>
-        ${isBrazil ? `
-          <button class="btn ${seasonTab==='estadual'?'active':''}" data-season-tab="estadual">🏆 Estadual</button>
-          <button class="btn ${seasonTab==='copadobrasil'?'active':''}" data-season-tab="copadobrasil">🥇 Copa do Brasil</button>
-        ` : ''}
+        <button class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">🏆 ${esc(comp.name)}</button>
       `}
       <button class="btn ${seasonTab==='continental'?'active':''}" data-season-tab="continental">${isBrazil ? '🌎 Libertadores / Continental' : '🌎 Continental'}</button>
     </div>
@@ -20977,11 +21551,16 @@ function seasonPage(){
             <h2 style="margin:0">${esc(comp.name)}</h2>
             <div class="small muted">${esc(comp.rule)}</div>
           </div>
-          <div style="display:flex;gap:10px;font-size:11px">
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--green);border-radius:2px"></span> Libertadores (G4)</span>
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--cyan);border-radius:2px"></span> Pré-Libertadores</span>
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--amber);border-radius:2px"></span> Sul-Americana</span>
-            <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--bad);border-radius:2px"></span> Rebaixamento (Z4)</span>
+          <div style="display:flex;gap:10px;font-size:11px;flex-wrap:wrap">
+            ${isSérieA ? `
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--green);border-radius:2px"></span> Libertadores (G4)</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--cyan);border-radius:2px"></span> Pré-Libertadores</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--amber);border-radius:2px"></span> Sul-Americana</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--bad);border-radius:2px"></span> Rebaixamento (Z4)</span>
+            ` : `
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--green);border-radius:2px"></span> Zona de Acesso (G${comp.promote||4})</span>
+              ${(comp.relegate||0) > 0 ? `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--bad);border-radius:2px"></span> Rebaixamento (Z${comp.relegate||4})</span>` : ''}
+            `}
           </div>
         </div>
 
@@ -23936,8 +24515,40 @@ function bind(){
     // Binds da Tática Avançada FC 27
     ensureTacticsState(state);
 
+    const BUILD_UP_PRESETS = {
+      'Balanced': { attackingWidth: 60, tempo: 55, directness: 50 },
+      'Short Passing': { attackingWidth: 50, tempo: 45, directness: 30 },
+      'Fast Build-Up': { attackingWidth: 65, tempo: 75, directness: 70 },
+      'Direct': { attackingWidth: 70, tempo: 70, directness: 85 },
+      'Possession': { attackingWidth: 55, tempo: 40, directness: 25 },
+      'Counter Attack': { attackingWidth: 65, tempo: 80, directness: 75 }
+    };
+
+    const DEFENSIVE_APPROACH_PRESETS = {
+      'Balanced': { lineHeight: 60, pressIntensity: 65, defensiveWidth: 50 },
+      'Low Block': { lineHeight: 30, pressIntensity: 35, defensiveWidth: 40 },
+      'Mid Block': { lineHeight: 50, pressIntensity: 55, defensiveWidth: 48 },
+      'High': { lineHeight: 80, pressIntensity: 80, defensiveWidth: 55 },
+      'Aggressive': { lineHeight: 75, pressIntensity: 90, defensiveWidth: 52 },
+      'Press After Loss': { lineHeight: 70, pressIntensity: 85, defensiveWidth: 50 }
+    };
+
+    const accTac = $('#accordionTactics');
+    if(accTac){
+      accTac.ontoggle = () => {
+        state.tacticsAccordionOpen = accTac.open;
+        tacticalActiveTab = accTac.open ? 'open' : 'closed';
+      };
+    }
+
     $$('.btnSelectTacticalPreset').forEach(b => {
-      b.onclick = () => {
+      b.onclick = (e) => {
+        if(e){
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        state.tacticsAccordionOpen = true;
+        tacticalActiveTab = 'open';
         const pk = b.dataset.presetKey;
         if(!state.tactics) ensureTacticsState(state);
         state.tactics.activePreset = pk;
@@ -23978,9 +24589,21 @@ function bind(){
     if(tacBu){
       tacBu.onchange = () => {
         state.tactics.buildUpStyle = tacBu.value;
+        const pVals = BUILD_UP_PRESETS[tacBu.value];
+        if(pVals){
+          state.tactics.attackingWidth = pVals.attackingWidth;
+          state.tactics.tempo = pVals.tempo;
+          state.tactics.directness = pVals.directness;
+          const elW = $('#tacAttackingWidth'); if(elW) elW.value = pVals.attackingWidth;
+          const elWV = $('#tacAttackingWidthVal'); if(elWV) elWV.textContent = pVals.attackingWidth;
+          const elT = $('#tacTempo'); if(elT) elT.value = pVals.tempo;
+          const elTV = $('#tacTempoVal'); if(elTV) elTV.textContent = pVals.tempo;
+          const elD = $('#tacDirectness'); if(elD) elD.value = pVals.directness;
+          const elDV = $('#tacDirectnessVal'); if(elDV) elDV.textContent = pVals.directness;
+        }
         updateTacticalMetricsUI();
         save();
-        toast(`Construção de jogo: ${tacBu.value}`);
+        toast(`Construção de jogo: ${tacBu.options[tacBu.selectedIndex]?.text || tacBu.value} (Sliders ajustados)`);
       };
     }
 
@@ -23988,9 +24611,21 @@ function bind(){
     if(tacDef){
       tacDef.onchange = () => {
         state.tactics.defensiveApproach = tacDef.value;
+        const pVals = DEFENSIVE_APPROACH_PRESETS[tacDef.value];
+        if(pVals){
+          state.tactics.lineHeight = pVals.lineHeight;
+          state.tactics.pressIntensity = pVals.pressIntensity;
+          state.tactics.defensiveWidth = pVals.defensiveWidth;
+          const elL = $('#tacLineHeight'); if(elL) elL.value = pVals.lineHeight;
+          const elLV = $('#tacLineHeightVal'); if(elLV) elLV.textContent = pVals.lineHeight;
+          const elP = $('#tacPressIntensity'); if(elP) elP.value = pVals.pressIntensity;
+          const elPV = $('#tacPressIntensityVal'); if(elPV) elPV.textContent = pVals.pressIntensity;
+          const elDW = $('#tacDefensiveWidth'); if(elDW) elDW.value = pVals.defensiveWidth;
+          const elDWV = $('#tacDefensiveWidthVal'); if(elDWV) elDWV.textContent = pVals.defensiveWidth;
+        }
         updateTacticalMetricsUI();
         save();
-        toast(`Postura defensiva: ${tacDef.value}`);
+        toast(`Postura defensiva: ${tacDef.options[tacDef.selectedIndex]?.text || tacDef.value} (Sliders ajustados)`);
       };
     }
 

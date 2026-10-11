@@ -1,16 +1,15 @@
 Aquino Futebol Manager 2027 (AFM MANAGER)
-Versão: 3.3.0 (Build 2026-10-09 - Motor Dual de Áudio Imersivo & Match Engine Broadcast)
+Versão: 3.3.3 (Build 2026-10-11 - Mundo Vivo, Promoção à Série D via Estaduais, Negociação de Empréstimos & Calendário Realista)
 Histórico completo disponível em: CHANGELOG.md
 
 Destaques da Versão Atual:
-0. Motor Dual de Áudio Imersivo (AFMAudioManager): SFX + Torcidas Reais por Clube/Liga e síntese procedural Web Audio API.
-1. Transmissão Sanitizada do Match Engine: Remoção total de telemetria crua na tela (#liveTelemetryHud) para visual autêntico de TV.
-2. Clamor da Beira do Campo: Gritos do Treinador em tempo real durante a simulação da partida.
-3. Copinha Sub-20 (Copa São Paulo de Juniores): Disputa oficial na base com premiação de R$ 350k e joias de POT 84-94.
-4. Mentoria de Atletas Veteranos (30+ orientando Sub-21) e Comparador Visual Head-to-Head no Elenco.
-5. Cláusula de Venda Futura (Sell-On 20%) retida em transferências com giro de mercado internacional.
-6. Auditoria e Recalibração Contábil da Folha Salarial com estorno de despesas em saves afetados.
-7. Atalhos de Teclado Inteligentes (Ctrl+C liberado para copiar) e Proteção contra cópia de código via Ctrl+S.
-8. Prancheta Tática 2.5D, Treinamento Posicional com XP e Categorias de Base Avançadas.
-9. Efeitos Sonoros Nativos via Web Audio API (Apito de árbitro, trave, moedas e comemoração).
-10. Persistência Local-First com Sincronização em Nuvem Supabase e PWA Offline.
+0. Acesso à Série D via Estadual: Campeão e vice de estaduais (ex: Candangão) sem divisão superior sobem automaticamente à Série D.
+1. Mundo Vivo & Virada de Temporada: Transição completa de acessos e rebaixamentos para Séries A, B, C, D e Estaduais sem divisões estáticas.
+2. Gestão de Empréstimos: Modal com clube detentor (exercer compra definitiva, extensão de 6/12 meses ou devolução do atleta).
+3. Vagas Continentais por Região: América do Sul (Libertadores/Sul-Americana), Europa (UCL/UEL) e Ásia (ACL Elite/Two).
+4. Tela de Temporada Unificada: Remoção da aba redundante "Divisões Nacionais" e exibição lado a lado com Estadual e Copas.
+5. Táticas Estáveis: Preservação de estado do acordeão tático e sliders calibrados automaticamente pelos presets de jogo.
+6. Calendário Realista Intercalado: Rodadas de ligas nos fins de semana e copas no meio de semana (quartas) com badges de dia.
+7. Motor Dual de Áudio Imersivo (AFMAudioManager): SFX + Torcidas Reais por Clube/Liga e síntese procedural Web Audio API.
+8. Transmissão Sanitizada do Match Engine com visual autêntico de transmissão de TV.
+9. Persistência Local-First com Sincronização em Nuvem Supabase e PWA Offline.
