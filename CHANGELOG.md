@@ -4,6 +4,32 @@ Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027*
 
 ---
 
+## [3.3.4] - 2026-10-11 (Destravamento de Simulação Contínua, Autocura de 20 Clubes & Upgrade Realista de Anéis do Estádio)
+
+### 🏟️ 1. Upgrade de Anéis do Estádio (+30% Custos, Prazos Escalonados & Regra Estrita 4/4)
+- **Inicialização Consistente por Estrutura Inicial (Regra Estrita)**: Para que um anel $N$ esteja construído, todos os anéis anteriores ($1$ até $N-1$) obrigatoriamente estão marcados como concluídos (4/4 lados: norte, sul, leste e oeste). Em estádios de grande porte (ex: 100.000 lugares como a Mercado Livre Arena), todos os 6 anéis são garantidos como concluídos (4/4), eliminando o bug em que o 1º anel aparecia zerado (0/4).
+- **Aumento Geral de Custos (+30%)**: Aplicado multiplicador de `1.30` sobre o custo base de construção de todos os setores e anéis (`getStadiumSectorCost()`), refletido de imediato nos botões e no painel financeiro.
+- **Escalonamento Realista do Prazo de Construção**:
+  - *Anéis 1 e 2*: 15 a 25 dias de obra.
+  - *Anéis 3 e 4*: 30 a 45 dias de obra.
+  - *Anéis 5 e 6*: 50 a 90 dias de megaobras estruturais.
+- **Barra de Progresso Realista & Bloqueio de Expansão**: Quando há obra ativa, a aba de Ampliação exibe barra de progresso gradiente com percentual concluído e dias restantes, bloqueando expansões concorrentes enquanto os operários estiverem trabalhando.
+
+### ⚡ 2. Destravamento Total da Simulação Contínua de Temporadas
+- **Fim do Bloqueio "Nenhuma partida agendada para o seu clube"**: Ao simular rodadas continuamente, o jogo não trava mais caso o clube esteja em rodada de descanso ou caso a data esteja adiantada.
+- **Simulação Automática de Folgas e Adversários**: Em `simulateQuickRound()` e `startLiveMatch()`, partidas de rodadas de folga simulam os jogos dos adversários, atualizam a tabela de pontos corridos e avançam a rodada com `finalizeRound()` sem travar a carreira.
+- **Autocura de Saves com 21 Clubes**: `repairSaveIfCorrupted()` detecta saves antigos corrompidos com 21 clubes nas Séries A, B, C ou D (onde o usuário ficava preso no 21º clube sem jogo) e repara a divisão estritamente para 20 clubes com tabela de 38 rodadas perfeitas.
+
+### 💰 3. Cláusula de Venda Futura (Sell-On Clause)
+- **Percentual nas Negociações**: Introduzida a opção de adicionar cláusula de revenda futura (0%, 10%, 15%, 20%, 25% ou 30%) em transferências definitivas.
+- **Cobrança e Repasse Automático**: Ao comprar um atleta com cláusula de venda futura, o clube de origem é registrado. Quando o atleta é posteriormente vendido a terceiros, o percentual estipulado é descontado do valor bruto e creditado ao clube formador/vendedor anterior, com extrato detalhado em Finanças e no feed de notícias do mundo.
+
+### 🇸🇦 4. Assédio do Mercado Árabe/Saudita & Insatisfação por Transferência
+- **Propostas Milionárias Reais**: Clubes de grande poder financeiro (Al-Hilal, Al-Nassr, Al-Ittihad, Al-Ahli, entre outros) realizam investidas agressivas por destaques do elenco durante a janela de transferências, cobrindo o valor de mercado ou exercendo a multa rescisória contratual.
+- **Dinâmica de Descontentamento**: Se o treinador recusar uma proposta vantajosa de um gigante financeiro internacional, o atleta pode manifestar insatisfação temporária (`transferDiscontentDays`), afetando seu moral até que o foco volte aos gramados.
+
+---
+
 ## [3.3.3] - 2026-10-11 (Mundo Vivo, Promoção à Série D via Estaduais, Negociação de Empréstimos, Táticas Estáveis & Calendário Realista)
 
 ### 🏆 1. Sistema de Promoção, Rebaixamento e Vagas Continentais/Nacionais

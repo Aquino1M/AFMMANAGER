@@ -1,5 +1,5 @@
 Aquino Futebol Manager 2027 (AFM MANAGER)
-Versão: 3.3.3 (Build 2026-10-11 - Mundo Vivo, Promoção à Série D via Estaduais, Negociação de Empréstimos & Calendário Realista)
+Versão: 3.3.4 (Build 2026-10-11 - Correção Calendário, Estádio Balanceado & Mercado Árabe)
 Histórico completo disponível em: CHANGELOG.md
 
 Destaques da Versão Atual:

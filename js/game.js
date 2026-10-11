@@ -1665,19 +1665,37 @@ function openStadiumModal(initialTab){
                     <div style="font-size:9px;color:rgba(255,255,255,0.4)">lugares novos</div>
                   </div>
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
-                    <div style="color:#fff;font-size:16px;font-weight:900">${stData.activeWork ? `Faltam ${getStadiumWorkDaysRemaining(stData.activeWork)} dias` : '14 dias'}</div>
+                    <div style="color:#fff;font-size:16px;font-weight:900">${stData.activeWork ? `${getStadiumWorkDaysRemaining(stData.activeWork)}d rest.` : getStadiumSectorWorkDaysRange(stData.ring||1).label}</div>
                     <div style="font-size:9px;color:rgba(255,255,255,0.4)">${stData.activeWork ? 'obra em andamento' : 'prazo de construção'}</div>
                   </div>
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
-                    <div style="color:#f59e0b;font-size:16px;font-weight:900">R$ 850k</div>
-                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">custo da obra</div>
+                    <div style="color:#f59e0b;font-size:16px;font-weight:900">${fmtMoney(getStadiumSectorCost(stData.ring||1))}</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">custo (+30%)</div>
                   </div>
                 </div>
+
+                ${stData.activeWork ? (() => {
+                  const daysLeft = getStadiumWorkDaysRemaining(stData.activeWork);
+                  const totDays = stData.activeWork?.durationDays || 30;
+                  const elapsed = Math.max(0, totDays - daysLeft);
+                  const pct = Math.min(100, Math.round((elapsed / Math.max(1, totDays)) * 100));
+                  return `
+                    <div style="margin-top:12px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;border:1px solid rgba(139,92,246,0.3)">
+                      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#c084fc;margin-bottom:4px">
+                        <span>🏗️ Obra em Andamento: Anel ${stData.activeWork.ring} (${stData.activeWork.side.toUpperCase()})</span>
+                        <span>${pct}% (${daysLeft} ${daysLeft === 1 ? 'dia rest.' : 'dias rest.'})</span>
+                      </div>
+                      <div style="background:rgba(255,255,255,0.1);height:8px;border-radius:4px;overflow:hidden">
+                        <div style="background:linear-gradient(90deg, #7c3aed, #22c55e);height:100%;width:${pct}%;transition:width 0.3s"></div>
+                      </div>
+                    </div>
+                  `;
+                })() : ''}
 
                 <div style="margin-top:16px">
                   ${stData.activeWork ? `
                     <button class="btn" id="btnStartSideWork" disabled style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;background:#334155;color:#cbd5e1;cursor:not-allowed">
-                      🏗️ OBRA EM ANDAMENTO • FALTAM ${getStadiumWorkDaysRemaining(stData.activeWork)} DIAS
+                      🏗️ OBRA ATIVA NO SETOR ${stData.activeWork.side.toUpperCase()} • FALTAM ${getStadiumWorkDaysRemaining(stData.activeWork)} DIAS
                     </button>
                   ` : stData.sides[stadiumSelectedSide] ? `
                     <button class="btn" id="btnStartSideWork" disabled style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;background:#22c55e;color:#000;cursor:not-allowed;opacity:0.9">
@@ -1685,7 +1703,7 @@ function openStadiumModal(initialTab){
                     </button>
                   ` : `
                     <button class="btn primary" id="btnStartSideWork" style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;cursor:pointer">
-                      COMEÇAR A OBRA • R$ 850.000 (LADO ${stadiumSelectedSide.toUpperCase()} - ANEL ${stData.ring || 1})
+                      COMEÇAR A OBRA • ${fmtMoney(getStadiumSectorCost(stData.ring || 1))} (LADO ${stadiumSelectedSide.toUpperCase()} - ANEL ${stData.ring || 1})
                     </button>
                   `}
                 </div>
@@ -2963,6 +2981,12 @@ function buildStadiumSide(side, mode = 'cash'){
   if(stData.activeWork){ toast(`Obra do Anel ${stData.activeWork.ring} em andamento: faltam ${getStadiumWorkDaysRemaining(stData.activeWork)} dias.`); return false; }
   const curRing = Math.max(1, Math.min(stData.maxRings || 6, Number(stData.ring) || 1));
   if(curRing > stData.maxUnlockedRing){ toast('Evolua o estádio para liberar esse anel.'); return false; }
+  if(curRing > 1 && !['norte', 'sul', 'leste', 'oeste'].every(s => stData.rings[curRing - 1]?.[s] === true)){
+    stData.ring = curRing - 1;
+    stData.sides = stData.rings[stData.ring];
+    toast(`Conclua os quatro setores do Anel ${curRing - 1} antes de iniciar o Anel ${curRing}.`);
+    return false;
+  }
   stData.ring = curRing;
   stData.rings = stData.rings || {};
   stData.rings[curRing] = stData.rings[curRing] || { norte: false, sul: false, leste: false, oeste: false };
@@ -2974,6 +2998,10 @@ function buildStadiumSide(side, mode = 'cash'){
   }
 
   const targetSide = side || stadiumSelectedSide || unbuiltSide;
+  if(!['norte', 'sul', 'leste', 'oeste'].includes(targetSide)){
+    toast('Selecione um setor válido do estádio.');
+    return false;
+  }
 
   // Validação: setor já construído no anel atual?
   if(stData.rings[curRing][targetSide]){
@@ -2983,7 +3011,8 @@ function buildStadiumSide(side, mode = 'cash'){
 
   isBuildingStadiumSide = true;
   try {
-    const cost = 850000;
+    const cost = getStadiumSectorCost(curRing);
+    const workDays = getStadiumSectorWorkDays(curRing);
     const monthlyRev = Math.max(100000, (state.lastHome?.revenue || 400000) * 2 + 150000); // Estimativa de receita mensal
     const maxAllowedInstallment = monthlyRev * 0.30;
 
@@ -2994,7 +3023,7 @@ function buildStadiumSide(side, mode = 'cash'){
       }
       state.balance -= cost;
       state.expense = (state.expense || 0) + cost;
-      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()} do Anel ${curRing}. Conclusão em 14 dias.`);
+      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()} do Anel ${curRing}. Prazo estimado: ${workDays} dias.`);
     } else {
       const downPayment = cost * 0.20;
       if(state.balance < downPayment){
@@ -3018,11 +3047,11 @@ function buildStadiumSide(side, mode = 'cash'){
       stData.debt.monthly += monthlyInst;
       stData.debt.monthsLeft = Math.max(stData.debt.monthsLeft, numMonths);
 
-      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()} do Anel ${curRing}! Entrada de ${fmtMoney(downPayment)} paga; conclusão em 14 dias.`);
+      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()} do Anel ${curRing}! Entrada de ${fmtMoney(downPayment)} paga; prazo estimado: ${workDays} dias.`);
     }
     const finishDate = new Date(`${state.date}T12:00:00`);
-    finishDate.setDate(finishDate.getDate() + 14);
-    stData.activeWork = { ring: curRing, side: targetSide, finishDate: finishDate.toISOString().slice(0, 10) };
+    finishDate.setDate(finishDate.getDate() + workDays);
+    stData.activeWork = { ring: curRing, side: targetSide, startedDate: state.date, durationDays: workDays, finishDate: finishDate.toISOString().slice(0, 10) };
 
     save();
     render();
@@ -4101,6 +4130,7 @@ function getStadiumExpansionData(){
   st.rings = st.rings || {};
   for(let r = 1; r <= 6; r++){
     st.rings[r] = st.rings[r] || { norte: false, sul: false, leste: false, oeste: false };
+    ['norte', 'sul', 'leste', 'oeste'].forEach(side => { st.rings[r][side] = st.rings[r][side] === true; });
   }
   st.purchasedSectors = Array.isArray(st.purchasedSectors) ? st.purchasedSectors : [];
 
@@ -4113,7 +4143,39 @@ function getStadiumExpansionData(){
     });
   }
 
+  // 1. Inicialização Consistente por Estrutura Inicial & Regra Estrita:
+  // Mapeia a capacidade atual para o nível de anéis correspondente.
+  const capacity = Math.max(0, Number(state.infrastructure?.stadium?.capacity) || 0);
+  const existingRingByCap = capacity >= 100000 ? 6 : capacity >= 72160 ? 5 : capacity >= 49000 ? 4 : capacity >= 30640 ? 3 : capacity >= 18000 ? 2 : capacity >= 7000 ? 1 : 0;
+  
+  // Encontra o maior anel que possui qualquer setor concluído
+  let highestRingWithSectors = 0;
+  for(let r = 1; r <= 6; r++){
+    if(['norte', 'sul', 'leste', 'oeste'].some(side => st.rings[r]?.[side] === true)){
+      highestRingWithSectors = r;
+    }
+  }
+
+  // Regra estrita: Para que um anel N esteja construído, todos os anéis anteriores (1 até N-1)
+  // obrigatoriamente devem estar marcados como concluído: true (4/4 lados).
+  const minCompletedRings = Math.max(0, existingRingByCap - (capacity >= 100000 ? 0 : 1), highestRingWithSectors - 1);
+  for(let r = 1; r <= minCompletedRings; r++){
+    st.rings[r] = { norte: true, sul: true, leste: true, oeste: true };
+  }
+  if(capacity >= 100000){
+    for(let r = 1; r <= 6; r++){
+      st.rings[r] = { norte: true, sul: true, leste: true, oeste: true };
+    }
+  }
+
+  const firstIncomplete = Array.from({length: 6}, (_, i) => i + 1).find(r => !['norte', 'sul', 'leste', 'oeste'].every(side => st.rings[r][side] === true)) || 6;
+  st.ring = Math.max(1, Math.min(firstIncomplete, st.maxUnlockedRing || 6));
+
   // Sincroniza purchasedSectors com todos os anéis
+  st.purchasedSectors = st.purchasedSectors.filter(key => {
+    const match = /^r([1-6])_(norte|sul|leste|oeste)$/.exec(key);
+    return !!match && st.rings[Number(match[1])]?.[match[2]] === true;
+  });
   for(let r = 1; r <= 6; r++){
     ['norte', 'sul', 'leste', 'oeste'].forEach(side => {
       if(st.rings[r][side]){
@@ -4129,6 +4191,28 @@ function getStadiumExpansionData(){
   st.sides = st.rings[st.ring];
 
   return st;
+}
+
+function getStadiumSectorCost(ring = 1){
+  // 2. Aumento Geral de Custos (+30%): Multiplicador de 1.30 sobre o valor base de construção
+  const baseCost = ring <= 2 ? 850000 : ring <= 4 ? 1200000 : 1800000;
+  return Math.round(baseCost * 1.30);
+}
+
+function getStadiumSectorWorkDays(ring = 1){
+  // 3. Escalonamento Realista do Prazo de Construção (Tempo Dinâmico):
+  // Anéis 1 e 2: 15 a 25 dias de obra.
+  // Anéis 3 e 4: 30 a 45 dias de obra.
+  // Anéis 5 e 6: 50 a 90 dias de obra (megaobras estruturais).
+  if(ring <= 2) return rnd(15, 25);
+  if(ring <= 4) return rnd(30, 45);
+  return rnd(50, 90);
+}
+
+function getStadiumSectorWorkDaysRange(ring = 1){
+  if(ring <= 2) return { min: 15, max: 25, label: '15 a 25 dias' };
+  if(ring <= 4) return { min: 30, max: 45, label: '30 a 45 dias' };
+  return { min: 50, max: 90, label: '50 a 90 dias' };
 }
 
 function getNewArenaData(){
@@ -6123,6 +6207,14 @@ function getClubDivisionAndState(clubName){
   
   // 1. Identificação da Divisão
   let division = '';
+  if(state && state.club && norm(state.club) === norm(clubName) && state.compId){
+    if(state.compId === 'bra-a') division = 'BRASILEIRÃO SÉRIE A';
+    else if(state.compId === 'bra-b') division = 'BRASILEIRÃO SÉRIE B';
+    else if(state.compId === 'bra-c') division = 'BRASILEIRÃO SÉRIE C';
+    else if(state.compId === 'bra-d') division = 'BRASILEIRÃO SÉRIE D';
+    else if(state.compId.startsWith('bra-est-')) division = (comp?.name || 'CAMPEONATO ESTADUAL').toUpperCase();
+    else division = (comp?.name || 'LIGA NACIONAL').toUpperCase();
+  } else
   if(window.COMPETITION_TEAMS?.['bra-a']?.some(x => norm(x) === norm(clubName))){
     division = 'BRASILEIRÃO SÉRIE A';
   } else if(window.COMPETITION_TEAMS?.['bra-b']?.some(x => norm(x) === norm(clubName))){
@@ -8095,13 +8187,70 @@ function repairSaveIfCorrupted(s){
   if(!s || !s.club) return false;
   const primaryCompId = getClubPrimaryCompetitionId(s.club, s.compId);
   const curCompId = s.compId;
+  const normalizedClub = norm(s.club);
+  const activeScheduleRound = Array.isArray(s.schedule?.[s.round]) ? s.schedule[s.round] : [];
+  const hasActiveClubFixture = activeScheduleRound.some(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === normalizedClub || norm(g[1]) === normalizedClub));
 
   const isAcreanoBug = curCompId === 'bra-est-ac' || s.competition === 'Campeonato Acreano';
   const isBrasiliaInWrongComp = norm(s.club) === 'brasilia' && curCompId !== 'bra-est-df';
   const isClubMissingFromTeams = !Array.isArray(s.teams) || s.teams.length === 0 || !s.teams.some(t => norm(t.name) === norm(s.club));
   const isSelfMatchBug = Array.isArray(s.schedule) && s.schedule.some(rnd => rnd.some(g => g[0] === g[1]));
-  const isScheduleEmptyOrNoUser = !Array.isArray(s.schedule) || s.schedule.length === 0 || (s.schedule[0] && !s.schedule[0].some(g => Array.isArray(g) && (norm(g[0]) === norm(s.club) || norm(g[1]) === norm(s.club))));
+  const isScheduleEmptyOrNoUser = !Array.isArray(s.schedule) || s.schedule.length === 0 || !s.schedule.some(roundGames => Array.isArray(roundGames) && roundGames.some(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === norm(s.club) || norm(g[1]) === norm(s.club))));
+  const activeRoundMissingClub = Array.isArray(s.schedule) && s.round < s.schedule.length && !hasActiveClubFixture;
+  const isOddNationalLeague = ['bra-a','bra-b','bra-c','bra-d'].includes(curCompId) && Array.isArray(s.teams) && s.teams.length !== 20;
   const isCompMismatched = primaryCompId && curCompId !== primaryCompId && (!compById(curCompId) || !teamMap[curCompId] || isBrasiliaInWrongComp || isAcreanoBug);
+  
+  // Sincroniza s.competition e o clube do usuário com a competição ativa de curCompId
+  const activeCompObj = compById(curCompId);
+  if(activeCompObj){
+    if(s.competition !== activeCompObj.name) s.competition = activeCompObj.name;
+    s.currentLeague = activeCompObj.name;
+    const cObj = clubByName(s.club);
+    if(cObj){
+      cObj.competition = activeCompObj.name;
+      cObj.currentLeague = activeCompObj.name;
+    }
+  }
+
+  // Se o save tem mais ou menos de 20 times na Série A/B/C/D (ex: 21 times), ajusta imediatamente para 20
+  if(isOddNationalLeague && activeCompObj){
+    const defaultList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[curCompId]) ? [...window.COMPETITION_TEAMS[curCompId]] : [];
+    const existingMap = new Map();
+    (s.teams || []).forEach(t => { existingMap.set(norm(t.name), t); });
+    if(!existingMap.has(normalizedClub)){
+      existingMap.set(normalizedClub, { name: s.club, strength: strength(clubByName(s.club) || { atk: 65, mid: 65, def: 65 }), j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, p: 0, form: [] });
+    }
+    const cleanTeams = [];
+    cleanTeams.push(existingMap.get(normalizedClub));
+    defaultList.forEach(cName => {
+      if(cleanTeams.length < 20 && norm(cName) !== normalizedClub){
+        if(existingMap.has(norm(cName))){
+          cleanTeams.push(existingMap.get(norm(cName)));
+        } else {
+          cleanTeams.push({ name: cName, strength: teamStrengthByName(cName), j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, p: 0, form: [] });
+        }
+      }
+    });
+    // Se ainda faltar preencher até 20 clubes
+    for(const [tNorm, tObj] of existingMap.entries()){
+      if(cleanTeams.length >= 20) break;
+      if(!cleanTeams.some(x => norm(x.name) === tNorm)){
+        cleanTeams.push(tObj);
+      }
+    }
+    s.teams = cleanTeams.slice(0, 20);
+    s.schedule = buildSchedule(activeCompObj, s.teams.map(t => t.name));
+    s.round = Math.min(Number(s.round) || 0, Math.max(0, s.schedule.length - 1));
+  }
+
+  const hasScheduleCorrupted = Array.isArray(s.schedule) && (
+    s.schedule.some(rd => Array.isArray(rd) && rd.some(g => Array.isArray(g) && (g.includes('FOLGA') || g[0] === g[1]))) ||
+    (s.round < s.schedule.length && !hasActiveClubFixture)
+  );
+  if(hasScheduleCorrupted && activeCompObj && ['bra-a','bra-b','bra-c','bra-d'].includes(curCompId)){
+    s.schedule = buildSchedule(activeCompObj, (s.teams || []).map(t => t.name));
+    s.round = Math.min(Number(s.round) || 0, Math.max(0, s.schedule.length - 1));
+  }
 
   if(isAcreanoBug || isBrasiliaInWrongComp || isClubMissingFromTeams || isSelfMatchBug || isScheduleEmptyOrNoUser || isCompMismatched){
     const targetCompId = (norm(s.club) === 'brasilia' ? 'bra-est-df' : (primaryCompId || curCompId || 'bra-est-df'));
@@ -8110,8 +8259,17 @@ function repairSaveIfCorrupted(s){
       s.compId = comp.id;
       s.competition = comp.name;
       const compClubs = competitionClubs(comp, s.club);
-      s.schedule = buildSchedule(comp, compClubs.map(x => x.name));
-      s.round = Math.min(s.round || 0, Math.max(0, s.schedule.length - 1));
+      const previousRound = Math.max(0, Number(s.round) || 0);
+      const previousSchedule = Array.isArray(s.schedule) ? s.schedule : [];
+      const canKeepSchedule = !isAcreanoBug && !isBrasiliaInWrongComp && !isClubMissingFromTeams && !isSelfMatchBug && !isScheduleEmptyOrNoUser && !isCompMismatched && previousSchedule.length > 0;
+      if(canKeepSchedule && activeRoundMissingClub){
+        // Uma folga ou rodada fracionada não é corrupção: preserva tabela/resultados e deixa o calendário avançar.
+        s.schedule = previousSchedule;
+        s.round = previousRound;
+      } else {
+        s.schedule = buildSchedule(comp, compClubs.map(x => x.name));
+        s.round = Math.min(previousRound, Math.max(0, s.schedule.length - 1));
+      }
 
       // Reconstruir lista de times se o clube não estava presente ou era do Acreano/bug
       const hadClubInTeams = Array.isArray(s.teams) && s.teams.some(t => norm(t.name) === norm(s.club));
@@ -9102,30 +9260,30 @@ function canStartMatch(fixture, gameState = state){
   }
 
   // 2. Fim de temporada
-  const fixtures = currentFixtures();
-  if(!fixtures.length || (gameState.round >= (gameState.schedule?.length || 1))){
+  const fixtures = Array.isArray(gameState.schedule?.[gameState.round]) ? gameState.schedule[gameState.round] : [];
+  if(gameState.round >= (gameState.schedule?.length || 1)){
     return { canStart: false, reason: 'A temporada atual já foi concluída.', status: 'season_finished' };
   }
 
   // 3. Partida existe
-  const uFix = fixture || userFixture();
+  const myClubNorm = norm(gameState.club);
+  const uFix = fixture || fixtures.find(g => Array.isArray(g) && (norm(g[0]) === myClubNorm || norm(g[1]) === myClubNorm));
   if(!uFix || !Array.isArray(uFix) || uFix.length < 2){
-    return { canStart: false, reason: 'Nenhuma partida agendada para o seu clube nesta rodada.', status: 'no_fixture' };
+    return { canStart: false, reason: 'Nenhuma partida agendada para o seu clube nesta rodada (Folga na tabela).', status: 'no_fixture', isBye: true };
   }
 
   // 4. Pertence ao clube
-  const myClubNorm = norm(gameState.club);
   if(norm(uFix[0]) !== myClubNorm && norm(uFix[1]) !== myClubNorm){
     return { canStart: false, reason: 'O confronto agendado não pertence ao seu clube.', status: 'wrong_club' };
   }
 
   // 5. Partida já foi disputada nesta rodada?
-  const alreadyPlayed = Array.isArray(gameState.history) && gameState.history.some(h => h.round === (gameState.round + 1) && h.season === gameState.season);
+  const alreadyPlayed = Array.isArray(gameState.history) && gameState.history.some(h => h.competitionId === gameState.compId && h.round === (gameState.round + 1) && h.season === gameState.season && (norm(h.h) === myClubNorm || norm(h.a) === myClubNorm));
   if(alreadyPlayed){
     return { canStart: false, reason: 'A partida desta rodada já foi disputada e finalizada.', status: 'already_played' };
   }
 
-  // 6. Data da Partida vs Data Atual (CALENDÁRIO É A FONTE DA VERDADE)
+  // 6. Data da partida. Rodadas sem jogo do clube são folgas válidas, não partidas atrasadas.
   const matchDate = getDateForRound(gameState.round, gameState.season);
   const curDate = gameState.date;
 
@@ -9168,11 +9326,15 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
   if(!state || isAdvancingTime) return;
   isAdvancingTime = true;
   try {
-    const matchDate = getDateForRound(state.round, state.season);
+    const activeRoundFixtures = Array.isArray(state.schedule?.[state.round]) ? state.schedule[state.round] : [];
+    const currentClubFixture = activeRoundFixtures.find(g => Array.isArray(g) && (norm(g[0]) === norm(state.club) || norm(g[1]) === norm(state.club)));
+    const nextFixtureRound = currentClubFixture ? state.round : (state.schedule || []).findIndex((roundGames, idx) => idx > state.round && Array.isArray(roundGames) && roundGames.some(g => Array.isArray(g) && (norm(g[0]) === norm(state.club) || norm(g[1]) === norm(state.club))));
+    const targetRound = currentClubFixture ? state.round : nextFixtureRound;
+    const matchDate = targetRound >= 0 ? getDateForRound(targetRound, state.season) : null;
     let daysAdvanced = 0;
 
     for(let i = 0; i < days; i++){
-      if(stopAtMatch && state.date >= matchDate){
+      if(stopAtMatch && matchDate && state.date >= matchDate){
         break;
       }
 
@@ -9183,6 +9345,9 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       processStadiumConstructionDay();
       processContinentalFixturesBefore(state.date);
       expireStadiumEventConfirmation();
+      if(typeof checkIncomingPlayerBids === 'function' && isTransferWindowOpen(state.date) && Math.random() < 0.12){
+        checkIncomingPlayerBids();
+      }
       daysAdvanced++;
 
       // 1. Pré-temporada (se ativa)
@@ -9198,6 +9363,16 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       if(Array.isArray(state.squad)){
         state.squad.forEach(p => {
           p.stamina = Math.min(100, (p.stamina || 90) + 5);
+          if(Number(p.transferDiscontentDays) > 0){
+            p.transferDiscontentDays = Math.max(0, Number(p.transferDiscontentDays) - 1);
+            if(p.transferDiscontentDays === 0){
+              delete p.transferDiscontentDays;
+              delete p.transferDiscontentReason;
+              delete p.wantsTransfer;
+              p.morale = clamp((Number(p.morale) || 65) + 8, 10, 100);
+              state.news.unshift(`🤝 CLIMA RESTABELECIDO: ${p.name} encerrou o período de insatisfação e voltou a focar no clube.`);
+            }
+          }
           if(p.injuryDays && p.injuryDays > 0){
             p.injuryDays--;
             if(p.injuryDays <= 0){
@@ -9220,7 +9395,7 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       // 4. Sincronização e avanço de fases da Copa do Brasil
       processCopaDoBrasilCalendar(state.date);
 
-      if(stopAtMatch && state.date >= matchDate){
+      if(stopAtMatch && matchDate && state.date >= matchDate){
         break;
       }
     }
@@ -9228,7 +9403,7 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
     save();
     render();
 
-    if(state.date === matchDate){
+    if(matchDate && state.date === matchDate){
       const f = userFixture();
       const opp = f ? (f[0] === state.club ? f[1] : f[0]) : 'Adversário';
       toast(`🎯 Chegamos ao dia do jogo contra o ${opp}! O vestiário está pronto.`);
@@ -9722,6 +9897,25 @@ function finalizeRound(userRes, winners, isKO){
   const comp=curComp();
   let win = false;
   let advanced = false;
+  // Recupera apenas um fixture válido que o chamador deixou de vincular ao resultado.
+  if(!userRes){
+    const scheduledUserFixture = (state.schedule?.[state.round] || []).find(g => Array.isArray(g) && (norm(g[0]) === norm(state.club) || norm(g[1]) === norm(state.club)));
+    const alreadyRecorded = (state.history || []).some(h => h.competitionId === comp.id && Number(h.season) === Number(state.season) && Number(h.round) === Number(state.round + 1) && (norm(h.h) === norm(state.club) || norm(h.a) === norm(state.club)));
+    if(scheduledUserFixture && !alreadyRecorded){
+      const [home, away] = scheduledUserFixture;
+      const [hg, ag] = simulateScore(home, away);
+      applyResult(home, away, hg, ag);
+      const isHome = norm(home) === norm(state.club);
+      const gf = isHome ? hg : ag, ga = isHome ? ag : hg;
+      const matchWinner = isKO ? (hg === ag ? (Math.random() < 0.5 ? home : away) : (hg > ag ? home : away)) : null;
+      userRes = { h: home, a: away, hg, ag, winner: matchWinner, events: simulateUserGoalEvents(state.club, gf) };
+      if(isKO){
+        winners = Array.isArray(winners) ? winners : [];
+        if(!winners.some(w => norm(w) === norm(matchWinner))) winners.push(matchWinner);
+      }
+      state.news.unshift(`📅 RECUPERAÇÃO DO CALENDÁRIO: a partida de ${state.club} foi simulada automaticamente para destravar a rodada (${hg} x ${ag}).`);
+    }
+  }
   if(userRes){
     const isHome=userRes.h===state.club,gf=isHome?userRes.hg:userRes.ag,ga=isHome?userRes.ag:userRes.hg;
     advanced=isKO?norm(userRes.winner)===norm(state.club):gf>ga;
@@ -10293,7 +10487,51 @@ function simulateAITransfers(){
 
 function checkIncomingPlayerBids(){
   if(!state || !state.squad || !state.squad.length) return;
+
+  // Investidas extraordinárias do mercado árabe, restritas às janelas oficiais.
+  if(isTransferWindowOpen(state.date) && Math.random() < 0.28){
+    const arabicClubs = ['Al-Hilal', 'Al-Nassr', 'Al-Ittihad', 'Al-Ahli', 'Al-Sadd', 'Al-Ain'];
+    const lineupKeys = state.lineup || [];
+    const candidates = state.squad.filter(p => {
+      const ovr = playerOverall(p);
+      return (lineupKeys.includes(playerKey(p)) || ovr >= 80 || Number(p.goals) >= 8 || Number(p.averageRating || p.rating) >= 7.2)
+        && !p.injuryDays && !p.injuredRounds;
+    }).sort((a,b) => {
+      const score = p => playerOverall(p) * 2 + Math.min(24, Number(p.goals) || 0) + Math.max(0, Number(p.averageRating || p.rating) - 6) * 5 + ((Number(p.age) || 25) >= 29 ? 4 : 0);
+      return score(b) - score(a);
+    });
+    const arabicTarget = candidates[0];
+    if(arabicTarget){
+      state.incomingBids = Array.isArray(state.incomingBids) ? state.incomingBids : [];
+      const targetKey = playerKey(arabicTarget);
+      if(!state.incomingBids.some(b => b.playerKey === targetKey && b.offerType === 'arabic')){
+        const availableBuyers = arabicClubs.filter(c => norm(c) !== norm(state.club));
+        const buyer = availableBuyers[rnd(0, availableBuyers.length - 1)];
+        const baseValue = Math.max(50000, Math.round(calcValueMi(arabicTarget) * 1000000));
+        const transferMultiplier = Math.round((1.5 + Math.random() * 1.5) * 100) / 100;
+        const salaryMultiplier = rnd(3, 5);
+        const fee = Math.round(baseValue * transferMultiplier);
+        const offeredSalary = Math.round(playerSalary(arabicTarget) * salaryMultiplier);
+        state.incomingBids = state.incomingBids.filter(b => b.playerKey !== targetKey);
+        state.incomingBids.unshift({
+          id: `arabic_bid_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
+          date: state.date, playerKey: targetKey, playerName: arabicTarget.name,
+          ovr: playerOverall(arabicTarget), club: buyer, fee, sellOnPct: 0,
+          counterOffered: false, offerType: 'arabic', transferMultiplier,
+          offeredSalary, salaryMultiplier, discontentDays: 42
+        });
+        state.news = Array.isArray(state.news) ? state.news : [];
+        state.news.unshift(`💎 INVESTIDA ÁRABE: ${buyer} oferece ${fmtMoney(fee)} por ${arabicTarget.name} (${transferMultiplier.toFixed(2).replace('.', ',')}× o valor de mercado) e promete salário ${salaryMultiplier}× maior. A diretoria considera uma oportunidade extraordinária.`);
+        state.news = state.news.slice(0, 50);
+        toast(`💎 Proposta árabe por ${arabicTarget.name}: ${fmtMoney(fee)} à vista!`);
+        return;
+      }
+    }
+  }
   
+  // Enquanto uma oferta árabe aguarda decisão, preserve-a no topo da caixa de propostas.
+  if((state.incomingBids || []).some(b => b.offerType === 'arabic')) return;
+
   // Chance de 30% por rodada de receber proposta por um titular
   if(Math.random() > 0.32) return;
   
@@ -10356,12 +10594,14 @@ function renderHomeBidsBanner(){
     const btnEl = banner.querySelector('#btnOpenIncomingBidFromCentral');
     const firstBid = state.incomingBids[0];
     if(titleEl){
-      titleEl.textContent = state.incomingBids.length > 1 ? `🔥 LEILÃO MILIONÁRIO! ${state.incomingBids.length} CLUBES NA DISPUTA!` : 'PROPOSTA MILIONÁRIA OFICIAL!';
+      titleEl.textContent = firstBid.offerType === 'arabic' ? '💎 INVESTIDA ÁRABE IRRECUSÁVEL!' : (state.incomingBids.length > 1 ? `🔥 LEILÃO MILIONÁRIO! ${state.incomingBids.length} CLUBES NA DISPUTA!` : 'PROPOSTA MILIONÁRIA OFICIAL!');
     }
     if(descEl){
       descEl.innerHTML = state.incomingBids.length > 1
         ? `${state.incomingBids.map(b => `<b>${esc(b.club)}</b>`).join(', ')} fizeram propostas oficiais por <b>${esc(firstBid.playerName)}</b>!`
-        : `O <b>${esc(firstBid.club)}</b> ofereceu <b>${fmtMoney(firstBid.fee)}</b> por <b>${esc(firstBid.playerName)}</b> (+${firstBid.sellOnPct}% futura)`;
+        : (firstBid.offerType === 'arabic'
+          ? `O <b>${esc(firstBid.club)}</b> oferece <b>${fmtMoney(firstBid.fee)}</b> à vista e salário de <b>${firstBid.salaryMultiplier}×</b> para <b>${esc(firstBid.playerName)}</b>.`
+          : `O <b>${esc(firstBid.club)}</b> ofereceu <b>${fmtMoney(firstBid.fee)}</b> por <b>${esc(firstBid.playerName)}</b> (+${firstBid.sellOnPct}% futura)`);
     }
     if(btnEl){
       btnEl.textContent = state.incomingBids.length > 1 ? `Ver Propostas (${state.incomingBids.length}) >` : 'Ver Proposta >';
@@ -10393,7 +10633,7 @@ function openIncomingBidModal(selectedBidId){
   const bidsCount = state.incomingBids.length;
 
   openCustomModal(
-    bidsCount > 1 ? '💼 Leilão de Transferência • Múltiplos Clubes Interessados' : '💼 Proposta Oficial de Transferência Recebida',
+    firstBid.offerType === 'arabic' ? '💎 Investida Árabe • Proposta Extraordinária' : (bidsCount > 1 ? '💼 Leilão de Transferência • Múltiplos Clubes Interessados' : '💼 Proposta Oficial de Transferência Recebida'),
     `
       <!-- Cabeçalho do Atleta Alvo -->
       <div style="background:#131826;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
@@ -10410,6 +10650,8 @@ function openIncomingBidModal(selectedBidId){
           <div style="font-size:11px;color:${bidsCount > 1 ? '#facc15' : 'rgba(255,255,255,0.6)'};margin-top:4px;font-weight:${bidsCount > 1 ? '800' : 'normal'}">
             ${bidsCount > 1
               ? `🔥 ${bidsCount} CLUBES ENVIARAM OFERTAS OFICIAIS! Escolha o melhor destino ou tente contraproposta (+20%).`
+              : firstBid.offerType === 'arabic'
+              ? `💎 PROPOSTA FORA DO PADRÃO: o clube oferece ${firstBid.salaryMultiplier}× seu salário atual (${fmtMoney(playerSalary(p))} → ${fmtMoney(firstBid.offeredSalary)}) e ${fmtMoney(firstBid.fee)} pelo passe. Se a diretoria recusar, o jogador ficará insatisfeito temporariamente.`
               : `Chegou uma proposta timbrada com oferta oficial irrevogável na mesa da diretoria.`}
           </div>
         </div>
@@ -10424,7 +10666,7 @@ function openIncomingBidModal(selectedBidId){
                 <span style="font-size:24px">🏛️</span>
                 <div>
                   <div style="color:#fff;font-size:15px;font-weight:900">${esc(b.club)}</div>
-                  <div style="font-size:10px;color:rgba(255,255,255,0.5)">Proposta Oficial Irrevogável</div>
+                  <div style="font-size:10px;color:${b.offerType === 'arabic' ? '#fbbf24' : 'rgba(255,255,255,0.5)'}">${b.offerType === 'arabic' ? `💎 INVESTIDA ÁRABE · ${b.transferMultiplier}× valor de mercado` : 'Proposta Oficial Irrevogável'}</div>
                 </div>
               </div>
               ${b.counterOffered ? `
@@ -10439,8 +10681,8 @@ function openIncomingBidModal(selectedBidId){
                 <div id="bidFeeDisplay_${b.id}" style="font-size:18px;font-weight:900;color:#22c55e;transition:all 0.3s">${fmtMoney(b.fee)}</div>
               </div>
               <div style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);border-radius:10px;padding:8px">
-                <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">Cláusula Futura</div>
-                <div style="font-size:18px;font-weight:900;color:#38bdf8">${b.sellOnPct}% de Venda Futura</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">${b.offerType === 'arabic' ? 'Salário oferecido ao jogador' : 'Cláusula Futura'}</div>
+                <div ${b.offerType === 'arabic' ? `id="bidSalaryDisplay_${b.id}"` : ''} style="font-size:18px;font-weight:900;color:#38bdf8">${b.offerType === 'arabic' ? `${fmtMoney(b.offeredSalary)}/mês · ${b.salaryMultiplier}×` : `${b.sellOnPct}% de Venda Futura`}</div>
               </div>
             </div>
 
@@ -10516,7 +10758,10 @@ function openIncomingBidModal(selectedBidId){
       // Remove TODAS as propostas pendentes para este jogador (já que foi vendido!)
       state.incomingBids = (state.incomingBids || []).filter(x => x.playerKey !== b.playerKey);
 
-      state.news.unshift(`🤝 TRANSFERÊNCIA CONCLUÍDA: ${playerToSell.name} foi vendido ao ${b.club} por ${fmtMoney(b.fee)} com ${b.sellOnPct}% de venda futura!`);
+      state.news.unshift(b.offerType === 'arabic'
+        ? `💎 NEGÓCIO HISTÓRICO: ${playerToSell.name} foi vendido ao ${b.club} por ${fmtMoney(b.fee)} (oferta de ${b.transferMultiplier}× o valor de mercado). Salário prometido ao atleta: ${fmtMoney(b.offeredSalary)}/mês.`
+        : `🤝 TRANSFERÊNCIA CONCLUÍDA: ${playerToSell.name} foi vendido ao ${b.club} por ${fmtMoney(b.fee)} com ${b.sellOnPct}% de venda futura!`);
+      state.news = state.news.slice(0, 50);
       closeCustomModal();
       save();
       renderHomeBidsBanner();
@@ -10539,6 +10784,10 @@ function openIncomingBidModal(selectedBidId){
       const accepted = Math.random() < 0.60;
       if(accepted){
         b.fee = Math.round(b.fee * 1.20);
+        if(b.offerType === 'arabic'){
+          const arabicPlayer = (state.squad || []).find(p => playerKey(p) === b.playerKey);
+          b.offeredSalary = Math.round((Number(b.offeredSalary) || playerSalary(arabicPlayer || {})) * 1.20);
+        }
         b.counterOffered = true;
         save();
         toast(`🎉 O ${b.club} aceitou pagar mais e aumentou a proposta para ${fmtMoney(b.fee)}!`);
@@ -10550,6 +10799,10 @@ function openIncomingBidModal(selectedBidId){
           feeEl.style.transform = 'scale(1.2)';
           feeEl.style.color = '#4ade80';
           setTimeout(() => { feeEl.style.transform = 'scale(1)'; }, 280);
+        }
+        if(b.offerType === 'arabic'){
+          const salaryEl = $(`#bidSalaryDisplay_${b.id}`);
+          if(salaryEl) salaryEl.textContent = `${fmtMoney(b.offeredSalary)}/mês · ${b.salaryMultiplier}×`;
         }
         btn.textContent = '✓ +20% Negociado';
         btn.style.background = 'rgba(255,255,255,0.06)';
@@ -10588,6 +10841,17 @@ function openIncomingBidModal(selectedBidId){
       const bidId = btn.dataset.id;
       const b = (state.incomingBids || []).find(x => x.id === bidId);
       const clubName = b ? b.club : 'Clube';
+      if(b?.offerType === 'arabic'){
+        const unhappyPlayer = (state.squad || []).find(x => playerKey(x) === b.playerKey);
+        if(unhappyPlayer){
+          unhappyPlayer.morale = clamp((Number(unhappyPlayer.morale) || 70) - 18, 10, 100);
+          unhappyPlayer.wantsTransfer = true;
+          unhappyPlayer.transferDiscontentDays = Math.max(Number(unhappyPlayer.transferDiscontentDays) || 0, Number(b.discontentDays) || 42);
+          unhappyPlayer.transferDiscontentReason = `Oferta milionária recusada por ${b.club}`;
+          state.news.unshift(`😠 INSATISFAÇÃO NO ELENCO: ${unhappyPlayer.name} ficou descontente após a recusa da proposta de ${b.club}. Ele quer ser negociado e perdeu 18 pontos de moral temporariamente.`);
+          state.news = state.news.slice(0, 50);
+        }
+      }
       state.incomingBids = (state.incomingBids || []).filter(x => x.id !== bidId);
       save();
       toast(`Proposta do ${clubName} recusada.`);
@@ -10920,6 +11184,13 @@ function startLiveMatch(){
   if(isStartingLiveMatch) return;
   const matchGate = canStartMatch();
   if(!matchGate.canStart){
+    if(matchGate.status === 'season_finished'){ showEndOfSeasonModal(); return; }
+    if(matchGate.status === 'future'){ state.date = matchGate.matchDate; }
+    if(matchGate.status === 'no_fixture' || matchGate.isBye){
+      toast('🏖️ Seu clube está de folga nesta rodada. Simulando os jogos dos adversários...');
+      simulateQuickRound();
+      return;
+    }
     toast(`⚠️ ${matchGate.reason}`);
     return;
   }
@@ -14381,9 +14652,67 @@ let isSimulatingQuickRound = false;
 function simulateQuickRound(){
   if(isSimulatingQuickRound) return;
   const matchGate = canStartMatch();
-  if(!matchGate.canStart){
-    toast(`⚠️ ${matchGate.reason}`);
-    return;
+  if(!matchGate.canStart && matchGate.status !== 'missed'){
+    if(matchGate.status === 'season_finished'){
+      showEndOfSeasonModal();
+      return;
+    }
+    if(matchGate.status === 'future'){
+      // Se o usuário clica em simular diretamente mas ainda faltavam dias, avança o calendário até a data do jogo
+      state.date = matchGate.matchDate;
+    } else if(matchGate.status === 'no_fixture' || matchGate.isBye){
+      isSimulatingQuickRound = true;
+      try {
+        const fixtures = currentFixtures();
+        if(!fixtures.length){
+          const comp = curComp();
+          const nextRound = (state.schedule || []).findIndex((roundGames, idx) => idx > state.round && Array.isArray(roundGames) && roundGames.some(g => Array.isArray(g) && g.length >= 2));
+          if(nextRound >= 0){
+            state.round = nextRound;
+            state.news = Array.isArray(state.news) ? state.news : [];
+            state.news.unshift(`📅 Rodada vazia ignorada com segurança em ${comp?.name || 'competição'}; calendário recuperado para a rodada ${nextRound + 1}.`);
+            state.news = state.news.slice(0, 50);
+            save();
+            render();
+            toast(`📅 Rodada vazia ignorada. Próxima rodada válida: ${nextRound + 1}.`);
+            return;
+          }
+          if(!Array.isArray(state.schedule) || !state.schedule.length || state.round >= state.schedule.length - 1){
+            showEndOfSeasonModal();
+            return;
+          }
+          state.round = Math.min(state.round + 1, state.schedule.length - 1);
+          save();
+          render();
+          toast('📅 Rodada sem confrontos avançada com segurança.');
+          return;
+        }
+        const comp = curComp(), isKO = comp.type === 'knockout';
+        const winners = [];
+        fixtures.forEach(([h,a]) => {
+          if(norm(h) === norm(a)) return;
+          const [hg,ag] = simulateScore(h,a);
+          let winner = null;
+          if(isKO){ winner = hg === ag ? (Math.random() < 0.5 ? h : a) : (hg > ag ? h : a); winners.push(winner); }
+          applyResult(h,a,hg,ag);
+        });
+        finalizeRound(null, winners, isKO);
+        save();
+        render();
+        toast('📅 Sua equipe está de folga nesta rodada. Os outros jogos foram simulados e o calendário avançou.');
+      } finally {
+        isSimulatingQuickRound = false;
+      }
+      return;
+    } else if(matchGate.status === 'already_played'){
+      state.round = Math.min((state.schedule?.length || 1) - 1, (state.round || 0) + 1);
+      save(); render();
+      toast('📅 Rodada já disputada. Avançando para a próxima rodada.');
+      return;
+    } else {
+      toast(`⚠️ ${matchGate.reason}`);
+      return;
+    }
   }
 
   isSimulatingQuickRound = true;
@@ -14762,7 +15091,7 @@ function showEndOfSeasonModal(){
   };
 }
 
-function executeSeasonTransitions(){
+function executeSeasonTransitions(finishedCompId = null, finishedRanking = null){
   window.COMPETITION_TEAMS = window.COMPETITION_TEAMS || {};
   if(state.competitionTeams){
     window.COMPETITION_TEAMS = Object.assign(window.COMPETITION_TEAMS, state.competitionTeams);
@@ -14780,6 +15109,9 @@ function executeSeasonTransitions(){
 
   // Simula ou lê classificação ordenada de uma divisão
   const rankDivision = (divId) => {
+    if(finishedCompId === divId && Array.isArray(finishedRanking) && finishedRanking.length){
+      return finishedRanking.map(t => t.name);
+    }
     if(state.compId === divId && Array.isArray(state.teams) && state.teams.length){
       return ranking().map(t => t.name);
     }
@@ -14858,11 +15190,62 @@ function executeSeasonTransitions(){
     });
   }
 
-  // Se o usuário está em uma divisão específica, garante a presença do clube do usuário nela
-  if(state.compId === 'bra-a' && !newA.some(c => norm(c) === norm(state.club))) newA.push(state.club);
-  if(state.compId === 'bra-b' && !newB.some(c => norm(c) === norm(state.club))) newB.push(state.club);
-  if(state.compId === 'bra-c' && !newC.some(c => norm(c) === norm(state.club))) newC.push(state.club);
-  if(state.compId === 'bra-d' && !newD.some(c => norm(c) === norm(state.club))) newD.push(state.club);
+  const myClubName = state.club;
+  const myNorm = norm(myClubName);
+  if(state.compId === 'bra-a'){
+    newB = newB.filter(c => norm(c) !== myNorm);
+    newC = newC.filter(c => norm(c) !== myNorm);
+    newD = newD.filter(c => norm(c) !== myNorm);
+    if(!newA.some(c => norm(c) === myNorm)){
+      if(newA.length >= 20) newA[19] = myClubName;
+      else newA.push(myClubName);
+    }
+  } else if(state.compId === 'bra-b'){
+    newA = newA.filter(c => norm(c) !== myNorm);
+    newC = newC.filter(c => norm(c) !== myNorm);
+    newD = newD.filter(c => norm(c) !== myNorm);
+    if(!newB.some(c => norm(c) === myNorm)){
+      if(newB.length >= 20) newB[19] = myClubName;
+      else newB.push(myClubName);
+    }
+  } else if(state.compId === 'bra-c'){
+    newA = newA.filter(c => norm(c) !== myNorm);
+    newB = newB.filter(c => norm(c) !== myNorm);
+    newD = newD.filter(c => norm(c) !== myNorm);
+    if(!newC.some(c => norm(c) === myNorm)){
+      if(newC.length >= 20) newC[19] = myClubName;
+      else newC.push(myClubName);
+    }
+  } else if(state.compId === 'bra-d'){
+    newA = newA.filter(c => norm(c) !== myNorm);
+    newB = newB.filter(c => norm(c) !== myNorm);
+    newC = newC.filter(c => norm(c) !== myNorm);
+    if(!newD.some(c => norm(c) === myNorm)){
+      if(newD.length >= 20) newD[19] = myClubName;
+      else newD.push(myClubName);
+    }
+  }
+
+  const poolFallback = ['Santos','Sport','América-MG','Goiás','Coritiba','Ceará','Novorizontino','Mirassol','Operário-PR','Vila Nova','Ponte Preta','Avaí','CRB','Amazonas','Chapecoense','Botafogo-SP','Paysandu','Ituano','Brusque','Guarani','Retrô','Anápolis','Maringá','Itabaiana'];
+  const fillTo20 = (arr, otherLists) => {
+    const list = [...new Set(arr)];
+    for(const extra of poolFallback){
+      if(list.length >= 20) break;
+      if(!list.some(x => norm(x) === norm(extra)) && !otherLists.some(l => l.some(x => norm(x) === norm(extra)))){
+        list.push(extra);
+      }
+    }
+    return list.slice(0, 20);
+  };
+
+  newA = fillTo20(newA, [newB, newC, newD]);
+  newB = fillTo20(newB, [newA, newC, newD]);
+  newC = fillTo20(newC, [newA, newB, newD]);
+  newD = fillTo20(newD, [newA, newB, newC]);
+  // Sincroniza teamMap global com tMap para que eligibleClubNames use os elencos atualizados
+  if(typeof teamMap === 'object' && teamMap) Object.assign(teamMap, tMap);
+  window.COMPETITION_TEAMS = Object.assign(window.COMPETITION_TEAMS || {}, tMap);
+  // Divisões brasileiras padronizadas com exatamente 20 clubes cada
 
   tMap['bra-a'] = newA;
   tMap['bra-b'] = newB;
@@ -14923,9 +15306,18 @@ function advanceSeasonYear(){
   }
 
   // Executa transições vivas de temporada para todas as divisões (Séries A, B, C, D e Estaduais)
-  executeSeasonTransitions();
+  executeSeasonTransitions(compFinished?.id || state.compId, rankingTable);
 
   const comp = curComp();
+  if(comp){
+    state.competition = comp.name;
+    state.currentLeague = comp.name;
+    const myClub = clubByName(state.club);
+    if(myClub){
+      myClub.competition = comp.name;
+      myClub.currentLeague = comp.name;
+    }
+  }
   refreshAnnualSponsorValues(finishedPosition, finishedTeamCount, comp?.id);
   state.financePeriodStartedDate = state.date;
   state.news.unshift(`🤝 PATROCÍNIOS REAJUSTADOS: contratos e novas propostas atualizados para ${comp?.name || 'a nova divisão'}, considerando a posição ${finishedPosition}ª de ${finishedTeamCount} na temporada anterior.`);
@@ -17397,7 +17789,7 @@ function centralPage(){
           <!-- Topo do Card -->
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <span style="font-size:14px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
-              ${(state.isPreSeason && state.preSeasonDays > 0) ? '🏖️ PRÉ-TEMPORADA EM ANDAMENTO' : (isMatchDay ? '🔥 HOJE TEM JOGO!' : '📅 PRÓXIMO COMPROMISSO')}
+              ${(state.isPreSeason && state.preSeasonDays > 0) ? '🏖️ PRÉ-TEMPORADA EM ANDAMENTO' : !f ? '🏖️ HOJE É FOLGA NA TABELA' : (isMatchDay ? '🔥 HOJE TEM JOGO!' : '📅 PRÓXIMO COMPROMISSO')}
             </span>
             <span class="pill ${winInfo.open?'good':'bad'}" style="font-size:10px;font-weight:900;letter-spacing:0.5px">
               JANELA DE TRANSFERÊNCIAS ${winInfo.open?'ABERTA':'FECHADA'}
@@ -17491,7 +17883,16 @@ function centralPage(){
             <span style="color:${weather.drain>1.1?'#f87171':'#94a3b8'};font-size:10px;font-weight:700">${esc(weather.impact)}</span>
           </div>
 
-          <!-- Confronto Principal em 2 Caixas -->
+          <!-- Confronto Principal ou Folga -->
+          ${!f ? `
+            <div style="background:#1a1532;border:1px solid #7c3aed;border-radius:14px;padding:20px;text-align:center;margin:18px 0 10px 0">
+              <div style="font-size:32px">🏖️</div>
+              <div style="font-size:16px;font-weight:900;color:#fff;margin-top:6px">FOLGA NA TABELA · RODADA ${state.round + 1}</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px">
+                O ${esc(state.club)} não entra em campo nesta rodada. O elenco realizou treinos e recuperação enquanto os adversários jogam.
+              </div>
+            </div>
+          ` : `
           <div style="display:grid;grid-template-columns:1fr 40px 1fr;align-items:center;margin:18px 0 10px 0;gap:8px">
             <div style="background:#241945;border:1px solid #7c3aed;border-radius:14px;padding:18px 12px;text-align:center">
               ${clubBadge(state.club, 54)}
@@ -17509,6 +17910,7 @@ function centralPage(){
               <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-top:2px">${isHome?'VISITANTE':'MANDANTE'}</div>
             </div>
           </div>
+          `}
 
           <!-- Histórico Direto H2H & Altitude -->
           <div style="background:#141122;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;text-align:center;font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:10px">
@@ -17597,6 +17999,21 @@ function centralPage(){
               </div>
               <div style="font-size:11px;color:rgba(255,255,255,0.5);text-align:center">
                 ⚽ Avance os dias no calendário até a data da rodada para liberar o início da partida.
+              </div>
+            </div>
+          ` : matchGate.status === 'no_fixture' ? `
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
+              <div style="background:rgba(124,58,237,0.18);border:1px solid #a855f7;border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:12px;color:#c084fc;font-weight:900">🏖️ DIA DE FOLGA DO SEU CLUBE</span>
+                <span style="font-size:11px;color:#e9d5ff;font-weight:800">${formatDatePtBr(state.date)}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr;gap:8px">
+                <button class="btn primary" id="playMatchQuick" style="padding:14px 10px;font-size:14px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(124,58,237,0.4);cursor:pointer">
+                  ⚡ SIMULAR RODADA DOS ADVERSÁRIOS & AVANÇAR
+                </button>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);text-align:center">
+                ⚽ Seu time descansa enquanto os outros clubes entram em campo nesta rodada.
               </div>
             </div>
           ` : `
@@ -20053,6 +20470,9 @@ function structurePage(){
   const proj = attendanceProjection(opp || 'Adversário');
   const isHome = f && f[0] === state.club;
   const stData = getStadiumExpansionData();
+  const stadiumWork = stData.activeWork;
+  const stadiumWorkDays = stadiumWork ? getStadiumWorkDaysRemaining(stadiumWork) : 0;
+  const stadiumWorkProgress = stadiumWork ? Math.max(0, Math.min(100, Math.round(((Number(stadiumWork.durationDays) || 1) - stadiumWorkDays) / Math.max(1, Number(stadiumWork.durationDays) || 1) * 100))) : 0;
   const arenaData = getNewArenaData();
   const musData = getMuseumData();
 
@@ -20275,7 +20695,8 @@ function structurePage(){
             const isDone = stData.sides[side];
             const sideName = side.toUpperCase();
             const seatsGain = 3500;
-            const cost = 850000;
+            const cost = Math.round(850000 * 1.30);
+            const sideWork = stadiumWork && stadiumWork.ring === stData.ring && stadiumWork.side === side ? stadiumWork : null;
 
             return `
               <div style="background:#181428;border:1px solid ${isDone ? '#22c55e' : 'rgba(255,255,255,0.08)'};border-radius:14px;padding:16px;text-align:center">
@@ -20284,10 +20705,15 @@ function structurePage(){
                   ${isDone ? 'CONCLUÍDO' : `+${seatsGain.toLocaleString('pt-BR')}`}
                 </div>
                 <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">
-                  ${isDone ? 'Obra entregue' : `lugares novos • 4 rodadas`}
+                  ${isDone ? 'Obra entregue' : `+${seatsGain.toLocaleString('pt-BR')} lugares • custo de ${fmtMoney(cost)}`}
                 </div>
+                ${sideWork ? `
+                  <div style="margin-top:12px;text-align:left;font-size:11px;color:#fbbf24;font-weight:800">OBRA EM ANDAMENTO · ${stadiumWorkDays} dias restantes</div>
+                  <div style="height:8px;background:rgba(255,255,255,.09);border-radius:6px;overflow:hidden;margin-top:6px"><div style="width:${stadiumWorkProgress}%;height:100%;background:linear-gradient(90deg,#f59e0b,#22c55e)"></div></div>
+                  <div style="font-size:10px;color:rgba(255,255,255,.55);margin-top:4px">${stadiumWorkProgress}% concluído</div>
+                ` : ''}
                 
-                ${!isDone ? `
+                ${!isDone && !stadiumWork ? `
                   <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
                     <button class="btn primary btnBuildSide" data-side="${side}" data-mode="cash" style="padding:6px;font-size:11px;font-weight:800">
                       À Vista: ${fmtMoney(cost)}
@@ -20299,11 +20725,11 @@ function structurePage(){
                       12x de ${fmtMoney(Math.round(cost*1.12/12))}
                     </button>
                   </div>
-                ` : `
+                ` : (isDone ? `
                   <div style="margin-top:16px;font-size:12px;color:#22c55e;font-weight:800">
                     ✓ 100% Liberado
                   </div>
-                `}
+                ` : `<div style="margin-top:12px;padding:10px;background:rgba(245,158,11,.08);border-radius:8px;font-size:11px;color:#fbbf24">Outra obra precisa ser concluída antes de iniciar um novo setor.</div>`)}
               </div>
             `;
           }).join('')}

@@ -168,41 +168,52 @@ window.addEventListener('load', async () => {
       rings: {
         1: { norte: false, sul: false, leste: false, oeste: false }
       },
-      purchasedSectors: []
+      purchasedSectors: [],
+      initialCapacityMapped: true,
+      maxUnlockedRing: 6,
+      activeWork: null
     };
+    state.infrastructure.stadium.capacity = 10000;
     state.balance = 50000000; // Saldo amplo para teste
     const initialCap = state.infrastructure.stadium.capacity;
     const initialBalance = state.balance;
 
-    // Comprar 3 setores válidos: norte, sul, leste
+    // Uma obra de cada vez; a capacidade muda quando o prazo chega ao fim.
+    const expectedWorkCost = Math.round(850000 * 1.30);
+    const completeActiveStadiumWork = () => {
+      const work = getStadiumExpansionData().activeWork;
+      if(!work) return;
+      state.date = work.finishDate;
+      processStadiumConstructionDay();
+    };
     stadiumSelectedSide = 'norte';
-    buildStadiumSide('norte', 'cash');
-    stadiumSelectedSide = 'sul';
-    buildStadiumSide('sul', 'cash');
-    stadiumSelectedSide = 'leste';
-    buildStadiumSide('leste', 'cash');
-
-    const expectedCost = 850000 * 3;
+    const firstWorkAccepted = buildStadiumSide('norte', 'cash');
+    const firstWork = getStadiumExpansionData().activeWork;
+    const secondWorkBlocked = buildStadiumSide('sul', 'cash') === false;
+    assert('Teste D.1: Uma obra ativa bloqueia a segunda contratação', firstWorkAccepted && secondWorkBlocked && !!firstWork, 'Há apenas uma obra ativa');
+    assert('Teste D.2: Custo à vista reajustado em 30%', state.balance === initialBalance - expectedWorkCost, `Saldo: ${state.balance}`);
+    assert('Teste D.3: Prazo do Anel 1 fica entre 15 e 25 dias', firstWork.durationDays >= 15 && firstWork.durationDays <= 25, `Prazo: ${firstWork.durationDays}`);
+    completeActiveStadiumWork();
+    stadiumSelectedSide = 'sul'; buildStadiumSide('sul', 'cash'); completeActiveStadiumWork();
+    stadiumSelectedSide = 'leste'; buildStadiumSide('leste', 'cash'); completeActiveStadiumWork();
     const expectedCap = initialCap + (3500 * 3);
-
-    assert('Teste D.1: Saldo debitado exatamente 3 vezes', state.balance === (initialBalance - expectedCost), `Saldo: ${state.balance}`);
-    assert('Teste D.2: Capacidade aumentada em +10.500', state.infrastructure.stadium.capacity === expectedCap, `Capacidade: ${state.infrastructure.stadium.capacity}`);
+    assert('Teste D.4: Capacidade só aumenta após a conclusão das obras', state.infrastructure.stadium.capacity === expectedCap, `Capacidade: ${state.infrastructure.stadium.capacity}`);
 
     // Inspecionar dados do estádio
     let stDataD = getStadiumExpansionData();
-    assert('Teste D.3: Norte, Sul e Leste marcados como true', stDataD.rings[1].norte && stDataD.rings[1].sul && stDataD.rings[1].leste && !stDataD.rings[1].oeste, 'Setores no anel 1 OK');
-    assert('Teste D.4: Setores identificados estavelmente', stDataD.purchasedSectors.includes('r1_norte') && stDataD.purchasedSectors.includes('r1_sul') && stDataD.purchasedSectors.includes('r1_leste'), `Sectors: ${stDataD.purchasedSectors}`);
+    assert('Teste D.5: Norte, Sul e Leste marcados como concluídos', stDataD.rings[1].norte && stDataD.rings[1].sul && stDataD.rings[1].leste && !stDataD.rings[1].oeste, 'Setores no anel 1 OK');
+    assert('Teste D.6: Setores identificados estavelmente', stDataD.purchasedSectors.includes('r1_norte') && stDataD.purchasedSectors.includes('r1_sul') && stDataD.purchasedSectors.includes('r1_leste'), `Sectors: ${stDataD.purchasedSectors}`);
 
     // Fechar e reabrir tela (simular nova invocação de getStadiumExpansionData)
     stDataD = getStadiumExpansionData();
-    assert('Teste D.5: Setores preservados após reabrir tela', stDataD.rings[1].norte && stDataD.rings[1].sul && stDataD.rings[1].leste, 'Setores continuam comprados');
+    assert('Teste D.7: Setores preservados após reabrir tela', stDataD.rings[1].norte && stDataD.rings[1].sul && stDataD.rings[1].leste, 'Setores continuam comprados');
 
     // Salvar, voltar ao menu e recarregar a carreira
     save();
     state = null;
     loadUserSlot(1);
     const reloadedSt = getStadiumExpansionData();
-    assert('Teste D.6: Setores preservados após salvar e recarregar save', reloadedSt.rings[1].norte && reloadedSt.rings[1].sul && reloadedSt.rings[1].leste, 'Persistência de disco confirmada');
+    assert('Teste D.8: Setores preservados após salvar e recarregar save', reloadedSt.rings[1].norte && reloadedSt.rings[1].sul && reloadedSt.rings[1].leste, 'Persistência de disco confirmada');
 
     // -------------------------------------------------------------
     // TESTE E — AVANÇO PARA O PRÓXIMO ANEL
@@ -211,6 +222,7 @@ window.addEventListener('load', async () => {
     // Comprar o 4º setor (oeste) para completar o Anel 1
     stadiumSelectedSide = 'oeste';
     buildStadiumSide('oeste', 'cash');
+    completeActiveStadiumWork();
 
     const stDataE1 = getStadiumExpansionData();
     assert('Teste E.1: Anel avançou para o 2', stDataE1.ring === 2, `Anel atual: ${stDataE1.ring}`);
@@ -219,6 +231,7 @@ window.addEventListener('load', async () => {
     // Comprar 1 setor no Anel 2 (norte)
     stadiumSelectedSide = 'norte';
     buildStadiumSide('norte', 'cash');
+    completeActiveStadiumWork();
 
     const stDataE2 = getStadiumExpansionData();
     assert('Teste E.3: Setor Norte do Anel 2 comprado', stDataE2.rings[2].norte === true, 'Anel 2 norte OK');
@@ -236,7 +249,7 @@ window.addEventListener('load', async () => {
     // TESTE F — FALHA DE COMPRA (SALDO INSUFICIENTE)
     // -------------------------------------------------------------
     console.log('--- TESTE F: Falha de Compra ---');
-    state.balance = 50000; // Saldo inferior a 850.000
+    state.balance = 50000; // Saldo inferior ao custo reajustado de R$ 1.105.000
     const balBeforeF = state.balance;
     const capBeforeF = state.infrastructure.stadium.capacity;
     stadiumSelectedSide = 'sul'; // Não comprado no anel 2
@@ -256,14 +269,14 @@ window.addEventListener('load', async () => {
     const balBeforeG = state.balance;
     const capBeforeG = state.infrastructure.stadium.capacity;
 
-    // Disparar duas solicitações consecutivas para o mesmo setor
+    // Disparar duas solicitações consecutivas enquanto a obra permanece ativa
     const call1 = buildStadiumSide('sul', 'cash');
     const call2 = buildStadiumSide('sul', 'cash');
 
     assert('Teste G.1: Primeira chamada aceita', call1 === true, 'Primeira chamada concluída');
     assert('Teste G.2: Segunda chamada duplicada bloqueada', call2 === false, 'Segunda chamada rejeitada com sucesso');
-    assert('Teste G.3: Cobrado apenas 1 custo de obra', state.balance === (balBeforeG - 850000), `Saldo correto: ${state.balance}`);
-    assert('Teste G.4: Capacidade aumentada apenas uma vez (+3.500)', state.infrastructure.stadium.capacity === (capBeforeG + 3500), `Capacidade: ${state.infrastructure.stadium.capacity}`);
+    assert('Teste G.3: Cobrado apenas 1 custo de obra', state.balance === (balBeforeG - expectedWorkCost), `Saldo correto: ${state.balance}`);
+    assert('Teste G.4: Capacidade só muda depois da entrega', state.infrastructure.stadium.capacity === capBeforeG, `Capacidade durante a obra: ${state.infrastructure.stadium.capacity}`);
 
     // -------------------------------------------------------------
     // TESTE H — REGRESSÃO GERAL

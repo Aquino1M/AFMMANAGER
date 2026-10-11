@@ -417,9 +417,23 @@ assert(!gameJsContent.includes('id="btnLiveReplay"'),
 
 assert(gameJsContent.includes('function canStartMatch('),
   'Função canStartMatch implementada como portão arquitetural central (game.js)');
+assert(gameJsContent.includes("status: 'no_fixture'") && gameJsContent.includes('Nenhuma partida agendada para o seu clube nesta rodada.'),
+  'Rodada sem jogo do clube recebe status explícito para recuperação');
+assert(gameJsContent.includes('Rodadas sem jogo do clube são folgas válidas, não partidas atrasadas.'),
+  'Folga do clube não é bloqueada pela verificação de partida atrasada');
+assert(gameJsContent.includes('Rodada vazia ignorada com segurança') && gameJsContent.includes('gameState.schedule?.[gameState.round]'),
+  'Calendário recupera rodadas vazias e valida confrontos da carreira correta');
 
 assert(gameJsContent.includes('function advanceCalendarDays('),
   'Função advanceCalendarDays implementada para avanço seguro dia a dia (game.js)');
+assert(gameJsContent.includes('Math.round(850000 * 1.30)') && gameJsContent.includes('curRing <= 2 ? rnd(15, 25) : curRing <= 4 ? rnd(30, 45) : rnd(50, 90)'),
+  'Expansão do estádio aplica custo +30% e prazos realistas por anel');
+assert(gameJsContent.includes('OBRA EM ANDAMENTO') && gameJsContent.includes('stadiumWorkProgress'),
+  'Interface do estádio mostra dias restantes e barra de progresso');
+assert(gameJsContent.includes("offerType: 'arabic'") && gameJsContent.includes('transferMultiplier') && gameJsContent.includes('salaryMultiplier'),
+  'Mercado inclui ofertas árabes com multiplicadores de transferência e salário');
+assert(gameJsContent.includes('transferDiscontentDays') && gameJsContent.includes('wantsTransfer = true'),
+  'Recusa de oferta árabe ativa insatisfação temporária do jogador');
 
 assert(gameJsContent.includes("state.setPieces.penalty = pTak.value") && gameJsContent.includes("lowerTaker.value = pTak.value") && gameJsContent.includes("lowerTaker.value = fTak.value"),
   'Seletores superiores sincronizam os cobradores de pênaltis e faltas com a seção inferior');
