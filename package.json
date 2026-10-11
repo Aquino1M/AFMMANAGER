@@ -5,6 +5,10 @@
   "main": "index.html",
   "scripts": {
     "build": "echo Static build ready",
+    "badges:build": "node scripts/build-club-badges.js",
+    "badges:fetch": "node scripts/fetch-missing-team-badges.js",
+    "test:finance": "node scripts/test-finance-systems.js",
+    "test:service-worker": "node scripts/test-service-worker.js",
     "start": "npx serve .",
     "dev": "npx serve ."
   },

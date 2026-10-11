@@ -54,7 +54,7 @@ window.AFM30 = (function(){
         osc2.start();
         osc1.stop(ctx.currentTime + duration);
         osc2.stop(ctx.currentTime + duration);
-      } catch(e){}
+      } catch(e){ window.AFMErrorLog?.recordHandled(e, 'AFM30.audio.playWhistle'); }
     },
     // Grito de Torcida / Caldeirão
     playCheer: () => {
@@ -81,7 +81,7 @@ window.AFM30 = (function(){
         filter.connect(gain);
         gain.connect(ctx.destination);
         noise.start();
-      } catch(e){}
+      } catch(e){ window.AFMErrorLog?.recordHandled(e, 'AFM30.audio.playCheer'); }
     },
     // "Uuuuh!" da Torcida (Bola na Trave / Quase Gol)
     playOoh: () => {
@@ -108,7 +108,7 @@ window.AFM30 = (function(){
         filter.connect(gain);
         gain.connect(ctx.destination);
         noise.start();
-      } catch(e){}
+      } catch(e){ window.AFMErrorLog?.recordHandled(e, 'AFM30.audio.playOoh'); }
     },
     // Som Metálico de Trave
     playPost: () => {
@@ -126,7 +126,7 @@ window.AFM30 = (function(){
         gain.connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.35);
-      } catch(e){}
+      } catch(e){ window.AFMErrorLog?.recordHandled(e, 'AFM30.audio.playPost'); }
     },
     // Gol Festivo Completo (Apito + Explosão de Torcida)
     playGoal: () => {
@@ -153,7 +153,7 @@ window.AFM30 = (function(){
           osc.start(now + idx * 0.08);
           osc.stop(now + idx * 0.08 + 0.35);
         });
-      } catch(e){}
+      } catch(e){ window.AFMErrorLog?.recordHandled(e, 'AFM30.audio.playCoin'); }
     }
   };
 
@@ -625,6 +625,7 @@ window.AFM30 = (function(){
       try {
         return window.btoa(encodeURIComponent(str));
       } catch(e){
+        window.AFMErrorLog?.recordHandled(e, 'save.compress');
         return str;
       }
     },
@@ -632,6 +633,7 @@ window.AFM30 = (function(){
       try {
         return decodeURIComponent(window.atob(str));
       } catch(e){
+        window.AFMErrorLog?.recordHandled(e, 'save.decompress');
         return str;
       }
     }

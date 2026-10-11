@@ -127,7 +127,7 @@ class AFMAudioManager {
     if (this.proceduralAmbientNodes && this.proceduralAmbientNodes.gain) {
       try {
         this.proceduralAmbientNodes.gain.gain.setValueAtTime(clamped * 0.12, this.getAudioContext().currentTime);
-      } catch (e) {}
+      } catch (e) { window.AFMErrorLog?.recordHandled(e, 'audio.setCrowdVolume'); }
     }
   }
 
@@ -146,11 +146,12 @@ class AFMAudioManager {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         this.audioContext = new AudioCtx();
       } catch (e) {
+        window.AFMErrorLog?.recordHandled(e, 'audio.createContext');
         console.warn('AFMAudio: Web Audio API não suportada', e);
       }
     }
     if (this.audioContext && this.audioContext.state === 'suspended') {
-      this.audioContext.resume().catch(() => {});
+      this.audioContext.resume().catch(e => window.AFMErrorLog?.recordHandled(e, 'audio.resume'));
     }
     return this.audioContext;
   }
@@ -158,7 +159,7 @@ class AFMAudioManager {
   _bindAutoResumeOnUserGesture() {
     const unlock = () => {
       if (this.audioContext && this.audioContext.state === 'suspended') {
-        this.audioContext.resume().catch(() => {});
+        this.audioContext.resume().catch(e => window.AFMErrorLog?.recordHandled(e, 'audio.resume'));
       }
       window.removeEventListener('click', unlock);
       window.removeEventListener('keydown', unlock);
@@ -554,7 +555,7 @@ class AFMAudioManager {
         setTimeout(() => {
           try { src.stop(); } catch (e) {}
         }, 220);
-      } catch (e) {}
+      } catch (e) { window.AFMErrorLog?.recordHandled(e, 'audio.stopCrowdDrone'); }
       this.proceduralAmbientNodes = null;
     }
   }

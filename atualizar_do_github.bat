@@ -3,6 +3,10 @@ setlocal
 chcp 65001 >nul
 cd /d "%~dp0"
 title AFM Manager - Atualizar com seguranca
+:: Garantir permissao do diretorio no Git (evita dubious ownership)
+git config --global --add safe.directory "E:/PROJETOS SAAS/VSCODE PROJETOS/Aquino_Futebol_Manager_2026" >nul 2>&1
+git config --global --add safe.directory "%~dp0" >nul 2>&1
+git config --global --add safe.directory "%CD%" >nul 2>&1
 
 where git >nul 2>nul || (echo ERRO: Git nao encontrado.& pause & exit /b 1)
 git rev-parse --show-toplevel >nul 2>nul || (echo ERRO: esta pasta nao e um repositorio Git.& pause & exit /b 1)

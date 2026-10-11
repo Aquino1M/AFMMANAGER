@@ -1,0 +1,1750 @@
+[
+  {
+    "name": "San Martín de San Juan",
+    "key": "sanmartindesanjuan",
+    "country": "Argentina",
+    "teamId": "135174",
+    "file": "world/tsdb-135174.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/l7j84h1517769215.png"
+  },
+  {
+    "name": "San Martín de Tucumán",
+    "key": "sanmartindetucuman",
+    "country": "Argentina",
+    "teamId": "136197",
+    "file": "world/tsdb-136197.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/xymq001532856832.png"
+  },
+  {
+    "name": "Colón",
+    "key": "colon",
+    "country": "Argentina",
+    "teamId": "135157",
+    "file": "world/tsdb-135157.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/l72gz21712750680.png"
+  },
+  {
+    "name": "Arsenal de Sarandí",
+    "key": "arsenaldesarandi",
+    "country": "Argentina",
+    "teamId": "135152",
+    "file": "world/tsdb-135152.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/t5yzu71580842576.png"
+  },
+  {
+    "name": "Gimnasia y Esgrima de Mendoza",
+    "key": "gimnasiayesgrimademendoza",
+    "country": "Argentina",
+    "teamId": "137778",
+    "file": "world/tsdb-137778.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/h11mlf1677636958.png"
+  },
+  {
+    "name": "Alvarado",
+    "key": "alvarado",
+    "country": "Argentina",
+    "teamId": "137768",
+    "file": "world/tsdb-137768.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/yi9jjy1578820963.png"
+  },
+  {
+    "name": "Mitre",
+    "key": "mitre",
+    "country": "Argentina",
+    "teamId": "137766",
+    "file": "world/tsdb-137766.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/818q3i1578818850.png"
+  },
+  {
+    "name": "Unión Española",
+    "key": "unionespanola",
+    "country": "Chile",
+    "teamId": "137733",
+    "file": "world/tsdb-137733.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/3ixbl71756141900.png"
+  },
+  {
+    "name": "Cobreloa",
+    "key": "cobreloa",
+    "country": "Chile",
+    "teamId": "137739",
+    "file": "world/tsdb-137739.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/y971we1756782437.png"
+  },
+  {
+    "name": "Deportes Iquique",
+    "key": "deportesiquique",
+    "country": "Chile",
+    "teamId": "137728",
+    "file": "world/tsdb-137728.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/noodnh1756084851.png"
+  },
+  {
+    "name": "Deportes Copiapó",
+    "key": "deportescopiapo",
+    "country": "Chile",
+    "teamId": "140555",
+    "file": "world/tsdb-140555.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/lzii2a1611771823.png"
+  },
+  {
+    "name": "Deportes La Serena",
+    "key": "deporteslaserena",
+    "country": "Chile",
+    "teamId": "139473",
+    "file": "world/tsdb-139473.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/vs7mxv1677600646.png"
+  },
+  {
+    "name": "Santiago Wanderers",
+    "key": "santiagowanderers",
+    "country": "Chile",
+    "teamId": "137738",
+    "file": "world/tsdb-137738.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/ablr721757220570.png"
+  },
+  {
+    "name": "Rangers de Talca",
+    "key": "rangersdetalca",
+    "country": "Chile",
+    "teamId": "140550",
+    "file": "world/tsdb-140550.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/ybf68r1610649923.png"
+  },
+  {
+    "name": "Deportes Antofagasta",
+    "key": "deportesantofagasta",
+    "country": "Chile",
+    "teamId": "137727",
+    "file": "world/tsdb-137727.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/01yji51602188105.png"
+  },
+  {
+    "name": "San Luis de Quillota",
+    "key": "sanluisdequillota",
+    "country": "Chile",
+    "teamId": "140551",
+    "file": "world/tsdb-140551.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/s9fnfi1610649930.png"
+  },
+  {
+    "name": "Magallanes",
+    "key": "magallanes",
+    "country": "Chile",
+    "teamId": "140548",
+    "file": "world/tsdb-140548.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/ky0u9y1757129967.png"
+  },
+  {
+    "name": "Deportes Temuco",
+    "key": "deportestemuco",
+    "country": "Chile",
+    "teamId": "140546",
+    "file": "world/tsdb-140546.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/gzz5os1677471036.png"
+  },
+  {
+    "name": "Curicó Unido",
+    "key": "curicounido",
+    "country": "Chile",
+    "teamId": "137726",
+    "file": "world/tsdb-137726.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/chf0p61756787786.png"
+  },
+  {
+    "name": "Deportes Recoleta",
+    "key": "deportesrecoleta",
+    "country": "Chile",
+    "teamId": "145089",
+    "file": "world/tsdb-145089.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/q0tu3t1697646634.png"
+  },
+  {
+    "name": "Deportes Santa Cruz",
+    "key": "deportessantacruz",
+    "country": "Chile",
+    "teamId": "140545",
+    "file": "world/tsdb-140545.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/15m53x1610649871.png"
+  },
+  {
+    "name": "San Marcos de Arica",
+    "key": "sanmarcosdearica",
+    "country": "Chile",
+    "teamId": "140552",
+    "file": "world/tsdb-140552.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/r0f5fk1681108567.png"
+  },
+  {
+    "name": "Barnechea",
+    "key": "barnechea",
+    "country": "Chile",
+    "teamId": "140542",
+    "file": "world/tsdb-140542.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/0v5t5s1677471603.png"
+  },
+  {
+    "name": "Unión San Felipe",
+    "key": "unionsanfelipe",
+    "country": "Chile",
+    "teamId": "140554",
+    "file": "world/tsdb-140554.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/mj9p961734970963.png"
+  },
+  {
+    "name": "Fénix",
+    "key": "fenix",
+    "country": "Uruguay",
+    "teamId": "135367",
+    "file": "world/tsdb-135367.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/3iz2f51581352430.png"
+  },
+  {
+    "name": "Rampla Juniors",
+    "key": "ramplajuniors",
+    "country": "Uruguay",
+    "teamId": "135371",
+    "file": "world/tsdb-135371.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/ysvyvu1473541187.png"
+  },
+  {
+    "name": "Miramar Misiones",
+    "key": "miramarmisiones",
+    "country": "Uruguay",
+    "teamId": "145844",
+    "file": "world/tsdb-145844.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/7dvfx11647976997.png"
+  },
+  {
+    "name": "Plaza Colonia",
+    "key": "plazacolonia",
+    "country": "Uruguay",
+    "teamId": "136053",
+    "file": "world/tsdb-136053.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/s0gfrz1517658228.png"
+  },
+  {
+    "name": "Rentistas",
+    "key": "rentistas",
+    "country": "Uruguay",
+    "teamId": "135372",
+    "file": "world/tsdb-135372.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/uzupx11618944176.png"
+  },
+  {
+    "name": "Uruguay Montevideo",
+    "key": "uruguaymontevideo",
+    "country": "Uruguay",
+    "teamId": "141808",
+    "file": "world/tsdb-141808.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/09w9oj1727017090.png"
+  },
+  {
+    "name": "Juventud de Las Piedras",
+    "key": "juventuddelaspiedras",
+    "country": "Uruguay",
+    "teamId": "135368",
+    "file": "world/tsdb-135368.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/qxxqsw1464887423.png"
+  },
+  {
+    "name": "Albion",
+    "key": "albion",
+    "country": "Uruguay",
+    "teamId": "141805",
+    "file": "world/tsdb-141805.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/ne1nse1624645327.png"
+  },
+  {
+    "name": "Sud América",
+    "key": "sudamerica",
+    "country": "Uruguay",
+    "teamId": "135375",
+    "file": "world/tsdb-135375.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/r0k71w1621866186.png"
+  },
+  {
+    "name": "Atenas",
+    "key": "atenas",
+    "country": "Uruguay",
+    "teamId": "135362",
+    "file": "world/tsdb-135362.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/m145jb1694151931.png"
+  },
+  {
+    "name": "La Luz",
+    "key": "laluz",
+    "country": "Uruguay",
+    "teamId": "145845",
+    "file": "world/tsdb-145845.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/k2i5ho1647977067.png"
+  },
+  {
+    "name": "Cerrito",
+    "key": "cerrito",
+    "country": "Uruguay",
+    "teamId": "141374",
+    "file": "world/tsdb-141374.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/m0w93p1621866343.png"
+  },
+  {
+    "name": "Colón FC",
+    "key": "colonfc",
+    "country": "Uruguay",
+    "teamId": "148162",
+    "file": "world/tsdb-148162.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/bl2wk21727016870.png"
+  },
+  {
+    "name": "Cooper",
+    "key": "cooper",
+    "country": "Uruguay",
+    "teamId": "148161",
+    "file": "world/tsdb-148161.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/3b55ui1727016965.png"
+  },
+  {
+    "name": "Envigado",
+    "key": "envigado",
+    "country": "Colombia",
+    "teamId": "137612",
+    "file": "world/tsdb-137612.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/h1x0ic1629122571.png"
+  },
+  {
+    "name": "Boyacá Chicó",
+    "key": "boyacachico",
+    "country": "Colombia",
+    "teamId": "137622",
+    "file": "world/tsdb-137622.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/boe8tv1677602771.png"
+  },
+  {
+    "name": "Real Cartagena",
+    "key": "realcartagena",
+    "country": "Colombia",
+    "teamId": "141069",
+    "file": "world/tsdb-141069.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/1galb31615832205.png"
+  },
+  {
+    "name": "Unión Magdalena",
+    "key": "unionmagdalena",
+    "country": "Colombia",
+    "teamId": "139042",
+    "file": "world/tsdb-139042.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/i1fl6p1677602554.png"
+  },
+  {
+    "name": "Llaneros",
+    "key": "llaneros",
+    "country": "Colombia",
+    "teamId": "141067",
+    "file": "world/tsdb-141067.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/q1w56m1615832197.png"
+  },
+  {
+    "name": "Deportes Quindío",
+    "key": "deportesquindio",
+    "country": "Colombia",
+    "teamId": "141064",
+    "file": "world/tsdb-141064.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/dw28nd1778086348.png"
+  },
+  {
+    "name": "Atlético Huila",
+    "key": "atleticohuila",
+    "country": "Colombia",
+    "teamId": "139041",
+    "file": "world/tsdb-139041.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/33c2t51581253636.png"
+  },
+  {
+    "name": "Real Santander",
+    "key": "realsantander",
+    "country": "Colombia",
+    "teamId": "141070",
+    "file": "world/tsdb-141070.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/6j410j1754334140.png"
+  },
+  {
+    "name": "Boca Juniors de Cali",
+    "key": "bocajuniorsdecali",
+    "country": "Colombia",
+    "teamId": "141061",
+    "file": "world/tsdb-141061.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/kws2x41615832171.png"
+  },
+  {
+    "name": "Orsomarso",
+    "key": "orsomarso",
+    "country": "Colombia",
+    "teamId": "141068",
+    "file": "world/tsdb-141068.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/o2lntb1615832201.png"
+  },
+  {
+    "name": "Tigres FC",
+    "key": "tigresfc",
+    "country": "Colombia",
+    "teamId": "141071",
+    "file": "world/tsdb-141071.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/x6mzk41615832215.png"
+  },
+  {
+    "name": "Internacional de Palmira",
+    "key": "internacionaldepalmira",
+    "country": "Colombia",
+    "teamId": "141063",
+    "file": "world/tsdb-141063.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/mf9r4o1715065315.png"
+  },
+  {
+    "name": "Tacuary",
+    "key": "tacuary",
+    "country": "Paraguay",
+    "teamId": "140629",
+    "file": "world/tsdb-140629.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/3hcv0z1678844054.png"
+  },
+  {
+    "name": "Sol de América",
+    "key": "soldeamerica",
+    "country": "Paraguay",
+    "teamId": "138299",
+    "file": "world/tsdb-138299.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/262lff1579989421.png"
+  },
+  {
+    "name": "General Caballero",
+    "key": "generalcaballero",
+    "country": "Paraguay",
+    "teamId": "140621",
+    "file": "world/tsdb-140621.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/2prn101678717641.png"
+  },
+  {
+    "name": "Resistencia",
+    "key": "resistencia",
+    "country": "Paraguay",
+    "teamId": "140624",
+    "file": "world/tsdb-140624.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/9liee41652125663.png"
+  },
+  {
+    "name": "Guaireña",
+    "key": "guairena",
+    "country": "Paraguay",
+    "teamId": "138292",
+    "file": "world/tsdb-138292.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/09cg6j1678845419.png"
+  },
+  {
+    "name": "Fernando de la Mora",
+    "key": "fernandodelamora",
+    "country": "Paraguay",
+    "teamId": "140619",
+    "file": "world/tsdb-140619.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/cqc1is1611773168.png"
+  },
+  {
+    "name": "Deportivo Santaní",
+    "key": "deportivosantani",
+    "country": "Paraguay",
+    "teamId": "140618",
+    "file": "world/tsdb-140618.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/0ar1lk1611773164.png"
+  },
+  {
+    "name": "Martín Ledesma",
+    "key": "martinledesma",
+    "country": "Paraguay",
+    "teamId": "144719",
+    "file": "world/tsdb-144719.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/90u7nb1640225676.png"
+  },
+  {
+    "name": "Pastoreo",
+    "key": "pastoreo",
+    "country": "Paraguay",
+    "teamId": "144721",
+    "file": "world/tsdb-144721.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/i7h75c1640225688.png"
+  },
+  {
+    "name": "3 de Febrero",
+    "key": "3defebrero",
+    "country": "Paraguay",
+    "teamId": "140615",
+    "file": "world/tsdb-140615.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/x5ukz11611773151.png"
+  },
+  {
+    "name": "El Nacional",
+    "key": "elnacional",
+    "country": "Ecuador",
+    "teamId": "138222",
+    "file": "world/tsdb-138222.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/d1bstv1736221692.png"
+  },
+  {
+    "name": "Imbabura",
+    "key": "imbabura",
+    "country": "Ecuador",
+    "teamId": "145836",
+    "file": "world/tsdb-145836.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/3f0c7a1677527718.png"
+  },
+  {
+    "name": "Cumbayá",
+    "key": "cumbaya",
+    "country": "Ecuador",
+    "teamId": "141121",
+    "file": "world/tsdb-141121.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/tu8m9w1679266340.png"
+  },
+  {
+    "name": "Libertad FC",
+    "key": "libertadfc",
+    "country": "Ecuador",
+    "teamId": "145837",
+    "file": "world/tsdb-145837.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/cqkwxs1675845340.png"
+  },
+  {
+    "name": "Guayaquil City",
+    "key": "guayaquilcity",
+    "country": "Ecuador",
+    "teamId": "138224",
+    "file": "world/tsdb-138224.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/9lgwun1740586446.png"
+  },
+  {
+    "name": "9 de Octubre",
+    "key": "9deoctubre",
+    "country": "Ecuador",
+    "teamId": "140793",
+    "file": "world/tsdb-140793.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/bc9i2x1740586373.png"
+  },
+  {
+    "name": "Gualaceo",
+    "key": "gualaceo",
+    "country": "Ecuador",
+    "teamId": "141123",
+    "file": "world/tsdb-141123.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/p5xd5w1644246493.png"
+  },
+  {
+    "name": "Chacaritas",
+    "key": "chacaritas",
+    "country": "Ecuador",
+    "teamId": "141120",
+    "file": "world/tsdb-141120.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/psvnj51615839248.png"
+  },
+  {
+    "name": "Vargas Torres",
+    "key": "vargastorres",
+    "country": "Ecuador",
+    "teamId": "147319",
+    "file": "world/tsdb-147319.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/gq2nl51679390690.png"
+  },
+  {
+    "name": "Independiente Juniors",
+    "key": "independientejuniors",
+    "country": "Ecuador",
+    "teamId": "141126",
+    "file": "world/tsdb-141126.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/fwtb9j1615839275.png"
+  },
+  {
+    "name": "Cienciano",
+    "key": "cienciano",
+    "country": "Peru",
+    "teamId": "138319",
+    "file": "world/tsdb-138319.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/yla9k51734242161.png"
+  },
+  {
+    "name": "Carlos A. Mannucci",
+    "key": "carlosamannucci",
+    "country": "Peru",
+    "teamId": "138317",
+    "file": "world/tsdb-138317.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/uejyj61736447860.png"
+  },
+  {
+    "name": "Unión Comercio",
+    "key": "unioncomercio",
+    "country": "Peru",
+    "teamId": "139428",
+    "file": "world/tsdb-139428.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/7cmis61583096805.png"
+  },
+  {
+    "name": "Monagas",
+    "key": "monagas",
+    "country": "Venezuela",
+    "teamId": "137641",
+    "file": "world/tsdb-137641.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/xv00ru1751998362.png"
+  },
+  {
+    "name": "Portuguesa FC",
+    "key": "portuguesafc",
+    "country": "Venezuela",
+    "teamId": "137642",
+    "file": "world/tsdb-137642.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/nbjzn31766113635.png"
+  },
+  {
+    "name": "Angostura",
+    "key": "angostura",
+    "country": "Venezuela",
+    "teamId": "147081",
+    "file": "world/tsdb-147081.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/wfnyq61675332826.png"
+  },
+  {
+    "name": "Inter de Barinas",
+    "key": "interdebarinas",
+    "country": "Venezuela",
+    "teamId": "141314",
+    "file": "world/tsdb-141314.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/l0nmym1721096932.png"
+  },
+  {
+    "name": "Vizela",
+    "key": "vizela",
+    "country": "Portugal",
+    "teamId": "140097",
+    "file": "world/tsdb-140097.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/06nfn81596477982.png"
+  },
+  {
+    "name": "Chaves",
+    "key": "chaves",
+    "country": "Portugal",
+    "teamId": "135674",
+    "file": "world/tsdb-135674.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/0e88hj1628850708.png"
+  },
+  {
+    "name": "Portimonense",
+    "key": "portimonense",
+    "country": "Portugal",
+    "teamId": "136031",
+    "file": "world/tsdb-136031.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/9ccun71593020108.png"
+  },
+  {
+    "name": "Paços de Ferreira",
+    "key": "pacosdeferreira",
+    "country": "Portugal",
+    "teamId": "134111",
+    "file": "world/tsdb-134111.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/r85tk01628855526.png"
+  },
+  {
+    "name": "Benfica B",
+    "key": "benficab",
+    "country": "Portugal",
+    "teamId": "138860",
+    "file": "world/tsdb-138860.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/21yfn41785775787.png"
+  },
+  {
+    "name": "Porto B",
+    "key": "portob",
+    "country": "Portugal",
+    "teamId": "138861",
+    "file": "world/tsdb-138861.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/86rrtg1628850959.png"
+  },
+  {
+    "name": "Leixões",
+    "key": "leixoes",
+    "country": "Portugal",
+    "teamId": "138858",
+    "file": "world/tsdb-138858.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/6le5bu1580389318.png"
+  },
+  {
+    "name": "Mafra",
+    "key": "mafra",
+    "country": "Portugal",
+    "teamId": "138854",
+    "file": "world/tsdb-138854.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/mbze9t1580389164.png"
+  },
+  {
+    "name": "Feirense",
+    "key": "feirense",
+    "country": "Portugal",
+    "teamId": "135675",
+    "file": "world/tsdb-135675.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/4b27rw1628851130.png"
+  },
+  {
+    "name": "Oliveirense",
+    "key": "oliveirense",
+    "country": "Portugal",
+    "teamId": "138859",
+    "file": "world/tsdb-138859.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/7bdrmi1689642994.png"
+  },
+  {
+    "name": "Penafiel",
+    "key": "penafiel",
+    "country": "Portugal",
+    "teamId": "134587",
+    "file": "world/tsdb-134587.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/91hl741593020134.png"
+  },
+  {
+    "name": "União de Leiria",
+    "key": "uniaodeleiria",
+    "country": "Portugal",
+    "teamId": "140355",
+    "file": "world/tsdb-140355.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/bd9ohv1719887142.png"
+  },
+  {
+    "name": "Felgueiras",
+    "key": "felgueiras",
+    "country": "Portugal",
+    "teamId": "143710",
+    "file": "world/tsdb-143710.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/yt6cw41720545499.png"
+  },
+  {
+    "name": "Oriental",
+    "country": "Uruguay",
+    "sourceName": "Oriental de La Paz",
+    "teamId": "147196",
+    "file": "conmebol/oriental.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/s5fl6n1677497661.png",
+    "sourceType": "TheSportsDB",
+    "relation": "same-club verified by country and league listing"
+  },
+  {
+    "name": "Real Soacha",
+    "country": "Colombia",
+    "sourceName": "Real Cundinamarca",
+    "teamId": "149050",
+    "file": "conmebol/real_soacha.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/3c46781721453110.png",
+    "sourceType": "TheSportsDB",
+    "relation": "club rename verified by federation listing"
+  },
+  {
+    "name": "Barranquilla FC",
+    "country": "Colombia",
+    "sourceName": "Barranquilla",
+    "teamId": "141060",
+    "file": "conmebol/barranquilla_fc.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/mveht31615832167.png",
+    "sourceType": "TheSportsDB",
+    "relation": "same club verified by official club site"
+  },
+  {
+    "name": "Bogotá FC",
+    "country": "Colombia",
+    "sourceName": "Bogotá",
+    "teamId": "141062",
+    "file": "conmebol/bogota_fc.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/njfros1678411321.png",
+    "sourceType": "TheSportsDB",
+    "relation": "same club verified by official club site"
+  },
+  {
+    "name": "Atlético FC",
+    "country": "Colombia",
+    "sourceName": "Atlético Cali",
+    "teamId": "141059",
+    "file": "conmebol/atletico_fc.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/qt5uiz1615832161.png",
+    "sourceType": "TheSportsDB",
+    "relation": "name alias verified by Colombian club history"
+  },
+  {
+    "name": "San Lorenzo PAR",
+    "country": "Paraguay",
+    "sourceName": "Sportivo San Lorenzo",
+    "teamId": "138298",
+    "file": "conmebol/san_lorenzo_par.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/yi6fi91579991071.png",
+    "sourceType": "TheSportsDB",
+    "relation": "same club verified by full name and country"
+  },
+  {
+    "name": "Encarnación FC",
+    "country": "Paraguay",
+    "sourceName": "Encarnación",
+    "teamId": "149489",
+    "file": "conmebol/encarnacion_fc.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/b299061730664719.png",
+    "sourceType": "TheSportsDB",
+    "relation": "same club verified by full name and country"
+  },
+  {
+    "name": "Cuniburo",
+    "country": "Ecuador",
+    "sourceName": "Vinotinto Ecuador",
+    "teamId": "",
+    "file": "conmebol/cuniburo.png",
+    "source": "https://ligapro.ec/wp-content/uploads/2025/05/vinotinto0525.png",
+    "sourceType": "LigaPro Ecuador",
+    "relation": "club rename; current league crest"
+  },
+  {
+    "name": "Leones del Norte",
+    "country": "Ecuador",
+    "sourceName": "Leones FC",
+    "teamId": "",
+    "file": "conmebol/leones_del_norte.png",
+    "source": "https://ligapro.ec/wp-content/uploads/2025/05/leones0525.png",
+    "sourceType": "LigaPro Ecuador",
+    "relation": "club rename; current league crest"
+  },
+  {
+    "name": "San Antonio",
+    "country": "Ecuador",
+    "sourceName": "San Antonio FC",
+    "teamId": "",
+    "file": "conmebol/san_antonio.png",
+    "source": "https://ligapro.ec/wp-content/uploads/2024/04/sanantonioB.png",
+    "sourceType": "LigaPro Ecuador",
+    "relation": "official league crest"
+  },
+  {
+    "name": "Darmstadt",
+    "sourceName": "SV Darmstadt 98",
+    "country": "Germany",
+    "competition": "ger.2",
+    "teamId": "3812",
+    "file": "world/espn-3812.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3812.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Greuther Fürth",
+    "sourceName": "SpVgg Greuther Fürth",
+    "country": "Germany",
+    "competition": "ger.2",
+    "teamId": "3070",
+    "file": "world/espn-3070.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3070.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Nürnberg",
+    "sourceName": "1. FC Nürnberg",
+    "country": "Germany",
+    "competition": "ger.2",
+    "teamId": "269",
+    "file": "world/espn-269.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/269.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Magdeburg",
+    "sourceName": "1. FC Magdeburg",
+    "country": "Germany",
+    "competition": "ger.2",
+    "teamId": "10382",
+    "file": "world/espn-10382.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/10382.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Eintracht Braunschweig",
+    "sourceName": "TSV Eintracht Braunschweig",
+    "country": "Germany",
+    "competition": "ger.2",
+    "teamId": "3067",
+    "file": "world/espn-3067.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3067.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Clermont",
+    "sourceName": "Clermont Foot",
+    "country": "France",
+    "competition": "fra.2",
+    "teamId": "3171",
+    "file": "world/espn-3171.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3171.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Red Star",
+    "sourceName": "Red Star FC 93",
+    "country": "France",
+    "competition": "fra.2",
+    "teamId": "11884",
+    "file": "world/espn-11884.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/11884.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Dordrecht",
+    "sourceName": "FC Dordrecht",
+    "country": "Netherlands",
+    "competition": "ned.2",
+    "teamId": "4426",
+    "file": "world/espn-4426.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4426.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Emmen",
+    "sourceName": "FC Emmen",
+    "country": "Netherlands",
+    "competition": "ned.2",
+    "teamId": "3707",
+    "file": "world/espn-3707.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3707.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Den Bosch",
+    "sourceName": "FC Den Bosch",
+    "country": "Netherlands",
+    "competition": "ned.2",
+    "teamId": "271",
+    "file": "world/espn-271.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/271.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Union Saint-Gilloise",
+    "sourceName": "Union St.-Gilloise",
+    "country": "Belgium",
+    "competition": "bel.1",
+    "teamId": "5807",
+    "file": "world/espn-5807.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/5807.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Young Boys",
+    "sourceName": "Young Boys",
+    "country": "Switzerland",
+    "competition": "sui.1",
+    "teamId": "2722",
+    "file": "world/espn-2722.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2722.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "PAOK",
+    "sourceName": "PAOK",
+    "country": "Switzerland",
+    "competition": "gre.1",
+    "teamId": "605",
+    "file": "world/espn-605.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/605.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Malmö FF",
+    "sourceName": "Malmö FF",
+    "country": "Switzerland",
+    "competition": "swe.1",
+    "teamId": "2720",
+    "file": "world/espn-2720.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2720.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "FCSB",
+    "sourceName": "FCSB",
+    "country": "Switzerland",
+    "competition": "rou.1",
+    "teamId": "484",
+    "file": "world/espn-484.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/484.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Rodez",
+    "sourceName": "Rodez Aveyron",
+    "country": "France",
+    "competition": "fra.2",
+    "teamId": "7719",
+    "file": "world/espn-7719.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7719.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Laval",
+    "sourceName": "Stade Laval",
+    "country": "France",
+    "competition": "fra.2",
+    "teamId": "3266",
+    "file": "world/espn-3266.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3266.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Cercle Brugge",
+    "sourceName": "Cercle Brugge KSV",
+    "country": "Belgium",
+    "competition": "bel.1",
+    "teamId": "3610",
+    "file": "world/espn-3610.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3610.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Kortrijk",
+    "sourceName": "KV Kortrijk",
+    "country": "Belgium",
+    "competition": "bel.1",
+    "teamId": "5786",
+    "file": "world/espn-5786.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/5786.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Mechelen",
+    "sourceName": "KV Mechelen",
+    "country": "Belgium",
+    "competition": "bel.1",
+    "teamId": "7879",
+    "file": "world/espn-7879.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7879.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Westerlo",
+    "sourceName": "KVC Westerlo",
+    "country": "Belgium",
+    "competition": "bel.1",
+    "teamId": "606",
+    "file": "world/espn-606.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/606.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Charleroi",
+    "sourceName": "Royal Charleroi SC",
+    "country": "Belgium",
+    "competition": "bel.1",
+    "teamId": "3616",
+    "file": "world/espn-3616.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3616.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Rizespor",
+    "sourceName": "Caykur Rizespor",
+    "country": "Türkiye",
+    "competition": "tur.1",
+    "teamId": "7656",
+    "file": "world/espn-7656.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7656.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Gaziantep",
+    "sourceName": "Gaziantep FK",
+    "country": "Türkiye",
+    "competition": "tur.1",
+    "teamId": "20070",
+    "file": "world/espn-20070.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/20070.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Başakşehir",
+    "sourceName": "Istanbul Basaksehir",
+    "country": "Türkiye",
+    "competition": "tur.1",
+    "teamId": "7914",
+    "file": "world/espn-7914.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7914.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Salzburg",
+    "sourceName": "RB Salzburg",
+    "country": "Austria",
+    "competition": "aut.1",
+    "teamId": "2790",
+    "file": "world/espn-2790.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2790.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Sturm Graz",
+    "sourceName": "SK Sturm Graz",
+    "country": "Austria",
+    "competition": "aut.1",
+    "teamId": "3746",
+    "file": "world/espn-3746.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3746.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Elfsborg",
+    "sourceName": "IF Elfsborg",
+    "country": "Sweden",
+    "competition": "swe.1",
+    "teamId": "529",
+    "file": "world/espn-529.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/529.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Puerto Cabello",
+    "sourceName": "Academia Puerto Cabello",
+    "country": "Venezuela",
+    "competition": "ven.1",
+    "teamId": "18995",
+    "file": "world/espn-18995.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/18995.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Zamora",
+    "sourceName": "Zamora FC",
+    "country": "Venezuela",
+    "competition": "ven.1",
+    "teamId": "6763",
+    "file": "world/espn-6763.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/6763.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Central Córdoba",
+    "sourceName": "Central Córdoba (Santiago del Estero)",
+    "country": "Argentina",
+    "competition": "arg.1",
+    "teamId": "11989",
+    "file": "world/espn-11989.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/11989.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Santa Fe",
+    "sourceName": "Independiente Santa Fe",
+    "country": "Colombia",
+    "competition": "col.1",
+    "teamId": "5488",
+    "file": "world/espn-5488.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/5488.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Junior",
+    "sourceName": "Atlético Junior",
+    "country": "Colombia",
+    "competition": "col.1",
+    "teamId": "4815",
+    "file": "world/espn-4815.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/4815.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Jaguares",
+    "sourceName": "Jaguares de Córdoba",
+    "country": "Colombia",
+    "competition": "col.1",
+    "teamId": "10309",
+    "file": "world/espn-10309.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/10309.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Trinidense",
+    "sourceName": "Sportivo Trinidense",
+    "country": "Paraguay",
+    "competition": "par.1",
+    "teamId": "7466",
+    "file": "world/espn-7466.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7466.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Universidad Católica ECU",
+    "sourceName": "Universidad Católica (Quito)",
+    "country": "Ecuador",
+    "competition": "ecu.1",
+    "teamId": "9283",
+    "file": "world/espn-9283.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/9283.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Bodø/Glimt",
+    "sourceName": "Bodo/Glimt",
+    "country": "Norway",
+    "competition": "uefa.champions",
+    "teamId": "2980",
+    "file": "world/espn-2980.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/2980.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Slavia Praha",
+    "sourceName": "Slavia Prague",
+    "country": "Czechia",
+    "competition": "uefa.champions",
+    "teamId": "494",
+    "file": "world/espn-494.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/494.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Sparta Praha",
+    "sourceName": "Sparta Prague",
+    "country": "Czechia",
+    "competition": "uefa.europa",
+    "teamId": "433",
+    "file": "world/espn-433.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/433.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Midtjylland",
+    "sourceName": "FC Midtjylland",
+    "country": "Denmark",
+    "competition": "uefa.europa.conf",
+    "teamId": "572",
+    "file": "world/espn-572.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/572.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Hertha BSC",
+    "sourceName": "Hertha Berlin",
+    "country": "Germany",
+    "competition": "ger.2",
+    "teamId": "129",
+    "file": "world/espn-129.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/129.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Paderborn",
+    "sourceName": "SC Paderborn 07",
+    "country": "Germany",
+    "competition": "ger.1",
+    "teamId": "3307",
+    "file": "world/espn-3307.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3307.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Elversberg",
+    "sourceName": "SV Elversberg",
+    "country": "Germany",
+    "competition": "ger.1",
+    "teamId": "10388",
+    "file": "world/espn-10388.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/10388.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "La Equidad",
+    "sourceName": "Internacional de Bogotá",
+    "country": "Colombia",
+    "competition": "col.1",
+    "teamId": "7445",
+    "file": "world/espn-7445.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/7445.png",
+    "sourceType": "ESPN",
+    "relation": "club rebrand verified at official club"
+  },
+  {
+    "name": "Cambuur",
+    "sourceName": "SC Cambuur",
+    "country": "Netherlands",
+    "competition": "ned.1",
+    "teamId": "3736",
+    "file": "world/espn-3736.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3736.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Roda JC",
+    "sourceName": "Roda JC Kerkrade",
+    "country": "Netherlands",
+    "competition": "ned.2",
+    "teamId": "149",
+    "file": "world/espn-149.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/149.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Genk",
+    "sourceName": "Racing Genk",
+    "country": "Belgium",
+    "competition": "bel.1",
+    "teamId": "938",
+    "file": "world/espn-938.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/938.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Gent",
+    "sourceName": "KAA Gent",
+    "country": "Belgium",
+    "competition": "bel.1",
+    "teamId": "3611",
+    "file": "world/espn-3611.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/3611.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Sint-Truiden",
+    "sourceName": "Sint-Truidense",
+    "country": "Belgium",
+    "competition": "uefa.europa.conf",
+    "teamId": "936",
+    "file": "world/espn-936.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/936.png",
+    "sourceType": "ESPN",
+    "relation": "same club; canonical name and competition verified"
+  },
+  {
+    "name": "Deportivo La Coruña",
+    "sourceName": "Deportivo",
+    "country": "Spain",
+    "competition": "esp.1",
+    "teamId": "90",
+    "file": "world/espn-90.png",
+    "source": "https://a.espncdn.com/i/teamlogos/soccer/500/90.png",
+    "sourceType": "ESPN",
+    "relation": "ESPN team identity confirmed by team results page"
+  },
+  {
+    "name": "River Plate URU",
+    "sourceName": "River Plate Montevideo",
+    "country": "Uruguay",
+    "teamId": "135373",
+    "file": "conmebol/river_plate_uru.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/vstxtq1473541083.png",
+    "sourceType": "TheSportsDB",
+    "relation": "same club; exact full name and country confirmed"
+  },
+  {
+    "name": "Jorge Wilstermann",
+    "key": "jorgewilstermann",
+    "country": "Bolivia",
+    "teamId": "138207",
+    "file": "world/tsdb-138207.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/xij8521681104519.png"
+  },
+  {
+    "name": "Royal Pari",
+    "key": "royalpari",
+    "country": "Bolivia",
+    "teamId": "138202",
+    "file": "world/tsdb-138202.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/k1b53b1579798613.png"
+  },
+  {
+    "name": "Real Santa Cruz",
+    "key": "realsantacruz",
+    "country": "Bolivia",
+    "teamId": "138204",
+    "file": "world/tsdb-138204.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/0h9kc41611512911.png"
+  },
+  {
+    "name": "Rotherham United",
+    "key": "rotherhamunited",
+    "country": "England",
+    "teamId": "134231",
+    "file": "world/tsdb-134231.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/yfoiyf1779788861.png"
+  },
+  {
+    "name": "Exeter City",
+    "key": "exetercity",
+    "country": "England",
+    "teamId": "134365",
+    "file": "world/tsdb-134365.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/98wt4h1521144923.png"
+  },
+  {
+    "name": "Bristol Rovers",
+    "key": "bristolrovers",
+    "country": "England",
+    "teamId": "134358",
+    "file": "world/tsdb-134358.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/kkmj4o1689317429.png"
+  },
+  {
+    "name": "Northampton Town",
+    "key": "northamptontown",
+    "country": "England",
+    "teamId": "134370",
+    "file": "world/tsdb-134370.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/aa42641684131255.png"
+  },
+  {
+    "name": "Crawley Town",
+    "key": "crawleytown",
+    "country": "England",
+    "teamId": "134363",
+    "file": "world/tsdb-134363.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/a9hv3n1689632800.png"
+  },
+  {
+    "name": "Shrewsbury Town",
+    "key": "shrewsburytown",
+    "country": "England",
+    "teamId": "134377",
+    "file": "world/tsdb-134377.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/9zqhpw1546434997.png"
+  },
+  {
+    "name": "Cartagena",
+    "key": "cartagena",
+    "country": "Spain",
+    "teamId": "137446",
+    "file": "world/tsdb-137446.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/xzrxd71677472112.png"
+  },
+  {
+    "name": "Huesca",
+    "key": "huesca",
+    "country": "Spain",
+    "teamId": "135454",
+    "file": "world/tsdb-135454.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/tuxusx1447590509.png"
+  },
+  {
+    "name": "Mirandés",
+    "key": "mirandes",
+    "country": "Spain",
+    "teamId": "134698",
+    "file": "world/tsdb-134698.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/xjeaa21625677345.png"
+  },
+  {
+    "name": "Salernitana",
+    "key": "salernitana",
+    "country": "Italy",
+    "teamId": "133846",
+    "file": "world/tsdb-133846.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/nmi7mk1603170517.png"
+  },
+  {
+    "name": "Brescia",
+    "key": "brescia",
+    "country": "Italy",
+    "teamId": "133690",
+    "file": "world/tsdb-133690.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/k0qhbd1566756266.png"
+  },
+  {
+    "name": "Cosenza",
+    "key": "cosenza",
+    "country": "Italy",
+    "teamId": "134253",
+    "file": "world/tsdb-134253.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/u6z5yu1656094382.png"
+  },
+  {
+    "name": "Reggiana",
+    "key": "reggiana",
+    "country": "Italy",
+    "teamId": "137121",
+    "file": "world/tsdb-137121.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/dffx6o1600266770.png"
+  },
+  {
+    "name": "Bari",
+    "key": "bari",
+    "country": "Italy",
+    "teamId": "133688",
+    "file": "world/tsdb-133688.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/isfrtg1579724972.png"
+  },
+  {
+    "name": "Spezia",
+    "key": "spezia",
+    "country": "Italy",
+    "teamId": "133879",
+    "file": "world/tsdb-133879.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/3wgebp1749146364.png"
+  },
+  {
+    "name": "Cittadella",
+    "key": "cittadella",
+    "country": "Italy",
+    "teamId": "133692",
+    "file": "world/tsdb-133692.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/olg5r11720176835.png"
+  },
+  {
+    "name": "Fortuna Düsseldorf",
+    "key": "fortunadusseldorf",
+    "country": "Germany",
+    "teamId": "133935",
+    "file": "world/tsdb-133935.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/rsruww1473454140.png"
+  },
+  {
+    "name": "Preußen Münster",
+    "key": "preuenmunster",
+    "country": "Germany",
+    "teamId": "137965",
+    "file": "world/tsdb-137965.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/nu38ih1579106303.png"
+  },
+  {
+    "name": "Jahn Regensburg",
+    "key": "jahnregensburg",
+    "country": "Germany",
+    "teamId": "136026",
+    "file": "world/tsdb-136026.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/dedrta1608236993.png"
+  },
+  {
+    "name": "Caen",
+    "key": "caen",
+    "country": "France",
+    "teamId": "134787",
+    "file": "world/tsdb-134787.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/416kon1784484564.png"
+  },
+  {
+    "name": "Amiens",
+    "key": "amiens",
+    "country": "France",
+    "teamId": "135658",
+    "file": "world/tsdb-135658.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/nwgget1656423507.png"
+  },
+  {
+    "name": "Bastia",
+    "key": "bastia",
+    "country": "France",
+    "teamId": "133933",
+    "file": "world/tsdb-133933.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/mv09b91754278549.png"
+  },
+  {
+    "name": "Ajaccio",
+    "key": "ajaccio",
+    "country": "France",
+    "teamId": "133702",
+    "file": "world/tsdb-133702.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/0ikdv61709214400.png"
+  },
+  {
+    "name": "Martigues",
+    "key": "martigues",
+    "country": "France",
+    "teamId": "146313",
+    "file": "world/tsdb-146313.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/ai0dx11654776181.png"
+  },
+  {
+    "name": "Dender",
+    "key": "dender",
+    "country": "Belgium",
+    "teamId": "133863",
+    "file": "world/tsdb-133863.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/r4ihc61654884430.png"
+  },
+  {
+    "name": "Beerschot",
+    "key": "beerschot",
+    "country": "Belgium",
+    "teamId": "138142",
+    "file": "world/tsdb-138142.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/2dahay1595605631.png"
+  },
+  {
+    "name": "Kasımpaşa",
+    "key": "kasmpasa",
+    "country": "Turkey",
+    "teamId": "133834",
+    "file": "world/tsdb-133834.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/uryxtp1448203236.png"
+  },
+  {
+    "name": "Antalyaspor",
+    "key": "antalyaspor",
+    "country": "Turkey",
+    "teamId": "133799",
+    "file": "world/tsdb-133799.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/vqoral1601669436.png"
+  },
+  {
+    "name": "Kayserispor",
+    "key": "kayserispor",
+    "country": "Turkey",
+    "teamId": "133802",
+    "file": "world/tsdb-133802.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/bvskgi1601668985.png"
+  },
+  {
+    "name": "Fatih Karagümrük",
+    "key": "fatihkaragumruk",
+    "country": "Turkey",
+    "teamId": "138983",
+    "file": "world/tsdb-138983.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/bfb84y1580847945.png"
+  },
+  {
+    "name": "Ross County",
+    "key": "rosscounty",
+    "country": "Scotland",
+    "teamId": "133940",
+    "file": "world/tsdb-133940.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/yi482m1688532289.png"
+  },
+  {
+    "name": "Patriotas",
+    "key": "patriotas",
+    "country": "Colombia",
+    "teamId": "137619",
+    "file": "world/tsdb-137619.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/vvo3s51576166056.png"
+  },
+  {
+    "name": "César Vallejo",
+    "key": "cesarvallejo",
+    "country": "Peru",
+    "teamId": "138328",
+    "file": "world/tsdb-138328.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/yqxot61678411842.png"
+  },
+  {
+    "name": "Racing Ferrol",
+    "key": "racingferrol",
+    "country": "Spain",
+    "teamId": "137827",
+    "file": "world/tsdb-137827.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/m1sv6g1687262203.png"
+  },
+  {
+    "name": "Zaragoza",
+    "key": "zaragoza",
+    "country": "Spain",
+    "teamId": "133737",
+    "file": "world/tsdb-133737.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/sxpwxs1473503702.png"
+  },
+  {
+    "name": "Ulm",
+    "key": "ulm",
+    "country": "Germany",
+    "teamId": "138414",
+    "file": "world/tsdb-138414.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/v5yjla1580150603.png"
+  },
+  {
+    "name": "Hearts",
+    "key": "hearts",
+    "country": "Scotland",
+    "teamId": "133643",
+    "file": "world/tsdb-133643.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/twqvyt1447597939.png"
+  },
+  {
+    "name": "Crvena zvezda",
+    "key": "crvenazvezda",
+    "country": "Serbia",
+    "teamId": "133987",
+    "file": "world/tsdb-133987.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/osgmbz1781157114.png"
+  },
+  {
+    "name": "Maccabi Tel Aviv",
+    "key": "maccabitelaviv",
+    "country": "Israel",
+    "teamId": "134315",
+    "file": "world/tsdb-134315.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/oeer261781239315.png"
+  },
+  {
+    "name": "Qarabağ",
+    "key": "qarabag",
+    "country": "Azerbaijan",
+    "teamId": "135702",
+    "file": "world/tsdb-135702.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/f9h2by1725001244.png"
+  },
+  {
+    "name": "Dynamo Kyiv",
+    "key": "dynamokyiv",
+    "country": "Ukraine",
+    "teamId": "133944",
+    "file": "world/tsdb-133944.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/ktbncx1781158762.png"
+  },
+  {
+    "name": "RFS",
+    "key": "rfs",
+    "country": "Latvia",
+    "teamId": "137985",
+    "file": "world/tsdb-137985.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/cep7qg1644854951.png"
+  },
+  {
+    "name": "Ludogorets",
+    "key": "ludogorets",
+    "country": "Bulgaria",
+    "teamId": "133981",
+    "file": "world/tsdb-133981.png",
+    "source": "https://r2.thesportsdb.com/images/media/team/badge/35cw6l1752946925.png"
+  }
+]

@@ -63,6 +63,7 @@
     }
   }, 7000);
 </script>
+<script src="js/core/error_log.js"></script>
 <script src="js/competitions.js"></script>
 <script src="data/competition_teams.js"></script>
 <script src="data/international_teams_2026_27.js"></script>
@@ -71,9 +72,11 @@
 <script src="data/players_live.js"></script>
 <script src="data/club_badges.js"></script>
 <script src="data/club_badges_unverified.js"></script>
+<script src="data/club_badges_competitions.js"></script>
 <script src="js/core/club_badges_core.js"></script>
 <script src="data/club_badges_verified_2026.js"></script>
 <script src="data/club_badges_verified_world.js"></script>
+<script src="data/club_badges_verified_overrides.js"></script>
 <script src="data/club_badges_local_index.js"></script>
 <script src="data/player_photos.js"></script>
 <script src="data/player_photos_modular.js"></script>
@@ -90,7 +93,7 @@
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(error => window.AFMErrorLog?.record('service-worker-register', error?.message || 'Falha ao registrar o cache offline'));
     });
   }
 </script>

@@ -98,12 +98,18 @@ CREATE TRIGGER trg_afm_saves_updated_at
 ALTER TABLE public.afm_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.afm_saves ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Public full access to afm_users" ON public.afm_users;
-DROP POLICY IF EXISTS "Public full access to afm_saves" ON public.afm_saves;
-DROP POLICY IF EXISTS afm_saves_select_own ON public.afm_saves;
-DROP POLICY IF EXISTS afm_saves_insert_own ON public.afm_saves;
-DROP POLICY IF EXISTS afm_saves_update_own ON public.afm_saves;
-DROP POLICY IF EXISTS afm_saves_delete_own ON public.afm_saves;
+-- Remova qualquer política antiga nesses dados: permissões permissivas são combinadas por OR.
+DO $$
+DECLARE existing_policy RECORD;
+BEGIN
+    FOR existing_policy IN
+        SELECT schemaname, tablename, policyname
+        FROM pg_policies
+        WHERE schemaname = 'public' AND tablename IN ('afm_users', 'afm_saves')
+    LOOP
+        EXECUTE format('DROP POLICY %I ON %I.%I', existing_policy.policyname, existing_policy.schemaname, existing_policy.tablename);
+    END LOOP;
+END $$;
 CREATE POLICY afm_saves_select_own ON public.afm_saves
     FOR SELECT TO authenticated USING ((SELECT auth.uid()) = user_id);
 CREATE POLICY afm_saves_insert_own ON public.afm_saves

@@ -24,12 +24,13 @@ npx serve .
 
 O jogo mantém três slots locais por conta. A cópia local é a fonte de recuperação offline. A sincronização na nuvem depende do projeto Supabase e de políticas RLS compatíveis com a autenticação usada pelo jogo.
 
-**Atenção:** o login e o esquema SQL atuais ainda usam autenticação própria com senhas em texto puro e políticas de acesso anônimo amplas. Não use a sincronização com dados sensíveis nem exponha o projeto a outros usuários antes de migrar para Supabase Auth e políticas de propriedade por usuário. Não aplique políticas mais restritivas isoladamente: o login atual não fornece `auth.uid()`.
+O código atual usa Supabase Auth e define políticas RLS por proprietário em `supabase/schema.sql`. A configuração e as políticas do projeto remoto não foram verificadas nesta auditoria; confirme que o schema atual foi aplicado antes de habilitar sincronização para outros usuários.
 
 ## Verificações
 
 ```sh
 node scripts/test-gameplay-systems.js
+node scripts/test-error-log.js
 node scripts/audit-football-data.js
 ```
 

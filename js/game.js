@@ -24,7 +24,7 @@ function getDbMode(){
 }
 
 function setDbMode(){
-  try { localStorage.setItem('aquino_fm_db_mode', 'mod'); } catch(e){}
+  try { localStorage.setItem('aquino_fm_db_mode', 'mod'); } catch(e){ window.AFMErrorLog?.recordHandled(e, 'storage.setDbMode'); }
 }
 
 function clubDisplayName(name){
@@ -878,6 +878,7 @@ function scheduleMarketFilter(renderList){
 }
 let seasonTab='nacional';
 let continentalTab='sulamericana';
+let continentalPhase='';
 let configTab='save';
 let auditCompFilter='all';
 
@@ -916,7 +917,7 @@ if(state){
     ensureTacticsState(state);
     repairSaveIfCorrupted(state);
     save();
-  } catch(e){}
+  } catch(e){ recordAFMError('save-repair', e); }
 }
 
 // =========================================
@@ -1664,7 +1665,7 @@ function openStadiumModal(initialTab){
                     <div style="font-size:9px;color:rgba(255,255,255,0.4)">lugares novos</div>
                   </div>
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
-                    <div style="color:#fff;font-size:16px;font-weight:900">${stData.activeWork ? `${stData.activeWork.roundsRemaining} rodadas` : '2 rodadas'}</div>
+                    <div style="color:#fff;font-size:16px;font-weight:900">${stData.activeWork ? `Faltam ${getStadiumWorkDaysRemaining(stData.activeWork)} dias` : '14 dias'}</div>
                     <div style="font-size:9px;color:rgba(255,255,255,0.4)">${stData.activeWork ? 'obra em andamento' : 'prazo de construção'}</div>
                   </div>
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
@@ -1676,7 +1677,7 @@ function openStadiumModal(initialTab){
                 <div style="margin-top:16px">
                   ${stData.activeWork ? `
                     <button class="btn" id="btnStartSideWork" disabled style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;background:#334155;color:#cbd5e1;cursor:not-allowed">
-                      🏗️ OBRA EM ANDAMENTO • ${stData.activeWork.roundsRemaining} RODADAS
+                      🏗️ OBRA EM ANDAMENTO • FALTAM ${getStadiumWorkDaysRemaining(stData.activeWork)} DIAS
                     </button>
                   ` : stData.sides[stadiumSelectedSide] ? `
                     <button class="btn" id="btnStartSideWork" disabled style="width:100%;padding:12px;font-size:13px;font-weight:900;border-radius:10px;background:#22c55e;color:#000;cursor:not-allowed;opacity:0.9">
@@ -2959,7 +2960,7 @@ let isBuildingStadiumSide = false;
 function buildStadiumSide(side, mode = 'cash'){
   if(isBuildingStadiumSide) return false;
   const stData = getStadiumExpansionData();
-  if(stData.activeWork){ toast(`Obra do Anel ${stData.activeWork.ring} em andamento: faltam ${stData.activeWork.roundsRemaining} rodadas.`); return false; }
+  if(stData.activeWork){ toast(`Obra do Anel ${stData.activeWork.ring} em andamento: faltam ${getStadiumWorkDaysRemaining(stData.activeWork)} dias.`); return false; }
   const curRing = Math.max(1, Math.min(stData.maxRings || 6, Number(stData.ring) || 1));
   if(curRing > stData.maxUnlockedRing){ toast('Evolua o estádio para liberar esse anel.'); return false; }
   stData.ring = curRing;
@@ -2993,7 +2994,7 @@ function buildStadiumSide(side, mode = 'cash'){
       }
       state.balance -= cost;
       state.expense = (state.expense || 0) + cost;
-      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()} do Anel ${curRing}. Entrega em 2 rodadas.`);
+      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()} do Anel ${curRing}. Conclusão em 14 dias.`);
     } else {
       const downPayment = cost * 0.20;
       if(state.balance < downPayment){
@@ -3017,9 +3018,11 @@ function buildStadiumSide(side, mode = 'cash'){
       stData.debt.monthly += monthlyInst;
       stData.debt.monthsLeft = Math.max(stData.debt.monthsLeft, numMonths);
 
-      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()} do Anel ${curRing}! Entrada de ${fmtMoney(downPayment)} paga; entrega em 2 rodadas.`);
+      toast(`Obra iniciada no Setor ${targetSide.toUpperCase()} do Anel ${curRing}! Entrada de ${fmtMoney(downPayment)} paga; conclusão em 14 dias.`);
     }
-    stData.activeWork = { ring: curRing, side: targetSide, roundsRemaining: 2 };
+    const finishDate = new Date(`${state.date}T12:00:00`);
+    finishDate.setDate(finishDate.getDate() + 14);
+    stData.activeWork = { ring: curRing, side: targetSide, finishDate: finishDate.toISOString().slice(0, 10) };
 
     save();
     render();
@@ -3029,12 +3032,23 @@ function buildStadiumSide(side, mode = 'cash'){
   }
 }
 
-function processStadiumConstructionRound(){
+function getStadiumWorkDaysRemaining(work = state?.stadiumRingData?.activeWork){
+  if(!work || !state?.date) return 0;
+  if(!work.finishDate){
+    const legacyFinishDate = new Date(`${state.date}T12:00:00`);
+    legacyFinishDate.setDate(legacyFinishDate.getDate() + Math.max(1, Number(work.roundsRemaining) || 1) * 7);
+    work.finishDate = legacyFinishDate.toISOString().slice(0, 10);
+  }
+  const today = Date.parse(`${state.date}T00:00:00`);
+  const finish = Date.parse(`${work.finishDate}T00:00:00`);
+  return Number.isFinite(today) && Number.isFinite(finish) ? Math.max(0, Math.ceil((finish - today) / 86400000)) : 0;
+}
+
+function processStadiumConstructionDay(){
   if(!state) return;
   const st = getStadiumExpansionData();
   if(!st.activeWork) return;
-  st.activeWork.roundsRemaining = Math.max(0, (Number(st.activeWork.roundsRemaining) || 1) - 1);
-  if(st.activeWork.roundsRemaining) return;
+  if(getStadiumWorkDaysRemaining(st.activeWork) > 0) return;
   const { ring, side } = st.activeWork;
   st.rings[ring][side] = true;
   st.purchasedSectors = Array.isArray(st.purchasedSectors) ? st.purchasedSectors : [];
@@ -4520,95 +4534,59 @@ let copaCurrentPhase = '1ª Fase';
 let copaSearchFilter = '';
 
 function initCopaDoBrasilData(){
-  const allClubs = [
-    // Jogos reais do Screenshot 1
-    ['Gazin Porto Velho', 'Real Brasília'],
-    ['Guaporé', 'Sousa'],
-    ['Araguaína', 'Luverdense'],
-    ['Cianorte', 'Ceilândia'],
-    ['Madureira', 'Operário VG'],
-    ['Altos', 'Portuguesa'],
-    ['Inhumas', 'Juazeirense'],
-    ['Lagarto', 'Jacuipense'],
-    ['América', 'Tombense'],
-    ['Azuriz', 'Imperatriz'],
-    ['Sergipe', 'FC Cascavel'],
-    ['Operário-MS', 'Piauí'],
-    ['Central', 'São José'],
-    ['Brasiliense', 'Água Santa'],
-    ['Trem', 'Humaitá'],
-    ['São Raimundo-RR', 'Tocantinópolis'],
-    ['Capital-TO', 'União Rondonópolis'],
-    ['Maracanã', 'Iguatu'],
-    ['Santa Cruz-RN', 'Potiguar de Mossoró'],
-    ['Treze', 'Sousa-PB'],
-    ['ASA', 'Murici'],
-    ['CSE', 'Itabaiana'],
-    ['Fluminense-PI', 'River-PI'],
-    ['Maranhão', 'Moto Club'],
-    ['Sampaio Corrêa', 'Cordino'],
-    ['Águia de Marabá', 'Cametá'],
-    ['Castanhal', 'Tuna Luso'],
-    ['Manaus', 'Nacional-AM'],
-    ['Princesa do Solimões', 'Manauara'],
-    ['Rio Branco-AC', 'Galvez'],
-    ['São Francisco-AC', 'Plácido de Castro'],
-    ['Porto Velho', 'Genus']
-  ];
-
-  if(state?.club && !allClubs.some(([h,a]) => norm(h)===norm(state.club) || norm(a)===norm(state.club))){
-    allClubs[0][1] = state.club;
+  const serieA = window.COMPETITION_TEAMS?.['bra-a'] || [];
+  const brazilianTeams = Object.entries(window.COMPETITION_TEAMS || {}).filter(([id]) => id.startsWith('bra-')).flatMap(([,teams]) => teams);
+  const available = [...new Set([...brazilianTeams, ...['bra-b','bra-c','bra-d'].flatMap(id => window.COMPETITION_TEAMS?.[id] || [])])]
+    .filter(name => !serieA.some(team => norm(team) === norm(name)))
+    .sort((a,b) => teamStrengthByName(a) - teamStrengthByName(b) || norm(a).localeCompare(norm(b)));
+  const federationQuotas = {'bra-est-sp':6,'bra-est-rj':6,'bra-est-mg':5,'bra-est-rs':5,'bra-est-pr':5,'bra-est-ce':4,'bra-est-go':4,'bra-est-sc':4,'bra-est-ba':4,'bra-est-pe':4,'bra-est-df':3};
+  const regional = [];
+  Object.entries(federationQuotas).forEach(([id, quota]) => {
+    const standings = (getStateCompData(id)?.teams || []).slice().sort((a,b) => (b.p || 0) - (a.p || 0) || (b.sg || 0) - (a.sg || 0) || (b.gp || 0) - (a.gp || 0));
+    for(const row of standings){
+      if(regional.filter(team => clubStateCompId(team) === id).length >= quota) break;
+      if(!serieA.some(team => norm(team) === norm(row.name)) && !regional.some(team => norm(team) === norm(row.name))) regional.push(row.name);
+    }
+  });
+  const criterion = [...new Set((state.copaCriteriaWinners || []).filter(Boolean))]
+    .filter(name => !serieA.some(team => norm(team) === norm(name)) && !regional.some(team => norm(team) === norm(name))).slice(0, 4);
+  if(criterion.length < 4){
+    // shortcut: Copa do Nordeste/Verde e campeões externos ainda não possuem tabelas no save; usar Série C/D até essas competições existirem.
+    ['bra-c','bra-d'].forEach(id => (window.COMPETITION_TEAMS?.[id] || []).slice().sort((a,b) => teamStrengthByName(b)-teamStrengthByName(a)).forEach(team => {
+      if(criterion.length < 4 && !criterion.some(name => norm(name) === norm(team)) && !serieA.some(name => norm(name) === norm(team))) criterion.push(team);
+    }));
   }
-
+  // shortcut: vagas dos 16 estados sem competição estadual cadastrada são preenchidas por força; usar tabela federativa quando esses dados forem adicionados.
+  const otherStateSlots = 102 - regional.length;
+  const otherStateQualifiers = available.filter(team => !regional.some(name => norm(name) === norm(team)) && !criterion.some(name => norm(name) === norm(team))).slice(0, otherStateSlots);
+  const nonA = [...regional, ...otherStateQualifiers, ...criterion];
+  const entrants = [...serieA, ...nonA];
+  const season = Number(state?.season) || 2026;
+  const phaseDates = ['02-18','03-11','04-15','05-13','06-17','08-05','08-26','10-14','11-25'].map(day => `${season}-${day}`);
+  const phaseNames = ['1ª Fase','2ª Fase','3ª Fase','4ª Fase','5ª Fase','Oitavas de Final','Quartas de Final','Semifinais','Final'];
+  const makePhase = (index, teams = []) => ({
+    name: phaseNames[index], status: index === 0 ? 'EM DISPUTA' : 'A COMEÇAR',
+    isoDate: phaseDates[index], dateStr: formatDatePtBr(phaseDates[index]),
+    fixtures: Array.from({length: Math.floor(teams.length / 2)}, (_, n) => ({
+      home: teams[n * 2], away: teams[n * 2 + 1], date: formatDatePtBr(phaseDates[index]),
+      isoDate: phaseDates[index], score: null, winner: null
+    }))
+  });
+  // 28 clubes abrem a competição; 74 entram na 2ª fase, 4 na 3ª e a Série A na 5ª.
+  const opening = nonA.slice(0, 28);
+  const phase2 = nonA.slice(28, 102);
+  const phase3 = nonA.slice(102, 106);
+  const phases = Object.fromEntries(phaseNames.map((name, index) => [name, makePhase(index,
+    index === 0 ? opening : index === 1 ? phase2 : index === 2 ? phase3 : index === 4 ? serieA : []
+  )]));
   return {
     name: 'Copa do Brasil',
-    season: 2026,
-    totalTeams: 128,
+    version: 2,
+    season,
+    totalTeams: entrants.length,
     activePhase: '1ª Fase',
-    phases: {
-      '1ª Fase': {
-        name: '1ª Fase',
-        status: 'EM DISPUTA',
-        isoDate: '2026-02-11',
-        dateStr: 'qua, 11 fev 2026',
-        fixtures: allClubs.map(([h, a]) => ({ home: h, away: a, date: 'qua, 11 fev 2026', isoDate: '2026-02-11', score: null, winner: null }))
-      },
-      '2ª Fase': {
-        name: '2ª Fase',
-        status: 'A COMEÇAR',
-        isoDate: '2026-03-04',
-        dateStr: 'qua, 04 mar 2026',
-        fixtures: []
-      },
-      '3ª Fase': {
-        name: '3ª Fase',
-        status: 'A COMEÇAR',
-        isoDate: '2026-04-22',
-        dateStr: 'qua, 22 abr 2026',
-        fixtures: []
-      },
-      '4ª Fase': {
-        name: '4ª Fase',
-        status: 'A COMEÇAR',
-        isoDate: '2026-05-20',
-        dateStr: 'qua, 20 mai 2026',
-        fixtures: []
-      },
-      '5ª Fase': {
-        name: '5ª Fase',
-        status: 'A COMEÇAR',
-        isoDate: '2026-06-17',
-        dateStr: 'qua, 17 jun 2026',
-        fixtures: []
-      },
-      'Mata-Mata': {
-        name: 'Mata-Mata',
-        status: 'A COMEÇAR',
-        isoDate: '2026-08-05',
-        dateStr: 'qua, 05 ago 2026',
-        fixtures: []
-      }
-    }
+    entrants,
+    phases
   };
 }
 
@@ -4617,7 +4595,7 @@ function processCopaDoBrasilCalendar(currentDate = state?.date){
   const copa = getCopaDoBrasilState();
   if(!copa || !copa.phases) return;
 
-  const phaseKeys = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Mata-Mata'];
+  const phaseKeys = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Oitavas de Final', 'Quartas de Final', 'Semifinais', 'Final'];
   for(let i = 0; i < phaseKeys.length; i++){
     const k = phaseKeys[i];
     const ph = copa.phases[k];
@@ -4637,15 +4615,31 @@ function processCopaDoBrasilCalendar(currentDate = state?.date){
       });
 
       ph.status = 'CONCLUÍDO';
+      if(i === phaseKeys.length - 1 && winners.length === 1){
+        copa.champion = winners[0];
+        if(norm(winners[0]) === norm(state.club)){
+          state.titles = state.titles || [];
+          if(!state.titles.includes('Copa do Brasil')) state.titles.push('Copa do Brasil');
+          state.news.unshift(`🏆 ${state.club} conquistou a Copa do Brasil ${state.season}!`);
+        }
+      }
 
       // Preenche a próxima fase se ainda não tiver confrontos
       const nextKey = phaseKeys[i + 1];
       if(nextKey && copa.phases[nextKey] && (!copa.phases[nextKey].fixtures || !copa.phases[nextKey].fixtures.length) && winners.length >= 2){
+        const seeded = (copa.phases[nextKey].fixtures || []).flatMap(f => [f.home, f.away]);
+        const entrants = i === 0 || i === 1 ? [...seeded, ...winners] : winners;
+        if(i === 3){
+          const serieA = window.COMPETITION_TEAMS?.['bra-a'] || [];
+          winners.slice(0, 12).forEach((winner, index) => entrants.push(serieA[index] || winner, winner));
+          entrants.push(...serieA.slice(12));
+        }
+        const nextWinners = entrants;
         const nextFixtures = [];
-        for(let w = 0; w < winners.length - 1; w += 2){
+        for(let w = 0; w < nextWinners.length - 1; w += 2){
           nextFixtures.push({
-            home: winners[w],
-            away: winners[w+1],
+            home: nextWinners[w],
+            away: nextWinners[w+1],
             date: copa.phases[nextKey].dateStr,
             isoDate: copa.phases[nextKey].isoDate,
             score: null,
@@ -4665,12 +4659,43 @@ function processCopaDoBrasilCalendar(currentDate = state?.date){
 
 function getCopaDoBrasilState(){
   state.copaData = state.copaData || initCopaDoBrasilData();
+  if(Number(state.copaData.season) !== Number(state.season)) state.copaData = initCopaDoBrasilData();
+  if(state.copaData.version !== 2){
+    const previous = state.copaData;
+    const upgraded = initCopaDoBrasilData();
+    const oldResults = Object.values(previous.phases || {}).flatMap(phase => phase.fixtures || []).filter(f => f.score && f.winner);
+    if(oldResults.length) upgraded.legacyResults = oldResults;
+    state.copaData = upgraded;
+  }
   return state.copaData;
+}
+
+function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
+  const copa = getCopaDoBrasilState();
+  const phase = copa.phases[phaseName];
+  copaCurrentPhase = phaseName;
+  const fixture = phase?.fixtures?.[Number(fixtureIndex)];
+  if(!fixture || fixture.score || fixture.isoDate !== state.date ||
+    (norm(fixture.home) !== norm(state.club) && norm(fixture.away) !== norm(state.club))) return;
+  const [hg, ag] = simulateScore(fixture.home, fixture.away);
+  const winner = hg === ag ? (Math.random() < 0.5 ? fixture.home : fixture.away) : (hg > ag ? fixture.home : fixture.away);
+  fixture.score = [hg, ag];
+  fixture.winner = winner;
+  const userGoals = norm(fixture.home) === norm(state.club) ? hg : ag;
+  const events = simulateUserGoalEvents(state.club, userGoals);
+  addPlayerMatchStats('bra-cup', state.club, events);
+  const result = { h: fixture.home, a: fixture.away, hg, ag, winner, events, round: phase.name, season: Number(state.season), date: state.date, competitionId: 'bra-cup', competitionName: 'Copa do Brasil' };
+  state.history = [result, ...(state.history || [])].slice(0, 100);
+  state.news = state.news || [];
+  state.news.unshift(`🏆 Copa do Brasil (${phase.name}): ${fixture.home} ${hg} x ${ag} ${fixture.away}. ${norm(winner) === norm(state.club) ? 'Classificado.' : 'Eliminado.'}`);
+  save();
+  render();
+  openPressConferenceModal('post', result);
 }
 
 function renderCopaDoBrasilBlock(){
   const copa = getCopaDoBrasilState();
-  const phasesList = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Mata-Mata'];
+  const phasesList = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Oitavas de Final', 'Quartas de Final', 'Semifinais', 'Final'];
   const curPhaseObj = copa.phases[copaCurrentPhase] || copa.phases['1ª Fase'];
 
   let fixtures = curPhaseObj.fixtures || [];
@@ -4721,11 +4746,11 @@ function renderCopaDoBrasilBlock(){
 
       <!-- Grid de Confrontos (Screenshot 1) -->
       <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:12px">
-        ${fixtures.map(f => {
+        ${fixtures.map((f, fixtureIndex) => {
           const isMyMatch = norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club);
 
           return `
-            <div class="clickable-fixture" data-home="${esc(f.home)}" data-away="${esc(f.away)}" style="background:${isMyMatch ? 'rgba(124,58,237,0.22)' : '#161324'};border:1px solid ${isMyMatch ? '#a855f7' : 'rgba(255,255,255,0.07)'};border-radius:12px;padding:12px 14px;box-shadow:${isMyMatch ? '0 0 16px rgba(168,85,247,0.3)' : 'none'};cursor:pointer;transition:all 0.2s">
+            <div class="clickable-fixture" data-home="${esc(f.home)}" data-away="${esc(f.away)}" data-competition="Copa do Brasil" data-date="${esc(f.isoDate || '')}" data-score="${f.score ? `${f.score[0]}-${f.score[1]}` : ''}" style="background:${isMyMatch ? 'rgba(124,58,237,0.22)' : '#161324'};border:1px solid ${isMyMatch ? '#a855f7' : 'rgba(255,255,255,0.07)'};border-radius:12px;padding:12px 14px;box-shadow:${isMyMatch ? '0 0 16px rgba(168,85,247,0.3)' : 'none'};cursor:pointer;transition:all 0.2s">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
                 <div style="display:flex;align-items:center;gap:6px;width:40%;justify-content:flex-end">
                   <span style="font-size:13px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.home)}</span>
@@ -4745,6 +4770,7 @@ function renderCopaDoBrasilBlock(){
               ${isMyMatch ? `
                 <div style="text-align:center;margin-top:6px">
                   <span style="font-size:10px;font-weight:900;color:var(--neon);letter-spacing:0.5px">SEU JOGO • CLIQUE PARA DETALHES</span>
+                  ${!f.score && f.isoDate === state.date ? `<button class="btn primary btn-copa-play" data-copa-play="${fixtureIndex}" style="display:block;margin:8px auto 0;padding:5px 12px;font-size:11px">▶ SIMULAR PARTIDA</button>` : ''}
                 </div>
               ` : ''}
             </div>
@@ -4840,8 +4866,8 @@ function getSocioTorcedorMeta(){
   };
 }
 
-function renderSocioTorcedorCard(){
-  const data = getSocioTorcedorMeta();
+function renderSocioTorcedorCard(data = null){
+  data = data || getSocioTorcedorMeta();
 
   return `
     <div class="card" style="margin-top:20px;padding:24px;background:#120f20;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
@@ -4967,12 +4993,17 @@ let liveMatchTimer=null;
 const AFM_AUTH_KEY = 'afm_accounts_v1';
 const AFM_SESSION_KEY = 'afm_active_user_v1';
 
+function recordAFMError(type, error){
+  const message = error?.message || String(error || 'Falha interna sem mensagem legível');
+  window.AFMErrorLog?.record(type, message, error instanceof Error ? { stack: error.stack } : {});
+}
+
 function getStoredAccounts(){
   let accs = [];
   try {
     const raw = localStorage.getItem(AFM_AUTH_KEY);
     if(raw) accs = JSON.parse(raw);
-  } catch(e){}
+  } catch(e){ recordAFMError('local-account-read', e); }
   if(!Array.isArray(accs)) accs = [];
   const safeAccounts = accs.filter(a => a && typeof a.username === 'string').map(({ password, role, ...account }) => ({ ...account, role: 'player' }));
   if(safeAccounts.length !== accs.length || accs.some(a => Object.hasOwn(a || {}, 'password') || a?.role === 'admin')) saveStoredAccounts(safeAccounts);
@@ -4982,7 +5013,9 @@ function getStoredAccounts(){
 function saveStoredAccounts(accs){
   try {
     localStorage.setItem(AFM_AUTH_KEY, JSON.stringify(accs));
-  } catch(e){}
+    return true;
+  } catch(e){ recordAFMError('local-account-write', e); }
+  return false;
 }
 
 function formatSaveTimestamp(value){
@@ -4995,8 +5028,10 @@ function getActiveAccount(){
     const user = window.AFM_DB?.getUser();
     if(!user) return null;
     const accounts = getStoredAccounts();
-    return accounts.find(a => a.username === user.id) || null;
+    const account = accounts.find(a => a.username === user.id);
+    return account ? { ...account, role: window.AFM_DB?.isAdmin?.() === true ? 'admin' : 'player' } : null;
   } catch(e){
+    recordAFMError('active-account-read', e);
     return null;
   }
 }
@@ -5042,14 +5077,20 @@ async function activateAuthenticatedUser(user){
           entry.id = `save_${user.id}_slot${slot}_${norm(entry.club)}`;
           localStorage.setItem(key, JSON.stringify(entry));
         }
-      } catch(e){}
+      } catch(e){ recordAFMError('legacy-save-migration', e); }
     }
   }
   if(importedLegacyState) save();
   const synced = await window.AFM_DB.syncUser();
-  if(!synced.ok) console.warn('[AFM] Sincronização de saves indisponível:', synced.error);
+  if(!synced.ok){
+    recordAFMError('save-sync', synced.error);
+    console.warn('[AFM] Sincronização de saves indisponível:', synced.error);
+  }
   for(const entry of getUserSaveSlots(user.id)){
-    if(entry?.data?.club) await window.AFM_DB.saveSlot(user.id, entry.slot, entry);
+    if(entry?.data?.club){
+      const saved = await window.AFM_DB.saveSlot(user.id, entry.slot, entry);
+      if(!saved.ok) recordAFMError('save-sync', saved.error);
+    }
   }
   return { success: true, user: account };
 }
@@ -5098,7 +5139,7 @@ function getUserSaveSlots(username){
           s = s ? { ...s, ...parsed } : parsed;
         }
       }
-    } catch(e){}
+    } catch(e){ recordAFMError('save-slot-read', e); }
 
     // 2. Fallback Crítico para o Slot 1: procurar no save primário STORAGE ('aquino_futebol_manager_2026_v1')
     if(slotNum === 1 && (!s || (!s.data && !s.club))){
@@ -5120,10 +5161,10 @@ function getUserSaveSlots(username){
               updatedAt: new Date().toLocaleString('pt-BR'),
               data: leg
             };
-            try { localStorage.setItem('afm_save_slot_1', JSON.stringify(s)); } catch(e){}
+            try { localStorage.setItem('afm_save_slot_1', JSON.stringify(s)); } catch(e){ recordAFMError('save-slot-migration', e); }
           }
         }
-      } catch(e){}
+      } catch(e){ recordAFMError('legacy-save-read', e); }
     }
 
     // 3. Normalização: se for save plano antigo (sem chave .data), embrulhar adequadamente
@@ -5141,7 +5182,7 @@ function getUserSaveSlots(username){
         updatedAt: s.updatedAt || s.date || new Date().toLocaleString('pt-BR'),
         data: clone(s)
       };
-      try { localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(s)); } catch(e){}
+      try { localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(s)); } catch(e){ recordAFMError('save-slot-migration', e); }
     }
 
     return s || null;
@@ -5174,7 +5215,7 @@ function save(){
     try {
       localStorage.setItem(STORAGE, JSON.stringify(savePayload));
       localSaved = true;
-    } catch(e){}
+    } catch(e){ recordAFMError('local-save-write', e); }
   }
 
   const user = getActiveAccount() || { username: state.userOwner || 'local', name: state.manager || 'Treinador' };
@@ -5204,7 +5245,7 @@ function save(){
   try {
     localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(saveEntry));
     localSaved = true;
-  } catch(e){}
+  } catch(e){ recordAFMError('local-save-write', e); }
 
   if(!localSaved){
     if(!window.__afmStorageWarning){
@@ -5232,7 +5273,9 @@ function save(){
 
     // 4. Sincronizar save com o Supabase Cloud
     if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
-      window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry).catch(()=>{});
+      window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry)
+        .then(result => { if(!result?.ok) window.AFMErrorLog?.record('save-sync', result?.error || 'Falha ao sincronizar save'); })
+        .catch(error => window.AFMErrorLog?.record('save-sync', error?.message || 'Falha ao sincronizar save'));
     }
   }
 
@@ -5243,6 +5286,7 @@ function load(){
   try {
     return JSON.parse(localStorage.getItem(STORAGE) || 'null');
   } catch(e){
+    recordAFMError('local-save-read', e);
     return null;
   }
 }
@@ -5259,7 +5303,7 @@ function loadUserSlot(slotNum, ownerUsername = null){
   try {
     const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
     if(raw) saveEntry = JSON.parse(raw);
-  } catch(e){}
+  } catch(e){ recordAFMError('save-slot-read', e); }
 
   const hasCompleteData = (e) => e && ((e.data && e.data.squad) || (e.squad && e.club));
 
@@ -5273,7 +5317,7 @@ function loadUserSlot(slotNum, ownerUsername = null){
           saveEntry = { data: leg, club: leg.club, userSlot: 1 };
         }
       }
-    } catch(e){}
+    } catch(e){ recordAFMError('legacy-save-read', e); }
   }
 
   // 3. Se ainda não encontrado, busca na conta
@@ -5308,24 +5352,30 @@ function deleteUserSlot(slotNum, ownerUsername = null){
   const username = (ownerUsername || getActiveAccount()?.username || 'aquino').toLowerCase();
   if(!confirm(`Deseja realmente excluir a campanha do Slot ${slotNum}? Esta ação não pode ser desfeita.`)) return;
   
+  try {
+    localStorage.removeItem(`afm_save_slot_${slotNum}`);
+    if(slotNum === 1) localStorage.removeItem(STORAGE);
+  } catch(e){
+    recordAFMError('save-delete-local', e);
+    toast('Não foi possível excluir o save local. Verifique o armazenamento do navegador.');
+    return false;
+  }
+
   const accs = getStoredAccounts();
   const acc = accs.find(a => a.username.toLowerCase() === username) || accs.find(a => a.username.toLowerCase() === 'aquino');
   if(acc){
     acc.saves = (acc.saves || []).filter(s => s.slot !== slotNum);
-    saveStoredAccounts(accs);
-  }
-
-  try {
-    localStorage.removeItem(`afm_save_slot_${slotNum}`);
-  } catch(e){}
-
-  if(slotNum === 1){
-    try { localStorage.removeItem(STORAGE); } catch(e){}
+    if(!saveStoredAccounts(accs)){
+      toast('O save local foi apagado, mas a lista de campanhas não pôde ser atualizada.');
+      return false;
+    }
   }
 
   // Deletar da nuvem (Supabase)
   if(window.AFM_DB && typeof window.AFM_DB.deleteSlot === 'function'){
-    window.AFM_DB.deleteSlot(username, slotNum).catch(()=>{});
+    window.AFM_DB.deleteSlot(username, slotNum)
+      .then(result => { if(!result?.ok) recordAFMError('save-delete', result.error); })
+      .catch(error => recordAFMError('save-delete', error));
   }
 
   toast(`Campanha do Slot ${slotNum} excluída com sucesso.`);
@@ -5594,7 +5644,11 @@ function renderAdminTabContent(){
     };
   });
 
-  const accounts = getStoredAccounts();
+  const activeAdmin = getActiveAccount();
+  const accounts = getStoredAccounts().map(account => ({
+    ...account,
+    role: activeAdmin?.role === 'admin' && account.username === activeAdmin.username ? 'admin' : 'player'
+  }));
 
   if(currentAdminTab === 'saves'){
     let totalSaves = 0;
@@ -5863,6 +5917,7 @@ function renderAdminTabContent(){
             closeCustomModal();
             render();
           } catch(err){
+            recordAFMError('save-import', err);
             toast('Erro ao restaurar arquivo JSON.');
           }
         };
@@ -7145,7 +7200,8 @@ function generateSponsorOffers(clubBudget){
   const mktInvest = Math.max(2500, Number(state?.marketingWeekly) || 12000);
   const mktMult = 1 + (0.03 * (mktLvl - 1)) + clamp((mktInvest - 2500) / 90000, 0, 0.15);
   const fameMult = 0.60 + (fame / 100) * 0.90; // Escala proporcional à fama da equipe
-  const baseMonthly = Math.round(Math.max(40000, Math.round((clubBudget || 2000000) * 0.024)) * mktMult * fameMult);
+  const seasonFactor = Math.max(0.1, Number(state?.sponsorSeasonFactor) || 1);
+  const baseMonthly = Math.round(Math.max(40000, Math.round((clubBudget || 2000000) * 0.024)) * mktMult * fameMult * seasonFactor);
 
   const sponsorPool = [
     { brand: 'Betano', category: 'Master', color:'#f35b04', mult: 1.45, winMult: 0.22, minFame: 40, years: 1, desc: 'Maior operadora oficial do futebol brasileiro' },
@@ -7388,24 +7444,47 @@ function getStateCompData(cId){
 
 function getStateCompStats(cId){
   state.competitionStats = state.competitionStats || {};
-  if(state.competitionStats[cId]) return state.competitionStats[cId];
-  if(cId === 'bra-est-df'){
-    state.competitionStats[cId] = initCandangaoStats();
+  if(state.competitionStats[cId] && (Number(state.competitionStats[cId].season) === Number(state.season) || (!state.competitionStats[cId].season && Number(state.season) === 2026))){
+    state.competitionStats[cId].season = Number(state.season);
     return state.competitionStats[cId];
   }
-  const cData = getStateCompData(cId);
-  const teamNames = cData.teams.map(t=>t.name);
-  const scorers = [];
-  const assists = [];
-  teamNames.slice(0, 8).forEach((tName, i) => {
-    const pList = playersForClub(tName, state.worldGenerated || []);
-    const fwd = pList.find(p=>['ST','CF','RW','LW'].includes(p.pos)) || pList[0] || { name: 'Goleador ' + tName, pos: 'ST' };
-    const mid = pList.find(p=>['AM','CM','RW','LW','LB','RB'].includes(p.pos) && p.name !== fwd.name) || pList[1] || { name: 'Armador ' + tName, pos: 'CM' };
-    scorers.push({ name: fwd.name, club: tName, pos: fwd.pos || 'ATACANTE', goals: i === 0 ? 2 : 1 });
-    assists.push({ name: mid.name, club: tName, pos: mid.pos || 'MEIA', assists: 1 });
-  });
-  state.competitionStats[cId] = { scorers, assists };
+  if(cId === 'bra-est-df'){
+    state.competitionStats[cId] = initCandangaoStats();
+    state.competitionStats[cId].season = Number(state.season);
+    return state.competitionStats[cId];
+  }
+  state.competitionStats[cId] = { season: Number(state.season), scorers: [], assists: [] };
   return state.competitionStats[cId];
+}
+
+function addPlayerMatchStats(competitionId, clubName, events){
+  if(!clubName || !Array.isArray(events)) return;
+  const stats = getStateCompStats(competitionId);
+  const add = (list, playerName, key) => {
+    if(!playerName) return;
+    const player = state.squad?.find(p => norm(p.name) === norm(playerName));
+    const row = list.find(item => norm(item.name) === norm(playerName) && norm(item.club) === norm(clubName)) || {
+      name: playerName, club: clubName, pos: player?.pos || 'JOGADOR', [key]: 0
+    };
+    if(!list.includes(row)) list.push(row);
+    row[key] = (Number(row[key]) || 0) + 1;
+    if(player) player[key] = (Number(player[key]) || 0) + 1;
+  };
+  events.filter(event => event?.type === 'gol' && norm(event.teamId) === norm(clubName)).forEach(event => {
+    add(stats.scorers, event.scorer, 'goals');
+    add(stats.assists, event.assist, 'assists');
+  });
+}
+
+function simulateUserGoalEvents(clubName, goals){
+  const eligible = (state.squad || []).filter(player => !/^(GK|GOLEIRO)$/i.test(player.pos || ''));
+  return Array.from({length: Math.max(0, Number(goals) || 0)}, (_, index) => {
+    if(!eligible.length) return null;
+    const scorer = eligible[rnd(0, eligible.length - 1)];
+    const helpers = eligible.filter(player => player !== scorer);
+    const assist = helpers.length && Math.random() < 0.72 ? helpers[rnd(0, helpers.length - 1)] : null;
+    return { type: 'gol', teamId: clubName, scorer: scorer.name, assist: assist?.name || null, min: 8 + index * 19 };
+  }).filter(Boolean);
 }
 
 function openClubInfoModal(clubName){
@@ -7749,6 +7828,11 @@ function newCareer(data){
     playerMoves:{},
     transfers:[],
     loans:[],
+    financeAccountingVersion:1,
+    sponsorSeasonFactor:1,
+    financePeriodStartedDate:null,
+    financingInflow:0,
+    debtPrincipalPaid:0,
     schedule,
     cupAlive:comp.type==='knockout'?compClubs.map(x=>x.name):null,
     eliminated:false,
@@ -7761,7 +7845,7 @@ function newCareer(data){
       `A diretoria disponibilizou orçamento inicial de ${fmtMoney(budget)}.`
     ],
     history:[],
-    income: (activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0),
+    income:0,
     expense:0,
     sponsors:activeSponsors,
     sponsorOffers:sponsorOffers.slice(1,4),
@@ -7824,7 +7908,7 @@ function repairSaveIfCorrupted(s){
 
       if(comp.type === 'knockout') s.cupAlive = compClubs.map(x => x.name);
       s.eliminated = false;
-      try { localStorage.setItem(STORAGE, JSON.stringify(s)); } catch(e){}
+      try { localStorage.setItem(STORAGE, JSON.stringify(s)); } catch(e){ recordAFMError('tournament-result-save', e); }
       try {
         const user = getActiveAccount();
         if(user){
@@ -7840,7 +7924,7 @@ function repairSaveIfCorrupted(s){
             }
           }
         }
-      } catch(e){}
+      } catch(e){ recordAFMError('tournament-save-sync', e); }
       return true;
     }
   }
@@ -7857,7 +7941,7 @@ function repairSaveIfCorrupted(s){
       s.news = s.news || [];
       s.news.unshift(`⚖️ AUDITORIA FINANCEIRA: Identificada cobrança indevida de folha semanal por rodada na versão anterior. Estorno de ${fmtMoney(refund)} creditado ao caixa do clube!`);
       if(s.news.length > 50) s.news = s.news.slice(0, 50);
-      try { localStorage.setItem(STORAGE, JSON.stringify(s)); } catch(e){}
+      try { localStorage.setItem(STORAGE, JSON.stringify(s)); } catch(e){ recordAFMError('legacy-financial-repair', e); }
       return true;
     }
   }
@@ -7892,7 +7976,7 @@ function repairSaveIfCorrupted(s){
         d.setDate(d.getDate() + (targetGames * 7));
         s.date = d.toISOString().slice(0, 10);
       }
-      try { localStorage.setItem(STORAGE, JSON.stringify(s)); } catch(e){}
+      try { localStorage.setItem(STORAGE, JSON.stringify(s)); } catch(e){ recordAFMError('legacy-calendar-repair', e); }
       return true;
     }
   }
@@ -7933,6 +8017,30 @@ function migrate(s){
   s.history=s.history||[];
   s.income=+s.income||0;
   s.expense=+s.expense||0;
+  if(s.financeAccountingVersion !== 1){
+    const legacyIncome = s.income;
+    const legacyExpense = s.expense;
+    if(legacyIncome || legacyExpense){
+      s.financeLegacyTotals = { income:legacyIncome, expense:legacyExpense, season:s.season, capturedAt:s.date || null };
+    }
+    s.income = 0;
+    s.expense = 0;
+    s.financePeriodStartedDate = s.date || `${s.season || 2026}-01-01`;
+    s.financeAccountingVersion = 1;
+  }
+  s.financePeriodStartedDate = s.financePeriodStartedDate || s.date || `${s.season || 2026}-01-01`;
+  s.financingInflow = Math.max(0, Number(s.financingInflow) || 0);
+  s.debtPrincipalPaid = Math.max(0, Number(s.debtPrincipalPaid) || 0);
+  s.bankLoans.forEach(loan => {
+    if(!Number.isFinite(Number(loan.remainingPrincipal))){
+      const originalPrincipal = Math.max(0, Number(loan.principal) || 0);
+      const totalInstallments = Math.max(1, Number(loan.totalInstallments) || 1);
+      const paidInstallments = Math.max(0, Number(loan.paidInstallments) || 0);
+      const interestPerInstallment = Math.max(0, (Number(loan.totalDebt) || originalPrincipal) - originalPrincipal) / totalInstallments;
+      const principalPerInstallment = Math.max(0, (Number(loan.installmentValue) || 0) - interestPerInstallment);
+      loan.remainingPrincipal = Math.min(Number(loan.remainingDebt) || 0, Math.max(0, originalPrincipal - Math.round(principalPerInstallment * paidInstallments)));
+    }
+  });
   s.simSpeed=s.simSpeed||'normal';
   s.freeTransferWindow=s.freeTransferWindow||false;
   s.stadiumUpgrades=s.stadiumUpgrades||{chairs:false,mosaic:false,ledRing:false,flares:false,screen:false,ledLights:false};
@@ -8524,6 +8632,7 @@ function openPressConferenceModal(type = 'post', context = null, onComplete = nu
         try {
           onComplete();
         } catch(err){
+          recordAFMError('press-conference-callback', err);
           console.error('Erro no callback da coletiva:', err);
         }
       }
@@ -8536,6 +8645,7 @@ function openPressConferenceModal(type = 'post', context = null, onComplete = nu
       try {
         onComplete();
       } catch(err){
+        recordAFMError('press-conference-close', err);
         console.error('Erro ao encerrar coletiva:', err);
       }
     }
@@ -8628,14 +8738,39 @@ function calculateSeasonPrizeMoney(position, comp){
 
 function calculateSeasonAwards(){
   const allSquad = state.squad || [];
-  const topScorer = allSquad.slice().sort((a,b)=>(b.goals||rnd(8,22))-(a.goals||rnd(8,22)))[0] || allSquad[0];
+  const stats = getStateCompStats(curComp()?.id);
+  const scorer = stats.scorers.slice().sort((a,b)=>(Number(b.goals)||0)-(Number(a.goals)||0))[0];
+  const assister = stats.assists.slice().sort((a,b)=>(Number(b.assists)||0)-(Number(a.assists)||0))[0];
+  const topScorer = allSquad.find(p => norm(p.name) === norm(scorer?.name)) || allSquad.slice().sort((a,b)=>(Number(b.goals)||0)-(Number(a.goals)||0))[0] || allSquad[0];
+  const assistLeader = allSquad.find(p => norm(p.name) === norm(assister?.name)) || allSquad.slice().sort((a,b)=>(Number(b.assists)||0)-(Number(a.assists)||0))[0] || allSquad[0];
   const bestPlayer = allSquad.slice().sort((a,b)=>playerOverall(b)-playerOverall(a))[0] || allSquad[0];
   const goldenGlove = allSquad.filter(p=>p.pos==='GK').sort((a,b)=>playerOverall(b)-playerOverall(a))[0] || allSquad[0];
   return {
-    topScorer: { name: topScorer?.name || 'Artilheiro', club: state.club, goals: topScorer?.goals || rnd(14,24) },
+    topScorer: { name: scorer?.name || topScorer?.name || 'Artilheiro', club: scorer?.club || state.club, goals: Number(scorer?.goals ?? topScorer?.goals) || 0 },
+    assistLeader: { name: assister?.name || assistLeader?.name || 'Líder de assistências', club: assister?.club || state.club, assists: Number(assister?.assists ?? assistLeader?.assists) || 0 },
     bestPlayer: { name: bestPlayer?.name || 'Craque do Ano', club: state.club, ovr: playerOverall(bestPlayer) },
     goldenGlove: { name: goldenGlove?.name || 'Paredão', club: state.club, ovr: playerOverall(goldenGlove) }
   };
+}
+
+function applyScoringAwardUpgrades(awards){
+  state.awardUpgrades = state.awardUpgrades || {};
+  const seasonKey = `${state.season}:${curComp()?.id || 'competition'}`;
+  const awarded = state.awardUpgrades[seasonKey] || (state.awardUpgrades[seasonKey] = []);
+  [['topScorer', awards.topScorer, 'goals'], ['assistLeader', awards.assistLeader, 'assists']].forEach(([awardId, award, stat]) => {
+    if(!award || !award[stat] || awarded.includes(awardId)) return;
+    const player = state.squad?.find(item => norm(item.name) === norm(award.name) && norm(award.club) === norm(state.club));
+    if(!player) return;
+    const next = Math.min(99, playerOverall(player) + 1);
+    if(Number(player.overall) > 0) player.overall = next;
+    else if(Number(player.ovr) > 0) player.ovr = next;
+    else {
+      player.fc = Math.min(99, (Number(player.fc) || playerOverall(player)) + 1);
+      player.pes = Math.min(99, (Number(player.pes) || playerOverall(player)) + 1);
+    }
+    awarded.push(awardId);
+    state.news.unshift(`⭐ DESTAQUE DA TEMPORADA: ${player.name} venceu ${awardId === 'topScorer' ? 'a artilharia' : 'o prêmio de líder em assistências'} e recebeu +1 OVR (${playerOverall(player)}).`);
+  });
 }
 
 function curComp(){
@@ -8665,6 +8800,22 @@ function formatDatePtBr(isoDate){
   } catch(e){
     return isoDate;
   }
+}
+
+function bankLoanDueDate(loan){
+  const round = Math.max(0, Number(loan?.nextDueRound) || 0);
+  return getDateForRound(round, state?.season);
+}
+
+function daysUntilBankLoanDue(loan){
+  const dueDate = bankLoanDueDate(loan);
+  const currentDate = state?.date;
+  if(!currentDate || !dueDate) return 0;
+  const due = Date.parse(`${dueDate}T00:00:00Z`);
+  const current = Date.parse(`${currentDate}T00:00:00Z`);
+  return Number.isFinite(due) && Number.isFinite(current)
+    ? Math.max(0, Math.ceil((due - current) / 86400000))
+    : 0;
 }
 
 function currentFixtures(){
@@ -8775,6 +8926,7 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       curD.setDate(curD.getDate() + 1);
       const nextDateStr = curD.toISOString().slice(0, 10);
       state.date = nextDateStr;
+      processStadiumConstructionDay();
       processContinentalFixturesBefore(state.date);
       expireStadiumEventConfirmation();
       daysAdvanced++;
@@ -8830,7 +8982,7 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       toast(`📅 Calendário avançado em ${daysAdvanced} ${daysAdvanced === 1 ? 'dia' : 'dias'}! Data atual: ${formatDatePtBr(state.date)}.`);
     }
   } finally {
-    setTimeout(() => { isAdvancingTime = false; }, 300);
+    isAdvancingTime = false;
   }
 }
 
@@ -9136,6 +9288,95 @@ function monthlyFacilityIncome(){
   return Math.round((state.infrastructure.store?.level||1)*9000+(state.infrastructure.museum?.level||1)*4000);
 }
 
+function bankLoanPaymentBreakdown(loan, payment){
+  const remainingDebt = Math.max(0, Number(loan?.remainingDebt) || 0);
+  const principal = Math.max(0, Number(loan?.principal) || 0);
+  const totalDebt = Math.max(principal, Number(loan?.totalDebt) || principal);
+  const totalInstallments = Math.max(1, Number(loan?.totalInstallments) || 1);
+  const paidInstallments = Math.max(0, Number(loan?.paidInstallments) || 0);
+  const scheduledInstallment = Math.max(0, Number(loan?.installmentValue) || totalDebt / totalInstallments);
+  const interestPerInstallment = Math.max(0, totalDebt - principal) / totalInstallments;
+  const remainingPrincipal = Number.isFinite(Number(loan?.remainingPrincipal))
+    ? Math.max(0, Number(loan.remainingPrincipal))
+    : Math.min(remainingDebt, Math.max(0, principal - Math.round(Math.max(0, scheduledInstallment - interestPerInstallment) * paidInstallments)));
+  const amount = Math.min(remainingDebt, Math.max(0, Number(payment) || 0));
+  const principalPaid = Math.min(remainingPrincipal, Math.max(0, amount - Math.min(amount, interestPerInstallment)));
+  const interestPaid = Math.max(0, amount - principalPaid);
+  return { amount, principalPaid, interestPaid, remainingPrincipal: Math.max(0, remainingPrincipal - principalPaid) };
+}
+
+function currentSeasonSponsorFactor(positionValue, teamCount, compId){
+  const pos = Math.max(1, Number(positionValue) || 1);
+  const count = Math.max(1, Number(teamCount) || 1);
+  const rankFactor = pos <= 3 ? 1.12 : pos <= Math.ceil(count / 2) ? 1 : 0.88;
+  const divisionFactor = ({'bra-a':1.2,'bra-b':1.05,'bra-c':0.9,'bra-d':0.78})[compId] || 1;
+  return Math.round(rankFactor * divisionFactor * 1000) / 1000;
+}
+
+function refreshAnnualSponsorValues(positionValue, teamCount, compId){
+  const previousFactor = Math.max(0.1, Number(state.sponsorSeasonFactor) || 1);
+  const nextFactor = currentSeasonSponsorFactor(positionValue, teamCount, compId);
+  const adjustment = nextFactor / previousFactor;
+  ['master','sleeves','back'].forEach(slot => {
+    const sponsor = state.sponsors?.[slot];
+    if(!sponsor) return;
+    sponsor.monthly = Math.round((Number(sponsor.monthly) || 0) * adjustment);
+    sponsor.winBonus = Math.round((Number(sponsor.winBonus) || 0) * adjustment);
+  });
+  state.sponsorSeasonFactor = nextFactor;
+}
+
+function monthlyFinancialProjection(socioData = null){
+  const comp = curComp();
+  const sponsorMonthly = totalSponsorMonthly();
+  const adminMonthly = Math.round(sponsorMonthly * 0.03 * (state.infrastructure?.admin?.level || 1));
+  const tvPerRound = comp?.id === 'bra-a' ? 2200000 : comp?.id === 'bra-b' ? 850000 : 350000;
+  const socioMonthly = (socioData || getSocioTorcedorMeta()).currentIncome;
+  const namingMonthly = state.namingRights?.monthsRemaining > 0 ? Math.max(0, Number(state.namingRights.monthlyValue) || 0) : 0;
+  const store = state.storeConfig || { level: 1, pricing: 'normal', stock: 'normal' };
+  let storeGross = store.level === 1 ? 25000 : store.level === 2 ? 65000 : 130000;
+  if(store.pricing === 'popular') storeGross *= 1.25;
+  else if(store.pricing === 'premium') storeGross *= 0.85;
+  const storeMonthly = Math.round(storeGross * (1 - (store.stock === 'full' ? 0.65 : store.stock === 'lean' ? 0.45 : 0.55)));
+  const homeMatches = (state.history || []).filter(match => Number(match.season) === Number(state.season) && (match.isHome === true || (match.isHome == null && norm(match.h) === norm(state.club))) && Number.isFinite(Number(match.gate)));
+  const recentHome = homeMatches.slice(0, 8);
+  const averageHomeRevenue = field => {
+    const values = recentHome.map(match => Number(match[field])).filter(value => Number.isFinite(value) && value >= 0);
+    if(values.length) return values.reduce((sum, value) => sum + value, 0) / values.length;
+    return Math.max(0, Number(state.lastHome?.[field === 'gate' ? 'revenue' : field === 'shop' ? 'storeShop' : field]) || 0);
+  };
+  const monthlyGate = Math.round(averageHomeRevenue('gate') * 2);
+  const monthlyParking = Math.round(averageHomeRevenue('parkRevenue') * 2);
+  const monthlyMatchSales = Math.round(averageHomeRevenue('shop') * 2);
+  const played = (state.history || []).filter(match => Number(match.season) === Number(state.season) && (match.isHome === true || match.isHome === false || norm(match.h) === norm(state.club) || norm(match.a) === norm(state.club))).slice(0, 12);
+  const winRate = played.length ? played.filter(match => match.won ?? (norm(match.h) === norm(state.club) ? Number(match.hg) > Number(match.ag) : Number(match.ag) > Number(match.hg))).length / played.length : 0.5;
+  const sponsorWinEstimate = Math.round(totalSponsorWinBonus() * 2 * winRate);
+  const bankInstallments = (state.bankLoans || []).reduce((sum, loan) => sum + (Number(loan.remainingInstallments) > 0 ? Math.max(0, Number(loan.installmentValue) || 0) * 2 : 0), 0);
+  const stadiumInstallment = Math.max(0, Number(state.stadiumRingData?.debt?.remaining) > 0 ? Number(state.stadiumRingData.debt.monthly) || 0 : 0);
+  const revenue = {
+    sponsors: sponsorMonthly,
+    structures: monthlyFacilityIncome(),
+    admin: adminMonthly,
+    tv: tvPerRound * 4,
+    members: socioMonthly,
+    naming: namingMonthly,
+    store: storeMonthly,
+    gate: monthlyGate,
+    parking: monthlyParking,
+    matchSales: monthlyMatchSales,
+    winBonuses: sponsorWinEstimate
+  };
+  const expenses = {
+    payroll: totalMonthlyPayroll(),
+    marketing: Math.max(2500, Number(state.marketingWeekly) || 12000) * 4,
+    bankRepayments: bankInstallments,
+    stadiumRepayments: stadiumInstallment
+  };
+  const monthlyRevenue = Object.values(revenue).reduce((sum, value) => sum + value, 0);
+  const monthlyExpenses = Object.values(expenses).reduce((sum, value) => sum + value, 0);
+  return { revenue, expenses, monthlyRevenue, monthlyExpenses, monthlyBalance: monthlyRevenue - monthlyExpenses, homeSample: recentHome.length };
+}
+
 function processFitness(){
   const starters=new Set(state.lineup||[]);
   for(const p of state.squad){
@@ -9280,7 +9521,15 @@ function finalizeRound(userRes, winners, isKO){
     if(isHome){
       state.news.unshift(`Público: ${state.lastHome.attendance.toLocaleString('pt-BR')} torcedores • Bilheteria ${fmtMoney(gate)} • Estacionamento ${fmtMoney(parkingRev)}.`);
     }
-    state.history.unshift({...userRes,round:state.round+1,date:state.date,attendance:isHome?state.lastHome.attendance:null,gate:isHome?gate:null});
+    userRes.events = Array.isArray(userRes.events) ? userRes.events.filter(event => event?.type === 'gol').slice(0, 20) : [];
+    addPlayerMatchStats(comp.id, state.club, userRes.events);
+    state.history.unshift({
+      ...userRes, round:state.round+1, season:Number(state.season), date:state.date,
+      competitionId:comp.id, competitionName:comp.name,
+      attendance:isHome?state.lastHome.attendance:null, gate:isHome?gate:null,
+      parkRevenue:isHome?parkingRev:null, shop:isHome?shop:null, sponsorBonus:bonus, isHome, won:win
+    });
+    state.history = state.history.slice(0, 100);
     if(isKO&&!advanced)state.eliminated=true;
     state.lastMatchSummary = { h: userRes.h, a: userRes.a, hg: userRes.hg, ag: userRes.ag, ga, isHome, won: win };
   }
@@ -9334,7 +9583,6 @@ function finalizeRound(userRes, winners, isKO){
     }
   }
   state.round++;
-  processStadiumConstructionRound();
   // Aporte semanal em marketing (rebalanceado por rodada)
   const mktWeeklyExp = Math.max(2500, Number(state.marketingWeekly) || 12000);
   state.balance -= mktWeeklyExp;
@@ -9350,11 +9598,12 @@ function finalizeRound(userRes, winners, isKO){
       window.AFM30.simulateYouthAcademy(state);
       window.AFM30.financialAudit(state);
       if(win){
-        window.AFM30.audio.play('crowdCheer');
+        window.AFM30.audio.playCheer();
       } else {
-        window.AFM30.audio.play('whistle');
+        window.AFM30.audio.playWhistle();
       }
     } catch(err){
+      recordAFMError('game-round-cycle', err);
       console.warn('AFM30 round cycle error:', err);
     }
   }
@@ -9364,8 +9613,10 @@ function finalizeRound(userRes, winners, isKO){
     const curD = new Date(state.date + 'T12:00:00');
     curD.setDate(curD.getDate() + 1);
     state.date = curD.toISOString().slice(0, 10);
+    processStadiumConstructionDay();
     expireStadiumEventConfirmation();
   } catch(e){
+    recordAFMError('post-match-calendar', e);
     state.date = getDateForRound(state.round, state.season);
   }
 
@@ -9532,11 +9783,11 @@ function finalizeRound(userRes, winners, isKO){
 
     // Cobrança mensal de parcelas de obras do estádio / arena
     if(state.stadiumRingData?.debt && state.stadiumRingData.debt.remaining > 0){
-      const inst = state.stadiumRingData.debt.monthly;
+      const inst = Math.min(state.stadiumRingData.debt.remaining, state.stadiumRingData.debt.monthly);
       state.balance -= inst;
-      state.expense += inst;
-      state.stadiumRingData.debt.remaining -= inst;
-      state.stadiumRingData.debt.monthsLeft--;
+      state.debtPrincipalPaid = (state.debtPrincipalPaid || 0) + inst;
+      state.stadiumRingData.debt.remaining = Math.max(0, state.stadiumRingData.debt.remaining - inst);
+      state.stadiumRingData.debt.monthsLeft = Math.max(0, (state.stadiumRingData.debt.monthsLeft || 1) - 1);
       state.news.unshift(`🏗️ Parcela da obra do estádio (-${fmtMoney(inst)}) debitada no dia 1º.`);
     }
 
@@ -9696,7 +9947,7 @@ function showSellOnFeeNotificationModal(clause, destClub, resoldFee, myProfit){
   `;
 
   document.body.appendChild(m);
-  try { window.AFM30?.audio?.playCoin?.(); } catch(e){}
+  try { window.AFM30?.audio?.playCoin?.(); } catch(e){ window.AFMErrorLog?.recordHandled(e, 'audio.playCoin'); }
 
   const close = () => {
     m.remove();
@@ -9773,7 +10024,7 @@ function simulateAITransfers(){
       });
 
       toast(`💰 Cláusula de Revenda: +${fmtMoney(myProfit)} em caixa pela venda de ${clause.playerName} ao ${destClub}!`);
-      try { window.AFM30?.audio?.playCoin?.(); } catch(e){}
+      try { window.AFM30?.audio?.playCoin?.(); } catch(e){ window.AFMErrorLog?.recordHandled(e, 'audio.playCoin'); }
 
       // Notificação em destaque e Modal Oficial de Direitos Econômicos
       setTimeout(() => {
@@ -10313,7 +10564,7 @@ function openSeasonHistoryModal(){
 let liveAudioCtx = null;
 function getLiveAudioCtx(){
   if(!liveAudioCtx && (window.AudioContext || window.webkitAudioContext)){
-    try { liveAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    try { liveAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ window.AFMErrorLog?.recordHandled(e, 'liveMatch.createAudioContext'); }
   }
   return liveAudioCtx;
 }
@@ -10331,7 +10582,7 @@ function playWhistleSound(){
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.32);
     osc.connect(gain); gain.connect(ctx.destination);
     osc.start(); osc.stop(ctx.currentTime + 0.32);
-  } catch(e){}
+  } catch(e){ window.AFMErrorLog?.recordHandled(e, 'liveMatch.playWhistle'); }
 }
 function playKickSound(){
   const ctx = getLiveAudioCtx();
@@ -10346,7 +10597,7 @@ function playKickSound(){
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
     osc.connect(gain); gain.connect(ctx.destination);
     osc.start(); osc.stop(ctx.currentTime + 0.09);
-  } catch(e){}
+  } catch(e){ window.AFMErrorLog?.recordHandled(e, 'liveMatch.playKick'); }
 }
 function playCheerSound(){
   const ctx = getLiveAudioCtx();
@@ -10366,7 +10617,7 @@ function playCheerSound(){
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
     src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
     src.start();
-  } catch(e){}
+  } catch(e){ window.AFMErrorLog?.recordHandled(e, 'liveMatch.playCheer'); }
 }
 
 function advancePreSeasonDay(){
@@ -11517,6 +11768,10 @@ function setupLiveCanvasLoop(){
       updateLiveCanvasPositions(s);
       drawLiveStadium(ctx, s);
     } catch(err){
+      if(!window.__afmLiveRenderErrorLogged){
+        window.__afmLiveRenderErrorLogged = true;
+        recordAFMError('live-match-render', err);
+      }
       console.warn('Live match render loop error:', err);
     }
 
@@ -12854,8 +13109,8 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
       context: `Placar: ${s.home} ${s.hg} x ${s.ag} ${s.away}`,
       text: goalTxt,
       xG: shotXG,
-      scorer: shooter.name,
-      assist: assist?.name || null
+      scorer: shooter.fullName || shooter.name,
+      assist: assist?.fullName || assist?.name || null
     };
 
     if(validateMatchEvent(evt, s)) s.events.unshift(evt);
@@ -13847,7 +14102,8 @@ function finalizeMatchRound(){
   const userRes = {
     h: s.home, a: s.away,
     hg: s.hg, ag: s.ag,
-    winner: s.winner, pens: s.pens
+    winner: s.winner, pens: s.pens,
+    events: (s.events || []).filter(event => event?.type === 'gol')
   };
   const winners = s.winners;
   const isKO = s.isKO;
@@ -13900,7 +14156,10 @@ function simulateQuickRound(){
         winners.push(winner);
       }
       applyResult(h,a,hg,ag);
-      if(norm(h)===norm(state.club)||norm(a)===norm(state.club)) userRes={h,a,hg,ag,winner,pens};
+      if(norm(h)===norm(state.club)||norm(a)===norm(state.club)){
+        const userGoals = norm(h) === norm(state.club) ? hg : ag;
+        userRes={h,a,hg,ag,winner,pens,events:simulateUserGoalEvents(state.club,userGoals)};
+      }
     });
 
     // Finaliza a rodada sincronizando tabela e pontuação de todos os clubes
@@ -13912,7 +14171,7 @@ function simulateQuickRound(){
       openPressConferenceModal('post', userRes);
     }
   } finally {
-    setTimeout(() => { isSimulatingQuickRound = false; }, 400);
+    isSimulatingQuickRound = false;
   }
 }
 
@@ -14005,6 +14264,7 @@ function showEndOfSeasonModal(){
   state.balance += prize;
   state.income += prize;
   const awards = calculateSeasonAwards();
+  applyScoringAwardUpgrades(awards);
   const otherClubs = clubs.filter(c => norm(c.name) !== norm(state.club) && strength(c) >= strength(clubByName(state.club)) - 6).sort(() => Math.random() - .5).slice(0, 3);
   
   const contractDateStr = state.managerContractDate || `sex, 31 dez ${state.season + 1}`;
@@ -14114,7 +14374,7 @@ function showEndOfSeasonModal(){
 
       <div class="card" style="margin-bottom:14px;background:#141c26;padding:14px">
         <h4 style="margin:0 0 10px 0;color:#facc15">🏅 Premiações Individuais da Temporada</h4>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:12px;text-align:center">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;font-size:12px;text-align:center">
           <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
             <div style="font-size:16px">👑</div>
             <b style="color:#fff">${esc(awards.bestPlayer.name)}</b>
@@ -14124,6 +14384,11 @@ function showEndOfSeasonModal(){
             <div style="font-size:16px">👟</div>
             <b style="color:#fff">${esc(awards.topScorer.name)}</b>
             <div class="small muted">Chuteira de Ouro (${awards.topScorer.goals} gols)</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
+            <div style="font-size:16px">🎯</div>
+            <b style="color:#fff">${esc(awards.assistLeader.name)}</b>
+            <div class="small muted">Líder em assistências (${awards.assistLeader.assists})</div>
           </div>
           <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
             <div style="font-size:16px">🧤</div>
@@ -14218,6 +14483,8 @@ function advanceSeasonYear(){
   const finishedYear = state.season;
   const compFinished = curComp();
   const rankingTable = ranking();
+  const finishedPosition = position();
+  const finishedTeamCount = Math.max(1, state.teams?.length || 1);
   state.seasonHistory = state.seasonHistory || [];
   state.seasonHistory.unshift({
     season: finishedYear,
@@ -14227,11 +14494,26 @@ function advanceSeasonYear(){
     userPosition: position(),
     userClub: state.club,
     titlesWon: [...(state.titles || [])],
-    balance: state.balance
+    balance: state.balance,
+    income: Number(state.income) || 0,
+    expense: Number(state.expense) || 0,
+    financePeriodStartedDate: state.financePeriodStartedDate || null,
+    bankDebt: totalBankDebt(),
+    stadiumDebt: Math.max(0, Number(state.stadiumRingData?.debt?.remaining) || 0)
   });
+
+  // Preserve caixa and dívidas; the new season starts with clean accounting totals.
+  state.income = 0;
+  state.expense = 0;
+  state.financingInflow = 0;
+  state.debtPrincipalPaid = 0;
 
   state.season++;
   state.round = 0;
+  state.competitionStats = {};
+  (state.bankLoans || []).forEach(loan => {
+    if(loan.remainingDebt > 0 && loan.remainingInstallments > 0) loan.nextDueRound = 2;
+  });
   state.isPreSeason = true;
   state.preSeasonDays = 4;
   state.date = `${state.season}-01-01`;
@@ -14251,6 +14533,9 @@ function advanceSeasonYear(){
   }
 
   const comp = curComp();
+  refreshAnnualSponsorValues(finishedPosition, finishedTeamCount, comp?.id);
+  state.financePeriodStartedDate = state.date;
+  state.news.unshift(`🤝 PATROCÍNIOS REAJUSTADOS: contratos e novas propostas atualizados para ${comp?.name || 'a nova divisão'}, considerando a posição ${finishedPosition}ª de ${finishedTeamCount} na temporada anterior.`);
   state.news.unshift(`🎆 Feliz Ano Novo! Início da temporada ${state.season}! O ${state.club} disputará o ${comp?.name || 'Campeonato'} com pré-temporada aberta por 4 dias.`);
   
   const cc = competitionClubs(comp, state.club);
@@ -14263,6 +14548,8 @@ function advanceSeasonYear(){
   (state.squad || []).forEach(p => {
     p.age = (Number(p.age) || 24) + 1;
     p.stamina = 100;
+    p.goals = 0;
+    p.assists = 0;
     p.yellowCards = 0;
     p.redCard = false;
     if(p.age >= 35 && Math.random() < 0.35){
@@ -16009,7 +16296,8 @@ function calcBankInterestRate(amount, installments){
 }
 
 function calcBankInstallment(amount, installments, monthlyRate){
-  const totalInterest = amount * (monthlyRate / 100) * (installments / 4);
+  // Cada parcela vence a cada duas rodadas; o calendário tem quatro rodadas por mês.
+  const totalInterest = amount * (monthlyRate / 100) * (installments / 2);
   const totalDebt = amount + totalInterest;
   return Math.round(totalDebt / installments);
 }
@@ -16022,10 +16310,13 @@ function processBankLoansOnRound(){
       const instVal = Math.round(loan.installmentValue || (loan.remainingDebt / Math.max(1, loan.remainingInstallments)));
       if(state.balance >= instVal){
         state.balance -= instVal;
-        state.expense = (state.expense || 0) + instVal;
+        const breakdown = bankLoanPaymentBreakdown(loan, instVal);
+        loan.remainingPrincipal = breakdown.remainingPrincipal;
+        state.debtPrincipalPaid = (state.debtPrincipalPaid || 0) + breakdown.principalPaid;
+        state.expense = (state.expense || 0) + breakdown.interestPaid;
         loan.paidInstallments = (loan.paidInstallments || 0) + 1;
         loan.remainingInstallments = Math.max(0, (loan.remainingInstallments || 1) - 1);
-        loan.remainingDebt = Math.max(0, loan.remainingDebt - instVal);
+        loan.remainingDebt = Math.max(0, loan.remainingDebt - breakdown.amount);
         loan.nextDueRound = (state.round || 0) + 2;
         loan.overdue = false;
         loan.penalty = 0;
@@ -16189,7 +16480,8 @@ function openBankLoansModal(){
                   ${state.bankLoans.map((loan, idx) => {
                     const instVal = Math.round(loan.installmentValue || (loan.remainingDebt / Math.max(1, loan.remainingInstallments)));
                     const bonusPayoff = Math.round(loan.remainingDebt * 0.90);
-                    const roundsUntilDue = Math.max(0, (loan.nextDueRound || 0) - (state.round || 0));
+                    const dueDate = bankLoanDueDate(loan);
+                    const daysUntilDue = daysUntilBankLoanDue(loan);
                     return `
                       <div style="background:#161a2e;border:1px solid ${loan.overdue?'#ef4444':'rgba(255,255,255,0.1)'};border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 4px 16px rgba(0,0,0,0.3)">
                         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -16197,7 +16489,7 @@ function openBankLoansModal(){
                             <div style="display:flex;align-items:center;gap:8px">
                               <span style="font-size:16px;font-weight:900">Contrato #${idx+1} — ${fmtMoney(loan.principal)}</span>
                               <span class="pill" style="font-size:10px;background:${loan.overdue?'#ef4444':'#10b981'};color:#fff;font-weight:900">
-                                ${loan.overdue ? '🚨 PARCELA EM ATRASO (+2% juros)' : `✓ Em dia (Vence em ${roundsUntilDue} rodadas)`}
+                                ${loan.overdue ? '🚨 PARCELA EM ATRASO (+2% juros)' : `✓ Em dia (${daysUntilDue === 0 ? 'Vence hoje' : `Vence em ${daysUntilDue} ${daysUntilDue === 1 ? 'dia' : 'dias'}`} • ${formatDatePtBr(dueDate)})`}
                               </span>
                             </div>
                             <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">
@@ -16273,6 +16565,8 @@ function openBankLoansModal(){
           totalInstallments: selectedLoanInstallments,
           paidInstallments: 0,
           remainingInstallments: selectedLoanInstallments,
+          remainingPrincipal: selectedLoanAmount,
+          createdSeason: Number(state.season) || 0,
           installmentValue: inst,
           nextDueRound: (state.round || 0) + 2,
           overdue: false,
@@ -16280,7 +16574,7 @@ function openBankLoansModal(){
         });
 
         state.balance += selectedLoanAmount;
-        state.income = (state.income || 0) + selectedLoanAmount;
+        state.financingInflow = (state.financingInflow || 0) + selectedLoanAmount;
         state.news.unshift(`🏦 CRÉDITO LIBERADO: Empréstimo bancário de ${fmtMoney(selectedLoanAmount)} depositado no caixa do clube!`);
         save();
         toast(`🎉 Empréstimo de ${fmtMoney(selectedLoanAmount)} creditado na conta do clube!`);
@@ -16298,10 +16592,13 @@ function openBankLoansModal(){
         if(state.balance < instVal){ toast('Saldo insuficiente no caixa para pagar a parcela.'); return; }
 
         state.balance -= instVal;
-        state.expense = (state.expense || 0) + instVal;
+        const breakdown = bankLoanPaymentBreakdown(loan, instVal);
+        loan.remainingPrincipal = breakdown.remainingPrincipal;
+        state.debtPrincipalPaid = (state.debtPrincipalPaid || 0) + breakdown.principalPaid;
+        state.expense = (state.expense || 0) + breakdown.interestPaid;
         loan.paidInstallments = (loan.paidInstallments || 0) + 1;
         loan.remainingInstallments = Math.max(0, loan.remainingInstallments - 1);
-        loan.remainingDebt = Math.max(0, loan.remainingDebt - instVal);
+        loan.remainingDebt = Math.max(0, loan.remainingDebt - breakdown.amount);
         loan.nextDueRound = (state.round || 0) + 2;
         loan.overdue = false;
         loan.penalty = 0;
@@ -16327,7 +16624,11 @@ function openBankLoansModal(){
         if(state.balance < bonusPayoff){ toast('Saldo insuficiente no caixa para quitar com desconto.'); return; }
 
         state.balance -= bonusPayoff;
-        state.expense = (state.expense || 0) + bonusPayoff;
+        const remainingDebt = Math.max(0, Number(loan.remainingDebt) || 0);
+        const remainingPrincipal = bankLoanPaymentBreakdown(loan, 0).remainingPrincipal;
+        const principalPaid = Math.round(bonusPayoff * (remainingDebt > 0 ? remainingPrincipal / remainingDebt : 1));
+        state.debtPrincipalPaid = (state.debtPrincipalPaid || 0) + principalPaid;
+        state.expense = (state.expense || 0) + Math.max(0, bonusPayoff - principalPaid);
         const savedMoney = loan.remainingDebt - bonusPayoff;
         state.bankLoans.splice(idx, 1);
         state.news.unshift(`🏦 QUITAÇÃO ANTECIPADA: Dívida quitada com sucesso! Economia de ${fmtMoney(savedMoney)} em bônus.`);
@@ -16387,6 +16688,7 @@ function render(){
       restore();
       return;
     } catch(err){
+      recordAFMError('render-fallback', err);
       console.warn('Erro ao atualizar tela via mainEl, fazendo render completo:', err);
     }
   }
@@ -16535,7 +16837,7 @@ function centralPage(){
   // Dados do Confronto da Copa do Brasil (Sincronizado Dinamicamente com a Data Atual)
   processCopaDoBrasilCalendar(state.date);
   const copa = getCopaDoBrasilState();
-  const phaseKeys = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Mata-Mata'];
+  const phaseKeys = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Oitavas de Final', 'Quartas de Final', 'Semifinais', 'Final'];
   
   let activeCopaPhaseKey = '1ª Fase';
   let myCopaFixture = null;
@@ -16580,13 +16882,13 @@ function centralPage(){
   const altInfo = isHighAltitudeVenue(opp);
 
   return `
-    <div style="display:grid;grid-template-columns:280px 1.8fr 300px;gap:18px;align-items:start">
+    <div class="central-dashboard-grid" style="display:grid;grid-template-columns:280px minmax(0,1.8fr) 300px;gap:18px;align-items:start">
       
       <!-- ================= COLUNA 1: PERFIL DO CLUBE + TÉCNICO (Screenshot 1) ================= -->
       <div style="display:flex;flex-direction:column;gap:16px">
         <!-- Card 1: Clube -->
         <div class="card" style="padding:0;overflow:hidden;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px;text-align:center">
-          <div style="height:110px;background:linear-gradient(180deg, rgba(0,0,0,0.1), #100d1e), url('img/stadium_bg.jpg') center/cover;position:relative;display:flex;align-items:center;justify-content:center">
+          <div style="height:110px;background:linear-gradient(145deg,#18132d,#0f172a);position:relative;display:flex;align-items:center;justify-content:center">
             <div style="position:absolute;bottom:-30px">
               ${clubBadge(state.club, 72)}
             </div>
@@ -17123,9 +17425,19 @@ function playContinentalFixture(competitionId, matchId){
   if(match.date !== state.date){ toast('Avance o calendário até a data desta partida.'); return; }
   if(norm(match.home) !== norm(state.club) && norm(match.away) !== norm(state.club)) return;
   const dateFixtures = tournament.matches.filter(item => item.date === match.date && item.status === 'scheduled');
+  let userResult = null;
   for(const fixture of dateFixtures){
     const [homeGoals, awayGoals] = simulateScore(fixture.home, fixture.away);
     window.AFM_TOURNAMENT_ENGINE.recordResult(tournament, fixture.id, homeGoals, awayGoals);
+    if(norm(fixture.home) === norm(state.club) || norm(fixture.away) === norm(state.club)){
+      const events = simulateUserGoalEvents(state.club, norm(fixture.home) === norm(state.club) ? homeGoals : awayGoals);
+      addPlayerMatchStats(competitionId, state.club, events);
+      userResult = { h: fixture.home, a: fixture.away, hg: homeGoals, ag: awayGoals, events, round: fixture.round, season: Number(state.season), date: state.date, competitionId, competitionName: competitionId === 'lib' ? 'Copa Libertadores' : 'Copa Sul-Americana' };
+    }
+  }
+  if(userResult){
+    state.history = [userResult, ...(state.history || [])].slice(0, 100);
+    state.lastMatchSummary = { h:userResult.h, a:userResult.a, hg:userResult.hg, ag:userResult.ag, isHome:norm(userResult.h)===norm(state.club), won:(norm(userResult.h)===norm(state.club)?userResult.hg>userResult.ag:userResult.ag>userResult.hg) };
   }
   state.news = state.news || [];
   state.news.unshift(`🏆 ${match.competitionId === 'lib' ? 'Libertadores' : 'Sul-Americana'}: rodada ${match.round} concluída; classificação atualizada.`);
@@ -17154,10 +17466,20 @@ function calendarPage(){
   const schedule = state.schedule || [];
   const myClub = state.club;
   const calendarClubKey = name => ({'red bull bragantino':'bragantino'}[norm(name)] || norm(name));
-  const leagueDates = new Set(schedule.map((_, round) => getDateForRound(round, state.season)));
   const winInfo = getTransferWindowInfo(state.date);
   const continental = Number(state.season) === 2026 ? window.AFM_CONTINENTAL_2026 : null;
   const extraMatches = [];
+  const copa = getCopaDoBrasilState();
+  processCopaDoBrasilCalendar(state.date);
+  Object.entries(copa.phases || {}).forEach(([phaseName, phase]) => (phase.fixtures || []).forEach((fixture, fixtureIndex) => {
+    if(calendarClubKey(fixture.home) !== calendarClubKey(myClub) && calendarClubKey(fixture.away) !== calendarClubKey(myClub)) return;
+    extraMatches.push({
+      competitionId: 'bra-cup', name: 'Copa do Brasil', home: fixture.home, away: fixture.away,
+      isHome: calendarClubKey(fixture.home) === calendarClubKey(myClub), round: phaseName,
+      date: fixture.isoDate, result: fixture.score, current: fixture.isoDate === state.date,
+      matchIndex: fixtureIndex, phaseName
+    });
+  }));
   if(continental){
     for(const id of ['lib','sud']){
       const all = continental.groupFixtures(id).flat();
@@ -17169,23 +17491,6 @@ function calendarPage(){
           ...f, matchId: played?.id, result: played?.result, isHome: calendarClubKey(f.home) === calendarClubKey(myClub), name: id === 'lib' ? 'Copa Libertadores' : 'Copa Sul-Americana'
         };
       }));
-    }
-    for(const stage of [continental.copaDoBrasil, continental.copaDoBrasil.roundOf16, continental.copaDoBrasil.quarterfinals]){
-      stage.ties.forEach(([home, away], tieIndex) => {
-        if(calendarClubKey(home) !== calendarClubKey(myClub) && calendarClubKey(away) !== calendarClubKey(myClub)) return;
-        stage.dateWindows.forEach((leg, legIndex) => {
-          const isFirstLeg = legIndex === 0;
-          const isHome = isFirstLeg ? calendarClubKey(home) === calendarClubKey(myClub) : calendarClubKey(away) === calendarClubKey(myClub);
-          const date = new Date(`${leg.date}T12:00:00`);
-          date.setDate(date.getDate() + tieIndex % 3);
-          while(leagueDates.has(date.toISOString().slice(0,10))) date.setDate(date.getDate() + 1);
-          extraMatches.push({
-            competitionId:'bra-cup', name:'Copa do Brasil', home:isHome?myClub:(isFirstLeg?away:home),
-            away:isHome?(isFirstLeg?away:home):myClub, isHome, round:leg.round,
-            date:date.toISOString().slice(0,10), dateLabel:leg.label
-          });
-        });
-      });
     }
   }
   const cupFilters = [
@@ -17204,7 +17509,7 @@ function calendarPage(){
       date, round:`Rodada ${rIndex + 1}`, current:rIndex === state.round,
       past:rIndex < state.round, historyMatch
     }];
-  }).concat(extraMatches.map(match => ({...match, current:false, past:false})))
+  }).concat(extraMatches.map(match => ({...match, current: match.date === state.date, past: match.date < state.date})))
     .filter(match => {
       if(activeCalendarFilter === 'COMP') return match.competitionId === 'COMP';
       if(['HOME','AWAY'].includes(activeCalendarFilter)) return match.isHome === (activeCalendarFilter === 'HOME');
@@ -17273,6 +17578,11 @@ function calendarPage(){
           } else statusHtml = '<span class="pill">Concluído</span>';
         } else if(match.competitionId === 'COMP' && match.current){
           statusHtml = `<div style="display:flex;gap:6px;align-items:center;justify-content:flex-end"><span class="pill primary" style="box-shadow:0 0 12px var(--neon)">👉 HOJE</span><button class="btn primary btnCalPlayNow" style="padding:4px 10px;font-size:12px">⚽ Jogar</button></div>`;
+        } else if(match.competitionId === 'bra-cup' && match.result){
+          const score = match.isHome ? `${match.result[0]} x ${match.result[1]}` : `${match.result[1]} x ${match.result[0]}`;
+          statusHtml = `<span class="pill good">${score} • Concluído</span>`;
+        } else if(match.competitionId === 'bra-cup' && match.date === state.date){
+          statusHtml = `<button class="btn primary btnCalCopaPlay" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" style="padding:4px 10px;font-size:12px">▶ Simular</button>`;
         } else if(match.matchId && match.result){
           statusHtml = `<span class="pill good">${match.result[0]} x ${match.result[1]} • Concluído</span>`;
         } else if(match.matchId && match.date === state.date){
@@ -17334,13 +17644,13 @@ function myTeamPage(){
         <div>
           <span style="font-size:11px;font-weight:900;color:#facc15">🎯 PÊNALTIS:</span>
           <select id="selPenaltyTaker" class="btn" style="padding:4px 8px;font-size:11px;background:#1e1838;color:#fff;border-radius:6px;border:1px solid rgba(255,255,255,0.15)">
-            ${validStarters.map(p=>`<option value="${playerKey(p)}" ${state.setPieceTakers?.penalties===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
+            ${validStarters.map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.penalty||state.setPieceTakers?.penalties)===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
           </select>
         </div>
         <div>
           <span style="font-size:11px;font-weight:900;color:#38bdf8">⚡ FALTAS:</span>
           <select id="selFreekickTaker" class="btn" style="padding:4px 8px;font-size:11px;background:#1e1838;color:#fff;border-radius:6px;border:1px solid rgba(255,255,255,0.15)">
-            ${validStarters.map(p=>`<option value="${playerKey(p)}" ${state.setPieceTakers?.freekicks===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
+            ${validStarters.map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.freekick||state.setPieceTakers?.freekicks)===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
           </select>
         </div>
         <div>
@@ -18838,6 +19148,7 @@ function renderMarketLoans(){
 
   $$('.loan-in').forEach(b => b.onclick = () => loanInPlayer(b.dataset.key));
   } catch(err) {
+    recordAFMError('market-loans-render', err);
     console.error('Erro em renderMarketLoans:', err);
   }
 }
@@ -19888,14 +20199,13 @@ function structurePage(){
 // ESCRITÓRIO & PATROCINADORES
 // -------------------------------------------------------------
 function officePage(){
-  const monthlyFacilities = monthlyFacilityIncome();
-  const totalSponsorMo = totalSponsorMonthly();
-  const totalWinBonus = totalSponsorWinBonus();
-
-  // Auto-recuperação: se as receitas totais estiverem zeradas com contratos ativos, computa a receita do período
-  if((!state.income || state.income === 0) && totalSponsorMo > 0){
-    state.income = totalSponsorMo;
-  }
+  const socioData = getSocioTorcedorMeta();
+  const finance = monthlyFinancialProjection(socioData);
+  const bankDebt = totalBankDebt();
+  const stadiumDebt = Math.max(0, Number(state.stadiumRingData?.debt?.remaining) || 0);
+  const loanPrincipalDue = (state.bankLoans || []).reduce((sum, loan) => sum + (Number(loan.remainingInstallments) > 0 ? Math.max(0, Number(loan.installmentValue) || 0) * 2 : 0), 0);
+  const financeStart = state.financePeriodStartedDate || `${state.season || 2026}-01-01`;
+  const legacyFinance = state.financeLegacyTotals;
 
   return `
     <div class="hero">
@@ -19907,70 +20217,42 @@ function officePage(){
     </div>
 
     <div class="grid g4" style="margin-top:14px">
-      <div class="card metric"><div class="muted">Caixa do Clube</div><div class="value ${state.balance >= 0 ? 'good' : 'warn'}">${fmtMoney(state.balance)}</div></div>
-      <div class="card metric"><div class="muted">Receitas Totais</div><div class="value good">${fmtMoney(state.income)}</div></div>
-      <div class="card metric"><div class="muted">Despesas Totais</div><div class="value warn">${fmtMoney(state.expense)}</div></div>
-      <div class="card metric">
-        <div class="muted">Folha Salarial Mensal</div>
-        <div class="value">${fmtMoney(totalMonthlyPayroll())}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px">Custo: ${fmtMoney(payrollPerRound())}/rodada</div>
-      </div>
+      <div class="card metric"><div class="muted">Caixa disponível agora</div><div class="value ${state.balance >= 0 ? 'good' : 'warn'}">${fmtMoney(state.balance)}</div><div class="small muted">Saldo real do clube</div></div>
+      <div class="card metric"><div class="muted">Entradas previstas por mês</div><div class="value good">${fmtMoney(finance.monthlyRevenue)}</div><div class="small muted">Fixas, jogos e bônus estimados</div></div>
+      <div class="card metric"><div class="muted">Saídas previstas por mês</div><div class="value warn">${fmtMoney(finance.monthlyExpenses)}</div><div class="small muted">Inclui salários, marketing e parcelas</div></div>
+      <div class="card metric"><div class="muted">Resultado mensal estimado</div><div class="value ${finance.monthlyBalance >= 0 ? 'good' : 'warn'}">${fmtMoney(finance.monthlyBalance)}</div><div class="small muted">Previsão, varia com jogos e vitórias</div></div>
     </div>
 
-    <!-- Detalhamento de Receitas e Contratos Ativos -->
     <div class="card" style="margin-top:14px;background:#141124;border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-        <b style="color:#fff;font-size:13px;text-transform:uppercase">📊 Balanço de Receitas Comerciais & Operacionais</b>
-        <span class="pill good" style="font-size:10px;font-weight:900">ENTRADAS DE CAIXA</span>
+        <div><b style="color:#fff;font-size:13px;text-transform:uppercase">📈 Previsão de receitas mensais</b><div class="small muted">Valores fixos e médias recentes; bilheteria e bônus variam conforme os jogos.</div></div>
+        <span class="pill good" style="font-size:10px;font-weight:900">ENTRADAS ESTIMADAS</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;font-size:12px">
-        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
-          <div class="muted">Patrocínios Fixos Mensais</div>
-          <b style="color:#22c55e;font-size:15px">${fmtMoney(totalSponsorMo)}/mês</b>
-        </div>
-        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
-          <div class="muted">Bônus por Vitória em Vigor</div>
-          <b style="color:#38bdf8;font-size:15px">+ ${fmtMoney(totalWinBonus)}/vitória</b>
-        </div>
-        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
-          <div class="muted">Receita Mensal de Estruturas</div>
-          <b style="color:#fbbf24;font-size:15px">${fmtMoney(monthlyFacilities)}/mês</b>
-        </div>
-        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
-          <div class="muted">Receitas Totais Acumuladas</div>
-          <b style="color:#4ade80;font-size:15px">${fmtMoney(state.income)}</b>
-        </div>
+        ${[['Patrocínios fixos',finance.revenue.sponsors],['Receita das estruturas',finance.revenue.structures],['Bônus comercial do escritório',finance.revenue.admin],['Direitos de transmissão',finance.revenue.tv],['Sócio-torcedor',finance.revenue.members],['Naming rights',finance.revenue.naming],['Loja oficial (líquido estimado)',finance.revenue.store],['Bilheteria (média)',finance.revenue.gate],['Estacionamento (média)',finance.revenue.parking],['Vendas no estádio (média)',finance.revenue.matchSales],['Bônus de patrocínio por vitórias (estimado)',finance.revenue.winBonuses]].map(([label,value])=>`<div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)"><div class="muted">${label}</div><b style="color:#22c55e;font-size:15px">${fmtMoney(value)}/mês</b></div>`).join('')}
       </div>
     </div>
 
-    <!-- Extrato Operacional Detalhado de Despesas da Temporada -->
     <div class="card" style="margin-top:14px;background:#141124;border:1px solid rgba(239,68,68,0.25);border-radius:14px;padding:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-        <b style="color:#fff;font-size:13px;text-transform:uppercase">📉 Extrato Consolidado de Despesas da Temporada</b>
-        <span class="pill warn" style="font-size:10px;font-weight:900">SAÍDAS DE CAIXA</span>
+        <div><b style="color:#fff;font-size:13px;text-transform:uppercase">📉 Despesas e parcelas mensais</b><div class="small muted">O principal das dívidas é mostrado como parcela de caixa, separado da despesa operacional.</div></div>
+        <span class="pill warn" style="font-size:10px;font-weight:900">SAÍDAS ESTIMADAS</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;font-size:12px">
-        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
-          <div class="muted">Salários Pagos no Período</div>
-          <b style="color:#f87171;font-size:15px">${fmtMoney(Math.round((state.round || 0) * payrollPerRound()))}</b>
-          <div style="font-size:10px;color:rgba(255,255,255,0.4)">${fmtMoney(payrollPerRound())} por rodada (${(state.round || 0)} rodadas)</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
-          <div class="muted">Marketing Semanal</div>
-          <b style="color:#fb923c;font-size:15px">${fmtMoney(Math.round((state.round || 0) * (Number(state.marketingWeekly) || 2500)))}</b>
-          <div style="font-size:10px;color:rgba(255,255,255,0.4)">${fmtMoney(Number(state.marketingWeekly) || 2500)} por rodada</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
-          <div class="muted">Contratos, Obras & Empréstimos</div>
-          <b style="color:#fca5a5;font-size:15px">${fmtMoney(Math.max(0, state.expense - Math.round((state.round || 0) * payrollPerRound()) - Math.round((state.round || 0) * (Number(state.marketingWeekly) || 2500))))}</b>
-          <div style="font-size:10px;color:rgba(255,255,255,0.4)">Bônus de atletas, parcelas e reformas</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
-          <div class="muted">Despesas Totais Acumuladas</div>
-          <b style="color:#ef4444;font-size:15px">${fmtMoney(state.expense)}</b>
-          <div style="font-size:10px;color:rgba(255,255,255,0.4)">Total debitado do caixa até agora</div>
-        </div>
+        ${[['Salários do elenco',finance.expenses.payroll],['Marketing',finance.expenses.marketing],['Parcelas bancárias previstas',finance.expenses.bankRepayments],['Parcelas de obras do estádio',finance.expenses.stadiumRepayments]].map(([label,value])=>`<div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)"><div class="muted">${label}</div><b style="color:#f87171;font-size:15px">${fmtMoney(value)}/mês</b></div>`).join('')}
       </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;padding:16px;border:1px solid rgba(56,189,248,0.2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><b>📒 Movimento financeiro da temporada ${state.season}</b><span class="small muted">Contagem desde ${esc(financeStart)}</span></div>
+      <div class="grid g4" style="margin-top:10px">
+        <div class="revenue-metric-tile"><div class="title">Receitas operacionais registradas</div><div class="number good">${fmtMoney(state.income)}</div></div>
+        <div class="revenue-metric-tile"><div class="title">Despesas operacionais registradas</div><div class="number" style="color:#fb7185">${fmtMoney(state.expense)}</div></div>
+        <div class="revenue-metric-tile"><div class="title">Empréstimos recebidos (financiamento)</div><div class="number" style="color:#38bdf8">${fmtMoney(state.financingInflow || 0)}</div></div>
+        <div class="revenue-metric-tile"><div class="title">Principal de dívidas pago</div><div class="number" style="color:#fbbf24">${fmtMoney(state.debtPrincipalPaid || 0)}</div></div>
+        <div class="revenue-metric-tile"><div class="title">Dívida atual · banco e estádio</div><div class="number" style="color:#fbbf24">${fmtMoney(bankDebt + stadiumDebt)}</div><div class="small muted">Parcelas previstas: ${fmtMoney(loanPrincipalDue + finance.expenses.stadiumRepayments)}/mês</div></div>
+      </div>
+      ${legacyFinance ? `<div class="small muted" style="margin-top:10px">Totais anteriores preservados para consulta (${fmtMoney(legacyFinance.income)} em entradas e ${fmtMoney(legacyFinance.expense)} em saídas). O sistema antigo misturava crédito de empréstimos aos totais e não separava principal e juros; os valores novos começam em ${esc(financeStart)}.</div>` : ''}
     </div>
 
     <h2 style="margin-top:20px">Patrocinadores Oficiais do Clube</h2>
@@ -20012,7 +20294,7 @@ function officePage(){
       </div>
     </div>
 
-    ${renderSocioTorcedorCard()}
+    ${renderSocioTorcedorCard(socioData)}
 
     <div class="card" style="margin-top:16px;border:1px solid #10b981;background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(6,95,70,0.12))">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
@@ -20195,6 +20477,57 @@ function renderContinentalGroupStage(competitionId){
   `;
 }
 
+function continentalPhaseNav(id, phases){
+  const active = continentalPhase.startsWith(`${id}:`) ? continentalPhase.slice(id.length + 1) : 'groups';
+  return `<div class="filters" style="margin:12px 0;display:flex;flex-wrap:wrap;gap:7px">${phases.map(([key,label]) => `<button class="btn ${active===key?'primary':''}" data-continental-phase="${id}:${key}">${esc(label)}</button>`).join('')}</div>`;
+}
+
+function continentalPhaseInfo(id, phase){
+  const formats = {
+    'lib:pre1':'Seis clubes disputam três vagas para a Fase 2.',
+    'lib:pre2':'Dezesseis clubes disputam oito vagas para a Fase 3.',
+    'lib:pre3':'Oito clubes disputam quatro vagas para a fase de grupos.',
+    'lib:round16':'Oito vencedores de grupo enfrentam oito segundos colocados; ida e volta.',
+    'lib:quarters':'Oito classificados; confrontos de ida e volta.',
+    'lib:semis':'Quatro classificados; confrontos de ida e volta.',
+    'lib:final':'Final em jogo único; empate no agregado nas fases anteriores é decidido nos pênaltis.',
+    'sud:pre':'32 clubes de oito federações disputam jogos únicos nacionais; 16 avançam.',
+    'sud:playoffs':'Segundos dos grupos enfrentam terceiros da Libertadores em ida e volta.',
+    'sud:round16':'Oito vencedores de grupo enfrentam vencedores dos playoffs; ida e volta.',
+    'sud:quarters':'Oito classificados; confrontos de ida e volta.',
+    'sud:semis':'Quatro classificados; confrontos de ida e volta.',
+    'sud:final':'Final em jogo único; empate no agregado nas fases anteriores é decidido nos pênaltis.',
+    'cwc:groups':'32 equipes em oito grupos de quatro; os dois primeiros de cada grupo avançam.',
+    'cwc:round16':'Oitavas em jogo único: primeiro de cada grupo contra segundo de outro grupo.',
+    'cwc:quarters':'Oito classificados em jogos únicos.',
+    'cwc:semis':'Quatro classificados em jogos únicos.',
+    'cwc:final':'Final em jogo único para definir o campeão.'
+  };
+  const text = formats[`${id}:${phase}`] || '32 equipes em oito grupos; cada equipe disputa seis partidas. A classificação define os avanços e vagas nos playoffs.';
+  const tournament = ['lib','sud'].includes(id) ? getContinentalTournament(id) : null;
+  const ranking = Object.entries(tournament?.standings || {}).flatMap(([group, rows]) => rows.map((row, index) => ({...row, group, index})));
+  const qualifiers = id === 'lib' ? ranking.filter(row => row.index < 2) : ranking.filter(row => row.index === 0);
+  let ties = [];
+  const groupOrder = Object.keys(window.AFM_CONTINENTAL_2026?.groups?.[id] || {}).sort();
+  if(id === 'lib' && phase === 'round16'){
+    for(let index = 0; index < groupOrder.length; index += 2){
+      const first = groupOrder[index], second = groupOrder[index + 1];
+      ties.push(
+        [tournament?.standings?.[first]?.[0]?.name || window.AFM_CONTINENTAL_2026.groups.lib[first][0], tournament?.standings?.[second]?.[1]?.name || window.AFM_CONTINENTAL_2026.groups.lib[second][1]],
+        [tournament?.standings?.[second]?.[0]?.name || window.AFM_CONTINENTAL_2026.groups.lib[second][0], tournament?.standings?.[first]?.[1]?.name || window.AFM_CONTINENTAL_2026.groups.lib[first][1]]
+      );
+    }
+  } else if(id === 'sud' && phase === 'playoffs'){
+    const lib = getContinentalTournament('lib');
+    const seconds = groupOrder.map(group => tournament?.standings?.[group]?.[1]).filter(Boolean)
+      .sort((a,b) => b.points - a.points).map(row => row.name);
+    const thirds = Object.entries(lib?.standings || {}).map(([group, rows]) => rows[2] || {name:window.AFM_CONTINENTAL_2026.groups.lib[group][2], points:0})
+      .sort((a,b) => a.points - b.points).map(row => row.name);
+    ties = seconds.map((team, index) => [team, thirds[index]]);
+  }
+  return `<section style="margin-top:18px;background:#101827;border:1px solid rgba(56,189,248,.25);border-radius:14px;padding:16px"><h3 style="margin-top:0;color:#e2e8f0">${esc(text.split(';')[0])}</h3><p class="muted">${esc(text)}</p>${qualifiers.length ? `<b>Classificação ${ranking.some(row => row.played > 0) ? 'provisória' : 'inicial'}</b><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${qualifiers.map(row => `<span class="pill">Grupo ${row.group} · ${esc(row.name)}</span>`).join('')}</div>` : ''}${ties.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:7px;margin-top:12px">${ties.map(([a,b],index) => `<div class="pill">${index+1}. ${esc(a)} × ${esc(b)}</div>`).join('')}</div>` : !qualifiers.length ? '<div class="muted">Os confrontos e participantes desta fase são definidos após a conclusão da fase anterior.</div>' : ''}</section>`;
+}
+
 function renderContinentalBlock(){
   const tabs = [
     { id: 'sulamericana', name: '🥈 Copa Sul-Americana', badge: 'G7 A G12' },
@@ -20246,7 +20579,8 @@ function renderContinentalBlock(){
             </p>
           </div>
 
-          ${renderContinentalGroupStage('sud')}
+          ${continentalPhaseNav('sud', [['pre','Preliminar'],['groups','Grupos'],['playoffs','Playoffs'],['round16','Oitavas'],['quarters','Quartas'],['semis','Semifinais'],['final','Final']])}
+          ${!continentalPhase.startsWith('sud:') || continentalPhase === 'sud:groups' ? renderContinentalGroupStage('sud') : continentalPhaseInfo('sud', continentalPhase.slice(4))}
           <details style="background:#141124;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 16px">
             <summary style="cursor:pointer;font-weight:900;color:#c084fc">Ver regulamento, vagas e premiações</summary>
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
@@ -20344,7 +20678,8 @@ function renderContinentalBlock(){
             </p>
           </div>
 
-          ${renderContinentalGroupStage('lib')}
+          ${continentalPhaseNav('lib', [['pre1','Fase 1'],['pre2','Fase 2'],['pre3','Fase 3'],['groups','Grupos'],['round16','Oitavas'],['quarters','Quartas'],['semis','Semifinais'],['final','Final']])}
+          ${!continentalPhase.startsWith('lib:') || continentalPhase === 'lib:groups' ? renderContinentalGroupStage('lib') : continentalPhaseInfo('lib', continentalPhase.slice(4))}
           <details style="background:#141124;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 16px">
             <summary style="cursor:pointer;font-weight:900;color:#c084fc">Ver regulamento, vagas e premiações</summary>
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
@@ -20580,6 +20915,8 @@ function renderContinentalBlock(){
               </p>
             </div>
           </div>
+          ${continentalPhaseNav('cwc', [['groups','Grupos'],['round16','Oitavas'],['quarters','Quartas'],['semis','Semifinais'],['final','Final']])}
+          ${continentalPhase.startsWith('cwc:') && continentalPhase !== 'cwc:groups' ? continentalPhaseInfo('cwc', continentalPhase.slice(4)) : '<section style="margin-top:12px;padding:14px;background:#101827;border-radius:12px"><b>Fase de grupos</b><p class="muted">32 clubes · 8 grupos · 6 rodadas · os dois primeiros avançam às oitavas.</p></section>'}
         </div>
       `}
     </div>
@@ -20716,6 +21053,10 @@ function seasonPage(){
       const estData = getStateCompData(estCompId);
       const estStats = getStateCompStats(estCompId);
       const myStateComp = clubStateCompId(state.club);
+      const statKey = statsTab === 'scorers' ? 'goals' : 'assists';
+      const rankedStats = [...(statsTab === 'scorers' ? estStats.scorers : estStats.assists)].sort((a,b) =>
+        (Number(b[statKey]) || 0) - (Number(a[statKey]) || 0) || norm(a.name).localeCompare(norm(b.name))
+      );
 
       // Sincronização em tempo real: se for a competição atual do clube em disputa
       if((estCompId === state.compId || (state.compId && state.compId.startsWith('bra-est-') && estCompId === myStateComp)) && Array.isArray(state.teams) && state.teams.length > 0){
@@ -20896,7 +21237,7 @@ function seasonPage(){
                 const isMyMatch = norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club);
 
                 return `
-                  <div class="clickable-fixture" data-home="${esc(f.home)}" data-away="${esc(f.away)}" style="background:${isMyMatch ? 'rgba(124,58,237,0.18)' : '#161324'};border:1px solid ${isMyMatch ? '#7c3aed' : 'rgba(255,255,255,0.06)'};border-radius:10px;padding:12px;cursor:pointer;transition:all 0.2s">
+                  <div class="clickable-fixture" data-home="${esc(f.home)}" data-away="${esc(f.away)}" data-competition="${esc(estData.name)}" data-date="${esc(f.isoDate || f.dateStr || '')}" style="background:${isMyMatch ? 'rgba(124,58,237,0.18)' : '#161324'};border:1px solid ${isMyMatch ? '#7c3aed' : 'rgba(255,255,255,0.06)'};border-radius:10px;padding:12px;cursor:pointer;transition:all 0.2s">
                     <div style="font-size:10px;color:rgba(255,255,255,0.4);text-align:center;margin-bottom:6px">
                       ${esc(f.stadium)} • ${esc(f.dateStr)}
                     </div>
@@ -20944,8 +21285,9 @@ function seasonPage(){
           </div>
 
           <div style="display:flex;flex-direction:column;margin-top:10px">
-            ${(statsTab === 'scorers' ? estStats.scorers : estStats.assists).map((item, idx) => {
-              const rank = idx === 0 ? 1 : 2;
+            ${rankedStats.slice(0, 11).map((item, idx) => {
+              const value = Number(item[statKey]) || 0;
+              const rank = rankedStats.findIndex(row => (Number(row[statKey]) || 0) === value) + 1;
               const isMyPlayer = norm(item.club) === norm(state.club);
 
               return `
@@ -21099,6 +21441,7 @@ function configPage(){
               <input id="importSaveInput" type="file" accept="application/json" style="display:none">
             </label>
             <button class="btn" id="btnSaveNowManual">Salvar Agora</button>
+            <button class="btn" id="btnDownloadErrorLog">📥 Baixar log de erros (${window.AFMErrorLog?.getLogs().length || 0})</button>
           </div>
         </div>
 
@@ -22756,6 +23099,7 @@ function openCommunityModModal(){
           overlay.remove();
           renderSetup($('#app'));
         } catch(err){
+          recordAFMError('community-mod-import', err);
           toast('Erro ao importar pacote JSON.');
         }
       };
@@ -23480,15 +23824,23 @@ function bind(){
 
     const pTak = $('#selPenaltyTaker');
     if(pTak) pTak.onchange = () => {
+      state.setPieces = state.setPieces || {};
+      state.setPieces.penalty = pTak.value;
       state.setPieceTakers = state.setPieceTakers || {};
       state.setPieceTakers.penalties = pTak.value;
+      const lowerTaker = $('#setPiecePenalty');
+      if(lowerTaker) lowerTaker.value = pTak.value;
       save();
       toast('Cobrador oficial de pênaltis definido!');
     };
     const fTak = $('#selFreekickTaker');
     if(fTak) fTak.onchange = () => {
+      state.setPieces = state.setPieces || {};
+      state.setPieces.freekick = fTak.value;
       state.setPieceTakers = state.setPieceTakers || {};
       state.setPieceTakers.freekicks = fTak.value;
+      const lowerTaker = $('#setPieceFreekick');
+      if(lowerTaker) lowerTaker.value = fTak.value;
       save();
       toast('Cobrador oficial de faltas definido!');
     };
@@ -23529,9 +23881,9 @@ function bind(){
     const selCap = $('#setPieceCaptain');
     if(selCap) selCap.onchange = (e) => { state.setPieces = state.setPieces || {}; state.setPieces.captain = e.target.value; save(); toast('Capitão da equipe atualizado!'); };
     const selPen = $('#setPiecePenalty');
-    if(selPen) selPen.onchange = (e) => { state.setPieces = state.setPieces || {}; state.setPieces.penalty = e.target.value; save(); toast('Cobrador oficial de pênalti definido!'); };
+    if(selPen) selPen.onchange = (e) => { state.setPieces = state.setPieces || {}; state.setPieces.penalty = e.target.value; if($('#selPenaltyTaker')) $('#selPenaltyTaker').value = e.target.value; state.setPieceTakers = state.setPieceTakers || {}; state.setPieceTakers.penalties = e.target.value; save(); toast('Cobrador oficial de pênalti definido!'); };
     const selFk = $('#setPieceFreekick');
-    if(selFk) selFk.onchange = (e) => { state.setPieces = state.setPieces || {}; state.setPieces.freekick = e.target.value; save(); toast('Cobrador de faltas diretas definido!'); };
+    if(selFk) selFk.onchange = (e) => { state.setPieces = state.setPieces || {}; state.setPieces.freekick = e.target.value; if($('#selFreekickTaker')) $('#selFreekickTaker').value = e.target.value; state.setPieceTakers = state.setPieceTakers || {}; state.setPieceTakers.freekicks = e.target.value; save(); toast('Cobrador de faltas diretas definido!'); };
     const selCor = $('#setPieceCorner');
     if(selCor) selCor.onchange = (e) => { state.setPieces = state.setPieces || {}; state.setPieces.corner = e.target.value; save(); toast('Cobrador de escanteios definido!'); };
 
@@ -23794,6 +24146,7 @@ function bind(){
   if(view==='calendario'){
     $$('[data-cal-filter]').forEach(b=>b.onclick=()=>{calendarFilter=b.dataset.calFilter;render()});
     $$('.btnCalPlayNow').forEach(b => b.onclick = startLiveMatch);
+    $$('.btnCalCopaPlay').forEach(b => b.onclick = () => playCopaDoBrasilFixture(b.dataset.index, b.dataset.phase));
     $$('.btnCalTournamentPlay').forEach(b => b.onclick = () => playContinentalFixture(b.dataset.tournament, b.dataset.match));
   }
 
@@ -23872,12 +24225,17 @@ function bind(){
   if(view==='temporada'){
     $$('[data-season-tab]').forEach(b=>b.onclick=()=>{seasonTab=b.dataset.seasonTab;render()});
     $$('[data-continental-tab]').forEach(b=>b.onclick=()=>{continentalTab=b.dataset.continentalTab;render()});
+    $$('[data-continental-phase]').forEach(b=>b.onclick=()=>{continentalPhase=b.dataset.continentalPhase;render()});
 
     $$('.btn-copa-phase').forEach(b => {
       b.onclick = () => {
         copaCurrentPhase = b.dataset.copaPhase;
         render();
       };
+    });
+    $$('.btn-copa-play').forEach(b => b.onclick = event => {
+      event.stopPropagation();
+      playCopaDoBrasilFixture(b.dataset.copaPlay, copaCurrentPhase);
     });
 
     const searchCopa = $('#inputSearchCopaTeam');
@@ -23914,26 +24272,39 @@ function bind(){
       el.onclick = () => {
         const home = el.dataset.home;
         const away = el.dataset.away;
+        const competitionName = el.dataset.competition || curComp()?.name || 'Campeonato';
+        const date = el.dataset.date || '';
+        const savedMatch = (state.history || []).find(item => {
+          const sameTeams = (norm(item.h) === norm(home) && norm(item.a) === norm(away)) || (norm(item.h) === norm(away) && norm(item.a) === norm(home));
+          const sameDate = !date || !item.date || item.date === date || item.dateStr === date || formatDatePtBr(date) === item.date || formatDatePtBr(item.date) === date;
+          const sameCompetition = !item.competitionName || norm(item.competitionName) === norm(competitionName);
+          return sameTeams && sameDate && sameCompetition && (!item.season || Number(item.season) === Number(state.season));
+        });
+        const savedScore = el.dataset.score?.match(/^(\d+)-(\d+)$/);
+        const result = savedMatch ? `${savedMatch.hg} × ${savedMatch.ag}` : savedScore ? `${savedScore[1]} × ${savedScore[2]}` : '';
+        const goalEvents = (savedMatch?.events || []).filter(event => event?.type === 'gol').slice().sort((a,b) => (a.min || 0) - (b.min || 0));
+        const reportBody = `
+          <div style="display:flex;justify-content:space-around;align-items:center;padding:20px 0;background:rgba(255,255,255,0.03);border-radius:12px">
+            <div style="text-align:center">
+              ${clubBadge(home, 56)}
+              <h3 style="margin:8px 0 0 0;font-size:16px">${esc(home)}</h3>
+              <div class="small muted">Força Geral: ${strength(clubByName(home))}</div>
+            </div>
+            <div style="font-size:24px;font-weight:900;color:var(--neon)">${result || 'VS'}</div>
+            <div style="text-align:center">
+              ${clubBadge(away, 56)}
+              <h3 style="margin:8px 0 0 0;font-size:16px">${esc(away)}</h3>
+              <div class="small muted">Força Geral: ${strength(clubByName(away))}</div>
+            </div>
+          </div>
+          <div style="margin-top:16px;text-align:center;font-size:13px;color:rgba(255,255,255,0.7)">
+            ${esc(competitionName)}${date ? ` · ${esc(date)}` : ''}${savedMatch ? ' · Resultado registrado' : result ? ' · Placar da competição' : ' · Partida agendada'}
+          </div>
+          ${result ? `<section style="margin-top:14px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px"><b>Detalhes da partida</b>${goalEvents.length ? `<ul style="margin:8px 0 0;padding-left:20px">${goalEvents.map(event => `<li>${Number(event.min) || '—'}' ⚽ ${esc(event.scorer || 'Autor não registrado')}${event.assist ? ` <span class="muted">(assistência: ${esc(event.assist)})</span>` : ''}</li>`).join('')}</ul>` : `<div class="small muted" style="margin-top:6px">${savedMatch ? 'Este save guarda o placar, mas não tem eventos detalhados desta partida.' : 'Os eventos ainda não foram armazenados para este confronto.'}</div>`}</section>` : ''}
+        `;
         openCustomModal(
-          `Prévia do Confronto: ${home} x ${away}`,
-          `
-            <div style="display:flex;justify-content:space-around;align-items:center;padding:20px 0;background:rgba(255,255,255,0.03);border-radius:12px">
-              <div style="text-align:center">
-                ${clubBadge(home, 56)}
-                <h3 style="margin:8px 0 0 0;font-size:16px">${esc(home)}</h3>
-                <div class="small muted">Força Geral: ${strength(clubByName(home))}</div>
-              </div>
-              <div style="font-size:24px;font-weight:900;color:var(--neon)">VS</div>
-              <div style="text-align:center">
-                ${clubBadge(away, 56)}
-                <h3 style="margin:8px 0 0 0;font-size:16px">${esc(away)}</h3>
-                <div class="small muted">Força Geral: ${strength(clubByName(away))}</div>
-              </div>
-            </div>
-            <div style="margin-top:16px;text-align:center;font-size:13px;color:rgba(255,255,255,0.7)">
-              Partida válida pelo Campeonato Estadual 2026.
-            </div>
-          `,
+          `${result ? 'Detalhes da Partida' : 'Prévia do Confronto'}: ${home} x ${away}`,
+          reportBody,
           null,
           'Fechar',
           false
@@ -23949,6 +24320,7 @@ function bind(){
     const exp1=$('#btnExportJson'); if(exp1) exp1.onclick=exportSave;
     const exp2=$('#btnExportJson2'); if(exp2) exp2.onclick=exportSave;
     const manSave=$('#btnSaveNowManual'); if(manSave) manSave.onclick=()=>{if(save()) toast('Save manual realizado!')};
+    const errorLogBtn=$('#btnDownloadErrorLog'); if(errorLogBtn) errorLogBtn.onclick=()=>window.AFMErrorLog?.download();
     const imp=$('#importSaveInput'); if(imp) imp.onchange=importSave;
     
     const curSlotBtn = $('#btnSaveCurrentSlotNow');
@@ -24449,6 +24821,9 @@ window.AFM_DB.init()
   .then(async user => {
     if(user) await activateAuthenticatedUser(user);
   })
-  .catch(error => console.warn('[AFM] Sessão Supabase indisponível; saves locais preservados:', error.message))
+  .catch(error => {
+    recordAFMError('auth-session-restore', error);
+    console.warn('[AFM] Sessão Supabase indisponível; saves locais preservados:', error.message);
+  })
   .finally(render);
 })();

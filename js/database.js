@@ -10,6 +10,12 @@ const AFM_DB = (function(){
   let initPromise = null;
   let syncInProgress = false;
 
+  function recordHandledError(type, error){
+    const message = error?.message || String(error || 'Falha interna sem mensagem legível');
+    if(window.AFMErrorLog?.recordHandled) window.AFMErrorLog.recordHandled(new Error(message), type);
+    else window.AFMErrorLog?.record(type, message, error instanceof Error ? { stack: error.stack } : {});
+  }
+
   function init(){
     if(initPromise) return initPromise;
     initPromise = (async () => {
@@ -28,10 +34,14 @@ const AFM_DB = (function(){
     try {
       await init();
       const { data, error } = await client.auth[method](credentials);
-      if(error) return { ok: false, error: error.message };
+      if(error){
+        recordHandledError(`auth-${method}`, error);
+        return { ok: false, error: error.message };
+      }
       currentUser = data.session?.user || null;
       return { ok: true, user: data.session?.user || data.user || null, needsConfirmation: method === 'signUp' && !data.session };
     } catch(error){
+      recordHandledError('auth-service', error);
       return { ok: false, error: error.message || 'Não foi possível conectar ao serviço de autenticação.' };
     }
   }
@@ -52,23 +62,25 @@ const AFM_DB = (function(){
     try {
       await init();
       const { error } = await client.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: location.href.split('#')[0] });
+      if(error) recordHandledError('auth-password-reset', error);
       return error ? { ok: false, error: error.message } : { ok: true };
-    } catch(error){ return { ok: false, error: error.message }; }
+    } catch(error){ recordHandledError('auth-password-reset', error); return { ok: false, error: error.message }; }
   }
 
   async function signOut(){
     try {
       await init();
       const { error } = await client.auth.signOut();
-      if(error) return { ok: false, error: error.message };
+      if(error){ recordHandledError('auth-signout', error); return { ok: false, error: error.message }; }
       currentUser = null;
       return { ok: true };
-    } catch(error){ return { ok: false, error: error.message }; }
+    } catch(error){ recordHandledError('auth-signout', error); return { ok: false, error: error.message }; }
   }
 
   async function getSaves(){
     if(!currentUser) return { ok: false, error: 'Entre na sua conta para sincronizar os saves.' };
     const { data, error } = await client.from('afm_saves').select('*').eq('user_id', currentUser.id).order('slot', { ascending: true });
+    if(error) recordHandledError('save-sync-read', error);
     return error ? { ok: false, error: error.message } : { ok: true, data: data || [] };
   }
 
@@ -95,12 +107,14 @@ const AFM_DB = (function(){
       updated_at: new Date().toISOString()
     };
     const { data, error } = await client.from('afm_saves').upsert(payload, { onConflict: 'user_id,slot' }).select().single();
+    if(error) recordHandledError('save-sync-write', error);
     return error ? { ok: false, error: error.message } : { ok: true, data };
   }
 
   async function deleteSlot(_owner, slotNum){
     if(!currentUser) return { ok: false, error: 'Entre na sua conta para sincronizar os saves.' };
     const { error } = await client.from('afm_saves').delete().eq('user_id', currentUser.id).eq('slot', Number(slotNum));
+    if(error) recordHandledError('save-sync-delete', error);
     return error ? { ok: false, error: error.message } : { ok: true };
   }
 
@@ -121,7 +135,7 @@ const AFM_DB = (function(){
         const local = JSON.parse(localStorage.getItem(`afm_save_slot_${slot}`) || 'null');
         const localTime = Date.parse(local?.updatedAt || '');
         const cloudTime = Date.parse(row.updated_at || '');
-        if(local?.data && (!Number.isFinite(localTime) || localTime >= cloudTime)) continue;
+        if(local?.data && (!Number.isFinite(cloudTime) || (Number.isFinite(localTime) && localTime >= cloudTime))) continue;
         const entry = { slot, id: `save_${currentUser.id}_slot${slot}_${row.club}`, owner: currentUser.id, club: row.club, manager: row.manager, season: row.season, round: row.round, balance: row.balance, updatedAt: row.updated_at, data: row.save_data };
         localStorage.setItem(`afm_save_slot_${slot}`, JSON.stringify(entry));
         if(slot === 1) localStorage.setItem('aquino_futebol_manager_2026_v1', JSON.stringify(row.save_data));
@@ -130,11 +144,16 @@ const AFM_DB = (function(){
       }
       localStorage.setItem(storageKey, JSON.stringify(accounts));
       return { ok: true };
-    } catch(error){ return { ok: false, error: error.message }; }
+    } catch(error){ recordHandledError('save-sync', error); return { ok: false, error: error.message }; }
     finally { syncInProgress = false; }
   }
 
-  return { init, signIn, signUp, resetPassword, signOut, getUser: () => currentUser, getSaves, saveSlot, deleteSlot, syncUser };
+  return {
+    init, signIn, signUp, resetPassword, signOut,
+    getUser: () => currentUser,
+    isAdmin: () => currentUser?.app_metadata?.role === 'admin',
+    getSaves, saveSlot, deleteSlot, syncUser
+  };
 })();
 
 window.AFM_DB = AFM_DB;

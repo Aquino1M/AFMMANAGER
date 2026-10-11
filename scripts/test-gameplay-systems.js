@@ -408,6 +408,9 @@ assert(/advanced=isKO\?norm\(userRes\.winner\)===norm\(state\.club\)/.test(final
   'Comparação do classificado de mata-mata ignora diferenças de caixa e acentuação');
 assert(/comp\.id === 'bra-cup'/.test(finalizeRoundSource),
   'Premiação reconhece o identificador real da Copa do Brasil');
+assert(!gameJsContent.includes("window.AFM30.audio.play('crowdCheer')") && !gameJsContent.includes("window.AFM30.audio.play('whistle')")
+  && gameJsContent.includes('window.AFM30.audio.playCheer()') && gameJsContent.includes('window.AFM30.audio.playWhistle()'),
+  'Pós-jogo usa os métodos de áudio existentes sem falha tratada silenciosamente');
 
 assert(!gameJsContent.includes('id="btnLiveReplay"'),
   'Botão de Replay removido da barra de controles da partida ao vivo (game.js)');
@@ -417,6 +420,30 @@ assert(gameJsContent.includes('function canStartMatch('),
 
 assert(gameJsContent.includes('function advanceCalendarDays('),
   'Função advanceCalendarDays implementada para avanço seguro dia a dia (game.js)');
+
+assert(gameJsContent.includes("state.setPieces.penalty = pTak.value") && gameJsContent.includes("lowerTaker.value = pTak.value") && gameJsContent.includes("lowerTaker.value = fTak.value"),
+  'Seletores superiores sincronizam os cobradores de pênaltis e faltas com a seção inferior');
+
+const stadiumDaysStart = gameJsContent.indexOf('function getStadiumWorkDaysRemaining(');
+const stadiumDaysEnd = gameJsContent.indexOf('function processStadiumConstructionDay(', stadiumDaysStart);
+const stadiumDaysSource = gameJsContent.slice(stadiumDaysStart, stadiumDaysEnd).trim();
+const stadiumDaysContext = { state: { date: '2026-06-01', stadiumRingData: {} } };
+const getStadiumWorkDaysRemaining = vm.runInNewContext(`(${stadiumDaysSource})`, stadiumDaysContext);
+const legacyStadiumWork = { roundsRemaining: 2 };
+assert(getStadiumWorkDaysRemaining(legacyStadiumWork) === 14 && legacyStadiumWork.finishDate === '2026-06-15',
+  'Obra de save legado migra de duas rodadas para 14 dias restantes');
+stadiumDaysContext.state.date = '2026-06-02';
+assert(getStadiumWorkDaysRemaining(legacyStadiumWork) === 13,
+  'Contagem da obra do estádio diminui um dia com o calendário');
+stadiumDaysContext.state.date = '2026-06-15';
+assert(getStadiumWorkDaysRemaining(legacyStadiumWork) === 0,
+  'Obra do estádio fica pronta ao atingir a data final');
+assert(/state\.date = nextDateStr;\r?\n\s*processStadiumConstructionDay\(\);/.test(gameJsContent) && /state\.date = curD\.toISOString\(\)\.slice\(0, 10\);\r?\n\s*processStadiumConstructionDay\(\);/.test(gameJsContent),
+  'Obra do estádio é processada em dias avançados manualmente e após cada partida');
+assert(/function simulateQuickRound\(\)[\s\S]*?finalizeRound\(userRes, winners, isKO\);[\s\S]*?save\(\);[\s\S]*?render\(\);[\s\S]*?isSimulatingQuickRound = false;/.test(gameJsContent),
+  'Simulação finaliza a rodada, salva, atualiza a interface e libera o fluxo sincronamente');
+assert(/\} finally \{\r?\n\s*isAdvancingTime = false;\r?\n\s*\}/.test(gameJsContent),
+  'Trava do calendário é liberada no mesmo ciclo síncrono do avanço');
 
 assert(gameJsContent.includes('function transitionMatchPhase('),
   'Máquina formal de fases da partida transitionMatchPhase implementada (game.js)');
@@ -626,6 +653,21 @@ assert(gameJsContent.includes('updateTacticalMetricsUI'),
 
 assert(gameJsContent.includes('homeTac: hTac') && gameJsContent.includes('awayTac: aTac'),
   'liveMatchState preserva táticas ativas de mandante e visitante para a simulação ao vivo');
+
+// =========================================================================
+// 11. DETALHES DE PARTIDA, CLASSIFICAÇÕES E FASES DE COPAS
+// =========================================================================
+console.log('\n--- TESTE 11: Relatórios, artilharia e fases de copas ---');
+assert(gameJsContent.includes("'Oitavas de Final', 'Quartas de Final', 'Semifinais', 'Final'"),
+  'Copa do Brasil exibe as nove fases até a final');
+assert(gameJsContent.includes("addPlayerMatchStats('bra-cup', state.club, events)") && gameJsContent.includes('state.history = [result, ...(state.history || [])]'),
+  'Jogo da Copa registra resultado, gols e assistências no histórico e ranking');
+assert(gameJsContent.includes('Object.entries(copa.phases || {})'),
+  'Calendário lê os confrontos da Copa do Brasil do save da carreira');
+assert(gameJsContent.includes('savedMatch?.events') && gameJsContent.includes('formatDatePtBr(date) === item.date'),
+  'Relatório recupera eventos de jogos concluídos e compara datas ISO/localizadas');
+assert(gameJsContent.includes('data-continental-phase') && gameJsContent.includes("'cwc:round16'"),
+  'Telas continentais e Mundial oferecem navegação por fases');
 
 // =========================================================================
 // RESULTADO FINAL

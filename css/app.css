@@ -814,6 +814,7 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
 /* Responsive */
 @media(max-width:980px){
   .layout{grid-template-columns:1fr}
+  .central-dashboard-grid{grid-template-columns:minmax(0,1fr) !important}
   .side{border-right:0;border-bottom:1px solid var(--line)}
   .nav{grid-template-columns:repeat(4,1fr)}
   .facility-map{grid-template-columns:repeat(2,1fr)}

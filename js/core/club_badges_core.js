@@ -308,7 +308,8 @@ window.COMPETITION_LOGOS = window.COMPETITION_LOGOS || {
 };
 
 window.renderCompetitionLogo = function(compId, size = 32) {
-  const file = window.COMPETITION_LOGOS && window.COMPETITION_LOGOS[compId];
+  const mappedFile = window.COMPETITION_LOGOS && window.COMPETITION_LOGOS[compId];
+  const file = mappedFile ? String(mappedFile).split('/').filter(Boolean).pop() : null;
   if (file) {
     return `<img src="img/competitions/${file}" alt="${compId}" class="comp-logo-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;border-radius:6px;flex-shrink:0" loading="lazy" onerror="if(!this.dataset.retried){this.dataset.retried=1;this.src='img/badges/competitions/${file}';}else{this.style.display='none';}">`;
   }

@@ -33,9 +33,11 @@ function loadClubBadges() {
   for (const relativePath of [
     path.join('data', 'club_badges.js'),
     path.join('data', 'club_badges_unverified.js'),
+    path.join('data', 'club_badges_competitions.js'),
     path.join('js', 'core', 'club_badges_core.js'),
     path.join('data', 'club_badges_verified_2026.js'),
     path.join('data', 'club_badges_verified_world.js'),
+    path.join('data', 'club_badges_verified_overrides.js'),
     path.join('data', 'club_badges_local_index.js')
   ]) {
     const source = fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
@@ -147,6 +149,32 @@ console.log(`  Mapeamentos ausentes: ${missingBadgeMapping}`);
 console.log(`  Arquivos inexistentes no disco: ${missingFileOnDisk}`);
 console.log(`  Arquivos vazios: ${emptyFiles}`);
 console.log(`  Elencos internacionais de temporada auditados: ${Object.keys(refreshedInternational).length}`);
+
+console.log(`\n🧾 [ETAPA 2.1] Validando lote anterior de 197 escudos:`);
+const badgeProvenancePath = path.join(ROOT_DIR, 'data', 'club_badge_provenance.json');
+const badgeFailuresPath = path.join(ROOT_DIR, 'data', 'club_badge_fetch_failures.log');
+const badgeProvenance = fs.existsSync(badgeProvenancePath) ? JSON.parse(fs.readFileSync(badgeProvenancePath, 'utf8')) : [];
+const badgeFailures = fs.existsSync(badgeFailuresPath)
+  ? fs.readFileSync(badgeFailuresPath, 'utf8').split(/\r?\n/).filter(Boolean).map(name => name.replace(/ \([^)]*\)$/, ''))
+  : [];
+const requestedBadges = [...new Set([...badgeProvenance.map(item => item.name), ...badgeFailures])];
+let requestedBadgeFiles = 0;
+for (const clubName of requestedBadges) {
+  const badgeFile = resolveBadge(clubName);
+  const badgePath = badgeFile && path.join(BADGES_DIR, badgeFile);
+  if (badgePath && fs.existsSync(badgePath) && fs.statSync(badgePath).size > 0) {
+    requestedBadgeFiles++;
+  } else {
+    console.error(`❌ [LOTE DE 197] Escudo sem arquivo local confirmado: "${clubName}"`);
+    errorsCount++;
+  }
+}
+console.log(`  Registros no lote: ${requestedBadges.length} (esperado: 197)`);
+console.log(`  Arquivos locais disponíveis: ${requestedBadgeFiles}`);
+if (requestedBadges.length !== 197) {
+  console.error(`❌ [LOTE DE 197] O lote está incompleto: esperado 197 nomes, recebido ${requestedBadges.length}.`);
+  errorsCount++;
+}
 
 console.log(`\n🏆 [ETAPA 3] Validando Logos das Competições:`);
 const requiredLogos = ['bra-a', 'bra-b', 'bra-c', 'bra-d', 'bra-cup', 'lib', 'sud', 'ucl', 'uel', 'cwc', 'eng-1', 'esp-1', 'ita-1', 'ger-1', 'fra-1', 'por-1', 'ksa-1'];
