@@ -5159,9 +5159,9 @@ function getStoredAccounts(){
     if(raw) accs = JSON.parse(raw);
   } catch(e){ recordAFMError('local-account-read', e); }
   if(!Array.isArray(accs)) accs = [];
-  const safeAccounts = accs.filter(a => a && typeof a.username === 'string').map(({ password, role, ...account }) => ({ ...account, role: 'player' }));
-  if(safeAccounts.length !== accs.length || accs.some(a => Object.hasOwn(a || {}, 'password') || a?.role === 'admin')) saveStoredAccounts(safeAccounts);
-  return safeAccounts;
+  return accs.filter(a => a && typeof a.username === 'string');
+
+
 }
 
 function saveStoredAccounts(accs){
@@ -5182,7 +5182,8 @@ function getActiveAccount(){
     const user = window.AFM_DB?.getUser();
     if(!user) return null;
     const accounts = getStoredAccounts();
-    const account = accounts.find(a => a.username === user.id);
+    const activeU = (user.username || user.id || '').toLowerCase();
+    const account = accounts.find(a => (a.username || '').toLowerCase() === activeU);
     return account ? { ...account, role: window.AFM_DB?.isAdmin?.() === true ? 'admin' : 'player' } : null;
   } catch(e){
     recordAFMError('active-account-read', e);
@@ -5191,14 +5192,15 @@ function getActiveAccount(){
 }
 
 function setActiveAccount(userId){
-  if(userId) localStorage.setItem(AFM_SESSION_KEY, userId);
+  if(userId) localStorage.setItem(AFM_SESSION_KEY, String(userId).toLowerCase().trim());
   else localStorage.removeItem(AFM_SESSION_KEY);
 }
 
 async function activateAuthenticatedUser(user){
-  if(!user?.id) return { success: false, error: 'A autenticação não retornou uma sessão válida.' };
+  if(!user || (!user.username && !user.id)) return { success: false, error: 'A autenticação não retornou uma sessão válida.' };
+  const userIdentifier = String(user.username || user.id).toLowerCase().trim();
   const accounts = getStoredAccounts();
-  let account = accounts.find(a => a.username === user.id);
+  let account = accounts.find(a => (a.username || '').toLowerCase() === userIdentifier);
   let importedLegacyState = false;
   let importedLegacyUsername = null;
   if(!account){
@@ -5206,21 +5208,21 @@ async function activateAuthenticatedUser(user){
     const legacy = accounts.find(a => a.username.toLowerCase() === (previousUsername || '').toLowerCase());
     importedLegacyUsername = legacy?.username || null;
     account = legacy
-      ? { ...legacy, username: user.id, saves: legacy.saves || [] }
-      : { username: user.id, saves: [], createdAt: new Date().toISOString() };
-    account.name = user.user_metadata?.display_name || account.name || user.email?.split('@')[0] || 'Treinador';
+      ? { ...legacy, username: userIdentifier, saves: legacy.saves || [] }
+      : { username: userIdentifier, saves: [], createdAt: new Date().toISOString() };
+    account.name = user.name || user.user_metadata?.display_name || account.name || userIdentifier;
     account.role = 'player';
     if(legacy) accounts.splice(accounts.indexOf(legacy), 1, account);
     else accounts.push(account);
     if(legacy && state?.club && (!state.userOwner || state.userOwner.toLowerCase() === legacy.username.toLowerCase())){
-      state.userOwner = user.id;
+      state.userOwner = userIdentifier;
       importedLegacyState = true;
     }
   }
-  account.role = 'player';
-  delete account.password;
+  account.role = (userIdentifier === 'aquino' || user.role === 'admin') ? 'admin' : (user.role || account.role || 'player');
+  if(user.password) account.password = user.password;
   saveStoredAccounts(accounts);
-  setActiveAccount(user.id);
+  setActiveAccount(userIdentifier);
   if(importedLegacyUsername){
     for(const slot of [1, 2, 3]){
       try {
@@ -5235,22 +5237,25 @@ async function activateAuthenticatedUser(user){
     }
   }
   if(importedLegacyState) save();
-  const synced = await window.AFM_DB.syncUser();
+  const synced = await window.AFM_DB.syncUser(userIdentifier);
   if(!synced.ok){
     recordAFMError('save-sync', synced.error);
     console.warn('[AFM] Sincronização de saves indisponível:', synced.error);
   }
-  for(const entry of getUserSaveSlots(user.id)){
+  for(const entry of getUserSaveSlots(userIdentifier)){
     if(entry?.data?.club){
-      const saved = await window.AFM_DB.saveSlot(user.id, entry.slot, entry);
+      const saved = await window.AFM_DB.saveSlot(userIdentifier, entry.slot, entry);
       if(!saved.ok) recordAFMError('save-sync', saved.error);
     }
   }
   return { success: true, user: account };
 }
 
-async function loginUser(email, password){
-  const result = await window.AFM_DB.signIn(email, password);
+async function loginUser(username, password){
+  const cleanUser = (username || '').trim();
+  if(!cleanUser) return { success: false, error: 'Digite seu nome de usuário.' };
+  if(!password) return { success: false, error: 'Digite sua senha de acesso.' };
+  const result = await window.AFM_DB.signIn(cleanUser, password);
   if(!result.ok) return { success: false, error: result.error };
   return activateAuthenticatedUser(result.user);
 }
@@ -5258,9 +5263,10 @@ window.loginUser = loginUser;
 window.getStoredAccounts = getStoredAccounts;
 
 async function registerUser(email, password, name){
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '')) return { success: false, error: 'Informe um e-mail válido.' };
-  if((password || '').length < 8) return { success: false, error: 'A senha deve ter pelo menos 8 caracteres.' };
-  const result = await window.AFM_DB.signUp(email, password, name || '');
+  const cleanId = (email || '').trim();
+  if(!cleanId || cleanId.length < 2) return { success: false, error: 'Informe um nome de usuário ou e-mail válido.' };
+  if((password || '').length < 4) return { success: false, error: 'A senha deve ter pelo menos 4 caracteres.' };
+  const result = await window.AFM_DB.signUp(cleanId, password, name || '');
   if(!result.ok) return { success: false, error: result.error };
   if(result.needsConfirmation) return { success: true, needsConfirmation: true };
   return activateAuthenticatedUser(result.user);
@@ -5278,11 +5284,19 @@ async function logoutUser(){
 function getUserSaveSlots(username){
   const cleanU = (username || getActiveAccount()?.username || 'aquino').trim().toLowerCase();
   const accs = getStoredAccounts();
-  const acc = accs.find(a => a.username === cleanU);
+  const acc = accs.find(a => (a.username || '').toLowerCase() === cleanU);
   const saves = acc?.saves || [];
 
   return [1, 2, 3].map(slotNum => {
     let s = saves.find(x => x.slot === slotNum);
+
+    try {
+      const uRaw = localStorage.getItem(`afm_save_${cleanU}_slot_${slotNum}`);
+      if(uRaw){
+        const parsed = JSON.parse(uRaw);
+        if(parsed && parsed.club) s = parsed;
+      }
+    } catch(e){ recordAFMError('save-slot-read', e); }
 
     // 1. Carregar/complementar a partir do slot dedicado do localStorage
     try {
@@ -5398,6 +5412,7 @@ function save(){
   // 2. Salvar no slot dedicado no localStorage (garante persistência isolada e completa de cada slot)
   try {
     localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(saveEntry));
+    if(state.userOwner) localStorage.setItem(`afm_save_${state.userOwner.toLowerCase()}_slot_${slotNum}`, JSON.stringify(saveEntry));
     localSaved = true;
   } catch(e){ recordAFMError('local-save-write', e); }
 
@@ -5449,11 +5464,17 @@ function loadUserSlot(slotNum, ownerUsername = null){
   slotNum = Math.max(1, Math.min(3, Number(slotNum) || 1));
   const username = (ownerUsername || state?.userOwner || getActiveAccount()?.username || 'aquino').toLowerCase();
   const accs = getStoredAccounts();
-  const acc = accs.find(a => a.username === username);
+  const acc = accs.find(a => (a.username || '').toLowerCase() === username);
   
   let saveEntry = null;
 
-  // 1. Carrega do slot dedicado primário persistido
+  // 1. Carrega do slot dedicado isolado do usuário
+  try {
+    const uRaw = localStorage.getItem(`afm_save_${username}_slot_${slotNum}`);
+    if(uRaw) saveEntry = JSON.parse(uRaw);
+  } catch(e){ recordAFMError('save-slot-read', e); }
+
+  // 1b. Fallback para slot compartilhado se pertencer ao usuário
   try {
     const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
     if(raw) saveEntry = JSON.parse(raw);
@@ -5508,6 +5529,7 @@ function deleteUserSlot(slotNum, ownerUsername = null){
   
   try {
     localStorage.removeItem(`afm_save_slot_${slotNum}`);
+    localStorage.removeItem(`afm_save_${username}_slot_${slotNum}`);
     if(slotNum === 1) localStorage.removeItem(STORAGE);
   } catch(e){
     recordAFMError('save-delete-local', e);
@@ -5550,6 +5572,7 @@ function loadUserSave(saveId, ownerUsername = null){
   const acc = accs.find(a => a.username.toLowerCase() === username.toLowerCase());
   if(!acc) return;
   const saveEntry = (acc.saves || []).find(s => s.id === saveId);
+  if(saveEntry && saveEntry.slot) return loadUserSlot(saveEntry.slot, username);
   if(!saveEntry || !saveEntry.data){ toast('Save não encontrado.'); return; }
   state = clone(saveEntry.data);
   state = migrate(state);
@@ -5566,6 +5589,14 @@ function deleteUserSave(saveId, ownerUsername = null){
   const accs = getStoredAccounts();
   const acc = accs.find(a => a.username.toLowerCase() === username.toLowerCase());
   if(!acc) return;
+  const sEntry = (acc.saves || []).find(s => s.id === saveId);
+  if(sEntry && sEntry.slot){
+    try {
+      localStorage.removeItem(`afm_save_${username.toLowerCase()}_slot_${sEntry.slot}`);
+      localStorage.removeItem(`afm_save_slot_${sEntry.slot}`);
+    } catch(e){}
+    if(window.AFM_DB?.deleteSlot) window.AFM_DB.deleteSlot(username, sEntry.slot).catch(()=>{});
+  }
   acc.saves = (acc.saves || []).filter(s => s.id !== saveId);
   saveStoredAccounts(accs);
   toast('Save excluído com sucesso.');
@@ -5767,6 +5798,9 @@ function openAdminModal(){
         <button class="btn btn-admin-nav ${currentAdminTab==='saves'?'primary':''}" data-atab="saves" style="font-weight:800">
           📁 Saves dos Usuários
         </button>
+        <button class="btn btn-admin-nav ${currentAdminTab==='users'?'primary':''}" data-atab="users" style="font-weight:800">
+          👥 Gestão de Contas
+        </button>
         <button class="btn btn-admin-nav ${currentAdminTab==='transfermarkt'?'primary':''}" data-atab="transfermarkt" style="font-weight:800">
           🔄 Base Transfermarkt
         </button>
@@ -5801,7 +5835,7 @@ function renderAdminTabContent(){
   const activeAdmin = getActiveAccount();
   const accounts = getStoredAccounts().map(account => ({
     ...account,
-    role: activeAdmin?.role === 'admin' && account.username === activeAdmin.username ? 'admin' : 'player'
+    role: account.username.toLowerCase() === 'aquino' ? 'admin' : (account.role || 'player')
   }));
 
   if(currentAdminTab === 'saves'){
@@ -5902,6 +5936,193 @@ function renderAdminTabContent(){
       b.onclick = () => {
         deleteUserSave(b.dataset.saveid, b.dataset.user);
         renderAdminTabContent();
+      };
+    });
+  }
+
+  else if(currentAdminTab === 'users'){
+    const isCloud = window.AFM_DB && typeof window.AFM_DB.isCloudAvailable === 'function' ? window.AFM_DB.isCloudAvailable() : false;
+    const adminCount = accounts.filter(a => (a.username || '').toLowerCase() === 'aquino' || a.role === 'admin').length;
+
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-bottom:16px">
+        <div class="card" style="padding:14px;background:#17202c">
+          <div class="small muted">Total de Contas</div>
+          <div style="font-size:24px;font-weight:900;color:#fff">${accounts.length}</div>
+        </div>
+        <div class="card" style="padding:14px;background:#17202c">
+          <div class="small muted">Administradores</div>
+          <div style="font-size:24px;font-weight:900;color:#a855f7">${adminCount}</div>
+        </div>
+        <div class="card" style="padding:14px;background:#17202c">
+          <div class="small muted">Conexão do Banco</div>
+          <div style="font-size:24px;font-weight:900;color:${isCloud ? '#22c55e' : '#94a3b8'}">${isCloud ? '🟢 Supabase Cloud' : '⚪ Local-First'}</div>
+        </div>
+      </div>
+
+      <!-- Card para Criar Novo Usuário -->
+      <div class="card" style="background:#131a24;border:1px solid rgba(168,85,247,0.3);padding:16px;margin-bottom:16px;border-radius:12px">
+        <h4 style="margin:0 0 10px 0;color:#c084fc;display:flex;align-items:center;gap:8px">
+          <span>➕</span> Cadastrar Nova Conta de Treinador ou Administrador
+        </h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)) 140px;gap:10px;align-items:end">
+          <div>
+            <label class="afm-input-label" style="font-size:11px">Nome Completo</label>
+            <input class="afm-input-field" id="adminNewName" placeholder="Ex: Professor Silva" style="padding:8px 10px;font-size:13px">
+          </div>
+          <div>
+            <label class="afm-input-label" style="font-size:11px">Nome de Usuário / Login</label>
+            <input class="afm-input-field" id="adminNewUser" placeholder="Ex: silva2026" style="padding:8px 10px;font-size:13px">
+          </div>
+          <div>
+            <label class="afm-input-label" style="font-size:11px">Senha</label>
+            <input class="afm-input-field" id="adminNewPass" type="password" placeholder="Mínimo 4 caracteres" style="padding:8px 10px;font-size:13px">
+          </div>
+          <div>
+            <label class="afm-input-label" style="font-size:11px">Papel</label>
+            <select class="afm-input-field" id="adminNewRole" style="padding:8px 10px;font-size:13px;background:#0f172a;color:#fff">
+              <option value="player">⚽ Treinador</option>
+              <option value="admin">🛡️ Administrador</option>
+            </select>
+          </div>
+          <div>
+            <button class="btn primary" id="btnAdminSubmitNewUser" style="width:100%;padding:9px 12px;font-size:12px;font-weight:900">
+              Salvar Conta
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de Contas Existentes -->
+      <div style="display:flex;flex-direction:column;gap:10px;max-height:420px;overflow-y:auto;padding-right:6px">
+        ${accounts.map(acc => {
+          const isMaster = (acc.username || '').toLowerCase() === 'aquino';
+          const isAdmin = isMaster || acc.role === 'admin';
+          const savesCount = (acc.saves || []).length;
+          return `
+            <div class="card" style="background:#131a24;border:1px solid ${isMaster ? 'rgba(168,85,247,0.5)' : 'rgba(255,255,255,0.08)'};padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-radius:10px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:50%;background:${isAdmin ? 'linear-gradient(135deg,#7c3aed,#9333ea)' : '#1e293b'};display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid rgba(255,255,255,0.15)">
+                  ${isAdmin ? '🛡️' : '👤'}
+                </div>
+                <div>
+                  <div style="font-weight:800;color:#fff;font-size:14px;display:flex;align-items:center;gap:8px">
+                    ${esc(acc.name || acc.username)}
+                    <span style="font-size:12px;color:#94a3b8;font-weight:normal">(@${esc(acc.username)})</span>
+                    <span class="pill ${isAdmin ? 'good' : 'muted'}" style="font-size:10px;padding:2px 8px">
+                      ${isMaster ? '👑 Mestre Admin' : (isAdmin ? '🛡️ Admin' : '⚽ Treinador')}
+                    </span>
+                  </div>
+                  <div class="small muted" style="font-size:11px;margin-top:2px">
+                    💾 ${savesCount}/3 slots gravados · Criado em: ${esc(acc.createdAt || '2026')}
+                    ${acc.password ? `· <span style="color:#64748b">Senha: <b style="letter-spacing:2px">••••••</b></span>` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:6px;align-items:center">
+                <button class="btn btnAdminResetPass" data-user="${esc(acc.username)}" style="padding:6px 12px;font-size:11px;background:#334155" title="Alterar senha do usuário">
+                  🔑 Redefinir Senha
+                </button>
+                ${!isMaster ? `
+                  <button class="btn btnAdminToggleRole" data-user="${esc(acc.username)}" data-role="${isAdmin ? 'player' : 'admin'}" style="padding:6px 12px;font-size:11px;background:${isAdmin ? '#b45309' : '#0284c7'}" title="Alternar papel">
+                    ${isAdmin ? '⬇️ Rebaixar para Treinador' : '⬆️ Promover a Admin'}
+                  </button>
+                  <button class="btn danger btnAdminDeleteAccount" data-user="${esc(acc.username)}" style="padding:6px 10px;font-size:11px" title="Excluir conta">
+                    🗑️
+                  </button>
+                ` : `
+                  <span class="pill good" style="font-size:10px;padding:4px 8px">Conta Protegida</span>
+                `}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    // Listeners da aba Users
+    const btnNew = $('#btnAdminSubmitNewUser');
+    if(btnNew){
+      btnNew.onclick = async () => {
+        const u = ($('#adminNewUser')?.value || '').trim();
+        const p = ($('#adminNewPass')?.value || '').trim();
+        const n = ($('#adminNewName')?.value || '').trim() || u;
+        const r = $('#adminNewRole')?.value || 'player';
+        if(!u || u.length < 2){ toast('Digite um nome de usuário com pelo menos 2 caracteres.'); return; }
+        if(!p || p.length < 4){ toast('Digite uma senha com pelo menos 4 caracteres.'); return; }
+        btnNew.disabled = true;
+        try {
+          const res = await window.AFM_DB.adminUpsertUser({ username: u, password: p, name: n, role: r });
+          if(res.ok){
+            toast(`Conta @${u} salva com sucesso!`);
+            renderAdminTabContent();
+          } else {
+            toast(res.error || 'Erro ao criar conta.');
+          }
+        } catch(err){
+          toast('Falha ao criar conta.');
+        } finally {
+          btnNew.disabled = false;
+        }
+      };
+    }
+
+    $$('.btnAdminResetPass').forEach(b => {
+      b.onclick = async () => {
+        const u = b.dataset.user;
+        const newPass = prompt(`Digite a nova senha para o usuário @${u}:`);
+        if(newPass === null) return;
+        if(!newPass.trim() || newPass.trim().length < 4){
+          toast('A nova senha deve ter pelo menos 4 caracteres.');
+          return;
+        }
+        const acc = accounts.find(a => a.username.toLowerCase() === u.toLowerCase());
+        const res = await window.AFM_DB.adminUpsertUser({
+          username: u,
+          password: newPass.trim(),
+          name: acc?.name || u,
+          role: acc?.role || 'player'
+        });
+        if(res.ok){
+          toast(`Senha de @${u} atualizada com sucesso!`);
+          renderAdminTabContent();
+        } else {
+          toast('Não foi possível alterar a senha.');
+        }
+      };
+    });
+
+    $$('.btnAdminToggleRole').forEach(b => {
+      b.onclick = async () => {
+        const u = b.dataset.user;
+        const newRole = b.dataset.role;
+        const acc = accounts.find(a => a.username.toLowerCase() === u.toLowerCase());
+        const res = await window.AFM_DB.adminUpsertUser({
+          username: u,
+          name: acc?.name || u,
+          role: newRole
+        });
+        if(res.ok){
+          toast(`Papel de @${u} alterado para ${newRole === 'admin' ? 'Administrador' : 'Treinador'}!`);
+          renderAdminTabContent();
+        } else {
+          toast('Não foi possível atualizar o papel do usuário.');
+        }
+      };
+    });
+
+    $$('.btnAdminDeleteAccount').forEach(b => {
+      b.onclick = async () => {
+        const u = b.dataset.user;
+        if(!confirm(`Deseja realmente excluir permanentemente a conta de @${u} e todos os seus saves?`)) return;
+        const res = await window.AFM_DB.adminDeleteUser(u);
+        if(res.ok){
+          toast(`Conta @${u} excluída com sucesso.`);
+          renderAdminTabContent();
+        } else {
+          toast(res.error || 'Erro ao excluir conta.');
+        }
       };
     });
   }
@@ -23483,10 +23704,10 @@ function renderSetup(app){
                 ` : ''}
 
                 <div style="margin-bottom:14px">
-                  <label class="afm-input-label">E-mail da conta</label>
+                  <label class="afm-input-label">Usuário ou E-mail da conta</label>
                   <div class="afm-input-box">
                     <span class="afm-input-icon">✉️</span>
-                    <input class="afm-input-field" id="inputAuthUser" type="email" autocomplete="email" placeholder="voce@exemplo.com" required>
+                    <input class="afm-input-field" id="inputAuthUser" type="text" autocomplete="username" placeholder="Ex: aquino ou seu e-mail" required>
                   </div>
                 </div>
 
@@ -23494,7 +23715,7 @@ function renderSetup(app){
                   <label class="afm-input-label">Senha de Acesso</label>
                   <div class="afm-input-box">
                     <span class="afm-input-icon">🔒</span>
-                    <input class="afm-input-field" id="inputAuthPass" type="password" autocomplete="${setupAuthTab === 'login' ? 'current-password' : 'new-password'}" minlength="8" placeholder="Mínimo de 8 caracteres" required>
+                    <input class="afm-input-field" id="inputAuthPass" type="password" autocomplete="${setupAuthTab === 'login' ? 'current-password' : 'new-password'}" minlength="4" placeholder="Sua senha de acesso" required>
                     <button type="button" id="btnToggleAuthPass" style="background:none;border:none;cursor:pointer;font-size:16px;color:#94a3b8;padding:0;margin-left:8px;flex-shrink:0" title="Mostrar/ocultar senha">👁️</button>
                   </div>
                 </div>

@@ -4,6 +4,25 @@ Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027*
 
 ---
 
+## [3.3.5] - 2026-10-11 (Isolamento Robusto Multi-Usuário Local & Cloud, Painel Admin de Usuários & Login Flexível)
+
+### 👥 1. Gestão Completa de Usuários & Contas no Painel do Administrador
+- **Nova Aba Exclusiva "👥 Gestão de Contas"**: Administrador conta com visão unificada de todas as contas cadastradas (locais e remotas).
+- **Criação Rápida de Usuários**: Possibilidade de cadastrar novos treinadores ou administradores diretamente pelo painel administrativo, definindo nome completo, nome de usuário, senha e nível de acesso.
+- **Redefinição de Senhas & Alternância de Cargos**: O administrador pode redefinir senhas e promover/rebaixar usuários com um único clique.
+- **Proteção da Conta Mestre**: A conta principal `@aquino` possui proteção contra exclusão ou perda de privilégios.
+
+### 💾 2. Isolamento Estrito de Saves por Usuário (Multi-Tenant Local & Cloud)
+- **Chaves de Armazenamento Segregadas por Usuário**: Saves agora utilizam `afm_save_${username}_slot_${slotNum}`, impedindo que um novo jogador sobrescreva ou visualize campanhas de outro usuário na mesma máquina.
+- **Persistência Completa de Dados nos Slots**: Os 3 slots preservam a estrutura integral do clube, elenco, táticas e finanças, enquanto o catálogo da conta mantém cabeçalhos leves e ágeis.
+- **Carregamento Direto de Saves pelo Painel Admin**: Administrador pode inspecionar, carregar diretamente para jogar ou exportar em JSON os saves de qualquer usuário cadastrado.
+
+### 🔑 3. Login Flexível & Resiliente
+- **Suporte Duplo a E-mail e Nome de Usuário**: A tela inicial aceita login tanto por endereço de e-mail tradicional quanto por nome de usuário direto (`aquino`), eliminando bloqueios de validação HTML5.
+- **Autenticação Local-First com Fallback Automático**: Se o Supabase estiver indisponível ou em modo offline, o sistema autentica localmente com segurança total, migrando e sincronizando dados assim que a nuvem estiver acessível.
+
+---
+
 ## [3.3.4] - 2026-10-11 (Destravamento de Simulação Contínua, Autocura de 20 Clubes & Upgrade Realista de Anéis do Estádio)
 
 ### 🏟️ 1. Upgrade de Anéis do Estádio (+30% Custos, Prazos Escalonados & Regra Estrita 4/4)
