@@ -33,7 +33,7 @@ window.AFM_COMPETITION_INTEGRITY = (() => {
   }
   function simulateGroups(groups,season,id,engine,ratings={},seed=''){
     if(!engine?.groupFixtures)return null;
-    const fixtures=engine.groupFixtures({id,season,groups,startDate:`${season}-03-01`}),tables=Object.fromEntries(Object.entries(groups).map(([g,names])=>[g,names.map(newRow)])),byName=new Map(Object.values(tables).flat().map(r=>[normalize(r.name),r]));
+    const fixtures=engine.groupFixtures({id,season,groups,startDate:`${season}-03-01`,homeAway:id!=='bra-d-groups'}),tables=Object.fromEntries(Object.entries(groups).map(([g,names])=>[g,names.map(newRow)])),byName=new Map(Object.values(tables).flat().map(r=>[normalize(r.name),r]));
     for(const f of fixtures){const [hg,ag]=seededScore(f.home,f.away,`${seed}|${f.group}|${f.round}`,ratings);const h=byName.get(normalize(f.home)),a=byName.get(normalize(f.away));if(h&&a)addResult(h,a,hg,ag);}
     for(const g of Object.keys(tables))tables[g]=ranking(tables[g]);
     return {complete:fixtures.length>0,tables,fixtures};
@@ -54,17 +54,12 @@ window.AFM_COMPETITION_INTEGRITY = (() => {
     const b=ranking(standings['bra-b']),bWinners=resolvePlayoffWinners(b.slice(2,6).map(r=>r.name),2,`${season}|bra-b-playoffs`,ratings),c=ranking(standings['bra-c']);
     const cGroups={A:c.slice(0,4).map(r=>r.name),B:c.slice(4,8).map(r=>r.name)},cSim=simulateGroups(cGroups,season,'bra-c-quadrangular',engine,ratings,`${season}|bra-c-quadrangular`);
     if(!cSim?.complete)return {valid:false,issues:[{code:'missing-bra-c-quadrangular-results'}],rosters:map};
-    const dGroups={};for(let i=0;i<16;i++)dGroups[String.fromCharCode(65+i)]=map['bra-d'].slice(i*6,i*6+6);
+    const dGroups={};for(let i=0;i<4;i++)dGroups[String.fromCharCode(65+i)]=map['bra-d'].slice(i*24,i*24+24);
     const dSim=simulateGroups(dGroups,season,'bra-d-groups',engine,ratings,`${season}|bra-d-groups`);
     if(!dSim?.complete)return {valid:false,issues:[{code:'missing-bra-d-group-results'}],rosters:map};
-    const dCandidates=Object.values(dSim.tables).flatMap(group=>ranking(group).slice(0,4).map(r=>r.name));
-    // Main bracket establishes four semifinalists; two extra access places are
-    // resolved by a playoff among other group-qualified clubs. This models the
-    // six promotion places required by this game's defined Series D format.
-    const dSemiFinalists=resolvePlayoffWinners(dCandidates,4,`${season}|bra-d-main-knockout`,ratings);
-    const dOtherPlayoffCandidates=dCandidates.filter(name=>!dSemiFinalists.some(w=>normalize(w)===normalize(name)));
-    const dAdditional=resolvePlayoffWinners(dOtherPlayoffCandidates,2,`${season}|bra-d-extra-access-playoff`,ratings);
-    const dWinners=[...dSemiFinalists,...dAdditional].slice(0,6);
+    // Four independent 24-club groups: each group champion earns direct access
+    // to Série C; group runners-up play only for the Série D title.
+    const dWinners=Object.values(dSim.tables).map(group=>ranking(group)[0]?.name).filter(Boolean);
     const plan=applyBrazilPromotions(map,standings,{activeCompId:activeId,activeRanking,finalGroups:{'bra-c':Object.values(cSim.tables)},groupStandings:{'bra-d':Object.values(dSim.tables)},playoffWinners:{'bra-b':bWinners,'bra-d':dWinners}});
     const stateRosterUpdates={};
     // An explicit state-league access earned by this career must survive the
@@ -128,19 +123,19 @@ window.AFM_COMPETITION_INTEGRITY = (() => {
     // Série C: only classify by the real final quadrangular tables supplied by the engine.
     const cGroups = options.finalGroups?.['bra-c'];
     const cPromoted = Array.isArray(cGroups) ? cGroups.flatMap(group => ranking(group).slice(0, 2).map(row => row.name)).slice(0, 4) : [];
-    // Six Série D clubs earn Série C places. Six C clubs therefore must leave
-    // for D for the pyramid to conserve the configured 20-club capacity.
-    const cRelegated = c.slice(-6).map(row => row.name);
+    // Four Série D group champions earn Série C places. Four C clubs therefore
+    // leave for D to preserve each division's configured 20-club capacity.
+    const cRelegated = c.slice(-4).map(row => row.name);
     decisions['bra-c'] = { promoted: cPromoted, relegated: cRelegated };
     movers.push(...cPromoted.map(name => ({ name, from: 'bra-c', to: 'bra-b', reason: 'promotion' })));
     movers.push(...cRelegated.map(name => ({ name, from: 'bra-c', to: 'bra-d', reason: 'relegation' })));
 
-    // Série D: 16 groups, top four each advance; only recorded knockout winners earn six slots.
+    // Série D: four groups of 24; only the champion from each group earns direct access.
     const dGroups = options.groupStandings?.['bra-d'];
-    const dQualifiers = Array.isArray(dGroups) ? dGroups.flatMap(group => ranking(group).slice(0, 4).map(row => row.name)) : [];
+    const dQualifiers = Array.isArray(dGroups) ? dGroups.map(group => ranking(group)[0]?.name).filter(Boolean) : [];
     const validDPlayoffWinners = (options.playoffWinners?.['bra-d'] || []).filter(name => dQualifiers.some(row => normalize(row) === normalize(name)));
-    const dPromoted = validDPlayoffWinners.slice(0, 6);
-    decisions['bra-d'] = { qualifiers: dQualifiers, promoted: dPromoted, relegated: [] };
+    const dPromoted = [...new Map(validDPlayoffWinners.map(name => [normalize(name), name])).values()].slice(0, 4);
+    decisions['bra-d'] = { groupWinners: dQualifiers, promoted: dPromoted, relegated: [] };
     movers.push(...dPromoted.map(name => ({ name, from: 'bra-d', to: 'bra-c', reason: 'promotion' })));
     const aRelegated = a.slice(-4).map(row => row.name);
     decisions['bra-a'] = { relegated: aRelegated };
@@ -150,7 +145,7 @@ window.AFM_COMPETITION_INTEGRITY = (() => {
     // substitute clubs from the static catalog.
     if (bPromoted.length !== 4) decisions['bra-b'].pending = 'playoff-results';
     if (cPromoted.length !== 4) decisions['bra-c'].pending = 'final-quadrangulars';
-    if (dPromoted.length !== 6) decisions['bra-d'].pending = 'knockout-playoff-results';
+    if (dPromoted.length !== 4) decisions['bra-d'].pending = 'four-group-winners';
 
     const proposed = Object.fromEntries(NATIONAL_IDS.map(id => [id, [...map[id]]]));
     // Remove every mover from old divisions first; then insert as a single transaction.

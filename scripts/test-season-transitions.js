@@ -22,6 +22,16 @@ const advanceStart = source.indexOf('function advanceSeasonYear(');
 const advanceEnd = source.indexOf('\nfunction generateWorldRegens(', advanceStart);
 assert(advanceStart >= 0 && advanceEnd > advanceStart, 'Não foi possível localizar a virada real de temporada.');
 const actualAdvanceSeasonYear = source.slice(advanceStart, advanceEnd).trim();
+const singleRoundRobinStart = source.indexOf('function roundRobinSingleLeg(');
+const singleRoundRobinEnd = source.indexOf('\nfunction leaguePhaseSchedule(', singleRoundRobinStart);
+const groupScheduleStart = source.indexOf('function groupSchedule(');
+const groupScheduleEnd = source.indexOf('\nfunction firstKnockoutRound(', groupScheduleStart);
+const buildScheduleStart = source.indexOf('function buildSchedule(');
+const buildScheduleEnd = source.indexOf('\nfunction defaultInfrastructure(', buildScheduleStart);
+assert(singleRoundRobinStart >= 0 && singleRoundRobinEnd > singleRoundRobinStart, 'Não foi possível localizar o calendário de turno único.');
+assert(groupScheduleStart >= 0 && groupScheduleEnd > groupScheduleStart, 'Não foi possível localizar o gerador de grupos do calendário.');
+assert(buildScheduleStart >= 0 && buildScheduleEnd > buildScheduleStart, 'Não foi possível localizar buildSchedule().');
+const actualSeriesDScheduleSource = [source.slice(singleRoundRobinStart,singleRoundRobinEnd), source.slice(groupScheduleStart,groupScheduleEnd), source.slice(buildScheduleStart,buildScheduleEnd)].join('\n');
 
 const nationalIds = ['bra-a', 'bra-b', 'bra-c', 'bra-d'];
 const norm = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -267,12 +277,43 @@ this.runTransition = executeSeasonTransitions;`, context, { filename: 'js/game.j
   assert.equal(movement.valid, true, 'O planejador de temporada precisa fechar todos os tamanhos e validar unicidade.');
   auditRosterSizesAndDuplicates(movement.rosters);
   assert.equal(movement.playoffWinners['bra-b'].length, 2, 'Série B deve simular exatamente dois vencedores de playoff.');
-  assert.equal(movement.playoffWinners['bra-d'].length, 6, 'Série D deve simular exatamente seis acessos.');
-  assert.equal(movement.groupStandings['bra-d'].length, 16, 'Série D precisa manter 16 grupos na fase classificatória.');
-  assert.equal(movement.groupStandings['bra-d'].every(group => group.length === 6), true, 'Cada grupo da Série D deve ter seis clubes.');
+  assert.equal(movement.playoffWinners['bra-d'].length, 4, 'Série D deve promover diretamente os quatro campeões dos grupos.');
+  assert.equal(movement.groupStandings['bra-d'].length, 4, 'Série D precisa manter quatro grupos independentes.');
+  assert.equal(movement.groupStandings['bra-d'].every(group => group.length === 24), true, 'Cada grupo da Série D deve ter 24 clubes.');
+  assert.equal(movement.decisions['bra-c'].relegated.length, 4, 'Série C deve rebaixar quatro clubes para equilibrar os quatro acessos da Série D.');
+  const dFixture = context.window.AFM_TOURNAMENT_ENGINE.groupFixtures({id:'bra-d-groups',season:2028,groups:Object.fromEntries(['A','B','C','D'].map((g,i)=>[g,roster['bra-d'].slice(i*24,(i+1)*24)])),startDate:'2028-03-01',homeAway:false});
+  assert.equal(dFixture.length, 1104, 'Grupos de 24 em turno único devem gerar 1.104 partidas independentes.');
+  assert.equal(new Set(dFixture.map(f=>f.group)).size, 4, 'Calendários da Série D devem ficar separados em quatro grupos.');
+  assert.equal(Math.max(...dFixture.map(f=>f.round)), 23, 'Cada clube deve disputar no máximo 23 rodadas de grupo.');
   assert.equal(movement.finalGroups['bra-c'].length, 2, 'Série C precisa de dois quadrangulares finais.');
   assert.equal(movement.finalGroups['bra-c'].every(group => group.length === 4), true, 'Cada quadrangular da Série C deve ter quatro clubes.');
-  console.log('PASS: pipeline crítico simula ligas, quadrangulares, playoffs e preserva 20/20/20/96 clubes.');
+  console.log('PASS: pipeline crítico simula ligas, quadrangulares e 4 grupos de 24 da Série D, com quatro acessos e pirâmide 20/20/20/96.');
+}
+
+{
+  const context = {};
+  vm.runInNewContext(`${actualSeriesDScheduleSource}\nthis.buildSeriesDSchedule = buildSchedule;`, context, { filename: 'js/game.js:series-d-calendar' });
+  const clubs = names('SERIE-D', 96);
+  const schedule = context.buildSeriesDSchedule({id:'bra-d',type:'groups-knockout'},clubs);
+  assert.equal(schedule.length, 23, 'O calendário da Série D precisa ter 23 rodadas por grupo em turno único.');
+  assert.equal(schedule.every(round => round.length === 48), true, 'Cada rodada agrupa os jogos internos dos quatro grupos, 12 jogos por grupo.');
+  for(let groupIndex=0;groupIndex<4;groupIndex++){
+    const groupNames=new Set(clubs.slice(groupIndex*24,(groupIndex+1)*24).map(norm));
+    const played=new Set();
+    for(const round of schedule) for(const [home,away] of round){
+      const homeGroup=Math.floor(clubs.findIndex(name=>norm(name)===norm(home))/24);
+      const awayGroup=Math.floor(clubs.findIndex(name=>norm(name)===norm(away))/24);
+      assert.equal(homeGroup,awayGroup,'Não pode haver confrontos cruzados entre grupos da Série D.');
+      if(homeGroup===groupIndex){
+        const pair=[norm(home),norm(away)].sort().join('|');
+        assert(!played.has(pair), 'Um confronto não pode aparecer duas vezes no mesmo grupo.');
+        played.add(pair);
+        assert(groupNames.has(norm(home))&&groupNames.has(norm(away)), 'Cada partida deve permanecer dentro do grupo original.');
+      }
+    }
+    assert.equal(played.size,276, 'Cada grupo de 24 deve disputar 276 partidas em turno único.');
+  }
+  console.log('PASS: buildSchedule produz calendário da Série D com 4 grupos independentes, 23 rodadas e sem cruzamentos.');
 }
 
 {

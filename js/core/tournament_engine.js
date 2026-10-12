@@ -75,7 +75,7 @@ window.AFM_TOURNAMENT_ENGINE = (() => {
     return fixtures;
   }
 
-  function groupFixtures({ id, season, groups, startDate }) {
+  function groupFixtures({ id, season, groups, startDate, homeAway = true, roundOffsetByGroup = false }) {
     const fixtures = [];
     for (const [group, teams] of Object.entries(groups || {})) {
       if (!Array.isArray(teams) || teams.length < 2) continue;
@@ -83,14 +83,14 @@ window.AFM_TOURNAMENT_ENGINE = (() => {
       if (players.length % 2) players.push(null);
       const n = players.length, rounds = n - 1, anchor = players[0];
       let rotating = players.slice(1);
-      for (let r = 0; r < rounds * 2; r++) {
+      for (let r = 0; r < rounds * (homeAway ? 2 : 1); r++) {
         const arr = [anchor, ...rotating];
         for (let i = 0; i < n / 2; i++) {
           let home = arr[i], away = arr[n - 1 - i];
           if (!home || !away) continue;
-          if (r >= rounds || ((r + i) % 2)) [home, away] = [away, home];
+          if ((homeAway && r >= rounds) || ((r % rounds + i) % 2)) [home, away] = [away, home];
           const dt = new Date(`${startDate || `${season}-03-01`}T12:00:00`);
-          dt.setDate(dt.getDate() + r * 7 + Object.keys(groups).indexOf(group));
+          dt.setDate(dt.getDate() + r * 7 + (roundOffsetByGroup ? Object.keys(groups).indexOf(group) : 0));
           fixtures.push({ competitionId: id, season: Number(season), group, round: r + 1, home, away, date: dt.toISOString().slice(0, 10) });
         }
         rotating = [rotating[rotating.length - 1], ...rotating.slice(0, -1)];

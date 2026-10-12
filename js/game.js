@@ -6993,10 +6993,11 @@ function payrollPerRound(){
 }
 
 function roundRobin(teamNames){let a=[...teamNames];if(a.length%2)a.push('FOLGA');const n=a.length,rounds=[];for(let r=0;r<n-1;r++){const games=[];for(let i=0;i<n/2;i++){const x=a[i],y=a[n-1-i];if(x!=='FOLGA'&&y!=='FOLGA')games.push(r%2?[y,x]:[x,y])}rounds.push(games);a=[a[0],a[n-1],...a.slice(1,n-1)]}return rounds.concat(rounds.map(rd=>rd.map(([h,a])=>[a,h])))}
+function roundRobinSingleLeg(teamNames){const a0=[...teamNames];if(a0.length%2)a0.push('FOLGA');const n=a0.length,rounds=[],a=[...a0];for(let r=0;r<n-1;r++){const games=[];for(let i=0;i<n/2;i++){const x=a[i],y=a[n-1-i];if(x!=='FOLGA'&&y!=='FOLGA')games.push(r%2?[y,x]:[x,y])}rounds.push(games);a.splice(1,0,a.pop())}return rounds}
 function leaguePhaseSchedule(teamNames,rounds=8){const out=[],seen=new Set();for(let r=0;r<rounds;r++){const used=new Set(),games=[],order=[...teamNames].sort(()=>Math.random()-.5);for(const t of order){if(used.has(t))continue;let opp=order.find(x=>x!==t&&!used.has(x)&&!seen.has([t,x].sort().join('|')));if(!opp)opp=order.find(x=>x!==t&&!used.has(x));if(!opp)continue;used.add(t);used.add(opp);seen.add([t,opp].sort().join('|'));games.push(r%2?[opp,t]:[t,opp])}out.push(games)}return out}
-function groupSchedule(teamNames,size=4){const groups=[];for(let i=0;i<teamNames.length;i+=size)groups.push(teamNames.slice(i,i+size));const groupRounds=groups.map(g=>roundRobin(g));const max=Math.max(0,...groupRounds.map(x=>x.length)),out=[];for(let r=0;r<max;r++)out.push(groupRounds.flatMap(g=>g[r]||[]));return out}
+function groupSchedule(teamNames,size=4,homeAway=true){const groups=[];for(let i=0;i<teamNames.length;i+=size)groups.push(teamNames.slice(i,i+size));const groupRounds=groups.map(g=>homeAway?roundRobin(g):roundRobinSingleLeg(g));const max=Math.max(0,...groupRounds.map(x=>x.length)),out=[];for(let r=0;r<max;r++)out.push(groupRounds.flatMap(g=>g[r]||[]));return out}
 function firstKnockoutRound(teamNames){const a=[...teamNames].sort(()=>Math.random()-.5),games=[];for(let i=0;i<a.length;i+=2)if(a[i+1])games.push([a[i],a[i+1]]);return [games]}
-function buildSchedule(comp,teamNames){if(comp.type==='knockout')return firstKnockoutRound(teamNames);if(comp.type==='league-phase'||comp.type==='continental-league')return leaguePhaseSchedule(teamNames,comp.rounds||8);if(comp.type.includes('groups')||comp.type==='continental-groups')return groupSchedule(teamNames,comp.groupSize||4).slice(0,comp.rounds||999);const rr=roundRobin(teamNames);return comp.rounds?rr.slice(0,Math.min(comp.rounds,rr.length)):rr}
+function buildSchedule(comp,teamNames){if(comp.type==='knockout')return firstKnockoutRound(teamNames);if(comp.type==='league-phase'||comp.type==='continental-league')return leaguePhaseSchedule(teamNames,comp.rounds||8);if(comp.id==='bra-d')return groupSchedule(teamNames,24,false);if(comp.type.includes('groups')||comp.type==='continental-groups')return groupSchedule(teamNames,comp.groupSize||4).slice(0,comp.rounds||999);const rr=roundRobin(teamNames);return comp.rounds?rr.slice(0,Math.min(comp.rounds,rr.length)):rr}
 
 function defaultInfrastructure(club){
   const s=strength(club);const cap=clamp(Math.round((8000+(s-55)*1400)/1000)*1000,8000,65000);
@@ -15241,14 +15242,14 @@ function showEndOfSeasonModal(){
       state.nextSeasonCompId = 'bra-d';
     }
   } else if(comp?.id === 'bra-d'){
-    const persistedDPlayoffWinners = Array.isArray(state.competitionPlayoffWinners?.['bra-d']) ? state.competitionPlayoffWinners['bra-d'] : [];
-    const dAccessByPlayoff = persistedDPlayoffWinners.some(name => norm(name) === norm(state.club));
-    if(dAccessByPlayoff){
+    const groupChampions = Array.isArray(state.competitionPlayoffWinners?.['bra-d']) ? state.competitionPlayoffWinners['bra-d'] : [];
+    const groupChampion = groupChampions.some(name => norm(name) === norm(state.club));
+    if(groupChampion){
       promoInfo = {
         type: 'promote',
         toCompId: 'bra-c',
         title: '🚀 ACESSO CONQUISTADO À SÉRIE C!',
-        desc: `O ${state.club} venceu o playoff decisivo e conquistou uma das seis vagas de acesso à Série C.`
+        desc: `O ${state.club} venceu seu grupo de 24 clubes e conquistou uma das quatro vagas diretas de acesso à Série C.`
       };
       state.nextSeasonCompId = 'bra-c';
     }
@@ -18810,9 +18811,11 @@ function calendarPage(){
     const isHome = f[0] === myClub;
     const date = getDateForRound(rIndex, state.season);
     const historyMatch = state.history.find(h => h.round === rIndex + 1);
+    const groupIndex = comp.id === 'bra-d' ? Math.floor((window.COMPETITION_TEAMS?.['bra-d'] || []).findIndex(name => norm(name) === norm(myClub)) / 24) : -1;
+    const groupName = groupIndex >= 0 ? String.fromCharCode(65 + groupIndex) : '';
     return [{
-      competitionId:'COMP', name:comp.name, home:f[0], away:f[1], isHome,
-      date, round:`Rodada ${rIndex + 1}`, current:rIndex === state.round,
+      competitionId:'COMP', name:comp.name, home:f[0], away:f[1], isHome, group:groupName,
+      date, round:comp.id === 'bra-d' ? `Grupo ${groupName} - Rodada ${rIndex + 1}` : `Rodada ${rIndex + 1}`, current:rIndex === state.round,
       past:rIndex < state.round, historyMatch
     }];
   }).concat(extraMatches.map(match => ({...match, current: match.date === state.date, past: match.date < state.date})))
@@ -22316,14 +22319,14 @@ function renderContinentalBlock(){
                 <span class="pill" style="background:#3b82f6;color:#fff;font-weight:900;font-size:11px">DIVISÃO 4</span>
                 <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE D · 96 CLUBES</h3>
               </div>
-              <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">16 grupos de 6 · ida e volta</span>
+              <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">4 grupos de 24 · calendário independente</span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:10px;font-size:12px">
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #22c55e">
-                <b style="color:#4ade80">🟢 4 Semifinalistas (G4):</b> Acesso à Série C 2027 e disputa pelo título.
+                <b style="color:#4ade80">🟢 Campeões dos grupos:</b> os 4 campeões sobem diretamente para a Série C 2027.
               </div>
               <div style="background:#1a1530;padding:10px 12px;border-radius:8px;border-left:4px solid #f59e0b">
-                <b style="color:#fbbf24">⚠️ Playoffs de acesso:</b> Os quatro eliminados nas quartas disputam duas vagas adicionais na Série C.
+                <b style="color:#fbbf24">🏆 Disputa do título:</b> os campeões dos grupos avançam à fase decisiva; o acesso não depende de playoffs adicionais.
               </div>
             </div>
           </div>
@@ -22388,6 +22391,20 @@ function renderContinentalBlock(){
 // -------------------------------------------------------------
 // TEMPORADA & TABELA ESTILO ORIGINAL
 // -------------------------------------------------------------
+function getSeriesDGroupStandings(teamList = null, sourceRows = null){
+  const roster = Array.isArray(teamList) ? teamList : (state?.competitionTeams?.['bra-d'] || window.COMPETITION_TEAMS?.['bra-d'] || []);
+  const activeRows = Array.isArray(sourceRows) ? sourceRows : (state?.compId === 'bra-d' ? (state.teams || []) : (state?.nationalCompetitionStandings?.['bra-d'] || []));
+  const byName = new Map(activeRows.map(row => [norm(row?.name), row]));
+  return Object.fromEntries(['A','B','C','D'].map((group,index) => {
+    const names = roster.slice(index * 24, (index + 1) * 24);
+    const rows = names.map(name => {
+      const row = byName.get(norm(name));
+      return row ? {...row,name,form:Array.isArray(row.form)?row.form:[]} : {name,p:0,j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,form:[],_unplayed:true};
+    }).sort((a,b)=>(Number(b.p)||0)-(Number(a.p)||0)||(Number(b.v)||0)-(Number(a.v)||0)||((Number(b.gp)||0)-(Number(b.gc)||0))-((Number(a.gp)||0)-(Number(a.gc)||0))||norm(a.name).localeCompare(norm(b.name)));
+    return [group, rows.map((row,rowIndex)=>({...row,group,groupPosition:rowIndex+1}))];
+  }));
+}
+
 function getNationalCompetitionStandings(natId){
   const teamList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[natId]) || [];
   const expectedSize = natId === 'bra-d' ? 96 : 20;
@@ -22395,6 +22412,10 @@ function getNationalCompetitionStandings(natId){
   const activeTeams = activeCompetition && Array.isArray(state?.teams) ? state.teams : null;
   const activeByName = new Map((activeTeams || []).map(team => [norm(team?.name), team]));
   const rows = teamList.map(name => activeByName.get(norm(name))).filter(Boolean);
+
+  if(natId === 'bra-d'){
+    return Object.values(getSeriesDGroupStandings(teamList, activeCompetition ? activeTeams : null)).flat();
+  }
 
   // Só usa resultados reais do save para a liga ativa. Não apresenta pontos fictícios de outra divisão.
   if(activeCompetition && activeTeams && activeTeams.length === expectedSize && rows.length === teamList.length){
@@ -22443,6 +22464,9 @@ function seasonPage(){
   const nationalStandings = isViewingNationalWhileInEstadual ? getNationalCompetitionStandings(userNatDivId) : null;
   const nationalStandingsUnplayed = !!(nationalStandings?.length && nationalStandings.every(team => team._unplayed));
   const r = isViewingNationalWhileInEstadual ? nationalStandings : ranking();
+  const seriesDGroups = comp.id === 'bra-d'
+    ? getSeriesDGroupStandings(window.COMPETITION_TEAMS?.['bra-d'] || [], state.compId === 'bra-d' ? (state.teams || []) : (state.nationalCompetitionStandings?.['bra-d'] || []))
+    : null;
   
   return `
     <div class="hero">
@@ -22488,7 +22512,18 @@ function seasonPage(){
         </div>
 
         ${nationalStandingsUnplayed ? `<div class="small muted" role="status" style="padding:10px 12px;margin-bottom:10px;border:1px solid rgba(148,163,184,.25);border-radius:8px;background:rgba(148,163,184,.06)">Esta divisão ainda não possui classificação calculada e salva nesta carreira. Os números zerados representam ausência de resultados simulados, não uma classificação oficial.</div>` : ''}
-        <div class="tablewrap">
+        ${comp.id === 'bra-d' ? ['A','B','C','D'].map((group,groupIndex) => {
+          const groupRows = seriesDGroups?.[group] || [];
+          return `<section class="card" style="margin:14px 0;padding:12px;border:1px solid rgba(59,130,246,.28)">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+              <h3 style="margin:0">Grupo ${group} <span class="muted" style="font-size:12px">· 24 clubes · ${groupRows.length ? Math.max(0,...groupRows.map(team=>Number(team.j)||0)) : 0} rodadas disputadas</span></h3>
+              <span class="pill">${groupRows.some(team=>team._unplayed) ? 'Tabela inicial' : `${groupRows.filter(team=>team.groupPosition===1&&team.j>0).length ? 'Líder atual' : 'Classificação'}`}</span>
+            </div>
+            <div class="tablewrap"><table><thead><tr><th>#</th><th>Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th><th>%</th><th>Forma</th></tr></thead><tbody>
+              ${groupRows.map(t=>{const isMy=norm(t.name)===norm(state.club);const pct=t.j>0?Math.round((t.p/(t.j*3))*100):0;const formDots=(t.form||[]).map(f=>`<span class="form-dot form-${String(f).toLowerCase()}">${esc(f)}</span>`).join('');return `<tr class="${isMy?'my-row ':''}${t.groupPosition===1&&t.j>0?'zone-lib':''}"><td style="text-align:center;font-weight:900">${t.groupPosition}</td><td><div class="club-cell">${clubBadge(t.name,22)}<span>${esc(t.name)}</span></div></td><td style="text-align:center;font-weight:900">${Number(t.p)||0}</td><td style="text-align:center">${Number(t.j)||0}</td><td style="text-align:center">${Number(t.v)||0}</td><td style="text-align:center">${Number(t.e)||0}</td><td style="text-align:center">${Number(t.d)||0}</td><td style="text-align:center">${Number(t.gp)||0}</td><td style="text-align:center">${Number(t.gc)||0}</td><td style="text-align:center">${Number(t.sg)||0}</td><td style="text-align:center">${pct}%</td><td><div class="form-dots">${formDots||'-'}</div></td></tr>`;}).join('')}
+            </tbody></table></div>
+          </section>`;
+        }).join('') : `<div class="tablewrap">
           <table>
             <thead>
               <tr>
@@ -22549,7 +22584,7 @@ function seasonPage(){
               }).join('')}
             </tbody>
           </table>
-        </div>
+        </div>`}
       </div>
     ` : seasonTab==='estadual' ? (() => {
       const estCompId = selectedEstadualId || clubStateCompId(state.club);
