@@ -4894,7 +4894,7 @@ function renderCopaDoBrasilBlock(){
             COPA DO BRASIL
           </h1>
           <div style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:800;letter-spacing:1px;margin-top:4px">
-            2026 · ${copa.totalTeams} CLUBES · EM DISPUTA
+            ${state.season} · ${copa.totalTeams} CLUBES · EM DISPUTA
           </div>
         </div>
         <div style="font-size:14px;color:rgba(255,255,255,0.7);font-style:italic">
@@ -7763,115 +7763,60 @@ function signSponsorOffer(idx){
 }
 
 
-function initCandangaoData(){
+function initCandangaoData(season = state?.season || 2026, teamNames = null){
+  const teams = Array.isArray(teamNames) && teamNames.length
+    ? teamNames
+    : ((window.COMPETITION_TEAMS?.['bra-est-df'] || ['Gama','Capital-DF','Sobradinho','Samambaia','Ceilândia','Paranoá','Real Brasília','Brasiliense','ARUC','Brasília']).slice());
+  const firstRoundDate = getDateForRound(0, season);
   return {
-    id: 'bra-est-df',
-    name: 'Campeonato Candango',
-    phase: 'primeira',
-    currentRound: 2,
-    roundDate: 'QUA, 21 JAN 2026',
-    teams: [
-      { name: 'Gama', p: 3, j: 1, v: 1, e: 0, d: 0, gp: 2, gc: 1, sg: 1, pct: 100, form: ['V'] },
-      { name: 'Capital-DF', p: 3, j: 1, v: 1, e: 0, d: 0, gp: 1, gc: 0, sg: 1, pct: 100, form: ['V'] },
-      { name: 'Sobradinho', p: 3, j: 1, v: 1, e: 0, d: 0, gp: 1, gc: 0, sg: 1, pct: 100, form: ['V'] },
-      { name: 'Samambaia', p: 3, j: 1, v: 1, e: 0, d: 0, gp: 1, gc: 0, sg: 1, pct: 100, form: ['V'] },
-      { name: 'Ceilândia', p: 1, j: 1, v: 0, e: 1, d: 0, gp: 3, gc: 3, sg: 0, pct: 33, form: ['E'] },
-      { name: 'Paranoá', p: 1, j: 1, v: 0, e: 1, d: 0, gp: 3, gc: 3, sg: 0, pct: 33, form: ['E'] },
-      { name: 'Real Brasília', p: 0, j: 1, v: 0, e: 0, d: 1, gp: 1, gc: 2, sg: -1, pct: 0, form: ['D'] },
-      { name: 'Brasiliense', p: 0, j: 1, v: 0, e: 0, d: 1, gp: 0, gc: 1, sg: -1, pct: 0, form: ['D'] },
-      { name: 'ARUC', p: 0, j: 1, v: 0, e: 0, d: 1, gp: 0, gc: 1, sg: -1, pct: 0, form: ['D'] },
-      { name: 'Brasília', p: 0, j: 1, v: 0, e: 0, d: 1, gp: 0, gc: 1, sg: -1, pct: 0, form: ['D'] }
-    ],
-    fixtures: [
-      { stadium: 'Abadião', dateStr: 'qua, 21 jan 2026 · 18:30', home: 'Ceilândia', away: 'Sobradinho' },
-      { stadium: 'Ciro Machado do Espírito Santo (Defelê)', dateStr: 'qua, 21 jan 2026 · 16:00', home: 'Real Brasília', away: 'Brasília' },
-      { stadium: 'Juscelino Kubitschek (JK Paranoá)', dateStr: 'qua, 21 jan 2026 · 18:30', home: 'Paranoá', away: 'Capital-DF' },
-      { stadium: 'Joaquim Domingos Roriz (Rorizão)', dateStr: 'qua, 21 jan 2026 · 21:00', home: 'Samambaia', away: 'Gama' },
-      { stadium: 'Boca do Jacaré', dateStr: 'qua, 21 jan 2026 · 18:30', home: 'Brasiliense', away: 'ARUC' }
-    ]
+    id: 'bra-est-df', name: 'Campeonato Candango', season: Number(season) || 2026,
+    phase: 'primeira', currentRound: 1,
+    roundDate: formatDatePtBr(firstRoundDate).toUpperCase(),
+    teams: teams.map(name => ({ name, p:0, j:0, v:0, e:0, d:0, gp:0, gc:0, sg:0, pct:0, form:[] })),
+    fixtures: (roundRobin(teams)[0] || []).map(([home, away]) => {
+      const homeClub = clubByName(home) || {};
+      return { stadium: homeClub.stadium || `Estádio do ${home}`, isoDate:firstRoundDate,
+        dateStr:`${formatDatePtBr(firstRoundDate)} · 19:00`, home, away };
+    })
   };
 }
-
-function initCandangaoStats(){
-  return {
-    scorers: [
-      { name: 'Edson Reis', club: 'Ceilândia', pos: 'ATACANTE', goals: 2 },
-      { name: 'Gabriel Planta', club: 'Samambaia', pos: 'VOLANTE', goals: 1 },
-      { name: 'Henrique Almeida', club: 'Gama', pos: 'ATACANTE', goals: 1 },
-      { name: 'João Vitor', club: 'Paranoá', pos: 'LATERAL-DIREITO', goals: 1 },
-      { name: 'Juan Rocha', club: 'Real Brasília', pos: 'PONTA-ESQUERDA', goals: 1 },
-      { name: 'Lopeu', club: 'Paranoá', pos: 'ATACANTE', goals: 1 },
-      { name: 'Luan', club: 'Gama', pos: 'PONTA-ESQUERDA', goals: 1 },
-      { name: 'Renê', club: 'Paranoá', pos: 'PONTA-ESQUERDA', goals: 1 }
-    ],
-    assists: [
-      { name: 'David Weslley', club: 'Paranoá', pos: 'MEIA', assists: 1 },
-      { name: 'Ian', club: 'Samambaia', pos: 'PONTA-ESQUERDA', assists: 1 },
-      { name: 'Johann', club: 'Real Brasília', pos: 'PONTA-ESQUERDA', assists: 1 },
-      { name: 'Marcos Rassi', club: 'Paranoá', pos: 'MEIO-CAMPISTA', assists: 1 },
-      { name: 'Matheuzinho', club: 'Capital-DF', pos: 'MEIA', assists: 1 },
-      { name: 'Paulo Vinicius', club: 'Ceilândia', pos: 'MEIO-CAMPISTA', assists: 1 },
-      { name: 'Rodriguinho', club: 'Sobradinho', pos: 'MEIA', assists: 1 },
-      { name: 'Vitor Gabriel', club: 'Ceilândia', pos: 'PONTA-ESQUERDA', assists: 1 }
-    ]
-  };
-}
+function initCandangaoStats(){ return { scorers: [], assists: [] }; }
 
 function getStateCompData(cId){
   state.estadualData = state.estadualData || {};
-  if(state.estadualData[cId]) return state.estadualData[cId];
-  if(cId === 'bra-est-df'){
-    state.estadualData[cId] = initCandangaoData();
-    return state.estadualData[cId];
+  const saved = state.estadualData[cId];
+  if(saved && (Number(saved.season) === Number(state.season) || (!saved.season && Number(state.season) === 2026))) return saved;
+  if(saved && Number(saved.season) !== Number(state.season)){
+    const hasSavedResults = (saved.teams || []).some(team => Number(team.j) > 0)
+      || (saved.fixtures || []).some(fixture => fixture.result || fixture.score);
+    if(!state.estadualArchive) state.estadualArchive = {};
+    state.estadualArchive[cId] = Array.isArray(state.estadualArchive[cId]) ? state.estadualArchive[cId] : [];
+    if(hasSavedResults && !state.estadualArchive[cId].some(item => Number(item.season) === Number(saved.season))) state.estadualArchive[cId].push(clone(saved));
+    delete state.estadualData[cId];
   }
   const cObj = compById(cId) || { name: 'Campeonato Estadual', id: cId };
-  const teamList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[cId]) || ['Clube A','Clube B','Clube C','Clube D','Clube E','Clube F','Clube G','Clube H'];
-  const teams = teamList.map((tName, idx) => {
-    const isWin = idx < Math.floor(teamList.length / 2);
-    const j = 1;
-    const v = isWin ? 1 : 0;
-    const e = 0;
-    const d = isWin ? 0 : 1;
-    const gp = isWin ? rnd(1, 3) : 0;
-    const gc = isWin ? 0 : rnd(1, 3);
-    const sg = gp - gc;
-    const p = v * 3;
-    const pct = isWin ? 100 : 0;
-    return { name: tName, p, j, v, e, d, gp, gc, sg, pct, form: [isWin ? 'V' : 'D'] };
-  }).sort((a,b) => b.p - a.p || b.sg - a.sg || b.gp - a.gp);
-
-  const fixtures = [];
-  for(let i=0; i<teamList.length; i+=2){
-    if(teamList[i+1]){
-      fixtures.push({
-        stadium: 'Estádio ' + teamList[i],
-        dateStr: 'qua, 21 jan 2026 · 19:00',
-        home: teamList[i],
-        away: teamList[i+1]
-      });
-    }
+  const teamList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[cId]) || (cId === 'bra-est-df' ? ['Gama','Capital-DF','Sobradinho','Samambaia','Ceilândia','Paranoá','Real Brasília','Brasiliense','ARUC','Brasília'] : ['Clube A','Clube B','Clube C','Clube D','Clube E','Clube F','Clube G','Clube H']);
+  if(cId === 'bra-est-df'){
+    state.estadualData[cId] = initCandangaoData(state.season, teamList);
+    return state.estadualData[cId];
   }
-
+  const teams = teamList.map(name => ({ name, p:0, j:0, v:0, e:0, d:0, gp:0, gc:0, sg:0, pct:0, form:[] }));
+  const firstRoundDate = getDateForRound(0, state.season);
+  const fixtures = (roundRobin(teamList)[0] || []).map(([home, away]) => ({
+    stadium: (clubByName(home) || {}).stadium || `Estádio do ${home}`,
+    isoDate: firstRoundDate,
+    dateStr: `${formatDatePtBr(firstRoundDate)} · 19:00`,
+    home, away
+  }));
   state.estadualData[cId] = {
-    id: cId,
-    name: cObj.name,
-    phase: 'primeira',
-    currentRound: 2,
-    roundDate: 'QUA, 21 JAN 2026',
-    teams,
-    fixtures
+    id: cId, name: cObj.name, season: Number(state.season), phase: 'primeira',
+    currentRound: 1, roundDate: formatDatePtBr(firstRoundDate).toUpperCase(), teams, fixtures
   };
   return state.estadualData[cId];
 }
-
 function getStateCompStats(cId){
   state.competitionStats = state.competitionStats || {};
   if(state.competitionStats[cId] && (Number(state.competitionStats[cId].season) === Number(state.season) || (!state.competitionStats[cId].season && Number(state.season) === 2026))){
-    state.competitionStats[cId].season = Number(state.season);
-    return state.competitionStats[cId];
-  }
-  if(cId === 'bra-est-df'){
-    state.competitionStats[cId] = initCandangaoStats();
     state.competitionStats[cId].season = Number(state.season);
     return state.competitionStats[cId];
   }
@@ -18806,11 +18751,12 @@ function calendarPage(){
   const activeCalendarFilter = ['ALL','COMP','HOME','AWAY'].includes(calendarFilter) || cupFilters.some(([id]) => id === calendarFilter) ? calendarFilter : 'ALL';
   const userLeagueMatches = schedule.filter(games => games.some(g => g.includes(myClub))).length;
   const calendarMatches = schedule.flatMap((games, rIndex) => {
-    const f = games.find(g => g.includes(myClub));
+    const f = games.find(g => g.some(name => calendarClubKey(name) === calendarClubKey(myClub)));
     if(!f) return [];
-    const isHome = f[0] === myClub;
+    const isHome = calendarClubKey(f[0]) === calendarClubKey(myClub);
     const date = getDateForRound(rIndex, state.season);
-    const historyMatch = state.history.find(h => h.round === rIndex + 1);
+    const opponentKey = calendarClubKey(isHome ? f[1] : f[0]);
+    const historyMatch = (state.history || []).find(h => Number(h.round) === rIndex + 1 && (!h.competitionId || h.competitionId === state.compId) && (!h.season || Number(h.season) === Number(state.season)) && ((calendarClubKey(h.h) === calendarClubKey(myClub) && calendarClubKey(h.a) === opponentKey) || (calendarClubKey(h.a) === calendarClubKey(myClub) && calendarClubKey(h.h) === opponentKey)));
     const groupIndex = comp.id === 'bra-d' ? Math.floor((window.COMPETITION_TEAMS?.['bra-d'] || []).findIndex(name => norm(name) === norm(myClub)) / 24) : -1;
     const groupName = groupIndex >= 0 ? String.fromCharCode(65 + groupIndex) : '';
     return [{
@@ -22611,17 +22557,20 @@ function seasonPage(){
             gc: t.gc,
             sg: t.sg,
             pct: pct,
-            form: (t.form && t.form.length > 0) ? t.form : ['-']
+            form: (t.form && t.form.length > 0) ? t.form : []
           };
         });
+        estData.season = Number(state.season);
         estData.currentRound = Math.min((state.round || 0) + 1, (state.schedule?.length || 1));
-        estData.roundDate = state.date ? new Date(state.date+'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short', year:'numeric' }).toUpperCase() : 'RODADA ATUAL';
+        const activeRoundDate = getDateForRound(state.round || 0, state.season);
+        estData.roundDate = formatDatePtBr(activeRoundDate).toUpperCase();
         if(state.schedule && state.schedule[state.round]){
           estData.fixtures = state.schedule[state.round].map(([h, a]) => {
             const hClub = clubByName(h) || {};
             return {
               stadium: hClub.stadium || ('Estádio do ' + h),
-              dateStr: (state.date || '2026-01-05'),
+              isoDate: activeRoundDate,
+              dateStr: `${formatDatePtBr(activeRoundDate)} · 19:00`,
               home: h,
               away: a
             };
@@ -22667,7 +22616,7 @@ function seasonPage(){
                 ${esc(estData.name)}
               </h1>
               <div style="font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:1px;font-weight:700;margin-top:4px">
-                2026 · ${estData.teams.length} CLUBES · EM DISPUTA
+                ${estData.season || state.season} · ${estData.teams.length} CLUBES · EM DISPUTA
               </div>
             </div>
             <div style="font-size:14px;color:rgba(255,255,255,0.7);font-style:italic">
@@ -22719,7 +22668,7 @@ function seasonPage(){
                     const isRelegated = pos > (estData.teams.length - 2);
                     const barColor = isAdvancing ? '#7c3aed' : isRelegated ? '#ef4444' : 'transparent';
                     const formDots = (t.form || ['V']).map(f => {
-                      const color = f === 'V' ? '#22c55e' : f === 'E' ? '#94a3b8' : '#ef4444';
+                      const color = f === 'V' ? '#22c55e' : f === 'E' ? '#94a3b8' : f === 'D' ? '#ef4444' : '#64748b';
                       return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin:0 1px"></span>`;
                     }).join('');
 

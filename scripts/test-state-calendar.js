@@ -1,0 +1,22 @@
+﻿const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const source = fs.readFileSync(path.join(__dirname, '..', 'js/game.js'), 'utf8');
+function extract(name, nextName){ const start=source.indexOf(`function ${name}(`); const end=source.indexOf(`\nfunction ${nextName}(`,start); assert(start>=0&&end>start,`Não localizou ${name}()`); return source.slice(start,end).trim(); }
+const initializer=extract('initCandangaoData','initCandangaoStats');
+const statsInitializer=source.slice(source.indexOf('function initCandangaoStats(){'),source.indexOf('\nfunction getStateCompData(cId){')).trim();
+const getData=extract('getStateCompData','getStateCompStats');
+const getStats=extract('getStateCompStats','addPlayerMatchStats');
+const norm=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const teams=['Gama','Capital-DF','Sobradinho','Samambaia','Ceilândia','Paranoá','Real Brasília','Brasiliense','ARUC','Brasília'];
+const context={state:{season:2027,club:'Brasília',estadualData:{},competitionStats:{}},window:{COMPETITION_TEAMS:{'bra-est-df':teams}},norm,roundRobin:names=>{const list=[...names];if(list.length%2)list.push('FOLGA');const rounds=[];let a=[...list];for(let r=0;r<a.length-1;r++){const g=[];for(let i=0;i<a.length/2;i++)if(a[i]!=='FOLGA'&&a[a.length-1-i]!=='FOLGA')g.push([a[i],a[a.length-1-i]]);rounds.push(g);a=[a[0],a[a.length-1],...a.slice(1,-1)];}return rounds.concat(rounds.map(g=>g.map(([h,a])=>[a,h])));},getDateForRound:(round,season)=>`${season}-01-${String(1+round*7).padStart(2,'0')}`,formatDatePtBr:date=>date,clubByName:name=>({name,stadium:`Estádio ${name}`}),compById:id=>({id,name:'Campeonato Candango'}),clone:value=>JSON.parse(JSON.stringify(value)),console};
+vm.runInNewContext(`${initializer}\n${statsInitializer}\n${getData}\n${getStats}\nthis.getData=getStateCompData;this.getStats=getStateCompStats;`,context);
+const data=context.getData('bra-est-df');
+assert.equal(data.season,2027);assert.equal(data.teams.length,10);assert(data.teams.every(t=>t.p===0&&t.j===0&&t.v===0&&t.e===0&&t.d===0&&t.gp===0&&t.gc===0&&t.sg===0&&t.pct===0&&t.form.length===0));
+assert.equal(data.fixtures.length,5);assert(data.fixtures.every(f=>f.isoDate.startsWith('2027-')));assert(data.fixtures.some(f=>norm(f.home)==='brasilia'||norm(f.away)==='brasilia'));
+context.state.estadualData['bra-est-df']={...data,season:2026,teams:data.teams.map(t=>({...t,j:1,p:3})),fixtures:data.fixtures.map(f=>({...f,score:[2,0]}))};
+const rolled=context.getData('bra-est-df');assert.equal(rolled.season,2027);assert(context.state.estadualArchive['bra-est-df'].some(s=>s.season===2026));assert(rolled.teams.every(t=>t.j===0&&t.p===0));
+const stats=context.getStats('bra-est-df');assert.equal(stats.season,2027);assert.equal(stats.scorers.length,0);assert.equal(stats.assists.length,0);
+assert(source.includes('const activeRoundDate = getDateForRound(state.round || 0, state.season);'));assert(source.includes('${estData.season || state.season} · ${estData.teams.length} CLUBES'));
+console.log('PASS: dados estaduais zerados, temporada correta, jogos do Brasília, histórico arquivado e estatísticas limpas.');
