@@ -2172,7 +2172,10 @@ function generateStadiumRentalProposal(force = false){
   state.stadiumClubRental = {
     club: randomClub,
     fee: baseFee,
-    wear: 6
+    wear: 6,
+    receivedDate: state.date,
+    receivedRound: Number(state.round) || 0,
+    expiresAfterRound: (Number(state.round) || 0) + 3
   };
   return state.stadiumClubRental;
 }
@@ -2239,7 +2242,10 @@ function generateStadiumEventProposal(force = false){
 
   state.stadiumEventProposal = {
     name: chosen.name,
-    fee: baseFee
+    fee: baseFee,
+    receivedDate: state.date,
+    receivedRound: Number(state.round) || 0,
+    expiresAfterRound: (Number(state.round) || 0) + 3
   };
   return state.stadiumEventProposal;
 }
@@ -10417,6 +10423,7 @@ function finalizeRound(userRes, winners, isKO){
     }
   }
   state.round++;
+  expireRoundLimitedOffers(state.round);
   // Aporte semanal em marketing (rebalanceado por rodada)
   const mktWeeklyExp = Math.max(2500, Number(state.marketingWeekly) || 12000);
   state.balance -= mktWeeklyExp;
@@ -10657,7 +10664,10 @@ function finalizeRound(userRes, winners, isKO){
       const rentingClub = clubsNeedingStadium[rnd(0, clubsNeedingStadium.length - 1)];
       state.stadiumClubRental = {
         club: rentingClub,
-        fee: rnd(45000, 95000)
+        fee: rnd(45000, 95000),
+        receivedDate: state.date,
+        receivedRound: Number(state.round) || 0,
+        expiresAfterRound: (Number(state.round) || 0) + 3
       };
       state.news.unshift(`🏟️ PROPOSTA DE ALUGUEL: O ${rentingClub} quer alugar nosso estádio na próxima rodada por ${fmtMoney(state.stadiumClubRental.fee)}.`);
     }
@@ -10710,7 +10720,7 @@ function showSellOnFeeNotificationModal(clause, destClub, resoldFee, myProfit){
   const old = document.getElementById(modalId);
   if(old) old.remove();
 
-  const pct = clause.sharePct || 20;
+  const pct = normalizeSellOnPct(clause, 20);
   const m = document.createElement('div');
   m.id = modalId;
   m.className = 'modal-backdrop';
@@ -10838,8 +10848,8 @@ function simulateAITransfers(){
       const destClub = euroClubs[rnd(0, euroClubs.length - 1)];
       const baseVal = clause.initialPrice || 12000000;
       const resoldFee = Math.round(baseVal * (rnd(135, 275) / 100));
-      const sellOnPct = (clause.sharePct || 20) / 100;
-      const myProfit = Math.round(resoldFee * sellOnPct);
+      const sellOnPct = normalizeSellOnPct(clause, 20) / 100;
+      const myProfit = calculateSellOnPayment(resoldFee, clause);
 
       state.balance = (state.balance || 0) + myProfit;
       state.income = (state.income || 0) + myProfit;
@@ -10873,6 +10883,65 @@ function simulateAITransfers(){
   }
 }
 
+function normalizeSellOnPct(clauseOrPct, fallbackPct = 20){
+  const raw = typeof clauseOrPct === 'object' && clauseOrPct !== null
+    ? (clauseOrPct.finalSellOnPct ?? clauseOrPct.sellOnPct ?? clauseOrPct.sharePct)
+    : clauseOrPct;
+  const value = raw === undefined || raw === null || raw === '' ? fallbackPct : Number(raw);
+  return Number.isFinite(value) ? Math.min(50, Math.max(0, value)) : fallbackPct;
+}
+function calculateSellOnPayment(resaleFee, clause){
+  return Math.round(Math.max(0, Number(resaleFee) || 0) * normalizeSellOnPct(clause, 20) / 100);
+}
+function initializeOfferExpiry(offer, currentRound){
+  const next = { ...offer };
+  if(next.receivedRound === undefined || next.receivedRound === null || next.receivedRound === '' || !Number.isFinite(Number(next.receivedRound))){
+    next.receivedRound = Math.max(0, Number(currentRound) || 0);
+  }
+  if(next.expiresAfterRound === undefined || next.expiresAfterRound === null || next.expiresAfterRound === '' || !Number.isFinite(Number(next.expiresAfterRound))){
+    next.expiresAfterRound = Number(next.receivedRound) + 3;
+  }
+  return next;
+}
+function isOfferExpired(offer, currentRound){
+  return (Number(currentRound) || 0) >= Number(initializeOfferExpiry(offer, currentRound).expiresAfterRound);
+}
+function expireRoundLimitedOffers(currentRound = Number(state?.round) || 0){
+  if(!state) return false;
+  const round = Math.max(0, Number(currentRound) || 0);
+  let changed = false;
+  const incoming = Array.isArray(state.incomingBids) ? state.incomingBids : [];
+  const keep = [];
+  for(const bid of incoming){
+    const normalized = initializeOfferExpiry(bid, round);
+    if(normalized.receivedRound !== bid.receivedRound || normalized.expiresAfterRound !== bid.expiresAfterRound) changed = true;
+    if(isOfferExpired(normalized, round)){
+      addNews(`⏳ A proposta do ${normalized.club || 'clube interessado'} por ${normalized.playerName || 'um jogador'} expirou. A oportunidade foi perdida.`);
+      changed = true;
+    } else keep.push(normalized);
+  }
+  state.incomingBids = keep;
+  for(const key of ['stadiumEventProposal', 'stadiumClubRental']){
+    const offer = state[key];
+    if(!offer) continue;
+    const normalized = initializeOfferExpiry(offer, round);
+    state[key] = normalized;
+    if(normalized.receivedRound !== offer.receivedRound || normalized.expiresAfterRound !== offer.expiresAfterRound) changed = true;
+    if(isOfferExpired(normalized, round)){
+      if(key === 'stadiumEventProposal'){
+        state.news = (state.news || []).filter(item => !(String(item).includes('CONVITE PARA EVENTO:') && String(item).includes(normalized.name)));
+      }
+      addNews(key === 'stadiumEventProposal'
+        ? `⏳ O convite para ${normalized.name || 'show'} expirou. A oportunidade foi perdida.`
+        : `⏳ A proposta de aluguel do estádio do ${normalized.club || 'clube interessado'} expirou. A oportunidade foi perdida.`);
+      state[key] = null;
+      changed = true;
+    }
+  }
+  if(changed){ renderHomeBidsBanner(); save(); render(); }
+  return changed;
+}
+
 function checkIncomingPlayerBids(){
   if(!state || !state.squad || !state.squad.length) return;
 
@@ -10903,7 +10972,7 @@ function checkIncomingPlayerBids(){
         state.incomingBids = state.incomingBids.filter(b => b.playerKey !== targetKey);
         state.incomingBids.unshift({
           id: `arabic_bid_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
-          date: state.date, playerKey: targetKey, playerName: arabicTarget.name,
+          date: state.date, receivedDate: state.date, receivedRound: Number(state.round) || 0, expiresAfterRound: (Number(state.round) || 0) + 3, playerKey: targetKey, playerName: arabicTarget.name,
           ovr: playerOverall(arabicTarget), club: buyer, fee, sellOnPct: 0,
           counterOffered: false, offerType: 'arabic', transferMultiplier,
           offeredSalary, salaryMultiplier, discontentDays: 42
@@ -10952,7 +11021,7 @@ function checkIncomingPlayerBids(){
 
     state.incomingBids.push({
       id: `bid_${Date.now()}_${idx}`,
-      date: state.date,
+      date: state.date, receivedDate: state.date, receivedRound: Number(state.round) || 0, expiresAfterRound: (Number(state.round) || 0) + 3,
       playerKey: playerKey(target),
       playerName: target.name,
       ovr: playerOverall(target),
@@ -11114,16 +11183,10 @@ function openIncomingBidModal(selectedBidId){
       state.income = (state.income || 0) + b.fee;
 
       // Cláusula de Venda Futura se houver
-      if(b.sellOnPct > 0){
+      if(normalizeSellOnPct(b, 0) > 0){
+        const sellOnPct = normalizeSellOnPct(b, 0);
         state.futureSaleClauses = state.futureSaleClauses || [];
-        state.futureSaleClauses.push({
-          playerName: playerToSell.name,
-          playerKey: b.playerKey,
-          club: b.club,
-          sellOnPct: b.sellOnPct,
-          date: state.date,
-          originalFee: b.fee
-        });
+        state.futureSaleClauses.push({ playerName: playerToSell.name, playerKey: b.playerKey, club: state.club, buyer: b.club, sellOnPct, sharePct: sellOnPct, finalSellOnPct: sellOnPct, date: state.date, originalFee: b.fee, initialPrice: b.fee });
       }
 
       // Feed mundial do mercado

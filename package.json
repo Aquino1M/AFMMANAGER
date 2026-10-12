@@ -14,7 +14,9 @@
     "test:username-login": "node scripts/test-username-login.js",
     "test:stadium-progression": "node scripts/test-stadium-progression.js",
     "start": "npx serve .",
-    "dev": "npx serve ."
+    "dev": "npx serve .",
+    "test:offer-rules": "node scripts/test-offer-rules.js",
+    "test:offer-expiry": "node scripts/test-offer-expiry.js"
   },
   "keywords": [
     "football-manager",
