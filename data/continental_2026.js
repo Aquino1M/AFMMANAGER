@@ -1,4 +1,5 @@
-// Fase de grupos e janelas oficiais das competições CONMEBOL de 2026.
+// Template de grupos CONMEBOL para a temporada-base 2026. Novas edições usam
+// os classificados persistidos no save; estas listas não são vagas automáticas.
 window.AFM_CONTINENTAL_2026 = {
   matchdays: ['2026-04-07', '2026-04-14', '2026-04-28', '2026-05-05', '2026-05-19', '2026-05-26'],
   groups: {
@@ -59,8 +60,12 @@ window.AFM_CONTINENTAL_2026 = {
       ]
     }
   },
-  groupFixtures(competitionId) {
-    const groups = this.groups[competitionId] || {};
+  groupFixtures(competitionId, season = 2026, participantGroups = null) {
+    const useGroups = participantGroups || this.groups[competitionId] || {};
+    if (window.AFM_TOURNAMENT_ENGINE?.groupFixtures) {
+      return window.AFM_TOURNAMENT_ENGINE.groupFixtures({ id: competitionId, season, groups: useGroups, startDate: `${season}-03-03` });
+    }
+    const groups = useGroups;
     const firstMatchDay = this.matchdays;
     const pattern = [
       [[3, 1], [2, 0]], [[1, 2], [0, 3]], [[1, 0], [3, 2]],

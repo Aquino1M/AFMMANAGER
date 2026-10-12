@@ -51,5 +51,53 @@ window.AFM_TOURNAMENT_ENGINE = (() => {
     return match;
   }
 
-  return { createGroupTournament, recordResult, standings };
+  function roundRobinFixtures({ id, season, teamNames, startDate, homeAway = true }) {
+    const names = [...new Map((teamNames || []).filter(Boolean).map(name => [key(name), name])).values()];
+    if (names.length < 2) return [];
+    const players = [...names];
+    if (players.length % 2) players.push(null);
+    const n = players.length, rounds = n - 1, anchor = players[0];
+    let rotating = players.slice(1);
+    const fixtures = [];
+    const count = homeAway ? rounds * 2 : rounds;
+    for (let r = 0; r < count; r++) {
+      const arr = [anchor, ...rotating];
+      for (let i = 0; i < n / 2; i++) {
+        let home = arr[i], away = arr[n - 1 - i];
+        if (!home || !away) continue;
+        if ((homeAway && r >= rounds) || ((r % rounds + i) % 2)) [home, away] = [away, home];
+        const dt = new Date(`${startDate || `${season}-03-01`}T12:00:00`);
+        dt.setDate(dt.getDate() + r * 7);
+        fixtures.push({ competitionId: id, season: Number(season), round: r + 1, group: 'LEAGUE', home, away, date: dt.toISOString().slice(0, 10) });
+      }
+      rotating = [rotating[rotating.length - 1], ...rotating.slice(0, -1)];
+    }
+    return fixtures;
+  }
+
+  function groupFixtures({ id, season, groups, startDate }) {
+    const fixtures = [];
+    for (const [group, teams] of Object.entries(groups || {})) {
+      if (!Array.isArray(teams) || teams.length < 2) continue;
+      const players = [...teams];
+      if (players.length % 2) players.push(null);
+      const n = players.length, rounds = n - 1, anchor = players[0];
+      let rotating = players.slice(1);
+      for (let r = 0; r < rounds * 2; r++) {
+        const arr = [anchor, ...rotating];
+        for (let i = 0; i < n / 2; i++) {
+          let home = arr[i], away = arr[n - 1 - i];
+          if (!home || !away) continue;
+          if (r >= rounds || ((r + i) % 2)) [home, away] = [away, home];
+          const dt = new Date(`${startDate || `${season}-03-01`}T12:00:00`);
+          dt.setDate(dt.getDate() + r * 7 + Object.keys(groups).indexOf(group));
+          fixtures.push({ competitionId: id, season: Number(season), group, round: r + 1, home, away, date: dt.toISOString().slice(0, 10) });
+        }
+        rotating = [rotating[rotating.length - 1], ...rotating.slice(0, -1)];
+      }
+    }
+    return fixtures.sort((a,b) => a.round - b.round || a.date.localeCompare(b.date));
+  }
+
+  return { createGroupTournament, recordResult, standings, roundRobinFixtures, groupFixtures };
 })();

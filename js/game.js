@@ -8448,6 +8448,13 @@ function repairLegacyNationalCompetitionRosters(s){
   const userMemberships = divisionIds.filter(id => actual[id].some(name => norm(name) === norm(s.club)));
   const hasUserDivisionMismatch = !!activeUserDivision
     && (userMemberships.length !== 1 || userMemberships[0] !== activeUserDivision);
+  // A divisão nacional explícita do save é a autoridade para a carreira atual.
+  // Um clube recém-promovido pode não existir no catálogo-base/histórico; nunca
+  // o rebaixe para o estadual só porque a lista salva precisa ser normalizada.
+  const hasValidSavedNationalDivision = divisionIds.includes(s.compId)
+    && (Array.isArray(savedMap[s.compId]) && savedMap[s.compId].some(name => norm(name) === norm(s.club)));
+  if(hasValidSavedNationalDivision && actual[s.compId].length === expectedSizes[s.compId]
+    && !hasCrossDivisionDuplicates && !hasInvalidRosterSizes && !hasUserDivisionMismatch) return false;
   if(!hasCrossDivisionDuplicates && !hasInvalidRosterSizes && !hasUserDivisionMismatch) return false;
 
   const baseMap = BASE_COMPETITION_TEAMS || {};
@@ -8496,7 +8503,12 @@ function repairSaveIfCorrupted(s){
   const hasActiveClubFixture = activeScheduleRound.some(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === normalizedClub || norm(g[1]) === normalizedClub));
 
   const isAcreanoBug = curCompId === 'bra-est-ac' || s.competition === 'Campeonato Acreano';
-  const isBrasiliaInWrongComp = norm(s.club) === 'brasilia' && curCompId !== 'bra-est-df';
+  // O Brasília é normalmente candango, mas pode conquistar acesso nacional.
+  // Não sobrescreva uma divisão nacional válida com o vínculo histórico do clube.
+  const isBrasiliaInWrongComp = norm(s.club) === 'brasilia' && curCompId !== 'bra-est-df'
+    && !(['bra-a','bra-b','bra-c','bra-d'].includes(curCompId)
+      && Array.isArray(window.COMPETITION_TEAMS?.[curCompId])
+      && window.COMPETITION_TEAMS[curCompId].some(name => norm(name) === norm(s.club)));
   const isClubMissingFromTeams = !Array.isArray(s.teams) || s.teams.length === 0 || !s.teams.some(t => norm(t.name) === norm(s.club));
   const isSelfMatchBug = Array.isArray(s.schedule) && s.schedule.some(rnd => Array.isArray(rnd) && rnd.some(g => Array.isArray(g) && g.length >= 2 && norm(g[0]) === norm(g[1])));
   const isScheduleEmptyOrNoUser = !Array.isArray(s.schedule) || s.schedule.length === 0 || !s.schedule.some(roundGames => Array.isArray(roundGames) && roundGames.some(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === norm(s.club) || norm(g[1]) === norm(s.club))));
@@ -8517,7 +8529,8 @@ function repairSaveIfCorrupted(s){
       || activeNationalRoster.some(name => !savedTeamKeys.has(norm(name))));
   // Saves de temporadas anteriores podem trazer a divisão histórica fixa no catálogo;
   // uma divisão nacional válida salva deve prevalecer após promoção/rebaixamento.
-  const isValidSavedNationalDivision = ['bra-a','bra-b','bra-c','bra-d'].includes(curCompId) && compById(curCompId) && Array.isArray(teamMap[curCompId]);
+  const isValidSavedNationalDivision = ['bra-a','bra-b','bra-c','bra-d'].includes(curCompId) && compById(curCompId) && Array.isArray(teamMap[curCompId])
+    && (teamMap[curCompId].some(name => norm(name) === normalizedClub) || (Array.isArray(s.teams) && s.teams.some(team => norm(team?.name) === normalizedClub)));
   const isCompMismatched = primaryCompId && curCompId !== primaryCompId && !isValidSavedNationalDivision && (!compById(curCompId) || !teamMap[curCompId] || isBrasiliaInWrongComp || isAcreanoBug);
   
   // Sincroniza s.competition e o clube do usuário com a competição ativa de curCompId
@@ -8579,7 +8592,7 @@ function repairSaveIfCorrupted(s){
   }
 
   if(isAcreanoBug || isBrasiliaInWrongComp || isClubMissingFromTeams || isSelfMatchBug || isScheduleEmptyOrNoUser || isCompMismatched){
-    const targetCompId = (norm(s.club) === 'brasilia' ? 'bra-est-df' : (primaryCompId || curCompId || 'bra-est-df'));
+    const targetCompId = (norm(s.club) === 'brasilia' && !isValidSavedNationalDivision ? 'bra-est-df' : (primaryCompId || curCompId || 'bra-est-df'));
     const comp = compById(targetCompId) || compById('bra-est-df');
     if(comp){
       s.compId = comp.id;
@@ -15147,22 +15160,26 @@ function showEndOfSeasonModal(){
       state.nextSeasonCompId = 'bra-d';
     }
   } else if(comp?.id === 'bra-d'){
-    if(pos <= 4){
+    const persistedDPlayoffWinners = Array.isArray(state.competitionPlayoffWinners?.['bra-d']) ? state.competitionPlayoffWinners['bra-d'] : [];
+    const dAccessByPlayoff = persistedDPlayoffWinners.some(name => norm(name) === norm(state.club));
+    if(dAccessByPlayoff){
       promoInfo = {
         type: 'promote',
         toCompId: 'bra-c',
         title: '🚀 ACESSO CONQUISTADO À SÉRIE C!',
-        desc: `O ${state.club} terminou no G-4 (${pos}º lugar) e conquistou o acesso oficial ao Campeonato Brasileiro Série C!`
+        desc: `O ${state.club} venceu o playoff decisivo e conquistou uma das seis vagas de acesso à Série C.`
       };
       state.nextSeasonCompId = 'bra-c';
     }
   } else if(comp?.id === 'bra-c'){
-    if(pos <= 4){
+    const persistedCFinalGroups = Array.isArray(state.competitionFinalGroups?.['bra-c']) ? state.competitionFinalGroups['bra-c'] : [];
+    const cAccessByFinalGroup = persistedCFinalGroups.some(group => Array.isArray(group) && group.slice().sort((a,b) => (Number(b.p)||0)-(Number(a.p)||0) || (Number(b.sg)||0)-(Number(a.sg)||0)).slice(0,2).some(row => norm(typeof row === 'string' ? row : row?.name) === norm(state.club)));
+    if(cAccessByFinalGroup){
       promoInfo = {
         type: 'promote',
         toCompId: 'bra-b',
         title: '🚀 ACESSO CONQUISTADO À SÉRIE B!',
-        desc: `Temporada mágica! O ${state.club} terminou no G-4 (${pos}º) e subiu para o Campeonato Brasileiro Série B!`
+        desc: `O ${state.club} terminou entre os dois primeiros do quadrangular decisivo e subiu para a Série B.`
       };
       state.nextSeasonCompId = 'bra-b';
     } else if(pos >= 17){
@@ -15175,12 +15192,17 @@ function showEndOfSeasonModal(){
       state.nextSeasonCompId = 'bra-d';
     }
   } else if(comp?.id === 'bra-b'){
-    if(pos <= 4){
+    const explicitBPlayoffWinners = Array.isArray(state.competitionPlayoffWinners?.['bra-b']) ? state.competitionPlayoffWinners['bra-b'] : [];
+    const bPromotedAutomatically = pos <= 2;
+    const bPromotedByPlayoff = explicitBPlayoffWinners.some(name => norm(name) === norm(state.club));
+    if(bPromotedAutomatically || bPromotedByPlayoff){
       promoInfo = {
         type: 'promote',
         toCompId: 'bra-a',
         title: '👑 ACESSO À ELITE! SÉRIE A DO BRASILEIRÃO!',
-        desc: `Histórico! O ${state.club} conquistou a vaga na elite do futebol brasileiro e disputará a Série A!`
+        desc: bPromotedAutomatically
+          ? `Histórico! O ${state.club} terminou no G-2 e conquistou o acesso direto à Série A!`
+          : `O ${state.club} venceu o playoff do G-4 e conquistou o acesso à Série A!`
       };
       state.nextSeasonCompId = 'bra-a';
     } else if(pos >= 17){
@@ -15367,7 +15389,7 @@ function showEndOfSeasonModal(){
   };
 }
 
-function executeSeasonTransitions(finishedCompId = null, finishedRanking = null, requestedDestinationCompId = null, sourceNationalDivision = null){
+function executeSeasonTransitions(finishedCompId = null, finishedRanking = null, requestedDestinationCompId = null, sourceNationalDivision = null, finalSeasonSnapshot = null){
   const divisionIds = ['bra-a','bra-b','bra-c','bra-d'];
   const stateCompIds = ['bra-est-df','bra-est-sp','bra-est-rj','bra-est-mg','bra-est-rs','bra-est-pr','bra-est-sc','bra-est-ba','bra-est-ce','bra-est-go','bra-est-pe'];
   window.COMPETITION_TEAMS = window.COMPETITION_TEAMS || {};
@@ -15377,8 +15399,112 @@ function executeSeasonTransitions(finishedCompId = null, finishedRanking = null,
   const myClubName = String(state.club || '').trim();
   const myNorm = norm(myClubName);
   const lists = Object.fromEntries(divisionIds.map(id => [id, uniqueNames(tMap[id]).slice(0, id === 'bra-d' ? Math.max(1, Number(compById('bra-d')?.teams) || 96) : 20)]));
-  // Capture todos os nomes nacionais originais antes do truncamento por capacidade;
-  // um clube descartado por excesso não pode voltar pelo pool de preenchimento.
+  // CRITICAL SYSTEM: division movement must use saved seasonal standings, not
+  // historical BASE_COMPETITION_TEAMS. Group/playoff promotions require real
+  // persisted qualifiers/winners; absence of these results must not invent them.
+  const integrityService = window.AFM_COMPETITION_INTEGRITY;
+  let criticalPipelineHandled = false;
+  if(integrityService && finalSeasonSnapshot){
+    criticalPipelineHandled = true;
+    const snapshot = finalSeasonSnapshot;
+    const plan = integrityService.simulateBrazilSeason
+      ? integrityService.simulateBrazilSeason(lists, Number(snapshot.season), divisionIds.includes(finishedCompId) ? finishedCompId : null, divisionIds.includes(finishedCompId) ? finishedRanking : null, window.AFM_TOURNAMENT_ENGINE, {}, {
+          requestedDestinationCompId: divisionIds.includes(requestedDestinationCompId) ? requestedDestinationCompId : null,
+          userClub: state.club,
+          sourceCompId: finishedCompId,
+          stateRosters: tMap
+        })
+      : { valid: false, issues: [{ code: 'season-pipeline-unavailable' }], rosters: lists };
+    if(plan.valid && integrityService.audit(plan.rosters).valid){
+      for(const id of divisionIds) lists[id] = plan.rosters[id];
+      Object.entries(plan.stateRosterUpdates || {}).forEach(([id, roster]) => { tMap[id] = roster; });
+      if(requestedDestinationCompId && divisionIds.includes(requestedDestinationCompId)) state.compId = requestedDestinationCompId;
+      const activeDivision = divisionIds.includes(requestedDestinationCompId) ? requestedDestinationCompId
+        : divisionIds.find(id => lists[id].some(name => norm(name) === norm(state.club))) || state.compId;
+      if(divisionIds.includes(activeDivision)){
+        state.compId = activeDivision;
+        const activeComp = compById(activeDivision);
+        if(activeComp){state.competition=activeComp.name;state.currentLeague=activeComp.name;const clubObject=clubByName(state.club);if(clubObject){clubObject.competition=activeComp.name;clubObject.currentLeague=activeComp.name;}}
+      }
+      state.competitionIntegrity = { season: Number(snapshot.season), valid: true, checkedAt: new Date().toISOString(), movements: plan.movers };
+      state.nationalCompetitionStandings = plan.standings;
+      state.competitionFinalGroups = plan.finalGroups;
+      state.competitionGroupStandings = plan.groupStandings;
+      state.competitionPlayoffWinners = plan.playoffWinners;
+      state.competitionHistory = state.competitionHistory || [];
+      const historyItem = state.competitionHistory.find(item => Number(item.season) === Number(snapshot.season) && item.competitionId === snapshot.competitionId);
+      if(historyItem){
+        historyItem.nationalStandings = plan.standings;
+        historyItem.finalGroups = plan.finalGroups;
+        historyItem.groupStandings = plan.groupStandings;
+        historyItem.playoffWinners = plan.playoffWinners;
+        historyItem.nationalMovements = plan.movers;
+      }
+      // Qualification registry is save data, keyed by destination season.
+      // Missing league tables leave competitions pending; historical 2026 lists
+      // are never silently recycled as qualified teams.
+      state.continentalQualifications = state.continentalQualifications || {};
+      const leagueTables = { ...(state.internationalLeagueStandings?.[Number(snapshot.season)] || {}), ...plan.standings };
+      // Complete world standings from the competitions/participants already in
+      // the save. This simulates matches and stores resulting tables; it does
+      // not infer qualifications from static array order or historic metadata.
+      const qualificationLeagueIds = ['arg-1','uru-1','chi-1','col-1','par-1','ecu-1','per-1','bol-1','ven-1',
+        'eng-1','esp-1','ita-1','ger-1','fra-1','por-1','ned-1','bel-1','tur-1','sco-1','aut-1','sui-1','gre-1','cro-1','ser-1','cze-1','den-1','nor-1','swe-1',
+        'ksa-1','jpn-1','kor-1','chn-1','qat-1','uae-1','irn-1','ind-1','aus-1','tha-1'];
+      for(const leagueId of qualificationLeagueIds){
+        const comp = compById(leagueId);
+        if(!comp || (Array.isArray(leagueTables[leagueId]) && leagueTables[leagueId].length >= (Number(comp.teams)||1))) continue;
+        const participants = Array.isArray(window.COMPETITION_TEAMS?.[leagueId]) && window.COMPETITION_TEAMS[leagueId].length
+          ? [...window.COMPETITION_TEAMS[leagueId]]
+          : (typeof eligibleClubNames === 'function' ? eligibleClubNames(comp) : []);
+        if(participants.length < (Number(comp.teams)||1)) continue;
+        const simulated = integrityService.simulateTable?.(participants, Number(snapshot.season), leagueId, window.AFM_TOURNAMENT_ENGINE, {}, `${snapshot.season}|${leagueId}`);
+        if(simulated?.complete && simulated.standings.length === participants.length) leagueTables[leagueId] = simulated.standings;
+      }
+      state.internationalLeagueStandings = state.internationalLeagueStandings || {};
+      state.internationalLeagueStandings[Number(snapshot.season)] = leagueTables;
+      const cupWinners = { ...(state.cupWinnersBySeason?.[Number(snapshot.season)] || {}), ...(snapshot.cupWinners || {}) };
+      const champions = { ...(state.continentalChampionsBySeason?.[Number(snapshot.season)] || {}) };
+      Object.entries(state.tournaments || {}).forEach(([id, tournament]) => {
+        if(Number(tournament?.season) !== Number(snapshot.season)) return;
+        if(tournament.champion) champions[id] = tournament.champion;
+        const played = (tournament.matches || []).filter(match => match.status === 'played' && match.winner);
+        if(played.length && tournament.phase === 'final') champions[id] = played[played.length - 1].winner;
+      });
+      const qualificationPlan = integrityService.buildContinentalQualifications?.(Number(snapshot.season), leagueTables, cupWinners, champions, state.worldClubRanking?.[Number(snapshot.season)] || []);
+      if(qualificationPlan){
+        state.continentalQualifications[Number(snapshot.season) + 1] = qualificationPlan;
+        state.continentalQualificationHistory = state.continentalQualificationHistory || [];
+        state.continentalQualificationHistory.unshift({ fromSeason:Number(snapshot.season), toSeason:Number(snapshot.season)+1, competitions:qualificationPlan });
+        state.continentalQualificationHistory = state.continentalQualificationHistory.slice(0, 20);
+      }
+      if(plan.movers.length){
+        state.news = Array.isArray(state.news) ? state.news : [];
+        state.news.unshift(`🏟️ PIRÂMIDE NACIONAL: ${plan.movers.length} movimentos de divisão processados para a temporada ${Number(snapshot.season) + 1}.`);
+        state.news = state.news.slice(0, 50);
+      }
+    } else {
+      // Never apply a partial movement that would silently drop a club.
+      state.competitionIntegrity = { season: Number(snapshot.season), valid: false, checkedAt: new Date().toISOString(), issues: plan.issues };
+      state.news = Array.isArray(state.news) ? state.news : [];
+      state.news.unshift('⚠️ INTEGRIDADE CRÍTICA: movimentações bloqueadas porque o resultado não preservaria a capacidade oficial. Os rosters foram mantidos para evitar perda de clubes.');
+      state.news = state.news.slice(0, 50);
+      // Roll back any tentative destination: a blocked reclassification must
+      // not leave compId and roster membership pointing at different leagues.
+      if(divisionIds.includes(finishedCompId)) state.compId = finishedCompId;
+      else if(sourceNationalDivision && lists[sourceNationalDivision]?.some(name => norm(name) === myNorm)) state.compId = finishedCompId;
+    }
+  }
+  if(criticalPipelineHandled){
+    // Never run the legacy base-roster filler after evaluating this season.
+    for(const id of divisionIds) tMap[id] = uniqueNames(lists[id]);
+    window.COMPETITION_TEAMS = tMap;
+    if(typeof teamMap === 'object' && teamMap) Object.assign(teamMap, tMap);
+    state.competitionTeams = clone(tMap);
+    state.news = Array.isArray(state.news) ? state.news : [];
+    state.news = state.news.slice(0, 50);
+    return;
+  }
   const originalNationalKeys = new Set(divisionIds.flatMap(id => uniqueNames(tMap[id]).map(norm)));
   const capacities = {
     'bra-a': 20,
@@ -15386,6 +15512,8 @@ function executeSeasonTransitions(finishedCompId = null, finishedRanking = null,
     'bra-c': 20,
     'bra-d': Math.max(1, Number(compById('bra-d')?.teams) || 96)
   };
+  // Capture todos os nomes nacionais originais antes do truncamento por capacidade;
+  // um clube descartado por excesso não pode voltar pelo pool de preenchimento.
   const destination = divisionIds.includes(requestedDestinationCompId) ? requestedDestinationCompId : null;
   let source = divisionIds.includes(sourceNationalDivision) ? sourceNationalDivision : null;
   if(!source && divisionIds.includes(finishedCompId)) source = finishedCompId;
@@ -15499,6 +15627,22 @@ function advanceSeasonYear(){
   const rankingTable = ranking();
   const finishedPosition = position();
   const finishedTeamCount = Math.max(1, state.teams?.length || 1);
+  // CRITICAL SYSTEM: capture final competition state before season reset.
+  // Promotions and qualification are derived from this immutable snapshot,
+  // never from newly reset standings or historical club metadata.
+  const finalSeasonSnapshot = {
+    season: Number(finishedYear),
+    competitionId: compFinished?.id || state.compId,
+    competitionName: compFinished?.name || state.competition || 'Campeonato',
+    ranking: JSON.parse(JSON.stringify(rankingTable || [])),
+    cupWinners: { 'bra-cup': getCopaDoBrasilState()?.champion || null },
+    groupStandings: JSON.parse(JSON.stringify(state.competitionFinalGroups || {})),
+    playoffWinners: JSON.parse(JSON.stringify(state.competitionPlayoffWinners || {}))
+  };
+  state.competitionHistory = Array.isArray(state.competitionHistory) ? state.competitionHistory : [];
+  state.competitionHistory = state.competitionHistory.filter(item => Number(item.season) !== Number(finishedYear) || item.competitionId !== finalSeasonSnapshot.competitionId);
+  state.competitionHistory.unshift(finalSeasonSnapshot);
+  state.competitionHistory = state.competitionHistory.slice(0, 200);
   state.seasonHistory = state.seasonHistory || [];
   state.seasonHistory.unshift({
     season: finishedYear,
@@ -15546,7 +15690,7 @@ function advanceSeasonYear(){
   const requestedDestinationCompId = nationalDivisionIds.includes(state.nextSeasonCompId) ? state.nextSeasonCompId : null;
   if(requestedDestinationCompId) state.compId = requestedDestinationCompId;
   delete state.nextSeasonCompId;
-  executeSeasonTransitions(finishedCompId, rankingTable, requestedDestinationCompId, sourceNationalDivision);
+  executeSeasonTransitions(finishedCompId, rankingTable, requestedDestinationCompId, sourceNationalDivision, finalSeasonSnapshot);
   const comp = curComp();
   if(comp){
     state.competition = comp.name;
@@ -18459,13 +18603,40 @@ function continentalFixtureId(competitionId, fixture){
 }
 
 function getContinentalTournament(competitionId){
-  if(Number(state?.season) !== 2026 || !['lib','sud'].includes(competitionId) || !window.AFM_TOURNAMENT_ENGINE) return null;
+  if(!['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc'].includes(competitionId) || !window.AFM_TOURNAMENT_ENGINE) return null;
   state.tournaments = state.tournaments || {};
   const current = state.tournaments[competitionId];
   if(current?.season === Number(state.season)) return current;
-  const groups = window.AFM_CONTINENTAL_2026?.groups?.[competitionId];
-  if(!groups) return null;
-  const fixtures = window.AFM_CONTINENTAL_2026.groupFixtures(competitionId).flat();
+  const priorQualification = state.continentalQualifications?.[Number(state.season)]?.[competitionId];
+  // Fixed participants are only a bootstrap template for 2026. Future editions
+  // must be backed by the prior season's persisted qualification record.
+  if(Number(state.season) !== 2026 && (!priorQualification || priorQualification.status !== 'qualified')) return null;
+  let groups = priorQualification?.groups || (Number(state.season) === 2026 ? window.AFM_CONTINENTAL_2026?.groups?.[competitionId] : null) || null;
+  if(!groups){
+    const participants = Array.isArray(priorQualification?.participants) ? priorQualification.participants : [];
+    const comp = compById(competitionId);
+    const targetCount = Math.max(1, Number(comp?.teams) || participants.length);
+    if(!participants.length || participants.length !== targetCount || priorQualification?.status !== 'qualified') return null;
+    groups = {};
+    if(['ucl','uel','uecl','afc-el'].includes(competitionId)){
+      groups.LEAGUE = participants;
+    } else {
+      const groupCount = ['cwc','afc2','lib','sud'].includes(competitionId) ? 8 : Math.ceil(participants.length / 4);
+      const groupSize = 4;
+      for(let index = 0; index < participants.length; index++){
+        const group = String.fromCharCode(65 + (Math.floor(index / groupSize) % groupCount));
+        (groups[group] ||= []).push(participants[index]);
+      }
+    }
+  }
+  let fixtures;
+  if(['ucl','uel','uecl','afc-el'].includes(competitionId) && Array.isArray(groups.LEAGUE)){
+    const configuredRounds = Number(compById(competitionId)?.rounds) || 8;
+    fixtures = window.AFM_TOURNAMENT_ENGINE.roundRobinFixtures({ id:competitionId, season:Number(state.season), teamNames:groups.LEAGUE, startDate:`${state.season}-03-03`, homeAway:false })
+      .filter(fixture => fixture.round <= configuredRounds);
+  } else {
+    fixtures = window.AFM_TOURNAMENT_ENGINE.groupFixtures({ id:competitionId, season:Number(state.season), groups, startDate:`${state.season}-03-03` });
+  }
   state.tournaments[competitionId] = window.AFM_TOURNAMENT_ENGINE.createGroupTournament({
     id: competitionId, season: Number(state.season), groups, fixtures
   });
@@ -18501,8 +18672,8 @@ function playContinentalFixture(competitionId, matchId){
 }
 
 function processContinentalFixturesBefore(date){
-  if(Number(state?.season) !== 2026) return;
-  for(const competitionId of ['lib','sud']){
+  if(!Number.isFinite(Number(state?.season))) return;
+  for(const competitionId of ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc']){
     const tournament = getContinentalTournament(competitionId);
     for(const match of tournament?.matches || []){
       if(match.status !== 'scheduled' || match.date >= date) continue;
@@ -18521,7 +18692,6 @@ function calendarPage(){
   const myClub = state.club;
   const calendarClubKey = name => ({'red bull bragantino':'bragantino'}[norm(name)] || norm(name));
   const winInfo = getTransferWindowInfo(state.date);
-  const continental = Number(state.season) === 2026 ? window.AFM_CONTINENTAL_2026 : null;
   const extraMatches = [];
   const copa = getCopaDoBrasilState();
   processCopaDoBrasilCalendar(state.date);
@@ -18535,22 +18705,21 @@ function calendarPage(){
       matchIndex: fixtureIndex, phaseName
     });
   }));
-  if(continental){
-    for(const id of ['lib','sud']){
-      const all = continental.groupFixtures(id).flat();
-      const tournament = getContinentalTournament(id);
-      const results = new Map((tournament?.matches || []).map(match => [match.id, match]));
-      extraMatches.push(...all.filter(f => calendarClubKey(f.home) === calendarClubKey(myClub) || calendarClubKey(f.away) === calendarClubKey(myClub)).map(f => {
-        const played = results.get(continentalFixtureId(id, f));
-        const cDate = ensureMidweekDate(f.date, state.season);
-        return {
-          ...f, date: cDate, matchId: played?.id, result: played?.result, isHome: calendarClubKey(f.home) === calendarClubKey(myClub), name: id === 'lib' ? 'Copa Libertadores' : 'Copa Sul-Americana'
-        };
-      }));
-    }
+  for(const id of ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc']){
+    const tournament = getContinentalTournament(id);
+    if(!tournament || Number(tournament.season)!==Number(state.season)) continue;
+    const participants = new Set(Object.values(tournament.groups || {}).flat().map(calendarClubKey));
+    const userKey = calendarClubKey(myClub);
+    if(!participants.has(userKey)) continue;
+    extraMatches.push(...(tournament.matches || []).filter(f => participants.has(calendarClubKey(f.home)) && participants.has(calendarClubKey(f.away)) && (calendarClubKey(f.home)===userKey || calendarClubKey(f.away)===userKey)).map(f => ({
+      ...f, competitionId:id, date:ensureMidweekDate(f.date,state.season), matchId:f.id, result:f.result,
+      isHome:calendarClubKey(f.home)===userKey,
+      name:({lib:'Copa Libertadores',sud:'Copa Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'})[id] || id
+    })));
   }
   const cupFilters = [
-    ['bra-cup','🥇 Copa do Brasil'], ['lib','🏆 Libertadores'], ['sud','🥈 Sul-Americana']
+    ['bra-cup','🥇 Copa do Brasil'], ['lib','🏆 Libertadores'], ['sud','🥈 Sul-Americana'],
+    ['ucl','UEFA Champions League'],['uel','UEFA Europa League'],['uecl','UEFA Conference League'],['afc-el','AFC Champions League Elite'],['afc2','AFC Champions League Two'],['cwc','Mundial de Clubes FIFA']
   ].filter(([id]) => extraMatches.some(f => f.competitionId === id));
   const activeCalendarFilter = ['ALL','COMP','HOME','AWAY'].includes(calendarFilter) || cupFilters.some(([id]) => id === calendarFilter) ? calendarFilter : 'ALL';
   const userLeagueMatches = schedule.filter(games => games.some(g => g.includes(myClub))).length;

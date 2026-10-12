@@ -5,6 +5,8 @@ const assert = require('node:assert/strict');
 
 const projectRoot = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(projectRoot, 'js/game.js'), 'utf8');
+const integritySource = fs.readFileSync(path.join(projectRoot, 'js/core/competition_integrity.js'), 'utf8');
+const tournamentEngineSource = fs.readFileSync(path.join(projectRoot, 'js/core/tournament_engine.js'), 'utf8');
 const start = source.indexOf('function executeSeasonTransitions(');
 const end = source.indexOf('\nfunction advanceSeasonYear(', start);
 assert(start >= 0 && end > start, 'Não foi possível localizar executeSeasonTransitions() no código real.');
@@ -16,6 +18,10 @@ const actualRepairSource = source.slice(repairStart, repairEnd).trim();
 const fullRepairEnd = source.indexOf('\nwindow.repairSaveIfCorrupted', repairStart);
 assert(fullRepairEnd > repairStart, 'Não foi possível localizar a função completa de reparo do save.');
 const actualFullRepairSource = source.slice(repairStart, fullRepairEnd).trim();
+const advanceStart = source.indexOf('function advanceSeasonYear(');
+const advanceEnd = source.indexOf('\nfunction generateWorldRegens(', advanceStart);
+assert(advanceStart >= 0 && advanceEnd > advanceStart, 'Não foi possível localizar a virada real de temporada.');
+const actualAdvanceSeasonYear = source.slice(advanceStart, advanceEnd).trim();
 
 const nationalIds = ['bra-a', 'bra-b', 'bra-c', 'bra-d'];
 const norm = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -55,6 +61,44 @@ function auditRosterSizesAndDuplicates(map){
   for(const [id, expected] of Object.entries(expectedSizes)) assert.equal((map[id] || []).length, expected, `${id} deve ter ${expected} clubes`);
   const all = nationalIds.flatMap(id => map[id].map(norm));
   assert.equal(new Set(all).size, all.length, 'Não pode haver clubes duplicados entre as Séries A–D.');
+}
+
+assert.match(actualAdvanceSeasonYear, /finalSeasonSnapshot/);
+assert.match(actualAdvanceSeasonYear, /executeSeasonTransitions\(finishedCompId, rankingTable, requestedDestinationCompId, sourceNationalDivision, finalSeasonSnapshot\)/);
+assert.ok(actualAdvanceSeasonYear.indexOf('finalSeasonSnapshot') < actualAdvanceSeasonYear.indexOf('state.season++'), 'O snapshot precisa capturar o ranking antes da limpeza/virada do ano.');
+console.log('PASS: advanceSeasonYear captura resultados antes da virada e encaminha snapshot persistível ao pipeline crítico.');
+
+// A divisão nacional válida não pode ser revertida por reparos do catálogo estadual.
+{
+  const map = makeTeams();
+  map['bra-d'] = [...map['bra-d'].slice(0, 95), 'Brasília'];
+  map['bra-est-df'] = ['Brasília', ...names('AFM-DF', 9)];
+  const state = {
+    club: 'Brasília', compId: 'bra-d', season: 2028,
+    competition: 'Campeonato Brasileiro Série D', currentLeague: 'Campeonato Brasileiro Série D',
+    news: [], round: 0, history: [], competitionTeams: clone(map),
+    teams: map['bra-d'].map(name => ({ name, strength: 60, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, p: 0, form: [] })),
+    schedule: [[['Brasília', map['bra-d'][0]]]], squad: [], date: '2028-01-01',
+    balance: 1000, income: 0, expense: 0, version: 4
+  };
+  const context = {
+    window: { COMPETITION_TEAMS: map }, state, teamMap: map, BASE_COMPETITION_TEAMS: clone(map), norm, clone,
+    compById: id => ({ id, name: ({'bra-a':'Campeonato Brasileiro Série A','bra-b':'Campeonato Brasileiro Série B','bra-c':'Campeonato Brasileiro Série C','bra-d':'Campeonato Brasileiro Série D','bra-est-df':'Campeonato Candango'})[id] || id, teams: id === 'bra-d' ? 96 : 20 }),
+    getClubPrimaryCompetitionId: (_club, preferred) => preferred || 'bra-est-df',
+    clubByName: () => ({ competition: 'Campeonato Candango', currentLeague: 'Campeonato Candango' }),
+    strength: () => 60, teamStrengthByName: () => 60,
+    buildSchedule: (_comp, teams) => [[['Brasília', teams.find(name => norm(name) !== norm('Brasília')) || 'Adversário']]],
+    STORAGE: 'afm_test_save', localStorage: { setItem(){}, getItem(){ return null; } }, recordAFMError(){},
+    getActiveAccount: () => null, getStoredAccounts: () => [], saveStoredAccounts(){}, playerSalary: () => 0, fmtMoney: value => String(value)
+  };
+  vm.runInNewContext(`${actualFullRepairSource}\nthis.repairSave = repairSaveIfCorrupted;`, context, { filename: 'js/game.js:repairSaveIfCorrupted-promoted-Brasilia' });
+  context.repairSave(state);
+  assert.equal(state.compId, 'bra-d', 'O reparo não pode mandar Brasília de volta ao Candango após o acesso.');
+  assert.equal(state.competition, 'Campeonato Brasileiro Série D');
+  assert.equal(state.teams.length, 96);
+  assert.equal(state.teams.some(team => norm(team.name) === 'brasilia'), true);
+  assert.deepEqual(membership(context.window.COMPETITION_TEAMS, 'Brasília'), ['bra-d']);
+  console.log('PASS: save do Brasília promovido permanece na Série D após reparo e sincroniza tabela/roster.');
 }
 
 // 1. Rebaixamento explícito B → C: carreira e listas precisam concordar.
@@ -210,4 +254,65 @@ this.runTransition = executeSeasonTransitions;`, context, { filename: 'js/game.j
   assert.equal(map['bra-a'].filter(name => norm(name) === norm('Clube Duplicado')).length, 1);
   assert.equal(state.competitionTeams['bra-d'].length, 96);
   console.log('PASS: Série D acima de 96 e clubes duplicados normalizados.');
+}
+
+// Critical architecture invariants: season results must drive division changes,
+// group/playoff rules must be respected, and qualified continental teams persist.
+{
+  const context = { window: {} };
+  vm.runInNewContext(`${tournamentEngineSource}\n${integritySource}`, context, { filename: 'js/core/competition-integrity-test' });
+  const integrity = context.window.AFM_COMPETITION_INTEGRITY;
+  const roster = Object.fromEntries(integrity.NATIONAL_IDS.map(id => [id, names(`AFM-${id}`, integrity.CAPACITY[id])]));
+  const movement = integrity.simulateBrazilSeason(roster, 2028, null, null, context.window.AFM_TOURNAMENT_ENGINE);
+  assert.equal(movement.valid, true, 'O planejador de temporada precisa fechar todos os tamanhos e validar unicidade.');
+  auditRosterSizesAndDuplicates(movement.rosters);
+  assert.equal(movement.playoffWinners['bra-b'].length, 2, 'Série B deve simular exatamente dois vencedores de playoff.');
+  assert.equal(movement.playoffWinners['bra-d'].length, 6, 'Série D deve simular exatamente seis acessos.');
+  assert.equal(movement.groupStandings['bra-d'].length, 16, 'Série D precisa manter 16 grupos na fase classificatória.');
+  assert.equal(movement.groupStandings['bra-d'].every(group => group.length === 6), true, 'Cada grupo da Série D deve ter seis clubes.');
+  assert.equal(movement.finalGroups['bra-c'].length, 2, 'Série C precisa de dois quadrangulares finais.');
+  assert.equal(movement.finalGroups['bra-c'].every(group => group.length === 4), true, 'Cada quadrangular da Série C deve ter quatro clubes.');
+  console.log('PASS: pipeline crítico simula ligas, quadrangulares, playoffs e preserva 20/20/20/96 clubes.');
+}
+
+{
+  const context = { window: {} };
+  vm.runInNewContext(`${tournamentEngineSource}\n${integritySource}`, context, { filename: 'js/core/state-access-test' });
+  const integrity = context.window.AFM_COMPETITION_INTEGRITY;
+  const roster = Object.fromEntries(integrity.NATIONAL_IDS.map(id => [id, names(`STATE-${id}`, integrity.CAPACITY[id])]));
+  const stateRosters = { 'bra-est-df': ['Brasília', ...names('DF', 9)] };
+  const transition = integrity.simulateBrazilSeason(roster, 2029, null, null, context.window.AFM_TOURNAMENT_ENGINE, {}, {
+    requestedDestinationCompId: 'bra-d', userClub: 'Brasília', sourceCompId: 'bra-est-df', stateRosters
+  });
+  assert.equal(transition.valid, true, 'A vaga estadual explícita deve ser conciliada sem violar as capacidades da pirâmide.');
+  assert.equal(transition.rosters['bra-d'].length, 96);
+  assert.equal(transition.rosters['bra-d'].some(name => integrity.normalize(name) === 'brasilia'), true);
+  assert.equal(transition.stateRosterUpdates['bra-est-df'].some(name => integrity.normalize(name) === 'brasilia'), false);
+  assert.equal(integrity.audit(transition.rosters).valid, true);
+  console.log('PASS: promoção estadual explícita persiste na Série D, substitui uma vaga e mantém roster estadual/nacional válido.');
+}
+
+{
+  const context = { window: {} };
+  vm.runInNewContext(`${integritySource}`, context, { filename: 'js/core/continental-qualification-test' });
+  const integrity = context.window.AFM_COMPETITION_INTEGRITY;
+  const makeTable = (id, size) => names(id, size).map((name, index) => ({ name, p: size-index, v: size-index, gp: size-index, gc: 0 }));
+  const leagueTables = { 'bra-a': makeTable('BRA-A',20) };
+  for (const [id, size] of Object.entries({ 'arg-1':30,'uru-1':16,'chi-1':16,'col-1':20,'par-1':12,'ecu-1':16,'per-1':18,'bol-1':16,'ven-1':14,'eng-1':20,'esp-1':20,'ita-1':20,'ger-1':18,'fra-1':18,'por-1':18,'ned-1':18,'bel-1':16,'tur-1':18,'sco-1':12,'aut-1':12,'sui-1':12,'gre-1':14,'cro-1':10,'ser-1':16,'cze-1':16,'den-1':12,'nor-1':16,'swe-1':16,'ksa-1':18,'jpn-1':20,'kor-1':12,'chn-1':16,'qat-1':12,'uae-1':14,'irn-1':16,'ind-1':14,'aus-1':14,'tha-1':16 })) leagueTables[id] = makeTable(id,size);
+  const qualifiers = integrity.buildContinentalQualifications(2028, leagueTables, {}, {}, names('WORLD-RANK',32));
+  assert.equal(qualifiers.lib.season, 2029);
+  assert.equal(qualifiers.lib.participants.length, 32);
+  assert.equal(new Set(qualifiers.lib.participants.map(integrity.normalize)).size, 32, 'Libertadores não pode ter duplicatas.');
+  assert.equal(qualifiers.ucl.participants.length, 36);
+  assert.equal(qualifiers.uel.participants.length, 36);
+  assert.equal(qualifiers.uecl.participants.length, 36);
+  assert.equal(qualifiers['afc-el'].participants.length, 24);
+  assert.equal(qualifiers.afc2.participants.length, 32);
+  assert.equal(new Set(qualifiers.afc2.participants.map(integrity.normalize)).size, 32, 'AFC Two não pode incluir duas vezes o mesmo clube.');
+  assert.equal(qualifiers.cwc.status, 'qualified', 'Mundial deve fechar 32 vagas quando há ranking de mérito suficiente.');
+  assert.equal(qualifiers.cwc.participants.length, 32);
+  const incomplete = integrity.buildContinentalQualifications(2028, {}, {}, {}, []);
+  assert.equal(incomplete.lib.status, 'pending-slots', 'Não deve inventar classificados quando faltam tabelas.');
+  assert.equal(incomplete.cwc.status, 'pending-slots');
+  console.log('PASS: qualificação continental dinâmica gera participantes únicos e deixa vagas ausentes pendentes.');
 }
