@@ -4607,3 +4607,46 @@ body.theme-emerald {
   box-shadow: 0 0 12px rgba(99, 102, 241, 0.4) !important;
   transform: translateY(-1px) !important;
 }
+
+/* Ajuste de altura: o campo e banco usam apenas o espaço disponível e o rodapé fica fixo. */
+.halftime-card {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  padding: clamp(4px, 1vh, 10px) clamp(8px, 1.2vw, 18px);
+  gap: clamp(3px, .6vh, 6px);
+}
+.halftime-header { padding-bottom: clamp(3px, .7vh, 8px); }
+.halftime-body, .halftime-main, .halftime-sub-container { min-height: 0; }
+.halftime-sub-container { grid-template-columns: minmax(0, 1fr) minmax(240px, 30vw); }
+.halftime-pitch-wrapper, .halftime-pitch-container, .halftime-bench-wrapper, .halftime-bench-grid { min-height: 0; }
+.halftime-pitch-wrapper { height: 100%; overflow: hidden !important; }
+.halftime-bench-wrapper { overflow-y: auto !important; }
+.halftime-footer { padding-top: clamp(3px, .7vh, 10px); min-height: 42px; gap: 8px; }
+.tactics-modal-container {
+  height: calc(100dvh - 24px) !important;
+  max-height: calc(100dvh - 24px) !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+}
+.tactics-pitch-wrapper, .tactics-bench-wrapper { min-height: 0 !important; }
+.tactics-pitch-wrapper { overflow: hidden !important; }
+.tactics-bench-wrapper { overflow-y: auto !important; }
+@media (max-height: 800px) {
+  .halftime-title-group h2 { font-size: clamp(14px, 2.2vh, 20px); }
+  .halftime-subtitle, .halftime-header small { font-size: 10px; }
+  .halftime-bench-card, .bench-player-row { padding: 4px 6px !important; margin-bottom: 4px !important; }
+  .tactics-modal-container { gap: 10px !important; }
+  .pitch-slot-dropzone { transform: translate(-50%, -50%) scale(.82) !important; }
+  .tactics-bench-wrapper { padding: 6px !important; }
+}
+@media (max-height: 650px) {
+  .halftime-card { padding: 3px 8px 4px; gap: 2px; }
+  .halftime-header { padding-bottom: 2px; }
+  .halftime-footer { min-height: 36px; padding-top: 2px; }
+  .halftime-footer .btn { padding: 5px 9px !important; font-size: 11px !important; }
+  .halftime-title-group h2 { font-size: 14px; }
+  .tactics-modal-container { gap: 6px !important; }
+  .tactics-bench-wrapper { padding: 4px !important; }
+  .pitch-slot-dropzone { transform: translate(-50%, -50%) scale(.68) !important; }
+}
