@@ -7802,9 +7802,8 @@ function initCandangaoStats(){ return { scorers: [], assists: [] }; }
 function getStateCompData(cId){
   state.estadualData = state.estadualData || {};
   const saved = state.estadualData[cId];
-  if(saved && (Number(saved.season) === Number(state.season) || (!saved.season && Number(state.season) === 2026))) return saved;
   if(saved && Number(saved.season) !== Number(state.season)){
-    const hasSavedResults = (saved.teams || []).some(team => Number(team.j) > 0) || (saved.fixtures || []).some(fixture => fixture.result || fixture.score);
+    const hasSavedResults = (saved.teams || []).some(team => Number(team.j) > 0) || (saved.fixtures || []).some(fixture => fixture.result || fixture.score || fixture.played);
     if(hasSavedResults){
       state.estadualArchive = state.estadualArchive || {};
       state.estadualArchive[cId] = Array.isArray(state.estadualArchive[cId]) ? state.estadualArchive[cId] : [];
@@ -7812,31 +7811,51 @@ function getStateCompData(cId){
     }
     delete state.estadualData[cId];
   }
+  const currentSaved = state.estadualData[cId];
   const comp = compById(cId) || {id:cId,name:'Campeonato Estadual'};
-  const teams = (window.COMPETITION_TEAMS?.[cId] || state.competitionTeams?.[cId] || []).slice();
+  const catalogRoster = window.COMPETITION_TEAMS?.[cId] || [];
+  const savedRoster = state.competitionTeams?.[cId] || [];
+  const clubForState = state.club && clubStateCompId(state.club) === cId ? state.club : null;
+  // Reconcile old saves with the complete roster: a stale one-round fixture list must not blank the official calendar.
+  const roster = [...catalogRoster, ...savedRoster].map(team => typeof team === 'string' ? team : team?.name).filter(Boolean);
+  if(clubForState && !roster.some(name => norm(name) === norm(clubForState))) roster.push(clubForState);
+  const teams = roster.filter((name,index,list)=>list.findIndex(other=>norm(other)===norm(name))===index);
   const stateRounds = roundRobin(teams);
   const roundDates = stateRounds.map((_, roundIndex) => getDateForRound(roundIndex, state.season));
-  const previousFixtures = Array.isArray(saved?.fixtures) ? saved.fixtures : [];
+  const previousFixtures = Array.isArray(currentSaved?.fixtures) ? currentSaved.fixtures : [];
+  const usedPreviousFixtures = new Set();
   const fixtures = stateRounds.flatMap((games, roundIndex) => games.map(([home,away]) => {
-    const previous = previousFixtures.find(f => norm(f.home)===norm(home) && norm(f.away)===norm(away) && Number(f.roundIndex)===roundIndex);
+    let previousIndex = previousFixtures.findIndex((f,index) => !usedPreviousFixtures.has(index) && norm(f.home)===norm(home) && norm(f.away)===norm(away) && Number(f.roundIndex)===roundIndex);
+    if(previousIndex < 0) previousIndex = previousFixtures.findIndex((f,index) => !usedPreviousFixtures.has(index) && norm(f.home)===norm(home) && norm(f.away)===norm(away));
+    const previous = previousIndex >= 0 ? previousFixtures[previousIndex] : null;
+    if(previousIndex >= 0) usedPreviousFixtures.add(previousIndex);
     const isoDate = previous?.isoDate || roundDates[roundIndex];
     return {
       stadium:(clubByName(home)||{}).stadium || `Estádio do ${home}`,
       roundIndex, isoDate,
       dateStr:`${formatDatePtBr(isoDate)} · 19:00`, home, away,
-      ...(previous?.result ? {result:[...previous.result],played:true} : {}),
+      ...(previous?.result ? {result:Array.isArray(previous.result) ? [...previous.result] : previous.result,played:true} : {}),
+      ...(previous?.score ? {score:Array.isArray(previous.score) ? [...previous.score] : previous.score,played:true} : {}),
       ...(previous?.played ? {played:true} : {})
     };
   }));
-  state.estadualData[cId] = {
-    id:cId,name:comp.name,season:Number(state.season),phase:'primeira',currentRound:1,
-    roundDate:formatDatePtBr(roundDates[0] || getDateForRound(0,state.season)).toUpperCase(),
-    teams:teams.map(name=>({name,p:0,j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,pct:0,form:[]})),fixtures
+  const savedTeams = Array.isArray(currentSaved?.teams) ? currentSaved.teams : [];
+  const teamStats = teams.map(name => {
+    const previous = savedTeams.find(team=>norm(team.name)===norm(name));
+    return previous ? {...previous,name} : {name,p:0,j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,pct:0,form:[]};
+  });
+  const data = state.estadualData[cId] = {
+    ...(currentSaved || {}), id:cId,name:comp.name,season:Number(state.season),
+    phase:currentSaved?.phase || 'primeira',currentRound:Math.max(1,Number(currentSaved?.currentRound)||1),
+    roundDate:currentSaved?.roundDate || formatDatePtBr(roundDates[0] || getDateForRound(0,state.season)).toUpperCase(),
+    teams:teamStats,fixtures
   };
-  // One club must remain eligible for its national Series A-D and its estadual.
-  const clubStateMembership = state.competitionTeams || (state.competitionTeams = {});
-  if(!Array.isArray(clubStateMembership[cId]) || !clubStateMembership[cId].length) clubStateMembership[cId] = teams.slice();
-  return state.estadualData[cId];
+  // Persist the full roster in both maps; national promotions cannot remove state membership.
+  state.competitionTeams = state.competitionTeams || {};
+  state.competitionTeams[cId] = teams.slice();
+  window.COMPETITION_TEAMS = window.COMPETITION_TEAMS || {};
+  window.COMPETITION_TEAMS[cId] = [...new Set([...(window.COMPETITION_TEAMS[cId] || []), ...teams])];
+  return data;
 }
 function getStateCompStats(cId){
   state.competitionStats = state.competitionStats || {};
@@ -22468,13 +22487,13 @@ function seasonPage(){
 
     <div class="tabs" style="margin-top:14px">
       ${isBrazil ? `
-        <button class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">🇧🇷 ${esc(natCompObj.name)}</button>
-        <button class="btn ${seasonTab==='estadual'?'active':''}" data-season-tab="estadual">🏆 ${esc(estCompObj.name)}</button>
-        <button class="btn ${seasonTab==='copadobrasil'?'active':''}" data-season-tab="copadobrasil">🥇 Copa do Brasil</button>
+        <button type="button" class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">🇧🇷 ${esc(natCompObj.name)}</button>
+        <button type="button" class="btn ${seasonTab==='estadual'?'active':''}" data-season-tab="estadual">🏆 ${esc(estCompObj.name)}</button>
+        <button type="button" class="btn ${seasonTab==='copadobrasil'?'active':''}" data-season-tab="copadobrasil">🥇 Copa do Brasil</button>
       ` : `
-        <button class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">🏆 ${esc(comp.name)}</button>
+        <button type="button" class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">🏆 ${esc(comp.name)}</button>
       `}
-      <button class="btn ${seasonTab==='continental'?'active':''}" data-season-tab="continental">${isBrazil ? '🌎 Libertadores / Continental' : '🌎 Continental'}</button>
+      <button type="button" class="btn ${seasonTab==='continental'?'active':''}" data-season-tab="continental">${isBrazil ? '🌎 Libertadores / Continental' : '🌎 Continental'}</button>
     </div>
 
     ${seasonTab==='nacional' ? `
@@ -25802,7 +25821,7 @@ function bind(){
   }
 
   if(view==='temporada'){
-    $$('[data-season-tab]').forEach(b=>b.onclick=()=>{seasonTab=b.dataset.seasonTab;render()});
+    $$('[data-season-tab]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextTab=b.dataset.seasonTab;if(!nextTab)return;seasonTab=nextTab;render()});
     $$('[data-continental-tab]').forEach(b=>b.onclick=()=>{continentalTab=b.dataset.continentalTab;render()});
     $$('[data-continental-phase]').forEach(b=>b.onclick=()=>{continentalPhase=b.dataset.continentalPhase;render()});
 
