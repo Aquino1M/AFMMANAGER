@@ -417,16 +417,16 @@ assert(!gameJsContent.includes('id="btnLiveReplay"'),
 
 assert(gameJsContent.includes('function canStartMatch('),
   'Função canStartMatch implementada como portão arquitetural central (game.js)');
-assert(gameJsContent.includes("status: 'no_fixture'") && gameJsContent.includes('Nenhuma partida agendada para o seu clube nesta rodada.'),
+assert(gameJsContent.includes("status: 'no_fixture'") && gameJsContent.includes('Nenhuma partida agendada para o seu clube nesta rodada (Folga na tabela).'),
   'Rodada sem jogo do clube recebe status explícito para recuperação');
 assert(gameJsContent.includes('Rodadas sem jogo do clube são folgas válidas, não partidas atrasadas.'),
   'Folga do clube não é bloqueada pela verificação de partida atrasada');
-assert(gameJsContent.includes('Rodada vazia ignorada com segurança') && gameJsContent.includes('gameState.schedule?.[gameState.round]'),
+assert(gameJsContent.includes('Rodada sem fixtures recuperada') && gameJsContent.includes('gameState.schedule?.[gameState.round]'),
   'Calendário recupera rodadas vazias e valida confrontos da carreira correta');
 
 assert(gameJsContent.includes('function advanceCalendarDays('),
   'Função advanceCalendarDays implementada para avanço seguro dia a dia (game.js)');
-assert(gameJsContent.includes('Math.round(850000 * 1.30)') && gameJsContent.includes('curRing <= 2 ? rnd(15, 25) : curRing <= 4 ? rnd(30, 45) : rnd(50, 90)'),
+assert(gameJsContent.includes('const baseCost = ring <= 2 ? 850000 : ring <= 4 ? 1200000 : 1800000') && gameJsContent.includes('return Math.round(baseCost * 1.30)') && gameJsContent.includes('if(ring <= 2) return rnd(15, 25)') && gameJsContent.includes('if(ring <= 4) return rnd(30, 45)') && gameJsContent.includes('return rnd(50, 90)'),
   'Expansão do estádio aplica custo +30% e prazos realistas por anel');
 assert(gameJsContent.includes('OBRA EM ANDAMENTO') && gameJsContent.includes('stadiumWorkProgress'),
   'Interface do estádio mostra dias restantes e barra de progresso');
@@ -452,7 +452,7 @@ assert(getStadiumWorkDaysRemaining(legacyStadiumWork) === 13,
 stadiumDaysContext.state.date = '2026-06-15';
 assert(getStadiumWorkDaysRemaining(legacyStadiumWork) === 0,
   'Obra do estádio fica pronta ao atingir a data final');
-assert(/state\.date = nextDateStr;\r?\n\s*processStadiumConstructionDay\(\);/.test(gameJsContent) && /state\.date = curD\.toISOString\(\)\.slice\(0, 10\);\r?\n\s*processStadiumConstructionDay\(\);/.test(gameJsContent),
+assert(/state\.date = nextDate;\r?\n\s*processStadiumConstructionDay\(\);/.test(gameJsContent) && /state\.date = curD\.toISOString\(\)\.slice\(0, 10\);\r?\n\s*processStadiumConstructionDay\(\);/.test(gameJsContent),
   'Obra do estádio é processada em dias avançados manualmente e após cada partida');
 assert(/function simulateQuickRound\(\)[\s\S]*?finalizeRound\(userRes, winners, isKO\);[\s\S]*?save\(\);[\s\S]*?render\(\);[\s\S]*?isSimulatingQuickRound = false;/.test(gameJsContent),
   'Simulação finaliza a rodada, salva, atualiza a interface e libera o fluxo sincronamente');

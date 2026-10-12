@@ -33,6 +33,8 @@ const supabase = {
         return {
           select(){ queryCalls.push(['select', table]); return this; },
           eq(column, value){ queryCalls.push(['eq', table, column, value]); return this; },
+          ilike(column, value){ queryCalls.push(['ilike', table, column, value]); return this; },
+          maybeSingle: async () => ({ data: null, error: queryFailure }),
           order(){ return Promise.resolve({ data: saveRows, error: queryFailure }); },
           upsert(payload, options){
             queryCalls.push(['upsert', table, payload, options]);

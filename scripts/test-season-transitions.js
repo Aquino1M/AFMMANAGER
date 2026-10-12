@@ -166,3 +166,48 @@ console.log('Todos os testes de regressão de transição de divisões passaram.
   assert.equal(state.schedule.some(round => round.some(fixture => fixture.some(name => norm(name) === norm('Criciúma')))), true);
   console.log('PASS: reparo de save preserva 96 participantes na Série D.');
 }
+// 6. Clube promovido de um estadual deve aparecer na Série D depois da transição.
+{
+  const map = makeTeams();
+  map['bra-d'] = map['bra-d'].slice(0, 95);
+  map['bra-est-df'] = ['Brasília', ...names('AFM-DF', 9)];
+  const state = { club: 'Brasília', compId: 'bra-est-df', season: 2027, nextSeasonCompId: 'bra-d', news: [], competitionTeams: clone(map) };
+  const context = {
+    window: { COMPETITION_TEAMS: map }, state, teamMap: map, BASE_COMPETITION_TEAMS: clone(map), norm, clone,
+    compById: id => ({ id, name: ({'bra-a':'Campeonato Brasileiro Série A','bra-b':'Campeonato Brasileiro Série B','bra-c':'Campeonato Brasileiro Série C','bra-d':'Campeonato Brasileiro Série D'})[id] || id, teams: id === 'bra-d' ? 96 : 20 })
+  };
+  vm.runInNewContext(`${actualFunctionSource}\
+this.runTransition = executeSeasonTransitions;`, context, { filename: 'js/game.js:executeSeasonTransitions-state-promotion' });
+  context.runTransition('bra-est-df', [], 'bra-d', null);
+  assert.equal(state.compId, 'bra-d');
+  assert.deepEqual(membership(map, 'Brasília'), ['bra-d']);
+  assert.equal(map['bra-d'].length, 96);
+  assert.equal(state.competitionTeams['bra-d'].some(name => norm(name) === norm('Brasília')), true);
+  console.log('PASS: clube promovido de estadual aparece na Série D e no roster persistido.');
+}
+
+// 7. Overflow e aliases normalizados não devem trazer de volta um clube truncado.
+{
+  const map = makeTeams();
+  map['bra-d'] = [...names('AFM-OVERFLOW-D', 100), 'AFM-OVERFLOW-D-01', 'afm-overflow-d-02'];
+  map['bra-a'][0] = 'Clúbe Duplicado';
+  map['bra-b'][0] = 'clube duplicado';
+  map['bra-c'][0] = 'Clube Duplicado ';
+  map['bra-b'][17] = 'AFM-TEST-B-18';
+  map['bra-d'][10] = 'Brasília';
+  const truncatedClub = map['bra-d'][99];
+  const state = { club: 'Brasília', compId: 'bra-d', season: 2032, news: [], competitionTeams: clone(map) };
+  const context = {
+    window: { COMPETITION_TEAMS: map }, state, teamMap: map, BASE_COMPETITION_TEAMS: clone(map), norm, clone,
+    compById: id => ({ id, name: id, teams: id === 'bra-d' ? 96 : 20 })
+  };
+  vm.runInNewContext(`${actualFunctionSource}\
+this.runTransition = executeSeasonTransitions;`, context, { filename: 'js/game.js:executeSeasonTransitions-overflow' });
+  context.runTransition('bra-d', [], null, 'bra-d');
+  auditRosterSizesAndDuplicates(map);
+  assert.deepEqual(membership(map, 'Brasília'), ['bra-d']);
+  assert.equal(membership(map, truncatedClub).length, 0);
+  assert.equal(map['bra-a'].filter(name => norm(name) === norm('Clube Duplicado')).length, 1);
+  assert.equal(state.competitionTeams['bra-d'].length, 96);
+  console.log('PASS: Série D acima de 96 e clubes duplicados normalizados.');
+}

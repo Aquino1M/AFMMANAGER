@@ -1337,12 +1337,10 @@ function openStadiumModal(initialTab){
             <div style="display:grid;grid-template-columns:48px 1fr 48px;gap:8px;flex:1;margin:8px 0;align-items:stretch">
               
               <!-- Arquibancada Oeste -->
-              <div class="${isExp && stadiumSelectedSide==='oeste' ? 'stand-construction-active' : ''}" style="background:${u.chairs?'#251d45':'#22202a'};border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.08)">
+              <div class="${isExp && stadiumSelectedSide==='oeste' ? 'stand-construction-active' : ''}" style="background:${stData.sides['oeste']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='oeste'?'#f59e0b':(stData.sides['oeste']?'#22c55e':'rgba(255,255,255,0.08)')}">
                 ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
-                ${isExp && stadiumSelectedSide==='oeste' ? `
-                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#f59e0b">🏗️ OBRA (+1.750)</span>
-                ` : `
-                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:800;color:rgba(255,255,255,0.3)">OESTE</span>
+                ${isExp && stadiumSelectedSide==='oeste' ? (stData.sides['oeste'] ? '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#4ade80">✓ CONCLUÍDO</span>' : '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#f59e0b">🏗️ OBRA (+1.750)</span>') : `
+                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:800;color:${stData.sides['oeste']?'#4ade80':'rgba(255,255,255,0.3)'}">${stData.sides['oeste']?'OESTE ✓':'OESTE'}</span>
                 `}
                 ${u.flares ? '<div class="animated-flare" style="position:absolute;top:20%;font-size:16px">🔥</div>' : ''}
               </div>
@@ -1383,12 +1381,10 @@ function openStadiumModal(initialTab){
               </div>
 
               <!-- Arquibancada Leste -->
-              <div class="${isExp && stadiumSelectedSide==='leste' ? 'stand-construction-active' : ''}" style="background:${u.chairs?'#251d45':'#22202a'};border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.08)">
+              <div class="${isExp && stadiumSelectedSide==='leste' ? 'stand-construction-active' : ''}" style="background:${stData.sides['leste']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='leste'?'#f59e0b':(stData.sides['leste']?'#22c55e':'rgba(255,255,255,0.08)')}">
                 ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
-                ${isExp && stadiumSelectedSide==='leste' ? `
-                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#f59e0b">🏗️ OBRA (+1.750)</span>
-                ` : `
-                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:800;color:rgba(255,255,255,0.3)">LESTE</span>
+                ${isExp && stadiumSelectedSide==='leste' ? (stData.sides['leste'] ? '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#4ade80">✓ CONCLUÍDO</span>' : '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#f59e0b">🏗️ OBRA (+1.750)</span>') : `
+                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:800;color:${stData.sides['leste']?'#4ade80':'rgba(255,255,255,0.3)'}">${stData.sides['leste']?'LESTE ✓':'LESTE'}</span>
                 `}
                 ${u.flares ? '<div class="animated-flare" style="position:absolute;bottom:20%;font-size:16px">🔥</div>' : ''}
               </div>
@@ -14947,22 +14943,15 @@ function simulateQuickRound(){
           const nextRound = (state.schedule || []).findIndex((roundGames, idx) => idx > state.round && Array.isArray(roundGames) && roundGames.some(g => Array.isArray(g) && g.length >= 2));
           if(nextRound >= 0){
             state.round = nextRound;
+            state.date = getDateForRound(nextRound, state.season);
             state.news = Array.isArray(state.news) ? state.news : [];
-            state.news.unshift(`📅 Rodada vazia ignorada com segurança em ${comp?.name || 'competição'}; calendário recuperado para a rodada ${nextRound + 1}.`);
+            state.news.unshift(`📅 Rodada sem fixtures recuperada em ${comp?.name || 'competição'}; calendário sincronizado para a rodada ${nextRound + 1}.`);
             state.news = state.news.slice(0, 50);
-            save();
-            render();
-            toast(`📅 Rodada vazia ignorada. Próxima rodada válida: ${nextRound + 1}.`);
+            save(); render();
+            toast(`📅 Calendário recuperado. Próxima rodada válida: ${nextRound + 1}.`);
             return;
           }
-          if(!Array.isArray(state.schedule) || !state.schedule.length || state.round >= state.schedule.length - 1){
-            showEndOfSeasonModal();
-            return;
-          }
-          state.round = Math.min(state.round + 1, state.schedule.length - 1);
-          save();
-          render();
-          toast('📅 Rodada sem confrontos avançada com segurança.');
+          showEndOfSeasonModal();
           return;
         }
         const comp = curComp(), isKO = comp.type === 'knockout';
@@ -15005,14 +14994,13 @@ function simulateQuickRound(){
     if(!fixtures.length){
       const nextRound = (state.schedule || []).findIndex((games, index) => index > state.round && Array.isArray(games) && games.some(g => Array.isArray(g) && g.length >= 2));
       if(nextRound < 0){ showEndOfSeasonModal(); return; }
-      const skipped = state.round;
       state.round = nextRound;
       state.date = getDateForRound(nextRound, state.season);
       state.news = Array.isArray(state.news) ? state.news : [];
-      state.news.unshift('Rodada sem partidas foi ignorada. O calendário retomou na próxima rodada válida.');
+      state.news.unshift('Rodada sem fixtures recuperada. O calendário foi sincronizado com a próxima rodada válida.');
       state.news = state.news.slice(0, 50);
       save(); render();
-      toast('Rodada vazia ignorada. Avançando para a próxima rodada válida.');
+      toast('Calendário recuperado. A próxima rodada tem jogos para simular.');
       return;
     }
     const comp=curComp(),isKO=comp.type==='knockout';
@@ -22152,20 +22140,24 @@ function renderContinentalBlock(){
 // -------------------------------------------------------------
 function getNationalCompetitionStandings(natId){
   const teamList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[natId]) || [];
-  return teamList.map((tName) => {
-    return {
-      name: tName,
-      p: 0,
-      j: 0,
-      v: 0,
-      e: 0,
-      d: 0,
-      gp: 0,
-      gc: 0,
-      sg: 0,
-      form: []
-    };
-  });
+  const expectedSize = natId === 'bra-d' ? 96 : 20;
+  const activeCompetition = state?.compId === natId;
+  const activeTeams = activeCompetition && Array.isArray(state?.teams) ? state.teams : null;
+  const activeByName = new Map((activeTeams || []).map(team => [norm(team?.name), team]));
+  const rows = teamList.map(name => activeByName.get(norm(name))).filter(Boolean);
+
+  // Só usa resultados reais do save para a liga ativa. Não apresenta pontos fictícios de outra divisão.
+  if(activeCompetition && activeTeams && activeTeams.length === expectedSize && rows.length === teamList.length){
+    return rows.map(team => ({ ...team, form: Array.isArray(team.form) ? team.form : [] }));
+  }
+  const cache = state?.nationalCompetitionStandings?.[natId];
+  if(Array.isArray(cache) && cache.length === teamList.length){
+    const cacheByName = new Map(cache.map(team => [norm(team?.name), team]));
+    if(teamList.every(name => cacheByName.has(norm(name)))){
+      return teamList.map(name => ({ ...cacheByName.get(norm(name)), form: Array.isArray(cacheByName.get(norm(name)).form) ? cacheByName.get(norm(name)).form : [] }));
+    }
+  }
+  return teamList.map(name => ({ name, p: 0, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, form: [], _unplayed: true }));
 }
 
 function seasonPage(){
@@ -22198,7 +22190,9 @@ function seasonPage(){
   const isViewingNationalWhileInEstadual = (isBrazil && state.compId?.startsWith('bra-est-') && seasonTab === 'nacional');
   const comp = isViewingNationalWhileInEstadual ? natCompObj : rawComp;
   const isSérieA = comp.id === 'bra-a';
-  const r = isViewingNationalWhileInEstadual ? getNationalCompetitionStandings(userNatDivId) : ranking();
+  const nationalStandings = isViewingNationalWhileInEstadual ? getNationalCompetitionStandings(userNatDivId) : null;
+  const nationalStandingsUnplayed = !!(nationalStandings?.length && nationalStandings.every(team => team._unplayed));
+  const r = isViewingNationalWhileInEstadual ? nationalStandings : ranking();
   
   return `
     <div class="hero">
@@ -22243,6 +22237,7 @@ function seasonPage(){
           </div>
         </div>
 
+        ${nationalStandingsUnplayed ? `<div class="small muted" role="status" style="padding:10px 12px;margin-bottom:10px;border:1px solid rgba(148,163,184,.25);border-radius:8px;background:rgba(148,163,184,.06)">Esta divisão ainda não possui classificação calculada e salva nesta carreira. Os números zerados representam ausência de resultados simulados, não uma classificação oficial.</div>` : ''}
         <div class="tablewrap">
           <table>
             <thead>

@@ -64,3 +64,32 @@ function makeRunner(startDate, matchDate){
 }
 
 console.log('Todos os testes de recuperação do calendário passaram.');
+// Rodada vazia deve recuperar o índice e sincronizar a data para o próximo round válido.
+{
+  const gameSource = fs.readFileSync(path.join(__dirname, '..', 'js/game.js'), 'utf8');
+  const fnStart = gameSource.indexOf('function simulateQuickRound(){');
+  const fnEnd = gameSource.indexOf('\n// CERIMÔNIA DE CAMPEÃO', fnStart);
+  assert(fnStart >= 0 && fnEnd > fnStart, 'Não foi possível localizar simulateQuickRound() real.');
+  const fn = gameSource.slice(fnStart, fnEnd).trim();
+  const state = { club:'Criciúma', round:0, season:2031, date:'2031-01-01', schedule:[[], [['Criciúma','Adversário']], [['Criciúma','Outro']]], news:[], isPreSeason:false, preSeasonDays:0 };
+  const effects = { saves:0, renders:0, toasts:[] };
+  const context = {
+    state, isSimulatingQuickRound:false,
+    canStartMatch:()=>({canStart:false,status:'no_fixture',isBye:true}),
+    currentFixtures:()=>state.schedule[state.round] || [],
+    curComp:()=>({id:'bra-a',type:'league',name:'Brasileirão Série A'}),
+    repairSaveIfCorrupted:()=>false,
+    getDateForRound:(round,season)=>`${season}-01-${String(round+1).padStart(2,'0')}`,
+    save:()=>effects.saves++, render:()=>effects.renders++, toast:m=>effects.toasts.push(m),
+    showEndOfSeasonModal:()=>{throw new Error('Não deveria encerrar temporada enquanto existe rodada válida futura.');},
+    norm:value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(),
+    console
+  };
+  vm.runInNewContext(`${fn}\nthis.run = simulateQuickRound;`, context, {filename:'js/game.js:simulateQuickRound'});
+  context.run();
+  assert.equal(state.round,1,'Deve recuperar para a próxima rodada não vazia.');
+  assert.equal(state.date,'2031-01-02','A data precisa acompanhar a rodada recuperada.');
+  assert.equal(effects.saves,1);
+  assert(effects.toasts.some(message=>message.includes('Calendário recuperado')));
+  console.log('PASS: rodada vazia recupera round e data no simulateQuickRound real.');
+}

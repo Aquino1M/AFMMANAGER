@@ -72,3 +72,9 @@ for(const [ring, expected] of Object.entries(expectedRanges)){
 }
 console.log('PASS: faixas de duração dos anéis 1–6.');
 console.log('Todos os testes do estádio passaram.');
+// A maquete do estádio deve refletir também setores laterais concluídos.
+assert(source.includes("stData.sides['oeste']?'#162a1c':(u.chairs?'#251d45':'#22202a')"), 'O setor oeste deve ficar visualmente construído quando o estado o marca como concluído.');
+assert(source.includes("stData.sides['leste']?'#162a1c':(u.chairs?'#251d45':'#22202a')"), 'O setor leste deve ficar visualmente construído quando o estado o marca como concluído.');
+assert(source.includes("stData.sides['oeste']?'OESTE ✓':'OESTE'"), 'O rótulo oeste deve indicar conclusão.');
+assert(source.includes("stData.sides['leste']?'LESTE ✓':'LESTE'"), 'O rótulo leste deve indicar conclusão.');
+console.log('PASS: visualizador destaca setores laterais construídos.');
