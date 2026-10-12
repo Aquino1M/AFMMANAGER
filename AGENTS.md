@@ -10,6 +10,10 @@
 ## Integridade do jogo
 
 - Resultados da competição ativa atualizam sua classificação uma única vez. Copas e torneios adicionais precisam manter resultados e classificações próprios; não altere `state.teams` nem avance a rodada da liga ao finalizar uma partida extra.
+- REGRA PERMANENTE DO CALENDÁRIO: a tela “Calendário Oficial de Jogos & Janelas de Transferência” deve exibir uma aba para cada competição em que o clube controlado participa na temporada, incluindo estaduais, liga nacional e copas aplicáveis. Resolva as competições pela associação completa do clube, sem escolher apenas a competição primária.
+- REGRA PERMANENTE DOS ESTADUAIS: clubes das Séries A, B, C e D continuam inscritos em seus campeonatos estaduais. Mudanças de divisão nacional, classificação, promoção/rebaixamento e transição de temporada não podem remover nem sobrescrever inscrições estaduais.
+- REGRA PERMANENTE DE ISOLAMENTO: finalizar ou avançar um jogo estadual atualiza somente os resultados, estatísticas, classificação e rodada daquele estadual; não altera `state.teams`, a rodada nacional, resultados nacionais ou transição de temporada. Cada partida concluída deve ficar identificada e não pode ser iniciada nem contabilizada outra vez.
+- REGRA PERMANENTE DAS DATAS ESTADUAIS: persistir todos os confrontos de todas as rodadas com as respectivas datas; distribuir rodadas em intervalos de 2–3 dias, reconciliando outros compromissos do clube sem apagar resultados históricos. Contagens de “Todos os Confrontos” devem usar a lista integral antes de filtros da interface.
 - Não inicie partidas sem 11 atletas de cada lado. Complete escalações insuficientes com atletas válidos.
 - Partidas ao vivo devem manter placar, eventos e animação do campo sincronizados. Ao tocar no motor visual, valide 22 atletas em movimento no navegador.
 - Depois de mudanças de estado críticas, salve a carreira. Limites de persistência: `news` 50, `marketWorldFeed` 30 e `seasonHistory` 20 registros.

@@ -6814,6 +6814,23 @@ function clubStateCompId(clubName){
   return 'bra-est-sp';
 }
 
+// Returns all roster memberships; a Brazilian club may play both national and estadual leagues.
+function getClubCompetitionIds(clubName){
+  if(!clubName) return [];
+  const key = norm(clubName), ids = new Set();
+  for(const map of [state?.competitionTeams, window.COMPETITION_TEAMS].filter(Boolean)){
+    for(const [id, roster] of Object.entries(map)){
+      if(Array.isArray(roster) && roster.some(name => norm(typeof name === 'string' ? name : name?.name) === key)) ids.add(id);
+    }
+  }
+  // A national division and an estadual are simultaneous memberships.
+  const nationalId = getClubPrimaryCompetitionId(clubName, state?.compId);
+  if(['bra-a','bra-b','bra-c','bra-d'].includes(nationalId)) ids.add(nationalId);
+  const stateId = clubStateCompId(clubName);
+  const stateRoster = state?.competitionTeams?.[stateId] || window.COMPETITION_TEAMS?.[stateId] || [];
+  if(stateId && Array.isArray(stateRoster) && stateRoster.some(name=>norm(typeof name==='string'?name:name?.name)===key)) ids.add(stateId);
+  return [...ids];
+}
 function getClubPrimaryCompetitionId(clubName, preferredCompId = null){
   if(!clubName) return preferredCompId || 'bra-a';
   const nameNorm = norm(clubName);
@@ -7787,31 +7804,38 @@ function getStateCompData(cId){
   const saved = state.estadualData[cId];
   if(saved && (Number(saved.season) === Number(state.season) || (!saved.season && Number(state.season) === 2026))) return saved;
   if(saved && Number(saved.season) !== Number(state.season)){
-    const hasSavedResults = (saved.teams || []).some(team => Number(team.j) > 0)
-      || (saved.fixtures || []).some(fixture => fixture.result || fixture.score);
-    if(!state.estadualArchive) state.estadualArchive = {};
-    state.estadualArchive[cId] = Array.isArray(state.estadualArchive[cId]) ? state.estadualArchive[cId] : [];
-    if(hasSavedResults && !state.estadualArchive[cId].some(item => Number(item.season) === Number(saved.season))) state.estadualArchive[cId].push(clone(saved));
+    const hasSavedResults = (saved.teams || []).some(team => Number(team.j) > 0) || (saved.fixtures || []).some(fixture => fixture.result || fixture.score);
+    if(hasSavedResults){
+      state.estadualArchive = state.estadualArchive || {};
+      state.estadualArchive[cId] = Array.isArray(state.estadualArchive[cId]) ? state.estadualArchive[cId] : [];
+      if(!state.estadualArchive[cId].some(item => Number(item.season) === Number(saved.season))) state.estadualArchive[cId].push(clone(saved));
+    }
     delete state.estadualData[cId];
   }
-  const cObj = compById(cId) || { name: 'Campeonato Estadual', id: cId };
-  const teamList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[cId]) || (cId === 'bra-est-df' ? ['Gama','Capital-DF','Sobradinho','Samambaia','Ceilândia','Paranoá','Real Brasília','Brasiliense','ARUC','Brasília'] : ['Clube A','Clube B','Clube C','Clube D','Clube E','Clube F','Clube G','Clube H']);
-  if(cId === 'bra-est-df'){
-    state.estadualData[cId] = initCandangaoData(state.season, teamList);
-    return state.estadualData[cId];
-  }
-  const teams = teamList.map(name => ({ name, p:0, j:0, v:0, e:0, d:0, gp:0, gc:0, sg:0, pct:0, form:[] }));
-  const firstRoundDate = getDateForRound(0, state.season);
-  const fixtures = (roundRobin(teamList)[0] || []).map(([home, away]) => ({
-    stadium: (clubByName(home) || {}).stadium || `Estádio do ${home}`,
-    isoDate: firstRoundDate,
-    dateStr: `${formatDatePtBr(firstRoundDate)} · 19:00`,
-    home, away
+  const comp = compById(cId) || {id:cId,name:'Campeonato Estadual'};
+  const teams = (window.COMPETITION_TEAMS?.[cId] || state.competitionTeams?.[cId] || []).slice();
+  const stateRounds = roundRobin(teams);
+  const roundDates = stateRounds.map((_, roundIndex) => getDateForRound(roundIndex, state.season));
+  const previousFixtures = Array.isArray(saved?.fixtures) ? saved.fixtures : [];
+  const fixtures = stateRounds.flatMap((games, roundIndex) => games.map(([home,away]) => {
+    const previous = previousFixtures.find(f => norm(f.home)===norm(home) && norm(f.away)===norm(away) && Number(f.roundIndex)===roundIndex);
+    const isoDate = previous?.isoDate || roundDates[roundIndex];
+    return {
+      stadium:(clubByName(home)||{}).stadium || `Estádio do ${home}`,
+      roundIndex, isoDate,
+      dateStr:`${formatDatePtBr(isoDate)} · 19:00`, home, away,
+      ...(previous?.result ? {result:[...previous.result],played:true} : {}),
+      ...(previous?.played ? {played:true} : {})
+    };
   }));
   state.estadualData[cId] = {
-    id: cId, name: cObj.name, season: Number(state.season), phase: 'primeira',
-    currentRound: 1, roundDate: formatDatePtBr(firstRoundDate).toUpperCase(), teams, fixtures
+    id:cId,name:comp.name,season:Number(state.season),phase:'primeira',currentRound:1,
+    roundDate:formatDatePtBr(roundDates[0] || getDateForRound(0,state.season)).toUpperCase(),
+    teams:teams.map(name=>({name,p:0,j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,pct:0,form:[]})),fixtures
   };
+  // One club must remain eligible for its national Series A-D and its estadual.
+  const clubStateMembership = state.competitionTeams || (state.competitionTeams = {});
+  if(!Array.isArray(clubStateMembership[cId]) || !clubStateMembership[cId].length) clubStateMembership[cId] = teams.slice();
   return state.estadualData[cId];
 }
 function getStateCompStats(cId){
@@ -9506,18 +9530,18 @@ function curComp(){
     rule: 'Liga'
   };
 }
+// CALENDAR INVARIANT: official league rounds keep a 2-3 day cadence.
+// Saved results are looked up by match identity and are never recalculated here.
+// CALENDAR RULE: primary national league rounds are 2-3 days apart.
+// This function dates fixtures; it does not rewrite saved result records.
 function getDateForRound(roundIndex, season = state?.season || 2026){
-  const r = Math.max(0, Number(roundIndex) || 0);
-  const s = Number(season) || 2026;
-  const d = new Date(s + '-01-17T12:00:00');
-  d.setDate(d.getDate() + (r * 7));
-  const day = d.getDay();
-  if(day !== 0 && day !== 6){
-    d.setDate(d.getDate() + (6 - day));
-  }
-  return d.toISOString().slice(0, 10);
+  const round = Math.max(0, Math.floor(Number(roundIndex) || 0));
+  const year = Number(season) || 2026;
+  const start = new Date(`${year}-01-17T12:00:00`);
+  // Alternate 2- and 3-day gaps between consecutive rounds.
+  start.setDate(start.getDate() + Math.floor(round * 2.5));
+  return start.toISOString().slice(0, 10);
 }
-
 function ensureMidweekDate(isoDate, season = null){
   if(!isoDate) return isoDate;
   try {
@@ -11486,6 +11510,72 @@ function skipPreSeason(){
   render();
 }
 
+// Separate match session: a club may play both a national division and its estadual.
+// Preserve primary-career objects while the live engine temporarily uses the state league.
+let stateLeagueMatchSession = null;
+function beginStateLeagueMatch(competitionId, roundIndex){
+  if(stateLeagueMatchSession || (liveMatchState && !liveMatchState.done)) return false;
+  if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save();
+  const data = getStateCompData(competitionId);
+  if(!data || !Array.isArray(data.teams) || !data.teams.some(team=>norm(team.name)===norm(state.club))) return false;
+  const fixtureRecord = (data.fixtures||[]).find(f=>Number(f.roundIndex)===Number(roundIndex) && (norm(f.home)===norm(state.club)||norm(f.away)===norm(state.club)));
+  if(!fixtureRecord) return false;
+  const {home,away}=fixtureRecord;
+  const alreadyPlayed = fixtureRecord.played===true || Boolean(fixtureRecord.result) || (state.history||[]).some(h=>h.competitionId===competitionId && Number(h.season)===Number(state.season) && ((norm(h.h)===norm(home)&&norm(h.a)===norm(away))||(norm(h.h)===norm(away)&&norm(h.a)===norm(home))));
+  if(alreadyPlayed){toast('Esta partida estadual já foi disputada. O resultado salvo foi preservado.');return false;}
+  const date = fixtureRecord.isoDate || getDateForRound(roundIndex,state.season);
+  if(state.date < date){state.date=date;save();render();toast(`Calendário avançado até ${formatDatePtBr(date)} para o estadual.`);return false;}
+  const rounds = roundRobin(data.teams.map(team=>team.name));
+  const snapshot = {
+    compId:state.compId, competition:state.competition, currentLeague:state.currentLeague,
+    teams:state.teams, schedule:state.schedule, round:state.round,
+    date:state.date, cupAlive:state.cupAlive, eliminated:state.eliminated,
+    competitionStats:state.competitionStats, competitionFinalGroups:state.competitionFinalGroups,
+    competitionGroupStandings:state.competitionGroupStandings, competitionPlayoffWinners:state.competitionPlayoffWinners,
+    club:state.club, squad:state.squad, lineup:state.lineup, formation:state.formation, tactics:state.tactics,
+    balance:state.balance, income:state.income, expense:state.expense, trust:state.trust,
+    lastMatchSummary:state.lastMatchSummary, roundResultSnapshot:state.roundResultSnapshot
+  };
+  stateLeagueMatchSession = {competitionId, roundIndex, fixture:[home,away], snapshot, data};
+  state.compId = competitionId;
+  state.competition = data.name;
+  state.currentLeague = data.name;
+  state.teams = data.teams.map(team=>({...team, strength:team.strength || teamStrengthByName(team.name), form:Array.isArray(team.form)?[...team.form]:[]}));
+  // Include the active fixture and sentinels so this one-off match can't trigger
+  // the primary division's season-ending transition.
+  state.schedule = rounds.map(round=>round.map(game=>[...game]));
+  while(state.schedule.length <= roundIndex + 2) state.schedule.push([]);
+  state.round = roundIndex;
+  state.date = date;
+  state.isPreSeason = false;
+  state.preSeasonDays = 0;
+  startLiveMatch();
+  if(stateLeagueMatchSession && (!liveMatchState || liveMatchState.done)){
+    restorePrimaryLeagueAfterStateMatch();
+    save(); render();
+    return false;
+  }
+  return true;
+}
+function restorePrimaryLeagueAfterStateMatch(){
+  const session = stateLeagueMatchSession;
+  if(!session) return false;
+  const {snapshot, data, competitionId, fixture} = session;
+  const [home,away] = fixture;
+  const historyMatch = (state.history||[]).find(h=>h.competitionId===competitionId && Number(h.season)===Number(state.season) && ((norm(h.h)===norm(home)&&norm(h.a)===norm(away))||(norm(h.h)===norm(away)&&norm(h.a)===norm(home))));
+  const postMatchDate = state.date;
+  state.compId=snapshot.compId; state.competition=snapshot.competition; state.currentLeague=snapshot.currentLeague;
+  state.teams=snapshot.teams; state.schedule=snapshot.schedule; state.round=snapshot.round; state.date=postMatchDate;
+  state.cupAlive=snapshot.cupAlive; state.eliminated=snapshot.eliminated;
+  state.competitionStats=snapshot.competitionStats; state.competitionFinalGroups=snapshot.competitionFinalGroups;
+  state.competitionGroupStandings=snapshot.competitionGroupStandings; state.competitionPlayoffWinners=snapshot.competitionPlayoffWinners;
+  state.club=snapshot.club; state.squad=snapshot.squad; state.lineup=snapshot.lineup; state.formation=snapshot.formation; state.tactics=snapshot.tactics;
+  state.balance=snapshot.balance; state.income=snapshot.income; state.expense=snapshot.expense; state.trust=snapshot.trust;
+  state.lastMatchSummary=snapshot.lastMatchSummary; state.roundResultSnapshot=snapshot.roundResultSnapshot;
+  state.estadualData=state.estadualData||{}; state.estadualData[competitionId]=data;
+  stateLeagueMatchSession=null;
+  return true;
+}
 let isStartingLiveMatch = false;
 function startLiveMatch(){
   if(isStartingLiveMatch) return;
@@ -11540,7 +11630,11 @@ function startLiveMatch(){
     if((norm(h) === norm(home) && norm(a) === norm(away)) || (norm(h) === norm(state.club) || norm(a) === norm(state.club))) return;
     const [hg, ag] = simulateScore(h,a);
     let win = null, pen = null;
-    if(isKO){
+    if(stateLeagueMatchSession){
+      // Estadual is a one-off match. Never mutate the national schedule or its round.
+      return;
+    }
+  if(isKO){
       if(hg===ag){
         let hp=rnd(3,6), ap=rnd(2,6); if(hp===ap) ap=hp===6?5:hp+1;
         pen=[hp,ap]; win=hp>ap?h:a;
@@ -14935,6 +15029,8 @@ function finishLiveMatch(){
 }
 
 function finalizeMatchRound(){
+  const finishingStateLeagueMatch = Boolean(stateLeagueMatchSession);
+
   const s = liveMatchState;
   if(!s) return;
   const userRes = {
@@ -14945,12 +15041,49 @@ function finalizeMatchRound(){
   };
   const winners = s.winners;
   const isKO = s.isKO;
+  const stateLeagueFixture = finishingStateLeagueMatch ? stateLeagueMatchSession.data.fixtures.find(f=>Number(f.roundIndex)===Number(stateLeagueMatchSession.roundIndex)&&norm(f.home)===norm(stateLeagueMatchSession.fixture[0])&&norm(f.away)===norm(stateLeagueMatchSession.fixture[1])) : null;
+  if(finishingStateLeagueMatch && stateLeagueFixture && (stateLeagueFixture.played===true || stateLeagueFixture.result || (state.history||[]).some(h=>h.competitionId===stateLeagueMatchSession.competitionId&&Number(h.season)===Number(state.season)&&((norm(h.h)===norm(userRes.h)&&norm(h.a)===norm(userRes.a))||(norm(h.h)===norm(userRes.a)&&norm(h.a)===norm(userRes.h)))))){
+    if(liveCanvasAnimId) cancelAnimationFrame(liveCanvasAnimId);
+    $('#matchModalContainer')?.remove();
+    liveMatchState=null;
+    restorePrimaryLeagueAfterStateMatch();
+    save(); render();
+    toast('Esta partida estadual já tinha resultado salvo; a partida duplicada foi descartada.');
+    return;
+  }
   if(liveCanvasAnimId) cancelAnimationFrame(liveCanvasAnimId);
   $('#matchModalContainer')?.remove();
   liveMatchState = null;
 
-  // Finaliza a rodada sincronizando todos os jogos do campeonato
-  finalizeRound(userRes, winners, isKO);
+  // Partidas estaduais não passam pelo finalizador da temporada nacional.
+  if(finishingStateLeagueMatch){
+    const session=stateLeagueMatchSession, data=session.data, [home,away]=session.fixture;
+    const isHome=norm(home)===norm(state.club), gf=isHome?s.hg:s.ag, ga=isHome?s.ag:s.hg;
+    const existing=(state.history||[]).some(h=>h.competitionId===session.competitionId&&Number(h.season)===Number(state.season)&&((norm(h.h)===norm(home)&&norm(h.a)===norm(away))||(norm(h.h)===norm(away)&&norm(h.a)===norm(home))));
+    if(existing) toast('Resultado estadual já registrado; a partida não foi contabilizada novamente.');
+    else {
+      const homeTeam=data.teams.find(team=>norm(team.name)===norm(home)), awayTeam=data.teams.find(team=>norm(team.name)===norm(away));
+      if(homeTeam&&awayTeam){
+        for(const team of [homeTeam,awayTeam]) team.j=(Number(team.j)||0)+1;
+        homeTeam.gp=(Number(homeTeam.gp)||0)+s.hg; homeTeam.gc=(Number(homeTeam.gc)||0)+s.ag;
+        awayTeam.gp=(Number(awayTeam.gp)||0)+s.ag; awayTeam.gc=(Number(awayTeam.gc)||0)+s.hg;
+        homeTeam.sg=homeTeam.gp-homeTeam.gc; awayTeam.sg=awayTeam.gp-awayTeam.gc;
+        if(s.hg>s.ag){homeTeam.v=(Number(homeTeam.v)||0)+1;homeTeam.p=(Number(homeTeam.p)||0)+3;awayTeam.d=(Number(awayTeam.d)||0)+1;}
+        else if(s.hg<s.ag){awayTeam.v=(Number(awayTeam.v)||0)+1;awayTeam.p=(Number(awayTeam.p)||0)+3;homeTeam.d=(Number(homeTeam.d)||0)+1;}
+        else {homeTeam.e=(Number(homeTeam.e)||0)+1;awayTeam.e=(Number(awayTeam.e)||0)+1;homeTeam.p=(Number(homeTeam.p)||0)+1;awayTeam.p=(Number(awayTeam.p)||0)+1;}
+        for(const team of [homeTeam,awayTeam]){team.pct=team.j?Math.round(team.p/(team.j*3)*100):0;team.form=Array.isArray(team.form)?team.form:[];team.form.push(team===homeTeam?(s.hg>s.ag?'V':s.hg<s.ag?'D':'E'):(s.ag>s.hg?'V':s.ag<s.hg?'D':'E'));team.form=team.form.slice(-5);}
+      }
+      const fixture=(data.fixtures||[]).find(f=>Number(f.roundIndex)===Number(session.roundIndex)&&norm(f.home)===norm(home)&&norm(f.away)===norm(away));
+      if(fixture){fixture.result=[s.hg,s.ag];fixture.played=true;}
+      addPlayerMatchStats(session.competitionId,state.club,(s.events||[]).filter(event=>event?.type==='gol'));
+      state.history=state.history||[];
+      state.history.unshift({...userRes,round:session.roundIndex+1,season:Number(state.season),date:fixture?.isoDate||state.date,competitionId:session.competitionId,competitionName:data.name,isHome,won:gf>ga});
+      state.history=state.history.slice(0,100);
+      data.currentRound=Math.max(Number(data.currentRound)||1,session.roundIndex+2);
+      state.estadualData[session.competitionId]=data;
+    }
+    restorePrimaryLeagueAfterStateMatch();
+  } else finalizeRound(userRes, winners, isKO);
   save();
   render();
 
@@ -15565,14 +15698,8 @@ function executeSeasonTransitions(finishedCompId = null, finishedRanking = null,
         sourceList.push(displacedFromDestination);
       }
     }
-    if(!source && displacedFromDestination && stateCompIds.includes(finishedCompId) && Array.isArray(tMap[finishedCompId])){
-      const stateTeams = uniqueNames(tMap[finishedCompId]);
-      const userStateIndex = stateTeams.findIndex(name => norm(name) === myNorm);
-      if(userStateIndex >= 0){
-        stateTeams[userStateIndex] = displacedFromDestination;
-        tMap[finishedCompId] = stateTeams;
-      }
-    }
+    // CRITICAL INVARIANT: national division swaps must never alter state-league rosters.
+    // The promoted club remains registered in its estadual after moving between A-D.
   } else if(source && myNorm){
     // Sem um destino explícito, o fim de uma copa/estadual não é promoção nem rebaixamento.
     for(const id of divisionIds){
@@ -18714,160 +18841,73 @@ function processContinentalFixturesBefore(date){
 // ABA CALENDÁRIO COM DATAS OFICIAIS E JANELAS DE TRANSFERÊNCIA
 // -------------------------------------------------------------
 function calendarPage(){
-  const comp = curComp();
-  const schedule = state.schedule || [];
-  const myClub = state.club;
-  const calendarClubKey = name => ({'red bull bragantino':'bragantino'}[norm(name)] || norm(name));
-  const winInfo = getTransferWindowInfo(state.date);
-  const extraMatches = [];
-  const copa = getCopaDoBrasilState();
+  const comp=curComp(), schedule=state.schedule||[], myClub=state.club;
+  const calendarClubKey=name=>({'red bull bragantino':'bragantino'}[norm(name)]||norm(name));
+  const winInfo=getTransferWindowInfo(state.date), extraMatches=[];
+  const copa=getCopaDoBrasilState();
   processCopaDoBrasilCalendar(state.date);
-  Object.entries(copa.phases || {}).forEach(([phaseName, phase]) => (phase.fixtures || []).forEach((fixture, fixtureIndex) => {
-    if(calendarClubKey(fixture.home) !== calendarClubKey(myClub) && calendarClubKey(fixture.away) !== calendarClubKey(myClub)) return;
+  Object.entries(copa.phases || {}).forEach(([phaseName,phase])=>(phase.fixtures||[]).forEach((fixture,fixtureIndex)=>{
+    if(calendarClubKey(fixture.home)!==calendarClubKey(myClub)&&calendarClubKey(fixture.away)!==calendarClubKey(myClub))return;
     const cDate = ensureMidweekDate(fixture.isoDate, state.season);
-    extraMatches.push({
-      competitionId: 'bra-cup', name: 'Copa do Brasil', home: fixture.home, away: fixture.away,
-      isHome: calendarClubKey(fixture.home) === calendarClubKey(myClub), round: phaseName,
-      date: cDate, result: fixture.score, current: cDate === state.date,
-      matchIndex: fixtureIndex, phaseName
-    });
+    extraMatches.push({competitionId:'bra-cup',name:'Copa do Brasil',home:fixture.home,away:fixture.away,isHome:calendarClubKey(fixture.home)===calendarClubKey(myClub),round:phaseName,date:cDate,result:fixture.score,current:cDate===state.date,matchIndex:fixtureIndex,phaseName});
   }));
   for(const id of ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc']){
-    const tournament = getContinentalTournament(id);
-    if(!tournament || Number(tournament.season)!==Number(state.season)) continue;
-    const participants = new Set(Object.values(tournament.groups || {}).flat().map(calendarClubKey));
-    const userKey = calendarClubKey(myClub);
-    if(!participants.has(userKey)) continue;
-    extraMatches.push(...(tournament.matches || []).filter(f => participants.has(calendarClubKey(f.home)) && participants.has(calendarClubKey(f.away)) && (calendarClubKey(f.home)===userKey || calendarClubKey(f.away)===userKey)).map(f => ({
-      ...f, competitionId:id, date:ensureMidweekDate(f.date,state.season), matchId:f.id, result:f.result,
-      isHome:calendarClubKey(f.home)===userKey,
-      name:({lib:'Copa Libertadores',sud:'Copa Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'})[id] || id
-    })));
+    const tournament=getContinentalTournament(id);
+    if(!tournament||Number(tournament.season)!==Number(state.season))continue;
+    const participants=new Set(Object.values(tournament.groups||{}).flat().map(calendarClubKey));
+    if(!participants.has(calendarClubKey(myClub)))continue;
+    extraMatches.push(...(tournament.matches||[]).filter(f=>participants.has(calendarClubKey(f.home))&&participants.has(calendarClubKey(f.away))&&(calendarClubKey(f.home)===calendarClubKey(myClub)||calendarClubKey(f.away)===calendarClubKey(myClub))).map(f=>({...f,competitionId:id,date:ensureMidweekDate(f.date,state.season),matchId:f.id,result:f.result,isHome:calendarClubKey(f.home)===calendarClubKey(myClub),name:({lib:'Copa Libertadores',sud:'Copa Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'})[id]||id})));
   }
-  const cupFilters = [
-    ['bra-cup','🥇 Copa do Brasil'], ['lib','🏆 Libertadores'], ['sud','🥈 Sul-Americana'],
-    ['ucl','UEFA Champions League'],['uel','UEFA Europa League'],['uecl','UEFA Conference League'],['afc-el','AFC Champions League Elite'],['afc2','AFC Champions League Two'],['cwc','Mundial de Clubes FIFA']
-  ].filter(([id]) => extraMatches.some(f => f.competitionId === id));
-  const activeCalendarFilter = ['ALL','COMP','HOME','AWAY'].includes(calendarFilter) || cupFilters.some(([id]) => id === calendarFilter) ? calendarFilter : 'ALL';
-  const userLeagueMatches = schedule.filter(games => games.some(g => g.includes(myClub))).length;
-  const calendarMatches = schedule.flatMap((games, rIndex) => {
-    const f = games.find(g => g.some(name => calendarClubKey(name) === calendarClubKey(myClub)));
-    if(!f) return [];
-    const isHome = calendarClubKey(f[0]) === calendarClubKey(myClub);
-    const date = getDateForRound(rIndex, state.season);
-    const opponentKey = calendarClubKey(isHome ? f[1] : f[0]);
-    const historyMatch = (state.history || []).find(h => Number(h.round) === rIndex + 1 && (!h.competitionId || h.competitionId === state.compId) && (!h.season || Number(h.season) === Number(state.season)) && ((calendarClubKey(h.h) === calendarClubKey(myClub) && calendarClubKey(h.a) === opponentKey) || (calendarClubKey(h.a) === calendarClubKey(myClub) && calendarClubKey(h.h) === opponentKey)));
-    const groupIndex = comp.id === 'bra-d' ? Math.floor((window.COMPETITION_TEAMS?.['bra-d'] || []).findIndex(name => norm(name) === norm(myClub)) / 24) : -1;
-    const groupName = groupIndex >= 0 ? String.fromCharCode(65 + groupIndex) : '';
-    return [{
-      competitionId:'COMP', name:comp.name, home:f[0], away:f[1], isHome, group:groupName,
-      date, round:comp.id === 'bra-d' ? `Grupo ${groupName} - Rodada ${rIndex + 1}` : `Rodada ${rIndex + 1}`, current:rIndex === state.round,
-      past:rIndex < state.round, historyMatch
-    }];
-  }).concat(extraMatches.map(match => ({...match, current: match.date === state.date, past: match.date < state.date})))
-    .filter(match => {
-      if(activeCalendarFilter === 'COMP') return match.competitionId === 'COMP';
-      if(['HOME','AWAY'].includes(activeCalendarFilter)) return match.isHome === (activeCalendarFilter === 'HOME');
-      return activeCalendarFilter === 'ALL' || match.competitionId === activeCalendarFilter;
-    })
-    .sort((a,b) => a.date.localeCompare(b.date) || Number(b.competitionId === 'COMP') - Number(a.competitionId === 'COMP'));
-
+  const cupLabels={'bra-cup':'🏅 Copa do Brasil',lib:'🏆 Libertadores',sud:'🥈 Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'};
+  const cupFilters=Object.keys(cupLabels).filter(id=>extraMatches.some(match=>match.competitionId===id)).map(id=>[id,cupLabels[id]]);
+  // INVARIANT: national and state league are simultaneous memberships, not alternatives.
+  const memberships=getClubCompetitionIds(myClub);
+  const stateCompId=memberships.find(id=>id.startsWith('bra-est-'))||clubStateCompId(myClub);
+  const stateComp=stateCompId?compById(stateCompId):null;
+  const stateRoster=stateCompId?(state.competitionTeams?.[stateCompId]||window.COMPETITION_TEAMS?.[stateCompId]||[]):[];
+  const hasStateMembership=Boolean(stateCompId&&stateComp&&stateCompId.startsWith('bra-est-')&&(memberships.includes(stateCompId)||stateRoster.some(name=>calendarClubKey(name)===calendarClubKey(myClub))||norm(myClub)==='brasilia'));
+  const leagueTab={id:'COMP',name:comp.name,label:`🏆 ${comp.name}`,matches:schedule.flatMap((games,rIndex)=>{
+    const fixture=games.find(game=>Array.isArray(game)&&game.some(name=>calendarClubKey(name)===calendarClubKey(myClub)));
+    if(!fixture)return [];
+    const [home,away]=fixture,isHome=calendarClubKey(home)===calendarClubKey(myClub),date=getDateForRound(rIndex,state.season),opponentKey=calendarClubKey(isHome?away:home);
+    const historyMatch=(state.history||[]).find(h=>Number(h.round)===rIndex+1&&(!h.competitionId||h.competitionId===comp.id)&&(!h.season||Number(h.season)===Number(state.season))&&((calendarClubKey(h.h)===calendarClubKey(myClub)&&calendarClubKey(h.a)===opponentKey)||(calendarClubKey(h.a)===calendarClubKey(myClub)&&calendarClubKey(h.h)===opponentKey)));
+    const groupIndex=comp.id==='bra-d'?Math.floor((window.COMPETITION_TEAMS?.['bra-d']||[]).findIndex(name=>norm(name)===norm(myClub))/24):-1,groupName=groupIndex>=0?String.fromCharCode(65+groupIndex):'';
+    return [{competitionId:'COMP',name:comp.name,home,away,isHome,date,round:comp.id==='bra-d'?`Grupo ${groupName} - Rodada ${rIndex+1}`:`Rodada ${rIndex+1}`,current:rIndex===state.round,past:date<state.date,historyMatch,matchIndex:rIndex}];
+  })};
+  const competitionTabs=[leagueTab];
+  if(hasStateMembership){
+    const data=getStateCompData(stateCompId), played=(state.history||[]).filter(h=>h.competitionId===stateCompId&&Number(h.season)===Number(state.season)), playedKeys=new Set(played.map(h=>[calendarClubKey(h.h),calendarClubKey(h.a)].sort().join('|'))), stateMatches=[];
+    (data.fixtures||[]).forEach((row,fixtureIndex)=>{
+      if(calendarClubKey(row.home)!==calendarClubKey(myClub)&&calendarClubKey(row.away)!==calendarClubKey(myClub))return;
+      const {home,away}=row,roundIndex=Number(row.roundIndex)||0,isHome=calendarClubKey(home)===calendarClubKey(myClub),key=[calendarClubKey(home),calendarClubKey(away)].sort().join('|');
+      const saved=played.find(h=>(calendarClubKey(h.h)===calendarClubKey(home)&&calendarClubKey(h.a)===calendarClubKey(away))||(calendarClubKey(h.h)===calendarClubKey(away)&&calendarClubKey(h.a)===calendarClubKey(home)));
+      const date=row?.isoDate||getDateForRound(roundIndex,state.season);
+      stateMatches.push({competitionId:stateCompId,name:stateComp.name,home,away,isHome,date,round:`Rodada ${roundIndex+1}`,current:date===state.date,past:playedKeys.has(key)||row.played===true||Boolean(row.result),historyMatch:saved,stateFixture:row,matchIndex:roundIndex,fixtureIndex});
+    });
+    competitionTabs.push({id:stateCompId,name:stateComp.name,label:`🏟️ ${stateComp.name}`,matches:stateMatches});
+  }
+  for(const [id,label] of cupFilters){const matches=extraMatches.filter(m=>m.competitionId===id);if(matches.length)competitionTabs.push({id,name:matches[0].name,label,matches});}
+  const activeCalendarFilter=competitionTabs.some(tab=>tab.id===calendarFilter)||['ALL','HOME','AWAY'].includes(calendarFilter)?calendarFilter:'ALL';
+  const allMatches=competitionTabs.flatMap(tab=>tab.matches);
+  const calendarMatches=allMatches.filter(match=>activeCalendarFilter==='ALL'||(activeCalendarFilter==='HOME'||activeCalendarFilter==='AWAY'?match.isHome===(activeCalendarFilter==='HOME'):match.competitionId===activeCalendarFilter)).sort((a,b)=>a.date.localeCompare(b.date)||(a.competitionId==='COMP'?-1:1));
   return `
-    <div class="hero">
-      <div>
-        <h1>Calendário Oficial de Jogos & Janelas de Transferência</h1>
-        <div class="muted">Datas dos confrontos, mandos de campo, torneios da temporada ${state.season} e janelas de contratação</div>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center">
-        <span class="window-badge ${winInfo.open?'window-open':'window-closed'}">${winInfo.open?'🟢':'🔴'} ${esc(winInfo.text)}</span>
-        <span class="pill">${esc(comp.name)}</span>
-      </div>
-    </div>
-
-    <!-- Períodos Oficiais da Janela de Transferências -->
-    <div class="grid g2" style="margin-top:14px">
-      <div class="card" style="border-left:4px solid var(--neon)">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <h3 style="margin:0">☀️ Janela de Verão (Início de Ano)</h3>
-          <span class="pill ${isTransferWindowOpen(state.season+'-02-01')?'good':''}">01/Jan a 31/Mar</span>
-        </div>
-        <p class="small muted" style="margin:6px 0 0 0">
-          Período oficial de montagem do elenco. Permite contratações definitivas, empréstimos e vendas.
-        </p>
-      </div>
-
-      <div class="card" style="border-left:4px solid var(--cyan)">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <h3 style="margin:0">❄️ Janela de Inverno (Meio de Ano)</h3>
-          <span class="pill ${isTransferWindowOpen(state.season+'-08-01')?'good':''}">10/Jul a 02/Set</span>
-        </div>
-        <p class="small muted" style="margin:6px 0 0 0">
-          Período de reforços e ajustes do elenco para o segundo semestre e retas finais dos campeonatos.
-        </p>
-      </div>
-    </div>
-
-    <!-- Filtros de Navegação do Calendário -->
-    <div class="filters" style="margin-top:14px">
-      <button class="btn ${activeCalendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos os Confrontos (${userLeagueMatches + extraMatches.length})</button>
-      <button class="btn ${activeCalendarFilter==='COMP'?'primary':''}" data-cal-filter="COMP">🏆 ${esc(comp.name)}</button>
-      <button class="btn ${activeCalendarFilter==='HOME'?'primary':''}" data-cal-filter="HOME">🏠 Em Casa</button>
-      <button class="btn ${activeCalendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora de Casa</button>
-      ${cupFilters.map(([id,label]) => `<button class="btn ${activeCalendarFilter===id?'primary':''}" data-cal-filter="${id}">${label}</button>`).join('')}
-    </div>
-
-    <!-- Lista Cronológica dos Jogos -->
-    <div class="calendar-view" style="margin-top:10px">
-      ${calendarMatches.map(match=>{
-        const opponent = match.isHome ? match.away : match.home;
-        const date = new Date(`${match.date}T12:00:00`);
-        const dayNames = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
-        const dayBadge = dayNames[date.getDay()] || 'JOGO';
-        const isMidweek = date.getDay() === 3;
-        const dateFormatted = date.toLocaleDateString('pt-BR', {day:'2-digit', month:'long'});
-        let statusHtml = '<span class="pill muted">⏳ Agendado</span>';
-        if(match.competitionId === 'COMP' && match.past){
-          const history = match.historyMatch;
-          if(history){
-            const userScore = match.isHome ? history.hg : history.ag;
-            const oppScore = match.isHome ? history.ag : history.hg;
-            const win = userScore > oppScore, draw = userScore === oppScore;
-            statusHtml = `<span class="pill ${win?'good':draw?'warn':'bad'}">R${match.round.replace('Rodada ','')}: ${history.hg} x ${history.ag} (${win?'Vitória':draw?'Empate':'Derrota'})</span>`;
-          } else statusHtml = '<span class="pill">Concluído</span>';
-        } else if(match.competitionId === 'COMP' && match.current){
-          statusHtml = `<div style="display:flex;gap:6px;align-items:center;justify-content:flex-end"><span class="pill primary" style="box-shadow:0 0 12px var(--neon)">👉 HOJE</span><button class="btn primary btnCalPlayNow" style="padding:4px 10px;font-size:12px">⚽ Jogar</button></div>`;
-        } else if(match.competitionId === 'bra-cup' && match.result){
-          const score = match.isHome ? `${match.result[0]} x ${match.result[1]}` : `${match.result[1]} x ${match.result[0]}`;
-          statusHtml = `<span class="pill good">${score} • Concluído</span>`;
-        } else if(match.competitionId === 'bra-cup' && match.date === state.date){
-          statusHtml = `<button class="btn primary btnCalCopaPlay" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" style="padding:4px 10px;font-size:12px">▶ Simular</button>`;
-        } else if(match.matchId && match.result){
-          statusHtml = `<span class="pill good">${match.result[0]} x ${match.result[1]} • Concluído</span>`;
-        } else if(match.matchId && match.date === state.date){
-          statusHtml = `<button class="btn primary btnCalTournamentPlay" data-tournament="${esc(match.competitionId)}" data-match="${esc(match.matchId)}" style="padding:4px 10px;font-size:12px">⚽ Jogar</button>`;
-        }
-        const detail = match.competitionId === 'COMP' ? match.round : `${typeof match.round === 'number' ? `Rodada ${match.round}` : match.round || ''}${match.group ? ` • Grupo ${match.group}` : ''}`;
-        return `<div class="calendar-card ${match.current?'current':''}">
-          <div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span class="pill" style="font-size:9px;font-weight:900;padding:1px 5px;background:${isMidweek?'rgba(56,189,248,0.25);color:#38bdf8':'rgba(34,197,94,0.25);color:#4ade80'}">${dayBadge}</span>
-              <b>${dateFormatted}</b>
-            </div>
-            <div class="small muted" style="margin-top:2px">${esc(detail)}</div>
-          </div>
-          <div><span class="pill" style="font-size:11px">${match.isHome?'🏠 EM CASA':'✈️ FORA'}</span></div>
-          <div style="display:flex;align-items:center;gap:12px">${clubBadge(opponent,32)}<div><b>vs ${esc(opponent)}</b><div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div></div></div>
-          <div><span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(match.name)}</span>${match.competitionId === 'COMP' ? `<div class="small" style="margin-top:4px"><span class="${isTransferWindowOpen(match.date)?'good':'muted'}" style="font-size:10px">${isTransferWindowOpen(match.date)?'🟢 Janela Aberta':'🔒 Janela Fechada'}</span></div>` : ''}</div>
-          <div style="text-align:right">${statusHtml}</div>
-        </div>`;
-      }).join('')}
-    </div>
+    <div class="hero"><div><h1>Calendário Oficial de Jogos & Janelas de Transferência</h1><div class="muted">Datas dos confrontos, mandos de campo, torneios da temporada ${state.season} e janelas de contratação</div></div><div style="display:flex;gap:10px;align-items:center"><span class="window-badge ${winInfo.open?'window-open':'window-closed'}">${winInfo.open?'🟢':'🔴'} ${esc(winInfo.text)}</span><span class="pill">${esc(comp.name)}</span></div></div>
+    <div class="grid g2" style="margin-top:14px"><div class="card" style="border-left:4px solid var(--neon)"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">☀️ Janela de Verão (Início de Ano)</h3><span class="pill ${isTransferWindowOpen(state.season+'-02-01')?'good':''}">01/Jan a 31/Mar</span></div><p class="small muted" style="margin:6px 0 0 0">Período oficial de montagem do elenco. Permite contratações definitivas, empréstimos e vendas.</p></div><div class="card" style="border-left:4px solid var(--cyan)"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">❄️ Janela de Inverno (Meio de Ano)</h3><span class="pill ${isTransferWindowOpen(state.season+'-08-01')?'good':''}">10/Jul a 02/Set</span></div><p class="small muted" style="margin:6px 0 0 0">Período de reforços e ajustes do elenco para o segundo semestre e retas finais dos campeonatos.</p></div></div>
+    <div class="filters" style="margin-top:14px"><button class="btn ${activeCalendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos os Confrontos (${allMatches.length})</button>${competitionTabs.map(tab=>`<button class="btn ${activeCalendarFilter===tab.id?'primary':''}" data-cal-filter="${tab.id}">${tab.label}</button>`).join('')}<button class="btn ${activeCalendarFilter==='HOME'?'primary':''}" data-cal-filter="HOME">🏠 Em Casa</button><button class="btn ${activeCalendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora de Casa</button></div>
+    <div class="calendar-view" style="margin-top:10px">${calendarMatches.map(match=>{
+      const opponent=match.isHome?match.away:match.home,date=new Date(`${match.date}T12:00:00`),dayNames=['DOM','SEG','TER','QUA','QUI','SEX','SÁB'],dayBadge=dayNames[date.getDay()]||'JOGO',isMidweek=date.getDay()===3,dateFormatted=date.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'});
+      let status='<span class="pill muted">⏳ Agendado</span>';
+      if(match.historyMatch){const h=match.historyMatch,homeGoals=Number(h.hg)||0,awayGoals=Number(h.ag)||0;status=`<span class="pill good">${match.isHome?homeGoals:awayGoals} x ${match.isHome?awayGoals:homeGoals} · Concluído</span>`;}
+      else if(match.competitionId==='COMP'&&match.current)status=`<button class="btn primary btnCalPlayNow" style="padding:4px 10px;font-size:12px">⚽ Jogar</button>`;
+      else if(match.competitionId.startsWith('bra-est-')&&!match.past&&match.date===state.date)status=`<button class="btn primary btnCalStatePlay" data-state-comp="${match.competitionId}" data-round="${match.matchIndex}" style="padding:4px 10px;font-size:12px">⚽ Jogar Estadual</button>`;
+      else if(match.competitionId==='bra-cup'&&match.result)status=`<span class="pill good">${match.result[0]} x ${match.result[1]} · Concluído</span>`;
+      else if(match.competitionId==='bra-cup'&&match.date===state.date)status=`<button class="btn primary btnCalCopaPlay" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" style="padding:4px 10px;font-size:12px">▶ Simular</button>`;
+      else if(match.matchId&&match.result)status=`<span class="pill good">${match.result[0]} x ${match.result[1]} · Concluído</span>`;
+      else if(match.matchId&&match.date===state.date)status=`<button class="btn primary btnCalTournamentPlay" data-tournament="${esc(match.competitionId)}" data-match="${esc(match.matchId)}" style="padding:4px 10px;font-size:12px">⚽ Jogar</button>`;
+      return `<div class="calendar-card ${match.current?'current':''}"><div><div style="display:flex;align-items:center;gap:6px"><span class="pill" style="font-size:9px;font-weight:900;padding:1px 5px;background:${isMidweek?'rgba(56,189,248,0.25);color:#38bdf8':'rgba(34,197,94,0.25);color:#4ade80'}">${dayBadge}</span><b>${dateFormatted}</b></div><div class="small muted" style="margin-top:2px">${esc(match.round||'')}</div></div><div><span class="pill" style="font-size:11px">${match.isHome?'🏠 EM CASA':'✈️ FORA'}</span></div><div style="display:flex;align-items:center;gap:12px">${clubBadge(opponent,32)}<div><b>vs ${esc(opponent)}</b><div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div></div></div><div><span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(match.name)}</span></div><div style="text-align:right">${status}</div></div>`;
+    }).join('')}</div>
   `;
 }
-
-// -------------------------------------------------------------
-// MEU TIME & TÁTICA (DRAG AND DROP COM VERDE/AMARELO)
-let tacticalActiveTab = 'closed';
 function myTeamPage(){
   ensureTacticsState(state);
   const curTac = state.tactics;
@@ -25685,12 +25725,11 @@ function bind(){
 
   if(view==='calendario'){
     $$('[data-cal-filter]').forEach(b=>b.onclick=()=>{calendarFilter=b.dataset.calFilter;render()});
-    $$('.btnCalPlayNow').forEach(b => b.onclick = startLiveMatch);
-    $$('.btnCalCopaPlay').forEach(b => b.onclick = () => playCopaDoBrasilFixture(b.dataset.index, b.dataset.phase));
-    $$('.btnCalTournamentPlay').forEach(b => b.onclick = () => playContinentalFixture(b.dataset.tournament, b.dataset.match));
-  }
-
-  if(view==='estrutura'){
+    $$('.btnCalPlayNow').forEach(b=>b.onclick=startLiveMatch);
+    $$('.btnCalStatePlay').forEach(b=>b.onclick=()=>beginStateLeagueMatch(b.dataset.stateComp,Number(b.dataset.round)));
+    $$('.btnCalCopaPlay').forEach(b=>b.onclick=()=>playCopaDoBrasilFixture(b.dataset.index,b.dataset.phase));
+    $$('.btnCalTournamentPlay').forEach(b=>b.onclick=()=>playContinentalFixture(b.dataset.tournament,b.dataset.match));
+  }if(view==='estrutura'){
     $$('.upgrade').forEach(b=>b.onclick=()=>upgradeFacility(b.dataset.facility));
     $$('.btnOpenAcademy').forEach(b=>b.onclick=openYouthAcademyModal);
     $$('.btnOpenMarketing').forEach(b=>b.onclick=openMarketingModal);
