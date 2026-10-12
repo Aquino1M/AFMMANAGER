@@ -47,5 +47,22 @@ console.log('PASS: dados estaduais zerados, temporada correta, jogos do Brasíli
   assert.match(gameSource,/Partidas estaduais não passam pelo finalizador da temporada nacional/);
   assert.match(gameSource,/Todos os Confrontos \(\$\{allMatches.length\}\)/);
   assert.match(gameSource,/fixtureRecord\.played===true \|\| Boolean\(fixtureRecord\.result\)/);
+  assert.match(gameSource,/Never replace the full persisted estadual calendar with the active round only/,'A sincronização não pode reduzir o calendário à rodada ativa.');
+  assert.match(gameSource,/btn-est-round-prev, \.btn-est-round-next/,'Controles de rodada precisam de eventos funcionais.');
+  assert.match(gameSource,/estData\.fixtures\.filter\(f => Number\(f\.roundIndex\|\|0\) === Math\.max\(0, Number\(estData\.currentRound\|\|1\)-1\)\)/,'A tela estadual deve mostrar a rodada selecionada.');
+  // Old saves: repair a truncated fixture list without erasing the score/history.
+  context.state.competitionTeams = {};
+  context.state.history = [];
+  context.state.estadualData['bra-est-df'] = {
+    season:2027,
+    teams:[{name:'Brasília',p:3,j:1,v:1,e:0,d:0,gp:2,gc:0,sg:2,pct:100,form:['V']}],
+    fixtures:[{home:'Gama',away:'Capital-DF',roundIndex:0,isoDate:'2027-01-17',result:[2,0],played:true}]
+  };
+  const repaired = context.getData('bra-est-df');
+  assert.equal(repaired.fixtures.length,teams.length*(teams.length-1),'Save antigo precisa reconstruir a tabela completa de ida e volta.');
+  assert(repaired.fixtures.some(f=>norm(f.home)==='brasilia'||norm(f.away)==='brasilia'),'Brasília precisa continuar no estadual mesmo após promoção nacional.');
+  assert(repaired.fixtures.some(f=>norm(f.home)==='gama'&&norm(f.away)==='capital-df'&&f.played&&f.result[0]===2),'Resultado estadual disputado deve sobreviver à reconstrução.');
+  assert(context.state.competitionTeams['bra-est-df'].some(name=>norm(name)==='brasilia'),'O roster estadual precisa voltar a persistir no save.');
+  assert(repaired.fixtures.find(f=>norm(f.home)==='gama'&&norm(f.away)==='capital-df').played,'Resultado finalizado precisa continuar marcado, impedindo replay mesmo se a classificação estiver incompleta.');
   console.log('PASS: calendário estadual completo, intervalo de 2–3 dias, associação Série+Estadual, abas oficiais, bloqueio de repetição e isolamento da liga nacional.');
 }
