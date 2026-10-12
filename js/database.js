@@ -37,14 +37,14 @@ const AFM_DB = (function(){
               id: acc.id || acc.username,
               username: acc.username,
               name: acc.name || acc.username,
-              role: acc.role || (acc.username.toLowerCase() === 'aquino' ? 'admin' : 'player')
+              role: acc.role || 'player'
             };
           } else {
             currentUser = {
               id: savedUser,
               username: savedUser,
               name: savedUser,
-              role: savedUser.toLowerCase() === 'aquino' ? 'admin' : 'player'
+              role: 'player'
             };
           }
         } catch(e){
@@ -64,40 +64,6 @@ const AFM_DB = (function(){
 
     await init();
 
-    // Validação prioritária para conta mestre de administrador
-    if(cleanUser === 'aquino' && cleanPass === 'aquino2026'){
-      currentUser = {
-        id: 'aquino',
-        username: 'aquino',
-        name: 'Aquino',
-        role: 'admin'
-      };
-      try {
-        const accounts = JSON.parse(localStorage.getItem('afm_accounts_v1') || '[]');
-        let acc = accounts.find(a => (a.username || '').toLowerCase() === 'aquino');
-        if(!acc){
-          acc = { username: 'aquino', name: 'Aquino', role: 'admin', password: 'aquino2026', saves: [], createdAt: new Date().toISOString() };
-          accounts.push(acc);
-        } else {
-          acc.role = 'admin';
-          acc.password = 'aquino2026';
-        }
-        localStorage.setItem('afm_accounts_v1', JSON.stringify(accounts));
-        localStorage.setItem('afm_active_user_v1', 'aquino');
-      } catch(e){}
-      if(client){
-        try {
-          client.from('afm_users').upsert({
-            username: 'aquino',
-            password: 'aquino2026',
-            name: 'Aquino',
-            role: 'admin'
-          }, { onConflict: 'username' }).then(() => {}).catch(() => {});
-        } catch(e){}
-      }
-      return { ok: true, user: currentUser };
-    }
-
     // 1. Tentar validar na nuvem (Supabase afm_users)
     if(client){
       try {
@@ -115,7 +81,7 @@ const AFM_DB = (function(){
             id: data.id || data.username,
             username: data.username,
             name: data.name || data.username,
-            role: data.role || (cleanUser === 'aquino' ? 'admin' : 'player')
+            role: data.role || 'player'
           };
           // Sincronizar conta local com os dados da nuvem
           try {
@@ -150,7 +116,7 @@ const AFM_DB = (function(){
           id: local.id || local.username,
           username: local.username,
           name: local.name || local.username,
-          role: local.role || (cleanUser === 'aquino' ? 'admin' : 'player')
+          role: local.role || 'player'
         };
         // Tentar enviar conta ao Supabase em background se o cliente estiver ativo
         if(client){
@@ -184,7 +150,8 @@ const AFM_DB = (function(){
 
     await init();
 
-    const role = (cleanUser === 'aquino') ? 'admin' : 'player';
+    // Signup never grants administrative privileges by username.
+    const role = 'player';
 
     // 1. Tentar cadastrar no Supabase
     if(client){
@@ -265,10 +232,13 @@ const AFM_DB = (function(){
   }
 
   async function getSaves(targetUsername){
-    const clean = (targetUsername || currentUser?.username || 'aquino').trim().toLowerCase();
+    const clean = (currentUser?.username || '').trim().toLowerCase();
+    if(!clean || (targetUsername && String(targetUsername).trim().toLowerCase() !== clean)) return { ok: false, error: 'Sessão de usuário não encontrada.' };
     if(!client) return { ok: false, error: 'Supabase não conectado' };
     try {
       await init();
+      const authSession = await client.auth?.getSession?.();
+      if(!authSession?.data?.session?.user?.id) return { ok: false, error: 'Autenticação do provedor não está ativa.' };
       const { data, error } = await client
         .from('afm_saves')
         .select('*')
@@ -306,12 +276,15 @@ const AFM_DB = (function(){
     const slot = Number(slotNum);
     if(!Number.isInteger(slot) || slot < 1 || slot > 3 || !state.club) return { ok: false, error: 'Save inválido.' };
 
-    const cleanUser = (username || currentUser?.username || 'aquino').trim().toLowerCase();
+    const cleanUser = (currentUser?.username || '').trim().toLowerCase();
+    if(!cleanUser || (username && String(username).trim().toLowerCase() !== cleanUser)) return { ok: false, error: 'Sessão inválida para salvar este jogo.' };
 
     if(!client) return { ok: true, localOnly: true };
 
     try {
       await init();
+      const authSession = await client.auth?.getSession?.();
+      if(!authSession?.data?.session?.user?.id) return { ok: false, error: 'Autenticação do provedor não está ativa.' };
       const payload = {
         username: cleanUser,
         slot,
@@ -342,10 +315,13 @@ const AFM_DB = (function(){
   }
 
   async function deleteSlot(username, slotNum){
-    const cleanUser = (username || currentUser?.username || 'aquino').trim().toLowerCase();
+    const cleanUser = (currentUser?.username || '').trim().toLowerCase();
+    if(!cleanUser || (username && String(username).trim().toLowerCase() !== cleanUser)) return { ok: false, error: 'Sessão inválida para excluir este save.' };
     if(!client) return { ok: true, localOnly: true };
     try {
       await init();
+      const authSession = await client.auth?.getSession?.();
+      if(!authSession?.data?.session?.user?.id) return { ok: false, error: 'Autenticação do provedor não está ativa.' };
       const { error } = await client
         .from('afm_saves')
         .delete()
@@ -361,7 +337,8 @@ const AFM_DB = (function(){
 
   async function syncUser(targetUsername){
     if(syncInProgress) return { ok: true };
-    const cleanUser = (targetUsername || currentUser?.username || 'aquino').trim().toLowerCase();
+    const cleanUser = (currentUser?.username || '').trim().toLowerCase();
+    if(!cleanUser || (targetUsername && String(targetUsername).trim().toLowerCase() !== cleanUser)) return { ok: false, error: 'Sessão inválida para sincronizar saves.' };
     syncInProgress = true;
     try {
       const result = await getSaves(cleanUser);
@@ -370,7 +347,7 @@ const AFM_DB = (function(){
       const accounts = JSON.parse(localStorage.getItem(storageKey) || '[]');
       let account = accounts.find(item => (item.username || '').toLowerCase() === cleanUser);
       if(!account){
-        account = { username: cleanUser, name: cleanUser, role: cleanUser === 'aquino' ? 'admin' : 'player', saves: [] };
+        account = { username: cleanUser, name: cleanUser, role: 'player', saves: [] };
         accounts.push(account);
       }
       account.saves = account.saves || [];
@@ -429,7 +406,7 @@ const AFM_DB = (function(){
       mergedMap.set(u, {
         username: acc.username,
         name: acc.name || acc.username,
-        role: (u === 'aquino' ? 'admin' : (acc.role || 'player')),
+        role: (acc.role || (u === 'admin' ? 'admin' : 'player')),
         createdAt: acc.createdAt || 'Local',
         savesCount: (acc.saves || []).length,
         source: 'local'
@@ -442,7 +419,7 @@ const AFM_DB = (function(){
       mergedMap.set(u, {
         username: cu.username,
         name: cu.name || existing?.name || cu.username,
-        role: (u === 'aquino' ? 'admin' : (cu.role || existing?.role || 'player')),
+        role: (cu.role || existing?.role || (u === 'admin' ? 'admin' : 'player')),
         createdAt: cu.created_at || existing?.createdAt || 'Nuvem',
         savesCount: existing?.savesCount || 0,
         source: existing ? 'sincronizado' : 'nuvem'
@@ -454,8 +431,9 @@ const AFM_DB = (function(){
   async function adminUpsertUser({ username, password, name, role }){
     const cleanUser = (username || '').trim().toLowerCase();
     if(!cleanUser) return { ok: false, error: 'Nome de usuário inválido.' };
+    if(!currentUser || currentUser.username?.toLowerCase() !== 'admin' || currentUser.role !== 'admin') return { ok: false, error: 'Sessão administrativa necessária.' };
     await init();
-    const cleanRole = cleanUser === 'aquino' ? 'admin' : (role || 'player');
+    const cleanRole = cleanUser === 'admin' ? 'admin' : (role || 'player');
     const cleanName = (name || '').trim() || cleanUser;
     
     const accounts = JSON.parse(localStorage.getItem('afm_accounts_v1') || '[]');
@@ -482,7 +460,8 @@ const AFM_DB = (function(){
 
   async function adminDeleteUser(username){
     const cleanUser = (username || '').trim().toLowerCase();
-    if(cleanUser === 'aquino') return { ok: false, error: 'A conta mestre do Administrador não pode ser excluída.' };
+    if(!currentUser || currentUser.username?.toLowerCase() !== 'admin' || currentUser.role !== 'admin') return { ok: false, error: 'Sessão administrativa necessária.' };
+    if(cleanUser === 'admin') return { ok: false, error: 'A conta mestre do Administrador não pode ser excluída.' };
     await init();
     
     const accounts = JSON.parse(localStorage.getItem('afm_accounts_v1') || '[]');
@@ -542,7 +521,7 @@ const AFM_DB = (function(){
     resetPassword,
     signOut,
     getUser: () => currentUser,
-    isAdmin: () => currentUser?.role === 'admin' || (currentUser?.username || '').toLowerCase() === 'aquino',
+    isAdmin: () => currentUser?.role === 'admin' && (currentUser?.username || '').toLowerCase() === 'admin',
     getSaves,
     saveSlot,
     deleteSlot,

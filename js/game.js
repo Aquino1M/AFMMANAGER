@@ -6819,6 +6819,14 @@ function getClubPrimaryCompetitionId(clubName, preferredCompId = null){
   const nameNorm = norm(clubName);
   const tMap = window.COMPETITION_TEAMS || {};
 
+  // A promoted club's explicit saved division has priority over stale historical
+  // club metadata, even while the global roster is being hydrated.
+  if(['bra-a','bra-b','bra-c','bra-d'].includes(preferredCompId) && compById(preferredCompId)){
+    const savedTeams = Array.isArray(state?.teams) ? state.teams : [];
+    const persistedRoster = state?.competitionTeams?.[preferredCompId] || tMap[preferredCompId] || [];
+    if(savedTeams.some(team => norm(team?.name) === nameNorm) || persistedRoster.some(team => norm(typeof team === 'string' ? team : team?.name) === nameNorm)) return preferredCompId;
+  }
+
   // Em saves de temporadas anteriores, a divisão nacional salva é dinâmica e deve prevalecer
   // sobre o catálogo histórico fixo do clube, desde que o clube conste na divisão salva.
   if(['bra-a','bra-b','bra-c','bra-d'].includes(preferredCompId) && compById(preferredCompId) && Array.isArray(tMap[preferredCompId])){
@@ -8453,6 +8461,10 @@ function repairLegacyNationalCompetitionRosters(s){
   // o rebaixe para o estadual só porque a lista salva precisa ser normalizada.
   const hasValidSavedNationalDivision = divisionIds.includes(s.compId)
     && (Array.isArray(savedMap[s.compId]) && savedMap[s.compId].some(name => norm(name) === norm(s.club)));
+  // A complete, saved national roster is authoritative for this career even if
+  // the static club object (or an old state roster) still points to its old league.
+  if(hasValidSavedNationalDivision && actual[s.compId].length === expectedSizes[s.compId]
+    && !hasInvalidRosterSizes && !actual[s.compId].some(name => !name.trim())) return false;
   if(hasValidSavedNationalDivision && actual[s.compId].length === expectedSizes[s.compId]
     && !hasCrossDivisionDuplicates && !hasInvalidRosterSizes && !hasUserDivisionMismatch) return false;
   if(!hasCrossDivisionDuplicates && !hasInvalidRosterSizes && !hasUserDivisionMismatch) return false;
@@ -8491,10 +8503,76 @@ function repairLegacyNationalCompetitionRosters(s){
   return true;
 }
 
+function repairEarnedStatePromotion(s){
+  if(!s || norm(s.club) !== 'brasilia' || ['bra-a','bra-b','bra-c','bra-d'].includes(s.compId)) return false;
+  const explicitlyRequested = s.nextSeasonCompId === 'bra-d' || s.pendingPromotion?.toCompId === 'bra-d';
+  const previousSeason = Number(s.season) - 1;
+  const competitionEvidence = (Array.isArray(s.competitionHistory) ? s.competitionHistory : []).some(item => {
+    if(Number(item.season) !== previousSeason || item.competitionId !== 'bra-est-df') return false;
+    const rank = Array.isArray(item.ranking) ? item.ranking : [];
+    const index = rank.findIndex(row => norm(typeof row === 'string' ? row : row?.name) === 'brasilia');
+    return index >= 0 && index < 2;
+  });
+  const seasonEvidence = (Array.isArray(s.seasonHistory) ? s.seasonHistory : []).some(item =>
+    Number(item.season) === previousSeason && norm(item.userClub || s.club) === 'brasilia'
+    && Number(item.userPosition) >= 1 && Number(item.userPosition) <= 2
+    && /candango|estadual|bras[ií]lia/i.test(String(item.compName || '')));
+  if(!explicitlyRequested && !competitionEvidence && !seasonEvidence) return false;
+
+  const ids = ['bra-a','bra-b','bra-c','bra-d'];
+  const expected = {'bra-a':20,'bra-b':20,'bra-c':20,'bra-d':96};
+  const map = Object.assign({}, window.COMPETITION_TEAMS || {}, s.competitionTeams || {});
+  const clean = id => [...new Map((Array.isArray(map[id]) ? map[id] : []).filter(name => typeof name === 'string' && name.trim()).map(name => [norm(name), name])).values()];
+  const national = Object.fromEntries(ids.map(id => [id, clean(id).slice(0, expected[id])]));
+  if(ids.some(id => national[id].length !== expected[id])) return false;
+  const all = ids.flatMap(id => national[id].map(norm));
+  if(new Set(all).size !== all.length) return false;
+
+  const target = national['bra-d'];
+  if(!target.some(name => norm(name) === 'brasilia')){
+    const displaced = [...(s.nationalCompetitionStandings?.['bra-d'] || [])].reverse()
+      .find(row => norm(typeof row === 'string' ? row : row?.name) !== 'brasilia');
+    const displacedName = displaced ? (typeof displaced === 'string' ? displaced : displaced.name) : target[target.length - 1];
+    if(!displacedName) return false;
+    const at = target.findIndex(name => norm(name) === norm(displacedName));
+    if(at < 0) return false;
+    target[at] = s.club;
+    const sourceId = 'bra-est-df';
+    const stateRoster = clean(sourceId);
+    const userIndex = stateRoster.findIndex(name => norm(name) === 'brasilia');
+    if(userIndex >= 0) stateRoster[userIndex] = displacedName;
+    else if(!stateRoster.some(name => norm(name) === norm(displacedName))) stateRoster.push(displacedName);
+    map[sourceId] = stateRoster;
+  }
+
+  for(const id of ids) map[id] = national[id];
+  window.COMPETITION_TEAMS = Object.assign(window.COMPETITION_TEAMS || {}, map);
+  if(typeof teamMap === 'object' && teamMap) Object.assign(teamMap, map);
+  s.competitionTeams = clone(window.COMPETITION_TEAMS);
+  s.compId = 'bra-d';
+  const comp = compById('bra-d');
+  s.competition = comp?.name || 'Campeonato Brasileiro Série D';
+  s.currentLeague = s.competition;
+  const activeClub = clubByName(s.club);
+  if(activeClub){activeClub.competition=s.competition;activeClub.currentLeague=s.currentLeague;}
+  const previousTeams = new Map((Array.isArray(s.teams) ? s.teams : []).map(team => [norm(team?.name), team]));
+  s.teams = national['bra-d'].map(name => previousTeams.get(norm(name)) || ({name,strength:teamStrengthByName(name),j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,p:0,form:[]}));
+  s.schedule = buildSchedule(comp, s.teams.map(team => team.name));
+  s.round = 0;
+  delete s.nextSeasonCompId;
+  delete s.pendingPromotion;
+  s.competitionPromotionRecovery = { from:'bra-est-df', to:'bra-d', season:Number(s.season), reason:explicitlyRequested?'pending-season-transition':'earned-state-ranking' };
+  s.news = Array.isArray(s.news) ? s.news : [];
+  s.news.unshift('✅ ACESSO RECUPERADO: o histórico confirmou a classificação do Brasília e a carreira foi sincronizada com o Campeonato Brasileiro Série D.');
+  s.news = s.news.slice(0,50);
+  return true;
+}
+
 function repairSaveIfCorrupted(s){
   if(!s || !s.club) return false;
+  const earnedPromotionRepaired = repairEarnedStatePromotion(s);
   const rosterRepaired = repairLegacyNationalCompetitionRosters(s);
-  let saveRequired = rosterRepaired;
+  let saveRequired = earnedPromotionRepaired || rosterRepaired;
   let metadataChanged = false;
   const primaryCompId = getClubPrimaryCompetitionId(s.club, s.compId);
   const curCompId = s.compId;
@@ -8507,8 +8585,9 @@ function repairSaveIfCorrupted(s){
   // Não sobrescreva uma divisão nacional válida com o vínculo histórico do clube.
   const isBrasiliaInWrongComp = norm(s.club) === 'brasilia' && curCompId !== 'bra-est-df'
     && !(['bra-a','bra-b','bra-c','bra-d'].includes(curCompId)
-      && Array.isArray(window.COMPETITION_TEAMS?.[curCompId])
-      && window.COMPETITION_TEAMS[curCompId].some(name => norm(name) === norm(s.club)));
+      && ((Array.isArray(s.competitionTeams?.[curCompId]) && s.competitionTeams[curCompId].some(name => norm(name) === norm(s.club)))
+        || (Array.isArray(window.COMPETITION_TEAMS?.[curCompId]) && window.COMPETITION_TEAMS[curCompId].some(name => norm(name) === norm(s.club)))
+        || (Array.isArray(s.teams) && s.teams.some(team => norm(team?.name) === norm(s.club)))));
   const isClubMissingFromTeams = !Array.isArray(s.teams) || s.teams.length === 0 || !s.teams.some(t => norm(t.name) === norm(s.club));
   const isSelfMatchBug = Array.isArray(s.schedule) && s.schedule.some(rnd => Array.isArray(rnd) && rnd.some(g => Array.isArray(g) && g.length >= 2 && norm(g[0]) === norm(g[1])));
   const isScheduleEmptyOrNoUser = !Array.isArray(s.schedule) || s.schedule.length === 0 || !s.schedule.some(roundGames => Array.isArray(roundGames) && roundGames.some(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === norm(s.club) || norm(g[1]) === norm(s.club))));
@@ -8529,8 +8608,10 @@ function repairSaveIfCorrupted(s){
       || activeNationalRoster.some(name => !savedTeamKeys.has(norm(name))));
   // Saves de temporadas anteriores podem trazer a divisão histórica fixa no catálogo;
   // uma divisão nacional válida salva deve prevalecer após promoção/rebaixamento.
-  const isValidSavedNationalDivision = ['bra-a','bra-b','bra-c','bra-d'].includes(curCompId) && compById(curCompId) && Array.isArray(teamMap[curCompId])
-    && (teamMap[curCompId].some(name => norm(name) === normalizedClub) || (Array.isArray(s.teams) && s.teams.some(team => norm(team?.name) === normalizedClub)));
+  const activeSavedRoster = s.competitionTeams?.[curCompId] || window.COMPETITION_TEAMS?.[curCompId] || teamMap[curCompId];
+  const isValidSavedNationalDivision = ['bra-a','bra-b','bra-c','bra-d'].includes(curCompId) && compById(curCompId)
+    && ((Array.isArray(activeSavedRoster) && activeSavedRoster.some(item => norm(typeof item === 'string' ? item : item?.name) === normalizedClub))
+      || (Array.isArray(s.teams) && s.teams.some(team => norm(team?.name) === normalizedClub)));
   const isCompMismatched = primaryCompId && curCompId !== primaryCompId && !isValidSavedNationalDivision && (!compById(curCompId) || !teamMap[curCompId] || isBrasiliaInWrongComp || isAcreanoBug);
   
   // Sincroniza s.competition e o clube do usuário com a competição ativa de curCompId
@@ -8591,7 +8672,7 @@ function repairSaveIfCorrupted(s){
     s.round = Math.min(Number(s.round) || 0, Math.max(0, s.schedule.length - 1));
   }
 
-  if(isAcreanoBug || isBrasiliaInWrongComp || isClubMissingFromTeams || isSelfMatchBug || isScheduleEmptyOrNoUser || isCompMismatched){
+  if(isAcreanoBug || (isBrasiliaInWrongComp && !isValidSavedNationalDivision) || isClubMissingFromTeams || isSelfMatchBug || isScheduleEmptyOrNoUser || (isCompMismatched && !isValidSavedNationalDivision)){
     const targetCompId = (norm(s.club) === 'brasilia' && !isValidSavedNationalDivision ? 'bra-est-df' : (primaryCompId || curCompId || 'bra-est-df'));
     const comp = compById(targetCompId) || compById('bra-est-df');
     if(comp){

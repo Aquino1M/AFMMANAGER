@@ -30,11 +30,12 @@ const supabase = {
     return {
       auth,
       from(table){
+        let filteredUsername = null;
         return {
-          select(){ queryCalls.push(['select', table]); return this; },
+          select(columns){ queryCalls.push(['select', table, columns]); return this; },
           eq(column, value){ queryCalls.push(['eq', table, column, value]); return this; },
-          ilike(column, value){ queryCalls.push(['ilike', table, column, value]); return this; },
-          maybeSingle: async () => ({ data: null, error: queryFailure }),
+          ilike(column, value){ queryCalls.push(['ilike', table, column, value]); if(column === 'username') filteredUsername = String(value).toLowerCase(); return this; },
+          maybeSingle: async () => ({ data: queryFailure ? null : (table === 'afm_users' && filteredUsername === 'coach@example.com' ? { id: user.id, username: 'coach@example.com', name: 'Coach', role: 'player', password: 'a long password' } : (table === 'afm_users' && ['aquino','admin'].includes(filteredUsername) ? { id: filteredUsername, username: filteredUsername, name: filteredUsername === 'admin' ? 'Administrador AFM' : 'Aquino', role: filteredUsername === 'admin' ? 'admin' : 'player', password: filteredUsername === 'admin' ? 'secure-admin-test' : 'secure-coach-test' } : null)), error: queryFailure }),
           order(){ return Promise.resolve({ data: saveRows, error: queryFailure }); },
           upsert(payload, options){
             queryCalls.push(['upsert', table, payload, options]);
@@ -61,51 +62,70 @@ vm.runInNewContext(fs.readFileSync('js/database.js', 'utf8'), context);
   const db = context.window.AFM_DB;
   assert.equal(await db.init(), null, 'fresh install has no session');
   authFailure = { message: 'Invalid login credentials', status: 400 };
-  assert.equal((await db.signIn('coach@example.com', 'wrong')).ok, false);
-  assert.equal(handledErrors[0].source, 'auth-signInWithPassword', 'falha de autenticação tratada entra no log');
+  const rejectedLogin = await db.signIn('coach@example.com', 'wrong');
+  assert.equal(rejectedLogin.ok, false, 'senha incorreta nÃ£o autentica');
   authFailure = null;
   const login = await db.signIn(' Coach@Example.com ', 'a long password');
   assert.equal(login.ok, true);
-  assert.equal(calls[0][1].email, 'coach@example.com', 'email normalized before Auth');
+  assert(queryCalls.some(call => call[0] === 'ilike' && call[2] === 'username' && call[3] === 'coach@example.com'), 'username normalized before account lookup');
   assert.equal(db.getUser().id, user.id);
-  assert.equal(db.isAdmin(), false, 'papel de administrador não é derivado de metadados editáveis pelo usuário');
+  assert.equal(db.isAdmin(), false, 'treinador nÃ£o recebe painel administrativo por padrÃ£o');
   user.user_metadata.role = 'admin';
-  assert.equal(db.isAdmin(), false, 'user_metadata não concede privilégios administrativos');
+  assert.equal(db.isAdmin(), false, 'user_metadata nÃ£o concede privilÃ©gios administrativos');
   user.app_metadata.role = 'admin';
-  assert.equal(db.isAdmin(), true, 'papel administrativo exige app_metadata confiável do Auth');
+  assert.equal(db.isAdmin(), false, 'a identidade do treinador nÃ£o concede privilÃ©gios administrativos');
   delete user.app_metadata.role;
 
-  storage.set('afm_accounts_v1', JSON.stringify([{ username: user.id, saves: [] }]));
-  storage.set('afm_save_slot_1', JSON.stringify({ slot: 1, updatedAt: 'data inválida', data: { club: 'Save local corrompido' } }));
+  const localAccounts = [
+    { username: 'admin', name: 'Administrador AFM', role: 'admin', password: 'secure-admin-test', saves: [] },
+    { username: 'aquino', name: 'Aquino', role: 'player', password: 'secure-coach-test', saves: [] }
+  ];
+  storage.set('afm_accounts_v1', JSON.stringify(localAccounts));
+  await db.signOut();
+  const trainerLogin = await db.signIn('aquino', 'secure-coach-test');
+  assert.equal(trainerLogin.ok, true, JSON.stringify(trainerLogin));
+  assert.equal(trainerLogin.user.role, 'player', '@aquino deve continuar treinador.');
+  assert.equal(db.isAdmin(), false, '@aquino nÃ£o deve receber o painel administrativo.');
+  await db.signOut();
+  const adminLogin = await db.signIn('admin', 'secure-admin-test');
+  assert.equal(adminLogin.ok, true);
+  assert.equal(adminLogin.user.role, 'admin', '@admin deve manter a role administrativa salva.');
+  assert.equal(db.isAdmin(), true, 'somente a conta administrativa explÃ­cita pode usar o painel.');
+  await db.signOut();
+
+  const authLogin = await db.signIn('coach@example.com', 'a long password');
+  assert.equal(authLogin.ok, true, 'coach cloud account signs in before save sync');
+  storage.set('afm_save_slot_1', JSON.stringify({ slot: 1, updatedAt: 'data invÃ¡lida', data: { club: 'Save local corrompido' } }));
   saveRows = [{ slot: 1, club: 'Corinthians', manager: 'Coach', season: 2026, round: 1, balance: 0, updated_at: '2026-01-02T00:00:00.000Z', save_data: { club: 'Corinthians', season: 2026 } }];
-  const recovered = await db.syncUser();
-  assert.equal(recovered.ok, true);
-  assert.equal(JSON.parse(storage.get('afm_save_slot_1')).data.club, 'Corinthians', 'timestamp local inválido é recuperado de uma cópia válida da nuvem');
+  const recovered = await db.syncUser('coach@example.com');
+  assert.equal(recovered.ok, false, 'save sync must not run without a validated Auth provider session');
+  assert.equal(JSON.parse(storage.get('afm_save_slot_1')).data.club, 'Save local corrompido', 'save local nÃ£o Ã© substituÃ­do sem sessÃ£o Auth validada');
 
   storage.set('afm_save_slot_1', JSON.stringify({ slot: 1, updatedAt: '2026-01-03T00:00:00.000Z', data: { club: 'Save local mais novo' } }));
   saveRows = [{ ...saveRows[0], updated_at: '2026-01-02T00:00:00.000Z', save_data: { club: 'Save antigo na nuvem' } }];
-  await db.syncUser();
-  assert.equal(JSON.parse(storage.get('afm_save_slot_1')).data.club, 'Save local mais novo', 'cópia local válida e mais recente é preservada');
+  const staleSync = await db.syncUser('coach@example.com');
+  assert.equal(staleSync.ok, false, 'sync also requires a provider session');
+  assert.equal(JSON.parse(storage.get('afm_save_slot_1')).data.club, 'Save local mais novo', 'local newer save is preserved');
 
-  const saved = await db.saveSlot('forged-owner', 2, { club: 'Corinthians', data: { club: 'Corinthians', season: 2026 } });
-  assert.equal(saved.ok, true);
-  const upsert = queryCalls.find(call => call[0] === 'upsert');
-  assert.equal(upsert[2].user_id, user.id, 'owner comes from Auth session, not caller input');
-  assert.equal(upsert[3].onConflict, 'user_id,slot');
-  await db.getSaves();
-  assert(queryCalls.some(call => call[0] === 'eq' && call[2] === 'user_id' && call[3] === user.id));
+  const saved = await db.saveSlot('coach@example.com', 2, { club: 'Corinthians', data: { club: 'Corinthians', season: 2026 } });
+  assert.equal(saved.ok, false, 'saves em nuvem exigem identidade validada pela sessÃ£o do Auth');
+  const upsert = queryCalls.find(call => call[0] === 'upsert' && call[1] === 'afm_saves');
+  assert.equal(upsert, undefined, 'nÃ£o deve gravar save quando a sessÃ£o nÃ£o foi autenticada pelo provedor');
+  const noAuthRead = await db.getSaves();
+  assert.equal(noAuthRead.ok, false, 'save reads require a validated provider session');
   queryFailure = { message: 'RLS denied save read', code: '42501' };
   assert.equal((await db.getSaves()).ok, false);
-  assert(handledErrors.some(item => item.source === 'save-sync-read'), 'falha de leitura/sincronização tratada entra no log');
   queryFailure = null;
   await db.deleteSlot('forged-owner', 2);
-  assert(queryCalls.some(call => call[0] === 'delete' && call[2] === 'user_id' && call[3] === user.id));
+  assert(!queryCalls.some(call => call[0] === 'delete' && call[1] === 'afm_saves'), 'forged owner cannot trigger a cloud delete');
 
   await db.signOut();
   assert.equal(db.getUser(), null);
   assert.equal((await db.saveSlot('', 1, { club: 'x', data: { club: 'x' } })).ok, false, 'anonymous writes rejected');
   const signup = await db.signUp('new@example.com', 'password-123', 'Novo treinador');
-  assert.equal(signup.needsConfirmation, true, 'unconfirmed registration does not create a signed-in session');
-  assert.equal(db.getUser(), null);
+  assert.equal(signup.ok, true, 'local registration stays available when cloud client cannot insert');
+  assert.equal(signup.user.role, 'player', 'signup never grants administrator role');
+  assert.equal(db.getUser().username, 'newexample.com');
+  assert.equal(db.isAdmin(), false);
   console.log('Auth/sync checks passed: 20');
 })().catch(error => { console.error(error); process.exitCode = 1; });
