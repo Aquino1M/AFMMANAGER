@@ -13,6 +13,8 @@
     "test:calendar-recovery": "node scripts/test-calendar-recovery.js",
     "test:username-login": "node scripts/test-username-login.js",
     "test:stadium-progression": "node scripts/test-stadium-progression.js",
+    "test:halftime-layout": "node scripts/test-halftime-layout.js",
+    "test:offer-expiry": "node scripts/test-offer-expiry.js",
     "start": "npx serve .",
     "dev": "npx serve ."
   },

@@ -2172,7 +2172,10 @@ function generateStadiumRentalProposal(force = false){
   state.stadiumClubRental = {
     club: randomClub,
     fee: baseFee,
-    wear: 6
+    wear: 6,
+    receivedRound: Number(state.round) || 0,
+    expiresAfterRound: (Number(state.round) || 0) + 3,
+    receivedDate: state.date
   };
   return state.stadiumClubRental;
 }
@@ -2239,9 +2242,65 @@ function generateStadiumEventProposal(force = false){
 
   state.stadiumEventProposal = {
     name: chosen.name,
-    fee: baseFee
+    fee: baseFee,
+    receivedRound: Number(state.round) || 0,
+    expiresAfterRound: (Number(state.round) || 0) + 3,
+    receivedDate: state.date
   };
   return state.stadiumEventProposal;
+}
+
+// Offers stay actionable through two complete rounds after being received.
+// Legacy metadata is migrated once and then persisted by the normal save routine.
+function expireRoundLimitedOffers(currentRound = Number(state?.round) || 0){
+  if(!state) return { expiredBids:0, expiredRental:false, expiredShow:false };
+  let expiredBids = 0, expiredRental = false, expiredShow = false;
+  const round = Number(currentRound) || 0;
+  const migrateOffer = offer => {
+    if(!offer || typeof offer !== 'object') return;
+    const receivedIsKnown = offer.receivedRound !== undefined && offer.receivedRound !== null && Number.isFinite(Number(offer.receivedRound));
+    if(!receivedIsKnown){
+      offer.receivedRound = round;
+      offer.expiresAfterRound = round + 3;
+      offer.expiryMetadataMigrated = true;
+      return;
+    }
+    offer.receivedRound = Number(offer.receivedRound);
+    const expiryIsKnown = offer.expiresAfterRound !== undefined && offer.expiresAfterRound !== null && Number.isFinite(Number(offer.expiresAfterRound));
+    offer.expiresAfterRound = expiryIsKnown ? Number(offer.expiresAfterRound) : offer.receivedRound + 3;
+  };
+  state.incomingBids = Array.isArray(state.incomingBids) ? state.incomingBids : [];
+  state.incomingBids = state.incomingBids.filter(bid => {
+    migrateOffer(bid);
+    if(round > bid.expiresAfterRound){ expiredBids++; return false; }
+    return true;
+  });
+  if(state.stadiumClubRental){
+    const offer = state.stadiumClubRental;
+    migrateOffer(offer);
+    if(round > offer.expiresAfterRound){ state.stadiumClubRental = null; expiredRental = true; }
+  }
+  if(state.stadiumEventProposal){
+    const offer = state.stadiumEventProposal;
+    migrateOffer(offer);
+    if(round > offer.expiresAfterRound){
+      const eventName = offer.name;
+      state.stadiumEventProposal = null;
+      state.news = (state.news || []).filter(item => !(String(item).includes(eventName) && (String(item).includes('CONVITE PARA EVENTO:') || String(item).includes('PROPOSTA DE EVENTO:'))));
+      expiredShow = true;
+    }
+  }
+  if(expiredBids || expiredRental || expiredShow){
+    state.news = Array.isArray(state.news) ? state.news : [];
+    if(expiredBids) state.news.unshift(`⏰ ${expiredBids} proposta(s) milionária(s) expiraram após duas rodadas sem resposta. A oportunidade foi perdida.`);
+    if(expiredRental) state.news.unshift('⏰ A proposta de aluguel do estádio expirou após duas rodadas sem resposta.');
+    if(expiredShow) state.news.unshift('⏰ O convite para show no estádio expirou após duas rodadas sem resposta.');
+    state.news = state.news.slice(0, 50);
+    if(typeof save === 'function') save();
+    if(typeof renderHomeBidsBanner === 'function') renderHomeBidsBanner();
+    if(typeof render === 'function' && typeof document !== 'undefined' && document.getElementById('alertPendingDecisionBadge')) render();
+  }
+  return { expiredBids, expiredRental, expiredShow };
 }
 
 function acceptEventConcert(returnToCentral = false){
@@ -2254,7 +2313,7 @@ function acceptEventConcert(returnToCentral = false){
   const wear = state.stadiumPitchType === 'synthetic' ? 4 : 18;
   state.stadiumMaintenance = Math.max(10, (state.stadiumMaintenance || 90) - wear);
   state.lastStadiumEvent = { type: 'concert', name: ev.name, fee, date: state.date };
-  state.news = (state.news || []).filter(item => !(String(item).includes('CONVITE PARA EVENTO:') && String(item).includes(ev.name)));
+  state.news = (state.news || []).filter(item => !(String(item).includes(ev.name) && (String(item).includes('CONVITE PARA EVENTO:') || String(item).includes('PROPOSTA DE EVENTO:'))));
   toast(`🎉 ${ev.name} autorizado! +${fmtMoney(fee)} arrecadados com aluguel do estádio!`);
   addNews(`Megaevento realizado no estádio: ${ev.name}. Renda líquida extraordinária de ${fmtMoney(fee)}.`);
   state.stadiumEventProposal = null;
@@ -2268,7 +2327,7 @@ function rejectEventConcert(returnToCentral = false){
   if(!state.stadiumEventProposal) return;
   const eventName = state.stadiumEventProposal.name;
   toast('Convite para show cultural recusado.');
-  state.news = (state.news || []).filter(item => !(String(item).includes('CONVITE PARA EVENTO:') && String(item).includes(eventName)));
+  state.news = (state.news || []).filter(item => !(String(item).includes(eventName) && (String(item).includes('CONVITE PARA EVENTO:') || String(item).includes('PROPOSTA DE EVENTO:'))));
   state.stadiumEventProposal = null;
   save();
   if(!returnToCentral) openStadiumModal();
@@ -10417,6 +10476,7 @@ function finalizeRound(userRes, winners, isKO){
     }
   }
   state.round++;
+  if(typeof expireRoundLimitedOffers === 'function') expireRoundLimitedOffers(state.round);
   // Aporte semanal em marketing (rebalanceado por rodada)
   const mktWeeklyExp = Math.max(2500, Number(state.marketingWeekly) || 12000);
   state.balance -= mktWeeklyExp;
@@ -10647,7 +10707,8 @@ function finalizeRound(userRes, winners, isKO){
         { name: 'Festival VillaMix & Sertanejo', fee: 420000 },
         { name: 'Festival de Trap & Rap Nacional', fee: 310000 }
       ];
-      state.stadiumEventProposal = shows[rnd(0, shows.length - 1)];
+      const show = shows[rnd(0, shows.length - 1)];
+      state.stadiumEventProposal = { ...show, receivedRound:Number(state.round)||0, expiresAfterRound:(Number(state.round)||0)+3, receivedDate:state.date };
       state.news.unshift(`🎤 CONVITE PARA EVENTO: A produção do ${state.stadiumEventProposal.name} quer alugar nosso estádio por ${fmtMoney(state.stadiumEventProposal.fee)}!`);
     }
 
@@ -10657,7 +10718,10 @@ function finalizeRound(userRes, winners, isKO){
       const rentingClub = clubsNeedingStadium[rnd(0, clubsNeedingStadium.length - 1)];
       state.stadiumClubRental = {
         club: rentingClub,
-        fee: rnd(45000, 95000)
+        fee: rnd(45000, 95000),
+        receivedRound: Number(state.round) || 0,
+        expiresAfterRound: (Number(state.round) || 0) + 3,
+        receivedDate: state.date
       };
       state.news.unshift(`🏟️ PROPOSTA DE ALUGUEL: O ${rentingClub} quer alugar nosso estádio na próxima rodada por ${fmtMoney(state.stadiumClubRental.fee)}.`);
     }
@@ -10710,7 +10774,8 @@ function showSellOnFeeNotificationModal(clause, destClub, resoldFee, myProfit){
   const old = document.getElementById(modalId);
   if(old) old.remove();
 
-  const pct = clause.sharePct || 20;
+  const pctRaw = clause.sharePct !== undefined && clause.sharePct !== null ? Number(clause.sharePct) : (clause.sellOnPct !== undefined && clause.sellOnPct !== null ? Number(clause.sellOnPct) : 20);
+  const pct = Number.isFinite(pctRaw) ? Math.max(0, Math.min(100, pctRaw)) : 20;
   const m = document.createElement('div');
   m.id = modalId;
   m.className = 'modal-backdrop';
@@ -10836,15 +10901,18 @@ function simulateAITransfers(){
     if(clause){
       const euroClubs = ['Real Madrid', 'Manchester City', 'Arsenal', 'Paris SG', 'Bayern de Munique', 'Chelsea', 'Juventus', 'Sporting CP', 'Benfica', 'Porto', 'Al-Hilal', 'Inter de Milão'];
       const destClub = euroClubs[rnd(0, euroClubs.length - 1)];
-      const baseVal = clause.initialPrice || 12000000;
+      const initialPrice = clause.initialPrice !== undefined && clause.initialPrice !== null ? Number(clause.initialPrice) : Number(clause.originalFee);
+      const baseVal = Number.isFinite(initialPrice) && initialPrice > 0 ? initialPrice : 12000000;
       const resoldFee = Math.round(baseVal * (rnd(135, 275) / 100));
-      const sellOnPct = (clause.sharePct || 20) / 100;
+      const pctRaw = clause.sharePct !== undefined && clause.sharePct !== null ? Number(clause.sharePct) : (clause.sellOnPct !== undefined && clause.sellOnPct !== null ? Number(clause.sellOnPct) : 20);
+      const pct = Number.isFinite(pctRaw) ? Math.max(0, Math.min(100, pctRaw)) : 20;
+      const sellOnPct = pct / 100;
       const myProfit = Math.round(resoldFee * sellOnPct);
 
       state.balance = (state.balance || 0) + myProfit;
       state.income = (state.income || 0) + myProfit;
       state.news = state.news || [];
-      state.news.unshift(`💰 VENDA FUTURA CONFIRMADA! ${clause.buyer} revendeu ${clause.playerName} para o ${destClub} por ${fmtMoney(resoldFee)}. Seu clube recebeu ${fmtMoney(myProfit)} referente aos 20% da cláusula de revenda!`);
+      state.news.unshift(`💰 VENDA FUTURA CONFIRMADA! ${clause.buyer || clause.club || 'O clube comprador'} revendeu ${clause.playerName} para o ${destClub} por ${fmtMoney(resoldFee)}. Seu clube recebeu ${fmtMoney(myProfit)} referente aos ${pct}% da cláusula de revenda!`);
       if(state.news.length > 50) state.news = state.news.slice(0, 50);
 
       state.marketWorldFeed = Array.isArray(state.marketWorldFeed) ? state.marketWorldFeed : [];
@@ -10906,6 +10974,7 @@ function checkIncomingPlayerBids(){
           date: state.date, playerKey: targetKey, playerName: arabicTarget.name,
           ovr: playerOverall(arabicTarget), club: buyer, fee, sellOnPct: 0,
           counterOffered: false, offerType: 'arabic', transferMultiplier,
+          receivedRound: Number(state.round) || 0, expiresAfterRound: (Number(state.round) || 0) + 3,
           offeredSalary, salaryMultiplier, discontentDays: 42
         });
         state.news = Array.isArray(state.news) ? state.news : [];
@@ -10959,7 +11028,9 @@ function checkIncomingPlayerBids(){
       club: clubName,
       fee: fee,
       sellOnPct: sellOnPct,
-      counterOffered: false
+      counterOffered: false,
+      receivedRound: Number(state.round) || 0,
+      expiresAfterRound: (Number(state.round) || 0) + 3
     });
   });
   
@@ -11058,7 +11129,7 @@ function openIncomingBidModal(selectedBidId){
                 </div>
               </div>
               ${b.counterOffered ? `
-                <span class="pill good" style="font-size:10px;font-weight:900;background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid #22c55e">✓ +20% ACEITO</span>
+                <span class="pill good" style="font-size:10px;font-weight:900;background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid #22c55e">✓ CONTRAPROPOSTA ACEITA</span>
               ` : ''}
             </div>
 
@@ -11071,6 +11142,7 @@ function openIncomingBidModal(selectedBidId){
               <div style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);border-radius:10px;padding:8px">
                 <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">${b.offerType === 'arabic' ? 'Salário oferecido ao jogador' : 'Cláusula Futura'}</div>
                 <div ${b.offerType === 'arabic' ? `id="bidSalaryDisplay_${b.id}"` : ''} style="font-size:18px;font-weight:900;color:#38bdf8">${b.offerType === 'arabic' ? `${fmtMoney(b.offeredSalary)}/mês · ${b.salaryMultiplier}×` : `${b.sellOnPct}% de Venda Futura`}</div>
+                ${b.offerType === 'arabic' ? '' : `<label style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:7px;font-size:10px;color:#bae6fd;font-weight:800">CONTRAPROPOSTA · VENDA FUTURA <select class="selBidSellOnPct" data-id="${b.id}" style="background:#0f172a;color:#fff;border:1px solid #38bdf8;border-radius:6px;padding:4px 6px;font-weight:900"><option value="0" ${Number(b.requestedSellOnPct ?? b.sellOnPct)===0?'selected':''}>0%</option>${[5,10,15,20,25,30,35,40,50].map(pct=>`<option value="${pct}" ${Number(b.requestedSellOnPct ?? b.sellOnPct)===pct?'selected':''}>${pct}%</option>`).join('')}</select></label>`}
               </div>
             </div>
 
@@ -11080,7 +11152,7 @@ function openIncomingBidModal(selectedBidId){
                 ✅ Aceitar e Vender
               </button>
               <button class="btn btnCounterSingleBid" data-id="${b.id}" ${b.counterOffered ? 'disabled style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3);border:none;padding:10px 8px;font-size:12px;border-radius:8px;cursor:not-allowed"' : 'style="background:#7c3aed;color:#fff;border:none;font-weight:900;padding:10px 8px;font-size:12px;border-radius:8px;cursor:pointer"'}>
-                ${b.counterOffered ? '✓ +20% Negociado' : '📈 Pedir +20%'}
+                ${b.counterOffered ? '✓ Contraproposta aceita' : (b.offerType === 'arabic' ? '📈 Pedir +20%' : '🤝 Negociar oferta + cláusula')}
               </button>
               <button class="btn btnRejectSingleBid" data-id="${b.id}" style="background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid rgba(239,68,68,0.4);font-weight:900;padding:10px 8px;font-size:12px;border-radius:8px;cursor:pointer">
                 ❌ Recusar
@@ -11094,6 +11166,18 @@ function openIncomingBidModal(selectedBidId){
     'Fechar',
     false
   );
+
+  $$('.selBidSellOnPct').forEach(sel => {
+    sel.onchange = () => {
+      const bid = (state.incomingBids || []).find(item => item.id === sel.dataset.id);
+      if(!bid || bid.counterOffered) return;
+      const pct = Number(sel.value);
+      if(![0,5,10,15,20,25,30,35,40,50].includes(pct)) return;
+      bid.requestedSellOnPct = pct;
+      save();
+      toast(`Contraproposta definida: ${pct}% de participação em uma futura revenda.`);
+    };
+  });
 
   // 1. ACEITAR E VENDER PARA O CLUBE ESCOLHIDO
   $$('.btnAcceptSingleBid').forEach(btn => {
@@ -11114,13 +11198,18 @@ function openIncomingBidModal(selectedBidId){
       state.income = (state.income || 0) + b.fee;
 
       // Cláusula de Venda Futura se houver
-      if(b.sellOnPct > 0){
+      if(b.counterOffered && b.offerType !== 'arabic') b.sellOnPct = Math.max(0, Math.min(50, Number(b.requestedSellOnPct ?? b.sellOnPct) || 0));
+      const finalSellOnPct = Number(b.sellOnPct) || 0;
+      if(finalSellOnPct > 0){
         state.futureSaleClauses = state.futureSaleClauses || [];
         state.futureSaleClauses.push({
           playerName: playerToSell.name,
           playerKey: b.playerKey,
           club: b.club,
-          sellOnPct: b.sellOnPct,
+          sellOnPct: finalSellOnPct,
+          sharePct: finalSellOnPct,
+          buyer: b.club,
+          initialPrice: b.fee,
           date: state.date,
           originalFee: b.fee
         });
@@ -11148,7 +11237,7 @@ function openIncomingBidModal(selectedBidId){
 
       state.news.unshift(b.offerType === 'arabic'
         ? `💎 NEGÓCIO HISTÓRICO: ${playerToSell.name} foi vendido ao ${b.club} por ${fmtMoney(b.fee)} (oferta de ${b.transferMultiplier}× o valor de mercado). Salário prometido ao atleta: ${fmtMoney(b.offeredSalary)}/mês.`
-        : `🤝 TRANSFERÊNCIA CONCLUÍDA: ${playerToSell.name} foi vendido ao ${b.club} por ${fmtMoney(b.fee)} com ${b.sellOnPct}% de venda futura!`);
+        : `🤝 TRANSFERÊNCIA CONCLUÍDA: ${playerToSell.name} foi vendido ao ${b.club} por ${fmtMoney(b.fee)} com ${finalSellOnPct}% de participação na venda futura!`);
       state.news = state.news.slice(0, 50);
       closeCustomModal();
       save();
@@ -11171,14 +11260,18 @@ function openIncomingBidModal(selectedBidId){
       // 60% de chance do clube aceitar a contraproposta de +20%
       const accepted = Math.random() < 0.60;
       if(accepted){
+        const negotiatedSellOnPct = b.offerType === 'arabic' ? (Number(b.sellOnPct) || 0) : Number(b.requestedSellOnPct ?? b.sellOnPct ?? 0);
         b.fee = Math.round(b.fee * 1.20);
+        if(b.offerType !== 'arabic') b.sellOnPct = Math.max(0, Math.min(50, negotiatedSellOnPct));
         if(b.offerType === 'arabic'){
           const arabicPlayer = (state.squad || []).find(p => playerKey(p) === b.playerKey);
           b.offeredSalary = Math.round((Number(b.offeredSalary) || playerSalary(arabicPlayer || {})) * 1.20);
         }
         b.counterOffered = true;
         save();
-        toast(`🎉 O ${b.club} aceitou pagar mais e aumentou a proposta para ${fmtMoney(b.fee)}!`);
+        toast(b.offerType === 'arabic'
+          ? `🎉 O ${b.club} aceitou pagar mais e aumentou a proposta para ${fmtMoney(b.fee)}!`
+          : `🎉 ${b.club} aceitou ${fmtMoney(b.fee)} + ${b.sellOnPct}% de participação em uma futura revenda!`);
 
         // Atualiza os valores NA HORA visualmente no card
         const feeEl = $(`#bidFeeDisplay_${b.id}`);
@@ -11192,6 +11285,8 @@ function openIncomingBidModal(selectedBidId){
           const salaryEl = $(`#bidSalaryDisplay_${b.id}`);
           if(salaryEl) salaryEl.textContent = `${fmtMoney(b.offeredSalary)}/mês · ${b.salaryMultiplier}×`;
         }
+        const sellOnSelect = $(`#card_bid_${b.id} .selBidSellOnPct`);
+        if(sellOnSelect){ sellOnSelect.disabled = true; sellOnSelect.title = `Cláusula negociada: ${b.sellOnPct}%`; }
         btn.textContent = '✓ +20% Negociado';
         btn.style.background = 'rgba(255,255,255,0.06)';
         btn.style.color = 'rgba(255,255,255,0.3)';
@@ -20159,7 +20254,7 @@ function marketPage(){
             <h4 style="margin:0;font-size:13px;font-weight:900;color:#fbbf24;text-transform:uppercase;display:flex;align-items:center;gap:6px">
               <span>💰</span> CLÁUSULAS DE VENDA FUTURA ATIVAS (${state.futureSaleClauses.length})
             </h4>
-            <span style="font-size:11px;color:rgba(255,255,255,0.6)">Seu clube receberá 20% do valor quando o comprador revender o atleta</span>
+            <span style="font-size:11px;color:rgba(255,255,255,0.6)">A porcentagem do clube varia conforme a clausula negociada de cada atleta.</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:8px">
             ${state.futureSaleClauses.map(c => `
@@ -20168,7 +20263,7 @@ function marketPage(){
                   <b style="color:#fff">${esc(c.playerName)}</b>
                   <div style="font-size:10px;color:rgba(255,255,255,0.4)">Clube atual: ${esc(c.buyer)}</div>
                 </div>
-                <span class="pill good" style="font-size:10px;padding:3px 8px;font-weight:800">+20% Retido</span>
+                <span class="pill good" style="font-size:10px;padding:3px 8px;font-weight:800">${c.sharePct !== undefined && c.sharePct !== null ? c.sharePct : (c.sellOnPct !== undefined && c.sellOnPct !== null ? c.sellOnPct : 20)}% Retido</span>
               </div>
             `).join('')}
           </div>
