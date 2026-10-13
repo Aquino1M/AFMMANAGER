@@ -722,7 +722,9 @@ assert(gameJsContent.includes('function getSavedSeasonMemberships(clubName = sta
   && gameJsContent.includes('const cupState = state.copaData && Number(state.copaData.season) === Number(state.season) ? state.copaData : null'),
   'A lista de competições usa o save ativo e não cria participação ao renderizar a tela Temporada');
 assert(gameJsContent.includes('if(hasStateMembership && stateCompId !== comp.id)')
-  && gameJsContent.includes('const memberships=getSavedSeasonMemberships(myClub)'),
+  && gameJsContent.includes('const memberships=getSavedSeasonMemberships(myClub)')
+  && gameJsContent.includes('memberships.stateId===stateCompId')
+  && !gameJsContent.includes('memberships.includes(stateCompId)'),
   'O calendário não duplica o estadual quando ele já é a competição principal do save');
 assert(gameJsContent.includes('data-season-tab="${tab.id}"')
   && gameJsContent.includes('if(!seasonTabs.some(tab => tab.id === seasonTab)) seasonTab = seasonTabs[0].id'),

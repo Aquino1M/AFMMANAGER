@@ -19081,7 +19081,7 @@ function calendarPage(){
   const stateCompId=memberships.stateId;
   const stateComp=stateCompId?compById(stateCompId):null;
   const stateRoster=stateCompId?(state.competitionTeams?.[stateCompId]||window.COMPETITION_TEAMS?.[stateCompId]||[]):[];
-  const hasStateMembership=Boolean(stateCompId&&stateComp&&stateCompId.startsWith('bra-est-')&&(memberships.includes(stateCompId)||stateRoster.some(name=>calendarClubKey(typeof name==='string'?name:name?.name)===calendarClubKey(myClub))||norm(myClub)==='brasilia'));
+  const hasStateMembership=Boolean(stateCompId&&stateComp&&stateCompId.startsWith('bra-est-')&&(memberships.stateId===stateCompId||stateRoster.some(name=>calendarClubKey(typeof name==='string'?name:name?.name)===calendarClubKey(myClub))||norm(myClub)==='brasilia'));
   const leagueTab={id:'COMP',name:comp.name,label:`🏆 ${comp.name}`,matches:schedule.flatMap((games,rIndex)=>{
     const fixture=games.find(game=>Array.isArray(game)&&game.some(name=>calendarClubKey(name)===calendarClubKey(myClub)));
     if(!fixture)return [];
