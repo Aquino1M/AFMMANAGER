@@ -800,7 +800,9 @@ assert(gameJsContent.includes('function getPendingClubCompetitions(gameState = s
   && gameJsContent.includes('function seasonCompetitionsComplete(gameState = state)')
   && gameJsContent.includes('if(pendingCompetitions.length){')
   && gameJsContent.includes('VIRADA DO ANO BLOQUEADA')
-  && gameJsContent.includes("['02-10','03-03','04-07','05-05','06-02','07-07','08-04','09-08','12-08']"),
+  && gameJsContent.includes("['02-04','02-18','03-18','04-08','05-06','06-10','07-08','08-12','09-16']")
+  && gameJsContent.includes('const preferredDates =')
+  && gameJsContent.includes('copaData:null'),
   'A virada do ano exige concluir estadual, liga, Copa do Brasil e competições internacionais; as fases da Copa são escalonadas e a final fica em dezembro');
 assert(gameJsContent.includes('pendingOtherCompetitions.length')
   && gameJsContent.includes('pendingOtherCompetitions')

@@ -4802,9 +4802,10 @@ function initCopaDoBrasilData(){
   const nonA = [...regional, ...otherStateQualifiers, ...criterion];
   const entrants = [...serieA, ...nonA];
   const season = Number(state?.season) || 2026;
-  // Copa do Brasil intercalada no calendário: quartas-feiras entre rodadas
-  // nacionais/estaduais, com a final em dezembro para não ser preterida pelo estadual.
-  const phaseDates = ['02-10','03-03','04-07','05-05','06-02','07-07','08-04','09-08','12-08'].map(day => `${season}-${day}`);
+  // Distribui a Copa do Brasil pelos espaços entre rodadas estaduais/nacionais.
+  // Datas anualizadas e dentro do calendário de jogos, sem depender da ordem
+  // em que o painel renderiza as competições.
+  const phaseDates = ['02-04','02-18','03-18','04-08','05-06','06-10','07-08','08-12','09-16'].map(day => `${season}-${day}`);
   const phaseNames = ['1ª Fase','2ª Fase','3ª Fase','4ª Fase','5ª Fase','Oitavas de Final','Quartas de Final','Semifinais','Final'];
   const makePhase = (index, teams = []) => ({
     name: phaseNames[index], status: index === 0 ? 'EM DISPUTA' : 'A COMEÇAR',
@@ -4941,6 +4942,24 @@ function getCopaDoBrasilState(){
     if(oldResults.length) upgraded.legacyResults = oldResults;
     state.copaData = upgraded;
   }
+  // Migrate existing version-2 saves whose Copa phases were scheduled too late
+  // or belong to another year. Preserve played fixtures and only reschedule games
+  // that have not been completed yet.
+  const preferredDates = ['02-04','02-18','03-18','04-08','05-06','06-10','07-08','08-12','09-16'].map(day => `${Number(state.season)}-${day}`);
+  const keys = ['1ª Fase','2ª Fase','3ª Fase','4ª Fase','5ª Fase','Oitavas de Final','Quartas de Final','Semifinais','Final'];
+  keys.forEach((key,index)=>{
+    const phase = state.copaData.phases?.[key];
+    if(!phase) return;
+    const unplayed = (phase.fixtures || []).filter(f => !f.score && !f.winner);
+    if(!unplayed.length || phase.status === 'CONCLUÍDO') return;
+    const intendedDate = preferredDates[index];
+    const staleDate = !phase.isoDate || !String(phase.isoDate).startsWith(`${state.season}-`);
+    if(staleDate){
+      phase.isoDate = intendedDate;
+      phase.dateStr = formatDatePtBr(intendedDate);
+      unplayed.forEach(f=>{ f.isoDate = intendedDate; f.date = formatDatePtBr(intendedDate); });
+    }
+  });
   return state.copaData;
 }
 
@@ -8690,6 +8709,7 @@ function newCareer(data){
     financingInflow:0,
     debtPrincipalPaid:0,
     schedule,
+    copaData:null,
     cupAlive:comp.type==='knockout'?compClubs.map(x=>x.name):null,
     eliminated:false,
     teams:compClubs.map(c=>({name:c.name,strength:strength(c),j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,p:0,form:[]})),
