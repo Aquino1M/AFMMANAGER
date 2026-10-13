@@ -709,6 +709,19 @@ assert(gameJsContent.includes("const breakPenaltyRate = slotKey === 'master' ? 0
 assert(gameJsContent.includes('min="3000" max="48000" step="3000"')
   && gameJsContent.includes("marketing:{name:'Departamento de marketing',icon:'📢',base:540000"),
   'Marketing tem degraus semanais e custo de evolução aumentados em 20%');
+assert(gameJsContent.includes('function marketingBenefits(')
+  && gameJsContent.includes('const mktMult = marketingBenefits().sponsorMultiplier')
+  && gameJsContent.includes('return Math.round((sum || 50000) * marketingBenefits().sponsorMultiplier)'),
+  'O mesmo multiplicador de marketing alimenta propostas e receita de patrocinadores');
+assert(gameJsContent.includes('id="modalMktAttBoost">+${benefits.attendancePercent}% torcida')
+  && gameJsContent.includes('id="modalMktSponBoost">+${benefits.sponsorPercent}% bônus')
+  && gameJsContent.includes('class="number good">+${marketingBenefits().attendancePercent}%')
+  && gameJsContent.includes('class="number" style="color:var(--cyan)">+${marketingBenefits().sponsorPercent}%'),
+  'Modal e escritório exibem os mesmos bônus calculados pela função central');
+assert(gameJsContent.includes('let pendingInvestment = currentInvest;')
+  && gameJsContent.includes('state.marketingWeekly = pendingInvestment;')
+  && !gameJsContent.includes("slider.onchange = () => { save(); updateMktLive(); }"),
+  'O investimento só é persistido ao confirmar Salvar & Aplicar');
 assert(gameJsContent.indexOf('<h3>Propostas de Patrocínio Recebidas</h3>') > gameJsContent.indexOf('<h2 style="margin-top:20px">Patrocinadores Oficiais do Clube</h2>')
   && gameJsContent.indexOf('<h3>Propostas de Patrocínio Recebidas</h3>') < gameJsContent.indexOf('${renderSocioTorcedorCard(socioData)}'),
   'Propostas de patrocínio aparecem logo após patrocinadores oficiais');

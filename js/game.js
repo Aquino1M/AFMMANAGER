@@ -7718,11 +7718,28 @@ function teamFameScore(){
   return clamp(Math.round(score), 25, 100);
 }
 
+// Fonte única dos multiplicadores de marketing para modal, escritório,
+// projeção de público e ofertas comerciais.
+function marketingBenefits(weeklyInvestment = state?.marketingWeekly, marketingLevel = state?.infrastructure?.marketing?.level){
+  const level = clamp(Math.round(Number(marketingLevel) || 1), 1, FACILITIES.marketing.max);
+  const investment = Math.max(2500, Number(weeklyInvestment) || 12000);
+  const attendanceBoost = (0.015 * level) + clamp((investment - 2500) / 100000, 0, 0.08);
+  const sponsorBoost = (0.03 * (level - 1)) + clamp((investment - 2500) / 90000, 0, 0.15);
+  return {
+    level,
+    weeklyInvestment: investment,
+    monthlyInvestment: investment * 4,
+    attendanceBoost,
+    attendancePercent: Math.round(attendanceBoost * 100),
+    sponsorBoost,
+    sponsorPercent: Math.round(sponsorBoost * 100),
+    sponsorMultiplier: 1 + sponsorBoost
+  };
+}
+
 function generateSponsorOffers(clubBudget){
   const fame = teamFameScore();
-  const mktLvl = state?.infrastructure?.marketing?.level || 1;
-  const mktInvest = Math.max(2500, Number(state?.marketingWeekly) || 12000);
-  const mktMult = 1 + (0.03 * (mktLvl - 1)) + clamp((mktInvest - 2500) / 90000, 0, 0.15);
+  const mktMult = marketingBenefits().sponsorMultiplier;
   const fameMult = 0.60 + (fame / 100) * 0.90; // Escala proporcional à fama da equipe
   const seasonFactor = Math.max(0.1, Number(state?.sponsorSeasonFactor) || 1);
   const baseMonthly = Math.round(Math.max(40000, Math.round((clubBudget || 2000000) * 0.024)) * mktMult * fameMult * seasonFactor);
@@ -10092,10 +10109,8 @@ function attendanceProjection(opponent){
   const our=overallSquad();
   const priceRatio=price/Math.max(1,rec);
   const priceFactor=priceRatio<=1?1+(1-priceRatio)*.22:Math.max(.22,1-(priceRatio-1)*.95);
-  const mktLvl = state?.infrastructure?.marketing?.level || 1;
-  const mktInvest = Math.max(2500, Number(state?.marketingWeekly) || 12000);
-  // Marketing semanal atrai a torcida e ajuda a manter estádio cheio (rebalanceado: +1.5% a +8%)
-  const mktAttBoost = (0.015 * mktLvl) + clamp((mktInvest - 2500) / 100000, 0, 0.08);
+  // O mesmo bônus exibido no escritório/modal é aplicado à projeção real.
+  const mktAttBoost = marketingBenefits().attendanceBoost;
   const fans = Number(state?.trust?.fans ?? 70);
   const base = .28 + (fans / 170) + clamp((oppS - 58) / 180, 0, .18) + clamp((our - 58) / 260, 0, .1) + mktAttBoost;
   // Dinâmica de fase do time (+30% em boa fase, -20% em má fase)
@@ -10166,10 +10181,7 @@ function totalSponsorMonthly(){
   if(state.sponsors?.master) sum += state.sponsors.master.monthly;
   if(state.sponsors?.sleeves) sum += state.sponsors.sleeves.monthly;
   if(state.sponsors?.back) sum += state.sponsors.back.monthly;
-  const mktLvl = state?.infrastructure?.marketing?.level || 1;
-  const mktInvest = Math.max(2500, Number(state?.marketingWeekly) || 12000);
-  const mktBonusMult = 1 + (0.03 * (mktLvl - 1)) + clamp((mktInvest - 2500) / 90000, 0, 0.15);
-  return Math.round((sum || 50000) * mktBonusMult);
+  return Math.round((sum || 50000) * marketingBenefits().sponsorMultiplier);
 }
 
 function totalSponsorWinBonus(){
@@ -16445,9 +16457,10 @@ function openYouthAcademyModal(){
 
 function openMarketingModal(){
   if(!state) return;
-  const mktLvl = state.infrastructure?.marketing?.level || 1;
+  const benefits = marketingBenefits();
+  const mktLvl = benefits.level;
   const maxLvl = FACILITIES.marketing.max;
-  const currentInvest = Math.max(2500, Number(state.marketingWeekly) || 12000);
+  const currentInvest = benefits.weeklyInvestment;
   const cost = facilityCost('marketing');
   const max = mktLvl >= maxLvl;
 
@@ -16483,13 +16496,13 @@ function openMarketingModal(){
     <div class="grid g3" style="margin-bottom:14px">
       <div class="card metric" style="padding:10px">
         <div class="muted" style="font-size:11px">Retenção de Torcida</div>
-        <div class="value good" style="font-size:18px" id="modalMktAttBoost">+${Math.round((0.015 * mktLvl + clamp((currentInvest - 2500)/350000, 0, 0.08)) * 100)}% torcida</div>
+        <div class="value good" style="font-size:18px" id="modalMktAttBoost">+${benefits.attendancePercent}% torcida</div>
         <div class="small muted" style="font-size:10px">Presença garantida nos jogos em casa</div>
       </div>
 
       <div class="card metric" style="padding:10px">
         <div class="muted" style="font-size:11px">Valorização dos Patrocínios</div>
-        <div class="value" style="font-size:18px;color:var(--cyan)" id="modalMktSponBoost">+${Math.round((0.02 * (mktLvl - 1) + clamp((currentInvest - 2500)/300000, 0, 0.10)) * 100)}% bônus</div>
+        <div class="value" style="font-size:18px;color:var(--cyan)" id="modalMktSponBoost">+${benefits.sponsorPercent}% bônus</div>
         <div class="small muted" style="font-size:10px">Gera valorização comercial sustentável</div>
       </div>
 
@@ -16518,25 +16531,28 @@ function openMarketingModal(){
   openCustomModal('📢 Gestão do Departamento de Marketing', bodyHtml, null, 'Fechar', false);
 
   const slider = $('#modalMktSlider');
+  let pendingInvestment = currentInvest;
   function updateMktLive(){
     if(!slider) return;
-    const val = Number(slider.value) || 14400;
-    state.marketingWeekly = val;
+    const val = Math.max(3000, Number(slider.value) || 12000);
+    pendingInvestment = val;
+    const preview = marketingBenefits(val, mktLvl);
     const lbl = $('#modalMktValLabel'); if(lbl) lbl.textContent = fmtMoney(val) + '/sem';
-    const attBoost = Math.round((0.015 * mktLvl + clamp((val - 2500)/350000, 0, 0.08)) * 100);
-    const sponBoost = Math.round((0.02 * (mktLvl - 1) + clamp((val - 2500)/300000, 0, 0.10)) * 100);
-    const abEl = $('#modalMktAttBoost'); if(abEl) abEl.textContent = `+${attBoost}% torcida`;
-    const sbEl = $('#modalMktSponBoost'); if(sbEl) sbEl.textContent = `+${sponBoost}% bônus`;
-    const tsEl = $('#modalMktTotalSpon'); if(tsEl) tsEl.textContent = fmtMoney(totalSponsorMonthly()) + '/mês';
+    const abEl = $('#modalMktAttBoost'); if(abEl) abEl.textContent = `+${preview.attendancePercent}% torcida`;
+    const sbEl = $('#modalMktSponBoost'); if(sbEl) sbEl.textContent = `+${preview.sponsorPercent}% bônus`;
+    // Preview calcula a receita com o valor provisório sem alterar o save.
+    const tsEl = $('#modalMktTotalSpon');
+    if(tsEl) tsEl.textContent = fmtMoney(totalSponsorMonthly() / marketingBenefits().sponsorMultiplier * preview.sponsorMultiplier) + '/mês';
   }
 
   if(slider){
     slider.oninput = updateMktLive;
-    slider.onchange = () => { save(); updateMktLive(); };
   }
 
   const saveBtn = $('#btnSaveMarketingModal');
   if(saveBtn) saveBtn.onclick = () => {
+    state.marketingWeekly = pendingInvestment;
+    state.marketingMonthly = pendingInvestment * 4;
     save();
     toast('Investimento semanal em marketing atualizado com sucesso!');
     closeCustomModal();
@@ -21925,7 +21941,7 @@ function officePage(){
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>
           <h2 style="margin:0">📢 Departamento de Marketing & Ativação de Marca</h2>
-          <div class="small muted">Nível ${state.infrastructure?.marketing?.level||1}/8 • O investimento mensal atua na manutenção da torcida no estádio e valoriza diretamente seus patrocínios</div>
+          <div class="small muted">Nível ${marketingBenefits().level}/8 • O investimento é debitado a cada rodada e os bônus são aplicados à torcida e aos patrocínios</div>
         </div>
         <button class="btn primary" id="btnOpenMarketingFromOffice" style="background:#0284c7;color:#fff;border:none">📢 Configurar Investimento</button>
       </div>
@@ -21933,17 +21949,17 @@ function officePage(){
       <div class="grid g3" style="margin-top:14px">
         <div class="revenue-metric-tile">
           <div class="title">Aporte Semanal em Marketing</div>
-          <div class="number" style="color:var(--neon)">${fmtMoney(state.marketingWeekly||12000)}/rodada</div>
+          <div class="number" style="color:var(--neon)">${fmtMoney(marketingBenefits().weeklyInvestment)}/rodada</div>
           <div class="small muted">Debitado a cada rodada do calendário</div>
         </div>
         <div class="revenue-metric-tile">
           <div class="title">Retenção de Público nos Jogos</div>
-          <div class="number good">+${Math.round((0.015 * (state.infrastructure?.marketing?.level||1) + clamp(((state.marketingWeekly||12000) - 2500)/100000, 0, 0.08)) * 100)}%</div>
+          <div class="number good">+${marketingBenefits().attendancePercent}%</div>
           <div class="small muted">Sustenta alta ocupação do estádio</div>
         </div>
         <div class="revenue-metric-tile">
           <div class="title">Bônus nos Contratos de Patrocínio</div>
-          <div class="number" style="color:var(--cyan)">+${Math.round((0.03 * ((state.infrastructure?.marketing?.level||1) - 1) + clamp(((state.marketingWeekly||12000) - 2500)/90000, 0, 0.15)) * 100)}%</div>
+          <div class="number" style="color:var(--cyan)">+${marketingBenefits().sponsorPercent}%</div>
           <div class="small muted">Multiplica receitas e propostas</div>
         </div>
       </div>
