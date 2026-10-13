@@ -684,6 +684,21 @@ assert(gameJsContent.includes('data-continental-phase') && gameJsContent.include
   'Telas continentais e Mundial oferecem navegação por fases');
 
 // =========================================================================
+// 12. NEGOCIAÇÃO DE REVENDAS E INDICADOR DE RELAÇÃO
+// =========================================================================
+console.log('\n--- TESTE 12: Cláusula de revenda e relação da contraproposta ---');
+assert(gameJsContent.includes('CONTRAPROPOSTA · % DE REVENDA FUTURA'),
+  'Investida árabe permite escolher o percentual retido numa revenda futura');
+assert(gameJsContent.includes('class="bid-relation-panel"') && gameJsContent.includes('bid-relation-bar'),
+  'Cartão da proposta exibe uma barra de relação/chance estimada');
+assert(gameJsContent.includes('const relationChance = counterRelationChance(b)') && gameJsContent.includes('Math.random() * 100 < relationChance'),
+  'A chance informada no indicador é usada pela decisão probabilística do clube');
+assert(gameJsContent.includes('b.sellOnPct = Math.max(0, Math.min(50, negotiatedSellOnPct))'),
+  'O percentual negociado fica limitado a 0–50% e é persistido ao aceitar');
+assert(gameJsContent.includes('bid.requestedSellOnPct = pct'),
+  'A escolha do percentual permanece no save enquanto o jogador negocia');
+
+// =========================================================================
 // RESULTADO FINAL
 // =========================================================================
 console.log('\n=============================================================');

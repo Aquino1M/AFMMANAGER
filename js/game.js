@@ -11101,6 +11101,13 @@ function openIncomingBidModal(selectedBidId){
   }
 
   const bidsCount = state.incomingBids.length;
+  const counterRelationChance = bid => {
+    const requestedPct = Number(bid.requestedSellOnPct ?? bid.sellOnPct ?? 0);
+    const currentPct = Number(bid.sellOnPct) || 0;
+    const feeRatio = Math.max(0, Number(bid.fee) || 0) / Math.max(1, calcValueMi(p) * 1000000);
+    const feeScore = Math.max(-12, Math.min(12, (feeRatio - 1.5) * 8));
+    return Math.max(8, Math.min(92, Math.round(60 + feeScore + (bid.offerType === 'arabic' ? 4 : 0) - Math.max(0, requestedPct - currentPct) * 0.55)));
+  };
 
   openCustomModal(
     firstBid.offerType === 'arabic' ? '💎 Investida Árabe • Proposta Extraordinária' : (bidsCount > 1 ? '💼 Leilão de Transferência • Múltiplos Clubes Interessados' : '💼 Proposta Oficial de Transferência Recebida'),
@@ -11153,9 +11160,16 @@ function openIncomingBidModal(selectedBidId){
               <div style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);border-radius:10px;padding:8px">
                 <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">${b.offerType === 'arabic' ? 'Salário oferecido ao jogador' : 'Cláusula Futura'}</div>
                 <div ${b.offerType === 'arabic' ? `id="bidSalaryDisplay_${b.id}"` : ''} style="font-size:18px;font-weight:900;color:#38bdf8">${b.offerType === 'arabic' ? `${fmtMoney(b.offeredSalary)}/mês · ${b.salaryMultiplier}×` : `${b.sellOnPct}% de Venda Futura`}</div>
-                ${b.offerType === 'arabic' ? '' : `<label style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:7px;font-size:10px;color:#bae6fd;font-weight:800">CONTRAPROPOSTA · VENDA FUTURA <select class="selBidSellOnPct" data-id="${b.id}" style="background:#0f172a;color:#fff;border:1px solid #38bdf8;border-radius:6px;padding:4px 6px;font-weight:900"><option value="0" ${Number(b.requestedSellOnPct ?? b.sellOnPct)===0?'selected':''}>0%</option>${[5,10,15,20,25,30,35,40,50].map(pct=>`<option value="${pct}" ${Number(b.requestedSellOnPct ?? b.sellOnPct)===pct?'selected':''}>${pct}%</option>`).join('')}</select></label>`}
+                <label style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:7px;font-size:10px;color:#bae6fd;font-weight:800">${b.offerType === 'arabic' ? 'CONTRAPROPOSTA · % DE REVENDA FUTURA' : 'CONTRAPROPOSTA · VENDA FUTURA'} <select class="selBidSellOnPct" data-id="${b.id}" ${b.counterOffered ? 'disabled' : ''} style="background:#0f172a;color:#fff;border:1px solid #38bdf8;border-radius:6px;padding:4px 6px;font-weight:900"><option value="0" ${Number(b.requestedSellOnPct ?? b.sellOnPct)===0?'selected':''}>0%</option>${[5,10,15,20,25,30,35,40,50].map(pct=>`<option value="${pct}" ${Number(b.requestedSellOnPct ?? b.sellOnPct)===pct?'selected':''}>${pct}%</option>`).join('')}</select></label>
               </div>
             </div>
+
+            ${(() => { const chance = counterRelationChance(b); const color = chance >= 70 ? '#22c55e' : chance >= 45 ? '#f59e0b' : '#ef4444'; return `
+              <div class="bid-relation-panel" style="background:rgba(8,15,30,.75);border:1px solid rgba(148,163,184,.22);border-radius:10px;padding:10px 12px">
+                <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:10px;font-weight:900;color:#cbd5e1"><span>📊 RELAÇÃO DA CONTRAPROPOSTA</span><span class="bid-relation-label" style="color:${color}">${chance}% de chance estimada</span></div>
+                <div class="bid-relation-track" style="height:8px;background:#263244;border-radius:999px;overflow:hidden;margin-top:7px"><div class="bid-relation-bar" style="width:${chance}%;height:100%;background:${color};border-radius:999px;transition:width .2s,background .2s"></div></div>
+                <div class="bid-relation-note" style="font-size:10px;color:#94a3b8;margin-top:6px">${chance >= 70 ? 'Boa relação: o clube tende a negociar.' : chance >= 45 ? 'Negociação equilibrada: o clube pode aceitar ou recusar.' : 'Pedido agressivo: há risco elevado de recusa.'} A chance é estimada; o resultado ainda é probabilístico.</div>
+              </div>`; })()}
 
             <!-- Botões de Ação para cada Proposta -->
             <div style="display:grid;grid-template-columns:1.3fr 1.1fr 0.8fr;gap:8px;margin-top:2px">
@@ -11186,6 +11200,18 @@ function openIncomingBidModal(selectedBidId){
       if(![0,5,10,15,20,25,30,35,40,50].includes(pct)) return;
       bid.requestedSellOnPct = pct;
       save();
+      const card = $(`#card_bid_${bid.id}`);
+      const panel = card?.querySelector('.bid-relation-panel');
+      if(panel){
+        const chance = counterRelationChance(bid);
+        const color = chance >= 70 ? '#22c55e' : chance >= 45 ? '#f59e0b' : '#ef4444';
+        const label = panel.querySelector('.bid-relation-label');
+        const bar = panel.querySelector('.bid-relation-bar');
+        const note = panel.querySelector('.bid-relation-note');
+        if(label){label.textContent = `${chance}% de chance estimada`;label.style.color = color;}
+        if(bar){bar.style.width = `${chance}%`;bar.style.background = color;}
+        if(note) note.textContent = chance >= 70 ? 'Boa relação: o clube tende a negociar.' : chance >= 45 ? 'Negociação equilibrada: o clube pode aceitar ou recusar.' : 'Pedido agressivo: há risco elevado de recusa.';
+      }
       toast(`Contraproposta definida: ${pct}% de participação em uma futura revenda.`);
     };
   });
@@ -11268,12 +11294,13 @@ function openIncomingBidModal(selectedBidId){
       btn.disabled = true;
       btn.textContent = '⏳ Negociando...';
 
-      // 60% de chance do clube aceitar a contraproposta de +20%
-      const accepted = Math.random() < 0.60;
+      // The visible relationship meter is the actual acceptance probability.
+      const relationChance = counterRelationChance(b);
+      const accepted = Math.random() * 100 < relationChance;
       if(accepted){
-        const negotiatedSellOnPct = b.offerType === 'arabic' ? (Number(b.sellOnPct) || 0) : Number(b.requestedSellOnPct ?? b.sellOnPct ?? 0);
+        const negotiatedSellOnPct = Number(b.requestedSellOnPct ?? b.sellOnPct ?? 0);
         b.fee = Math.round(b.fee * 1.20);
-        if(b.offerType !== 'arabic') b.sellOnPct = Math.max(0, Math.min(50, negotiatedSellOnPct));
+        b.sellOnPct = Math.max(0, Math.min(50, negotiatedSellOnPct));
         if(b.offerType === 'arabic'){
           const arabicPlayer = (state.squad || []).find(p => playerKey(p) === b.playerKey);
           b.offeredSalary = Math.round((Number(b.offeredSalary) || playerSalary(arabicPlayer || {})) * 1.20);
@@ -11281,7 +11308,7 @@ function openIncomingBidModal(selectedBidId){
         b.counterOffered = true;
         save();
         toast(b.offerType === 'arabic'
-          ? `🎉 O ${b.club} aceitou pagar mais e aumentou a proposta para ${fmtMoney(b.fee)}!`
+          ? `🎉 O ${b.club} aceitou a contraproposta e aumentou a proposta para ${fmtMoney(b.fee)}, com ${b.sellOnPct}% de participação na revenda!`
           : `🎉 ${b.club} aceitou ${fmtMoney(b.fee)} + ${b.sellOnPct}% de participação em uma futura revenda!`);
 
         // Atualiza os valores NA HORA visualmente no card
