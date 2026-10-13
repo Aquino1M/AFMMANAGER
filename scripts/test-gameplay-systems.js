@@ -740,6 +740,8 @@ assert(gameJsContent.includes('function squadCapacity(trainingLevel = state?.inf
   && gameJsContent.includes('squadCapacity(f.level)')
   && gameJsContent.includes('state.squad.filter(Boolean).length >= squadCapacity()'),
   'Capacidade do elenco aumenta em 3 vagas por nível do Centro de Treinamento e controla novas contratações');
+assert(gameJsContent.includes('const expensiveList = state.squad.filter(p => p && isExpensiveForTier(p))'),
+  'Indicador de salários caros considera o elenco inteiro independentemente do filtro de posição');
 assert(gameJsContent.includes('function normalizeSquadState(targetState = state)')
   && gameJsContent.includes("const validSquad = Array.isArray(squad) ? squad.filter(p => p && typeof p === 'object') : []")
   && gameJsContent.includes('normalizeSquadState(state);'),

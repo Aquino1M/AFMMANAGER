@@ -19877,7 +19877,9 @@ function squadPage(){
   else if(squadFilter === 'MID') ps = ps.filter(p=>['DM','CM','AM'].includes(p.pos));
   else if(squadFilter === 'ATK') ps = ps.filter(p=>['RW','LW','ST','CF'].includes(p.pos));
 
-  const expensiveList = ps.filter(isExpensiveForTier);
+  // O indicador de jogadores caros representa o elenco inteiro e não deve
+  // mudar apenas porque o usuário selecionou um filtro de posição.
+  const expensiveList = state.squad.filter(p => p && isExpensiveForTier(p));
   const expensiveCount = expensiveList.length;
 
   if(squadViewMode === 'salaries'){
