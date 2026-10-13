@@ -19075,9 +19075,10 @@ function calendarPage(){
   }
   const cupLabels={'bra-cup':'🏅 Copa do Brasil',lib:'🏆 Libertadores',sud:'🥈 Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'};
   const cupFilters=Object.keys(cupLabels).filter(id=>extraMatches.some(match=>match.competitionId===id)).map(id=>[id,cupLabels[id]]);
-  // INVARIANT: national and state league are simultaneous memberships, not alternatives.
-  const memberships=getClubCompetitionIds(myClub);
-  const stateCompId=memberships.find(id=>id.startsWith('bra-est-'))||clubStateCompId(myClub);
+  // Current-save membership is authoritative. When the primary schedule already is
+  // the user's estadual, do not add the same championship a second time as an extra tab.
+  const memberships=getSavedSeasonMemberships(myClub);
+  const stateCompId=memberships.stateId;
   const stateComp=stateCompId?compById(stateCompId):null;
   const stateRoster=stateCompId?(state.competitionTeams?.[stateCompId]||window.COMPETITION_TEAMS?.[stateCompId]||[]):[];
   const hasStateMembership=Boolean(stateCompId&&stateComp&&stateCompId.startsWith('bra-est-')&&(memberships.includes(stateCompId)||stateRoster.some(name=>calendarClubKey(typeof name==='string'?name:name?.name)===calendarClubKey(myClub))||norm(myClub)==='brasilia'));
@@ -19090,7 +19091,7 @@ function calendarPage(){
     return [{competitionId:'COMP',name:comp.name,home,away,isHome,date,round:comp.id==='bra-d'?`Grupo ${groupName} - Rodada ${rIndex+1}`:`Rodada ${rIndex+1}`,current:rIndex===state.round,past:date<state.date,historyMatch,matchIndex:rIndex}];
   })};
   const competitionTabs=[leagueTab];
-  if(hasStateMembership){
+  if(hasStateMembership && stateCompId !== comp.id){
     const data=getStateCompData(stateCompId), played=(state.history||[]).filter(h=>h.competitionId===stateCompId&&Number(h.season)===Number(state.season)), playedKeys=new Set(played.map(h=>[calendarClubKey(h.h),calendarClubKey(h.a)].sort().join('|'))), stateMatches=[];
     (data.fixtures||[]).forEach((row,fixtureIndex)=>{
       if(calendarClubKey(row.home)!==calendarClubKey(myClub)&&calendarClubKey(row.away)!==calendarClubKey(myClub))return;
@@ -19109,7 +19110,7 @@ function calendarPage(){
   return `
     <div class="hero"><div><h1>Calendário Oficial de Jogos & Janelas de Transferência</h1><div class="muted">Datas dos confrontos, mandos de campo, torneios da temporada ${state.season} e janelas de contratação</div></div><div style="display:flex;gap:10px;align-items:center"><span class="window-badge ${winInfo.open?'window-open':'window-closed'}">${winInfo.open?'🟢':'🔴'} ${esc(winInfo.text)}</span><span class="pill">${esc(comp.name)}</span></div></div>
     <div class="grid g2" style="margin-top:14px"><div class="card" style="border-left:4px solid var(--neon)"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">☀️ Janela de Verão (Início de Ano)</h3><span class="pill ${isTransferWindowOpen(state.season+'-02-01')?'good':''}">01/Jan a 31/Mar</span></div><p class="small muted" style="margin:6px 0 0 0">Período oficial de montagem do elenco. Permite contratações definitivas, empréstimos e vendas.</p></div><div class="card" style="border-left:4px solid var(--cyan)"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">❄️ Janela de Inverno (Meio de Ano)</h3><span class="pill ${isTransferWindowOpen(state.season+'-08-01')?'good':''}">10/Jul a 02/Set</span></div><p class="small muted" style="margin:6px 0 0 0">Período de reforços e ajustes do elenco para o segundo semestre e retas finais dos campeonatos.</p></div></div>
-    <div class="filters" style="margin-top:14px"><button class="btn ${activeCalendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos os Confrontos (${allMatches.length})</button>${competitionTabs.map(tab=>`<button class="btn ${activeCalendarFilter===tab.id?'primary':''}" data-cal-filter="${tab.id}">${tab.label}</button>`).join('')}<button class="btn ${activeCalendarFilter==='HOME'?'primary':''}" data-cal-filter="HOME">🏠 Em Casa</button><button class="btn ${activeCalendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora de Casa</button></div>
+    <div class="filters" style="margin-top:14px"><button type="button" class="btn ${activeCalendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos os Confrontos (${allMatches.length})</button>${competitionTabs.map(tab=>`<button type="button" class="btn ${activeCalendarFilter===tab.id?'primary':''}" data-cal-filter="${tab.id}">${tab.label}</button>`).join('')}<button type="button" class="btn ${activeCalendarFilter==='HOME'?'primary':''}" data-cal-filter="HOME">🏠 Em Casa</button><button type="button" class="btn ${activeCalendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora de Casa</button></div>
     <div class="calendar-view" style="margin-top:10px">${calendarMatches.map(match=>{
       const opponent=match.isHome?match.away:match.home,date=new Date(`${match.date}T12:00:00`),dayNames=['DOM','SEG','TER','QUA','QUI','SEX','SÁB'],dayBadge=dayNames[date.getDay()]||'JOGO',isMidweek=date.getDay()===3,dateFormatted=date.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'});
       let status='<span class="pill muted">⏳ Agendado</span>';
@@ -22633,6 +22634,36 @@ function getNationalCompetitionStandings(natId){
   return teamList.map(name => ({ name, p: 0, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, form: [], _unplayed: true }));
 }
 
+function getSavedSeasonMemberships(clubName = state?.club){
+  if(!state || !clubName) return { nationalId:null, stateId:null, copa:false, continentalIds:[] };
+  const key = norm(clubName);
+  const savedRosters = state.competitionTeams && typeof state.competitionTeams === 'object' ? state.competitionTeams : {};
+  const includesClub = roster => Array.isArray(roster) && roster.some(entry => norm(typeof entry === 'string' ? entry : entry?.name) === key);
+  const nationalIds = ['bra-a','bra-b','bra-c','bra-d'];
+  // Membership comes from the active save's competition ID and persisted rosters first;
+  // the shared global catalog is deliberately not used to populate the user's season tabs.
+  let nationalId = nationalIds.includes(state.compId) ? state.compId : nationalIds.find(id => includesClub(savedRosters[id])) || null;
+  if(!nationalId && nationalIds.includes(state.compId)) nationalId = state.compId;
+  let stateId = state.compId?.startsWith('bra-est-') ? state.compId : Object.keys(savedRosters).find(id => id.startsWith('bra-est-') && includesClub(savedRosters[id])) || null;
+  if(!stateId && state.compId?.startsWith('bra-est-')) stateId = state.compId;
+
+  // Copa do Brasil is visible only when the current save has a fixture for this club.
+  const cupState = state.copaData && Number(state.copaData.season) === Number(state.season) ? state.copaData : null;
+  const cupFixtures = Object.values(cupState?.phases || {}).flatMap(phase => Array.isArray(phase?.fixtures) ? phase.fixtures : []);
+  const copa = cupFixtures.some(fixture => norm(fixture?.home) === key || norm(fixture?.away) === key);
+
+  const continentalIds = ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc'].filter(id => {
+    const savedTournament = state.tournaments?.[id];
+    const savedSeason = Number(savedTournament?.season) === Number(state.season) ? savedTournament : null;
+    const qualified = state.continentalQualifications?.[Number(state.season)]?.[id];
+    const participants = Object.values(savedSeason?.groups || qualified?.groups || {}).flat();
+    const explicitlyListed = Array.isArray(qualified?.participants) ? qualified.participants : [];
+    return participants.some(name => norm(typeof name === 'string' ? name : name?.name) === key)
+      || (qualified?.status === 'qualified' && explicitlyListed.some(name => norm(typeof name === 'string' ? name : name?.name) === key));
+  });
+  return { nationalId, stateId, copa, continentalIds };
+}
+
 function seasonPage(){
   if(repairSaveIfCorrupted(state)){
     save();
@@ -22643,25 +22674,26 @@ function seasonPage(){
 
   const rawComp = curComp();
   const isBrazil = (rawComp.country === 'Brasil' || rawComp.id?.startsWith('bra-'));
-  
-  // Identifica a divisão nacional do clube do jogador (Série A, B, C ou D)
-  const brDivs = ['bra-a', 'bra-b', 'bra-c', 'bra-d'];
-  const userNatDivId = brDivs.includes(state.compId)
-    ? state.compId
-    : (brDivs.find(id => (window.COMPETITION_TEAMS?.[id] || []).some(c => norm(c) === norm(state.club))) || 'bra-d');
-  const natCompObj = compById(userNatDivId) || compById('bra-d') || compById('bra-a');
-  
-  // Identifica o estadual do clube do jogador
-  const estCompId = selectedEstadualId || clubStateCompId(state.club);
-  const estCompObj = compById(estCompId) || { name: 'Campeonato Estadual', id: estCompId };
-
-  if(!isBrazil && (seasonTab === 'estadual' || seasonTab === 'copadobrasil')){
-    seasonTab = 'nacional';
-  }
+  const memberships = getSavedSeasonMemberships(state.club);
+  const userNatDivId = memberships.nationalId || (['bra-a','bra-b','bra-c','bra-d'].includes(state.compId) ? state.compId : null);
+  const natCompObj = userNatDivId ? compById(userNatDivId) : null;
+  const estCompId = memberships.stateId;
+  const estCompObj = estCompId ? compById(estCompId) : null;
+  const hasNational = Boolean(natCompObj);
+  const hasState = Boolean(estCompObj && estCompId?.startsWith('bra-est-'));
+  const hasCopa = Boolean(isBrazil && memberships.copa);
+  const hasContinental = memberships.continentalIds.length > 0;
+  const seasonTabs = [];
+  if(hasNational) seasonTabs.push({ id:'nacional', label:`🇧🇷 ${natCompObj.name}` });
+  if(hasState && estCompId !== userNatDivId) seasonTabs.push({ id:'estadual', label:`🏆 ${estCompObj.name}` });
+  if(hasCopa) seasonTabs.push({ id:'copadobrasil', label:'🏅 Copa do Brasil' });
+  if(hasContinental) seasonTabs.push({ id:'continental', label:'🌎 Competições continentais' });
+  if(!seasonTabs.length){ seasonTabs.push({ id:'nacional', label:rawComp.name }); }
+  if(!seasonTabs.some(tab => tab.id === seasonTab)) seasonTab = seasonTabs[0].id;
 
   // Visualização unificada: se o clube está jogando Estadual mas selecionou a aba da Divisão Nacional
-  const isViewingNationalWhileInEstadual = (isBrazil && state.compId?.startsWith('bra-est-') && seasonTab === 'nacional');
-  const comp = isViewingNationalWhileInEstadual ? natCompObj : rawComp;
+  const isViewingNationalWhileInEstadual = (isBrazil && hasNational && state.compId?.startsWith('bra-est-') && seasonTab === 'nacional');
+  const comp = isViewingNationalWhileInEstadual ? natCompObj : (seasonTab === 'estadual' && estCompObj ? estCompObj : rawComp);
   const isSérieA = comp.id === 'bra-a';
   const nationalStandings = isViewingNationalWhileInEstadual ? getNationalCompetitionStandings(userNatDivId) : null;
   const nationalStandingsUnplayed = !!(nationalStandings?.length && nationalStandings.every(team => team._unplayed));
@@ -22683,14 +22715,7 @@ function seasonPage(){
     </div>
 
     <div class="tabs" style="margin-top:14px">
-      ${isBrazil ? `
-        <button type="button" class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">🇧🇷 ${esc(natCompObj.name)}</button>
-        <button type="button" class="btn ${seasonTab==='estadual'?'active':''}" data-season-tab="estadual">🏆 ${esc(estCompObj.name)}</button>
-        <button type="button" class="btn ${seasonTab==='copadobrasil'?'active':''}" data-season-tab="copadobrasil">🥇 Copa do Brasil</button>
-      ` : `
-        <button type="button" class="btn ${seasonTab==='nacional'?'active':''}" data-season-tab="nacional">🏆 ${esc(comp.name)}</button>
-      `}
-      <button type="button" class="btn ${seasonTab==='continental'?'active':''}" data-season-tab="continental">${isBrazil ? '🌎 Libertadores / Continental' : '🌎 Continental'}</button>
+      ${seasonTabs.map(tab => `<button type="button" class="btn ${seasonTab===tab.id?'active':''}" data-season-tab="${tab.id}">${esc(tab.label)}</button>`).join('')}
     </div>
 
     ${seasonTab==='nacional' ? `
@@ -22788,8 +22813,8 @@ function seasonPage(){
           </table>
         </div>`}
       </div>
-    ` : seasonTab==='estadual' ? (() => {
-      const estCompId = selectedEstadualId || clubStateCompId(state.club);
+    ` : seasonTab==='estadual' && hasState ? (() => {
+      const estCompId = memberships.stateId;
       const estData = getStateCompData(estCompId);
       const estStats = getStateCompStats(estCompId);
       const myStateComp = clubStateCompId(state.club);
@@ -22824,28 +22849,16 @@ function seasonPage(){
         // Live standings may sync here, but every round/date/result stays in estData.fixtures.
       }
 
-      const allEstList = [
-        { id: 'bra-est-df', name: 'Campeonato Candango (DF)' },
-        { id: 'bra-est-sp', name: 'Campeonato Paulista (SP)' },
-        { id: 'bra-est-rj', name: 'Campeonato Carioca (RJ)' },
-        { id: 'bra-est-mg', name: 'Campeonato Mineiro (MG)' },
-        { id: 'bra-est-rs', name: 'Campeonato Gaúcho (RS)' },
-        { id: 'bra-est-pr', name: 'Campeonato Paranaense (PR)' },
-        { id: 'bra-est-sc', name: 'Campeonato Catarinense (SC)' },
-        { id: 'bra-est-ba', name: 'Campeonato Baiano (BA)' },
-        { id: 'bra-est-ce', name: 'Campeonato Cearense (CE)' },
-        { id: 'bra-est-go', name: 'Campeonato Goiano (GO)' },
-        { id: 'bra-est-pe', name: 'Campeonato Pernambucano (PE)' }
-      ];
+      const allEstList = estCompObj ? [{ id:estCompId, name:estCompObj.name }] : [];
 
       return `
         <!-- Seletor Global de Campeonatos Estaduais -->
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px;background:rgba(255,255,255,0.03);padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
           <div>
-            <span style="font-size:12px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:700">Selecione o Campeonato Estadual:</span>
-            <div style="font-size:11px;color:rgba(255,255,255,0.4)">Todos os clubes jogam seus respectivos estaduais simultaneamente</div>
+            <span style="font-size:12px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:700">Campeonato estadual desta carreira:</span>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4)">Exibindo somente a competição registrada no save do clube.</div>
           </div>
-          <select id="selectEstadualComp" class="btn" style="min-width:240px;background:#1e1a30;color:#fff;border:1px solid #7c3aed;padding:8px 12px;font-weight:700">
+          <select id="selectEstadualComp" class="btn" disabled style="min-width:240px;background:#1e1a30;color:#fff;border:1px solid #7c3aed;padding:8px 12px;font-weight:700">
             ${allEstList.map(item => `
               <option value="${item.id}" ${item.id === estCompId ? 'selected' : ''}>
                 ${item.id === myStateComp ? '⭐ ' : ''}${item.name} ${item.id === myStateComp ? '(Seu Estadual)' : ''}
@@ -25466,7 +25479,7 @@ function bind(){
     }
   }
 
-  $$('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view;render()});
+  $$('[data-view]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextView=b.dataset.view;if(!nextView)return;view=nextView;render()});
 
   const qs=$('#quickSaveBtn'); if(qs) qs.onclick=()=>{if(save()) toast('Jogo salvo com sucesso localmente!')};
   
@@ -25936,7 +25949,7 @@ function bind(){
   }
 
   if(view==='calendario'){
-    $$('[data-cal-filter]').forEach(b=>b.onclick=()=>{calendarFilter=b.dataset.calFilter;render()});
+    $$('[data-cal-filter]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextFilter=b.dataset.calFilter;if(!nextFilter)return;calendarFilter=nextFilter;render()});
     $$('.btnCalPlayNow').forEach(b=>b.onclick=startLiveMatch);
     $$('.btnCalStatePlay').forEach(b=>b.onclick=()=>beginStateLeagueMatch(b.dataset.stateComp,Number(b.dataset.round)));
     $$('.btnCalCopaPlay').forEach(b=>b.onclick=()=>playCopaDoBrasilFixture(b.dataset.index,b.dataset.phase));

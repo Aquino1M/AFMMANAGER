@@ -714,6 +714,27 @@ assert(gameJsContent.indexOf('<h3>Propostas de Patrocínio Recebidas</h3>') > ga
   'Propostas de patrocínio aparecem logo após patrocinadores oficiais');
 
 // =========================================================================
+// 13. Campeonatos da Temporada e interação dos filtros
+// =========================================================================
+console.log('\n--- TESTE 13: Competições da carreira e clique nos filtros ---');
+assert(gameJsContent.includes('function getSavedSeasonMemberships(clubName = state?.club)')
+  && gameJsContent.includes("state.competitionTeams && typeof state.competitionTeams === 'object'")
+  && gameJsContent.includes('const cupState = state.copaData && Number(state.copaData.season) === Number(state.season) ? state.copaData : null'),
+  'A lista de competições usa o save ativo e não cria participação ao renderizar a tela Temporada');
+assert(gameJsContent.includes('if(hasStateMembership && stateCompId !== comp.id)')
+  && gameJsContent.includes('const memberships=getSavedSeasonMemberships(myClub)'),
+  'O calendário não duplica o estadual quando ele já é a competição principal do save');
+assert(gameJsContent.includes('data-season-tab="${tab.id}"')
+  && gameJsContent.includes('if(!seasonTabs.some(tab => tab.id === seasonTab)) seasonTab = seasonTabs[0].id'),
+  'As abas da Temporada são renderizadas apenas para competições participadas e corrigem seleção obsoleta');
+assert(gameJsContent.includes('data-cal-filter="ALL"') && gameJsContent.includes('type="button" class="btn ${activeCalendarFilter')
+  && gameJsContent.includes('event.preventDefault();event.stopPropagation();const nextFilter=b.dataset.calFilter'),
+  'Todos os filtros do calendário são botões explícitos e processam cliques sem submit ou propagação acidental');
+assert(gameJsContent.includes("$$('[data-view]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextView=b.dataset.view")
+  && gameJsContent.includes('meutime:myTeamPage'),
+  'A navegação lateral aceita cliques e mantém a rota Meu time & Tática registrada');
+
+// =========================================================================
 // RESULTADO FINAL
 // =========================================================================
 console.log('\n=============================================================');
