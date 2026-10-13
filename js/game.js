@@ -19127,6 +19127,13 @@ function calendarPage(){
 }
 function myTeamPage(){
   ensureTacticsState(state);
+  // Normalize partially migrated/legacy saves before the tactical renderer touches arrays.
+  state.squad = Array.isArray(state.squad) ? state.squad : [];
+  state.lineup = Array.isArray(state.lineup) ? state.lineup : [];
+  state.formation = FORMATIONS[state.formation] ? state.formation : '4-3-3';
+  state.setPieces = state.setPieces && typeof state.setPieces === 'object' ? state.setPieces : {};
+  state.setPieceTakers = state.setPieceTakers && typeof state.setPieceTakers === 'object' ? state.setPieceTakers : {};
+  state.captains = Array.isArray(state.captains) ? state.captains : [];
   const curTac = state.tactics;
   const tacMetrics = calculateTacticalMetrics(state.formation, curTac);
   const formMeta = FORMATION_META[state.formation] || FORMATION_META['4-3-3'] || {
@@ -19135,7 +19142,7 @@ function myTeamPage(){
   };
   const slots = formationSlots();
   const sec = lineupSector();
-  const bench = state.squad.filter(p => !(state.lineup||[]).includes(playerKey(p))).sort((a,b)=>playerOverall(b)-playerOverall(a));
+  const bench = state.squad.filter(p => p && !(state.lineup||[]).includes(playerKey(p))).sort((a,b)=>playerOverall(b)-playerOverall(a));
 
   const startingPlayers = (slots || []).map((slot, idx) => {
     const pk = state.lineup?.[idx];

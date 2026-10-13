@@ -735,6 +735,10 @@ assert(gameJsContent.includes('data-cal-filter="ALL"') && gameJsContent.includes
 assert(gameJsContent.includes("$$('[data-view]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextView=b.dataset.view")
   && gameJsContent.includes('meutime:myTeamPage'),
   'A navegação lateral aceita cliques e mantém a rota Meu time & Tática registrada');
+assert(gameJsContent.includes('state.squad = Array.isArray(state.squad) ? state.squad : []')
+  && gameJsContent.includes('state.lineup = Array.isArray(state.lineup) ? state.lineup : []')
+  && gameJsContent.includes("state.formation = FORMATIONS[state.formation] ? state.formation : '4-3-3'"),
+  'Meu time & Tática normaliza escalação e formação de saves legados antes de renderizar');
 
 // =========================================================================
 // RESULTADO FINAL
