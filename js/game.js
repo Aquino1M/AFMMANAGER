@@ -849,7 +849,7 @@ const FACILITIES={
  store:{name:'Loja oficial',icon:'🛍️',base:350000,max:8,effect:'Gera receita extra em jogos e por mês.'},
  museum:{name:'Museu do clube',icon:'🏆',base:500000,max:8,effect:'Aumenta vínculo e alegria da torcida.'},
  press:{name:'Sala de imprensa',icon:'🎙️',base:300000,max:8,effect:'Ajuda a imagem do clube e confiança.'},
- marketing:{name:'Departamento de marketing',icon:'📢',base:450000,max:8,effect:'Alavanca patrocínios, atrai público aos jogos e valoriza a marca.'},
+   marketing:{name:'Departamento de marketing',icon:'📢',base:540000,max:8,effect:'Alavanca patrocínios, atrai público aos jogos e valoriza a marca.'},
  bank:{name:'Banco & Financiamento',icon:'🏦',base:500000,max:8,effect:'Linhas de crédito para o clube, antecipação com bônus e controle de dívidas.'}
 };
 
@@ -7784,8 +7784,16 @@ function signSponsorOffer(idx){
   const current = state.sponsors ? state.sponsors[slotKey] : null;
 
   if(current && current.brand && current.brand !== 'Sem Patrocínio'){
-    // Multa de quebra de contrato (2 meses do patrocínio atual)
-    const breakFee = Math.round((current.monthly || 50000) * 2);
+      // Multa proporcional ao compromisso contratual restante e à importância do espaço.
+      // Master: 20%; Mangas: 15%; Costas/Omoplata: 10% do valor contratual restante.
+      const breakPenaltyRate = slotKey === 'master' ? 0.20 : slotKey === 'sleeves' ? 0.15 : 0.10;
+      const currentMonthly = Math.max(0, Number(current.monthly) || 50000);
+      const contractYears = Math.max(1, Number(current.years) || Number(current.contractYears) || 1);
+      const totalContractValue = currentMonthly * 12 * contractYears;
+      const monthsRemaining = Math.max(1, Math.min(contractYears * 12,
+        Number(current.monthsRemaining ?? current.remainingMonths ?? current.contractMonthsRemaining) || contractYears * 12));
+      const remainingContractValue = Math.round(currentMonthly * monthsRemaining);
+      const breakFee = Math.max(1, Math.round(remainingContractValue * breakPenaltyRate));
     const canAfford = state.balance >= breakFee;
 
     openCustomModal(
@@ -7805,10 +7813,13 @@ function signSponsorOffer(idx){
             <span class="muted">Novo Patrocinador:</span>
             <b style="color:${offer.color}">${esc(offer.brand)} (${fmtMoney(offer.monthly)}/mês)</b>
           </div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-            <span class="muted">Multa Rescisória de Quebra de Contrato:</span>
-            <b style="color:#ef4444">${fmtMoney(breakFee)}</b>
-          </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+              <span class="muted">Multa Rescisória de Quebra de Contrato:</span>
+              <b style="color:#ef4444">${fmtMoney(breakFee)}</b>
+            </div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:8px;line-height:1.4">
+              Base contratual restante: <b>${fmtMoney(remainingContractValue)}</b> de ${fmtMoney(totalContractValue)} · Multa de ${Math.round(breakPenaltyRate * 100)}% para o espaço ${esc(offer.category)}.
+            </div>
           <div style="display:flex;justify-content:space-between">
             <span class="muted">Saldo em Caixa do Clube:</span>
             <b style="color:${canAfford?'#22c55e':'#ef4444'}">${fmtMoney(state.balance)}</b>
@@ -11234,8 +11245,11 @@ function openIncomingBidModal(selectedBidId){
       state.balance += b.fee;
       state.income = (state.income || 0) + b.fee;
 
-      // Cláusula de Venda Futura se houver
-      if(b.counterOffered && b.offerType !== 'arabic') b.sellOnPct = Math.max(0, Math.min(50, Number(b.requestedSellOnPct ?? b.sellOnPct) || 0));
+      // O percentual selecionado faz parte dos termos de venda para todos os tipos de oferta,
+      // mesmo quando o usuário aceita a proposta original sem contrapropor.
+      if(b.counterOffered || b.requestedSellOnPct !== undefined){
+        b.sellOnPct = Math.max(0, Math.min(50, Number(b.requestedSellOnPct ?? b.sellOnPct) || 0));
+      }
       const finalSellOnPct = Number(b.sellOnPct) || 0;
       if(finalSellOnPct > 0){
         state.futureSaleClauses = state.futureSaleClauses || [];
@@ -11324,7 +11338,15 @@ function openIncomingBidModal(selectedBidId){
           if(salaryEl) salaryEl.textContent = `${fmtMoney(b.offeredSalary)}/mês · ${b.salaryMultiplier}×`;
         }
         const sellOnSelect = $(`#card_bid_${b.id} .selBidSellOnPct`);
-        if(sellOnSelect){ sellOnSelect.disabled = true; sellOnSelect.title = `Cláusula negociada: ${b.sellOnPct}%`; }
+        if(sellOnSelect){ sellOnSelect.value = String(b.sellOnPct); sellOnSelect.disabled = true; sellOnSelect.title = `Cláusula negociada: ${b.sellOnPct}%`; }
+        const relationPanel = $(`#card_bid_${b.id} .bid-relation-panel`);
+        if(relationPanel){
+          const label = relationPanel.querySelector('.bid-relation-label');
+          const note = relationPanel.querySelector('.bid-relation-note');
+          // Preserva a chance sorteada antes de atualizar o valor da oferta.
+          if(label) label.textContent = `${relationChance}% de chance estimada`;
+          if(note) note.textContent = 'Contraproposta aceita. Esta foi a chance estimada usada na decisão.';
+        }
         btn.textContent = '✓ +20% Negociado';
         btn.style.background = 'rgba(255,255,255,0.06)';
         btn.style.color = 'rgba(255,255,255,0.3)';
@@ -16450,11 +16472,11 @@ function openMarketingModal(){
         <strong id="modalMktValLabel" style="color:var(--neon);font-size:24px">${fmtMoney(currentInvest)}/sem</strong>
       </div>
 
-      <input id="modalMktSlider" type="range" min="2500" max="40000" step="2500" value="${currentInvest}" style="width:100%;margin-top:14px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px">
-        <span>R$ 2.500/sem (Mínimo)</span>
-        <span>R$ 20.000/sem (Moderado)</span>
-        <span>R$ 40.000/sem (Campanha Máxima)</span>
+      <input id="modalMktSlider" type="range" min="3000" max="48000" step="3000" value="${clamp(Math.round(currentInvest / 3000) * 3000, 3000, 48000)}" style="width:100%;margin-top:14px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px">
+          <span>R$ 3.000/sem (Mínimo)</span>
+          <span>R$ 24.000/sem (Moderado)</span>
+          <span>R$ 48.000/sem (Campanha Máxima)</span>
       </div>
     </div>
 
@@ -16498,7 +16520,7 @@ function openMarketingModal(){
   const slider = $('#modalMktSlider');
   function updateMktLive(){
     if(!slider) return;
-    const val = Number(slider.value) || 12000;
+    const val = Number(slider.value) || 14400;
     state.marketingWeekly = val;
     const lbl = $('#modalMktValLabel'); if(lbl) lbl.textContent = fmtMoney(val) + '/sem';
     const attBoost = Math.round((0.015 * mktLvl + clamp((val - 2500)/350000, 0, 0.08)) * 100);
@@ -21802,6 +21824,27 @@ function officePage(){
       </div>
     </div>
 
+    <div class="card" style="margin-top:16px">
+      <h3>Propostas de Patrocínio Recebidas</h3>
+      <div class="small muted">Empresas brasileiras interessadas em estampar a camisa do clube:</div>
+      <div class="sponsor-grid">
+        ${(state.sponsorOffers||[]).map((o, idx)=>`
+          <div class="sponsor-card">
+            <div>
+              <span class="sponsor-badge">${esc(o.category)}</span>
+              <div class="sponsor-logo" style="color:${o.color}">${esc(o.brand)}</div>
+              <div class="small muted">${esc(o.desc)}</div>
+            </div>
+            <div style="margin-top:12px">
+              <div class="good" style="font-size:16px;font-weight:900">${fmtMoney(o.monthly)}/mês</div>
+              <div class="small muted">+ ${fmtMoney(o.winBonus)} por vitória • Contrato ${o.years} anos</div>
+              <button class="btn primary btnSignSponsor" data-offer-index="${idx}" style="width:100%;margin-top:10px">Assinar Patrocínio</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
     ${renderSocioTorcedorCard(socioData)}
 
     <div class="card" style="margin-top:16px;border:1px solid #10b981;background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(6,95,70,0.12))">
@@ -21837,27 +21880,6 @@ function officePage(){
           </div>
           <div class="small muted">${(state.bankLoans||[]).some(l=>l.overdue)?'Regularize para evitar juros crescentes':'Possibilidade de antecipar com bônus'}</div>
         </div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:16px">
-      <h3>Propostas de Patrocínio Recebidas</h3>
-      <div class="small muted">Empresas brasileiras interessadas em estampar a camisa do clube:</div>
-      <div class="sponsor-grid">
-        ${(state.sponsorOffers||[]).map((o, idx)=>`
-          <div class="sponsor-card">
-            <div>
-              <span class="sponsor-badge">${esc(o.category)}</span>
-              <div class="sponsor-logo" style="color:${o.color}">${esc(o.brand)}</div>
-              <div class="small muted">${esc(o.desc)}</div>
-            </div>
-            <div style="margin-top:12px">
-              <div class="good" style="font-size:16px;font-weight:900">${fmtMoney(o.monthly)}/mês</div>
-              <div class="small muted">+ ${fmtMoney(o.winBonus)} por vitória • Contrato ${o.years} anos</div>
-              <button class="btn primary btnSignSponsor" data-offer-index="${idx}" style="width:100%;margin-top:10px">Assinar Patrocínio</button>
-            </div>
-          </div>
-        `).join('')}
       </div>
     </div>
 

@@ -697,6 +697,21 @@ assert(gameJsContent.includes('b.sellOnPct = Math.max(0, Math.min(50, negotiated
   'O percentual negociado fica limitado a 0–50% e é persistido ao aceitar');
 assert(gameJsContent.includes('bid.requestedSellOnPct = pct'),
   'A escolha do percentual permanece no save enquanto o jogador negocia');
+assert(gameJsContent.includes('if(b.counterOffered || b.requestedSellOnPct !== undefined)')
+  && gameJsContent.includes('const finalSellOnPct = Number(b.sellOnPct) || 0'),
+  'Aceitar diretamente uma oferta respeita o percentual selecionado, inclusive cláusula explícita de 0%');
+assert(gameJsContent.includes('if(label) label.textContent = `${relationChance}% de chance estimada`')
+  && gameJsContent.includes('Esta foi a chance estimada usada na decisão.'),
+  'Depois de uma contraproposta aceita, a barra continua mostrando a chance realmente usada');
+assert(gameJsContent.includes("const breakPenaltyRate = slotKey === 'master' ? 0.20 : slotKey === 'sleeves' ? 0.15 : 0.10")
+  && gameJsContent.includes('remainingContractValue * breakPenaltyRate'),
+  'Multa de patrocínio varia por espaço e incide sobre o valor contratual restante');
+assert(gameJsContent.includes('min="3000" max="48000" step="3000"')
+  && gameJsContent.includes("marketing:{name:'Departamento de marketing',icon:'📢',base:540000"),
+  'Marketing tem degraus semanais e custo de evolução aumentados em 20%');
+assert(gameJsContent.indexOf('<h3>Propostas de Patrocínio Recebidas</h3>') > gameJsContent.indexOf('<h2 style="margin-top:20px">Patrocinadores Oficiais do Clube</h2>')
+  && gameJsContent.indexOf('<h3>Propostas de Patrocínio Recebidas</h3>') < gameJsContent.indexOf('${renderSocioTorcedorCard(socioData)}'),
+  'Propostas de patrocínio aparecem logo após patrocinadores oficiais');
 
 // =========================================================================
 // RESULTADO FINAL
