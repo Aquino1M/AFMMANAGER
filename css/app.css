@@ -2024,6 +2024,51 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
   gap: 12px;
 }
 
+/* Tipografia ampliada especificamente para o modal de empréstimo: melhora a
+   leitura sem alterar o restante dos modais de negociação. */
+.loan-negotiation-modal .nego-card > div > div[style*="Percentual do Salário Pago"] {
+  font-size: 15px !important;
+}
+.loan-negotiation-modal .nego-card .btnLoanSalaryPct {
+  font-size: 13px !important;
+  min-height: 58px;
+}
+.loan-negotiation-modal .nego-card .btnLoanSalaryPct small {
+  font-size: 12px !important;
+}
+.loan-negotiation-modal .nego-card > div[style*="BÔNUS POR JOGO"] {
+  font-size: 13px !important;
+}
+.loan-negotiation-modal .nego-card > div > div[style*="justify-content:space-between"] > span {
+  font-size: 12px !important;
+}
+.loan-negotiation-modal .nego-card .btnLoanBonusWin,
+.loan-negotiation-modal .nego-card .btnLoanBonusGoal,
+.loan-negotiation-modal .nego-card .btnLoanBonusTitle {
+  font-size: 11px !important;
+  padding: 5px 8px !important;
+  min-height: 30px;
+}
+.loan-negotiation-modal .nego-interest-wrapper > div:first-child > span:first-child {
+  font-size: 13px !important;
+}
+.loan-negotiation-modal .nego-interest-wrapper > div:last-child {
+  font-size: 12px !important;
+  line-height: 1.45;
+}
+@media (max-width: 600px) {
+  .loan-negotiation-modal {
+    padding: 14px !important;
+  }
+  .loan-negotiation-modal .nego-card {
+    padding: 12px;
+  }
+  .loan-negotiation-modal .nego-card > div[style*="justify-content:space-between"] {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
 .nego-rival-pill {
   display: flex;
   align-items: center;

@@ -722,6 +722,19 @@ assert(gameJsContent.includes('let pendingInvestment = currentInvest;')
   && gameJsContent.includes('state.marketingWeekly = pendingInvestment;')
   && !gameJsContent.includes("slider.onchange = () => { save(); updateMktLive(); }"),
   'O investimento só é persistido ao confirmar Salvar & Aplicar');
+assert(gameJsContent.includes('function transferNegotiationSnapshot()')
+  && gameJsContent.includes('const currentNegotiation = transferNegotiationSnapshot();')
+  && gameJsContent.includes("toast('Confira os termos atuais: a proposta não atende mais às condições para concluir.')"),
+  'Compra de jogador recalcula interesse/chances a cada alteração e valida os termos atuais no fechamento');
+assert(gameJsContent.includes('function loanNegotiationSnapshot()')
+  && gameJsContent.includes('const currentNegotiation = loanNegotiationSnapshot();')
+  && gameJsContent.includes('Confira os termos atuais do empréstimo antes de confirmar.')
+  && gameJsContent.includes('Percentual do Salário Pago pelo Seu Clube:</div>'),
+  'Empréstimo valida os termos atuais na confirmação e recalcula interesse');
+assert(gameJsContent.includes('loan-negotiation-modal')
+  && gameJsContent.includes('font-size:14px;font-weight:800;color:#e2e8f0;margin-bottom:8px')
+  && gameJsContent.includes('min-height:54px;flex-direction:column'),
+  'Modal de empréstimo aumenta o texto do percentual salarial e torna as opções mais legíveis');
 assert(gameJsContent.indexOf('<h3>Propostas de Patrocínio Recebidas</h3>') > gameJsContent.indexOf('<h2 style="margin-top:20px">Patrocinadores Oficiais do Clube</h2>')
   && gameJsContent.indexOf('<h3>Propostas de Patrocínio Recebidas</h3>') < gameJsContent.indexOf('${renderSocioTorcedorCard(socioData)}'),
   'Propostas de patrocínio aparecem logo após patrocinadores oficiais');

@@ -16176,9 +16176,10 @@ function openCustomModal(title, bodyHtml, onConfirm, confirmText='Confirmar', sh
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'appCustomModal';
+  const modalClasses = `${maxWidth ? 'modal-wide' : ''}${title === '⇄ Negociação de Empréstimo de Jogador' ? ' loan-negotiation-modal' : ''}`.trim();
   const widthStyle = maxWidth ? `style="max-width:${maxWidth};width:96%"` : '';
   overlay.innerHTML = `
-    <div class="modal ${maxWidth ? 'modal-wide' : ''}" ${widthStyle}>
+    <div class="modal ${modalClasses}" ${widthStyle}>
       <div class="modal-header">
         <h3 style="margin:0">${esc(title)}</h3>
         <button class="modal-close-btn" id="modalCloseXBtn">✕</button>
@@ -16704,15 +16705,29 @@ function openTransferNegotiationModal(key){
     return clamp(score, 15, 100);
   }
 
-  function renderNegoModal(){
+  function transferNegotiationSnapshot(){
     const interest = calcInterest();
     const clubAccepted = offerBid >= askingPrice && offerBid > highestRivalBid;
-    const clubChance = offerBid <= highestRivalBid ? 0 : offerBid < askingPrice ? 0 : clamp(Math.round(75 + ((offerBid - askingPrice) / (askingPrice * 0.25 || 1)) * 24), 70, 99);
-    const playerChance = interest;
-    const playerAccepted = interest >= 65;
+    const clubChance = offerBid <= highestRivalBid || offerBid < askingPrice
+      ? 0
+      : clamp(Math.round(75 + ((offerBid - askingPrice) / (askingPrice * 0.25 || 1)) * 24), 70, 99);
     const totalCashNeeded = offerBid + signingBonus;
     const canAfford = state.balance >= totalCashNeeded;
-    const canFinalize = clubAccepted && playerAccepted && canAfford;
+    return {
+      interest,
+      playerChance: interest,
+      clubChance,
+      clubAccepted,
+      playerAccepted: interest >= 65,
+      totalCashNeeded,
+      canAfford,
+      canFinalize: clubAccepted && interest >= 65 && canAfford
+    };
+  }
+
+  function renderNegoModal(){
+    const negotiation = transferNegotiationSnapshot();
+    const {interest, clubChance, playerChance, clubAccepted, playerAccepted, totalCashNeeded, canAfford, canFinalize} = negotiation;
 
     const interestClass = interest < 50 ? 'interest-low' : interest < 75 ? 'interest-mid' : 'interest-high';
     const interestText = interest < 50 
@@ -16953,40 +16968,8 @@ function openTransferNegotiationModal(key){
     if(wageSlider){
       wageSlider.oninput = () => {
         wageOffered = +wageSlider.value;
-        const dw = $('#dispWageOffered');
-        if(dw) dw.textContent = fmtMoney(wageOffered) + '/mês';
-        const dp = $('#dispNewPayrollImpact');
-        if(dp) dp.textContent = `Nova Folha: ${fmtMoney(totalMonthlyPayroll() + wageOffered)}/mês`;
-
-        const sRatio = wageOffered / (baseSalary || 1);
-        let dynInt = Math.round(50 + (sRatio - 1) * 35 + (contractYears >= 3 ? 10 : 0) + (signingBonus > 0 ? (signingBonus/150000)*4 : 0));
-        dynInt = clamp(dynInt, 10, 99);
-        interest = dynInt;
-        const dynClass = dynInt >= 75 ? 'good' : (dynInt >= 50 ? 'warning' : 'danger');
-
-        const pi = $('#dispInterestPct');
-        if(pi){
-          pi.textContent = dynInt + '%';
-          pi.style.color = dynInt >= 75 ? '#10b981' : (dynInt >= 50 ? '#f59e0b' : '#ef4444');
-        }
-        const bf = $('#dispInterestBarFill');
-        if(bf){
-          bf.style.width = dynInt + '%';
-          bf.className = `nego-interest-bar-fill ${dynClass}`;
-        }
-        const pc = $('#dispPlayerChance');
-        if(pc){
-          playerChance = Math.min(99, Math.round(dynInt * 0.95));
-          pc.textContent = playerChance + '%';
-          pc.style.color = playerChance >= 65 ? '#22c55e' : '#ef4444';
-        }
-        const bConfirm = $('#btnConfirmBuyTransfer');
-        if(bConfirm){
-          const canFin = canAfford && clubChance >= 50 && playerChance >= 50;
-          canFinalize = canFin;
-          bConfirm.disabled = !canFin;
-          bConfirm.style.background = canFin ? 'linear-gradient(135deg,#059669,#10b981)' : '#374151';
-        }
+        // Re-render from current terms so no previously high chance can linger.
+        renderNegoModal();
       };
     }
 
@@ -17028,14 +17011,19 @@ function openTransferNegotiationModal(key){
     const bConf = $('#btnConfirmBuyTransfer');
     if(bConf){
       bConf.onclick = () => {
-        if(!canFinalize) return;
+        const currentNegotiation = transferNegotiationSnapshot();
+        if(!currentNegotiation.canFinalize){
+          renderNegoModal();
+          toast('Confira os termos atuais: a proposta não atende mais às condições para concluir.');
+          return;
+        }
         const rollClub = Math.random() * 100;
-        if(rollClub > clubChance){
+        if(rollClub > currentNegotiation.clubChance){
           toast(`❌ A diretoria do ${from} recuou no último minuto! Aumente o valor do passe para garantir o aceite.`);
           return;
         }
         const rollPlayer = Math.random() * 100;
-        if(rollPlayer > playerChance){
+        if(rollPlayer > currentNegotiation.playerChance){
           toast(`❌ ${p.name} recusou a proposta contratual final! Seu agente pediu melhores termos salariais ou luvas.`);
           return;
         }
@@ -17129,14 +17117,27 @@ function openLoanNegotiationModal(key){
     return clamp(score, 20, 100);
   }
 
-  function renderLoanNego(){
+  function loanNegotiationSnapshot(){
     const interest = calcLoanInterest();
     const clubAccepted = offeredFee >= baseFee && offeredFee > rivalFee;
-    const clubChance = offeredFee <= rivalFee ? 0 : clamp(Math.round(70 + ((offeredFee - baseFee) / (baseFee * 0.3 || 1)) * 28), 65, 98);
-    const playerChance = interest;
-    const playerAccepted = interest >= 65;
+    const clubChance = offeredFee <= rivalFee
+      ? 0
+      : clamp(Math.round(70 + ((offeredFee - baseFee) / (baseFee * 0.3 || 1)) * 28), 65, 98);
     const canAfford = state.balance >= offeredFee;
-    const canFinalize = clubAccepted && playerAccepted && canAfford;
+    return {
+      interest,
+      playerChance: interest,
+      clubChance,
+      clubAccepted,
+      playerAccepted: interest >= 65,
+      canAfford,
+      canFinalize: clubAccepted && interest >= 65 && canAfford
+    };
+  }
+
+  function renderLoanNego(){
+    const negotiation = loanNegotiationSnapshot();
+    const {interest, clubAccepted, clubChance, playerChance, playerAccepted, canAfford, canFinalize} = negotiation;
 
     const interestClass = interest < 50 ? 'interest-low' : interest < 75 ? 'interest-mid' : 'interest-high';
 
@@ -17212,15 +17213,15 @@ function openLoanNegotiationModal(key){
           </div>
 
           <div>
-            <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:4px">Percentual do Salário Pago pelo Seu Clube:</div>
+          <div style="font-size:14px;font-weight:800;color:#e2e8f0;margin-bottom:8px;line-height:1.45">Percentual do Salário Pago pelo Seu Clube:</div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
               ${[
                 { pct: 0.50, lbl: '50%', cost: fullSalary * 0.50 },
                 { pct: 0.80, lbl: '80%', cost: fullSalary * 0.80 },
                 { pct: 1.00, lbl: '100% (Integral)', cost: fullSalary }
               ].map(opt => `
-                <button class="btn btnLoanSalaryPct ${salaryShare===opt.pct?'primary':''}" data-pct="${opt.pct}" style="padding:6px;font-size:10px;text-align:center">
-                  <b>${opt.lbl}</b><br><small>${fmtMoney(opt.cost)}/mês</small>
+                <button class="btn btnLoanSalaryPct ${salaryShare===opt.pct?'primary':''}" data-pct="${opt.pct}" style="padding:9px 6px;font-size:12px;text-align:center;line-height:1.35;min-height:54px;flex-direction:column">
+                  <b>${opt.lbl}</b><small style="font-size:11px;line-height:1.3">${fmtMoney(opt.cost)}/mês</small>
                 </button>
               `).join('')}
             </div>
@@ -17228,7 +17229,7 @@ function openLoanNegotiationModal(key){
 
           <!-- Bônus no Empréstimo -->
           <div style="display:flex;flex-direction:column;gap:4px">
-            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6)">BÔNUS POR JOGO / TÍTULO:</div>
+            <div style="font-size:12px;font-weight:800;color:#cbd5e1">BÔNUS POR JOGO / TÍTULO:</div>
             
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="font-size:10px">🏆 Vitória:</span>
@@ -17351,14 +17352,19 @@ function openLoanNegotiationModal(key){
     const bConfLoan = $('#btnConfirmLoanNego');
     if(bConfLoan){
       bConfLoan.onclick = () => {
-        if(!canFinalize) return;
+        const currentNegotiation = loanNegotiationSnapshot();
+        if(!currentNegotiation.canFinalize){
+          renderLoanNego();
+          toast('Confira os termos atuais do empréstimo antes de confirmar.');
+          return;
+        }
         const rollClub = Math.random() * 100;
-        if(rollClub > clubChance){
+        if(rollClub > currentNegotiation.clubChance){
           toast(`❌ O ${from} recusou a liberação por empréstimo no último minuto! Aumente a taxa de empréstimo.`);
           return;
         }
         const rollPlayer = Math.random() * 100;
-        if(rollPlayer > playerChance){
+        if(rollPlayer > currentNegotiation.playerChance){
           toast(`❌ ${p.name} recusou os termos do empréstimo! Ele exige 100% dos salários ou bônus por vitória.`);
           return;
         }
