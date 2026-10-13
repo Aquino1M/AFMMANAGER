@@ -781,8 +781,11 @@ assert(gameJsContent.includes("$$('[data-view]').forEach(b=>b.onclick=(event)=>{
 assert(gameJsContent.includes('normalizeSquadState(state);')
   && gameJsContent.includes('state.squad = Array.isArray(state.squad) ? state.squad.filter(Boolean) : []')
   && gameJsContent.includes('state.lineup = Array.isArray(state.lineup) ? state.lineup : []')
+  && gameJsContent.includes('return squadKeysByAlias.get(String(key)) || null;')
+  && gameJsContent.includes("const setPieceCandidates = (validStarters.length ? validStarters : state.squad).filter(p => p && typeof p === 'object' && (p.name || p.id || p.marketKey))")
+  && gameJsContent.includes('setPieceCandidates.map(p=>`<option')
   && gameJsContent.includes("state.formation = FORMATIONS[state.formation] ? state.formation : '4-3-3'"),
-  'Meu time & Tática normaliza escalação e formação de saves legados antes de renderizar');
+  'Meu time & Tática remove chaves fantasmas da escalação e usa só jogadores válidos nos seletores de bola parada');
 assert(gameJsContent.includes('const nextHtml = page();')
   && gameJsContent.includes("recordAFMError('render-page', err)")
   && gameJsContent.includes('btnRetryRenderPage')

@@ -7757,9 +7757,11 @@ function normalizeSquadState(targetState = state){
     const canonical = playerKey(player);
     [canonical, player.id, player.marketKey, player.fifaId, player.pesId, player.name].filter(Boolean).forEach(alias => squadKeysByAlias.set(String(alias), canonical));
   });
+  // Slot vazio fica null; referências antigas que não encontram mais atleta
+  // são liberadas para evitar que o renderizador tente ler .name de um player inexistente.
   targetState.lineup = targetState.lineup.map(key => {
     if(!key) return null;
-    return squadKeysByAlias.get(String(key)) || key;
+    return squadKeysByAlias.get(String(key)) || null;
   });
   while(targetState.lineup.length < 11) targetState.lineup.push(null);
   if(targetState.lineup.length > 11) targetState.lineup = targetState.lineup.slice(0, 11);
@@ -19248,9 +19250,11 @@ function myTeamPage(){
 
   const startingPlayers = (slots || []).map((slot, idx) => {
     const pk = state.lineup?.[idx];
-    return pk ? state.squad.find(q => playerKey(q) === pk) : null;
+    return pk ? state.squad.find(q => q && playerKey(q) === pk) || null : null;
   });
   const validStarters = startingPlayers.filter(Boolean);
+  // Todos os seletores de bolas paradas consomem jogadores reais, nunca slots vazios.
+  const setPieceCandidates = (validStarters.length ? validStarters : state.squad).filter(p => p && typeof p === 'object' && (p.name || p.id || p.marketKey));
   const overallTitulares = validStarters.length > 0 
     ? Math.round(validStarters.reduce((acc, p) => acc + playerOverall(p), 0) / validStarters.length) 
     : 59;
@@ -19274,19 +19278,19 @@ function myTeamPage(){
         <div>
           <span style="font-size:11px;font-weight:900;color:#facc15">🎯 PÊNALTIS:</span>
           <select id="selPenaltyTaker" class="btn" style="padding:4px 8px;font-size:11px;background:#1e1838;color:#fff;border-radius:6px;border:1px solid rgba(255,255,255,0.15)">
-            ${validStarters.map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.penalty||state.setPieceTakers?.penalties)===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
+            ${validStarters.map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.penalty||state.setPieceTakers?.penalties)===playerKey(p)?'selected':''}>${esc(p.name || 'Jogador')} (${p.ovr ?? playerOverall(p)})</option>`).join('')}
           </select>
         </div>
         <div>
           <span style="font-size:11px;font-weight:900;color:#38bdf8">⚡ FALTAS:</span>
           <select id="selFreekickTaker" class="btn" style="padding:4px 8px;font-size:11px;background:#1e1838;color:#fff;border-radius:6px;border:1px solid rgba(255,255,255,0.15)">
-            ${validStarters.map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.freekick||state.setPieceTakers?.freekicks)===playerKey(p)?'selected':''}>${esc(p.name)} (${p.ovr})</option>`).join('')}
+            ${validStarters.map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.freekick||state.setPieceTakers?.freekicks)===playerKey(p)?'selected':''}>${esc(p.name || 'Jogador')} (${p.ovr ?? playerOverall(p)})</option>`).join('')}
           </select>
         </div>
         <div>
           <span style="font-size:11px;font-weight:900;color:#eab308">👑 CAPITÃO:</span>
           <select id="selCaptain" class="btn" style="padding:4px 8px;font-size:11px;background:#1e1838;color:#fff;border-radius:6px;border:1px solid rgba(255,255,255,0.15)">
-            ${validStarters.map(p=>`<option value="${esc(p.name)}" ${state.captains?.[0]===p.name?'selected':''}>${esc(p.name)} (${p.pos})</option>`).join('')}
+            ${validStarters.map(p=>`<option value="${esc(p.name || playerKey(p))}" ${state.captains?.[0]===p.name?'selected':''}>${esc(p.name || 'Jogador')} (${p.pos || '-'})</option>`).join('')}
           </select>
         </div>
       </div>
@@ -19657,7 +19661,7 @@ function myTeamPage(){
                   ©️ Capitão da Equipe
                 </label>
                 <select id="setPieceCaptain" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:11px">
-                  ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.captain===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+                  ${setPieceCandidates.map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.captain===playerKey(p))?'selected':''}>${esc(p.name || 'Jogador')} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
                 </select>
               </div>
 
@@ -19666,7 +19670,7 @@ function myTeamPage(){
                   ⚽ Pênaltis
                 </label>
                 <select id="setPiecePenalty" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:11px">
-                  ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.penalty===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+                  ${setPieceCandidates.map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.penalty===playerKey(p))?'selected':''}>${esc(p.name || 'Jogador')} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
                 </select>
               </div>
 
@@ -19675,7 +19679,7 @@ function myTeamPage(){
                   🎯 Faltas Diretas
                 </label>
                 <select id="setPieceFreekick" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:11px">
-                  ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.freekick===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+                  ${setPieceCandidates.map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.freekick===playerKey(p))?'selected':''}>${esc(p.name || 'Jogador')} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
                 </select>
               </div>
 
@@ -19684,7 +19688,7 @@ function myTeamPage(){
                   🚩 Escanteios
                 </label>
                 <select id="setPieceCorner" class="btn" style="width:100%;background:#18142b;color:#fff;border:1px solid rgba(255,255,255,0.12);font-size:11px">
-                  ${(startingPlayers.length>0?startingPlayers:state.squad.slice(0,11)).map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.corner===playerKey(p))?'selected':''}>${esc(p.name)} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
+                  ${setPieceCandidates.map(p=>`<option value="${playerKey(p)}" ${(state.setPieces?.corner===playerKey(p))?'selected':''}>${esc(p.name || 'Jogador')} (${p.pos||'-'} · ${playerOverall(p)})</option>`).join('')}
                 </select>
               </div>
             </div>
