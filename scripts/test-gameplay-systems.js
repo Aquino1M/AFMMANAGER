@@ -796,6 +796,19 @@ assert(gameJsContent.includes("var tacticalActiveTab = 'closed';")
   && gameJsContent.includes("tacticalActiveTab === 'open'")
   && gameJsContent.includes("tacticalActiveTab = accTac.open ? 'open' : 'closed';"),
   'Meu time & Tática inicializa o estado do acordeão tático usado no HTML e nos handlers');
+assert(gameJsContent.includes('function getPendingClubCompetitions(gameState = state)')
+  && gameJsContent.includes('function seasonCompetitionsComplete(gameState = state)')
+  && gameJsContent.includes('if(pendingCompetitions.length){')
+  && gameJsContent.includes('VIRADA DO ANO BLOQUEADA')
+  && gameJsContent.includes("['02-10','03-03','04-07','05-05','06-02','07-07','08-04','09-08','12-08']"),
+  'A virada do ano exige concluir estadual, liga, Copa do Brasil e competições internacionais; as fases da Copa são escalonadas e a final fica em dezembro');
+assert(gameJsContent.includes('pendingOtherCompetitions.length')
+  && gameJsContent.includes('pendingOtherCompetitions')
+  && gameJsContent.includes('const pendingDates = typeof getPendingClubCompetitions'),
+  'O calendário continua avançando para competições pendentes mesmo após acabar o calendário principal');
+assert(gameJsContent.includes('userFixturePending && ph.isoDate < currentDate')
+  && gameJsContent.includes('Remarque a fase pendente do usuário para a próxima quarta-feira'),
+  'Uma partida pendente da Copa do Brasil não é simulada automaticamente e pode ser remarcada em save legado');
 
 // =========================================================================
 // RESULTADO FINAL

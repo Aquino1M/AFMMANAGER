@@ -4802,7 +4802,9 @@ function initCopaDoBrasilData(){
   const nonA = [...regional, ...otherStateQualifiers, ...criterion];
   const entrants = [...serieA, ...nonA];
   const season = Number(state?.season) || 2026;
-  const phaseDates = ['02-18','03-11','04-15','05-13','06-17','08-05','08-26','10-14','11-25'].map(day => `${season}-${day}`);
+  // Copa do Brasil intercalada no calendário: quartas-feiras entre rodadas
+  // nacionais/estaduais, com a final em dezembro para não ser preterida pelo estadual.
+  const phaseDates = ['02-10','03-03','04-07','05-05','06-02','07-07','08-04','09-08','12-08'].map(day => `${season}-${day}`);
   const phaseNames = ['1ª Fase','2ª Fase','3ª Fase','4ª Fase','5ª Fase','Oitavas de Final','Quartas de Final','Semifinais','Final'];
   const makePhase = (index, teams = []) => ({
     name: phaseNames[index], status: index === 0 ? 'EM DISPUTA' : 'A COMEÇAR',
@@ -4841,10 +4843,36 @@ function processCopaDoBrasilCalendar(currentDate = state?.date){
     const ph = copa.phases[k];
     if(!ph || !ph.isoDate) continue;
 
+    // Saves legados podem ter avançado a data além de uma partida da Copa.
+    // Remarque a fase pendente do usuário para a próxima quarta-feira; nunca
+    // simule automaticamente a partida do usuário nem descarte a fase.
+    const userFixturePending = (ph.fixtures || []).find(f =>
+      f && !f.score && !f.winner && (norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club))
+    );
+    if(userFixturePending && ph.isoDate < currentDate){
+      const nextMidweek = new Date(`${currentDate}T12:00:00`);
+      nextMidweek.setDate(nextMidweek.getDate() + 1);
+      while(nextMidweek.getDay() !== 3) nextMidweek.setDate(nextMidweek.getDate() + 1);
+      const nextDate = nextMidweek.toISOString().slice(0, 10);
+      ph.isoDate = nextDate;
+      ph.dateStr = formatDatePtBr(nextDate);
+      (ph.fixtures || []).filter(f => !f.score && !f.winner).forEach(f => {
+        f.isoDate = nextDate;
+        f.date = formatDatePtBr(nextDate);
+      });
+      ph.status = 'EM DISPUTA';
+      copa.activePhase = k;
+      state.news = Array.isArray(state.news) ? state.news : [];
+      state.news.unshift(`📅 COPA DO BRASIL REMARCADA: ${k} do ${state.club} foi reagendada para ${formatDatePtBr(nextDate)} para preservar a partida pendente.`);
+      state.news = state.news.slice(0, 50);
+      return;
+    }
+
     // Se a data desta fase já passou no calendário atual:
     if(ph.isoDate < currentDate){
       const winners = [];
       (ph.fixtures || []).forEach(f => {
+        if(norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club)) return;
         if(!f.score){
           const [hg, ag] = simulateScore(f.home, f.away);
           let w = hg > ag ? f.home : (ag > hg ? f.away : (Math.random() < 0.5 ? f.home : f.away));
@@ -4854,6 +4882,12 @@ function processCopaDoBrasilCalendar(currentDate = state?.date){
         if(f.winner) winners.push(f.winner);
       });
 
+      const hasOutstandingUserFixture = (ph.fixtures || []).some(f => !f.score && !f.winner && (norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club)));
+      if(hasOutstandingUserFixture){
+        ph.status = 'EM DISPUTA';
+        copa.activePhase = k;
+        return;
+      }
       ph.status = 'CONCLUÍDO';
       if(i === phaseKeys.length - 1 && winners.length === 1){
         copa.champion = winners[0];
@@ -7059,6 +7093,77 @@ function competitionClubs(comp,selected,rosterOverride=null){
   return hasBaseRoster || hasSavedRoster ? out : out.slice(0,target);
 }
 
+// Auditoria central: a temporada só termina quando todas as competições
+// efetivamente disputadas pelo clube não têm mais partidas pendentes.
+function getPendingClubCompetitions(gameState = state){
+  if(!gameState?.club) return [];
+  const clubKey = norm(gameState.club);
+  const season = Number(gameState.season);
+  const pending = [];
+  const push = (id, name, date, detail) => pending.push({id, name, date:date || null, detail:detail || ''});
+  const history = Array.isArray(gameState.history) ? gameState.history : [];
+  const hasResult = (id, fixture, roundIndex = null) => history.some(item =>
+    Number(item.season || season) === season &&
+    (!item.competitionId || item.competitionId === id) &&
+    (roundIndex == null || Number(item.round) === roundIndex + 1) &&
+    ((norm(item.h) === clubKey && norm(item.a) === norm(fixture[1])) ||
+     (norm(item.a) === clubKey && norm(item.h) === norm(fixture[0])))
+  );
+
+  // Campeonato principal que alimenta as tabelas da carreira.
+  (Array.isArray(gameState.schedule) ? gameState.schedule : []).forEach((games, roundIndex) => {
+    (Array.isArray(games) ? games : []).forEach(fixture => {
+      if(!Array.isArray(fixture) || fixture.length < 2 || !fixture.some(team => norm(team) === clubKey)) return;
+      const id = gameState.compId || 'primary';
+      const played = hasResult(id, fixture, roundIndex) || history.some(item => Number(item.season || season) === season && item.competitionId === id && Number(item.round) === roundIndex + 1 && (norm(item.h) === clubKey || norm(item.a) === clubKey));
+      if(!played) push(id, compById(id)?.name || gameState.competition || 'Campeonato principal', getDateForRound(roundIndex, season), `Rodada ${roundIndex + 1}`);
+    });
+  });
+
+  // Estaduais têm calendário independente do campeonato nacional.
+  const stateIds = Object.keys(gameState.competitionTeams || window.COMPETITION_TEAMS || {}).filter(id => id.startsWith('bra-est-'));
+  const assignedState = stateIds.find(id => (gameState.competitionTeams?.[id] || window.COMPETITION_TEAMS?.[id] || []).some(team => norm(typeof team === 'string' ? team : team?.name) === clubKey));
+  if(assignedState){
+    const data = getStateCompData(assignedState);
+    (data?.fixtures || []).forEach((fixture, index) => {
+      if(norm(fixture.home) !== clubKey && norm(fixture.away) !== clubKey) return;
+      const played = fixture.played === true || Boolean(fixture.result || fixture.score) || history.some(item => Number(item.season || season) === season && (item.competitionId === assignedState || !item.competitionId) && ((norm(item.h) === norm(fixture.home) && norm(item.a) === norm(fixture.away)) || (norm(item.h) === norm(fixture.away) && norm(item.a) === norm(fixture.home))));
+      if(!played) push(assignedState, compById(assignedState)?.name || 'Campeonato estadual', fixture.isoDate || getDateForRound(fixture.roundIndex ?? index, season), `Rodada ${(Number(fixture.roundIndex ?? index) || 0) + 1}`);
+    });
+  }
+
+  // Copa do Brasil: só conta jogos ainda pendentes do clube, não de outras equipes.
+  const copa = gameState.copaData && Number(gameState.copaData.season) === season ? gameState.copaData : null;
+  if(copa?.phases){
+    Object.entries(copa.phases).forEach(([phaseName, phase]) => (phase.fixtures || []).forEach(fixture => {
+      if(norm(fixture.home) !== clubKey && norm(fixture.away) !== clubKey) return;
+      const playedInHistory = history.some(item => Number(item.season || season) === season && item.competitionId === 'bra-cup' && ((norm(item.h) === norm(fixture.home) && norm(item.a) === norm(fixture.away)) || (norm(item.h) === norm(fixture.away) && norm(item.a) === norm(fixture.home))));
+      if(fixture.score || fixture.winner || fixture.played === true || playedInHistory || phase.status === 'CONCLUÍDO') return;
+      push('bra-cup', 'Copa do Brasil', fixture.isoDate || phase.isoDate, phaseName);
+    }));
+  }
+
+  // Competições continentais/internacionais qualificadas e persistidas no save.
+  for(const id of ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc']){
+    const tournament = gameState.tournaments?.[id];
+    if(!tournament || Number(tournament.season) !== season) continue;
+    (tournament.matches || []).forEach(match => {
+      if((norm(match.home) !== clubKey && norm(match.away) !== clubKey) || match.status !== 'scheduled') return;
+      push(id, ({lib:'Copa Libertadores',sud:'Copa Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'})[id] || id, match.date, `Rodada ${match.round || ''}`);
+    });
+  }
+  return pending.sort((a,b) => String(a.date || '9999-12-31').localeCompare(String(b.date || '9999-12-31')));
+}
+
+function seasonCompetitionsComplete(gameState = state){
+  return getPendingClubCompetitions(gameState).length === 0;
+}
+
+function getNextClubFixtureDate(gameState = state){
+  const pending = getPendingClubCompetitions(gameState);
+  return pending.find(item => item.date && item.date >= gameState.date)?.date || pending.find(item => item.date)?.date || null;
+}
+
 function generatedRosterForClub(club){
   const c=clubByName(club)||{name:club,country:'Outro',atk:66,mid:66,def:66};const base=strength(c);const arr=[];
   for(let i=0;i<25;i++){
@@ -7974,7 +8079,13 @@ function getStateCompData(cId){
   if(clubForState && !roster.some(name => norm(name) === norm(clubForState))) roster.push(clubForState);
   const teams = roster.filter((name,index,list)=>list.findIndex(other=>norm(other)===norm(name))===index);
   const stateRounds = roundRobin(teams);
-  const roundDates = stateRounds.map((_, roundIndex) => getDateForRound(roundIndex, state.season));
+  // Estadual entra no intervalo entre partidas da competição principal,
+  // evitando dois jogos oficiais do mesmo clube na mesma data.
+  const roundDates = stateRounds.map((_, roundIndex) => {
+    const nationalDate = new Date(`${getDateForRound(roundIndex, state.season)}T12:00:00`);
+    nationalDate.setDate(nationalDate.getDate() + 1);
+    return nationalDate.toISOString().slice(0, 10);
+  });
   const previousFixtures = Array.isArray(currentSaved?.fixtures) ? currentSaved.fixtures : [];
   const archivedHistory = (state.history || []).filter(item => (item?.competitionId === cId || (!item?.competitionId && norm(item.competitionName) === norm(comp.name))) && Number(item.season || state.season) === Number(state.season));
   const usedPreviousFixtures = new Set();
@@ -9813,6 +9924,11 @@ function canStartMatch(fixture, gameState = state){
   // 2. Fim de temporada
   const fixtures = Array.isArray(gameState.schedule?.[gameState.round]) ? gameState.schedule[gameState.round] : [];
   if(gameState.round >= (gameState.schedule?.length || 1)){
+    const pendingOtherCompetitions = typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(gameState) : [];
+    if(pendingOtherCompetitions.length){
+      const next = pendingOtherCompetitions[0];
+      return { canStart: false, reason: `O calendário principal terminou, mas ainda falta disputar ${next.name}${next.detail ? ` (${next.detail})` : ''}${next.date ? ` em ${formatDatePtBr(next.date)}` : ''}. A temporada continua aberta.`, status: 'other_competitions_pending', pending: pendingOtherCompetitions, nextDate: next.date || null };
+    }
     return { canStart: false, reason: 'A temporada atual já foi concluída.', status: 'season_finished' };
   }
 
@@ -9883,13 +9999,17 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
     const activeFixtures = Array.isArray(schedule[state.round]) ? schedule[state.round] : [];
     const clubFixture = activeFixtures.find(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === clubNorm || norm(g[1]) === clubNorm));
     const nextFixtureRound = clubFixture ? state.round : schedule.findIndex((games, idx) => idx >= state.round && Array.isArray(games) && games.some(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === clubNorm || norm(g[1]) === clubNorm)));
-    const matchDate = nextFixtureRound >= 0 ? getDateForRound(nextFixtureRound, state.season) : null;
+    const primaryMatchDate = nextFixtureRound >= 0 ? getDateForRound(nextFixtureRound, state.season) : null;
+    const pendingDates = typeof getPendingClubCompetitions === 'function'
+      ? getPendingClubCompetitions(state).map(item => item.date).filter(date => date && date >= state.date).sort()
+      : [];
+    const matchDate = [primaryMatchDate, ...pendingDates].filter(date => date && date >= state.date).sort()[0] || primaryMatchDate;
     let daysAdvanced = 0;
 
     for(let i = 0; i < Math.max(0, Number(days) || 0); i++){
       // Só paramos ao chegar exatamente à data do jogo. Se a data salva já passou,
       // esse fixture é tratado como atrasado e não pode congelar a simulação em 0 dias.
-      if(stopAtMatch && nextFixtureRound >= 0 && matchDate && state.date === matchDate) break;
+      if(stopAtMatch && matchDate && state.date === matchDate) break;
       const current = new Date(`${state.date}T12:00:00`);
       if(!Number.isFinite(current.getTime())) break;
       current.setDate(current.getDate() + 1);
@@ -9928,11 +10048,11 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       });
       if(nextDate.endsWith('-01') && typeof processBankLoansOnRound === 'function') processBankLoansOnRound();
       processCopaDoBrasilCalendar(state.date);
-      if(stopAtMatch && nextFixtureRound >= 0 && matchDate && state.date === matchDate) break;
+      if(stopAtMatch && matchDate && state.date === matchDate) break;
     }
     save();
     render();
-    if(matchDate && nextFixtureRound >= 0 && state.date === matchDate) toast(`Calendário avançado até o próximo jogo (${formatDatePtBr(matchDate)}).`);
+    if(matchDate && state.date === matchDate) toast(`Calendário avançado até o próximo jogo (${formatDatePtBr(matchDate)}).`);
     else toast(`Calendário avançado em ${daysAdvanced} ${daysAdvanced === 1 ? 'dia' : 'dias'}. Data atual: ${formatDatePtBr(state.date)}.`);
   } finally {
     isAdvancingTime = false;
@@ -10825,8 +10945,15 @@ function finalizeRound(userRes, winners, isKO){
       }, 400);
     }
 
+    const pendingCompetitions = typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(state) : [];
     const pos = position();
-    if(pos === 1){
+    if(pendingCompetitions.length){
+      const next = pendingCompetitions[0];
+      state.news = Array.isArray(state.news) ? state.news : [];
+      state.news.unshift(`📅 TEMPORADA EM ANDAMENTO: o campeonato principal acabou, mas ainda falta ${next.name}${next.detail ? ` (${next.detail})` : ''}${next.date ? ` em ${formatDatePtBr(next.date)}` : ''}. A virada do ano ficará bloqueada até concluir todas as competições.`);
+      state.news = state.news.slice(0, 50);
+      setTimeout(() => { view = 'calendario'; save(); render(); toast(`Próxima competição pendente: ${next.name}.`); }, 400);
+    } else if(pos === 1){
       setTimeout(() => {
         showChampionTrophyCeremonyModal(comp, () => {
           showEndOfSeasonModal();
@@ -15367,6 +15494,16 @@ function simulateQuickRound(){
       showEndOfSeasonModal();
       return;
     }
+    if(matchGate.status === 'other_competitions_pending'){
+      const targetDate = matchGate.nextDate || getNextClubFixtureDate(state);
+      if(targetDate && targetDate > state.date){
+        const days = Math.max(1, Math.round((new Date(`${targetDate}T12:00:00`) - new Date(`${state.date}T12:00:00`)) / 86400000));
+        advanceCalendarDays(days, true);
+      } else {
+        view = 'calendario'; render(); toast(matchGate.reason);
+      }
+      return;
+    }
     if(matchGate.status === 'future'){
       // Se o usuário clica em simular diretamente mas ainda faltavam dias, avança o calendário até a data do jogo
       state.date = matchGate.matchDate;
@@ -15551,6 +15688,14 @@ function showChampionTrophyCeremonyModal(comp, onProceed){
 // FIM DE TEMPORADA & MERCADO DE TÉCNICOS
 // -------------------------------------------------------------
 function showEndOfSeasonModal(){
+  const pendingCompetitions = typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(state) : [];
+  if(pendingCompetitions.length){
+    const next = pendingCompetitions[0];
+    toast(`⏳ A temporada continua aberta: termine ${next.name}${next.detail ? ` (${next.detail})` : ''}${next.date ? ` em ${formatDatePtBr(next.date)}` : ''} antes de virar o ano.`);
+    view = 'calendario';
+    render();
+    return;
+  }
   const pos = position();
   const trust = state.trust.board;
   const isSatisfied = trust >= 50;
@@ -16046,6 +16191,14 @@ function executeSeasonTransitions(finishedCompId = null, finishedRanking = null,
 }
 
 function advanceSeasonYear(){
+  const pendingCompetitions = typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(state) : [];
+  if(pendingCompetitions.length){
+    const next = pendingCompetitions[0];
+    toast(`🚫 VIRADA DO ANO BLOQUEADA: ainda falta disputar ${next.name}${next.detail ? ` (${next.detail})` : ''}${next.date ? ` em ${formatDatePtBr(next.date)}` : ''}. Conclua todas as competições da temporada.`);
+    view = 'calendario';
+    render();
+    return false;
+  }
   // 1. Registra Snapshot Histórico no Hall da Fama da Carreira
   const finishedYear = state.season;
   const compFinished = curComp();
