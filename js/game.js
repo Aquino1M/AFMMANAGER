@@ -7737,6 +7737,41 @@ function marketingBenefits(weeklyInvestment = state?.marketingWeekly, marketingL
   };
 }
 
+// Espaço do elenco profissional cresce a cada melhoria do Centro de
+// Treinamento. Nível 1 começa com 25 vagas; nível 8 chega a 46.
+function squadCapacity(trainingLevel = state?.infrastructure?.training?.level){
+  const level = clamp(Math.round(Number(trainingLevel) || 1), 1, FACILITIES.training.max);
+  return 25 + ((level - 1) * 3);
+}
+
+function normalizeSquadState(targetState = state){
+  if(!targetState) return 0;
+  if(!Array.isArray(targetState.squad)) targetState.squad = [];
+  const initialLength = targetState.squad.length;
+  // Remove só slots nulos/corrompidos; não remove nenhum jogador válido.
+  targetState.squad = targetState.squad.filter(player => player && typeof player === 'object' && (player.name || player.id || player.marketKey));
+  if(!Array.isArray(targetState.lineup)) targetState.lineup = [];
+  const validKeys = new Set(targetState.squad.map(player => playerKey(player)));
+  const squadKeysByAlias = new Map();
+  targetState.squad.forEach(player => {
+    const canonical = playerKey(player);
+    [canonical, player.id, player.marketKey, player.fifaId, player.pesId, player.name].filter(Boolean).forEach(alias => squadKeysByAlias.set(String(alias), canonical));
+  });
+  targetState.lineup = targetState.lineup.map(key => {
+    if(!key) return null;
+    return squadKeysByAlias.get(String(key)) || key;
+  });
+  while(targetState.lineup.length < 11) targetState.lineup.push(null);
+  if(targetState.lineup.length > 11) targetState.lineup = targetState.lineup.slice(0, 11);
+  targetState.captains = Array.isArray(targetState.captains) ? targetState.captains.filter(Boolean) : [];
+  if(targetState.setPieces && typeof targetState.setPieces === 'object'){
+    for(const key of ['penalty', 'freekick', 'corner', 'captain']){
+      if(targetState.setPieces[key] && !validKeys.has(targetState.setPieces[key])) delete targetState.setPieces[key];
+    }
+  }
+  return initialLength - targetState.squad.length;
+}
+
 function generateSponsorOffers(clubBudget){
   const fame = teamFameScore();
   const mktMult = marketingBenefits().sponsorMultiplier;
@@ -8097,7 +8132,7 @@ function openClubInfoModal(clubName){
   );
 }
 
-function openLoanNegotiationModal(p){
+function openBorrowedPlayerManagementModal(p){
   if(!p) return;
   const parentClub = p.loanFrom || p.originalClub || 'Clube Detentor';
   const valMi = calcValueMi(p);
@@ -8252,10 +8287,10 @@ function openLoanNegotiationModal(p){
 }
 
 function openPlayerContractRenewalModal(pk){
-  const p = state.squad.find(q=>playerKey(q)===pk);
+  const p = state.squad.find(q=>q && playerKey(q)===pk);
   if(!p) return;
   if(p.isLoan){
-    openLoanNegotiationModal(p);
+    openBorrowedPlayerManagementModal(p);
     return;
   }
   const curWage = playerSalary(p);
@@ -8890,13 +8925,14 @@ function migrate(s){
   if(typeof s.trainingSuggestionPending !== 'boolean') s.trainingSuggestionPending = false;
   s.playerMoves=s.playerMoves||{};
   s.worldGenerated=s.worldGenerated||buildWorldGenerated();
-  s.squad=(s.squad||[]).map(stablePlayer);
+  s.squad=(Array.isArray(s.squad)?s.squad:[]).filter(p=>p && typeof p==='object' && (p.name || p.id || p.marketKey)).map(stablePlayer);
   s.infrastructure=s.infrastructure||defaultInfrastructure(clubByName(s.club)||{atk:65,mid:65,def:65});
   if(!s.infrastructure.parking) s.infrastructure.parking = {level:0, spots:0};
   if(!s.infrastructure.marketing) s.infrastructure.marketing = {level:1};
   if(!s.infrastructure.bank) s.infrastructure.bank = {level:1};
   s.bankLoans = Array.isArray(s.bankLoans) ? s.bankLoans : [];
   for(const k of Object.keys(FACILITIES)) s.infrastructure[k]=s.infrastructure[k]||{level:1};
+  normalizeSquadState(s);
   s.ticketPrice=+s.ticketPrice||Math.round(clamp(18+(strength(clubByName(s.club)||{atk:65,mid:65,def:65})-58)*1.7,15,130));
   s.parkingPrice=+s.parkingPrice||25;
   s.marketingWeekly=Math.max(2500, Number(s.marketingWeekly)||Math.round((Number(s.marketingMonthly)||48000)/4)||12000);
@@ -9113,13 +9149,14 @@ function isHighAltitudeVenue(clubName){
 }
 
 function getSquadHierarchy(squad){
-  if(!Array.isArray(squad) || squad.length === 0) return { captain: null, leaders: [], prospects: [] };
-  const sorted = squad.slice().sort((a,b)=>(playerOverall(b)*1.2 + (b.age||24)*0.8) - (playerOverall(a)*1.2 + (a.age||24)*0.8));
+  const validSquad = Array.isArray(squad) ? squad.filter(p => p && typeof p === 'object') : [];
+  if(validSquad.length === 0) return { captain: null, leaders: [], prospects: [] };
+  const sorted = validSquad.slice().sort((a,b)=>(playerOverall(b)*1.2 + (b.age||24)*0.8) - (playerOverall(a)*1.2 + (a.age||24)*0.8));
   const captain = state?.setPieces?.captain 
-    ? squad.find(p => playerKey(p) === state.setPieces.captain) 
+    ? validSquad.find(p => playerKey(p) === state.setPieces.captain)
     : sorted[0];
   const leaders = sorted.filter(p => playerKey(p) !== playerKey(captain) && (p.age||24) >= 27).slice(0, 3);
-  const prospects = squad.filter(p => (p.age||24) <= 22).sort((a,b)=>(b.potential || playerOverall(b)+8) - (a.potential || playerOverall(a)+8)).slice(0, 3);
+  const prospects = validSquad.filter(p => (p.age||24) <= 22).sort((a,b)=>(b.potential || playerOverall(b)+8) - (a.potential || playerOverall(a)+8)).slice(0, 3);
   return { captain, leaders, prospects };
 }
 
@@ -16223,8 +16260,8 @@ function signProContract(youthKey){
     toast('Jogador não encontrado na base.');
     return;
   }
-  if(state.squad.length >= 40){
-    toast('Elenco profissional cheio (máximo 40 atletas). Venda ou libere espaço antes.');
+  if(state.squad.filter(Boolean).length >= squadCapacity()){
+    toast(`Elenco profissional cheio: ${squadCapacity()} vagas neste nível do Centro de Treinamento. Melhore a instalação para ampliar a capacidade.`);
     return;
   }
   const player = state.youthAcademy[idx];
@@ -16640,7 +16677,10 @@ function openTransferNegotiationModal(key){
     return;
   }
 
-  if(state.squad.length >= 40){ toast('Elenco cheio: máximo de 40 jogadores.'); return; }
+  if(state.squad.filter(Boolean).length >= squadCapacity()){
+    toast(`Elenco cheio: ${squadCapacity()} vagas neste nível do Centro de Treinamento. Melhore a instalação para ampliar a capacidade.`);
+    return;
+  }
 
   const ovr = playerOverall(p);
   const basePrice = Math.max(100000, Math.round(calcValueMi(p) * 1e6));
@@ -17072,6 +17112,11 @@ function loanInPlayer(key){
 }
 
 function openLoanNegotiationModal(key){
+  if(key && typeof key === 'object' && key.isLoan && state?.squad?.some(player => player && playerKey(player) === playerKey(key))){
+    const loanedPlayer = state.squad.find(player => player && playerKey(player) === playerKey(key));
+    if(!loanedPlayer){ toast('Jogador emprestado não encontrado.'); return; }
+    return openBorrowedPlayerManagementModal(loanedPlayer);
+  }
   const windowOpen = isTransferWindowOpen(state.date);
   let p = findGlobalPlayerByKey(key);
   if(!p){ toast('Jogador não encontrado.'); return; }
@@ -17082,7 +17127,10 @@ function openLoanNegotiationModal(key){
     return;
   }
 
-  if(state.squad.length >= 40){ toast('Elenco cheio: máximo de 40 jogadores.'); return; }
+  if(state.squad.filter(Boolean).length >= squadCapacity()){
+    toast(`Elenco cheio: ${squadCapacity()} vagas neste nível do Centro de Treinamento. Melhore a instalação para ampliar a capacidade.`);
+    return;
+  }
 
   const ovr = playerOverall(p);
   const basePrice = Math.max(100000, Math.round(calcValueMi(p) * 1e6));
@@ -17455,7 +17503,7 @@ function openPlayerTransferModal(key){
     return;
   }
   if(p.isLoan){
-    openLoanNegotiationModal(p);
+    openBorrowedPlayerManagementModal(p);
     return;
   }
   const actualKey = playerKey(p);
@@ -17817,6 +17865,7 @@ function upgradeFacility(key){
     state.news.unshift(`🏟️ ESTÁDIO EVOLUÍDO PARA NÍVEL ${f.level}/8! O ${unlockedRing}º anel foi liberado para obras por setor. A capacidade não muda até a conclusão das obras.`);
   }
   if(key==='parking') f.spots = parkingSpots(f.level);
+  if(key==='training') state.news.unshift(`⚽ CENTRO DE TREINAMENTO NÍVEL ${f.level}: capacidade do elenco profissional ampliada para ${squadCapacity(f.level)} vagas (+3 por melhoria).`);
   if(key==='museum'||key==='stadium') state.trust.fans=clamp(state.trust.fans+4,0,100);
   if(key==='press') state.trust.board=clamp(state.trust.board+1,0,100);
   if(key==='academy') boostYouthAcademyOnUpgrade(f.level);
@@ -19180,7 +19229,8 @@ function calendarPage(){
 function myTeamPage(){
   ensureTacticsState(state);
   // Normalize partially migrated/legacy saves before the tactical renderer touches arrays.
-  state.squad = Array.isArray(state.squad) ? state.squad : [];
+  normalizeSquadState(state);
+  state.squad = Array.isArray(state.squad) ? state.squad.filter(Boolean) : [];
   state.lineup = Array.isArray(state.lineup) ? state.lineup : [];
   state.formation = FORMATIONS[state.formation] ? state.formation : '4-3-3';
   state.setPieces = state.setPieces && typeof state.setPieces === 'object' ? state.setPieces : {};
@@ -19205,7 +19255,7 @@ function myTeamPage(){
     ? Math.round(validStarters.reduce((acc, p) => acc + playerOverall(p), 0) / validStarters.length) 
     : 59;
 
-  const top11 = state.squad.slice().sort((a,b)=>playerOverall(b)-playerOverall(a)).slice(0, 11);
+  const top11 = state.squad.filter(Boolean).slice().sort((a,b)=>playerOverall(b)-playerOverall(a)).slice(0, 11);
   const overallBest11 = top11.length > 0 
     ? Math.round(top11.reduce((acc, p) => acc + playerOverall(p), 0) / top11.length) 
     : 60;
@@ -19820,13 +19870,14 @@ function myTeamPage(){
 // ELENCO (SEM AS COLUNAS PES E EA FC)
 // -------------------------------------------------------------
 function squadPage(){
-  let ps=[...state.squad];
+  normalizeSquadState(state);
+  let ps=state.squad.filter(Boolean).slice();
   if(squadFilter === 'GK') ps = ps.filter(p=>p.pos==='GK');
   else if(squadFilter === 'DEF') ps = ps.filter(p=>['CB','RB','LB'].includes(p.pos));
   else if(squadFilter === 'MID') ps = ps.filter(p=>['DM','CM','AM'].includes(p.pos));
   else if(squadFilter === 'ATK') ps = ps.filter(p=>['RW','LW','ST','CF'].includes(p.pos));
 
-  const expensiveList = state.squad.filter(isExpensiveForTier);
+  const expensiveList = ps.filter(isExpensiveForTier);
   const expensiveCount = expensiveList.length;
 
   if(squadViewMode === 'salaries'){
@@ -19839,7 +19890,7 @@ function squadPage(){
       ps.sort((a,b)=>playerContractUntil(a)-playerContractUntil(b));
     }
 
-    const maxWage = Math.max(...state.squad.map(playerSalary), 25000);
+    const maxWage = Math.max(...ps.map(playerSalary), 25000);
 
     return `
       <div class="hero">
@@ -19859,7 +19910,7 @@ function squadPage(){
           <div>
             <h2 style="margin:0;font-size:24px;font-weight:900;letter-spacing:0.5px;color:#fff;text-transform:uppercase">SALÁRIOS DO ELENCO</h2>
             <div style="margin-top:6px;font-size:14px;color:rgba(255,255,255,0.7)">
-              ${state.squad.length} jogadores · <span style="color:#fbbf24;font-weight:800">${expensiveCount} caros para o nível</span>
+              ${ps.length} jogadores · Limite ${squadCapacity()} vagas · <span style="color:#fbbf24;font-weight:800">${expensiveCount} caros para o nível</span>
             </div>
           </div>
           <button class="btn" id="btnToggleSquadViewLink" style="background:transparent;border:none;color:#c084fc;font-weight:700;font-size:15px;cursor:pointer;padding:4px 8px">
@@ -19883,7 +19934,7 @@ function squadPage(){
             const barPct = clamp(Math.round((wage / maxWage) * 100), 10, 100);
 
             return `
-              <div class="salary-item-clickable" data-player-key="${esc(playerKey(p))}" style="cursor:pointer;padding:6px 0;transition:all 0.2s">
+              <div class="salary-item-clickable" data-player-key="${esc(playerKey(p))}" role="button" tabindex="0" style="cursor:pointer;padding:6px 0;transition:all 0.2s">
                 <div style="display:flex;justify-content:space-between;align-items:center">
                   <div style="display:flex;align-items:center;gap:12px">
                     <span class="pill" style="font-size:11px;font-weight:800;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);min-width:32px;text-align:center">${esc(p.pos||'-')}</span>
@@ -19920,7 +19971,7 @@ function squadPage(){
     <div class="hero">
       <div>
         <h1>Elenco do Clube</h1>
-        <div class="muted">${state.squad.length} jogadores registrados no plantel • Folha mensal: ${fmtMoney(totalMonthlyPayroll())}</div>
+        <div class="muted">${ps.length} jogadores no plantel · Limite de ${squadCapacity()} vagas (${Math.max(0, squadCapacity()-ps.length)} disponíveis) • Folha mensal: ${fmtMoney(totalMonthlyPayroll())}</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" id="btnGoToSalariesView" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;font-weight:700">
@@ -19987,9 +20038,12 @@ function squadPage(){
                 </td>
                 <td>${fmtMi(calcValueMi(p))}</td>
                 <td>
-                  <button class="btn open-transfer-modal" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">
-                    📄 Propostas
-                  </button>
+              <div style="display:flex;gap:5px;flex-wrap:wrap">
+                ${p.isLoan ? `<button class="btn btnManageLoanRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">🤝 Negociar c/ detentor</button>` : `
+                  <button class="btn btnRenewContractRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">📝 Renovar contrato</button>
+                  <button class="btn open-transfer-modal" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">📄 Propostas</button>
+                `}
+              </div>
                 </td>
               </tr>
             `).join('')}
@@ -20041,7 +20095,7 @@ function marketPage(){
       <div style="background:#131024;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 18px">
         <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">ELENCO</div>
         <div style="font-size:24px;font-weight:900;color:#fff;margin-top:2px">${state.squad.length} jogadores</div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">mínimo 14 • máximo 40</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">mínimo 14 • limite atual: ${squadCapacity()} vagas</div>
       </div>
     </div>
 
@@ -21294,6 +21348,7 @@ function structurePage(){
                 ${k==='stadium'?`<div class="facility-stat">Capacidade: <b>${(x.capacity||0).toLocaleString('pt-BR')} torcedores</b></div>`:''}
                 ${k==='parking'?`<div class="facility-stat">Vagas: <b>${parkingSpots(x.level).toLocaleString('pt-BR')} vagas</b></div>`:''}
                 ${k==='academy'?`<div class="facility-stat" style="color:var(--neon)">Atletas na Base: <b>${(state.youthAcademy||[]).length} atletas (15 a 18 anos)</b></div>`:''}
+                ${k==='training'?`<div class="facility-stat" style="color:var(--cyan)">Vagas do elenco: <b>${squadCapacity(x.level)} jogadores</b> (+3 por nível)</div>`:''}
                 ${k==='marketing'?`<div class="facility-stat" style="color:var(--cyan)">Aporte Semanal: <b>${fmtMoney(state.marketingWeekly||12000)}/semana</b></div>`:''}
                 ${k==='bank'?`
                   <div class="facility-stat" style="color:${(state.bankLoans||[]).some(l=>l.overdue)?'#ef4444':'#f59e0b'}">
@@ -25933,8 +25988,22 @@ function bind(){
     });
 
     $$('.salary-item-clickable').forEach(el => {
-      el.onclick = () => { openPlayerContractRenewalModal(el.dataset.playerKey); };
+      const openPlayerTerms = () => {
+        const player = findSquadPlayerByKey(el.dataset.playerKey);
+        if(!player){ toast('Jogador não encontrado no elenco. Atualize a tela e tente novamente.'); return; }
+        if(player.isLoan) openBorrowedPlayerManagementModal(player);
+        else openPlayerContractRenewalModal(playerKey(player));
+      };
+      el.onclick = openPlayerTerms;
+      el.onkeydown = event => { if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); openPlayerTerms(); } };
     });
+    $$('.btnRenewContractRow').forEach(b => b.onclick = () => openPlayerContractRenewalModal(b.dataset.key));
+    $$('.btnManageLoanRow').forEach(b => b.onclick = () => {
+      const player = findSquadPlayerByKey(b.dataset.key);
+      if(!player){ toast('Jogador emprestado não encontrado no elenco.'); return; }
+      openBorrowedPlayerManagementModal(player);
+    });
+    $$('.open-transfer-modal').forEach(b => b.onclick = () => openPlayerTransferModal(b.dataset.key));
   }
 
   if(view==='mercado'){

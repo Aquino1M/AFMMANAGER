@@ -735,6 +735,21 @@ assert(gameJsContent.includes('loan-negotiation-modal')
   && gameJsContent.includes('font-size:14px;font-weight:800;color:#e2e8f0;margin-bottom:8px')
   && gameJsContent.includes('min-height:54px;flex-direction:column'),
   'Modal de empréstimo aumenta o texto do percentual salarial e torna as opções mais legíveis');
+assert(gameJsContent.includes('function squadCapacity(trainingLevel = state?.infrastructure?.training?.level)')
+  && gameJsContent.includes('return 25 + ((level - 1) * 3)')
+  && gameJsContent.includes('squadCapacity(f.level)')
+  && gameJsContent.includes('state.squad.filter(Boolean).length >= squadCapacity()'),
+  'Capacidade do elenco aumenta em 3 vagas por nível do Centro de Treinamento e controla novas contratações');
+assert(gameJsContent.includes('function normalizeSquadState(targetState = state)')
+  && gameJsContent.includes("const validSquad = Array.isArray(squad) ? squad.filter(p => p && typeof p === 'object') : []")
+  && gameJsContent.includes('normalizeSquadState(state);'),
+  'Tática e hierarquia ignoram entradas nulas sem apagar jogadores válidos do save');
+assert(gameJsContent.includes('function openBorrowedPlayerManagementModal(p)')
+  && gameJsContent.includes('if(player.isLoan) openBorrowedPlayerManagementModal(player);')
+  && gameJsContent.includes('class="btn btnManageLoanRow"')
+  && gameJsContent.includes('class="btn btnRenewContractRow"')
+  && gameJsContent.includes("$$('.open-transfer-modal').forEach(b => b.onclick = () => openPlayerTransferModal(b.dataset.key));"),
+  'Botões do elenco abrem propostas, renovação de contrato e gestão do clube detentor para empréstimos');
 assert(gameJsContent.indexOf('<h3>Propostas de Patrocínio Recebidas</h3>') > gameJsContent.indexOf('<h2 style="margin-top:20px">Patrocinadores Oficiais do Clube</h2>')
   && gameJsContent.indexOf('<h3>Propostas de Patrocínio Recebidas</h3>') < gameJsContent.indexOf('${renderSocioTorcedorCard(socioData)}'),
   'Propostas de patrocínio aparecem logo após patrocinadores oficiais');
@@ -761,7 +776,8 @@ assert(gameJsContent.includes('data-cal-filter="ALL"') && gameJsContent.includes
 assert(gameJsContent.includes("$$('[data-view]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextView=b.dataset.view")
   && gameJsContent.includes('meutime:myTeamPage'),
   'A navegação lateral aceita cliques e mantém a rota Meu time & Tática registrada');
-assert(gameJsContent.includes('state.squad = Array.isArray(state.squad) ? state.squad : []')
+assert(gameJsContent.includes('normalizeSquadState(state);')
+  && gameJsContent.includes('state.squad = Array.isArray(state.squad) ? state.squad.filter(Boolean) : []')
   && gameJsContent.includes('state.lineup = Array.isArray(state.lineup) ? state.lineup : []')
   && gameJsContent.includes("state.formation = FORMATIONS[state.formation] ? state.formation : '4-3-3'"),
   'Meu time & Tática normaliza escalação e formação de saves legados antes de renderizar');
