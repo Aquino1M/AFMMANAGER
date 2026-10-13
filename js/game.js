@@ -18209,7 +18209,8 @@ function render(){
   const sideNav = app.querySelector('.nav');
   if(mainEl && sideNav && app.querySelector('.app')){
     try {
-      mainEl.innerHTML = page();
+      const nextHtml = page();
+      mainEl.innerHTML = nextHtml;
       sideNav.querySelectorAll('[data-view]').forEach(b => {
         b.classList.toggle('active', b.dataset.view === view);
       });
@@ -18230,12 +18231,41 @@ function render(){
       restore();
       return;
     } catch(err){
-      recordAFMError('render-fallback', err);
-      console.warn('Erro ao atualizar tela via mainEl, fazendo render completo:', err);
+      // Keep the original exception. Recalling page() in shell(page()) here
+      // used to throw the same exception outside this try/catch and strand
+      // the user on a blank/previous view with no actionable diagnostic.
+      recordAFMError('render-page', err);
+      console.error('Falha ao renderizar a tela ' + view + ':', err);
+      const safeMessage = esc(err?.message || 'Erro inesperado ao montar a tela.');
+      try {
+        mainEl.innerHTML = `<section class="card" role="alert" style="margin:20px;padding:20px;border:1px solid #ef4444;background:#1b1020;color:#fff">
+          <h2 style="margin-top:0">Não foi possível abrir esta tela</h2>
+          <p>O jogo encontrou um erro ao renderizar <b>${esc(view)}</b>.</p>
+          <pre style="white-space:pre-wrap;overflow-wrap:anywhere;color:#fecaca">${safeMessage}</pre>
+          <button type="button" class="btn primary" id="btnRetryRenderPage">Tentar abrir novamente</button>
+          <button type="button" class="btn" id="btnReturnCentralAfterRenderError">Voltar à Central</button>
+        </section>`;
+        $('#btnRetryRenderPage')?.addEventListener('click', render);
+        $('#btnReturnCentralAfterRenderError')?.addEventListener('click', () => { view = 'central'; render(); });
+      } catch(fallbackError){
+        recordAFMError('render-error-ui', fallbackError);
+        mainEl.textContent = 'Erro ao renderizar a tela: ' + safeMessage;
+      }
+      sideNav.querySelectorAll('[data-view]').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === view);
+      });
+      restore();
+      return;
     }
   }
-  app.innerHTML=shell(page());
-  bind();
+  try {
+    app.innerHTML=shell(page());
+    bind();
+  } catch(err){
+    recordAFMError('render-shell', err);
+    console.error('Falha ao renderizar o aplicativo:', err);
+    app.textContent = 'Não foi possível renderizar o aplicativo: ' + (err?.message || 'erro inesperado');
+  }
   restore();
 }
 
@@ -26218,6 +26248,10 @@ function bind(){
 // -------------------------------------------------------------
 // SISTEMA DE SUBSTITUIÇÃO 100% POR CLIQUE (AFM 2027)
 // -------------------------------------------------------------
+// Shared tactical UI state. myTeamPage() reads tacticalActiveTab while
+// building its accordion markup, and bind() updates it on open/close.
+// Keep it initialized in the same scope as both callers.
+var tacticalActiveTab = 'closed';
 var tacticalSelectedKey = null;
 window.tacticalSelectedKey = null;
 

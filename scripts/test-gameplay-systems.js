@@ -739,6 +739,16 @@ assert(gameJsContent.includes('state.squad = Array.isArray(state.squad) ? state.
   && gameJsContent.includes('state.lineup = Array.isArray(state.lineup) ? state.lineup : []')
   && gameJsContent.includes("state.formation = FORMATIONS[state.formation] ? state.formation : '4-3-3'"),
   'Meu time & Tática normaliza escalação e formação de saves legados antes de renderizar');
+assert(gameJsContent.includes('const nextHtml = page();')
+  && gameJsContent.includes("recordAFMError('render-page', err)")
+  && gameJsContent.includes('btnRetryRenderPage')
+  && gameJsContent.includes("view = 'central'; render();")
+  && !gameJsContent.includes('app.innerHTML=shell(page());\n  bind();\n  restore();\n}\n\nfunction shell(main)'),
+  'Falha de renderização é capturada sem executar page() novamente fora do try/catch e oferece recuperação');
+assert(gameJsContent.includes("var tacticalActiveTab = 'closed';")
+  && gameJsContent.includes("tacticalActiveTab === 'open'")
+  && gameJsContent.includes("tacticalActiveTab = accTac.open ? 'open' : 'closed';"),
+  'Meu time & Tática inicializa o estado do acordeão tático usado no HTML e nos handlers');
 
 // =========================================================================
 // RESULTADO FINAL
