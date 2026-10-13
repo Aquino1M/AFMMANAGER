@@ -65,6 +65,7 @@ assert(sponsorFactor(1, 20, 'bra-a') > sponsorFactor(1, 20, 'bra-b'),
 const projectionState = {
   season:2026, club:'Clube Teste', infrastructure:{admin:{level:1}}, storeConfig:{level:1, pricing:'normal', stock:'normal'},
   marketingWeekly:12000, bankLoans:[{remainingInstallments:4, installmentValue:30000}],
+  scoutStaffCount:2,
   stadiumRingData:{debt:{remaining:80000, monthly:20000}},
   history:[{season:2026, isHome:true, won:true, h:'Clube Teste', gate:100000, parkRevenue:10000, shop:5000}]
 };
@@ -72,15 +73,20 @@ const projection = loadFunction('monthlyFinancialProjection', {
   state:projectionState,
   curComp:()=>({id:'bra-a'}), totalSponsorMonthly:()=>300000, totalSponsorWinBonus:()=>20000,
   getSocioTorcedorMeta:()=>({currentIncome:50000}), monthlyFacilityIncome:()=>13000,
-  totalMonthlyPayroll:()=>500000, norm:value=>String(value || '').toLowerCase()
+  totalMonthlyPayroll:()=>500000, getMonthlyScoutPayroll:s=>Math.max(0,Number(s?.scoutStaffCount)||0)*18000, norm:value=>String(value || '').toLowerCase()
 });
 const forecast = projection();
 assert(forecast.revenue.gate === 200000 && forecast.revenue.parking === 20000 && forecast.revenue.matchSales === 10000 && forecast.revenue.winBonuses === 40000,
   'Previsão mensal calcula média de bilheteria/estacionamento e bônus por vitórias');
-assert(forecast.expenses.bankRepayments === 60000 && forecast.expenses.stadiumRepayments === 20000,
-  'Previsão mensal mostra parcelas bancárias e de obras separadas');
-assert(forecast.monthlyRevenue === 9453250 && forecast.monthlyExpenses === 628000 && forecast.monthlyBalance === 8825250,
+assert(forecast.expenses.bankRepayments === 60000 && forecast.expenses.stadiumRepayments === 20000 && forecast.expenses.scouts === 36000,
+  'Previsão mensal mostra parcelas bancárias, obras e salários de olheiros separados');
+assert(forecast.monthlyRevenue === 9453250 && forecast.monthlyExpenses === 664000 && forecast.monthlyBalance === 8789250,
   'Total e saldo previstos reconciliam todas as categorias mensais');
+
+const scoutHelpers = loadFunction('activeScoutCount', {});
+assert(scoutHelpers({scoutStaffCount:0,scoutMissions:[{type:'promises'}]}) === 0
+  && scoutHelpers({scoutStaffCount:1}) === 1,
+  'Missões antigas não contam como olheiro contratado e a contagem de equipe é independente das filas de trabalho');
 
 assert(!/state\.income\s*=\s*\(state\.income\s*\|\|\s*0\)\s*\+\s*selectedLoanAmount/.test(source),
   'Liberação de empréstimo não é registrada como receita operacional');

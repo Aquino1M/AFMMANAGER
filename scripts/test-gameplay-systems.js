@@ -811,6 +811,24 @@ assert(gameJsContent.includes('pendingOtherCompetitions.length')
 assert(gameJsContent.includes('userFixturePending && ph.isoDate < currentDate')
   && gameJsContent.includes('Remarque a fase pendente do usuário para a próxima quarta-feira'),
   'Uma partida pendente da Copa do Brasil não é simulada automaticamente e pode ser remarcada em save legado');
+assert(gameJsContent.includes('function activeScoutCount(gameState = state)')
+  && gameJsContent.includes('function requireActiveScout(actionLabel =')
+  && gameJsContent.includes("if(!requireActiveScout('analisar um jogador')) return;")
+  && gameJsContent.includes("if(!requireActiveScout('iniciar uma busca de promessas')) return;")
+  && gameJsContent.includes('function scoutSlotCapacity(gameState = state)'),
+  'Nenhuma ação de olheiro pode começar sem equipe contratada, mesmo com missões antigas no save');
+assert(gameJsContent.includes('OLHEIROS CONTRATADOS')
+  && gameJsContent.includes('VAGAS DE TRABALHO')
+  && gameJsContent.includes('DISPONÍVEIS')
+  && gameJsContent.includes('Você não tem nenhum olheiro contratado'),
+  'Central de olheiros mostra equipe contratada, capacidade, vagas em uso e disponíveis');
+assert(gameJsContent.includes('function getMonthlyScoutPayroll(gameState = state)')
+  && gameJsContent.includes('scouts: getMonthlyScoutPayroll(state)')
+  && gameJsContent.includes('Salários dos olheiros')
+  && gameJsContent.includes('function hireScoutStaff()')
+  && gameJsContent.includes('btnHireScoutStaff')
+  && gameJsContent.includes('state.scoutStaffCount = current + 1'),
+  'Salários de olheiros fazem parte das saídas financeiras previstas por mês');
 
 // =========================================================================
 // RESULTADO FINAL

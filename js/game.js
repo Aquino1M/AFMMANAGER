@@ -3454,10 +3454,50 @@ function buyHouseItem(itemId){
 // =========================================================================
 // SISTEMA DE OLHEIRO NO MERCADO (RELATÓRIOS EM 1 MÊS & BUSCA DE PROMESSAS EM 5 MESES)
 // =========================================================================
+function activeScoutCount(gameState = state){
+  // Missions are queues, not hired staff: old saves with queued missions but no
+  // hired scout must not permit free scouting actions.
+  return Math.max(0, Math.floor(Number(gameState?.scoutStaffCount ?? gameState?.staff?.scouts ?? gameState?.scouts ?? 0) || 0));
+}
+
+function requireActiveScout(actionLabel = 'realizar esta ação', gameState = state){
+  if(activeScoutCount(gameState) > 0) return true;
+  toast(`Você precisa contratar pelo menos 1 olheiro para ${actionLabel}.`);
+  return false;
+}
+
+function scoutSlotCapacity(gameState = state){
+  return activeScoutCount(gameState) > 0 ? 2 : 0;
+}
+
+const SCOUT_MONTHLY_SALARY = 18000;
+function getMonthlyScoutPayroll(gameState = state){
+  return activeScoutCount(gameState) * SCOUT_MONTHLY_SALARY;
+}
+
+function hireScoutStaff(){
+  if(!state) return;
+  const current = activeScoutCount(state);
+  const maxScouts = 3;
+  const signingCost = 30000;
+  if(current >= maxScouts){ toast(`O clube já atingiu o limite de ${maxScouts} olheiros contratados.`); return; }
+  if(Number(state.balance) < signingCost){ toast(`Saldo insuficiente para contratar um olheiro. Custo inicial: ${fmtMoney(signingCost)}.`); return; }
+  state.balance -= signingCost;
+  state.expense = (Number(state.expense) || 0) + signingCost;
+  state.scoutStaffCount = current + 1;
+  state.news = Array.isArray(state.news) ? state.news : [];
+  state.news.unshift(`🕵️ NOVO OLHEIRO CONTRATADO: o clube agora tem ${state.scoutStaffCount} olheiro(s). Custo inicial ${fmtMoney(signingCost)} e salário de ${fmtMoney(SCOUT_MONTHLY_SALARY)}/mês por profissional.`);
+  state.news = state.news.slice(0,50);
+  toast(`Olheiro contratado! ${state.scoutStaffCount} no clube; até ${scoutSlotCapacity(state)} trabalhos simultâneos.`);
+  save();
+  render();
+}
+
 function sendScoutToPlayer(key){
+  if(!requireActiveScout('analisar um jogador')) return;
   state.scoutMissions = state.scoutMissions || [];
-  if(state.scoutMissions.length >= 2){
-    toast('O olheiro já está cuidando de 2 trabalhos ao mesmo tempo! Aguarde a conclusão de uma missão.');
+  if(state.scoutMissions.length >= scoutSlotCapacity()){
+    toast('Não há vaga de trabalho disponível para este olheiro.');
     return;
   }
 
@@ -3493,8 +3533,9 @@ let scoutTierFilter = 'all';
 let scoutAffordableOnly = false;
 
 function openScoutPromiseModal(){
+  if(!requireActiveScout('iniciar uma busca de promessas')) return;
   state.scoutMissions = state.scoutMissions || [];
-  if(state.scoutMissions.length >= 2){
+  if(state.scoutMissions.length >= scoutSlotCapacity()){
     toast('O olheiro já está cuidando de 2 trabalhos ao mesmo tempo! Aguarde uma vaga abrir.');
     return;
   }
@@ -3584,6 +3625,12 @@ function openScoutPromiseModal(){
       const curTier = tiers[selTierKey] || tiers.normal;
       const cost = curTier.cost;
 
+      if(!requireActiveScout('iniciar uma busca de promessas')) return;
+      state.scoutMissions = Array.isArray(state.scoutMissions) ? state.scoutMissions : [];
+      if(state.scoutMissions.length >= scoutSlotCapacity()){
+        toast('Não há vaga de trabalho disponível para este olheiro.');
+        return;
+      }
       if(state.balance < cost){
         toast(`Saldo insuficiente (${fmtMoney(cost)}) para contratar este olheiro!`);
         return;
@@ -10455,6 +10502,7 @@ function monthlyFinancialProjection(socioData = null){
   };
   const expenses = {
     payroll: totalMonthlyPayroll(),
+    scouts: getMonthlyScoutPayroll(state),
     marketing: Math.max(2500, Number(state.marketingWeekly) || 12000) * 4,
     bankRepayments: bankInstallments,
     stadiumRepayments: stadiumInstallment
@@ -21267,6 +21315,10 @@ function renderMarketScout(){
   const el=$('#scoutList'); if(!el) return;
   const missions = state.scoutMissions || [];
   const reports = state.scoutReports || [];
+  const scoutsHired = activeScoutCount(state);
+  const scoutCapacity = scoutSlotCapacity(state);
+  const activeMissions = missions.length;
+  const freeScoutSlots = Math.max(0, scoutCapacity - activeMissions);
 
   let pool = marketUniverse().filter(p => (+p.age||25) <= 22);
 
@@ -21306,23 +21358,37 @@ function renderMarketScout(){
             🕵️ CENTRAL DE OLHEIROS & INTELIGÊNCIA
           </h2>
           <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
-            O olheiro cuida de <b>2 trabalhos simultâneos</b>. Escolha a classe do olheiro de acordo com o orçamento do clube.
+            Cada olheiro contratado libera até <b>2 trabalhos simultâneos</b>. Contratação inicial de ${fmtMoney(30000)} e salário de ${fmtMoney(SCOUT_MONTHLY_SALARY)}/mês por profissional.
           </div>
         </div>
-        <button class="btn primary" id="btnOpenScoutPromiseModal" style="background:linear-gradient(135deg, #7c3aed, #0284c7);border:none;padding:10px 18px;font-weight:900;border-radius:10px">
-          🎯 Contratar Olheiro & Iniciar Busca
-        </button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" id="btnHireScoutStaff" ${scoutsHired>=3?'disabled':''} style="background:linear-gradient(135deg,#059669,#10b981);border:none;padding:10px 14px;font-weight:900;border-radius:10px;${scoutsHired>=3?'opacity:.5;cursor:not-allowed':''}">➕ Contratar Olheiro · ${fmtMoney(30000)}</button>
+          <button class="btn primary" id="btnOpenScoutPromiseModal" ${scoutsHired===0||freeScoutSlots===0?'disabled':''} style="background:linear-gradient(135deg, #7c3aed, #0284c7);border:none;padding:10px 14px;font-weight:900;border-radius:10px;${scoutsHired===0||freeScoutSlots===0?'opacity:.5;cursor:not-allowed':''}">🎯 Iniciar Busca</button>
+        </div>
+      </div>
+
+      <!-- Painel de capacidade da equipe de olheiros -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px">
+        ${[
+          ['OLHEIROS CONTRATADOS',scoutsHired,'#c084fc'],
+          ['VAGAS DE TRABALHO',scoutCapacity,'#38bdf8'],
+          ['EM USO',activeMissions,'#fbbf24'],
+          ['DISPONÍVEIS',freeScoutSlots,'#4ade80']
+        ].map(([label,value,color])=>`<div style="background:#0f172a;border:1px solid ${color}55;border-radius:11px;padding:12px"><div style="font-size:10px;font-weight:900;letter-spacing:.5px;color:#94a3b8">${label}</div><div style="font-size:25px;font-weight:950;color:${color};margin-top:4px">${value}</div></div>`).join('')}
+      </div>
+      <div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:${scoutsHired?'rgba(16,185,129,.08)':'rgba(239,68,68,.10)'};border:1px solid ${scoutsHired?'rgba(16,185,129,.3)':'rgba(239,68,68,.4)'};font-size:12px;color:${scoutsHired?'#a7f3d0':'#fecaca'}">
+        ${scoutsHired ? `Equipe contratada: ${scoutsHired} olheiro(s) · capacidade de ${scoutCapacity} trabalho(s) · custo mensal estimado: <b>${fmtMoney(getMonthlyScoutPayroll(state))}</b>.` : '<b>Você não tem nenhum olheiro contratado.</b> Contrate um na área de comissão/equipe técnica para liberar análises individuais e buscas de promessas.'}
       </div>
 
       <!-- Vagas de Trabalho do Olheiro -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:16px">
         ${[0, 1].map(slotIdx => {
           const m = missions[slotIdx];
           return `
             <div style="background:#1a1530;border:1px dashed ${m ? '#7c3aed' : 'rgba(255,255,255,0.15)'};border-radius:12px;padding:14px">
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">VAGA DE OLHEIRO #${slotIdx+1}</span>
-                <span class="pill ${m ? 'good' : ''}" style="font-size:10px">${m ? 'EM MISSÃO' : 'LIVRE'}</span>
+                <span style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">VAGA DE TRABALHO #${slotIdx+1}</span>
+                <span class="pill ${m ? 'good' : ''}" style="font-size:10px">${m ? 'EM MISSÃO' : (slotIdx < scoutCapacity ? 'LIVRE' : 'BLOQUEADA')}</span>
               </div>
               ${m ? `
                 <div style="margin-top:8px">
@@ -21439,6 +21505,8 @@ function renderMarketScout(){
 
   $$('.buy').forEach(b=>b.onclick=()=>buyPlayer(b.dataset.key));
   $$('.btnSendScoutPlayer').forEach(b=>b.onclick=()=>sendScoutToPlayer(b.dataset.key));
+  const hireScoutBtn = $('#btnHireScoutStaff');
+  if(hireScoutBtn) hireScoutBtn.onclick = hireScoutStaff;
   const btnPromise = $('#btnOpenScoutPromiseModal');
   if(btnPromise) btnPromise.onclick = openScoutPromiseModal;
 
@@ -22063,7 +22131,7 @@ function officePage(){
         <span class="pill warn" style="font-size:10px;font-weight:900">SAÍDAS ESTIMADAS</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;font-size:12px">
-        ${[['Salários do elenco',finance.expenses.payroll],['Marketing',finance.expenses.marketing],['Parcelas bancárias previstas',finance.expenses.bankRepayments],['Parcelas de obras do estádio',finance.expenses.stadiumRepayments]].map(([label,value])=>`<div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)"><div class="muted">${label}</div><b style="color:#f87171;font-size:15px">${fmtMoney(value)}/mês</b></div>`).join('')}
+        ${[['Salários do elenco',finance.expenses.payroll],['Salários dos olheiros',finance.expenses.scouts],['Marketing',finance.expenses.marketing],['Parcelas bancárias previstas',finance.expenses.bankRepayments],['Parcelas de obras do estádio',finance.expenses.stadiumRepayments]].map(([label,value])=>`<div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)"><div class="muted">${label}</div><b style="color:#f87171;font-size:15px">${fmtMoney(value)}/mês</b></div>`).join('')}
       </div>
     </div>
 
