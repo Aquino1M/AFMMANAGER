@@ -53,9 +53,10 @@ function makeTeams(){
 
 function createRunner(compId){
   const map = makeTeams();
+  const baseMap = clone(map);
   const state = { club: 'Criciúma', compId, season: 2032, news: [], competitionTeams: clone(map) };
   const context = {
-    window: { COMPETITION_TEAMS: map }, state, teamMap: map, BASE_COMPETITION_TEAMS: clone(map), norm, clone,
+    window: { COMPETITION_TEAMS: map, AFM_COMPETITION_INTEGRITY: null }, state, teamMap: map, BASE_COMPETITION_TEAMS: baseMap, norm, clone,
     compById: id => ({ id, name: ({ 'bra-a': 'Brasileirão Série A', 'bra-b': 'Brasileirão Série B', 'bra-c': 'Brasileirão Série C', 'bra-d': 'Brasileirão Série D' })[id] || id, teams: id === 'bra-d' ? 96 : 20 })
   };
   vm.runInNewContext(`${actualFunctionSource}\nthis.runTransition = executeSeasonTransitions;`, context, { filename: 'js/game.js:executeSeasonTransitions' });
@@ -71,6 +72,22 @@ function auditRosterSizesAndDuplicates(map){
   for(const [id, expected] of Object.entries(expectedSizes)) assert.equal((map[id] || []).length, expected, `${id} deve ter ${expected} clubes`);
   const all = nationalIds.flatMap(id => map[id].map(norm));
   assert.equal(new Set(all).size, all.length, 'Não pode haver clubes duplicados entre as Séries A–D.');
+}
+
+// Permanent isolation rule: a season transition may modify only this career's
+// competitionTeams. The shared/static catalog must remain byte-for-byte intact.
+{
+  const { context, state } = createRunner('bra-b');
+  const baseSnapshot = JSON.stringify(context.BASE_COMPETITION_TEAMS);
+  const globalSnapshot = JSON.stringify(context.window.COMPETITION_TEAMS);
+  context.runTransition('bra-b', [{ name: 'Criciúma', p: 3 }], 'bra-c', 'bra-b');
+  assert.notEqual(JSON.stringify(state.competitionTeams), globalSnapshot, 'A promoção/rebaixamento precisa gerar roster privado do save.');
+  assert.equal(JSON.stringify(context.BASE_COMPETITION_TEAMS), baseSnapshot, 'A base imutável não pode ser alterada.');
+  assert.equal(JSON.stringify(context.window.COMPETITION_TEAMS), globalSnapshot, 'O catálogo global não pode receber a transição da carreira.');
+  assert.equal(JSON.stringify(context.teamMap), globalSnapshot, 'teamMap deve permanecer igual ao catálogo-base.');
+  const secondCareer = { club: 'Outro Clube', compId: 'bra-b', competitionTeams: clone(context.BASE_COMPETITION_TEAMS) };
+  assert.deepEqual(membership(secondCareer.competitionTeams, 'Criciúma'), ['bra-b'], 'Uma nova carreira deve começar com a divisão-base, não a divisão conquistada em outro save.');
+  console.log('PASS: promoção/rebaixamento isolados; catálogo global e nova carreira permanecem no estado-base.');
 }
 
 assert.match(actualAdvanceSeasonYear, /finalSeasonSnapshot/);
@@ -107,7 +124,8 @@ console.log('PASS: advanceSeasonYear captura resultados antes da virada e encami
   assert.equal(state.competition, 'Campeonato Brasileiro Série D');
   assert.equal(state.teams.length, 96);
   assert.equal(state.teams.some(team => norm(team.name) === 'brasilia'), true);
-  assert.deepEqual(membership(context.window.COMPETITION_TEAMS, 'Brasília'), ['bra-d']);
+  assert.deepEqual(membership(state.competitionTeams, 'Brasília'), ['bra-d']);
+  assert.equal(JSON.stringify(context.window.COMPETITION_TEAMS), JSON.stringify(map), 'O reparo do save não pode alterar o catálogo global.');
   console.log('PASS: save do Brasília promovido permanece na Série D após reparo e sincroniza tabela/roster.');
 }
 
@@ -119,8 +137,8 @@ console.log('PASS: advanceSeasonYear captura resultados antes da virada e encami
   const clubDisplacedFromC = map['bra-c'][map['bra-c'].length - 1];
   context.runTransition('bra-b', [{ name: 'Criciúma', p: 3 }], 'bra-c', 'bra-b');
   assert.equal(state.compId, 'bra-c');
-  assert.deepEqual(membership(map, 'Criciúma'), ['bra-c']);
-  assert.deepEqual(membership(map, clubDisplacedFromC), ['bra-b'], 'O clube que cedeu a vaga na Série C deve ocupar a vaga aberta na Série B.');
+  assert.deepEqual(membership(state.competitionTeams, 'Criciúma'), ['bra-c']);
+  assert.deepEqual(membership(state.competitionTeams, clubDisplacedFromC), ['bra-b'], 'O clube que cedeu a vaga na Série C deve ocupar a vaga aberta na Série B.');
   assert.equal(JSON.stringify(map['bra-a']), JSON.stringify(originalA), 'A Série A não deve ser reclassificada artificialmente.');
   assert.equal(JSON.stringify(map['bra-d']), JSON.stringify(originalD), 'A Série D não deve ser reclassificada artificialmente.');
   auditRosterSizesAndDuplicates(map);
@@ -135,7 +153,7 @@ console.log('PASS: advanceSeasonYear captura resultados antes da virada e encami
   const originalC = [...map['bra-c']];
   context.runTransition('bra-b', [{ name: 'Criciúma', p: 3 }], null, 'bra-b');
   assert.equal(state.compId, 'bra-b');
-  assert.deepEqual(membership(map, 'Criciúma'), ['bra-b']);
+  assert.deepEqual(membership(state.competitionTeams, 'Criciúma'), ['bra-b']);
   assert.equal(JSON.stringify(map['bra-a']), JSON.stringify(originalA));
   assert.equal(JSON.stringify(map['bra-c']), JSON.stringify(originalC));
   auditRosterSizesAndDuplicates(map);
@@ -147,7 +165,7 @@ console.log('PASS: advanceSeasonYear captura resultados antes da virada e encami
   const { context, state, map } = createRunner('bra-est-sc');
   context.runTransition('bra-est-sc', [], null, 'bra-b');
   assert.equal(state.compId, 'bra-est-sc', 'A competição estadual não deve ser trocada sem destino.');
-  assert.deepEqual(membership(map, 'Criciúma'), ['bra-b']);
+  assert.deepEqual(membership(state.competitionTeams, 'Criciúma'), ['bra-b']);
   auditRosterSizesAndDuplicates(map);
   console.log('PASS: encerramento de estadual preserva a divisão nacional.');
 }
@@ -168,8 +186,8 @@ console.log('Todos os testes de regressão de transição de divisões passaram.
   vm.runInNewContext(`${actualRepairSource}\nthis.repairLegacy = repairLegacyNationalCompetitionRosters;`, context, { filename: 'js/game.js:repairLegacyNationalCompetitionRosters' });
   assert.equal(context.repairLegacy(state), true, 'A rotina precisa reconhecer a Série D encolhida e a sobreposição.');
   assert.equal(state.compId, 'bra-c');
-  assert.deepEqual(membership(context.window.COMPETITION_TEAMS, 'Criciúma'), ['bra-c']);
-  auditRosterSizesAndDuplicates(context.window.COMPETITION_TEAMS);
+  assert.deepEqual(membership(state.competitionTeams, 'Criciúma'), ['bra-c']);
+  auditRosterSizesAndDuplicates(state.competitionTeams);
   assert.equal(state.competitionTeams['bra-c'].some(name => norm(name) === norm('Criciúma')), true);
   assert.equal(state.news.length, 1, 'O reparo deve deixar um aviso no histórico de notícias.');
   console.log('PASS: recuperação de rosters de save legado sem apagar a carreira.');
@@ -182,8 +200,8 @@ console.log('Todos os testes de regressão de transição de divisões passaram.
   const context = { window: { COMPETITION_TEAMS: map }, state, teamMap: map, BASE_COMPETITION_TEAMS: clone(map), norm, clone };
   vm.runInNewContext(`${actualRepairSource}\nthis.repairLegacy = repairLegacyNationalCompetitionRosters;`, context, { filename: 'js/game.js:repairLegacyNationalCompetitionRosters' });
   assert.equal(context.repairLegacy(state), true, 'A associação errada da divisão do usuário deve ser reparada mesmo com tamanhos válidos.');
-  assert.deepEqual(membership(context.window.COMPETITION_TEAMS, 'Criciúma'), ['bra-c']);
-  auditRosterSizesAndDuplicates(context.window.COMPETITION_TEAMS);
+  assert.deepEqual(membership(state.competitionTeams, 'Criciúma'), ['bra-c']);
+  auditRosterSizesAndDuplicates(state.competitionTeams);
   console.log('PASS: divisão salva prevalece sobre associação histórica do clube.');
 }
 
@@ -234,8 +252,8 @@ console.log('Todos os testes de regressão de transição de divisões passaram.
 this.runTransition = executeSeasonTransitions;`, context, { filename: 'js/game.js:executeSeasonTransitions-state-promotion' });
   context.runTransition('bra-est-df', [], 'bra-d', null);
   assert.equal(state.compId, 'bra-d');
-  assert.deepEqual(membership(map, 'Brasília'), ['bra-d']);
-  assert.equal(map['bra-d'].length, 96);
+  assert.deepEqual(membership(state.competitionTeams, 'Brasília'), ['bra-d']);
+  assert.equal(state.competitionTeams['bra-d'].length, 96);
   assert.equal(state.competitionTeams['bra-d'].some(name => norm(name) === norm('Brasília')), true);
   console.log('PASS: clube promovido de estadual aparece na Série D e no roster persistido.');
 }
@@ -258,9 +276,9 @@ this.runTransition = executeSeasonTransitions;`, context, { filename: 'js/game.j
   vm.runInNewContext(`${actualFunctionSource}\
 this.runTransition = executeSeasonTransitions;`, context, { filename: 'js/game.js:executeSeasonTransitions-overflow' });
   context.runTransition('bra-d', [], null, 'bra-d');
-  auditRosterSizesAndDuplicates(map);
-  assert.deepEqual(membership(map, 'Brasília'), ['bra-d']);
-  assert.equal(membership(map, truncatedClub).length, 0);
+  auditRosterSizesAndDuplicates(state.competitionTeams);
+  assert.deepEqual(membership(state.competitionTeams, 'Brasília'), ['bra-d']);
+  assert.equal(membership(state.competitionTeams, truncatedClub).length, 0);
   assert.equal(map['bra-a'].filter(name => norm(name) === norm('Clube Duplicado')).length, 1);
   assert.equal(state.competitionTeams['bra-d'].length, 96);
   console.log('PASS: Série D acima de 96 e clubes duplicados normalizados.');
@@ -357,3 +375,11 @@ this.runTransition = executeSeasonTransitions;`, context, { filename: 'js/game.j
   assert.equal(incomplete.cwc.status, 'pending-slots');
   console.log('PASS: qualificação continental dinâmica gera participantes únicos e deixa vagas ausentes pendentes.');
 }
+
+// Architectural guard: the season pipeline may never write to shared catalogs.
+assert.doesNotMatch(actualFunctionSource, /window\.COMPETITION_TEAMS\s*=|Object\.assign\(teamMap/, 'Transições não podem escrever nos catálogos globais.');
+assert.match(actualFunctionSource, /state\.competitionTeams\s*=\s*clone\(tMap\)/, 'A lista resultante deve ser persistida no save ativo.');
+const newCareerSource = source.slice(source.indexOf('function newCareer('), source.indexOf('\nfunction repairLegacyNationalCompetitionRosters('));
+assert.match(newCareerSource, /competitionTeams\s*:\s*careerCompetitionTeams/, 'Toda carreira nova deve ter uma cópia própria do catálogo-base.');
+assert.match(newCareerSource, /competitionClubs\(comp,club\.name,careerCompetitionTeams\)/, 'A liga inicial deve vir do catálogo-base, nunca da carreira anterior.');
+console.log('PASS: guarda arquitetural exige transições e novas carreiras isoladas do catálogo global.');
