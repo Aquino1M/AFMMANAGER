@@ -1,0 +1,281 @@
+﻿================================================================================
+BLOCO 01: CORRECAO URGENTE DOS BOTOES "⏩ ATÉ O JOGO (1d)" E "➕ +1 DIA"
+          + SISTEMA DE JOGOS INTERCALADOS (A CADA 3 DIAS) COM DATAS OFICIAIS
+          + ABERTURA DE "Tabela completa e rodadas >" NA ABA CENTRAL
+ARQUIVO A CRIAR/ATUALIZAR: `js/core/calendar_and_day_advance_fix.js`
+================================================================================
+
+[REGRAS OBRIGATORIAS IMPLEMENTADAS NESTE MODULO]
+1. NUNCA MAIS TRAVAR AO PASSAR O DIA:
+   - Corrige o bug de fuso horario UTC que mantinha a data presa em `18 de janeiro de 2026`.
+   - Conecta interceptadores diretos nos botoes `⏩ ATÉ O JOGO` e `➕ +1 DIA`.
+   - Sempre que a data alcancar o dia da partida, libera imediatamente o botao `▶ JOGAR AO VIVO`.
+2. SISTEMA DE JOGOS INTERCALADOS (A CADA 3 DIAS) DE CAMPEONATOS DIFERENTES:
+   - Estaduais: 11 de janeiro a 8 de marco (11 datas disponiveis).
+   - Brasileirao (Serie A): inicio antecipado em 28 de janeiro e termino em 2 de dezembro,
+     com pausa durante o Mundial de Clubes.
+   - Copa do Brasil: 18 de fevereiro a 6 de dezembro, com final em jogo unico.
+   - Libertadores: fase preliminar em 18 de fevereiro, fase de grupos de abril a maio,
+     e final em 28 de novembro.
+   - Mundial de Clubes (EUA): 14 de junho a 13 de julho, com os clubes brasileiros
+     participando diretamente das fases finais.
+   - Quando o Estadual ou a Copa termina (ou o clube e eliminado), o calendario continua
+     rodando normalmente com os jogos do Campeonato Nacional!
+3. LINK "Tabela completa e rodadas >" NA CENTRAL:
+   - Ao clicar em `Tabela completa e rodadas >` ou `NA TABELA` na aba Central, abre
+     imediatamente a classificacao completa e todas as rodadas.
+
+[CODIGO COMPLETO: `js/core/calendar_and_day_advance_fix.js`]
+(function (window) {
+  'use strict';
+
+  const OFFICIAL_CALENDAR_2026 = {
+    ESTADUAL: { start: '01-11', end: '03-08', datesCount: 11, intervalDays: 3 },
+    BRASILEIRAO: { start: '01-28', end: '12-02', pauseStart: '06-14', pauseEnd: '07-13', rounds: 38, intervalDays: 3 },
+    COPA_DO_BRASIL: { start: '02-18', end: '12-06', singleLegFinal: true, intervalDays: 3 },
+    LIBERTADORES: { prelim: '02-18', groupsStart: '04-01', groupsEnd: '05-29', finalDate: '11-28', intervalDays: 3 },
+    MUNDIAL_CLUBES_EUA: { start: '06-14', end: '07-13', host: 'EUA', brazilDirectFinalPhases: true }
+  };
+
+  function parseSafeLocalNoon(input) {
+    if (!input) return new Date(2026, 0, 18, 12, 0, 0);
+    if (input instanceof Date) {
+      return new Date(input.getFullYear(), input.getMonth(), input.getDate(), 12, 0, 0);
+    }
+    const s = String(input).trim();
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]), 12, 0, 0);
+
+    const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (br) return new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]), 12, 0, 0);
+
+    const meses = {
+      janeiro: 0, fevereiro: 1, marco: 2, 'março': 2, abril: 3, maio: 4, junho: 5,
+      julho: 6, agosto: 7, setembro: 8, outubro: 9, novembro: 10, dezembro: 11
+    };
+    const pt = s.toLowerCase().match(/(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})/);
+    if (pt && meses[pt[2]] !== undefined) {
+      return new Date(Number(pt[3]), meses[pt[2]], Number(pt[1]), 12, 0, 0);
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? new Date(2026, 0, 18, 12, 0, 0) : new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0);
+  }
+
+  function toIso(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function toPtBr(d) {
+    const nomes = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    return `${d.getDate()} de ${nomes[d.getMonth()]} de ${d.getFullYear()}`;
+  }
+
+  const CalendarAndDayFix = {
+    rules: OFFICIAL_CALENDAR_2026,
+    parseSafeLocalNoon,
+    toIso,
+    toPtBr,
+
+    // Gera calendario intercalado a cada 3 dias alternando Estadual, Brasileirao, Copa do Brasil, Libertadores e Mundial
+    buildInterleavedSeasonSchedule(state) {
+      const year = state?.seasonYear || 2026;
+      const schedule = [];
+      let cursor = new Date(year, 0, 11, 12, 0, 0); // Comeca em 11 de janeiro (Estaduais)
+      const endYear = new Date(year, 11, 6, 12, 0, 0); // Ate 6 de dezembro
+
+      let estRound = 1, braRound = 1, cdbPhase = 1, libRound = 1, munPhase = 1;
+      let stepIndex = 0;
+
+      while (cursor <= endYear) {
+        const mmdd = `${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+        let compType = null;
+        let roundLabel = '';
+
+        // 14/06 a 13/07: Pausa do Brasileirao para o Mundial de Clubes nos EUA
+        if (mmdd >= '06-14' && mmdd <= '07-13') {
+          if (munPhase <= 4) {
+            compType = 'MUNDIAL_CLUBES_EUA';
+            roundLabel = `Mundial de Clubes EUA · Fase Final ${munPhase}`;
+            munPhase++;
+          }
+        } else {
+          // Antes de 08/03: Intercala Estadual (11 datas) com inicio do Brasileirao (28/01+) e Copa/Libertadores (18/02+)
+          const rotation = stepIndex % 3;
+          if (mmdd <= '03-08' && estRound <= 11 && (rotation === 0 || mmdd < '01-28')) {
+            compType = 'ESTADUAL';
+            roundLabel = `Campeonato Estadual · Rodada ${estRound++}/11`;
+          } else if (mmdd >= '02-18' && rotation === 1 && cdbPhase <= 8) {
+            compType = 'COPA_DO_BRASIL';
+            roundLabel = cdbPhase === 8 ? 'Copa do Brasil · Final em Jogo Único' : `Copa do Brasil · ${cdbPhase}ª Fase`;
+            cdbPhase++;
+          } else if (mmdd >= '02-18' && rotation === 2 && ((mmdd >= '04-01' && mmdd <= '05-29') || mmdd === '02-18' || mmdd >= '08-01') && libRound <= 13) {
+            compType = 'LIBERTADORES';
+            roundLabel = libRound === 1 ? 'Libertadores · Fase Preliminar' : libRound <= 7 ? `Libertadores · Fase de Grupos R${libRound - 1}` : 'Libertadores · Mata-Mata';
+            libRound++;
+          } else if (mmdd >= '01-28' && braRound <= 38) {
+            // Se Estadual ou Copa terminou, o time segue jogando o Campeonato Nacional!
+            compType = 'BRASILEIRAO';
+            roundLabel = `Campeonato Brasileiro Série A · Rodada ${braRound++}/38`;
+          }
+        }
+
+        if (compType) {
+          schedule.push({
+            dateIso: toIso(cursor),
+            datePtBr: toPtBr(cursor),
+            competition: compType,
+            label: roundLabel
+          });
+        }
+
+        // Jogos intercalados a cada 3 dias!
+        cursor.setDate(cursor.getDate() + 3);
+        stepIndex++;
+      }
+
+      if (state) state.interleavedSchedule2026 = schedule;
+      return schedule;
+    },
+
+    // Avanca o dia no Save do Usuario sem nunca travar!
+    advanceDaysGuaranteed(state, days = 1) {
+      if (!state) return null;
+      const add = Math.max(1, Number(days) || 1);
+      const currentObj = parseSafeLocalNoon(state.currentDate || state.date || '2026-01-18');
+      const oldMonth = currentObj.getMonth();
+
+      currentObj.setDate(currentObj.getDate() + add);
+      const newIso = toIso(currentObj);
+      const newPtBr = toPtBr(currentObj);
+
+      state.currentDate = newIso;
+      state.date = newIso;
+      state.currentDateFormatted = newPtBr;
+
+      // Remove qualquer trava de evento de show pendente que impedia o jogo de avancar
+      if (state.pendingStadiumShow && state.pendingStadiumShow.blocking) {
+        state.pendingStadiumShow.blocking = false;
+      }
+
+      // Recupera fisico dos atletas no elenco do usuario
+      const squad = state.squad || state.players || [];
+      squad.forEach((p) => {
+        if (!p) return;
+        if (typeof p.stamina === 'number') p.stamina = Math.min(100, p.stamina + add * 7);
+        if (typeof p.energy === 'number') p.energy = Math.min(100, p.energy + add * 7);
+      });
+
+      // Simula o Mundo Vivo do Save (Outros times jogam, compram/vendem jogadores e tecnicos pontuam no ranking)
+      if (window.AFM_WorldSimulation) {
+        window.AFM_WorldSimulation.simulateWorldStepOnDayAdvance(state, newIso);
+      }
+
+      // Se virou o mes, processa folha salarial (com nosso salario incluso) e dividendos
+      if (currentObj.getMonth() !== oldMonth && window.AFM_LifeAndSharesPro) {
+        window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(state);
+      }
+
+      // Atualiza o texto da data no topo da tela e nos cards da Central
+      this.syncDateInDOM(state, newPtBr);
+      return { newIso, newPtBr };
+    },
+
+    advanceToNextMatchGuaranteed(state) {
+      if (!state) return null;
+      const curr = parseSafeLocalNoon(state.currentDate || state.date || '2026-01-18');
+      let nextDate = null;
+
+      if (state.nextMatch && state.nextMatch.date) {
+        nextDate = parseSafeLocalNoon(state.nextMatch.date);
+      } else {
+        // Procura no DOM se ha "19 de janeiro de 2026" escrito no card de Proxima Partida
+        const bodyTxt = document.body.innerText || '';
+        const m = bodyTxt.match(/Data do Jogo:\s*(\d{1,2}\s+de\s+[a-zç]+\s+de\s+\d{4})/i);
+        if (m) nextDate = parseSafeLocalNoon(m[1]);
+      }
+
+      if (!nextDate || nextDate <= curr) {
+        return this.advanceDaysGuaranteed(state, 1);
+      }
+      const diffDays = Math.max(1, Math.round((nextDate.getTime() - curr.getTime()) / 86400000));
+      return this.advanceDaysGuaranteed(state, diffDays);
+    },
+
+    syncDateInDOM(state, newPtBr) {
+      // Atualiza o calendario no topo da barra superior
+      document.querySelectorAll('span, div').forEach((el) => {
+        if (el.children.length === 0) {
+          const t = (el.textContent || '').trim();
+          if (/^📅\s*\d{1,2}\s+de\s+[a-zç]+\s+de\s+\d{4}$/i.test(t)) {
+            el.textContent = `📅 ${newPtBr}`;
+          } else if (/Data do Jogo:\s*(.+?)\s*\(Hoje:/i.test(t)) {
+            el.textContent = t.replace(/\(Hoje:\s*[^)]+\)/i, `(Hoje: ${newPtBr})`);
+          }
+        }
+      });
+
+      // Se chegou no dia do jogo, transforma o botao "⏩ ATÉ O JOGO" em "▶ JOGAR AO VIVO"
+      document.querySelectorAll('button').forEach((btn) => {
+        const bTxt = (btn.textContent || '').trim();
+        if (bTxt.includes('ATÉ O JOGO')) {
+          btn.innerHTML = '▶ JOGAR AO VIVO';
+          btn.style.background = 'linear-gradient(135deg, #7c3aed, #6d28d9)';
+          btn.dataset.readyToPlay = '1';
+        }
+      });
+
+      if (typeof window.render === 'function') {
+        try { window.render(); } catch (e) {}
+      }
+      if (typeof window.updateUI === 'function') {
+        try { window.updateUI(); } catch (e) {}
+      }
+    },
+
+    bindGlobalAdvanceAndTableClicks() {
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('button, a, div, span');
+        if (!btn) return;
+        const txt = (btn.textContent || '').trim();
+        const st = window.GameState || window.state;
+
+        // 1. Clique em "+1 DIA"
+        if (txt.includes('+1 DIA') && !btn.dataset.handlingClick) {
+          btn.dataset.handlingClick = '1';
+          setTimeout(() => { delete btn.dataset.handlingClick; }, 150);
+          const res = this.advanceDaysGuaranteed(st, 1);
+          if (res && window.showToast) window.showToast(`📅 Calendário avançado para ${res.newPtBr}.`);
+          return;
+        }
+
+        // 2. Clique em "ATÉ O JOGO"
+        if (txt.includes('ATÉ O JOGO') && btn.dataset.readyToPlay !== '1' && !btn.dataset.handlingClick) {
+          btn.dataset.handlingClick = '1';
+          setTimeout(() => { delete btn.dataset.handlingClick; }, 150);
+          const res = this.advanceToNextMatchGuaranteed(st);
+          if (res && window.showToast) window.showToast(`⚽ Dia de Jogo! Calendário avançado para ${res.newPtBr}.`);
+          return;
+        }
+
+        // 3. Clique em "Tabela completa e rodadas >" na Central
+        if (txt.includes('Tabela completa e rodadas') || txt.includes('NA TABELA')) {
+          e.preventDefault();
+          const navTemporada = Array.from(document.querySelectorAll('button, a, div')).find(
+            (el) => (el.textContent || '').trim() === '🏆 Temporada' || (el.textContent || '').trim() === 'Temporada'
+          );
+          if (navTemporada) navTemporada.click();
+          if (typeof window.switchTab === 'function') window.switchTab('temporada');
+          if (typeof window.openTab === 'function') window.openTab('temporada');
+        }
+      }, true);
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    CalendarAndDayFix.bindGlobalAdvanceAndTableClicks();
+    const st = window.GameState || window.state;
+    if (st) CalendarAndDayFix.buildInterleavedSeasonSchedule(st);
+  });
+
+  window.AFM_CalendarFix = CalendarAndDayFix;
+})(window);

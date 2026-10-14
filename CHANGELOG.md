@@ -2,6 +2,168 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.7.0] - 2026-10-14 (Pacote 100% Completo 16 Itens AFM 2027: Calendário Intercalado 3 Dias, Sala de Troféus Real, Direitos de TV 1 Ano, Marketing Live, Copa do Brasil Neon, Licenças CBF/UEFA, Lupa Global, Regens & Fotos Reais)
+
+### ⏩ 1. Correção Crítica do Calendário e Avanço de Dias (BLOCO 01)
+- **Eliminação do Travamento em 18 de Janeiro**: `js/core/calendar_and_day_advance_fix.js` garante avanço fluido para 19 de janeiro e além, sem travar nas datas.
+- **Portão de Jogo ao Vivo**: Liberação imediata e desbloqueio do botão `▶ JOGAR AO VIVO` no dia exato de qualquer partida oficial.
+- **Navegação Central Direta**: O botão `Tabela completa e rodadas >` na tela Central abre instantaneamente a tabela e as rodadas na visualização de temporada.
+
+### 📅 2. Calendário Oficial 2026 Intercalado a Cada 3 Dias (BLOCO 01)
+- **Distribuição Multi-Competição**:
+  - **Campeonatos Estaduais**: 11 de janeiro a 08 de março (11 datas oficiais em intervalos de 3 dias).
+  - **Brasileirão Série A**: 28 de janeiro a 02 de dezembro (38 rodadas), com pausa compulsória para o Super Mundial de Clubes nos EUA (14/06 a 13/07).
+  - **Copa do Brasil**: 18 de fevereiro a 06 de dezembro (Final Única no domingo 06/12).
+  - **CONMEBOL Libertadores**: Fase preliminar (18/02), Fase de Grupos (abril e maio) e Grande Final única (28/11).
+  - **Super Mundial de Clubes nos EUA**: 14 de junho a 13 de julho com clubes brasileiros classificados direto para as fases finais.
+
+### 🏆 3. Sala de Troféus Real do Corinthians & Conquistas do Treinador (BLOCO 02)
+- **Substituição dos Títulos Impróprios**: Removida a exibição incorreta de títulos do Candangão.
+- **Histórico Oficial do Clube**: Inseridos os 2 Mundiais de Clubes da FIFA (2000, 2012), 1 Libertadores Invicto (2012), 7 Brasileirões Série A, 3 Copas do Brasil, 1 Recopa Sul-Americana, 1 Supercopa e 31 Campeonatos Paulistas.
+- **Gabinete de Conquistas do Treinador**: Seção dedicada exibindo taças ganhas pelo técnico no save ativo isolado.
+
+### 📺 4. Direitos de Transmissão em Ciclo de 1 Ano (BLOCO 02)
+- **Painel em Escritório & Patrocinadores**: Exibição das emissoras e plataformas oficiais:
+  - **Grupo Globo (Libra)**: TV Globo, SporTV, Premiere e Globoplay (exclusividade total de TV aberta, fechada, streaming e PPV).
+  - **Amazon Prime Video (LFU)**: Streaming exclusivo de 1 jogo por rodada como mandante dos clubes da Liga Forte União.
+  - **TV Record & Google/YouTube (LFU)**: Transmissão em TV aberta e canal CazéTV no YouTube.
+  - **1190 Sports & Fanatiz**: Direitos internacionais para o exterior (com exclusão dos jogos do Flamengo como mandante).
+
+### 📈 5. Slider de Marketing em Tempo Real & Folha com Salário do Treinador (BLOCO 02)
+- **Cálculo em Tempo Real**: O slider de investimento semanal em marketing recalcula instantaneamente na tela:
+  - **Retenção de Sócios-Torcedores (+%)**
+  - **Boost em Propostas de Patrocínio (+% bônus)**
+  - **Receita Estimada de Patrocínio (R$/mês)**
+- **Folha Salarial Completa**: O salário do treinador é somado na folha mensal do elenco em Escritório.
+- **Vagas do Elenco Sincronizadas**: Vagas (ex: 28/35 atletas) espelham com precisão o elenco em `Meu Time`.
+
+### 🛡️ 6. Copa do Brasil com Destaque Neon & Simulação de Mundo (BLOCO 03)
+- **Destaque Visual do Time do Usuário**: Card exclusivo em gradiente neon destacando os confrontos do clube do jogador no mata-mata da Copa do Brasil.
+- **Mundo Vivo da Carreira**: A cada avanço de dia, treinadores rivais pontuam em suas competições e transferências geram notícias globais.
+- **Ranking Oficial de Treinadores (Nacional & Mundial)**: Comparativo de prestígio por pontos baseado em vitórias, jogos e títulos.
+- **Licenças Técnicas Obrigatórias**: Sistema escalonado com 5 licenças (CBF D, CBF C, CBF B, CBF A e UEFA PRO), exigindo certificação para assumir clubes de maior força.
+
+### 🔍 7. Lupa no Mercado, Envelhecimento 31+ e Regens Genéticos (BLOCO 04)
+- **Botão Lupa `🔍`**: Cada linha do mercado agora conta com botão de inspeção que abre modal com gols, jogos, assistências, atributos físicos/técnicos e histórico.
+- **Rótulo "🌐 Mercado Global"**: Substituição de "MERCADO SIMULADO ATIVO" por interface limpa e profissional.
+- **Curva Realista de Envelhecimento**: Atletas a partir de 31 anos perdem aceleração e overall gradualmente a cada ano.
+- **Aposentadoria & Regens Genéticos**: Jogadores com 36+ anos anunciam aposentadoria e geram Regens Genéticos na base Sub-20, herdando nacionalidade, posição e potencial estelar.
+
+### 👕 8. Fotos Reais nos Mini-Cards do Campo Tático e Banco (BLOCO 05)
+- **Hydration Visual Imediata**: Injeção de fotos recortadas dos jogadores do Corinthians e estrelas mundiais nos 11 mini-cards do gramado e na lista do banco de reservas.
+- **Cache Local & Sincronização**: Resolução síncrona com fallback dinâmico preservando fluidez tática.
+
+---
+
+## [3.6.0] - 2026-10-14 (Super Pacote: Correção Definitiva de Tags Img, Hotfix Escritório/Estrutura, Simulador de Vida do Treinador, Cotas Realistas & Fotos Reais)
+
+### 🖼️ 1. Correção Definitiva das Tags `<img>` e Escudos de Clubes (BLOCO 01)
+- **Eliminação do Vazamento Visual**: Corrigido o fechamento prematuro do atributo `onerror="..."` provocado por aspas duplas no `<svg xmlns="...">`.
+- **window.AFM_SafeImg**: Implementado fallback seguro via função dedicada e varredura preventiva de nós corrompidos.
+- **Zero Poluição Visual**: Removidos vazamentos de `WES';}" />`, `BRA';}" />`, `SAM';}" />`, `COR';}" />` e `/>` no cabeçalho, barra lateral, cards de jogo, tabela da Central, confrontos do Calendário, Mercado e mini-cards táticos.
+
+### 🏢 2. Correção Crítica nas Abas Escritório e Estrutura & Estádio (BLOCO 01)
+- **Proteção Completa de Array em `state.bankLoans`**: Eliminados os erros `(state.bankLoans || []).reduce is not a function` e `(state.bankLoans || []).some is not a function`.
+- **Normalização e Polyfill no `Object.prototype`**: Conversão automática de estruturas legadas `{ activeLoans: [...] }` para Arrays puros, garantindo abertura imediata e sem falhas.
+
+### 💼 3. Cotas Realistas, Despesa de Dividendos e Simulador de Vida do Treinador (BLOCO 02)
+- **Cotas Balizadas pelo Valuation do Clube**: Preço de 1% calibrado conforme divisão e força (R$ 220 mil em divisões inferiores até R$ 16,5M–R$ 32M na Série A), com compra fracionada de 0,25% e 1,0%.
+- **Despesa Mensal de Dividendos pelo Clube**: Lançamento obrigatório da despesa `Despesa com Dividendos aos Acionistas` nas saídas do clube, com depósito automático da parcela societária na conta pessoal do treinador no dia 1º de cada mês.
+- **Simulador de Vida Pessoal do Treinador**:
+  - **Imóveis**: Apartamento Studio Executivo, Casa em Condomínio, Cobertura Duplex, Mansão com Heliponto e Ilha Particular (valorização mensal e receita de aluguel).
+  - **Negócios**: Barbearia VIP, Escolinha de Futebol Oficial, Academia Fitness, Loja Esportiva, Clínica de Fisioterapia, Restaurante de Luxo e Rede de Hotéis.
+  - **Garagem de Luxo**: SUV Blindado Executivo, Superesportivo Italiano e Jato Executivo Particular.
+
+### 📸 4. Fotos Reais dos Jogadores em Todos os Clubes (BLOCO 03)
+- **Elenco Completo do Corinthians Integrado**: Fotos recortadas oficiais para Garro, Yuri Alberto, Hugo Souza, Coronado, Raniele, André Ramalho, Félix Torres, Fagner, Bidu, Romero, Talles Magno, Carrillo, Bidon, Martínez, Cacá, Gustavo Henrique, Charles, Pedro Raul, Hugo e Memphis Depay.
+- **Auto-Fetcher de Elencos e Caching**: Busca dinâmica de atletas via API TheSportsDB com persistência em cache local.
+
+### 📢 5. Aba Novidades & Correções com Separação Cronológica por Dias (BLOCO 05)
+- **Histórico Completo por Dias**: Organização cronológica detalhada em 7 dias (`02/10`, `05/10`, `08/10`, `10/10`, `12/10`, `13/10` e `14 de Outubro de 2026`).
+
+---
+
+## [3.5.0] - 2026-10-14 (Pacote Supremo 2027: 220 Melhorias, Modo X1, 4 Fases Táticas, Coletivas de Imprensa, Paginação 50 Atletas & O(1) Index)
+
+### 🛡️ 1. Proteções Críticas, Mutex e Indexador O(1) (`js/core/bugfixes_and_guards.js`)
+- **Trava Mutex no Avanço de Rodada**: Prevenção total contra duplo clique acidental (`AFM_Guards.runWithTurnLock`) com bloqueio de 400ms.
+- **Indexador O(1) Ultra-Rápido**: Mapeamento instantâneo em `Map()` de atletas e clubes para busca sem gargalo de busca.
+- **Fallback de Escudos em 3 Camadas**: Hierarquia automática `.svg` -> `.png` -> Brasão SVG Dinâmico estilizado com iniciais.
+- **Cooldown de Áudio de 180ms**: Proteção do motor de áudio (`AFMAudioManager.playSFX`) contra repetição ou encavalamento sonoro em 20x e 40x.
+
+### 💼 2. Economia Pessoal, Cotas e Liquidação de Saída (`js/core/manager_economy.js`)
+- **Mercado de Cotas do Clube**: Aquisição de até 49% das cotas societárias do clube com reinvestimento e dividendos anuais de até 25% do lucro.
+- **Valorização Dinâmica**: +35% de valorização da cota em caso de acesso de divisão e -25% em caso de rebaixamento.
+- **Liquidação Automática na Mudança de Clube**: Venda compulsória e automática das cotas ao preço vigente ao assinar com um novo clube (`liquidateSharesOnClubExit`), com crédito imediato ao saldo pessoal.
+
+### 🛒 3. Paginação Virtual de 50 Atletas no Mercado (`js/game.js`)
+- **Interface Ágil e Fluida**: Divisão da lista do mercado em páginas de 50 atletas com barra de navegação "◀ Anterior" e "Próxima ▶".
+- **Zero Travamento**: Redução drástica de nós no DOM mantendo a ordenação e os filtros instantâneos.
+
+### ⚔️ 4. Modo Jogar X1 — Duelo Tático por Código (`js/core/x1_online_system.js`)
+- **Desafio Tático Amigável e Competitivo**: Geração de código criptografado do time titular e tática (`btnExportMyX1Token`).
+- **Simulador Desacoplado**: Importação de código rival e disputa em 90 minutos com placar e eventos detalhados, sem mutar o save da carreira.
+
+### 🧠 5. 4 Fases Táticas & IA Adaptativa da CPU (`js/core/tactical_4phases.js`)
+- **Ciclo Tático Completo**: Transições entre Construção (Build-Up), Progressão, Criação e Finalização.
+- **Adaptação da CPU**: Ajuste automático da postura rival aos 75'+ caso o time adversário esteja perdendo, subindo a marcação e acionando pressão alta.
+
+### 🤝 6. Assistente Técnico e Mentoria de Veteranos (`js/core/squad_assistant.js`)
+- **Trocas Sugeridas**: Substituição automática inteligente de titulares com estafa (<72%), suspensão ou lesão.
+- **Mentoria Geracional**: Veteranos (32+ anos) transmitem XP e sabedoria aos jovens talentos (sub-21) do mesmo setor a cada rodada.
+
+### 📻 7. Placar Paralelo da Rodada em Tempo Real (`js/core/competitions_pack.js`)
+- **Giro da Rodada ao Vivo**: Simulação em tempo real e avisos sonoros/textuais de gols ocorrendo nos demais confrontos da rodada durante a partida do usuário.
+
+### 🎤 8. Coletivas de Imprensa & Diretoria (`js/core/press_and_board.js`)
+- **Entrevistas Pós-Jogo**: Diálogos jornalísticos interativos pós-jogo com impacto imediato na moral do elenco, torcida e diretoria.
+
+---
+
+## [3.4.0] - 2026-10-14 (Economia do Treinador, Cotas do Clube, Negócios, Auxiliar Técnico, Estrelas 3 Camadas & Ranking Global)
+
+### 💼 1. Economia Pessoal, Cotas do Clube e Negócios do Treinador (`js/systems/manager_economy.js`)
+- **Aba Exclusiva de Carreira**: Adicionada a aba `💼 Carreira` no menu principal com painel completo do treinador (`#afm-career-economy-container`).
+- **Cotas Societárias do Clube**: Treinador pode adquirir de 1 a 10 cotas (1% da receita anual do clube cada), injetando capital diretamente no caixa do clube, ganhando bônus de confiança da diretoria e reduzindo em até 30% a perda de confiança em tropeços.
+- **Dividendos Anuais**: No encerramento da temporada, clubes com superávit pagam dividendos aos cotistas proporcionais às cotas possuídas (até 25% do valor das cotas).
+- **Negócios Próprios**: Treinador pode abrir e gerenciar empreendimentos: Escolinha de Futebol (R$ 300k + revelação de jovens para a base), Loja de Artigos Esportivos (R$ 600k) e Restaurante (R$ 1,2M). Fechamento mensal de lucros com indicador de gestão e manutenção.
+
+### 🛡️ 2. Blindagens, Cláusula de Revenda e Proteções de Save (`js/core/bugfixes_and_guards.js`)
+- **Roteamento Vercel Limpo**: `vercel.json` ajustado para raiz direta (`outputDirectory: "."`) com cache imutável de imagens e revalidação de dados.
+- **Cláusulas de Revenda (Solidariedade)**: Registro de percentual de mais-valia em transferências com crédito automático ao clube formador.
+- **Trava de Parcelas Bancárias**: Bloqueio de cobranças múltiplas no mesmo mês via chave de período (`lastProcessedPeriod`).
+- **Limpeza de Propostas**: Expiração automática de propostas de transferência pendentes ao avançar de rodada.
+
+### 🏟️ 3. Motor ao Vivo: Áreas Técnicas e Pênaltis Interativos (`js/match/live_match_hud.js`)
+- **Áreas Técnicas no Campo 2.5D**: Renderização dinâmica dos bancos de reservas com técnicos e suplentes animados em tempo real.
+- **Controle de Velocidades**: Aceleração ultra-rápida (1x, 20x, 40x) com recalibração de intervalos.
+- **Disputa de Pênaltis Interativa**: Modal imersivo acionado automaticamente em empates de mata-mata com escolha de canto pelo jogador e inteligência do goleiro.
+
+### ⭐ 4. Auxiliar Técnico e Estrelas de 3 Camadas (`js/systems/squad_assistant_and_stars.js`)
+- **Trocas Sugeridas do Auxiliar**: Botão inteligente na tela de Tática e Elenco que detecta atletas desgastados (<72%), lesionados ou suspensos e promove substituições automáticas preservando a qualidade posicional.
+- **Estrelas em 3 Camadas**: Visualização gráfica refinada combinando Nível Atual (Dourado), Potencial Garantido (Violeta) e Teto Máximo com Bônus Jovem (Lilás).
+
+### 🌐 5. Confiança Tripla e Ranking Global Supabase (`js/systems/global_ranking_and_confidence.js`)
+- **Confiança Tripla Reativa**: Cálculo balanceado para Diretoria, Torcida e Elenco com bônus de clássicos e escudo protetor societário.
+- **Sincronização com Ranking na Nuvem**: Gravação assíncrona dos pontos de carreira, patrimônio líquido e títulos no Supabase (`afm_global_ranking`) com fallback offline em `localStorage`.
+
+---
+
+## [3.3.8] - 2026-10-14 (Virada de Temporada 100% Precisa, Painel de Conquistas & Campeões do Mundo do Save)
+
+### 🚀 1. Virada de Temporada Sem Falhas (`advanceSeasonYear`)
+- **Execução Blindada**: Toda a rotina de avanço de temporada e transição de divisões agora opera protegida por blocos `try/catch` com fallback automático de recuperação, garantindo que o ano nunca fique travado ou em estado inconsistente.
+- **Fechamento e Limpeza Automática**: Encerramento garantido do modal de encerramento (`closeCustomModal()`), reset dos marcadores de premiação (`state.seasonPrizeClaimed = null`, `state.seasonConcluded = false`) e inicialização imediata da pré-temporada do novo ano.
+- **Simulação Complementar do Universo**: Inclusão de `simulateRemainingWorldTournaments(finishedYear)` para apurar e registrar os campeões de copas e torneios internacionais ainda pendentes no encerramento da temporada ativa.
+
+### 🏆 2. Painel de Conquistas & Campanhas no Modal de Fim de Temporada
+- **Resumo Detalhado da Campanha**: Exibição em tempo real de títulos conquistados pelo clube, posição e divisão alcançada, premiações monetárias adicionadas ao caixa e histórico de eliminações em mata-matas.
+- **Acesso Imediato ao Histórico Global**: Inclusão do botão `🌍 Ver Campeões do Mundo do Save` diretamente no painel de conquistas do modal de virada.
+
+### 🏛️ 3. Acesso Onipresente aos Campeões do Mundo do Save
+- **Botão na Central do Treinador**: Adicionado botão de acesso direto `🌍 Campeões do Mundo do Save` no painel principal da Central, logo abaixo do Hall da Fama.
+- **Navegação Cruzada**: Integração bidirecional com o Hall da Fama oficial (`openSeasonHistoryModal()`) e tela de Temporada (`seasonPage()`), permitindo ao usuário consultar a qualquer momento todos os campeões de todas as competições do seu save.
+
 ---
 
 ## [3.3.7] - 2026-10-14 (Auditoria do Workspace, Service Worker v8, Proteção Todo-Tree & Sincronização Canônica)

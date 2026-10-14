@@ -4726,3 +4726,22 @@ body.theme-emerald {
   overflow: visible !important;
 }
 
+/* === AFM_GPU_ACCELERATION_RULES (WebGPU / Compositor Layer Boost) === */
+#app {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+/* Virtualiza linhas de tabelas e cards fora da tela para abrir Elenco e Mercado instantaneamente */
+table tbody tr,
+.player-card,
+.market-row,
+.squad-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48px;
+}
+canvas {
+  image-rendering: optimizeSpeed;
+  transform: translateZ(0);
+}
+
+

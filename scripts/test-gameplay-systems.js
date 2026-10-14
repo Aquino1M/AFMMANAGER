@@ -851,6 +851,396 @@ assert(gameJsContent.includes('function getMonthlyScoutPayroll(gameState = state
   'Salários de olheiros fazem parte das saídas financeiras previstas por mês');
 
 // =========================================================================
+// TESTE 14: Pacote Supremo AFM 2027 (220 Melhorias Integradas)
+// =========================================================================
+console.log('\n--- TESTE 14: Pacote Supremo AFM 2027 (220 Melhorias Integradas) ---');
+const indexHtmlContent = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+assert(indexHtmlContent.includes('js/core/bugfixes_and_guards.js')
+  && indexHtmlContent.includes('js/core/manager_economy.js')
+  && indexHtmlContent.includes('js/core/tactical_4phases.js')
+  && indexHtmlContent.includes('js/core/squad_assistant.js')
+  && indexHtmlContent.includes('js/core/competitions_pack.js')
+  && indexHtmlContent.includes('js/core/press_and_board.js')
+  && indexHtmlContent.includes('js/core/x1_online_system.js'),
+  'index.html carrega todos os novos módulos essenciais do Pacote Supremo');
+
+assert(gameJsContent.includes('window.AFM_Guards')
+  && gameJsContent.includes('runWithTurnLock')
+  && gameJsContent.includes('rebuildFastIndexes'),
+  'game.js integra proteções de Mutex e indexador O(1) do AFM_Guards');
+
+assert(gameJsContent.includes('window.AFM_ManagerEconomy')
+  && gameJsContent.includes('liquidateSharesOnClubExit')
+  && gameJsContent.includes('onDivisionChangeUpdateSharePrice'),
+  'game.js integra economia de cotas do treinador e valorização por divisão');
+
+assert(gameJsContent.includes('window.AFM_X1System')
+  && gameJsContent.includes('btnExportMyX1Token')
+  && gameJsContent.includes('btnSimulateX1Duel'),
+  'game.js possui suporte completo ao Modo Duelo Tático X1 por código');
+
+assert(gameJsContent.includes('window.afmMarketPage')
+  && gameJsContent.includes('btnMarketPrevPage')
+  && gameJsContent.includes('btnMarketNextPage')
+  && gameJsContent.includes('pageSize = 50'),
+  'game.js implementa paginação virtual de 50 atletas por página no mercado');
+
+assert(gameJsContent.includes('window.AFM_SquadAssistant')
+  && gameJsContent.includes('applyAssistantSuggestedSwaps')
+  && gameJsContent.includes('applyMentorshipVeterans'),
+  'game.js integra trocas inteligentes do Auxiliar e mentoria de veteranos');
+
+assert(gameJsContent.includes('window.AFM_Competitions')
+  && gameJsContent.includes('simulateLiveParallelMatches'),
+  'game.js conecta placar simultâneo paralelo da rodada à transmissão ao vivo');
+
+const audioContent = fs.readFileSync(path.join(__dirname, '..', 'js', 'core', 'audio_engine.js'), 'utf8');
+assert(audioContent.includes('_sfxCooldown')
+  && audioContent.includes('180'),
+  'audio_engine.js implementa cooldown de 180ms para SFX em velocidades 20x e 40x');
+
+// =========================================================================
+// TESTE 15: Otimização Focada de Logos, Fotos, Ligas e Save Isolado (Blocos 01 a 05)
+// =========================================================================
+console.log('\n--- TESTE 15: Otimização Focada de Logos, Fotos, Ligas e Save Isolado (Blocos 01 a 05) ---');
+
+assert(indexHtmlContent.includes('js/core/isolated_save_manager.js')
+  && indexHtmlContent.includes('js/core/badge_svg_restorer.js')
+  && indexHtmlContent.includes('js/core/player_photos_manager.js')
+  && indexHtmlContent.includes('js/systems/real_world_leagues_and_pyramid.js'),
+  'index.html importa os 4 novos scripts essenciais dos Blocos 01 a 05');
+
+// Carrega os módulos no ambiente de teste
+require('../js/core/isolated_save_manager.js');
+require('../js/core/badge_svg_restorer.js');
+require('../js/core/player_photos_manager.js');
+require('../js/systems/real_world_leagues_and_pyramid.js');
+
+// Bloco 01: Isolamento do Save
+assert(window.AFM_IsolatedSave && typeof window.AFM_IsolatedSave.ensureSaveIsolation === 'function',
+  'Módulo AFM_IsolatedSave carregado e exposto');
+const mockSave = { season: 2026, club: 'Santos' };
+const isolated = window.AFM_IsolatedSave.ensureSaveIsolation(mockSave);
+assert(isolated && mockSave.isolatedWorld, 'ensureSaveIsolation inicializa gameState.isolatedWorld');
+assert(isolated.saveId && Array.isArray(isolated.clubs), 'isolatedWorld possui saveId e cópia independente de clubes');
+
+// Bloco 02: Restaurador de Logos
+assert(window.AFM_BadgeRestorer && typeof window.AFM_BadgeRestorer.restoreInnerWhiteOfBadge === 'function',
+  'Módulo AFM_BadgeRestorer carregado com algoritmo restoreInnerWhiteOfBadge');
+assert(window.AFM_BadgeRestorer.normalizeSlug('São Paulo F.C.') === 'sao-paulo-fc',
+  'AFM_BadgeRestorer.normalizeSlug normaliza corretamente os caracteres acentuados');
+
+// Bloco 03: Gerenciador de Fotos
+assert(window.AFM_PlayerPhotos && typeof window.AFM_PlayerPhotos.resolvePlayerPhotoUrl === 'function',
+  'Módulo AFM_PlayerPhotos carregado com resolvePlayerPhotoUrl e bindPlayerPhotoElement');
+const photoUrl = window.AFM_PlayerPhotos.resolvePlayerPhotoUrl({ id: 1045 });
+assert(photoUrl === 'img/players/1045.webp', 'resolvePlayerPhotoUrl aponta para webp otimizado');
+const silhouette = window.AFM_PlayerPhotos.generateRealisticKitSilhouette({ number: 9 }, ['#000', '#fff']);
+assert(silhouette.startsWith('data:image/svg+xml'), 'generateRealisticKitSilhouette gera SVG vetorial de fallback');
+
+// Bloco 04: Separação Real das Ligas (Sem 32 clubes misturados na Série A!)
+assert(window.AFM_RealWorldLeagues, 'Módulo AFM_RealWorldLeagues carregado');
+const serieAClubs = window.AFM_RealWorldLeagues.getClubsByCompetition({ id: 'bra-a' });
+assert(Array.isArray(serieAClubs), 'getClubsByCompetition retorna lista de clubes');
+assert(serieAClubs.length === 20, 'Brasileirão Série A possui exatamente 20 clubes reais');
+assert(serieAClubs.includes('Palmeiras') && serieAClubs.includes('Corinthians') && serieAClubs.includes('Flamengo'),
+  'Série A contém os clubes legítimos da elite');
+assert(!serieAClubs.includes('Barra-SC') && !serieAClubs.includes('Jacuipense') && !serieAClubs.includes('Operário-PR') && !serieAClubs.includes('Athletic Club'),
+  'Clubes da Série B, C e D (Barra-SC, Jacuipense, Operário-PR, Athletic Club) NÃO vazam para a Série A');
+
+const serieBClubs = window.AFM_RealWorldLeagues.getClubsByCompetition({ id: 'bra-b' });
+assert(serieBClubs.length === 20, 'Brasileirão Série B possui exatamente 20 clubes reais');
+assert(serieBClubs.includes('Operário-PR') && serieBClubs.includes('Athletic Club') && serieBClubs.includes('Coritiba'),
+  'Série B contém os clubes legítimos da divisão');
+
+const serieCClubs = window.AFM_RealWorldLeagues.getClubsByCompetition({ id: 'bra-c' });
+assert(serieCClubs.length === 20, 'Brasileirão Série C possui exatamente 20 clubes reais');
+
+const serieDClubs = window.AFM_RealWorldLeagues.getClubsByCompetition({ id: 'bra-d' });
+assert(serieDClubs.length > 20 && serieDClubs.includes('Barra-SC') && serieDClubs.includes('Jacuipense'),
+  'Série D contém Barra-SC, Jacuipense e demais clubes regionais');
+
+// Bloco 05: Promoção e Rebaixamento Fiel
+assert(typeof window.AFM_RealWorldLeagues.processEndOfSeasonPromotionsAndRelegations === 'function',
+  'processEndOfSeasonPromotionsAndRelegations implementado');
+const mockSeasonState = {
+  season: 2026,
+  competitionTeams: {
+    'bra-a': ['Club A1', 'Club A2', 'Club A3', 'Club A4'],
+    'bra-b': ['Club B1', 'Club B2', 'Club B3', 'Club B4']
+  },
+  isolatedWorld: {
+    clubs: [
+      { id: 1, name: 'Club A1', leagueId: 'BRA_SERIE_A', divisionId: 'BRA_SERIE_A' },
+      { id: 2, name: 'Club A2', leagueId: 'BRA_SERIE_A', divisionId: 'BRA_SERIE_A' },
+      { id: 3, name: 'Club B1', leagueId: 'BRA_SERIE_B', divisionId: 'BRA_SERIE_B' },
+      { id: 4, name: 'Club B2', leagueId: 'BRA_SERIE_B', divisionId: 'BRA_SERIE_B' }
+    ],
+    standingsByLeague: {
+      BRA_SERIE_A: [
+        { clubId: 1, clubName: 'Club A1', points: 70 },
+        { clubId: 2, clubName: 'Club A2', points: 30 } // rebaixado
+      ],
+      BRA_SERIE_B: [
+        { clubId: 3, clubName: 'Club B1', points: 65 }, // promovido
+        { clubId: 4, clubName: 'Club B2', points: 25 }
+      ]
+    }
+  }
+};
+const promoReport = window.AFM_RealWorldLeagues.processEndOfSeasonPromotionsAndRelegations(mockSeasonState);
+assert(Array.isArray(promoReport) && promoReport.length > 0, 'Relatório de movimentação gerado');
+assert(mockSeasonState.isolatedWorld.clubs.find(c => c.name === 'Club A2').leagueId === 'BRA_SERIE_B',
+  'Club A2 foi rebaixado para Série B estritamente no save do usuário');
+assert(mockSeasonState.isolatedWorld.clubs.find(c => c.name === 'Club B1').leagueId === 'BRA_SERIE_A',
+  'Club B1 foi promovido para Série A estritamente no save do usuário');
+
+// Integração no game.js
+assert(gameJsContent.includes('window.AFM_RealWorldLeagues.getClubsByCompetition')
+  && gameJsContent.includes('window.AFM_RealWorldLeagues.processEndOfSeasonPromotionsAndRelegations'),
+  'game.js integra getClubsByCompetition e processEndOfSeasonPromotionsAndRelegations');
+
+// =========================================================================
+// 16. TESTES DO SUPER PACOTE (BLOCO 01 A BLOCO 05 — 14/OUTUBRO)
+// =========================================================================
+console.log('\n--- TESTE 16: Super Pacote Correções Fotos, Vida, Cotas 14/Out ---');
+
+require('../js/core/hotfix_bankloans_and_img_tags.js');
+require('../js/systems/manager_life_and_shares_pro.js');
+require('../js/core/real_player_faces_auto_fetcher.js');
+require('../js/ui/changelog_14outubro.js');
+
+// 1. Hotfix Bankloans & Img Tags (BLOCO 01)
+assert(typeof window.AFM_SafeImg === 'function', 'window.AFM_SafeImg está disponível globalmente');
+assert(typeof window.AFM_NormalizeBankLoans === 'function', 'window.AFM_NormalizeBankLoans está disponível globalmente');
+
+const testStateWithObjLoans = { bankLoans: { activeLoans: [{ id: 'loan_1', overdue: false, remainingDebt: 1000 }] } };
+window.AFM_NormalizeBankLoans(testStateWithObjLoans);
+assert(Array.isArray(testStateWithObjLoans.bankLoans) && testStateWithObjLoans.bankLoans.length === 1,
+  'AFM_NormalizeBankLoans converte objeto activeLoans em Array puro');
+
+const nonArrayObj = { activeLoans: [{ overdue: true, installmentValue: 500 }] };
+assert(typeof nonArrayObj.reduce === 'function' && typeof nonArrayObj.some === 'function',
+  'Object.prototype polyfill protege chamadas de .reduce e .some quando bankLoans for objeto legado');
+assert(nonArrayObj.some(l => l.overdue) === true, 'nonArrayObj.some funciona perfeitamente');
+
+// 2. Cotas Realistas & Despesa de Dividendos (BLOCO 02)
+assert(window.AFM_LifeAndSharesPro, 'Módulo AFM_LifeAndSharesPro carregado');
+const clubValuationSerieA = window.AFM_LifeAndSharesPro.getClubValuationAndSharePrice({ club: 'Flamengo', clubDivision: 1 });
+assert(clubValuationSerieA.onePercentPrice >= 16500000 && clubValuationSerieA.onePercentPrice <= 32000000,
+  'Preço de 1% da cota na Série A é realista (R$ 16.5M a R$ 32M)');
+
+const clubValuationSerieD = window.AFM_LifeAndSharesPro.getClubValuationAndSharePrice({ club: 'Clube Regional', clubDivision: 4 });
+assert(clubValuationSerieD.onePercentPrice === 220000,
+  'Preço de 1% da cota em divisões inferiores é R$ 220 mil');
+
+const managerState = {
+  club: 'Corinthians',
+  clubDivision: 1,
+  balance: 50000000,
+  clubBalance: 50000000,
+  managerPersonal: {
+    personalBalance: 50000000,
+    clubSharesPct: 0,
+    properties: [],
+    businesses: [],
+    vehicles: []
+  }
+};
+
+const buyQuarterRes = window.AFM_LifeAndSharesPro.buyShareFraction(managerState, 0.25);
+assert(buyQuarterRes.ok && managerState.managerPersonal.clubSharesPct === 0.25,
+  'Permite compra fracionada de cotas em 0.25%');
+
+const dividendCalc = window.AFM_LifeAndSharesPro.calculateMonthlyClubDividendExpense(managerState);
+assert(dividendCalc.totalClubDividendExpense > 0 && dividendCalc.totalShareholdersPct > 0,
+  'Calcula despesa mensal de dividendos para todos os acionistas');
+
+const balanceBeforeTurn = managerState.clubBalance;
+window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(managerState);
+assert(managerState.clubBalance < balanceBeforeTurn,
+  'Despesa com dividendos é descontada do caixa do clube como despesa real mensal');
+assert(managerState.managerPersonal.lastDividendReceivedByManager > 0,
+  'Parte dos dividendos correspondente ao treinador é depositada no saldo pessoal');
+
+// 3. Simulador de Vida do Treinador (BLOCO 02)
+const buyPropRes = window.AFM_LifeAndSharesPro.buyProperty(managerState, 'prop_studio');
+assert(buyPropRes.ok && managerState.managerPersonal.properties.length === 1,
+  'Permite comprar imóveis (Studio Executivo)');
+
+const buyBizRes = window.AFM_LifeAndSharesPro.buyOrUpgradeBusiness(managerState, 'biz_barbearia');
+assert(buyBizRes.ok && managerState.managerPersonal.businesses.length === 1,
+  'Permite abrir empresas (Barbearia VIP)');
+
+const buyVehRes = window.AFM_LifeAndSharesPro.buyVehicle(managerState, 'veh_suv');
+assert(buyVehRes.ok && managerState.managerPersonal.vehicles.length === 1,
+  'Permite comprar veículos de luxo para a garagem');
+
+// 4. Fotos Reais dos Jogadores (BLOCO 03)
+assert(window.AFM_RealPlayerFaces, 'Módulo AFM_RealPlayerFaces carregado');
+const corinthiansPlayers = [
+  'Garro', 'Yuri Alberto', 'Hugo Souza', 'Coronado', 'Raniele', 'André Ramalho',
+  'Félix Torres', 'Fagner', 'Bidu', 'Romero', 'Talles Magno', 'Carrillo',
+  'Bidon', 'Martínez', 'Cacá', 'Gustavo Henrique', 'Charles', 'Pedro Raul', 'Hugo', 'Depay'
+];
+const allCorinthiansFacesFound = corinthiansPlayers.every(p => {
+  const photo = window.AFM_RealPlayerFaces.resolveRealPlayerPhotoUrl(p);
+  return photo && photo.length > 0;
+});
+assert(allCorinthiansFacesFound,
+  'Todas as fotos reais do elenco do Corinthians (Garro, Yuri Alberto, Depay, etc.) estão mapeadas');
+
+// 5. Novidades e Correções até 14/Outubro (BLOCO 05)
+assert(window.AFM_Changelog14Out, 'Módulo AFM_Changelog14Out carregado');
+const changelogMarkup = window.AFM_Changelog14Out.renderChangelogMarkup();
+const expectedDays = ['14 de Outubro', '13 de Outubro', '12 de Outubro', '10 de Outubro', '08 de Outubro', '05 de Outubro', '02 de Outubro'];
+const allDaysFound = expectedDays.every(day => changelogMarkup.includes(day));
+assert(allDaysFound, 'Aba Novidades & Correções contém histórico separado pelos 7 dias cronológicos até 14/Outubro');
+
+// 6. Integração do index.html e game.js
+assert(indexHtmlContent.includes('js/core/hotfix_bankloans_and_img_tags.js')
+  && indexHtmlContent.includes('js/systems/manager_life_and_shares_pro.js')
+  && indexHtmlContent.includes('js/core/real_player_faces_auto_fetcher.js')
+  && indexHtmlContent.includes('js/ui/changelog_14outubro.js'),
+  'index.html importa os scripts de hotfix, manager life, real faces e changelog 14/out');
+
+assert(gameJsContent.includes('window.AFM_RealPlayerFaces.resolveRealPlayerPhotoUrl')
+  && gameJsContent.includes('window.AFM_Changelog14Out.renderChangelogMarkup')
+  && gameJsContent.includes('window.AFM_LifeAndSharesPro.renderLifeAndSharesUI')
+  && gameJsContent.includes('Despesa com Dividendos aos Acionistas'),
+  'game.js possui todas as integrações ativas dos 5 blocos');
+
+// =========================================================================
+// 17. TESTES DO PACOTE 100% COMPLETO 16 ITENS (BLOCO 01 A BLOCO 05 — AFM 2027)
+// =========================================================================
+console.log('\n--- TESTE 17: Pacote 100% Completo 16 Itens AFM 2027 ---');
+
+require('../js/core/calendar_and_day_advance_fix.js');
+require('../js/systems/trophies_tv_1year_marketing_and_payroll.js');
+require('../js/systems/cup_highlight_ranking_world_and_licenses.js');
+require('../js/systems/market_lupa_aging_and_regens.js');
+require('../js/core/lineup_real_photos_injector.js');
+
+// 1. BLOCO 01: Calendário e Avanço Seguro de Dias
+assert(window.AFM_CalendarFix, 'Módulo AFM_CalendarFix carregado com sucesso');
+assert(typeof window.AFM_CalendarFix.advanceDaysGuaranteed === 'function', 'AFM_CalendarFix.advanceDaysGuaranteed está disponível');
+assert(typeof window.AFM_CalendarFix.advanceToNextMatchGuaranteed === 'function', 'AFM_CalendarFix.advanceToNextMatchGuaranteed está disponível');
+
+const calTestState = {
+  date: '2026-01-18',
+  club: 'Corinthians',
+  schedule: [[['Corinthians', 'Palmeiras']]],
+  round: 0,
+  squad: [{ name: 'Garro', stamina: 80 }],
+  isolatedWorld: {}
+};
+window.AFM_CalendarFix.advanceDaysGuaranteed(calTestState, 1);
+assert(calTestState.date === '2026-01-19', 'advanceDaysGuaranteed avança com segurança do dia 18 para o dia 19 de janeiro');
+
+window.AFM_CalendarFix.advanceDaysGuaranteed(calTestState, 5);
+assert(calTestState.date === '2026-01-24', 'advanceDaysGuaranteed avança 5 dias com segurança');
+
+const interleavedSchedule = window.AFM_CalendarFix.buildInterleavedSeasonSchedule(2026);
+assert(interleavedSchedule.stateTournament.startDate === '2026-01-11' && interleavedSchedule.stateTournament.endDate === '2026-03-08',
+  'Estadual configurado com exatas 11 datas entre 11/01 e 08/03');
+assert(interleavedSchedule.serieA.worldCupBreakStart === '2026-06-14' && interleavedSchedule.serieA.worldCupBreakEnd === '2026-07-13',
+  'Brasileirão Série A faz pausa obrigatória para a Copa do Mundo de Clubes (14/06 a 13/07)');
+assert(interleavedSchedule.copaDoBrasil.singleFinalDate === '2026-12-06',
+  'Copa do Brasil tem final única agendada para 06/12/2026');
+
+// 2. BLOCO 02: Sala de Troféus Real do Corinthians e Direitos de Transmissão (1 Ano)
+assert(window.AFM_TrophiesTvPayroll, 'Módulo AFM_TrophiesTvPayroll carregado');
+const corinthiansTrophies = window.AFM_TrophiesTvPayroll.REAL_CLUB_TROPHIES['Corinthians'];
+assert(corinthiansTrophies && corinthiansTrophies.fifaWorldCup === 2 && corinthiansTrophies.libertadores === 1 && corinthiansTrophies.paulista === 31,
+  'Sala de troféus do Corinthians possui histórico oficial (2 Mundiais FIFA, 1 Libertadores, 31 Paulistas) sem títulos espúrios de Candangão');
+
+const tvRights = window.AFM_TrophiesTvPayroll.TV_RIGHTS_1YEAR_COMPANIES;
+assert(tvRights.globo.contractLengthYears === 1 && tvRights.amazon.contractLengthYears === 1 && tvRights.recordYoutube.contractLengthYears === 1,
+  'Direitos de TV operam em ciclo de 1 ano com Globo (Libra), Amazon Prime (LFU) e Record/YouTube (LFU)');
+
+const marketingCalc = window.AFM_TrophiesTvPayroll.calculateLiveMarketingMetrics(500000, 1000000);
+assert(marketingCalc.retentionPct > 0 && marketingCalc.sponsorRevenueMonth > 0 && marketingCalc.boostBonusPct > 0,
+  'Slider de Marketing calcula Retenção de Sócios, Boost de Patrocínio e Receita de Patrocínio em tempo real');
+
+// 3. BLOCO 03: Copa do Brasil Destaque, Ranking Mundial e Licenças de Treinador
+assert(window.AFM_WorldSimulation, 'Módulo AFM_WorldSimulation carregado');
+const guardiolaPoints = window.AFM_WorldSimulation.getCoachPoints({ titles: 38, winRate: 74, matches: 900 });
+assert(guardiolaPoints > 1000, 'Fórmula de pontos de prestígio calcula pontuação consistente para técnicos mundiais');
+
+const licenses = window.AFM_WorldSimulation.LICENSES_LIST;
+assert(licenses.length === 5 && licenses[0].id.toLowerCase() === 'cbf_d' && licenses[4].id.toLowerCase() === 'uefa_pro',
+  'Sistema de 5 Licenças Obrigatórias de Treinador disponível (CBF D, C, B, A e UEFA PRO)');
+
+const cupState = {
+  club: 'Corinthians',
+  isolatedWorld: {
+    copaDoBrasilTree: [
+      { roundName: 'Primeira Fase', home: 'Corinthians', away: 'Operário-PR' },
+      { roundName: 'Primeira Fase', home: 'Flamengo', away: 'Sousa-PB' }
+    ]
+  }
+};
+window.AFM_WorldSimulation.ensureUserClubInCopaDoBrasilAndHighlight(cupState);
+assert(cupState.isolatedWorld.copaDoBrasilTree[0].isUserMatch === true && cupState.isolatedWorld.copaDoBrasilTree[0].highlightNeon === true,
+  'Partida do clube do usuário na Copa do Brasil é destacada com card exclusivo e neon');
+
+// 4. BLOCO 04: Lupa do Mercado, Envelhecimento 31+ e Regens Genéticos
+assert(window.AFM_MarketLupaAndAging, 'Módulo AFM_MarketLupaAndAging carregado');
+
+const agingState = {
+  squad: [
+    { name: 'Veterano Craque', age: 34, ovr: 82, pace: 80, stamina: 85, position: 'ATA', nationality: 'Brasil' },
+    { name: 'Aposentando', age: 37, ovr: 75, pace: 65, stamina: 70, position: 'MEI', nationality: 'Brasil' }
+  ],
+  youthAcademy: [],
+  news: []
+};
+window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens(agingState);
+assert(agingState.squad[0].age === 35 && agingState.squad[0].ovr < 82, 'Jogadores com 31+ anos perdem atributos físicos/técnicos anualmente');
+assert(agingState.youthAcademy.length > 0 && agingState.youthAcademy[0].regenOf === 'Aposentando',
+  'Jogador aposentado gera Regen Genético na base Sub-20 com nacionalidade e posição herdadas');
+
+// 5. BLOCO 05: Fotos Reais em Mini-Cards do Gramado e Banco de Reservas
+assert(window.AFM_LineupPhotos, 'Módulo AFM_LineupPhotos carregado');
+const garroPhoto = window.AFM_LineupPhotos.fetchOfficialCutout('Rodrigo Garro', 'Corinthians');
+assert(garroPhoto && garroPhoto.length > 0, 'Foto real oficial recortada para Rodrigo Garro encontrada');
+const yuriPhoto = window.AFM_LineupPhotos.fetchOfficialCutout('Yuri Alberto', 'Corinthians');
+assert(yuriPhoto && yuriPhoto.length > 0, 'Foto real oficial recortada para Yuri Alberto encontrada');
+
+// 6. Scripts no index.html e integrações no game.js
+const updatedIndexHtml = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+assert(updatedIndexHtml.includes('js/core/calendar_and_day_advance_fix.js')
+  && updatedIndexHtml.includes('js/systems/trophies_tv_1year_marketing_and_payroll.js')
+  && updatedIndexHtml.includes('js/systems/cup_highlight_ranking_world_and_licenses.js')
+  && updatedIndexHtml.includes('js/systems/market_lupa_aging_and_regens.js')
+  && updatedIndexHtml.includes('js/core/lineup_real_photos_injector.js'),
+  'index.html inclui todos os 5 novos módulos dos 16 itens AFM 2027');
+
+const updatedGameJs = fs.readFileSync(path.resolve(__dirname, '../js/game.js'), 'utf8');
+assert(updatedGameJs.includes('AFM_CalendarFix.advanceToNextMatchGuaranteed')
+  && updatedGameJs.includes('AFM_CalendarFix.advanceDaysGuaranteed')
+  && updatedGameJs.includes('triggerAFMSystemEnhancements')
+  && updatedGameJs.includes('AFM_WorldSimulation.simulateWorldStepOnDayAdvance'),
+  'game.js conecta calendário garantido, triggerAFMSystemEnhancements e simulação de mundo');
+// 7. Validação de Sintaxe de TODOS os scripts de index.html
+const allScriptMatches = [...updatedIndexHtml.matchAll(/<script\s+src=["']([^"']+)["']/g)].map(m => m[1]);
+allScriptMatches.forEach(src => {
+  if (src.startsWith('http')) return;
+  const scriptPath = path.resolve(__dirname, '..', src);
+  const exists = fs.existsSync(scriptPath);
+  assert(exists, `Arquivo de script existe: ${src}`);
+  if (exists) {
+    try {
+      const code = fs.readFileSync(scriptPath, 'utf8');
+      new vm.Script(code, { filename: src });
+      assert(true, `Sintaxe válida: ${src}`);
+    } catch(err) {
+      assert(false, `ERRO DE SINTAXE EM ${src}`, err.message);
+    }
+  }
+});
+// =========================================================================
 // RESULTADO FINAL
 // =========================================================================
 console.log('\n=============================================================');

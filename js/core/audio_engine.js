@@ -213,6 +213,12 @@ class AFMAudioManager {
   playSFX(sfxKey, customVolume = null) {
     if (!this.sfxEnabled) return;
 
+    const now = performance.now();
+    this._sfxCooldown = this._sfxCooldown || new Map();
+    const last = this._sfxCooldown.get(sfxKey) || 0;
+    if (now - last < 180) return; // Cooldown de 180ms para velocidades 20x e 40x
+    this._sfxCooldown.set(sfxKey, now);
+
     const vol = (customVolume !== null ? customVolume : this.sfxVolume);
     const audioPath = this.SFX_FILES[sfxKey];
 

@@ -22,6 +22,7 @@ const AFM_DB = (function(){
       if(window.supabase?.createClient){
         try {
           client = window.supabase.createClient(AFM_SUPABASE_CONFIG.url, AFM_SUPABASE_CONFIG.key);
+          window.supabaseClient = client;
         } catch(err){
           console.warn('[AFM_DB] Erro ao instanciar cliente Supabase:', err);
         }
@@ -531,6 +532,7 @@ const AFM_DB = (function(){
     adminUpsertUser,
     adminDeleteUser,
     adminGetAllSaves,
+    getClient: () => client,
     isCloudAvailable
   };
 })();

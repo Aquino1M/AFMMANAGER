@@ -15,6 +15,119 @@
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
     });
   };
+
+  window.AFM_SafeImg = function(img) {
+    if (!img || img.dataset.fallbackApplied) return;
+    img.dataset.fallbackApplied = '1';
+    var label = (img.alt || 'AFM').replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase() || 'FC';
+    img.src = "data:image/svg+xml;utf8," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<rect width="100" height="100" rx="18" fill="#1e293b"/>' +
+      '<text x="50" y="58" font-family="Arial,sans-serif" font-size="28" font-weight="bold" fill="#94a3b8" text-anchor="middle">' + label + '</text></svg>'
+    );
+  };
+
+  // ============================================================================
+  // ESCUDO ANTI-TRAVAMENTO GLOBAL (Impede Loop Infinito ao clicar nas abas)
+  // ============================================================================
+  (function() {
+    const NativeMutationObserver = window.MutationObserver;
+    let isInternalMutationRunning = false;
+
+    // 1. Domestica todos os MutationObservers dos módulos para NUNCA entrarem em loop infinito
+    if (NativeMutationObserver) {
+      window.MutationObserver = function(callback) {
+        let timer = null;
+        let savedTarget = null;
+        let savedOptions = null;
+        let nativeInstance = null;
+
+        nativeInstance = new NativeMutationObserver(function(mutations, obs) {
+          if (isInternalMutationRunning) return;
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(function() {
+            if (isInternalMutationRunning) return;
+            isInternalMutationRunning = true;
+            try {
+              if (nativeInstance) nativeInstance.disconnect();
+              if (typeof window.AFM_NormalizeStateArrays === 'function') window.AFM_NormalizeStateArrays();
+              callback(mutations, obs);
+            } catch (err) {
+              console.warn('[AFM Observer Guard]', err);
+            } finally {
+              setTimeout(function() {
+                isInternalMutationRunning = false;
+                if (savedTarget && nativeInstance) {
+                  try { nativeInstance.observe(savedTarget, savedOptions); } catch (e) {}
+                }
+              }, 120);
+            }
+          }, 180);
+        });
+
+        return {
+          observe: function(target, options) {
+            savedTarget = target || document.body;
+            // Evita observar attributes/characterData em árvore inteira que gera recursão infinita
+            savedOptions = {
+              childList: true,
+              subtree: options ? !!options.subtree : true,
+              attributes: false,
+              characterData: false
+            };
+            try { nativeInstance.observe(savedTarget, savedOptions); } catch (e) {}
+          },
+          disconnect: function() {
+            if (timer) clearTimeout(timer);
+            try { nativeInstance.disconnect(); } catch (e) {}
+          },
+          takeRecords: function() {
+            return nativeInstance ? nativeInstance.takeRecords() : [];
+          }
+        };
+      };
+      window.MutationObserver.prototype = NativeMutationObserver.prototype;
+    }
+
+    // 2. Domestica setIntervals muito rápidos (< 1000ms) de scripts de UI para não congelar cliques
+    const nativeSetInterval = window.setInterval;
+    window.setInterval = function(fn, delay) {
+      var safeDelay = (typeof delay === 'number' && delay >= 350 && delay < 1200) ? 1600 : delay;
+      var args = Array.prototype.slice.call(arguments, 2);
+      return nativeSetInterval(function() {
+        if (isInternalMutationRunning) return;
+        try {
+          if (typeof window.AFM_NormalizeStateArrays === 'function') window.AFM_NormalizeStateArrays();
+          if (typeof fn === 'function') fn.apply(window, args);
+        } catch (err) {
+          console.warn('[AFM Interval Guard]', err);
+        }
+      }, safeDelay);
+    };
+
+    // 3. Garante que todo clique em Aba ou Botão normalize os dados antes e limpe textos quebrados depois
+    document.addEventListener('click', function() {
+      try {
+        if (typeof window.AFM_NormalizeStateArrays === 'function') window.AFM_NormalizeStateArrays();
+        setTimeout(function() {
+          if (typeof window.AFM_CleanBrokenTextOnce === 'function') window.AFM_CleanBrokenTextOnce();
+        }, 80);
+      } catch (e) {}
+    }, true);
+  })();
+
+  window.__afmBootErrors = [];
+  window.addEventListener('error', function(e) {
+    var msg = (e.message || 'Erro desconhecido') + ' (' + (e.filename ? e.filename.split('/').pop() : 'script') + ':' + (e.lineno || '?') + ')';
+    window.__afmBootErrors.push(msg);
+    var errBox = document.getElementById('afmBootErrorBox');
+    var timeoutBox = document.getElementById('afmLoadingTimeout');
+    if (errBox) {
+      errBox.style.display = 'block';
+      errBox.innerHTML = '<b>⚠️ Erro detectado no boot:</b><br>' + window.__afmBootErrors.join('<br>');
+    }
+    if (timeoutBox) timeoutBox.style.display = 'block';
+  });
 </script>
 <link rel="stylesheet" href="css/app.css">
 <style>
@@ -46,30 +159,38 @@
       Carregando banco de dados & táticas...
     </div>
 
-    <!-- Opção de Recarregar caso demore -->
+    <!-- Caixa de Diagnóstico de Erro de Script -->
+    <div id="afmBootErrorBox" style="display:none;margin-top:16px;max-width:520px;background:rgba(127,29,29,0.92);border:1px solid #ef4444;color:#fecaca;padding:10px 14px;border-radius:10px;font-family:monospace;font-size:11px;line-height:1.5;text-align:left;"></div>
+
+    <!-- Opção de Recarregar / Destravar -->
     <div id="afmLoadingTimeout" style="display:none;margin-top:20px;text-align:center;">
-      <p style="font-size:11px;color:#f87171;margin-bottom:8px;">O carregamento está demorando mais do que o esperado.</p>
-      <button onclick="location.reload();" style="background:#7c3aed;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:12px;box-shadow:0 4px 12px rgba(124,58,237,0.4);">
-        🔄 Recarregar Jogo
-      </button>
+      <p style="font-size:11px;color:#f87171;margin-bottom:10px;">O carregamento travou ou encontrou um conflito de cache/save.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button onclick="location.reload();" style="background:#7c3aed;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:12px;">
+          🔄 Recarregar Jogo
+        </button>
+        <button onclick="if(window.render){document.getElementById('afmLoadingScreen')?.remove();window.render();}else if(window.init){window.init();}" style="background:#2563eb;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:12px;">
+          ⚡ Forçar Abertura da Tela
+        </button>
+        <button onclick="if(confirm('Isso limpará apenas o cache de inicialização travado e recarregará. Continuar?')){localStorage.removeItem('afm_save_v1');localStorage.removeItem('afm_state');location.reload();}" style="background:#dc2626;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:12px;">
+          🛠️ Limpar Save Corrompido
+        </button>
+      </div>
     </div>
   </div>
 </div>
-<script>
-  setTimeout(() => {
-    const el = document.getElementById('afmLoadingTimeout');
-    if (el && document.getElementById('afmLoadingScreen')) {
-      el.style.display = 'block';
-    }
-  }, 7000);
-</script>
+
+<!-- 1. Proteções, Bancos de Dados e Motores Base -->
+<script src="js/core/afm_turbo_gpu_optimizer.js"></script>
 <script src="js/core/error_log.js"></script>
+<script src="js/core/hotfix_bankloans_and_img_tags.js"></script>
+<script src="js/core/bugfixes_and_guards.js"></script>
 <script src="js/competitions.js"></script>
 <script src="data/competition_teams.js"></script>
 <script src="data/international_teams_2026_27.js"></script>
 <script src="data/continental_2026.js"></script>
-  <script src="js/core/tournament_engine.js"></script>
-  <script src="js/core/competition_integrity.js"></script>
+<script src="js/core/tournament_engine.js"></script>
+<script src="js/core/competition_integrity.js"></script>
 <script src="data/players_live.js"></script>
 <script src="data/club_badges.js"></script>
 <script src="data/club_badges_unverified.js"></script>
@@ -90,13 +211,66 @@
 <script src="js/core/match_engine.js"></script>
 <script src="js/core/tactics_pitch.js"></script>
 <script src="js/ui/settings_modal.js"></script>
+
+<!-- 2. Motor Principal do Jogo -->
 <script src="js/game.js"></script>
+
+<!-- 3. Sistemas Modulares e Expansões -->
+<script src="js/core/isolated_save_manager.js"></script>
+<script src="js/core/badge_svg_restorer.js"></script>
+<script src="js/core/player_photos_manager.js"></script>
+<script src="js/core/real_player_faces_auto_fetcher.js"></script>
+<script src="js/core/calendar_and_day_advance_fix.js"></script>
+<script src="js/core/lineup_real_photos_injector.js"></script>
+<script src="js/systems/real_world_leagues_and_pyramid.js"></script>
+<script src="js/core/manager_economy.js"></script>
+<script src="js/core/tactical_4phases.js"></script>
+<script src="js/core/squad_assistant.js"></script>
+<script src="js/core/competitions_pack.js"></script>
+<script src="js/core/press_and_board.js"></script>
+<script src="js/core/x1_online_system.js"></script>
+<script src="js/systems/manager_economy.js"></script>
+<script src="js/systems/squad_assistant_and_stars.js"></script>
+<script src="js/systems/global_ranking_and_confidence.js"></script>
+<script src="js/systems/club_finance_and_stadium.js"></script>
+<script src="js/systems/manager_life_and_shares_pro.js"></script>
+<script src="js/systems/transfer_market_pro.js"></script>
+<script src="js/match/tactical_4phases_enhancer.js"></script>
+<script src="js/match/live_match_hud.js"></script>
+<script src="js/systems/competitions_and_awards.js"></script>
+<script src="js/systems/press_and_boardroom.js"></script>
+<script src="js/systems/global_ranking_and_x1.js"></script>
+<script src="js/systems/trophies_tv_1year_marketing_and_payroll.js"></script>
+<script src="js/systems/cup_highlight_ranking_world_and_licenses.js"></script>
+<script src="js/systems/market_lupa_aging_and_regens.js"></script>
+<script src="js/ui/changelog_14outubro.js"></script>
+<script src="js/ui/global_shortcuts_and_theme.js"></script>
+
 <script>
+  // Desregistra Service Workers antigos que prendem arquivos em cache
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(error => window.AFMErrorLog?.record('service-worker-register', error?.message || 'Falha ao registrar o cache offline'));
-    });
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+      regs.forEach(function(r) { r.unregister(); });
+    }).catch(function() {});
   }
+
+  setTimeout(() => {
+    const loading = document.getElementById('afmLoadingScreen');
+    const timeoutEl = document.getElementById('afmLoadingTimeout');
+    if (loading) {
+      const app = document.getElementById('app');
+      if (app && app.children.length > 1) {
+        loading.remove();
+        return;
+      }
+      if (typeof window.render === 'function') {
+        try { window.render(); } catch (e) { console.error(e); }
+      }
+      if (document.getElementById('afmLoadingScreen') && timeoutEl) {
+        timeoutEl.style.display = 'block';
+      }
+    }
+  }, 3500);
 </script>
 </body>
 </html>

@@ -65,6 +65,10 @@ function resolvePlayerPhotoUrl(p) {
   if (!p) return null;
   const name = typeof p === 'string' ? p : (p.name || '');
   if (!name) return null;
+  if (typeof window !== 'undefined' && window.AFM_RealPlayerFaces && typeof window.AFM_RealPlayerFaces.resolveRealPlayerPhotoUrl === 'function') {
+    const realPhoto = window.AFM_RealPlayerFaces.resolveRealPlayerPhotoUrl(p);
+    if (realPhoto) return realPhoto;
+  }
 
   // 1. Verificar se o atleta já possui foto explícita
   if (typeof p === 'object' && p.photo && typeof p.photo === 'string') {
@@ -960,6 +964,7 @@ function calcularCustoUpgradeMarketing(custoBaseUpgrade, nivelMarketing = 1) {
     (custoBaseUpgrade * AFM_PERMANENT_RULES.ECONOMY_UPGRADE_INCREASE) *
     Math.pow(AFM_PERMANENT_RULES.MARKETING_LEVEL_GROWTH, Math.max(0, nivelMarketing - 1))
   );
+
 }
 
 function podeGerarPropostaEstadio(saveState = state, rodadaAtual = state?.round) {
@@ -4033,6 +4038,9 @@ function openScoutPromiseModal(){
 // ABA NOVIDADES E CORREÇÕES (SCREENSHOT 2)
 // -------------------------------------------------------------
 function changelogPage(){
+  if (typeof window !== 'undefined' && window.AFM_Changelog14Out && typeof window.AFM_Changelog14Out.renderChangelogMarkup === 'function') {
+    return window.AFM_Changelog14Out.renderChangelogMarkup();
+  }
   return `
     <!-- Topo Oficial (Screenshot 2) -->
     <div style="margin-bottom:24px">
@@ -5931,6 +5939,9 @@ function save(){
       localStorage.setItem(STORAGE, JSON.stringify(savePayload));
       localSaved = true;
     } catch(e){ recordAFMError('local-save-write', e); }
+    if(window.AFM_Guards && typeof window.AFM_Guards.saveWithDualSlot === 'function'){
+      window.AFM_Guards.saveWithDualSlot(savePayload);
+    }
   }
 
   const user = getActiveAccount() || { username: state.userOwner || 'local', name: state.manager || 'Treinador' };
@@ -7487,6 +7498,10 @@ function eligibleClubNames(comp, rosterOverride = null){
   // starting catalog and must never be changed by promotions/relegations.
   const savedRoster = rosterOverride?.[comp.id] || state?.competitionTeams?.[comp.id];
   if(Array.isArray(savedRoster)&&savedRoster.length)return [...savedRoster];
+  if(window.AFM_RealWorldLeagues && typeof window.AFM_RealWorldLeagues.getClubsByCompetition === 'function'){
+    const realClubs = window.AFM_RealWorldLeagues.getClubsByCompetition(comp, state);
+    if(Array.isArray(realClubs) && realClubs.length) return [...realClubs];
+  }
   const baseRoster = (typeof BASE_COMPETITION_TEAMS !== 'undefined' ? BASE_COMPETITION_TEAMS?.[comp.id] : null) || teamMap[comp.id];
   if(Array.isArray(baseRoster)&&baseRoster.length)return [...baseRoster];
   const exact=clubs.filter(c=>norm(c.competition)===norm(comp.name)).map(c=>c.name);
@@ -9165,8 +9180,8 @@ function newCareer(data){
     mentality:'Equilibrada',
     squad,
     youthAcademy:generateInitialYouthAcademy(1, club.name),
-    marketingWeekly:12000,
-    marketingMonthly:48000,
+    marketingWeekly:36000,
+    marketingMonthly:144000,
     worldGenerated,
     playerMoves:{},
     transfers:[],
@@ -9642,6 +9657,9 @@ function migrate(s){
   };
   ensureTacticsState(s);
   repairSaveIfCorrupted(s);
+  if(window.AFM_Guards && typeof window.AFM_Guards.migrateSaveState === 'function'){
+    window.AFM_Guards.migrateSaveState(s);
+  }
   return s;
 }
 
@@ -10557,7 +10575,16 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
         }
       });
       if(nextDate.endsWith('-01') && typeof processBankLoansOnRound === 'function') processBankLoansOnRound();
+      if(nextDate.endsWith('-01') && typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function') window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(state);
       processCopaDoBrasilCalendar(state.date);
+      if(typeof window !== 'undefined' && window.AFM_WorldSimulation && typeof window.AFM_WorldSimulation.simulateWorldStepOnDayAdvance === 'function'){
+        window.AFM_WorldSimulation.simulateWorldStepOnDayAdvance(state);
+      }
+      if(nextDate.endsWith('-12-31') || nextDate.endsWith('-01-01')){
+        if(typeof window !== 'undefined' && window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens === 'function'){
+          window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens(state);
+        }
+      }
       if(stopAtMatch && matchDate && state.date === matchDate) break;
     }
     save();
@@ -10668,7 +10695,7 @@ function calculateTacticalMetrics(formation, tac){
 function calculateTacticalMatchDynamics(home, away, hTac, aTac, homeStrength, awayStrength, opts = {}){
   const isUserHome = norm(home) === norm(state?.club);
   const crowdProjection = isUserHome && typeof attendanceProjection === 'function' ? attendanceProjection(away) : null;
-  const homeAttendanceBonus = Math.min(5, Math.max(0, Number(crowdProjection?.attendanceForceBonus) || 0));
+  const homeAttendanceBonus = Math.min(5, Math.max(0, Number(crowdProjection?.attendanceForceBonus) || (isUserHome ? 0 : stadiumAttendanceStrengthBonus(Math.round((clubByName(home)?.stadiumCapacity || 18000) * 0.65), clubByName(home)?.stadiumCapacity || 18000))));
   const hs = (homeStrength || teamStrengthByName(home)) + homeAttendanceBonus;
   const as = awayStrength || teamStrengthByName(away);
   
@@ -10831,6 +10858,7 @@ function attendanceProjection(opponent){
   return {
     attendance,
     attendanceForceBonus,
+    occupancyPct: Math.max(1, Math.round((attendance / effectiveCap) * 100)),
     capacity:cap,
     rate,
     price,
@@ -11119,6 +11147,21 @@ function finalizeRound(userRes, winners, isKO){
     state.trust.board=clamp(state.trust.board+delta,0,100);
     state.trust.fans=clamp(state.trust.fans+(win?4:draw?0:-4),0,100);
     state.trust.squad=clamp(state.trust.squad+(win?2:draw?0:-2),0,100);
+    if(window.AFM_GlobalRanking && typeof window.AFM_GlobalRanking.updateConfidenceAfterMatch === 'function'){
+      const derby = typeof isRivalryMatch === 'function' ? isRivalryMatch(state.club, isHome ? userRes.a : userRes.h) : false;
+      window.AFM_GlobalRanking.updateConfidenceAfterMatch(state, {
+        goalsFor: gf,
+        goalsAgainst: ga,
+        isHome,
+        isDerby: derby
+      });
+      if(state.confidence){
+        state.trust.board = state.confidence.board;
+        state.trust.fans = state.confidence.fans;
+        state.trust.squad = state.confidence.squad;
+        state.boardConfidence = state.confidence.board;
+      }
+    }
     const penTxt=userRes.pens?` (${userRes.pens[0]}-${userRes.pens[1]} nos pênaltis)`:'';
     state.news.unshift(`${state.club} ${gf} x ${ga} ${isHome?userRes.a:userRes.h}${penTxt} — ${isKO?(advanced?'classificado':'eliminado'):(win?'vitória':draw?'empate':'derrota')}.`);
     if(isHome){
@@ -11196,6 +11239,19 @@ function finalizeRound(userRes, winners, isKO){
     }
   }
   state.round++;
+  if(window.AFM_Guards && typeof window.AFM_Guards.cleanExpiredProposals === 'function'){
+    window.AFM_Guards.cleanExpiredProposals(state, state.round);
+  }
+  if(window.AFM_GlobalRanking && typeof window.AFM_GlobalRanking.syncActiveSaveToRanking === 'function'){
+    window.AFM_GlobalRanking.syncActiveSaveToRanking(state);
+  }
+  if(window.AFM_SquadAssistant && typeof window.AFM_SquadAssistant.applyMentorshipVeterans === 'function'){
+    const mentorMsgs = window.AFM_SquadAssistant.applyMentorshipVeterans(state.squad);
+    if(mentorMsgs && mentorMsgs.length){
+      state.news = Array.isArray(state.news) ? state.news : [];
+      mentorMsgs.forEach(m => state.news.unshift(`⭐ MENTORIA: ${m}`));
+    }
+  }
   if(typeof expireRoundLimitedOffers === 'function') expireRoundLimitedOffers(state.round);
   // Aporte semanal em marketing (rebalanceado por rodada)
     const mktWeeklyExp = Math.max(MARKETING_MINIMUM_WEEKLY, Number(state.marketingWeekly) || 36000);
@@ -11282,6 +11338,21 @@ function finalizeRound(userRes, winners, isKO){
   checkFinancialFairPlay();
   
   if(state.round%4===0){
+    try {
+      const ymKey = state.date ? state.date.slice(0, 7) : `${state.season || 2026}-${Math.floor(state.round / 4) + 1}`;
+      if(window.AFM_ManagerEconomy && typeof window.AFM_ManagerEconomy.processMonthlyTurn === 'function'){
+        const econRes = window.AFM_ManagerEconomy.processMonthlyTurn(state);
+        if(econRes && econRes.totalBusinessNet !== 0){
+          state.news = Array.isArray(state.news) ? state.news : [];
+          state.news.unshift(`💼 NEGÓCIOS DO TREINADOR: Fechamento mensal! Resultado líquido de seus empreendimentos: ${econRes.totalBusinessNet >= 0 ? '+' : ''}${fmtMoney(econRes.totalBusinessNet)}.`);
+        }
+      }
+      if(window.AFM_Guards && typeof window.AFM_Guards.processMonthlyBankInstallments === 'function'){
+        window.AFM_Guards.processMonthlyBankInstallments(state, ymKey);
+      }
+    } catch(err) {
+      console.warn('Erro na virada mensal de economia:', err);
+    }
     // Resfriamento de contrato com a diretoria (1 mês / 4 rodadas)
     if(state.managerContractCooldownRound && state.round >= state.managerContractCooldownRound){
       state.managerContractCooldownRound = null;
@@ -12267,6 +12338,7 @@ function openSeasonHistoryModal(){
     `
       <div style="margin-bottom:16px;text-align:center">
         <div style="font-size:12px;color:rgba(255,255,255,0.6)">Registro oficial de todas as campanhas e troféus disputados na sua carreira</div>
+        <div style="margin-top:10px"><button id="btnSwitchToWorldChampions" type="button" class="btn" style="background:#0c4a6e;border:1px solid #0284c7;color:#38bdf8;font-size:11px;font-weight:800;border-radius:8px;padding:6px 14px;cursor:pointer">🌍 Ver Campeões do Mundo do Save</button></div>
       </div>
       ${list.length === 0 ? `
         <div style="text-align:center;padding:30px;background:rgba(255,255,255,0.03);border-radius:12px;color:rgba(255,255,255,0.6)">
@@ -12299,6 +12371,9 @@ function openSeasonHistoryModal(){
     'Fechar',
     false
   );
+  const bSwitch = $('#btnSwitchToWorldChampions');
+  if(bSwitch) bSwitch.onclick = () => { closeCustomModal(); setTimeout(() => openWorldSaveChampionsModal(), 60); };
+
 }
 
 // -------------------------------------------------------------
@@ -14716,6 +14791,20 @@ function simulateMinute(s, min){
   }
 
   // Atualiza placar e feed na interface
+  if(min % 10 === 0 && window.AFM_Competitions && typeof window.AFM_Competitions.simulateLiveParallelMatches === 'function'){
+    if(!s.parallelFixtures && state.fixtures){
+      const otherMatches = (state.fixtures[state.round] || []).filter(f => norm(f[0]) !== norm(s.home) && norm(f[1]) !== norm(s.home));
+      s.parallelFixtures = otherMatches.map(f => ({ homeName: f[0], awayName: f[1], homeGoals: 0, awayGoals: 0 }));
+    }
+    if(s.parallelFixtures && s.parallelFixtures.length){
+      const parallelEvents = window.AFM_Competitions.simulateLiveParallelMatches(s.parallelFixtures, min);
+      if(parallelEvents && parallelEvents.length){
+        parallelEvents.forEach(pEv => {
+          s.events.unshift({ min, type: 'whistle', text: pEv.text });
+        });
+      }
+    }
+  }
   updateScoreDisplay();
   updateLiveSidebarEvents();
 
@@ -15907,6 +15996,24 @@ function finishLiveMatch(){
   let winner = null, pens = null;
   if(s.isKO){
     if(s.hg === s.ag){
+      const isUserMatch = norm(s.home) === norm(state.club) || norm(s.away) === norm(state.club);
+      if(isUserMatch && window.AFM_LiveMatchHUD && typeof window.AFM_LiveMatchHUD.openPenaltyShootoutModal === 'function'){
+        window.AFM_LiveMatchHUD.openPenaltyShootoutModal(s, ({ homeScore, awayScore }) => {
+          s.pens = [homeScore, awayScore];
+          s.winner = homeScore > awayScore ? s.home : s.away;
+          s.winners.push(s.winner);
+          s.events.unshift({ min: 90, type: 'whistle', text: `🎯 Pênaltis: ${s.home} ${homeScore} x ${awayScore} ${s.away}. Vencedor: ${s.winner}!` });
+          applyResult(s.home, s.away, s.hg, s.ag);
+          if(Array.isArray(s.otherResults)){
+            s.otherResults.forEach(res => {
+              applyResult(res.h, res.a, res.hg, res.ag);
+            });
+          }
+          updateLiveSidebarEvents();
+          renderLiveMatchModal();
+        });
+        return;
+      }
       let hp = rnd(3, 6), ap = rnd(2, 6);
       if(hp === ap) ap = hp === 6 ? 5 : hp + 1;
       pens = [hp, ap];
@@ -15932,6 +16039,9 @@ function finishLiveMatch(){
 }
 
 function finalizeMatchRound(){
+  if(window.AFM_Guards && typeof window.AFM_Guards.runWithTurnLock === 'function'){
+    if(!window.AFM_Guards.runWithTurnLock(() => true)) return;
+  }
   const finishingStateLeagueMatch = Boolean(stateLeagueMatchSession);
 
   const s = liveMatchState;
@@ -16208,10 +16318,21 @@ function showEndOfSeasonModal(){
   const isSatisfied = trust >= 50;
   const comp = curComp();
   const prize = calculateSeasonPrizeMoney(pos, comp);
-  state.balance += prize;
-  state.income += prize;
+  if(!state.seasonPrizeClaimed || state.seasonPrizeClaimed !== state.season){ state.balance += prize; state.income += prize; state.seasonPrizeClaimed = state.season; } // prize guarded
+  // income handled above
   const awards = calculateSeasonAwards();
   applyScoringAwardUpgrades(awards);
+  if(window.AFM_ManagerEconomy && typeof window.AFM_ManagerEconomy.processAnnualShareDividends === 'function'){
+    const annualProfit = (state.income || 0) - (state.expense || 0);
+    if(annualProfit > 0 && (!state.seasonDividendsClaimed || state.seasonDividendsClaimed !== state.season)){
+      const dividend = window.AFM_ManagerEconomy.processAnnualShareDividends(state, annualProfit);
+      state.seasonDividendsClaimed = state.season;
+      if(dividend > 0){
+        state.news = Array.isArray(state.news) ? state.news : [];
+        state.news.unshift(`💼 DIVIDENDOS DAS COTAS: Como sócio-cotista, você recebeu R$ ${dividend.toLocaleString('pt-BR')} em dividendos do clube pelo lucro da temporada!`);
+      }
+    }
+  }
   const otherClubs = clubs.filter(c => norm(c.name) !== norm(state.club) && strength(c) >= strength(clubByName(state.club)) - 6).sort(() => Math.random() - .5).slice(0, 3);
   
   const contractDateStr = state.managerContractDate || `sex, 31 dez ${state.season + 1}`;
@@ -16333,8 +16454,57 @@ function showEndOfSeasonModal(){
     }
   }
 
+  const userTitlesInSeason = [];
+  if(pos === 1 && comp?.name){ userTitlesInSeason.push(comp.name); }
+  const copaStateModal = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState() : null;
+  if(copaStateModal?.champion && norm(copaStateModal.champion) === norm(state.club)){ if(!userTitlesInSeason.includes('Copa do Brasil')) userTitlesInSeason.push('Copa do Brasil'); }
+  for(const [tId, tourney] of Object.entries(state.tournaments || {})){
+    if(Number(tourney?.season) === Number(state.season) && norm(tourney?.champion || tourney?.winner) === norm(state.club)){
+      const tourneyName = compById(tId)?.name || tourney.name || tId;
+      if(!userTitlesInSeason.includes(tourneyName)) userTitlesInSeason.push(tourneyName);
+    }
+  }
   const eliminations = (state.knockoutEliminations || []).filter(item => Number(item.season) === Number(state.season) && norm(item.club) === norm(state.club));
-  const knockoutEliminationHtml = eliminations.length ? `<div style="background:rgba(239,68,68,.16);border:2px solid #ef4444;border-radius:12px;padding:14px;margin-bottom:14px;text-align:center"><b style="display:block;color:#f87171;font-size:14px">Infelizmente, você não passou do mata-mata.</b>${eliminations.map(elimination => `<div class="small" style="margin-top:6px">${esc(elimination.competitionName || elimination.competitionId || comp?.name || 'Competição')} · ${esc(elimination.round ? `Fase ${elimination.round}` : 'Fase eliminatória')} · ${esc(elimination.opponent || 'Adversário')} · ${esc(elimination.score || '')}</div>`).join('')}<div class="small" style="margin-top:8px">As eliminações e conquistas desta temporada ficarão registradas no histórico da carreira.</div></div>` : '';
+  const knockoutEliminationHtml = eliminations.length ? `<div style="background:rgba(239,68,68,.16);border:2px solid #ef4444;border-radius:12px;padding:12px 14px;margin-top:10px;text-align:left"><b style="display:block;color:#f87171;font-size:13px;text-transform:uppercase">Mata-Mata / Copas</b>${eliminations.map(elimination => `<div style="font-size:12px;color:#fca5a5;margin-top:4px;font-weight:700">Infelizmente você não passou do mata-mata — Eliminado na ${esc(elimination.round ? `Fase ${elimination.round}` : 'Fase eliminatória')} da ${esc(elimination.competitionName || elimination.competitionId || comp?.name || 'Competição')} para ${esc(elimination.opponent || 'Adversário')} (${esc(elimination.score || 'resultado definitivo')})</div>`).join('')}</div>` : '';
+  const painelMinhasConquistasHtml = `
+    <div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,#18142e,#0f172a);border:1.5px solid #6366f1;border-radius:14px;padding:16px;box-shadow:0 0 20px rgba(99,102,241,0.2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:22px">🏆</span>
+          <h3 style="margin:0;color:#facc15;font-size:15px;font-weight:900">Minhas Conquistas & Campanha na Temporada</h3>
+        </div>
+        <button class="btn" id="btnOpenWorldSaveChampionsModalModal" type="button" style="padding:6px 12px;font-size:11px;font-weight:900;background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;border-radius:8px;cursor:pointer">
+          🌍 Ver Campeões do Mundo do Save
+        </button>
+      </div>
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Títulos Conquistados (${state.season})</div>
+        ${userTitlesInSeason.length ? `
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+            ${userTitlesInSeason.map(t => `<span class="pill good" style="font-size:12px;font-weight:900;padding:4px 10px">🏆 ${esc(t)}</span>`).join('')}
+          </div>
+        ` : `
+          <div style="font-size:12px;color:#cbd5e1;font-weight:700;margin-top:4px">Nenhum título conquistado nesta temporada.</div>
+        `}
+      </div>
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px">
+        <div style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Divisão & Desempenho na Tabela</div>
+        <div style="font-size:13px;font-weight:800;color:#fff;margin-top:4px">
+          ${esc(comp?.name || state.competition || 'Campeonato')}: <b>${pos}º colocado</b>
+        </div>
+        ${promoInfo ? `
+          <div style="margin-top:6px;font-size:12px;font-weight:800;color:${promoInfo.type==='promote'?'#4ade80':'#f87171'}">
+            ${promoInfo.title} — ${promoInfo.desc}
+          </div>
+        ` : `
+          <div style="margin-top:4px;font-size:11px;color:#94a3b8">
+            🛡️ Permanência na divisão garantida para a próxima temporada.
+          </div>
+        `}
+      </div>
+      ${knockoutEliminationHtml}
+    </div>
+  `;
 
   openCustomModal(
     `🏆 Encerramento da Temporada ${state.season}`,
@@ -16343,7 +16513,7 @@ function showEndOfSeasonModal(){
         <div class="muted">Seu clube finalizou a competição em <b>${pos}º lugar</b>.</div>
       </div>
 
-      ${knockoutEliminationHtml}
+      ${painelMinhasConquistasHtml}
 
       ${promoInfo ? `
         <div style="background:${promoInfo.type==='promote'?'rgba(34,197,94,0.18)':'rgba(239,68,68,0.18)'};border:2px solid ${promoInfo.type==='promote'?'#22c55e':'#ef4444'};border-radius:12px;padding:12px 16px;margin-bottom:14px;text-align:center">
@@ -16458,16 +16628,24 @@ function showEndOfSeasonModal(){
   $$('.btnAcceptJob').forEach(btn => {
     btn.onclick = () => {
       const newClub = btn.dataset.club;
+      if(window.AFM_WorldSimulation && typeof window.AFM_WorldSimulation.canCoachAcceptClubWithLicense === 'function'){
+        const check = window.AFM_WorldSimulation.canCoachAcceptClubWithLicense(state, newClub);
+        if(!check.allowed){
+          alert(`🚫 Proposta recusada por falta de escolaridade técnica!\n\nPara assumir o ${newClub}, é exigida a Licença: ${check.requiredLicenseName}.\n\nVocê possui: ${check.currentLicenseName}.\nAdquira novas licenças no menu Carreira.`);
+          return;
+        }
+      }
       closeCustomModal();
       changeUserClub(newClub);
     };
   });
 
   const closeBtn = $('#closeEndSeasonBtn');
-  if(closeBtn) closeBtn.onclick = () => {
-    closeCustomModal();
-    advanceSeasonYear();
-  };
+  const btnWorldSaveModal = $('#btnOpenWorldSaveChampionsModalModal'); if(btnWorldSaveModal) btnWorldSaveModal.onclick = openWorldSaveChampionsModal;
+  if(closeBtn) closeBtn.onclick = () => { try { closeCustomModal(); advanceSeasonYear(); } catch(err) { console.error('[AFM closeEndSeasonBtn Error]', err); advanceSeasonYear(); } };
+
+
+
 }
 
 function executeSeasonTransitions(finishedCompId = null, finishedRanking = null, requestedDestinationCompId = null, sourceNationalDivision = null, finalSeasonSnapshot = null){
@@ -16702,7 +16880,10 @@ function executeSeasonTransitions(finishedCompId = null, finishedRanking = null,
   }
 }
 
+
+
 function advanceSeasonYear(){
+  try {
   const pendingCompetitions = typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(state) : [];
   if(pendingCompetitions.length){
     const next = pendingCompetitions[0];
@@ -16717,6 +16898,8 @@ function advanceSeasonYear(){
   const rankingTable = ranking();
   const finishedPosition = position();
   const finishedTeamCount = Math.max(1, state.teams?.length || 1);
+  const prize = (typeof calculateSeasonPrizeMoney === 'function' ? calculateSeasonPrizeMoney(finishedPosition, compFinished) : 0) || 0;
+  simulateRemainingWorldTournaments(finishedYear);
   // CRITICAL SYSTEM: capture final competition state before season reset.
   // Promotions and qualification are derived from this immutable snapshot,
   // never from newly reset standings or historical club metadata.
@@ -16798,6 +16981,9 @@ function advanceSeasonYear(){
     const divisions = ['bra-a','bra-b','bra-c','bra-d'];
     const label = divisions.indexOf(state.nextSeasonCompId) < divisions.indexOf(state.compId) ? 'Acesso' : 'Rebaixamento';
     achievements.push(`${label} para ${compById(state.nextSeasonCompId)?.name || state.nextSeasonCompId}`);
+    if(window.AFM_ManagerEconomy && typeof window.AFM_ManagerEconomy.onDivisionChangeUpdateSharePrice === 'function'){
+      window.AFM_ManagerEconomy.onDivisionChangeUpdateSharePrice(state, label === 'Acesso', label === 'Rebaixamento');
+    }
   }
   const yearEliminations = (state.knockoutEliminations || []).filter(item => Number(item.season) === Number(finishedYear) && norm(item.club) === norm(state.club)).map(item => ({ competitionId:item.competitionId, competitionName:item.competitionName, round:item.round, opponent:item.opponent, score:item.score, date:item.date }));
   if(yearEliminations.length) achievements.push(...yearEliminations.map(item => `Eliminação: ${item.competitionName || item.competitionId} (${item.score || 'placar não registrado'} contra ${item.opponent || 'adversário'})`));
@@ -16807,6 +16993,7 @@ function advanceSeasonYear(){
   state.worldChampionHistory.unshift(yearlyRecord);
   state.worldChampionHistory = state.worldChampionHistory.slice(0, 100);
   state.campeoesDoMundoSave = state.worldChampionHistory;
+  state.historicoCarreira = state.worldChampionHistory;
   state.seasonHistory = state.seasonHistory || [];
   state.seasonHistory.unshift({
     season: finishedYear,
@@ -16841,6 +17028,8 @@ function advanceSeasonYear(){
   state.isPreSeason = true;
   state.preSeasonDays = 4;
   state.date = `${state.season}-01-01`;
+  state.seasonPrizeClaimed = null;
+  state.seasonConcluded = false;
   expireStadiumEventConfirmation();
 
   // Captura origem e destino antes de alterar o save. Só um destino explícito vindo
@@ -16855,6 +17044,9 @@ function advanceSeasonYear(){
   if(requestedDestinationCompId) state.compId = requestedDestinationCompId;
   delete state.nextSeasonCompId;
   executeSeasonTransitions(finishedCompId, rankingTable, requestedDestinationCompId, sourceNationalDivision, finalSeasonSnapshot);
+  if(window.AFM_RealWorldLeagues && typeof window.AFM_RealWorldLeagues.processEndOfSeasonPromotionsAndRelegations === 'function'){
+    window.AFM_RealWorldLeagues.processEndOfSeasonPromotionsAndRelegations(state);
+  }
   const comp = curComp();
   if(comp){
     state.competition = comp.name;
@@ -16887,9 +17079,12 @@ function advanceSeasonYear(){
 
   // 2. Geração Contínua de Regens / Novas Promessas da Base Mundial (16 a 18 anos)
   generateWorldRegens();
+  if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens === 'function'){
+    window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens(state);
+  }
 
-  save();
-  render();
+  closeCustomModal(); save(); render(); return true; } catch(err) { console.error('[AFM advanceSeasonYear Error]', err); try { state.season = (Number(state.season) || 2027) + 1; state.round = 0; state.isPreSeason = true; state.preSeasonDays = 4; state.date = `${state.season}-01-01`; state.seasonPrizeClaimed = null; state.seasonConcluded = false; closeCustomModal(); save(); render(); toast('🚀 Temporada ' + state.season + ' iniciada com sucesso!'); } catch(fallbackErr) { console.error('[AFM Fallback Error]', fallbackErr); } return false; }
+
 }
 
 function generateWorldRegens(){
@@ -16916,6 +17111,13 @@ function generateWorldRegens(){
 
 function changeUserClub(newClubName){
   const club = clubByName(newClubName) || {name: newClubName, country: 'Brasil', atk: 68, mid: 68, def: 68, budget: 6};
+  if(window.AFM_ManagerEconomy && typeof window.AFM_ManagerEconomy.liquidateSharesOnClubExit === 'function'){
+    const payout = window.AFM_ManagerEconomy.liquidateSharesOnClubExit(state);
+    if(payout > 0){
+      state.news = Array.isArray(state.news) ? state.news : [];
+      state.news.unshift(`💼 LIQUIDAÇÃO DE COTAS: Suas cotas no clube anterior foram vendidas e renderam R$ ${payout.toLocaleString('pt-BR')} ao seu saldo pessoal!`);
+    }
+  }
   state.club = club.name;
   state.managerContractDate = `sex, 31 dez ${state.season + 2}`;
   state.managerSalary = Math.round((club.budget || 5) * 8000 + 15000);
@@ -17322,11 +17524,15 @@ function openMarketingModal(){
     const sbEl = $('#modalMktSponBoost'); if(sbEl) sbEl.textContent = `+${preview.sponsorPercent}% bônus`;
     // Preview calcula a receita com o valor provisório sem alterar o save.
     const tsEl = $('#modalMktTotalSpon');
-    if(tsEl) tsEl.textContent = fmtMoney(totalSponsorMonthly() / marketingBenefits().sponsorMultiplier * preview.sponsorMultiplier) + '/mês';
+    const curMult = Number(marketingBenefits().sponsorMultiplier) || 1;
+    const newMult = Number(preview.sponsorMultiplier) || 1;
+    if(tsEl) tsEl.textContent = fmtMoney(Math.round((totalSponsorMonthly() / curMult) * newMult)) + '/mês';
   }
 
   if(slider){
     slider.oninput = updateMktLive;
+    slider.onchange = updateMktLive;
+    updateMktLive();
   }
 
   const saveBtn = $('#btnSaveMarketingModal');
@@ -17386,6 +17592,9 @@ function marketUniverse(){
   (state.worldGenerated||[]).forEach(add);
   (state.worldRegens||[]).forEach(add);
   _marketUniverseCache = out;
+  if(window.AFM_Guards && typeof window.AFM_Guards.rebuildFastIndexes === 'function'){
+    window.AFM_Guards.rebuildFastIndexes(out, clubs);
+  }
   _marketUniverseCacheRound = (state.round||0);
   _marketUniverseCacheMoves = movesCount;
   _marketUniverseCacheClub = (state.club||'');
@@ -18584,6 +18793,95 @@ function facilityCost(key){
   return Math.round(Number(d.base || 0) * Math.pow(FACILITY_LEVEL_MULTIPLIER, level) * Math.pow(FACILITY_COST_INCREASE, level + 1));
 }
 
+function simulateRemainingWorldTournaments(finishedYear){
+  try {
+    const year = Number(finishedYear);
+    const copa = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState() : null;
+    if(copa && Number(copa.season) === year && !copa.champion){
+      const phaseKeys = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Oitavas de Final', 'Quartas de Final', 'Semifinais', 'Final'];
+      for(let i = 0; i < phaseKeys.length; i++){
+        const k = phaseKeys[i];
+        const ph = copa.phases?.[k];
+        if(!ph) continue;
+        const winners = [];
+        (ph.fixtures || []).forEach(f => {
+          if(!f.score){
+            const [hg, ag] = typeof simulateScore === 'function' ? simulateScore(f.home, f.away) : [1, 0];
+            let w = hg > ag ? f.home : (ag > hg ? f.away : (Math.random() < 0.5 ? f.home : f.away));
+            f.score = [hg, ag];
+            f.winner = w;
+          }
+          if(f.winner) winners.push(f.winner);
+        });
+        ph.status = 'CONCLUÍDO';
+        if(i === phaseKeys.length - 1 && winners.length >= 1){
+          copa.champion = winners[0];
+          if(norm(winners[0]) === norm(state.club)){
+            state.titles = state.titles || [];
+            if(!state.titles.includes('Copa do Brasil')) state.titles.push('Copa do Brasil');
+          }
+        } else {
+          const nextKey = phaseKeys[i + 1];
+          if(nextKey && copa.phases?.[nextKey] && (!copa.phases[nextKey].fixtures || !copa.phases[nextKey].fixtures.length) && winners.length >= 2){
+            const nextFixtures = [];
+            for(let w = 0; w < winners.length - 1; w += 2){
+              nextFixtures.push({
+                home: winners[w],
+                away: winners[w+1],
+                date: copa.phases[nextKey].dateStr || 'qua, 01 out',
+                isoDate: copa.phases[nextKey].isoDate || `${year}-10-01`,
+                score: null,
+                winner: null
+              });
+            }
+            copa.phases[nextKey].fixtures = nextFixtures;
+          }
+        }
+      }
+      if(copa.champion){
+        state.cupWinnersBySeason = state.cupWinnersBySeason || {};
+        state.cupWinnersBySeason[year] = state.cupWinnersBySeason[year] || {};
+        state.cupWinnersBySeason[year]['bra-cup'] = copa.champion;
+      }
+    }
+    if(state.tournaments){
+      for(const [tId, tourney] of Object.entries(state.tournaments)){
+        if(Number(tourney?.season) !== year) continue;
+        if(!tourney.champion){
+          const matches = Array.isArray(tourney.matches) ? tourney.matches : [];
+          matches.forEach(m => {
+            if(m.status !== 'played' && m.status !== 'finished'){
+              const hg = Math.floor(Math.random() * 3);
+              const ag = Math.floor(Math.random() * 3);
+              const w = hg > ag ? m.home : (ag > hg ? m.away : (Math.random() < 0.5 ? m.home : m.away));
+              if(window.AFM_TOURNAMENT_ENGINE && typeof window.AFM_TOURNAMENT_ENGINE.recordResult === 'function'){
+                try { window.AFM_TOURNAMENT_ENGINE.recordResult(tourney, m.id, hg, ag, w); } catch(e) { m.result = [hg, ag]; m.winner = w; m.status = 'played'; }
+              } else { m.result = [hg, ag]; m.winner = w; m.status = 'played'; }
+            }
+          });
+          const played = matches.filter(m => m.status === 'played' && m.winner);
+          if(played.length){ tourney.champion = tourney.champion || played[played.length - 1].winner; }
+        }
+        if(tourney.champion){
+          state.continentalChampionsBySeason = state.continentalChampionsBySeason || {};
+          state.continentalChampionsBySeason[year] = state.continentalChampionsBySeason[year] || {};
+          state.continentalChampionsBySeason[year][tId] = tourney.champion;
+        }
+      }
+    }
+    state.continentalChampionsBySeason = state.continentalChampionsBySeason || {};
+    state.continentalChampionsBySeason[year] = state.continentalChampionsBySeason[year] || {};
+    const defaultContWinners = { 'lib': 'Flamengo', 'sud': 'Athletico-PR', 'ucl': 'Real Madrid', 'uel': 'Atalanta', 'uecl': 'Chelsea', 'afc-el': 'Al-Hilal', 'afc2': 'Sharjah FC', 'cwc': 'Real Madrid' };
+    for(const [cId, defWinner] of Object.entries(defaultContWinners)){
+      if(!state.continentalChampionsBySeason[year][cId]){
+        state.continentalChampionsBySeason[year][cId] = defWinner;
+      }
+    }
+  } catch(err) {
+    console.warn('[AFM simulateRemainingWorldTournaments]', err);
+  }
+}
+
 function openWorldSaveChampionsModal(){
   const history = Array.isArray(state?.worldChampionHistory) ? state.worldChampionHistory : [];
   const currentSeason = Number(state?.season) || 2027;
@@ -19025,6 +19323,32 @@ function openBankLoansModal(){
 // -------------------------------------------------------------
 // RENDERIZAÇÃO PRINCIPAL & PÁGINAS
 // -------------------------------------------------------------
+function triggerAFMSystemEnhancements(){
+  if(!state || typeof document === 'undefined') return;
+  try {
+    if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.syncDateInDOM === 'function'){
+      window.AFM_CalendarFix.syncDateInDOM(state);
+    }
+    if(window.AFM_TrophiesTvPayroll){
+      if(typeof window.AFM_TrophiesTvPayroll.refreshMuseumTrophiesDOM === 'function') window.AFM_TrophiesTvPayroll.refreshMuseumTrophiesDOM(state);
+      if(typeof window.AFM_TrophiesTvPayroll.injectTvBroadcastSectionInOffice === 'function') window.AFM_TrophiesTvPayroll.injectTvBroadcastSectionInOffice(state);
+      if(typeof window.AFM_TrophiesTvPayroll.syncCoachSalaryAndSquadSlotsInDOM === 'function') window.AFM_TrophiesTvPayroll.syncCoachSalaryAndSquadSlotsInDOM(state);
+    }
+    if(window.AFM_WorldSimulation){
+      if(typeof window.AFM_WorldSimulation.injectPrestigeAndRankingButtonInCareerCard === 'function') window.AFM_WorldSimulation.injectPrestigeAndRankingButtonInCareerCard(state);
+      if(typeof window.AFM_WorldSimulation.ensureUserClubInCopaDoBrasilAndHighlight === 'function') window.AFM_WorldSimulation.ensureUserClubInCopaDoBrasilAndHighlight(state);
+    }
+    if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.injectLupaButtonsInMarketDOM === 'function'){
+      window.AFM_MarketLupaAndAging.injectLupaButtonsInMarketDOM(state);
+    }
+    if(window.AFM_LineupPhotos && typeof window.AFM_LineupPhotos.scanAndHydratePitchAndBenchPhotos === 'function'){
+      window.AFM_LineupPhotos.scanAndHydratePitchAndBenchPhotos();
+    }
+  } catch(e) {
+    console.warn('[AFM System Enhancements]', e);
+  }
+}
+
 function render(){
   const app=$('#app');
   const loader = document.getElementById('afmLoadingScreen');
@@ -19065,6 +19389,7 @@ function render(){
       }
 
       bind();
+      triggerAFMSystemEnhancements();
       restore();
       return;
     } catch(err){
@@ -19098,6 +19423,7 @@ function render(){
   try {
     app.innerHTML=shell(page());
     bind();
+    triggerAFMSystemEnhancements();
   } catch(err){
     recordAFMError('render-shell', err);
     console.error('Falha ao renderizar o aplicativo:', err);
@@ -19160,6 +19486,7 @@ function shell(main){
               ['mercado','🔄 Mercado'],
               ['estrutura','🏗️ Estrutura & Estádio'],
               ['escritorio','🏢 Escritório'],
+              ['carreira','💼 Carreira'],
               ['temporada','🏆 Temporada'],
               ['novidades','📢 Novidades & Correções'],
               ['config','⚙️ Configurações (Admin)']
@@ -19182,6 +19509,7 @@ function page(){
     mercado:marketPage,
     estrutura:structurePage,
     escritorio:officePage,
+    carreira:careerPage,
     temporada:seasonPage,
     novidades:changelogPage,
     config:configPage
@@ -19191,6 +19519,48 @@ function page(){
 // -------------------------------------------------------------
 // CENTRAL
 // -------------------------------------------------------------
+function careerPage(){
+  return `
+    <div class="hero">
+      <div>
+        <h1>Carreira do Treinador & Negócios</h1>
+        <div class="muted">Patrimônio pessoal, cotas do clube, investimentos, ranking global e duelos X1</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="btnExportSaveFileAction" style="background:#0284c7;color:#fff;border:none;font-weight:700">
+          💾 Exportar .afmsave
+        </button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px;padding:16px;">
+      <div id="afm-career-economy-container"></div>
+    </div>
+
+    <!-- MODO JOGAR X1 (DUELO TÁTICO POR CÓDIGO) -->
+    <div class="card" style="margin-top:16px;background:linear-gradient(135deg,#130f26,#1e143b);border:1px solid rgba(168,85,247,0.3);padding:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:24px;">⚔️</span>
+          <div>
+            <h2 style="margin:0;font-size:16px;font-weight:900;color:#fff;letter-spacing:0.5px;">MODO JOGAR X1 (DUELO TÁTICO)</h2>
+            <div class="small muted">Desafie qualquer amigo ou rival usando o código tático do elenco</div>
+          </div>
+        </div>
+        <button class="btn primary" id="btnExportMyX1Token" style="background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;font-weight:800;padding:8px 16px;">
+          📋 Gerar Meu Código X1
+        </button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <input type="text" id="inputOpponentX1Token" placeholder="Cole aqui o código X1 do adversário..." style="flex:1;min-width:260px;background:#090d16;border:1px solid #334155;border-radius:8px;padding:10px 14px;color:#fff;font-size:12px;">
+        <button class="btn success" id="btnSimulateX1Duel" style="background:#10b981;border:none;font-weight:900;padding:10px 20px;color:#000;">
+          ⚔️ SIMULAR DUELO X1
+        </button>
+      </div>
+      <div id="afm-x1-result-container" style="margin-top:12px;display:none;"></div>
+    </div>
+  `;
+}
+
 function centralPage(){
   if(repairSaveIfCorrupted(state)){
     save();
@@ -19389,6 +19759,7 @@ function centralPage(){
             <button id="btnOpenHallOfFame" class="btn" style="background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;font-size:11px;font-weight:800;border-radius:8px;padding:8px 12px;cursor:pointer;width:100%;margin-top:12px">
               🏛️ Hall da Fama & Histórico de Temporadas
             </button>
+            <button id="btnOpenWorldSaveChampionsCentral" type="button" class="btn" style="background:#0c4a6e;border:1px solid #0284c7;color:#38bdf8;font-size:11px;font-weight:800;border-radius:8px;padding:8px 12px;cursor:pointer;width:100%;margin-top:6px">🌍 Campeões do Mundo do Save</button>
           </div>
         </div>
 
@@ -20115,6 +20486,9 @@ function myTeamPage(){
       </div>
 
       <div style="display:flex;gap:8px">
+        <button class="btn" id="btnAssistantSuggestedSwaps" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;font-weight:900;padding:7px 14px;border-radius:8px;border:none;font-size:12px;cursor:pointer" title="O Auxiliar Técnico analisa cansaço, lesões e suspensões para indicar as melhores trocas">
+          🤝 TROCAS SUGERIDAS
+        </button>
         <button class="btn" id="btnAILineup" style="background:#ffffff;color:#0f172a;font-weight:900;padding:7px 14px;border-radius:8px;border:none;font-size:12px;cursor:pointer">
           ⭐ DEIXAR A IA ESCALAR
         </button>
@@ -20831,7 +21205,7 @@ function squadPage(){
                 <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
                 <td>${p.age||'-'} anos</td>
                 <td><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
-                <td><b class="good">${p.potential||playerOverall(p)}</b></td>
+                <td><div style="display:flex;align-items:center;gap:6px"><b class="good">${p.potential||playerOverall(p)}</b> ${window.AFM_SquadAssistant ? window.AFM_SquadAssistant.renderThreeLayerStarsHTML(p) : ''}</div></td>
                 <td style="color:#22c55e;font-weight:700">R$ ${playerSalary(p).toLocaleString('pt-BR')}</td>
                 <td><span class="pill" style="font-size:11px">até ${playerContractUntil(p)}</span></td>
                 <td>
@@ -21402,7 +21776,12 @@ function renderMarketBuy(){
     return diff || (nameA > nameB ? 1 : (nameA < nameB ? -1 : 0)) || (idA > idB ? 1 : (idA < idB ? -1 : 0));
   });
 
-  ps = ps.slice(0, 100);
+  const pageSize = 50;
+  window.afmMarketPage = window.afmMarketPage || 1;
+  const totalMarketPages = Math.max(1, Math.ceil(ps.length / pageSize));
+  if (window.afmMarketPage > totalMarketPages) window.afmMarketPage = totalMarketPages;
+  const pageStart = (window.afmMarketPage - 1) * pageSize;
+  const pageSlice = ps.slice(pageStart, pageStart + pageSize);
 
   if(!ps.length){ el.innerHTML='<div class="empty">Nenhum jogador encontrado com esses filtros selecionados.</div>'; return; }
 
@@ -21411,7 +21790,7 @@ function renderMarketBuy(){
       <table>
         <thead><tr><th>Jogador</th><th>Clube</th><th>Pos</th><th>Overall</th><th>Idade</th><th>Valor de Mercado</th><th>Ação</th></tr></thead>
         <tbody>
-          ${ps.map(p=>{
+          ${pageSlice.map(p=>{
             const val = p.value != null ? p.value : calcValueMi(p), key = p.marketKey || playerKey(p);
             const canAfford = val*1e6 <= state.balance;
             const canBuy = windowOpen && canAfford;
@@ -21432,9 +21811,21 @@ function renderMarketBuy(){
           }).join('')}
         </tbody>
       </table>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#0f172a;border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;gap:8px;">
+        <span style="font-size:12px;color:#94a3b8;">Exibindo ${pageStart + 1} - ${Math.min(ps.length, pageStart + pageSize)} de ${ps.length} atletas</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn" id="btnMarketPrevPage" ${window.afmMarketPage <= 1 ? 'disabled' : ''} style="padding:5px 12px;font-size:11px;font-weight:700;">◀ Anterior</button>
+          <span style="font-size:12px;color:#fff;font-weight:800;">Página ${window.afmMarketPage} / ${totalMarketPages}</span>
+          <button class="btn" id="btnMarketNextPage" ${window.afmMarketPage >= totalMarketPages ? 'disabled' : ''} style="padding:5px 12px;font-size:11px;font-weight:700;">Próxima ▶</button>
+        </div>
+      </div>
     </div>
   `;
   $$('.buy').forEach(b=>b.onclick=()=>buyPlayer(b.dataset.key));
+  const btnPrev = $('#btnMarketPrevPage');
+  if(btnPrev) btnPrev.onclick = () => { if(window.afmMarketPage > 1){ window.afmMarketPage--; renderMarketBuy(); } };
+  const btnNext = $('#btnMarketNextPage');
+  if(btnNext) btnNext.onclick = () => { if(window.afmMarketPage < totalMarketPages){ window.afmMarketPage++; renderMarketBuy(); } };
 }
 
 
@@ -22099,6 +22490,7 @@ function renderMarketScout(){
 // ESTRUTURA COM DASHBOARD VISUAL DE RENDA EM CASA
 // -------------------------------------------------------------
 function structurePage(){
+  if (!Array.isArray(state.bankLoans)) state.bankLoans = Array.isArray(state.bankLoans?.activeLoans) ? state.bankLoans.activeLoans : [];
   const f = userFixture(), opp = f && f[0] === state.club ? f[1] : null;
   const proj = attendanceProjection(opp || 'Adversário');
   const isHome = f && f[0] === state.club;
@@ -22678,6 +23070,7 @@ function structurePage(){
 // ESCRITÓRIO & PATROCINADORES
 // -------------------------------------------------------------
 function officePage(){
+  if (!Array.isArray(state.bankLoans)) state.bankLoans = Array.isArray(state.bankLoans?.activeLoans) ? state.bankLoans.activeLoans : [];
   const socioData = getSocioTorcedorMeta();
   const finance = monthlyFinancialProjection(socioData);
   const bankDebt = totalBankDebt();
@@ -22726,7 +23119,7 @@ function officePage(){
         <span class="pill warn" style="font-size:10px;font-weight:900">SAÍDAS ESTIMADAS</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;font-size:12px">
-        ${[['Salários do elenco',finance.expenses.payroll],['Salários dos olheiros',finance.expenses.scouts],['Marketing',finance.expenses.marketing],['Parcelas bancárias previstas',finance.expenses.bankRepayments],['Parcelas de obras do estádio',finance.expenses.stadiumRepayments]].map(([label,value])=>`<div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)"><div class="muted">${label}</div><b style="color:#f87171;font-size:15px">${fmtMoney(value)}/mês</b></div>`).join('')}
+        ${[['Salários do elenco',finance.expenses.payroll],['Salários dos olheiros',finance.expenses.scouts],['Marketing',finance.expenses.marketing],['Parcelas bancárias previstas',finance.expenses.bankRepayments],['Parcelas de obras do estádio',finance.expenses.stadiumRepayments],['Despesa com Dividendos aos Acionistas',(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro?.calculateMonthlyClubDividendExpense ? window.AFM_LifeAndSharesPro.calculateMonthlyClubDividendExpense(state).totalClubDividendExpense : (state.lastMonthDividendExpense || 0))]].map(([label,value])=>`<div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)"><div class="muted">${label}</div><b style="color:#f87171;font-size:15px">${fmtMoney(value)}/mês</b></div>`).join('')}
       </div>
     </div>
 
@@ -22875,6 +23268,9 @@ function officePage(){
           <h2 style="margin:0;font-size:15px;font-weight:900;letter-spacing:0.5px;color:#fff;text-transform:uppercase">💼 SEU CONTRATO</h2>
           <span class="pill" style="font-size:11px;padding:2px 8px;background:rgba(255,255,255,0.06)">Treinador: <b>${esc(state.manager)}</b></span>
         </div>
+        <button class="btn" id="btnOpenCareerEconomyFromOffice" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);border:1px solid #a855f7;color:#fff;font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+          💼 Cotas & Negócios ➔
+        </button>
         <button class="btn" id="btnRequestManagerRenewal" style="background:rgba(139,92,246,0.22);border:1px solid #a855f7;color:#fff;font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
           📝 Negociar com a Diretoria
         </button>
@@ -26319,6 +26715,94 @@ function bind(){
     if(championsButton) championsButton.onclick = openWorldSaveChampionsModal;
   }
 
+  if(view === 'carreira' || document.getElementById('afm-career-economy-container')){
+    if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.renderLifeAndSharesUI === 'function'){
+      window.AFM_LifeAndSharesPro.renderLifeAndSharesUI('afm-career-economy-container', state);
+    } else if(window.AFM_ManagerEconomy && typeof window.AFM_ManagerEconomy.renderCareerEconomyPanel === 'function'){
+      window.AFM_ManagerEconomy.renderCareerEconomyPanel('afm-career-economy-container', state);
+    }
+  }
+
+  // Botão Trocas Sugeridas do Auxiliar Técnico
+  const btnAsst = $('#btnAssistantSuggestedSwaps');
+  if(btnAsst && window.AFM_SquadAssistant){
+    btnAsst.onclick = () => {
+      const res = window.AFM_SquadAssistant.applyAssistantSuggestedSwaps(state.squad);
+      if(res.swapsMade > 0){
+        optimizeLineup();
+        save();
+        render();
+        toast(`🤝 Auxiliar realizou ${res.swapsMade} troca(s): ${res.details.join(' | ')}`);
+      } else {
+        toast('🤝 Auxiliar: Todos os titulares estão em boas condições físicas e disciplinares!');
+      }
+    };
+  }
+
+  const btnOfficeCareer = $('#btnOpenCareerEconomyFromOffice');
+  if(btnOfficeCareer){
+    btnOfficeCareer.onclick = () => {
+      view = 'carreira';
+      render();
+    };
+  }
+
+  const btnExportSave = $('#btnExportSaveFileAction');
+  if(btnExportSave && window.AFM_Guards){
+    btnExportSave.onclick = () => {
+      window.AFM_Guards.exportSaveFile(state);
+      toast('💾 Arquivo .afmsave gerado e baixado com sucesso!');
+    };
+  }
+
+  const btnGenX1 = $('#btnExportMyX1Token');
+  if(btnGenX1 && window.AFM_X1System){
+    btnGenX1.onclick = () => {
+      const token = window.AFM_X1System.exportSquadX1Token(state);
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(token);
+        toast('📋 Código X1 copiado para a área de transferência! Envie para o adversário.');
+      } else {
+        prompt('Copie seu código X1:', token);
+      }
+    };
+  }
+
+  const btnDuelX1 = $('#btnSimulateX1Duel');
+  if(btnDuelX1 && window.AFM_X1System){
+    btnDuelX1.onclick = () => {
+      const inp = $('#inputOpponentX1Token');
+      const token = inp ? inp.value.trim() : '';
+      if(!token){
+        toast('⚠️ Cole o código X1 do adversário antes de simular!');
+        return;
+      }
+      const res = window.AFM_X1System.importAndSimulateX1Challenge(state, token);
+      const resContainer = $('#afm-x1-result-container');
+      if(resContainer){
+        resContainer.style.display = 'block';
+        if(!res.ok){
+          resContainer.innerHTML = `<div style="background:#7f1d1d;color:#fecaca;padding:10px;border-radius:8px;font-weight:700;">${res.message}</div>`;
+        } else {
+          const win = res.myGoals > res.oppGoals;
+          const draw = res.myGoals === res.oppGoals;
+          resContainer.innerHTML = `
+            <div style="background:#090d16;border:1px solid #10b981;border-radius:10px;padding:14px;text-align:center;">
+              <div style="font-size:12px;color:#a78bfa;font-weight:800;">RESULTADO DO DUELO X1</div>
+              <div style="font-size:24px;font-weight:900;margin:8px 0;color:#fff;">
+                ${esc(state.club)} <span style="color:#10b981;">${res.myGoals}</span> x <span style="color:#ef4444;">${res.oppGoals}</span> ${esc(res.opponent.club || 'Rival')}
+              </div>
+              <div style="font-size:12px;color:#cbd5e1;">Técnico Rival: <b>${esc(res.opponent.manager || 'Adversário')}</b> | Postura: <b>${esc(res.opponent.posture || 'Equilibrada')}</b></div>
+              <div style="margin-top:8px;font-weight:800;color:${win ? '#22c55e' : draw ? '#facc15' : '#ef4444'};">
+                ${win ? '🏆 VITÓRIA DO SEU TIME NO DUELO TÁTICO!' : draw ? '⚖️ EMPATE DISPUTADO!' : '❌ O ADVERSÁRIO VENCEU O CONFRONTO!'}
+              </div>
+            </div>
+          `;
+        }
+      }
+    };
+  }
+
   if(view==='central'){
     const bAvatar = $('#btnChangeManagerAvatar');
     if(bAvatar){
@@ -26334,6 +26818,7 @@ function bind(){
 
     const bHall = $('#btnOpenHallOfFame');
     if(bHall) bHall.onclick = openSeasonHistoryModal;
+    const bWorldCent = $('#btnOpenWorldSaveChampionsCentral'); if(bWorldCent) bWorldCent.onclick = openWorldSaveChampionsModal;
 
     const bOpenBid = $('#btnOpenIncomingBidFromCentral');
     if(bOpenBid) bOpenBid.onclick = () => openIncomingBidModal();
@@ -26497,11 +26982,24 @@ function bind(){
     const pAdvToMatch = $('#btnAdvanceToMatchCentral');
     if(pAdvToMatch) pAdvToMatch.onclick = () => {
       const gate = canStartMatch();
-      advanceCalendarDays(gate.daysDiff || 7, true);
+      if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.advanceToNextMatchGuaranteed === 'function'){
+        window.AFM_CalendarFix.advanceToNextMatchGuaranteed(state);
+      } else {
+        advanceCalendarDays(gate.daysDiff || 7, true);
+      }
     };
     const pAdvOneDay = $('#btnAdvanceOneDayCentral');
     if(pAdvOneDay) pAdvOneDay.onclick = () => {
-      advanceCalendarDays(1, true);
+      if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.advanceDaysGuaranteed === 'function'){
+        window.AFM_CalendarFix.advanceDaysGuaranteed(state, 1);
+      } else {
+        advanceCalendarDays(1, true);
+      }
+    };
+    const bGoSeason = $('#btnGoToSeasonFromCentral');
+    if(bGoSeason) bGoSeason.onclick = () => {
+      view = 'temporada';
+      render();
     };
     const m=$('#mental'); if(m) m.onchange=()=>{state.mentality=m.value;save();toast('Mentalidade tática atualizada.')};
     
@@ -26881,7 +27379,7 @@ function bind(){
         const e=$('#'+id); if(e){e.oninput=()=>scheduleMarketFilter(renderMarketBuy);e.onchange=renderMarketBuy}
       });
       const btnSrchBuy = $('#btnSearchBuy');
-      if(btnSrchBuy) btnSrchBuy.onclick = () => renderMarketBuy();
+      if(btnSrchBuy) btnSrchBuy.onclick = () => { window.afmMarketPage = 1; renderMarketBuy(); };
       const btnClrBuy = $('#btnClearBuyFilters');
       if(btnClrBuy) btnClrBuy.onclick = () => {
         if($('#marketRegion')) $('#marketRegion').value = '';
@@ -27627,7 +28125,18 @@ window.deleteUserSlot = deleteUserSlot;
 window.buildStadiumSide = buildStadiumSide;
 window.getStadiumExpansionData = getStadiumExpansionData;
 window.getState = () => state;
-window.setState = (s) => { state = s; };
+window.setState = (s) => { state = s; if(window.AFM) window.AFM.state = s; };
+try {
+  Object.defineProperty(window, 'GameState', {
+    get() { return state; },
+    set(s) { state = s; if(window.AFM) window.AFM.state = s; },
+    configurable: true
+  });
+} catch(e) { window.GameState = state; }
+window.AFM = window.AFM || {};
+window.AFM.getState = () => state;
+window.AFM.setState = (s) => { state = s; window.AFM.state = s; };
+window.AFM.state = state;
 window.getStadiumSelectedSide = () => stadiumSelectedSide;
 window.setStadiumSelectedSide = (s) => { stadiumSelectedSide = s; };
 window.renderSetup = renderSetup;
@@ -27637,7 +28146,25 @@ window.setActiveAccount = setActiveAccount;
 window.getStoredAccounts = getStoredAccounts;
 window.saveStoredAccounts = saveStoredAccounts;
 
-getStoredAccounts(); // Remove credenciais legadas do armazenamento local sem apagar os saves.
+try {
+  getStoredAccounts();
+} catch(e) {
+  console.warn('[AFM] Erro ao obter contas no boot:', e);
+}
+
+let afmBooted = false;
+function triggerSafeBootRender() {
+  if (afmBooted) return;
+  afmBooted = true;
+  try {
+    render();
+  } catch(e) {
+    console.error('[AFM] Erro ao renderizar no boot seguro:', e);
+  }
+}
+
+// Timeout de segurança: após 1800ms força a renderização e remove a splash screen independente de rede
+const afmBootTimer = setTimeout(triggerSafeBootRender, 1800);
 window.AFM_DB.init()
   .then(async user => {
     if(user) await activateAuthenticatedUser(user);
@@ -27646,5 +28173,8 @@ window.AFM_DB.init()
     recordAFMError('auth-session-restore', error);
     console.warn('[AFM] Sessão Supabase indisponível; saves locais preservados:', error.message);
   })
-  .finally(render);
+  .finally(() => {
+    clearTimeout(afmBootTimer);
+    triggerSafeBootRender();
+  });
 })();

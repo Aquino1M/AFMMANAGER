@@ -217,7 +217,7 @@ function buildClubBadgeFallbackPaths(rawName) {
   const folders = ['bra_a', 'bra_b', 'bra_c', 'bra_d', 'bra_estaduais', ''];
   const paths = [];
   for (const variant of variants) {
-    for (const ext of ['png', 'svg']) {
+    for (const ext of ['svg', 'png']) {
       for (const folder of folders) {
         paths.push((folder ? 'img/badges/' + folder + '/' : 'img/badges/') + variant + '.' + ext);
       }
@@ -244,8 +244,9 @@ window.renderClubBadge = function(clubName, size = 32) {
   const alternatives = verifiedFile ? [] : buildClubBadgeFallbackPaths(rawName).filter(path => path !== knownPath);
   const imagePath = knownPath || alternatives.shift();
   if (!imagePath) return '';
-  const onError = "const a=JSON.parse(this.dataset.badgeAlternatives||'[]');if(a.length){this.dataset.badgeAlternatives=JSON.stringify(a.slice(1));this.src=a[0];}else{this.onerror=null;this.remove();}";
-  return `<img src="${imagePath}" alt="${rawName}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" data-badge-alternatives="${esc(JSON.stringify(alternatives))}" onerror="${onError}" />`;
+  const initials = rawName.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '') || 'FC';
+  const onError = `const a=JSON.parse(this.dataset.badgeAlternatives||'[]');if(a.length){this.dataset.badgeAlternatives=JSON.stringify(a.slice(1));this.src=a[0];}else{window.AFM_SafeImg?window.AFM_SafeImg(this):this.style.display='none';}`;
+  return `<img src="${imagePath}" alt="${rawName}" data-abbr="${initials}" class="crest-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" data-badge-alternatives="${esc(JSON.stringify(alternatives))}" onerror="${onError}" />`;
 };
 
 // Renderização oficial de avatar de jogadores (Fotos Reais com fallback vetorial do AFM)
