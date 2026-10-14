@@ -336,14 +336,5 @@
     }
   };
 
-  if (typeof setInterval !== 'undefined') {
-    setInterval(() => {
-      const st = window.GameState || window.state || {};
-      TrophiesTvMarketingPayroll.refreshMuseumTrophiesDOM(st);
-      TrophiesTvMarketingPayroll.injectTvBroadcastSectionInOffice(st);
-      TrophiesTvMarketingPayroll.syncCoachSalaryAndSquadSlotsInDOM(st);
-    }, 600);
-  }
-
   window.AFM_TrophiesTvPayroll = TrophiesTvMarketingPayroll;
 })(typeof window !== 'undefined' ? window : global);

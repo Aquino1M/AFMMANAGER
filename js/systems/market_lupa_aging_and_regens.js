@@ -198,9 +198,5 @@
     }
   };
 
-  if (typeof setInterval !== 'undefined') {
-    setInterval(() => MarketLupaAgingAndRegens.injectLupaButtonsInMarketDOM(), 500);
-  }
-
   window.AFM_MarketLupaAndAging = MarketLupaAgingAndRegens;
 })(typeof window !== 'undefined' ? window : global);

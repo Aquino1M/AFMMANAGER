@@ -102,11 +102,12 @@
     // Injeta as fotos reais nos 11 mini-cards do campo tático e na lista do Banco de Reservas
     scanAndHydratePitchAndBenchPhotos() {
       if (typeof document === 'undefined') return;
-      const isTacticsScreen = document.body.innerText.includes('BANCO DE RESERVAS') || document.body.innerText.includes('FORMAÇÃO:') || document.querySelector('.tactics-pitch-wrapper');
-      if (!isTacticsScreen) return;
+      const tacticsContainer = document.querySelector('.tactics-pitch-wrapper, #myTeamTacticsContainer');
+      if (!tacticsContainer) return;
 
       // 1. Banco de Reservas (Coluna da direita)
-      document.querySelectorAll('div').forEach((row) => {
+      const benchContainer = document.querySelector('.tactics-bench-wrapper') || tacticsContainer;
+      benchContainer.querySelectorAll('[data-bench-row], div').forEach((row) => {
         if (row.dataset.benchPhotoChecked === '1') return;
         const txt = (row.innerText || '').trim();
         if (txt.includes('Físico ') && row.clientHeight >= 40 && row.clientHeight <= 85) {
@@ -115,17 +116,16 @@
           const avatarCircle = row.querySelector('svg')?.parentElement;
           if (playerName && avatarCircle) {
             row.dataset.benchPhotoChecked = '1';
-            this.fetchOfficialCutout(playerName).then((url) => {
-              if (url) {
-                avatarCircle.innerHTML = `<img src="${url}" alt="${playerName}" style="width:100%;height:100%;object-fit:cover;object-position:center top;border-radius:50%;" />`;
-              }
-            });
+            const url = this.fetchOfficialCutout(playerName);
+            if (url) {
+              avatarCircle.innerHTML = `<img src="${url}" alt="${playerName}" style="width:100%;height:100%;object-fit:cover;object-position:center top;border-radius:50%;" />`;
+            }
           }
         }
       });
 
       // 2. Mini-cards dos 11 titulares no gramado verde
-      document.querySelectorAll('div').forEach((card) => {
+      tacticsContainer.querySelectorAll('.starter-slot, div').forEach((card) => {
         if (card.dataset.pitchPhotoChecked === '1') return;
         if (card.clientWidth >= 60 && card.clientWidth <= 115 && card.clientHeight >= 80 && card.clientHeight <= 145) {
           const silhouetteSvg = card.querySelector('svg');
@@ -137,21 +137,15 @@
             const squad = st.squad || st.players || [];
             const fullPlayer = squad.find((p) => (p?.name || '').toUpperCase().includes(shortName));
             const searchName = fullPlayer?.name || shortName;
-
-            this.fetchOfficialCutout(searchName).then((url) => {
-              if (url && silhouetteSvg.parentElement) {
-                silhouetteSvg.parentElement.innerHTML = `<img src="${url}" alt="${searchName}" style="width:46px;height:46px;object-fit:cover;object-position:center top;border-radius:6px;display:block;margin:0 auto;" />`;
-              }
-            });
+            const url = this.fetchOfficialCutout(searchName);
+            if (url && silhouetteSvg.parentElement) {
+              silhouetteSvg.parentElement.innerHTML = `<img src="${url}" alt="${searchName}" style="width:46px;height:46px;object-fit:cover;object-position:center top;border-radius:6px;display:block;margin:0 auto;" />`;
+            }
           }
         }
       });
     }
   };
-
-  if (typeof setInterval !== 'undefined') {
-    setInterval(() => LineupRealPhotosInjector.scanAndHydratePitchAndBenchPhotos(), 700);
-  }
 
   window.AFM_LineupPhotos = LineupRealPhotosInjector;
 })(typeof window !== 'undefined' ? window : global);

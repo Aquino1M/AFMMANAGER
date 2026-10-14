@@ -343,13 +343,5 @@
     }
   };
 
-  if (typeof setInterval !== 'undefined') {
-    setInterval(() => {
-      const st = window.GameState || window.state || {};
-      WorldAndRankingSystem.injectPrestigeAndRankingButtonInCareerCard(st);
-      WorldAndRankingSystem.ensureUserClubInCopaDoBrasilAndHighlight(st);
-    }, 600);
-  }
-
   window.AFM_WorldSimulation = WorldAndRankingSystem;
 })(typeof window !== 'undefined' ? window : global);
