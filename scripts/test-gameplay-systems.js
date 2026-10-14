@@ -808,6 +808,19 @@ assert(gameJsContent.includes('pendingOtherCompetitions.length')
   && gameJsContent.includes('pendingOtherCompetitions')
   && gameJsContent.includes('const pendingDates = typeof getPendingClubCompetitions'),
   'O calendário continua avançando para competições pendentes mesmo após acabar o calendário principal');
+assert(gameJsContent.includes('function getNextPendingClubFixture(gameState = state)')
+  && gameJsContent.includes('function openNextPendingCompetitionFixture(nextFixture = getNextPendingClubFixture(state))')
+  && gameJsContent.includes("status:'other_competitions_pending'")
+  && gameJsContent.includes('btnOpenNextPendingCentral')
+  && gameJsContent.includes("if(matchGate.status === 'other_competitions_pending'){\n      openNextPendingCompetitionFixture(matchGate.nextFixture || getNextPendingClubFixture(state));"),
+  'Ao acabar a agenda principal com Copa pendente, a Central troca o botão de virada por acesso ao próximo jogo');
+assert(gameJsContent.includes('ensureMidweekDate(fixture.isoDate || phase.isoDate, state.season)')
+  && gameJsContent.includes("ensureMidweekDate(fixture.isoDate || phase.isoDate, state.season) !== state.date")
+  && gameJsContent.includes('Jogar Copa do Brasil'),
+  'O cartão de Copa usa a data da fase como fallback e permite iniciar a partida no dia efetivo');
+assert(gameJsContent.includes("const copa = gameState === state && typeof getCopaDoBrasilState === 'function'")
+  && gameJsContent.includes('const cupDate = rawCupDate ? ensureMidweekDate(rawCupDate, season) : rawCupDate;'),
+  'A verificação de pendências inicializa a Copa nos saves legados e usa a mesma data que o botão de jogar');
 assert(gameJsContent.includes('userFixturePending && ph.isoDate < currentDate')
   && gameJsContent.includes('Remarque a fase pendente do usuário para a próxima quarta-feira'),
   'Uma partida pendente da Copa do Brasil não é simulada automaticamente e pode ser remarcada em save legado');

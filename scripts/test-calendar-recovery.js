@@ -64,6 +64,72 @@ function makeRunner(startDate, matchDate){
 }
 
 console.log('Todos os testes de recuperação do calendário passaram.');
+
+// When the primary competition ended, calendar advancement must target the pending
+// Copa fixture (same effective Wednesday used by the calendar UI), not an invalid
+// next-round index from the completed primary schedule.
+{
+  const sourceText = fs.readFileSync(path.join(__dirname, '..', 'js/game.js'), 'utf8');
+  const fnStart = sourceText.indexOf('function advanceCalendarDays(');
+  const fnEnd = sourceText.indexOf('\n// MÁQUINA DE ESTADOS DA PARTIDA AO VIVO', fnStart);
+  const fn = sourceText.slice(fnStart, fnEnd).trim();
+  const state = {
+    club:'Brasília', date:'2027-02-07', season:2027, round:0, schedule:[], squad:[], news:[],
+    isPreSeason:false, preSeasonDays:0,
+    copaData:{version:2,season:2027,phases:{'2ª Fase':{name:'2ª Fase',isoDate:'2027-03-11',fixtures:[{home:'Brasília',away:'Brasiliense',isoDate:'2027-03-11',score:null,winner:null}]}}},
+    history:[]
+  };
+  const effects = {dayProcesses:0,saves:0,renders:0,simulatedCup:0,toasts:[]};
+  const normalizer = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  const midweek = iso => { const d=new Date(`${iso}T12:00:00`); const day=d.getDay(); if(day!==3)d.setDate(d.getDate()+(3-day)); return d.toISOString().slice(0,10); };
+  const pendingStart = sourceText.indexOf('function getPendingClubCompetitions(');
+  const pendingEnd = sourceText.indexOf('\nfunction seasonCompetitionsComplete',pendingStart);
+  const pendingFn = sourceText.slice(pendingStart,pendingEnd).trim();
+  const playCupStart = sourceText.indexOf('function playCopaDoBrasilFixture(');
+  const playCupEnd = sourceText.indexOf('\nfunction ',playCupStart + 10);
+  const playCupFn = sourceText.slice(playCupStart,playCupEnd).trim();
+  const nextStart = sourceText.indexOf('function getNextPendingClubFixture(');
+  const nextEnd = sourceText.indexOf('\nfunction openNextPendingCompetitionFixture',nextStart);
+  const nextFn = sourceText.slice(nextStart,nextEnd).trim();
+  const gateStart = sourceText.indexOf('function canStartMatch(');
+  const gateEnd = sourceText.indexOf('\nlet isAdvancingTime',gateStart);
+  const gateFn = sourceText.slice(gateStart,gateEnd).trim();
+  const context = {
+    state,window:{COMPETITION_TEAMS:{}},isAdvancingTime:false,
+    norm:normalizer,compById:()=>({name:'Campeonato Candango'}),getDateForRound:(round,season)=>`${season}-01-17`,
+    getStateCompData:()=>({teams:[],fixtures:[]}),getCopaDoBrasilState:()=>state.copaData,ensureMidweekDate:midweek,
+    processStadiumConstructionDay:()=>effects.dayProcesses++,processContinentalFixturesBefore:()=>{},expireStadiumEventConfirmation:()=>{},
+    isTransferWindowOpen:()=>false,processCopaDoBrasilCalendar:()=>{},repairSaveIfCorrupted:()=>false,
+    save:()=>effects.saves++,render:()=>effects.renders++,toast:message=>effects.toasts.push(message),formatDatePtBr:date=>date,
+    checkIncomingPlayerBids:()=>{},liveMatchState:null,calendarFilter:'ALL',copaCurrentPhase:'2ª Fase',
+    simulateScore:()=>[2,1],calcValueMi:()=>1,playerOverall:()=>70,playerKey:p=>p.id,
+    marketUniverse:()=>[],addPlayerMatchStats:()=>{},simulateUserGoalEvents:()=>[],openPressConferenceModal:()=>{},
+    getPendingClubCompetitions:null,getNextPendingClubFixture:null,formatDatePtBr:date=>date,
+    curComp:()=>({id:'bra-est-df',name:'Campeonato Candango'}),Math,Date,console
+  };
+  vm.runInNewContext(`${pendingFn}\n${nextFn}\n${gateFn}\n${fn}\n${playCupFn}\nthis.pending=getPendingClubCompetitions;this.nextFixture=getNextPendingClubFixture;this.gate=canStartMatch;this.advance=advanceCalendarDays;this.playCup=playCopaDoBrasilFixture;`,context,{filename:'pending-cup-calendar-flow'});
+  const pending = context.pending(state);
+  assert.equal(pending.length,1,'Only the Copa fixture should remain pending in the minimal fixture.');
+  assert.equal(pending[0].id,'bra-cup');
+  assert.equal(pending[0].date,'2027-03-10','Pending detector must use the same Wednesday as the calendar card.');
+  const gate = context.gate(undefined,state);
+  assert.equal(gate.status,'other_competitions_pending','End of the primary schedule must route to pending competitions, not season_finished.');
+  assert.equal(gate.nextDate,'2027-03-10');
+  assert.equal(context.nextFixture(state).id,'bra-cup');
+  const dateDiff=Math.round((new Date(`${pending[0].date}T12:00:00`)-new Date(`${state.date}T12:00:00`))/86400000);
+  context.advance(dateDiff,true);
+  assert.equal(state.date,'2027-03-10','Advance-to-match must stop exactly at the effective Copa fixture date.');
+  assert.equal(effects.dayProcesses,dateDiff,'Daily progression should process every day without skipping the user fixture.');
+  assert.equal(effects.simulatedCup,0,'The pending user Copa fixture must never be auto-simulated by date advancement.');
+  assert(effects.toasts.some(message=>message.includes('próximo jogo')),'Calendar advancement should confirm its destination.');
+  const phase = state.copaData.phases['2ª Fase'];
+  assert.equal(midweek(phase.fixtures[0].isoDate),state.date,'The pending Copa card is due on the exact date reached by the calendar.');
+  context.playCup(0,'2ª Fase');
+  assert(phase.fixtures[0].played === true && Boolean(phase.fixtures[0].score),'Explicitly playing the Copa fixture must persist a result.');
+  assert(state.history.some(match=>match.competitionId==='bra-cup'&&match.h==='Brasília'&&match.a==='Brasiliense'),'Playing the fixture registers the match in the season history.');
+  console.log('PASS: Candango ended + Brasília x Brasiliense pending: date moves 07/02→10/03, card date matches, game is not auto-simulated, and explicit play records result/history.');
+}
+
 // Rodada vazia deve recuperar o índice e sincronizar a data para o próximo round válido.
 {
   const gameSource = fs.readFileSync(path.join(__dirname, '..', 'js/game.js'), 'utf8');

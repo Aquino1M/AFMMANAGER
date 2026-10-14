@@ -5015,7 +5015,7 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   const phase = copa.phases[phaseName];
   copaCurrentPhase = phaseName;
   const fixture = phase?.fixtures?.[Number(fixtureIndex)];
-  if(!fixture || fixture.score || fixture.isoDate !== state.date ||
+  if(!fixture || fixture.score || ensureMidweekDate(fixture.isoDate || phase.isoDate, state.season) !== state.date ||
     (norm(fixture.home) !== norm(state.club) && norm(fixture.away) !== norm(state.club))) return;
   const [hg, ag] = simulateScore(fixture.home, fixture.away);
   const winner = hg === ag ? (Math.random() < 0.5 ? fixture.home : fixture.away) : (hg > ag ? fixture.home : fixture.away);
@@ -5026,6 +5026,7 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   addPlayerMatchStats('bra-cup', state.club, events);
   const result = { h: fixture.home, a: fixture.away, hg, ag, winner, events, round: phase.name, season: Number(state.season), date: state.date, competitionId: 'bra-cup', competitionName: 'Copa do Brasil' };
   state.history = [result, ...(state.history || [])].slice(0, 100);
+  fixture.played = true;
   state.news = state.news || [];
   state.news.unshift(`🏆 Copa do Brasil (${phase.name}): ${fixture.home} ${hg} x ${ag} ${fixture.away}. ${norm(winner) === norm(state.club) ? 'Classificado.' : 'Eliminado.'}`);
   save();
@@ -7163,6 +7164,9 @@ function competitionClubs(comp,selected,rosterOverride=null){
 // efetivamente disputadas pelo clube não têm mais partidas pendentes.
 function getPendingClubCompetitions(gameState = state){
   if(!gameState?.club) return [];
+  // Older saves may not have initialized Copa data until its panel is opened.
+  // Initialize it before checking whether the primary calendar ended the season.
+  if(gameState === state && typeof getCopaDoBrasilState === 'function') getCopaDoBrasilState();
   const clubKey = norm(gameState.club);
   const season = Number(gameState.season);
   const pending = [];
@@ -7199,13 +7203,17 @@ function getPendingClubCompetitions(gameState = state){
   }
 
   // Copa do Brasil: só conta jogos ainda pendentes do clube, não de outras equipes.
-  const copa = gameState.copaData && Number(gameState.copaData.season) === season ? gameState.copaData : null;
+  const copa = gameState === state && typeof getCopaDoBrasilState === 'function'
+    ? getCopaDoBrasilState()
+    : (gameState.copaData && Number(gameState.copaData.season) === season ? gameState.copaData : null);
   if(copa?.phases){
     Object.entries(copa.phases).forEach(([phaseName, phase]) => (phase.fixtures || []).forEach(fixture => {
       if(norm(fixture.home) !== clubKey && norm(fixture.away) !== clubKey) return;
       const playedInHistory = history.some(item => Number(item.season || season) === season && item.competitionId === 'bra-cup' && ((norm(item.h) === norm(fixture.home) && norm(item.a) === norm(fixture.away)) || (norm(item.h) === norm(fixture.away) && norm(item.a) === norm(fixture.home))));
       if(fixture.score || fixture.winner || fixture.played === true || playedInHistory || phase.status === 'CONCLUÍDO') return;
-      push('bra-cup', 'Copa do Brasil', fixture.isoDate || phase.isoDate, phaseName);
+      const rawCupDate = fixture.isoDate || phase.isoDate;
+      const cupDate = rawCupDate ? ensureMidweekDate(rawCupDate, season) : rawCupDate;
+      push('bra-cup', 'Copa do Brasil', cupDate, phaseName);
     }));
   }
 
@@ -7228,6 +7236,53 @@ function seasonCompetitionsComplete(gameState = state){
 function getNextClubFixtureDate(gameState = state){
   const pending = getPendingClubCompetitions(gameState);
   return pending.find(item => item.date && item.date >= gameState.date)?.date || pending.find(item => item.date)?.date || null;
+}
+
+function getNextPendingClubFixture(gameState = state){
+  const pending = getPendingClubCompetitions(gameState);
+  const future = pending.filter(item => item.date && item.date >= gameState.date);
+  return (future.length ? future : pending.filter(item => item.date)).sort((a,b)=>String(a.date).localeCompare(String(b.date)))[0] || null;
+}
+
+function openNextPendingCompetitionFixture(nextFixture = getNextPendingClubFixture(state)){
+  if(!state || !nextFixture){
+    toast('Não há mais partidas pendentes nas competições desta temporada.');
+    return false;
+  }
+  const targetDate = nextFixture.date;
+  if(targetDate && targetDate !== state.date){
+    const current = new Date(`${state.date}T12:00:00`);
+    const target = new Date(`${targetDate}T12:00:00`);
+    if(Number.isFinite(target.getTime()) && target > current){
+      const days = Math.max(1, Math.round((target - current) / 86400000));
+      advanceCalendarDays(days, true);
+    } else if(Number.isFinite(target.getTime()) && target < current){
+      // Never simulate a user fixture retroactively in legacy saves.
+      const repaired = ensureMidweekDate(state.date, state.season);
+      if(nextFixture.id === 'bra-cup' && nextFixture.detail){
+        const phase = state.copaData?.phases?.[nextFixture.detail];
+        (phase?.fixtures || []).filter(f => !f.score && !f.winner && (norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club))).forEach(f=>{ f.isoDate=repaired; f.date=formatDatePtBr(repaired); });
+        if(phase){ phase.isoDate=repaired; phase.dateStr=formatDatePtBr(repaired); }
+      }
+      state.date = repaired;
+      save();
+    }
+  }
+  view = 'calendario';
+  if(nextFixture.id === 'bra-cup'){
+    calendarFilter = 'bra-cup';
+    copaCurrentPhase = nextFixture.detail || copaCurrentPhase;
+  } else if(['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc'].includes(nextFixture.id)){
+    calendarFilter = nextFixture.id;
+  } else if(nextFixture.id?.startsWith('bra-est-')){
+    calendarFilter = nextFixture.id;
+  } else {
+    calendarFilter = 'ALL';
+  }
+  save();
+  render();
+  toast(`Próximo confronto aberto: ${nextFixture.name}${nextFixture.detail ? ` (${nextFixture.detail})` : ''}. Data: ${formatDatePtBr(state.date)}.`);
+  return true;
 }
 
 function generatedRosterForClub(club){
@@ -9988,6 +10043,23 @@ function canStartMatch(fixture, gameState = state){
     return { canStart: false, reason: 'Já existe uma partida ao vivo em andamento!', status: 'in_progress' };
   }
 
+  // Once the primary schedule is over, resolve the next pending fixture in
+  // another competition before offering season completion.
+  const mainSchedule = Array.isArray(gameState.schedule) ? gameState.schedule : [];
+  if(Number(gameState.round) >= mainSchedule.length){
+    const nextPending = typeof getNextPendingClubFixture === 'function' ? getNextPendingClubFixture(gameState) : null;
+    if(nextPending){
+      return {
+        canStart:false,
+        reason:`O campeonato principal terminou. A próxima partida pendente é ${nextPending.name}${nextPending.detail ? ` (${nextPending.detail})` : ''}${nextPending.date ? ` em ${formatDatePtBr(nextPending.date)}` : ''}. Avance até essa data e abra a competição correspondente.`,
+        status:'other_competitions_pending',
+        pending:typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(gameState) : [nextPending],
+        nextDate:nextPending.date || null,
+        nextFixture:nextPending
+      };
+    }
+  }
+
   // 2. Fim de temporada
   const fixtures = Array.isArray(gameState.schedule?.[gameState.round]) ? gameState.schedule[gameState.round] : [];
   if(gameState.round >= (gameState.schedule?.length || 1)){
@@ -10066,7 +10138,7 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
     const activeFixtures = Array.isArray(schedule[state.round]) ? schedule[state.round] : [];
     const clubFixture = activeFixtures.find(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === clubNorm || norm(g[1]) === clubNorm));
     const nextFixtureRound = clubFixture ? state.round : schedule.findIndex((games, idx) => idx >= state.round && Array.isArray(games) && games.some(g => Array.isArray(g) && g.length >= 2 && (norm(g[0]) === clubNorm || norm(g[1]) === clubNorm)));
-    const primaryMatchDate = nextFixtureRound >= 0 ? getDateForRound(nextFixtureRound, state.season) : null;
+    const primaryMatchDate = nextFixtureRound >= 0 && nextFixtureRound < schedule.length ? getDateForRound(nextFixtureRound, state.season) : null;
     const pendingDates = typeof getPendingClubCompetitions === 'function'
       ? getPendingClubCompetitions(state).map(item => item.date).filter(date => date && date >= state.date).sort()
       : [];
@@ -12041,6 +12113,10 @@ function startLiveMatch(){
   const matchGate = canStartMatch();
   if(!matchGate.canStart){
     if(matchGate.status === 'season_finished'){ showEndOfSeasonModal(); return; }
+    if(matchGate.status === 'other_competitions_pending'){
+      openNextPendingCompetitionFixture(matchGate.nextFixture || getNextPendingClubFixture(state));
+      return;
+    }
     if(matchGate.status === 'future'){ state.date = matchGate.matchDate; }
     if(matchGate.status === 'no_fixture' || matchGate.isBye){
       toast('🏖️ Seu clube está de folga nesta rodada. Simulando os jogos dos adversários...');
@@ -15563,13 +15639,7 @@ function simulateQuickRound(){
       return;
     }
     if(matchGate.status === 'other_competitions_pending'){
-      const targetDate = matchGate.nextDate || getNextClubFixtureDate(state);
-      if(targetDate && targetDate > state.date){
-        const days = Math.max(1, Math.round((new Date(`${targetDate}T12:00:00`) - new Date(`${state.date}T12:00:00`)) / 86400000));
-        advanceCalendarDays(days, true);
-      } else {
-        view = 'calendario'; render(); toast(matchGate.reason);
-      }
+      openNextPendingCompetitionFixture(matchGate.nextFixture || getNextPendingClubFixture(state));
       return;
     }
     if(matchGate.status === 'future'){
@@ -19037,7 +19107,15 @@ function centralPage(){
           })()}
 
           <!-- Botões de Ação da Partida ou Fim de Temporada -->
-          ${(!currentFixtures().length || (state.round >= (state.schedule?.length || 1))) ? `
+          ${(!currentFixtures().length || (state.round >= (state.schedule?.length || 1))) && getNextPendingClubFixture(state) ? `
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
+              <div style="padding:12px;border-radius:10px;background:rgba(56,189,248,.12);border:1px solid #38bdf8;color:#bae6fd;font-size:12px">
+                <b>📅 Campeonato principal concluído, mas a temporada continua aberta.</b><br>
+                Próximo: ${esc(getNextPendingClubFixture(state).name)} ${getNextPendingClubFixture(state).detail ? `· ${esc(getNextPendingClubFixture(state).detail)}` : ''} · ${getNextPendingClubFixture(state).date ? formatDatePtBr(getNextPendingClubFixture(state).date) : 'data a definir'}
+              </div>
+              <button class="btn primary" id="btnOpenNextPendingCentral" style="padding:15px;font-size:14px;font-weight:900;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;border-radius:12px;cursor:pointer">⏩ PRÓXIMA COMPETIÇÃO — IR AO JOGO</button>
+            </div>
+          ` : (!currentFixtures().length || (state.round >= (state.schedule?.length || 1))) ? `
             <div style="margin-top:16px">
               <button class="btn primary" id="btnOpenEndOfSeasonCentral" style="padding:16px;font-size:14px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #f59e0b, #d97706);color:#000;border:none;border-radius:12px;box-shadow:0 8px 24px rgba(245,158,11,0.5);width:100%;cursor:pointer">
                 🏆 TEMPORADA ${state.season} CONCLUÍDA — VER CONQUISTAS & VIRAR O ANO 🚀
@@ -19387,8 +19465,10 @@ function calendarPage(){
   processCopaDoBrasilCalendar(state.date);
   Object.entries(copa.phases || {}).forEach(([phaseName,phase])=>(phase.fixtures||[]).forEach((fixture,fixtureIndex)=>{
     if(calendarClubKey(fixture.home)!==calendarClubKey(myClub)&&calendarClubKey(fixture.away)!==calendarClubKey(myClub))return;
-    const cDate = ensureMidweekDate(fixture.isoDate, state.season);
-    extraMatches.push({competitionId:'bra-cup',name:'Copa do Brasil',home:fixture.home,away:fixture.away,isHome:calendarClubKey(fixture.home)===calendarClubKey(myClub),round:phaseName,date:cDate,result:fixture.score,current:cDate===state.date,matchIndex:fixtureIndex,phaseName});
+    const cDate = ensureMidweekDate(fixture.isoDate || phase.isoDate, state.season);
+    const savedCupResult = (state.history || []).find(h => h.competitionId === 'bra-cup' && Number(h.season) === Number(state.season) && ((calendarClubKey(h.h)===calendarClubKey(fixture.home)&&calendarClubKey(h.a)===calendarClubKey(fixture.away))||(calendarClubKey(h.h)===calendarClubKey(fixture.away)&&calendarClubKey(h.a)===calendarClubKey(fixture.home))));
+    const result = fixture.score || (savedCupResult ? (calendarClubKey(savedCupResult.h)===calendarClubKey(fixture.home) ? [savedCupResult.hg,savedCupResult.ag] : [savedCupResult.ag,savedCupResult.hg]) : null);
+    extraMatches.push({competitionId:'bra-cup',name:'Copa do Brasil',home:fixture.home,away:fixture.away,isHome:calendarClubKey(fixture.home)===calendarClubKey(myClub),round:phaseName,date:cDate,result,current:cDate===state.date,matchIndex:fixtureIndex,phaseName});
   }));
   for(const id of ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc']){
     const tournament=getContinentalTournament(id);
@@ -19442,7 +19522,7 @@ function calendarPage(){
       else if(match.competitionId==='COMP'&&match.current)status=`<button class="btn primary btnCalPlayNow" style="padding:4px 10px;font-size:12px">⚽ Jogar</button>`;
       else if(match.competitionId.startsWith('bra-est-')&&!match.past&&match.date===state.date)status=`<button type="button" class="btn primary btnCalStatePlay" data-state-comp="${match.competitionId}" data-round="${match.matchIndex}" style="padding:4px 10px;font-size:12px">⚽ Jogar Estadual</button>`;
       else if(match.competitionId==='bra-cup'&&match.result)status=`<span class="pill good">${match.result[0]} x ${match.result[1]} · Concluído</span>`;
-      else if(match.competitionId==='bra-cup'&&match.date===state.date)status=`<button class="btn primary btnCalCopaPlay" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" style="padding:4px 10px;font-size:12px">▶ Simular</button>`;
+      else if(match.competitionId==='bra-cup'&&match.date===state.date)status=`<button class="btn primary btnCalCopaPlay" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" style="padding:4px 10px;font-size:12px">▶ Jogar Copa do Brasil</button>`;
       else if(match.matchId&&match.result)status=`<span class="pill good">${match.result[0]} x ${match.result[1]} · Concluído</span>`;
       else if(match.matchId&&match.date===state.date)status=`<button class="btn primary btnCalTournamentPlay" data-tournament="${esc(match.competitionId)}" data-match="${esc(match.matchId)}" style="padding:4px 10px;font-size:12px">⚽ Jogar</button>`;
       return `<div class="calendar-card ${match.current?'current':''}"><div><div style="display:flex;align-items:center;gap:6px"><span class="pill" style="font-size:9px;font-weight:900;padding:1px 5px;background:${isMidweek?'rgba(56,189,248,0.25);color:#38bdf8':'rgba(34,197,94,0.25);color:#4ade80'}">${dayBadge}</span><b>${dateFormatted}</b></div><div class="small muted" style="margin-top:2px">${esc(match.round||'')}</div></div><div><span class="pill" style="font-size:11px">${match.isHome?'🏠 EM CASA':'✈️ FORA'}</span></div><div style="display:flex;align-items:center;gap:12px">${clubBadge(opponent,32)}<div><b>vs ${esc(opponent)}</b><div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div></div></div><div><span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(match.name)}</span></div><div style="text-align:right">${status}</div></div>`;
@@ -25872,6 +25952,8 @@ function bind(){
 
   if(view==='central'){
     const pEndSeason = $('#btnOpenEndOfSeasonCentral'); if(pEndSeason) pEndSeason.onclick = showEndOfSeasonModal;
+    const pNextPending = $('#btnOpenNextPendingCentral');
+    if(pNextPending) pNextPending.onclick = () => openNextPendingCompetitionFixture();
     const pLive=$('#playMatchLive'); if(pLive) pLive.onclick=startLiveMatch;
     const pQuick=$('#playMatchQuick'); if(pQuick) pQuick.onclick=simulateQuickRound;
     const pAdvToMatch = $('#btnAdvanceToMatchCentral');
