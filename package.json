@@ -15,6 +15,7 @@
     "test:stadium-progression": "node scripts/test-stadium-progression.js",
     "test:halftime-layout": "node scripts/test-halftime-layout.js",
     "test:offer-expiry": "node scripts/test-offer-expiry.js",
+    "test:economy-stadium-rules": "node scripts/test-economy-stadium-rules.js",
     "start": "npx serve .",
     "dev": "npx serve ."
   },

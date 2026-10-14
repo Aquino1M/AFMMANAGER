@@ -17,6 +17,13 @@
   .pill-bad { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid #ef4444; }
   .test-details { font-family: monospace; font-size: 12px; color: #94a3b8; }
 </style>
+<script>
+  window.esc = function(s) {
+    return String(s ?? '').replace(/[&<>"']/g, function(m) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
+  };
+</script>
 </head>
 <body>
 <div id="app" style="display:none"></div>
@@ -24,11 +31,25 @@
 <div id="resultsSummary" class="card">Iniciando testes automatizados obrigatórios (Testes A ao H)...</div>
 <div id="testsTableCard" class="card"></div>
 
+<script src="js/core/error_log.js"></script>
 <script src="js/competitions.js"></script>
 <script src="data/competition_teams.js"></script>
+<script src="data/continental_2026.js"></script>
+<script src="js/core/tournament_engine.js"></script>
+<script src="js/core/competition_integrity.js"></script>
 <script src="data/players_live.js"></script>
 <script src="data/club_badges.js"></script>
+<script src="data/club_badges_unverified.js"></script>
+<script src="data/club_badges_competitions.js"></script>
+<script src="js/core/club_badges_core.js"></script>
+<script src="data/club_badges_verified_2026.js"></script>
+<script src="data/club_badges_verified_world.js"></script>
+<script src="data/club_badges_verified_overrides.js"></script>
+<script src="data/club_badges_local_index.js"></script>
 <script src="data/player_photos.js"></script>
+<script src="data/player_photos_modular.js"></script>
+<script src="data/player_photos_blocked.js"></script>
+<script src="data/player_photos_verified.js"></script>
 <script>
 window.AFM_DB = {
   init: async () => null,
@@ -40,6 +61,9 @@ window.AFM_DB = {
 </script>
 <script src="js/features30.js"></script>
 <script src="js/core/audio_engine.js"></script>
+<script src="js/core/match_engine.js"></script>
+<script src="js/core/tactics_pitch.js"></script>
+<script src="js/ui/settings_modal.js"></script>
 <script src="js/game.js"></script>
 
 <script>

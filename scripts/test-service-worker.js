@@ -19,7 +19,7 @@ const self = {
 };
 const caches = {
   async open(){ return cache; },
-  async keys(){ return ['afm-2027-cache-v7']; },
+  async keys(){ return ['afm-2027-cache-v7', 'afm-2027-cache-v8']; },
   async delete(){ return true; },
   async match(request){ return cached.has(request.url) ? { status: 200 } : null; }
 };

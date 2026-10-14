@@ -839,6 +839,328 @@ function ensureTacticsState(s){
   s.tactics.playerRoles = s.tactics.playerRoles || {};
 }
 
+// Regras permanentes de economia do AFM Manager 2027.
+const AFM_PERMANENT_RULES = {
+  ECONOMY_UPGRADE_INCREASE: 1.15,        // +15% geral e +15% por nível de evolução
+  STADIUM_UPGRADE_INCREASE: 1.40,        // +40% nas melhorias visuais/estrutura do estádio
+  MARKETING_BASE_MULTIPLIER: 3,          // 3x no Aporte Financeiro Semanal
+  MARKETING_LEVEL_GROWTH: 1.20,          // +20% a cada upgrade de nível de Marketing
+  EXTRA_REVENUE_COOLDOWN_ROUNDS: 4,      // 1 proposta a cada 4 rodadas (1x por mês)
+  MAX_CROWD_STRENGTH_BONUS: 5            // Bônus de força de +1 a +5 conforme público
+};
+window.AFM_PERMANENT_RULES = AFM_PERMANENT_RULES;
+
+const FACILITY_COST_INCREASE = AFM_PERMANENT_RULES.ECONOMY_UPGRADE_INCREASE;
+const FACILITY_LEVEL_MULTIPLIER = 1.68;
+const STADIUM_OFFER_INTERVAL_ROUNDS = AFM_PERMANENT_RULES.EXTRA_REVENUE_COOLDOWN_ROUNDS;
+const MARKETING_UPGRADE_MINIMUM_GROWTH = AFM_PERMANENT_RULES.MARKETING_LEVEL_GROWTH;
+const MARKETING_MINIMUM_WEEKLY = 36000;
+const STADIUM_UPGRADE_COST_INCREASE = AFM_PERMANENT_RULES.STADIUM_UPGRADE_INCREASE;
+
+const STADIUM_UPGRADES_CONFIG = {
+  cadeiras_novas: {
+    id: 'cadeiras_novas',
+    key: 'chairs',
+    nome: 'Cadeiras novas',
+    desc: 'troca todas as cadeiras pela cor escolhida · Caldeirão +1 de estrutura',
+    bonusCaldeirao: 1,
+    custoBaseAntigo: 20250,
+    custoBase: Math.round(20250 * AFM_PERMANENT_RULES.STADIUM_UPGRADE_INCREASE) // R$ 28.350
+  },
+  mosaico_escudo: {
+    id: 'mosaico_escudo',
+    key: 'mosaic',
+    nome: 'Mosaico com o escudo',
+    desc: 'mosaico oficial nas arquibancadas centrais · Caldeirão +2 de estrutura',
+    bonusCaldeirao: 2,
+    custoBaseAntigo: 35000,
+    custoBase: Math.round(35000 * AFM_PERMANENT_RULES.STADIUM_UPGRADE_INCREASE) // R$ 49.000
+  },
+  anel_led: {
+    id: 'anel_led',
+    key: 'ledRing',
+    nome: 'Anel de LED do clube',
+    desc: 'painéis de LED dinâmicos contornando o campo · Caldeirão +1 de estrutura',
+    bonusCaldeirao: 1,
+    custoBaseAntigo: 48000,
+    custoBase: Math.round(48000 * AFM_PERMANENT_RULES.STADIUM_UPGRADE_INCREASE) // R$ 67.200
+  },
+  fogos_sinalizadores: {
+    id: 'fogos_sinalizadores',
+    key: 'flares',
+    nome: 'Fogos e sinalizadores',
+    desc: 'fumaça e sinalizadores na entrada do time · Caldeirão +3 de estrutura',
+    bonusCaldeirao: 3,
+    custoBaseAntigo: 15000,
+    custoBase: Math.round(15000 * AFM_PERMANENT_RULES.STADIUM_UPGRADE_INCREASE) // R$ 21.000
+  },
+  telao_clube: {
+    id: 'telao_clube',
+    key: 'screen',
+    nome: 'Telão do clube',
+    desc: 'telão digital de alta resolução no anel norte · Caldeirão +1 de estrutura',
+    bonusCaldeirao: 1,
+    custoBaseAntigo: 65000,
+    custoBase: Math.round(65000 * AFM_PERMANENT_RULES.STADIUM_UPGRADE_INCREASE) // R$ 91.000
+  },
+  refletores_led: {
+    id: 'refletores_led',
+    key: 'ledLights',
+    nome: 'Refletores de LED',
+    desc: 'iluminação esportiva de padrão internacional · Caldeirão +1 de estrutura',
+    bonusCaldeirao: 1,
+    custoBaseAntigo: 55000,
+    custoBase: Math.round(55000 * AFM_PERMANENT_RULES.STADIUM_UPGRADE_INCREASE) // R$ 77.000
+  }
+};
+window.STADIUM_UPGRADES_CONFIG = STADIUM_UPGRADES_CONFIG;
+
+function calcularCustoUpgrade(custoBase, nivelAtual = 0, aplicarAumentoGeral15 = true) {
+  const baseAjustada = aplicarAumentoGeral15 ? (custoBase * AFM_PERMANENT_RULES.ECONOMY_UPGRADE_INCREASE) : custoBase;
+  return Math.round(baseAjustada * Math.pow(AFM_PERMANENT_RULES.ECONOMY_UPGRADE_INCREASE, nivelAtual));
+}
+
+function calcularOrcamentoNovaArena(capacidadeProjetada) {
+  const cap = Number(capacidadeProjetada) || 20000;
+  const loteUrbano = arenaLandCost(cap);
+  const alvaraPrefeitura = arenaPermitCost(cap);
+  const construcao = typeof calcArenaTotalCost === 'function' ? calcArenaTotalCost(cap) : Math.round(cap * 5000);
+  return {
+    capacidade: cap,
+    loteUrbano,
+    alvaraPrefeitura,
+    construcao,
+    totalArena: loteUrbano + alvaraPrefeitura + construcao
+  };
+}
+
+function atualizarUICapacidadeProjetada(novaCapacidade) {
+  const orcamento = calcularOrcamentoNovaArena(novaCapacidade);
+  const fmt = (v) => fmtMoney(v);
+
+  const btnLote = document.querySelector('#btnBuyArenaLand, [data-arena-action="comprar-lote"]');
+  const btnAlvara = document.querySelector('#btnBuyArenaPermit, [data-arena-action="solicitar-alvara"]');
+  const elConstrucao = document.querySelector('[data-arena-info="custo-construcao"]');
+  const elTotal = document.querySelector('[data-arena-info="custo-total"]');
+
+  if (btnLote && !state?.arenaLandBought) btnLote.innerHTML = `Comprar Lote • ${fmt(orcamento.loteUrbano)}`;
+  if (btnAlvara && !state?.arenaPermitBought) btnAlvara.innerHTML = `Solicitar Alvará • ${fmt(orcamento.alvaraPrefeitura)}`;
+  if (elConstrucao) elConstrucao.textContent = fmt(orcamento.construcao);
+  if (elTotal) elTotal.textContent = fmt(orcamento.totalArena);
+}
+
+function calcularAporteSemanalMarketing(aporteBaseOriginal, nivelMarketing = 1) {
+  const baseTriplicada = (aporteBaseOriginal || 12000) * AFM_PERMANENT_RULES.MARKETING_BASE_MULTIPLIER;
+  const multiplicadorNivel = Math.pow(AFM_PERMANENT_RULES.MARKETING_LEVEL_GROWTH, Math.max(0, nivelMarketing - 1));
+  return Math.round(baseTriplicada * multiplicadorNivel);
+}
+
+function calcularCustoUpgradeMarketing(custoBaseUpgrade, nivelMarketing = 1) {
+  return Math.round(
+    (custoBaseUpgrade * AFM_PERMANENT_RULES.ECONOMY_UPGRADE_INCREASE) *
+    Math.pow(AFM_PERMANENT_RULES.MARKETING_LEVEL_GROWTH, Math.max(0, nivelMarketing - 1))
+  );
+}
+
+function podeGerarPropostaEstadio(saveState = state, rodadaAtual = state?.round) {
+  const lastRound = Number(saveState?.lastStadiumCommercialOfferRound ?? saveState?.estadio?.ultimaRodadaAluguelOuShow ?? -99);
+  const current = Number(rodadaAtual || 0);
+  return (current - lastRound) >= AFM_PERMANENT_RULES.EXTRA_REVENUE_COOLDOWN_ROUNDS;
+}
+
+function registrarEventoExtraEstadio(saveState = state, rodadaAtual = state?.round, tipoEvento = 'ALUGUEL', valorRecebido = 0) {
+  if (!saveState.estadio) saveState.estadio = {};
+  saveState.estadio.ultimaRodadaAluguelOuShow = rodadaAtual;
+  saveState.estadio.ultimoEventoTipo = tipoEvento;
+  saveState.lastStadiumCommercialOfferRound = rodadaAtual;
+  saveState.balance = (Number(saveState.balance) || 0) + valorRecebido;
+  saveState.income = (Number(saveState.income) || 0) + valorRecebido;
+  if(saveState.financas){
+    saveState.financas.saldoAtual = saveState.balance;
+    saveState.financas.receitasExtrasMes = (saveState.financas.receitasExtrasMes || 0) + valorRecebido;
+  }
+}
+
+function calcularBonusForcaPublico(publicoEstimado, capacidadeTotal) {
+  return stadiumAttendanceStrengthBonus(publicoEstimado, capacidadeTotal);
+}
+
+function obterForcaEfetivaPartida(time, isMandante, publicoEstimado, capacidadeEstadio) {
+  const forcaBase = typeof time === 'object' && time ? Number(time.forca || time.overall || time.strength || 70) : teamStrengthByName(time);
+  if (!isMandante) return forcaBase;
+  const bonusPublico = stadiumAttendanceStrengthBonus(publicoEstimado, capacidadeEstadio);
+  return forcaBase + Math.min(AFM_PERMANENT_RULES.MAX_CROWD_STRENGTH_BONUS, bonusPublico);
+}
+
+function calcularProjecaoFimDoMes(saveState = state) {
+  const proj = typeof monthlyFinancialProjection === 'function' ? monthlyFinancialProjection() : { monthlyRevenue: 0, monthlyExpenses: 0, monthlyBalance: 0, projectedClosingBalance: Number(saveState?.balance || 0) };
+  return {
+    saldoAtual: Number(saveState?.balance || 0),
+    receitasPrevistas: proj.monthlyRevenue,
+    despesasPrevistas: proj.monthlyExpenses,
+    resultadoMensalLiquido: proj.monthlyBalance,
+    saldoPrevistoFimDoMes: proj.projectedClosingBalance,
+    vaiFicarNegativo: proj.projectedClosingBalance < 0
+  };
+}
+
+function renderizarPainelSaldoPrevistoEscritorio(saveState = state, containerId = 'painel-previsao-fim-mes') {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const p = calcularProjecaoFimDoMes(saveState);
+  const corStatus = p.vaiFicarNegativo ? '#ef4444' : '#22c55e';
+  const textoStatus = p.vaiFicarNegativo
+    ? '⚠️ ALERTA: Clube previsto para fechar o mês no VERMELHO (Negativo)'
+    : '✅ SAUDÁVEL: Clube previsto para fechar o mês no AZUL (Positivo)';
+
+  container.innerHTML = `
+    <div style="background:#111827; border:1px solid ${corStatus}; border-radius:10px; padding:14px; margin-top:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+        <strong style="color:#f9fafb; font-size:15px;">📊 Previsão de Fechamento do Mês</strong>
+        <span style="color:${corStatus}; font-weight:700; font-size:13px;">${textoStatus}</span>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; font-size:13px;">
+        <div style="background:#1f2937; padding:8px; border-radius:6px;">
+          <div style="color:#9ca3af;">Saldo Atual</div>
+          <div style="color:#fff; font-weight:700;">${fmtMoney(p.saldoAtual)}</div>
+        </div>
+        <div style="background:#1f2937; padding:8px; border-radius:6px;">
+          <div style="color:#9ca3af;">Receitas Previstas</div>
+          <div style="color:#22c55e; font-weight:700;">+ ${fmtMoney(p.receitasPrevistas)}</div>
+        </div>
+        <div style="background:#1f2937; padding:8px; border-radius:6px;">
+          <div style="color:#9ca3af;">Despesas + Marketing</div>
+          <div style="color:#ef4444; font-weight:700;">- ${fmtMoney(p.despesasPrevistas)}</div>
+        </div>
+        <div style="background:#1f2937; padding:8px; border-radius:6px; border:1px solid ${corStatus};">
+          <div style="color:#9ca3af;">Saldo Previsto Fim do Mês</div>
+          <div style="color:${corStatus}; font-weight:800; font-size:15px;">${fmtMoney(p.saldoPrevistoFimDoMes)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function registrarEliminacaoMataMata(saveState, competicao, fase, adversario, placarUsuario, placarAdversario) {
+  const s = saveState || state;
+  if (!s) return;
+  if (!s.temporadaAtual) s.temporadaAtual = {};
+  if (!s.temporadaAtual.eliminacoes) s.temporadaAtual.eliminacoes = [];
+  s.knockoutEliminations = Array.isArray(s.knockoutEliminations) ? s.knockoutEliminations : [];
+
+  const msgEliminacao = `Infelizmente, você não passou do mata-mata na ${competicao} (${fase}) contra ${adversario} (${placarUsuario}x${placarAdversario}).`;
+  const eliminationRecord = {
+    key: `${Number(s.season)}|${competicao}|${norm(s.club)}`,
+    season: Number(s.season),
+    competitionId: competicao,
+    competitionName: competicao,
+    round: fase,
+    opponent: adversario,
+    score: `${placarUsuario} x ${placarAdversario}`,
+    date: s.date,
+    club: s.club,
+    mensagem: msgEliminacao
+  };
+
+  s.temporadaAtual.eliminacoes.push({
+    competicao,
+    fase,
+    adversario,
+    placar: `${placarUsuario}x${placarAdversario}`,
+    mensagem: msgEliminacao
+  });
+
+  if (!s.knockoutEliminations.some(item => item.key === eliminationRecord.key)) {
+    s.knockoutEliminations.unshift(eliminationRecord);
+    s.knockoutEliminations = s.knockoutEliminations.slice(0, 100);
+  }
+
+  if (typeof openCustomModal === 'function') {
+    openCustomModal('Fim da participação no mata-mata', `
+      <div style="text-align:center;padding:10px">
+        <div style="font-size:34px;margin-bottom:10px">🏆</div>
+        <h3 style="margin:0 0 10px;color:#f87171">Infelizmente, você não passou do mata-mata.</h3>
+        <p>${esc(s.club)} foi eliminado(a) da ${esc(competicao)} (${esc(fase)}).</p>
+        <p><b>${esc(adversario)}</b> · Placar ${esc(placarUsuario)} x ${esc(placarAdversario)}</p>
+        <p class="small muted">A eliminação foi registrada no histórico desta carreira e aparecerá no encerramento da temporada.</p>
+      </div>
+    `, null, 'Fechar', false, '560px');
+  } else if (typeof exibirModalAviso === 'function') {
+    exibirModalAviso('Eliminação no Mata-Mata', msgEliminacao);
+  } else {
+    alert(msgEliminacao);
+  }
+}
+
+function consolidarViradaDeTemporada(saveState, resultadosMundoTemporada = []) {
+  const s = saveState || state;
+  const anoEncerrado = Number(s?.season) || 2026;
+  if (!s.historicoCarreira) s.historicoCarreira = [];
+  if (!s.campeoesDoMundoSave) s.campeoesDoMundoSave = [];
+  s.worldChampionHistory = Array.isArray(s.worldChampionHistory) ? s.worldChampionHistory : [];
+
+  const torneios = Array.isArray(resultadosMundoTemporada) ? resultadosMundoTemporada.map(t => ({
+    id: t.id || t.competitionId || t.nomeCompeticao,
+    name: t.nomeCompeticao || t.name,
+    champion: t.clubeCampeao || t.champion,
+    runnerUp: t.clubeVice || t.runnerUp || '—'
+  })) : [];
+
+  const campeoesDoAno = {
+    season: anoEncerrado,
+    ano: anoEncerrado,
+    competitions: torneios,
+    torneios
+  };
+  s.campeoesDoMundoSave.unshift(campeoesDoAno);
+
+  const resumoJogador = {
+    ano: anoEncerrado,
+    season: anoEncerrado,
+    clube: s.club,
+    userClub: s.club,
+    titulos: s.temporadaAtual?.titulosConquistados || s.titles || [],
+    acessosRebaixamentos: s.temporadaAtual?.statusDivisao || 'Permanência na divisão',
+    eliminacoes: s.temporadaAtual?.eliminacoes || s.knockoutEliminations || [],
+    premiacoesTotal: s.temporadaAtual?.premiacoesRecebidas || 0
+  };
+  s.historicoCarreira.unshift(resumoJogador);
+
+  return { resumoJogador, campeoesDoAno };
+}
+
+function arenaLandCost(capacity){
+  const cap = Math.max(15000, Number(capacity) || 15000);
+  return Math.round(12000000 * Math.pow(cap / 15000, 0.55));
+}
+
+function getSelectedArenaCapacity(){
+  const cap = Number(state?.arenaProposedCapacity || selectedArenaCapacity || 15000);
+  return [15000, 30000, 50000, 80000, 100000].includes(cap) ? cap : 15000;
+}
+
+function arenaPermitCost(capacity){
+  const cap = Math.max(15000, Number(capacity) || 15000);
+  return Math.round(4500000 * Math.pow(cap / 15000, 0.65));
+}
+
+function stadiumUpgradeCost(baseCost){
+  return Math.round(Number(baseCost) * STADIUM_UPGRADE_COST_INCREASE);
+}
+
+function stadiumAttendanceStrengthBonus(attendance, capacity){
+  const att = Math.max(0, Number(attendance) || 0);
+  const cap = Math.max(1, Number(capacity) || 1);
+  if(att <= 0) return 0;
+  const rate = clamp(att / cap, 0, 1);
+  let bonus = clamp(Math.ceil(rate * 5), 1, 5);
+  if(att >= 45000) bonus = Math.max(bonus, 5);
+  else if(att >= 32000) bonus = Math.max(bonus, 4);
+  else if(att >= 20000) bonus = Math.max(bonus, 3);
+  else if(att >= 10000) bonus = Math.max(bonus, 2);
+  return clamp(bonus, 1, 5);
+}
+
 const FACILITIES={
  stadium:{name:'Estádio',icon:'🏟️',base:1800000,max:6,effect:'Libera anéis para obras; a capacidade cresce quando cada setor fica pronto.'},
  parking:{name:'Estacionamento',icon:'🚗',base:350000,max:6,effect:'Gera receita com vagas de estacionamento em jogos em casa.'},
@@ -974,10 +1296,10 @@ function openParkingModal(){
 
   el.innerHTML = `
     <div class="visual-modal-overlay">
-      <div class="visual-modal-card">
+      <div class="visual-modal-card" style="width:min(98vw,1500px);max-width:1500px;max-height:96vh;overflow:hidden;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;padding:20px">
         
         <!-- ================= LADO ESQUERDO: TERRENO PIXEL-ART (Screenshot 6) ================= -->
-        <div class="visual-canvas-left">
+        <div class="visual-canvas-left" style="min-width:0;min-height:0;overflow:auto;padding:12px;transform:scale(1.02);transform-origin:top left">
           
           <div style="background:#1a1438;border:2px solid #a855f7;box-shadow:0 0 16px rgba(168,85,247,0.4);padding:6px 18px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:1px;color:#fff;margin-bottom:14px;display:flex;align-items:center;gap:8px">
             <span>🚗</span>
@@ -1025,7 +1347,7 @@ function openParkingModal(){
         </div>
 
         <!-- ================= LADO DIREITO: PAINEL DE CONTROLE (Screenshot 6) ================= -->
-        <div class="visual-panel-right">
+        <div class="visual-panel-right" style="min-width:0;max-height:calc(96vh - 40px);overflow-y:auto;overscroll-behavior:contain;padding:8px 12px 16px 8px">
           
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
@@ -1267,6 +1589,7 @@ let selectedArenaFinancing = 'cash';
 
 function openStadiumModal(initialTab){
   if(initialTab) stadiumModalTab = initialTab;
+  selectedArenaCapacity = getSelectedArenaCapacity();
 
   let el = $('#stadiumVisualModalContainer');
   const prevPanelScroll = el?.querySelector('.visual-panel-right')?.scrollTop || 0;
@@ -1292,7 +1615,7 @@ function openStadiumModal(initialTab){
 
   el.innerHTML = `
     <div class="visual-modal-overlay">
-      <div class="visual-modal-card">
+      <div class="visual-modal-card" style="width:min(98vw,1550px);max-width:1550px;max-height:97vh;overflow:hidden;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;padding:18px">
         
         <!-- ================= LADO ESQUERDO: CAMPO E ARQUIBANCADA PIXEL-ART ================= -->
         <div class="visual-canvas-left">
@@ -1413,7 +1736,7 @@ function openStadiumModal(initialTab){
         </div>
 
         <!-- ================= LADO DIREITO: PAINEL DE CONTROLE (Screenshots 1, 2 e 3) ================= -->
-        <div class="visual-panel-right">
+        <div class="visual-panel-right" style="min-width:0;max-height:calc(97vh - 36px);overflow-y:auto;overscroll-behavior:contain;padding:8px 12px 16px 8px">
           
           <!-- Cabeçalho -->
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -1560,6 +1883,7 @@ function openStadiumModal(initialTab){
                   { key: 'museumTour', name: 'Tour da Arena & Museu Imersivo', cost: 145000, reqLvl: 4, desc: 'circuito turístico de visitação do clube · Caldeirão +2 e prestígio' },
                   { key: 'solarPitch', name: 'Climatização de Gramado & Energia Solar', cost: 190000, reqLvl: 5, desc: 'energia solar sustentável · Caldeirão +3 e reduz desgaste' }
                 ].map(item => {
+                  item.cost = stadiumUpgradeCost(item.cost);
                   const has = state.stadiumUpgrades[item.key];
                   const isPreviewing = stadiumPreviewUpgrade === item.key;
                   const isUnlocked = stadLevel >= (item.reqLvl || 1);
@@ -1725,6 +2049,7 @@ function openStadiumModal(initialTab){
                   </div>
 
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+                    <div style="grid-column:1 / -1;background:#110e1d;border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:9px;font-size:10px;color:rgba(255,255,255,.65)">Os valores de terreno e licenças são recalculados conforme a capacidade selecionada: terreno ${fmtMoney(arenaLandCost(selectedArenaCapacity))} · alvará ${fmtMoney(arenaPermitCost(selectedArenaCapacity))} · total legal ${fmtMoney(arenaLandCost(selectedArenaCapacity)+arenaPermitCost(selectedArenaCapacity))}.</div>
                     <!-- Card Lote -->
                     <div style="background:#181428;border:1px solid ${state.arenaLandBought?'#22c55e':'rgba(255,255,255,0.1)'};border-radius:10px;padding:10px">
                       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -1737,10 +2062,10 @@ function openStadiumModal(initialTab){
                         ${state.arenaLandBought ? 'Escritura e matrícula averbadas em cartório.' : 'Compra do terreno para o complexo da arena.'}
                       </div>
                       ${state.arenaLandBought ? `
-                        <div style="margin-top:6px;font-size:11px;color:#22c55e;font-weight:800">✓ Quitado (R$ 12.000.000)</div>
+                        <div style="margin-top:6px;font-size:11px;color:#22c55e;font-weight:800">✓ Quitado (${fmtMoney(arenaLandCost(selectedArenaCapacity))})</div>
                       ` : `
                         <button class="btn primary" id="btnBuyArenaLand" style="width:100%;margin-top:8px;padding:6px;font-size:11px;font-weight:800;background:#0284c7">
-                          Comprar Lote • R$ 12.000.000
+                          Comprar Lote • ${fmtMoney(arenaLandCost(selectedArenaCapacity))}
                         </button>
                       `}
                     </div>
@@ -1757,10 +2082,10 @@ function openStadiumModal(initialTab){
                         ${state.arenaPermitBought ? 'Licença ambiental e bombeiros autorizados.' : 'Aprovação de projeto civil na prefeitura.'}
                       </div>
                       ${state.arenaPermitBought ? `
-                        <div style="margin-top:6px;font-size:11px;color:#22c55e;font-weight:800">✓ Aprovado (R$ 4.500.000)</div>
+                        <div style="margin-top:6px;font-size:11px;color:#22c55e;font-weight:800">✓ Aprovado (${fmtMoney(arenaPermitCost(selectedArenaCapacity))})</div>
                       ` : `
                         <button class="btn primary" id="btnBuyArenaPermit" style="width:100%;margin-top:8px;padding:6px;font-size:11px;font-weight:800;background:#7c3aed">
-                          Solicitar Alvará • R$ 4.500.000
+                          Solicitar Alvará • ${fmtMoney(arenaPermitCost(selectedArenaCapacity))}
                         </button>
                       `}
                     </div>
@@ -1775,6 +2100,13 @@ function openStadiumModal(initialTab){
                   <option value="50000" ${selectedArenaCapacity===50000?'selected':''}>50.000 lugares · R$ 325.000.000 (R$ 6.500/lugar)</option>
                   <option value="80000" ${selectedArenaCapacity===80000?'selected':''}>80.000 lugares · R$ 600.000.000 (R$ 7.500/lugar)</option>
                 </select>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px">
+                  <div style="padding:10px;background:#110e1d;border:1px solid rgba(255,255,255,.08);border-radius:9px"><div class="small muted">Lote urbano</div><b>${fmtMoney(arenaLandCost(selectedArenaCapacity))}</b></div>
+                  <div style="padding:10px;background:#110e1d;border:1px solid rgba(255,255,255,.08);border-radius:9px"><div class="small muted">Alvará e licenças</div><b>${fmtMoney(arenaPermitCost(selectedArenaCapacity))}</b></div>
+                  <div style="padding:10px;background:#110e1d;border:1px solid rgba(168,85,247,.3);border-radius:9px"><div class="small muted">Obra conforme capacidade</div><b style="color:#c4b5fd">${fmtMoney(calcArenaTotalCost(selectedArenaCapacity))}</b></div>
+                  <div style="padding:10px;background:#110e1d;border:1px solid rgba(34,197,94,.25);border-radius:9px"><div class="small muted">Total do projeto</div><b style="color:#4ade80">${fmtMoney(arenaLandCost(selectedArenaCapacity) + arenaPermitCost(selectedArenaCapacity) + calcArenaTotalCost(selectedArenaCapacity))}</b></div>
+                </div>
 
                 <label style="display:block;margin-top:14px;font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">3. NOME DA NOVA ARENA:</label>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
@@ -1949,8 +2281,8 @@ function openStadiumModal(initialTab){
                     <div style="font-size:11px;color:rgba(255,255,255,0.5);flex:1;min-width:200px">
                       Grandes eventos (Thiaguinho, Ludmilla, Villa Mix, Festivais) geram milhões em aluguel e visibilidade ao clube.
                     </div>
-                    <button class="btn primary" id="btnSearchConcertEvents" style="font-size:11px;padding:8px 14px;background:linear-gradient(135deg,#7c3aed,#a855f7);white-space:nowrap;font-weight:900">
-                      🎤 Convidar Produtoras de Shows
+                    <button class="btn primary" id="btnSearchConcertEvents" ${Number.isFinite(Number(state.lastStadiumCommercialOfferRound)) && Number(state.round)-Number(state.lastStadiumCommercialOfferRound)<STADIUM_OFFER_INTERVAL_ROUNDS ? 'disabled title="Nova proposta disponível após quatro rodadas"' : ''} style="font-size:11px;padding:8px 14px;background:linear-gradient(135deg,#7c3aed,#a855f7);white-space:nowrap;font-weight:900">
+                      🎤 ${Number.isFinite(Number(state.lastStadiumCommercialOfferRound)) && Number(state.round)-Number(state.lastStadiumCommercialOfferRound)<STADIUM_OFFER_INTERVAL_ROUNDS ? `Aguarde ${STADIUM_OFFER_INTERVAL_ROUNDS-(Number(state.round)-Number(state.lastStadiumCommercialOfferRound))} rodada(s)` : 'Convidar Produtoras de Shows'}
                     </button>
                   </div>
                 `}
@@ -1988,9 +2320,9 @@ function openStadiumModal(initialTab){
   const btnBuyLand = $('#btnBuyArenaLand');
   if(btnBuyLand){
     btnBuyLand.onclick = () => {
-      const landCost = 12000000;
+      const landCost = arenaLandCost(selectedArenaCapacity);
       if(state.balance < landCost){
-        toast('Saldo insuficiente no caixa para comprar o Lote Urbano (R$ 12.000.000)!');
+        toast(`Saldo insuficiente no caixa para comprar o Lote Urbano (${fmtMoney(landCost)})!`);
         return;
       }
       state.balance -= landCost;
@@ -2005,9 +2337,9 @@ function openStadiumModal(initialTab){
   const btnBuyPermit = $('#btnBuyArenaPermit');
   if(btnBuyPermit){
     btnBuyPermit.onclick = () => {
-      const permitCost = 4500000;
+      const permitCost = arenaPermitCost(selectedArenaCapacity);
       if(state.balance < permitCost){
-        toast('Saldo insuficiente para emitir o Alvará da Prefeitura (R$ 4.500.000)!');
+        toast(`Saldo insuficiente para emitir o Alvará da Prefeitura (${fmtMoney(permitCost)})!`);
         return;
       }
       state.balance -= permitCost;
@@ -2047,8 +2379,9 @@ function openStadiumModal(initialTab){
   const bSrchRent = $('#btnSearchRentalOffers');
   if(bSrchRent){
     bSrchRent.onclick = () => {
-      generateStadiumRentalProposal(true);
-      toast('📬 Novo clube interessado em alugar seu estádio encontrado!');
+      const proposal = generateStadiumRentalProposal();
+      if(proposal) toast('📬 Novo clube interessado em alugar seu estádio encontrado!');
+      else toast('A próxima oportunidade comercial do estádio estará disponível após quatro rodadas.');
       openStadiumModal();
     };
   }
@@ -2056,8 +2389,9 @@ function openStadiumModal(initialTab){
   const bSrchEvt = $('#btnSearchConcertEvents');
   if(bSrchEvt){
     bSrchEvt.onclick = () => {
-      generateStadiumEventProposal(true);
-      toast('🎤 Produtora cultural entrou em contato com proposta de megaevento!');
+      const proposal = generateStadiumEventProposal();
+      if(proposal) toast('🎤 Produtora cultural entrou em contato com proposta de megaevento!');
+      else toast('A próxima oportunidade comercial do estádio estará disponível após quatro rodadas.');
       openStadiumModal();
     };
   }
@@ -2124,6 +2458,8 @@ function openStadiumModal(initialTab){
   if(selArenaCap){
     selArenaCap.onchange = () => {
       selectedArenaCapacity = +selArenaCap.value;
+      state.arenaProposedCapacity = selectedArenaCapacity;
+      save();
       openStadiumModal();
     };
   }
@@ -2154,7 +2490,12 @@ function openStadiumModal(initialTab){
 // =========================================================================
 
 function generateStadiumRentalProposal(force = false){
+  const currentRound = Math.max(0, Number(state.round) || 0);
+  const lastOfferRound = Number(state.lastStadiumCommercialOfferRound);
+  const offerWindowClosed = Number.isFinite(lastOfferRound) && currentRound - lastOfferRound < STADIUM_OFFER_INTERVAL_ROUNDS;
+  if(offerWindowClosed) return null;
   if(state.stadiumClubRental && !force) return state.stadiumClubRental;
+  if(state.stadiumEventProposal && !force) return null;
   if(state.lastStadiumEvent?.date === state.date) return null;
   const currentClubNorm = norm(state.club || '');
   const candidates = (state.teams || [])
@@ -2165,7 +2506,7 @@ function generateStadiumRentalProposal(force = false){
   const pool = candidates.length > 0 ? candidates : fallbackClubs;
   const randomClub = pool[Math.floor(Math.random() * pool.length)] || 'Ituano';
 
-  const cap = Math.min(48000, Math.max(0, Number(state.infrastructure?.stadium?.capacity) || 8000));
+  const cap = Math.max(0, Number(state.infrastructure?.stadium?.capacity) || 8000);
   const feeFactor = 0.9 + Math.random() * 0.2;
   const baseFee = Math.round(Math.max(25000, cap * (3.5 + Math.random() * 2) * feeFactor));
 
@@ -2177,6 +2518,8 @@ function generateStadiumRentalProposal(force = false){
     expiresAfterRound: (Number(state.round) || 0) + 3,
     receivedDate: state.date
   };
+  state.lastStadiumCommercialOfferRound = currentRound;
+  state.lastStadiumCommercialOfferType = 'rental';
   return state.stadiumClubRental;
 }
 
@@ -2224,6 +2567,11 @@ function rejectClubRental(returnToCentral = false){
 }
 
 function generateStadiumEventProposal(force = false){
+  const currentRound = Math.max(0, Number(state.round) || 0);
+  const lastOfferRound = Number(state.lastStadiumCommercialOfferRound);
+  const offerWindowClosed = Number.isFinite(lastOfferRound) && currentRound - lastOfferRound < STADIUM_OFFER_INTERVAL_ROUNDS;
+  if(offerWindowClosed) return null;
+  if(state.stadiumClubRental && !force) return null;
   if(state.stadiumEventProposal && !force) return state.stadiumEventProposal;
   if(state.lastStadiumEvent?.date === state.date) return null;
   const events = [
@@ -2247,6 +2595,8 @@ function generateStadiumEventProposal(force = false){
     expiresAfterRound: (Number(state.round) || 0) + 3,
     receivedDate: state.date
   };
+  state.lastStadiumCommercialOfferRound = currentRound;
+  state.lastStadiumCommercialOfferType = 'show';
   return state.stadiumEventProposal;
 }
 
@@ -3167,7 +3517,8 @@ function calcArenaTotalCost(cap){
 }
 
 function buyDirectArenaLand(mode = 'cash'){
-  const landCost = 12000000;
+  const capacity = getSelectedArenaCapacity();
+  const landCost = arenaLandCost(capacity);
   if(state.arenaLandBought){
     toast('O Lote Urbano já foi adquirido e escriturado para o clube!');
     return false;
@@ -3182,7 +3533,7 @@ function buyDirectArenaLand(mode = 'cash'){
     state.arenaLandBought = true;
     toast('🏙️ Lote Urbano adquirido com sucesso! Escritura registrada em cartório.');
   } else {
-    const down = 1200000;
+    const down = Math.round(landCost * 0.10);
     if(state.balance < down){
       toast(`Saldo insuficiente para entrada da parceria do terreno (${fmtMoney(down)})!`);
       return false;
@@ -3190,7 +3541,7 @@ function buyDirectArenaLand(mode = 'cash'){
     state.balance -= down;
     state.expense = (state.expense || 0) + down;
     state.arenaLandBought = true;
-    state.arenaLandDebt = { monthly: 450000, roundsRemaining: 24 };
+    state.arenaLandDebt = { monthly: Math.round(landCost * 0.9 / 24), roundsRemaining: 24, principal: landCost, capacity };
     toast('🏛️ Parceria público-privada aprovada! Entrada de 10% quitada e terreno liberado.');
   }
   save();
@@ -3199,7 +3550,8 @@ function buyDirectArenaLand(mode = 'cash'){
 }
 
 function buyDirectArenaPermit(mode = 'cash'){
-  const permitCost = 4500000;
+  const capacity = getSelectedArenaCapacity();
+  const permitCost = arenaPermitCost(capacity);
   if(state.arenaPermitBought){
     toast('O Alvará da Prefeitura já foi emitido e aprovado!');
     return false;
@@ -3214,7 +3566,7 @@ function buyDirectArenaPermit(mode = 'cash'){
     state.arenaPermitBought = true;
     toast('🏛️ Alvará de Construção da Prefeitura e licença ambiental emitidos!');
   } else {
-    const down = 450000;
+    const down = Math.round(permitCost * 0.10);
     if(state.balance < down){
       toast(`Saldo insuficiente para entrada das taxas do alvará (${fmtMoney(down)})!`);
       return false;
@@ -3222,7 +3574,7 @@ function buyDirectArenaPermit(mode = 'cash'){
     state.balance -= down;
     state.expense = (state.expense || 0) + down;
     state.arenaPermitBought = true;
-    state.arenaPermitDebt = { monthly: 170000, roundsRemaining: 24 };
+    state.arenaPermitDebt = { monthly: Math.round(permitCost * 0.9 / 24), roundsRemaining: 24, principal: permitCost, capacity };
     toast('📋 Convênio municipal aprovado! Alvará emitido com taxas parceladas.');
   }
   save();
@@ -3231,7 +3583,10 @@ function buyDirectArenaPermit(mode = 'cash'){
 }
 
 function buyDirectArenaBoth(){
-  const total = 16500000;
+  const capacity = getSelectedArenaCapacity();
+  const landCost = arenaLandCost(capacity);
+  const permitCost = arenaPermitCost(capacity);
+  const total = (state.arenaLandBought ? 0 : landCost) + (state.arenaPermitBought ? 0 : permitCost);
   if(state.arenaLandBought && state.arenaPermitBought){
     toast('Os pré-requisitos legais (Lote e Alvará) já estão 100% quitados!');
     return false;
@@ -3242,8 +3597,8 @@ function buyDirectArenaBoth(){
   }
   state.balance -= total;
   state.expense = (state.expense || 0) + total;
-  state.arenaLandBought = true;
-  state.arenaPermitBought = true;
+  if(!state.arenaLandBought) state.arenaLandBought = true;
+  if(!state.arenaPermitBought) state.arenaPermitBought = true;
   toast('🎉 Regularização completa! Lote escriturado e Alvará emitido com sucesso.');
   save();
   render();
@@ -3298,7 +3653,7 @@ function startNewArenaProject(name, cap, financingMethod = 'cash'){
     return;
   }
 
-  const finalCap = cap || 15000;
+  const finalCap = [15000, 30000, 50000, 80000, 100000].includes(Number(cap)) ? Number(cap) : 15000;
   const totalCost = calcArenaTotalCost(finalCap);
   let downPayment = totalCost;
   let months = finalCap <= 15000 ? 18 : finalCap <= 30000 ? 24 : finalCap <= 50000 ? 30 : 36;
@@ -5029,6 +5384,11 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   fixture.played = true;
   state.news = state.news || [];
   state.news.unshift(`🏆 Copa do Brasil (${phase.name}): ${fixture.home} ${hg} x ${ag} ${fixture.away}. ${norm(winner) === norm(state.club) ? 'Classificado.' : 'Eliminado.'}`);
+  if(norm(winner) !== norm(state.club)){
+    const opp = norm(fixture.home) === norm(state.club) ? fixture.away : fixture.home;
+    const oppGoals = norm(fixture.home) === norm(state.club) ? ag : hg;
+    registrarEliminacaoMataMata(state, 'Copa do Brasil', phase.name, opp, userGoals, oppGoals);
+  }
   save();
   render();
   openPressConferenceModal('post', result);
@@ -7241,7 +7601,21 @@ function getNextClubFixtureDate(gameState = state){
 function getNextPendingClubFixture(gameState = state){
   const pending = getPendingClubCompetitions(gameState);
   const future = pending.filter(item => item.date && item.date >= gameState.date);
-  return (future.length ? future : pending.filter(item => item.date)).sort((a,b)=>String(a.date).localeCompare(String(b.date)))[0] || null;
+  const next = (future.length ? future : pending.filter(item => item.date)).sort((a,b)=>String(a.date).localeCompare(String(b.date)))[0] || null;
+  if(!next) return null;
+  if(next.id === 'bra-cup'){
+    const copa = gameState === state && typeof getCopaDoBrasilState === 'function'
+      ? getCopaDoBrasilState()
+      : gameState.copaData;
+    const phase = copa?.phases?.[next.detail];
+    const fixtureIndex = (phase?.fixtures || []).findIndex(fixture =>
+      !fixture.score && !fixture.winner && fixture.played !== true &&
+      (norm(fixture.home) === norm(gameState.club) || norm(fixture.away) === norm(gameState.club))
+    );
+    const fixture = fixtureIndex >= 0 ? phase.fixtures[fixtureIndex] : null;
+    return {...next, fixtureIndex, home:fixture?.home || '', away:fixture?.away || '', opponent:fixture ? (norm(fixture.home) === norm(gameState.club) ? fixture.away : fixture.home) : ''};
+  }
+  return next;
 }
 
 function openNextPendingCompetitionFixture(nextFixture = getNextPendingClubFixture(state)){
@@ -7268,17 +7642,9 @@ function openNextPendingCompetitionFixture(nextFixture = getNextPendingClubFixtu
       save();
     }
   }
-  view = 'calendario';
-  if(nextFixture.id === 'bra-cup'){
-    calendarFilter = 'bra-cup';
-    copaCurrentPhase = nextFixture.detail || copaCurrentPhase;
-  } else if(['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc'].includes(nextFixture.id)){
-    calendarFilter = nextFixture.id;
-  } else if(nextFixture.id?.startsWith('bra-est-')){
-    calendarFilter = nextFixture.id;
-  } else {
-    calendarFilter = 'ALL';
-  }
+  // Keep the user on the Central. Its match panel will render the pending
+  // competition as the next commitment instead of redirecting to Calendar.
+  view = 'central';
   save();
   render();
   toast(`Próximo confronto aberto: ${nextFixture.name}${nextFixture.detail ? ` (${nextFixture.detail})` : ''}. Data: ${formatDatePtBr(state.date)}.`);
@@ -7948,7 +8314,7 @@ function teamFameScore(){
 // projeção de público e ofertas comerciais.
 function marketingBenefits(weeklyInvestment = state?.marketingWeekly, marketingLevel = state?.infrastructure?.marketing?.level){
   const level = clamp(Math.round(Number(marketingLevel) || 1), 1, FACILITIES.marketing.max);
-  const investment = Math.max(2500, Number(weeklyInvestment) || 12000);
+  const investment = Math.max(9000, Number(weeklyInvestment) || 36000);
   const attendanceBoost = (0.015 * level) + clamp((investment - 2500) / 100000, 0, 0.08);
   const sponsorBoost = (0.03 * (level - 1)) + clamp((investment - 2500) / 90000, 0, 0.15);
   return {
@@ -9170,7 +9536,12 @@ function migrate(s){
   normalizeSquadState(s);
   s.ticketPrice=+s.ticketPrice||Math.round(clamp(18+(strength(clubByName(s.club)||{atk:65,mid:65,def:65})-58)*1.7,15,130));
   s.parkingPrice=+s.parkingPrice||25;
-  s.marketingWeekly=Math.max(2500, Number(s.marketingWeekly)||Math.round((Number(s.marketingMonthly)||48000)/4)||12000);
+  if(Number(s.marketingEconomyVersion) !== 2){
+    const previousWeekly = Math.max(3000, Number(s.marketingWeekly) || Math.round((Number(s.marketingMonthly) || 48000) / 4) || 12000);
+    s.marketingWeekly = Math.round(previousWeekly * 3);
+    s.marketingEconomyVersion = 2;
+  }
+  s.marketingWeekly = Math.max(MARKETING_MINIMUM_WEEKLY, Number(s.marketingWeekly) || 36000);
   s.marketingMonthly=s.marketingWeekly * 4;
   if(!Array.isArray(s.youthAcademy) || s.youthAcademy.length === 0){
     const acadLvl = s.infrastructure?.academy?.level || 1;
@@ -10295,7 +10666,10 @@ function calculateTacticalMetrics(formation, tac){
 }
 
 function calculateTacticalMatchDynamics(home, away, hTac, aTac, homeStrength, awayStrength, opts = {}){
-  const hs = homeStrength || teamStrengthByName(home);
+  const isUserHome = norm(home) === norm(state?.club);
+  const crowdProjection = isUserHome && typeof attendanceProjection === 'function' ? attendanceProjection(away) : null;
+  const homeAttendanceBonus = Math.min(5, Math.max(0, Number(crowdProjection?.attendanceForceBonus) || 0));
+  const hs = (homeStrength || teamStrengthByName(home)) + homeAttendanceBonus;
   const as = awayStrength || teamStrengthByName(away);
   
   const hMeta = FORMATION_META[hTac.formation] || FORMATION_META['4-3-3'];
@@ -10437,6 +10811,7 @@ function attendanceProjection(opponent){
   const closedSeats = (state?.stadiumRingData?.activeWork ? 3500 : 0);
   const effectiveCap = Math.max(2000, cap - closedSeats);
   const attendance = Math.round(effectiveCap * rate);
+  const attendanceForceBonus = stadiumAttendanceStrengthBonus(attendance, effectiveCap);
   const ticketRevenue = attendance * price;
 
   // Cálculo de vagas e receita de estacionamento
@@ -10455,6 +10830,7 @@ function attendanceProjection(opponent){
 
   return {
     attendance,
+    attendanceForceBonus,
     capacity:cap,
     rate,
     price,
@@ -10575,13 +10951,14 @@ function monthlyFinancialProjection(socioData = null){
   const expenses = {
     payroll: totalMonthlyPayroll(),
     scouts: getMonthlyScoutPayroll(state),
-    marketing: Math.max(2500, Number(state.marketingWeekly) || 12000) * 4,
+    marketing: Math.max(MARKETING_MINIMUM_WEEKLY, Number(state.marketingWeekly) || 36000) * 4,
     bankRepayments: bankInstallments,
     stadiumRepayments: stadiumInstallment
   };
   const monthlyRevenue = Object.values(revenue).reduce((sum, value) => sum + value, 0);
   const monthlyExpenses = Object.values(expenses).reduce((sum, value) => sum + value, 0);
-  return { revenue, expenses, monthlyRevenue, monthlyExpenses, monthlyBalance: monthlyRevenue - monthlyExpenses, homeSample: recentHome.length };
+  const monthlyBalance = monthlyRevenue - monthlyExpenses;
+  return { revenue, expenses, monthlyRevenue, monthlyExpenses, monthlyBalance, projectedClosingBalance: (Number(state.balance) || 0) + monthlyBalance, homeSample: recentHome.length };
 }
 
 function processFitness(){
@@ -10756,7 +11133,17 @@ function finalizeRound(userRes, winners, isKO){
       parkRevenue:isHome?parkingRev:null, shop:isHome?shop:null, sponsorBonus:bonus, isHome, won:win
     });
     state.history = state.history.slice(0, 100);
-    if(isKO&&!advanced)state.eliminated=true;
+    if(isKO&&!advanced){
+      state.eliminated=true;
+      state.knockoutEliminations = Array.isArray(state.knockoutEliminations) ? state.knockoutEliminations : [];
+      const eliminationKey = `${Number(state.season)}|${comp.id}|${norm(state.club)}`;
+      if(!state.knockoutEliminations.some(item => item.key === eliminationKey)){
+        const eliminationRecord = { key:eliminationKey, season:Number(state.season), competitionId:comp.id, competitionName:comp.name, club:state.club, round:state.round+1, opponent:isHome?userRes.a:userRes.h, date:state.date, score:`${gf} x ${ga}` };
+        state.knockoutEliminations.unshift(eliminationRecord);
+        state.knockoutEliminations = state.knockoutEliminations.slice(0,100);
+        openCustomModal('Fim da participação no mata-mata', `<div style="text-align:center;padding:10px"><div style="font-size:34px;margin-bottom:10px">🏆</div><h3 style="margin:0 0 10px;color:#f87171">Infelizmente, você não passou do mata-mata.</h3><p>${esc(state.club)} foi eliminado(a) da ${esc(comp.name)}.</p><p><b>${esc(eliminationRecord.opponent)}</b> · Placar ${esc(eliminationRecord.score)} · Fase ${eliminationRecord.round}</p><p class="small muted">A eliminação foi registrada no histórico desta carreira e aparecerá no encerramento da temporada.</p></div>`, null, 'Fechar', false, '560px');
+      }
+    }
     state.lastMatchSummary = { h: userRes.h, a: userRes.a, hg: userRes.hg, ag: userRes.ag, ga, isHome, won: win };
   }
   if(isKO){
@@ -10811,7 +11198,7 @@ function finalizeRound(userRes, winners, isKO){
   state.round++;
   if(typeof expireRoundLimitedOffers === 'function') expireRoundLimitedOffers(state.round);
   // Aporte semanal em marketing (rebalanceado por rodada)
-  const mktWeeklyExp = Math.max(2500, Number(state.marketingWeekly) || 12000);
+    const mktWeeklyExp = Math.max(MARKETING_MINIMUM_WEEKLY, Number(state.marketingWeekly) || 36000);
   state.balance -= mktWeeklyExp;
   state.expense += mktWeeklyExp;
   applyMatchIncidents(state.lastMatchSummary || null);
@@ -10853,11 +11240,13 @@ function finalizeRound(userRes, winners, isKO){
   }
 
   // Propostas de aluguel do estádio e convites para shows musicais / festivais
-  if(!state.stadiumClubRental && Math.random() < 0.45){
-    generateStadiumRentalProposal();
-  }
-  if(!state.stadiumEventProposal && Math.random() < 0.35){
-    generateStadiumEventProposal();
+  // One stadium rental/show opportunity every four rounds. Legacy saves without
+  // metadata start their cooldown on the first proposal after this migration.
+  const lastStadiumOfferRound = Number(state.lastStadiumCommercialOfferRound);
+  if(!state.stadiumClubRental && !state.stadiumEventProposal &&
+     (!Number.isFinite(lastStadiumOfferRound) || state.round - lastStadiumOfferRound >= 4)){
+    if(state.lastStadiumCommercialOfferType !== 'show') generateStadiumEventProposal();
+    else generateStadiumRentalProposal();
   }
 
   // Atualiza propostas de mercado para jogadores colocados à venda ou para empréstimo
@@ -11030,34 +11419,9 @@ function finalizeRound(userRes, winners, isKO){
     // Desgaste natural do estádio nos jogos
     state.stadiumMaintenance = Math.max(10, (state.stadiumMaintenance || 90) - 2);
 
-    // Chance de receber proposta de show (se manutenção >= 65%)
-    if(!state.stadiumEventProposal && (state.stadiumMaintenance || 90) >= 65 && Math.random() < 0.40){
-      const shows = [
-        { name: 'Megashow da Anitta (Baile Pop)', fee: 320000 },
-        { name: 'Show Histórico da Pabllo Vittar', fee: 280000 },
-        { name: 'Palco do Festival Rock in Rio / Lolla', fee: 650000 },
-        { name: 'Tardezinha do Thiaguinho', fee: 380000 },
-        { name: 'Festival VillaMix & Sertanejo', fee: 420000 },
-        { name: 'Festival de Trap & Rap Nacional', fee: 310000 }
-      ];
-      const show = shows[rnd(0, shows.length - 1)];
-      state.stadiumEventProposal = { ...show, receivedRound:Number(state.round)||0, expiresAfterRound:(Number(state.round)||0)+3, receivedDate:state.date };
-      state.news.unshift(`🎤 CONVITE PARA EVENTO: A produção do ${state.stadiumEventProposal.name} quer alugar nosso estádio por ${fmtMoney(state.stadiumEventProposal.fee)}!`);
-    }
-
-    // Chance de receber proposta de aluguel por clube visitante (se jogamos fora)
-    if(!state.stadiumClubRental && Math.random() < 0.45){
-      const clubsNeedingStadium = ['ARUC', 'Paranoá', 'Samambaia', 'Brasília', 'Santa Maria', 'Ceilândia'];
-      const rentingClub = clubsNeedingStadium[rnd(0, clubsNeedingStadium.length - 1)];
-      state.stadiumClubRental = {
-        club: rentingClub,
-        fee: rnd(45000, 95000),
-        receivedRound: Number(state.round) || 0,
-        expiresAfterRound: (Number(state.round) || 0) + 3,
-        receivedDate: state.date
-      };
-      state.news.unshift(`🏟️ PROPOSTA DE ALUGUEL: O ${rentingClub} quer alugar nosso estádio na próxima rodada por ${fmtMoney(state.stadiumClubRental.fee)}.`);
-    }
+    // Todas as propostas de aluguel e shows são geradas pelo calendário
+    // compartilhado de quatro rodadas em finalizeRound(). Não duplicar aqui:
+    // a rotina mensal anterior permitia ignorar o intervalo econômico.
 
     // Salário mensal do técnico creditado em seu patrimônio pessoal
     state.managerSalary = state.managerSalary || 9500;
@@ -12192,6 +12556,9 @@ function startLiveMatch(){
   const stadiumPitch = isUserHome ? (state.stadiumPitchType || 'natural') : 'natural';
   const stadiumUpgrades = isUserHome ? (state.stadiumUpgrades || {}) : { chairs: true, screen: false, ledRing: false, flares: false, ledLights: true };
   const attendance = isUserHome ? proj.attendance : Math.round(stadiumCap * clamp(0.3 + (hs/150), 0.15, 0.95));
+  const attendanceForceBonus = isUserHome
+    ? Math.min(5, Math.max(0, Number(proj?.attendanceForceBonus) || stadiumAttendanceStrengthBonus(attendance, stadiumCap)))
+    : stadiumAttendanceStrengthBonus(attendance, stadiumCap);
 
   // Constrói os 11 titulares para cada equipe com validação rigorosa de posições e funções táticas
   function buildMatchTeam(teamName, isUser, isHomeSide, teamTac){
@@ -12598,6 +12965,7 @@ function startLiveMatch(){
       pitch: stadiumPitch,
       upgrades: stadiumUpgrades
     },
+    attendanceForceBonus,
     homePosture: 'Equilibrada',
     awayPosture: 'Equilibrada',
     prelecao: 'Sem preleção',
@@ -14179,7 +14547,8 @@ function simulateMinute(s, min){
   evaluateAiCoachAdjustments(s, min);
 
   // 3. Força e posse de bola relativa
-  const hs = teamStrengthByName(s.home) * 1.08;
+  const homeCrowdBonus = Math.min(5, Math.max(0, Number(s.attendanceForceBonus ?? (norm(s.home) === norm(state?.club) ? attendanceProjection(s.away)?.attendanceForceBonus : stadiumAttendanceStrengthBonus(s.stadium?.attendance, s.stadium?.capacity))) || 0));
+  const hs = (teamStrengthByName(s.home) + homeCrowdBonus) * 1.08;
   const as = teamStrengthByName(s.away);
   const hStamAvg = s.homePlayers.reduce((acc, p) => acc + (p.stamina || 100), 0) / 11;
   const aStamAvg = s.awayPlayers.reduce((acc, p) => acc + (p.stamina || 100), 0) / 11;
@@ -15964,12 +16333,17 @@ function showEndOfSeasonModal(){
     }
   }
 
+  const eliminations = (state.knockoutEliminations || []).filter(item => Number(item.season) === Number(state.season) && norm(item.club) === norm(state.club));
+  const knockoutEliminationHtml = eliminations.length ? `<div style="background:rgba(239,68,68,.16);border:2px solid #ef4444;border-radius:12px;padding:14px;margin-bottom:14px;text-align:center"><b style="display:block;color:#f87171;font-size:14px">Infelizmente, você não passou do mata-mata.</b>${eliminations.map(elimination => `<div class="small" style="margin-top:6px">${esc(elimination.competitionName || elimination.competitionId || comp?.name || 'Competição')} · ${esc(elimination.round ? `Fase ${elimination.round}` : 'Fase eliminatória')} · ${esc(elimination.opponent || 'Adversário')} · ${esc(elimination.score || '')}</div>`).join('')}<div class="small" style="margin-top:8px">As eliminações e conquistas desta temporada ficarão registradas no histórico da carreira.</div></div>` : '';
+
   openCustomModal(
     `🏆 Encerramento da Temporada ${state.season}`,
     `
       <div style="text-align:center;margin-bottom:14px">
         <div class="muted">Seu clube finalizou a competição em <b>${pos}º lugar</b>.</div>
       </div>
+
+      ${knockoutEliminationHtml}
 
       ${promoInfo ? `
         <div style="background:${promoInfo.type==='promote'?'rgba(34,197,94,0.18)':'rgba(239,68,68,0.18)'};border:2px solid ${promoInfo.type==='promote'?'#22c55e':'#ef4444'};border-radius:12px;padding:12px 16px;margin-bottom:14px;text-align:center">
@@ -16359,6 +16733,80 @@ function advanceSeasonYear(){
   state.competitionHistory = state.competitionHistory.filter(item => Number(item.season) !== Number(finishedYear) || item.competitionId !== finalSeasonSnapshot.competitionId);
   state.competitionHistory.unshift(finalSeasonSnapshot);
   state.competitionHistory = state.competitionHistory.slice(0, 200);
+  // Arquivo anual do universo desta carreira, usando somente resultados e
+  // participantes persistidos no save ativo.
+  const yearCompetitions = new Map();
+  const addYearCompetition = (id, name, champion) => {
+    if(!champion || !String(champion).trim()) return;
+    const competitionId = String(id || name || 'competition');
+    yearCompetitions.set(`${Number(finishedYear)}|${competitionId}`, { id:competitionId, name:name || competitionId, champion:String(champion) });
+  };
+  addYearCompetition(compFinished?.id || state.compId, compFinished?.name || state.competition || 'Campeonato', rankingTable?.[0]?.name);
+  const copaData = getCopaDoBrasilState();
+  addYearCompetition('bra-cup', 'Copa do Brasil', copaData?.champion);
+  for(const [id, champion] of Object.entries(state.continentalChampionsBySeason?.[Number(finishedYear)] || {})){
+    addYearCompetition(id, compById(id)?.name || id, champion);
+  }
+  for(const [id, champion] of Object.entries(state.cupWinnersBySeason?.[Number(finishedYear)] || {})){
+    addYearCompetition(id, compById(id)?.name || (id === 'bra-cup' ? 'Copa do Brasil' : id), champion);
+  }
+  for(const [competitionId, tournament] of Object.entries(state.tournaments || {})){
+    if(Number(tournament?.season) !== Number(finishedYear)) continue;
+    const matches = Array.isArray(tournament.matches) ? tournament.matches : [];
+    const completed = matches.length > 0 && matches.every(match => ['played','complete','finished'].includes(String(match.status || '').toLowerCase()));
+    if(completed){
+      const finalMatch = matches.slice().reverse().find(match => match.winner || match.result);
+      const champion = tournament.champion || tournament.winner || (tournament.phase === 'final' ? finalMatch?.winner : null);
+      addYearCompetition(competitionId, compById(competitionId)?.name || tournament.name || competitionId, champion);
+    }
+  }
+  const addChampionFromTable = (id, rows, name) => {
+    if(!Array.isArray(rows) || !rows.length || !rows.some(row => Number(row?.j ?? row?.played ?? 0) > 0)) return;
+    const sorted = rows.slice().sort((a,b)=>(Number(b?.p ?? b?.points)||0)-(Number(a?.p ?? a?.points)||0)||((Number(b?.gp)||0)-(Number(b?.gc)||0))-((Number(a?.gp)||0)-(Number(a?.gc)||0)));
+    const required = id === 'bra-d' ? 4 : (Number(compById(id)?.teams) || 1);
+    if(sorted.length < required) return;
+    addYearCompetition(id, name || compById(id)?.name || id, sorted[0]?.name);
+  };
+  for(const id of ['bra-a','bra-b','bra-c','bra-d']){
+    const rows = id === state.compId ? state.teams : state.nationalCompetitionStandings?.[id];
+    addChampionFromTable(id, rows, compById(id)?.name || id);
+  }
+  for(const [id, rows] of Object.entries(state.internationalLeagueStandings?.[Number(finishedYear)] || {})){
+    addChampionFromTable(id, rows, compById(id)?.name || id);
+  }
+  if(state.competitionPlayoffWinners?.['bra-d']){
+    addYearCompetition('bra-d', compById('bra-d')?.name || 'Campeonato Brasileiro Série D', state.competitionPlayoffWinners['bra-d']);
+  }
+  if(state.estadualData){
+    for(const [cId, est] of Object.entries(state.estadualData)){
+      if(!est) continue;
+      const sortedEst = (est.teams || []).slice().sort((a,b)=>(Number(b.p)||0)-(Number(a.p)||0)||((Number(b.gp)||0)-(Number(b.gc)||0))-((Number(a.gp)||0)-(Number(a.gc)||0)));
+      if(sortedEst.length && sortedEst[0]?.j > 0){
+        addYearCompetition(cId, est.name || compById(cId)?.name || 'Campeonato Estadual', sortedEst[0]?.name);
+      }
+    }
+  }
+  addYearCompetition('bra-cup', 'Copa do Brasil', copaData?.champion);
+  const achievements = [];
+  if(Number(finishedPosition) === 1) achievements.push(`Campeão de ${compFinished?.name || state.competition || 'Campeonato'}`);
+  const clubChampionships = [...yearCompetitions.values()].filter(item => norm(item.champion) === norm(state.club));
+  for(const item of clubChampionships){
+    const achievement = `Título: ${item.name}`;
+    if(!achievements.includes(achievement)) achievements.push(achievement);
+  }
+  if(state.nextSeasonCompId && state.nextSeasonCompId !== state.compId){
+    const divisions = ['bra-a','bra-b','bra-c','bra-d'];
+    const label = divisions.indexOf(state.nextSeasonCompId) < divisions.indexOf(state.compId) ? 'Acesso' : 'Rebaixamento';
+    achievements.push(`${label} para ${compById(state.nextSeasonCompId)?.name || state.nextSeasonCompId}`);
+  }
+  const yearEliminations = (state.knockoutEliminations || []).filter(item => Number(item.season) === Number(finishedYear) && norm(item.club) === norm(state.club)).map(item => ({ competitionId:item.competitionId, competitionName:item.competitionName, round:item.round, opponent:item.opponent, score:item.score, date:item.date }));
+  if(yearEliminations.length) achievements.push(...yearEliminations.map(item => `Eliminação: ${item.competitionName || item.competitionId} (${item.score || 'placar não registrado'} contra ${item.opponent || 'adversário'})`));
+  const yearlyRecord = { season:Number(finishedYear), userClub:state.club, competitions:[...yearCompetitions.values()], achievements, eliminations:yearEliminations, titlesWon:clubChampionships.map(item => item.name), prizeMoney:Number(prize) || 0, savedAt:new Date().toISOString() };
+  state.worldChampionHistory = Array.isArray(state.worldChampionHistory) ? state.worldChampionHistory : [];
+  state.worldChampionHistory = state.worldChampionHistory.filter(item => Number(item.season) !== Number(finishedYear));
+  state.worldChampionHistory.unshift(yearlyRecord);
+  state.worldChampionHistory = state.worldChampionHistory.slice(0, 100);
+  state.campeoesDoMundoSave = state.worldChampionHistory;
   state.seasonHistory = state.seasonHistory || [];
   state.seasonHistory.unshift({
     season: finishedYear,
@@ -16792,6 +17240,7 @@ function openMarketingModal(){
   const mktLvl = benefits.level;
   const maxLvl = FACILITIES.marketing.max;
   const currentInvest = benefits.weeklyInvestment;
+  const sliderMax = Math.max(144000, Math.ceil((currentInvest * MARKETING_UPGRADE_MINIMUM_GROWTH) / MARKETING_MINIMUM_WEEKLY) * MARKETING_MINIMUM_WEEKLY);
   const cost = facilityCost('marketing');
   const max = mktLvl >= maxLvl;
 
@@ -16816,11 +17265,11 @@ function openMarketingModal(){
         <strong id="modalMktValLabel" style="color:var(--neon);font-size:24px">${fmtMoney(currentInvest)}/sem</strong>
       </div>
 
-      <input id="modalMktSlider" type="range" min="3000" max="48000" step="3000" value="${clamp(Math.round(currentInvest / 3000) * 3000, 3000, 48000)}" style="width:100%;margin-top:14px">
+      <input id="modalMktSlider" type="range" min="${MARKETING_MINIMUM_WEEKLY}" max="${sliderMax}" step="1000" value="${clamp(Math.round(currentInvest / 1000) * 1000, MARKETING_MINIMUM_WEEKLY, sliderMax)}" style="width:100%;margin-top:14px">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px">
-          <span>R$ 3.000/sem (Mínimo)</span>
-          <span>R$ 24.000/sem (Moderado)</span>
-          <span>R$ 48.000/sem (Campanha Máxima)</span>
+          <span>${fmtMoney(MARKETING_MINIMUM_WEEKLY)}/sem (Mínimo)</span>
+          <span>${fmtMoney(Math.round(sliderMax/2))}/sem (Moderado)</span>
+          <span>${fmtMoney(sliderMax)}/sem (Campanha Máxima)</span>
       </div>
     </div>
 
@@ -16865,7 +17314,7 @@ function openMarketingModal(){
   let pendingInvestment = currentInvest;
   function updateMktLive(){
     if(!slider) return;
-    const val = Math.max(3000, Number(slider.value) || 12000);
+    const val = Math.max(MARKETING_MINIMUM_WEEKLY, Number(slider.value) || 36000);
     pendingInvestment = val;
     const preview = marketingBenefits(val, mktLvl);
     const lbl = $('#modalMktValLabel'); if(lbl) lbl.textContent = fmtMoney(val) + '/sem';
@@ -18131,7 +18580,25 @@ function saleOffer(p){
 
 function facilityCost(key){
   const f=state.infrastructure[key]||{level:1},d=FACILITIES[key];
-  return Math.round(d.base*Math.pow(1.68,Math.max(0,f.level)));
+  const level = Math.max(0, Number(f.level) || 0);
+  return Math.round(Number(d.base || 0) * Math.pow(FACILITY_LEVEL_MULTIPLIER, level) * Math.pow(FACILITY_COST_INCREASE, level + 1));
+}
+
+function openWorldSaveChampionsModal(){
+  const history = Array.isArray(state?.worldChampionHistory) ? state.worldChampionHistory : [];
+  const currentSeason = Number(state?.season) || 2027;
+  const rows = history.slice().sort((a,b)=>Number(b.season)-Number(a.season));
+  const content = rows.length ? rows.map(item => `
+    <section style="padding:14px;background:#161c2b;border:1px solid rgba(255,255,255,.09);border-radius:12px;margin-bottom:10px">
+      <h3 style="margin:0 0 10px;color:#facc15">Temporada ${Number(item.season)||'—'}</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px">
+        ${(Array.isArray(item.competitions)?item.competitions:[]).map(comp=>`<div style="padding:9px;background:rgba(255,255,255,.035);border-radius:8px"><div class="small muted">${esc(comp.name||comp.id||'Competição')}</div><b style="color:#4ade80">🏆 ${esc(comp.champion||'Campeão não registrado')}</b></div>`).join('') || '<div class="small muted">Nenhum campeão foi registrado nesta temporada.</div>'}
+      </div>
+      ${item.achievements?.length ? `<div style="margin-top:10px"><b>Conquistas de ${esc(item.userClub||state.club)}</b><div class="small">${item.achievements.map(achievement=>esc(achievement)).join(' · ')}</div></div>` : ''}
+      ${item.prizeMoney ? `<div style="margin-top:8px;color:#4ade80;font-size:12px"><b>Premiação anual registrada:</b> ${fmtMoney(item.prizeMoney)}</div>` : ''}
+      ${Array.isArray(item.eliminations) && item.eliminations.length ? `<div style="margin-top:8px;color:#fca5a5;font-size:11px"><b>Eliminações na temporada:</b> ${item.eliminations.map(entry=>`${esc(entry.competitionName||entry.competitionId)} · ${esc(entry.score||'placar não registrado')} contra ${esc(entry.opponent||'adversário')}`).join(' · ')}</div>` : ''}
+    </section>`).join('') : `<div class="card" style="padding:22px;text-align:center"><h3>O histórico começa ao finalizar a temporada ${currentSeason}.</h3><div class="small muted">Ao virar o ano, o save arquiva campeões de torneios cujos resultados estejam completos, junto das conquistas do seu clube.</div></div>`;
+  openCustomModal('🏆 Campeões do Mundo do Save', `<div style="max-height:65vh;overflow:auto;padding-right:4px">${content}</div>`, null, 'Fechar', false, '900px');
 }
 
 function upgradeFacility(key){
@@ -18140,6 +18607,7 @@ function upgradeFacility(key){
   if(f.level>=d.max){toast('Estrutura no nível máximo.');return}
   const cost=facilityCost(key);
   if(state.balance<cost){toast('Caixa insuficiente para a obra.');return}
+  const previousMarketingWeekly = Math.max(MARKETING_MINIMUM_WEEKLY, Number(state.marketingWeekly) || 36000);
   state.balance-=cost;
   state.expense+=cost;
   f.level++;
@@ -18158,6 +18626,11 @@ function upgradeFacility(key){
     state.news.unshift(`🏟️ ESTÁDIO EVOLUÍDO PARA NÍVEL ${f.level}/8! O ${unlockedRing}º anel foi liberado para obras por setor. A capacidade não muda até a conclusão das obras.`);
   }
   if(key==='parking') f.spots = parkingSpots(f.level);
+  if(key==='marketing'){
+    state.marketingWeekly = Math.round(previousMarketingWeekly * MARKETING_UPGRADE_MINIMUM_GROWTH);
+    state.marketingMonthly = state.marketingWeekly * 4;
+    state.news.unshift(`📢 Aporte semanal de marketing reajustado em 20% após o upgrade: ${fmtMoney(state.marketingWeekly)}/semana.`);
+  }
   if(key==='training') state.news.unshift(`⚽ CENTRO DE TREINAMENTO NÍVEL ${f.level}: capacidade do elenco profissional ampliada para ${squadCapacity(f.level)} vagas (+3 por melhoria).`);
   if(key==='museum'||key==='stadium') state.trust.fans=clamp(state.trust.fans+4,0,100);
   if(key==='press') state.trust.board=clamp(state.trust.board+1,0,100);
@@ -18736,6 +19209,16 @@ function centralPage(){
   const matchGate = canStartMatch();
   const matchDate = getDateForRound(state.round, state.season);
   const isMatchDay = state.date === matchDate;
+  // An exhausted round index also means the primary competition has ended;
+  // don't let an empty round array hide a pending fixture from another cup.
+  const primaryScheduleEnded = !f && (!Array.isArray(state.schedule) || state.round >= state.schedule.length || state.schedule.slice(state.round).every(round => !Array.isArray(round) || !round.some(fixture => Array.isArray(fixture) && fixture.some(team => norm(team) === norm(state.club)))));
+  const nextPendingFixture = primaryScheduleEnded ? getNextPendingClubFixture(state) : null;
+  const finishedPosition = Array.isArray(state.teams) && state.teams.length ? position() : null;
+  const isPrizeEligibleLeague = ['bra-a','bra-b'].includes(comp?.id);
+  const finishedPrizeEstimate = finishedPosition && isPrizeEligibleLeague ? calculateSeasonPrizeMoney(finishedPosition, comp) : null;
+  const nextPendingCupDate = nextPendingFixture?.id === 'bra-cup' ? ensureMidweekDate(nextPendingFixture.date || state.date, state.season) : nextPendingFixture?.date;
+  const nextPendingIsToday = Boolean(nextPendingFixture && nextPendingCupDate === state.date);
+  const priorCompetitionName = comp?.name || state.competition || 'Campeonato principal';
 
   // Dados da Tabela da Competição Atual em Disputa (Screenshot 1)
   const activeComp = curComp() || { name: 'Campeonato Atual' };
@@ -19030,8 +19513,22 @@ function centralPage(){
             <span style="color:${weather.drain>1.1?'#f87171':'#94a3b8'};font-size:10px;font-weight:700">${esc(weather.impact)}</span>
           </div>
 
-          <!-- Confronto Principal ou Folga -->
-          ${!f ? `
+          <!-- Próximo compromisso oficial ou folga real -->
+          ${!f && primaryScheduleEnded && nextPendingFixture ? `
+            <div style="background:linear-gradient(135deg,#17142d,#111827);border:1px solid #7c3aed;border-radius:14px;padding:18px;margin:18px 0 10px 0">
+              <div style="font-size:10px;font-weight:900;color:#c084fc;letter-spacing:1.2px;text-transform:uppercase">COMPETIÇÃO ANTERIOR CONCLUÍDA</div>
+              <div style="font-size:17px;font-weight:900;color:#fff;margin-top:5px">${esc(priorCompetitionName)}</div>
+              <div style="font-size:12px;color:#cbd5e1;margin-top:5px">${finishedPosition ? `Classificação final: <b style="color:#fff">${finishedPosition}º lugar</b>` : 'Calendário principal encerrado.'}</div>
+              ${finishedPrizeEstimate != null ? `<div style="margin-top:10px;background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.35);border-radius:9px;padding:9px 11px"><div style="font-size:10px;font-weight:900;color:#86efac;text-transform:uppercase">Premiação prevista pela colocação</div><div style="font-size:18px;font-weight:900;color:#4ade80;margin-top:2px">${fmtMoney(finishedPrizeEstimate)}</div><div style="font-size:10px;color:#cbd5e1;margin-top:3px">Estimativa do jogo; não indica crédito já pago. A confirmação ocorre no encerramento oficial da temporada.</div></div>` : ''}
+              <div style="height:1px;background:rgba(255,255,255,.1);margin:14px 0"></div>
+              <div style="font-size:10px;font-weight:900;color:#a5b4fc;letter-spacing:1.2px;text-transform:uppercase">PRÓXIMA COMPETIÇÃO</div>
+              <div style="font-size:17px;font-weight:900;color:#fff;margin-top:5px">${esc(nextPendingFixture.id === 'bra-cup' ? 'Copa do Brasil' : nextPendingFixture.name || 'Competição pendente')}</div>
+              <div style="font-size:20px;font-weight:900;color:#fff;margin-top:10px;text-align:center">${esc(nextPendingFixture.home || state.club)} <span style="color:#a78bfa">x</span> ${esc(nextPendingFixture.away || nextPendingFixture.opponent || nextPendingFixture.detail || 'Adversário a confirmar')}</div>
+              <div style="font-size:12px;color:rgba(255,255,255,.76);margin-top:8px;text-align:center">${esc(nextPendingFixture.detail || 'Partida oficial')} · ${nextPendingCupDate ? formatDatePtBr(nextPendingCupDate) : 'Data a confirmar'}</div>
+              <div style="font-size:11px;color:#c4b5fd;margin-top:8px;text-align:center">A temporada continua aberta até todas as competições da carreira serem concluídas.</div>
+              ${nextPendingFixture.id === 'bra-cup' && nextPendingIsToday && Number.isInteger(nextPendingFixture.fixtureIndex) && nextPendingFixture.fixtureIndex >= 0 ? `<button id="btnPlayPendingCompetitionCentral" data-phase="${esc(nextPendingFixture.detail)}" data-index="${nextPendingFixture.fixtureIndex}" style="width:100%;margin-top:14px;background:linear-gradient(135deg,#7c3aed,#5b21b6);border:1px solid #a78bfa;border-radius:10px;padding:12px;color:#fff;font-size:12px;font-weight:900;cursor:pointer">▶ JOGAR COPA DO BRASIL</button>` : `<button id="btnOpenNextPendingCentral" style="width:100%;margin-top:14px;background:linear-gradient(135deg,#7c3aed,#5b21b6);border:1px solid #a78bfa;border-radius:10px;padding:12px;color:#fff;font-size:12px;font-weight:900;cursor:pointer">⏩ IR À PRÓXIMA PARTIDA</button>`}
+            </div>
+          ` : !f ? `
             <div style="background:#1a1532;border:1px solid #7c3aed;border-radius:14px;padding:20px;text-align:center;margin:18px 0 10px 0">
               <div style="font-size:32px">🏖️</div>
               <div style="font-size:16px;font-weight:900;color:#fff;margin-top:6px">FOLGA NA TABELA · RODADA ${state.round + 1}</div>
@@ -21610,6 +22107,8 @@ function structurePage(){
   const stadiumWorkDays = stadiumWork ? getStadiumWorkDaysRemaining(stadiumWork) : 0;
   const stadiumWorkProgress = stadiumWork ? Math.max(0, Math.min(100, Math.round(((Number(stadiumWork.durationDays) || 1) - stadiumWorkDays) / Math.max(1, Number(stadiumWork.durationDays) || 1) * 100))) : 0;
   const arenaData = getNewArenaData();
+  const arenaCapacity = getSelectedArenaCapacity();
+  selectedArenaCapacity = arenaCapacity;
   const musData = getMuseumData();
 
   return `
@@ -21676,7 +22175,7 @@ function structurePage(){
                 ${k==='parking'?`<div class="facility-stat">Vagas: <b>${parkingSpots(x.level).toLocaleString('pt-BR')} vagas</b></div>`:''}
                 ${k==='academy'?`<div class="facility-stat" style="color:var(--neon)">Atletas na Base: <b>${(state.youthAcademy||[]).length} atletas (15 a 18 anos)</b></div>`:''}
                 ${k==='training'?`<div class="facility-stat" style="color:var(--cyan)">Vagas do elenco: <b>${squadCapacity(x.level)} jogadores</b> (+3 por nível)</div>`:''}
-                ${k==='marketing'?`<div class="facility-stat" style="color:var(--cyan)">Aporte Semanal: <b>${fmtMoney(state.marketingWeekly||12000)}/semana</b></div>`:''}
+                ${k==='marketing'?`<div class="facility-stat" style="color:var(--cyan)">Aporte Semanal: <b>${fmtMoney(state.marketingWeekly||36000)}/semana</b></div>`:''}
                 ${k==='bank'?`
                   <div class="facility-stat" style="color:${(state.bankLoans||[]).some(l=>l.overdue)?'#ef4444':'#f59e0b'}">
                     Dívida Ativa: <b>${fmtMoney(totalBankDebt())}</b> (${(state.bankLoans||[]).length} empréstimo(s))
@@ -21778,6 +22277,7 @@ function structurePage(){
               <div style="text-align:right;font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px">
                 Taxa de Ocupação: <b id="dashOccRate" style="color:#22c55e">${Math.round(proj.rate*100)}%</b>
               </div>
+              <div id="dashAttendanceForceBonus" style="margin-top:7px;padding:7px 9px;border-radius:8px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);font-size:11px;color:#86efac">Bônus de força em casa: +${proj.attendanceForceBonus} (máximo +5 conforme o público)</div>
             </div>
 
             <!-- Detalhamento de Arrecadação -->
@@ -21961,14 +22461,14 @@ function structurePage(){
                   ${state.arenaLandBought ? 'Área de 180.000 m² escriturada e averbada em cartório no nome do clube.' : 'Aquisição do terreno para o complexo, arquibancadas e estacionamento.'}
                 </div>
                 ${state.arenaLandBought ? `
-                  <div style="margin-top:10px;font-size:12px;color:#22c55e;font-weight:900">✓ Quitado & Regularizado (R$ 12.000.000)</div>
+                  <div style="margin-top:10px;font-size:12px;color:#22c55e;font-weight:900">✓ Quitado & Regularizado (${fmtMoney(arenaLandCost(arenaCapacity))})</div>
                 ` : `
                   <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
                     <button class="btn primary" id="btnBuyArenaLandPage" style="background:#0284c7;font-weight:900;font-size:11px;padding:8px 12px;border-radius:8px;cursor:pointer">
-                      🛒 Comprar Lote à Vista • R$ 12.000.000
+                      🛒 Comprar Lote à Vista • ${fmtMoney(arenaLandCost(arenaCapacity))}
                     </button>
-                    <button class="btn" id="btnFinanceArenaLandPage" style="background:rgba(2,132,199,0.18);border:1px solid #0284c7;color:#38bdf8;font-weight:800;font-size:10px;padding:6px 10px;border-radius:8px;cursor:pointer" title="Entrada de 10% (R$ 1,2 Mi) e 24 parcelas com o município">
-                      🏛️ Financiamento Municipal (10% entrada: R$ 1,2 Mi)
+                    <button class="btn" id="btnFinanceArenaLandPage" style="background:rgba(2,132,199,0.18);border:1px solid #0284c7;color:#38bdf8;font-weight:800;font-size:10px;padding:6px 10px;border-radius:8px;cursor:pointer" title="Entrada de 10% (${fmtMoney(Math.round(arenaLandCost(arenaCapacity)*0.1))}) e 24 parcelas">
+                      🏛️ Financiamento Municipal (10% entrada: ${fmtMoney(Math.round(arenaLandCost(arenaCapacity)*0.1))})
                     </button>
                   </div>
                 `}
@@ -21986,14 +22486,14 @@ function structurePage(){
                   ${state.arenaPermitBought ? 'Licença ambiental, trânsito e Corpo de Bombeiros totalmente autorizados.' : 'Estudo de impacto de vizinhança (EIV) e taxas de aprovação civil na Prefeitura.'}
                 </div>
                 ${state.arenaPermitBought ? `
-                  <div style="margin-top:10px;font-size:12px;color:#22c55e;font-weight:900">✓ Aprovado & Emitido (R$ 4.500.000)</div>
+                  <div style="margin-top:10px;font-size:12px;color:#22c55e;font-weight:900">✓ Aprovado & Emitido (${fmtMoney(arenaPermitCost(arenaCapacity))})</div>
                 ` : `
                   <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
                     <button class="btn primary" id="btnBuyArenaPermitPage" style="background:#7c3aed;font-weight:900;font-size:11px;padding:8px 12px;border-radius:8px;cursor:pointer">
-                      🏛️ Emitir Alvará à Vista • R$ 4.500.000
+                      🏛️ Emitir Alvará à Vista • ${fmtMoney(arenaPermitCost(arenaCapacity))}
                     </button>
-                    <button class="btn" id="btnFinanceArenaPermitPage" style="background:rgba(124,58,237,0.18);border:1px solid #7c3aed;color:#c084fc;font-weight:800;font-size:10px;padding:6px 10px;border-radius:8px;cursor:pointer" title="Entrada de 10% (R$ 450 mil) e parcelamento de taxas">
-                      📋 Parcelar Taxas e Alvará (10% entrada: R$ 450 mil)
+                    <button class="btn" id="btnFinanceArenaPermitPage" style="background:rgba(124,58,237,0.18);border:1px solid #7c3aed;color:#c084fc;font-weight:800;font-size:10px;padding:6px 10px;border-radius:8px;cursor:pointer" title="Entrada de 10% (${fmtMoney(Math.round(arenaPermitCost(arenaCapacity)*0.1))}) e 24 parcelas">
+                      📋 Parcelar Taxas e Alvará (10% entrada: ${fmtMoney(Math.round(arenaPermitCost(arenaCapacity)*0.1))})
                     </button>
                   </div>
                 `}
@@ -22003,7 +22503,7 @@ function structurePage(){
             ${(!state.arenaLandBought && !state.arenaPermitBought) ? `
               <div style="margin-top:10px">
                 <button class="btn" id="btnBuyBothArenaReqsPage" style="width:100%;background:linear-gradient(135deg, #0284c7 0%, #7c3aed 100%);color:#fff;font-weight:900;font-size:12px;padding:10px;border-radius:10px;border:none;cursor:pointer">
-                  ⚡ Regularizar Terreno e Alvará Juntos (Pacote Completo) • R$ 16.500.000
+                  ⚡ Regularizar Terreno e Alvará Juntos (Pacote Completo) • ${fmtMoney(arenaLandCost(arenaCapacity)+arenaPermitCost(arenaCapacity))}
                 </button>
               </div>
             ` : ''}
@@ -22026,12 +22526,19 @@ function structurePage(){
 
               <label style="display:block;margin-top:16px;font-size:12px;font-weight:800;color:rgba(255,255,255,0.7)">2. ESCOLHA O TAMANHO DO ESTÁDIO (CAPACIDADE PROJETADA):</label>
               <select id="selectArenaCap" class="btn" style="width:100%;margin-top:6px;background:#120f20;border:1px solid #0284c7;color:#fff;font-size:13px;font-weight:800;padding:10px">
-                <option value="15000">15.000 lugares (Arena Regional) • R$ 75.000.000 (R$ 5.000/lugar)</option>
-                <option value="30000">30.000 lugares (Caldeirão de Médio Porte) • R$ 165.000.000 (R$ 5.500/lugar)</option>
-                <option value="50000">50.000 lugares (Super Arena Série A) • R$ 325.000.000 (R$ 6.500/lugar)</option>
-                <option value="80000">80.000 lugares (Templo Monumental Mundial) • R$ 600.000.000 (R$ 7.500/lugar)</option>
-                <option value="100000">100.000 lugares (Mega Arena Monumental) • R$ 850.000.000 (R$ 8.500/lugar)</option>
+                <option value="15000" ${arenaCapacity===15000?'selected':''}>15.000 lugares (Arena Regional) • ${fmtMoney(calcArenaTotalCost(15000))}</option>
+                <option value="30000" ${arenaCapacity===30000?'selected':''}>30.000 lugares (Caldeirão de Médio Porte) • ${fmtMoney(calcArenaTotalCost(30000))}</option>
+                <option value="50000" ${arenaCapacity===50000?'selected':''}>50.000 lugares (Super Arena Série A) • ${fmtMoney(calcArenaTotalCost(50000))}</option>
+                <option value="80000" ${arenaCapacity===80000?'selected':''}>80.000 lugares (Templo Monumental Mundial) • ${fmtMoney(calcArenaTotalCost(80000))}</option>
+                <option value="100000" ${arenaCapacity===100000?'selected':''}>100.000 lugares (Mega Arena Monumental) • ${fmtMoney(calcArenaTotalCost(100000))}</option>
               </select>
+
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:10px">
+                <div class="card" style="padding:10px"><div class="small muted">Terreno</div><b>${fmtMoney(arenaLandCost(arenaCapacity))}</b></div>
+                <div class="card" style="padding:10px"><div class="small muted">Alvará e licenças</div><b>${fmtMoney(arenaPermitCost(arenaCapacity))}</b></div>
+                <div class="card" style="padding:10px"><div class="small muted">Obra</div><b>${fmtMoney(calcArenaTotalCost(arenaCapacity))}</b></div>
+                <div class="card" style="padding:10px;border-color:rgba(34,197,94,.35)"><div class="small muted">Total do projeto</div><b style="color:#4ade80">${fmtMoney(arenaLandCost(arenaCapacity)+arenaPermitCost(arenaCapacity)+calcArenaTotalCost(arenaCapacity))}</b></div>
+              </div>
 
               <label style="display:block;margin-top:16px;font-size:12px;font-weight:800;color:rgba(255,255,255,0.7)">3. FORMA DE PAGAMENTO DA OBRA:</label>
               <select id="selectArenaFinancing" class="btn" style="width:100%;margin-top:6px;background:#120f20;border:1px solid #0284c7;color:#fff;font-size:13px;font-weight:800;padding:10px">
@@ -22193,6 +22700,14 @@ function officePage(){
       <div class="card metric"><div class="muted">Entradas previstas por mês</div><div class="value good">${fmtMoney(finance.monthlyRevenue)}</div><div class="small muted">Fixas, jogos e bônus estimados</div></div>
       <div class="card metric"><div class="muted">Saídas previstas por mês</div><div class="value warn">${fmtMoney(finance.monthlyExpenses)}</div><div class="small muted">Inclui salários, marketing e parcelas</div></div>
       <div class="card metric"><div class="muted">Resultado mensal estimado</div><div class="value ${finance.monthlyBalance >= 0 ? 'good' : 'warn'}">${fmtMoney(finance.monthlyBalance)}</div><div class="small muted">Previsão, varia com jogos e vitórias</div></div>
+    </div>
+
+    <div class="card" style="margin-top:12px;padding:16px;border:1px solid ${finance.projectedClosingBalance >= 0 ? 'rgba(34,197,94,.45)' : 'rgba(239,68,68,.55)'};background:${finance.projectedClosingBalance >= 0 ? 'rgba(34,197,94,.07)' : 'rgba(239,68,68,.08)'};border-radius:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+        <div><b style="font-size:13px;text-transform:uppercase;color:#fff">Saldo previsto no fim do mês</b><div class="small muted">Caixa atual + receitas previstas − despesas e parcelas previstas</div></div>
+        <div style="font-size:26px;font-weight:900;color:${finance.projectedClosingBalance >= 0 ? '#4ade80' : '#f87171'}">${fmtMoney(finance.projectedClosingBalance)}</div>
+      </div>
+      <div class="small" style="margin-top:8px;color:${finance.projectedClosingBalance >= 0 ? '#86efac' : '#fca5a5'}">${finance.projectedClosingBalance >= 0 ? 'A previsão indica saldo positivo no fechamento do mês.' : 'Atenção: a previsão indica que o clube pode fechar o mês no vermelho.'}</div>
     </div>
 
     <div class="card" style="margin-top:14px;background:#141124;border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:16px">
@@ -23139,6 +23654,7 @@ function seasonPage(){
   const nationalStandings = isViewingNationalWhileInEstadual ? getNationalCompetitionStandings(userNatDivId) : null;
   const nationalStandingsUnplayed = !!(nationalStandings?.length && nationalStandings.every(team => team._unplayed));
   const r = isViewingNationalWhileInEstadual ? nationalStandings : ranking();
+  const worldChampionSeasons = Array.isArray(state.worldChampionHistory) ? state.worldChampionHistory : [];
   const seriesDGroups = comp.id === 'bra-d'
     ? getSeriesDGroupStandings(window.COMPETITION_TEAMS?.['bra-d'] || [], state.compId === 'bra-d' ? (state.teams || []) : (state.nationalCompetitionStandings?.['bra-d'] || []))
     : null;
@@ -23153,6 +23669,10 @@ function seasonPage(){
         </div>
       </div>
       <span class="pill" style="font-size:13px;font-weight:800">${esc(comp.name)}</span>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;margin-top:10px">
+      <button type="button" class="btn primary" id="btnWorldSaveChampions" style="font-weight:900">🏆 Campeões do Mundo do Save</button>
     </div>
 
     <div class="tabs" style="margin-top:14px">
@@ -25794,6 +26314,11 @@ function bind(){
   }
 
   // Listeners de Central
+  if(view==='temporada'){
+    const championsButton = $('#btnWorldSaveChampions');
+    if(championsButton) championsButton.onclick = openWorldSaveChampionsModal;
+  }
+
   if(view==='central'){
     const bAvatar = $('#btnChangeManagerAvatar');
     if(bAvatar){
@@ -25873,10 +26398,21 @@ function bind(){
       };
     });
     const btnArena = $('#btnStartNewArenaProject');
+    const arenaPageCap = $('#selectArenaCap');
+    if(arenaPageCap){
+      arenaPageCap.onchange = () => {
+        selectedArenaCapacity = Number(arenaPageCap.value) || 15000;
+        state.arenaProposedCapacity = selectedArenaCapacity;
+        save();
+        render();
+      };
+    }
     if(btnArena){
       btnArena.onclick = () => {
         const name = $('#selectArenaName')?.value || 'Arena Real';
         const cap = +($('#selectArenaCap')?.value || 15000);
+        selectedArenaCapacity = cap;
+        state.arenaProposedCapacity = cap;
         const financing = $('#selectArenaFinancing')?.value || 'cash';
         startNewArenaProject(name, cap, financing);
       };
@@ -25954,6 +26490,8 @@ function bind(){
     const pEndSeason = $('#btnOpenEndOfSeasonCentral'); if(pEndSeason) pEndSeason.onclick = showEndOfSeasonModal;
     const pNextPending = $('#btnOpenNextPendingCentral');
     if(pNextPending) pNextPending.onclick = () => openNextPendingCompetitionFixture();
+    const pPlayPending = $('#btnPlayPendingCompetitionCentral');
+    if(pPlayPending) pPlayPending.onclick = () => playCopaDoBrasilFixture(Number(pPlayPending.dataset.index), pPlayPending.dataset.phase || copaCurrentPhase);
     const pLive=$('#playMatchLive'); if(pLive) pLive.onclick=startLiveMatch;
     const pQuick=$('#playMatchQuick'); if(pQuick) pQuick.onclick=simulateQuickRound;
     const pAdvToMatch = $('#btnAdvanceToMatchCentral');

@@ -706,7 +706,7 @@ assert(gameJsContent.includes('if(label) label.textContent = `${relationChance}%
 assert(gameJsContent.includes("const breakPenaltyRate = slotKey === 'master' ? 0.20 : slotKey === 'sleeves' ? 0.15 : 0.10")
   && gameJsContent.includes('remainingContractValue * breakPenaltyRate'),
   'Multa de patrocínio varia por espaço e incide sobre o valor contratual restante');
-assert(gameJsContent.includes('min="3000" max="48000" step="3000"')
+assert(gameJsContent.includes('min="${MARKETING_MINIMUM_WEEKLY}" max="${sliderMax}" step="1000"')
   && gameJsContent.includes("marketing:{name:'Departamento de marketing',icon:'📢',base:540000"),
   'Marketing tem degraus semanais e custo de evolução aumentados em 20%');
 assert(gameJsContent.includes('function marketingBenefits(')
@@ -812,8 +812,15 @@ assert(gameJsContent.includes('function getNextPendingClubFixture(gameState = st
   && gameJsContent.includes('function openNextPendingCompetitionFixture(nextFixture = getNextPendingClubFixture(state))')
   && gameJsContent.includes("status:'other_competitions_pending'")
   && gameJsContent.includes('btnOpenNextPendingCentral')
-  && gameJsContent.includes("if(matchGate.status === 'other_competitions_pending'){\n      openNextPendingCompetitionFixture(matchGate.nextFixture || getNextPendingClubFixture(state));"),
-  'Ao acabar a agenda principal com Copa pendente, a Central troca o botão de virada por acesso ao próximo jogo');
+  && gameJsContent.includes('const nextPendingFixture = primaryScheduleEnded ? getNextPendingClubFixture(state) : null;')
+  && gameJsContent.includes('COMPETIÇÃO ANTERIOR CONCLUÍDA')
+  && gameJsContent.includes('PRÓXIMA COMPETIÇÃO')
+  && gameJsContent.includes('btnPlayPendingCompetitionCentral')
+  && gameJsContent.includes('playCopaDoBrasilFixture(Number(pPlayPending.dataset.index)')
+  && gameJsContent.includes("view = 'central';")
+  && gameJsContent.includes("if(matchGate.status === 'other_competitions_pending'){")
+  && gameJsContent.includes('openNextPendingCompetitionFixture(matchGate.nextFixture || getNextPendingClubFixture(state));'),
+  'Ao acabar a agenda principal com Copa pendente, a Central mostra a competição encerrada, o próximo confronto e a ação para jogar');
 assert(gameJsContent.includes('ensureMidweekDate(fixture.isoDate || phase.isoDate, state.season)')
   && gameJsContent.includes("ensureMidweekDate(fixture.isoDate || phase.isoDate, state.season) !== state.date")
   && gameJsContent.includes('Jogar Copa do Brasil'),

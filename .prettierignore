@@ -1,0 +1,9 @@
+# Ignorar arquivos grandes e compilados para manter o salvamento ultra rápido
+js/game.js
+data/
+data/**
+indice_escudos_times.html
+indice_fotos_jogadores.html
+.git/
+node_modules/
+scratch/

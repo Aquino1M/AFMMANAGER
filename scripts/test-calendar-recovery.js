@@ -91,6 +91,9 @@ console.log('Todos os testes de recuperação do calendário passaram.');
   const nextStart = sourceText.indexOf('function getNextPendingClubFixture(');
   const nextEnd = sourceText.indexOf('\nfunction openNextPendingCompetitionFixture',nextStart);
   const nextFn = sourceText.slice(nextStart,nextEnd).trim();
+  const openPendingStart = sourceText.indexOf('function openNextPendingCompetitionFixture(');
+  const openPendingEnd = sourceText.indexOf('\nfunction generatedRosterForClub',openPendingStart);
+  const openPendingFn = sourceText.slice(openPendingStart,openPendingEnd).trim();
   const gateStart = sourceText.indexOf('function canStartMatch(');
   const gateEnd = sourceText.indexOf('\nlet isAdvancingTime',gateStart);
   const gateFn = sourceText.slice(gateStart,gateEnd).trim();
@@ -104,10 +107,10 @@ console.log('Todos os testes de recuperação do calendário passaram.');
     checkIncomingPlayerBids:()=>{},liveMatchState:null,calendarFilter:'ALL',copaCurrentPhase:'2ª Fase',
     simulateScore:()=>[2,1],calcValueMi:()=>1,playerOverall:()=>70,playerKey:p=>p.id,
     marketUniverse:()=>[],addPlayerMatchStats:()=>{},simulateUserGoalEvents:()=>[],openPressConferenceModal:()=>{},
-    getPendingClubCompetitions:null,getNextPendingClubFixture:null,formatDatePtBr:date=>date,
+    getPendingClubCompetitions:null,getNextPendingClubFixture:null,
     curComp:()=>({id:'bra-est-df',name:'Campeonato Candango'}),Math,Date,console
   };
-  vm.runInNewContext(`${pendingFn}\n${nextFn}\n${gateFn}\n${fn}\n${playCupFn}\nthis.pending=getPendingClubCompetitions;this.nextFixture=getNextPendingClubFixture;this.gate=canStartMatch;this.advance=advanceCalendarDays;this.playCup=playCopaDoBrasilFixture;`,context,{filename:'pending-cup-calendar-flow'});
+  vm.runInNewContext(`${pendingFn}\n${nextFn}\n${openPendingFn}\n${gateFn}\n${fn}\n${playCupFn}\nthis.pending=getPendingClubCompetitions;this.nextFixture=getNextPendingClubFixture;this.openPending=openNextPendingCompetitionFixture;this.gate=canStartMatch;this.advance=advanceCalendarDays;this.playCup=playCopaDoBrasilFixture;`,context,{filename:'pending-cup-calendar-flow'});
   const pending = context.pending(state);
   assert.equal(pending.length,1,'Only the Copa fixture should remain pending in the minimal fixture.');
   assert.equal(pending[0].id,'bra-cup');
@@ -116,13 +119,20 @@ console.log('Todos os testes de recuperação do calendário passaram.');
   assert.equal(gate.status,'other_competitions_pending','End of the primary schedule must route to pending competitions, not season_finished.');
   assert.equal(gate.nextDate,'2027-03-10');
   assert.equal(context.nextFixture(state).id,'bra-cup');
+  context.view = 'central';
+  const opened = context.openPending(context.nextFixture(state));
+  assert.equal(opened,true,'Opening the next pending competition should succeed.');
+  assert.equal(context.view,'central','Opening next competition must stay on Central, not Calendar.');
+  assert.equal(state.date,'2027-03-10','The Central handler must advance to the pending Copa date.');
+  const phase = Object.values(state.copaData.phases).find(item => item.fixtures?.some(f => f.home === 'Brasília' && f.away === 'Brasiliense'));
+  assert(phase,'The migrated Copa phase containing Brasília x Brasiliense must remain present.');
+  assert.equal(phase.fixtures[0].score,null,'Opening the next competition must not auto-simulate the user fixture.');
+  assert.equal(phase.fixtures[0].winner,null,'Opening the next competition must not assign a winner.');
+  assert(effects.toasts.some(message=>message.toLowerCase().includes('confronto aberto')),'The handler should acknowledge the competition that was opened.');
   const dateDiff=Math.round((new Date(`${pending[0].date}T12:00:00`)-new Date(`${state.date}T12:00:00`))/86400000);
-  context.advance(dateDiff,true);
-  assert.equal(state.date,'2027-03-10','Advance-to-match must stop exactly at the effective Copa fixture date.');
-  assert.equal(effects.dayProcesses,dateDiff,'Daily progression should process every day without skipping the user fixture.');
-  assert.equal(effects.simulatedCup,0,'The pending user Copa fixture must never be auto-simulated by date advancement.');
+  assert.equal(dateDiff,0,'The Central handler should have already advanced to the effective Cup date.');
+  assert.equal(effects.dayProcesses,31,'The Central handler must process every day between 07/02 and 10/03, including the day-boundary logic in advanceCalendarDays.');
   assert(effects.toasts.some(message=>message.includes('próximo jogo')),'Calendar advancement should confirm its destination.');
-  const phase = state.copaData.phases['2ª Fase'];
   assert.equal(midweek(phase.fixtures[0].isoDate),state.date,'The pending Copa card is due on the exact date reached by the calendar.');
   context.playCup(0,'2ª Fase');
   assert(phase.fixtures[0].played === true && Boolean(phase.fixtures[0].score),'Explicitly playing the Copa fixture must persist a result.');

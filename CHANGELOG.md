@@ -4,6 +4,55 @@ Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027*
 
 ---
 
+## [3.3.7] - 2026-10-14 (Auditoria do Workspace, Service Worker v8, Proteção Todo-Tree & Sincronização Canônica)
+
+### 🛠️ 1. Configuração Otimizada do Workspace (`.vscode/settings.json` & `.prettierignore`)
+- **Todo-Tree sem Falsos-Positivos**: Expressão regular refinada para capturar estritamente tags de desenvolvedor em maiúsculas (`TODO`, `FIXME`, `BUG`, `REVISAR`, `HACK`), ignorando menções naturais em português como *"todo dia 1º"* ou *"a todo vapor"*.
+- **Prettier & Alta Performance do Editor**: Ativação do Prettier para módulos JS, CSS e HTML, com `.prettierignore` protegendo o arquivo monolítico `js/game.js` e bases de dados para evitar atrasos no salvamento automático.
+- **ErrorLens & Live Server**: Diagnósticos visuais em tempo real e porta 5500 pré-calibrada com latência reduzida.
+
+### ⚡ 2. Service Worker v8 & Cache Offline Aprimorado (`sw.js`)
+- **Cache v8 Ativo**: Chave elevada para `afm-2027-cache-v8`, garantindo descarte imediato de arquivos obsoletos nos navegadores dos jogadores.
+- **Inclusão Explícita de Módulos Core**: Módulos `audio_engine.js`, `match_engine.js`, `tactics_pitch.js` e `settings_modal.js` adicionados à lista de pré-cache prioritário.
+
+### 🛡️ 3. Sincronização Canônica de Escudos & Fotos (`js/club_badges_core.js`)
+- **Alinhamento Completo**: O arquivo de raiz `js/club_badges_core.js` agora espelha 100% da implementação moderna de `js/core/club_badges_core.js`, suportando slugs padronizados, avatares posicionais e fallbacks duplos de escudos e logos de competições.
+
+### 🧪 4. Baterias de Testes no Navegador Atualizadas
+- **Sanitização Global & Dependências**: `tests_engine.html` e `tests_saves_stadium.html` agora incluem a função nativa `window.esc` e a cadeia completa de scripts e regras de integridade do jogo.
+
+---
+
+## [3.3.6] - 2026-10-14 (Consolidação de Regras Permanentes de Economia, Bônus de Força da Torcida, Campeões do Save & Gestão do Estádio)
+
+### 🏟️ 1. Melhorias do Estádio (+40% Base, Progressão Contínua & Visual Limpo)
+- **Valores Base Atualizados (+40%)**: Cadeiras novas (R$ 28.350), Mosaico com o escudo (R$ 49.000), Anel de LED (R$ 67.200), Fogos e sinalizadores (R$ 21.000), Telão do clube (R$ 91.000) e Refletores de LED (R$ 77.000).
+- **Progressão Contínua Sem Reset**: Custos de evolução estrutural progridem a +15% por nível acumulado e nunca são reiniciados na virada de temporada.
+- **Ajuste de Visualização & Zoom**: CSS atualizado com `zoom: 1.05`, dimensionamento responsivo (`max-width: 96vw`) e grids flexíveis para evitar cortes em menus e botões da aba de estádio.
+
+### 🏗️ 2. Terreno, Alvará e Construção Dinâmicos por Capacidade
+- **Orçamento Reativo em Tempo Real**: Custos de Lote Urbano, Alvará da Prefeitura e Obra Civil recalculados imediatamente ao alternar a capacidade projetada da nova arena (15k, 30k, 50k, 80k e 100k lugares).
+- **Toasts Informativos Corrigidos**: Mensagens de saldo insuficiente exibem o valor exato da capacidade selecionada em vez de valores estáticos legados.
+
+### 🎪 3. Controle Rigoroso de Aluguel & Shows Culturais
+- **Intervalo Estrito de 4 Rodadas**: Implementada trava de cooldown de 4 rodadas completas (~1 mês de calendário) entre propostas de aluguel para outros clubes e megaeventos de shows musicais.
+
+### 📢 4. Aporte Semanal de Marketing
+- **Base Triplicada (3x) + 20% Cumulativo por Nível**: Aporte inicial de marketing triplicado (mínimo de R$ 36.000/semana) com acréscimo de 20% a cada upgrade de instalação no departamento de marketing.
+
+### ⚡ 5. Bônus de Força por Público Conectado ao Motor da Partida
+- **Impacto Real em Campo**: O bônus de público (+1 a +5 conforme taxa de ocupação e volume de torcedores) agora está diretamente acoplado ao motor de simulação ao vivo minuto a minuto (`simulateMinute`), incrementando a força efetiva mandante, divididas, posse de bola e chances de gol.
+
+### 🏆 6. Captura de Campeões do Mundo do Save & Histórico Completo
+- **Arquivo Integral de Campeões**: A virada de ano captura vencedores de todas as divisões nacionais (Séries A, B, C e D), copas nacionais, torneios internacionais e estaduais com resultados concluídos.
+- **Sincronização de Chaves**: Dados sincronizados entre `worldChampionHistory` e `campeoesDoMundoSave`, acessíveis pelo modal "🏆 Campeões do Mundo do Save".
+
+### 🥊 7. Eliminações no Mata-Mata & Painel de Saldo Projetado
+- **Aviso Imediato de Desclassificação**: Notificação imediata ("Infelizmente, você não passou do mata-mata") tanto na Copa do Brasil quanto em torneios eliminatórios, com registro no histórico da temporada.
+- **Saldo Previsto no Fim do Mês**: Funções auxiliares `calcularProjecaoFimDoMes()` e `renderizarPainelSaldoPrevistoEscritorio()` com alerta visual de previsão no azul ou vermelho.
+
+---
+
 ## [3.3.5] - 2026-10-11 (Isolamento Robusto Multi-Usuário Local & Cloud, Painel Admin de Usuários & Login Flexível)
 
 ### 👥 1. Gestão Completa de Usuários & Contas no Painel do Administrador

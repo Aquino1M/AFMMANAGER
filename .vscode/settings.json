@@ -1,0 +1,64 @@
+{
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "files.eol": "\n",
+  "files.encoding": "utf8",
+
+  // --- Prettier & Formatador ---
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+
+  // --- ErrorLens (Diagnósticos em tempo real) ---
+  "errorLens.enabled": true,
+  "errorLens.delay": 300,
+  "errorLens.followCursor": "closestProblem",
+  "errorLens.fontSize": "12px",
+
+  // --- Todo-Tree (Ignora falso-positivo com o português 'todo') ---
+  "todo-tree.general.tags": [
+    "TODO",
+    "FIXME",
+    "BUG",
+    "REVISAR",
+    "HACK",
+    "REVIEW"
+  ],
+  "todo-tree.regex.regex": "(//|#|<!--|/\\*|^\\s*\\*)\\s*($TAGS)\\b",
+  "todo-tree.filtering.ignoreCase": false,
+  "todo-tree.tree.scanMode": "workspace",
+
+  // --- Live Server ---
+  "liveServer.settings.port": 5500,
+  "liveServer.settings.donotShowInfoMsg": true,
+  "liveServer.settings.wait": 100,
+
+  // --- Path Intellisense ---
+  "path-intellisense.mappings": {
+    "/": "${workspaceFolder}",
+    "js": "${workspaceFolder}/js",
+    "css": "${workspaceFolder}/css",
+    "data": "${workspaceFolder}/data",
+    "img": "${workspaceFolder}/img",
+    "sounds": "${workspaceFolder}/sounds"
+  },
+
+  // --- Color Highlight ---
+  "color-highlight.matchRgbWithNoFunction": true,
+  "color-highlight.matchHslWithNoFunction": true,
+
+  // --- GitLens ---
+  "gitlens.currentLine.enabled": true,
+  "gitlens.hovers.enabled": true
+}

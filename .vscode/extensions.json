@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "usernamehw.errorlens",
+    "ritwickdey.liveserver",
+    "eamodio.gitlens",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "christian-kohler.path-intellisense",
+    "bradlc.tailwindcss",
+    "naumovs.color-highlight",
+    "gruntfuggly.todo-tree",
+    "xabikos.javascriptsnippets"
+  ]
+}

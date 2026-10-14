@@ -71,6 +71,7 @@ const projectionState = {
 };
 const projection = loadFunction('monthlyFinancialProjection', {
   state:projectionState,
+  MARKETING_MINIMUM_WEEKLY:36000,
   curComp:()=>({id:'bra-a'}), totalSponsorMonthly:()=>300000, totalSponsorWinBonus:()=>20000,
   getSocioTorcedorMeta:()=>({currentIncome:50000}), monthlyFacilityIncome:()=>13000,
   totalMonthlyPayroll:()=>500000, getMonthlyScoutPayroll:s=>Math.max(0,Number(s?.scoutStaffCount)||0)*18000, norm:value=>String(value || '').toLowerCase()
@@ -80,7 +81,7 @@ assert(forecast.revenue.gate === 200000 && forecast.revenue.parking === 20000 &&
   'Previsão mensal calcula média de bilheteria/estacionamento e bônus por vitórias');
 assert(forecast.expenses.bankRepayments === 60000 && forecast.expenses.stadiumRepayments === 20000 && forecast.expenses.scouts === 36000,
   'Previsão mensal mostra parcelas bancárias, obras e salários de olheiros separados');
-assert(forecast.monthlyRevenue === 9453250 && forecast.monthlyExpenses === 664000 && forecast.monthlyBalance === 8789250,
+assert(forecast.monthlyRevenue === 9453250 && forecast.monthlyExpenses === 760000 && forecast.monthlyBalance === 8693250,
   'Total e saldo previstos reconciliam todas as categorias mensais');
 
 const scoutHelpers = loadFunction('activeScoutCount', {});
