@@ -1255,6 +1255,297 @@ function getAuditClubsList(filter){
   return list;
 }
 
+const SPONSOR_POOLS_BY_COUNTRY = {
+  'Brasil': [
+    { brand: 'Betano', category: 'Master', color: '#f35b04', mult: 1.50, winMult: 0.24, minFame: 40, years: 2, desc: 'Maior parceira do futebol brasileiro com alta rentabilidade' },
+    { brand: 'Nubank', category: 'Master', color: '#820ad1', mult: 1.45, winMult: 0.20, minFame: 60, years: 2, desc: 'Fintech gigante com forte apelo entre a torcida jovem' },
+    { brand: 'Petrobras', category: 'Master', color: '#008542', mult: 1.60, winMult: 0.26, minFame: 70, years: 3, desc: 'Gigante nacional de energia com contrato de longo prazo' },
+    { brand: 'Caixa', category: 'Master', color: '#005ca9', mult: 1.35, winMult: 0.18, minFame: 45, years: 2, desc: 'Banco público tradicional com estabilidade financeira' },
+    { brand: 'Superbet', category: 'Master', color: '#dc2626', mult: 1.55, winMult: 0.27, minFame: 50, years: 2, desc: 'Patrocínio agressivo com altos bônus por vitórias' },
+    { brand: 'iFood', category: 'Master', color: '#ea1d2c', mult: 1.40, winMult: 0.20, minFame: 35, years: 2, desc: 'Líder de delivery com ações especiais em dias de jogos' },
+    { brand: 'Crefisa', category: 'Master', color: '#004a2f', mult: 1.65, winMult: 0.25, minFame: 65, years: 3, desc: 'Investimento massivo no futebol nacional' },
+    { brand: 'Banco do Brasil', category: 'Master', color: '#fcee21', mult: 1.40, winMult: 0.19, minFame: 50, years: 3, desc: 'Apoio tradicional ao esporte nacional' },
+    
+    { brand: 'Fatal Model', category: 'Mangas', color: '#6b21a8', mult: 0.65, winMult: 0.10, minFame: 20, years: 1, desc: 'Investimento fixo imediato nas mangas' },
+    { brand: 'GOL Linhas Aéreas', category: 'Mangas', color: '#ff7020', mult: 0.70, winMult: 0.11, minFame: 45, years: 2, desc: 'Apoio logístico oficial e estabilidade' },
+    { brand: 'Cimed', category: 'Mangas', color: '#facc15', mult: 0.75, winMult: 0.12, minFame: 55, years: 2, desc: 'Indústria farmacêutica nas mangas da camisa' },
+    { brand: 'EstrelaBet', category: 'Mangas', color: '#0284c7', mult: 0.70, winMult: 0.11, minFame: 30, years: 1, desc: 'Operadora dinâmica com premiação por fase' },
+    { brand: 'Havan', category: 'Mangas', color: '#2563eb', mult: 0.68, winMult: 0.10, minFame: 35, years: 2, desc: 'Rede varejista nacional nas mangas' },
+
+    { brand: 'BYD', category: 'Costas', color: '#009e60', mult: 0.65, winMult: 0.10, minFame: 35, years: 2, desc: 'Líder em carros elétricos nas costas do uniforme' },
+    { brand: 'Itaú', category: 'Costas', color: '#ea580c', mult: 0.72, winMult: 0.12, minFame: 60, years: 3, desc: 'Maior banco privado com solidez absoluta' },
+    { brand: 'Brahma', category: 'Costas', color: '#b91c1c', mult: 0.68, winMult: 0.11, minFame: 50, years: 2, desc: 'Tradição centenária cervejeira no futebol' },
+    { brand: 'Zé Delivery', category: 'Costas', color: '#eab308', mult: 0.60, winMult: 0.09, minFame: 30, years: 1, desc: 'Ativações de torcida no verso da camisa' },
+    { brand: 'Pixbet', category: 'Costas', color: '#1d4ed8', mult: 0.66, winMult: 0.10, minFame: 40, years: 2, desc: 'Patrocínio rápido nas omoplatas' }
+  ],
+
+  'Argentina': [
+    { brand: 'YPF', category: 'Master', color: '#00529b', mult: 1.55, winMult: 0.24, minFame: 50, years: 3, desc: 'Petrolera estatal y orgullo nacional argentino' },
+    { brand: 'Cerveza Quilmes', category: 'Master', color: '#00387b', mult: 1.45, winMult: 0.22, minFame: 45, years: 2, desc: 'El sabor del fútbol argentino con décadas de historia' },
+    { brand: 'Codere', category: 'Master', color: '#7cb342', mult: 1.50, winMult: 0.25, minFame: 55, years: 2, desc: 'Casa de apuestas internacional con fuerte presencia' },
+    { brand: 'Betsson Argentina', category: 'Master', color: '#ff6600', mult: 1.48, winMult: 0.23, minFame: 50, years: 2, desc: 'Líder sueco de juego online en el fútbol local' },
+    { brand: 'Banco Galicia', category: 'Master', color: '#e65100', mult: 1.40, winMult: 0.19, minFame: 40, years: 2, desc: 'Uno de los mayores bancos privados del país' },
+    { brand: 'Banco Macro', category: 'Master', color: '#002f6c', mult: 1.38, winMult: 0.18, minFame: 35, years: 2, desc: 'Fuerte presencia federal y respaldo económico' },
+
+    { brand: 'Flecha Bus', category: 'Mangas', color: '#d32f2f', mult: 0.65, winMult: 0.10, minFame: 25, years: 2, desc: 'Transporte oficial y presencia en las mangas' },
+    { brand: 'Assist Card', category: 'Mangas', color: '#c2185b', mult: 0.70, winMult: 0.11, minFame: 40, years: 2, desc: 'Asistencia al viajero en competiciones internacionales' },
+    { brand: 'DirecTV Argentina', category: 'Mangas', color: '#0288d1', mult: 0.72, winMult: 0.12, minFame: 50, years: 2, desc: 'Televisión satelital deportiva en la camiseta' },
+    { brand: 'Aerolíneas Argentinas', category: 'Mangas', color: '#0099cc', mult: 0.68, winMult: 0.10, minFame: 35, years: 2, desc: 'Línea de bandera en los brazos del plantel' },
+
+    { brand: 'Mercado Libre', category: 'Costas', color: '#ffe600', mult: 0.75, winMult: 0.13, minFame: 55, years: 3, desc: 'El gigante de e-commerce latinoamericano' },
+    { brand: 'Tarjeta Naranja', category: 'Costas', color: '#ff5722', mult: 0.62, winMult: 0.09, minFame: 30, years: 2, desc: 'Financiamiento popular en la espalda' },
+    { brand: 'PedidosYa Argentina', category: 'Costas', color: '#e91e63', mult: 0.60, winMult: 0.09, minFame: 25, years: 1, desc: 'Delivery líder en el dorsal de los futbolistas' }
+  ],
+
+  'Estados Unidos': [
+    { brand: 'Apple TV', category: 'Master', color: '#000000', mult: 1.65, winMult: 0.28, minFame: 65, years: 4, desc: 'Transmissora global exclusiva da MLS e inovação tecnológica' },
+    { brand: 'Audi', category: 'Master', color: '#bb0a30', mult: 1.55, winMult: 0.24, minFame: 55, years: 3, desc: 'Patrocinador oficial de alto padrão da MLS' },
+    { brand: 'Target', category: 'Master', color: '#cc0000', mult: 1.50, winMult: 0.22, minFame: 45, years: 2, desc: 'Gigante do varejo americano no peito do manto' },
+    { brand: 'BMO', category: 'Master', color: '#0079c1', mult: 1.48, winMult: 0.20, minFame: 50, years: 3, desc: 'Instituição bancária com fortes arenas na liga' },
+    { brand: 'Herbalife', category: 'Master', color: '#74a82a', mult: 1.45, winMult: 0.20, minFame: 40, years: 2, desc: 'Nutrição esportiva e contrato lendário no futebol' },
+    { brand: 'American Family Insurance', category: 'Master', color: '#003366', mult: 1.40, winMult: 0.18, minFame: 35, years: 2, desc: 'Seguradora oficial com investimento garantido' },
+
+    { brand: 'Ford', category: 'Mangas', color: '#002c6c', mult: 0.72, winMult: 0.11, minFame: 45, years: 2, desc: 'Montadora ícone norte-americana nas mangas' },
+    { brand: 'DoorDash', category: 'Mangas', color: '#ff3008', mult: 0.70, winMult: 0.11, minFame: 35, years: 2, desc: 'Líder em entregas com ativação para fãs' },
+    { brand: 'AT&T', category: 'Mangas', color: '#00a8e0', mult: 0.75, winMult: 0.12, minFame: 55, years: 3, desc: 'Telecomunicações de ponta nos uniformes' },
+    { brand: 'Heineken USA', category: 'Mangas', color: '#008200', mult: 0.68, winMult: 0.10, minFame: 40, years: 2, desc: 'Cerveja oficial das celebrações da MLS' },
+
+    { brand: 'Delta Air Lines', category: 'Costas', color: '#ba0c2f', mult: 0.72, winMult: 0.11, minFame: 50, years: 3, desc: 'Linha aérea de prestígio nas costas do clube' },
+    { brand: 'Bank of America', category: 'Costas', color: '#012169', mult: 0.74, winMult: 0.12, minFame: 60, years: 3, desc: 'Maior solidez financeira do mercado americano' },
+    { brand: 'BodyArmor', category: 'Costas', color: '#ff4500', mult: 0.62, winMult: 0.09, minFame: 30, years: 1, desc: 'Bebida esportiva oficial dos atletas' },
+    { brand: 'GEICO', category: 'Costas', color: '#005596', mult: 0.65, winMult: 0.10, minFame: 35, years: 2, desc: 'Seguros rápidos e visibilidade total' }
+  ],
+
+  'Inglaterra': [
+    { brand: 'Fly Emirates', category: 'Master', color: '#d71921', mult: 1.80, winMult: 0.30, minFame: 75, years: 3, desc: 'Líder mundial de aviação em uniformes britânicos' },
+    { brand: 'Standard Chartered', category: 'Master', color: '#00965e', mult: 1.70, winMult: 0.28, minFame: 70, years: 3, desc: 'Banco financeiro internacional' },
+    { brand: 'Etihad Airways', category: 'Master', color: '#cca24b', mult: 1.75, winMult: 0.29, minFame: 75, years: 3, desc: 'Parceria milionária dos Emirados' },
+    { brand: 'TeamViewer', category: 'Master', color: '#004c97', mult: 1.55, winMult: 0.22, minFame: 60, years: 2, desc: 'Software corporativo global' },
+    { brand: 'Stake.com', category: 'Master', color: '#1475e1', mult: 1.50, winMult: 0.24, minFame: 45, years: 2, desc: 'Plataforma líder com altos bônus' },
+
+    { brand: 'Visit Rwanda', category: 'Mangas', color: '#20603d', mult: 0.75, winMult: 0.12, minFame: 65, years: 3, desc: 'Turismo global nas mangas' },
+    { brand: 'JD Sports', category: 'Mangas', color: '#111111', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Gigante de moda esportiva britânica' },
+    { brand: 'Expedia', category: 'Mangas', color: '#002554', mult: 0.72, winMult: 0.12, minFame: 60, years: 2, desc: 'Viagens internacionais nas mangas' },
+
+    { brand: 'Barclays', category: 'Costas', color: '#00aeef', mult: 0.76, winMult: 0.13, minFame: 65, years: 3, desc: 'Tradição absoluta no futebol inglês' },
+    { brand: 'Cadbury', category: 'Costas', color: '#4a154b', mult: 0.65, winMult: 0.10, minFame: 40, years: 2, desc: 'Doces tradicionais no verso do manto' }
+  ],
+
+  'Espanha': [
+    { brand: 'Spotify', category: 'Master', color: '#1db954', mult: 1.80, winMult: 0.30, minFame: 80, years: 4, desc: 'Maior streaming musical do planeta' },
+    { brand: 'Emirates Fly Better', category: 'Master', color: '#d71921', mult: 1.80, winMult: 0.30, minFame: 80, years: 3, desc: 'A maior marca da realeza do futebol europeu' },
+    { brand: 'Riyadh Air', category: 'Master', color: '#582c83', mult: 1.65, winMult: 0.26, minFame: 70, years: 3, desc: 'Companhia aérea com investimento bilionário' },
+    { brand: 'DIGI', category: 'Master', color: '#0055a5', mult: 1.45, winMult: 0.20, minFame: 45, years: 2, desc: 'Operadora de telecomunicações de rápida ascensão' },
+    { brand: 'Finetwork', category: 'Master', color: '#6a0dad', mult: 1.40, winMult: 0.19, minFame: 40, years: 2, desc: 'Fibra e telefonia espanhola' },
+
+    { brand: 'Ambilight TV', category: 'Mangas', color: '#00a3e0', mult: 0.75, winMult: 0.12, minFame: 70, years: 2, desc: 'Tecnologia visual nas mangas' },
+    { brand: 'Nexen Tire', category: 'Mangas', color: '#7b1113', mult: 0.68, winMult: 0.10, minFame: 50, years: 2, desc: 'Pneus com presença em LaLiga' },
+    { brand: 'OK Mobility', category: 'Mangas', color: '#e4002b', mult: 0.64, winMult: 0.09, minFame: 35, years: 1, desc: 'Aluguel de veículos nas mangas' },
+
+    { brand: 'CaixaBank', category: 'Costas', color: '#007eae', mult: 0.74, winMult: 0.12, minFame: 60, years: 3, desc: 'Banca oficial do esporte espanhol' },
+    { brand: 'Mahou San Miguel', category: 'Costas', color: '#c41230', mult: 0.68, winMult: 0.11, minFame: 50, years: 2, desc: 'Cervejeira histórica no verso da camisa' }
+  ],
+
+  'Arábia Saudita': [
+    { brand: 'Roshn', category: 'Master', color: '#002b49', mult: 1.85, winMult: 0.32, minFame: 60, years: 3, desc: 'Patrocinador oficial imobiliário da Saudi Pro League' },
+    { brand: 'Aramco', category: 'Master', color: '#00a3e0', mult: 1.90, winMult: 0.35, minFame: 70, years: 4, desc: 'A maior petrolífera mundial com investimento supremo' },
+    { brand: 'STC', category: 'Master', color: '#4f008c', mult: 1.70, winMult: 0.28, minFame: 55, years: 3, desc: 'Líder em tecnologia e telecomunicações sauditas' },
+    { brand: 'Saudia Airlines', category: 'Master', color: '#006633', mult: 1.65, winMult: 0.25, minFame: 50, years: 3, desc: 'Companhia aérea oficial do Reino' },
+    { brand: 'Red Sea Global', category: 'Master', color: '#009999', mult: 1.60, winMult: 0.24, minFame: 45, years: 2, desc: 'Mega empreendimentos turísticos sustentáveis' },
+
+    { brand: 'Alinma Bank', category: 'Mangas', color: '#b89d58', mult: 0.76, winMult: 0.13, minFame: 50, years: 2, desc: 'Banco financeiro nas mangas' },
+    { brand: 'Jahez', category: 'Mangas', color: '#f37021', mult: 0.72, winMult: 0.12, minFame: 40, years: 2, desc: 'Maior app de entregas da Arábia' },
+
+    { brand: 'NEOM', category: 'Costas', color: '#000000', mult: 0.85, winMult: 0.15, minFame: 65, years: 3, desc: 'A cidade do futuro mundial nas costas' },
+    { brand: 'SABIC', category: 'Costas', color: '#0072ce', mult: 0.75, winMult: 0.12, minFame: 55, years: 3, desc: 'Líder química e industrial global' }
+  ],
+
+  'Itália': [
+    { brand: 'Jeep', category: 'Master', color: '#222222', mult: 1.70, winMult: 0.28, minFame: 70, years: 3, desc: 'Marca automotiva icônica da Serie A' },
+    { brand: 'MSC Crociere', category: 'Master', color: '#002f6c', mult: 1.65, winMult: 0.26, minFame: 65, years: 3, desc: 'Gigante marítimo de cruzeiros internacionais' },
+    { brand: 'Paramount+ Italia', category: 'Master', color: '#0064ff', mult: 1.60, winMult: 0.25, minFame: 60, years: 2, desc: 'Entretenimento e cinema no peito' },
+    { brand: 'Betsson.sport', category: 'Master', color: '#ff6600', mult: 1.55, winMult: 0.24, minFame: 50, years: 2, desc: 'Infotainment esportivo em ascensão' },
+
+    { brand: 'eBay Italia', category: 'Mangas', color: '#e53238', mult: 0.74, winMult: 0.12, minFame: 55, years: 2, desc: 'Mercado global nas mangas' },
+    { brand: 'Bitpanda', category: 'Mangas', color: '#138b69', mult: 0.70, winMult: 0.11, minFame: 45, years: 2, desc: 'Fintech e criptoativos' },
+
+    { brand: 'U-Power', category: 'Costas', color: '#e30613', mult: 0.68, winMult: 0.11, minFame: 50, years: 2, desc: 'Segurança no trabalho no verso da camisa' },
+    { brand: 'TIM', category: 'Costas', color: '#003399', mult: 0.72, winMult: 0.12, minFame: 60, years: 3, desc: 'Telecomunicações de toda a Itália' }
+  ],
+
+  'Alemanha': [
+    { brand: 'Deutsche Telekom', category: 'Master', color: '#e20074', mult: 1.85, winMult: 0.30, minFame: 80, years: 4, desc: 'O clássico T magenta no coração da Bundesliga' },
+    { brand: 'Evonik', category: 'Master', color: '#672179', mult: 1.65, winMult: 0.26, minFame: 70, years: 3, desc: 'Química industrial de prestígio internacional' },
+    { brand: 'Red Bull', category: 'Master', color: '#cc0033', mult: 1.70, winMult: 0.28, minFame: 65, years: 4, desc: 'Energia pura e potência esportiva global' },
+    { brand: 'Indeed', category: 'Master', color: '#2164f3', mult: 1.50, winMult: 0.22, minFame: 50, years: 2, desc: 'Líder em empregos nos uniformes alemães' },
+
+    { brand: 'Allianz', category: 'Mangas', color: '#003780', mult: 0.78, winMult: 0.13, minFame: 65, years: 3, desc: 'Gigante seguradora nas mangas' },
+    { brand: 'GLS', category: 'Mangas', color: '#002554', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Logística de encomendas alemã' },
+
+    { brand: 'SAP', category: 'Costas', color: '#008fd3', mult: 0.76, winMult: 0.13, minFame: 60, years: 3, desc: 'Sistemas corporativos líderes mundiais' },
+    { brand: 'Bitburger', category: 'Costas', color: '#d4af37', mult: 0.65, winMult: 0.10, minFame: 45, years: 2, desc: 'Tradição cervejeira da Alemanha' }
+  ],
+
+  'França': [
+    { brand: 'Qatar Airways', category: 'Master', color: '#5c0632', mult: 1.85, winMult: 0.32, minFame: 80, years: 3, desc: 'A maior rota aérea com contrato milionário' },
+    { brand: 'CMA CGM', category: 'Master', color: '#002d62', mult: 1.65, winMult: 0.26, minFame: 65, years: 3, desc: 'Líder de navegação de Marselha para o mundo' },
+    { brand: 'Orange', category: 'Master', color: '#ff7900', mult: 1.60, winMult: 0.24, minFame: 60, years: 2, desc: 'Telecomunicações e inovação francesa' },
+
+    { brand: 'GOAT', category: 'Mangas', color: '#111111', mult: 0.75, winMult: 0.12, minFame: 70, years: 2, desc: 'Plataforma fashion e lifestyle global' },
+    { brand: 'Deliveroo France', category: 'Mangas', color: '#00cdbc', mult: 0.68, winMult: 0.10, minFame: 45, years: 2, desc: 'Delivery oficial nas mangas' },
+
+    { brand: 'ParionsSport', category: 'Costas', color: '#009ee0', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Apostas oficiais francesas na camisa' }
+  ],
+
+  'Portugal': [
+    { brand: 'Betclic Portugal', category: 'Master', color: '#e4002b', mult: 1.55, winMult: 0.24, minFame: 55, years: 2, desc: 'Patrocinador oficial e naming sponsor da Liga' },
+    { brand: 'MEO', category: 'Master', color: '#0090d0', mult: 1.50, winMult: 0.22, minFame: 50, years: 3, desc: 'A maior telecomunicação de Portugal' },
+    { brand: 'NOS', category: 'Master', color: '#222222', mult: 1.50, winMult: 0.22, minFame: 50, years: 3, desc: 'Cinema e comunicação portuguesa' },
+    { brand: 'Sagres', category: 'Master', color: '#c41230', mult: 1.40, winMult: 0.19, minFame: 40, years: 2, desc: 'Cerveja oficial e paixão de Portugal' },
+
+    { brand: 'Repsol Portugal', category: 'Mangas', color: '#ff3000', mult: 0.70, winMult: 0.11, minFame: 45, years: 2, desc: 'Energia nas mangas da camisa' },
+    { brand: 'solverde.pt', category: 'Mangas', color: '#00a651', mult: 0.68, winMult: 0.10, minFame: 35, years: 2, desc: 'Casinos e apostas em Portugal' },
+
+    { brand: 'Galp', category: 'Costas', color: '#f37021', mult: 0.72, winMult: 0.12, minFame: 50, years: 3, desc: 'Energia que move Portugal' }
+  ],
+
+  'Global': [
+    { brand: 'Sony', category: 'Master', color: '#000000', mult: 1.65, winMult: 0.26, minFame: 65, years: 3, desc: 'Tecnologia audiovisual e PlayStation' },
+    { brand: 'Coca-Cola', category: 'Master', color: '#f40009', mult: 1.70, winMult: 0.28, minFame: 70, years: 3, desc: 'A maior marca de refrigerantes do planeta' },
+    { brand: 'Mastercard', category: 'Master', color: '#eb001b', mult: 1.68, winMult: 0.26, minFame: 65, years: 3, desc: 'Pagamentos globais e momentos que não têm preço' },
+    { brand: 'Pepsi', category: 'Master', color: '#004b93', mult: 1.60, winMult: 0.24, minFame: 55, years: 2, desc: 'Tradição global na cultura do futebol' },
+
+    { brand: 'DHL', category: 'Mangas', color: '#d40511', mult: 0.72, winMult: 0.11, minFame: 50, years: 2, desc: 'Logística internacional veloz nas mangas' },
+    { brand: 'Puma', category: 'Mangas', color: '#000000', mult: 0.74, winMult: 0.12, minFame: 55, years: 2, desc: 'Performance esportiva de elite' },
+
+    { brand: 'Canon', category: 'Costas', color: '#cc0000', mult: 0.68, winMult: 0.10, minFame: 45, years: 2, desc: 'Lentes e imagens oficiais do esporte' },
+    { brand: 'FedEx', category: 'Costas', color: '#4d148c', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Entregas mundiais no verso do manto' }
+  ]
+};
+
+function getClubCountry(clubName, stateContext = (typeof state !== 'undefined' ? state : null)){
+  const cName = String(clubName || stateContext?.club || '').trim();
+  const nClub = typeof norm === 'function' ? norm(cName) : cName.toLowerCase();
+
+  // 1. Se estivermos olhando o clube do state e tiver compId
+  const cId = stateContext?.compId || '';
+  if(cId.startsWith('bra-') || cId.startsWith('sp-') || cId.startsWith('rj-') || cId.startsWith('mg-') || cId.startsWith('rs-')) return 'Brasil';
+  if(cId === 'usa-1') return 'Estados Unidos';
+  if(cId === 'arg-1') return 'Argentina';
+  if(cId === 'eng-1' || cId === 'eng-2') return 'Inglaterra';
+  if(cId === 'esp-1' || cId === 'esp-2') return 'Espanha';
+  if(cId === 'ita-1') return 'Itália';
+  if(cId === 'ger-1') return 'Alemanha';
+  if(cId === 'fra-1') return 'França';
+  if(cId === 'por-1') return 'Portugal';
+  if(cId === 'ksa-1') return 'Arábia Saudita';
+
+  // 2. Busca nas competições cadastradas em COMPETITION_TEAMS
+  if(typeof COMPETITION_TEAMS !== 'undefined' && COMPETITION_TEAMS){
+    for(const [compKey, teamArr] of Object.entries(COMPETITION_TEAMS)){
+      if(Array.isArray(teamArr) && teamArr.some(t => (typeof norm === 'function' ? norm(t) : String(t).toLowerCase()) === nClub)){
+        if(compKey.startsWith('bra-')) return 'Brasil';
+        if(compKey === 'usa-1') return 'Estados Unidos';
+        if(compKey === 'arg-1') return 'Argentina';
+        if(compKey === 'eng-1' || compKey === 'eng-2') return 'Inglaterra';
+        if(compKey === 'esp-1' || compKey === 'esp-2') return 'Espanha';
+        if(compKey === 'ita-1') return 'Itália';
+        if(compKey === 'ger-1') return 'Alemanha';
+        if(compKey === 'fra-1') return 'França';
+        if(compKey === 'por-1') return 'Portugal';
+        if(compKey === 'ksa-1') return 'Arábia Saudita';
+      }
+    }
+  }
+
+  // 3. Heurísticas diretas de nomes de clubes consagrados
+  if(/inter miami|la galaxy|los angeles galaxy|los angeles fc|lafc|columbus crew|seattle sounders|atlanta united|new york red bulls|nycfc|philadelphia union|orlando city|portland timbers|nashville/i.test(cName)) return 'Estados Unidos';
+  if(/boca juniors|river plate|racing club|san lorenzo|independiente|velez|estudiantes|talleres|rosario central|newell/i.test(cName)) return 'Argentina';
+  if(/al-hilal|al-nassr|al-ittihad|al-ahli|al-ettifaq|al-shabab/i.test(cName)) return 'Arábia Saudita';
+  if(/real madrid|barcelona|atlético de madrid|sevilla|valencia|villarreal|athletic club|betis/i.test(cName)) return 'Espanha';
+  if(/manchester city|liverpool|arsenal|manchester united|chelsea|tottenham|aston villa|newcastle/i.test(cName)) return 'Inglaterra';
+  if(/inter de milão|juventus|milan|napoli|roma|lazio|atalanta|fiorentina/i.test(cName)) return 'Itália';
+  if(/bayern|dortmund|leverkusen|leipzig|stuttgart|frankfurt/i.test(cName)) return 'Alemanha';
+  if(/paris saint-germain|psg|marseille|monaco|lyon|lille/i.test(cName)) return 'França';
+  if(/benfica|porto|sporting|braga/i.test(cName)) return 'Portugal';
+
+  // 4. Se o usuário estiver numa liga nacional brasileira ou estadual
+  if(typeof state !== 'undefined' && state && typeof curComp === 'function'){
+    const c = curComp();
+    if(c?.country) return c.country;
+  }
+
+  return 'Brasil';
+}
+if(typeof window !== 'undefined') {
+  window.SPONSOR_POOLS_BY_COUNTRY = SPONSOR_POOLS_BY_COUNTRY;
+  window.getClubCountry = getClubCountry;
+}
+
+function generateSponsorOffers(clubBudget, clubName = (typeof state !== 'undefined' ? state?.club : '')){
+  const fame = typeof teamFameScore === 'function' ? teamFameScore() : 50;
+  const mktMult = typeof marketingBenefits === 'function' ? marketingBenefits().sponsorMultiplier : 1;
+  const fameMult = 0.60 + (fame / 100) * 0.90;
+  const seasonFactor = Math.max(0.1, Number(state?.sponsorSeasonFactor) || 1);
+  const baseMonthly = Math.round(Math.max(40000, Math.round((clubBudget || 2000000) * 0.024)) * mktMult * fameMult * seasonFactor);
+
+  const country = getClubCountry(clubName);
+  const countryPool = SPONSOR_POOLS_BY_COUNTRY[country] || SPONSOR_POOLS_BY_COUNTRY['Brasil'];
+  const globalPool = SPONSOR_POOLS_BY_COUNTRY['Global'] || [];
+  
+  // Mescla o pool do país local com os globais
+  const sponsorPool = [...countryPool, ...globalPool];
+
+  // Filtra marcas elegíveis para a fama atual do time
+  const eligible = sponsorPool.filter(s => fame >= (s.minFame - 10));
+  const activePool = eligible.length >= 4 ? eligible : sponsorPool;
+
+  const mList = activePool.filter(s => s.category === 'Master').sort(() => Math.random() - 0.5);
+  const sList = activePool.filter(s => s.category === 'Mangas').sort(() => Math.random() - 0.5);
+  const bList = activePool.filter(s => s.category === 'Costas').sort(() => Math.random() - 0.5);
+
+  const selected = [
+    mList[0] || countryPool.find(s => s.category === 'Master'),
+    sList[0] || countryPool.find(s => s.category === 'Mangas'),
+    bList[0] || countryPool.find(s => s.category === 'Costas'),
+    mList[1] || sList[1] || bList[1] || countryPool[1]
+  ].filter(Boolean);
+
+  return selected.map(s => ({
+    brand: s.brand,
+    category: s.category,
+    color: s.color,
+    monthly: Math.round(baseMonthly * s.mult),
+    winBonus: Math.round(baseMonthly * s.winMult),
+    years: s.years,
+    desc: s.desc,
+    country: country
+  }));
+}
+
+function ensureClubSponsors(s){
+  if(!s) return;
+  s.sponsors = s.sponsors || {};
+  const baseBudget = s.balance || 5000000;
+  const clubCountry = getClubCountry(s.club, s);
+  const offers = generateSponsorOffers(baseBudget, s.club);
+
+  const mOff = offers.find(o => o.category === 'Master') || { brand: 'Patrocinador Master', category: 'Master', color: '#f35b04', monthly: 1850000, winBonus: 240000, years: 2, desc: 'Patrocinador Master Oficial' };
+  const sOff = offers.find(o => o.category === 'Mangas') || { brand: 'Patrocínio Mangas', category: 'Mangas', color: '#10b981', monthly: 720000, winBonus: 95000, years: 2, desc: 'Mangas da Camisa' };
+  const bOff = offers.find(o => o.category === 'Costas') || { brand: 'Patrocínio Costas', category: 'Costas', color: '#ea580c', monthly: 980000, winBonus: 130000, years: 3, desc: 'Costas / Omoplata' };
+
+  if(!s.sponsors.master || !s.sponsors.master.brand || s.sponsors.master.brand === 'Sem Patrocínio') s.sponsors.master = mOff;
+  if(!s.sponsors.sleeves || !s.sponsors.sleeves.brand || s.sponsors.sleeves.brand === 'Sem Patrocínio') s.sponsors.sleeves = sOff;
+  if(!s.sponsors.back || !s.sponsors.back.brand || s.sponsors.back.brand === 'Sem Patrocínio') s.sponsors.back = bOff;
+  if(!Array.isArray(s.sponsorOffers) || s.sponsorOffers.length === 0) s.sponsorOffers = offers;
+}
+if(typeof window !== 'undefined'){
+  window.generateSponsorOffers = generateSponsorOffers;
+  window.ensureClubSponsors = ensureClubSponsors;
+}
+
+
+
 let squadFilter='ALL';
 let calendarFilter='ALL';
 let squadViewMode='roster';
@@ -1263,15 +1554,25 @@ let statsTab='scorers';
 let selectedEstadualId=null;
 let estadualRound=1;
 let clubs=buildClubs();
-let state=load();
-state=migrate(state);
-if(state){
+let state = null;
+function initStoredGameState(){
   try {
-    ensureTacticsState(state);
-    repairSaveIfCorrupted(state);
-    save();
-  } catch(e){ recordAFMError('save-repair', e); }
+    state = load();
+    if(state){
+      state = migrate(state);
+      if(state){
+        try {
+          ensureTacticsState(state);
+          repairSaveIfCorrupted(state);
+          save();
+        } catch(e){ recordAFMError('save-repair', e); }
+      }
+    }
+  } catch(err){
+    console.warn('[AFM] Erro ao inicializar save existente, mantendo estado seguro:', err);
+  }
 }
+
 
 // =========================================
 // ESTÁDIO, LOJA OFICIAL E CENTRO DE TREINAMENTO
@@ -9301,295 +9602,6 @@ if(typeof window !== 'undefined') window.normalizeSquadState = normalizeSquadSta
 // =========================================================================
 // CATÁLOGO DE PATROCINADORES OFICIAIS E AUTÊNTICOS POR PAÍS
 // =========================================================================
-const SPONSOR_POOLS_BY_COUNTRY = {
-  'Brasil': [
-    { brand: 'Betano', category: 'Master', color: '#f35b04', mult: 1.50, winMult: 0.24, minFame: 40, years: 2, desc: 'Maior parceira do futebol brasileiro com alta rentabilidade' },
-    { brand: 'Nubank', category: 'Master', color: '#820ad1', mult: 1.45, winMult: 0.20, minFame: 60, years: 2, desc: 'Fintech gigante com forte apelo entre a torcida jovem' },
-    { brand: 'Petrobras', category: 'Master', color: '#008542', mult: 1.60, winMult: 0.26, minFame: 70, years: 3, desc: 'Gigante nacional de energia com contrato de longo prazo' },
-    { brand: 'Caixa', category: 'Master', color: '#005ca9', mult: 1.35, winMult: 0.18, minFame: 45, years: 2, desc: 'Banco público tradicional com estabilidade financeira' },
-    { brand: 'Superbet', category: 'Master', color: '#dc2626', mult: 1.55, winMult: 0.27, minFame: 50, years: 2, desc: 'Patrocínio agressivo com altos bônus por vitórias' },
-    { brand: 'iFood', category: 'Master', color: '#ea1d2c', mult: 1.40, winMult: 0.20, minFame: 35, years: 2, desc: 'Líder de delivery com ações especiais em dias de jogos' },
-    { brand: 'Crefisa', category: 'Master', color: '#004a2f', mult: 1.65, winMult: 0.25, minFame: 65, years: 3, desc: 'Investimento massivo no futebol nacional' },
-    { brand: 'Banco do Brasil', category: 'Master', color: '#fcee21', mult: 1.40, winMult: 0.19, minFame: 50, years: 3, desc: 'Apoio tradicional ao esporte nacional' },
-    
-    { brand: 'Fatal Model', category: 'Mangas', color: '#6b21a8', mult: 0.65, winMult: 0.10, minFame: 20, years: 1, desc: 'Investimento fixo imediato nas mangas' },
-    { brand: 'GOL Linhas Aéreas', category: 'Mangas', color: '#ff7020', mult: 0.70, winMult: 0.11, minFame: 45, years: 2, desc: 'Apoio logístico oficial e estabilidade' },
-    { brand: 'Cimed', category: 'Mangas', color: '#facc15', mult: 0.75, winMult: 0.12, minFame: 55, years: 2, desc: 'Indústria farmacêutica nas mangas da camisa' },
-    { brand: 'EstrelaBet', category: 'Mangas', color: '#0284c7', mult: 0.70, winMult: 0.11, minFame: 30, years: 1, desc: 'Operadora dinâmica com premiação por fase' },
-    { brand: 'Havan', category: 'Mangas', color: '#2563eb', mult: 0.68, winMult: 0.10, minFame: 35, years: 2, desc: 'Rede varejista nacional nas mangas' },
-
-    { brand: 'BYD', category: 'Costas', color: '#009e60', mult: 0.65, winMult: 0.10, minFame: 35, years: 2, desc: 'Líder em carros elétricos nas costas do uniforme' },
-    { brand: 'Itaú', category: 'Costas', color: '#ea580c', mult: 0.72, winMult: 0.12, minFame: 60, years: 3, desc: 'Maior banco privado com solidez absoluta' },
-    { brand: 'Brahma', category: 'Costas', color: '#b91c1c', mult: 0.68, winMult: 0.11, minFame: 50, years: 2, desc: 'Tradição centenária cervejeira no futebol' },
-    { brand: 'Zé Delivery', category: 'Costas', color: '#eab308', mult: 0.60, winMult: 0.09, minFame: 30, years: 1, desc: 'Ativações de torcida no verso da camisa' },
-    { brand: 'Pixbet', category: 'Costas', color: '#1d4ed8', mult: 0.66, winMult: 0.10, minFame: 40, years: 2, desc: 'Patrocínio rápido nas omoplatas' }
-  ],
-
-  'Argentina': [
-    { brand: 'YPF', category: 'Master', color: '#00529b', mult: 1.55, winMult: 0.24, minFame: 50, years: 3, desc: 'Petrolera estatal y orgullo nacional argentino' },
-    { brand: 'Cerveza Quilmes', category: 'Master', color: '#00387b', mult: 1.45, winMult: 0.22, minFame: 45, years: 2, desc: 'El sabor del fútbol argentino con décadas de historia' },
-    { brand: 'Codere', category: 'Master', color: '#7cb342', mult: 1.50, winMult: 0.25, minFame: 55, years: 2, desc: 'Casa de apuestas internacional con fuerte presencia' },
-    { brand: 'Betsson Argentina', category: 'Master', color: '#ff6600', mult: 1.48, winMult: 0.23, minFame: 50, years: 2, desc: 'Líder sueco de juego online en el fútbol local' },
-    { brand: 'Banco Galicia', category: 'Master', color: '#e65100', mult: 1.40, winMult: 0.19, minFame: 40, years: 2, desc: 'Uno de los mayores bancos privados del país' },
-    { brand: 'Banco Macro', category: 'Master', color: '#002f6c', mult: 1.38, winMult: 0.18, minFame: 35, years: 2, desc: 'Fuerte presencia federal y respaldo económico' },
-
-    { brand: 'Flecha Bus', category: 'Mangas', color: '#d32f2f', mult: 0.65, winMult: 0.10, minFame: 25, years: 2, desc: 'Transporte oficial y presencia en las mangas' },
-    { brand: 'Assist Card', category: 'Mangas', color: '#c2185b', mult: 0.70, winMult: 0.11, minFame: 40, years: 2, desc: 'Asistencia al viajero en competiciones internacionales' },
-    { brand: 'DirecTV Argentina', category: 'Mangas', color: '#0288d1', mult: 0.72, winMult: 0.12, minFame: 50, years: 2, desc: 'Televisión satelital deportiva en la camiseta' },
-    { brand: 'Aerolíneas Argentinas', category: 'Mangas', color: '#0099cc', mult: 0.68, winMult: 0.10, minFame: 35, years: 2, desc: 'Línea de bandera en los brazos del plantel' },
-
-    { brand: 'Mercado Libre', category: 'Costas', color: '#ffe600', mult: 0.75, winMult: 0.13, minFame: 55, years: 3, desc: 'El gigante de e-commerce latinoamericano' },
-    { brand: 'Tarjeta Naranja', category: 'Costas', color: '#ff5722', mult: 0.62, winMult: 0.09, minFame: 30, years: 2, desc: 'Financiamiento popular en la espalda' },
-    { brand: 'PedidosYa Argentina', category: 'Costas', color: '#e91e63', mult: 0.60, winMult: 0.09, minFame: 25, years: 1, desc: 'Delivery líder en el dorsal de los futbolistas' }
-  ],
-
-  'Estados Unidos': [
-    { brand: 'Apple TV', category: 'Master', color: '#000000', mult: 1.65, winMult: 0.28, minFame: 65, years: 4, desc: 'Transmissora global exclusiva da MLS e inovação tecnológica' },
-    { brand: 'Audi', category: 'Master', color: '#bb0a30', mult: 1.55, winMult: 0.24, minFame: 55, years: 3, desc: 'Patrocinador oficial de alto padrão da MLS' },
-    { brand: 'Target', category: 'Master', color: '#cc0000', mult: 1.50, winMult: 0.22, minFame: 45, years: 2, desc: 'Gigante do varejo americano no peito do manto' },
-    { brand: 'BMO', category: 'Master', color: '#0079c1', mult: 1.48, winMult: 0.20, minFame: 50, years: 3, desc: 'Instituição bancária com fortes arenas na liga' },
-    { brand: 'Herbalife', category: 'Master', color: '#74a82a', mult: 1.45, winMult: 0.20, minFame: 40, years: 2, desc: 'Nutrição esportiva e contrato lendário no futebol' },
-    { brand: 'American Family Insurance', category: 'Master', color: '#003366', mult: 1.40, winMult: 0.18, minFame: 35, years: 2, desc: 'Seguradora oficial com investimento garantido' },
-
-    { brand: 'Ford', category: 'Mangas', color: '#002c6c', mult: 0.72, winMult: 0.11, minFame: 45, years: 2, desc: 'Montadora ícone norte-americana nas mangas' },
-    { brand: 'DoorDash', category: 'Mangas', color: '#ff3008', mult: 0.70, winMult: 0.11, minFame: 35, years: 2, desc: 'Líder em entregas com ativação para fãs' },
-    { brand: 'AT&T', category: 'Mangas', color: '#00a8e0', mult: 0.75, winMult: 0.12, minFame: 55, years: 3, desc: 'Telecomunicações de ponta nos uniformes' },
-    { brand: 'Heineken USA', category: 'Mangas', color: '#008200', mult: 0.68, winMult: 0.10, minFame: 40, years: 2, desc: 'Cerveja oficial das celebrações da MLS' },
-
-    { brand: 'Delta Air Lines', category: 'Costas', color: '#ba0c2f', mult: 0.72, winMult: 0.11, minFame: 50, years: 3, desc: 'Linha aérea de prestígio nas costas do clube' },
-    { brand: 'Bank of America', category: 'Costas', color: '#012169', mult: 0.74, winMult: 0.12, minFame: 60, years: 3, desc: 'Maior solidez financeira do mercado americano' },
-    { brand: 'BodyArmor', category: 'Costas', color: '#ff4500', mult: 0.62, winMult: 0.09, minFame: 30, years: 1, desc: 'Bebida esportiva oficial dos atletas' },
-    { brand: 'GEICO', category: 'Costas', color: '#005596', mult: 0.65, winMult: 0.10, minFame: 35, years: 2, desc: 'Seguros rápidos e visibilidade total' }
-  ],
-
-  'Inglaterra': [
-    { brand: 'Fly Emirates', category: 'Master', color: '#d71921', mult: 1.80, winMult: 0.30, minFame: 75, years: 3, desc: 'Líder mundial de aviação em uniformes britânicos' },
-    { brand: 'Standard Chartered', category: 'Master', color: '#00965e', mult: 1.70, winMult: 0.28, minFame: 70, years: 3, desc: 'Banco financeiro internacional' },
-    { brand: 'Etihad Airways', category: 'Master', color: '#cca24b', mult: 1.75, winMult: 0.29, minFame: 75, years: 3, desc: 'Parceria milionária dos Emirados' },
-    { brand: 'TeamViewer', category: 'Master', color: '#004c97', mult: 1.55, winMult: 0.22, minFame: 60, years: 2, desc: 'Software corporativo global' },
-    { brand: 'Stake.com', category: 'Master', color: '#1475e1', mult: 1.50, winMult: 0.24, minFame: 45, years: 2, desc: 'Plataforma líder com altos bônus' },
-
-    { brand: 'Visit Rwanda', category: 'Mangas', color: '#20603d', mult: 0.75, winMult: 0.12, minFame: 65, years: 3, desc: 'Turismo global nas mangas' },
-    { brand: 'JD Sports', category: 'Mangas', color: '#111111', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Gigante de moda esportiva britânica' },
-    { brand: 'Expedia', category: 'Mangas', color: '#002554', mult: 0.72, winMult: 0.12, minFame: 60, years: 2, desc: 'Viagens internacionais nas mangas' },
-
-    { brand: 'Barclays', category: 'Costas', color: '#00aeef', mult: 0.76, winMult: 0.13, minFame: 65, years: 3, desc: 'Tradição absoluta no futebol inglês' },
-    { brand: 'Cadbury', category: 'Costas', color: '#4a154b', mult: 0.65, winMult: 0.10, minFame: 40, years: 2, desc: 'Doces tradicionais no verso do manto' }
-  ],
-
-  'Espanha': [
-    { brand: 'Spotify', category: 'Master', color: '#1db954', mult: 1.80, winMult: 0.30, minFame: 80, years: 4, desc: 'Maior streaming musical do planeta' },
-    { brand: 'Emirates Fly Better', category: 'Master', color: '#d71921', mult: 1.80, winMult: 0.30, minFame: 80, years: 3, desc: 'A maior marca da realeza do futebol europeu' },
-    { brand: 'Riyadh Air', category: 'Master', color: '#582c83', mult: 1.65, winMult: 0.26, minFame: 70, years: 3, desc: 'Companhia aérea com investimento bilionário' },
-    { brand: 'DIGI', category: 'Master', color: '#0055a5', mult: 1.45, winMult: 0.20, minFame: 45, years: 2, desc: 'Operadora de telecomunicações de rápida ascensão' },
-    { brand: 'Finetwork', category: 'Master', color: '#6a0dad', mult: 1.40, winMult: 0.19, minFame: 40, years: 2, desc: 'Fibra e telefonia espanhola' },
-
-    { brand: 'Ambilight TV', category: 'Mangas', color: '#00a3e0', mult: 0.75, winMult: 0.12, minFame: 70, years: 2, desc: 'Tecnologia visual nas mangas' },
-    { brand: 'Nexen Tire', category: 'Mangas', color: '#7b1113', mult: 0.68, winMult: 0.10, minFame: 50, years: 2, desc: 'Pneus com presença em LaLiga' },
-    { brand: 'OK Mobility', category: 'Mangas', color: '#e4002b', mult: 0.64, winMult: 0.09, minFame: 35, years: 1, desc: 'Aluguel de veículos nas mangas' },
-
-    { brand: 'CaixaBank', category: 'Costas', color: '#007eae', mult: 0.74, winMult: 0.12, minFame: 60, years: 3, desc: 'Banca oficial do esporte espanhol' },
-    { brand: 'Mahou San Miguel', category: 'Costas', color: '#c41230', mult: 0.68, winMult: 0.11, minFame: 50, years: 2, desc: 'Cervejeira histórica no verso da camisa' }
-  ],
-
-  'Arábia Saudita': [
-    { brand: 'Roshn', category: 'Master', color: '#002b49', mult: 1.85, winMult: 0.32, minFame: 60, years: 3, desc: 'Patrocinador oficial imobiliário da Saudi Pro League' },
-    { brand: 'Aramco', category: 'Master', color: '#00a3e0', mult: 1.90, winMult: 0.35, minFame: 70, years: 4, desc: 'A maior petrolífera mundial com investimento supremo' },
-    { brand: 'STC', category: 'Master', color: '#4f008c', mult: 1.70, winMult: 0.28, minFame: 55, years: 3, desc: 'Líder em tecnologia e telecomunicações sauditas' },
-    { brand: 'Saudia Airlines', category: 'Master', color: '#006633', mult: 1.65, winMult: 0.25, minFame: 50, years: 3, desc: 'Companhia aérea oficial do Reino' },
-    { brand: 'Red Sea Global', category: 'Master', color: '#009999', mult: 1.60, winMult: 0.24, minFame: 45, years: 2, desc: 'Mega empreendimentos turísticos sustentáveis' },
-
-    { brand: 'Alinma Bank', category: 'Mangas', color: '#b89d58', mult: 0.76, winMult: 0.13, minFame: 50, years: 2, desc: 'Banco financeiro nas mangas' },
-    { brand: 'Jahez', category: 'Mangas', color: '#f37021', mult: 0.72, winMult: 0.12, minFame: 40, years: 2, desc: 'Maior app de entregas da Arábia' },
-
-    { brand: 'NEOM', category: 'Costas', color: '#000000', mult: 0.85, winMult: 0.15, minFame: 65, years: 3, desc: 'A cidade do futuro mundial nas costas' },
-    { brand: 'SABIC', category: 'Costas', color: '#0072ce', mult: 0.75, winMult: 0.12, minFame: 55, years: 3, desc: 'Líder química e industrial global' }
-  ],
-
-  'Itália': [
-    { brand: 'Jeep', category: 'Master', color: '#222222', mult: 1.70, winMult: 0.28, minFame: 70, years: 3, desc: 'Marca automotiva icônica da Serie A' },
-    { brand: 'MSC Crociere', category: 'Master', color: '#002f6c', mult: 1.65, winMult: 0.26, minFame: 65, years: 3, desc: 'Gigante marítimo de cruzeiros internacionais' },
-    { brand: 'Paramount+ Italia', category: 'Master', color: '#0064ff', mult: 1.60, winMult: 0.25, minFame: 60, years: 2, desc: 'Entretenimento e cinema no peito' },
-    { brand: 'Betsson.sport', category: 'Master', color: '#ff6600', mult: 1.55, winMult: 0.24, minFame: 50, years: 2, desc: 'Infotainment esportivo em ascensão' },
-
-    { brand: 'eBay Italia', category: 'Mangas', color: '#e53238', mult: 0.74, winMult: 0.12, minFame: 55, years: 2, desc: 'Mercado global nas mangas' },
-    { brand: 'Bitpanda', category: 'Mangas', color: '#138b69', mult: 0.70, winMult: 0.11, minFame: 45, years: 2, desc: 'Fintech e criptoativos' },
-
-    { brand: 'U-Power', category: 'Costas', color: '#e30613', mult: 0.68, winMult: 0.11, minFame: 50, years: 2, desc: 'Segurança no trabalho no verso da camisa' },
-    { brand: 'TIM', category: 'Costas', color: '#003399', mult: 0.72, winMult: 0.12, minFame: 60, years: 3, desc: 'Telecomunicações de toda a Itália' }
-  ],
-
-  'Alemanha': [
-    { brand: 'Deutsche Telekom', category: 'Master', color: '#e20074', mult: 1.85, winMult: 0.30, minFame: 80, years: 4, desc: 'O clássico T magenta no coração da Bundesliga' },
-    { brand: 'Evonik', category: 'Master', color: '#672179', mult: 1.65, winMult: 0.26, minFame: 70, years: 3, desc: 'Química industrial de prestígio internacional' },
-    { brand: 'Red Bull', category: 'Master', color: '#cc0033', mult: 1.70, winMult: 0.28, minFame: 65, years: 4, desc: 'Energia pura e potência esportiva global' },
-    { brand: 'Indeed', category: 'Master', color: '#2164f3', mult: 1.50, winMult: 0.22, minFame: 50, years: 2, desc: 'Líder em empregos nos uniformes alemães' },
-
-    { brand: 'Allianz', category: 'Mangas', color: '#003780', mult: 0.78, winMult: 0.13, minFame: 65, years: 3, desc: 'Gigante seguradora nas mangas' },
-    { brand: 'GLS', category: 'Mangas', color: '#002554', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Logística de encomendas alemã' },
-
-    { brand: 'SAP', category: 'Costas', color: '#008fd3', mult: 0.76, winMult: 0.13, minFame: 60, years: 3, desc: 'Sistemas corporativos líderes mundiais' },
-    { brand: 'Bitburger', category: 'Costas', color: '#d4af37', mult: 0.65, winMult: 0.10, minFame: 45, years: 2, desc: 'Tradição cervejeira da Alemanha' }
-  ],
-
-  'França': [
-    { brand: 'Qatar Airways', category: 'Master', color: '#5c0632', mult: 1.85, winMult: 0.32, minFame: 80, years: 3, desc: 'A maior rota aérea com contrato milionário' },
-    { brand: 'CMA CGM', category: 'Master', color: '#002d62', mult: 1.65, winMult: 0.26, minFame: 65, years: 3, desc: 'Líder de navegação de Marselha para o mundo' },
-    { brand: 'Orange', category: 'Master', color: '#ff7900', mult: 1.60, winMult: 0.24, minFame: 60, years: 2, desc: 'Telecomunicações e inovação francesa' },
-
-    { brand: 'GOAT', category: 'Mangas', color: '#111111', mult: 0.75, winMult: 0.12, minFame: 70, years: 2, desc: 'Plataforma fashion e lifestyle global' },
-    { brand: 'Deliveroo France', category: 'Mangas', color: '#00cdbc', mult: 0.68, winMult: 0.10, minFame: 45, years: 2, desc: 'Delivery oficial nas mangas' },
-
-    { brand: 'ParionsSport', category: 'Costas', color: '#009ee0', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Apostas oficiais francesas na camisa' }
-  ],
-
-  'Portugal': [
-    { brand: 'Betclic Portugal', category: 'Master', color: '#e4002b', mult: 1.55, winMult: 0.24, minFame: 55, years: 2, desc: 'Patrocinador oficial e naming sponsor da Liga' },
-    { brand: 'MEO', category: 'Master', color: '#0090d0', mult: 1.50, winMult: 0.22, minFame: 50, years: 3, desc: 'A maior telecomunicação de Portugal' },
-    { brand: 'NOS', category: 'Master', color: '#222222', mult: 1.50, winMult: 0.22, minFame: 50, years: 3, desc: 'Cinema e comunicação portuguesa' },
-    { brand: 'Sagres', category: 'Master', color: '#c41230', mult: 1.40, winMult: 0.19, minFame: 40, years: 2, desc: 'Cerveja oficial e paixão de Portugal' },
-
-    { brand: 'Repsol Portugal', category: 'Mangas', color: '#ff3000', mult: 0.70, winMult: 0.11, minFame: 45, years: 2, desc: 'Energia nas mangas da camisa' },
-    { brand: 'solverde.pt', category: 'Mangas', color: '#00a651', mult: 0.68, winMult: 0.10, minFame: 35, years: 2, desc: 'Casinos e apostas em Portugal' },
-
-    { brand: 'Galp', category: 'Costas', color: '#f37021', mult: 0.72, winMult: 0.12, minFame: 50, years: 3, desc: 'Energia que move Portugal' }
-  ],
-
-  'Global': [
-    { brand: 'Sony', category: 'Master', color: '#000000', mult: 1.65, winMult: 0.26, minFame: 65, years: 3, desc: 'Tecnologia audiovisual e PlayStation' },
-    { brand: 'Coca-Cola', category: 'Master', color: '#f40009', mult: 1.70, winMult: 0.28, minFame: 70, years: 3, desc: 'A maior marca de refrigerantes do planeta' },
-    { brand: 'Mastercard', category: 'Master', color: '#eb001b', mult: 1.68, winMult: 0.26, minFame: 65, years: 3, desc: 'Pagamentos globais e momentos que não têm preço' },
-    { brand: 'Pepsi', category: 'Master', color: '#004b93', mult: 1.60, winMult: 0.24, minFame: 55, years: 2, desc: 'Tradição global na cultura do futebol' },
-
-    { brand: 'DHL', category: 'Mangas', color: '#d40511', mult: 0.72, winMult: 0.11, minFame: 50, years: 2, desc: 'Logística internacional veloz nas mangas' },
-    { brand: 'Puma', category: 'Mangas', color: '#000000', mult: 0.74, winMult: 0.12, minFame: 55, years: 2, desc: 'Performance esportiva de elite' },
-
-    { brand: 'Canon', category: 'Costas', color: '#cc0000', mult: 0.68, winMult: 0.10, minFame: 45, years: 2, desc: 'Lentes e imagens oficiais do esporte' },
-    { brand: 'FedEx', category: 'Costas', color: '#4d148c', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Entregas mundiais no verso do manto' }
-  ]
-};
-
-function getClubCountry(clubName, stateContext = (typeof state !== 'undefined' ? state : null)){
-  const cName = String(clubName || stateContext?.club || '').trim();
-  const nClub = typeof norm === 'function' ? norm(cName) : cName.toLowerCase();
-
-  // 1. Se estivermos olhando o clube do state e tiver compId
-  const cId = stateContext?.compId || '';
-  if(cId.startsWith('bra-') || cId.startsWith('sp-') || cId.startsWith('rj-') || cId.startsWith('mg-') || cId.startsWith('rs-')) return 'Brasil';
-  if(cId === 'usa-1') return 'Estados Unidos';
-  if(cId === 'arg-1') return 'Argentina';
-  if(cId === 'eng-1' || cId === 'eng-2') return 'Inglaterra';
-  if(cId === 'esp-1' || cId === 'esp-2') return 'Espanha';
-  if(cId === 'ita-1') return 'Itália';
-  if(cId === 'ger-1') return 'Alemanha';
-  if(cId === 'fra-1') return 'França';
-  if(cId === 'por-1') return 'Portugal';
-  if(cId === 'ksa-1') return 'Arábia Saudita';
-
-  // 2. Busca nas competições cadastradas em COMPETITION_TEAMS
-  if(typeof COMPETITION_TEAMS !== 'undefined' && COMPETITION_TEAMS){
-    for(const [compKey, teamArr] of Object.entries(COMPETITION_TEAMS)){
-      if(Array.isArray(teamArr) && teamArr.some(t => (typeof norm === 'function' ? norm(t) : String(t).toLowerCase()) === nClub)){
-        if(compKey.startsWith('bra-')) return 'Brasil';
-        if(compKey === 'usa-1') return 'Estados Unidos';
-        if(compKey === 'arg-1') return 'Argentina';
-        if(compKey === 'eng-1' || compKey === 'eng-2') return 'Inglaterra';
-        if(compKey === 'esp-1' || compKey === 'esp-2') return 'Espanha';
-        if(compKey === 'ita-1') return 'Itália';
-        if(compKey === 'ger-1') return 'Alemanha';
-        if(compKey === 'fra-1') return 'França';
-        if(compKey === 'por-1') return 'Portugal';
-        if(compKey === 'ksa-1') return 'Arábia Saudita';
-      }
-    }
-  }
-
-  // 3. Heurísticas diretas de nomes de clubes consagrados
-  if(/inter miami|la galaxy|los angeles galaxy|los angeles fc|lafc|columbus crew|seattle sounders|atlanta united|new york red bulls|nycfc|philadelphia union|orlando city|portland timbers|nashville/i.test(cName)) return 'Estados Unidos';
-  if(/boca juniors|river plate|racing club|san lorenzo|independiente|velez|estudiantes|talleres|rosario central|newell/i.test(cName)) return 'Argentina';
-  if(/al-hilal|al-nassr|al-ittihad|al-ahli|al-ettifaq|al-shabab/i.test(cName)) return 'Arábia Saudita';
-  if(/real madrid|barcelona|atlético de madrid|sevilla|valencia|villarreal|athletic club|betis/i.test(cName)) return 'Espanha';
-  if(/manchester city|liverpool|arsenal|manchester united|chelsea|tottenham|aston villa|newcastle/i.test(cName)) return 'Inglaterra';
-  if(/inter de milão|juventus|milan|napoli|roma|lazio|atalanta|fiorentina/i.test(cName)) return 'Itália';
-  if(/bayern|dortmund|leverkusen|leipzig|stuttgart|frankfurt/i.test(cName)) return 'Alemanha';
-  if(/paris saint-germain|psg|marseille|monaco|lyon|lille/i.test(cName)) return 'França';
-  if(/benfica|porto|sporting|braga/i.test(cName)) return 'Portugal';
-
-  // 4. Se o usuário estiver numa liga nacional brasileira ou estadual
-  if(typeof state !== 'undefined' && state && typeof curComp === 'function'){
-    const c = curComp();
-    if(c?.country) return c.country;
-  }
-
-  return 'Brasil';
-}
-if(typeof window !== 'undefined') {
-  window.SPONSOR_POOLS_BY_COUNTRY = SPONSOR_POOLS_BY_COUNTRY;
-  window.getClubCountry = getClubCountry;
-}
-
-function generateSponsorOffers(clubBudget, clubName = (typeof state !== 'undefined' ? state?.club : '')){
-  const fame = typeof teamFameScore === 'function' ? teamFameScore() : 50;
-  const mktMult = typeof marketingBenefits === 'function' ? marketingBenefits().sponsorMultiplier : 1;
-  const fameMult = 0.60 + (fame / 100) * 0.90;
-  const seasonFactor = Math.max(0.1, Number(state?.sponsorSeasonFactor) || 1);
-  const baseMonthly = Math.round(Math.max(40000, Math.round((clubBudget || 2000000) * 0.024)) * mktMult * fameMult * seasonFactor);
-
-  const country = getClubCountry(clubName);
-  const countryPool = SPONSOR_POOLS_BY_COUNTRY[country] || SPONSOR_POOLS_BY_COUNTRY['Brasil'];
-  const globalPool = SPONSOR_POOLS_BY_COUNTRY['Global'] || [];
-  
-  // Mescla o pool do país local com os globais
-  const sponsorPool = [...countryPool, ...globalPool];
-
-  // Filtra marcas elegíveis para a fama atual do time
-  const eligible = sponsorPool.filter(s => fame >= (s.minFame - 10));
-  const activePool = eligible.length >= 4 ? eligible : sponsorPool;
-
-  const mList = activePool.filter(s => s.category === 'Master').sort(() => Math.random() - 0.5);
-  const sList = activePool.filter(s => s.category === 'Mangas').sort(() => Math.random() - 0.5);
-  const bList = activePool.filter(s => s.category === 'Costas').sort(() => Math.random() - 0.5);
-
-  const selected = [
-    mList[0] || countryPool.find(s => s.category === 'Master'),
-    sList[0] || countryPool.find(s => s.category === 'Mangas'),
-    bList[0] || countryPool.find(s => s.category === 'Costas'),
-    mList[1] || sList[1] || bList[1] || countryPool[1]
-  ].filter(Boolean);
-
-  return selected.map(s => ({
-    brand: s.brand,
-    category: s.category,
-    color: s.color,
-    monthly: Math.round(baseMonthly * s.mult),
-    winBonus: Math.round(baseMonthly * s.winMult),
-    years: s.years,
-    desc: s.desc,
-    country: country
-  }));
-}
-
-function ensureClubSponsors(s){
-  if(!s) return;
-  s.sponsors = s.sponsors || {};
-  const baseBudget = s.balance || 5000000;
-  const clubCountry = getClubCountry(s.club, s);
-  const offers = generateSponsorOffers(baseBudget, s.club);
-
-  const mOff = offers.find(o => o.category === 'Master') || { brand: 'Patrocinador Master', category: 'Master', color: '#f35b04', monthly: 1850000, winBonus: 240000, years: 2, desc: 'Patrocinador Master Oficial' };
-  const sOff = offers.find(o => o.category === 'Mangas') || { brand: 'Patrocínio Mangas', category: 'Mangas', color: '#10b981', monthly: 720000, winBonus: 95000, years: 2, desc: 'Mangas da Camisa' };
-  const bOff = offers.find(o => o.category === 'Costas') || { brand: 'Patrocínio Costas', category: 'Costas', color: '#ea580c', monthly: 980000, winBonus: 130000, years: 3, desc: 'Costas / Omoplata' };
-
-  if(!s.sponsors.master || !s.sponsors.master.brand || s.sponsors.master.brand === 'Sem Patrocínio') s.sponsors.master = mOff;
-  if(!s.sponsors.sleeves || !s.sponsors.sleeves.brand || s.sponsors.sleeves.brand === 'Sem Patrocínio') s.sponsors.sleeves = sOff;
-  if(!s.sponsors.back || !s.sponsors.back.brand || s.sponsors.back.brand === 'Sem Patrocínio') s.sponsors.back = bOff;
-  if(!Array.isArray(s.sponsorOffers) || s.sponsorOffers.length === 0) s.sponsorOffers = offers;
-}
-if(typeof window !== 'undefined'){
-  window.generateSponsorOffers = generateSponsorOffers;
-  window.ensureClubSponsors = ensureClubSponsors;
-}
-
 function checkNewSponsorOffer(){
   if(!state) return;
   state.sponsorOffers = state.sponsorOffers || [];
@@ -22511,87 +22523,103 @@ function render() {
 ;/* window.__AFM_STATE_SYNCED */ try { if (typeof state !== 'undefined') { window.state = state; window.GameState = state; } if (typeof render === 'function') { window.render = render; } } catch(e) {}
 
   const app=$('#app');
-  const loader = document.getElementById('afmLoadingScreen');
-  if(loader) loader.remove();
-  if(!state){renderSetup(app);return}
-  try { if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save(); } catch(e){}
-  const restoreScroll = app.dataset.renderedView === view;
-  const windowScroll = window.scrollY;
-  const mainScroll = app.querySelector('.main')?.scrollTop || 0;
-  const nestedScroll = [...app.querySelectorAll('.tablewrap, .tactics-bench-wrapper > div[style*="overflow-y:auto"]')].map(el => el.scrollTop);
-  const restore = () => requestAnimationFrame(() => {
-    app.dataset.renderedView = view;
-    if(!restoreScroll){ window.scrollTo(0, 0); return; }
-    window.scrollTo(0, windowScroll);
-    const main = app.querySelector('.main');
-    if(main) main.scrollTop = mainScroll;
-    app.querySelectorAll('.tablewrap, .tactics-bench-wrapper > div[style*="overflow-y:auto"]').forEach((el, i) => { el.scrollTop = nestedScroll[i] || 0; });
-  });
-  const mainEl = app.querySelector('.main');
-  const sideNav = app.querySelector('.nav');
-  if(mainEl && sideNav && app.querySelector('.app')){
-    try {
-      const nextHtml = page();
-      mainEl.innerHTML = nextHtml;
-      sideNav.querySelectorAll('[data-view]').forEach(b => {
-        b.classList.toggle('active', b.dataset.view === view);
-      });
-      const balEl = app.querySelector('.club-card b');
-      if(balEl) balEl.textContent = fmtMoney(state.balance);
+  if(!app) return;
 
-      // Atualiza data e janela de transferências no topo em tempo real
-      const dateEl = document.getElementById('topBarCurrentDate') || app.querySelector('.top-right span:first-child');
-      if(dateEl) dateEl.innerHTML = `📅 ${formatDatePtBr(state.date)}`;
-      const winBadgeEl = app.querySelector('.window-badge');
-      if(winBadgeEl) {
-        const winInfo = getTransferWindowInfo(state.date);
-        winBadgeEl.className = `window-badge ${winInfo.open?'window-open':'window-closed'}`;
-        winBadgeEl.textContent = `${winInfo.open?'🟢':'🔴'} ${winInfo.text}`;
-      }
-
-      bind();
-      triggerAFMSystemEnhancements();
-      restore();
-      return;
-    } catch(err){
-      // Keep the original exception. Recalling page() in shell(page()) here
-      // used to throw the same exception outside this try/catch and strand
-      // the user on a blank/previous view with no actionable diagnostic.
-      recordAFMError('render-page', err);
-      console.error('Falha ao renderizar a tela ' + view + ':', err);
-      const safeMessage = esc(err?.message || 'Erro inesperado ao montar a tela.');
-      try {
-        mainEl.innerHTML = `<section class="card" role="alert" style="margin:20px;padding:20px;border:1px solid #ef4444;background:#1b1020;color:#fff">
-          <h2 style="margin-top:0">Não foi possível abrir esta tela</h2>
-          <p>O jogo encontrou um erro ao renderizar <b>${esc(view)}</b>.</p>
-          <pre style="white-space:pre-wrap;overflow-wrap:anywhere;color:#fecaca">${safeMessage}</pre>
-          <button type="button" class="btn primary" id="btnRetryRenderPage">Tentar abrir novamente</button>
-          <button type="button" class="btn" id="btnReturnCentralAfterRenderError">Voltar à Central</button>
-        </section>`;
-        $('#btnRetryRenderPage')?.addEventListener('click', render);
-        $('#btnReturnCentralAfterRenderError')?.addEventListener('click', () => { view = 'central'; render(); });
-      } catch(fallbackError){
-        recordAFMError('render-error-ui', fallbackError);
-        mainEl.textContent = 'Erro ao renderizar a tela: ' + safeMessage;
-      }
-      sideNav.querySelectorAll('[data-view]').forEach(b => {
-        b.classList.toggle('active', b.dataset.view === view);
-      });
-      restore();
+  try {
+    if(!state){
+      renderSetup(app);
       return;
     }
-  }
-  try {
+    try { if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save(); } catch(e){}
+    const restoreScroll = app.dataset?.renderedView === view;
+    const windowScroll = window.scrollY;
+    const mainScroll = app.querySelector('.main')?.scrollTop || 0;
+    const nestedScroll = [...app.querySelectorAll('.tablewrap, .tactics-bench-wrapper > div[style*="overflow-y:auto"]')].map(el => el.scrollTop);
+    const restore = () => requestAnimationFrame(() => {
+      if(app.dataset) app.dataset.renderedView = view;
+      if(!restoreScroll){ window.scrollTo(0, 0); return; }
+      window.scrollTo(0, windowScroll);
+      const main = app.querySelector('.main');
+      if(main) main.scrollTop = mainScroll;
+      app.querySelectorAll('.tablewrap, .tactics-bench-wrapper > div[style*="overflow-y:auto"]').forEach((el, i) => { el.scrollTop = nestedScroll[i] || 0; });
+    });
+    const mainEl = app.querySelector('.main');
+    const sideNav = app.querySelector('.nav');
+    if(mainEl && sideNav && app.querySelector('.app')){
+      try {
+        const nextHtml = page();
+        mainEl.innerHTML = nextHtml;
+        sideNav.querySelectorAll('[data-view]').forEach(b => {
+          b.classList.toggle('active', b.dataset.view === view);
+        });
+        const balEl = app.querySelector('.club-card b');
+        if(balEl) balEl.textContent = fmtMoney(state.balance);
+
+        // Atualiza data e janela de transferências no topo em tempo real
+        const dateEl = document.getElementById('topBarCurrentDate') || app.querySelector('.top-right span:first-child');
+        if(dateEl) dateEl.innerHTML = `📅 ${formatDatePtBr(state.date)}`;
+        const winBadgeEl = app.querySelector('.window-badge');
+        if(winBadgeEl) {
+          const winInfo = getTransferWindowInfo(state.date);
+          winBadgeEl.className = `window-badge ${winInfo.open?'window-open':'window-closed'}`;
+          winBadgeEl.textContent = `${winInfo.open?'🟢':'🔴'} ${winInfo.text}`;
+        }
+
+        bind();
+        triggerAFMSystemEnhancements();
+        restore();
+        return;
+      } catch(err){
+        recordAFMError('render-page', err);
+        console.error('Falha ao renderizar a tela ' + view + ':', err);
+        const safeMessage = esc(err?.message || 'Erro inesperado ao montar a tela.');
+        try {
+          mainEl.innerHTML = `<section class="card" role="alert" style="margin:20px;padding:20px;border:1px solid #ef4444;background:#1b1020;color:#fff">
+            <h2 style="margin-top:0">Não foi possível abrir esta tela</h2>
+            <p>O jogo encontrou um erro ao renderizar <b>${esc(view)}</b>.</p>
+            <pre style="white-space:pre-wrap;overflow-wrap:anywhere;color:#fecaca">${safeMessage}</pre>
+            <button type="button" class="btn primary" id="btnRetryRenderPage">Tentar abrir novamente</button>
+            <button type="button" class="btn" id="btnReturnCentralAfterRenderError">Voltar à Central</button>
+          </section>`;
+          $('#btnRetryRenderPage')?.addEventListener('click', render);
+          $('#btnReturnCentralAfterRenderError')?.addEventListener('click', () => { view = 'central'; render(); });
+        } catch(fallbackError){
+          recordAFMError('render-error-ui', fallbackError);
+          mainEl.textContent = 'Erro ao renderizar a tela: ' + safeMessage;
+        }
+        sideNav.querySelectorAll('[data-view]').forEach(b => {
+          b.classList.toggle('active', b.dataset.view === view);
+        });
+        restore();
+        return;
+      }
+    }
     app.innerHTML=shell(page());
     bind();
     triggerAFMSystemEnhancements();
+    restore();
   } catch(err){
     recordAFMError('render-shell', err);
     console.error('Falha ao renderizar o aplicativo:', err);
-    app.textContent = 'Não foi possível renderizar o aplicativo: ' + (err?.message || 'erro inesperado');
+    try {
+      renderSetup(app);
+    } catch(setupErr) {
+      app.innerHTML = `<div style="padding:40px;text-align:center;color:#fff;font-family:system-ui">
+        <h2>⚽ AFM MANAGER 2027</h2>
+        <p style="color:#94a3b8">Recuperando inicialização do simulador...</p>
+        <button class="btn primary" onclick="location.reload();" style="padding:10px 20px;margin-top:10px">Recarregar Página</button>
+      </div>`;
+    }
+  } finally {
+    const loader = document.getElementById('afmLoadingScreen');
+    if(loader){
+      loader.style.transition = 'opacity 0.2s ease';
+      loader.style.opacity = '0';
+      setTimeout(() => { if(loader && loader.parentNode) loader.remove(); }, 200);
+    }
   }
-  restore();
 }
+
 
 function shell(main){
   const c=clubByName(state.club)||{stadium:'Estádio do clube'};
@@ -32832,6 +32860,10 @@ function triggerSafeBootRender() {
   }
 }
 
+// Inicialização segura do estado armazenado após todos os catálogos e constantes carregados
+if(typeof initStoredGameState === 'function') {
+  initStoredGameState();
+}
 // Renderização instantânea e remoção imediata da splash screen (0ms)
 triggerSafeBootRender();
 

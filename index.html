@@ -7,8 +7,10 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#7c3aed">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <script>
   window.esc = function(s) {
     return String(s ?? '').replace(/[&<>"']/g, function(m) {
@@ -107,16 +109,16 @@
 <script src="data/player_photos_blocked.js"></script>
 <script src="data/player_photos_verified.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3"></script>
-<script src="js/database.js"></script>
+<script src="js/database.js?v=20261017_anti_blackscreen_v11"></script>
 <script src="js/features30.js"></script>
 <script src="js/core/audio_engine.js"></script>
 <script src="js/core/match_engine.js"></script>
 <script src="js/core/tactics_pitch.js"></script>
-<script src="js/core/real_football_engine.js?v=20261017_real_football6"></script>
+<script src="js/core/real_football_engine.js?v=20261017_anti_blackscreen_v11"></script>
 <script src="js/ui/settings_modal.js"></script>
 
 <!-- 2. Motor Principal do Jogo (Sem bloqueio de window.render) -->
-<script src="js/game.js?v=20261017_real_football6"></script>
+<script src="js/game.js?v=20261017_anti_blackscreen_v11"></script>
 
 <!-- 3. Espaçador de setIntervals para os scripts secundários não pesarem na CPU -->
 <script>
@@ -135,16 +137,16 @@
 </script>
 
 <!-- 4. Sistemas Modulares e Expansões -->
-<script src="js/core/isolated_save_manager.js"></script>
+<script src="js/core/isolated_save_manager.js?v=20261017_anti_blackscreen_v11"></script>
 <script src="js/core/player_photos_manager.js"></script>
 <script src="js/core/calendar_and_day_advance_fix.js"></script>
-<script src="js/systems/real_world_leagues_and_pyramid.js"></script>
-<script src="js/systems/manager_economy.js?v=20261016_confirm_trade_v4"></script>
+<script src="js/systems/real_world_leagues_and_pyramid.js?v=20261017_anti_blackscreen_v11"></script>
+<script src="js/systems/manager_economy.js?v=20261017_anti_blackscreen_v11"></script>
 <script src="js/systems/squad_assistant_and_stars.js"></script>
 <script src="js/systems/global_ranking_and_confidence.js"></script>
 <script src="js/systems/club_finance_and_stadium.js"></script>
-<script src="js/systems/manager_life_and_shares_pro.js?v=20261016_confirm_trade_v4"></script>
-<script src="js/systems/transfer_market_pro.js"></script>
+<script src="js/systems/manager_life_and_shares_pro.js?v=20261017_anti_blackscreen_v11"></script>
+<script src="js/systems/transfer_market_pro.js?v=20261017_anti_blackscreen_v11"></script>
 <script src="js/match/tactical_4phases_enhancer.js"></script>
 <script src="js/match/live_match_hud.js"></script>
 <script src="js/systems/competitions_and_awards.js"></script>
@@ -155,27 +157,44 @@
 <script src="js/systems/market_lupa_aging_and_regens.js"></script>
 <script src="js/ui/changelog_14outubro.js"></script>
 <script src="js/ui/global_shortcuts_and_theme.js"></script>
-<script src="js/systems/match_preview_pro.js?v=20261017_real_football6"></script>
+<script src="js/systems/match_preview_pro.js?v=20261017_anti_blackscreen_v11"></script>
 
 <!-- 5. Salvaguarda de Descongelamento Imediato da Splash Screen -->
 <script id="afmAutoDismissSplash">
   (function() {
     function dismissSplash() {
       var loader = document.getElementById('afmLoadingScreen');
-      if (loader) {
-        loader.style.transition = 'opacity 0.25s ease';
-        loader.style.opacity = '0';
-        setTimeout(function() { if (loader && loader.parentNode) loader.remove(); }, 250);
-      }
+      var app = document.getElementById('app');
       if (typeof window.render === 'function') {
         try { window.render(); } catch(e) {}
+      }
+      // Garante que o loader só suma se o app tiver conteúdo ou após timeout absoluto
+      if (loader) {
+        var hasContent = app && app.children.length > 0 && (app.children[0] !== loader || app.children.length > 1 || (app.innerText && app.innerText.trim().length > 0));
+        if (hasContent) {
+          loader.style.transition = 'opacity 0.25s ease';
+          loader.style.opacity = '0';
+          setTimeout(function() { if (loader && loader.parentNode) loader.remove(); }, 250);
+        }
       }
     }
     if (document.readyState === 'complete') {
       setTimeout(dismissSplash, 150);
     } else {
       window.addEventListener('load', function() { setTimeout(dismissSplash, 150); });
-      setTimeout(dismissSplash, 800); // Teto máximo absoluto de segurança
+      var timer = setInterval(function() {
+        dismissSplash();
+        if (!document.getElementById('afmLoadingScreen')) clearInterval(timer);
+      }, 250);
+      setTimeout(function() {
+        clearInterval(timer);
+        var loader = document.getElementById('afmLoadingScreen');
+        if (loader) {
+          loader.style.transition = 'opacity 0.25s ease';
+          loader.style.opacity = '0';
+          setTimeout(function() { if (loader && loader.parentNode) loader.remove(); }, 250);
+        }
+      }, 3000);
     }
   })();
 </script>
