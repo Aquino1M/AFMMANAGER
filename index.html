@@ -156,5 +156,28 @@
 <script src="js/ui/changelog_14outubro.js"></script>
 <script src="js/ui/global_shortcuts_and_theme.js"></script>
 <script src="js/systems/match_preview_pro.js?v=20261017_real_football6"></script>
+
+<!-- 5. Salvaguarda de Descongelamento Imediato da Splash Screen -->
+<script id="afmAutoDismissSplash">
+  (function() {
+    function dismissSplash() {
+      var loader = document.getElementById('afmLoadingScreen');
+      if (loader) {
+        loader.style.transition = 'opacity 0.25s ease';
+        loader.style.opacity = '0';
+        setTimeout(function() { if (loader && loader.parentNode) loader.remove(); }, 250);
+      }
+      if (typeof window.render === 'function') {
+        try { window.render(); } catch(e) {}
+      }
+    }
+    if (document.readyState === 'complete') {
+      setTimeout(dismissSplash, 150);
+    } else {
+      window.addEventListener('load', function() { setTimeout(dismissSplash, 150); });
+      setTimeout(dismissSplash, 800); // Teto máximo absoluto de segurança
+    }
+  })();
+</script>
 </body>
 </html>

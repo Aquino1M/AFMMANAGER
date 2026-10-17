@@ -32832,20 +32832,23 @@ function triggerSafeBootRender() {
   }
 }
 
-// Timeout de segurança: após 1800ms força a renderização e remove a splash screen independente de rede
-const afmBootTimer = setTimeout(triggerSafeBootRender, 1800);
-window.AFM_DB.init()
-  .then(async user => {
-    if(user) await activateAuthenticatedUser(user);
-  })
-  .catch(error => {
-    recordAFMError('auth-session-restore', error);
-    console.warn('[AFM] Sessão Supabase indisponível; saves locais preservados:', error.message);
-  })
-  .finally(() => {
-    clearTimeout(afmBootTimer);
-    triggerSafeBootRender();
-  });
+// Renderização instantânea e remoção imediata da splash screen (0ms)
+triggerSafeBootRender();
+
+// Sincronização em background sem bloquear o boot ou travar a tela
+if (typeof window !== 'undefined' && window.AFM_DB && typeof window.AFM_DB.init === 'function') {
+  window.AFM_DB.init()
+    .then(user => {
+      if(user && typeof activateAuthenticatedUser === 'function') {
+        activateAuthenticatedUser(user).catch(err => {
+          console.warn('[AFM] Sincronização de sessão em segundo plano:', err);
+        });
+      }
+    })
+    .catch(error => {
+      console.warn('[AFM] Sessão local mantida com segurança.');
+    });
+}
   window.page = page;
   window.centralPage = centralPage;
   window.seasonPage = seasonPage;

@@ -9,6 +9,8 @@ const AFM_DB = (function(){
   let currentUser = null;
   let initPromise = null;
   let syncInProgress = false;
+  let cloudChecked = false;
+  let cloudAvailable = false;
 
   function recordHandledError(type, error){
     const message = error?.message || String(error || 'Falha interna sem mensagem legível');
@@ -16,18 +18,39 @@ const AFM_DB = (function(){
     else window.AFMErrorLog?.record(type, message, error instanceof Error ? { stack: error.stack } : {});
   }
 
+  // Verificação fail-fast de conectividade com a nuvem (máximo 600ms)
+  async function testCloudConnectivity(){
+    if(cloudChecked) return cloudAvailable;
+    cloudChecked = true;
+    if(!window.supabase?.createClient || !AFM_SUPABASE_CONFIG?.url){
+      cloudAvailable = false;
+      return false;
+    }
+    try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 600) : null;
+      const resp = await fetch(`${AFM_SUPABASE_CONFIG.url}/rest/v1/`, {
+        headers: { 'apikey': AFM_SUPABASE_CONFIG.key },
+        signal: controller?.signal
+      });
+      if(timeoutId) clearTimeout(timeoutId);
+      cloudAvailable = (resp.status >= 200 && resp.status < 500);
+    } catch(e){
+      cloudAvailable = false;
+    }
+
+    if(!cloudAvailable){
+      client = null;
+      window.supabaseClient = null;
+      console.info('[AFM_DB] Supabase em nuvem offline/pausado. Operando 100% no modo local ultrarrápido.');
+    }
+    return cloudAvailable;
+  }
+
   function init(){
     if(initPromise) return initPromise;
     initPromise = (async () => {
-      if(window.supabase?.createClient){
-        try {
-          client = window.supabase.createClient(AFM_SUPABASE_CONFIG.url, AFM_SUPABASE_CONFIG.key);
-          window.supabaseClient = client;
-        } catch(err){
-          console.warn('[AFM_DB] Erro ao instanciar cliente Supabase:', err);
-        }
-      }
-      // Restaurar sessão a partir do armazenamento local
+      // 1. Restaurar sessão local IMEDIATAMENTE (0ms)
       const savedUser = localStorage.getItem('afm_active_user_v1');
       if(savedUser){
         try {
@@ -52,6 +75,17 @@ const AFM_DB = (function(){
           recordHandledError('auth-session-restore', e);
         }
       }
+
+      // 2. Verificação de nuvem não bloqueante em segundo plano
+      testCloudConnectivity().then(online => {
+        if(online && window.supabase?.createClient && !client){
+          try {
+            client = window.supabase.createClient(AFM_SUPABASE_CONFIG.url, AFM_SUPABASE_CONFIG.key);
+            window.supabaseClient = client;
+          } catch(err){}
+        }
+      }).catch(() => {});
+
       return currentUser;
     })().catch(error => { initPromise = null; recordHandledError('auth-init', error); return currentUser; });
     return initPromise;
@@ -65,14 +99,17 @@ const AFM_DB = (function(){
 
     await init();
 
-    // 1. Tentar validar na nuvem (Supabase afm_users)
-    if(client){
+    // 1. Tentar validar na nuvem (Supabase afm_users) apenas se estiver online
+    if(client && cloudAvailable){
       try {
-        const { data, error } = await client
+        const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 600));
+        const cloudQuery = client
           .from('afm_users')
           .select('*')
           .ilike('username', cleanUser)
           .maybeSingle();
+
+        const { data, error } = await Promise.race([cloudQuery, timeoutP]);
 
         if(!error && data){
           if(data.password && data.password !== cleanPass){
@@ -101,7 +138,7 @@ const AFM_DB = (function(){
           return { ok: true, user: currentUser };
         }
       } catch(err){
-        console.warn('[AFM_DB] Erro ao consultar afm_users na nuvem:', err);
+        console.warn('[AFM_DB] Consulta em nuvem indisponível, usando fallback local imediato.');
       }
     }
 
@@ -154,20 +191,23 @@ const AFM_DB = (function(){
     // Signup never grants administrative privileges by username.
     const role = 'player';
 
-    // 1. Tentar cadastrar no Supabase
-    if(client){
+    // 1. Tentar cadastrar no Supabase apenas se a nuvem estiver ativa
+    if(client && cloudAvailable){
       try {
-        const { data: existing } = await client
+        const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 600));
+        const checkQuery = client
           .from('afm_users')
           .select('id, username')
           .ilike('username', cleanUser)
           .maybeSingle();
 
+        const { data: existing } = await Promise.race([checkQuery, timeoutP]);
+
         if(existing){
           return { ok: false, error: 'Este nome de usuário já está em uso. Escolha outro ou entre com sua senha.' };
         }
 
-        const { data, error } = await client
+        const insertQuery = client
           .from('afm_users')
           .insert([{
             username: cleanUser,
@@ -178,6 +218,8 @@ const AFM_DB = (function(){
           .select()
           .single();
 
+        const { data, error } = await Promise.race([insertQuery, timeoutP]);
+
         if(!error && data){
           currentUser = {
             id: data.id || data.username,
@@ -187,7 +229,7 @@ const AFM_DB = (function(){
           };
         }
       } catch(err){
-        console.warn('[AFM_DB] Erro ao cadastrar no Supabase:', err);
+        console.warn('[AFM_DB] Cadastro em nuvem offline, persistindo localmente.');
       }
     }
 
@@ -235,16 +277,18 @@ const AFM_DB = (function(){
   async function getSaves(targetUsername){
     const clean = (currentUser?.username || '').trim().toLowerCase();
     if(!clean || (targetUsername && String(targetUsername).trim().toLowerCase() !== clean)) return { ok: false, error: 'Sessão de usuário não encontrada.' };
-    if(!client) return { ok: false, error: 'Supabase não conectado' };
+    if(!client || !cloudAvailable) return { ok: false, error: 'Supabase não conectado' };
     try {
       await init();
       const authSession = await client.auth?.getSession?.();
       if(!authSession?.data?.session?.user?.id) return { ok: false, error: 'Autenticação do provedor não está ativa.' };
-      const { data, error } = await client
+      const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 800));
+      const query = client
         .from('afm_saves')
         .select('*')
         .ilike('username', clean)
         .order('slot', { ascending: true });
+      const { data, error } = await Promise.race([query, timeoutP]);
       if(error) recordHandledError('save-sync-read', error);
       return error ? { ok: false, error: error.message } : { ok: true, data: data || [] };
     } catch(error){
@@ -256,13 +300,15 @@ const AFM_DB = (function(){
   async function cloudGetSaves(targetUsername){
     try {
       await init();
-      if(!client) return [];
+      if(!client || !cloudAvailable) return [];
       const clean = (targetUsername || '').trim().toLowerCase();
-      const { data, error } = await client
+      const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 800));
+      const query = client
         .from('afm_saves')
         .select('*')
         .ilike('username', clean)
         .order('slot', { ascending: true });
+      const { data, error } = await Promise.race([query, timeoutP]);
       if(error){ recordHandledError('cloud-get-saves', error); return []; }
       return data || [];
     } catch(e){
@@ -280,7 +326,7 @@ const AFM_DB = (function(){
     const cleanUser = (currentUser?.username || '').trim().toLowerCase();
     if(!cleanUser || (username && String(username).trim().toLowerCase() !== cleanUser)) return { ok: false, error: 'Sessão inválida para salvar este jogo.' };
 
-    if(!client) return { ok: true, localOnly: true };
+    if(!client || !cloudAvailable) return { ok: true, localOnly: true };
 
     try {
       await init();
@@ -302,11 +348,13 @@ const AFM_DB = (function(){
         save_data: state,
         updated_at: new Date().toISOString()
       };
-      const { data, error } = await client
+      const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 800));
+      const writeQuery = client
         .from('afm_saves')
         .upsert(payload, { onConflict: 'username,slot' })
         .select()
         .single();
+      const { data, error } = await Promise.race([writeQuery, timeoutP]);
       if(error) recordHandledError('save-sync-write', error);
       return error ? { ok: false, error: error.message } : { ok: true, data };
     } catch(error){
@@ -318,16 +366,18 @@ const AFM_DB = (function(){
   async function deleteSlot(username, slotNum){
     const cleanUser = (currentUser?.username || '').trim().toLowerCase();
     if(!cleanUser || (username && String(username).trim().toLowerCase() !== cleanUser)) return { ok: false, error: 'Sessão inválida para excluir este save.' };
-    if(!client) return { ok: true, localOnly: true };
+    if(!client || !cloudAvailable) return { ok: true, localOnly: true };
     try {
       await init();
       const authSession = await client.auth?.getSession?.();
       if(!authSession?.data?.session?.user?.id) return { ok: false, error: 'Autenticação do provedor não está ativa.' };
-      const { error } = await client
+      const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 800));
+      const delQuery = client
         .from('afm_saves')
         .delete()
         .ilike('username', cleanUser)
         .eq('slot', Number(slotNum));
+      const { error } = await Promise.race([delQuery, timeoutP]);
       if(error) recordHandledError('save-sync-delete', error);
       return error ? { ok: false, error: error.message } : { ok: true };
     } catch(error){
@@ -483,12 +533,14 @@ const AFM_DB = (function(){
 
   async function adminGetAllSaves(){
     await init();
-    if(client){
+    if(client && cloudAvailable){
       try {
-        const { data, error } = await client
+        const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 800));
+        const query = client
           .from('afm_saves')
           .select('*')
           .order('updated_at', { ascending: false });
+        const { data, error } = await Promise.race([query, timeoutP]);
         if(!error && data) return { ok: true, data };
       } catch(e){}
     }
@@ -512,7 +564,7 @@ const AFM_DB = (function(){
   }
 
   function isCloudAvailable(){
-    return !!client;
+    return Boolean(client && cloudAvailable);
   }
 
   return {
