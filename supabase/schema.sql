@@ -17,15 +17,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 3. Perfil legado sem credenciais. A autenticação fica em auth.users.
+-- 3. TABELA DE USUÁRIOS DO AFM MANAGER
 CREATE TABLE IF NOT EXISTS public.afm_users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL DEFAULT '123456',
     name TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'player',
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+-- Garantir coluna password se já tiver sido removida anteriormente
+ALTER TABLE public.afm_users ADD COLUMN IF NOT EXISTS password TEXT NOT NULL DEFAULT '123456';
+ALTER TABLE public.afm_users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'player';
 
 -- Índice para login instantâneo case-insensitive
 CREATE INDEX IF NOT EXISTS idx_afm_users_username_lower ON public.afm_users (lower(username));
@@ -33,7 +38,6 @@ CREATE INDEX IF NOT EXISTS idx_afm_users_username_lower ON public.afm_users (low
 -- 4. TABELA DE SAVES / CARREIRAS POR SLOT (1, 2, 3)
 CREATE TABLE IF NOT EXISTS public.afm_saves (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     username TEXT NOT NULL,
     slot INTEGER NOT NULL CHECK (slot BETWEEN 1 AND 3),
     club TEXT NOT NULL,
@@ -52,10 +56,6 @@ CREATE TABLE IF NOT EXISTS public.afm_saves (
     CONSTRAINT uq_afm_saves_username_slot UNIQUE (username, slot)
 );
 
-ALTER TABLE public.afm_saves
-    ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
-CREATE UNIQUE INDEX IF NOT EXISTS uq_afm_saves_user_slot ON public.afm_saves (user_id, slot);
-
 -- Adicionar colunas se tabela já existir em migrações anteriores
 DO $$ 
 BEGIN
@@ -73,6 +73,13 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='afm_saves' AND column_name='division') THEN
         ALTER TABLE public.afm_saves ADD COLUMN division TEXT NOT NULL DEFAULT 'Série A';
+    END IF;
+    -- Se user_id existir e for NOT NULL, remover a restrição NOT NULL para permitir saves do cliente web
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'afm_saves' AND column_name = 'user_id' AND is_nullable = 'NO'
+    ) THEN
+        ALTER TABLE public.afm_saves ALTER COLUMN user_id DROP NOT NULL;
     END IF;
 END $$;
 
@@ -94,11 +101,11 @@ CREATE TRIGGER trg_afm_saves_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION public.set_current_timestamp_updated_at();
 
--- 5. RLS: somente o dono autenticado acessa os próprios saves.
+-- 5. HABILITAR ROW LEVEL SECURITY (RLS) COM POLÍTICAS PÚBLICAS / ANÔNIMAS
 ALTER TABLE public.afm_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.afm_saves ENABLE ROW LEVEL SECURITY;
 
--- Remova qualquer política antiga nesses dados: permissões permissivas são combinadas por OR.
+-- Limpar quaisquer políticas antigas restritivas
 DO $$
 DECLARE existing_policy RECORD;
 BEGIN
@@ -107,23 +114,38 @@ BEGIN
         FROM pg_policies
         WHERE schemaname = 'public' AND tablename IN ('afm_users', 'afm_saves')
     LOOP
-        EXECUTE format('DROP POLICY %I ON %I.%I', existing_policy.policyname, existing_policy.schemaname, existing_policy.tablename);
+        EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', existing_policy.policyname, existing_policy.schemaname, existing_policy.tablename);
     END LOOP;
 END $$;
-CREATE POLICY afm_saves_select_own ON public.afm_saves
-    FOR SELECT TO authenticated USING ((SELECT auth.uid()) = user_id);
-CREATE POLICY afm_saves_insert_own ON public.afm_saves
-    FOR INSERT TO authenticated WITH CHECK ((SELECT auth.uid()) = user_id);
-CREATE POLICY afm_saves_update_own ON public.afm_saves
-    FOR UPDATE TO authenticated USING ((SELECT auth.uid()) = user_id)
-    WITH CHECK ((SELECT auth.uid()) = user_id);
-CREATE POLICY afm_saves_delete_own ON public.afm_saves
-    FOR DELETE TO authenticated USING ((SELECT auth.uid()) = user_id);
 
-REVOKE ALL ON TABLE public.afm_users FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON TABLE public.afm_saves FROM PUBLIC, anon, authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.afm_saves TO authenticated;
-GRANT ALL ON TABLE public.afm_saves TO service_role;
-ALTER TABLE public.afm_users DROP COLUMN IF EXISTS password;
-REVOKE EXECUTE ON FUNCTION public.set_current_timestamp_updated_at() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.set_current_timestamp_updated_at() TO authenticated;
+-- Criar políticas públicas completas (permitindo acesso via chave pública anon/publishable)
+CREATE POLICY "Public full access to afm_users"
+    ON public.afm_users
+    FOR ALL
+    TO anon, authenticated, service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Public full access to afm_saves"
+    ON public.afm_saves
+    FOR ALL
+    TO anon, authenticated, service_role
+    USING (true)
+    WITH CHECK (true);
+
+-- 6. CONCEDER PERMISSÕES COMPLETAS AO CLIENTE WEB (ANON, AUTHENTICATED E SERVICE_ROLE)
+GRANT ALL ON TABLE public.afm_users TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.afm_saves TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.set_current_timestamp_updated_at() TO anon, authenticated, service_role;
+
+-- 7. USUÁRIOS PADRÃO INICIAIS (IDEMPOTENTE)
+INSERT INTO public.afm_users (username, password, name, role)
+VALUES 
+    ('admin', 'admin', 'Administrador AFM', 'admin'),
+    ('aquino', 'viralgen123', 'Aquino', 'player')
+ON CONFLICT (username) DO UPDATE 
+SET 
+    password = EXCLUDED.password,
+    name = EXCLUDED.name,
+    role = EXCLUDED.role,
+    updated_at = timezone('utc'::text, now());
