@@ -10918,11 +10918,12 @@ function migrate(s){
   if(Array.isArray(s.squad) && typeof window.LIVE_PLAYERS !== 'undefined' && Array.isArray(window.LIVE_PLAYERS)){
     const liveMap = new Map();
     window.LIVE_PLAYERS.forEach(lp => { if(lp && lp.name) liveMap.set(norm(lp.name), lp); });
+    const isInitSeason = (s.season === 1 || s.season === 2026);
     s.squad.forEach(p => {
       if(p && p.name){
         const match = liveMap.get(norm(p.name));
         if(match){
-          if(s.season === 1 && (Number(s.round) || 0) <= 2){
+          if(isInitSeason && (Number(s.round) || 0) <= 2){
             if(match.fc) p.fc = match.fc;
             if(match.pes) p.pes = match.pes;
             if(match.potential) p.potential = match.potential;
@@ -10933,14 +10934,14 @@ function migrate(s){
           }
           if(match.pos) p.pos = match.pos;
           if(match.country && !p.country) p.country = match.country;
-          if(match.age && s.season === 1) p.age = match.age;
+          if(match.age && isInitSeason) p.age = match.age;
           if(match.pendingTransfer && !p.pendingTransfer) p.pendingTransfer = { ...match.pendingTransfer };
           p.value = calcValueMi(p);
         }
       }
     });
     // Se o save estiver no início da 1ª temporada (até rodada 2), sincroniza novos reforços reais e saídas
-    if(s.season === 1 && (Number(s.round) || 0) <= 2 && s.club){
+    if(isInitSeason && (Number(s.round) || 0) <= 2 && s.club){
       s.squad = s.squad.filter(p => {
         if(!p || !p.name) return true;
         const match = liveMap.get(norm(p.name));

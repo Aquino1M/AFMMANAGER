@@ -13,7 +13,7 @@ window.LIVE_PLAYERS = (window.LIVE_PLAYERS || []).concat([
   {name:'Mohamed Kanno',club:'Al-Hilal',country:'Arábia Saudita',pos:'CM',age:30,fc:75,pes:75,potential:75,value:2.5},
   {name:'Malcom',club:'Al-Hilal',country:'Brasil',pos:'RW',age:27,fc:82,pes:82,potential:83,value:28},
   {name:'Salem Al-Dawsari',club:'Al-Hilal',country:'Arábia Saudita',pos:'LW',age:33,fc:80,pes:80,potential:80,value:4},
-  {name:'Neymar',club:'Al-Hilal',country:'Brasil',pos:'AM',age:32,fc:88,pes:88,potential:88,value:30},
+  {name:'Kaio César',club:'Al-Hilal',country:'Brasil',pos:'RW',age:20,fc:76,pes:76,potential:83,value:8},
   {name:'Marcos Leonardo',club:'Al-Hilal',country:'Brasil',pos:'ST',age:21,fc:79,pes:79,potential:86,value:25},
   {name:'Aleksandar Mitrovic',club:'Al-Hilal',country:'Sérvia',pos:'ST',age:30,fc:83,pes:83,potential:83,value:25},
   {name:'Bento',club:'Al-Nassr',country:'Brasil',pos:'GK',age:25,fc:80,pes:80,potential:84,value:15},
