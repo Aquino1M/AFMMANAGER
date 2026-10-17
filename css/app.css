@@ -491,7 +491,7 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
   border-radius:12px;
   padding:12px 16px;
   display:grid;
-  grid-template-columns:110px 140px 1fr 120px 110px;
+  grid-template-columns:120px 130px 1fr 140px minmax(230px, auto);
   align-items:center;
   gap:12px;
   transition:all .15s ease;
@@ -4725,23 +4725,4 @@ body.theme-emerald {
   justify-content: space-between !important;
   overflow: visible !important;
 }
-
-/* === AFM_GPU_ACCELERATION_RULES (WebGPU / Compositor Layer Boost) === */
-#app {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-/* Virtualiza linhas de tabelas e cards fora da tela para abrir Elenco e Mercado instantaneamente */
-table tbody tr,
-.player-card,
-.market-row,
-.squad-row {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 48px;
-}
-canvas {
-  image-rendering: optimizeSpeed;
-  transform: translateZ(0);
-}
-
 

@@ -1,5 +1,27 @@
 // Elencos internacionais da temporada 2026/27, obtidos nos feeds de competições ESPN.
 window.AFM_INTERNATIONAL_TEAMS_2026_27 = {
+  "usa-1": [
+  "Inter Miami",
+  "Los Angeles FC",
+  "LA Galaxy",
+  "Columbus Crew",
+  "New York City FC",
+  "New York Red Bulls",
+  "Seattle Sounders",
+  "Atlanta United",
+  "FC Cincinnati",
+  "Orlando City",
+  "Philadelphia Union",
+  "Houston Dynamo",
+  "Portland Timbers",
+  "Austin FC",
+  "Sporting Kansas City",
+  "Nashville SC",
+  "Real Salt Lake",
+  "Minnesota United",
+  "St. Louis City SC",
+  "Chicago Fire"
+],
   "arg-1": [
     "Aldosivi",
     "Argentinos Juniors",
@@ -431,24 +453,24 @@ window.AFM_INTERNATIONAL_TEAMS_2026_27 = {
     "St Mirren"
   ],
   "ksa-1": [
-    "Abha",
-    "Al Ahli",
-    "Al Diriyah",
-    "Al Ettifaq",
-    "Al Faisaly",
-    "Al Fateh",
-    "Al Fayha",
-    "Al Hazem",
-    "Al Hilal",
-    "Al Ittihad",
-    "Al Khaleej",
-    "Al Kholood",
-    "Al Nassr",
-    "Al Qadsiah",
-    "Al Riyadh",
-    "Al Shabab",
-    "Al Taawoun",
-    "Neom SC"
+    "Al-Hilal",
+    "Al-Nassr",
+    "Al-Ittihad",
+    "Al-Ahli",
+    "Al-Qadsiah",
+    "Al-Ettifaq",
+    "Al-Taawoun",
+    "Al-Shabab",
+    "Al-Fateh",
+    "Al-Fayha",
+    "Al-Khaleej",
+    "Al-Riyadh",
+    "Damac",
+    "Al-Kholood",
+    "Al-Hazem",
+    "Neom SC",
+    "Al-Najma",
+    "Al-Okhdood"
   ],
   "jpn-1": [
     "Avispa Fukuoka",
@@ -750,7 +772,9 @@ window.AFM_INTERNATIONAL_TEAMS_2026_27 = {
   ]
 };
 for (const [id, teams] of Object.entries(window.AFM_INTERNATIONAL_TEAMS_2026_27)) {
-  window.COMPETITION_TEAMS[id] = teams;
-  const competition = window.COMPETITIONS.find(item => item.id === id);
-  if (competition) competition.teams = teams.length;
+  if (!window.COMPETITION_TEAMS[id] || window.COMPETITION_TEAMS[id].length === 0) {
+    window.COMPETITION_TEAMS[id] = teams;
+  }
+  const competition = window.COMPETITIONS?.find(item => item.id === id);
+  if (competition) competition.teams = (window.COMPETITION_TEAMS[id] || teams).length;
 }

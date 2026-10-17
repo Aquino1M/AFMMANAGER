@@ -54,7 +54,7 @@ window.COMPETITIONS = [
   {id:'uel',continent:'Europa',country:'UEFA',name:'UEFA Europa League',type:'league-phase',teams:36,rounds:8,logo:'img/badges/competitions/uel.svg',rule:'Fase de liga com 36 clubes e 8 jogos; mata-mata após playoff.'},
   {id:'uecl',continent:'Europa',country:'UEFA',name:'UEFA Conference League',type:'league-phase',teams:36,rounds:6,logo:'img/badges/competitions/uel.svg',rule:'Fase de liga com 36 clubes e 6 jogos; mata-mata após playoff.'},
 
-  {id:'ksa-1',continent:'Ásia',country:'Arábia Saudita',name:'Saudi Pro League',type:'league',teams:18,rounds:34,relegate:3,logo:'img/badges/competitions/ksa_1.svg',rule:'18 clubes, turno e returno.'},
+  {id:'jpn-1',continent:'Ásia',country:'Arábia Saudita',name:'Saudi Pro League',type:'league',teams:18,rounds:34,relegate:3,logo:'img/badges/competitions/ksa_1.svg',rule:'18 clubes, turno e returno.'},
   {id:'jpn-1',continent:'Ásia',country:'Japão',name:'J1 League',type:'league',teams:20,rounds:38,relegate:3,rule:'20 clubes, turno e returno.'},
   {id:'kor-1',continent:'Ásia',country:'Coreia do Sul',name:'K League 1',type:'league-split',teams:12,rule:'Fase regular seguida por split em grupo de título e grupo de rebaixamento.'},
   {id:'chn-1',continent:'Ásia',country:'China',name:'Chinese Super League',type:'league',teams:16,rounds:30,relegate:2,rule:'16 clubes, turno e returno.'},
@@ -65,7 +65,8 @@ window.COMPETITIONS = [
   {id:'tha-1',continent:'Ásia',country:'Tailândia',name:'Thai League 1',type:'league',teams:16,rounds:30,rule:'16 clubes, turno e returno.'},
   {id:'aus-1',continent:'Ásia',country:'Austrália',name:'A-League Men',type:'league-playoff',teams:14,rule:'Temporada regular seguida por finals series.'},
   {id:'afc-el',continent:'Ásia',country:'AFC',name:'AFC Champions League Elite',type:'continental-league',teams:24,rounds:8,rule:'Fases de liga regionais Leste/Oeste; 8 jogos por clube e mata-mata continental.'},
-  {id:'afc2',continent:'Ásia',country:'AFC',name:'AFC Champions League Two',type:'continental-groups',teams:32,rule:'Fase de grupos regionalizada seguida por mata-mata.'}
+  {id:'afc2',continent:'Ásia',country:'AFC',name:'AFC Champions League Two',type:'continental-groups',teams:32,rule:'Fase de grupos regionalizada seguida por mata-mata.'},
+  {id:'usa-1',continent:'América do Norte',country:'Estados Unidos',name:'Major League Soccer',type:'league',teams:20,rounds:38,promote:0,relegate:0,logo:'img/badges/competitions/usa_1.svg',rule:'Temporada regular com 20 franquias, pontos corridos e decisão da MLS Cup.'}
 ];
 
 // Competições adicionais separadas por regulamento. O motor usa o tipo de cada uma para montar a fase inicial.
@@ -107,26 +108,40 @@ BR_ESTADUAIS.forEach(([uf,name,tCount])=>window.COMPETITIONS.push({id:'bra-est-'
 
 window.BASE_CLUBS = [
   // Brasil - Série A (dados de força inspirados no material enviado)
-  {name:'Flamengo',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Maracanã',atk:82,mid:79,def:81,budget:95},
-  {name:'Palmeiras',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena Barueri',atk:81,mid:80,def:81,budget:100},
-  {name:'Fluminense',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Maracanã',atk:81,mid:75,def:79,budget:55},
-  {name:'Santos',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Vila Belmiro',atk:82,mid:77,def:78,budget:45},
-  {name:'Atlético-MG',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena MRV',atk:79,mid:79,def:78,budget:65},
-  {name:'Corinthians',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Neo Química Arena',atk:80,mid:77,def:78,budget:50},
-  {name:'Cruzeiro',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Mineirão',atk:79,mid:78,def:78,budget:60},
-  {name:'Grêmio',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena do Grêmio',atk:79,mid:77,def:77,budget:42},
-  {name:'São Paulo',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'MorumBIS',atk:79,mid:78,def:78,budget:52},
-  {name:'Vasco da Gama',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'São Januário',atk:78,mid:78,def:79,budget:48},
-  {name:'Bahia',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena Fonte Nova',atk:78,mid:77,def:77,budget:70},
-  {name:'Botafogo',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Nilton Santos',atk:79,mid:78,def:77,budget:75},
+  {name:'Flamengo',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Maracanã',atk:83,mid:82,def:81,budget:100},
+  {name:'Palmeiras',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Allianz Parque',atk:83,mid:82,def:82,budget:105},
+  {name:'Fluminense',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Maracanã',atk:80,mid:78,def:80,budget:55},
+  {name:'Santos',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Vila Belmiro',atk:78,mid:77,def:77,budget:45},
+  {name:'Atlético-MG',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena MRV',atk:82,mid:80,def:80,budget:68},
+  {name:'Corinthians',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Neo Química Arena',atk:82,mid:80,def:78,budget:60},
+  {name:'Cruzeiro',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Mineirão',atk:82,mid:80,def:79,budget:75},
+  {name:'Grêmio',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena do Grêmio',atk:80,mid:79,def:77,budget:45},
+  {name:'São Paulo',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'MorumBIS',atk:80,mid:79,def:79,budget:55},
+  {name:'Vasco da Gama',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'São Januário',atk:80,mid:79,def:78,budget:50},
+  {name:'Bahia',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena Fonte Nova',atk:80,mid:80,def:78,budget:75},
+  {name:'Botafogo',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Nilton Santos',atk:84,mid:81,def:81,budget:85},
   {name:'Bragantino',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Cícero de Souza Marques',atk:78,mid:76,def:77,budget:58},
   {name:'Vitória',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Barradão',atk:79,mid:76,def:76,budget:25},
   {name:'Athletico Paranaense',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Ligga Arena',atk:78,mid:75,def:76,budget:40},
-  {name:'Internacional',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Beira-Rio',atk:77,mid:76,def:77,budget:45},
+  {name:'Internacional',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Beira-Rio',atk:80,mid:80,def:79,budget:52},
   {name:'Coritiba',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Couto Pereira',atk:76,mid:75,def:76,budget:28},
   {name:'Mirassol',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Maião',atk:76,mid:75,def:75,budget:22},
+  {name:'Fortaleza',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena Castelão',atk:80,mid:79,def:78,budget:50},
+  {name:'Juventude',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Alfredo Jaconi',atk:76,mid:75,def:75,budget:22},
+  {name:'Ceará',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena Castelão',atk:76,mid:75,def:75,budget:25},
   {name:'Remo',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Mangueirão',atk:76,mid:73,def:75,budget:18},
   {name:'Chapecoense',country:'Brasil',competition:'Campeonato Brasileiro Série A',stadium:'Arena Condá',atk:75,mid:75,def:75,budget:18},
+  {name:'Sport',country:'Brasil',competition:'Campeonato Brasileiro Série B',stadium:'Ilha do Retiro',atk:77,mid:75,def:75,budget:28},
+  {name:'Goiás',country:'Brasil',competition:'Campeonato Brasileiro Série B',stadium:'Serrinha',atk:76,mid:75,def:75,budget:25},
+  {name:'América-MG',country:'Brasil',competition:'Campeonato Brasileiro Série B',stadium:'Independência',atk:76,mid:75,def:75,budget:24},
+  {name:'Cuiabá',country:'Brasil',competition:'Campeonato Brasileiro Série B',stadium:'Arena Pantanal',atk:75,mid:75,def:75,budget:22},
+  {name:'Atlético-GO',country:'Brasil',competition:'Campeonato Brasileiro Série B',stadium:'Antônio Accioly',atk:75,mid:74,def:74,budget:20},
+  {name:'Criciúma',country:'Brasil',competition:'Campeonato Brasileiro Série B',stadium:'Heriberto Hülse',atk:75,mid:74,def:74,budget:20},
+  {name:'Novorizontino',country:'Brasil',competition:'Campeonato Brasileiro Série B',stadium:'Jorge Ismael de Biasi',atk:75,mid:74,def:74,budget:18},
+  {name:'Vila Nova',country:'Brasil',competition:'Campeonato Brasileiro Série B',stadium:'OBA',atk:74,mid:73,def:74,budget:16},
+  {name:'Avaí',country:'Brasil',competition:'Campeonato Brasileiro Série B',stadium:'Ressacada',atk:74,mid:73,def:74,budget:18},
+  {name:'CRB',country:'Brasil',competition:'Campeonato Brasileiro Série B',stadium:'Rei Pelé',atk:74,mid:73,def:73,budget:16},
+  {name:'Paysandu',country:'Brasil',competition:'Campeonato Brasileiro Série B',stadium:'Curuzu',atk:74,mid:73,def:73,budget:16},
   {name:'Real Brasília',country:'Brasil',competition:'Campeonato Candango',stadium:'Ciro Machado do Espírito Santo (Defelê)',atk:58,mid:60,def:59,budget:0.5},
   {name:'Brasília',country:'Brasil',competition:'Campeonato Candango',stadium:'Bezerrão',atk:57,mid:57,def:58,budget:0.4},
   {name:'Gama',country:'Brasil',competition:'Campeonato Candango',stadium:'Bezerrão',atk:61,mid:60,def:61,budget:0.8},
@@ -153,33 +168,33 @@ window.BASE_CLUBS = [
   {name:'Universitario',country:'Peru',competition:'Liga 1',stadium:'Monumental',atk:72,mid:71,def:72,budget:13},
 
   // Inglaterra
-  {name:'Manchester City',country:'Inglaterra',competition:'Premier League',stadium:'Etihad Stadium',atk:86,mid:86,def:85,budget:180},
-  {name:'Arsenal',country:'Inglaterra',competition:'Premier League',stadium:'Emirates Stadium',atk:85,mid:85,def:85,budget:170},
-  {name:'Liverpool',country:'Inglaterra',competition:'Premier League',stadium:'Anfield',atk:86,mid:84,def:84,budget:165},
-  {name:'Chelsea',country:'Inglaterra',competition:'Premier League',stadium:'Stamford Bridge',atk:83,mid:84,def:82,budget:160},
+  {name:'Manchester City',country:'Inglaterra',competition:'Premier League',stadium:'Etihad Stadium',atk:90,mid:89,def:86,budget:200},
+  {name:'Arsenal',country:'Inglaterra',competition:'Premier League',stadium:'Emirates Stadium',atk:87,mid:87,def:87,budget:175},
+  {name:'Liverpool',country:'Inglaterra',competition:'Premier League',stadium:'Anfield',atk:88,mid:86,def:87,budget:180},
+  {name:'Chelsea',country:'Inglaterra',competition:'Premier League',stadium:'Stamford Bridge',atk:85,mid:84,def:82,budget:165},
   {name:'Manchester United',country:'Inglaterra',competition:'Premier League',stadium:'Old Trafford',atk:81,mid:81,def:80,budget:145},
   {name:'Tottenham Hotspur',country:'Inglaterra',competition:'Premier League',stadium:'Tottenham Hotspur Stadium',atk:82,mid:81,def:80,budget:125},
   {name:'Newcastle United',country:'Inglaterra',competition:'Premier League',stadium:'St James’ Park',atk:82,mid:82,def:81,budget:135},
   {name:'Aston Villa',country:'Inglaterra',competition:'Premier League',stadium:'Villa Park',atk:81,mid:80,def:80,budget:100},
 
   // Espanha
-  {name:'Real Madrid',country:'Espanha',competition:'LaLiga',stadium:'Santiago Bernabéu',atk:90,mid:87,def:85,budget:220},
-  {name:'FC Barcelona',country:'Espanha',competition:'LaLiga',stadium:'Camp Nou',atk:88,mid:86,def:83,budget:180},
-  {name:'Atlético de Madrid',country:'Espanha',competition:'LaLiga',stadium:'Metropolitano',atk:84,mid:83,def:84,budget:130},
+  {name:'Real Madrid',country:'Espanha',competition:'LaLiga',stadium:'Santiago Bernabéu',atk:92,mid:89,def:86,budget:240},
+  {name:'FC Barcelona',country:'Espanha',competition:'LaLiga',stadium:'Camp Nou',atk:89,mid:88,def:85,budget:190},
+  {name:'Atlético de Madrid',country:'Espanha',competition:'LaLiga',stadium:'Metropolitano',atk:85,mid:84,def:84,budget:135},
   {name:'Athletic Club',country:'Espanha',competition:'LaLiga',stadium:'San Mamés',atk:81,mid:80,def:81,budget:80},
   {name:'Villarreal',country:'Espanha',competition:'LaLiga',stadium:'La Cerámica',atk:80,mid:79,def:78,budget:72},
   {name:'Real Betis',country:'Espanha',competition:'LaLiga',stadium:'Benito Villamarín',atk:79,mid:80,def:78,budget:70},
 
   // Itália
-  {name:'Inter',country:'Itália',competition:'Serie A',stadium:'San Siro',atk:86,mid:85,def:86,budget:145},
-  {name:'Juventus',country:'Itália',competition:'Serie A',stadium:'Allianz Stadium',atk:83,mid:82,def:83,budget:125},
+  {name:'Inter',country:'Itália',competition:'Serie A',stadium:'San Siro',atk:87,mid:86,def:86,budget:150},
+  {name:'Juventus',country:'Itália',competition:'Serie A',stadium:'Allianz Stadium',atk:84,mid:83,def:84,budget:130},
   {name:'AC Milan',country:'Itália',competition:'Serie A',stadium:'San Siro',atk:83,mid:82,def:82,budget:120},
   {name:'Napoli',country:'Itália',competition:'Serie A',stadium:'Diego Armando Maradona',atk:84,mid:83,def:82,budget:115},
   {name:'Roma',country:'Itália',competition:'Serie A',stadium:'Olimpico',atk:81,mid:81,def:80,budget:90},
   {name:'Atalanta',country:'Itália',competition:'Serie A',stadium:'New Balance Arena',atk:82,mid:82,def:81,budget:95},
 
   // Alemanha
-  {name:'Bayern München',country:'Alemanha',competition:'Bundesliga',stadium:'Allianz Arena',atk:88,mid:86,def:84,budget:180},
+  {name:'Bayern München',country:'Alemanha',competition:'Bundesliga',stadium:'Allianz Arena',atk:89,mid:87,def:85,budget:190},
   {name:'Borussia Dortmund',country:'Alemanha',competition:'Bundesliga',stadium:'Signal Iduna Park',atk:83,mid:82,def:81,budget:115},
   {name:'Bayer Leverkusen',country:'Alemanha',competition:'Bundesliga',stadium:'BayArena',atk:84,mid:84,def:83,budget:120},
   {name:'RB Leipzig',country:'Alemanha',competition:'Bundesliga',stadium:'Red Bull Arena',atk:82,mid:82,def:81,budget:105},
@@ -190,14 +205,15 @@ window.BASE_CLUBS = [
   {name:'Monaco',country:'França',competition:'Ligue 1',stadium:'Louis II',atk:81,mid:81,def:79,budget:90},
   {name:'Benfica',country:'Portugal',competition:'Primeira Liga',stadium:'Estádio da Luz',atk:82,mid:82,def:81,budget:100},
   {name:'FC Porto',country:'Portugal',competition:'Primeira Liga',stadium:'Estádio do Dragão',atk:81,mid:81,def:81,budget:90},
-  {name:'Sporting CP',country:'Portugal',competition:'Primeira Liga',stadium:'José Alvalade',atk:83,mid:82,def:81,budget:95},
+  {name:'Sporting CP',country:'Portugal',competition:'Primeira Liga',stadium:'José Alvalade',atk:85,mid:83,def:82,budget:105},
   {name:'Ajax',country:'Países Baixos',competition:'Eredivisie',stadium:'Johan Cruijff Arena',atk:80,mid:79,def:78,budget:75},
   {name:'PSV',country:'Países Baixos',competition:'Eredivisie',stadium:'Philips Stadion',atk:82,mid:81,def:79,budget:80},
   {name:'Feyenoord',country:'Países Baixos',competition:'Eredivisie',stadium:'De Kuip',atk:81,mid:80,def:80,budget:75},
+  {name:'Inter Miami',country:'Estados Unidos',competition:'Major League Soccer',stadium:'Chase Stadium',atk:84,mid:80,def:76,budget:75},
 
   // Ásia
-  {name:'Al-Hilal',country:'Arábia Saudita',competition:'Saudi Pro League',stadium:'Kingdom Arena',atk:84,mid:83,def:81,budget:180},
-  {name:'Al-Nassr',country:'Arábia Saudita',competition:'Saudi Pro League',stadium:'Al-Awwal Park',atk:84,mid:81,def:78,budget:170},
+  {name:'Al-Hilal',country:'Arábia Saudita',competition:'Saudi Pro League',stadium:'Kingdom Arena',atk:85,mid:84,def:82,budget:190},
+  {name:'Al-Nassr',country:'Arábia Saudita',competition:'Saudi Pro League',stadium:'Al-Awwal Park',atk:85,mid:82,def:79,budget:175},
   {name:'Al-Ittihad',country:'Arábia Saudita',competition:'Saudi Pro League',stadium:'King Abdullah Sports City',atk:82,mid:81,def:79,budget:150},
   {name:'Al-Ahli',country:'Arábia Saudita',competition:'Saudi Pro League',stadium:'King Abdullah Sports City',atk:82,mid:81,def:79,budget:145},
   {name:'Kashima Antlers',country:'Japão',competition:'J1 League',stadium:'Kashima Soccer Stadium',atk:72,mid:72,def:72,budget:24},
@@ -236,7 +252,7 @@ if(Array.isArray(window.COMPETITIONS)){
     'eng-1', 'eng-2', 'eng-3', 'esp-1', 'esp-2', 'ita-1', 'ita-2',
     'ger-1', 'ger-2', 'fra-1', 'fra-2', 'por-1', 'por-2', 'ned-1', 'ned-2',
     'bel-1', 'tur-1', 'sco-1', 'ucl', 'uel', 'uecl',
-    'ksa-1', 'jpn-1', 'kor-1', 'chn-1', 'qat-1', 'uae-1'
+    'usa-1', 'ksa-1', 'jpn-1', 'kor-1', 'chn-1', 'qat-1', 'uae-1'
   ]);
   window.COMPETITIONS = window.COMPETITIONS.filter(c => validCompIds.has(c.id));
 }

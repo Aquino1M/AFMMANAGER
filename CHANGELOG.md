@@ -2,6 +2,366 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.7] - 2026-10-17 (Premiações Reais de Campeonatos, Inclusão Oficial da MLS, Patrocinadores Locais por País & Sistema Oficial de Número da Camisa)
+
+### 💰 1. Premiações Reais e Autênticas de Todos os Campeonatos e Copas
+- **Pesquisa Real de Valores Oficiais**: Valores de premiação calibrados estritamente com base nos dados reais do futebol (CBF, CONMEBOL, UEFA, FIFA, MLS e ligas europeias):
+  - **Brasileirão Série A**: Campeão R$ 48,1M, 2º R$ 45,7M, 3º R$ 43,3M, descendo progressivamente até o 16º com R$ 16,3M. Z4 (17º a 20º) com R$ 0 de premiação esportiva conforme regra oficial CBF/Globo.
+  - **Brasileirão Série B**: Campeão R$ 3,5M, 2º ao 4º (G4) R$ 1,35M, permanência até 16º R$ 600K e Z4 R$ 300K.
+  - **Séries C e D**: Campeão Série C R$ 2,0M / Vice R$ 1,0M / G4 R$ 600K; Série D Campeão R$ 1,2M / Vice R$ 700K / Semis R$ 500K.
+  - **Copa do Brasil**: Pagamentos progressivos por fase com valores oficiais até R$ 73,5M para o Campeão e R$ 31,5M para o Vice-Campeão (Semis R$ 9,45M, Quartas R$ 4,515M, Oitavas R$ 3,465M, etc.).
+  - **Copa Libertadores & Sul-Americana**: Libertadores US$ 23M (~R$ 126,5M) para o campeão e US$ 7M (~R$ 38,5M) para o vice; Sul-Americana US$ 6M (~R$ 33M) para o campeão e US$ 2M (~R$ 11M) para o vice.
+  - **Estaduais de Elite**: Paulistão SP Campeão R$ 5M / Vice R$ 1,65M; Carioca RJ Campeão R$ 3M; Mineiro MG e Gaúcho RS Campeão R$ 2,5M.
+  - **Grandes Ligas Mundiais**: Premier League Campeão R$ 380M (£ 62M de mérito); LaLiga Campeão R$ 330M; Serie A, Bundesliga e Ligue 1 Campeão R$ 250M; Saudi Pro League Campeão R$ 60M; Major League Soccer Campeão R$ 55M; Copa do Mundo de Clubes FIFA Campeão R$ 275M (US$ 50M).
+- **Funções Criadas e Integradas**: `calculateSeasonPrizeMoney(position, comp)` e `calculateCupPhasePrize(compOrId, phaseName, isWinner, isChampion)`, integradas com crédito em saldo bancário e notícias em `playCopaDoBrasilFixture`, `simulateQuickRound` e premiação de fim de temporada em `centralPage`.
+
+### 🇺🇸 2. Inclusão Oficial da Major League Soccer (MLS - Estados Unidos)
+- **Liga e Franquias**: Registrada a competição oficial `usa-1` ("Major League Soccer") com 20 franquias de ponta: *Inter Miami, Los Angeles FC, LA Galaxy, Columbus Crew, New York City FC, New York Red Bulls, Seattle Sounders, Atlanta United, FC Cincinnati, Orlando City, Philadelphia Union, Houston Dynamo, Portland Timbers, Austin FC, Sporting Kansas City, Nashville SC, Real Salt Lake, Minnesota United, St. Louis City SC, Chicago Fire*.
+- **Super Craques Mundiais Cadastrados**: 89 jogadores reais adicionados com estatísticas, idades, posições e números de camisa autênticos:
+  - **Lionel Messi** (#10, Inter Miami - OVR 88, RW)
+  - **Luis Suárez** (#9, Inter Miami - OVR 82, ST)
+  - **Sergio Busquets** (#5, Inter Miami - OVR 81, DM)
+  - **Jordi Alba** (#18, Inter Miami - OVR 80, LB)
+  - **Federico Redondo** (#55, Inter Miami - OVR 75, DM)
+  - **Olivier Giroud** (#9, Los Angeles FC - OVR 81, ST)
+  - **Hugo Lloris** (#1, Los Angeles FC - OVR 80, GK)
+  - **Denis Bouanga** (#99, Los Angeles FC - OVR 82, LW)
+  - **Marco Reus** (#18, LA Galaxy - OVR 82, AM)
+  - **Riqui Puig** (#10, LA Galaxy - OVR 79, CM)
+  - **Gabriel Pec** (#11, LA Galaxy - OVR 77, RW)
+  - **Cucho Hernández** (#9, Columbus Crew - OVR 80, ST)
+  - **Luciano Acosta** (#10, FC Cincinnati - OVR 81, AM)
+  - **Emil Forsberg** (#10, New York Red Bulls - OVR 80, AM)
+  - **Aleksei Miranchuk** (#59, Atlanta United - OVR 79, AM)
+- **Filtros e Roteamento Global**: Adicionada a região `América do Norte` nos filtros de Mercado (`marketRegion`) e Empréstimos (`loanRegion`), com suporte completo a `intlLigas` e `inferClubMeta`.
+
+### 🌎 3. Patrocinadores Locais Autênticos por País
+- **Catálogo Regional (`SPONSOR_POOLS_BY_COUNTRY`)**: Substituído o conjunto genérico por patrocinadores hiper-realistas de cada país:
+  - **Brasil**: *Betano, Nubank, Petrobras, Caixa, Superbet, iFood, Crefisa, Banco do Brasil, Fatal Model, GOL Linhas Aéreas, Cimed, EstrelaBet, Havan, BYD, Itaú, Brahma, Zé Delivery, Pixbet*.
+  - **Argentina**: *YPF, Cerveza Quilmes, Codere, Betsson Argentina, Banco Galicia, Banco Macro, Flecha Bus, Assist Card, DirecTV Argentina, Aerolíneas Argentinas, Mercado Libre, Tarjeta Naranja, PedidosYa Argentina*.
+  - **Estados Unidos**: *Apple TV, Audi, Target, BMO, Herbalife, American Family Insurance, Ford, DoorDash, AT&T, Heineken USA, Delta Air Lines, Bank of America, BodyArmor, GEICO*.
+  - **Inglaterra**: *Fly Emirates, Standard Chartered, Etihad Airways, TeamViewer, Stake.com, Visit Rwanda, JD Sports, Expedia, Barclays, Cadbury*.
+  - **Espanha**: *Spotify, Emirates Fly Better, Riyadh Air, DIGI, Finetwork, Ambilight TV, Nexen Tire, OK Mobility, CaixaBank, Mahou San Miguel*.
+  - **Arábia Saudita**: *Roshn, Aramco, STC, Saudia Airlines, Red Sea Global, Alinma Bank, Jahez, NEOM, SABIC*.
+  - **Itália, Alemanha, França, Portugal e Global**: Pools dedicados com *Jeep, MSC Crociere, Deutsche Telekom, Evonik, Red Bull, Qatar Airways, Orange, Betclic, MEO, Sony, Mastercard*, etc.
+- **Detecção Inteligente do País (`getClubCountry`)**: Resolve dinamicamente o país de qualquer clube por ID de liga, competição ou heurística do clube, garantindo que clubes argentinos recebam patrocinadores argentinos, clubes da MLS recebam patrocinadores norte-americanos e clubes brasileiros recebam patrocinadores nacionais.
+
+### 👕 4. Sistema Oficial de Escolha do Número da Camisa dos Jogadores
+- **Numeração de 1 a 99 sem Duplicações**: Atributo `p.number` nos atletas, gerido de forma estrita pela rotina `ensureSquadShirtNumbers`.
+- **Troca Inteligente de Camisa (Swap)**: A função `setPlayerShirtNumber(playerOrKey, newNumber)` permite definir qualquer camisa de 1 a 99; se outro atleta do clube já utilizar o número, o sistema realiza um swap limpo e seguro, sem colisão e com zero duplicações.
+- **Botão "⚡ Numeração Tradicional (1 a 11)"**: A função `assignTraditionalShirtNumbers(state)` atribui de forma clássica camisas 1 a 11 para os titulares conforme a prancheta tática (GK=1, laterais=2/6, zagueiros=3/4, volantes=5/8, meias=10/8, atacantes=9/7/11) e camisas 12 em diante para os reservas.
+- **Interface e Telas**:
+  - Botão `👕 Numeração` e coluna `Nº` na tabela de elenco em `squadPage()`.
+  - Modal interativo em dark mode `openSquadShirtNumbersModal()` com grid visual de 1 a 99 indicando camisas ocupadas/vagas e troca imediata.
+  - Exibição do número `#` nas pílulas táticas no gramado (`renderPitchPlayerPill`) e nos mini-cards oficiais estilo EA FC (`renderFifaMiniCard`).
+
+---
+
+## [3.9.6] - 2026-10-17 (Blindagem Total de Sincronização entre Abas & Garantia Inviolável de Zero Duplicações)
+
+### 🛡️ 1. Desduplicação Universal de Dados em Todo o Jogo
+- **Elenco (`squad`)**: Desduplicação automática e permanente no `normalizeSquadState` e `repairSaveIfCorrupted` por chave canônica de atleta (`playerKey`). Nenhum jogador pode existir duas vezes no clube.
+- **Escalação (`lineup`)**: O mapeamento dos 11 titulares agora impede que o mesmo atleta seja escalado em mais de uma posição. Se houver duplicação, o slot repetido é limpo (`null`).
+- **Histórico (`history`)**: Algoritmo de desduplicação por chave composta (`temporada + competição + par de clubes ordenado + rodada/data`), eliminando 100% de registros duplicados de confrontos.
+- **Notícias (`news`)**: Feed higienizado sem mensagens duplicadas consecutivas e limitado aos 50 registros mais recentes.
+- **Classificação (`teams`)**: Garantida ausência de clubes duplicados e consistência matemática estrita (`J = V + E + D`, `SG = GP - GC`, `P = V*3 + E`, `PCT = P/(J*3)`).
+
+### 🔄 2. Preservação das Finanças, Elenco e Confiança entre Competições
+- **Fim do Sobrescrita por Snapshots**: As funções `restorePrimaryLeagueAfterStateMatch`, `restorePrimaryLeagueAfterContinentalMatch` e `restorePrimaryLeagueAfterCopaMatch` agora restauram **apenas a estrutura da liga** (`compId`, `competition`, `teams`, `schedule`, `round`), preservando integralmente o saldo financeiro (`balance`), receitas (`income`), despesas (`expense`), preparo físico do elenco (`squad`), escalação (`lineup`) e confiança da diretoria/torcida (`trust`).
+- **Sincronização em `render()`**: Cada troca de aba ou atualização de tela aciona a verificação defensiva de integridade, mantendo os dados 100% complementares e alinhados.
+
+### 🧪 3. Bateria de Auditoria com 100% de Sucesso
+- Executado o teste profundo [`scripts/test_complete_tabs_sync_and_zero_duplication.js`](file:///E:/PROJETOS%20SAAS/VSCODE%20PROJETOS/Aquino_Futebol_Manager_2026/scripts/test_complete_tabs_sync_and_zero_duplication.js) em 4 clubes (Palmeiras, Grêmio, FC Barcelona e Al-Nassr), cobrindo compras, vendas, upgrades de estádio, simulações partida por partida e renderização com **zero falhas e zero duplicações**.
+- Executada auditoria profunda transversal [`scripts/deep_audit_all_tabs_and_subtabs.js`](file:///E:/PROJETOS%20SAAS/VSCODE%20PROJETOS/Aquino_Futebol_Manager_2026/scripts/deep_audit_all_tabs_and_subtabs.js) em 7 clubes de ligas e continentes variados (Flamengo, Corinthians, Palmeiras, Santos, Brasília, Real Madrid, Al-Hilal), testando todas as 12 abas e suas sub-abas (canais de notícias, abas de mercado, abas de temporada, filtros de elenco).
+- Executado teste de ações interativas [`scripts/test_interactive_actions_sync.js`](file:///E:/PROJETOS%20SAAS/VSCODE%20PROJETOS/Aquino_Futebol_Manager_2026/scripts/test_interactive_actions_sync.js) validando substituições táticas de titulares/reservas, troca de formações (4-3-3, 4-4-2, 3-5-2, etc.), contratos de empréstimo no mercado, patrocínios e projeções do escritório, geração de tokens X1 e prévia de partidas. Todos com **código de saída 0**.
+
+## [3.9.5] - 2026-10-17 (Correção Definitiva do Calendário: Sincronização Concluído, Fluxo Partida por Partida & Teste em 4 Contas)
+
+### 📅 1. Correção Definitiva da Validação de Partidas no Calendário
+- **Causa Raiz Identificada e Extirpada**: Na tela do Calendário (`calendarPage`), as partidas da Liga (`leagueTab`) e dos Estaduais (`stateMatches`) não estavam anexando diretamente o array `result` no objeto da partida. Além disso, `resolveCalendarMatchResult` não lia `m.historyMatch` e sua checagem de competição exigia igualdade estrita sem mapear o identificador genérico `'COMP'` para `state.compId` (`bra-a`, `esp-1`, etc.), fazendo com que jogos disputados continuassem com os botões "▶ Jogar" e "⚡ Simular" visíveis.
+- **Solução Implementada**:
+  - `leagueTab` e `stateMatches` em `js/game.js` agora calculam e anexam `result: [hg, ag]` diretamente a cada confronto concluído no histórico ou no fixture.
+  - `resolveCalendarMatchResult` aprimorado para checar prioritariamente `m.historyMatch`, `m.stateFixture`, fixtures de copas/torneios e histórico do save com paridade total entre `'COMP'` e `state.compId`.
+  - Quando a partida já foi jogada, renderiza exclusivamente `<span class="pill good">X x Y · Concluído</span>` e suprime 100% dos botões de ação de jogo.
+
+### ⏱️ 2. Garantia Inviolável de Progressão Partida por Partida
+- **Cronologia Estrita**: A progressão (`getActualCurrentMatch`, `canStartMatch`, `advanceToNextMatchGuaranteed`) avança estritamente data a data entre todas as competições ativas (Estaduais no meio de semana, Copas e Liga Nacional nos finais de semana).
+- **Proteção contra Saltos de Data**: `advanceDateAfterMatch` não salta datas com múltiplos confrontos agendados no mesmo dia (ex: estadual e continental) e `advanceToNextMatchGuaranteed` nunca pula jogos pendentes.
+
+### 🧪 3. Validação Real em 4 Contas / Clubes Distintos
+- Executado teste automatizado completo (`scripts/test_four_careers_partida_por_partida.js`) com 4 contas e saves isolados:
+  - **Conta 1 (Corinthians)**: Série A + Paulistão (6 partidas alternadas jogadas e validadas `Concluído`, 11 abas 100% OK).
+  - **Conta 2 (Flamengo)**: Série A + Carioca (6 partidas alternadas jogadas e validadas `Concluído`, 11 abas 100% OK).
+  - **Conta 3 (Real Madrid)**: La Liga + Champions League (6 partidas jogadas e validadas `Concluído`, 11 abas 100% OK).
+  - **Conta 4 (Al-Hilal)**: Saudi Pro League + AFC Champions Elite (6 partidas jogadas e validadas `Concluído`, 11 abas 100% OK).
+- **11 Abas Validadas**: Central, Calendário, Meu Time/Tática, Elenco, Mercado, Estrutura, Escritório, Carreira/X1, Temporada/Tabela, Novidades e Configurações renderizando sem qualquer falha.
+
+## [3.9.0] - 2026-10-17 (Super Atualização: Motor de Jogo Realista 3D, VAR na TV, Alternador Copa/Libertadores, Blindagem Inviolável de Avanço & Tela de Novidades)
+
+### 🛡️ 1. Blindagem Crítica Inviolável dos Botões de Avanço e Calendário
+- **Causa Raiz Corrigida**: Os botões da janela de transferências (`btnAdvanceTransferWindowDay`, `btnAdvanceTransferWindowHours`) na Central não possuíam listeners e seus cards disparavam `advanceTransferWindow()`, que não estava declarada.
+- **Implementação Robusta**:
+  - Implementada `advanceTransferWindow(step = 24)` no `js/game.js` com suporte completo a dias (1 a 4) e avanço de 6 em 6 horas no Deadline Day até as 24:00.
+  - Exportação global no `window`: `advanceTransferWindow`, `advanceTransferWindowDay`, `advanceTransferWindowHours`, `advancePreSeasonDay`, `skipPreSeason`, `advanceCalendarDays`.
+  - Amarração de todos os botões na `bind()` com flag anti-duplicação (`dataset.handlingClick`).
+  - Fallback global capturado no `document` via `calendar_and_day_advance_fix.js`, interceptando cliques por ID ou texto mesmo se o DOM for re-renderizado.
+  - Regra crítica permanente adicionada ao `AGENTS.md`.
+
+### ⚽ 2. Motor de Jogo Realista 3D & Efeitos de Transmissão de TV
+- **Carrinhos & Desarmes**: Desarmes no chão com rastro físico na grama (`skid marks`) e animação de queda realista.
+- **Fintas 1v1**: Dribles dinâmicos com quebra de marcação, aura visual de aceleração e efeito de stun no defensor.
+- **Passes em Cadeia**: Sequência fluida de passes conectando meio-campo e ataque até a finalização ao gol.
+- **Linhas 3D de Impedimento & Bandeirinhas**: Assistentes laterais nas duas extremidades correndo e erguendo bandeiras quadriculadas em lances de impedimento, com linha 3D projetada sobre o gramado.
+- **Cabine do VAR & TV Replay**: Cabine física com monitor na beira do campo e overlay de televisão exibindo replay oficial com ângulo dramático.
+- **Arquitetura de Estádio com 4 Setores**: Renderização dos 4 setores (Norte, Sul, Leste e Oeste) dimensionados pelo nível real de infraestrutura.
+- **Câmera de TV Dinâmica**: Câmera inteligente de transmissão com rastreamento contínuo da bola, zoom suave e ângulos abertos.
+
+### 🔄 3. Alternador Rápido Copa do Brasil & Libertadores
+- **Widget 2 na Central**: Botões `[🇧🇷 COPA]` e `[🏆 LIBERTADORES]` permitindo alternar instantaneamente entre a Copa do Brasil e a Libertadores sem sair da Central.
+- **Atalhos na Temporada**: Navegação bidirecional rápida entre as tabelas de ambas as copas.
+
+### 📢 4. Atualização Oficial da Tela de Novidades & Correções
+- **Tela Interna do Jogo**: Atualizado `js/ui/changelog_14outubro.js` com a data atual **17 de Outubro de 2026** (`HOJE · 17 DE OUTUBRO`), destacando todas as novidades e correções para visualização direta do usuário na aba *Novidades & Correções*.
+
+## [3.8.8] - 2026-10-17 (Correção do Botão 📋 PRÉVIA, Exportações Globais de Modais & Auditoria Integral 100% Limpa)
+
+### 📋 1. Correção Imediata do Botão de Prévia (`📋 PRÉVIA`)
+- **Causa Raiz Identificada**: No `js/game.js`, as funções `openCustomModal` e `closeCustomModal` estavam encapsuladas no escopo interno da IIFE `(function(){ ... })()` sem exportação para o objeto global `window`. Como consequência, o módulo `match_preview_pro.js` não encontrava a função no escopo global e, ao interceptar o clique com `e.stopPropagation()`, a prévia não abria silenciosamente.
+- **Exportação Global no `game.js`**: Exportadas para `window`: `openCustomModal`, `closeCustomModal`, `userFixture`, `clubByName`, `overallSquad`, `curComp`, `clubStadiumName`, `getMatchWeather`, `compById`, `playersForClub`, `formatDatePtBr`, `playerPhoto`, `ratingClass`, `playerSalary`, `playerOverall`, `calcValueMi`, `fmtMi`, `buyPlayer` e `findGlobalPlayerByKey`.
+- **Camada Autônoma de Fallback no `match_preview_pro.js`**: Adicionada injeção de DOM independente caso o modal global não esteja disponível, garantindo que o overlay `#appCustomModal` sempre seja renderizado no `document.body`.
+- **Parâmetros de Partida em Atributos Data**: Adicionados `data-home`, `data-away`, `data-comp`, `data-date` aos botões `#btnMatchPreviewCentral` (tanto do card de hoje quanto do card de próxima partida futura) para resolução instantânea e sem atraso.
+- **Cache-Busting no `index.html`**: Scripts atualizados com a tag de versão `?v=20261017_preview_fix4` para garantir que o navegador não utilize versões em cache do script.
+
+### 🛡️ 2. Fortalecimento de Listeners & Auditoria Preventiva
+- **Proteção Contra Erros em Listeners de Modais**:
+  - `openCustomModal`: Validação defensiva com `overlay.querySelector('#modalCloseXBtn')` e verificação de nulidade antes de associar `.onclick`.
+  - `openPressConferenceModal`: Adicionada verificação segura e escopo local no botão `#btnClosePressRoom`.
+- **Validação de Testes Unitários e E2E**:
+  - `scripts/test_preview_button_click.js`: 100% APROVADO.
+  - `scripts/full_system_audit.js`: 100% LIMPO (zero erros de sintaxe, zero erros de runtime em todas as 9 telas e sistemas).
+  - `scripts/test_all_continents.js`: 100% APROVADO (12 de 12 clubes na América do Sul, Europa e Ásia com prévia, simulação, copas e ligas locais perfeitas).
+
+## [3.8.7] - 2026-10-17 (Auditoria Geral do Jogo 100% Limpa e Validação Completa das Ligas da América do Sul, Europa e Ásia)
+
+### 🌍 1. Validação Completa Multi-Continental (12 Ligas & Clubes)
+- **América do Sul**:
+  - **Boca Juniors (arg-1)**: 41 jogos disputados (Liga Profesional, CONMEBOL Libertadores, Mundial de Clubes FIFA) — 100% OK.
+  - **Colo-Colo (chi-1)**: 30 jogos disputados (Primera División de Chile) — 100% OK.
+  - **Peñarol (uru-1)**: 36 jogos disputados (Primera División Uruguaya, CONMEBOL Libertadores) — 100% OK.
+  - **Atlético Nacional (col-1)**: 38 jogos disputados (Categoría Primera A) — 100% OK.
+- **Europa**:
+  - **Real Madrid (esp-1)**: 52 jogos disputados (LaLiga, UEFA Champions League, Mundial de Clubes FIFA) — 100% OK.
+  - **Arsenal (eng-1)**: 46 jogos disputados (Premier League, UEFA Champions League) — 100% OK.
+  - **Inter (ita-1)**: 52 jogos disputados (Serie A, UEFA Champions League, Mundial de Clubes FIFA) — 100% OK.
+  - **Bayern München (ger-1)**: 48 jogos disputados (Bundesliga, UEFA Champions League, Mundial de Clubes FIFA) — 100% OK.
+- **Ásia**:
+  - **Al-Hilal (ksa-1)**: 48 jogos disputados (Saudi Pro League, AFC Champions League Elite, Mundial de Clubes FIFA) — 100% OK.
+  - **Al-Nassr (ksa-1)**: 42 jogos disputados (Saudi Pro League, AFC Champions League Elite) — 100% OK.
+  - **Vissel Kobe (jpn-1)**: 46 jogos disputados (J1 League, AFC Champions League Elite) — 100% OK.
+  - **Ulsan HD (kor-1)**: 30 jogos disputados (K League 1, AFC Champions League Elite) — 100% OK.
+- **Folgas (BYEs)**: ZERO rodadas de folga ou discrepâncias de tabela em todas as 12 ligas internacionais testadas.
+- **Contaminação de Estaduais**: ZERO vazamentos de estaduais brasileiros para clubes estrangeiros.
+
+### 🛡️ 2. Proteção de Roster Mestre & Sincronização Canônica
+- **Preservação de `data/competition_teams.js`**: `data/international_teams_2026_27.js` agora preserva as listas mestres já configuradas, evitando que nomes anglicizados sobrescrevam as equipes canônicas (`Colo-Colo`, `Inter`, `Bayern München`, `FC Barcelona`, `Roma`).
+- **Sincronia Total de Torneios Continentais & Mundiais**: Clubes da liga nacional agora compartilham a mesma chave canônica com a Libertadores, Champions League, AFC Elite e Mundial de Clubes FIFA.
+
+### 🔍 3. Auditoria Geral de Sistemas, Telas & Persistência (100% Aprovada)
+- **Renderização Limpa de Todas as Views**: Testadas e validadas sem nenhum erro: Central, Elenco, Táticas, Calendário, Classificação, Mercado, Estrutura, Finanças e Sala de Troféus.
+- **Proteção no Módulo de Ações SAF**: Protegido o acesso a `.options` em `updateSellCalc` e botões de preset em `manager_life_and_shares_pro.js`.
+- **Exportações Globais de Táticas e Transferências**: `ensureTacticsState`, `optimizeLineup`, `isTransferWindowOpen` e `newCareer` exportados e disponíveis globalmente.
+- **Persistência de Save/Load**: Auditoria de integridade do `localStorage` com 100% de sucesso na gravação e recuperação de dados.
+
+## [3.8.6] - 2026-10-17 (Suporte e Simulação 100% Internacional: América do Sul, Europa & Ásia)
+
+### 🌎 1. Ligas e Campeonatos Próprios da América do Sul, Europa e Ásia
+- **Eliminação de Estaduais em Clubes Internacionais**: Corrigido `clubStateCompId` para retornar `null` em clubes de ligas internacionais (Argentina, Espanha, Inglaterra, Arábia Saudita, Japão, etc.). Clubes internacionais nunca mais são inseridos indevidamente no Campeonato Paulista.
+- **Ativação Completa dos Torneios Continentais & Mundiais (2026)**:
+  - **UEFA Champions League (`ucl`)**: Real Madrid, Arsenal, Manchester City, Bayern München, Barcelona e os 36 clubes europeus com 8 rodadas da fase de liga geradas automaticamente.
+  - **UEFA Europa League (`uel`)**: 36 clubes participantes com confrontos e tabela completa da temporada 2026.
+  - **AFC Champions League Elite (`afc-el`)**: Adicionada a lista com os 24 clubes de elite da Ásia (Al-Hilal, Al-Nassr, Al-Ittihad, Vissel Kobe, Ulsan HD, etc.) com 8 rodadas completas.
+  - **Mundial de Clubes FIFA (`cwc`)**: Confrontos e grupos ativos com participação dos campeões e gigantes mundiais.
+  - **CONMEBOL Libertadores (`lib`)**: Boca Juniors, River Plate e clubes sul-americanos com 100% dos confrontos e classificação de grupos ativos.
+
+### 📋 2. Prévia Oficial e Cards no Calendário Internacional
+- **Prévia Dinâmica (`📋 Prévia`)**: Integrada com histórico e aproveitamento recente em todas as competições continentais europeias, asiáticas e sul-americanas.
+- **3 Botões em Cada Card do Calendário**: Todos os confrontos de ligas locais (LaLiga, Premier League, Liga Profesional Argentina, Saudi Pro League, J1 League) e copas continentais contam com botões dedicados de `▶ Jogar`, `⚡ Simular` e `📋 Prévia`.
+- **Cards 100% Concluídos**: Cada jogo disputado atualiza em tempo real o placar `${hg} x ${ag} · Concluído` no calendário do usuário.
+
+### 🔄 3. Validação de Simulação Completa do Ano e Transição para 2027
+- **Boca Juniors (arg-1 / América do Sul)**: 41 jogos disputados, 41 cards concluídos (100%), classificado e campeão, virada de ano para 2027 com sucesso.
+- **Real Madrid (esp-1 / Europa)**: 52 jogos disputados (LaLiga + UCL + Mundial), 52 cards concluídos (100%), virada de ano para 2027 com sucesso.
+- **Al-Hilal (ksa-1 / Ásia)**: 48 jogos disputados (Saudi Pro League + AFC Elite + Mundial), 48 cards concluídos (100%), virada de ano para 2027 com sucesso.
+
+## [3.8.5] - 2026-10-17 (Prévia com Histórico & Forma Recente, Libertadores 100% Jogável, Ações nos Cards do Calendário e Transição de Temporada)
+
+### 🏆 1. Correção Definitiva da Libertadores & Torneios Continentais
+- **Bloqueio de Auto-Simulação Indevida**: Eliminada a auto-simulação de partidas continentais do clube do usuário em segundo plano (`processContinentalFixturesBefore`). O técnico agora tem controle total para jogar ou simular quando desejar.
+- **Auto-Reparo de Saves Corrompidos**: Criada rotina automática em `repairSaveIfCorrupted` que detecta confrontos continentais do usuário marcados como 0x0 sem histórico e restaura seu status para `scheduled`, permitindo que o usuário dispute partidas como Peñarol e Platense normalmente.
+- **Suporte Completo ao Motor 2D Ao Vivo e Simulação**: Partidas continentais suportam tanto o jogo interativo no campo 2D com 22 atletas (`beginContinentalLiveMatch`) quanto simulação instantânea (`playContinentalFixture`) com atualização em tempo real da tabela de grupos.
+
+### 🎮 2. Sistema Universal de 3 Botões em TODAS as Partidas (Central e Calendário)
+- **Toda Partida de Qualquer Campeonato com 3 Botões**:
+  - `▶ Jogar` (`#playMatchLive` / `.btnCalPlayNow`, `.btnCalStatePlay`, `.btnCalCopaPlay`, `.btnCalTournamentPlay`): inicia a partida ao vivo no simulador visual 2D.
+  - `⚡ Simular` (`#playMatchQuick` / `.btnCalSimNow`, `.btnCalStateSim`, `.btnCalCopaSim`, `.btnCalTournamentSim`): simula o resultado de forma imediata.
+  - `📋 Prévia` (`#btnMatchPreviewCentral` / `.btnCalPreviewNow`): abre o Raio-X oficial do confronto, comparação setor a setor, provável 11 titular e probabilidades estatísticas.
+- **Execução Direta em Datas Futuras**: Clicar em Jogar ou Simular em qualquer data do calendário sincroniza automaticamente a data do save e executa a partida sem travas.
+
+### 📋 3. Prévia Oficial da Partida (Match Preview Pro) Turbinada
+
+### 🏆 2. Libertadores & Torneios Continentais 100% Jogáveis
+- **Parada Obrigatória no Dia do Jogo**: O avanço de calendário (`advanceCalendarDays`) agora valida a cada dia avançado se há partida do clube do usuário agendada para aquela data exata, interrompendo o avanço para que o técnico possa disputar ou simular a partida através dos botões.
+- **Sincronização de Datas de Quarta-Feira**: Ajustada a data inicial dos torneios de grupos para quartas-feiras (`2026-03-04`), garantindo que o calendário e o motor de torneios operem com as mesmas datas exatas (`ensureMidweekDate`).
+- **Suporte a Jogo Ao Vivo e Simulação Rápida**: Jogos continentais podem ser disputados tanto no simulador 2D ao vivo (`beginContinentalLiveMatch`) quanto simulados rapidamente com um clique (`playContinentalFixture`), registrando os resultados no save e na classificação do grupo.
+
+### 📅 3. Botões de Ação em Todos os Cards do Calendário
+- **Ações Completas em Cada Card**: Todo confronto no calendário agora conta com botões interativos dedicados:
+  - `▶ Jogar`: inicia a partida ao vivo para aquela competição específica (Estadual, Copa, Continental ou Liga).
+  - `⚡ Simular`: simula rapidamente o confronto e avança o calendário em +1 dia.
+  - `📋 Prévia`: abre imediatamente o raio-x e análise pré-jogo contra o adversário daquele card.
+- **Placares Concluídos em 100% dos Jogos Realizados**: Após o apito final, os cards passam a exibir `${hg} x ${ag} · Concluído` e mantêm o botão de prévia para consulta histórica.
+
+### 🚀 4. Simulação Completa do Ano & Transição para a Próxima Temporada (2027)
+- **Verificação Total em Todas as Divisões**: Testado com sucesso do início ao fim em clubes da Série A (Flamengo, Santos com Libertadores, Sul-Americana, Estaduais e Copa) e Série D (Brasília com Candangão e Copa).
+- **Virada de Temporada Limpa para 2027**: `advanceSeasonYear()` processa premiações, prêmios individuais, evolução do elenco, rebaixamentos e acessos, avançando o ano para 2027 e gerando um calendário novinho para a continuidade da carreira.
+
+## [3.8.4] - 2026-10-17 (Simulação Completa do Ano, Calendário 100% Jogável e Correção de Confrontos Estaduais/Copas)
+
+### ⚡ 1. Simulação do Ano Inteiro Sem Travamentos
+- **Suporte Total a Todas as Competições**: `simulateQuickRound` e `startLiveMatch` agora identificam e delegam com precisão para Campeonatos Estaduais (`simulateQuickStateLeagueRound`), Copa do Brasil (`playCopaDoBrasilFixture`), Torneios Continentais (`playContinentalFixture`) e Liga Nacional.
+- **Avanço Automático de Data (+1 Dia)**: Copa do Brasil e torneios continentais avançam o calendário em +1 dia após a realização da partida, garantindo que o fluxo do jogo nunca fique estagnado na data do confronto.
+- **Fim dos Jogos Pulados ou Travados**: Corrigido o algoritmo de ordenação de partidas pendentes (`getActualCurrentMatch`), priorizando confrontos do dia ou pendentes anteriores antes de pular para datas futuras.
+
+### 🔄 2. Correção de Conflitos em Jogos de Retorno (Turno e Returno / Mata-Mata)
+- **Eliminação do Falso "Partida Já Disputada"**: A verificação de partidas disputadas (`alreadyPlayed`) nos Estaduais agora valida estritamente a rodada (`h.round === roundIndex + 1`), permitindo que confrontos de returno (ex: Flamengo x Maricá no turno e Maricá x Flamengo no returno) e fases eliminatórias de ida e volta sejam jogados normalmente.
+- **Transição de Fim de Campeonato Principal**: Quando a divisão nacional termina, partidas pendentes de Estaduais ou Copas são desbloqueadas imediatamente como jogáveis na Central sem gerar travamento por `season_finished` prematuro.
+
+### 📅 3. Renderização Perfeita do Calendário
+- **Status "Concluído" em Todos os Confrontos Realizados**: As partidas de Estaduais, Copa do Brasil e Continentais agora recuperam tanto o histórico quanto os resultados dos fixtures e exibem os placares corretos (`X x Y · Concluído`) em todos os cards do calendário.
+- **Botões Dinâmicos e Sem Partidas Fantasma**: Qualquer partida com data atingida ou pendente pode ser disputada diretamente pelo calendário sem inconsistências.
+- **Sistemas de Jogo Ativos ao Longo do Ano**: Renda de bilheteria nos estaduais em casa, consumo de fadiga/estamina, evolução/desenvolvimento de atletas e finanças processados em todos os jogos do ano.
+
+## [3.8.3] - 2026-10-17 (Sincronização da Central com Competição Ativa, Botão Ir Para a Próxima Partida & Janela de Transferências)
+
+### 🏟️ 1. Central de Jogos — Sincronização Dinâmica com a Competição Ativa
+- **Identificação Precisa do Campeonato**: O banner e o cabeçalho da Central agora identificam exatamente a competição da partida atual (Campeonato Estadual, Copa do Brasil, Divisão Nacional ou Torneio Continental) em vez de fixar indevidamente a Série A/B.
+- **Rodada e Data Reais**: Exibição da rodada correspondente do confronto ativo e da data real da partida, sem exibir "Hoje" para partidas que ocorrem em datas futuras.
+- **Identificação Mandante / Visitante**: Tag "SEU CLUBE" enriquecida com a indicação precisa do mando de campo ("SEU CLUBE · MANDANTE" ou "SEU CLUBE · VISITANTE").
+
+### ⏩ 2. Fluxo de Avanço Simplificado ("Ir Para a Próxima Partida")
+- **Remoção de Contadores Confusos**: Eliminados os textos que mostravam quantidade de dias a pular ("Até o jogo (4d)"); substituído pelo botão direto e limpo **"IR PARA A PRÓXIMA PARTIDA"**.
+- **Avanço Preciso**: Garantia de avanço direto no calendário até a data exata do próximo confronto agendado, sincronizado com o motor de calendário e todas as competições ativas.
+
+### ⏳ 3. Janela de Transferências & Deadline Day na Central
+- **Suporte a Horas no Deadline Day**: O topo e os cards da Central exibem o avanço gradual de 6 horas durante o último dia da janela de transferências com horários oficiais (06:00, 12:00, 18:00, 23:59).
+- **Opção de Avanço e Pular Janela**: Botões integrados na Central permitem tanto curtir as últimas horas da janela quanto pular diretamente para a estreia oficial.
+
+## [3.8.2] - 2026-10-17 (Fluxo Realista de Propostas de Venda/Empréstimo, Pré-Fases Continentais e Copa do Brasil no Calendário)
+
+### 🏷️ 1. Mercado & Propostas Orgânicas ao Listar Atletas
+- **Fim das Propostas Instantâneas**: Ao colocar um jogador à venda ou para empréstimo, ele passa a figurar na lista oficial e aguarda o interesse de outros clubes, sem que 3 propostas fictícias surjam no mesmo segundo.
+- **Chegada Gradual no Avançar das Rodadas**: Durante as rodadas (especialmente com janela de transferências aberta e conforme o nível do atleta), propostas oficiais de compra e empréstimo chegam organicamente via feed de notícias e ficam disponíveis na central de negociação do jogador.
+- **Feedback Visual Claro**: Interface exibe estado de espera bem ilustrado ("Atleta listado • Aguardando propostas dos clubes interessados").
+
+### 🏆 2. Correção das Pré-Fases Continentais (Libertadores e Sul-Americana)
+- **Central Completa de Confrontos**: Corrigida a tela de "Pré Fase 1", "Pré Fase 2", "Pré Fase 3", "Fase Preliminar" e "Playoffs de Oitavas" (16-avos).
+- **Dados Oficiais e Detalhamento**: Exibição dos confrontos reais, escudos dos clubes, placares de ida e volta, placar agregado, penalidades e identificação clara do clube classificado e seu destino na fase de grupos.
+
+### 📅 3. Copa do Brasil e Calendário Oficial
+- **Integração no Calendário do Clube**: Clubes participantes (incluindo Corinthians na 5ª fase contra o Barra-SC) passam a ter seus jogos de ida e volta e fases subsequentes devidamente visíveis e filtráveis na aba "🏅 Copa do Brasil".
+- **Identificação de Rodadas Continentais**: Confrontos da Fase de Grupos exibem o indicativo formal da rodada ("Fase de Grupos • Rodada X").
+- **Compatibilidade Retroativa de Saves (v3)**: Saves existentes preservam as fases já concluídas e atualizam a 5ª fase com os 16 confrontos oficiais da competição.
+
+## [3.8.1] - 2026-10-17 (Harmonização de Overalls & Calibragem de Atletas Gerados)
+
+### ⚙️ 1. Unificação de Overalls em Todas as Telas
+- **playerOverall(p)**: Unificação total dos cálculos de overall (`pes * 0.7 + fc * 0.3`). As propriedades `p.ovr` e `p.overall` agora são sincronizadas atomicamente de forma bidirecional em qualquer leitura ou renderização.
+- **Exportação Global**: `window.playerOverall` e `window.calcValueMi` disponíveis no escopo global para todos os módulos auxiliares (Mercado, Lupa, Olheiros e Assistente de Elenco).
+- **stablePlayer(p)**: Garante que objetos estáveis de atletas contenham tanto `ovr` quanto `overall` rigorosamente calculados e idênticos.
+
+### 🛡️ 2. Calibragem e Sanitização de Atletas Genéricos/Gerados (`worldGenerated`)
+- **Teto Realista por Faixa Etária**: Eliminados casos de atletas genéricos de preenchimento (`gen-...`) criados com 90+ overall sem histórico.
+  - Jovens (≤ 21 anos): OVR máximo 72, Potencial até 84.
+  - Auge (22–28 anos): OVR máximo 78, Potencial até 80.
+  - Experientes (> 28 anos): OVR máximo 75, Potencial até 80.
+- **Sanitização de Saves Existentes (`sanitizeWorldGeneratedPlayers`)**: Varredura automática e retrocompatível no carregamento do universo de mercado que ajusta imediatamente atletas gerados antigos que estivessem inflacionados, preservando craques reais do banco de dados oficial (`livePlayers`).
+
+## [3.8.0] - 2026-10-16 (Atualização Geral do Banco de Dados: Overalls Reais, Mercado e Clubes 2025/2026)
+
+### ⚽ 1. Atualização Completa de Overalls e Atletas (Brasil & Mundo)
+- **Série A & Futebol Brasileiro**:
+  - **Flamengo**: Gabigol transferido para o Cruzeiro; contratação oficial de Alex Sandro (LE, 80 OVR, 4 Mi €); Pedro (83 OVR), Gerson (83 OVR), Arrascaeta (83 OVR), Léo Ortiz (81 OVR), Agustín Rossi (81 OVR), Carlos Alcaraz (79 OVR / 86 POT), Gonzalo Plata (79 OVR).
+  - **Palmeiras**: Estêvão promovido a 83 OVR (93 POT, 50 Mi €) com transferência futura programada para o Chelsea; Vitor Reis (78 OVR / 89 POT), Aníbal Moreno (81 OVR), Flaco López (81 OVR), Maurício (80 OVR), Murilo (81 OVR), Piquerez (81 OVR).
+  - **Cruzeiro**: Gabriel Barbosa "Gabigol" adicionado como reforço oficial (81 OVR, 10 Mi €); Matheus Pereira (83 OVR), Kaio Jorge (80 OVR / 86 POT), Matheus Henrique (80 OVR), William (80 OVR), Walace (79 OVR), Álvaro Barreal (79 OVR).
+  - **Botafogo**: Campeão e finalista atualizado com Luiz Henrique (84 OVR, 35 Mi €), Thiago Almada (84 OVR, 32 Mi €), Igor Jesus (82 OVR, 22 Mi €), Savarino (81 OVR), John (80 OVR), Bastos (80 OVR), Alexander Barboza (80 OVR), Alex Telles (80 OVR), Gregore (80 OVR), Marlon Freitas (80 OVR).
+  - **Corinthians**: Rodrigo Garro (82 OVR / 85 POT), Yuri Alberto (82 OVR / 86 POT), Memphis Depay (83 OVR), Hugo Souza (80 OVR / 84 POT), Breno Bidon (76 OVR / 86 POT), André Carrillo (78 OVR), José Martínez (78 OVR).
+  - **São Paulo**: Jamal Lewis adicionado (LE, 75 OVR); Rafael (80 OVR), Arboleda (80 OVR), Pablo Maia (80 OVR), Alan Franco (79 OVR), Bobadilla (78 OVR).
+  - **Atlético-MG**: Hulk (83 OVR), Paulinho (82 OVR), Gustavo Scarpa (81 OVR), Guilherme Arana (81 OVR), Battaglia (80 OVR), Junior Alonso (80 OVR), Deyverson (79 OVR).
+  - **Internacional**: Alan Patrick (82 OVR), Rochet (81 OVR), Vitão (80 OVR), Wesley (80 OVR), Bernabei (79 OVR), Fernando (79 OVR), Gabriel Carvalho (76 OVR / 88 POT).
+  - **Fluminense**: Thiago Silva (83 OVR), Jhon Arias (83 OVR), Fábio (80 OVR), Ganso (80 OVR), Kauã Elias (77 OVR / 87 POT), Kevin Serna (78 OVR).
+  - **Vasco**: Vegetti (81 OVR), Philippe Coutinho (81 OVR), Léo Jardim (81 OVR), Dimitri Payet (80 OVR), Lucas Piton (79 OVR), Rayan (76 OVR / 87 POT).
+  - **Bahia**: Everton Ribeiro (81 OVR), Jean Lucas (81 OVR), Cauly (80 OVR), Caio Alexandre (80 OVR), Luciano Rodríguez (80 OVR / 87 POT), Gabriel Xavier (80 OVR).
+  - **Fortaleza**: João Ricardo (80 OVR), Juan Martín Lucero (80 OVR), Tomás Pochettino (79 OVR), Hércules (78 OVR / 84 POT), Yago Pikachu (78 OVR), Moisés (78 OVR).
+  - **Grêmio**: Braithwaite (81 OVR), Villasanti (81 OVR), Cristaldo (80 OVR), Soteldo (80 OVR), Miguel Monsalve (78 OVR / 85 POT).
+  - **Santos**: Gabriel Brazão (76 OVR / 81 POT), JP Chermont (75 OVR / 85 POT), Jair Cunha (76 OVR / 86 POT), Guilherme (78 OVR), Wendel Silva (76 OVR), João Schmidt (77 OVR).
+
+- **Gigantes Europeus & Resto do Mundo**:
+  - **Real Madrid**: Vinicius Jr (91 OVR, 94 POT, 200 Mi €), Kylian Mbappé (91 OVR, 94 POT, 180 Mi €), Jude Bellingham (90 OVR, 94 POT, 180 Mi €), Federico Valverde (89 OVR), Rodrygo (87 OVR), Endrick (80 OVR / 92 POT), Arda Güler (81 OVR / 90 POT), Camavinga (85 OVR), Tchouaméni (86 OVR).
+  - **FC Barcelona**: Wojciech Szczęsny adicionado (85 OVR); Lamine Yamal (87 OVR, 96 POT, 160 Mi €), Raphinha (88 OVR, 90 Mi €), Pedri (88 OVR), Dani Olmo (86 OVR), Gavi (86 OVR), Jules Koundé (86 OVR), Pau Cubarsí (83 OVR / 93 POT), Marc Casadó (81 OVR / 88 POT), Alejandro Balde (82 OVR).
+  - **Manchester City**: Erling Haaland (91 OVR), Rodri (91 OVR), Phil Foden (89 OVR), Savinho (83 OVR / 90 POT), Josko Gvardiol (86 OVR).
+  - **Liverpool**: Mohamed Salah (89 OVR), Virgil van Dijk (89 OVR), Alisson Becker (89 OVR), Trent Alexander-Arnold (86 OVR), Alexis Mac Allister (86 OVR), Ryan Gravenberch (84 OVR / 89 POT), Luis Díaz (85 OVR).
+  - **Arsenal**: Bukayo Saka (87 OVR / 90 POT), William Saliba (87 OVR / 91 POT), Martin Ødegaard (89 OVR), Declan Rice (87 OVR), Gabriel Magalhães (86 OVR), David Raya (85 OVR), Kai Havertz (84 OVR).
+  - **Chelsea**: Cole Palmer (86 OVR / 91 POT), Moisés Caicedo (83 OVR / 88 POT), Enzo Fernández (83 OVR / 88 POT), Nicolas Jackson (81 OVR / 86 POT), Marc Cucurella (82 OVR), Pedro Neto (80 OVR / 85 POT).
+  - **Bayern München**: Michael Olise (85 OVR / 90 POT), Jamal Musiala (88 OVR / 93 POT), Harry Kane (90 OVR), Joshua Kimmich (88 OVR), João Palhinha (84 OVR), Aleksandar Pavlović (80 OVR / 88 POT).
+  - **Sporting CP**: Viktor Gyökeres (86 OVR, 75 Mi €), Morten Hjulmand (82 OVR), Gonçalo Inácio (81 OVR / 88 POT), Pedro Gonçalves (83 OVR), Geovany Quenda (76 OVR / 88 POT).
+  - **Atlético de Madrid**: Antoine Griezmann (88 OVR), Julián Álvarez (85 OVR / 90 POT), Jan Oblak (88 OVR), Rodrigo De Paul (84 OVR), Robin Le Normand (83 OVR).
+  - **Juventus**: Bremer (86 OVR), Teun Koopmeiners (84 OVR), Dušan Vlahović (84 OVR), Douglas Luiz (83 OVR), Kenan Yildiz (80 OVR / 90 POT).
+  - **PSG**: João Neves (83 OVR / 91 POT), Willian Pacho (83 OVR / 87 POT), Bradley Barcola (84 OVR / 90 POT), Vitinha (86 OVR), Gianluigi Donnarumma (88 OVR), Achraf Hakimi (85 OVR), Lucas Beraldo (79 OVR / 86 POT).
+  - **Arábia Saudita & MLS**: Neymar Jr (88 OVR), Cristiano Ronaldo (86 OVR), Lionel Messi (88 OVR), Luis Suárez (82 OVR), Bono (87 OVR), João Cancelo (85 OVR), Bento (81 OVR), Simakan (81 OVR).
+
+### 🏢 2. Calibragem dos Atributos Globais dos Clubes (`BASE_CLUBS`)
+- Rebalanceamento das forças de ataque, meio-campo, defesa e orçamentos para refletir a temporada 2025/2026:
+  - Botafogo: atk 83, mid 80, def 80, budget 85
+  - Flamengo: atk 83, mid 81, def 81, budget 95
+  - Palmeiras: atk 82, mid 81, def 81, budget 100
+  - Cruzeiro: atk 81, mid 80, def 79, budget 70
+  - Corinthians: atk 81, mid 79, def 78, budget 55
+  - Fortaleza: atk 80, mid 78, def 78, budget 45
+  - Real Madrid: atk 91, mid 88, def 86, budget 250
+  - FC Barcelona: atk 89, mid 87, def 84, budget 180
+  - Manchester City: atk 90, mid 88, def 86, budget 260
+  - Liverpool: atk 88, mid 86, def 87, budget 210
+
+### 🔄 3. Migração Segura e Sincronização Retroativa de Saves
+- Atualização em `migrate(s)` em `js/game.js`:
+  - Saves ativos recebem automaticamente as melhorias de overall (`fc`/`pes`), potencial (`potential`) e valor de mercado (`calcValueMi`) dos atletas atualizados.
+  - Suporte ao ciclo de transferência pendente de jovens promissores (ex: Estêvão) com notificação e saída automática após cumprimento de data efetiva sem quebrar contratos.
+### 📊 4. Prévia Oficial da Partida (Match Preview Pro)
+- Integração do botão **"📊 Ver Prévia"** no Match Card central (`#btnMatchPreviewCentral`) e na lista de rodadas.
+- Modal completo com:
+  - Comparativo setorizado (Ataque, Meio-Campo e Defesa).
+  - Probabilidades em tempo real (Vitória Mandante, Empate e Vitória Visitante).
+  - Dados do estádio, clima e gramado.
+  - Histórico de confrontos diretos (H2H) e últimos 5 jogos.
+  - Prováveis escalações com overall médio de cada equipe.
+
+### 🤝 5. Mercado Privado P2P & Hub de Negociações SAF
+- **Sub-abas Especializadas**:
+  - **🤝 Propostas dos Investidores**: Separação estruturada entre lotes que investidores da IA querem vender (com descontos atrativos de 8% a 15%) e propostas de compra para ações na carteira do treinador (com ágio de 15% a 30%).
+  - **📢 Colocar Nossas Ações à Venda**: Formulário dinâmico que permite ao treinador ofertar ações da sua carteira para os magnatas da IA, escolhendo clube, quantidade (com presets de 50, 100, 250 ou Tudo) e margem de ágio (+5% a +25%), exibindo cálculo financeiro instantâneo e opções de execução imediata ou cancelamento.
+  - **📊 Livro de Negociações em Tempo Real**: Feed cronológico auditável de todas as compras e vendas de ações SAF realizadas no mercado pelo usuário e pelos grandes fundos.
+- **Validação Completa**:
+  - Compra e venda de ações com cálculo de taxas de corretagem da Bolsa, débito/crédito direto no saldo pessoal e sincronização do patrimônio auditados via navegador.
+
+### 🏛️ 6. Pregão da Bolsa SAF: Botões Explícitos "Confirmar Compra" e "Confirmar Venda"
+- Coluna da tabela atualizada para **`CONFIRMAR COMPRA / CONFIRMAR VENDA`**.
+- Cada linha exibe botões com texto e estilo destacados:
+  - **`🛒 Confirmar Compra`**: Abre modal de ordem com cálculo dinâmico do custo e botão verde **`✅ Confirmar Compra (X ações por R$ Y)`**.
+  - **`💰 Confirmar Venda`**: Abre modal de ordem com cálculo dinâmico do lucro líquido e botão vermelho **`🔴 Confirmar Venda (X ações por +R$ Y)`**. Para clubes em que o treinador ainda não tem ações, o botão fica identificado como `💰 Confirmar Venda (0)` e permite alternar para compra com um clique.
+- Atualização em `manager_economy.js`: Botão de cotas do clube atualizado para **`✅ CONFIRMAR COMPRA DE 1 COTA`**.
+  - Tabela/situação oficial da competição.
+  - Escalação provável dos 11 titulares do adversário com fotos e notas de overall.
+
 ## [3.7.0] - 2026-10-14 (Pacote 100% Completo 16 Itens AFM 2027: Calendário Intercalado 3 Dias, Sala de Troféus Real, Direitos de TV 1 Ano, Marketing Live, Copa do Brasil Neon, Licenças CBF/UEFA, Lupa Global, Regens & Fotos Reais)
 
 ### ⏩ 1. Correção Crítica do Calendário e Avanço de Dias (BLOCO 01)

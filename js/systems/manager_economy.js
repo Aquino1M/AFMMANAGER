@@ -157,7 +157,7 @@
         managementScore: 100,
         lastMonthResult: 0,
         accumulatedProfit: 0,
-        createdAt: state.currentDate || state.date || '2026'
+        createdAt: state.date || state.currentDate || '2026'
       };
       mp.businesses = mp.businesses || [];
       mp.businesses.push(newBiz);
@@ -335,7 +335,7 @@
               Preço atual: <strong style="color:#f8fafc;">R$ ${sharePrice.toLocaleString('pt-BR')}</strong> por cota (entra direto no caixa do clube).
             </div>
             <button id="btn-afm-buy-share" ${!canBuyShare ? 'disabled' : ''} style="background:${canBuyShare ? '#5b21b6' : '#1e293b'}; color:${canBuyShare ? '#fff' : '#64748b'}; border:1px solid ${canBuyShare ? '#7c3aed' : '#334155'}; padding:10px 18px; border-radius:8px; font-weight:800; font-size:12px; cursor:${canBuyShare ? 'pointer' : 'not-allowed'};">
-              COMPRAR 1 COTA (R$ ${sharePrice.toLocaleString('pt-BR')})
+              ✅ CONFIRMAR COMPRA DE 1 COTA (R$ ${sharePrice.toLocaleString('pt-BR')})
             </button>
           </div>
 

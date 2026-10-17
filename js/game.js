@@ -1,3 +1,21 @@
+
+window.__afmAsRoundArray = window.__afmAsRoundArray || function(r) {
+  if (!r) return [];
+  if (Array.isArray(r)) return r;
+  if (Array.isArray(r.matches)) return r.matches;
+  if (Array.isArray(r.fixtures)) return r.fixtures;
+  if (Array.isArray(r.games)) return r.games;
+  if (Array.isArray(r.items)) return r.items;
+  if (Array.isArray(r.list)) return r.list;
+  if (typeof r === 'object') {
+    var vals = Object.values(r).filter(function(v) {
+      return v && typeof v === 'object' && (v.home || v.away || v.homeTeam || v.teamA || v.clubA || v.id);
+    });
+    if (vals.length > 0) return vals;
+  }
+  return [];
+};
+
 (function(){
 'use strict';
 
@@ -12,6 +30,7 @@ const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const clone=o=>JSON.parse(JSON.stringify(o));
 const esc = window.esc || (s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])));
 window.esc = esc;
+window.norm = norm;
 const hashStr=s=>{let h=2166136261;for(const ch of String(s)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h>>>0)};
 
 // =============================================================
@@ -208,6 +227,7 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
         <div class="fifa-mini-card-badge">
           <span class="fifa-mini-card-ovr" style="${ovrColor}">${ovr}</span>
           <span class="fifa-mini-card-pos">${esc(pos)}</span>
+          ${p?.number ? `<span class="fifa-mini-card-num" style="font-size:8px;font-weight:900;color:#38bdf8;background:rgba(15,23,42,0.85);padding:1px 3px;border-radius:3px;margin-top:1px;line-height:1" title="Camisa #${p.number}">#${p.number}</span>` : ''}
           ${isAdapted ? `<span class="fifa-mini-card-role-adapted" style="color:#fde047;background:rgba(113,63,18,0.9);border:1px solid #eab308" title="Posição adaptada: ${esc(role)}${ovrDiff < 0 ? ` (${ovrDiff} OVR)` : ''}">(${esc(role)})</span>` : ''}
           ${isIncompatible ? `<span class="fifa-mini-card-role-incompatible" style="color:#f87171;background:rgba(127,29,29,0.9);border:1px solid #ef4444;font-size:7px;font-weight:900;padding:1px 2px;border-radius:3px;margin-top:1px;line-height:1" title="Posição incompatível: ${esc(role)}${ovrDiff < 0 ? ` (${ovrDiff} OVR)` : ''}">(${esc(role)})</span>` : ''}
         </div>
@@ -312,6 +332,7 @@ function renderPitchPlayerPill(p, slot = {}, opts = {}) {
          data-starterkey="${esc(pk)}"
          title="${p ? `${esc(p.name)} (${esc(pos)}) • OVR ${ovr}` : 'Vazio'}">
       <span class="pill-pos">${esc(pos)}</span>
+      <span class="pill-num" style="display:inline-block;background:rgba(0,0,0,0.45);border-radius:3px;padding:0 3px;font-size:9px;font-weight:900;color:#facc15;margin:0 2px">#${p?.number || (i+1)}</span>
       <span class="pill-name">${esc(shortName)}</span>
       <span class="pill-ovr">${ovr}</span>
       ${isHalftime ? `
@@ -1194,6 +1215,7 @@ const SPONSOR_BRANDS=[
 ];
 
 const livePlayers=Array.isArray(window.LIVE_PLAYERS)?window.LIVE_PLAYERS:[];
+window.livePlayers = livePlayers;
 const teamMap=window.COMPETITION_TEAMS||{};
 // Catálogo imutável de referência para recuperar saves legados cujo mapa dinâmico
 // de ligas foi corrompido por transições de temporadas antigas.
@@ -1208,6 +1230,7 @@ function scheduleMarketFilter(renderList){
 }
 let seasonTab='nacional';
 let continentalTab='sulamericana';
+let continentalCategory='internacional';
 let continentalPhase='';
 let configTab='save';
 let auditCompFilter='all';
@@ -4731,7 +4754,7 @@ function getMuseumData(){
   const curLvlObj = MUSEUM_LEVELS.find(m => m.level === state.museumData.level) || MUSEUM_LEVELS[0];
   
   // Taças do clube (históricas + da carreira)
-  const historicalTitles = ['Campeonato Candango (2018)', 'Campeonato Candango (2019)'];
+  const _cKey = (state.club||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); const _cDb = (typeof window !== 'undefined' && window.REAL_CLUB_TROPHIES_DB) ? window.REAL_CLUB_TROPHIES_DB : {}; const _cTr = _cDb[_cKey] || Object.entries(_cDb).find(([k]) => _cKey.includes(k) || k.includes(_cKey))?.[1] || [{ name: 'Campeonato Estadual / Regional (' + (state.club||'Clube') + ')', year: 'Tradição Histórica' }, { name: 'Taça de Tradição Nacional (' + (state.club||'Clube') + ')', year: 'Acervo Oficial' }]; const historicalTitles = _cTr.map(t => `${t.name} (${t.year})`);
   const careerTitles = (state.titles || []).map(t => `${t} (${state.season})`);
   const allTitles = [...historicalTitles, ...careerTitles];
   const inVitrine = allTitles.slice(0, curLvlObj.capacity);
@@ -5217,7 +5240,17 @@ function initCopaDoBrasilData(){
   // em que o painel renderiza as competições.
   const phaseDates = ['02-04','02-18','03-18','04-08','05-06','06-10','07-08','08-12','09-16'].map(day => `${season}-${day}`);
   const phaseNames = ['1ª Fase','2ª Fase','3ª Fase','4ª Fase','5ª Fase','Oitavas de Final','Quartas de Final','Semifinais','Final'];
-  const makePhase = (index, teams = []) => ({
+  const official5thTies = window.AFM_CONTINENTAL_2026?.copaDoBrasil?.ties || [
+    ['Barra-SC', 'Corinthians'], ['Atlético-MG', 'Ceará'], ['Goiás', 'Cruzeiro'], ['Athletico Paranaense', 'Atlético-GO'],
+    ['Flamengo', 'Vitória'], ['Grêmio', 'Confiança'], ['Paysandu', 'Vasco da Gama'], ['Fortaleza', 'CRB'],
+    ['Bahia', 'Remo'], ['Botafogo', 'Chapecoense'], ['Bragantino', 'Mirassol'], ['Operário-PR', 'Fluminense'],
+    ['Palmeiras', 'Jacuipense'], ['Athletic Club', 'Internacional'], ['Santos', 'Coritiba'], ['São Paulo', 'Juventude']
+  ];
+  const makePhase = (index, teams = []) => index === 4 ? ({
+    name: phaseNames[index], status: 'A COMEÇAR',
+    isoDate: phaseDates[index], dateStr: formatDatePtBr(phaseDates[index]),
+    fixtures: official5thTies.map(([home, away]) => ({ home, away, date: formatDatePtBr(phaseDates[index]), isoDate: phaseDates[index], score: null, winner: null }))
+  }) : ({
     name: phaseNames[index], status: index === 0 ? 'EM DISPUTA' : 'A COMEÇAR',
     isoDate: phaseDates[index], dateStr: formatDatePtBr(phaseDates[index]),
     fixtures: Array.from({length: Math.floor(teams.length / 2)}, (_, n) => ({
@@ -5234,7 +5267,7 @@ function initCopaDoBrasilData(){
   )]));
   return {
     name: 'Copa do Brasil',
-    version: 2,
+    version: 3,
     season,
     totalTeams: entrants.length,
     activePhase: '1ª Fase',
@@ -5345,12 +5378,12 @@ function processCopaDoBrasilCalendar(currentDate = state?.date){
 function getCopaDoBrasilState(){
   state.copaData = state.copaData || initCopaDoBrasilData();
   if(Number(state.copaData.season) !== Number(state.season)) state.copaData = initCopaDoBrasilData();
-  if(state.copaData.version !== 2){
+  if(state.copaData.version !== 3){
     const previous = state.copaData;
     const upgraded = initCopaDoBrasilData();
     const oldResults = Object.values(previous.phases || {}).flatMap(phase => phase.fixtures || []).filter(f => f.score && f.winner);
     if(oldResults.length) upgraded.legacyResults = oldResults;
-    state.copaData = upgraded;
+    Object.keys(previous.phases || {}).forEach(k => { if(upgraded.phases[k] && previous.phases[k]?.status === 'CONCLUÍDO'){ upgraded.phases[k].status = 'CONCLUÍDO'; if(Array.isArray(previous.phases[k].fixtures) && previous.phases[k].fixtures.length) upgraded.phases[k].fixtures = previous.phases[k].fixtures; } }); state.copaData = upgraded;
   }
   // Migrate existing version-2 saves whose Copa phases were scheduled too late
   // or belong to another year. Preserve played fixtures and only reschedule games
@@ -5378,7 +5411,7 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   const phase = copa.phases[phaseName];
   copaCurrentPhase = phaseName;
   const fixture = phase?.fixtures?.[Number(fixtureIndex)];
-  if(!fixture || fixture.score || ensureMidweekDate(fixture.isoDate || phase.isoDate, state.season) !== state.date ||
+  if(!fixture || fixture.score ||
     (norm(fixture.home) !== norm(state.club) && norm(fixture.away) !== norm(state.club))) return;
   const [hg, ag] = simulateScore(fixture.home, fixture.away);
   const winner = hg === ag ? (Math.random() < 0.5 ? fixture.home : fixture.away) : (hg > ag ? fixture.home : fixture.away);
@@ -5390,19 +5423,320 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   const result = { h: fixture.home, a: fixture.away, hg, ag, winner, events, round: phase.name, season: Number(state.season), date: state.date, competitionId: 'bra-cup', competitionName: 'Copa do Brasil' };
   state.history = [result, ...(state.history || [])].slice(0, 100);
   fixture.played = true;
+  state.lastMatchSummary = { h: fixture.home, a: fixture.away, hg, ag, isHome: norm(fixture.home) === norm(state.club), won: norm(winner) === norm(state.club) };
   state.news = state.news || [];
-  state.news.unshift(`🏆 Copa do Brasil (${phase.name}): ${fixture.home} ${hg} x ${ag} ${fixture.away}. ${norm(winner) === norm(state.club) ? 'Classificado.' : 'Eliminado.'}`);
-  if(norm(winner) !== norm(state.club)){
+  const userWon = norm(winner) === norm(state.club);
+  const isFinalPhase = phase.name.includes('Final') && !phase.name.includes('Semi') && !phase.name.includes('Quartas') && !phase.name.includes('Oitavas');
+  const copaPrize = calculateCupPhasePrize('bra-cup', phase.name, userWon, userWon && isFinalPhase);
+  if(copaPrize > 0){
+    state.balance += copaPrize;
+    state.income = (state.income || 0) + copaPrize;
+    state.news.unshift(`💰 PREMIAÇÃO COPA DO BRASIL: +${fmtMoney(copaPrize)} creditados (${phase.name} · ${userWon ? (isFinalPhase ? '🏆 CAMPEÃO' : 'Classificado') : (isFinalPhase ? '🥈 VICE-CAMPEÃO' : '')})!`);
+  }
+  state.news.unshift(`🏆 Copa do Brasil (${phase.name}): ${fixture.home} ${hg} x ${ag} ${fixture.away}. ${userWon ? 'Classificado.' : 'Eliminado.'}`);
+  if(!userWon){
     const opp = norm(fixture.home) === norm(state.club) ? fixture.away : fixture.home;
     const oppGoals = norm(fixture.home) === norm(state.club) ? ag : hg;
     registrarEliminacaoMataMata(state, 'Copa do Brasil', phase.name, opp, userGoals, oppGoals);
   }
+  advanceDateAfterMatch(state);
+  if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+    window.AFM_LifeAndSharesPro.processRoundTurn(state);
+  }
+  if(typeof processFitness === 'function') processFitness();
+  if(typeof processDevelopment === 'function') processDevelopment();
   save();
   render();
   openPressConferenceModal('post', result);
 }
 
+// COPA DO BRASIL BLOCK - START
+function renderKnockoutMatchCard(m, phaseName, fixtureIndex){
+  if(!m) return '';
+  const homeName = typeof m.home === 'string' ? m.home : (m.home?.name || 'A definir');
+  const awayName = typeof m.away === 'string' ? m.away : (m.away?.name || 'A definir');
+  const isUserHome = state && state.club && norm(state.club) === norm(homeName);
+  const isUserAway = state && state.club && norm(state.club) === norm(awayName);
+  const isUserMatch = isUserHome || isUserAway;
+
+  const hasScore = Array.isArray(m.score) && m.score.length === 2;
+  const scoreStr = hasScore ? (m.score[0] + ' × ' + m.score[1]) : (m.result ? (m.result[0] + ' × ' + m.result[1]) : null);
+  const isPlayed = Boolean(scoreStr);
+  const winner = m.winner || (hasScore && m.score[0] !== m.score[1] ? (m.score[0] > m.score[1] ? homeName : awayName) : null);
+  const isHomeWinner = isPlayed && winner && norm(winner) === norm(homeName);
+  const isAwayWinner = isPlayed && winner && norm(winner) === norm(awayName);
+
+  const canPlayToday = Boolean(isUserMatch && !isPlayed && (m.isoDate === state.date || m.date === state.date));
+
+  const isGenericHome = !homeName || homeName.startsWith('Classificado') || homeName.startsWith('Vencedor') || homeName.startsWith('1º') || homeName.startsWith('2º') || homeName.startsWith('Finalista') || homeName === 'A definir';
+  const isGenericAway = !awayName || awayName.startsWith('Classificado') || awayName.startsWith('Vencedor') || awayName.startsWith('1º') || awayName.startsWith('2º') || awayName.startsWith('Finalista') || awayName === 'A definir';
+
+  return `
+    <div style="background:#131828;border:1px solid ${isUserMatch ? '#38bdf8' : 'rgba(255,255,255,0.1)'};border-radius:8px;padding:5px 7px;margin-bottom:6px;box-shadow:${isUserMatch ? '0 0 12px rgba(56,189,248,0.35)' : '0 2px 6px rgba(0,0,0,0.3)'};min-width:0;box-sizing:border-box;overflow:hidden">
+      <div style="font-size:8.5px;color:#94a3b8;font-weight:700;display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;gap:4px;min-width:0">
+        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${esc(m.date || m.dateStr || '')}</span>
+        ${isPlayed ? `<span style="color:#fbbf24;font-weight:900;white-space:nowrap;flex-shrink:0">${scoreStr}</span>` : `<span style="color:#64748b;font-weight:700;white-space:nowrap;flex-shrink:0">- × -</span>`}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;min-width:0">
+          <div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:${isHomeWinner ? '900' : '600'};color:${isHomeWinner ? '#4ade80' : isUserHome ? '#38bdf8' : isGenericHome ? '#94a3b8' : '#e2e8f0'};min-width:0;overflow:hidden">
+            <span style="flex-shrink:0;display:inline-flex;align-items:center">${!isGenericHome ? clubBadge(homeName, 13) : '🛡️'}</span>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${esc(homeName)}</span>
+          </div>
+          ${isHomeWinner ? '<span style="color:#4ade80;font-size:9px;flex-shrink:0">✔</span>' : ''}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;min-width:0">
+          <div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:${isAwayWinner ? '900' : '600'};color:${isAwayWinner ? '#4ade80' : isUserAway ? '#38bdf8' : isGenericAway ? '#94a3b8' : '#e2e8f0'};min-width:0;overflow:hidden">
+            <span style="flex-shrink:0;display:inline-flex;align-items:center">${!isGenericAway ? clubBadge(awayName, 13) : '🛡️'}</span>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${esc(awayName)}</span>
+          </div>
+          ${isAwayWinner ? '<span style="color:#4ade80;font-size:9px;flex-shrink:0">✔</span>' : ''}
+        </div>
+      </div>
+      ${canPlayToday && fixtureIndex !== undefined && phaseName ? `
+        <div style="text-align:center;margin-top:4px">
+          <button class="btn primary btn-copa-play" data-copa-play="${fixtureIndex}" style="padding:3px 8px;font-size:9px;font-weight:800;border-radius:4px;width:100%">▶ JOGAR HOJE</button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function renderGenericKnockoutBracket(cfg){
+  const fin = cfg.finalMatch || { home: 'Finalista A', away: 'Finalista B', date: 'A definir' };
+  const finHome = typeof fin.home === 'string' ? fin.home : (fin.home?.name || 'Finalista A');
+  const finAway = typeof fin.away === 'string' ? fin.away : (fin.away?.name || 'Finalista B');
+  const isGenericFinHome = !finHome || finHome.startsWith('Finalista') || finHome === 'A definir';
+  const isGenericFinAway = !finAway || finAway.startsWith('Finalista') || finAway === 'A definir';
+  const finScore = (Array.isArray(fin.score) && fin.score.length === 2) ? (fin.score[0] + ' × ' + fin.score[1]) : (fin.result ? (fin.result[0] + ' × ' + fin.result[1]) : null);
+
+  return `
+    <div style="background:#0a0c16;border:1px solid rgba(139,92,246,0.35);border-radius:14px;padding:14px 10px;margin-top:14px;width:100%;box-sizing:border-box;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div>
+          <span style="font-size:10px;font-weight:900;color:#c084fc;letter-spacing:0.08em">${esc(cfg.badge)}</span>
+          <h3 style="margin:2px 0 0;font-size:16px;font-weight:900;color:#fff">${esc(cfg.title)}</h3>
+        </div>
+        <div style="font-size:10px;color:#94a3b8;font-weight:700">${esc(cfg.subtitle)}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:6px;align-items:center;width:100%;box-sizing:border-box;">
+        <!-- OITAVAS (CHAVE A) -->
+        <div style="min-width:0">
+          <div style="text-align:center;font-size:9.5px;font-weight:900;color:#38bdf8;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">OITAVAS (CHAVE A)</div>
+          ${(cfg.oitavasLeft || []).map((m, i) => renderKnockoutMatchCard(m, 'Oitavas de Final', i)).join('')}
+        </div>
+
+        <!-- QUARTAS (CHAVE A) -->
+        <div style="min-width:0">
+          <div style="text-align:center;font-size:9.5px;font-weight:900;color:#a855f7;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">QUARTAS (CHAVE A)</div>
+          <div style="height:26px"></div>
+          ${(cfg.quartasLeft || []).map((m, i) => renderKnockoutMatchCard(m, 'Quartas de Final', i)).join('<div style="height:51px"></div>')}
+        </div>
+
+        <!-- SEMIFINAL A -->
+        <div style="min-width:0">
+          <div style="text-align:center;font-size:9.5px;font-weight:900;color:#f59e0b;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">SEMIFINAL A</div>
+          <div style="height:78px"></div>
+          ${(cfg.semiLeft || []).map((m, i) => renderKnockoutMatchCard(m, 'Semifinais', i)).join('')}
+        </div>
+
+        <!-- GRANDE FINAL -->
+        <div style="min-width:0;background:linear-gradient(180deg,#1f1b3a 0%,#131024 100%);border:2px solid #eab308;border-radius:12px;padding:10px 6px;text-align:center;box-shadow:0 0 20px rgba(234,179,8,0.25);box-sizing:border-box">
+          <div style="font-size:20px;line-height:1">🏆</div>
+          <div style="font-size:10.5px;font-weight:900;color:#eab308;letter-spacing:0.06em;margin-top:3px">GRANDE FINAL</div>
+          <div style="font-size:8px;color:#94a3b8;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(fin.date || fin.dateStr || 'Novembro · Jogo Único')}</div>
+
+          <div style="background:#0e111d;border:1px solid rgba(234,179,8,0.3);border-radius:8px;padding:6px 4px;margin-bottom:4px">
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:10.5px;font-weight:800;color:${isGenericFinHome ? '#94a3b8' : '#fff'};overflow:hidden;white-space:nowrap;text-overflow:ellipsis">
+              <span style="flex-shrink:0;display:inline-flex;align-items:center">${!isGenericFinHome ? clubBadge(finHome, 14) : '🛡️'}</span>
+              <span style="overflow:hidden;text-overflow:ellipsis;min-width:0">${esc(finHome)}</span>
+            </div>
+            <div style="font-size:10px;font-weight:900;color:#fbbf24;margin:3px 0">
+              ${finScore ? finScore : 'VS'}
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:10.5px;font-weight:800;color:${isGenericFinAway ? '#94a3b8' : '#fff'};overflow:hidden;white-space:nowrap;text-overflow:ellipsis">
+              <span style="flex-shrink:0;display:inline-flex;align-items:center">${!isGenericFinAway ? clubBadge(finAway, 14) : '🛡️'}</span>
+              <span style="overflow:hidden;text-overflow:ellipsis;min-width:0">${esc(finAway)}</span>
+            </div>
+          </div>
+
+          ${fin.winner ? `
+            <div style="font-size:9.5px;font-weight:900;color:#4ade80;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              👑 ${esc(fin.winner)}
+            </div>
+          ` : `
+            <div style="font-size:8px;color:#64748b;font-weight:700">Aguardando definição</div>
+          `}
+        </div>
+
+        <!-- SEMIFINAL B -->
+        <div style="min-width:0">
+          <div style="text-align:center;font-size:9.5px;font-weight:900;color:#f59e0b;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">SEMIFINAL B</div>
+          <div style="height:78px"></div>
+          ${(cfg.semiRight || []).map((m, i) => renderKnockoutMatchCard(m, 'Semifinais', i + 1)).join('')}
+        </div>
+
+        <!-- QUARTAS (CHAVE B) -->
+        <div style="min-width:0">
+          <div style="text-align:center;font-size:9.5px;font-weight:900;color:#a855f7;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">QUARTAS (CHAVE B)</div>
+          <div style="height:26px"></div>
+          ${(cfg.quartasRight || []).map((m, i) => renderKnockoutMatchCard(m, 'Quartas de Final', i + 2)).join('<div style="height:51px"></div>')}
+        </div>
+
+        <!-- OITAVAS (CHAVE B) -->
+        <div style="min-width:0">
+          <div style="text-align:center;font-size:9.5px;font-weight:900;color:#38bdf8;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">OITAVAS (CHAVE B)</div>
+          ${(cfg.oitavasRight || []).map((m, i) => renderKnockoutMatchCard(m, 'Oitavas de Final', i + 4)).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCopaDoBrasilBracket(copa){
+  const oit = (copa.phases['Oitavas de Final']?.fixtures || []);
+  const oitPadded = [...oit];
+  while(oitPadded.length < 8){
+    const idx = oitPadded.length + 1;
+    oitPadded.push({ home: `Classificado ${idx * 2 - 1}`, away: `Classificado ${idx * 2}`, date: 'A definir' });
+  }
+
+  const qua = (copa.phases['Quartas de Final']?.fixtures || []);
+  const quaPadded = [...qua];
+  while(quaPadded.length < 4){
+    const idx = quaPadded.length + 1;
+    quaPadded.push({ home: `Vencedor Oitavas ${idx * 2 - 1}`, away: `Vencedor Oitavas ${idx * 2}`, date: 'A definir' });
+  }
+
+  const sem = (copa.phases['Semifinais']?.fixtures || []);
+  const semPadded = [...sem];
+  while(semPadded.length < 2){
+    const idx = semPadded.length + 1;
+    semPadded.push({ home: `Vencedor Quartas ${idx * 2 - 1}`, away: `Vencedor Quartas ${idx * 2}`, date: 'A definir' });
+  }
+
+  const finArr = (copa.phases['Final']?.fixtures || []);
+  const finalMatch = finArr[0] || { home: 'Finalista A', away: 'Finalista B', date: 'A definir' };
+
+  return renderGenericKnockoutBracket({
+    badge: 'CBF · MATA-MATA OFICIAL',
+    title: `CHAVEAMENTO COPA DO BRASIL ${state.season}`,
+    subtitle: 'Ida e Volta até a Semifinal · Final em dois jogos',
+    oitavasLeft: oitPadded.slice(0, 4),
+    oitavasRight: oitPadded.slice(4, 8),
+    quartasLeft: quaPadded.slice(0, 2),
+    quartasRight: quaPadded.slice(2, 4),
+    semiLeft: semPadded.slice(0, 1),
+    semiRight: semPadded.slice(1, 2),
+    finalMatch
+  });
+}
+
 function renderCopaDoBrasilBlock(){
+  const copa = getCopaDoBrasilState();
+  const phasesList = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Oitavas de Final', 'Quartas de Final', 'Semifinais', 'Final'];
+  const isBracketActive = ['Oitavas de Final', 'Quartas de Final', 'Semifinais', 'Final', 'Chaveamento'].includes(copaCurrentPhase);
+  const curPhaseObj = copa.phases[copaCurrentPhase] || copa.phases['1ª Fase'] || { name: '1ª Fase', fixtures: [] };
+
+  let fixtures = curPhaseObj.fixtures || [];
+  if(copaSearchFilter){
+    const q = norm(copaSearchFilter);
+    fixtures = fixtures.filter(f => norm(f.home).includes(q) || norm(f.away).includes(q));
+  }
+
+  const tabs = [
+    { key: '1ª Fase', label: '1ª FASE' },
+    { key: '2ª Fase', label: '2ª FASE' },
+    { key: '3ª Fase', label: '3ª FASE' },
+    { key: '4ª Fase', label: '4ª FASE' },
+    { key: '5ª Fase', label: '5ª FASE' },
+    { key: 'Chaveamento', label: '🏆 CHAVEAMENTO (OITAVAS À FINAL)' }
+  ];
+
+  return `
+    <div class="card" style="margin-top:14px;padding:24px;background:linear-gradient(135deg, #130f24 0%, #0d0a1a 100%);border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+      <!-- Banner Copa do Brasil -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h1 style="margin:0;font-size:32px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
+            COPA DO BRASIL
+          </h1>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:800;letter-spacing:1px;margin-top:4px">
+            ${state.season} · ${copa.totalTeams || 92} CLUBES · EM DISPUTA
+          </div>
+        </div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.7);font-style:italic">
+          Aqui nascem grandes histórias 👑
+        </div>
+      </div>
+
+      <!-- Abas Compactadas (1ª a 5ª Fase + Chaveamento Oficial) -->
+      <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
+        ${tabs.map(t => {
+          const isActive = (t.key === 'Chaveamento' && isBracketActive) || (!isBracketActive && copaCurrentPhase === t.key);
+          const ph = copa.phases[t.key] || { status: 'A DISPUTAR' };
+          return `
+            <button class="btn btn-copa-phase ${isActive ? 'primary' : ''}" data-copa-phase="${t.key}" style="font-size:12px;font-weight:800;padding:6px 14px;border-radius:8px;${isActive ? 'background:#7c3aed;border:none;box-shadow:0 0 12px rgba(124,58,237,0.5)' : 'background:rgba(255,255,255,0.06);border:none;color:rgba(255,255,255,0.7)'}">
+              ${t.label} ${t.key !== 'Chaveamento' ? `<span class="pill" style="font-size:9px;margin-left:4px;background:${isActive ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)'}">${ph.status}</span>` : ''}
+            </button>
+          `;
+        }).join('')}
+      </div>
+
+      ${isBracketActive ? `
+        <!-- Chaveamento Visual Oficial (Oitavas até a Final) -->
+        ${renderCopaDoBrasilBracket(copa)}
+      ` : `
+        <!-- Campo de Busca por Time -->
+        <div style="margin-top:16px;max-width:380px">
+          <input id="inputSearchCopaTeam" value="${esc(copaSearchFilter)}" placeholder="🔍 Buscar time: Flamengo, Ceará, Avaí..." style="width:100%;background:#18142b;border:1px solid rgba(255,255,255,0.1);padding:10px 14px;border-radius:10px;color:#fff;font-size:13px">
+        </div>
+
+        <!-- Título da Fase Atual -->
+        <div style="font-size:16px;font-weight:900;color:#fff;letter-spacing:1px;text-transform:uppercase;margin:20px 0 14px 0">
+          ${esc(curPhaseObj.name || copaCurrentPhase)}
+        </div>
+
+        <!-- Grid de Confrontos -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:12px">
+          ${fixtures.map((f, fixtureIndex) => {
+            const isMyMatch = norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club);
+
+            return `
+              <div class="clickable-fixture" data-home="${esc(f.home)}" data-away="${esc(f.away)}" data-competition="Copa do Brasil" data-date="${esc(f.isoDate || '')}" data-score="${f.score ? `${f.score[0]}-${f.score[1]}` : ''}" style="background:${isMyMatch ? 'rgba(124,58,237,0.22)' : '#161324'};border:1px solid ${isMyMatch ? '#a855f7' : 'rgba(255,255,255,0.07)'};border-radius:12px;padding:12px 14px;box-shadow:${isMyMatch ? '0 0 16px rgba(168,85,247,0.3)' : 'none'};cursor:pointer;transition:all 0.2s">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+                  <div style="display:flex;align-items:center;gap:6px;width:40%;justify-content:flex-end">
+                    <span style="font-size:13px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.home)}</span>
+                    ${clubBadge(f.home, 18)}
+                  </div>
+
+                  <div style="font-size:10px;color:rgba(255,255,255,0.4);white-space:nowrap;padding:0 4px">
+                    ${f.score ? `<b>${f.score[0]} - ${f.score[1]}</b>` : esc(f.date || 'qua, 11 fev 2026')}
+                  </div>
+
+                  <div style="display:flex;align-items:center;gap:6px;width:40%">
+                    ${clubBadge(f.away, 18)}
+                    <span style="font-size:13px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.away)}</span>
+                  </div>
+                </div>
+
+                ${isMyMatch ? `
+                  <div style="text-align:center;margin-top:6px">
+                    <span style="font-size:10px;font-weight:900;color:var(--neon);letter-spacing:0.5px">SEU JOGO • CLIQUE PARA DETALHES</span>
+                    ${!f.score && f.isoDate === state.date ? `<button class="btn primary btn-copa-play" data-copa-play="${fixtureIndex}" style="display:block;margin:8px auto 0;padding:5px 12px;font-size:11px">▶ SIMULAR PARTIDA</button>` : ''}
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function __unused_old_renderCopaDoBrasilBlock(){
   const copa = getCopaDoBrasilState();
   const phasesList = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Oitavas de Final', 'Quartas de Final', 'Semifinais', 'Final'];
   const curPhaseObj = copa.phases[copaCurrentPhase] || copa.phases['1ª Fase'];
@@ -7061,18 +7395,28 @@ function getClubStarRating(clubName){
 
 function strength(c){return Math.round(((c?.atk||68)+(c?.mid||68)+(c?.def||68))/3)}
 
-// Overall realista eFootball/PES ponderado com EA FC
+// Overall realista eFootball/PES ponderado com EA FC (Sistema Único Oficial)
 function playerOverall(p){
   if (!p) return 60;
+  if (typeof p === 'number') return Math.max(40, Math.min(99, Math.round(p)));
   const direct = +p?.overall || +p?.ovr || 0;
-  if (direct > 0) return direct;
+  let val = 0;
   const pes = +p?.pes || 0;
   const fc = +p?.fc || 0;
-  if (pes > 0 && fc > 0) return Math.round(pes * 0.7 + fc * 0.3);
-  if (pes > 0) return pes;
-  if (fc > 0) return fc;
-  return 60;
+  if (pes > 0 && fc > 0) val = Math.round(pes * 0.7 + fc * 0.3);
+  else if (pes > 0) val = pes;
+  else if (fc > 0) val = fc;
+  else if (direct > 0) val = direct;
+  else val = 60;
+  if (direct > val) val = direct;
+  val = Math.max(40, Math.min(99, Math.round(val)));
+  p.ovr = val;
+  p.overall = val;
+  if (!p.fc) p.fc = val;
+  if (!p.pes) p.pes = val;
+  return val;
 }
+window.playerOverall = playerOverall;
 
 function ratingClass(o){
   if(o >= 84) return 'rating-gold-plus';
@@ -7118,6 +7462,39 @@ function findSquadPlayerByKey(key){
   p = state.squad.find(x => norm(x.name) === nKey || nKey.includes(norm(x.name)));
   return p || null;
 }
+
+function isPlayerTransferListed(p, st = state){
+  if(!p || !st) return false;
+  if(p.pendingTransfer) return false;
+  if(typeof isPlayerContractExpiringSoon === 'function' && isPlayerContractExpiringSoon(p, st)) return true;
+  if(!Array.isArray(st.transferListed)) return false;
+  const k = playerKey(p);
+  if(st.transferListed.includes(k)) return true;
+  const pId = p.id ? String(p.id) : null;
+  const pFifa = p.fifaId ? String(p.fifaId) : null;
+  return st.transferListed.some(item => {
+    if(pId && (item === pId || item === `id:${pId}`)) return true;
+    if(pFifa && (item === pFifa || item === `fifa:${pFifa}`)) return true;
+    if(p.name && typeof item === 'string' && (item === p.name || item.includes(norm(p.name)))) return true;
+    return false;
+  });
+}
+window.isPlayerTransferListed = isPlayerTransferListed;
+
+function isPlayerLoanListed(p, st = state){
+  if(!p || !st || p.pendingTransfer || !Array.isArray(st.loanListed)) return false;
+  const k = playerKey(p);
+  if(st.loanListed.includes(k)) return true;
+  const pId = p.id ? String(p.id) : null;
+  const pFifa = p.fifaId ? String(p.fifaId) : null;
+  return st.loanListed.some(item => {
+    if(pId && (item === pId || item === `id:${pId}`)) return true;
+    if(pFifa && (item === pFifa || item === `fifa:${pFifa}`)) return true;
+    if(p.name && typeof item === 'string' && (item === p.name || item.includes(norm(p.name)))) return true;
+    return false;
+  });
+}
+window.isPlayerLoanListed = isPlayerLoanListed;
 
 function findGlobalPlayerByKey(key){
   if(!key) return null;
@@ -7200,6 +7577,7 @@ function calcValueMi(p){
   p.value = valMi;
   return valMi;
 }
+window.calcValueMi = calcValueMi;
 
 function playerSalary(p){
   if(p?.wage && Number(p.wage) > 0) return Math.round(Number(p.wage));
@@ -7259,6 +7637,54 @@ function playerContractUntil(p){
   if(n === 'matheus reggiori') return 2027;
   const hash = hashStr(p?.name || '') % 3;
   return 2027 + hash;
+}
+
+function getPlayerContractRemainingMonths(p, stateRef){
+  if(!p) return 12;
+  if(p.isLoan) return 12;
+  const st = stateRef || window.state || {};
+  const until = playerContractUntil(p);
+  const curDateStr = st.date || `${st.season || 2026}-01-01`;
+  const parts = String(curDateStr).split('-');
+  const curYear = parseInt(parts[0], 10) || (st.season || 2026);
+  const curMonth = parseInt(parts[1], 10) || 1;
+
+  if(until < curYear) return 0;
+
+  const endMonth = Number(p.contractMonth) || 12;
+  const diffYears = until - curYear;
+  const remainingMonths = (diffYears * 12) + (endMonth - curMonth);
+
+  return Math.max(0, remainingMonths);
+}
+
+function isPlayerContractExpiringSoon(p, stateRef){
+  if(!p || p.isLoan) return false;
+  return getPlayerContractRemainingMonths(p, stateRef) <= 6;
+}
+
+function syncExpiringContractsToTransferList(stateRef){
+  const st = stateRef || window.state;
+  if(!st || !Array.isArray(st.squad)) return;
+  st.transferListed = Array.isArray(st.transferListed) ? st.transferListed : [];
+  st.transferOffers = st.transferOffers || {};
+
+  st.squad.forEach(p => {
+    if(!p || p.isLoan || p.pendingTransfer) return;
+    const key = playerKey(p);
+    const monthsLeft = getPlayerContractRemainingMonths(p, st);
+    if(monthsLeft <= 6){
+      if(!st.transferListed.includes(key)){
+        st.transferListed.push(key);
+        p.autoListedExpiringContract = true;
+      }
+      if(!st.transferOffers[key] || st.transferOffers[key].length === 0){
+        if(typeof generateBuyerOffers === 'function'){
+          st.transferOffers[key] = generateBuyerOffers(p);
+        }
+      }
+    }
+  });
 }
 
 function calcSalary(p){
@@ -7355,10 +7781,14 @@ function clubStateCompId(clubName){
     if(/\b(catarinense|santa catarina|chapecoense|figueirense|avai|criciuma|brusque)\b/.test(clubText)) return 'bra-est-sc';
     if(/\b(baiano|salvador|bahia|vitoria)\b/.test(clubText)) return 'bra-est-ba';
     if(/\b(cearense|fortaleza|ceara|ferroviario)\b/.test(clubText)) return 'bra-est-ce';
-    if(/\b(goiano|goiania|goias|vila nova|atletico-go)\b/.test(clubText)) return 'bra-est-go';
     if(/\b(pernambucano|recife|sport|nautico|santa cruz)\b/.test(clubText)) return 'bra-est-pe';
+    return 'bra-est-sp';
   }
-  return 'bra-est-sp';
+  // Se for clube explicitamente brasileiro sem estadual mapeado, usa SP como fallback. Clubes internacionais NÃO possuem estadual.
+  if(clubObj?.country === 'Brasil' || (state?.club && norm(state.club) === nameNorm && (state?.country === 'Brasil' || String(state?.compId || '').startsWith('bra-')))){
+    return 'bra-est-sp';
+  }
+  return null;
 }
 
 // Returns all roster memberships; a Brazilian club may play both national and estadual leagues.
@@ -7425,7 +7855,7 @@ function getClubPrimaryCompetitionId(clubName, preferredCompId = null){
   }
 
   // 2. Principais ligas internacionais
-  const intlLigas = ['eng-1', 'eng-2', 'esp-1', 'esp-2', 'ita-1', 'ger-1', 'fra-1', 'por-1', 'ned-1', 'arg-1', 'uru-1', 'chi-1', 'col-1', 'par-1', 'ecu-1', 'per-1', 'bol-1', 'ven-1', 'ksa-1', 'jpn-1', 'kor-1', 'chn-1', 'qat-1', 'uae-1'];
+  const intlLigas = ['usa-1', 'eng-1', 'eng-2', 'esp-1', 'esp-2', 'ita-1', 'ger-1', 'fra-1', 'por-1', 'ned-1', 'arg-1', 'uru-1', 'chi-1', 'col-1', 'par-1', 'ecu-1', 'per-1', 'bol-1', 'ven-1', 'ksa-1', 'jpn-1', 'kor-1', 'chn-1', 'qat-1', 'uae-1'];
   for(const lId of intlLigas){
     if(Array.isArray(tMap[lId]) && tMap[lId].some(c => norm(c) === nameNorm)){
       return lId;
@@ -7463,7 +7893,7 @@ function inferClubMeta(p){
   const rules=[
    [/premier league/i,'Inglaterra','Premier League'],[/championship/i,'Inglaterra','EFL Championship'],[/laliga|la liga/i,'Espanha','LaLiga'],[/serie a/i,'Itália','Serie A'],
    [/bundesliga/i,'Alemanha','Bundesliga'],[/ligue 1/i,'França','Ligue 1'],[/primeira liga|liga portugal/i,'Portugal','Primeira Liga'],[/eredivisie/i,'Países Baixos','Eredivisie'],
-   [/argentina|liga profesional/i,'Argentina','Liga Profesional Argentina'],[/saudi|roshn/i,'Arábia Saudita','Saudi Pro League'],[/j1 league|japan/i,'Japão','J1 League'],[/k league/i,'Coreia do Sul','K League 1'],[/chinese super league|china/i,'China','Chinese Super League']
+   [/argentina|liga profesional/i,'Argentina','Liga Profesional Argentina'],[/major league soccer|mls/i,'Estados Unidos','Major League Soccer'],[/saudi|roshn/i,'Arábia Saudita','Saudi Pro League'],[/j1 league|japan/i,'Japão','J1 League'],[/k league/i,'Coreia do Sul','K League 1'],[/chinese super league|china/i,'China','Chinese Super League']
   ];
   for(const [rx,country,competition] of rules) if(rx.test(league))return {country,competition};
   return {country:p?.clubCountry||p?.teamCountry||'Outro',competition:league||'Outros clubes'};
@@ -7488,6 +7918,7 @@ function buildClubs(){
 
 function regionCountries(continent){
   if(continent==='América do Sul')return ['Brasil','Argentina','Uruguai','Chile','Colômbia','Equador','Paraguai','Peru','Bolívia','Venezuela'];
+  if(continent==='América do Norte')return ['Estados Unidos','México','Canadá'];
   if(continent==='Europa')return ['Inglaterra','Espanha','Itália','Alemanha','França','Portugal','Países Baixos','Bélgica','Turquia','Escócia','Áustria','Suíça','Grécia','Croácia','Sérvia','Tchéquia','Dinamarca','Noruega','Suécia'];
   return ['Arábia Saudita','Japão','Coreia do Sul','China','Catar','Emirados Árabes Unidos','Irã','Índia','Tailândia','Austrália'];
 }
@@ -7594,11 +8025,14 @@ function getPendingClubCompetitions(gameState = state){
 
   // Competições continentais/internacionais qualificadas e persistidas no save.
   for(const id of ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc']){
-    const tournament = gameState.tournaments?.[id];
+    const tournament = (gameState === state && typeof getContinentalTournament === 'function')
+      ? getContinentalTournament(id)
+      : gameState.tournaments?.[id];
     if(!tournament || Number(tournament.season) !== season) continue;
     (tournament.matches || []).forEach(match => {
       if((norm(match.home) !== clubKey && norm(match.away) !== clubKey) || match.status !== 'scheduled') return;
-      push(id, ({lib:'Copa Libertadores',sud:'Copa Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'})[id] || id, match.date, `Rodada ${match.round || ''}`);
+      const cDate = typeof ensureMidweekDate === 'function' ? ensureMidweekDate(match.date, season) : match.date;
+      push(id, ({lib:'Copa Libertadores',sud:'Copa Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'})[id] || id, cDate, `Rodada ${match.round || ''}`);
     });
   }
   return pending.sort((a,b) => String(a.date || '9999-12-31').localeCompare(String(b.date || '9999-12-31')));
@@ -7614,10 +8048,13 @@ function getNextClubFixtureDate(gameState = state){
 }
 
 function getNextPendingClubFixture(gameState = state){
+  if(!gameState) return null;
   const pending = getPendingClubCompetitions(gameState);
   const future = pending.filter(item => item.date && item.date >= gameState.date);
   const next = (future.length ? future : pending.filter(item => item.date)).sort((a,b)=>String(a.date).localeCompare(String(b.date)))[0] || null;
   if(!next) return null;
+  const clubKey = norm(gameState.club);
+
   if(next.id === 'bra-cup'){
     const copa = gameState === state && typeof getCopaDoBrasilState === 'function'
       ? getCopaDoBrasilState()
@@ -7625,11 +8062,73 @@ function getNextPendingClubFixture(gameState = state){
     const phase = copa?.phases?.[next.detail];
     const fixtureIndex = (phase?.fixtures || []).findIndex(fixture =>
       !fixture.score && !fixture.winner && fixture.played !== true &&
-      (norm(fixture.home) === norm(gameState.club) || norm(fixture.away) === norm(gameState.club))
+      (norm(fixture.home) === clubKey || norm(fixture.away) === clubKey)
     );
     const fixture = fixtureIndex >= 0 ? phase.fixtures[fixtureIndex] : null;
-    return {...next, fixtureIndex, home:fixture?.home || '', away:fixture?.away || '', opponent:fixture ? (norm(fixture.home) === norm(gameState.club) ? fixture.away : fixture.home) : ''};
+    const isHome = fixture ? norm(fixture.home) === clubKey : true;
+    const opp = fixture ? (isHome ? fixture.away : fixture.home) : 'Adversário';
+    return {
+      ...next,
+      fixtureIndex,
+      home: fixture?.home || (isHome ? gameState.club : opp),
+      away: fixture?.away || (!isHome ? gameState.club : opp),
+      opponent: opp,
+      isHome
+    };
   }
+
+  if(['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc'].includes(next.id)){
+    const tournament = typeof getContinentalTournament === 'function' ? getContinentalTournament(next.id) : (gameState.tournaments?.[next.id]);
+    const matches = Array.isArray(tournament?.matches) ? tournament.matches : [];
+    const match = matches.find(m =>
+      (m.status === 'scheduled' || (!m.result && !m.score)) &&
+      (norm(m.home) === clubKey || norm(m.away) === clubKey) &&
+      (m.date === next.date || `Rodada ${m.round}` === next.detail)
+    ) || matches.find(m =>
+      (m.status === 'scheduled' || (!m.result && !m.score)) &&
+      (norm(m.home) === clubKey || norm(m.away) === clubKey)
+    );
+    if(match){
+      const isHome = norm(match.home) === clubKey;
+      const opp = isHome ? match.away : match.home;
+      return {
+        ...next,
+        matchId: match.id,
+        round: match.round,
+        date: match.date || next.date,
+        home: match.home,
+        away: match.away,
+        opponent: opp,
+        isHome,
+        detail: `Rodada ${match.round || ''}`
+      };
+    }
+  }
+
+  if(next.id && next.id.startsWith('bra-est-')){
+    const data = typeof getStateCompData === 'function' ? getStateCompData(next.id) : null;
+    const fixtureIndex = (data?.fixtures || []).findIndex(f =>
+      !f.played && !f.result && (norm(f.home) === clubKey || norm(f.away) === clubKey) &&
+      (!next.date || f.isoDate === next.date)
+    );
+    const fixture = fixtureIndex >= 0 ? data.fixtures[fixtureIndex] : (data?.fixtures || []).find(f => !f.played && !f.result && (norm(f.home) === clubKey || norm(f.away) === clubKey));
+    if(fixture){
+      const isHome = norm(fixture.home) === clubKey;
+      const opp = isHome ? fixture.away : fixture.home;
+      return {
+        ...next,
+        fixtureIndex,
+        roundIndex: fixture.roundIndex,
+        home: fixture.home,
+        away: fixture.away,
+        opponent: opp,
+        isHome,
+        date: fixture.isoDate || next.date,
+        detail: `Rodada ${(Number(fixture.roundIndex) || 0) + 1}`
+      };
+    }
+  }
+
   return next;
 }
 
@@ -7667,13 +8166,37 @@ function openNextPendingCompetitionFixture(nextFixture = getNextPendingClubFixtu
 }
 
 function generatedRosterForClub(club){
-  const c=clubByName(club)||{name:club,country:'Outro',atk:66,mid:66,def:66};const base=strength(c);const arr=[];
+  const c=clubByName(club)||{name:club,country:'Outro',atk:66,mid:66,def:66};const base=Math.min(76,strength(c));const arr=[];
   for(let i=0;i<25;i++){
-    const pos=POSITIONS[i%POSITIONS.length];const o=clamp(base+((hashStr(club+'|'+i)%13)-6),45,91);const age=18+(hashStr('age|'+club+'|'+i)%18);const pot=clamp(o+(hashStr('pot|'+club+'|'+i)%10),o,94);const name=`${NAMES[(hashStr(club+'n'+i)%NAMES.length)]} ${LAST[(hashStr(club+'l'+i)%LAST.length)]}`;
-    const p={id:`gen-${norm(club)}-${i}`,marketKey:`gen:${norm(club)}:${i}`,name,club,country:c.country||'Outro',pos,age,fc:o,pes:clamp(o+((i%3)-1),45,92),potential:pot,value:0,morale:70,fitness:100,owned:false};p.value=calcValueMi(p);arr.push(p);
+    const pos=POSITIONS[i%POSITIONS.length];const age=18+(hashStr('age|'+club+'|'+i)%18);const o=age<=21?clamp(base-8+(hashStr(club+'|'+i)%6),52,72):(age<=28?clamp(base-3+((hashStr(club+'|'+i)%7)-3),55,78):clamp(base-5+((hashStr(club+'|'+i)%5)-2),52,75));const pot=clamp(o+(age<=21?(6+(hashStr('pot|'+club+'|'+i)%8)):(hashStr('pot|'+club+'|'+i)%4)),o,age<=21?84:80);const name=`${NAMES[(hashStr(club+'n'+i)%NAMES.length)]} ${LAST[(hashStr(club+'l'+i)%LAST.length)]}`;
+    const p={id:`gen-${norm(club)}-${i}`,marketKey:`gen:${norm(club)}:${i}`,name,club,country:c.country||'Outro',pos,age,fc:o,pes:clamp(o+((i%3)-1),45,78),ovr:o,overall:o,potential:pot,value:0,morale:70,fitness:100,owned:false};p.value=calcValueMi(p);arr.push(p);
   }
   return arr;
 }
+
+function sanitizeWorldGeneratedPlayers(st = state){
+  if(!st) return;
+  const pools = [st.worldGenerated, st.worldRegens];
+  pools.forEach(pool => {
+    if(!Array.isArray(pool)) return;
+    pool.forEach(p => {
+      if(!p) return;
+      const age = Number(p.age) || 22;
+      const curOvr = playerOverall(p);
+      const isGen = String(p.id || '').startsWith('gen-') || String(p.marketKey || '').startsWith('gen:') || pool === st.worldGenerated;
+      if(isGen && curOvr > 78){
+        const maxOvr = age <= 21 ? 72 : 78;
+        p.fc = Math.min(p.fc || maxOvr, maxOvr);
+        p.pes = Math.min(p.pes || maxOvr, maxOvr);
+        p.ovr = maxOvr;
+        p.overall = maxOvr;
+        if(p.potential && p.potential > 84) p.potential = Math.min(84, maxOvr + (age <= 21 ? 8 : 2));
+        p.value = calcValueMi(p);
+      }
+    });
+  });
+}
+window.sanitizeWorldGeneratedPlayers = sanitizeWorldGeneratedPlayers;
 
 function buildWorldGenerated(){
   const counts=new Map();for(const p of livePlayers){const k=norm(p.club);if(k)counts.set(k,(counts.get(k)||0)+1)}
@@ -7690,9 +8213,9 @@ function playersForClub(club,worldGenerated){
 }
 
 function stablePlayer(p){
-  const wage = playerSalary(p);
+  const o = playerOverall(p); const wage = playerSalary(p);
   const contractUntil = playerContractUntil(p);
-  return {...p, marketKey:playerKey(p), value:calcValueMi(p), wage, contractUntil};
+  return {...p, marketKey:playerKey(p), ovr:o, overall:o, value:calcValueMi(p), wage, contractUntil};
 }
 function totalMonthlyPayroll(){
   return (state?.squad || []).reduce((acc, p) => acc + playerSalary(p), 0);
@@ -8264,7 +8787,46 @@ const TRANSFER_WINDOWS = [
   { startMonth: 6, startDay: 1, endMonth: 8, endDay: 1, name: 'Janela de Meio de Temporada' }
 ];
 
+function getTransferWindowState(){
+  if(!state) return { active: false };
+  if(state.freeTransferWindow) return { active: true, free: true, text: 'Janela Aberta (Modo Livre)' };
+  if(state.transferWindowActive === undefined){
+    if(state.isPreSeason && state.preSeasonDays > 0){
+      state.transferWindowActive = true;
+      state.transferWindowDay = Math.max(1, 5 - state.preSeasonDays);
+      state.transferWindowHour = state.transferWindowHour || 0;
+    } else {
+      state.transferWindowActive = false;
+    }
+  }
+  if(state.transferWindowActive){
+    if(Number(state.transferWindowHour) >= 24 || Number(state.transferWindowDay) > 4){
+      state.transferWindowActive = false;
+      state.isPreSeason = false;
+      state.preSeasonDays = 0;
+      return { active: false, text: 'Janela de Transferências Fechada' };
+    }
+    const day = Math.min(4, Math.max(1, Number(state.transferWindowDay) || 1));
+    const hour = Math.min(24, Math.max(0, Number(state.transferWindowHour) || 0));
+    const isDeadlineDay = day === 4;
+    return {
+      active: true,
+      day,
+      maxDays: 4,
+      hour,
+      isDeadlineDay,
+      text: isDeadlineDay ? `Deadline Day (${String(hour).padStart(2,'0')}:00)` : `Dia ${day} de 4`
+    };
+  }
+  return { active: false, text: 'Janela de Transferências Fechada' };
+}
+
 function isTransferWindowOpen(dateStr){
+  if(!state) return false;
+  if(state.freeTransferWindow) return true;
+  return Boolean(getTransferWindowState().active);
+}
+function _oldIsTransferWindowOpen(dateStr){
   if(state?.freeTransferWindow) return true;
   if(!dateStr) return true;
   const parts = String(dateStr).split('-');
@@ -8284,6 +8846,20 @@ function isTransferWindowOpen(dateStr){
 }
 
 function getTransferWindowInfo(dateStr){
+  if(state?.freeTransferWindow) {
+    return { open: true, text: 'Janela Aberta (Modo Livre)', nextOpenDate: 'Sempre Aberto', currentWindow: 'Livre' };
+  }
+  const tw = getTransferWindowState();
+  if(tw.active){
+    return {
+      open: true,
+      text: tw.isDeadlineDay ? `Deadline Day (${String(tw.hour).padStart(2,'0')}:00)` : `Janela Aberta (Dia ${tw.day} de 4)`,
+      currentWindow: tw.isDeadlineDay ? 'Deadline Day' : `Dia ${tw.day} de 4`
+    };
+  }
+  return { open: false, text: 'Janela de Transferências Fechada', currentWindow: null };
+}
+function _oldGetTransferWindowInfo(dateStr){
   if(state?.freeTransferWindow) {
     return { open: true, text: 'Janela Aberta (Modo Livre)', nextOpenDate: 'Sempre Aberto', currentWindow: 'Livre' };
   }
@@ -8350,13 +8926,349 @@ function squadCapacity(trainingLevel = state?.infrastructure?.training?.level){
   const level = clamp(Math.round(Number(trainingLevel) || 1), 1, FACILITIES.training.max);
   return 25 + ((level - 1) * 3);
 }
+if(typeof window !== 'undefined') window.squadCapacity = squadCapacity;
+
+
+// =========================================================================
+// SISTEMA OFICIAL DE NÚMEROS DE CAMISA (DORSAL) DOS JOGADORES (1 a 99)
+// =========================================================================
+function ensureSquadShirtNumbers(targetState = (typeof state !== 'undefined' ? state : null)){
+  if(!targetState || !Array.isArray(targetState.squad)) return;
+  const squad = targetState.squad.filter(Boolean);
+  if(squad.length === 0) return;
+
+  const usedNumbers = new Set();
+
+  // 1. Prioriza jogadores com número já definido válido (ex: Messi #10, CR7 #7, etc.)
+  squad.forEach(p => {
+    const num = parseInt(p.number, 10);
+    if(!isNaN(num) && num >= 1 && num <= 99 && !usedNumbers.has(num)){
+      p.number = num;
+      usedNumbers.add(num);
+    } else {
+      p.number = null; // precisa receber número
+    }
+  });
+
+  // 2. Números preferenciais tradicionais por posição
+  const preferredPosNumbers = {
+    'GK': [1, 12, 22, 23, 30, 31, 99],
+    'RB': [2, 13, 16, 20, 22],
+    'LB': [6, 16, 12, 14, 26, 33],
+    'CB': [3, 4, 14, 15, 24, 25, 30, 44],
+    'DM': [5, 8, 17, 18, 21, 28, 55],
+    'CM': [8, 10, 15, 20, 26, 88],
+    'AM': [10, 7, 20, 80, 99],
+    'RW': [7, 11, 17, 19, 21, 77],
+    'LW': [11, 7, 17, 19, 22, 99],
+    'ST': [9, 19, 29, 99, 18, 23],
+    'CF': [9, 10, 19, 99]
+  };
+
+  function findNextAvailableNumber(pos){
+    const prefs = preferredPosNumbers[pos] || [];
+    for(const n of prefs){
+      if(!usedNumbers.has(n)) return n;
+    }
+    for(let n = 1; n <= 99; n++){
+      if(!usedNumbers.has(n)) return n;
+    }
+    return Math.floor(Math.random() * 99) + 1;
+  }
+
+  // 3. Atribui números para os jogadores que ainda não têm
+  squad.forEach(p => {
+    if(!p.number){
+      const assigned = findNextAvailableNumber(p.pos);
+      p.number = assigned;
+      usedNumbers.add(assigned);
+    }
+  });
+}
+
+function setPlayerShirtNumber(playerOrKey, newNumber, targetState = (typeof state !== 'undefined' ? state : null)){
+  if(!targetState || !Array.isArray(targetState.squad)) return false;
+  const num = parseInt(newNumber, 10);
+  if(isNaN(num) || num < 1 || num > 99){
+    if(typeof showNotification === 'function') showNotification('O número da camisa deve ser entre 1 e 99.', 'warn');
+    return false;
+  }
+
+  const pKey = typeof playerOrKey === 'string' ? playerOrKey : (typeof playerKey === 'function' ? playerKey(playerOrKey) : (playerOrKey?.name || ''));
+  const player = targetState.squad.find(p => p && ((typeof playerKey === 'function' ? playerKey(p) : p.name) === pKey || p.name === pKey));
+  if(!player){
+    if(typeof showNotification === 'function') showNotification('Jogador não encontrado no elenco.', 'error');
+    return false;
+  }
+
+  const oldNum = player.number || null;
+  if(oldNum === num) return true; // mesmo número
+
+  // Verifica se outro jogador já usa esse número -> faz o swap inteligente!
+  const occupyingPlayer = targetState.squad.find(p => p && p !== player && p.number === num);
+  player.number = num;
+  if(occupyingPlayer){
+    occupyingPlayer.number = oldNum || 99;
+    const occupiedSet = new Set(targetState.squad.filter(p => p && p !== occupyingPlayer).map(p => p.number));
+    if(occupiedSet.has(occupyingPlayer.number)){
+      for(let n = 1; n <= 99; n++){
+        if(!occupiedSet.has(n)){
+          occupyingPlayer.number = n;
+          break;
+        }
+      }
+    }
+  }
+  ensureSquadShirtNumbers(targetState);
+
+  if(typeof showNotification === 'function'){
+    if(occupyingPlayer){
+      showNotification(`👕 Camisa trocada: ${player.name} agora é o #${player.number} (e ${occupyingPlayer.name} ficou com o #${occupyingPlayer.number})!`, 'success');
+    } else {
+      showNotification(`👕 Camisa atualizada: ${player.name} é o novo camisa #${player.number}!`, 'success');
+    }
+  }
+
+  if(typeof render === 'function') render();
+  return true;
+}
+
+function assignTraditionalShirtNumbers(targetState = (typeof state !== 'undefined' ? state : null)){
+  if(!targetState || !Array.isArray(targetState.squad)) return;
+  const squad = targetState.squad.filter(Boolean);
+  if(squad.length === 0) return;
+
+  const used = new Set();
+  const lineupKeys = Array.isArray(targetState.lineup) ? targetState.lineup.slice(0, 11) : [];
+
+  // 11 titulares recebem 1 a 11 pela ordem posicional tradicional
+  const starters = [];
+  lineupKeys.forEach(k => {
+    const p = squad.find(pl => (typeof playerKey === 'function' ? playerKey(pl) : pl.name) === k);
+    if(p && !starters.includes(p)) starters.push(p);
+  });
+  squad.forEach(p => {
+    if(starters.length < 11 && !starters.includes(p)) starters.push(p);
+  });
+
+  // Ordena os 11 titulares do gol ao ataque
+  const posOrder = { 'GK': 1, 'RB': 2, 'CB': 3, 'LB': 4, 'DM': 5, 'CM': 6, 'AM': 7, 'RW': 8, 'LW': 9, 'ST': 10, 'CF': 11 };
+  starters.sort((a,b) => (posOrder[a.pos] || 99) - (posOrder[b.pos] || 99));
+
+  // Mapa de números ideais 1 a 11
+  let nextStarterNum = 1;
+  starters.forEach(p => {
+    p.number = nextStarterNum++;
+    used.add(p.number);
+  });
+
+  // Reservas recebem 12 em diante
+  let benchNum = 12;
+  squad.forEach(p => {
+    if(!starters.includes(p)){
+      while(used.has(benchNum) && benchNum < 99) benchNum++;
+      p.number = benchNum++;
+      used.add(p.number);
+    }
+  });
+
+  if(typeof showNotification === 'function') showNotification('👕 Numeração tradicional (1 a 11 nos titulares) aplicada com sucesso!', 'success');
+  if(typeof render === 'function') render();
+}
+
+function openSquadShirtNumbersModal(highlightPlayerKey = null){
+  if(typeof state === 'undefined' || !Array.isArray(state.squad)) return;
+  ensureSquadShirtNumbers(state);
+  const squad = state.squad.filter(Boolean);
+
+  let currentSelected = highlightPlayerKey 
+    ? squad.find(p => (typeof playerKey === 'function' ? playerKey(p) : p.name) === highlightPlayerKey || p.name === highlightPlayerKey)
+    : squad[0];
+
+  const modalHtml = `
+    <div id="shirtNumbersModal" class="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px)">
+      <div class="modal-card" style="background:#0f172a;border:1px solid #334155;border-radius:16px;max-width:850px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.7);overflow:hidden">
+        
+        <!-- Header -->
+        <div style="padding:18px 24px;border-bottom:1px solid #1e293b;display:flex;align-items:center;justify-content:space-between;background:#1e293b">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:24px">👕</span>
+            <div>
+              <h2 style="margin:0;font-size:18px;font-weight:800;color:#f8fafc">Numeração Oficial do Elenco</h2>
+              <div style="font-size:12px;color:#94a3b8">Escolha a camisa de cada jogador de 1 a 99 ou aplique a numeração tradicional clássica.</div>
+            </div>
+          </div>
+          <button class="btn btn-subtle" onclick="document.getElementById('shirtNumbersModal').remove()" style="padding:6px 12px;font-size:16px;cursor:pointer">✕</button>
+        </div>
+
+        <!-- Body -->
+        <div style="display:flex;flex:1;overflow:hidden;flex-wrap:wrap">
+          
+          <!-- Lista de Jogadores à Esquerda -->
+          <div style="width:340px;border-right:1px solid #1e293b;overflow-y:auto;max-height:calc(90vh - 140px);background:#090d16;padding:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 4px">
+              <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase">Jogadores (${squad.length})</span>
+              <button class="btn btn-sm btn-subtle" onclick="assignTraditionalShirtNumbers(state); document.getElementById('shirtNumbersModal').remove(); openSquadShirtNumbersModal();" style="font-size:10px;padding:3px 8px;font-weight:700" title="Atribui números 1 a 11 aos titulares automaticamente">
+                ⚡ 1 a 11 Auto
+              </button>
+            </div>
+            
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${squad.map(p => {
+                const pk = typeof playerKey === 'function' ? playerKey(p) : p.name;
+                const isCur = currentSelected && ((typeof playerKey === 'function' ? playerKey(currentSelected) : currentSelected.name) === pk);
+                return `
+                  <div onclick="openSquadShirtNumbersModal('${esc(pk)}')" 
+                       style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:10px;cursor:pointer;background:${isCur ? 'linear-gradient(90deg, #1e3a8a, #1e293b)' : '#1e293b'};border:1px solid ${isCur ? '#3b82f6' : 'transparent'};transition:all 0.15s ease">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <div style="width:34px;height:34px;border-radius:50%;background:#334155;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:14px;font-weight:800;color:#facc15">
+                        ${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='👕'">` : '👕'}
+                      </div>
+                      <div>
+                        <div style="font-size:13px;font-weight:700;color:#f8fafc">${esc(p.name)}</div>
+                        <div style="font-size:10px;color:#94a3b8;display:flex;gap:6px">
+                          <span class="pill" style="padding:1px 5px;font-size:9px">${p.pos}</span>
+                          <span>OVR ${p.overall || p.ovr || 65}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div style="background:#0f172a;border:1px solid #3b82f6;color:#60a5fa;font-size:14px;font-weight:900;padding:4px 10px;border-radius:8px;min-width:36px;text-align:center">
+                      #${p.number || '-'}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Painel de Seleção de Camisa à Direita -->
+          <div style="flex:1;min-width:320px;padding:24px;overflow-y:auto;max-height:calc(90vh - 140px);background:#0f172a">
+            ${currentSelected ? `
+              <div style="display:flex;align-items:center;gap:16px;background:#1e293b;padding:16px;border-radius:12px;border:1px solid #334155;margin-bottom:20px">
+                <div style="width:54px;height:54px;border-radius:50%;background:#334155;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:24px;border:2px solid #3b82f6">
+                  ${currentSelected.photo ? `<img src="${currentSelected.photo}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='👕'">` : '👕'}
+                </div>
+                <div>
+                  <h3 style="margin:0;font-size:16px;font-weight:800;color:#f8fafc">${esc(currentSelected.name)}</h3>
+                  <div style="font-size:12px;color:#94a3b8;margin-top:2px">
+                    Posição: <b style="color:#38bdf8">${currentSelected.pos}</b> • Overall: <b>${currentSelected.overall || 65}</b> • Camisa Atual: <b style="color:#facc15">#${currentSelected.number || '-'}</b>
+                  </div>
+                </div>
+              </div>
+
+              <div style="margin-bottom:16px">
+                <div style="font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:8px">Digitar Número Específico (1 a 99):</div>
+                <div style="display:flex;gap:10px">
+                  <input type="number" id="customShirtNumberInput" min="1" max="99" value="${currentSelected.number || ''}" placeholder="1 a 99" style="width:110px;padding:8px 12px;background:#1e293b;border:1px solid #475569;border-radius:8px;color:#f8fafc;font-size:16px;font-weight:800;text-align:center">
+                  <button class="btn btn-primary" onclick="
+                    const val = document.getElementById('customShirtNumberInput').value;
+                    const ok = setPlayerShirtNumber('${esc(typeof playerKey === 'function' ? playerKey(currentSelected) : currentSelected.name)}', val, state);
+                    if(ok){
+                      document.getElementById('shirtNumbersModal').remove();
+                      openSquadShirtNumbersModal('${esc(typeof playerKey === 'function' ? playerKey(currentSelected) : currentSelected.name)}');
+                    }
+                  " style="font-weight:700">
+                    Definir Camisa
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#e2e8f0;margin-bottom:10px;display:flex;justify-content:space-between">
+                  <span>Grade de Números Rápidos (1 a 99):</span>
+                  <span style="font-size:11px;color:#94a3b8"><span style="color:#22c55e">●</span> Disponível • <span style="color:#f59e0b">●</span> Ocupado (Troca)</span>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(46px, 1fr));gap:6px">
+                  ${Array.from({length: 99}, (_, idx) => idx + 1).map(num => {
+                    const occupying = squad.find(p => p.number === num);
+                    const isSelf = occupying && ((typeof playerKey === 'function' ? playerKey(occupying) : occupying.name) === (typeof playerKey === 'function' ? playerKey(currentSelected) : currentSelected.name));
+                    
+                    let bg = '#1e293b';
+                    let border = '#334155';
+                    let color = '#94a3b8';
+                    let title = `Número ${num} vago`;
+
+                    if(isSelf){
+                      bg = '#1d4ed8';
+                      border = '#60a5fa';
+                      color = '#ffffff';
+                      title = `Camisa atual de ${currentSelected.name}`;
+                    } else if(occupying){
+                      bg = '#2a1b1b';
+                      border = '#7f1d1d';
+                      color = '#fca5a5';
+                      title = `Número ${num} em uso por ${occupying.name} (clique para trocar)`;
+                    } else {
+                      bg = '#0f291e';
+                      border = '#14532d';
+                      color = '#86efac';
+                    }
+
+                    return `
+                      <button onclick="
+                        const ok = setPlayerShirtNumber('${esc(typeof playerKey === 'function' ? playerKey(currentSelected) : currentSelected.name)}', ${num}, state);
+                        if(ok){
+                          document.getElementById('shirtNumbersModal').remove();
+                          openSquadShirtNumbersModal('${esc(typeof playerKey === 'function' ? playerKey(currentSelected) : currentSelected.name)}');
+                        }
+                      " title="${esc(title)}" style="height:42px;background:${bg};border:1px solid ${border};color:${color};border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform 0.1s ease">
+                        <span>${num}</span>
+                        ${occupying && !isSelf ? `<span style="font-size:7px;color:#f87171;line-height:1;max-width:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${occupying.name.split(' ').pop()}</span>` : ''}
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            ` : `
+              <div style="text-align:center;padding:40px;color:#94a3b8">Selecione um jogador na lista ao lado.</div>
+            `}
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div style="padding:14px 24px;border-top:1px solid #1e293b;background:#1e293b;display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:12px;color:#94a3b8">
+            💡 As trocas de camisa são instantâneas e nunca geram jogadores com camisas duplicadas.
+          </div>
+          <button class="btn btn-primary" onclick="document.getElementById('shirtNumbersModal').remove()" style="font-weight:700;padding:8px 20px">
+            Concluído
+          </button>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  const existing = document.getElementById('shirtNumbersModal');
+  if(existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+if(typeof window !== 'undefined'){
+  window.ensureSquadShirtNumbers = ensureSquadShirtNumbers;
+  window.setPlayerShirtNumber = setPlayerShirtNumber;
+  window.assignTraditionalShirtNumbers = assignTraditionalShirtNumbers;
+  window.openSquadShirtNumbersModal = openSquadShirtNumbersModal;
+}
+
 
 function normalizeSquadState(targetState = state){
+  if(targetState && Array.isArray(targetState.squad)){ ensureSquadShirtNumbers(targetState); }
   if(!targetState) return 0;
   if(!Array.isArray(targetState.squad)) targetState.squad = [];
   const initialLength = targetState.squad.length;
-  // Remove só slots nulos/corrompidos; não remove nenhum jogador válido.
-  targetState.squad = targetState.squad.filter(player => player && typeof player === 'object' && (player.name || player.id || player.marketKey));
+  // Remove slots nulos/corrompidos e desduplica atletas repetidos
+  const seenSquadKeys = new Set();
+  targetState.squad = targetState.squad.filter(player => {
+    if(!player || typeof player !== 'object' || (!player.name && !player.id && !player.marketKey)) return false;
+    const pk = (typeof playerKey === 'function' ? playerKey(player) : (player.id || player.name));
+    if(seenSquadKeys.has(pk)) return false;
+    seenSquadKeys.add(pk);
+    return true;
+  });
+
   if(!Array.isArray(targetState.lineup)) targetState.lineup = [];
   const validKeys = new Set(targetState.squad.map(player => playerKey(player)));
   const squadKeysByAlias = new Map();
@@ -8364,11 +9276,14 @@ function normalizeSquadState(targetState = state){
     const canonical = playerKey(player);
     [canonical, player.id, player.marketKey, player.fifaId, player.pesId, player.name].filter(Boolean).forEach(alias => squadKeysByAlias.set(String(alias), canonical));
   });
-  // Slot vazio fica null; referências antigas que não encontram mais atleta
-  // são liberadas para evitar que o renderizador tente ler .name de um player inexistente.
+  // Slot vazio fica null; referências antigas ou duplicadas são liberadas
+  const seenLineupSlots = new Set();
   targetState.lineup = targetState.lineup.map(key => {
     if(!key) return null;
-    return squadKeysByAlias.get(String(key)) || null;
+    const canonical = squadKeysByAlias.get(String(key)) || null;
+    if(!canonical || seenLineupSlots.has(canonical)) return null;
+    seenLineupSlots.add(canonical);
+    return canonical;
   });
   while(targetState.lineup.length < 11) targetState.lineup.push(null);
   if(targetState.lineup.length > 11) targetState.lineup = targetState.lineup.slice(0, 11);
@@ -8380,37 +9295,267 @@ function normalizeSquadState(targetState = state){
   }
   return initialLength - targetState.squad.length;
 }
+if(typeof window !== 'undefined') window.normalizeSquadState = normalizeSquadState;
 
-function generateSponsorOffers(clubBudget){
-  const fame = teamFameScore();
-  const mktMult = marketingBenefits().sponsorMultiplier;
-  const fameMult = 0.60 + (fame / 100) * 0.90; // Escala proporcional à fama da equipe
+
+// =========================================================================
+// CATÁLOGO DE PATROCINADORES OFICIAIS E AUTÊNTICOS POR PAÍS
+// =========================================================================
+const SPONSOR_POOLS_BY_COUNTRY = {
+  'Brasil': [
+    { brand: 'Betano', category: 'Master', color: '#f35b04', mult: 1.50, winMult: 0.24, minFame: 40, years: 2, desc: 'Maior parceira do futebol brasileiro com alta rentabilidade' },
+    { brand: 'Nubank', category: 'Master', color: '#820ad1', mult: 1.45, winMult: 0.20, minFame: 60, years: 2, desc: 'Fintech gigante com forte apelo entre a torcida jovem' },
+    { brand: 'Petrobras', category: 'Master', color: '#008542', mult: 1.60, winMult: 0.26, minFame: 70, years: 3, desc: 'Gigante nacional de energia com contrato de longo prazo' },
+    { brand: 'Caixa', category: 'Master', color: '#005ca9', mult: 1.35, winMult: 0.18, minFame: 45, years: 2, desc: 'Banco público tradicional com estabilidade financeira' },
+    { brand: 'Superbet', category: 'Master', color: '#dc2626', mult: 1.55, winMult: 0.27, minFame: 50, years: 2, desc: 'Patrocínio agressivo com altos bônus por vitórias' },
+    { brand: 'iFood', category: 'Master', color: '#ea1d2c', mult: 1.40, winMult: 0.20, minFame: 35, years: 2, desc: 'Líder de delivery com ações especiais em dias de jogos' },
+    { brand: 'Crefisa', category: 'Master', color: '#004a2f', mult: 1.65, winMult: 0.25, minFame: 65, years: 3, desc: 'Investimento massivo no futebol nacional' },
+    { brand: 'Banco do Brasil', category: 'Master', color: '#fcee21', mult: 1.40, winMult: 0.19, minFame: 50, years: 3, desc: 'Apoio tradicional ao esporte nacional' },
+    
+    { brand: 'Fatal Model', category: 'Mangas', color: '#6b21a8', mult: 0.65, winMult: 0.10, minFame: 20, years: 1, desc: 'Investimento fixo imediato nas mangas' },
+    { brand: 'GOL Linhas Aéreas', category: 'Mangas', color: '#ff7020', mult: 0.70, winMult: 0.11, minFame: 45, years: 2, desc: 'Apoio logístico oficial e estabilidade' },
+    { brand: 'Cimed', category: 'Mangas', color: '#facc15', mult: 0.75, winMult: 0.12, minFame: 55, years: 2, desc: 'Indústria farmacêutica nas mangas da camisa' },
+    { brand: 'EstrelaBet', category: 'Mangas', color: '#0284c7', mult: 0.70, winMult: 0.11, minFame: 30, years: 1, desc: 'Operadora dinâmica com premiação por fase' },
+    { brand: 'Havan', category: 'Mangas', color: '#2563eb', mult: 0.68, winMult: 0.10, minFame: 35, years: 2, desc: 'Rede varejista nacional nas mangas' },
+
+    { brand: 'BYD', category: 'Costas', color: '#009e60', mult: 0.65, winMult: 0.10, minFame: 35, years: 2, desc: 'Líder em carros elétricos nas costas do uniforme' },
+    { brand: 'Itaú', category: 'Costas', color: '#ea580c', mult: 0.72, winMult: 0.12, minFame: 60, years: 3, desc: 'Maior banco privado com solidez absoluta' },
+    { brand: 'Brahma', category: 'Costas', color: '#b91c1c', mult: 0.68, winMult: 0.11, minFame: 50, years: 2, desc: 'Tradição centenária cervejeira no futebol' },
+    { brand: 'Zé Delivery', category: 'Costas', color: '#eab308', mult: 0.60, winMult: 0.09, minFame: 30, years: 1, desc: 'Ativações de torcida no verso da camisa' },
+    { brand: 'Pixbet', category: 'Costas', color: '#1d4ed8', mult: 0.66, winMult: 0.10, minFame: 40, years: 2, desc: 'Patrocínio rápido nas omoplatas' }
+  ],
+
+  'Argentina': [
+    { brand: 'YPF', category: 'Master', color: '#00529b', mult: 1.55, winMult: 0.24, minFame: 50, years: 3, desc: 'Petrolera estatal y orgullo nacional argentino' },
+    { brand: 'Cerveza Quilmes', category: 'Master', color: '#00387b', mult: 1.45, winMult: 0.22, minFame: 45, years: 2, desc: 'El sabor del fútbol argentino con décadas de historia' },
+    { brand: 'Codere', category: 'Master', color: '#7cb342', mult: 1.50, winMult: 0.25, minFame: 55, years: 2, desc: 'Casa de apuestas internacional con fuerte presencia' },
+    { brand: 'Betsson Argentina', category: 'Master', color: '#ff6600', mult: 1.48, winMult: 0.23, minFame: 50, years: 2, desc: 'Líder sueco de juego online en el fútbol local' },
+    { brand: 'Banco Galicia', category: 'Master', color: '#e65100', mult: 1.40, winMult: 0.19, minFame: 40, years: 2, desc: 'Uno de los mayores bancos privados del país' },
+    { brand: 'Banco Macro', category: 'Master', color: '#002f6c', mult: 1.38, winMult: 0.18, minFame: 35, years: 2, desc: 'Fuerte presencia federal y respaldo económico' },
+
+    { brand: 'Flecha Bus', category: 'Mangas', color: '#d32f2f', mult: 0.65, winMult: 0.10, minFame: 25, years: 2, desc: 'Transporte oficial y presencia en las mangas' },
+    { brand: 'Assist Card', category: 'Mangas', color: '#c2185b', mult: 0.70, winMult: 0.11, minFame: 40, years: 2, desc: 'Asistencia al viajero en competiciones internacionales' },
+    { brand: 'DirecTV Argentina', category: 'Mangas', color: '#0288d1', mult: 0.72, winMult: 0.12, minFame: 50, years: 2, desc: 'Televisión satelital deportiva en la camiseta' },
+    { brand: 'Aerolíneas Argentinas', category: 'Mangas', color: '#0099cc', mult: 0.68, winMult: 0.10, minFame: 35, years: 2, desc: 'Línea de bandera en los brazos del plantel' },
+
+    { brand: 'Mercado Libre', category: 'Costas', color: '#ffe600', mult: 0.75, winMult: 0.13, minFame: 55, years: 3, desc: 'El gigante de e-commerce latinoamericano' },
+    { brand: 'Tarjeta Naranja', category: 'Costas', color: '#ff5722', mult: 0.62, winMult: 0.09, minFame: 30, years: 2, desc: 'Financiamiento popular en la espalda' },
+    { brand: 'PedidosYa Argentina', category: 'Costas', color: '#e91e63', mult: 0.60, winMult: 0.09, minFame: 25, years: 1, desc: 'Delivery líder en el dorsal de los futbolistas' }
+  ],
+
+  'Estados Unidos': [
+    { brand: 'Apple TV', category: 'Master', color: '#000000', mult: 1.65, winMult: 0.28, minFame: 65, years: 4, desc: 'Transmissora global exclusiva da MLS e inovação tecnológica' },
+    { brand: 'Audi', category: 'Master', color: '#bb0a30', mult: 1.55, winMult: 0.24, minFame: 55, years: 3, desc: 'Patrocinador oficial de alto padrão da MLS' },
+    { brand: 'Target', category: 'Master', color: '#cc0000', mult: 1.50, winMult: 0.22, minFame: 45, years: 2, desc: 'Gigante do varejo americano no peito do manto' },
+    { brand: 'BMO', category: 'Master', color: '#0079c1', mult: 1.48, winMult: 0.20, minFame: 50, years: 3, desc: 'Instituição bancária com fortes arenas na liga' },
+    { brand: 'Herbalife', category: 'Master', color: '#74a82a', mult: 1.45, winMult: 0.20, minFame: 40, years: 2, desc: 'Nutrição esportiva e contrato lendário no futebol' },
+    { brand: 'American Family Insurance', category: 'Master', color: '#003366', mult: 1.40, winMult: 0.18, minFame: 35, years: 2, desc: 'Seguradora oficial com investimento garantido' },
+
+    { brand: 'Ford', category: 'Mangas', color: '#002c6c', mult: 0.72, winMult: 0.11, minFame: 45, years: 2, desc: 'Montadora ícone norte-americana nas mangas' },
+    { brand: 'DoorDash', category: 'Mangas', color: '#ff3008', mult: 0.70, winMult: 0.11, minFame: 35, years: 2, desc: 'Líder em entregas com ativação para fãs' },
+    { brand: 'AT&T', category: 'Mangas', color: '#00a8e0', mult: 0.75, winMult: 0.12, minFame: 55, years: 3, desc: 'Telecomunicações de ponta nos uniformes' },
+    { brand: 'Heineken USA', category: 'Mangas', color: '#008200', mult: 0.68, winMult: 0.10, minFame: 40, years: 2, desc: 'Cerveja oficial das celebrações da MLS' },
+
+    { brand: 'Delta Air Lines', category: 'Costas', color: '#ba0c2f', mult: 0.72, winMult: 0.11, minFame: 50, years: 3, desc: 'Linha aérea de prestígio nas costas do clube' },
+    { brand: 'Bank of America', category: 'Costas', color: '#012169', mult: 0.74, winMult: 0.12, minFame: 60, years: 3, desc: 'Maior solidez financeira do mercado americano' },
+    { brand: 'BodyArmor', category: 'Costas', color: '#ff4500', mult: 0.62, winMult: 0.09, minFame: 30, years: 1, desc: 'Bebida esportiva oficial dos atletas' },
+    { brand: 'GEICO', category: 'Costas', color: '#005596', mult: 0.65, winMult: 0.10, minFame: 35, years: 2, desc: 'Seguros rápidos e visibilidade total' }
+  ],
+
+  'Inglaterra': [
+    { brand: 'Fly Emirates', category: 'Master', color: '#d71921', mult: 1.80, winMult: 0.30, minFame: 75, years: 3, desc: 'Líder mundial de aviação em uniformes britânicos' },
+    { brand: 'Standard Chartered', category: 'Master', color: '#00965e', mult: 1.70, winMult: 0.28, minFame: 70, years: 3, desc: 'Banco financeiro internacional' },
+    { brand: 'Etihad Airways', category: 'Master', color: '#cca24b', mult: 1.75, winMult: 0.29, minFame: 75, years: 3, desc: 'Parceria milionária dos Emirados' },
+    { brand: 'TeamViewer', category: 'Master', color: '#004c97', mult: 1.55, winMult: 0.22, minFame: 60, years: 2, desc: 'Software corporativo global' },
+    { brand: 'Stake.com', category: 'Master', color: '#1475e1', mult: 1.50, winMult: 0.24, minFame: 45, years: 2, desc: 'Plataforma líder com altos bônus' },
+
+    { brand: 'Visit Rwanda', category: 'Mangas', color: '#20603d', mult: 0.75, winMult: 0.12, minFame: 65, years: 3, desc: 'Turismo global nas mangas' },
+    { brand: 'JD Sports', category: 'Mangas', color: '#111111', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Gigante de moda esportiva britânica' },
+    { brand: 'Expedia', category: 'Mangas', color: '#002554', mult: 0.72, winMult: 0.12, minFame: 60, years: 2, desc: 'Viagens internacionais nas mangas' },
+
+    { brand: 'Barclays', category: 'Costas', color: '#00aeef', mult: 0.76, winMult: 0.13, minFame: 65, years: 3, desc: 'Tradição absoluta no futebol inglês' },
+    { brand: 'Cadbury', category: 'Costas', color: '#4a154b', mult: 0.65, winMult: 0.10, minFame: 40, years: 2, desc: 'Doces tradicionais no verso do manto' }
+  ],
+
+  'Espanha': [
+    { brand: 'Spotify', category: 'Master', color: '#1db954', mult: 1.80, winMult: 0.30, minFame: 80, years: 4, desc: 'Maior streaming musical do planeta' },
+    { brand: 'Emirates Fly Better', category: 'Master', color: '#d71921', mult: 1.80, winMult: 0.30, minFame: 80, years: 3, desc: 'A maior marca da realeza do futebol europeu' },
+    { brand: 'Riyadh Air', category: 'Master', color: '#582c83', mult: 1.65, winMult: 0.26, minFame: 70, years: 3, desc: 'Companhia aérea com investimento bilionário' },
+    { brand: 'DIGI', category: 'Master', color: '#0055a5', mult: 1.45, winMult: 0.20, minFame: 45, years: 2, desc: 'Operadora de telecomunicações de rápida ascensão' },
+    { brand: 'Finetwork', category: 'Master', color: '#6a0dad', mult: 1.40, winMult: 0.19, minFame: 40, years: 2, desc: 'Fibra e telefonia espanhola' },
+
+    { brand: 'Ambilight TV', category: 'Mangas', color: '#00a3e0', mult: 0.75, winMult: 0.12, minFame: 70, years: 2, desc: 'Tecnologia visual nas mangas' },
+    { brand: 'Nexen Tire', category: 'Mangas', color: '#7b1113', mult: 0.68, winMult: 0.10, minFame: 50, years: 2, desc: 'Pneus com presença em LaLiga' },
+    { brand: 'OK Mobility', category: 'Mangas', color: '#e4002b', mult: 0.64, winMult: 0.09, minFame: 35, years: 1, desc: 'Aluguel de veículos nas mangas' },
+
+    { brand: 'CaixaBank', category: 'Costas', color: '#007eae', mult: 0.74, winMult: 0.12, minFame: 60, years: 3, desc: 'Banca oficial do esporte espanhol' },
+    { brand: 'Mahou San Miguel', category: 'Costas', color: '#c41230', mult: 0.68, winMult: 0.11, minFame: 50, years: 2, desc: 'Cervejeira histórica no verso da camisa' }
+  ],
+
+  'Arábia Saudita': [
+    { brand: 'Roshn', category: 'Master', color: '#002b49', mult: 1.85, winMult: 0.32, minFame: 60, years: 3, desc: 'Patrocinador oficial imobiliário da Saudi Pro League' },
+    { brand: 'Aramco', category: 'Master', color: '#00a3e0', mult: 1.90, winMult: 0.35, minFame: 70, years: 4, desc: 'A maior petrolífera mundial com investimento supremo' },
+    { brand: 'STC', category: 'Master', color: '#4f008c', mult: 1.70, winMult: 0.28, minFame: 55, years: 3, desc: 'Líder em tecnologia e telecomunicações sauditas' },
+    { brand: 'Saudia Airlines', category: 'Master', color: '#006633', mult: 1.65, winMult: 0.25, minFame: 50, years: 3, desc: 'Companhia aérea oficial do Reino' },
+    { brand: 'Red Sea Global', category: 'Master', color: '#009999', mult: 1.60, winMult: 0.24, minFame: 45, years: 2, desc: 'Mega empreendimentos turísticos sustentáveis' },
+
+    { brand: 'Alinma Bank', category: 'Mangas', color: '#b89d58', mult: 0.76, winMult: 0.13, minFame: 50, years: 2, desc: 'Banco financeiro nas mangas' },
+    { brand: 'Jahez', category: 'Mangas', color: '#f37021', mult: 0.72, winMult: 0.12, minFame: 40, years: 2, desc: 'Maior app de entregas da Arábia' },
+
+    { brand: 'NEOM', category: 'Costas', color: '#000000', mult: 0.85, winMult: 0.15, minFame: 65, years: 3, desc: 'A cidade do futuro mundial nas costas' },
+    { brand: 'SABIC', category: 'Costas', color: '#0072ce', mult: 0.75, winMult: 0.12, minFame: 55, years: 3, desc: 'Líder química e industrial global' }
+  ],
+
+  'Itália': [
+    { brand: 'Jeep', category: 'Master', color: '#222222', mult: 1.70, winMult: 0.28, minFame: 70, years: 3, desc: 'Marca automotiva icônica da Serie A' },
+    { brand: 'MSC Crociere', category: 'Master', color: '#002f6c', mult: 1.65, winMult: 0.26, minFame: 65, years: 3, desc: 'Gigante marítimo de cruzeiros internacionais' },
+    { brand: 'Paramount+ Italia', category: 'Master', color: '#0064ff', mult: 1.60, winMult: 0.25, minFame: 60, years: 2, desc: 'Entretenimento e cinema no peito' },
+    { brand: 'Betsson.sport', category: 'Master', color: '#ff6600', mult: 1.55, winMult: 0.24, minFame: 50, years: 2, desc: 'Infotainment esportivo em ascensão' },
+
+    { brand: 'eBay Italia', category: 'Mangas', color: '#e53238', mult: 0.74, winMult: 0.12, minFame: 55, years: 2, desc: 'Mercado global nas mangas' },
+    { brand: 'Bitpanda', category: 'Mangas', color: '#138b69', mult: 0.70, winMult: 0.11, minFame: 45, years: 2, desc: 'Fintech e criptoativos' },
+
+    { brand: 'U-Power', category: 'Costas', color: '#e30613', mult: 0.68, winMult: 0.11, minFame: 50, years: 2, desc: 'Segurança no trabalho no verso da camisa' },
+    { brand: 'TIM', category: 'Costas', color: '#003399', mult: 0.72, winMult: 0.12, minFame: 60, years: 3, desc: 'Telecomunicações de toda a Itália' }
+  ],
+
+  'Alemanha': [
+    { brand: 'Deutsche Telekom', category: 'Master', color: '#e20074', mult: 1.85, winMult: 0.30, minFame: 80, years: 4, desc: 'O clássico T magenta no coração da Bundesliga' },
+    { brand: 'Evonik', category: 'Master', color: '#672179', mult: 1.65, winMult: 0.26, minFame: 70, years: 3, desc: 'Química industrial de prestígio internacional' },
+    { brand: 'Red Bull', category: 'Master', color: '#cc0033', mult: 1.70, winMult: 0.28, minFame: 65, years: 4, desc: 'Energia pura e potência esportiva global' },
+    { brand: 'Indeed', category: 'Master', color: '#2164f3', mult: 1.50, winMult: 0.22, minFame: 50, years: 2, desc: 'Líder em empregos nos uniformes alemães' },
+
+    { brand: 'Allianz', category: 'Mangas', color: '#003780', mult: 0.78, winMult: 0.13, minFame: 65, years: 3, desc: 'Gigante seguradora nas mangas' },
+    { brand: 'GLS', category: 'Mangas', color: '#002554', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Logística de encomendas alemã' },
+
+    { brand: 'SAP', category: 'Costas', color: '#008fd3', mult: 0.76, winMult: 0.13, minFame: 60, years: 3, desc: 'Sistemas corporativos líderes mundiais' },
+    { brand: 'Bitburger', category: 'Costas', color: '#d4af37', mult: 0.65, winMult: 0.10, minFame: 45, years: 2, desc: 'Tradição cervejeira da Alemanha' }
+  ],
+
+  'França': [
+    { brand: 'Qatar Airways', category: 'Master', color: '#5c0632', mult: 1.85, winMult: 0.32, minFame: 80, years: 3, desc: 'A maior rota aérea com contrato milionário' },
+    { brand: 'CMA CGM', category: 'Master', color: '#002d62', mult: 1.65, winMult: 0.26, minFame: 65, years: 3, desc: 'Líder de navegação de Marselha para o mundo' },
+    { brand: 'Orange', category: 'Master', color: '#ff7900', mult: 1.60, winMult: 0.24, minFame: 60, years: 2, desc: 'Telecomunicações e inovação francesa' },
+
+    { brand: 'GOAT', category: 'Mangas', color: '#111111', mult: 0.75, winMult: 0.12, minFame: 70, years: 2, desc: 'Plataforma fashion e lifestyle global' },
+    { brand: 'Deliveroo France', category: 'Mangas', color: '#00cdbc', mult: 0.68, winMult: 0.10, minFame: 45, years: 2, desc: 'Delivery oficial nas mangas' },
+
+    { brand: 'ParionsSport', category: 'Costas', color: '#009ee0', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Apostas oficiais francesas na camisa' }
+  ],
+
+  'Portugal': [
+    { brand: 'Betclic Portugal', category: 'Master', color: '#e4002b', mult: 1.55, winMult: 0.24, minFame: 55, years: 2, desc: 'Patrocinador oficial e naming sponsor da Liga' },
+    { brand: 'MEO', category: 'Master', color: '#0090d0', mult: 1.50, winMult: 0.22, minFame: 50, years: 3, desc: 'A maior telecomunicação de Portugal' },
+    { brand: 'NOS', category: 'Master', color: '#222222', mult: 1.50, winMult: 0.22, minFame: 50, years: 3, desc: 'Cinema e comunicação portuguesa' },
+    { brand: 'Sagres', category: 'Master', color: '#c41230', mult: 1.40, winMult: 0.19, minFame: 40, years: 2, desc: 'Cerveja oficial e paixão de Portugal' },
+
+    { brand: 'Repsol Portugal', category: 'Mangas', color: '#ff3000', mult: 0.70, winMult: 0.11, minFame: 45, years: 2, desc: 'Energia nas mangas da camisa' },
+    { brand: 'solverde.pt', category: 'Mangas', color: '#00a651', mult: 0.68, winMult: 0.10, minFame: 35, years: 2, desc: 'Casinos e apostas em Portugal' },
+
+    { brand: 'Galp', category: 'Costas', color: '#f37021', mult: 0.72, winMult: 0.12, minFame: 50, years: 3, desc: 'Energia que move Portugal' }
+  ],
+
+  'Global': [
+    { brand: 'Sony', category: 'Master', color: '#000000', mult: 1.65, winMult: 0.26, minFame: 65, years: 3, desc: 'Tecnologia audiovisual e PlayStation' },
+    { brand: 'Coca-Cola', category: 'Master', color: '#f40009', mult: 1.70, winMult: 0.28, minFame: 70, years: 3, desc: 'A maior marca de refrigerantes do planeta' },
+    { brand: 'Mastercard', category: 'Master', color: '#eb001b', mult: 1.68, winMult: 0.26, minFame: 65, years: 3, desc: 'Pagamentos globais e momentos que não têm preço' },
+    { brand: 'Pepsi', category: 'Master', color: '#004b93', mult: 1.60, winMult: 0.24, minFame: 55, years: 2, desc: 'Tradição global na cultura do futebol' },
+
+    { brand: 'DHL', category: 'Mangas', color: '#d40511', mult: 0.72, winMult: 0.11, minFame: 50, years: 2, desc: 'Logística internacional veloz nas mangas' },
+    { brand: 'Puma', category: 'Mangas', color: '#000000', mult: 0.74, winMult: 0.12, minFame: 55, years: 2, desc: 'Performance esportiva de elite' },
+
+    { brand: 'Canon', category: 'Costas', color: '#cc0000', mult: 0.68, winMult: 0.10, minFame: 45, years: 2, desc: 'Lentes e imagens oficiais do esporte' },
+    { brand: 'FedEx', category: 'Costas', color: '#4d148c', mult: 0.70, winMult: 0.11, minFame: 50, years: 2, desc: 'Entregas mundiais no verso do manto' }
+  ]
+};
+
+function getClubCountry(clubName, stateContext = (typeof state !== 'undefined' ? state : null)){
+  const cName = String(clubName || stateContext?.club || '').trim();
+  const nClub = typeof norm === 'function' ? norm(cName) : cName.toLowerCase();
+
+  // 1. Se estivermos olhando o clube do state e tiver compId
+  const cId = stateContext?.compId || '';
+  if(cId.startsWith('bra-') || cId.startsWith('sp-') || cId.startsWith('rj-') || cId.startsWith('mg-') || cId.startsWith('rs-')) return 'Brasil';
+  if(cId === 'usa-1') return 'Estados Unidos';
+  if(cId === 'arg-1') return 'Argentina';
+  if(cId === 'eng-1' || cId === 'eng-2') return 'Inglaterra';
+  if(cId === 'esp-1' || cId === 'esp-2') return 'Espanha';
+  if(cId === 'ita-1') return 'Itália';
+  if(cId === 'ger-1') return 'Alemanha';
+  if(cId === 'fra-1') return 'França';
+  if(cId === 'por-1') return 'Portugal';
+  if(cId === 'ksa-1') return 'Arábia Saudita';
+
+  // 2. Busca nas competições cadastradas em COMPETITION_TEAMS
+  if(typeof COMPETITION_TEAMS !== 'undefined' && COMPETITION_TEAMS){
+    for(const [compKey, teamArr] of Object.entries(COMPETITION_TEAMS)){
+      if(Array.isArray(teamArr) && teamArr.some(t => (typeof norm === 'function' ? norm(t) : String(t).toLowerCase()) === nClub)){
+        if(compKey.startsWith('bra-')) return 'Brasil';
+        if(compKey === 'usa-1') return 'Estados Unidos';
+        if(compKey === 'arg-1') return 'Argentina';
+        if(compKey === 'eng-1' || compKey === 'eng-2') return 'Inglaterra';
+        if(compKey === 'esp-1' || compKey === 'esp-2') return 'Espanha';
+        if(compKey === 'ita-1') return 'Itália';
+        if(compKey === 'ger-1') return 'Alemanha';
+        if(compKey === 'fra-1') return 'França';
+        if(compKey === 'por-1') return 'Portugal';
+        if(compKey === 'ksa-1') return 'Arábia Saudita';
+      }
+    }
+  }
+
+  // 3. Heurísticas diretas de nomes de clubes consagrados
+  if(/inter miami|la galaxy|los angeles galaxy|los angeles fc|lafc|columbus crew|seattle sounders|atlanta united|new york red bulls|nycfc|philadelphia union|orlando city|portland timbers|nashville/i.test(cName)) return 'Estados Unidos';
+  if(/boca juniors|river plate|racing club|san lorenzo|independiente|velez|estudiantes|talleres|rosario central|newell/i.test(cName)) return 'Argentina';
+  if(/al-hilal|al-nassr|al-ittihad|al-ahli|al-ettifaq|al-shabab/i.test(cName)) return 'Arábia Saudita';
+  if(/real madrid|barcelona|atlético de madrid|sevilla|valencia|villarreal|athletic club|betis/i.test(cName)) return 'Espanha';
+  if(/manchester city|liverpool|arsenal|manchester united|chelsea|tottenham|aston villa|newcastle/i.test(cName)) return 'Inglaterra';
+  if(/inter de milão|juventus|milan|napoli|roma|lazio|atalanta|fiorentina/i.test(cName)) return 'Itália';
+  if(/bayern|dortmund|leverkusen|leipzig|stuttgart|frankfurt/i.test(cName)) return 'Alemanha';
+  if(/paris saint-germain|psg|marseille|monaco|lyon|lille/i.test(cName)) return 'França';
+  if(/benfica|porto|sporting|braga/i.test(cName)) return 'Portugal';
+
+  // 4. Se o usuário estiver numa liga nacional brasileira ou estadual
+  if(typeof state !== 'undefined' && state && typeof curComp === 'function'){
+    const c = curComp();
+    if(c?.country) return c.country;
+  }
+
+  return 'Brasil';
+}
+if(typeof window !== 'undefined') {
+  window.SPONSOR_POOLS_BY_COUNTRY = SPONSOR_POOLS_BY_COUNTRY;
+  window.getClubCountry = getClubCountry;
+}
+
+function generateSponsorOffers(clubBudget, clubName = (typeof state !== 'undefined' ? state?.club : '')){
+  const fame = typeof teamFameScore === 'function' ? teamFameScore() : 50;
+  const mktMult = typeof marketingBenefits === 'function' ? marketingBenefits().sponsorMultiplier : 1;
+  const fameMult = 0.60 + (fame / 100) * 0.90;
   const seasonFactor = Math.max(0.1, Number(state?.sponsorSeasonFactor) || 1);
   const baseMonthly = Math.round(Math.max(40000, Math.round((clubBudget || 2000000) * 0.024)) * mktMult * fameMult * seasonFactor);
 
-  const sponsorPool = [
-    { brand: 'Betano', category: 'Master', color:'#f35b04', mult: 1.45, winMult: 0.22, minFame: 40, years: 1, desc: 'Maior operadora oficial do futebol brasileiro' },
-    { brand: 'Samsung', category: 'Master', color:'#1428a0', mult: 1.30, winMult: 0.16, minFame: 55, years: 3, desc: 'Contrato longo e estável com a multinacional' },
-    { brand: 'iFood', category: 'Master', color:'#ea1d2c', mult: 1.35, winMult: 0.20, minFame: 30, years: 2, desc: 'Líder nacional de delivery com bônus por vitórias' },
-    { brand: 'Superbet', category: 'Master', color:'#dc2626', mult: 1.50, winMult: 0.25, minFame: 50, years: 2, desc: 'Patrocinador master agressivo com altos bônus de vitória' },
-    { brand: 'Nubank', category: 'Master', color:'#820ad1', mult: 1.40, winMult: 0.18, minFame: 65, years: 2, desc: 'Fintech global com forte apelo entre a torcida jovem' },
-    { brand: 'Emirates', category: 'Master', color:'#d97706', mult: 1.70, winMult: 0.28, minFame: 80, years: 3, desc: 'Gigante aérea mundial com investimento milionário' },
-    
-    { brand: 'Fatal Model', category: 'Mangas', color:'#6b21a8', mult: 0.60, winMult: 0.09, minFame: 25, years: 1, desc: 'Patrocínio de mangas com investimento pontual' },
-    { brand: 'GOL Linhas Aéreas', category: 'Mangas', color:'#ff7020', mult: 0.65, winMult: 0.10, minFame: 45, years: 2, desc: 'Apoio logístico e mensalidade garantida' },
-    { brand: 'Cimed', category: 'Mangas', color:'#facc15', mult: 0.70, winMult: 0.12, minFame: 55, years: 2, desc: 'Indústria farmacêutica nacional nas mangas da camisa' },
-    { brand: 'EstrelaBet', category: 'Mangas', color:'#0284c7', mult: 0.68, winMult: 0.11, minFame: 35, years: 1, desc: 'Investimento fixo nas mangas e premiação imediata' },
-    
-    { brand: 'BYD', category: 'Costas', color:'#009e60', mult: 0.55, winMult: 0.08, minFame: 30, years: 2, desc: 'Marca tecnológica sustentável na omoplata do manto' },
-    { brand: 'Brahma', category: 'Costas', color:'#b91c1c', mult: 0.60, winMult: 0.09, minFame: 50, years: 2, desc: 'Tradição brasileira no verso do uniforme' },
-    { brand: 'Itaú', category: 'Costas', color:'#ea580c', mult: 0.65, winMult: 0.10, minFame: 65, years: 3, desc: 'Maior banco privado com solidez garantida' },
-    { brand: 'Zé Delivery', category: 'Costas', color:'#eab308', mult: 0.52, winMult: 0.08, minFame: 35, years: 1, desc: 'Ativação de torcida nas costas da camisa' }
-  ];
+  const country = getClubCountry(clubName);
+  const countryPool = SPONSOR_POOLS_BY_COUNTRY[country] || SPONSOR_POOLS_BY_COUNTRY['Brasil'];
+  const globalPool = SPONSOR_POOLS_BY_COUNTRY['Global'] || [];
+  
+  // Mescla o pool do país local com os globais
+  const sponsorPool = [...countryPool, ...globalPool];
 
-  // Filtra marcas elegíveis para a fama atual do time e sorteia 3 a 4 propostas
-  const eligible = sponsorPool.filter(s => fame >= s.minFame);
-  const shuffled = [...(eligible.length >= 3 ? eligible : sponsorPool)].sort(() => Math.random() - 0.5);
-  const selected = shuffled.slice(0, 4);
+  // Filtra marcas elegíveis para a fama atual do time
+  const eligible = sponsorPool.filter(s => fame >= (s.minFame - 10));
+  const activePool = eligible.length >= 4 ? eligible : sponsorPool;
+
+  const mList = activePool.filter(s => s.category === 'Master').sort(() => Math.random() - 0.5);
+  const sList = activePool.filter(s => s.category === 'Mangas').sort(() => Math.random() - 0.5);
+  const bList = activePool.filter(s => s.category === 'Costas').sort(() => Math.random() - 0.5);
+
+  const selected = [
+    mList[0] || countryPool.find(s => s.category === 'Master'),
+    sList[0] || countryPool.find(s => s.category === 'Mangas'),
+    bList[0] || countryPool.find(s => s.category === 'Costas'),
+    mList[1] || sList[1] || bList[1] || countryPool[1]
+  ].filter(Boolean);
 
   return selected.map(s => ({
     brand: s.brand,
@@ -8419,8 +9564,30 @@ function generateSponsorOffers(clubBudget){
     monthly: Math.round(baseMonthly * s.mult),
     winBonus: Math.round(baseMonthly * s.winMult),
     years: s.years,
-    desc: s.desc
+    desc: s.desc,
+    country: country
   }));
+}
+
+function ensureClubSponsors(s){
+  if(!s) return;
+  s.sponsors = s.sponsors || {};
+  const baseBudget = s.balance || 5000000;
+  const clubCountry = getClubCountry(s.club, s);
+  const offers = generateSponsorOffers(baseBudget, s.club);
+
+  const mOff = offers.find(o => o.category === 'Master') || { brand: 'Patrocinador Master', category: 'Master', color: '#f35b04', monthly: 1850000, winBonus: 240000, years: 2, desc: 'Patrocinador Master Oficial' };
+  const sOff = offers.find(o => o.category === 'Mangas') || { brand: 'Patrocínio Mangas', category: 'Mangas', color: '#10b981', monthly: 720000, winBonus: 95000, years: 2, desc: 'Mangas da Camisa' };
+  const bOff = offers.find(o => o.category === 'Costas') || { brand: 'Patrocínio Costas', category: 'Costas', color: '#ea580c', monthly: 980000, winBonus: 130000, years: 3, desc: 'Costas / Omoplata' };
+
+  if(!s.sponsors.master || !s.sponsors.master.brand || s.sponsors.master.brand === 'Sem Patrocínio') s.sponsors.master = mOff;
+  if(!s.sponsors.sleeves || !s.sponsors.sleeves.brand || s.sponsors.sleeves.brand === 'Sem Patrocínio') s.sponsors.sleeves = sOff;
+  if(!s.sponsors.back || !s.sponsors.back.brand || s.sponsors.back.brand === 'Sem Patrocínio') s.sponsors.back = bOff;
+  if(!Array.isArray(s.sponsorOffers) || s.sponsorOffers.length === 0) s.sponsorOffers = offers;
+}
+if(typeof window !== 'undefined'){
+  window.generateSponsorOffers = generateSponsorOffers;
+  window.ensureClubSponsors = ensureClubSponsors;
 }
 
 function checkNewSponsorOffer(){
@@ -8455,7 +9622,9 @@ function signSponsorOffer(idx){
         Number(current.monthsRemaining ?? current.remainingMonths ?? current.contractMonthsRemaining) || contractYears * 12));
       const remainingContractValue = Math.round(currentMonthly * monthsRemaining);
       const breakFee = Math.max(1, Math.round(remainingContractValue * breakPenaltyRate));
-    const canAfford = state.balance >= breakFee;
+      const remainingAdvance = Math.max(0, (Number(current.advancedAmount) || 0) - (Number(current.advancedPaid) || 0));
+      const totalBreakCost = breakFee + remainingAdvance;
+      const canAfford = state.balance >= totalBreakCost;
 
     openCustomModal(
       '⚠️ Quebra de Contrato de Patrocínio',
@@ -8478,6 +9647,16 @@ function signSponsorOffer(idx){
               <span class="muted">Multa Rescisória de Quebra de Contrato:</span>
               <b style="color:#ef4444">${fmtMoney(breakFee)}</b>
             </div>
+            ${remainingAdvance > 0 ? `
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+                <span class="muted">Quitação de Adiantamento Não Abatido:</span>
+                <b style="color:#f59e0b">${fmtMoney(remainingAdvance)}</b>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;border-top:1px dashed rgba(255,255,255,0.1);padding-top:6px">
+                <span style="font-weight:900;color:#fff">Custo Total de Troca:</span>
+                <b style="color:#ef4444;font-size:15px">${fmtMoney(totalBreakCost)}</b>
+              </div>
+            ` : ''}
             <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:8px;line-height:1.4">
               Base contratual restante: <b>${fmtMoney(remainingContractValue)}</b> de ${fmtMoney(totalContractValue)} · Multa de ${Math.round(breakPenaltyRate * 100)}% para o espaço ${esc(offer.category)}.
             </div>
@@ -8490,7 +9669,7 @@ function signSponsorOffer(idx){
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
           <button class="btn" id="btnCancelBreakSponsor">Manter Atual</button>
           <button class="btn danger" id="btnConfirmBreakSponsor" ${canAfford ? '' : 'disabled'} style="font-weight:900;padding:10px 18px">
-            ${canAfford ? `Pagar ${fmtMoney(breakFee)} e Trocar Patrocínio` : 'Saldo Insuficiente p/ Multa'}
+            ${canAfford ? `Pagar ${fmtMoney(totalBreakCost)} e Trocar Patrocínio` : 'Saldo Insuficiente p/ Rescisão'}
           </button>
         </div>
       `,
@@ -8507,14 +9686,16 @@ function signSponsorOffer(idx){
     if(bConfirm){
       bConfirm.onclick = () => {
         if(!canAfford) return;
-        state.balance -= breakFee;
-        state.expense = (state.expense || 0) + breakFee;
+        state.balance -= totalBreakCost;
+        state.expense = (state.expense || 0) + totalBreakCost;
         const signingBonus = Math.round((offer.monthly || 50000) * 0.5);
         state.balance += signingBonus;
         state.income = (state.income || 0) + signingBonus;
         state.sponsors[slotKey] = offer;
+        state.sponsors[slotKey].advancedAmount = 0;
+        state.sponsors[slotKey].advancedPaid = 0;
         state.sponsorOffers.splice(idx, 1);
-        state.news.unshift(`🤝 TROCA DE PATROCÍNIO: O ${state.club} pagou ${fmtMoney(breakFee)} de rescisão com a ${current.brand} e recebeu +${fmtMoney(signingBonus)} de luvas da ${offer.brand}!`);
+        state.news.unshift(`🤝 TROCA DE PATROCÍNIO: O ${state.club} pagou ${fmtMoney(totalBreakCost)} de rescisão com a ${current.brand} e recebeu +${fmtMoney(signingBonus)} de luvas da ${offer.brand}!`);
         toast(`🎉 Contrato com a ${offer.brand} assinado (+${fmtMoney(signingBonus)} no caixa)!`);
         closeCustomModal();
         save();
@@ -8585,7 +9766,7 @@ function getStateCompData(cId){
   // evitando dois jogos oficiais do mesmo clube na mesma data.
   const roundDates = stateRounds.map((_, roundIndex) => {
     const nationalDate = new Date(`${getDateForRound(roundIndex, state.season)}T12:00:00`);
-    nationalDate.setDate(nationalDate.getDate() + 1);
+    nationalDate.setDate(nationalDate.getDate() + 4);
     return nationalDate.toISOString().slice(0, 10);
   });
   const previousFixtures = Array.isArray(currentSaved?.fixtures) ? currentSaved.fixtures : [];
@@ -8597,7 +9778,7 @@ function getStateCompData(cId){
     const previous = previousIndex >= 0 ? previousFixtures[previousIndex] : null;
     if(previousIndex >= 0) usedPreviousFixtures.add(previousIndex);
     const history = archivedHistory.find(item => norm(item.h) === norm(home) && norm(item.a) === norm(away) && (!item.date || !previous?.isoDate || item.date === previous.isoDate));
-    const isoDate = previous?.isoDate || history?.date || roundDates[roundIndex];
+    const isoDate = (previous?.played || previous?.result || previous?.score || history) ? (previous?.isoDate || history?.date || roundDates[roundIndex]) : roundDates[roundIndex];
     return {
       stadium:(clubByName(home)||{}).stadium || `Estádio do ${home}`,
       roundIndex, isoDate,
@@ -9137,9 +10318,9 @@ function newCareer(data){
   
   const sponsorOffers = generateSponsorOffers(budget);
   const activeSponsors = {
-    master: sponsorOffers[0],
-    sleeves: sponsorOffers[3],
-    back: sponsorOffers[5]
+    master: sponsorOffers.find(o => o.category === 'Master') || sponsorOffers[0],
+    sleeves: sponsorOffers.find(o => o.category === 'Mangas') || sponsorOffers[1],
+    back: sponsorOffers.find(o => o.category === 'Costas') || sponsorOffers[2]
   };
 
   const curUser = getActiveAccount();
@@ -9162,6 +10343,8 @@ function newCareer(data){
     competition:comp.name,
     season:2026,
     date:'2026-01-01', // INÍCIO DA TEMPORADA E DA JANELA DE PRÉ-TEMPORADA!
+    currentDate:'2026-01-01',
+    currentDateFormatted: formatDatePtBr('2026-01-01'),
     isPreSeason:true,
     preSeasonDays:4, // 4 DIAS DE JANELA DE TRANSFERÊNCIAS ANTES DO 1º JOGO OFICIAL!
     round:0,
@@ -9524,7 +10707,185 @@ function repairSaveIfCorrupted(s){
     }
   }
 
-  // A tabela guarda partidas realmente disputadas; folgas e rodadas fracionadas não autorizam reescrever resultados nem datas.
+  // Reparação de partidas continentais do clube do usuário que foram indevidamente auto-simuladas
+  if(s && s.tournaments && s.club){
+    const clubNorm = norm(s.club);
+    for(const [tId, tourney] of Object.entries(s.tournaments)){
+      if(!tourney || !Array.isArray(tourney.matches)) continue;
+      let tournamentFixed = false;
+      tourney.matches.forEach(m => {
+        if((norm(m.home) === clubNorm || norm(m.away) === clubNorm) && m.status === 'played'){
+          const inHistory = Array.isArray(s.history) && s.history.some(h => 
+            (h.competitionId === tId || h.competitionId === 'lib' || h.competitionId === 'sud' || h.competitionId === 'ucl' || h.competitionId === 'uel' || h.competitionId === 'uecl' || h.competitionId === 'cwc') &&
+            ((norm(h.h) === norm(m.home) && norm(h.a) === norm(m.away)) || (norm(h.h) === norm(m.away) && norm(h.a) === norm(m.home)))
+          );
+          if(!inHistory){
+            m.status = 'scheduled';
+            m.result = null;
+            m.winner = null;
+            tournamentFixed = true;
+          }
+        }
+      });
+      if(tournamentFixed && window.AFM_TOURNAMENT_ENGINE && typeof window.AFM_TOURNAMENT_ENGINE.standings === 'function'){
+        tourney.standings = window.AFM_TOURNAMENT_ENGINE.standings(tourney.groups, tourney.matches);
+        saveRequired = true;
+      }
+    }
+  }
+
+  // Reparação de partidas da Copa do Brasil do clube do usuário que foram indevidamente auto-simuladas
+  if(s && s.copaDoBrasil && s.copaDoBrasil.phases && s.club){
+    const clubNorm = norm(s.club);
+    let copaFixed = false;
+    for(const [pName, ph] of Object.entries(s.copaDoBrasil.phases)){
+      if(!ph || !Array.isArray(ph.fixtures)) continue;
+      ph.fixtures.forEach(fx => {
+        if((norm(fx.home) === clubNorm || norm(fx.away) === clubNorm) && (fx.score || fx.played)){
+          const inHistory = Array.isArray(s.history) && s.history.some(h => 
+            h.competitionId === 'bra-cup' &&
+            ((norm(h.h) === norm(fx.home) && norm(h.a) === norm(fx.away)) || (norm(h.h) === norm(fx.away) && norm(h.a) === norm(fx.home)))
+          );
+          if(!inHistory){
+            fx.score = null;
+            fx.played = false;
+            fx.winner = null;
+            copaFixed = true;
+          }
+        }
+      });
+    }
+    if(copaFixed){
+      saveRequired = true;
+    }
+  }
+
+  // =========================================================================
+  // NORMALIZAÇÃO UNIVERSAL DE DADOS: ZERO DUPLICAÇÕES E 100% SINCRONIZAÇÃO
+  // =========================================================================
+  // 1. Desduplicação do Elenco (s.squad)
+  if(Array.isArray(s.squad)){
+    const seenPKeys = new Set();
+    const cleanSquad = [];
+    s.squad.forEach(p => {
+      if(!p || typeof p !== 'object' || (!p.name && !p.id && !p.marketKey)) return;
+      const k = (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.name));
+      if(!seenPKeys.has(k)){
+        seenPKeys.add(k);
+        cleanSquad.push(p);
+      } else {
+        saveRequired = true;
+      }
+    });
+    s.squad = cleanSquad;
+  }
+
+  // 2. Normalização da Escalação (s.lineup)
+  if(typeof normalizeSquadState === 'function'){
+    normalizeSquadState(s);
+  }
+
+  // 3. Desduplicação do Histórico de Partidas (s.history)
+  if(Array.isArray(s.history)){
+    const seenHistMatches = new Set();
+    const cleanHist = [];
+    s.history.forEach(h => {
+      if(!h) return;
+      const hClub = (typeof norm === 'function' ? norm(h.h || h.home || '') : String(h.h || '').toLowerCase().trim());
+      const aClub = (typeof norm === 'function' ? norm(h.a || h.away || '') : String(h.a || '').toLowerCase().trim());
+      const sSeason = Number(h.season || s.season || 2026);
+      const cComp = h.competitionId || 'comp';
+      const cRound = String(h.round || '');
+      const cDate = String(h.date || '');
+      const pair = [hClub, aClub].sort().join('::');
+      const hKey = `${sSeason}__${cComp}__${pair}__${cRound || cDate}`;
+      if(!seenHistMatches.has(hKey)){
+        seenHistMatches.add(hKey);
+        cleanHist.push(h);
+      } else {
+        saveRequired = true;
+      }
+    });
+    s.history = cleanHist.slice(0, 100);
+  }
+
+  // 4. Desduplicação de Notícias (s.news)
+  if(Array.isArray(s.news)){
+    const seenNews = new Set();
+    const cleanNews = [];
+    s.news.forEach(n => {
+      const txt = String(n || '').trim();
+      if(txt && !seenNews.has(txt)){
+        seenNews.add(txt);
+        cleanNews.push(txt);
+      }
+    });
+    if(cleanNews.length !== s.news.length) saveRequired = true;
+    s.news = cleanNews.slice(0, 50);
+  }
+
+  // 5. Desduplicação e Consistência Matemática da Classificação (s.teams)
+  if(Array.isArray(s.teams)){
+    const seenTeamNames = new Set();
+    const cleanTeamsList = [];
+    s.teams.forEach(t => {
+      if(!t || !t.name) return;
+      const tKey = (typeof norm === 'function' ? norm(t.name) : String(t.name).toLowerCase().trim());
+      if(!seenTeamNames.has(tKey)){
+        seenTeamNames.add(tKey);
+        t.j = Number(t.j) || 0;
+        t.v = Number(t.v) || 0;
+        t.e = Number(t.e) || 0;
+        t.d = Number(t.d) || 0;
+        t.gp = Number(t.gp) || 0;
+        t.gc = Number(t.gc) || 0;
+        t.sg = t.gp - t.gc;
+        t.p = (t.v * 3) + t.e;
+        t.pct = t.j > 0 ? Math.round((t.p / (t.j * 3)) * 100) : 0;
+        if(!Array.isArray(t.form)) t.form = [];
+        if(t.form.length > 5) t.form = t.form.slice(-5);
+        cleanTeamsList.push(t);
+      } else {
+        saveRequired = true;
+      }
+    });
+    s.teams = cleanTeamsList;
+  }
+
+  // 6. Sincronização Bidirecional de Confiança (s.trust e s.confidence)
+  s.trust = s.trust || {};
+  s.trust.board = clamp(Number(s.trust.board) || 75, 0, 100);
+  s.trust.fans = clamp(Number(s.trust.fans) || 75, 0, 100);
+  s.trust.squad = clamp(Number(s.trust.squad) || 75, 0, 100);
+  if(!s.confidence || typeof s.confidence !== 'object'){
+    s.confidence = { board: s.trust.board, fans: s.trust.fans, squad: s.trust.squad };
+  } else {
+    s.confidence.board = s.trust.board;
+    s.confidence.fans = s.trust.fans;
+    s.confidence.squad = s.trust.squad;
+  }
+  s.boardConfidence = s.trust.board;
+
+  // 7. Sincronização de Títulos e Transferências
+  if(Array.isArray(s.titles)){
+    s.titles = [...new Set(s.titles.filter(Boolean))];
+  }
+  if(Array.isArray(s.transfers)){
+    const seenTrans = new Set();
+    s.transfers = s.transfers.filter(tr => {
+      if(!tr) return false;
+      const k = `${tr.type}__${tr.name}__${tr.from}__${tr.to}__${tr.date}`;
+      if(seenTrans.has(k)) return false;
+      seenTrans.add(k);
+      return true;
+    }).slice(0, 60);
+  }
+
+  // 8. Sincronização de Datas
+  if(s.date){
+    s.currentDate = s.date;
+    s.currentDateFormatted = formatDatePtBr(s.date);
+  }
 
   return saveRequired || metadataChanged;
 }
@@ -9542,6 +10903,61 @@ function migrate(s){
   s.playerMoves=s.playerMoves||{};
   s.worldGenerated=s.worldGenerated||buildWorldGenerated();
   s.squad=(Array.isArray(s.squad)?s.squad:[]).filter(p=>p && typeof p==='object' && (p.name || p.id || p.marketKey)).map(stablePlayer);
+  if(Array.isArray(s.squad) && typeof window.LIVE_PLAYERS !== 'undefined' && Array.isArray(window.LIVE_PLAYERS)){
+    const liveMap = new Map();
+    window.LIVE_PLAYERS.forEach(lp => { if(lp && lp.name) liveMap.set(norm(lp.name), lp); });
+    s.squad.forEach(p => {
+      if(p && p.name){
+        const match = liveMap.get(norm(p.name));
+        if(match){
+          if(s.season === 1 && (Number(s.round) || 0) <= 2){
+            if(match.fc) p.fc = match.fc;
+            if(match.pes) p.pes = match.pes;
+            if(match.potential) p.potential = match.potential;
+          } else {
+            if(match.fc) p.fc = Math.max(p.fc || 0, match.fc);
+            if(match.pes) p.pes = Math.max(p.pes || 0, match.pes);
+            if(match.potential) p.potential = Math.max(p.potential || 0, match.potential);
+          }
+          if(match.pos) p.pos = match.pos;
+          if(match.country && !p.country) p.country = match.country;
+          if(match.age && s.season === 1) p.age = match.age;
+          if(match.pendingTransfer && !p.pendingTransfer) p.pendingTransfer = { ...match.pendingTransfer };
+          p.value = calcValueMi(p);
+        }
+      }
+    });
+    // Se o save estiver no início da 1ª temporada (até rodada 2), sincroniza novos reforços reais e saídas
+    if(s.season === 1 && (Number(s.round) || 0) <= 2 && s.club){
+      s.squad = s.squad.filter(p => {
+        if(!p || !p.name) return true;
+        const match = liveMap.get(norm(p.name));
+        if(match && match.club && norm(match.club) !== norm(s.club)){
+          const wasMoved = s.playerMoves && s.playerMoves[norm(p.name)];
+          if(!wasMoved) return false;
+        }
+        return true;
+      });
+
+      window.LIVE_PLAYERS.forEach(lp => {
+        if(lp && lp.club && norm(lp.club) === norm(s.club)){
+          const alreadyHas = s.squad.some(p => norm(p.name) === norm(lp.name));
+          const wasMoved = s.playerMoves && s.playerMoves[norm(lp.name)];
+          if(!alreadyHas && !wasMoved){
+            const newP = stablePlayer({
+              ...lp,
+              id: `live-${hashStr(playerKey(lp))}`,
+              marketKey: playerKey(lp),
+              morale: 75,
+              fitness: 100,
+              owned: true
+            });
+            s.squad.push(newP);
+          }
+        }
+      });
+    }
+  }
   s.infrastructure=s.infrastructure||defaultInfrastructure(clubByName(s.club)||{atk:65,mid:65,def:65});
   if(!s.infrastructure.parking) s.infrastructure.parking = {level:0, spots:0};
   if(!s.infrastructure.marketing) s.infrastructure.marketing = {level:1};
@@ -9633,7 +11049,7 @@ function migrate(s){
   s.estadualData = s.estadualData || {};
   s.competitionStats = s.competitionStats || {};
   
-  if(!s.sponsors){
+  ensureClubSponsors(s); if(!s.sponsors){
     const baseBudget = s.balance || 5000000;
     const offers = generateSponsorOffers(baseBudget);
     s.sponsors = { master: offers[0], sleeves: offers[3], back: offers[5] };
@@ -9641,7 +11057,7 @@ function migrate(s){
   }
 
   if(Array.isArray(s.teams)){
-    s.teams.forEach(t=>{ if(!Array.isArray(t.form)) t.form = []; });
+    s.teams.forEach(t=>{ if(!Array.isArray(t.form)) t.form = []; const c = clubByName(t.name); if(c && typeof strength === 'function') t.strength = strength(c); });
   }
 
   if(!s.lineup||s.lineup.length!==((FORMATIONS[s.formation]||FORMATIONS['4-3-3']).length)){
@@ -9659,6 +11075,10 @@ function migrate(s){
   repairSaveIfCorrupted(s);
   if(window.AFM_Guards && typeof window.AFM_Guards.migrateSaveState === 'function'){
     window.AFM_Guards.migrateSaveState(s);
+  }
+  if(s.date){
+    s.currentDate = s.date;
+    s.currentDateFormatted = formatDatePtBr(s.date);
   }
   return s;
 }
@@ -10199,17 +11619,20 @@ function openPressConferenceModal(type = 'post', context = null, onComplete = nu
     };
   });
 
-  $('#btnClosePressRoom').onclick = () => {
-    overlay.remove();
-    if(typeof onComplete === 'function'){
-      try {
-        onComplete();
-      } catch(err){
-        recordAFMError('press-conference-close', err);
-        console.error('Erro ao encerrar coletiva:', err);
+  const closePressBtn = overlay.querySelector('#btnClosePressRoom') || $('#btnClosePressRoom');
+  if(closePressBtn){
+    closePressBtn.onclick = () => {
+      overlay.remove();
+      if(typeof onComplete === 'function'){
+        try {
+          onComplete();
+        } catch(err){
+          recordAFMError('press-conference-close', err);
+          console.error('Erro ao encerrar coletiva:', err);
+        }
       }
-    }
-  };
+    };
+  }
 }
 
 function applyMatchIncidents(lastMatchResult){
@@ -10277,24 +11700,233 @@ function applyMatchIncidents(lastMatchResult){
 }
 
 function calculateSeasonPrizeMoney(position, comp){
-  const isA = comp?.id === 'bra-a';
-  const isB = comp?.id === 'bra-b';
-  if(isA){
-    if(position === 1) return 47800000;
-    if(position === 2) return 45400000;
-    if(position === 3) return 43000000;
-    if(position === 4) return 40600000;
-    if(position <= 6) return 35000000;
-    if(position <= 10) return 25000000;
-    if(position <= 16) return 16000000;
-    return 3000000;
-  } else if(isB){
-    if(position === 1) return 12000000;
-    if(position <= 4) return 8000000;
+  const pos = Math.max(1, Number(position) || 1);
+  const id = comp?.id || (typeof curComp === 'function' ? curComp()?.id : '');
+  
+  // 1. Campeonato Brasileiro Série A (Valores oficiais CBF/Globo)
+  if(id === 'bra-a'){
+    if(pos === 1) return 48100000;
+    if(pos === 2) return 45700000;
+    if(pos === 3) return 43300000;
+    if(pos === 4) return 40800000;
+    if(pos === 5) return 38500000;
+    if(pos === 6) return 36100000;
+    if(pos === 7) return 33700000;
+    if(pos === 8) return 31300000;
+    if(pos === 9) return 28800000;
+    if(pos === 10) return 26400000;
+    if(pos === 11) return 20700000;
+    if(pos === 12) return 19200000;
+    if(pos === 13) return 17800000;
+    if(pos === 14) return 17300000;
+    if(pos === 15) return 16800000;
+    if(pos === 16) return 16300000;
+    return 0; // Rebaixados Z4 não recebem premiação esportiva CBF/Globo
+  }
+
+  // 2. Campeonato Brasileiro Série B (Oficial CBF)
+  if(id === 'bra-b'){
+    if(pos === 1) return 3500000;
+    if(pos <= 4) return 1350000;
+    if(pos <= 16) return 600000;
+    return 300000;
+  }
+
+  // 3. Série C
+  if(id === 'bra-c'){
+    if(pos === 1) return 2000000;
+    if(pos === 2) return 1000000;
+    if(pos <= 4) return 600000;
+    return 250000;
+  }
+
+  // 4. Série D
+  if(id === 'bra-d'){
+    if(pos === 1) return 1200000;
+    if(pos === 2) return 700000;
+    if(pos <= 6) return 500000;
+    return 200000;
+  }
+
+  // 5. Estaduais Brasileiros
+  if(id === 'bra-est-sp'){
+    if(pos === 1) return 5000000;
+    if(pos === 2) return 1650000;
+    if(pos === 3) return 1080000;
+    if(pos === 4) return 850000;
+    return 300000;
+  }
+  if(id === 'bra-est-rj'){
+    if(pos === 1) return 3000000;
+    if(pos === 2) return 1000000;
+    if(pos <= 4) return 500000;
+    return 200000;
+  }
+  if(id === 'bra-est-mg' || id === 'bra-est-rs'){
+    if(pos === 1) return 2500000;
+    if(pos === 2) return 900000;
+    if(pos <= 4) return 450000;
+    return 200000;
+  }
+  if(typeof id === 'string' && id.startsWith('bra-est-')){
+    if(pos === 1) return 1200000;
+    if(pos === 2) return 500000;
+    if(pos <= 4) return 250000;
+    return 100000;
+  }
+
+  // 6. Premier League (Inglaterra)
+  if(id === 'eng-1'){
+    if(pos === 1) return 380000000;
+    if(pos === 2) return 350000000;
+    if(pos === 3) return 320000000;
+    if(pos === 4) return 290000000;
+    if(pos <= 10) return 220000000;
+    if(pos <= 17) return 160000000;
+    return 100000000;
+  }
+
+  // 7. LaLiga (Espanha)
+  if(id === 'esp-1'){
+    if(pos === 1) return 330000000;
+    if(pos === 2) return 280000000;
+    if(pos === 3) return 240000000;
+    if(pos === 4) return 210000000;
+    if(pos <= 10) return 140000000;
+    if(pos <= 17) return 80000000;
+    return 40000000;
+  }
+
+  // 8. Serie A (Itália) / Bundesliga (Alemanha) / Ligue 1 (França)
+  if(['ita-1', 'ger-1', 'fra-1'].includes(id)){
+    if(pos === 1) return 250000000;
+    if(pos === 2) return 200000000;
+    if(pos === 3) return 160000000;
+    if(pos === 4) return 130000000;
+    if(pos <= 10) return 90000000;
+    return 40000000;
+  }
+
+  // 9. Primeira Liga (Portugal) / Eredivisie (Países Baixos)
+  if(['por-1', 'ned-1'].includes(id)){
+    if(pos === 1) return 90000000;
+    if(pos === 2) return 60000000;
+    if(pos === 3) return 40000000;
+    return 15000000;
+  }
+
+  // 10. Saudi Pro League (Arábia Saudita)
+  if(id === 'ksa-1'){
+    if(pos === 1) return 60000000;
+    if(pos === 2) return 45000000;
+    if(pos === 3) return 35000000;
+    if(pos === 4) return 28000000;
+    if(pos <= 10) return 18000000;
+    return 10000000;
+  }
+
+  // 11. Major League Soccer (MLS - Estados Unidos)
+  if(id === 'usa-1'){
+    if(pos === 1) return 55000000;
+    if(pos === 2) return 35000000;
+    if(pos <= 4) return 25000000;
+    if(pos <= 8) return 18000000;
+    return 10000000;
+  }
+
+  // 12. América do Sul (Argentina, Colômbia, Uruguai, Chile, etc.)
+  if(['arg-1', 'col-1', 'uru-1', 'chi-1', 'par-1', 'ecu-1', 'per-1', 'bol-1', 'ven-1'].includes(id)){
+    if(pos === 1) return 15000000;
+    if(pos === 2) return 10000000;
+    if(pos === 3) return 7000000;
+    if(pos === 4) return 5000000;
     return 2000000;
   }
+
+  // Padrão geral de ligas
+  if(pos === 1) return 12000000;
+  if(pos === 2) return 8000000;
+  if(pos === 3) return 5000000;
   return 1500000;
 }
+if(typeof window !== 'undefined') window.calculateSeasonPrizeMoney = calculateSeasonPrizeMoney;
+
+function calculateCupPhasePrize(compOrId, phaseName = '', isWinner = false, isChampion = false){
+  const id = typeof compOrId === 'string' ? compOrId : (compOrId?.id || '');
+  const pName = String(phaseName || '').toLowerCase();
+
+  // 1. Copa do Brasil (Valores oficiais CBF 2024 por fase)
+  if(id === 'bra-cup'){
+    if(isChampion) return 73500000;
+    if(pName.includes('final') && !pName.includes('semi') && !pName.includes('quarta') && !pName.includes('oitava')){
+      return isWinner ? 73500000 : 31500000;
+    }
+    if(pName.includes('semi')) return 9450000;
+    if(pName.includes('quarta')) return 4515000;
+    if(pName.includes('oitava')) return 3465000;
+    if(pName.includes('5')) return 3000000;
+    if(pName.includes('4')) return 2500000;
+    if(pName.includes('3')) return 2205000;
+    if(pName.includes('2')) return 1785000;
+    return 1470000;
+  }
+
+  // 2. Copa Libertadores
+  if(id === 'lib'){
+    if(isChampion) return 126500000; // US$ 23M
+    if(pName.includes('final') && !pName.includes('semi')){
+      return isWinner ? 126500000 : 38500000;
+    }
+    if(pName.includes('semi')) return 12650000;
+    if(pName.includes('quarta')) return 9350000;
+    if(pName.includes('oitava')) return 6875000;
+    return 3500000;
+  }
+
+  // 3. Copa Sul-Americana
+  if(id === 'sud'){
+    if(isChampion) return 33000000; // US$ 6M
+    if(pName.includes('final') && !pName.includes('semi')){
+      return isWinner ? 33000000 : 11000000;
+    }
+    if(pName.includes('semi')) return 4400000;
+    if(pName.includes('quarta')) return 3850000;
+    if(pName.includes('oitava')) return 3300000;
+    return 1500000;
+  }
+
+  // 4. UEFA Champions League
+  if(id === 'ucl'){
+    if(isChampion) return 150000000;
+    if(pName.includes('final') && !pName.includes('semi')){
+      return isWinner ? 150000000 : 110000000;
+    }
+    if(pName.includes('semi')) return 90000000;
+    if(pName.includes('quarta')) return 75000000;
+    if(pName.includes('oitava')) return 66000000;
+    return 20000000;
+  }
+
+  // 5. Copa do Mundo de Clubes FIFA (Mundial)
+  if(id === 'cwc'){
+    if(isChampion) return 275000000; // US$ 50M
+    if(pName.includes('final') && !pName.includes('semi')){
+      return isWinner ? 275000000 : 165000000;
+    }
+    if(pName.includes('semi')) return 110000000;
+    if(pName.includes('quarta')) return 66000000;
+    if(pName.includes('oitava')) return 38500000;
+    return 22000000;
+  }
+
+  // Copas nacionais genéricas
+  if(isChampion) return 30000000;
+  if(pName.includes('final')) return isWinner ? 30000000 : 15000000;
+  if(pName.includes('semi')) return 8000000;
+  if(pName.includes('quarta')) return 4000000;
+  return 2000000;
+}
+if(typeof window !== 'undefined') window.calculateCupPhasePrize = calculateCupPhasePrize;
 
 function calculateSeasonAwards(){
   const allSquad = state.squad || [];
@@ -10334,7 +11966,8 @@ function applyScoringAwardUpgrades(awards){
 }
 
 function curComp(){
-  const c = compById(state.compId);
+  if(!state) return null;
+  const c = compById(state?.compId);
   if(c) return c;
   const isBr = (state.compId && state.compId.startsWith('bra-')) || (state.competition && /campeonato|brasileir|candango|paulista|carioca|mineiro|gaucho|gaúcho|paranaense|catarinense|baiano|cearense|goiano|pernambucano/i.test(state.competition));
   return {
@@ -10355,7 +11988,9 @@ function getDateForRound(roundIndex, season = state?.season || 2026){
   const year = Number(season) || 2026;
   const start = new Date(`${year}-01-17T12:00:00`);
   // Alternate 2- and 3-day gaps between consecutive rounds.
-  start.setDate(start.getDate() + Math.floor(round * 2.5));
+  const hasEstadual = typeof clubStateCompId === 'function' && state?.club && Boolean(clubStateCompId(state.club));
+  const cadence = hasEstadual ? 7 : 3.5;
+  start.setDate(start.getDate() + Math.floor(round * cadence));
   return start.toISOString().slice(0, 10);
 }
 function ensureMidweekDate(isoDate, season = null){
@@ -10422,8 +12057,331 @@ function userFixture(){
 }
 
 // -------------------------------------------------------------
-// CENTRAL DE VALIDAÇÃO DE PARTIDA & FONTE DA VERDADE (CALENDÁRIO)
+// CENTRAL DE VALIDAÇÃO DE PARTIDA & RESOLVEDOR UNIVERSAL DO CALENDÁRIO
 // -------------------------------------------------------------
+function resolveCalendarMatchResult(m, gameState = state){
+  if(!m || !gameState) return null;
+  const clubKey = name => {
+    const n = (typeof norm === 'function' ? norm(name) : String(name || '').toLowerCase().trim());
+    return {
+      'red bull bragantino': 'bragantino',
+      'rb bragantino': 'bragantino',
+      'bragantino sp': 'bragantino',
+      'athletico paranaense': 'athletico-pr',
+      'athletico': 'athletico-pr',
+      'athletico pr': 'athletico-pr',
+      'sport recife': 'sport',
+      'botafogo rj': 'botafogo',
+      'vasco da gama': 'vasco'
+    }[n] || n;
+  };
+  const mHome = clubKey(m.home);
+  const mAway = clubKey(m.away);
+
+  // 1. Array de resultado direto no objeto
+  if(Array.isArray(m.result) && m.result.length >= 2 && m.result[0] != null && m.result[1] != null){
+    return [Number(m.result[0]) || 0, Number(m.result[1]) || 0];
+  }
+  if(Array.isArray(m.score) && m.score.length >= 2 && m.score[0] != null && m.score[1] != null){
+    return [Number(m.score[0]) || 0, Number(m.score[1]) || 0];
+  }
+
+  // 2. Histórico direto anexado ao objeto da partida (m.historyMatch)
+  if(m.historyMatch && (m.historyMatch.hg != null || m.historyMatch.ag != null)){
+    const hg = Number(m.historyMatch.hg != null ? m.historyMatch.hg : m.historyMatch.homeGoals) || 0;
+    const ag = Number(m.historyMatch.ag != null ? m.historyMatch.ag : m.historyMatch.awayGoals) || 0;
+    const isHomeOrder = (clubKey(m.historyMatch.h || m.historyMatch.home) === mHome);
+    return isHomeOrder ? [hg, ag] : [ag, hg];
+  }
+
+  // 3. Fixture estadual
+  if(m.stateFixture){
+    if(Array.isArray(m.stateFixture.result) && m.stateFixture.result.length >= 2){
+      return [Number(m.stateFixture.result[0]) || 0, Number(m.stateFixture.result[1]) || 0];
+    }
+    if(m.stateFixture.played && Array.isArray(m.stateFixture.result)){
+      return [Number(m.stateFixture.result[0]) || 0, Number(m.stateFixture.result[1]) || 0];
+    }
+  }
+
+  // 4. Torneio Continental
+  if(m.matchId && m.competitionId){
+    const tourn = typeof getContinentalTournament === 'function' ? getContinentalTournament(m.competitionId) : gameState.tournaments?.[m.competitionId];
+    const found = tourn?.matches?.find(item => item.id === m.matchId);
+    if(found){
+      if(Array.isArray(found.result) && found.result.length >= 2) return [Number(found.result[0]) || 0, Number(found.result[1]) || 0];
+      if(found.status === 'played' && Array.isArray(found.result)) return [Number(found.result[0]) || 0, Number(found.result[1]) || 0];
+    }
+  }
+
+  // 5. Copa do Brasil
+  if(m.competitionId === 'bra-cup'){
+    const copa = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState() : gameState.copaData;
+    if(copa?.phases){
+      const targetPhase = m.phaseName ? copa.phases[m.phaseName] : Object.values(copa.phases).find(p => (p.fixtures || []).some(f => (clubKey(f.home) === mHome || clubKey(f.away) === mHome)));
+      if(targetPhase){
+        const fix = (Number.isInteger(m.matchIndex) && targetPhase.fixtures?.[m.matchIndex]) ||
+          (targetPhase.fixtures || []).find(f => (clubKey(f.home) === mHome && clubKey(f.away) === mAway) || (clubKey(f.home) === mAway && clubKey(f.away) === mHome));
+        if(fix){
+          if(Array.isArray(fix.score) && fix.score.length >= 2) return [Number(fix.score[0]) || 0, Number(fix.score[1]) || 0];
+          if(fix.played && Array.isArray(fix.score)) return [Number(fix.score[0]) || 0, Number(fix.score[1]) || 0];
+        }
+      }
+    }
+  }
+
+  // 6. Histórico de partidas persistido no save
+  const history = Array.isArray(gameState.history) ? gameState.history : [];
+  const curCompId = typeof curComp === 'function' ? curComp()?.id : null;
+  const isPrimaryComp = id => (!id || id === 'COMP' || id === gameState.compId || id === curCompId);
+
+  for(const h of history){
+    if(h.season && Number(h.season) !== Number(gameState.season)) continue;
+    const hHome = clubKey(h.h || h.home);
+    const hAway = clubKey(h.a || h.away);
+    const clubsMatch = (hHome === mHome && hAway === mAway);
+    const clubsReverse = (hHome === mAway && hAway === mHome);
+    if(!clubsMatch && !clubsReverse) continue;
+
+    const compMatch = (
+      h.competitionId === m.competitionId ||
+      (isPrimaryComp(h.competitionId) && isPrimaryComp(m.competitionId)) ||
+      !h.competitionId || !m.competitionId
+    );
+    if(!compMatch) continue;
+
+    const dateMatch = Boolean(h.date && m.date && h.date === m.date);
+    const hRoundNum = Number.isFinite(Number(h.round)) ? Number(h.round) : parseInt(String(h.round || '').replace(/\D+/g, ''), 10);
+    const mRoundNum = Number.isFinite(Number(m.matchIndex)) ? (Number(m.matchIndex) + 1) : parseInt(String(m.round || '').replace(/\D+/g, ''), 10);
+    const roundMatch = (Number.isFinite(hRoundNum) && Number.isFinite(mRoundNum) && hRoundNum === mRoundNum);
+
+    if(clubsMatch || clubsReverse){
+      if(dateMatch || roundMatch || (!dateMatch && !roundMatch)){
+        const hg = Number(h.hg != null ? h.hg : h.homeGoals) || 0;
+        const ag = Number(h.ag != null ? h.ag : h.awayGoals) || 0;
+        return clubsMatch ? [hg, ag] : [ag, hg];
+      }
+    }
+  }
+
+  return null;
+}
+if(typeof window !== 'undefined') window.resolveCalendarMatchResult = resolveCalendarMatchResult;
+
+function hasAnotherUnplayedMatchOnDate(targetDate, gameState = state){
+  if(!targetDate || !gameState || !gameState.club) return false;
+  const clubKey = norm(gameState.club);
+
+  // 1. Torneio Continental
+  for(const id of ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc']){
+    const tourn = typeof getContinentalTournament === 'function' ? getContinentalTournament(id) : gameState.tournaments?.[id];
+    if(!tourn || Number(tourn.season) !== Number(gameState.season)) continue;
+    const m = (tourn.matches || []).find(item => {
+      const itemDate = typeof ensureMidweekDate === 'function' ? ensureMidweekDate(item.date, gameState.season) : item.date;
+      return itemDate === targetDate && (norm(item.home) === clubKey || norm(item.away) === clubKey);
+    });
+    if(m && !resolveCalendarMatchResult({ ...m, competitionId: id }, gameState)){
+      return true;
+    }
+  }
+
+  // 2. Torneio Estadual
+  const stateCompId = typeof clubStateCompId === 'function' ? clubStateCompId(gameState.club) : null;
+  if(stateCompId && stateCompId !== gameState.compId){
+    const estData = typeof getStateCompData === 'function' ? getStateCompData(stateCompId) : null;
+    const fix = (estData?.fixtures || []).find(item => {
+      const itemDate = item.isoDate || (typeof getDateForRound === 'function' ? getDateForRound(item.roundIndex || 0, gameState.season) : null);
+      return itemDate === targetDate && (norm(item.home) === clubKey || norm(item.away) === clubKey);
+    });
+    if(fix && !resolveCalendarMatchResult({ stateFixture: fix, home: fix.home, away: fix.away, competitionId: stateCompId }, gameState)){
+      return true;
+    }
+  }
+
+  // 3. Copa do Brasil
+  const copa = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState() : gameState.copaData;
+  if(copa?.phases){
+    for(const [pName, phase] of Object.entries(copa.phases)){
+      const fix = (phase.fixtures || []).find((item, idx) => {
+        const itemDate = typeof ensureMidweekDate === 'function' ? ensureMidweekDate(item.isoDate || phase.isoDate, gameState.season) : (item.isoDate || phase.isoDate);
+        return itemDate === targetDate && (norm(item.home) === clubKey || norm(item.away) === clubKey);
+      });
+      if(fix && !resolveCalendarMatchResult({ competitionId: 'bra-cup', phaseName: pName, matchIndex: phase.fixtures.indexOf(fix), home: fix.home, away: fix.away }, gameState)){
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+if(typeof window !== 'undefined') window.hasAnotherUnplayedMatchOnDate = hasAnotherUnplayedMatchOnDate;
+
+function advanceDateAfterMatch(gameState = state){
+  if(!gameState) return;
+  if(hasAnotherUnplayedMatchOnDate(gameState.date, gameState)){
+    return;
+  }
+  try {
+    const curD = new Date(gameState.date + 'T12:00:00');
+    curD.setDate(curD.getDate() + 1);
+    gameState.date = curD.toISOString().slice(0, 10);
+    gameState.currentDate = gameState.date;
+    gameState.currentDateFormatted = formatDatePtBr(gameState.date);
+    if(typeof processStadiumConstructionDay === 'function') processStadiumConstructionDay();
+    if(typeof expireStadiumEventConfirmation === 'function') expireStadiumEventConfirmation();
+  } catch(e){
+    recordAFMError('post-match-calendar', e);
+  }
+}
+if(typeof window !== 'undefined') window.advanceDateAfterMatch = advanceDateAfterMatch;
+
+function getActualCurrentMatch(gameState = state){
+  if(!gameState || !gameState.club) return null;
+  const myClub = gameState.club;
+  const clubKey = norm(myClub);
+  const candidates = [];
+
+  // 1. Confronto da Liga / Divisão Nacional
+  if(Array.isArray(gameState.schedule) && gameState.round < gameState.schedule.length){
+    const roundFix = gameState.schedule[gameState.round] || [];
+    const f = roundFix.find(g => Array.isArray(g) && (norm(g[0]) === clubKey || norm(g[1]) === clubKey));
+    if(f){
+      const isHome = norm(f[0]) === clubKey;
+      const opp = isHome ? f[1] : f[0];
+      const matchDate = getDateForRound(gameState.round, gameState.season);
+      const comp = curComp();
+      const cand = {
+        type: 'league',
+        competitionId: comp?.id || gameState.compId,
+        competitionName: comp?.name || gameState.competition || 'Campeonato Brasileiro',
+        roundLabel: comp?.id === 'bra-d' ? `Série D • Rodada ${gameState.round + 1}` : `Rodada ${gameState.round + 1}`,
+        roundIndex: gameState.round,
+        matchIndex: gameState.round,
+        date: matchDate,
+        home: f[0],
+        away: f[1],
+        opponent: opp,
+        isHome,
+        fixture: f
+      };
+      if(!resolveCalendarMatchResult(cand, gameState)){
+        candidates.push(cand);
+      }
+    }
+  }
+
+  // 2. Copa do Brasil
+  const copa = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState() : gameState.copaData;
+  if(copa && copa.phases){
+    Object.entries(copa.phases).forEach(([phaseName, phase]) => {
+      (phase.fixtures || []).forEach((fix, fixIdx) => {
+        if(norm(fix.home) === clubKey || norm(fix.away) === clubKey){
+          const isHome = norm(fix.home) === clubKey;
+          const opp = isHome ? fix.away : fix.home;
+          const cDate = typeof ensureMidweekDate === 'function' ? ensureMidweekDate(fix.isoDate || phase.isoDate, gameState.season) : (fix.isoDate || phase.isoDate);
+          const cand = {
+            type: 'copa',
+            competitionId: 'bra-cup',
+            competitionName: 'Copa do Brasil',
+            roundLabel: phaseName,
+            roundIndex: fixIdx,
+            matchIndex: fixIdx,
+            date: cDate,
+            home: fix.home,
+            away: fix.away,
+            opponent: opp,
+            isHome,
+            phaseName,
+            fixtureIndex: fixIdx,
+            fixture: [fix.home, fix.away]
+          };
+          if(!resolveCalendarMatchResult(cand, gameState)){
+            candidates.push(cand);
+          }
+        }
+      });
+    });
+  }
+
+  // 3. Torneios Continentais
+  for(const id of ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc']){
+    const tournament = typeof getContinentalTournament === 'function' ? getContinentalTournament(id) : gameState.tournaments?.[id];
+    if(!tournament || Number(tournament.season) !== Number(gameState.season)) continue;
+    (tournament.matches || []).forEach(m => {
+      if(norm(m.home) === clubKey || norm(m.away) === clubKey){
+        const isHome = norm(m.home) === clubKey;
+        const opp = isHome ? m.away : m.home;
+        const cDate = typeof ensureMidweekDate === 'function' ? ensureMidweekDate(m.date, gameState.season) : m.date;
+        const compName = id === 'lib' ? 'CONMEBOL Libertadores' : id === 'sud' ? 'CONMEBOL Sul-Americana' : id === 'cwc' ? 'Mundial de Clubes FIFA' : (compById(id)?.name || id);
+        const cand = {
+          type: 'continental',
+          competitionId: id,
+          competitionName: compName,
+          roundLabel: m.round ? `Fase de Grupos • Rodada ${m.round}` : 'Mata-Mata Continental',
+          matchId: m.id,
+          matchIndex: m.round,
+          date: cDate,
+          home: m.home,
+          away: m.away,
+          opponent: opp,
+          isHome,
+          fixture: [m.home, m.away]
+        };
+        if(!resolveCalendarMatchResult(cand, gameState)){
+          candidates.push(cand);
+        }
+      }
+    });
+  }
+
+  // 4. Torneios Estaduais
+  const stateCompId = typeof clubStateCompId === 'function' ? clubStateCompId(myClub) : null;
+  if(stateCompId && stateCompId !== gameState.compId){
+    const estComp = compById(stateCompId) || { id: stateCompId, name: 'Campeonato Estadual' };
+    const estData = typeof getStateCompData === 'function' ? getStateCompData(stateCompId) : null;
+    if(estData && Array.isArray(estData.fixtures)){
+      estData.fixtures.forEach((fix, fixIdx) => {
+        if(norm(fix.home) === clubKey || norm(fix.away) === clubKey){
+          const isHome = norm(fix.home) === clubKey;
+          const opp = isHome ? fix.away : fix.home;
+          const cDate = fix.isoDate || (typeof getDateForRound === 'function' ? getDateForRound(fix.roundIndex || 0, gameState.season) : null);
+          const cand = {
+            type: 'estadual',
+            competitionId: stateCompId,
+            competitionName: estComp.name,
+            roundLabel: `Rodada ${(Number(fix.roundIndex) || 0) + 1}`,
+            roundIndex: fix.roundIndex || 0,
+            matchIndex: fix.roundIndex || 0,
+            fixtureIndex: fixIdx,
+            date: cDate,
+            home: fix.home,
+            away: fix.away,
+            opponent: opp,
+            isHome,
+            fixture: [fix.home, fix.away],
+            stateFixture: fix
+          };
+          if(!resolveCalendarMatchResult(cand, gameState)){
+            candidates.push(cand);
+          }
+        }
+      });
+    }
+  }
+
+  if(!candidates.length) return null;
+
+  // Prioridade: se houver partidas pendentes hoje ou com data já vencida, joga a devida; senão, a próxima no futuro
+  const today = gameState.date;
+  const sorted = candidates.slice().sort((a,b) => String(a.date || '').localeCompare(String(b.date || '')));
+  const due = sorted.filter(c => c.date <= today);
+  if(due.length){
+    const todayMatch = due.find(c => c.date === today);
+    return todayMatch || due[0];
+  }
+  return sorted[0];
+}
+
 function canStartMatch(fixture, gameState = state){
   if(!gameState) return { canStart: false, reason: 'Nenhuma carreira ativa carregada.', status: 'invalid_state' };
 
@@ -10432,21 +12390,74 @@ function canStartMatch(fixture, gameState = state){
     return { canStart: false, reason: 'Já existe uma partida ao vivo em andamento!', status: 'in_progress' };
   }
 
+  // Intercepta sessões ativas (Torneios Continentais, Copas e Estaduais)
+  if(typeof continentalMatchSession !== 'undefined' && continentalMatchSession){
+    const m = continentalMatchSession.match;
+    if(!m || m.status === 'played' || Boolean(m.result)){
+      return { canStart: false, reason: 'Esta partida continental já foi disputada e finalizada.', status: 'already_played' };
+    }
+    const starters = (gameState.lineup && gameState.lineup.length >= 11) ? gameState.lineup : (gameState.squad || []).slice(0, 11);
+    if(starters.length < 11){
+      return { canStart: false, reason: 'Escalação insuficiente: você precisa de pelo menos 11 atletas disponíveis no elenco.', status: 'invalid_lineup' };
+    }
+    return { canStart: true, reason: 'Partida continental pronta para o apito inicial!', status: 'playable', matchDate: m.date || gameState.date, curDate: gameState.date };
+  }
+
+  if(typeof copaMatchSession !== 'undefined' && copaMatchSession){
+    const f = copaMatchSession.fixture;
+    if(!f || f.played || f.score || f.winner){
+      return { canStart: false, reason: 'Esta partida da Copa do Brasil já foi disputada e finalizada.', status: 'already_played' };
+    }
+    const starters = (gameState.lineup && gameState.lineup.length >= 11) ? gameState.lineup : (gameState.squad || []).slice(0, 11);
+    if(starters.length < 11){
+      return { canStart: false, reason: 'Escalação insuficiente: você precisa de pelo menos 11 atletas disponíveis no elenco.', status: 'invalid_lineup' };
+    }
+    return { canStart: true, reason: 'Partida da Copa do Brasil pronta para o apito inicial!', status: 'playable', matchDate: f.isoDate || gameState.date, curDate: gameState.date };
+  }
+
+  if(typeof stateLeagueMatchSession !== 'undefined' && stateLeagueMatchSession){
+    const { data, roundIndex, fixture: [h, a] } = stateLeagueMatchSession;
+    const fix = (data?.fixtures || []).find(f => Number(f.roundIndex) === Number(roundIndex) && (norm(f.home) === norm(gameState.club) || norm(f.away) === norm(gameState.club)));
+    if(!fix || fix.played === true || Boolean(fix.result)){
+      return { canStart: false, reason: 'Esta partida estadual já foi disputada e finalizada.', status: 'already_played' };
+    }
+    const starters = (gameState.lineup && gameState.lineup.length >= 11) ? gameState.lineup : (gameState.squad || []).slice(0, 11);
+    if(starters.length < 11){
+      return { canStart: false, reason: 'Escalação insuficiente: você precisa de pelo menos 11 atletas disponíveis no elenco.', status: 'invalid_lineup' };
+    }
+    return { canStart: true, reason: 'Partida estadual pronta para o apito inicial!', status: 'playable', matchDate: fix.isoDate || gameState.date, curDate: gameState.date };
+  }
+
   // Once the primary schedule is over, resolve the next pending fixture in
   // another competition before offering season completion.
   const mainSchedule = Array.isArray(gameState.schedule) ? gameState.schedule : [];
   if(Number(gameState.round) >= mainSchedule.length){
     const nextPending = typeof getNextPendingClubFixture === 'function' ? getNextPendingClubFixture(gameState) : null;
     if(nextPending){
+      if(!nextPending.date || nextPending.date <= gameState.date){
+        return {
+          canStart: true,
+          reason: `Partida decisiva pronta para o apito inicial: ${nextPending.name}!`,
+          status: 'playable',
+          matchDate: nextPending.date || gameState.date,
+          curDate: gameState.date,
+          nextFixture: nextPending
+        };
+      }
+      const d1 = new Date(gameState.date + 'T12:00:00');
+      const d2 = new Date(nextPending.date + 'T12:00:00');
+      const diffDays = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
       return {
-        canStart:false,
-        reason:`O campeonato principal terminou. A próxima partida pendente é ${nextPending.name}${nextPending.detail ? ` (${nextPending.detail})` : ''}${nextPending.date ? ` em ${formatDatePtBr(nextPending.date)}` : ''}. Avance até essa data e abra a competição correspondente.`,
-        status:'other_competitions_pending',
-        pending:typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(gameState) : [nextPending],
-        nextDate:nextPending.date || null,
-        nextFixture:nextPending
+        canStart: false,
+        reason: `O campeonato principal terminou. A próxima partida pendente é ${nextPending.name}${nextPending.detail ? ` (${nextPending.detail})` : ''}${nextPending.date ? ` em ${formatDatePtBr(nextPending.date)}` : ''}. Avance até essa data e dispute a partida.`,
+        status: 'other_competitions_pending',
+        daysDiff: diffDays,
+        pending: typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(gameState) : [nextPending],
+        nextDate: nextPending.date || null,
+        nextFixture: nextPending
       };
     }
+    return { canStart: false, reason: 'Todas as competições da temporada atual foram concluídas.', status: 'season_finished' };
   }
 
   // 2. Fim de temporada
@@ -10455,6 +12466,9 @@ function canStartMatch(fixture, gameState = state){
     const pendingOtherCompetitions = typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(gameState) : [];
     if(pendingOtherCompetitions.length){
       const next = pendingOtherCompetitions[0];
+      if(!next.date || next.date <= gameState.date){
+        return { canStart: true, reason: `Partida pronta para o apito inicial: ${next.name}!`, status: 'playable', matchDate: next.date || gameState.date, curDate: gameState.date };
+      }
       return { canStart: false, reason: `O calendário principal terminou, mas ainda falta disputar ${next.name}${next.detail ? ` (${next.detail})` : ''}${next.date ? ` em ${formatDatePtBr(next.date)}` : ''}. A temporada continua aberta.`, status: 'other_competitions_pending', pending: pendingOtherCompetitions, nextDate: next.date || null };
     }
     return { canStart: false, reason: 'A temporada atual já foi concluída.', status: 'season_finished' };
@@ -10462,7 +12476,8 @@ function canStartMatch(fixture, gameState = state){
 
   // 3. Partida existe
   const myClubNorm = norm(gameState.club);
-  const uFix = fixture || fixtures.find(g => Array.isArray(g) && (norm(g[0]) === myClubNorm || norm(g[1]) === myClubNorm));
+  const activeMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(gameState) : null;
+  const uFix = fixture || activeMatch?.fixture || fixtures.find(g => Array.isArray(g) && (norm(g[0]) === myClubNorm || norm(g[1]) === myClubNorm));
   if(!uFix || !Array.isArray(uFix) || uFix.length < 2){
     return { canStart: false, reason: 'Nenhuma partida agendada para o seu clube nesta rodada (Folga na tabela).', status: 'no_fixture', isBye: true };
   }
@@ -10473,13 +12488,44 @@ function canStartMatch(fixture, gameState = state){
   }
 
   // 5. Partida já foi disputada nesta rodada?
-  const alreadyPlayed = Array.isArray(gameState.history) && gameState.history.some(h => h.competitionId === gameState.compId && h.round === (gameState.round + 1) && h.season === gameState.season && (norm(h.h) === myClubNorm || norm(h.a) === myClubNorm));
+  let alreadyPlayed = false;
+  if(activeMatch){
+    if(activeMatch.type === 'estadual'){
+      const estData = typeof getStateCompData === 'function' ? getStateCompData(activeMatch.competitionId) : null;
+      const fix = estData?.fixtures?.[activeMatch.fixtureIndex];
+      alreadyPlayed = Boolean(fix?.played || fix?.result);
+    } else if(activeMatch.type === 'copa'){
+      const copa = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState() : gameState.copaData;
+      const fix = copa?.phases?.[activeMatch.phaseName]?.fixtures?.[activeMatch.fixtureIndex];
+      alreadyPlayed = Boolean(fix?.played || fix?.score || fix?.winner);
+    } else if(activeMatch.type === 'continental'){
+      const tourn = typeof getContinentalTournament === 'function' ? getContinentalTournament(activeMatch.competitionId) : gameState.tournaments?.[activeMatch.competitionId];
+      const m = tourn?.matches?.find(item => item.id === activeMatch.matchId);
+      alreadyPlayed = Boolean(m && (m.status !== 'scheduled' || Boolean(m.result)));
+    } else {
+      const targetCompId = activeMatch.competitionId || gameState.compId;
+      const targetRound = (Number.isInteger(activeMatch.roundIndex) ? activeMatch.roundIndex : gameState.round) + 1;
+      alreadyPlayed = Array.isArray(gameState.history) && gameState.history.some(h => 
+        (h.competitionId === targetCompId) && 
+        Number(h.round) === targetRound && 
+        Number(h.season) === Number(gameState.season) && 
+        (norm(h.h) === myClubNorm || norm(h.a) === myClubNorm)
+      );
+    }
+  } else {
+    alreadyPlayed = Array.isArray(gameState.history) && gameState.history.some(h => 
+      h.competitionId === gameState.compId && 
+      Number(h.round) === (gameState.round + 1) && 
+      Number(h.season) === Number(gameState.season) && 
+      (norm(h.h) === myClubNorm || norm(h.a) === myClubNorm)
+    );
+  }
   if(alreadyPlayed){
     return { canStart: false, reason: 'A partida desta rodada já foi disputada e finalizada.', status: 'already_played' };
   }
 
   // 6. Data da partida. Rodadas sem jogo do clube são folgas válidas, não partidas atrasadas.
-  const matchDate = getDateForRound(gameState.round, gameState.season);
+  const matchDate = activeMatch ? activeMatch.date : getDateForRound(gameState.round, gameState.season);
   const curDate = gameState.date;
 
   if(curDate < matchDate){
@@ -10499,9 +12545,9 @@ function canStartMatch(fixture, gameState = state){
   // Se curDate > matchDate: situação de partida retroativa/atrasada (MISSED_FIXTURE)
   if(curDate > matchDate){
     return {
-      canStart: false,
+      canStart: true,
       reason: `Partida retroativa! A data desta rodada (${formatDatePtBr(matchDate)}) já passou em relação ao calendário atual (${formatDatePtBr(curDate)}).`,
-      status: 'missed',
+      status: 'playable', isDelayed: true,
       matchDate,
       curDate
     };
@@ -10517,8 +12563,17 @@ function canStartMatch(fixture, gameState = state){
 }
 
 let isAdvancingTime = false;
+let lastAdvanceCalendarTime = 0;
 function advanceCalendarDays(days = 1, stopAtMatch = true){
-  if(!state || isAdvancingTime) return;
+  if(!state) return 0;
+  if(isAdvancingTime){
+    if(Date.now() - lastAdvanceCalendarTime > 1500){
+      isAdvancingTime = false;
+    } else {
+      return 0;
+    }
+  }
+  lastAdvanceCalendarTime = Date.now();
   if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save();
   isAdvancingTime = true;
   try {
@@ -10531,23 +12586,45 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
     const pendingDates = typeof getPendingClubCompetitions === 'function'
       ? getPendingClubCompetitions(state).map(item => item.date).filter(date => date && date >= state.date).sort()
       : [];
-    const matchDate = [primaryMatchDate, ...pendingDates].filter(date => date && date >= state.date).sort()[0] || primaryMatchDate;
+    const activeCurrent = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
+    const matchDate = (activeCurrent?.date && activeCurrent.date >= state.date)
+      ? activeCurrent.date
+      : [primaryMatchDate, ...pendingDates].filter(date => date && date >= state.date).sort()[0] || primaryMatchDate;
     let daysAdvanced = 0;
+
+    if(stopAtMatch){
+      const initialMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
+      if(initialMatch && initialMatch.date === state.date){
+        toast('⚽ Hoje é dia de jogo! Dispute a partida antes de avançar o calendário.');
+        return 0;
+      }
+    }
 
     for(let i = 0; i < Math.max(0, Number(days) || 0); i++){
       // Só paramos ao chegar exatamente à data do jogo. Se a data salva já passou,
       // esse fixture é tratado como atrasado e não pode congelar a simulação em 0 dias.
       if(stopAtMatch && matchDate && state.date === matchDate) break;
-      const current = new Date(`${state.date}T12:00:00`);
-      if(!Number.isFinite(current.getTime())) break;
+      let current = (typeof window !== 'undefined' && window.AFM_CalendarFix && typeof window.AFM_CalendarFix.parseSafeLocalNoon === 'function')
+        ? window.AFM_CalendarFix.parseSafeLocalNoon(state.date)
+        : new Date(`${state.date}T12:00:00`);
+      if(!current || !Number.isFinite(current.getTime())) current = new Date(2026, 0, 18, 12, 0, 0);
       current.setDate(current.getDate() + 1);
       const nextDate = current.toISOString().slice(0, 10);
       state.date = nextDate;
+      state.currentDate = nextDate;
+      state.currentDateFormatted = formatDatePtBr(nextDate);
       processStadiumConstructionDay();
       processContinentalFixturesBefore(state.date);
       expireStadiumEventConfirmation();
       if(typeof checkIncomingPlayerBids === 'function' && isTransferWindowOpen(state.date) && Math.random() < 0.12) checkIncomingPlayerBids();
       daysAdvanced++;
+
+      if(stopAtMatch){
+        const checkMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
+        if(checkMatch && checkMatch.date === nextDate){
+          break; // Para imediatamente no dia do jogo para o usuário disputar!
+        }
+      }
 
       if(state.isPreSeason && state.preSeasonDays > 0){
         state.preSeasonDays = Math.max(0, state.preSeasonDays - 1);
@@ -10574,11 +12651,28 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
           if(p.injuryDays <= 0){ delete p.injuryDays; delete p.injury; delete p.injuryDesc; state.news.unshift(`ALTA MÉDICA: ${p.name} recuperou-se da lesão.`); }
         }
       });
+      if(Array.isArray(state.squad)){
+        const departed = [];
+        state.squad = state.squad.filter(p => {
+          if(p && p.pendingTransfer && state.date >= (p.pendingTransfer.effectiveDate || '2025-07-01')){
+            departed.push(p);
+            return false;
+          }
+          return true;
+        });
+        departed.forEach(p => {
+          state.news = Array.isArray(state.news) ? state.news : [];
+          state.news.unshift(`TRANSFERÊNCIA OFICIALIZADA: ${p.name} apresentou-se oficialmente ao ${p.pendingTransfer.buyerClub || 'novo clube'}.`);
+        });
+      }
       if(nextDate.endsWith('-01') && typeof processBankLoansOnRound === 'function') processBankLoansOnRound();
       if(nextDate.endsWith('-01') && typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function') window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(state);
       processCopaDoBrasilCalendar(state.date);
       if(typeof window !== 'undefined' && window.AFM_WorldSimulation && typeof window.AFM_WorldSimulation.simulateWorldStepOnDayAdvance === 'function'){
         window.AFM_WorldSimulation.simulateWorldStepOnDayAdvance(state);
+      }
+      if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+        window.AFM_LifeAndSharesPro.processRoundTurn(state);
       }
       if(nextDate.endsWith('-12-31') || nextDate.endsWith('-01-01')){
         if(typeof window !== 'undefined' && window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens === 'function'){
@@ -10586,6 +12680,11 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
         }
       }
       if(stopAtMatch && matchDate && state.date === matchDate) break;
+    }
+    state.currentDate = state.date;
+    state.currentDateFormatted = formatDatePtBr(state.date);
+    if(typeof window !== 'undefined' && window.AFM_CalendarFix && typeof window.AFM_CalendarFix.syncDateInDOM === 'function'){
+      window.AFM_CalendarFix.syncDateInDOM(state);
     }
     save();
     render();
@@ -10595,6 +12694,9 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
     isAdvancingTime = false;
   }
 }
+if(typeof window !== 'undefined'){
+  window.advanceCalendarDays = advanceCalendarDays;
+}
 // -------------------------------------------------------------
 // MÁQUINA DE ESTADOS DA PARTIDA AO VIVO
 // PRE_MATCH -> FIRST_HALF -> HALF_TIME -> SECOND_HALF -> FULL_TIME -> POST_MATCH
@@ -10602,10 +12704,12 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
 function transitionMatchPhase(newPhase){
   if(!liveMatchState) return false;
   const validTransitions = {
-    'PRE_MATCH': ['FIRST_HALF'],
-    'FIRST_HALF': ['HALF_TIME'],
-    'HALF_TIME': ['SECOND_HALF'],
-    'SECOND_HALF': ['FULL_TIME'],
+    'PRE_MATCH': ['FIRST_HALF', 'FULL_TIME'],
+    'FIRST_HALF': ['HALF_TIME', 'FULL_TIME'],
+    'HALF_TIME': ['SECOND_HALF', 'FULL_TIME'],
+    'SECOND_HALF': ['FULL_TIME', 'EXTRA_TIME_1'],
+    'EXTRA_TIME_1': ['EXTRA_TIME_2', 'FULL_TIME'],
+    'EXTRA_TIME_2': ['FULL_TIME'],
     'FULL_TIME': ['POST_MATCH'],
     'POST_MATCH': []
   };
@@ -10695,7 +12799,7 @@ function calculateTacticalMetrics(formation, tac){
 function calculateTacticalMatchDynamics(home, away, hTac, aTac, homeStrength, awayStrength, opts = {}){
   const isUserHome = norm(home) === norm(state?.club);
   const crowdProjection = isUserHome && typeof attendanceProjection === 'function' ? attendanceProjection(away) : null;
-  const homeAttendanceBonus = Math.min(5, Math.max(0, Number(crowdProjection?.attendanceForceBonus) || (isUserHome ? 0 : stadiumAttendanceStrengthBonus(Math.round((clubByName(home)?.stadiumCapacity || 18000) * 0.65), clubByName(home)?.stadiumCapacity || 18000))));
+  const homeAttendanceBonus = Math.min(5, Math.max(0, Number(crowdProjection?.attendanceForceBonus) || 0));
   const hs = (homeStrength || teamStrengthByName(home)) + homeAttendanceBonus;
   const as = awayStrength || teamStrengthByName(away);
   
@@ -10798,6 +12902,9 @@ function applyResult(home,away,hg,ag){
   }
   if(h.form.length>5) h.form.pop();
   if(a.form.length>5) a.form.pop();
+  if(typeof window !== 'undefined' && window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.recordMatchPlayerStats === 'function'){
+    try { window.AFM_MarketLupaAndAging.recordMatchPlayerStats(home, away, hg, ag); } catch(err) {}
+  }
 }
 
 function attendanceProjection(opponent){
@@ -10967,7 +13074,7 @@ function monthlyFinancialProjection(socioData = null){
     sponsors: sponsorMonthly,
     structures: monthlyFacilityIncome(),
     admin: adminMonthly,
-    tv: tvPerRound * 4,
+    tv: state.tvContract1Year?.monthly || (tvPerRound * 4),
     members: socioMonthly,
     naming: namingMonthly,
     store: storeMonthly,
@@ -11080,6 +13187,9 @@ function finalizeRound(userRes, winners, isKO){
   const comp=curComp();
   let win = false;
   let advanced = false;
+  let isHome = false;
+  let gf = 0;
+  let ga = 0;
   // Recupera apenas um fixture válido que o chamador deixou de vincular ao resultado.
   if(!userRes){
     const scheduledUserFixture = (state.schedule?.[state.round] || []).find(g => Array.isArray(g) && (norm(g[0]) === norm(state.club) || norm(g[1]) === norm(state.club)));
@@ -11088,8 +13198,9 @@ function finalizeRound(userRes, winners, isKO){
       const [home, away] = scheduledUserFixture;
       const [hg, ag] = simulateScore(home, away);
       applyResult(home, away, hg, ag);
-      const isHome = norm(home) === norm(state.club);
-      const gf = isHome ? hg : ag, ga = isHome ? ag : hg;
+      isHome = norm(home) === norm(state.club);
+      gf = isHome ? hg : ag;
+      ga = isHome ? ag : hg;
       const matchWinner = isKO ? (hg === ag ? (Math.random() < 0.5 ? home : away) : (hg > ag ? home : away)) : null;
       userRes = { h: home, a: away, hg, ag, winner: matchWinner, events: simulateUserGoalEvents(state.club, gf) };
       if(isKO){
@@ -11100,7 +13211,9 @@ function finalizeRound(userRes, winners, isKO){
     }
   }
   if(userRes){
-    const isHome=userRes.h===state.club,gf=isHome?userRes.hg:userRes.ag,ga=isHome?userRes.ag:userRes.hg;
+    isHome = (userRes.h === state.club) || (typeof norm === 'function' && norm(userRes.h) === norm(state.club));
+    gf = isHome ? userRes.hg : userRes.ag;
+    ga = isHome ? userRes.ag : userRes.hg;
     advanced=isKO?norm(userRes.winner)===norm(state.club):gf>ga;
     const draw=!isKO&&gf===ga;
     win=!isKO?gf>ga:advanced;
@@ -11196,7 +13309,7 @@ function finalizeRound(userRes, winners, isKO){
       state.schedule.push(next);
       state.cupAlive=winners;
       if(advanced){
-        const cupPrize = comp.id === 'bra-cup' ? 1500000 : 2500000;
+        const cupPrize = calculateCupPhasePrize(comp?.id || 'cup', `Fase ${state.round + 1}`, true, false);
         state.balance += cupPrize;
         state.income += cupPrize;
         state.news.unshift(`💰 PREMIAÇÃO DE FASE: +${fmtMoney(cupPrize)} creditados pela classificação de fase na ${comp.name}!`);
@@ -11213,6 +13326,12 @@ function finalizeRound(userRes, winners, isKO){
           state.news.unshift(`🏆 TÍTULO CONQUISTADO! Onda de novos sócios-torcedores invadiu o clube: +${boost.toLocaleString('pt-BR')} sócios cadastrados (+45%)!`);
         }
         state.titles.push(comp.name);
+        const tourneyTitlePrize = calculateCupPhasePrize(comp?.id || 'cup', 'Final', true, true);
+        if(tourneyTitlePrize > 0){
+          state.balance += tourneyTitlePrize;
+          state.income = (state.income || 0) + tourneyTitlePrize;
+          state.news.unshift(`💰 PREMIAÇÃO DO TÍTULO: +${fmtMoney(tourneyTitlePrize)} creditados pela conquista da ${comp.name}!`);
+        }
         state.news.unshift(`🏆 ${state.club} é CAMPEÃO da ${comp.name}!`);
         state.trust.board=clamp(state.trust.board+12,0,100);
         state.trust.fans=clamp(state.trust.fans+15,0,100);
@@ -11258,8 +13377,8 @@ function finalizeRound(userRes, winners, isKO){
   state.balance -= mktWeeklyExp;
   state.expense += mktWeeklyExp;
   applyMatchIncidents(state.lastMatchSummary || null);
-  processFitness();
-  processDevelopment();
+  if(typeof processFitness === 'function') processFitness();
+  if(typeof processDevelopment === 'function') processDevelopment();
   processYouthDevelopment();
   processBankLoansOnRound();
   if(window.AFM30){
@@ -11278,16 +13397,11 @@ function finalizeRound(userRes, winners, isKO){
     }
   }
 
-  // Avança a data para o dia seguinte ao confronto concluído
-  try {
-    const curD = new Date(state.date + 'T12:00:00');
-    curD.setDate(curD.getDate() + 1);
-    state.date = curD.toISOString().slice(0, 10);
-    processStadiumConstructionDay();
-    expireStadiumEventConfirmation();
-  } catch(e){
-    recordAFMError('post-match-calendar', e);
-    state.date = getDateForRound(state.round, state.season);
+  // Avança a data respeitando partidas adicionais na mesma data
+  advanceDateAfterMatch(state);
+
+  if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+    window.AFM_LifeAndSharesPro.processRoundTurn(state);
   }
 
   // Verifica se o clube recebe novas propostas de patrocínio com base na fama e fase do time
@@ -11309,7 +13423,60 @@ function finalizeRound(userRes, winners, isKO){
   let newOffersCount = 0;
   state.transferOffers = state.transferOffers || {};
   state.loanOffers = state.loanOffers || {};
-  const listedKeys = new Set([...(state.transferListed||[]), ...(state.loanListed||[])]);
+  // 1. Sincroniza atletas com 6 meses ou menos de contrato para a lista de venda
+  syncExpiringContractsToTransferList(state);
+
+  // 2. Propostas de Compra Definitiva: chegam gradualmente no decorrer das rodadas
+  (state.transferListed || []).forEach(k => {
+    const p = state.squad.find(q => playerKey(q) === k);
+    if(p && !p.isLoan){
+      state.transferOffers[k] = Array.isArray(state.transferOffers[k]) ? state.transferOffers[k] : [];
+      if(state.transferOffers[k].length < 3){
+        const ovr = playerOverall(p);
+        const winOpen = isTransferWindowOpen(state.date);
+        const chance = (winOpen ? 0.60 : 0.20) + (ovr >= 80 ? 0.15 : (ovr >= 72 ? 0.05 : -0.10));
+        if(Math.random() < chance){
+          const usedBuyers = state.transferOffers[k].map(o => o.buyer);
+          const newOffer = generateSingleBuyerOffer(p, usedBuyers);
+          if(newOffer){
+            state.transferOffers[k].push(newOffer);
+            newOffersCount++;
+            state.news.unshift(`📬 MERCADO: O ${newOffer.buyer} enviou uma proposta oficial de ${fmtMoney(newOffer.price)} por ${p.name}!`);
+          }
+        }
+      }
+    }
+  });
+
+  // 3. Propostas de Empréstimo: chegam gradualmente no decorrer das rodadas
+  (state.loanListed || []).forEach(k => {
+    const p = state.squad.find(q => playerKey(q) === k);
+    if(p && !p.isLoan){
+      state.loanOffers[k] = Array.isArray(state.loanOffers[k]) ? state.loanOffers[k] : [];
+      if(state.loanOffers[k].length < 2){
+        const chance = isTransferWindowOpen(state.date) ? 0.50 : 0.15;
+        if(Math.random() < chance){
+          const usedBuyers = state.loanOffers[k].map(o => o.buyer);
+          const newOffer = generateSingleLoanOffer(p, usedBuyers);
+          if(newOffer){
+            state.loanOffers[k].push(newOffer);
+            newOffersCount++;
+            state.news.unshift(`🤝 EMPRÉSTIMO: O ${newOffer.buyer} enviou proposta para levar ${p.name} por empréstimo com taxa de ${fmtMoney(newOffer.fee)}!`);
+          }
+        }
+      }
+    }
+  });
+
+  // 4. Limpa ofertas de atletas que não estão mais listados
+  Object.keys(state.transferOffers).forEach(k => {
+    if(!(state.transferListed || []).includes(k)) delete state.transferOffers[k];
+  });
+  Object.keys(state.loanOffers).forEach(k => {
+    if(!(state.loanListed || []).includes(k)) delete state.loanOffers[k];
+  });
+
+  const listedKeys = []; if(false)
   for(const k of listedKeys){
     const p = state.squad.find(q => playerKey(q) === k);
     if(p){
@@ -11510,12 +13677,13 @@ function finalizeRound(userRes, winners, isKO){
   const maxRounds = comp.rounds || (state.schedule?.length || 38);
   if(state.round >= maxRounds){
     // Coletiva de imprensa pós-partida com 3 perguntas olhando o placar
-    if(userRes){
+    if(userRes && typeof openPostMatchInterviewModal === 'function'){
+      const isHomeFinal = (userRes.h === state.club) || (typeof norm === 'function' && norm(userRes.h) === norm(state.club));
       setTimeout(()=>{
         openPostMatchInterviewModal({
-          gf: isHome ? userRes.hg : userRes.ag,
-          ga: isHome ? userRes.ag : userRes.hg,
-          opponent: isHome ? userRes.a : userRes.h
+          gf: isHomeFinal ? userRes.hg : userRes.ag,
+          ga: isHomeFinal ? userRes.ag : userRes.hg,
+          opponent: isHomeFinal ? userRes.a : userRes.h
         });
       }, 400);
     }
@@ -11767,8 +13935,14 @@ function checkIncomingPlayerBids(){
   // Chance de 30% por rodada de receber proposta por um titular
   if(Math.random() > 0.32) return;
   
-  const lineupKeys = state.lineup || [];
-  const starters = state.squad.filter(p => lineupKeys.includes(playerKey(p)));
+  // Propostas espontâneas comuns: apenas para atletas na lista de venda ou com contrato acabando (<= 6m)
+  const eligibleCandidates = (state.squad || []).filter(p => {
+    const k = playerKey(p);
+    return ((state.transferListed || []).includes(k) || isPlayerContractExpiringSoon(p, state)) && !p.isLoan && !p.injuryDays && !p.injuredRounds;
+  });
+  if(!eligibleCandidates.length) return;
+  const lineupKeys = []; const starters = eligibleCandidates;
+  // starters já definido a partir de eligibleCandidates
   if(!starters.length) return;
   
   // Escolhe o titular mais valorizado
@@ -12438,12 +14612,132 @@ function playCheerSound(){
   } catch(e){ window.AFMErrorLog?.recordHandled(e, 'liveMatch.playCheer'); }
 }
 
+function advanceTransferWindowDay(){
+  if(!state) return;
+  try {
+    const tw = getTransferWindowState();
+    if(tw.isDeadlineDay || (Number(state.transferWindowDay) >= 4)){
+      advanceTransferWindowHours();
+      return;
+    }
+    state.transferWindowActive = true;
+    state.transferWindowDay = (Number(state.transferWindowDay) || 1) + 1;
+
+    let curD = (typeof window !== 'undefined' && window.AFM_CalendarFix && typeof window.AFM_CalendarFix.parseSafeLocalNoon === 'function')
+      ? window.AFM_CalendarFix.parseSafeLocalNoon(state.date || state.currentDate)
+      : (state.date ? new Date(state.date + 'T12:00:00') : new Date(2026, 0, 18, 12, 0, 0));
+    if(!curD || isNaN(curD.getTime())) curD = new Date(2026, 0, 18, 12, 0, 0);
+    curD.setDate(curD.getDate() + 1);
+
+    const y = curD.getFullYear();
+    const m = String(curD.getMonth() + 1).padStart(2, '0');
+    const d = String(curD.getDate()).padStart(2, '0');
+    state.date = `${y}-${m}-${d}`;
+    state.currentDate = state.date;
+    state.currentDateFormatted = formatDatePtBr(state.date);
+
+    if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.syncDateInDOM === 'function'){
+      window.AFM_CalendarFix.syncDateInDOM(state);
+    }
+    if(typeof expireStadiumEventConfirmation === 'function') expireStadiumEventConfirmation();
+
+    if(state.transferWindowDay >= 4){
+      state.transferWindowDay = 4;
+      state.transferWindowHour = 0;
+      state.preSeasonDays = 0;
+      toast('🔥 BEM-VINDO AO DEADLINE DAY! Último dia da janela de transferências. As horas passam de 6 em 6 horas!');
+    } else {
+      state.preSeasonDays = Math.max(0, 4 - state.transferWindowDay);
+      toast(`📅 Janela avançada! Dia ${state.transferWindowDay} de 4. Negocie reforços para a temporada!`);
+    }
+    if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+      try { window.AFM_LifeAndSharesPro.processRoundTurn(state); } catch(_){}
+    }
+    save();
+    render();
+  } catch(err){
+    console.error('Erro ao executar advanceTransferWindowDay:', err);
+    save();
+    render();
+  }
+}
+
+function advanceTransferWindowHours(){
+  if(!state) return;
+  try {
+    state.transferWindowActive = true;
+    state.transferWindowDay = 4;
+    state.transferWindowHour = (Number(state.transferWindowHour) || 0) + 6;
+
+    if(state.transferWindowHour >= 24){
+      state.transferWindowHour = 24;
+      state.transferWindowActive = false;
+      state.isPreSeason = false;
+      state.preSeasonDays = 0;
+      const activeMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
+      const targetDate = activeMatch?.date || getDateForRound(state.round || 0, state.season);
+      if(targetDate){
+        state.date = targetDate;
+        state.currentDate = state.date;
+        state.currentDateFormatted = formatDatePtBr(state.date);
+      }
+      if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.syncDateInDOM === 'function'){
+        window.AFM_CalendarFix.syncDateInDOM(state);
+      }
+      toast('🔒 JANELA DE TRANSFERÊNCIAS ENCERRADA! O prazo de transferências terminou e a temporada de jogos continua.');
+    } else {
+      toast(`⏰ Relógio do Deadline Day: ${String(state.transferWindowHour).padStart(2,'0')}:00! Restam ${24 - state.transferWindowHour} horas para o fechamento definitivo da janela.`);
+    }
+    if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+      try { window.AFM_LifeAndSharesPro.processRoundTurn(state); } catch(_){}
+    }
+    save();
+    render();
+  } catch(err){
+    console.error('Erro ao executar advanceTransferWindowHours:', err);
+    save();
+    render();
+  }
+}
+
+function advanceTransferWindow(step = 24){
+  if(!state) return;
+  try {
+    const tw = getTransferWindowState();
+    if(tw.isDeadlineDay || step === 6 || (Number(state.transferWindowDay) >= 4)){
+      advanceTransferWindowHours();
+    } else {
+      advanceTransferWindowDay();
+    }
+  } catch(err){
+    console.error('Erro ao avançar janela de transferências:', err);
+    if(state){
+      state.transferWindowDay = Math.min(4, (Number(state.transferWindowDay) || 1) + 1);
+      if(state.transferWindowDay >= 4 && step === 6){
+        state.transferWindowHour = (Number(state.transferWindowHour) || 0) + 6;
+        if(state.transferWindowHour >= 24){
+          state.transferWindowActive = false;
+          state.isPreSeason = false;
+        }
+      }
+      try { save(); } catch(_){}
+      try { render(); } catch(_){}
+    }
+  }
+}
+
 function advancePreSeasonDay(){
+  advanceTransferWindow(24);
+}
+
+function _oldAdvancePreSeasonDay(){
   if(!state || !state.isPreSeason) return;
   state.preSeasonDays = Math.max(0, (state.preSeasonDays || 4) - 1);
   const curD = new Date(state.date + 'T12:00:00');
   curD.setDate(curD.getDate() + 1);
   state.date = curD.toISOString().slice(0, 10);
+  state.currentDate = state.date;
+  state.currentDateFormatted = formatDatePtBr(state.date);
   expireStadiumEventConfirmation();
 
   const msgs = [
@@ -12459,10 +14753,15 @@ function advancePreSeasonDay(){
     state.isPreSeason = false;
     state.preSeasonDays = 0;
     state.date = getDateForRound(state.round || 0, state.season);
+    state.currentDate = state.date;
+    state.currentDateFormatted = formatDatePtBr(state.date);
     expireStadiumEventConfirmation();
     toast('🏁 Fim da Janela de Pré-Temporada! O campeonato oficial vai começar.');
   } else {
     toast(`📅 Dia avançado! ${msg} (Restam ${state.preSeasonDays} ${state.preSeasonDays === 1 ? 'dia' : 'dias'})`);
+  }
+  if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+    window.AFM_LifeAndSharesPro.processRoundTurn(state);
   }
   save();
   render();
@@ -12470,17 +14769,242 @@ function advancePreSeasonDay(){
 
 function skipPreSeason(){
   if(!state) return;
-  state.isPreSeason = false;
-  state.preSeasonDays = 0;
-  state.date = getDateForRound(state.round || 0, state.season);
-  expireStadiumEventConfirmation();
-  toast('🏁 Pré-temporada concluída! Bem-vindo à 1ª rodada oficial!');
-  save();
-  render();
+  try {
+    state.isPreSeason = false;
+    state.preSeasonDays = 0;
+    state.transferWindowActive = false;
+    state.transferWindowDay = 4;
+    state.transferWindowHour = 24;
+    const activeMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
+    state.date = activeMatch?.date || getDateForRound(state.round || 0, state.season);
+    state.currentDate = state.date;
+    state.currentDateFormatted = formatDatePtBr(state.date);
+    if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.syncDateInDOM === 'function'){
+      window.AFM_CalendarFix.syncDateInDOM(state);
+    }
+    if(typeof expireStadiumEventConfirmation === 'function') expireStadiumEventConfirmation();
+    toast('🏁 Janela de transferências concluída! Bem-vindo à 1ª rodada oficial!');
+    if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+      try { window.AFM_LifeAndSharesPro.processRoundTurn(state); } catch(_){}
+    }
+    save();
+    render();
+  } catch(err){
+    console.error('Erro ao executar skipPreSeason:', err);
+    save();
+    render();
+  }
+}
+
+if(typeof window !== 'undefined'){
+  window.advanceTransferWindow = advanceTransferWindow;
+  window.advanceTransferWindowDay = advanceTransferWindowDay;
+  window.advanceTransferWindowHours = advanceTransferWindowHours;
+  window.advancePreSeasonDay = advancePreSeasonDay;
+  window.skipPreSeason = skipPreSeason;
 }
 
 // Separate match session: a club may play both a national division and its estadual.
 // Preserve primary-career objects while the live engine temporarily uses the state league.
+function getActiveNextMatch(st = state){
+  if(!st || !st.club) return null;
+  const matches = [];
+
+  // 1. National league next match
+  const natFixture = (typeof userFixture === 'function') ? userFixture() : null;
+  if(natFixture && Array.isArray(natFixture) && natFixture.length >= 2){
+    const [h, a] = natFixture;
+    const roundIdx = Number(st.round) || 0;
+    const d = (typeof getDateForRound === 'function') ? getDateForRound(roundIdx, st.season) : (st.date || '2026-01-17');
+    matches.push({
+      type: 'national',
+      competitionId: st.compId,
+      competitionName: st.competition || 'Brasileirão',
+      home: h,
+      away: a,
+      roundIndex: roundIdx,
+      roundNumber: roundIdx + 1,
+      date: d,
+      dateStr: formatDatePtBr(d)
+    });
+  }
+
+  // 2. Estadual next match
+  const cId = (typeof clubStateCompId === 'function') ? clubStateCompId(st.club) : null;
+  if(cId && typeof getStateCompData === 'function'){
+    const estData = getStateCompData(cId);
+    if(estData && Array.isArray(estData.fixtures)){
+      const unplayed = estData.fixtures.filter(f => {
+        if(f.played || f.result) return false;
+        if(norm(f.home) !== norm(st.club) && norm(f.away) !== norm(st.club)) return false;
+        return true;
+      });
+      if(unplayed.length > 0){
+        unplayed.sort((a,b) => (Number(a.roundIndex)||0) - (Number(b.roundIndex)||0));
+        const nextEst = unplayed[0];
+        const estDate = nextEst.isoDate || (st.date || '2026-01-21');
+        matches.push({
+          type: 'state',
+          competitionId: cId,
+          competitionName: estData.name || 'Campeonato Estadual',
+          home: nextEst.home,
+          away: nextEst.away,
+          roundIndex: Number(nextEst.roundIndex) || 0,
+          roundNumber: (Number(nextEst.roundIndex) || 0) + 1,
+          date: estDate,
+          dateStr: formatDatePtBr(estDate)
+        });
+      }
+    }
+  }
+
+  // 3. Copa do Brasil next match (if active)
+  const copa = (st === state && typeof getCopaDoBrasilState === 'function') ? getCopaDoBrasilState() : st.copaData;
+  if(copa && copa.phases){
+    Object.entries(copa.phases).forEach(([phaseName, phase]) => {
+      (phase.fixtures || []).forEach((fix, fixIdx) => {
+        if((norm(fix.home) === norm(st.club) || norm(fix.away) === norm(st.club)) && !fix.score && !fix.winner && !fix.played){
+          const cDate = ensureMidweekDate(fix.isoDate || phase.isoDate, st.season);
+          matches.push({
+            type: 'copa',
+            competitionId: 'bra-cup',
+            competitionName: 'Copa do Brasil',
+            home: fix.home,
+            away: fix.away,
+            roundIndex: fixIdx,
+            roundNumber: fixIdx + 1,
+            phaseName,
+            date: cDate,
+            dateStr: formatDatePtBr(cDate)
+          });
+        }
+      });
+    });
+  }
+
+  // 4. Continental next match (if active)
+  for(const id of ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc']){
+    const tournament = (st === state && typeof getContinentalTournament === 'function') ? getContinentalTournament(id) : st.tournaments?.[id];
+    if(!tournament || Number(tournament.season) !== Number(st.season)) continue;
+    (tournament.matches || []).forEach(m => {
+      if((norm(m.home) === norm(st.club) || norm(m.away) === norm(st.club)) && (m.status === 'scheduled' || (!m.result && !m.score))){
+        const cDate = ensureMidweekDate(m.date, st.season);
+        const compName = id === 'lib' ? 'CONMEBOL Libertadores' : id === 'sud' ? 'CONMEBOL Sul-Americana' : id === 'cwc' ? 'Mundial de Clubes FIFA' : (compById(id)?.name || id);
+        matches.push({
+          type: 'continental',
+          competitionId: id,
+          competitionName: compName,
+          home: m.home,
+          away: m.away,
+          matchId: m.id,
+          roundIndex: (m.round || 1) - 1,
+          roundNumber: m.round || 1,
+          date: cDate,
+          dateStr: formatDatePtBr(cDate)
+        });
+      }
+    });
+  }
+
+  if(matches.length === 0) return null;
+
+  matches.sort((a, b) => {
+    const aDue = a.date <= st.date;
+    const bDue = b.date <= st.date;
+    if(aDue && !bDue) return -1;
+    if(bDue && !aDue) return 1;
+    return a.date.localeCompare(b.date);
+  });
+
+  return matches[0];
+}
+if(typeof window !== 'undefined'){
+  window.getActiveNextMatch = getActiveNextMatch;
+}
+
+function simulateQuickStateLeagueRound(competitionId, roundIndex){
+  if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save();
+  const data = getStateCompData(competitionId);
+  if(!data || !Array.isArray(data.teams) || !data.teams.some(team=>norm(team.name)===norm(state.club))) return false;
+  const fixtureRecord = (data.fixtures||[]).find(f=>Number(f.roundIndex)===Number(roundIndex) && (norm(f.home)===norm(state.club)||norm(f.away)===norm(state.club)));
+  if(!fixtureRecord) return false;
+  const {home,away}=fixtureRecord;
+  const alreadyPlayed = fixtureRecord.played===true || Boolean(fixtureRecord.result) || (state.history||[]).some(h=>h.competitionId===competitionId && Number(h.season)===Number(state.season) && Number(h.round)===Number(roundIndex)+1 && ((norm(h.h)===norm(home)&&norm(h.a)===norm(away))||(norm(h.h)===norm(away)&&norm(h.a)===norm(home))));
+  if(alreadyPlayed){toast('Esta partida estadual já foi disputada.');return false;}
+  
+  const date = fixtureRecord.isoDate || getDateForRound(roundIndex,state.season);
+  state.date = date;
+  state.currentDate = date;
+  state.currentDateFormatted = formatDatePtBr(date);
+
+  const [uHg, uAg] = simulateScore(home, away);
+  fixtureRecord.result = [uHg, uAg];
+  fixtureRecord.played = true;
+
+  const isHome = norm(home) === norm(state.club);
+  const gf = isHome ? uHg : uAg;
+  const ga = isHome ? uAg : uHg;
+
+  (data.fixtures||[]).forEach(fix => {
+    if(Number(fix.roundIndex) === Number(roundIndex)){
+      if(!fix.played && !fix.result){
+        const [hg, ag] = simulateScore(fix.home, fix.away);
+        fix.result = [hg, ag];
+        fix.played = true;
+      }
+      const tH = data.teams.find(t=>norm(t.name)===norm(fix.home));
+      const tA = data.teams.find(t=>norm(t.name)===norm(fix.away));
+      if(tH && tA && fix.result){
+        const [hg, ag] = fix.result;
+        tH.j = (Number(tH.j)||0)+1; tA.j = (Number(tA.j)||0)+1;
+        tH.gp = (Number(tH.gp)||0)+hg; tH.gc = (Number(tH.gc)||0)+ag;
+        tA.gp = (Number(tA.gp)||0)+ag; tA.gc = (Number(tA.gc)||0)+hg;
+        tH.sg = tH.gp - tH.gc; tA.sg = tA.gp - tA.gc;
+        if(hg > ag){ tH.v=(Number(tH.v)||0)+1; tH.p=(Number(tH.p)||0)+3; tA.d=(Number(tA.d)||0)+1; }
+        else if(hg < ag){ tA.v=(Number(tA.v)||0)+1; tA.p=(Number(tA.p)||0)+3; tH.d=(Number(tH.d)||0)+1; }
+        else { tH.e=(Number(tH.e)||0)+1; tA.e=(Number(tA.e)||0)+1; tH.p=(Number(tH.p)||0)+1; tA.p=(Number(tA.p)||0)+1; }
+        for(const tm of [tH, tA]){
+          tm.pct = tm.j ? Math.round(tm.p / (tm.j * 3) * 100) : 0;
+          tm.form = Array.isArray(tm.form) ? tm.form : [];
+          tm.form.push(tm === tH ? (hg > ag ? 'V' : hg < ag ? 'D' : 'E') : (ag > hg ? 'V' : ag < hg ? 'D' : 'E'));
+          tm.form = tm.form.slice(-5);
+        }
+      }
+    }
+  });
+
+  const userRes = {home, away, h: home, a: away, hg: uHg, ag: uAg};
+  state.history = state.history || [];
+  state.history.unshift({...userRes, round: roundIndex + 1, season: Number(state.season), date: fixtureRecord.isoDate || state.date, competitionId, competitionName: data.name, isHome, won: gf > ga});
+  state.history = state.history.slice(0, 100);
+  data.currentRound = Math.max(Number(data.currentRound)||1, roundIndex + 2);
+  state.estadualData[competitionId] = data;
+
+  state.lastMatchSummary = { h: home, a: away, hg: uHg, ag: uAg, ga, isHome, won: gf > ga };
+  const userGoals = isHome ? uHg : uAg;
+  const events = simulateUserGoalEvents(state.club, userGoals);
+  addPlayerMatchStats(competitionId, state.club, events);
+
+  if(isHome){
+    const att = (typeof calcAttendance === 'function') ? calcAttendance(data.name || 'Estadual') : { revenue: 150000 };
+    const gate = att.revenue || 0;
+    state.balance += gate;
+    state.income += gate;
+  }
+  if(typeof processFitness === 'function') processFitness();
+  if(typeof processDevelopment === 'function') processDevelopment();
+
+  advanceDateAfterMatch(state);
+
+  if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+    window.AFM_LifeAndSharesPro.processRoundTurn(state);
+  }
+  save();
+  render();
+  toast(`Partida estadual finalizada: ${home} ${uHg} x ${uAg} ${away}`);
+  return true;
+}
+
 let stateLeagueMatchSession = null;
 function beginStateLeagueMatch(competitionId, roundIndex){
   if(stateLeagueMatchSession || (liveMatchState && !liveMatchState.done)) return false;
@@ -12490,10 +15014,14 @@ function beginStateLeagueMatch(competitionId, roundIndex){
   const fixtureRecord = (data.fixtures||[]).find(f=>Number(f.roundIndex)===Number(roundIndex) && (norm(f.home)===norm(state.club)||norm(f.away)===norm(state.club)));
   if(!fixtureRecord) return false;
   const {home,away}=fixtureRecord;
-  const alreadyPlayed = fixtureRecord.played===true || Boolean(fixtureRecord.result) || (state.history||[]).some(h=>h.competitionId===competitionId && Number(h.season)===Number(state.season) && ((norm(h.h)===norm(home)&&norm(h.a)===norm(away))||(norm(h.h)===norm(away)&&norm(h.a)===norm(home))));
+  const alreadyPlayed = fixtureRecord.played===true || Boolean(fixtureRecord.result) || (state.history||[]).some(h=>h.competitionId===competitionId && Number(h.season)===Number(state.season) && Number(h.round)===Number(roundIndex)+1 && ((norm(h.h)===norm(home)&&norm(h.a)===norm(away))||(norm(h.h)===norm(away)&&norm(h.a)===norm(home))));
   if(alreadyPlayed){toast('Esta partida estadual já foi disputada. O resultado salvo foi preservado.');return false;}
   const date = fixtureRecord.isoDate || getDateForRound(roundIndex,state.season);
-  if(state.date < date){state.date=date;save();render();toast(`Calendário avançado até ${formatDatePtBr(date)} para o estadual.`);return false;}
+  if(state.date < date){
+    state.date = date;
+    state.currentDate = date;
+    state.currentDateFormatted = formatDatePtBr(date);
+  }
   const rounds = roundRobin(data.teams.map(team=>team.name));
   const snapshot = {
     compId:state.compId, competition:state.competition, currentLeague:state.currentLeague,
@@ -12512,10 +15040,12 @@ function beginStateLeagueMatch(competitionId, roundIndex){
   state.teams = data.teams.map(team=>({...team, strength:team.strength || teamStrengthByName(team.name), form:Array.isArray(team.form)?[...team.form]:[]}));
   // Include the active fixture and sentinels so this one-off match can't trigger
   // the primary division's season-ending transition.
-  state.schedule = rounds.map(round=>round.map(game=>[...game]));
+  state.schedule = rounds.map(round=>window.__afmAsRoundArray(round).map(game=>[...game]));
   while(state.schedule.length <= roundIndex + 2) state.schedule.push([]);
   state.round = roundIndex;
   state.date = date;
+  state.currentDate = date;
+  state.currentDateFormatted = formatDatePtBr(date);
   state.isPreSeason = false;
   state.preSeasonDays = 0;
   startLiveMatch();
@@ -12535,16 +15065,188 @@ function restorePrimaryLeagueAfterStateMatch(){
   const postMatchDate = state.date;
   state.compId=snapshot.compId; state.competition=snapshot.competition; state.currentLeague=snapshot.currentLeague;
   state.teams=snapshot.teams; state.schedule=snapshot.schedule; state.round=snapshot.round; state.date=postMatchDate;
+  state.currentDate=postMatchDate; state.currentDateFormatted=formatDatePtBr(postMatchDate);
   state.cupAlive=snapshot.cupAlive; state.eliminated=snapshot.eliminated;
   state.competitionStats=snapshot.competitionStats; state.competitionFinalGroups=snapshot.competitionFinalGroups;
   state.competitionGroupStandings=snapshot.competitionGroupStandings; state.competitionPlayoffWinners=snapshot.competitionPlayoffWinners;
-  state.club=snapshot.club; state.squad=snapshot.squad; state.lineup=snapshot.lineup; state.formation=snapshot.formation; state.tactics=snapshot.tactics;
-  state.balance=snapshot.balance; state.income=snapshot.income; state.expense=snapshot.expense; state.trust=snapshot.trust;
-  state.lastMatchSummary=snapshot.lastMatchSummary; state.roundResultSnapshot=snapshot.roundResultSnapshot;
+  state.club=snapshot.club || state.club;
+  state.lastMatchSummary=snapshot.lastMatchSummary || state.lastMatchSummary;
+  state.roundResultSnapshot=snapshot.roundResultSnapshot;
   state.estadualData=state.estadualData||{}; state.estadualData[competitionId]=data;
   stateLeagueMatchSession=null;
   return true;
 }
+
+let continentalMatchSession = null;
+function beginContinentalLiveMatch(competitionId, matchId){
+  if(continentalMatchSession || (liveMatchState && !liveMatchState.done)) return false;
+  if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save();
+  const tournament = getContinentalTournament(competitionId);
+  if(!tournament) return false;
+  const match = (tournament.matches || []).find(item => item.id === matchId);
+  if(!match) return false;
+  const { home, away } = match;
+  if(norm(home) !== norm(state.club) && norm(away) !== norm(state.club)) return false;
+  const alreadyPlayed = match.status === 'played' || Boolean(match.result);
+  if(alreadyPlayed){ toast('Esta partida continental já foi disputada.'); return false; }
+
+  const compObj = compById(competitionId) || { name: competitionId === 'lib' ? 'CONMEBOL Libertadores' : 'CONMEBOL Sul-Americana' };
+  const compName = competitionId === 'lib' ? 'CONMEBOL Libertadores' : (compObj.name || 'Torneio Continental');
+  const mDate = match.date || ensureMidweekDate(match.date, state.season);
+  if(state.date < mDate){
+    state.date = mDate;
+    state.currentDate = mDate;
+    state.currentDateFormatted = formatDatePtBr(mDate);
+  }
+
+  const snapshot = {
+    compId: state.compId, competition: state.competition, currentLeague: state.currentLeague,
+    teams: state.teams, schedule: state.schedule, round: state.round,
+    date: state.date, cupAlive: state.cupAlive, eliminated: state.eliminated,
+    competitionStats: state.competitionStats, competitionFinalGroups: state.competitionFinalGroups,
+    competitionGroupStandings: state.competitionGroupStandings, competitionPlayoffWinners: state.competitionPlayoffWinners,
+    club: state.club, squad: state.squad, lineup: state.lineup, formation: state.formation, tactics: state.tactics,
+    balance: state.balance, income: state.income, expense: state.expense, trust: state.trust,
+    lastMatchSummary: state.lastMatchSummary, roundResultSnapshot: state.roundResultSnapshot
+  };
+
+  continentalMatchSession = { competitionId, matchId, fixture: [home, away], snapshot, tournament, match, compName, round: match.round };
+  state.compId = competitionId;
+  state.competition = compName;
+  state.currentLeague = compName;
+  const groupTeams = tournament.groups?.[match.group] || [home, away];
+  state.teams = groupTeams.map(name => ({
+    name,
+    strength: teamStrengthByName(name),
+    form: []
+  }));
+  const targetRound = Math.max(0, (Number(match.round) || 1) - 1);
+  state.round = targetRound;
+  state.schedule = [];
+  while(state.schedule.length <= targetRound + 2) state.schedule.push([]);
+  state.schedule[targetRound] = [[home, away]];
+  state.isPreSeason = false;
+  state.preSeasonDays = 0;
+
+  startLiveMatch();
+  if(continentalMatchSession && (!liveMatchState || liveMatchState.done)){
+    restorePrimaryLeagueAfterContinentalMatch();
+    save(); render();
+    return false;
+  }
+  return true;
+}
+
+function restorePrimaryLeagueAfterContinentalMatch(){
+  const session = continentalMatchSession;
+  if(!session) return false;
+  const { snapshot } = session;
+  const postMatchDate = state.date;
+  state.compId = snapshot.compId;
+  state.competition = snapshot.competition;
+  state.currentLeague = snapshot.currentLeague;
+  state.teams = snapshot.teams;
+  state.schedule = snapshot.schedule;
+  state.round = snapshot.round;
+  state.date = postMatchDate;
+  state.currentDate = postMatchDate;
+  state.currentDateFormatted = formatDatePtBr(postMatchDate);
+  state.cupAlive = snapshot.cupAlive;
+  state.eliminated = snapshot.eliminated;
+  state.competitionStats = snapshot.competitionStats;
+  state.competitionFinalGroups = snapshot.competitionFinalGroups;
+  state.competitionGroupStandings = snapshot.competitionGroupStandings;
+  state.competitionPlayoffWinners = snapshot.competitionPlayoffWinners;
+  state.club = snapshot.club || state.club;
+  state.lastMatchSummary = snapshot.lastMatchSummary || state.lastMatchSummary;
+  state.roundResultSnapshot = snapshot.roundResultSnapshot;
+  if(session.competitionId && session.tournament){
+    state.tournaments = state.tournaments || {};
+    state.tournaments[session.competitionId] = session.tournament;
+  }
+  continentalMatchSession = null;
+  return true;
+}
+
+let copaMatchSession = null;
+function beginCopaDoBrasilLiveMatch(fixtureIndex, phaseName = copaCurrentPhase){
+  if(copaMatchSession || (liveMatchState && !liveMatchState.done)) return false;
+  if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save();
+  const copa = getCopaDoBrasilState();
+  const phase = copa?.phases?.[phaseName];
+  if(!phase) return false;
+  const fixture = phase.fixtures?.[Number(fixtureIndex)];
+  if(!fixture || fixture.score || fixture.played) return false;
+  const { home, away } = fixture;
+  if(norm(home) !== norm(state.club) && norm(away) !== norm(state.club)) return false;
+
+  const cDate = ensureMidweekDate(fixture.isoDate || phase.isoDate, state.season);
+  if(state.date < cDate){
+    state.date = cDate;
+    state.currentDate = cDate;
+    state.currentDateFormatted = formatDatePtBr(cDate);
+  }
+
+  const snapshot = {
+    compId: state.compId, competition: state.competition, currentLeague: state.currentLeague,
+    teams: state.teams, schedule: state.schedule, round: state.round,
+    date: state.date, cupAlive: state.cupAlive, eliminated: state.eliminated,
+    competitionStats: state.competitionStats, competitionFinalGroups: state.competitionFinalGroups,
+    competitionGroupStandings: state.competitionGroupStandings, competitionPlayoffWinners: state.competitionPlayoffWinners,
+    club: state.club, squad: state.squad, lineup: state.lineup, formation: state.formation, tactics: state.tactics,
+    balance: state.balance, income: state.income, expense: state.expense, trust: state.trust,
+    lastMatchSummary: state.lastMatchSummary, roundResultSnapshot: state.roundResultSnapshot
+  };
+
+  copaMatchSession = { fixtureIndex, phaseName, fixture, phase, snapshot };
+  state.compId = 'bra-cup';
+  state.competition = 'Copa do Brasil';
+  state.currentLeague = 'Copa do Brasil';
+  state.teams = [
+    { name: home, strength: teamStrengthByName(home), form: [] },
+    { name: away, strength: teamStrengthByName(away), form: [] }
+  ];
+  state.schedule = [[ [home, away] ], []];
+  state.round = 0;
+  state.isPreSeason = false;
+  state.preSeasonDays = 0;
+
+  startLiveMatch();
+  if(copaMatchSession && (!liveMatchState || liveMatchState.done)){
+    restorePrimaryLeagueAfterCopaMatch();
+    save(); render();
+    return false;
+  }
+  return true;
+}
+
+function restorePrimaryLeagueAfterCopaMatch(){
+  const session = copaMatchSession;
+  if(!session) return false;
+  const { snapshot } = session;
+  const postMatchDate = state.date;
+  state.compId = snapshot.compId;
+  state.competition = snapshot.competition;
+  state.currentLeague = snapshot.currentLeague;
+  state.teams = snapshot.teams;
+  state.schedule = snapshot.schedule;
+  state.round = snapshot.round;
+  state.date = postMatchDate;
+  state.currentDate = postMatchDate;
+  state.currentDateFormatted = formatDatePtBr(postMatchDate);
+  state.cupAlive = snapshot.cupAlive;
+  state.eliminated = snapshot.eliminated;
+  state.competitionStats = snapshot.competitionStats;
+  state.competitionFinalGroups = snapshot.competitionFinalGroups;
+  state.competitionGroupStandings = snapshot.competitionGroupStandings;
+  state.competitionPlayoffWinners = snapshot.competitionPlayoffWinners;
+  state.club = snapshot.club || state.club;
+  state.lastMatchSummary = snapshot.lastMatchSummary || state.lastMatchSummary;
+  state.roundResultSnapshot = snapshot.roundResultSnapshot;
+  copaMatchSession = null;
+  return true;
+}
+
 let isStartingLiveMatch = false;
 function startLiveMatch(){
   if(isStartingLiveMatch) return;
@@ -12556,23 +15258,39 @@ function startLiveMatch(){
       openNextPendingCompetitionFixture(matchGate.nextFixture || getNextPendingClubFixture(state));
       return;
     }
-    if(matchGate.status === 'future'){ state.date = matchGate.matchDate; }
-    if(matchGate.status === 'no_fixture' || matchGate.isBye){
+    if(matchGate.status === 'future'){
+      state.date = matchGate.matchDate;
+      state.currentDate = matchGate.matchDate;
+      state.currentDateFormatted = formatDatePtBr(matchGate.matchDate);
+    } else if(matchGate.status === 'no_fixture' || matchGate.isBye){
       toast('🏖️ Seu clube está de folga nesta rodada. Simulando os jogos dos adversários...');
       simulateQuickRound();
       return;
-    }
-    if(matchGate.status === 'missed'){
+    } else if(matchGate.status === 'missed'){
       toast('⚠️ A data da partida já passou. Simulando esta rodada para recuperar o calendário.');
       simulateQuickRound();
       return;
+    } else {
+      toast(`⚠️ ${matchGate.reason}`);
+      return;
     }
-    toast(`⚠️ ${matchGate.reason}`);
-    return;
   }
 
   isStartingLiveMatch = true;
   try {
+    const activeMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
+    if(!stateLeagueMatchSession && !continentalMatchSession && !copaMatchSession && activeMatch && activeMatch.type === 'estadual' && activeMatch.competitionId && Number.isInteger(activeMatch.roundIndex)){
+      isStartingLiveMatch = false;
+      return beginStateLeagueMatch(activeMatch.competitionId, activeMatch.roundIndex);
+    }
+    if(!stateLeagueMatchSession && !continentalMatchSession && !copaMatchSession && activeMatch && activeMatch.type === 'copa' && Number.isInteger(activeMatch.fixtureIndex)){
+      isStartingLiveMatch = false;
+      return beginCopaDoBrasilLiveMatch(activeMatch.fixtureIndex, activeMatch.phaseName || copaCurrentPhase);
+    }
+    if(!stateLeagueMatchSession && !continentalMatchSession && !copaMatchSession && activeMatch && activeMatch.type === 'continental' && activeMatch.competitionId && activeMatch.matchId){
+      isStartingLiveMatch = false;
+      return beginContinentalLiveMatch(activeMatch.competitionId, activeMatch.matchId);
+    }
     if(state && state.isPreSeason && state.preSeasonDays > 0){
       state.isPreSeason = false;
       state.preSeasonDays = 0;
@@ -12594,7 +15312,7 @@ function startLiveMatch(){
 
   const [home, away] = f;
   const comp = curComp();
-  const isKO = comp.type === 'knockout';
+  const isKO = copaMatchSession ? true : continentalMatchSession ? (continentalMatchSession.tournament?.phase !== 'groups') : (comp.type === 'knockout');
   const isUserHome = norm(home) === norm(state.club);
   
   const otherResults = [];
@@ -12603,8 +15321,8 @@ function startLiveMatch(){
     if((norm(h) === norm(home) && norm(a) === norm(away)) || (norm(h) === norm(state.club) || norm(a) === norm(state.club))) return;
     const [hg, ag] = simulateScore(h,a);
     let win = null, pen = null;
-    if(stateLeagueMatchSession){
-      // Estadual is a one-off match. Never mutate the national schedule or its round.
+    if(stateLeagueMatchSession || continentalMatchSession || copaMatchSession){
+      // Parallel matches are handled by their own competition engines.
       return;
     }
   if(isKO){
@@ -12976,8 +15694,12 @@ function startLiveMatch(){
 
   const hTac = getClubTacticalProfile(home, isUserHome);
   const aTac = getClubTacticalProfile(away, !isUserHome);
+  const homeKit = window.AFM_REAL_FOOTBALL ? window.AFM_REAL_FOOTBALL.getClubKit(home, false) : null;
+  const awayKit = window.AFM_REAL_FOOTBALL ? window.AFM_REAL_FOOTBALL.getClubKit(away, true) : null;
   const homePlayers = buildMatchTeam(home, isUserHome, true, hTac);
   const awayPlayers = buildMatchTeam(away, !isUserHome, false, aTac);
+  homePlayers.forEach(p => { p.kit = homeKit; p.clubName = home; });
+  awayPlayers.forEach(p => { p.kit = awayKit; p.clubName = away; });
 
   const rivalry = isRivalryMatch(home, away);
   const matchSeed = (Date.now() ^ (Math.random() * 0x100000000)) >>> 0;
@@ -13005,7 +15727,7 @@ function startLiveMatch(){
     simTicks: 0,
     renderTicks: 0,
     simAccumulator: 0,
-    lastLoopTime: performance.now(),
+    lastLoopTime: (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(),
     debugMode: false,
     home, away, isKO,
     hg: 0, ag: 0,
@@ -13045,6 +15767,14 @@ function startLiveMatch(){
     awayPosture: 'Equilibrada',
     prelecao: 'Sem preleção',
     subsLeft: 5,
+    homeKit,
+    awayKit,
+    homeSubs: { count: 0, windowsUsed: 0, lastMin: -1 },
+    awaySubs: { count: 0, windowsUsed: 0, lastMin: -1 },
+    stoppage1H: window.AFM_REAL_FOOTBALL ? window.AFM_REAL_FOOTBALL.rules.calculateStoppageTime(1, []) : 2,
+    stoppage2H: window.AFM_REAL_FOOTBALL ? window.AFM_REAL_FOOTBALL.rules.calculateStoppageTime(2, []) : 4,
+    stoppageBoard1HShown: false,
+    stoppageBoard2HShown: false,
     autoSubAssistant: true,
     halftimeTriggered: false,
     homePlayers,
@@ -13126,7 +15856,10 @@ function renderLiveMatchModal(){
           </div>
         </div>
 
-        <div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="live-ctrl-btn" id="btnToggleLiveCam" style="background:rgba(56,189,248,0.2);border-color:#38bdf8;color:#38bdf8;font-weight:700" title="Alternar Câmera de Transmissão">
+            ${(s.camera && s.camera.mode === 'wide') ? '🏟️ Panorâmica' : '🎥 TV Dinâmica'}
+          </button>
           <button class="live-ctrl-btn" id="btnLiveClose" style="background:rgba(239,68,68,0.2);border-color:#ef4444;color:#fca5a5" title="Sair / Fechar">
             ✕ Fechar
           </button>
@@ -13350,6 +16083,51 @@ function startLivePass(s, passer, receiver, options = {}) {
   }
   return true;
 }
+
+function startLiveShot(s, shooter){
+  if(!s || !s.ball || !shooter) return;
+  const isHomeAttacking = shooter.team === 'home';
+  s.ball.carrier = null;
+  s.ball.mode = 'shot';
+  s.ball.shooter = shooter;
+  s.ball.startX = shooter.x;
+  s.ball.startY = shooter.y;
+  s.ball.targetX = isHomeAttacking ? 99.5 : 0.5;
+  s.ball.targetY = 50 + (((s.prng ? s.prng() : Math.random()) * 16) - 8);
+  s.ball.progress = 0;
+  s.ball.curveZ = 5.5;
+
+  const roll = s.prng ? s.prng() : Math.random();
+  const finishSkill = shooter.attrs?.finishing || shooter.overall || 70;
+  const oppGk = (isHomeAttacking ? s.awayPlayers : s.homePlayers).find(p => p.isGK) || {};
+  const gkSkill = oppGk.overall || 70;
+  const goalProb = 0.22 + (finishSkill - gkSkill) * 0.004;
+
+  if(roll < goalProb){
+    s.ball.shotOutcome = 'gol';
+    if(isHomeAttacking) s.hg++; else s.ag++;
+    shooter.goals = (shooter.goals || 0) + 1;
+    if(Array.isArray(s.events)){
+      s.events.unshift({
+        min: Number(s.minute) || 0,
+        type: 'gol',
+        scorer: shooter.name,
+        text: `⚽ GOOOL DE ${shooter.name.toUpperCase()}! Concluiu a jogada com uma finalização indefensável!`
+      });
+    }
+  } else if(roll < 0.65){
+    s.ball.shotOutcome = 'save';
+    s.ball.isCorner = Math.random() < 0.4;
+    s.ball.isRebound = Math.random() < 0.3;
+  } else if(roll < 0.85){
+    s.ball.shotOutcome = 'blocked';
+  } else if(roll < 0.93){
+    s.ball.shotOutcome = 'post';
+  } else {
+    s.ball.shotOutcome = 'out';
+  }
+}
+
 function updateLiveCanvasPositions(s){
   if(!s || !Array.isArray(s.homePlayers) || !Array.isArray(s.awayPlayers)) return;
 
@@ -13465,13 +16243,13 @@ function updateLiveCanvasPositions(s){
     return;
   }
 
-  if(isPlaying && ball.mode === 'play' && ball.carrier && !ball.carrier.isGK && !ball.carrier.redCard && Number(ball.liveDecisionCooldown || 0) <= 0){
+  if(window.AFM_REAL_FOOTBALL?.rules?.handleLiveMatchAction){
+    window.AFM_REAL_FOOTBALL.rules.handleLiveMatchAction(s, isPlaying, showLiveBalloon, startLivePass, startLiveShot);
+  } else if(isPlaying && ball.mode === 'play' && ball.carrier && !ball.carrier.isGK && !ball.carrier.redCard && Number(ball.liveDecisionCooldown || 0) <= 0){
     const carrierForPass = ball.carrier;
-    const attackingProgress = carrierForPass.team === 'home' ? carrierForPass.x : 100 - carrierForPass.x;
     const passTarget = selectLivePassTarget(carrierForPass.team === 'home' ? s.homePlayers : s.awayPlayers, carrierForPass, 1.5, 25);
-    const passChance = attackingProgress >= 72 ? 0.56 : 0.44;
-    if(passTarget && s.prng() < passChance && startLivePass(s, carrierForPass, passTarget, { cooldownFrames: 110 })) return;
-    ball.liveDecisionCooldown = 28;
+    if(passTarget && startLivePass(s, carrierForPass, passTarget, { cooldownFrames: 24 })) return;
+    ball.liveDecisionCooldown = 24;
   }
 
   // 2. Valida ou transfere portador da bola (carrier)
@@ -13624,8 +16402,9 @@ let liveCanvasAnimId = null;
 function setupLiveCanvasLoop(){
   if(liveCanvasAnimId) cancelAnimationFrame(liveCanvasAnimId);
   const canvas = $('#liveMatchCanvas');
-  if(!canvas) return;
+  if(!canvas || typeof canvas.getContext !== 'function') return;
   const ctx = canvas.getContext('2d');
+  if(!ctx) return;
 
   function loop(){
     const s = liveMatchState;
@@ -13639,7 +16418,7 @@ function setupLiveCanvasLoop(){
 
       // Simulation Clock Step (Contagem contínua de segundos em tempo real rápido)
       if(s.playing && !s.done && s.phase !== 'HALF_TIME'){
-        const now = performance.now();
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
         if(!s.lastLoopTime) s.lastLoopTime = now;
         const dtMs = Math.min(now - s.lastLoopTime, 250);
         s.lastLoopTime = now;
@@ -13671,7 +16450,7 @@ function setupLiveCanvasLoop(){
           }
         }
       } else {
-        s.lastLoopTime = performance.now();
+        s.lastLoopTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
       }
 
       updateLiveCanvasPositions(s);
@@ -13702,13 +16481,22 @@ function proj(px, py){
 function drawLiveStadium(ctx, s){
   ctx.clearRect(0, 0, 1280, 720);
 
-  // 1. Céu e Neblina do Estádio
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, 180);
-  skyGrad.addColorStop(0, '#0a101a');
-  skyGrad.addColorStop(0.6, '#1a2433');
-  skyGrad.addColorStop(1, '#2c3748');
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, 1280, 200);
+  // 1. Aplica Câmera Dinâmica de Transmissão de Televisão (Broadcast TV Camera)
+  if(window.AFM_REAL_FOOTBALL?.renderer?.applyTvBroadcastCamera){
+    window.AFM_REAL_FOOTBALL.renderer.applyTvBroadcastCamera(ctx, s, proj);
+  }
+
+  // 2. Renderiza Estádio com os 4 Setores (Norte, Sul, Leste, Oeste) e Nível Real de Upgrades
+  if(window.AFM_REAL_FOOTBALL?.renderer?.draw4SectorsStadium){
+    window.AFM_REAL_FOOTBALL.renderer.draw4SectorsStadium(ctx, s, proj);
+  } else {
+    // 1. Céu e Neblina do Estádio
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, 180);
+    skyGrad.addColorStop(0, '#0a101a');
+    skyGrad.addColorStop(0.6, '#1a2433');
+    skyGrad.addColorStop(1, '#2c3748');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, 1280, 200);
 
   // 2. Arquibancada Superior (Fundo)
   const standTop = 100, standBottom = 190;
@@ -13826,6 +16614,7 @@ function drawLiveStadium(ctx, s){
   ctx.lineTo(1280, 120);
   ctx.closePath();
   ctx.fill();
+  }
 
   // 4. Gramado em Perspectiva (Trapezóide)
   ctx.save();
@@ -13973,49 +16762,66 @@ function drawLiveStadium(ctx, s){
     ctx.strokeRect(36, 186, 1208, 348);
   }
 
-  // 6. Traves e Redes em 3D
-  // Gol Esquerdo
-  const gL_top = proj(0, 42), gL_bot = proj(0, 58);
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 3.5;
-  ctx.beginPath();
-  ctx.moveTo(gL_top.x, gL_top.y);
-  ctx.lineTo(gL_top.x - 22, gL_top.y - 18);
-  ctx.lineTo(gL_bot.x - 22, gL_bot.y - 18);
-  ctx.lineTo(gL_bot.x, gL_bot.y);
-  ctx.stroke();
-  // Rede esquerda
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.beginPath();
-  ctx.moveTo(gL_top.x, gL_top.y);
-  ctx.lineTo(gL_top.x - 22, gL_top.y - 18);
-  ctx.lineTo(gL_bot.x - 22, gL_bot.y - 18);
-  ctx.lineTo(gL_bot.x, gL_bot.y);
-  ctx.closePath();
-  ctx.fill();
+  // 6. Traves e Redes em 3D Realistas
+  if(window.AFM_REAL_FOOTBALL?.renderer?.drawRealistic3DGoals){
+    window.AFM_REAL_FOOTBALL.renderer.drawRealistic3DGoals(ctx, proj);
+  } else {
+    // Gol Esquerdo
+    const gL_top = proj(0, 42), gL_bot = proj(0, 58);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(gL_top.x, gL_top.y);
+    ctx.lineTo(gL_top.x - 22, gL_top.y - 18);
+    ctx.lineTo(gL_bot.x - 22, gL_bot.y - 18);
+    ctx.lineTo(gL_bot.x, gL_bot.y);
+    ctx.stroke();
+    // Rede esquerda
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.moveTo(gL_top.x, gL_top.y);
+    ctx.lineTo(gL_top.x - 22, gL_top.y - 18);
+    ctx.lineTo(gL_bot.x - 22, gL_bot.y - 18);
+    ctx.lineTo(gL_bot.x, gL_bot.y);
+    ctx.closePath();
+    ctx.fill();
 
-  // Gol Direito
-  const gR_top = proj(100, 42), gR_bot = proj(100, 58);
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 3.5;
-  ctx.beginPath();
-  ctx.moveTo(gR_top.x, gR_top.y);
-  ctx.lineTo(gR_top.x + 22, gR_top.y - 18);
-  ctx.lineTo(gR_bot.x + 22, gR_bot.y - 18);
-  ctx.lineTo(gR_bot.x, gR_bot.y);
-  ctx.stroke();
-  // Rede direita
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.beginPath();
-  ctx.moveTo(gR_top.x, gR_top.y);
-  ctx.lineTo(gR_top.x + 22, gR_top.y - 18);
-  ctx.lineTo(gR_bot.x + 22, gR_bot.y - 18);
-  ctx.lineTo(gR_bot.x, gR_bot.y);
-  ctx.closePath();
-  ctx.fill();
+    // Gol Direito
+    const gR_top = proj(100, 42), gR_bot = proj(100, 58);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(gR_top.x, gR_top.y);
+    ctx.lineTo(gR_top.x + 22, gR_top.y - 18);
+    ctx.lineTo(gR_bot.x + 22, gR_bot.y - 18);
+    ctx.lineTo(gR_bot.x, gR_bot.y);
+    ctx.stroke();
+    // Rede direita
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.moveTo(gR_top.x, gR_top.y);
+    ctx.lineTo(gR_top.x + 22, gR_top.y - 18);
+    ctx.lineTo(gR_bot.x + 22, gR_bot.y - 18);
+    ctx.lineTo(gR_bot.x, gR_bot.y);
+    ctx.closePath();
+    ctx.fill();
+  }
 
-  // 7. Bancos de Reservas na Linha Inferior
+  // 7. Bancos de Reservas e Cabine do VAR Física na Linha Inferior
   drawDugouts(ctx, s);
+  if(window.AFM_REAL_FOOTBALL?.renderer?.drawPitchsideVarBooth){
+    window.AFM_REAL_FOOTBALL.renderer.drawPitchsideVarBooth(ctx, proj, s);
+  }
+
+  // Bandeirinhas (Linesmen) nas laterais do campo
+  if(s.linesmen && window.AFM_REAL_FOOTBALL?.renderer?.drawRealisticLinesman){
+    s.linesmen.forEach(lm => window.AFM_REAL_FOOTBALL.renderer.drawRealisticLinesman(ctx, lm, proj));
+  }
+
+  // Linha Virtual de Impedimento 3D Calibrada
+  if(window.AFM_REAL_FOOTBALL?.renderer?.draw3DOffsideLine){
+    window.AFM_REAL_FOOTBALL.renderer.draw3DOffsideLine(ctx, s, proj);
+  }
 
   // 8. Desenha Todos os Jogadores e Árbitro Ordenados por Y (profundidade)
   const pitchEntities = [...s.homePlayers, ...s.awayPlayers];
@@ -14047,13 +16853,22 @@ function drawLiveStadium(ctx, s){
     s.particles = s.particles.filter(pt => pt.alpha > 0);
   }
 
-  // 11. Desenha Balões de HQ / Expressões de Gol
+  // 11. Restaura Transformação da Câmera TV antes de desenhar HUD Fixo na Tela
+  if(window.AFM_REAL_FOOTBALL?.renderer?.restoreTvBroadcastCamera){
+    window.AFM_REAL_FOOTBALL.renderer.restoreTvBroadcastCamera(ctx, s);
+  }
+
+  // 12. Desenha Balões de HQ / Expressões de Gol
   drawLiveBalloons(ctx, s);
 
-  // 12. Desenha Overlay do VAR se ativo
-  if(s.varCheck) drawVarOverlay(ctx, s);
+  // 13. Desenha Overlay do VAR de Transmissão se ativo
+  if(window.AFM_REAL_FOOTBALL?.renderer?.drawBroadcastVarOverlay){
+    window.AFM_REAL_FOOTBALL.renderer.drawBroadcastVarOverlay(ctx, s);
+  } else if(s.varCheck){
+    drawVarOverlay(ctx, s);
+  }
 
-  // 13. Iluminação de Holofotes Noturnos se jogo à noite
+  // 14. Iluminação de Holofotes Noturnos se jogo à noite
   if(s.isNight) drawFloodlights(ctx, s);
 }
 
@@ -14234,6 +17049,11 @@ function drawPlayerSprite(ctx, p, hasBall){
   const pt = proj(p.x, p.y);
   const scale = 0.8 + (p.y / 100) * 0.45; // Jogadores na parte inferior são maiores
 
+  if(window.AFM_REAL_FOOTBALL?.renderer?.drawRealistic3DPlayer){
+    window.AFM_REAL_FOOTBALL.renderer.drawRealistic3DPlayer(ctx, p, hasBall, proj, scale);
+    return;
+  }
+
   ctx.save();
   ctx.translate(pt.x, pt.y);
 
@@ -14395,6 +17215,11 @@ function drawRefereeSprite(ctx, ref){
 
 // Desenha a Bola com sombra 3D, rotação e rastro de chute
 function drawBall(ctx, b){
+  if(!b) return;
+  if(window.AFM_REAL_FOOTBALL?.renderer?.drawRealistic3DBall){
+    window.AFM_REAL_FOOTBALL.renderer.drawRealistic3DBall(ctx, b, proj);
+    return;
+  }
   const pt = proj(b.x, b.y);
   const ballAlt = (b.z || 0);
   const ballY = pt.y - ballAlt * 2.2;
@@ -14721,11 +17546,19 @@ function simulateMinute(s, min){
       // Falta no meio-campo com possível cartão amarelo
       if(isHome) s.stats.foulsA++; else s.stats.foulsH++;
       const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*5)+1] || defPlayers[2];
-      if(s.prng() < 0.16 && !defP.yellowCards){
-        defP.yellowCards = 1;
-        if(isHome) s.stats.yellowsA++; else s.stats.yellowsH++;
-        s.events.unshift({ min, type: 'yellow', text: `🟨 Cartão amarelo para ${defP.name} (${defTeam}) por entrada dura no círculo central.` });
-        if(window.afmAudio) window.afmAudio.playSFX('whistle_card');
+      if(s.prng() < 0.16){
+        if(!defP.yellowCards){
+          defP.yellowCards = 1;
+          if(isHome) s.stats.yellowsA++; else s.stats.yellowsH++;
+          s.events.unshift({ min, type: 'yellow', text: `🟨 Cartão amarelo para ${defP.name} (${defTeam}) por entrada dura no círculo central.` });
+          if(window.afmAudio) window.afmAudio.playSFX('whistle_card');
+        } else if(defP.yellowCards === 1 && !defP.redCard){
+          defP.yellowCards = 2;
+          defP.redCard = true;
+          if(isHome){ s.stats.yellowsA++; s.stats.redsA++; } else { s.stats.yellowsH++; s.stats.redsH++; }
+          s.events.unshift({ min, type: 'red', text: `🟥 Segundo cartão amarelo e EXPULSÃO de ${defP.name} (${defTeam})! Deixa seu time com um a menos!` });
+          if(window.afmAudio) window.afmAudio.playSFX('whistle_card');
+        }
       } else {
         s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta marcada de ${defP.name} sobre o meia do ${attTeam}.` });
         if(window.afmAudio) window.afmAudio.playSFX('whistle_foul');
@@ -14808,8 +17641,15 @@ function simulateMinute(s, min){
   updateScoreDisplay();
   updateLiveSidebarEvents();
 
-  // Verificação de Intervalo aos 45 minutos
-  if(min === 45 && s.phase === 'FIRST_HALF'){
+  // Verificação de Intervalo com Acréscimos Realistas
+  const stop1H = s.stoppage1H || 2;
+  if(min === 45 && !s.stoppageBoard1HShown){
+    s.stoppageBoard1HShown = true;
+    s.events.unshift({ min: 45, type: 'referee', text: `🚩 Placa de acréscimos levantada pelo 4º árbitro: +${stop1H} min no 1º tempo!` });
+    toast(`🚩 +${stop1H}' de acréscimos no 1º tempo!`);
+  }
+
+  if(min >= (45 + stop1H) && s.phase === 'FIRST_HALF'){
     s.halftimeTriggered = true;
     s.playing = false;
     transitionMatchPhase('HALF_TIME');
@@ -14818,7 +17658,7 @@ function simulateMinute(s, min){
     } else {
       playWhistleSound();
     }
-    s.events.unshift({ min: 45, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
+    s.events.unshift({ min: 45 + stop1H, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
     updateScoreDisplay();
     updateLiveSidebarEvents();
     renderLiveMatchModal();
@@ -14826,8 +17666,40 @@ function simulateMinute(s, min){
     return;
   }
 
-  // Verificação de Fim de Jogo aos 90 minutos
-  if(min >= 90 && (s.phase === 'SECOND_HALF' || s.phase === 'HALF_TIME')){
+  // Verificação de Final do Tempo Regulamentar com Acréscimos
+  const stop2H = s.stoppage2H || 4;
+  if(min === 90 && !s.stoppageBoard2HShown && (s.phase === 'SECOND_HALF' || s.phase === 'HALF_TIME')){
+    s.stoppageBoard2HShown = true;
+    s.events.unshift({ min: 90, type: 'referee', text: `🚩 Placa de acréscimos levantada pelo 4º árbitro: +${stop2H} min no 2º tempo!` });
+    toast(`🚩 +${stop2H}' de acréscimos no 2º tempo!`);
+  }
+
+  if(min >= (90 + stop2H) && (s.phase === 'SECOND_HALF' || s.phase === 'HALF_TIME')){
+    if(s.isKO && s.hg === s.ag){
+      s.phase = 'EXTRA_TIME_1';
+      s.events.unshift({ min: 90 + stop2H, type: 'whistle', text: `⏱ Fim do tempo regulamentar (${s.hg} x ${s.ag})! O confronto vai para a PRORROGAÇÃO!` });
+      toast('⏱ Prorrogação: 2 tempos de 15 minutos!');
+      updateScoreDisplay();
+      updateLiveSidebarEvents();
+      return;
+    }
+    s.playing = false;
+    transitionMatchPhase('FULL_TIME');
+    finishLiveMatch();
+    return;
+  }
+
+  // Prorrogação 1º Tempo (91' a 105')
+  if(s.phase === 'EXTRA_TIME_1' && min >= 105){
+    s.phase = 'EXTRA_TIME_2';
+    s.events.unshift({ min: 105, type: 'whistle', text: `⏱ Fim do 1º tempo da prorrogação! ${s.home} ${s.hg} x ${s.ag} ${s.away}. Inversão rápida de lados.` });
+    updateScoreDisplay();
+    updateLiveSidebarEvents();
+    return;
+  }
+
+  // Prorrogação 2º Tempo (106' a 120')
+  if(s.phase === 'EXTRA_TIME_2' && min >= 120){
     s.playing = false;
     transitionMatchPhase('FULL_TIME');
     finishLiveMatch();
@@ -15524,12 +18396,28 @@ function bindLiveMatchEvents(){
     toast(s.soundMuted ? 'Áudio da partida desativado' : 'Áudio da partida ativado');
   };
 
+  // Alternar Câmera de Transmissão (TV Dinâmica vs Panorâmica)
+  const btnCam = $('#btnToggleLiveCam');
+  if(btnCam){
+    btnCam.onclick = () => {
+      s.camera = s.camera || { mode: 'tv' };
+      s.camera.mode = s.camera.mode === 'tv' ? 'wide' : 'tv';
+      btnCam.textContent = s.camera.mode === 'tv' ? '🎥 TV Dinâmica' : '🏟️ Panorâmica';
+      toast(s.camera.mode === 'tv' ? '🎥 Câmera de TV Ativada: seguindo o lance e a bola!' : '🏟️ Câmera Panorâmica Ativada: visão ampla do estádio');
+    };
+  }
+
   // Fechar
   const btnClose = $('#btnLiveClose');
   if(btnClose) btnClose.onclick = () => {
+    if(s.done){
+      finalizeMatchRound();
+      return;
+    }
     if(confirm('Deseja realmente sair da transmissão ao vivo e avançar a rodada?')){
       s.timeSec = 5400;
       finishLiveMatch();
+      finalizeMatchRound();
     }
   };
 
@@ -15785,8 +18673,12 @@ function openHalftimeModal(isQuickTactics = false){
   });
 
   function executeHalftimeSub(starterKey, benchKey, targetSlotIndex){
-    if(s.subsLeft <= 0){
-      toast('Você já atingiu o limite de 5 substituições na partida!');
+    const tracker = userIsHome ? s.homeSubs : s.awaySubs;
+    const isHT = (s.phase === 'HALF_TIME');
+    const isET = (s.phase && s.phase.startsWith('EXTRA'));
+    const check = window.AFM_REAL_FOOTBALL ? window.AFM_REAL_FOOTBALL.rules.canSubstitute(tracker, s.minute, isHT, isET) : { allowed: s.subsLeft > 0, remainingSubs: s.subsLeft };
+    if(!check.allowed){
+      toast(check.reason || 'Você já atingiu o limite de substituições ou paradas nesta partida!');
       return;
     }
     const userStarters = (userIsHome ? s.homePlayers : s.awayPlayers);
@@ -15873,7 +18765,15 @@ function openHalftimeModal(isQuickTactics = false){
       }
     }
 
-    s.subsLeft--;
+    newPlayerObj.kit = userIsHome ? s.homeKit : s.awayKit;
+    newPlayerObj.clubName = userIsHome ? s.home : s.away;
+
+    if(window.AFM_REAL_FOOTBALL){
+      window.AFM_REAL_FOOTBALL.rules.recordSubstitution(tracker, s.minute, isHT);
+      s.subsLeft = Math.max(0, check.remainingSubs - 1);
+    } else {
+      s.subsLeft--;
+    }
     s.events.unshift({
       min: s.minute,
       type: 'sub',
@@ -16054,6 +18954,8 @@ function finalizeMatchRound(){
   };
   const winners = s.winners;
   const isKO = s.isKO;
+  const finishingContinentalMatch = Boolean(continentalMatchSession);
+  const finishingCopaMatch = Boolean(copaMatchSession);
   const stateLeagueFixture = finishingStateLeagueMatch ? stateLeagueMatchSession.data.fixtures.find(f=>Number(f.roundIndex)===Number(stateLeagueMatchSession.roundIndex)&&norm(f.home)===norm(stateLeagueMatchSession.fixture[0])&&norm(f.away)===norm(stateLeagueMatchSession.fixture[1])) : null;
   if(finishingStateLeagueMatch && stateLeagueFixture && (stateLeagueFixture.played===true || stateLeagueFixture.result || (state.history||[]).some(h=>h.competitionId===stateLeagueMatchSession.competitionId&&Number(h.season)===Number(state.season)&&((norm(h.h)===norm(userRes.h)&&norm(h.a)===norm(userRes.a))||(norm(h.h)===norm(userRes.a)&&norm(h.a)===norm(userRes.h)))))){
     if(liveCanvasAnimId) cancelAnimationFrame(liveCanvasAnimId);
@@ -16088,6 +18990,30 @@ function finalizeMatchRound(){
       }
       const fixture=(data.fixtures||[]).find(f=>Number(f.roundIndex)===Number(session.roundIndex)&&norm(f.home)===norm(home)&&norm(f.away)===norm(away));
       if(fixture){fixture.result=[s.hg,s.ag];fixture.played=true;}
+      (data.fixtures||[]).forEach(fix => {
+        if(Number(fix.roundIndex) === Number(session.roundIndex) && !fix.played && !fix.result){
+          const [hg, ag] = simulateScore(fix.home, fix.away);
+          fix.result = [hg, ag];
+          fix.played = true;
+          const tH = data.teams.find(t=>norm(t.name)===norm(fix.home));
+          const tA = data.teams.find(t=>norm(t.name)===norm(fix.away));
+          if(tH && tA){
+            tH.j = (Number(tH.j)||0)+1; tA.j = (Number(tA.j)||0)+1;
+            tH.gp = (Number(tH.gp)||0)+hg; tH.gc = (Number(tH.gc)||0)+ag;
+            tA.gp = (Number(tA.gp)||0)+ag; tA.gc = (Number(tA.gc)||0)+hg;
+            tH.sg = tH.gp - tH.gc; tA.sg = tA.gp - tA.gc;
+            if(hg > ag){ tH.v=(Number(tH.v)||0)+1; tH.p=(Number(tH.p)||0)+3; tA.d=(Number(tA.d)||0)+1; }
+            else if(hg < ag){ tA.v=(Number(tA.v)||0)+1; tA.p=(Number(tA.p)||0)+3; tH.d=(Number(tH.d)||0)+1; }
+            else { tH.e=(Number(tH.e)||0)+1; tA.e=(Number(tA.e)||0)+1; tH.p=(Number(tH.p)||0)+1; tA.p=(Number(tA.p)||0)+1; }
+            for(const tm of [tH, tA]){
+              tm.pct = tm.j ? Math.round(tm.p / (tm.j * 3) * 100) : 0;
+              tm.form = Array.isArray(tm.form) ? tm.form : [];
+              tm.form.push(tm === tH ? (hg > ag ? 'V' : hg < ag ? 'D' : 'E') : (ag > hg ? 'V' : ag < hg ? 'D' : 'E'));
+              tm.form = tm.form.slice(-5);
+            }
+          }
+        }
+      });
       addPlayerMatchStats(session.competitionId,state.club,(s.events||[]).filter(event=>event?.type==='gol'));
       state.history=state.history||[];
       state.history.unshift({...userRes,round:session.roundIndex+1,season:Number(state.season),date:fixture?.isoDate||state.date,competitionId:session.competitionId,competitionName:data.name,isHome,won:gf>ga});
@@ -16095,7 +19021,75 @@ function finalizeMatchRound(){
       data.currentRound=Math.max(Number(data.currentRound)||1,session.roundIndex+2);
       state.estadualData[session.competitionId]=data;
     }
+    advanceDateAfterMatch(state);
     restorePrimaryLeagueAfterStateMatch();
+    if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+      window.AFM_LifeAndSharesPro.processRoundTurn(state);
+    }
+  } else if(finishingContinentalMatch){
+    const session = continentalMatchSession;
+    const { tournament, matchId, compName, competitionId } = session;
+    const match = (tournament?.matches || []).find(m => m.id === matchId);
+    if(match){
+      const isHome = norm(match.home) === norm(state.club);
+      const userGoals = isHome ? s.hg : s.ag;
+      const oppGoals = isHome ? s.ag : s.hg;
+      const won = userGoals > oppGoals;
+      window.AFM_TOURNAMENT_ENGINE.recordResult(tournament, match.id, s.hg, s.ag);
+      const events = (s.events || []).filter(e => e?.type === 'gol');
+      addPlayerMatchStats(competitionId, state.club, events);
+      const historyItem = {
+        h: match.home, a: match.away, hg: s.hg, ag: s.ag, events,
+        round: match.round, season: Number(state.season), date: match.date || state.date,
+        competitionId, competitionName: compName, isHome, won
+      };
+      state.history = [historyItem, ...(state.history || [])].slice(0, 100);
+      state.lastMatchSummary = { h: match.home, a: match.away, hg: s.hg, ag: s.ag, isHome, won };
+      state.news = state.news || [];
+      state.news.unshift(`🏆 ${compName}: ${match.home} ${s.hg} x ${s.ag} ${match.away} (Rodada ${match.round}).`);
+
+      // Simula outros jogos da mesma data do torneio
+      const otherDateMatches = (tournament.matches || []).filter(m => m.date === match.date && m.status === 'scheduled' && norm(m.home) !== norm(state.club) && norm(m.away) !== norm(state.club));
+      for(const om of otherDateMatches){
+        const [ohg, oag] = simulateScore(om.home, om.away);
+        window.AFM_TOURNAMENT_ENGINE.recordResult(tournament, om.id, ohg, oag);
+      }
+    }
+    advanceDateAfterMatch(state);
+    restorePrimaryLeagueAfterContinentalMatch();
+    if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+      window.AFM_LifeAndSharesPro.processRoundTurn(state);
+    }
+    if(typeof processFitness === 'function') processFitness();
+    if(typeof processDevelopment === 'function') processDevelopment();
+  } else if(finishingCopaMatch){
+    const session = copaMatchSession;
+    const { fixture, phase, phaseName } = session;
+    const isHome = norm(fixture.home) === norm(state.club);
+    const userGoals = isHome ? s.hg : s.ag;
+    const oppGoals = isHome ? s.ag : s.hg;
+    const winner = s.winner || (s.hg === s.ag ? (Math.random() < 0.5 ? fixture.home : fixture.away) : (s.hg > s.ag ? fixture.home : fixture.away));
+    fixture.score = [s.hg, s.ag];
+    fixture.winner = winner;
+    fixture.played = true;
+    const events = (s.events || []).filter(e => e?.type === 'gol');
+    addPlayerMatchStats('bra-cup', state.club, events);
+    const result = { h: fixture.home, a: fixture.away, hg: s.hg, ag: s.ag, winner, events, round: phase.name, season: Number(state.season), date: state.date, competitionId: 'bra-cup', competitionName: 'Copa do Brasil' };
+    state.history = [result, ...(state.history || [])].slice(0, 100);
+    state.lastMatchSummary = { h: fixture.home, a: fixture.away, hg: s.hg, ag: s.ag, isHome, won: norm(winner) === norm(state.club) };
+    state.news = state.news || [];
+    state.news.unshift(`🏆 Copa do Brasil (${phase.name}): ${fixture.home} ${s.hg} x ${s.ag} ${fixture.away}. ${norm(winner) === norm(state.club) ? 'Classificado.' : 'Eliminado.'}`);
+    if(norm(winner) !== norm(state.club)){
+      const opp = isHome ? fixture.away : fixture.home;
+      registrarEliminacaoMataMata(state, 'Copa do Brasil', phase.name, opp, userGoals, oppGoals);
+    }
+    advanceDateAfterMatch(state);
+    restorePrimaryLeagueAfterCopaMatch();
+    if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+      window.AFM_LifeAndSharesPro.processRoundTurn(state);
+    }
+    if(typeof processFitness === 'function') processFitness();
+    if(typeof processDevelopment === 'function') processDevelopment();
   } else finalizeRound(userRes, winners, isKO);
   save();
   render();
@@ -16174,6 +19168,19 @@ function simulateQuickRound(){
 
   isSimulatingQuickRound = true;
   try {
+    const activeMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
+    if(activeMatch && activeMatch.type === 'estadual' && activeMatch.competitionId && Number.isInteger(activeMatch.roundIndex)){
+      isSimulatingQuickRound = false;
+      return simulateQuickStateLeagueRound(activeMatch.competitionId, activeMatch.roundIndex);
+    }
+    if(activeMatch && activeMatch.type === 'copa' && Number.isInteger(activeMatch.fixtureIndex)){
+      isSimulatingQuickRound = false;
+      return playCopaDoBrasilFixture(activeMatch.fixtureIndex, activeMatch.phaseName || copaCurrentPhase);
+    }
+    if(activeMatch && activeMatch.type === 'continental' && activeMatch.competitionId && activeMatch.matchId){
+      isSimulatingQuickRound = false;
+      return playContinentalFixture(activeMatch.competitionId, activeMatch.matchId);
+    }
     if(state && state.isPreSeason && state.preSeasonDays > 0){
       state.isPreSeason = false;
       state.preSeasonDays = 0;
@@ -17083,7 +20090,7 @@ function advanceSeasonYear(){
     window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens(state);
   }
 
-  closeCustomModal(); save(); render(); return true; } catch(err) { console.error('[AFM advanceSeasonYear Error]', err); try { state.season = (Number(state.season) || 2027) + 1; state.round = 0; state.isPreSeason = true; state.preSeasonDays = 4; state.date = `${state.season}-01-01`; state.seasonPrizeClaimed = null; state.seasonConcluded = false; closeCustomModal(); save(); render(); toast('🚀 Temporada ' + state.season + ' iniciada com sucesso!'); } catch(fallbackErr) { console.error('[AFM Fallback Error]', fallbackErr); } return false; }
+  closeCustomModal(); save(); render(); return true; } catch(err) { console.error('[AFM advanceSeasonYear Error]', err); try { state.season = (Number(state.season) || 2027) + 1; state.round = 0; state.isPreSeason = true; state.preSeasonDays = 4; state.date = `${state.season}-01-01`; state.currentDate = state.date; state.currentDateFormatted = formatDatePtBr(state.date); state.seasonPrizeClaimed = null; state.seasonConcluded = false; closeCustomModal(); save(); render(); toast('🚀 Temporada ' + state.season + ' iniciada com sucesso!'); } catch(fallbackErr) { console.error('[AFM Fallback Error]', fallbackErr); } return false; }
 
 }
 
@@ -17178,10 +20185,11 @@ function openCustomModal(title, bodyHtml, onConfirm, confirmText='Confirmar', sh
   overlay.onclick = (e) => {
     if(e.target === overlay) closeCustomModal();
   };
-  $('#modalCloseXBtn').onclick = closeCustomModal;
-  const cancelBtn = $('#modalCancelAction');
+  const closeX = overlay.querySelector('#modalCloseXBtn') || $('#modalCloseXBtn');
+  if(closeX) closeX.onclick = closeCustomModal;
+  const cancelBtn = overlay.querySelector('#modalCancelAction') || $('#modalCancelAction');
   if(cancelBtn) cancelBtn.onclick = closeCustomModal;
-  const confBtn = $('#modalConfirmAction');
+  const confBtn = overlay.querySelector('#modalConfirmAction') || $('#modalConfirmAction');
   if(confBtn) confBtn.onclick = () => {
     if(onConfirm) onConfirm();
     closeCustomModal();
@@ -17561,6 +20569,7 @@ var _marketUniverseCacheMoves = -1;
 var _marketUniverseCacheClub = '';
 
 function marketUniverse(){
+  if(typeof sanitizeWorldGeneratedPlayers === 'function' && typeof state !== 'undefined') sanitizeWorldGeneratedPlayers(state);
   const movesCount = Object.keys(state.playerMoves||{}).length;
   if(_marketUniverseCache && _marketUniverseCacheRound === (state.round||0) && _marketUniverseCacheMoves === movesCount && _marketUniverseCacheClub === (state.club||'')){
     return _marketUniverseCache;
@@ -17581,7 +20590,7 @@ function marketUniverse(){
     q.clubNorm = clubN;
     q.nameNorm = norm(q.name || '');
     q.searchStr = `${q.nameNorm} ${q.clubNorm}`;
-    q.ovr = playerOverall(q);
+    q.ovr = playerOverall(q); q.overall = q.ovr;
     q.value = q.value != null ? q.value : calcValueMi(q);
     const cObj = clubByName(q.club);
     q.country = q.country || cObj?.country || '';
@@ -18401,6 +21410,31 @@ function openLoanNegotiationModal(key){
   renderLoanNego();
 }
 
+function generateSingleBuyerOffer(p, used = []){
+  const basePrice = Math.round(calcValueMi(p) * 1e6);
+  const ovr = playerOverall(p);
+  const buyerPool = clubs.filter(c => norm(c.name) !== norm(state.club) && !used.some(u => norm(u) === norm(c.name)));
+  if(!buyerPool.length) return null;
+  let eligible = buyerPool;
+  if(ovr >= 80) eligible = buyerPool.filter(c => c.country !== 'Brasil' || ['Flamengo','Palmeiras','Atlético-MG','Corinthians','São Paulo','Cruzeiro','Botafogo'].includes(c.name));
+  if(!eligible.length) eligible = buyerPool;
+  const buyerClub = eligible[Math.floor(Math.random() * eligible.length)]?.name || 'Outro clube';
+  const mult = +(0.88 + (Math.random() * 0.35)).toFixed(2);
+  const price = Math.round(basePrice * mult);
+  const diffPercent = Math.round((mult - 1) * 100);
+  return { buyer: buyerClub, price, diffPercent, roundReceived: state.round || 0 };
+}
+
+function generateSingleLoanOffer(p, used = []){
+  const basePrice = Math.round(calcValueMi(p) * 1e6);
+  const buyerPool = clubs.filter(c => norm(c.name) !== norm(state.club) && !used.some(u => norm(u) === norm(c.name)));
+  if(!buyerPool.length) return null;
+  const buyerClub = buyerPool[Math.floor(Math.random() * buyerPool.length)]?.name || 'Outro clube';
+  const mult = +(0.08 + (Math.random() * 0.06)).toFixed(2);
+  const fee = Math.round(basePrice * mult);
+  return { buyer: buyerClub, fee, roundReceived: state.round || 0 };
+}
+
 function generateBuyerOffers(p){
   const key = playerKey(p);
   const basePrice = Math.round(calcValueMi(p) * 1e6);
@@ -18462,11 +21496,11 @@ function openPlayerTransferModal(key){
 
   state.transferOffers = state.transferOffers || {};
   state.loanOffers = state.loanOffers || {};
-  if(!state.transferOffers[actualKey] || state.transferOffers[actualKey].length === 0){
-    state.transferOffers[actualKey] = generateBuyerOffers(p);
+  if(state.transferListed && state.transferListed.includes(actualKey) && (!state.transferOffers[actualKey] || state.transferOffers[actualKey].length === 0)){
+    state.transferOffers[actualKey] = [];
   }
-  if(!state.loanOffers[actualKey] || state.loanOffers[actualKey].length === 0){
-    state.loanOffers[actualKey] = generateLoanOffers(p);
+  if(state.loanListed && state.loanListed.includes(actualKey) && (!state.loanOffers[actualKey] || state.loanOffers[actualKey].length === 0)){
+    state.loanOffers[actualKey] = [];
   }
 
   const isTransferListed = (state.transferListed || []).includes(actualKey);
@@ -18517,7 +21551,7 @@ function openPlayerTransferModal(key){
       💰 Propostas de Compra Definitiva Recebidas (${buyOffers.length})
     </h3>
     <div class="proposals-container">
-      ${buyOffers.length === 0 ? '<div class="empty">Nenhuma proposta de compra no momento. Mantenha o jogador na lista para receber nas próximas rodadas.</div>' : buyOffers.map((o, oIdx)=>`
+      ${buyOffers.length === 0 ? (isTransferListed ? '<div style="background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.15);border-radius:10px;padding:16px;text-align:center;color:#94a3b8"><div style="font-size:22px;margin-bottom:6px">⏳</div><b style="color:#fff">Atleta listado para venda</b><div style="font-size:12px;margin-top:4px">A diretoria e empresários estão divulgando o jogador no mercado. Propostas oficiais de clubes interessados chegarão no decorrer das rodadas.</div></div>' : '<div class="empty">Nenhuma proposta de compra no momento. Coloque o jogador à venda para atrair o interesse de clubes compradores.</div>') : buyOffers.map((o, oIdx)=>`
         <div class="proposal-item">
           <div class="proposal-club">
             ${clubBadge(o.buyer, 38)}
@@ -18544,7 +21578,7 @@ function openPlayerTransferModal(key){
       🤝 Propostas de Empréstimo por 1 Temporada (${loanOffers.length})
     </h3>
     <div class="proposals-container">
-      ${loanOffers.length === 0 ? '<div class="empty">Nenhuma proposta de empréstimo no momento.</div>' : loanOffers.map((o, oIdx)=>`
+      ${loanOffers.length === 0 ? (isLoanListed ? '<div style="background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.15);border-radius:10px;padding:16px;text-align:center;color:#94a3b8"><div style="font-size:22px;margin-bottom:6px">⏳</div><b style="color:#fff">Atleta listado para empréstimo</b><div style="font-size:12px;margin-top:4px">Clubes interessados enviarão propostas de empréstimo no decorrer das rodadas.</div></div>' : '<div class="empty">Nenhuma proposta de empréstimo no momento. Coloque o jogador na lista para receber propostas.</div>') : loanOffers.map((o, oIdx)=>`
         <div class="proposal-item">
           <div class="proposal-club">
             ${clubBadge(o.buyer, 38)}
@@ -18591,7 +21625,7 @@ function openPlayerTransferModal(key){
       toast(`${p.name} foi retirado da lista de transferências.`);
     } else {
       state.transferListed.push(actualKey);
-      toast(`${p.name} colocado na lista de transferências!`);
+      state.transferOffers = state.transferOffers || {}; state.transferOffers[actualKey] = []; toast(`🏷️ ${p.name} colocado à venda! Propostas chegarão no decorrer das rodadas.`);
     }
     save();
     openPlayerTransferModal(actualKey);
@@ -18605,7 +21639,7 @@ function openPlayerTransferModal(key){
       toast(`${p.name} retirado da lista de empréstimos.`);
     } else {
       state.loanListed.push(actualKey);
-      toast(`${p.name} colocado na lista de empréstimos!`);
+      state.loanOffers = state.loanOffers || {}; state.loanOffers[actualKey] = []; toast(`🤝 ${p.name} colocado na lista de empréstimos! Propostas chegarão no decorrer das rodadas.`);
     }
     save();
     openPlayerTransferModal(actualKey);
@@ -18937,6 +21971,7 @@ function upgradeFacility(key){
   state.news.unshift(`${d.name} foi ampliado para o nível ${f.level}, por ${fmtMoney(cost)}.`);
   save();render();toast(`${d.name}: nível ${f.level} alcançado!`);
 }
+if(typeof window !== 'undefined') window.upgradeFacility = upgradeFacility;
 
 // -------------------------------------------------------------
 // SISTEMA BANCÁRIO & EMPRÉSTIMOS FINANCEIROS DO CLUBE
@@ -19014,7 +22049,10 @@ let activeBankModalTab = 'borrow';
 let selectedLoanAmount = 2500000;
 let selectedLoanInstallments = 12;
 
-function openBankLoansModal(){
+
+function openBankLoansModal(initialTab = null){
+  if(initialTab) activeBankModalTab = initialTab;
+  else if(!activeBankModalTab) activeBankModalTab = 'advances';
   state.bankLoans = Array.isArray(state.bankLoans) ? state.bankLoans : [];
   const creditLimit = bankAvailableCredit();
   if(selectedLoanAmount > creditLimit && creditLimit > 0) selectedLoanAmount = creditLimit;
@@ -19070,6 +22108,7 @@ function openBankLoansModal(){
 
           <!-- Abas de Navegação do Modal -->
           <div style="display:flex;gap:12px;padding:14px 24px 0 24px">
+            <button id="tabBankAdvances" style="padding:10px 18px;border-radius:10px 10px 0 0;font-weight:900;font-size:13px;cursor:pointer;border:none;background:${activeBankModalTab==='advances'?'linear-gradient(135deg,#7c3aed,#4f46e5)':'rgba(255,255,255,0.06)'};color:#fff;display:flex;align-items:center;gap:6px"><span>💳</span> <span>ADIANTAMENTO DE PATROCÍNIOS & TV</span></button>
             <button id="tabBankBorrow" style="padding:10px 20px;border-radius:10px 10px 0 0;font-weight:900;font-size:13px;cursor:pointer;border:none;background:${activeBankModalTab==='borrow'?'linear-gradient(135deg,#10b981,#059669)':'rgba(255,255,255,0.06)'};color:#fff;display:flex;align-items:center;gap:6px">
               <span>💰</span> <span>SOLICITAR NOVO EMPRÉSTIMO</span>
             </button>
@@ -19079,7 +22118,115 @@ function openBankLoansModal(){
           </div>
 
           <!-- Conteúdo da Aba 1: SOLICITAR EMPRÉSTIMO -->
-          ${activeBankModalTab==='borrow' ? `
+          ${activeBankModalTab==='advances' ? `
+            <div style="padding:24px;display:flex;flex-direction:column;gap:18px">
+              <div style="background:rgba(124,58,237,0.12);border:1px solid rgba(139,92,246,0.35);border-radius:14px;padding:16px 20px">
+                <div style="font-size:15px;font-weight:900;color:#c084fc;text-transform:uppercase;display:flex;align-items:center;gap:8px">
+                  <span>💳</span> ADIANTAMENTO DE PATROCÍNIOS & COTAS DE TV
+                </div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:4px;line-height:1.5">
+                  Antecipe até <b>50%</b> ou <b>80%</b> das receitas contratuais do clube à vista no caixa. O valor é abatido proporcionalmente das parcelas futuras.
+                </div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:14px">
+                ${[
+                  {
+                    type: 'tv',
+                    category: '📺 DIREITOS DE TRANSMISSÃO DE TV & STREAMING',
+                    name: state.tvContract1Year?.name || 'Emissora Oficial',
+                    monthly: state.tvContract1Year?.monthly || 0,
+                    totalVal: state.tvContract1Year?.annualTotal || 80000000,
+                    badgeColor: '#c084fc',
+                    advancedAmount: Math.max(0, Number(state.tvContract1Year?.advancedAmount) || (state.tvContract1Year?.advancedTaken ? Math.round((state.tvContract1Year?.annualTotal || 80000000) * 0.45) : 0)),
+                    advancedPaid: Math.max(0, Number(state.tvContract1Year?.advancedPaid) || 0)
+                  },
+                  {
+                    type: 'master',
+                    category: '👕 PATROCINADOR MASTER (PEITO)',
+                    name: state.sponsors?.master?.brand || 'Sem Patrocínio',
+                    monthly: state.sponsors?.master?.monthly || 0,
+                    totalVal: (state.sponsors?.master?.monthly || 0) * 12 * (state.sponsors?.master?.years || 1),
+                    badgeColor: '#a855f7',
+                    advancedAmount: Math.max(0, Number(state.sponsors?.master?.advancedAmount) || 0),
+                    advancedPaid: Math.max(0, Number(state.sponsors?.master?.advancedPaid) || 0)
+                  },
+                  {
+                    type: 'sleeves',
+                    category: '👕 MANGAS DA CAMISA',
+                    name: state.sponsors?.sleeves?.brand || 'Sem Patrocínio',
+                    monthly: state.sponsors?.sleeves?.monthly || 0,
+                    totalVal: (state.sponsors?.sleeves?.monthly || 0) * 12 * (state.sponsors?.sleeves?.years || 1),
+                    badgeColor: '#38bdf8',
+                    advancedAmount: Math.max(0, Number(state.sponsors?.sleeves?.advancedAmount) || 0),
+                    advancedPaid: Math.max(0, Number(state.sponsors?.sleeves?.advancedPaid) || 0)
+                  },
+                  {
+                    type: 'back',
+                    category: '👕 COSTAS / OMOPLATA',
+                    name: state.sponsors?.back?.brand || 'Sem Patrocínio',
+                    monthly: state.sponsors?.back?.monthly || 0,
+                    totalVal: (state.sponsors?.back?.monthly || 0) * 12 * (state.sponsors?.back?.years || 1),
+                    badgeColor: '#34d399',
+                    advancedAmount: Math.max(0, Number(state.sponsors?.back?.advancedAmount) || 0),
+                    advancedPaid: Math.max(0, Number(state.sponsors?.back?.advancedPaid) || 0)
+                  }
+                ].map(c => {
+                  const remAdvance = Math.max(0, c.advancedAmount - c.advancedPaid);
+                  const remToReceive = Math.max(0, c.totalVal - c.advancedAmount);
+                  const pctAbatido = c.totalVal > 0 ? Math.min(100, Math.round((c.advancedPaid / c.totalVal) * 100)) : 0;
+                  const pctAdiantado = c.totalVal > 0 ? Math.min(100 - pctAbatido, Math.round((remAdvance / c.totalVal) * 100)) : 0;
+                  const pctAReceber = Math.max(0, 100 - pctAbatido - pctAdiantado);
+
+                  const max50 = Math.round(c.totalVal * 0.50);
+                  const avail50 = Math.max(0, max50 - c.advancedAmount);
+                  const max80 = Math.round(c.totalVal * 0.80);
+                  const avail80 = Math.max(0, max80 - c.advancedAmount);
+
+                  return `
+                    <div style="background:#161a2e;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px">
+                      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                        <div>
+                          <span class="pill" style="font-size:10px;font-weight:900;background:${c.badgeColor}22;color:${c.badgeColor}">
+                            ${c.category}
+                          </span>
+                          <div style="font-size:16px;font-weight:900;color:#fff;margin-top:4px">${esc(c.name)}</div>
+                        </div>
+                        <div style="text-align:right">
+                          <div style="font-size:11px;color:rgba(255,255,255,0.5)">Valor Total do Contrato:</div>
+                          <div style="font-size:16px;font-weight:900;color:#fbbf24">${fmtMoney(c.totalVal)} (${fmtMoney(c.monthly)}/mês)</div>
+                        </div>
+                      </div>
+
+                      <!-- Barra de Controle do Contrato -->
+                      <div>
+                        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px">
+                          <span style="color:#34d399">✓ Abatido: ${fmtMoney(c.advancedPaid)} (${pctAbatido}%)</span>
+                          <span style="color:#f59e0b">⚡ Adiantado a Abater: ${fmtMoney(remAdvance)} (${pctAdiantado}%)</span>
+                          <span style="color:#38bdf8">⏳ Falta Receber: ${fmtMoney(remToReceive)} (${pctAReceber}%)</span>
+                        </div>
+                        <div style="width:100%;height:10px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;display:flex">
+                          <div style="width:${pctAbatido}%;background:#10b981" title="Abatido"></div>
+                          <div style="width:${pctAdiantado}%;background:#f59e0b" title="Adiantado"></div>
+                          <div style="width:${pctAReceber}%;background:#38bdf8" title="A Receber"></div>
+                        </div>
+                      </div>
+
+                      <!-- Ações de Adiantamento -->
+                      <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,0.06);padding-top:12px">
+                        <button class="btn btnTakeContractAdvance" data-type="${c.type}" data-pct="50" ${avail50 <= 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : 'style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-weight:900;font-size:11px;border:none;padding:8px 14px;border-radius:8px;cursor:pointer"'}>
+                          ${avail50 > 0 ? ('⚡ Pedir Adiantamento (50%) (+' + fmtMoney(avail50) + ')') : '✔ Limite de 50% Atingido'}
+                        </button>
+                        <button class="btn btnTakeContractAdvance" data-type="${c.type}" data-pct="80" ${avail80 <= 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : 'style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-weight:900;font-size:11px;border:none;padding:8px 14px;border-radius:8px;cursor:pointer"'}>
+                          ${avail80 > 0 ? ('🚀 Pedir Adiantamento (80%) (+' + fmtMoney(avail80) + ')') : '✔ Limite de 80% Atingido'}
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          ` : activeBankModalTab==='borrow' ? `
             <div style="padding:24px;display:flex;flex-direction:column;gap:20px">
               
               <!-- Seleção Rápida de Valores -->
@@ -19213,6 +22360,17 @@ function openBankLoansModal(){
     $('#btnCloseBankModal').onclick = () => { overlay.remove(); };
     overlay.onclick = (e) => { if(e.target === overlay.firstElementChild) overlay.remove(); };
 
+    const tabAdvances = $('#tabBankAdvances');
+    if(tabAdvances) tabAdvances.onclick = () => { activeBankModalTab = 'advances'; renderModalContent(); };
+    $$('.btnTakeContractAdvance').forEach(btn => {
+      btn.onclick = () => {
+        const type = btn.dataset.type;
+        const pct = Number(btn.dataset.pct);
+        takeContractAdvance(type, pct);
+        renderModalContent();
+        render();
+      };
+    });
     const tabBorrow = $('#tabBankBorrow');
     if(tabBorrow) tabBorrow.onclick = () => { activeBankModalTab = 'borrow'; renderModalContent(); };
     const tabActive = $('#tabBankActive');
@@ -19324,7 +22482,7 @@ function openBankLoansModal(){
 // RENDERIZAÇÃO PRINCIPAL & PÁGINAS
 // -------------------------------------------------------------
 function triggerAFMSystemEnhancements(){
-  if(!state || typeof document === 'undefined') return;
+  if(!state || typeof document === 'undefined') return; try { window.state = state; window.GameState = state; if(typeof window.AFM_InstantCareerHook === 'function') window.AFM_InstantCareerHook(); if(typeof window.__AFM_RUN_INSTANT_HOOKS === 'function') window.__AFM_RUN_INSTANT_HOOKS(); } catch(e){}
   try {
     if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.syncDateInDOM === 'function'){
       window.AFM_CalendarFix.syncDateInDOM(state);
@@ -19349,11 +22507,14 @@ function triggerAFMSystemEnhancements(){
   }
 }
 
-function render(){
+function render() {
+;/* window.__AFM_STATE_SYNCED */ try { if (typeof state !== 'undefined') { window.state = state; window.GameState = state; } if (typeof render === 'function') { window.render = render; } } catch(e) {}
+
   const app=$('#app');
   const loader = document.getElementById('afmLoadingScreen');
   if(loader) loader.remove();
   if(!state){renderSetup(app);return}
+  try { if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save(); } catch(e){}
   const restoreScroll = app.dataset.renderedView === view;
   const windowScroll = window.scrollY;
   const mainScroll = app.querySelector('.main')?.scrollTop || 0;
@@ -19379,7 +22540,7 @@ function render(){
       if(balEl) balEl.textContent = fmtMoney(state.balance);
 
       // Atualiza data e janela de transferências no topo em tempo real
-      const dateEl = app.querySelector('.top-right span:first-child');
+      const dateEl = document.getElementById('topBarCurrentDate') || app.querySelector('.top-right span:first-child');
       if(dateEl) dateEl.innerHTML = `📅 ${formatDatePtBr(state.date)}`;
       const winBadgeEl = app.querySelector('.window-badge');
       if(winBadgeEl) {
@@ -19444,7 +22605,7 @@ function shell(main){
           <span><b>AFM</b> MANAGER 2027</span>
         </div>
         <div class="top-right">
-          <span>📅 ${formatDatePtBr(state.date)}</span>
+          <span id="topBarCurrentDate">📅 ${formatDatePtBr(state.date)}</span>
           <span class="window-badge ${winInfo.open?'window-open':'window-closed'}">
             ${winInfo.open?'🟢':'🔴'} ${esc(winInfo.text)}
           </span>
@@ -19500,6 +22661,7 @@ function shell(main){
 }
 
 function page(){
+  const activeView = (typeof window !== 'undefined' && typeof window.view === 'string' && window.view) ? window.view : view;
   return ({
     central:centralPage,
     noticias:newsMediaPage,
@@ -19513,7 +22675,7 @@ function page(){
     temporada:seasonPage,
     novidades:changelogPage,
     config:configPage
-  }[view]||centralPage)();
+  }[activeView]||centralPage)();
 }
 
 // -------------------------------------------------------------
@@ -19537,7 +22699,7 @@ function careerPage(){
     </div>
 
     <!-- MODO JOGAR X1 (DUELO TÁTICO POR CÓDIGO) -->
-    <div class="card" style="margin-top:16px;background:linear-gradient(135deg,#130f26,#1e143b);border:1px solid rgba(168,85,247,0.3);padding:18px;">
+    <div class="card" id="afm-x1-card-wrapper" style="margin-top:16px;background:linear-gradient(135deg,#130f26,#1e143b);border:1px solid rgba(168,85,247,0.3);padding:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:24px;">⚔️</span>
@@ -19565,33 +22727,39 @@ function centralPage(){
   if(repairSaveIfCorrupted(state)){
     save();
   }
-  const f = userFixture();
+  const activeMatch = (typeof getActualCurrentMatch === 'function') ? getActualCurrentMatch(state) : null;
+  const f = activeMatch ? activeMatch.fixture : userFixture();
   const oppFallback = state.teams?.find(t => norm(t.name) !== norm(state.club))?.name || (norm(state.club)==='brasilia'?'Gama':'Brasília');
-  const opp = f ? (f[0]===state.club ? f[1] : f[0]) : oppFallback;
-  const isHome = f && f[0]===state.club;
+  const opp = activeMatch ? activeMatch.opponent : (f ? (f[0]===state.club ? f[1] : f[0]) : oppFallback);
+  const isHome = activeMatch ? activeMatch.isHome : (f && f[0]===state.club);
   const comp = curComp();
+  const displayCompId = activeMatch?.competitionId || comp?.id;
+  const displayCompName = activeMatch?.competitionName || comp?.name || 'Campeonato';
+  const displayRoundLabel = activeMatch?.roundLabel || (`Rodada ${state.round + 1}`);
   const our = overallSquad();
   const oppStr = opp ? teamStrengthByName(opp) : 60;
+  const tw = (typeof getTransferWindowState === 'function') ? getTransferWindowState() : { active: false };
   const winInfo = getTransferWindowInfo(state.date);
   const clubObj = clubByName(state.club) || { stadium: 'Ciro Machado do Espírito Santo (Defelê)', competition: 'Campeonato Candango' };
   const rivalry = isRivalryMatch(state.club, opp);
   const weather = getMatchWeather(state.date, state.round);
-  const matchGate = canStartMatch();
-  const matchDate = getDateForRound(state.round, state.season);
+  const matchGate = canStartMatch(f, state);
+  const matchDate = activeMatch ? activeMatch.date : getDateForRound(state.round, state.season);
   const isMatchDay = state.date === matchDate;
   // An exhausted round index also means the primary competition has ended;
   // don't let an empty round array hide a pending fixture from another cup.
-  const primaryScheduleEnded = !f && (!Array.isArray(state.schedule) || state.round >= state.schedule.length || state.schedule.slice(state.round).every(round => !Array.isArray(round) || !round.some(fixture => Array.isArray(fixture) && fixture.some(team => norm(team) === norm(state.club)))));
+  const primaryScheduleEnded = !f && (!Array.isArray(state.schedule) || state.round >= state.schedule.length || state.schedule.slice(state.round).every(round => !Array.isArray(round) || !window.__afmAsRoundArray(round).some(fixture => Array.isArray(fixture) && fixture.some(team => norm(team) === norm(state.club)))));
   const nextPendingFixture = primaryScheduleEnded ? getNextPendingClubFixture(state) : null;
   const finishedPosition = Array.isArray(state.teams) && state.teams.length ? position() : null;
-  const isPrizeEligibleLeague = ['bra-a','bra-b'].includes(comp?.id);
+  const isPrizeEligibleLeague = Boolean(comp?.id && comp?.type !== 'knockout');
   const finishedPrizeEstimate = finishedPosition && isPrizeEligibleLeague ? calculateSeasonPrizeMoney(finishedPosition, comp) : null;
   const nextPendingCupDate = nextPendingFixture?.id === 'bra-cup' ? ensureMidweekDate(nextPendingFixture.date || state.date, state.season) : nextPendingFixture?.date;
   const nextPendingIsToday = Boolean(nextPendingFixture && nextPendingCupDate === state.date);
   const priorCompetitionName = comp?.name || state.competition || 'Campeonato principal';
 
   // Dados da Tabela da Competição Atual em Disputa (Screenshot 1)
-  const activeComp = curComp() || { name: 'Campeonato Atual' };
+  const currentWidgetCompId = (activeMatch?.type === 'estadual' ? activeMatch.competitionId : (activeMatch?.competitionId || curComp()?.id));
+  const activeComp = compById(currentWidgetCompId) || curComp() || { name: 'Campeonato Atual' };
   const isEstadualActive = activeComp.id && activeComp.id.startsWith('bra-est-');
   let compStandings = [];
   if(Array.isArray(state.teams) && state.teams.length > 0){
@@ -19663,6 +22831,70 @@ function centralPage(){
   } else {
     copaCountdownHtml = `<b style="color:#94a3b8">Confronto da fase anterior concluído.</b>`;
   }
+
+  // Dados do Torneio Continental (Libertadores / Sul-Americana) para alternância na Central
+  let contCompId = 'lib';
+  const libTourney = (typeof getContinentalTournament === 'function') ? getContinentalTournament('lib') : null;
+  const sudTourney = (typeof getContinentalTournament === 'function') ? getContinentalTournament('sud') : null;
+  let activeTourney = libTourney;
+  let isUserInTournament = false;
+  let userLibGroup = null;
+
+  if (libTourney?.standings) {
+    for (const [grp, rows] of Object.entries(libTourney.standings)) {
+      if (Array.isArray(rows) && rows.some(r => norm(r.name) === norm(state.club))) {
+        userLibGroup = grp;
+        isUserInTournament = true;
+        activeTourney = libTourney;
+        contCompId = 'lib';
+        break;
+      }
+    }
+  }
+  if (!isUserInTournament && sudTourney?.standings) {
+    for (const [grp, rows] of Object.entries(sudTourney.standings)) {
+      if (Array.isArray(rows) && rows.some(r => norm(r.name) === norm(state.club))) {
+        userLibGroup = grp;
+        isUserInTournament = true;
+        activeTourney = sudTourney;
+        contCompId = 'sud';
+        break;
+      }
+    }
+  }
+  if (!userLibGroup) {
+    userLibGroup = 'A';
+    activeTourney = libTourney;
+    contCompId = 'lib';
+  }
+
+  const continentalCompName = contCompId === 'lib' ? 'COPA LIBERTADORES' : 'COPA SUL-AMERICANA';
+  const continentalGroupStandings = ((activeTourney?.standings?.[userLibGroup] || [])).slice().sort((a,b) => (Number(b.points ?? b.p ?? 0) - Number(a.points ?? a.p ?? 0)) || (((b.gf||0)-(b.ga||0)) - ((a.gf||0)-(a.ga||0))) || ((b.gf||0) - (a.gf||0)));
+
+  const userLibMatches = (activeTourney?.matches || []).filter(m => norm(m.home) === norm(state.club) || norm(m.away) === norm(state.club));
+  let myLibFixture = userLibMatches.find(m => !m.played && !m.score);
+  if (!myLibFixture && userLibMatches.length > 0) myLibFixture = userLibMatches[userLibMatches.length - 1];
+  if (!myLibFixture) {
+    const grpMatches = (activeTourney?.matches || []).filter(m => m.group === userLibGroup);
+    myLibFixture = grpMatches.find(m => !m.played && !m.score) || grpMatches[0] || { home: 'Flamengo', away: 'River Plate', date: '2026-04-01', round: 1 };
+  }
+
+  let libCountdownHtml = '';
+  if (myLibFixture.score) {
+    libCountdownHtml = `<b style="color:#4ade80">PARTIDA FINALIZADA: ${myLibFixture.score[0]} x ${myLibFixture.score[1]}</b>`;
+  } else if (myLibFixture.date === state.date) {
+    libCountdownHtml = `<b style="color:#22c55e">🔥 HOJE É DIA DE JOGO NA LIBERTADORES!</b>`;
+  } else if (myLibFixture.date > state.date) {
+    const d1 = new Date(state.date + 'T12:00:00');
+    const d2 = new Date(myLibFixture.date + 'T12:00:00');
+    const diffD = Math.max(1, Math.round((d2 - d1) / 86400000));
+    libCountdownHtml = `<b style="color:#f59e0b">Faltam ${diffD} ${diffD === 1 ? 'dia' : 'dias'} para a partida.</b>`;
+  } else {
+    libCountdownHtml = `<b style="color:#94a3b8">Confronto agendado: ${formatDatePtBr(myLibFixture.date)}</b>`;
+  }
+
+  const otherLibFixtures = (activeTourney?.matches || []).filter(m => m !== myLibFixture && m.group === userLibGroup).slice(0, 3);
+  const isCentralLibTab = state.centralCupTab === 'libertadores';
 
   const curAvatar = MANAGER_AVATARS[currentManagerAvatarIdx % MANAGER_AVATARS.length];
   const curBoardScore = clamp(Number(state.boardConfidence ?? state.trust?.board ?? 75), 0, 100);
@@ -19790,33 +23022,33 @@ function centralPage(){
           <!-- Topo do Card -->
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <span style="font-size:14px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
-              ${(state.isPreSeason && state.preSeasonDays > 0) ? '🏖️ PRÉ-TEMPORADA EM ANDAMENTO' : !f ? '🏖️ HOJE É FOLGA NA TABELA' : (isMatchDay ? '🔥 HOJE TEM JOGO!' : '📅 PRÓXIMO COMPROMISSO')}
+              ${tw.active ? '🏖️ JANELA DE TRANSFERÊNCIAS EM ANDAMENTO' : !f ? '🏖️ HOJE É FOLGA NA TABELA' : (isMatchDay ? '🔥 HOJE TEM JOGO!' : '📅 PRÓXIMO COMPROMISSO')}
             </span>
             <span class="pill ${winInfo.open?'good':'bad'}" style="font-size:10px;font-weight:900;letter-spacing:0.5px">
               JANELA DE TRANSFERÊNCIAS ${winInfo.open?'ABERTA':'FECHADA'}
             </span>
           </div>
 
-          ${(state.isPreSeason && state.preSeasonDays > 0) ? `
+          ${tw.active ? `
             <!-- BANNER DA JANELA DE PRÉ-TEMPORADA DE 4 DIAS -->
             <div style="background:linear-gradient(135deg,#1f1638 0%,#110e24 100%);border:2px solid #a855f7;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 0 20px rgba(168,85,247,0.3)">
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-                <span class="pill good" style="font-size:11px;font-weight:900;letter-spacing:1px">
-                  🏖️ JANELA DE PRÉ-TEMPORADA · DIA ${5 - state.preSeasonDays} DE 4
+                <span class="pill ${tw.isDeadlineDay ? 'bad' : 'good'}" style="font-size:11px;font-weight:900;letter-spacing:1px">
+                  ${tw.isDeadlineDay ? '🔥 DEADLINE DAY · DIA 4 DE 4' : `🏖️ JANELA DE TRANSFERÊNCIAS · DIA ${tw.day} DE 4`}
                 </span>
                 <span style="font-size:12px;color:#facc15;font-weight:800">
-                  ⏳ Restam ${state.preSeasonDays} ${state.preSeasonDays===1?'dia de janela':'dias de janela'}
+                  ${tw.isDeadlineDay ? `⏰ Horário: ${String(tw.hour).padStart(2,'0')}:00 / 24:00` : `⏳ Restam ${5 - tw.day} dias de janela`}
                 </span>
               </div>
               <h3 style="margin:8px 0 4px 0;font-size:17px;font-weight:900;color:#fff">
-                Período de Reforços & Ajustes do Elenco
+                ${tw.isDeadlineDay ? 'Reta Final da Janela de Transferências!' : 'Período de Reforços & Ajustes do Elenco'}
               </h3>
               <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.7);line-height:1.4">
-                A 1ª rodada oficial começará após o fim da pré-temporada. Aproveite estes 4 dias para comprar, vender e arrumar o time titular do ${esc(state.club)}!
+                ${tw.isDeadlineDay ? 'O mercado fecha à meia-noite! O relógio avança de 6 em 6 horas para você negociar de última hora antes do encerramento.' : 'Aproveite os 4 dias da janela de transferências para comprar, vender e organizar seu elenco para a temporada!'}
               </p>
               <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-                <button class="btn primary" id="btnAdvancePreSeasonDay" style="font-size:12px;font-weight:900;padding:8px 16px;border-radius:8px">
-                  ⏩ Avançar Dia (${state.preSeasonDays} ${state.preSeasonDays===1?'restante':'restantes'})
+                <button class="btn primary" id="${tw.isDeadlineDay ? 'btnAdvanceTransferWindowHours' : 'btnAdvanceTransferWindowDay'}" style="font-size:12px;font-weight:900;padding:9px 18px;border-radius:8px;${tw.isDeadlineDay ? 'background:linear-gradient(135deg,#ef4444,#dc2626);' : ''}cursor:pointer">
+                  ${tw.isDeadlineDay ? `⏩ Avançar 6 Horas (${String(tw.hour).padStart(2,'0')}:00 ➔ ${String(tw.hour + 6).padStart(2,'0')}:00)` : `⏩ Avançar Dia (${tw.day} de 4)`}
                 </button>
                 <button class="btn" id="btnGoToMercadoPreSeason" style="background:#0284c7;color:#fff;border:none;font-weight:800;font-size:12px;padding:8px 14px">
                   🔄 Ir ao Mercado
@@ -19852,11 +23084,11 @@ function centralPage(){
 
           <!-- Banner da Competição -->
           <div style="background:#151226;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:12px">
-            ${typeof window.renderCompetitionLogo === 'function' ? window.renderCompetitionLogo(curComp()?.id, 32) : ''}
+            ${typeof window.renderCompetitionLogo === 'function' ? window.renderCompetitionLogo(displayCompId, 32) : ''}
             <div>
-              <div style="font-size:13px;font-weight:900;color:#fff">${esc(curComp()?.name || 'Campeonato')}</div>
+              <div style="font-size:13px;font-weight:900;color:#fff">${esc(displayCompName)}</div>
               <div style="font-size:11px;color:rgba(255,255,255,0.6)">
-                Rodada ${state.round + 1} · ${isMatchDay ? `Hoje (${formatDatePtBr(state.date)})` : `Data do Jogo: ${formatDatePtBr(matchDate)} (Hoje: ${formatDatePtBr(state.date)})`}
+                ${esc(displayRoundLabel)} · ${isMatchDay ? `Hoje (${formatDatePtBr(state.date)})` : `Data do Jogo: ${formatDatePtBr(matchDate)}`}
               </div>
             </div>
           </div>
@@ -19912,7 +23144,7 @@ function centralPage(){
             <div style="background:#241945;border:1px solid #7c3aed;border-radius:14px;padding:18px 12px;text-align:center">
               ${clubBadge(state.club, 54)}
               <div style="font-size:15px;font-weight:900;color:#fff;margin-top:8px">${esc(state.club)}</div>
-              <div style="font-size:10px;font-weight:800;color:#c084fc;margin-top:2px">SEU CLUBE</div>
+              <div style="font-size:10px;font-weight:800;color:#c084fc;margin-top:2px">SEU CLUBE · ${isHome ? 'MANDANTE' : 'VISITANTE'}</div>
             </div>
 
             <div style="text-align:center;font-size:22px;font-weight:900;color:rgba(255,255,255,0.3)">
@@ -19989,39 +23221,44 @@ function centralPage(){
                 🏆 TEMPORADA ${state.season} CONCLUÍDA — VER CONQUISTAS & VIRAR O ANO 🚀
               </button>
             </div>
-          ` : (state.isPreSeason && state.preSeasonDays > 0) ? `
+          ` : tw.active ? `
             <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
               <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:8px">
-                <button class="btn primary" id="btnAdvancePreSeasonDayCard" style="padding:13px 10px;font-size:13px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;cursor:pointer">
-                  ⏩ AVANÇAR DIA (${state.preSeasonDays} rest.)
+                <button class="btn primary" id="${tw.isDeadlineDay ? 'btnAdvanceTransferWindowHoursCard' : 'btnAdvanceTransferWindowDayCard'}" style="padding:13px 10px;font-size:13px;font-weight:900;letter-spacing:0.5px;background:${tw.isDeadlineDay ? 'linear-gradient(135deg,#ef4444,#dc2626)' : 'linear-gradient(135deg,#7c3aed,#9333ea)'};border:none;border-radius:12px;cursor:pointer">
+                  ${tw.isDeadlineDay ? `⏩ AVANÇAR 6 HORAS (${String(tw.hour).padStart(2,'0')}:00)` : `⏩ AVANÇAR DIA (${tw.day} DE 4)`}
                 </button>
                 <button class="btn" id="btnSkipPreSeasonCard" style="padding:13px 8px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
-                  ⏭️ PULAR P/ ESTREIA
+                  ⏭️ PULAR JANELA
                 </button>
               </div>
               <div style="font-size:11px;color:rgba(255,255,255,0.5);text-align:center">
-                ⚽ A 1ª rodada oficial começará após o fechamento da janela de pré-temporada.
+                ⚽ A temporada oficial continuará assim que a janela de transferências for encerrada.
               </div>
             </div>
           ` : matchGate.status === 'future' ? `
             <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
               <div style="background:rgba(56,189,248,0.12);border:1px solid #38bdf8;border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
-                <span style="font-size:12px;color:#bae6fd;font-weight:700">📅 Próxima Partida em <b>${matchGate.daysDiff} ${matchGate.daysDiff === 1 ? 'dia' : 'dias'}</b></span>
+                <span style="font-size:12px;color:#bae6fd;font-weight:700">📅 Próxima Partida: <b>${esc(displayCompName)}</b></span>
                 <span style="font-size:11px;color:#38bdf8;font-weight:800">${formatDatePtBr(matchDate)}</span>
               </div>
-              <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px">
-                <button class="btn primary" id="btnAdvanceToMatchCentral" style="padding:14px 10px;font-size:13px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #0284c7, #0369a1);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(2,132,199,0.4);cursor:pointer">
-                  ⏩ ATÉ O JOGO (${matchGate.daysDiff}d)
+              <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px">
+                <button class="btn primary" id="playMatchLive" style="padding:14px 10px;font-size:14px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(124,58,237,0.4);cursor:pointer">
+                  ▶ JOGAR AO VIVO
                 </button>
-                <button class="btn" id="btnAdvanceOneDayCentral" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
-                  ➕ +1 DIA
+                <button class="btn" id="playMatchQuick" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
+                  ⚡ SIMULAR
                 </button>
-                <button class="btn" id="btnMatchPreviewCentral" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
+                <button class="btn btnMatchPreviewCentral" id="btnMatchPreviewCentral" data-home="${esc(isHome ? state.club : opp)}" data-away="${esc(isHome ? opp : state.club)}" data-comp="${esc(displayCompName)}" data-date="${esc(matchDate)}" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
                   📋 PRÉVIA
                 </button>
               </div>
-              <div style="font-size:11px;color:rgba(255,255,255,0.5);text-align:center">
-                ⚽ Avance os dias no calendário até a data da rodada para liberar o início da partida.
+              <div style="display:grid;grid-template-columns:${winInfo && winInfo.open ? '2fr 1fr' : '1fr'};gap:8px">
+                <button class="btn" id="btnAdvanceToMatchCentral" style="padding:11px 10px;font-size:12px;font-weight:800;background:rgba(2,132,199,0.15);border:1px solid #0284c7;color:#38bdf8;border-radius:10px;cursor:pointer">
+                  ⏩ AVANÇAR CALENDÁRIO ATÉ O DIA DO JOGO (${formatDatePtBr(matchDate)})
+                </button>
+                ${winInfo && winInfo.open ? `<button class="btn" id="btnAdvanceOneDayCentral" style="padding:11px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;cursor:pointer">
+                  ➕ +1 DIA
+                </button>` : ''}
               </div>
             </div>
           ` : matchGate.status === 'no_fixture' ? `
@@ -20042,7 +23279,7 @@ function centralPage(){
           ` : `
             <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
               <div style="background:rgba(34,197,94,0.15);border:1px solid #22c55e;border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
-                <span style="font-size:12px;color:#86efac;font-weight:900">🔥 HOJE É DIA DE JOGO!</span>
+                <span style="font-size:12px;color:#86efac;font-weight:900">🔥 HOJE É DIA DE JOGO: ${esc(displayCompName).toUpperCase()}!</span>
                 <span style="font-size:11px;color:#22c55e;font-weight:800">${formatDatePtBr(state.date)}</span>
               </div>
               <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px">
@@ -20052,7 +23289,7 @@ function centralPage(){
                 <button class="btn" id="playMatchQuick" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
                   ⚡ SIMULAR
                 </button>
-                <button class="btn" id="btnMatchPreviewCentral" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
+                <button class="btn btnMatchPreviewCentral" id="btnMatchPreviewCentral" data-home="${esc(isHome ? state.club : opp)}" data-away="${esc(isHome ? opp : state.club)}" data-comp="${esc(displayCompName)}" data-date="${esc(state.date)}" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:12px;cursor:pointer">
                   📋 PRÉVIA
                 </button>
               </div>
@@ -20173,40 +23410,157 @@ function centralPage(){
           </div>
         </div>
 
-        <!-- Widget 2: Copa do Brasil -->
-        <div class="card" style="padding:18px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
-          <div style="font-size:13px;font-weight:900;color:#fff;letter-spacing:0.5px">COPA DO BRASIL</div>
-          <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;margin-top:2px">
-            MATA-MATA • ${esc(activeCopaPhaseKey.toUpperCase())}
+        <!-- Widget 2: Copa do Brasil ou Libertadores com Botão de Troca (Screenshot da Central) -->
+        <div class="card" style="padding:18px;background:#100d1e;border:1px solid ${isCentralLibTab ? 'rgba(245,158,11,0.35)' : 'rgba(139,92,246,0.3)'};border-radius:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <div style="font-size:13px;font-weight:900;color:#fff;letter-spacing:0.5px">
+                ${isCentralLibTab ? esc(continentalCompName) : 'COPA DO BRASIL'}
+              </div>
+              <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;margin-top:2px">
+                ${isCentralLibTab ? `FASE DE GRUPOS • GRUPO ${userLibGroup}` : `MATA-MATA • ${esc(activeCopaPhaseKey.toUpperCase())}`}
+              </div>
+            </div>
+
+            <!-- Botões para Alternar entre Copa do Brasil e Libertadores (indicados pelo usuário na screenshot) -->
+            <div style="display:flex;gap:4px;align-items:center;background:#161228;padding:3px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
+              <button class="btn" id="btnCentralTabCopa" title="Ver Copa do Brasil" style="padding:4px 9px;font-size:10px;font-weight:900;border-radius:8px;cursor:pointer;transition:all 0.2s;${!isCentralLibTab ? 'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border:none;box-shadow:0 0 10px rgba(124,58,237,0.5)' : 'background:transparent;color:rgba(255,255,255,0.6);border:none'}">
+                🇧🇷 COPA
+              </button>
+              <button class="btn" id="btnCentralTabLib" title="Ver Copa Libertadores" style="padding:4px 9px;font-size:10px;font-weight:900;border-radius:8px;cursor:pointer;transition:all 0.2s;${isCentralLibTab ? 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border:none;box-shadow:0 0 10px rgba(245,158,11,0.5)' : 'background:transparent;color:rgba(255,255,255,0.6);border:none'}">
+                🏆 LIBERTADORES
+              </button>
+            </div>
           </div>
 
-          <!-- Seu Confronto -->
-          <div style="margin-top:14px;background:#241945;border:1px solid #7c3aed;border-radius:12px;padding:12px">
-            <div style="font-size:10px;font-weight:800;color:#c084fc;letter-spacing:0.5px">${esc(activeCopaPhaseKey.toUpperCase())} • SEU CONFRONTO</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-              <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.home)}</span>
-              <span style="font-size:10px;color:rgba(255,255,255,0.4)">x</span>
-              <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.away)}</span>
-            </div>
-            <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:6px;text-align:center">
-              JOGO ÚNICO • ${esc((myCopaFixture.date || curPhaseObj.dateStr)).toUpperCase()}<br>
-              ${copaCountdownHtml}
-            </div>
-          </div>
-
-          <!-- Outros Confrontos -->
-          <div style="margin-top:14px">
-            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">OUTROS CONFRONTOS (${esc(activeCopaPhaseKey)})</div>
-            <div style="display:flex;flex-direction:column;gap:6px">
-              ${otherCopaFixtures.map(f => `
-                <div style="background:#161324;padding:6px 10px;border-radius:8px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
-                  <span>${esc(f.home)}</span>
-                  <span style="color:rgba(255,255,255,0.4);font-weight:700">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(f.date || curPhaseObj.dateStr)}</span>
-                  <span>${esc(f.away)}</span>
+          ${!isCentralLibTab ? `
+            <!-- CONTEÚDO DA COPA DO BRASIL -->
+            <!-- Seu Confronto -->
+            <div style="margin-top:12px;background:#241945;border:1px solid #7c3aed;border-radius:12px;padding:12px">
+              <div style="font-size:10px;font-weight:800;color:#c084fc;letter-spacing:0.5px">${esc(activeCopaPhaseKey.toUpperCase())} • SEU CONFRONTO</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  ${clubBadge(myCopaFixture.home, 18)}
+                  <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.home)}</span>
                 </div>
-              `).join('')}
+                <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900">x</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.away)}</span>
+                  ${clubBadge(myCopaFixture.away, 18)}
+                </div>
+              </div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:6px;text-align:center">
+                JOGO ÚNICO • ${esc((myCopaFixture.date || curPhaseObj.dateStr)).toUpperCase()}<br>
+                ${copaCountdownHtml}
+              </div>
             </div>
-          </div>
+
+            <!-- Outros Confrontos -->
+            <div style="margin-top:12px">
+              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">OUTROS CONFRONTOS (${esc(activeCopaPhaseKey)})</div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                ${otherCopaFixtures.map(f => `
+                  <div style="background:#161324;padding:6px 10px;border-radius:8px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
+                    <span style="display:flex;align-items:center;gap:5px">${clubBadge(f.home, 14)} <span>${esc(f.home)}</span></span>
+                    <span style="color:rgba(255,255,255,0.4);font-weight:700">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(f.date || curPhaseObj.dateStr)}</span>
+                    <span style="display:flex;align-items:center;gap:5px"><span>${esc(f.away)}</span> ${clubBadge(f.away, 14)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Link para Tabela e Chaveamento Completo da Copa -->
+            <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
+              <button class="btn" id="btnGoToCopaTableFromCentral" style="background:none;border:none;color:#c084fc;font-size:11px;font-weight:800;cursor:pointer">
+                Chaveamento completo da Copa do Brasil &gt;
+              </button>
+            </div>
+          ` : `
+            <!-- CONTEÚDO DA COPA LIBERTADORES -->
+            <!-- Seu Confronto ou Confronto em Destaque -->
+            <div style="margin-top:12px;background:#2b2014;border:1px solid #f59e0b;border-radius:12px;padding:12px">
+              <div style="font-size:10px;font-weight:800;color:#facc15;letter-spacing:0.5px">GRUPO ${userLibGroup} • ${isUserInTournament ? 'SEU CONFRONTO' : 'CONFRONTO EM DESTAQUE'}</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  ${clubBadge(myLibFixture.home, 18)}
+                  <span style="font-size:12px;font-weight:900;color:#fff">${esc(myLibFixture.home)}</span>
+                </div>
+                <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900">x</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:12px;font-weight:900;color:#fff">${esc(myLibFixture.away)}</span>
+                  ${clubBadge(myLibFixture.away, 18)}
+                </div>
+              </div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:6px;text-align:center">
+                RODADA ${myLibFixture.round || 1} • ${esc(formatDatePtBr(myLibFixture.date)).toUpperCase()}<br>
+                ${libCountdownHtml}
+              </div>
+            </div>
+
+            <!-- Tabela de Classificação do Grupo -->
+            <div style="margin-top:12px">
+              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">CLASSIFICAÇÃO • GRUPO ${userLibGroup}</div>
+              <div class="tablewrap" style="max-height:160px">
+                <table style="width:100%;font-size:10px">
+                  <thead>
+                    <tr style="color:rgba(255,255,255,0.4)">
+                      <th>#</th>
+                      <th>CLUBE</th>
+                      <th style="text-align:center">P</th>
+                      <th style="text-align:center">J</th>
+                      <th style="text-align:center">SG</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${continentalGroupStandings.map((t, idx) => {
+                      const pos = idx + 1;
+                      const isMy = norm(t.name) === norm(state.club);
+                      const pts = Number(t.points ?? t.p ?? 0);
+                      const j = Number(t.played ?? t.j ?? 0);
+                      const sg = Number((t.gf ?? 0) - (t.ga ?? 0));
+                      return `
+                        <tr style="${isMy ? 'background:rgba(245,158,11,0.25);font-weight:900;' : ''}font-size:10px">
+                          <td style="font-weight:800;color:${pos <= 2 ? '#4ade80' : '#fff'}">${pos}</td>
+                          <td>
+                            <div style="display:flex;align-items:center;gap:5px">
+                              ${clubBadge(t.name, 14)}
+                              <span style="color:${isMy ? '#facc15' : '#fff'}">${esc(t.name)}</span>
+                            </div>
+                          </td>
+                          <td style="text-align:center;font-weight:900">${pts}</td>
+                          <td style="text-align:center">${j}</td>
+                          <td style="text-align:center">${sg > 0 ? '+' : ''}${sg}</td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Outros Jogos do Grupo -->
+            ${otherLibFixtures.length > 0 ? `
+              <div style="margin-top:10px">
+                <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:6px">OUTROS JOGOS DO GRUPO</div>
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  ${otherLibFixtures.map(f => `
+                    <div style="background:#161324;padding:5px 8px;border-radius:6px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
+                      <span style="display:flex;align-items:center;gap:4px">${clubBadge(f.home, 12)} <span>${esc(f.home)}</span></span>
+                      <span style="color:rgba(255,255,255,0.4);font-weight:700">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(formatDatePtBr(f.date))}</span>
+                      <span style="display:flex;align-items:center;gap:4px"><span>${esc(f.away)}</span> ${clubBadge(f.away, 12)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Link para Tabela Completa da Libertadores -->
+            <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
+              <button class="btn" id="btnGoToLibertadoresTableFromCentral" style="background:none;border:none;color:#facc15;font-size:11px;font-weight:800;cursor:pointer">
+                Tabela completa e grupos da Libertadores &gt;
+              </button>
+            </div>
+          `}
         </div>
 
         <!-- Widget 3: Voz da Torcida (#AFM2027) -->
@@ -20245,22 +23599,37 @@ function getContinentalTournament(competitionId){
   if(!['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc'].includes(competitionId) || !window.AFM_TOURNAMENT_ENGINE) return null;
   state.tournaments = state.tournaments || {};
   const current = state.tournaments[competitionId];
-  if(current?.season === Number(state.season)) return current;
+  if(current?.season === Number(state.season)){
+    if(Array.isArray(current.matches)){
+      current.matches.forEach(m => {
+        if(m.date && typeof ensureMidweekDate === 'function') m.date = ensureMidweekDate(m.date, state.season);
+      });
+    }
+    return current;
+  }
   const priorQualification = state.continentalQualifications?.[Number(state.season)]?.[competitionId];
   // Fixed participants are only a bootstrap template for 2026. Future editions
   // must be backed by the prior season's persisted qualification record.
   if(Number(state.season) !== 2026 && (!priorQualification || priorQualification.status !== 'qualified')) return null;
   let groups = priorQualification?.groups || (Number(state.season) === 2026 ? window.AFM_CONTINENTAL_2026?.groups?.[competitionId] : null) || null;
   if(!groups){
-    const participants = Array.isArray(priorQualification?.participants) ? priorQualification.participants : [];
+    const catalogParticipants = (Array.isArray(state?.competitionTeams?.[competitionId]) && state.competitionTeams[competitionId].length)
+      ? state.competitionTeams[competitionId]
+      : (Array.isArray(window.COMPETITION_TEAMS?.[competitionId]) && window.COMPETITION_TEAMS[competitionId].length)
+        ? window.COMPETITION_TEAMS[competitionId]
+        : (typeof BASE_COMPETITION_TEAMS !== 'undefined' && Array.isArray(BASE_COMPETITION_TEAMS?.[competitionId]))
+          ? BASE_COMPETITION_TEAMS[competitionId]
+          : [];
+    const participants = (Array.isArray(priorQualification?.participants) && priorQualification.participants.length)
+      ? priorQualification.participants
+      : (Number(state.season) === 2026 ? catalogParticipants : []);
     const comp = compById(competitionId);
-    const targetCount = Math.max(1, Number(comp?.teams) || participants.length);
-    if(!participants.length || participants.length !== targetCount || priorQualification?.status !== 'qualified') return null;
+    if(!participants.length || (Number(state.season) !== 2026 && priorQualification?.status !== 'qualified')) return null;
     groups = {};
     if(['ucl','uel','uecl','afc-el'].includes(competitionId)){
       groups.LEAGUE = participants;
     } else {
-      const groupCount = ['cwc','afc2','lib','sud'].includes(competitionId) ? 8 : Math.ceil(participants.length / 4);
+      const groupCount = ['cwc','afc2','lib','sud'].includes(competitionId) ? (competitionId === 'cwc' ? 4 : 8) : Math.ceil(participants.length / 4);
       const groupSize = 4;
       for(let index = 0; index < participants.length; index++){
         const group = String.fromCharCode(65 + (Math.floor(index / groupSize) % groupCount));
@@ -20271,10 +23640,15 @@ function getContinentalTournament(competitionId){
   let fixtures;
   if(['ucl','uel','uecl','afc-el'].includes(competitionId) && Array.isArray(groups.LEAGUE)){
     const configuredRounds = Number(compById(competitionId)?.rounds) || 8;
-    fixtures = window.AFM_TOURNAMENT_ENGINE.roundRobinFixtures({ id:competitionId, season:Number(state.season), teamNames:groups.LEAGUE, startDate:`${state.season}-03-03`, homeAway:false })
+    fixtures = window.AFM_TOURNAMENT_ENGINE.roundRobinFixtures({ id:competitionId, season:Number(state.season), teamNames:groups.LEAGUE, startDate:`${state.season}-03-04`, homeAway:false })
       .filter(fixture => fixture.round <= configuredRounds);
   } else {
-    fixtures = window.AFM_TOURNAMENT_ENGINE.groupFixtures({ id:competitionId, season:Number(state.season), groups, startDate:`${state.season}-03-03` });
+    fixtures = window.AFM_TOURNAMENT_ENGINE.groupFixtures({ id:competitionId, season:Number(state.season), groups, startDate:`${state.season}-03-04` });
+  }
+  if(Array.isArray(fixtures)){
+    fixtures.forEach(f => {
+      if(f.date && typeof ensureMidweekDate === 'function') f.date = ensureMidweekDate(f.date, state.season);
+    });
   }
   state.tournaments[competitionId] = window.AFM_TOURNAMENT_ENGINE.createGroupTournament({
     id: competitionId, season: Number(state.season), groups, fixtures
@@ -20286,7 +23660,12 @@ function playContinentalFixture(competitionId, matchId){
   const tournament = getContinentalTournament(competitionId);
   const match = tournament?.matches.find(item => item.id === matchId);
   if(!match || match.status !== 'scheduled') return;
-  if(match.date !== state.date){ toast('Avance o calendário até a data desta partida.'); return; }
+  const mDate = match.date || ensureMidweekDate(match.date, state.season);
+  if(state.date < mDate){
+    state.date = mDate;
+    state.currentDate = mDate;
+    state.currentDateFormatted = formatDatePtBr(mDate);
+  }
   if(norm(match.home) !== norm(state.club) && norm(match.away) !== norm(state.club)) return;
   const dateFixtures = tournament.matches.filter(item => item.date === match.date && item.status === 'scheduled');
   let userResult = null;
@@ -20296,7 +23675,8 @@ function playContinentalFixture(competitionId, matchId){
     if(norm(fixture.home) === norm(state.club) || norm(fixture.away) === norm(state.club)){
       const events = simulateUserGoalEvents(state.club, norm(fixture.home) === norm(state.club) ? homeGoals : awayGoals);
       addPlayerMatchStats(competitionId, state.club, events);
-      userResult = { h: fixture.home, a: fixture.away, hg: homeGoals, ag: awayGoals, events, round: fixture.round, season: Number(state.season), date: state.date, competitionId, competitionName: competitionId === 'lib' ? 'Copa Libertadores' : 'Copa Sul-Americana' };
+      const compLabel = compById(competitionId)?.name || (competitionId === 'lib' ? 'Copa Libertadores' : competitionId === 'sud' ? 'Copa Sul-Americana' : competitionId);
+      userResult = { h: fixture.home, a: fixture.away, hg: homeGoals, ag: awayGoals, events, round: fixture.round, season: Number(state.season), date: state.date, competitionId, competitionName: compLabel };
     }
   }
   if(userResult){
@@ -20304,7 +23684,14 @@ function playContinentalFixture(competitionId, matchId){
     state.lastMatchSummary = { h:userResult.h, a:userResult.a, hg:userResult.hg, ag:userResult.ag, isHome:norm(userResult.h)===norm(state.club), won:(norm(userResult.h)===norm(state.club)?userResult.hg>userResult.ag:userResult.ag>userResult.hg) };
   }
   state.news = state.news || [];
-  state.news.unshift(`🏆 ${match.competitionId === 'lib' ? 'Libertadores' : 'Sul-Americana'}: rodada ${match.round} concluída; classificação atualizada.`);
+  const compLabel = compById(match.competitionId)?.name || (match.competitionId === 'lib' ? 'Libertadores' : match.competitionId === 'sud' ? 'Sul-Americana' : match.competitionId);
+  state.news.unshift(`🏆 ${compLabel}: rodada ${match.round} concluída; classificação atualizada.`);
+  advanceDateAfterMatch(state);
+  if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+    window.AFM_LifeAndSharesPro.processRoundTurn(state);
+  }
+  if(typeof processFitness === 'function') processFitness();
+  if(typeof processDevelopment === 'function') processDevelopment();
   save();
   toast('Partidas continentais da data simuladas; classificação salva.');
   render();
@@ -20312,10 +23699,13 @@ function playContinentalFixture(competitionId, matchId){
 
 function processContinentalFixturesBefore(date){
   if(!Number.isFinite(Number(state?.season))) return;
+  const userClubNorm = norm(state?.club);
   for(const competitionId of ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc']){
     const tournament = getContinentalTournament(competitionId);
     for(const match of tournament?.matches || []){
       if(match.status !== 'scheduled' || match.date >= date) continue;
+      // NUNCA auto-simular jogos do clube do usuário em segundo plano!
+      if(userClubNorm && (norm(match.home) === userClubNorm || norm(match.away) === userClubNorm)) continue;
       const [homeGoals, awayGoals] = simulateScore(match.home, match.away);
       window.AFM_TOURNAMENT_ENGINE.recordResult(tournament, match.id, homeGoals, awayGoals);
     }
@@ -20343,7 +23733,28 @@ function calendarPage(){
     if(!tournament||Number(tournament.season)!==Number(state.season))continue;
     const participants=new Set(Object.values(tournament.groups||{}).flat().map(calendarClubKey));
     if(!participants.has(calendarClubKey(myClub)))continue;
-    extraMatches.push(...(tournament.matches||[]).filter(f=>participants.has(calendarClubKey(f.home))&&participants.has(calendarClubKey(f.away))&&(calendarClubKey(f.home)===calendarClubKey(myClub)||calendarClubKey(f.away)===calendarClubKey(myClub))).map(f=>({...f,competitionId:id,date:ensureMidweekDate(f.date,state.season),matchId:f.id,result:f.result,isHome:calendarClubKey(f.home)===calendarClubKey(myClub),name:({lib:'Copa Libertadores',sud:'Copa Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'})[id]||id})));
+    extraMatches.push(...(tournament.matches||[]).filter(f=>participants.has(calendarClubKey(f.home))&&participants.has(calendarClubKey(f.away))&&(calendarClubKey(f.home)===calendarClubKey(myClub)||calendarClubKey(f.away)===calendarClubKey(myClub))).map(f=>{
+      const matchDate = ensureMidweekDate(f.date,state.season);
+      const historyMatch = (state.history||[]).find(h => 
+        h.competitionId === id && 
+        Number(h.season) === Number(state.season) && 
+        (Number(h.round) === Number(f.round) || h.date === matchDate || h.date === f.date) && 
+        ((calendarClubKey(h.h) === calendarClubKey(f.home) && calendarClubKey(h.a) === calendarClubKey(f.away)) || 
+         (calendarClubKey(h.h) === calendarClubKey(f.away) && calendarClubKey(h.a) === calendarClubKey(f.home)))
+      );
+      const result = f.result || (historyMatch ? [Number(historyMatch.hg)||0, Number(historyMatch.ag)||0] : null);
+      return {
+        ...f,
+        competitionId: id,
+        round: `Fase de Grupos • Rodada ${f.round}`,
+        date: matchDate,
+        matchId: f.id,
+        result,
+        historyMatch,
+        isHome: calendarClubKey(f.home)===calendarClubKey(myClub),
+        name: ({lib:'Copa Libertadores',sud:'Copa Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'})[id]||id
+      };
+    }));
   }
   const cupLabels={'bra-cup':'🏅 Copa do Brasil',lib:'🏆 Libertadores',sud:'🥈 Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'};
   const cupFilters=Object.keys(cupLabels).filter(id=>extraMatches.some(match=>match.competitionId===id)).map(id=>[id,cupLabels[id]]);
@@ -20358,20 +23769,22 @@ function calendarPage(){
     const fixture=games.find(game=>Array.isArray(game)&&game.some(name=>calendarClubKey(name)===calendarClubKey(myClub)));
     if(!fixture)return [];
     const [home,away]=fixture,isHome=calendarClubKey(home)===calendarClubKey(myClub),date=getDateForRound(rIndex,state.season),opponentKey=calendarClubKey(isHome?away:home);
-    const historyMatch=(state.history||[]).find(h=>Number(h.round)===rIndex+1&&(!h.competitionId||h.competitionId===comp.id)&&(!h.season||Number(h.season)===Number(state.season))&&((calendarClubKey(h.h)===calendarClubKey(myClub)&&calendarClubKey(h.a)===opponentKey)||(calendarClubKey(h.a)===calendarClubKey(myClub)&&calendarClubKey(h.h)===opponentKey)));
+    const historyMatch=(state.history||[]).find(h=>Number(h.round)===rIndex+1&&(!h.competitionId||h.competitionId===comp.id||h.competitionId==='COMP')&&(!h.season||Number(h.season)===Number(state.season))&&((calendarClubKey(h.h)===calendarClubKey(myClub)&&calendarClubKey(h.a)===opponentKey)||(calendarClubKey(h.a)===calendarClubKey(myClub)&&calendarClubKey(h.h)===opponentKey)));
     const groupIndex=comp.id==='bra-d'?Math.floor((window.COMPETITION_TEAMS?.['bra-d']||[]).findIndex(name=>norm(name)===norm(myClub))/24):-1,groupName=groupIndex>=0?String.fromCharCode(65+groupIndex):'';
-    return [{competitionId:'COMP',name:comp.name,home,away,isHome,date,round:comp.id==='bra-d'?`Grupo ${groupName} - Rodada ${rIndex+1}`:`Rodada ${rIndex+1}`,current:rIndex===state.round,past:date<state.date,historyMatch,matchIndex:rIndex}];
+    const result = historyMatch ? (calendarClubKey(historyMatch.h) === calendarClubKey(home) ? [Number(historyMatch.hg)||0, Number(historyMatch.ag)||0] : [Number(historyMatch.ag)||0, Number(historyMatch.hg)||0]) : null;
+    return [{competitionId:'COMP',name:comp.name,home,away,isHome,date,round:comp.id==='bra-d'?`Grupo ${groupName} - Rodada ${rIndex+1}`:`Rodada ${rIndex+1}`,current:rIndex===state.round,past:date<state.date,historyMatch,result,matchIndex:rIndex}];
   })};
   const competitionTabs=[leagueTab];
   if(hasStateMembership && stateCompId !== comp.id){
-    const data=getStateCompData(stateCompId), played=(state.history||[]).filter(h=>h.competitionId===stateCompId&&Number(h.season)===Number(state.season)), playedKeys=new Set(played.map(h=>[calendarClubKey(h.h),calendarClubKey(h.a)].sort().join('|'))), stateMatches=[];
+    const data=getStateCompData(stateCompId), played=(state.history||[]).filter(h=>h.competitionId===stateCompId&&Number(h.season)===Number(state.season)), stateMatches=[];
     (data.fixtures||[]).forEach((row,fixtureIndex)=>{
       if(calendarClubKey(row.home)!==calendarClubKey(myClub)&&calendarClubKey(row.away)!==calendarClubKey(myClub))return;
-      const {home,away}=row,roundIndex=Number(row.roundIndex)||0,isHome=calendarClubKey(home)===calendarClubKey(myClub),key=[calendarClubKey(home),calendarClubKey(away)].sort().join('|');
-      const saved=played.find(h=>(calendarClubKey(h.h)===calendarClubKey(home)&&calendarClubKey(h.a)===calendarClubKey(away))||(calendarClubKey(h.h)===calendarClubKey(away)&&calendarClubKey(h.a)===calendarClubKey(home)));
+      const {home,away}=row,roundIndex=Number(row.roundIndex)||0,isHome=calendarClubKey(home)===calendarClubKey(myClub);
+      const saved=played.find(h=>Number(h.round)===roundIndex+1&&((calendarClubKey(h.h)===calendarClubKey(home)&&calendarClubKey(h.a)===calendarClubKey(away))||(calendarClubKey(h.h)===calendarClubKey(away)&&calendarClubKey(h.a)===calendarClubKey(home))));
       const date=row?.isoDate||getDateForRound(roundIndex,state.season);
-      const historyMatch=saved?{...saved,hg:calendarClubKey(saved.h)===calendarClubKey(home)?saved.hg:saved.ag,ag:calendarClubKey(saved.h)===calendarClubKey(home)?saved.ag:saved.hg}:null;
-      stateMatches.push({competitionId:stateCompId,name:stateComp.name,home,away,isHome,date,round:`Rodada ${roundIndex+1}`,current:date===state.date,past:playedKeys.has(key)||row.played===true||Boolean(row.result),historyMatch,stateFixture:row,matchIndex:roundIndex,fixtureIndex});
+      const historyMatch=saved?{...saved,hg:calendarClubKey(saved.h)===calendarClubKey(home)?saved.hg:saved.ag,ag:calendarClubKey(saved.h)===calendarClubKey(home)?saved.ag:saved.hg}:(row.result?{hg:row.result[0],ag:row.result[1]}:null);
+      const result = (Array.isArray(row.result) && row.result.length >= 2) ? [Number(row.result[0])||0, Number(row.result[1])||0] : (historyMatch ? [Number(historyMatch.hg)||0, Number(historyMatch.ag)||0] : null);
+      stateMatches.push({competitionId:stateCompId,name:stateComp.name,home,away,isHome,date,round:`Rodada ${roundIndex+1}`,current:date===state.date,past:row.played===true||Boolean(row.result)||Boolean(saved),historyMatch,result,stateFixture:row,matchIndex:roundIndex,fixtureIndex});
     });
     competitionTabs.push({id:stateCompId,name:stateComp.name,label:`🏟️ ${stateComp.name}`,matches:stateMatches});
   }
@@ -20385,14 +23798,25 @@ function calendarPage(){
     <div class="filters" style="margin-top:14px"><button type="button" class="btn ${activeCalendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos os Confrontos (${allMatches.length})</button>${competitionTabs.map(tab=>`<button type="button" class="btn ${activeCalendarFilter===tab.id?'primary':''}" data-cal-filter="${tab.id}">${tab.label}</button>`).join('')}<button type="button" class="btn ${activeCalendarFilter==='HOME'?'primary':''}" data-cal-filter="HOME">🏠 Em Casa</button><button type="button" class="btn ${activeCalendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora de Casa</button></div>
     <div class="calendar-view" style="margin-top:10px">${calendarMatches.map(match=>{
       const opponent=match.isHome?match.away:match.home,date=new Date(`${match.date}T12:00:00`),dayNames=['DOM','SEG','TER','QUA','QUI','SEX','SÁB'],dayBadge=dayNames[date.getDay()]||'JOGO',isMidweek=date.getDay()===3,dateFormatted=date.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'});
-      let status='<span class="pill muted">⏳ Agendado</span>';
-      if(match.historyMatch){const h=match.historyMatch,homeGoals=Number(h.hg)||0,awayGoals=Number(h.ag)||0;status=`<span class="pill good">${homeGoals} x ${awayGoals} · Concluído</span>`;}
-      else if(match.competitionId==='COMP'&&match.current)status=`<button class="btn primary btnCalPlayNow" style="padding:4px 10px;font-size:12px">⚽ Jogar</button>`;
-      else if(match.competitionId.startsWith('bra-est-')&&!match.past&&match.date===state.date)status=`<button type="button" class="btn primary btnCalStatePlay" data-state-comp="${match.competitionId}" data-round="${match.matchIndex}" style="padding:4px 10px;font-size:12px">⚽ Jogar Estadual</button>`;
-      else if(match.competitionId==='bra-cup'&&match.result)status=`<span class="pill good">${match.result[0]} x ${match.result[1]} · Concluído</span>`;
-      else if(match.competitionId==='bra-cup'&&match.date===state.date)status=`<button class="btn primary btnCalCopaPlay" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" style="padding:4px 10px;font-size:12px">▶ Jogar Copa do Brasil</button>`;
-      else if(match.matchId&&match.result)status=`<span class="pill good">${match.result[0]} x ${match.result[1]} · Concluído</span>`;
-      else if(match.matchId&&match.date===state.date)status=`<button class="btn primary btnCalTournamentPlay" data-tournament="${esc(match.competitionId)}" data-match="${esc(match.matchId)}" style="padding:4px 10px;font-size:12px">⚽ Jogar</button>`;
+      const resScore = resolveCalendarMatchResult(match, state);
+      const isCompleted = Array.isArray(resScore) && resScore.length >= 2;
+
+      const previewBtn=`<button type="button" class="btn btnCalPreviewNow" data-home="${esc(match.home)}" data-away="${esc(match.away)}" data-comp="${esc(match.name)}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:6px;cursor:pointer" title="Ver Prévia & Histórico do Adversário">📋 Prévia</button>`;
+
+      let status='';
+      if(isCompleted){
+        status=`<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end"><span class="pill good" style="font-size:11px;font-weight:900">${resScore[0]} x ${resScore[1]} · Concluído</span>${previewBtn}</div>`;
+      } else if(match.competitionId==='COMP'){
+        status=`<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end"><button type="button" class="btn primary btnCalPlayNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalSimNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>${previewBtn}</div>`;
+      } else if(match.competitionId.startsWith('bra-est-')){
+        status=`<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end"><button type="button" class="btn primary btnCalStatePlay" data-state-comp="${match.competitionId}" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalStateSim" data-state-comp="${match.competitionId}" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>${previewBtn}</div>`;
+      } else if(match.competitionId==='bra-cup'){
+        status=`<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end"><button type="button" class="btn primary btnCalCopaPlay" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalCopaSim" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>${previewBtn}</div>`;
+      } else if(match.matchId){
+        status=`<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end"><button type="button" class="btn primary btnCalTournamentPlay" data-tournament="${esc(match.competitionId)}" data-match="${esc(match.matchId)}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalTournamentSim" data-tournament="${esc(match.competitionId)}" data-match="${esc(match.matchId)}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>${previewBtn}</div>`;
+      } else {
+        status=`<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end"><button type="button" class="btn primary btnCalPlayNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalSimNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>${previewBtn}</div>`;
+      }
       return `<div class="calendar-card ${match.current?'current':''}"><div><div style="display:flex;align-items:center;gap:6px"><span class="pill" style="font-size:9px;font-weight:900;padding:1px 5px;background:${isMidweek?'rgba(56,189,248,0.25);color:#38bdf8':'rgba(34,197,94,0.25);color:#4ade80'}">${dayBadge}</span><b>${dateFormatted}</b></div><div class="small muted" style="margin-top:2px">${esc(match.round||'')}</div></div><div><span class="pill" style="font-size:11px">${match.isHome?'🏠 EM CASA':'✈️ FORA'}</span></div><div style="display:flex;align-items:center;gap:12px">${clubBadge(opponent,32)}<div><b>vs ${esc(opponent)}</b><div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div></div></div><div><span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(match.name)}</span></div><div style="text-align:right">${status}</div></div>`;
     }).join('')}</div>
   `;
@@ -21052,6 +24476,8 @@ function squadPage(){
   else if(squadFilter === 'DEF') ps = ps.filter(p=>['CB','RB','LB'].includes(p.pos));
   else if(squadFilter === 'MID') ps = ps.filter(p=>['DM','CM','AM'].includes(p.pos));
   else if(squadFilter === 'ATK') ps = ps.filter(p=>['RW','LW','ST','CF'].includes(p.pos));
+  else if(squadFilter === 'TRANSFER') ps = ps.filter(p=>isPlayerTransferListed(p));
+  else if(squadFilter === 'LOAN') ps = ps.filter(p=>isPlayerLoanListed(p));
 
   // O indicador de jogadores caros representa o elenco inteiro e não deve
   // mudar apenas porque o usuário selecionou um filtro de posição.
@@ -21171,6 +24597,8 @@ function squadPage(){
       <button class="btn ${squadFilter==='DEF'?'primary':''}" data-squad-filter="DEF">Defensores</button>
       <button class="btn ${squadFilter==='MID'?'primary':''}" data-squad-filter="MID">Meio-Campo</button>
       <button class="btn ${squadFilter==='ATK'?'primary':''}" data-squad-filter="ATK">Atacantes</button>
+      <button class="btn ${squadFilter==='TRANSFER'?'primary':''}" data-squad-filter="TRANSFER" style="${squadFilter==='TRANSFER'?'background:rgba(249,115,22,0.9);color:#fff;border:none':''}">🏷️ À Venda (${state.squad.filter(p=>isPlayerTransferListed(p)).length})</button>
+      <button class="btn ${squadFilter==='LOAN'?'primary':''}" data-squad-filter="LOAN" style="${squadFilter==='LOAN'?'background:rgba(14,165,233,0.9);color:#fff;border:none':''}">🤝 Empréstimo (${state.squad.filter(p=>isPlayerLoanListed(p)).length})</button>
     </div>
 
     <div class="card" style="margin-top:10px">
@@ -21179,6 +24607,7 @@ function squadPage(){
           <thead>
             <tr>
               <th>Foto</th>
+              <th style="width:42px;text-align:center" title="Número da Camisa">Nº</th>
               <th>Jogador</th>
               <th>Pos</th>
               <th>Idade</th>
@@ -21195,12 +24624,15 @@ function squadPage(){
             ${ps.map(p=>`
               <tr>
                 <td style="width:46px;text-align:center">${playerPhoto(p, 36)}</td>
+                <td style="width:42px;text-align:center"><button class="btn btn-sm btn-subtle" onclick="openSquadShirtNumbersModal('${esc(typeof playerKey === 'function' ? playerKey(p) : p.name)}')" title="Alterar camisa de ${esc(p.name)}" style="padding:2px 7px;font-size:12px;font-weight:900;border-radius:6px;min-width:32px;color:#38bdf8;border:1px solid rgba(56,189,248,0.3)">#${p.number || '-'}</button></td>
                 <td>
                   <b>${esc(p.name)}</b>
                   ${p.injury ? `<span class="pill bad" style="font-size:9px;padding:1px 5px" title="${esc(p.injury)} (${p.injuryMatches} jogos)">🚑 ${p.injuryMatches}j</span>` : ''}
                   ${p.suspended > 0 ? `<span class="pill bad" style="font-size:9px;padding:1px 5px" title="Suspenso por cartões">🟥 ${p.suspended}j</span>` : (p.yellowCards > 0 ? `<span class="pill" style="font-size:9px;padding:1px 5px;background:rgba(234,179,8,0.2);color:#facc15" title="${p.yellowCards} cartão amarelo">🟨 ${p.yellowCards}</span>` : '')}
                   ${(p.morale || 75) >= 90 ? `<span class="pill good" style="font-size:9px;padding:1px 4px" title="Moral em alta">⭐</span>` : ((p.morale || 75) <= 50 ? `<span class="pill bad" style="font-size:9px;padding:1px 4px" title="Moral baixa">⚠️</span>` : '')}
                   ${p.isLoan ? '<span class="pill" style="font-size:10px">Emprestado</span>':''}
+                  ${isPlayerTransferListed(p) ? `<span class="pill open-transfer-modal" data-key="${esc(playerKey(p))}" style="cursor:pointer;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px;background:rgba(249,115,22,0.25);border:1px solid rgba(249,115,22,0.7);color:#fb923c" title="Atleta à venda (clique para gerenciar ofertas ou retirar da lista)">🏷️ À VENDA</span>` : ''}
+                  ${isPlayerLoanListed(p) ? `<span class="pill open-transfer-modal" data-key="${esc(playerKey(p))}" style="cursor:pointer;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px;background:rgba(14,165,233,0.25);border:1px solid rgba(14,165,233,0.7);color:#38bdf8" title="Atleta para empréstimo (clique para gerenciar ofertas ou retirar da lista)">🤝 EMPRÉSTIMO</span>` : ''}
                 </td>
                 <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
                 <td>${p.age||'-'} anos</td>
@@ -21219,7 +24651,7 @@ function squadPage(){
               <div style="display:flex;gap:5px;flex-wrap:wrap">
                 ${p.isLoan ? `<button class="btn btnManageLoanRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">🤝 Negociar c/ detentor</button>` : `
                   <button class="btn btnRenewContractRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">📝 Renovar contrato</button>
-                  <button class="btn open-transfer-modal" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">📄 Propostas</button>
+                  <button class="btn open-transfer-modal ${isPlayerTransferListed(p)?'warn':isPlayerLoanListed(p)?'primary':''}" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">${isPlayerTransferListed(p)?'🏷️ Gerenciar Venda':isPlayerLoanListed(p)?'🤝 Gerenciar Empréstimo':'📄 Propostas / Vender'}</button>
                 `}
               </div>
                 </td>
@@ -21796,7 +25228,7 @@ function renderMarketBuy(){
             const canBuy = windowOpen && canAfford;
             const btnText = !windowOpen ? 'Janela Fechada' : (!canAfford ? 'Sem caixa' : 'Comprar');
             const btnTitle = !windowOpen ? 'Mercado de transferências fechado fora da janela' : (!canAfford ? 'Saldo em caixa insuficiente' : 'Iniciar negociação');
-            const ovr = p.ovr != null ? p.ovr : playerOverall(p);
+            const ovr = playerOverall(p);
             return `
               <tr>
                 <td><b>${esc(p.name)}</b></td>
@@ -21805,7 +25237,12 @@ function renderMarketBuy(){
                 <td><span class="rating-pill ${ratingClass(ovr)}">${ovr}</span></td>
                 <td>${p.age||'-'} anos</td>
                 <td><b class="good">${fmtMi(val)}</b></td>
-                <td><button class="btn primary buy" data-key="${esc(key)}" title="${esc(btnTitle)}" ${!canBuy?'disabled':''}>${btnText}</button></td>
+                <td>
+                  <div style="display:inline-flex;gap:6px;align-items:center;justify-content:flex-end">
+                    <button type="button" class="btn btn-lupa-details" data-key="${esc(key)}" title="Ver atributos e ficha técnica do atleta" style="background:#3b1d7a;color:#fff;border:1px solid #a78bfa;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(124,58,237,0.3);flex-shrink:0;">🔍</button>
+                    <button class="btn primary buy" data-key="${esc(key)}" title="${esc(btnTitle)}" ${!canBuy?'disabled':''}>${btnText}</button>
+                  </div>
+                </td>
               </tr>
             `;
           }).join('')}
@@ -21821,7 +25258,14 @@ function renderMarketBuy(){
       </div>
     </div>
   `;
-  $$('.buy').forEach(b=>b.onclick=()=>buyPlayer(b.dataset.key));
+  el.querySelectorAll('.buy, .primary.buy').forEach(b=>b.onclick=()=>buyPlayer(b.dataset.key));
+  el.querySelectorAll('.btn-lupa-details').forEach(b=>b.onclick=(e)=>{
+    e.stopPropagation();
+    e.preventDefault();
+    if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.openPlayerDetails === 'function'){
+      window.AFM_MarketLupaAndAging.openPlayerDetails(b);
+    }
+  });
   const btnPrev = $('#btnMarketPrevPage');
   if(btnPrev) btnPrev.onclick = () => { if(window.afmMarketPage > 1){ window.afmMarketPage--; renderMarketBuy(); } };
   const btnNext = $('#btnMarketNextPage');
@@ -21964,9 +25408,12 @@ function renderMarketLoans(){
                 <td style="text-align:center">${p.age||22} anos</td>
                 <td style="text-align:right;color:#22c55e;font-weight:800">${fmtMoney(fee)}</td>
                 <td style="text-align:center">
+                  <div style="display:inline-flex;gap:6px;align-items:center;justify-content:center">
+                    <button type="button" class="btn btn-lupa-details" data-key="${esc(key)}" title="Ver atributos e ficha técnica do atleta" style="background:#3b1d7a;color:#fff;border:1px solid #a78bfa;border-radius:8px;padding:5px 9px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(124,58,237,0.3);flex-shrink:0;">🔍</button>
                   <button class="btn success loan-in" data-key="${esc(key)}" title="${esc(btnTitle)}" ${!canLoan?'disabled':''} style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:6px;${!canLoan?'background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);cursor:not-allowed':'background:#16a34a;color:#fff;cursor:pointer'};border:none">
                     ${btnText}
                   </button>
+                  </div>
                 </td>
               </tr>
             `;
@@ -21977,6 +25424,13 @@ function renderMarketLoans(){
   `;
 
   $$('.loan-in').forEach(b => b.onclick = () => loanInPlayer(b.dataset.key));
+  $$('#loanList .btn-lupa-details').forEach(b => b.onclick = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.openPlayerDetails === 'function'){
+      window.AFM_MarketLupaAndAging.openPlayerDetails(b);
+    }
+  });
   } catch(err) {
     recordAFMError('market-loans-render', err);
     console.error('Erro em renderMarketLoans:', err);
@@ -22584,6 +26038,7 @@ function structurePage(){
                   ${k==='academy'?`<button class="btn btnOpenAcademy" style="background:#059669;color:#fff;border:none">🌱 Ver Jogadores da Base</button>`:''}
                   ${k==='marketing'?`<button class="btn btnOpenMarketing" style="background:#0284c7;color:#fff;border:none">📢 Gerenciar Marketing</button>`:''}
                   ${k==='bank'?`<button class="btn btnOpenBank" style="background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;font-weight:900">🏦 Gerenciar Empréstimos</button>`:''}
+                  ${k==='museum'?`<button class="btn btnOpenMuseumFromFacility" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;font-weight:800">🏛️ Abrir Museu do Clube</button>`:''}
                 </div>
               </div>
             </div>
@@ -23069,7 +26524,304 @@ function structurePage(){
 // -------------------------------------------------------------
 // ESCRITÓRIO & PATROCINADORES
 // -------------------------------------------------------------
+function getTvCompanies(baseAnnual){
+  return [
+    {
+      id: 'globo_libra',
+      name: 'Grupo Globo (Bloco LIBRA)',
+      channels: 'TV Globo · SporTV · Premiere · Globoplay',
+      desc: 'Exclusividade multiplataforma (TV Aberta, Fechada, PPV e Streaming) para o bloco Libra.',
+      annualFactor: 1.35,
+      fanBoost: '+10% Alcance Nacional'
+    },
+    {
+      id: 'amazon_lfu',
+      name: 'Amazon Prime Video (Bloco LFU)',
+      channels: 'Amazon Prime Video (Streaming Exclusivo)',
+      desc: 'Transmissão digital exclusiva de 1 grande confronto por rodada dos clubes da LFU.',
+      annualFactor: 1.25,
+      fanBoost: '+12% Receita Digital'
+    },
+    {
+      id: 'record_youtube',
+      name: 'TV Record & YouTube (CazéTV / LFU)',
+      channels: 'TV Record (Aberta) · PlayPlus · YouTube CazéTV',
+      desc: 'Exibição multiplataforma gratuita aberta e no YouTube com grande alcance de torcida jovem.',
+      annualFactor: 1.22,
+      fanBoost: '+18% Engajamento & Patrocínios'
+    },
+    {
+      id: '1190_fanatiz',
+      name: '1190 Sports & Fanatiz (Internacional)',
+      channels: 'Fanatiz & Emissoras Globais (+130 Países)',
+      desc: 'Comercialização internacional do sinal ao vivo para mais de 130 países e parceiros.',
+      annualFactor: 0.88,
+      fanBoost: '+15 Prestígio Internacional'
+    }
+  ];
+}
+
+function takeContractAdvance(type, pct){
+  let targetContract = null;
+  let contractName = '';
+  let totalVal = 0;
+
+  if(type === 'tv'){
+    targetContract = state.tvContract1Year;
+    contractName = targetContract?.name || 'Direitos de Transmissão';
+    totalVal = targetContract?.annualTotal || 80000000;
+  } else if(state.sponsors && state.sponsors[type]){
+    targetContract = state.sponsors[type];
+    contractName = targetContract?.brand || ('Patrocínio ' + type);
+    totalVal = (targetContract?.monthly || 50000) * 12 * (targetContract?.years || 1);
+  }
+
+  if(!targetContract) return;
+
+  const currentAdvanced = Number(targetContract.advancedAmount) || (type === 'tv' && targetContract.advancedTaken ? Math.round(totalVal * 0.45) : 0);
+  const targetMax = Math.round(totalVal * (pct / 100));
+  const availableAdvance = Math.max(0, targetMax - currentAdvanced);
+
+  if(availableAdvance <= 0){
+    toast('Este contrato já atingiu o limite de adiantamento de ' + pct + '%!');
+    return;
+  }
+
+  state.balance += availableAdvance;
+  state.income = (state.income || 0) + availableAdvance;
+  targetContract.advancedAmount = currentAdvanced + availableAdvance;
+  if(type === 'tv'){
+    targetContract.advancedTaken = true;
+    const remToReceive = Math.max(0, totalVal - targetContract.advancedAmount);
+    targetContract.monthly = Math.round(remToReceive / 12);
+  }
+
+  state.news = state.news || [];
+  state.news.unshift('🏦 ADIANTAMENTO BANCÁRIO: O clube antecipou ' + fmtMoney(availableAdvance) + ' (' + pct + '% da cota) referente ao contrato com ' + contractName + '.');
+  save();
+  toast('⚡ Adiantamento de ' + fmtMoney(availableAdvance) + ' creditado à vista no caixa do clube!');
+}
+
+function openTvBreakModal(targetCo){
+  const act = state.tvContract1Year || {};
+  const annualTotal = Number(act.annualTotal) || 80000000;
+  const breakFee30 = Math.round(annualTotal * 0.30);
+  const advancedAmount = Math.max(0, Number(act.advancedAmount) || (act.advancedTaken ? Math.round(annualTotal * 0.45) : 0));
+  const advancedPaid = Math.max(0, Number(act.advancedPaid) || 0);
+  const remainingAdvance = Math.max(0, advancedAmount - advancedPaid);
+  const totalSwitchCost = breakFee30 + remainingAdvance;
+  const canAfford = state.balance >= totalSwitchCost;
+
+  openCustomModal(
+    '⚠️ Termo de Rescisão & Quebra de Contrato de Transmissão',
+    `
+      <div style="background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:12px;padding:16px;margin-bottom:14px">
+        <div style="font-size:14px;font-weight:900;color:#ef4444;text-transform:uppercase">
+          Rescisão Unilateral de Transmissão (Multa de 30% + Devolução de Adiantamento)
+        </div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:6px;line-height:1.4">
+          O seu clube possui contrato ativo com a emissora <b>${esc(act.name)}</b>. A troca para <b>${esc(targetCo.name)}</b> exige o pagamento imediato da multa de quebra contratual (30%) somada à quitação de adiantamentos em aberto.
+        </div>
+      </div>
+
+      <div style="background:#13111c;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;font-size:13px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;justify-content:space-between">
+          <span class="muted">Emissora Atual:</span>
+          <b>${esc(act.name)}</b>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span class="muted">Nova Emissora Selecionada:</span>
+          <b style="color:#a78bfa">${esc(targetCo.name)} (+${fmtMoney(targetCo.monthly)}/mês)</b>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.06);margin:4px 0"></div>
+        <div style="display:flex;justify-content:space-between">
+          <span class="muted">⚖️ Multa de 30% (sobre valor acumulado):</span>
+          <b style="color:#ef4444">${fmtMoney(breakFee30)}</b>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span class="muted">🏦 Quitação do Restante do Adiantamento Não Abatido:</span>
+          <b style="color:#f59e0b">${fmtMoney(remainingAdvance)}</b>
+        </div>
+        <div style="border-top:1px solid rgba(255,255,255,0.06);margin:4px 0"></div>
+        <div style="display:flex;justify-content:space-between;font-size:15px">
+          <span style="font-weight:900;color:#fff">💸 CUSTO TOTAL DE TROCA:</span>
+          <b style="color:#ef4444;font-size:16px">${fmtMoney(totalSwitchCost)}</b>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span class="muted">Saldo Atual em Caixa:</span>
+          <b style="color:${canAfford ? '#22c55e' : '#ef4444'}">${fmtMoney(state.balance)}</b>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span class="muted">Saldo Previsto após Quitação:</span>
+          <b style="color:${canAfford ? 'var(--neon)' : '#ef4444'}">${fmtMoney(state.balance - totalSwitchCost)}</b>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+        <button class="btn" id="btnCancelBreakTv">Manter Atual</button>
+        <button class="btn danger" id="btnConfirmBreakTv" ${canAfford ? '' : 'disabled'} style="font-weight:900;padding:10px 18px">
+          ${canAfford ? ('Pagar ' + fmtMoney(totalSwitchCost) + ' e Trocar de Emissora') : 'Saldo Insuficiente para Rescisão'}
+        </button>
+      </div>
+    `,
+    null,
+    'Fechar',
+    false,
+    '560px'
+  );
+
+  const bCancel = $('#btnCancelBreakTv');
+  if(bCancel) bCancel.onclick = closeCustomModal;
+
+  const bConfirm = $('#btnConfirmBreakTv');
+  if(bConfirm){
+    bConfirm.onclick = () => {
+      if(!canAfford) return;
+      state.balance -= totalSwitchCost;
+      state.expense = (state.expense || 0) + totalSwitchCost;
+      state.tvContract1Year = {
+        id: targetCo.id,
+        name: targetCo.name,
+        annualTotal: targetCo.annualTotal,
+        monthly: targetCo.monthly,
+        channels: targetCo.channels,
+        desc: targetCo.desc,
+        advancedAmount: 0,
+        advancedPaid: 0,
+        advancedTaken: false
+      };
+      state.news = state.news || [];
+      state.news.unshift('📺 RESCISÃO DE TRANSMISSÃO: O ' + state.club + ' pagou ' + fmtMoney(totalSwitchCost) + ' (multa de 30% + quitação de adiantamento) para rescindir com ' + act.name + ' e assinar com a ' + targetCo.name + '!');
+      toast('📺 Nova emissora ' + targetCo.name + ' contratada com sucesso!');
+      closeCustomModal();
+      save();
+      render();
+    };
+  }
+}
+
+function renderTvBroadcastCard(st){
+  if(!st) return '';
+  const ovr = (typeof strength === 'function' && typeof clubByName === 'function') ? (strength(clubByName(st.club)) || 76) : 76;
+  const comp = typeof curComp === 'function' ? curComp() : null;
+  const div = comp?.id === 'bra-a' ? 1 : comp?.id === 'bra-b' ? 2 : 3;
+  const mult = Math.pow(Math.max(55, ovr) / 72, 2.2) * (div === 1 ? 1.0 : div === 2 ? 0.38 : 0.16);
+  const baseAnnual = Math.round(82000000 * mult);
+  const TV_COMPANIES = getTvCompanies(baseAnnual);
+
+  if(!st.tvContract1Year){
+    const def = TV_COMPANIES[0];
+    const tot = Math.round(baseAnnual * def.annualFactor);
+    st.tvContract1Year = {
+      id: def.id,
+      name: def.name,
+      annualTotal: tot,
+      monthly: Math.round(tot / 12),
+      channels: def.channels,
+      desc: def.desc,
+      advancedAmount: 0,
+      advancedPaid: 0,
+      advancedTaken: false
+    };
+  }
+
+  const act = st.tvContract1Year;
+  const annualTotal = Number(act.annualTotal) || Math.round(baseAnnual * 1.25);
+  const advancedAmount = Math.max(0, Number(act.advancedAmount) || (act.advancedTaken ? Math.round(annualTotal * 0.45) : 0));
+  const advancedPaid = Math.max(0, Number(act.advancedPaid) || 0);
+  const remainingToReceive = Math.max(0, annualTotal - advancedAmount);
+  const breakFee30 = Math.round(annualTotal * 0.30);
+
+  const proposals = TV_COMPANIES.filter(co => co.id !== act.id);
+
+  return `
+    <div class="card" id="cardOfficeTvRights" style="margin-top:14px;background:#0d111d;border:1px solid rgba(124,58,237,0.45);border-radius:14px;padding:20px">
+      <!-- TOPO: EMISSORA OFICIAL DO CLUBE (MESMO PADRÃO DOS PATROCINADORES OFICIAIS) -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.08)">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="sponsor-badge" style="background:#7c3aed33;color:#c084fc;font-size:11px;font-weight:900">📺 EMISSORA OFICIAL DO CLUBE</span>
+            <span class="pill" style="background:#10b981;color:#000;font-weight:900;font-size:10px">CONTRATO ANUAL ATIVO</span>
+          </div>
+          <h2 style="margin:8px 0 2px 0;font-size:22px;font-weight:900;color:#fff">${esc(act.name)}</h2>
+          <div style="font-size:12px;color:#38bdf8;font-weight:700">${esc(act.channels || 'Exclusividade Multiplataforma')}</div>
+          <div class="small muted" style="margin-top:4px;max-width:750px">${esc(act.desc || 'Direitos de transmissão exclusivos nas plataformas contratadas.')}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn" id="btnTvOpenBankAdvances" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;color:#fff;font-size:12px;font-weight:800;padding:8px 16px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            <span>💳</span> <span>Pedir Adiantamento no Banco</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 5 MÉTRICAS FINANCEIRAS DO CONTRATO ATIVO -->
+      <div class="grid g5" style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">
+        <div style="background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+          <div class="small muted" style="font-size:11px">💰 Valor Anual Acumulado</div>
+          <b style="color:#fbbf24;font-size:15px;display:block;margin-top:4px">${fmtMoney(annualTotal)}/ano</b>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+          <div class="small muted" style="font-size:11px">📅 Parcela Mensal (1/12)</div>
+          <b style="color:#34d399;font-size:15px;display:block;margin-top:4px">+${fmtMoney(act.monthly)}/mês</b>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+          <div class="small muted" style="font-size:11px">⚡ Quanto Já Pegou Adiantado</div>
+          <b style="color:${advancedAmount > 0 ? '#f59e0b' : '#94a3b8'};font-size:15px;display:block;margin-top:4px">${fmtMoney(advancedAmount)}</b>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+          <div class="small muted" style="font-size:11px">⏳ Quanto Ainda Falta Receber</div>
+          <b style="color:#38bdf8;font-size:15px;display:block;margin-top:4px">${fmtMoney(remainingToReceive)}</b>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:10px;border:1px solid rgba(239,68,68,0.25)">
+          <div class="small muted" style="font-size:11px">⚠️ Multa Rescisória de 30%</div>
+          <b style="color:#ef4444;font-size:15px;display:block;margin-top:4px">${fmtMoney(breakFee30)}</b>
+        </div>
+      </div>
+
+      <!-- ABAIXO: PROPOSTAS DE TRANSMISSÃO RECEBIDAS -->
+      <div style="margin-top:22px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+          <div>
+            <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;display:flex;align-items:center;gap:8px">
+              <span>📡</span> Propostas de Transmissão Recebidas
+            </h3>
+            <div class="small muted" style="margin-top:2px">
+              Demais emissoras e plataformas de streaming interessadas nos direitos de transmissão do clube:
+            </div>
+          </div>
+          <span class="pill" style="background:rgba(255,255,255,0.06);font-size:10px">RESCISÃO COM MULTA DE 30%</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">
+          ${proposals.map(co => {
+            const ann = Math.round(baseAnnual * co.annualFactor);
+            const mon = Math.round(ann / 12);
+            return `
+              <div style="background:#131828;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;display:flex;flex-direction:column;justify-content:space-between">
+                <div>
+                  <div style="font-size:13px;font-weight:900;color:#fff">${esc(co.name)}</div>
+                  <div style="font-size:11px;color:#38bdf8;font-weight:700;margin-top:3px">${esc(co.channels)}</div>
+                  <p style="font-size:11px;color:#94a3b8;line-height:1.4;margin:8px 0">${esc(co.desc)}</p>
+                </div>
+                <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:10px;margin-top:6px">
+                  <div style="font-size:11px;color:#fbbf24;font-weight:800">💰 Valor Anual: ${fmtMoney(ann)}/ano</div>
+                  <div style="font-size:13px;font-weight:900;color:#34d399;margin-top:2px">📅 Parcela Mensal (1/12): +${fmtMoney(mon)}/mês</div>
+                  <div style="font-size:10px;color:#c4b5fd;margin-top:2px">${co.fanBoost} · Adiantamento disponível</div>
+                  <button class="btn btnOpenTvBreakModal" data-tvid="${co.id}" data-name="${esc(co.name)}" data-annual="${ann}" data-monthly="${mon}" data-channels="${esc(co.channels)}" data-desc="${esc(co.desc)}" style="margin-top:10px;width:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;padding:9px;border-radius:8px;font-weight:800;font-size:11px;cursor:pointer">
+                    🔄 Trocar de Emissora
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function officePage(){
+  ensureClubSponsors(state);
   if (!Array.isArray(state.bankLoans)) state.bankLoans = Array.isArray(state.bankLoans?.activeLoans) ? state.bankLoans.activeLoans : [];
   const socioData = getSocioTorcedorMeta();
   const finance = monthlyFinancialProjection(socioData);
@@ -23122,6 +26874,7 @@ function officePage(){
         ${[['Salários do elenco',finance.expenses.payroll],['Salários dos olheiros',finance.expenses.scouts],['Marketing',finance.expenses.marketing],['Parcelas bancárias previstas',finance.expenses.bankRepayments],['Parcelas de obras do estádio',finance.expenses.stadiumRepayments],['Despesa com Dividendos aos Acionistas',(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro?.calculateMonthlyClubDividendExpense ? window.AFM_LifeAndSharesPro.calculateMonthlyClubDividendExpense(state).totalClubDividendExpense : (state.lastMonthDividendExpense || 0))]].map(([label,value])=>`<div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)"><div class="muted">${label}</div><b style="color:#f87171;font-size:15px">${fmtMoney(value)}/mês</b></div>`).join('')}
       </div>
     </div>
+    ${renderTvBroadcastCard(state)}
 
     <div class="card" style="margin-top:14px;padding:16px;border:1px solid rgba(56,189,248,0.2)">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><b>📒 Movimento financeiro da temporada ${state.season}</b><span class="small muted">Contagem desde ${esc(financeStart)}</span></div>
@@ -23208,9 +26961,9 @@ function officePage(){
             Crédito financeiro institucional. Contrate empréstimos parcelados, acompanhe parcelas e antecipe com descontos!
           </div>
         </div>
-        <button class="btn primary" id="btnOpenBankFromOffice" style="background:linear-gradient(135deg,#10b981,#059669);border:none;font-weight:900;padding:10px 18px;display:flex;align-items:center;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="btnOpenBankAdvancesFromOffice" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;color:#fff;font-weight:900;padding:10px 16px;display:flex;align-items:center;gap:8px;cursor:pointer">💳 Adiantar Cotas de TV & Patrocínios</button><button class="btn primary" id="btnOpenBankFromOffice" style="background:linear-gradient(135deg,#10b981,#059669);border:none;font-weight:900;padding:10px 18px;display:flex;align-items:center;gap:8px">
           🏦 Acessar Banco do Clube
-        </button>
+        </button></div>
       </div>
       <div class="grid g3" style="margin-top:14px">
         <div class="revenue-metric-tile">
@@ -23315,6 +27068,190 @@ function officePage(){
 // -------------------------------------------------------------
 // BLOCO CONTINENTAL & PIRÂMIDE NACIONAL 2026 (SUL-AMERICANA, LIBERTADORES, CBF)
 // -------------------------------------------------------------
+function getTournamentGroupTopTeams(compKey){
+  const t = getContinentalTournament(compKey);
+  const groupsData = (window.AFM_CONTINENTAL_2026?.groups?.[compKey]) || {};
+  const groupKeys = Object.keys(groupsData).sort();
+  const res = {};
+  groupKeys.forEach(g => {
+    const standingsRows = t?.standings?.[g];
+    const hasPlayed = Array.isArray(standingsRows) && standingsRows.some(row => (row.played || 0) > 0);
+    if(hasPlayed && standingsRows.length >= 2){
+      res[g] = [standingsRows[0].name, standingsRows[1].name];
+    } else {
+      const defaultTeams = groupsData[g] || [];
+      res[g] = [defaultTeams[0] || `1º Grupo ${g}`, defaultTeams[1] || `2º Grupo ${g}`];
+    }
+  });
+  return res;
+}
+
+function renderLibertadoresKnockoutBracket(){
+  const topTeams = getTournamentGroupTopTeams('lib');
+  const t = getContinentalTournament('lib');
+  const hasFinishedGroups = t && Object.values(t.standings || {}).every(rows => rows.every(r => (r.played || 0) >= 6));
+
+  const oitavasLeft = [
+    { home: topTeams.A?.[0] || '1º Grupo A', away: topTeams.B?.[1] || '2º Grupo B', date: '12/08 e 19/08' },
+    { home: topTeams.C?.[0] || '1º Grupo C', away: topTeams.D?.[1] || '2º Grupo D', date: '12/08 e 19/08' },
+    { home: topTeams.E?.[0] || '1º Grupo E', away: topTeams.F?.[1] || '2º Grupo F', date: '13/08 e 20/08' },
+    { home: topTeams.G?.[0] || '1º Grupo G', away: topTeams.H?.[1] || '2º Grupo H', date: '13/08 e 20/08' }
+  ];
+
+  const oitavasRight = [
+    { home: topTeams.B?.[0] || '1º Grupo B', away: topTeams.A?.[1] || '2º Grupo A', date: '12/08 e 19/08' },
+    { home: topTeams.D?.[0] || '1º Grupo D', away: topTeams.C?.[1] || '2º Grupo C', date: '12/08 e 19/08' },
+    { home: topTeams.F?.[0] || '1º Grupo F', away: topTeams.E?.[1] || '2º Grupo E', date: '13/08 e 20/08' },
+    { home: topTeams.H?.[0] || '1º Grupo H', away: topTeams.G?.[1] || '2º Grupo G', date: '13/08 e 20/08' }
+  ];
+
+  const quartasLeft = [
+    { home: 'Vencedor Oitavas 1', away: 'Vencedor Oitavas 2', date: '16/09 e 23/09' },
+    { home: 'Vencedor Oitavas 3', away: 'Vencedor Oitavas 4', date: '17/09 e 24/09' }
+  ];
+  const quartasRight = [
+    { home: 'Vencedor Oitavas 5', away: 'Vencedor Oitavas 6', date: '16/09 e 23/09' },
+    { home: 'Vencedor Oitavas 7', away: 'Vencedor Oitavas 8', date: '17/09 e 24/09' }
+  ];
+
+  const semiLeft = [
+    { home: 'Vencedor Quartas 1', away: 'Vencedor Quartas 2', date: '21/10 e 28/10' }
+  ];
+  const semiRight = [
+    { home: 'Vencedor Quartas 3', away: 'Vencedor Quartas 4', date: '21/10 e 28/10' }
+  ];
+
+  const finalMatch = {
+    home: 'Finalista Chave A',
+    away: 'Finalista Chave B',
+    date: '28/11/2026 · Jogo Único em Montevidéu (Uruguai)'
+  };
+
+  return renderGenericKnockoutBracket({
+    badge: 'CONMEBOL · MATA-MATA OFICIAL',
+    title: `CHAVEAMENTO LIBERTADORES ${state.season}`,
+    subtitle: hasFinishedGroups ? 'Classificados oficiais da Fase de Grupos' : 'Confrontos definidos pelo regulamento (1ºs × 2ºs colocados)',
+    oitavasLeft,
+    oitavasRight,
+    quartasLeft,
+    quartasRight,
+    semiLeft,
+    semiRight,
+    finalMatch
+  });
+}
+
+function renderSulamericanaKnockoutBracket(){
+  const topTeams = getTournamentGroupTopTeams('sud');
+  const t = getContinentalTournament('sud');
+  const hasFinishedGroups = t && Object.values(t.standings || {}).every(rows => rows.every(r => (r.played || 0) >= 6));
+
+  const oitavasLeft = [
+    { home: topTeams.A?.[0] || '1º Grupo A', away: 'Venc. Playoff 1', date: '13/08 e 20/08' },
+    { home: topTeams.C?.[0] || '1º Grupo C', away: 'Venc. Playoff 2', date: '13/08 e 20/08' },
+    { home: topTeams.E?.[0] || '1º Grupo E', away: 'Venc. Playoff 3', date: '14/08 e 21/08' },
+    { home: topTeams.G?.[0] || '1º Grupo G', away: 'Venc. Playoff 4', date: '14/08 e 21/08' }
+  ];
+
+  const oitavasRight = [
+    { home: topTeams.B?.[0] || '1º Grupo B', away: 'Venc. Playoff 5', date: '13/08 e 20/08' },
+    { home: topTeams.D?.[0] || '1º Grupo D', away: 'Venc. Playoff 6', date: '13/08 e 20/08' },
+    { home: topTeams.F?.[0] || '1º Grupo F', away: 'Venc. Playoff 7', date: '14/08 e 21/08' },
+    { home: topTeams.H?.[0] || '1º Grupo H', away: 'Venc. Playoff 8', date: '14/08 e 21/08' }
+  ];
+
+  const quartasLeft = [
+    { home: 'Vencedor Oitavas 1', away: 'Vencedor Oitavas 2', date: '17/09 e 24/09' },
+    { home: 'Vencedor Oitavas 3', away: 'Vencedor Oitavas 4', date: '18/09 e 25/09' }
+  ];
+  const quartasRight = [
+    { home: 'Vencedor Oitavas 5', away: 'Vencedor Oitavas 6', date: '17/09 e 24/09' },
+    { home: 'Vencedor Oitavas 7', away: 'Vencedor Oitavas 8', date: '18/09 e 25/09' }
+  ];
+
+  const semiLeft = [
+    { home: 'Vencedor Quartas 1', away: 'Vencedor Quartas 2', date: '22/10 e 29/10' }
+  ];
+  const semiRight = [
+    { home: 'Vencedor Quartas 3', away: 'Vencedor Quartas 4', date: '22/10 e 29/10' }
+  ];
+
+  const finalMatch = {
+    home: 'Finalista Chave A',
+    away: 'Finalista Chave B',
+    date: '21/11/2026 · Jogo Único em Assunção (Paraguai)'
+  };
+
+  return renderGenericKnockoutBracket({
+    badge: 'CONMEBOL · SUL-AMERICANA MATA-MATA',
+    title: `CHAVEAMENTO SUL-AMERICANA ${state.season}`,
+    subtitle: hasFinishedGroups ? 'Líderes dos grupos cruzam com classificados dos playoffs' : '8 Líderes dos Grupos × 8 Vencedores dos Playoffs',
+    oitavasLeft,
+    oitavasRight,
+    quartasLeft,
+    quartasRight,
+    semiLeft,
+    semiRight,
+    finalMatch
+  });
+}
+
+function renderMundialKnockoutBracket(){
+  const topTeams = getTournamentGroupTopTeams('cwc');
+  const oitavasLeft = [
+    { home: topTeams.A?.[0] || '1º Grupo A', away: topTeams.B?.[1] || '2º Grupo B', date: '28/06/2026' },
+    { home: topTeams.C?.[0] || '1º Grupo C', away: topTeams.D?.[1] || '2º Grupo D', date: '29/06/2026' },
+    { home: topTeams.E?.[0] || '1º Grupo E', away: topTeams.F?.[1] || '2º Grupo F', date: '30/06/2026' },
+    { home: topTeams.G?.[0] || '1º Grupo G', away: topTeams.H?.[1] || '2º Grupo H', date: '01/07/2026' }
+  ];
+
+  const oitavasRight = [
+    { home: topTeams.B?.[0] || '1º Grupo B', away: topTeams.A?.[1] || '2º Grupo A', date: '28/06/2026' },
+    { home: topTeams.D?.[0] || '1º Grupo D', away: topTeams.C?.[1] || '2º Grupo C', date: '29/06/2026' },
+    { home: topTeams.F?.[0] || '1º Grupo F', away: topTeams.E?.[1] || '2º Grupo E', date: '30/06/2026' },
+    { home: topTeams.H?.[0] || '1º Grupo H', away: topTeams.G?.[1] || '2º Grupo G', date: '01/07/2026' }
+  ];
+
+  const quartasLeft = [
+    { home: 'Vencedor Oitavas 1', away: 'Vencedor Oitavas 2', date: '04/07/2026' },
+    { home: 'Vencedor Oitavas 3', away: 'Vencedor Oitavas 4', date: '05/07/2026' }
+  ];
+  const quartasRight = [
+    { home: 'Vencedor Oitavas 5', away: 'Vencedor Oitavas 6', date: '04/07/2026' },
+    { home: 'Vencedor Oitavas 7', away: 'Vencedor Oitavas 8', date: '05/07/2026' }
+  ];
+
+  const semiLeft = [
+    { home: 'Vencedor Quartas 1', away: 'Vencedor Quartas 2', date: '08/07/2026' }
+  ];
+  const semiRight = [
+    { home: 'Vencedor Quartas 3', away: 'Vencedor Quartas 4', date: '09/07/2026' }
+  ];
+
+  const finalMatch = {
+    home: 'Finalista Chave A',
+    away: 'Finalista Chave B',
+    date: '13/07/2026 · MetLife Stadium (Nova York)'
+  };
+
+  return renderGenericKnockoutBracket({
+    badge: 'FIFA · SUPERMUNDIAL DE CLUBES',
+    title: `CHAVEAMENTO MUNDIAL DE CLUBES FIFA ${state.season}`,
+    subtitle: '32 Clubes · Formato Copa do Mundo FIFA (Mata-Mata em jogo único nos EUA)',
+    oitavasLeft,
+    oitavasRight,
+    quartasLeft,
+    quartasRight,
+    semiLeft,
+    semiRight,
+    finalMatch
+  });
+}
+
+function renderLibertadoresOfficialBracket(){
+  return renderLibertadoresKnockoutBracket();
+}
+
 function renderContinentalGroupStage(competitionId){
   const data = window.AFM_CONTINENTAL_2026;
   const groups = data?.groups?.[competitionId];
@@ -23343,8 +27280,8 @@ function renderContinentalGroupStage(competitionId){
                 `).join('')}</tbody>
               </table>
             </div>
-            ${fixtures.map((round,index) => {
-              const games = round.filter(f => f.group === group);
+            ${[0, 1, 2, 3, 4, 5].map(index => {
+              const allFix = window.__afmAsRoundArray(fixtures); const games = allFix.filter(f => f.group === group && (f.round === (index + 1) || (!f.round && allFix.indexOf(f) % 6 === index)));
               return `<div style="font-size:11px;color:#cbd5e1;padding:5px 0;border-top:1px solid rgba(255,255,255,.06)">
                 <b style="color:#38bdf8">Rodada ${index+1} · ${esc(data.matchdays[index])}</b><br>
                 ${games.map(f => {
@@ -23360,8 +27297,138 @@ function renderContinentalGroupStage(competitionId){
   `;
 }
 
+const LIBERTADORES_PRE_PHASES = {
+  pre1: {
+    title: 'Fase Preliminar 1 — Eliminatórias Iniciais',
+    subtitle: '6 clubes disputam 3 vagas em confrontos de ida e volta',
+    dateLabel: 'Fevereiro 2026',
+    ties: [
+      { home: 'Puerto Cabello', away: 'Defensor Sporting', leg1: '3-2', leg2: '0-1', agg: '3-3 (4-2 pên)', winner: 'Puerto Cabello' },
+      { home: 'Aurora', away: 'Melgar', leg1: '1-0', leg2: '1-1', agg: '2-1', winner: 'Aurora' },
+      { home: 'Aucas', away: 'Nacional', leg1: '1-0', leg2: '0-3', agg: '1-3', winner: 'Nacional' }
+    ]
+  },
+  pre2: {
+    title: 'Fase Preliminar 2 — 16 Clubes em Disputa',
+    subtitle: '16 clubes disputam 8 vagas para a Fase 3 em confrontos de ida e volta',
+    dateLabel: 'Fevereiro / Março 2026',
+    ties: [
+      { home: 'Águilas Doradas', away: 'Red Bull Bragantino', leg1: '0-0', leg2: '0-0', agg: '0-0 (3-4 pên)', winner: 'Red Bull Bragantino' },
+      { home: 'Aurora', away: 'Botafogo', leg1: '1-1', leg2: '0-6', agg: '1-7', winner: 'Botafogo' },
+      { home: 'Godoy Cruz', away: 'Colo-Colo', leg1: '0-1', leg2: '0-0', agg: '0-1', winner: 'Colo-Colo' },
+      { home: 'Sportivo Trinidense', away: 'El Nacional', leg1: '1-1', leg2: '1-0', agg: '2-1', winner: 'Sportivo Trinidense' },
+      { home: 'Portuguesa', away: 'Palestino', leg1: '1-2', leg2: '1-2', agg: '2-4', winner: 'Palestino' },
+      { home: 'Always Ready', away: 'Sporting Cristal', leg1: '6-1', leg2: '1-3', agg: '7-4', winner: 'Always Ready' },
+      { home: 'Nacional', away: 'Atlético Nacional', leg1: '1-0', leg2: '3-0', agg: '4-0', winner: 'Nacional' },
+      { home: 'Puerto Cabello', away: 'Nacional', leg1: '0-2', leg2: '0-2', agg: '0-4', winner: 'Nacional' }
+    ]
+  },
+  pre3: {
+    title: 'Fase Preliminar 3 — Decisão das Vagas para os Grupos',
+    subtitle: '8 clubes disputam 4 vagas na Fase de Grupos da Libertadores (Perdedores vão para a Sul-Americana)',
+    dateLabel: 'Março 2026',
+    ties: [
+      { home: 'Botafogo', away: 'Red Bull Bragantino', leg1: '2-1', leg2: '1-1', agg: '3-2', winner: 'Botafogo', dest: 'Vaga no Grupo D da Libertadores' },
+      { home: 'Nacional', away: 'Palestino', leg1: '0-2', leg2: '3-1', agg: '3-3 (1-3 pên)', winner: 'Palestino', dest: 'Vaga no Grupo E da Libertadores' },
+      { home: 'Always Ready', away: 'Nacional', leg1: '1-0', leg2: '1-2', agg: '2-2 (4-5 pên)', winner: 'Nacional', dest: 'Vaga no Grupo H da Libertadores' },
+      { home: 'Sportivo Trinidense', away: 'Colo-Colo', leg1: '1-1', leg2: '1-2', agg: '2-3', winner: 'Colo-Colo', dest: 'Vaga no Grupo A da Libertadores' }
+    ]
+  }
+};
+
+const SUDAMERICANA_PRE_PHASES = {
+  preliminar: {
+    title: 'Fase Preliminar Nacional (Jogo Único)',
+    subtitle: '32 clubes de oito países disputam 16 vagas diretas para a Fase de Grupos da Sul-Americana',
+    dateLabel: 'Março 2026',
+    ties: [
+      { home: 'Deportes Tolima', away: 'Independiente Medellín', score: '0-0 (2-4 pên)', winner: 'Independiente Medellín' },
+      { home: 'Alianza FC', away: 'América de Cali', score: '2-1', winner: 'Alianza FC' },
+      { home: 'Universidad Católica', away: 'Técnico Universitario', score: '3-0', winner: 'Universidad Católica' },
+      { home: 'Deportivo Cuenca', away: 'Delfín', score: '2-5', winner: 'Delfín' },
+      { home: 'Guabirá', away: 'Oriente Petrolero', score: '0-1', winner: 'Oriente Petrolero' },
+      { home: 'Jorge Wilstermann', away: 'Real Tomayapo', score: '0-0 (3-4 pên)', winner: 'Real Tomayapo' },
+      { home: 'Everton', away: 'Unión La Calera', score: '0-1', winner: 'Unión La Calera' },
+      { home: 'Universidad Católica', away: 'Coquimbo Unido', score: '0-2', winner: 'Coquimbo Unido' },
+      { home: 'Guaraní', away: 'Sportivo Luqueño', score: '0-1', winner: 'Sportivo Luqueño' },
+      { home: 'Sportivo Ameliano', away: 'Olimpia', score: '2-0', winner: 'Sportivo Ameliano' },
+      { home: 'Deportivo Garcilaso', away: 'ADT', score: '0-0 (4-3 pên)', winner: 'Deportivo Garcilaso' },
+      { home: 'Universidad César Vallejo', away: 'Sport Huancayo', score: '2-0', winner: 'Universidad César Vallejo' },
+      { home: 'Montevideo Wanderers', away: 'Danubio', score: '0-1', winner: 'Danubio' },
+      { home: 'Racing de Montevideo', away: 'Cerro Largo', score: '2-0', winner: 'Racing de Montevideo' },
+      { home: 'Carabobo', away: 'Metropolitanos', score: '1-1 (4-5 pên)', winner: 'Metropolitanos' },
+      { home: 'Rayo Zuliano', away: 'Deportivo La Guaira', score: '0-0 (4-2 pên)', winner: 'Rayo Zuliano' }
+    ]
+  },
+  playoffs: {
+    title: 'Playoffs de Oitavas (16-avos de Final • Ida e Volta)',
+    subtitle: '8 segundos dos grupos da Sul-Americana enfrentam 8 terceiros da Libertadores',
+    dateLabel: 'Julho 2026',
+    ties: [
+      { home: 'Independiente del Valle', away: 'Boca Juniors', leg1: '0-0', leg2: '0-1', agg: '0-1', winner: 'Boca Juniors' },
+      { home: 'Barcelona SC', away: 'Red Bull Bragantino', leg1: '1-1', leg2: '1-2', agg: '2-3', winner: 'Red Bull Bragantino' },
+      { home: 'Cerro Porteño', away: 'Athletico Paranaense', leg1: '1-1', leg2: '1-2', agg: '2-3', winner: 'Athletico Paranaense' },
+      { home: 'Palestino', away: 'Cuiabá', leg1: '1-1', leg2: '2-1', agg: '3-2', winner: 'Palestino' },
+      { home: 'Libertad', away: 'Universidad Católica', leg1: '2-0', leg2: '1-1', agg: '3-1', winner: 'Libertad' },
+      { home: 'Huachipato', away: 'Grêmio', leg1: '2-3', leg2: '1-0', agg: '3-3 (3-0 pên)', winner: 'Huachipato' },
+      { home: 'Rosario Central', away: 'Internacional', leg1: '1-0', leg2: '1-1', agg: '2-1', winner: 'Rosario Central' },
+      { home: 'LDU Quito', away: 'Always Ready', leg1: '3-0', leg2: '1-3', agg: '4-3', winner: 'LDU Quito' }
+    ]
+  }
+};
+
+function renderContinentalPrePhase(competitionId, phaseKey){
+  const phaseData = competitionId === 'lib' ? LIBERTADORES_PRE_PHASES[phaseKey] : SUDAMERICANA_PRE_PHASES[phaseKey];
+  if(!phaseData) return '<div class="empty">Informações da fase não encontradas.</div>';
+  const ties = phaseData.ties || [];
+  return `
+    <div style="background:#101827;border:1px solid rgba(56,189,248,.3);border-radius:14px;padding:20px;margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div>
+          <h3 style="margin:0;font-size:18px;font-weight:900;color:#38bdf8">${esc(phaseData.title)}</h3>
+          <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px">${esc(phaseData.subtitle)}</div>
+        </div>
+        <span class="pill" style="background:#0284c7;color:#fff;font-weight:800;font-size:11px">${esc(phaseData.dateLabel)}</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(290px, 1fr));gap:12px;margin-top:16px">
+        ${ties.map((t, idx) => {
+          const isUserMatch = norm(t.home) === norm(state.club) || norm(t.away) === norm(state.club);
+          const scoreDisplay = t.agg ? `${t.agg}` : (t.score || '- × -');
+          const details = t.leg1 ? `Ida: <b>${t.leg1}</b> • Volta: <b>${t.leg2}</b>` : 'Jogo Único';
+          return `
+            <div style="background:${isUserMatch ? 'rgba(124,58,237,0.25)' : '#161324'};border:1px solid ${isUserMatch ? '#a855f7' : 'rgba(255,255,255,0.08)'};border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:rgba(255,255,255,0.5)">
+                <span>Confronto ${idx + 1}</span>
+                <span>${details}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                <div style="display:flex;align-items:center;gap:6px;width:42%;justify-content:flex-end">
+                  <span style="font-size:12px;font-weight:${t.winner === t.home ? '900' : '600'};color:${t.winner === t.home ? '#4ade80' : '#fff'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.home)}</span>
+                  ${clubBadge(t.home, 20)}
+                </div>
+                <div style="font-size:13px;font-weight:900;color:#facc15;padding:2px 8px;background:rgba(0,0,0,0.3);border-radius:6px;white-space:nowrap">
+                  ${scoreDisplay}
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;width:42%">
+                  ${clubBadge(t.away, 20)}
+                  <span style="font-size:12px;font-weight:${t.winner === t.away ? '900' : '600'};color:${t.winner === t.away ? '#4ade80' : '#fff'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.away)}</span>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px">
+                <span style="color:#4ade80;font-weight:800">✔ Classificado: ${esc(t.winner)}</span>
+                ${t.dest ? `<span class="pill" style="font-size:9px;background:rgba(124,58,237,0.25);color:#c084fc">${esc(t.dest)}</span>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
 function continentalPhaseNav(id, phases){
-  const active = continentalPhase.startsWith(`${id}:`) ? continentalPhase.slice(id.length + 1) : 'groups';
+  const active = continentalPhase.startsWith(`${id}:`) ? continentalPhase.slice(id.length + 1) : (['lib','sud','cwc'].includes(id) ? 'bracket' : 'groups');
   return `<div class="filters" style="margin:12px 0;display:flex;flex-wrap:wrap;gap:7px">${phases.map(([key,label]) => `<button class="btn ${active===key?'primary':''}" data-continental-phase="${id}:${key}">${esc(label)}</button>`).join('')}</div>`;
 }
 
@@ -23411,7 +27478,377 @@ function continentalPhaseInfo(id, phase){
   return `<section style="margin-top:18px;background:#101827;border:1px solid rgba(56,189,248,.25);border-radius:14px;padding:16px"><h3 style="margin-top:0;color:#e2e8f0">${esc(text.split(';')[0])}</h3><p class="muted">${esc(text)}</p>${qualifiers.length ? `<b>Classificação ${ranking.some(row => row.played > 0) ? 'provisória' : 'inicial'}</b><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${qualifiers.map(row => `<span class="pill">Grupo ${row.group} · ${esc(row.name)}</span>`).join('')}</div>` : ''}${ties.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:7px;margin-top:12px">${ties.map(([a,b],index) => `<div class="pill">${index+1}. ${esc(a)} × ${esc(b)}</div>`).join('')}</div>` : !qualifiers.length ? '<div class="muted">Os confrontos e participantes desta fase são definidos após a conclusão da fase anterior.</div>' : ''}</section>`;
 }
 
+function getDivisionStandingsList(divId){
+  if(state.compId === divId && Array.isArray(state.teams) && state.teams.length > 0){
+    return ranking();
+  }
+  if(typeof getNationalCompetitionStandings === 'function'){
+    const nat = getNationalCompetitionStandings(divId);
+    if(Array.isArray(nat) && nat.length > 0) return nat;
+  }
+  const defaultList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[divId]) || [];
+  return defaultList.map((name, idx) => ({ name, p: 0, j: 0, v: 0, e: 0, d: 0, sg: 0, defaultPos: idx + 1 }));
+}
+
+function renderPiramideAcessosERebaixamentos(){
+  const serieA = getDivisionStandingsList('bra-a');
+  const serieB = getDivisionStandingsList('bra-b');
+  const serieC = getDivisionStandingsList('bra-c');
+  const serieD = getDivisionStandingsList('bra-d');
+
+  const aLib = serieA.slice(0, 6);
+  const aSud = serieA.slice(6, 12);
+  const aZ4 = serieA.slice(16, 20);
+
+  const bPromoted = serieB.slice(0, 4);
+  const bZ4 = serieB.slice(16, 20);
+
+  const cPromoted = serieC.slice(0, 4);
+  const cZ4 = serieC.slice(16, 20);
+
+  const dPromoted = serieD.slice(0, 4);
+
+  const renderTeamPillCard = (t, idx, tag, tagColor, borderColor) => {
+    const isUser = state && state.club && norm(state.club) === norm(t.name);
+    return `
+      <div style="background:#131828;border:1px solid ${isUser ? '#38bdf8' : (borderColor || 'rgba(255,255,255,0.08)')};border-radius:8px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;box-shadow:${isUser ? '0 0 12px rgba(56,189,248,0.3)' : 'none'}">
+        <div style="display:flex;align-items:center;gap:6px;min-width:0">
+          <span style="font-size:11px;font-weight:900;color:#94a3b8;width:20px">${t.groupPosition || idx + 1}º</span>
+          ${clubBadge(t.name, 18)}
+          <span style="font-size:12px;font-weight:${isUser ? '900' : '700'};color:${isUser ? '#38bdf8' : '#fff'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.name)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${t.p !== undefined && t.j !== undefined && t.j > 0 ? `<span style="font-size:11px;color:#94a3b8;font-weight:700">${t.p} pts</span>` : ''}
+          <span class="pill" style="font-size:9px;background:${tagColor};color:#fff;font-weight:800;white-space:nowrap">${tag}</span>
+        </div>
+      </div>
+    `;
+  };
+
+  return `
+    <div style="margin-top:20px;display:flex;flex-direction:column;gap:18px">
+      <!-- Banner Oficial da Pirâmide CBF -->
+      <div style="background:linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(16,185,129,0.04) 100%);border:1px solid rgba(34,197,94,0.35);border-radius:14px;padding:18px 22px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:28px">🇧🇷</span>
+            <div>
+              <h2 style="margin:0;font-size:20px;font-weight:900;color:#4ade80;text-transform:uppercase">
+                PIRÂMIDE OFICIAL DE ACESSOS & REBAIXAMENTOS (CBF ${state.season})
+              </h2>
+              <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:2px">
+                Clubes promovidos, rebaixados e classificados para as competições continentais
+              </div>
+            </div>
+          </div>
+          <span class="pill" style="background:#22c55e;color:#000;font-weight:900;font-size:11px">SISTEMA INTEGRADO SÉRIES A, B, C, D</span>
+        </div>
+      </div>
+
+      <!-- NÍVEL 1: SÉRIE A -->
+      <div style="background:#0f121f;border:1px solid rgba(34,197,94,0.35);border-radius:14px;padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="pill" style="background:#22c55e;color:#000;font-weight:900;font-size:11px">DIVISÃO 1</span>
+            <h3 style="margin:0;font-size:17px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE A (20 CLUBES)</h3>
+          </div>
+          <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">Elite do Futebol Nacional</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px">
+          <!-- G6: Libertadores -->
+          <div style="background:#16132b;border:1px solid rgba(192,132,252,0.3);border-radius:10px;padding:12px">
+            <div style="font-size:12px;font-weight:900;color:#c084fc;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              🏆 CLASSIFICADOS COPA LIBERTADORES (G4 DIRETO + G6 PRÉ)
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${aLib.map((t, i) => renderTeamPillCard(t, i, i < 4 ? 'LIBERTADORES (FASE DE GRUPOS)' : 'PRÉ-LIBERTADORES', i < 4 ? '#7c3aed' : '#2563eb', 'rgba(124,58,237,0.3)')).join('')}
+            </div>
+          </div>
+
+          <!-- G7 a G12: Sul-Americana -->
+          <div style="background:#16132b;border:1px solid rgba(56,189,248,0.3);border-radius:10px;padding:12px">
+            <div style="font-size:12px;font-weight:900;color:#38bdf8;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              🥈 CLASSIFICADOS COPA SUL-AMERICANA (G7 A G12)
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${aSud.map((t, i) => renderTeamPillCard(t, i + 6, 'SUL-AMERICANA', '#0284c7', 'rgba(56,189,248,0.3)')).join('')}
+            </div>
+          </div>
+
+          <!-- Z4: Rebaixados para Série B -->
+          <div style="background:#16132b;border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px">
+            <div style="font-size:12px;font-weight:900;color:#f87171;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              🔴 REBAIXADOS PARA A SÉRIE B (17º AO 20º - Z4)
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${aZ4.map((t, i) => renderTeamPillCard(t, i + 16, 'REBAIXADO P/ SÉRIE B', '#dc2626', 'rgba(239,68,68,0.35)')).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NÍVEL 2: SÉRIE B -->
+      <div style="background:#0f121f;border:1px solid rgba(234,179,8,0.35);border-radius:14px;padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="pill" style="background:#eab308;color:#000;font-weight:900;font-size:11px">DIVISÃO 2</span>
+            <h3 style="margin:0;font-size:17px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE B (20 CLUBES)</h3>
+          </div>
+          <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">4 Acessos · 4 Descensos</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px">
+          <!-- G4: Promovidos para Série A -->
+          <div style="background:#16132b;border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:12px">
+            <div style="font-size:12px;font-weight:900;color:#4ade80;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              🟢 PROMOVIDOS PARA A SÉRIE A (1º AO 4º COLOCADOS)
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${bPromoted.map((t, i) => renderTeamPillCard(t, i, 'ACESSO À SÉRIE A', '#16a34a', 'rgba(34,197,94,0.35)')).join('')}
+            </div>
+          </div>
+
+          <!-- Z4: Rebaixados para Série C -->
+          <div style="background:#16132b;border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px">
+            <div style="font-size:12px;font-weight:900;color:#f87171;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              🔴 REBAIXADOS PARA A SÉRIE C (17º AO 20º - Z4)
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${bZ4.map((t, i) => renderTeamPillCard(t, i + 16, 'REBAIXADO P/ SÉRIE C', '#dc2626', 'rgba(239,68,68,0.35)')).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NÍVEL 3: SÉRIE C -->
+      <div style="background:#0f121f;border:1px solid rgba(168,85,247,0.35);border-radius:14px;padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="pill" style="background:#a855f7;color:#fff;font-weight:900;font-size:11px">DIVISÃO 3</span>
+            <h3 style="margin:0;font-size:17px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE C (20 CLUBES)</h3>
+          </div>
+          <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">4 Acessos · 4 Descensos</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px">
+          <!-- Promovidos para Série B -->
+          <div style="background:#16132b;border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:12px">
+            <div style="font-size:12px;font-weight:900;color:#4ade80;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              🟢 PROMOVIDOS PARA A SÉRIE B (4 SEMIFINALISTAS)
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${cPromoted.map((t, i) => renderTeamPillCard(t, i, 'ACESSO À SÉRIE B', '#16a34a', 'rgba(34,197,94,0.35)')).join('')}
+            </div>
+          </div>
+
+          <!-- Rebaixados para Série D -->
+          <div style="background:#16132b;border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px">
+            <div style="font-size:12px;font-weight:900;color:#f87171;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              🔴 REBAIXADOS PARA A SÉRIE D (17º AO 20º - Z4)
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${cZ4.map((t, i) => renderTeamPillCard(t, i + 16, 'REBAIXADO P/ SÉRIE D', '#dc2626', 'rgba(239,68,68,0.35)')).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NÍVEL 4: SÉRIE D -->
+      <div style="background:#0f121f;border:1px solid rgba(56,189,248,0.35);border-radius:14px;padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="pill" style="background:#0284c7;color:#fff;font-weight:900;font-size:11px">DIVISÃO 4</span>
+            <h3 style="margin:0;font-size:17px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE D (64 CLUBES)</h3>
+          </div>
+          <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">4 Acessos · Conexão com os Estaduais</span>
+        </div>
+
+        <div style="background:#16132b;border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:12px">
+          <div style="font-size:12px;font-weight:900;color:#4ade80;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+            🟢 PROMOVIDOS PARA A SÉRIE C (4 SEMIFINALISTAS DO MATA-MATA)
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:6px">
+            ${dPromoted.map((t, i) => renderTeamPillCard(t, i, 'ACESSO À SÉRIE C', '#16a34a', 'rgba(34,197,94,0.35)')).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderContinentalBlock(){
+  const curC = curComp();
+  const cContinent = curC?.continent || (curC?.country === 'Brasil' ? 'América do Sul' : (['Inglaterra','Espanha','Itália','Alemanha','França','Portugal','Holanda'].includes(curC?.country) ? 'Europa' : (['Arábia Saudita','Japão','Coreia do Sul','China','Catar','Emirados Árabes'].includes(curC?.country) ? 'Ásia' : 'América do Sul')));
+
+  // Categoria ativa: 'nacional' ou 'internacional'
+  const isNationalCat = continentalCategory === 'nacional';
+
+  let tabs = [];
+  let headerTitle = isNationalCat ? '🇧🇷 SISTEMA NACIONAL & PIRÂMIDE CBF 2026' : '🌎 COMPETIÇÕES INTERNACIONAIS 2026';
+  let headerSubtitle = isNationalCat ? 'ACESSO E REBAIXAMENTO OFICIAL DAS SÉRIES A, B, C E D' : 'LIBERTADORES · SUL-AMERICANA · SUPERMUNDIAL FIFA';
+
+  if(cContinent === 'Europa'){
+    tabs = [
+      { id: 'ucl', name: '🌟 UEFA Champions League', badge: 'FASE DE LIGA' },
+      { id: 'uel', name: '🥈 UEFA Europa League', badge: '36 CLUBES' },
+      { id: 'mundial', name: '🌐 Mundial FIFA', badge: '32 CLUBES' }
+    ];
+    if(!['ucl', 'uel', 'mundial'].includes(continentalTab)){
+      continentalTab = 'ucl';
+    }
+  } else if(cContinent === 'Ásia'){
+    tabs = [
+      { id: 'afc_el', name: '🏆 AFC Champions League Elite', badge: '24 CLUBES' },
+      { id: 'afc_two', name: '🥈 AFC Champions League Two', badge: '32 CLUBES' },
+      { id: 'mundial', name: '🌐 Mundial FIFA', badge: '32 CLUBES' }
+    ];
+    if(!['afc_el', 'afc_two', 'mundial'].includes(continentalTab)){
+      continentalTab = 'afc_el';
+    }
+  } else {
+    tabs = [
+      { id: 'libertadores', name: '🏆 Copa Libertadores', badge: 'G4 + PRÉ' },
+      { id: 'sulamericana', name: '🥈 Copa Sul-Americana', badge: 'G7 A G12' },
+      { id: 'mundial', name: '🌐 Mundial FIFA', badge: '32 CLUBES' }
+    ];
+    if(!['libertadores', 'sulamericana', 'mundial'].includes(continentalTab)){
+      continentalTab = 'libertadores';
+    }
+  }
+
+  return `
+    <div class="card" style="margin-top:14px;padding:24px;background:linear-gradient(135deg, #130f24 0%, #0d0a1a 100%);border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+      <!-- 2 ABAS SUPERIORES: NACIONAL VS INTERNACIONAL -->
+      <div style="display:flex;gap:10px;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:14px;flex-wrap:wrap">
+        <button class="btn btn-continental-cat ${isNationalCat ? 'primary' : ''}" data-continental-cat="nacional" style="font-size:13px;font-weight:900;padding:8px 18px;border-radius:10px;${isNationalCat ? 'background:#22c55e;color:#000;box-shadow:0 0 16px rgba(34,197,94,0.4);border:none' : 'background:rgba(255,255,255,0.06);border:none;color:rgba(255,255,255,0.7)'}">
+          🇧🇷 PIRÂMIDE NACIONAL CBF (ACESSOS & REBAIXAMENTOS)
+        </button>
+        <button class="btn btn-continental-cat ${!isNationalCat ? 'primary' : ''}" data-continental-cat="internacional" style="font-size:13px;font-weight:900;padding:8px 18px;border-radius:10px;${!isNationalCat ? 'background:#7c3aed;color:#fff;box-shadow:0 0 16px rgba(124,58,237,0.4);border:none' : 'background:rgba(255,255,255,0.06);border:none;color:rgba(255,255,255,0.7)'}">
+          🌎 COMPETIÇÕES INTERNACIONAIS (CONMEBOL / FIFA)
+        </button>
+      </div>
+
+      <!-- Topo Continental -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h1 style="margin:0;font-size:26px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
+            ${headerTitle}
+          </h1>
+          <div style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:800;letter-spacing:1px;margin-top:4px">
+            ${headerSubtitle}
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--cyan);font-weight:700">
+          Temporada Oficial ${state.season} 🏆
+        </div>
+      </div>
+
+      ${isNationalCat ? `
+        <!-- CONTEÚDO DA PIRÂMIDE NACIONAL CBF -->
+        ${renderPiramideAcessosERebaixamentos()}
+      ` : `
+        <!-- ABAS DOS TORNEIOS INTERNACIONAIS -->
+        <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
+          ${tabs.map(t => {
+            const isActive = continentalTab === t.id;
+            return `
+              <button class="btn ${isActive ? 'primary' : ''}" data-continental-tab="${t.id}" style="font-size:12px;font-weight:800;padding:7px 16px;border-radius:8px;${isActive ? 'background:#7c3aed;border:none;color:#fff;box-shadow:0 0 12px rgba(124,58,237,0.5)' : 'background:rgba(255,255,255,0.06);border:none;color:rgba(255,255,255,0.7)'}">
+                ${t.name} <span class="pill" style="font-size:9px;margin-left:4px;background:${isActive ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)'}">${t.badge}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+
+        ${continentalTab === 'libertadores' ? `
+          <!-- CONMEBOL LIBERTADORES -->
+          <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+            <div style="background:rgba(124,58,237,0.12);border:1px solid rgba(139,92,246,0.35);border-radius:14px;padding:16px 20px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                <span style="font-size:24px">🏆</span>
+                <h2 style="margin:0;font-size:20px;font-weight:900;color:#c084fc;text-transform:uppercase">CONMEBOL Libertadores ${state.season}</h2>
+                <span class="pill" style="background:#7c3aed;color:#fff;font-weight:900;font-size:10px">A GLÓRIA ETERNA</span>
+              </div>
+              <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
+                A maior competição de clubes da América do Sul. Disputada desde as fases prévias até a Fase de Grupos (32 clubes) e o Chaveamento Oficial do mata-mata (Oitavas até a Grande Final).
+              </p>
+            </div>
+
+            <!-- NAVEGAÇÃO DE FASES DA LIBERTADORES (ORGANIZADA DA PRÉ-FASE ATÉ A FINAL) -->
+            ${continentalPhaseNav('lib', [
+              ['pre1','Pré Fase 1'],
+              ['pre2','Pré Fase 2'],
+              ['pre3','Pré Fase 3'],
+              ['groups','📊 Fase de Grupos A–H (6 Rodadas)'],
+              ['bracket','🏆 Chaveamento Mata-Mata (Oitavas à Final)']
+            ])}
+
+            ${continentalPhase === 'lib:groups' ? renderContinentalGroupStage('lib') :
+              continentalPhase.startsWith('lib:pre') ? renderContinentalPrePhase('lib', continentalPhase.slice(4)) :
+              renderLibertadoresKnockoutBracket()}
+          </div>
+        ` : continentalTab === 'sulamericana' ? `
+          <!-- CONMEBOL SUL-AMERICANA -->
+          <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+            <div style="background:rgba(14,165,233,0.12);border:1px solid rgba(14,165,233,0.35);border-radius:14px;padding:16px 20px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                <span style="font-size:24px">🥈</span>
+                <h2 style="margin:0;font-size:20px;font-weight:900;color:#38bdf8;text-transform:uppercase">CONMEBOL Sul-Americana ${state.season}</h2>
+                <span class="pill" style="background:#0284c7;color:#fff;font-weight:900;font-size:10px">GRANDE TORNEIO CONTINENTAL</span>
+              </div>
+              <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
+                Reúne 32 clubes na Fase de Grupos após as eliminatórias preliminares nacionais. Os 2º colocados enfrentam os 3º da Libertadores nos playoffs, culminando no Chaveamento Oficial das Oitavas até a Final.
+              </p>
+            </div>
+
+            <!-- NAVEGAÇÃO COMPACTADA DA SUL-AMERICANA -->
+            ${continentalPhaseNav('sud', [
+              ['preliminar','Fase Preliminar'],
+              ['groups','📊 Fase de Grupos A–H (6 Rodadas)'],
+              ['playoffs','Playoffs (16-avos)'],
+              ['bracket','🏆 Chaveamento Mata-Mata (Oitavas à Final)']
+            ])}
+
+            ${continentalPhase === 'sud:groups' ? renderContinentalGroupStage('sud') :
+              continentalPhase === 'sud:playoffs' ? renderContinentalPrePhase('sud', 'playoffs') :
+              continentalPhase === 'sud:preliminar' ? renderContinentalPrePhase('sud', 'preliminar') :
+              renderSulamericanaKnockoutBracket()}
+          </div>
+        ` : continentalTab === 'mundial' ? `
+          <!-- MUNDIAL DE CLUBES FIFA -->
+          <div style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
+            <div style="background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.35);border-radius:14px;padding:16px 20px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                <span style="font-size:24px">🌐</span>
+                <h2 style="margin:0;font-size:20px;font-weight:900;color:#facc15;text-transform:uppercase">Mundial de Clubes FIFA ${state.season}</h2>
+                <span class="pill" style="background:#eab308;color:#000;font-weight:900;font-size:10px">NOVO FORMATO 32 CLUBES</span>
+              </div>
+              <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.85);line-height:1.6">
+                Os melhores clubes dos 6 continentes reunidos nos Estados Unidos. 8 grupos de 4 times; os dois melhores de cada chave avançam ao Chaveamento eliminatório direto a partir das Oitavas de Final!
+              </p>
+            </div>
+
+            <!-- NAVEGAÇÃO DE FASES DO MUNDIAL -->
+            ${continentalPhaseNav('cwc', [
+              ['bracket','🏆 Chaveamento Mata-Mata (Oitavas à Final)'],
+              ['groups','📊 Fase de Grupos A–H (32 Clubes)']
+            ])}
+
+            ${continentalPhase === 'cwc:groups' ? renderContinentalGroupStage('cwc') : renderMundialKnockoutBracket()}
+
+          </div>
+        ` : `
+          <!-- OUTROS CONTINENTES (UEFA / AFC) -->
+          <div style="margin-top:20px">
+            ${renderContinentalGroupStage(continentalTab)}
+          </div>
+        `}
+      `}
+    </div>
+  `;
+}
+
+function __unused_old_renderContinentalBlock(){
   const curC = curComp();
   const cContinent = curC?.continent || (curC?.country === 'Brasil' ? 'América do Sul' : (['Inglaterra','Espanha','Itália','Alemanha','França','Portugal','Holanda'].includes(curC?.country) ? 'Europa' : (['Arábia Saudita','Japão','Coreia do Sul','China','Catar','Emirados Árabes'].includes(curC?.country) ? 'Ásia' : 'América do Sul')));
 
@@ -23698,8 +28135,8 @@ function renderContinentalBlock(){
             </p>
           </div>
 
-          ${continentalPhaseNav('lib', [['pre1','Fase 1'],['pre2','Fase 2'],['pre3','Fase 3'],['groups','Grupos'],['round16','Oitavas'],['quarters','Quartas'],['semis','Semifinais'],['final','Final']])}
-          ${!continentalPhase.startsWith('lib:') || continentalPhase === 'lib:groups' ? renderContinentalGroupStage('lib') : continentalPhaseInfo('lib', continentalPhase.slice(4))}
+          ${continentalPhaseNav('lib', [['bracket','🌳 Chaveamento Oficial (Lance!)'],['groups','📊 Fase de Grupos A–H (6 Rodadas)'],['pre1','Pré Fase 1'],['pre2','Pré Fase 2'],['pre3','Pré Fase 3']])}
+          ${continentalPhase === 'lib:groups' ? renderContinentalGroupStage('lib') : continentalPhase.startsWith('lib:pre') ? continentalPhaseInfo('lib', continentalPhase.slice(4)) : (renderLibertadoresOfficialBracket() + renderContinentalGroupStage('lib'))}
           <details style="background:#141124;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 16px">
             <summary style="cursor:pointer;font-weight:900;color:#c084fc">Ver regulamento, vagas e premiações</summary>
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
@@ -24033,8 +28470,8 @@ function seasonPage(){
   const estCompObj = estCompId ? compById(estCompId) : null;
   const hasNational = Boolean(natCompObj);
   const hasState = Boolean(estCompObj && estCompId?.startsWith('bra-est-'));
-  const hasCopa = Boolean(isBrazil && memberships.copa);
-  const hasContinental = memberships.continentalIds.length > 0;
+  const hasCopa = Boolean(isBrazil);
+  const hasContinental = true;
   const seasonTabs = [];
   if(hasNational) seasonTabs.push({ id:'nacional', label:`🇧🇷 ${natCompObj.name}` });
   if(hasState && estCompId !== userNatDivId) seasonTabs.push({ id:'estadual', label:`🏆 ${estCompObj.name}` });
@@ -24074,6 +28511,22 @@ function seasonPage(){
     <div class="tabs" style="margin-top:14px">
       ${seasonTabs.map(tab => `<button type="button" class="btn ${seasonTab===tab.id?'active':''}" data-season-tab="${tab.id}">${esc(tab.label)}</button>`).join('')}
     </div>
+
+    ${(seasonTab === 'copadobrasil' || seasonTab === 'continental') ? `
+      <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;margin-top:10px;border:1px solid rgba(255,255,255,0.06)">
+        <div style="font-size:11px;color:rgba(255,255,255,0.6)">
+          Alternar rapidamente entre copas da temporada:
+        </div>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="btn" id="btnSeasonSwitchToCopa" style="font-size:11px;font-weight:900;padding:5px 12px;border-radius:8px;cursor:pointer;${seasonTab === 'copadobrasil' ? 'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border:none' : 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)'}">
+            🇧🇷 Copa do Brasil
+          </button>
+          <button type="button" class="btn" id="btnSeasonSwitchToLib" style="font-size:11px;font-weight:900;padding:5px 12px;border-radius:8px;cursor:pointer;${seasonTab === 'continental' ? 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border:none' : 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)'}">
+            🏆 Libertadores & Continentais
+          </button>
+        </div>
+      </div>
+    ` : ''}
 
     ${seasonTab==='nacional' ? `
       <div class="card" style="margin-top:12px">
@@ -26721,6 +31174,7 @@ function bind(){
     } else if(window.AFM_ManagerEconomy && typeof window.AFM_ManagerEconomy.renderCareerEconomyPanel === 'function'){
       window.AFM_ManagerEconomy.renderCareerEconomyPanel('afm-career-economy-container', state);
     }
+    if(typeof window.AFM_InstantCareerHook === 'function') window.AFM_InstantCareerHook();
   }
 
   // Botão Trocas Sugeridas do Auxiliar Técnico
@@ -26823,14 +31277,22 @@ function bind(){
     const bOpenBid = $('#btnOpenIncomingBidFromCentral');
     if(bOpenBid) bOpenBid.onclick = () => openIncomingBidModal();
 
-    const bPrevCentral = $('#btnMatchPreviewCentral');
-    if(bPrevCentral){
-      bPrevCentral.onclick = () => {
-        const f = userFixture();
-        const opp = f ? (f[0]===state.club ? f[1] : f[0]) : (state.teams?.find(t => norm(t.name) !== norm(state.club))?.name || (norm(state.club)==='brasilia'?'Gama':'Brasília'));
-        openClubInfoModal(opp);
+    $$('#btnMatchPreviewCentral').forEach(b => {
+      b.onclick = () => {
+        const act = (typeof getActualCurrentMatch === 'function') ? getActualCurrentMatch(state) : null;
+        const f = act ? act.fixture : (typeof userFixture === 'function' ? userFixture() : null);
+        const opp = act ? act.opponent : (f ? (norm(f[0]) === norm(state.club) ? f[1] : f[0]) : null);
+        const isHome = act ? act.isHome : (f ? norm(f[0]) === norm(state.club) : true);
+        const home = isHome ? state.club : opp;
+        const away = isHome ? opp : state.club;
+        const compName = act?.competitionName || (typeof curComp === 'function' ? curComp()?.name : 'Campeonato');
+        if(typeof openMatchPreviewModal === 'function'){
+          openMatchPreviewModal(home, away, compName, act?.date);
+        } else if(typeof openClubInfoModal === 'function'){
+          openClubInfoModal(opp);
+        }
       };
-    }
+    });
     const bAccConcCent = $('#btnAcceptConcertCentral');
     if(bAccConcCent) bAccConcCent.onclick = () => { $('#centralDecisionPanelCard')?.remove(); acceptEventConcert(true); };
     const bRejConcCent = $('#btnDismissConcertCentral');
@@ -26877,6 +31339,7 @@ function bind(){
         render();
       };
     });
+    $$('.btnOpenMuseumFromFacility').forEach(b => { b.onclick = () => { structureSubTab = 'museum'; render(); }; });
     $$('.btnBuildSide').forEach(b => {
       b.onclick = () => {
         buildStadiumSide(b.dataset.side, b.dataset.mode);
@@ -27001,6 +31464,30 @@ function bind(){
       view = 'temporada';
       render();
     };
+    const bCentCopa = $('#btnCentralTabCopa');
+    if(bCentCopa) bCentCopa.onclick = () => {
+      state.centralCupTab = 'copa';
+      render();
+    };
+    const bCentLib = $('#btnCentralTabLib');
+    if(bCentLib) bCentLib.onclick = () => {
+      state.centralCupTab = 'libertadores';
+      render();
+    };
+    const bGoCopa = $('#btnGoToCopaTableFromCentral');
+    if(bGoCopa) bGoCopa.onclick = () => {
+      view = 'temporada';
+      seasonTab = 'copadobrasil';
+      render();
+    };
+    const bGoLib = $('#btnGoToLibertadoresTableFromCentral');
+    if(bGoLib) bGoLib.onclick = () => {
+      view = 'temporada';
+      seasonTab = 'continental';
+      continentalCategory = 'internacional';
+      continentalTab = 'libertadores';
+      render();
+    };
     const m=$('#mental'); if(m) m.onchange=()=>{state.mentality=m.value;save();toast('Mentalidade tática atualizada.')};
     
     const bPressCent = $('#btnOpenPressConferenceCentral');
@@ -27017,16 +31504,67 @@ function bind(){
       };
     }
 
+    const bAdvTwDay = $('#btnAdvanceTransferWindowDay');
+    if(bAdvTwDay) bAdvTwDay.onclick = () => {
+      if(bAdvTwDay.dataset.handlingClick) return;
+      bAdvTwDay.dataset.handlingClick = '1';
+      setTimeout(() => { delete bAdvTwDay.dataset.handlingClick; }, 200);
+      advanceTransferWindow(24);
+    };
+    const bAdvTwDayCard = $('#btnAdvanceTransferWindowDayCard');
+    if(bAdvTwDayCard) bAdvTwDayCard.onclick = () => {
+      if(bAdvTwDayCard.dataset.handlingClick) return;
+      bAdvTwDayCard.dataset.handlingClick = '1';
+      setTimeout(() => { delete bAdvTwDayCard.dataset.handlingClick; }, 200);
+      advanceTransferWindow(24);
+    };
+
+    const bAdvTwHours = $('#btnAdvanceTransferWindowHours');
+    if(bAdvTwHours) bAdvTwHours.onclick = () => {
+      if(bAdvTwHours.dataset.handlingClick) return;
+      bAdvTwHours.dataset.handlingClick = '1';
+      setTimeout(() => { delete bAdvTwHours.dataset.handlingClick; }, 200);
+      advanceTransferWindow(6);
+    };
+    const bAdvTwHoursCard = $('#btnAdvanceTransferWindowHoursCard');
+    if(bAdvTwHoursCard) bAdvTwHoursCard.onclick = () => {
+      if(bAdvTwHoursCard.dataset.handlingClick) return;
+      bAdvTwHoursCard.dataset.handlingClick = '1';
+      setTimeout(() => { delete bAdvTwHoursCard.dataset.handlingClick; }, 200);
+      advanceTransferWindow(6);
+    };
+
     const bAdvPre = $('#btnAdvancePreSeasonDay');
-    if(bAdvPre) bAdvPre.onclick = advancePreSeasonDay;
+    if(bAdvPre) bAdvPre.onclick = () => {
+      if(bAdvPre.dataset.handlingClick) return;
+      bAdvPre.dataset.handlingClick = '1';
+      setTimeout(() => { delete bAdvPre.dataset.handlingClick; }, 200);
+      advanceTransferWindow(24);
+    };
     const bAdvPreCard = $('#btnAdvancePreSeasonDayCard');
-    if(bAdvPreCard) bAdvPreCard.onclick = advancePreSeasonDay;
+    if(bAdvPreCard) bAdvPreCard.onclick = () => {
+      if(bAdvPreCard.dataset.handlingClick) return;
+      bAdvPreCard.dataset.handlingClick = '1';
+      setTimeout(() => { delete bAdvPreCard.dataset.handlingClick; }, 200);
+      advanceTransferWindow(24);
+    };
+
     const bMktPre = $('#btnGoToMercadoPreSeason');
     if(bMktPre) bMktPre.onclick = () => { view = 'mercado'; render(); };
     const bSkipPre = $('#btnSkipPreSeason');
-    if(bSkipPre) bSkipPre.onclick = skipPreSeason;
+    if(bSkipPre) bSkipPre.onclick = () => {
+      if(bSkipPre.dataset.handlingClick) return;
+      bSkipPre.dataset.handlingClick = '1';
+      setTimeout(() => { delete bSkipPre.dataset.handlingClick; }, 200);
+      skipPreSeason();
+    };
     const bSkipPreCard = $('#btnSkipPreSeasonCard');
-    if(bSkipPreCard) bSkipPreCard.onclick = skipPreSeason;
+    if(bSkipPreCard) bSkipPreCard.onclick = () => {
+      if(bSkipPreCard.dataset.handlingClick) return;
+      bSkipPreCard.dataset.handlingClick = '1';
+      setTimeout(() => { delete bSkipPreCard.dataset.handlingClick; }, 200);
+      skipPreSeason();
+    };
   }
 
   if(view==='meutime'){
@@ -27443,10 +31981,51 @@ function bind(){
 
   if(view==='calendario'){
     $$('[data-cal-filter]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextFilter=b.dataset.calFilter;if(!nextFilter)return;calendarFilter=nextFilter;render()});
-    $$('.btnCalPlayNow').forEach(b=>b.onclick=startLiveMatch);
-    $$('.btnCalStatePlay').forEach(b=>b.onclick=()=>beginStateLeagueMatch(b.dataset.stateComp,Number(b.dataset.round)));
-    $$('.btnCalCopaPlay').forEach(b=>b.onclick=()=>playCopaDoBrasilFixture(b.dataset.index,b.dataset.phase));
-    $$('.btnCalTournamentPlay').forEach(b=>b.onclick=()=>playContinentalFixture(b.dataset.tournament,b.dataset.match));
+    $$('.btnCalPlayNow').forEach(b=>b.onclick=()=>{
+      const mDate = b.dataset.date;
+      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+      if(b.dataset.round !== undefined){ state.round = Number(b.dataset.round); }
+      startLiveMatch();
+    });
+    $$('.btnCalSimNow').forEach(b=>b.onclick=()=>{
+      const mDate = b.dataset.date;
+      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+      if(b.dataset.round !== undefined){ state.round = Number(b.dataset.round); }
+      simulateQuickRound();
+    });
+    $$('.btnCalStatePlay').forEach(b=>b.onclick=()=>{
+      const mDate = b.dataset.date;
+      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+      beginStateLeagueMatch(b.dataset.stateComp,Number(b.dataset.round));
+    });
+    $$('.btnCalStateSim').forEach(b=>b.onclick=()=>{
+      const mDate = b.dataset.date;
+      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+      simulateQuickStateLeagueRound(b.dataset.stateComp,Number(b.dataset.round));
+    });
+    $$('.btnCalCopaPlay').forEach(b=>b.onclick=()=>{
+      const mDate = b.dataset.date;
+      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+      if(typeof beginCopaDoBrasilLiveMatch==='function') beginCopaDoBrasilLiveMatch(Number(b.dataset.index),b.dataset.phase);
+      else playCopaDoBrasilFixture(b.dataset.index,b.dataset.phase);
+    });
+    $$('.btnCalCopaSim').forEach(b=>b.onclick=()=>{
+      const mDate = b.dataset.date;
+      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+      playCopaDoBrasilFixture(b.dataset.index,b.dataset.phase);
+    });
+    $$('.btnCalTournamentPlay').forEach(b=>b.onclick=()=>{
+      const mDate = b.dataset.date;
+      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+      if(typeof beginContinentalLiveMatch==='function') beginContinentalLiveMatch(b.dataset.tournament,b.dataset.match);
+      else playContinentalFixture(b.dataset.tournament,b.dataset.match);
+    });
+    $$('.btnCalTournamentSim').forEach(b=>b.onclick=()=>{
+      const mDate = b.dataset.date;
+      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+      playContinentalFixture(b.dataset.tournament,b.dataset.match);
+    });
+    $$('.btnCalPreviewNow').forEach(b=>b.onclick=(e)=>{e.preventDefault();e.stopPropagation();if(typeof openMatchPreviewModal==='function')openMatchPreviewModal(b.dataset.home,b.dataset.away,b.dataset.comp,b.dataset.date);});
   }if(view==='estrutura'){
     $$('.upgrade').forEach(b=>b.onclick=()=>upgradeFacility(b.dataset.facility));
     $$('.btnOpenAcademy').forEach(b=>b.onclick=openYouthAcademyModal);
@@ -27517,12 +32096,42 @@ function bind(){
         toast(`Plano de Sócio-Torcedor alterado para ${b.dataset.plan.toUpperCase()}!`);
       };
     });
+    $$('.btnOpenTvBreakModal').forEach(btn => {
+      btn.onclick = () => {
+        openTvBreakModal({
+          id: btn.dataset.tvid,
+          name: btn.dataset.name,
+          annualTotal: Number(btn.dataset.annual),
+          monthly: Number(btn.dataset.monthly),
+          channels: btn.dataset.channels,
+          desc: btn.dataset.desc
+        });
+      };
+    });
+    const btnTvOpenAdv = $('#btnTvOpenBankAdvances');
+    if(btnTvOpenAdv) btnTvOpenAdv.onclick = () => openBankLoansModal('advances');
+    const btnOfficeBankAdv = $('#btnOpenBankAdvancesFromOffice');
+    if(btnOfficeBankAdv) btnOfficeBankAdv.onclick = () => openBankLoansModal('advances');
   }
 
   if(view==='temporada'){
     $$('[data-season-tab]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextTab=b.dataset.seasonTab;if(!nextTab)return;seasonTab=nextTab;render()});
     $$('[data-continental-tab]').forEach(b=>b.onclick=()=>{continentalTab=b.dataset.continentalTab;render()});
     $$('[data-continental-phase]').forEach(b=>b.onclick=()=>{continentalPhase=b.dataset.continentalPhase;render()});
+    $$('[data-continental-cat]').forEach(b=>b.onclick=()=>{continentalCategory=b.dataset.continentalCat;render()});
+
+    const bSeasonSwitchLib = $('#btnSeasonSwitchToLib');
+    if(bSeasonSwitchLib) bSeasonSwitchLib.onclick = () => {
+      seasonTab = 'continental';
+      continentalCategory = 'internacional';
+      continentalTab = 'libertadores';
+      render();
+    };
+    const bSeasonSwitchCopa = $('#btnSeasonSwitchToCopa');
+    if(bSeasonSwitchCopa) bSeasonSwitchCopa.onclick = () => {
+      seasonTab = 'copadobrasil';
+      render();
+    };
 
     $$('.btn-copa-phase').forEach(b => {
       b.onclick = () => {
@@ -27615,6 +32224,7 @@ function bind(){
           </div>
           ${result ? `<section style="margin-top:14px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px"><b>Detalhes da partida</b>${goalEvents.length ? `<ul style="margin:8px 0 0;padding-left:20px">${goalEvents.map(event => `<li>${Number(event.min) || '—'}' ⚽ ${esc(event.scorer || 'Autor não registrado')}${event.assist ? ` <span class="muted">(assistência: ${esc(event.assist)})</span>` : ''}</li>`).join('')}</ul>` : `<div class="small muted" style="margin-top:6px">${savedMatch ? 'Este save guarda o placar, mas não tem eventos detalhados desta partida.' : 'Os eventos ainda não foram armazenados para este confronto.'}</div>`}</section>` : ''}
         `;
+        if (!result && typeof openMatchPreviewModal === 'function') return openMatchPreviewModal(home, away, competitionName);
         openCustomModal(
           `${result ? 'Detalhes da Partida' : 'Prévia do Confronto'}: ${home} x ${away}`,
           reportBody,
@@ -28113,6 +32723,13 @@ window.clubBadge = clubBadge;
 window.clubDisplayName = clubDisplayName;
 window.getLiveMatchState = () => liveMatchState;
 window.setLiveMatchState = (s) => { liveMatchState = s; };
+try {
+  Object.defineProperty(window, 'liveMatchState', {
+    get() { return liveMatchState; },
+    set(s) { liveMatchState = s; },
+    configurable: true
+  });
+} catch(e) { window.liveMatchState = liveMatchState; }
 
 window.newCareer = newCareer;
 window.advanceSeasonYear = advanceSeasonYear;
@@ -28124,6 +32741,8 @@ window.getUserSaveSlots = getUserSaveSlots;
 window.deleteUserSlot = deleteUserSlot;
 window.buildStadiumSide = buildStadiumSide;
 window.getStadiumExpansionData = getStadiumExpansionData;
+window.processStadiumConstructionDay = processStadiumConstructionDay;
+window.calcArenaTotalCost = calcArenaTotalCost;
 window.getState = () => state;
 window.setState = (s) => { state = s; if(window.AFM) window.AFM.state = s; };
 try {
@@ -28145,6 +32764,56 @@ window.getActiveAccount = getActiveAccount;
 window.setActiveAccount = setActiveAccount;
 window.getStoredAccounts = getStoredAccounts;
 window.saveStoredAccounts = saveStoredAccounts;
+window.getPendingClubCompetitions = getPendingClubCompetitions;
+window.getNextPendingClubFixture = getNextPendingClubFixture;
+window.openNextPendingCompetitionFixture = openNextPendingCompetitionFixture;
+window.seasonCompetitionsComplete = seasonCompetitionsComplete;
+window.getActualCurrentMatch = getActualCurrentMatch;
+window.canStartMatch = canStartMatch;
+window.advanceCalendarDays = advanceCalendarDays;
+window.startLiveMatch = startLiveMatch;
+window.simulateQuickRound = simulateQuickRound;
+window.simulateQuickStateLeagueRound = simulateQuickStateLeagueRound;
+window.beginStateLeagueMatch = beginStateLeagueMatch;
+window.restorePrimaryLeagueAfterStateMatch = restorePrimaryLeagueAfterStateMatch;
+window.playCopaDoBrasilFixture = playCopaDoBrasilFixture;
+window.playContinentalFixture = playContinentalFixture;
+window.beginContinentalLiveMatch = beginContinentalLiveMatch;
+window.restorePrimaryLeagueAfterContinentalMatch = restorePrimaryLeagueAfterContinentalMatch;
+window.finalizeMatchRound = finalizeMatchRound;
+window.finishLiveMatch = finishLiveMatch;
+window.calendarPage = calendarPage;
+window.centralPage = centralPage;
+window.getStateCompData = getStateCompData;
+window.getCopaDoBrasilState = getCopaDoBrasilState;
+window.getContinentalTournament = getContinentalTournament;
+window.clubStateCompId = clubStateCompId;
+window.getDateForRound = getDateForRound;
+window.showEndOfSeasonModal = showEndOfSeasonModal;
+window.ensureTacticsState = ensureTacticsState;
+window.optimizeLineup = optimizeLineup;
+window.isTransferWindowOpen = isTransferWindowOpen;
+window.openCustomModal = openCustomModal;
+window.closeCustomModal = closeCustomModal;
+window.userFixture = userFixture;
+window.clubByName = clubByName;
+window.overallSquad = overallSquad;
+window.curComp = curComp;
+window.clubStadiumName = clubStadiumName;
+window.getMatchWeather = getMatchWeather;
+window.compById = compById;
+window.playersForClub = playersForClub;
+window.formatDatePtBr = formatDatePtBr;
+window.playerPhoto = playerPhoto;
+window.ratingClass = ratingClass;
+window.playerSalary = playerSalary;
+window.playerOverall = playerOverall;
+window.playerKey = playerKey;
+window.calcValueMi = calcValueMi;
+window.fmtMi = fmtMi;
+window.buyPlayer = buyPlayer;
+window.marketUniverse = marketUniverse;
+window.findGlobalPlayerByKey = findGlobalPlayerByKey;
 
 try {
   getStoredAccounts();
@@ -28177,4 +32846,59 @@ window.AFM_DB.init()
     clearTimeout(afmBootTimer);
     triggerSafeBootRender();
   });
+  window.page = page;
+  window.centralPage = centralPage;
+  window.seasonPage = seasonPage;
+  window.setSeasonTab = function(t){ seasonTab = t; };
+  window.getSeasonTab = function(){ return seasonTab; };
+  window.setContinentalTab = function(t){ continentalTab = t; };
+  window.setContinentalCategory = function(c){ continentalCategory = c; };
+  window.setView = function(v){ view = v; window.view = v; };
+  window.getView = function(){ return view; };
 })();
+
+;/* window.__AFM_STATE_SYNCED */ try {
+  if (typeof state !== 'undefined') { window.state = state; window.GameState = state; }
+  if (typeof render === 'function') { window.render = render; }
+  if (typeof marketUniverse === 'function') { window.marketUniverse = marketUniverse; }
+  if (typeof playerKey === 'function') { window.playerKey = playerKey; }
+  if (typeof playerOverall === 'function') { window.playerOverall = playerOverall; }
+  if (typeof calcValueMi === 'function') { window.calcValueMi = calcValueMi; }
+  if (typeof playerPhoto === 'function') { window.playerPhoto = playerPhoto; }
+  if (typeof clubBadge === 'function') { window.clubBadge = clubBadge; }
+  if (typeof fmtMi === 'function') { window.fmtMi = fmtMi; }
+  if (typeof playersForClub === 'function') { window.playersForClub = playersForClub; }
+  if (typeof clubByName === 'function') { window.clubByName = clubByName; }
+  if (typeof norm === 'function') { window.norm = norm; }
+  if (typeof playerSalary === 'function') { window.playerSalary = playerSalary; }
+  if (typeof findGlobalPlayerByKey === 'function') { window.findGlobalPlayerByKey = findGlobalPlayerByKey; }
+  if (typeof buyPlayer === 'function') { window.buyPlayer = buyPlayer; }
+  if (typeof ensureTacticsState === 'function') { window.ensureTacticsState = ensureTacticsState; }
+  if (typeof optimizeLineup === 'function') { window.optimizeLineup = optimizeLineup; }
+  if (typeof isTransferWindowOpen === 'function') { window.isTransferWindowOpen = isTransferWindowOpen; }
+  if (typeof newCareer === 'function') { window.newCareer = newCareer; }
+  if (typeof beginContinentalLiveMatch === 'function') { window.beginContinentalLiveMatch = beginContinentalLiveMatch; }
+  if (typeof calendarPage === 'function') { window.calendarPage = calendarPage; }
+  if (typeof finishLiveMatch === 'function') { window.finishLiveMatch = finishLiveMatch; }
+  if (typeof finalizeMatchRound === 'function') { window.finalizeMatchRound = finalizeMatchRound; }
+  if (typeof canStartMatch === 'function') { window.canStartMatch = canStartMatch; }
+  if (typeof startLiveMatch === 'function') { window.startLiveMatch = startLiveMatch; }
+  if (typeof simulateQuickRound === 'function') { window.simulateQuickRound = simulateQuickRound; }
+  if (typeof getActualCurrentMatch === 'function') { window.getActualCurrentMatch = getActualCurrentMatch; }
+  if (typeof userFixture === 'function') { window.userFixture = userFixture; }
+  if (typeof save === 'function') { window.save = save; }
+} catch(e) {}
+
+;(function(){
+      var origRender = typeof render === 'function' ? render : window.render;
+      if (typeof origRender === 'function') {
+        render = window.render = function() {
+          var res = origRender.apply(this, arguments);
+          try {
+            if (typeof state !== 'undefined') { window.state = state; window.GameState = state; }
+            if (typeof window.__AFM_RUN_INSTANT_HOOKS === 'function') window.__AFM_RUN_INSTANT_HOOKS();
+          } catch(e) {}
+          return res;
+        };
+      }
+    })();

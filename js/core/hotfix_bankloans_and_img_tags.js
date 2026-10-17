@@ -1,124 +1,68 @@
-// ==============================================================================
-// AFM MANAGER 2027 — HOTFIX BANKLOANS & CORRUPTED IMG TAGS (MODO ULTRALEVE)
-// Arquivo: js/core/hotfix_bankloans_and_img_tags.js
-// ==============================================================================
+(function() {
+  
+window.__afmAsRoundArray = window.__afmAsRoundArray || function(r) {
+  if (!r) return [];
+  if (Array.isArray(r)) return r;
+  if (Array.isArray(r.matches)) return r.matches;
+  if (Array.isArray(r.fixtures)) return r.fixtures;
+  if (Array.isArray(r.games)) return r.games;
+  if (Array.isArray(r.items)) return r.items;
+  if (Array.isArray(r.list)) return r.list;
+  if (typeof r === 'object') {
+    var vals = Object.values(r).filter(function(v) {
+      return v && typeof v === 'object' && (v.home || v.away || v.homeTeam || v.teamA || v.clubA || v.id);
+    });
+    if (vals.length > 0) return vals;
+  }
+  return [];
+};
 
-(function (window) {
-  'use strict';
 
-  if (window.__AFM_HOTFIX_LIGHT_LOADED) return;
-  window.__AFM_HOTFIX_LIGHT_LOADED = true;
-
-  // 1. Imagem Segura Global
-  window.AFM_SafeImg = function (imgEl, customAbbr) {
-    if (!imgEl || imgEl.dataset?.fallbackApplied) return;
-    imgEl.dataset.fallbackApplied = '1';
-    imgEl.onerror = null;
-    const abbr = String(customAbbr || imgEl.dataset?.abbr || imgEl.alt || 'FC')
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .substring(0, 3)
-      .toUpperCase() || 'FC';
-
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'>` +
-      `<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>` +
-      `<stop offset='0%' stop-color='#6d28d9'/><stop offset='100%' stop-color='#1e1b4b'/>` +
-      `</linearGradient></defs>` +
-      `<path d='M32 4 L56 14 V32 C56 47 32 58 32 60 C32 58 8 47 8 32 V14 Z' fill='url(#g)' stroke='#a78bfa' stroke-width='2'/>` +
-      `<text x='32' y='37' font-family='Arial,sans-serif' font-size='14' font-weight='bold' fill='#ffffff' text-anchor='middle'>${abbr}</text>` +
-      `</svg>`;
-
-    imgEl.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  window.AFM_SafeImg = function(img) {
+    if (!img || img.dataset.fallbackApplied) return;
+    img.dataset.fallbackApplied = '1';
+    var label = (img.alt || 'AFM').replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase() || 'FC';
+    img.src = "data:image/svg+xml;utf8," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<rect width="100" height="100" rx="18" fill="#1e293b"/>' +
+      '<text x="50" y="58" font-family="Arial,sans-serif" font-size="28" font-weight="bold" fill="#94a3b8" text-anchor="middle">' + label + '</text></svg>'
+    );
   };
 
-  // 2. Normalizador de Estado para NUNCA travar Escritório, Estádio, Carreira ou Temporada
-  window.AFM_NormalizeStateArrays = function (stateParam) {
-    var st = stateParam || window.state || window.gameState || (window.AFM && window.AFM.state);
+  window.AFM_EnsureSafeState = function() {
+    var st = window.state || window.GameState;
     if (!st || typeof st !== 'object') return;
-    var arrayKeys = ['bankLoans', 'loans', 'news', 'history', 'seasonHistory', 'trophies', 'offers', 'inbox', 'sponsors'];
-    for (var i = 0; i < arrayKeys.length; i++) {
-      var k = arrayKeys[i];
+    ['bankLoans', 'loans'].forEach(function(k) {
       if (st[k] !== undefined && !Array.isArray(st[k])) {
-        if (st[k] && typeof st[k] === 'object') {
-          var vals = Array.isArray(st[k].activeLoans) ? st[k].activeLoans : Object.values(st[k]).filter(function (x) { return x && typeof x === 'object'; });
-          st[k] = vals;
-        } else {
-          st[k] = [];
-        }
-      } else if (st[k] === undefined && (k === 'bankLoans' || k === 'loans')) {
+        st[k] = (st[k] && typeof st[k] === 'object') ? Object.values(st[k]) : [];
+      } else if (st[k] === undefined) {
         st[k] = [];
       }
-    }
-    if (st.finances && typeof st.finances === 'object' && !Array.isArray(st.finances.bankLoans)) {
+    });
+    if (st.finances && typeof st.finances === 'object' && st.finances.bankLoans !== undefined && !Array.isArray(st.finances.bankLoans)) {
       st.finances.bankLoans = Array.isArray(st.bankLoans) ? st.bankLoans : [];
     }
-  };
 
-  // Normalizador específico para compatibilidade com chamadores de AFM_NormalizeBankLoans
-  window.AFM_NormalizeBankLoans = function (state) {
-    if (!state) return;
-    if (!Array.isArray(state.bankLoans)) {
-      const recovered = Array.isArray(state.bankLoans?.activeLoans) ? state.bankLoans.activeLoans : [];
-      state.bankLoansMeta = {
-        lastProcessedPeriod: state.bankLoans?.lastProcessedPeriod || null,
-        creditScore: state.bankLoans?.creditScore || 'AA',
-        creditLimit: state.bankLoans?.creditLimit || 5000000
-      };
-      state.bankLoans = recovered;
-    }
-    window.AFM_NormalizeStateArrays(state);
-  };
-
-  // 3. Polyfill de Blindagem: se algum save já salvo no localStorage tiver bankLoans como Objeto,
-  // delega .reduce(), .some(), .filter(), .map() e .forEach() para activeLoans sem travar a aba!
-  ['reduce', 'some', 'filter', 'map', 'forEach', 'find'].forEach(function (method) {
-    if (!Object.prototype[method]) {
-      Object.defineProperty(Object.prototype, method, {
-        value: function (...args) {
-          const arr = Array.isArray(this) ? this : (Array.isArray(this?.activeLoans) ? this.activeLoans : Object.values(this || {}));
-          return Array.prototype[method].apply(arr, args);
-        },
-        enumerable: false,
-        configurable: true,
-        writable: true
-      });
-    }
-  });
-
-  // 4. Limpeza leve sob demanda (apenas 1x sob demanda ou após troca de aba, sem MutationObserver infinito)
-  window.AFM_CleanBrokenTextOnce = function (root) {
-    var container = root || document.getElementById('app') || document.body;
-    if (!container || typeof document === 'undefined') return;
-    if (window.AFM_NormalizeStateArrays) window.AFM_NormalizeStateArrays();
-
-    try {
-      var walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
-      var node;
-      var nodesToClean = [];
-      while ((node = walker.nextNode())) {
-        var val = node.nodeValue;
-        if (val && (val.indexOf("';}\"") !== -1 || val.indexOf('onerror=') !== -1 || /[A-Z]{2,4}\s*\/>/.test(val))) {
-          nodesToClean.push(node);
+    // Normaliza rodadas de competicoes (Libertadores, Intercontinental, Temporada) para nunca quebrar round.filter
+    var comps = st.competitions || st.tournaments || st.leagues;
+    if (comps && typeof comps === 'object') {
+      Object.values(comps).forEach(function(comp) {
+        if (!comp || typeof comp !== 'object') return;
+        if (comp.rounds && Array.isArray(comp.rounds)) {
+          comp.rounds = comp.rounds.map(function(r) {
+            if (Array.isArray(r)) return r;
+            if (r && typeof r === 'object') {
+              var arr = window.__afmAsRoundArray(r);
+              // Preserva propriedades como r.name ou r.title no proprio Array!
+              Object.keys(r).forEach(function(k) {
+                if (k !== 'length') try { arr[k] = r[k]; } catch(e) {}
+              });
+              return arr;
+            }
+            return [];
+          });
         }
-      }
-      nodesToClean.forEach(function (n) {
-        n.nodeValue = n.nodeValue
-          .replace(/onerror="[^"]*"/g, '')
-          .replace(/[A-Za-z0-9_-]{0,6}\s*(<\/text><\/svg>)?\s*';\}"\s*\/>/g, '')
-          .replace(/';\}"\s*\/>/g, '')
-          .replace(/[A-Z]{2,4}\s*\/>/g, '')
-          .replace(/\/>/g, '');
       });
-    } catch (e) {}
-  };
-
-  window.AFM_SweepCorruptedTags = window.AFM_CleanBrokenTextOnce;
-
-  // Executa apenas uma vez no carregamento, SEM MutationObserver em loop
-  if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function () { window.AFM_CleanBrokenTextOnce(); });
-    } else {
-      window.AFM_CleanBrokenTextOnce();
     }
-  }
-})(typeof window !== 'undefined' ? window : global);
+  };
+})();

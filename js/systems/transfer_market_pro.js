@@ -93,5 +93,6 @@
     }
   };
 
+  // TransferMarketPro active
   window.AFM_TransferMarketPro = TransferMarketPro;
 })(window);

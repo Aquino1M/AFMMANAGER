@@ -1,9 +1,3 @@
-// ==============================================================================
-// AFM MANAGER 2027 — LUPA NO MERCADO, MERCADO GLOBAL, IDADE E REGEN GENÉTICO
-// Arquivo: js/systems/market_lupa_aging_and_regens.js
-// BLOCO 04 — 100% ISOLADO NO SAVE DO USUÁRIO
-// ==============================================================================
-
 (function (window) {
   'use strict';
 
@@ -13,190 +7,691 @@
     return Math.abs(h);
   }
 
+  function norm(str = '') {
+    return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
+
+  // Resolução resiliente e exata do atleta (por objeto, chave global, nome ou linha da tabela)
+  function resolvePlayer(pOrKeyOrRow) {
+    if (!pOrKeyOrRow) return null;
+
+    // 1. Já é um objeto válido de jogador
+    if (typeof pOrKeyOrRow === 'object' && !pOrKeyOrRow.nodeType && (pOrKeyOrRow.ovr || pOrKeyOrRow.overall || pOrKeyOrRow.fc || pOrKeyOrRow.pes || pOrKeyOrRow.name)) {
+      return pOrKeyOrRow;
+    }
+
+    // 2. Elemento do DOM (botão da lupa ou linha <tr> da tabela)
+    let domRow = null;
+    let domKey = '';
+    if (typeof pOrKeyOrRow === 'object' && pOrKeyOrRow.nodeType) {
+      domRow = pOrKeyOrRow.closest ? pOrKeyOrRow.closest('tr, .market-row, .salary-item-clickable') : null;
+      domKey = pOrKeyOrRow.dataset?.key || pOrKeyOrRow.dataset?.playerKey || domRow?.querySelector('[data-key]')?.dataset?.key || domRow?.querySelector('[data-player-key]')?.dataset?.playerKey || '';
+    }
+
+    const searchKey = typeof pOrKeyOrRow === 'string' ? pOrKeyOrRow : domKey;
+
+    // 3. Busca através da API oficial global do simulador
+    let p = null;
+    if (searchKey && typeof window.findGlobalPlayerByKey === 'function') {
+      p = window.findGlobalPlayerByKey(searchKey);
+    }
+
+    // 4. Busca direta em todos os repositórios em memória
+    if (!p && searchKey) {
+      const rawKey = String(searchKey).trim();
+      const cleanName = rawKey.startsWith('n:') ? rawKey.slice(2).split('|')[0] : (rawKey.startsWith('id:') || rawKey.startsWith('fifa:') || rawKey.startsWith('pes:') ? rawKey.split(':')[1] : rawKey);
+      const cleanNorm = norm(cleanName);
+
+      const pools = [
+        ...(window.state?.squad || []),
+        ...((typeof window.marketUniverse === 'function' ? window.marketUniverse() : []) || []),
+        ...(window.livePlayers || []),
+        ...(window.state?.worldGenerated || []),
+        ...(window.state?.worldRegens || [])
+      ];
+
+      p = pools.find(x => {
+        if (!x) return false;
+        if (x.marketKey && x.marketKey === rawKey) return true;
+        if (typeof window.playerKey === 'function' && window.playerKey(x) === rawKey) return true;
+        if (String(x.id) === cleanName || String(x.fifaId) === cleanName || String(x.pesId) === cleanName) return true;
+        const xNorm = norm(x.name);
+        return xNorm === cleanNorm || (cleanNorm.length >= 4 && (xNorm.includes(cleanNorm) || cleanNorm.includes(xNorm)));
+      });
+
+      if (!p && window.clubs) {
+        for (const c of Object.values(window.clubs)) {
+          if (Array.isArray(c?.squad)) {
+            p = c.squad.find(x => x && norm(x.name) === cleanNorm);
+            if (p) {
+              if (!p.club) p.club = c.name;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // 5. Se foi clicado a partir de uma linha da tabela, extrai com 100% de precisão coluna a coluna
+    if (domRow) {
+      const tds = Array.from(domRow.querySelectorAll('td'));
+      if (tds.length >= 5) {
+        // Tabela típica de mercado: [0: Nome, 1: Clube, 2: Pos, 3: Overall, 4: Idade, 5: Valor, 6: Ação]
+        const domName = (tds[0]?.querySelector('b')?.innerText || tds[0]?.innerText || '').trim();
+        const domClub = (tds[1]?.querySelector('.club-cell')?.innerText || tds[1]?.innerText || '').replace(/[\r\n\t]+/g, ' ').trim();
+        const domPos = (tds[2]?.querySelector('.pill')?.innerText || tds[2]?.innerText || 'MEI').trim();
+        
+        const ovrEl = tds[3]?.querySelector('.rating-pill') || tds[3];
+        const domOvr = parseInt((ovrEl?.innerText || '').replace(/\D/g, ''), 10);
+        
+        const domAge = parseInt((tds[4]?.innerText || '').replace(/\D/g, ''), 10);
+        
+        const valEl = tds[5]?.querySelector('.good') || tds[5];
+        const rawValText = (valEl?.innerText || '').trim();
+        const cleanValText = rawValText.includes('R$') ? rawValText : (rawValText ? `R$ ${rawValText}` : '');
+
+        if (!p) {
+          p = {
+            name: domName || 'Atleta',
+            club: domClub || 'Mercado Global',
+            pos: domPos || 'MEI',
+            ovr: !isNaN(domOvr) && domOvr >= 45 ? domOvr : 78,
+            overall: !isNaN(domOvr) && domOvr >= 45 ? domOvr : 78,
+            age: !isNaN(domAge) && domAge >= 15 ? domAge : 22,
+            valText: cleanValText
+          };
+        } else {
+          // Se o overall ou idade no elemento visual for mais específico/atualizado, sincroniza:
+          if (!isNaN(domOvr) && domOvr >= 45 && !p.ovr && !p.overall) p.ovr = domOvr;
+          if (!isNaN(domAge) && domAge >= 15 && !p.age) p.age = domAge;
+          if (cleanValText && !p.valText) p.valText = cleanValText;
+        }
+      }
+    }
+
+    return p;
+  }
+
+  // Gera ou recupera o histórico isolado de 3 temporadas passadas + temporada atual do save
+  function getOrInitCareerHistory(p, state) {
+    if (!p) return null;
+    const st = state || window.state || {};
+    st.playerCareerHistory = st.playerCareerHistory || {};
+
+    const pName = p.name || 'Jogador';
+    const pClub = p.club || 'Clube Atual';
+    const key = (typeof window.playerKey === 'function' ? window.playerKey(p) : '') || norm(pName + '_' + pClub);
+
+    const curSeasonYear = Number(st.season) || 2026;
+    const ovr = Number(p.ovr || p.overall || (typeof window.playerOverall === 'function' ? window.playerOverall(p) : 75));
+    const age = Number(p.age) || 24;
+    const pos = p.pos || 'MEI';
+    const isGK = /^(GK|GOL)$/i.test(pos);
+    const isDefender = /^(CB|LB|RB|ZAG|LAT|LD|LE)$/i.test(pos);
+    const isMidfielder = /^(DM|CM|AM|VOL|MEI|MC)$/i.test(pos);
+    const isAttacker = /^(ST|CF|LW|RW|ATA|PON|CA|PD|PE)$/i.test(pos);
+
+    // Se já existe no save, atualiza e sincroniza os dados da temporada atual
+    if (st.playerCareerHistory[key]) {
+      const rec = st.playerCareerHistory[key];
+      // Garante que a temporada atual corresponda ao clube e stats em tempo real
+      const cur = rec.seasons.find(s => s.seasonYear === curSeasonYear);
+      if (cur) {
+        if (p.club) cur.club = p.club;
+        if (p.goals != null && p.goals > cur.goals) cur.goals = p.goals;
+        if (p.assists != null && p.assists > cur.assists) cur.assists = p.assists;
+        if (p.games != null && p.games > cur.games) cur.games = p.games;
+      }
+      return rec;
+    }
+
+    // Criação inicial das 4 temporadas (Atual + 3 Passadas)
+    const h = hashString(pName + '_' + pClub);
+    const seasons = [];
+
+    // Temporada Atual (em progresso no save)
+    const curRound = Math.max(1, Math.min(38, Number(st.round) || 1));
+    const starterRatio = (ovr >= 78 ? 0.92 : (ovr >= 72 ? 0.75 : 0.45));
+    const currentGames = p.games != null ? p.games : Math.max(0, Math.round(curRound * starterRatio));
+    
+    let currentGoals = p.goals != null ? p.goals : 0;
+    if (p.goals == null && currentGames > 0) {
+      if (isAttacker) currentGoals = Math.round(currentGames * (0.35 + (ovr >= 85 ? 0.35 : (ovr >= 78 ? 0.18 : 0.05))));
+      else if (isMidfielder) currentGoals = Math.round(currentGames * (0.12 + (ovr >= 80 ? 0.12 : 0.02)));
+      else if (isDefender) currentGoals = Math.round(currentGames * 0.04);
+    }
+
+    let currentAssists = p.assists != null ? p.assists : 0;
+    if (p.assists == null && currentGames > 0) {
+      if (isMidfielder) currentAssists = Math.round(currentGames * (0.24 + (ovr >= 80 ? 0.15 : 0.05)));
+      else if (isAttacker) currentAssists = Math.round(currentGames * (0.18 + (ovr >= 82 ? 0.12 : 0.02)));
+      else if (isDefender) currentAssists = Math.round(currentGames * 0.06);
+    }
+
+    const currentCleanSheets = isGK ? Math.round(currentGames * (0.32 + (ovr >= 80 ? 0.15 : 0.05))) : 0;
+    const currentRating = +(6.6 + (ovr - 70) * 0.04 + (currentGoals * 0.08) / Math.max(1, currentGames)).toFixed(2);
+
+    seasons.push({
+      seasonYear: curSeasonYear,
+      label: `Temporada Atual (${curSeasonYear})`,
+      isCurrent: true,
+      club: pClub,
+      games: currentGames,
+      goals: currentGoals,
+      assists: currentAssists,
+      cleanSheets: currentCleanSheets,
+      rating: Math.min(9.4, Math.max(6.2, currentRating)),
+      status: 'Em disputa ⚽'
+    });
+
+    // 3 Temporadas Passadas (ex: 2025, 2024, 2023)
+    for (let i = 1; i <= 3; i++) {
+      const pastYear = curSeasonYear - i;
+      const ageAtYear = Math.max(15, age - i);
+      const isRookie = ageAtYear <= 17;
+      
+      const totalPossibleMatches = 38 + (h % 10);
+      const pastGames = isRookie 
+        ? Math.max(4, Math.round(totalPossibleMatches * 0.35 + (h % 6)))
+        : Math.max(12, Math.round(totalPossibleMatches * (0.75 + ((h >> i) % 20) / 100)));
+
+      let pastGoals = 0;
+      if (isAttacker) {
+        const goalRate = isRookie ? 0.28 : (0.42 + (ovr >= 85 ? 0.30 : (ovr >= 78 ? 0.15 : 0.02)));
+        pastGoals = Math.max(isRookie ? 1 : 4, Math.round(pastGames * goalRate + ((h >> (i + 1)) % 5)));
+      } else if (isMidfielder) {
+        pastGoals = Math.max(0, Math.round(pastGames * 0.16 + ((h >> (i + 1)) % 4)));
+      } else if (isDefender) {
+        pastGoals = Math.max(0, Math.round(pastGames * 0.05 + ((h >> (i + 2)) % 2)));
+      }
+
+      let pastAssists = 0;
+      if (isMidfielder) {
+        pastAssists = Math.max(1, Math.round(pastGames * 0.28 + ((h >> (i + 2)) % 6)));
+      } else if (isAttacker) {
+        pastAssists = Math.max(0, Math.round(pastGames * 0.18 + ((h >> (i + 3)) % 5)));
+      } else if (isDefender) {
+        pastAssists = Math.max(0, Math.round(pastGames * 0.07));
+      }
+
+      const pastCleanSheets = isGK ? Math.max(3, Math.round(pastGames * 0.38)) : 0;
+      const pastRating = +(6.7 + ((ovr - (i * 2)) - 70) * 0.035 + (pastGoals * 0.05) / Math.max(1, pastGames)).toFixed(2);
+
+      // Clube da época (se jovem revelado, pode ser o mesmo clube ou anterior)
+      const pastClub = (i >= 2 && (h % 3 === 0)) ? (p.previousClub || pClub) : pClub;
+
+      seasons.push({
+        seasonYear: pastYear,
+        label: `Temporada ${pastYear}`,
+        isCurrent: false,
+        club: pastClub,
+        games: pastGames,
+        goals: pastGoals,
+        assists: pastAssists,
+        cleanSheets: pastCleanSheets,
+        rating: Math.min(9.2, Math.max(6.1, pastRating)),
+        status: 'Concluída 🏆'
+      });
+    }
+
+    const careerRecord = {
+      playerKey: key,
+      name: pName,
+      seasons
+    };
+
+    st.playerCareerHistory[key] = careerRecord;
+    return careerRecord;
+  }
+
   const MarketLupaAgingAndRegens = {
-    openPlayerDetailsFromRow(playerData) {
-      if (typeof document === 'undefined') return;
-      const name = playerData.name || 'Jogador';
-      const h = hashString(name);
-      const age = Number(playerData.age) || (19 + (h % 14));
-      const ovr = Number(playerData.ovr) || (68 + (h % 18));
-      const pos = playerData.pos || 'MEI';
-      const club = playerData.club || 'Clube Atual';
-      const valText = playerData.marketValue || `R$ ${(ovr * 0.45).toFixed(1)} mi`;
+    // Processamento de gols e jogos rodada a rodada integrado ao save
+    processRoundMatchStats(state, matchResult) {
+      if (!state) return;
+      state.playerCareerHistory = state.playerCareerHistory || {};
+      const curYear = Number(state.season) || 2026;
 
-      const games = playerData.games ?? Math.max(15, (age - 17) * 31 + (h % 19));
-      const isAttacker = ['ST', 'CF', 'LW', 'RW', 'ATA', 'PON', 'CA'].some((p) => pos.includes(p));
-      const goals = playerData.goals ?? (isAttacker ? Math.round(games * 0.44) : Math.round(games * 0.11));
-      const assists = playerData.assists ?? Math.round(games * 0.19);
+      // 1. Atualiza atletas titulares do clube do usuário
+      if (Array.isArray(state.lineup) && Array.isArray(state.squad)) {
+        const starters = state.lineup.map(k => state.squad.find(p => (typeof window.playerKey === 'function' ? window.playerKey(p) : p.name) === k)).filter(Boolean);
+        
+        starters.forEach(p => {
+          const rec = getOrInitCareerHistory(p, state);
+          if (rec && rec.seasons && rec.seasons[0]) {
+            rec.seasons[0].games = (rec.seasons[0].games || 0) + 1;
+            p.games = (p.games || 0) + 1;
+          }
+        });
 
-      const speed = Math.min(99, Math.max(50, ovr + (age <= 25 ? 6 : -4) + (h % 5)));
-      const strength = Math.min(99, Math.max(52, ovr + 2 + ((h >> 2) % 6)));
-      const dribble = Math.min(99, Math.max(48, ovr + (isAttacker ? 5 : -2) + ((h >> 3) % 5)));
-      const finishing = Math.min(99, Math.max(42, ovr + (isAttacker ? 6 : -9) + ((h >> 4) % 5)));
-      const passing = Math.min(99, Math.max(50, ovr + 3 + ((h >> 5) % 4)));
+        // Contabiliza gols e assistências oficiais da partida do usuário
+        if (matchResult && Array.isArray(matchResult.events)) {
+          matchResult.events.forEach(ev => {
+            if (ev?.type === 'gol' && ev.player) {
+              const scorer = state.squad.find(p => norm(p.name) === norm(ev.player));
+              if (scorer) {
+                scorer.goals = (scorer.goals || 0) + 1;
+                const rec = getOrInitCareerHistory(scorer, state);
+                if (rec && rec.seasons && rec.seasons[0]) {
+                  rec.seasons[0].goals = (rec.seasons[0].goals || 0) + 1;
+                }
+              }
+              if (ev.assist) {
+                const assister = state.squad.find(p => norm(p.name) === norm(ev.assist));
+                if (assister) {
+                  assister.assists = (assister.assists || 0) + 1;
+                  const rec = getOrInitCareerHistory(assister, state);
+                  if (rec && rec.seasons && rec.seasons[0]) {
+                    rec.seasons[0].assists = (rec.seasons[0].assists || 0) + 1;
+                  }
+                }
+              }
+            }
+          });
 
-      const old = document.getElementById('afm-market-lupa-modal');
-      if (old) old.remove();
+          // Se o usuário não sofreu gols, dá clean sheet ao goleiro
+          if (matchResult.ga === 0) {
+            const gk = starters.find(p => p.pos === 'GK');
+            if (gk) {
+              const rec = getOrInitCareerHistory(gk, state);
+              if (rec && rec.seasons && rec.seasons[0]) {
+                rec.seasons[0].cleanSheets = (rec.seasons[0].cleanSheets || 0) + 1;
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Simula rodada de gols e jogos para atletas do mercado e do mundo
+      const registeredKeys = Object.keys(state.playerCareerHistory);
+      registeredKeys.forEach(k => {
+        const rec = state.playerCareerHistory[k];
+        if (!rec || !rec.seasons || !rec.seasons[0]) return;
+        const cur = rec.seasons[0];
+        if (cur.seasonYear !== curYear) return;
+
+        // Se não é do clube do usuário, avança jogos e gols proporcionalmente à rodada
+        if (state.club && norm(cur.club) !== norm(state.club)) {
+          cur.games = (cur.games || 0) + 1;
+          const roll = Math.random();
+          // Probabilidade de gol na rodada conforme histórico e posição
+          if (roll < 0.38) {
+            cur.goals = (cur.goals || 0) + 1;
+          }
+          if (Math.random() < 0.22) {
+            cur.assists = (cur.assists || 0) + 1;
+          }
+        }
+      });
+    },
+
+    openPlayerDetails(pOrKeyOrRow) {
+      const p = resolvePlayer(pOrKeyOrRow);
+      const state = window.state || {};
+      const career = getOrInitCareerHistory(p, state);
+
+      const name = p?.name || 'Jogador';
+      const pos = (p?.pos || 'MEI').toUpperCase();
+      const club = p?.club || 'Mercado Global';
+      const age = Number(p?.age) || 22;
+
+      // Cálculo e exibição do Overall REAL do atleta
+      const realOvr = Number(p?.ovr || p?.overall || (typeof window.playerOverall === 'function' && p ? window.playerOverall(p) : 78));
+      const potential = Number(p?.potential) || Math.min(99, realOvr + (age <= 21 ? 9 : (age <= 24 ? 6 : (age <= 28 ? 2 : 0))));
+
+      // Valor de mercado limpo e formatado
+      let valText = p?.valText;
+      if (!valText) {
+        const valMi = p?.value != null ? p.value : (typeof window.calcValueMi === 'function' && p ? window.calcValueMi(p) : (realOvr * 0.45));
+        valText = typeof window.fmtMi === 'function' ? window.fmtMi(valMi) : `R$ ${Number(valMi).toFixed(1)} mi`;
+      }
+
+      // Salário
+      const salary = p?.wage != null && p.wage > 0 ? p.wage : (typeof window.playerSalary === 'function' && p ? window.playerSalary(p) : Math.round(realOvr * 1200));
+      const country = p?.country || '';
+
+      const isGK = /^(GK|GOL)$/i.test(pos);
+      const isDefender = /^(CB|LB|RB|ZAG|LAT|LD|LE)$/i.test(pos);
+      const isMidfielder = /^(DM|CM|AM|VOL|MEI|MC)$/i.test(pos);
+      const isAttacker = /^(ST|CF|LW|RW|ATA|PON|CA|PD|PE)$/i.test(pos);
+
+      // Cores visuais de acordo com o Overall Real
+      const ovrRatingBg = realOvr >= 85 ? 'linear-gradient(135deg, #f59e0b, #d97706)' : (realOvr >= 78 ? 'linear-gradient(135deg, #eab308, #ca8a04)' : (realOvr >= 70 ? 'linear-gradient(135deg, #0284c7, #0369a1)' : '#475569'));
+      const ovrRatingColor = '#000';
+      const ovrBorderColor = realOvr >= 85 ? '#f59e0b' : (realOvr >= 78 ? '#eab308' : (realOvr >= 70 ? '#38bdf8' : '#a78bfa'));
+      const ovrGlowColor = realOvr >= 85 ? 'rgba(245,158,11,0.5)' : (realOvr >= 78 ? 'rgba(234,179,8,0.4)' : 'rgba(124,58,237,0.3)');
+
+      // Foto ou Badge Circular com Overall Real
+      let photoHtml = '';
+      if (p && typeof window.playerPhoto === 'function') {
+        photoHtml = window.playerPhoto(p, 68);
+      } else {
+        photoHtml = `<div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg, #1e1b4b, #0f0c1d);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:26px;color:#fff;border:2px solid ${ovrBorderColor}">${realOvr}</div>`;
+      }
+
+      let badgeHtml = '';
+      if (club && typeof window.clubBadge === 'function') {
+        badgeHtml = window.clubBadge(club, 22);
+      }
+
+      // Atributos de desempenho ajustados rigorosamente ao OVERALL REAL do atleta
+      const h = hashString(name + '_' + club);
+      let attrTitle = 'ATRIBUTOS FÍSICOS & TÉCNICOS';
+      let attributes = [];
+
+      if (isGK) {
+        attrTitle = 'ATRIBUTOS DE GOLEIRO (ESCALA REAL)';
+        attributes = [
+          { name: 'Reflexos', icon: '⚡', val: Math.min(99, Math.max(50, realOvr + 3 + (h % 4))) },
+          { name: 'Pegada & Firmeza', icon: '🧤', val: Math.min(99, Math.max(50, realOvr + 2 + ((h >> 2) % 4))) },
+          { name: 'Posicionamento', icon: '📐', val: Math.min(99, Math.max(50, realOvr + 1 + ((h >> 3) % 4))) },
+          { name: 'Saída de Gol', icon: '⚽', val: Math.min(99, Math.max(45, realOvr - 2 + ((h >> 4) % 5))) },
+          { name: 'Reposição', icon: '🎯', val: Math.min(99, Math.max(45, realOvr + ((h >> 5) % 4))) },
+          { name: 'Elasticidade', icon: '💪', val: Math.min(99, Math.max(50, realOvr + 2 + ((h >> 6) % 4))) }
+        ];
+      } else if (isDefender) {
+        attrTitle = 'ATRIBUTOS DEFENSIVOS & FÍSICOS (ESCALA REAL)';
+        attributes = [
+          { name: 'Desarme & Bote', icon: '🛡️', val: Math.min(99, Math.max(52, realOvr + 4 + (h % 3))) },
+          { name: 'Marcação', icon: '🪓', val: Math.min(99, Math.max(52, realOvr + 3 + ((h >> 2) % 3))) },
+          { name: 'Força Física', icon: '💪', val: Math.min(99, Math.max(50, realOvr + 2 + ((h >> 3) % 4))) },
+          { name: 'Velocidade', icon: '⚡', val: Math.min(99, Math.max(48, realOvr + (age <= 25 ? 4 : -3) + ((h >> 4) % 4))) },
+          { name: 'Jogo Aéreo', icon: '✈️', val: Math.min(99, Math.max(50, realOvr + 2 + ((h >> 5) % 4))) },
+          { name: 'Passe & Saída', icon: '📐', val: Math.min(99, Math.max(45, realOvr - 2 + ((h >> 6) % 4))) }
+        ];
+      } else if (isMidfielder) {
+        attrTitle = 'ATRIBUTOS DE CRIAÇÃO & MEIO-CAMPO (ESCALA REAL)';
+        attributes = [
+          { name: 'Passe & Visão', icon: '📐', val: Math.min(99, Math.max(52, realOvr + 4 + (h % 3))) },
+          { name: 'Drible & Controle', icon: '🪄', val: Math.min(99, Math.max(52, realOvr + 3 + ((h >> 2) % 4))) },
+          { name: 'Chute & Finalização', icon: '🎯', val: Math.min(99, Math.max(48, realOvr + ((h >> 3) % 4))) },
+          { name: 'Ritmo & Agilidade', icon: '⚡', val: Math.min(99, Math.max(48, realOvr + (age <= 26 ? 3 : -2) + ((h >> 4) % 4))) },
+          { name: 'Força & Combate', icon: '💪', val: Math.min(99, Math.max(46, realOvr + ((h >> 5) % 5))) },
+          { name: 'Desarme', icon: '🛡️', val: Math.min(99, Math.max(45, realOvr + (pos.includes('DM') || pos.includes('VOL') ? 4 : -4) + ((h >> 6) % 4))) }
+        ];
+      } else {
+        attrTitle = 'ATRIBUTOS DE ATAQUE & DEFINIÇÃO (ESCALA REAL)';
+        attributes = [
+          { name: 'Finalização & Chute', icon: '🎯', val: Math.min(99, Math.max(52, realOvr + 5 + (h % 3))) },
+          { name: 'Velocidade & Arranque', icon: '⚡', val: Math.min(99, Math.max(50, realOvr + (age <= 26 ? 5 : -2) + ((h >> 2) % 4))) },
+          { name: 'Drible & Finta', icon: '🪄', val: Math.min(99, Math.max(50, realOvr + 4 + ((h >> 3) % 3))) },
+          { name: 'Força & Explosão', icon: '💪', val: Math.min(99, Math.max(48, realOvr + 1 + ((h >> 4) % 4))) },
+          { name: 'Passe & Criação', icon: '📐', val: Math.min(99, Math.max(45, realOvr - 1 + ((h >> 5) % 4))) },
+          { name: 'Cabeceio', icon: '✈️', val: Math.min(99, Math.max(45, realOvr + (pos.includes('ST') || pos.includes('CA') ? 3 : -3) + ((h >> 6) % 4))) }
+        ];
+      }
+
+      // Remove modal antigo se aberto
+      const oldModal = document.getElementById('afm-market-lupa-modal');
+      if (oldModal) oldModal.remove();
+
+      const seasons = career?.seasons || [];
+      let activeSeasonIdx = 0; // 0 = Temporada Atual
 
       const modal = document.createElement('div');
       modal.id = 'afm-market-lupa-modal';
-      modal.style.cssText = 'position:fixed;inset:0;background:rgba(5,8,17,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:Inter,sans-serif;color:#fff;';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(5,8,17,0.85);backdrop-filter:blur(8px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,-apple-system,sans-serif;color:#fff;animation:afmFadeIn 0.2s ease-out;';
 
-      modal.innerHTML = `
-        <div style="background:#0f172a;border:1px solid #7c3aed;border-radius:16px;max-width:650px;width:100%;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,0.85);">
-          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1e293b;padding-bottom:14px;">
-            <div style="display:flex;align-items:center;gap:14px;">
-              <div id="lupa-face-slot" style="width:66px;height:66px;border-radius:50%;background:#1e1b4b;border:2px solid #a78bfa;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;overflow:hidden;">
-                ${ovr}
+      function renderModalContent() {
+        const selSeason = seasons[activeSeasonIdx] || seasons[0] || {};
+        const games = selSeason.games || 0;
+        const goals = selSeason.goals || 0;
+        const assists = selSeason.assists || 0;
+        const cleanSheets = selSeason.cleanSheets || 0;
+        const seasonClub = selSeason.club || club;
+        const rating = selSeason.rating || 7.2;
+
+        modal.innerHTML = `
+          <div style="background:#0f172a;border:1px solid #7c3aed;border-radius:22px;max-width:720px;width:100%;padding:26px;box-shadow:0 25px 60px rgba(0,0,0,0.85),0 0 35px ${ovrGlowColor};position:relative;max-height:92vh;overflow-y:auto;">
+            
+            <!-- Top Header Organizado e Limpo -->
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:18px;gap:16px;">
+              <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+                
+                <!-- Avatar Circular com Overall Real em Alta Definição -->
+                <div style="position:relative;flex-shrink:0;">
+                  <div style="border-radius:50%;overflow:hidden;border:3px solid ${ovrBorderColor};box-shadow:0 0 20px ${ovrGlowColor};width:72px;height:72px;display:flex;align-items:center;justify-content:center;background:#131127;">
+                    ${photoHtml}
+                  </div>
+                  <div style="position:absolute;bottom:-3px;right:-3px;background:#6d28d9;border:2px solid #0f172a;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);">
+                    ${pos}
+                  </div>
+                </div>
+
+                <!-- Nome, Posição e Badges Oficiais -->
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                    <span style="background:#5b21b6;color:#fff;font-size:11px;font-weight:900;padding:4px 10px;border-radius:6px;letter-spacing:0.5px;">${pos}</span>
+                    <span style="background:${ovrRatingBg};color:${ovrRatingColor};font-size:11px;font-weight:900;padding:4px 10px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">OVR ${realOvr}</span>
+                    <span style="background:rgba(234,179,8,0.18);color:#fbbf24;border:1px solid rgba(234,179,8,0.4);font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px;">⭐ POT ${potential}</span>
+                    ${country ? `<span style="font-size:11px;color:#94a3b8;background:rgba(255,255,255,0.06);padding:3px 9px;border-radius:6px;">🌍 ${country}</span>` : ''}
+                  </div>
+
+                  <h2 style="margin:0 0 8px 0;font-size:25px;font-weight:900;color:#fff;letter-spacing:-0.5px;">${name}</h2>
+
+                  <!-- Ficha Técnica Estruturada em Chips de Alta Legibilidade -->
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#cbd5e1;">
+                    <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:4px 10px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
+                      <span>🎂 Idade:</span> <b style="color:#fff;">${age} anos</b>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:4px 10px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
+                      <span>🛡️ Clube:</span> ${badgeHtml} <b style="color:#38bdf8;">${club}</b>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:4px 10px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
+                      <span>💰 Valor:</span> <b style="color:#34d399;">${valText}</b>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:4px 10px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
+                      <span>💼 Salário:</span> <b style="color:#fbbf24;">R$ ${salary.toLocaleString('pt-BR')}/mês</b>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <span style="background:#5b21b6;color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px;">${pos} · OVR ${ovr}</span>
-                <h3 style="margin:6px 0 2px;font-size:21px;font-weight:900;color:#fff;">${name}</h3>
-                <div style="font-size:12px;color:#94a3b8;">Idade: <strong style="color:#fff;">${age} anos</strong> · Clube: <strong style="color:#38bdf8;">${club}</strong> · Valor: <strong style="color:#34d399;">${valText}</strong></div>
+
+              <!-- Botão Fechar -->
+              <button id="close-lupa-modal" type="button" style="background:#1e293b;color:#cbd5e1;border:1px solid #334155;padding:8px 16px;border-radius:10px;cursor:pointer;font-weight:800;font-size:12px;transition:all 0.2s;" onmouseover="this.style.background='#334155';this.style.color='#fff'" onmouseout="this.style.background='#1e293b';this.style.color='#cbd5e1'">✕ Fechar</button>
+            </div>
+
+            <!-- NAVEGAÇÃO POR ABAS: TEMPORADA ATUAL & 3 TEMPORADAS PASSADAS -->
+            <div style="margin-top:20px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                <span style="font-size:11px;font-weight:900;color:#a78bfa;letter-spacing:1px;text-transform:uppercase;">
+                  📅 HISTÓRICO DE TEMPORADAS NO SAVE
+                </span>
+                <span style="font-size:11px;color:#94a3b8;">
+                  Equipe na época: <b style="color:#38bdf8;">${seasonClub}</b>
+                </span>
+              </div>
+
+              <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08);">
+                ${seasons.map((s, idx) => {
+                  const isActive = idx === activeSeasonIdx;
+                  return `
+                    <button type="button" class="afm-btn-season-tab" data-s-idx="${idx}" style="background:${isActive ? 'linear-gradient(135deg, #7c3aed, #4f46e5)' : 'rgba(255,255,255,0.05)'};color:${isActive ? '#fff' : '#cbd5e1'};border:${isActive ? '1px solid #a78bfa' : '1px solid rgba(255,255,255,0.08)'};border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:all 0.2s;">
+                      <span>${s.isCurrent ? '🟢' : '📅'}</span>
+                      <span>${s.label}</span>
+                    </button>
+                  `;
+                }).join('')}
               </div>
             </div>
-            <button id="close-lupa-modal" style="background:#1e293b;color:#fff;border:1px solid #475569;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:800;">✕ Fechar</button>
-          </div>
 
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;">
-            <div style="background:#090d16;border:1px solid #1e293b;border-radius:10px;padding:12px;text-align:center;">
-              <div style="font-size:10px;color:#94a3b8;font-weight:800;">PARTIDAS / JOGOS</div>
-              <div style="font-size:20px;font-weight:900;color:#fff;margin-top:4px;">🏟️ ${games}</div>
-            </div>
-            <div style="background:#090d16;border:1px solid #1e293b;border-radius:10px;padding:12px;text-align:center;">
-              <div style="font-size:10px;color:#94a3b8;font-weight:800;">GOLS NAS PARTIDAS</div>
-              <div style="font-size:20px;font-weight:900;color:#34d399;margin-top:4px;">⚽ ${goals}</div>
-            </div>
-            <div style="background:#090d16;border:1px solid #1e293b;border-radius:10px;padding:12px;text-align:center;">
-              <div style="font-size:10px;color:#94a3b8;font-weight:800;">ASSISTÊNCIAS</div>
-              <div style="font-size:20px;font-weight:900;color:#38bdf8;margin-top:4px;">👟 ${assists}</div>
-            </div>
-          </div>
-
-          <div style="background:#090d16;border:1px solid #1e293b;border-radius:10px;padding:14px;margin-top:14px;">
-            <div style="font-size:11px;font-weight:800;color:#a78bfa;margin-bottom:10px;">ATRIBUTOS FÍSICOS & TÉCNICOS DO JOGADOR</div>
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;text-align:center;font-size:12px;">
-              <div style="background:#111827;padding:8px;border-radius:8px;">⚡ Velocidade<br><strong style="font-size:16px;color:#34d399;">${speed}</strong></div>
-              <div style="background:#111827;padding:8px;border-radius:8px;">💪 Força<br><strong style="font-size:16px;color:#34d399;">${strength}</strong></div>
-              <div style="background:#111827;padding:8px;border-radius:8px;">🪄 Drible<br><strong style="font-size:16px;color:#38bdf8;">${dribble}</strong></div>
-              <div style="background:#111827;padding:8px;border-radius:8px;">🎯 Chute<br><strong style="font-size:16px;color:#fbbf24;">${finishing}</strong></div>
-              <div style="background:#111827;padding:8px;border-radius:8px;">📐 Passe<br><strong style="font-size:16px;color:#38bdf8;">${passing}</strong></div>
-            </div>
-          </div>
-
-          <div style="background:#090d16;border:1px solid #1e293b;border-radius:10px;padding:14px;margin-top:14px;">
-            <div style="font-size:11px;font-weight:800;color:#94a3b8;margin-bottom:8px;">HISTÓRICO DE TRANSFERÊNCIAS</div>
-            <div style="font-size:12px;color:#cbd5e1;display:flex;flex-direction:column;gap:6px;">
-              <div style="display:flex;justify-content:space-between;border-bottom:1px solid #111827;padding-bottom:4px;">
-                <span>📅 2023/24 · Base / Clube Formador ➔ <strong>Clube Profissional</strong></span>
-                <span style="color:#38bdf8;">Revelação</span>
+            <!-- Season Stats Grid (Cards Dinâmicos da Temporada Selecionada) -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px;text-align:center;">
+              <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
+                <div style="font-size:10px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">JOGOS DISPUTADOS</div>
+                <div style="font-size:22px;font-weight:900;margin-top:4px;color:#fff;">🏟️ ${games}</div>
+                <div style="font-size:10px;color:#64748b;margin-top:2px;">Oficiais</div>
               </div>
-              <div style="display:flex;justify-content:space-between;">
-                <span>📅 2025/26 · Transferência Oficial ➔ <strong>${club}</strong></span>
-                <span style="color:#34d399;font-weight:700;">${valText}</span>
+
+              ${isGK ? `
+                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
+                  <div style="font-size:10px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">SEM SOFRER GOL</div>
+                  <div style="font-size:22px;font-weight:900;color:#34d399;margin-top:4px;">🧤 ${cleanSheets}</div>
+                  <div style="font-size:10px;color:#64748b;margin-top:2px;">Clean Sheets</div>
+                </div>
+              ` : `
+                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
+                  <div style="font-size:10px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">GOLS MARCADOS</div>
+                  <div style="font-size:22px;font-weight:900;color:#34d399;margin-top:4px;">⚽ ${goals}</div>
+                  <div style="font-size:10px;color:#64748b;margin-top:2px;">${games > 0 ? (goals / games).toFixed(2) + ' por jogo' : '0.00'}</div>
+                </div>
+              `}
+
+              <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
+                <div style="font-size:10px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">${isGK ? 'DEFESAS DIFÍCEIS' : 'ASSISTÊNCIAS'}</div>
+                <div style="font-size:22px;font-weight:900;color:#38bdf8;margin-top:4px;">${isGK ? '🛡️ ' + Math.round(games * 2.2) : '👟 ' + assists}</div>
+                <div style="font-size:10px;color:#64748b;margin-top:2px;">${isGK ? 'Paredão' : 'Garçom'}</div>
+              </div>
+
+              <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
+                <div style="font-size:10px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">NOTA MÉDIA</div>
+                <div style="font-size:22px;font-weight:900;color:#facc15;margin-top:4px;">⭐ ${rating}</div>
+                <div style="font-size:10px;color:#64748b;margin-top:2px;">Desempenho</div>
               </div>
             </div>
-          </div>
-        </div>
-      `;
 
-      document.body.appendChild(modal);
-      modal.querySelector('#close-lupa-modal').onclick = () => modal.remove();
-      if (window.AFM_RealPlayerFaces && typeof window.AFM_RealPlayerFaces.hydratePlayerAvatarElement === 'function') {
-        window.AFM_RealPlayerFaces.hydratePlayerAvatarElement(modal.querySelector('#lupa-face-slot'), name);
+            <!-- Granular Attributes Box com Escala Real -->
+            <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;margin-top:18px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <div style="font-size:12px;font-weight:900;color:#a78bfa;letter-spacing:0.5px;">${attrTitle}</div>
+                <div style="font-size:11px;color:#64748b;">Escala oficial EA FC & eFootball (Overall Real ${realOvr})</div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+                ${attributes.map(a => {
+                  const color = a.val >= 85 ? '#4ade80' : (a.val >= 75 ? '#38bdf8' : (a.val >= 65 ? '#fbbf24' : '#f87171'));
+                  const barColor = a.val >= 85 ? '#22c55e' : (a.val >= 75 ? '#0284c7' : (a.val >= 65 ? '#eab308' : '#ef4444'));
+                  const pct = Math.min(100, Math.max(0, (a.val - 40) / 60 * 100));
+                  return `
+                    <div style="background:#111827;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                        <span style="color:#cbd5e1;font-weight:700;">${a.icon} ${a.name}</span>
+                        <b style="color:${color};font-size:15px;font-weight:900;">${a.val}</b>
+                      </div>
+                      <div style="background:rgba(255,255,255,0.08);height:6px;border-radius:3px;overflow:hidden;margin-top:8px;">
+                        <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px;transition:width 0.3s;"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+          </div>
+        `;
+
+        // Eventos
+        const closeBtn = modal.querySelector('#close-lupa-modal');
+        if (closeBtn) closeBtn.onclick = () => modal.remove();
+
+        modal.querySelectorAll('.afm-btn-season-tab').forEach(btn => {
+          btn.onclick = () => {
+            activeSeasonIdx = parseInt(btn.dataset.sIdx, 10) || 0;
+            renderModalContent();
+          };
+        });
       }
+
+      renderModalContent();
+      document.body.appendChild(modal);
+
+      modal.onclick = (e) => {
+        if (e.target === modal) modal.remove();
+      };
+
+      const escListener = (e) => {
+        if (e.key === 'Escape') {
+          modal.remove();
+          document.removeEventListener('keydown', escListener);
+        }
+      };
+      document.addEventListener('keydown', escListener);
     },
 
-    // Injeta o botão de Lupa `🔍` ao lado do botão "Sem caixa" / "Proposta" em todas as linhas do Mercado
+    openPlayerDetailsFromRow(playerData) {
+      return this.openPlayerDetails(playerData);
+    },
+
     injectLupaButtonsInMarketDOM() {
-      if (typeof document === 'undefined') return;
-      document.querySelectorAll('button').forEach((btn) => {
+      const app = document.getElementById('app');
+      if (!app) return;
+
+      // Injeta listener em todos os botões de ação e botões lupa já presentes no mercado
+      app.querySelectorAll('button').forEach((btn) => {
         const txt = (btn.textContent || '').trim();
-        if ((txt === 'Sem caixa' || txt === 'Contratar' || txt === 'Fazer Proposta' || txt === 'Negociar') && !btn.dataset.lupaAdded) {
-          const row = btn.closest('tr, .market-row, div[style*="grid"], div[style*="flex"]');
-          if (!row) return;
-          btn.dataset.lupaAdded = '1';
+        const isMarketActionBtn = /^(Comprar|Sem caixa|Janela Fechada|Negociar|Contratar|Fazer Proposta|Negociar Empréstimo|Negociar Jogador)$/i.test(txt);
+        if (!isMarketActionBtn) return;
 
-          const lupaBtn = document.createElement('button');
-          lupaBtn.type = 'button';
-          lupaBtn.title = 'Inspecionar Ficha Completa, Gols, Atributos e Histórico do Jogador';
-          lupaBtn.innerHTML = '🔍';
-          lupaBtn.style.cssText = 'background:#3b1d7a;color:#fff;border:1px solid #a78bfa;border-radius:8px;padding:7px 11px;margin-right:8px;cursor:pointer;font-size:14px;font-weight:900;';
+        const cell = btn.parentElement;
+        if (!cell) return;
+        if (cell.querySelector('.btn-lupa-details')) return;
 
-          lupaBtn.onclick = (e) => {
-            e.stopPropagation();
-            const rowText = (row.innerText || '').split('\n').map((s) => s.trim()).filter(Boolean);
-            this.openPlayerDetailsFromRow({
-              name: rowText[0] || 'Atleta do Mercado',
-              club: rowText[1] || 'Mercado Global',
-              pos: rowText.find((x) => /^(GK|CB|LB|RB|DM|CM|AM|LW|RW|ST|CF|GOL|ZAG|LAT|VOL|MEI|ATA)$/i.test(x)) || 'ATLETA',
-              age: rowText.find((x) => /^\d{2}$/.test(x) && Number(x) >= 15 && Number(x) <= 44) || 24,
-              ovr: rowText.find((x) => /^\d{2}$/.test(x) && Number(x) >= 50 && Number(x) <= 99) || 75,
-              marketValue: rowText.find((x) => x.includes('R$') || x.includes('mi')) || 'Consultado'
-            });
-          };
+        const row = btn.closest('tr, .market-row');
+        if (!row) return;
 
-          btn.parentElement.insertBefore(lupaBtn, btn);
-        }
+        const key = btn.dataset.key || row.querySelector('[data-key]')?.dataset?.key || '';
+        const lupaBtn = document.createElement('button');
+        lupaBtn.type = 'button';
+        lupaBtn.className = 'btn btn-lupa-details';
+        lupaBtn.innerHTML = '🔍';
+        lupaBtn.title = 'Ver ficha técnica e atributos reais do atleta';
+        lupaBtn.style.cssText = 'background:#3b1d7a;color:#fff;border:1px solid #a78bfa;border-radius:8px;padding:6px 10px;margin-right:6px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(124,58,237,0.3);flex-shrink:0;';
+        if (key) lupaBtn.dataset.key = key;
+
+        lupaBtn.onclick = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          MarketLupaAgingAndRegens.openPlayerDetails(lupaBtn.dataset.key || key || row);
+        };
+
+        cell.insertBefore(lupaBtn, btn);
       });
 
-      // Troca "MERCADO SIMULADO ATIVO" por "🌐 Mercado Global"
-      document.querySelectorAll('span, div, button, h3, h4').forEach((el) => {
+      // Também vincula cliques nas lupas nativas da tabela
+      app.querySelectorAll('.btn-lupa-details').forEach(lupaBtn => {
+        if (lupaBtn.dataset.afmLupaBound) return;
+        lupaBtn.dataset.afmLupaBound = 'true';
+        lupaBtn.onclick = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const row = lupaBtn.closest('tr, .market-row');
+          MarketLupaAgingAndRegens.openPlayerDetails(lupaBtn.dataset.key || row || lupaBtn);
+        };
+      });
+
+      app.querySelectorAll('span, div, h3, h4').forEach((el) => {
         if (el.children.length === 0 && (el.textContent || '').includes('MERCADO SIMULADO ATIVO')) {
           el.textContent = el.textContent.replace(/MERCADO SIMULADO ATIVO/g, '🌐 Mercado Global');
         }
       });
     },
 
-    // Sistema de Envelhecimento (Queda de Over e Valor com a idade) + Aposentadoria + Regen Genético na Base
     processAgingDeclineAndGeneticRegens(state) {
-      const players = state?.isolatedWorld?.players || state?.players || state?.squad || [];
-      const regensLog = [];
-
-      players.forEach((p, idx) => {
-        if (!p) return;
-        p.age = (Number(p.age) || 23) + 1;
-        const isGk = ['GK', 'GOL'].includes(p.position || p.pos);
-        const oldAge = isGk ? 34 : 31;
-
-        if (p.age >= oldAge) {
-          const ovrDrop = p.age >= 35 ? 2 : 1;
-          p.overall = Math.max(48, (Number(p.overall || p.ovr) || 70) - ovrDrop);
-          p.ovr = p.overall;
-          // O valor dele cai porque está ficando velho
-          p.marketValue = Math.max(40000, Math.round((Number(p.marketValue) || 1500000) * 0.65));
-        }
-
-        // Aposentadoria e Criação de Regen Genético nas Categorias de Base de algum time aleatório
-        if (p.age >= 36 && (p.age >= 37 || Math.random() < 0.65 || p.forceRetire)) {
-          const randomClubs = ['Corinthians', 'Palmeiras', 'Santos', 'São Paulo', 'Flamengo', 'Grêmio', 'Cruzeiro', 'Vasco', 'Internacional', 'Atlético-MG'];
-          const destClub = randomClubs[Math.floor(Math.random() * randomClubs.length)];
-          const regen = {
-            id: `regen_${Date.now()}_${idx}`,
-            name: `${p.name.split(' ')[0]} Jr.`,
-            regenOf: p.name,
-            geneticOrigin: p.name,
-            nationality: p.nationality || 'Brasil',
-            age: 16,
-            position: p.position || p.pos || 'MEI',
-            overall: Math.max(58, Math.min(72, Math.round((p.overall || 72) * 0.85))),
-            potential: Math.max(83, Math.min(95, (p.potential || 85) + 2)),
-            marketValue: 500000,
-            salary: 9500,
-            clubName: `${destClub} (Categorias de Base)`,
-            isGeneticRegen: true
-          };
-          players[idx] = regen;
-          if (Array.isArray(state?.youthAcademy)) {
-            state.youthAcademy.push(regen);
-          }
-          regensLog.push(`🧬 ${p.name} aposentou-se aos ${p.age} anos! Seu regen genético (${regen.name}, 16 anos, POT ${regen.potential}) surgiu nas Categorias de Base do ${destClub}!`);
-        }
-      });
-
-      return regensLog;
+      if (!state) return;
     }
   };
 
+  document.addEventListener('click', () => {
+    setTimeout(() => MarketLupaAgingAndRegens.injectLupaButtonsInMarketDOM(), 60);
+  });
+
+  window.addEventListener('load', () => {
+    MarketLupaAgingAndRegens.injectLupaButtonsInMarketDOM();
+  });
+
+  if (typeof MutationObserver !== 'undefined') {
+    let obsTimeout = null;
+    const observer = new MutationObserver(() => {
+      if (obsTimeout) return;
+      obsTimeout = setTimeout(() => {
+        obsTimeout = null;
+        MarketLupaAgingAndRegens.injectLupaButtonsInMarketDOM();
+      }, 50);
+    });
+    const root = document.getElementById('app') || document.body;
+    if (root) {
+      observer.observe(root, { childList: true, subtree: true });
+    }
+  }
+
   window.AFM_MarketLupaAndAging = MarketLupaAgingAndRegens;
-})(typeof window !== 'undefined' ? window : global);
+})(window);

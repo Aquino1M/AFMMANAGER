@@ -1,6 +1,28 @@
 /* Clubes por competição. Listas brasileiras de 2026 e principais ligas internacionais.
    O mesmo clube pode aparecer em mais de uma competição sem mudar sua competição principal. */
 window.COMPETITION_TEAMS = {
+  'usa-1': [
+  "Inter Miami",
+  "Los Angeles FC",
+  "LA Galaxy",
+  "Columbus Crew",
+  "New York City FC",
+  "New York Red Bulls",
+  "Seattle Sounders",
+  "Atlanta United",
+  "FC Cincinnati",
+  "Orlando City",
+  "Philadelphia Union",
+  "Houston Dynamo",
+  "Portland Timbers",
+  "Austin FC",
+  "Sporting Kansas City",
+  "Nashville SC",
+  "Real Salt Lake",
+  "Minnesota United",
+  "St. Louis City SC",
+  "Chicago Fire"
+],
   'bra-a': [
     'Athletico Paranaense','Atlético-MG','Bahia','Botafogo','Chapecoense','Corinthians','Coritiba','Cruzeiro','Flamengo','Fluminense','Grêmio','Internacional','Mirassol','Palmeiras','Bragantino','Remo','Santos','São Paulo','Vasco da Gama','Vitória'
   ],
@@ -132,5 +154,14 @@ window.COMPETITION_TEAMS = {
   ],
   'uel': [
     'Roma','Manchester United','FC Porto','Ajax','Rangers','Eintracht Frankfurt','Lazio','Tottenham Hotspur','Slavia Praha','Real Sociedad','AZ Alkmaar','Braga','Olympiacos','Lyon','PAOK','Fenerbahçe','Maccabi Tel Aviv','Ferencváros','Qarabağ','Galatasaray','Viktoria Plzeň','Bodø/Glimt','Union Saint-Gilloise','Dynamo Kyiv','Ludogorets','Midtjylland','Malmö FF','Athletic Club','Hoffenheim','Nice','Anderlecht','Twente','Beşiktaş','FCSB','RFS','Elfsborg'
+  ],
+  'afc-el': [
+    'Al-Hilal','Al-Nassr','Al-Ittihad','Al-Ahli',
+    'Vissel Kobe','Yokohama F. Marinos','Kawasaki Frontale','Sanfrecce Hiroshima',
+    'Ulsan HD','Pohang Steelers','Gwangju FC','Jeonbuk Hyundai Motors',
+    'Al-Ain','Al-Wasl','Shabab Al-Ahli','Sharjah',
+    'Al-Sadd','Al-Duhail','Al-Rayyan','Al-Gharafa',
+    'Shanghai Port','Shanghai Shenhua','Shandong Taishan','Central Coast Mariners'
   ]
 };
+

@@ -9,10 +9,28 @@
 
   const CHANGELOG_DAYS = [
     {
+      date: '17 de Outubro de 2026',
+      version: 'v3.0.0 — Super Atualização: Motor de Jogo 3D Realista, VAR na TV, Alternador Copa/Libertadores & Blindagem Total de Avanço',
+      badge: 'HOJE · 17 DE OUTUBRO',
+      badgeColor: '#10b981',
+      items: [
+        '🛡️ [REGRA CRÍTICA: BLINDAGEM DE AVANÇO] Correção definitiva dos botões "Avançar Dia (1 de 4)", "Avançar 6 Horas" (Deadline Day), "Pular Janela / Pré-Temporada" e "+1 Dia". Criada a função advanceTransferWindow(), amarração direta na bind(), fallback delegado global no documento e sincronização instantânea de data no topo da tela.',
+        '⚽ [MOTOR DE JOGO REALISTA 3D] Carrinhos e desarmes deslizantes no chão com rastro/marcas físicas na grama (skid marks) e queda natural de atletas.',
+        '⚡ [DRIBLE 1v1 REALISTA] Fintas de habilidade com aura de aceleração visual, quebra de centro de gravidade e stun temporário no defensor.',
+        '🎯 [SEQUÊNCIA DE PASSES] Troca de passes tecida em cadeia conectando meio-campo e ataque até o engatilhamento de finalizações ao gol.',
+        '🚩 [BANDEIRINHAS & IMPEDIMENTO 3D] Assistentes laterais correndo com bandeiras quadriculadas erguidas e linha de impedimento 3D tracejada e projetada no campo.',
+        '📺 [VAR PROFISSIONAL & TV BROADCAST] Cabine física do VAR na beira do gramado e overlay de televisão transmitindo replay oficial da jogada checada.',
+        '🏟️ [ARQUITETURA DE 4 SETORES] Estádio renderizado com os 4 setores de arquibancada (Norte, Sul, Leste, Oeste) fiéis ao nível de infraestrutura do clube.',
+        '🎥 [CÂMERA DE TRANSMISSÃO DE TV DINÂMICA] Câmera de transmissão com tracking inteligente da bola, zoom suave e enquadramento panorâmico.',
+        '🔄 [ALTERNADOR COPA DO BRASIL / LIBERTADORES] Botões rápidos [🇧🇷 COPA] e [🏆 LIBERTADORES] no Widget 2 da Central e atalhos rápidos nas tabelas da Temporada para navegação instantânea entre copas.',
+        '🌍 [SIMULAÇÃO MUNDIAL ISOLADA EM 3 CONTINENTES] Calendário oficial 2026 e partidas 100% jogáveis e integradas na América, Europa e Ásia com isolamento rigoroso por save.'
+      ]
+    },
+    {
       date: '14 de Outubro de 2026',
       version: 'v2.8.0 — Hotfix Geral de Abas, Simulador de Vida, Cotas Realistas & Fotos',
-      badge: 'HOJE · 14 DE OUTUBRO',
-      badgeColor: '#10b981',
+      badge: 'HOTFIX GERAL & SIMULADOR',
+      badgeColor: '#6366f1',
       items: [
         '🛠️ [CORREÇÃO CRÍTICA] Resolvido o erro `(state.bankLoans || []).reduce is not a function` que bloqueava a abertura da aba 🏢 Escritório.',
         '🛠️ [CORREÇÃO CRÍTICA] Resolvido o erro `(state.bankLoans || []).some is not a function` que bloqueava a abertura da aba 🏗️ Estrutura & Estádio.',
@@ -95,7 +113,7 @@
           <h1>📢 Novidades & Correções Oficiais</h1>
           <div class="muted">Histórico cronológico detalhado dia a dia — AFM MANAGER 2027</div>
         </div>
-        <span class="pill good">Atualizado em 14 de Outubro de 2026</span>
+        <span class="pill good">Atualizado em 17 de Outubro de 2026</span>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:18px;margin-top:16px;">
