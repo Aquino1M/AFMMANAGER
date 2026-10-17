@@ -30066,7 +30066,7 @@ function renderSetup(app){
                   <label class="afm-input-label">Nome de usuário da conta</label>
                   <div class="afm-input-box">
                     <span class="afm-input-icon">✉️</span>
-                    <input class="afm-input-field" id="inputAuthUser" type="text" autocomplete="username" placeholder="Ex: aquino" required>
+                    <input class="afm-input-field" id="inputAuthUser" type="text" autocomplete="username" placeholder="Ex: neymar" required>
                   </div>
                 </div>
 
