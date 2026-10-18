@@ -3815,45 +3815,52 @@ body.theme-emerald {
   z-index: 30;
 }
 
-/* Tiers visuais dos cards baseados no Overall */
+/* Tiers visuais dos cards baseados no Overall (EA FC Fidelity) */
 .fifa-mini-card.tier-legendary {
-  border-color: #38bdf8 !important;
-  background: linear-gradient(180deg, #090d16 0%, #1e1b4b 40%, #0369a1 75%, #0284c7 100%) !important;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.9), 0 0 14px rgba(56, 189, 248, 0.7), 0 0 24px rgba(251, 191, 36, 0.5), inset 0 1px 3px rgba(255, 255, 255, 0.8) !important;
+  border: 1.5px solid #2dd4bf !important;
+  background: linear-gradient(180deg, #022c2b 0%, #064e48 40%, #0f766e 75%, #042f2e 100%) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.9), 0 0 14px rgba(45, 212, 191, 0.8), 0 0 22px rgba(250, 204, 21, 0.5), inset 0 1px 3px rgba(255, 255, 255, 0.8) !important;
   animation: futLegendaryShimmer 3s ease-in-out infinite alternate;
 }
 .fifa-mini-card.tier-legendary:hover {
   transform: translate(-50%, -50%) scale(1.1) !important;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.95), 0 0 25px rgba(56, 189, 248, 0.9), 0 0 35px rgba(251, 191, 36, 0.7) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.95), 0 0 25px rgba(45, 212, 191, 0.95), 0 0 35px rgba(250, 204, 21, 0.7) !important;
   z-index: 40 !important;
 }
 .fifa-mini-card.tier-special {
-  border-color: #f59e0b !important;
-  background: linear-gradient(180deg, #1c1507 0%, #120e05 50%, #2a1c06 100%) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.9), 0 0 12px rgba(245, 158, 11, 0.6), inset 0 1px 2px rgba(254, 240, 138, 0.6) !important;
+  border: 1.5px solid #eab308 !important;
+  background: linear-gradient(180deg, #09090b 0%, #18181b 50%, #09090b 100%) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.95), 0 0 14px rgba(234, 179, 8, 0.75), inset 0 1px 2px rgba(254, 240, 138, 0.5) !important;
   animation: futSpecialGlow 2.5s ease-in-out infinite alternate;
 }
 .fifa-mini-card.tier-special:hover {
   transform: translate(-50%, -50%) scale(1.08) !important;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.9), 0 0 20px rgba(245, 158, 11, 0.85) !important;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.95), 0 0 22px rgba(234, 179, 8, 0.9) !important;
   z-index: 35 !important;
 }
 .fifa-mini-card.tier-gold-rare {
-  border-color: #fbbf24;
-  background: linear-gradient(180deg, #2b220d 0%, #181307 55%, #080602 100%);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 8px rgba(251, 191, 36, 0.25), inset 0 1px 2px rgba(254, 240, 138, 0.35);
+  border: 1.5px solid #a87413 !important;
+  background: linear-gradient(155deg, #fff1b8 0%, #ecc66b 22%, #c18c21 48%, #e0ba5f 74%, #fae69e 100%) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.75), 0 0 12px rgba(234, 179, 8, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.7) !important;
+}
+.fifa-mini-card.tier-gold-rare:hover {
+  transform: translate(-50%, -50%) scale(1.07) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85), 0 0 18px rgba(234, 179, 8, 0.65) !important;
 }
 .fifa-mini-card.tier-gold {
-  border-color: #d97706;
-  background: linear-gradient(180deg, #241c0e 0%, #141007 55%, #050402 100%);
+  border: 1.5px solid #a87413 !important;
+  background: linear-gradient(155deg, #fae5a0 0%, #e2b95b 30%, #be8920 60%, #f3db91 100%) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 8px rgba(234, 179, 8, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.5) !important;
 }
 .fifa-mini-card.tier-silver {
-  border-color: #94a3b8;
-  background: linear-gradient(180deg, #1e2634 0%, #111722 55%, #05080e 100%);
+  border: 1.5px solid #94a3b8 !important;
+  background: linear-gradient(155deg, #f1f5f9 0%, #cbd5e1 40%, #94a3b8 75%, #e2e8f0 100%) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), inset 0 1px 2px rgba(255, 255, 255, 0.6) !important;
 }
 .fifa-mini-card.tier-bronze {
-  border-color: #b45309;
-  background: linear-gradient(180deg, #221711 0%, #150e09 55%, #060403 100%);
+  border: 1.5px solid #b45309 !important;
+  background: linear-gradient(155deg, #fed7aa 0%, #ea580c 45%, #9a3412 80%, #fb923c 100%) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), inset 0 1px 2px rgba(255, 255, 255, 0.5) !important;
 }
 
 /* Topo do Mini-Card: OVR e POS à esquerda, Escudo à direita */
@@ -3885,17 +3892,24 @@ body.theme-emerald {
 
 .fifa-mini-card.tier-legendary .fifa-mini-card-ovr {
   color: #ffffff !important;
-  text-shadow: 0 0 6px #38bdf8, 0 0 12px #fbbf24, 0 1px 3px #000 !important;
+  text-shadow: 0 0 6px #2dd4bf, 0 0 12px #38bdf8, 0 1px 2px #000 !important;
 }
 .fifa-mini-card.tier-special .fifa-mini-card-ovr {
   color: #fde047 !important;
-  text-shadow: 0 0 8px rgba(245, 158, 11, 0.9), 0 1px 3px #000 !important;
+  text-shadow: 0 0 8px rgba(234, 179, 8, 0.95), 0 1px 2px #000 !important;
+}
+.fifa-mini-card.tier-gold-rare .fifa-mini-card-ovr,
+.fifa-mini-card.tier-gold .fifa-mini-card-ovr {
+  color: #171002 !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) !important;
 }
 .fifa-mini-card.tier-silver .fifa-mini-card-ovr {
-  color: #e2e8f0;
+  color: #0f172a !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) !important;
 }
 .fifa-mini-card.tier-bronze .fifa-mini-card-ovr {
-  color: #fdba74;
+  color: #1c0d02 !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) !important;
 }
 
 .fifa-mini-card-pos {
@@ -3905,6 +3919,27 @@ body.theme-emerald {
   text-transform: uppercase;
   letter-spacing: 0.2px;
   margin-top: 1px;
+}
+.fifa-mini-card.tier-legendary .fifa-mini-card-pos {
+  color: #5eead4 !important;
+  font-weight: 900 !important;
+}
+.fifa-mini-card.tier-special .fifa-mini-card-pos {
+  color: #facc15 !important;
+  font-weight: 900 !important;
+}
+.fifa-mini-card.tier-gold-rare .fifa-mini-card-pos,
+.fifa-mini-card.tier-gold .fifa-mini-card-pos {
+  color: #2b1f06 !important;
+  font-weight: 900 !important;
+}
+.fifa-mini-card.tier-silver .fifa-mini-card-pos {
+  color: #1e293b !important;
+  font-weight: 900 !important;
+}
+.fifa-mini-card.tier-bronze .fifa-mini-card-pos {
+  color: #291305 !important;
+  font-weight: 900 !important;
 }
 
 .fifa-mini-card-role-adapted {
@@ -3998,6 +4033,38 @@ body.theme-emerald {
   overflow: hidden;
   text-overflow: ellipsis;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+.fifa-mini-card.tier-legendary .fifa-mini-card-name {
+  background: rgba(2, 44, 43, 0.95) !important;
+  border-color: rgba(45, 212, 191, 0.4) !important;
+  color: #ffffff !important;
+  font-weight: 900 !important;
+  text-shadow: 0 0 5px #2dd4bf !important;
+}
+.fifa-mini-card.tier-special .fifa-mini-card-name {
+  background: rgba(9, 9, 11, 0.95) !important;
+  border-color: rgba(234, 179, 8, 0.4) !important;
+  color: #fef08a !important;
+  font-weight: 900 !important;
+}
+.fifa-mini-card.tier-gold-rare .fifa-mini-card-name,
+.fifa-mini-card.tier-gold .fifa-mini-card-name {
+  background: rgba(255, 255, 255, 0.65) !important;
+  border-color: rgba(168, 116, 19, 0.4) !important;
+  color: #171002 !important;
+  font-weight: 900 !important;
+}
+.fifa-mini-card.tier-silver .fifa-mini-card-name {
+  background: rgba(255, 255, 255, 0.7) !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
+  color: #0f172a !important;
+  font-weight: 900 !important;
+}
+.fifa-mini-card.tier-bronze .fifa-mini-card-name {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border-color: rgba(180, 83, 9, 0.4) !important;
+  color: #1c0d02 !important;
+  font-weight: 900 !important;
 }
 
 .fifa-mini-card-stamina {
@@ -4353,26 +4420,86 @@ body.theme-emerald {
   overflow: hidden !important;
 }
 
-/* COLUNA 1: GRAMADO VERTICAL OFICIAL */
+/* COLUNA 1: GRAMADO VERTICAL OFICIAL COM EFEITO ESTÁDIO 3D EA FC */
 .tactics-pitch-wrapper {
   flex: 1 1 68% !important;
   height: 100% !important;
   position: relative !important;
-  background: radial-gradient(circle at center, #15803d 0%, #166534 60%, #14532d 100%) !important;
-  border: 2px solid #22c55e44 !important;
-  border-radius: 12px !important;
-  overflow: visible !important;
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.5) !important;
+  background: 
+    radial-gradient(ellipse at 50% 50%, rgba(34, 197, 94, 0.18) 0%, rgba(0, 0, 0, 0.65) 100%),
+    repeating-linear-gradient(90deg, #136932 0px, #136932 38px, #0e5426 38px, #0e5426 76px) !important;
+  border: 2px solid rgba(34, 197, 94, 0.35) !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.8), 0 8px 30px rgba(0, 0, 0, 0.8) !important;
   box-sizing: border-box !important;
 }
 
-/* Marcações do Gramado Vertical Oficial */
+/* Ambiência 3D do Topo do Estádio (Refletores & Arquibancadas) */
+.fut-stadium-top-ambience {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+.stadium-skyline {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #030712 0%, #060e1d 40%, rgba(6, 17, 34, 0.6) 75%, transparent 100%);
+}
+.stadium-crowd-silhouette {
+  position: absolute;
+  top: 10px;
+  left: 0;
+  right: 0;
+  height: 38px;
+  background: repeating-linear-gradient(90deg, #0b1120 0px, #1e293b 8px, #0b1120 16px);
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 100%);
+  opacity: 0.65;
+}
+.stadium-floodlights {
+  position: absolute;
+  inset: 0;
+}
+.floodlight {
+  position: absolute;
+  top: 4px;
+}
+.fl-left-1 { left: 14%; }
+.fl-left-2 { left: 32%; }
+.fl-right-1 { right: 32%; }
+.fl-right-2 { right: 14%; }
+
+.fl-flare {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 14px #38bdf8, 0 0 28px #ffffff, 0 0 45px rgba(56, 189, 248, 0.8);
+  margin: 0 auto;
+}
+.fl-beam {
+  width: 90px;
+  height: 130px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(56, 189, 248, 0.12) 40%, transparent 100%);
+  clip-path: polygon(42% 0%, 58% 0%, 100% 100%, 0% 100%);
+  margin-left: -37px;
+  pointer-events: none;
+}
+
+/* Marcações do Gramado Oficial */
 .tactics-pitch-wrapper .pitch-lines {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 12px;
+  z-index: 2;
 }
 .tactics-pitch-wrapper .pitch-half-line {
   position: absolute;
@@ -4380,7 +4507,7 @@ body.theme-emerald {
   left: 0;
   right: 0;
   height: 2px;
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.35);
 }
 .tactics-pitch-wrapper .pitch-center-circle {
   position: absolute;
@@ -4389,28 +4516,450 @@ body.theme-emerald {
   transform: translate(-50%, -50%);
   width: 110px;
   height: 110px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+}
+.pitch-center-spot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.65);
   border-radius: 50%;
 }
 .tactics-pitch-wrapper .pitch-penalty-top {
   position: absolute;
   top: 0;
-  left: 25%;
-  right: 25%;
+  left: 24%;
+  right: 24%;
   height: 16%;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
-  border-left: 2px solid rgba(255, 255, 255, 0.3);
-  border-right: 2px solid rgba(255, 255, 255, 0.3);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.35);
+  border-left: 2px solid rgba(255, 255, 255, 0.35);
+  border-right: 2px solid rgba(255, 255, 255, 0.35);
+}
+.pitch-goal-area-top {
+  position: absolute;
+  top: 0;
+  left: 36%;
+  right: 36%;
+  height: 7%;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.35);
+  border-left: 2px solid rgba(255, 255, 255, 0.35);
+  border-right: 2px solid rgba(255, 255, 255, 0.35);
 }
 .tactics-pitch-wrapper .pitch-penalty-bottom {
   position: absolute;
   bottom: 0;
-  left: 25%;
-  right: 25%;
+  left: 24%;
+  right: 24%;
   height: 16%;
-  border-top: 2px solid rgba(255, 255, 255, 0.3);
-  border-left: 2px solid rgba(255, 255, 255, 0.3);
-  border-right: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid rgba(255, 255, 255, 0.35);
+  border-left: 2px solid rgba(255, 255, 255, 0.35);
+  border-right: 2px solid rgba(255, 255, 255, 0.35);
+}
+.pitch-goal-area-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 36%;
+  right: 36%;
+  height: 7%;
+  border-top: 2px solid rgba(255, 255, 255, 0.35);
+  border-left: 2px solid rgba(255, 255, 255, 0.35);
+  border-right: 2px solid rgba(255, 255, 255, 0.35);
+}
+
+/* Rede do Gol 3D no Fundo (Atrás do Goleiro) */
+.pitch-goal-3d-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 52px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.85;
+}
+.pitch-goal-3d-bottom .goal-net-mesh {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.7));
+}
+
+/* HUD Superior Esquerdo: Informações do Clube & Estrelas */
+.fut-pitch-hud-left {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(8, 14, 26, 0.88);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 10px;
+  padding: 5px 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+  z-index: 35;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+.fut-hud-badge-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fut-hud-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.fut-hud-team-name {
+  font-size: 11px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fut-hud-stars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 1px;
+}
+.fut-hud-stars .stars-gold {
+  color: #fbbf24;
+  font-size: 9.5px;
+  letter-spacing: 1px;
+}
+.hud-ovr-val {
+  font-size: 10.5px;
+  font-weight: 900;
+  color: #38bdf8;
+}
+.hud-ovr-lbl {
+  font-size: 7.5px;
+  font-weight: 800;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+}
+.fut-hud-chem-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 1px;
+}
+.fut-hud-chem-row .chem-icon {
+  color: #00f0ff;
+  font-size: 8.5px;
+  filter: drop-shadow(0 0 4px #00f0ff);
+}
+.fut-hud-chem-row .chem-val {
+  font-size: 10.5px;
+  font-weight: 900;
+  color: #00f0ff;
+}
+.fut-hud-chem-row .chem-max {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #94a3b8;
+}
+.fut-hud-chem-row .chem-lbl {
+  font-size: 7px;
+  font-weight: 800;
+  color: #cbd5e1;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+/* HUD Superior Direito: Jogador Inspecionado */
+.fut-pitch-hud-right {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(8, 14, 26, 0.88);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  border-radius: 10px;
+  padding: 5px 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+  z-index: 35;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+.fut-hud-player-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.hud-player-photo-box {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1.5px solid #fbbf24;
+  flex-shrink: 0;
+}
+.hud-player-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.hud-player-data {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.hud-player-name {
+  font-size: 10.5px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  max-width: 95px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-player-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.hud-player-ovr {
+  font-size: 10.5px;
+  font-weight: 900;
+  color: #fbbf24;
+}
+.hud-player-pos {
+  font-size: 8px;
+  font-weight: 800;
+  color: #38bdf8;
+}
+.hud-player-chem {
+  font-size: 6.5px;
+  color: #00f0ff;
+  letter-spacing: 1px;
+  text-shadow: 0 0 4px #00f0ff;
+}
+
+/* Brackets de Mira Ciano Estilo EA FC (Ativo ao Selecionar o Card) */
+.fut-target-brackets {
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+  z-index: 30;
+  display: none;
+}
+.pitch-slot-dropzone.selected .fut-target-brackets,
+.fifa-mini-card.selected .fut-target-brackets {
+  display: block !important;
+}
+.fut-target-brackets .tb {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 3px solid #00f0ff;
+  filter: drop-shadow(0 0 6px #00f0ff);
+  box-sizing: border-box;
+}
+.fut-target-brackets .tb-tl { top: 0; left: 0; border-right: none; border-bottom: none; border-top-left-radius: 4px; }
+.fut-target-brackets .tb-tr { top: 0; right: 0; border-left: none; border-bottom: none; border-top-right-radius: 4px; }
+.fut-target-brackets .tb-bl { bottom: 0; left: 0; border-right: none; border-top: none; border-bottom-left-radius: 4px; }
+.fut-target-brackets .tb-br { bottom: 0; right: 0; border-left: none; border-top: none; border-bottom-right-radius: 4px; }
+
+/* Pedestal Oval com Posição e Diamantes de Entrosamento Sob Cada Card */
+.pitch-slot-pedestal {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(11, 19, 36, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-family: 'Montserrat', system-ui, sans-serif;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  z-index: 25;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.pitch-slot-dropzone.selected .pitch-slot-pedestal,
+.pitch-slot-pedestal.selected {
+  border-color: #00f0ff !important;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.75) !important;
+  background: rgba(8, 28, 48, 0.96) !important;
+}
+.pitch-slot-pedestal .pedestal-role {
+  font-size: 8.5px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.pitch-slot-pedestal .pedestal-chem {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.pitch-slot-pedestal .chem-diamond {
+  font-size: 7px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.25);
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+.pitch-slot-pedestal .chem-diamond.active {
+  color: #00f0ff !important;
+  text-shadow: 0 0 6px #00f0ff !important;
+}
+
+/* Dock Inferior Horizontal de Reservas ("RES") */
+.fut-bottom-bench-dock {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  right: 8px;
+  height: 56px;
+  background: rgba(9, 14, 28, 0.93);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  padding: 3px 8px;
+  gap: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85);
+  z-index: 45;
+  backdrop-filter: blur(8px);
+}
+.fut-bench-badge-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 1px solid #38bdf8;
+  border-radius: 6px;
+  padding: 3px 6px;
+  min-width: 36px;
+  flex-shrink: 0;
+}
+.fut-bench-badge-label .res-tag {
+  font-size: 9.5px;
+  font-weight: 900;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
+}
+.fut-bench-badge-label .res-count {
+  font-size: 8px;
+  font-weight: 800;
+  color: #94a3b8;
+}
+.fut-bench-cards-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #38bdf8 transparent;
+}
+.fut-bench-chip {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  height: 44px !important;
+  padding: 2px 7px 2px 3px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
+  user-select: none !important;
+  margin: 0 !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.15) !important;
+}
+.fut-bench-chip:hover {
+  transform: translateY(-2px) scale(1.04) !important;
+}
+.fut-bench-chip.tier-gold {
+  background: linear-gradient(135deg, #fff1b8 0%, #e0ba5f 100%) !important;
+  border-color: #a87413 !important;
+}
+.fut-bench-chip.tier-gold .bench-chip-ovr,
+.fut-bench-chip.tier-gold .bench-chip-name {
+  color: #171002 !important;
+}
+.fut-bench-chip.tier-gold .bench-chip-pos {
+  color: #3d2b09 !important;
+}
+.fut-bench-chip.tier-special {
+  background: linear-gradient(135deg, #09090b 0%, #1c1917 100%) !important;
+  border-color: #eab308 !important;
+}
+.fut-bench-chip.tier-special .bench-chip-ovr {
+  color: #fde047 !important;
+}
+.fut-bench-chip.tier-special .bench-chip-pos {
+  color: #facc15 !important;
+}
+.fut-bench-chip.tier-special .bench-chip-name {
+  color: #fef08a !important;
+}
+.fut-bench-chip.tier-legendary {
+  background: linear-gradient(135deg, #022c2b 0%, #064e48 100%) !important;
+  border-color: #2dd4bf !important;
+}
+.fut-bench-chip.tier-legendary .bench-chip-ovr {
+  color: #ffffff !important;
+}
+.fut-bench-chip.tier-legendary .bench-chip-pos {
+  color: #5eead4 !important;
+}
+.fut-bench-chip.tier-legendary .bench-chip-name {
+  color: #ffffff !important;
+}
+.bench-chip-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+.bench-chip-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.bench-chip-ovr {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: -0.3px;
+}
+.bench-chip-pos {
+  font-size: 7px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.bench-chip-name {
+  font-size: 8px;
+  font-weight: 800;
+  white-space: nowrap;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* SLOTS TÁTICOS FIXOS NO GRAMADO (DROPZONE NUNCA SE MOVE) */
@@ -4861,47 +5410,51 @@ body.theme-emerald {
 }
 
 /* Card Lendário (OVR >= 95) — Estilo TOTY / Icon Prime FIFA */
+/* Card Lendário / Festival Especial (OVR >= 90) — Imagens 2 e 3 */
 .fut-card.fut-card-legendary {
-  background: linear-gradient(155deg, #080d1a 0%, #17153a 35%, #034b75 70%, #0284c7 100%);
-  border: 2px solid #38bdf8;
+  background: linear-gradient(150deg, #022c2b 0%, #064e48 25%, #0f766e 55%, #042f2e 80%, #083344 100%);
+  border: 2px solid #2dd4bf;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.9), 0 0 20px rgba(45, 212, 191, 0.7), 0 0 30px rgba(250, 204, 21, 0.4);
   animation: futLegendaryShimmer 3s ease-in-out infinite alternate;
 }
 
-/* Card Especial (OVR >= 85 e < 95) — Estilo In-Form / TOTW / Craque Dourado FIFA */
+/* Card Especial In-Form / TOTW (OVR 84 - 89) — Imagem 4 */
 .fut-card.fut-card-special {
-  background: linear-gradient(155deg, #181206 0%, #2b1f07 45%, #0f0b03 100%);
-  border: 2px solid #f59e0b;
+  background: linear-gradient(150deg, #09090b 0%, #18181b 35%, #09090b 70%, #1c1917 100%);
+  border: 2px solid #eab308;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.95), 0 0 16px rgba(234, 179, 8, 0.65), inset 0 1px 2px rgba(254, 240, 138, 0.4);
   animation: futSpecialGlow 2.5s ease-in-out infinite alternate;
 }
 
-/* Card Ouro Raro (OVR 80 - 84) */
+/* Card Ouro Raro (OVR 78 - 83) — Imagem 1 (EA FC Gold Rare Metálico Oficial) */
 .fut-card.fut-card-gold-rare {
-  background: linear-gradient(155deg, #2b210a 0%, #1a1406 60%, #0d0a03 100%);
-  border: 1.5px solid #eab308;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.8), 0 0 10px rgba(234, 179, 8, 0.35), inset 0 1px 2px rgba(254, 240, 138, 0.4);
+  background: linear-gradient(150deg, #fff1ba 0%, #ecc66b 22%, #c18c21 48%, #e0ba5f 74%, #fae69e 100%);
+  border: 2px solid #a87413;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), 0 0 16px rgba(234, 179, 8, 0.5), inset 0 1px 3px rgba(255, 255, 255, 0.7);
 }
 
-/* Card Ouro (OVR 70 - 79) */
+/* Card Ouro Normal (OVR 70 - 77) — Imagem 1 (EA FC Gold Metálico Oficial) */
 .fut-card.fut-card-gold {
-  background: linear-gradient(155deg, #231b0c 0%, #140f06 100%);
-  border: 1.5px solid #d97706;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.7);
+  background: linear-gradient(150deg, #fae5a0 0%, #e2b95b 30%, #be8920 60%, #f3db91 100%);
+  border: 2px solid #a87413;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.65), 0 0 12px rgba(234, 179, 8, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
 /* Card Prata (OVR 60 - 69) */
 .fut-card.fut-card-silver {
-  background: linear-gradient(155deg, #1e2634 0%, #10151e 100%);
-  border: 1.5px solid #94a3b8;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.7);
+  background: linear-gradient(150deg, #f1f5f9 0%, #cbd5e1 40%, #94a3b8 75%, #e2e8f0 100%);
+  border: 2px solid #64748b;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.7), inset 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
 /* Card Bronze (< 60) */
 .fut-card.fut-card-bronze {
-  background: linear-gradient(155deg, #261911 0%, #150d08 100%);
-  border: 1.5px solid #b45309;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.7);
+  background: linear-gradient(150deg, #fed7aa 0%, #ea580c 45%, #9a3412 80%, #fb923c 100%);
+  border: 2px solid #7c2d12;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.7), inset 0 1px 2px rgba(255, 255, 255, 0.5);
 }
 
+/* Topo do Card */
 .fut-card-top {
   width: 100%;
   display: flex;
@@ -4923,22 +5476,25 @@ body.theme-emerald {
   letter-spacing: -1px;
 }
 .fut-card-legendary .fut-card-ovr {
-  color: #fff;
-  text-shadow: 0 0 8px #38bdf8, 0 0 12px #fbbf24;
+  color: #ffffff;
+  text-shadow: 0 0 8px #2dd4bf, 0 0 14px #38bdf8, 0 0 20px #facc15;
 }
 .fut-card-special .fut-card-ovr {
   color: #fde047;
-  text-shadow: 0 0 8px rgba(245, 158, 11, 0.9);
+  text-shadow: 0 0 10px rgba(250, 204, 21, 0.95);
 }
 .fut-card-gold-rare .fut-card-ovr,
 .fut-card-gold .fut-card-ovr {
-  color: #fbbf24;
+  color: #171002;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 .fut-card-silver .fut-card-ovr {
-  color: #f1f5f9;
+  color: #0f172a;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 .fut-card-bronze .fut-card-ovr {
-  color: #fdba74;
+  color: #1c0d02;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .fut-card-pos {
@@ -4947,6 +5503,12 @@ body.theme-emerald {
   margin-top: 1px;
   letter-spacing: 0.5px;
 }
+.fut-card-legendary .fut-card-pos { color: #5eead4; }
+.fut-card-special .fut-card-pos { color: #facc15; }
+.fut-card-gold-rare .fut-card-pos,
+.fut-card-gold .fut-card-pos { color: #2b1f06; }
+.fut-card-silver .fut-card-pos { color: #1e293b; }
+.fut-card-bronze .fut-card-pos { color: #291305; }
 
 .fut-card-crest {
   display: flex;
@@ -4995,6 +5557,12 @@ body.theme-emerald {
   max-width: 100%;
   text-align: center;
 }
+.fut-card-legendary .fut-card-name { color: #ffffff; text-shadow: 0 0 6px #2dd4bf; }
+.fut-card-special .fut-card-name { color: #fef08a; font-weight: 900; }
+.fut-card-gold-rare .fut-card-name,
+.fut-card-gold .fut-card-name { color: #171002; font-weight: 900; }
+.fut-card-silver .fut-card-name { color: #0f172a; font-weight: 900; }
+.fut-card-bronze .fut-card-name { color: #1c0d02; font-weight: 900; }
 
 .fut-card-tier-pill {
   font-size: 8px;
@@ -5006,22 +5574,41 @@ body.theme-emerald {
   text-transform: uppercase;
 }
 .fut-card-legendary .fut-card-tier-pill {
-  background: rgba(56, 189, 248, 0.25);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.5);
-  box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);
+  background: rgba(45, 212, 191, 0.25);
+  color: #5eead4;
+  border: 1px solid #2dd4bf;
+  box-shadow: 0 0 8px rgba(45, 212, 191, 0.5);
 }
 .fut-card-special .fut-card-tier-pill {
-  background: rgba(245, 158, 11, 0.25);
+  background: rgba(234, 179, 8, 0.22);
   color: #fde047;
-  border: 1px solid rgba(245, 158, 11, 0.5);
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+  border: 1px solid #eab308;
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.4);
 }
-.fut-card-gold-rare .fut-card-tier-pill {
-  background: rgba(234, 179, 8, 0.18);
-  color: #fbbf24;
-  border: 1px solid rgba(234, 179, 8, 0.35);
+.fut-card-gold-rare .fut-card-tier-pill,
+.fut-card-gold .fut-card-tier-pill {
+  background: rgba(30, 20, 5, 0.12);
+  color: #2d1c03;
+  border: 1px solid rgba(138, 98, 20, 0.4);
 }
+
+.fut-card-legendary .fut-card-bottom { border-top: 1px solid rgba(45, 212, 191, 0.35); }
+.fut-card-special .fut-card-bottom { border-top: 1px solid rgba(234, 179, 8, 0.35); }
+.fut-card-gold-rare .fut-card-bottom,
+.fut-card-gold .fut-card-bottom { border-top: 1px solid rgba(168, 116, 19, 0.35); }
+
+.fut-card-legendary .fut-card-stat-val { color: #ffffff; }
+.fut-card-legendary .fut-card-stat-lbl { color: #5eead4; }
+.fut-card-special .fut-card-stat-val { color: #fef08a; }
+.fut-card-special .fut-card-stat-lbl { color: #ca8a04; }
+.fut-card-gold-rare .fut-card-stat-val,
+.fut-card-gold .fut-card-stat-val { color: #171002; }
+.fut-card-gold-rare .fut-card-stat-lbl,
+.fut-card-gold .fut-card-stat-lbl { color: #4a3610; }
+.fut-card-silver .fut-card-stat-val { color: #0f172a; }
+.fut-card-silver .fut-card-stat-lbl { color: #475569; }
+.fut-card-bronze .fut-card-stat-val { color: #1c0d02; }
+.fut-card-bronze .fut-card-stat-lbl { color: #7c2d12; }
 
 .fut-card-stats {
   display: grid;

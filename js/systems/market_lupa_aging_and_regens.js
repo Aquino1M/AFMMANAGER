@@ -395,15 +395,15 @@
       const ovrBorderColor = realOvr >= 85 ? '#f59e0b' : (realOvr >= 78 ? '#eab308' : (realOvr >= 70 ? '#38bdf8' : '#a78bfa'));
       const ovrGlowColor = realOvr >= 85 ? 'rgba(245,158,11,0.5)' : (realOvr >= 78 ? 'rgba(234,179,8,0.4)' : 'rgba(124,58,237,0.3)');
 
-      // Determinação dos Tiers FIFA (Especial 85+ e Lendário 95+)
-      const isLegendary = realOvr >= 95;
-      const isSpecial = realOvr >= 85 && realOvr < 95;
-      const isGoldRare = realOvr >= 80 && realOvr < 85;
-      const isGold = realOvr >= 70 && realOvr < 80;
+      // Determinação dos Tiers FIFA (Especial 84+ e Festival 90+)
+      const isLegendary = realOvr >= 90;
+      const isSpecial = realOvr >= 84 && realOvr < 90;
+      const isGoldRare = realOvr >= 78 && realOvr < 84;
+      const isGold = realOvr >= 70 && realOvr < 78;
       const isSilver = realOvr >= 60 && realOvr < 70;
 
       const futTierClass = isLegendary ? 'fut-card-legendary' : (isSpecial ? 'fut-card-special' : (isGoldRare ? 'fut-card-gold-rare' : (isGold ? 'fut-card-gold' : (isSilver ? 'fut-card-silver' : 'fut-card-bronze'))));
-      const futTierPill = isLegendary ? '👑 LENDÁRIO' : (isSpecial ? '⭐ ESPECIAL' : (isGoldRare ? 'OURO RARO' : (isGold ? 'OURO' : (isSilver ? 'PRATA' : 'BRONZE'))));
+      const futTierPill = isLegendary ? '👑 FESTIVAL 90+' : (isSpecial ? '⭐ TOTW IN-FORM' : (isGoldRare ? 'OURO RARO' : (isGold ? 'OURO' : (isSilver ? 'PRATA' : 'BRONZE'))));
 
       const photoUrl = (typeof window.resolvePlayerPhotoUrl === 'function' ? window.resolvePlayerPhotoUrl(p) : null) || p?.photo || (p?.tmId ? `img/players/tm_${p.tmId}.jpg` : null);
       const fallbackUrl = 'img/players/default_avatar.svg';

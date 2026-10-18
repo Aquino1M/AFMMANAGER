@@ -190,9 +190,12 @@ function renderTacticalCard(player, index, isSelected = false) {
   const fallbackUrl = "img/players/default_avatar.svg";
   const ovr = player.overall || player.ovr || (typeof playerOverall === 'function' ? playerOverall(player) : 60);
   const ovrNum = Number(ovr) || 0;
-  const isLegendary = ovrNum >= 95;
-  const isSpecial = ovrNum >= 85 && ovrNum < 95;
-  const tierClass = isLegendary ? 'tier-legendary' : (isSpecial ? 'tier-special' : (ovrNum >= 80 ? 'tier-gold-rare' : (ovrNum >= 70 ? 'tier-gold' : (ovrNum >= 60 ? 'tier-silver' : 'tier-bronze'))));
+  const isLegendary = ovrNum >= 90;
+  const isSpecial = ovrNum >= 84 && ovrNum < 90;
+  const isGoldRare = ovrNum >= 78 && ovrNum < 84;
+  const isGold = ovrNum >= 70 && ovrNum < 78;
+  const isSilver = ovrNum >= 60 && ovrNum < 70;
+  const tierClass = isLegendary ? 'tier-legendary' : (isSpecial ? 'tier-special' : (isGoldRare ? 'tier-gold-rare' : (isGold ? 'tier-gold' : (isSilver ? 'tier-silver' : 'tier-bronze'))));
   const pos = player.pos || 'CM';
   const name = (player.name || 'Jogador').toUpperCase();
   
@@ -246,9 +249,12 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const clubName = p?.club || state?.club || '';
 
   const ovrNum = Number(ovr) || 0;
-  const isLegendary = ovrNum >= 95;
-  const isSpecial = ovrNum >= 85 && ovrNum < 95;
-  const tierClass = isLegendary ? 'tier-legendary' : (isSpecial ? 'tier-special' : (ovrNum >= 80 ? 'tier-gold-rare' : (ovrNum >= 70 ? 'tier-gold' : (ovrNum >= 60 ? 'tier-silver' : 'tier-bronze'))));
+  const isLegendary = ovrNum >= 90;
+  const isSpecial = ovrNum >= 84 && ovrNum < 90;
+  const isGoldRare = ovrNum >= 78 && ovrNum < 84;
+  const isGold = ovrNum >= 70 && ovrNum < 78;
+  const isSilver = ovrNum >= 60 && ovrNum < 70;
+  const tierClass = isLegendary ? 'tier-legendary' : (isSpecial ? 'tier-special' : (isGoldRare ? 'tier-gold-rare' : (isGold ? 'tier-gold' : (isSilver ? 'tier-silver' : 'tier-bronze'))));
   const customClass = opts.customClass || '';
   const ovrColor = isIncompatible ? 'color:#f87171;' : (isAdapted ? 'color:#fde047;' : (ovrDiff < 0 ? 'color:#fca5a5;' : ''));
 
@@ -266,7 +272,7 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
         <div class="fifa-mini-card-badge">
           <div style="display:inline-flex;align-items:center;gap:2px;">
             <span class="fifa-mini-card-ovr" style="${ovrColor}">${ovr}</span>
-            ${isLegendary ? '<span class="fifa-mini-card-tier-icon legendary" title="Craque Lendário (OVR 95+)" style="font-size:9px;line-height:1;">👑</span>' : (isSpecial ? '<span class="fifa-mini-card-tier-icon special" title="Craque Especial (OVR 85+)" style="font-size:9px;line-height:1;">⭐</span>' : '')}
+            ${isLegendary ? '<span class="fifa-mini-card-tier-icon legendary" title="Craque Festival (OVR 90+)" style="font-size:9px;line-height:1;">👑</span>' : (isSpecial ? '<span class="fifa-mini-card-tier-icon special" title="Craque TOTW In-Form (OVR 84+)" style="font-size:9px;line-height:1;">⭐</span>' : '')}
           </div>
           <span class="fifa-mini-card-pos">${esc(pos)}</span>
           ${p?.number ? `<span class="fifa-mini-card-num" style="font-size:8px;font-weight:900;color:#38bdf8;background:rgba(15,23,42,0.85);padding:1px 3px;border-radius:3px;margin-top:1px;line-height:1" title="Camisa #${p.number}">#${p.number}</span>` : ''}
@@ -8760,25 +8766,161 @@ window.compatibleScore = compatibleScore;
 // =========================================================================
 // RENDERIZAÇÃO DO CAMPO VERTICAL FIXO (renderVerticalTacticsPitch)
 // =========================================================================
-function renderVerticalTacticsPitch(starters, formationName = '4-3-3', opts = {}){
+function formatPedestalRole(role) {
+  if (!role) return 'ST';
+  const r = String(role).toUpperCase().trim();
+  const map = {
+    'GK': 'GL', 'GOL': 'GL', 'GOAL': 'GL',
+    'CB': 'ZAG', 'DF': 'ZAG',
+    'LB': 'LE', 'LWB': 'LE',
+    'RB': 'LD', 'RWB': 'LD',
+    'CDM': 'VOL', 'DM': 'VOL',
+    'CM': 'MC', 'MF': 'MC',
+    'CAM': 'MEI', 'AM': 'MEI',
+    'LM': 'ME',
+    'RM': 'MD',
+    'LW': 'PE',
+    'RW': 'PD',
+    'ST': 'ATA', 'CF': 'ATA', 'FW': 'ATA'
+  };
+  return map[r] || r;
+}
+window.formatPedestalRole = formatPedestalRole;
+
+function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts = {}){
   const formSlots = FORMATIONS[formationName] || FORMATIONS['4-3-3'];
   const isHalftime = !!opts.isHalftime;
   const selectedKey = opts.selectedStarterKey || null;
+  const clubName = state?.club || 'MEU CLUBE';
+  const fallbackUrl = "img/players/default_avatar.svg";
+
+  // Cálculo de Avaliação Média da Equipe e Entrosamento Total (Max 33)
+  let totalOvr = 0;
+  let totalChem = 0;
+  let startersWithPlayer = 0;
+  let inspectPlayer = null;
+  let inspectSlotRole = 'ST';
+
+  formSlots.forEach((slot, idx) => {
+    const p = starters[idx] || null;
+    if (p) {
+      startersWithPlayer++;
+      const slotRole = slot.r || (p.pos || 'ST');
+      const pOvr = typeof getPlayerEffectiveOverall === 'function' ? getPlayerEffectiveOverall(p, slotRole) : (typeof playerOverall === 'function' ? playerOverall(p) : (p.overall || 60));
+      totalOvr += pOvr;
+      const fit = typeof getPositionFit === 'function' ? getPositionFit(p.pos, slotRole) : (p.pos === slotRole ? 'IDEAL' : 'ADAPTADA');
+      totalChem += fit === 'IDEAL' ? 3 : (fit === 'ADAPTADA' ? 2 : 1);
+
+      const pk = opts.isHalftime && p.key ? p.key : (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.name));
+      if (selectedKey && pk === selectedKey) {
+        inspectPlayer = p;
+        inspectSlotRole = slotRole;
+      }
+    }
+  });
+
+  const teamAvgOvr = startersWithPlayer > 0 ? Math.round(totalOvr / startersWithPlayer) : 78;
+  const squadChem = Math.min(33, totalChem);
+
+  // Jogador em destaque no HUD direito
+  if (!inspectPlayer) {
+    inspectPlayer = starters.find(Boolean) || null;
+    inspectSlotRole = formSlots[0]?.r || 'ST';
+  }
+  const inspectOvr = inspectPlayer ? (typeof playerOverall === 'function' ? playerOverall(inspectPlayer) : (inspectPlayer.overall || 75)) : '-';
+  const inspectShortName = inspectPlayer ? (inspectPlayer.name.split(' ').pop() || inspectPlayer.name).toUpperCase() : 'ESCALAÇÃO';
+  const inspectPos = inspectPlayer ? (inspectPlayer.pos || inspectSlotRole) : '-';
+  const inspectPhoto = inspectPlayer ? (resolvePlayerPhotoUrl(inspectPlayer) || fallbackUrl) : fallbackUrl;
+
+  const benchList = opts.bench || [];
 
   return `
+    <!-- Ambiência 3D do Topo do Estádio (Refletores & Arquibancadas) -->
+    <div class="fut-stadium-top-ambience">
+      <div class="stadium-skyline"></div>
+      <div class="stadium-floodlights">
+        <div class="floodlight fl-left-1"><div class="fl-flare"></div><div class="fl-beam"></div></div>
+        <div class="floodlight fl-left-2"><div class="fl-flare"></div><div class="fl-beam"></div></div>
+        <div class="floodlight fl-right-1"><div class="fl-flare"></div><div class="fl-beam"></div></div>
+        <div class="floodlight fl-right-2"><div class="fl-flare"></div><div class="fl-beam"></div></div>
+      </div>
+      <div class="stadium-crowd-silhouette"></div>
+    </div>
+
+    <!-- Marcações Oficiais do Gramado -->
     <div class="pitch-lines">
       <div class="pitch-half-line"></div>
       <div class="pitch-center-circle"></div>
+      <div class="pitch-center-spot"></div>
       <div class="pitch-penalty-top"></div>
+      <div class="pitch-goal-area-top"></div>
       <div class="pitch-penalty-bottom"></div>
+      <div class="pitch-goal-area-bottom"></div>
     </div>
+
+    <!-- Rede do Gol 3D no Fundo (Atrás do Goleiro) -->
+    <div class="pitch-goal-3d-bottom">
+      <svg class="goal-net-mesh" viewBox="0 0 240 60" preserveAspectRatio="none">
+        <defs>
+          <pattern id="futNetPattern" width="10" height="10" patternUnits="userSpaceOnUse">
+            <path d="M 0 0 L 10 10 M 10 0 L 0 10" stroke="rgba(255,255,255,0.4)" stroke-width="0.8" fill="none"/>
+          </pattern>
+        </defs>
+        <polygon points="20,0 220,0 240,60 0,60" fill="url(#futNetPattern)" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
+        <line x1="20" y1="0" x2="220" y2="0" stroke="#ffffff" stroke-width="2.5"/>
+      </svg>
+    </div>
+
+    <!-- HUD Superior Esquerdo: Informações do Clube, Rating e Entrosamento 33/33 -->
+    <div class="fut-pitch-hud-left">
+      <div class="fut-hud-badge-wrap">
+        ${typeof clubBadge === 'function' ? clubBadge(clubName, 26) : ''}
+      </div>
+      <div class="fut-hud-info">
+        <div class="fut-hud-team-name">${esc(clubName)}</div>
+        <div class="fut-hud-stars">
+          <span class="stars-gold">★★★★★</span>
+          <span class="hud-ovr-val">${teamAvgOvr}</span>
+          <span class="hud-ovr-lbl">RATING</span>
+        </div>
+        <div class="fut-hud-chem-row">
+          <span class="chem-icon">◆</span>
+          <span class="chem-val">${squadChem}</span>
+          <span class="chem-max">/ 33</span>
+          <span class="chem-lbl">ENTROSAMENTO</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD Superior Direito: Jogador Inspecionado / Destaque -->
+    <div class="fut-pitch-hud-right">
+      <div class="fut-hud-player-summary">
+        <div class="hud-player-photo-box">
+          <img src="${inspectPhoto}" class="hud-player-thumb" loading="lazy" onerror="this.onerror=null;this.src='${fallbackUrl}';"/>
+        </div>
+        <div class="hud-player-data">
+          <div class="hud-player-name">${esc(inspectShortName)}</div>
+          <div class="hud-player-meta">
+            <span class="hud-player-ovr">${inspectOvr}</span>
+            <span class="hud-player-pos">${esc(inspectPos)}</span>
+            <span class="hud-player-chem">◆ ◆ ◆</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slots dos Jogadores no Gramado -->
     ${formSlots.map((slot, idx) => {
       const p = starters[idx] || null;
       const pk = p ? (opts.isHalftime && p.key ? p.key : (typeof playerKey === 'function' ? playerKey(p) : (p.id || p.name))) : '';
       const isSelected = selectedKey && pk && (selectedKey === pk);
       const slotRole = slot.r || (p?.pos || 'ST');
       const posX = slot.x;
-      const posY = slot.y;
+      const posY = slot.r === 'GK' ? Math.min(84, slot.y) : slot.y;
+
+      const fit = p ? (typeof getPositionFit === 'function' ? getPositionFit(p.pos, slotRole) : (p.pos === slotRole ? 'IDEAL' : 'ADAPTADA')) : 'IDEAL';
+      const chemScore = !p ? 0 : (fit === 'IDEAL' ? 3 : (fit === 'ADAPTADA' ? 2 : 1));
+      const pedestalRole = formatPedestalRole(slotRole);
 
       return `
         <div class="pitch-slot-dropzone ${isSelected ? 'selected' : ''}"
@@ -8793,9 +8935,57 @@ function renderVerticalTacticsPitch(starters, formationName = '4-3-3', opts = {}
             isHalftime: isHalftime,
             customClass: 'slot-card-inner'
           })}
+          <!-- Brackets de Mira Ciano Estilo EA FC (Ativo ao Selecionar) -->
+          <div class="fut-target-brackets">
+            <span class="tb tb-tl"></span>
+            <span class="tb tb-tr"></span>
+            <span class="tb tb-bl"></span>
+            <span class="tb tb-br"></span>
+          </div>
+          <!-- Pedestal Oval com Posição e Diamantes de Entrosamento -->
+          <div class="pitch-slot-pedestal ${isSelected ? 'selected' : ''}">
+            <span class="pedestal-role">${esc(pedestalRole)}</span>
+            <div class="pedestal-chem" title="Entrosamento: ${chemScore}/3">
+              <span class="chem-diamond ${chemScore >= 1 ? 'active' : ''}">◆</span>
+              <span class="chem-diamond ${chemScore >= 2 ? 'active' : ''}">◆</span>
+              <span class="chem-diamond ${chemScore >= 3 ? 'active' : ''}">◆</span>
+            </div>
+          </div>
         </div>
       `;
     }).join('')}
+
+    <!-- Dock Inferior Horizontal de Reservas ("RES") -->
+    ${benchList && benchList.length > 0 ? `
+      <div class="fut-bottom-bench-dock" id="futBottomBenchDock">
+        <div class="fut-bench-badge-label">
+          <span class="res-tag">RES</span>
+          <span class="res-count">${benchList.length}</span>
+        </div>
+        <div class="fut-bench-cards-strip">
+          ${benchList.slice(0, 18).map(p => {
+            const pOvr = typeof playerOverall === 'function' ? playerOverall(p) : (p.overall || 60);
+            const pk = typeof playerKey === 'function' ? playerKey(p) : (p.key || p.id || p.name);
+            const pPhoto = resolvePlayerPhotoUrl(p) || fallbackUrl;
+            const shortN = (p.name.split(' ').pop() || p.name).toUpperCase();
+            const pTier = pOvr >= 90 ? 'tier-legendary' : (pOvr >= 84 ? 'tier-special' : 'tier-gold');
+            return `
+              <div class="bench-player-row fut-bench-chip ${pTier}" 
+                   data-bench-key="${esc(pk)}" 
+                   data-player-pos="${esc(p.pos)}" 
+                   title="${esc(p.name)} (${esc(p.pos)}) • OVR ${pOvr} • Clique para trocar">
+                <img src="${pPhoto}" class="bench-chip-img" loading="lazy" onerror="this.onerror=null;this.src='${fallbackUrl}';"/>
+                <div class="bench-chip-info">
+                  <span class="bench-chip-ovr">${pOvr}</span>
+                  <span class="bench-chip-pos">${esc(p.pos)}</span>
+                  <span class="bench-chip-name">${esc(shortN)}</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    ` : ''}
   `;
 }
 window.renderVerticalTacticsPitch = renderVerticalTacticsPitch;
@@ -18671,7 +18861,7 @@ function openHalftimeModal(isQuickTactics = false){
           <div class="tactics-modal-container" id="halftimeTacticsContainer" style="flex:1;height:auto;min-height:0">
             <!-- COLUNA 1: GRAMADO VERTICAL OFICIAL -->
             <div class="tactics-pitch-wrapper" id="halftimePitchBox">
-              ${renderVerticalTacticsPitch(userStarters, currentForm, { isHalftime: true, selectedStarterKey: halftimeSelectedStarterKey })}
+              ${renderVerticalTacticsPitch(userStarters, currentForm, { isHalftime: true, selectedStarterKey: halftimeSelectedStarterKey, bench: userBench })}
             </div>
 
             <!-- COLUNA 2: BANCO DE RESERVAS LATERAL ORGANIZADO -->
@@ -24064,7 +24254,7 @@ function myTeamPage(){
     <div class="tactics-modal-container" id="myTeamTacticsContainer" style="height: calc(100vh - 210px); min-height: 560px; margin-bottom: 18px">
       <!-- COLUNA 1: GRAMADO VERTICAL OFICIAL -->
       <div class="tactics-pitch-wrapper" id="myTeamPitchWrapper">
-        ${renderVerticalTacticsPitch(startingPlayers, state.formation || '4-3-3', { isHalftime: false, selectedStarterKey: tacticalSelectedKey })}
+        ${renderVerticalTacticsPitch(startingPlayers, state.formation || '4-3-3', { isHalftime: false, selectedStarterKey: tacticalSelectedKey, bench: bench })}
       </div>
 
       <!-- COLUNA 2: BANCO DE RESERVAS LATERAL ORGANIZADO -->
