@@ -1,0 +1,98 @@
+const fs = require('fs');
+const https = require('https');
+const path = require('path');
+
+const mlsStars = [
+  // LA Galaxy
+  { club: 'LA Galaxy', name: 'Marco Reus', pos: 'AM', age: 36, fc: 81, pes: 81, potential: 81, value: 5, number: 18, country: 'Alemanha', tmId: '35207' },
+  { club: 'LA Galaxy', name: 'Riqui Puig', pos: 'CM', age: 26, fc: 80, pes: 80, potential: 83, value: 15, number: 10, country: 'Espanha', tmId: '469844' },
+  { club: 'LA Galaxy', name: 'Gabriel Pec', pos: 'RW', age: 24, fc: 78, pes: 78, potential: 82, value: 8, number: 11, country: 'Brasil', tmId: '657685' },
+  { club: 'LA Galaxy', name: 'Joseph Paintsil', pos: 'LW', age: 28, fc: 77, pes: 77, potential: 78, value: 8, number: 28, country: 'Gana', tmId: '479633' },
+  { club: 'LA Galaxy', name: 'Maya Yoshida', pos: 'CB', age: 37, fc: 73, pes: 73, potential: 73, value: 0.5, number: 4, country: 'Japão', tmId: '108842' },
+  { club: 'LA Galaxy', name: 'Dejan Joveljic', pos: 'ST', age: 26, fc: 76, pes: 76, potential: 78, value: 4, number: 9, country: 'Sérvia', tmId: '336377' },
+  { club: 'LA Galaxy', name: 'John McCarthy', pos: 'GK', age: 33, fc: 71, pes: 71, potential: 71, value: 0.5, number: 77, country: 'Estados Unidos', tmId: '321338' },
+  { club: 'LA Galaxy', name: 'Gastón Brugman', pos: 'DM', age: 33, fc: 74, pes: 74, potential: 74, value: 1.5, number: 8, country: 'Uruguai', tmId: '70946' },
+  { club: 'LA Galaxy', name: 'Mark Delgado', pos: 'CM', age: 30, fc: 73, pes: 73, potential: 73, value: 1.5, number: 8, country: 'Estados Unidos', tmId: '221400' },
+  { club: 'LA Galaxy', name: 'Miki Yamane', pos: 'RB', age: 32, fc: 74, pes: 74, potential: 74, value: 1.5, number: 2, country: 'Japão', tmId: '422521' },
+  { club: 'LA Galaxy', name: 'Julian Aude', pos: 'LB', age: 22, fc: 72, pes: 72, potential: 77, value: 2.5, number: 3, country: 'Argentina', tmId: '661131' },
+
+  // Los Angeles FC
+  { club: 'Los Angeles FC', name: 'Olivier Giroud', pos: 'ST', age: 39, fc: 81, pes: 81, potential: 81, value: 3, number: 9, country: 'França', tmId: '44729' },
+  { club: 'Los Angeles FC', name: 'Hugo Lloris', pos: 'GK', age: 39, fc: 80, pes: 80, potential: 80, value: 1.5, number: 1, country: 'França', tmId: '30149' },
+  { club: 'Los Angeles FC', name: 'Denis Bouanga', pos: 'LW', age: 31, fc: 80, pes: 80, potential: 80, value: 10, number: 99, country: 'Gabão', tmId: '335147' },
+  { club: 'Los Angeles FC', name: 'Cristian Olivera', pos: 'RW', age: 23, fc: 76, pes: 76, potential: 81, value: 5, number: 25, country: 'Uruguai', tmId: '646875' },
+  { club: 'Los Angeles FC', name: 'Eduard Atuesta', pos: 'CM', age: 28, fc: 75, pes: 75, potential: 76, value: 3, number: 20, country: 'Colômbia', tmId: '459468' },
+  { club: 'Los Angeles FC', name: 'Timothy Tillman', pos: 'CM', age: 26, fc: 75, pes: 75, potential: 77, value: 3, number: 11, country: 'Estados Unidos', tmId: '282977' },
+  { club: 'Los Angeles FC', name: 'Ilie Sánchez', pos: 'DM', age: 35, fc: 73, pes: 73, potential: 73, value: 0.5, number: 6, country: 'Espanha', tmId: '126845' },
+  { club: 'Los Angeles FC', name: 'Ryan Hollingshead', pos: 'LB', age: 34, fc: 73, pes: 73, potential: 73, value: 0.8, number: 24, country: 'Estados Unidos', tmId: '260783' },
+  { club: 'Los Angeles FC', name: 'Sergi Palencia', pos: 'RB', age: 29, fc: 73, pes: 73, potential: 73, value: 1.2, number: 14, country: 'Espanha', tmId: '223719' },
+  { club: 'Los Angeles FC', name: 'Maxime Chanot', pos: 'CB', age: 36, fc: 72, pes: 72, potential: 72, value: 0.4, number: 4, country: 'Luxemburgo', tmId: '45178' },
+  { club: 'Los Angeles FC', name: 'Aaron Long', pos: 'CB', age: 33, fc: 73, pes: 73, potential: 73, value: 1.2, number: 33, country: 'Estados Unidos', tmId: '271198' },
+
+  // New York Red Bulls
+  { club: 'New York Red Bulls', name: 'Emil Forsberg', pos: 'AM', age: 34, fc: 79, pes: 79, potential: 79, value: 4, number: 10, country: 'Suécia', tmId: '65256' },
+
+  // Orlando City
+  { club: 'Orlando City', name: 'Luis Muriel', pos: 'ST', age: 34, fc: 78, pes: 78, potential: 78, value: 2.5, number: 9, country: 'Colômbia', tmId: '131100' },
+  { club: 'Orlando City', name: 'Facundo Torres', pos: 'LW', age: 25, fc: 78, pes: 78, potential: 82, value: 14, number: 10, country: 'Uruguai', tmId: '465822' },
+
+  // FC Cincinnati
+  { club: 'FC Cincinnati', name: 'Luciano Acosta', pos: 'AM', age: 31, fc: 80, pes: 80, potential: 80, value: 8, number: 10, country: 'Argentina', tmId: '282619' },
+  { club: 'FC Cincinnati', name: 'Luca Orellano', pos: 'RW', age: 25, fc: 76, pes: 76, potential: 80, value: 4.5, number: 23, country: 'Argentina', tmId: '660893' },
+
+  // Columbus Crew
+  { club: 'Columbus Crew', name: 'Cucho Hernández', pos: 'ST', age: 26, fc: 81, pes: 81, potential: 83, value: 15, number: 9, country: 'Colômbia', tmId: '459463' },
+  { club: 'Columbus Crew', name: 'Diego Rossi', pos: 'LW', age: 27, fc: 78, pes: 78, potential: 79, value: 7, number: 10, country: 'Uruguai', tmId: '318077' },
+
+  // Seattle Sounders
+  { club: 'Seattle Sounders', name: 'Pedro de la Vega', pos: 'RW', age: 24, fc: 76, pes: 76, potential: 82, value: 6, number: 10, country: 'Argentina', tmId: '568585' }
+];
+
+function downloadProfileImage(tmId) {
+  return new Promise((resolve) => {
+    const dest = path.join('img', 'players', `tm_${tmId}.jpg`);
+    if (fs.existsSync(dest) && fs.statSync(dest).size > 1000) {
+      return resolve(true);
+    }
+    const url = `https://www.transfermarkt.pt/profil/spieler/${tmId}`;
+    https.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    }, res => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        const m = body.match(/https:\/\/img\.a\.transfermarkt\.technology\/portrait\/[^\s"'>]+(\d+)[^\s"'>]+/);
+        if (m) {
+          const imgUrl = m[0].replace(/&amp;/g, '&');
+          const file = fs.createWriteStream(dest);
+          https.get(imgUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, imgRes => {
+            imgRes.pipe(file);
+            file.on('finish', () => {
+              file.close();
+              resolve(true);
+            });
+          }).on('error', () => {
+            file.close();
+            if (fs.existsSync(dest)) fs.unlinkSync(dest);
+            resolve(false);
+          });
+        } else {
+          resolve(false);
+        }
+      });
+    }).on('error', () => resolve(false));
+  });
+}
+
+(async () => {
+  console.log('Downloading MLS stars portraits...');
+  for (const s of mlsStars) {
+    const ok = await downloadProfileImage(s.tmId);
+    console.log(`[${ok ? 'OK' : 'FAIL'}] ${s.club} - ${s.name} (${s.tmId})`);
+    if (ok) s.photo = `img/players/tm_${s.tmId}.jpg`;
+  }
+  fs.writeFileSync('scripts/mls_stars.json', JSON.stringify(mlsStars, null, 2), 'utf8');
+  console.log('Saved scripts/mls_stars.json');
+})();

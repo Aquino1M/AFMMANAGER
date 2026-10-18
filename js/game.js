@@ -84,24 +84,57 @@ function resolvePlayerPhotoUrl(p) {
   if (!p) return null;
   const name = typeof p === 'string' ? p : (p.name || '');
   if (!name) return null;
-  if (typeof window !== 'undefined' && window.AFM_RealPlayerFaces && typeof window.AFM_RealPlayerFaces.resolveRealPlayerPhotoUrl === 'function') {
-    const realPhoto = window.AFM_RealPlayerFaces.resolveRealPlayerPhotoUrl(p);
-    if (realPhoto) return realPhoto;
-  }
 
   // 1. Verificar se o atleta já possui foto explícita
   if (typeof p === 'object' && p.photo && typeof p.photo === 'string') {
-    return trustedPlayerPhotoUrl(p.photo);
+    const trusted = trustedPlayerPhotoUrl(p.photo);
+    if (trusted) return trusted;
   }
 
-  // 2. Verificar no mapeamento global window.PLAYER_PHOTOS (exato, norm, lowercase, slug)
+  // 2. Verificar se o atleta possui ID do Transfermarkt (tmId) com arquivo local verificado
+  if (typeof p === 'object' && p.tmId) {
+    const tmPath = `img/players/tm_${p.tmId}.jpg`;
+    if (!window.PLAYER_PHOTO_DUPLICATES?.has(tmPath)) {
+      const trusted = trustedPlayerPhotoUrl(tmPath);
+      if (trusted) return trusted;
+    }
+  }
+
+  // 3. Resolução contextual de clube para HOMÔNIMOS (jogadores de mesmo nome em clubes diferentes)
+  const club = typeof p === 'object' ? (p.club || (typeof state !== 'undefined' ? state?.club : '')) : '';
   const photos = window.PLAYER_PHOTOS || {};
   const normName = typeof norm === 'function' ? norm(name) : name.toLowerCase();
   const slugName = typeof normSlug === 'function' ? normSlug(name) : name.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
+  if (club) {
+    const clubNorm = typeof norm === 'function' ? norm(club) : club.toLowerCase();
+    const clubMatch = photos[`${club}::${name}`] || photos[`${clubNorm}::${normName}`] || photos[`${club}::${normName}`] || photos[`${club}::${slugName}`];
+    if (clubMatch) {
+      const trusted = trustedPlayerPhotoUrl(clubMatch);
+      if (trusted) return trusted;
+    }
+  }
+
+  // 4. Módulo AFM_RealPlayerFaces (com verificação de clube se disponível)
+  if (typeof window !== 'undefined' && window.AFM_RealPlayerFaces && typeof window.AFM_RealPlayerFaces.resolveRealPlayerPhotoUrl === 'function') {
+    const realPhoto = window.AFM_RealPlayerFaces.resolveRealPlayerPhotoUrl(p);
+    if (realPhoto) {
+      const trusted = trustedPlayerPhotoUrl(realPhoto);
+      if (trusted) return trusted;
+    }
+  }
+
+  // 5. SEGURANÇA MÁXIMA ANTI-HOMÔNIMOS:
+  // Se o atleta pertencer à lista de nomes homônimos entre clubes distintos,
+  // NUNCA fazer fallback para uma chave global solta de outro clube!
+  if (window.AMBIGUOUS_PLAYER_NAMES && (window.AMBIGUOUS_PLAYER_NAMES.has(normName) || window.AMBIGUOUS_PLAYER_NAMES.has(name.toLowerCase()))) {
+    return null;
+  }
+
+  // 6. Verificar no mapeamento global window.PLAYER_PHOTOS (exato, norm, lowercase, slug) apenas para nomes não ambíguos
   let match = photos[name] || photos[normName] || photos[name.toLowerCase()] || photos[slugName];
   if (!match) {
-    const normalizedKey = Object.keys(photos).find(key => norm(key) === normName || normSlug(key) === slugName);
+    const normalizedKey = Object.keys(photos).find(key => !key.includes('::') && (norm(key) === normName || normSlug(key) === slugName));
     if (normalizedKey) match = photos[normalizedKey];
   }
   return match ? trustedPlayerPhotoUrl(match) : null;
@@ -10923,12 +10956,24 @@ function migrate(s){
   s.squad=(Array.isArray(s.squad)?s.squad:[]).filter(p=>p && typeof p==='object' && (p.name || p.id || p.marketKey)).map(stablePlayer);
   if(Array.isArray(s.squad) && typeof window.LIVE_PLAYERS !== 'undefined' && Array.isArray(window.LIVE_PLAYERS)){
     const liveMap = new Map();
-    window.LIVE_PLAYERS.forEach(lp => { if(lp && lp.name) liveMap.set(norm(lp.name), lp); });
+    const liveClubMap = new Map();
+    window.LIVE_PLAYERS.forEach(lp => { 
+      if(lp && lp.name) {
+        liveMap.set(norm(lp.name), lp);
+        if(lp.club) liveClubMap.set(norm(lp.club) + '::' + norm(lp.name), lp);
+      }
+    });
     const isInitSeason = (s.season === 1 || s.season === 2026);
     s.squad.forEach(p => {
       if(p && p.name){
-        const match = liveMap.get(norm(p.name));
+        const userClub = s.club || p.club || '';
+        const isAmbiguous = window.AMBIGUOUS_PLAYER_NAMES && window.AMBIGUOUS_PLAYER_NAMES.has(norm(p.name));
+        const clubMatch = userClub ? liveClubMap.get(norm(userClub) + '::' + norm(p.name)) : null;
+        const match = clubMatch || (!isAmbiguous ? liveMap.get(norm(p.name)) : null);
         if(match){
+          if(match.photo) p.photo = match.photo;
+          if(match.tmId) p.tmId = match.tmId;
+          if(match.number && !p.number) p.number = match.number;
           if(isInitSeason && (Number(s.round) || 0) <= 2){
             if(match.fc) p.fc = match.fc;
             if(match.pes) p.pes = match.pes;
@@ -10950,10 +10995,16 @@ function migrate(s){
     if(isInitSeason && (Number(s.round) || 0) <= 2 && s.club){
       s.squad = s.squad.filter(p => {
         if(!p || !p.name) return true;
-        const match = liveMap.get(norm(p.name));
-        if(match && match.club && norm(match.club) !== norm(s.club)){
-          const wasMoved = s.playerMoves && s.playerMoves[norm(p.name)];
-          if(!wasMoved) return false;
+        const isAmbiguous = window.AMBIGUOUS_PLAYER_NAMES && window.AMBIGUOUS_PLAYER_NAMES.has(norm(p.name));
+        if (isAmbiguous) {
+          const clubMatch = liveClubMap.get(norm(s.club) + '::' + norm(p.name));
+          if (!clubMatch) return false;
+        } else {
+          const match = liveMap.get(norm(p.name));
+          if(match && match.club && norm(match.club) !== norm(s.club)){
+            const wasMoved = s.playerMoves && s.playerMoves[norm(p.name)];
+            if(!wasMoved) return false;
+          }
         }
         return true;
       });
