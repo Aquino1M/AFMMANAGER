@@ -306,7 +306,7 @@ window.COMPETITION_LOGOS = window.COMPETITION_LOGOS || {
   'fra-1': 'fra_1.svg',
   'por-1': 'por_1.svg',
   'ksa-1': 'ksa_1.svg',
-  'usa-1': 'usa_1.svg'
+  'usa-1': 'usa_1.png'
 };
 
 window.renderCompetitionLogo = function(compId, size = 32) {
