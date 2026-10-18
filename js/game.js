@@ -16453,19 +16453,21 @@ function setupLiveCanvasLoop(){
           s.liveSubSec = (s.liveSubSec || 0) + 1;
           s.timeSec = (s.timeSec || 0) + 1;
 
-          // Atualização fluida do relógio no placar
-          const curMin = Math.floor(s.timeSec / 60);
-          const curSec = Math.floor(s.timeSec % 60);
-          const clk = $('#liveClockDisplay');
-          if(clk){
-            clk.textContent = `${String(curMin).padStart(2, '0')}:${String(curSec).padStart(2, '0')}`;
-          }
-
           if(s.liveSubSec >= 60){
             s.liveSubSec = 0;
             if(s.minute < 90){
               simulateMinute(s, s.minute + 1);
             }
+          }
+        }
+
+        // Atualização fluida do relógio no placar (uma vez por frame para máxima performance sem travamento de DOM)
+        if(s.playing){
+          const curMin = Math.floor((s.timeSec || 0) / 60);
+          const curSec = Math.floor((s.timeSec || 0) % 60);
+          const clk = $('#liveClockDisplay');
+          if(clk){
+            clk.textContent = `${String(curMin).padStart(2, '0')}:${String(curSec).padStart(2, '0')}`;
           }
         }
       } else {

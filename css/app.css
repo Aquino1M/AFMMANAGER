@@ -4743,3 +4743,37 @@ body.theme-emerald {
   overflow: visible !important;
 }
 
+/* ========================================================================= */
+/* AFM 2027 — ACELERAÇÃO DE HARDWARE GPU & FLUIDEZ (ZERO TRAVAMENTOS)        */
+/* ========================================================================= */
+#liveMatchCanvas,
+.live-match-canvas,
+.live-pitch-container,
+.setup-container,
+.saves-slots-grid,
+.modal-overlay,
+.card {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+#liveMatchCanvas {
+  will-change: transform;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Otimização de rolagem e renderização sem travamentos de CPU */
+.scrollable,
+.saves-slots-grid,
+.live-sidebar,
+.squad-table-container,
+.standings-table-container {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  contain: content;
+}
+
+

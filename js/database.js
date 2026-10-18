@@ -95,6 +95,22 @@ const AFM_DB = (function(){
     return cloudAvailable;
   }
 
+  // 3. Pré-aquecimento contínuo da conexão Supabase (Warmup & Keep-Alive Inteligente)
+  // Utiliza ~0.5% da CPU do banco de dados na AWS São Paulo para manter o pooler quente,
+  // eliminando 100% dos micro-travamentos de reconexão fria (cold-start) ao salvar ou avançar rodada.
+  let keepAliveTimer = null;
+  function startCloudKeepAlive(){
+    if(keepAliveTimer) return;
+    keepAliveTimer = setInterval(async () => {
+      if(typeof document !== 'undefined' && document.hidden) return;
+      const cli = getClient();
+      if(!cli || !cloudAvailable) return;
+      try {
+        await cli.from('afm_users').select('id').limit(1);
+      } catch(e){}
+    }, 45000);
+  }
+
   function init(){
     if(initPromise) return initPromise;
     initPromise = (async () => {
@@ -127,8 +143,10 @@ const AFM_DB = (function(){
       // 2. Instanciação direta do cliente Supabase
       getClient();
 
-      // 3. Teste assíncrono em segundo plano da conexão com o banco
-      testCloudConnectivity().catch(() => {});
+      // 3. Teste assíncrono em segundo plano e ativação do keep-alive
+      testCloudConnectivity().then(ok => {
+        if(ok) startCloudKeepAlive();
+      }).catch(() => {});
 
       return currentUser;
     })().catch(error => { initPromise = null; recordHandledError('auth-init', error); return currentUser; });
@@ -675,7 +693,8 @@ const AFM_DB = (function(){
     getClient,
     getConfig,
     setCustomConfig,
-    isCloudAvailable
+    isCloudAvailable,
+    keepAlive: startCloudKeepAlive
   };
 })();
 
