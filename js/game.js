@@ -8832,8 +8832,6 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
   const inspectPos = inspectPlayer ? (inspectPlayer.pos || inspectSlotRole) : '-';
   const inspectPhoto = inspectPlayer ? (resolvePlayerPhotoUrl(inspectPlayer) || fallbackUrl) : fallbackUrl;
 
-  const benchList = opts.bench || [];
-
   return `
     <!-- Ambiência 3D do Topo do Estádio (Refletores & Arquibancadas) -->
     <div class="fut-stadium-top-ambience">
@@ -8916,7 +8914,7 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
       const isSelected = selectedKey && pk && (selectedKey === pk);
       const slotRole = slot.r || (p?.pos || 'ST');
       const posX = slot.x;
-      const posY = slot.r === 'GK' ? Math.min(84, slot.y) : slot.y;
+      const posY = slot.y;
 
       const fit = p ? (typeof getPositionFit === 'function' ? getPositionFit(p.pos, slotRole) : (p.pos === slotRole ? 'IDEAL' : 'ADAPTADA')) : 'IDEAL';
       const chemScore = !p ? 0 : (fit === 'IDEAL' ? 3 : (fit === 'ADAPTADA' ? 2 : 1));
@@ -8954,38 +8952,6 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
         </div>
       `;
     }).join('')}
-
-    <!-- Dock Inferior Horizontal de Reservas ("RES") -->
-    ${benchList && benchList.length > 0 ? `
-      <div class="fut-bottom-bench-dock" id="futBottomBenchDock">
-        <div class="fut-bench-badge-label">
-          <span class="res-tag">RES</span>
-          <span class="res-count">${benchList.length}</span>
-        </div>
-        <div class="fut-bench-cards-strip">
-          ${benchList.slice(0, 18).map(p => {
-            const pOvr = typeof playerOverall === 'function' ? playerOverall(p) : (p.overall || 60);
-            const pk = typeof playerKey === 'function' ? playerKey(p) : (p.key || p.id || p.name);
-            const pPhoto = resolvePlayerPhotoUrl(p) || fallbackUrl;
-            const shortN = (p.name.split(' ').pop() || p.name).toUpperCase();
-            const pTier = pOvr >= 90 ? 'tier-legendary' : (pOvr >= 84 ? 'tier-special' : 'tier-gold');
-            return `
-              <div class="bench-player-row fut-bench-chip ${pTier}" 
-                   data-bench-key="${esc(pk)}" 
-                   data-player-pos="${esc(p.pos)}" 
-                   title="${esc(p.name)} (${esc(p.pos)}) • OVR ${pOvr} • Clique para trocar">
-                <img src="${pPhoto}" class="bench-chip-img" loading="lazy" onerror="this.onerror=null;this.src='${fallbackUrl}';"/>
-                <div class="bench-chip-info">
-                  <span class="bench-chip-ovr">${pOvr}</span>
-                  <span class="bench-chip-pos">${esc(p.pos)}</span>
-                  <span class="bench-chip-name">${esc(shortN)}</span>
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-    ` : ''}
   `;
 }
 window.renderVerticalTacticsPitch = renderVerticalTacticsPitch;
@@ -18861,7 +18827,7 @@ function openHalftimeModal(isQuickTactics = false){
           <div class="tactics-modal-container" id="halftimeTacticsContainer" style="flex:1;height:auto;min-height:0">
             <!-- COLUNA 1: GRAMADO VERTICAL OFICIAL -->
             <div class="tactics-pitch-wrapper" id="halftimePitchBox">
-              ${renderVerticalTacticsPitch(userStarters, currentForm, { isHalftime: true, selectedStarterKey: halftimeSelectedStarterKey, bench: userBench })}
+              ${renderVerticalTacticsPitch(userStarters, currentForm, { isHalftime: true, selectedStarterKey: halftimeSelectedStarterKey })}
             </div>
 
             <!-- COLUNA 2: BANCO DE RESERVAS LATERAL ORGANIZADO -->
@@ -24254,7 +24220,7 @@ function myTeamPage(){
     <div class="tactics-modal-container" id="myTeamTacticsContainer" style="height: calc(100vh - 210px); min-height: 560px; margin-bottom: 18px">
       <!-- COLUNA 1: GRAMADO VERTICAL OFICIAL -->
       <div class="tactics-pitch-wrapper" id="myTeamPitchWrapper">
-        ${renderVerticalTacticsPitch(startingPlayers, state.formation || '4-3-3', { isHalftime: false, selectedStarterKey: tacticalSelectedKey, bench: bench })}
+        ${renderVerticalTacticsPitch(startingPlayers, state.formation || '4-3-3', { isHalftime: false, selectedStarterKey: tacticalSelectedKey })}
       </div>
 
       <!-- COLUNA 2: BANCO DE RESERVAS LATERAL ORGANIZADO -->
