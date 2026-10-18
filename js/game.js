@@ -189,14 +189,18 @@ function renderTacticalCard(player, index, isSelected = false) {
   const photoUrl = resolvePlayerPhotoUrl(player) || "img/players/default_avatar.svg";
   const fallbackUrl = "img/players/default_avatar.svg";
   const ovr = player.overall || player.ovr || (typeof playerOverall === 'function' ? playerOverall(player) : 60);
+  const ovrNum = Number(ovr) || 0;
+  const isLegendary = ovrNum >= 95;
+  const isSpecial = ovrNum >= 85 && ovrNum < 95;
+  const tierClass = isLegendary ? 'tier-legendary' : (isSpecial ? 'tier-special' : (ovrNum >= 80 ? 'tier-gold-rare' : (ovrNum >= 70 ? 'tier-gold' : (ovrNum >= 60 ? 'tier-silver' : 'tier-bronze'))));
   const pos = player.pos || 'CM';
   const name = (player.name || 'Jogador').toUpperCase();
   
   return `
-    <div class="fifa-mini-card ${isSelected ? 'selected-glow selected' : ''}" 
+    <div class="fifa-mini-card ${tierClass} ${isSelected ? 'selected-glow selected' : ''}" 
          data-player-id="${player.id || index}" 
          data-index="${index}"
-         data-player-key="${esc(playerKey(player))}"
+         data-player-key="${esc(playerKey(player))}">
       <div class="card-header fifa-mini-card-top">
         <div class="fifa-mini-card-badge">
           <span class="card-ovr fifa-mini-card-ovr">${ovr}</span>
@@ -242,7 +246,9 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const clubName = p?.club || state?.club || '';
 
   const ovrNum = Number(ovr) || 0;
-  const tierClass = ovrNum >= 80 ? 'tier-gold-rare' : ovrNum >= 70 ? 'tier-gold' : ovrNum >= 60 ? 'tier-silver' : 'tier-bronze';
+  const isLegendary = ovrNum >= 95;
+  const isSpecial = ovrNum >= 85 && ovrNum < 95;
+  const tierClass = isLegendary ? 'tier-legendary' : (isSpecial ? 'tier-special' : (ovrNum >= 80 ? 'tier-gold-rare' : (ovrNum >= 70 ? 'tier-gold' : (ovrNum >= 60 ? 'tier-silver' : 'tier-bronze'))));
   const customClass = opts.customClass || '';
   const ovrColor = isIncompatible ? 'color:#f87171;' : (isAdapted ? 'color:#fde047;' : (ovrDiff < 0 ? 'color:#fca5a5;' : ''));
 
@@ -258,7 +264,10 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
       <!-- Topo: OVR, POS e Escudo -->
       <div class="fifa-mini-card-top">
         <div class="fifa-mini-card-badge">
-          <span class="fifa-mini-card-ovr" style="${ovrColor}">${ovr}</span>
+          <div style="display:inline-flex;align-items:center;gap:2px;">
+            <span class="fifa-mini-card-ovr" style="${ovrColor}">${ovr}</span>
+            ${isLegendary ? '<span class="fifa-mini-card-tier-icon legendary" title="Craque Lendário (OVR 95+)" style="font-size:9px;line-height:1;">👑</span>' : (isSpecial ? '<span class="fifa-mini-card-tier-icon special" title="Craque Especial (OVR 85+)" style="font-size:9px;line-height:1;">⭐</span>' : '')}
+          </div>
           <span class="fifa-mini-card-pos">${esc(pos)}</span>
           ${p?.number ? `<span class="fifa-mini-card-num" style="font-size:8px;font-weight:900;color:#38bdf8;background:rgba(15,23,42,0.85);padding:1px 3px;border-radius:3px;margin-top:1px;line-height:1" title="Camisa #${p.number}">#${p.number}</span>` : ''}
           ${isAdapted ? `<span class="fifa-mini-card-role-adapted" style="color:#fde047;background:rgba(113,63,18,0.9);border:1px solid #eab308" title="Posição adaptada: ${esc(role)}${ovrDiff < 0 ? ` (${ovrDiff} OVR)` : ''}">(${esc(role)})</span>` : ''}

@@ -1,0 +1,212 @@
+[
+  {
+    "name": "Erling Haaland",
+    "club": "Manchester City",
+    "tmId": "418560",
+    "query": "Erling Haaland",
+    "photo": "img/players/tm_418560.jpg"
+  },
+  {
+    "name": "Kylian Mbappé",
+    "club": "Real Madrid",
+    "tmId": "342229",
+    "query": "Kylian Mbappe",
+    "photo": "img/players/tm_342229.jpg"
+  },
+  {
+    "name": "Vinicius Jr",
+    "club": "Real Madrid",
+    "tmId": "371998",
+    "query": "Vinicius Junior",
+    "photo": "img/players/tm_371998.jpg"
+  },
+  {
+    "name": "Jude Bellingham",
+    "club": "Real Madrid",
+    "tmId": "581678",
+    "query": "Jude Bellingham",
+    "photo": "img/players/tm_581678.jpg"
+  },
+  {
+    "name": "Rodri",
+    "club": "Manchester City",
+    "tmId": "357565",
+    "query": "Rodri",
+    "photo": "img/players/tm_357565.jpg"
+  },
+  {
+    "name": "Kevin De Bruyne",
+    "club": "Manchester City",
+    "tmId": "88755",
+    "query": "Kevin De Bruyne",
+    "photo": "img/players/tm_88755.jpg"
+  },
+  {
+    "name": "Phil Foden",
+    "club": "Manchester City",
+    "tmId": "406635",
+    "query": "Phil Foden",
+    "photo": "img/players/tm_406635.jpg"
+  },
+  {
+    "name": "Harry Kane",
+    "club": "Bayern München",
+    "tmId": "132098",
+    "query": "Harry Kane",
+    "photo": "img/players/tm_132098.jpg"
+  },
+  {
+    "name": "Jamal Musiala",
+    "club": "Bayern München",
+    "tmId": "580195",
+    "query": "Jamal Musiala",
+    "photo": "img/players/tm_580195.jpg"
+  },
+  {
+    "name": "Joshua Kimmich",
+    "club": "Bayern München",
+    "tmId": "161056",
+    "query": "Joshua Kimmich",
+    "photo": "img/players/tm_161056.jpg"
+  },
+  {
+    "name": "Manuel Neuer",
+    "club": "Bayern München",
+    "tmId": "17259",
+    "query": "Manuel Neuer",
+    "photo": "img/players/tm_17259.jpg"
+  },
+  {
+    "name": "Robert Lewandowski",
+    "club": "FC Barcelona",
+    "tmId": "38253",
+    "query": "Robert Lewandowski",
+    "photo": "img/players/tm_38253.jpg"
+  },
+  {
+    "name": "Lamine Yamal",
+    "club": "FC Barcelona",
+    "tmId": "937958",
+    "query": "Lamine Yamal",
+    "photo": "img/players/tm_937958.jpg"
+  },
+  {
+    "name": "Raphinha",
+    "club": "FC Barcelona",
+    "tmId": "411295",
+    "query": "Raphinha",
+    "photo": "img/players/tm_411295.jpg"
+  },
+  {
+    "name": "Pedri",
+    "club": "FC Barcelona",
+    "tmId": "683840",
+    "query": "Pedri",
+    "photo": "img/players/tm_683840.jpg"
+  },
+  {
+    "name": "Rodrygo",
+    "club": "Real Madrid",
+    "tmId": "412363",
+    "query": "Rodrygo",
+    "photo": "img/players/tm_412363.jpg"
+  },
+  {
+    "name": "Federico Valverde",
+    "club": "Real Madrid",
+    "tmId": "369081",
+    "query": "Federico Valverde",
+    "photo": "img/players/tm_369081.jpg"
+  },
+  {
+    "name": "Eduardo Camavinga",
+    "club": "Real Madrid",
+    "tmId": "640428",
+    "query": "Eduardo Camavinga",
+    "photo": "img/players/tm_640428.jpg"
+  },
+  {
+    "name": "Thibaut Courtois",
+    "club": "Real Madrid",
+    "tmId": "108390",
+    "query": "Thibaut Courtois",
+    "photo": "img/players/tm_108390.jpg"
+  },
+  {
+    "name": "Cole Palmer",
+    "club": "Chelsea",
+    "tmId": "568177",
+    "query": "Cole Palmer",
+    "photo": "img/players/tm_568177.jpg"
+  },
+  {
+    "name": "Mohamed Salah",
+    "club": "Liverpool",
+    "tmId": "148455",
+    "query": "Mohamed Salah",
+    "photo": "img/players/tm_148455.jpg"
+  },
+  {
+    "name": "Virgil van Dijk",
+    "club": "Liverpool",
+    "tmId": "139208",
+    "query": "Virgil van Dijk",
+    "photo": "img/players/tm_139208.jpg"
+  },
+  {
+    "name": "Alisson",
+    "club": "Liverpool",
+    "tmId": "105470",
+    "query": "Alisson",
+    "photo": "img/players/tm_105470.jpg"
+  },
+  {
+    "name": "Ederson",
+    "club": "Manchester City",
+    "tmId": "238223",
+    "query": "Ederson",
+    "photo": "img/players/tm_238223.jpg"
+  },
+  {
+    "name": "Bukayo Saka",
+    "club": "Arsenal",
+    "tmId": "433177",
+    "query": "Bukayo Saka",
+    "photo": "img/players/tm_433177.jpg"
+  },
+  {
+    "name": "Martin Ødegaard",
+    "club": "Arsenal",
+    "tmId": "316264",
+    "query": "Martin Odegaard",
+    "photo": "img/players/tm_316264.jpg"
+  },
+  {
+    "name": "William Saliba",
+    "club": "Arsenal",
+    "tmId": "495666",
+    "query": "William Saliba",
+    "photo": "img/players/tm_495666.jpg"
+  },
+  {
+    "name": "Florian Wirtz",
+    "club": "Bayer Leverkusen",
+    "tmId": "598577",
+    "query": "Florian Wirtz",
+    "photo": "img/players/tm_598577.jpg"
+  },
+  {
+    "name": "Lautaro Martínez",
+    "club": "Inter",
+    "tmId": "406625",
+    "query": "Lautaro Martinez",
+    "photo": "img/players/tm_406625.jpg"
+  },
+  {
+    "name": "Cristiano Ronaldo",
+    "club": "Al-Nassr",
+    "tmId": "8198",
+    "query": "Cristiano Ronaldo",
+    "photo": "img/players/tm_8198.jpg"
+  }
+]

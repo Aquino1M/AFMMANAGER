@@ -45,7 +45,7 @@
       const pools = [
         ...(window.state?.squad || []),
         ...((typeof window.marketUniverse === 'function' ? window.marketUniverse() : []) || []),
-        ...(window.livePlayers || []),
+        ...(window.LIVE_PLAYERS || window.livePlayers || []),
         ...(window.state?.worldGenerated || []),
         ...(window.state?.worldRegens || [])
       ];
@@ -105,6 +105,29 @@
           if (!isNaN(domOvr) && domOvr >= 45 && !p.ovr && !p.overall) p.ovr = domOvr;
           if (!isNaN(domAge) && domAge >= 15 && !p.age) p.age = domAge;
           if (cleanValText && !p.valText) p.valText = cleanValText;
+        }
+      }
+    }
+
+    // Sincroniza e enriquece atributos autênticos de fotos, tmId e ratings globais
+    if (p) {
+      const pNorm = norm(p.name);
+      const cNorm = norm(p.club);
+      const liveList = window.LIVE_PLAYERS || window.livePlayers || [];
+      const matched = liveList.find(lp => {
+        if (!lp) return false;
+        if (norm(lp.name) === pNorm && (!cNorm || norm(lp.club) === cNorm)) return true;
+        return false;
+      }) || liveList.find(lp => lp && norm(lp.name) === pNorm);
+
+      if (matched) {
+        if (!p.photo && matched.photo) p.photo = matched.photo;
+        if (!p.tmId && matched.tmId) p.tmId = matched.tmId;
+        if (!p.country && matched.country) p.country = matched.country;
+        if (!p.number && matched.number) p.number = matched.number;
+        if (matched.fc && (!p.ovr || p.ovr === 78)) {
+          p.ovr = matched.fc;
+          p.overall = matched.fc;
         }
       }
     }
@@ -360,13 +383,61 @@
       const ovrBorderColor = realOvr >= 85 ? '#f59e0b' : (realOvr >= 78 ? '#eab308' : (realOvr >= 70 ? '#38bdf8' : '#a78bfa'));
       const ovrGlowColor = realOvr >= 85 ? 'rgba(245,158,11,0.5)' : (realOvr >= 78 ? 'rgba(234,179,8,0.4)' : 'rgba(124,58,237,0.3)');
 
-      // Foto ou Badge Circular com Overall Real
-      let photoHtml = '';
-      if (p && typeof window.playerPhoto === 'function') {
-        photoHtml = window.playerPhoto(p, 68);
-      } else {
-        photoHtml = `<div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg, #1e1b4b, #0f0c1d);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:26px;color:#fff;border:2px solid ${ovrBorderColor}">${realOvr}</div>`;
-      }
+      // Determinação dos Tiers FIFA (Especial 85+ e Lendário 95+)
+      const isLegendary = realOvr >= 95;
+      const isSpecial = realOvr >= 85 && realOvr < 95;
+      const isGoldRare = realOvr >= 80 && realOvr < 85;
+      const isGold = realOvr >= 70 && realOvr < 80;
+      const isSilver = realOvr >= 60 && realOvr < 70;
+
+      const futTierClass = isLegendary ? 'fut-card-legendary' : (isSpecial ? 'fut-card-special' : (isGoldRare ? 'fut-card-gold-rare' : (isGold ? 'fut-card-gold' : (isSilver ? 'fut-card-silver' : 'fut-card-bronze'))));
+      const futTierPill = isLegendary ? '👑 LENDÁRIO' : (isSpecial ? '⭐ ESPECIAL' : (isGoldRare ? 'OURO RARO' : (isGold ? 'OURO' : (isSilver ? 'PRATA' : 'BRONZE'))));
+
+      const photoUrl = (typeof window.resolvePlayerPhotoUrl === 'function' ? window.resolvePlayerPhotoUrl(p) : null) || p?.photo || (p?.tmId ? `img/players/tm_${p.tmId}.jpg` : null);
+      const fallbackUrl = 'img/players/default_avatar.svg';
+      const shortSurname = (name.split(/\s+/).pop() || name).toUpperCase();
+
+      // Cálculo dos 6 Atributos Dinâmicos FIFA FUT
+      let s1 = { l: isGK ? 'DIV' : 'PAC', v: Math.round(realOvr * 0.98) };
+      let s2 = { l: isGK ? 'HAN' : 'SHO', v: Math.round(realOvr * (isAttacker ? 1.02 : (isMidfielder ? 0.92 : 0.65))) };
+      let s3 = { l: isGK ? 'KIC' : 'PAS', v: Math.round(realOvr * (isMidfielder ? 1.03 : (isAttacker ? 0.90 : 0.82))) };
+      let s4 = { l: isGK ? 'REF' : 'DRI', v: Math.round(realOvr * (isAttacker ? 1.01 : (isMidfielder ? 0.98 : 0.74))) };
+      let s5 = { l: isGK ? 'SPD' : 'DEF', v: Math.round(realOvr * (isDefender ? 1.03 : (isMidfielder ? 0.78 : 0.48))) };
+      let s6 = { l: isGK ? 'POS' : 'PHY', v: Math.round(realOvr * (isDefender ? 1.01 : (isAttacker ? 0.92 : 0.85))) };
+      [s1, s2, s3, s4, s5, s6].forEach(s => { s.v = Math.min(99, Math.max(40, s.v)); });
+
+      const futCardHtml = `
+        <div class="fut-card ${futTierClass}">
+          <div class="fut-card-top">
+            <div class="fut-card-ovr-box">
+              <span class="fut-card-ovr">${realOvr}</span>
+              <span class="fut-card-pos">${pos}</span>
+            </div>
+            <div class="fut-card-crest">
+              ${badgeHtml || ''}
+            </div>
+          </div>
+          <div class="fut-card-photo-wrap">
+            <img src="${photoUrl || fallbackUrl}" 
+                 alt="${name}" 
+                 class="fut-card-photo" 
+                 loading="lazy" 
+                 onerror="this.onerror=null;this.src='${fallbackUrl}';" />
+          </div>
+          <div class="fut-card-bottom">
+            <div class="fut-card-name">${shortSurname}</div>
+            <div class="fut-card-tier-pill">${futTierPill}</div>
+            <div class="fut-card-stats">
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${s1.v}</span><span class="fut-card-stat-lbl">${s1.l}</span></div>
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${s2.v}</span><span class="fut-card-stat-lbl">${s2.l}</span></div>
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${s3.v}</span><span class="fut-card-stat-lbl">${s3.l}</span></div>
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${s4.v}</span><span class="fut-card-stat-lbl">${s4.l}</span></div>
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${s5.v}</span><span class="fut-card-stat-lbl">${s5.l}</span></div>
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${s6.v}</span><span class="fut-card-stat-lbl">${s6.l}</span></div>
+            </div>
+          </div>
+        </div>
+      `;
 
       let badgeHtml = '';
       if (club && typeof window.clubBadge === 'function') {
@@ -447,15 +518,8 @@
             <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:18px;gap:16px;">
               <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
                 
-                <!-- Avatar Circular com Overall Real em Alta Definição -->
-                <div style="position:relative;flex-shrink:0;">
-                  <div style="border-radius:50%;overflow:hidden;border:3px solid ${ovrBorderColor};box-shadow:0 0 20px ${ovrGlowColor};width:72px;height:72px;display:flex;align-items:center;justify-content:center;background:#131127;">
-                    ${photoHtml}
-                  </div>
-                  <div style="position:absolute;bottom:-3px;right:-3px;background:#6d28d9;border:2px solid #0f172a;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);">
-                    ${pos}
-                  </div>
-                </div>
+                <!-- Card FIFA Personalizado (Especial 85+ / Lendário 95+) -->
+                ${futCardHtml}
 
                 <!-- Nome, Posição e Badges Oficiais -->
                 <div>

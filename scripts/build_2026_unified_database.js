@@ -437,6 +437,42 @@ registerPlayer({
   photo: 'img/players/bra_a/corinthians/memphis_depay.png'
 });
 
+// 8. World Stars & Craques Mundiais (Ratings >= 85 & Icons)
+const worldStarsData = [
+  { name: 'Erling Haaland', club: 'Manchester City', country: 'Noruega', pos: 'ST', age: 26, fc: 91, pes: 91, potential: 93, value: 200, number: 9, tmId: '418560', photo: 'img/players/tm_418560.jpg' },
+  { name: 'Kylian Mbappé', club: 'Real Madrid', country: 'França', pos: 'ST', age: 27, fc: 91, pes: 91, potential: 92, value: 180, number: 9, tmId: '342229', photo: 'img/players/tm_342229.jpg' },
+  { name: 'Vinicius Jr', club: 'Real Madrid', country: 'Brasil', pos: 'LW', age: 26, fc: 91, pes: 91, potential: 93, value: 200, number: 7, tmId: '371998', photo: 'img/players/tm_371998.jpg' },
+  { name: 'Jude Bellingham', club: 'Real Madrid', country: 'Inglaterra', pos: 'AM', age: 23, fc: 90, pes: 90, potential: 94, value: 180, number: 5, tmId: '581678', photo: 'img/players/tm_581678.jpg' },
+  { name: 'Rodri', club: 'Manchester City', country: 'Espanha', pos: 'DM', age: 30, fc: 91, pes: 91, potential: 91, value: 130, number: 16, tmId: '357565', photo: 'img/players/tm_357565.jpg' },
+  { name: 'Kevin De Bruyne', club: 'Manchester City', country: 'Bélgica', pos: 'AM', age: 35, fc: 89, pes: 89, potential: 89, value: 40, number: 17, tmId: '88755', photo: 'img/players/tm_88755.jpg' },
+  { name: 'Phil Foden', club: 'Manchester City', country: 'Inglaterra', pos: 'AM', age: 26, fc: 88, pes: 88, potential: 91, value: 150, number: 47, tmId: '406635', photo: 'img/players/tm_406635.jpg' },
+  { name: 'Harry Kane', club: 'Bayern München', country: 'Inglaterra', pos: 'ST', age: 33, fc: 90, pes: 90, potential: 90, value: 100, number: 9, tmId: '132098', photo: 'img/players/tm_132098.jpg' },
+  { name: 'Jamal Musiala', club: 'Bayern München', country: 'Alemanha', pos: 'AM', age: 23, fc: 88, pes: 88, potential: 93, value: 130, number: 42, tmId: '580195', photo: 'img/players/tm_580195.jpg' },
+  { name: 'Joshua Kimmich', club: 'Bayern München', country: 'Alemanha', pos: 'CM', age: 31, fc: 87, pes: 87, potential: 87, value: 50, number: 6, tmId: '161056', photo: 'img/players/tm_161056.jpg' },
+  { name: 'Manuel Neuer', club: 'Bayern München', country: 'Alemanha', pos: 'GK', age: 40, fc: 85, pes: 85, potential: 85, value: 4, number: 1, tmId: '17259', photo: 'img/players/tm_17259.jpg' },
+  { name: 'Robert Lewandowski', club: 'FC Barcelona', country: 'Polônia', pos: 'ST', age: 38, fc: 88, pes: 88, potential: 88, value: 15, number: 9, tmId: '38253', photo: 'img/players/tm_38253.jpg' },
+  { name: 'Lamine Yamal', club: 'FC Barcelona', country: 'Espanha', pos: 'RW', age: 19, fc: 86, pes: 86, potential: 95, value: 150, number: 19, tmId: '937958', photo: 'img/players/tm_937958.jpg' },
+  { name: 'Raphinha', club: 'FC Barcelona', country: 'Brasil', pos: 'LW', age: 29, fc: 86, pes: 86, potential: 86, value: 60, number: 11, tmId: '411295', photo: 'img/players/tm_411295.jpg' },
+  { name: 'Pedri', club: 'FC Barcelona', country: 'Espanha', pos: 'CM', age: 23, fc: 87, pes: 87, potential: 92, value: 80, number: 8, tmId: '683840', photo: 'img/players/tm_683840.jpg' },
+  { name: 'Rodrygo', club: 'Real Madrid', country: 'Brasil', pos: 'RW', age: 25, fc: 87, pes: 87, potential: 90, value: 110, number: 11, tmId: '412363', photo: 'img/players/tm_412363.jpg' },
+  { name: 'Federico Valverde', club: 'Real Madrid', country: 'Uruguai', pos: 'CM', age: 28, fc: 88, pes: 88, potential: 89, value: 130, number: 8, tmId: '369081', photo: 'img/players/tm_369081.jpg' },
+  { name: 'Eduardo Camavinga', club: 'Real Madrid', country: 'França', pos: 'CM', age: 23, fc: 86, pes: 86, potential: 91, value: 100, number: 6, tmId: '640428', photo: 'img/players/tm_640428.jpg' },
+  { name: 'Thibaut Courtois', club: 'Real Madrid', country: 'Bélgica', pos: 'GK', age: 34, fc: 89, pes: 89, potential: 89, value: 28, number: 1, tmId: '108390', photo: 'img/players/tm_108390.jpg' },
+  { name: 'Cole Palmer', club: 'Chelsea', country: 'Inglaterra', pos: 'AM', age: 24, fc: 87, pes: 87, potential: 91, value: 90, number: 20, tmId: '568177', photo: 'img/players/tm_568177.jpg' },
+  { name: 'Mohamed Salah', club: 'Liverpool', country: 'Egito', pos: 'RW', age: 34, fc: 89, pes: 89, potential: 89, value: 55, number: 11, tmId: '148455', photo: 'img/players/tm_148455.jpg' },
+  { name: 'Virgil van Dijk', club: 'Liverpool', country: 'Holanda', pos: 'CB', age: 35, fc: 89, pes: 89, potential: 89, value: 30, number: 4, tmId: '139208', photo: 'img/players/tm_139208.jpg' },
+  { name: 'Alisson', club: 'Liverpool', country: 'Brasil', pos: 'GK', age: 33, fc: 89, pes: 89, potential: 89, value: 28, number: 1, tmId: '105470', photo: 'img/players/tm_105470.jpg' },
+  { name: 'Ederson', club: 'Manchester City', country: 'Brasil', pos: 'GK', age: 33, fc: 88, pes: 88, potential: 88, value: 35, number: 31, tmId: '238223', photo: 'img/players/tm_238223.jpg' },
+  { name: 'Bukayo Saka', club: 'Arsenal', country: 'Inglaterra', pos: 'RW', age: 25, fc: 87, pes: 87, potential: 90, value: 140, number: 7, tmId: '433177', photo: 'img/players/tm_433177.jpg' },
+  { name: 'Martin Ødegaard', club: 'Arsenal', country: 'Noruega', pos: 'AM', age: 27, fc: 89, pes: 89, potential: 90, value: 110, number: 8, tmId: '316264', photo: 'img/players/tm_316264.jpg' },
+  { name: 'William Saliba', club: 'Arsenal', country: 'França', pos: 'CB', age: 25, fc: 87, pes: 87, potential: 90, value: 80, number: 2, tmId: '495666', photo: 'img/players/tm_495666.jpg' },
+  { name: 'Florian Wirtz', club: 'Bayer Leverkusen', country: 'Alemanha', pos: 'AM', age: 23, fc: 88, pes: 88, potential: 92, value: 130, number: 10, tmId: '598577', photo: 'img/players/tm_598577.jpg' },
+  { name: 'Lautaro Martínez', club: 'Inter', country: 'Argentina', pos: 'ST', age: 29, fc: 89, pes: 89, potential: 89, value: 110, number: 10, tmId: '406625', photo: 'img/players/tm_406625.jpg' },
+  { name: 'Cristiano Ronaldo', club: 'Al-Nassr', country: 'Portugal', pos: 'ST', age: 41, fc: 86, pes: 86, potential: 86, value: 12, number: 7, tmId: '8198', photo: 'img/players/tm_8198.jpg' }
+];
+
+worldStarsData.forEach(ws => registerPlayer(ws));
+
 // Convert Map back to array
 const finalPlayers = Array.from(masterSquadMap.values());
 console.log(`Total Compiled Master Players: ${finalPlayers.length}`);
@@ -513,6 +549,38 @@ photoMappings['Los Angeles FC::GIROUD'] = 'img/players/tm_82442.jpg';
 photoMappings['Los Angeles FC::LLORIS'] = 'img/players/tm_17965.jpg';
 photoMappings['Santos::NEYMAR'] = 'img/players/tm_68290.jpg';
 photoMappings['Chelsea::ESTÊVÃO'] = 'img/players/tm_1056993.jpg';
+photoMappings['Manchester City::HAALAND'] = 'img/players/tm_418560.jpg';
+photoMappings['Manchester City::RODRI'] = 'img/players/tm_357565.jpg';
+photoMappings['Manchester City::DE BRUYNE'] = 'img/players/tm_88755.jpg';
+photoMappings['Manchester City::FODEN'] = 'img/players/tm_406635.jpg';
+photoMappings['Manchester City::EDERSON'] = 'img/players/tm_238223.jpg';
+photoMappings['Real Madrid::MBAPPÉ'] = 'img/players/tm_342229.jpg';
+photoMappings['Real Madrid::MBAPPE'] = 'img/players/tm_342229.jpg';
+photoMappings['Real Madrid::VINICIUS JR'] = 'img/players/tm_371998.jpg';
+photoMappings['Real Madrid::BELLINGHAM'] = 'img/players/tm_581678.jpg';
+photoMappings['Real Madrid::VALVERDE'] = 'img/players/tm_369081.jpg';
+photoMappings['Real Madrid::RODRYGO'] = 'img/players/tm_412363.jpg';
+photoMappings['Real Madrid::CAMAVINGA'] = 'img/players/tm_640428.jpg';
+photoMappings['Real Madrid::COURTOIS'] = 'img/players/tm_108390.jpg';
+photoMappings['FC Barcelona::LEWANDOWSKI'] = 'img/players/tm_38253.jpg';
+photoMappings['FC Barcelona::YAMAL'] = 'img/players/tm_937958.jpg';
+photoMappings['FC Barcelona::RAPHINHA'] = 'img/players/tm_411295.jpg';
+photoMappings['FC Barcelona::PEDRI'] = 'img/players/tm_683840.jpg';
+photoMappings['Bayern München::KANE'] = 'img/players/tm_132098.jpg';
+photoMappings['Bayern München::MUSIALA'] = 'img/players/tm_580195.jpg';
+photoMappings['Bayern München::KIMMICH'] = 'img/players/tm_161056.jpg';
+photoMappings['Bayern München::NEUER'] = 'img/players/tm_17259.jpg';
+photoMappings['Liverpool::SALAH'] = 'img/players/tm_148455.jpg';
+photoMappings['Liverpool::VAN DIJK'] = 'img/players/tm_139208.jpg';
+photoMappings['Liverpool::ALISSON'] = 'img/players/tm_105470.jpg';
+photoMappings['Arsenal::SAKA'] = 'img/players/tm_433177.jpg';
+photoMappings['Arsenal::ØDEGAARD'] = 'img/players/tm_316264.jpg';
+photoMappings['Arsenal::ODEGAARD'] = 'img/players/tm_316264.jpg';
+photoMappings['Arsenal::SALIBA'] = 'img/players/tm_495666.jpg';
+photoMappings['Bayer Leverkusen::WIRTZ'] = 'img/players/tm_598577.jpg';
+photoMappings['Inter::MARTÍNEZ'] = 'img/players/tm_406625.jpg';
+photoMappings['Inter::MARTINEZ'] = 'img/players/tm_406625.jpg';
+photoMappings['Al-Nassr::RONALDO'] = 'img/players/tm_8198.jpg';
 
 let modularContent = `// AFM MANAGER 2027 — MAPEAMENTO DE FOTOS VERIFICADAS & ANTI-HOMÔNIMOS
 // Gerado automaticamente com fotos autênticas do Transfermarkt e isolamento por clube.
