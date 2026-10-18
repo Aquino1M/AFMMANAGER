@@ -2339,6 +2339,11 @@ select, .saas-select {
   margin-top: 10px;
 }
 
+.crest-img {
+  filter: drop-shadow(0 0 1.2px rgba(255, 255, 255, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .club-thumb-card {
   background: #0f172a;
   border: 1px solid #1e293b;
@@ -2361,10 +2366,22 @@ select, .saas-select {
   box-shadow: 0 6px 16px rgba(56, 189, 248, 0.2);
 }
 
+.club-thumb-card:hover .crest-img,
+.club-thumb-card:hover img {
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 10px rgba(56, 189, 248, 0.5));
+  transform: scale(1.1);
+}
+
 .club-thumb-card.active {
   background: #18193a;
   border: 2px solid #a855f7;
   box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+}
+
+.club-thumb-card.active .crest-img,
+.club-thumb-card.active img {
+  filter: drop-shadow(0 0 2.5px rgba(255, 255, 255, 0.85)) drop-shadow(0 0 12px rgba(168, 85, 247, 0.65));
+  transform: scale(1.1);
 }
 
 /* Super Card de Detalhes do Clube */
