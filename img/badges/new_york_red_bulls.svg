@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <path d="M40,40 L360,40 L360,260 C360,390 200,465 200,465 C200,465 40,390 40,260 Z" fill="#ffffff" stroke="#152238" stroke-width="10"/>
+  <!-- Sun in center -->
+  <circle cx="200" cy="220" r="60" fill="#fde100"/>
+  <!-- Charging Bulls silhouette -->
+  <path d="M 120 220 Q 150 180 190 210 Q 180 240 150 250 Z" fill="#ed1e36"/>
+  <path d="M 280 220 Q 250 180 210 210 Q 220 240 250 250 Z" fill="#ed1e36"/>
+  <!-- Text -->
+  <text x="200" y="90" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="34" fill="#152238" letter-spacing="3">NEW YORK</text>
+  <text x="200" y="340" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="44" fill="#ed1e36" letter-spacing="2">RED BULLS</text>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 460" width="400" height="460">
+  <defs>
+    <linearGradient id="mlsBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#002b49"/>
+      <stop offset="100%" stop-color="#001426"/>
+    </linearGradient>
+  </defs>
+  <path d="M40,25 L360,25 L360,260 C360,380 200,445 200,445 C200,445 40,380 40,260 Z" fill="url(#mlsBg)" stroke="#facc15" stroke-width="8"/>
+  <!-- Diagonal Slash -->
+  <path d="M 40 25 L 360 300 L 360 260 L 100 25 Z" fill="#e0004d"/>
+  <!-- 3 Stars -->
+  <g fill="#ffffff">
+    <polygon points="120,200 125,215 140,215 128,225 132,240 120,230 108,240 112,225 100,215 115,215"/>
+    <polygon points="180,240 185,255 200,255 188,265 192,280 180,270 168,280 172,265 160,255 175,255"/>
+    <polygon points="240,280 245,295 260,295 248,305 252,320 240,310 228,320 232,305 220,295 235,295"/>
+  </g>
+  <text x="200" y="125" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="75" fill="#ffffff" letter-spacing="8">MLS</text>
+  <text x="200" y="380" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="16" fill="#facc15" letter-spacing="4">MAJOR LEAGUE SOCCER</text>
+</svg>

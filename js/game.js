@@ -6837,6 +6837,8 @@ function getClubFullProfile(clubName){
   else if(n.includes('liverpool')){ fansText = '160 milhões globais'; fansNum = 160000000; }
   else if(n.includes('bayern')){ fansText = '100 milhões globais'; fansNum = 100000000; }
   else if(n.includes('al-hilal') || n.includes('al-nassr')){ fansText = '20 milhões no Oriente Médio'; fansNum = 20000000; }
+  else if(n.includes('inter miami')){ fansText = '42 milhões globais (Era Messi)'; fansNum = 42000000; }
+  else if(n.includes('la galaxy') || n.includes('los angeles fc')){ fansText = '12 milhões na América do Norte'; fansNum = 12000000; }
   else {
     const s = strength(c);
     const est = Math.round(Math.pow(s / 60, 3) * 600000);
@@ -6867,6 +6869,9 @@ function getClubFullProfile(clubName){
   else if(n.includes('real madrid')){ titlesTotal = 104; titlesDetail = '15 Champions League, 36 LaLigas, 5 Mundiais FIFA, 20 Copas do Rei'; }
   else if(n.includes('barcelona')){ titlesTotal = 99; titlesDetail = '5 Champions League, 27 LaLigas, 3 Mundiais FIFA, 31 Copas do Rei'; }
   else if(n.includes('manchester city')){ titlesTotal = 36; titlesDetail = '1 Champions League, 1 Mundial FIFA, 10 Premier Leagues, 7 FA Cups'; }
+  else if(n.includes('inter miami')){ titlesTotal = 2; titlesDetail = '1 Supporters\' Shield (2024), 1 Leagues Cup (2023 com Lionel Messi)'; }
+  else if(n.includes('la galaxy')){ titlesTotal = 10; titlesDetail = '5 MLS Cups, 4 Supporters\' Shields, 1 Concacaf Champions Cup'; }
+  else if(n.includes('los angeles fc') || n.includes('lafc')){ titlesTotal = 4; titlesDetail = '1 MLS Cup (2022), 2 Supporters\' Shields, 1 US Open Cup'; }
   else {
     titlesTotal = Math.max(2, Math.round(strength(c) / 3.5));
     titlesDetail = `${titlesTotal} taças oficiais e troféus em competições nacionais e regionais`;
@@ -6924,6 +6929,7 @@ function getClubFullProfile(clubName){
     keyPlayers
   };
 }
+window.getClubFullProfile = getClubFullProfile;
 
 // =========================================================================
 // SINCRONIZAÇÃO DE VALORES E FOTOS COM A BASE TRANSFERMARKT
@@ -10328,7 +10334,7 @@ function newCareer(data){
   const careerCompetitionTeams = clone(BASE_COMPETITION_TEAMS || window.COMPETITION_TEAMS || teamMap || {});
   const compClubs=competitionClubs(comp,club.name,careerCompetitionTeams);const schedule=buildSchedule(comp,compClubs.map(x=>x.name));const worldGenerated=buildWorldGenerated();const squad=playersForClub(club.name,worldGenerated);const budget=Math.max(250000,(club.budget||5)*1e6);
   
-  const sponsorOffers = generateSponsorOffers(budget);
+  const sponsorOffers = generateSponsorOffers(budget, club.name);
   const activeSponsors = {
     master: sponsorOffers.find(o => o.category === 'Master') || sponsorOffers[0],
     sleeves: sponsorOffers.find(o => o.category === 'Mangas') || sponsorOffers[1],
@@ -27708,14 +27714,14 @@ function renderPiramideAcessosERebaixamentos(){
 
 function renderContinentalBlock(){
   const curC = curComp();
-  const cContinent = curC?.continent || (curC?.country === 'Brasil' ? 'América do Sul' : (['Inglaterra','Espanha','Itália','Alemanha','França','Portugal','Holanda'].includes(curC?.country) ? 'Europa' : (['Arábia Saudita','Japão','Coreia do Sul','China','Catar','Emirados Árabes'].includes(curC?.country) ? 'Ásia' : 'América do Sul')));
+  const cContinent = curC?.continent || (curC?.country === 'Brasil' ? 'América do Sul' : (['Inglaterra','Espanha','Itália','Alemanha','França','Portugal','Holanda'].includes(curC?.country) ? 'Europa' : (['Arábia Saudita','Japão','Coreia do Sul','China','Catar','Emirados Árabes'].includes(curC?.country) ? 'Ásia' : (curC?.country === 'Estados Unidos' ? 'América do Norte' : 'América do Sul'))));
 
   // Categoria ativa: 'nacional' ou 'internacional'
   const isNationalCat = continentalCategory === 'nacional';
 
   let tabs = [];
-  let headerTitle = isNationalCat ? '🇧🇷 SISTEMA NACIONAL & PIRÂMIDE CBF 2026' : '🌎 COMPETIÇÕES INTERNACIONAIS 2026';
-  let headerSubtitle = isNationalCat ? 'ACESSO E REBAIXAMENTO OFICIAL DAS SÉRIES A, B, C E D' : 'LIBERTADORES · SUL-AMERICANA · SUPERMUNDIAL FIFA';
+  let headerTitle = isNationalCat ? (cContinent === 'América do Norte' ? '🇺🇸 MAJOR LEAGUE SOCCER & CONCACAF 2026' : '🇧🇷 SISTEMA NACIONAL & PIRÂMIDE CBF 2026') : '🌎 COMPETIÇÕES INTERNACIONAIS 2026';
+  let headerSubtitle = isNationalCat ? (cContinent === 'América do Norte' ? 'CONFERÊNCIAS LESTE E OESTE · MLS CUP PLAYOFFS' : 'ACESSO E REBAIXAMENTO OFICIAL DAS SÉRIES A, B, C E D') : 'LIBERTADORES · SUL-AMERICANA · SUPERMUNDIAL FIFA';
 
   if(cContinent === 'Europa'){
     tabs = [
@@ -27734,6 +27740,14 @@ function renderContinentalBlock(){
     ];
     if(!['afc_el', 'afc_two', 'mundial'].includes(continentalTab)){
       continentalTab = 'afc_el';
+    }
+  } else if(cContinent === 'América do Norte'){
+    tabs = [
+      { id: 'mundial', name: '🌐 Mundial FIFA', badge: '32 CLUBES' },
+      { id: 'libertadores', name: '🏆 Conmebol Libertadores (Convidado)', badge: 'G4' }
+    ];
+    if(!['mundial', 'libertadores'].includes(continentalTab)){
+      continentalTab = 'mundial';
     }
   } else {
     tabs = [
@@ -29086,7 +29100,7 @@ function configPage(){
             <select id="selAuditCompFilter" class="btn" style="padding:6px 12px;font-size:13px;font-weight:800">
               <option value="all" ${auditCompFilter==='all'?'selected':''}>🌐 Todas as Competições</option>
               ${(window.COMPETITIONS || []).filter(c => (window.COMPETITION_TEAMS?.[c.id]?.length)).map(c => `
-                <option value="${c.id}" ${auditCompFilter===c.id?'selected':''}>${c.continent === 'América do Sul' ? '🌎' : (c.continent === 'Europa' ? '🇪🇺' : '🏆')} ${esc(c.name)} (${window.COMPETITION_TEAMS[c.id].length})</option>
+                <option value="${c.id}" ${auditCompFilter===c.id?'selected':''}>${c.continent === 'América do Sul' ? '🌎' : (c.continent === 'Europa' ? '🇪🇺' : (c.continent === 'América do Norte' ? '🗽' : '🏆'))} ${esc(c.name)} (${window.COMPETITION_TEAMS[c.id].length})</option>
               `).join('')}
             </select>
           </div>
@@ -30110,7 +30124,7 @@ function renderSetup(app){
 
   // SE ESTIVER LOGADO: CARREGA SLOTS E EXIBE A TELA COMPLETA COM OS 3 SAVES E OS TIMES!
   const userSlots = getUserSaveSlots(activeUser.username);
-  const conts = ['América do Sul', 'Europa', 'Ásia'];
+  const conts = ['América do Sul', 'Europa', 'Ásia', 'América do Norte'];
   const curCountries = allCountries(setupSelectedContinent);
   if(!curCountries.includes(setupSelectedCountry)){
     setupSelectedCountry = curCountries[0] || 'Brasil';
@@ -30309,7 +30323,7 @@ function renderSetup(app){
           <div class="continent-bar" style="margin:0;padding:0">
             ${conts.map(c => `
               <button class="continent-pill ${setupSelectedContinent === c ? 'active' : ''}" data-cont="${c}">
-                <span>${c === 'América do Sul' ? '🌎' : c === 'Europa' ? '🌍' : '🌏'}</span>
+                <span>${c === 'América do Sul' ? '🌎' : c === 'Europa' ? '🌍' : c === 'Ásia' ? '🌏' : '🗽'}</span>
                 <span>${c}</span>
               </button>
             `).join('')}

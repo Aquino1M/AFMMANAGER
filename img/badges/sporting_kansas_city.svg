@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <path d="M40,30 L360,30 L360,280 C360,400 200,470 200,470 C200,470 40,400 40,280 Z" fill="#002a3a" stroke="#91b0d5" stroke-width="10"/>
+  <!-- Stripes on right -->
+  <path d="M 200 30 L 360 30 L 360 280 C 360 350 300 410 200 450 Z" fill="#91b0d5" opacity="0.3"/>
+  <text x="180" y="250" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="110" fill="#ffffff">SKC</text>
+  <text x="200" y="350" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="22" fill="#91b0d5" letter-spacing="4">SPORTING KC</text>
+</svg>

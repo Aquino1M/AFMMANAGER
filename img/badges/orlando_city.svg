@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <path d="M40,30 L360,30 L360,280 C360,400 200,470 200,470 C200,470 40,400 40,280 Z" fill="#612b82" stroke="#ffe100" stroke-width="10"/>
+  <!-- Sunburst Lion Mane -->
+  <g fill="#ffe100" stroke="#612b82" stroke-width="2">
+    <circle cx="200" cy="200" r="70"/>
+    <polygon points="200,90 208,125 192,125"/>
+    <polygon points="200,310 208,275 192,275"/>
+    <polygon points="90,200 125,208 125,192"/>
+    <polygon points="310,200 275,208 275,192"/>
+  </g>
+  <circle cx="200" cy="200" r="50" fill="#612b82"/>
+  <text x="200" y="215" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="48" fill="#ffe100">🦁</text>
+  <text x="200" y="360" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="28" fill="#ffffff" letter-spacing="4">ORLANDO</text>
+</svg>

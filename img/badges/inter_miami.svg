@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <radialGradient id="miamiSun" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffb7d2"/>
+      <stop offset="100%" stop-color="#f7b5cd"/>
+    </radialGradient>
+  </defs>
+  <!-- Outer Ring -->
+  <circle cx="200" cy="200" r="190" fill="#050505" stroke="#f7b5cd" stroke-width="8"/>
+  <circle cx="200" cy="200" r="172" fill="#050505" stroke="#f7b5cd" stroke-width="2"/>
+  <!-- Sun Rays in center -->
+  <g fill="#f7b5cd">
+    <polygon points="200,90 206,120 194,120"/>
+    <polygon points="200,310 206,280 194,280"/>
+    <polygon points="90,200 120,206 120,194"/>
+    <polygon points="310,200 280,206 280,194"/>
+    <polygon points="122,122 148,138 138,148"/>
+    <polygon points="278,278 252,262 262,252"/>
+    <polygon points="122,278 138,252 148,262"/>
+    <polygon points="278,122 262,148 252,138"/>
+  </g>
+  <!-- Eclipse Sun -->
+  <circle cx="200" cy="200" r="42" fill="url(#miamiSun)"/>
+  <circle cx="200" cy="200" r="32" fill="#050505"/>
+  <!-- Herons (Garças) Silhouette and Legs Interlocked as 'M' -->
+  <path d="M 140 160 Q 170 140 185 170 Q 170 210 180 250 L 195 230 L 200 255 L 205 230 L 220 250 Q 230 210 215 170 Q 230 140 260 160 Q 230 150 205 180 L 200 170 L 195 180 Q 170 150 140 160 Z" fill="#ffffff" stroke="#f7b5cd" stroke-width="3"/>
+  <!-- Top Arc Text -->
+  <text x="200" y="65" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-weight="900" font-size="24" fill="#f7b5cd" letter-spacing="4">INTER MIAMI</text>
+  <!-- Bottom Text -->
+  <text x="200" y="360" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-weight="900" font-size="20" fill="#ffffff" letter-spacing="5">MMXX · CF</text>
+</svg>

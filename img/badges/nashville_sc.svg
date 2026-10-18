@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 460" width="400" height="460">
+  <polygon points="200,20 370,120 370,340 200,440 30,340 30,120" fill="#ece81a" stroke="#1f1646" stroke-width="12"/>
+  <!-- Soundwave N -->
+  <g fill="#1f1646">
+    <rect x="130" y="140" width="25" height="180"/>
+    <rect x="245" y="140" width="25" height="180"/>
+    <polygon points="155,140 245,290 245,320 155,170"/>
+  </g>
+  <text x="200" y="380" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="24" fill="#1f1646" letter-spacing="4">NASHVILLE SC</text>
+</svg>

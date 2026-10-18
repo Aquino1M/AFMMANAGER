@@ -255,6 +255,26 @@ window.CLUB_BADGES = {
   "Inhumas": "67.png",
   "Inter": "inter.png",
   "Inter de Limeira": "inter_de_limeira.svg",
+  "Inter Miami": "inter_miami.svg",
+  "Los Angeles FC": "los_angeles_fc.svg",
+  "LA Galaxy": "la_galaxy.svg",
+  "Columbus Crew": "columbus_crew.svg",
+  "New York City FC": "new_york_city_fc.svg",
+  "New York Red Bulls": "new_york_red_bulls.svg",
+  "Seattle Sounders": "seattle_sounders.svg",
+  "Atlanta United": "atlanta_united.svg",
+  "FC Cincinnati": "fc_cincinnati.svg",
+  "Orlando City": "orlando_city.svg",
+  "Philadelphia Union": "philadelphia_union.svg",
+  "Houston Dynamo": "houston_dynamo.svg",
+  "Portland Timbers": "portland_timbers.svg",
+  "Austin FC": "austin_fc.svg",
+  "Sporting Kansas City": "sporting_kansas_city.svg",
+  "Nashville SC": "nashville_sc.svg",
+  "Real Salt Lake": "real_salt_lake.svg",
+  "Minnesota United": "minnesota_united.svg",
+  "St. Louis City SC": "st_louis_city_sc.svg",
+  "Chicago Fire": "chicago_fire.svg",
   "Internacional": "17.svg",
   "Ipatinga": "ipatinga.png",
   "Iporá": "ipora.png",
@@ -687,7 +707,8 @@ window.COMPETITION_LOGOS = {
   'ger-1': 'competitions/ger_1.svg',
   'fra-1': 'competitions/fra_1.svg',
   'por-1': 'competitions/por_1.svg',
-  'ksa-1': 'competitions/ksa_1.svg'
+  'ksa-1': 'competitions/ksa_1.svg',
+  'usa-1': 'competitions/usa_1.svg'
 };
 
 window.renderCompetitionLogo = function(compId, size = 32) {

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <circle cx="200" cy="200" r="190" fill="#001e44" stroke="#f58220" stroke-width="10"/>
+  <circle cx="200" cy="200" r="160" fill="#6cace4" stroke="#ffffff" stroke-width="4"/>
+  <circle cx="200" cy="200" r="115" fill="#001e44"/>
+  <text x="200" y="235" text-anchor="middle" font-family="'Cinzel',serif,sans-serif" font-weight="900" font-size="90" fill="#ffffff" stroke="#f58220" stroke-width="2">NYC</text>
+  <text x="200" y="70" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="20" fill="#ffffff" letter-spacing="6">NEW YORK CITY</text>
+  <text x="200" y="350" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="22" fill="#ffffff" letter-spacing="8">FOOTBALL CLUB</text>
+</svg>

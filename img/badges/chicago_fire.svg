@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <path d="M40,30 L360,30 L360,280 C360,400 200,470 200,470 C200,470 40,400 40,280 Z" fill="#ff0000" stroke="#0e1e2d" stroke-width="12"/>
+  <circle cx="200" cy="200" r="85" fill="#0e1e2d" stroke="#f5c542" stroke-width="4"/>
+  <!-- 6-point Star -->
+  <text x="200" y="225" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="75" fill="#41b6e6">✶</text>
+  <text x="200" y="350" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="30" fill="#ffffff" letter-spacing="4">CHICAGO FIRE</text>
+</svg>

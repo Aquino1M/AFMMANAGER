@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <path d="M40,30 L360,30 L360,280 C360,400 200,470 200,470 C200,470 40,400 40,280 Z" fill="#b30838" stroke="#f1b319" stroke-width="10"/>
+  <!-- Crown -->
+  <polygon points="150,110 170,80 200,105 230,80 250,110" fill="#f1b319" stroke="#001e44" stroke-width="2"/>
+  <text x="200" y="250" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="95" fill="#001e44" stroke="#ffffff" stroke-width="3">RSL</text>
+  <text x="200" y="340" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="24" fill="#f1b319" letter-spacing="4">REAL SALT LAKE</text>
+</svg>

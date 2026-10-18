@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <circle cx="200" cy="200" r="190" fill="#fef200" stroke="#000000" stroke-width="12"/>
+  <circle cx="200" cy="200" r="165" fill="#000000"/>
+  <!-- Checker pattern -->
+  <g fill="#fef200">
+    <rect x="140" y="110" width="30" height="30"/>
+    <rect x="200" y="110" width="30" height="30"/>
+    <rect x="170" y="140" width="30" height="30"/>
+    <rect x="230" y="140" width="30" height="30"/>
+  </g>
+  <text x="200" y="240" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="44" fill="#ffffff" letter-spacing="2">CREW</text>
+  <text x="200" y="300" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="28" fill="#fef200" letter-spacing="4">COLUMBUS</text>
+  <text x="200" y="345" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="16" fill="#ffffff" letter-spacing="4">EST. 1996</text>
+</svg>

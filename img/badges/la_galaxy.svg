@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <path d="M40,30 L360,30 L360,280 C360,400 200,470 200,470 C200,470 40,400 40,280 Z" fill="#00245d" stroke="#ffd200" stroke-width="10"/>
+  <!-- Sash -->
+  <path d="M 40 100 L 100 40 L 360 300 L 300 360 Z" fill="#ffffff" opacity="0.9"/>
+  <!-- Quasar Star -->
+  <g transform="translate(200, 200)">
+    <polygon points="0,-90 18,-18 90,0 18,18 0,90 -18,18 -90,0 -18,-18" fill="#ffd200" stroke="#ffffff" stroke-width="3"/>
+  </g>
+  <text x="200" y="360" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="34" fill="#ffffff" letter-spacing="4">GALAXY</text>
+  <text x="200" y="400" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="22" fill="#ffd200" letter-spacing="6">LOS ANGELES</text>
+</svg>

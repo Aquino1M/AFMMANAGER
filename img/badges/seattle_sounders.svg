@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" width="400" height="480">
+  <path d="M50,40 L350,40 L350,270 C350,390 200,465 200,465 C200,465 50,390 50,270 Z" fill="#005934" stroke="#173e6b" stroke-width="12"/>
+  <!-- Space Needle -->
+  <path d="M 195 90 L 205 90 L 205 130 L 225 150 L 175 150 L 195 130 Z" fill="#ffffff"/>
+  <path d="M 190 155 L 210 155 L 215 320 L 185 320 Z" fill="#ffffff"/>
+  <text x="200" y="375" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="30" fill="#ffffff" letter-spacing="4">SOUNDERS</text>
+  <text x="200" y="415" text-anchor="middle" font-family="sans-serif" font-weight="900" font-size="20" fill="#6cace4" letter-spacing="6">SEATTLE</text>
+</svg>
