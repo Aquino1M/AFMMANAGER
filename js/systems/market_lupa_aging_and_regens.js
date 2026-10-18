@@ -75,19 +75,31 @@
     // 5. Se foi clicado a partir de uma linha da tabela, extrai com 100% de precisão coluna a coluna
     if (domRow) {
       const tds = Array.from(domRow.querySelectorAll('td'));
-      if (tds.length >= 5) {
-        // Tabela típica de mercado: [0: Nome, 1: Clube, 2: Pos, 3: Overall, 4: Idade, 5: Valor, 6: Ação]
-        const domName = (tds[0]?.querySelector('b')?.innerText || tds[0]?.innerText || '').trim();
-        const domClub = (tds[1]?.querySelector('.club-cell')?.innerText || tds[1]?.innerText || '').replace(/[\r\n\t]+/g, ' ').trim();
-        const domPos = (tds[2]?.querySelector('.pill')?.innerText || tds[2]?.innerText || 'MEI').trim();
-        
-        const ovrEl = tds[3]?.querySelector('.rating-pill') || tds[3];
-        const domOvr = parseInt((ovrEl?.innerText || '').replace(/\D/g, ''), 10);
-        
-        const domAge = parseInt((tds[4]?.innerText || '').replace(/\D/g, ''), 10);
-        
-        const valEl = tds[5]?.querySelector('.good') || tds[5];
-        const rawValText = (valEl?.innerText || '').trim();
+      if (tds.length >= 4) {
+        // Localiza célula do nome (que contenha <b> e não seja clube ou valor)
+        let nameTd = tds.find(td => td.querySelector('b') && !td.querySelector('.club-cell') && !td.querySelector('.good') && !(td.innerText || '').includes('R$'));
+        if (!nameTd) nameTd = tds[0];
+        const domName = (nameTd?.querySelector('b')?.innerText || nameTd?.innerText || '').trim();
+
+        // Localiza célula do clube
+        const clubTd = tds.find(td => td.querySelector('.club-cell')) || tds[1];
+        const domClub = (clubTd?.querySelector('.club-cell')?.innerText || clubTd?.innerText || '').replace(/[\r\n\t]+/g, ' ').trim();
+
+        // Localiza posição tática
+        const posTd = tds.find(td => td.querySelector('.pill') && /^(GK|GOL|CB|ZAG|LB|RB|LAT|LD|LE|DM|VOL|CM|MC|AM|MEI|LW|RW|PD|PE|ST|CF|ATA|CA)$/i.test((td.querySelector('.pill')?.innerText || '').trim()));
+        const domPos = (posTd?.querySelector('.pill')?.innerText || tds[2]?.querySelector('.pill')?.innerText || tds[2]?.innerText || 'MEI').trim();
+
+        // Localiza overall
+        const ovrTd = tds.find(td => td.querySelector('.rating-pill'));
+        const domOvr = parseInt(((ovrTd?.querySelector('.rating-pill') || tds[3])?.innerText || '').replace(/\D/g, ''), 10);
+
+        // Localiza idade
+        const ageTd = tds.find(td => (td.innerText || '').includes('anos'));
+        const domAge = parseInt(((ageTd || tds[4])?.innerText || '').replace(/\D/g, ''), 10);
+
+        // Localiza valor de mercado
+        const valTd = tds.find(td => td.querySelector('.good') || (td.innerText || '').includes('R$'));
+        const rawValText = ((valTd?.querySelector('.good') || valTd || tds[5])?.innerText || '').trim();
         const cleanValText = rawValText.includes('R$') ? rawValText : (rawValText ? `R$ ${rawValText}` : '');
 
         if (!p) {
@@ -406,6 +418,11 @@
       let s6 = { l: isGK ? 'POS' : 'PHY', v: Math.round(realOvr * (isDefender ? 1.01 : (isAttacker ? 0.92 : 0.85))) };
       [s1, s2, s3, s4, s5, s6].forEach(s => { s.v = Math.min(99, Math.max(40, s.v)); });
 
+      let badgeHtml = '';
+      if (club && typeof window.clubBadge === 'function') {
+        badgeHtml = window.clubBadge(club, 22);
+      }
+
       const futCardHtml = `
         <div class="fut-card ${futTierClass}">
           <div class="fut-card-top">
@@ -438,11 +455,6 @@
           </div>
         </div>
       `;
-
-      let badgeHtml = '';
-      if (club && typeof window.clubBadge === 'function') {
-        badgeHtml = window.clubBadge(club, 22);
-      }
 
       // Atributos de desempenho ajustados rigorosamente ao OVERALL REAL do atleta
       const h = hashString(name + '_' + club);
@@ -704,7 +716,7 @@
         lupaBtn.onclick = (e) => {
           e.stopPropagation();
           e.preventDefault();
-          MarketLupaAgingAndRegens.openPlayerDetails(lupaBtn.dataset.key || key || row);
+          MarketLupaAgingAndRegens.openPlayerDetails(lupaBtn);
         };
 
         cell.insertBefore(lupaBtn, btn);
@@ -717,8 +729,7 @@
         lupaBtn.onclick = (e) => {
           e.stopPropagation();
           e.preventDefault();
-          const row = lupaBtn.closest('tr, .market-row');
-          MarketLupaAgingAndRegens.openPlayerDetails(lupaBtn.dataset.key || row || lupaBtn);
+          MarketLupaAgingAndRegens.openPlayerDetails(lupaBtn);
         };
       });
 
@@ -730,7 +741,51 @@
     },
 
     processAgingDeclineAndGeneticRegens(state) {
-      if (!state) return;
+      if (!state) return [];
+      const players = state?.isolatedWorld?.players || state?.players || state?.squad || [];
+      const regensLog = [];
+
+      players.forEach((p, idx) => {
+        if (!p) return;
+        p.age = (Number(p.age) || 23) + 1;
+        const isGk = ['GK', 'GOL'].includes(p.position || p.pos);
+        const oldAge = isGk ? 34 : 31;
+
+        if (p.age >= oldAge) {
+          const ovrDrop = p.age >= 35 ? 2 : 1;
+          p.overall = Math.max(48, (Number(p.overall || p.ovr) || 70) - ovrDrop);
+          p.ovr = p.overall;
+          p.marketValue = Math.max(40000, Math.round((Number(p.marketValue) || 1500000) * 0.65));
+        }
+
+        // Aposentadoria e Criação de Regen Genético nas Categorias de Base
+        if (p.age >= 36 && (p.age >= 37 || Math.random() < 0.65 || p.forceRetire)) {
+          const randomClubs = ['Corinthians', 'Palmeiras', 'Santos', 'São Paulo', 'Flamengo', 'Grêmio', 'Cruzeiro', 'Vasco', 'Internacional', 'Atlético-MG'];
+          const destClub = randomClubs[Math.floor(Math.random() * randomClubs.length)];
+          const regen = {
+            id: `regen_${Date.now()}_${idx}`,
+            name: `${(p.name || 'Jogador').split(' ')[0]} Jr.`,
+            regenOf: p.name,
+            geneticOrigin: p.name,
+            nationality: p.nationality || p.country || 'Brasil',
+            age: 16,
+            position: p.position || p.pos || 'MEI',
+            overall: Math.max(58, Math.min(72, Math.round((p.overall || 72) * 0.85))),
+            potential: Math.max(83, Math.min(95, (p.potential || 85) + 2)),
+            marketValue: 500000,
+            salary: 9500,
+            clubName: `${destClub} (Categorias de Base)`,
+            isGeneticRegen: true
+          };
+          players[idx] = regen;
+          if (Array.isArray(state?.youthAcademy)) {
+            state.youthAcademy.push(regen);
+          }
+          regensLog.push(`🌟 ${p.name} aposentou-se aos ${p.age} anos! Seu regen genético (${regen.name}, 16 anos, POT ${regen.potential}) surgiu nas Categorias de Base do ${destClub}!`);
+        }
+      });
+
+      return regensLog;
     }
   };
 

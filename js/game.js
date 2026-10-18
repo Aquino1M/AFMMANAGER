@@ -32983,6 +32983,7 @@ if (typeof window !== 'undefined' && window.AFM_DB && typeof window.AFM_DB.init 
   if (typeof clubByName === 'function') { window.clubByName = clubByName; }
   if (typeof norm === 'function') { window.norm = norm; }
   if (typeof playerSalary === 'function') { window.playerSalary = playerSalary; }
+  if (typeof resolvePlayerPhotoUrl === 'function') { window.resolvePlayerPhotoUrl = resolvePlayerPhotoUrl; }
   if (typeof findGlobalPlayerByKey === 'function') { window.findGlobalPlayerByKey = findGlobalPlayerByKey; }
   if (typeof buyPlayer === 'function') { window.buyPlayer = buyPlayer; }
   if (typeof ensureTacticsState === 'function') { window.ensureTacticsState = ensureTacticsState; }
