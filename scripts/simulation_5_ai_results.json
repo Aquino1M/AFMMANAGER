@@ -14,9 +14,9 @@
         "ledLights"
       ]
     },
-    "initialBalance": 108201340,
-    "finalBalance": 126668395,
-    "balanceDelta": 18467055,
+    "initialBalance": 108549100,
+    "finalBalance": 122675049,
+    "balanceDelta": 14125949,
     "matchesPlayed": 56,
     "simulatedCups": 0,
     "myTeamRecord": {
@@ -24,26 +24,26 @@
       "strength": 79,
       "j": 38,
       "v": 20,
-      "e": 9,
-      "d": 9,
-      "gp": 67,
-      "gc": 38,
-      "sg": 29,
-      "p": 69,
+      "e": 8,
+      "d": 10,
+      "gp": 53,
+      "gc": 32,
+      "sg": 21,
+      "p": 68,
       "form": [
         "E",
-        "V",
-        "D",
         "E",
-        "D"
+        "D",
+        "V",
+        "V"
       ],
-      "pct": 61
+      "pct": 60
     },
-    "position": 1,
+    "position": 2,
     "totalTeams": 20,
-    "leaguePrize": 48100000,
+    "leaguePrize": 45700000,
     "cupPrize": 9450000,
-    "totalPrizeWon": 57550000,
+    "totalPrizeWon": 55150000,
     "transferLog": {
       "sold": [
         {
@@ -104,11 +104,11 @@
           "count": 500
         }
       ],
-      "dividendsCollected": 7932
+      "dividendsCollected": 6077
     },
     "managerPersonal": {
       "name": "Téc. Renato Gaúcho",
-      "personalBalance": 1227686,
+      "personalBalance": 1224677,
       "salary": 18000,
       "clubSharesPct": 0,
       "externalShareholdersPct": 22,
@@ -143,9 +143,9 @@
         "screen"
       ]
     },
-    "initialBalance": 81346620,
-    "finalBalance": 396809538,
-    "balanceDelta": 315462918,
+    "initialBalance": 81259680,
+    "finalBalance": 406545567,
+    "balanceDelta": 325285887,
     "matchesPlayed": 38,
     "simulatedCups": 0,
     "myTeamRecord": {
@@ -153,26 +153,26 @@
       "strength": 77,
       "j": 38,
       "v": 16,
-      "e": 7,
-      "d": 15,
-      "gp": 60,
-      "gc": 45,
-      "sg": 15,
-      "p": 55,
+      "e": 13,
+      "d": 9,
+      "gp": 54,
+      "gc": 40,
+      "sg": 14,
+      "p": 61,
       "form": [
-        "D",
+        "V",
+        "V",
         "E",
         "D",
-        "V",
-        "E"
+        "D"
       ],
-      "pct": 48
+      "pct": 54
     },
-    "position": 6,
+    "position": 4,
     "totalTeams": 20,
-    "leaguePrize": 18000000,
+    "leaguePrize": 25000000,
     "cupPrize": 275000000,
-    "totalPrizeWon": 293000000,
+    "totalPrizeWon": 300000000,
     "transferLog": {
       "sold": [
         {
@@ -233,11 +233,11 @@
           "count": 500
         }
       ],
-      "dividendsCollected": 3159
+      "dividendsCollected": 3573
     },
     "managerPersonal": {
       "name": "Téc. Tata Martino",
-      "personalBalance": 1031205,
+      "personalBalance": 1031685,
       "salary": 18000,
       "clubSharesPct": 0,
       "externalShareholdersPct": 22,
@@ -273,36 +273,36 @@
         "ledLights"
       ]
     },
-    "initialBalance": 189960925,
-    "finalBalance": 232661477,
-    "balanceDelta": 42700552,
+    "initialBalance": 189453775,
+    "finalBalance": 158330164,
+    "balanceDelta": -31123611,
     "matchesPlayed": 46,
     "simulatedCups": 0,
     "myTeamRecord": {
       "name": "Arsenal",
       "strength": 88,
       "j": 38,
-      "v": 17,
-      "e": 8,
-      "d": 13,
-      "gp": 49,
-      "gc": 45,
-      "sg": 4,
-      "p": 59,
+      "v": 10,
+      "e": 12,
+      "d": 16,
+      "gp": 41,
+      "gc": 58,
+      "sg": -17,
+      "p": 42,
       "form": [
-        "E",
+        "D",
         "V",
         "D",
         "V",
         "E"
       ],
-      "pct": 52
+      "pct": 37
     },
-    "position": 8,
+    "position": 17,
     "totalTeams": 20,
-    "leaguePrize": 220000000,
+    "leaguePrize": 160000000,
     "cupPrize": 90000000,
-    "totalPrizeWon": 310000000,
+    "totalPrizeWon": 250000000,
     "transferLog": {
       "sold": [
         {
@@ -368,11 +368,11 @@
           "count": 500
         }
       ],
-      "dividendsCollected": 2776
+      "dividendsCollected": 4129
     },
     "managerPersonal": {
       "name": "Téc. Mikel Arteta",
-      "personalBalance": 1005431,
+      "personalBalance": 1006784,
       "salary": 18000,
       "clubSharesPct": 0,
       "externalShareholdersPct": 22,
@@ -410,22 +410,22 @@
         "flares"
       ]
     },
-    "initialBalance": 261282912,
-    "finalBalance": 110635993,
-    "balanceDelta": -150646919,
+    "initialBalance": 260448288,
+    "finalBalance": 9502277,
+    "balanceDelta": -250946011,
     "matchesPlayed": 49,
     "simulatedCups": 0,
     "myTeamRecord": {
       "name": "Real Madrid",
       "strength": 89,
       "j": 38,
-      "v": 17,
+      "v": 16,
       "e": 11,
-      "d": 10,
-      "gp": 65,
-      "gc": 38,
-      "sg": 27,
-      "p": 62,
+      "d": 11,
+      "gp": 48,
+      "gc": 39,
+      "sg": 9,
+      "p": 59,
       "form": [
         "E",
         "D",
@@ -433,13 +433,13 @@
         "D",
         "V"
       ],
-      "pct": 54
+      "pct": 52
     },
-    "position": 3,
+    "position": 7,
     "totalTeams": 20,
-    "leaguePrize": 240000000,
+    "leaguePrize": 140000000,
     "cupPrize": 150000000,
-    "totalPrizeWon": 390000000,
+    "totalPrizeWon": 290000000,
     "transferLog": {
       "sold": [
         {
@@ -515,11 +515,11 @@
           "count": 500
         }
       ],
-      "dividendsCollected": 4050
+      "dividendsCollected": 4460
     },
     "managerPersonal": {
       "name": "Téc. Carlo Ancelotti",
-      "personalBalance": 991630,
+      "personalBalance": 992040,
       "salary": 18000,
       "clubSharesPct": 0,
       "externalShareholdersPct": 22,
@@ -554,30 +554,30 @@
         "ledLights"
       ]
     },
-    "initialBalance": 206628724,
-    "finalBalance": 563080314,
-    "balanceDelta": 356451590,
+    "initialBalance": 206518600,
+    "finalBalance": 552430840,
+    "balanceDelta": 345912240,
     "matchesPlayed": 45,
     "simulatedCups": 0,
     "myTeamRecord": {
       "name": "Al-Hilal",
       "strength": 84,
       "j": 34,
-      "v": 20,
-      "e": 5,
-      "d": 9,
-      "gp": 64,
-      "gc": 31,
-      "sg": 33,
-      "p": 65,
+      "v": 17,
+      "e": 12,
+      "d": 5,
+      "gp": 48,
+      "gc": 21,
+      "sg": 27,
+      "p": 63,
       "form": [
         "D",
-        "D",
-        "V",
-        "V",
-        "V"
+        "E",
+        "E",
+        "E",
+        "E"
       ],
-      "pct": 64
+      "pct": 62
     },
     "position": 4,
     "totalTeams": 18,
@@ -644,11 +644,11 @@
           "count": 500
         }
       ],
-      "dividendsCollected": 7844
+      "dividendsCollected": 8235
     },
     "managerPersonal": {
       "name": "Téc. Jorge Jesus",
-      "personalBalance": 1003464,
+      "personalBalance": 1003855,
       "salary": 18000,
       "clubSharesPct": 0,
       "externalShareholdersPct": 22,
