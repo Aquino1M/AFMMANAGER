@@ -23254,6 +23254,18 @@ function render() {
         });
         const balEl = app.querySelector('.club-card b');
         if(balEl) balEl.textContent = fmtMoney(state.balance);
+        const cashValEl = app.querySelector('.sm-badge-cash .sm-res-val');
+        if(cashValEl) cashValEl.textContent = fmtMoney(state.balance);
+
+        app.querySelectorAll('.sm-ribbon-pill[data-view]').forEach(b => {
+          b.classList.toggle('active', b.dataset.view === view);
+        });
+
+        const gate = (typeof canStartMatch === 'function') ? canStartMatch() : { ok: false };
+        const btnContLabel = app.querySelector('.sm-continue-label');
+        if(btnContLabel) btnContLabel.textContent = gate.ok ? 'JOGAR' : 'CONTINUAR';
+        const btnContTime = app.querySelector('.sm-continue-time');
+        if(btnContTime) btnContTime.textContent = gate.ok ? '🔥 Dia de Jogo!' : `${formatDatePtBr(state.date)}`;
 
         // Atualiza data e janela de transferências no topo em tempo real
         const dateEl = document.getElementById('topBarCurrentDate') || app.querySelector('.top-right span:first-child');
@@ -23321,67 +23333,186 @@ function render() {
 }
 
 
+function clubShortTag(clubName){
+  if(!clubName) return 'AFM';
+  const map = {
+    'corinthians': 'COR', 'palmeiras': 'PAL', 'são paulo': 'SAO', 'sao paulo': 'SAO',
+    'santos': 'SAN', 'flamengo': 'FLA', 'fluminense': 'FLU', 'vasco': 'VAS',
+    'botafogo': 'BOT', 'grêmio': 'GRE', 'gremio': 'GRE', 'internacional': 'INT',
+    'atlético-mg': 'CAM', 'atletico-mg': 'CAM', 'cruzeiro': 'CRU', 'athletico-pr': 'CAP',
+    'atletico-pr': 'CAP', 'coritiba': 'CFC', 'bahia': 'BAH', 'vitória': 'VIT', 'vitoria': 'VIT',
+    'fortaleza': 'FOR', 'ceará': 'CEA', 'ceara': 'CEA', 'sport': 'SPO', 'náutico': 'NAU',
+    'santa cruz': 'SCZ', 'criciúma': 'CRI', 'criciuma': 'CRI', 'chapecoense': 'CHA',
+    'juventude': 'JUV', 'goiás': 'GOI', 'goias': 'GOI', 'atlético-go': 'ACG',
+    'cuiabá': 'CUI', 'cuiaba': 'CUI', 'red bull bragantino': 'RBB', 'bragantino': 'RBB',
+    'avaí': 'AVA', 'avai': 'AVA', 'figueirense': 'FIG', 'vila nova': 'VIL',
+    'américa-mg': 'AME', 'america-mg': 'AME', 'ponte preta': 'PON', 'guarani': 'GUA',
+    'paysandu': 'PAY', 'remo': 'REM', 'crb': 'CRB', 'csa': 'CSA',
+    'brasiliense': 'BRS', 'gama': 'GAM', 'ceilândia': 'CEI', 'real brasília': 'RBR',
+    'mané garrincha': 'MGA', 'paranoá': 'PAR', 'capital': 'CAP', 'samambaia': 'SAM',
+    'brasília': 'BSB', 'brasilia': 'BSB'
+  };
+  const n = norm(clubName);
+  if(map[n]) return map[n];
+  const words = String(clubName).replace(/[^a-zA-Z0-9 ]/g, '').trim().split(/\s+/);
+  if(words.length >= 3) return (words[0][0] + words[1][0] + words[2][0]).toUpperCase();
+  if(words.length === 2) return (words[0].slice(0, 2) + words[1][0]).toUpperCase();
+  return String(clubName).slice(0, 3).toUpperCase();
+}
+window.clubShortTag = clubShortTag;
+
 function shell(main){
-  const c=clubByName(state.club)||{stadium:'Estádio do clube'};
-  const winInfo = getTransferWindowInfo(state.date);
+  const c = clubByName(state?.club) || { stadium: 'Estádio do clube' };
+  const winInfo = getTransferWindowInfo(state?.date);
+  const tag = clubShortTag(state?.club);
+  const gate = (typeof canStartMatch === 'function') ? canStartMatch() : { ok: false };
+  const continueLabel = gate.ok ? 'JOGAR' : 'CONTINUAR';
+  const continueTime = gate.ok ? '🔥 Dia de Jogo!' : `${formatDatePtBr(state?.date)}`;
+
+  // Média de energia/disposição do elenco
+  const fitness = (state?.squad && state.squad.length)
+    ? Math.round(state.squad.reduce((a, b) => a + (b.energy ?? b.fitness ?? 95), 0) / state.squad.length)
+    : 95;
+
+  const tickerMsg = `Temporada ${state?.season || 2026} · ${esc(state?.competition || 'Campeonato')} · Rodada ${(state?.round || 0) + 1}`;
 
   return `
     <div class="app">
-      <header class="top">
-        <div class="brand">
-          ${clubBadge(state.club, 28)}
-          <span><b>AFM</b> MANAGER 2027</span>
+      <!-- HEADER NO ESTILO SOCCER MANAGER 2027 (SCREENSHOT 1) -->
+      <header class="top sm-topbar">
+        <!-- BLOCO ESQUERDO: HAMBURGUER, ESCUDO + SIGLA, LOJA, AJUDA -->
+        <div class="sm-top-left">
+          <button type="button" class="sm-btn-hamburger" id="btnToggleSidebarDrawer" title="Menu de Navegação">
+            ☰
+          </button>
+          <div class="sm-club-identity" title="${esc(state.club)}">
+            ${clubBadge(state.club, 32)}
+            <span class="sm-club-tag">${esc(tag)}</span>
+          </div>
+          <button type="button" class="sm-pill-store" id="btnTopStore" title="Loja Oficial & Benefícios">
+            👑 LOJA
+          </button>
+          <button type="button" class="sm-circle-btn" id="btnTopHelp" title="Ajuda & Atalhos">
+            ?
+          </button>
         </div>
-        <div class="top-right">
-          <span id="topBarCurrentDate">📅 ${formatDatePtBr(state.date)}</span>
-          <span class="window-badge ${winInfo.open?'window-open':'window-closed'}">
-            ${winInfo.open?'🟢':'🔴'} ${esc(winInfo.text)}
-          </span>
-          <span>•</span>
-          <span>👔 ${esc(state.manager)}</span>
+
+        <!-- BLOCO CENTRAL: RECURSOS (ENERGIA, OURO, DINHEIRO) -->
+        <div class="sm-top-center">
+          <div class="sm-res-badge sm-badge-energy" title="Disposição Média do Elenco">
+            <span class="sm-res-icon">⚡</span>
+            <span class="sm-res-val">${fitness}%</span>
+            <span class="sm-res-add" id="btnTopQuickFitness" title="Ver Elenco / Fisioterapia">+</span>
+          </div>
+          <div class="sm-res-badge sm-badge-gold" title="Moedas de Treinador / Ouro">
+            <span class="sm-res-icon">🥇</span>
+            <span class="sm-res-val">${state.coachCoins || 100}</span>
+            <span class="sm-res-add" id="btnTopQuickCoins" title="Benefícios">+</span>
+          </div>
+          <div class="sm-res-badge sm-badge-cash" title="Saldo em Caixa do Clube">
+            <span class="sm-res-icon">💵</span>
+            <span class="sm-res-val">${fmtMoney(state.balance)}</span>
+            <span class="sm-res-add" id="btnTopQuickCash" title="Finanças & Escritório">+</span>
+          </div>
+        </div>
+
+        <!-- BLOCO DIREITO: AÇÕES + BOTÃO CONTINUAR VERDE NEON -->
+        <div class="sm-top-right">
           ${getActiveAccount()?.role === 'admin' ? `
-            <button class="btn" id="btnTopAdminPanelInGame" style="background:rgba(124,58,237,0.3);border-color:#a855f7;color:#fff;font-size:12px;font-weight:800;padding:6px 12px">
-              🛡️ Painel Admin
+            <button class="btn" id="btnTopAdminPanelInGame" style="background:rgba(124,58,237,0.3);border-color:#a855f7;color:#fff;font-size:11px;font-weight:800;padding:5px 10px">
+              🛡️ Admin
             </button>
           ` : ''}
-          <button class="afm-sound-btn" id="btnToggleSoundTop" title="Ativar/Desativar Efeitos Sonoros">
-            ${window.AFM30 && window.AFM30.audio.isEnabled() ? '🔊 Som Ativo' : '🔇 Mudo'}
+          <button type="button" class="sm-action-icon-btn afm-btn-fullscreen" id="btnTopFullscreen" title="Tela Cheia (Mobile & PC)">
+            <span class="fullscreen-icon">⛶</span>
           </button>
-          <button class="btn success" id="quickSaveBtn">💾 Salvar Jogo</button>
-          <button class="btn danger" id="mainMenuBtn">🏠 Menu Principal</button>
+          <button type="button" class="sm-action-icon-btn afm-btn-install-app" id="btnTopInstallApp" title="Instalar Aplicativo (Mobile & PC)">
+            📲
+          </button>
+          <button type="button" class="sm-action-icon-btn" id="btnToggleSoundTop" title="Efeitos Sonoros">
+            ${window.AFM30 && window.AFM30.audio.isEnabled() ? '🔊' : '🔇'}
+          </button>
+          <button type="button" class="sm-action-icon-btn" id="quickSaveBtn" title="Salvar Jogo">
+            💾
+          </button>
+
+          <!-- BOTÃO CONTINUAR ESTILO SOCCER MANAGER 2027 -->
+          <button type="button" class="sm-btn-continue" id="btnHeaderContinue" title="${gate.ok ? 'Entrar em Campo' : 'Avançar Calendário'}">
+            <div class="sm-continue-body">
+              <span class="sm-continue-label">${continueLabel}</span>
+              <span class="sm-continue-time">${continueTime}</span>
+            </div>
+            <span class="sm-continue-arrow">❯</span>
+          </button>
         </div>
       </header>
+
+      <!-- FITA HORIZONTAL DE TAREFAS RÁPIDAS (SM27 RIBBON) -->
+      <div class="sm-task-ribbon">
+        <span class="sm-ribbon-tag">Tarefas</span>
+        <button type="button" class="sm-ribbon-pill ${view==='meutime'?'active':''}" data-view="meutime">🏋️ Treino & Tática</button>
+        <button type="button" class="sm-ribbon-pill ${view==='mercado'?'active':''}" data-view="mercado">🔍 Olheiro & Mercado</button>
+        <button type="button" class="sm-ribbon-pill ${view==='escritorio'?'active':''}" data-view="escritorio">🤝 Patrocinador</button>
+        <button type="button" class="sm-ribbon-pill ${view==='carreira'?'active':''}" data-view="carreira">🎯 Objetivos</button>
+        <button type="button" class="sm-ribbon-pill ${view==='noticias'?'active':''}" data-view="noticias">📰 Relatórios</button>
+        <div class="sm-ribbon-ticker">
+          <span>⚽ ${tickerMsg}</span>
+        </div>
+        <button type="button" class="sm-ribbon-pill sm-ribbon-cal ${view==='calendario'?'active':''}" data-view="calendario" title="Calendário de Jogos">
+          🗓️ Calendário
+        </button>
+      </div>
+
+      <!-- LAYOUT COM DRAWER E CONTEÚDO PRINCIPAL -->
       <div class="layout">
-        <aside class="side">
-          <div class="club-card">
+        <!-- Backdrop para fechar o menu no mobile -->
+        <div id="afmDrawerBackdrop" class="afm-drawer-backdrop"></div>
+
+        <aside class="side sm-drawer" id="afmSideDrawer">
+          <div class="sm-drawer-header">
             <div style="display:flex;align-items:center;gap:10px">
-              ${clubBadge(state.club, 48)}
+              ${clubBadge(state.club, 42)}
               <div>
-                <div class="club-name" style="margin-top:0">${esc(state.club)}</div>
-                <div class="small">${esc(state.competition)}</div>
+                <div class="club-name" style="margin:0;font-size:15px">${esc(state.club)}</div>
+                <div class="small" style="color:var(--neon)">${esc(state.competition)}</div>
               </div>
             </div>
-            <div class="small" style="margin-top:8px">${esc(c.stadium||'')}</div>
-            <div style="margin-top:10px" class="small">Saldo em Caixa</div>
-            <b style="color:var(--neon);font-size:16px">${fmtMoney(state.balance)}</b>
+            <button type="button" class="sm-drawer-close" id="btnCloseMobileDrawer" title="Fechar Menu">✕</button>
           </div>
-          <nav class="nav">
+
+          <div class="club-card" style="margin-top:4px;padding:12px;">
+            <div class="small">🏟️ ${esc(c.stadium||'')}</div>
+            <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center">
+              <span class="small">Saldo em Caixa:</span>
+              <b style="color:var(--neon);font-size:15px">${fmtMoney(state.balance)}</b>
+            </div>
+          </div>
+
+          <nav class="nav sm-drawer-nav">
             ${[
-              ['central','⚽ Central'],
-              ['noticias','📰 Notícias & Mídia'],
-              ['calendario','🗓️ Calendário'],
+              ['central','⭐ Perspectiva Geral'],
               ['meutime','📋 Meu time & Tática'],
-              ['elenco','👥 Elenco'],
-              ['mercado','🔄 Mercado'],
-              ['estrutura','🏗️ Estrutura & Estádio'],
-              ['escritorio','🏢 Escritório'],
-              ['carreira','💼 Carreira'],
-              ['temporada','🏆 Temporada'],
+              ['elenco','👥 Elenco Oficial'],
+              ['calendario','🗓️ Calendário de Jogos'],
+              ['mercado','🔄 Mercado & Transferências'],
+              ['carreira','💼 Carreira do Treinador'],
+              ['temporada','🏆 Temporada & Competições'],
+              ['estrutura','🏟️ Instalações & Estádio'],
+              ['escritorio','🏢 Escritório & Finanças'],
+              ['noticias','📰 Notícias & Mídia'],
               ['novidades','📢 Novidades & Correções'],
               ['config','⚙️ Configurações (Admin)']
             ].filter(([id]) => id !== 'config' || (getActiveAccount()?.role === 'admin')).map(([id,l])=>`<button class="btn ${view===id?'active':''}" data-view="${id}">${l}</button>`).join('')}
           </nav>
+
+          <div class="sm-drawer-footer">
+            <div style="display:flex;gap:6px">
+              <button class="btn sm-footer-icon-btn" id="quickSaveBtnDrawer" title="Salvar Jogo">💾 Salvar</button>
+              <button class="btn danger sm-footer-icon-btn" id="mainMenuBtn" title="Menu Principal">🏠 Sair</button>
+            </div>
+          </div>
         </aside>
+
         <main class="main">${main}</main>
       </div>
     </div>
@@ -23868,21 +23999,58 @@ function centralPage(){
               </div>
             </div>
           ` : `
-          <div style="display:grid;grid-template-columns:1fr 40px 1fr;align-items:center;margin:18px 0 10px 0;gap:8px">
-            <div style="background:#241945;border:1px solid #7c3aed;border-radius:14px;padding:18px 12px;text-align:center">
-              ${clubBadge(state.club, 54)}
-              <div style="font-size:15px;font-weight:900;color:#fff;margin-top:8px">${esc(state.club)}</div>
-              <div style="font-size:10px;font-weight:800;color:#c084fc;margin-top:2px">SEU CLUBE · ${isHome ? 'MANDANTE' : 'VISITANTE'}</div>
+          <div class="sm-hero-match-pitch" style="padding:18px 16px;margin:14px 0 10px 0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <!-- CONFRONTO COM OVERALLS E ESCUDOS ESTILO SOCCER MANAGER 2027 (SCREENSHOT 1) -->
+              <div style="display:flex;align-items:center;gap:16px;flex:1;min-width:280px;justify-content:center;">
+                <!-- TIME 1 (MANDANTE) -->
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:105px;text-align:center;">
+                  ${clubBadge(isHome ? state.club : opp, 52)}
+                  <div style="font-size:13px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;">
+                    ${esc(isHome ? state.club : opp)}
+                  </div>
+                </div>
+
+                <!-- OVERALL MANDANTE -->
+                <div class="sm-ovr-circle" style="border-color:${isHome ? '#a855f7' : '#38bdf8'};color:#fff" title="Força Geral do Mandante">
+                  ${isHome ? our : oppStr}
+                </div>
+
+                <div style="font-size:22px;font-weight:900;color:rgba(255,255,255,0.4);">-</div>
+
+                <!-- OVERALL VISITANTE -->
+                <div class="sm-ovr-circle" style="border-color:${!isHome ? '#a855f7' : '#38bdf8'};color:#fff" title="Força Geral do Visitante">
+                  ${!isHome ? our : oppStr}
+                </div>
+
+                <!-- TIME 2 (VISITANTE) -->
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:105px;text-align:center;">
+                  ${clubBadge(isHome ? opp : state.club, 52)}
+                  <div style="font-size:13px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;">
+                    ${esc(isHome ? opp : state.club)}
+                  </div>
+                </div>
+              </div>
+
+              <!-- BOTÕES RÁPIDOS LATERAIS: EQUIPA & TÁTICAS (SCREENSHOT 1) -->
+              <div style="display:flex;flex-direction:column;gap:8px;justify-content:center;">
+                <button type="button" class="btn" id="btnHeroQuickSquad" style="padding:7px 14px;font-size:11px;font-weight:900;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+                  <span>👥</span> Equipa
+                </button>
+                <button type="button" class="btn" id="btnHeroQuickTactics" style="padding:7px 14px;font-size:11px;font-weight:900;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+                  <span>📋</span> Táticas
+                </button>
+              </div>
             </div>
 
-            <div style="text-align:center;font-size:22px;font-weight:900;color:rgba(255,255,255,0.3)">
-              X
-            </div>
-
-            <div style="background:#18142b;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px 12px;text-align:center">
-              ${clubBadge(opp, 54)}
-              <div style="font-size:15px;font-weight:900;color:#fff;margin-top:8px">${esc(opp)}</div>
-              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-top:2px">${isHome?'VISITANTE':'MANDANTE'}</div>
+            <!-- FAIXA INFERIOR COM METADADOS DO CONFRONTO -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:rgba(255,255,255,0.7);flex-wrap:wrap;gap:6px;">
+              <span class="pill" style="font-size:10px;font-weight:800;background:rgba(16,185,129,0.2);color:#34d399;border:1px solid rgba(16,185,129,0.4)">
+                🏆 ${esc(displayCompName)}
+              </span>
+              <span>📅 ${formatDatePtBr(matchDate)}</span>
+              <span>⏰ 15:00 Pontapé de saída</span>
+              <span>🏟️ ${esc(isHome ? (clubObj.stadium || 'Estádio Principal') : 'Estádio Adversário')}</span>
             </div>
           </div>
           `}
@@ -32149,6 +32317,14 @@ function bind(){
   $$('[data-view]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextView=b.dataset.view;if(!nextView)return;view=nextView;render()});
 
   const qs=$('#quickSaveBtn'); if(qs) qs.onclick=()=>{if(save()) toast('Jogo salvo com sucesso localmente!')};
+  const qsD=$('#quickSaveBtnDrawer'); if(qsD) qsD.onclick=()=>{if(save()) toast('Jogo salvo com sucesso localmente!')};
+  const btnDrawerSave=$('#btnDrawerSave'); if(btnDrawerSave) btnDrawerSave.onclick=()=>{if(save()) toast('Jogo salvo com sucesso localmente!')};
+  const btnDrawerSet=$('#btnDrawerSettings'); if(btnDrawerSet) btnDrawerSet.onclick=()=>{ if(typeof openSettingsModal==='function') openSettingsModal(); };
+  
+  const bQuickFit=$('#btnTopQuickFitness'); if(bQuickFit) bQuickFit.onclick=()=>{ view='meutime'; render(); };
+  const bQuickCoins=$('#btnTopQuickCoins'); if(bQuickCoins) bQuickCoins.onclick=()=>{ view='escritorio'; render(); };
+  const bQuickCash=$('#btnTopQuickCash'); if(bQuickCash) bQuickCash.onclick=()=>{ view='escritorio'; render(); };
+  const dSearch=$('#drawerQuickSearch'); if(dSearch) dSearch.onkeydown=(e)=>{ if(e.key==='Enter'){ view='mercado'; render(); } };
   
   const bToggleSnd = $('#btnToggleSoundTop');
   if(bToggleSnd && window.AFM30){
@@ -32177,6 +32353,11 @@ function bind(){
   };
 
   if(view==='central'){
+    const bHeroSquad = $('#btnHeroQuickSquad');
+    if(bHeroSquad) bHeroSquad.onclick = () => { view = 'meutime'; render(); };
+    const bHeroTactics = $('#btnHeroQuickTactics');
+    if(bHeroTactics) bHeroTactics.onclick = () => { view = 'meutime'; render(); };
+
     const pEndSeason = $('#btnOpenEndOfSeasonCentral'); if(pEndSeason) pEndSeason.onclick = showEndOfSeasonModal;
     const pNextPending = $('#btnOpenNextPendingCentral');
     if(pNextPending) pNextPending.onclick = () => openNextPendingCompetitionFixture();

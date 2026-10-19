@@ -5518,3 +5518,596 @@ body.theme-emerald {
   font-size: 7px;
   font-weight: 700;
 }
+
+/* =========================================================================
+   AFM MANAGER 2026/2027 — MOBILE LANDSCAPE & SOCCER MANAGER 2027 (SM27) UI
+   ========================================================================= */
+
+/* --- 1. GUARDA DE ORIENTAÇÃO HORIZONTAL (LANDSCAPE ENFORCER) --- */
+.afm-orientation-guard {
+  position: fixed;
+  inset: 0;
+  z-index: 99999999;
+  background: radial-gradient(circle at center, #1b1338 0%, #07050f 100%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+@media screen and (orientation: portrait) and (max-width: 1024px) {
+  .afm-orientation-guard {
+    display: flex !important;
+  }
+  .app, .setup-container, .afm-landing-wrapper, #app > div:not(.afm-orientation-guard) {
+    display: none !important;
+  }
+}
+
+@media screen and (orientation: landscape), (min-width: 1025px) {
+  .afm-orientation-guard {
+    display: none !important;
+  }
+}
+
+.afm-guard-box {
+  background: rgba(18, 14, 34, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1.5px solid rgba(168, 85, 247, 0.4);
+  border-radius: 24px;
+  padding: 32px 24px;
+  max-width: 380px;
+  box-shadow: 0 0 50px rgba(124, 58, 237, 0.4);
+}
+
+.afm-phone-anim {
+  width: 70px;
+  height: 110px;
+  margin: 0 auto 20px auto;
+  border: 3px solid #38bdf8;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 0 25px rgba(56, 189, 248, 0.5);
+  animation: afmRotatePhone 2.4s infinite ease-in-out;
+}
+
+.afm-phone-anim::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  width: 18px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 2px;
+}
+
+.afm-phone-screen {
+  font-size: 28px;
+}
+
+@keyframes afmRotatePhone {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(0deg); }
+  50% { transform: rotate(90deg); }
+  75% { transform: rotate(90deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.afm-guard-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  background: linear-gradient(90deg, #fff, #38bdf8, #a855f7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.afm-guard-tag {
+  font-size: 10px;
+  font-weight: 800;
+  color: #a855f7;
+  letter-spacing: 1px;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+.afm-guard-desc {
+  font-size: 13px;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin: 12px 0 0 0;
+}
+
+.afm-guard-btn {
+  margin-top: 16px;
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 900;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(124, 58, 237, 0.5);
+}
+
+/* --- 2. TOPBAR ESTILO SOCCER MANAGER 2027 (SM27) --- */
+.sm-topbar {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background: rgba(10, 8, 20, 0.94) !important;
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 52px;
+  gap: 10px;
+  flex-wrap: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.sm-top-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sm-btn-hamburger {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.sm-btn-hamburger:hover {
+  background: rgba(168, 85, 247, 0.25);
+  border-color: #a855f7;
+  transform: scale(1.05);
+}
+
+.sm-club-identity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.sm-club-tag {
+  font-size: 13px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+.sm-pill-store {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #1a0f00;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.45);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.sm-pill-store:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.7);
+}
+
+.sm-circle-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sm-circle-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.sm-top-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.sm-top-center::-webkit-scrollbar {
+  display: none;
+}
+
+.sm-res-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(18, 14, 30, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.sm-badge-energy { border-color: rgba(56, 189, 248, 0.35); }
+.sm-badge-gold { border-color: rgba(245, 158, 11, 0.35); }
+.sm-badge-cash { border-color: rgba(34, 197, 94, 0.35); }
+
+.sm-res-val {
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.sm-badge-cash .sm-res-val { color: #4ade80; }
+.sm-badge-gold .sm-res-val { color: #facc15; }
+.sm-badge-energy .sm-res-val { color: #38bdf8; }
+
+.sm-res-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sm-res-add:hover {
+  background: var(--neon);
+  color: #000;
+}
+
+.sm-top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sm-action-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sm-action-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.afm-btn-install-app.pulse-install {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(6, 182, 212, 0.3));
+  border-color: #a855f7;
+  animation: afmPulseInstall 2s infinite;
+}
+
+@keyframes afmPulseInstall {
+  0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(168, 85, 247, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+}
+
+/* BOTÃO CONTINUAR ESTILO SOCCER MANAGER 2027 */
+.sm-btn-continue {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #00d68f 0%, #059669 100%);
+  color: #022616;
+  border: none;
+  border-radius: 12px;
+  padding: 6px 16px;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(0, 214, 143, 0.5);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+
+.sm-btn-continue:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 28px rgba(0, 214, 143, 0.75);
+}
+
+.sm-btn-continue:active {
+  transform: scale(0.98);
+}
+
+.sm-continue-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.sm-continue-label {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.sm-continue-time {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.88;
+  white-space: nowrap;
+}
+
+.sm-continue-arrow {
+  font-size: 18px;
+  font-weight: 900;
+  margin-left: 2px;
+}
+
+/* --- 3. BARRA DE FITA HORIZONTAL DE TAREFAS (SM27 TASK RIBBON) --- */
+.sm-task-ribbon {
+  background: rgba(14, 11, 26, 0.75);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 5px 14px;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  white-space: nowrap;
+  gap: 8px;
+}
+
+.sm-task-ribbon::-webkit-scrollbar {
+  display: none;
+}
+
+.sm-ribbon-tag {
+  font-size: 10px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-right: 2px;
+}
+
+.sm-ribbon-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  border-radius: 16px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sm-ribbon-pill:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #a855f7;
+  color: #fff;
+}
+
+.sm-ribbon-pill.active {
+  background: #a855f7;
+  border-color: #c084fc;
+  color: #fff;
+}
+
+.sm-ribbon-ticker {
+  flex: 1;
+  min-width: 140px;
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+  padding: 0 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sm-ribbon-cal {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.35);
+  color: #4ade80;
+}
+
+/* --- 4. GAVETA LATERAL DESLIZANTE (SLIDING DRAWER SM27) --- */
+.afm-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1099;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.afm-drawer-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sm-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 12px;
+}
+
+.sm-drawer-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 20px;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.sm-drawer-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sm-footer-icon-btn {
+  flex: 1;
+  padding: 8px !important;
+  font-size: 14px !important;
+  justify-content: center !important;
+}
+
+/* COMPACTAÇÃO NO MODO PAISAGEM MOBILE (HEIGHT <= 600px ou WIDTH <= 1024px) */
+@media screen and (max-height: 600px), screen and (max-width: 1024px) {
+  .layout {
+    display: block !important;
+  }
+
+  .side.sm-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 1100;
+    background: rgba(12, 9, 24, 0.98);
+    backdrop-filter: blur(24px);
+    border-right: 1.5px solid rgba(168, 85, 247, 0.35);
+    box-shadow: 12px 0 50px rgba(0, 0, 0, 0.85);
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .side.sm-drawer.drawer-open {
+    transform: translateX(0);
+  }
+
+  .main {
+    width: 100% !important;
+    padding: 8px 12px !important;
+  }
+
+  .sm-topbar {
+    padding: 4px 10px !important;
+    min-height: 46px !important;
+  }
+
+  .sm-btn-continue {
+    padding: 4px 12px !important;
+  }
+
+  .sm-continue-label {
+    font-size: 12px !important;
+  }
+
+  .sm-continue-time {
+    font-size: 9px !important;
+  }
+
+  .central-dashboard-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .hide-mobile-small {
+    display: none !important;
+  }
+}
+
+/* Item Ativo com Destaque Neon Ciano/Menta estilo SM27 */
+.sm-drawer-nav button.active {
+  background: linear-gradient(90deg, #00d68f 0%, #06b6d4 100%) !important;
+  color: #022013 !important;
+  font-weight: 900 !important;
+  border-color: transparent !important;
+  box-shadow: 0 2px 14px rgba(0, 214, 143, 0.45) !important;
+}
+
+/* Hero Match Card Estilo Gramado SM27 */
+.sm-hero-match-pitch {
+  background: linear-gradient(180deg, rgba(7, 28, 18, 0.88) 0%, rgba(9, 13, 24, 0.96) 100%),
+              radial-gradient(circle at 50% 30%, rgba(16, 185, 129, 0.2), transparent 70%) !important;
+  border: 1.5px solid rgba(16, 185, 129, 0.35) !important;
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.15) !important;
+  border-radius: 18px !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.sm-hero-match-pitch::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0, rgba(255, 255, 255, 0.015) 30px, transparent 30px, transparent 60px);
+  pointer-events: none;
+}
+
+.sm-ovr-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #111827;
+  border: 2px solid #38bdf8;
+  color: #fff;
+  font-weight: 900;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+}

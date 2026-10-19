@@ -1,12 +1,20 @@
 {
-  "name": "AFM Manager 2027",
-  "short_name": "AFM 2027",
-  "description": "Aquino Futebol Manager 2027 - Simulador Tático e de Gestão de Futebol",
+  "name": "Aquino Futebol Manager 2026",
+  "short_name": "AFM 2026",
+  "description": "Aquino Futebol Manager 2026 - Simulador Tático e de Gestão de Futebol",
+  "id": "afm-futebol-manager-2026-pwa",
   "start_url": "./index.html",
-  "display": "standalone",
-  "orientation": "any",
-  "background_color": "#0a0714",
-  "theme_color": "#7c3aed",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "landscape",
+  "background_color": "#080612",
+  "theme_color": "#0d0a1d",
   "icons": [
     {
       "src": "./img/icon.svg",
@@ -15,6 +23,11 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["games", "sports", "entertainment"],
-  "lang": "pt-BR"
+  "categories": [
+    "games",
+    "sports",
+    "entertainment"
+  ],
+  "lang": "pt-BR",
+  "prefer_related_applications": false
 }
