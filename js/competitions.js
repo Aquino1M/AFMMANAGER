@@ -54,7 +54,7 @@ window.COMPETITIONS = [
   {id:'uel',continent:'Europa',country:'UEFA',name:'UEFA Europa League',type:'league-phase',teams:36,rounds:8,logo:'img/badges/competitions/uel.svg',rule:'Fase de liga com 36 clubes e 8 jogos; mata-mata após playoff.'},
   {id:'uecl',continent:'Europa',country:'UEFA',name:'UEFA Conference League',type:'league-phase',teams:36,rounds:6,logo:'img/badges/competitions/uel.svg',rule:'Fase de liga com 36 clubes e 6 jogos; mata-mata após playoff.'},
 
-  {id:'jpn-1',continent:'Ásia',country:'Arábia Saudita',name:'Saudi Pro League',type:'league',teams:18,rounds:34,relegate:3,logo:'img/badges/competitions/ksa_1.svg',rule:'18 clubes, turno e returno.'},
+  {id:'ksa-1',continent:'Ásia',country:'Arábia Saudita',name:'Saudi Pro League',type:'league',teams:18,rounds:34,relegate:3,logo:'img/badges/competitions/ksa_1.svg',rule:'18 clubes, turno e returno.'},
   {id:'jpn-1',continent:'Ásia',country:'Japão',name:'J1 League',type:'league',teams:20,rounds:38,relegate:3,rule:'20 clubes, turno e returno.'},
   {id:'kor-1',continent:'Ásia',country:'Coreia do Sul',name:'K League 1',type:'league-split',teams:12,rule:'Fase regular seguida por split em grupo de título e grupo de rebaixamento.'},
   {id:'chn-1',continent:'Ásia',country:'China',name:'Chinese Super League',type:'league',teams:16,rounds:30,relegate:2,rule:'16 clubes, turno e returno.'},

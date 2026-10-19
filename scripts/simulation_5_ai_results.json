@@ -1,0 +1,671 @@
+[
+  {
+    "config": {
+      "id": "ai_brasil",
+      "region": "Brasil (América do Sul)",
+      "club": "Flamengo",
+      "compId": "bra-a",
+      "manager": "Téc. Renato Gaúcho",
+      "targetBuy": "Raphael Veiga",
+      "safStockToTrade": "cruzeiro",
+      "upgradePlan": [
+        "chairs",
+        "screen",
+        "ledLights"
+      ]
+    },
+    "initialBalance": 108201340,
+    "finalBalance": 126668395,
+    "balanceDelta": 18467055,
+    "matchesPlayed": 56,
+    "simulatedCups": 0,
+    "myTeamRecord": {
+      "name": "Flamengo",
+      "strength": 79,
+      "j": 38,
+      "v": 20,
+      "e": 9,
+      "d": 9,
+      "gp": 67,
+      "gc": 38,
+      "sg": 29,
+      "p": 69,
+      "form": [
+        "E",
+        "V",
+        "D",
+        "E",
+        "D"
+      ],
+      "pct": 61
+    },
+    "position": 1,
+    "totalTeams": 20,
+    "leaguePrize": 48100000,
+    "cupPrize": 9450000,
+    "totalPrizeWon": 57550000,
+    "transferLog": {
+      "sold": [
+        {
+          "name": "Dyogo Alves",
+          "ovr": 65,
+          "valMi": 1.204,
+          "earned": 963200
+        },
+        {
+          "name": "João Souza",
+          "ovr": 68,
+          "valMi": 5.292,
+          "earned": 4233600
+        }
+      ],
+      "bought": [
+        {
+          "name": "Joaquín Piquerez",
+          "ovr": 79,
+          "pos": "LB",
+          "cost": 52600000,
+          "wage": 306000
+        }
+      ]
+    },
+    "upgradesExecuted": [
+      {
+        "type": "stadium",
+        "item": "Cadeiras novas",
+        "cost": 28350
+      },
+      {
+        "type": "stadium",
+        "item": "Telão do clube",
+        "cost": 91000
+      },
+      {
+        "type": "stadium",
+        "item": "Refletores de LED",
+        "cost": 77000
+      },
+      {
+        "type": "facility",
+        "item": "Departamento Médico Nível 2",
+        "cost": 999810
+      }
+    ],
+    "sharesHistory": {
+      "purchases": [
+        {
+          "ticker": "cruzeiro",
+          "count": 2500
+        }
+      ],
+      "sales": [
+        {
+          "ticker": "cruzeiro",
+          "count": 500
+        }
+      ],
+      "dividendsCollected": 7932
+    },
+    "managerPersonal": {
+      "name": "Téc. Renato Gaúcho",
+      "personalBalance": 1227686,
+      "salary": 18000,
+      "clubSharesPct": 0,
+      "externalShareholdersPct": 22,
+      "properties": [],
+      "businesses": [],
+      "vehicles": [],
+      "prestigeScore": 5,
+      "lastDividendPaidByClub": 31460,
+      "lastDividendReceivedByManager": 0,
+      "safPortfolio": {
+        "cruzeiro": {
+          "sharesCount": 2000,
+          "avgPrice": 28
+        }
+      }
+    },
+    "bugs": [],
+    "ok": true
+  },
+  {
+    "config": {
+      "id": "ai_north_america",
+      "region": "América do Norte",
+      "club": "Inter Miami",
+      "compId": "usa-1",
+      "manager": "Téc. Tata Martino",
+      "targetBuy": "Ganso",
+      "safStockToTrade": "bahia",
+      "upgradePlan": [
+        "chairs",
+        "mosaic",
+        "screen"
+      ]
+    },
+    "initialBalance": 81346620,
+    "finalBalance": 396809538,
+    "balanceDelta": 315462918,
+    "matchesPlayed": 38,
+    "simulatedCups": 0,
+    "myTeamRecord": {
+      "name": "Inter Miami",
+      "strength": 77,
+      "j": 38,
+      "v": 16,
+      "e": 7,
+      "d": 15,
+      "gp": 60,
+      "gc": 45,
+      "sg": 15,
+      "p": 55,
+      "form": [
+        "D",
+        "E",
+        "D",
+        "V",
+        "E"
+      ],
+      "pct": 48
+    },
+    "position": 6,
+    "totalTeams": 20,
+    "leaguePrize": 18000000,
+    "cupPrize": 275000000,
+    "totalPrizeWon": 293000000,
+    "transferLog": {
+      "sold": [
+        {
+          "name": "Óscar Ustari",
+          "ovr": 68,
+          "valMi": 3.36,
+          "earned": 2688000
+        },
+        {
+          "name": "William Yarbrough",
+          "ovr": 68,
+          "valMi": 3.36,
+          "earned": 2688000
+        }
+      ],
+      "bought": [
+        {
+          "name": "Ganso",
+          "ovr": 65,
+          "pos": "AM",
+          "cost": 500000,
+          "wage": 30000
+        }
+      ]
+    },
+    "upgradesExecuted": [
+      {
+        "type": "stadium",
+        "item": "Cadeiras novas",
+        "cost": 28350
+      },
+      {
+        "type": "stadium",
+        "item": "Mosaico com o escudo",
+        "cost": 49000
+      },
+      {
+        "type": "stadium",
+        "item": "Telão do clube",
+        "cost": 91000
+      },
+      {
+        "type": "facility",
+        "item": "Departamento Médico Nível 2",
+        "cost": 999810
+      }
+    ],
+    "sharesHistory": {
+      "purchases": [
+        {
+          "ticker": "bahia",
+          "count": 2500
+        }
+      ],
+      "sales": [
+        {
+          "ticker": "bahia",
+          "count": 500
+        }
+      ],
+      "dividendsCollected": 3159
+    },
+    "managerPersonal": {
+      "name": "Téc. Tata Martino",
+      "personalBalance": 1031205,
+      "salary": 18000,
+      "clubSharesPct": 0,
+      "externalShareholdersPct": 22,
+      "properties": [],
+      "businesses": [],
+      "vehicles": [],
+      "prestigeScore": 5,
+      "lastDividendPaidByClub": 31460,
+      "lastDividendReceivedByManager": 0,
+      "safPortfolio": {
+        "bahia": {
+          "sharesCount": 2000,
+          "avgPrice": 31.2
+        }
+      }
+    },
+    "bugs": [],
+    "ok": true
+  },
+  {
+    "config": {
+      "id": "ai_europe_eng",
+      "region": "Europa (Inglaterra)",
+      "club": "Arsenal",
+      "compId": "eng-1",
+      "manager": "Téc. Mikel Arteta",
+      "targetBuy": "Rodrygo",
+      "safStockToTrade": "botafogo",
+      "upgradePlan": [
+        "chairs",
+        "ledRing",
+        "screen",
+        "ledLights"
+      ]
+    },
+    "initialBalance": 189960925,
+    "finalBalance": 232661477,
+    "balanceDelta": 42700552,
+    "matchesPlayed": 46,
+    "simulatedCups": 0,
+    "myTeamRecord": {
+      "name": "Arsenal",
+      "strength": 88,
+      "j": 38,
+      "v": 17,
+      "e": 8,
+      "d": 13,
+      "gp": 49,
+      "gc": 45,
+      "sg": 4,
+      "p": 59,
+      "form": [
+        "E",
+        "V",
+        "D",
+        "V",
+        "E"
+      ],
+      "pct": 52
+    },
+    "position": 8,
+    "totalTeams": 20,
+    "leaguePrize": 220000000,
+    "cupPrize": 90000000,
+    "totalPrizeWon": 310000000,
+    "transferLog": {
+      "sold": [
+        {
+          "name": "Caio Araújo",
+          "ovr": 69,
+          "valMi": 1.38,
+          "earned": 1104000
+        },
+        {
+          "name": "Marcos Costa",
+          "ovr": 69,
+          "valMi": 8.28,
+          "earned": 6624000
+        }
+      ],
+      "bought": [
+        {
+          "name": "Rodrygo",
+          "ovr": 87,
+          "pos": "RW",
+          "cost": 364090000,
+          "wage": 1377500
+        }
+      ]
+    },
+    "upgradesExecuted": [
+      {
+        "type": "stadium",
+        "item": "Cadeiras novas",
+        "cost": 28350
+      },
+      {
+        "type": "stadium",
+        "item": "Anel de LED do clube",
+        "cost": 67200
+      },
+      {
+        "type": "stadium",
+        "item": "Telão do clube",
+        "cost": 91000
+      },
+      {
+        "type": "stadium",
+        "item": "Refletores de LED",
+        "cost": 77000
+      },
+      {
+        "type": "facility",
+        "item": "Departamento Médico Nível 2",
+        "cost": 999810
+      }
+    ],
+    "sharesHistory": {
+      "purchases": [
+        {
+          "ticker": "botafogo",
+          "count": 2500
+        }
+      ],
+      "sales": [
+        {
+          "ticker": "botafogo",
+          "count": 500
+        }
+      ],
+      "dividendsCollected": 2776
+    },
+    "managerPersonal": {
+      "name": "Téc. Mikel Arteta",
+      "personalBalance": 1005431,
+      "salary": 18000,
+      "clubSharesPct": 0,
+      "externalShareholdersPct": 22,
+      "properties": [],
+      "businesses": [],
+      "vehicles": [],
+      "prestigeScore": 5,
+      "lastDividendPaidByClub": 31460,
+      "lastDividendReceivedByManager": 0,
+      "safPortfolio": {
+        "botafogo": {
+          "sharesCount": 2000,
+          "avgPrice": 34.5
+        }
+      }
+    },
+    "bugs": [],
+    "ok": true
+  },
+  {
+    "config": {
+      "id": "ai_europe_esp",
+      "region": "Europa (Espanha)",
+      "club": "Real Madrid",
+      "compId": "esp-1",
+      "manager": "Téc. Carlo Ancelotti",
+      "targetBuy": "Erling Haaland",
+      "safStockToTrade": "atletico-mg",
+      "upgradePlan": [
+        "chairs",
+        "mosaic",
+        "ledRing",
+        "screen",
+        "ledLights",
+        "flares"
+      ]
+    },
+    "initialBalance": 261282912,
+    "finalBalance": 110635993,
+    "balanceDelta": -150646919,
+    "matchesPlayed": 49,
+    "simulatedCups": 0,
+    "myTeamRecord": {
+      "name": "Real Madrid",
+      "strength": 89,
+      "j": 38,
+      "v": 17,
+      "e": 11,
+      "d": 10,
+      "gp": 65,
+      "gc": 38,
+      "sg": 27,
+      "p": 62,
+      "form": [
+        "E",
+        "D",
+        "V",
+        "D",
+        "V"
+      ],
+      "pct": 54
+    },
+    "position": 3,
+    "totalTeams": 20,
+    "leaguePrize": 240000000,
+    "cupPrize": 150000000,
+    "totalPrizeWon": 390000000,
+    "transferLog": {
+      "sold": [
+        {
+          "name": "Luan Lima",
+          "ovr": 69,
+          "valMi": 6.986,
+          "earned": 5588800
+        },
+        {
+          "name": "Eduardo Pereira",
+          "ovr": 70,
+          "valMi": 3.362,
+          "earned": 2689600
+        }
+      ],
+      "bought": [
+        {
+          "name": "Erling Haaland",
+          "ovr": 91,
+          "pos": "ST",
+          "cost": 634260000,
+          "wage": 2250000
+        }
+      ]
+    },
+    "upgradesExecuted": [
+      {
+        "type": "stadium",
+        "item": "Cadeiras novas",
+        "cost": 28350
+      },
+      {
+        "type": "stadium",
+        "item": "Mosaico com o escudo",
+        "cost": 49000
+      },
+      {
+        "type": "stadium",
+        "item": "Anel de LED do clube",
+        "cost": 67200
+      },
+      {
+        "type": "stadium",
+        "item": "Telão do clube",
+        "cost": 91000
+      },
+      {
+        "type": "stadium",
+        "item": "Refletores de LED",
+        "cost": 77000
+      },
+      {
+        "type": "stadium",
+        "item": "Fogos e sinalizadores",
+        "cost": 21000
+      },
+      {
+        "type": "facility",
+        "item": "Departamento Médico Nível 2",
+        "cost": 999810
+      }
+    ],
+    "sharesHistory": {
+      "purchases": [
+        {
+          "ticker": "atletico-mg",
+          "count": 2500
+        }
+      ],
+      "sales": [
+        {
+          "ticker": "atletico-mg",
+          "count": 500
+        }
+      ],
+      "dividendsCollected": 4050
+    },
+    "managerPersonal": {
+      "name": "Téc. Carlo Ancelotti",
+      "personalBalance": 991630,
+      "salary": 18000,
+      "clubSharesPct": 0,
+      "externalShareholdersPct": 22,
+      "properties": [],
+      "businesses": [],
+      "vehicles": [],
+      "prestigeScore": 5,
+      "lastDividendPaidByClub": 31460,
+      "lastDividendReceivedByManager": 0,
+      "safPortfolio": {
+        "atletico-mg": {
+          "sharesCount": 2000,
+          "avgPrice": 42
+        }
+      }
+    },
+    "bugs": [],
+    "ok": true
+  },
+  {
+    "config": {
+      "id": "ai_asia",
+      "region": "Ásia (Arábia Saudita)",
+      "club": "Al-Hilal",
+      "compId": "ksa-1",
+      "manager": "Téc. Jorge Jesus",
+      "targetBuy": "Cristiano Ronaldo",
+      "safStockToTrade": "bragantino",
+      "upgradePlan": [
+        "chairs",
+        "screen",
+        "ledLights"
+      ]
+    },
+    "initialBalance": 206628724,
+    "finalBalance": 563080314,
+    "balanceDelta": 356451590,
+    "matchesPlayed": 45,
+    "simulatedCups": 0,
+    "myTeamRecord": {
+      "name": "Al-Hilal",
+      "strength": 84,
+      "j": 34,
+      "v": 20,
+      "e": 5,
+      "d": 9,
+      "gp": 64,
+      "gc": 31,
+      "sg": 33,
+      "p": 65,
+      "form": [
+        "D",
+        "D",
+        "V",
+        "V",
+        "V"
+      ],
+      "pct": 64
+    },
+    "position": 4,
+    "totalTeams": 18,
+    "leaguePrize": 28000000,
+    "cupPrize": 275000000,
+    "totalPrizeWon": 303000000,
+    "transferLog": {
+      "sold": [
+        {
+          "name": "Vitor Araújo",
+          "ovr": 69,
+          "valMi": 2.829,
+          "earned": 2263200
+        },
+        {
+          "name": "Renan Nunes",
+          "ovr": 69,
+          "valMi": 0.863,
+          "earned": 690400
+        }
+      ],
+      "bought": [
+        {
+          "name": "Cristiano Ronaldo",
+          "ovr": 86,
+          "pos": "ST",
+          "cost": 37740000,
+          "wage": 1225000
+        }
+      ]
+    },
+    "upgradesExecuted": [
+      {
+        "type": "stadium",
+        "item": "Cadeiras novas",
+        "cost": 28350
+      },
+      {
+        "type": "stadium",
+        "item": "Telão do clube",
+        "cost": 91000
+      },
+      {
+        "type": "stadium",
+        "item": "Refletores de LED",
+        "cost": 77000
+      },
+      {
+        "type": "facility",
+        "item": "Departamento Médico Nível 2",
+        "cost": 999810
+      }
+    ],
+    "sharesHistory": {
+      "purchases": [
+        {
+          "ticker": "bragantino",
+          "count": 2500
+        }
+      ],
+      "sales": [
+        {
+          "ticker": "bragantino",
+          "count": 500
+        }
+      ],
+      "dividendsCollected": 7844
+    },
+    "managerPersonal": {
+      "name": "Téc. Jorge Jesus",
+      "personalBalance": 1003464,
+      "salary": 18000,
+      "clubSharesPct": 0,
+      "externalShareholdersPct": 22,
+      "properties": [],
+      "businesses": [],
+      "vehicles": [],
+      "prestigeScore": 5,
+      "lastDividendPaidByClub": 31460,
+      "lastDividendReceivedByManager": 0,
+      "safPortfolio": {
+        "bragantino": {
+          "sharesCount": 2000,
+          "avgPrice": 38
+        }
+      }
+    },
+    "bugs": [],
+    "ok": true
+  }
+]

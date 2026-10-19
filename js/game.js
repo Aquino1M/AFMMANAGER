@@ -992,6 +992,7 @@ function calcularCustoUpgrade(custoBase, nivelAtual = 0, aplicarAumentoGeral15 =
   const baseAjustada = aplicarAumentoGeral15 ? (custoBase * AFM_PERMANENT_RULES.ECONOMY_UPGRADE_INCREASE) : custoBase;
   return Math.round(baseAjustada * Math.pow(AFM_PERMANENT_RULES.ECONOMY_UPGRADE_INCREASE, nivelAtual));
 }
+window.calcularCustoUpgrade = calcularCustoUpgrade;
 
 function calcularOrcamentoNovaArena(capacidadeProjetada) {
   const cap = Number(capacidadeProjetada) || 20000;
@@ -20391,6 +20392,8 @@ function ranking(){
   );
 }
 function position(){return Math.max(1,ranking().findIndex(t=>t.name===state.club)+1)}
+window.ranking = ranking;
+window.position = position;
 
 // -------------------------------------------------------------
 // MODAIS POPUP CUSTOMIZADOS COM BOTÃO X
@@ -22042,6 +22045,7 @@ function quickSellSquadPlayer(key){
   render();
   toast(`🎉 Venda rápida de ${p.name} para o ${buyer} concluída por ${fmtMoney(quickPrice)}! (20% de revenda retidos)`);
 }
+window.quickSellSquadPlayer = quickSellSquadPlayer;
 
 function promptSellPlayer(key){
   openPlayerTransferModal(key);
@@ -22063,6 +22067,7 @@ function facilityCost(key){
   const level = Math.max(0, Number(f.level) || 0);
   return Math.round(Number(d.base || 0) * Math.pow(FACILITY_LEVEL_MULTIPLIER, level) * Math.pow(FACILITY_COST_INCREASE, level + 1));
 }
+window.facilityCost = facilityCost;
 
 function simulateRemainingWorldTournaments(finishedYear){
   try {
