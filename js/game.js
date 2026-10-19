@@ -1531,14 +1531,45 @@ if(typeof window !== 'undefined') {
   window.getClubCountry = getClubCountry;
 }
 
-function generateSponsorOffers(clubBudget, clubName = (typeof state !== 'undefined' ? state?.club : '')){
+function generateSponsorOffers(clubBudget, clubName = (typeof state !== 'undefined' ? state?.club : ''), squadRef = null, stateRef = (typeof state !== 'undefined' ? state : null)){
+  const st = stateRef || (typeof state !== 'undefined' ? state : null);
+  const targetClub = clubName || st?.club || '';
   const fame = typeof teamFameScore === 'function' ? teamFameScore() : 50;
   const mktMult = typeof marketingBenefits === 'function' ? marketingBenefits().sponsorMultiplier : 1;
   const fameMult = 0.60 + (fame / 100) * 0.90;
-  const seasonFactor = Math.max(0.1, Number(state?.sponsorSeasonFactor) || 1);
-  const baseMonthly = Math.round(Math.max(40000, Math.round((clubBudget || 2000000) * 0.024)) * mktMult * fameMult * seasonFactor);
+  const seasonFactor = Math.max(0.1, Number(st?.sponsorSeasonFactor ?? state?.sponsorSeasonFactor) || 1);
+  const legacyBase = Math.round(Math.max(40000, Math.round((clubBudget || 2000000) * 0.024)) * mktMult * fameMult * seasonFactor);
 
-  const country = getClubCountry(clubName);
+  // Determina o elenco de referência para calcular a folha salarial mensal
+  let squad = squadRef;
+  if(!squad && st?.squad && Array.isArray(st.squad) && (!targetClub || norm(st.club) === norm(targetClub))){
+    squad = st.squad;
+  }
+  if(!squad && typeof state !== 'undefined' && state?.squad && Array.isArray(state.squad) && (!targetClub || norm(state.club) === norm(targetClub))){
+    squad = state.squad;
+  }
+  if(!squad && targetClub && typeof playersForClub === 'function'){
+    try {
+      squad = playersForClub(targetClub, st?.worldGenerated || (typeof buildWorldGenerated === 'function' ? buildWorldGenerated() : []));
+    } catch(e){}
+  }
+
+  // Se o save for v2+ (ou nova carreira), calcula a folha real e assegura que os 3 patrocinadores somados cubram a folha
+  let payrollBaseMonthly = 0;
+  if(Array.isArray(squad) && squad.length > 0){
+    const monthlyPayroll = squad.reduce((sum, p) => sum + (Number(p.wage) || playerSalary(p, st) || 0), 0);
+    if(monthlyPayroll > 0){
+      // Como Master (~1.55x) + Mangas (~0.70x) + Costas (~0.68x) somam ~2.93x do baseMonthly,
+      // com divisor 2.50 qualquer combinação de 3 patrocinadores (mínimo de soma de mults = 2.55)
+      // cobre pelo menos 102% a 125% da folha salarial mensal do elenco, garantindo saúde financeira ao clube.
+      payrollBaseMonthly = Math.round((monthlyPayroll / 2.50) * (0.96 + (fame / 100) * 0.16) * mktMult * seasonFactor);
+    }
+  }
+
+  const isV2 = Boolean((st && st.salaryModelVersion >= 2) || (squadRef && (!st || st.salaryModelVersion >= 2)));
+  const baseMonthly = isV2 && payrollBaseMonthly > 0 ? Math.max(legacyBase, payrollBaseMonthly, 50000) : legacyBase;
+
+  const country = getClubCountry(targetClub, st);
   const countryPool = SPONSOR_POOLS_BY_COUNTRY[country] || SPONSOR_POOLS_BY_COUNTRY['Brasil'];
   const globalPool = SPONSOR_POOLS_BY_COUNTRY['Global'] || [];
   
@@ -1576,8 +1607,7 @@ function ensureClubSponsors(s){
   if(!s) return;
   s.sponsors = s.sponsors || {};
   const baseBudget = s.balance || 5000000;
-  const clubCountry = getClubCountry(s.club, s);
-  const offers = generateSponsorOffers(baseBudget, s.club);
+  const offers = generateSponsorOffers(baseBudget, s.club, s.squad, s);
 
   const mOff = offers.find(o => o.category === 'Master') || { brand: 'Patrocinador Master', category: 'Master', color: '#f35b04', monthly: 1850000, winBonus: 240000, years: 2, desc: 'Patrocinador Master Oficial' };
   const sOff = offers.find(o => o.category === 'Mangas') || { brand: 'Patrocínio Mangas', category: 'Mangas', color: '#10b981', monthly: 720000, winBonus: 95000, years: 2, desc: 'Mangas da Camisa' };
@@ -7935,8 +7965,106 @@ function calcValueMi(p){
 }
 window.calcValueMi = calcValueMi;
 
-function playerSalary(p){
-  if(p?.wage && Number(p.wage) > 0) return Math.round(Number(p.wage));
+const REAL_WORLD_PLAYER_SALARIES = {
+  // Top Estrelas Mundiais (Europa, MLS, Arábia)
+  'lionel messi': 12200000,
+  'messi': 12200000,
+  'cristiano ronaldo': 45000000,
+  'kylian mbappe': 15500000,
+  'mbappe': 15500000,
+  'erling haaland': 14500000,
+  'haaland': 14500000,
+  'kevin de bruyne': 11200000,
+  'de bruyne': 11200000,
+  'robert lewandowski': 12000000,
+  'lewandowski': 12000000,
+  'harry kane': 12000000,
+  'kane': 12000000,
+  'vinicius junior': 10500000,
+  'vinicius jr': 10500000,
+  'jude bellingham': 10500000,
+  'bellingham': 10500000,
+  'mohamed salah': 10500000,
+  'salah': 10500000,
+  'rodrygo': 8800000,
+  'bukayo saka': 8200000,
+  'saka': 8200000,
+  'martin odegaard': 7200000,
+  'odegaard': 7200000,
+  'declan rice': 7200000,
+  'rice': 7200000,
+  'thibaut courtois': 7000000,
+  'courtois': 7000000,
+  'alisson becker': 5500000,
+  'alisson': 5500000,
+  'ederson': 5500000,
+  'luka modric': 4800000,
+  'modric': 4800000,
+  'neymar jr': 5000000,
+  'neymar': 5000000,
+  'sergio busquets': 4200000,
+  'busquets': 4200000,
+  'rodrigo de paul': 3500000,
+  'de paul': 3500000,
+  'memphis depay': 3000000,
+  'depay': 3000000,
+  'jordi alba': 2800000,
+  'alba': 2800000,
+  'luis suarez': 2100000,
+  'suarez': 2100000,
+  'dudu': 2100000,
+  'gabriel barbosa': 2200000,
+  'gabigol': 2200000,
+  'giorgian de arrascaeta': 1800000,
+  'arrascaeta': 1800000,
+  'hulk': 1800000,
+  'yuri alberto': 1700000,
+  'nicolas de la cruz': 1600000,
+  'de la cruz': 1600000,
+  'raphael veiga': 1600000,
+  'veiga': 1600000,
+  'philippe coutinho': 1600000,
+  'coutinho': 1600000,
+  'pedro': 1500000,
+  'rafael borre': 1500000,
+  'borre': 1500000,
+  'dimitri payet': 1500000,
+  'payet': 1500000,
+  'james rodriguez': 1500000,
+  'matheus pereira': 1400000,
+  'luiz henrique': 1400000,
+  'lucas moura': 1400000,
+  'enner valencia': 1400000,
+  'thiago silva': 1300000,
+  'paulinho': 1300000,
+  'estevao': 1200000,
+  'thiago almada': 1200000,
+  'martin braithwaite': 1200000,
+  'braithwaite': 1200000,
+  'jonathan calleri': 1100000,
+  'calleri': 1100000,
+  'rodrigo garro': 1100000,
+  'garro': 1100000,
+  'alan patrick': 1100000,
+  'gerson': 1200000,
+  'leo ortiz': 1000000,
+  'jhon arias': 900000,
+  'igor jesus': 850000,
+  'pablo vegetti': 750000,
+  'vegetti': 750000,
+  'franco cristaldo': 750000,
+  'cristaldo': 750000,
+  'ganso': 650000,
+  'agustin marchesin': 600000,
+  'marchesin': 600000,
+  'federico redondo': 550000,
+  'matias rojas': 480000,
+  'diego gomez': 450000,
+  'julian gressel': 350000,
+  'benja cremaschi': 320000
+};
+
+function getLegacyPlayerSalary(p, st){
   const n = norm(p?.name || '');
   if(n === 'gustavinho') return 25000;
   if(n === 'juan rocha') return 21000;
@@ -7970,8 +8098,7 @@ function playerSalary(p){
   else if(o >= 60) base = 5800 + (o - 60) * 1400;
   else base = 2500 + Math.max(0, o - 50) * 300;
 
-  // Ajuste por divisão/nível competitivo do clube (Série A/B/C/D e Estaduais)
-  const comp = state?.compId || '';
+  const comp = st?.compId || '';
   let tierMult = 1.0;
   if(comp.startsWith('bra-est-') || comp === 'bra-d') tierMult = 0.35;
   else if(comp === 'bra-c') tierMult = 0.52;
@@ -7979,6 +8106,55 @@ function playerSalary(p){
 
   const delta = (hashStr(p?.name || '') % 21) - 10;
   return Math.max(1800, Math.round(((base * tierMult) * (1 + delta / 100)) / 100) * 100);
+}
+
+function playerSalary(p, stateRef){
+  if(p?.wage && Number(p.wage) > 0) return Math.round(Number(p.wage));
+  const st = stateRef || (typeof state !== 'undefined' ? state : null);
+
+  // REGRA CRÍTICA DE PROTEÇÃO DE SAVES EXISTENTES:
+  // Se for um save legado em andamento (salaryModelVersion < 2), preserva a escala original do save para não inflacionar despesas
+  if(st && st.salaryModelVersion && st.salaryModelVersion < 2){
+    return getLegacyPlayerSalary(p, st);
+  }
+
+  const n = norm(p?.name || '');
+  if(REAL_WORLD_PLAYER_SALARIES[n]) return REAL_WORLD_PLAYER_SALARIES[n];
+  const parts = n.split(/\s+/);
+  if(parts.length > 1 && REAL_WORLD_PLAYER_SALARIES[parts[parts.length - 1]]) {
+    return REAL_WORLD_PLAYER_SALARIES[parts[parts.length - 1]];
+  }
+
+  const o = playerOverall(p);
+  let base;
+  if(o >= 91) base = 12000000 + (o - 91) * 3500000;
+  else if(o >= 87) base = 5500000 + (o - 87) * 1500000;
+  else if(o >= 83) base = 2000000 + (o - 83) * 800000;
+  else if(o >= 79) base = 800000 + (o - 79) * 280000;
+  else if(o >= 75) base = 320000 + (o - 75) * 110000;
+  else if(o >= 70) base = 90000 + (o - 70) * 42000;
+  else if(o >= 65) base = 25000 + (o - 65) * 12000;
+  else if(o >= 60) base = 9000 + (o - 60) * 3000;
+  else base = 3500 + Math.max(0, o - 50) * 500;
+
+  // Ajuste por divisão/nível competitivo e continente
+  const comp = String(p?.comp || p?.compId || st?.compId || '');
+  const cCountry = p?.country || (typeof getClubCountry === 'function' ? getClubCountry(p?.club || st?.club, st) : 'Brasil');
+  let tierMult = 1.0;
+  if(cCountry === 'Inglaterra' || comp.startsWith('eng-')) tierMult = 1.45;
+  else if(cCountry === 'Espanha' || comp.startsWith('esp-')) tierMult = 1.35;
+  else if(cCountry === 'Arábia Saudita' || comp.startsWith('ksa-')) tierMult = 2.10;
+  else if(cCountry === 'Estados Unidos' || comp.startsWith('usa-')) tierMult = 1.15;
+  else if(comp.startsWith('bra-est-') || comp === 'bra-d') tierMult = 0.22;
+  else if(comp === 'bra-c') tierMult = 0.38;
+  else if(comp === 'bra-b') tierMult = 0.60;
+
+  const delta = (hashStr(p?.name || '') % 21) - 10;
+  return Math.max(3000, Math.round(((base * tierMult) * (1 + delta / 100)) / 100) * 100);
+}
+if(typeof window !== 'undefined'){
+  window.playerSalary = playerSalary;
+  window.REAL_WORLD_PLAYER_SALARIES = REAL_WORLD_PLAYER_SALARIES;
 }
 
 function playerContractUntil(p){
@@ -8569,12 +8745,13 @@ function playersForClub(club,worldGenerated){
 }
 
 function stablePlayer(p){
-  const o = playerOverall(p); const wage = playerSalary(p);
+  const o = playerOverall(p);
+  const wage = (typeof p?.wage === 'number' && p.wage > 0) ? Math.round(p.wage) : playerSalary(p, typeof state !== 'undefined' ? state : null);
   const contractUntil = playerContractUntil(p);
   return {...p, marketKey:playerKey(p), ovr:o, overall:o, value:calcValueMi(p), wage, contractUntil};
 }
 function totalMonthlyPayroll(){
-  return (state?.squad || []).reduce((acc, p) => acc + playerSalary(p), 0);
+  return (state?.squad || []).reduce((acc, p) => acc + ((typeof p?.wage === 'number' && p.wage > 0) ? p.wage : playerSalary(p, state)), 0);
 }
 function payrollPerRound(){
   return Math.round(totalMonthlyPayroll() / 4);
@@ -10531,9 +10708,32 @@ function newCareer(data){
   const targetCompId = compById(data.compId) ? data.compId : (getClubPrimaryCompetitionId(data.clubName, data.compId) || data.compId);
   const comp=compById(targetCompId)||compById(data.compId);if(!comp)return;const club=clubByName(data.clubName)||{name:data.clubName,country:comp.country,competition:comp.name,atk:compBaseStrength(comp),mid:compBaseStrength(comp),def:compBaseStrength(comp),budget:5,stadium:'Estádio Municipal'};
   const careerCompetitionTeams = clone(BASE_COMPETITION_TEAMS || window.COMPETITION_TEAMS || teamMap || {});
-  const compClubs=competitionClubs(comp,club.name,careerCompetitionTeams);const schedule=buildSchedule(comp,compClubs.map(x=>x.name));const worldGenerated=buildWorldGenerated();const squad=playersForClub(club.name,worldGenerated);const budget=Math.max(250000,(club.budget||5)*1e6);
-  
-  const sponsorOffers = generateSponsorOffers(budget, club.name);
+  const compClubs=competitionClubs(comp,club.name,careerCompetitionTeams);const schedule=buildSchedule(comp,compClubs.map(x=>x.name));const worldGenerated=buildWorldGenerated();
+  const rawSquad=playersForClub(club.name,worldGenerated);
+
+  // Inicializa o elenco com dados e salários reais congelados no save (salaryModelVersion: 2)
+  const squad = rawSquad.map(p => {
+    const o = playerOverall(p);
+    const wage = playerSalary(p, { salaryModelVersion: 2, club: club.name, compId: comp.id });
+    const contractUntil = playerContractUntil(p);
+    return {
+      ...p,
+      ovr: o,
+      overall: o,
+      value: calcValueMi(p),
+      wage,
+      contractUntil,
+      marketKey: playerKey(p),
+      club: club.name,
+      owned: true
+    };
+  });
+
+  const startingPayroll = squad.reduce((sum, p) => sum + (Number(p.wage) || 0), 0);
+  // Garante que o orçamento inicial em caixa cubra com folga pelo menos 2.5 meses de folha salarial
+  const budget = Math.max(250000, (club.budget || 5) * 1e6, Math.round(startingPayroll * 2.5));
+
+  const sponsorOffers = generateSponsorOffers(budget, club.name, squad, { salaryModelVersion: 2, club: club.name, compId: comp.id });
   const activeSponsors = {
     master: sponsorOffers.find(o => o.category === 'Master') || sponsorOffers[0],
     sleeves: sponsorOffers.find(o => o.category === 'Mangas') || sponsorOffers[1],
@@ -10551,6 +10751,7 @@ function newCareer(data){
     userSlot: targetSlot,
     userOwner: targetOwner,
     version:4,
+    salaryModelVersion: 2,
     manager:mgrName,
     managerSalary: (club.budget || 5) > 15 ? 75000 : 45000,
     club:club.name,
@@ -11111,6 +11312,9 @@ window.repairSaveIfCorrupted = repairSaveIfCorrupted;
 function migrate(s){
   if(!s)return null;
   s.version=4;
+  if(typeof s.salaryModelVersion !== 'number'){
+    s.salaryModelVersion = 1; // Preserva saves existentes no modelo legado sem inflacionar salários ou alterar elencos
+  }
   // Never hydrate career-specific rosters back into the global catalog. Older
   // saves may contain promotions/relegations; keep them isolated to their save.
   if(!s.competitionTeams || typeof s.competitionTeams !== 'object'){
@@ -11120,7 +11324,7 @@ function migrate(s){
   s.playerMoves=s.playerMoves||{};
   s.worldGenerated=s.worldGenerated||buildWorldGenerated();
   s.squad=(Array.isArray(s.squad)?s.squad:[]).filter(p=>p && typeof p==='object' && (p.name || p.id || p.marketKey)).map(stablePlayer);
-  if(Array.isArray(s.squad) && typeof window.LIVE_PLAYERS !== 'undefined' && Array.isArray(window.LIVE_PLAYERS)){
+  if(s.salaryModelVersion >= 2 && Array.isArray(s.squad) && typeof window.LIVE_PLAYERS !== 'undefined' && Array.isArray(window.LIVE_PLAYERS)){
     const liveMap = new Map();
     const liveClubMap = new Map();
     window.LIVE_PLAYERS.forEach(lp => { 
@@ -11157,7 +11361,7 @@ function migrate(s){
         }
       }
     });
-    // Se o save estiver no início da 1ª temporada (até rodada 2), sincroniza novos reforços reais e saídas
+    // Se o save for v2+ e estiver no início da 1ª temporada (até rodada 2), sincroniza novos reforços reais e saídas
     if(isInitSeason && (Number(s.round) || 0) <= 2 && s.club){
       s.squad = s.squad.filter(p => {
         if(!p || !p.name) return true;
@@ -11317,6 +11521,9 @@ function migrate(s){
     s.currentDateFormatted = formatDatePtBr(s.date);
   }
   return s;
+}
+if(typeof window !== 'undefined'){
+  window.migrate = migrate;
 }
 
 // -------------------------------------------------------------
