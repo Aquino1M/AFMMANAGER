@@ -24881,10 +24881,10 @@ function squadPage(){
           <tbody>
             ${ps.map(p=>`
               <tr>
-                <td style="width:46px;text-align:center">${playerPhoto(p, 36)}</td>
+                <td style="width:46px;text-align:center;cursor:pointer" class="btn-lupa-details" data-key="${esc(playerKey(p))}" onclick="if(window.AFM_MarketLupaAndAging)window.AFM_MarketLupaAndAging.openPlayerDetails(this)" title="Ver ficha técnica de ${esc(p.name)}">${playerPhoto(p, 36)}</td>
                 <td style="width:42px;text-align:center"><button class="btn btn-sm btn-subtle" onclick="openSquadShirtNumbersModal('${esc(typeof playerKey === 'function' ? playerKey(p) : p.name)}')" title="Alterar camisa de ${esc(p.name)}" style="padding:2px 7px;font-size:12px;font-weight:900;border-radius:6px;min-width:32px;color:#38bdf8;border:1px solid rgba(56,189,248,0.3)">#${p.number || '-'}</button></td>
                 <td>
-                  <b>${esc(p.name)}</b>
+                  <b style="cursor:pointer" class="btn-lupa-details" data-key="${esc(playerKey(p))}" onclick="if(window.AFM_MarketLupaAndAging)window.AFM_MarketLupaAndAging.openPlayerDetails(this)" title="Ver ficha técnica de ${esc(p.name)}">${esc(p.name)}</b>
                   ${p.injury ? `<span class="pill bad" style="font-size:9px;padding:1px 5px" title="${esc(p.injury)} (${p.injuryMatches} jogos)">🚑 ${p.injuryMatches}j</span>` : ''}
                   ${p.suspended > 0 ? `<span class="pill bad" style="font-size:9px;padding:1px 5px" title="Suspenso por cartões">🟥 ${p.suspended}j</span>` : (p.yellowCards > 0 ? `<span class="pill" style="font-size:9px;padding:1px 5px;background:rgba(234,179,8,0.2);color:#facc15" title="${p.yellowCards} cartão amarelo">🟨 ${p.yellowCards}</span>` : '')}
                   ${(p.morale || 75) >= 90 ? `<span class="pill good" style="font-size:9px;padding:1px 4px" title="Moral em alta">⭐</span>` : ((p.morale || 75) <= 50 ? `<span class="pill bad" style="font-size:9px;padding:1px 4px" title="Moral baixa">⚠️</span>` : '')}
@@ -24906,7 +24906,8 @@ function squadPage(){
                 </td>
                 <td>${fmtMi(calcValueMi(p))}</td>
                 <td>
-              <div style="display:flex;gap:5px;flex-wrap:wrap">
+              <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+                <button type="button" class="btn btn-lupa-details btn-lupa-squad" data-key="${esc(playerKey(p))}" onclick="if(window.AFM_MarketLupaAndAging)window.AFM_MarketLupaAndAging.openPlayerDetails(this)" title="Ver ficha técnica e atributos reais de ${esc(p.name)}" style="background:#3b1d7a;color:#fff;border:1px solid #a78bfa;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:12px;line-height:1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(124,58,237,0.3);flex-shrink:0;">🔍</button>
                 ${p.isLoan ? `<button class="btn btnManageLoanRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">🤝 Negociar c/ detentor</button>` : `
                   <button class="btn btnRenewContractRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">📝 Renovar contrato</button>
                   <button class="btn open-transfer-modal ${isPlayerTransferListed(p)?'warn':isPlayerLoanListed(p)?'primary':''}" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">${isPlayerTransferListed(p)?'🏷️ Gerenciar Venda':isPlayerLoanListed(p)?'🤝 Gerenciar Empréstimo':'📄 Propostas / Vender'}</button>
@@ -32173,6 +32174,15 @@ function bind(){
       openBorrowedPlayerManagementModal(player);
     });
     $$('.open-transfer-modal').forEach(b => b.onclick = () => openPlayerTransferModal(b.dataset.key));
+    $$('.btn-lupa-details').forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.openPlayerDetails === 'function') {
+          window.AFM_MarketLupaAndAging.openPlayerDetails(b);
+        }
+      };
+    });
   }
 
   if(view==='mercado'){

@@ -35,6 +35,9 @@
     if (searchKey && typeof window.findGlobalPlayerByKey === 'function') {
       p = window.findGlobalPlayerByKey(searchKey);
     }
+    if (!p && searchKey && typeof window.findSquadPlayerByKey === 'function') {
+      p = window.findSquadPlayerByKey(searchKey);
+    }
 
     // 4. Busca direta em todos os repositórios em memória
     if (!p && searchKey) {
@@ -81,9 +84,9 @@
         if (!nameTd) nameTd = tds[0];
         const domName = (nameTd?.querySelector('b')?.innerText || nameTd?.innerText || '').trim();
 
-        // Localiza célula do clube
-        const clubTd = tds.find(td => td.querySelector('.club-cell')) || tds[1];
-        const domClub = (clubTd?.querySelector('.club-cell')?.innerText || clubTd?.innerText || '').replace(/[\r\n\t]+/g, ' ').trim();
+        // Localiza célula do clube (se for elenco próprio sem célula de clube, usa o clube ativo do save)
+        const clubTd = tds.find(td => td.querySelector('.club-cell'));
+        const domClub = (clubTd ? (clubTd.querySelector('.club-cell')?.innerText || clubTd.innerText) : (window.state?.club || 'Meu Clube')).replace(/[\r\n\t]+/g, ' ').trim();
 
         // Localiza posição tática
         const posTd = tds.find(td => td.querySelector('.pill') && /^(GK|GOL|CB|ZAG|LB|RB|LAT|LD|LE|DM|VOL|CM|MC|AM|MEI|LW|RW|PD|PE|ST|CF|ATA|CA)$/i.test((td.querySelector('.pill')?.innerText || '').trim()));
@@ -123,6 +126,9 @@
 
     // Sincroniza e enriquece atributos autênticos de fotos, tmId e ratings globais
     if (p) {
+      if (!p.club && window.state?.club) {
+        p.club = window.state.club;
+      }
       const pNorm = norm(p.name);
       const cNorm = norm(p.club);
       const liveList = window.LIVE_PLAYERS || window.livePlayers || [];
@@ -694,7 +700,7 @@
       // Injeta listener em todos os botões de ação e botões lupa já presentes no mercado
       app.querySelectorAll('button').forEach((btn) => {
         const txt = (btn.textContent || '').trim();
-        const isMarketActionBtn = /^(Comprar|Sem caixa|Janela Fechada|Negociar|Contratar|Fazer Proposta|Negociar Empréstimo|Negociar Jogador)$/i.test(txt);
+        const isMarketActionBtn = /^(Comprar|Sem caixa|Janela Fechada|Negociar|Contratar|Fazer Proposta|Negociar Empréstimo|Negociar Jogador|Renovar contrato|Propostas \/ Vender|Gerenciar Venda|Gerenciar Empréstimo|Negociar c\/ detentor)$/i.test(txt);
         if (!isMarketActionBtn) return;
 
         const cell = btn.parentElement;
@@ -789,7 +795,14 @@
     }
   };
 
-  document.addEventListener('click', () => {
+  document.addEventListener('click', (e) => {
+    const lupaBtn = e.target.closest ? e.target.closest('.btn-lupa-details') : null;
+    if (lupaBtn) {
+      e.stopPropagation();
+      e.preventDefault();
+      MarketLupaAgingAndRegens.openPlayerDetails(lupaBtn);
+      return;
+    }
     setTimeout(() => MarketLupaAgingAndRegens.injectLupaButtonsInMarketDOM(), 60);
   });
 
