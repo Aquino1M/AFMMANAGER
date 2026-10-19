@@ -258,6 +258,9 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const customClass = opts.customClass || '';
   const ovrColor = isIncompatible ? 'color:#f87171;' : (isAdapted ? 'color:#fde047;' : (ovrDiff < 0 ? 'color:#fca5a5;' : ''));
 
+  const savedRole = opts.roleDef || (pk && state?.tactics?.playerRoles?.[pk]?.roleId) || (p?.name && state?.tactics?.playerRoles?.[p.name]?.roleId);
+  const curRoleDef = getPlayerRoleDef(role, savedRole);
+
   return `
     <div class="fifa-mini-card ${tierClass} ${isSelected ? 'selected selected-glow' : ''} ${isAdapted ? 'slot-adapted' : ''} ${isIncompatible ? 'slot-incompatible' : ''} ${customClass}" 
          style="left:${x}%;top:${y}%;" 
@@ -265,7 +268,7 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
          data-slot-role="${esc(role)}" 
          data-player-key="${esc(pk)}" 
          data-starterkey="${esc(pk)}" 
-         title="${p ? `${esc(p.name)} (${esc(pos)}) • OVR ${ovr}${ovrDiff < 0 ? ` (${ovrDiff} fora de posição: ${fit})` : ''}` : 'Slot Vazio'}">
+         title="${p ? `${esc(p.name)} (${esc(pos)}) • OVR ${ovr} • Função: ${esc(curRoleDef?.name || role)} (${esc(curRoleDef?.focus || 'Balanced')})${ovrDiff < 0 ? ` (${ovrDiff} fora de posição: ${fit})` : ''}` : 'Slot Vazio'}">
       
       <!-- Topo: OVR, POS e Escudo -->
       <div class="fifa-mini-card-top">
@@ -293,11 +296,16 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
              onerror="this.onerror=null;this.src='${fallbackUrl}';" />
       </div>
 
-      <!-- Base: Nome do Atleta e Barra de Stamina -->
+      <!-- Base: Nome do Atleta, Função Tática e Barra de Stamina -->
       <div class="fifa-mini-card-bottom">
         <div class="fifa-mini-card-name">
           ${esc(shortName)}
         </div>
+        ${curRoleDef?.name ? `
+          <div class="fifa-mini-card-role" title="Função: ${esc(curRoleDef.name)}" style="font-size:7.5px;font-weight:900;color:#38bdf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin-top:1px;line-height:1;background:rgba(15,23,42,0.85);border-radius:3px;padding:1px 3px;border:1px solid rgba(56,189,248,0.3)">
+            ${esc(curRoleDef.name)}
+          </div>
+        ` : ''}
         ${isHalftime ? `
           <div class="fifa-mini-card-stamina" title="Energia: ${stamina}%">
             <div class="fifa-mini-card-stamina-fill ${staminaClass}" style="width:${stamina}%"></div>
@@ -692,8 +700,28 @@ const TACTICAL_ROLES = {
   ]
 };
 
+function normTacticalPos(pos){
+  const p = String(pos || 'CM').toUpperCase().trim();
+  const map = {
+    'GL': 'GK', 'GOL': 'GK', 'GOAL': 'GK',
+    'ZAG': 'CB', 'DF': 'CB', 'ZAGU': 'CB',
+    'LE': 'LB', 'LWB': 'LB',
+    'LD': 'RB', 'RWB': 'RB',
+    'VOL': 'DM', 'CDM': 'DM',
+    'MC': 'CM', 'MF': 'CM',
+    'MEI': 'AM', 'CAM': 'AM',
+    'ME': 'LM',
+    'MD': 'RM',
+    'PE': 'LW',
+    'PD': 'RW',
+    'ATA': 'ST', 'CA': 'ST', 'CF': 'ST', 'FW': 'ST'
+  };
+  return map[p] || p;
+}
+window.normTacticalPos = normTacticalPos;
+
 function getPlayerRoleDef(pos, roleIdOrName){
-  const cleanPos = String(pos || 'CM').toUpperCase().trim();
+  const cleanPos = normTacticalPos(pos);
   const list = TACTICAL_ROLES[cleanPos] || TACTICAL_ROLES['CM'] || [];
   if(!roleIdOrName) return list[0] || { id: 'std', role: 'Padrao', focus: 'Balanced', name: 'Padrão' };
   const r = typeof roleIdOrName === 'object' 
@@ -704,6 +732,7 @@ function getPlayerRoleDef(pos, roleIdOrName){
   const foundCi = list.find(x => norm(x.id) === norm(r) || norm(x.role) === norm(r) || norm(x.name) === norm(r));
   return foundCi || list[0] || { id: 'std', role: 'Padrao', focus: 'Balanced', name: 'Padrão' };
 }
+window.getPlayerRoleDef = getPlayerRoleDef;
 
 const FC27_PRESETS = {
   '4-2-3-1': {
@@ -883,12 +912,6 @@ const FC27_PRESETS = {
   }
 };
 
-function getPlayerRoleDef(pos, roleIdOrName){
-  const list = TACTICAL_ROLES[pos] || TACTICAL_ROLES['CM'] || [];
-  if(!roleIdOrName) return list[0];
-  const found = list.find(r => r.id === roleIdOrName || norm(r.role) === norm(roleIdOrName) || norm(r.name) === norm(roleIdOrName));
-  return found || list[0];
-}
 
 function ensureTacticsState(s){
   if(!s) return;
@@ -8866,16 +8889,18 @@ function parkingSpots(lvl){
   return table[lvl] || (lvl * 2500);
 }
 
-function recommendedTicketPrice(){const c=clubByName(state?.club);return Math.round(clamp(18+(strength(c)-58)*1.7,15,130))}
-function formationSlots(){return FORMATIONS[state?.formation]||FORMATIONS['4-3-3']}
+function recommendedTicketPrice(){const st=state||window.state||{};const c=clubByName(st.club);return Math.round(clamp(18+(strength(c)-58)*1.7,15,130))}
+function formationSlots(){const st=state||window.state||{};return FORMATIONS[st.formation]||FORMATIONS['4-3-3']}
 
 // =========================================================================
 // MATRIZ DE APTIDÃO TÁTICA (getPositionFit) — AFM MANAGER 2027
 // =========================================================================
 function getPositionFit(playerRole, slotRole){
   if(!playerRole || !slotRole) return 'INCOMPATÍVEL';
-  const p = String(playerRole).split(',')[0].trim().toUpperCase();
-  const s = String(slotRole).trim().toUpperCase();
+  const rawP = String(playerRole).split(',')[0].trim().toUpperCase();
+  const rawS = String(slotRole).trim().toUpperCase();
+  const p = typeof normTacticalPos === 'function' ? normTacticalPos(rawP) : rawP;
+  const s = typeof normTacticalPos === 'function' ? normTacticalPos(rawS) : rawS;
 
   // NOTA: Goleiro (GK) NUNCA é adaptado em posição de linha e vice-versa.
   if(p === 'GK' || s === 'GK'){
@@ -8918,9 +8943,12 @@ function getPositionFit(playerRole, slotRole){
 window.getPositionFit = getPositionFit;
 
 function compatibleScore(p, role){
-  const pPos = String(p?.pos || '').trim().toUpperCase();
-  const sRole = String(role || '').trim().toUpperCase();
-  if(!pPos || !sRole || pPos === sRole) return 0;
+  const rawP = String(p?.pos || '').trim().toUpperCase();
+  const rawS = String(role || '').trim().toUpperCase();
+  if(!rawP || !rawS) return 0;
+  const pPos = typeof normTacticalPos === 'function' ? normTacticalPos(rawP) : rawP;
+  const sRole = typeof normTacticalPos === 'function' ? normTacticalPos(rawS) : rawS;
+  if(pPos === sRole) return 0;
 
   // Goleiro na linha ou jogador de linha no gol: penalidade controlada (-8)
   if(sRole === 'GK' && pPos !== 'GK') return -8;
@@ -9081,6 +9109,25 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
             <span class="hud-player-pos">${esc(inspectPos)}</span>
             <span class="hud-player-chem">◆ ◆ ◆</span>
           </div>
+          ${(() => {
+            const inspectPk = inspectPlayer ? (opts.isHalftime && inspectPlayer.key ? inspectPlayer.key : (typeof playerKey === 'function' ? playerKey(inspectPlayer) : (inspectPlayer.id || inspectPlayer.name))) : '';
+            const inspectSavedRole = (inspectPk && state?.tactics?.playerRoles?.[inspectPk]?.roleId) || (inspectPlayer?.name && state?.tactics?.playerRoles?.[inspectPlayer.name]?.roleId);
+            const inspectRoleDef = getPlayerRoleDef(inspectSlotRole, inspectSavedRole);
+            const inspectFocus = (inspectPk && state?.tactics?.playerRoles?.[inspectPk]?.focus) || inspectRoleDef.focus || 'Balanced';
+            return `
+              <div style="margin-top:3px;display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+                <span class="pill" style="font-size:9px;background:rgba(56,189,248,0.2);color:#38bdf8;padding:1px 6px;border:1px solid rgba(56,189,248,0.4)" title="Função Tática Atribuída">🎯 ${esc(inspectRoleDef.name || inspectSlotRole)}</span>
+                <span class="pill" style="font-size:9px;background:rgba(192,132,252,0.2);color:#c084fc;padding:1px 5px" title="Foco Tático">${esc(inspectFocus)}</span>
+              </div>
+              ${inspectPlayer ? `
+                <div style="margin-top:4px">
+                  <button type="button" class="btn btn-sm btnChangePlayerPosPitch" onclick="openPlayerChangePositionModal('${esc(inspectPk)}')" style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:4px;background:#1e1838;color:#c084fc;border:1px solid rgba(192,132,252,0.4);cursor:pointer;display:inline-flex;align-items:center;gap:3px" title="Personalizar posição oficial de ${esc(inspectShortName)}">
+                    <span>✏️ Mudar Posição</span>
+                  </button>
+                </div>
+              ` : ''}
+            `;
+          })()}
         </div>
       </div>
     </div>
@@ -9098,6 +9145,10 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
       const chemScore = !p ? 0 : (fit === 'IDEAL' ? 3 : (fit === 'ADAPTADA' ? 2 : 1));
       const pedestalRole = formatPedestalRole(slotRole);
 
+      const slotSavedRole = (pk && state?.tactics?.playerRoles?.[pk]?.roleId) || (p?.name && state?.tactics?.playerRoles?.[p.name]?.roleId);
+      const slotRoleDef = getPlayerRoleDef(slotRole, slotSavedRole);
+      const slotFocus = (pk && state?.tactics?.playerRoles?.[pk]?.focus) || slotRoleDef.focus || 'Balanced';
+
       return `
         <div class="pitch-slot-dropzone ${isSelected ? 'selected' : ''}"
              id="pitchSlot_${idx}"
@@ -9105,11 +9156,12 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
              data-slot-index="${idx}"
              data-slot-role="${esc(slotRole)}"
              data-player-key="${esc(pk)}"
-             title="${p ? `${esc(p.name)} (${esc(p.pos)})` : 'Slot Vazio'}">
+             title="${p ? `${esc(p.name)} (${esc(p.pos)}) • Função: ${esc(slotRoleDef.name || slotRole)} (${esc(slotFocus)})` : 'Slot Vazio'}">
           ${renderFifaMiniCard(p, { index: idx, role: slotRole, x: 50, y: 50 }, {
             isSelected: isSelected,
             isHalftime: isHalftime,
-            customClass: 'slot-card-inner'
+            customClass: 'slot-card-inner',
+            roleDef: slotRoleDef
           })}
           <!-- Brackets de Mira Ciano Estilo EA FC (Ativo ao Selecionar) -->
           <div class="fut-target-brackets">
@@ -9118,9 +9170,14 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
             <span class="tb tb-bl"></span>
             <span class="tb tb-br"></span>
           </div>
-          <!-- Pedestal Oval com Posição e Diamantes de Entrosamento -->
-          <div class="pitch-slot-pedestal ${isSelected ? 'selected' : ''}">
-            <span class="pedestal-role">${esc(pedestalRole)}</span>
+          <!-- Pedestal Oval com Posição, Função Tática e Diamantes de Entrosamento -->
+          <div class="pitch-slot-pedestal ${isSelected ? 'selected' : ''}" style="min-width:76px;padding:3px 6px">
+            <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1;margin-bottom:2px">
+              <span class="pedestal-role" style="font-size:9.5px;max-width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(pedestalRole)} · ${esc(slotRoleDef.name || '')}">
+                ${esc(pedestalRole)}${slotRoleDef.name ? ` · <b style="color:#38bdf8;font-size:8.5px">${esc(slotRoleDef.name)}</b>` : ''}
+              </span>
+              <span class="pedestal-focus" style="font-size:7.5px;color:#c084fc;font-weight:800;letter-spacing:0.3px">${esc(slotFocus)}</span>
+            </div>
             <div class="pedestal-chem" title="Entrosamento: ${chemScore}/3">
               <span class="chem-diamond ${chemScore >= 1 ? 'active' : ''}">◆</span>
               <span class="chem-diamond ${chemScore >= 2 ? 'active' : ''}">◆</span>
@@ -9449,7 +9506,7 @@ function optimizeLineup(){
   state.lineup = autoPickBestLineup(state.squad, state.formation || '4-3-3');
 }
 
-function lineupPlayer(i){const k=state.lineup?.[i];return state.squad.find(p=>playerKey(p)===k)}
+function lineupPlayer(i){const st=state||window.state;const k=st?.lineup?.[i];return (st?.squad||[]).find(p=>playerKey(p)===k)}
 function lineupSector(){
   const vals={atk:[],mid:[],def:[]};
   formationSlots().forEach((s,i)=>{
@@ -9459,8 +9516,8 @@ function lineupSector(){
   const avg=a=>a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length):55;
   return {atk:avg(vals.atk),mid:avg(vals.mid),def:avg(vals.def)};
 }
-function overallSquad(){const x=lineupSector();return Math.round((x.atk+x.mid+x.def)/3)}
-function teamStrengthByName(name){if(norm(name)===norm(state.club))return overallSquad();return state.teams.find(t=>norm(t.name)===norm(name))?.strength||strength(clubByName(name)||{atk:66,mid:66,def:66})}
+function overallSquad(){const st=state||window.state;if(!st?.squad)return 68;const x=lineupSector();return Math.round((x.atk+x.mid+x.def)/3)}
+function teamStrengthByName(name){const st=state||window.state||{};if(norm(name)===norm(st.club))return overallSquad();return (st.teams||[]).find(t=>norm(t.name)===norm(name))?.strength||strength(clubByName(name)||{atk:66,mid:66,def:66})}
 
 // =========================================================================
 // CONFIGURAÇÃO CENTRAL DAS JANELAS DE TRANSFERÊNCIA ANUAIS
@@ -9935,6 +9992,186 @@ if(typeof window !== 'undefined'){
   window.assignTraditionalShirtNumbers = assignTraditionalShirtNumbers;
   window.openSquadShirtNumbersModal = openSquadShirtNumbersModal;
 }
+
+function openPlayerChangePositionModal(playerKeyOrName){
+  if(typeof state === 'undefined' || !Array.isArray(state.squad)) return;
+  const squad = state.squad.filter(Boolean);
+  const p = squad.find(x => (typeof playerKey === 'function' ? playerKey(x) : x.name) === playerKeyOrName || x.name === playerKeyOrName || x.key === playerKeyOrName);
+  if(!p) {
+    if(typeof toast === 'function') toast('Jogador não encontrado no elenco do clube!');
+    return;
+  }
+
+  const existingModal = document.getElementById('afmPlayerChangePositionModal');
+  if(existingModal) existingModal.remove();
+
+  const POSITIONS_BY_SECTOR = [
+    {
+      sector: 'Goleiro',
+      color: '#f59e0b',
+      positions: [
+        { code: 'GK', label: 'Goleiro (GL / GK)', desc: 'Guardião da meta, responsável por defesas e reposição rápida.' }
+      ]
+    },
+    {
+      sector: 'Defesa',
+      color: '#3b82f6',
+      positions: [
+        { code: 'CB', label: 'Zagueiro Central (ZAG / CB)', desc: 'Protege a área, combate aéreo e desarme.' },
+        { code: 'LB', label: 'Lateral Esquerdo (LE / LB)', desc: 'Marcação pelo flanco esquerdo e apoio ofensivo.' },
+        { code: 'RB', label: 'Lateral Direito (LD / RB)', desc: 'Marcação pelo flanco direito e apoio ofensivo.' }
+      ]
+    },
+    {
+      sector: 'Meio-Campo',
+      color: '#10b981',
+      positions: [
+        { code: 'DM', label: 'Volante / Primeiro Volante (VOL / DM)', desc: 'Combate e interceptação à frente da zaga, saída limpa.' },
+        { code: 'CM', label: 'Meia Central (MC / CM)', desc: 'Construção equilibrada, transição defesa-ataque.' },
+        { code: 'AM', label: 'Meia Armador / Articulador (MEI / AM)', desc: 'Visão de jogo, último passe e chutes da entrada da área.' },
+        { code: 'LM', label: 'Meia Esquerda Aberto (ME / LM)', desc: 'Amplitude pela esquerda, recomposição e cruzamentos.' },
+        { code: 'RM', label: 'Meia Direita Aberto (MD / RM)', desc: 'Amplitude pela direita, recomposição e cruzamentos.' }
+      ]
+    },
+    {
+      sector: 'Ataque',
+      color: '#ef4444',
+      positions: [
+        { code: 'LW', label: 'Ponta Esquerda (PE / LW)', desc: 'Drible, velocidade e finalização em diagonal.' },
+        { code: 'RW', label: 'Ponta Direita (PD / RW)', desc: 'Drible, velocidade e cruzamentos afiados.' },
+        { code: 'ST', label: 'Centroavante / Atacante (ATA / ST)', desc: 'Referência ofensiva, presença de área e poder de gol.' }
+      ]
+    }
+  ];
+
+  const currentPosNorm = String(p.pos || '').trim().toUpperCase();
+  const currentPosDisplay = typeof formatPedestalRole === 'function' ? formatPedestalRole(currentPosNorm) : currentPosNorm;
+  const photo = typeof resolvePlayerPhotoUrl === 'function' ? resolvePlayerPhotoUrl(p) : (p.photo || 'img/players/default_avatar.svg');
+  const ovr = typeof playerOverall === 'function' ? playerOverall(p) : (p.overall || 65);
+
+  const modalHtml = `
+    <div id="afmPlayerChangePositionModal" class="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px);font-family:system-ui,-apple-system,sans-serif">
+      <div class="modal-card" style="background:#0f172a;border:1px solid #7c3aed;border-radius:20px;max-width:680px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.8),0 0 30px rgba(124,58,237,0.3);overflow:hidden;animation:afmFadeIn 0.2s ease-out">
+        
+        <!-- Header -->
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;background:#1e1b4b">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:24px">📍</span>
+            <div>
+              <h2 style="margin:0;font-size:17px;font-weight:900;color:#f8fafc">Personalizar Posição do Jogador</h2>
+              <div style="font-size:12px;color:#cbd5e1">Escolha a nova posição oficial deste atleta para o seu esquema tático.</div>
+            </div>
+          </div>
+          <button class="btn btn-subtle" onclick="document.getElementById('afmPlayerChangePositionModal').remove()" style="padding:6px 12px;font-size:16px;cursor:pointer;color:#94a3b8">✕</button>
+        </div>
+
+        <!-- Perfil do Atleta -->
+        <div style="padding:14px 20px;background:#13112c;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:48px;height:48px;border-radius:12px;background:#1e293b;border:1px solid #3b82f6;overflow:hidden;display:flex;align-items:center;justify-content:center">
+              <img src="${photo}" style="width:100%;height:100%;object-fit:cover" onerror="this.onerror=null;this.src='img/players/default_avatar.svg'">
+            </div>
+            <div>
+              <div style="font-size:16px;font-weight:900;color:#fff">${esc(p.name)}</div>
+              <div style="font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:8px;margin-top:2px">
+                <span>OVR: <b style="color:#facc15">${ovr}</b></span>
+                <span>Idade: <b>${p.age || '-'} anos</b></span>
+                <span>Clube: <b style="color:#38bdf8">${esc(p.club || state.club || '')}</b></span>
+              </div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <span style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);text-transform:uppercase">Posição Atual:</span>
+            <div style="display:inline-flex;align-items:center;gap:6px;background:#2e1065;border:1px solid #7c3aed;padding:4px 10px;border-radius:8px;margin-left:6px">
+              <b style="color:#c084fc;font-size:13px">${currentPosDisplay} (${currentPosNorm})</b>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grade de Posições por Setor -->
+        <div style="flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:16px">
+          ${POSITIONS_BY_SECTOR.map(sec => `
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${sec.color}"></span>
+                <span style="font-size:11px;font-weight:900;color:${sec.color};text-transform:uppercase;letter-spacing:0.5px">${sec.sector}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:8px">
+                ${sec.positions.map(posItem => {
+                  const isCurrent = (currentPosNorm === posItem.code || currentPosDisplay === formatPedestalRole(posItem.code));
+                  return `
+                    <button type="button" 
+                            class="btn-select-custom-pos"
+                            data-pos-code="${posItem.code}"
+                            style="text-align:left;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid ${isCurrent ? '#a855f7' : 'rgba(255,255,255,0.08)'};background:${isCurrent ? 'linear-gradient(135deg, #4c1d95, #2e1065)' : '#16192e'};color:#fff;transition:all 0.15s ease"
+                            onmouseover="if(!${isCurrent}){this.style.background='#1f2442';this.style.borderColor='rgba(255,255,255,0.2)'}"
+                            onmouseout="if(!${isCurrent}){this.style.background='#16192e';this.style.borderColor='rgba(255,255,255,0.08)'}">
+                      <div style="display:flex;justify-content:space-between;align-items:center">
+                        <b style="font-size:13px;color:${isCurrent ? '#facc15' : '#38bdf8'}">${posItem.code}</b>
+                        ${isCurrent ? '<span class="pill good" style="font-size:9px;padding:1px 6px">ATUAL</span>' : ''}
+                      </div>
+                      <div style="font-size:11px;font-weight:700;color:#fff;margin-top:2px">${posItem.label}</div>
+                      <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:4px;line-height:1.2">${posItem.desc}</div>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Footer -->
+        <div style="padding:12px 20px;border-top:1px solid rgba(255,255,255,0.08);background:#0b0f19;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:11px;color:#94a3b8">💡 A nova posição será aplicada imediatamente ao atleta e salva na carreira.</span>
+          <button class="btn btn-subtle" onclick="document.getElementById('afmPlayerChangePositionModal').remove()" style="padding:6px 16px;font-size:12px;cursor:pointer">Cancelar</button>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  const modalEl = document.getElementById('afmPlayerChangePositionModal');
+  if(!modalEl) return;
+
+  modalEl.querySelectorAll('.btn-select-custom-pos').forEach(btn => {
+    btn.onclick = () => {
+      const newPos = btn.dataset.posCode;
+      if(!newPos) return;
+
+      p.pos = newPos;
+      p.customPos = newPos;
+
+      // Se o jogador estiver no lineup, garante que as funções táticas permaneçam consistentes
+      if(state.lineup && Array.isArray(state.lineup)){
+        const pk = typeof playerKey === 'function' ? playerKey(p) : p.name;
+        if(state.tactics?.playerRoles?.[pk]){
+          const newDef = getPlayerRoleDef(newPos, null);
+          state.tactics.playerRoles[pk].roleId = newDef.id;
+          state.tactics.playerRoles[pk].focus = newDef.focus || 'Balanced';
+        }
+      }
+
+      if(typeof save === 'function') save();
+      if(typeof render === 'function') render();
+
+      modalEl.remove();
+
+      // Se o modal da lupa estiver aberto, reabre com dados atualizados
+      const lupaModal = document.getElementById('afm-market-lupa-modal');
+      if(lupaModal && window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.openPlayerDetailsModal === 'function'){
+        lupaModal.remove();
+        window.AFM_MarketLupaAndAging.openPlayerDetailsModal(p);
+      }
+
+      if(typeof toast === 'function'){
+        toast(`✅ Posição de ${p.name} alterada para ${formatPedestalRole(newPos)} (${newPos}) com sucesso!`);
+      }
+    };
+  });
+}
+window.openPlayerChangePositionModal = openPlayerChangePositionModal;
 
 
 function normalizeSquadState(targetState = state){
@@ -11324,7 +11561,7 @@ function migrate(s){
   s.playerMoves=s.playerMoves||{};
   s.worldGenerated=s.worldGenerated||buildWorldGenerated();
   s.squad=(Array.isArray(s.squad)?s.squad:[]).filter(p=>p && typeof p==='object' && (p.name || p.id || p.marketKey)).map(stablePlayer);
-  if(s.salaryModelVersion >= 2 && Array.isArray(s.squad) && typeof window.LIVE_PLAYERS !== 'undefined' && Array.isArray(window.LIVE_PLAYERS)){
+  if(Array.isArray(s.squad) && typeof window.LIVE_PLAYERS !== 'undefined' && Array.isArray(window.LIVE_PLAYERS)){
     const liveMap = new Map();
     const liveClubMap = new Map();
     window.LIVE_PLAYERS.forEach(lp => { 
@@ -11344,25 +11581,19 @@ function migrate(s){
           if(match.photo) p.photo = match.photo;
           if(match.tmId) p.tmId = match.tmId;
           if(match.number && !p.number) p.number = match.number;
-          if(isInitSeason && (Number(s.round) || 0) <= 2){
-            if(match.fc) p.fc = match.fc;
-            if(match.pes) p.pes = match.pes;
-            if(match.potential) p.potential = match.potential;
-          } else {
-            if(match.fc) p.fc = Math.max(p.fc || 0, match.fc);
-            if(match.pes) p.pes = Math.max(p.pes || 0, match.pes);
-            if(match.potential) p.potential = Math.max(p.potential || 0, match.potential);
-          }
-          if(match.pos) p.pos = match.pos;
+          if(match.fc) p.fc = Math.max(p.fc || 0, match.fc);
+          if(match.pes) p.pes = Math.max(p.pes || 0, match.pes);
+          if(match.potential) p.potential = Math.max(p.potential || 0, match.potential);
+          // Se o atleta não possui posição personalizada manual, sincroniza a posição oficial
+          if(!p.customPos && match.pos) p.pos = match.pos;
           if(match.country && !p.country) p.country = match.country;
-          if(match.age && isInitSeason) p.age = match.age;
           if(match.pendingTransfer && !p.pendingTransfer) p.pendingTransfer = { ...match.pendingTransfer };
           p.value = calcValueMi(p);
         }
       }
     });
     // Se o save for v2+ e estiver no início da 1ª temporada (até rodada 2), sincroniza novos reforços reais e saídas
-    if(isInitSeason && (Number(s.round) || 0) <= 2 && s.club){
+    if(s.salaryModelVersion >= 2 && isInitSeason && (Number(s.round) || 0) <= 2 && s.club){
       s.squad = s.squad.filter(p => {
         if(!p || !p.name) return true;
         const isAmbiguous = window.AMBIGUOUS_PLAYER_NAMES && window.AMBIGUOUS_PLAYER_NAMES.has(norm(p.name));
@@ -13351,23 +13582,24 @@ function applyResult(home,away,hg,ag){
 }
 
 function attendanceProjection(opponent){
-  const cap=state.infrastructure.stadium.capacity||18000;
-  const rec=recommendedTicketPrice();
-  const price=state.ticketPrice;
-  const oppS=opponent?teamStrengthByName(opponent):68;
-  const our=overallSquad();
-  const priceRatio=price/Math.max(1,rec);
-  const priceFactor=priceRatio<=1?1+(1-priceRatio)*.22:Math.max(.22,1-(priceRatio-1)*.95);
+  const st = state || window.state || {};
+  const cap = st.infrastructure?.stadium?.capacity || 18000;
+  const rec = recommendedTicketPrice();
+  const price = st.ticketPrice || 40;
+  const oppS = opponent ? teamStrengthByName(opponent) : 68;
+  const our = overallSquad();
+  const priceRatio = price / Math.max(1, rec);
+  const priceFactor = priceRatio <= 1 ? 1 + (1 - priceRatio) * .22 : Math.max(.22, 1 - (priceRatio - 1) * .95);
   // O mesmo bônus exibido no escritório/modal é aplicado à projeção real.
-  const mktAttBoost = marketingBenefits().attendanceBoost;
-  const fans = Number(state?.trust?.fans ?? 70);
+  const mktAttBoost = typeof marketingBenefits === 'function' ? (marketingBenefits()?.attendanceBoost || 0) : 0;
+  const fans = Number(st.trust?.fans ?? 70);
   const base = .28 + (fans / 170) + clamp((oppS - 58) / 180, 0, .18) + clamp((our - 58) / 260, 0, .1) + mktAttBoost;
   // Dinâmica de fase do time (+30% em boa fase, -20% em má fase)
-  const recentHist = (state?.history || []).slice(0, 3);
+  const recentHist = (st.history || []).slice(0, 3);
   let pts = 0;
   recentHist.forEach(h => {
-    if(h.hg > h.ag) pts += (h.h === state?.club ? 3 : 0);
-    else if(h.hg < h.ag) pts += (h.a === state?.club ? 3 : 0);
+    if(h.hg > h.ag) pts += (h.h === st.club ? 3 : 0);
+    else if(h.hg < h.ag) pts += (h.a === st.club ? 3 : 0);
     else pts += 1;
   });
   const recentPtsPerGame = recentHist.length > 0 ? (pts / recentHist.length) : 1.0;
@@ -13380,30 +13612,50 @@ function attendanceProjection(opponent){
   const bigGameBoost = isBigOpponent ? 1.25 : 1.0;
 
   // Clássico / Rivalidade histórica real
-  const rivalry = isRivalryMatch(state?.club, opponent);
+  const rivalry = isRivalryMatch(st.club, opponent);
   const derbyBoost = rivalry.isRivalry ? 1.45 : (/brasiliense|gama|ceilândia/i.test(opponent || '') ? 1.20 : 1.0);
 
   const rate = clamp(base * priceFactor * phaseBoost * bigGameBoost * derbyBoost, .12, 1);
   // Reduz lugares temporariamente interditados por obras
-  const closedSeats = (state?.stadiumRingData?.activeWork ? 3500 : 0);
+  const closedSeats = (st.stadiumRingData?.activeWork ? 3500 : 0);
   const effectiveCap = Math.max(2000, cap - closedSeats);
   const attendance = Math.round(effectiveCap * rate);
   const attendanceForceBonus = stadiumAttendanceStrengthBonus(attendance, effectiveCap);
   const ticketRevenue = attendance * price;
 
   // Cálculo de vagas e receita de estacionamento
-  const parkingLvl = state.infrastructure.parking?.level || 0;
+  const parkingLvl = st.infrastructure?.parking?.level || 0;
   const spots = parkingSpots(parkingLvl);
-  const parkRate = spots > 0 ? clamp(rate * (1 - (state.parkingPrice - 20)/60), 0.1, 0.98) : 0;
+  const currentParking = st.parkingPrice || 25;
+  const recParking = 25;
+  const parkingRatio = spots > 0 ? (currentParking / recParking) : 1.0;
+  const parkRate = spots > 0 ? clamp(rate * (1 - (currentParking - 20)/60), 0.1, 0.98) : 0;
   const parkCars = Math.round(spots * parkRate);
-  const parkRevenue = parkCars * (state.parkingPrice || 25);
-  const storeShop = Math.round(attendance * (.18 + .12 * (state.infrastructure.store?.level || 1)));
+  const parkRevenue = parkCars * currentParking;
+  const storeShop = Math.round(attendance * (.18 + .12 * (st.infrastructure?.store?.level || 1)));
+
+  // Reação combinada da torcida: Ingresso (70%) + Estacionamento (30%) se houver vagas
+  const combinedRatio = spots > 0 ? (priceRatio * 0.70 + parkingRatio * 0.30) : priceRatio;
 
   let priceVerdict = 'Preço Justo e Atraente';
   let priceColor = 'var(--neon)';
-  if(priceRatio < 0.85) { priceVerdict = 'Preço Muito Barato (Estádio Lotado!)'; priceColor = 'var(--cyan)'; }
-  else if(priceRatio > 1.35) { priceVerdict = 'Preço Abusivo (Torcida Afastada!)'; priceColor = 'var(--bad)'; }
-  else if(priceRatio > 1.10) { priceVerdict = 'Preço Alto (Público Moderado)'; priceColor = 'var(--warn)'; }
+
+  if(spots > 0 && parkingRatio >= 2.0 && priceRatio <= 1.15) {
+    priceVerdict = 'Estacionamento Abusivo (Torcida Irritada!)';
+    priceColor = 'var(--bad)';
+  } else if(spots > 0 && parkingRatio >= 1.6 && priceRatio <= 1.15) {
+    priceVerdict = 'Estacionamento Salgado (Torcida Reclamando)';
+    priceColor = 'var(--warn)';
+  } else if(combinedRatio < 0.85) {
+    priceVerdict = 'Preço Muito Barato (Estádio Lotado!)';
+    priceColor = 'var(--cyan)';
+  } else if(combinedRatio > 1.35) {
+    priceVerdict = 'Preço Abusivo (Torcida Afastada!)';
+    priceColor = 'var(--bad)';
+  } else if(combinedRatio > 1.10) {
+    priceVerdict = 'Preço Alto (Público Moderado)';
+    priceColor = 'var(--warn)';
+  }
 
   return {
     attendance,
@@ -13414,6 +13666,8 @@ function attendanceProjection(opponent){
     price,
     rec,
     priceRatio,
+    parkingRatio,
+    combinedRatio,
     priceVerdict,
     priceColor,
     revenue:ticketRevenue,
@@ -13426,7 +13680,16 @@ function attendanceProjection(opponent){
   };
 }
 
-function ticketMoodDelta(){const r=state.ticketPrice/Math.max(1,recommendedTicketPrice());return r<=.85?2:r<=1.05?1:r<=1.25?-1:r<=1.5?-3:-5}
+function ticketMoodDelta(){
+  const st = state || window.state || {};
+  const spots = parkingSpots(st.infrastructure?.parking?.level || 0);
+  const ticketRatio = (st.ticketPrice || 40) / Math.max(1, recommendedTicketPrice());
+  const parkingRatio = spots > 0 ? ((st.parkingPrice || 25) / 25) : 1.0;
+  const r = spots > 0 ? (ticketRatio * 0.70 + parkingRatio * 0.30) : ticketRatio;
+  return r <= .85 ? 2 : r <= 1.05 ? 1 : r <= 1.25 ? -1 : r <= 1.5 ? -3 : -5;
+}
+window.attendanceProjection = attendanceProjection;
+window.ticketMoodDelta = ticketMoodDelta;
 
 function totalSponsorMonthly(){
   let sum = 0;
@@ -25099,7 +25362,12 @@ function squadPage(){
                   ${isPlayerTransferListed(p) ? `<span class="pill open-transfer-modal" data-key="${esc(playerKey(p))}" style="cursor:pointer;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px;background:rgba(249,115,22,0.25);border:1px solid rgba(249,115,22,0.7);color:#fb923c" title="Atleta à venda (clique para gerenciar ofertas ou retirar da lista)">🏷️ À VENDA</span>` : ''}
                   ${isPlayerLoanListed(p) ? `<span class="pill open-transfer-modal" data-key="${esc(playerKey(p))}" style="cursor:pointer;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px;background:rgba(14,165,233,0.25);border:1px solid rgba(14,165,233,0.7);color:#38bdf8" title="Atleta para empréstimo (clique para gerenciar ofertas ou retirar da lista)">🤝 EMPRÉSTIMO</span>` : ''}
                 </td>
-                <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                <td>
+                  <button type="button" class="btn btn-sm btn-subtle btnChangePlayerPosSquad" onclick="openPlayerChangePositionModal('${esc(typeof playerKey === 'function' ? playerKey(p) : p.name)}')" title="Alterar posição de ${esc(p.name)}" style="padding:2px 7px;font-size:11px;font-weight:900;border-radius:6px;min-width:38px;color:#c084fc;background:#1e1838;border:1px solid rgba(192,132,252,0.3);cursor:pointer;display:inline-flex;align-items:center;gap:3px">
+                    <span>${esc(p.pos||'-')}</span>
+                    <span style="font-size:9px;opacity:0.7">✏️</span>
+                  </button>
+                </td>
                 <td>${p.age||'-'} anos</td>
                 <td><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
                 <td><div style="display:flex;align-items:center;gap:6px"><b class="good">${p.potential||playerOverall(p)}</b> ${window.AFM_SquadAssistant ? window.AFM_SquadAssistant.renderThreeLayerStarsHTML(p) : ''}</div></td>
@@ -26556,7 +26824,7 @@ function structurePage(){
                 <b id="priceVerdictLabel" style="color:${proj.priceColor}">${proj.priceVerdict}</b>
               </div>
               <div class="bar" style="height:6px;margin-top:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
-                <span id="priceRatioMeter" style="display:block;height:100%;width:${clamp(proj.priceRatio*50,10,100)}%;background:${proj.priceColor}"></span>
+                <span id="priceRatioMeter" style="display:block;height:100%;width:${clamp((proj.combinedRatio || proj.priceRatio)*50,10,100)}%;background:${proj.priceColor}"></span>
               </div>
             </div>
           </div>
@@ -32529,7 +32797,7 @@ function bind(){
       const pLabel=$('#parkingPriceLabel'); if(pLabel) pLabel.textContent=fmtMoney(state.parkingPrice||25);
       const recLabel=$('#recPriceLabel'); if(recLabel) recLabel.textContent=fmtMoney(proj.rec);
       const verLabel=$('#priceVerdictLabel'); if(verLabel){ verLabel.textContent=proj.priceVerdict; verLabel.style.color=proj.priceColor; }
-      const ratioMeter=$('#priceRatioMeter'); if(ratioMeter){ ratioMeter.style.width=clamp(proj.priceRatio*50,10,100)+'%'; ratioMeter.style.background=proj.priceColor; }
+      const ratioMeter=$('#priceRatioMeter'); if(ratioMeter){ ratioMeter.style.width=clamp((proj.combinedRatio||proj.priceRatio)*50,10,100)+'%'; ratioMeter.style.background=proj.priceColor; }
 
       const attEl=$('#dashAttendance'); if(attEl) attEl.textContent=proj.attendance.toLocaleString('pt-BR');
       const occEl=$('#dashOccRate'); if(occEl) occEl.textContent=Math.round(proj.rate*100)+'%';

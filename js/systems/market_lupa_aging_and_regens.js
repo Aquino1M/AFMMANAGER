@@ -543,6 +543,7 @@
                 <div>
                   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
                     <span style="background:#5b21b6;color:#fff;font-size:11px;font-weight:900;padding:4px 10px;border-radius:6px;letter-spacing:0.5px;">${pos}</span>
+                    <button type="button" class="btnChangePlayerPosLupa" style="background:#4c1d95;color:#e9d5ff;border:1px solid #7c3aed;font-size:10px;font-weight:800;padding:3px 9px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s ease;" title="Personalizar posição oficial de ${esc(name)}">✏️ Mudar Posição</button>
                     <span style="background:${ovrRatingBg};color:${ovrRatingColor};font-size:11px;font-weight:900;padding:4px 10px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">OVR ${realOvr}</span>
                     <span style="background:rgba(234,179,8,0.18);color:#fbbf24;border:1px solid rgba(234,179,8,0.4);font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px;">⭐ POT ${potential}</span>
                     ${country ? `<span style="font-size:11px;color:#94a3b8;background:rgba(255,255,255,0.06);padding:3px 9px;border-radius:6px;">🌍 ${country}</span>` : ''}
@@ -664,6 +665,15 @@
         // Eventos
         const closeBtn = modal.querySelector('#close-lupa-modal');
         if (closeBtn) closeBtn.onclick = () => modal.remove();
+
+        const changePosBtn = modal.querySelector('.btnChangePlayerPosLupa');
+        if (changePosBtn) {
+          changePosBtn.onclick = () => {
+            if (typeof window.openPlayerChangePositionModal === 'function') {
+              window.openPlayerChangePositionModal(name);
+            }
+          };
+        }
 
         modal.querySelectorAll('.afm-btn-season-tab').forEach(btn => {
           btn.onclick = () => {

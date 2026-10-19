@@ -4802,11 +4802,32 @@ body.theme-emerald {
   background: rgba(8, 28, 48, 0.96) !important;
 }
 .pitch-slot-pedestal .pedestal-role {
-  font-size: 8.5px;
+  font-size: 8px;
   font-weight: 900;
   color: #ffffff;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   text-transform: uppercase;
+  max-width: 95px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pitch-slot-pedestal .pedestal-focus {
+  font-size: 7px;
+  font-weight: 800;
+  color: #c084fc;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+.fifa-mini-card-role {
+  font-size: 7px;
+  font-weight: 900;
+  color: #38bdf8;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 .pitch-slot-pedestal .pedestal-chem {
   display: flex;
