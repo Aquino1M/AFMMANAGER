@@ -923,35 +923,49 @@
       const netDepth = 26;
 
       ctx.save();
-      // Malha da Rede Esquerda (Fundo e Laterais)
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+      // 1. Malha da Rede Esquerda (Fundo e Laterais com transparência)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
       ctx.beginPath();
       ctx.moveTo(gL_top.x, gL_top.y);
-      ctx.lineTo(gL_top.x - netDepth, gL_top.y - 18);
-      ctx.lineTo(gL_bot.x - netDepth, gL_bot.y - 18);
+      ctx.lineTo(gL_top.x - netDepth, gL_top.y - 14);
+      ctx.lineTo(gL_bot.x - netDepth, gL_bot.y - 14);
       ctx.lineTo(gL_bot.x, gL_bot.y);
       ctx.closePath();
       ctx.fill();
 
-      // Padrão de rede trançada
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      // Padrão de malha de rede trançada (horizontal e vertical)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
       ctx.lineWidth = 1;
-      for(let y = gL_top.y - 18; y <= gL_bot.y; y += 6){
+      for(let y = gL_top.y - 14; y <= gL_bot.y; y += 5){
         ctx.beginPath();
         ctx.moveTo(gL_top.x, y);
         ctx.lineTo(gL_top.x - netDepth, y);
         ctx.stroke();
       }
+      for(let dx = 0; dx <= netDepth; dx += 6){
+        ctx.beginPath();
+        ctx.moveTo(gL_top.x - dx, gL_top.y - (dx / netDepth) * 14);
+        ctx.lineTo(gL_bot.x - dx, gL_bot.y - (dx / netDepth) * 14);
+        ctx.stroke();
+      }
 
-      // Trave e Travessão Esquerdo Metálico Branco
+      // Suportes traseiros da rede (hastes metálicas)
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(gL_top.x, gL_top.y);
+      ctx.lineTo(gL_top.x - netDepth, gL_top.y - 14);
+      ctx.lineTo(gL_bot.x - netDepth, gL_bot.y - 14);
+      ctx.lineTo(gL_bot.x, gL_bot.y);
+      ctx.stroke();
+
+      // Traves e Travessão Esquerdo Metálico Branco com Relevo
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 4;
-      ctx.shadowColor = '#ffffff';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
       ctx.shadowBlur = 4;
       ctx.beginPath();
       ctx.moveTo(gL_top.x, gL_top.y);
-      ctx.lineTo(gL_top.x - netDepth, gL_top.y - 18);
-      ctx.lineTo(gL_bot.x - netDepth, gL_bot.y - 18);
       ctx.lineTo(gL_bot.x, gL_bot.y);
       ctx.stroke();
       ctx.shadowBlur = 0;
@@ -960,34 +974,48 @@
       const gR_top = projFn(100, 42), gR_bot = projFn(100, 58);
 
       // Malha da Rede Direita
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
       ctx.beginPath();
       ctx.moveTo(gR_top.x, gR_top.y);
-      ctx.lineTo(gR_top.x + netDepth, gR_top.y - 18);
-      ctx.lineTo(gR_bot.x + netDepth, gR_bot.y - 18);
+      ctx.lineTo(gR_top.x + netDepth, gR_top.y - 14);
+      ctx.lineTo(gR_bot.x + netDepth, gR_bot.y - 14);
       ctx.lineTo(gR_bot.x, gR_bot.y);
       ctx.closePath();
       ctx.fill();
 
       // Padrão de rede trançada direita
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
       ctx.lineWidth = 1;
-      for(let y = gR_top.y - 18; y <= gR_bot.y; y += 6){
+      for(let y = gR_top.y - 14; y <= gR_bot.y; y += 5){
         ctx.beginPath();
         ctx.moveTo(gR_top.x, y);
         ctx.lineTo(gR_top.x + netDepth, y);
         ctx.stroke();
       }
+      for(let dx = 0; dx <= netDepth; dx += 6){
+        ctx.beginPath();
+        ctx.moveTo(gR_top.x + dx, gR_top.y - (dx / netDepth) * 14);
+        ctx.lineTo(gR_bot.x + dx, gR_bot.y - (dx / netDepth) * 14);
+        ctx.stroke();
+      }
 
-      // Trave e Travessão Direito Metálico Branco
+      // Suportes traseiros direito
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(gR_top.x, gR_top.y);
+      ctx.lineTo(gR_top.x + netDepth, gR_top.y - 14);
+      ctx.lineTo(gR_bot.x + netDepth, gR_bot.y - 14);
+      ctx.lineTo(gR_bot.x, gR_bot.y);
+      ctx.stroke();
+
+      // Traves e Travessão Direito Metálico Branco
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 4;
-      ctx.shadowColor = '#ffffff';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
       ctx.shadowBlur = 4;
       ctx.beginPath();
       ctx.moveTo(gR_top.x, gR_top.y);
-      ctx.lineTo(gR_top.x + netDepth, gR_top.y - 18);
-      ctx.lineTo(gR_bot.x + netDepth, gR_bot.y - 18);
       ctx.lineTo(gR_bot.x, gR_bot.y);
       ctx.stroke();
       ctx.shadowBlur = 0;
@@ -1272,12 +1300,14 @@
       const upgrades = s.stadium?.upgrades || {};
       const homeColor = s.homeKit?.primary || '#f59e0b';
       const homeSecColor = s.homeKit?.secondary || '#111111';
+      const ticks = s.renderTicks || 0;
 
       // 1. Céu Noturno / Crepúsculo Atmosférico com Neblina de Estádio
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, 200);
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, 210);
       skyGrad.addColorStop(0, '#040711');
-      skyGrad.addColorStop(0.5, '#0b1329');
-      skyGrad.addColorStop(1, '#18233c');
+      skyGrad.addColorStop(0.45, '#0b1329');
+      skyGrad.addColorStop(0.85, '#162035');
+      skyGrad.addColorStop(1, '#1e293b');
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, 1280, 210);
 
@@ -1307,7 +1337,7 @@
       }
 
       // 3. SETOR LESTE (Arquibancada Superior de Fundo)
-      const tiersCount = stLevel >= 3 ? 12 : (stLevel === 2 ? 7 : 4);
+      const tiersCount = stLevel >= 3 ? 12 : (stLevel === 2 ? 8 : 5);
       ctx.fillStyle = '#111827';
       ctx.beginPath();
       ctx.moveTo(130, standTop);
@@ -1317,12 +1347,13 @@
       ctx.closePath();
       ctx.fill();
 
-      // Degraus individuais de concreto com cadeiras nas cores do clube
+      // Degraus individuais de concreto com cadeiras amarelas e cinzas em perspectiva
       for(let i = 0; i < tiersCount; i++){
         const ty = standTop + (i / tiersCount) * (standBottom - standTop);
         const lx = 130 + (i / tiersCount) * 110;
         const rx = 1150 - (i / tiersCount) * 110;
         
+        // Linha do degrau de concreto
         ctx.strokeStyle = '#1f293d';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -1330,74 +1361,87 @@
         ctx.lineTo(rx, ty);
         ctx.stroke();
 
-        // Fileiras de Torcedores e Cadeiras
-        const seats = stLevel >= 3 ? 54 : (stLevel === 2 ? 40 : 26);
+        // Fileiras de Torcedores e Cadeiras (Padrão BRFC27: Amarelo e Cinza Concreto com Clube)
+        const seats = stLevel >= 3 ? 56 : (stLevel === 2 ? 42 : 28);
         for(let c = 0; c < seats; c++){
           const cx = lx + (c / seats) * (rx - lx);
-          // Assentos do clube
-          ctx.fillStyle = (c % 2 === 0) ? homeColor : homeSecColor;
+          // Alternância estética de assentos: Amarelo ouro (#facc15), Cinza ardósia (#475569) e cor do clube
+          const seatColor = (c % 4 === 0) ? '#facc15' : ((c % 4 === 1) ? '#475569' : ((c % 4 === 2) ? homeColor : '#334155'));
+          ctx.fillStyle = seatColor;
           ctx.fillRect(cx, ty - 3.5, 4.5, 2.5);
 
           // Torcedores vibrando (hash estável sem cintilação aleatória)
           const seatHash = (c * 17 + i * 31) % 100;
-          const crowdPct = stLevel >= 3 ? 88 : (stLevel === 2 ? 65 : 32);
+          const crowdPct = stLevel >= 3 ? 90 : (stLevel === 2 ? 72 : 40);
           if(seatHash < crowdPct){
-            ctx.fillStyle = (seatHash % 3 === 0) ? homeColor : (seatHash % 2 === 0 ? '#ffffff' : '#facc15');
+            ctx.fillStyle = (seatHash % 4 === 0) ? homeColor : ((seatHash % 4 === 1) ? '#ffffff' : ((seatHash % 4 === 2) ? '#facc15' : homeSecColor));
             ctx.beginPath();
-            ctx.arc(cx + 2.5, ty - 5, 2.4, 0, Math.PI * 2);
+            ctx.arc(cx + 2.2, ty - 5, 2.3, 0, Math.PI * 2);
             ctx.fill();
           }
         }
       }
 
-      // Bandeirões Oficiais da Torcida no Setor Superior
+      // 4. BANDEIRÕES OFICIAIS DA TORCIDA NO SETOR SUPERIOR
       if(stLevel >= 2){
-        const flagColors = [homeColor, '#ffffff', homeSecColor, homeColor];
-        for(let f = 0; f < 4; f++){
-          const fx = 300 + f * 220;
-          const wave = Math.sin((s.renderTicks || 0) * 0.08 + f) * 4;
-          ctx.fillStyle = flagColors[f];
+        const flagColors = [homeColor, '#ffffff', homeSecColor, '#facc15'];
+        for(let f = 0; f < 5; f++){
+          const fx = 260 + f * 180;
+          const wave = Math.sin(ticks * 0.08 + f) * 5;
+          ctx.fillStyle = flagColors[f % flagColors.length];
           ctx.beginPath();
-          ctx.moveTo(fx, standTop + 6);
-          ctx.lineTo(fx + 24, standTop + 6 + wave);
-          ctx.lineTo(fx + 24, standTop + 20 + wave);
-          ctx.lineTo(fx, standTop + 20);
+          ctx.moveTo(fx, standTop + 5);
+          ctx.lineTo(fx + 26, standTop + 5 + wave);
+          ctx.lineTo(fx + 26, standTop + 22 + wave);
+          ctx.lineTo(fx, standTop + 22);
           ctx.closePath();
           ctx.fill();
         }
       }
 
-      // Faixa Oficial na Mureta da Arquibancada
-      ctx.fillStyle = '#090d16';
-      ctx.fillRect(235, 172, 810, 16);
-      ctx.strokeStyle = '#facc15';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(235, 172, 810, 16);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 9px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      const ledText = (stLevel >= 3)
-        ? `★ BETANO • IFOOD • BYD • SAMSUNG • FATAL MODEL • NUBANK • CENTRAL DAS PROMOS • ${String(s.home || 'CLUBE').toUpperCase()} ★`
-        : (stLevel === 2)
-          ? `★ ${String(s.home || 'CLUBE').toUpperCase()} • RAÇA, AMOR E PAIXÃO • AFM 2027 ★`
-          : `⚽ ${String(s.home || 'CLUBE').toUpperCase()} • CAMPO OFICIAL • AFM 2027 ⚽`;
-      ctx.fillText(ledText, 640, 184);
+      // 5. SINALIZADORES E FUMAÇA DOURADA DA TORCIDA (CROWD FLARES & SMOKE BRFC27)
+      // Núcleos incandescentes de sinalizadores na curva da torcida
+      const flarePositions = [380, 440, 500, 800, 860];
+      flarePositions.forEach((fx, idx) => {
+        const fy = standBottom - 10;
+        const sparkPulse = 3.5 + Math.sin(ticks * 0.25 + idx * 1.7) * 1.5;
+        
+        // Brilho quente do sinalizador aceso
+        const flareGlow = ctx.createRadialGradient(fx, fy, 1, fx, fy, sparkPulse * 4.5);
+        flareGlow.addColorStop(0, '#ffffff');
+        flareGlow.addColorStop(0.25, '#fef08a');
+        flareGlow.addColorStop(0.6, '#ffd54a');
+        flareGlow.addColorStop(1, 'rgba(234, 88, 12, 0)');
+        ctx.fillStyle = flareGlow;
+        ctx.beginPath();
+        ctx.arc(fx, fy, sparkPulse * 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
 
-      // Placar / Telão Central em Arco
-      ctx.fillStyle = '#050811';
-      ctx.fillRect(520, standTop - 20, 240, 46);
-      ctx.strokeStyle = stLevel >= 3 ? '#38bdf8' : (stLevel === 2 ? '#f59e0b' : '#64748b');
-      ctx.lineWidth = 2;
-      ctx.strokeRect(520, standTop - 20, 240, 46);
-      ctx.fillStyle = '#facc15';
-      ctx.font = 'bold 13px monospace';
-      ctx.fillText(`${String(s.home || '').slice(0,3).toUpperCase()} ${s.hg || 0} - ${s.ag || 0} ${String(s.away || '').slice(0,3).toUpperCase()}`, 640, standTop);
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 8px Inter, sans-serif';
-      const badgeStr = stModel ? `${stModel.badge}` : (stLevel >= 3 ? '⭐ ARENA FIFA' : (stLevel === 2 ? '🏛️ CLÁSSICO' : '🏟️ ABERTO'));
-      ctx.fillText(`${badgeStr} • ${Math.floor((s.timeSec || 0)/60)}' MIN • AO VIVO`, 640, standTop + 16);
+      // Partículas de fumaça dourada/amarela subindo da arquibancada
+      const smokeCount = 16;
+      for(let sIdx = 0; sIdx < smokeCount; sIdx++){
+        const baseFx = flarePositions[sIdx % flarePositions.length];
+        const life = ((ticks * 0.03 + sIdx * 0.16) % 1.0);
+        const sx = baseFx + Math.sin(ticks * 0.04 + sIdx * 1.3) * (8 + life * 14);
+        const sy = (standBottom - 12) - life * (standBottom - standTop + 50);
+        const radius = 9 + life * 26;
+        const alpha = Math.sin(life * Math.PI) * 0.32;
 
-      // 4. SETOR NORTE & SETOR SUL (Laterais Curvas)
+        if(alpha > 0.01){
+          const smokeGrad = ctx.createRadialGradient(sx, sy, 2, sx, sy, radius);
+          smokeGrad.addColorStop(0, `rgba(254, 240, 138, ${alpha * 0.9})`);
+          smokeGrad.addColorStop(0.45, `rgba(250, 204, 21, ${alpha * 0.6})`);
+          smokeGrad.addColorStop(0.8, `rgba(245, 158, 11, ${alpha * 0.3})`);
+          smokeGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          ctx.fillStyle = smokeGrad;
+          ctx.beginPath();
+          ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 6. SETOR NORTE & SETOR SUL (Laterais Curvas com Degraus e Assentos em Perspectiva)
       // Lateral Esquerda (Norte)
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
@@ -1408,6 +1452,27 @@
       ctx.lineTo(0, 120);
       ctx.closePath();
       ctx.fill();
+
+      // Degraus e torcida na lateral esquerda
+      for(let li = 1; li <= 5; li++){
+        const lt = li / 6;
+        const yLine = standTop + lt * (530 - standTop);
+        const xStart = 130 - lt * 130;
+        const xEnd = 240 - lt * 200;
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(xStart, yLine);
+        ctx.lineTo(xEnd, yLine);
+        ctx.stroke();
+
+        // Assentos na lateral norte
+        for(let sc = 0; sc < 6; sc++){
+          const ax = xStart + (sc / 6) * (xEnd - xStart);
+          ctx.fillStyle = (sc % 2 === 0) ? '#facc15' : '#475569';
+          ctx.fillRect(ax, yLine - 2.5, 3.5, 2);
+        }
+      }
 
       // Lateral Direita (Sul)
       ctx.fillStyle = '#0f172a';
@@ -1420,30 +1485,163 @@
       ctx.closePath();
       ctx.fill();
 
-      // 5. Torres de Refletores Volumétricos de Transmissão 3D
-      // Refletor Esquerdo
-      const lightLeft = ctx.createRadialGradient(135, 110, 5, 360, 340, 450);
-      lightLeft.addColorStop(0, 'rgba(255, 255, 255, 0.16)');
-      lightLeft.addColorStop(0.6, 'rgba(255, 255, 255, 0.04)');
-      lightLeft.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = lightLeft;
-      ctx.fillRect(0, 0, 700, 600);
+      // Degraus e torcida na lateral direita
+      for(let ri = 1; ri <= 5; ri++){
+        const rt = ri / 6;
+        const yLine = standTop + rt * (530 - standTop);
+        const xStart = 1040 + rt * 200;
+        const xEnd = 1150 + rt * 130;
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(xStart, yLine);
+        ctx.lineTo(xEnd, yLine);
+        ctx.stroke();
 
-      // Refletor Direito
-      const lightRight = ctx.createRadialGradient(1145, 110, 5, 920, 340, 450);
-      lightRight.addColorStop(0, 'rgba(255, 255, 255, 0.16)');
-      lightRight.addColorStop(0.6, 'rgba(255, 255, 255, 0.04)');
-      lightRight.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = lightRight;
-      ctx.fillRect(580, 0, 700, 600);
+        // Assentos na lateral sul
+        for(let sc = 0; sc < 6; sc++){
+          const ax = xStart + (sc / 6) * (xEnd - xStart);
+          ctx.fillStyle = (sc % 2 === 0) ? '#facc15' : '#475569';
+          ctx.fillRect(ax, yLine - 2.5, 3.5, 2);
+        }
+      }
 
-      // Fachadas Metálicas das Torres
-      ctx.fillStyle = '#475569';
-      ctx.fillRect(125, standTop - 18, 10, 105);
-      ctx.fillRect(1145, standTop - 18, 10, 105);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(110, standTop - 32, 40, 14);
-      ctx.fillRect(1130, standTop - 32, 40, 14);
+      // 7. PLACAS DE PUBLICIDADE CONTÍNUAS OFICIAIS (BRFC27, BETANO, CENTRAL DAS PROMOS, IFOOD, BYD)
+      // Mureta da arquibancada de fundo
+      const adBoards = [
+        { name: 'BRFC27', bg: '#6d28d9', fg: '#ffffff' },
+        { name: 'BETANO', bg: '#f97316', fg: '#ffffff' },
+        { name: 'CENTRAL DAS PROMOS', bg: '#0a3ec2', fg: '#ffffff' },
+        { name: 'IFOOD', bg: '#dc2626', fg: '#ffffff' },
+        { name: 'BYD', bg: '#0b0716', fg: '#06b6d4' },
+        { name: 'SUPERMERCADO DO BAIRRO', bg: '#16a34a', fg: '#ffffff' },
+        { name: 'AÇAÍ DA VILA', bg: '#4c1d95', fg: '#facc15' },
+        { name: 'FUTEBOL PARA TODOS', bg: '#facc15', fg: '#111111' }
+      ];
+
+      const boardY = 172;
+      const boardH = 17;
+      const wallLeft = 236;
+      const wallWidth = 808;
+      const singleBoardW = wallWidth / adBoards.length;
+
+      // Moldura e fundo das placas
+      ctx.fillStyle = '#0b0f19';
+      ctx.fillRect(wallLeft, boardY, wallWidth, boardH);
+
+      adBoards.forEach((board, bIdx) => {
+        const bx = wallLeft + bIdx * singleBoardW;
+        // Fundo da placa de publicidade
+        ctx.fillStyle = board.bg;
+        ctx.fillRect(bx + 1, boardY + 1, singleBoardW - 2, boardH - 2);
+
+        // Borda LED iluminada superior
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.fillRect(bx + 1, boardY + 1, singleBoardW - 2, 1.5);
+
+        // Texto do patrocinador
+        ctx.fillStyle = board.fg;
+        ctx.font = 'bold 8px "Barlow Condensed", Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(board.name, bx + singleBoardW / 2, boardY + boardH / 2 + 0.5);
+      });
+
+      // Mureta de borda com contorno fino dourado
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(wallLeft, boardY, wallWidth, boardH);
+
+      // Placas laterais em perspectiva ao longo das linhas de fundo
+      // Lateral esquerda (perspectiva de 190 até 520)
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+      ctx.beginPath();
+      ctx.moveTo(228, 190);
+      ctx.lineTo(238, 190);
+      ctx.lineTo(38, 520);
+      ctx.lineTo(28, 520);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.4)';
+      ctx.stroke();
+
+      // Lateral direita (perspectiva de 190 até 520)
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+      ctx.beginPath();
+      ctx.moveTo(1042, 190);
+      ctx.lineTo(1052, 190);
+      ctx.lineTo(1252, 520);
+      ctx.lineTo(1242, 520);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.4)';
+      ctx.stroke();
+
+      // 8. PLACAR / TELÃO CENTRAL DIGITAL
+      ctx.fillStyle = '#050811';
+      ctx.fillRect(520, standTop - 22, 240, 48);
+      ctx.strokeStyle = stLevel >= 3 ? '#38bdf8' : (stLevel === 2 ? '#f59e0b' : '#64748b');
+      ctx.lineWidth = 2;
+      ctx.strokeRect(520, standTop - 22, 240, 48);
+      ctx.fillStyle = '#facc15';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(`${String(s.home || '').slice(0,3).toUpperCase()} ${s.hg || 0} - ${s.ag || 0} ${String(s.away || '').slice(0,3).toUpperCase()}`, 640, standTop);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 8px Inter, sans-serif';
+      const badgeStr = stModel ? `${stModel.badge}` : (stLevel >= 3 ? '⭐ ARENA FIFA' : (stLevel === 2 ? '🏛️ CLÁSSICO' : '🏟️ ABERTO'));
+      ctx.fillText(`${badgeStr} • ${Math.floor((s.timeSec || 0)/60)}' MIN • AO VIVO`, 640, standTop + 16);
+
+      // 9. 4 TORRES DE REFLETORES VOLUMÉTRICOS DE TRANSMISSÃO 3D (4 CANTORES DO ESTÁDIO)
+      const towerPositions = [
+        { x: 125, y: standTop - 24, lightX: 360, lightY: 340, side: 'TL' },
+        { x: 1145, y: standTop - 24, lightX: 920, lightY: 340, side: 'TR' },
+        { x: 26, y: 460, lightX: 320, lightY: 420, side: 'BL' },
+        { x: 1244, y: 460, lightX: 960, lightY: 420, side: 'BR' }
+      ];
+
+      towerPositions.forEach((tower) => {
+        // Feixe de luz volumétrico atmosférico em direção ao centro do campo
+        const lightGrad = ctx.createRadialGradient(tower.x + 8, tower.y + 6, 4, tower.lightX, tower.lightY, 460);
+        lightGrad.addColorStop(0, 'rgba(255, 255, 255, 0.16)');
+        lightGrad.addColorStop(0.5, 'rgba(255, 255, 220, 0.04)');
+        lightGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = lightGrad;
+        ctx.beginPath();
+        ctx.arc(tower.lightX, tower.lightY, 460, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Estrutura metálica de aço da torre (pilar treliçado)
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(tower.x + 5, tower.y + 12, 8, 90);
+        // Treliças diagonais da torre
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1;
+        for(let ty = tower.y + 12; ty < tower.y + 90; ty += 12){
+          ctx.beginPath();
+          ctx.moveTo(tower.x + 5, ty);
+          ctx.lineTo(tower.x + 13, ty + 8);
+          ctx.stroke();
+        }
+
+        // Painel retangular de lâmpadas halógenas brancas
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(tower.x - 6, tower.y - 4, 30, 16);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(tower.x - 6, tower.y - 4, 30, 16);
+
+        // Matriz de lâmpadas emissivas ultra-brilhantes
+        ctx.fillStyle = '#ffffff';
+        for(let lx = 0; lx < 3; lx++){
+          for(let ly = 0; ly < 2; ly++){
+            ctx.beginPath();
+            ctx.arc(tower.x + lx * 8 - 1, tower.y + ly * 6 + 1, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      });
     },
 
     // 9. Câmera de Transmissão 3D Dinâmica (Suporta Lateral, Bola e Gol)

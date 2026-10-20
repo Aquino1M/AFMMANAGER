@@ -16650,7 +16650,7 @@ function renderLiveMatchModal(){
 
   el.innerHTML = `
     <div class="live-match-fullscreen">
-      <!-- HEADER COM BREADCRUMB E PLACAR FLUTUANTE -->
+      <!-- HEADER COM BREADCRUMB E PLACAR FLUTUANTE DOURADO -->
       <div class="live-match-header">
         <div class="live-match-breadcrumb">
           INÍCIO &gt; CARREIRA ${esc(state.club.toUpperCase())} &gt; ${esc(s.home.slice(0,3).toUpperCase())} X ${esc(s.away.slice(0,3).toUpperCase())} &gt; <span style="color:#22c55e">AO VIVO</span>
@@ -16678,35 +16678,27 @@ function renderLiveMatchModal(){
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <button class="live-ctrl-btn" id="btnToggle2D3D" style="background:${(s.renderMode || '3d') === '2d' ? 'rgba(59,130,246,0.3)' : 'linear-gradient(135deg,#7c3aed,#2563eb)'};border:1px solid #818cf8;color:#fff;font-weight:800;padding:5px 12px;border-radius:6px;font-size:11px" title="Alternar entre Estádio 3D e Visão 2D">
-            ${(s.renderMode || '3d') === '2d' ? '📐 VER EM 2D' : '🏟️ VER EM 3D'}
-          </button>
-          <div class="live-cam-group" style="display:inline-flex;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:2px;gap:2px">
-            <button class="live-ctrl-btn ${(!s.cameraMode || s.cameraMode === 'lateral' || s.cameraMode === 'tv') ? 'active' : ''}" id="btnCamLateral" style="padding:4px 8px;font-size:11px;font-weight:700">Lateral</button>
-            <button class="live-ctrl-btn ${s.cameraMode === 'ball' ? 'active' : ''}" id="btnCamBall" style="padding:4px 8px;font-size:11px;font-weight:700">Bola</button>
-            <button class="live-ctrl-btn ${s.cameraMode === 'goal' ? 'active' : ''}" id="btnCamGoal" style="padding:4px 8px;font-size:11px;font-weight:700">Gol</button>
-          </div>
-          <button class="live-ctrl-btn" id="btnLiveClose" style="background:rgba(239,68,68,0.2);border-color:#ef4444;color:#fca5a5" title="Sair / Fechar">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="live-ctrl-btn" id="btnLiveClose" style="background:rgba(239,68,68,0.2);border-color:#ef4444;color:#fca5a5;padding:6px 14px;font-size:12px;font-weight:800;border-radius:8px" title="Sair / Fechar">
             ✕ Fechar
           </button>
         </div>
       </div>
 
-      <!-- CORPO PRINCIPAL COM CAMPO 2.5D E LATERAL DE NARRAÇÃO -->
+      <!-- CORPO PRINCIPAL COM CAMPO 3D E SIDEBAR DE CONTROLES & NARRAÇÃO -->
       <div class="live-body-layout">
         <div class="live-canvas-area" id="liveCanvasArea">
           <div class="live-canvas-wrapper">
-            <!-- PILLS FLUTUANTES SOBRE O CAMPO -->
+            <!-- CARD FLUTUANTE DE INFORMAÇÕES DO ESTÁDIO E TÁTICA (SUPERIOR ESQUERDO) -->
             <div class="live-pitch-pills">
               <div class="live-pitch-pill gold">
-                ${esc((s.stadium?.name || 'Estádio Municipal').toUpperCase())} · PÚBLICO <b>${(s.stadium?.attendance || 12000).toLocaleString('pt-BR')}</b>
+                🏟️ ${esc((s.stadium?.name || 'Estádio Municipal').toUpperCase())} · PÚBLICO <b>${(s.stadium?.attendance || 12000).toLocaleString('pt-BR')}</b>
               </div>
               <div class="live-pitch-pill">
-                ${esc(s.home.slice(0,3).toUpperCase())}: ${esc((s.homePosture || 'Equilibrada').toUpperCase())}
+                ${esc(s.home.slice(0,3).toUpperCase())}: ${esc((s.homePosture || 'Equilibrada').toUpperCase())} · MARCAÇÃO ${esc((s.homeMarking || 'Equilibrada').toUpperCase())}
               </div>
               <div class="live-pitch-pill" id="livePillAwayPosture">
-                ${esc(s.away.slice(0,3).toUpperCase())}: ${esc((s.awayPosture || 'Equilibrada').toUpperCase())}
+                ${esc(s.away.slice(0,3).toUpperCase())}: ${esc((s.awayPosture || 'Equilibrada').toUpperCase())} · MARCAÇÃO ${esc((s.awayMarking || 'Equilibrada').toUpperCase())}
               </div>
               ${s.prelecao && s.prelecao !== 'Sem preleção' ? `
                 <div class="live-pitch-pill" id="livePillPrelecao" style="background:rgba(168,85,247,0.3);border-color:#a855f7;color:#e9d5ff">
@@ -16721,13 +16713,71 @@ function renderLiveMatchModal(){
               <span>Pausado · toque para continuar</span>
             </div>
 
+            <!-- BADGE DE RESOLUÇÃO / TAXA DE QUADROS NO CANTO INFERIOR DIREITO -->
+            <div class="live-fps-badge">
+              ${(s.renderMode || '3d') === '2d' ? '📐 2D' : '🏟️ 3D'} · 60 quadros/s
+            </div>
+
             <!-- CANVAS 1280x720 DA TRANSMISSÃO -->
             <canvas id="liveMatchCanvas" class="live-match-canvas" width="1280" height="720" aria-label="Transmissão da partida"></canvas>
           </div>
         </div>
 
-        <!-- SIDEBAR DE NARRAÇÃO AO VIVO -->
+        <!-- SIDEBAR COM CONTROLES UNIFICADOS E NARRAÇÃO AO VIVO -->
         <div class="live-sidebar">
+          <!-- GRUPO DE CONTROLES NO TOPO DA SIDEBAR (LAYOUT BRFC27) -->
+          <div class="live-sidebar-controls">
+            <!-- LINHA 1: PAUSA E MEXER NO TIME -->
+            <div class="live-sidebar-row main-actions">
+              <button class="live-sidebar-play-btn" id="btnLivePlayToggle" title="Pausar / Continuar">
+                ${s.playing ? '⏸ PAUSAR' : '▶ CONTINUAR'}
+              </button>
+              <button class="live-sidebar-tactics-btn" id="btnLiveTactics" title="Substituições e Tática">
+                ⚡ MEXER NO TIME
+              </button>
+            </div>
+
+            <!-- LINHA 2: VELOCIDADES -->
+            <div class="live-sidebar-row">
+              <span class="live-sidebar-label">VELOCIDADE</span>
+              <div class="live-btn-group">
+                <button class="live-ctrl-btn ${s.speed === 1 ? 'active' : ''}" id="btnLiveSpeed1">1x</button>
+                <button class="live-ctrl-btn ${s.speed === 2 ? 'active' : ''}" id="btnLiveSpeed2">2x</button>
+                <button class="live-ctrl-btn ${s.speed === 4 || s.speed === 5 ? 'active' : ''}" id="btnLiveSpeed5">4x</button>
+                <button class="live-ctrl-btn ${s.speed === 20 ? 'active' : ''}" id="btnLiveSpeed20">20x</button>
+                <button class="live-ctrl-btn ${s.speed === 40 ? 'active' : ''}" id="btnLiveSpeed40">40x</button>
+              </div>
+            </div>
+
+            <!-- LINHA 3: CÂMERA -->
+            <div class="live-sidebar-row">
+              <span class="live-sidebar-label">CÂMERA</span>
+              <div class="live-btn-group">
+                <button class="live-ctrl-btn ${(!s.cameraMode || s.cameraMode === 'lateral' || s.cameraMode === 'tv') ? 'active' : ''}" id="btnCamLateral">Lateral</button>
+                <button class="live-ctrl-btn ${s.cameraMode === 'ball' ? 'active' : ''}" id="btnCamBall">Bola</button>
+                <button class="live-ctrl-btn ${s.cameraMode === 'goal' ? 'active' : ''}" id="btnCamGoal">Gol</button>
+              </div>
+            </div>
+
+            <!-- LINHA 4: AÇÕES RÁPIDAS -->
+            <div class="live-sidebar-row wrap" style="justify-content:space-between">
+              <button class="live-ctrl-btn" id="btnLiveForward1" title="Avançar 1 minuto">+1 min</button>
+              ${s.phase === 'FIRST_HALF' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Pular para o intervalo">⏩ Intervalo</button>` : (s.phase === 'HALF_TIME' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Iniciar 2º Tempo">▶ Iniciar 2ºT</button>` : '')}
+              <button class="live-ctrl-btn" id="btnLiveSkipEnd" title="Simular até o apito final">⏭ Ao Fim</button>
+              <button class="live-ctrl-btn" id="btnLiveSound" title="Ligar/Desligar som">
+                ${s.soundMuted ? '🔇 Mudo' : '🔊 Som'}
+              </button>
+            </div>
+
+            <!-- LINHA 5: MODO DE VISÃO 2D / 3D -->
+            <div class="live-sidebar-row">
+              <button class="live-ctrl-btn" id="btnToggle2D3D" style="width:100%;justify-content:center;background:${(s.renderMode || '3d') === '2d' ? 'rgba(59,130,246,0.3)' : 'linear-gradient(135deg,#7c3aed,#2563eb)'};border:1px solid #818cf8;color:#fff;font-weight:800;padding:6px 12px;border-radius:6px;font-size:11px">
+                ${(s.renderMode || '3d') === '2d' ? '📐 MODO 2D (CLIQUE P/ 3D)' : '🏟️ MODO 3D (CLIQUE P/ 2D)'}
+              </button>
+            </div>
+          </div>
+
+          <!-- SIDEBAR DE NARRAÇÃO AO VIVO -->
           <div class="live-sidebar-header">
             <span>• NARRAÇÃO AO VIVO</span>
             <span style="font-size:11px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:4px" id="liveEventCount">${s.events.length}</span>
@@ -16743,7 +16793,7 @@ function renderLiveMatchModal(){
         </div>
       </div>
 
-      <!-- DOCK INFERIOR COM ESTATÍSTICAS E CONTROLES -->
+      <!-- BARRA FLUTUANTE INFERIOR DISCRETA (ESTATÍSTICAS E GRITOS) -->
       <div class="live-bottom-dock">
         <div class="live-dock-stats">
           <div class="live-dock-stats-row">
@@ -16751,38 +16801,39 @@ function renderLiveMatchModal(){
             <span>
               🟨 ${s.stats.yellowsH} 🟥 ${s.stats.redsH} &nbsp;&nbsp; CARTÕES &nbsp;&nbsp; 🟨 ${s.stats.yellowsA} 🟥 ${s.stats.redsA}
             </span>
+            <span>
+              Público: <b>${(s.stadium?.attendance || 12000).toLocaleString('pt-BR')}</b> (${occPct}%)
+            </span>
           </div>
           <div class="live-shots-bar">
             <div class="live-shots-fill-home" id="liveShotsFillH" style="width:${(s.stats.shotsH+s.stats.shotsA) > 0 ? (s.stats.shotsH/(s.stats.shotsH+s.stats.shotsA)*100) : 50}%"></div>
             <div class="live-shots-fill-away" id="liveShotsFillA" style="width:${(s.stats.shotsH+s.stats.shotsA) > 0 ? (s.stats.shotsA/(s.stats.shotsH+s.stats.shotsA)*100) : 50}%"></div>
           </div>
-          <div class="live-dock-subtext">
-            ${esc((s.stadium?.name || 'Estádio Municipal').toUpperCase())} · Público presente <b>${(s.stadium?.attendance || 12000).toLocaleString('pt-BR')}</b> (${occPct}% da capacidade)
-          </div>
         </div>
 
-        <!-- BARRA DE GRITOS DA BEIRA DO CAMPO (Melhoria 3) -->
-        <div class="live-coach-shouts" style="display:flex;gap:8px;align-items:center;padding:8px 14px;background:rgba(15,23,42,0.92);border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap">
-          <span style="font-size:11px;font-weight:900;color:#38bdf8;letter-spacing:0.5px">🗣️ BEIRA DO CAMPO:</span>
-          <button class="live-shout-btn" data-shout="press" style="background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#fca5a5;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+        <!-- BARRA DE GRITOS DA BEIRA DO CAMPO -->
+        <div class="live-coach-shouts" style="display:flex;gap:8px;align-items:center;padding:4px 8px;background:rgba(15,23,42,0.85);border-radius:6px;flex-wrap:wrap">
+          <span style="font-size:10px;font-weight:900;color:#38bdf8;letter-spacing:0.5px">🗣️ BEIRA DO CAMPO:</span>
+          <button class="live-shout-btn" data-shout="press" style="background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#fca5a5;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer">
             🔥 Subir Linhas & Pressão
           </button>
-          <button class="live-shout-btn" data-shout="calm" style="background:rgba(56,189,248,0.2);border:1px solid #38bdf8;color:#bae6fd;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
-            🧠 Calma & Posse de Bola
+          <button class="live-shout-btn" data-shout="calm" style="background:rgba(56,189,248,0.2);border:1px solid #38bdf8;color:#bae6fd;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer">
+            🧠 Calma & Posse
           </button>
-          <button class="live-shout-btn" data-shout="counter" style="background:rgba(234,179,8,0.2);border:1px solid #eab308;color:#fef08a;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
-            🎯 Fechar Espaços & Contragolpe
+          <button class="live-shout-btn" data-shout="counter" style="background:rgba(234,179,8,0.2);border:1px solid #eab308;color:#fef08a;padding:4px 10px;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer">
+            🎯 Fechar Espaços
           </button>
-          ${s.coachShout ? `<span style="font-size:11px;color:#22c55e;font-weight:800;margin-left:auto">✓ Instrução em andamento</span>` : ''}
+          ${s.coachShout ? `<span style="font-size:10px;color:#22c55e;font-weight:800;margin-left:auto">✓ Instrução em andamento</span>` : ''}
+          ${s.done ? `<button class="live-ctrl-btn" id="btnLiveAdvanceRound" style="background:#22c55e;color:#000;font-weight:900;padding:5px 12px;margin-left:auto">AVANÇAR RODADA ➔</button>` : ''}
         </div>
 
         ${s.done ? `
-          <div class="live-postmatch-diag" style="margin:8px 14px;padding:12px 16px;background:rgba(15,23,42,0.96);border:1px solid #38bdf8;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.6)">
-            <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(56,189,248,0.25);padding-bottom:6px;margin-bottom:8px">
-              <span style="font-size:13px;font-weight:900;color:#38bdf8;letter-spacing:0.5px">🧠 DIAGNÓSTICO TÁTICO PÓS-JOGO</span>
+          <div class="live-postmatch-diag" style="margin:4px 0;padding:8px 12px;background:rgba(15,23,42,0.96);border:1px solid #38bdf8;border-radius:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(56,189,248,0.25);padding-bottom:4px;margin-bottom:6px">
+              <span style="font-size:12px;font-weight:900;color:#38bdf8;letter-spacing:0.5px">🧠 DIAGNÓSTICO TÁTICO PÓS-JOGO</span>
               <span style="font-size:11px;font-weight:800;color:#facc15">xG: ${s.stats.xGH} vs ${s.stats.xGA}</span>
             </div>
-            <div style="font-size:12px;color:#e2e8f0;line-height:1.5;margin-bottom:8px">
+            <div style="font-size:11px;color:#e2e8f0;line-height:1.4">
               ${(function(){
                 const isHomeUser = norm(s.home) === norm(state.club);
                 const uGoals = isHomeUser ? s.hg : s.ag;
@@ -16790,46 +16841,16 @@ function renderLiveMatchModal(){
                 const uXG = isHomeUser ? s.stats.xGH : s.stats.xGA;
                 const oXG = isHomeUser ? s.stats.xGA : s.stats.xGH;
                 if(uGoals > oGoals){
-                  return `<b>Vitória construída com autoridade tática!</b> A equipe executou com maestria a formação <i>${esc(state.formation || '4-3-3')}</i>, criando <b>${uXG} xG</b> e convertendo com eficiência, enquanto as coberturas defensivas neutralizaram o contra-ataque adversário.`;
+                  return `<b>Vitória com autoridade tática!</b> A equipe executou com maestria a formação <i>${esc(state.formation || '4-3-3')}</i>, gerando ${uXG} xG e vencendo o confronto.`;
                 } else if(uGoals < oGoals){
-                  return `<b>Revés tático!</b> A equipe teve dificuldades em fechar as entrelinhas e concedeu <b>${oXG} xG</b> ao adversário. Recomenda-se ajustar as funções defensivas e a postura em transições.`;
+                  return `<b>Revés tático!</b> A equipe cedeu espaços nas entrelinhas e sofreu com as transições adversárias (${oXG} xG adversário).`;
                 } else {
-                  return `<b>Empate truncado!</b> Confronto equilibrado em que ambas as formações táticas travaram a criação pelo meio de campo.`;
+                  return `<b>Empate disputado!</b> Confronto equilibrado com forte marcação no meio de campo.`;
                 }
               })()}
             </div>
-            <div style="display:flex;gap:14px;font-size:11px;color:#94a3b8;flex-wrap:wrap">
-              <span>🎯 Finalizações: <b>${s.stats.shotsH} x ${s.stats.shotsA}</b></span>
-              <span>🧤 No Alvo: <b>${s.stats.targetH} x ${s.stats.targetA}</b></span>
-              <span>🚩 Escanteios: <b>${s.stats.cornersH} x ${s.stats.cornersA}</b></span>
-              <span>🛡️ Faltas: <b>${s.stats.foulsH} x ${s.stats.foulsA}</b></span>
-            </div>
           </div>
         ` : ''}
-
-        <div class="live-dock-controls">
-          <button class="live-ctrl-btn ${s.speed === 1 ? 'active' : ''}" id="btnLiveSpeed1">1x</button>
-          <button class="live-ctrl-btn ${s.speed === 2 ? 'active' : ''}" id="btnLiveSpeed2">2x</button>
-          <button class="live-ctrl-btn ${s.speed === 5 ? 'active' : ''}" id="btnLiveSpeed5">5x</button>
-          <button class="live-ctrl-btn ${s.speed === 10 ? 'active' : ''}" id="btnLiveSpeed10">10x</button>
-          <button class="live-ctrl-btn ${s.speed === 20 ? 'active' : ''}" id="btnLiveSpeed20">20x</button>
-          <button class="live-ctrl-btn ${s.speed === 40 ? 'active' : ''}" id="btnLiveSpeed40">40x</button>
-          
-          <button class="live-ctrl-btn play-circle" id="btnLivePlayToggle" title="Pausar / Continuar">
-            ${s.playing ? '⏸' : '▶'}
-          </button>
-          
-          <button class="live-ctrl-btn" id="btnLiveForward1" title="Avançar 1 minuto no jogo">⏩ 1 min</button>
-          <button class="live-ctrl-btn green-tactics" id="btnLiveTactics" title="Substituições e Tática">
-            ⚡ MEXER NO TIME
-          </button>
-          ${s.phase === 'FIRST_HALF' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Pular para o intervalo">⏩| PULAR 1º TEMPO</button>` : (s.phase === 'HALF_TIME' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Iniciar 2º Tempo">▶ INICIAR 2º TEMPO</button>` : '')}
-          <button class="live-ctrl-btn" id="btnLiveSkipEnd" title="Simular até o apito final">⏭| IR AO FIM</button>
-          <button class="live-ctrl-btn" id="btnLiveSound" title="Ligar/Desligar som">
-            ${s.soundMuted ? '🔇 MUDO' : '🔊 SOM'}
-          </button>
-          ${s.done ? `<button class="live-ctrl-btn" id="btnLiveAdvanceRound" style="background:#22c55e;color:#000;font-weight:900">AVANÇAR RODADA ➔</button>` : ''}
-        </div>
       </div>
     </div>
   `;
@@ -18009,81 +18030,182 @@ function drawFloodlights(ctx, s){
 }
 
 // Desenha os Bancos de Reservas com reservas e técnicos
+// Desenha os Bancos de Reservas com reservas e técnicos (Estrutura 3D Acrílica Realista BRFC27)
 function drawDugouts(ctx, s){
-  // Bancos de reservas 3D em perspectiva integrados na área técnica da linha inferior
   const by = 538;
   const hKitColor = s.homeKit?.primary || '#f59e0b';
   const aKitColor = s.awayKit?.primary || '#15803d';
+  const ticks = s.renderTicks || 0;
 
-  // 1. Banco de Reservas da Casa (Home - Esquerda)
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-  ctx.beginPath();
-  ctx.roundRect(260, by, 190, 32, [8, 8, 4, 4]);
-  ctx.fill();
-  ctx.strokeStyle = hKitColor;
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
+  // Função auxiliar para desenhar um abrigo 3D completo com acrílico curvo, 7 reservas e área técnica
+  function renderBench(x0, w, h, kitColor, isHome, coachName){
+    // 1. Área Técnica demarcada no gramado com linhas tracejadas
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([5, 4]);
+    const techBoxX = isHome ? (x0 + w - 10) : (x0 - 50);
+    ctx.strokeRect(techBoxX, by - 16, 60, 24);
+    ctx.setLineDash([]);
+    ctx.restore();
 
-  // Cobertura de Vidro Curvo
-  ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
-  ctx.beginPath();
-  ctx.roundRect(260, by - 6, 190, 8, [6, 6, 0, 0]);
-  ctx.fill();
-
-  // Assentos do Banco Casa
-  for(let i = 0; i < 7; i++){
-    ctx.fillStyle = hKitColor;
+    // 2. Plataforma e Base do Banco de Reservas (Concreto e Aço)
+    ctx.fillStyle = '#0f172a';
     ctx.beginPath();
-    ctx.arc(275 + i * 24, by + 16, 5, 0, Math.PI * 2);
+    ctx.roundRect(x0, by + 4, w, 28, [4, 4, 6, 6]);
     ctx.fill();
-  }
-  // Treinador Mandante em pé na Área Técnica
-  const coachHomeWave = Math.sin((s.renderTicks || 0) * 0.08) * 2;
-  ctx.fillStyle = '#0284c7';
-  ctx.fillRect(460, by - 12 + coachHomeWave, 9, 20);
-  ctx.fillStyle = '#fed7aa';
-  ctx.beginPath();
-  ctx.arc(464.5, by - 16 + coachHomeWave, 4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 8px Inter, sans-serif';
-  ctx.fillText(`TÉC. ${(state.manager || 'TREINADOR').split(' ')[0].toUpperCase()}`, 464, by + 16);
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
-  // 2. Banco de Reservas Visitante (Away - Direita)
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-  ctx.beginPath();
-  ctx.roundRect(830, by, 190, 32, [8, 8, 4, 4]);
-  ctx.fill();
-  ctx.strokeStyle = aKitColor;
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
+    // Faixa com a cor do clube na base
+    ctx.fillStyle = kitColor;
+    ctx.fillRect(x0 + 4, by + 30, w - 8, 2);
 
-  // Cobertura Visitante
-  ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
-  ctx.beginPath();
-  ctx.roundRect(830, by - 6, 190, 8, [6, 6, 0, 0]);
-  ctx.fill();
+    // 3. Parede de Fundo do Abrigo
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(x0 + 2, by - 14, w - 4, 20);
 
-  // Assentos do Banco Visitante
-  for(let i = 0; i < 7; i++){
-    ctx.fillStyle = aKitColor;
+    // 4. 7 Assentos Tipo Concha e Atletas Reservas Sentados
+    const seatW = (w - 16) / 7;
+    for(let i = 0; i < 7; i++){
+      const sx = x0 + 8 + i * seatW;
+
+      // Encosto do assento esportivo
+      ctx.fillStyle = '#090d16';
+      ctx.beginPath();
+      ctx.roundRect(sx, by - 10, seatW - 3, 16, [4, 4, 1, 1]);
+      ctx.fill();
+
+      // Centro do assento com a cor do clube
+      ctx.fillStyle = kitColor;
+      ctx.fillRect(sx + 2, by - 8, seatW - 7, 12);
+
+      // Silhueta do jogador reserva sentado
+      ctx.fillStyle = kitColor;
+      ctx.beginPath();
+      ctx.roundRect(sx + 3, by - 6, seatW - 9, 13, [3, 3, 0, 0]);
+      ctx.fill();
+
+      // Cabeça com tom de pele variado
+      const skinTones = ['#fed7aa', '#fcd34d', '#d97706', '#92400e', '#78350f'];
+      ctx.fillStyle = skinTones[(i * 3 + (isHome ? 1 : 2)) % skinTones.length];
+      ctx.beginPath();
+      ctx.arc(sx + (seatW - 3) / 2, by - 11, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cabelo
+      ctx.fillStyle = (i % 2 === 0) ? '#111827' : '#451a03';
+      ctx.beginPath();
+      ctx.arc(sx + (seatW - 3) / 2, by - 12.5, 3.2, Math.PI, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 5. Cobertura Curva de Acrílico Translúcido (Glass Acrylic Canopy)
+    ctx.save();
+    const canopyGrad = ctx.createLinearGradient(x0, by - 24, x0, by + 10);
+    canopyGrad.addColorStop(0, 'rgba(207, 227, 242, 0.42)');
+    canopyGrad.addColorStop(0.5, 'rgba(186, 230, 253, 0.22)');
+    canopyGrad.addColorStop(1, 'rgba(207, 227, 242, 0.08)');
+    ctx.fillStyle = canopyGrad;
+
     ctx.beginPath();
-    ctx.arc(845 + i * 24, by + 16, 5, 0, Math.PI * 2);
+    ctx.moveTo(x0, by + 12);
+    ctx.quadraticCurveTo(x0, by - 24, x0 + 18, by - 24);
+    ctx.lineTo(x0 + w - 18, by - 24);
+    ctx.quadraticCurveTo(x0 + w, by - 24, x0 + w, by + 12);
+    ctx.closePath();
     ctx.fill();
+
+    // Tubulação de aço metálico da cobertura (arco estrutural)
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Nervuras metálicas intermediárias
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.5)';
+    ctx.lineWidth = 1;
+    for(let r = 1; r <= 3; r++){
+      const rx = x0 + (r / 4) * w;
+      ctx.beginPath();
+      ctx.moveTo(rx, by + 10);
+      ctx.lineTo(rx, by - 24);
+      ctx.stroke();
+    }
+
+    // Brilho especular (reflexo de vidro / luz diagonal)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.beginPath();
+    ctx.moveTo(x0 + 14, by - 22);
+    ctx.lineTo(x0 + 36, by - 22);
+    ctx.lineTo(x0 + 20, by + 6);
+    ctx.lineTo(x0 + 6, by + 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // 6. Treinador em pé na Área Técnica
+    const coachWave = Math.sin(ticks * 0.08 + (isHome ? 0 : 2)) * 2;
+    const coachX = isHome ? (x0 + w + 16) : (x0 - 24);
+    const coachY = by - 8 + coachWave;
+
+    // Sombra do técnico no gramado
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(coachX + 4.5, by + 8, 7, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Corpo / Terno do Treinador
+    ctx.fillStyle = isHome ? '#0284c7' : '#dc2626';
+    ctx.beginPath();
+    ctx.roundRect(coachX, coachY, 9, 16, [2, 2, 0, 0]);
+    ctx.fill();
+
+    // Braço gesticulando
+    ctx.strokeStyle = isHome ? '#0284c7' : '#dc2626';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(coachX + (isHome ? 9 : 0), coachY + 4);
+    ctx.lineTo(coachX + (isHome ? 15 : -6), coachY + 8 + coachWave);
+    ctx.stroke();
+
+    // Cabeça do técnico
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(coachX + 4.5, coachY - 4, 3.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cabelo do técnico
+    ctx.fillStyle = '#334155';
+    ctx.beginPath();
+    ctx.arc(coachX + 4.5, coachY - 5.5, 3.8, Math.PI, Math.PI * 2);
+    ctx.fill();
+
+    // Plaquinha elegante com nome do treinador
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.beginPath();
+    ctx.roundRect(coachX - 24, by + 12, 58, 12, 3);
+    ctx.fill();
+    ctx.strokeStyle = kitColor;
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 7.5px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(coachName, coachX + 5, by + 18);
   }
-  // Treinador Visitante em pé
-  ctx.fillStyle = '#dc2626';
-  ctx.fillRect(810, by - 12, 9, 20);
-  ctx.fillStyle = '#fed7aa';
-  ctx.beginPath();
-  ctx.arc(814.5, by - 16, 4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 8px Inter, sans-serif';
-  ctx.fillText('TÉC. ADVERSÁRIO', 814, by + 16);
+
+  // 1. Banco Mandante (Home - Esquerda)
+  const homeManager = (typeof state !== 'undefined' && state.manager) ? `TÉC. ${state.manager.split(' ')[0].toUpperCase()}` : `TÉC. ${(s.home || 'CASA').slice(0, 4).toUpperCase()}`;
+  renderBench(240, 195, 32, hKitColor, true, homeManager);
+
+  // 2. Banco Visitante (Away - Direita)
+  const awayManager = `TÉC. ${(s.away || 'VISITANTE').slice(0, 6).toUpperCase()}`;
+  renderBench(845, 195, 32, aKitColor, false, awayManager);
 }
 
-// Desenha o sprite do jogador no canvas com animações de corrida, chute, mergulho e comemoração
 function drawPlayerSprite(ctx, p, hasBall){
   if(p.redCard) return; // Jogador expulso não aparece no campo!
   const pt = proj(p.x, p.y);
@@ -19332,7 +19454,7 @@ function bindLiveMatchEvents(){
 
   function togglePlay(){
     s.playing = !s.playing;
-    if(btnPlay) btnPlay.textContent = s.playing ? '⏸' : '▶';
+    if(btnPlay) btnPlay.textContent = s.playing ? '⏸ PAUSAR' : '▶ CONTINUAR';
     if(overlay) overlay.style.display = s.playing ? 'none' : 'inline-flex';
   }
 
@@ -19340,11 +19462,11 @@ function bindLiveMatchEvents(){
   if(overlay) overlay.onclick = togglePlay;
   if(canvas) canvas.onclick = togglePlay;
 
-  // Velocidades (1x, 2x, 5x, 10x, 20x, 40x)
+  // Velocidades (1x, 2x, 4x, 10x, 20x, 40x)
   const speedButtons = [
     { speed: 1, btn: $('#btnLiveSpeed1') },
     { speed: 2, btn: $('#btnLiveSpeed2') },
-    { speed: 5, btn: $('#btnLiveSpeed5') },
+    { speed: 4, btn: $('#btnLiveSpeed5') },
     { speed: 10, btn: $('#btnLiveSpeed10') },
     { speed: 20, btn: $('#btnLiveSpeed20') },
     { speed: 40, btn: $('#btnLiveSpeed40') },
@@ -19377,9 +19499,40 @@ function bindLiveMatchEvents(){
   const btnTactics = $('#btnLiveTactics');
   if(btnTactics) btnTactics.onclick = () => {
     s.playing = false;
-    if(btnPlay) btnPlay.textContent = '▶';
+    if(btnPlay) btnPlay.textContent = '▶ CONTINUAR';
     if(overlay) overlay.style.display = 'inline-flex';
     openHalftimeModal(true);
+  };
+
+  // Câmera Lateral, Bola e Gol
+  const btnCamLat = $('#btnCamLateral');
+  if(btnCamLat) btnCamLat.onclick = () => {
+    s.cameraMode = 'lateral';
+    if(s.camera) s.camera.mode = 'tv';
+    toast('🎥 Câmera Lateral / TV Dinâmica Ativada');
+    renderLiveMatchModal();
+  };
+  const btnCamBall = $('#btnCamBall');
+  if(btnCamBall) btnCamBall.onclick = () => {
+    s.cameraMode = 'ball';
+    if(s.camera) s.camera.mode = 'ball';
+    toast('⚽ Câmera Foco na Bola Ativada');
+    renderLiveMatchModal();
+  };
+  const btnCamGoal = $('#btnCamGoal');
+  if(btnCamGoal) btnCamGoal.onclick = () => {
+    s.cameraMode = 'goal';
+    if(s.camera) s.camera.mode = 'goal';
+    toast('🥅 Câmera Foco no Gol Ativada');
+    renderLiveMatchModal();
+  };
+
+  // Alternar entre Estádio 3D e Visão 2D
+  const btn2D3D = $('#btnToggle2D3D');
+  if(btn2D3D) btn2D3D.onclick = () => {
+    s.renderMode = (s.renderMode === '2d') ? '3d' : '2d';
+    toast(s.renderMode === '2d' ? '📐 Visão Tática 2D Ativada' : '🏟️ Estádio 3D Imersivo Ativado');
+    renderLiveMatchModal();
   };
 
   // Pular para o Intervalo ou Iniciar 2º Tempo (Contextual)
@@ -19437,23 +19590,12 @@ function bindLiveMatchEvents(){
       if(s.soundMuted){
         window.afmAudio.stopCrowdAmbient();
       } else {
-        window.afmAudio.startCrowdAmbient(s.home, comp?.id);
+        window.afmAudio.startCrowdAmbient(s.home, curComp()?.id);
       }
     }
-    btnSound.textContent = s.soundMuted ? '🔇 MUDO' : '🔊 SOM';
+    btnSound.textContent = s.soundMuted ? '🔇 Mudo' : '🔊 Som';
     toast(s.soundMuted ? 'Áudio da partida desativado' : 'Áudio da partida ativado');
   };
-
-  // Alternar Câmera de Transmissão (TV Dinâmica vs Panorâmica)
-  const btnCam = $('#btnToggleLiveCam');
-  if(btnCam){
-    btnCam.onclick = () => {
-      s.camera = s.camera || { mode: 'tv' };
-      s.camera.mode = s.camera.mode === 'tv' ? 'wide' : 'tv';
-      btnCam.textContent = s.camera.mode === 'tv' ? '🎥 TV Dinâmica' : '🏟️ Panorâmica';
-      toast(s.camera.mode === 'tv' ? '🎥 Câmera de TV Ativada: seguindo o lance e a bola!' : '🏟️ Câmera Panorâmica Ativada: visão ampla do estádio');
-    };
-  }
 
   // Fechar
   const btnClose = $('#btnLiveClose');
@@ -19474,7 +19616,7 @@ function bindLiveMatchEvents(){
     finalizeMatchRound();
   };
 
-  // Gritos da Beira do Campo (Melhoria 3)
+  // Gritos da Beira do Campo
   $$('.live-shout-btn').forEach(btn => {
     btn.onclick = () => {
       const type = btn.dataset.shout;
@@ -19492,11 +19634,6 @@ function bindLiveMatchEvents(){
     };
   });
 }
-
-// -------------------------------------------------------------
-// MODAL DE INTERVALO & SUBSTITUIÇÕES COM CANSAÇO (SCREENSHOT 4)
-// -------------------------------------------------------------
-let halftimeSelectedStarterKey = null;
 
 function openHalftimeModal(isQuickTactics = false){
   const s = liveMatchState;
