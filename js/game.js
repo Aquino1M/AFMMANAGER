@@ -12390,7 +12390,9 @@ function triggerPostMatchFlow(userRes){
       }
     });
   } else {
-    triggerPostMatchFlow(userRes);
+    view = 'central';
+    save();
+    render();
   }
 }
 window.triggerPostMatchFlow = triggerPostMatchFlow;
@@ -23861,12 +23863,27 @@ function handleExitGameAction(){
         if (pModal) pModal.remove();
         const pressModal = document.getElementById('appPressConferenceModal');
         if (pressModal) pressModal.remove();
+        
+        // Limpa estado ativo e direciona infalivelmente para a tela de saves e seleção de times
         state = null;
-        if (typeof render === 'function') render();
-        if (typeof toast === 'function') toast('💾 Jogo salvo automaticamente com sucesso! Até logo.');
+        window.state = null;
+        window.GameState = null;
+        setupViewMode = 'select';
+
+        const appEl = document.querySelector('#app');
+        if (appEl && typeof renderSetup === 'function') {
+          try { renderSetup(appEl); } catch(errSetup) { console.error('Erro ao renderizar setup após sair:', errSetup); }
+        } else if (typeof render === 'function') {
+          render();
+        }
+
+        if (typeof toast === 'function') toast('💾 Jogo salvo automaticamente! Escolha uma campanha salva ou inicie uma nova carreira.');
       } catch(exitErr) {
         console.error('Erro ao sair para o menu:', exitErr);
         state = null;
+        window.state = null;
+        window.GameState = null;
+        setupViewMode = 'select';
         if (typeof render === 'function') render();
       }
     },
@@ -31628,7 +31645,18 @@ let setupSelectedCompId = 'bra-a';
 let setupBrCategory = 'nacionais';
 let setupSelectedClubName = 'Corinthians';
 let setupAuthTab = 'login'; // 'login' | 'register'
-let setupViewMode = 'auth'; // 'auth' | 'systems' | 'hub' | 'arenas' | 'estaduais'
+let setupViewMode = 'select'; // 'select' | 'auth' | 'systems' | 'hub' | 'arenas' | 'estaduais'
+if (typeof window !== 'undefined') {
+  try {
+    Object.defineProperty(window, 'setupViewMode', {
+      get: () => setupViewMode,
+      set: (v) => { setupViewMode = v; },
+      configurable: true
+    });
+    window.setSetupViewMode = (v) => { setupViewMode = v; };
+    window.getSetupViewMode = () => setupViewMode;
+  } catch(e) {}
+}
 let setupSystemCategory = 'todos';
 let setupHubPage = 1;
 let setupClubSearchQuery = '';
@@ -32130,51 +32158,50 @@ const AFM_SYSTEMS_DATA = [
 function renderLandingNavbar(activeTab){
   return `
     <header class="afm-landing-nav">
-      <div class="afm-nav-brand" id="btnNavBrandHome">
+      <div class="afm-nav-brand" id="btnNavBrandHome" style="cursor:pointer" title="Ir para a Página Inicial">
         <span style="font-size:24px;filter:drop-shadow(0 0 10px rgba(168,85,247,0.7))">⚽</span>
         <span>AFM MANAGER <b style="color:#a7ff3f">2027</b></span>
       </div>
 
       <nav class="afm-nav-links">
         <button class="afm-nav-link ${activeTab==='auth'?'active':''}" id="btnNavGoAuth">⭐ Início & Craques</button>
+        <button class="afm-nav-link ${activeTab==='select'?'active':''}" id="btnNavGoSaves">💾 Jogar & Saves</button>
         <button class="afm-nav-link ${activeTab==='systems'?'active':''}" id="btnNavGoSystems">🎮 Todos os Sistemas</button>
         <button class="afm-nav-link ${activeTab==='arenas'?'active':''}" id="btnNavGoArenas">🏟️ Novas Arenas</button>
         <button class="afm-nav-link ${activeTab==='estaduais'?'active':''}" id="btnNavGoEstaduais">🏆 11 Estaduais</button>
-        <button class="afm-nav-link ${activeTab==='hub'?'active':''}" id="btnNavGoHub">📢 Central de Novidades (75+)</button>
+        <button class="afm-nav-link ${activeTab==='hub'?'active':''}" id="btnNavGoHub">📢 Novidades (75+)</button>
       </nav>
 
       <div style="display:flex;align-items:center;gap:10px">
-        ${activeTab !== 'auth' ? `
-          <button class="btn primary" id="btnNavCtaPlay" style="padding:8px 18px;font-size:13px;font-weight:900;border-radius:10px;box-shadow:0 0 15px rgba(124,58,237,0.4)">
-            🚀 Jogar Agora
-          </button>
-        ` : `
+        <button class="btn primary" id="btnNavCtaPlay" style="padding:8px 18px;font-size:13px;font-weight:900;border-radius:10px;box-shadow:0 0 15px rgba(124,58,237,0.4)">
+          🚀 Escolher Time / Jogar
+        </button>
+        ${activeTab === 'auth' ? `
           <button class="btn" id="btnNavSwitchAuth" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);padding:7px 16px;font-size:12px;font-weight:800;border-radius:8px;color:#fff;cursor:pointer">
             ${setupAuthTab==='login' ? '✨ Criar Conta' : '🔑 Entrar'}
           </button>
-          <button class="btn primary" id="btnNavOpenSystemsQuick" style="padding:7px 16px;font-size:12px;font-weight:900;border-radius:8px;box-shadow:0 0 15px rgba(124,58,237,0.4)">
-            🎮 Ver Sistemas
-          </button>
-        `}
+        ` : ''}
       </div>
     </header>
   `;
 }
 
 function renderSetup(app){
-  const activeUser = getActiveAccount();
+  if (!app) app = document.querySelector('#app');
+  if (!app) return;
 
-  // SE NÃO ESTIVER LOGADO: LANDING PAGE PRO (SPLIT-SCREEN, HUB DE NOVIDADES, ARENAS & ESTADUAIS)
-  if(!activeUser){
+  try {
+    const rawActiveUser = getActiveAccount();
+    const activeUser = rawActiveUser || { username: 'treinador', name: 'Treinador', role: 'player' };
 
     // 1. MODO: CENTRAL DE NOVIDADES & BLOG (75+ NOVIDADES COM PAGINAÇÃO)
     if(setupViewMode === 'hub'){
       const itemsPerPage = 6;
-      const totalPages = Math.ceil(AFM_CHANGELOG_75.length / itemsPerPage);
+      const totalPages = Math.max(1, Math.ceil((window.AFM_CHANGELOG_75 || []).length / itemsPerPage));
       if(setupHubPage < 1) setupHubPage = 1;
       if(setupHubPage > totalPages) setupHubPage = totalPages;
       const startIndex = (setupHubPage - 1) * itemsPerPage;
-      const currentItems = AFM_CHANGELOG_75.slice(startIndex, startIndex + itemsPerPage);
+      const currentItems = (window.AFM_CHANGELOG_75 || []).slice(startIndex, startIndex + itemsPerPage);
 
       app.innerHTML = `
         <div class="afm-landing-wrapper">
@@ -32223,7 +32250,7 @@ function renderSetup(app){
             <!-- GRID COM NOVIDADES DA PÁGINA ATUAL -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
               <span style="font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">
-                EXIBINDO NOVIDADES ${startIndex + 1} A ${Math.min(startIndex + itemsPerPage, AFM_CHANGELOG_75.length)} DE ${AFM_CHANGELOG_75.length}:
+                EXIBINDO NOVIDADES ${startIndex + 1} A ${Math.min(startIndex + itemsPerPage, (window.AFM_CHANGELOG_75 || []).length)} DE ${(window.AFM_CHANGELOG_75 || []).length}:
               </span>
               <span style="font-size:12px;color:#cbd5e1;font-weight:800">
                 Página ${setupHubPage} de ${totalPages}
@@ -32278,7 +32305,7 @@ function renderSetup(app){
                 Entre agora no AFM MANAGER 2027 e leve o seu clube do coração ao topo do mundo.
               </p>
               <button class="btn primary" id="btnCtaStartGameFromHub" style="padding:14px 36px;font-size:15px;font-weight:900;border-radius:12px;box-shadow:0 8px 30px rgba(124,58,237,0.5)">
-                🚀 Iniciar Minha Carreira Agora
+                🚀 Escolher Meu Time e Jogar Agora
               </button>
             </div>
           </div>
@@ -32603,6 +32630,7 @@ function renderSetup(app){
     }
 
     // 4. MODO AUTH: SPLIT-SCREEN LANDING PAGE COM TRIO DE CRAQUES & FORMULÁRIO DE LOGIN
+    if(setupViewMode === 'auth'){
     app.innerHTML = `
       <div class="afm-landing-wrapper">
         ${renderLandingNavbar('auth')}
@@ -32816,7 +32844,13 @@ function renderSetup(app){
                 ${setupAuthTab==='login' ? '🚀 Entrar na Carreira' : '✨ Criar Conta & Continuar'}
               </button>
 
-              <div style="text-align:center;font-size:13px;color:#94a3b8;margin-top:20px">
+              <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);text-align:center">
+                <button type="button" class="btn" id="btnPlayAsGuestFromAuth" style="width:100%;padding:10px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:10px;cursor:pointer">
+                  🎮 Jogar Imediato / Escolher Time sem Login
+                </button>
+              </div>
+
+              <div style="text-align:center;font-size:13px;color:#94a3b8;margin-top:16px">
                 ${setupAuthTab==='login' 
                   ? 'Não possui uma conta? <a href="javascript:void(0)" id="btnSwitchToRegister" style="color:#a855f7;font-weight:800;text-decoration:none">Cadastre-se grátis</a>' 
                   : 'Já possui uma conta? <a href="javascript:void(0)" id="btnSwitchToLogin" style="color:#a855f7;font-weight:800;text-decoration:none">Entrar agora</a>'}
@@ -32831,7 +32865,7 @@ function renderSetup(app){
     return;
   }
 
-  // SE ESTIVER LOGADO: CARREGA SLOTS E EXIBE A TELA COMPLETA COM OS 3 SAVES E OS TIMES!
+  // MODO 'select' (PADRÃO): CARREGA SLOTS E EXIBE A TELA COMPLETA COM OS 3 SAVES E OS TIMES!
   const userSlots = getUserSaveSlots(activeUser.username);
   const conts = ['América do Sul', 'Europa', 'Ásia', 'América do Norte'];
   const curCountries = allCountries(setupSelectedContinent);
@@ -32894,6 +32928,9 @@ function renderSetup(app){
         </div>
 
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn" id="btnGoToLandingPageFromSetup" style="padding:7px 14px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:8px;cursor:pointer">
+            ⭐ Página Inicial & Novidades
+          </button>
           <span class="pill" style="background:rgba(56,189,248,0.12);color:#38bdf8;padding:6px 14px;font-weight:800;border:1px solid rgba(56,189,248,0.3)" title="Banco de Dados Supabase Conectado">
             ☁️ Supabase Cloud Ativo
           </span>
@@ -33280,6 +33317,29 @@ function renderSetup(app){
   `;
 
   bindSetup();
+  } catch(err) {
+    console.error('[AFM] Erro crítico em renderSetup:', err);
+    try {
+      app.innerHTML = `
+        <div class="setup-container" style="max-width:800px;margin:40px auto;padding:30px;background:#101724;border:1px solid rgba(168,85,247,0.4);border-radius:20px;text-align:center;color:#fff">
+          <span style="font-size:48px">⚽</span>
+          <h1 style="margin:12px 0 6px 0;font-size:26px;font-weight:900">AFM MANAGER 2027</h1>
+          <p style="color:#94a3b8;font-size:14px;margin-bottom:20px">Escolha seu caminho para entrar no jogo:</p>
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+            <button class="btn primary" onclick="setupViewMode='select';renderSetup(document.querySelector('#app'));" style="padding:12px 24px;font-weight:900;border-radius:10px">
+              💾 Escolher Times e Saves
+            </button>
+            <button class="btn" onclick="setupViewMode='auth';renderSetup(document.querySelector('#app'));" style="padding:12px 24px;font-weight:800;border-radius:10px;background:rgba(255,255,255,0.08);color:#fff">
+              ⭐ Página Inicial
+            </button>
+          </div>
+        </div>
+      `;
+      bindSetup();
+    } catch(fallbackErr) {
+      console.error('[AFM] Falha no fallback de renderSetup:', fallbackErr);
+    }
+  }
 }
 
 function openCommunityModModal(){
@@ -33632,6 +33692,15 @@ function bindSetup(){
   const btnNavHome = $('#btnNavBrandHome');
   if(btnNavHome) btnNavHome.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
 
+  const btnNavGoSaves = $('#btnNavGoSaves');
+  if(btnNavGoSaves) btnNavGoSaves.onclick = () => { setupViewMode = 'select'; renderSetup($('#app')); };
+
+  const btnGoToLanding = $('#btnGoToLandingPageFromSetup');
+  if(btnGoToLanding) btnGoToLanding.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  const btnGuestPlay = $('#btnPlayAsGuestFromAuth');
+  if(btnGuestPlay) btnGuestPlay.onclick = () => { setupViewMode = 'select'; renderSetup($('#app')); };
+
   const btnNavAuth = $('#btnNavGoAuth');
   if(btnNavAuth) btnNavAuth.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
 
@@ -33651,7 +33720,7 @@ function bindSetup(){
   if(btnLandingViewEstaduais) btnLandingViewEstaduais.onclick = () => { setupViewMode = 'estaduais'; renderSetup($('#app')); };
 
   const btnSystemsStart = $('#btnSystemsStartCareer');
-  if(btnSystemsStart) btnSystemsStart.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+  if(btnSystemsStart) btnSystemsStart.onclick = () => { setupViewMode = 'select'; renderSetup($('#app')); };
 
   const btnSystemsBack = $('#btnSystemsBackHome');
   if(btnSystemsBack) btnSystemsBack.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
@@ -33691,7 +33760,7 @@ function bindSetup(){
   if(btnNavEstaduais) btnNavEstaduais.onclick = () => { setupViewMode = 'estaduais'; renderSetup($('#app')); };
 
   const btnNavCtaPlay = $('#btnNavCtaPlay');
-  if(btnNavCtaPlay) btnNavCtaPlay.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+  if(btnNavCtaPlay) btnNavCtaPlay.onclick = () => { setupViewMode = 'select'; renderSetup($('#app')); };
 
   const btnNavSwitch = $('#btnNavSwitchAuth');
   if(btnNavSwitch) btnNavSwitch.onclick = () => {
@@ -33704,7 +33773,7 @@ function bindSetup(){
   if(btnCtaTop) btnCtaTop.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
 
   const btnCtaHub = $('#btnCtaStartGameFromHub');
-  if(btnCtaHub) btnCtaHub.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+  if(btnCtaHub) btnCtaHub.onclick = () => { setupViewMode = 'select'; renderSetup($('#app')); };
 
   const btnHubArena = $('#btnHubReadArena');
   if(btnHubArena) btnHubArena.onclick = () => { setupViewMode = 'arenas'; renderSetup($('#app')); };
@@ -33740,10 +33809,10 @@ function bindSetup(){
 
   // Binds de Arenas
   const btnArenaCta = $('#btnArenaCtaStart');
-  if(btnArenaCta) btnArenaCta.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+  if(btnArenaCta) btnArenaCta.onclick = () => { setupViewMode = 'select'; renderSetup($('#app')); };
 
   const btnStartArenas = $('#btnCtaStartGameFromArenas');
-  if(btnStartArenas) btnStartArenas.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+  if(btnStartArenas) btnStartArenas.onclick = () => { setupViewMode = 'select'; renderSetup($('#app')); };
 
   $$('.btnPlayInArena').forEach(b => {
     b.onclick = () => {
@@ -33759,7 +33828,7 @@ function bindSetup(){
 
   // Binds de Estaduais
   const btnStartEst = $('#btnCtaStartGameFromEstaduais');
-  if(btnStartEst) btnStartEst.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+  if(btnStartEst) btnStartEst.onclick = () => { setupViewMode = 'select'; renderSetup($('#app')); };
 
   $$('.btnPlayInEstadual').forEach(b => {
     b.onclick = () => {
