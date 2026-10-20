@@ -24775,7 +24775,6 @@ function shell(main){
         <button type="button" class="sm-ribbon-pill ${view==='mercado'?'active':''}" data-view="mercado">🔄 Mercado & Transferências</button>
         <button type="button" class="sm-ribbon-pill ${view==='escritorio'?'active':''}" data-view="escritorio">🏢 Escritório & Finanças</button>
         <button type="button" class="sm-ribbon-pill ${view==='carreira'?'active':''}" data-view="carreira">🎯 Carreira</button>
-        <button type="button" class="sm-ribbon-pill sm-ribbon-pix ${view==='ranking'?'active':''}" data-view="ranking" title="Ranking Oficial de Técnicos & Premiação PIX R$ 1.000" style="background:${view==='ranking'?'#059669':'rgba(16,185,129,0.18)'};border:1px solid #10b981;color:#a7f3d0;font-weight:900">💠 Ranking PIX R$ 1.000</button>
         <button type="button" class="sm-ribbon-pill ${view==='noticias'?'active':''}" data-view="noticias">📰 Notícias & Mídia</button>
         <div class="sm-ribbon-ticker">
           <span>⚽ ${tickerMsg}</span>
@@ -24818,7 +24817,6 @@ function shell(main){
               ['calendario','🗓️ Calendário de Jogos'],
               ['mercado','🔄 Mercado & Transferências'],
               ['carreira','💼 Carreira do Treinador'],
-              ['ranking','👑 Ranking & PIX R$ 1.000'],
               ['temporada','🏆 Temporada'],
               ['estrutura','🏟️ Instalações & Estádio'],
               ['escritorio','🏢 Escritório & Finanças'],
@@ -32185,6 +32183,7 @@ function renderLandingNavbar(activeTab){
 
       <nav class="afm-nav-links">
         <button class="afm-nav-link ${activeTab==='auth'?'active':''}" id="btnNavGoAuth">⭐ Início & Craques</button>
+        <button class="afm-nav-link ${activeTab==='ranking'?'active':''}" id="btnNavGoRanking" style="color:#6ee7b7">👑 Ranking & PIX R$ 1.000</button>
         <button class="afm-nav-link ${activeTab==='systems'?'active':''}" id="btnNavGoSystems">🎮 Todos os Sistemas</button>
         <button class="afm-nav-link ${activeTab==='arenas'?'active':''}" id="btnNavGoArenas">🏟️ Novas Arenas</button>
         <button class="afm-nav-link ${activeTab==='estaduais'?'active':''}" id="btnNavGoEstaduais">🏆 11 Estaduais</button>
@@ -32216,6 +32215,23 @@ function renderSetup(app){
     // Regra: O jogador só entra no jogo (saves e times) após efetuar login
     if(!rawActiveUser && setupViewMode === 'select'){
       setupViewMode = 'auth';
+    }
+
+    // MODO: RANKING OFICIAL DE TÉCNICOS & PREMIAÇÃO PIX R$ 1.000 NA PÁGINA INICIAL
+    if(setupViewMode === 'ranking'){
+      app.innerHTML = `
+        <div class="afm-landing-wrapper">
+          ${renderLandingNavbar('ranking')}
+          <div style="max-width:1440px;margin:0 auto;padding:10px 20px 40px">
+            ${typeof window.rankingPage === 'function' ? window.rankingPage() : '<div style="color:#fff;text-align:center;padding:40px">Carregando Ranking Oficial...</div>'}
+          </div>
+        </div>
+      `;
+      if(window.AFM_CoachRanking && typeof window.AFM_CoachRanking.bindRankingEvents === 'function'){
+        window.AFM_CoachRanking.bindRankingEvents();
+      }
+      bindSetup();
+      return;
     }
 
     // 1. MODO: CENTRAL DE NOVIDADES & BLOG (75+ NOVIDADES COM PAGINAÇÃO)
@@ -32732,6 +32748,14 @@ function renderSetup(app){
 
               <!-- PAINÉIS DE DESTAQUES VISÍVEIS NO TOPO -->
               <div class="afm-feature-panels-grid">
+                <div class="afm-feature-panel" id="btnLandingGoRankingCard" style="cursor:pointer;border-color:rgba(16,185,129,0.5);background:rgba(16,185,129,0.08)">
+                  <div class="afm-panel-icon" style="color:#10b981">👑</div>
+                  <div>
+                    <div class="afm-panel-title" style="color:#6ee7b7">Ranking de Técnicos & PIX R$ 1.000</div>
+                    <div class="afm-panel-desc">Premiação real no PIX para o TOP 5 nacional! Clique para ver o ranking ao vivo.</div>
+                  </div>
+                </div>
+
                 <div class="afm-feature-panel">
                   <div class="afm-panel-icon" style="color:#a7ff3f">⭐</div>
                   <div>
@@ -33716,6 +33740,12 @@ function bindSetup(){
 
   const btnNavAuth = $('#btnNavGoAuth');
   if(btnNavAuth) btnNavAuth.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  const btnNavRanking = $('#btnNavGoRanking');
+  if(btnNavRanking) btnNavRanking.onclick = () => { setupViewMode = 'ranking'; renderSetup($('#app')); };
+
+  const btnLandingRankingCard = $('#btnLandingGoRankingCard');
+  if(btnLandingRankingCard) btnLandingRankingCard.onclick = () => { setupViewMode = 'ranking'; renderSetup($('#app')); };
 
   const btnNavSystems = $('#btnNavGoSystems');
   if(btnNavSystems) btnNavSystems.onclick = () => { setupViewMode = 'systems'; renderSetup($('#app')); };

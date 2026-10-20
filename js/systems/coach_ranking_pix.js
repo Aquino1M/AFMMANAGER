@@ -781,7 +781,7 @@
           
           <!-- BREADCRUMB -->
           <nav style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
-            <a href="javascript:void(0)" onclick="window.view='central';if(typeof window.render==='function')window.render();" style="color:#94a3b8;text-decoration:none">Início</a>
+            <a href="javascript:void(0)" onclick="if(window.setupViewMode){window.setupViewMode='auth';if(typeof window.renderSetup==='function')window.renderSetup(document.querySelector('#app'));}else{window.view='central';if(typeof window.render==='function')window.render();}" style="color:#94a3b8;text-decoration:none">← Voltar para a Página Inicial</a>
             <span>&gt;</span>
             <span style="color:#facc15">Ranking de Técnicos</span>
           </nav>
@@ -859,7 +859,11 @@
         btn.onclick = () => {
           const board = btn.dataset.board;
           localStorage.setItem(STORAGE_KEY_BOARD, board);
-          if(typeof window.render === 'function') window.render();
+          if(window.setupViewMode === 'ranking' && typeof window.renderSetup === 'function'){
+            window.renderSetup(document.querySelector('#app'));
+          } else if(typeof window.render === 'function') {
+            window.render();
+          }
         };
       });
     }
