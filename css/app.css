@@ -6836,3 +6836,25 @@ body.theme-emerald {
 }
 
 
+
+/* AFM 2027: Estilos de Favoritos no Mercado e Câmeras 3D */
+.btn-fav-star {
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+.btn-fav-star:hover {
+  transform: scale(1.25);
+}
+.btn-fav-star.active {
+  color: #facc15 !important;
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.6);
+}
+.live-cam-group .live-ctrl-btn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+}
+.live-cam-group .live-ctrl-btn.active {
+  background: #3b82f6;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+}

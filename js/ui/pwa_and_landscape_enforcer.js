@@ -250,13 +250,13 @@
       window.toggleAFMMobileDrawer();
       return;
     }
-    if (e.target.closest('#btnCloseMobileDrawer')) {
+    if (e.target.closest('#btnCloseMobileDrawer') || e.target.closest('#mainMenuBtn') || e.target.closest('#btnExitToMainMenu')) {
       e.preventDefault();
       if (typeof window.handleExitGameAction === 'function') {
         window.handleExitGameAction();
         return;
       }
-      window.toggleAFMMobileDrawer(false);
+      if (typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
       return;
     }
     if (e.target.closest('#afmDrawerBackdrop')) {

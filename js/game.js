@@ -6469,12 +6469,31 @@ function formatSaveTimestamp(value){
 
 function getActiveAccount(){
   try {
-    const user = window.AFM_DB?.getUser();
-    if(!user) return null;
+    let user = window.AFM_DB?.getUser();
     const accounts = getStoredAccounts();
+    if(!user){
+      const activeU = localStorage.getItem('afm_active_user_v1') || localStorage.getItem(AFM_SESSION_KEY) || (typeof state !== 'undefined' && state?.userOwner);
+      if(activeU){
+        const acc = accounts.find(a => (a.username || '').toLowerCase() === String(activeU).toLowerCase());
+        if(acc) return { ...acc, role: acc.role || 'player' };
+        return { username: String(activeU).toLowerCase(), name: String(activeU), role: 'player' };
+      }
+      if(accounts && accounts.length > 0){
+        const last = accounts[accounts.length - 1];
+        return { ...last, role: last.role || 'player' };
+      }
+      return null;
+    }
     const activeU = (user.username || user.id || '').toLowerCase();
     const account = accounts.find(a => (a.username || '').toLowerCase() === activeU);
-    return account ? { ...account, role: window.AFM_DB?.isAdmin?.() === true ? 'admin' : 'player' } : null;
+    if(account) {
+      return { ...account, role: window.AFM_DB?.isAdmin?.() === true ? 'admin' : (account.role || 'player') };
+    }
+    return {
+      username: activeU || 'aquino',
+      name: user.name || user.username || 'Aquino',
+      role: window.AFM_DB?.isAdmin?.() === true ? 'admin' : (user.role || 'player')
+    };
   } catch(e){
     recordAFMError('active-account-read', e);
     return null;
@@ -11928,9 +11947,13 @@ function triggerPeneiraBaseEvent(){
 function openPressConferenceModal(type = 'post', context = null, onComplete = null){
   if(!state) return;
 
-  const pressRoundKey = `${state.season || 2026}_${state.round || 0}`;
+  const pressRoundKey = `${state.season || 2026}_${state.round || 0}_${type}_${context?.h || context?.home || ''}_${context?.a || context?.away || ''}`;
   if(state.answeredPressKey === pressRoundKey){
-    toast('A coletiva de imprensa desta rodada já foi realizada! Nova coletiva estará disponível no próximo jogo.');
+    toast('A coletiva de imprensa deste jogo já foi realizada!');
+    if(type === 'post'){
+      view = 'central';
+      render();
+    }
     if(typeof onComplete === 'function') onComplete();
     return;
   }
@@ -12286,6 +12309,9 @@ function openPressConferenceModal(type = 'post', context = null, onComplete = nu
       }
 
       overlay.remove();
+      if(type === 'post'){
+        view = 'central';
+      }
       save();
       render();
       if(typeof onComplete === 'function'){
@@ -12303,6 +12329,11 @@ function openPressConferenceModal(type = 'post', context = null, onComplete = nu
   if(closePressBtn){
     closePressBtn.onclick = () => {
       overlay.remove();
+      if(type === 'post'){
+        view = 'central';
+        save();
+        render();
+      }
       if(typeof onComplete === 'function'){
         try {
           onComplete();
@@ -15723,6 +15754,12 @@ function simulateQuickStateLeagueRound(competitionId, roundIndex){
   save();
   render();
   toast(`Partida estadual finalizada: ${home} ${uHg} x ${uAg} ${away}`);
+  if(userRes){
+    openPressConferenceModal('post', userRes);
+  } else {
+    view = 'central';
+    render();
+  }
   return true;
 }
 
@@ -16577,10 +16614,15 @@ function renderLiveMatchModal(){
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;gap:8px">
-          <button class="live-ctrl-btn" id="btnToggleLiveCam" style="background:rgba(56,189,248,0.2);border-color:#38bdf8;color:#38bdf8;font-weight:700" title="Alternar Câmera de Transmissão">
-            ${(s.camera && s.camera.mode === 'wide') ? '🏟️ Panorâmica' : '🎥 TV Dinâmica'}
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button class="live-ctrl-btn" id="btnToggle2D3D" style="background:${(s.renderMode || '3d') === '2d' ? 'rgba(59,130,246,0.3)' : 'linear-gradient(135deg,#7c3aed,#2563eb)'};border:1px solid #818cf8;color:#fff;font-weight:800;padding:5px 12px;border-radius:6px;font-size:11px" title="Alternar entre Estádio 3D e Visão 2D">
+            ${(s.renderMode || '3d') === '2d' ? '📐 VER EM 2D' : '🏟️ VER EM 3D'}
           </button>
+          <div class="live-cam-group" style="display:inline-flex;background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:2px;gap:2px">
+            <button class="live-ctrl-btn ${(!s.cameraMode || s.cameraMode === 'lateral' || s.cameraMode === 'tv') ? 'active' : ''}" id="btnCamLateral" style="padding:4px 8px;font-size:11px;font-weight:700">Lateral</button>
+            <button class="live-ctrl-btn ${s.cameraMode === 'ball' ? 'active' : ''}" id="btnCamBall" style="padding:4px 8px;font-size:11px;font-weight:700">Bola</button>
+            <button class="live-ctrl-btn ${s.cameraMode === 'goal' ? 'active' : ''}" id="btnCamGoal" style="padding:4px 8px;font-size:11px;font-weight:700">Gol</button>
+          </div>
           <button class="live-ctrl-btn" id="btnLiveClose" style="background:rgba(239,68,68,0.2);border-color:#ef4444;color:#fca5a5" title="Sair / Fechar">
             ✕ Fechar
           </button>
@@ -16736,13 +16778,18 @@ function renderLiveMatchModal(){
 function showLiveBalloon(x, y, text, color){
   if(!liveMatchState) return;
   liveMatchState.balloons = liveMatchState.balloons || [];
+  const textStr = String(text || '');
+  // Evita balões duplicados no mesmo lance
+  const existing = liveMatchState.balloons.find(b => b.text === textStr && (b.maxLife - b.life) < 1.4);
+  if(existing) return;
+  if(liveMatchState.balloons.length >= 2) liveMatchState.balloons.shift();
   liveMatchState.balloons.push({
-    x: clamp(Number(x) || 50, 8, 92),
-    y: clamp(Number(y) || 50, 12, 88),
-    text: String(text || ''),
+    x: clamp(Number(x) || 50, 14, 86),
+    y: clamp(Number(y) || 50, 18, 82),
+    text: textStr,
     color: color || '#fbbf24',
-    life: 2.4,
-    maxLife: 2.4
+    life: 2.2,
+    maxLife: 2.2
   });
 }
 
@@ -17137,7 +17184,40 @@ function setupLiveCanvasLoop(){
     try {
       s.renderTicks = (s.renderTicks || 0) + 1;
 
-      // Simulation Clock Step (Contagem contínua de segundos em tempo real rápido)
+      // Simulation Clock Step (Controle rigoroso com apito final e limite anti-travamento)
+      const stop1H = Number(s.stoppage1H) || 2;
+      const stop2H = Number(s.stoppage2H) || 4;
+      const maxAllowedMin = (s.phase === 'FIRST_HALF') 
+        ? (45 + stop1H) 
+        : (s.phase === 'EXTRA_TIME_1' ? 105 : (s.phase === 'EXTRA_TIME_2' ? 120 : (90 + stop2H)));
+      const maxAllowedTimeSec = maxAllowedMin * 60;
+
+      // Trava de segurança: se o tempo atingir o apito final, encerra imediatamente
+      if(s.timeSec >= maxAllowedTimeSec && !s.done && s.phase !== 'HALF_TIME'){
+        s.timeSec = maxAllowedTimeSec;
+        s.minute = maxAllowedMin;
+        s.playing = false;
+        if(s.phase === 'FIRST_HALF'){
+          s.halftimeTriggered = true;
+          transitionMatchPhase('HALF_TIME');
+          if(window.afmAudio) window.afmAudio.playSFX('whistle_halftime'); else playWhistleSound();
+          s.events.unshift({ min: s.minute, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
+          updateScoreDisplay();
+          updateLiveSidebarEvents();
+          renderLiveMatchModal();
+          openHalftimeModal();
+        } else {
+          s.done = true;
+          transitionMatchPhase('FULL_TIME');
+          if(window.afmAudio) window.afmAudio.playSFX('whistle_end'); else playWhistleSound();
+          s.events.unshift({ min: s.minute, type: 'whistle', text: `🏁 Fim de partida! ${s.home} ${s.hg} x ${s.ag} ${s.away}. O árbitro apita o final do jogo!` });
+          updateScoreDisplay();
+          updateLiveSidebarEvents();
+          finishLiveMatch();
+          renderLiveMatchModal();
+        }
+      }
+
       if(s.playing && !s.done && s.phase !== 'HALF_TIME'){
         const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
         if(!s.lastLoopTime) s.lastLoopTime = now;
@@ -17145,27 +17225,33 @@ function setupLiveCanvasLoop(){
         s.lastLoopTime = now;
 
         const speed = Math.max(1, s.speed || 1);
-        // Em 1x: 1 minuto (60s) dura ~1000ms. Cada segundo dura ~16.6ms.
         const msPerSec = Math.max(0.1, (1000 / 60) / speed);
         s.secAccumulator = (s.secAccumulator || 0) + dtMs;
 
         let clockSteps = 0;
         while(s.secAccumulator >= msPerSec && s.playing && !s.done && s.phase !== 'HALF_TIME' && clockSteps++ < 1200){
+          if(s.timeSec >= maxAllowedTimeSec){
+            s.timeSec = maxAllowedTimeSec;
+            s.minute = maxAllowedMin;
+            s.secAccumulator = 0;
+            break;
+          }
+
           s.secAccumulator -= msPerSec;
           s.liveSubSec = (s.liveSubSec || 0) + 1;
           s.timeSec = (s.timeSec || 0) + 1;
 
           if(s.liveSubSec >= 60){
             s.liveSubSec = 0;
-            if(s.minute < 90){
+            if(s.minute < maxAllowedMin){
               simulateMinute(s, s.minute + 1);
             }
           }
         }
 
-        // Atualização fluida do relógio no placar (uma vez por frame para máxima performance sem travamento de DOM)
-        if(s.playing){
-          const curMin = Math.floor((s.timeSec || 0) / 60);
+        // Atualização fluida e precisa do relógio no placar (com trava garantida)
+        if(s.playing || s.done){
+          const curMin = Math.min(maxAllowedMin, Math.floor((s.timeSec || 0) / 60));
           const curSec = Math.floor((s.timeSec || 0) % 60);
           const clk = $('#liveClockDisplay');
           if(clk){
@@ -17201,7 +17287,161 @@ function proj(px, py){
   return { x: screenX, y: screenY };
 }
 
+
+function draw2DTacticalPitch(ctx, s){
+  ctx.clearRect(0, 0, 1280, 720);
+
+  // Fundo do radar tático
+  ctx.fillStyle = '#080d1a';
+  ctx.fillRect(0, 0, 1280, 720);
+
+  // Retângulo do gramado 2D
+  const x0 = 70, y0 = 40, pw = 1140, ph = 640;
+  
+  // Faixas do gramado
+  const stripes = 14;
+  for(let i=0; i<stripes; i++){
+    ctx.fillStyle = (i % 2 === 0) ? '#164e2d' : '#1a5c35';
+    ctx.fillRect(x0 + (i / stripes) * pw, y0, pw / stripes, ph);
+  }
+
+  // Linhas do campo em 2D
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(x0, y0, pw, ph);
+
+  // Linha de meio-campo
+  ctx.beginPath();
+  ctx.moveTo(x0 + pw / 2, y0);
+  ctx.lineTo(x0 + pw / 2, y0 + ph);
+  ctx.stroke();
+
+  // Círculo central
+  ctx.beginPath();
+  ctx.arc(x0 + pw / 2, y0 + ph / 2, 70, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Ponto central
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(x0 + pw / 2, y0 + ph / 2, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Áreas Esquerda
+  ctx.strokeRect(x0, y0 + ph * 0.22, pw * 0.165, ph * 0.56);
+  ctx.strokeRect(x0, y0 + ph * 0.36, pw * 0.055, ph * 0.28);
+  ctx.beginPath();
+  ctx.arc(x0 + pw * 0.11, y0 + ph / 2, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Áreas Direita
+  ctx.strokeRect(x0 + pw * 0.835, y0 + ph * 0.22, pw * 0.165, ph * 0.56);
+  ctx.strokeRect(x0 + pw * 0.945, y0 + ph * 0.36, pw * 0.055, ph * 0.28);
+  ctx.beginPath();
+  ctx.arc(x0 + pw * 0.89, y0 + ph / 2, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Traves 2D
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(x0 - 10, y0 + ph * 0.44, 10, ph * 0.12);
+  ctx.fillRect(x0 + pw, y0 + ph * 0.44, 10, ph * 0.12);
+
+  // Jogadores em 2D (Discos Táticos)
+  const homeKit = s.homeKit?.primary || '#2563eb';
+  const awayKit = s.awayKit?.primary || '#dc2626';
+
+  const allPlayers = [...(s.homePlayers || []), ...(s.awayPlayers || [])];
+  allPlayers.forEach(p => {
+    const px = x0 + (clamp(p.x, 0, 100) / 100) * pw;
+    const py = y0 + (clamp(p.y, 0, 100) / 100) * ph;
+    const isHome = p.team === 'home';
+    const isCarrier = s.ball?.carrier === p;
+
+    // Sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.arc(px, py + 2, 12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Halo no condutor
+    if(isCarrier){
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(px, py, 16, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Disco
+    ctx.fillStyle = p.isGK ? '#f59e0b' : (isHome ? homeKit : awayKit);
+    ctx.beginPath();
+    ctx.arc(px, py, 11, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Número
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 8.5px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.num || String(p.name || '').slice(0, 3).toUpperCase(), px, py);
+
+    // Etiqueta com nome
+    ctx.fillStyle = 'rgba(15,23,42,0.85)';
+    ctx.fillRect(px - 25, py + 14, 50, 12);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 7.5px Inter, sans-serif';
+    ctx.fillText(String(p.name || '').slice(0, 8), px, py + 20);
+  });
+
+  // Árbitro 2D
+  if(s.referee){
+    const rx = x0 + (clamp(s.referee.x, 0, 100) / 100) * pw;
+    const ry = y0 + (clamp(s.referee.y, 0, 100) / 100) * ph;
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(rx, ry, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Bola 2D
+  if(s.ball){
+    const bx = x0 + (clamp(s.ball.x, 0, 100) / 100) * pw;
+    const by = y0 + (clamp(s.ball.y, 0, 100) / 100) * ph;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(bx, by, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Badge 2D
+  ctx.fillStyle = 'rgba(15,23,42,0.85)';
+  ctx.fillRect(x0 + 10, y0 + 10, 130, 22);
+  ctx.strokeStyle = 'rgba(56,189,248,0.4)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x0 + 10, y0 + 10, 130, 22);
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 10px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('📐 RADAR TÁTICO 2D', x0 + 75, y0 + 21);
+}
+
 function drawLiveStadium(ctx, s){
+  if(s.renderMode === '2d'){
+    draw2DTacticalPitch(ctx, s);
+    return;
+  }
+
   ctx.clearRect(0, 0, 1280, 720);
 
   // 1. Aplica Câmera Dinâmica de Transmissão de Televisão (Broadcast TV Camera)
@@ -17706,64 +17946,77 @@ function drawFloodlights(ctx, s){
 
 // Desenha os Bancos de Reservas com reservas e técnicos
 function drawDugouts(ctx, s){
-  const by = 555;
-  // Banco Casa (Home)
-  ctx.fillStyle = 'rgba(15,23,42,0.85)';
-  ctx.fillRect(250, by, 260, 48);
-  ctx.strokeStyle = '#3b82f6';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(250, by, 260, 48);
+  // Bancos de reservas 3D em perspectiva integrados na área técnica da linha inferior
+  const by = 538;
+  const hKitColor = s.homeKit?.primary || '#f59e0b';
+  const aKitColor = s.awayKit?.primary || '#15803d';
 
-  // Reservas sentados
-  for(let i=0; i<7; i++){
-    ctx.fillStyle = '#1e3a8a';
+  // 1. Banco de Reservas da Casa (Home - Esquerda)
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+  ctx.beginPath();
+  ctx.roundRect(260, by, 190, 32, [8, 8, 4, 4]);
+  ctx.fill();
+  ctx.strokeStyle = hKitColor;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Cobertura de Vidro Curvo
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
+  ctx.beginPath();
+  ctx.roundRect(260, by - 6, 190, 8, [6, 6, 0, 0]);
+  ctx.fill();
+
+  // Assentos do Banco Casa
+  for(let i = 0; i < 7; i++){
+    ctx.fillStyle = hKitColor;
     ctx.beginPath();
-    ctx.arc(268 + i * 26, by + 18, 5.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#f8fafc';
-    ctx.beginPath();
-    ctx.arc(268 + i * 26, by + 12, 3.5, 0, Math.PI * 2);
+    ctx.arc(275 + i * 24, by + 16, 5, 0, Math.PI * 2);
     ctx.fill();
   }
-  // Técnico Casa em pé
+  // Treinador Mandante em pé na Área Técnica
+  const coachHomeWave = Math.sin((s.renderTicks || 0) * 0.08) * 2;
   ctx.fillStyle = '#0284c7';
-  ctx.fillRect(455, by + 4, 14, 26);
-  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(460, by - 12 + coachHomeWave, 9, 20);
+  ctx.fillStyle = '#fed7aa';
   ctx.beginPath();
-  ctx.arc(462, by - 2, 5, 0, Math.PI * 2);
+  ctx.arc(464.5, by - 16 + coachHomeWave, 4, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 8px Inter, sans-serif';
-  ctx.fillText('TÉC. AQUINO', 462, by + 38);
+  ctx.fillText(`TÉC. ${(state.manager || 'TREINADOR').split(' ')[0].toUpperCase()}`, 464, by + 16);
 
-  // Banco Visitante (Away)
-  ctx.fillStyle = 'rgba(15,23,42,0.85)';
-  ctx.fillRect(770, by, 260, 48);
-  ctx.strokeStyle = '#ef4444';
+  // 2. Banco de Reservas Visitante (Away - Direita)
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+  ctx.beginPath();
+  ctx.roundRect(830, by, 190, 32, [8, 8, 4, 4]);
+  ctx.fill();
+  ctx.strokeStyle = aKitColor;
   ctx.lineWidth = 1.5;
-  ctx.strokeRect(770, by, 260, 48);
+  ctx.stroke();
 
-  // Reservas visitantes sentados
-  for(let i=0; i<7; i++){
-    ctx.fillStyle = '#991b1b';
+  // Cobertura Visitante
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.18)';
+  ctx.beginPath();
+  ctx.roundRect(830, by - 6, 190, 8, [6, 6, 0, 0]);
+  ctx.fill();
+
+  // Assentos do Banco Visitante
+  for(let i = 0; i < 7; i++){
+    ctx.fillStyle = aKitColor;
     ctx.beginPath();
-    ctx.arc(788 + i * 26, by + 18, 5.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#f8fafc';
-    ctx.beginPath();
-    ctx.arc(788 + i * 26, by + 12, 3.5, 0, Math.PI * 2);
+    ctx.arc(845 + i * 24, by + 16, 5, 0, Math.PI * 2);
     ctx.fill();
   }
-  // Técnico Visitante em pé
-  ctx.fillStyle = '#b91c1c';
-  ctx.fillRect(975, by + 4, 14, 26);
-  ctx.fillStyle = '#f8fafc';
+  // Treinador Visitante em pé
+  ctx.fillStyle = '#dc2626';
+  ctx.fillRect(810, by - 12, 9, 20);
+  ctx.fillStyle = '#fed7aa';
   ctx.beginPath();
-  ctx.arc(982, by - 2, 5, 0, Math.PI * 2);
+  ctx.arc(814.5, by - 16, 4, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 8px Inter, sans-serif';
-  ctx.fillText('TÉC. TÉCNICO', 982, by + 38);
+  ctx.fillText('TÉC. ADVERSÁRIO', 814, by + 16);
 }
 
 // Desenha o sprite do jogador no canvas com animações de corrida, chute, mergulho e comemoração
@@ -18240,7 +18493,7 @@ function simulateMinute(s, min){
     defCfg = isHome ? aCfg : hCfg;
     isCounterAttack = true;
     possessionPhase = 'FINAL_THIRD';
-  } else if(buildUpRoll < 0.14 + defPressBonus){
+  } else if(buildUpRoll < 0.18 + defPressBonus){
     // Falta tática da equipe adversária travando a saída de bola
     if(isHome) s.stats.foulsA++; else s.stats.foulsH++;
     const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[2];
@@ -18262,10 +18515,10 @@ function simulateMinute(s, min){
       // Interceptação ou desarme da zaga no meio-campo
       if(isHome) { s.stats.interceptionsA++; s.stats.tacklesA++; }
       else { s.stats.interceptionsH++; s.stats.tacklesH++; }
-    } else if(midRoll < 0.62){
+    } else if(midRoll < 0.54){
       // RECYCLE_POSSESSION: Meio-campo recua e inverte o corredor pacientemente
       if(isHome) s.stats.passesH += 5; else s.stats.passesA += 5;
-    } else if(midRoll < 0.70){
+    } else if(midRoll < 0.72){
       // Falta no meio-campo com possível cartão amarelo
       if(isHome) s.stats.foulsA++; else s.stats.foulsH++;
       const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*5)+1] || defPlayers[2];
@@ -18323,7 +18576,7 @@ function simulateMinute(s, min){
         // FALTA PERIGOSA NA ENTRADA DA ÁREA!
         const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[1];
         executeFreeKickSim(s, min, s.ball.carrier, defP, isHome);
-      } else if(boxRoll < 0.30){
+      } else if(boxRoll < 0.34){
         // Desarme limpo na área desviado para ESCANTEIO
         if(isHome) { s.stats.cornersH++; s.stats.tacklesA++; }
         else { s.stats.cornersA++; s.stats.tacklesH++; }
@@ -18365,12 +18618,16 @@ function simulateMinute(s, min){
   updateLiveSidebarEvents();
 
   // Verificação de Intervalo com Acréscimos Realistas
-  const stop1H = s.stoppage1H || 2;
   if(min === 45 && !s.stoppageBoard1HShown){
     s.stoppageBoard1HShown = true;
+    if(window.AFM_REAL_FOOTBALL?.rules?.calculateStoppageTime){
+      s.stoppage1H = window.AFM_REAL_FOOTBALL.rules.calculateStoppageTime(s.events, 1);
+    }
+    const stop1H = s.stoppage1H || 2;
     s.events.unshift({ min: 45, type: 'referee', text: `🚩 Placa de acréscimos levantada pelo 4º árbitro: +${stop1H} min no 1º tempo!` });
     toast(`🚩 +${stop1H}' de acréscimos no 1º tempo!`);
   }
+  const stop1H = s.stoppage1H || 2;
 
   if(min >= (45 + stop1H) && s.phase === 'FIRST_HALF'){
     s.halftimeTriggered = true;
@@ -18390,12 +18647,16 @@ function simulateMinute(s, min){
   }
 
   // Verificação de Final do Tempo Regulamentar com Acréscimos
-  const stop2H = s.stoppage2H || 4;
   if(min === 90 && !s.stoppageBoard2HShown && (s.phase === 'SECOND_HALF' || s.phase === 'HALF_TIME')){
     s.stoppageBoard2HShown = true;
+    if(window.AFM_REAL_FOOTBALL?.rules?.calculateStoppageTime){
+      s.stoppage2H = window.AFM_REAL_FOOTBALL.rules.calculateStoppageTime(s.events, 2);
+    }
+    const stop2H = s.stoppage2H || 4;
     s.events.unshift({ min: 90, type: 'referee', text: `🚩 Placa de acréscimos levantada pelo 4º árbitro: +${stop2H} min no 2º tempo!` });
     toast(`🚩 +${stop2H}' de acréscimos no 2º tempo!`);
   }
+  const stop2H = s.stoppage2H || 4;
 
   if(min >= (90 + stop2H) && (s.phase === 'SECOND_HALF' || s.phase === 'HALF_TIME')){
     if(s.isKO && s.hg === s.ag){
@@ -18573,8 +18834,8 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
   const gkPosAttr = gk.attrs?.positioning || gk.overall || 65;
   const gkQuality = (gkReactAttr * 0.6 + gkPosAttr * 0.4);
 
-  const baseShotXG = (0.12 + (finishAttr - gkQuality) * 0.0035 + (compAttr - 65) * 0.0018 + (assistPassAttr - 65) * 0.0015 + throughBallBonus) * (pattern.xGMod || 1.0);
-  const shotXG = clamp(+baseShotXG.toFixed(2), 0.06, 0.45);
+  const baseShotXG = (0.10 + (finishAttr - gkQuality) * 0.0030 + (compAttr - 65) * 0.0015 + (assistPassAttr - 65) * 0.0012 + throughBallBonus) * (pattern.xGMod || 1.0);
+  const shotXG = clamp(+baseShotXG.toFixed(2), 0.05, 0.40);
 
   if(isHomeAttacking) s.stats.xGH = +(s.stats.xGH + shotXG).toFixed(2);
   else s.stats.xGA = +(s.stats.xGA + shotXG).toFixed(2);
@@ -18644,7 +18905,7 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
     if(window.afmAudio) window.afmAudio.playSFX('crowd_gasp');
 
     const defRoll = s.prng();
-    if(defRoll < 0.42){
+    if(defRoll < 0.48){
       // Espalma para escanteio
       s.ball.isCorner = true;
       if(isHomeAttacking) s.stats.cornersH++; else s.stats.cornersA++;
@@ -18705,7 +18966,7 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
     s.ball.shotOutcome = 'blocked';
     const def = defPlayers.filter(p => !p.isGK && ['CB','LB','RB','DM'].includes(p.pos))[0] || defPlayers[1];
     if(isHomeAttacking) s.stats.interceptionsA++; else s.stats.interceptionsH++;
-    if(s.prng() < 0.40){
+    if(s.prng() < 0.48){
       if(isHomeAttacking) s.stats.cornersH++; else s.stats.cornersA++;
     }
     const evt = {
@@ -18722,8 +18983,8 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
     if(validateMatchEvent(evt, s)) s.events.unshift(evt);
     showLiveBalloon(shooter.x + (isHomeAttacking ? 5 : -5), shooter.y, '🛡️ TRAVADO!', '#38bdf8');
   }
-  // 4. BOLA NA TRAVE
-  else if(roll < shotXG + 0.62){
+  // 4. BOLA NA TRAVE (Taxa calibrada para o futebol real ~3%)
+  else if(roll < shotXG + 0.55){
     s.ball.shotOutcome = 'post';
     if(window.afmAudio) window.afmAudio.playSFX('goal_post');
     const evt = {
@@ -18792,7 +19053,7 @@ function executePenaltySim(s, min, att, def, isHomeAttacking){
   if(roll < penXG){
     if(!validateGoalScorer(kicker, attTeam, s)) return;
     s.ball.shotOutcome = 'gol';
-    if(isHomeAttacking) s.hg++; else s.ag++;
+    if(isHomeAttacking) { s.hg++; s.stats.targetH++; } else { s.ag++; s.stats.targetA++; }
     if(window.afmAudio){
       window.afmAudio.playSFX('goal_celebration');
       window.afmAudio.boostCrowdCheer(4);
@@ -18870,7 +19131,7 @@ function executeFreeKickSim(s, min, att, def, isHomeAttacking){
   if(roll < fkXG){
     if(!validateGoalScorer(kicker, attTeam, s)) return;
     s.ball.shotOutcome = 'gol';
-    if(isHomeAttacking) s.hg++; else s.ag++;
+    if(isHomeAttacking) { s.hg++; s.stats.targetH++; } else { s.ag++; s.stats.targetA++; }
     if(window.afmAudio){
       window.afmAudio.playSFX('goal_celebration');
       window.afmAudio.boostCrowdCheer(4);
@@ -19831,6 +20092,9 @@ function finalizeMatchRound(){
   // Coletiva de Imprensa Pós-Jogo na Sala de Imprensa (se houver jogo do usuário)
   if(userRes){
     openPressConferenceModal('post', userRes);
+  } else {
+    view = 'central';
+    render();
   }
 }
 
@@ -20894,8 +21158,9 @@ window.position = position;
 // -------------------------------------------------------------
 // MODAIS POPUP CUSTOMIZADOS COM BOTÃO X
 // -------------------------------------------------------------
-function openCustomModal(title, bodyHtml, onConfirm, confirmText='Confirmar', showActions=false, maxWidth=null){
-  closeCustomModal();
+function openCustomModal(title, bodyHtml, onConfirm, confirmText='Confirmar', showActions=false, maxWidth=null, onClose=null){
+  closeCustomModal(false);
+  window.__afmCustomModalOnClose = onClose;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'appCustomModal';
@@ -20927,14 +21192,20 @@ function openCustomModal(title, bodyHtml, onConfirm, confirmText='Confirmar', sh
   if(cancelBtn) cancelBtn.onclick = closeCustomModal;
   const confBtn = overlay.querySelector('#modalConfirmAction') || $('#modalConfirmAction');
   if(confBtn) confBtn.onclick = () => {
+    window.__afmCustomModalOnClose = null;
     if(onConfirm) onConfirm();
-    closeCustomModal();
+    closeCustomModal(false);
   };
 }
 
-function closeCustomModal(){
+function closeCustomModal(triggerOnClose = true){
+  const cb = window.__afmCustomModalOnClose;
+  window.__afmCustomModalOnClose = null;
   const m = $('#appCustomModal');
   if(m) m.remove();
+  if(triggerOnClose && typeof cb === 'function'){
+    try { cb(); } catch(err){ console.warn('Error in custom modal onClose:', err); }
+  }
 }
 
 // -------------------------------------------------------------
@@ -23374,10 +23645,26 @@ function handleExitGameAction(){
       '<p style="font-size:12px;color:rgba(255,255,255,0.7);margin:0;">Seu jogo será <b>salvo automaticamente</b> na sua conta antes de sair.</p>' +
     '</div>',
     ()=>{
-      if (typeof save === 'function') save();
-      state = null;
-      if (typeof render === 'function') render();
-      if (typeof toast === 'function') toast('💾 Jogo salvo automaticamente com sucesso! Até logo.');
+      try {
+        if (typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
+        const owner = state?.userOwner || (typeof getActiveAccount === 'function' ? getActiveAccount()?.username : null) || 'aquino';
+        if (typeof save === 'function') save();
+        if (owner && typeof setActiveAccount === 'function') {
+          setActiveAccount(owner);
+        }
+        if (typeof closeMatchActionModal === 'function') closeMatchActionModal();
+        const pModal = document.getElementById('appMatchPreviewModal');
+        if (pModal) pModal.remove();
+        const pressModal = document.getElementById('appPressConferenceModal');
+        if (pressModal) pressModal.remove();
+        state = null;
+        if (typeof render === 'function') render();
+        if (typeof toast === 'function') toast('💾 Jogo salvo automaticamente com sucesso! Até logo.');
+      } catch(exitErr) {
+        console.error('Erro ao sair para o menu:', exitErr);
+        state = null;
+        if (typeof render === 'function') render();
+      }
     },
     'Sim, Salvar e Sair',
     true
@@ -23608,8 +23895,14 @@ function openMatchActionModal(){
   const bPrev = overlay.querySelector('#btnMatchModalPreview');
   if(bPrev) bPrev.onclick = () => {
     closeMatchActionModal();
+    window.__afmOpenedFromMatchActionModal = true;
     if(typeof openMatchPreviewModal === 'function'){
-      openMatchPreviewModal(home, away, displayCompName, matchDate);
+      openMatchPreviewModal(home, away, displayCompName, matchDate, {
+        returnToMatchActionModal: true,
+        onClose: () => {
+          if(typeof openMatchActionModal === 'function') openMatchActionModal();
+        }
+      });
     } else if(typeof openClubInfoModal === 'function'){
       openClubInfoModal(opp);
     }
@@ -25590,6 +25883,12 @@ function playContinentalFixture(competitionId, matchId){
   save();
   toast('Partidas continentais da data simuladas; classificação salva.');
   render();
+  if(userResult){
+    openPressConferenceModal('post', userResult);
+  } else {
+    view = 'central';
+    render();
+  }
 }
 
 function processContinentalFixturesBefore(date){
@@ -27121,7 +27420,7 @@ function renderMarketBuy(){
   el.innerHTML=`
     <div class="tablewrap card">
       <table>
-        <thead><tr><th>Jogador</th><th>Clube</th><th>Pos</th><th>Overall</th><th>Idade</th><th>Valor de Mercado</th><th>Ação</th></tr></thead>
+        <thead><tr><th style="width:36px;text-align:center">⭐</th><th>Jogador</th><th>Clube</th><th>Pos</th><th>Overall</th><th>Idade</th><th>Valor de Mercado</th><th>Ação</th></tr></thead>
         <tbody>
           ${pageSlice.map(p=>{
             const val = p.value != null ? p.value : calcValueMi(p), key = p.marketKey || playerKey(p);
@@ -27160,6 +27459,15 @@ function renderMarketBuy(){
     </div>
   `;
   el.querySelectorAll('.buy, .primary.buy').forEach(b=>b.onclick=()=>buyPlayer(b.dataset.key));
+  el.querySelectorAll('.btn-fav-star').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if(window.AFM_MarketFavorites){
+        window.AFM_MarketFavorites.toggleFavorite(b.dataset.key);
+      }
+    };
+  });
   el.querySelectorAll('.btn-lupa-details').forEach(b=>b.onclick=(e)=>{
     e.stopPropagation();
     e.preventDefault();
@@ -32324,7 +32632,23 @@ function renderSetup(app){
     setupSelectedClubName = displayedClubs[0] || eligibleClubs[0] || 'Corinthians';
   }
 
-  const prof = getClubFullProfile(setupSelectedClubName);
+  const prof = getClubFullProfile(setupSelectedClubName) || {
+    name: setupSelectedClubName || 'Corinthians',
+    country: 'Brasil',
+    competition: 'Campeonato Brasileiro',
+    stadium: 'Arena Oficial',
+    starsOvr: 4,
+    ovr: 75,
+    fansText: 'Torcida Apaixonada',
+    budgetFormatted: 'R$ 20 mi',
+    titlesTotal: 10,
+    titlesDetail: 'Taças Nacionais e Regionais',
+    atk: 75, mid: 75, def: 75,
+    historySummary: 'Clube tradicional do futebol.',
+    keyPlayers: []
+  };
+  if(!prof.titlesDetail) prof.titlesDetail = 'Taças e Troféus';
+  if(!prof.historySummary) prof.historySummary = 'Clube tradicional do futebol.';
 
   app.innerHTML = `
     <div class="setup-container">
@@ -32926,6 +33250,7 @@ function exportCommunityModJson(){
 window.exportCommunityModJson = exportCommunityModJson;
 
 function bindSetup(){
+  try {
   // O único pacote disponível é o Mod da Comunidade.
   const bMod = $('#btnSelectCommunityMod');
   if(bMod){
@@ -33105,14 +33430,14 @@ function bindSetup(){
   const btnSystemsBack = $('#btnSystemsBackHome');
   if(btnSystemsBack) btnSystemsBack.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
 
-  $('.afm-sys-cat-btn').forEach(btn => {
+  $$('.afm-sys-cat-btn').forEach(btn => {
     btn.onclick = () => {
       setupSystemCategory = btn.dataset.syscat;
       renderSetup($('#app'));
     };
   });
 
-  $('.btnPlayWithSystem').forEach(btn => {
+  $$('.btnPlayWithSystem').forEach(btn => {
     btn.onclick = () => {
       const sysId = btn.dataset.sysid;
       if(sysId === 'estaduais') {
@@ -33393,6 +33718,7 @@ function bindSetup(){
       });
     }
   });
+  } catch(err) { console.error('[AFM] Erro em bindSetup:', err); }
 }
 
 // -------------------------------------------------------------
@@ -34560,9 +34886,7 @@ function bind(){
 
     const exitMenuBtn = $('#btnExitToMainMenu');
     if(exitMenuBtn) exitMenuBtn.onclick = () => {
-      save();
-      state = null;
-      render();
+      handleExitGameAction();
     };
 
     $$('.btnConfigLoadSlot').forEach(b => {

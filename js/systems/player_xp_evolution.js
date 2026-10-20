@@ -124,6 +124,14 @@
     const hash = Math.abs(Math.sin((p.name || 'player').length * 13 + minutes * 7)) * 0.5 - 0.25;
     rating += hash;
 
+    // Calibração para reservas e substitutos que entram no decorrer do jogo (minutos < 40)
+    if (minutes < 40) {
+      rating = Math.max(6.0, rating);
+      if (goals > 0 || assists > 0) {
+        rating = Math.max(8.0, rating + (goals * 1.5) + (assists * 1.0));
+      }
+    }
+
     // Trava de segurança entre 5.0 e 10.0
     rating = Math.max(5.0, Math.min(10.0, Math.round(rating * 10) / 10));
 

@@ -18,6 +18,123 @@
   // 1. BANCO DE CORES E UNIFORMES REAIS DE CLUBES (KITS AUTÊNTICOS)
   // =========================================================================
   const CLUB_KITS = {
+    // SÉRIE A & B BRASIL EXPANDIDO
+    'criciuma': {
+      home: { primary: '#f59e0b', secondary: '#111111', tertiary: '#ffffff', pattern: 'stripes_h_tricolor', shorts: '#111111', socks: '#ffffff', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#f59e0b', pattern: 'solid', shorts: '#111111', socks: '#ffffff', number: '#111111' },
+      gk: { primary: '#16a34a', secondary: '#ffffff', shorts: '#16a34a' }
+    },
+    'cuiaba': {
+      home: { primary: '#15803d', secondary: '#facc15', pattern: 'solid', shorts: '#15803d', socks: '#15803d', number: '#facc15' },
+      away: { primary: '#ffffff', secondary: '#15803d', pattern: 'solid', shorts: '#ffffff', socks: '#ffffff', number: '#15803d' },
+      gk: { primary: '#0284c7', secondary: '#ffffff', shorts: '#0284c7' }
+    },
+    'juventude': {
+      home: { primary: '#15803d', secondary: '#ffffff', pattern: 'stripes_v', shorts: '#ffffff', socks: '#15803d', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#15803d', pattern: 'solid', shorts: '#15803d', socks: '#ffffff', number: '#15803d' },
+      gk: { primary: '#f59e0b', secondary: '#ffffff', shorts: '#f59e0b' }
+    },
+    'vitoria': {
+      home: { primary: '#dc2626', secondary: '#111111', pattern: 'stripes_h', shorts: '#111111', socks: '#dc2626', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#dc2626', pattern: 'solid', shorts: '#111111', socks: '#ffffff', number: '#dc2626' },
+      gk: { primary: '#16a34a', secondary: '#ffffff', shorts: '#16a34a' }
+    },
+    'atletico goianiense': {
+      home: { primary: '#dc2626', secondary: '#111111', pattern: 'stripes_h', shorts: '#111111', socks: '#111111', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#dc2626', pattern: 'solid', shorts: '#ffffff', socks: '#ffffff', number: '#dc2626' },
+      gk: { primary: '#0284c7', secondary: '#ffffff', shorts: '#0284c7' }
+    },
+    'vila nova': {
+      home: { primary: '#dc2626', secondary: '#ffffff', pattern: 'solid', shorts: '#ffffff', socks: '#dc2626', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#dc2626', pattern: 'solid', shorts: '#dc2626', socks: '#ffffff', number: '#dc2626' },
+      gk: { primary: '#111111', secondary: '#ffffff', shorts: '#111111' }
+    },
+    'sport': {
+      home: { primary: '#dc2626', secondary: '#111111', pattern: 'stripes_h', shorts: '#111111', socks: '#111111', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#dc2626', pattern: 'solid', shorts: '#ffffff', socks: '#ffffff', number: '#dc2626' },
+      gk: { primary: '#f59e0b', secondary: '#ffffff', shorts: '#f59e0b' }
+    },
+    'ceara': {
+      home: { primary: '#111111', secondary: '#ffffff', pattern: 'stripes_v', shorts: '#111111', socks: '#111111', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#111111', pattern: 'solid', shorts: '#ffffff', socks: '#ffffff', number: '#111111' },
+      gk: { primary: '#0284c7', secondary: '#ffffff', shorts: '#0284c7' }
+    },
+    'coritiba': {
+      home: { primary: '#ffffff', secondary: '#006437', pattern: 'chest_band', shorts: '#111111', socks: '#ffffff', number: '#006437' },
+      away: { primary: '#006437', secondary: '#ffffff', pattern: 'stripes_v', shorts: '#ffffff', socks: '#006437', number: '#ffffff' },
+      gk: { primary: '#f59e0b', secondary: '#ffffff', shorts: '#f59e0b' }
+    },
+    'goias': {
+      home: { primary: '#006437', secondary: '#ffffff', pattern: 'solid', shorts: '#ffffff', socks: '#006437', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#006437', pattern: 'solid', shorts: '#006437', socks: '#ffffff', number: '#006437' },
+      gk: { primary: '#111111', secondary: '#ffffff', shorts: '#111111' }
+    },
+    'avai': {
+      home: { primary: '#004d98', secondary: '#ffffff', pattern: 'stripes_v', shorts: '#ffffff', socks: '#004d98', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#004d98', pattern: 'solid', shorts: '#004d98', socks: '#ffffff', number: '#004d98' },
+      gk: { primary: '#eab308', secondary: '#ffffff', shorts: '#eab308' }
+    },
+    'chapecoense': {
+      home: { primary: '#006437', secondary: '#ffffff', pattern: 'solid', shorts: '#ffffff', socks: '#006437', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#006437', pattern: 'solid', shorts: '#006437', socks: '#ffffff', number: '#006437' },
+      gk: { primary: '#111111', secondary: '#ffffff', shorts: '#111111' }
+    },
+    'guarani': {
+      home: { primary: '#006437', secondary: '#ffffff', pattern: 'solid', shorts: '#ffffff', socks: '#006437', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#006437', pattern: 'solid', shorts: '#006437', socks: '#ffffff', number: '#006437' },
+      gk: { primary: '#f59e0b', secondary: '#ffffff', shorts: '#f59e0b' }
+    },
+    'ponte preta': {
+      home: { primary: '#ffffff', secondary: '#111111', pattern: 'sash_diagonal', shorts: '#111111', socks: '#ffffff', number: '#111111' },
+      away: { primary: '#111111', secondary: '#ffffff', pattern: 'sash_diagonal', shorts: '#ffffff', socks: '#111111', number: '#ffffff' },
+      gk: { primary: '#0284c7', secondary: '#ffffff', shorts: '#0284c7' }
+    },
+    'novorizontino': {
+      home: { primary: '#ffdd00', secondary: '#111111', pattern: 'stripes_h', shorts: '#111111', socks: '#ffdd00', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#ffdd00', pattern: 'solid', shorts: '#111111', socks: '#ffffff', number: '#111111' },
+      gk: { primary: '#16a34a', secondary: '#ffffff', shorts: '#16a34a' }
+    },
+    'mirassol': {
+      home: { primary: '#ffdd00', secondary: '#15803d', pattern: 'solid', shorts: '#ffdd00', socks: '#ffdd00', number: '#15803d' },
+      away: { primary: '#ffffff', secondary: '#ffdd00', pattern: 'solid', shorts: '#ffffff', socks: '#ffffff', number: '#15803d' },
+      gk: { primary: '#0284c7', secondary: '#ffffff', shorts: '#0284c7' }
+    },
+    'operario': {
+      home: { primary: '#111111', secondary: '#ffffff', pattern: 'stripes_v', shorts: '#111111', socks: '#111111', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#111111', pattern: 'solid', shorts: '#ffffff', socks: '#ffffff', number: '#111111' },
+      gk: { primary: '#eab308', secondary: '#ffffff', shorts: '#eab308' }
+    },
+    'paysandu': {
+      home: { primary: '#0099ff', secondary: '#ffffff', pattern: 'stripes_v', shorts: '#ffffff', socks: '#0099ff', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#0099ff', pattern: 'solid', shorts: '#0099ff', socks: '#ffffff', number: '#0099ff' },
+      gk: { primary: '#f59e0b', secondary: '#ffffff', shorts: '#f59e0b' }
+    },
+    'crb': {
+      home: { primary: '#dc2626', secondary: '#ffffff', pattern: 'chest_band', shorts: '#ffffff', socks: '#dc2626', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#dc2626', pattern: 'solid', shorts: '#dc2626', socks: '#ffffff', number: '#dc2626' },
+      gk: { primary: '#111111', secondary: '#ffffff', shorts: '#111111' }
+    },
+    'amazonas': {
+      home: { primary: '#facc15', secondary: '#111111', pattern: 'solid', shorts: '#111111', socks: '#facc15', number: '#111111' },
+      away: { primary: '#ffffff', secondary: '#facc15', pattern: 'solid', shorts: '#ffffff', socks: '#ffffff', number: '#111111' },
+      gk: { primary: '#16a34a', secondary: '#ffffff', shorts: '#16a34a' }
+    },
+    'brusque': {
+      home: { primary: '#ffdd00', secondary: '#dc2626', pattern: 'stripes_v', shorts: '#ffffff', socks: '#ffdd00', number: '#dc2626' },
+      away: { primary: '#ffffff', secondary: '#ffdd00', pattern: 'solid', shorts: '#ffffff', socks: '#ffffff', number: '#dc2626' },
+      gk: { primary: '#0284c7', secondary: '#ffffff', shorts: '#0284c7' }
+    },
+    'ituano': {
+      home: { primary: '#dc2626', secondary: '#111111', pattern: 'stripes_v', shorts: '#111111', socks: '#dc2626', number: '#ffffff' },
+      away: { primary: '#ffffff', secondary: '#dc2626', pattern: 'solid', shorts: '#ffffff', socks: '#ffffff', number: '#dc2626' },
+      gk: { primary: '#16a34a', secondary: '#ffffff', shorts: '#16a34a' }
+    },
+    'botafogo-sp': {
+      home: { primary: '#dc2626', secondary: '#ffffff', tertiary: '#111111', pattern: 'chest_tricolor', shorts: '#ffffff', socks: '#ffffff', number: '#dc2626' },
+      away: { primary: '#111111', secondary: '#dc2626', pattern: 'solid', shorts: '#111111', socks: '#111111', number: '#ffffff' },
+      gk: { primary: '#f59e0b', secondary: '#ffffff', shorts: '#f59e0b' }
+    },
+
     // BRASIL - SÉRIE A & PRINCIPAIS
     'corinthians': {
       home: { primary: '#ffffff', secondary: '#111111', pattern: 'solid', shorts: '#111111', socks: '#ffffff', number: '#111111' },
@@ -592,7 +709,7 @@
       const pt = projFn(p.x, p.y);
       const isGK = Boolean(p.isGK);
       const isHome = p.team === 'home';
-      const kit = p.kitColors || (isHome ? p.homeKit : p.awayKit) || getClubKit(p.teamName || (isHome ? 'Corinthians' : 'Platense'), !isHome);
+      const kit = p.kitColors || p.kit || (isHome ? p.homeKit : p.awayKit) || getClubKit(p.clubName || (typeof liveMatchState !== 'undefined' && liveMatchState ? (isHome ? liveMatchState.home : liveMatchState.away) : (isHome ? 'criciuma' : 'cuiaba')), !isHome);
 
       ctx.save();
       ctx.translate(pt.x, pt.y);
@@ -705,6 +822,18 @@
         ctx.fillStyle = secondaryColor;
         ctx.fillRect(shirtX, shirtY + shirtH * 0.25, shirtW, shirtH * 0.22);
         ctx.fillRect(shirtX, shirtY + shirtH * 0.65, shirtW, shirtH * 0.22);
+      } else if(!isGK && kit.pattern === 'stripes_h_tricolor'){
+        // Padrão Tricolor Horizontal (ex: Criciúma: amarelo, faixa branca fina, preto embaixo)
+        ctx.fillStyle = kit.tertiary || '#ffffff';
+        ctx.fillRect(shirtX, shirtY + shirtH * 0.44, shirtW, shirtH * 0.12);
+        ctx.fillStyle = secondaryColor;
+        ctx.fillRect(shirtX, shirtY + shirtH * 0.56, shirtW, shirtH * 0.44);
+      } else if(!isGK && kit.pattern === 'chest_tricolor'){
+        // Faixa no Peito Tricolor (ex: São Paulo, Botafogo-SP)
+        ctx.fillStyle = secondaryColor;
+        ctx.fillRect(shirtX, shirtY + shirtH * 0.32, shirtW, shirtH * 0.16);
+        ctx.fillStyle = kit.tertiary || '#111111';
+        ctx.fillRect(shirtX, shirtY + shirtH * 0.48, shirtW, shirtH * 0.16);
       } else if(!isGK && kit.pattern === 'sash_diagonal'){
         ctx.strokeStyle = secondaryColor;
         ctx.lineWidth = 2.8 * scale;
@@ -1128,55 +1257,142 @@
       ctx.restore();
     },
 
-    // 8. Renderização do Estádio com os 4 Setores (Norte, Sul, Leste, Oeste) e Upgrades Reais
+    // 8. Novo Estádio 3D Imersivo Cinema (Estrutura Real, Mosaicos Vivos, Holofotes Volumétricos e Sem Bloqueios)
     draw4SectorsStadium(ctx, s, projFn) {
       const stData = (typeof window !== 'undefined' && window.getStadiumExpansionData) ? window.getStadiumExpansionData() : null;
-      const stLevel = s.stadium?.level || 1;
+      const capacity = s.stadium?.capacity || 20000;
+      const infraLevel = (typeof window !== 'undefined' && window.state && window.state.infrastructure?.stadium?.level) || 1;
+      const stLevel = Math.max(infraLevel, capacity >= 40000 ? 3 : (capacity >= 15000 ? 2 : 1));
       const upgrades = s.stadium?.upgrades || {};
-      const rings = stData?.rings || {};
-      const curRing = stData?.ring || 1;
+      const homeColor = s.homeKit?.primary || '#f59e0b';
+      const homeSecColor = s.homeKit?.secondary || '#111111';
 
-      // SETOR LESTE (Arquibancada Superior de Fundo)
-      const standTop = Math.max(60, 110 - curRing * 8);
+      // 1. Céu Noturno / Crepúsculo Atmosférico com Neblina de Estádio
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, 200);
+      skyGrad.addColorStop(0, '#040711');
+      skyGrad.addColorStop(0.5, '#0b1329');
+      skyGrad.addColorStop(1, '#18233c');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, 1280, 210);
+
+      // 2. Cobertura Monumental Cantilever (Nível 2 e 3+)
+      const standTop = stLevel >= 3 ? 42 : (stLevel === 2 ? 80 : 120);
       const standBottom = 190;
-      ctx.fillStyle = '#1e2837';
+
+      if(stLevel >= 2){
+        ctx.fillStyle = '#070b14';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(1280, 0);
+        ctx.lineTo(1280, standTop - 10);
+        ctx.quadraticCurveTo(640, standTop + 14, 0, standTop - 10);
+        ctx.closePath();
+        ctx.fill();
+
+        // Treliças metálicas de aço iluminadas
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 2;
+        for(let tx = 80; tx < 1220; tx += 110){
+          ctx.beginPath();
+          ctx.moveTo(tx, 0);
+          ctx.lineTo(tx + 20, standTop);
+          ctx.stroke();
+        }
+      }
+
+      // 3. SETOR LESTE (Arquibancada Superior de Fundo)
+      const tiersCount = stLevel >= 3 ? 12 : (stLevel === 2 ? 7 : 4);
+      ctx.fillStyle = '#111827';
       ctx.beginPath();
-      ctx.moveTo(140, standTop);
-      ctx.lineTo(1140, standTop);
+      ctx.moveTo(130, standTop);
+      ctx.lineTo(1150, standTop);
       ctx.lineTo(1040, standBottom);
       ctx.lineTo(240, standBottom);
       ctx.closePath();
       ctx.fill();
 
-      // Degraus e cadeiras do Setor Leste
-      const lesteTiers = 4 + Math.min(6, curRing);
-      for(let i=0; i<lesteTiers; i++){
-        const ty = standTop + (i / lesteTiers) * (standBottom - standTop);
-        const lx = 140 + (i / lesteTiers) * 100;
-        const rx = 1140 - (i / lesteTiers) * 100;
-        ctx.strokeStyle = '#293547';
+      // Degraus individuais de concreto com cadeiras nas cores do clube
+      for(let i = 0; i < tiersCount; i++){
+        const ty = standTop + (i / tiersCount) * (standBottom - standTop);
+        const lx = 130 + (i / tiersCount) * 110;
+        const rx = 1150 - (i / tiersCount) * 110;
+        
+        ctx.strokeStyle = '#1f293d';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(lx, ty); ctx.lineTo(rx, ty);
+        ctx.moveTo(lx, ty);
+        ctx.lineTo(rx, ty);
         ctx.stroke();
 
-        // Torcedores no Setor Leste
-        const chairCount = 38;
-        for(let c=0; c<chairCount; c++){
-          const cx = lx + (c / chairCount) * (rx - lx);
-          if(Math.random() < 0.65){
-            ctx.fillStyle = (c % 2 === 0) ? '#3b82f6' : '#ef4444';
+        // Fileiras de Torcedores e Cadeiras
+        const seats = stLevel >= 3 ? 54 : (stLevel === 2 ? 40 : 26);
+        for(let c = 0; c < seats; c++){
+          const cx = lx + (c / seats) * (rx - lx);
+          // Assentos do clube
+          ctx.fillStyle = (c % 2 === 0) ? homeColor : homeSecColor;
+          ctx.fillRect(cx, ty - 3.5, 4.5, 2.5);
+
+          // Torcedores vibrando (hash estável sem cintilação aleatória)
+          const seatHash = (c * 17 + i * 31) % 100;
+          const crowdPct = stLevel >= 3 ? 88 : (stLevel === 2 ? 65 : 32);
+          if(seatHash < crowdPct){
+            ctx.fillStyle = (seatHash % 3 === 0) ? homeColor : (seatHash % 2 === 0 ? '#ffffff' : '#facc15');
             ctx.beginPath();
-            ctx.arc(cx + 3, ty - 4, 2.5, 0, Math.PI * 2);
+            ctx.arc(cx + 2.5, ty - 5, 2.4, 0, Math.PI * 2);
             ctx.fill();
           }
         }
       }
 
-      // SETOR NORTE (Curva da Esquerda / Atrás do Gol 1)
-      ctx.fillStyle = '#17202d';
+      // Bandeirões Oficiais da Torcida no Setor Superior
+      if(stLevel >= 2){
+        const flagColors = [homeColor, '#ffffff', homeSecColor, homeColor];
+        for(let f = 0; f < 4; f++){
+          const fx = 300 + f * 220;
+          const wave = Math.sin((s.renderTicks || 0) * 0.08 + f) * 4;
+          ctx.fillStyle = flagColors[f];
+          ctx.beginPath();
+          ctx.moveTo(fx, standTop + 6);
+          ctx.lineTo(fx + 24, standTop + 6 + wave);
+          ctx.lineTo(fx + 24, standTop + 20 + wave);
+          ctx.lineTo(fx, standTop + 20);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Faixa Oficial na Mureta da Arquibancada
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(235, 172, 810, 16);
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(235, 172, 810, 16);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 9px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      const ledText = (stLevel >= 3)
+        ? `★ BETANO • IFOOD • BYD • SAMSUNG • FATAL MODEL • NUBANK • CENTRAL DAS PROMOS • ${String(s.home || 'CLUBE').toUpperCase()} ★`
+        : `★ ${String(s.home || 'CLUBE').toUpperCase()} • RAÇA, AMOR E PAIXÃO • AFM 2027 ★`;
+      ctx.fillText(ledText, 640, 184);
+
+      // Placar / Telão Central em Arco
+      ctx.fillStyle = '#050811';
+      ctx.fillRect(540, standTop - 18, 200, 42);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(540, standTop - 18, 200, 42);
+      ctx.fillStyle = '#facc15';
+      ctx.font = 'bold 13px monospace';
+      ctx.fillText(`${String(s.home || '').slice(0,3).toUpperCase()} ${s.hg || 0} - ${s.ag || 0} ${String(s.away || '').slice(0,3).toUpperCase()}`, 640, standTop + 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 9px monospace';
+      ctx.fillText(`${Math.floor((s.timeSec || 0)/60)}' MIN • AO VIVO`, 640, standTop + 18);
+
+      // 4. SETOR NORTE & SETOR SUL (Laterais Curvas)
+      // Lateral Esquerda (Norte)
+      ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.moveTo(140, standTop);
+      ctx.moveTo(130, standTop);
       ctx.lineTo(240, standBottom);
       ctx.lineTo(40, 530);
       ctx.lineTo(0, 530);
@@ -1184,17 +1400,10 @@
       ctx.closePath();
       ctx.fill();
 
-      // Bandeiras e torcida organizada no Setor Norte
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(30, 260, 45, 12);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 8px Inter, sans-serif';
-      ctx.fillText('SETOR NORTE', 52, 269);
-
-      // SETOR SUL (Curva da Direita / Atrás do Gol 2)
-      ctx.fillStyle = '#17202d';
+      // Lateral Direita (Sul)
+      ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.moveTo(1140, standTop);
+      ctx.moveTo(1150, standTop);
       ctx.lineTo(1040, standBottom);
       ctx.lineTo(1240, 530);
       ctx.lineTo(1280, 530);
@@ -1202,74 +1411,81 @@
       ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = '#3b82f6';
-      ctx.fillRect(1205, 260, 45, 12);
+      // 5. Torres de Refletores Volumétricos de Transmissão 3D
+      // Refletor Esquerdo
+      const lightLeft = ctx.createRadialGradient(135, 110, 5, 360, 340, 450);
+      lightLeft.addColorStop(0, 'rgba(255, 255, 255, 0.16)');
+      lightLeft.addColorStop(0.6, 'rgba(255, 255, 255, 0.04)');
+      lightLeft.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = lightLeft;
+      ctx.fillRect(0, 0, 700, 600);
+
+      // Refletor Direito
+      const lightRight = ctx.createRadialGradient(1145, 110, 5, 920, 340, 450);
+      lightRight.addColorStop(0, 'rgba(255, 255, 255, 0.16)');
+      lightRight.addColorStop(0.6, 'rgba(255, 255, 255, 0.04)');
+      lightRight.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = lightRight;
+      ctx.fillRect(580, 0, 700, 600);
+
+      // Fachadas Metálicas das Torres
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(125, standTop - 18, 10, 105);
+      ctx.fillRect(1145, standTop - 18, 10, 105);
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 8px Inter, sans-serif';
-      ctx.fillText('SETOR SUL', 1227, 269);
-
-      // SETOR OESTE (Arquibancada Inferior / Social e Camarotes na Frente)
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 535, 1280, 185);
-
-      // Camarotes VIP do Setor Oeste se estádio expandido (nível >= 2)
-      if(stLevel >= 2 || curRing >= 2){
-        for(let v = 60; v < 1220; v += 130){
-          if(v >= 490 && v <= 790) continue; // Espaço do túnel central
-          ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
-          ctx.fillRect(v, 610, 115, 45);
-          ctx.strokeStyle = '#38bdf8';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(v, 610, 115, 45);
-          ctx.fillStyle = '#38bdf8';
-          ctx.font = 'bold 8px monospace';
-          ctx.fillText('VIP CAMAROTE', v + 57, 635);
-        }
-      }
-
-      // Túnel Central de Acesso dos Jogadores
-      ctx.fillStyle = '#020617';
-      ctx.fillRect(580, 535, 120, 65);
-      ctx.strokeStyle = '#facc15';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(580, 535, 120, 65);
-      ctx.fillStyle = '#facc15';
-      ctx.font = 'bold 9px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('TÚNEL DE ACESSO', 640, 550);
+      ctx.fillRect(110, standTop - 32, 40, 14);
+      ctx.fillRect(1130, standTop - 32, 40, 14);
     },
 
-    // 9. Câmera de Transmissão de Televisão (Dynamic Broadcast Camera)
+    // 9. Câmera de Transmissão 3D Dinâmica (Suporta Lateral, Bola e Gol)
     applyTvBroadcastCamera(ctx, s, projFn) {
       if(!s) return;
       s.camera = s.camera || { x: 640, y: 360, targetX: 640, targetY: 360, zoom: 1.05, targetZoom: 1.05, mode: 'tv' };
       const cam = s.camera;
-      if(cam.mode !== 'tv') return;
+      const cMode = s.cameraMode || cam.mode || 'tv';
+      cam.mode = cMode;
 
       const ball = s.ball || { x: 50, y: 50 };
       const pt = projFn(ball.x, ball.y);
 
-      // Posição de foco da câmera de TV acompanhando o lance
-      cam.targetX = Math.max(460, Math.min(820, pt.x));
-      cam.targetY = Math.max(280, Math.min(440, pt.y - 15));
-
-      // Zoom dinâmico inteligente por situação de jogo
-      if(s.varCheck){
-        cam.targetX = 640;
-        cam.targetY = 480;
-        cam.targetZoom = 1.25; // Foco total na cabine do VAR
-      } else if(ball.mode === 'shot' || (s.ball?.carrier && (ball.x >= 78 || ball.x <= 22))){
-        cam.targetZoom = 1.18; // Foco na grande área / finalização
-      } else if(s.ball?.carrier?.dribbling || (s.lastTackleTimer || 0) > 0){
-        cam.targetZoom = 1.15; // Foco no drible / carrinho 1v1
+      if(cMode === 'ball'){
+        // MODO BOLA: Foco total na bola e no jogador que conduz com zoom aproximado
+        cam.targetX = Math.max(340, Math.min(940, pt.x));
+        cam.targetY = Math.max(240, Math.min(480, pt.y - 10));
+        cam.targetZoom = 1.25;
+      } else if(cMode === 'goal'){
+        // MODO GOL: Foco na área de finalização e gol onde a bola está atacando
+        if(ball.x >= 50){
+          cam.targetX = 960;
+          cam.targetY = 360;
+        } else {
+          cam.targetX = 320;
+          cam.targetY = 360;
+        }
+        cam.targetZoom = 1.20;
       } else {
-        cam.targetZoom = 1.05; // Visão de meio-campo fluida
+        // MODO LATERAL / TV DINÂMICA (Padrão de Transmissão de Televisão)
+        cam.targetX = Math.max(460, Math.min(820, pt.x));
+        cam.targetY = Math.max(280, Math.min(440, pt.y - 15));
+
+        // Zoom dinâmico inteligente por situação de jogo
+        if(s.varCheck){
+          cam.targetX = 640;
+          cam.targetY = 480;
+          cam.targetZoom = 1.25; // Foco total na cabine do VAR
+        } else if(ball.mode === 'shot' || (s.ball?.carrier && (ball.x >= 78 || ball.x <= 22))){
+          cam.targetZoom = 1.18; // Foco na grande área / finalização
+        } else if(s.ball?.carrier?.dribbling || (s.lastTackleTimer || 0) > 0){
+          cam.targetZoom = 1.15; // Foco no drible / carrinho 1v1
+        } else {
+          cam.targetZoom = 1.05; // Visão de meio-campo fluida
+        }
       }
 
       // Interpolação suave (lerp) sem solavancos
-      cam.x += (cam.targetX - cam.x) * 0.07;
-      cam.y += (cam.targetY - cam.y) * 0.07;
-      cam.zoom += (cam.targetZoom - cam.zoom) * 0.06;
+      cam.x += (cam.targetX - cam.x) * 0.08;
+      cam.y += (cam.targetY - cam.y) * 0.08;
+      cam.zoom += (cam.targetZoom - cam.zoom) * 0.07;
 
       ctx.save();
       ctx.translate(640, 360);
@@ -1279,7 +1495,7 @@
 
     // 10. Restauração do Contexto da Câmera (Para Desenhar o HUD Fixo na Tela)
     restoreTvBroadcastCamera(ctx, s) {
-      if(s?.camera?.mode === 'tv'){
+      if(s?.camera && ['tv', 'lateral', 'ball', 'goal'].includes(s.camera.mode)){
         ctx.restore();
       }
     }

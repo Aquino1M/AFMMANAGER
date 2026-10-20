@@ -258,7 +258,7 @@
   }
 
   // 4. Prévia Oficial da Partida (Modal Premium com Raio-X, 11 Inicial, Histórico e Probabilidades)
-  function openMatchPreviewModal(oppOrHome, awayClubName, customCompName, customDate) {
+  function openMatchPreviewModal(oppOrHome, awayClubName, customCompName, customDate, options = {}) {
     const s = window.state;
     if (!s) return;
 
@@ -709,6 +709,26 @@
     const simQuick = (window.simulateQuickRound || (typeof simulateQuickRound === 'function' ? simulateQuickRound : null));
     const liveMatch = (window.startLiveMatch || (typeof startLiveMatch === 'function' ? startLiveMatch : null));
 
+    let closeHandled = false;
+    const handleCloseAction = () => {
+      if (closeHandled) return;
+      closeHandled = true;
+      const shouldReturn = Boolean(
+        options?.returnToMatchActionModal || 
+        options?.returnToMatchAction || 
+        (typeof oppOrHome === 'object' && oppOrHome !== null && (oppOrHome.returnToMatchActionModal || oppOrHome.returnToMatchAction)) ||
+        window.__afmOpenedFromMatchActionModal
+      );
+      window.__afmOpenedFromMatchActionModal = false;
+      if (typeof options?.onClose === 'function') {
+        try { options.onClose(); } catch(e){ console.warn(e); }
+      } else if (shouldReturn) {
+        if (typeof window.openMatchActionModal === 'function') {
+          window.openMatchActionModal();
+        }
+      }
+    };
+
     if (modalOpener) {
       modalOpener(
         `📋 Prévia Oficial: ${homeClub} x ${awayClub}`,
@@ -716,7 +736,8 @@
         null,
         'Fechar',
         false,
-        '860px'
+        '860px',
+        handleCloseAction
       );
     } else {
       const existing = document.getElementById('appCustomModal');
@@ -734,15 +755,16 @@
         </div>
       `;
       document.body.appendChild(overlay);
-      overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+      overlay.onclick = e => { if (e.target === overlay) doClose(); };
       const closeX = document.getElementById('modalCloseXBtn');
-      if (closeX) closeX.onclick = () => overlay.remove();
+      if (closeX) closeX.onclick = () => doClose();
     }
 
     const doClose = () => {
-      if (modalCloser) modalCloser();
+      if (modalCloser) modalCloser(false);
       const el = document.getElementById('appCustomModal');
       if (el) el.remove();
+      handleCloseAction();
     };
 
     const btnClose = document.getElementById('btnPreviewCloseModal');
@@ -751,7 +773,11 @@
     const btnSim = document.getElementById('btnPreviewSimulateQuick');
     if (btnSim) {
       btnSim.onclick = () => {
-        doClose();
+        closeHandled = true;
+        window.__afmOpenedFromMatchActionModal = false;
+        if (modalCloser) modalCloser(false);
+        const el = document.getElementById('appCustomModal');
+        if (el) el.remove();
         if (simQuick) simQuick();
       };
     }
@@ -759,7 +785,11 @@
     const btnLive = document.getElementById('btnPreviewPlayLiveMatch');
     if (btnLive) {
       btnLive.onclick = () => {
-        doClose();
+        closeHandled = true;
+        window.__afmOpenedFromMatchActionModal = false;
+        if (modalCloser) modalCloser(false);
+        const el = document.getElementById('appCustomModal');
+        if (el) el.remove();
         if (liveMatch) liveMatch();
       };
     }

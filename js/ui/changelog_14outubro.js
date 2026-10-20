@@ -9,10 +9,57 @@
 
   const CHANGELOG_DAYS = [
     {
+      date: '20 de Outubro de 2026',
+      version: 'v3.9.15 — Retorno Fluido da Prévia, Coletiva Pós-Jogo na Central, Motor 3D Realista, Fim do Bug 901:57 & Copinha Sub-20',
+      badge: 'HOJE · 20 DE OUTUBRO',
+      badgeColor: '#10b981',
+      items: [
+        '🔙 [RETORNO DA PRÉVIA AO POPUP DA PARTIDA] Fechar a tela de Prévia Oficial (pelo botão [✕], "Fechar", clique externo ou tecla Esc) agora retorna com precisão para a janela de decisão da partida (Jogar ao Vivo, Simular ou Prévia), mantendo o fluxo contínuo de comando.',
+        '🎙️ [COLETIVA DE IMPRENSA PÓS-JOGO NA CENTRAL] Entrevista com repórteres e coletiva obrigatória ao fim de qualquer jogo do clube com impacto na moral e redirecionamento 100% automático para o menu Central.',
+        '⏱️ [FIM DO BUG 901:57 / TRAVA DO RELÓGIO] Erradicado o travamento infinito da partida ao vivo com trava estrita de encerramento (`maxAllowedMin`), apito final e intervalo infalíveis.',
+        '🏟️ [NOVO ESTÁDIO 3D REALISTA ABERTO] Gramado 100% visível sem caixa escura inferior, bancos de reservas curvos com vidro realista, refletores volumétricos e kits oficiais autênticos (Criciúma tricolor, Cuiabá, etc.).',
+        '📊 [BATERIA DE 30 TESTES DE REALISMO DO FUTEBOL] Calibração de 30 partidas minuto a minuto com médias fiéis ao futebol brasileiro: 2.23 gols, 24.8 faltas, 10.6 escanteios, 7.7 defesas e xG balanceado.',
+        '🏆 [COPINHA SUB-20 EM JANEIRO] Simulação automática em segundo plano na base com revelação de joias, chances de explosão de Overall (+3 a +7 OVR) e promoção direta ao profissional.',
+        '⭐ [FAVORITOS NO MERCADO] Lista de desejos (Wishlist / Shortlist) com estrela ⭐ interativa em todos os cards, teto de valor (R$ mi) e anotações táticas do treinador.',
+        '⚡ [CALIBRAÇÃO DE NOTA E XP PARA SUBSTITUTOS] Atletas que entram nos minutos finais (70\' a 85\') agora recebem base justa e bônus por gols/assistências (notas 8.0 a 9.5) sem perda de XP.',
+        '🚪 [RETORNO AO MENU / ESCOLHA DE TIMES E SAVES] Erradicado o erro que travava a saída do jogo na tela "Recuperando inicialização...", garantindo retorno imediato com auto-save aos 3 slots de campanhas e vitrine de clubes.'
+      ]
+    },
+    {
+      date: '19 de Outubro de 2026',
+      version: 'v3.9.12 — Sistema Oficial de XP e Evolução em Campo, Resumo Mensal, Botão Único Tático e Filtro Estrito de Competições',
+      badge: 'EVOLUÇÃO & INTERFACE',
+      badgeColor: '#8b5cf6',
+      items: [
+        '⚡ [SISTEMA OFICIAL DE XP EM CAMPO] Progressão por minutagem em campo, notas de atuação (5.0 a 10.0) e bônus expressivos por gols (+40 XP), assistências (+25 XP), clean sheets (+35 XP) e vitórias (+15 XP).',
+        '🚀 [MECÂNICA "IR ALÉM" / BREAKTHROUGH] Jovens prodígios (≤ 24 anos) com médias altas superam o teto de potencial inicial (+1 a +2 POT), rompendo limites com celebração da torcida.',
+        '🏋️ [TREINO CONTÍNUO NO CT & TRANSPARÊNCIA] Evolução contínua de titulares e reservas no Centro de Treinamento com aba interativa de Progresso de XP e resumo transparente "Partidas vs Treino".',
+        '📋 [BOTÃO UNIFICADO MEU TIME & TÁTICA] Remoção da duplicidade nos cards de partida unificando os botões de Elenco e Táticas em um único atalho direto "Meu Time & Tática".',
+        '🏆 [FILTRO ESTRITO DE COMPETIÇÕES NA CENTRAL] O widget secundário da Central agora exibe apenas as competições em que o clube participa (ex: Criciúma disputa Catarinense e Copa do Brasil, sem Libertadores indevida).',
+        '👑 [POP-UP EM BREVE DA LOJA OFICIAL] Vitrine de novidades em desenvolvimento: moedas de treinador (AFM Coins), kits clássicos, personalização de arenas e 100% fair play sem pay-to-win.',
+        '💡 [CENTRAL DE AJUDA & TUTORIAL DAS 12 ABAS] Modal interativo com dicas rápidas de mestre e apresentação completa das 12 abas do simulador com atalho direto "Ir para esta Aba ➔".',
+        '⚽ [ESCALA TÁTICA & GOLEIRO NO GRAMADO] Correção da coordenada do pedestal do goleiro sem cortes na linha de fundo e formatação elegante de função (GL · Tradicional / GL · Líbero).'
+      ]
+    },
+    {
+      date: '18 de Outubro de 2026',
+      version: 'v3.9.10 — Otimização Desktop/Mobile, Auto-Save no X, Força do Time & Prestígio no Topo e Decisão Interativa no Continuar',
+      badge: 'LAYOUT & NAVEGAÇÃO',
+      badgeColor: '#3b82f6',
+      items: [
+        '💻 [OCULTAÇÃO DO MENU NO PC] O botão de menu hambúrguer ☰ foi ocultado no desktop onde a barra lateral já é permanente, permanecendo ativo e responsivo em smartphones e tablets.',
+        '💾 [BOTÃO "X" COM AUTO-SAVE] Clicar no botão [✕] de saída salva automaticamente o progresso da carreira no armazenamento local antes de redirecionar para a tela inicial.',
+        '⭐ [FORÇA DO TIME & PRESTÍGIO DO TÉCNICO] Cabeçalho superior atualizado com a força real do elenco (OVR) e pontos de prestígio do treinador, com atalho rápido (+) direto para a Carreira.',
+        '🎮 [MODAL DE AÇÃO AO CLICAR EM CONTINUAR] Clicar em CONTINUAR abre o pop-up com três decisões claras: "▶ JOGAR AO VIVO", "⚡ SIMULAR" ou "📋 PRÉVIA", com raio-x completo do adversário.',
+        '🏷️ [CORREÇÃO DOS ATALHOS DA FITA] Nomes corrigidos nos atalhos: "📰 Notícias & Mídia", "🎯 Carreira", "📋 Meu Time & Tática", "🔄 Mercado & Transferências" e "🏢 Escritório & Finanças".',
+        '🏆 [ABA TEMPORADA NO MENU] Rótulo da aba simplificado no menu de navegação lateral para exatamente "🏆 Temporada".'
+      ]
+    },
+    {
       date: '17 de Outubro de 2026',
       version: 'v3.0.0 — Super Atualização: Motor de Jogo 3D Realista, VAR na TV, Alternador Copa/Libertadores & Blindagem Total de Avanço',
-      badge: 'HOJE · 17 DE OUTUBRO',
-      badgeColor: '#10b981',
+      badge: 'MOTOR 3D & BLINDAGEM',
+      badgeColor: '#64748b',
       items: [
         '🛡️ [REGRA CRÍTICA: BLINDAGEM DE AVANÇO] Correção definitiva dos botões "Avançar Dia (1 de 4)", "Avançar 6 Horas" (Deadline Day), "Pular Janela / Pré-Temporada" e "+1 Dia". Criada a função advanceTransferWindow(), amarração direta na bind(), fallback delegado global no documento e sincronização instantânea de data no topo da tela.',
         '⚽ [MOTOR DE JOGO REALISTA 3D] Carrinhos e desarmes deslizantes no chão com rastro/marcas físicas na grama (skid marks) e queda natural de atletas.',
@@ -113,7 +160,7 @@
           <h1>📢 Novidades & Correções Oficiais</h1>
           <div class="muted">Histórico cronológico detalhado dia a dia — AFM MANAGER 2027</div>
         </div>
-        <span class="pill good">Atualizado em 17 de Outubro de 2026</span>
+        <span class="pill good">Atualizado em 20 de Outubro de 2026</span>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:18px;margin-top:16px;">

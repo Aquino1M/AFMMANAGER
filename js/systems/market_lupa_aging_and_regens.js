@@ -518,6 +518,7 @@
       const oldModal = document.getElementById('afm-market-lupa-modal');
       if (oldModal) oldModal.remove();
 
+      const pKey = p?.marketKey || (typeof window.playerKey === 'function' && p ? window.playerKey(p) : (p?.name || name));
       const seasons = career?.seasons || [];
       let activeSeasonIdx = 0; // 0 = Temporada Atual
 
@@ -592,7 +593,10 @@
                   </div>
 
                   <!-- Botão Fechar -->
-                  <button id="close-lupa-modal" type="button" style="background:#1e293b;color:#cbd5e1;border:1px solid #334155;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:800;font-size:11px;white-space:nowrap;transition:all 0.2s;" onmouseover="this.style.background='#334155';this.style.color='#fff'" onmouseout="this.style.background='#1e293b';this.style.color='#cbd5e1'">✕ Fechar</button>
+                  <div style="display:flex;gap:8px;align-items:center">
+                    <button id="btn-fav-lupa-toggle" type="button" class="btn btn-fav-star ${window.AFM_MarketFavorites && window.AFM_MarketFavorites.isFavorite(pKey) ? 'active' : ''}" data-key="${pKey}" style="background:${window.AFM_MarketFavorites && window.AFM_MarketFavorites.isFavorite(pKey) ? '#facc15' : 'rgba(255,255,255,0.08)'};color:${window.AFM_MarketFavorites && window.AFM_MarketFavorites.isFavorite(pKey) ? '#000' : '#facc15'};border:1px solid ${window.AFM_MarketFavorites && window.AFM_MarketFavorites.isFavorite(pKey) ? '#facc15' : 'rgba(250,204,21,0.4)'};padding:6px 12px;border-radius:8px;cursor:pointer;font-weight:800;font-size:11px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px">⭐ ${window.AFM_MarketFavorites && window.AFM_MarketFavorites.isFavorite(pKey) ? 'Salvo nos Favoritos' : 'Favoritar'}</button>
+                    <button id="close-lupa-modal" type="button" style="background:#1e293b;color:#cbd5e1;border:1px solid #334155;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:800;font-size:11px;white-space:nowrap;transition:all 0.2s;" onmouseover="this.style.background='#334155';this.style.color='#fff'" onmouseout="this.style.background='#1e293b';this.style.color='#cbd5e1'">✕ Fechar</button>
+                  </div>
                 </div>
 
                 <!-- Abas de Temporadas -->
@@ -690,6 +694,15 @@
         `;
 
         // Eventos
+        const favToggleBtn = modal.querySelector('#btn-fav-lupa-toggle');
+        if (favToggleBtn) {
+          favToggleBtn.onclick = () => {
+            if (window.AFM_MarketFavorites) {
+              window.AFM_MarketFavorites.toggleFavorite(pKey, { openEdit: true });
+              renderModalContent();
+            }
+          };
+        }
         const closeBtn = modal.querySelector('#close-lupa-modal');
         if (closeBtn) closeBtn.onclick = () => modal.remove();
 

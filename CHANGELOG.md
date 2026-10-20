@@ -2,6 +2,135 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.16] - 2026-10-20 (Correção do Retorno ao Menu Principal ao Sair & Blindagem da Tela de Escolha de Times e Saves)
+
+### 🚪 1. Resolução Definitiva da Ação de Sair do Jogo
+- **Causa Raiz Identificada e Eliminada**:
+  - Na função `bindSetup()`, a chamada `$('.afm-sys-cat-btn').forEach` utilizava ` (seletor de elemento único) em vez de `$` (seletor de lista). Quando o usuário saía do jogo para a tela de saves e seleção de times, esses elementos não estavam no DOM, resultando em `TypeError: Cannot read properties of null (reading 'forEach')`. Isso abortava `renderSetup()`, fazendo o jogo cair na tela de fallback *"Recuperando inicialização do simulador... / Recarregar Página"*.
+- **Correção e Blindagem de `bindSetup()`**:
+  - Corrigidas as chamadas de `.afm-sys-cat-btn` e `.btnPlayWithSystem` para `$` e encapsulada a rotina inteira em bloco de proteção `try / catch`.
+- **Preservação de Sessão e Carregamento dos 3 Saves**:
+  - `getActiveAccount()` aprimorada para detectar a sessão ativa via banco, localStorage (`AFM_SESSION_KEY`, `afm_active_user_v1`) ou `state.userOwner`. Ao clicar em *Sair*, o treinador conectado é preservado e a tela exibe imediatamente os 3 slots de saves com seus dados (clube, temporada, rodada, saldo e data) e a vitrine completa de seleção de times e ligas.
+- **Unificação de Ações e Fallbacks Delegados**:
+  - O botão de saída do drawer lateral (`#btnCloseMobileDrawer`), o botão `🚪 Sair` (`#mainMenuBtn`) e o botão de configurações (`#btnExitToMainMenu`) agora compartilham o fluxo unificado `handleExitGameAction()`, com fechamento de gaveta, auto-save e delegação global em `pwa_and_landscape_enforcer.js`.
+
+---
+
+## [3.9.15] - 2026-10-20 (Retorno Automático da Prévia ao Popup da Partida & Entrevista Pós-Jogo com Direcionamento ao Menu Central)
+
+### 🔙 1. Retorno Fluido da Prévia Oficial para o Popup da Partida
+- **Preservação do Contexto da Decisão de Jogo**:
+  - Ao clicar no botão **`📋 PRÉVIA`** dentro do modal da partida (`openMatchActionModal` - tela com *Jogar ao Vivo*, *Simular*, escalação, força e clima), o jogo agora memoriza o estado anterior através de `window.__afmOpenedFromMatchActionModal = true` e repassa o callback `onClose` para o modal da Prévia Oficial.
+- **Retorno Infalível ao Fechar**:
+  - Ao fechar a Prévia Oficial (seja clicando no botão **`[✕]`** vermelho no canto superior direito, no botão **`Fechar`** na base, no clique fora do modal ou pela tecla `Esc`), o jogo fecha a prévia e **reabre instantaneamente a tela de decisão da partida** com os botões *▶ JOGAR AO VIVO*, *⚡ SIMULAR* e *📋 PRÉVIA*.
+- **Transição Direta ao Escolher Jogar pela Prévia**:
+  - Caso o treinador decida clicar diretamente em *▶ JOGAR AO VIVO AGORA* ou *⚡ SIMULAR PARTIDA* dentro da própria tela de prévia, a flag de retorno é liberada e a partida inicia sem reabrir a janela anterior.
+
+### 🎙️ 2. Entrevista Pós-Jogo (Coletiva de Imprensa) & Redirecionamento Automático para a Central
+- **Exibição Universal da Coletiva de Imprensa Pós-Jogo**:
+  - Ao término de qualquer partida do clube do usuário (ao vivo ou simulada, válida pela Série A/B, Campeonato Estadual, Copa do Brasil ou torneios Continentais), a **Sala de Imprensa Oficial** é acionada imediatamente com o treinador no púlpito, microfones com canoplas e perguntas dinâmicas da mídia esportiva sobre o placar do jogo.
+- **Diferenciação Estrita de Chaves de Coletiva**:
+  - A chave de validação de resposta da imprensa agora diferencia partidas e tipos (`season_round_type_home_away`), impedindo que uma coletiva pré-jogo bloqueie indevidamente a entrevista pós-jogo.
+- **Navegação Garantida para o Menu Central (`view = 'central'`)**:
+  - Assim que o treinador seleciona sua resposta na coletiva (com publicação da manchete e impacto na moral do grupo e confiança da diretoria/torcida) OU clica no botão **`✕ Encerrar`** da sala de imprensa, o jogo atualiza automaticamente o estado e redireciona o treinador diretamente para a aba **Central**.
+
+---
+
+## [3.9.14] - 2026-10-20 (Correção Definitiva do Relógio Anti-Travamento 901:57, Novo Estádio 3D Aberto & Bateria de 30 Testes de Realismo)
+
+### ⏱️ 1. Correção Definitiva do Relógio e Prevenção de Travamento Infinito (Bug 901:57)
+- **Causa Raiz Identificada e Erradicada**:
+  - No loop de simulação `setupLiveCanvasLoop`, a condição `if(s.minute < 90) simulateMinute(s, s.minute + 1)` impedia a chamada dos minutos de acréscimo (91', 92', 93'...). Como o apito final dependia de `min >= 90 + stop2H`, o jogo nunca encerrava e o contador de segundos continuava indefinidamente até passar de 54.000s (901:57).
+- **Trava de Segurança Estrita com Encerramento Garantido**:
+  - Implementado cálculo dinâmico de `maxAllowedMin = (s.phase === 'FIRST_HALF') ? (45 + stop1H) : (s.phase === 'EXTRA_TIME_1' ? 105 : (s.phase === 'EXTRA_TIME_2' ? 120 : (90 + stop2H)))`.
+  - Se `s.timeSec >= maxAllowedTimeSec`, o relógio trava imediatamente no tempo limite, define `s.minute = maxAllowedMin`, `s.playing = false` e aciona o apito final (`finishLiveMatch` ou intervalo `openHalftimeModal`).
+  - O acumulador de minutos agora itera estritamente até `maxAllowedMin`, garantindo que os minutos dos acréscimos sejam jogados e o apito final soe com 100% de precisão.
+  - O mostrador `#liveClockDisplay` agora possui teto rígido em `maxAllowedMin`, impedindo qualquer exibição anômala.
+
+### 🏟️ 2. Novo Estádio 3D Imersivo Sem Oclusão & Uniformes Autênticos
+- **Remoção da Caixa Escura Inferior**:
+  - Removido o antigo bloco sólido azul escuro que cobria o terço inferior do gramado (`fillRect(0, 535, 1280, 185)`). O gramado agora é 100% visível de ponta a ponta.
+- **Estrutura 3D Estilo Tigela Monumental (Stadium Bowl)**:
+  - Arquibancadas em perspectiva com degraus de concreto, cadeiras nas cores do clube mandante e torcedores animados com bandeirões ondulantes.
+  - Cobertura arquitetônica em balanço com treliças de aço iluminadas e 4 torres de refletores volumétricos com feixes de luz realistas.
+  - Mureta perimetral com fita de LED exibindo patrocinadores oficiais e placar central em arco.
+  - Novos bancos de reservas de vidro curvo posicionados na lateral do gramado, com assentos tipo concha esportiva e treinadores gesticulando na área técnica.
+- **Uniformes Oficiais Expandidos (Série A e B)**:
+  - Adicionados kits detalhados para Criciúma (faixas horizontais tricolores: amarelo, preto e friso branco), Cuiabá (verde e ouro), Juventude, Vitória, Sport, Ceará, Coritiba, Goiás, Avaí, Chapecoense, Ponte Preta, Guarani, etc.
+  - Correção na resolução de kits dos atletas no canvas (`p.clubName` e `p.kit`), evitando uniformes genéricos preto e branco.
+- **Eliminação de Balões Sobrepostos**:
+  - Sistema anti-duplicação em `showLiveBalloon`, impedindo badges repetidos de finalização na mesma coordenada.
+
+### 📊 3. Bateria de 30 Testes de Partida e Refinamento de Realismo (`test_30_real_football_matches.js`)
+- **Simulação de 30 Confrontos Diversificados Minuto a Minuto**:
+  - Testados clássicos da Série A, duelos com Criciúma e Cuiabá, confrontos da Série B, mata-matas da Copa do Brasil, semifinais de Libertadores e decisões com prorrogação e pênaltis.
+- **Estatísticas Calibradas com o Futebol Real**:
+  - **Média de Gols**: 2.23 por jogo (padrão real: 2.20 a 2.80).
+  - **Média de Finalizações**: 19.1 chutes (9.9 no alvo / ~40% de precisão).
+  - **Média de Passes**: 719 passes por jogo (~82% de acerto).
+  - **Média de Faltas**: 24.8 por jogo (calibrado com o futebol brasileiro).
+  - **Média de Cartões**: 🟨 3.3 amarelos e 🟥 0.23 vermelhos por partida.
+  - **Média de Escanteios**: 10.6 escanteios por jogo.
+  - **Média de Defesas de Goleiro**: 7.7 defesas por jogo.
+  - **Probabilidade de Bola na Trave**: Calibrada de 10% para 3% realista (evitando bolas na trave excessivas).
+  - **Acréscimos Reais**: Média de +2.1' no 1º tempo e +3.8' no 2º tempo, calculados dinamicamente com base em gols, cartões, substituições e intervenções de arbitragem.
+- **Sincronização com o Sistema de XP**:
+  - Atletas atuando em campo recebem pontos de XP proporcionais à nota de desempenho, gols, assistências e saldo de gols, acumulando para elevação de Overall.
+
+---
+
+## [3.9.13] - 2026-10-20 (Estádio 3D Imersivo Escalável por Estrutura, Copinha Sub-20 Automatizada em Janeiro, Favoritos no Mercado & Calibração de Reservas)
+
+### 🏟️ 1. Estádio 3D Imersivo & Geometria Escalável pelo Nível de Estrutura do Clube
+- **Escalabilidade Dinâmica por Estrutura (`state.infrastructure.stadium.level` / Capacidade)**:
+  - **Nível 1 (Pequeno / CT - até 15.000)**: Arquibancada modesta de 3 degraus, alambrado rústico na beira do gramado, torcida esparsa (~28% de lotação visual) e bancos de reservas simples.
+  - **Nível 2 (Médio / Padrão - 15.000 a 40.000)**: Arquibancada de 6 degraus com cadeiras nas cores do clube, torres metálicas de iluminação, painel de LED perimetral superior com anúncios oficiais (*BETANO, IFOOD, SAMSUNG, NUBANK*) e abrigos cobertos de acrílico na área técnica.
+  - **Nível 3+ (Elite / Super Arena - acima de 40.000)**: Monumental tigela de 10 degraus contínuos, cobertura moderna em balanço com vigas de aço, duplo anel de LED dinâmico com patrocinadores (*CENTRAL DAS PROMOS, VIA LUZ TURISMO, REAL OFICIAL, CONTA.VC, BETANO, NUBANK, SAMSUNG, AFM 2027*), camarotes de vidro VIP com luzes douradas, bandeirões tridimensionais, mosaico com o nome do clube e bancos de reservas ergonômicos de alta tecnologia.
+- **Alternador Rápido 2D / 3D (`btnToggle2D3D`)**:
+  - Botão no cabeçalho da transmissão permitindo alternar instantaneamente entre o **Estádio 3D** e a **Visão Tática 2D**.
+  - No modo 2D, renderiza a prancheta de radar tático com gramado listrado, 22 discos numerados com as cores dos uniformes titulares, halo dinâmico no portador da bola e movimentação fluida.
+- **Seletor de Câmeras 3D Dinâmicas**:
+  - **`[Lateral]`**: Câmera de transmissão de televisão com *panning* inteligente e zoom suave (1.05x).
+  - **`[Bola]`**: Câmera focada diretamente na bola e no condutor da jogada com aproximação tática (1.25x).
+  - **`[Gol]`**: Foco automático na grande área e trave do ataque adversário (1.20x).
+- **Controles de Velocidade Calibrados**:
+  - Botões dedicados para **1x**, **2x**, **4x**, **10x**, **20x** e **40x** atendendo exatamente ao ritmo preferido do treinador.
+
+### 🏆 2. Copinha Sub-20 — Simulação Automatizada em Janeiro (`AFM_CopinhaEngine`)
+- **Simulação 100% Automática em Segundo Plano**:
+  - Ocorre durante o mês de Janeiro (02 a 25 de Janeiro) conforme os dias do calendário avançam.
+  - O treinador principal não precisa disputar os jogos manualmente: ele apenas acompanha os resultados, classificação e desempenho da base Sub-20.
+- **Formato Realista com Chaves e Fases**:
+  - **Fase de Grupos**: Grupo de 4 clubes (Sub-20 do clube do usuário + 3 adversários regionais) disputados nos dias 03, 06 e 09 de Janeiro.
+  - **Mata-Mata**: Oitavas de final (13/01), Quartas de final (17/01), Semifinais (21/01) e Grande Final (25/01) contra juniores de equipes tradicionais.
+- **Joias da Base & Alta Chance de Breakout de Overall (+3 a +7 OVR)**:
+  - Jovens com atuações de destaque (nota >= 7.8 ou gols/assistências) têm alta probabilidade de evolução explosiva.
+  - Salto imediato de **+3 a +7 de Overall**, com potencial elevado para **85 a 95 POT**, além do selo visual de *"🔥 Joia da Copinha"*.
+  - Botão **`📝 Subir ao Profissional`** permitindo promover a joia revelada instantaneamente para o elenco principal.
+- **Premiações Financeiras Acumuladas & Taça da Copinha**:
+  - Classificação na fase de grupos: +R$ 50.000
+  - Vitória nas oitavas: +R$ 75.000 | Quartas: +R$ 100.000 | Semis: +R$ 150.000 | Campeão: +R$ 350.000.
+  - Taça da Copinha adicionada à galeria oficial de títulos do clube (`state.titles`).
+- **Painel Interativo da Copinha**:
+  - Acessível a qualquer momento pelo botão *"🏆 Copinha Sub-20"* no Centro de Treinamento da Base (`openYouthAcademyModal`).
+
+### ⭐ 3. Favoritos no Mercado (Wishlist / Shortlist de Contratações — `AFM_MarketFavorites`)
+- **Estrela ⭐ em Todos os Cards e Linhas de Jogadores**:
+  - Botão de estrela interativo em cada linha da aba Comprar e no cabeçalho do Modal da Lupa do atleta.
+  - Clique único adiciona ou remove o jogador da lista prioritária.
+- **Aba Dedicada `⭐ FAVORITOS` no Mercado**:
+  - Painel exclusivo exibindo todos os atletas monitorados com clube atual, posição, Overall, idade, valor de mercado, teto estipulado e notas do técnico.
+  - Permite definir **Teto Máximo de Preço** (R$ mi) e registrar **Parecer e Anotações Táticas do Treinador** (*"Excelente meia para criação de jogadas", etc.*).
+  - Alertas visuais e atalhos rápidos para *"Comprar"*, *"Lupa 🔍"*, *"Editar Nota"* e *"Remover ⭐"*.
+
+### ⚡ 4. Calibração de Nota e XP para Substitutos & Transição Fluida no Intervalo
+- **Notas Justas para Entradas no Fim de Jogo**:
+  - Atletas que entram nos minutos finais (70' a 85') agora recebem base justa (mínimo 6.0) e bônus expressivos ao marcarem gols ou distribuírem assistências, alcançando notas entre **8.0 e 9.5**, recebendo pontuação proporcional de XP sem prejuízo na evolução.
+- **Intervalo Descongelado e Fluido**:
+  - Transições no modal de intervalo (`openHalftimeModal`) sem risco de travamento ou bloqueio do loop de renderização da partida ao vivo.
+
+---
+
 ## [3.9.12] - 2026-10-19 (Unificação dos Botões Laterais em "Meu Time & Tática" e Filtragem Estrita das Competições na Central [Estadual, Copa e Continental])
 
 ### 📋 1. Unificação dos Botões Laterais no Card de Partida
