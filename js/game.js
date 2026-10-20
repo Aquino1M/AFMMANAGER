@@ -32184,11 +32184,11 @@ function renderLandingNavbar(activeTab){
       </div>
 
       <nav class="afm-nav-links">
-        <button class="afm-nav-link ${activeTab==='auth'?'active':''}" id="btnNavGoAuth">⭐ Início & Craques</button>
-        <button class="afm-nav-link ${activeTab==='ranking'?'active':''}" id="btnNavGoRanking" style="color:#6ee7b7">👑 Ranking & PIX R$ 1.000</button>
+        <button class="afm-nav-link ${activeTab==='auth'?'active':''}" id="btnNavGoAuth">⭐ Início</button>
         <button class="afm-nav-link ${activeTab==='systems'?'active':''}" id="btnNavGoSystems">🎮 Todos os Sistemas</button>
         <button class="afm-nav-link ${activeTab==='arenas'?'active':''}" id="btnNavGoArenas">🏟️ Novas Arenas</button>
         <button class="afm-nav-link ${activeTab==='estaduais'?'active':''}" id="btnNavGoEstaduais">🏆 11 Estaduais</button>
+        <button class="afm-nav-link ${activeTab==='ranking'?'active':''}" id="btnNavGoRanking" style="color:#6ee7b7">👑 Ranking dos Técnicos</button>
       </nav>
 
       <div style="display:flex;align-items:center;gap:10px">
@@ -32748,21 +32748,13 @@ function renderSetup(app){
 
 
 
-              <!-- PAINÉIS DE DESTAQUES VISÍVEIS NO TOPO -->
+              <!-- PAINÉIS DE DESTAQUES VISÍVEIS COMPACTOS (3x2 GRID) -->
               <div class="afm-feature-panels-grid">
-                <div class="afm-feature-panel" id="btnLandingGoRankingCard" style="cursor:pointer;border-color:rgba(16,185,129,0.5);background:rgba(16,185,129,0.08)">
-                  <div class="afm-panel-icon" style="color:#10b981">👑</div>
-                  <div>
-                    <div class="afm-panel-title" style="color:#6ee7b7">Ranking de Técnicos & PIX R$ 1.000</div>
-                    <div class="afm-panel-desc">Premiação real no PIX para o TOP 5 nacional! Clique para ver o ranking ao vivo.</div>
-                  </div>
-                </div>
-
                 <div class="afm-feature-panel">
                   <div class="afm-panel-icon" style="color:#a7ff3f">⭐</div>
                   <div>
                     <div class="afm-panel-title">Contrate Craques</div>
-                    <div class="afm-panel-desc">Negociações dinâmicas, olheiros globais e montagem do elenco dos sonhos.</div>
+                    <div class="afm-panel-desc">Olheiros e montagem do elenco dos sonhos.</div>
                   </div>
                 </div>
 
@@ -32770,7 +32762,7 @@ function renderSetup(app){
                   <div class="afm-panel-icon" style="color:#38bdf8">🎟️</div>
                   <div>
                     <div class="afm-panel-title">Preço de Ingressos</div>
-                    <div class="afm-panel-desc">Calibre a bilheteria de cada setor e encha sua arena em clássicos.</div>
+                    <div class="afm-panel-desc">Bilheteria por setor e arenas lotadas.</div>
                   </div>
                 </div>
 
@@ -32778,7 +32770,7 @@ function renderSetup(app){
                   <div class="afm-panel-icon" style="color:#ec4899">🌿</div>
                   <div>
                     <div class="afm-panel-title">Escolha do Gramado</div>
-                    <div class="afm-panel-desc">Grama natural, sintética ou híbrida com impacto real na velocidade e fadiga.</div>
+                    <div class="afm-panel-desc">Natural, sintético ou híbrido realista.</div>
                   </div>
                 </div>
 
@@ -32786,7 +32778,7 @@ function renderSetup(app){
                   <div class="afm-panel-icon" style="color:#facc15">🤝</div>
                   <div>
                     <div class="afm-panel-title">Naming Rights</div>
-                    <div class="afm-panel-desc">Venda os direitos de nome do seu estádio por valores milionários.</div>
+                    <div class="afm-panel-desc">Contratos de arena multimilionários.</div>
                   </div>
                 </div>
 
@@ -32794,7 +32786,7 @@ function renderSetup(app){
                   <div class="afm-panel-icon" style="color:#ef4444">⚖️</div>
                   <div>
                     <div class="afm-panel-title">Arbitragem & VAR</div>
-                    <div class="afm-panel-desc">Decisões polêmicas de arbitragem, pênaltis revisados e pressão no juiz.</div>
+                    <div class="afm-panel-desc">Decisões, pênaltis e pressão da torcida.</div>
                   </div>
                 </div>
 
@@ -32802,30 +32794,29 @@ function renderSetup(app){
                   <div class="afm-panel-icon" style="color:#c084fc">🌍</div>
                   <div>
                     <div class="afm-panel-title">Mundial de Clubes</div>
-                    <div class="afm-panel-desc">Conquiste a América e enfrente os gigantes da Europa pelo título do planeta.</div>
+                    <div class="afm-panel-desc">Enfrente gigantes da Europa e América.</div>
                   </div>
                 </div>
               </div>
 
-              <!-- TESTIMONIAL CARD -->
-              <div class="afm-testimonial-card" style="margin-top:16px;padding:18px">
-                <div style="font-size:13px;color:rgba(255,255,255,0.9);line-height:1.5;font-style:italic;margin-bottom:12px">
-                  “Assumi o Brasília no Candangão, reorganizei as finanças, contratei reforços cirúrgicos e ergui uma arena de 50 mil lugares. A imersão e o realismo financeiro são impressionantes.”
+              <!-- TESTIMONIAL CARD COMPACTO -->
+              <div class="afm-testimonial-card">
+                <div style="font-size:11.5px;color:rgba(255,255,255,0.88);line-height:1.4;font-style:italic">
+                  “Assumi o Brasília no Candangão, reorganizei as finanças, contratei reforços e ergui uma arena de 50 mil lugares. A imersão é impressionante.”
                 </div>
-                <div style="display:flex;align-items:center;gap:12px">
-                  <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg, #7c3aed, #06b6d4);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:12px">
+                <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                  <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg, #7c3aed, #06b6d4);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:10px">
                     AR
                   </div>
-                  <div>
-                    <div style="font-size:13px;font-weight:900;color:#fff">Prof. Alberto Ramos</div>
-                    <div style="font-size:11px;color:#a855f7;font-weight:700">Treinador Campeão · Série A & Candangão</div>
+                  <div style="font-size:11px;font-weight:800;color:#fff">
+                    Prof. Alberto Ramos · <span style="color:#a855f7;font-weight:700">Campeão Série A & Candangão</span>
                   </div>
                 </div>
               </div>
             </div>
 
             <!-- FOOTER COM SEGURANÇA E SUPABASE -->
-            <div style="margin-top:16px;font-size:11px;color:#64748b;display:flex;align-items:center;gap:6px">
+            <div style="margin-top:8px;font-size:10.5px;color:#64748b;display:flex;align-items:center;gap:6px">
               <span>🔒 Seus dados e saves estão protegidos na nuvem (Supabase) · ⚡ 100% Gratuito no Navegador</span>
             </div>
           </div>
