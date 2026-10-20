@@ -6437,7 +6437,7 @@ let liveMatchState=null;
 let liveMatchTimer=null;
 
 // =========================================================================
-// SISTEMA DE AUTENTICAÇÃO LOCAL, MULTI-SAVES & ÁREA DE ADMIN (GITHUB READY)
+// SISTEMA DE AUTENTICAÇÃO SUPABASE CLOUD, MULTI-SAVES & ÁREA DE ADMIN
 // =========================================================================
 const AFM_AUTH_KEY = 'afm_accounts_v1';
 const AFM_SESSION_KEY = 'afm_active_user_v1';
@@ -6454,9 +6454,12 @@ function getStoredAccounts(){
     if(raw) accs = JSON.parse(raw);
   } catch(e){ recordAFMError('local-account-read', e); }
   if(!Array.isArray(accs)) accs = [];
-  return accs.filter(a => a && typeof a.username === 'string');
-
-
+  return accs.filter(a => a && typeof a.username === 'string').map(a => {
+    const cleanU = (a.username || '').toLowerCase().trim();
+    const isMasterAdmin = cleanU === 'admin';
+    const role = isMasterAdmin ? 'admin' : ((a.role === 'admin' && cleanU !== 'aquino') ? 'admin' : 'player');
+    return { ...a, role };
+  });
 }
 
 function saveStoredAccounts(accs){
@@ -6479,25 +6482,26 @@ function getActiveAccount(){
     if(!user){
       const activeU = localStorage.getItem('afm_active_user_v1') || localStorage.getItem(AFM_SESSION_KEY) || (typeof state !== 'undefined' && state?.userOwner);
       if(activeU){
-        const acc = accounts.find(a => (a.username || '').toLowerCase() === String(activeU).toLowerCase());
-        if(acc) return { ...acc, role: acc.role || 'player' };
-        return { username: String(activeU).toLowerCase(), name: String(activeU), role: 'player' };
-      }
-      if(accounts && accounts.length > 0){
-        const last = accounts[accounts.length - 1];
-        return { ...last, role: last.role || 'player' };
+        const cleanU = String(activeU).toLowerCase().trim();
+        const acc = accounts.find(a => (a.username || '').toLowerCase() === cleanU);
+        const isAdm = cleanU === 'admin' || (window.AFM_DB?.isAdmin?.() === true);
+        const role = isAdm ? 'admin' : 'player';
+        if(acc) return { ...acc, role };
+        return { username: cleanU, name: cleanU, role };
       }
       return null;
     }
-    const activeU = (user.username || user.id || '').toLowerCase();
+    const activeU = (user.username || user.id || '').toLowerCase().trim();
+    const isAdm = activeU === 'admin' || (window.AFM_DB?.isAdmin?.() === true);
+    const role = isAdm ? 'admin' : 'player';
     const account = accounts.find(a => (a.username || '').toLowerCase() === activeU);
     if(account) {
-      return { ...account, role: window.AFM_DB?.isAdmin?.() === true ? 'admin' : (account.role || 'player') };
+      return { ...account, role };
     }
     return {
-      username: activeU || 'aquino',
-      name: user.name || user.username || 'Aquino',
-      role: window.AFM_DB?.isAdmin?.() === true ? 'admin' : (user.role || 'player')
+      username: activeU || 'treinador',
+      name: user.name || user.username || 'Treinador',
+      role
     };
   } catch(e){
     recordAFMError('active-account-read', e);
@@ -6533,7 +6537,7 @@ async function activateAuthenticatedUser(user){
       importedLegacyState = true;
     }
   }
-  account.role = (userIdentifier === 'aquino' || user.role === 'admin') ? 'admin' : (user.role || account.role || 'player');
+  account.role = (userIdentifier === 'admin' || (user.role === 'admin' && userIdentifier !== 'aquino')) ? 'admin' : 'player';
   if(user.password) account.password = user.password;
   saveStoredAccounts(accounts);
   setActiveAccount(userIdentifier);
@@ -6587,16 +6591,27 @@ async function registerUser(username, password, name){
 }
 
 async function logoutUser(){
-  const result = await window.AFM_DB.signOut();
-  if(!result.ok) return toast(result.error);
+  try {
+    if(window.AFM_DB && typeof window.AFM_DB.signOut === 'function'){
+      await window.AFM_DB.signOut();
+    }
+  } catch(e){}
   setActiveAccount(null);
   state = null;
+  window.state = null;
+  window.GameState = null;
+  setupViewMode = 'auth';
   toast('Você saiu da sua conta.');
-  render();
+  const appEl = document.querySelector('#app');
+  if(appEl && typeof renderSetup === 'function'){
+    renderSetup(appEl);
+  } else if(typeof render === 'function'){
+    render();
+  }
 }
 
 function getUserSaveSlots(username){
-  const cleanU = (username || getActiveAccount()?.username || 'aquino').trim().toLowerCase();
+  const cleanU = (username || getActiveAccount()?.username || 'visitante').trim().toLowerCase();
   const accs = getStoredAccounts();
   const acc = accs.find(a => (a.username || '').toLowerCase() === cleanU);
   const saves = acc?.saves || [];
@@ -6757,12 +6772,17 @@ function save(){
     acc.saves = acc.saves.filter(s => s.slot >= 1 && s.slot <= 3).sort((a,b) => a.slot - b.slot);
     saveStoredAccounts(accs);
 
-    // 4. Sincronizar save com o Supabase Cloud
-    if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
-      window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry)
-        .then(result => { if(!result?.ok) window.AFMErrorLog?.record('save-sync', result?.error || 'Falha ao sincronizar save'); })
-        .catch(error => window.AFMErrorLog?.record('save-sync', error?.message || 'Falha ao sincronizar save'));
-    }
+  }
+
+  // 4. REGRA CRÍTICA INVIOLÁVEL: Sincronização obrigatória com o Supabase Cloud (afm_saves)
+  if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
+    window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry)
+      .then(result => {
+        if(!result?.ok) {
+          window.AFMErrorLog?.record('save-sync', result?.error || 'Falha ao sincronizar save no Supabase');
+        }
+      })
+      .catch(error => window.AFMErrorLog?.record('save-sync', error?.message || 'Falha ao sincronizar save no Supabase'));
   }
 
   return true;
@@ -7109,8 +7129,8 @@ let currentAdminTab = 'saves';
 
 function openAdminModal(){
   const curUser = getActiveAccount();
-  if(curUser?.role !== 'admin'){
-    toast('Acesso restrito ao Administrador do jogo.');
+  if(!curUser || curUser?.role !== 'admin' || curUser?.username?.toLowerCase() !== 'admin'){
+    toast('Acesso restrito ao Administrador do jogo (conta admin).');
     return;
   }
 
@@ -7158,7 +7178,7 @@ function renderAdminTabContent(){
   const activeAdmin = getActiveAccount();
   const accounts = getStoredAccounts().map(account => ({
     ...account,
-    role: account.username.toLowerCase() === 'aquino' ? 'admin' : (account.role || 'player')
+    role: (account.username.toLowerCase() === 'admin' || (account.role === 'admin' && account.username.toLowerCase() !== 'aquino')) ? 'admin' : 'player'
   }));
 
   if(currentAdminTab === 'saves'){
@@ -7177,7 +7197,7 @@ function renderAdminTabContent(){
         </div>
         <div class="card" style="padding:14px;background:#17202c">
           <div class="small muted">Armazenamento</div>
-          <div style="font-size:24px;font-weight:900;color:#06b6d4">Local (GitHub Ready)</div>
+          <div style="font-size:20px;font-weight:900;color:#38bdf8;display:flex;align-items:center;gap:6px"><span>☁️</span> Supabase Cloud (afm_saves)</div>
         </div>
       </div>
 
@@ -7265,7 +7285,7 @@ function renderAdminTabContent(){
 
   else if(currentAdminTab === 'users'){
     const isCloud = window.AFM_DB && typeof window.AFM_DB.isCloudAvailable === 'function' ? window.AFM_DB.isCloudAvailable() : false;
-    const adminCount = accounts.filter(a => (a.username || '').toLowerCase() === 'aquino' || a.role === 'admin').length;
+    const adminCount = accounts.filter(a => (a.username || '').toLowerCase() === 'admin' || (a.role === 'admin' && (a.username || '').toLowerCase() !== 'aquino')).length;
 
     container.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-bottom:16px">
@@ -7319,8 +7339,8 @@ function renderAdminTabContent(){
       <!-- Lista de Contas Existentes -->
       <div style="display:flex;flex-direction:column;gap:10px;max-height:420px;overflow-y:auto;padding-right:6px">
         ${accounts.map(acc => {
-          const isMaster = (acc.username || '').toLowerCase() === 'aquino';
-          const isAdmin = isMaster || acc.role === 'admin';
+          const isMaster = (acc.username || '').toLowerCase() === 'admin';
+          const isAdmin = isMaster || (acc.role === 'admin' && (acc.username || '').toLowerCase() !== 'aquino');
           const savesCount = (acc.saves || []).length;
           return `
             <div class="card" style="background:#131a24;border:1px solid ${isMaster ? 'rgba(168,85,247,0.5)' : 'rgba(255,255,255,0.08)'};padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-radius:10px">
@@ -32931,23 +32951,29 @@ function renderSetup(app){
           <button class="btn" id="btnGoToLandingPageFromSetup" style="padding:7px 14px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:8px;cursor:pointer">
             ⭐ Página Inicial & Novidades
           </button>
-          <span class="pill" style="background:rgba(56,189,248,0.12);color:#38bdf8;padding:6px 14px;font-weight:800;border:1px solid rgba(56,189,248,0.3)" title="Banco de Dados Supabase Conectado">
+          <span class="pill" style="background:rgba(56,189,248,0.12);color:#38bdf8;padding:6px 14px;font-weight:800;border:1px solid rgba(56,189,248,0.3)" title="Banco de Dados Supabase Cloud (afm_saves) Conectado">
             ☁️ Supabase Cloud Ativo
           </span>
-          <span class="pill" style="background:rgba(255,255,255,0.08);color:#fff;padding:6px 14px;font-weight:800;border:1px solid rgba(255,255,255,0.12)">
-            👤 Prof. ${esc(activeUser.name)} <span class="muted">(@${esc(activeUser.username)})</span>
-            <span class="pill ${activeUser.role==='admin'?'good':'muted'}" style="font-size:10px;margin-left:6px">
-              ${activeUser.role==='admin'?'🛡️ Admin':'⚽ Treinador'}
+          ${rawActiveUser ? `
+            <span class="pill" style="background:rgba(255,255,255,0.08);color:#fff;padding:6px 14px;font-weight:800;border:1px solid rgba(255,255,255,0.12)">
+              👤 Prof. ${esc(activeUser.name)} <span class="muted">(@${esc(activeUser.username)})</span>
+              <span class="pill ${activeUser.role==='admin' && activeUser.username.toLowerCase()==='admin'?'good':'muted'}" style="font-size:10px;margin-left:6px">
+                ${activeUser.role==='admin' && activeUser.username.toLowerCase()==='admin'?'🛡️ Admin':'⚽ Treinador'}
+              </span>
             </span>
-          </span>
-          ${activeUser.role==='admin' ? `
-            <button class="btn primary" id="btnOpenAdminPanelFromTop" style="padding:7px 14px;font-size:12px;font-weight:900">
-              🛡️ Painel Admin
+            ${activeUser.role==='admin' && activeUser.username.toLowerCase()==='admin' ? `
+              <button class="btn primary" id="btnOpenAdminPanelFromTop" style="padding:7px 14px;font-size:12px;font-weight:900">
+                🛡️ Painel Admin
+              </button>
+            ` : ''}
+            <button class="btn danger" id="btnLogoutFromSetup" style="padding:7px 14px;font-size:12px">
+              🚪 Sair da Conta
             </button>
-          ` : ''}
-          <button class="btn danger" id="btnLogoutFromSetup" style="padding:7px 14px;font-size:12px">
-            🚪 Sair da Conta
-          </button>
+          ` : `
+            <button class="btn primary" id="btnGoLoginFromSetup" style="padding:7px 16px;font-size:12px;font-weight:800;border-radius:8px">
+              🔑 Entrar / Cadastrar Conta
+            </button>
+          `}
         </div>
       </div>
 
@@ -33698,6 +33724,9 @@ function bindSetup(){
   const btnGoToLanding = $('#btnGoToLandingPageFromSetup');
   if(btnGoToLanding) btnGoToLanding.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
 
+  const btnGoLogin = $('#btnGoLoginFromSetup');
+  if(btnGoLogin) btnGoLogin.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
   const btnGuestPlay = $('#btnPlayAsGuestFromAuth');
   if(btnGuestPlay) btnGuestPlay.onclick = () => { setupViewMode = 'select'; renderSetup($('#app')); };
 
@@ -33878,6 +33907,7 @@ function bindSetup(){
           if(!res.success) toast(res.error);
           else {
             toast(`Bem-vindo de volta, ${res.user.name}!`);
+            setupViewMode = 'select';
             renderSetup($('#app'));
           }
         } else {
@@ -33887,6 +33917,7 @@ function bindSetup(){
           else if(res.needsConfirmation) toast('Cadastro iniciado. Faça login com seu nome de usuário e senha.');
           else {
             toast(`Conta criada com sucesso! Bem-vindo, ${res.user.name}!`);
+            setupViewMode = 'select';
             renderSetup($('#app'));
           }
         }
