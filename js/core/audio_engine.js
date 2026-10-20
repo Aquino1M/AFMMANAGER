@@ -407,7 +407,7 @@ class AFMAudioManager {
   }
 
   /* -------------------------------------------------------------
-   * CANAL AMBIENT (TORCIDA EM LOOP & DETECÇÃO MANDANTE)
+   * CANAL AMBIENT (TORCIDA EM LOOP & DETECÇÃO MANDANTE PROGRESSIVA)
    * ------------------------------------------------------------- */
   startCrowdAmbient(homeClubName, compId = null) {
     if (!this.crowdEnabled) return;
@@ -417,49 +417,184 @@ class AFMAudioManager {
     this.currentClubSlug = clubSlug;
     this.currentLeagueSlug = leagueSlug;
 
-    const specificPath = `sounds/crowd/${leagueSlug}/${clubSlug}.mp3`;
-    const defaultPath = 'sounds/crowd/ambient_default.mp3';
-
     this.stopCrowdAmbient();
 
+    // Fila inteligente de candidatos a reprodução
+    const queue = [];
+    const pushIfNew = (p) => { if (p && !queue.includes(p)) queue.push(p); };
+
+    // 1. Caminho direto na pasta da competição resolvida
+    pushIfNew(`sounds/crowd/${leagueSlug}/${clubSlug}.mp3`);
+
+    // 2. Busca transversal em todas as pastas brasileiras
+    const searchFolders = ['bra_a', 'bra_b', 'bra_c', 'bra_d', 'bra_estaduais'];
+    searchFolders.forEach(fld => pushIfNew(`sounds/crowd/${fld}/${clubSlug}.mp3`));
+
+    // 3. Aliases conhecidos para o clube
+    const aliasMap = {
+      'vasco_da_gama': ['vasco'],
+      'vasco': ['vasco_da_gama'],
+      'athletico_paranaense': ['athletico_pr', 'athletico'],
+      'athletico_pr': ['athletico_paranaense', 'athletico'],
+      'red_bull_bragantino': ['bragantino', 'rb_bragantino'],
+      'bragantino': ['red_bull_bragantino', 'rb_bragantino'],
+      'america_mg': ['america_mineiro', 'america'],
+      'america_mineiro': ['america_mg', 'america'],
+      'athletic_club': ['athletic'],
+      'athletic': ['athletic_club'],
+      'atletico_go': ['atletico_goianiense'],
+      'atletico_goianiense': ['atletico_go'],
+      'avai': ['avai_fc'],
+      'avai_fc': ['avai'],
+      'botafogo_sp': ['botafogo_ribeirao'],
+      'botafogo_ribeirao': ['botafogo_sp'],
+      'ceara': ['ceara_sc'],
+      'ceara_sc': ['ceara'],
+      'crb': ['crb_al'],
+      'crb_al': ['crb'],
+      'cuiaba': ['cuiaba_ec'],
+      'cuiaba_ec': ['cuiaba'],
+      'fortaleza': ['fortaleza_ec'],
+      'fortaleza_ec': ['fortaleza'],
+      'goias': ['goias_ec'],
+      'goias_ec': ['goias'],
+      'juventude': ['ec_juventude'],
+      'ec_juventude': ['juventude'],
+      'londrina': ['londrina_ec'],
+      'londrina_ec': ['londrina'],
+      'nautico': ['clube_nautico'],
+      'clube_nautico': ['nautico'],
+      'novorizontino': ['gremio_novorizontino'],
+      'gremio_novorizontino': ['novorizontino'],
+      'operario_pr': ['operario', 'operario_ferroviario'],
+      'operario': ['operario_pr', 'operario_ferroviario'],
+      'ponte_preta': ['ponte_preta_sp'],
+      'ponte_preta_sp': ['ponte_preta'],
+      'sao_bernardo': ['sao_bernardo_fc'],
+      'sao_bernardo_fc': ['sao_bernardo'],
+      'sport': ['sport_recife'],
+      'sport_recife': ['sport'],
+      'vila_nova': ['vila_nova_go'],
+      'vila_nova_go': ['vila_nova'],
+      'amazonas_fc': ['amazonas'],
+      'amazonas': ['amazonas_fc'],
+      'anapolis': ['anapolis_fc'],
+      'anapolis_fc': ['anapolis'],
+      'barra_sc': ['barra'],
+      'barra': ['barra_sc'],
+      'botafogo_pb': ['botafogo_da_paraiba'],
+      'botafogo_da_paraiba': ['botafogo_pb'],
+      'brusque': ['brusque_fc'],
+      'brusque_fc': ['brusque'],
+      'caxias': ['ser_caxias'],
+      'ser_caxias': ['caxias'],
+      'confianca': ['ad_confianca'],
+      'ad_confianca': ['confianca'],
+      'ferroviaria': ['ferroviaria_sp'],
+      'ferroviaria_sp': ['ferroviaria'],
+      'figueirense': ['figueirense_fc'],
+      'figueirense_fc': ['figueirense'],
+      'floresta': ['floresta_ce'],
+      'floresta_ce': ['floresta'],
+      'guarani': ['guarani_fc'],
+      'guarani_fc': ['guarani'],
+      'inter_de_limeira': ['internacional_de_limeira'],
+      'internacional_de_limeira': ['inter_de_limeira'],
+      'itabaiana': ['ao_itabaiana'],
+      'ao_itabaiana': ['itabaiana'],
+      'ituano': ['ituano_fc'],
+      'ituano_fc': ['ituano'],
+      'maranhao': ['maranhao_ac'],
+      'maranhao_ac': ['maranhao'],
+      'maringa': ['maringa_fc'],
+      'maringa_fc': ['maringa'],
+      'paysandu': ['paysandu_sc'],
+      'paysandu_sc': ['paysandu'],
+      'santa_cruz': ['santa_cruz_pe'],
+      'santa_cruz_pe': ['santa_cruz'],
+      'volta_redonda': ['volta_redonda_fc'],
+      'volta_redonda_fc': ['volta_redonda'],
+      'ypiranga_rs': ['ypiranga'],
+      'ypiranga': ['ypiranga_rs'],
+      'abc': ['abc_fc'],
+      'abc_fc': ['abc'],
+      'america_rn': ['america_de_natal'],
+      'america_de_natal': ['america_rn'],
+      'brasiliense': ['brasiliense_fc'],
+      'brasiliense_fc': ['brasiliense'],
+      'gama': ['se_gama'],
+      'se_gama': ['gama'],
+      'csa': ['centro_sportivo_alagoano'],
+      'centro_sportivo_alagoano': ['csa'],
+      'sampaio_correa': ['sampaio_correa_ma', 'sampaio_correa_rj'],
+      'joinville': ['jec'],
+      'jec': ['joinville'],
+      'treze': ['treze_fc'],
+      'treze_fc': ['treze'],
+      'campinense': ['campinense_pb'],
+      'campinense_pb': ['campinense'],
+      'portuguesa': ['portuguesa_sp', 'portuguesa_de_desportos', 'portuguesa_rj'],
+      'bangu': ['bangu_ac'],
+      'bangu_ac': ['bangu'],
+      'parana': ['parana_clube'],
+      'parana_clube': ['parana'],
+      'ferroviario': ['ferroviario_ce'],
+      'ferroviario_ce': ['ferroviario'],
+      'tombense': ['tombense_mg'],
+      'tombense_mg': ['tombense'],
+      'moto_club': ['moto_club_ma'],
+      'moto_club_ma': ['moto_club'],
+      'agua_santa': ['agua_santa_sp'],
+      'agua_santa_sp': ['agua_santa'],
+      'velo_clube': ['velo_clube_sp'],
+      'velo_clube_sp': ['velo_clube'],
+      'brasil_de_pelotas': ['ge_brasil'],
+      'ge_brasil': ['brasil_de_pelotas'],
+      'pelotas': ['ec_pelotas'],
+      'ec_pelotas': ['pelotas'],
+      'marcilio_dias': ['cn_marcilio_dias'],
+      'cn_marcilio_dias': ['marcilio_dias'],
+      'retro': ['retro_fc'],
+      'retro_fc': ['retro']
+    };
+
+    if (aliasMap[clubSlug]) {
+      aliasMap[clubSlug].forEach(alias => {
+        searchFolders.forEach(fld => pushIfNew(`sounds/crowd/${fld}/${alias}.mp3`));
+      });
+    }
+
+    // 4. Som ambiente padrão neutro
+    pushIfNew('sounds/crowd/ambient_default.mp3');
+
+    let curIdx = 0;
     const audio = new Audio();
     audio.loop = true;
     audio.volume = this.crowdVolume;
     this.ambientAudioEl = audio;
 
-    let fallbackTried = false;
-    audio.onerror = () => {
-      if (!fallbackTried) {
-        fallbackTried = true;
-        audio.src = defaultPath;
-        audio.play().catch(() => {
-          // Se o arquivo default também não existir no disco, inicia o drone procedural
-          this._startProceduralCrowdDrone();
-        });
-      } else {
+    const tryNext = () => {
+      if (curIdx >= queue.length) {
         this._startProceduralCrowdDrone();
+        return;
+      }
+      const nextSrc = queue[curIdx++];
+      audio.src = nextSrc;
+      const p = audio.play();
+      if (p !== undefined) {
+        p.then(() => {
+          this.isAmbientPlaying = true;
+        }).catch(() => {
+          tryNext();
+        });
       }
     };
 
-    audio.src = specificPath;
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          this.isAmbientPlaying = true;
-        })
-        .catch(() => {
-          if (!fallbackTried) {
-            fallbackTried = true;
-            audio.src = defaultPath;
-            audio.play().then(() => {
-              this.isAmbientPlaying = true;
-            }).catch(() => {
-              this._startProceduralCrowdDrone();
-            });
-          }
-        });
-    }
+    audio.onerror = () => {
+      tryNext();
+    };
+
+    tryNext();
   }
 
   stopCrowdAmbient() {

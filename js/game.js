@@ -15309,9 +15309,14 @@ function getLiveAudioCtx(){
   }
   return liveAudioCtx;
 }
-function playWhistleSound(){
+function playWhistleSound(sfxKey = 'whistle_start'){
+  if(liveMatchState && liveMatchState.soundMuted) return;
+  if(window.afmAudio && typeof window.afmAudio.playSFX === 'function'){
+    window.afmAudio.playSFX(sfxKey);
+    return;
+  }
   const ctx = getLiveAudioCtx();
-  if(!ctx || !liveMatchState || liveMatchState.soundMuted) return;
+  if(!ctx) return;
   try {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -15326,8 +15331,9 @@ function playWhistleSound(){
   } catch(e){ window.AFMErrorLog?.recordHandled(e, 'liveMatch.playWhistle'); }
 }
 function playKickSound(){
+  if(liveMatchState && liveMatchState.soundMuted) return;
   const ctx = getLiveAudioCtx();
-  if(!ctx || !liveMatchState || liveMatchState.soundMuted) return;
+  if(!ctx) return;
   try {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -15341,8 +15347,16 @@ function playKickSound(){
   } catch(e){ window.AFMErrorLog?.recordHandled(e, 'liveMatch.playKick'); }
 }
 function playCheerSound(){
+  if(liveMatchState && liveMatchState.soundMuted) return;
+  if(window.afmAudio && typeof window.afmAudio.playSFX === 'function'){
+    window.afmAudio.playSFX('goal_celebration');
+    if(typeof window.afmAudio.boostCrowdCheer === 'function'){
+      window.afmAudio.boostCrowdCheer(4.5);
+    }
+    return;
+  }
   const ctx = getLiveAudioCtx();
-  if(!ctx || !liveMatchState || liveMatchState.soundMuted) return;
+  if(!ctx) return;
   try {
     const bufSize = Math.floor(ctx.sampleRate * 1.6);
     const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);

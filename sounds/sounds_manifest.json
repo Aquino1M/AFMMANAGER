@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "description": "Catálogo oficial de efeitos sonoros e cantos de torcida do AFM Manager 2027",
-  "updatedAt": "2026-10-09T16:53:24.238Z",
+  "updatedAt": "2026-10-20T18:30:00.000Z",
   "sfx": [
     {
       "id": "whistle_start",
@@ -87,64 +87,16 @@
   "crowdClubs": {
     "bra_a": [
       {
-        "club": "Flamengo",
-        "slug": "flamengo",
-        "filename": "flamengo.mp3",
-        "chant": "Mengo! / Em Dezembro de 81"
+        "club": "Athletico Paranaense",
+        "slug": "athletico_paranaense",
+        "filename": "athletico_paranaense.mp3",
+        "chant": "Canto da torcida de Athletico Paranaense"
       },
       {
-        "club": "Palmeiras",
-        "slug": "palmeiras",
-        "filename": "palmeiras.mp3",
-        "chant": "Dá-lhe Palmeiras / Quando surge o Alviverde"
-      },
-      {
-        "club": "Corinthians",
-        "slug": "corinthians",
-        "filename": "corinthians.mp3",
-        "chant": "Aqui tem um bando de loucos"
-      },
-      {
-        "club": "São Paulo",
-        "slug": "sao_paulo",
-        "filename": "sao_paulo.mp3",
-        "chant": "Como eu te amo Tricolor"
-      },
-      {
-        "club": "Vasco",
-        "slug": "vasco",
-        "filename": "vasco.mp3",
-        "chant": "Camisas Negras / Vamos cantar de coração"
-      },
-      {
-        "club": "Santos",
-        "slug": "santos",
-        "filename": "santos.mp3",
-        "chant": "Santos, Santos, gol!"
-      },
-      {
-        "club": "Fluminense",
-        "slug": "fluminense",
-        "filename": "fluminense.mp3",
-        "chant": "Sou Tricolor de Coração"
-      },
-      {
-        "club": "Grêmio",
-        "slug": "gremio",
-        "filename": "gremio.mp3",
-        "chant": "Até a pé nós iremos"
-      },
-      {
-        "club": "Internacional",
-        "slug": "internacional",
-        "filename": "internacional.mp3",
-        "chant": "Glória do desporto nacional / Vamo Inter"
-      },
-      {
-        "club": "Cruzeiro",
-        "slug": "cruzeiro",
-        "filename": "cruzeiro.mp3",
-        "chant": "Existe um grande clube na cidade"
+        "club": "Athletico-PR",
+        "slug": "athletico_pr",
+        "filename": "athletico_pr.mp3",
+        "chant": "Furacão, Furacão!"
       },
       {
         "club": "Atlético-MG",
@@ -165,42 +117,180 @@
         "chant": "Não se compara / Fogo eu te amo"
       },
       {
-        "club": "Athletico-PR",
-        "slug": "athletico_pr",
-        "filename": "athletico_pr.mp3",
-        "chant": "Furacão, Furacão!"
+        "club": "Bragantino",
+        "slug": "bragantino",
+        "filename": "bragantino.mp3",
+        "chant": "Canto da torcida de Bragantino"
       },
       {
-        "club": "Fortaleza",
-        "slug": "fortaleza",
-        "filename": "fortaleza.mp3",
-        "chant": "Laion / Meu coração de Leão"
+        "club": "Corinthians",
+        "slug": "corinthians",
+        "filename": "corinthians.mp3",
+        "chant": "Aqui tem um bando de loucos"
       },
       {
-        "club": "Ceará",
-        "slug": "ceara",
-        "filename": "ceara.mp3",
-        "chant": "Vozão, meu eterno amor"
+        "club": "Cruzeiro",
+        "slug": "cruzeiro",
+        "filename": "cruzeiro.mp3",
+        "chant": "Existe um grande clube na cidade"
+      },
+      {
+        "club": "Flamengo",
+        "slug": "flamengo",
+        "filename": "flamengo.mp3",
+        "chant": "Mengo! / Em Dezembro de 81"
+      },
+      {
+        "club": "Fluminense",
+        "slug": "fluminense",
+        "filename": "fluminense.mp3",
+        "chant": "Sou Tricolor de Coração"
+      },
+      {
+        "club": "Grêmio",
+        "slug": "gremio",
+        "filename": "gremio.mp3",
+        "chant": "Até a pé nós iremos"
+      },
+      {
+        "club": "Internacional",
+        "slug": "internacional",
+        "filename": "internacional.mp3",
+        "chant": "Glória do desporto nacional / Vamo Inter"
+      },
+      {
+        "club": "Mirassol",
+        "slug": "mirassol",
+        "filename": "mirassol.mp3",
+        "chant": "Canto da torcida de Mirassol"
+      },
+      {
+        "club": "Palmeiras",
+        "slug": "palmeiras",
+        "filename": "palmeiras.mp3",
+        "chant": "Dá-lhe Palmeiras / Quando surge o Alviverde"
+      },
+      {
+        "club": "Red Bull Bragantino",
+        "slug": "red_bull_bragantino",
+        "filename": "red_bull_bragantino.mp3",
+        "chant": "Canto da torcida de Red Bull Bragantino"
+      },
+      {
+        "club": "Santos",
+        "slug": "santos",
+        "filename": "santos.mp3",
+        "chant": "Santos, Santos, gol!"
+      },
+      {
+        "club": "São Paulo",
+        "slug": "sao_paulo",
+        "filename": "sao_paulo.mp3",
+        "chant": "Como eu te amo Tricolor"
+      },
+      {
+        "club": "Vasco",
+        "slug": "vasco",
+        "filename": "vasco.mp3",
+        "chant": "Camisas Negras / Vamos cantar de coração"
+      },
+      {
+        "club": "Vasco da Gama",
+        "slug": "vasco_da_gama",
+        "filename": "vasco_da_gama.mp3",
+        "chant": "Canto da torcida de Vasco da Gama"
+      },
+      {
+        "club": "Vitoria",
+        "slug": "vitoria",
+        "filename": "vitoria.mp3",
+        "chant": "Canto da torcida de Vitoria"
       }
     ],
     "bra_b": [
-      {
-        "club": "Goiás",
-        "slug": "goias",
-        "filename": "goias.mp3",
-        "chant": "Eu sou Esmeraldino"
-      },
-      {
-        "club": "Sport",
-        "slug": "sport",
-        "filename": "sport.mp3",
-        "chant": "Cazá Cazá!"
-      },
       {
         "club": "América-MG",
         "slug": "america_mg",
         "filename": "america_mg.mp3",
         "chant": "Coelho de Minas"
+      },
+      {
+        "club": "America Mineiro",
+        "slug": "america_mineiro",
+        "filename": "america_mineiro.mp3",
+        "chant": "Canto da torcida de America Mineiro"
+      },
+      {
+        "club": "Athletic",
+        "slug": "athletic",
+        "filename": "athletic.mp3",
+        "chant": "Canto da torcida de Athletic"
+      },
+      {
+        "club": "Athletic Club",
+        "slug": "athletic_club",
+        "filename": "athletic_club.mp3",
+        "chant": "Canto da torcida de Athletic Club"
+      },
+      {
+        "club": "Atletico GO",
+        "slug": "atletico_go",
+        "filename": "atletico_go.mp3",
+        "chant": "Canto da torcida de Atletico GO"
+      },
+      {
+        "club": "Atletico Goianiense",
+        "slug": "atletico_goianiense",
+        "filename": "atletico_goianiense.mp3",
+        "chant": "Canto da torcida de Atletico Goianiense"
+      },
+      {
+        "club": "Avai",
+        "slug": "avai",
+        "filename": "avai.mp3",
+        "chant": "Canto da torcida de Avai"
+      },
+      {
+        "club": "Avai FC",
+        "slug": "avai_fc",
+        "filename": "avai_fc.mp3",
+        "chant": "Canto da torcida de Avai FC"
+      },
+      {
+        "club": "Botafogo Ribeirao",
+        "slug": "botafogo_ribeirao",
+        "filename": "botafogo_ribeirao.mp3",
+        "chant": "Canto da torcida de Botafogo Ribeirao"
+      },
+      {
+        "club": "Botafogo SP",
+        "slug": "botafogo_sp",
+        "filename": "botafogo_sp.mp3",
+        "chant": "Canto da torcida de Botafogo SP"
+      },
+      {
+        "club": "Ceara",
+        "slug": "ceara",
+        "filename": "ceara.mp3",
+        "chant": "Canto da torcida de Ceara"
+      },
+      {
+        "club": "Ceara SC",
+        "slug": "ceara_sc",
+        "filename": "ceara_sc.mp3",
+        "chant": "Canto da torcida de Ceara SC"
+      },
+      {
+        "club": "Chapecoense",
+        "slug": "chapecoense",
+        "filename": "chapecoense.mp3",
+        "chant": "Canto da torcida de Chapecoense"
+      },
+      {
+        "club": "Clube Nautico",
+        "slug": "clube_nautico",
+        "filename": "clube_nautico.mp3",
+        "chant": "Canto da torcida de Clube Nautico"
       },
       {
         "club": "Coritiba",
@@ -209,42 +299,1565 @@
         "chant": "Coxa Branca"
       },
       {
-        "club": "Vila Nova",
-        "slug": "vila_nova",
-        "filename": "vila_nova.mp3",
-        "chant": "Tigrão da Vila"
+        "club": "Crb",
+        "slug": "crb",
+        "filename": "crb.mp3",
+        "chant": "Canto da torcida de Crb"
+      },
+      {
+        "club": "Crb AL",
+        "slug": "crb_al",
+        "filename": "crb_al.mp3",
+        "chant": "Canto da torcida de Crb AL"
+      },
+      {
+        "club": "Criciuma",
+        "slug": "criciuma",
+        "filename": "criciuma.mp3",
+        "chant": "Canto da torcida de Criciuma"
+      },
+      {
+        "club": "Cuiaba",
+        "slug": "cuiaba",
+        "filename": "cuiaba.mp3",
+        "chant": "Canto da torcida de Cuiaba"
+      },
+      {
+        "club": "Cuiaba EC",
+        "slug": "cuiaba_ec",
+        "filename": "cuiaba_ec.mp3",
+        "chant": "Canto da torcida de Cuiaba EC"
+      },
+      {
+        "club": "EC Juventude",
+        "slug": "ec_juventude",
+        "filename": "ec_juventude.mp3",
+        "chant": "Canto da torcida de EC Juventude"
+      },
+      {
+        "club": "Fortaleza",
+        "slug": "fortaleza",
+        "filename": "fortaleza.mp3",
+        "chant": "Canto da torcida de Fortaleza"
+      },
+      {
+        "club": "Fortaleza EC",
+        "slug": "fortaleza_ec",
+        "filename": "fortaleza_ec.mp3",
+        "chant": "Canto da torcida de Fortaleza EC"
+      },
+      {
+        "club": "Goiás",
+        "slug": "goias",
+        "filename": "goias.mp3",
+        "chant": "Eu sou Esmeraldino"
+      },
+      {
+        "club": "Goias EC",
+        "slug": "goias_ec",
+        "filename": "goias_ec.mp3",
+        "chant": "Canto da torcida de Goias EC"
+      },
+      {
+        "club": "Gremio Novorizontino",
+        "slug": "gremio_novorizontino",
+        "filename": "gremio_novorizontino.mp3",
+        "chant": "Canto da torcida de Gremio Novorizontino"
+      },
+      {
+        "club": "Juventude",
+        "slug": "juventude",
+        "filename": "juventude.mp3",
+        "chant": "Canto da torcida de Juventude"
+      },
+      {
+        "club": "Londrina",
+        "slug": "londrina",
+        "filename": "londrina.mp3",
+        "chant": "Canto da torcida de Londrina"
+      },
+      {
+        "club": "Londrina EC",
+        "slug": "londrina_ec",
+        "filename": "londrina_ec.mp3",
+        "chant": "Canto da torcida de Londrina EC"
+      },
+      {
+        "club": "Mirassol",
+        "slug": "mirassol",
+        "filename": "mirassol.mp3",
+        "chant": "Canto da torcida de Mirassol"
+      },
+      {
+        "club": "Nautico",
+        "slug": "nautico",
+        "filename": "nautico.mp3",
+        "chant": "Canto da torcida de Nautico"
+      },
+      {
+        "club": "Novorizontino",
+        "slug": "novorizontino",
+        "filename": "novorizontino.mp3",
+        "chant": "Canto da torcida de Novorizontino"
+      },
+      {
+        "club": "Operario",
+        "slug": "operario",
+        "filename": "operario.mp3",
+        "chant": "Canto da torcida de Operario"
+      },
+      {
+        "club": "Operario Ferroviario",
+        "slug": "operario_ferroviario",
+        "filename": "operario_ferroviario.mp3",
+        "chant": "Canto da torcida de Operario Ferroviario"
+      },
+      {
+        "club": "Operario PR",
+        "slug": "operario_pr",
+        "filename": "operario_pr.mp3",
+        "chant": "Canto da torcida de Operario PR"
       },
       {
         "club": "Ponte Preta",
         "slug": "ponte_preta",
         "filename": "ponte_preta.mp3",
         "chant": "Macaca Querida"
+      },
+      {
+        "club": "Ponte Preta SP",
+        "slug": "ponte_preta_sp",
+        "filename": "ponte_preta_sp.mp3",
+        "chant": "Canto da torcida de Ponte Preta SP"
+      },
+      {
+        "club": "Remo",
+        "slug": "remo",
+        "filename": "remo.mp3",
+        "chant": "Canto da torcida de Remo"
+      },
+      {
+        "club": "Santos",
+        "slug": "santos",
+        "filename": "santos.mp3",
+        "chant": "Canto da torcida de Santos"
+      },
+      {
+        "club": "Sao Bernardo",
+        "slug": "sao_bernardo",
+        "filename": "sao_bernardo.mp3",
+        "chant": "Canto da torcida de Sao Bernardo"
+      },
+      {
+        "club": "Sao Bernardo FC",
+        "slug": "sao_bernardo_fc",
+        "filename": "sao_bernardo_fc.mp3",
+        "chant": "Canto da torcida de Sao Bernardo FC"
+      },
+      {
+        "club": "Sport",
+        "slug": "sport",
+        "filename": "sport.mp3",
+        "chant": "Cazá Cazá!"
+      },
+      {
+        "club": "Sport Recife",
+        "slug": "sport_recife",
+        "filename": "sport_recife.mp3",
+        "chant": "Canto da torcida de Sport Recife"
+      },
+      {
+        "club": "Vila Nova",
+        "slug": "vila_nova",
+        "filename": "vila_nova.mp3",
+        "chant": "Tigrão da Vila"
+      },
+      {
+        "club": "Vila Nova GO",
+        "slug": "vila_nova_go",
+        "filename": "vila_nova_go.mp3",
+        "chant": "Canto da torcida de Vila Nova GO"
       }
     ],
-    "arg_1": [
+    "arg_1": [],
+    "bra_c": [
       {
-        "club": "River Plate",
-        "slug": "river_plate",
-        "filename": "river_plate.mp3",
-        "chant": "Soy de River Plate"
+        "club": "Ad Confianca",
+        "slug": "ad_confianca",
+        "filename": "ad_confianca.mp3",
+        "chant": "Canto da torcida de Ad Confianca"
       },
       {
-        "club": "Boca Juniors",
-        "slug": "boca_juniors",
-        "filename": "boca_juniors.mp3",
-        "chant": "Boca de mi vida / Dale Bo"
+        "club": "Amazonas",
+        "slug": "amazonas",
+        "filename": "amazonas.mp3",
+        "chant": "Canto da torcida de Amazonas"
       },
       {
-        "club": "Racing Club",
-        "slug": "racing_club",
-        "filename": "racing_club.mp3",
-        "chant": "La Academia"
+        "club": "Amazonas FC",
+        "slug": "amazonas_fc",
+        "filename": "amazonas_fc.mp3",
+        "chant": "Canto da torcida de Amazonas FC"
       },
       {
-        "club": "Independiente",
-        "slug": "independiente",
-        "filename": "independiente.mp3",
-        "chant": "Rey de Copas"
+        "club": "Anapolis",
+        "slug": "anapolis",
+        "filename": "anapolis.mp3",
+        "chant": "Canto da torcida de Anapolis"
+      },
+      {
+        "club": "Anapolis FC",
+        "slug": "anapolis_fc",
+        "filename": "anapolis_fc.mp3",
+        "chant": "Canto da torcida de Anapolis FC"
+      },
+      {
+        "club": "Ao Itabaiana",
+        "slug": "ao_itabaiana",
+        "filename": "ao_itabaiana.mp3",
+        "chant": "Canto da torcida de Ao Itabaiana"
+      },
+      {
+        "club": "Barra",
+        "slug": "barra",
+        "filename": "barra.mp3",
+        "chant": "Canto da torcida de Barra"
+      },
+      {
+        "club": "Barra SC",
+        "slug": "barra_sc",
+        "filename": "barra_sc.mp3",
+        "chant": "Canto da torcida de Barra SC"
+      },
+      {
+        "club": "Botafogo da Paraiba",
+        "slug": "botafogo_da_paraiba",
+        "filename": "botafogo_da_paraiba.mp3",
+        "chant": "Canto da torcida de Botafogo da Paraiba"
+      },
+      {
+        "club": "Botafogo PB",
+        "slug": "botafogo_pb",
+        "filename": "botafogo_pb.mp3",
+        "chant": "Canto da torcida de Botafogo PB"
+      },
+      {
+        "club": "Brusque",
+        "slug": "brusque",
+        "filename": "brusque.mp3",
+        "chant": "Canto da torcida de Brusque"
+      },
+      {
+        "club": "Brusque FC",
+        "slug": "brusque_fc",
+        "filename": "brusque_fc.mp3",
+        "chant": "Canto da torcida de Brusque FC"
+      },
+      {
+        "club": "Caxias",
+        "slug": "caxias",
+        "filename": "caxias.mp3",
+        "chant": "Canto da torcida de Caxias"
+      },
+      {
+        "club": "Confianca",
+        "slug": "confianca",
+        "filename": "confianca.mp3",
+        "chant": "Canto da torcida de Confianca"
+      },
+      {
+        "club": "Ferroviaria",
+        "slug": "ferroviaria",
+        "filename": "ferroviaria.mp3",
+        "chant": "Canto da torcida de Ferroviaria"
+      },
+      {
+        "club": "Ferroviaria SP",
+        "slug": "ferroviaria_sp",
+        "filename": "ferroviaria_sp.mp3",
+        "chant": "Canto da torcida de Ferroviaria SP"
+      },
+      {
+        "club": "Figueirense",
+        "slug": "figueirense",
+        "filename": "figueirense.mp3",
+        "chant": "Canto da torcida de Figueirense"
+      },
+      {
+        "club": "Figueirense FC",
+        "slug": "figueirense_fc",
+        "filename": "figueirense_fc.mp3",
+        "chant": "Canto da torcida de Figueirense FC"
+      },
+      {
+        "club": "Floresta",
+        "slug": "floresta",
+        "filename": "floresta.mp3",
+        "chant": "Canto da torcida de Floresta"
+      },
+      {
+        "club": "Floresta CE",
+        "slug": "floresta_ce",
+        "filename": "floresta_ce.mp3",
+        "chant": "Canto da torcida de Floresta CE"
+      },
+      {
+        "club": "Guarani",
+        "slug": "guarani",
+        "filename": "guarani.mp3",
+        "chant": "Canto da torcida de Guarani"
+      },
+      {
+        "club": "Guarani FC",
+        "slug": "guarani_fc",
+        "filename": "guarani_fc.mp3",
+        "chant": "Canto da torcida de Guarani FC"
+      },
+      {
+        "club": "Inter de Limeira",
+        "slug": "inter_de_limeira",
+        "filename": "inter_de_limeira.mp3",
+        "chant": "Canto da torcida de Inter de Limeira"
+      },
+      {
+        "club": "Internacional de Limeira",
+        "slug": "internacional_de_limeira",
+        "filename": "internacional_de_limeira.mp3",
+        "chant": "Canto da torcida de Internacional de Limeira"
+      },
+      {
+        "club": "Itabaiana",
+        "slug": "itabaiana",
+        "filename": "itabaiana.mp3",
+        "chant": "Canto da torcida de Itabaiana"
+      },
+      {
+        "club": "Ituano",
+        "slug": "ituano",
+        "filename": "ituano.mp3",
+        "chant": "Canto da torcida de Ituano"
+      },
+      {
+        "club": "Ituano FC",
+        "slug": "ituano_fc",
+        "filename": "ituano_fc.mp3",
+        "chant": "Canto da torcida de Ituano FC"
+      },
+      {
+        "club": "Maranhao",
+        "slug": "maranhao",
+        "filename": "maranhao.mp3",
+        "chant": "Canto da torcida de Maranhao"
+      },
+      {
+        "club": "Maranhao AC",
+        "slug": "maranhao_ac",
+        "filename": "maranhao_ac.mp3",
+        "chant": "Canto da torcida de Maranhao AC"
+      },
+      {
+        "club": "Maringa",
+        "slug": "maringa",
+        "filename": "maringa.mp3",
+        "chant": "Canto da torcida de Maringa"
+      },
+      {
+        "club": "Maringa FC",
+        "slug": "maringa_fc",
+        "filename": "maringa_fc.mp3",
+        "chant": "Canto da torcida de Maringa FC"
+      },
+      {
+        "club": "Paysandu",
+        "slug": "paysandu",
+        "filename": "paysandu.mp3",
+        "chant": "Canto da torcida de Paysandu"
+      },
+      {
+        "club": "Paysandu SC",
+        "slug": "paysandu_sc",
+        "filename": "paysandu_sc.mp3",
+        "chant": "Canto da torcida de Paysandu SC"
+      },
+      {
+        "club": "Remo",
+        "slug": "remo",
+        "filename": "remo.mp3",
+        "chant": "Canto da torcida de Remo"
+      },
+      {
+        "club": "Santa Cruz",
+        "slug": "santa_cruz",
+        "filename": "santa_cruz.mp3",
+        "chant": "Canto da torcida de Santa Cruz"
+      },
+      {
+        "club": "Santa Cruz PE",
+        "slug": "santa_cruz_pe",
+        "filename": "santa_cruz_pe.mp3",
+        "chant": "Canto da torcida de Santa Cruz PE"
+      },
+      {
+        "club": "Ser Caxias",
+        "slug": "ser_caxias",
+        "filename": "ser_caxias.mp3",
+        "chant": "Canto da torcida de Ser Caxias"
+      },
+      {
+        "club": "Volta Redonda",
+        "slug": "volta_redonda",
+        "filename": "volta_redonda.mp3",
+        "chant": "Canto da torcida de Volta Redonda"
+      },
+      {
+        "club": "Volta Redonda FC",
+        "slug": "volta_redonda_fc",
+        "filename": "volta_redonda_fc.mp3",
+        "chant": "Canto da torcida de Volta Redonda FC"
+      },
+      {
+        "club": "Ypiranga",
+        "slug": "ypiranga",
+        "filename": "ypiranga.mp3",
+        "chant": "Canto da torcida de Ypiranga"
+      },
+      {
+        "club": "Ypiranga RS",
+        "slug": "ypiranga_rs",
+        "filename": "ypiranga_rs.mp3",
+        "chant": "Canto da torcida de Ypiranga RS"
+      }
+    ],
+    "bra_d": [
+      {
+        "club": "Abc",
+        "slug": "abc",
+        "filename": "abc.mp3",
+        "chant": "Canto da torcida de Abc"
+      },
+      {
+        "club": "Abc FC",
+        "slug": "abc_fc",
+        "filename": "abc_fc.mp3",
+        "chant": "Canto da torcida de Abc FC"
+      },
+      {
+        "club": "Agua Santa",
+        "slug": "agua_santa",
+        "filename": "agua_santa.mp3",
+        "chant": "Canto da torcida de Agua Santa"
+      },
+      {
+        "club": "Agua Santa SP",
+        "slug": "agua_santa_sp",
+        "filename": "agua_santa_sp.mp3",
+        "chant": "Canto da torcida de Agua Santa SP"
+      },
+      {
+        "club": "America de Natal",
+        "slug": "america_de_natal",
+        "filename": "america_de_natal.mp3",
+        "chant": "Canto da torcida de America de Natal"
+      },
+      {
+        "club": "America RN",
+        "slug": "america_rn",
+        "filename": "america_rn.mp3",
+        "chant": "Canto da torcida de America RN"
+      },
+      {
+        "club": "Bangu",
+        "slug": "bangu",
+        "filename": "bangu.mp3",
+        "chant": "Canto da torcida de Bangu"
+      },
+      {
+        "club": "Bangu AC",
+        "slug": "bangu_ac",
+        "filename": "bangu_ac.mp3",
+        "chant": "Canto da torcida de Bangu AC"
+      },
+      {
+        "club": "Brasil de Pelotas",
+        "slug": "brasil_de_pelotas",
+        "filename": "brasil_de_pelotas.mp3",
+        "chant": "Canto da torcida de Brasil de Pelotas"
+      },
+      {
+        "club": "Brasiliense",
+        "slug": "brasiliense",
+        "filename": "brasiliense.mp3",
+        "chant": "Canto da torcida de Brasiliense"
+      },
+      {
+        "club": "Brasiliense FC",
+        "slug": "brasiliense_fc",
+        "filename": "brasiliense_fc.mp3",
+        "chant": "Canto da torcida de Brasiliense FC"
+      },
+      {
+        "club": "Campinense",
+        "slug": "campinense",
+        "filename": "campinense.mp3",
+        "chant": "Canto da torcida de Campinense"
+      },
+      {
+        "club": "Campinense PB",
+        "slug": "campinense_pb",
+        "filename": "campinense_pb.mp3",
+        "chant": "Canto da torcida de Campinense PB"
+      },
+      {
+        "club": "Centro Sportivo Alagoano",
+        "slug": "centro_sportivo_alagoano",
+        "filename": "centro_sportivo_alagoano.mp3",
+        "chant": "Canto da torcida de Centro Sportivo Alagoano"
+      },
+      {
+        "club": "Cn Marcilio Dias",
+        "slug": "cn_marcilio_dias",
+        "filename": "cn_marcilio_dias.mp3",
+        "chant": "Canto da torcida de Cn Marcilio Dias"
+      },
+      {
+        "club": "Csa",
+        "slug": "csa",
+        "filename": "csa.mp3",
+        "chant": "Canto da torcida de Csa"
+      },
+      {
+        "club": "EC Pelotas",
+        "slug": "ec_pelotas",
+        "filename": "ec_pelotas.mp3",
+        "chant": "Canto da torcida de EC Pelotas"
+      },
+      {
+        "club": "Ferroviario",
+        "slug": "ferroviario",
+        "filename": "ferroviario.mp3",
+        "chant": "Canto da torcida de Ferroviario"
+      },
+      {
+        "club": "Ferroviario CE",
+        "slug": "ferroviario_ce",
+        "filename": "ferroviario_ce.mp3",
+        "chant": "Canto da torcida de Ferroviario CE"
+      },
+      {
+        "club": "Gama",
+        "slug": "gama",
+        "filename": "gama.mp3",
+        "chant": "Canto da torcida de Gama"
+      },
+      {
+        "club": "Ge Brasil",
+        "slug": "ge_brasil",
+        "filename": "ge_brasil.mp3",
+        "chant": "Canto da torcida de Ge Brasil"
+      },
+      {
+        "club": "Jec",
+        "slug": "jec",
+        "filename": "jec.mp3",
+        "chant": "Canto da torcida de Jec"
+      },
+      {
+        "club": "Joinville",
+        "slug": "joinville",
+        "filename": "joinville.mp3",
+        "chant": "Canto da torcida de Joinville"
+      },
+      {
+        "club": "Marcilio Dias",
+        "slug": "marcilio_dias",
+        "filename": "marcilio_dias.mp3",
+        "chant": "Canto da torcida de Marcilio Dias"
+      },
+      {
+        "club": "Moto Club",
+        "slug": "moto_club",
+        "filename": "moto_club.mp3",
+        "chant": "Canto da torcida de Moto Club"
+      },
+      {
+        "club": "Moto Club MA",
+        "slug": "moto_club_ma",
+        "filename": "moto_club_ma.mp3",
+        "chant": "Canto da torcida de Moto Club MA"
+      },
+      {
+        "club": "Parana",
+        "slug": "parana",
+        "filename": "parana.mp3",
+        "chant": "Canto da torcida de Parana"
+      },
+      {
+        "club": "Parana Clube",
+        "slug": "parana_clube",
+        "filename": "parana_clube.mp3",
+        "chant": "Canto da torcida de Parana Clube"
+      },
+      {
+        "club": "Pelotas",
+        "slug": "pelotas",
+        "filename": "pelotas.mp3",
+        "chant": "Canto da torcida de Pelotas"
+      },
+      {
+        "club": "Portuguesa",
+        "slug": "portuguesa",
+        "filename": "portuguesa.mp3",
+        "chant": "Canto da torcida de Portuguesa"
+      },
+      {
+        "club": "Portuguesa de Desportos",
+        "slug": "portuguesa_de_desportos",
+        "filename": "portuguesa_de_desportos.mp3",
+        "chant": "Canto da torcida de Portuguesa de Desportos"
+      },
+      {
+        "club": "Portuguesa SP",
+        "slug": "portuguesa_sp",
+        "filename": "portuguesa_sp.mp3",
+        "chant": "Canto da torcida de Portuguesa SP"
+      },
+      {
+        "club": "Retro",
+        "slug": "retro",
+        "filename": "retro.mp3",
+        "chant": "Canto da torcida de Retro"
+      },
+      {
+        "club": "Retro FC",
+        "slug": "retro_fc",
+        "filename": "retro_fc.mp3",
+        "chant": "Canto da torcida de Retro FC"
+      },
+      {
+        "club": "Sampaio Correa",
+        "slug": "sampaio_correa",
+        "filename": "sampaio_correa.mp3",
+        "chant": "Canto da torcida de Sampaio Correa"
+      },
+      {
+        "club": "Sampaio Correa MA",
+        "slug": "sampaio_correa_ma",
+        "filename": "sampaio_correa_ma.mp3",
+        "chant": "Canto da torcida de Sampaio Correa MA"
+      },
+      {
+        "club": "SE Gama",
+        "slug": "se_gama",
+        "filename": "se_gama.mp3",
+        "chant": "Canto da torcida de SE Gama"
+      },
+      {
+        "club": "Tombense",
+        "slug": "tombense",
+        "filename": "tombense.mp3",
+        "chant": "Canto da torcida de Tombense"
+      },
+      {
+        "club": "Tombense MG",
+        "slug": "tombense_mg",
+        "filename": "tombense_mg.mp3",
+        "chant": "Canto da torcida de Tombense MG"
+      },
+      {
+        "club": "Treze",
+        "slug": "treze",
+        "filename": "treze.mp3",
+        "chant": "Canto da torcida de Treze"
+      },
+      {
+        "club": "Treze FC",
+        "slug": "treze_fc",
+        "filename": "treze_fc.mp3",
+        "chant": "Canto da torcida de Treze FC"
+      },
+      {
+        "club": "Velo Clube",
+        "slug": "velo_clube",
+        "filename": "velo_clube.mp3",
+        "chant": "Canto da torcida de Velo Clube"
+      },
+      {
+        "club": "Velo Clube SP",
+        "slug": "velo_clube_sp",
+        "filename": "velo_clube_sp.mp3",
+        "chant": "Canto da torcida de Velo Clube SP"
+      }
+    ],
+    "bra_estaduais": [
+      {
+        "club": "Abc",
+        "slug": "abc",
+        "filename": "abc.mp3",
+        "chant": "Canto da torcida de Abc"
+      },
+      {
+        "club": "Abc FC",
+        "slug": "abc_fc",
+        "filename": "abc_fc.mp3",
+        "chant": "Canto da torcida de Abc FC"
+      },
+      {
+        "club": "Ad Confianca",
+        "slug": "ad_confianca",
+        "filename": "ad_confianca.mp3",
+        "chant": "Canto da torcida de Ad Confianca"
+      },
+      {
+        "club": "Agua Santa",
+        "slug": "agua_santa",
+        "filename": "agua_santa.mp3",
+        "chant": "Canto da torcida de Agua Santa"
+      },
+      {
+        "club": "Agua Santa SP",
+        "slug": "agua_santa_sp",
+        "filename": "agua_santa_sp.mp3",
+        "chant": "Canto da torcida de Agua Santa SP"
+      },
+      {
+        "club": "Amazonas",
+        "slug": "amazonas",
+        "filename": "amazonas.mp3",
+        "chant": "Canto da torcida de Amazonas"
+      },
+      {
+        "club": "Amazonas FC",
+        "slug": "amazonas_fc",
+        "filename": "amazonas_fc.mp3",
+        "chant": "Canto da torcida de Amazonas FC"
+      },
+      {
+        "club": "America de Natal",
+        "slug": "america_de_natal",
+        "filename": "america_de_natal.mp3",
+        "chant": "Canto da torcida de America de Natal"
+      },
+      {
+        "club": "America MG",
+        "slug": "america_mg",
+        "filename": "america_mg.mp3",
+        "chant": "Canto da torcida de America MG"
+      },
+      {
+        "club": "America Mineiro",
+        "slug": "america_mineiro",
+        "filename": "america_mineiro.mp3",
+        "chant": "Canto da torcida de America Mineiro"
+      },
+      {
+        "club": "America RN",
+        "slug": "america_rn",
+        "filename": "america_rn.mp3",
+        "chant": "Canto da torcida de America RN"
+      },
+      {
+        "club": "Anapolis",
+        "slug": "anapolis",
+        "filename": "anapolis.mp3",
+        "chant": "Canto da torcida de Anapolis"
+      },
+      {
+        "club": "Anapolis FC",
+        "slug": "anapolis_fc",
+        "filename": "anapolis_fc.mp3",
+        "chant": "Canto da torcida de Anapolis FC"
+      },
+      {
+        "club": "Ao Itabaiana",
+        "slug": "ao_itabaiana",
+        "filename": "ao_itabaiana.mp3",
+        "chant": "Canto da torcida de Ao Itabaiana"
+      },
+      {
+        "club": "Athletic",
+        "slug": "athletic",
+        "filename": "athletic.mp3",
+        "chant": "Canto da torcida de Athletic"
+      },
+      {
+        "club": "Athletic Club",
+        "slug": "athletic_club",
+        "filename": "athletic_club.mp3",
+        "chant": "Canto da torcida de Athletic Club"
+      },
+      {
+        "club": "Athletico Paranaense",
+        "slug": "athletico_paranaense",
+        "filename": "athletico_paranaense.mp3",
+        "chant": "Canto da torcida de Athletico Paranaense"
+      },
+      {
+        "club": "Athletico PR",
+        "slug": "athletico_pr",
+        "filename": "athletico_pr.mp3",
+        "chant": "Canto da torcida de Athletico PR"
+      },
+      {
+        "club": "Atletico GO",
+        "slug": "atletico_go",
+        "filename": "atletico_go.mp3",
+        "chant": "Canto da torcida de Atletico GO"
+      },
+      {
+        "club": "Atletico Goianiense",
+        "slug": "atletico_goianiense",
+        "filename": "atletico_goianiense.mp3",
+        "chant": "Canto da torcida de Atletico Goianiense"
+      },
+      {
+        "club": "Atletico MG",
+        "slug": "atletico_mg",
+        "filename": "atletico_mg.mp3",
+        "chant": "Canto da torcida de Atletico MG"
+      },
+      {
+        "club": "Avai",
+        "slug": "avai",
+        "filename": "avai.mp3",
+        "chant": "Canto da torcida de Avai"
+      },
+      {
+        "club": "Avai FC",
+        "slug": "avai_fc",
+        "filename": "avai_fc.mp3",
+        "chant": "Canto da torcida de Avai FC"
+      },
+      {
+        "club": "Bahia",
+        "slug": "bahia",
+        "filename": "bahia.mp3",
+        "chant": "Canto da torcida de Bahia"
+      },
+      {
+        "club": "Bangu",
+        "slug": "bangu",
+        "filename": "bangu.mp3",
+        "chant": "Canto da torcida de Bangu"
+      },
+      {
+        "club": "Bangu AC",
+        "slug": "bangu_ac",
+        "filename": "bangu_ac.mp3",
+        "chant": "Canto da torcida de Bangu AC"
+      },
+      {
+        "club": "Barra",
+        "slug": "barra",
+        "filename": "barra.mp3",
+        "chant": "Canto da torcida de Barra"
+      },
+      {
+        "club": "Barra SC",
+        "slug": "barra_sc",
+        "filename": "barra_sc.mp3",
+        "chant": "Canto da torcida de Barra SC"
+      },
+      {
+        "club": "Botafogo",
+        "slug": "botafogo",
+        "filename": "botafogo.mp3",
+        "chant": "Canto da torcida de Botafogo"
+      },
+      {
+        "club": "Botafogo da Paraiba",
+        "slug": "botafogo_da_paraiba",
+        "filename": "botafogo_da_paraiba.mp3",
+        "chant": "Canto da torcida de Botafogo da Paraiba"
+      },
+      {
+        "club": "Botafogo PB",
+        "slug": "botafogo_pb",
+        "filename": "botafogo_pb.mp3",
+        "chant": "Canto da torcida de Botafogo PB"
+      },
+      {
+        "club": "Botafogo Ribeirao",
+        "slug": "botafogo_ribeirao",
+        "filename": "botafogo_ribeirao.mp3",
+        "chant": "Canto da torcida de Botafogo Ribeirao"
+      },
+      {
+        "club": "Botafogo SP",
+        "slug": "botafogo_sp",
+        "filename": "botafogo_sp.mp3",
+        "chant": "Canto da torcida de Botafogo SP"
+      },
+      {
+        "club": "Bragantino",
+        "slug": "bragantino",
+        "filename": "bragantino.mp3",
+        "chant": "Canto da torcida de Bragantino"
+      },
+      {
+        "club": "Brasil de Pelotas",
+        "slug": "brasil_de_pelotas",
+        "filename": "brasil_de_pelotas.mp3",
+        "chant": "Canto da torcida de Brasil de Pelotas"
+      },
+      {
+        "club": "Brasiliense",
+        "slug": "brasiliense",
+        "filename": "brasiliense.mp3",
+        "chant": "Canto da torcida de Brasiliense"
+      },
+      {
+        "club": "Brasiliense FC",
+        "slug": "brasiliense_fc",
+        "filename": "brasiliense_fc.mp3",
+        "chant": "Canto da torcida de Brasiliense FC"
+      },
+      {
+        "club": "Brusque",
+        "slug": "brusque",
+        "filename": "brusque.mp3",
+        "chant": "Canto da torcida de Brusque"
+      },
+      {
+        "club": "Brusque FC",
+        "slug": "brusque_fc",
+        "filename": "brusque_fc.mp3",
+        "chant": "Canto da torcida de Brusque FC"
+      },
+      {
+        "club": "Campinense",
+        "slug": "campinense",
+        "filename": "campinense.mp3",
+        "chant": "Canto da torcida de Campinense"
+      },
+      {
+        "club": "Campinense PB",
+        "slug": "campinense_pb",
+        "filename": "campinense_pb.mp3",
+        "chant": "Canto da torcida de Campinense PB"
+      },
+      {
+        "club": "Caxias",
+        "slug": "caxias",
+        "filename": "caxias.mp3",
+        "chant": "Canto da torcida de Caxias"
+      },
+      {
+        "club": "Ceara",
+        "slug": "ceara",
+        "filename": "ceara.mp3",
+        "chant": "Canto da torcida de Ceara"
+      },
+      {
+        "club": "Ceara SC",
+        "slug": "ceara_sc",
+        "filename": "ceara_sc.mp3",
+        "chant": "Canto da torcida de Ceara SC"
+      },
+      {
+        "club": "Centro Sportivo Alagoano",
+        "slug": "centro_sportivo_alagoano",
+        "filename": "centro_sportivo_alagoano.mp3",
+        "chant": "Canto da torcida de Centro Sportivo Alagoano"
+      },
+      {
+        "club": "Chapecoense",
+        "slug": "chapecoense",
+        "filename": "chapecoense.mp3",
+        "chant": "Canto da torcida de Chapecoense"
+      },
+      {
+        "club": "Clube Nautico",
+        "slug": "clube_nautico",
+        "filename": "clube_nautico.mp3",
+        "chant": "Canto da torcida de Clube Nautico"
+      },
+      {
+        "club": "Cn Marcilio Dias",
+        "slug": "cn_marcilio_dias",
+        "filename": "cn_marcilio_dias.mp3",
+        "chant": "Canto da torcida de Cn Marcilio Dias"
+      },
+      {
+        "club": "Confianca",
+        "slug": "confianca",
+        "filename": "confianca.mp3",
+        "chant": "Canto da torcida de Confianca"
+      },
+      {
+        "club": "Corinthians",
+        "slug": "corinthians",
+        "filename": "corinthians.mp3",
+        "chant": "Canto da torcida de Corinthians"
+      },
+      {
+        "club": "Coritiba",
+        "slug": "coritiba",
+        "filename": "coritiba.mp3",
+        "chant": "Canto da torcida de Coritiba"
+      },
+      {
+        "club": "Crb",
+        "slug": "crb",
+        "filename": "crb.mp3",
+        "chant": "Canto da torcida de Crb"
+      },
+      {
+        "club": "Crb AL",
+        "slug": "crb_al",
+        "filename": "crb_al.mp3",
+        "chant": "Canto da torcida de Crb AL"
+      },
+      {
+        "club": "Cruzeiro",
+        "slug": "cruzeiro",
+        "filename": "cruzeiro.mp3",
+        "chant": "Canto da torcida de Cruzeiro"
+      },
+      {
+        "club": "Csa",
+        "slug": "csa",
+        "filename": "csa.mp3",
+        "chant": "Canto da torcida de Csa"
+      },
+      {
+        "club": "Cuiaba",
+        "slug": "cuiaba",
+        "filename": "cuiaba.mp3",
+        "chant": "Canto da torcida de Cuiaba"
+      },
+      {
+        "club": "Cuiaba EC",
+        "slug": "cuiaba_ec",
+        "filename": "cuiaba_ec.mp3",
+        "chant": "Canto da torcida de Cuiaba EC"
+      },
+      {
+        "club": "EC Juventude",
+        "slug": "ec_juventude",
+        "filename": "ec_juventude.mp3",
+        "chant": "Canto da torcida de EC Juventude"
+      },
+      {
+        "club": "EC Pelotas",
+        "slug": "ec_pelotas",
+        "filename": "ec_pelotas.mp3",
+        "chant": "Canto da torcida de EC Pelotas"
+      },
+      {
+        "club": "Ferroviaria",
+        "slug": "ferroviaria",
+        "filename": "ferroviaria.mp3",
+        "chant": "Canto da torcida de Ferroviaria"
+      },
+      {
+        "club": "Ferroviaria SP",
+        "slug": "ferroviaria_sp",
+        "filename": "ferroviaria_sp.mp3",
+        "chant": "Canto da torcida de Ferroviaria SP"
+      },
+      {
+        "club": "Ferroviario",
+        "slug": "ferroviario",
+        "filename": "ferroviario.mp3",
+        "chant": "Canto da torcida de Ferroviario"
+      },
+      {
+        "club": "Ferroviario CE",
+        "slug": "ferroviario_ce",
+        "filename": "ferroviario_ce.mp3",
+        "chant": "Canto da torcida de Ferroviario CE"
+      },
+      {
+        "club": "Figueirense",
+        "slug": "figueirense",
+        "filename": "figueirense.mp3",
+        "chant": "Canto da torcida de Figueirense"
+      },
+      {
+        "club": "Figueirense FC",
+        "slug": "figueirense_fc",
+        "filename": "figueirense_fc.mp3",
+        "chant": "Canto da torcida de Figueirense FC"
+      },
+      {
+        "club": "Flamengo",
+        "slug": "flamengo",
+        "filename": "flamengo.mp3",
+        "chant": "Canto da torcida de Flamengo"
+      },
+      {
+        "club": "Floresta",
+        "slug": "floresta",
+        "filename": "floresta.mp3",
+        "chant": "Canto da torcida de Floresta"
+      },
+      {
+        "club": "Floresta CE",
+        "slug": "floresta_ce",
+        "filename": "floresta_ce.mp3",
+        "chant": "Canto da torcida de Floresta CE"
+      },
+      {
+        "club": "Fluminense",
+        "slug": "fluminense",
+        "filename": "fluminense.mp3",
+        "chant": "Canto da torcida de Fluminense"
+      },
+      {
+        "club": "Fortaleza",
+        "slug": "fortaleza",
+        "filename": "fortaleza.mp3",
+        "chant": "Canto da torcida de Fortaleza"
+      },
+      {
+        "club": "Fortaleza EC",
+        "slug": "fortaleza_ec",
+        "filename": "fortaleza_ec.mp3",
+        "chant": "Canto da torcida de Fortaleza EC"
+      },
+      {
+        "club": "Gama",
+        "slug": "gama",
+        "filename": "gama.mp3",
+        "chant": "Canto da torcida de Gama"
+      },
+      {
+        "club": "Ge Brasil",
+        "slug": "ge_brasil",
+        "filename": "ge_brasil.mp3",
+        "chant": "Canto da torcida de Ge Brasil"
+      },
+      {
+        "club": "Goias",
+        "slug": "goias",
+        "filename": "goias.mp3",
+        "chant": "Canto da torcida de Goias"
+      },
+      {
+        "club": "Goias EC",
+        "slug": "goias_ec",
+        "filename": "goias_ec.mp3",
+        "chant": "Canto da torcida de Goias EC"
+      },
+      {
+        "club": "Gremio",
+        "slug": "gremio",
+        "filename": "gremio.mp3",
+        "chant": "Canto da torcida de Gremio"
+      },
+      {
+        "club": "Gremio Novorizontino",
+        "slug": "gremio_novorizontino",
+        "filename": "gremio_novorizontino.mp3",
+        "chant": "Canto da torcida de Gremio Novorizontino"
+      },
+      {
+        "club": "Guarani",
+        "slug": "guarani",
+        "filename": "guarani.mp3",
+        "chant": "Canto da torcida de Guarani"
+      },
+      {
+        "club": "Guarani FC",
+        "slug": "guarani_fc",
+        "filename": "guarani_fc.mp3",
+        "chant": "Canto da torcida de Guarani FC"
+      },
+      {
+        "club": "Inter de Limeira",
+        "slug": "inter_de_limeira",
+        "filename": "inter_de_limeira.mp3",
+        "chant": "Canto da torcida de Inter de Limeira"
+      },
+      {
+        "club": "Internacional",
+        "slug": "internacional",
+        "filename": "internacional.mp3",
+        "chant": "Canto da torcida de Internacional"
+      },
+      {
+        "club": "Internacional de Limeira",
+        "slug": "internacional_de_limeira",
+        "filename": "internacional_de_limeira.mp3",
+        "chant": "Canto da torcida de Internacional de Limeira"
+      },
+      {
+        "club": "Itabaiana",
+        "slug": "itabaiana",
+        "filename": "itabaiana.mp3",
+        "chant": "Canto da torcida de Itabaiana"
+      },
+      {
+        "club": "Ituano",
+        "slug": "ituano",
+        "filename": "ituano.mp3",
+        "chant": "Canto da torcida de Ituano"
+      },
+      {
+        "club": "Ituano FC",
+        "slug": "ituano_fc",
+        "filename": "ituano_fc.mp3",
+        "chant": "Canto da torcida de Ituano FC"
+      },
+      {
+        "club": "Jec",
+        "slug": "jec",
+        "filename": "jec.mp3",
+        "chant": "Canto da torcida de Jec"
+      },
+      {
+        "club": "Joinville",
+        "slug": "joinville",
+        "filename": "joinville.mp3",
+        "chant": "Canto da torcida de Joinville"
+      },
+      {
+        "club": "Juventude",
+        "slug": "juventude",
+        "filename": "juventude.mp3",
+        "chant": "Canto da torcida de Juventude"
+      },
+      {
+        "club": "Londrina",
+        "slug": "londrina",
+        "filename": "londrina.mp3",
+        "chant": "Canto da torcida de Londrina"
+      },
+      {
+        "club": "Londrina EC",
+        "slug": "londrina_ec",
+        "filename": "londrina_ec.mp3",
+        "chant": "Canto da torcida de Londrina EC"
+      },
+      {
+        "club": "Maranhao",
+        "slug": "maranhao",
+        "filename": "maranhao.mp3",
+        "chant": "Canto da torcida de Maranhao"
+      },
+      {
+        "club": "Maranhao AC",
+        "slug": "maranhao_ac",
+        "filename": "maranhao_ac.mp3",
+        "chant": "Canto da torcida de Maranhao AC"
+      },
+      {
+        "club": "Marcilio Dias",
+        "slug": "marcilio_dias",
+        "filename": "marcilio_dias.mp3",
+        "chant": "Canto da torcida de Marcilio Dias"
+      },
+      {
+        "club": "Maringa",
+        "slug": "maringa",
+        "filename": "maringa.mp3",
+        "chant": "Canto da torcida de Maringa"
+      },
+      {
+        "club": "Maringa FC",
+        "slug": "maringa_fc",
+        "filename": "maringa_fc.mp3",
+        "chant": "Canto da torcida de Maringa FC"
+      },
+      {
+        "club": "Mirassol",
+        "slug": "mirassol",
+        "filename": "mirassol.mp3",
+        "chant": "Canto da torcida de Mirassol"
+      },
+      {
+        "club": "Moto Club",
+        "slug": "moto_club",
+        "filename": "moto_club.mp3",
+        "chant": "Canto da torcida de Moto Club"
+      },
+      {
+        "club": "Moto Club MA",
+        "slug": "moto_club_ma",
+        "filename": "moto_club_ma.mp3",
+        "chant": "Canto da torcida de Moto Club MA"
+      },
+      {
+        "club": "Nautico",
+        "slug": "nautico",
+        "filename": "nautico.mp3",
+        "chant": "Canto da torcida de Nautico"
+      },
+      {
+        "club": "Novorizontino",
+        "slug": "novorizontino",
+        "filename": "novorizontino.mp3",
+        "chant": "Canto da torcida de Novorizontino"
+      },
+      {
+        "club": "Operario",
+        "slug": "operario",
+        "filename": "operario.mp3",
+        "chant": "Canto da torcida de Operario"
+      },
+      {
+        "club": "Operario Ferroviario",
+        "slug": "operario_ferroviario",
+        "filename": "operario_ferroviario.mp3",
+        "chant": "Canto da torcida de Operario Ferroviario"
+      },
+      {
+        "club": "Operario PR",
+        "slug": "operario_pr",
+        "filename": "operario_pr.mp3",
+        "chant": "Canto da torcida de Operario PR"
+      },
+      {
+        "club": "Palmeiras",
+        "slug": "palmeiras",
+        "filename": "palmeiras.mp3",
+        "chant": "Canto da torcida de Palmeiras"
+      },
+      {
+        "club": "Parana",
+        "slug": "parana",
+        "filename": "parana.mp3",
+        "chant": "Canto da torcida de Parana"
+      },
+      {
+        "club": "Parana Clube",
+        "slug": "parana_clube",
+        "filename": "parana_clube.mp3",
+        "chant": "Canto da torcida de Parana Clube"
+      },
+      {
+        "club": "Paysandu",
+        "slug": "paysandu",
+        "filename": "paysandu.mp3",
+        "chant": "Canto da torcida de Paysandu"
+      },
+      {
+        "club": "Paysandu SC",
+        "slug": "paysandu_sc",
+        "filename": "paysandu_sc.mp3",
+        "chant": "Canto da torcida de Paysandu SC"
+      },
+      {
+        "club": "Pelotas",
+        "slug": "pelotas",
+        "filename": "pelotas.mp3",
+        "chant": "Canto da torcida de Pelotas"
+      },
+      {
+        "club": "Ponte Preta",
+        "slug": "ponte_preta",
+        "filename": "ponte_preta.mp3",
+        "chant": "Canto da torcida de Ponte Preta"
+      },
+      {
+        "club": "Ponte Preta SP",
+        "slug": "ponte_preta_sp",
+        "filename": "ponte_preta_sp.mp3",
+        "chant": "Canto da torcida de Ponte Preta SP"
+      },
+      {
+        "club": "Portuguesa",
+        "slug": "portuguesa",
+        "filename": "portuguesa.mp3",
+        "chant": "Canto da torcida de Portuguesa"
+      },
+      {
+        "club": "Portuguesa de Desportos",
+        "slug": "portuguesa_de_desportos",
+        "filename": "portuguesa_de_desportos.mp3",
+        "chant": "Canto da torcida de Portuguesa de Desportos"
+      },
+      {
+        "club": "Portuguesa SP",
+        "slug": "portuguesa_sp",
+        "filename": "portuguesa_sp.mp3",
+        "chant": "Canto da torcida de Portuguesa SP"
+      },
+      {
+        "club": "Red Bull Bragantino",
+        "slug": "red_bull_bragantino",
+        "filename": "red_bull_bragantino.mp3",
+        "chant": "Canto da torcida de Red Bull Bragantino"
+      },
+      {
+        "club": "Remo",
+        "slug": "remo",
+        "filename": "remo.mp3",
+        "chant": "Canto da torcida de Remo"
+      },
+      {
+        "club": "Retro",
+        "slug": "retro",
+        "filename": "retro.mp3",
+        "chant": "Canto da torcida de Retro"
+      },
+      {
+        "club": "Retro FC",
+        "slug": "retro_fc",
+        "filename": "retro_fc.mp3",
+        "chant": "Canto da torcida de Retro FC"
+      },
+      {
+        "club": "Sampaio Correa",
+        "slug": "sampaio_correa",
+        "filename": "sampaio_correa.mp3",
+        "chant": "Canto da torcida de Sampaio Correa"
+      },
+      {
+        "club": "Sampaio Correa MA",
+        "slug": "sampaio_correa_ma",
+        "filename": "sampaio_correa_ma.mp3",
+        "chant": "Canto da torcida de Sampaio Correa MA"
+      },
+      {
+        "club": "Santa Cruz",
+        "slug": "santa_cruz",
+        "filename": "santa_cruz.mp3",
+        "chant": "Canto da torcida de Santa Cruz"
+      },
+      {
+        "club": "Santa Cruz PE",
+        "slug": "santa_cruz_pe",
+        "filename": "santa_cruz_pe.mp3",
+        "chant": "Canto da torcida de Santa Cruz PE"
+      },
+      {
+        "club": "Santos",
+        "slug": "santos",
+        "filename": "santos.mp3",
+        "chant": "Canto da torcida de Santos"
+      },
+      {
+        "club": "Sao Bernardo",
+        "slug": "sao_bernardo",
+        "filename": "sao_bernardo.mp3",
+        "chant": "Canto da torcida de Sao Bernardo"
+      },
+      {
+        "club": "Sao Bernardo FC",
+        "slug": "sao_bernardo_fc",
+        "filename": "sao_bernardo_fc.mp3",
+        "chant": "Canto da torcida de Sao Bernardo FC"
+      },
+      {
+        "club": "Sao Paulo",
+        "slug": "sao_paulo",
+        "filename": "sao_paulo.mp3",
+        "chant": "Canto da torcida de Sao Paulo"
+      },
+      {
+        "club": "SE Gama",
+        "slug": "se_gama",
+        "filename": "se_gama.mp3",
+        "chant": "Canto da torcida de SE Gama"
+      },
+      {
+        "club": "Ser Caxias",
+        "slug": "ser_caxias",
+        "filename": "ser_caxias.mp3",
+        "chant": "Canto da torcida de Ser Caxias"
+      },
+      {
+        "club": "Sport",
+        "slug": "sport",
+        "filename": "sport.mp3",
+        "chant": "Canto da torcida de Sport"
+      },
+      {
+        "club": "Sport Recife",
+        "slug": "sport_recife",
+        "filename": "sport_recife.mp3",
+        "chant": "Canto da torcida de Sport Recife"
+      },
+      {
+        "club": "Tombense",
+        "slug": "tombense",
+        "filename": "tombense.mp3",
+        "chant": "Canto da torcida de Tombense"
+      },
+      {
+        "club": "Tombense MG",
+        "slug": "tombense_mg",
+        "filename": "tombense_mg.mp3",
+        "chant": "Canto da torcida de Tombense MG"
+      },
+      {
+        "club": "Treze",
+        "slug": "treze",
+        "filename": "treze.mp3",
+        "chant": "Canto da torcida de Treze"
+      },
+      {
+        "club": "Treze FC",
+        "slug": "treze_fc",
+        "filename": "treze_fc.mp3",
+        "chant": "Canto da torcida de Treze FC"
+      },
+      {
+        "club": "Vasco",
+        "slug": "vasco",
+        "filename": "vasco.mp3",
+        "chant": "Canto da torcida de Vasco"
+      },
+      {
+        "club": "Vasco da Gama",
+        "slug": "vasco_da_gama",
+        "filename": "vasco_da_gama.mp3",
+        "chant": "Canto da torcida de Vasco da Gama"
+      },
+      {
+        "club": "Velo Clube",
+        "slug": "velo_clube",
+        "filename": "velo_clube.mp3",
+        "chant": "Canto da torcida de Velo Clube"
+      },
+      {
+        "club": "Velo Clube SP",
+        "slug": "velo_clube_sp",
+        "filename": "velo_clube_sp.mp3",
+        "chant": "Canto da torcida de Velo Clube SP"
+      },
+      {
+        "club": "Vila Nova",
+        "slug": "vila_nova",
+        "filename": "vila_nova.mp3",
+        "chant": "Canto da torcida de Vila Nova"
+      },
+      {
+        "club": "Vila Nova GO",
+        "slug": "vila_nova_go",
+        "filename": "vila_nova_go.mp3",
+        "chant": "Canto da torcida de Vila Nova GO"
+      },
+      {
+        "club": "Vitoria",
+        "slug": "vitoria",
+        "filename": "vitoria.mp3",
+        "chant": "Canto da torcida de Vitoria"
+      },
+      {
+        "club": "Volta Redonda",
+        "slug": "volta_redonda",
+        "filename": "volta_redonda.mp3",
+        "chant": "Canto da torcida de Volta Redonda"
+      },
+      {
+        "club": "Volta Redonda FC",
+        "slug": "volta_redonda_fc",
+        "filename": "volta_redonda_fc.mp3",
+        "chant": "Canto da torcida de Volta Redonda FC"
+      },
+      {
+        "club": "Ypiranga",
+        "slug": "ypiranga",
+        "filename": "ypiranga.mp3",
+        "chant": "Canto da torcida de Ypiranga"
+      },
+      {
+        "club": "Ypiranga RS",
+        "slug": "ypiranga_rs",
+        "filename": "ypiranga_rs.mp3",
+        "chant": "Canto da torcida de Ypiranga RS"
       }
     ]
   }

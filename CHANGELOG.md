@@ -2,6 +2,39 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.17] - 2026-10-20 (Super Pack de Sons de Torcida dos Times Brasileiros & Motor de Áudio SFX de Partidas)
+
+### 🏟️ 1. Cobertura Massiva de Cantos Reais das Torcidas Brasileiras (Séries A, B, C, D e Estaduais)
+- **100% dos Clubes das Séries A, B e C com Cantos Autênticos**:
+  - **Série A (20/20)**: Athletico Paranaense, Atlético-MG, Bahia, Botafogo, Chapecoense, Corinthians, Coritiba, Cruzeiro, Flamengo, Fluminense, Grêmio, Internacional, Mirassol, Palmeiras, Red Bull Bragantino, Remo, Santos, São Paulo, Vasco da Gama, Vitória.
+  - **Série B (20/20)**: América-MG, Athletic Club, Atlético-GO, Avaí, Botafogo-SP, Ceará, CRB, Criciúma, Cuiabá, Fortaleza, Goiás, Juventude, Londrina, Náutico, Novorizontino, Operário-PR, Ponte Preta, São Bernardo, Sport, Vila Nova.
+  - **Série C (20/20)**: Amazonas FC, Anápolis, Barra-SC, Botafogo-PB, Brusque, Caxias, Confiança, Ferroviária, Figueirense, Floresta, Guarani, Inter de Limeira, Itabaiana, Ituano, Maranhão, Maringá, Paysandu, Santa Cruz, Volta Redonda, Ypiranga-RS.
+  - **Paulistão (16/16) & Destaques de Série D e Regionais**: Portuguesa, Bangu, Paraná Clube, Joinville, Treze, Campinense, ABC, América-RN, CSA, Sampaio Corrêa, Brasiliense, Gama, Ferroviário-CE, Tombense, Moto Club, Água Santa, Velo Clube, Brasil de Pelotas, Pelotas, Marcílio Dias, Retrô, entre outros.
+- **Normalização e Qualidade Sonora Broadcast**:
+  - Todos os cantos foram processados e masterizados com filtro EBU R128 (`loudnorm=I=-16:TP=-1.5:LRA=11`), taxa de 128 kbps e transições suaves de fade-in (0.5s) e fade-out (1.5s), garantindo áudio encorpado sem estalos ou distorções.
+  - Mais de 295 arquivos MP3 organizados nas pastas `sounds/crowd/bra_a/`, `sounds/crowd/bra_b/`, `sounds/crowd/bra_c/`, `sounds/crowd/bra_d/` e replicados para `sounds/crowd/bra_estaduais/`.
+
+### 📢 2. Novo Banco de Efeitos Sonoros Oficiais de Partida (SFX)
+- **8 Efeitos Sonoros de Estádio e Arbitragem Profissional**:
+  - `whistle_start.mp3`: Apito inicial e reinício de etapas pelo árbitro (silvo curto e incisivo seguido de longo).
+  - `whistle_foul.mp3`: Apito curto de falta assinalada interrompendo a jogada.
+  - `whistle_card.mp3`: Apito enfático e agudo para cartões amarelos e expulsões.
+  - `whistle_halftime.mp3`: Dois silvos longos marcando o encerramento do primeiro tempo regulamentar.
+  - `whistle_end.mp3`: Três silvos característicos encerrando a partida.
+  - `goal_celebration.mp3`: Explosão ensurdecedora da torcida comemorando o gol.
+  - `goal_post.mp3`: Impacto metálico característico da bola explodindo no travessão ou na trave.
+  - `crowd_gasp.mp3`: Suspiro e espanto coletivo da arquibancada em chutes que raspam a trave e lances de quase gol.
+  - `ambient_default.mp3`: Caldeirão ambiente neutro contínuo para qualquer clube sem canto individual cadastrado.
+
+### ⚙️ 3. Aprimoramento do Motor Central de Áudio (`js/core/audio_engine.js`)
+- **Fila Progressiva de Reprodução & Tolerância a Falhas**:
+  - `startCrowdAmbient()` reestruturada com fila sequencial inteligente: tenta primeiro a pasta da competição ativa, faz varredura transversal em todas as séries brasileiras, testa todos os apelidos/aliases conhecidos do clube, recai sobre o caldeirão neutro e, caso o dispositivo esteja 100% offline sem arquivos locais, aciona o drone procedural Web Audio sem silêncio indesejado.
+- **Integração Plena no `js/game.js`**:
+  - `playWhistleSound()` e `playCheerSound()` agora priorizam o canal de áudio master `window.afmAudio`, sincronizando perfeitamente gols, acréscimos, intervalo, faltas e fim de jogo.
+  - Atualização completa do catálogo `sounds/sounds_manifest.json` com versão 1.1.0 e mapeamento de todos os clubes.
+
+---
+
 ## [3.9.16] - 2026-10-20 (Correção do Retorno ao Menu Principal ao Sair & Blindagem da Tela de Escolha de Times e Saves)
 
 ### 🚪 1. Resolução Definitiva da Ação de Sair do Jogo
