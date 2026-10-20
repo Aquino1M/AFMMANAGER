@@ -301,11 +301,6 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
         <div class="fifa-mini-card-name">
           ${esc(shortName)}
         </div>
-        ${curRoleDef?.name ? `
-          <div class="fifa-mini-card-role" title="Função: ${esc(curRoleDef.name)}" style="font-size:7.5px;font-weight:900;color:#38bdf8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin-top:1px;line-height:1;background:rgba(15,23,42,0.85);border-radius:3px;padding:1px 3px;border:1px solid rgba(56,189,248,0.3)">
-            ${esc(curRoleDef.name)}
-          </div>
-        ` : ''}
         ${isHalftime ? `
           <div class="fifa-mini-card-stamina" title="Energia: ${stamina}%">
             <div class="fifa-mini-card-stamina-fill ${staminaClass}" style="width:${stamina}%"></div>
@@ -446,67 +441,67 @@ const POSITIONS=['GK','GK','RB','CB','CB','CB','LB','DM','DM','CM','CM','AM','RW
 
 const FORMATIONS={
  '4-3-3':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'CM',x:27,y:49,g:'mid'},{r:'DM',x:50,y:56,g:'mid'},{r:'CM',x:73,y:49,g:'mid'},
   {r:'LW',x:18,y:23,g:'atk'},{r:'ST',x:50,y:15,g:'atk'},{r:'RW',x:82,y:23,g:'atk'}],
  '4-3-3 Holding':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'DM',x:36,y:57,g:'mid'},{r:'DM',x:64,y:57,g:'mid'},{r:'AM',x:50,y:40,g:'mid'},
   {r:'LW',x:18,y:22,g:'atk'},{r:'ST',x:50,y:15,g:'atk'},{r:'RW',x:82,y:22,g:'atk'}],
  '4-2-3-1':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'DM',x:37,y:55,g:'mid'},{r:'DM',x:63,y:55,g:'mid'},{r:'LW',x:18,y:35,g:'mid'},{r:'AM',x:50,y:36,g:'mid'},{r:'RW',x:82,y:35,g:'mid'},{r:'ST',x:50,y:14,g:'atk'}],
  '4-4-2':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'LW',x:14,y:45,g:'mid'},{r:'CM',x:39,y:49,g:'mid'},{r:'CM',x:61,y:49,g:'mid'},{r:'RW',x:86,y:45,g:'mid'},{r:'ST',x:38,y:18,g:'atk'},{r:'ST',x:62,y:18,g:'atk'}],
  '4-4-1-1':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'LM',x:14,y:44,g:'mid'},{r:'CM',x:38,y:48,g:'mid'},{r:'CM',x:62,y:48,g:'mid'},{r:'RM',x:86,y:44,g:'mid'},{r:'AM',x:50,y:30,g:'mid'},{r:'ST',x:50,y:15,g:'atk'}],
  '4-2-1-3':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'DM',x:37,y:56,g:'mid'},{r:'DM',x:63,y:56,g:'mid'},{r:'AM',x:50,y:38,g:'mid'},
   {r:'LW',x:18,y:20,g:'atk'},{r:'ST',x:50,y:14,g:'atk'},{r:'RW',x:82,y:20,g:'atk'}],
  '4-2-2-2':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'DM',x:38,y:57,g:'mid'},{r:'DM',x:62,y:57,g:'mid'},{r:'AM',x:28,y:37,g:'mid'},{r:'AM',x:72,y:37,g:'mid'},
   {r:'ST',x:38,y:17,g:'atk'},{r:'ST',x:62,y:17,g:'atk'}],
  '4-3-2-1':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'CM',x:28,y:52,g:'mid'},{r:'DM',x:50,y:56,g:'mid'},{r:'CM',x:72,y:52,g:'mid'},
   {r:'AM',x:34,y:33,g:'mid'},{r:'AM',x:66,y:33,g:'mid'},{r:'ST',x:50,y:15,g:'atk'}],
  '4-3-1-2':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'CM',x:28,y:52,g:'mid'},{r:'DM',x:50,y:56,g:'mid'},{r:'CM',x:72,y:52,g:'mid'},{r:'AM',x:50,y:35,g:'mid'},
   {r:'ST',x:38,y:17,g:'atk'},{r:'ST',x:62,y:17,g:'atk'}],
  '4-1-2-1-2':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'DM',x:50,y:58,g:'mid'},{r:'LM',x:22,y:46,g:'mid'},{r:'RM',x:78,y:46,g:'mid'},{r:'AM',x:50,y:34,g:'mid'},
   {r:'ST',x:38,y:16,g:'atk'},{r:'ST',x:62,y:16,g:'atk'}],
  '4-1-4-1':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'DM',x:50,y:58,g:'mid'},{r:'LM',x:14,y:40,g:'mid'},{r:'CM',x:38,y:42,g:'mid'},{r:'CM',x:62,y:42,g:'mid'},{r:'RM',x:86,y:40,g:'mid'},{r:'ST',x:50,y:16,g:'atk'}],
  '4-5-1':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:14,y:70,g:'def'},{r:'CB',x:38,y:73,g:'def'},{r:'CB',x:62,y:73,g:'def'},{r:'RB',x:86,y:70,g:'def'},
   {r:'DM',x:38,y:55,g:'mid'},{r:'DM',x:62,y:55,g:'mid'},{r:'LM',x:14,y:38,g:'mid'},{r:'AM',x:50,y:34,g:'mid'},{r:'RM',x:86,y:38,g:'mid'},{r:'ST',x:50,y:15,g:'atk'}],
  '5-3-2':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:8,y:68,g:'def'},{r:'CB',x:29,y:73,g:'def'},{r:'CB',x:50,y:76,g:'def'},{r:'CB',x:71,y:73,g:'def'},{r:'RB',x:92,y:68,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:8,y:68,g:'def'},{r:'CB',x:29,y:73,g:'def'},{r:'CB',x:50,y:76,g:'def'},{r:'CB',x:71,y:73,g:'def'},{r:'RB',x:92,y:68,g:'def'},
   {r:'CM',x:28,y:48,g:'mid'},{r:'DM',x:50,y:55,g:'mid'},{r:'CM',x:72,y:48,g:'mid'},{r:'ST',x:38,y:18,g:'atk'},{r:'ST',x:62,y:18,g:'atk'}],
  '5-2-1-2':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:8,y:68,g:'def'},{r:'CB',x:29,y:73,g:'def'},{r:'CB',x:50,y:76,g:'def'},{r:'CB',x:71,y:73,g:'def'},{r:'RB',x:92,y:68,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:8,y:68,g:'def'},{r:'CB',x:29,y:73,g:'def'},{r:'CB',x:50,y:76,g:'def'},{r:'CB',x:71,y:73,g:'def'},{r:'RB',x:92,y:68,g:'def'},
   {r:'CM',x:38,y:52,g:'mid'},{r:'CM',x:62,y:52,g:'mid'},{r:'AM',x:50,y:35,g:'mid'},{r:'ST',x:38,y:17,g:'atk'},{r:'ST',x:62,y:17,g:'atk'}],
  '5-2-3':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'LB',x:8,y:68,g:'def'},{r:'CB',x:29,y:73,g:'def'},{r:'CB',x:50,y:76,g:'def'},{r:'CB',x:71,y:73,g:'def'},{r:'RB',x:92,y:68,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'LB',x:8,y:68,g:'def'},{r:'CB',x:29,y:73,g:'def'},{r:'CB',x:50,y:76,g:'def'},{r:'CB',x:71,y:73,g:'def'},{r:'RB',x:92,y:68,g:'def'},
   {r:'CM',x:38,y:52,g:'mid'},{r:'CM',x:62,y:52,g:'mid'},{r:'LW',x:18,y:22,g:'atk'},{r:'ST',x:50,y:15,g:'atk'},{r:'RW',x:82,y:22,g:'atk'}],
  '3-5-2':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'CB',x:25,y:70,g:'def'},{r:'CB',x:50,y:74,g:'def'},{r:'CB',x:75,y:70,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'CB',x:25,y:70,g:'def'},{r:'CB',x:50,y:74,g:'def'},{r:'CB',x:75,y:70,g:'def'},
   {r:'LW',x:10,y:48,g:'mid'},{r:'CM',x:35,y:50,g:'mid'},{r:'DM',x:50,y:58,g:'mid'},{r:'CM',x:65,y:50,g:'mid'},{r:'RW',x:90,y:48,g:'mid'},
   {r:'ST',x:38,y:18,g:'atk'},{r:'ST',x:62,y:18,g:'atk'}],
  '3-4-2-1':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'CB',x:25,y:72,g:'def'},{r:'CB',x:50,y:75,g:'def'},{r:'CB',x:75,y:72,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'CB',x:25,y:72,g:'def'},{r:'CB',x:50,y:75,g:'def'},{r:'CB',x:75,y:72,g:'def'},
   {r:'LM',x:12,y:50,g:'mid'},{r:'CM',x:38,y:52,g:'mid'},{r:'CM',x:62,y:52,g:'mid'},{r:'RM',x:88,y:50,g:'mid'},
   {r:'AM',x:34,y:30,g:'mid'},{r:'AM',x:66,y:30,g:'mid'},{r:'ST',x:50,y:15,g:'atk'}],
  '3-4-3':[
-  {r:'GK',x:50,y:89,g:'def'},{r:'CB',x:25,y:72,g:'def'},{r:'CB',x:50,y:75,g:'def'},{r:'CB',x:75,y:72,g:'def'},
+  {r:'GK',x:50,y:81.5,g:'def'},{r:'CB',x:25,y:72,g:'def'},{r:'CB',x:50,y:75,g:'def'},{r:'CB',x:75,y:72,g:'def'},
   {r:'LM',x:12,y:48,g:'mid'},{r:'CM',x:38,y:50,g:'mid'},{r:'CM',x:62,y:50,g:'mid'},{r:'RM',x:88,y:48,g:'mid'},
   {r:'LW',x:18,y:22,g:'atk'},{r:'ST',x:50,y:15,g:'atk'},{r:'RW',x:82,y:22,g:'atk'}]
 };
@@ -5823,6 +5818,9 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   const userGoals = norm(fixture.home) === norm(state.club) ? hg : ag;
   const events = simulateUserGoalEvents(state.club, userGoals);
   addPlayerMatchStats('bra-cup', state.club, events);
+  if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
+    window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: fixture.home, a: fixture.away, hg, ag, gf: userGoals, ga: (norm(fixture.home) === norm(state.club) ? ag : hg), won: userWon, events });
+  }
   const result = { h: fixture.home, a: fixture.away, hg, ag, winner, events, round: phase.name, season: Number(state.season), date: state.date, competitionId: 'bra-cup', competitionName: 'Copa do Brasil' };
   state.history = [result, ...(state.history || [])].slice(0, 100);
   fixture.played = true;
@@ -8993,6 +8991,41 @@ function formatPedestalRole(role) {
 }
 window.formatPedestalRole = formatPedestalRole;
 
+
+function formatTacticalPedestalRole(posRole, roleDef) {
+  const pos = formatPedestalRole(posRole);
+  const rName = roleDef?.name || roleDef?.role || '';
+  let clean = rName
+    .split('/')[0]
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/^Goleiro\s+/i, '')
+    .replace(/^Zagueiro\s+/i, '')
+    .replace(/^Lateral\s+/i, '')
+    .replace(/^Meia\s+/i, '')
+    .replace(/^Atacante\s+/i, '')
+    .replace(/^Volante\s+/i, '')
+    .replace(/^Ponta\s+/i, '')
+    .replace(/^Extremo\s+/i, '')
+    .replace(/^Centroavante\s+/i, '')
+    .replace(/^Homem\s+de\s+/i, '')
+    .replace(/^Camisa\s+10\s+/i, '')
+    .trim();
+
+  if (/Primeiro\s+Volante/i.test(rName)) clean = '1º Volante';
+  else if (/Ponta\s+Agudo/i.test(rName)) clean = 'Ponta Agudo';
+  else if (/Box-to-Box/i.test(rName)) clean = 'Box-to-Box';
+  else if (/Falso\s+Nove/i.test(rName)) clean = 'Falso 9';
+  else if (/Centroavante\s+Alvo/i.test(rName)) clean = 'Pivô';
+  else if (/Homem\s+de\s+Área/i.test(rName) || /Oportunista/i.test(rName)) clean = 'Área';
+  else if (/Armador\s+Recuado/i.test(rName)) clean = 'Armador Rec.';
+  else if (/Criador/i.test(rName)) clean = 'Armador';
+  else if (/Shadow\s+Striker/i.test(rName)) clean = '2º Atacante';
+
+  if (!clean) clean = pos;
+  return { pos, shortName: clean, fullName: rName || pos };
+}
+window.formatTacticalPedestalRole = formatTacticalPedestalRole;
+
 function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts = {}){
   const formSlots = FORMATIONS[formationName] || FORMATIONS['4-3-3'];
   const isHalftime = !!opts.isHalftime;
@@ -9096,42 +9129,6 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
       </div>
     </div>
 
-    <!-- HUD Superior Direito: Jogador Inspecionado / Destaque -->
-    <div class="fut-pitch-hud-right">
-      <div class="fut-hud-player-summary">
-        <div class="hud-player-photo-box">
-          <img src="${inspectPhoto}" class="hud-player-thumb" loading="lazy" onerror="this.onerror=null;this.src='${fallbackUrl}';"/>
-        </div>
-        <div class="hud-player-data">
-          <div class="hud-player-name">${esc(inspectShortName)}</div>
-          <div class="hud-player-meta">
-            <span class="hud-player-ovr">${inspectOvr}</span>
-            <span class="hud-player-pos">${esc(inspectPos)}</span>
-            <span class="hud-player-chem">◆ ◆ ◆</span>
-          </div>
-          ${(() => {
-            const inspectPk = inspectPlayer ? (opts.isHalftime && inspectPlayer.key ? inspectPlayer.key : (typeof playerKey === 'function' ? playerKey(inspectPlayer) : (inspectPlayer.id || inspectPlayer.name))) : '';
-            const inspectSavedRole = (inspectPk && state?.tactics?.playerRoles?.[inspectPk]?.roleId) || (inspectPlayer?.name && state?.tactics?.playerRoles?.[inspectPlayer.name]?.roleId);
-            const inspectRoleDef = getPlayerRoleDef(inspectSlotRole, inspectSavedRole);
-            const inspectFocus = (inspectPk && state?.tactics?.playerRoles?.[inspectPk]?.focus) || inspectRoleDef.focus || 'Balanced';
-            return `
-              <div style="margin-top:3px;display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-                <span class="pill" style="font-size:9px;background:rgba(56,189,248,0.2);color:#38bdf8;padding:1px 6px;border:1px solid rgba(56,189,248,0.4)" title="Função Tática Atribuída">🎯 ${esc(inspectRoleDef.name || inspectSlotRole)}</span>
-                <span class="pill" style="font-size:9px;background:rgba(192,132,252,0.2);color:#c084fc;padding:1px 5px" title="Foco Tático">${esc(inspectFocus)}</span>
-              </div>
-              ${inspectPlayer ? `
-                <div style="margin-top:4px">
-                  <button type="button" class="btn btn-sm btnChangePlayerPosPitch" onclick="openPlayerChangePositionModal('${esc(inspectPk)}')" style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:4px;background:#1e1838;color:#c084fc;border:1px solid rgba(192,132,252,0.4);cursor:pointer;display:inline-flex;align-items:center;gap:3px" title="Personalizar posição oficial de ${esc(inspectShortName)}">
-                    <span>✏️ Mudar Posição</span>
-                  </button>
-                </div>
-              ` : ''}
-            `;
-          })()}
-        </div>
-      </div>
-    </div>
-
     <!-- Slots dos Jogadores no Gramado -->
     ${formSlots.map((slot, idx) => {
       const p = starters[idx] || null;
@@ -9171,18 +9168,27 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
             <span class="tb tb-br"></span>
           </div>
           <!-- Pedestal Oval com Posição, Função Tática e Diamantes de Entrosamento -->
-          <div class="pitch-slot-pedestal ${isSelected ? 'selected' : ''}" style="min-width:76px;padding:3px 6px">
-            <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1;margin-bottom:2px">
-              <span class="pedestal-role" style="font-size:9.5px;max-width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(pedestalRole)} · ${esc(slotRoleDef.name || '')}">
-                ${esc(pedestalRole)}${slotRoleDef.name ? ` · <b style="color:#38bdf8;font-size:8.5px">${esc(slotRoleDef.name)}</b>` : ''}
-              </span>
-              <span class="pedestal-focus" style="font-size:7.5px;color:#c084fc;font-weight:800;letter-spacing:0.3px">${esc(slotFocus)}</span>
-            </div>
-            <div class="pedestal-chem" title="Entrosamento: ${chemScore}/3">
-              <span class="chem-diamond ${chemScore >= 1 ? 'active' : ''}">◆</span>
-              <span class="chem-diamond ${chemScore >= 2 ? 'active' : ''}">◆</span>
-              <span class="chem-diamond ${chemScore >= 3 ? 'active' : ''}">◆</span>
-            </div>
+          <div class="pitch-slot-pedestal ${isSelected ? 'selected' : ''}">
+            ${(() => {
+              const roleInfo = formatTacticalPedestalRole(slotRole, slotRoleDef);
+              return `
+                <div style="display:flex;flex-direction:column;align-items:center;line-height:1.15;gap:1px;">
+                  <div class="pedestal-role-line" title="${esc(roleInfo.pos)} • ${esc(roleInfo.fullName)}">
+                    <span style="font-size:8.5px;font-weight:900;color:#ffffff;letter-spacing:0.3px;">${esc(roleInfo.pos)}</span>
+                    <span style="color:rgba(255,255,255,0.4);font-size:7px;">•</span>
+                    <span style="font-size:8px;font-weight:800;color:#38bdf8;">${esc(roleInfo.shortName)}</span>
+                  </div>
+                  <div style="display:inline-flex;align-items:center;gap:4px;">
+                    <span class="pedestal-focus" style="font-size:7px;color:#c084fc;font-weight:800;letter-spacing:0.3px;text-transform:uppercase;">${esc(slotFocus)}</span>
+                    <div class="pedestal-chem" style="display:inline-flex;gap:1.5px;font-size:6.5px;" title="Entrosamento: ${chemScore}/3">
+                      <span class="chem-diamond ${chemScore >= 1 ? 'active' : ''}">◆</span>
+                      <span class="chem-diamond ${chemScore >= 2 ? 'active' : ''}">◆</span>
+                      <span class="chem-diamond ${chemScore >= 3 ? 'active' : ''}">◆</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            })()}
           </div>
         </div>
       `;
@@ -10545,7 +10551,7 @@ function openClubInfoModal(clubName){
                 <td><b>${esc(p.name)}</b></td>
                 <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
                 <td>${p.age||23} anos</td>
-                <td><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                <td><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span>${window.AFM_PlayerXPEvolution ? window.AFM_PlayerXPEvolution.renderMiniXPBar(p) : ''}</div></td>
                 <td style="color:#22c55e;font-weight:700">R$ ${playerSalary(p).toLocaleString('pt-BR')}</td>
               </tr>
             `).join('')}
@@ -13857,6 +13863,9 @@ function processFitness(){
 }
 
 function processDevelopment(){
+  if(window.AFM_PlayerXPEvolution && typeof window.AFM_PlayerXPEvolution.processMonthlyTrainingXP === 'function'){
+    window.AFM_PlayerXPEvolution.processMonthlyTrainingXP(state);
+  }
   if(state.round%4!==0)return;
   const lvl=state.infrastructure?.training?.level||1;
   const starters = new Set(state.lineup || []);
@@ -14083,6 +14092,9 @@ function finalizeRound(userRes, winners, isKO){
   state.balance -= mktWeeklyExp;
   state.expense += mktWeeklyExp;
   applyMatchIncidents(state.lastMatchSummary || null);
+  if(userRes && window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
+    window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: userRes.h, a: userRes.a, hg: userRes.hg, ag: userRes.ag, gf, ga, won: win, events: userRes.events });
+  }
   if(typeof processFitness === 'function') processFitness();
   if(typeof processDevelopment === 'function') processDevelopment();
   processYouthDevelopment();
@@ -15690,6 +15702,9 @@ function simulateQuickStateLeagueRound(competitionId, roundIndex){
   const userGoals = isHome ? uHg : uAg;
   const events = simulateUserGoalEvents(state.club, userGoals);
   addPlayerMatchStats(competitionId, state.club, events);
+  if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
+    window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: home, a: away, hg: uHg, ag: uAg, gf: userGoals, ga, won: gf > ga, events });
+  }
 
   if(isHome){
     const att = (typeof calcAttendance === 'function') ? calcAttendance(data.name || 'Estadual') : { revenue: 150000 };
@@ -19731,9 +19746,14 @@ function finalizeMatchRound(){
     }
     advanceDateAfterMatch(state);
     restorePrimaryLeagueAfterStateMatch();
+    if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
+      window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: userRes.h, a: userRes.a, hg: userRes.hg, ag: userRes.ag, gf, ga, won: gf > ga, events: userRes.events });
+    }
     if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
       window.AFM_LifeAndSharesPro.processRoundTurn(state);
     }
+    if(typeof processFitness === 'function') processFitness();
+    if(typeof processDevelopment === 'function') processDevelopment();
   } else if(finishingContinentalMatch){
     const session = continentalMatchSession;
     const { tournament, matchId, compName, competitionId } = session;
@@ -19753,6 +19773,9 @@ function finalizeMatchRound(){
       };
       state.history = [historyItem, ...(state.history || [])].slice(0, 100);
       state.lastMatchSummary = { h: match.home, a: match.away, hg: s.hg, ag: s.ag, isHome, won };
+      if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
+        window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: match.home, a: match.away, hg: s.hg, ag: s.ag, gf: userGoals, ga: oppGoals, won, events });
+      }
       state.news = state.news || [];
       state.news.unshift(`🏆 ${compName}: ${match.home} ${s.hg} x ${s.ag} ${match.away} (Rodada ${match.round}).`);
 
@@ -19785,6 +19808,9 @@ function finalizeMatchRound(){
     const result = { h: fixture.home, a: fixture.away, hg: s.hg, ag: s.ag, winner, events, round: phase.name, season: Number(state.season), date: state.date, competitionId: 'bra-cup', competitionName: 'Copa do Brasil' };
     state.history = [result, ...(state.history || [])].slice(0, 100);
     state.lastMatchSummary = { h: fixture.home, a: fixture.away, hg: s.hg, ag: s.ag, isHome, won: norm(winner) === norm(state.club) };
+    if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
+      window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: fixture.home, a: fixture.away, hg: s.hg, ag: s.ag, gf: userGoals, ga: oppGoals, won: norm(winner) === norm(state.club), events });
+    }
     state.news = state.news || [];
     state.news.unshift(`🏆 Copa do Brasil (${phase.name}): ${fixture.home} ${s.hg} x ${s.ag} ${fixture.away}. ${norm(winner) === norm(state.club) ? 'Classificado.' : 'Eliminado.'}`);
     if(norm(winner) !== norm(state.club)){
@@ -23333,6 +23359,758 @@ function render() {
 }
 
 
+function closeMatchActionModal(){
+  const m = document.getElementById('appMatchActionModal');
+  if(m) m.remove();
+}
+window.closeMatchActionModal = closeMatchActionModal;
+
+function handleExitGameAction(){
+  openCustomModal(
+    'Sair para o Menu Principal',
+    '<div style="text-align:center;padding:10px 0;">' +
+      '<div style="font-size:36px;margin-bottom:8px">💾</div>' +
+      '<p style="font-size:14px;color:#fff;font-weight:700;margin:0 0 6px 0;">Deseja sair para o Menu Inicial?</p>' +
+      '<p style="font-size:12px;color:rgba(255,255,255,0.7);margin:0;">Seu jogo será <b>salvo automaticamente</b> na sua conta antes de sair.</p>' +
+    '</div>',
+    ()=>{
+      if (typeof save === 'function') save();
+      state = null;
+      if (typeof render === 'function') render();
+      if (typeof toast === 'function') toast('💾 Jogo salvo automaticamente com sucesso! Até logo.');
+    },
+    'Sim, Salvar e Sair',
+    true
+  );
+}
+window.handleExitGameAction = handleExitGameAction;
+
+
+
+function openMatchActionModal(){
+  if(!state) return;
+  closeMatchActionModal();
+
+  const matchGate = (typeof canStartMatch === 'function') ? canStartMatch(null, state) : { canStart: false };
+  if(matchGate.status === 'season_finished'){
+    if(typeof showEndOfSeasonModal === 'function') showEndOfSeasonModal();
+    return;
+  }
+  if(matchGate.status === 'other_competitions_pending'){
+    if(typeof openNextPendingCompetitionFixture === 'function'){
+      openNextPendingCompetitionFixture(matchGate.nextFixture || (typeof getNextPendingClubFixture === 'function' ? getNextPendingClubFixture(state) : null));
+      return;
+    }
+  }
+
+  const activeMatch = (typeof getActualCurrentMatch === 'function') ? getActualCurrentMatch(state) : null;
+  const f = activeMatch ? activeMatch.fixture : (typeof userFixture === 'function' ? userFixture() : null);
+  const oppFallback = state.teams?.find(t => norm(t.name) !== norm(state.club))?.name || (norm(state.club)==='brasilia'?'Gama':'Brasília');
+  const opp = activeMatch ? activeMatch.opponent : (f ? (norm(f[0])===norm(state.club) ? f[1] : f[0]) : oppFallback);
+  const isHome = activeMatch ? activeMatch.isHome : (f ? norm(f[0])===norm(state.club) : true);
+  const home = isHome ? state.club : opp;
+  const away = isHome ? opp : state.club;
+  const comp = typeof curComp === 'function' ? curComp() : null;
+  const displayCompName = activeMatch?.competitionName || comp?.name || state.competition || 'Campeonato';
+  const displayRoundLabel = activeMatch?.roundLabel || ('Rodada ' + ((state.round || 0) + 1));
+  const our = typeof overallSquad === 'function' ? overallSquad() : 70;
+  const oppStr = opp && typeof teamStrengthByName === 'function' ? teamStrengthByName(opp) : 65;
+  const matchDate = activeMatch ? activeMatch.date : (typeof getDateForRound === 'function' ? getDateForRound(state.round || 0, state.season || 2026) : state.date);
+  const isMatchDay = state.date === matchDate || Boolean(matchGate.canStart);
+
+  const clubObj = (typeof clubByName === 'function' ? clubByName(state.club) : null) || { stadium: 'Estádio Principal' };
+  const oppObj = opp && typeof clubByName === 'function' ? clubByName(opp) : null;
+  const stadiumName = isHome ? (clubObj.stadium || 'Estádio Principal') : (oppObj?.stadium || 'Estádio Adversário');
+  const weather = (typeof getMatchWeather === 'function') ? getMatchWeather(state.date, state.round || 0) : { icon: '☀️', condition: 'Tempo Aberto', temp: 24, impact: 'Gramado Perfeito', drain: 1.0 };
+  const h2h = (typeof getHeadToHeadRecord === 'function') ? getHeadToHeadRecord(state.club, opp) : { winsA: 0, draws: 0, winsB: 0, total: 0 };
+  const caldeirao = (typeof getCaldeiraoData === 'function') ? getCaldeiraoData() : { caldeiraoPercent: 15 };
+
+  // Standings / Position
+  let myPos = 1;
+  let totalInTable = 20;
+  if(Array.isArray(state.teams) && state.teams.length > 0){
+    const sorted = state.teams.slice().sort((a,b) => b.p - a.p || b.sg - a.sg || b.gp - a.gp);
+    myPos = (sorted.findIndex(t => norm(t.name) === norm(state.club)) + 1) || 1;
+    totalInTable = state.teams.length;
+  } else if(typeof position === 'function'){
+    myPos = position() || 1;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay afm-match-action-modal-overlay';
+  overlay.id = 'appMatchActionModal';
+
+  overlay.innerHTML = `
+    <div class="modal afm-match-action-modal" style="max-width:660px;width:95%;padding:22px;background:#0d1117;border:1px solid rgba(168,85,247,0.4);border-radius:20px;box-shadow:0 16px 50px rgba(0,0,0,0.9);position:relative;">
+      <!-- Header do Modal -->
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:24px">🏆</span>
+          <div>
+            <div style="font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px;">${esc(displayCompName)}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6);">${esc(displayRoundLabel)} · Data do Jogo: ${formatDatePtBr(matchDate)}</div>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" id="btnMatchModalClose" title="Fechar" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:16px;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+
+      <!-- Barra de Clima e Gramado -->
+      <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:11px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:15px">${weather.icon}</span>
+          <span style="color:#e2e8f0;font-weight:700;">Clima: ${esc(weather.condition)} (${weather.temp}°C)</span>
+        </div>
+        <span style="color:${weather.drain > 1.1 ? '#f87171' : '#94a3b8'};font-size:10px;font-weight:700;">${esc(weather.impact)}</span>
+      </div>
+
+      <!-- Pitch do Confronto Estilo Soccer Manager 2027 -->
+      <div class="sm-hero-match-pitch" style="padding:16px;margin:0 0 12px 0;border-radius:14px;background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(124,58,237,0.08));border:1px solid rgba(255,255,255,0.1);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:240px;justify-content:center;">
+            <!-- Mandante -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:95px;text-align:center;">
+              ${typeof clubBadge === 'function' ? clubBadge(home, 50) : ''}
+              <div style="font-size:12px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:95px;">
+                ${esc(home)}
+              </div>
+            </div>
+
+            <!-- Overall Mandante -->
+            <div class="sm-ovr-circle" style="border-color:${isHome ? '#a855f7' : '#38bdf8'};color:#fff;width:38px;height:38px;font-size:15px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:2px solid;font-weight:900;background:rgba(0,0,0,0.4);" title="Força do Mandante">
+              ${isHome ? our : oppStr}
+            </div>
+
+            <div style="font-size:18px;font-weight:900;color:rgba(255,255,255,0.4);">-</div>
+
+            <!-- Overall Visitante -->
+            <div class="sm-ovr-circle" style="border-color:${!isHome ? '#a855f7' : '#38bdf8'};color:#fff;width:38px;height:38px;font-size:15px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:2px solid;font-weight:900;background:rgba(0,0,0,0.4);" title="Força do Visitante">
+              ${!isHome ? our : oppStr}
+            </div>
+
+            <!-- Visitante -->
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:95px;text-align:center;">
+              ${typeof clubBadge === 'function' ? clubBadge(away, 50) : ''}
+              <div style="font-size:12px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:95px;">
+                ${esc(away)}
+              </div>
+            </div>
+          </div>
+
+          <!-- Botão Lateral: Meu Time & Tática (Unificado) -->
+          <div style="display:flex;align-items:center;justify-content:center;">
+            <button type="button" class="btn" id="btnMatchModalTactics" title="Abrir Meu Time & Tática" style="padding:8px 16px;font-size:12px;font-weight:900;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:all 0.2s ease;">
+              <span>📋</span> Meu Time & Tática
+            </button>
+          </div>
+        </div>
+
+        <!-- Metadados da Partida -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:rgba(255,255,255,0.7);flex-wrap:wrap;gap:6px;">
+          <span class="pill" style="font-size:10px;font-weight:800;background:rgba(16,185,129,0.2);color:#34d399;border:1px solid rgba(16,185,129,0.4);">
+            🏆 ${esc(displayCompName)}
+          </span>
+          <span>📅 ${formatDatePtBr(matchDate)}</span>
+          <span>⏰ 15:00 Pontapé de saída</span>
+          <span>🏟️ ${esc(stadiumName)}</span>
+        </div>
+      </div>
+
+      <!-- Histórico Direto -->
+      <div style="background:#141122;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:7px 12px;text-align:center;font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:10px;">
+        ⚔️ Histórico Direto: <b style="color:#22c55e">${h2h.winsA}V</b> · <b style="color:#94a3b8">${h2h.draws}E</b> · <b style="color:#ef4444">${h2h.winsB}D</b> <span class="muted">(${h2h.total} jogos)</span>
+      </div>
+
+      <!-- Caldeirão & Tabela -->
+      <div style="display:flex;justify-content:space-around;gap:8px;font-size:11px;color:rgba(255,255,255,0.6);text-align:center;margin:8px 0 12px 0;">
+        <div>🔥 <b>CALDEIRÃO (+${caldeirao.caldeiraoPercent}%)</b></div>
+        <div>📊 <b>NA TABELA:</b> ${myPos}º de ${totalInTable}</div>
+      </div>
+
+      <!-- Escalação e Mentalidade Rápida -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+        <div style="background:#161324;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 12px;">
+          <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4);">ESCALAÇÃO</div>
+          <div style="font-size:13px;font-weight:900;color:#fff;margin-top:2px;">${esc(state.formation || '4-3-3')} &gt;</div>
+        </div>
+        <div style="background:#161324;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 12px;">
+          <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4);">MENTALIDADE</div>
+          <select id="matchModalMental" style="background:transparent;border:none;color:#fff;font-size:12px;font-weight:900;width:100%;cursor:pointer;">
+            ${['Retranca','Defensiva','Equilibrada','Ofensiva','Pressão total'].map(x=>`<option value="${x}" ${state.mentality===x?'selected':''}>${x}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <!-- Banner de Dia de Jogo -->
+      <div style="background:${isMatchDay ? 'rgba(34,197,94,0.15)' : 'rgba(56,189,248,0.15)'};border:1px solid ${isMatchDay ? '#22c55e' : '#38bdf8'};border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <span style="font-size:11px;color:${isMatchDay ? '#86efac' : '#bae6fd'};font-weight:900;">
+          ${isMatchDay ? ('🔥 HOJE É DIA DE JOGO: ' + esc(displayCompName).toUpperCase() + '!') : ('📅 CONFRONTO CONFIRMADO: ' + esc(displayCompName).toUpperCase() + '!')}
+        </span>
+        <span style="font-size:11px;color:${isMatchDay ? '#22c55e' : '#38bdf8'};font-weight:800;">${formatDatePtBr(state.date)}</span>
+      </div>
+
+      <!-- OS 3 BOTÕES DE AÇÃO: JOGAR AO VIVO, SIMULAR, PRÉVIA -->
+      <div style="display:grid;grid-template-columns:2fr 1.2fr 1fr;gap:8px;">
+        <button type="button" class="btn primary" id="btnMatchModalPlayLive" style="padding:14px 10px;font-size:14px;font-weight:900;letter-spacing:0.5px;background:linear-gradient(135deg, #7c3aed, #9333ea);border:none;border-radius:12px;box-shadow:0 6px 18px rgba(124,58,237,0.4);color:#fff;cursor:pointer;">
+          ▶ JOGAR AO VIVO
+        </button>
+        <button type="button" class="btn" id="btnMatchModalSimulate" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:12px;color:#fff;cursor:pointer;">
+          ⚡ SIMULAR
+        </button>
+        <button type="button" class="btn" id="btnMatchModalPreview" style="padding:14px 6px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:12px;color:#fff;cursor:pointer;">
+          📋 PRÉVIA
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Bind dos eventos do modal
+  overlay.onclick = (e) => {
+    if(e.target === overlay) closeMatchActionModal();
+  };
+  const bClose = overlay.querySelector('#btnMatchModalClose');
+  if(bClose) bClose.onclick = closeMatchActionModal;
+
+  const bSquad = overlay.querySelector('#btnMatchModalSquad');
+  if(bSquad) bSquad.onclick = () => {
+    closeMatchActionModal();
+    view = 'elenco';
+    render();
+  };
+
+  const bTactics = overlay.querySelector('#btnMatchModalTactics');
+  if(bTactics) bTactics.onclick = () => {
+    closeMatchActionModal();
+    view = 'meutime';
+    render();
+  };
+
+  const selMental = overlay.querySelector('#matchModalMental');
+  if(selMental) selMental.onchange = () => {
+    state.mentality = selMental.value;
+    if(typeof save === 'function') save();
+    if(typeof toast === 'function') toast('Mentalidade tática atualizada.');
+  };
+
+  const bLive = overlay.querySelector('#btnMatchModalPlayLive');
+  if(bLive) bLive.onclick = () => {
+    closeMatchActionModal();
+    if(typeof startLiveMatch === 'function') startLiveMatch();
+  };
+
+  const bSim = overlay.querySelector('#btnMatchModalSimulate');
+  if(bSim) bSim.onclick = () => {
+    closeMatchActionModal();
+    if(typeof simulateQuickRound === 'function') simulateQuickRound();
+  };
+
+  const bPrev = overlay.querySelector('#btnMatchModalPreview');
+  if(bPrev) bPrev.onclick = () => {
+    closeMatchActionModal();
+    if(typeof openMatchPreviewModal === 'function'){
+      openMatchPreviewModal(home, away, displayCompName, matchDate);
+    } else if(typeof openClubInfoModal === 'function'){
+      openClubInfoModal(opp);
+    }
+  };
+}
+window.openMatchActionModal = openMatchActionModal;
+
+function closeStoreComingSoonModal(){
+  const m = document.getElementById('appStoreComingSoonModal');
+  if(m) m.remove();
+}
+window.closeStoreComingSoonModal = closeStoreComingSoonModal;
+
+function openStoreComingSoonModal(){
+  closeStoreComingSoonModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay afm-store-modal-overlay';
+  overlay.id = 'appStoreComingSoonModal';
+
+  overlay.innerHTML = `
+    <div class="modal afm-store-modal" style="max-width:680px;width:95%;padding:22px;background:#0d1117;border:1px solid rgba(234,179,8,0.5);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.95), 0 0 35px rgba(234,179,8,0.25);position:relative;max-height:90vh;display:flex;flex-direction:column;">
+      <!-- Header do Modal -->
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 15px rgba(245,158,11,0.4);flex-shrink:0;">
+            👑
+          </div>
+          <div>
+            <div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:8px;">
+              Loja Oficial AFM
+              <span style="font-size:11px;font-weight:800;background:linear-gradient(135deg,#eab308,#ca8a04);color:#000;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:0.8px;">Em Breve</span>
+            </div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.65);margin-top:2px;">
+              Recursos exclusivos em desenvolvimento para as próximas atualizações
+            </div>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" id="btnStoreModalClose" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:18px;border-radius:10px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s ease;">✕</button>
+      </div>
+
+      <!-- Corpo com Rolagem -->
+      <div style="overflow-y:auto;padding-right:6px;flex:1;display:flex;flex-direction:column;gap:14px;">
+        <!-- Banner Destaque Em Breve -->
+        <div style="background:linear-gradient(135deg,rgba(234,179,8,0.15) 0%,rgba(147,51,234,0.12) 100%);border:1px solid rgba(234,179,8,0.3);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;">
+          <div style="font-size:32px;flex-shrink:0;">✨</div>
+          <div style="font-size:12px;color:#f3f4f6;line-height:1.5;">
+            A <b>Loja Oficial AFM</b> está sendo preparada com itens cosméticos, personalizações e expansões temáticas para aprimorar sua experiência de gestão sem comprometer o equilíbrio competitivo!
+          </div>
+        </div>
+
+        <!-- Grade de Recursos Futuros -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">
+          <!-- Item 1: Moedas de Treinador -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:flex-start;">
+            <div style="font-size:26px;background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              🪙
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px;">
+                Moedas de Treinador
+                <span style="font-size:10px;color:#eab308;background:rgba(234,179,8,0.15);padding:1px 6px;border-radius:4px;">Coins</span>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:4px;line-height:1.4;">
+                Ganhe ao atingir conquistas e objetivos de temporada para desbloquear bônus estéticos e consultorias táticas de elite.
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 2: Kits Retrô -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:flex-start;">
+            <div style="font-size:26px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              👕
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px;">
+                Kits Retrô & Clássicos
+                <span style="font-size:10px;color:#60a5fa;background:rgba(59,130,246,0.15);padding:1px 6px;border-radius:4px;">Visual</span>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:4px;line-height:1.4;">
+                Uniformes lendários de épocas de ouro do futebol brasileiro e internacional para equipar seu clube nos gramados.
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 3: Customização de Arenas -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:flex-start;">
+            <div style="font-size:26px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              🏟️
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px;">
+                Customização de Arenas
+                <span style="font-size:10px;color:#4ade80;background:rgba(34,197,94,0.15);padding:1px 6px;border-radius:4px;">Estádio</span>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:4px;line-height:1.4;">
+                Personalize o gramado, assentos, iluminação temática e novos setores VIP para maximizar a atmosfera de caldeirão.
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 4: Olheiros VIP -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:flex-start;">
+            <div style="font-size:26px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3);border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              🕵️
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px;">
+                Rede VIP de Olheiros
+                <span style="font-size:10px;color:#c084fc;background:rgba(168,85,247,0.15);padding:1px 6px;border-radius:4px;">Mercado</span>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:4px;line-height:1.4;">
+                Relatórios aprofundados com projeção de potencial e histórico detalhado das promessas mais cobiçadas do mundo.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Garantia Fair Play -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:20px;">⚖️</span>
+          <span style="font-size:11px;color:rgba(255,255,255,0.6);line-height:1.4;">
+            <b>Compromisso 100% Fair Play:</b> O AFM é projetado com simulação justa e realista. Nenhuma microtransação oferecerá vantagens injustas (sem Pay-to-Win).
+          </span>
+        </div>
+      </div>
+
+      <!-- Rodapé -->
+      <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:14px;margin-top:14px;display:flex;justify-content:flex-end;">
+        <button type="button" class="btn primary" id="btnStoreModalUnderstood" style="background:linear-gradient(135deg,#eab308,#ca8a04);color:#000;font-weight:900;border:none;padding:10px 24px;border-radius:10px;cursor:pointer;font-size:13px;letter-spacing:0.4px;">
+          Entendido, Voltar ao Jogo
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.onclick = (e) => {
+    if(e.target === overlay) closeStoreComingSoonModal();
+  };
+  const bClose = overlay.querySelector('#btnStoreModalClose');
+  if(bClose) bClose.onclick = closeStoreComingSoonModal;
+  const bOk = overlay.querySelector('#btnStoreModalUnderstood');
+  if(bOk) bOk.onclick = closeStoreComingSoonModal;
+}
+window.openStoreComingSoonModal = openStoreComingSoonModal;
+
+function closeGameHelpTutorialModal(){
+  const m = document.getElementById('appGameHelpTutorialModal');
+  if(m) m.remove();
+}
+window.closeGameHelpTutorialModal = closeGameHelpTutorialModal;
+
+function openGameHelpTutorialModal(){
+  closeGameHelpTutorialModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay afm-help-modal-overlay';
+  overlay.id = 'appGameHelpTutorialModal';
+
+  const tabTutorialData = [
+    {
+      id: 'central',
+      icon: '⭐',
+      name: 'Perspectiva Geral',
+      tag: 'Principal',
+      desc: 'Quartel-general do clube. Resumo do próximo confronto com estádio, clima, retrospecto frente a frente (H2H), classificação rápida, saldo em caixa e atalhos prioritários.'
+    },
+    {
+      id: 'meutime',
+      icon: '📋',
+      name: 'Meu time & Tática',
+      tag: 'Tático',
+      desc: 'Prancheta tática dinâmica. Alterne formações (4-3-3, 4-4-2, 3-5-2 etc.), escale os 11 titulares e reservas, defina capitão, cobrador de faltas/pênaltis e mentalidade tática da equipe.'
+    },
+    {
+      id: 'elenco',
+      icon: '👥',
+      name: 'Elenco Oficial',
+      tag: 'Gestão',
+      desc: 'Gestão integral de atletas. Visualize Overall (OVR), idade, valor de mercado, salário, anos de contrato, moral, vigor físico, evolução por XP e controle de lesões ou suspensões.'
+    },
+    {
+      id: 'calendario',
+      icon: '🗓️',
+      name: 'Calendário de Jogos',
+      tag: 'Temporada',
+      desc: 'Linha do tempo oficial da temporada. Acompanhe todas as rodadas de todas as competições disputadas pelo clube (Estaduais, Copa Nacional, Internacionais e Liga) e janelas de transferências.'
+    },
+    {
+      id: 'mercado',
+      icon: '🔄',
+      name: 'Mercado & Transferências',
+      tag: 'Negociações',
+      desc: 'Portal de contratações do futebol mundial. Busque atletas por posição, valor ou potencial, envie propostas oficiais de compra ou empréstimo e responda a ofertas de outros clubes.'
+    },
+    {
+      id: 'carreira',
+      icon: '💼',
+      name: 'Carreira do Treinador',
+      tag: 'Currículo',
+      desc: 'Seu legado no futebol. Acompanhe seus pontos de prestígio, histórico de clubes gerenciados, títulos na carreira, nível de confiança do conselho deliberativo e desafios do Modo X1.'
+    },
+    {
+      id: 'temporada',
+      icon: '🏆',
+      name: 'Temporada & Tabelas',
+      tag: 'Competições',
+      desc: 'Tabelas de classificação em tempo real, zona de Libertadores e rebaixamento, artilharia da temporada, líderes de assistências e chaveamentos mata-mata da Copa do Brasil.'
+    },
+    {
+      id: 'estrutura',
+      icon: '🏟️',
+      name: 'Instalações & Estádio',
+      tag: 'Patrimônio',
+      desc: 'Administre sua praça esportiva. Expanda arquibancadas, cadeiras e camarotes, ajuste preços de ingressos para maximizar a bilheteria, aumente o caldeirão e modernize as instalações do CT.'
+    },
+    {
+      id: 'escritorio',
+      icon: '🏢',
+      name: 'Escritório & Finanças',
+      tag: 'Financeiro',
+      desc: 'Contabilidade e saúde financeira. Gerencie patrocínios master e secundários, acompanhe receitas e despesas com folha salarial, e mantenha as contas no azul para agradar a diretoria.'
+    },
+    {
+      id: 'noticias',
+      icon: '📰',
+      name: 'Notícias & Mídia',
+      tag: 'Imprensa',
+      desc: 'Feed de notícias esportivas. Confira repercussões dos jogos, coletivas de imprensa, análises de comentaristas, boatos quentes da janela de mercado e comunicados da federação.'
+    },
+    {
+      id: 'novidades',
+      icon: '📢',
+      name: 'Novidades & Correções',
+      tag: 'Changelog',
+      desc: 'Histórico oficial de atualizações do simulador AFM. Conheça novas funcionalidades implementadas, balanceamentos de inteligência artificial e correções de desempenho.'
+    },
+    {
+      id: 'config',
+      icon: '⚙️',
+      name: 'Configurações',
+      tag: 'Sistema',
+      desc: 'Preferências do jogo. Ative ou desative áudio e efeitos sonoros, altere temas visuais, ajuste a velocidade de simulação e faça download de backup do seu save local.'
+    }
+  ];
+
+  overlay.innerHTML = `
+    <div class="modal afm-help-modal" style="max-width:720px;width:95%;padding:22px;background:#0d1117;border:1px solid rgba(168,85,247,0.5);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.95), 0 0 35px rgba(168,85,247,0.25);position:relative;max-height:90vh;display:flex;flex-direction:column;">
+      <!-- Header do Modal -->
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#a855f7,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 15px rgba(168,85,247,0.4);flex-shrink:0;">
+            💡
+          </div>
+          <div>
+            <div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase;display:flex;align-items:center;gap:8px;">
+              Central de Ajuda & Guia Completo
+            </div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.65);margin-top:2px;">
+              Dicas estratégicas de jogo e tutorial detalhado de cada aba do simulador AFM
+            </div>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" id="btnHelpModalClose" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:18px;border-radius:10px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s ease;">✕</button>
+      </div>
+
+      <!-- Abas de Navegação do Modal -->
+      <div class="afm-help-nav-tabs">
+        <button type="button" class="afm-help-tab-btn active" id="tabBtnHelpTips">
+          <span>⚡</span> Dicas Rápidas de Mestre
+        </button>
+        <button type="button" class="afm-help-tab-btn" id="tabBtnHelpTabs">
+          <span>📖</span> Tutorial das 12 Abas
+        </button>
+      </div>
+
+      <!-- Conteúdo com Rolagem -->
+      <div style="overflow-y:auto;padding-right:6px;flex:1;">
+        <!-- Seção 1: Dicas Rápidas -->
+        <div id="helpTabContentTips" class="afm-help-tab-content" style="display:flex;">
+          <!-- Dica 1 -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;">
+            <div style="font-size:24px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              🏃‍♂️
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#fff;">Vigor Físico & Rotação de Elenco</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px;line-height:1.45;">
+                Mantenha seus titulares sempre com condição física acima de <b>75-80%</b>. Jogadores exaustos perdem rendimento no final do jogo e correm alto risco de lesões graves. Rode o elenco em partidas menos decisivas.
+              </div>
+            </div>
+          </div>
+
+          <!-- Dica 2 -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;">
+            <div style="font-size:24px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              🧠
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#fff;">Esquemas Táticos & Mentalidade</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px;line-height:1.45;">
+                Formações com mais meias (como 4-2-3-1 ou 3-5-2) aumentam o controle da posse de bola. Diante de adversários fortes fora de casa, uma mentalidade <b>Equilibrada</b> ou <b>Defensiva</b> reduz espaços e protege seu resultado.
+              </div>
+            </div>
+          </div>
+
+          <!-- Dica 3 -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;">
+            <div style="font-size:24px;background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              📈
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#fff;">Evolução de Atletas por XP</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px;line-height:1.45;">
+                Cada partida disputada premia seus atletas com pontos de experiência (XP) com base na nota em campo, gols e assistências. Quanto mais jovem e atuante for o atleta, mais rápido seu <b>Overall (OVR)</b> subirá ao longo da temporada.
+              </div>
+            </div>
+          </div>
+
+          <!-- Dica 4 -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;">
+            <div style="font-size:24px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              💰
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#fff;">Equilíbrio Financeiro & Folha Salarial</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px;line-height:1.45;">
+                Nunca deixe os salários mensais superarem suas receitas recorrentes. Saldo negativo prolongado abala a confiança da diretoria e pode gerar demissão sumária. Feche acordos com patrocinadores e ajuste ingressos na aba <b>Escritório</b>.
+              </div>
+            </div>
+          </div>
+
+          <!-- Dica 5 -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;">
+            <div style="font-size:24px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              🔄
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#fff;">Mercado & Negociações Inteligentes</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px;line-height:1.45;">
+                Utilize empréstimos para reforçar posições carentes sem gastar alto valor em taxas de transferência. No <i>Deadline Day</i> (último dia da janela), as horas avançam uma a uma para você fechar acordos de última hora.
+              </div>
+            </div>
+          </div>
+
+          <!-- Dica 6 -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;">
+            <div style="font-size:24px;background:rgba(14,165,233,0.15);border:1px solid rgba(14,165,233,0.3);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              ⏩
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#fff;">Botão CONTINUAR & Calendário Cronológico</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px;line-height:1.45;">
+                O botão <b>CONTINUAR</b> no topo leva você rigorosamente ao próximo confronto do clube (seja Estadual, Copa ou Liga). Ao chegar no dia do jogo, você escolhe entre jogar ao vivo em 2D ou simular instantaneamente.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seção 2: Tutorial das 12 Abas -->
+        <div id="helpTabContentTabs" class="afm-help-tab-content" style="display:none;">
+          ${tabTutorialData.map(item => `
+            <div class="afm-help-guide-card">
+              <div style="display:flex;gap:12px;align-items:flex-start;">
+                <div style="font-size:22px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  ${item.icon}
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:13px;font-weight:800;color:#fff;">${esc(item.name)}</span>
+                    <span style="font-size:10px;font-weight:700;color:#c084fc;background:rgba(168,85,247,0.15);padding:1px 6px;border-radius:4px;">${esc(item.tag)}</span>
+                  </div>
+                  <div style="font-size:11.5px;color:rgba(255,255,255,0.65);margin-top:3px;line-height:1.4;">
+                    ${esc(item.desc)}
+                  </div>
+                </div>
+              </div>
+              <button type="button" class="afm-btn-goto-tab" data-goto-view="${item.id}" title="Abrir ${esc(item.name)}">
+                Ir para esta Aba ➔
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Rodapé -->
+      <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:14px;margin-top:14px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:11px;color:rgba(255,255,255,0.5);">💡 Dica: Você pode reabrir este guia a qualquer momento pelo botão <b>?</b> no topo.</span>
+        <button type="button" class="btn primary" id="btnHelpModalUnderstood" style="background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff;font-weight:800;border:none;padding:9px 20px;border-radius:10px;cursor:pointer;font-size:12px;letter-spacing:0.3px;">
+          Entendido, Fechar Guia
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.onclick = (e) => {
+    if(e.target === overlay) closeGameHelpTutorialModal();
+  };
+  const bClose = overlay.querySelector('#btnHelpModalClose');
+  if(bClose) bClose.onclick = closeGameHelpTutorialModal;
+  const bOk = overlay.querySelector('#btnHelpModalUnderstood');
+  if(bOk) bOk.onclick = closeGameHelpTutorialModal;
+
+  const tabBtnTips = overlay.querySelector('#tabBtnHelpTips');
+  const tabBtnTabs = overlay.querySelector('#tabBtnHelpTabs');
+  const contentTips = overlay.querySelector('#helpTabContentTips');
+  const contentTabs = overlay.querySelector('#helpTabContentTabs');
+
+  if(tabBtnTips && tabBtnTabs && contentTips && contentTabs){
+    tabBtnTips.onclick = () => {
+      tabBtnTips.classList.add('active');
+      tabBtnTabs.classList.remove('active');
+      contentTips.style.display = 'flex';
+      contentTabs.style.display = 'none';
+    };
+    tabBtnTabs.onclick = () => {
+      tabBtnTabs.classList.add('active');
+      tabBtnTips.classList.remove('active');
+      contentTips.style.display = 'none';
+      contentTabs.style.display = 'flex';
+    };
+  }
+
+  overlay.querySelectorAll('[data-goto-view]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      const targetView = btn.dataset.gotoView;
+      closeGameHelpTutorialModal();
+      if(targetView){
+        view = targetView;
+        if(typeof render === 'function') render();
+      }
+    };
+  });
+}
+window.openGameHelpTutorialModal = openGameHelpTutorialModal;
+
+let lastHeaderContinueActionTime = 0;
+function handleHeaderContinueAction(){
+  if(!state) return;
+  const now = Date.now();
+  if(now - lastHeaderContinueActionTime < 350) return;
+  lastHeaderContinueActionTime = now;
+
+  // 1. Janela de transferências ativa
+  const tw = (typeof getTransferWindowState === 'function') ? getTransferWindowState() : { active: false };
+  if(tw.active){
+    if(tw.isDeadlineDay){
+      if(typeof advanceTransferWindowHours === 'function') advanceTransferWindowHours(6);
+      else if(typeof advanceTransferWindowDay === 'function') advanceTransferWindowDay();
+    } else {
+      if(typeof advanceTransferWindowDay === 'function') advanceTransferWindowDay();
+    }
+    return;
+  }
+
+  // 2. Pré-temporada ativa
+  if(state.isPreSeason && state.preSeasonDays > 0){
+    if(typeof advancePreSeasonDay === 'function') advancePreSeasonDay();
+    return;
+  }
+
+  // 3. Checagem de partida
+  const gate = (typeof canStartMatch === 'function') ? canStartMatch(null, state) : { canStart: false };
+
+  // Fim de temporada
+  if(gate.status === 'season_finished'){
+    if(typeof showEndOfSeasonModal === 'function') showEndOfSeasonModal();
+    return;
+  }
+
+  // Outras competições pendentes
+  if(gate.status === 'other_competitions_pending'){
+    const nextFixture = gate.nextFixture || (typeof getNextPendingClubFixture === 'function' ? getNextPendingClubFixture(state) : null);
+    if(nextFixture && nextFixture.date && nextFixture.date > state.date){
+      if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.advanceToNextMatchGuaranteed === 'function'){
+        window.AFM_CalendarFix.advanceToNextMatchGuaranteed(state);
+      } else if(typeof advanceCalendarDays === 'function'){
+        advanceCalendarDays(gate.daysDiff || 1, true);
+      }
+    }
+    openMatchActionModal();
+    return;
+  }
+
+  // Partida futura: avança o calendário até a data do jogo garantida, e em seguida abre o modal da partida
+  if(gate.status === 'future'){
+    if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.advanceToNextMatchGuaranteed === 'function'){
+      window.AFM_CalendarFix.advanceToNextMatchGuaranteed(state);
+    } else if(typeof advanceCalendarDays === 'function'){
+      advanceCalendarDays(gate.daysDiff || 1, true);
+    }
+    openMatchActionModal();
+    return;
+  }
+
+  // Partida pronta para jogar (hoje ou atrasada)
+  openMatchActionModal();
+}
+window.handleHeaderContinueAction = handleHeaderContinueAction;
+
 function clubShortTag(clubName){
   if(!clubName) return 'AFM';
   const map = {
@@ -23365,11 +24143,20 @@ function shell(main){
   const c = clubByName(state?.club) || { stadium: 'Estádio do clube' };
   const winInfo = getTransferWindowInfo(state?.date);
   const tag = clubShortTag(state?.club);
-  const gate = (typeof canStartMatch === 'function') ? canStartMatch() : { ok: false };
-  const continueLabel = gate.ok ? 'JOGAR' : 'CONTINUAR';
-  const continueTime = gate.ok ? '🔥 Dia de Jogo!' : `${formatDatePtBr(state?.date)}`;
+  const gate = (typeof canStartMatch === 'function') ? canStartMatch() : { ok: false, canStart: false };
+  const isMatchReady = Boolean(gate.ok || gate.canStart);
+  const continueLabel = isMatchReady ? 'JOGAR' : 'CONTINUAR';
+  const continueTime = isMatchReady ? '🔥 Dia de Jogo!' : `${formatDatePtBr(state?.date)}`;
 
-  // Média de energia/disposição do elenco
+  // Força Geral do Elenco e Prestígio do Treinador
+  const teamOvr = (typeof overallSquad === 'function')
+    ? overallSquad()
+    : ((state?.squad && state.squad.length)
+        ? Math.round(state.squad.reduce((a, b) => a + (b.ovr || 70), 0) / state.squad.length)
+        : 70);
+
+  const coachPrestige = state?.managerPersonal?.prestigeScore || state?.coachPrestige || 5;
+
   const fitness = (state?.squad && state.squad.length)
     ? Math.round(state.squad.reduce((a, b) => a + (b.energy ?? b.fitness ?? 95), 0) / state.squad.length)
     : 95;
@@ -23397,17 +24184,17 @@ function shell(main){
           </button>
         </div>
 
-        <!-- BLOCO CENTRAL: RECURSOS (ENERGIA, OURO, DINHEIRO) -->
+        <!-- BLOCO CENTRAL: RECURSOS (FORÇA DO TIME, PRESTÍGIO DO TREINADOR, DINHEIRO) -->
         <div class="sm-top-center">
-          <div class="sm-res-badge sm-badge-energy" title="Disposição Média do Elenco">
-            <span class="sm-res-icon">⚡</span>
-            <span class="sm-res-val">${fitness}%</span>
-            <span class="sm-res-add" id="btnTopQuickFitness" title="Ver Elenco / Fisioterapia">+</span>
+          <div class="sm-res-badge sm-badge-strength" id="btnTopQuickTeamStrengthCard" title="Força Geral do Time (Overall: ${teamOvr})" style="cursor:pointer">
+            <span class="sm-res-icon">⭐</span>
+            <span class="sm-res-val">${teamOvr} OVR</span>
+            <span class="sm-res-add" id="btnTopQuickTeamStrength" title="Ver Meu Time & Tática">+</span>
           </div>
-          <div class="sm-res-badge sm-badge-gold" title="Moedas de Treinador / Ouro">
-            <span class="sm-res-icon">🥇</span>
-            <span class="sm-res-val">${state.coachCoins || 100}</span>
-            <span class="sm-res-add" id="btnTopQuickCoins" title="Benefícios">+</span>
+          <div class="sm-res-badge sm-badge-prestige" id="btnTopQuickPrestigeCard" title="Prestígio do Treinador: ${coachPrestige} pts" style="cursor:pointer">
+            <span class="sm-res-icon">🎖️</span>
+            <span class="sm-res-val">${coachPrestige} pts</span>
+            <span class="sm-res-add" id="btnTopQuickPrestige" title="Carreira do Treinador">+</span>
           </div>
           <div class="sm-res-badge sm-badge-cash" title="Saldo em Caixa do Clube">
             <span class="sm-res-icon">💵</span>
@@ -23437,7 +24224,7 @@ function shell(main){
           </button>
 
           <!-- BOTÃO CONTINUAR ESTILO SOCCER MANAGER 2027 -->
-          <button type="button" class="sm-btn-continue" id="btnHeaderContinue" title="${gate.ok ? 'Entrar em Campo' : 'Avançar Calendário'}">
+          <button type="button" class="sm-btn-continue" id="btnHeaderContinue" title="${isMatchReady ? 'Entrar em Campo' : 'Avançar Calendário'}">
             <div class="sm-continue-body">
               <span class="sm-continue-label">${continueLabel}</span>
               <span class="sm-continue-time">${continueTime}</span>
@@ -23450,11 +24237,11 @@ function shell(main){
       <!-- FITA HORIZONTAL DE TAREFAS RÁPIDAS (SM27 RIBBON) -->
       <div class="sm-task-ribbon">
         <span class="sm-ribbon-tag">Tarefas</span>
-        <button type="button" class="sm-ribbon-pill ${view==='meutime'?'active':''}" data-view="meutime">🏋️ Treino & Tática</button>
-        <button type="button" class="sm-ribbon-pill ${view==='mercado'?'active':''}" data-view="mercado">🔍 Olheiro & Mercado</button>
-        <button type="button" class="sm-ribbon-pill ${view==='escritorio'?'active':''}" data-view="escritorio">🤝 Patrocinador</button>
-        <button type="button" class="sm-ribbon-pill ${view==='carreira'?'active':''}" data-view="carreira">🎯 Objetivos</button>
-        <button type="button" class="sm-ribbon-pill ${view==='noticias'?'active':''}" data-view="noticias">📰 Relatórios</button>
+        <button type="button" class="sm-ribbon-pill ${view==='meutime'?'active':''}" data-view="meutime">📋 Meu Time & Tática</button>
+        <button type="button" class="sm-ribbon-pill ${view==='mercado'?'active':''}" data-view="mercado">🔄 Mercado & Transferências</button>
+        <button type="button" class="sm-ribbon-pill ${view==='escritorio'?'active':''}" data-view="escritorio">🏢 Escritório & Finanças</button>
+        <button type="button" class="sm-ribbon-pill ${view==='carreira'?'active':''}" data-view="carreira">🎯 Carreira</button>
+        <button type="button" class="sm-ribbon-pill ${view==='noticias'?'active':''}" data-view="noticias">📰 Notícias & Mídia</button>
         <div class="sm-ribbon-ticker">
           <span>⚽ ${tickerMsg}</span>
         </div>
@@ -23477,7 +24264,7 @@ function shell(main){
                 <div class="small" style="color:var(--neon)">${esc(state.competition)}</div>
               </div>
             </div>
-            <button type="button" class="sm-drawer-close" id="btnCloseMobileDrawer" title="Fechar Menu">✕</button>
+            <button type="button" class="sm-drawer-close" id="btnCloseMobileDrawer" title="Sair do Jogo (Salvar Automático)">✕</button>
           </div>
 
           <div class="club-card" style="margin-top:4px;padding:12px;">
@@ -23496,7 +24283,7 @@ function shell(main){
               ['calendario','🗓️ Calendário de Jogos'],
               ['mercado','🔄 Mercado & Transferências'],
               ['carreira','💼 Carreira do Treinador'],
-              ['temporada','🏆 Temporada & Competições'],
+              ['temporada','🏆 Temporada'],
               ['estrutura','🏟️ Instalações & Estádio'],
               ['escritorio','🏢 Escritório & Finanças'],
               ['noticias','📰 Notícias & Mídia'],
@@ -23753,7 +24540,108 @@ function centralPage(){
   }
 
   const otherLibFixtures = (activeTourney?.matches || []).filter(m => m !== myLibFixture && m.group === userLibGroup).slice(0, 3);
-  const isCentralLibTab = state.centralCupTab === 'libertadores';
+
+  // Resolução dinâmica de Campeonatos que o usuário PODE JOGAR (Estadual, Copa ou Torneio Continental)
+  const myClubKey = norm(state.club);
+  const memberships = (typeof getSavedSeasonMemberships === 'function') ? getSavedSeasonMemberships(state.club) : { stateId: null };
+  const stateCompId = memberships?.stateId;
+  const stateComp = stateCompId && typeof compById === 'function' ? compById(stateCompId) : null;
+  const hasState = Boolean(stateCompId && stateComp && stateCompId.startsWith('bra-est-'));
+
+  let myEstFixture = null;
+  let otherEstFixtures = [];
+  let estStandings = [];
+  let estCountdownHtml = '';
+
+  if (hasState && stateCompId) {
+    const estData = (typeof getStateCompData === 'function') ? getStateCompData(stateCompId) : null;
+    if (estData) {
+      if ((stateCompId === state.compId || (state.compId && state.compId.startsWith('bra-est-'))) && Array.isArray(state.teams) && state.teams.length > 0) {
+        estStandings = state.teams.slice().sort((a,b) => (Number(b.p||0) - Number(a.p||0)) || (Number(b.sg||0) - Number(a.sg||0)) || (Number(b.gp||0) - Number(a.gp||0)));
+      } else if (Array.isArray(estData.teams) && estData.teams.length > 0) {
+        estStandings = estData.teams.slice().sort((a,b) => (Number(b.p||0) - Number(a.p||0)) || (Number(b.sg||0) - Number(a.sg||0)) || (Number(b.gp||0) - Number(a.gp||0)));
+      }
+
+      const myEstMatches = (estData.fixtures || []).filter(f => norm(f.home) === myClubKey || norm(f.away) === myClubKey);
+      myEstFixture = myEstMatches.find(f => !f.played && !f.result && (!f.isoDate || f.isoDate >= state.date))
+        || myEstMatches.find(f => !f.played && !f.result)
+        || myEstMatches[myEstMatches.length - 1]
+        || null;
+
+      if (myEstFixture) {
+        const estDate = myEstFixture.isoDate || (typeof getDateForRound === 'function' ? getDateForRound(myEstFixture.roundIndex || 0, state.season) : state.date);
+        if (myEstFixture.result || myEstFixture.score) {
+          const sc = myEstFixture.result || myEstFixture.score;
+          estCountdownHtml = `<b style="color:#4ade80">PARTIDA FINALIZADA: ${sc[0]} x ${sc[1]}</b>`;
+        } else if (estDate === state.date) {
+          estCountdownHtml = `<b style="color:#22c55e">🔥 HOJE É DIA DE JOGO NO ESTADUAL!</b>`;
+        } else if (estDate > state.date) {
+          const d1 = new Date(state.date + 'T12:00:00');
+          const d2 = new Date(estDate + 'T12:00:00');
+          const diffD = Math.max(1, Math.round((d2 - d1) / 86400000));
+          estCountdownHtml = `<b style="color:#10b981">Faltam ${diffD} ${diffD === 1 ? 'dia' : 'dias'} para a partida.</b>`;
+        } else {
+          estCountdownHtml = `<b style="color:#94a3b8">Confronto agendado: ${formatDatePtBr(estDate)}</b>`;
+        }
+
+        const targetRound = myEstFixture.roundIndex ?? 0;
+        otherEstFixtures = (estData.fixtures || []).filter(f => f !== myEstFixture && (f.roundIndex === targetRound)).slice(0, 3);
+      }
+    }
+  }
+
+  // Monta as abas secundárias permitidas APENAS para os campeonatos que o usuário PODE JOGAR
+  const userCentralCupTabs = [];
+  if (hasState) {
+    userCentralCupTabs.push({
+      id: 'estadual',
+      label: '🏟️ ESTADUAL',
+      shortName: stateComp.name,
+      title: stateComp.name
+    });
+  }
+
+  let userInCopa = false;
+  if (copa?.phases) {
+    for (const phase of Object.values(copa.phases)) {
+      if (Array.isArray(phase.fixtures) && phase.fixtures.some(f => norm(f.home) === myClubKey || norm(f.away) === myClubKey)) {
+        userInCopa = true;
+        break;
+      }
+    }
+  }
+  if (userInCopa || (stateCompId && stateCompId.startsWith('bra-'))) {
+    userCentralCupTabs.push({
+      id: 'copa',
+      label: '🇧🇷 COPA',
+      shortName: 'Copa do Brasil',
+      title: 'COPA DO BRASIL'
+    });
+  }
+
+  // Adiciona Libertadores ou Sul-Americana SOMENTE se o usuário for participante real
+  if (isUserInTournament) {
+    userCentralCupTabs.push({
+      id: contCompId === 'lib' ? 'libertadores' : 'sulamericana',
+      label: contCompId === 'lib' ? '🏆 LIBERTADORES' : '🥈 SUL-AMERICANA',
+      shortName: contCompId === 'lib' ? 'Libertadores' : 'Sul-Americana',
+      title: contCompId === 'lib' ? 'COPA LIBERTADORES' : 'COPA SUL-AMERICANA'
+    });
+  }
+
+  if (userCentralCupTabs.length === 0) {
+    userCentralCupTabs.push({
+      id: 'copa',
+      label: '🇧🇷 COPA',
+      shortName: 'Copa do Brasil',
+      title: 'COPA DO BRASIL'
+    });
+  }
+
+  if (!state.centralCupTab || !userCentralCupTabs.some(t => t.id === state.centralCupTab)) {
+    state.centralCupTab = userCentralCupTabs[0].id;
+  }
+  const activeCentralTabId = state.centralCupTab;
 
   const curAvatar = MANAGER_AVATARS[currentManagerAvatarIdx % MANAGER_AVATARS.length];
   const curBoardScore = clamp(Number(state.boardConfidence ?? state.trust?.board ?? 75), 0, 100);
@@ -24032,13 +24920,10 @@ function centralPage(){
                 </div>
               </div>
 
-              <!-- BOTÕES RÁPIDOS LATERAIS: EQUIPA & TÁTICAS (SCREENSHOT 1) -->
-              <div style="display:flex;flex-direction:column;gap:8px;justify-content:center;">
-                <button type="button" class="btn" id="btnHeroQuickSquad" style="padding:7px 14px;font-size:11px;font-weight:900;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
-                  <span>👥</span> Equipa
-                </button>
-                <button type="button" class="btn" id="btnHeroQuickTactics" style="padding:7px 14px;font-size:11px;font-weight:900;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
-                  <span>📋</span> Táticas
+              <!-- BOTÃO RÁPIDO LATERAL: MEU TIME & TÁTICA (UNIFICADO) -->
+              <div style="display:flex;align-items:center;justify-content:center;">
+                <button type="button" class="btn" id="btnHeroQuickTactics" title="Abrir Meu Time & Tática" style="padding:9px 16px;font-size:12px;font-weight:900;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:all 0.2s ease;">
+                  <span>📋</span> Meu Time & Tática
                 </button>
               </div>
             </div>
@@ -24306,158 +25191,269 @@ function centralPage(){
           </div>
         </div>
 
-        <!-- Widget 2: Copa do Brasil ou Libertadores com Botão de Troca (Screenshot da Central) -->
-        <div class="card" style="padding:18px;background:#100d1e;border:1px solid ${isCentralLibTab ? 'rgba(245,158,11,0.35)' : 'rgba(139,92,246,0.3)'};border-radius:18px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <div>
-              <div style="font-size:13px;font-weight:900;color:#fff;letter-spacing:0.5px">
-                ${isCentralLibTab ? esc(continentalCompName) : 'COPA DO BRASIL'}
-              </div>
-              <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;margin-top:2px">
-                ${isCentralLibTab ? `FASE DE GRUPOS • GRUPO ${userLibGroup}` : `MATA-MATA • ${esc(activeCopaPhaseKey.toUpperCase())}`}
-              </div>
-            </div>
+        <!-- Widget 2: Campeonatos que o Usuário Pode Jogar (Estadual, Copa ou Continental) -->
+        ${(() => {
+          const currentTabObj = userCentralCupTabs.find(t => t.id === activeCentralTabId) || userCentralCupTabs[0];
+          const isEstTab = currentTabObj.id === 'estadual';
+          const isCopaTab = currentTabObj.id === 'copa';
+          const isContTab = currentTabObj.id === 'libertadores' || currentTabObj.id === 'sulamericana';
 
-            <!-- Botões para Alternar entre Copa do Brasil e Libertadores (indicados pelo usuário na screenshot) -->
-            <div style="display:flex;gap:4px;align-items:center;background:#161228;padding:3px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
-              <button class="btn" id="btnCentralTabCopa" title="Ver Copa do Brasil" style="padding:4px 9px;font-size:10px;font-weight:900;border-radius:8px;cursor:pointer;transition:all 0.2s;${!isCentralLibTab ? 'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border:none;box-shadow:0 0 10px rgba(124,58,237,0.5)' : 'background:transparent;color:rgba(255,255,255,0.6);border:none'}">
-                🇧🇷 COPA
-              </button>
-              <button class="btn" id="btnCentralTabLib" title="Ver Copa Libertadores" style="padding:4px 9px;font-size:10px;font-weight:900;border-radius:8px;cursor:pointer;transition:all 0.2s;${isCentralLibTab ? 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border:none;box-shadow:0 0 10px rgba(245,158,11,0.5)' : 'background:transparent;color:rgba(255,255,255,0.6);border:none'}">
-                🏆 LIBERTADORES
-              </button>
-            </div>
-          </div>
+          const widgetCardTitle = isEstTab ? esc(stateComp?.name?.toUpperCase() || 'CAMPEONATO ESTADUAL') : (isCopaTab ? 'COPA DO BRASIL' : esc(continentalCompName));
+          const widgetCardSub = isEstTab ? 'FASE REGIONAL • ESTADUAL' : (isCopaTab ? `MATA-MATA • ${esc(activeCopaPhaseKey.toUpperCase())}` : `FASE DE GRUPOS • GRUPO ${userLibGroup}`);
+          const widgetCardBorder = isEstTab ? 'rgba(16,185,129,0.35)' : (isCopaTab ? 'rgba(139,92,246,0.3)' : 'rgba(245,158,11,0.35)');
 
-          ${!isCentralLibTab ? `
-            <!-- CONTEÚDO DA COPA DO BRASIL -->
-            <!-- Seu Confronto -->
-            <div style="margin-top:12px;background:#241945;border:1px solid #7c3aed;border-radius:12px;padding:12px">
-              <div style="font-size:10px;font-weight:800;color:#c084fc;letter-spacing:0.5px">${esc(activeCopaPhaseKey.toUpperCase())} • SEU CONFRONTO</div>
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-                <div style="display:flex;align-items:center;gap:6px">
-                  ${clubBadge(myCopaFixture.home, 18)}
-                  <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.home)}</span>
-                </div>
-                <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900">x</span>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.away)}</span>
-                  ${clubBadge(myCopaFixture.away, 18)}
-                </div>
-              </div>
-              <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:6px;text-align:center">
-                JOGO ÚNICO • ${esc((myCopaFixture.date || curPhaseObj.dateStr)).toUpperCase()}<br>
-                ${copaCountdownHtml}
-              </div>
-            </div>
-
-            <!-- Outros Confrontos -->
-            <div style="margin-top:12px">
-              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">OUTROS CONFRONTOS (${esc(activeCopaPhaseKey)})</div>
-              <div style="display:flex;flex-direction:column;gap:6px">
-                ${otherCopaFixtures.map(f => `
-                  <div style="background:#161324;padding:6px 10px;border-radius:8px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
-                    <span style="display:flex;align-items:center;gap:5px">${clubBadge(f.home, 14)} <span>${esc(f.home)}</span></span>
-                    <span style="color:rgba(255,255,255,0.4);font-weight:700">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(f.date || curPhaseObj.dateStr)}</span>
-                    <span style="display:flex;align-items:center;gap:5px"><span>${esc(f.away)}</span> ${clubBadge(f.away, 14)}</span>
+          return `
+            <div class="card" style="padding:18px;background:#100d1e;border:1px solid ${widgetCardBorder};border-radius:18px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div>
+                  <div style="font-size:13px;font-weight:900;color:#fff;letter-spacing:0.5px">
+                    ${widgetCardTitle}
                   </div>
-                `).join('')}
-              </div>
-            </div>
-
-            <!-- Link para Tabela e Chaveamento Completo da Copa -->
-            <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
-              <button class="btn" id="btnGoToCopaTableFromCentral" style="background:none;border:none;color:#c084fc;font-size:11px;font-weight:800;cursor:pointer">
-                Chaveamento completo da Copa do Brasil &gt;
-              </button>
-            </div>
-          ` : `
-            <!-- CONTEÚDO DA COPA LIBERTADORES -->
-            <!-- Seu Confronto ou Confronto em Destaque -->
-            <div style="margin-top:12px;background:#2b2014;border:1px solid #f59e0b;border-radius:12px;padding:12px">
-              <div style="font-size:10px;font-weight:800;color:#facc15;letter-spacing:0.5px">GRUPO ${userLibGroup} • ${isUserInTournament ? 'SEU CONFRONTO' : 'CONFRONTO EM DESTAQUE'}</div>
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-                <div style="display:flex;align-items:center;gap:6px">
-                  ${clubBadge(myLibFixture.home, 18)}
-                  <span style="font-size:12px;font-weight:900;color:#fff">${esc(myLibFixture.home)}</span>
+                  <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;margin-top:2px">
+                    ${widgetCardSub}
+                  </div>
                 </div>
-                <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900">x</span>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span style="font-size:12px;font-weight:900;color:#fff">${esc(myLibFixture.away)}</span>
-                  ${clubBadge(myLibFixture.away, 18)}
+
+                <!-- Botões para Alternar entre os Campeonatos que o Clube Disputa -->
+                <div style="display:flex;gap:4px;align-items:center;background:#161228;padding:3px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
+                  ${userCentralCupTabs.map(tab => {
+                    const isActive = activeCentralTabId === tab.id;
+                    let activeStyle = '';
+                    if (isActive) {
+                      if (tab.id === 'estadual') activeStyle = 'background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;box-shadow:0 0 10px rgba(16,185,129,0.5)';
+                      else if (tab.id === 'copa') activeStyle = 'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border:none;box-shadow:0 0 10px rgba(124,58,237,0.5)';
+                      else activeStyle = 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border:none;box-shadow:0 0 10px rgba(245,158,11,0.5)';
+                    } else {
+                      activeStyle = 'background:transparent;color:rgba(255,255,255,0.6);border:none';
+                    }
+                    const btnId = tab.id === 'estadual' ? 'btnCentralTabEstadual' : (tab.id === 'copa' ? 'btnCentralTabCopa' : 'btnCentralTabLib');
+                    return `
+                      <button type="button" class="btn btn-central-cup-tab" id="${btnId}" data-tab-id="${tab.id}" title="Ver ${esc(tab.title)}" style="padding:4px 9px;font-size:10px;font-weight:900;border-radius:8px;cursor:pointer;transition:all 0.2s;${activeStyle}">
+                        ${tab.label}
+                      </button>
+                    `;
+                  }).join('')}
                 </div>
               </div>
-              <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:6px;text-align:center">
-                RODADA ${myLibFixture.round || 1} • ${esc(formatDatePtBr(myLibFixture.date)).toUpperCase()}<br>
-                ${libCountdownHtml}
-              </div>
-            </div>
 
-            <!-- Tabela de Classificação do Grupo -->
-            <div style="margin-top:12px">
-              <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">CLASSIFICAÇÃO • GRUPO ${userLibGroup}</div>
-              <div class="tablewrap" style="max-height:160px">
-                <table style="width:100%;font-size:10px">
-                  <thead>
-                    <tr style="color:rgba(255,255,255,0.4)">
-                      <th>#</th>
-                      <th>CLUBE</th>
-                      <th style="text-align:center">P</th>
-                      <th style="text-align:center">J</th>
-                      <th style="text-align:center">SG</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${continentalGroupStandings.map((t, idx) => {
-                      const pos = idx + 1;
-                      const isMy = norm(t.name) === norm(state.club);
-                      const pts = Number(t.points ?? t.p ?? 0);
-                      const j = Number(t.played ?? t.j ?? 0);
-                      const sg = Number((t.gf ?? 0) - (t.ga ?? 0));
-                      return `
-                        <tr style="${isMy ? 'background:rgba(245,158,11,0.25);font-weight:900;' : ''}font-size:10px">
-                          <td style="font-weight:800;color:${pos <= 2 ? '#4ade80' : '#fff'}">${pos}</td>
-                          <td>
-                            <div style="display:flex;align-items:center;gap:5px">
-                              ${clubBadge(t.name, 14)}
-                              <span style="color:${isMy ? '#facc15' : '#fff'}">${esc(t.name)}</span>
-                            </div>
-                          </td>
-                          <td style="text-align:center;font-weight:900">${pts}</td>
-                          <td style="text-align:center">${j}</td>
-                          <td style="text-align:center">${sg > 0 ? '+' : ''}${sg}</td>
-                        </tr>
-                      `;
-                    }).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Outros Jogos do Grupo -->
-            ${otherLibFixtures.length > 0 ? `
-              <div style="margin-top:10px">
-                <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:6px">OUTROS JOGOS DO GRUPO</div>
-                <div style="display:flex;flex-direction:column;gap:5px">
-                  ${otherLibFixtures.map(f => `
-                    <div style="background:#161324;padding:5px 8px;border-radius:6px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
-                      <span style="display:flex;align-items:center;gap:4px">${clubBadge(f.home, 12)} <span>${esc(f.home)}</span></span>
-                      <span style="color:rgba(255,255,255,0.4);font-weight:700">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(formatDatePtBr(f.date))}</span>
-                      <span style="display:flex;align-items:center;gap:4px"><span>${esc(f.away)}</span> ${clubBadge(f.away, 12)}</span>
+              ${isEstTab ? `
+                <!-- CONTEÚDO DO CAMPEONATO ESTADUAL -->
+                <!-- Seu Confronto -->
+                ${myEstFixture ? `
+                  <div style="margin-top:12px;background:#13261e;border:1px solid #10b981;border-radius:12px;padding:12px">
+                    <div style="font-size:10px;font-weight:800;color:#34d399;letter-spacing:0.5px">RODADA ${(Number(myEstFixture.roundIndex ?? 0)) + 1} • SEU CONFRONTO</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                      <div style="display:flex;align-items:center;gap:6px">
+                        ${clubBadge(myEstFixture.home, 18)}
+                        <span style="font-size:12px;font-weight:900;color:#fff">${esc(myEstFixture.home)}</span>
+                      </div>
+                      <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900">x</span>
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <span style="font-size:12px;font-weight:900;color:#fff">${esc(myEstFixture.away)}</span>
+                        ${clubBadge(myEstFixture.away, 18)}
+                      </div>
                     </div>
-                  `).join('')}
-                </div>
-              </div>
-            ` : ''}
+                    <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:6px;text-align:center">
+                      RODADA ${(Number(myEstFixture.roundIndex ?? 0)) + 1} • ${esc(formatDatePtBr(myEstFixture.isoDate || state.date)).toUpperCase()}<br>
+                      ${estCountdownHtml}
+                    </div>
+                  </div>
+                ` : ''}
 
-            <!-- Link para Tabela Completa da Libertadores -->
-            <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
-              <button class="btn" id="btnGoToLibertadoresTableFromCentral" style="background:none;border:none;color:#facc15;font-size:11px;font-weight:800;cursor:pointer">
-                Tabela completa e grupos da Libertadores &gt;
-              </button>
+                <!-- Tabela de Classificação do Estadual -->
+                <div style="margin-top:12px">
+                  <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">CLASSIFICAÇÃO • ${esc(stateComp?.name?.toUpperCase() || 'ESTADUAL')}</div>
+                  <div class="tablewrap" style="max-height:160px">
+                    <table style="width:100%;font-size:10px">
+                      <thead>
+                        <tr style="color:rgba(255,255,255,0.4)">
+                          <th>#</th>
+                          <th>CLUBE</th>
+                          <th style="text-align:center">P</th>
+                          <th style="text-align:center">J</th>
+                          <th style="text-align:center">SG</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${estStandings.map((t, idx) => {
+                          const pos = idx + 1;
+                          const isMy = norm(t.name) === norm(state.club);
+                          const pts = Number(t.points ?? t.p ?? 0);
+                          const j = Number(t.played ?? t.j ?? 0);
+                          const sg = Number(t.sg ?? ((t.gp ?? t.gf ?? 0) - (t.gc ?? t.ga ?? 0)));
+                          return `
+                            <tr style="${isMy ? 'background:rgba(16,185,129,0.25);font-weight:900;' : ''}font-size:10px">
+                              <td style="font-weight:800;color:${pos <= 4 ? '#4ade80' : '#fff'}">${pos}</td>
+                              <td>
+                                <div style="display:flex;align-items:center;gap:5px">
+                                  ${clubBadge(t.name, 14)}
+                                  <span style="color:${isMy ? '#34d399' : '#fff'}">${esc(t.name)}</span>
+                                </div>
+                              </td>
+                              <td style="text-align:center;font-weight:900">${pts}</td>
+                              <td style="text-align:center">${j}</td>
+                              <td style="text-align:center">${sg > 0 ? '+' : ''}${sg}</td>
+                            </tr>
+                          `;
+                        }).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Outros Jogos da Rodada do Estadual -->
+                ${otherEstFixtures.length > 0 ? `
+                  <div style="margin-top:10px">
+                    <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:6px">OUTROS JOGOS DA RODADA</div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      ${otherEstFixtures.map(f => `
+                        <div style="background:#161324;padding:5px 8px;border-radius:6px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
+                          <span style="display:flex;align-items:center;gap:4px">${clubBadge(f.home, 12)} <span>${esc(f.home)}</span></span>
+                          <span style="color:rgba(255,255,255,0.4);font-weight:700">${(f.score || f.result) ? `${(f.score || f.result)[0]} - ${(f.score || f.result)[1]}` : esc(formatDatePtBr(f.isoDate || state.date))}</span>
+                          <span style="display:flex;align-items:center;gap:4px"><span>${esc(f.away)}</span> ${clubBadge(f.away, 12)}</span>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Link para Tabela Completa do Estadual -->
+                <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
+                  <button class="btn" id="btnGoToEstadualTableFromCentral" style="background:none;border:none;color:#34d399;font-size:11px;font-weight:800;cursor:pointer">
+                    Tabela completa do ${esc(stateComp?.name || 'Estadual')} &gt;
+                  </button>
+                </div>
+              ` : isCopaTab ? `
+                <!-- CONTEÚDO DA COPA DO BRASIL -->
+                <!-- Seu Confronto -->
+                <div style="margin-top:12px;background:#241945;border:1px solid #7c3aed;border-radius:12px;padding:12px">
+                  <div style="font-size:10px;font-weight:800;color:#c084fc;letter-spacing:0.5px">${esc(activeCopaPhaseKey.toUpperCase())} • SEU CONFRONTO</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                    <div style="display:flex;align-items:center;gap:6px">
+                      ${clubBadge(myCopaFixture.home, 18)}
+                      <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.home)}</span>
+                    </div>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900">x</span>
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.away)}</span>
+                      ${clubBadge(myCopaFixture.away, 18)}
+                    </div>
+                  </div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:6px;text-align:center">
+                    JOGO ÚNICO • ${esc((myCopaFixture.date || curPhaseObj.dateStr)).toUpperCase()}<br>
+                    ${copaCountdownHtml}
+                  </div>
+                </div>
+
+                <!-- Outros Confrontos -->
+                <div style="margin-top:12px">
+                  <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">OUTROS CONFRONTOS (${esc(activeCopaPhaseKey)})</div>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    ${otherCopaFixtures.map(f => `
+                      <div style="background:#161324;padding:6px 10px;border-radius:8px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
+                        <span style="display:flex;align-items:center;gap:5px">${clubBadge(f.home, 14)} <span>${esc(f.home)}</span></span>
+                        <span style="color:rgba(255,255,255,0.4);font-weight:700">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(f.date || curPhaseObj.dateStr)}</span>
+                        <span style="display:flex;align-items:center;gap:5px"><span>${esc(f.away)}</span> ${clubBadge(f.away, 14)}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+
+                <!-- Link para Tabela e Chaveamento Completo da Copa -->
+                <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
+                  <button class="btn" id="btnGoToCopaTableFromCentral" style="background:none;border:none;color:#c084fc;font-size:11px;font-weight:800;cursor:pointer">
+                    Chaveamento completo da Copa do Brasil &gt;
+                  </button>
+                </div>
+              ` : `
+                <!-- CONTEÚDO DO TORNEIO CONTINENTAL (LIBERTADORES / SUL-AMERICANA) -->
+                <!-- Seu Confronto -->
+                <div style="margin-top:12px;background:#2b2014;border:1px solid #f59e0b;border-radius:12px;padding:12px">
+                  <div style="font-size:10px;font-weight:800;color:#facc15;letter-spacing:0.5px">GRUPO ${userLibGroup} • SEU CONFRONTO</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                    <div style="display:flex;align-items:center;gap:6px">
+                      ${clubBadge(myLibFixture.home, 18)}
+                      <span style="font-size:12px;font-weight:900;color:#fff">${esc(myLibFixture.home)}</span>
+                    </div>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900">x</span>
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <span style="font-size:12px;font-weight:900;color:#fff">${esc(myLibFixture.away)}</span>
+                      ${clubBadge(myLibFixture.away, 18)}
+                    </div>
+                  </div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.5);margin-top:6px;text-align:center">
+                    RODADA ${myLibFixture.round || 1} • ${esc(formatDatePtBr(myLibFixture.date)).toUpperCase()}<br>
+                    ${libCountdownHtml}
+                  </div>
+                </div>
+
+                <!-- Tabela de Classificação do Grupo -->
+                <div style="margin-top:12px">
+                  <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">CLASSIFICAÇÃO • GRUPO ${userLibGroup}</div>
+                  <div class="tablewrap" style="max-height:160px">
+                    <table style="width:100%;font-size:10px">
+                      <thead>
+                        <tr style="color:rgba(255,255,255,0.4)">
+                          <th>#</th>
+                          <th>CLUBE</th>
+                          <th style="text-align:center">P</th>
+                          <th style="text-align:center">J</th>
+                          <th style="text-align:center">SG</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${continentalGroupStandings.map((t, idx) => {
+                          const pos = idx + 1;
+                          const isMy = norm(t.name) === norm(state.club);
+                          const pts = Number(t.points ?? t.p ?? 0);
+                          const j = Number(t.played ?? t.j ?? 0);
+                          const sg = Number((t.gf ?? 0) - (t.ga ?? 0));
+                          return `
+                            <tr style="${isMy ? 'background:rgba(245,158,11,0.25);font-weight:900;' : ''}font-size:10px">
+                              <td style="font-weight:800;color:${pos <= 2 ? '#4ade80' : '#fff'}">${pos}</td>
+                              <td>
+                                <div style="display:flex;align-items:center;gap:5px">
+                                  ${clubBadge(t.name, 14)}
+                                  <span style="color:${isMy ? '#facc15' : '#fff'}">${esc(t.name)}</span>
+                                </div>
+                              </td>
+                              <td style="text-align:center;font-weight:900">${pts}</td>
+                              <td style="text-align:center">${j}</td>
+                              <td style="text-align:center">${sg > 0 ? '+' : ''}${sg}</td>
+                            </tr>
+                          `;
+                        }).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Outros Jogos do Grupo -->
+                ${otherLibFixtures.length > 0 ? `
+                  <div style="margin-top:10px">
+                    <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:6px">OUTROS JOGOS DO GRUPO</div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      ${otherLibFixtures.map(f => `
+                        <div style="background:#161324;padding:5px 8px;border-radius:6px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
+                          <span style="display:flex;align-items:center;gap:4px">${clubBadge(f.home, 12)} <span>${esc(f.home)}</span></span>
+                          <span style="color:rgba(255,255,255,0.4);font-weight:700">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(formatDatePtBr(f.date))}</span>
+                          <span style="display:flex;align-items:center;gap:4px"><span>${esc(f.away)}</span> ${clubBadge(f.away, 12)}</span>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Link para Tabela Completa da Libertadores -->
+                <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
+                  <button class="btn" id="btnGoToLibertadoresTableFromCentral" style="background:none;border:none;color:#facc15;font-size:11px;font-weight:800;cursor:pointer">
+                    Tabela completa e grupos da ${esc(continentalCompName)} &gt;
+                  </button>
+                </div>
+              `}
             </div>
-          `}
-        </div>
+          `;
+        })()}
 
         <!-- Widget 3: Voz da Torcida (#AFM2027) -->
         <div class="card" style="padding:16px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
@@ -24577,6 +25573,9 @@ function playContinentalFixture(competitionId, matchId){
   }
   if(userResult){
     state.history = [userResult, ...(state.history || [])].slice(0, 100);
+    if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
+      window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: userResult.h, a: userResult.a, hg: userResult.hg, ag: userResult.ag, gf: (norm(userResult.h) === norm(state.club) ? userResult.hg : userResult.ag), ga: (norm(userResult.h) === norm(state.club) ? userResult.ag : userResult.hg), won: state.lastMatchSummary?.won, events: userResult.events });
+    }
     state.lastMatchSummary = { h:userResult.h, a:userResult.a, hg:userResult.hg, ag:userResult.ag, isHome:norm(userResult.h)===norm(state.club), won:(norm(userResult.h)===norm(state.club)?userResult.hg>userResult.ag:userResult.ag>userResult.hg) };
   }
   state.news = state.news || [];
@@ -30095,7 +31094,8 @@ let setupSelectedCompId = 'bra-a';
 let setupBrCategory = 'nacionais';
 let setupSelectedClubName = 'Corinthians';
 let setupAuthTab = 'login'; // 'login' | 'register'
-let setupViewMode = 'auth'; // 'auth' | 'hub' | 'arenas' | 'estaduais'
+let setupViewMode = 'auth'; // 'auth' | 'systems' | 'hub' | 'arenas' | 'estaduais'
+let setupSystemCategory = 'todos';
 let setupHubPage = 1;
 let setupClubSearchQuery = '';
 let setupSelectedSlot = 1;
@@ -30463,6 +31463,136 @@ const AFM_ESTADUAIS_DATA = [
   }
 ];
 
+
+const AFM_SYSTEMS_DATA = [
+  {
+    id: 'taticas',
+    category: 'jogabilidade',
+    icon: '⚽',
+    tag: 'MOTOR TÁTICO 2D & VAR',
+    title: '4 Fases do Jogo & Simulação Realista ao Vivo',
+    subtitle: 'Comande seu time com profundidade tática nunca antes vista no futebol mobile',
+    color: '#a7ff3f',
+    features: [
+      { name: '4 Fases Táticas', desc: 'Construção, Criação, Transição e Recomposição Defensiva configuráveis individualmente.' },
+      { name: '22 Atletas em Movimento', desc: 'Animação 2D simultânea de todos os 22 jogadores com física de bola, passes e chutes.' },
+      { name: 'Árbitro de Vídeo (VAR)', desc: 'Revisão milimétrica de impedimento, pênaltis duvidosos e pressão psicológica no juiz.' },
+      { name: 'Instruções Individuais', desc: 'Atribua papéis avançados: Falso 9, Lateral Invertido, Primeiro Volante e Meia Construtor.' }
+    ],
+    stats: [
+      { label: 'Esquemas Táticos', val: '18+' },
+      { label: 'Instruções por Jogador', val: '12' },
+      { label: 'Física de Chute & Passe', val: '100% Real' }
+    ],
+    ctaText: 'Testar Táticas na Carreira'
+  },
+  {
+    id: 'mercado',
+    category: 'mercado',
+    icon: '⭐',
+    tag: 'MERCADO DINÂMICO & SCOUT',
+    title: 'Mais de 3.500 Jogadores Reais & Rede de Olheiros',
+    subtitle: 'Negocie com rivais, descubra joias da base e monte o elenco dos sonhos',
+    color: '#38bdf8',
+    features: [
+      { name: '3.500+ Atletas Reais', desc: 'Overalls calibrados com paridade oficial EA FC e eFootball, com fotos e históricos.' },
+      { name: 'Sistema de Olheiros', desc: 'Envie scouts para relatórios rápidos de 30 dias ou missões de 5 meses caçando promessas.' },
+      { name: 'Negociação com Rivais', desc: 'Propostas com leilão em tempo real, cláusula de rescisão e bônus por produtividade.' },
+      { name: 'Empréstimos & Opções', desc: 'Contrate reforços por empréstimo com passe fixado e divida os salários entre os clubes.' }
+    ],
+    stats: [
+      { label: 'Jogadores no Banco', val: '3.500+' },
+      { label: 'Tempo de Scout', val: '1 a 5 Meses' },
+      { label: 'Janelas Oficiais', val: 'Verão e Inverno' }
+    ],
+    ctaText: 'Explorar o Mercado'
+  },
+  {
+    id: 'arenas',
+    category: 'estadio',
+    icon: '🏟️',
+    tag: 'CONSTRUÇÃO MONUMENTAL',
+    title: 'Construa Arenas de até 100.000 Lugares',
+    subtitle: 'Alvará da prefeitura, financiamento em 8 anos, naming rights e ampliação anel por anel',
+    color: '#c084fc',
+    features: [
+      { name: 'Alvará Municipal', desc: 'Aprove lote urbano com a prefeitura e financie a obra bancária em até 8 temporadas.' },
+      { name: 'Expansão Anel por Anel', desc: 'Amplie arquibancadas setor por setor (+3.500 lugares) até a capacidade máxima de 100k.' },
+      { name: 'Naming Rights Milionários', desc: 'Venda os direitos do nome do seu estádio para patrocinadores multinacionais.' },
+      { name: 'Gramado & Instalações', desc: 'Grama natural, sintética ou híbrida, estacionamento VIP, loja oficial e museu de 16 níveis.' }
+    ],
+    stats: [
+      { label: 'Capacidade Máxima', val: '100.000' },
+      { label: 'Financiamento', val: 'Até 8 Anos' },
+      { label: 'Níveis do Museu', val: '16 Níveis' }
+    ],
+    ctaText: 'Construir Minha Arena'
+  },
+  {
+    id: 'estaduais',
+    category: 'competicoes',
+    icon: '🏆',
+    tag: '11 ESTADUAIS OFICIAIS',
+    title: 'Todos os Clubes Disputam Estaduais no 1º Semestre',
+    subtitle: 'Paulistão, Carioca, Gaúcho, Mineiro e federações de norte a sul do Brasil sincronizadas',
+    color: '#facc15',
+    features: [
+      { name: '11 Federações Mapeadas', desc: 'SP, RJ, RS, MG, BA, CE, PR, SC, PE, GO e DF com regulamentos e divisões oficiais.' },
+      { name: 'Clássicos Pegados', desc: 'Dérbi Paulista, Fla-Flu, Gre-Nal, Ba-Vi, Clássico Mineiro com torcida e rivalidade extrema.' },
+      { name: 'Vagas Diretas', desc: 'Campanhas de destaque garantem vaga na Copa do Brasil e na Série D nacional.' },
+      { name: 'Calendário Harmonizado', desc: 'Progressão cronológica data por data: nunca pula quarta-feira nem sábado de estadual.' }
+    ],
+    stats: [
+      { label: 'Estaduais Ativos', val: '11 Oficiais' },
+      { label: 'Clubes Participantes', val: '120+' },
+      { label: 'Séries Nacionais', val: 'Série A, B, C, D' }
+    ],
+    ctaText: 'Conquistar o Estadual'
+  },
+  {
+    id: 'financas',
+    category: 'gestao',
+    icon: '💼',
+    tag: 'FINANÇAS & DIRETORIA',
+    title: 'Balanço Realista, 4 Cotas de Patrocínio & Confiança',
+    subtitle: 'Administre receitas milionárias, evite o endividamento e mantenha o emprego seguro',
+    color: '#4ade80',
+    features: [
+      { name: '4 Cotas de Patrocínio', desc: 'Contratos comerciais para Master, Mangas, Costas e Calção com duração de 1 a 4 anos.' },
+      { name: 'Bilheteria Setorizada', desc: 'Ajuste o valor do ingresso para Cadeira Superior, Inferior, VIP e Camarotes.' },
+      { name: 'Auditoria Mensal', desc: 'Balanço transparente de receitas de TV, premiações, vendas de camisas e gastos operacionais.' },
+      { name: 'Cobrança da Diretoria', desc: 'Termômetro de confiança da diretoria e da torcida com metas contratuais anuais.' }
+    ],
+    stats: [
+      { label: 'Cotas de Patrocínio', val: '4 Espaços' },
+      { label: 'Setores do Estádio', val: '4 Áreas' },
+      { label: 'Auditoria Contábil', val: 'Mês a Mês' }
+    ],
+    ctaText: 'Gerenciar Finanças'
+  },
+  {
+    id: 'carreira',
+    category: 'vida',
+    icon: '🏠',
+    tag: 'VIDA DO TREINADOR & X1',
+    title: 'Salário Pessoal, Mansões, Jatinho & Duelos X1',
+    subtitle: 'Gaste seu próprio salário, acumule patrimônio de luxo e desafie seus amigos',
+    color: '#ec4899',
+    features: [
+      { name: 'Conta Pessoal do Técnico', desc: 'Receba seu salário todo mês do clube e acumule fortuna pessoal como treinador.' },
+      { name: 'Loja de Patrimônio', desc: 'Compre mansões luxuosas, superesportivos, jatinho executivo e iates no catálogo.' },
+      { name: 'Vitrine Individual', desc: 'Conquiste títulos de Melhor Treinador do Mês, Técnico do Ano e entre para o Hall da Fama.' },
+      { name: 'Duelo X1 Multiplayer', desc: 'Dispute partidas amistosas ou torneios eliminatórios contra amigos em duelo tático direto.' }
+    ],
+    stats: [
+      { label: 'Itens de Luxo', val: '20+ Bens' },
+      { label: 'Prêmios Individuais', val: 'Técnico do Ano' },
+      { label: 'Modo X1', val: 'Multiplayer Local/Online' }
+    ],
+    ctaText: 'Construir Minha Carreira'
+  }
+];
+
 function renderLandingNavbar(activeTab){
   return `
     <header class="afm-landing-nav">
@@ -30472,23 +31602,24 @@ function renderLandingNavbar(activeTab){
       </div>
 
       <nav class="afm-nav-links">
-        <button class="afm-nav-link ${activeTab==='auth'?'active':''}" id="btnNavGoAuth">🚀 Jogar Agora</button>
-        <button class="afm-nav-link ${activeTab==='hub'?'active':''}" id="btnNavGoHub">📢 Central de Novidades (75+)</button>
+        <button class="afm-nav-link ${activeTab==='auth'?'active':''}" id="btnNavGoAuth">⭐ Início & Craques</button>
+        <button class="afm-nav-link ${activeTab==='systems'?'active':''}" id="btnNavGoSystems">🎮 Todos os Sistemas</button>
         <button class="afm-nav-link ${activeTab==='arenas'?'active':''}" id="btnNavGoArenas">🏟️ Novas Arenas</button>
         <button class="afm-nav-link ${activeTab==='estaduais'?'active':''}" id="btnNavGoEstaduais">🏆 11 Estaduais</button>
+        <button class="afm-nav-link ${activeTab==='hub'?'active':''}" id="btnNavGoHub">📢 Central de Novidades (75+)</button>
       </nav>
 
-      <div style="display:flex;align-items:center;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px">
         ${activeTab !== 'auth' ? `
           <button class="btn primary" id="btnNavCtaPlay" style="padding:8px 18px;font-size:13px;font-weight:900;border-radius:10px;box-shadow:0 0 15px rgba(124,58,237,0.4)">
-            🚀 Iniciar Carreira
+            🚀 Jogar Agora
           </button>
         ` : `
           <button class="btn" id="btnNavSwitchAuth" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);padding:7px 16px;font-size:12px;font-weight:800;border-radius:8px;color:#fff;cursor:pointer">
             ${setupAuthTab==='login' ? '✨ Criar Conta' : '🔑 Entrar'}
           </button>
-          <button class="btn primary" id="btnNavOpenHubQuick" style="padding:7px 16px;font-size:12px;font-weight:900;border-radius:8px;box-shadow:0 0 15px rgba(124,58,237,0.4)">
-            📢 Ver Novidades
+          <button class="btn primary" id="btnNavOpenSystemsQuick" style="padding:7px 16px;font-size:12px;font-weight:900;border-radius:8px;box-shadow:0 0 15px rgba(124,58,237,0.4)">
+            🎮 Ver Sistemas
           </button>
         `}
       </div>
@@ -30824,7 +31955,120 @@ function renderSetup(app){
       return;
     }
 
-    // 4. MODO AUTH: SPLIT-SCREEN LANDING PAGE COM PAINÉIS DE RECURSOS NO TOPO (SCREENSHOT 1 E 2)
+
+    // MODO NOVO: TODOS OS NOSSOS SISTEMAS DO JOGO COM ABAS
+    if(setupViewMode === 'systems'){
+      const curCat = setupSystemCategory || 'todos';
+      const filteredSystems = curCat === 'todos' 
+        ? AFM_SYSTEMS_DATA 
+        : AFM_SYSTEMS_DATA.filter(s => s.category === curCat);
+
+      app.innerHTML = `
+        <div class="afm-landing-wrapper">
+          ${renderLandingNavbar('systems')}
+
+          <div class="afm-hub-container">
+            <div style="margin-bottom:26px">
+              <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);padding:5px 14px;border-radius:20px;font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px">
+                <span>🎮</span> TOUR COMPLETO DOS RECURSOS AFM 2027
+              </div>
+              <h1 style="font-size:38px;font-weight:900;letter-spacing:-1px;color:#fff;margin:0 0 10px 0">
+                Todos os Nossos Sistemas de Jogo
+              </h1>
+              <p style="font-size:15px;color:#94a3b8;margin:0;max-width:800px;line-height:1.6">
+                Explore em detalhes cada engrenagem que faz do <b>AFM MANAGER 2027</b> o simulador definitivo: motor tático 2D com 4 fases, mercado de 3.500+ craques reais, construção de arenas até 100k lugares, 11 estaduais sincronizados, finanças e modo carreira completo.
+              </p>
+            </div>
+
+            <!-- ABAS / FILTROS DE CATEGORIA DOS SISTEMAS -->
+            <div class="afm-systems-category-tabs">
+              <button class="afm-sys-cat-btn ${curCat==='todos'?'active':''}" data-syscat="todos">🌟 Todos os Sistemas (${AFM_SYSTEMS_DATA.length})</button>
+              <button class="afm-sys-cat-btn ${curCat==='jogabilidade'?'active':''}" data-syscat="jogabilidade">⚽ Táticas & Jogo 2D</button>
+              <button class="afm-sys-cat-btn ${curCat==='mercado'?'active':''}" data-syscat="mercado">⭐ Mercado & Olheiros</button>
+              <button class="afm-sys-cat-btn ${curCat==='estadio'?'active':''}" data-syscat="estadio">🏟️ Arenas & Infraestrutura</button>
+              <button class="afm-sys-cat-btn ${curCat==='competicoes'?'active':''}" data-syscat="competicoes">🏆 11 Estaduais & Ligas</button>
+              <button class="afm-sys-cat-btn ${curCat==='gestao'?'active':''}" data-syscat="gestao">💼 Finanças & Diretoria</button>
+              <button class="afm-sys-cat-btn ${curCat==='vida'?'active':''}" data-syscat="vida">🏠 Vida do Técnico & X1</button>
+            </div>
+
+            <!-- GRID DOS SISTEMAS -->
+            <div class="afm-systems-grid">
+              ${filteredSystems.map(sys => `
+                <div class="afm-system-card" style="border-top: 3px solid ${sys.color}">
+                  <div class="afm-system-card-header">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                      <span class="pill" style="font-size:10px;font-weight:900;background:${sys.color}22;color:${sys.color};border:1px solid ${sys.color}55">
+                        ${sys.tag}
+                      </span>
+                      <span style="font-size:26px;filter:drop-shadow(0 0 10px ${sys.color}66)">${sys.icon}</span>
+                    </div>
+                    <h2 style="font-size:22px;font-weight:900;color:#fff;margin:0 0 6px 0;line-height:1.25">
+                      ${sys.title}
+                    </h2>
+                    <p style="font-size:12px;color:#cbd5e1;line-height:1.5;margin:0">
+                      ${sys.subtitle}
+                    </p>
+                  </div>
+
+                  <div class="afm-system-card-body">
+                    <div style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">
+                      Principais Recursos Implementados:
+                    </div>
+                    <div class="afm-system-features-list">
+                      ${sys.features.map(f => `
+                        <div class="afm-sys-feat-item">
+                          <div style="color:${sys.color};font-weight:900;margin-right:8px;flex-shrink:0">✓</div>
+                          <div>
+                            <b style="color:#fff">${f.name}:</b>
+                            <span style="color:#94a3b8;font-size:11px"> ${f.desc}</span>
+                          </div>
+                        </div>
+                      `).join('')}
+                    </div>
+
+                    <!-- STATS / PÍLULAS DO SISTEMA -->
+                    <div class="afm-sys-stats-row">
+                      ${sys.stats.map(st => `
+                        <div class="afm-sys-stat-box">
+                          <div class="afm-sys-stat-val" style="color:${sys.color}">${st.val}</div>
+                          <div class="afm-sys-stat-label">${st.label}</div>
+                        </div>
+                      `).join('')}
+                    </div>
+
+                    <button class="btn primary btnPlayWithSystem" data-sysid="${sys.id}" style="width:100%;padding:11px;font-size:12px;font-weight:900;border-radius:8px;margin-top:14px;background:linear-gradient(135deg, ${sys.color}dd, ${sys.color}88);color:#000;cursor:pointer;border:none">
+                      🚀 ${sys.ctaText} →
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- FOOTER CALL TO ACTION -->
+            <div style="margin-top:50px;background:linear-gradient(135deg, rgba(124,58,237,0.25), rgba(6,182,212,0.15));border:1px solid rgba(168,85,247,0.3);border-radius:20px;padding:40px;text-align:center">
+              <h2 style="font-size:28px;font-weight:900;color:#fff;margin:0 0 10px 0">
+                Todos esses sistemas estão prontos para você jogar agora mesmo!
+              </h2>
+              <p style="font-size:14px;color:#94a3b8;margin:0 0 24px 0">
+                100% gratuito direto no seu navegador. Crie sua conta ou entre para comandar o clube do coração.
+              </p>
+              <div style="display:flex;justify-content:center;gap:14px;flex-wrap:wrap">
+                <button class="btn primary" id="btnSystemsStartCareer" style="padding:14px 36px;font-size:15px;font-weight:900;border-radius:12px;box-shadow:0 8px 30px rgba(124,58,237,0.5)">
+                  🚀 Iniciar Minha Carreira Agora
+                </button>
+                <button class="btn" id="btnSystemsBackHome" style="padding:14px 24px;font-size:14px;font-weight:800;border-radius:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#cbd5e1">
+                  ← Voltar para a Página Inicial
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      bindSetup();
+      return;
+    }
+
+    // 4. MODO AUTH: SPLIT-SCREEN LANDING PAGE COM TRIO DE CRAQUES & FORMULÁRIO DE LOGIN
     app.innerHTML = `
       <div class="afm-landing-wrapper">
         ${renderLandingNavbar('auth')}
@@ -30832,22 +32076,86 @@ function renderSetup(app){
         <!-- SPLIT CONTAINER -->
         <div class="afm-split-container">
           
-          <!-- LEFT SIDE: BRANDING, HEADLINE & PAINÉIS DE RECURSOS NO TOPO (SCREENSHOT 2) -->
+          <!-- LEFT SIDE: BRANDING, HEADLINE, TRIO DE CRAQUES & DESTAQUES -->
           <div class="afm-split-left">
             <div>
-              <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);padding:6px 14px;border-radius:20px;font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:16px">
-                <span>⚡</span> NOVO MOTOR TÁTICO & CLOUD SUPABASE
+              <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);padding:6px 14px;border-radius:20px;font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px">
+                <span>⚡</span> NOVO MOTOR TÁTICO & CLOUD SUPABASE 2027
               </div>
 
-              <h1 style="font-size:38px;font-weight:900;line-height:1.15;color:#fff;letter-spacing:-1px;margin:0 0 12px 0">
+              <h1 style="font-size:36px;font-weight:900;line-height:1.15;color:#fff;letter-spacing:-1px;margin:0 0 10px 0">
                 Comande o seu clube do coração rumo ao topo do mundo.
               </h1>
 
-              <p style="font-size:14px;color:rgba(255,255,255,0.72);line-height:1.55;margin:0 0 18px 0;max-width:540px">
-                O <b>AFM 2027</b> combina gestão tática profunda, mercado dinâmico de transferências, construção monumental da sua própria arena e 11 estaduais oficiais com sincronização em nuvem.
+              <p style="font-size:14px;color:rgba(255,255,255,0.78);line-height:1.55;margin:0 0 16px 0;max-width:560px">
+                O <b>AFM 2027</b> combina mais de <b>3.500 craques reais</b>, gestão tática em 4 fases, construção de arenas monumentais de até 100k lugares e 11 estaduais oficiais sincronizados.
               </p>
 
-              <!-- PAINÉIS DE DESTAQUES VISÍVEIS NO TOPO (SCREENSHOT 2) -->
+              <!-- TRIO DE CRAQUES HERO DISPLAY (FOTO DOS CRAQUES NA PÁGINA INICIAL) -->
+              <div class="afm-craques-hero-wrapper">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;width:100%;max-width:580px">
+                  <span style="font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.8px;display:inline-flex;align-items:center;gap:6px">
+                    <span>⭐</span> CRAQUES DO FUTEBOL MUNDIAL NO AFM
+                  </span>
+                  <span style="font-size:11px;font-weight:700;color:#94a3b8">3.500+ Atletas Reais</span>
+                </div>
+
+                <div class="afm-craques-hero">
+                  <!-- Card Lamine Yamal -->
+                  <div class="afm-craque-card yamal" title="Lamine Yamal - FC Barcelona">
+                    <div class="afm-craque-badge">OVR 86</div>
+                    <div class="afm-craque-img-container">
+                      <img src="img/hero/yamal.png" alt="Lamine Yamal" class="afm-craque-photo">
+                      <div class="afm-craque-bottom-overlay"></div>
+                    </div>
+                    <div class="afm-craque-info">
+                      <div class="afm-craque-name">LAMINE YAMAL</div>
+                      <div class="afm-craque-team">🇪🇸 Barcelona · Joia</div>
+                    </div>
+                  </div>
+
+                  <!-- Card Lionel Messi (Featured / Crowned in Center) -->
+                  <div class="afm-craque-card messi" title="Lionel Messi - Campeão do Mundo">
+                    <div class="afm-craque-badge">👑 OVR 94</div>
+                    <div class="afm-craque-img-container">
+                      <img src="img/hero/messi.png" alt="Lionel Messi" class="afm-craque-photo">
+                      <div class="afm-craque-bottom-overlay"></div>
+                    </div>
+                    <div class="afm-craque-info">
+                      <div class="afm-craque-name">LIONEL MESSI</div>
+                      <div class="afm-craque-team">🇦🇷 Campeão Mundial</div>
+                    </div>
+                  </div>
+
+                  <!-- Card Neymar Jr -->
+                  <div class="afm-craque-card neymar" title="Neymar Jr - Santos FC">
+                    <div class="afm-craque-badge">⚡ OVR 91</div>
+                    <div class="afm-craque-img-container">
+                      <img src="img/hero/neymar.png" alt="Neymar Jr" class="afm-craque-photo">
+                      <div class="afm-craque-bottom-overlay"></div>
+                    </div>
+                    <div class="afm-craque-info">
+                      <div class="afm-craque-name">NEYMAR JR</div>
+                      <div class="afm-craque-team">🇧🇷 Santos FC · Mágico</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- BOTÕES DE NAVEGAÇÃO RÁPIDA -->
+              <div style="display:flex;align-items:center;gap:12px;margin:16px 0 20px 0;flex-wrap:wrap">
+                <button class="btn primary" id="btnLandingExploreSystems" style="padding:12px 24px;font-size:13px;font-weight:900;border-radius:10px;box-shadow:0 8px 25px rgba(124,58,237,0.4)">
+                  🎮 Ver Todos os Nossos Sistemas →
+                </button>
+                <button class="btn" id="btnLandingViewArenas" style="padding:12px 20px;font-size:13px;font-weight:800;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#cbd5e1">
+                  🏟️ Novas Arenas
+                </button>
+                <button class="btn" id="btnLandingViewEstaduais" style="padding:12px 20px;font-size:13px;font-weight:800;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#cbd5e1">
+                  🏆 11 Estaduais
+                </button>
+              </div>
+
+              <!-- PAINÉIS DE DESTAQUES VISÍVEIS NO TOPO -->
               <div class="afm-feature-panels-grid">
                 <div class="afm-feature-panel">
                   <div class="afm-panel-icon" style="color:#a7ff3f">⭐</div>
@@ -30921,7 +32229,7 @@ function renderSetup(app){
             </div>
           </div>
 
-          <!-- RIGHT SIDE: FORMULÁRIO DE LOGIN / CADASTRO (SEM ACESSO RÁPIDO - SCREENSHOT 1) -->
+          <!-- RIGHT SIDE: FORMULÁRIO DE LOGIN / CADASTRO -->
           <div class="afm-split-right">
             <div class="afm-auth-card">
               <h2 class="afm-auth-title">
@@ -31769,12 +33077,55 @@ function bindSetup(){
     };
   });
 
-  // Binds da Landing Page, Hub, Arenas e Estaduais
+  // Binds da Landing Page, Hub, Arenas, Estaduais e Sistemas
   const btnNavHome = $('#btnNavBrandHome');
   if(btnNavHome) btnNavHome.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
 
   const btnNavAuth = $('#btnNavGoAuth');
   if(btnNavAuth) btnNavAuth.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  const btnNavSystems = $('#btnNavGoSystems');
+  if(btnNavSystems) btnNavSystems.onclick = () => { setupViewMode = 'systems'; renderSetup($('#app')); };
+
+  const btnNavQuickSystems = $('#btnNavOpenSystemsQuick');
+  if(btnNavQuickSystems) btnNavQuickSystems.onclick = () => { setupViewMode = 'systems'; renderSetup($('#app')); };
+
+  const btnLandingExploreSystems = $('#btnLandingExploreSystems');
+  if(btnLandingExploreSystems) btnLandingExploreSystems.onclick = () => { setupViewMode = 'systems'; renderSetup($('#app')); };
+
+  const btnLandingViewArenas = $('#btnLandingViewArenas');
+  if(btnLandingViewArenas) btnLandingViewArenas.onclick = () => { setupViewMode = 'arenas'; renderSetup($('#app')); };
+
+  const btnLandingViewEstaduais = $('#btnLandingViewEstaduais');
+  if(btnLandingViewEstaduais) btnLandingViewEstaduais.onclick = () => { setupViewMode = 'estaduais'; renderSetup($('#app')); };
+
+  const btnSystemsStart = $('#btnSystemsStartCareer');
+  if(btnSystemsStart) btnSystemsStart.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  const btnSystemsBack = $('#btnSystemsBackHome');
+  if(btnSystemsBack) btnSystemsBack.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
+
+  $('.afm-sys-cat-btn').forEach(btn => {
+    btn.onclick = () => {
+      setupSystemCategory = btn.dataset.syscat;
+      renderSetup($('#app'));
+    };
+  });
+
+  $('.btnPlayWithSystem').forEach(btn => {
+    btn.onclick = () => {
+      const sysId = btn.dataset.sysid;
+      if(sysId === 'estaduais') {
+        setupViewMode = 'estaduais';
+      } else if(sysId === 'arenas') {
+        setupViewMode = 'arenas';
+      } else {
+        setupViewMode = 'auth';
+        toast('🚀 Sistema selecionado! Faça login ou cadastre-se para jogar.');
+      }
+      renderSetup($('#app'));
+    };
+  });
 
   const btnNavHub = $('#btnNavGoHub');
   if(btnNavHub) btnNavHub.onclick = () => { setupViewMode = 'hub'; renderSetup($('#app')); };
@@ -32316,14 +33667,26 @@ function bind(){
 
   $$('[data-view]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextView=b.dataset.view;if(!nextView)return;view=nextView;render()});
 
+  const btnHeaderCont=$('#btnHeaderContinue'); if(btnHeaderCont) btnHeaderCont.onclick=(e)=>{e.preventDefault();e.stopPropagation();handleHeaderContinueAction();};
+  const btnTopStoreBtn=$('#btnTopStore'); if(btnTopStoreBtn) btnTopStoreBtn.onclick=(e)=>{e.preventDefault();e.stopPropagation();openStoreComingSoonModal();};
+  const btnTopHelpBtn=$('#btnTopHelp'); if(btnTopHelpBtn) btnTopHelpBtn.onclick=(e)=>{e.preventDefault();e.stopPropagation();openGameHelpTutorialModal();};
   const qs=$('#quickSaveBtn'); if(qs) qs.onclick=()=>{if(save()) toast('Jogo salvo com sucesso localmente!')};
   const qsD=$('#quickSaveBtnDrawer'); if(qsD) qsD.onclick=()=>{if(save()) toast('Jogo salvo com sucesso localmente!')};
   const btnDrawerSave=$('#btnDrawerSave'); if(btnDrawerSave) btnDrawerSave.onclick=()=>{if(save()) toast('Jogo salvo com sucesso localmente!')};
   const btnDrawerSet=$('#btnDrawerSettings'); if(btnDrawerSet) btnDrawerSet.onclick=()=>{ if(typeof openSettingsModal==='function') openSettingsModal(); };
   
-  const bQuickFit=$('#btnTopQuickFitness'); if(bQuickFit) bQuickFit.onclick=()=>{ view='meutime'; render(); };
-  const bQuickCoins=$('#btnTopQuickCoins'); if(bQuickCoins) bQuickCoins.onclick=()=>{ view='escritorio'; render(); };
-  const bQuickCash=$('#btnTopQuickCash'); if(bQuickCash) bQuickCash.onclick=()=>{ view='escritorio'; render(); };
+  const bQuickStrength = $('#btnTopQuickTeamStrength');
+  if(bQuickStrength) bQuickStrength.onclick = () => { view = 'meutime'; render(); };
+  const bQuickStrengthCard = $('#btnTopQuickTeamStrengthCard');
+  if(bQuickStrengthCard) bQuickStrengthCard.onclick = () => { view = 'meutime'; render(); };
+
+  const bQuickPrestige = $('#btnTopQuickPrestige');
+  if(bQuickPrestige) bQuickPrestige.onclick = () => { view = 'carreira'; render(); };
+  const bQuickPrestigeCard = $('#btnTopQuickPrestigeCard');
+  if(bQuickPrestigeCard) bQuickPrestigeCard.onclick = () => { view = 'carreira'; render(); };
+
+  const bQuickCash = $('#btnTopQuickCash');
+  if(bQuickCash) bQuickCash.onclick = () => { view = 'escritorio'; render(); }; if(bQuickCash) bQuickCash.onclick=()=>{ view='escritorio'; render(); };
   const dSearch=$('#drawerQuickSearch'); if(dSearch) dSearch.onkeydown=(e)=>{ if(e.key==='Enter'){ view='mercado'; render(); } };
   
   const bToggleSnd = $('#btnToggleSoundTop');
@@ -32337,24 +33700,15 @@ function bind(){
   const topAdminInGame = $('#btnTopAdminPanelInGame');
   if(topAdminInGame) topAdminInGame.onclick = openAdminModal;
 
-  const mm=$('#mainMenuBtn'); if(mm) mm.onclick=()=>{
-    openCustomModal(
-      'Sair para o Menu Principal',
-      '<p>Deseja sair para o Menu Inicial? Seu save atual permanecerá gravado na sua conta local.</p>',
-      ()=>{
-        save();
-        state=null;
-        render();
-        toast('Save guardado na sua conta. Até logo!');
-      },
-      'Sim, Salvar e Voltar',
-      true
-    );
-  };
+  const mm = $('#mainMenuBtn');
+  if(mm) mm.onclick = handleExitGameAction;
+
+  const btnCloseDrawer = $('#btnCloseMobileDrawer');
+  if(btnCloseDrawer) btnCloseDrawer.onclick = handleExitGameAction;
 
   if(view==='central'){
     const bHeroSquad = $('#btnHeroQuickSquad');
-    if(bHeroSquad) bHeroSquad.onclick = () => { view = 'meutime'; render(); };
+    if(bHeroSquad) bHeroSquad.onclick = () => { view = 'elenco'; render(); };
     const bHeroTactics = $('#btnHeroQuickTactics');
     if(bHeroTactics) bHeroTactics.onclick = () => { view = 'meutime'; render(); };
 
@@ -32387,6 +33741,18 @@ function bind(){
       view = 'temporada';
       render();
     };
+    $$('.btn-central-cup-tab').forEach(b => {
+      b.onclick = (e) => {
+        e.preventDefault();
+        state.centralCupTab = b.dataset.tabId;
+        render();
+      };
+    });
+    const bCentEstadual = $('#btnCentralTabEstadual');
+    if(bCentEstadual) bCentEstadual.onclick = () => {
+      state.centralCupTab = 'estadual';
+      render();
+    };
     const bCentCopa = $('#btnCentralTabCopa');
     if(bCentCopa) bCentCopa.onclick = () => {
       state.centralCupTab = 'copa';
@@ -32395,6 +33761,13 @@ function bind(){
     const bCentLib = $('#btnCentralTabLib');
     if(bCentLib) bCentLib.onclick = () => {
       state.centralCupTab = 'libertadores';
+      render();
+    };
+    const bGoEstadual = $('#btnGoToEstadualTableFromCentral');
+    if(bGoEstadual) bGoEstadual.onclick = () => {
+      const mShips = (typeof getSavedSeasonMemberships === 'function') ? getSavedSeasonMemberships(state.club) : null;
+      view = 'calendario';
+      calendarFilter = mShips?.stateId || 'ALL';
       render();
     };
     const bGoCopa = $('#btnGoToCopaTableFromCentral');

@@ -3183,49 +3183,74 @@ select, .saas-select {
 }
 
 .afm-landing-nav {
-  height: 64px;
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 36px;
-  background: rgba(9, 13, 22, 0.85);
+  padding: 8px 24px;
+  background: rgba(9, 13, 22, 0.92);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   position: sticky;
   top: 0;
   z-index: 999;
+  gap: 14px;
 }
 
 .afm-nav-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 900;
   letter-spacing: 0.5px;
   color: #fff;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .afm-nav-links {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 0;
+}
+.afm-nav-links::-webkit-scrollbar {
+  display: none;
 }
 
 .afm-nav-link {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
   color: #94a3b8;
   cursor: pointer;
-  transition: color 0.2s;
-  background: none;
-  border: none;
-  padding: 0;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 7px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
 }
 
-.afm-nav-link:hover, .afm-nav-link.active {
+.afm-nav-link:hover {
   color: #fff;
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.afm-nav-link.active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.45), rgba(168, 85, 247, 0.35));
+  border-color: #a855f7;
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.4);
 }
 
 .afm-split-container {
@@ -3660,6 +3685,324 @@ select, .saas-select {
   color: #fff;
   border-color: #a855f7;
   box-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
+}
+
+/* ========================================================================= */
+/* AFM 2027: HERO TRIO DE CRAQUES (NEYMAR, MESSI, YAMAL)                     */
+/* ========================================================================= */
+
+.afm-craques-hero-wrapper {
+  margin: 18px 0 20px 0;
+  width: 100%;
+}
+
+.afm-craques-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 14px;
+  width: 100%;
+  max-width: 580px;
+  box-sizing: border-box;
+}
+
+.afm-craque-card {
+  position: relative;
+  flex: 1;
+  min-width: 120px;
+  max-width: 180px;
+  background: linear-gradient(180deg, #181d2f 0%, #0d1322 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.afm-craque-card:hover {
+  transform: translateY(-6px) scale(1.02);
+}
+
+.afm-craque-card.messi {
+  max-width: 195px;
+  border-color: rgba(250, 204, 21, 0.45);
+  box-shadow: 0 12px 30px rgba(250, 204, 21, 0.22), 0 0 15px rgba(250, 204, 21, 0.1);
+  z-index: 2;
+  transform: translateY(-8px);
+}
+.afm-craque-card.messi:hover {
+  transform: translateY(-14px) scale(1.03);
+  box-shadow: 0 16px 36px rgba(250, 204, 21, 0.35), 0 0 22px rgba(250, 204, 21, 0.2);
+}
+
+.afm-craque-card.neymar {
+  border-color: rgba(74, 222, 128, 0.35);
+  box-shadow: 0 10px 25px rgba(74, 222, 128, 0.15);
+}
+.afm-craque-card.neymar:hover {
+  border-color: rgba(74, 222, 128, 0.6);
+  box-shadow: 0 14px 30px rgba(74, 222, 128, 0.25);
+}
+
+.afm-craque-card.yamal {
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 10px 25px rgba(56, 189, 248, 0.15);
+}
+.afm-craque-card.yamal:hover {
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 14px 30px rgba(56, 189, 248, 0.25);
+}
+
+.afm-craque-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.5px;
+}
+
+.afm-craque-card.messi .afm-craque-badge {
+  background: linear-gradient(135deg, #eab308, #ca8a04);
+  color: #000;
+  border: none;
+  font-weight: 900;
+}
+
+.afm-craque-img-container {
+  width: 100%;
+  height: 180px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.12), transparent 70%);
+}
+
+.afm-craque-card.messi .afm-craque-img-container {
+  height: 195px;
+  background: radial-gradient(circle at 50% 30%, rgba(250, 204, 21, 0.2), transparent 70%);
+}
+
+.afm-craque-card.neymar .afm-craque-img-container {
+  background: radial-gradient(circle at 50% 30%, rgba(74, 222, 128, 0.16), transparent 70%);
+}
+
+.afm-craque-card.yamal .afm-craque-img-container {
+  background: radial-gradient(circle at 50% 30%, rgba(56, 189, 248, 0.16), transparent 70%);
+}
+
+.afm-craque-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  transition: transform 0.35s ease;
+}
+
+.afm-craque-card:hover .afm-craque-photo {
+  transform: scale(1.06);
+}
+
+.afm-craque-bottom-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 55px;
+  background: linear-gradient(to top, #0d1322 25%, transparent 100%);
+  pointer-events: none;
+}
+
+.afm-craque-info {
+  padding: 8px 10px 10px 10px;
+  background: #0d1322;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.afm-craque-name {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.afm-craque-card.messi .afm-craque-name {
+  color: #facc15;
+}
+
+.afm-craque-team {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+/* ========================================================================= */
+/* AFM 2027: VITRINE DE TODOS OS SISTEMAS (TABS & CARDS)                     */
+/* ========================================================================= */
+
+.afm-systems-category-tabs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 0 16px 0;
+  margin-bottom: 20px;
+}
+.afm-systems-category-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.afm-sys-cat-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.afm-sys-cat-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.afm-sys-cat-btn.active {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #fff;
+  border-color: #c084fc;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.45);
+}
+
+.afm-systems-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.afm-system-card {
+  background: #0d1322;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.afm-system-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(168, 85, 247, 0.45);
+  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.55);
+}
+
+.afm-system-card-header {
+  padding: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.afm-system-card-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.afm-system-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex: 1;
+}
+
+.afm-sys-feat-item {
+  display: flex;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.45;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.afm-sys-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.afm-sys-stat-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+}
+
+.afm-sys-stat-val {
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.afm-sys-stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+@media (max-width: 900px) {
+  .afm-systems-grid {
+    grid-template-columns: 1fr;
+  }
+  .afm-craques-hero {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .afm-craque-card {
+    min-width: 105px;
+  }
 }
 
 /* ------------------------------------------------------------- */
@@ -5667,7 +6010,7 @@ body.theme-emerald {
   border: 1px solid rgba(255, 255, 255, 0.14);
   color: #fff;
   font-size: 18px;
-  display: inline-flex;
+  display: none !important; /* No PC o menu lateral já fica fixo, não precisa do botão hambúrguer no topo */
   align-items: center;
   justify-content: center;
   cursor: pointer;
@@ -5766,6 +6109,8 @@ body.theme-emerald {
 }
 
 .sm-badge-energy { border-color: rgba(56, 189, 248, 0.35); }
+.sm-badge-strength { border-color: rgba(168, 85, 247, 0.45); }
+.sm-badge-prestige { border-color: rgba(245, 158, 11, 0.45); }
 .sm-badge-gold { border-color: rgba(245, 158, 11, 0.35); }
 .sm-badge-cash { border-color: rgba(34, 197, 94, 0.35); }
 
@@ -5777,6 +6122,8 @@ body.theme-emerald {
 .sm-badge-cash .sm-res-val { color: #4ade80; }
 .sm-badge-gold .sm-res-val { color: #facc15; }
 .sm-badge-energy .sm-res-val { color: #38bdf8; }
+.sm-badge-strength .sm-res-val { color: #c084fc; font-weight: 900; }
+.sm-badge-prestige .sm-res-val { color: #facc15; font-weight: 900; }
 
 .sm-res-add {
   display: inline-flex;
@@ -6019,7 +6366,8 @@ body.theme-emerald {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 280px;
+    width: clamp(290px, 42vw, 380px) !important;
+    max-width: 90vw !important;
     z-index: 1100;
     background: rgba(12, 9, 24, 0.98);
     backdrop-filter: blur(24px);
@@ -6027,14 +6375,63 @@ body.theme-emerald {
     box-shadow: 12px 0 50px rgba(0, 0, 0, 0.85);
     transform: translateX(-100%);
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-    padding: 16px;
+    padding: 14px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box !important;
   }
 
   .side.sm-drawer.drawer-open {
     transform: translateX(0);
+  }
+
+  /* Grid com 2 colunas equilibradas para os botões do menu SM27 no drawer */
+  .sm-drawer-nav {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+    width: 100% !important;
+    padding: 6px 0 !important;
+  }
+
+  .sm-drawer-nav button {
+    width: 100% !important;
+    min-height: 42px !important;
+    padding: 7px 9px !important;
+    font-size: clamp(10.5px, 1.25vw, 12px) !important;
+    font-weight: 800 !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    text-align: left !important;
+    line-height: 1.25 !important;
+    word-break: normal !important;
+    white-space: normal !important;
+    box-sizing: border-box !important;
+    justify-content: flex-start !important;
+    overflow: hidden !important;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    transition: all 0.15s ease;
+  }
+
+  .sm-drawer-nav button:hover {
+    background: rgba(168, 85, 247, 0.2) !important;
+    border-color: rgba(168, 85, 247, 0.5) !important;
+    color: #fff !important;
+  }
+
+  @media screen and (max-width: 520px) {
+    .sm-drawer-nav {
+      grid-template-columns: 1fr !important;
+    }
+    .sm-drawer-nav button {
+      min-height: 38px !important;
+      font-size: 12px !important;
+    }
   }
 
   .main {
@@ -6043,20 +6440,67 @@ body.theme-emerald {
   }
 
   .sm-topbar {
-    padding: 4px 10px !important;
+    padding: 4px clamp(6px, 1.2vw, 12px) !important;
     min-height: 46px !important;
+    gap: clamp(4px, 1vw, 10px) !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+  .sm-topbar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .sm-btn-hamburger {
+    display: inline-flex !important;
+    width: clamp(32px, 4vw, 38px) !important;
+    height: clamp(32px, 4vw, 38px) !important;
+    font-size: clamp(16px, 2vw, 18px) !important;
+  }
+
+  .sm-pill-store {
+    padding: clamp(3px, 0.6vh, 5px) clamp(8px, 1vw, 12px) !important;
+    font-size: clamp(9.5px, 1.1vw, 11px) !important;
+  }
+
+  .sm-res-badge {
+    padding: clamp(3px, 0.5vh, 4px) clamp(6px, 0.9vw, 10px) !important;
+    font-size: clamp(10px, 1.1vw, 12px) !important;
+    gap: 4px !important;
+  }
+
+  .sm-action-icon-btn {
+    width: clamp(30px, 3.8vw, 36px) !important;
+    height: clamp(30px, 3.8vw, 36px) !important;
+    font-size: clamp(12px, 1.5vw, 14px) !important;
   }
 
   .sm-btn-continue {
-    padding: 4px 12px !important;
+    padding: clamp(4px, 0.7vh, 7px) clamp(8px, 1.2vw, 15px) !important;
+    gap: clamp(5px, 0.8vw, 10px) !important;
   }
 
   .sm-continue-label {
-    font-size: 12px !important;
+    font-size: clamp(11px, 1.2vw, 13px) !important;
   }
 
   .sm-continue-time {
-    font-size: 9px !important;
+    font-size: clamp(8px, 0.9vw, 9.5px) !important;
+  }
+
+  .sm-task-ribbon {
+    padding: 3px clamp(6px, 1vw, 14px) !important;
+    gap: clamp(4px, 0.8vw, 8px) !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+  .sm-task-ribbon::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .sm-ribbon-pill {
+    padding: 3px clamp(7px, 1vw, 11px) !important;
+    font-size: clamp(9.5px, 1.1vw, 11px) !important;
+    flex-shrink: 0 !important;
   }
 
   .central-dashboard-grid {
@@ -6066,6 +6510,43 @@ body.theme-emerald {
 
   .hide-mobile-small {
     display: none !important;
+  }
+}
+
+/* ========================================================================= */
+/* AFM 2027: MODAL DA LUPA (SPLIT CARD AO LADO E INFORMAÇÕES AO LADO)       */
+/* ========================================================================= */
+
+.afm-lupa-modal-dialog {
+  background: #0f172a !important;
+  border: 1.5px solid rgba(124, 58, 237, 0.7) !important;
+  border-radius: 20px !important;
+  max-width: min(940px, 95vw) !important;
+  width: 100% !important;
+  padding: clamp(14px, 2vh, 22px) clamp(16px, 2vw, 24px) !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(124, 58, 237, 0.4) !important;
+  position: relative !important;
+  max-height: 94vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.afm-lupa-split-layout {
+  display: grid !important;
+  grid-template-columns: minmax(190px, 220px) 1fr !important;
+  gap: clamp(12px, 1.8vw, 22px) !important;
+  align-items: start !important;
+  max-height: calc(94vh - 36px) !important;
+  overflow-y: auto !important;
+  padding-right: 4px !important;
+}
+
+@media (max-width: 680px), (max-height: 460px) and (max-width: 760px) {
+  .afm-lupa-split-layout {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
   }
 }
 
@@ -6111,3 +6592,247 @@ body.theme-emerald {
   justify-content: center;
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
 }
+
+
+/* =========================================================================
+   SISTEMA DE XP, EVOLUÇÃO EM CAMPO & "IR ALÉM" (BREAKTHROUGH)
+   ========================================================================= */
+.afm-player-xp-mini {
+  user-select: none;
+}
+
+.afm-lupa-xp-panel {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(124, 58, 237, 0.08);
+  transition: border-color 0.2s ease;
+}
+
+.afm-lupa-xp-panel:hover {
+  border-color: rgba(168, 85, 247, 0.6) !important;
+}
+
+/* Proteção do Slot de Goleiro contra Overflow no Gramado */
+.pitch-slot-dropzone[data-slot-role="GK"] {
+  z-index: 28 !important;
+}
+
+.pitch-slot-dropzone[data-slot-role="GK"] .pitch-slot-pedestal {
+  top: calc(100% + 1px) !important;
+  max-width: 98px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.9) !important;
+}
+
+
+/* =========================================================================
+   ESCALA DE ALTA DEFINIÇÃO PARA O CAMPO DE TÁTICA (MEU TIME & TÁTICA)
+   ========================================================================= */
+.pitch-slot-dropzone {
+  width: 70px !important;
+  height: 88px !important;
+}
+
+.fifa-mini-card {
+  width: 70px !important;
+  height: 88px !important;
+  padding: 3px 3px 2px 3px !important;
+}
+
+.fifa-mini-card-photo {
+  height: 44px !important;
+  max-width: 54px !important;
+}
+
+.fifa-mini-card-name {
+  font-size: 8px !important;
+  padding: 1.5px 1px !important;
+}
+
+.pitch-slot-pedestal {
+  top: calc(100% + 2px) !important;
+  padding: 2px 7px !important;
+  min-width: 70px !important;
+  max-width: 104px !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.9) !important;
+  border-radius: 999px !important;
+}
+
+.pitch-slot-pedestal .pedestal-role-line {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  white-space: nowrap !important;
+}
+
+/* Proteção Estrita contra Corte do Goleiro no Gramado */
+.pitch-slot-dropzone[data-slot-role="GK"] {
+  z-index: 28 !important;
+}
+.pitch-slot-dropzone[data-slot-role="GK"] .pitch-slot-pedestal {
+  top: calc(100% + 1px) !important;
+  max-width: 100px !important;
+}
+
+/* Responsividade de Altura para Telas Menores e Mobile Landscape */
+@media (max-height: 740px) {
+  .tactics-modal-container {
+    min-height: 480px !important;
+    gap: 10px !important;
+  }
+  .pitch-slot-dropzone,
+  .fifa-mini-card {
+    width: 62px !important;
+    height: 78px !important;
+  }
+  .fifa-mini-card-photo {
+    height: 38px !important;
+    max-width: 48px !important;
+  }
+  .fifa-mini-card-name {
+    font-size: 7.5px !important;
+  }
+  .pitch-slot-pedestal {
+    padding: 1px 5px !important;
+  }
+}
+
+/* Modal Pop-up de Ação de Partida ao Clicar em CONTINUAR */
+.afm-match-action-modal-overlay {
+  z-index: 950 !important;
+  backdrop-filter: blur(8px) !important;
+  background: rgba(4, 7, 14, 0.88) !important;
+}
+
+.afm-match-action-modal {
+  border: 1px solid rgba(168, 85, 247, 0.45) !important;
+  background: linear-gradient(180deg, #130f24 0%, #0c0a18 100%) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(124, 58, 237, 0.25) !important;
+}
+
+@media (max-width: 600px) {
+  .afm-match-action-modal {
+    padding: 14px !important;
+    width: 98% !important;
+  }
+}
+
+/* Modais de Loja Oficial (Em Breve) e Central de Ajuda & Tutorial */
+.afm-store-modal-overlay,
+.afm-help-modal-overlay {
+  z-index: 960 !important;
+  backdrop-filter: blur(10px) !important;
+  background: rgba(4, 7, 14, 0.88) !important;
+}
+
+.afm-store-modal {
+  border: 1px solid rgba(234, 179, 8, 0.45) !important;
+  background: linear-gradient(180deg, #18150c 0%, #0d0f17 100%) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 35px rgba(234, 179, 8, 0.25) !important;
+}
+
+.afm-help-modal {
+  border: 1px solid rgba(168, 85, 247, 0.45) !important;
+  background: linear-gradient(180deg, #130f24 0%, #0c0a18 100%) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 35px rgba(168, 85, 247, 0.25) !important;
+}
+
+.afm-help-nav-tabs {
+  display: flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.afm-help-tab-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.afm-help-tab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.afm-help-tab-btn.active {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+.afm-help-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.afm-help-guide-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.afm-help-guide-card:hover {
+  border-color: rgba(168, 85, 247, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.afm-btn-goto-tab {
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: #c084fc;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.afm-btn-goto-tab:hover {
+  background: #a855f7;
+  color: #fff;
+  border-color: #a855f7;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+}
+
+@media (max-width: 600px) {
+  .afm-store-modal,
+  .afm-help-modal {
+    padding: 14px !important;
+    width: 98% !important;
+  }
+  .afm-help-guide-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .afm-btn-goto-tab {
+    width: 100%;
+    text-align: center;
+    padding: 8px;
+  }
+}
+
+

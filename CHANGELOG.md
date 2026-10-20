@@ -2,6 +2,147 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.12] - 2026-10-19 (Unificação dos Botões Laterais em "Meu Time & Tática" e Filtragem Estrita das Competições na Central [Estadual, Copa e Continental])
+
+### 📋 1. Unificação dos Botões Laterais no Card de Partida
+- **Remoção de Duplicação**: Os dois botões empilhados (`Equipa`/`Elenco` e `Táticas`) foram unificados em apenas um botão proeminente e direto: **`📋 Meu Time & Tática`**.
+- **Aplicações**:
+  - No card de próximo jogo da **Central** (`#btnHeroQuickTactics`).
+  - No **Modal de Ação da Partida** (`#btnMatchModalTactics`).
+- Ao clicar, o técnico é direcionado para a prancheta de `meutime`, onde gerencia tanto os titulares e reservas quanto a formação e instruções táticas.
+
+### 🏆 2. Widget de Competições na Central Restrito Exclusivamente ao que o Clube Disputa
+- **Filtro Rigoroso por Participação Real**: O widget secundário da Central deixou de exibir abas hardcoded de competições nas quais o clube não está inscrito (como a exibição indevida da Libertadores para clubes que não a disputam, como o Criciúma).
+- **Aba Estadual Dinâmica (`🏟️ ESTADUAL`)**:
+  - Clubes com campeonato estadual cadastrado (como o Criciúma no Campeonato Catarinense) passam a ter a aba **`🏟️ ESTADUAL`**.
+  - Apresenta: próximo confronto estadual com contagem regressiva, tabela de classificação do estadual com destaque para o clube do usuário e outros jogos da rodada.
+  - Link direto para a tabela completa do estadual.
+- **Aba Copa do Brasil (`🇧🇷 COPA`)**:
+  - Exibida para todos os participantes da Copa do Brasil, com dados de mata-mata da fase ativa.
+- **Aba Continental (`🏆 LIBERTADORES` / `🥈 SUL-AMERICANA`)**:
+  - Exibida **apenas e tão somente se** o clube do jogador for participante real da fase de grupos ou mata-mata do torneio continental.
+- **Exemplo de Aplicação Prática**:
+  - **Criciúma**: Exibe unicamente `🏟️ ESTADUAL` (Catarinense) e `🇧🇷 COPA` (Copa do Brasil).
+  - **Flamengo / Palmeiras**: Exibe `🏟️ ESTADUAL` (Carioca/Paulista), `🇧🇷 COPA` e `🏆 LIBERTADORES`.
+
+## [3.9.11] - 2026-10-19 (Modal "Em Breve" da Loja Oficial & Central Completa de Ajuda com Dicas do Jogo e Tutorial das 12 Abas)
+
+### 👑 1. Modal da Loja Oficial — "Em Breve" (`openStoreComingSoonModal`)
+- **Abertura pelo Botão `👑 LOJA`**: Ao clicar no botão `#btnTopStore` no cabeçalho superior do jogo, é exibido o pop-up com design refinado anunciando os recursos futuros da Loja Oficial AFM.
+- **Vitrine de Novidades em Desenvolvimento**:
+  - **Moedas de Treinador (AFM Coins)**: Desbloqueio de temas estéticos e consultorias táticas de elite obtidas através de conquistas esportivas.
+  - **Kits Retrô & Clássicos**: Uniformes icônicos dos grandes clubes brasileiros e mundiais.
+  - **Customização de Arenas**: Personalização visual de assentos, iluminação temática e novos setores VIP no estádio.
+  - **Rede VIP de Olheiros**: Acesso antecipado a relatórios completos com potencial de mercado de jovens promessas do futebol.
+  - **Compromisso 100% Fair Play**: Garantia absoluta de ausência de vantagens Pay-to-Win, preservando a simulação tática e realista.
+- **Fechamento Ágil**: Botão `✕`, botão de confirmação "Entendido, Voltar ao Jogo" ou clique na máscara de fundo.
+
+### 💡 2. Central de Ajuda & Tutorial Completo das 12 Abas (`openGameHelpTutorialModal`)
+- **Abertura pelo Botão `?`**: Ao clicar no botão `#btnTopHelp` no cabeçalho superior, abre-se a Central de Ajuda do simulador.
+- **Aba "⚡ Dicas Rápidas de Mestre"**:
+  - Dicas essenciais sobre vigor físico e rotação de elenco para prevenção de lesões.
+  - Estratégia tática, controle de posse e escolha de mentalidade (Ofensiva/Defensiva).
+  - Como funciona o sistema de XP e evolução contínua dos atletas após as partidas.
+  - Regras de controle da folha salarial e saúde financeira perante a diretoria.
+  - Dicas de negociação no mercado da bola e no *Deadline Day*.
+  - Funcionamento do botão CONTINUAR e avanço de calendário cronológico.
+- **Aba "📖 Tutorial das 12 Abas"**:
+  - Apresentação completa e detalhada das 12 abas do simulador com ícone, categoria e descrição de funcionalidades:
+    1. ⭐ `central`: Perspectiva Geral
+    2. 📋 `meutime`: Meu time & Tática
+    3. 👥 `elenco`: Elenco Oficial
+    4. 🗓️ `calendario`: Calendário de Jogos
+    5. 🔄 `mercado`: Mercado & Transferências
+    6. 💼 `carreira`: Carreira do Treinador
+    7. 🏆 `temporada`: Temporada & Tabelas
+    8. 🏟️ `estrutura`: Instalações & Estádio
+    9. 🏢 `escritorio`: Escritório & Finanças
+    10. 📰 `noticias`: Notícias & Mídia
+    11. 📢 `novidades`: Novidades & Correções
+    12. ⚙️ `config`: Configurações
+  - **Atalho Interativo "Ir para esta Aba ➔"**: Cada card possui um botão interativo que direciona o jogador instantaneamente para a aba correspondente e fecha o modal.
+
+### 🛡️ 3. Resiliência e Cobertura Multiplataforma
+- **Amarração Direta & Fallback**: Eventos amarrados diretamente em `bind()` em `js/game.js` e capturados com fallback delegado no documento em `js/ui/pwa_and_landscape_enforcer.js`.
+- **Estilos Dedicados**: Novas regras em `css/app.css` com backdrop blur, gradientes personalizados e suporte responsivo a mobile e desktop.
+
+## [3.9.10] - 2026-10-19 (Ocultação de Menu no PC, Botão X com Auto-Save, Força do Time & Prestígio do Treinador no Topo e Aba "Temporada")
+
+### 💻 1. Ocultação do Botão de Menu no Topo para PC / Desktop
+- **Sidebar Fixa no PC**: Como a barra lateral de navegação já permanece sempre visível e fixada no layout desktop (`width > 1024px`), o botão de hambúrguer `☰` no topo foi desativado no PC (`display: none !important;`).
+- **Preservado no Mobile**: Em telas móveis e tablets (`max-width: 1024px` ou `max-height: 600px`), o botão hambúrguer continua visível e responsivo (`display: inline-flex !important;`) para alternar a gaveta lateral.
+
+### 💾 2. Botão "✕" com Salvamento Automático Garantido
+- **Ação Unificada de Sair**: Ao clicar no botão `✕` no cabeçalho do menu lateral (`#btnCloseMobileDrawer`), o jogo abre a confirmação de saída para o menu inicial com aviso de auto-save.
+- **Auto-Save Imediato**: Ao confirmar a saída, o jogo salva automaticamente o progresso local (`save()`), zera a sessão ativa com segurança (`state = null`) e exibe notificação de confirmação (`toast`).
+
+### ⭐ 3. Recursos Superiores: Força do Time & Prestígio do Treinador
+- **Força do Time (`⭐ OVR`)**: Substituiu o antigo badge de energia pelo Overall real do elenco (`overallSquad()`). Clicar no botão `+` abre a tela **Meu Time & Tática**.
+- **Prestígio do Treinador (`🎖️ pts`)**: Exibe a pontuação de prestígio social e esportivo do técnico (`state.managerPersonal?.prestigeScore || 5`).
+- **Atalho no `+` do Prestígio**: Clicar no botão `+` leva o usuário diretamente para a aba **Carreira do Treinador** (`view = 'carreira'`).
+
+### 🏆 4. Aba "Temporada" no Menu Lateral
+- **Rótulo Simplificado**: O botão da aba foi renomeado de `🏆 Temporada & Competições` para exatamente **`🏆 Temporada`**, mantendo o design limpo e conciso solicitado.
+
+## [3.9.9] - 2026-10-19 (Modal Interativo de Ação ao Clicar em CONTINUAR, Três Botões de Partida [Jogar Agora, Simular, Prévia] e Correção dos Nomes dos Atalhos da Fita de Tarefas)
+
+### 🎮 1. Modal Interativo de Partida ao Clicar em "CONTINUAR" (`openMatchActionModal`)
+- **Fluxo Interativo de Decisão**: Ao clicar no botão verde neon `CONTINUAR` no cabeçalho superior:
+  - Se a partida estiver pronta ou no dia do jogo: abre instantaneamente o **Modal Oficial de Ação da Partida**.
+  - Se a data do jogo estiver no futuro: o calendário avança de forma garantida até o dia do confronto e imediatamente abre o modal da partida, oferecendo ao técnico o controle absoluto do que fazer.
+- **Três Botões de Ação Principais**:
+  - `▶ JOGAR AO VIVO` (ou "Jogar Agora"): inicia a experiência de campo em tempo real (`startLiveMatch()`).
+  - `⚡ SIMULAR`: simula a rodada de forma instantânea com motor calibrado (`simulateQuickRound()`).
+  - `📋 PRÉVIA`: abre a análise completa de raio-x do adversário, histórico e probabilidades (`openMatchPreviewModal()`).
+- **Raio-X Completo do Confronto no Modal**:
+  - Escudos em alta resolução, nomes dos clubes e círculos de força/Overall de cada equipe.
+  - Botões rápidos `👥 Elenco` (navega para Elenco) e `📋 Táticas` (navega para Meu Time & Tática).
+  - Informações de clima, estado do gramado, horário (15:00), data, competição e estádio.
+  - Histórico direto H2H (Vitórias, Empates, Derrotas).
+  - Bônus do Caldeirão e posição de tabela.
+  - Seletor rápido de Mentalidade (Retranca, Defensiva, Equilibrada, Ofensiva, Pressão total) que salva na hora.
+  - Botão de fechar `✕` e clique no fundo para voltar à tela anterior sem jogar, caso o técnico queira fazer ajustes pré-jogo.
+
+### 🏷️ 2. Correção dos Botões de Atalhos da Fita (`sm-task-ribbon`)
+- **Alinhamento com a Gaveta de Navegação**:
+  - `📰 Relatórios` ➔ **`📰 Notícias & Mídia`** (conecta à aba de Notícias).
+  - `🎯 Objetivos` ➔ **`🎯 Carreira`** (conecta à aba de Carreira do Treinador).
+  - `🏋️ Treino & Tática` ➔ **`📋 Meu Time & Tática`** (conecta à aba de Tática).
+  - `🔍 Olheiro & Mercado` ➔ **`🔄 Mercado & Transferências`** (conecta à aba de Mercado).
+  - `🤝 Patrocinador` ➔ **`🏢 Escritório & Finanças`** (conecta à aba de Escritório).
+  - Preservado o botão lateral `🗓️ Calendário`.
+- **Localização PT-BR no Card Central**:
+  - Alterado o rótulo de `Equipa` para `Elenco` (`<span>👥</span> Elenco`) e conectado para abrir a tela de Elenco.
+
+## [3.9.8] - 2026-10-19 (Sistema Oficial de XP e Evolução em Campo, Resumo Mensal "Partidas vs Treino", Mecânica "Ir Além" / Breakthrough e Ajuste de Escala Tática)
+
+### ⚡ 1. Sistema Oficial de XP e Evolução dos Jogadores em Campo
+- **Progressão Baseada em Atuação Real**: Os jogadores agora evoluem com pontos de XP ganhos partida a partida, de forma rigorosamente balanceada com base no desempenho:
+  - **Minutos em Campo**: Pontuação proporcional de minutos jogados (até 25 XP base).
+  - **Escala de Notas (5.0 a 10.0)**: Quem joga bem cresce muito mais rápido. Notas < 6.0 rendem apenas 5 XP; notas 7.0–7.4 rendem 45 XP; notas 8.0–8.4 rendem 90 XP; notas de gala 9.0+ rendem 150 XP de atuação de craque.
+  - **Lances Decisivos (Bônus Explícitos)**:
+    - Cada gol marcado: **+40 XP**
+    - Cada assistência: **+25 XP**
+    - Clean sheet (Goleiro e zagueiros/laterais com 60+ min sem sofrer gols): **+35 XP**
+    - Bônus por vitória coletiva: **+15 XP** (empate: +5 XP)
+  - **Multiplicadores por Idade e Estágio de Carreira**: Jovens prodígios (≤ 20 anos) possuem multiplicador de 1.40x; jovens (21–23) 1.25x; ápice (24–27) 1.00x; experientes (28–30) 0.70x; veteranos (31+) 0.40x.
+- **Titulares vs Reservas**: Atletas titulares que jogam e produzem evoluem com ritmo acelerado; jogadores reservas mantêm evolução estável e contínua através das sessões de treino no Centro de Treinamento (CT).
+
+### 🏋️ 2. Evolução no Fim do Mês pelo CT e Resumo Transparente de Pontos
+- **Treino Contínuo no CT**: A comissão técnica concede pontos de treino mensais a todo o elenco (titulares e reservas) calibrados de acordo com as instalações do clube (CT Nível 1 a 5: 35 a 130 XP).
+- **Resumo do Mês no Modal da Lupa (Screenshot Real)**:
+  - Nova aba interativa de **Progresso de Evolução & XP** com barra de nível neon e porcentagem exata (`p.xp / p.xpNext`).
+  - Painel de transparência: mostra com clareza **o que veio do jogo** (partidas, notas e lances decisivos) e **o que veio do treino** (Centro de Treinamento), além da média de notas e total de jogos no mês.
+
+### 🚀 3. Mecânica "Ir Além" (Breakthrough de Potencial)
+- **Superação de Expectativas**: Jovens atletas (≤ 24 anos) que atingem cedo o limite de seu potencial inicial e mantêm notas médias altas (≥ 7.3) podem superar o esperado.
+- **Rompimento de Teto**: A comissão técnica identifica o prodígio e expande o teto de potencial (+1 ou +2 POT), permitindo que o atleta continue subindo de Overall além do teto inicial previamente projetado, com notícias e celebração em tempo real.
+
+### ⚽ 4. Ajuste de Escala Tática e Posição do Goleiro no Gramado
+- **Correção da Linha de Fundo**: Ajustada a coordenada vertical do slot do Goleiro (`y: 83.5%` em todas as 18 formações verticais), eliminando qualquer transbordo ou corte do pedestal sobre a linha inferior do gramado.
+- **Formatação de Função Elegante**: As funções táticas de goleiros no pedestal agora são formatadas como `GL · Tradicional` ou `GL · Líbero`, garantindo acomodação perfeita sem reticências desnecessárias.
+- **Barra Compacta de XP no Elenco**: Adicionado indicador visual de progresso de XP logo abaixo da nota geral (OVR) de cada atleta na tabela de elenco.
+
 ## [3.9.7] - 2026-10-17 (Premiações Reais de Campeonatos, Inclusão Oficial da MLS, Patrocinadores Locais por País & Sistema Oficial de Número da Camisa)
 
 ### 💰 1. Premiações Reais e Autênticas de Todos os Campeonatos e Copas

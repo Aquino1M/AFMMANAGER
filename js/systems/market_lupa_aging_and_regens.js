@@ -339,6 +339,11 @@
               }
             }
           }
+
+          // Processamento dinâmico de XP e Evolução do Atleta por partida oficial
+          if (window.AFM_PlayerXPEvolution && typeof window.AFM_PlayerXPEvolution.processMatchXP === 'function') {
+            window.AFM_PlayerXPEvolution.processMatchXP(state, matchResult);
+          }
         }
       }
 
@@ -530,135 +535,157 @@
         const rating = selSeason.rating || 7.2;
 
         modal.innerHTML = `
-          <div style="background:#0f172a;border:1px solid #7c3aed;border-radius:22px;max-width:720px;width:100%;padding:26px;box-shadow:0 25px 60px rgba(0,0,0,0.85),0 0 35px ${ovrGlowColor};position:relative;max-height:92vh;overflow-y:auto;">
+          <div class="afm-lupa-modal-dialog" style="background:#0f172a;border:1.5px solid rgba(124,58,237,0.7);border-radius:20px;max-width:min(940px,95vw);width:100%;padding:18px 20px;box-shadow:0 25px 60px rgba(0,0,0,0.85),0 0 35px ${ovrGlowColor};position:relative;max-height:94vh;display:flex;flex-direction:column;box-sizing:border-box;">
             
-            <!-- Top Header Organizado e Limpo -->
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:18px;gap:16px;">
-              <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+            <div class="afm-lupa-split-layout" style="display:grid;grid-template-columns:minmax(190px,220px) 1fr;gap:20px;align-items:start;overflow-y:auto;max-height:calc(94vh - 36px);padding-right:4px;">
+              
+              <!-- COLUNA ESQUERDA: CARD DO JOGADOR, BADGES, CLUBE E MUDAR POSIÇÃO -->
+              <div style="display:flex;flex-direction:column;align-items:center;background:linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(13,19,34,0.6) 100%);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:16px 12px;position:relative;">
                 
-                <!-- Card FIFA Personalizado (Especial 85+ / Lendário 95+) -->
-                ${futCardHtml}
+                <!-- Card FIFA Personalizado -->
+                <div style="transform:scale(1.02);margin-bottom:12px;">
+                  ${futCardHtml}
+                </div>
 
-                <!-- Nome, Posição e Badges Oficiais -->
+                <!-- Posição e Botão Mudar Posição -->
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;width:100%;justify-content:center;flex-wrap:wrap;">
+                  <span style="background:#5b21b6;color:#fff;font-size:11px;font-weight:900;padding:3px 9px;border-radius:6px;letter-spacing:0.5px;">${pos}</span>
+                  <button type="button" class="btnChangePlayerPosLupa" style="background:#4c1d95;color:#e9d5ff;border:1px solid #7c3aed;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all 0.15s ease;" title="Personalizar posição oficial de ${esc(name)}">✏️ Mudar Posição</button>
+                </div>
+
+                <!-- Badges de OVR e POT -->
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;width:100%;justify-content:center;flex-wrap:wrap;">
+                  <span style="background:${ovrRatingBg};color:${ovrRatingColor};font-size:11px;font-weight:900;padding:3px 8px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">OVR ${realOvr}</span>
+                  <span style="background:rgba(234,179,8,0.18);color:#fbbf24;border:1px solid rgba(234,179,8,0.4);font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;">⭐ POT ${potential}</span>
+                </div>
+
+                <!-- Clube e País -->
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:#94a3b8;width:100%;border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;">
+                  <div style="display:inline-flex;align-items:center;gap:6px;">
+                    ${badgeHtml}
+                    <b style="color:#38bdf8;font-size:12px;">${esc(club)}</b>
+                  </div>
+                  ${country ? `<span style="font-size:10px;color:#cbd5e1;">🌍 ${esc(country)}</span>` : ''}
+                </div>
+              </div>
+
+              <!-- COLUNA DIREITA: DADOS DO JOGADOR, HISTÓRICO, STATS & ATRIBUTOS -->
+              <div style="display:flex;flex-direction:column;gap:12px;min-width:0;">
+                
+                <!-- Topo da Direita: Nome, Chips e Botão Fechar -->
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;">
+                  <div style="min-width:0;">
+                    <h2 style="margin:0 0 6px 0;font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</h2>
+                    
+                    <!-- Chips de Idade, Valor, Salário -->
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:#cbd5e1;">
+                      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;">
+                        <span>🎂 Idade:</span> <b style="color:#fff;">${age} anos</b>
+                      </div>
+                      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;">
+                        <span>💰 Valor:</span> <b style="color:#34d399;">${valText}</b>
+                      </div>
+                      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;">
+                        <span>💼 Salário:</span> <b style="color:#fbbf24;">R$ ${salary.toLocaleString('pt-BR')}/mês</b>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Botão Fechar -->
+                  <button id="close-lupa-modal" type="button" style="background:#1e293b;color:#cbd5e1;border:1px solid #334155;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:800;font-size:11px;white-space:nowrap;transition:all 0.2s;" onmouseover="this.style.background='#334155';this.style.color='#fff'" onmouseout="this.style.background='#1e293b';this.style.color='#cbd5e1'">✕ Fechar</button>
+                </div>
+
+                <!-- Abas de Temporadas -->
                 <div>
-                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-                    <span style="background:#5b21b6;color:#fff;font-size:11px;font-weight:900;padding:4px 10px;border-radius:6px;letter-spacing:0.5px;">${pos}</span>
-                    <button type="button" class="btnChangePlayerPosLupa" style="background:#4c1d95;color:#e9d5ff;border:1px solid #7c3aed;font-size:10px;font-weight:800;padding:3px 9px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all 0.15s ease;" title="Personalizar posição oficial de ${esc(name)}">✏️ Mudar Posição</button>
-                    <span style="background:${ovrRatingBg};color:${ovrRatingColor};font-size:11px;font-weight:900;padding:4px 10px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">OVR ${realOvr}</span>
-                    <span style="background:rgba(234,179,8,0.18);color:#fbbf24;border:1px solid rgba(234,179,8,0.4);font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px;">⭐ POT ${potential}</span>
-                    ${country ? `<span style="font-size:11px;color:#94a3b8;background:rgba(255,255,255,0.06);padding:3px 9px;border-radius:6px;">🌍 ${country}</span>` : ''}
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+                    <span style="font-size:10px;font-weight:900;color:#a78bfa;letter-spacing:0.8px;text-transform:uppercase;">
+                      📅 HISTÓRICO DE TEMPORADAS NO SAVE
+                    </span>
+                    <span style="font-size:10px;color:#94a3b8;">
+                      Equipe na época: <b style="color:#38bdf8;">${seasonClub}</b>
+                    </span>
                   </div>
 
-                  <h2 style="margin:0 0 8px 0;font-size:25px;font-weight:900;color:#fff;letter-spacing:-0.5px;">${name}</h2>
-
-                  <!-- Ficha Técnica Estruturada em Chips de Alta Legibilidade -->
-                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#cbd5e1;">
-                    <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:4px 10px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
-                      <span>🎂 Idade:</span> <b style="color:#fff;">${age} anos</b>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:4px 10px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
-                      <span>🛡️ Clube:</span> ${badgeHtml} <b style="color:#38bdf8;">${club}</b>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:4px 10px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
-                      <span>💰 Valor:</span> <b style="color:#34d399;">${valText}</b>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:4px 10px;border-radius:8px;display:inline-flex;align-items:center;gap:6px;">
-                      <span>💼 Salário:</span> <b style="color:#fbbf24;">R$ ${salary.toLocaleString('pt-BR')}/mês</b>
-                    </div>
+                  <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;">
+                    ${seasons.map((s, idx) => {
+                      const isActive = idx === activeSeasonIdx;
+                      return `
+                        <button type="button" class="afm-btn-season-tab" data-s-idx="${idx}" style="background:${isActive ? 'linear-gradient(135deg, #7c3aed, #4f46e5)' : 'rgba(255,255,255,0.05)'};color:${isActive ? '#fff' : '#cbd5e1'};border:${isActive ? '1px solid #a78bfa' : '1px solid rgba(255,255,255,0.08)'};border-radius:8px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;transition:all 0.2s;">
+                          <span>${s.isCurrent ? '🟢' : '📅'}</span>
+                          <span>${s.label}</span>
+                        </button>
+                      `;
+                    }).join('')}
                   </div>
                 </div>
-              </div>
 
-              <!-- Botão Fechar -->
-              <button id="close-lupa-modal" type="button" style="background:#1e293b;color:#cbd5e1;border:1px solid #334155;padding:8px 16px;border-radius:10px;cursor:pointer;font-weight:800;font-size:12px;transition:all 0.2s;" onmouseover="this.style.background='#334155';this.style.color='#fff'" onmouseout="this.style.background='#1e293b';this.style.color='#cbd5e1'">✕ Fechar</button>
-            </div>
+                <!-- Stats Grid (Cards Dinâmicos da Temporada Selecionada) -->
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;">
+                  <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 6px;">
+                    <div style="font-size:9px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">JOGOS</div>
+                    <div style="font-size:18px;font-weight:900;margin-top:2px;color:#fff;">🏟️ ${games}</div>
+                    <div style="font-size:9px;color:#64748b;">Oficiais</div>
+                  </div>
 
-            <!-- NAVEGAÇÃO POR ABAS: TEMPORADA ATUAL & 3 TEMPORADAS PASSADAS -->
-            <div style="margin-top:20px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
-                <span style="font-size:11px;font-weight:900;color:#a78bfa;letter-spacing:1px;text-transform:uppercase;">
-                  📅 HISTÓRICO DE TEMPORADAS NO SAVE
-                </span>
-                <span style="font-size:11px;color:#94a3b8;">
-                  Equipe na época: <b style="color:#38bdf8;">${seasonClub}</b>
-                </span>
-              </div>
-
-              <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08);">
-                ${seasons.map((s, idx) => {
-                  const isActive = idx === activeSeasonIdx;
-                  return `
-                    <button type="button" class="afm-btn-season-tab" data-s-idx="${idx}" style="background:${isActive ? 'linear-gradient(135deg, #7c3aed, #4f46e5)' : 'rgba(255,255,255,0.05)'};color:${isActive ? '#fff' : '#cbd5e1'};border:${isActive ? '1px solid #a78bfa' : '1px solid rgba(255,255,255,0.08)'};border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:all 0.2s;">
-                      <span>${s.isCurrent ? '🟢' : '📅'}</span>
-                      <span>${s.label}</span>
-                    </button>
-                  `;
-                }).join('')}
-              </div>
-            </div>
-
-            <!-- Season Stats Grid (Cards Dinâmicos da Temporada Selecionada) -->
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px;text-align:center;">
-              <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
-                <div style="font-size:10px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">JOGOS DISPUTADOS</div>
-                <div style="font-size:22px;font-weight:900;margin-top:4px;color:#fff;">🏟️ ${games}</div>
-                <div style="font-size:10px;color:#64748b;margin-top:2px;">Oficiais</div>
-              </div>
-
-              ${isGK ? `
-                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
-                  <div style="font-size:10px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">SEM SOFRER GOL</div>
-                  <div style="font-size:22px;font-weight:900;color:#34d399;margin-top:4px;">🧤 ${cleanSheets}</div>
-                  <div style="font-size:10px;color:#64748b;margin-top:2px;">Clean Sheets</div>
-                </div>
-              ` : `
-                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
-                  <div style="font-size:10px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">GOLS MARCADOS</div>
-                  <div style="font-size:22px;font-weight:900;color:#34d399;margin-top:4px;">⚽ ${goals}</div>
-                  <div style="font-size:10px;color:#64748b;margin-top:2px;">${games > 0 ? (goals / games).toFixed(2) + ' por jogo' : '0.00'}</div>
-                </div>
-              `}
-
-              <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
-                <div style="font-size:10px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">${isGK ? 'DEFESAS DIFÍCEIS' : 'ASSISTÊNCIAS'}</div>
-                <div style="font-size:22px;font-weight:900;color:#38bdf8;margin-top:4px;">${isGK ? '🛡️ ' + Math.round(games * 2.2) : '👟 ' + assists}</div>
-                <div style="font-size:10px;color:#64748b;margin-top:2px;">${isGK ? 'Paredão' : 'Garçom'}</div>
-              </div>
-
-              <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;">
-                <div style="font-size:10px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">NOTA MÉDIA</div>
-                <div style="font-size:22px;font-weight:900;color:#facc15;margin-top:4px;">⭐ ${rating}</div>
-                <div style="font-size:10px;color:#64748b;margin-top:2px;">Desempenho</div>
-              </div>
-            </div>
-
-            <!-- Granular Attributes Box com Escala Real -->
-            <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;margin-top:18px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-                <div style="font-size:12px;font-weight:900;color:#a78bfa;letter-spacing:0.5px;">${attrTitle}</div>
-                <div style="font-size:11px;color:#64748b;">Escala oficial EA FC & eFootball (Overall Real ${realOvr})</div>
-              </div>
-
-              <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
-                ${attributes.map(a => {
-                  const color = a.val >= 85 ? '#4ade80' : (a.val >= 75 ? '#38bdf8' : (a.val >= 65 ? '#fbbf24' : '#f87171'));
-                  const barColor = a.val >= 85 ? '#22c55e' : (a.val >= 75 ? '#0284c7' : (a.val >= 65 ? '#eab308' : '#ef4444'));
-                  const pct = Math.min(100, Math.max(0, (a.val - 40) / 60 * 100));
-                  return `
-                    <div style="background:#111827;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px;">
-                      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-                        <span style="color:#cbd5e1;font-weight:700;">${a.icon} ${a.name}</span>
-                        <b style="color:${color};font-size:15px;font-weight:900;">${a.val}</b>
-                      </div>
-                      <div style="background:rgba(255,255,255,0.08);height:6px;border-radius:3px;overflow:hidden;margin-top:8px;">
-                        <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px;transition:width 0.3s;"></div>
-                      </div>
+                  ${isGK ? `
+                    <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 6px;">
+                      <div style="font-size:9px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">SEM GOLS</div>
+                      <div style="font-size:18px;font-weight:900;color:#34d399;margin-top:2px;">🧤 ${cleanSheets}</div>
+                      <div style="font-size:9px;color:#64748b;">Clean Sheets</div>
                     </div>
-                  `;
-                }).join('')}
+                  ` : `
+                    <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 6px;">
+                      <div style="font-size:9px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">GOLS</div>
+                      <div style="font-size:18px;font-weight:900;color:#34d399;margin-top:2px;">⚽ ${goals}</div>
+                      <div style="font-size:9px;color:#64748b;">${games > 0 ? (goals / games).toFixed(2) + '/j' : '0.00'}</div>
+                    </div>
+                  `}
+
+                  <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 6px;">
+                    <div style="font-size:9px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">${isGK ? 'DEFESAS' : 'ASSISTÊNCIAS'}</div>
+                    <div style="font-size:18px;font-weight:900;color:#38bdf8;margin-top:2px;">${isGK ? '🛡️ ' + Math.round(games * 2.2) : '👟 ' + assists}</div>
+                    <div style="font-size:9px;color:#64748b;">${isGK ? 'Paredão' : 'Garçom'}</div>
+                  </div>
+
+                  <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 6px;">
+                    <div style="font-size:9px;color:#94a3b8;font-weight:900;letter-spacing:0.5px;">NOTA</div>
+                    <div style="font-size:18px;font-weight:900;color:#facc15;margin-top:2px;">⭐ ${rating}</div>
+                    <div style="font-size:9px;color:#64748b;">Média</div>
+                  </div>
+                </div>
+
+                <!-- Seção de Evolução & XP do Jogador -->
+                
+
+                <!-- Granular Attributes Box com Escala Real -->
+                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <div style="font-size:11px;font-weight:900;color:#a78bfa;letter-spacing:0.5px;">${attrTitle}</div>
+                    <div style="font-size:10px;color:#64748b;">Escala EA FC & eFootball (Overall ${realOvr})</div>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+                    ${attributes.map(a => {
+                      const color = a.val >= 85 ? '#4ade80' : (a.val >= 75 ? '#38bdf8' : (a.val >= 65 ? '#fbbf24' : '#f87171'));
+                      const barColor = a.val >= 85 ? '#22c55e' : (a.val >= 75 ? '#0284c7' : (a.val >= 65 ? '#eab308' : '#ef4444'));
+                      const pct = Math.min(100, Math.max(0, (a.val - 40) / 60 * 100));
+                      return `
+                        <div style="background:#111827;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:7px 10px;">
+                          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+                            <span style="color:#cbd5e1;font-weight:700;">${a.icon} ${a.name}</span>
+                            <b style="color:${color};font-size:13px;font-weight:900;">${a.val}</b>
+                          </div>
+                          <div style="background:rgba(255,255,255,0.08);height:5px;border-radius:3px;overflow:hidden;margin-top:6px;">
+                            <div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px;transition:width 0.3s;"></div>
+                          </div>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+
               </div>
             </div>
-
           </div>
         `;
 

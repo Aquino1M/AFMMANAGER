@@ -250,7 +250,16 @@
       window.toggleAFMMobileDrawer();
       return;
     }
-    if (e.target.closest('#btnCloseMobileDrawer') || e.target.closest('#afmDrawerBackdrop')) {
+    if (e.target.closest('#btnCloseMobileDrawer')) {
+      e.preventDefault();
+      if (typeof window.handleExitGameAction === 'function') {
+        window.handleExitGameAction();
+        return;
+      }
+      window.toggleAFMMobileDrawer(false);
+      return;
+    }
+    if (e.target.closest('#afmDrawerBackdrop')) {
       e.preventDefault();
       window.toggleAFMMobileDrawer(false);
       return;
@@ -281,6 +290,14 @@
     // Botão Loja
     if (e.target.closest('#btnTopStore')) {
       e.preventDefault();
+      try {
+        if (typeof window.openStoreComingSoonModal === 'function') {
+          window.openStoreComingSoonModal();
+          return;
+        }
+      } catch (errStore) {
+        console.warn('Erro ao abrir modal de loja:', errStore);
+      }
       if (typeof window.view !== 'undefined') {
         window.view = 'escritorio';
         if (typeof window.render === 'function') window.render();
@@ -291,8 +308,38 @@
     // Botão Ajuda
     if (e.target.closest('#btnTopHelp')) {
       e.preventDefault();
+      try {
+        if (typeof window.openGameHelpTutorialModal === 'function') {
+          window.openGameHelpTutorialModal();
+          return;
+        }
+      } catch (errHelp) {
+        console.warn('Erro ao abrir modal de ajuda:', errHelp);
+      }
       if (typeof window.view !== 'undefined') {
         window.view = 'novidades';
+        if (typeof window.render === 'function') window.render();
+      }
+      return;
+    }
+
+    // Alternância de Abas de Competições na Central (Estadual, Copa, Continental)
+    if (e.target.closest('.btn-central-cup-tab')) {
+      const btn = e.target.closest('.btn-central-cup-tab');
+      if (btn && btn.dataset && btn.dataset.tabId && window.state) {
+        e.preventDefault();
+        window.state.centralCupTab = btn.dataset.tabId;
+        if (typeof window.render === 'function') window.render();
+        return;
+      }
+    }
+
+    if (e.target.closest('#btnGoToEstadualTableFromCentral')) {
+      e.preventDefault();
+      if (typeof window.view !== 'undefined') {
+        const mShips = (typeof window.getSavedSeasonMemberships === 'function') ? window.getSavedSeasonMemberships(window.state?.club) : null;
+        window.view = 'calendario';
+        if (mShips?.stateId) window.calendarFilter = mShips.stateId;
         if (typeof window.render === 'function') window.render();
       }
       return;
@@ -302,9 +349,17 @@
     if (e.target.closest('#btnHeaderContinue')) {
       e.preventDefault();
       try {
+        if (typeof window.handleHeaderContinueAction === 'function') {
+          window.handleHeaderContinueAction();
+          return;
+        }
+        if (typeof window.openMatchActionModal === 'function') {
+          window.openMatchActionModal();
+          return;
+        }
         if (typeof window.canStartMatch === 'function') {
           const gate = window.canStartMatch();
-          if (gate.ok) {
+          if (gate.ok || gate.canStart) {
             if (typeof window.startLiveMatch === 'function') window.startLiveMatch();
             return;
           }
