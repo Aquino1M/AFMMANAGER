@@ -14056,6 +14056,9 @@ function finalizeRound(userRes, winners, isKO){
     state.trust.board=clamp(state.trust.board+delta,0,100);
     state.trust.fans=clamp(state.trust.fans+(win?4:draw?0:-4),0,100);
     state.trust.squad=clamp(state.trust.squad+(win?2:draw?0:-2),0,100);
+    if(window.AFM_CoachRanking && typeof window.AFM_CoachRanking.onMatchFinished === 'function'){
+      window.AFM_CoachRanking.onMatchFinished(state, userRes);
+    }
     if(window.AFM_GlobalRanking && typeof window.AFM_GlobalRanking.updateConfidenceAfterMatch === 'function'){
       const derby = typeof isRivalryMatch === 'function' ? isRivalryMatch(state.club, isHome ? userRes.a : userRes.h) : false;
       window.AFM_GlobalRanking.updateConfidenceAfterMatch(state, {
@@ -24735,6 +24738,7 @@ function shell(main){
         <button type="button" class="sm-ribbon-pill ${view==='mercado'?'active':''}" data-view="mercado">🔄 Mercado & Transferências</button>
         <button type="button" class="sm-ribbon-pill ${view==='escritorio'?'active':''}" data-view="escritorio">🏢 Escritório & Finanças</button>
         <button type="button" class="sm-ribbon-pill ${view==='carreira'?'active':''}" data-view="carreira">🎯 Carreira</button>
+        <button type="button" class="sm-ribbon-pill sm-ribbon-pix ${view==='ranking'?'active':''}" data-view="ranking" title="Ranking Oficial de Técnicos & Premiação PIX R$ 1.000" style="background:${view==='ranking'?'#059669':'rgba(16,185,129,0.18)'};border:1px solid #10b981;color:#a7f3d0;font-weight:900">💠 Ranking PIX R$ 1.000</button>
         <button type="button" class="sm-ribbon-pill ${view==='noticias'?'active':''}" data-view="noticias">📰 Notícias & Mídia</button>
         <div class="sm-ribbon-ticker">
           <span>⚽ ${tickerMsg}</span>
@@ -24777,6 +24781,7 @@ function shell(main){
               ['calendario','🗓️ Calendário de Jogos'],
               ['mercado','🔄 Mercado & Transferências'],
               ['carreira','💼 Carreira do Treinador'],
+              ['ranking','👑 Ranking & PIX R$ 1.000'],
               ['temporada','🏆 Temporada'],
               ['estrutura','🏟️ Instalações & Estádio'],
               ['escritorio','🏢 Escritório & Finanças'],
@@ -33999,6 +34004,28 @@ function bind(){
         toast('🤝 Auxiliar: Todos os titulares estão em boas condições físicas e disciplinares!');
       }
     };
+  }
+
+  // Navegação rápida para o Ranking de Técnicos pelo badge de prestígio no topo
+  const btnTopPrestige = $('#btnTopQuickPrestigeCard');
+  if(btnTopPrestige){
+    btnTopPrestige.onclick = () => {
+      view = 'ranking';
+      render();
+    };
+  }
+  const btnTopPrestigeAdd = $('#btnTopQuickPrestige');
+  if(btnTopPrestigeAdd){
+    btnTopPrestigeAdd.onclick = (e) => {
+      e.stopPropagation();
+      view = 'ranking';
+      render();
+    };
+  }
+
+  // Eventos da tela de Ranking
+  if(view === 'ranking' && window.AFM_CoachRanking && typeof window.AFM_CoachRanking.bindRankingEvents === 'function'){
+    window.AFM_CoachRanking.bindRankingEvents();
   }
 
   const btnOfficeCareer = $('#btnOpenCareerEconomyFromOffice');

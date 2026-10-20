@@ -6970,3 +6970,68 @@ body.theme-emerald {
   pointer-events: none;
   z-index: 25;
 }
+
+
+/* =============================================================
+   ESTILOS OFICIAIS RANKING DE TÉCNICOS & PREMIAÇÃO PIX R$ 1.000
+   ============================================================= */
+.afm-ranking-page {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@media (min-width: 1024px) {
+  .afm-ranking-layout {
+    grid-template-columns: minmax(0, 1fr) 340px !important;
+  }
+  .desktop-only {
+    display: inline !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .afm-ranking-layout {
+    grid-template-columns: minmax(0, 1fr) 380px !important;
+  }
+}
+
+.afm-podium-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.afm-podium-card:hover {
+  transform: translateY(-4px);
+}
+
+.afm-podium-card.center-champion {
+  background: linear-gradient(180deg, #1e1338 0%, #111827 100%) !important;
+  border: 2px solid #facc15 !important;
+}
+
+.afm-tab-btn {
+  transition: all 0.15s ease;
+}
+
+.afm-tab-btn:hover {
+  background: #1e293b !important;
+}
+
+.afm-tab-btn.active:hover {
+  background: #7c3aed !important;
+}
+
+.afm-ranking-row:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.afm-ranking-row.user-highlight {
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
+}
+
+.sm-ribbon-pix {
+  animation: pulseNeonGlow 3s infinite alternate;
+}
+
+@keyframes pulseNeonGlow {
+  0% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.3); }
+  100% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.7); }
+}
