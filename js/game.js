@@ -7128,9 +7128,15 @@ function syncTransfermarktDatabase(){
 let currentAdminTab = 'saves';
 
 function openAdminModal(){
+  if (typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
   const curUser = getActiveAccount();
-  if(!curUser || curUser?.role !== 'admin' || curUser?.username?.toLowerCase() !== 'admin'){
-    toast('Acesso restrito ao Administrador do jogo (conta admin).');
+  const isAdm = curUser && (
+    curUser.role === 'admin' ||
+    curUser.username?.toLowerCase() === 'admin' ||
+    (window.AFM_DB && typeof window.AFM_DB.isAdmin === 'function' && window.AFM_DB.isAdmin())
+  );
+  if(!isAdm){
+    toast('Acesso restrito ao Administrador do jogo.');
     return;
   }
 
@@ -24793,7 +24799,7 @@ function shell(main){
                 <div class="small" style="color:var(--neon)">${esc(state.competition)}</div>
               </div>
             </div>
-            <button type="button" class="sm-drawer-close" id="btnCloseMobileDrawer" title="Sair do Jogo (Salvar Automático)">✕</button>
+            <button type="button" class="sm-drawer-close" id="btnCloseMobileDrawer" title="Fechar Menu Lateral">✕</button>
           </div>
 
           <div class="club-card" style="margin-top:4px;padding:12px;">
@@ -24817,8 +24823,9 @@ function shell(main){
               ['escritorio','🏢 Escritório & Finanças'],
               ['noticias','📰 Notícias & Mídia'],
               ['novidades','📢 Novidades & Correções'],
-              ['config','⚙️ Configurações (Admin)']
-            ].filter(([id]) => id !== 'config' || (getActiveAccount()?.role === 'admin')).map(([id,l])=>`<button class="btn ${view===id?'active':''}" data-view="${id}">${l}</button>`).join('')}
+              ['config','⚙️ Configurações'],
+              ...((getActiveAccount()?.role === 'admin' || getActiveAccount()?.username?.toLowerCase() === 'admin' || (window.AFM_DB && typeof window.AFM_DB.isAdmin === 'function' && window.AFM_DB.isAdmin())) ? [['admin','🛡️ Painel Admin']] : [])
+            ].map(([id,l])=>`<button class="btn ${view===id?'active':''}" data-view="${id}">${l}</button>`).join('')}
           </nav>
 
           <div class="sm-drawer-footer">
@@ -34348,7 +34355,28 @@ function bind(){
     }
   }
 
-  $$('[data-view]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextView=b.dataset.view;if(!nextView)return;view=nextView;render()});
+  $$('[data-view]').forEach(b=>b.onclick=(event)=>{
+    event.preventDefault();
+    event.stopPropagation();
+    const nextView=b.dataset.view;
+    if(!nextView)return;
+    if(nextView === 'admin'){
+      if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
+      const drawer = document.getElementById('afmSideDrawer');
+      if(drawer) drawer.classList.remove('drawer-open');
+      const backdrop = document.getElementById('afmDrawerBackdrop');
+      if(backdrop) backdrop.classList.remove('active');
+      openAdminModal();
+      return;
+    }
+    view=nextView;
+    if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
+    const drawer = document.getElementById('afmSideDrawer');
+    if(drawer) drawer.classList.remove('drawer-open');
+    const backdrop = document.getElementById('afmDrawerBackdrop');
+    if(backdrop) backdrop.classList.remove('active');
+    render();
+  });
 
   const btnHeaderCont=$('#btnHeaderContinue'); if(btnHeaderCont) btnHeaderCont.onclick=(e)=>{e.preventDefault();e.stopPropagation();handleHeaderContinueAction();};
   const btnTopStoreBtn=$('#btnTopStore'); if(btnTopStoreBtn) btnTopStoreBtn.onclick=(e)=>{e.preventDefault();e.stopPropagation();openStoreComingSoonModal();};
@@ -34384,10 +34412,36 @@ function bind(){
   if(topAdminInGame) topAdminInGame.onclick = openAdminModal;
 
   const mm = $('#mainMenuBtn');
-  if(mm) mm.onclick = handleExitGameAction;
+  if(mm) mm.onclick = (e) => {
+    e.preventDefault();
+    if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
+    const drawer = document.getElementById('afmSideDrawer');
+    if(drawer) drawer.classList.remove('drawer-open');
+    const backdrop = document.getElementById('afmDrawerBackdrop');
+    if(backdrop) backdrop.classList.remove('active');
+    handleExitGameAction();
+  };
 
   const btnCloseDrawer = $('#btnCloseMobileDrawer');
-  if(btnCloseDrawer) btnCloseDrawer.onclick = handleExitGameAction;
+  if(btnCloseDrawer) btnCloseDrawer.onclick = (e) => {
+    e.preventDefault();
+    if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
+    const drawer = document.getElementById('afmSideDrawer');
+    if(drawer) drawer.classList.remove('drawer-open');
+    const backdrop = document.getElementById('afmDrawerBackdrop');
+    if(backdrop) backdrop.classList.remove('active');
+  };
+
+  const btnToggleDrawer = $('#btnToggleSidebarDrawer');
+  if(btnToggleDrawer) btnToggleDrawer.onclick = (e) => {
+    e.preventDefault();
+    if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer();
+  };
+  const backdropDrawer = $('#afmDrawerBackdrop');
+  if(backdropDrawer) backdropDrawer.onclick = (e) => {
+    e.preventDefault();
+    if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
+  };
 
   if(view==='central'){
     const bHeroSquad = $('#btnHeroQuickSquad');

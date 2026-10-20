@@ -278,49 +278,49 @@
       }
 
       modalEl.innerHTML = `
-        <div class="afm-postmatch-backdrop" style="position:fixed;inset:0;background:rgba(4,3,10,0.88);backdrop-filter:blur(10px);z-index:999998;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
-          <div class="afm-postmatch-card" style="background:#0e091b;border:2px solid #7c3aed;border-radius:18px;max-width:540px;width:100%;box-shadow:0 0 35px rgba(124,58,237,0.45), 0 20px 50px rgba(0,0,0,0.8);overflow:hidden;box-sizing:border-box">
+        <div class="afm-postmatch-backdrop" style="position:fixed;inset:0;background:rgba(4,3,10,0.88);backdrop-filter:blur(10px);z-index:999998;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box">
+          <div class="afm-postmatch-card" style="background:#0e091b;border:2px solid #7c3aed;border-radius:18px;max-width:540px;width:100%;max-height:94vh;overflow-y:auto;box-shadow:0 0 35px rgba(124,58,237,0.45), 0 20px 50px rgba(0,0,0,0.8);box-sizing:border-box">
             
             <!-- Header Placar -->
-            <div style="padding:22px 20px 18px 20px;text-align:center;background:radial-gradient(circle at 50% 0%, rgba(124,58,237,0.35) 0%, rgba(14,9,27,0.95) 75%);border-bottom:1px solid rgba(255,255,255,0.06)">
-              <div style="display:inline-block;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:0.8px;margin-bottom:12px;${resultBadgeClass}">
+            <div class="afm-postmatch-header" style="padding:18px 20px 14px 20px;text-align:center;background:radial-gradient(circle at 50% 0%, rgba(124,58,237,0.35) 0%, rgba(14,9,27,0.95) 75%);border-bottom:1px solid rgba(255,255,255,0.06)">
+              <div class="afm-postmatch-badge" style="display:inline-block;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:0.8px;margin-bottom:10px;${resultBadgeClass}">
                 ${resultBadge}
               </div>
 
               <!-- Confronto -->
-              <div style="display:flex;align-items:center;justify-content:center;gap:18px;margin-top:4px">
+              <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-top:2px">
                 <div style="flex:1;text-align:right">
-                  <div style="font-size:15px;font-weight:900;color:#fff">${h}</div>
-                  <div class="muted small" style="font-size:10px">MANDANTE</div>
+                  <div class="afm-postmatch-team" style="font-size:14px;font-weight:900;color:#fff">${h}</div>
+                  <div class="muted small" style="font-size:9.5px">MANDANTE</div>
                 </div>
 
-                <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:6px 16px;font-size:24px;font-weight:900;color:#facc15;font-family:monospace;letter-spacing:2px">
+                <div class="afm-postmatch-scoreboard" style="background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:5px 14px;font-size:22px;font-weight:900;color:#facc15;font-family:monospace;letter-spacing:2px">
                   ${hg} x ${ag}
                 </div>
 
                 <div style="flex:1;text-align:left">
-                  <div style="font-size:15px;font-weight:900;color:#fff">${a}</div>
-                  <div class="muted small" style="font-size:10px">VISITANTE</div>
+                  <div class="afm-postmatch-team" style="font-size:14px;font-weight:900;color:#fff">${a}</div>
+                  <div class="muted small" style="font-size:9.5px">VISITANTE</div>
                 </div>
               </div>
             </div>
 
             <!-- Opções do Usuário: Escolher dar entrevista ou ver notícias -->
-            <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
-              <div style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:2px">
+            <div class="afm-postmatch-body" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+              <div class="afm-postmatch-prompt" style="font-size:11.5px;color:#94a3b8;font-weight:700;margin-bottom:2px">
                 O que você deseja fazer agora, Professor?
               </div>
 
               <!-- Opção 1: Dar Entrevista Coletiva -->
-              <button id="btnPostMatchInterview" style="background:#16102b;border:1px solid #7c3aed;border-radius:12px;padding:14px 16px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:all 0.15s ease">
-                <div style="display:flex;align-items:center;gap:12px">
-                  <span style="font-size:26px">🎙️</span>
+              <button id="btnPostMatchInterview" class="afm-postmatch-btn" style="background:#16102b;border:1px solid #7c3aed;border-radius:12px;padding:11px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:all 0.15s ease">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span class="afm-postmatch-btn-icon" style="font-size:24px">🎙️</span>
                   <div>
-                    <div style="font-size:14px;font-weight:900;color:#fff;display:flex;align-items:center;gap:6px">
+                    <div class="afm-postmatch-btn-title" style="font-size:13.5px;font-weight:900;color:#fff;display:flex;align-items:center;gap:6px">
                       Dar Entrevista Coletiva
-                      <span style="font-size:9px;background:#7c3aed;color:#fff;padding:2px 6px;border-radius:4px">SALA DE IMPRENSA</span>
+                      <span style="font-size:8.5px;background:#7c3aed;color:#fff;padding:2px 5px;border-radius:4px">SALA DE IMPRENSA</span>
                     </div>
-                    <div style="font-size:11px;color:#a5b4fc;margin-top:2px">
+                    <div class="afm-postmatch-btn-desc" style="font-size:10.5px;color:#a5b4fc;margin-top:2px">
                       Responda aos repórteres (impacta moral do elenco, confiança da torcida e diretoria).
                     </div>
                   </div>
@@ -329,15 +329,15 @@
               </button>
 
               <!-- Opção 2: Ver Últimas Notícias do Dia -->
-              <button id="btnPostMatchNews" style="background:#131226;border:1px solid rgba(56,189,248,0.3);border-radius:12px;padding:14px 16px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:all 0.15s ease">
-                <div style="display:flex;align-items:center;gap:12px">
-                  <span style="font-size:26px">📰</span>
+              <button id="btnPostMatchNews" class="afm-postmatch-btn" style="background:#131226;border:1px solid rgba(56,189,248,0.3);border-radius:12px;padding:11px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:all 0.15s ease">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span class="afm-postmatch-btn-icon" style="font-size:24px">📰</span>
                   <div>
-                    <div style="font-size:14px;font-weight:900;color:#38bdf8;display:flex;align-items:center;gap:6px">
+                    <div class="afm-postmatch-btn-title" style="font-size:13.5px;font-weight:900;color:#38bdf8;display:flex;align-items:center;gap:6px">
                       Ver Últimas Notícias & Passar Dias
-                      <span style="font-size:9px;background:rgba(56,189,248,0.2);color:#38bdf8;padding:2px 6px;border-radius:4px">MERCADO & GIRO</span>
+                      <span style="font-size:8.5px;background:rgba(56,189,248,0.2);color:#38bdf8;padding:2px 5px;border-radius:4px">MERCADO & GIRO</span>
                     </div>
-                    <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+                    <div class="afm-postmatch-btn-desc" style="font-size:10.5px;color:#94a3b8;margin-top:2px">
                       Acompanhe as transferências, bastidores do futebol brasileiro e passe os dias.
                     </div>
                   </div>
@@ -346,14 +346,14 @@
               </button>
 
               <!-- Opção 3: Ir Direto para a Central -->
-              <button id="btnPostMatchCentral" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 16px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:all 0.15s ease">
-                <div style="display:flex;align-items:center;gap:12px">
-                  <span style="font-size:22px">🏠</span>
+              <button id="btnPostMatchCentral" class="afm-postmatch-btn" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:all 0.15s ease">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span class="afm-postmatch-btn-icon" style="font-size:20px">🏠</span>
                   <div>
-                    <div style="font-size:13px;font-weight:800;color:#f8fafc">
+                    <div class="afm-postmatch-btn-title" style="font-size:12.5px;font-weight:800;color:#f8fafc">
                       Ir Direto para a Central do Clube
                     </div>
-                    <div style="font-size:11px;color:#64748b;margin-top:2px">
+                    <div class="afm-postmatch-btn-desc" style="font-size:10.5px;color:#64748b;margin-top:2px">
                       Retornar imediatamente ao menu principal sem dar declarações.
                     </div>
                   </div>
