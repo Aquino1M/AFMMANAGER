@@ -1262,7 +1262,13 @@
       const stData = (typeof window !== 'undefined' && window.getStadiumExpansionData) ? window.getStadiumExpansionData() : null;
       const capacity = s.stadium?.capacity || 20000;
       const infraLevel = (typeof window !== 'undefined' && window.state && window.state.infrastructure?.stadium?.level) || 1;
-      const stLevel = Math.max(infraLevel, capacity >= 40000 ? 3 : (capacity >= 15000 ? 2 : 1));
+
+      // Integração oficial com os modelos 3D do pack BRFC27
+      let stModel = null;
+      if (typeof window !== 'undefined' && window.AFMStadium3D?.resolveStadiumModel) {
+        stModel = window.AFMStadium3D.resolveStadiumModel(s.home, window.state);
+      }
+      const stLevel = stModel ? stModel.stLevel : Math.max(infraLevel, capacity >= 40000 ? 3 : (capacity >= 15000 ? 2 : 1));
       const upgrades = s.stadium?.upgrades || {};
       const homeColor = s.homeKit?.primary || '#f59e0b';
       const homeSecColor = s.homeKit?.secondary || '#111111';
@@ -1372,21 +1378,24 @@
       ctx.textAlign = 'center';
       const ledText = (stLevel >= 3)
         ? `★ BETANO • IFOOD • BYD • SAMSUNG • FATAL MODEL • NUBANK • CENTRAL DAS PROMOS • ${String(s.home || 'CLUBE').toUpperCase()} ★`
-        : `★ ${String(s.home || 'CLUBE').toUpperCase()} • RAÇA, AMOR E PAIXÃO • AFM 2027 ★`;
+        : (stLevel === 2)
+          ? `★ ${String(s.home || 'CLUBE').toUpperCase()} • RAÇA, AMOR E PAIXÃO • AFM 2027 ★`
+          : `⚽ ${String(s.home || 'CLUBE').toUpperCase()} • CAMPO OFICIAL • AFM 2027 ⚽`;
       ctx.fillText(ledText, 640, 184);
 
       // Placar / Telão Central em Arco
       ctx.fillStyle = '#050811';
-      ctx.fillRect(540, standTop - 18, 200, 42);
-      ctx.strokeStyle = '#38bdf8';
+      ctx.fillRect(520, standTop - 20, 240, 46);
+      ctx.strokeStyle = stLevel >= 3 ? '#38bdf8' : (stLevel === 2 ? '#f59e0b' : '#64748b');
       ctx.lineWidth = 2;
-      ctx.strokeRect(540, standTop - 18, 200, 42);
+      ctx.strokeRect(520, standTop - 20, 240, 46);
       ctx.fillStyle = '#facc15';
       ctx.font = 'bold 13px monospace';
-      ctx.fillText(`${String(s.home || '').slice(0,3).toUpperCase()} ${s.hg || 0} - ${s.ag || 0} ${String(s.away || '').slice(0,3).toUpperCase()}`, 640, standTop + 2);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 9px monospace';
-      ctx.fillText(`${Math.floor((s.timeSec || 0)/60)}' MIN • AO VIVO`, 640, standTop + 18);
+      ctx.fillText(`${String(s.home || '').slice(0,3).toUpperCase()} ${s.hg || 0} - ${s.ag || 0} ${String(s.away || '').slice(0,3).toUpperCase()}`, 640, standTop);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 8px Inter, sans-serif';
+      const badgeStr = stModel ? `${stModel.badge}` : (stLevel >= 3 ? '⭐ ARENA FIFA' : (stLevel === 2 ? '🏛️ CLÁSSICO' : '🏟️ ABERTO'));
+      ctx.fillText(`${badgeStr} • ${Math.floor((s.timeSec || 0)/60)}' MIN • AO VIVO`, 640, standTop + 16);
 
       // 4. SETOR NORTE & SETOR SUL (Laterais Curvas)
       // Lateral Esquerda (Norte)

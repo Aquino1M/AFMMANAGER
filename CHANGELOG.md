@@ -2,6 +2,35 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.18] - 2026-10-20 (Integração Oficial do Pack de Estádios 3D Low-Poly BRFC27 & Visualizador Orbital 360°)
+
+### 🏟️ 1. Pack Oficial de Estádios 3D Low-Poly (`BRFC27_Pack_Estadios_Leves`)
+- **4 Modelos 3D Volumétricos em formato GLB Otimizado**:
+  - `arena_aberta.glb` (225 KB / 9.504 triângulos): Estádio tradicional raiz com arquibancadas abertas e torres de iluminação nos 4 cantos para clubes de divisões de acesso e centros regionais (capacidade até 15.000 lugares).
+  - `arena_classica.glb` (270 KB / 12.912 triângulos): Arquitetura clássica brasileira em ferradura, marquise de cobertura lateral metálica e cabeceiras populares (capacidade de 15.000 a 39.999 lugares, ex: Heriberto Hülse, Vila Belmiro, São Januário, Moisés Lucarelli).
+  - `arena_moderna.glb` (328 KB / 14.136 triângulos): Arena multiuso monumental padrão FIFA, cobertura em balanço (cantilever) 100% dos setores, anel perimetral de LED, camarotes executivos e telão central (capacidade 40.000+ lugares, ex: Maracanã, Neo Química Arena, Allianz Parque, Mineirão, Beira-Rio).
+  - `gradas_modulares_sem_campo.glb` (262 KB / 13.092 triângulos): Módulos pré-fabricados de arquibancada para acoplamento dinâmico em ampliações e obras dos setores Norte, Sul, Leste ou Oeste.
+- **Distribuição de Arquivos e Compatibilidade**:
+  - Modelos distribuídos em `assets/stadiums/`, `assets/stadios/` e `public/assets/stadios/` com manifestos técnicos e esquemático de prévia.
+
+### 🎮 2. Visualizador Interativo Orbital 3D 360° (`AFMStadium3D`)
+- **Novo Gerenciador de Estádios 3D (`js/core/stadium_3d_manager.js`)**:
+  - Resolução inteligente do modelo (`resolveStadiumModel`) por capacidade do clube, nível de infraestrutura de estádio e histórico do futebol brasileiro.
+  - Modal interativa em tempo real com controle de órbita 360°, zoom, rotação automática cinematográfica e botões de troca de câmeras:
+    - 🛰️ Panorâmica Geral (Top-Down 360°)
+    - 📺 Câmera de TV (Transmissão Lateral)
+    - 🥁 Visão da Torcida (Cabeceira Popular)
+    - 💺 Visão do Banco de Reservas (Beira do Gramado)
+  - Gaveta técnica com métricas de engenharia (triângulos, malhas, tipo de cobertura, refletores e reverberação acústica).
+
+### 📺 3. Integração na Transmissão de Partidas & Telas do Clube
+- **Motor de Jogo 3D (`js/core/real_football_engine.js`)**:
+  - `draw4SectorsStadium` agora consulta dinamicamente `AFMStadium3D.resolveStadiumModel`, adaptando a cobertura, anel de LED publicitário, torres de refletores e o placar em arco ao modelo real do estádio.
+- **Tela de Estrutura do Clube & Estádio (`structurePage`)**:
+  - Card 3D do Estádio inserido nas abas de Instalações, Expansão Anel por Anel e Construir Nova Arena com atalhos diretos para inspeção.
+- **Modal de Gerenciamento do Estádio (`openStadiumModal`)**:
+  - Card integrado na aba Resumo e aba Nova Arena.
+
 ## [3.9.17] - 2026-10-20 (Super Pack de Sons de Torcida dos Times Brasileiros & Motor de Áudio SFX de Partidas)
 
 ### 🏟️ 1. Cobertura Massiva de Cantos Reais das Torcidas Brasileiras (Séries A, B, C, D e Estaduais)

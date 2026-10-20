@@ -1,0 +1,74 @@
+{
+  "pack": "BRFC27 Pack de Estádios Leves",
+  "version": "1.0",
+  "format": "GLB / glTF 2.0",
+  "up_axis": "Y",
+  "field_dimensions_meters": [
+    105,
+    68
+  ],
+  "models": [
+    {
+      "arquivo": "modelos/arena_aberta.glb",
+      "tamanho_bytes": 230552,
+      "tamanho_kb": 225.1,
+      "meshes": 16,
+      "triangulos": 9504,
+      "dimensoes_metros_aprox": [
+        150.0,
+        16.06,
+        116.0
+      ]
+    },
+    {
+      "arquivo": "modelos/arena_classica.glb",
+      "tamanho_bytes": 276260,
+      "tamanho_kb": 269.8,
+      "meshes": 17,
+      "triangulos": 12912,
+      "dimensoes_metros_aprox": [
+        150.0,
+        16.06,
+        116.0
+      ]
+    },
+    {
+      "arquivo": "modelos/arena_moderna.glb",
+      "tamanho_bytes": 335552,
+      "tamanho_kb": 327.7,
+      "meshes": 17,
+      "triangulos": 14136,
+      "dimensoes_metros_aprox": [
+        150.0,
+        16.06,
+        116.0
+      ]
+    },
+    {
+      "arquivo": "modelos/gradas_modulares_sem_campo.glb",
+      "tamanho_bytes": 268648,
+      "tamanho_kb": 262.4,
+      "meshes": 11,
+      "triangulos": 13092,
+      "dimensoes_metros_aprox": [
+        138.8,
+        15.23,
+        114.45
+      ]
+    }
+  ],
+  "external_references": [
+    {
+      "name": "Football Soccer Stadium and Club Grounds",
+      "url": "https://3dassets.dev/packs/football-soccer-club-grounds",
+      "starter_scene_glb": "https://cdn.3dassets.dev/assets/19143/v1/model.glb",
+      "stated_license": "CC0 1.0 Universal",
+      "stated_pack_size": "1.6 MB / 72 models"
+    },
+    {
+      "name": "Football stadium - Poly Pizza",
+      "url": "https://poly.pizza/m/6TZCkGh76m5",
+      "stated_license": "Creative Commons Attribution; verify credit requirements on page"
+    }
+  ]
+}

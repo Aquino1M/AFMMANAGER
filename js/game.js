@@ -2249,6 +2249,11 @@ function openStadiumModal(initialTab){
                   </div>
                 `}
               </div>
+
+              <!-- Integração Oficial do Estádio 3D (Pack BRFC27) -->
+              ${(typeof window.AFMStadium3D !== 'undefined' && window.AFMStadium3D.renderStadium3DCardHTML) 
+                ? window.AFMStadium3D.renderStadium3DCardHTML(state.club, state) 
+                : ''}
             </div>
           ` : stadiumModalTab === 'upgrades' ? `
             <!-- ================= ABA 2: MELHORIAS & CALDEIRÃO (Screenshot 2) ================= -->
@@ -28228,6 +28233,11 @@ function structurePage(){
       </button>
     </div>
 
+    <!-- Card Oficial do Estádio 3D -->
+    ${(typeof window.AFMStadium3D !== 'undefined' && window.AFMStadium3D.renderStadium3DCardHTML) 
+      ? window.AFMStadium3D.renderStadium3DCardHTML(state.club, state) 
+      : ''}
+
     <div class="facility-map" style="margin-top:16px">
         ${Object.entries(FACILITIES).map(([k,d])=>{
           const x=state.infrastructure[k]||{level:0};
@@ -28396,6 +28406,11 @@ function structurePage(){
           </span>
         </div>
 
+        <!-- Card Oficial do Estádio 3D -->
+        ${(typeof window.AFMStadium3D !== 'undefined' && window.AFMStadium3D.renderStadium3DCardHTML) 
+          ? window.AFMStadium3D.renderStadium3DCardHTML(state.club, state) 
+          : ''}
+
         <!-- 4 Lados do Anel Atual -->
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-top:20px">
           ${['norte','sul','leste','oeste'].map(side => {
@@ -28504,6 +28519,16 @@ function structurePage(){
               <span class="pill" style="background:#0284c7;color:#fff;font-weight:800">Projeto Megalomaníaco</span>
             </div>
           </div>
+
+          <!-- Prévia Conceitual do Modelo 3D da Nova Arena -->
+          ${(typeof window.AFMStadium3D !== 'undefined' && window.AFMStadium3D.renderStadium3DCardHTML) 
+            ? window.AFMStadium3D.renderStadium3DCardHTML(selectedArenaName || state.club, {
+                ...state,
+                stadiumName: selectedArenaName || 'Nova Arena',
+                stadiumCapacity: selectedArenaCapacity,
+                infrastructure: { ...(state.infrastructure||{}), stadium: { level: selectedArenaCapacity >= 40000 ? 5 : 3, capacity: selectedArenaCapacity } }
+              }) 
+            : ''}
 
           <!-- ======================================================== -->
           <!-- ETAPA 1: REGULARIZAÇÃO LEGAL E AQUISIÇÃO DO LOTE/ALVARÁ  -->

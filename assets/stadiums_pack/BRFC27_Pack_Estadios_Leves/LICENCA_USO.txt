@@ -1,0 +1,7 @@
+LICENÇA DE USO — BRFC27 PACK DE ESTÁDIOS LEVES
+
+Os quatro modelos GLB neste pacote foram criados proceduralmente para esta solicitação. O usuário pode usar, adaptar e redistribuir os modelos dentro do BRFC27 e de outros projetos, inclusive em versões comerciais, sem obrigação de crédito.
+
+Os modelos são genéricos. Não incluem marcas oficiais, escudos de clubes ou nomes de estádios reais.
+
+Esta licença aplica-se somente aos modelos GLB criados para este pacote; não se aplica aos assets externos listados como referências no README.
