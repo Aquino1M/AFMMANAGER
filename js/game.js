@@ -32199,6 +32199,12 @@ function renderLandingNavbar(activeTab){
   `;
 }
 
+// =========================================================================
+// REGRA CRÍTICA INVIOLÁVEL: FLUXO DE LOGIN, SESSÃO E PÁGINA INICIAL
+// 1. O acesso a 'select' (saves e clubes) exige usuário autenticado.
+// 2. Não exibir botão de página inicial no topbar dos saves.
+// 3. O retorno à página inicial só ocorre no logout ('🚪 Sair da Conta').
+// =========================================================================
 function renderSetup(app){
   if (!app) app = document.querySelector('#app');
   if (!app) return;
@@ -32931,9 +32937,6 @@ function renderSetup(app){
         </div>
 
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <button class="btn" id="btnGoToLandingPageFromSetup" style="padding:7px 14px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:8px;cursor:pointer">
-            ⭐ Página Inicial & Novidades
-          </button>
           <span class="pill" style="background:rgba(56,189,248,0.12);color:#38bdf8;padding:6px 14px;font-weight:800;border:1px solid rgba(56,189,248,0.3)" title="Banco de Dados Supabase Cloud (afm_saves) Conectado">
             ☁️ Supabase Cloud Ativo
           </span>
@@ -33704,8 +33707,6 @@ function bindSetup(){
   const btnNavGoSaves = $('#btnNavGoSaves');
   if(btnNavGoSaves) btnNavGoSaves.onclick = () => { setupViewMode = 'select'; renderSetup($('#app')); };
 
-  const btnGoToLanding = $('#btnGoToLandingPageFromSetup');
-  if(btnGoToLanding) btnGoToLanding.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
 
   const btnGoLogin = $('#btnGoLoginFromSetup');
   if(btnGoLogin) btnGoLogin.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
