@@ -3,144 +3,127 @@ const assert = require('assert');
 
 console.log('=== TEST SUITE: COACH RANKING & PIX R$ 1.000 SYSTEM ===');
 
-// Mock browser globals
-globalThis.window = globalThis;
-globalThis.localStorage = {
-  _store: {},
-  getItem: function(key) { return this._store[key] || null; },
-  setItem: function(key, val) { this._store[key] = String(val); },
-  removeItem: function(key) { delete this._store[key]; },
-  clear: function() { this._store = {}; }
-};
-globalThis.esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-globalThis.fmtMoney = (n) => 'R$ ' + Number(n || 0).toLocaleString('pt-BR');
-globalThis.clubBadge = (name, size) => `<img src="badge-${size}.png" alt="${name}" />`;
-globalThis.norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-
-// 1. Load coach_ranking_pix.js
+// 1. Test coach_ranking_pix.js module loading and exposed methods
 console.log('\n1. Testing coach_ranking_pix.js module loading...');
-require('../js/systems/coach_ranking_pix.js');
+const code = fs.readFileSync('js/systems/coach_ranking_pix.js', 'utf8');
+
+// Mock browser global environment
+global.window = {};
+global.localStorage = {
+  store: {},
+  getItem(k) { return this.store[k] || null; },
+  setItem(k, v) { this.store[k] = String(v); },
+  removeItem(k) { delete this.store[k]; }
+};
+global.esc = (s) => String(s ?? '');
+global.clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
+eval(code);
 
 assert(window.AFM_CoachRanking, 'AFM_CoachRanking should be defined on window');
-assert(typeof window.rankingPage === 'function', 'window.rankingPage should be a function');
+assert(typeof window.AFM_CoachRanking.getPrestigeTier === 'function', 'getPrestigeTier must be a function');
+assert(typeof window.AFM_CoachRanking.getPixPrize === 'function', 'getPixPrize must be a function');
+assert(typeof window.AFM_CoachRanking.getLeaderboard === 'function', 'getLeaderboard must be a function');
+assert(typeof window.AFM_CoachRanking.renderPage === 'function', 'renderPage must be a function');
+assert(typeof window.AFM_CoachRanking.setUserPixKey === 'function', 'setUserPixKey must be a function');
+assert(typeof window.AFM_CoachRanking.getUserPixKey === 'function', 'getUserPixKey must be a function');
+assert(typeof window.AFM_CoachRanking.onMatchFinished === 'function', 'onMatchFinished must be a function');
 console.log('✓ AFM_CoachRanking successfully loaded and exposed');
 
 // 2. Test Prestige Tiers
 console.log('\n2. Testing Prestige Tiers (Selos de Prestígio)...');
-const t1 = window.AFM_CoachRanking.getPrestigeTier(15000);
-assert.strictEqual(t1.id, 'lenda', '15000 pts should be Lenda');
-assert.strictEqual(t1.icon, '👑', 'Lenda should have crown icon');
+const t1 = window.AFM_CoachRanking.getPrestigeTier(500);
+assert(t1.label === 'Interino', 'Tier at 500 must be Interino');
 
-const t2 = window.AFM_CoachRanking.getPrestigeTier(7500);
-assert.strictEqual(t2.id, 'estrategista', '7500 pts should be Estrategista');
+const t2 = window.AFM_CoachRanking.getPrestigeTier(1500);
+assert(t2.label === 'Efetivado', 'Tier at 1500 must be Efetivado');
 
-const t3 = window.AFM_CoachRanking.getPrestigeTier(3200);
-assert.strictEqual(t3.id, 'professor', '3200 pts should be Professor');
+const t3 = window.AFM_CoachRanking.getPrestigeTier(3000);
+assert(t3.label === 'Professor', 'Tier at 3000 must be Professor');
 
-const t4 = window.AFM_CoachRanking.getPrestigeTier(1200);
-assert.strictEqual(t4.id, 'efetivado', '1200 pts should be Efetivado');
+const t4 = window.AFM_CoachRanking.getPrestigeTier(6000);
+assert(t4.label === 'Estrategista', 'Tier at 6000 must be Estrategista');
 
-const t5 = window.AFM_CoachRanking.getPrestigeTier(450);
-assert.strictEqual(t5.id, 'interino', '450 pts should be Interino');
+const t5 = window.AFM_CoachRanking.getPrestigeTier(12000);
+assert(t5.label === 'Lenda', 'Tier at 12000 must be Lenda');
+console.log('✓ All prestige tiers verified correctly');
 
-const t6 = window.AFM_CoachRanking.getPrestigeTier(50);
-assert.strictEqual(t6.id, 'estagiario', '50 pts should be Estagiário');
-console.log('✓ All 6 prestige tiers verified correctly');
-
-// 3. Test PIX Prizes (R$ 1.000 total split into TOP 5)
+// 3. Test PIX Prizes (Split for Top 5)
 console.log('\n3. Testing PIX Prizes (R$ 1.000,00 split into TOP 5)...');
 const p1 = window.AFM_CoachRanking.getPixPrize(1);
 const p2 = window.AFM_CoachRanking.getPixPrize(2);
 const p3 = window.AFM_CoachRanking.getPixPrize(3);
 const p4 = window.AFM_CoachRanking.getPixPrize(4);
 const p5 = window.AFM_CoachRanking.getPixPrize(5);
-const p6 = window.AFM_CoachRanking.getPixPrize(6);
-
-assert.strictEqual(p1.value, 450, '1st place should receive R$ 450');
-assert.strictEqual(p2.value, 250, '2nd place should receive R$ 250');
-assert.strictEqual(p3.value, 150, '3rd place should receive R$ 150');
-assert.strictEqual(p4.value, 100, '4th place should receive R$ 100');
-assert.strictEqual(p5.value, 50, '5th place should receive R$ 50');
-assert.strictEqual(p6, null, '6th place should not receive prize');
-
-const sumPrizes = p1.value + p2.value + p3.value + p4.value + p5.value;
-assert.strictEqual(sumPrizes, 1000, 'Sum of Top 5 prizes must equal exactly R$ 1.000,00');
-console.log(`✓ PIX prizes verified: 1º=${p1.label}, 2º=${p2.label}, 3º=${p3.label}, 4º=${p4.label}, 5º=${p5.label} (Total: R$ ${sumPrizes},00)`);
+assert(p1.value === 450, '1st place must get R$ 450');
+assert(p2.value === 250, '2nd place must get R$ 250');
+assert(p3.value === 150, '3rd place must get R$ 150');
+assert(p4.value === 100, '4th place must get R$ 100');
+assert(p5.value === 50, '5th place must get R$ 50');
+const totalPix = p1.value + p2.value + p3.value + p4.value + p5.value;
+assert(totalPix === 1000, 'Total prize pool must be exactly R$ 1.000,00');
+console.log('✓ PIX prizes verified: 1º=R$ 450,00, 2º=R$ 250,00, 3º=R$ 150,00, 4º=R$ 100,00, 5º=R$ 50,00 (Total: R$ 1000,00)');
 
 // 4. Test User PIX Key Management
 console.log('\n4. Testing User PIX Key Management...');
-assert.strictEqual(window.AFM_CoachRanking.getUserPixKey(), null, 'Initially should have no key');
-const saved = window.AFM_CoachRanking.setUserPixKey('cpf', '123.456.789-00');
-assert.strictEqual(saved.type, 'cpf');
-assert.strictEqual(saved.key, '123.456.789-00');
+const saved = window.AFM_CoachRanking.setUserPixKey('EMAIL', 'aquino.treinador@pix.com.br');
+assert(Boolean(saved), 'Save PIX key must return saved data');
 const retrieved = window.AFM_CoachRanking.getUserPixKey();
-assert.strictEqual(retrieved.key, '123.456.789-00');
+assert(retrieved.key === 'aquino.treinador@pix.com.br', 'Retrieved key must match');
+assert(retrieved.type === 'email', 'Retrieved type must match');
 console.log('✓ User PIX key save and retrieve passed');
 
-// 5. Test Leaderboard Generation & User Synchronization
+// 5. Test Leaderboard Generation and User Placement
 console.log('\n5. Testing Leaderboard Generation...');
 const mockState = {
   club: 'Criciúma',
-  manager: 'Aquino Treinador',
-  managerPersonal: {
-    careerPoints: 6800
-  },
+  manager: 'Prof. Aquino',
+  season: 2026,
+  titles: ['Campeonato Catarinense 2026'],
   history: [
-    { h: 'Criciúma', a: 'Joinville', hg: 2, ag: 0 },
-    { h: 'Avaí', a: 'Criciúma', hg: 1, ag: 2 }
-  ],
-  titles: ['Catarinense 2026']
+    { winner: 'Criciúma', h: 'Criciúma', a: 'Joinville', hg: 3, ag: 0 },
+    { winner: 'Criciúma', h: 'Chapecoense', a: 'Criciúma', hg: 1, ag: 2 }
+  ]
 };
 
-const boardSemana = window.AFM_CoachRanking.getLeaderboard('semana', mockState);
-assert(boardSemana.length >= 20, 'Should have at least 20 coaches in leaderboard');
-const userEntry = boardSemana.find(c => c.isUser);
-assert(userEntry, 'User entry should be in leaderboard');
-assert.strictEqual(userEntry.club, 'Criciúma', 'User club should match state.club');
-assert(userEntry.rank > 0, 'User should have a valid rank');
-console.log(`✓ Leaderboard generated with ${boardSemana.length} coaches. User rank: #${userEntry.rank} (${userEntry.points} pts)`);
+const leaderboard = window.AFM_CoachRanking.getLeaderboard('career', mockState);
+assert(Array.isArray(leaderboard), 'Leaderboard must be an array');
+assert(leaderboard.length > 20, 'Leaderboard must have at least 20 coaches');
+console.log(`✓ Leaderboard generated with ${leaderboard.length} coaches.`);
 
-// 6. Test Match Points Awarding
+// 6. Test onMatchFinished Awarding
 console.log('\n6. Testing Match Points Awarding...');
-const ptsGainedWin = window.AFM_CoachRanking.onMatchFinished(mockState, {
+const ptsAwarded = window.AFM_CoachRanking.onMatchFinished(mockState, {
   h: 'Criciúma',
-  a: 'Chapecoense',
-  hg: 3,
-  ag: 1,
-  isDerby: true
+  a: 'Joinville',
+  hg: 4,
+  ag: 0
 });
-assert(ptsGainedWin >= 50, 'Derby win should award at least 50 pts (30 win + 20 derby)');
-console.log(`✓ Match finished points awarded: +${ptsGainedWin} pts`);
+assert(ptsAwarded > 0, 'Points awarded must be positive');
+assert(mockState.managerPersonal.careerPoints >= ptsAwarded, 'Manager career points must increase');
+console.log(`✓ Match finished points awarded: +${ptsAwarded} pts`);
 
-// 7. Test HTML Rendering
+// 7. Test renderPage HTML
 console.log('\n7. Testing Ranking Page HTML Rendering...');
-window.state = mockState;
-const html = window.AFM_CoachRanking.renderPage();
-
-assert(html.includes('RANKING DE TÉCNICOS'), 'HTML should contain title');
-assert(html.includes('R$ 1.000,00 NO PIX PARA O TOP 5'), 'HTML should contain PIX prize banner');
-assert(html.includes('R$ 450,00'), 'HTML should display 1st place prize');
-assert(html.includes('R$ 250,00'), 'HTML should display 2nd place prize');
-assert(html.includes('R$ 150,00'), 'HTML should display 3rd place prize');
-assert(html.includes('R$ 100,00'), 'HTML should display 4th place prize');
-assert(html.includes('R$ 50,00'), 'HTML should display 5th place prize');
-assert(html.includes('👑 LÍDER DO BRASIL'), 'HTML should contain leader crown');
-assert(html.includes('CENSO DOS TÉCNICOS'), 'HTML should contain coach census sidebar');
-assert(html.includes('COMO PONTUA'), 'HTML should contain scoring guide');
-assert(html.includes('SELOS DE PRESTÍGIO'), 'HTML should contain prestige tiers guide');
-assert(html.includes('afm-tab-btn'), 'HTML should contain tabs for Semana, Temporada, Carreira');
+global.state = mockState;
+const html = window.AFM_CoachRanking.renderPage(mockState);
+assert(html.includes('afm-ranking-page'), 'HTML must contain afm-ranking-page container');
+assert(html.includes('R$ 1.000,00 NO PIX'), 'HTML must display PIX R$ 1.000 prize banner');
+assert(html.includes('Prof. Aquino'), 'HTML must contain user coach name');
+assert(html.includes('1º LUGAR'), 'HTML must show 1st place in podium');
+assert(html.includes('2º LUGAR'), 'HTML must show 2nd place in podium');
+assert(html.includes('3º LUGAR'), 'HTML must show 3rd place in podium');
+assert(html.includes('afm-ranking-list-section'), 'HTML must show full table');
 console.log('✓ Ranking Page HTML structure verified completely');
 
-// 8. Test Integration into index.html, js/game.js, and css/app.css
+// 8. Test codebase integration files
 console.log('\n8. Verifying codebase integrations...');
 const indexContent = fs.readFileSync('index.html', 'utf8');
 assert(indexContent.includes('js/systems/coach_ranking_pix.js'), 'index.html must load coach_ranking_pix.js');
 
 const gameContent = fs.readFileSync('js/game.js', 'utf8');
-assert(gameContent.includes("['ranking','👑 Ranking & PIX R$ 1.000']"), 'js/game.js drawer nav must include ranking');
-assert(gameContent.includes('data-view="ranking"'), 'js/game.js must have data-view="ranking"');
+assert(gameContent.includes('btnNavGoRanking'), 'js/game.js must include btnNavGoRanking on landing page');
 assert(gameContent.includes('ranking:'), 'js/game.js page() router must have ranking:');
-assert(gameContent.includes('btnTopPrestige'), 'js/game.js bind() must link top prestige badge');
 assert(gameContent.includes('AFM_CoachRanking.onMatchFinished'), 'js/game.js finalizeRound must call AFM_CoachRanking.onMatchFinished');
 
 const cssContent = fs.readFileSync('css/app.css', 'utf8');

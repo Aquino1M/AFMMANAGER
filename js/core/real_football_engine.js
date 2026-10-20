@@ -1340,8 +1340,8 @@
       const tiersCount = stLevel >= 3 ? 12 : (stLevel === 2 ? 8 : 5);
       ctx.fillStyle = '#111827';
       ctx.beginPath();
-      ctx.moveTo(130, standTop);
-      ctx.lineTo(1150, standTop);
+      ctx.moveTo(0, standTop);
+      ctx.lineTo(1280, standTop);
       ctx.lineTo(1040, standBottom);
       ctx.lineTo(240, standBottom);
       ctx.closePath();
@@ -1350,8 +1350,8 @@
       // Degraus individuais de concreto com cadeiras amarelas e cinzas em perspectiva
       for(let i = 0; i < tiersCount; i++){
         const ty = standTop + (i / tiersCount) * (standBottom - standTop);
-        const lx = 130 + (i / tiersCount) * 110;
-        const rx = 1150 - (i / tiersCount) * 110;
+        const lx = (i / tiersCount) * 240;
+        const rx = 1280 - (i / tiersCount) * 240;
         
         // Linha do degrau de concreto
         ctx.strokeStyle = '#1f293d';
@@ -1445,11 +1445,10 @@
       // Lateral Esquerda (Norte)
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.moveTo(130, standTop);
+      ctx.moveTo(0, standTop);
       ctx.lineTo(240, standBottom);
       ctx.lineTo(40, 530);
       ctx.lineTo(0, 530);
-      ctx.lineTo(0, 120);
       ctx.closePath();
       ctx.fill();
 
@@ -1477,11 +1476,10 @@
       // Lateral Direita (Sul)
       ctx.fillStyle = '#0f172a';
       ctx.beginPath();
-      ctx.moveTo(1150, standTop);
-      ctx.lineTo(1040, standBottom);
-      ctx.lineTo(1240, 530);
+      ctx.moveTo(1040, standBottom);
+      ctx.lineTo(1280, standTop);
       ctx.lineTo(1280, 530);
-      ctx.lineTo(1280, 120);
+      ctx.lineTo(1240, 530);
       ctx.closePath();
       ctx.fill();
 
@@ -1577,22 +1575,6 @@
       ctx.strokeStyle = 'rgba(250, 204, 21, 0.4)';
       ctx.stroke();
 
-      // 8. PLACAR / TELÃO CENTRAL DIGITAL
-      ctx.fillStyle = '#050811';
-      ctx.fillRect(520, standTop - 22, 240, 48);
-      ctx.strokeStyle = stLevel >= 3 ? '#38bdf8' : (stLevel === 2 ? '#f59e0b' : '#64748b');
-      ctx.lineWidth = 2;
-      ctx.strokeRect(520, standTop - 22, 240, 48);
-      ctx.fillStyle = '#facc15';
-      ctx.font = 'bold 14px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText(`${String(s.home || '').slice(0,3).toUpperCase()} ${s.hg || 0} - ${s.ag || 0} ${String(s.away || '').slice(0,3).toUpperCase()}`, 640, standTop);
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 8px Inter, sans-serif';
-      const badgeStr = stModel ? `${stModel.badge}` : (stLevel >= 3 ? '⭐ ARENA FIFA' : (stLevel === 2 ? '🏛️ CLÁSSICO' : '🏟️ ABERTO'));
-      ctx.fillText(`${badgeStr} • ${Math.floor((s.timeSec || 0)/60)}' MIN • AO VIVO`, 640, standTop + 16);
-
       // 9. 4 TORRES DE REFLETORES VOLUMÉTRICOS DE TRANSMISSÃO 3D (4 CANTORES DO ESTÁDIO)
       const towerPositions = [
         { x: 125, y: standTop - 24, lightX: 360, lightY: 340, side: 'TL' },
@@ -1647,46 +1629,29 @@
     // 9. Câmera de Transmissão 3D Dinâmica (Suporta Lateral, Bola e Gol)
     applyTvBroadcastCamera(ctx, s, projFn) {
       if(!s) return;
-      s.camera = s.camera || { x: 640, y: 360, targetX: 640, targetY: 360, zoom: 1.05, targetZoom: 1.05, mode: 'tv' };
+      s.camera = s.camera || { x: 640, y: 360, targetX: 640, targetY: 360, zoom: 1.0, targetZoom: 1.0, mode: 'lateral' };
       const cam = s.camera;
-      const cMode = s.cameraMode || cam.mode || 'tv';
+      const cMode = s.cameraMode || cam.mode || 'lateral';
       cam.mode = cMode;
 
-      const ball = s.ball || { x: 50, y: 50 };
-      const pt = projFn(ball.x, ball.y);
-
-      if(cMode === 'ball'){
-        // MODO BOLA: Foco total na bola e no jogador que conduz com zoom aproximado
-        cam.targetX = Math.max(340, Math.min(940, pt.x));
-        cam.targetY = Math.max(240, Math.min(480, pt.y - 10));
-        cam.targetZoom = 1.25;
+      if(cMode === 'lateral' || cMode === 'wide' || cMode === 'tv'){
+        // MODO LATERAL / PANORÂMICO: Campo 100% visível, ambas as traves e 22 jogadores na tela
+        cam.targetX = 640;
+        cam.targetY = 360;
+        cam.targetZoom = 1.0;
+      } else if(cMode === 'ball'){
+        // MODO BOLA: Foco sutil na bola com limites seguros para nunca cortar o campo
+        const ball = s.ball || { x: 50, y: 50 };
+        const pt = projFn(ball.x, ball.y);
+        cam.targetX = Math.max(520, Math.min(760, pt.x));
+        cam.targetY = Math.max(320, Math.min(400, pt.y - 10));
+        cam.targetZoom = 1.10;
       } else if(cMode === 'goal'){
-        // MODO GOL: Foco na área de finalização e gol onde a bola está atacando
-        if(ball.x >= 50){
-          cam.targetX = 960;
-          cam.targetY = 360;
-        } else {
-          cam.targetX = 320;
-          cam.targetY = 360;
-        }
-        cam.targetZoom = 1.20;
-      } else {
-        // MODO LATERAL / TV DINÂMICA (Padrão de Transmissão de Televisão)
-        cam.targetX = Math.max(460, Math.min(820, pt.x));
-        cam.targetY = Math.max(280, Math.min(440, pt.y - 15));
-
-        // Zoom dinâmico inteligente por situação de jogo
-        if(s.varCheck){
-          cam.targetX = 640;
-          cam.targetY = 480;
-          cam.targetZoom = 1.25; // Foco total na cabine do VAR
-        } else if(ball.mode === 'shot' || (s.ball?.carrier && (ball.x >= 78 || ball.x <= 22))){
-          cam.targetZoom = 1.18; // Foco na grande área / finalização
-        } else if(s.ball?.carrier?.dribbling || (s.lastTackleTimer || 0) > 0){
-          cam.targetZoom = 1.15; // Foco no drible / carrinho 1v1
-        } else {
-          cam.targetZoom = 1.05; // Visão de meio-campo fluida
-        }
+        // MODO GOL: Foco na área de finalização com limites seguros
+        const ball = s.ball || { x: 50, y: 50 };
+        cam.targetX = ball.x >= 50 ? 780 : 500;
+        cam.targetY = 360;
+        cam.targetZoom = 1.08;
       }
 
       // Interpolação suave (lerp) sem solavancos
@@ -1699,8 +1664,6 @@
       ctx.scale(cam.zoom, cam.zoom);
       ctx.translate(-cam.x, -cam.y);
     },
-
-    // 10. Restauração do Contexto da Câmera (Para Desenhar o HUD Fixo na Tela)
     restoreTvBroadcastCamera(ctx, s) {
       if(s?.camera && ['tv', 'lateral', 'ball', 'goal'].includes(s.camera.mode)){
         ctx.restore();

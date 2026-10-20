@@ -6,6 +6,9 @@
 (function(window){
   'use strict';
 
+  const esc = (window && typeof window.esc === 'function') ? window.esc : (typeof globalThis.esc === 'function' ? globalThis.esc : (s => String(s ?? '')));
+  if (window && !window.esc) window.esc = esc;
+
   // Chaves de armazenamento local
   const STORAGE_KEY_RANKING = 'afm_coach_ranking_v3';
   const STORAGE_KEY_PIX = 'afm_user_pix_key_v1';
