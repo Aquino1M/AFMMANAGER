@@ -2,6 +2,31 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.19] - 2026-10-20 (Feed de Notícias "Passando os Dias - X de Y" & Hub Pós-Jogo com Escolha de Entrevista)
+
+### 📰 1. Feed Oficial de Notícias & Passagem dos Dias (`AFM_DayAdvanceNews`)
+- **Modal "PASSANDO OS DIAS - X DE Y" Fiel ao Layout de Referência**:
+  - Modal estilizada em tema roxo escuro com cabeçalho `PASSANDO OS DIAS · X DE Y` e feed cronológico dos dias simulados.
+  - Agrupamento diário com formato de data brasileiro (`QUI, 29 JAN 2026`, `SEX, 30 JAN 2026`, `SÁB, 31 JAN 2026`), indicando `Dia sem jogos` ou `${N} partidas marcadas · hoje`.
+  - Cards de notícias categorizados com bordas de destaque:
+    - **Borda Roxa (Negócios Fechados)**: Transferências e reforços entre clubes brasileiros com valores em R$ (`Negócio fechado: Léo Aragão troca o Avaí pelo Águia Negra por R$ 510.000`, `Rafael Mariano deixa o ASA e assina com o Vilavelhense`).
+    - **Borda Laranja (Mercado & Propostas)**: Investidas e rumores de mercado (`Maguary quer Kauã Oliveira e põe R$ 160.000 na mesa`).
+    - **Borda Vermelha (Disciplina & DM)**: Cartões, suspensões e lesões (`Geovani Silva é expulso e desfalca o Galvez`).
+    - **Card Dourado (Alerta de Jogo)**: Destaque de partida no dia do confronto (`HOJE TEM JOGO · SAMAMBAIA X REAL BRASÍLIA`).
+  - Botão de rodapé `CONTINUAR >` com gradiente roxo, efeito neon e fechamento suave.
+
+### 🎙️ 2. Hub Pós-Jogo com Escolha de Entrevista Coletiva (`triggerPostMatchFlow`)
+- **Fim da Obrigatoriedade de Coletiva Forçada**:
+  - Ao terminar a partida, é aberto o Hub Pós-Jogo exibindo o placar final, badge de resultado e 3 opções de escolha para o usuário:
+    1. **🎙️ Dar Entrevista Coletiva**: Entra na sala de imprensa oficial, responde às perguntas dos repórteres (influenciando moral e confiança) e em seguida abre o feed de notícias.
+    2. **📰 Ver Últimas Notícias do Dia**: Abre imediatamente o feed "Passando os Dias" com os bastidores e transferências sem precisar responder a entrevistas.
+    3. **🏠 Ir Direto para a Central**: Retorna direto para a tela central da carreira.
+- **Integração Integral em Todas as Competições**:
+  - Unificado e ativo na Copa do Brasil, Campeonatos Estaduais, Partida ao Vivo 3D, Simulação Rápida e Torneios Continentais.
+
+### 📅 3. Integração com o Avanço de Calendário
+- Ao clicar em "ATÉ O JOGO" ou avançar datas, o feed "Passando os Dias" é exibido mostrando os acontecimentos diários até a data da partida.
+
 ## [3.9.18] - 2026-10-20 (Integração Oficial do Pack de Estádios 3D Low-Poly BRFC27 & Visualizador Orbital 360°)
 
 ### 🏟️ 1. Pack Oficial de Estádios 3D Low-Poly (`BRFC27_Pack_Estadios_Leves`)

@@ -149,6 +149,38 @@
         this.syncDateInDOM(state, newPtBr);
         if (typeof window.save === 'function') window.save();
         if (typeof window.render === 'function') window.render();
+
+        // Exibição do Feed "PASSANDO OS DIAS - X DE Y"
+        if (showModal && window.AFM_DayAdvanceNews && typeof window.AFM_DayAdvanceNews.openDayAdvanceModal === 'function') {
+          const daysList = [];
+          const startObj = parseSafeLocalNoon(activeDateStr);
+          for (let step = 1; step <= add; step++) {
+            const stepDate = new Date(startObj.getTime());
+            stepDate.setDate(stepDate.getDate() + step);
+            const isMatchDay = (step === add);
+            let matchFixture = null;
+            if (isMatchDay) {
+              const act = (typeof window.getActualCurrentMatch === 'function' ? window.getActualCurrentMatch(state) : null);
+              if (act) matchFixture = { home: act.home || state?.club, away: act.away || act.opponent || 'Adversário' };
+            }
+            const items = window.AFM_DayAdvanceNews.generateNewsForDay(stepDate, state, isMatchDay, matchFixture);
+            daysList.push({
+              dateObj: stepDate,
+              formattedDate: (typeof window.AFM_DayAdvanceNews.formatHeadingDate === 'function') ? window.AFM_DayAdvanceNews.formatHeadingDate(stepDate) : toPtBr(stepDate),
+              isMatchDay,
+              matchCountText: isMatchDay ? '53 partidas marcadas · hoje' : null,
+              items
+            });
+          }
+          window.AFM_DayAdvanceNews.openDayAdvanceModal({
+            daysList,
+            currentDay: add,
+            totalDays: add,
+            onContinue: () => {
+              if (typeof window.render === 'function') window.render();
+            }
+          });
+        }
         return { newIso, newPtBr };
       } finally {
         setTimeout(() => { isAdvancingNow = false; }, 120);
@@ -175,7 +207,7 @@
       }
       if (!nextDate || nextDate <= curr) return this.advanceDaysGuaranteed(state, 1);
       const diffDays = Math.min(90, Math.max(1, Math.round((nextDate.getTime() - curr.getTime()) / 86400000)));
-      return this.advanceDaysGuaranteed(state, diffDays);
+      return this.advanceDaysGuaranteed(state, diffDays, true);
     },
 
     syncDateInDOM(state, newPtBr) {

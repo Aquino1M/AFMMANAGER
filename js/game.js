@@ -5853,7 +5853,7 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   if(typeof processDevelopment === 'function') processDevelopment();
   save();
   render();
-  openPressConferenceModal('post', result);
+  triggerPostMatchFlow(result);
 }
 
 // COPA DO BRASIL BLOCK - START
@@ -12351,6 +12351,51 @@ function openPressConferenceModal(type = 'post', context = null, onComplete = nu
   }
 }
 
+
+function triggerPostMatchFlow(userRes){
+  if(!userRes){
+    view = 'central';
+    save();
+    render();
+    return;
+  }
+
+  // Hub Pós-Jogo permitindo ao usuário escolher dar entrevista coletiva, ver notícias ou ir para a central
+  if(window.AFM_DayAdvanceNews && typeof window.AFM_DayAdvanceNews.openPostMatchHubModal === 'function'){
+    window.AFM_DayAdvanceNews.openPostMatchHubModal(userRes, {
+      onInterview: () => {
+        openPressConferenceModal('post', userRes, () => {
+          if(window.AFM_DayAdvanceNews && typeof window.AFM_DayAdvanceNews.openAdvanceDaysFromMatch === 'function'){
+            window.AFM_DayAdvanceNews.openAdvanceDaysFromMatch(state, userRes);
+          } else {
+            view = 'central';
+            save();
+            render();
+          }
+        });
+      },
+      onNews: () => {
+        if(window.AFM_DayAdvanceNews && typeof window.AFM_DayAdvanceNews.openAdvanceDaysFromMatch === 'function'){
+          window.AFM_DayAdvanceNews.openAdvanceDaysFromMatch(state, userRes);
+        } else {
+          view = 'central';
+          save();
+          render();
+        }
+      },
+      onCentral: () => {
+        view = 'central';
+        save();
+        render();
+      }
+    });
+  } else {
+    triggerPostMatchFlow(userRes);
+  }
+}
+window.triggerPostMatchFlow = triggerPostMatchFlow;
+
+
 function applyMatchIncidents(lastMatchResult){
   if(!state || !Array.isArray(state.lineup)) return;
   const starters = state.lineup.map(k => state.squad.find(p => playerKey(p) === k)).filter(Boolean);
@@ -15774,7 +15819,7 @@ function simulateQuickStateLeagueRound(competitionId, roundIndex){
   render();
   toast(`Partida estadual finalizada: ${home} ${uHg} x ${uAg} ${away}`);
   if(userRes){
-    openPressConferenceModal('post', userRes);
+    triggerPostMatchFlow(userRes);
   } else {
     view = 'central';
     render();
@@ -20110,7 +20155,7 @@ function finalizeMatchRound(){
 
   // Coletiva de Imprensa Pós-Jogo na Sala de Imprensa (se houver jogo do usuário)
   if(userRes){
-    openPressConferenceModal('post', userRes);
+    triggerPostMatchFlow(userRes);
   } else {
     view = 'central';
     render();
@@ -20241,7 +20286,7 @@ function simulateQuickRound(){
     render();
 
     if(userRes){
-      openPressConferenceModal('post', userRes);
+      triggerPostMatchFlow(userRes);
     }
   } finally {
     isSimulatingQuickRound = false;
@@ -25903,7 +25948,7 @@ function playContinentalFixture(competitionId, matchId){
   toast('Partidas continentais da data simuladas; classificação salva.');
   render();
   if(userResult){
-    openPressConferenceModal('post', userResult);
+    triggerPostMatchFlow(userResult);
   } else {
     view = 'central';
     render();
