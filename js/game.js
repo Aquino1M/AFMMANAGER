@@ -31665,7 +31665,7 @@ let setupSelectedCompId = 'bra-a';
 let setupBrCategory = 'nacionais';
 let setupSelectedClubName = 'Corinthians';
 let setupAuthTab = 'login'; // 'login' | 'register'
-let setupViewMode = 'select'; // 'select' | 'auth' | 'systems' | 'hub' | 'arenas' | 'estaduais'
+let setupViewMode = 'auth'; // 'auth' | 'select' | 'systems' | 'hub' | 'arenas' | 'estaduais'
 if (typeof window !== 'undefined') {
   try {
     Object.defineProperty(window, 'setupViewMode', {
@@ -32185,22 +32185,15 @@ function renderLandingNavbar(activeTab){
 
       <nav class="afm-nav-links">
         <button class="afm-nav-link ${activeTab==='auth'?'active':''}" id="btnNavGoAuth">⭐ Início & Craques</button>
-        <button class="afm-nav-link ${activeTab==='select'?'active':''}" id="btnNavGoSaves">💾 Jogar & Saves</button>
         <button class="afm-nav-link ${activeTab==='systems'?'active':''}" id="btnNavGoSystems">🎮 Todos os Sistemas</button>
         <button class="afm-nav-link ${activeTab==='arenas'?'active':''}" id="btnNavGoArenas">🏟️ Novas Arenas</button>
         <button class="afm-nav-link ${activeTab==='estaduais'?'active':''}" id="btnNavGoEstaduais">🏆 11 Estaduais</button>
-        <button class="afm-nav-link ${activeTab==='hub'?'active':''}" id="btnNavGoHub">📢 Novidades (75+)</button>
       </nav>
 
       <div style="display:flex;align-items:center;gap:10px">
-        <button class="btn primary" id="btnNavCtaPlay" style="padding:8px 18px;font-size:13px;font-weight:900;border-radius:10px;box-shadow:0 0 15px rgba(124,58,237,0.4)">
-          🚀 Escolher Time / Jogar
+        <button class="btn primary" id="btnNavSwitchAuth" style="padding:8px 18px;font-size:12px;font-weight:900;border-radius:10px;cursor:pointer">
+          ${setupAuthTab==='login' ? '✨ Criar Conta' : '🔑 Entrar'}
         </button>
-        ${activeTab === 'auth' ? `
-          <button class="btn" id="btnNavSwitchAuth" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);padding:7px 16px;font-size:12px;font-weight:800;border-radius:8px;color:#fff;cursor:pointer">
-            ${setupAuthTab==='login' ? '✨ Criar Conta' : '🔑 Entrar'}
-          </button>
-        ` : ''}
       </div>
     </header>
   `;
@@ -32213,6 +32206,11 @@ function renderSetup(app){
   try {
     const rawActiveUser = getActiveAccount();
     const activeUser = rawActiveUser || { username: 'treinador', name: 'Treinador', role: 'player' };
+
+    // Regra: O jogador só entra no jogo (saves e times) após efetuar login
+    if(!rawActiveUser && setupViewMode === 'select'){
+      setupViewMode = 'auth';
+    }
 
     // 1. MODO: CENTRAL DE NOVIDADES & BLOG (75+ NOVIDADES COM PAGINAÇÃO)
     if(setupViewMode === 'hub'){
@@ -32724,18 +32722,7 @@ function renderSetup(app){
                 </div>
               </div>
 
-              <!-- BOTÕES DE NAVEGAÇÃO RÁPIDA -->
-              <div style="display:flex;align-items:center;gap:12px;margin:16px 0 20px 0;flex-wrap:wrap">
-                <button class="btn primary" id="btnLandingExploreSystems" style="padding:12px 24px;font-size:13px;font-weight:900;border-radius:10px;box-shadow:0 8px 25px rgba(124,58,237,0.4)">
-                  🎮 Ver Todos os Nossos Sistemas →
-                </button>
-                <button class="btn" id="btnLandingViewArenas" style="padding:12px 20px;font-size:13px;font-weight:800;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#cbd5e1">
-                  🏟️ Novas Arenas
-                </button>
-                <button class="btn" id="btnLandingViewEstaduais" style="padding:12px 20px;font-size:13px;font-weight:800;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#cbd5e1">
-                  🏆 11 Estaduais
-                </button>
-              </div>
+
 
               <!-- PAINÉIS DE DESTAQUES VISÍVEIS NO TOPO -->
               <div class="afm-feature-panels-grid">
@@ -32864,11 +32851,7 @@ function renderSetup(app){
                 ${setupAuthTab==='login' ? '🚀 Entrar na Carreira' : '✨ Criar Conta & Continuar'}
               </button>
 
-              <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);text-align:center">
-                <button type="button" class="btn" id="btnPlayAsGuestFromAuth" style="width:100%;padding:10px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:10px;cursor:pointer">
-                  🎮 Jogar Imediato / Escolher Time sem Login
-                </button>
-              </div>
+
 
               <div style="text-align:center;font-size:13px;color:#94a3b8;margin-top:16px">
                 ${setupAuthTab==='login' 
