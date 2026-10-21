@@ -247,8 +247,21 @@
     if (!app) app = document.querySelector('#app');
     if (!app) return;
 
-    const estData = (window.AFM_ESTADUAIS_DATA && window.AFM_ESTADUAIS_DATA.length) ? window.AFM_ESTADUAIS_DATA : DEFAULT_ESTADUAIS;
-    const curEst = estData.find(e => e.id === customClubDraft.stateCompId) || estData[1] || { id: 'bra-est-sp', name: 'Paulistão SP', clubsCount: 16 };
+    let estData = (window.AFM_ESTADUAIS_DATA && window.AFM_ESTADUAIS_DATA.length) ? [...window.AFM_ESTADUAIS_DATA] : [...DEFAULT_ESTADUAIS];
+    if (customClubDraft.stateCompId && !estData.some(e => e.id === customClubDraft.stateCompId)) {
+      const compObj = (typeof window.compById === 'function') ? window.compById(customClubDraft.stateCompId) : null;
+      if (compObj) {
+        estData.unshift({
+          id: compObj.id,
+          name: compObj.name,
+          state: compObj.country || 'Brasil',
+          clubsCount: compObj.teamsCount || (compObj.teams ? compObj.teams.length : (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[compObj.id] ? window.COMPETITION_TEAMS[compObj.id].length : 20)),
+          trophy: compObj.id.startsWith('bra-') ? '🇧🇷' : '🏆',
+          color: '#38bdf8'
+        });
+      }
+    }
+    const curEst = estData.find(e => e.id === customClubDraft.stateCompId) || estData[0] || { id: 'bra-est-sp', name: 'Paulistão SP', clubsCount: 16 };
     const userSlots = typeof window.getUserSaveSlots === 'function' ? window.getUserSaveSlots(activeUser?.username) : [null, null, null];
     const selSlot = window.setupSelectedSlot || 1;
 
@@ -355,15 +368,15 @@
           </div>
         </div>
 
-        <!-- SEÇÃO 3: ESCOLHA DO CAMPEONATO ESTADUAL DE INÍCIO -->
+        <!-- SEÇÃO 3: ESCOLHA DO CAMPEONATO DE INÍCIO -->
         <div class="create-club-estadual-section">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
             <div>
               <div style="font-size:14px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">
-                🏆 ESCOLHA O CAMPEONATO ESTADUAL DE INÍCIO
+                🏆 ESCOLHA O CAMPEONATO DE INÍCIO
               </div>
               <div style="font-size:11px;color:#94a3b8;margin-top:2px">
-                Seu clube ocupará 1 vaga oficial no estadual escolhido, disputará a tabela oficial de 2026 e buscará vaga na Série D e Copa do Brasil!
+                Seu clube ocupará 1 vaga oficial na competição escolhida, disputará a tabela oficial de 2026 e buscará a glória!
               </div>
             </div>
             <span class="pill good" style="font-size:10px;padding:4px 10px;font-weight:900">
@@ -950,6 +963,13 @@
   }
 
   // Exportar para o escopo global
+  function openCreateClubModal(targetCompId) {
+    if (targetCompId) customClubDraft.stateCompId = targetCompId;
+    window.setupViewMode = 'create_club';
+    const app = document.querySelector('#app');
+    if (app) renderCreateClubScreen(app, typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null);
+  }
+
   window.AFM_ESTADUAIS_DATA = (window.AFM_ESTADUAIS_DATA && window.AFM_ESTADUAIS_DATA.length) ? window.AFM_ESTADUAIS_DATA : DEFAULT_ESTADUAIS;
   window.customClubDraft = customClubDraft;
   window.generateBadgeSvg = generateBadgeSvg;
@@ -958,5 +978,10 @@
   window.renderCreateClubScreen = renderCreateClubScreen;
   window.openCustomBadgeModal = openCustomBadgeModal;
   window.openCustomKitModal = openCustomKitModal;
+  window.openCreateClubModal = openCreateClubModal;
+  window.AFM_CreateClubUI = {
+    open: openCreateClubModal,
+    render: renderCreateClubScreen
+  };
 
 })(typeof window !== 'undefined' ? window : globalThis);

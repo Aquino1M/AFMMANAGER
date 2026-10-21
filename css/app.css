@@ -2385,6 +2385,72 @@ select, .saas-select {
   transform: scale(1.1);
 }
 
+/* Card Especial "+ Criar Time" na Vitrine de Clubes da Liga */
+.club-thumb-card.btn-create-club-thumb-card {
+  background: rgba(168, 85, 247, 0.08);
+  border: 2px dashed rgba(168, 85, 247, 0.7);
+  box-shadow: 0 2px 10px rgba(168, 85, 247, 0.2);
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.club-thumb-card.btn-create-club-thumb-card:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #c084fc;
+  border-style: solid;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 0 24px rgba(168, 85, 247, 0.65);
+}
+
+.create-club-thumb-plus-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(168, 85, 247, 0.16);
+  border: 1.5px solid rgba(168, 85, 247, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.club-thumb-card.btn-create-club-thumb-card:hover .create-club-thumb-plus-wrap {
+  background: rgba(168, 85, 247, 0.35);
+  border-color: #c084fc;
+  transform: rotate(90deg) scale(1.12);
+  box-shadow: 0 0 16px rgba(192, 132, 252, 0.7);
+}
+
+.create-club-thumb-plus {
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 900;
+  color: #c084fc;
+  margin-top: -2px;
+  user-select: none;
+}
+
+@media (max-width: 640px) {
+  .club-thumb-grid {
+    grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+    gap: 8px;
+    padding: 6px;
+  }
+  .club-thumb-card {
+    padding: 8px 4px;
+    min-height: 78px;
+  }
+  .create-club-thumb-plus-wrap {
+    width: 32px;
+    height: 32px;
+  }
+  .create-club-thumb-plus {
+    font-size: 22px;
+  }
+}
+
 /* Super Card de Detalhes do Clube */
 .club-detail-hero {
   background: linear-gradient(135deg, #101426 0%, #0b0f1a 100%);

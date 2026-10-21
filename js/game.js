@@ -33675,6 +33675,19 @@ function renderSetup(app){
           </div>
 
           <div class="club-thumb-grid">
+            ${(!setupClubSearchQuery || 'criar time'.includes(norm(setupClubSearchQuery))) ? `
+              <div class="club-thumb-card btn-create-club-thumb-card" id="btnCreateClubInLeagueCard" title="Criar seu próprio time do zero neste campeonato!">
+                <div class="create-club-thumb-plus-wrap">
+                  <span class="create-club-thumb-plus">+</span>
+                </div>
+                <div style="font-size:11px;font-weight:900;color:#c084fc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-transform:uppercase">
+                  Criar Time
+                </div>
+                <div style="font-size:10px;font-weight:800;color:#38bdf8">
+                  + 1 Vaga
+                </div>
+              </div>
+            ` : ''}
             ${displayedClubs.map(cName => {
               const clObj = clubByName(cName);
               const isSel = (norm(cName) === norm(setupSelectedClubName));
@@ -34102,7 +34115,21 @@ function bindSetup(){
   });
 
   // Binds dos Cards dos Clubes
+  const btnCreateInLeague = $('#btnCreateClubInLeagueCard');
+  if(btnCreateInLeague) {
+    btnCreateInLeague.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if(window.customClubDraft) {
+        window.customClubDraft.stateCompId = setupSelectedCompId || 'bra-est-sp';
+      }
+      setupViewMode = 'create_club';
+      renderSetup($('#app'));
+    };
+  }
+
   $$('.club-thumb-card').forEach(c => {
+    if(c.id === 'btnCreateClubInLeagueCard' || c.classList.contains('btn-create-club-thumb-card')) return;
     c.onclick = () => {
       setupSelectedClubName = c.dataset.clubname;
       const targetComp = getClubPrimaryCompetitionId(setupSelectedClubName, setupSelectedCompId);
@@ -34487,7 +34514,22 @@ function bindSetup(){
       }
       const grid = $('.club-thumb-grid');
       if(grid){
-        grid.innerHTML = filtered.map(cName => {
+        const showCreate = (!setupClubSearchQuery || 'criar time'.includes(norm(setupClubSearchQuery)));
+        const createCardHtml = showCreate ? `
+          <div class="club-thumb-card btn-create-club-thumb-card" id="btnCreateClubInLeagueCard" title="Criar seu próprio time do zero neste campeonato!">
+            <div class="create-club-thumb-plus-wrap">
+              <span class="create-club-thumb-plus">+</span>
+            </div>
+            <div style="font-size:11px;font-weight:900;color:#c084fc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-transform:uppercase">
+              Criar Time
+            </div>
+            <div style="font-size:10px;font-weight:800;color:#38bdf8">
+              + 1 Vaga
+            </div>
+          </div>
+        ` : '';
+
+        grid.innerHTML = createCardHtml + filtered.map(cName => {
           const clObj = clubByName(cName);
           const isSel = (norm(cName) === norm(setupSelectedClubName));
           const ovr = strength(clObj);
@@ -34503,7 +34545,22 @@ function bindSetup(){
             </div>
           `;
         }).join('');
+
+        const btnCreateInLeagueDyn = $('#btnCreateClubInLeagueCard');
+        if(btnCreateInLeagueDyn) {
+          btnCreateInLeagueDyn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if(window.customClubDraft) {
+              window.customClubDraft.stateCompId = setupSelectedCompId || 'bra-est-sp';
+            }
+            setupViewMode = 'create_club';
+            renderSetup($('#app'));
+          };
+        }
+
         $$('.club-thumb-card').forEach(c => {
+          if(c.id === 'btnCreateClubInLeagueCard' || c.classList.contains('btn-create-club-thumb-card')) return;
           c.onclick = () => {
             setupSelectedClubName = c.dataset.clubname;
             const targetComp = getClubPrimaryCompetitionId(setupSelectedClubName, setupSelectedCompId);
