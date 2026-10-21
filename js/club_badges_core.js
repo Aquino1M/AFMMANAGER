@@ -224,14 +224,26 @@ window.renderClubBadge = function(clubName, size = 32) {
   const rawName = (typeof clubName === 'object' && clubName !== null ? (clubName.name || clubName.club || '') : String(clubName || '')).trim() || 'Clube';
   const n = window.normClub(rawName);
 
-  // SUPORTE AO MODO CRIAR SEU TIME (CUSTOM BADGE SVG)
+  // SUPORTE AO MODO CRIAR SEU TIME (CUSTOM BADGE SVG / PNG IMAGE)
   if (typeof window !== 'undefined' && window.CUSTOM_CLUB_BADGES && window.CUSTOM_CLUB_BADGES[n]) {
-    const svg = window.CUSTOM_CLUB_BADGES[n];
-    return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${svg.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
+    const badge = window.CUSTOM_CLUB_BADGES[n];
+    if (typeof badge === 'string') {
+      if (badge.startsWith('data:') || badge.startsWith('http') || badge.endsWith('.png') || badge.endsWith('.jpg') || badge.endsWith('.webp') || (!badge.includes('<svg') && !badge.includes('</svg>'))) {
+        return `<img src="${badge}" alt="${esc(rawName)}" class="crest-img custom-badge-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" />`;
+      }
+      return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${badge.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
+    }
   }
   if (typeof state !== 'undefined' && state && state.customClub && (n === window.normClub(state.club) || n === window.normClub(state.customClub.name))) {
+    if (state.customClub.badgeImage) {
+      return `<img src="${state.customClub.badgeImage}" alt="${esc(rawName)}" class="crest-img custom-badge-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" />`;
+    }
     if (state.customClub.badgeSvg) {
-      return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${state.customClub.badgeSvg.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
+      const svg = state.customClub.badgeSvg;
+      if (typeof svg === 'string' && (svg.startsWith('data:') || svg.startsWith('http') || (!svg.includes('<svg') && !svg.includes('</svg>')))) {
+        return `<img src="${svg}" alt="${esc(rawName)}" class="crest-img custom-badge-img" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;flex-shrink:0;" />`;
+      }
+      return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${svg.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
     }
   }
   const compactName = n.replace(/[^a-z0-9]/g, '');

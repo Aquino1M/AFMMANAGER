@@ -230,8 +230,11 @@
   // 5. Drawer / Menu Lateral Deslizante Mobile vs Menu Fixo no PC
   function isAFMMobileViewport() {
     if (typeof window === 'undefined') return false;
-    return window.innerWidth <= 1080 || window.innerHeight <= 650 || (window.innerWidth <= 1280 && window.matchMedia && window.matchMedia('(orientation: landscape) and (max-height: 750px)').matches);
+    // Dispositivos móveis (smartphones e tablets) são estritamente delimitados por largura <= 1024px
+    // No PC (Desktop widescreen >= 1025px), NUNCA é mobile, preservando o menu lateral fixo na grade
+    return window.innerWidth <= 1024;
   }
+  window.isAFMMobileViewport = isAFMMobileViewport;
 
   let lastAFMDrawerToggleTs = 0;
   window.toggleAFMMobileDrawer = function(forceState) {
@@ -239,7 +242,7 @@
     const backdrop = document.getElementById('afmDrawerBackdrop');
     if (!drawer) return;
 
-    // No PC (Desktop), o menu lateral é sempre estático e fixo na grade do layout
+    // No PC (Desktop >= 1025px), o menu lateral é sempre estático e fixo na grade do layout
     if (!isAFMMobileViewport()) {
       drawer.classList.remove('drawer-open');
       if (drawer.style) {
@@ -249,6 +252,7 @@
         drawer.style.visibility = '';
         drawer.style.pointerEvents = '';
         drawer.style.zIndex = '';
+        drawer.style.position = '';
       }
       if (backdrop) {
         backdrop.classList.remove('active');
@@ -312,7 +316,7 @@
 
   // Observador de Redimensionamento: garante limpeza imediata ao alternar entre PC e Mobile
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-    window.addEventListener('resize', () => {
+    const handleViewportChange = () => {
       if (!isAFMMobileViewport()) {
         const drawer = document.getElementById('afmSideDrawer');
         const backdrop = document.getElementById('afmDrawerBackdrop');
@@ -325,6 +329,7 @@
             drawer.style.visibility = '';
             drawer.style.pointerEvents = '';
             drawer.style.zIndex = '';
+            drawer.style.position = '';
           }
         }
         if (backdrop) {
@@ -336,7 +341,17 @@
           }
         }
       }
-    });
+    };
+
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('orientationchange', handleViewportChange);
+    if (typeof document !== 'undefined') {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', handleViewportChange);
+      } else {
+        handleViewportChange();
+      }
+    }
   }
 
   // 6. Delegação Global de Eventos de Interação (Click e Touch)

@@ -6413,8 +6413,8 @@ body.theme-emerald {
   touch-action: manipulation !important;
 }
 
-/* COMPACTAÇÃO NO MODO PAISAGEM MOBILE (HEIGHT <= 650px ou WIDTH <= 1080px ou LANDSCAPE) */
-@media screen and (max-height: 650px), screen and (max-width: 1080px), screen and (orientation: landscape) and (max-height: 750px) {
+/* COMPACTAÇÃO NO MODO PAISAGEM MOBILE (EXCLUSIVO PARA DISPOSITIVOS MÓVEIS COM LARGURA <= 1024px) */
+@media screen and (max-width: 1024px) {
   /* ATIVAÇÃO DE ELEMENTOS DE GAVETA SLIDING DRAWER EXCLUSIVAMENTE NO MOBILE */
   .afm-drawer-backdrop,
   #afmDrawerBackdrop {
@@ -7098,10 +7098,10 @@ body.theme-emerald {
 
 
 /* ========================================================================= */
-/* AFM 2027: OTIMIZAÇÃO DE ESCALA PARA MOBILE LANDSCAPE & TELAS PEQUENAS     */
+/* AFM 2027: OTIMIZAÇÃO DE ESCALA PARA MOBILE LANDSCAPE (LARGURA <= 1024px)   */
 /* ========================================================================= */
 
-@media screen and (max-height: 600px), screen and (orientation: landscape) and (max-height: 650px) {
+@media screen and (max-width: 1024px) and (max-height: 650px) {
   /* Escala geral de tela e cabeçalhos */
   .main {
     padding: 6px 10px !important;
@@ -7593,25 +7593,101 @@ body.theme-emerald {
 
 /* ========================================================================= */
 /* SEPARAÇÃO EXPLÍCITA PC (DESKTOP WIDESCREEN >= 1025px)                     */
-/* Garante que o PC mantenha experiência pura de desktop sem resquícios mobile */
+/* Garante que o PC mantenha experiência pura de desktop com MENU FIXO LATERAL */
 /* ========================================================================= */
-@media (min-width: 1025px) {
-  /* No PC o botão 'X' de fechar gaveta nunca deve aparecer */
-  .sm-drawer-close {
-    display: none !important;
+@media screen and (min-width: 1025px) {
+  /* No PC o layout é SEMPRE grade fixa de 2 colunas com menu lateral permanente */
+  .layout {
+    display: grid !important;
+    grid-template-columns: 240px minmax(0, 1fr) !important;
+    min-height: calc(100vh - 58px) !important;
+    width: 100% !important;
+    position: relative !important;
   }
 
-  /* No PC o drawer funciona como barra lateral integrada ao layout */
-  .side.sm-drawer {
+  /* No PC o menu lateral é ESTÁTICO E INTEGRADO NA COLUNA ESQUERDA (NUNCA gaveta flutuante!) */
+  .side,
+  .side.sm-drawer,
+  #afmSideDrawer {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    bottom: auto !important;
+    right: auto !important;
+    width: 240px !important;
+    min-width: 240px !important;
+    max-width: 240px !important;
+    height: auto !important;
+    min-height: 100% !important;
     transform: none !important;
+    -webkit-transform: none !important;
     visibility: visible !important;
     display: flex !important;
+    flex-direction: column !important;
     box-shadow: none !important;
+    z-index: 10 !important;
+    border-right: 1px solid var(--line) !important;
+    background: #0d131c !important;
+    padding: 16px !important;
+    box-sizing: border-box !important;
   }
 
-  /* Backdrop do mobile nunca aparece no PC */
-  .afm-drawer-backdrop {
+  /* No PC o cabeçalho duplicado do drawer e o botão 'X' de fechar NUNCA aparecem */
+  .sm-drawer-header,
+  .sm-drawer-close,
+  #btnCloseMobileDrawer {
     display: none !important;
+  }
+
+  /* No PC o botão hambúrguer no topo NUNCA aparece */
+  .sm-btn-hamburger,
+  #btnToggleSidebarDrawer {
+    display: none !important;
+  }
+
+  /* No PC o backdrop escuro do mobile NUNCA aparece */
+  .afm-drawer-backdrop,
+  #afmDrawerBackdrop {
+    display: none !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+  }
+
+  /* No PC a navegação lateral é uma coluna vertical única (1 coluna) limpa e elegante */
+  .sm-drawer-nav {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    width: 100% !important;
+    padding: 6px 0 !important;
+  }
+
+  .sm-drawer-nav button {
+    width: 100% !important;
+    min-height: 38px !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    border-radius: 8px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .sm-drawer-footer {
+    margin-top: auto !important;
+    padding-top: 14px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    display: flex !important;
+    gap: 6px !important;
+  }
+
+  /* Área principal à direita no PC */
+  .main {
+    width: auto !important;
+    min-width: 0 !important;
+    flex: 1 !important;
   }
 
   /* Central no PC com 3 colunas completas */
@@ -8708,6 +8784,115 @@ body.theme-emerald {
   border-color: var(--primary);
   color: #fff;
   box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+}
+
+/* Importação de Logo Externa (PNG / JPG / WebP) */
+.create-club-badge-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.create-club-badge-tab-btn {
+  flex: 1;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.create-club-badge-tab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.create-club-badge-tab-btn.active {
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(168, 85, 247, 0.4);
+}
+
+.create-club-upload-dropzone {
+  border: 2px dashed rgba(168, 85, 247, 0.6);
+  background: rgba(168, 85, 247, 0.06);
+  border-radius: 14px;
+  padding: 24px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.create-club-upload-dropzone:hover,
+.create-club-upload-dropzone.dragover {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.25);
+}
+
+.custom-badge-img {
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.45));
+  transition: transform 0.2s ease;
+}
+
+.custom-badge-preview-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Personalização de Elenco Inicial no Modo Criar Time */
+.custom-squad-modal-card {
+  max-width: 920px;
+}
+
+.custom-squad-table-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-squad-table-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+
+.custom-squad-table tr.squad-edit-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.create-club-squad-challenge-item:hover {
+  border-color: rgba(245, 158, 11, 0.6);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+@media (max-width: 768px) {
+  .create-club-squad-challenge-item {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .create-club-squad-challenge-item button {
+    align-self: flex-start !important;
+    margin-top: 6px;
+  }
 }
 
 @media (max-width: 900px) {

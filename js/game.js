@@ -114,13 +114,25 @@ function clubBadge(name, size=32){
   const realName = (typeof name === 'object' && name !== null ? (name.name || name.club || '') : String(name || '')).trim();
   const nKey = typeof norm === 'function' ? norm(realName) : realName.toLowerCase();
   if(typeof state !== 'undefined' && state && state.customClub && (nKey === norm(state.club) || nKey === norm(state.customClub.name))){
+    if(state.customClub.badgeImage){
+      return `<img src="${state.customClub.badgeImage}" class="crest crest-img custom-badge-img" style="width:${size}px;height:${size}px;object-fit:contain;border-radius:4px;vertical-align:middle;flex-shrink:0" alt="${esc(realName)}">`;
+    }
     if(state.customClub.badgeSvg){
-      return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${state.customClub.badgeSvg.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
+      const svg = state.customClub.badgeSvg;
+      if(typeof svg === 'string' && (svg.startsWith('data:') || svg.startsWith('http') || (!svg.includes('<svg') && !svg.includes('</svg>')))){
+        return `<img src="${svg}" class="crest crest-img custom-badge-img" style="width:${size}px;height:${size}px;object-fit:contain;border-radius:4px;vertical-align:middle;flex-shrink:0" alt="${esc(realName)}">`;
+      }
+      return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${svg.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
     }
   }
   if(typeof window !== 'undefined' && window.CUSTOM_CLUB_BADGES && window.CUSTOM_CLUB_BADGES[nKey]){
-    const svg = window.CUSTOM_CLUB_BADGES[nKey];
-    return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${svg.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
+    const badge = window.CUSTOM_CLUB_BADGES[nKey];
+    if(typeof badge === 'string' && (badge.startsWith('data:') || badge.startsWith('http') || badge.endsWith('.png') || badge.endsWith('.jpg') || badge.endsWith('.webp') || (!badge.includes('<svg') && !badge.includes('</svg>')))){
+      return `<img src="${badge}" class="crest crest-img custom-badge-img" style="width:${size}px;height:${size}px;object-fit:contain;border-radius:4px;vertical-align:middle;flex-shrink:0" alt="${esc(realName)}">`;
+    }
+    if(typeof badge === 'string'){
+      return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${badge.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
+    }
   }
   if(typeof window.renderClubBadge === 'function'){
     return window.renderClubBadge(realName, size);
@@ -11130,17 +11142,20 @@ function newCareer(data){
 
   let rawSquad;
   if(isCustom){
-    rawSquad = generateCustomClubSquad(club.name);
+    rawSquad = (data.customSquad && Array.isArray(data.customSquad) && data.customSquad.length >= 11) ? data.customSquad : generateCustomClubSquad(club.name);
   } else {
     rawSquad = playersForClub(club.name, worldGenerated);
   }
 
-  const squad = rawSquad.map(p => {
+  const squad = rawSquad.map((p, idx) => {
     const o = playerOverall(p);
     const wage = isCustom ? (Number(p.wage) || 2200) : playerSalary(p, { salaryModelVersion: 2, club: club.name, compId: comp.id });
     const contractUntil = p.contractUntil || 2028;
     return {
       ...p,
+      name: String(p.name || '').trim() || `Jogador ${idx + 1}`,
+      number: (p.number !== undefined && p.number !== null && !isNaN(Number(p.number))) ? Number(p.number) : (idx + 1),
+      age: (p.age !== undefined && p.age !== null && !isNaN(Number(p.age))) ? Number(p.age) : 23,
       ovr: o,
       overall: o,
       value: calcValueMi(p),
@@ -11288,6 +11303,7 @@ function newCareer(data){
       competition: comp.name,
       badgeConfig: data.badgeConfig,
       badgeSvg: data.badgeSvg,
+      badgeImage: data.badgeImage || null,
       homeKit: data.homeKit,
       awayKit: data.awayKit,
       atk: 58,
@@ -11297,7 +11313,7 @@ function newCareer(data){
     };
     if(typeof window !== 'undefined'){
       window.CUSTOM_CLUB_BADGES = window.CUSTOM_CLUB_BADGES || {};
-      window.CUSTOM_CLUB_BADGES[norm(club.name)] = data.badgeSvg;
+      window.CUSTOM_CLUB_BADGES[norm(club.name)] = data.badgeImage || data.badgeSvg;
       window.CUSTOM_CLUB_KITS = window.CUSTOM_CLUB_KITS || {};
       window.CUSTOM_CLUB_KITS[norm(club.name)] = { home: data.homeKit, away: data.awayKit };
       window.CUSTOM_CLUBS = window.CUSTOM_CLUBS || {};
@@ -11803,7 +11819,7 @@ function migrate(s){
   s.version=4;
   if(s.customClub && typeof window !== 'undefined'){
     window.CUSTOM_CLUB_BADGES = window.CUSTOM_CLUB_BADGES || {};
-    window.CUSTOM_CLUB_BADGES[norm(s.customClub.name)] = s.customClub.badgeSvg;
+    window.CUSTOM_CLUB_BADGES[norm(s.customClub.name)] = s.customClub.badgeImage || s.customClub.badgeSvg;
     window.CUSTOM_CLUB_KITS = window.CUSTOM_CLUB_KITS || {};
     window.CUSTOM_CLUB_KITS[norm(s.customClub.name)] = { home: s.customClub.homeKit, away: s.customClub.awayKit };
     window.CUSTOM_CLUBS = window.CUSTOM_CLUBS || {};
