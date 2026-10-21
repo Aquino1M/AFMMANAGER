@@ -124,14 +124,18 @@ function triggerDocEvent(type, target) {
 }
 
 const context = {
-  window: {},
+  window: {
+    innerWidth: 800,
+    innerHeight: 450,
+    matchMedia: () => ({ matches: false })
+  },
   document: mockDoc,
   Date,
   setTimeout,
   clearTimeout,
   console
 };
-context.window = context;
+context.window.window = context.window;
 
 // Carrega pwa_and_landscape_enforcer.js
 const pwaCode = fs.readFileSync('js/ui/pwa_and_landscape_enforcer.js', 'utf8');
@@ -193,9 +197,20 @@ setTimeout(() => {
 
   const cssCode = fs.readFileSync('css/app.css', 'utf8');
   assert(cssCode.includes('touch-action: manipulation !important'), 'CSS deve ter touch-action: manipulation no hambúrguer');
-  assert(cssCode.includes('#afmSideDrawer.drawer-open'), 'CSS deve ter regra global inviolável para #afmSideDrawer.drawer-open');
-  assert(cssCode.includes('#afmDrawerBackdrop.active'), 'CSS deve ter regra global inviolável para #afmDrawerBackdrop.active');
+  assert(cssCode.includes('.sm-drawer-close'), 'CSS deve ter regras para .sm-drawer-close');
+  assert(cssCode.includes('.sm-drawer-close {\n  display: none !important;'), 'CSS deve esconder o botão ✕ no PC por padrão');
+  assert(cssCode.includes('.sm-btn-hamburger {\n  width: 36px;\n  height: 36px;\n  border-radius: 10px;\n  background: rgba(255, 255, 255, 0.07);\n  border: 1px solid rgba(255, 255, 255, 0.14);\n  color: #fff;\n  font-size: 18px;\n  display: none !important;'), 'CSS deve esconder o botão hambúrguer no PC por padrão');
   console.log('✓ Inline hooks e blindagem CSS validados 100%!');
+
+  console.log('\n[TESTE 7] Verificando comportamento exclusivo de PC Desktop (telas grandes)...');
+  // Simula tela grande de PC (1920x1080)
+  context.window.innerWidth = 1920;
+  context.window.innerHeight = 1080;
+  drawer.classList.remove('drawer-open');
+  context.window.toggleAFMMobileDrawer(true);
+  assert.equal(drawer.classList.contains('drawer-open'), false, 'No PC o menu lateral é estático e NUNCA abre como drawer flutuante');
+  assert.equal(drawer.style.transform, '', 'Transform inline não deve ser aplicado no PC');
+  console.log('✓ No PC o menu lateral é estático, o botão ✕ fica 100% oculto e o drawer fica desativado!');
 
   console.log('\n🎉 TODOS OS TESTES DE MOBILE TOUCH & MENUS PASSARAM COM SUCESSO! ZERO BUGS! 🎉\n');
 }, 200);

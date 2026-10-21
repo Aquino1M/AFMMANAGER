@@ -229,6 +229,17 @@ function buildClubBadgeFallbackPaths(rawName) {
 window.renderClubBadge = function(clubName, size = 32) {
   const rawName = (typeof clubName === 'object' && clubName !== null ? (clubName.name || clubName.club || '') : String(clubName || '')).trim() || 'Clube';
   const n = window.normClub(rawName);
+
+  // SUPORTE AO MODO CRIAR SEU TIME (CUSTOM BADGE SVG)
+  if (typeof window !== 'undefined' && window.CUSTOM_CLUB_BADGES && window.CUSTOM_CLUB_BADGES[n]) {
+    const svg = window.CUSTOM_CLUB_BADGES[n];
+    return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${svg.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
+  }
+  if (typeof state !== 'undefined' && state && state.customClub && (n === window.normClub(state.club) || n === window.normClub(state.customClub.name))) {
+    if (state.customClub.badgeSvg) {
+      return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${state.customClub.badgeSvg.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
+    }
+  }
   const compactName = n.replace(/[^a-z0-9]/g, '');
   const verifiedFile = window.CLUB_BADGES_VERIFIED_2026_BY_NAME?.[n]
     || window.CLUB_BADGE_ALIASES_VERIFIED_2026?.[n]

@@ -2,6 +2,59 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.21] - 2026-10-21 (Relatórios do Elenco, Novo Sistema de Treino Interativo & Preparador Físico Automático)
+
+### 📊 1. Modal de Relatórios do Elenco & Análise Tática (`js/ui/squad_reports_modal.js`)
+- **Aba "Perspetiva Geral" Fiel ao Layout Oficial**:
+  - 5 Cards de métricas no topo com dados reais do clube: Classificação média (OVR do plantel), Tamanho do plantel, Média etária, Valor médio e Valor total somado do elenco em R$.
+  - Bloco "Visão geral do plantel" / "Jogadores-chave": Destaque dos 3 craques de setores distintos (Avançado, Médio e Defesa/Goleiro) com foto, nome, posição colorida, idade, valor e Overall.
+  - Bloco "Análise do plantel": Diagnóstico tático automatizado com **Pontos fortes** (✓ em verde) e **Pontos a melhorar** (✗ em vermelho), analisando profundidade do elenco, laterais, zagueiros, média etária, folha salarial e segurança na meta.
+- **7 Abas de Análise Integradas**:
+  1. `Perspetiva geral`: Métricas globais, jogadores-chave e pontos fortes/fracos.
+  2. `Lesões`: Atletas sob cuidados do Departamento Médico com diagnóstico, gravidade e dias restantes (ou banner de DM vazio).
+  3. `Suspensões`: Jogadores suspensos por expulsão direta ou acúmulo de cartões amarelos.
+  4. `Moral`: Termômetro do vestiário com índice de harmonia coletiva e moral individual de cada atleta.
+  5. `Contratos`: Gestão salarial com folha total mensal, tempo de contrato e alertas de vínculos expirando em breve.
+  6. `Desenvolvimento`: Acompanhamento de ganho de XP mensal no CT/jogos, progresso para o próximo OVR e status de evolução.
+  7. `Juventude`: Promessas sub-20 do time principal e atletas das categorias de base (`youthAcademy`).
+- **Acesso Rápido**:
+  - Botões integrados na tela **Meu Time & Tática** (`#btnOpenSquadReportsMyTeam`) e na tela **Elenco** (`#btnOpenSquadReports`).
+
+### 🏋️ 2. Novo Sistema de Treino Interativo & Slots de Exercícios (`js/ui/training_center_modal.js`)
+- **Estrutura Visual Oficial em Duas Colunas**:
+  - **Coluna da Esquerda (Tabela de Atletas)**:
+    - Abas superiores: `Equipa A` (Titulares da escalação), `Equipa B` (Reservas do elenco) e `Juventude` (Base e sub-20).
+    - Colunas oficiais:
+      - `Player`: Badge colorida da posição (ST em vermelho, CM em verde, CB em azul, GK em amarelo), foto e nome.
+      - `Rating`: Overall atual com indicador verde de evolução recente (`↗ +0.10`).
+      - `Chemistry`: Valor de entrosamento com badge azul e indicador `+1`.
+      - `Fitness`: Porcentagem de preparo físico com badge verde e indicador `+2%`.
+  - **Coluna da Direita (Painel de Exercícios)**:
+    - 6 Slots verticais com sistema de desbloqueio progressivo por nível do Centro de Treinamento:
+      - Slot 1: Liberado (Nível 1)
+      - Slot 2: Liberado (Nível 1)
+      - Slot 3: Desbloqueia no CT Nível 2
+      - Slot 4: Desbloqueia no CT Nível 4
+      - Slot 5: Desbloqueia no CT Nível 6
+      - Slot 6: Desbloqueia no CT Nível 8
+    - Slots bloqueados exibem cadeado `🔒` e instruções de expansão das instalações.
+    - Seleção de exercícios: `⚡ Físico & Resistência`, `⚽ Finalização & Ataque`, `🛡️ Organização Defensiva`, `🎯 Passe & Visão de Jogo`, `🥅 Treino de Goleiros`, `📐 Bolas Paradas & Cruzamentos`.
+  - **Execução do Treino Manual**:
+    - Botão `▶ INICIAR TREINO` com concessão de XP balanceado e aleatório (8 a 20 XP por atleta, evitando abusos), recuperação de Fitness (+1% a +3%) e Chemistry (+1).
+    - Trava diária com feedback: uma sessão manual por dia de calendário.
+
+### 🏃‍♂️ 3. Condução Automática pelo Preparador Físico
+- **Proteção do Usuário contra Esquecimentos**:
+  - Caso o usuário avance o dia no calendário, na central, na pré-temporada, na janela ou inicie uma partida sem treinar manualmente, o **Preparador Físico** assume o treino automaticamente.
+  - O preparador físico executa os exercícios da última configuração salva pelo usuário (`state.lastTrainingSetup`), concedendo **50% do XP** normal (4 a 10 XP por atleta).
+  - Notificação informativa registrada no feed de notícias:
+    `🏃‍♂️ PREPARADOR FÍSICO: Na ausência do técnico, o treino diário foi conduzido pela comissão técnica (50% de ganho de XP).`
+
+### 🛡️ 4. Modo "Criar Seu Time" (Create-a-Club)
+- Criação de novos clubes com escolha de nome, estádio, uniformes 2D em tempo real e escudo SVG personalizável.
+- Entrada em 11 Campeonatos Estaduais com substituição limpa de 1 vaga sem corromper a tabela.
+- Início equilibrado: R$ 300.000 em caixa, instalações no Nível 1 e 20 atletas gerados com folha salarial condizente.
+
 ## [3.9.19] - 2026-10-20 (Feed de Notícias "Passando os Dias - X de Y" & Hub Pós-Jogo com Escolha de Entrevista)
 
 ### 📰 1. Feed Oficial de Notícias & Passagem dos Dias (`AFM_DayAdvanceNews`)

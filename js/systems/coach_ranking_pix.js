@@ -1006,57 +1006,57 @@
 
           <!-- CARD HERO: SEU DESEMPENHO NO RANKING (SUA POSIÇÃO E PONTOS) -->
           <div class="afm-ingame-ranking-hero" style="background:linear-gradient(135deg,#130f26,#1e143b);border:1px solid #a855f7;border-radius:16px;padding:20px 24px;margin-bottom:20px;box-shadow:0 8px 30px rgba(0,0,0,0.7),0 0 20px rgba(168,85,247,0.2)">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
-              <div style="display:flex;align-items:center;gap:14px">
-                <div style="filter:drop-shadow(0 4px 10px rgba(0,0,0,0.6))">
+            <div class="afm-ranking-hero-top" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+              <div class="afm-ranking-hero-identity" style="display:flex;align-items:center;gap:14px">
+                <div class="afm-ranking-badge-wrap" style="filter:drop-shadow(0 4px 10px rgba(0,0,0,0.6))">
                   ${window.clubBadge ? window.clubBadge(state?.club || 'Clube', 56) : ''}
                 </div>
                 <div>
-                  <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(168,85,247,0.2);border:1px solid #a855f7;padding:3px 10px;border-radius:9999px;font-size:10px;font-weight:900;color:#d8b4fe;text-transform:uppercase;margin-bottom:4px">
+                  <div class="afm-ranking-tag" style="display:inline-flex;align-items:center;gap:6px;background:rgba(168,85,247,0.2);border:1px solid #a855f7;padding:3px 10px;border-radius:9999px;font-size:10px;font-weight:900;color:#d8b4fe;text-transform:uppercase;margin-bottom:4px">
                     👔 SEU DESEMPENHO OFICIAL NO RANKING
                   </div>
-                  <h1 style="font-size:24px;font-weight:900;margin:0;color:#fff;letter-spacing:0.5px">
+                  <h1 class="afm-ranking-user-title" style="font-size:24px;font-weight:900;margin:0;color:#fff;letter-spacing:0.5px">
                     ${window.esc(state?.manager || 'Você')} · <span style="color:#a7ff3f">${window.esc(state?.club || 'Seu Clube')}</span>
                   </h1>
-                  <p style="font-size:12px;color:#cbd5e1;margin:4px 0 0">
+                  <p class="afm-ranking-user-sub" style="font-size:12px;color:#cbd5e1;margin:4px 0 0">
                     Divisão Ativa: <b>${window.esc(state?.competition || 'Nacional')}</b> · <b>${userWins} vitórias</b> computadas na carreira
                   </p>
                 </div>
               </div>
 
               <!-- BLOCOS DE ESTATÍSTICA DO USUÁRIO -->
-              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;text-align:center">
-                  <span style="font-size:10px;font-weight:800;color:#94a3b8;display:block;text-transform:uppercase;letter-spacing:0.5px">Sua Posição</span>
-                  <span style="font-size:28px;font-weight:900;color:${userRank<=5 ? '#10b981' : '#38bdf8'};line-height:1">#${userRank}</span>
+              <div class="afm-ranking-stats-row" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <div class="afm-ranking-stat-box" style="background:#090d16;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;text-align:center">
+                  <span class="afm-ranking-stat-lbl" style="font-size:10px;font-weight:800;color:#94a3b8;display:block;text-transform:uppercase;letter-spacing:0.5px">Sua Posição</span>
+                  <span class="afm-ranking-stat-val" style="font-size:28px;font-weight:900;color:${userRank<=5 ? '#10b981' : '#38bdf8'};line-height:1">#${userRank}</span>
                 </div>
 
-                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;text-align:center">
-                  <span style="font-size:10px;font-weight:800;color:#94a3b8;display:block;text-transform:uppercase;letter-spacing:0.5px">Seus Pontos</span>
-                  <span style="font-size:28px;font-weight:900;color:#facc15;line-height:1">${userPoints.toLocaleString('pt-BR')}</span>
+                <div class="afm-ranking-stat-box" style="background:#090d16;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;text-align:center">
+                  <span class="afm-ranking-stat-lbl" style="font-size:10px;font-weight:800;color:#94a3b8;display:block;text-transform:uppercase;letter-spacing:0.5px">Seus Pontos</span>
+                  <span class="afm-ranking-stat-val" style="font-size:28px;font-weight:900;color:#facc15;line-height:1">${userPoints.toLocaleString('pt-BR')}</span>
                 </div>
 
-                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;text-align:center">
-                  <span style="font-size:10px;font-weight:800;color:#94a3b8;display:block;text-transform:uppercase;letter-spacing:0.5px">Selo Atual</span>
-                  <div style="display:inline-flex;align-items:center;gap:4px;background:${userTier.bg};border:1px solid ${userTier.border};color:${userTier.color};padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:900;text-transform:uppercase;margin-top:2px">
+                <div class="afm-ranking-stat-box" style="background:#090d16;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;text-align:center">
+                  <span class="afm-ranking-stat-lbl" style="font-size:10px;font-weight:800;color:#94a3b8;display:block;text-transform:uppercase;letter-spacing:0.5px">Selo Atual</span>
+                  <div class="afm-ranking-tier-pill" style="display:inline-flex;align-items:center;gap:4px;background:${userTier.bg};border:1px solid ${userTier.border};color:${userTier.color};padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:900;text-transform:uppercase;margin-top:2px">
                     ${userTier.icon} ${userTier.label}
                   </div>
                 </div>
 
-                <button type="button" class="btn btn-neon-pix" id="btnHeroOpenPixModal" style="background:linear-gradient(135deg,#10b981,#059669);border:1px solid #34d399;color:#fff;font-weight:900;font-size:12px;padding:12px 16px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 15px rgba(16,185,129,0.35)">
+                <button type="button" class="btn btn-neon-pix afm-ranking-pix-btn" id="btnHeroOpenPixModal" style="background:linear-gradient(135deg,#10b981,#059669);border:1px solid #34d399;color:#fff;font-weight:900;font-size:12px;padding:12px 16px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 15px rgba(16,185,129,0.35)">
                   💠 ${hasKey ? '⚙️ Chave PIX Cadastrada' : '➕ Cadastrar Minha Chave PIX'}
                 </button>
               </div>
             </div>
 
             <!-- STATUS ZONA DE PREMIAÇÃO -->
-            <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1)">
+            <div class="afm-ranking-hero-footer" style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1)">
               ${userRank <= 5 ? `
-                <div style="background:rgba(16,185,129,0.2);border:1px solid #10b981;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:900;color:#a7f3d0;display:flex;align-items:center;gap:8px">
+                <div class="afm-ranking-status-alert alert-success" style="background:rgba(16,185,129,0.2);border:1px solid #10b981;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:900;color:#a7f3d0;display:flex;align-items:center;gap:8px">
                   🎉 <b>PARABÉNS!</b> Você está na <b>#${userRank}ª posição</b> e garantindo <b>${prize?.label} no PIX</b>! Mantenha a pontuação até o fechamento domingo 23:59 para receber!
                 </div>
               ` : `
-                <div style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;color:#bae6fd;display:flex;align-items:center;gap:8px">
+                <div class="afm-ranking-status-alert alert-info" style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;color:#bae6fd;display:flex;align-items:center;gap:8px">
                   🚀 <b>Foco no TOP 5:</b> Faltam apenas <b>${ptsToTop5} pontos</b> para você entrar no TOP 5 e faturar até <b>R$ 450,00 no PIX</b>! Vença a próxima rodada!
                 </div>
               `}

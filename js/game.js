@@ -1,4 +1,42 @@
 
+function generateCustomClubSquad(clubName){
+  if (typeof window.generateCustomClubSquad === 'function') {
+    return window.generateCustomClubSquad(clubName);
+  }
+  const positionsNeeded = ['GK','GK','RB','RB','CB','CB','CB','CB','LB','LB','DM','DM','CM','CM','AM','AM','RW','LW','ST','ST'];
+  const usedNames = new Set();
+  return positionsNeeded.map((pos, idx) => {
+    let name;
+    do {
+      name = `${NAMES[rnd(0, NAMES.length - 1)]} ${LAST[rnd(0, LAST.length - 1)]}`;
+    } while(usedNames.has(name));
+    usedNames.add(name);
+
+    const age = rnd(19, 31);
+    const ovr = rnd(54, 64);
+    const wage = Math.round(clamp(1500 + (ovr - 54) * 230 + rnd(-100, 150), 1200, 4200));
+    const value = Math.round(clamp(0.04 + (ovr - 54) * 0.02 + (30 - age) * 0.01, 0.03, 0.35) * 100) / 100;
+    return {
+      id: `custom_${norm(clubName)}_${idx}_${Date.now()}`,
+      name,
+      pos,
+      age,
+      ovr,
+      overall: ovr,
+      pot: clamp(ovr + rnd(3, 14), ovr, 82),
+      wage,
+      value,
+      contractUntil: 2028,
+      morale: 75,
+      fitness: 100,
+      club: clubName,
+      owned: true,
+      marketKey: `${name}_${clubName}_${pos}`
+    };
+  });
+}
+
+
 window.__afmAsRoundArray = window.__afmAsRoundArray || function(r) {
   if (!r) return [];
   if (Array.isArray(r)) return r;
@@ -23,6 +61,25 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const STORAGE='aquino_futebol_manager_2026_v1';
 const fmtMoney=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(Number(v)||0);
 const fmtMi=v=>`R$ ${Number(v||0).toFixed(1).replace('.',',')} mi`;
+const fmtCompactMoney=v=>{
+  const n=Number(v)||0;
+  const abs=Math.abs(n);
+  const sign=n<0?'-':'';
+  if(abs>=1e9){
+    const b=(abs/1e9).toFixed(1).replace('.0','').replace('.',',');
+    return `${sign}R$ ${b}B`;
+  }
+  if(abs>=1e6){
+    const m=(abs/1e6).toFixed(1).replace('.0','').replace('.',',');
+    return `${sign}R$ ${m}M`;
+  }
+  if(abs>=1e3){
+    const k=Math.round(abs/1e3);
+    return `${sign}R$ ${k}K`;
+  }
+  return `${sign}R$ ${Math.round(abs)}`;
+};
+window.fmtCompactMoney = fmtCompactMoney;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 const initials=s=>(s||'CL').split(/\s+/).filter(Boolean).slice(0,3).map(x=>x[0]).join('').toUpperCase();
@@ -55,6 +112,16 @@ function clubDisplayName(name){
 
 function clubBadge(name, size=32){
   const realName = (typeof name === 'object' && name !== null ? (name.name || name.club || '') : String(name || '')).trim();
+  const nKey = typeof norm === 'function' ? norm(realName) : realName.toLowerCase();
+  if(typeof state !== 'undefined' && state && state.customClub && (nKey === norm(state.club) || nKey === norm(state.customClub.name))){
+    if(state.customClub.badgeSvg){
+      return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${state.customClub.badgeSvg.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
+    }
+  }
+  if(typeof window !== 'undefined' && window.CUSTOM_CLUB_BADGES && window.CUSTOM_CLUB_BADGES[nKey]){
+    const svg = window.CUSTOM_CLUB_BADGES[nKey];
+    return `<div class="crest custom-badge-svg" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">${svg.replace(/width="[^"]*"/, `width="${size}"`).replace(/height="[^"]*"/, `height="${size}"`)}</div>`;
+  }
   if(typeof window.renderClubBadge === 'function'){
     return window.renderClubBadge(realName, size);
   }
@@ -3453,9 +3520,12 @@ function openOfficialStoreModal(){
 }
 
 // -------------------------------------------------------------------------
-// 3. CENTRO DE TREINAMENTO & FOCO DOS TREINOS (Screenshot 5)
+// 3. CENTRO DE TREINAMENTO & FOCO DOS TREINOS (Screenshot 5 / Novo Treino Interativo)
 // -------------------------------------------------------------------------
 function openTrainingCenterModal(){
+  if (typeof window !== 'undefined' && window.AFM_TrainingCenter && typeof window.AFM_TrainingCenter.openTrainingModal === 'function') {
+    return window.AFM_TrainingCenter.openTrainingModal();
+  }
   let el = $('#trainingCenterModalContainer');
   if(!el){
     el = document.createElement('div');
@@ -7738,13 +7808,15 @@ function renderAdminTabContent(){
 }
 
 function toast(t, duration=3000){
+  if(typeof document === 'undefined' || !document.createElement) return;
   const d=document.createElement('div');
   d.className='toast';
   d.innerHTML=`<span>⚽</span> <span></span>${duration===0?'<button type="button" aria-label="Fechar aviso" style="margin-left:12px;background:transparent;border:0;color:inherit;font-size:18px;cursor:pointer">×</button>':''}`;
-  d.querySelector('span:nth-child(2)').textContent=String(t);
-  document.body.appendChild(d);
-  if(duration===0) d.querySelector('button')?.addEventListener('click',()=>d.remove());
-  else setTimeout(()=>{ d.style.opacity='0'; setTimeout(()=>d.remove(),300); },duration);
+  const msgSpan = (typeof d.querySelector === 'function') ? d.querySelector('span:nth-child(2)') : null;
+  if(msgSpan) msgSpan.textContent = String(t);
+  if(document.body && typeof document.body.appendChild === 'function') document.body.appendChild(d);
+  if(duration===0) d.querySelector?.('button')?.addEventListener('click',()=> { if(typeof d.remove==='function') d.remove(); });
+  else setTimeout(()=>{ d.style.opacity='0'; setTimeout(()=>{ if(typeof d.remove==='function') d.remove(); },300); },duration);
 }
 function compById(id){return (window.COMPETITIONS||[]).find(c=>c.id===id)}
 var _clubByNameMap = null;
@@ -7761,8 +7833,14 @@ function getClubByNameMap(){
 }
 function clubByName(name){
   if(!name) return null;
-  const map = getClubByNameMap();
   const k = norm(name);
+  if(typeof state !== 'undefined' && state && state.customClub && norm(state.customClub.name) === k){
+    return state.customClub;
+  }
+  if(typeof window !== 'undefined' && window.CUSTOM_CLUBS && window.CUSTOM_CLUBS[k]){
+    return window.CUSTOM_CLUBS[k];
+  }
+  const map = getClubByNameMap();
   let c = map.get(k);
   if(c !== undefined) return c;
   if(typeof clubs !== 'undefined' && Array.isArray(clubs)){
@@ -8362,6 +8440,9 @@ const CLUB_TO_STATE_COMP = {
 function clubStateCompId(clubName){
   const nameNorm = norm(clubName);
   if(CLUB_TO_STATE_COMP[nameNorm]) return CLUB_TO_STATE_COMP[nameNorm];
+  if(typeof state !== 'undefined' && state && state.customClub && norm(state.customClub.name) === nameNorm){
+    return state.customClub.stateCompId || state.customClubStateCompId || 'bra-est-sp';
+  }
 
   // Saved rosters are equally authoritative: hydration can lag behind a promoted save.
   const tMap = Object.assign({}, window.COMPETITION_TEAMS || {}, state?.competitionTeams || {});
@@ -11007,19 +11088,57 @@ function openManagerContractRenewalModal(){
 }
 
 function newCareer(data){
-  // A new career honors the competition selected on this screen; it must not
-  // infer a division from a previously loaded career or its promotion history.
-  const targetCompId = compById(data.compId) ? data.compId : (getClubPrimaryCompetitionId(data.clubName, data.compId) || data.compId);
-  const comp=compById(targetCompId)||compById(data.compId);if(!comp)return;const club=clubByName(data.clubName)||{name:data.clubName,country:comp.country,competition:comp.name,atk:compBaseStrength(comp),mid:compBaseStrength(comp),def:compBaseStrength(comp),budget:5,stadium:'Estádio Municipal'};
-  const careerCompetitionTeams = clone(BASE_COMPETITION_TEAMS || window.COMPETITION_TEAMS || teamMap || {});
-  const compClubs=competitionClubs(comp,club.name,careerCompetitionTeams);const schedule=buildSchedule(comp,compClubs.map(x=>x.name));const worldGenerated=buildWorldGenerated();
-  const rawSquad=playersForClub(club.name,worldGenerated);
+  const isCustom = !!data.isCustomClub;
+  const targetCompId = isCustom ? (data.stateCompId || 'bra-est-sp') : (compById(data.compId) ? data.compId : (getClubPrimaryCompetitionId(data.clubName, data.compId) || data.compId));
+  const comp = compById(targetCompId) || compById(data.compId) || compById('bra-est-sp');
+  if(!comp) return;
 
-  // Inicializa o elenco com dados e salários reais congelados no save (salaryModelVersion: 2)
+  const careerCompetitionTeams = clone(BASE_COMPETITION_TEAMS || window.COMPETITION_TEAMS || teamMap || {});
+
+  // REGRA CRÍTICA INVIOLÁVEL: 1 VAGA NO ESTADUAL ESCOLHIDO PARA O CLUBE CRIADO SEM BUGAR O JOGO
+  if(isCustom){
+    if(!careerCompetitionTeams[targetCompId] || !Array.isArray(careerCompetitionTeams[targetCompId])){
+      const estInfo = (typeof AFM_ESTADUAIS_DATA !== 'undefined' ? AFM_ESTADUAIS_DATA.find(e => e.id === targetCompId) : null);
+      careerCompetitionTeams[targetCompId] = estInfo ? [...estInfo.clubs] : ['Clube 1','Clube 2','Clube 3','Clube 4','Clube 5','Clube 6','Clube 7','Clube 8','Clube 9','Clube 10'];
+    }
+    const roster = [...careerCompetitionTeams[targetCompId]];
+    roster[roster.length - 1] = data.clubName;
+    careerCompetitionTeams[targetCompId] = roster;
+  }
+
+  let club;
+  if(isCustom){
+    club = {
+      name: data.clubName,
+      shortName: data.shortName || initials(data.clubName),
+      country: 'Brasil',
+      competition: comp.name,
+      atk: 58,
+      mid: 58,
+      def: 58,
+      budget: 0.3,
+      stadium: data.stadiumName || 'Arena Municipal',
+      isCustom: true
+    };
+  } else {
+    club = clubByName(data.clubName) || { name: data.clubName, country: comp.country, competition: comp.name, atk: compBaseStrength(comp), mid: compBaseStrength(comp), def: compBaseStrength(comp), budget: 5, stadium: 'Estádio Municipal' };
+  }
+
+  const compClubs = competitionClubs(comp, club.name, careerCompetitionTeams);
+  const schedule = buildSchedule(comp, compClubs.map(x => x.name));
+  const worldGenerated = buildWorldGenerated();
+
+  let rawSquad;
+  if(isCustom){
+    rawSquad = generateCustomClubSquad(club.name);
+  } else {
+    rawSquad = playersForClub(club.name, worldGenerated);
+  }
+
   const squad = rawSquad.map(p => {
     const o = playerOverall(p);
-    const wage = playerSalary(p, { salaryModelVersion: 2, club: club.name, compId: comp.id });
-    const contractUntil = playerContractUntil(p);
+    const wage = isCustom ? (Number(p.wage) || 2200) : playerSalary(p, { salaryModelVersion: 2, club: club.name, compId: comp.id });
+    const contractUntil = p.contractUntil || 2028;
     return {
       ...p,
       ovr: o,
@@ -11034,15 +11153,25 @@ function newCareer(data){
   });
 
   const startingPayroll = squad.reduce((sum, p) => sum + (Number(p.wage) || 0), 0);
-  // Garante que o orçamento inicial em caixa cubra com folga pelo menos 2.5 meses de folha salarial
-  const budget = Math.max(250000, (club.budget || 5) * 1e6, Math.round(startingPayroll * 2.5));
+  // REGRA DO USUÁRIO: "so tem 300 mil no caixa"
+  const budget = isCustom ? 300000 : Math.max(250000, (club.budget || 5) * 1e6, Math.round(startingPayroll * 2.5));
 
   const sponsorOffers = generateSponsorOffers(budget, club.name, squad, { salaryModelVersion: 2, club: club.name, compId: comp.id });
-  const activeSponsors = {
-    master: sponsorOffers.find(o => o.category === 'Master') || sponsorOffers[0],
-    sleeves: sponsorOffers.find(o => o.category === 'Mangas') || sponsorOffers[1],
-    back: sponsorOffers.find(o => o.category === 'Costas') || sponsorOffers[2]
-  };
+  let activeSponsors;
+  if(isCustom){
+    // Patrocinadores calibrados para cobrir a folha do clube iniciante (~R$ 45k - R$ 55k)
+    activeSponsors = {
+      master: { name: 'SuperMercado Regional', category: 'Master', monthly: 28000, bonus: 15000 },
+      sleeves: { name: 'Auto Peças Express', category: 'Mangas', monthly: 12000, bonus: 8000 },
+      back: { name: 'Drogaria Central', category: 'Costas', monthly: 10000, bonus: 6000 }
+    };
+  } else {
+    activeSponsors = {
+      master: sponsorOffers.find(o => o.category === 'Master') || sponsorOffers[0],
+      sleeves: sponsorOffers.find(o => o.category === 'Mangas') || sponsorOffers[1],
+      back: sponsorOffers.find(o => o.category === 'Costas') || sponsorOffers[2]
+    };
+  }
 
   const curUser = getActiveAccount();
   const targetSlot = Number(data.slot ?? data.userSlot) || setupSelectedSlot || 1;
@@ -11050,80 +11179,136 @@ function newCareer(data){
   const mgrName = data.manager || curUser?.name || 'Aquino';
   const saveId = `save_${targetOwner}_slot${targetSlot}_${norm(club.name)}`;
 
-  state={
+  // REGRA DO USUÁRIO: "o estadio e as instalaçoes começa no nivel 1"
+  const infrastructure = isCustom ? {
+    stadium: { level: 1, capacity: 5000, name: club.stadium },
+    parking: { level: 1, spots: 80 },
+    training: { level: 1 },
+    academy: { level: 1 },
+    medical: { level: 1 },
+    admin: { level: 1 },
+    store: { level: 1 },
+    museum: { level: 1 },
+    press: { level: 1 },
+    marketing: { level: 1 },
+    bank: { level: 1 }
+  } : defaultInfrastructure(club);
+
+  state = {
     saveId,
     userSlot: targetSlot,
     userOwner: targetOwner,
-    version:4,
+    version: 4,
     salaryModelVersion: 2,
-    manager:mgrName,
-    managerSalary: (club.budget || 5) > 15 ? 75000 : 45000,
-    club:club.name,
-    country:club.country,
-    compId:comp.id,
-    competitionTeams:careerCompetitionTeams,
-    competition:comp.name,
-    season:2026,
-    date:'2026-01-01', // INÍCIO DA TEMPORADA E DA JANELA DE PRÉ-TEMPORADA!
-    currentDate:'2026-01-01',
+    manager: mgrName,
+    managerSalary: isCustom ? 25000 : ((club.budget || 5) > 15 ? 75000 : 45000),
+    club: club.name,
+    country: club.country,
+    compId: comp.id,
+    customClubStateCompId: isCustom ? targetCompId : null,
+    competitionTeams: careerCompetitionTeams,
+    competition: comp.name,
+    season: 2026,
+    date: '2026-01-01',
+    currentDate: '2026-01-01',
     currentDateFormatted: formatDatePtBr('2026-01-01'),
-    isPreSeason:true,
-    preSeasonDays:4, // 4 DIAS DE JANELA DE TRANSFERÊNCIAS ANTES DO 1º JOGO OFICIAL!
-    round:0,
-    balance:budget + ((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0)),
-    managerMoney:57000,
-    trust:{board:65,fans:70,squad:68},
-    boardConfidence:78,
-    markingIntensity:'equilibrada',
-    setPieces:{
+    isPreSeason: true,
+    preSeasonDays: 4,
+    round: 0,
+    balance: isCustom ? 300000 : (budget + ((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0))),
+    managerMoney: 57000,
+    trust: { board: 65, fans: 70, squad: 68 },
+    boardConfidence: 78,
+    markingIntensity: 'equilibrada',
+    setPieces: {
       captain: squad[0] ? playerKey(squad[0]) : '',
       penalty: squad[0] ? playerKey(squad[0]) : '',
       freekick: squad[0] ? playerKey(squad[0]) : '',
       corner: squad[0] ? playerKey(squad[0]) : ''
     },
-    formation:'4-3-3',
-    mentality:'Equilibrada',
+    formation: '4-3-3',
+    mentality: 'Equilibrada',
     squad,
-    youthAcademy:generateInitialYouthAcademy(1, club.name),
-    marketingWeekly:36000,
-    marketingMonthly:144000,
+    youthAcademy: generateInitialYouthAcademy(1, club.name),
+    marketingWeekly: isCustom ? 5000 : 36000,
+    marketingMonthly: isCustom ? 20000 : 144000,
     worldGenerated,
-    playerMoves:{},
-    transfers:[],
-    loans:[],
-    financeAccountingVersion:1,
-    sponsorSeasonFactor:1,
-    financePeriodStartedDate:null,
-    financingInflow:0,
-    debtPrincipalPaid:0,
+    playerMoves: {},
+    transfers: [],
+    loans: [],
+    financeAccountingVersion: 1,
+    sponsorSeasonFactor: 1,
+    financePeriodStartedDate: null,
+    financingInflow: 0,
+    debtPrincipalPaid: 0,
     schedule,
-    copaData:null,
-    cupAlive:comp.type==='knockout'?compClubs.map(x=>x.name):null,
-    eliminated:false,
-    teams:compClubs.map(c=>({name:c.name,strength:strength(c),j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,p:0,form:[]})),
-    titles:[],
-    news:[
+    copaData: null,
+    cupAlive: comp.type === 'knockout' ? compClubs.map(x => x.name) : null,
+    eliminated: false,
+    teams: compClubs.map(c => ({
+      name: c.name,
+      strength: (isCustom && norm(c.name) === norm(club.name)) ? 58 : strength(c),
+      j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, p: 0, form: []
+    })),
+    titles: [],
+    news: isCustom ? [
+      `🎨 FUNDAÇÃO HISTÓRICA: O ${club.name} foi oficialmente criado e disputará o ${comp.name} em 2026!`,
+      `🏟️ O estádio ${club.stadium} foi inaugurado com capacidade para 5.000 torcedores e instalações nível 1.`,
+      `💰 A diretoria estabeleceu o caixa inicial do clube em ${fmtMoney(300000)}.`,
+      `🏖️ Início da Pré-Temporada 2026! Janela de transferências aberta por 4 dias para reforçar o plantel.`
+    ] : [
       `💼 PATROCÍNIOS: Contratos comerciais ativados! Receita inicial de ${fmtMoney((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0))} creditada no caixa.`,
       `🏖️ Início da Pré-Temporada 2026 no ${club.name}! Janela de transferências aberta por 4 dias para reforçar o elenco.`,
       `Você assumiu o comando técnico do ${club.name}!`,
       `A diretoria disponibilizou orçamento inicial de ${fmtMoney(budget)}.`
     ],
-    history:[],
-    income:0,
-    expense:0,
-    sponsors:activeSponsors,
-    sponsorOffers:sponsorOffers.slice(1,4),
-    infrastructure:defaultInfrastructure(club),
-    ticketPrice:Math.round(clamp(18+(strength(club)-58)*1.7,15,130)),
-    parkingPrice:25,
-    lastHome:null,
+    history: [],
+    income: 0,
+    expense: 0,
+    sponsors: activeSponsors,
+    sponsorOffers: sponsorOffers.slice(1, 4),
+    infrastructure,
+    stadium: { name: club.stadium, capacity: 5000, level: 1 },
+    ticketPrice: Math.round(clamp(18 + (strength(club) - 58) * 1.7, 15, 130)),
+    parkingPrice: 20,
+    lastHome: null,
     simSpeed: 'normal',
     freeTransferWindow: false
   };
+
+  if(isCustom){
+    state.customClub = {
+      isCustom: true,
+      name: club.name,
+      shortName: data.shortName || initials(club.name),
+      stadium: club.stadium,
+      stadiumName: club.stadium,
+      country: 'Brasil',
+      stateCompId: targetCompId,
+      competition: comp.name,
+      badgeConfig: data.badgeConfig,
+      badgeSvg: data.badgeSvg,
+      homeKit: data.homeKit,
+      awayKit: data.awayKit,
+      atk: 58,
+      mid: 58,
+      def: 58,
+      budget: 0.3
+    };
+    if(typeof window !== 'undefined'){
+      window.CUSTOM_CLUB_BADGES = window.CUSTOM_CLUB_BADGES || {};
+      window.CUSTOM_CLUB_BADGES[norm(club.name)] = data.badgeSvg;
+      window.CUSTOM_CLUB_KITS = window.CUSTOM_CLUB_KITS || {};
+      window.CUSTOM_CLUB_KITS[norm(club.name)] = { home: data.homeKit, away: data.awayKit };
+      window.CUSTOM_CLUBS = window.CUSTOM_CLUBS || {};
+      window.CUSTOM_CLUBS[norm(club.name)] = state.customClub;
+    }
+  }
+
   optimizeLineup();
   save();
-  view='central';
-  toast(`Carreira iniciada no ${club.name}! Janela de pré-temporada aberta por 4 dias.`);
+  view = 'central';
+  toast(`Carreira iniciada com o ${club.name}! Caixa inicial: ${fmtMoney(300000)}.`);
   render();
 }
 
@@ -11616,6 +11801,14 @@ window.repairSaveIfCorrupted = repairSaveIfCorrupted;
 function migrate(s){
   if(!s)return null;
   s.version=4;
+  if(s.customClub && typeof window !== 'undefined'){
+    window.CUSTOM_CLUB_BADGES = window.CUSTOM_CLUB_BADGES || {};
+    window.CUSTOM_CLUB_BADGES[norm(s.customClub.name)] = s.customClub.badgeSvg;
+    window.CUSTOM_CLUB_KITS = window.CUSTOM_CLUB_KITS || {};
+    window.CUSTOM_CLUB_KITS[norm(s.customClub.name)] = { home: s.customClub.homeKit, away: s.customClub.awayKit };
+    window.CUSTOM_CLUBS = window.CUSTOM_CLUBS || {};
+    window.CUSTOM_CLUBS[norm(s.customClub.name)] = s.customClub;
+  }
   if(typeof s.salaryModelVersion !== 'number'){
     s.salaryModelVersion = 1; // Preserva saves existentes no modelo legado sem inflacionar salários ou alterar elencos
   }
@@ -13022,6 +13215,10 @@ function advanceDateAfterMatch(gameState = state){
     return;
   }
   try {
+    // Preparador Físico: Garante o treino do dia da partida se o técnico não treinou manualmente
+    if(typeof window.processAutomaticFitnessCoachTraining === 'function'){
+      window.processAutomaticFitnessCoachTraining(gameState);
+    }
     const curD = new Date(gameState.date + 'T12:00:00');
     curD.setDate(curD.getDate() + 1);
     gameState.date = curD.toISOString().slice(0, 10);
@@ -13404,6 +13601,12 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       // Só paramos ao chegar exatamente à data do jogo. Se a data salva já passou,
       // esse fixture é tratado como atrasado e não pode congelar a simulação em 0 dias.
       if(stopAtMatch && matchDate && state.date === matchDate) break;
+
+      // Preparador Físico: Se o técnico não treinou o dia atual manualmente, o preparador assume automaticamente
+      if(typeof window.processAutomaticFitnessCoachTraining === 'function'){
+        window.processAutomaticFitnessCoachTraining(state);
+      }
+
       let current = (typeof window !== 'undefined' && window.AFM_CalendarFix && typeof window.AFM_CalendarFix.parseSafeLocalNoon === 'function')
         ? window.AFM_CalendarFix.parseSafeLocalNoon(state.date)
         : new Date(`${state.date}T12:00:00`);
@@ -13684,6 +13887,7 @@ function simulateScore(home,away){
 }
 
 function applyResult(home,away,hg,ag){
+  if(!state || !Array.isArray(state.teams)) return;
   const h=state.teams.find(t=>norm(t.name)===norm(home)), a=state.teams.find(t=>norm(t.name)===norm(away));
   if(!h||!a)return;
   h.j++;a.j++;h.gp+=hg;h.gc+=ag;a.gp+=ag;a.gc+=hg;
@@ -15470,6 +15674,10 @@ function playCheerSound(){
 function advanceTransferWindowDay(){
   if(!state) return;
   try {
+    // Preparador Físico: Conduz o treino do dia antes do avanço caso o técnico não tenha treinado
+    if(typeof window.processAutomaticFitnessCoachTraining === 'function'){
+      window.processAutomaticFitnessCoachTraining(state);
+    }
     const tw = getTransferWindowState();
     if(tw.isDeadlineDay || (Number(state.transferWindowDay) >= 4)){
       advanceTransferWindowHours();
@@ -16679,7 +16887,7 @@ function renderLiveMatchModal(){
   if(!el){
     el = document.createElement('div');
     el.id = 'matchModalContainer';
-    document.body.appendChild(el);
+    if(document.body && typeof document.body.appendChild === 'function') document.body.appendChild(el);
   }
 
   const s = liveMatchState;
@@ -16971,35 +17179,15 @@ function startLiveShot(s, shooter){
   s.ball.progress = 0;
   s.ball.curveZ = 5.5;
 
-  const roll = s.prng ? s.prng() : Math.random();
-  const finishSkill = shooter.attrs?.finishing || shooter.overall || 70;
-  const oppGk = (isHomeAttacking ? s.awayPlayers : s.homePlayers).find(p => p.isGK) || {};
-  const gkSkill = oppGk.overall || 70;
-  const goalProb = 0.22 + (finishSkill - gkSkill) * 0.004;
-
-  if(roll < goalProb){
-    s.ball.shotOutcome = 'gol';
-    if(isHomeAttacking) s.hg++; else s.ag++;
-    shooter.goals = (shooter.goals || 0) + 1;
-    if(Array.isArray(s.events)){
-      s.events.unshift({
-        min: Number(s.minute) || 0,
-        type: 'gol',
-        scorer: shooter.name,
-        text: `⚽ GOOOL DE ${shooter.name.toUpperCase()}! Concluiu a jogada com uma finalização indefensável!`
-      });
-    }
-  } else if(roll < 0.65){
-    s.ball.shotOutcome = 'save';
-    s.ball.isCorner = Math.random() < 0.4;
-    s.ball.isRebound = Math.random() < 0.3;
-  } else if(roll < 0.85){
-    s.ball.shotOutcome = 'blocked';
-  } else if(roll < 0.93){
-    s.ball.shotOutcome = 'post';
-  } else {
-    s.ball.shotOutcome = 'out';
-  }
+  // SEGURANÇA E INTEGRIDADE DO MATCH ENGINE:
+  // startLiveShot é uma rotina puramente cosmética/visual do canvas 2.5D.
+  // Jamais altera s.hg / s.ag nem insere eventos de gol no feed.
+  // Todos os gols, estatísticas e lances oficiais da partida são de responsabilidade
+  // exclusiva de simulateMinute() -> executeShotSim(), executePenaltySim() e executeFreeKickSim().
+  s.ball.shotOutcome = 'save';
+  s.ball.isCorner = false;
+  s.ball.isRebound = false;
+  s.ball.liveDecisionCooldown = 180;
 }
 
 function updateLiveCanvasPositions(s){
@@ -18898,6 +19086,12 @@ function simulateMinute(s, min){
   }
 }
 
+if(typeof window !== 'undefined'){
+  window.AFM_LiveMatch = window.AFM_LiveMatch || {};
+  window.AFM_LiveMatch.updateLiveCanvasPositions = updateLiveCanvasPositions;
+  window.AFM_LiveMatch.simulateMinute = simulateMinute;
+}
+
 // =========================================================================
 // PADRÕES DE JOGADA, VALIDAÇÃO DE ENTIDADES E EVENTOS DO MATCH ENGINE
 // =========================================================================
@@ -18973,11 +19167,10 @@ function validateAssist(assist, attTeam, s){
 }
 
 function validateMatchEntity(ent, s){
-  if(!ent) return false;
+  if(!ent || !s) return false;
   if(ent.type === 'REFEREE') return true;
-  if(ent.type === 'PLAYER'){
-    return (s.homePlayers.some(p => p.id === ent.id) || s.awayPlayers.some(p => p.id === ent.id));
-  }
+  if(Array.isArray(s.homePlayers) && s.homePlayers.some(p => p === ent || (ent.id && p.id === ent.id) || (ent.key && p.key === ent.key))) return true;
+  if(Array.isArray(s.awayPlayers) && s.awayPlayers.some(p => p === ent || (ent.id && p.id === ent.id) || (ent.key && p.key === ent.key))) return true;
   return false;
 }
 
@@ -19437,6 +19630,7 @@ function resetKickoff(restartingTeam){
 
 function updateScoreDisplay(){
   const s = liveMatchState;
+  if(!s || !s.stats) return;
   const sh = $('#liveScoreH'); if(sh) sh.textContent = s.hg;
   const sa = $('#liveScoreA'); if(sa) sa.textContent = s.ag;
   const shotsL = $('#liveShotsLabel');
@@ -19451,6 +19645,7 @@ function updateScoreDisplay(){
 
 function updateLiveSidebarEvents(){
   const s = liveMatchState;
+  if(!s || !Array.isArray(s.events)) return;
   const evList = $('#liveEventList');
   if(evList){
     evList.innerHTML = s.events.map(e => `
@@ -19481,7 +19676,14 @@ function bindLiveMatchEvents(){
 
   if(btnPlay) btnPlay.onclick = togglePlay;
   if(overlay) overlay.onclick = togglePlay;
-  if(canvas) canvas.onclick = togglePlay;
+  if(canvas){
+    canvas.onclick = () => {
+      // Se estiver pausado, tocar no campo retoma a partida imediatamente
+      if(!s.playing){
+        togglePlay();
+      }
+    };
+  }
 
   // Velocidades (1x, 2x, 5x, 10x, 20x, 40x)
   const speedButtons = [
@@ -21005,7 +21207,7 @@ function executeSeasonTransitions(finishedCompId = null, finishedRanking = null,
   if(criticalPipelineHandled){
     // Never run the legacy base-roster filler after evaluating this season.
     for(const id of divisionIds) tMap[id] = uniqueNames(lists[id]);
-    const expectedStateId = ['brasilia','aruc','gama','ceilandia','sobradinho','samambaia','paranoa','capital-df','real brasilia','brasiliense'].includes(myNorm) ? 'bra-est-df' : null;
+    const expectedStateId = state?.customClubStateCompId || (['brasilia','aruc','gama','ceilandia','sobradinho','samambaia','paranoa','capital-df','real brasilia','brasiliense'].includes(myNorm) ? 'bra-est-df' : null);
     for(const id of stateCompIds) tMap[id] = uniqueNames([...(preservedStateRosters[id] || []), ...uniqueNames(tMap[id]), ...(id === expectedStateId && myClubName ? [myClubName] : [])]);
     state.competitionTeams = clone(tMap);
     state.news = Array.isArray(state.news) ? state.news : [];
@@ -23803,7 +24005,11 @@ function render() {
         const balEl = app.querySelector('.club-card b');
         if(balEl) balEl.textContent = fmtMoney(state.balance);
         const cashValEl = app.querySelector('.sm-badge-cash .sm-res-val');
-        if(cashValEl) cashValEl.textContent = fmtMoney(state.balance);
+        if(cashValEl) {
+          cashValEl.textContent = fmtCompactMoney(state.balance);
+          const badgeCash = app.querySelector('.sm-badge-cash');
+          if(badgeCash) badgeCash.title = `Saldo em Caixa: ${fmtMoney(state.balance)}`;
+        }
 
         app.querySelectorAll('.sm-ribbon-pill[data-view]').forEach(b => {
           b.classList.toggle('active', b.dataset.view === view);
@@ -24781,9 +24987,9 @@ function shell(main){
             <span class="sm-res-val">${coachPrestige} pts</span>
             <span class="sm-res-add" id="btnTopQuickPrestige" title="Carreira do Treinador">+</span>
           </div>
-          <div class="sm-res-badge sm-badge-cash" title="Saldo em Caixa do Clube">
+          <div class="sm-res-badge sm-badge-cash" title="Saldo em Caixa: ${fmtMoney(state.balance)}">
             <span class="sm-res-icon">💵</span>
-            <span class="sm-res-val">${fmtMoney(state.balance)}</span>
+            <span class="sm-res-val">${fmtCompactMoney(state.balance)}</span>
             <span class="sm-res-add" id="btnTopQuickCash" title="Finanças & Escritório">+</span>
           </div>
         </div>
@@ -26275,7 +26481,7 @@ function calendarPage(){
   const calendarMatches=allMatches.filter(match=>activeCalendarFilter==='ALL'||(activeCalendarFilter==='HOME'||activeCalendarFilter==='AWAY'?match.isHome===(activeCalendarFilter==='HOME'):match.competitionId===activeCalendarFilter)).sort((a,b)=>a.date.localeCompare(b.date)||(a.competitionId==='COMP'?-1:1));
   return `
     <div class="hero"><div><h1>Calendário Oficial de Jogos & Janelas de Transferência</h1><div class="muted">Datas dos confrontos, mandos de campo, torneios da temporada ${state.season} e janelas de contratação</div></div><div style="display:flex;gap:10px;align-items:center"><span class="window-badge ${winInfo.open?'window-open':'window-closed'}">${winInfo.open?'🟢':'🔴'} ${esc(winInfo.text)}</span><span class="pill">${esc(comp.name)}</span></div></div>
-    <div class="grid g2" style="margin-top:14px"><div class="card" style="border-left:4px solid var(--neon)"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">☀️ Janela de Verão (Início de Ano)</h3><span class="pill ${isTransferWindowOpen(state.season+'-02-01')?'good':''}">01/Jan a 31/Mar</span></div><p class="small muted" style="margin:6px 0 0 0">Período oficial de montagem do elenco. Permite contratações definitivas, empréstimos e vendas.</p></div><div class="card" style="border-left:4px solid var(--cyan)"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">❄️ Janela de Inverno (Meio de Ano)</h3><span class="pill ${isTransferWindowOpen(state.season+'-08-01')?'good':''}">10/Jul a 02/Set</span></div><p class="small muted" style="margin:6px 0 0 0">Período de reforços e ajustes do elenco para o segundo semestre e retas finais dos campeonatos.</p></div></div>
+    <div class="grid g2 afm-calendar-windows" style="margin-top:14px"><div class="card afm-window-card" style="border-left:4px solid var(--neon)"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">☀️ Janela de Verão (Início de Ano)</h3><span class="pill ${isTransferWindowOpen(state.season+'-02-01')?'good':''}">01/Jan a 31/Mar</span></div><p class="small muted afm-window-desc" style="margin:6px 0 0 0">Período oficial de montagem do elenco. Permite contratações definitivas, empréstimos e vendas.</p></div><div class="card afm-window-card" style="border-left:4px solid var(--cyan)"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">❄️ Janela de Inverno (Meio de Ano)</h3><span class="pill ${isTransferWindowOpen(state.season+'-08-01')?'good':''}">10/Jul a 02/Set</span></div><p class="small muted afm-window-desc" style="margin:6px 0 0 0">Período de reforços e ajustes do elenco para o segundo semestre e retas finais dos campeonatos.</p></div></div>
     <div class="filters" style="margin-top:14px"><button type="button" class="btn ${activeCalendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos os Confrontos (${allMatches.length})</button>${competitionTabs.map(tab=>`<button type="button" class="btn ${activeCalendarFilter===tab.id?'primary':''}" data-cal-filter="${tab.id}">${tab.label}</button>`).join('')}<button type="button" class="btn ${activeCalendarFilter==='HOME'?'primary':''}" data-cal-filter="HOME">🏠 Em Casa</button><button type="button" class="btn ${activeCalendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora de Casa</button></div>
     <div class="calendar-view" style="margin-top:10px">${calendarMatches.map(match=>{
       const opponent=match.isHome?match.away:match.home,date=new Date(`${match.date}T12:00:00`),dayNames=['DOM','SEG','TER','QUA','QUI','SEX','SÁB'],dayBadge=dayNames[date.getDay()]||'JOGO',isMidweek=date.getDay()===3,dateFormatted=date.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'});
@@ -26376,6 +26582,12 @@ function myTeamPage(){
     <!-- Barra de Ações e Atalhos Táticos -->
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 10px 0">
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="btn btnOpenSquadReportsModal" id="btnOpenSquadReportsMyTeam" style="font-size:11px;font-weight:900;padding:6px 12px;border-radius:8px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;box-shadow:0 2px 8px rgba(16,185,129,0.35);cursor:pointer;display:inline-flex;align-items:center;gap:6px" title="Ver perspetiva geral, lesões, suspensões, moral, contratos e juventude">
+          📊 Relatórios do Elenco
+        </button>
+        <button class="btn btnOpenTrainingModal" id="btnOpenTrainingFromMyTeam" style="font-size:11px;font-weight:900;padding:6px 12px;border-radius:8px;background:#18142b;color:#10b981;border:1px solid rgba(16,185,129,0.4);cursor:pointer;display:inline-flex;align-items:center;gap:6px" title="Abrir painel de exercícios e sessão de treinamento">
+          🏋️ Treino & CT
+        </button>
         <button class="btn btnOpenAccordion" data-target="accordionHierarchy" style="font-size:11px;font-weight:900;padding:6px 12px;border-radius:8px;background:#18142b;color:#facc15;border:1px solid rgba(234,179,8,0.3)">
           👔 Mentoria & Vestiário
         </button>
@@ -27059,6 +27271,12 @@ function squadPage(){
         <div class="muted">${ps.length} jogadores no plantel · Limite de ${squadCapacity()} vagas (${Math.max(0, squadCapacity()-ps.length)} disponíveis) • Folha mensal: ${fmtMoney(totalMonthlyPayroll())}</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btnOpenSquadReportsModal" id="btnOpenSquadReports" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;font-weight:900;box-shadow:0 2px 8px rgba(16,185,129,0.35);display:inline-flex;align-items:center;gap:6px" title="Ver perspetiva geral, lesões, suspensões, moral, contratos e juventude">
+          📊 Relatórios & Perspetiva Geral
+        </button>
+        <button class="btn btnOpenTrainingModal" id="btnOpenTrainingFromSquad" style="background:linear-gradient(135deg,#0d9488,#14b8a6);color:#fff;border:none;font-weight:900;box-shadow:0 2px 8px rgba(13,148,136,0.35);display:inline-flex;align-items:center;gap:6px" title="Abrir painel de exercícios e sessão de treinamento">
+          🏋️ Sessão de Treino
+        </button>
         <button class="btn" id="btnGoToSalariesView" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;font-weight:700">
           💰 Salários (${expensiveCount} caros)
         </button>
@@ -32094,6 +32312,10 @@ const AFM_ESTADUAIS_DATA = [
   }
 ];
 
+if (typeof window !== 'undefined') {
+  window.AFM_ESTADUAIS_DATA = AFM_ESTADUAIS_DATA;
+}
+
 
 const AFM_SYSTEMS_DATA = [
   {
@@ -32224,6 +32446,10 @@ const AFM_SYSTEMS_DATA = [
   }
 ];
 
+if (typeof window !== 'undefined') {
+  window.AFM_ESTADUAIS_DATA = AFM_ESTADUAIS_DATA;
+}
+
 function renderLandingNavbar(activeTab){
   return `
     <header class="afm-landing-nav">
@@ -32264,8 +32490,15 @@ function renderSetup(app){
     const activeUser = rawActiveUser || { username: 'treinador', name: 'Treinador', role: 'player' };
 
     // Regra: O jogador só entra no jogo (saves e times) após efetuar login
-    if(!rawActiveUser && setupViewMode === 'select'){
+    if(!rawActiveUser && (setupViewMode === 'select' || setupViewMode === 'create_club')){
       setupViewMode = 'auth';
+    }
+
+    // MODO: CRIAR SEU PRÓPRIO CLUBE (CREATE-A-CLUB)
+    if(setupViewMode === 'create_club'){
+      if(typeof window.renderCreateClubScreen === 'function'){
+        return window.renderCreateClubScreen(app, activeUser);
+      }
     }
 
     // MODO: RANKING OFICIAL DE TÉCNICOS & PREMIAÇÃO PIX R$ 1.000 NA PÁGINA INICIAL
@@ -32731,141 +32964,139 @@ function renderSetup(app){
           
           <!-- LEFT SIDE: BRANDING, HEADLINE, TRIO DE CRAQUES & DESTAQUES -->
           <div class="afm-split-left">
-            <div>
-              <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);padding:6px 14px;border-radius:20px;font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px">
-                <span>⚡</span> NOVO MOTOR TÁTICO & CLOUD SUPABASE 2027
+            <div class="afm-split-left-content">
+              <div class="afm-hero-chip">
+                <span class="afm-hero-chip-icon">⚡</span> NOVO MOTOR TÁTICO & CLOUD SUPABASE 2027
               </div>
 
-              <h1 style="font-size:36px;font-weight:900;line-height:1.15;color:#fff;letter-spacing:-1px;margin:0 0 10px 0">
-                Comande o seu clube do coração rumo ao topo do mundo.
+              <h1 class="afm-hero-headline">
+                Comande seu clube do coração<br>
+                <span class="afm-hero-headline-highlight">rumo ao topo do futebol mundial.</span>
               </h1>
 
-              <p style="font-size:14px;color:rgba(255,255,255,0.78);line-height:1.55;margin:0 0 16px 0;max-width:560px">
-                O <b>AFM 2027</b> combina mais de <b>3.500 craques reais</b>, gestão tática em 4 fases, construção de arenas monumentais de até 100k lugares e 11 estaduais oficiais sincronizados.
+              <p class="afm-hero-sub">
+                O <b>AFM 2027</b> une mais de <b>3.500 craques reais</b>, gestão tática em 4 fases, construção de arenas monumentais de até 100k lugares e 11 estaduais oficiais totalmente sincronizados.
               </p>
 
-              <!-- TRIO DE CRAQUES HERO DISPLAY (FOTO DOS CRAQUES NA PÁGINA INICIAL) -->
+              <!-- TRIO DE CRAQUES HERO DISPLAY -->
               <div class="afm-craques-hero-wrapper">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;width:100%;max-width:580px">
-                  <span style="font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.8px;display:inline-flex;align-items:center;gap:6px">
-                    <span>⭐</span> CRAQUES DO FUTEBOL MUNDIAL NO AFM
+                <div class="afm-craques-hero-header">
+                  <span class="afm-craques-header-title">
+                    <span style="color:#facc15">⭐</span> CRAQUES DO FUTEBOL MUNDIAL NO AFM
                   </span>
-                  <span style="font-size:11px;font-weight:700;color:#94a3b8">3.500+ Atletas Reais</span>
+                  <span class="afm-craques-header-count">3.500+ Atletas Oficiais</span>
                 </div>
 
                 <div class="afm-craques-hero">
                   <!-- Card Lamine Yamal -->
                   <div class="afm-craque-card yamal" title="Lamine Yamal - FC Barcelona">
-                    <div class="afm-craque-badge">OVR 86</div>
+                    <div class="afm-craque-badge badge-yamal">OVR 86</div>
                     <div class="afm-craque-img-container">
                       <img src="img/hero/yamal.png" alt="Lamine Yamal" class="afm-craque-photo">
                       <div class="afm-craque-bottom-overlay"></div>
                     </div>
                     <div class="afm-craque-info">
                       <div class="afm-craque-name">LAMINE YAMAL</div>
-                      <div class="afm-craque-team">🇪🇸 Barcelona · Joia</div>
+                      <div class="afm-craque-team"><span class="afm-craque-flag flag-esp">ESP</span> Barcelona · Joia</div>
                     </div>
                   </div>
 
-                  <!-- Card Lionel Messi (Featured / Crowned in Center) -->
+                  <!-- Card Lionel Messi (Destaque Dourado) -->
                   <div class="afm-craque-card messi" title="Lionel Messi - Campeão do Mundo">
-                    <div class="afm-craque-badge">👑 OVR 94</div>
+                    <div class="afm-craque-badge badge-messi">👑 OVR 94</div>
                     <div class="afm-craque-img-container">
                       <img src="img/hero/messi.png" alt="Lionel Messi" class="afm-craque-photo">
                       <div class="afm-craque-bottom-overlay"></div>
                     </div>
                     <div class="afm-craque-info">
                       <div class="afm-craque-name">LIONEL MESSI</div>
-                      <div class="afm-craque-team">🇦🇷 Campeão Mundial</div>
+                      <div class="afm-craque-team"><span class="afm-craque-flag flag-arg">ARG</span> Campeão Mundial</div>
                     </div>
                   </div>
 
                   <!-- Card Neymar Jr -->
                   <div class="afm-craque-card neymar" title="Neymar Jr - Santos FC">
-                    <div class="afm-craque-badge">⚡ OVR 91</div>
+                    <div class="afm-craque-badge badge-neymar">⚡ OVR 91</div>
                     <div class="afm-craque-img-container">
                       <img src="img/hero/neymar.png" alt="Neymar Jr" class="afm-craque-photo">
                       <div class="afm-craque-bottom-overlay"></div>
                     </div>
                     <div class="afm-craque-info">
                       <div class="afm-craque-name">NEYMAR JR</div>
-                      <div class="afm-craque-team">🇧🇷 Santos FC · Mágico</div>
+                      <div class="afm-craque-team"><span class="afm-craque-flag flag-bra">BRA</span> Santos FC · Mágico</div>
                     </div>
                   </div>
                 </div>
               </div>
 
-
-
-              <!-- PAINÉIS DE DESTAQUES VISÍVEIS COMPACTOS (3x2 GRID) -->
+              <!-- PAINÉIS DE DESTAQUES VISÍVEIS (GRADE 2x3 MODERNA & ESPAÇOSA) -->
               <div class="afm-feature-panels-grid">
                 <div class="afm-feature-panel">
-                  <div class="afm-panel-icon" style="color:#a7ff3f">⭐</div>
-                  <div>
+                  <div class="afm-panel-icon-wrap" style="background:rgba(167,255,63,0.12);color:#a7ff3f;border-color:rgba(167,255,63,0.3)">⭐</div>
+                  <div class="afm-panel-body">
                     <div class="afm-panel-title">Contrate Craques</div>
                     <div class="afm-panel-desc">Olheiros e montagem do elenco dos sonhos.</div>
                   </div>
                 </div>
 
                 <div class="afm-feature-panel">
-                  <div class="afm-panel-icon" style="color:#38bdf8">🎟️</div>
-                  <div>
+                  <div class="afm-panel-icon-wrap" style="background:rgba(56,189,248,0.12);color:#38bdf8;border-color:rgba(56,189,248,0.3)">🎟️</div>
+                  <div class="afm-panel-body">
                     <div class="afm-panel-title">Preço de Ingressos</div>
                     <div class="afm-panel-desc">Bilheteria por setor e arenas lotadas.</div>
                   </div>
                 </div>
 
                 <div class="afm-feature-panel">
-                  <div class="afm-panel-icon" style="color:#ec4899">🌿</div>
-                  <div>
+                  <div class="afm-panel-icon-wrap" style="background:rgba(236,72,153,0.12);color:#ec4899;border-color:rgba(236,72,153,0.3)">🌿</div>
+                  <div class="afm-panel-body">
                     <div class="afm-panel-title">Escolha do Gramado</div>
                     <div class="afm-panel-desc">Natural, sintético ou híbrido realista.</div>
                   </div>
                 </div>
 
                 <div class="afm-feature-panel">
-                  <div class="afm-panel-icon" style="color:#facc15">🤝</div>
-                  <div>
+                  <div class="afm-panel-icon-wrap" style="background:rgba(250,204,21,0.12);color:#facc15;border-color:rgba(250,204,21,0.3)">🤝</div>
+                  <div class="afm-panel-body">
                     <div class="afm-panel-title">Naming Rights</div>
                     <div class="afm-panel-desc">Contratos de arena multimilionários.</div>
                   </div>
                 </div>
 
                 <div class="afm-feature-panel">
-                  <div class="afm-panel-icon" style="color:#ef4444">⚖️</div>
-                  <div>
+                  <div class="afm-panel-icon-wrap" style="background:rgba(239,68,68,0.12);color:#ef4444;border-color:rgba(239,68,68,0.3)">⚖️</div>
+                  <div class="afm-panel-body">
                     <div class="afm-panel-title">Arbitragem & VAR</div>
                     <div class="afm-panel-desc">Decisões, pênaltis e pressão da torcida.</div>
                   </div>
                 </div>
 
                 <div class="afm-feature-panel">
-                  <div class="afm-panel-icon" style="color:#c084fc">🌍</div>
-                  <div>
+                  <div class="afm-panel-icon-wrap" style="background:rgba(192,132,252,0.12);color:#c084fc;border-color:rgba(192,132,252,0.3)">🌍</div>
+                  <div class="afm-panel-body">
                     <div class="afm-panel-title">Mundial de Clubes</div>
                     <div class="afm-panel-desc">Enfrente gigantes da Europa e América.</div>
                   </div>
                 </div>
               </div>
 
-              <!-- TESTIMONIAL CARD COMPACTO -->
+              <!-- TESTIMONIAL CARD COMPACTO & ELEGANTE -->
               <div class="afm-testimonial-card">
-                <div style="font-size:11.5px;color:rgba(255,255,255,0.88);line-height:1.4;font-style:italic">
+                <div class="afm-testimonial-text">
                   “Assumi o Brasília no Candangão, reorganizei as finanças, contratei reforços e ergui uma arena de 50 mil lugares. A imersão é impressionante.”
                 </div>
-                <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
-                  <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg, #7c3aed, #06b6d4);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:10px">
-                    AR
-                  </div>
-                  <div style="font-size:11px;font-weight:800;color:#fff">
-                    Prof. Alberto Ramos · <span style="color:#a855f7;font-weight:700">Campeão Série A & Candangão</span>
+                <div class="afm-testimonial-author">
+                  <div class="afm-testimonial-avatar">AR</div>
+                  <div class="afm-testimonial-meta">
+                    <b>Prof. Alberto Ramos</b>
+                    <span class="afm-testimonial-tag">🏆 Campeão Série A & Candangão</span>
                   </div>
                 </div>
               </div>
             </div>
 
             <!-- FOOTER COM SEGURANÇA E SUPABASE -->
-            <div style="margin-top:8px;font-size:10.5px;color:#64748b;display:flex;align-items:center;gap:6px">
+            <div class="afm-left-footer">
               <span>🔒 Seus dados e saves estão protegidos na nuvem (Supabase) · ⚡ 100% Gratuito no Navegador</span>
             </div>
           </div>
@@ -33280,6 +33511,25 @@ function renderSetup(app){
             }
           }).join('')}
         </div>
+      </div>
+
+      <!-- BANNER DE DESTAQUE: MODO CRIAR SEU TIME (CREATE-A-CLUB) -->
+      <div class="create-club-banner-card">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="font-size:36px;filter:drop-shadow(0 0 12px rgba(168,85,247,0.8))">🎨</div>
+          <div>
+            <div style="font-size:16px;font-weight:900;color:#fff;letter-spacing:0.5px;display:flex;align-items:center;gap:8px">
+              NOVO MODO: CRIAR SEU PRÓPRIO CLUBE
+              <span class="pill good" style="font-size:10px;padding:2px 8px;font-weight:900">EXCLUSIVO</span>
+            </div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:2px">
+              Monte seu clube do zero: crie o escudo, desenhe os uniformes e comece no estadual com R$ 300 mil em caixa e instalações nível 1!
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn primary" id="btnGoCreateClub" style="padding:10px 22px;font-size:13px;font-weight:900;border-radius:10px;background:linear-gradient(135deg, #a855f7 0%, #38bdf8 100%);box-shadow:0 4px 18px rgba(168,85,247,0.5);cursor:pointer;white-space:nowrap">
+          ✨ CRIAR MEU TIME AGORA ➔
+        </button>
       </div>
 
       <!-- ========================================================================= -->
@@ -33895,6 +34145,15 @@ function bindSetup(){
 
   const btnStartWithSel = $('#btnStartNewCareerWithSelected');
   if(btnStartWithSel) btnStartWithSel.onclick = triggerStartCareer;
+
+  // Bind do Banner Criar Seu Time
+  const btnCreateClub = $('#btnGoCreateClub');
+  if(btnCreateClub) {
+    btnCreateClub.onclick = () => {
+      setupViewMode = 'create_club';
+      renderSetup($('#app'));
+    };
+  }
 
   // Binds dos 3 Slots de Saves do Usuário
   $$('.btnContinueUserSlot').forEach(b => {
@@ -34906,6 +35165,14 @@ function bind(){
 
     const saveBtn = $('#btnSaveLineup');
     if(saveBtn) saveBtn.onclick = () => { if(save()) toast('Escalação salva com sucesso!'); };
+    const btnOpenRepTeam = $('#btnOpenSquadReportsMyTeam');
+    if(btnOpenRepTeam) btnOpenRepTeam.onclick = () => {
+      if(typeof window.openSquadReportsModal === 'function') window.openSquadReportsModal('geral');
+    };
+    const btnOpenTrTeam = $('#btnOpenTrainingFromMyTeam');
+    if(btnOpenTrTeam) btnOpenTrTeam.onclick = () => {
+      openTrainingCenterModal();
+    };
     const aiBtn = $('#btnAILineup');
     if(aiBtn) aiBtn.onclick = () => {
       const sy = window.scrollY;
@@ -35164,6 +35431,15 @@ function bind(){
     if(yBtn) yBtn.onclick = openYouthAcademyModal;
     const btnCmp = $('#btnOpenCompareModalSquad');
     if(btnCmp) btnCmp.onclick = () => openPlayerCompareModal();
+
+    const btnRepSquad = $('#btnOpenSquadReports');
+    if(btnRepSquad) btnRepSquad.onclick = () => {
+      if(typeof window.openSquadReportsModal === 'function') window.openSquadReportsModal('geral');
+    };
+    const btnTrSquad = $('#btnOpenTrainingFromSquad');
+    if(btnTrSquad) btnTrSquad.onclick = () => {
+      openTrainingCenterModal();
+    };
 
     const btnSal = $('#btnGoToSalariesView');
     if(btnSal) btnSal.onclick = () => { squadViewMode = 'salaries'; render(); };
@@ -35607,6 +35883,18 @@ function bind(){
       window.AFM_CoachRanking.bindRankingEvents();
     }
   }
+
+  // Atalhos Globais: Relatórios do Elenco e Treinamento
+  $$('.btnOpenSquadReportsModal').forEach(b => {
+    b.onclick = () => {
+      if(typeof window.openSquadReportsModal === 'function') window.openSquadReportsModal('geral');
+    };
+  });
+  $$('.btnOpenTrainingModal').forEach(b => {
+    b.onclick = () => {
+      openTrainingCenterModal();
+    };
+  });
 }
 
 // -------------------------------------------------------------

@@ -344,6 +344,33 @@
 
   function getClubKit(clubName, isAway = false){
     const key = normalizeClubKey(clubName);
+
+    // SUPORTE AO MODO CRIAR SEU TIME (CUSTOM KITS)
+    if(typeof window !== 'undefined' && window.CUSTOM_CLUB_KITS && window.CUSTOM_CLUB_KITS[key]){
+      const customK = window.CUSTOM_CLUB_KITS[key];
+      const kit = isAway ? (customK.away || customK.home) : customK.home;
+      return {
+        primary: kit.shirtColor || '#1e3a8a',
+        secondary: kit.secondaryColor || '#ffffff',
+        pattern: kit.style || 'solid',
+        shorts: kit.shortsColor || '#1e3a8a',
+        socks: kit.socksColor || '#ffffff',
+        number: kit.secondaryColor || '#ffffff',
+        gk: { primary: '#16a34a', secondary: '#ffffff', shorts: '#16a34a' }
+      };
+    }
+    if(typeof state !== 'undefined' && state && state.customClub && normalizeClubKey(state.club) === key){
+      const kit = isAway ? (state.customClub.awayKit || state.customClub.homeKit) : state.customClub.homeKit;
+      return {
+        primary: kit.shirtColor || '#1e3a8a',
+        secondary: kit.secondaryColor || '#ffffff',
+        pattern: kit.style || 'solid',
+        shorts: kit.shortsColor || '#1e3a8a',
+        socks: kit.socksColor || '#ffffff',
+        number: kit.secondaryColor || '#ffffff',
+        gk: { primary: '#16a34a', secondary: '#ffffff', shorts: '#16a34a' }
+      };
+    }
     let kitData = CLUB_KITS[key];
     if(!kitData){
       // Tenta correspondência parcial (ex: 'Flamengo RJ' -> 'flamengo')
@@ -588,13 +615,12 @@
             const chosenMove = dribbleNames[Math.floor(Math.random() * dribbleNames.length)];
             if(notifyFn) notifyFn(carrier.x, carrier.y, `🪄 ${carrier.name.toUpperCase()}: ${chosenMove}!`, '#facc15');
 
-            // Se após o drible ele entrou na área sozinho, finaliza direto ao gol!
+            // Se após o drible ele entrou na área sozinho, ganha vantagem de espaço
             const inBox = (carrier.team === 'home' && carrier.x >= 78) || (carrier.team === 'away' && carrier.x <= 22);
-            if(inBox && shotFn){
-              carrier.dribbleTimer = 0.3;
-              shotFn(s, carrier);
-              if(notifyFn) notifyFn(carrier.x, carrier.y, `🔥 DRIBLOU E ENCHEU O PÉ!`, '#ef4444');
+            if(inBox && notifyFn){
+              notifyFn(carrier.x, carrier.y, `🔥 INVASÃO PERIGOSA NA ÁREA!`, '#ef4444');
             }
+            carrier.dribbleCooldown = 75;
             return;
           }
 
@@ -649,20 +675,13 @@
           }
         }
 
-        // 5. Troca de Passes Fluida até o Gol e Chute
+        // 5. Troca de Passes Fluida e Triangulações
         // Se o portador avançou e tem companheiro melhor posicionado, toca a bola!
         if((ball.liveDecisionCooldown || 0) <= 0 && passFn){
           const isHome = carrier.team === 'home';
           const distToGoal = isHome ? (100 - carrier.x) : carrier.x;
-          // Se já está na cara do gol (distToGoal <= 20) com espaço, chuta a gol!
-          if(distToGoal <= 22 && Math.abs(carrier.y - 50) <= 24 && shotFn && Math.random() < 0.60){
-            shotFn(s, carrier);
-            if(notifyFn) notifyFn(carrier.x, carrier.y, `🎯 FINALIZAÇÃO AO GOL!`, '#ef4444');
-            ball.liveDecisionCooldown = 40;
-            return;
-          }
 
-          // Se não, busca passe progressivo (triangulação)
+          // Busca passe progressivo (triangulação / infiltração)
           const teammates = (isHome ? s.homePlayers : s.awayPlayers);
           const receiver = teammates.find(tm => {
             if(!tm || tm === carrier || tm.isGK || tm.redCard) return false;
