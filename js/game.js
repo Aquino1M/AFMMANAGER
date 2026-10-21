@@ -4986,14 +4986,18 @@ const MUSEUM_LEVELS = [
 const HOUSE_ITEMS = [
   { id: 'h1', name: 'Apartamento Padrão', category: 'Imóvel', cost: 180000, reqText: 'Disponível para compra inicial', unlocked: true },
   { id: 'h2', name: 'Sedan Executivo', category: 'Veículo', cost: 95000, reqText: 'Disponível para compra inicial', unlocked: true },
-  { id: 'h3', name: 'Licença CBF B', category: 'Curso', cost: 40000, reqText: 'Disponível para início de carreira', unlocked: true },
+  { id: 'h3', name: 'Licença CBF B', category: 'Curso', cost: 40000, reqText: 'Disponível para início de carreira', unlocked: true, isLicense: true },
   { id: 'h4', name: 'Casa com Piscina', category: 'Imóvel', cost: 650000, reqText: 'Exige 1 temporada completa no comando', reqType: 'seasons', reqVal: 1 },
-  { id: 'h5', name: 'Licença CBF A', category: 'Curso', cost: 120000, reqText: 'Exige 1 temporada completa no comando', reqType: 'seasons', reqVal: 1 },
-  { id: 'h6', name: 'Licença CBF PRO', category: 'Curso', cost: 280000, reqText: 'Exige 2 temporadas completas no comando', reqType: 'seasons', reqVal: 2 },
+  { id: 'h5', name: 'Licença CBF A', category: 'Curso', cost: 120000, reqText: 'Exige 1 temporada completa no comando', reqType: 'seasons', reqVal: 1, isLicense: true },
+  { id: 'h6', name: 'Licença CBF PRO', category: 'Curso', cost: 280000, reqText: 'Exige 2 temporadas completas no comando', reqType: 'seasons', reqVal: 2, isLicense: true },
   { id: 'h7', name: 'Mansão de Luxo', category: 'Imóvel', cost: 2200000, reqText: 'Exige pelo menos 1 título conquistado', reqType: 'titles', reqVal: 1 },
   { id: 'h8', name: 'Carro Esportivo Importado', category: 'Veículo', cost: 480000, reqText: 'Exige pelo menos 1 título conquistado', reqType: 'titles', reqVal: 1 },
   { id: 'h9', name: 'Coleção de Camisas Históricas', category: 'Coleção', cost: 150000, reqText: 'Exige 3 temporadas completas de carreira', reqType: 'seasons', reqVal: 3 },
-  { id: 'h10', name: 'Sala de Troféus Pessoal', category: 'Imóvel', cost: 950000, reqText: 'Exige 3 títulos conquistados na carreira', reqType: 'titles', reqVal: 3 }
+  { id: 'h10', name: 'Sala de Troféus Pessoal', category: 'Imóvel', cost: 950000, reqText: 'Exige 3 títulos conquistados na carreira', reqType: 'titles', reqVal: 3 },
+  { id: 'h11', name: 'SUV Blindado Premium', category: 'Veículo', cost: 320000, reqText: 'Disponível para compra inicial', unlocked: true },
+  { id: 'h12', name: 'Relógio Suíço de Ouro', category: 'Artigo de Luxo', cost: 140000, reqText: 'Disponível para compra inicial', unlocked: true },
+  { id: 'h13', name: 'Iate de Alto Padrão', category: 'Embarcação', cost: 3800000, reqText: 'Exige 2 títulos conquistados na carreira', reqType: 'titles', reqVal: 2 },
+  { id: 'h14', name: 'Helicóptero Executivo', category: 'Aeronave', cost: 6200000, reqText: 'Exige 4 temporadas completas no comando', reqType: 'seasons', reqVal: 4 }
 ];
 
 function getStadiumExpansionData(){
@@ -6795,6 +6799,13 @@ function load(){
     recordAFMError('local-save-read', e);
     return null;
   }
+}
+
+function saveUserSlot(slotNum){
+  if(state && slotNum){
+    state.userSlot = Math.max(1, Math.min(3, Number(slotNum) || 1));
+  }
+  return save();
 }
 
 function loadUserSlot(slotNum, ownerUsername = null){
@@ -11034,7 +11045,7 @@ function newCareer(data){
   };
 
   const curUser = getActiveAccount();
-  const targetSlot = Number(data.slot) || setupSelectedSlot || 1;
+  const targetSlot = Number(data.slot ?? data.userSlot) || setupSelectedSlot || 1;
   const targetOwner = (data.owner || curUser?.username || 'aquino').toLowerCase();
   const mgrName = data.manager || curUser?.name || 'Aquino';
   const saveId = `save_${targetOwner}_slot${targetSlot}_${norm(club.name)}`;
@@ -23771,6 +23782,19 @@ function render() {
     const sideNav = app.querySelector('.nav');
     if(mainEl && sideNav && app.querySelector('.app')){
       try {
+        // Auto-cura e sincronização da navegação (Garante que Ranking & PIX e todos os itens estejam presentes)
+        if(!sideNav.querySelector('[data-view="ranking"]')){
+          sideNav.innerHTML = getDrawerNavItems().map(([id,l])=>`<button class="btn ${view===id?'active':''}" data-view="${id}">${l}</button>`).join('');
+        }
+        const ribbon = app.querySelector('.sm-task-ribbon');
+        if(ribbon && !ribbon.querySelector('[data-view="ranking"]')){
+          const calBtn = ribbon.querySelector('[data-view="calendario"]');
+          const rankingPillHtml = `<button type="button" class="sm-ribbon-pill ${view==='ranking'?'active':''}" data-view="ranking" style="${view==='ranking'?'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border-color:#c084fc;':''}" title="Ranking Nacional de Técnicos & PIX R$ 1.000">👑 Ranking & PIX</button>`;
+          if(calBtn) {
+            calBtn.insertAdjacentHTML('beforebegin', rankingPillHtml);
+          }
+        }
+
         const nextHtml = page();
         mainEl.innerHTML = nextHtml;
         sideNav.querySelectorAll('[data-view]').forEach(b => {
@@ -24674,6 +24698,32 @@ function clubShortTag(clubName){
 }
 window.clubShortTag = clubShortTag;
 
+function getDrawerNavItems(){
+  const account = (typeof getActiveAccount === 'function') ? getActiveAccount() : null;
+  const isAdminUser = Boolean(
+    account?.role === 'admin' ||
+    account?.username?.toLowerCase() === 'admin' ||
+    (window.AFM_DB && typeof window.AFM_DB.isAdmin === 'function' && window.AFM_DB.isAdmin())
+  );
+  return [
+    ['central','⭐ Perspectiva Geral'],
+    ['meutime','📋 Meu time & Tática'],
+    ['elenco','👥 Elenco Oficial'],
+    ['calendario','🗓️ Calendário de Jogos'],
+    ['mercado','🔄 Mercado & Transferências'],
+    ['carreira','💼 Carreira do Treinador'],
+    ['ranking','👑 Ranking & PIX R$ 1.000'],
+    ['temporada','🏆 Temporada'],
+    ['estrutura','🏟️ Instalações & Estádio'],
+    ['escritorio','🏢 Escritório & Finanças'],
+    ['noticias','📰 Notícias & Mídia'],
+    ['novidades','📢 Novidades & Correções'],
+    ['config','⚙️ Configurações'],
+    ...(isAdminUser ? [['admin','🛡️ Painel Admin']] : [])
+  ];
+}
+window.getDrawerNavItems = getDrawerNavItems;
+
 function shell(main){
   const c = clubByName(state?.club) || { stadium: 'Estádio do clube' };
   const winInfo = getTransferWindowInfo(state?.date);
@@ -24704,7 +24754,7 @@ function shell(main){
       <header class="top sm-topbar">
         <!-- BLOCO ESQUERDO: HAMBURGUER, ESCUDO + SIGLA, LOJA, AJUDA -->
         <div class="sm-top-left">
-          <button type="button" class="sm-btn-hamburger" id="btnToggleSidebarDrawer" title="Menu de Navegação">
+          <button type="button" class="sm-btn-hamburger" id="btnToggleSidebarDrawer" onclick="if(typeof window.toggleAFMMobileDrawer==='function'){window.toggleAFMMobileDrawer();if(window.event)window.event.stopPropagation();}" title="Menu de Navegação">
             ☰
           </button>
           <div class="sm-club-identity" title="${esc(state.club)}">
@@ -24776,6 +24826,7 @@ function shell(main){
         <button type="button" class="sm-ribbon-pill ${view==='mercado'?'active':''}" data-view="mercado">🔄 Mercado & Transferências</button>
         <button type="button" class="sm-ribbon-pill ${view==='escritorio'?'active':''}" data-view="escritorio">🏢 Escritório & Finanças</button>
         <button type="button" class="sm-ribbon-pill ${view==='carreira'?'active':''}" data-view="carreira">🎯 Carreira</button>
+        <button type="button" class="sm-ribbon-pill ${view==='ranking'?'active':''}" data-view="ranking" style="${view==='ranking'?'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border-color:#c084fc;':''}" title="Ranking Nacional de Técnicos & PIX R$ 1.000">👑 Ranking & PIX</button>
         <button type="button" class="sm-ribbon-pill ${view==='noticias'?'active':''}" data-view="noticias">📰 Notícias & Mídia</button>
         <div class="sm-ribbon-ticker">
           <span>⚽ ${tickerMsg}</span>
@@ -24788,7 +24839,7 @@ function shell(main){
       <!-- LAYOUT COM DRAWER E CONTEÚDO PRINCIPAL -->
       <div class="layout">
         <!-- Backdrop para fechar o menu no mobile -->
-        <div id="afmDrawerBackdrop" class="afm-drawer-backdrop"></div>
+        <div id="afmDrawerBackdrop" class="afm-drawer-backdrop" onclick="if(typeof window.toggleAFMMobileDrawer==='function'){window.toggleAFMMobileDrawer(false);}"></div>
 
         <aside class="side sm-drawer" id="afmSideDrawer">
           <div class="sm-drawer-header">
@@ -24799,7 +24850,7 @@ function shell(main){
                 <div class="small" style="color:var(--neon)">${esc(state.competition)}</div>
               </div>
             </div>
-            <button type="button" class="sm-drawer-close" id="btnCloseMobileDrawer" title="Fechar Menu Lateral">✕</button>
+            <button type="button" class="sm-drawer-close" id="btnCloseMobileDrawer" onclick="if(typeof window.toggleAFMMobileDrawer==='function'){window.toggleAFMMobileDrawer(false);if(window.event)window.event.stopPropagation();}" title="Fechar Menu Lateral">✕</button>
           </div>
 
           <div class="club-card" style="margin-top:4px;padding:12px;">
@@ -24811,21 +24862,7 @@ function shell(main){
           </div>
 
           <nav class="nav sm-drawer-nav">
-            ${[
-              ['central','⭐ Perspectiva Geral'],
-              ['meutime','📋 Meu time & Tática'],
-              ['elenco','👥 Elenco Oficial'],
-              ['calendario','🗓️ Calendário de Jogos'],
-              ['mercado','🔄 Mercado & Transferências'],
-              ['carreira','💼 Carreira do Treinador'],
-              ['temporada','🏆 Temporada'],
-              ['estrutura','🏟️ Instalações & Estádio'],
-              ['escritorio','🏢 Escritório & Finanças'],
-              ['noticias','📰 Notícias & Mídia'],
-              ['novidades','📢 Novidades & Correções'],
-              ['config','⚙️ Configurações'],
-              ...((getActiveAccount()?.role === 'admin' || getActiveAccount()?.username?.toLowerCase() === 'admin' || (window.AFM_DB && typeof window.AFM_DB.isAdmin === 'function' && window.AFM_DB.isAdmin())) ? [['admin','🛡️ Painel Admin']] : [])
-            ].map(([id,l])=>`<button class="btn ${view===id?'active':''}" data-view="${id}">${l}</button>`).join('')}
+            ${getDrawerNavItems().map(([id,l])=>`<button class="btn ${view===id?'active':''}" data-view="${id}">${l}</button>`).join('')}
           </nav>
 
           <div class="sm-drawer-footer">
@@ -24842,6 +24879,12 @@ function shell(main){
   `;
 }
 
+function inGameRankingPage(){
+  return (window.AFM_CoachRanking && typeof window.AFM_CoachRanking.renderInGamePage === 'function')
+    ? window.AFM_CoachRanking.renderInGamePage()
+    : (typeof window.rankingPage === 'function' ? window.rankingPage({ isLanding: false }) : '<div class="card" style="padding:24px;text-align:center;color:#fff">Carregando Ranking...</div>');
+}
+
 function page(){
   const activeView = (typeof window !== 'undefined' && typeof window.view === 'string' && window.view) ? window.view : view;
   return ({
@@ -24854,6 +24897,7 @@ function page(){
     estrutura:structurePage,
     escritorio:officePage,
     carreira:careerPage,
+    ranking:inGameRankingPage,
     temporada:seasonPage,
     novidades:changelogPage,
     config:configPage
@@ -28433,7 +28477,7 @@ function structurePage(){
         🏆 MUSEU DO CLUBE (${musData.levelObj.name})
       </button>
       <button class="btn btn-struct-tab ${structureSubTab==='house'?'primary':''}" data-struct-tab="house" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #10b981">
-        🏠 SUA CASA & LICENÇAS
+        🏠 SUA CASA & BENS PESSOAIS
       </button>
     </div>
 
@@ -28941,24 +28985,29 @@ function structurePage(){
         ` : ''}
       </div>
     ` : `
-      <!-- SUA CASA & LICENÇAS DO TREINADOR -->
+      <!-- SUA CASA & BENS PESSOAIS DO TREINADOR -->
       <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(16,185,129,0.3);border-radius:18px">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
           <div>
             <h2 style="margin:0;font-size:22px;font-weight:900;color:#fff;text-transform:uppercase">
-              SUA CASA & LICENÇAS PROFISSIONAIS
+              SUA CASA & PATRIMÔNIO PESSOAL
             </h2>
             <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
-              Bens de topo, carros esportivos e licenças que exigem títulos e temporadas completas na carreira.
+              Imóveis de alto padrão, veículos esportivos, coleções e bens de luxo adquiridos na carreira.
             </div>
           </div>
-          <span class="pill" style="background:#059669;color:#fff;font-weight:800">
-            Seu Patrimônio Pessoal: ${fmtMoney(state.managerMoney||57000)}
-          </span>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button id="btnOpenCbfLicensesFromHouse" type="button" style="background:rgba(15,23,42,0.85);color:#38bdf8;border:1px solid rgba(56,189,248,0.45);border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+              🎓 CURSOS & LICENÇAS (CBF & UEFA)
+            </button>
+            <span class="pill" style="background:#059669;color:#fff;font-weight:800">
+              Seu Patrimônio Pessoal: ${fmtMoney(state.managerMoney||57000)}
+            </span>
+          </div>
         </div>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:14px;margin-top:20px">
-          ${HOUSE_ITEMS.map(item => {
+          ${HOUSE_ITEMS.filter(item => !item.isLicense && item.category !== 'Curso').map(item => {
             const hasBought = (state.housePurchases || []).includes(item.id);
             let canBuy = item.unlocked;
             if(!canBuy){
@@ -32225,7 +32274,7 @@ function renderSetup(app){
         <div class="afm-landing-wrapper">
           ${renderLandingNavbar('ranking')}
           <div style="max-width:1440px;margin:0 auto;padding:10px 20px 40px">
-            ${typeof window.rankingPage === 'function' ? window.rankingPage() : '<div style="color:#fff;text-align:center;padding:40px">Carregando Ranking Oficial...</div>'}
+            ${(window.AFM_CoachRanking && typeof window.AFM_CoachRanking.renderLandingPage === 'function') ? window.AFM_CoachRanking.renderLandingPage() : (typeof window.rankingPage === 'function' ? window.rankingPage({ isLanding: true }) : '<div style="color:#fff;text-align:center;padding:40px">Carregando Ranking Oficial...</div>')}
           </div>
         </div>
       `;
@@ -32885,6 +32934,157 @@ function renderSetup(app){
           </div>
 
         </div>
+
+        <!-- ============================================================== -->
+        <!-- SEÇÃO EA SPORTS FC™ 27 STYLE: RECURSOS & INOVAÇÕES DO JOGO    -->
+        <!-- ============================================================== -->
+        <section class="afm-fc-section" id="sectionFeaturesLanding">
+          <div class="afm-fc-section-header">
+            <div class="afm-fc-badge">
+              <span>🎮</span> RECURSOS E SISTEMAS DE JOGABILIDADE
+            </div>
+            <h2 class="afm-fc-title">
+              FUTEBOL AUTÊNTICO, TÁTICA PROFISSIONAL & GESTÃO
+            </h2>
+            <p class="afm-fc-subtitle">
+              Sinta o controle em todos os momentos do jogo. Uma experiência de gestão moderna inspirada nos maiores simuladores do mundo, construída especialmente para o futebol brasileiro.
+            </p>
+          </div>
+
+          <div class="afm-fc-cards-grid">
+            <!-- Card 1: Motor Tático em 4 Fases -->
+            <article class="afm-fc-card">
+              <div>
+                <div class="afm-fc-card-icon" style="background:rgba(124,58,237,0.2);border-color:#7c3aed;color:#c084fc">
+                  ⚽
+                </div>
+                <h3 class="afm-fc-card-title">Motor Tático em 4 Fases</h3>
+                <p class="afm-fc-card-desc">
+                  Comande seu elenco na <b>Construção</b>, <b>Criação</b>, <b>Finalização</b> e <b>Transição Defensiva</b>. Ajuste amplitude, compactação e pressão com movimentação tática realista dos 22 atletas em campo.
+                </p>
+              </div>
+              <button type="button" class="afm-fc-card-btn" id="btnExploreSysTactics">
+                <span>Explorar Táticas</span> <span>❯</span>
+              </button>
+            </article>
+
+            <!-- Card 2: Construção de Arenas de até 100k Lugares -->
+            <article class="afm-fc-card">
+              <div>
+                <div class="afm-fc-card-icon" style="background:rgba(2,132,199,0.2);border-color:#0284c7;color:#38bdf8">
+                  🏟️
+                </div>
+                <h3 class="afm-fc-card-title">Arenas de até 100.000 Lugares</h3>
+                <p class="afm-fc-card-desc">
+                  Erga a nova arena do seu clube do zero. Regularize lotes com a prefeitura, construa anel por anel até 100k lugares, selecione gramados híbridos ou sintéticos e feche contratos milionários de Naming Rights.
+                </p>
+              </div>
+              <button type="button" class="afm-fc-card-btn" id="btnExploreSysArenas">
+                <span>Ver Arenas 3D</span> <span>❯</span>
+              </button>
+            </article>
+
+            <!-- Card 3: 11 Estaduais Oficiais & Copas -->
+            <article class="afm-fc-card">
+              <div>
+                <div class="afm-fc-card-icon" style="background:rgba(245,158,11,0.2);border-color:#f59e0b;color:#facc15">
+                  🏆
+                </div>
+                <h3 class="afm-fc-card-title">11 Estaduais Oficiais</h3>
+                <p class="afm-fc-card-desc">
+                  Dispute Paulistão, Carioca, Gaúcho, Mineiro, Candangão e mais 6 federações sincronizadas. Calendário cronológico data por data perfeitamente integrado às Séries A, B, C, D e Copa do Brasil.
+                </p>
+              </div>
+              <button type="button" class="afm-fc-card-btn" id="btnExploreSysEstaduais">
+                <span>Conhecer Estaduais</span> <span>❯</span>
+              </button>
+            </article>
+
+            <!-- Card 4: Carreira, SAFs e Licenças CBF/UEFA -->
+            <article class="afm-fc-card">
+              <div>
+                <div class="afm-fc-card-icon" style="background:rgba(16,185,129,0.2);border-color:#10b981;color:#6ee7b7">
+                  💼
+                </div>
+                <h3 class="afm-fc-card-title">Vida do Treinador & SAF</h3>
+                <p class="afm-fc-card-desc">
+                  Negocie seu salário real, adquira ações SAF do clube, monte seu patrimônio pessoal com imóveis e veículos, e conquiste as licenças da Academia CBF e UEFA PRO para comandar gigantes mundiais.
+                </p>
+              </div>
+              <button type="button" class="afm-fc-card-btn" id="btnExploreSysCareer">
+                <span>Vida do Treinador</span> <span>❯</span>
+              </button>
+            </article>
+          </div>
+
+          <!-- BARRA DE ESTATÍSTICAS E AUTENTICIDADE -->
+          <div class="afm-fc-stats-bar">
+            <div>
+              <div class="afm-fc-stat-number">3.500+</div>
+              <div class="afm-fc-stat-label">Craques com Fotos e Overalls Reais</div>
+            </div>
+            <div>
+              <div class="afm-fc-stat-number">140+</div>
+              <div class="afm-fc-stat-label">Clubes das Séries A, B, C e D</div>
+            </div>
+            <div>
+              <div class="afm-fc-stat-number">11</div>
+              <div class="afm-fc-stat-label">Estaduais Oficiais com Regulamento Próprio</div>
+            </div>
+            <div>
+              <div class="afm-fc-stat-number">100k</div>
+              <div class="afm-fc-stat-label">Lugares em Arenas Monumentais</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- BANNER DE CONVITE AO RANKING DE TÉCNICOS (SEM CADASTRO DE DADOS) -->
+        <!-- ============================================================== -->
+        <section style="background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(15,23,42,0.9));border-top:1px solid rgba(16,185,129,0.3);border-bottom:1px solid rgba(16,185,129,0.3);padding:60px 24px;text-align:center;">
+          <div style="max-width:960px;margin:0 auto">
+            <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.2);border:1px solid #10b981;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:900;color:#6ee7b7;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">
+              👑 DISPUTA PELA LIDERANÇA NACIONAL
+            </div>
+            <h2 style="font-size:clamp(26px,3vw,38px);font-weight:900;color:#fff;margin:0 0 14px 0;letter-spacing:-0.5px">
+              RANKING NACIONAL DE TÉCNICOS & PREMIAÇÃO R$ 1.000 NO PIX
+            </h2>
+            <p style="font-size:15px;color:#cbd5e1;max-width:700px;margin:0 auto 26px;line-height:1.6">
+              Acompanhe a tabela e o desempenho dos melhores técnicos da comunidade em tempo real. Veja quem está no pódio sem precisar preencher dados na página inicial.
+            </p>
+            <div style="display:flex;justify-content:center;gap:14px;flex-wrap:wrap">
+              <button type="button" class="btn" id="btnLandingGoRankingSection" style="background:#10b981;border:none;color:#040711;font-size:14px;font-weight:900;padding:14px 30px;border-radius:12px;cursor:pointer;box-shadow:0 6px 20px rgba(16,185,129,0.4)">
+                📊 Ver Tabela Completa do Ranking
+              </button>
+              <button type="button" class="btn" id="btnLandingCtaScrollLogin" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:14px;font-weight:800;padding:14px 26px;border-radius:12px;cursor:pointer">
+                🚀 Entrar no Jogo & Pontuar
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- RODAPÉ ESTILO EA SPORTS FC™ 27                                  -->
+        <!-- ============================================================== -->
+        <footer class="afm-fc-footer">
+          <div style="max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;margin-bottom:24px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:24px">⚽</span>
+              <span style="font-size:16px;font-weight:900;color:#fff">AFM MANAGER <b style="color:#a7ff3f">2027</b></span>
+            </div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:13px;font-weight:700">
+              <a href="javascript:void(0)" id="footerLinkHome" style="color:#94a3b8;text-decoration:none">Início</a>
+              <a href="javascript:void(0)" id="footerLinkSystems" style="color:#94a3b8;text-decoration:none">Todos os Sistemas</a>
+              <a href="javascript:void(0)" id="footerLinkArenas" style="color:#94a3b8;text-decoration:none">Novas Arenas</a>
+              <a href="javascript:void(0)" id="footerLinkEstaduais" style="color:#94a3b8;text-decoration:none">11 Estaduais</a>
+              <a href="javascript:void(0)" id="footerLinkRanking" style="color:#6ee7b7;text-decoration:none">Ranking dos Técnicos</a>
+            </div>
+          </div>
+          <div>
+            © 2027 AFM Manager. Todos os direitos reservados. Sincronizado e persistido na nuvem Supabase Cloud.<br>
+            Simulador de futebol local-first para navegadores modernos. Não requer downloads ou instalações.
+          </div>
+        </footer>
       </div>
     `;
     bindSetup();
@@ -33805,6 +34005,39 @@ function bindSetup(){
     renderSetup($('#app'));
   };
 
+  const bExpTac = $('#btnExploreSysTactics');
+  if(bExpTac) bExpTac.onclick = () => { setupViewMode = 'systems'; renderSetup($('#app')); };
+
+  const bExpAre = $('#btnExploreSysArenas');
+  if(bExpAre) bExpAre.onclick = () => { setupViewMode = 'arenas'; renderSetup($('#app')); };
+
+  const bExpEst = $('#btnExploreSysEstaduais');
+  if(bExpEst) bExpEst.onclick = () => { setupViewMode = 'estaduais'; renderSetup($('#app')); };
+
+  const bExpCar = $('#btnExploreSysCareer');
+  if(bExpCar) bExpCar.onclick = () => { setupViewMode = 'systems'; renderSetup($('#app')); };
+
+  const bGoRkSec = $('#btnLandingGoRankingSection');
+  if(bGoRkSec) bGoRkSec.onclick = () => { setupViewMode = 'ranking'; renderSetup($('#app')); };
+
+  const bScrollLog = $('#btnLandingCtaScrollLogin');
+  if(bScrollLog) bScrollLog.onclick = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const uField = $('#inputAuthUser');
+    if(uField) setTimeout(() => uField.focus(), 300);
+  };
+
+  const fHome = $('#footerLinkHome');
+  if(fHome) fHome.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const fSys = $('#footerLinkSystems');
+  if(fSys) fSys.onclick = () => { setupViewMode = 'systems'; renderSetup($('#app')); };
+  const fAre = $('#footerLinkArenas');
+  if(fAre) fAre.onclick = () => { setupViewMode = 'arenas'; renderSetup($('#app')); };
+  const fEst = $('#footerLinkEstaduais');
+  if(fEst) fEst.onclick = () => { setupViewMode = 'estaduais'; renderSetup($('#app')); };
+  const fRk = $('#footerLinkRanking');
+  if(fRk) fRk.onclick = () => { setupViewMode = 'ranking'; renderSetup($('#app')); };
+
   const btnCtaTop = $('#btnCtaTopAuth');
   if(btnCtaTop) btnCtaTop.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
 
@@ -34328,6 +34561,20 @@ function bind(){
     if(btnSkipMus){
       btnSkipMus.onclick = skipUpgradeMuseum;
     }
+    const btnOpenLicHouse = $('#btnOpenCbfLicensesFromHouse');
+    if(btnOpenLicHouse){
+      btnOpenLicHouse.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if(typeof window.openLicensesModal === 'function'){
+          window.openLicensesModal();
+        } else if(window.AFM_LicensesModal && typeof window.AFM_LicensesModal.open === 'function'){
+          window.AFM_LicensesModal.open();
+        } else {
+          toast('Academia de Licenças da CBF & UEFA carregando...');
+        }
+      };
+    }
     $$('.btnBuyHouseItem').forEach(b => {
       b.onclick = () => {
         buyHouseItem(b.dataset.itemId);
@@ -34414,25 +34661,40 @@ function bind(){
   };
 
   const btnCloseDrawer = $('#btnCloseMobileDrawer');
-  if(btnCloseDrawer) btnCloseDrawer.onclick = (e) => {
-    e.preventDefault();
-    if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
-    const drawer = document.getElementById('afmSideDrawer');
-    if(drawer) drawer.classList.remove('drawer-open');
-    const backdrop = document.getElementById('afmDrawerBackdrop');
-    if(backdrop) backdrop.classList.remove('active');
-  };
+  if(btnCloseDrawer) {
+    const closeAction = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
+      const drawer = document.getElementById('afmSideDrawer');
+      if(drawer) drawer.classList.remove('drawer-open');
+      const backdrop = document.getElementById('afmDrawerBackdrop');
+      if(backdrop) backdrop.classList.remove('active');
+    };
+    btnCloseDrawer.onclick = closeAction;
+    btnCloseDrawer.ontouchend = closeAction;
+  }
 
   const btnToggleDrawer = $('#btnToggleSidebarDrawer');
-  if(btnToggleDrawer) btnToggleDrawer.onclick = (e) => {
-    e.preventDefault();
-    if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer();
-  };
+  if(btnToggleDrawer) {
+    const toggleAction = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer();
+    };
+    btnToggleDrawer.onclick = toggleAction;
+    btnToggleDrawer.ontouchend = toggleAction;
+  }
   const backdropDrawer = $('#afmDrawerBackdrop');
-  if(backdropDrawer) backdropDrawer.onclick = (e) => {
-    e.preventDefault();
-    if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
-  };
+  if(backdropDrawer) {
+    const backdropAction = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
+    };
+    backdropDrawer.onclick = backdropAction;
+    backdropDrawer.ontouchend = backdropAction;
+  }
 
   if(view==='central'){
     const bHeroSquad = $('#btnHeroQuickSquad');
@@ -35339,6 +35601,12 @@ function bind(){
       };
     }
   }
+
+  if(view === 'ranking'){
+    if(window.AFM_CoachRanking && typeof window.AFM_CoachRanking.bindRankingEvents === 'function'){
+      window.AFM_CoachRanking.bindRankingEvents();
+    }
+  }
 }
 
 // -------------------------------------------------------------
@@ -35752,6 +36020,8 @@ window.simulateMinute = simulateMinute;
 window.createMatchPRNG = createMatchPRNG;
 window.clubBadge = clubBadge;
 window.clubDisplayName = clubDisplayName;
+window.shell = shell;
+window.page = page;
 window.getLiveMatchState = () => liveMatchState;
 window.setLiveMatchState = (s) => { liveMatchState = s; };
 try {
@@ -35766,6 +36036,7 @@ window.newCareer = newCareer;
 window.advanceSeasonYear = advanceSeasonYear;
 window.executeSeasonTransitions = executeSeasonTransitions;
 window.save = save;
+window.saveUserSlot = saveUserSlot;
 window.load = load;
 window.loadUserSlot = loadUserSlot;
 window.getUserSaveSlots = getUserSaveSlots;

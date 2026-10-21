@@ -199,6 +199,7 @@
   // 4. Modo Horizontal Estrito (Landscape Enforcer & Orientation Guard)
   // Cria o overlay se ele não estiver no HTML
   function ensureOrientationGuardDOM() {
+    if (!document || !document.body) return;
     if (document.getElementById('afmOrientationGuard')) return;
 
     const guardHtml = `
@@ -226,161 +227,218 @@
   }
 
   // 5. Drawer / Menu Lateral Deslizante Mobile
+  let lastAFMDrawerToggleTs = 0;
   window.toggleAFMMobileDrawer = function(forceState) {
     const drawer = document.getElementById('afmSideDrawer');
     const backdrop = document.getElementById('afmDrawerBackdrop');
     if (!drawer) return;
 
+    const now = Date.now();
+    // Previne duplo disparo acidental entre touch e click
+    if (typeof forceState !== 'boolean') {
+      if (now - lastAFMDrawerToggleTs < 160) {
+        return;
+      }
+      lastAFMDrawerToggleTs = now;
+    }
+
     const willOpen = (typeof forceState === 'boolean') ? forceState : !drawer.classList.contains('drawer-open');
     if (willOpen) {
       drawer.classList.add('drawer-open');
-      if (backdrop) backdrop.classList.add('active');
+      if (drawer.style) {
+        drawer.style.transform = 'translateX(0)';
+        drawer.style.webkitTransform = 'translateX(0)';
+        drawer.style.display = 'flex';
+        drawer.style.visibility = 'visible';
+        drawer.style.pointerEvents = 'auto';
+        drawer.style.zIndex = '1200';
+      }
+      if (backdrop) {
+        backdrop.classList.add('active');
+        if (backdrop.style) {
+          backdrop.style.opacity = '1';
+          backdrop.style.pointerEvents = 'auto';
+          backdrop.style.display = 'block';
+          backdrop.style.zIndex = '1199';
+        }
+      }
     } else {
       drawer.classList.remove('drawer-open');
-      if (backdrop) backdrop.classList.remove('active');
+      if (drawer.style) {
+        drawer.style.transform = '';
+        drawer.style.webkitTransform = '';
+        drawer.style.zIndex = '';
+      }
+      if (backdrop) {
+        backdrop.classList.remove('active');
+        if (backdrop.style) {
+          backdrop.style.opacity = '';
+          backdrop.style.pointerEvents = '';
+          backdrop.style.display = '';
+          backdrop.style.zIndex = '';
+        }
+      }
     }
   };
 
-  // 6. Delegação Global de Eventos de Interação
+  // 6. Delegação Global de Eventos de Interação (Click e Touch)
   if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
-    document.addEventListener('click', (e) => {
-    // Abrir/Fechar Gaveta lateral
-    if (e.target.closest('#btnToggleSidebarDrawer')) {
-      e.preventDefault();
-      window.toggleAFMMobileDrawer();
-      return;
-    }
-    if (e.target.closest('#btnCloseMobileDrawer')) {
-      e.preventDefault();
-      if (typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
-      return;
-    }
-    if (e.target.closest('#mainMenuBtn') || e.target.closest('#btnExitToMainMenu')) {
-      e.preventDefault();
-      if (typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
-      if (typeof window.handleExitGameAction === 'function') {
-        window.handleExitGameAction();
-        return;
-      }
-      return;
-    }
-    if (e.target.closest('#afmDrawerBackdrop')) {
-      e.preventDefault();
-      window.toggleAFMMobileDrawer(false);
-      return;
-    }
-
-    // Fechar gaveta ao clicar em um item de navegação no mobile
-    if (e.target.closest('.sm-drawer-nav [data-view]') || e.target.closest('.sm-ribbon-pill[data-view]')) {
-      const isMobileScreen = window.innerWidth <= 1024 || window.innerHeight <= 600;
-      if (isMobileScreen) {
-        setTimeout(() => window.toggleAFMMobileDrawer(false), 80);
-      }
-    }
-
-    // Botão de Tela Cheia
-    if (e.target.closest('.afm-btn-fullscreen') || e.target.closest('#btnTopFullscreen')) {
-      e.preventDefault();
-      window.toggleAFMFullscreen();
-      return;
-    }
-
-    // Botão de Instalar App
-    if (e.target.closest('.afm-btn-install-app') || e.target.closest('#btnTopInstallApp')) {
-      e.preventDefault();
-      window.installAFMApp();
-      return;
-    }
-
-    // Botão Loja
-    if (e.target.closest('#btnTopStore')) {
-      e.preventDefault();
-      try {
-        if (typeof window.openStoreComingSoonModal === 'function') {
-          window.openStoreComingSoonModal();
-          return;
-        }
-      } catch (errStore) {
-        console.warn('Erro ao abrir modal de loja:', errStore);
-      }
-      if (typeof window.view !== 'undefined') {
-        window.view = 'escritorio';
-        if (typeof window.render === 'function') window.render();
-      }
-      return;
-    }
-
-    // Botão Ajuda
-    if (e.target.closest('#btnTopHelp')) {
-      e.preventDefault();
-      try {
-        if (typeof window.openGameHelpTutorialModal === 'function') {
-          window.openGameHelpTutorialModal();
-          return;
-        }
-      } catch (errHelp) {
-        console.warn('Erro ao abrir modal de ajuda:', errHelp);
-      }
-      if (typeof window.view !== 'undefined') {
-        window.view = 'novidades';
-        if (typeof window.render === 'function') window.render();
-      }
-      return;
-    }
-
-    // Alternância de Abas de Competições na Central (Estadual, Copa, Continental)
-    if (e.target.closest('.btn-central-cup-tab')) {
-      const btn = e.target.closest('.btn-central-cup-tab');
-      if (btn && btn.dataset && btn.dataset.tabId && window.state) {
+    const handleDrawerInteraction = (e) => {
+      // Abrir/Fechar Gaveta lateral pelo botão hambúrguer
+      if (e.target.closest('#btnToggleSidebarDrawer')) {
         e.preventDefault();
-        window.state.centralCupTab = btn.dataset.tabId;
-        if (typeof window.render === 'function') window.render();
+        e.stopPropagation();
+        window.toggleAFMMobileDrawer();
         return;
       }
-    }
-
-    if (e.target.closest('#btnGoToEstadualTableFromCentral')) {
-      e.preventDefault();
-      if (typeof window.view !== 'undefined') {
-        const mShips = (typeof window.getSavedSeasonMemberships === 'function') ? window.getSavedSeasonMemberships(window.state?.club) : null;
-        window.view = 'calendario';
-        if (mShips?.stateId) window.calendarFilter = mShips.stateId;
-        if (typeof window.render === 'function') window.render();
+      if (e.target.closest('#btnCloseMobileDrawer')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
+        return;
       }
-      return;
-    }
+      if (e.target.closest('#mainMenuBtn') || e.target.closest('#btnExitToMainMenu')) {
+        e.preventDefault();
+        if (typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
+        if (typeof window.handleExitGameAction === 'function') {
+          window.handleExitGameAction();
+          return;
+        }
+        return;
+      }
+      if (e.target.closest('#afmDrawerBackdrop') || e.target.id === 'afmDrawerBackdrop') {
+        e.preventDefault();
+        window.toggleAFMMobileDrawer(false);
+        return;
+      }
 
-    // Botão CONTINUAR (Soccer Manager 2027 style)
-    if (e.target.closest('#btnHeaderContinue')) {
-      e.preventDefault();
-      try {
-        if (typeof window.handleHeaderContinueAction === 'function') {
-          window.handleHeaderContinueAction();
-          return;
+      // Fechar gaveta imediatamente ao clicar em um item de navegação do menu lateral
+      if (e.target.closest('.sm-drawer-nav [data-view]')) {
+        window.toggleAFMMobileDrawer(false);
+      }
+
+      // Botão de Tela Cheia
+      if (e.target.closest('.afm-btn-fullscreen') || e.target.closest('#btnTopFullscreen')) {
+        e.preventDefault();
+        window.toggleAFMFullscreen();
+        return;
+      }
+
+      // Botão de Instalar App
+      if (e.target.closest('.afm-btn-install-app') || e.target.closest('#btnTopInstallApp')) {
+        e.preventDefault();
+        window.installAFMApp();
+        return;
+      }
+
+      // Botão de Licenças e Cursos (Acessível na Carreira e em Instalações/Casa)
+      if (e.target.closest('#btnOpenCbfLicensesFromHouse') || e.target.closest('#btn-open-cbf-licenses')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.openLicensesModal === 'function') {
+          window.openLicensesModal();
+        } else if (window.AFM_LicensesModal && typeof window.AFM_LicensesModal.open === 'function') {
+          window.AFM_LicensesModal.open();
         }
-        if (typeof window.openMatchActionModal === 'function') {
-          window.openMatchActionModal();
-          return;
-        }
-        if (typeof window.canStartMatch === 'function') {
-          const gate = window.canStartMatch();
-          if (gate.ok || gate.canStart) {
-            if (typeof window.startLiveMatch === 'function') window.startLiveMatch();
+        return;
+      }
+
+      // Botão Loja
+      if (e.target.closest('#btnTopStore')) {
+        e.preventDefault();
+        try {
+          if (typeof window.openStoreComingSoonModal === 'function') {
+            window.openStoreComingSoonModal();
             return;
           }
+        } catch (errStore) {
+          console.warn('Erro ao abrir modal de loja:', errStore);
         }
-        if (window.AFM_CalendarFix && typeof window.AFM_CalendarFix.advanceToNextMatchGuaranteed === 'function' && window.state) {
-          window.AFM_CalendarFix.advanceToNextMatchGuaranteed(window.state);
-        } else if (typeof window.advanceCalendarDays === 'function') {
-          window.advanceCalendarDays(1, true);
+        if (typeof window.view !== 'undefined') {
+          window.view = 'escritorio';
+          if (typeof window.render === 'function') window.render();
         }
-      } catch (err) {
-        console.warn('[AFM Continue] Erro ao avançar pelo botão Continuar:', err);
+        return;
       }
-      return;
-    }
-  });
-}
+
+      // Botão Ajuda
+      if (e.target.closest('#btnTopHelp')) {
+        e.preventDefault();
+        try {
+          if (typeof window.openGameHelpTutorialModal === 'function') {
+            window.openGameHelpTutorialModal();
+            return;
+          }
+        } catch (errHelp) {
+          console.warn('Erro ao abrir modal de ajuda:', errHelp);
+        }
+        if (typeof window.view !== 'undefined') {
+          window.view = 'novidades';
+          if (typeof window.render === 'function') window.render();
+        }
+        return;
+      }
+
+      // Alternância de Abas de Competições na Central (Estadual, Copa, Continental)
+      if (e.target.closest('.btn-central-cup-tab')) {
+        const btn = e.target.closest('.btn-central-cup-tab');
+        if (btn && btn.dataset && btn.dataset.tabId && window.state) {
+          e.preventDefault();
+          window.state.centralCupTab = btn.dataset.tabId;
+          if (typeof window.render === 'function') window.render();
+          return;
+        }
+      }
+
+      if (e.target.closest('#btnGoToEstadualTableFromCentral')) {
+        e.preventDefault();
+        if (typeof window.view !== 'undefined') {
+          const mShips = (typeof window.getSavedSeasonMemberships === 'function') ? window.getSavedSeasonMemberships(window.state?.club) : null;
+          window.view = 'calendario';
+          if (mShips?.stateId) window.calendarFilter = mShips.stateId;
+          if (typeof window.render === 'function') window.render();
+        }
+        return;
+      }
+
+      // Botão CONTINUAR (Soccer Manager 2027 style)
+      if (e.target.closest('#btnHeaderContinue')) {
+        e.preventDefault();
+        try {
+          if (typeof window.handleHeaderContinueAction === 'function') {
+            window.handleHeaderContinueAction();
+            return;
+          }
+          if (typeof window.openMatchActionModal === 'function') {
+            window.openMatchActionModal();
+            return;
+          }
+          if (typeof window.canStartMatch === 'function') {
+            const gate = window.canStartMatch();
+            if (gate.ok || gate.canStart) {
+              if (typeof window.startLiveMatch === 'function') window.startLiveMatch();
+              return;
+            }
+          }
+          if (window.AFM_CalendarFix && typeof window.AFM_CalendarFix.advanceToNextMatchGuaranteed === 'function' && window.state) {
+            window.AFM_CalendarFix.advanceToNextMatchGuaranteed(window.state);
+          } else if (typeof window.advanceCalendarDays === 'function') {
+            window.advanceCalendarDays(1, true);
+          }
+        } catch (err) {
+          console.warn('[AFM Continue] Erro ao avançar pelo botão Continuar:', err);
+        }
+        return;
+      }
+    };
+
+    document.addEventListener('click', handleDrawerInteraction);
+    document.addEventListener('touchend', (e) => {
+      if (e.target.closest('#btnToggleSidebarDrawer') || e.target.closest('#btnCloseMobileDrawer') || e.target.closest('#afmDrawerBackdrop')) {
+        handleDrawerInteraction(e);
+      }
+    }, { passive: false });
+  }
 
   if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
     // Fecha o menu lateral com a tecla ESC

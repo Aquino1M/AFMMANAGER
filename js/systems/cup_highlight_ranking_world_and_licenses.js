@@ -567,7 +567,9 @@
 
     var user = getUserData();
     var st = window.state || window.gameState || {};
-    var currentLicId = localStorage.getItem('afm_user_license_id') || 'cbf_d';
+    var currentLicId = (st.manager && st.manager.license) || (st.managerPersonal && st.managerPersonal.licenseId) || localStorage.getItem('afm_user_license_id') || 'cbf_d';
+    var userPrestige = (st.managerPersonal && st.managerPersonal.prestigeScore) || st.coachPrestige || (user && user.prestige) || (user && user.level) || 5;
+    var userMoney = (typeof st.managerMoney === 'number') ? st.managerMoney : ((st.managerPersonal && typeof st.managerPersonal.personalBalance === 'number') ? st.managerPersonal.personalBalance : 57000);
 
     var modal = document.createElement('div');
     modal.id = 'afm-lic-modal';
@@ -575,24 +577,33 @@
 
     var cardsHtml = LICENSES.map(function(lic) {
       var owned = lic.id === currentLicId;
-      return '<div style="background:#1e293b;border:1px solid ' + (owned ? '#22c55e' : 'rgba(255,255,255,0.1)') + ';border-radius:14px;padding:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">' +
+      var canAfford = userMoney >= lic.cost;
+      var hasPrestige = userPrestige >= lic.minPrestige;
+      var canBuy = !owned && canAfford && hasPrestige;
+
+      var btnLabel = owned ? '✔ Habilitado' : (lic.cost === 0 ? 'Habilitar Grátis' : ('Comprar (R$ ' + lic.cost.toLocaleString('pt-BR') + ')'));
+
+      return '<div style="background:#1e293b;border:1px solid ' + (owned ? '#22c55e' : (hasPrestige ? 'rgba(255,255,255,0.1)' : 'rgba(239,68,68,0.3)')) + ';border-radius:14px;padding:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap;">' +
         '<div>' +
           '<div style="font-size:14px;font-weight:800;color:#fff;">🎓 ' + lic.name + (owned ? ' <span style="color:#22c55e;font-size:11px;">(ATUAL)</span>' : '') + '</div>' +
-          '<div style="font-size:12px;color:#38bdf8;margin-top:4px;">Bônus: ' + lic.bonus + ' | Requisito: Prestígio ' + lic.minPrestige + '+</div>' +
+          '<div style="font-size:12px;color:#38bdf8;margin-top:4px;">Bônus: ' + lic.bonus + ' | Requisito: Prestígio ' + lic.minPrestige + '+ ' + (hasPrestige ? '<span style="color:#22c55e">✓</span>' : '<span style="color:#ef4444">(Seu Prestígio: ' + userPrestige + ')</span>') + '</div>' +
         '</div>' +
-        '<button class="btn-buy-lic" data-id="' + lic.id + '" data-cost="' + lic.cost + '" style="background:' + (owned ? '#16a34a' : '#7c3aed') + ';color:#fff;border:none;padding:9px 14px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;">' +
-          (owned ? '✔ Habilitado' : ('Obter (R$ ' + lic.cost.toLocaleString('pt-BR') + ')')) +
+        '<button class="btn-buy-lic" data-id="' + lic.id + '" data-cost="' + lic.cost + '" style="background:' + (owned ? '#16a34a' : (canBuy ? '#7c3aed' : '#334155')) + ';color:#fff;border:none;padding:9px 16px;border-radius:10px;font-weight:800;font-size:12px;cursor:' + (owned ? 'default' : 'pointer') + ';" ' + (owned ? 'disabled' : '') + '>' +
+          btnLabel +
         '</button>' +
       '</div>';
     }).join('');
 
     modal.innerHTML =
-      '<div style="width:100%;max-width:680px;background:#0f172a;border:1px solid rgba(56,189,248,0.45);border-radius:18px;padding:20px;color:#fff;">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
-          '<h2 style="margin:0;font-size:18px;font-weight:900;">🎓 Academia de Licenças de Treinador (CBF & UEFA)</h2>' +
+      '<div style="width:100%;max-width:680px;background:#0f172a;border:1px solid rgba(56,189,248,0.45);border-radius:18px;padding:20px;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,0.85);">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">' +
+          '<div>' +
+            '<h2 style="margin:0;font-size:18px;font-weight:900;">🎓 Academia de Licenças de Treinador (CBF & UEFA)</h2>' +
+            '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">Seu Prestígio: <b style="color:#facc15;">' + userPrestige + '/99</b> · Patrimônio Pessoal: <b style="color:#4ade80;">R$ ' + userMoney.toLocaleString('pt-BR') + '</b></div>' +
+          '</div>' +
           '<button id="close-lic" type="button" style="background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:800;">✕ Fechar</button>' +
         '</div>' +
-        '<div>' + cardsHtml + '</div>' +
+        '<div style="max-height:65vh;overflow-y:auto;padding-right:4px;">' + cardsHtml + '</div>' +
       '</div>';
 
     document.body.appendChild(modal);
@@ -602,11 +613,42 @@
     modal.querySelectorAll('.btn-buy-lic').forEach(function(btn) {
       btn.onclick = function() {
         var id = btn.getAttribute('data-id');
+        var cost = Number(btn.getAttribute('data-cost')) || 0;
+        var targetLic = LICENSES.find(function(l) { return l.id === id; });
+        if (!targetLic) return;
+
+        if (id === currentLicId) return;
+
+        if (userPrestige < targetLic.minPrestige) {
+          var msg = 'Requisito não atingido: Prestígio mínimo ' + targetLic.minPrestige + '+ necessário (Seu prestígio atual é ' + userPrestige + ').';
+          if (typeof window.toast === 'function') window.toast(msg); else alert(msg);
+          return;
+        }
+
+        if (cost > 0 && userMoney < cost) {
+          var msgMoney = 'Patrimônio pessoal insuficiente para adquirir a ' + targetLic.name + '!';
+          if (typeof window.toast === 'function') window.toast(msgMoney); else alert(msgMoney);
+          return;
+        }
+
+        // Dedução financeira
+        if (cost > 0) {
+          if (typeof st.managerMoney === 'number') st.managerMoney -= cost;
+          if (st.managerPersonal && typeof st.managerPersonal.personalBalance === 'number') st.managerPersonal.personalBalance -= cost;
+        }
+
         localStorage.setItem('afm_user_license_id', id);
-        if (st.manager) st.manager.license = id;
+        if (!st.manager) st.manager = {};
+        st.manager.license = id;
+        if (st.managerPersonal) st.managerPersonal.licenseId = id;
+
+        if (typeof window.save === 'function') window.save();
+        if (typeof window.toast === 'function') window.toast('🎉 Parabéns! Você obteve ' + targetLic.name + ' com sucesso!');
+
         modal.remove();
         injectTopPrestigeAndButtons();
         openLicensesModal();
+        if (typeof window.render === 'function') window.render();
       };
     });
   }

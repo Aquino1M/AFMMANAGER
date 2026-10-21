@@ -466,6 +466,28 @@ const AFM_DB = (function(){
     }
   }
 
+  // Salvar Chave PIX do Usuário no Supabase Cloud
+  async function saveUserPix(username, pixData){
+    const cleanUser = (currentUser?.username || username || '').trim().toLowerCase();
+    if(!cleanUser || !pixData) return { ok: false, error: 'Dados de chave PIX inválidos.' };
+    await init();
+    const cli = getClient();
+    if(!cli) return { ok: true, localOnly: true };
+    try {
+      const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
+      const updQuery = cli
+        .from('afm_users')
+        .update({ pix_key: pixData, updated_at: new Date().toISOString() })
+        .ilike('username', cleanUser);
+      const { error } = await Promise.race([updQuery, timeoutP]);
+      if(error) recordHandledError('pix-save-cloud', error);
+      return error ? { ok: false, error: error.message } : { ok: true };
+    } catch(error){
+      recordHandledError('pix-save-cloud', error);
+      return { ok: false, error: error.message };
+    }
+  }
+
   // Sincronização Inteligente (Nuvem <-> LocalStorage)
   async function syncUser(targetUsername){
     if(syncInProgress) return { ok: true };
@@ -684,6 +706,7 @@ const AFM_DB = (function(){
     getSaves,
     saveSlot,
     deleteSlot,
+    saveUserPix,
     syncUser,
     cloudGetSaves,
     adminGetUsers,

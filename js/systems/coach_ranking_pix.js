@@ -80,8 +80,16 @@
       return PIX_PRIZES[Number(rank)] || null;
     },
 
-    // 3. Gerenciamento de Chave PIX do Usuário
+    // 3. Gerenciamento de Chave PIX do Usuário (Local + Conta + Nuvem Supabase)
     getUserPixKey() {
+      const user = (typeof window.getActiveAccount === 'function') ? window.getActiveAccount() : null;
+      if(user?.username){
+        try {
+          const uPix = localStorage.getItem(`afm_pix_${user.username.toLowerCase()}`);
+          if(uPix) return JSON.parse(uPix);
+          if(user.pixKey) return user.pixKey;
+        } catch(e) {}
+      }
       try {
         const raw = localStorage.getItem(STORAGE_KEY_PIX);
         if(!raw) return null;
@@ -94,6 +102,13 @@
     setUserPixKey(type, key) {
       if(!key) {
         localStorage.removeItem(STORAGE_KEY_PIX);
+        const user = (typeof window.getActiveAccount === 'function') ? window.getActiveAccount() : null;
+        if(user?.username){
+          try {
+            localStorage.removeItem(`afm_pix_${user.username.toLowerCase()}`);
+            delete user.pixKey;
+          } catch(e) {}
+        }
         return null;
       }
       const data = {
@@ -102,6 +117,24 @@
         updatedAt: new Date().toISOString()
       };
       localStorage.setItem(STORAGE_KEY_PIX, JSON.stringify(data));
+      const user = (typeof window.getActiveAccount === 'function') ? window.getActiveAccount() : null;
+      if(user?.username){
+        try {
+          localStorage.setItem(`afm_pix_${user.username.toLowerCase()}`, JSON.stringify(data));
+          user.pixKey = data;
+          if(typeof window.saveStoredAccounts === 'function' && typeof window.getStoredAccounts === 'function'){
+            const accs = window.getStoredAccounts();
+            const acc = accs.find(a => (a.username || '').toLowerCase() === user.username.toLowerCase());
+            if(acc){
+              acc.pixKey = data;
+              window.saveStoredAccounts(accs);
+            }
+          }
+          if(window.AFM_DB && typeof window.AFM_DB.saveUserPix === 'function'){
+            window.AFM_DB.saveUserPix(user.username, data);
+          }
+        } catch(e) {}
+      }
       return data;
     },
 
@@ -316,12 +349,16 @@
         AFM_CoachRanking.setUserPixKey(type, key);
         close();
         if(window.toast) window.toast('✓ Chave PIX cadastrada com sucesso para a premiação!');
-        if(typeof window.render === 'function') window.render();
+        if(window.setupViewMode === 'ranking' && typeof window.renderSetup === 'function'){
+          window.renderSetup(document.querySelector('#app'));
+        } else if(typeof window.render === 'function') {
+          window.render();
+        }
       };
     },
 
     // 8. Renderiza Banner Especial de Premiação PIX R$ 1.000
-    renderPixPrizeBanner(userRank) {
+    renderPixPrizeBanner(userRank, isLanding = false) {
       const pixKey = this.getUserPixKey();
       const hasKey = Boolean(pixKey && pixKey.key);
       const isTop5 = Number(userRank) >= 1 && Number(userRank) <= 5;
@@ -345,14 +382,25 @@
                 </p>
               </div>
 
-              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
-                <button type="button" class="btn btn-neon-pix" id="btnOpenPixModalBanner" style="background:linear-gradient(135deg,#10b981,#059669);border:1px solid #34d399;color:#fff;font-weight:900;font-size:13px;padding:10px 18px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(16,185,129,0.4);transition:all 0.15s">
-                  💠 ${hasKey ? '✓ CHAVE PIX CADASTRADA' : '➕ CADASTRAR MINHA CHAVE PIX'}
-                </button>
-                <span style="font-size:11px;font-weight:700;color:${hasKey ? '#6ee7b7' : '#f87171'}">
-                  ${hasKey ? `Chave: ${window.esc(pixKey.key.slice(0, 4))}***${window.esc(pixKey.key.slice(-3))}` : '⚠️ Cadastre sua chave para receber se vencer!'}
-                </span>
-              </div>
+              ${isLanding ? `
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                  <button type="button" class="btn btn-neon-pix" id="btnLandingCtaGame" onclick="if(window.setupViewMode){window.setupViewMode='auth';if(typeof window.renderSetup==='function')window.renderSetup(document.querySelector('#app'));}" style="background:linear-gradient(135deg,#10b981,#059669);border:1px solid #34d399;color:#fff;font-weight:900;font-size:13px;padding:12px 22px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(16,185,129,0.4)">
+                    🎮 ENTRAR NO JOGO & PARTICIPAR
+                  </button>
+                  <span style="font-size:11px;font-weight:700;color:#6ee7b7">
+                    Classificação oficial dos melhores técnicos em tempo real (Sem necessidade de cadastro de dados)
+                  </span>
+                </div>
+              ` : `
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+                  <button type="button" class="btn btn-neon-pix" id="btnOpenPixModalBanner" style="background:linear-gradient(135deg,#10b981,#059669);border:1px solid #34d399;color:#fff;font-weight:900;font-size:13px;padding:10px 18px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(16,185,129,0.4);transition:all 0.15s">
+                    💠 ${hasKey ? `✓ CHAVE PIX: ${window.esc((pixKey.type || 'pix').toUpperCase())} · ALTERAR` : '➕ CADASTRAR MINHA CHAVE PIX'}
+                  </button>
+                  <span style="font-size:11px;font-weight:700;color:${hasKey ? '#6ee7b7' : '#f87171'}">
+                    ${hasKey ? `Chave: ${window.esc(pixKey.key.slice(0, 4))}***${window.esc(pixKey.key.slice(-3))} · Pronta para receber` : '⚠️ Cadastre sua chave para receber se vencer!'}
+                  </span>
+                </div>
+              `}
             </div>
 
             <!-- TABELA DAS 5 FAIXAS DE PREMIAÇÃO -->
@@ -384,7 +432,7 @@
               </div>
             </div>
 
-            ${isTop5 ? `
+            ${(!isLanding && isTop5) ? `
               <div style="background:rgba(16,185,129,0.2);border:1px solid #10b981;border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:900;color:#a7f3d0">
                 🎉 <b>PARABÉNS!</b> Você está na <b>#${userRank}ª posição</b> e garantindo <b>${prize?.label} no PIX</b>! Mantenha a pontuação até o fechamento para receber!
               </div>
@@ -553,50 +601,65 @@
     },
 
     // 11. Renderiza Sidebar Lateral (Cards de Regras, Selos, Censo e Status)
-    renderSidebar(state, userRank, userPoints, boardType) {
+    renderSidebar(state, userRank, userPoints, boardType, isLanding = false) {
       const pixKey = this.getUserPixKey();
       const userTier = this.getPrestigeTier(userPoints);
 
       return `
         <aside class="afm-ranking-sidebar" style="display:flex;flex-direction:column;gap:18px">
           
-          <!-- CARD 1: SEU STATUS NO RANKING -->
-          <section class="afm-sidebar-card" style="background:#111827;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:18px">
-            <h3 style="font-size:16px;font-weight:900;color:#fff;margin:0 0 12px;letter-spacing:0.5px;text-transform:uppercase">
-              🎯 SEU DESEMPENHO
-            </h3>
-            
-            <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;margin-bottom:12px">
+          ${!isLanding ? `
+            <!-- CARD 1: SEU STATUS NO RANKING (IN-GAME) -->
+            <section class="afm-sidebar-card" style="background:#111827;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:18px">
+              <h3 style="font-size:16px;font-weight:900;color:#fff;margin:0 0 12px;letter-spacing:0.5px;text-transform:uppercase">
+                🎯 SEU DESEMPENHO
+              </h3>
+              
+              <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;margin-bottom:12px">
+                <div>
+                  <span style="font-size:11px;color:#94a3b8;font-weight:700;display:block">POSIÇÃO ATUAL</span>
+                  <span style="font-size:26px;font-weight:900;color:#38bdf8">#${userRank || '-'}</span>
+                </div>
+                <div style="text-align:right">
+                  <span style="font-size:11px;color:#94a3b8;font-weight:700;display:block">SEUS PONTOS</span>
+                  <span style="font-size:26px;font-weight:900;color:#facc15">${userPoints.toLocaleString('pt-BR')}</span>
+                </div>
+              </div>
+
               <div>
-                <span style="font-size:11px;color:#94a3b8;font-weight:700;display:block">POSIÇÃO ATUAL</span>
-                <span style="font-size:26px;font-weight:900;color:#38bdf8">#${userRank || '-'}</span>
-              </div>
-              <div style="text-align:right">
-                <span style="font-size:11px;color:#94a3b8;font-weight:700;display:block">SEUS PONTOS</span>
-                <span style="font-size:26px;font-weight:900;color:#facc15">${userPoints.toLocaleString('pt-BR')}</span>
-              </div>
-            </div>
-
-            <div>
-              <span style="font-size:11px;color:#94a3b8;font-weight:700;display:block;margin-bottom:6px">SELO ATUAL</span>
-              <div style="display:inline-flex;align-items:center;gap:6px;background:${userTier.bg};border:1px solid ${userTier.border};color:${userTier.color};padding:4px 12px;border-radius:9999px;font-size:11px;font-weight:900;text-transform:uppercase">
-                <span>${userTier.icon}</span>
-                <span>${userTier.label}</span>
-              </div>
-            </div>
-
-            <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08)">
-              ${userRank <= 5 ? `
-                <div style="background:rgba(16,185,129,0.15);border:1px solid #10b981;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:800;color:#a7f3d0">
-                  🎉 <b>ZONA DE PREMIAÇÃO:</b> Você está garantindo <b>${AFM_CoachRanking.getPixPrize(userRank)?.label} no PIX</b>!
+                <span style="font-size:11px;color:#94a3b8;font-weight:700;display:block;margin-bottom:6px">SELO ATUAL</span>
+                <div style="display:inline-flex;align-items:center;gap:6px;background:${userTier.bg};border:1px solid ${userTier.border};color:${userTier.color};padding:4px 12px;border-radius:9999px;font-size:11px;font-weight:900;text-transform:uppercase">
+                  <span>${userTier.icon}</span>
+                  <span>${userTier.label}</span>
                 </div>
-              ` : `
-                <div style="font-size:12px;color:#cbd5e1;line-height:1.4">
-                  🚀 <b>Foco no TOP 5:</b> Jogue e vença para entrar na zona de premiação de até <b>R$ 450 no PIX</b>!
-                </div>
-              `}
-            </div>
-          </section>
+              </div>
+
+              <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08)">
+                ${userRank <= 5 ? `
+                  <div style="background:rgba(16,185,129,0.15);border:1px solid #10b981;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:800;color:#a7f3d0">
+                    🎉 <b>ZONA DE PREMIAÇÃO:</b> Você está garantindo <b>${AFM_CoachRanking.getPixPrize(userRank)?.label} no PIX</b>!
+                  </div>
+                ` : `
+                  <div style="font-size:12px;color:#cbd5e1;line-height:1.4">
+                    🚀 <b>Foco no TOP 5:</b> Jogue e vença para entrar na zona de premiação de até <b>R$ 450 no PIX</b>!
+                  </div>
+                `}
+              </div>
+            </section>
+          ` : `
+            <!-- CARD 1 LANDING: INFORMATIVO -->
+            <section class="afm-sidebar-card" style="background:#111827;border:1px solid rgba(168,85,247,0.3);border-radius:14px;padding:18px">
+              <h3 style="font-size:15px;font-weight:900;color:#d8b4fe;margin:0 0 8px;letter-spacing:0.5px;text-transform:uppercase">
+                🏆 DISPUTA NACIONAL
+              </h3>
+              <p style="font-size:12px;color:#cbd5e1;line-height:1.5;margin:0 0 12px">
+                Todos os treinadores ativos no AFM Manager concorrem automaticamente à premiação de R$ 1.000,00 no PIX semanal.
+              </p>
+              <button type="button" class="btn primary" onclick="window.setupViewMode='auth';if(typeof window.renderSetup==='function')window.renderSetup(document.querySelector('#app'));" style="width:100%;padding:10px;font-size:12px;font-weight:900;border-radius:8px;cursor:pointer">
+                🎮 Entrar & Começar Carreira
+              </button>
+            </section>
+          `}
 
           <!-- CARD 2: PREMIAÇÃO OFICIAL NO PIX (R$ 1.000,00) -->
           <section class="afm-sidebar-card" style="background:#111827;border:1px solid #10b981;border-radius:14px;padding:18px;box-shadow:0 0 15px rgba(16,185,129,0.15)">
@@ -634,9 +697,15 @@
               </div>
             </div>
 
-            <button type="button" class="btn" id="btnSidebarManagePix" style="width:100%;background:rgba(16,185,129,0.15);border:1px solid #10b981;color:#6ee7b7;font-weight:800;font-size:12px;padding:9px;border-radius:8px;margin-top:14px;cursor:pointer">
-              ${pixKey?.key ? '⚙️ Alterar Chave PIX' : '➕ Cadastrar Minha Chave PIX'}
-            </button>
+            ${!isLanding ? `
+              <button type="button" class="btn" id="btnSidebarManagePix" style="width:100%;background:rgba(16,185,129,0.15);border:1px solid #10b981;color:#6ee7b7;font-weight:800;font-size:12px;padding:9px;border-radius:8px;margin-top:14px;cursor:pointer">
+                ${pixKey?.key ? '⚙️ Alterar Chave PIX' : '➕ Cadastrar Minha Chave PIX'}
+              </button>
+            ` : `
+              <button type="button" class="btn" id="btnSidebarManagePix" onclick="window.setupViewMode='auth';if(typeof window.renderSetup==='function')window.renderSetup(document.querySelector('#app'));" style="width:100%;background:rgba(16,185,129,0.15);border:1px solid #10b981;color:#6ee7b7;font-weight:800;font-size:12px;padding:9px;border-radius:8px;margin-top:14px;cursor:pointer">
+                🎮 Entrar no Jogo & Disputar
+              </button>
+            `}
           </section>
 
           <!-- CARD 3: CENSO DE TÉCNICOS DO JOGO -->
@@ -767,17 +836,14 @@
       `;
     },
 
-    // 12. Renderiza a Tela Completa do Ranking
-    renderPage() {
-      const state = window.state || null;
+    // 12. Renderiza a Tela do Ranking na PÁGINA INICIAL (Público & Como Funciona)
+    renderLandingPage() {
       let activeBoard = 'semana';
       try {
         activeBoard = localStorage.getItem(STORAGE_KEY_BOARD) || 'semana';
       } catch(e) {}
 
-      const list = this.getLeaderboard(activeBoard, state);
-      const userRank = (list.find(c => c.isUser)?.rank) || 4;
-      const userPoints = state ? this.getUserCareerPoints(state) : 1200;
+      const list = this.getLeaderboard(activeBoard, null);
 
       return `
         <div class="afm-ranking-page" style="padding:16px 20px 40px;max-width:1440px;margin:0 auto;color:#fff">
@@ -786,7 +852,7 @@
           <nav style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
             <a href="javascript:void(0)" onclick="if(window.setupViewMode){window.setupViewMode='auth';if(typeof window.renderSetup==='function')window.renderSetup(document.querySelector('#app'));}else{window.view='central';if(typeof window.render==='function')window.render();}" style="color:#94a3b8;text-decoration:none">← Voltar para a Página Inicial</a>
             <span>&gt;</span>
-            <span style="color:#facc15">Ranking de Técnicos</span>
+            <span style="color:#facc15">Ranking de Técnicos & Como Funciona</span>
           </nav>
 
           <!-- CABEÇALHO PRINCIPAL -->
@@ -796,10 +862,10 @@
                 TODAS AS CARREIRAS DO JOGO · BRASIL
               </p>
               <h1 style="font-size:36px;font-weight:900;letter-spacing:0.5px;text-transform:uppercase;margin:0;line-height:1">
-                RANKING DE TÉCNICOS
+                RANKING DE TÉCNICOS & PREMIAÇÃO PIX
               </h1>
-              <p style="font-size:14px;color:#cbd5e1;margin:8px 0 0;max-width:720px;line-height:1.4">
-                Cada jogo do seu clube vale pontos. Clube modesto em divisão mais forte rende mais: dá para chegar ao topo começando de baixo.
+              <p style="font-size:14px;color:#cbd5e1;margin:8px 0 0;max-width:760px;line-height:1.4">
+                Cada jogo do seu clube vale pontos de prestígio. Clube modesto em divisão mais forte rende mais: dispute o topo nacional e divida R$ 1.000,00 no PIX toda semana!
               </p>
             </div>
             <div style="font-size:12px;font-weight:800;color:#94a3b8">
@@ -807,8 +873,61 @@
             </div>
           </header>
 
-          <!-- BANNER OFICIAL DE PREMIAÇÃO PIX R$ 1.000,00 -->
-          ${this.renderPixPrizeBanner(userRank)}
+          <!-- BANNER OFICIAL DE PREMIAÇÃO PIX R$ 1.000,00 (MODO LANDING) -->
+          ${this.renderPixPrizeBanner(0, true)}
+
+          <!-- SEÇÃO ESPECIAL: COMO FUNCIONA O RANKING & PREMIAÇÃO PIX -->
+          <section class="afm-how-it-works-section" style="background:#0f172a;border:1px solid rgba(168,85,247,0.3);border-radius:16px;padding:22px 24px;margin-bottom:24px;box-shadow:0 8px 30px rgba(0,0,0,0.6)">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+              <span style="font-size:26px">📖</span>
+              <div>
+                <h2 style="font-size:20px;font-weight:900;margin:0;color:#fff;letter-spacing:0.5px;text-transform:uppercase">COMO FUNCIONA O RANKING & A PREMIAÇÃO PIX</h2>
+                <p style="font-size:13px;color:#cbd5e1;margin:2px 0 0">Entenda as regras, como pontuar com seu clube e receber até R$ 450,00 direto no PIX</p>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
+              <div style="background:#161f30;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span style="width:28px;height:28px;border-radius:50%;background:#8b5cf6;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px">1</span>
+                  <h3 style="font-size:15px;font-weight:900;color:#fff;margin:0">Crie sua Conta & Clube</h3>
+                </div>
+                <p style="font-size:12px;color:#94a3b8;line-height:1.5;margin:0">
+                  Faça login ou crie sua conta gratuita no AFM Manager e assuma o comando de qualquer clube das Séries A, B, C, D ou dos 11 Estaduais.
+                </p>
+              </div>
+
+              <div style="background:#161f30;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span style="width:28px;height:28px;border-radius:50%;background:#3b82f6;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px">2</span>
+                  <h3 style="font-size:15px;font-weight:900;color:#fff;margin:0">Ganhe Jogos e Títulos</h3>
+                </div>
+                <p style="font-size:12px;color:#94a3b8;line-height:1.5;margin:0">
+                  Cada vitória vale <b>+30 pts</b> (com bônus para clássicos e zebras). Empates valem <b>+10 pts</b> e títulos somam até <b>+400 pts</b> no ranking!
+                </p>
+              </div>
+
+              <div style="background:#161f30;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span style="width:28px;height:28px;border-radius:50%;background:#10b981;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px">3</span>
+                  <h3 style="font-size:15px;font-weight:900;color:#fff;margin:0">Cadastre a Chave no Jogo</h3>
+                </div>
+                <p style="font-size:12px;color:#94a3b8;line-height:1.5;margin:0">
+                  Dentro do jogo, abra a nova <b>aba de Ranking</b> e cadastre sua chave PIX com 1 clique (CPF, Celular, E-mail ou chave aleatória).
+                </p>
+              </div>
+
+              <div style="background:#161f30;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span style="width:28px;height:28px;border-radius:50%;background:#f59e0b;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px">4</span>
+                  <h3 style="font-size:15px;font-weight:900;color:#fff;margin:0">PIX Toda Segunda-Feira</h3>
+                </div>
+                <p style="font-size:12px;color:#94a3b8;line-height:1.5;margin:0">
+                  A edição fecha todo domingo às 23:59. Os <b>5 melhores técnicos</b> dividem R$ 1.000,00 no PIX pago pontualmente na segunda!
+                </p>
+              </div>
+            </div>
+          </section>
 
           <!-- QUADROS DO RANKING (FILTROS SEMANA, TEMPORADA, CARREIRA) -->
           <nav class="afm-ranking-tabs" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px">
@@ -830,21 +949,163 @@
             ⏱️ Esta edição fecha no domingo às 23:59. Pagamento do PIX R$ 1.000 para o TOP 5 na segunda-feira!
           </p>
 
-          <!-- CORPO PRINCIPAL: CONTEÚDO (PÓDIO + TABELA) E SIDEBAR -->
+          <!-- CORPO PRINCIPAL -->
           <div style="display:grid;grid-template-columns:1fr;gap:24px" class="afm-ranking-layout">
             <div style="min-width:0">
-              <!-- PÓDIO TOP 3 -->
               ${this.renderPodium(list.slice(0, 3), activeBoard)}
-
-              <!-- TABELA DO 4º AO 30º LUGAR -->
               ${this.renderTable(list, activeBoard)}
             </div>
 
             <!-- SIDEBAR LATERAL -->
-            ${this.renderSidebar(state, userRank, userPoints, activeBoard)}
+            ${this.renderSidebar(null, 0, 0, activeBoard, true)}
           </div>
         </div>
       `;
+    },
+
+    // 12b. Renderiza a Aba do Ranking DENTRO DO JOGO (Com Sua Posição e Cadastro PIX)
+    renderInGamePage() {
+      const state = window.state || null;
+      let activeBoard = 'semana';
+      try {
+        activeBoard = localStorage.getItem(STORAGE_KEY_BOARD) || 'semana';
+      } catch(e) {}
+
+      const list = this.getLeaderboard(activeBoard, state);
+      const userItem = list.find(c => c.isUser);
+      const userRank = userItem?.rank || 4;
+      const userPoints = state ? this.getUserCareerPoints(state) : 1200;
+      const userTier = this.getPrestigeTier(userPoints);
+      const pixKey = this.getUserPixKey();
+      const hasKey = Boolean(pixKey && pixKey.key);
+      const prize = this.getPixPrize(userRank);
+      const userWins = (state?.history || []).filter(h => {
+        const isH = (h.h === state?.club);
+        const isA = (h.a === state?.club);
+        if(!isH && !isA) return false;
+        return isH ? (h.hg > h.ag) : (h.ag > h.hg);
+      }).length;
+
+      // Distância de pontos para o Top 5
+      const top5Cutoff = list[4] ? (activeBoard==='temporada' ? list[4].seasonPoints : activeBoard==='carreira' ? list[4].points : list[4].weekPoints) : 1500;
+      const currentBoardPoints = activeBoard==='temporada' ? (userItem?.seasonPoints || 0) : activeBoard==='carreira' ? (userItem?.points || 0) : (userItem?.weekPoints || 0);
+      const ptsToTop5 = Math.max(0, top5Cutoff - currentBoardPoints + 1);
+
+      return `
+        <div class="afm-ranking-page" style="padding:16px 20px 40px;max-width:1440px;margin:0 auto;color:#fff">
+          
+          <!-- BREADCRUMB IN-GAME -->
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <div style="font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">
+              ⭐ Carreira de <b style="color:#fff">${window.esc(state?.manager || 'Treinador')}</b> · <b style="color:#a7ff3f">${window.esc(state?.club || 'Clube')}</b> (${window.esc(state?.competition || 'Nacional')}) &gt; <span style="color:#facc15">Ranking de Técnicos & PIX</span>
+            </div>
+            <button type="button" class="btn" onclick="window.view='central';if(typeof window.render==='function')window.render();" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;padding:6px 14px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">
+              ← Voltar para Central
+            </button>
+          </div>
+
+          <!-- CARD HERO: SEU DESEMPENHO NO RANKING (SUA POSIÇÃO E PONTOS) -->
+          <div class="afm-ingame-ranking-hero" style="background:linear-gradient(135deg,#130f26,#1e143b);border:1px solid #a855f7;border-radius:16px;padding:20px 24px;margin-bottom:20px;box-shadow:0 8px 30px rgba(0,0,0,0.7),0 0 20px rgba(168,85,247,0.2)">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+              <div style="display:flex;align-items:center;gap:14px">
+                <div style="filter:drop-shadow(0 4px 10px rgba(0,0,0,0.6))">
+                  ${window.clubBadge ? window.clubBadge(state?.club || 'Clube', 56) : ''}
+                </div>
+                <div>
+                  <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(168,85,247,0.2);border:1px solid #a855f7;padding:3px 10px;border-radius:9999px;font-size:10px;font-weight:900;color:#d8b4fe;text-transform:uppercase;margin-bottom:4px">
+                    👔 SEU DESEMPENHO OFICIAL NO RANKING
+                  </div>
+                  <h1 style="font-size:24px;font-weight:900;margin:0;color:#fff;letter-spacing:0.5px">
+                    ${window.esc(state?.manager || 'Você')} · <span style="color:#a7ff3f">${window.esc(state?.club || 'Seu Clube')}</span>
+                  </h1>
+                  <p style="font-size:12px;color:#cbd5e1;margin:4px 0 0">
+                    Divisão Ativa: <b>${window.esc(state?.competition || 'Nacional')}</b> · <b>${userWins} vitórias</b> computadas na carreira
+                  </p>
+                </div>
+              </div>
+
+              <!-- BLOCOS DE ESTATÍSTICA DO USUÁRIO -->
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;text-align:center">
+                  <span style="font-size:10px;font-weight:800;color:#94a3b8;display:block;text-transform:uppercase;letter-spacing:0.5px">Sua Posição</span>
+                  <span style="font-size:28px;font-weight:900;color:${userRank<=5 ? '#10b981' : '#38bdf8'};line-height:1">#${userRank}</span>
+                </div>
+
+                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;text-align:center">
+                  <span style="font-size:10px;font-weight:800;color:#94a3b8;display:block;text-transform:uppercase;letter-spacing:0.5px">Seus Pontos</span>
+                  <span style="font-size:28px;font-weight:900;color:#facc15;line-height:1">${userPoints.toLocaleString('pt-BR')}</span>
+                </div>
+
+                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 18px;text-align:center">
+                  <span style="font-size:10px;font-weight:800;color:#94a3b8;display:block;text-transform:uppercase;letter-spacing:0.5px">Selo Atual</span>
+                  <div style="display:inline-flex;align-items:center;gap:4px;background:${userTier.bg};border:1px solid ${userTier.border};color:${userTier.color};padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:900;text-transform:uppercase;margin-top:2px">
+                    ${userTier.icon} ${userTier.label}
+                  </div>
+                </div>
+
+                <button type="button" class="btn btn-neon-pix" id="btnHeroOpenPixModal" style="background:linear-gradient(135deg,#10b981,#059669);border:1px solid #34d399;color:#fff;font-weight:900;font-size:12px;padding:12px 16px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 15px rgba(16,185,129,0.35)">
+                  💠 ${hasKey ? '⚙️ Chave PIX Cadastrada' : '➕ Cadastrar Minha Chave PIX'}
+                </button>
+              </div>
+            </div>
+
+            <!-- STATUS ZONA DE PREMIAÇÃO -->
+            <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.1)">
+              ${userRank <= 5 ? `
+                <div style="background:rgba(16,185,129,0.2);border:1px solid #10b981;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:900;color:#a7f3d0;display:flex;align-items:center;gap:8px">
+                  🎉 <b>PARABÉNS!</b> Você está na <b>#${userRank}ª posição</b> e garantindo <b>${prize?.label} no PIX</b>! Mantenha a pontuação até o fechamento domingo 23:59 para receber!
+                </div>
+              ` : `
+                <div style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;color:#bae6fd;display:flex;align-items:center;gap:8px">
+                  🚀 <b>Foco no TOP 5:</b> Faltam apenas <b>${ptsToTop5} pontos</b> para você entrar no TOP 5 e faturar até <b>R$ 450,00 no PIX</b>! Vença a próxima rodada!
+                </div>
+              `}
+            </div>
+          </div>
+
+          <!-- BANNER OFICIAL DE PREMIAÇÃO PIX R$ 1.000,00 (MODO IN-GAME) -->
+          ${this.renderPixPrizeBanner(userRank, false)}
+
+          <!-- QUADROS DO RANKING (FILTROS SEMANA, TEMPORADA, CARREIRA) -->
+          <nav class="afm-ranking-tabs" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px">
+            <button type="button" class="afm-tab-btn ${activeBoard==='semana'?'active':''}" data-board="semana" style="background:${activeBoard==='semana'?'#6d28d9':'#111827'};border:${activeBoard==='semana'?'2px solid #a855f7':'1px solid rgba(255,255,255,0.12)'};border-radius:12px;padding:12px 16px;text-align:left;cursor:pointer;color:#fff;box-shadow:${activeBoard==='semana'?'0 4px 15px rgba(109,40,217,0.4)':'none'}">
+              <span style="font-size:16px;font-weight:900;text-transform:uppercase;display:block">Semana (Edição PIX)</span>
+              <span style="font-size:11px;color:${activeBoard==='semana'?'#e9d5ff':'#94a3b8'};display:block;margin-top:2px">Pontos de seg a dom. Zera domingo 23:59!</span>
+            </button>
+            <button type="button" class="afm-tab-btn ${activeBoard==='temporada'?'active':''}" data-board="temporada" style="background:${activeBoard==='temporada'?'#6d28d9':'#111827'};border:${activeBoard==='temporada'?'2px solid #a855f7':'1px solid rgba(255,255,255,0.12)'};border-radius:12px;padding:12px 16px;text-align:left;cursor:pointer;color:#fff;box-shadow:${activeBoard==='temporada'?'0 4px 15px rgba(109,40,217,0.4)':'none'}">
+              <span style="font-size:16px;font-weight:900;text-transform:uppercase;display:block">Melhor Temporada</span>
+              <span style="font-size:11px;color:${activeBoard==='temporada'?'#e9d5ff':'#94a3b8'};display:block;margin-top:2px">A maior pontuação obtida em uma temporada completa.</span>
+            </button>
+            <button type="button" class="afm-tab-btn ${activeBoard==='carreira'?'active':''}" data-board="carreira" style="background:${activeBoard==='carreira'?'#6d28d9':'#111827'};border:${activeBoard==='carreira'?'2px solid #a855f7':'1px solid rgba(255,255,255,0.12)'};border-radius:12px;padding:12px 16px;text-align:left;cursor:pointer;color:#fff;box-shadow:${activeBoard==='carreira'?'0 4px 15px rgba(109,40,217,0.4)':'none'}">
+              <span style="font-size:16px;font-weight:900;text-transform:uppercase;display:block">Carreira Geral</span>
+              <span style="font-size:11px;color:${activeBoard==='carreira'?'#e9d5ff':'#94a3b8'};display:block;margin-top:2px">Todos os pontos somados desde o primeiro jogo.</span>
+            </button>
+          </nav>
+
+          <p style="font-size:13px;font-weight:700;color:#a3e635;margin-bottom:20px;display:flex;align-items:center;gap:6px">
+            ⏱️ Esta edição fecha no domingo às 23:59. Pagamento do PIX R$ 1.000 para o TOP 5 na segunda-feira!
+          </p>
+
+          <!-- CORPO PRINCIPAL -->
+          <div style="display:grid;grid-template-columns:1fr;gap:24px" class="afm-ranking-layout">
+            <div style="min-width:0">
+              ${this.renderPodium(list.slice(0, 3), activeBoard)}
+              ${this.renderTable(list, activeBoard)}
+            </div>
+
+            <!-- SIDEBAR LATERAL -->
+            ${this.renderSidebar(state, userRank, userPoints, activeBoard, false)}
+          </div>
+        </div>
+      `;
+    },
+
+    // 12c. Resolvedor Universal da Página do Ranking
+    renderPage(options = {}) {
+      if(options.isLanding || window.setupViewMode === 'ranking'){
+        return this.renderLandingPage();
+      }
+      return this.renderInGamePage();
     },
 
     // 13. Amarração de Eventos da Tela de Ranking
@@ -853,9 +1114,31 @@
       const btnPixBanner = document.getElementById('btnOpenPixModalBanner');
       if(btnPixBanner) btnPixBanner.onclick = () => this.openPixKeyModal();
 
+      // Botão para abrir modal PIX no Hero In-Game
+      const btnHeroPix = document.getElementById('btnHeroOpenPixModal');
+      if(btnHeroPix) btnHeroPix.onclick = () => this.openPixKeyModal();
+
       // Botão para gerenciar PIX na sidebar
       const btnSidebarPix = document.getElementById('btnSidebarManagePix');
-      if(btnSidebarPix) btnSidebarPix.onclick = () => this.openPixKeyModal();
+      if(btnSidebarPix) {
+        btnSidebarPix.onclick = () => {
+          if(window.setupViewMode === 'ranking'){
+            window.setupViewMode = 'auth';
+            if(typeof window.renderSetup === 'function') window.renderSetup(document.querySelector('#app'));
+          } else {
+            this.openPixKeyModal();
+          }
+        };
+      }
+
+      // Botão CTA da landing page para entrar no jogo
+      const btnLandingCta = document.getElementById('btnLandingCtaGame');
+      if(btnLandingCta) {
+        btnLandingCta.onclick = () => {
+          window.setupViewMode = 'auth';
+          if(typeof window.renderSetup === 'function') window.renderSetup(document.querySelector('#app'));
+        };
+      }
 
       // Alternância de abas do ranking (Semana, Temporada, Carreira)
       document.querySelectorAll('.afm-tab-btn[data-board]').forEach(btn => {
@@ -874,8 +1157,8 @@
 
   // Exportação Global
   window.AFM_CoachRanking = AFM_CoachRanking;
-  window.rankingPage = function(){
-    return AFM_CoachRanking.renderPage();
+  window.rankingPage = function(opts){
+    return AFM_CoachRanking.renderPage(opts);
   };
 
 })(typeof window !== 'undefined' ? window : globalThis);
