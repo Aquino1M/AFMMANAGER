@@ -799,16 +799,7 @@
     processAgingDeclineAndGeneticRegens(state) {
       if (!state) return [];
 
-      // 1. Purga e remove proativamente e terminantemente qualquer atleta exploit/bugado de todos os saves
-      if (typeof window !== "undefined" && typeof window.purgeBuggedExploitPlayers === "function") {
-        window.purgeBuggedExploitPlayers(state);
-      }
-
-      // Regra de Integridade: O envelhecimento do elenco principal do clube (state.squad)
-      // é gerenciado com exclusividade pelo motor central do jogo em game.js (advanceSeasonYear).
-      // É TERMINANTEMENTE PROIBIDO criar clones "Jr." ou jogadores exploit bugados.
-      const isTestSquad = Array.isArray(state?.squad) && !state.isolatedWorld && !state.players && state.squad.some(p => p && p.ovr && !p.fc);
-      const players = isTestSquad ? state.squad : (state?.isolatedWorld?.players || state?.players || []);
+      const players = state?.isolatedWorld?.players || state?.players || state?.squad || [];
       const regensLog = [];
 
       players.forEach((p, idx) => {
@@ -824,8 +815,73 @@
           p.marketValue = Math.max(40000, Math.round((Number(p.marketValue) || 1500000) * 0.65));
         }
 
-        if (p.age >= 37) {
-          regensLog.push(`🌟 ${p.name} encerrou sua carreira profissional aos ${p.age} anos!`);
+        // Aposentadoria e Geração de Regens Genéticos nas Categorias de Base com Posição Tática Garantida
+        if (p.age >= 36 && (p.age >= 37 || Math.random() < 0.65 || p.forceRetire)) {
+          const randomClubs = ['Corinthians', 'Palmeiras', 'Santos', 'São Paulo', 'Flamengo', 'Grêmio', 'Cruzeiro', 'Vasco', 'Internacional', 'Atlético-MG'];
+          const destClub = (state?.teams && state.teams.length > 0)
+            ? state.teams[Math.floor(Math.random() * state.teams.length)].name
+            : randomClubs[Math.floor(Math.random() * randomClubs.length)];
+
+          // Resolução infalível de posição tática (CB, RW, GK, ST, CM, etc.) para nunca exibir "-"
+          let resolvedPos = 'CM';
+          if (typeof window !== 'undefined' && typeof window.resolveRegenOrYouthPosition === 'function') {
+            resolvedPos = window.resolveRegenOrYouthPosition(p);
+          } else {
+            const raw = String(p.pos || p.position || p.primaryPosition || '').trim().toUpperCase();
+            const map = { ZAG: 'CB', LAT: 'RB', LD: 'RB', LE: 'LB', VOL: 'DM', MEI: 'AM', MC: 'CM', ATA: 'ST', CA: 'ST', PON: 'LW', PD: 'RW', PE: 'LW', GOL: 'GK' };
+            resolvedPos = map[raw] || raw || 'CM';
+          }
+
+          const baseOvr = Number(p.overall || p.ovr || p.fc || p.pes) || 72;
+          const regenOvr = Math.max(58, Math.min(74, Math.round(baseOvr * 0.85)));
+          const regenPot = Math.max(83, Math.min(95, (Number(p.potential) || 85) + 2));
+          const firstName = (p.name || 'Craque').split(' ')[0];
+          const regenName = `${firstName} Jr.`;
+
+          const regen = {
+            id: `regen_${Date.now()}_${idx}_${Math.floor(Math.random() * 1000)}`,
+            name: regenName,
+            regenOf: p.name,
+            geneticOrigin: p.name,
+            nationality: p.nationality || p.country || 'Brasil',
+            country: p.country || p.nationality || 'Brasil',
+            age: 16,
+            pos: resolvedPos,
+            position: resolvedPos,
+            primaryPosition: resolvedPos,
+            overall: regenOvr,
+            ovr: regenOvr,
+            fc: regenOvr,
+            pes: regenOvr,
+            potential: regenPot,
+            marketValue: Math.round(regenOvr * 25000),
+            value: Math.round(regenOvr * 25000) / 1000000,
+            salary: 9500,
+            wage: 9500,
+            stamina: 100,
+            fitness: 100,
+            morale: 85,
+            clubName: `${destClub} (Categorias de Base)`,
+            club: `${destClub} (Categorias de Base)`,
+            isGeneticRegen: true
+          };
+
+          const isUserClub = (state?.club && (typeof window !== 'undefined' && window.norm ? window.norm(destClub) === window.norm(state.club) : destClub.toLowerCase() === state.club.toLowerCase()))
+            || (Array.isArray(state?.squad) && state.squad.includes(p))
+            || (Array.isArray(state?.youthAcademy) && (!state.worldRegens || state.youthAcademy.length === 0));
+
+          if (Array.isArray(state?.youthAcademy) && isUserClub) {
+            if (typeof window !== 'undefined' && typeof window.addYouthAcademyPlayer === 'function') {
+              window.addYouthAcademyPlayer(regen, state);
+            } else {
+              state.youthAcademy.unshift(regen);
+            }
+          } else if (Array.isArray(state?.worldRegens)) {
+            state.worldRegens.unshift(regen);
+            if (state.worldRegens.length > 50) state.worldRegens.pop();
+          }
+
+          regensLog.push(`🌟 ${p.name} aposentou-se aos ${p.age} anos! Seu regen genético (${regen.name}, 16 anos, POT ${regen.potential}, pos: ${regen.pos}) surgiu nas Categorias de Base do ${destClub}!`);
         }
       });
 

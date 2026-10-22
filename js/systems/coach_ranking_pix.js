@@ -490,8 +490,8 @@
 
             <!-- AVATAR CIRCULAR COM ESCUDO DO CLUBE -->
             <div style="position:relative;width:${avatarSize}px;height:${avatarSize}px;margin-bottom:12px">
-              <div style="width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 50% 35%,#1e293b,#0b0716 78%);border:2px solid ${rank===1 ? '#facc15' : 'rgba(255,255,255,0.2)'};display:flex;align-items:center;justify-content:center;font-size:${isCenter ? '42px' : '36px'}">
-                👔
+              <div style="width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 50% 35%,#1e293b,#0b0716 78%);border:2px solid ${rank===1 ? '#facc15' : 'rgba(255,255,255,0.2)'};display:flex;align-items:center;justify-content:center;font-size:${isCenter ? '42px' : '36px'};overflow:hidden">
+                ${item.isUser && typeof state !== 'undefined' && state?.managerPhoto ? `<img src="${window.esc(state.managerPhoto)}" alt="Técnico" style="width:100%;height:100%;object-fit:cover">` : (item.isUser && typeof state !== 'undefined' && state?.managerAvatar ? window.esc(state.managerAvatar) : '👔')}
               </div>
               <span style="position:absolute;bottom:-4px;right:-4px;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.6))">
                 ${window.clubBadge ? window.clubBadge(item.club, badgeSize) : ''}
@@ -575,8 +575,8 @@
                       </div>
 
                       <!-- AVATAR DO TÉCNICO -->
-                      <div style="width:42px;height:42px;border-radius:50%;background:#1e293b;border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">
-                        👔
+                      <div style="width:42px;height:42px;border-radius:50%;background:#1e293b;border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;overflow:hidden">
+                        ${item.isUser && typeof state !== 'undefined' && state?.managerPhoto ? `<img src="${window.esc(state.managerPhoto)}" alt="Técnico" style="width:100%;height:100%;object-fit:cover">` : (item.isUser && typeof state !== 'undefined' && state?.managerAvatar ? window.esc(state.managerAvatar) : '👔')}
                       </div>
 
                       <!-- NOME, SELO, CLUBE -->

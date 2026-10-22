@@ -45,6 +45,13 @@
       if (!gameState) return null;
       if (!gameState.isolatedWorld) {
         gameState.isolatedWorld = this.createIsolatedWorldForNewSave();
+      } else {
+        const baseClubs = this.staticSnapshot ? JSON.parse(this.staticSnapshot.clubs) : (window.clubs ? JSON.parse(JSON.stringify(window.clubs)) : []);
+        const basePlayers = this.staticSnapshot ? JSON.parse(this.staticSnapshot.players) : (window.livePlayers ? JSON.parse(JSON.stringify(window.livePlayers)) : []);
+        const baseComps = this.staticSnapshot ? JSON.parse(this.staticSnapshot.competitions) : (window.COMPETITIONS ? JSON.parse(JSON.stringify(window.COMPETITIONS)) : []);
+        if (!gameState.isolatedWorld.clubs || !gameState.isolatedWorld.clubs.length) gameState.isolatedWorld.clubs = baseClubs;
+        if (!gameState.isolatedWorld.players || !gameState.isolatedWorld.players.length) gameState.isolatedWorld.players = basePlayers;
+        if (!gameState.isolatedWorld.competitions || !gameState.isolatedWorld.competitions.length) gameState.isolatedWorld.competitions = baseComps;
       }
       return gameState.isolatedWorld;
     },
@@ -54,8 +61,21 @@
       this.ensureSaveIsolation(gameState);
       const storageKey = `afm2027_individual_save_${slotName}`;
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(storageKey, JSON.stringify(gameState));
-        localStorage.setItem('afm2027_last_active_slot', slotName);
+        try {
+          const toSave = JSON.parse(JSON.stringify(gameState));
+          if (toSave.isolatedWorld) {
+            delete toSave.isolatedWorld.players;
+            delete toSave.isolatedWorld.clubs;
+            delete toSave.isolatedWorld.competitions;
+          }
+          delete toSave.worldGenerated;
+          localStorage.setItem(storageKey, JSON.stringify(toSave));
+          localStorage.setItem('afm2027_last_active_slot', slotName);
+        } catch (e) {
+          if (typeof window.freeUpLocalStorageQuota === 'function') {
+            window.freeUpLocalStorageQuota();
+          }
+        }
       }
       return storageKey;
     },

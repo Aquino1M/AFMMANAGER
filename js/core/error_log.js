@@ -11,7 +11,7 @@
       .replace(/\b(password|senha|token|authorization|api[_-]?key)\b\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
       .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email]')
       .replace(/https?:\/\/[^\s)]+/gi, url => url.split(/[?#]/, 1)[0])
-      .slice(0, 3000);
+      .slice(0, 500);
   }
 
   function read(){
@@ -28,11 +28,17 @@
       at: new Date().toISOString(),
       type: sanitize(type).slice(0, 40),
       message: sanitize(message),
-      source: sanitize(details.source).slice(0, 500),
+      source: sanitize(details.source).slice(0, 300),
       line: Number(details.line) || 0,
-      stack: sanitize(details.stack)
+      stack: sanitize(details.stack).slice(0, 500)
     };
-    memoryEntries = [...read(), entry].slice(-MAX_ENTRIES);
+    const current = read();
+    const last = current[current.length - 1];
+    // Evita duplicatas consecutivas do mesmo erro
+    if (last && last.type === entry.type && last.message === entry.message) {
+      return;
+    }
+    memoryEntries = [...current, entry].slice(-MAX_ENTRIES);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(memoryEntries));
       useMemoryEntries = false;
@@ -88,14 +94,13 @@
     download(){
       const blob = new Blob([JSON.stringify(read(), null, 2) + '\n'], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `afm-errors-${new Date().toISOString().slice(0, 10)}.log`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      return true;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `afm-errors-${new Date().toISOString().slice(0, 10)}.log`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     }
   };
 })();

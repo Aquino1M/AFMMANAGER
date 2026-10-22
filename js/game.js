@@ -6608,6 +6608,233 @@ function openPostMatchInterviewModal(matchData, onComplete){
 const MANAGER_AVATARS = [
   '👨‍💼', '👔', '😎', '🧔', '🧑‍🦱', '👨‍🦰', '🧑‍🦳', '🧐', '🧢', '🕶️'
 ];
+
+function managerPhoto(targetState = state, size = 58){
+  const photo = targetState?.managerPhoto;
+  const avatar = targetState?.managerAvatar || (Array.isArray(MANAGER_AVATARS) ? MANAGER_AVATARS[currentManagerAvatarIdx % MANAGER_AVATARS.length] : '👨‍💼');
+  if(photo){
+    return `<div style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;border:2px solid #a855f7;background:#18132d;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(168,85,247,0.35);flex-shrink:0;">
+      <img src="${esc(photo)}" alt="Técnico" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'font-size:${Math.round(size*0.48)}px\\'>${esc(avatar)}</span>'">
+    </div>`;
+  }
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg, #7c3aed, #4c1d95);display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.48)}px;border:2px solid #a855f7;box-shadow:0 4px 12px rgba(124,58,237,0.35);flex-shrink:0;">
+    ${esc(avatar)}
+  </div>`;
+}
+if(typeof window !== 'undefined') window.managerPhoto = managerPhoto;
+
+function openManagerPhotoModal(){
+  if(!state) return;
+  let tempPhoto = state.managerPhoto || '';
+  let tempAvatar = state.managerAvatar || (Array.isArray(MANAGER_AVATARS) ? MANAGER_AVATARS[currentManagerAvatarIdx % MANAGER_AVATARS.length] : '👨‍💼');
+
+  const famousPresets = [
+    { name: 'Pep Guardiola', role: 'Estrategista', photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80', avatar: '🧠' },
+    { name: 'Carlo Ancelotti', role: 'Gestor Campeão', photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80', avatar: '🤨' },
+    { name: 'Abel Ferreira', role: 'Cabeça Fria', photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80', avatar: '🇵🇹' },
+    { name: 'Jürgen Klopp', role: 'Heavy Metal', photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=256&q=80', avatar: '😁' },
+    { name: 'José Mourinho', role: 'Special One', photo: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=256&q=80', avatar: '🕶️' },
+    { name: 'Renato Gaúcho', role: 'Rei de Copas', photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=256&q=80', avatar: '🏖️' },
+    { name: 'Dorival Júnior', role: 'Equilíbrio', photo: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=256&q=80', avatar: '🇧🇷' },
+    { name: 'Fernando Diniz', role: 'Dinizismo', photo: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=256&q=80', avatar: '⚽' },
+    { name: 'Filipe Luís', role: 'Moderna', photo: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=256&q=80', avatar: '📋' },
+    { name: 'Jorge Jesus', role: 'Outro Patamar', photo: 'https://images.unsplash.com/photo-1513956589380-bad6acb9b9d4?auto=format&fit=crop&w=256&q=80', avatar: '🦅' }
+  ];
+
+  const html = `
+    <div style="color:#fff;padding:8px 0">
+      <!-- Preview Principal -->
+      <div style="background:linear-gradient(135deg, rgba(124,58,237,0.15), rgba(15,23,42,0.6));border:1px solid rgba(139,92,246,0.3);border-radius:16px;padding:18px;display:flex;align-items:center;gap:18px;margin-bottom:20px">
+        <div id="modalManagerPreviewContainer">
+          ${managerPhoto({ managerPhoto: tempPhoto, managerAvatar: tempAvatar }, 80)}
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">TÉCNICO DO ${esc(state.club)}</div>
+          <div style="font-size:20px;font-weight:900;color:#fff;text-transform:uppercase;margin:2px 0 6px">${esc(state.manager)}</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="pill" style="font-size:10px;background:rgba(168,85,247,0.25);color:#c084fc;padding:2px 8px;border-radius:6px;font-weight:800">FOTO ATIVA</span>
+            <button id="btnModalRemovePhoto" type="button" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;cursor:pointer">🗑️ Remover Foto</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seção 1: Upload de Foto Local -->
+      <div style="background:#130f24;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span>📁</span> ENVIAR FOTO DO DISPOSITIVO (CELULAR / PC)
+        </div>
+        <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:0 0 12px;line-height:1.4">
+          Envie qualquer foto sua ou de treinador (PNG, JPG, WebP). O sistema recorta e ajusta em círculo automaticamente com alta definição.
+        </p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="inpUploadManagerPhoto" accept="image/*" style="display:none">
+          <button type="button" id="btnTriggerUploadManagerPhoto" class="btn primary" style="background:linear-gradient(135deg,#7c3aed,#9333ea);font-size:12px;font-weight:900;padding:8px 16px;border-radius:10px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            📷 ESCOLHER FOTO NA GALERIA / ARQUIVOS
+          </button>
+          <span id="uploadManagerStatusText" style="font-size:11px;color:#a855f7;font-weight:700"></span>
+        </div>
+      </div>
+
+      <!-- Seção 2: URL de Foto da Internet -->
+      <div style="background:#130f24;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span>🌐</span> LINK DE FOTO DA WEB (URL)
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="inpManagerPhotoUrl" placeholder="Cole o link da foto (https://...)" style="flex:1;background:#0d091a;border:1px solid rgba(139,92,246,0.3);color:#fff;padding:8px 12px;border-radius:8px;font-size:12px">
+          <button type="button" id="btnApplyManagerPhotoUrl" class="btn" style="background:#2e1065;border:1px solid #7c3aed;color:#c084fc;font-size:12px;font-weight:800;padding:8px 14px;border-radius:8px;cursor:pointer">Carregar</button>
+        </div>
+      </div>
+
+      <!-- Seção 3: Coleção de Treinadores Famosos & Avatares de Elite -->
+      <div style="background:#130f24;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span>⭐</span> OU ESCOLHA UM AVATAR DE ELITE
+        </div>
+        <p style="font-size:11px;color:rgba(255,255,255,0.6);margin:0 0 12px">
+          Clique em qualquer treinador ou estilo para aplicar instantaneamente:
+        </p>
+
+        <!-- Emojis / Avatares Estilizados -->
+        <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:14px;scrollbar-width:thin">
+          ${MANAGER_AVATARS.map((av, i) => `
+            <button type="button" class="btn-avatar-choice" data-avatar="${esc(av)}" style="width:44px;height:44px;border-radius:50%;background:#1e1838;border:2px solid ${tempAvatar === av && !tempPhoto ? '#a855f7' : 'rgba(255,255,255,0.1)'};display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;flex-shrink:0;transition:all 0.15s">
+              ${av}
+            </button>
+          `).join('')}
+        </div>
+
+        <!-- Galeria de Técnicos Famosos -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(115px, 1fr));gap:8px;max-height:180px;overflow-y:auto;padding-right:4px">
+          ${famousPresets.map((p, idx) => `
+            <div class="preset-coach-card" data-photo="${esc(p.photo)}" data-name="${esc(p.name)}" style="background:#1a1433;border:1px solid rgba(139,92,246,0.25);border-radius:10px;padding:8px;text-align:center;cursor:pointer;transition:all 0.2s">
+              <div style="width:48px;height:48px;border-radius:50%;overflow:hidden;margin:0 auto 6px;border:2px solid #7c3aed">
+                <img src="${esc(p.photo)}" alt="${esc(p.name)}" style="width:100%;height:100%;object-fit:cover;display:block">
+              </div>
+              <div style="font-size:11px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.5)">${esc(p.role)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  openCustomModal(
+    '👤 PERSONALIZAR FOTO DO TÉCNICO',
+    html,
+    () => {
+      state.managerPhoto = tempPhoto || null;
+      state.managerAvatar = tempAvatar || '👨‍💼';
+      save();
+      render();
+      toast('✅ Foto do técnico personalizada e salva com sucesso!');
+    },
+    '💾 SALVAR FOTO',
+    true,
+    '560px'
+  );
+
+  setTimeout(() => {
+    const previewContainer = $('#modalManagerPreviewContainer');
+    const updatePreview = () => {
+      if(previewContainer){
+        previewContainer.innerHTML = managerPhoto({ managerPhoto: tempPhoto, managerAvatar: tempAvatar }, 80);
+      }
+    };
+
+    const fileInp = $('#inpUploadManagerPhoto');
+    const btnTrigger = $('#btnTriggerUploadManagerPhoto');
+    const statusText = $('#uploadManagerStatusText');
+
+    if(btnTrigger && fileInp){
+      btnTrigger.onclick = () => fileInp.click();
+      fileInp.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if(!file) return;
+        if(!file.type || !file.type.match(/^image\//)){
+          toast('Por favor, selecione um arquivo de imagem válido (PNG, JPG ou WebP).');
+          return;
+        }
+        if(statusText) statusText.textContent = 'Processando foto...';
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              const size = 180;
+              canvas.width = size;
+              canvas.height = size;
+              const ctx = canvas.getContext('2d');
+              const minSide = Math.min(img.width, img.height);
+              const sx = (img.width - minSide) / 2;
+              const sy = (img.height - minSide) / 2;
+              ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+              const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+              tempPhoto = optimizedDataUrl;
+              updatePreview();
+              if(statusText) statusText.textContent = '✅ Foto carregada!';
+            } catch(err){
+              tempPhoto = evt.target.result;
+              updatePreview();
+              if(statusText) statusText.textContent = '✅ Foto carregada!';
+            }
+          };
+          img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+      };
+    }
+
+    const btnApplyUrl = $('#btnApplyManagerPhotoUrl');
+    const inpUrl = $('#inpManagerPhotoUrl');
+    if(btnApplyUrl && inpUrl){
+      btnApplyUrl.onclick = () => {
+        const url = inpUrl.value.trim();
+        if(!url){
+          toast('Insira o link da imagem.');
+          return;
+        }
+        tempPhoto = url;
+        updatePreview();
+        toast('Foto carregada da URL com sucesso!');
+      };
+    }
+
+    const btnRemove = $('#btnModalRemovePhoto');
+    if(btnRemove){
+      btnRemove.onclick = () => {
+        tempPhoto = '';
+        updatePreview();
+        toast('Foto removida. Avatar padrão selecionado.');
+      };
+    }
+
+    $$('.btn-avatar-choice').forEach(btn => {
+      btn.onclick = () => {
+        tempAvatar = btn.dataset.avatar || '👨‍💼';
+        tempPhoto = '';
+        $$('.btn-avatar-choice').forEach(b => b.style.borderColor = 'rgba(255,255,255,0.1)');
+        btn.style.borderColor = '#a855f7';
+        updatePreview();
+      };
+    });
+
+    $$('.preset-coach-card').forEach(card => {
+      card.onclick = () => {
+        tempPhoto = card.dataset.photo;
+        $$('.preset-coach-card').forEach(c => c.style.borderColor = 'rgba(139,92,246,0.25)');
+        card.style.borderColor = '#22c55e';
+        updatePreview();
+        toast(`Técnico selecionado: ${card.dataset.name}!`);
+      };
+    });
+  }, 50);
+}
+if(typeof window !== 'undefined') window.openManagerPhotoModal = openManagerPhotoModal;
+
+
 let currentManagerAvatarIdx = 0;
 
 
@@ -7709,37 +7936,60 @@ function getUserSaveSlots(username){
   });
 }
 
+function freeUpLocalStorageQuota(){
+  if(typeof localStorage === 'undefined') return;
+  try {
+    // 1. Remove logs de erro acumulados que podem ter centenas de KB
+    localStorage.removeItem('afm_error_log_v1');
+    localStorage.removeItem('afm_ranking_cache');
+    localStorage.removeItem('afm_tm_last_sync');
+
+    // 2. Remove chaves temporárias e duplicatas obsoletas
+    const keysToRemove = [];
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(!k) continue;
+      if(k.startsWith('afm2027_individual_save_') || k.startsWith('afm_temp_') || k.startsWith('afm_save_active_')){
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => {
+      try { localStorage.removeItem(k); } catch(e){}
+    });
+  } catch(e){}
+}
+if(typeof window !== 'undefined') window.freeUpLocalStorageQuota = freeUpLocalStorageQuota;
+
 function save(){
   if(!state) return false;
   processContinentalFixturesBefore(state.date);
-  if(Array.isArray(state.news) && state.news.length > 50){
-    state.news = state.news.slice(0, 50);
+  if(Array.isArray(state.news) && state.news.length > 40){
+    state.news = state.news.slice(0, 40);
   }
-  if(Array.isArray(state.marketWorldFeed) && state.marketWorldFeed.length > 30){
-    state.marketWorldFeed = state.marketWorldFeed.slice(0, 30);
+  if(Array.isArray(state.marketWorldFeed) && state.marketWorldFeed.length > 25){
+    state.marketWorldFeed = state.marketWorldFeed.slice(0, 25);
   }
-  if(Array.isArray(state.seasonHistory) && state.seasonHistory.length > 20){
-    state.seasonHistory = state.seasonHistory.slice(0, 20);
+  if(Array.isArray(state.seasonHistory) && state.seasonHistory.length > 15){
+    state.seasonHistory = state.seasonHistory.slice(0, 15);
+  }
+  if(Array.isArray(state.history) && state.history.length > 50){
+    state.history = state.history.slice(0, 50);
+  }
+  if(Array.isArray(state.worldRegens) && state.worldRegens.length > 40){
+    state.worldRegens = state.worldRegens.slice(0, 40);
   }
 
   purgeBuggedExploitPlayers(state);
   const slotNum = Math.max(1, Math.min(3, Number(state.userSlot) || 1));
   state.userSlot = slotNum;
 
-  // Prepara payload compacto omitindo worldGenerated (recriado dinamicamente no load para economizar 95% de quota)
+  // Prepara payload compacto omitindo catálogos estáticos pesados para economizar 95% da cota do navegador
   const savePayload = clone(state);
   delete savePayload.worldGenerated;
-
-  let localSaved = false;
-  // 1. Salvar no STORAGE primário apenas se for Slot 1 (evita corrupção de outros slots)
-  if(slotNum === 1){
-    try {
-      localStorage.setItem(STORAGE, JSON.stringify(savePayload));
-      localSaved = true;
-    } catch(e){ recordAFMError('local-save-write', e); }
-    if(window.AFM_Guards && typeof window.AFM_Guards.saveWithDualSlot === 'function'){
-      window.AFM_Guards.saveWithDualSlot(savePayload);
-    }
+  if(savePayload.isolatedWorld){
+    delete savePayload.isolatedWorld.players;
+    delete savePayload.isolatedWorld.clubs;
+    delete savePayload.isolatedWorld.competitions;
   }
 
   const user = getActiveAccount() || { username: state.userOwner || 'local', name: state.manager || 'Treinador' };
@@ -7765,12 +8015,51 @@ function save(){
     data: savePayload
   };
 
-  // 2. Salvar no slot dedicado no localStorage (garante persistência isolada e completa de cada slot)
+  let localSaved = false;
+  const entryStr = JSON.stringify(saveEntry);
+  const payloadStr = JSON.stringify(savePayload);
+
+  // 1. Salvar no slot primário dedicado no localStorage com recuperação de cota inteligente
   try {
-    localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(saveEntry));
-    if(state.userOwner) localStorage.setItem(`afm_save_${state.userOwner.toLowerCase()}_slot_${slotNum}`, JSON.stringify(saveEntry));
+    localStorage.setItem(`afm_save_slot_${slotNum}`, entryStr);
     localSaved = true;
-  } catch(e){ recordAFMError('local-save-write', e); }
+  } catch(e){
+    freeUpLocalStorageQuota();
+    try {
+      localStorage.setItem(`afm_save_slot_${slotNum}`, entryStr);
+      localSaved = true;
+    } catch(retryErr){
+      recordAFMError('local-save-write', retryErr);
+    }
+  }
+
+  // 1b. Salvar cópia no slot individual do usuário se houver cota disponível
+  if(state.userOwner && localSaved){
+    try {
+      localStorage.setItem(`afm_save_${state.userOwner.toLowerCase()}_slot_${slotNum}`, entryStr);
+    } catch(e){
+      // Não bloqueia o jogo se a chave redundante não couber na cota
+    }
+  }
+
+  // 2. Salvar no STORAGE legado apenas se for Slot 1
+  if(slotNum === 1){
+    try {
+      localStorage.setItem(STORAGE, payloadStr);
+      localSaved = true;
+    } catch(e){
+      freeUpLocalStorageQuota();
+      try {
+        localStorage.setItem(STORAGE, payloadStr);
+        localSaved = true;
+      } catch(retryLegacyErr){
+        // afm_save_slot_1 já possui o jogo completo
+      }
+    }
+    if(window.AFM_Guards && typeof window.AFM_Guards.saveWithDualSlot === 'function'){
+      try { window.AFM_Guards.saveWithDualSlot(savePayload); } catch(e){}
+    }
+  }
 
   if(!localSaved){
     if(!window.__afmStorageWarning){
@@ -7795,7 +8084,6 @@ function save(){
     }
     acc.saves = acc.saves.filter(s => s.slot >= 1 && s.slot <= 3).sort((a,b) => a.slot - b.slot);
     saveStoredAccounts(accs);
-
   }
 
   // 4. REGRA CRÍTICA INVIOLÁVEL: Sincronização obrigatória com o Supabase Cloud (afm_saves)
@@ -11515,25 +11803,10 @@ window.openPlayerChangePositionModal = openPlayerChangePositionModal;
 // REMOÇÃO DEFINITIVA DE JOGADORES BUGADOS / EXPLOIT REGENS DE TODOS OS SAVES
 // =========================================================================
 function isBuggedExploitPlayer(p){
-  if(!p || typeof p !== "object") return false;
-  if(p.isGeneticRegen || p.regenOf || p.geneticOrigin) return true;
-  if(typeof p.id === "string" && (p.id.startsWith("regen_") || p.id.includes("genetic"))) return true;
-
-  const rawName = String(p.name || "").trim();
-  if(!rawName) return false;
-  const n = (typeof norm === "function" ? norm(rawName) : rawName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim());
-
-  // Exceções permitidas da vida real
-  if(n === "neymar jr" || n === "vinicius jr" || n === "ruben ramos jr." || n === "ruben ramos jr") return false;
-
-  // Qualquer jogador bugado de exploit com Jr. no final (ex: Virgil Jr., Lionel Jr., Manuel Jr., Cristiano Jr., Luis Jr.)
-  if(rawName.endsWith(" Jr.") || rawName.endsWith(" Jr") || /\b(virgil|lionel|manuel|cristiano|luis|kylian|erling|kevin|mohamed|robert|luka|karim|sergio|alisson|thibaut|ederson|rodri|jude)\s+jr\.?$/i.test(rawName)){
-    return true;
-  }
-  if(/\s+jr\.?$/i.test(rawName)){
-    return true;
-  }
-
+  // Regens genéticos de craques veteranos (${nome} Jr.) gerados nas categorias de base são atletas legítimos com posições resolvidas
+  // Apenas registros corrompidos/nulos sem identificação são tratados como anomalias a serem purgadas
+  if(!p || typeof p !== "object") return true;
+  if(!p.name && !p.id && !p.marketKey) return true;
   return false;
 }
 if(typeof window !== "undefined") window.isBuggedExploitPlayer = isBuggedExploitPlayer;
@@ -16439,6 +16712,16 @@ function simulateAITransfers(){
     }
   }
 }
+
+function shuffle(array){
+  if(!Array.isArray(array)) return array;
+  for(let i = array.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+if(typeof window !== 'undefined') window.shuffle = shuffle;
 
 function checkIncomingPlayerBids(){
   if(!state || !state.squad || !state.squad.length) return;
@@ -27323,12 +27606,13 @@ function centralPage(){
         <!-- Card 2: Perfil do Treinador -->
         <div class="card" style="padding:20px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
           <div style="display:flex;align-items:center;gap:14px">
-            <div style="position:relative">
-              <div style="width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg, #7c3aed, #4c1d95);display:flex;align-items:center;justify-content:center;font-size:28px;border:2px solid #a855f7">
-                ${curAvatar}
+            <div style="position:relative;flex-shrink:0">
+              <div id="btnManagerAvatarCircle" style="cursor:pointer;position:relative" title="Clique para personalizar a foto do técnico">
+                ${managerPhoto(state, 60)}
+                <span style="position:absolute;bottom:-2px;right:-2px;background:#9333ea;color:#fff;font-size:10px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #100d1e;box-shadow:0 2px 6px rgba(0,0,0,0.5)">📷</span>
               </div>
-              <button id="btnChangeManagerAvatar" style="margin-top:4px;background:none;border:none;color:#a855f7;font-size:9px;font-weight:800;cursor:pointer;width:100%;text-align:center">
-                OUTRO ROSTO
+              <button id="btnChangeManagerAvatar" style="margin-top:6px;background:rgba(147,51,234,0.15);border:1px solid rgba(147,51,234,0.4);color:#c084fc;font-size:9px;font-weight:900;letter-spacing:0.5px;padding:3px 6px;border-radius:6px;cursor:pointer;width:100%;text-align:center;text-transform:uppercase;transition:all 0.2s">
+                📷 EDITAR FOTO
               </button>
             </div>
             <div>
@@ -36985,12 +37269,9 @@ function bind(){
 
   if(view==='central'){
     const bAvatar = $('#btnChangeManagerAvatar');
-    if(bAvatar){
-      bAvatar.onclick = () => {
-        currentManagerAvatarIdx = (currentManagerAvatarIdx + 1) % MANAGER_AVATARS.length;
-        render();
-      };
-    }
+    if(bAvatar) bAvatar.onclick = () => openManagerPhotoModal();
+    const bAvatarCircle = $('#btnManagerAvatarCircle');
+    if(bAvatarCircle) bAvatarCircle.onclick = () => openManagerPhotoModal();
     const bOpenStadCent = $('#btnOpenStadiumFromCentral');
     if(bOpenStadCent) bOpenStadCent.onclick = () => openStadiumModal('summary');
     const bOpenCaldCent = $('#btnOpenCaldeiraoCentral');
