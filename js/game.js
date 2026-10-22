@@ -7832,12 +7832,9 @@ async function activateAuthenticatedUser(user){
     recordAFMError('save-sync', synced.error);
     console.warn('[AFM] Sincronização de saves indisponível:', synced.error);
   }
-  for(const entry of getUserSaveSlots(userIdentifier)){
-    if(entry?.data?.club){
-      const saved = await window.AFM_DB.saveSlot(userIdentifier, entry.slot, entry);
-      if(!saved.ok) recordAFMError('save-sync', saved.error);
-    }
-  }
+  // syncUser já compara os saves locais com os remotos e importa o mais recente.
+  // Não reenviar todos os slots aqui: isso pode sobrescrever uma versão remota nova
+  // com um snapshot local antigo logo após a sincronização.
   return { success: true, user: account };
 }
 
@@ -7905,7 +7902,11 @@ function getUserSaveSlots(username){
       if(raw){
         const parsed = JSON.parse(raw);
         if(parsed && parsed.club && (!parsed.owner || parsed.owner.toLowerCase() === cleanU)){
-          s = s ? { ...s, ...parsed } : parsed;
+          const existingTime = Date.parse(s?.updatedAt || '');
+          const sharedTime = Date.parse(parsed.updatedAt || '');
+          if(!s || (!s.data && !s.club) || !Number.isFinite(existingTime) || (Number.isFinite(sharedTime) && sharedTime > existingTime)){
+            s = s ? { ...s, ...parsed } : parsed;
+          }
         }
       }
     } catch(e){ recordAFMError('save-slot-read', e); }
@@ -8178,13 +8179,20 @@ function loadUserSlot(slotNum, ownerUsername = null){
     if(uRaw) saveEntry = JSON.parse(uRaw);
   } catch(e){ recordAFMError('save-slot-read', e); }
 
-  // 1b. Fallback para slot compartilhado se pertencer ao usuário
+  const hasCompleteData = (e) => e && ((e.data && e.data.squad) || (e.squad && e.club));
+
+  // 1b. Fallback legado: nunca substitua um save individual por outro slot/owner.
   try {
     const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
-    if(raw) saveEntry = JSON.parse(raw);
+    if(raw){
+      const sharedEntry = JSON.parse(raw);
+      const sharedOwner = String(sharedEntry?.owner || '').toLowerCase();
+      const belongsToUser = sharedEntry && (!sharedOwner || sharedOwner === username);
+      if(belongsToUser && (!hasCompleteData(saveEntry) || (sharedEntry?.updatedAt && Date.parse(sharedEntry.updatedAt) > Date.parse(saveEntry?.updatedAt || '')))){
+        saveEntry = sharedEntry;
+      }
+    }
   } catch(e){ recordAFMError('save-slot-read', e); }
-
-  const hasCompleteData = (e) => e && ((e.data && e.data.squad) || (e.squad && e.club));
 
   // 2. Se o slot dedicado não possuir payload completo e for slot 1, consulta STORAGE
   if(!hasCompleteData(saveEntry) && slotNum === 1){
@@ -14793,10 +14801,8 @@ function getDateForRound(roundIndex, season = state?.season || 2026){
   const round = Math.max(0, Math.floor(Number(roundIndex) || 0));
   const year = Number(season) || 2026;
   const start = new Date(`${year}-01-17T12:00:00`);
-  // Alternate 2- and 3-day gaps between consecutive rounds.
-  const hasEstadual = typeof clubStateCompId === 'function' && state?.club && Boolean(clubStateCompId(state.club));
-  const cadence = hasEstadual ? 7 : 3.5;
-  start.setDate(start.getDate() + Math.floor(round * cadence));
+  // Alterna intervalos de 2 e 3 dias: todas as diferenças consecutivas são 2 ou 3.
+  start.setDate(start.getDate() + Math.floor(round * 2.5));
   return start.toISOString().slice(0, 10);
 }
 function ensureMidweekDate(isoDate, season = null){

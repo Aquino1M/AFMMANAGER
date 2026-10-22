@@ -176,7 +176,7 @@ const AFM_DB = (function(){
 
         if(!error && data){
           cloudAvailable = true;
-          if(data.password && data.password !== cleanPass){
+          if(!data.password || data.password !== cleanPass){
             return { ok: false, error: 'Senha incorreta para este usuário.' };
           }
           currentUser = {
@@ -338,9 +338,19 @@ const AFM_DB = (function(){
     return { ok: true };
   }
 
+  // Operações de saves usam apenas a conta ativa, nunca um username arbitrário.
+  // A autenticação legada por afm_users não equivale a uma sessão Supabase Auth;
+  // a propriedade remota ainda precisa ser garantida pelas políticas RLS existentes.
+  function getSaveOwner(requestedUsername){
+    const active = String(currentUser?.username || '').trim().toLowerCase();
+    const requested = String(requestedUsername || '').trim().toLowerCase();
+    if(!active || (requested && requested !== active)) return null;
+    return active;
+  }
+
   // Buscar todos os saves do usuário no Supabase
   async function getSaves(targetUsername){
-    const clean = (currentUser?.username || targetUsername || '').trim().toLowerCase();
+    const clean = getSaveOwner(targetUsername);
     if(!clean) return { ok: false, error: 'Sessão de usuário não encontrada.' };
     await init();
     const cli = getClient();
@@ -371,7 +381,8 @@ const AFM_DB = (function(){
       await init();
       const cli = getClient();
       if(!cli) return [];
-      const clean = (targetUsername || '').trim().toLowerCase();
+      const clean = getSaveOwner(targetUsername);
+      if(!clean) return [];
       const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
       const query = cli
         .from('afm_saves')
@@ -396,7 +407,7 @@ const AFM_DB = (function(){
     if(!Number.isInteger(slot) || slot < 1 || slot > 3 || !state.club) return { ok: false, error: 'Save inválido.' };
 
     if(typeof window !== "undefined" && typeof window.purgeBuggedExploitPlayers === "function") window.purgeBuggedExploitPlayers(state);
-    const cleanUser = (currentUser?.username || username || state.userOwner || '').trim().toLowerCase();
+    const cleanUser = getSaveOwner(username || state.userOwner);
     if(!cleanUser) return { ok: false, error: 'Sessão inválida para salvar este jogo.' };
 
     await init();
@@ -449,7 +460,7 @@ const AFM_DB = (function(){
 
   // Excluir Carreira / Slot no Supabase
   async function deleteSlot(username, slotNum){
-    const cleanUser = (currentUser?.username || username || '').trim().toLowerCase();
+    const cleanUser = getSaveOwner(username);
     if(!cleanUser) return { ok: false, error: 'Sessão inválida para excluir este save.' };
     await init();
     const cli = getClient();
@@ -474,7 +485,7 @@ const AFM_DB = (function(){
 
   // Salvar Chave PIX do Usuário no Supabase Cloud
   async function saveUserPix(username, pixData){
-    const cleanUser = (currentUser?.username || username || '').trim().toLowerCase();
+    const cleanUser = getSaveOwner(username);
     if(!cleanUser || !pixData) return { ok: false, error: 'Dados de chave PIX inválidos.' };
     await init();
     const cli = getClient();
@@ -497,7 +508,7 @@ const AFM_DB = (function(){
   // Sincronização Inteligente (Nuvem <-> LocalStorage)
   async function syncUser(targetUsername){
     if(syncInProgress) return { ok: true };
-    const cleanUser = (currentUser?.username || targetUsername || '').trim().toLowerCase();
+    const cleanUser = getSaveOwner(targetUsername);
     if(!cleanUser) return { ok: false, error: 'Sessão inválida para sincronizar saves.' };
     syncInProgress = true;
 
@@ -505,7 +516,7 @@ const AFM_DB = (function(){
       await init();
       const result = await getSaves(cleanUser);
       if(!result.ok){
-        return { ok: true, localOnly: true, reason: result.error };
+        return { ok: false, localOnly: true, error: result.error || 'Não foi possível validar a sessão para sincronizar.' };
       }
 
       const storageKey = 'afm_accounts_v1';
@@ -521,7 +532,14 @@ const AFM_DB = (function(){
       for(const row of (result.data || [])){
         const slot = Number(row.slot);
         const idx = account.saves.findIndex(item => Number(item.slot) === slot);
-        const local = JSON.parse(localStorage.getItem(`afm_save_${cleanUser}_slot_${slot}`) || localStorage.getItem(`afm_save_slot_${slot}`) || 'null');
+        const userRaw = localStorage.getItem(`afm_save_${cleanUser}_slot_${slot}`);
+        const sharedRaw = localStorage.getItem(`afm_save_slot_${slot}`);
+        let local = userRaw ? JSON.parse(userRaw) : null;
+        if(!local && sharedRaw){
+          const shared = JSON.parse(sharedRaw);
+          const sharedOwner = String(shared?.owner || '').trim().toLowerCase();
+          if(!sharedOwner || sharedOwner === cleanUser) local = shared;
+        }
         const localTime = Date.parse(local?.updatedAt || '');
         const cloudTime = Date.parse(row.updated_at || '');
 
@@ -542,19 +560,37 @@ const AFM_DB = (function(){
           data: row.save_data
         };
         if(entry.data && typeof window !== "undefined" && typeof window.purgeBuggedExploitPlayers === "function") window.purgeBuggedExploitPlayers(entry.data);
-        localStorage.setItem(`afm_save_slot_${slot}`, JSON.stringify(entry));
+        const existingSharedRaw = localStorage.getItem(`afm_save_slot_${slot}`);
+        const existingShared = existingSharedRaw ? JSON.parse(existingSharedRaw) : null;
+        const existingOwner = String(existingShared?.owner || '').trim().toLowerCase();
+        if(!existingShared || !existingOwner || existingOwner === cleanUser){
+          localStorage.setItem(`afm_save_slot_${slot}`, JSON.stringify(entry));
+        }
         localStorage.setItem(`afm_save_${cleanUser}_slot_${slot}`, JSON.stringify(entry));
         if(slot === 1) localStorage.setItem('aquino_futebol_manager_2026_v1', JSON.stringify(row.save_data));
         if(idx < 0) account.saves.push({ ...entry, data: undefined });
         else account.saves[idx] = { ...entry, data: undefined };
       }
 
-      // 2. Fazer upload de saves locais mais recentes que não estão na nuvem
-      const cloudSlots = new Set((result.data || []).map(r => Number(r.slot)));
+      // 2. Enviar somente saves individuais ausentes ou comprovadamente mais novos.
+      // Slots compartilhados sem owner são ambíguos e não são enviados automaticamente.
       for(const s of [1, 2, 3]){
-        const loc = JSON.parse(localStorage.getItem(`afm_save_${cleanUser}_slot_${s}`) || localStorage.getItem(`afm_save_slot_${s}`) || 'null');
-        if(loc?.data?.club && !cloudSlots.has(s)){
-          await saveSlot(cleanUser, s, loc);
+        const userRaw = localStorage.getItem(`afm_save_${cleanUser}_slot_${s}`);
+        const sharedRaw = localStorage.getItem(`afm_save_slot_${s}`);
+        let loc = userRaw ? JSON.parse(userRaw) : null;
+        if(!loc && sharedRaw){
+          const shared = JSON.parse(sharedRaw);
+          const sharedOwner = String(shared?.owner || '').trim().toLowerCase();
+          if(sharedOwner === cleanUser) loc = shared;
+        }
+        const cloudRow = (result.data || []).find(row => Number(row.slot) === s);
+        const localTime = Date.parse(loc?.updatedAt || '');
+        const cloudTime = Date.parse(cloudRow?.updated_at || '');
+        const localIsNewer = !cloudRow || (Number.isFinite(localTime) && (!Number.isFinite(cloudTime) || localTime > cloudTime));
+        if(loc?.data?.club && localIsNewer){
+          const entry = { ...loc, owner: cleanUser };
+          const saved = await saveSlot(cleanUser, s, entry);
+          if(saved.ok) localStorage.setItem(`afm_save_${cleanUser}_slot_${s}`, JSON.stringify(entry));
         }
       }
 

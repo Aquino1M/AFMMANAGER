@@ -98,26 +98,30 @@ vm.runInNewContext(fs.readFileSync('js/database.js', 'utf8'), context);
   storage.set('afm_save_slot_1', JSON.stringify({ slot: 1, updatedAt: 'data invÃ¡lida', data: { club: 'Save local corrompido' } }));
   saveRows = [{ slot: 1, club: 'Corinthians', manager: 'Coach', season: 2026, round: 1, balance: 0, updated_at: '2026-01-02T00:00:00.000Z', save_data: { club: 'Corinthians', season: 2026 } }];
   const recovered = await db.syncUser('coach@example.com');
-  assert.equal(recovered.ok, false, 'save sync must not run without a validated Auth provider session');
-  assert.equal(JSON.parse(storage.get('afm_save_slot_1')).data.club, 'Save local corrompido', 'save local nÃ£o Ã© substituÃ­do sem sessÃ£o Auth validada');
+  assert.equal(recovered.ok, true, 'active cloud account reconciles saves');
+  assert.equal(JSON.parse(storage.get('afm_save_coach@example.com_slot_1')).data.club, 'Corinthians', 'a nuvem deve hidratar o slot isolado deste usuário');
 
   storage.set('afm_save_slot_1', JSON.stringify({ slot: 1, updatedAt: '2026-01-03T00:00:00.000Z', data: { club: 'Save local mais novo' } }));
   saveRows = [{ ...saveRows[0], updated_at: '2026-01-02T00:00:00.000Z', save_data: { club: 'Save antigo na nuvem' } }];
+  storage.set('afm_save_coach@example.com_slot_1', JSON.stringify({ slot: 1, updatedAt: '2026-01-03T00:00:00.000Z', owner: 'coach@example.com', data: { club: 'Save local mais novo' } }));
+  saveRows = [{ ...saveRows[0], updated_at: '2026-01-02T00:00:00.000Z', save_data: { club: 'Save antigo na nuvem' } }];
   const staleSync = await db.syncUser('coach@example.com');
-  assert.equal(staleSync.ok, false, 'sync also requires a provider session');
-  assert.equal(JSON.parse(storage.get('afm_save_slot_1')).data.club, 'Save local mais novo', 'local newer save is preserved');
-
+  assert.equal(staleSync.ok, true, 'active account may reconcile its saves');
+  assert.equal(JSON.parse(storage.get('afm_save_coach@example.com_slot_1')).data.club, 'Save local mais novo', 'newer per-user local save is preserved');
   const saved = await db.saveSlot('coach@example.com', 2, { club: 'Corinthians', data: { club: 'Corinthians', season: 2026 } });
-  assert.equal(saved.ok, false, 'saves em nuvem exigem identidade validada pela sessÃ£o do Auth');
+  assert.equal(saved.ok, true, 'a conta cloud ativa pode gravar no seu slot');
   const upsert = queryCalls.find(call => call[0] === 'upsert' && call[1] === 'afm_saves');
-  assert.equal(upsert, undefined, 'nÃ£o deve gravar save quando a sessÃ£o nÃ£o foi autenticada pelo provedor');
+  assert(upsert, 'save da conta ativa deve ser enviado à nuvem');
   const noAuthRead = await db.getSaves();
-  assert.equal(noAuthRead.ok, false, 'save reads require a validated provider session');
+  assert.equal(noAuthRead.ok, true, 'save reads usam a conta ativa');
   queryFailure = { message: 'RLS denied save read', code: '42501' };
   assert.equal((await db.getSaves()).ok, false);
   queryFailure = null;
   await db.deleteSlot('forged-owner', 2);
   assert(!queryCalls.some(call => call[0] === 'delete' && call[1] === 'afm_saves'), 'forged owner cannot trigger a cloud delete');
+  const unauthorizedSync = await db.syncUser('another-user');
+  assert.equal(unauthorizedSync.ok, false, 'a caller cannot sync a different account');
+
 
   await db.signOut();
   assert.equal(db.getUser(), null);
