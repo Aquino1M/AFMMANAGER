@@ -24320,11 +24320,18 @@ function openLoanNegotiationModal(key){
           ${[6,12,18,24].map(months => `<button class="btn btnLoanDuration ${loanDurationMonths===months?'primary':''}" data-months="${months}" style="padding:6px 10px;font-size:11px">${months} meses</button>`).join('')}
           <span class="small muted">Retorno previsto: <b style="color:#38bdf8">${formatDatePtBr(loanEndDate)}</b></span>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:11px">
-          <label style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:#e2e8f0"><input type="checkbox" id="chkLoanBuyOption" ${hasBuyOption?'checked':''}> Incluir opção de compra com valor fixado</label>
-          <label style="font-size:11px;color:#94a3b8">Valor da opção
-            <input type="number" id="inpLoanBuyOptionPrice" min="1" step="10000" value="${buyOptionPrice}" ${hasBuyOption?'':'disabled'} style="width:150px;margin-left:6px;background:#0f172a;color:#fff;border:1px solid #475569;border-radius:7px;padding:6px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;background:rgba(0,0,0,0.22);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:#e2e8f0;cursor:pointer">
+            <input type="checkbox" id="chkLoanBuyOption" ${hasBuyOption?'checked':''} style="width:16px;height:16px;cursor:pointer">
+            <span>Incluir opção de compra com valor fixado</span>
           </label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:#94a3b8;font-weight:700">Valor da opção:</span>
+            <div style="display:inline-flex;align-items:center;background:#0f172a;border:1px solid #475569;border-radius:8px;padding:0 10px">
+              <span style="font-size:11px;font-weight:900;color:#38bdf8;margin-right:4px">R$</span>
+              <input type="text" id="inpLoanBuyOptionPrice" inputmode="numeric" value="${buyOptionPrice ? String(buyOptionPrice).replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''}" placeholder="0" ${hasBuyOption?'':'disabled'} style="width:140px;background:transparent;color:#fff;font-weight:800;font-size:13px;border:none;outline:none;padding:7px 0;text-align:right">
+            </div>
+          </div>
         </div>
         <div class="small muted" style="margin-top:6px">Sem opção fixada, o clube ainda pode negociar a compra pelo valor de mercado vigente.</div>
       </div>
@@ -24402,7 +24409,23 @@ function openLoanNegotiationModal(key){
     const buyOptionToggle = $('#chkLoanBuyOption');
     if(buyOptionToggle) buyOptionToggle.onchange = () => { hasBuyOption = buyOptionToggle.checked; renderLoanNego(); };
     const buyOptionInput = $('#inpLoanBuyOptionPrice');
-    if(buyOptionInput) buyOptionInput.oninput = () => { buyOptionPrice = Math.max(0, Math.round(Number(buyOptionInput.value) || 0)); };
+    if(buyOptionInput){
+      buyOptionInput.oninput = () => {
+        const caret = buyOptionInput.selectionStart ?? buyOptionInput.value.length;
+        const digitsBeforeCaret = buyOptionInput.value.slice(0, caret).replace(/\D/g, '').length;
+        const digits = buyOptionInput.value.replace(/\D/g, '');
+        buyOptionPrice = Math.max(0, parseInt(digits, 10) || 0);
+        const formatted = digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+        buyOptionInput.value = formatted;
+        let nextCaret = 0;
+        let digitsCounted = 0;
+        while(nextCaret < formatted.length && digitsCounted < digitsBeforeCaret){
+          if(/\d/.test(formatted[nextCaret])) digitsCounted++;
+          nextCaret++;
+        }
+        buyOptionInput.setSelectionRange(nextCaret, nextCaret);
+      };
+    }
 
     const bConfLoan = $('#btnConfirmLoanNego');
     if(bConfLoan){
