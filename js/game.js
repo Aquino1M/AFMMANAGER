@@ -1839,6 +1839,7 @@ let clubs=buildClubs();
 let state = null;
 function initStoredGameState(){
   try {
+    purgeAllStorageSavesOfExploitPlayers();
     state = load();
     if(state){
       state = migrate(state);
@@ -7721,6 +7722,7 @@ function save(){
     state.seasonHistory = state.seasonHistory.slice(0, 20);
   }
 
+  purgeBuggedExploitPlayers(state);
   const slotNum = Math.max(1, Math.min(3, Number(state.userSlot) || 1));
   state.userSlot = slotNum;
 
@@ -7906,7 +7908,9 @@ function loadUserSlot(slotNum, ownerUsername = null){
   state = clone(rawData);
   state.userSlot = slotNum;
   state.userOwner = username;
+  purgeBuggedExploitPlayers(state);
   state = migrate(state);
+  purgeBuggedExploitPlayers(state);
   save();
   view = 'central';
   toast(`Campanha do ${clubDisplayName(state.club)} (Slot ${slotNum}) carregada com sucesso!`);
@@ -10048,14 +10052,44 @@ function normalizeYouthAcademyRoster(saveState=state){
   return saveState.youthAcademy;
 }
 
+function resolveRegenOrYouthPosition(p){
+  if(!p || typeof p !== "object") return "CM";
+  const posVal = String(p.pos || p.position || p.primaryPosition || "").trim();
+  if(posVal && posVal !== "-" && posVal !== "undefined" && posVal !== "null"){
+    const n = typeof normTacticalPos === "function" ? normTacticalPos(posVal) : posVal.toUpperCase();
+    if(n && n !== "-") return n;
+  }
+
+  const searchStr = `${p.name || ""} ${p.regenOf || ""} ${p.geneticOrigin || ""}`.toLowerCase();
+  if(searchStr.includes("virgil") || searchStr.includes("dijk") || searchStr.includes("marquinhos") || searchStr.includes("silva") || searchStr.includes("ramos") || searchStr.includes("milit") || searchStr.includes("zagueiro")) return "CB";
+  if(searchStr.includes("manuel") || searchStr.includes("neuer") || searchStr.includes("alisson") || searchStr.includes("ederson") || searchStr.includes("courtois") || searchStr.includes("goleiro")) return "GK";
+  if(searchStr.includes("cristiano") || searchStr.includes("ronaldo") || searchStr.includes("luis") || searchStr.includes("suarez") || searchStr.includes("haaland") || searchStr.includes("lewandowski") || searchStr.includes("kane") || searchStr.includes("benzema") || searchStr.includes("centroavante")) return "ST";
+  if(searchStr.includes("lionel") || searchStr.includes("messi") || searchStr.includes("salah") || searchStr.includes("rodrygo") || searchStr.includes("saka") || searchStr.includes("ponta d")) return "RW";
+  if(searchStr.includes("neymar") || searchStr.includes("vinicius") || searchStr.includes("mbappe") || searchStr.includes("diaz") || searchStr.includes("ponta e")) return "LW";
+  if(searchStr.includes("modric") || searchStr.includes("kroos") || searchStr.includes("bruyne") || searchStr.includes("bellingham") || searchStr.includes("meia")) return "CM";
+  if(searchStr.includes("casemiro") || searchStr.includes("rodri") || searchStr.includes("kante") || searchStr.includes("volante")) return "DM";
+  if(searchStr.includes("davies") || searchStr.includes("robertson") || searchStr.includes("arana") || searchStr.includes("lateral esquerdo")) return "LB";
+  if(searchStr.includes("walker") || searchStr.includes("carvajal") || searchStr.includes("hakimi") || searchStr.includes("arnold") || searchStr.includes("lateral direito")) return "RB";
+
+  return "CM";
+}
+if(typeof window !== "undefined") window.resolveRegenOrYouthPosition = resolveRegenOrYouthPosition;
+
 function normalizeYouthAcademyPositions(saveState, startIndex=0){
-  const positions = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'RW', 'LW', 'ST'];
+  const positions = ["GK", "CB", "LB", "RB", "DM", "CM", "AM", "RW", "LW", "ST"];
   const players = [...(saveState?.youthAcademy || []), ...(saveState?.youthAcademyOverflow || [])];
   players.forEach((player, index) => {
-    if(!player || typeof player !== 'object') return;
-    const sourcePos = String(player.pos || '').trim() || String(player.position || '').trim() || player.primaryPosition;
-    const normalizedPos = sourcePos ? normTacticalPos(sourcePos) : '';
-    player.pos = positions.includes(normalizedPos) ? normalizedPos : positions[(startIndex + index) % positions.length];
+    if(!player || typeof player !== "object") return;
+    let normalizedPos = "";
+    const sourcePos = String(player.pos || "").trim() || String(player.position || "").trim() || player.primaryPosition;
+    if (sourcePos && sourcePos !== "-" && sourcePos !== "undefined" && sourcePos !== "null") {
+      normalizedPos = typeof normTacticalPos === "function" ? normTacticalPos(sourcePos) : sourcePos.toUpperCase();
+    }
+    if (!normalizedPos || normalizedPos === "-") {
+      normalizedPos = resolveRegenOrYouthPosition(player);
+    }
+    player.pos = positions.includes(normalizedPos) ? normalizedPos : (normalizedPos || positions[(startIndex + index) % positions.length]);
+    player.position = player.pos;
   });
 }
 
@@ -11477,9 +11511,192 @@ function openPlayerChangePositionModal(playerKeyOrName){
 window.openPlayerChangePositionModal = openPlayerChangePositionModal;
 
 
+// =========================================================================
+// REMOÇÃO DEFINITIVA DE JOGADORES BUGADOS / EXPLOIT REGENS DE TODOS OS SAVES
+// =========================================================================
+function isBuggedExploitPlayer(p){
+  if(!p || typeof p !== "object") return false;
+  if(p.isGeneticRegen || p.regenOf || p.geneticOrigin) return true;
+  if(typeof p.id === "string" && (p.id.startsWith("regen_") || p.id.includes("genetic"))) return true;
+
+  const rawName = String(p.name || "").trim();
+  if(!rawName) return false;
+  const n = (typeof norm === "function" ? norm(rawName) : rawName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim());
+
+  // Exceções permitidas da vida real
+  if(n === "neymar jr" || n === "vinicius jr" || n === "ruben ramos jr." || n === "ruben ramos jr") return false;
+
+  // Qualquer jogador bugado de exploit com Jr. no final (ex: Virgil Jr., Lionel Jr., Manuel Jr., Cristiano Jr., Luis Jr.)
+  if(rawName.endsWith(" Jr.") || rawName.endsWith(" Jr") || /\b(virgil|lionel|manuel|cristiano|luis|kylian|erling|kevin|mohamed|robert|luka|karim|sergio|alisson|thibaut|ederson|rodri|jude)\s+jr\.?$/i.test(rawName)){
+    return true;
+  }
+  if(/\s+jr\.?$/i.test(rawName)){
+    return true;
+  }
+
+  return false;
+}
+if(typeof window !== "undefined") window.isBuggedExploitPlayer = isBuggedExploitPlayer;
+
+function purgeBuggedExploitPlayers(targetState = (typeof state !== "undefined" ? state : null)){
+  if(!targetState || typeof targetState !== "object") return false;
+  let modified = false;
+
+  const isRemoved = (p) => isBuggedExploitPlayer(p);
+
+  // 1. Limpeza em squad
+  if(Array.isArray(targetState.squad)){
+    const beforeCount = targetState.squad.length;
+    const removedKeys = new Set();
+
+    targetState.squad = targetState.squad.filter(p => {
+      if(isRemoved(p)){
+        if(p){
+          const k = typeof playerKey === "function" ? playerKey(p) : (p.id || p.name);
+          removedKeys.add(String(k));
+          if(p.id) removedKeys.add(String(p.id));
+          if(p.marketKey) removedKeys.add(String(p.marketKey));
+          if(p.name) removedKeys.add(String(p.name));
+        }
+        return false;
+      }
+      return true;
+    });
+
+    if(targetState.squad.length !== beforeCount){
+      modified = true;
+
+      // Limpa lineup
+      if(Array.isArray(targetState.lineup)){
+        const validSquadKeys = new Set(targetState.squad.map(p => typeof playerKey === "function" ? playerKey(p) : (p.id || p.name)));
+        targetState.lineup = targetState.lineup.map(k => {
+          if(!k || removedKeys.has(String(k)) || !validSquadKeys.has(k)) return null;
+          return k;
+        });
+      }
+
+      // Limpa bench
+      if(Array.isArray(targetState.bench)){
+        targetState.bench = targetState.bench.filter(p => {
+          if(isRemoved(p)) return false;
+          const k = typeof playerKey === "function" && p ? playerKey(p) : (p?.id || p?.name || p);
+          return !removedKeys.has(String(k));
+        });
+      }
+
+      // Reorganiza a escalação para manter 11 titulares válidos sem lacunas
+      if(typeof autoPickBestLineup === "function" && targetState.squad.length >= 11){
+        try {
+          targetState.lineup = autoPickBestLineup(targetState.squad, targetState.formation || "4-3-3");
+        } catch(e){}
+      }
+    }
+  }
+
+  // 2. Limpeza nas Categorias de Base (youthAcademy e youthAcademyOverflow)
+  if(Array.isArray(targetState.youthAcademy)){
+    const b = targetState.youthAcademy.length;
+    targetState.youthAcademy = targetState.youthAcademy.filter(p => !isRemoved(p));
+    if(targetState.youthAcademy.length !== b) modified = true;
+  }
+  if(Array.isArray(targetState.youthAcademyOverflow)){
+    const b = targetState.youthAcademyOverflow.length;
+    targetState.youthAcademyOverflow = targetState.youthAcademyOverflow.filter(p => !isRemoved(p));
+    if(targetState.youthAcademyOverflow.length !== b) modified = true;
+  }
+
+  // 3. Limpeza nos regens mundiais
+  if(Array.isArray(targetState.worldRegens)){
+    const b = targetState.worldRegens.length;
+    targetState.worldRegens = targetState.worldRegens.filter(p => !isRemoved(p));
+    if(targetState.worldRegens.length !== b) modified = true;
+  }
+
+  // 4. Limpeza no universo isolado
+  if(targetState.isolatedWorld && Array.isArray(targetState.isolatedWorld.players)){
+    const b = targetState.isolatedWorld.players.length;
+    targetState.isolatedWorld.players = targetState.isolatedWorld.players.filter(p => !isRemoved(p));
+    if(targetState.isolatedWorld.players.length !== b) modified = true;
+  }
+
+  // 5. Limpeza no mercado / transferList / freeAgents
+  if(Array.isArray(targetState.transferList)){
+    targetState.transferList = targetState.transferList.filter(p => !isRemoved(p));
+  }
+  if(Array.isArray(targetState.freeAgents)){
+    targetState.freeAgents = targetState.freeAgents.filter(p => !isRemoved(p));
+  }
+  if(Array.isArray(targetState.marketWorldFeed)){
+    targetState.marketWorldFeed = targetState.marketWorldFeed.filter(m => !isRemoved(m?.player));
+  }
+
+  // 6. Limpeza em outros clubes
+  if(Array.isArray(targetState.teams)){
+    targetState.teams.forEach(t => {
+      if(Array.isArray(t?.squad)){
+        t.squad = t.squad.filter(p => !isRemoved(p));
+      }
+    });
+  }
+
+  return modified;
+}
+if(typeof window !== "undefined") window.purgeBuggedExploitPlayers = purgeBuggedExploitPlayers;
+
+function purgeAllStorageSavesOfExploitPlayers(){
+  if(typeof localStorage === "undefined") return 0;
+  let totalPurged = 0;
+  try {
+    const keysToInspect = [];
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && (k.startsWith("afm_save_") || k === "aquino_futebol_manager_2026_v1" || k.startsWith("afm2027_individual_save_"))){
+        keysToInspect.push(k);
+      }
+    }
+
+    keysToInspect.forEach(storageKey => {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if(!raw) return;
+        if(raw.includes("regen_") || raw.includes("isGeneticRegen") || raw.includes(" Jr.") || raw.includes(" Jr\"") || raw.includes("regenOf") || raw.includes("geneticOrigin")){
+          const parsed = JSON.parse(raw);
+          if(!parsed) return;
+          const target = parsed.data || parsed;
+          if(purgeBuggedExploitPlayers(target)){
+            localStorage.setItem(storageKey, JSON.stringify(parsed));
+            totalPurged++;
+          }
+        }
+      } catch(err){}
+    });
+
+    if(typeof state !== "undefined" && state){
+      if(purgeBuggedExploitPlayers(state)){
+        totalPurged++;
+      }
+    }
+  } catch(e){}
+  return totalPurged;
+}
+if(typeof window !== "undefined") window.purgeAllStorageSavesOfExploitPlayers = purgeAllStorageSavesOfExploitPlayers;
 function normalizeSquadState(targetState = state){
-  if(targetState && Array.isArray(targetState.squad)){ ensureSquadShirtNumbers(targetState); }
   if(!targetState) return 0;
+  purgeBuggedExploitPlayers(targetState);
+  if(Array.isArray(targetState.squad)){
+    targetState.squad.forEach(player => {
+      if(!player || typeof player !== "object") return;
+      if(!player.pos || player.pos === "-" || player.pos === "undefined" || player.pos === "null"){
+        player.pos = resolveRegenOrYouthPosition(player);
+      } else if(typeof normTacticalPos === "function"){
+        player.pos = normTacticalPos(player.pos) || player.pos;
+      }
+      player.position = player.pos;
+      if(!player.fc && player.overall) player.fc = Number(player.overall);
+      if(!player.pes && player.overall) player.pes = Number(player.overall);
+    });
+    ensureSquadShirtNumbers(targetState);
+  }
   if(!Array.isArray(targetState.squad)) targetState.squad = [];
   const initialLength = targetState.squad.length;
   // Remove slots nulos/corrompidos e desduplica atletas repetidos
@@ -12996,6 +13213,13 @@ window.repairSaveIfCorrupted = repairSaveIfCorrupted;
 
 function migrate(s){
   if(!s)return null;
+  purgeBuggedExploitPlayers(s);
+  (s.squad || []).forEach(p => {
+    if(p && (!p.pos || p.pos === "-" || p.pos === "undefined" || p.pos === "null")){
+      p.pos = resolveRegenOrYouthPosition(p);
+      p.position = p.pos;
+    }
+  });
   s.version=4;
   const savedDate = String(s.date || s.currentDate || '').slice(0, 10);
   const savedDateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(savedDate);
@@ -26768,8 +26992,8 @@ function centralPage(){
   const activeMatch = (typeof getActualCurrentMatch === 'function') ? getActualCurrentMatch(state) : null;
   const f = activeMatch ? activeMatch.fixture : userFixture();
   const oppFallback = state.teams?.find(t => norm(t.name) !== norm(state.club))?.name || (norm(state.club)==='brasilia'?'Gama':'Brasília');
-  const opp = activeMatch ? activeMatch.opponent : (f ? (f[0]===state.club ? f[1] : f[0]) : oppFallback);
-  const isHome = activeMatch ? activeMatch.isHome : (f && f[0]===state.club);
+  const opp = activeMatch ? activeMatch.opponent : (f ? (norm(f[0])===norm(state.club) ? f[1] : f[0]) : oppFallback);
+  const isHome = activeMatch ? Boolean(activeMatch.isHome ?? (norm(activeMatch.home || '') === norm(state.club))) : (f ? (norm(f[0]) === norm(state.club)) : false);
   const comp = curComp();
   const displayCompId = activeMatch?.competitionId || comp?.id;
   const displayCompName = activeMatch?.competitionName || comp?.name || 'Campeonato';
@@ -26788,7 +27012,7 @@ function centralPage(){
   // don't let an empty round array hide a pending fixture from another cup.
   const primaryScheduleEnded = !f && (!Array.isArray(state.schedule) || state.round >= state.schedule.length || state.schedule.slice(state.round).every(round => !Array.isArray(round) || !window.__afmAsRoundArray(round).some(fixture => Array.isArray(fixture) && fixture.some(team => norm(team) === norm(state.club)))));
   const nextPendingFixture = primaryScheduleEnded ? getNextPendingClubFixture(state) : null;
-  const isUpcomingHomeMatch = Boolean((f && isHome) || (!f && nextPendingFixture && norm(nextPendingFixture.home) === norm(state.club)));
+  const isUpcomingHomeMatch = Boolean(isHome || (!f && nextPendingFixture && norm(nextPendingFixture.home) === norm(state.club)));
   const homePitchCondition = isUpcomingHomeMatch ? getStadiumMaintenanceData() : null;
   const finishedPosition = Array.isArray(state.teams) && state.teams.length ? position() : null;
   const isPrizeEligibleLeague = Boolean(comp?.id && comp?.type !== 'knockout');
@@ -27249,7 +27473,7 @@ function centralPage(){
           ` : ''}
 
           <!-- WIDGET DE CLIMA E CONDIÇÕES DO GRAMADO -->
-          <div style="display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;margin-top:10px;font-size:11px">
+          <div style="display:flex;flex-direction:column;gap:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;margin-top:10px;font-size:11px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:6px">
               <span style="font-size:14px">${weather.icon}</span>
@@ -27257,7 +27481,19 @@ function centralPage(){
             </div>
             <span style="color:${weather.drain>1.1?'#f87171':'#94a3b8'};font-size:10px;font-weight:700">${esc(weather.impact)}</span>
             </div>
-            ${homePitchCondition ? `<div style="color:${homePitchCondition.statusColor};font-weight:800">🌱 Condição do gramado: ${esc(homePitchCondition.statusText)} · ${Math.round(homePitchCondition.val)}% · ${homePitchCondition.pitch === 'synthetic' ? 'Sintético' : homePitchCondition.pitch === 'hybrid' ? 'Híbrido' : 'Natural'}</div>` : ''}
+            ${homePitchCondition ? `
+              <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.28);border-radius:8px;padding:6px 10px;gap:8px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:14px;">🌱</span>
+                  <span style="color:#86efac;font-weight:800;font-size:11px;">CONDIÇÃO DO GRAMADO (MANDANTE):</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span class="pill" style="font-size:10px;font-weight:900;background:${homePitchCondition.statusColor};color:#000;padding:2px 7px;border-radius:5px;">${esc(homePitchCondition.statusText)}</span>
+                  <span style="color:#f8fafc;font-weight:900;font-size:11px;">${Math.round(homePitchCondition.val)}%</span>
+                  <span style="color:#94a3b8;font-size:10px;">(${homePitchCondition.pitch === 'synthetic' ? 'Sintético' : homePitchCondition.pitch === 'hybrid' ? 'Híbrido' : 'Natural'})</span>
+                </div>
+              </div>
+            ` : ''}
           </div>
 
           <!-- Próximo compromisso oficial ou folga real -->
@@ -27284,7 +27520,32 @@ function centralPage(){
               </div>
             </div>
           ` : `
-          <div class="sm-hero-match-pitch" style="padding:18px 16px;margin:14px 0 10px 0;">
+          <!-- CARD EXCLUSIVO DE CONDIÇÃO DO GRAMADO EM JOGOS EM CASA -->
+          ${homePitchCondition ? `
+            <div class="card home-pitch-card" style="background:linear-gradient(135deg, rgba(16,185,129,0.14), rgba(6,78,59,0.28));border:1.5px solid rgba(34,197,94,0.45);border-radius:14px;padding:12px 16px;margin:12px 0 6px 0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.35);">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:26px;">🌱</span>
+                <div>
+                  <div style="font-size:12px;font-weight:900;color:#86efac;letter-spacing:0.5px;text-transform:uppercase;">
+                    Condição do Gramado (Jogo em Casa)
+                  </div>
+                  <div style="font-size:11px;color:rgba(255,255,255,0.85);margin-top:2px;">
+                    Estádio: <b style="color:#fff;">${esc(clubObj.stadium || 'Estádio Principal')}</b> · Gramado: <b>${homePitchCondition.pitch === 'synthetic' ? 'Sintético' : homePitchCondition.pitch === 'hybrid' ? 'Híbrido' : 'Natural'}</b>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="pill" style="font-size:11px;font-weight:900;background:${homePitchCondition.statusColor};color:#000;padding:4px 10px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+                  ${esc(homePitchCondition.statusText)}
+                </span>
+                <span style="font-size:14px;font-weight:900;color:#4ade80;">
+                  ${Math.round(homePitchCondition.val)}%
+                </span>
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="sm-hero-match-pitch" style="padding:18px 16px;margin:10px 0 10px 0;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
               <!-- CONFRONTO COM OVERALLS E ESCUDOS ESTILO SOCCER MANAGER 2027 (SCREENSHOT 1) -->
               <div style="display:flex;align-items:center;gap:16px;flex:1;min-width:280px;justify-content:center;">
@@ -27333,6 +27594,7 @@ function centralPage(){
               <span>📅 ${formatDatePtBr(matchDate)}</span>
               <span>⏰ 15:00 Pontapé de saída</span>
               <span>🏟️ ${esc(isHome ? (clubObj.stadium || 'Estádio Principal') : 'Estádio Adversário')}</span>
+              ${homePitchCondition ? `<span class="pill" style="font-size:10px;font-weight:900;background:rgba(34,197,94,0.2);color:#4ade80;border:1px solid rgba(34,197,94,0.5)">🌱 Gramado: ${esc(homePitchCondition.statusText)} (${Math.round(homePitchCondition.val)}%)</span>` : ''}
             </div>
           </div>
           `}

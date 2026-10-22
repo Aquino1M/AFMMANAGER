@@ -799,14 +799,14 @@
     processAgingDeclineAndGeneticRegens(state) {
       if (!state) return [];
 
-      // 1. Purga e remove proativamente qualquer atleta exploit/bugado do save
-      if (typeof window.purgeBuggedExploitPlayers === "function") {
+      // 1. Purga e remove proativamente e terminantemente qualquer atleta exploit/bugado de todos os saves
+      if (typeof window !== "undefined" && typeof window.purgeBuggedExploitPlayers === "function") {
         window.purgeBuggedExploitPlayers(state);
       }
 
       // Regra de Integridade: O envelhecimento do elenco principal do clube (state.squad)
       // é gerenciado com exclusividade pelo motor central do jogo em game.js (advanceSeasonYear).
-      // É TERMINANTEMENTE PROIBIDO substituir ou mutar jogadores de state.squad com regens genéticos ou "Jr." exploit.
+      // É TERMINANTEMENTE PROIBIDO criar clones "Jr." ou jogadores exploit bugados.
       const isTestSquad = Array.isArray(state?.squad) && !state.isolatedWorld && !state.players && state.squad.some(p => p && p.ovr && !p.fc);
       const players = isTestSquad ? state.squad : (state?.isolatedWorld?.players || state?.players || []);
       const regensLog = [];

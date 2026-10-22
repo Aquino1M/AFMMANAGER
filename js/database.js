@@ -395,6 +395,7 @@ const AFM_DB = (function(){
     const slot = Number(slotNum);
     if(!Number.isInteger(slot) || slot < 1 || slot > 3 || !state.club) return { ok: false, error: 'Save inválido.' };
 
+    if(typeof window !== "undefined" && typeof window.purgeBuggedExploitPlayers === "function") window.purgeBuggedExploitPlayers(state);
     const cleanUser = (currentUser?.username || username || state.userOwner || '').trim().toLowerCase();
     if(!cleanUser) return { ok: false, error: 'Sessão inválida para salvar este jogo.' };
 
@@ -540,6 +541,7 @@ const AFM_DB = (function(){
           updatedAt: row.updated_at,
           data: row.save_data
         };
+        if(entry.data && typeof window !== "undefined" && typeof window.purgeBuggedExploitPlayers === "function") window.purgeBuggedExploitPlayers(entry.data);
         localStorage.setItem(`afm_save_slot_${slot}`, JSON.stringify(entry));
         localStorage.setItem(`afm_save_${cleanUser}_slot_${slot}`, JSON.stringify(entry));
         if(slot === 1) localStorage.setItem('aquino_futebol_manager_2026_v1', JSON.stringify(row.save_data));

@@ -22,6 +22,7 @@ const context = {};
 vm.runInNewContext([
   capacity,
   extractFunction('normTacticalPos'),
+  extractFunction('resolveRegenOrYouthPosition'),
   extractFunction('normalizeYouthAcademyPositions'),
   extractFunction('normalizeYouthAcademyRoster'),
   extractFunction('addYouthAcademyPlayer'),
