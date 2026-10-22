@@ -14,6 +14,7 @@
     "test:manager-payday": "node scripts/test-manager-payday.js",
     "test:coach-career-sync": "node scripts/test-coach-career-sync.js",
     "test:service-worker": "node scripts/test-service-worker.js",
+    "test:coach-ranking-division": "node scripts/test-coach-ranking-division.js",
     "test:season-transitions": "node scripts/test-season-transitions.js",
     "test:calendar-recovery": "node scripts/test-calendar-recovery.js",
     "test:username-login": "node scripts/test-username-login.js",

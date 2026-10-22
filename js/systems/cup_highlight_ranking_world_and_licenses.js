@@ -166,6 +166,14 @@
     return Math.abs(h);
   }
 
+  function resolveUserDivision(st) {
+    st = st || {};
+    var compId = st.compId || st.customClubStateCompId || st.stateCompId || '';
+    var competitions = Array.isArray(window.COMPETITIONS) ? window.COMPETITIONS : [];
+    var comp = competitions.find(function(item) { return item && item.id === compId; });
+    return (comp && comp.name) || st.competition || st.currentLeague || 'Liga Nacional BR';
+  }
+
   function getUserData() {
     var st = window.state || window.gameState || {};
     var managerName = (st.manager && st.manager.name) || st.managerName || st.coachName || 'Aquino';
@@ -179,7 +187,7 @@
     var level = Math.min(99, Math.max(1, Math.floor(pts / 12)));
     var licId = localStorage.getItem('afm_user_license_id') || 'cbf_d';
     var licObj = LICENSES.find(function(x) { return x.id === licId; }) || LICENSES[0];
-    return { managerName: managerName, clubName: clubName, w: w, d: d, l: l, titles: titles, pts: pts, level: level, license: licObj };
+    return { managerName: managerName, clubName: clubName, w: w, d: d, l: l, titles: titles, pts: pts, level: level, license: licObj, division: resolveUserDivision(st) };
   }
 
   // Coleta TODOS os clubes do jogo + técnicos reais para não faltar nenhum time!
@@ -275,23 +283,23 @@
       }
     });
 
-    // Garante que o usuário sempre esteja presente
-    if (!Array.from(byClubKey.values()).some(function(x) { return x.isUser; })) {
-      byClubKey.set(userClubKey, {
-        coach: 'Téc. ' + user.managerName + ' (VOCÊ)',
-        club: user.clubName,
-        country: 'Brasil',
-        division: 'Brasileirão Série A',
-        prestige: user.level,
-        titles: user.titles,
-        w: user.w,
-        d: user.d,
-        l: user.l,
-        pts: user.pts,
-        scope: 'BR',
-        isUser: true
-      });
-    }
+    // O save é a fonte de verdade para a liga e os dados do clube do usuário.
+    // Isso também corrige entradas antigas do ranking com liga estática incorreta.
+    byClubKey.set(userClubKey, {
+      ...(byClubKey.get(userClubKey) || {}),
+      coach: 'Téc. ' + user.managerName + ' (VOCÊ)',
+      club: user.clubName,
+      country: 'Brasil',
+      division: user.division,
+      prestige: user.level,
+      titles: user.titles,
+      w: user.w,
+      d: user.d,
+      l: user.l,
+      pts: user.pts,
+      scope: 'BR',
+      isUser: true
+    });
 
     return Array.from(byClubKey.values()).sort(function(a, b) { return b.pts - a.pts; });
   }
@@ -751,7 +759,9 @@
 
   window.AFM_InstantCareerHook = injectTopPrestigeAndButtons;
   window.AFM_WorldSimulation = Object.assign(window.AFM_WorldSimulation || {}, {
-    injectPrestigeAndRankingButtonInCareerCard: injectTopPrestigeAndButtons
+    injectPrestigeAndRankingButtonInCareerCard: injectTopPrestigeAndButtons,
+    resolveUserDivision: resolveUserDivision,
+    getCoachRankingEntries: buildCompleteCoachesAndTeamsList
   });
   window.openCoachesRankingModal = openCoachesRankingModal;
   window.openLicensesModal = openLicensesModal;
