@@ -196,8 +196,8 @@
       mp.personalBalance = (Number(mp.personalBalance) || 0) + salary;
       mp.lastSalaryPaidMonth = monthKey;
       state.managerMoney = mp.personalBalance;
-      state.clubBalance = (Number(state.clubBalance ?? state.balance) || 0) - salary;
-      state.balance = state.clubBalance;
+      state.balance = (Number(state.balance) || 0) - salary;
+      state.clubBalance = state.balance;
       state.managerFinanceHistory = Array.isArray(state.managerFinanceHistory) ? state.managerFinanceHistory : [];
       state.managerFinanceHistory.unshift({
         date: state.date || state.currentDate || 'Dia 1º',
@@ -684,8 +684,8 @@
 
       if (approved) {
         state.clubIsSaf = true;
-        state.clubBalance = (state.clubBalance || state.balance || 0) + aporte;
-        state.balance = state.clubBalance;
+        state.balance = (Number(state.balance) || 0) + aporte;
+        state.clubBalance = state.balance;
         state.news = Array.isArray(state.news) ? state.news : [];
         state.news.unshift(`🏛️ ASSEMBLEIA GERAL HISTÓRICA: O ${state.club} aprovou a transformação em SAF com ${inFavor} votos a favor (${((inFavor / totalVoters) * 100).toFixed(1)}%)! Aporte de R$ ${aporte.toLocaleString('pt-BR')} creditado no caixa do clube!`);
         state.safAssemblyLastVote = { date: state.date, approved: true, inFavor, against, modelName, aporte };
@@ -1100,8 +1100,8 @@
       mp.personalBalance -= cost;
       mp.clubSharesPct = Number((mp.clubSharesPct + pctToBuy).toFixed(2));
       mp.clubShares = mp.clubSharesPct;
-      state.clubBalance = (state.clubBalance || 0) + cost;
-      state.balance = state.clubBalance;
+      state.balance = (Number(state.balance) || 0) + cost;
+      state.clubBalance = state.balance;
       state.financeLog.unshift({
         date: state.date || state.currentDate || '2026',
         type: 'RECEITA',
@@ -1217,8 +1217,8 @@
       const mp = state.managerPersonal;
       const { totalClubDividendExpense, managerDividendShare, totalShareholdersPct } = this.calculateMonthlyClubDividendExpense(state);
 
-      state.clubBalance = (state.clubBalance || state.balance || 0) - totalClubDividendExpense;
-      state.balance = state.clubBalance;
+      state.balance = (Number(state.balance) || 0) - totalClubDividendExpense;
+      state.clubBalance = state.balance;
       state.lastMonthDividendExpense = totalClubDividendExpense;
       mp.lastDividendPaidByClub = totalClubDividendExpense;
       mp.lastDividendReceivedByManager = managerDividendShare;

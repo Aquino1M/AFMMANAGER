@@ -2,6 +2,17 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.26] - 2026-10-22 (Correção Crítica de Saldo na Virada de Temporada & Restauração Automática de Caixa)
+
+### 💰 Integridade Financeira & Fim do Saldo Negativo na Virada de Temporada
+- **Causa Raiz Identificada e Extirpada**:
+  - Havia uma variável paralela (`state.clubBalance`) em subsistemas (`manager_life_and_shares_pro.js`, `manager_economy.js`, `club_finance_and_stadium.js`) desconectada do caixa real (`state.balance`).
+  - Quando o usuário vendia atletas (ex: R$ 17.000.000) e conquistava títulos, o dinheiro entrava em `state.balance`, mas `state.clubBalance` permanecia obsoleto (zerado). Na virada do ano para 01 de janeiro, o pagamento legítimo de salário de técnico (R$ 26.250) e dividendos calculava `0 - 26250 = -26250` e sobrescrevia `state.balance`, fazendo todo o patrimônio sumir.
+  - O motor financeiro agora opera com `state.balance` como autoridade única e absoluta em todos os subsistemas, sincronizando `state.clubBalance` para evitar qualquer divergência futura.
+- **Restauração Automática e Imediata do Caixa (`repairCorruptedBalanceAndRestoreFunds`)**:
+  - Implementado algoritmo inteligente de recuperação que detecta saves afetados pelo bug (saldo negativo ou -R$ 26.250 na transição para a Série D / nova temporada).
+  - O saldo é restaurado automaticamente usando o histórico de saldo, as vendas registradas de atletas (`state.transfers`), cláusulas de revenda futura e o valor de R$ 17.000.000 reportado, descontando apenas o salário devido e persistindo a correção tanto localmente quanto na nuvem Supabase.
+
 ## [3.9.25] - 2026-10-22 (Motor de Maquete 3D Low-Poly Progressiva: Obras e Ampliações até 100k Lugares)
 
 ### 🏟️ Maquete 3D Low-Poly Progressiva em Tempo Real (Three.js WebGL Local-First)

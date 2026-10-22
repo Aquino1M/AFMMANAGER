@@ -8,6 +8,7 @@
     "badges:build": "node scripts/build-club-badges.js",
     "badges:fetch": "node scripts/fetch-missing-team-badges.js",
     "test:finance": "node scripts/test-finance-systems.js",
+    "test:balance-recovery": "node scripts/test-balance-recovery.js",
     "test:custom-club-trophies": "node scripts/test-custom-club-trophies.js",
     "test:youth-academy-capacity": "node scripts/test-youth-academy-capacity.js",
     "test:sponsor-contracts": "node scripts/test-sponsor-contract-lifecycle.js",

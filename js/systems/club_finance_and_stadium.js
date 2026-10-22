@@ -22,8 +22,8 @@
         installmentValue,
         remainingBalance: totalWithInterest
       });
-      state.clubBalance = (state.clubBalance || state.balance || 0) + amount;
-      state.balance = state.clubBalance;
+      state.balance = (Number(state.balance) || 0) + amount;
+      state.clubBalance = state.balance;
       return { ok: true, installmentValue, totalWithInterest };
     },
 
@@ -37,11 +37,11 @@
       const discountFactor = 1 - ((loan.interestRate || 0.014) * 0.35 * countToPay);
       const costToPay = Math.round(loan.installmentValue * countToPay * Math.max(0.75, discountFactor));
 
-      const curBal = state.clubBalance || state.balance || 0;
+      const curBal = Number(state.balance) || 0;
       if (curBal < costToPay) return { ok: false, message: 'Saldo do clube insuficiente para antecipar.' };
 
-      state.clubBalance = curBal - costToPay;
-      state.balance = state.clubBalance;
+      state.balance = curBal - costToPay;
+      state.clubBalance = state.balance;
       loan.remainingInstallments -= countToPay;
       loan.remainingBalance = Math.max(0, loan.remainingInstallments * loan.installmentValue);
       if (loan.remainingInstallments <= 0) {

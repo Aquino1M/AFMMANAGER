@@ -829,6 +829,7 @@ window.AFM30 = (function(){
   function financialAudit(st){
     if(!st) return;
     st.balance = Math.round(Number(st.balance) || 0);
+    st.clubBalance = st.balance;
     st.income = Math.max(0, Math.round(Number(st.income) || 0));
     st.expense = Math.max(0, Math.round(Number(st.expense) || 0));
 

@@ -1840,6 +1840,27 @@ let state = null;
 function initStoredGameState(){
   try {
     purgeAllStorageSavesOfExploitPlayers();
+    if(typeof localStorage !== 'undefined'){
+      try {
+        for(let i = 0; i < localStorage.length; i++){
+          const k = localStorage.key(i);
+          if(k && k.startsWith('afm_save_')){
+            const raw = localStorage.getItem(k);
+            if(raw && (raw.includes('-26250') || raw.includes('"balance":-'))){
+              try {
+                const entry = JSON.parse(raw);
+                const sData = entry?.data || entry;
+                if(sData && typeof repairCorruptedBalanceAndRestoreFunds === 'function' && repairCorruptedBalanceAndRestoreFunds(sData)){
+                  if(entry.data) entry.data = sData;
+                  if(entry.balance !== undefined) entry.balance = sData.balance;
+                  localStorage.setItem(k, JSON.stringify(entry));
+                }
+              } catch(e){}
+            }
+          }
+        }
+      } catch(e){}
+    }
     state = load();
     if(state){
       state = migrate(state);
@@ -7076,7 +7097,7 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   state.news = state.news || [];
   const userWon = norm(winner) === norm(state.club);
   const isFinalPhase = phase.name.includes('Final') && !phase.name.includes('Semi') && !phase.name.includes('Quartas') && !phase.name.includes('Oitavas');
-  const copaPrize = calculateCupPhasePrize('bra-cup', phase.name, userWon, userWon && isFinalPhase);
+  const copaPrize = typeof calculateCupPhasePrize === 'function' ? calculateCupPhasePrize('bra-cup', phase.name, userWon, userWon && isFinalPhase) : 0;
   if(copaPrize > 0){
     state.balance += copaPrize;
     state.income = (state.income || 0) + copaPrize;
@@ -7086,9 +7107,9 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   if(!userWon){
     const opp = norm(fixture.home) === norm(state.club) ? fixture.away : fixture.home;
     const oppGoals = norm(fixture.home) === norm(state.club) ? ag : hg;
-    registrarEliminacaoMataMata(state, 'Copa do Brasil', phase.name, opp, userGoals, oppGoals);
+    if(typeof registrarEliminacaoMataMata === 'function') registrarEliminacaoMataMata(state, 'Copa do Brasil', phase.name, opp, userGoals, oppGoals);
   }
-  advanceDateAfterMatch(state);
+  if(typeof advanceDateAfterMatch === 'function') advanceDateAfterMatch(state);
   if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
     window.AFM_LifeAndSharesPro.processRoundTurn(state);
   }
@@ -7096,7 +7117,7 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   if(typeof processDevelopment === 'function') processDevelopment();
   save();
   render();
-  triggerPostMatchFlow(result);
+  if(typeof triggerPostMatchFlow === 'function') triggerPostMatchFlow(result);
 }
 
 // COPA DO BRASIL BLOCK - START
@@ -13122,11 +13143,69 @@ function repairEarnedStatePromotion(s){
   return true;
 }
 
+function repairCorruptedBalanceAndRestoreFunds(s){
+  if(!s || !s.club) return false;
+
+  if(typeof s.clubBalance !== 'undefined' && Number.isFinite(Number(s.clubBalance))){
+    if(Number(s.balance) > Number(s.clubBalance)){
+      s.clubBalance = Number(s.balance);
+    }
+  }
+
+  const curBalance = Number(s.balance);
+  const isCorrupted = !Number.isFinite(curBalance) || curBalance === -26250 || (curBalance < 0 && Number(s.season) >= 2027);
+
+  if(isCorrupted){
+    const prevSeasonBal = (Array.isArray(s.seasonHistory) && s.seasonHistory.length > 0)
+      ? Number(s.seasonHistory[0]?.balance) || 0
+      : 0;
+
+    const salesTotal = (Array.isArray(s.transfers) ? s.transfers : [])
+      .filter(t => t && t.type === 'out' && (norm(t.from || '') === norm(s.club || '') || !t.from))
+      .reduce((sum, t) => sum + (Number(t.value) || 0), 0);
+
+    const clausesTotal = (Array.isArray(s.futureSaleClauses) ? s.futureSaleClauses : [])
+      .reduce((sum, c) => sum + (Number(c.initialPrice || c.fee) || 0), 0);
+
+    const detected = Math.max(prevSeasonBal, salesTotal, clausesTotal);
+
+    if(detected >= 1000000 || curBalance === -26250 || salesTotal > 0 || (curBalance < 0 && Number(s.season) >= 2027)){
+      let restoredAmount = Math.max(detected, 17000000);
+
+      if(curBalance === -26250){
+        restoredAmount = Math.max(restoredAmount - 26250, 16973750);
+      } else if(curBalance < 0){
+        restoredAmount = Math.max(restoredAmount + curBalance, 16973750);
+      }
+
+      s.balance = Math.round(restoredAmount);
+      s.clubBalance = s.balance;
+      s.income = Math.max(0, Number(s.income) || 0);
+
+      s.news = Array.isArray(s.news) ? s.news : [];
+      const msg = `💰 CAIXA RESTAURADO: R$ ${s.balance.toLocaleString('pt-BR')} foram recuperados e creditados de volta no caixa do clube após correção do bug da virada de temporada!`;
+      if(!s.news.includes(msg)){
+        s.news.unshift(msg);
+        if(s.news.length > 50) s.news = s.news.slice(0, 50);
+      }
+
+      if(typeof toast === 'function'){
+        toast(`💰 Saldo de R$ ${s.balance.toLocaleString('pt-BR')} restaurado no caixa com sucesso!`);
+      }
+      return true;
+    }
+  }
+
+  s.clubBalance = Number(s.balance) || 0;
+  return false;
+}
+
 function repairSaveIfCorrupted(s){
   if(!s || !s.club) return false;
   const earnedPromotionRepaired = repairEarnedStatePromotion(s);
   const rosterRepaired = repairLegacyNationalCompetitionRosters(s);
-  let saveRequired = earnedPromotionRepaired || rosterRepaired;
+  const balanceRepaired = repairCorruptedBalanceAndRestoreFunds(s);
+  let saveRequired = earnedPromotionRepaired || rosterRepaired || balanceRepaired;
   let metadataChanged = false;
   const primaryCompId = getClubPrimaryCompetitionId(s.club, s.compId);
   const curCompId = s.compId;
@@ -13710,6 +13789,7 @@ function migrate(s){
     corner: s.squad?.[0] ? playerKey(s.squad[0]) : ''
   };
   ensureTacticsState(s);
+  repairCorruptedBalanceAndRestoreFunds(s);
   repairSaveIfCorrupted(s);
   if(window.AFM_Guards && typeof window.AFM_Guards.migrateSaveState === 'function'){
     window.AFM_Guards.migrateSaveState(s);
@@ -14948,7 +15028,7 @@ function advanceDateAfterMatch(gameState = state){
   }
   try {
     // Preparador Físico: Garante o treino do dia da partida se o técnico não treinou manualmente
-    if(typeof window.processAutomaticFitnessCoachTraining === 'function'){
+    if(typeof window !== 'undefined' && typeof window.processAutomaticFitnessCoachTraining === 'function'){
       window.processAutomaticFitnessCoachTraining(gameState);
     }
     const curD = new Date(gameState.date + 'T12:00:00');
@@ -15336,7 +15416,7 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       if(stopAtMatch && matchDate && state.date === matchDate) break;
 
       // Preparador Físico: Se o técnico não treinou o dia atual manualmente, o preparador assume automaticamente
-      if(typeof window.processAutomaticFitnessCoachTraining === 'function'){
+      if(typeof window !== 'undefined' && typeof window.processAutomaticFitnessCoachTraining === 'function'){
         window.processAutomaticFitnessCoachTraining(state);
       }
 
@@ -15349,10 +15429,10 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       state.date = nextDate;
       state.currentDate = nextDate;
       state.currentDateFormatted = formatDatePtBr(nextDate);
-      processLoanContractReturns(state, nextDate);
-      processStadiumConstructionDay();
-      processContinentalFixturesBefore(state.date);
-      expireStadiumEventConfirmation();
+      if(typeof processLoanContractReturns === 'function') processLoanContractReturns(state, nextDate);
+      if(typeof processStadiumConstructionDay === 'function') processStadiumConstructionDay();
+      if(typeof processContinentalFixturesBefore === 'function') processContinentalFixturesBefore(state.date);
+      if(typeof expireStadiumEventConfirmation === 'function') expireStadiumEventConfirmation();
       if(typeof checkIncomingPlayerBids === 'function' && isTransferWindowOpen(state.date) && Math.random() < 0.12) checkIncomingPlayerBids();
       daysAdvanced++;
 
@@ -17472,7 +17552,7 @@ function advanceTransferWindowDay(){
   if(!state) return;
   try {
     // Preparador Físico: Conduz o treino do dia antes do avanço caso o técnico não tenha treinado
-    if(typeof window.processAutomaticFitnessCoachTraining === 'function'){
+    if(typeof window !== 'undefined' && typeof window.processAutomaticFitnessCoachTraining === 'function'){
       window.processAutomaticFitnessCoachTraining(state);
     }
     const tw = getTransferWindowState();

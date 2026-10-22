@@ -74,8 +74,8 @@
       mp.personalBalance -= price;
       mp.clubShares += 1;
       mp.shareBasePrice = price;
-      state.clubBalance = (state.clubBalance || state.balance || 0) + price;
-      state.balance = state.clubBalance;
+      state.balance = (Number(state.balance) || 0) + price;
+      state.clubBalance = state.balance;
 
       state.confidence = state.confidence || { board: 75, fans: 75, squad: 75 };
       state.confidence.board = Math.min(100, (state.confidence.board || 75) + 1);
@@ -123,8 +123,8 @@
       const finalDividend = Math.min(rawDividend, maxCap);
 
       mp.personalBalance += finalDividend;
-      state.clubBalance = (state.clubBalance || state.balance || 0) - finalDividend;
-      state.balance = state.clubBalance;
+      state.balance = (Number(state.balance) || 0) - finalDividend;
+      state.clubBalance = state.balance;
       return finalDividend;
     },
 
@@ -240,8 +240,8 @@
         salary = window.AFM_LifeAndSharesPro.payMonthlyCoachSalary(state).paid;
       } else {
         mp.personalBalance = (Number(mp.personalBalance) || 0) + salary;
-        state.clubBalance = (state.clubBalance || state.balance || 0) - salary;
-        state.balance = state.clubBalance;
+        state.balance = (Number(state.balance) || 0) - salary;
+        state.clubBalance = state.balance;
         state.managerMoney = mp.personalBalance;
       }
 

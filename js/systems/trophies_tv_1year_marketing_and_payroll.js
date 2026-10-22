@@ -836,7 +836,8 @@
           state.tvContract1Year.advancedTaken = true;
           // Desconta proporcionalmente das parcelas mensais restantes e credita à vista no Caixa!
           state.tvContract1Year.monthly = Math.round(state.tvContract1Year.monthly * 0.55);
-          if (typeof state.clubBalance === 'number') state.clubBalance += advanceAmount;
+          state.balance = (Number(state.balance) || 0) + advanceAmount;
+          state.clubBalance = state.balance;
           if (typeof state.cash === 'number') state.cash += advanceAmount;
           if (state.finances && typeof state.finances.cash === 'number') state.finances.cash += advanceAmount;
 
