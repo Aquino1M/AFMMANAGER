@@ -401,8 +401,8 @@ const AFM_DB = (function(){
     await init();
     const cli = getClient();
 
-    // Se o cliente não estiver pronto, registra localmente e informa
-    if(!cli) return { ok: true, localOnly: true };
+    // O caller já grava uma cópia local; não informe sucesso remoto sem cliente.
+    if(!cli) return { ok: false, localOnly: true, error: 'Supabase indisponível ou não configurado.' };
 
     try {
       const payload = {
@@ -431,13 +431,18 @@ const AFM_DB = (function(){
       const { data, error } = await Promise.race([writeQuery, timeoutP]);
       if(error){
         recordHandledError('save-sync-write', error);
-        return { ok: true, localOnly: true, error: error.message };
+        return { ok: false, localOnly: true, error: error.message };
+      }
+      if(!data) {
+        const message = 'Supabase não confirmou a gravação do save.';
+        recordHandledError('save-sync-write', message);
+        return { ok: false, localOnly: true, error: message };
       }
       cloudAvailable = true;
       return { ok: true, data };
     } catch(error){
       recordHandledError('save-sync-write', error);
-      return { ok: true, localOnly: true, error: error.message };
+      return { ok: false, localOnly: true, error: error.message };
     }
   }
 

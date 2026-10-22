@@ -7706,16 +7706,42 @@ function save(){
 
   // 4. REGRA CRÍTICA INVIOLÁVEL: Sincronização obrigatória com o Supabase Cloud (afm_saves)
   if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
-    window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry)
+    window.__afmLastSaveSyncPromise = window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry)
       .then(result => {
         if(!result?.ok) {
           window.AFMErrorLog?.record('save-sync', result?.error || 'Falha ao sincronizar save no Supabase');
         }
+        return result;
       })
-      .catch(error => window.AFMErrorLog?.record('save-sync', error?.message || 'Falha ao sincronizar save no Supabase'));
+      .catch(error => {
+        window.AFMErrorLog?.record('save-sync', error?.message || 'Falha ao sincronizar save no Supabase');
+        return { ok: false, localOnly: true, error: error?.message || 'Falha ao sincronizar save no Supabase' };
+      });
+  } else {
+    window.__afmLastSaveSyncPromise = null;
   }
 
   return true;
+}
+
+async function saveAndConfirmCloud(){
+  if(!save()) return false;
+  const syncPromise = window.__afmLastSaveSyncPromise;
+  if(!syncPromise){
+    toast('Save guardado neste dispositivo; Supabase não está disponível.', 6000);
+    return false;
+  }
+
+  toast('Sincronizando save com o Supabase…', 1800);
+  const result = await syncPromise;
+  if(result?.ok && !result.localOnly){
+    toast('Jogo salvo no Supabase e neste dispositivo.');
+    return true;
+  }
+
+  const detail = result?.error ? ` (${result.error})` : '';
+  toast(`Save local atualizado, mas o Supabase não confirmou a gravação${detail}`, 7000);
+  return false;
 }
 
 function load(){
@@ -10543,11 +10569,11 @@ const TRANSFER_WINDOWS = [
 function getTransferWindowState(){
   if(!state) return { active: false };
   if(state.freeTransferWindow) return { active: true, free: true, text: 'Janela Aberta (Modo Livre)' };
-  if(state.transferWindowActive === undefined){
+  if(state.transferWindowActive === undefined || (!state.transferWindowActive && state.isPreSeason && Number(state.preSeasonDays) > 0)){
     if(state.isPreSeason && state.preSeasonDays > 0){
       state.transferWindowActive = true;
       state.transferWindowDay = Math.max(1, 5 - state.preSeasonDays);
-      state.transferWindowHour = state.transferWindowHour || 0;
+      state.transferWindowHour = 0;
     } else {
       state.transferWindowActive = false;
     }
@@ -10610,7 +10636,12 @@ function getTransferWindowInfo(dateStr){
       currentWindow: tw.isDeadlineDay ? 'Deadline Day' : `Dia ${tw.day} de 4`
     };
   }
-  return { open: false, text: 'Janela de Transferências Fechada', currentWindow: null };
+  const dateParts = String(dateStr || state.date || '').split('-').map(Number);
+  const year = dateParts[0] || Number(state.season) || new Date().getFullYear();
+  const month = dateParts[1] || 1;
+  const nextOpen = month < 6 ? { year, month: 6 } : { year: year + 1, month: 1 };
+  const nextOpenDate = `01/${String(nextOpen.month).padStart(2, '0')}/${nextOpen.year}`;
+  return { open: false, text: `Janela Fechada (reabre em ${nextOpenDate})`, nextOpenDate, currentWindow: null };
 }
 function _oldGetTransferWindowInfo(dateStr){
   if(state?.freeTransferWindow) {
@@ -12676,6 +12707,19 @@ window.repairSaveIfCorrupted = repairSaveIfCorrupted;
 function migrate(s){
   if(!s)return null;
   s.version=4;
+  const seasonStart = `${Number(s.season)}-01-01`;
+  const savedDate = String(s.date || s.currentDate || '').slice(0, 10);
+  if(savedDate === seasonStart && (Number(s.round) || 0) <= 1){
+    s.isPreSeason = true;
+    s.preSeasonDays = 4;
+    s.transferWindowActive = true;
+    s.transferWindowDay = 1;
+    s.transferWindowHour = 0;
+  } else if(!s.transferWindowActive && s.isPreSeason && Number(s.preSeasonDays) > 0){
+    s.transferWindowActive = true;
+    s.transferWindowDay = Math.max(1, Math.min(4, 5 - Number(s.preSeasonDays)));
+    s.transferWindowHour = 0;
+  }
   if(s.customClub && typeof window !== 'undefined'){
     window.CUSTOM_CLUB_BADGES = window.CUSTOM_CLUB_BADGES || {};
     window.CUSTOM_CLUB_BADGES[norm(s.customClub.name)] = s.customClub.badgeImage || s.customClub.badgeSvg;
@@ -22430,6 +22474,9 @@ function advanceSeasonYear(){
   });
   state.isPreSeason = true;
   state.preSeasonDays = 4;
+  state.transferWindowActive = true;
+  state.transferWindowDay = 1;
+  state.transferWindowHour = 0;
   state.date = `${state.season}-01-01`;
   state.seasonPrizeClaimed = null;
   state.seasonConcluded = false;
@@ -22486,7 +22533,7 @@ function advanceSeasonYear(){
     window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens(state);
   }
 
-  closeCustomModal(); save(); render(); return true; } catch(err) { console.error('[AFM advanceSeasonYear Error]', err); try { state.season = (Number(state.season) || 2027) + 1; state.round = 0; state.isPreSeason = true; state.preSeasonDays = 4; state.date = `${state.season}-01-01`; state.currentDate = state.date; state.currentDateFormatted = formatDatePtBr(state.date); state.seasonPrizeClaimed = null; state.seasonConcluded = false; closeCustomModal(); save(); render(); toast('🚀 Temporada ' + state.season + ' iniciada com sucesso!'); } catch(fallbackErr) { console.error('[AFM Fallback Error]', fallbackErr); } return false; }
+  closeCustomModal(); save(); render(); return true; } catch(err) { console.error('[AFM advanceSeasonYear Error]', err); try { state.season = (Number(state.season) || 2027) + 1; state.round = 0; state.isPreSeason = true; state.preSeasonDays = 4; state.transferWindowActive = true; state.transferWindowDay = 1; state.transferWindowHour = 0; state.date = `${state.season}-01-01`; state.currentDate = state.date; state.currentDateFormatted = formatDatePtBr(state.date); state.seasonPrizeClaimed = null; state.seasonConcluded = false; closeCustomModal(); save(); render(); toast('🚀 Temporada ' + state.season + ' iniciada com sucesso!'); } catch(fallbackErr) { console.error('[AFM Fallback Error]', fallbackErr); } return false; }
 
 }
 
@@ -24033,7 +24080,8 @@ function openPlayerTransferModal(key){
       state.transferOffers = state.transferOffers || {}; state.transferOffers[actualKey] = []; toast(`🏷️ ${p.name} colocado à venda! Propostas chegarão no decorrer das rodadas.`);
     }
     save();
-    openPlayerTransferModal(actualKey);
+    closeCustomModal(false);
+    render();
   };
 
   const btnToggleL = $('#btnToggleLoanList');
@@ -24047,7 +24095,8 @@ function openPlayerTransferModal(key){
       state.loanOffers = state.loanOffers || {}; state.loanOffers[actualKey] = []; toast(`🤝 ${p.name} colocado na lista de empréstimos! Propostas chegarão no decorrer das rodadas.`);
     }
     save();
-    openPlayerTransferModal(actualKey);
+    closeCustomModal(false);
+    render();
   };
 
   $$('.btnAcceptSale').forEach(b=>{
@@ -28376,15 +28425,15 @@ function squadPage(){
       <button class="btn ${squadFilter==='ATK'?'primary':''}" data-squad-filter="ATK">Atacantes</button>
       <button class="btn ${squadFilter==='TRANSFER'?'primary':''}" data-squad-filter="TRANSFER" style="${squadFilter==='TRANSFER'?'background:rgba(249,115,22,0.9);color:#fff;border:none':''}">🏷️ À Venda (${state.squad.filter(p=>isPlayerTransferListed(p)).length})</button>
       <button class="btn ${squadFilter==='LOAN'?'primary':''}" data-squad-filter="LOAN" style="${squadFilter==='LOAN'?'background:rgba(14,165,233,0.9);color:#fff;border:none':''}">🤝 Empréstimo (${state.squad.filter(p=>isPlayerLoanListed(p)).length})</button>
-      <label for="squadRosterSort" style="display:flex;align-items:center;gap:8px;margin-left:auto;color:var(--muted,#94a3b8);font-size:12px;font-weight:700;white-space:nowrap">
-        Organizar:
-        <select id="squadRosterSort" aria-label="Organizar elenco" style="min-width:190px;padding:9px 12px;border:1px solid var(--line,#263244);border-radius:9px;background:#111827;color:#e2e8f0">
-          <option value="overall" ${squadRosterSort==='overall'?'selected':''}>Maior overall</option>
-          <option value="age" ${squadRosterSort==='age'?'selected':''}>Mais jovens</option>
-          <option value="salary" ${squadRosterSort==='salary'?'selected':''}>Maior salário</option>
-          <option value="value" ${squadRosterSort==='value'?'selected':''}>Maior valor de mercado</option>
-        </select>
-      </label>
+    </div>
+    <div class="squad-sort-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;background:rgba(15,23,42,.72);border:1px solid var(--line,#263244);border-radius:10px">
+      <label for="squadRosterSort" style="color:var(--muted,#94a3b8);font-size:12px;font-weight:800;white-space:nowrap">ORDENAR ELENCO</label>
+      <select id="squadRosterSort" aria-label="Organizar elenco" style="min-width:220px;max-width:100%;padding:9px 12px;border:1px solid var(--line,#263244);border-radius:9px;background:#111827;color:#e2e8f0">
+        <option value="overall" ${squadRosterSort==='overall'?'selected':''}>Maior overall</option>
+        <option value="age" ${squadRosterSort==='age'?'selected':''}>Mais jovens</option>
+        <option value="salary" ${squadRosterSort==='salary'?'selected':''}>Maior salário</option>
+        <option value="value" ${squadRosterSort==='value'?'selected':''}>Maior valor de mercado</option>
+      </select>
     </div>
 
     <div class="card" style="margin-top:10px">
@@ -36339,9 +36388,9 @@ function bind(){
   const btnHeaderCont=$('#btnHeaderContinue'); if(btnHeaderCont) btnHeaderCont.onclick=(e)=>{e.preventDefault();e.stopPropagation();handleHeaderContinueAction();};
   const btnTopStoreBtn=$('#btnTopStore'); if(btnTopStoreBtn) btnTopStoreBtn.onclick=(e)=>{e.preventDefault();e.stopPropagation();openStoreComingSoonModal();};
   const btnTopHelpBtn=$('#btnTopHelp'); if(btnTopHelpBtn) btnTopHelpBtn.onclick=(e)=>{e.preventDefault();e.stopPropagation();openGameHelpTutorialModal();};
-  const qs=$('#quickSaveBtn'); if(qs) qs.onclick=()=>{if(save()) toast('Jogo salvo com sucesso localmente!')};
-  const qsD=$('#quickSaveBtnDrawer'); if(qsD) qsD.onclick=()=>{if(save()) toast('Jogo salvo com sucesso localmente!')};
-  const btnDrawerSave=$('#btnDrawerSave'); if(btnDrawerSave) btnDrawerSave.onclick=()=>{if(save()) toast('Jogo salvo com sucesso localmente!')};
+  const qs=$('#quickSaveBtn'); if(qs) qs.onclick=()=>{void saveAndConfirmCloud()};
+  const qsD=$('#quickSaveBtnDrawer'); if(qsD) qsD.onclick=()=>{void saveAndConfirmCloud()};
+  const btnDrawerSave=$('#btnDrawerSave'); if(btnDrawerSave) btnDrawerSave.onclick=()=>{void saveAndConfirmCloud()};
   const btnDrawerSet=$('#btnDrawerSettings'); if(btnDrawerSet) btnDrawerSet.onclick=()=>{ if(typeof openSettingsModal==='function') openSettingsModal(); };
   
   const bQuickStrength = $('#btnTopQuickTeamStrength');
@@ -37314,16 +37363,12 @@ function bind(){
     if(selAudit) selAudit.onchange = () => { auditCompFilter = selAudit.value; render(); };
     const exp1=$('#btnExportJson'); if(exp1) exp1.onclick=exportSave;
     const exp2=$('#btnExportJson2'); if(exp2) exp2.onclick=exportSave;
-    const manSave=$('#btnSaveNowManual'); if(manSave) manSave.onclick=()=>{if(save()) toast('Save manual realizado!')};
+    const manSave=$('#btnSaveNowManual'); if(manSave) manSave.onclick=()=>{void saveAndConfirmCloud()};
     const errorLogBtn=$('#btnDownloadErrorLog'); if(errorLogBtn) errorLogBtn.onclick=()=>window.AFMErrorLog?.download();
     const imp=$('#importSaveInput'); if(imp) imp.onchange=importSave;
     
     const curSlotBtn = $('#btnSaveCurrentSlotNow');
-    if(curSlotBtn) curSlotBtn.onclick = () => {
-      save();
-      toast(`Carreira salva com sucesso no Slot ${Number(state?.userSlot) || 1}!`);
-      render();
-    };
+    if(curSlotBtn) curSlotBtn.onclick = () => { void saveAndConfirmCloud(); render(); };
 
     const exitMenuBtn = $('#btnExitToMainMenu');
     if(exitMenuBtn) exitMenuBtn.onclick = () => {
