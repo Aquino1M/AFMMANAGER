@@ -25020,9 +25020,11 @@ function render() {
     const sideNav = app.querySelector('.nav');
     if(mainEl && sideNav && app.querySelector('.app')){
       try {
-        // Auto-cura e sincronização da navegação (Garante que Ranking & PIX e todos os itens estejam presentes)
-        if(!sideNav.querySelector('[data-view="ranking"]')){
-          sideNav.innerHTML = getDrawerNavItems().map(([id,l])=>`<button class="btn ${view===id?'active':''}" data-view="${id}">${l}</button>`).join('');
+        // Mantém a navegação sincronizada com a ordem e os itens atuais do menu.
+        const drawerItems = getDrawerNavItems();
+        const currentNavOrder = [...sideNav.querySelectorAll('[data-view]')].map(button => button.dataset.view).join('|');
+        if(currentNavOrder !== drawerItems.map(([id]) => id).join('|')){
+          sideNav.innerHTML = drawerItems.map(([id,l])=>`<button class="btn ${view===id?'active':''}" data-view="${id}">${l}</button>`).join('');
         }
         const ribbon = app.querySelector('.sm-task-ribbon');
         if(ribbon && !ribbon.querySelector('[data-view="ranking"]')){
@@ -25951,14 +25953,14 @@ function getDrawerNavItems(){
     ['central','⭐ Perspectiva Geral'],
     ['meutime','📋 Meu time & Tática'],
     ['elenco','👥 Elenco Oficial'],
-    ['calendario','🗓️ Calendário de Jogos'],
     ['mercado','🔄 Mercado & Transferências'],
+    ['calendario','🗓️ Calendário de Jogos'],
+    ['noticias','📰 Notícias & Mídia'],
     ['carreira','💼 Carreira do Treinador'],
-    ['ranking','👑 Ranking & PIX R$ 1.000'],
     ['temporada','🏆 Temporada'],
     ['estrutura','🏟️ Instalações & Estádio'],
     ['escritorio','🏢 Escritório & Finanças'],
-    ['noticias','📰 Notícias & Mídia'],
+    ['ranking','👑 Ranking & PIX R$ 1.000'],
     ['novidades','📢 Novidades & Correções'],
     ['config','⚙️ Configurações'],
     ...(isAdminUser ? [['admin','🛡️ Painel Admin']] : [])
