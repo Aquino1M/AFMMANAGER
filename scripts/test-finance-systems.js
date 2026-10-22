@@ -67,10 +67,12 @@ const projectionState = {
   marketingWeekly:12000, bankLoans:[{remainingInstallments:4, installmentValue:30000}],
   scoutStaffCount:2,
   stadiumRingData:{debt:{remaining:80000, monthly:20000}},
+  tvContract1Year:{monthly:8800000},
   history:[{season:2026, isHome:true, won:true, h:'Clube Teste', gate:100000, parkRevenue:10000, shop:5000}]
 };
 const projection = loadFunction('monthlyFinancialProjection', {
   state:projectionState,
+  ensureTvBroadcastContract:s=>s.tvContract1Year,
   MARKETING_MINIMUM_WEEKLY:36000,
   curComp:()=>({id:'bra-a'}), totalSponsorMonthly:()=>300000, totalSponsorWinBonus:()=>20000,
   getSocioTorcedorMeta:()=>({currentIncome:50000}), monthlyFacilityIncome:()=>13000,

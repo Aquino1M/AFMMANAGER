@@ -1727,8 +1727,63 @@ function generateSponsorOffers(clubBudget, clubName = (typeof state !== 'undefin
   }));
 }
 
+const SPONSOR_CONTRACT_SLOTS = [
+  ['master', 'Master'],
+  ['sleeves', 'Mangas'],
+  ['back', 'Costas']
+];
+
+function uniqueAvailableSponsorOffers(offers, sponsors){
+  const activeBrands = new Set(SPONSOR_CONTRACT_SLOTS
+    .map(([slot]) => norm(sponsors?.[slot]?.brand || sponsors?.[slot]?.name))
+    .filter(Boolean));
+  const listedBrands = new Set();
+  return (Array.isArray(offers) ? offers : []).filter(offer => {
+    const brandKey = norm(offer?.brand || offer?.name);
+    if(!brandKey || activeBrands.has(brandKey) || listedBrands.has(brandKey)) return false;
+    listedBrands.add(brandKey);
+    return true;
+  });
+}
+
+function activateSponsorContract(offer, season = state?.season || 2026){
+  const years = Math.max(1, Math.floor(Number(offer?.contractYears) || Number(offer?.years) || 1));
+  return {
+    ...offer,
+    years,
+    contractYears: years,
+    contractStartSeason: Number(season) || 2026,
+    contractEndSeason: (Number(season) || 2026) + years - 1
+  };
+}
+
+function expireSeasonSponsorContracts(s, season = s?.season){
+  if(!s?.sponsors) return [];
+  const expired = [];
+  const seasonNumber = Number(season) || 2026;
+  for(const [slot, category] of SPONSOR_CONTRACT_SLOTS){
+    const sponsor = s.sponsors[slot];
+    const hasEndSeason = sponsor?.contractEndSeason != null && sponsor.contractEndSeason !== '' && Number.isFinite(Number(sponsor.contractEndSeason));
+    if(!sponsor || !hasEndSeason || Number(sponsor.contractEndSeason) >= seasonNumber) continue;
+    expired.push({ ...sponsor, category, renewalFor: slot });
+    s.sponsors[slot] = null;
+  }
+  if(!expired.length) return expired;
+
+  s.sponsorOffers = Array.isArray(s.sponsorOffers) ? s.sponsorOffers : [];
+  expired.forEach(offer => {
+    const alreadyListed = s.sponsorOffers.some(item => item?.renewalFor === offer.renewalFor);
+    if(!alreadyListed) s.sponsorOffers.unshift({ ...offer, renewal: true });
+  });
+  s.news = Array.isArray(s.news) ? s.news : [];
+  expired.forEach(offer => s.news.unshift(`📄 FIM DE CONTRATO: o vínculo com ${offer.brand || offer.name || 'o patrocinador'} venceu. Renove ou escolha uma nova proposta no Escritório.`));
+  s.news = s.news.slice(0, 50);
+  return expired;
+}
+
 function ensureClubSponsors(s){
   if(!s) return;
+  const hadSponsorState = s.sponsorLifecycleVersion === 1 || Object.values(s.sponsors || {}).some(Boolean);
   s.sponsors = s.sponsors || {};
   const baseBudget = s.balance || 5000000;
   const offers = generateSponsorOffers(baseBudget, s.club, s.squad, s);
@@ -1737,10 +1792,32 @@ function ensureClubSponsors(s){
   const sOff = offers.find(o => o.category === 'Mangas') || { brand: 'Patrocínio Mangas', category: 'Mangas', color: '#10b981', monthly: 720000, winBonus: 95000, years: 2, desc: 'Mangas da Camisa' };
   const bOff = offers.find(o => o.category === 'Costas') || { brand: 'Patrocínio Costas', category: 'Costas', color: '#ea580c', monthly: 980000, winBonus: 130000, years: 3, desc: 'Costas / Omoplata' };
 
-  if(!s.sponsors.master || !s.sponsors.master.brand || s.sponsors.master.brand === 'Sem Patrocínio') s.sponsors.master = mOff;
-  if(!s.sponsors.sleeves || !s.sponsors.sleeves.brand || s.sponsors.sleeves.brand === 'Sem Patrocínio') s.sponsors.sleeves = sOff;
-  if(!s.sponsors.back || !s.sponsors.back.brand || s.sponsors.back.brand === 'Sem Patrocínio') s.sponsors.back = bOff;
+  if(!hadSponsorState){
+    s.sponsors.master = activateSponsorContract(mOff, s.season);
+    s.sponsors.sleeves = activateSponsorContract(sOff, s.season);
+    s.sponsors.back = activateSponsorContract(bOff, s.season);
+  }
+  const legacyStartSeason = Math.max(2026, (Number(s.season) || 2026) - 1);
+  for(const [slot] of SPONSOR_CONTRACT_SLOTS){
+    const sponsor = s.sponsors[slot];
+    if(!sponsor) continue;
+    if((sponsor.brand || sponsor.name) === 'Sem Patrocínio' || (!sponsor.brand && !sponsor.name)){
+      s.sponsors[slot] = null;
+      continue;
+    }
+    if(!sponsor.brand && sponsor.name) sponsor.brand = sponsor.name;
+    if(sponsor.winBonus == null && sponsor.bonus != null) sponsor.winBonus = Number(sponsor.bonus) || 0;
+    if(sponsor.contractEndSeason == null || sponsor.contractEndSeason === '' || !Number.isFinite(Number(sponsor.contractEndSeason))){
+      const years = Math.max(1, Math.floor(Number(sponsor.contractYears) || Number(sponsor.years) || 1));
+      sponsor.contractStartSeason = legacyStartSeason;
+      sponsor.contractEndSeason = legacyStartSeason + years - 1;
+      sponsor.contractYears = years;
+    }
+  }
+  s.sponsorLifecycleVersion = 1;
+  expireSeasonSponsorContracts(s, s.season);
   if(!Array.isArray(s.sponsorOffers) || s.sponsorOffers.length === 0) s.sponsorOffers = offers;
+  s.sponsorOffers = uniqueAvailableSponsorOffers(s.sponsorOffers, s.sponsors);
 }
 if(typeof window !== 'undefined'){
   window.generateSponsorOffers = generateSponsorOffers;
@@ -6072,6 +6149,20 @@ function getNewArenaData(){
   return state.newArenaData;
 }
 
+function getMuseumHistoricalTitles(gameState = state){
+  const isUserCreatedClub = Boolean(gameState?.customClub?.isCustom || gameState?.customClubStateCompId);
+  if(isUserCreatedClub) return [];
+  const clubName = typeof gameState?.club === 'string' ? gameState.club : (gameState?.club?.name || '');
+  const clubKey = clubName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  const trophyDb = typeof window !== 'undefined' ? window.REAL_CLUB_TROPHIES_DB || {} : {};
+  const records = trophyDb[clubKey] || Object.entries(trophyDb).find(([key]) => clubKey.includes(key) || key.includes(clubKey))?.[1]
+    || [
+      { name: `Campeonato Estadual / Regional (${clubName || 'Clube'})`, year: 'Tradição Histórica' },
+      { name: 'Taça de Tradição Nacional', year: 'Acervo Oficial' }
+    ];
+  return records.map(trophy => `${trophy.name} (${trophy.year})`);
+}
+
 function getMuseumData(){
   state.museumData = state.museumData || {
     level: 1,
@@ -6080,7 +6171,7 @@ function getMuseumData(){
   const curLvlObj = MUSEUM_LEVELS.find(m => m.level === state.museumData.level) || MUSEUM_LEVELS[0];
   
   // Taças do clube (históricas + da carreira)
-  const _cKey = (state.club||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); const _cDb = (typeof window !== 'undefined' && window.REAL_CLUB_TROPHIES_DB) ? window.REAL_CLUB_TROPHIES_DB : {}; const _cTr = _cDb[_cKey] || Object.entries(_cDb).find(([k]) => _cKey.includes(k) || k.includes(_cKey))?.[1] || [{ name: 'Campeonato Estadual / Regional (' + (state.club||'Clube') + ')', year: 'Tradição Histórica' }, { name: 'Taça de Tradição Nacional (' + (state.club||'Clube') + ')', year: 'Acervo Oficial' }]; const historicalTitles = _cTr.map(t => `${t.name} (${t.year})`);
+  const historicalTitles = getMuseumHistoricalTitles(state);
   const careerTitles = (state.titles || []).map(t => typeof t === 'string' ? `${t} (${state.season})` : `${t?.name || t?.title || 'Título'} (${t?.year || state.season})`);
   const allTitles = [...historicalTitles, ...careerTitles];
   const inVitrine = allTitles.slice(0, curLvlObj.capacity);
@@ -11272,7 +11363,9 @@ function checkNewSponsorOffer(){
   if(state.sponsorOffers.length >= 5) return; // Limite de 5 propostas ativas
 
   const fresh = generateSponsorOffers(state.balance);
-  const newOffer = fresh.find(f => !state.sponsorOffers.some(o => o.brand === f.brand) && (!state.sponsors || !Object.values(state.sponsors).some(sp => sp?.brand === f.brand)));
+  state.sponsorOffers = uniqueAvailableSponsorOffers(state.sponsorOffers, state.sponsors);
+  const newOffer = uniqueAvailableSponsorOffers(fresh, state.sponsors)
+    .find(f => !state.sponsorOffers.some(o => norm(o.brand) === norm(f.brand)));
   if(newOffer){
     state.sponsorOffers.unshift(newOffer);
     state.news.unshift(`📬 NOVA PROPOSTA DE PATROCÍNIO: A empresa ${newOffer.brand} enviou oferta para estampar o espaço ${newOffer.category} (${fmtMoney(newOffer.monthly)}/mês)! Fama do clube: ${teamFameScore()}%`);
@@ -11367,7 +11460,7 @@ function signSponsorOffer(idx){
         const signingBonus = Math.round((offer.monthly || 50000) * 0.5);
         state.balance += signingBonus;
         state.income = (state.income || 0) + signingBonus;
-        state.sponsors[slotKey] = offer;
+        state.sponsors[slotKey] = activateSponsorContract(offer, state.season);
         state.sponsors[slotKey].advancedAmount = 0;
         state.sponsors[slotKey].advancedPaid = 0;
         state.sponsorOffers.splice(idx, 1);
@@ -11381,7 +11474,7 @@ function signSponsorOffer(idx){
   } else {
     // Espaço livre, assina direto com luvas!
     state.sponsors = state.sponsors || {};
-    state.sponsors[slotKey] = offer;
+    state.sponsors[slotKey] = activateSponsorContract(offer, state.season);
     state.sponsorOffers.splice(idx, 1);
     const signingBonus = Math.round((offer.monthly || 50000) * 0.5);
     state.balance += signingBonus;
@@ -12076,6 +12169,10 @@ function newCareer(data){
       back: sponsorOffers.find(o => o.category === 'Costas') || sponsorOffers[2]
     };
   }
+  activeSponsors = Object.fromEntries(Object.entries(activeSponsors).map(([slot, sponsor]) => [
+    slot,
+    sponsor ? activateSponsorContract(sponsor, 2026) : null
+  ]));
 
   const curUser = getActiveAccount();
   const targetSlot = Number(data.slot ?? data.userSlot) || setupSelectedSlot || 1;
@@ -12170,7 +12267,8 @@ function newCareer(data){
     income: 0,
     expense: 0,
     sponsors: activeSponsors,
-    sponsorOffers: sponsorOffers.slice(1, 4),
+    sponsorLifecycleVersion: 1,
+    sponsorOffers: uniqueAvailableSponsorOffers(sponsorOffers.slice(1, 4), activeSponsors),
     infrastructure,
     stadium: { name: club.stadium, capacity: 5000, level: 1 },
     ticketPrice: Math.round(clamp(18 + (strength(club) - 58) * 1.7, 15, 130)),
@@ -13006,7 +13104,7 @@ function getMatchWeather(dateStr, round){
   } else if(val < 72){
     return { condition: 'Chuva Forte & Gramado Pesado', icon: '🌧️', effect: 'Piso escorregadio, finalizações perigosas e mais divididas', temp: 21, rain: true, extremeHeat: false };
   } else if(val < 86){
-    return { condition: 'Calor Escaldante (34°C)', icon: '🌡️', effect: 'Desgaste físico acelerado (+30% cansaço)', temp: 34, rain: false, extremeHeat: true };
+    return { condition: 'Calor Escaldante', icon: '🌡️', effect: 'Desgaste físico acelerado (+30% cansaço)', temp: 34, rain: false, extremeHeat: true };
   } else {
     return { condition: 'Noite Fria & Neblina', icon: '🌙', effect: 'Piso rápido e jogo dinâmico', temp: 16, rain: false, extremeHeat: false };
   }
@@ -13065,6 +13163,27 @@ function getSquadHierarchy(squad){
 
 function getHeadToHeadRecord(clubA, clubB){
   if(!clubA || !clubB) return { winsA: 0, draws: 0, winsB: 0, total: 0 };
+  const customClubCareer = Boolean(state?.customClub?.isCustom || state?.customClubStateCompId);
+  if(customClubCareer && (norm(clubA) === norm(state.club) || norm(clubB) === norm(state.club))){
+    let winsA = 0;
+    let draws = 0;
+    let winsB = 0;
+    (Array.isArray(state.history) ? state.history : []).forEach(match => {
+      const home = norm(match?.h || match?.home);
+      const away = norm(match?.a || match?.away);
+      if(!((home === norm(clubA) && away === norm(clubB)) || (home === norm(clubB) && away === norm(clubA)))) return;
+      const homeGoals = Number(match.hg ?? match.homeGoals);
+      const awayGoals = Number(match.ag ?? match.awayGoals);
+      if(!Number.isFinite(homeGoals) || !Number.isFinite(awayGoals)) return;
+      const goalsA = home === norm(clubA) ? homeGoals : awayGoals;
+      const goalsB = home === norm(clubA) ? awayGoals : homeGoals;
+      if(goalsA > goalsB) winsA++;
+      else if(goalsA < goalsB) winsB++;
+      else draws++;
+    });
+    const total = winsA + draws + winsB;
+    return { winsA, draws, winsB, total, hide: total === 0 };
+  }
   const seed = hashStr(norm(clubA) + '|vs|' + norm(clubB));
   const sA = strength(clubByName(clubA));
   const sB = strength(clubByName(clubB));
@@ -22468,6 +22587,7 @@ function advanceSeasonYear(){
   state.debtPrincipalPaid = 0;
 
   state.season++;
+  const expiredSponsorContracts = expireSeasonSponsorContracts(state, state.season);
   state.round = 0;
   state.competitionStats = {};
   state.estadualData = null; // Reinicia dados do estadual para a nova temporada
@@ -22514,6 +22634,12 @@ function advanceSeasonYear(){
   state.teams = cc.map(c => ({name:c.name, strength:strength(c), j:0, v:0, e:0, d:0, gp:0, gc:0, sg:0, p:0, form:[]}));
   state.schedule = buildSchedule(comp, cc.map(c=>c.name));
   state.sponsorOffers = generateSponsorOffers(state.balance);
+  expiredSponsorContracts.forEach(expired => {
+    if(!state.sponsorOffers.some(offer => offer.renewalFor === expired.renewalFor)){
+      state.sponsorOffers.unshift({ ...expired, renewal: true });
+    }
+  });
+  state.sponsorOffers = uniqueAvailableSponsorOffers(state.sponsorOffers, state.sponsors);
   (state.youthAcademy || []).forEach(p => {
     p.age = clamp((Number(p.age) || 16) + 1, 15, 18);
   });
@@ -23962,6 +24088,13 @@ function openPlayerTransferModal(key){
   const buyOffers = state.transferOffers[actualKey] || [];
   const loanOffers = state.loanOffers[actualKey] || [];
   const quickSaleVal = Math.round(calcValueMi(p) * 1e6 * 0.80);
+  const buyerCounterChance = offer => {
+    const originalPrice = Math.max(1, Number(offer.originalPrice) || Number(offer.price) || 1);
+    const proposedPrice = Math.max(1, Number(offer.counterPrice) || Number(offer.price) || 1);
+    const sellOnPct = clamp(Number(offer.counterSellOnPct ?? offer.sellOnPct ?? 20) || 0, 0, 50);
+    const priceIncreasePct = Math.max(0, (proposedPrice / originalPrice - 1) * 100);
+    return clamp(Math.round(88 - priceIncreasePct * 1.3 - Math.max(0, sellOnPct - 20) * 0.45 + Math.max(0, 20 - sellOnPct) * 0.15), 5, 96);
+  };
 
   const bodyHtml = `
     <div style="display:flex;align-items:center;gap:16px;background:var(--panel2);padding:14px;border-radius:14px;margin-bottom:14px">
@@ -24020,6 +24153,21 @@ function openPlayerTransferModal(key){
               <div class="small muted">À vista no caixa</div>
               <div style="font-size:10px;color:#facc15;margin-top:2px">🎲 Aceite do Atleta: <b>${clamp(Math.round(82 + ((o.price - calcValueMi(p)*1e6)/(calcValueMi(p)*1e6||1))*15), 60, 96)}%</b></div>
             </div>
+            <div style="min-width:240px;max-width:310px;flex:1;background:rgba(8,15,30,.72);border:1px solid rgba(148,163,184,.2);border-radius:10px;padding:9px 11px">
+              <div style="font-size:10px;font-weight:900;color:#cbd5e1;margin-bottom:6px">CONTRAPROPOSTA · VALOR E REVENDA FUTURA</div>
+              <div style="display:flex;gap:7px;align-items:center">
+                <label style="flex:1;font-size:10px;color:#94a3b8">Valor à vista
+                  <input class="saleCounterPrice" data-offer-idx="${oIdx}" type="number" min="1" step="1000" value="${Math.round(Number(o.counterPrice) || o.price)}" ${o.counterAccepted ? 'disabled' : ''} style="display:block;width:100%;box-sizing:border-box;margin-top:3px;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:6px;padding:6px;font-weight:800">
+                </label>
+                <label style="width:100px;font-size:10px;color:#94a3b8">Revenda futura
+                  <select class="saleCounterPct" data-offer-idx="${oIdx}" ${o.counterAccepted ? 'disabled' : ''} style="display:block;width:100%;margin-top:3px;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:6px;padding:6px;font-weight:800">${[0,5,10,15,20,25,30,35,40,50].map(pct=>`<option value="${pct}" ${Number(o.counterSellOnPct ?? o.sellOnPct ?? 20)===pct?'selected':''}>${pct}%</option>`).join('')}</select>
+                </label>
+              </div>
+              <div class="sale-counter-chance" data-offer-idx="${oIdx}" style="margin-top:7px">
+                ${(() => { const chance = buyerCounterChance(o); const color = chance >= 70 ? '#22c55e' : chance >= 45 ? '#f59e0b' : '#ef4444'; return `<div style="display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:#cbd5e1"><span>📊 Aceitação do clube comprador</span><b style="color:${color}">${chance}% estimada</b></div><div style="height:7px;background:#263244;border-radius:999px;overflow:hidden;margin-top:5px"><div style="width:${chance}%;height:100%;background:${color};border-radius:999px;transition:width .2s,background .2s"></div></div>`; })()}
+              </div>
+              <button class="btn btnCounterSale" data-offer-idx="${oIdx}" ${o.counterAccepted ? 'disabled' : ''} style="width:100%;margin-top:8px;background:${o.counterAccepted ? '#14532d' : '#7c3aed'};color:#fff;border:0;font-weight:900;padding:7px 9px;cursor:${o.counterAccepted ? 'default' : 'pointer'}">${o.counterAccepted ? '✓ Contraproposta aceita' : '🤝 Enviar contraproposta'}</button>
+            </div>
             <button class="btn primary btnAcceptSale" data-offer-idx="${oIdx}" ${(!winInfo.open && !state.freeTransferWindow)?'disabled title="Janela Fechada"':''}>
               ${(!winInfo.open && !state.freeTransferWindow)?'Janela Fechada':'Aceitar Venda'}
             </button>
@@ -24062,6 +24210,54 @@ function openPlayerTransferModal(key){
   `;
 
   openCustomModal('📄 Propostas & Negociação de Transferência', bodyHtml, null, 'Fechar', false);
+
+  const refreshSaleCounterChance = oIdx => {
+    const offer = buyOffers[oIdx];
+    const panel = $(`.sale-counter-chance[data-offer-idx="${oIdx}"]`);
+    if(!offer || !panel) return;
+    const priceInput = $(`.saleCounterPrice[data-offer-idx="${oIdx}"]`);
+    const pctSelect = $(`.saleCounterPct[data-offer-idx="${oIdx}"]`);
+    const price = Math.max(1, Number(priceInput?.value) || Number(offer.price) || 1);
+    const pct = clamp(Number(pctSelect?.value) || 0, 0, 50);
+    const draft = {...offer, counterPrice: price, counterSellOnPct: pct};
+    const chance = buyerCounterChance(draft);
+    const color = chance >= 70 ? '#22c55e' : chance >= 45 ? '#f59e0b' : '#ef4444';
+    panel.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:#cbd5e1"><span>📊 Aceitação do clube comprador</span><b style="color:${color}">${chance}% estimada</b></div><div style="height:7px;background:#263244;border-radius:999px;overflow:hidden;margin-top:5px"><div style="width:${chance}%;height:100%;background:${color};border-radius:999px;transition:width .2s,background .2s"></div></div>`;
+  };
+  $$('.saleCounterPrice, .saleCounterPct').forEach(input => {
+    input.oninput = () => refreshSaleCounterChance(Number(input.dataset.offerIdx));
+    input.onchange = () => refreshSaleCounterChance(Number(input.dataset.offerIdx));
+  });
+  $$('.btnCounterSale').forEach(btn => {
+    btn.onclick = () => {
+      const oIdx = Number(btn.dataset.offerIdx);
+      const offer = buyOffers[oIdx];
+      if(!offer || offer.counterAccepted) return;
+      const priceInput = $(`.saleCounterPrice[data-offer-idx="${oIdx}"]`);
+      const pctSelect = $(`.saleCounterPct[data-offer-idx="${oIdx}"]`);
+      const proposedPrice = Math.round(Number(priceInput?.value) || 0);
+      if(proposedPrice < 1){ toast('Informe um valor válido para a contraproposta.'); return; }
+      const sellOnPct = clamp(Number(pctSelect?.value) || 0, 0, 50);
+      offer.originalPrice = Number(offer.originalPrice) || Number(offer.price);
+      offer.counterPrice = proposedPrice;
+      offer.counterSellOnPct = sellOnPct;
+      const chance = buyerCounterChance(offer);
+      if(Math.random() * 100 < chance){
+        offer.price = proposedPrice;
+        offer.sellOnPct = sellOnPct;
+        offer.diffPercent = Math.round((proposedPrice / Math.max(1, calcValueMi(p) * 1e6) - 1) * 100);
+        offer.counterAccepted = true;
+        save();
+        toast(`🎉 ${offer.buyer} aceitou: ${fmtMoney(proposedPrice)} + ${sellOnPct}% na revenda futura. Confira e aceite a venda para concluir.`);
+      } else {
+        state.transferOffers[actualKey] = buyOffers.filter((_, idx) => idx !== oIdx);
+        save();
+        toast(`🚫 ${offer.buyer} recusou a contraproposta e retirou a oferta.`);
+      }
+      closeCustomModal(false);
+      openPlayerTransferModal(actualKey);
+    };
+  });
 
   const btnQuick = $('#btnModalQuickSellAction');
   if(btnQuick){
@@ -24132,14 +24328,16 @@ function openPlayerTransferModal(key){
       delete state.transferOffers[actualKey];
       delete state.loanOffers[actualKey];
       state.transfers.unshift({type:'out', name:p.name, from:state.club, to:offer.buyer, value:offer.price, date:state.date});
-      state.news.unshift(`${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)} (20% de revenda futura retidos).`);
+      const sellOnPct = clamp(Number(offer.sellOnPct ?? offer.counterSellOnPct ?? 20), 0, 50);
+      state.news.unshift(`${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)} (${sellOnPct}% de participação na revenda futura).`);
       
-      // Melhoria 10: Cláusula de Venda Futura (Sell-On Fee) de 20%
+      // Cláusula de venda futura definida na negociação.
       state.futureSaleClauses = state.futureSaleClauses || [];
       state.futureSaleClauses.push({
         playerName: p.name,
         buyer: offer.buyer,
-        sharePct: 20,
+        sharePct: sellOnPct,
+        sellOnPct,
         initialPrice: offer.price,
         soldDate: state.date
       });
@@ -24150,7 +24348,7 @@ function openPlayerTransferModal(key){
       save();
       closeCustomModal();
       render();
-      toast(`🎉 Venda de ${p.name} para o ${offer.buyer} concluída por ${fmtMoney(offer.price)}! (20% retidos)`);
+      toast(`🎉 Venda de ${p.name} para o ${offer.buyer} concluída por ${fmtMoney(offer.price)}! (${sellOnPct}% de revenda futura)`);
     };
   });
 
@@ -25067,6 +25265,17 @@ function triggerAFMSystemEnhancements(){
   }
 }
 
+function processCoachSalaryOnFirstOfMonth(gameState = state){
+  const date = String(gameState?.date || '');
+  if(date.length !== 10 || date[4] !== '-' || date[7] !== '-' || date.slice(8) !== '01') return false;
+  const payroll = window.AFM_LifeAndSharesPro;
+  if(!payroll || typeof payroll.payMonthlyCoachSalary !== 'function') return false;
+  const result = payroll.payMonthlyCoachSalary(gameState);
+  if(!result?.paid) return false;
+  save();
+  return true;
+}
+
 function render() {
   if(typeof state !== 'undefined' && !state && typeof window !== 'undefined' && window.state) { state = window.state; }
   try { if (typeof state !== 'undefined' && state) { window.state = state; window.GameState = state; } if (typeof render === 'function') { window.render = render; } } catch(e) {}
@@ -25080,6 +25289,7 @@ function render() {
       return;
     }
     try { if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save(); } catch(e){}
+    try { processCoachSalaryOnFirstOfMonth(state); } catch(e){ recordAFMError('coach-monthly-payday', e); }
     const restoreScroll = app.dataset?.renderedView === view;
     const windowScroll = window.scrollY;
     const mainScroll = app.querySelector('.main')?.scrollTop || 0;
@@ -25389,7 +25599,7 @@ function openMatchActionModal(){
       </div>
 
       <!-- Histórico Direto -->
-      <div style="background:#141122;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:7px 12px;text-align:center;font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:10px;">
+      <div style="${h2h.hide ? 'display:none;' : ''}background:#141122;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:7px 12px;text-align:center;font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:10px;">
         ⚔️ Histórico Direto: <b style="color:#22c55e">${h2h.winsA}V</b> · <b style="color:#94a3b8">${h2h.draws}E</b> · <b style="color:#ef4444">${h2h.winsB}D</b> <span class="muted">(${h2h.total} jogos)</span>
       </div>
 
@@ -26856,7 +27066,7 @@ function centralPage(){
           `}
 
           <!-- Histórico Direto H2H & Altitude -->
-          <div style="background:#141122;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;text-align:center;font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:10px">
+          <div style="${h2h.hide ? 'display:none;' : ''}background:#141122;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;text-align:center;font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:10px">
             ⚔️ Histórico Direto: <b style="color:#22c55e">${h2h.winsA}V</b> · <b style="color:#94a3b8">${h2h.draws}E</b> · <b style="color:#ef4444">${h2h.winsB}D</b> <span class="muted">(${h2h.total} jogos)</span>
             ${(!isHome && altInfo.isAltitude) ? `
               <div style="color:#f87171;font-size:10px;font-weight:800;margin-top:4px">
@@ -30349,13 +30559,13 @@ function structurePage(){
         <!-- Vitrine Oficial -->
         <h3 style="margin:20px 0 10px 0;font-size:15px;color:#fff">🏆 Taças em Exibição na Vitrine (${musData.inVitrine.length}/${musData.levelObj.capacity})</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:10px">
-          ${musData.inVitrine.map(t => `
+          ${musData.inVitrine.length ? musData.inVitrine.map(t => `
             <div style="background:#1c1730;border:1px solid #f59e0b;border-radius:10px;padding:12px;text-align:center">
               <div style="font-size:28px">🏆</div>
               <div style="font-size:12px;font-weight:800;color:#fff;margin-top:4px">${esc(t)}</div>
               <div style="font-size:9px;color:#f59e0b;margin-top:2px">NA VITRINE OFICIAL</div>
             </div>
-          `).join('')}
+          `).join('') : '<div style="grid-column:1/-1;padding:18px;text-align:center;color:#94a3b8;background:#1c1730;border:1px dashed #475569;border-radius:10px">Nenhuma taça conquistada ainda. Sua história começa nesta carreira.</div>'}
         </div>
 
         ${musData.overflow.length > 0 ? `
@@ -30738,6 +30948,27 @@ function officePage(){
   const loanPrincipalDue = (state.bankLoans || []).reduce((sum, loan) => sum + (Number(loan.remainingInstallments) > 0 ? Math.max(0, Number(loan.installmentValue) || 0) * 2 : 0), 0);
   const financeStart = state.financePeriodStartedDate || `${state.season || 2026}-01-01`;
   const legacyFinance = state.financeLegacyTotals;
+  const sponsorCards = [
+    ['master', 'Patrocinador Master (Peito)', '#7c3aed33', '#c084fc'],
+    ['sleeves', 'Mangas da Camisa', '#3b82f633', '#93c5fd'],
+    ['back', 'Costas / Omoplata', '#10b98133', '#6ee7b7']
+  ].map(([slot, label, badgeBg, badgeColor]) => {
+    const sponsor = state.sponsors?.[slot];
+    const active = Boolean(sponsor?.brand || sponsor?.name);
+    const endSeason = Number(sponsor?.contractEndSeason);
+    return `<div class="card sponsor-card">
+      <div>
+        <span class="sponsor-badge" style="background:${badgeBg};color:${badgeColor}">${label}</span>
+        <div class="sponsor-logo" style="color:${sponsor?.color || '#fff'}">${esc(active ? (sponsor.brand || sponsor.name) : 'Sem Patrocínio')}</div>
+        <div class="small muted">${esc(active ? (sponsor.desc || '') : 'Espaço disponível. Escolha uma proposta abaixo.')}</div>
+      </div>
+      <div style="margin-top:14px">
+        <div>Mensal: <b class="good">${fmtMoney(active ? sponsor.monthly || 0 : 0)}/mês</b></div>
+        <div class="small muted">+ ${fmtMoney(active ? sponsor.winBonus ?? sponsor.bonus ?? 0 : 0)} por vitória</div>
+        <div class="small ${active ? 'muted' : 'good'}" style="margin-top:5px">${active && Number.isFinite(endSeason) ? `Contrato até o fim de ${endSeason}` : active ? 'Contrato ativo' : 'Aguardando nova assinatura'}</div>
+      </div>
+    </div>`;
+  }).join('');
 
   return `
     <div class="hero">
@@ -30797,43 +31028,7 @@ function officePage(){
     </div>
 
     <h2 style="margin-top:20px">Patrocinadores Oficiais do Clube</h2>
-    <div class="grid g3">
-      <div class="card sponsor-card">
-        <div>
-          <span class="sponsor-badge" style="background:#7c3aed33;color:#c084fc">Patrocinador Master (Peito)</span>
-          <div class="sponsor-logo" style="color:${state.sponsors?.master?.color||'#fff'}">${esc(state.sponsors?.master?.brand||'Sem Patrocínio')}</div>
-          <div class="small muted">${esc(state.sponsors?.master?.desc||'')}</div>
-        </div>
-        <div style="margin-top:14px">
-          <div>Mensal: <b class="good">${fmtMoney(state.sponsors?.master?.monthly||0)}/mês</b></div>
-          <div class="small muted">+ ${fmtMoney(state.sponsors?.master?.winBonus||0)} por vitória</div>
-        </div>
-      </div>
-
-      <div class="card sponsor-card">
-        <div>
-          <span class="sponsor-badge" style="background:#3b82f633;color:#93c5fd">Mangas da Camisa</span>
-          <div class="sponsor-logo" style="color:${state.sponsors?.sleeves?.color||'#fff'}">${esc(state.sponsors?.sleeves?.brand||'Sem Patrocínio')}</div>
-          <div class="small muted">${esc(state.sponsors?.sleeves?.desc||'')}</div>
-        </div>
-        <div style="margin-top:14px">
-          <div>Mensal: <b class="good">${fmtMoney(state.sponsors?.sleeves?.monthly||0)}/mês</b></div>
-          <div class="small muted">+ ${fmtMoney(state.sponsors?.sleeves?.winBonus||0)} por vitória</div>
-        </div>
-      </div>
-
-      <div class="card sponsor-card">
-        <div>
-          <span class="sponsor-badge" style="background:#10b98133;color:#6ee7b7">Costas / Omoplata</span>
-          <div class="sponsor-logo" style="color:${state.sponsors?.back?.color||'#fff'}">${esc(state.sponsors?.back?.brand||'Sem Patrocínio')}</div>
-          <div class="small muted">${esc(state.sponsors?.back?.desc||'')}</div>
-        </div>
-        <div style="margin-top:14px">
-          <div>Mensal: <b class="good">${fmtMoney(state.sponsors?.back?.monthly||0)}/mês</b></div>
-          <div class="small muted">+ ${fmtMoney(state.sponsors?.back?.winBonus||0)} por vitória</div>
-        </div>
-      </div>
-    </div>
+    <div class="grid g3">${sponsorCards}</div>
 
     <div class="card" style="margin-top:16px">
       <h3>Propostas de Patrocínio Recebidas</h3>
@@ -30848,8 +31043,8 @@ function officePage(){
             </div>
             <div style="margin-top:12px">
               <div class="good" style="font-size:16px;font-weight:900">${fmtMoney(o.monthly)}/mês</div>
-              <div class="small muted">+ ${fmtMoney(o.winBonus)} por vitória • Contrato ${o.years} anos</div>
-              <button class="btn primary btnSignSponsor" data-offer-index="${idx}" style="width:100%;margin-top:10px">Assinar Patrocínio</button>
+              <div class="small muted">+ ${fmtMoney(o.winBonus)} por vitória • Contrato ${o.contractYears || o.years} anos</div>
+              <button class="btn primary btnSignSponsor" data-offer-index="${idx}" style="width:100%;margin-top:10px">${o.renewalFor ? 'Renovar contrato' : 'Assinar Patrocínio'}</button>
             </div>
           </div>
         `).join('')}

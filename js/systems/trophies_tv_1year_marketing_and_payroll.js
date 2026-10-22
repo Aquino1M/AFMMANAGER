@@ -436,6 +436,7 @@
   }
 
   function getClubOwnHistoricalTrophies(clubName, state) {
+    if (state?.customClub?.isCustom || state?.customClubStateCompId) return [];
     const key = norm(clubName);
     if (REAL_CLUB_TROPHIES_DB[key]) return REAL_CLUB_TROPHIES_DB[key];
     const dbKeys = Object.keys(REAL_CLUB_TROPHIES_DB);
@@ -552,26 +553,27 @@
 
     const managerName = (state?.managerPersonal?.name || state?.manager?.name || state?.manager || 'Aquino').toUpperCase();
     const currentSeason = state?.season || 2026;
+    const isNewCustomClub = Boolean(state?.customClub?.isCustom || state?.customClubStateCompId);
 
     return `
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
         <div style="font-size:12px;color:#94a3b8;">
-          Acervo Histórico Real do <strong>${clubName}</strong> (${clubHistorical.length} marcos históricos) + Conquistas no Comando (${coachWonHere.length} títulos no save)
+          ${isNewCustomClub ? `Acervo do clube criado pelo usuário (${clubHistorical.length} títulos históricos)` : `Acervo Histórico Real do <strong>${clubName}</strong> (${clubHistorical.length} marcos históricos)`} + Conquistas no Comando (${coachWonHere.length} títulos no save)
         </div>
         <span style="background:#eab308;color:#090d16;font-weight:900;font-size:11px;padding:6px 12px;border-radius:8px;">
-          🏆 Acervo Oficial Sincronizado (${clubHistorical.length + coachWonHere.length})
+          🏆 ${isNewCustomClub ? 'Acervo do Clube' : 'Acervo Oficial Sincronizado'} (${clubHistorical.length + coachWonHere.length})
         </span>
       </div>
-      <div style="font-size:11px;font-weight:800;color:#fbbf24;margin-bottom:10px;letter-spacing:0.5px;">🏛️ TÍTULOS HISTÓRICOS REAIS DO ${upperClub}</div>
+      <div style="font-size:11px;font-weight:800;color:#fbbf24;margin-bottom:10px;letter-spacing:0.5px;">🏛️ ${isNewCustomClub ? 'HISTÓRICO DO CLUBE' : `TÍTULOS HISTÓRICOS REAIS DO ${upperClub}`}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;margin-bottom:18px;">
-        ${clubHistorical.map((t) => `
+        ${clubHistorical.length ? clubHistorical.map((t) => `
           <div style="background:#16192b;border:1px solid #854d0e;border-radius:10px;padding:12px;text-align:center;">
             <div style="font-size:24px;margin-bottom:4px;">${t.icon}</div>
             <div style="font-size:12px;font-weight:800;color:#fff;">${t.name}</div>
             <div style="font-size:11px;color:#cbd5e1;margin-top:3px;">(${t.year})</div>
             <div style="font-size:9px;color:#f59e0b;font-weight:800;margin-top:6px;">${t.badge}</div>
           </div>
-        `).join('')}
+        `).join('') : `<div style="grid-column:1/-1;background:#16192b;border:1px dashed #475569;border-radius:10px;padding:14px;text-align:center;color:#94a3b8;font-size:12px;">${isNewCustomClub ? 'Clube recém-criado: ainda não possui títulos históricos. As taças serão conquistadas nesta carreira.' : 'Nenhum título histórico cadastrado para este clube.'}</div>`}
       </div>
       <div style="font-size:11px;font-weight:800;color:#a78bfa;margin-bottom:10px;letter-spacing:0.5px;">
         👑 TÍTULOS CONQUISTADOS NO COMANDO DO ${upperClub} (NO SAVE) ${coachWonHere.length > 0 ? `(${coachWonHere.length})` : ''}

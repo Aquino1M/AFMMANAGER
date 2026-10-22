@@ -1052,7 +1052,6 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
 }
 
 
-
 /* ==========================================================================
    ESTÁDIO INTERATIVO, LOJA OFICIAL E CENTRO DE TREINAMENTO (VISUAL MODALS)
    ========================================================================== */
@@ -10151,3 +10150,24 @@ body.theme-emerald {
 
 
 
+/* No desktop, o intervalo usa a mesma mini-carta da tela Meu Time & Tática. */
+@media (min-width: 961px) {
+  .halftime-card .pitch-slot-dropzone,
+  .halftime-card .fifa-mini-card {
+    width: 70px !important;
+    height: 88px !important;
+  }
+
+  .halftime-card .fifa-mini-card {
+    padding: 3px 3px 2px !important;
+  }
+
+  .halftime-card .fifa-mini-card-photo {
+    height: 44px !important;
+    max-width: 54px !important;
+  }
+
+  .halftime-card .fifa-mini-card-name {
+    font-size: 8px !important;
+  }
+}
