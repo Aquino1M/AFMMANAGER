@@ -235,11 +235,15 @@
       }
       const mp = state.managerPersonal;
 
-      const salary = mp.salary || state.managerSalary || 15000;
-      mp.personalBalance = (mp.personalBalance || 0) + salary;
-      state.clubBalance = (state.clubBalance || state.balance || 0) - salary;
-      state.balance = state.clubBalance;
-      state.managerMoney = mp.personalBalance;
+      let salary = Number(mp.salary) || Number(state.managerSalary) || 15000;
+      if (window.AFM_LifeAndSharesPro?.payMonthlyCoachSalary) {
+        salary = window.AFM_LifeAndSharesPro.payMonthlyCoachSalary(state).paid;
+      } else {
+        mp.personalBalance = (Number(mp.personalBalance) || 0) + salary;
+        state.clubBalance = (state.clubBalance || state.balance || 0) - salary;
+        state.balance = state.clubBalance;
+        state.managerMoney = mp.personalBalance;
+      }
 
       const hasMba = (mp.coursesCompleted || []).includes('mba_gestao');
       let totalBusinessNet = 0;

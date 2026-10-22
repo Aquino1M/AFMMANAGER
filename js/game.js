@@ -15675,19 +15675,16 @@ function finalizeRound(userRes, winners, isKO){
     // compartilhado de quatro rodadas em finalizeRound(). Não duplicar aqui:
     // a rotina mensal anterior permitia ignorar o intervalo econômico.
 
-    // Salário mensal do técnico creditado em seu patrimônio pessoal (com bônus de licenças CBF/UEFA)
-    if(typeof window.syncCoachSalaryWithLicenses === 'function') {
-      window.syncCoachSalaryWithLicenses(state);
+    // O pagamento é idempotente por mês e mantém a conta nova e a legada sincronizadas.
+    if(window.AFM_LifeAndSharesPro?.payMonthlyCoachSalary){
+      window.AFM_LifeAndSharesPro.payMonthlyCoachSalary(state);
+    } else {
+      if(typeof window.syncCoachSalaryWithLicenses === 'function') window.syncCoachSalaryWithLicenses(state);
+      const salary = Math.max(0, Number(state.managerSalary) || 9500);
+      state.managerMoney = (Number(state.managerMoney) || 0) + salary;
+      state.managerFinanceHistory = Array.isArray(state.managerFinanceHistory) ? state.managerFinanceHistory : [];
+      state.managerFinanceHistory.unshift({ date: state.date, desc: `Salário mensal de técnico (${state.club})`, amount: salary });
     }
-    state.managerSalary = state.managerSalary || 9500;
-    state.managerMoney = (state.managerMoney || 57000) + state.managerSalary;
-    state.managerFinanceHistory = state.managerFinanceHistory || [];
-    const licDataPay = (typeof window.getCoachLicensesData === 'function') ? window.getCoachLicensesData(state) : null;
-    state.managerFinanceHistory.unshift({
-      date: state.date,
-      desc: `Salário mensal de técnico (${state.club})${licDataPay && licDataPay.totalBonusPct > 0 ? ` [Bônus Licenças +${licDataPay.totalBonusPct}%]` : ''}`,
-      amount: state.managerSalary
-    });
     state.news.unshift(`📢 Ciclo mensal concluído: finanças, receitas de patrocinadores e relatórios comerciais atualizados.`);
   }
 

@@ -131,12 +131,54 @@
       state.financeLog = Array.isArray(state.financeLog) ? state.financeLog : [];
       state.safP2POffers = Array.isArray(state.safP2POffers) ? state.safP2POffers : [];
 
+      if (typeof window.syncCoachSalaryWithLicenses === 'function') {
+        window.syncCoachSalaryWithLicenses(state);
+      } else {
+        const salary = Math.max(0, Number(state.managerSalary) || Number(state.managerPersonal.salary) || 18000);
+        state.managerSalary = salary;
+        state.managerPersonal.salary = salary;
+      }
+
       if (!Array.isArray(state.safMarketTrades) || state.safMarketTrades.length === 0) {
         state.safMarketTrades = this.getInitialMarketTrades();
       }
       if (!Array.isArray(state.safCorporateNews) || state.safCorporateNews.length === 0) {
         state.safCorporateNews = this.getInitialCorporateNews();
       }
+    },
+
+    payMonthlyCoachSalary(state) {
+      if (!state) return { paid: 0, salary: 0, monthKey: null };
+      this.ensureState(state);
+      const mp = state.managerPersonal;
+      if (typeof window.syncCoachSalaryWithLicenses === 'function') {
+        window.syncCoachSalaryWithLicenses(state);
+      }
+      const salary = Math.max(0, Math.round(Number(state.managerSalary) || Number(mp.salary) || 18000));
+      state.managerSalary = salary;
+      mp.salary = salary;
+
+      const date = String(state.date || state.currentDate || '');
+      const monthKey = /^\d{4}-\d{2}/.test(date)
+        ? date.slice(0, 7)
+        : `${Number(state.season) || 2026}-${String(Math.max(1, Math.ceil((Number(state.round) || 1) / 4))).padStart(2, '0')}`;
+      if (mp.lastSalaryPaidMonth === monthKey) {
+        state.managerMoney = Number(mp.personalBalance) || 0;
+        return { paid: 0, salary, monthKey };
+      }
+
+      mp.personalBalance = (Number(mp.personalBalance) || 0) + salary;
+      mp.lastSalaryPaidMonth = monthKey;
+      state.managerMoney = mp.personalBalance;
+      state.clubBalance = (Number(state.clubBalance ?? state.balance) || 0) - salary;
+      state.balance = state.clubBalance;
+      state.managerFinanceHistory = Array.isArray(state.managerFinanceHistory) ? state.managerFinanceHistory : [];
+      state.managerFinanceHistory.unshift({
+        date: state.date || state.currentDate || 'Dia 1º',
+        desc: `Salário mensal de técnico (${state.club || 'clube'})`,
+        amount: salary
+      });
+      return { paid: salary, salary, monthKey };
     },
 
     getLicenseTitle(prestige) {
@@ -1135,9 +1177,8 @@
         amount: -totalClubDividendExpense
       });
 
-      const salary = mp.salary || 18000;
-      state.clubBalance -= salary;
-      state.balance = state.clubBalance;
+      const salaryPayment = this.payMonthlyCoachSalary(state);
+      const salary = salaryPayment.paid;
 
       const rentIncome = (mp.properties || []).reduce((acc, p) => {
         p.currentValue = Math.round((p.currentValue || p.cost) * (1 + (p.appreciationRate || 0.10) / 12));
@@ -1170,7 +1211,8 @@
         });
       }
 
-      mp.personalBalance += salary + managerDividendShare + rentIncome + businessIncome + safDividends;
+      mp.personalBalance += managerDividendShare + rentIncome + businessIncome + safDividends;
+      state.managerMoney = mp.personalBalance;
 
       this.generateSafP2POffers(state);
 
