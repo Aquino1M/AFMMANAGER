@@ -111,6 +111,8 @@ console.log('PASS: advanceSeasonYear captura resultados antes da virada e encami
   const context = {
     window: { COMPETITION_TEAMS: map }, state, teamMap: map, BASE_COMPETITION_TEAMS: clone(map), norm, clone,
     compById: id => ({ id, name: ({'bra-a':'Campeonato Brasileiro Série A','bra-b':'Campeonato Brasileiro Série B','bra-c':'Campeonato Brasileiro Série C','bra-d':'Campeonato Brasileiro Série D','bra-est-df':'Campeonato Candango'})[id] || id, teams: id === 'bra-d' ? 96 : 20 }),
+    clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
+    formatDatePtBr: date => date,
     getClubPrimaryCompetitionId: (_club, preferred) => preferred || 'bra-est-df',
     clubByName: () => ({ competition: 'Campeonato Candango', currentLeague: 'Campeonato Candango' }),
     strength: () => 60, teamStrengthByName: () => 60,
@@ -221,6 +223,8 @@ console.log('Todos os testes de regressão de transição de divisões passaram.
   const context = {
     window: { COMPETITION_TEAMS: map }, state, teamMap: map, BASE_COMPETITION_TEAMS: clone(map), norm, clone,
     compById: id => ({ id, name: id === 'bra-d' ? 'Brasileirão Série D' : id, teams: id === 'bra-d' ? 96 : 20, type: 'groups-knockout' }),
+    clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
+    formatDatePtBr: date => date,
     getClubPrimaryCompetitionId: (_club, preferred) => preferred || 'bra-d',
     clubByName: () => ({ competition: 'Brasileirão Série D', currentLeague: 'Brasileirão Série D' }),
     strength: () => 65,
@@ -381,5 +385,5 @@ assert.doesNotMatch(actualFunctionSource, /window\.COMPETITION_TEAMS\s*=|Object\
 assert.match(actualFunctionSource, /state\.competitionTeams\s*=\s*clone\(tMap\)/, 'A lista resultante deve ser persistida no save ativo.');
 const newCareerSource = source.slice(source.indexOf('function newCareer('), source.indexOf('\nfunction repairLegacyNationalCompetitionRosters('));
 assert.match(newCareerSource, /competitionTeams\s*:\s*careerCompetitionTeams/, 'Toda carreira nova deve ter uma cópia própria do catálogo-base.');
-assert.match(newCareerSource, /competitionClubs\(comp,club\.name,careerCompetitionTeams\)/, 'A liga inicial deve vir do catálogo-base, nunca da carreira anterior.');
+assert.match(newCareerSource, /competitionClubs\(comp,\s*club\.name,\s*careerCompetitionTeams\)/, 'A liga inicial deve vir do catálogo-base, nunca da carreira anterior.');
 console.log('PASS: guarda arquitetural exige transições e novas carreiras isoladas do catálogo global.');

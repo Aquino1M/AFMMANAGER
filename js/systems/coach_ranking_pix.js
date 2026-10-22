@@ -264,6 +264,11 @@
 
       state.managerPersonal.careerPoints = (state.managerPersonal.careerPoints || 0) + ptsGained;
       state.coachPrestige = Math.round(state.managerPersonal.careerPoints / 35);
+      state.managerPersonal.prestigeScore = Math.min(99, Math.max(
+        5,
+        Number(state.managerPersonal.prestigeScore) || 5,
+        Number(state.coachPrestige) || 0
+      ));
 
       // Sincroniza com o cache de ranking
       this.getLeaderboard('semana', state);

@@ -1830,6 +1830,7 @@ let squadFilter='ALL';
 let calendarFilter='ALL';
 let squadViewMode='roster';
 let salarySort='salary';
+let salaryViewTab='squad';
 let squadRosterSort='overall';
 let statsTab='scorers';
 let selectedEstadualId=null;
@@ -9304,10 +9305,95 @@ function playerContractUntil(p){
   return 2027 + hash;
 }
 
+function addMonthsToIsoDate(date, months){
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+  if(!match) return '';
+  const original = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12);
+  if(original.getFullYear() !== Number(match[1]) || original.getMonth() !== Number(match[2]) - 1 || original.getDate() !== Number(match[3])) return '';
+  const monthIndex = Number(match[1]) * 12 + Number(match[2]) - 1 + Math.max(0, Number(months) || 0);
+  const year = Math.floor(monthIndex / 12);
+  const month = monthIndex % 12 + 1;
+  const lastDay = new Date(year, month, 0).getDate();
+  const day = Math.min(Number(match[3]), lastDay);
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function getLoanEndDate(startDate, durationMonths){
+  const nextDate = addMonthsToIsoDate(startDate, durationMonths);
+  if(!nextDate) return '';
+  const end = new Date(`${nextDate}T12:00:00`);
+  end.setDate(end.getDate() - 1);
+  return end.toISOString().slice(0, 10);
+}
+
+function getLoanRemainingDays(player, date = state?.date){
+  if(!player?.loanEndDate || !date) return 0;
+  if(!addMonthsToIsoDate(player.loanEndDate, 0) || !addMonthsToIsoDate(date, 0)) return 0;
+  const end = new Date(`${player.loanEndDate}T12:00:00`);
+  const current = new Date(`${date}T12:00:00`);
+  if(!Number.isFinite(end.getTime()) || !Number.isFinite(current.getTime())) return 0;
+  return Math.max(0, Math.ceil((end - current) / 86400000));
+}
+
+function normalizeLoanContractData(gameState){
+  if(!Array.isArray(gameState?.squad)) return;
+  gameState.squad.forEach(player => {
+    if(!player?.isLoan) return;
+    if(!addMonthsToIsoDate(player.loanEndDate, 0)){
+      const endYear = Number(player.contractUntil) || Number(gameState.season) || 2026;
+      player.loanStartDate = player.loanStartDate || `${endYear}-01-01`;
+      player.loanEndDate = `${endYear}-12-31`;
+      player.loanDurationMonths = Number(player.loanDurationMonths) || 12;
+    }
+    player.loanDurationMonths = Math.max(1, Number(player.loanDurationMonths) || 12);
+  });
+}
+
+function detachLoanedPlayer(gameState, player){
+  if(!gameState || !player?.isLoan) return false;
+  const key = playerKey(player);
+  const index = (gameState.squad || []).findIndex(item => playerKey(item) === key);
+  if(index < 0) return false;
+  gameState.squad.splice(index, 1);
+  gameState.lineup = (gameState.lineup || []).map(itemKey => itemKey === key ? null : itemKey);
+  gameState.playerMoves = gameState.playerMoves || {};
+  gameState.playerMoves[key] = player.loanFrom || player.originalClub || player.club || 'Clube de Origem';
+  _marketUniverseCache = null;
+  _marketUniverseCacheRound = -1;
+  _marketUniverseCacheMoves = -1;
+  if(gameState === state && typeof optimizeLineup === 'function') optimizeLineup();
+  return true;
+}
+
+function processLoanContractReturns(gameState = state, currentDate = gameState?.date){
+  if(!gameState || !Array.isArray(gameState.squad) || !currentDate) return 0;
+  normalizeLoanContractData(gameState);
+  const expired = gameState.squad.filter(player => player?.isLoan && player.loanEndDate < currentDate);
+  if(!expired.length) return 0;
+  gameState.loans = Array.isArray(gameState.loans) ? gameState.loans : [];
+  gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+  expired.forEach(player => {
+    if(!detachLoanedPlayer(gameState, player)) return;
+    const parentClub = player.loanFrom || player.originalClub || 'clube de origem';
+    gameState.loans.unshift({ type: 'loan_return', name: player.name, from: gameState.club, to: parentClub, date: currentDate });
+    gameState.news.unshift(`↩️ FIM DO EMPRÉSTIMO: ${player.name} voltou ao ${parentClub} após o término do contrato temporário.`);
+  });
+  gameState.news = gameState.news.slice(0, 50);
+  if(gameState === state){
+    save();
+    toast(`📅 ${expired.length === 1 ? `${expired[0].name} voltou ao clube de origem` : `${expired.length} jogadores voltaram aos clubes de origem`} pelo fim do empréstimo.`);
+  }
+  return expired.length;
+}
+
 function getPlayerContractRemainingMonths(p, stateRef){
   if(!p) return 12;
-  if(p.isLoan) return 12;
   const st = stateRef || window.state || {};
+  if(p.isLoan){
+    normalizeLoanContractData(st);
+    const days = getLoanRemainingDays(p, st.date);
+    return Math.ceil(days / 30.4375);
+  }
   const until = playerContractUntil(p);
   const curDateStr = st.date || `${st.season || 2026}-01-01`;
   const parts = String(curDateStr).split('-');
@@ -11699,11 +11785,17 @@ function openClubInfoModal(clubName){
 
 function openBorrowedPlayerManagementModal(p){
   if(!p) return;
+  normalizeLoanContractData(state);
+  if(p.loanEndDate < state.date){ processLoanContractReturns(state); return; }
   const parentClub = p.loanFrom || p.originalClub || 'Clube Detentor';
   const valMi = calcValueMi(p);
-  const buyPrice = Math.round(valMi * 1e6);
-  const extFee6m = Math.round(buyPrice * 0.05);
-  const extFee12m = Math.round(buyPrice * 0.10);
+  const marketBuyPrice = Math.round(valMi * 1e6);
+  const buyOptionActive = Number(p.loanBuyOptionPrice) > 0 && (!p.loanBuyOptionEndDate || state.date <= p.loanBuyOptionEndDate);
+  const buyPrice = buyOptionActive ? Math.round(Number(p.loanBuyOptionPrice)) : Math.round(valMi * 1e6);
+  let purchaseContractYears = clamp(Number(p.loanPurchaseContractYears) || 3, 1, 5);
+  const loanRemainingDays = getLoanRemainingDays(p, state.date);
+  const extFee6m = Math.round(marketBuyPrice * 0.05);
+  const extFee12m = Math.round(marketBuyPrice * 0.10);
   const canBuy = state.balance >= buyPrice;
   const canExt6 = state.balance >= extFee6m;
   const canExt12 = state.balance >= extFee12m;
@@ -11716,7 +11808,13 @@ function openBorrowedPlayerManagementModal(p){
         <div style="flex:1">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <h2 style="margin:0;font-size:18px">${esc(p.name)}</h2>
-            <span class="pill warn" style="font-weight:900;font-size:11px">🏷️ ATLETA EMPRESTADO</span>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+              <span class="pill warn" style="font-weight:900;font-size:11px">🏷️ ATLETA EMPRESTADO</span>
+              <div style="padding:6px 10px;border-radius:8px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);text-align:right">
+                <div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#fbbf24">${loanRemainingDays > 0 ? `FALTAM ${loanRemainingDays} ${loanRemainingDays === 1 ? 'DIA' : 'DIAS'}` : 'ÚLTIMO DIA DO EMPRÉSTIMO'}</div>
+                <div style="font-size:10px;color:#cbd5e1;margin-top:2px">Devolução: ${formatDatePtBr(p.loanEndDate)}</div>
+              </div>
+            </div>
           </div>
           <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">
             ${esc(p.pos||'-')} • ${p.age||22} anos • Overall: <b class="good">${playerOverall(p)}</b> • Passe de mercado: <b class="good">${fmtMi(valMi)}</b>
@@ -11725,6 +11823,7 @@ function openBorrowedPlayerManagementModal(p){
             <span>🏛️ Clube Detentor dos Direitos:</span>
             <b>${esc(parentClub)}</b>
           </div>
+          <div style="margin-top:5px;font-size:12px;color:#fbbf24">📅 Vigência do empréstimo: ${formatDatePtBr(p.loanEndDate)} · ${loanRemainingDays > 0 ? `${loanRemainingDays} ${loanRemainingDays === 1 ? 'dia restante' : 'dias restantes'}` : 'último dia'}</div>
         </div>
       </div>
 
@@ -11739,11 +11838,14 @@ function openBorrowedPlayerManagementModal(p){
             <div>
               <div style="font-weight:900;font-size:14px;color:#4ade80">💰 1. Exercer Cláusula / Comprar em Definitivo</div>
               <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:3px">
-                Transfere 100% dos direitos econômicos e federativos para o ${esc(state.club)} com contrato de 3 anos.
+                Transfere 100% dos direitos econômicos e federativos para o ${esc(state.club)} com contrato definido abaixo.
               </div>
               <div style="font-size:13px;font-weight:800;color:#22c55e;margin-top:6px">
-                Valor do Passe: ${fmtMoney(buyPrice)} <span class="small muted">(Seu Caixa: ${fmtMoney(state.balance)})</span>
+                ${buyOptionActive ? 'Preço fixado no empréstimo' : 'Valor de mercado atual'}: ${fmtMoney(buyPrice)} <span class="small muted">(Seu Caixa: ${fmtMoney(state.balance)})</span>
               </div>
+              <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#cbd5e1;margin-top:8px">Duração do novo contrato
+                <select id="loanPurchaseContractYears" style="background:#0f172a;color:#fff;border:1px solid #475569;border-radius:7px;padding:5px">${[1,2,3,4,5].map(years=>`<option value="${years}" ${purchaseContractYears===years?'selected':''}>${years} ano(s)</option>`).join('')}</select>
+              </label>
             </div>
             <button class="btn success" id="btnBuyoutLoanPlayer" ${!canBuy ? 'disabled title="Saldo insuficiente no caixa"' : ''} style="font-weight:900;padding:8px 16px;font-size:12px">
               ${canBuy ? '🛒 Comprar em Definitivo' : 'Saldo Insuficiente'}
@@ -11791,6 +11893,8 @@ function openBorrowedPlayerManagementModal(p){
   );
 
   setTimeout(() => {
+    const yearsSelect = $('#loanPurchaseContractYears');
+    if(yearsSelect) yearsSelect.onchange = () => { purchaseContractYears = clamp(Number(yearsSelect.value) || 3, 1, 5); p.loanPurchaseContractYears = purchaseContractYears; save(); };
     const bBuy = $('#btnBuyoutLoanPlayer');
     if(bBuy){
       bBuy.onclick = () => {
@@ -11803,9 +11907,13 @@ function openBorrowedPlayerManagementModal(p){
         delete p.isLoan;
         delete p.loanFrom;
         p.owned = true;
-        p.contractUntil = Number(state.season) + 3;
-        state.news.unshift(`💰 COMPRA DEFINITIVA: O ${state.club} exerceu a opção de compra e adquiriu os direitos federativos de ${p.name} em definitivo por ${fmtMoney(buyPrice)} junto ao ${parentClub}!`);
-        toast(`🎉 ${p.name} agora pertence 100% ao ${state.club} em definitivo!`);
+        p.contractUntil = Number(state.season) + purchaseContractYears;
+        p.contractMonth = 12;
+        ['isLoan','loanFrom','loanStartDate','loanEndDate','loanDurationMonths','loanBuyOptionPrice','loanBuyOptionEndDate','loanPurchaseContractYears'].forEach(field => delete p[field]);
+        state.transfers = Array.isArray(state.transfers) ? state.transfers : [];
+        state.transfers.unshift({ type: 'in', name: p.name, from: parentClub, to: state.club, value: buyPrice, date: state.date, loanBuyout: true });
+        state.news.unshift(`💰 COMPRA DEFINITIVA: ${state.club} adquiriu ${p.name} do ${parentClub} por ${fmtMoney(buyPrice)} e assinou contrato por ${purchaseContractYears} ano(s).`);
+        toast(`🎉 ${p.name} comprado em definitivo por ${fmtMoney(buyPrice)}. Contrato de ${purchaseContractYears} ano(s).`);
         closeCustomModal();
         save();
         render();
@@ -11819,7 +11927,11 @@ function openBorrowedPlayerManagementModal(p){
       }
       state.balance -= fee;
       state.expense = (state.expense || 0) + fee;
-      p.contractUntil = (Number(p.contractUntil) || Number(state.season)) + (months === 12 ? 1 : 1);
+      const previousEndDate = p.loanEndDate;
+      p.loanEndDate = addMonthsToIsoDate(p.loanEndDate, months);
+      p.loanDurationMonths = (Number(p.loanDurationMonths) || 12) + months;
+      p.contractUntil = Number(p.loanEndDate.slice(0, 4)) || Number(state.season);
+      if(p.loanBuyOptionEndDate === previousEndDate) p.loanBuyOptionEndDate = p.loanEndDate;
       state.news.unshift(`🤝 EXTENSÃO DE EMPRÉSTIMO: O ${parentClub} aceitou prorrogar o empréstimo de ${p.name} por mais ${months} meses (taxa de ${fmtMoney(fee)}).`);
       toast(`✅ Empréstimo de ${p.name} estendido por mais ${months} meses!`);
       closeCustomModal();
@@ -11837,10 +11949,9 @@ function openBorrowedPlayerManagementModal(p){
     if(bRet){
       bRet.onclick = () => {
         if(!confirm(`Deseja realmente devolver ${p.name} ao ${parentClub} e rescindir o empréstimo?`)) return;
-        state.squad = state.squad.filter(q => playerKey(q) !== playerKey(p));
-        if(Array.isArray(state.lineup)){
-          state.lineup = state.lineup.map(k => k === playerKey(p) ? null : k);
-        }
+        if(!detachLoanedPlayer(state, p)) return;
+        state.loans = Array.isArray(state.loans) ? state.loans : [];
+        state.loans.unshift({ type: 'loan_return', name: p.name, from: state.club, to: parentClub, date: state.date, earlyReturn: true });
         state.news.unshift(`↩️ RESCISÃO DE EMPRÉSTIMO: ${p.name} foi devolvido ao ${parentClub} antes do término do vínculo.`);
         toast(`Atleta ${p.name} devolvido ao ${parentClub}.`);
         closeCustomModal();
@@ -12843,6 +12954,7 @@ function migrate(s){
   s.playerMoves=s.playerMoves||{};
   s.worldGenerated=s.worldGenerated||buildWorldGenerated();
   s.squad=(Array.isArray(s.squad)?s.squad:[]).filter(p=>p && typeof p==='object' && (p.name || p.id || p.marketKey)).map(stablePlayer);
+  normalizeLoanContractData(s);
   if(Array.isArray(s.squad) && typeof window.LIVE_PLAYERS !== 'undefined' && Array.isArray(window.LIVE_PLAYERS)){
     const liveMap = new Map();
     const liveClubMap = new Map();
@@ -14268,6 +14380,7 @@ function advanceDateAfterMatch(gameState = state){
     gameState.date = curD.toISOString().slice(0, 10);
     gameState.currentDate = gameState.date;
     gameState.currentDateFormatted = formatDatePtBr(gameState.date);
+    processLoanContractReturns(gameState, gameState.date);
     if(typeof processStadiumConstructionDay === 'function') processStadiumConstructionDay();
     if(typeof expireStadiumEventConfirmation === 'function') expireStadiumEventConfirmation();
   } catch(e){
@@ -14660,6 +14773,7 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       state.date = nextDate;
       state.currentDate = nextDate;
       state.currentDateFormatted = formatDatePtBr(nextDate);
+      processLoanContractReturns(state, nextDate);
       processStadiumConstructionDay();
       processContinentalFixturesBefore(state.date);
       expireStadiumEventConfirmation();
@@ -22184,7 +22298,9 @@ function showEndOfSeasonModal(){
   const renew = $('#renewContractBtn');
   if(renew) renew.onclick = () => {
     state.managerSalary = Math.round(state.managerSalary * 1.15);
-    state.managerMoney += state.managerSalary * 2;
+    const renewalBonus = state.managerSalary * 2;
+    state.managerMoney += renewalBonus;
+    if(state.managerPersonal) state.managerPersonal.personalBalance = (Number(state.managerPersonal.personalBalance) || 0) + renewalBonus;
     state.trust.board = clamp(state.trust.board + 10, 0, 100);
     const newYear = Math.max(state.season + 2, contractYear + 1);
     state.managerContractDate = `qui, 31 dez ${newYear}`;
@@ -22462,6 +22578,9 @@ function advanceSeasonYear(){
   }
   // 1. Registra Snapshot Histórico no Hall da Fama da Carreira
   const finishedYear = state.season;
+  if(window.AFM_LifeAndSharesPro?.recordSeasonCareerSnapshot){
+    window.AFM_LifeAndSharesPro.recordSeasonCareerSnapshot(state, finishedYear);
+  }
   const compFinished = curComp();
   const rankingTable = ranking();
   const finishedPosition = position();
@@ -22711,6 +22830,7 @@ function changeUserClub(newClubName){
     amount: state.managerSalary * 2
   });
   state.managerMoney += state.managerSalary * 2;
+  if(state.managerPersonal) state.managerPersonal.personalBalance = (Number(state.managerPersonal.personalBalance) || 0) + state.managerSalary * 2;
   advanceSeasonYear();
   toast(`Você agora é o técnico do ${club.name}!`);
 }
@@ -23688,6 +23808,9 @@ function openLoanNegotiationModal(key){
   let bonusWin = 0;
   let bonusGoal = 0;
   let bonusTitle = 0;
+  let loanDurationMonths = 12;
+  let hasBuyOption = false;
+  let buyOptionPrice = Math.round(basePrice * 1.15);
 
   function calcLoanInterest(){
     let score = 55;
@@ -23726,6 +23849,7 @@ function openLoanNegotiationModal(key){
   function renderLoanNego(){
     const negotiation = loanNegotiationSnapshot();
     const {interest, clubAccepted, clubChance, playerChance, playerAccepted, canAfford, canFinalize} = negotiation;
+    const loanEndDate = getLoanEndDate(state.date, loanDurationMonths);
 
     const interestClass = interest < 50 ? 'interest-low' : interest < 75 ? 'interest-mid' : 'interest-high';
 
@@ -23745,7 +23869,7 @@ function openLoanNegotiationModal(key){
               <span class="pill">${esc(p.pos)}</span>
             </div>
             <div class="small muted" style="margin-top:2px">
-              Cedente: <b>${esc(from)}</b> • Contrato por empréstimo até o fim da temporada
+              Cedente: <b>${esc(from)}</b> • Prazo: ${loanDurationMonths} meses, até ${formatDatePtBr(loanEndDate)}
             </div>
           </div>
         </div>
@@ -23873,6 +23997,22 @@ function openLoanNegotiationModal(key){
 
       </div>
 
+      <div style="background:rgba(124,58,237,.1);border:1px solid rgba(167,139,250,.35);border-radius:12px;padding:14px;margin-top:12px">
+        <div style="font-size:12px;font-weight:900;color:#c4b5fd;margin-bottom:9px">3. PRAZO DO CONTRATO E OPÇÃO DE COMPRA</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="small muted">Duração:</span>
+          ${[6,12,18,24].map(months => `<button class="btn btnLoanDuration ${loanDurationMonths===months?'primary':''}" data-months="${months}" style="padding:6px 10px;font-size:11px">${months} meses</button>`).join('')}
+          <span class="small muted">Retorno previsto: <b style="color:#38bdf8">${formatDatePtBr(loanEndDate)}</b></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:11px">
+          <label style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:#e2e8f0"><input type="checkbox" id="chkLoanBuyOption" ${hasBuyOption?'checked':''}> Incluir opção de compra com valor fixado</label>
+          <label style="font-size:11px;color:#94a3b8">Valor da opção
+            <input type="number" id="inpLoanBuyOptionPrice" min="1" step="10000" value="${buyOptionPrice}" ${hasBuyOption?'':'disabled'} style="width:150px;margin-left:6px;background:#0f172a;color:#fff;border:1px solid #475569;border-radius:7px;padding:6px">
+          </label>
+        </div>
+        <div class="small muted" style="margin-top:6px">Sem opção fixada, o clube ainda pode negociar a compra pelo valor de mercado vigente.</div>
+      </div>
+
       <!-- PAINEL DE CHANCES REALISTAS DE ACEITE NO EMPRÉSTIMO -->
       <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;margin-top:12px;display:flex;justify-content:space-around;align-items:center;flex-wrap:wrap;gap:8px">
         <div style="font-size:12px">
@@ -23937,9 +24077,21 @@ function openLoanNegotiationModal(key){
       };
     });
 
+    $$('.btnLoanDuration').forEach(b => {
+      b.onclick = () => {
+        loanDurationMonths = clamp(Number(b.dataset.months) || 12, 6, 24);
+        renderLoanNego();
+      };
+    });
+    const buyOptionToggle = $('#chkLoanBuyOption');
+    if(buyOptionToggle) buyOptionToggle.onchange = () => { hasBuyOption = buyOptionToggle.checked; renderLoanNego(); };
+    const buyOptionInput = $('#inpLoanBuyOptionPrice');
+    if(buyOptionInput) buyOptionInput.oninput = () => { buyOptionPrice = Math.max(0, Math.round(Number(buyOptionInput.value) || 0)); };
+
     const bConfLoan = $('#btnConfirmLoanNego');
     if(bConfLoan){
       bConfLoan.onclick = () => {
+        if(hasBuyOption && buyOptionPrice < 1){ toast('Informe um valor válido para a opção de compra.'); return; }
         const currentNegotiation = loanNegotiationSnapshot();
         if(!currentNegotiation.canFinalize){
           renderLoanNego();
@@ -23967,6 +24119,12 @@ function openLoanNegotiationModal(key){
           marketKey: key,
           isLoan: true,
           loanFrom: from,
+          loanStartDate: state.date,
+          loanEndDate: getLoanEndDate(state.date, loanDurationMonths),
+          loanDurationMonths,
+          loanBuyOptionPrice: hasBuyOption ? buyOptionPrice : null,
+          loanBuyOptionEndDate: hasBuyOption ? getLoanEndDate(state.date, loanDurationMonths) : null,
+          loanPurchaseContractYears: 3,
           fitness: 100,
           morale: 80,
           wage: Math.round(fullSalary * salaryShare),
@@ -23977,9 +24135,9 @@ function openLoanNegotiationModal(key){
         };
 
         state.squad.push(loanedPlayer);
-        state.loans.unshift({ type: 'loan_in', name: p.name, from, to: state.club, fee: offeredFee, date: state.date });
-        state.news.unshift(`⇄ EMPRÉSTIMO FECHADO: O ${state.club} acertou a vinda de ${p.name}, vindo do ${from}, superando interesse do ${rival.name}!`);
-        toast(`🎉 ${p.name} chegou por empréstimo com sucesso!`);
+        state.loans.unshift({ type: 'loan_in', name: p.name, from, to: state.club, fee: offeredFee, date: state.date, endDate: loanedPlayer.loanEndDate, durationMonths: loanDurationMonths, buyOptionPrice: loanedPlayer.loanBuyOptionPrice });
+        state.news.unshift(`⇄ EMPRÉSTIMO FECHADO: ${p.name} chegou do ${from} por ${loanDurationMonths} meses, até ${formatDatePtBr(loanedPlayer.loanEndDate)}.${hasBuyOption ? ` Opção de compra: ${fmtMoney(buyOptionPrice)}.` : ''}`);
+        toast(`🎉 ${p.name} chegou por ${loanDurationMonths} meses, com retorno previsto para ${formatDatePtBr(loanedPlayer.loanEndDate)}.`);
         closeCustomModal();
         save();
         render();
@@ -25289,6 +25447,7 @@ function render() {
       return;
     }
     try { if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save(); } catch(e){}
+    try { processLoanContractReturns(state); } catch(e){ recordAFMError('loan-contract-expiration', e); }
     try { processCoachSalaryOnFirstOfMonth(state); } catch(e){ recordAFMError('coach-monthly-payday', e); }
     const restoreScroll = app.dataset?.renderedView === view;
     const windowScroll = window.scrollY;
@@ -28517,6 +28676,40 @@ function squadPage(){
     }
 
     const maxWage = Math.max(...ps.map(playerSalary), 25000);
+    const loanPlayers = (state.squad || []).filter(player => player?.isLoan);
+    const contractTabs = `
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn contract-view-tab" data-tab="squad" style="${salaryViewTab==='squad'?'background:#7c3aed;color:#fff;border:0':''}">💰 Salários do Elenco</button>
+        <button class="btn contract-view-tab" data-tab="loans" style="${salaryViewTab==='loans'?'background:#7c3aed;color:#fff;border:0':''}">🤝 Empréstimos (${loanPlayers.length})</button>
+      </div>`;
+
+    if(salaryViewTab === 'loans'){
+      return `
+        <div class="hero">
+          <div><h1>Contratos & Salários</h1><div class="muted">Acompanhe os contratos temporários e a data de retorno dos jogadores emprestados</div></div>
+          <button class="btn" id="btnToggleSquadView" style="background:#7c3aed;color:#fff;border:none">👥 Visualização de Elenco</button>
+        </div>
+        ${contractTabs}
+        <div class="card" style="margin-top:14px;padding:24px;background:#120f20;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
+          <h2 style="margin:0 0 6px;font-size:22px;color:#fff;text-transform:uppercase">EMPRÉSTIMOS RECEBIDOS</h2>
+          <div class="muted" style="margin-bottom:16px">${loanPlayers.length} jogador(es) emprestado(s) ao clube. Ao vencer o prazo, o atleta retorna automaticamente ao clube de origem.</div>
+          ${loanPlayers.length ? `<div class="tablewrap"><table><thead><tr><th>JOGADOR</th><th>CLUBE DE ORIGEM</th><th>FIM DO EMPRÉSTIMO</th><th>TEMPO RESTANTE</th><th>OPÇÃO DE COMPRA</th><th>AÇÃO</th></tr></thead><tbody>
+            ${loanPlayers.map(player => {
+              const remainingDays = getLoanRemainingDays(player, state.date);
+              const remainingMonths = Math.ceil(remainingDays / 30.4375);
+              const optionActive = Number(player.loanBuyOptionPrice) > 0 && (!player.loanBuyOptionEndDate || state.date <= player.loanBuyOptionEndDate);
+              return `<tr class="salary-loan-item" data-player-key="${esc(playerKey(player))}">
+                <td><b>${esc(player.name)}</b><div class="small muted">${esc(player.pos || '-')} · ${playerOverall(player)} OVR</div></td>
+                <td>${clubBadge(player.loanFrom, 18)} ${esc(player.loanFrom || 'Clube de origem')}</td>
+                <td>${player.loanEndDate ? formatDatePtBr(player.loanEndDate) : 'A definir'}</td>
+                <td><b style="color:${remainingDays <= 30 ? '#f59e0b' : '#38bdf8'}">${remainingDays} dias</b><div class="small muted">aprox. ${remainingMonths} mês(es)</div></td>
+                <td>${optionActive ? `<b style="color:#22c55e">${fmtMoney(player.loanBuyOptionPrice)}</b><div class="small muted">até ${formatDatePtBr(player.loanBuyOptionEndDate || player.loanEndDate)}</div>` : '<span class="muted">Sem cláusula fixada</span>'}</td>
+                <td><button class="btn btnManageSalaryLoan" data-key="${esc(playerKey(player))}" style="padding:6px 10px;font-size:11px">Gerenciar contrato</button></td>
+              </tr>`;
+            }).join('')}
+          </tbody></table></div>` : '<div class="empty" style="padding:24px;text-align:center">Nenhum jogador emprestado ao seu clube.</div>'}
+        </div>`;
+    }
 
     return `
       <div class="hero">
@@ -28530,6 +28723,7 @@ function squadPage(){
           </button>
         </div>
       </div>
+      ${contractTabs}
 
       <div class="card" style="margin-top:14px;padding:24px;background:#120f20;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -28555,7 +28749,7 @@ function squadPage(){
           ${ps.map(p => {
             const wage = playerSalary(p);
             const ovr = playerOverall(p);
-            const until = playerContractUntil(p);
+            const until = p.isLoan && p.loanEndDate ? formatDatePtBr(p.loanEndDate) : playerContractUntil(p);
             const isExp = isExpensiveForTier(p);
             const barPct = clamp(Math.round((wage / maxWage) * 100), 10, 100);
 
@@ -29618,6 +29812,7 @@ function renderMarketMyLoans(){
                   <th>POS</th>
                   <th style="text-align:center">NOTA</th>
                   <th style="text-align:right">SALÁRIO PAGO</th>
+                  <th>VIGÊNCIA</th>
                   <th style="text-align:center">AÇÃO</th>
                 </tr>
               </thead>
@@ -29630,6 +29825,7 @@ function renderMarketMyLoans(){
                     <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
                     <td style="text-align:center"><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
                     <td style="text-align:right;color:#22c55e">R$ ${(p.wage||0).toLocaleString('pt-BR')}/mês</td>
+                    <td>${p.loanEndDate ? `${formatDatePtBr(p.loanEndDate)}<div class="small muted">${getLoanRemainingDays(p, state.date)} dias restantes</div>` : 'A definir'}</td>
                     <td style="text-align:center">
                       <button class="btn btnReturnLoanedPlayer" data-key="${esc(playerKey(p))}" style="padding:4px 10px;font-size:11px;color:var(--bad)">
                         Devolver Atleta
@@ -29696,8 +29892,11 @@ function renderMarketMyLoans(){
       const idx = state.squad.findIndex(p => playerKey(p) === k);
       if(idx >= 0){
         const p = state.squad[idx];
-        state.squad.splice(idx, 1);
-        toast(`Atleta ${p.name} devolvido ao ${p.loanFrom || 'clube de origem'}.`);
+        const parentClub = p.loanFrom || p.originalClub || 'clube de origem';
+        if(!detachLoanedPlayer(state, p)) return;
+        state.loans = Array.isArray(state.loans) ? state.loans : [];
+        state.loans.unshift({ type: 'loan_return', name: p.name, from: state.club, to: parentClub, date: state.date, earlyReturn: true });
+        toast(`Atleta ${p.name} devolvido ao ${parentClub}.`);
         save();
         render();
       }
@@ -37160,8 +37359,17 @@ function bind(){
     const btnRos2 = $('#btnToggleSquadViewLink');
     if(btnRos2) btnRos2.onclick = () => { squadViewMode = 'roster'; render(); };
 
+    $$('.contract-view-tab').forEach(b => {
+      b.onclick = () => { salaryViewTab = b.dataset.tab === 'loans' ? 'loans' : 'squad'; render(); };
+    });
+
     $$('.salary-sort-btn').forEach(b => {
       b.onclick = () => { salarySort = b.dataset.sort; render(); };
+    });
+
+    $$('.btnManageSalaryLoan').forEach(b => b.onclick = () => {
+      const player = findSquadPlayerByKey(b.dataset.key);
+      if(player) openBorrowedPlayerManagementModal(player);
     });
 
     $$('.salary-item-clickable').forEach(el => {
