@@ -12177,6 +12177,7 @@ function newCareer(data){
   }
 
   optimizeLineup();
+  ensureTvBroadcastContract(state);
   save();
   view = 'central';
   toast(`Carreira iniciada com o ${club.name}! Caixa inicial: ${fmtMoney(300000)}.`);
@@ -12857,6 +12858,7 @@ function migrate(s){
     s.sponsors = { master: offers[0], sleeves: offers[3], back: offers[5] };
     s.sponsorOffers = offers.slice(1, 4);
   }
+  ensureTvBroadcastContract(s);
 
   if(Array.isArray(s.teams)){
     s.teams.forEach(t=>{ if(!Array.isArray(t.form)) t.form = []; const c = clubByName(t.name); if(c && typeof strength === 'function') t.strength = strength(c); });
@@ -14962,11 +14964,37 @@ function refreshAnnualSponsorValues(positionValue, teamCount, compId){
   state.sponsorSeasonFactor = nextFactor;
 }
 
+function ensureTvBroadcastContract(st){
+  if(!st) return null;
+  if(st.tvContract1Year && typeof st.tvContract1Year === 'object') return st.tvContract1Year;
+
+  const club = typeof clubByName === 'function' ? clubByName(st.club) : null;
+  const ovr = (typeof strength === 'function' && club) ? (strength(club) || 76) : 76;
+  const comp = (typeof compById === 'function' && st.compId) ? compById(st.compId) : null;
+  const division = comp?.id === 'bra-a' ? 1 : comp?.id === 'bra-b' ? 2 : 3;
+  const multiplier = Math.pow(Math.max(55, ovr) / 72, 2.2) * (division === 1 ? 1 : division === 2 ? 0.38 : 0.16);
+  const baseAnnual = Math.round(82000000 * multiplier);
+  const broadcaster = getTvCompanies(baseAnnual)[0];
+  const annualTotal = Math.round(baseAnnual * (Number(broadcaster?.annualFactor) || 1));
+
+  st.tvContract1Year = {
+    id: broadcaster?.id || 'globo_libra',
+    name: broadcaster?.name || 'Emissora Oficial',
+    annualTotal,
+    monthly: Math.round(annualTotal / 12),
+    channels: broadcaster?.channels || '',
+    desc: broadcaster?.desc || '',
+    advancedAmount: 0,
+    advancedPaid: 0,
+    advancedTaken: false
+  };
+  return st.tvContract1Year;
+}
+
 function monthlyFinancialProjection(socioData = null){
-  const comp = curComp();
   const sponsorMonthly = totalSponsorMonthly();
   const adminMonthly = Math.round(sponsorMonthly * 0.03 * (state.infrastructure?.admin?.level || 1));
-  const tvPerRound = comp?.id === 'bra-a' ? 2200000 : comp?.id === 'bra-b' ? 850000 : 350000;
+  const tvContract = ensureTvBroadcastContract(state);
   const socioMonthly = (socioData || getSocioTorcedorMeta()).currentIncome;
   const namingMonthly = state.namingRights?.monthsRemaining > 0 ? Math.max(0, Number(state.namingRights.monthlyValue) || 0) : 0;
   const store = state.storeConfig || { level: 1, pricing: 'normal', stock: 'normal' };
@@ -14993,7 +15021,7 @@ function monthlyFinancialProjection(socioData = null){
     sponsors: sponsorMonthly,
     structures: monthlyFacilityIncome(),
     admin: adminMonthly,
-    tv: state.tvContract1Year?.monthly || (tvPerRound * 4),
+    tv: Math.max(0, Number(tvContract?.monthly) || 0),
     members: socioMonthly,
     naming: namingMonthly,
     store: storeMonthly,
@@ -24338,14 +24366,80 @@ function totalBankDebt(){
   return state.bankLoans.reduce((acc, l) => acc + (Number(l.remainingDebt) || 0), 0);
 }
 
+function ensureBankCreditHistory(){
+  if(!state) return { onTimePayments: 0, latePayments: 0, completedLoans: 0 };
+  if(!state.bankCreditHistory || typeof state.bankCreditHistory !== 'object'){
+    const legacyPaid = (state.bankLoans || []).reduce((sum, loan) => sum + Math.max(0, Number(loan.paidInstallments) || 0), 0);
+    state.bankCreditHistory = {
+      onTimePayments: legacyPaid,
+      latePayments: (state.bankLoans || []).filter(loan => loan.overdue).length,
+      completedLoans: 0
+    };
+  }
+  const history = state.bankCreditHistory;
+  history.onTimePayments = Math.max(0, Math.floor(Number(history.onTimePayments) || 0));
+  history.latePayments = Math.max(0, Math.floor(Number(history.latePayments) || 0));
+  history.completedLoans = Math.max(0, Math.floor(Number(history.completedLoans) || 0));
+  return history;
+}
+
+function recordBankCreditPayment(type){
+  const history = ensureBankCreditHistory();
+  if(type === 'late') history.latePayments++;
+  else if(type === 'completed') history.completedLoans++;
+  else history.onTimePayments++;
+}
+
+function bankCreditAssessment(){
+  if(!state) return { score: 0, rating: 'Sem avaliação', maxLimit: 0, availableCredit: 0, monthlySurplus: 0, liquidityMonths: 0 };
+  const projection = monthlyFinancialProjection();
+  const monthlyRevenue = Math.max(0, Number(projection.monthlyRevenue) || 0);
+  const monthlyExpenses = Math.max(0, Number(projection.monthlyExpenses) || 0);
+  const monthlySurplus = Number(projection.monthlyBalance) || 0;
+  const monthlyBase = Math.max(50000, monthlyExpenses);
+  const cash = Math.max(0, Number(state.balance) || 0);
+  const debt = totalBankDebt();
+  const liquidityMonths = cash / monthlyBase;
+  const liquidityScore = clamp(liquidityMonths / 2, 0, 1) * 25;
+  const cashFlowRatio = monthlySurplus / monthlyBase;
+  const cashFlowScore = clamp((cashFlowRatio + 0.25) / 0.75, 0, 1) * 25;
+
+  const history = ensureBankCreditHistory();
+  const paymentCount = history.onTimePayments + history.latePayments;
+  const paymentScore = paymentCount === 0
+    ? 12
+    : clamp(history.onTimePayments / paymentCount, 0, 1) * 16 + Math.min(4, history.completedLoans * 2);
+  const debtToRevenue = debt / Math.max(1, monthlyRevenue * 12);
+  const debtScore = clamp(1 - debtToRevenue, 0, 1) * 10;
+  const fame = clamp(Number(teamFameScore()) || 0, 0, 100);
+  const notorietyScore = fame * 0.2;
+  const score = Math.round(clamp(liquidityScore + cashFlowScore + paymentScore + debtScore + notorietyScore, 0, 100));
+
+  const rating = score >= 85 ? 'Excelente' : score >= 70 ? 'Muito bom' : score >= 55 ? 'Bom' : score >= 40 ? 'Regular' : 'Baixo';
+  const scoreBasedLimit = 500000 + Math.pow(score / 100, 2) * 34500000;
+  const affordabilityLimit = Math.max(500000, (Math.max(0, monthlySurplus) * 18) + (cash * 0.35));
+  const maxLimit = Math.round(Math.min(scoreBasedLimit, affordabilityLimit) / 100000) * 100000;
+  return {
+    score,
+    rating,
+    maxLimit,
+    affordabilityLimit,
+    availableCredit: Math.max(0, maxLimit - debt),
+    monthlySurplus,
+    liquidityMonths,
+    fame,
+    monthlyRevenue,
+    monthlyExpenses
+  };
+}
+
 function bankAvailableCredit(){
   if(!state) return 0;
-  const club = clubByName(state.club) || { atk:65, mid:65, def:65 };
-  const str = strength(club);
-  const lvl = Number(state.infrastructure?.bank?.level) || 1;
-  const maxLimit = Math.round((2500000 + (str * 200000) + (lvl * 4000000)) / 100000) * 100000;
-  const debt = totalBankDebt();
-  return Math.max(0, maxLimit - debt);
+  const assessment = bankCreditAssessment();
+  const bankLevel = clamp(Number(state.infrastructure?.bank?.level) || 1, 1, 8);
+  const institutionBonus = 1 + ((bankLevel - 1) * 0.025);
+  const adjustedLimit = Math.min(assessment.maxLimit * institutionBonus, assessment.affordabilityLimit);
+  return Math.max(0, Math.round((adjustedLimit - totalBankDebt()) / 100000) * 100000);
 }
 
 function calcBankInterestRate(amount, installments){
@@ -24378,19 +24472,23 @@ function processBankLoansOnRound(){
     if((state.round || 0) >= (loan.nextDueRound || 0)){
       const instVal = Math.round(loan.installmentValue || (loan.remainingDebt / Math.max(1, loan.remainingInstallments)));
       if(state.balance >= instVal){
+        const wasOverdue = !!loan.overdue;
         state.balance -= instVal;
         const breakdown = bankLoanPaymentBreakdown(loan, instVal);
         loan.remainingPrincipal = breakdown.remainingPrincipal;
         state.debtPrincipalPaid = (state.debtPrincipalPaid || 0) + breakdown.principalPaid;
         state.expense = (state.expense || 0) + breakdown.interestPaid;
+        if(!wasOverdue) recordBankCreditPayment('on-time');
         loan.paidInstallments = (loan.paidInstallments || 0) + 1;
         loan.remainingInstallments = Math.max(0, (loan.remainingInstallments || 1) - 1);
         loan.remainingDebt = Math.max(0, loan.remainingDebt - breakdown.amount);
         loan.nextDueRound = (state.round || 0) + 2;
         loan.overdue = false;
         loan.penalty = 0;
+        if(loan.remainingDebt <= 0 || loan.remainingInstallments <= 0) recordBankCreditPayment('completed');
         state.news.unshift(`🏦 Banco & Finanças: Parcela de ${fmtMoney(instVal)} debitada com sucesso (${loan.paidInstallments}/${loan.totalInstallments}).`);
       } else {
+        recordBankCreditPayment('late');
         loan.overdue = true;
         const penaltyFee = Math.round(instVal * 0.02);
         loan.penalty = (loan.penalty || 0) + penaltyFee;
@@ -24411,8 +24509,9 @@ function openBankLoansModal(initialTab = null){
   if(initialTab) activeBankModalTab = initialTab;
   else if(!activeBankModalTab) activeBankModalTab = 'advances';
   state.bankLoans = Array.isArray(state.bankLoans) ? state.bankLoans : [];
-  const creditLimit = bankAvailableCredit();
-  if(selectedLoanAmount > creditLimit && creditLimit > 0) selectedLoanAmount = creditLimit;
+  let creditAssessment = bankCreditAssessment();
+  let creditLimit = bankAvailableCredit();
+  if(selectedLoanAmount > creditLimit) selectedLoanAmount = creditLimit;
 
   let overlay = $('#bankLoansModalOverlay');
   if(!overlay){
@@ -24422,6 +24521,9 @@ function openBankLoansModal(initialTab = null){
   }
 
   function renderModalContent(){
+    creditAssessment = bankCreditAssessment();
+    creditLimit = bankAvailableCredit();
+    if(selectedLoanAmount > creditLimit) selectedLoanAmount = creditLimit;
     const currentRate = calcBankInterestRate(selectedLoanAmount, selectedLoanInstallments);
     const instVal = calcBankInstallment(selectedLoanAmount, selectedLoanInstallments, currentRate);
     const totalPay = instVal * selectedLoanInstallments;
@@ -24448,7 +24550,7 @@ function openBankLoansModal(initialTab = null){
           </div>
 
           <!-- Resumo Financeiro Superior -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:16px 24px;background:rgba(0,0,0,0.25);border-bottom:1px solid rgba(255,255,255,0.06)">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;padding:16px 24px;background:rgba(0,0,0,0.25);border-bottom:1px solid rgba(255,255,255,0.06)">
             <div style="background:#161a2e;padding:12px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
               <div style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:800;letter-spacing:0.5px">SALDO EM CAIXA</div>
               <div style="font-size:18px;font-weight:900;color:var(--neon);margin-top:2px">${fmtMoney(state.balance)}</div>
@@ -24460,6 +24562,11 @@ function openBankLoansModal(initialTab = null){
             <div style="background:#161a2e;padding:12px 16px;border-radius:12px;border:1px solid ${hasOverdue?'#ef4444':'rgba(255,255,255,0.06)'}">
               <div style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:800;letter-spacing:0.5px">DÍVIDA BANCÁRIA ATIVA</div>
               <div style="font-size:18px;font-weight:900;color:${hasOverdue?'#ef4444':'#f59e0b'};margin-top:2px">${fmtMoney(totalDebt)}</div>
+            </div>
+            <div style="background:#161a2e;padding:12px 16px;border-radius:12px;border:1px solid rgba(16,185,129,0.2)">
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:800;letter-spacing:0.5px">SCORE DE CRÉDITO</div>
+              <div style="font-size:18px;font-weight:900;color:${creditAssessment.score >= 70 ? '#34d399' : creditAssessment.score >= 45 ? '#fbbf24' : '#fb7185'};margin-top:2px">${creditAssessment.score}/100 <span style="font-size:11px">· ${creditAssessment.rating}</span></div>
+              <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:4px;margin-top:7px;overflow:hidden"><div style="height:100%;width:${creditAssessment.score}%;background:linear-gradient(90deg,#f97316,#10b981);border-radius:4px"></div></div>
             </div>
           </div>
 
@@ -24585,6 +24692,10 @@ function openBankLoansModal(initialTab = null){
             </div>
           ` : activeBankModalTab==='borrow' ? `
             <div style="padding:24px;display:flex;flex-direction:column;gap:20px">
+              <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.22);border-radius:12px;padding:12px 16px;color:rgba(255,255,255,0.75);font-size:12px;line-height:1.5">
+                O limite considera caixa, saldo mensal após despesas, dívidas, histórico de pagamentos e notoriedade. A fama do clube cresce com o desempenho e aumenta gradualmente o crédito disponível.
+                <div style="margin-top:5px;color:#a7f3d0;font-weight:800">Receita mensal: ${fmtMoney(creditAssessment.monthlyRevenue)} · Despesas: ${fmtMoney(creditAssessment.monthlyExpenses)} · Caixa cobre ${creditAssessment.liquidityMonths.toFixed(1)} mês(es)</div>
+              </div>
               
               <!-- Seleção Rápida de Valores -->
               <div>
@@ -24744,6 +24855,13 @@ function openBankLoansModal(initialTab = null){
     const btnConfirm = $('#btnConfirmTakeLoan');
     if(btnConfirm){
       btnConfirm.onclick = () => {
+        const currentCreditLimit = bankAvailableCredit();
+        if(selectedLoanAmount <= 0 || selectedLoanAmount > currentCreditLimit){
+          selectedLoanAmount = currentCreditLimit;
+          toast('O limite foi recalculado pelo score atual do clube. Escolha um valor dentro do limite disponível.');
+          renderModalContent();
+          return;
+        }
         const rate = calcBankInterestRate(selectedLoanAmount, selectedLoanInstallments);
         const inst = calcBankInstallment(selectedLoanAmount, selectedLoanInstallments, rate);
         const total = inst * selectedLoanInstallments;
@@ -24783,11 +24901,13 @@ function openBankLoansModal(initialTab = null){
         const instVal = Math.round(loan.installmentValue || (loan.remainingDebt / Math.max(1, loan.remainingInstallments)));
         if(state.balance < instVal){ toast('Saldo insuficiente no caixa para pagar a parcela.'); return; }
 
+        const wasOverdue = !!loan.overdue;
         state.balance -= instVal;
         const breakdown = bankLoanPaymentBreakdown(loan, instVal);
         loan.remainingPrincipal = breakdown.remainingPrincipal;
         state.debtPrincipalPaid = (state.debtPrincipalPaid || 0) + breakdown.principalPaid;
         state.expense = (state.expense || 0) + breakdown.interestPaid;
+        if(!wasOverdue) recordBankCreditPayment('on-time');
         loan.paidInstallments = (loan.paidInstallments || 0) + 1;
         loan.remainingInstallments = Math.max(0, loan.remainingInstallments - 1);
         loan.remainingDebt = Math.max(0, loan.remainingDebt - breakdown.amount);
@@ -24796,6 +24916,7 @@ function openBankLoansModal(initialTab = null){
         loan.penalty = 0;
 
         if(loan.remainingDebt <= 0 || loan.remainingInstallments <= 0){
+          recordBankCreditPayment('completed');
           state.bankLoans.splice(idx, 1);
           toast('🎉 Empréstimo 100% quitado com sucesso!');
         } else {
@@ -24821,6 +24942,7 @@ function openBankLoansModal(initialTab = null){
         const principalPaid = Math.round(bonusPayoff * (remainingDebt > 0 ? remainingPrincipal / remainingDebt : 1));
         state.debtPrincipalPaid = (state.debtPrincipalPaid || 0) + principalPaid;
         state.expense = (state.expense || 0) + Math.max(0, bonusPayoff - principalPaid);
+        recordBankCreditPayment('completed');
         const savedMoney = loan.remainingDebt - bonusPayoff;
         state.bankLoans.splice(idx, 1);
         state.news.unshift(`🏦 QUITAÇÃO ANTECIPADA: Dívida quitada com sucesso! Economia de ${fmtMoney(savedMoney)} em bônus.`);
@@ -29583,6 +29705,9 @@ function structurePage(){
   const stadiumWork = stData.activeWork;
   const stadiumWorkDays = stadiumWork ? getStadiumWorkDaysRemaining(stadiumWork) : 0;
   const stadiumWorkProgress = stadiumWork ? Math.max(0, Math.min(100, Math.round(((Number(stadiumWork.durationDays) || 1) - stadiumWorkDays) / Math.max(1, Number(stadiumWork.durationDays) || 1) * 100))) : 0;
+  const stadiumFacility = state.infrastructure.stadium || { level: 1 };
+  const stadiumFacilityCost = facilityCost('stadium');
+  const stadiumFacilityMax = stadiumFacility.level >= FACILITIES.stadium.max;
   const arenaData = getNewArenaData();
   const arenaCapacity = getSelectedArenaCapacity();
   selectedArenaCapacity = arenaCapacity;
@@ -29641,8 +29766,18 @@ function structurePage(){
       ? window.AFMStadium3D.renderStadium3DCardHTML(state.club, state) 
       : ''}
 
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;padding:10px 14px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.16);border-radius:10px">
+      <div style="font-size:12px;color:rgba(255,255,255,0.72)">
+        🏟️ <b style="color:#38bdf8">Anéis liberados: ${Math.min(Number(stadiumFacility.level) || 1, FACILITIES.stadium.max)}/${FACILITIES.stadium.max}</b>
+        <span style="margin-left:6px">${stadiumFacilityMax ? 'Todos os anéis estão disponíveis para obras.' : 'Evolua para liberar o próximo anel de arquibancadas.'}</span>
+      </div>
+      <button class="btn upgrade" data-facility="stadium" ${stadiumFacilityMax || state.balance < stadiumFacilityCost ? 'disabled' : ''} style="padding:7px 12px;font-size:11px;font-weight:800">
+        ${stadiumFacilityMax ? 'Nível máximo' : `Liberar anel ${Math.min(Number(stadiumFacility.level) || 1, FACILITIES.stadium.max) + 1} · ${fmtMoney(stadiumFacilityCost)}`}
+      </button>
+    </div>
+
     <div class="facility-map" style="margin-top:16px">
-        ${Object.entries(FACILITIES).map(([k,d])=>{
+        ${Object.entries(FACILITIES).filter(([k]) => k !== 'stadium').map(([k,d])=>{
           const x=state.infrastructure[k]||{level:0};
           const cost=facilityCost(k);
           const max=x.level>=d.max;
