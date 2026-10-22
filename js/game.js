@@ -10044,12 +10044,25 @@ function normalizeYouthAcademyRoster(saveState=state){
   if(saveState.youthAcademy.length > YOUTH_ACADEMY_CAPACITY){
     saveState.youthAcademyOverflow.push(...saveState.youthAcademy.splice(YOUTH_ACADEMY_CAPACITY));
   }
+  normalizeYouthAcademyPositions(saveState);
   return saveState.youthAcademy;
+}
+
+function normalizeYouthAcademyPositions(saveState, startIndex=0){
+  const positions = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'RW', 'LW', 'ST'];
+  const players = [...(saveState?.youthAcademy || []), ...(saveState?.youthAcademyOverflow || [])];
+  players.forEach((player, index) => {
+    if(!player || typeof player !== 'object') return;
+    const sourcePos = String(player.pos || '').trim() || String(player.position || '').trim() || player.primaryPosition;
+    const normalizedPos = sourcePos ? normTacticalPos(sourcePos) : '';
+    player.pos = positions.includes(normalizedPos) ? normalizedPos : positions[(startIndex + index) % positions.length];
+  });
 }
 
 function addYouthAcademyPlayer(player, saveState=state){
   const roster = normalizeYouthAcademyRoster(saveState);
   if(!player || roster.length >= YOUTH_ACADEMY_CAPACITY) return false;
+  normalizeYouthAcademyPositions({ youthAcademy: [player], youthAcademyOverflow: [] }, roster.length);
   roster.unshift(player);
   return true;
 }
@@ -26775,6 +26788,8 @@ function centralPage(){
   // don't let an empty round array hide a pending fixture from another cup.
   const primaryScheduleEnded = !f && (!Array.isArray(state.schedule) || state.round >= state.schedule.length || state.schedule.slice(state.round).every(round => !Array.isArray(round) || !window.__afmAsRoundArray(round).some(fixture => Array.isArray(fixture) && fixture.some(team => norm(team) === norm(state.club)))));
   const nextPendingFixture = primaryScheduleEnded ? getNextPendingClubFixture(state) : null;
+  const isUpcomingHomeMatch = Boolean((f && isHome) || (!f && nextPendingFixture && norm(nextPendingFixture.home) === norm(state.club)));
+  const homePitchCondition = isUpcomingHomeMatch ? getStadiumMaintenanceData() : null;
   const finishedPosition = Array.isArray(state.teams) && state.teams.length ? position() : null;
   const isPrizeEligibleLeague = Boolean(comp?.id && comp?.type !== 'knockout');
   const finishedPrizeEstimate = finishedPosition && isPrizeEligibleLeague ? calculateSeasonPrizeMoney(finishedPosition, comp) : null;
@@ -27234,12 +27249,15 @@ function centralPage(){
           ` : ''}
 
           <!-- WIDGET DE CLIMA E CONDIÇÕES DO GRAMADO -->
-          <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:6px 12px;margin-top:10px;font-size:11px">
+          <div style="display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;margin-top:10px;font-size:11px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:6px">
               <span style="font-size:14px">${weather.icon}</span>
               <span style="color:#e2e8f0;font-weight:700">Clima: ${esc(weather.condition)} (${weather.temp}°C)</span>
             </div>
             <span style="color:${weather.drain>1.1?'#f87171':'#94a3b8'};font-size:10px;font-weight:700">${esc(weather.impact)}</span>
+            </div>
+            ${homePitchCondition ? `<div style="color:${homePitchCondition.statusColor};font-weight:800">🌱 Condição do gramado: ${esc(homePitchCondition.statusText)} · ${Math.round(homePitchCondition.val)}% · ${homePitchCondition.pitch === 'synthetic' ? 'Sintético' : homePitchCondition.pitch === 'hybrid' ? 'Híbrido' : 'Natural'}</div>` : ''}
           </div>
 
           <!-- Próximo compromisso oficial ou folga real -->

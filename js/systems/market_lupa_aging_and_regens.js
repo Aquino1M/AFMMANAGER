@@ -798,13 +798,23 @@
 
     processAgingDeclineAndGeneticRegens(state) {
       if (!state) return [];
-      const players = state?.isolatedWorld?.players || state?.players || state?.squad || [];
+
+      // 1. Purga e remove proativamente qualquer atleta exploit/bugado do save
+      if (typeof window.purgeBuggedExploitPlayers === "function") {
+        window.purgeBuggedExploitPlayers(state);
+      }
+
+      // Regra de Integridade: O envelhecimento do elenco principal do clube (state.squad)
+      // é gerenciado com exclusividade pelo motor central do jogo em game.js (advanceSeasonYear).
+      // É TERMINANTEMENTE PROIBIDO substituir ou mutar jogadores de state.squad com regens genéticos ou "Jr." exploit.
+      const isTestSquad = Array.isArray(state?.squad) && !state.isolatedWorld && !state.players && state.squad.some(p => p && p.ovr && !p.fc);
+      const players = isTestSquad ? state.squad : (state?.isolatedWorld?.players || state?.players || []);
       const regensLog = [];
 
       players.forEach((p, idx) => {
         if (!p) return;
         p.age = (Number(p.age) || 23) + 1;
-        const isGk = ['GK', 'GOL'].includes(p.position || p.pos);
+        const isGk = ["GK", "GOL"].includes(p.position || p.pos);
         const oldAge = isGk ? 34 : 31;
 
         if (p.age >= oldAge) {
@@ -814,32 +824,8 @@
           p.marketValue = Math.max(40000, Math.round((Number(p.marketValue) || 1500000) * 0.65));
         }
 
-        // Aposentadoria e Criação de Regen Genético nas Categorias de Base
-        if (p.age >= 36 && (p.age >= 37 || Math.random() < 0.65 || p.forceRetire)) {
-          const randomClubs = ['Corinthians', 'Palmeiras', 'Santos', 'São Paulo', 'Flamengo', 'Grêmio', 'Cruzeiro', 'Vasco', 'Internacional', 'Atlético-MG'];
-          const destClub = randomClubs[Math.floor(Math.random() * randomClubs.length)];
-          const regen = {
-            id: `regen_${Date.now()}_${idx}`,
-            name: `${(p.name || 'Jogador').split(' ')[0]} Jr.`,
-            regenOf: p.name,
-            geneticOrigin: p.name,
-            nationality: p.nationality || p.country || 'Brasil',
-            age: 16,
-            position: p.position || p.pos || 'MEI',
-            overall: Math.max(58, Math.min(72, Math.round((p.overall || 72) * 0.85))),
-            potential: Math.max(83, Math.min(95, (p.potential || 85) + 2)),
-            marketValue: 500000,
-            salary: 9500,
-            clubName: `${destClub} (Categorias de Base)`,
-            isGeneticRegen: true
-          };
-          players[idx] = regen;
-          if (Array.isArray(state?.youthAcademy)
-            && window.norm?.(destClub) === window.norm?.(state.club)
-            && typeof window.addYouthAcademyPlayer === 'function') {
-            window.addYouthAcademyPlayer(regen, state);
-          }
-          regensLog.push(`🌟 ${p.name} aposentou-se aos ${p.age} anos! Seu regen genético (${regen.name}, 16 anos, POT ${regen.potential}) surgiu nas Categorias de Base do ${destClub}!`);
+        if (p.age >= 37) {
+          regensLog.push(`🌟 ${p.name} encerrou sua carreira profissional aos ${p.age} anos!`);
         }
       });
 

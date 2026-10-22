@@ -21,6 +21,8 @@ if(!capacity) throw new Error('Youth academy capacity constant not found');
 const context = {};
 vm.runInNewContext([
   capacity,
+  extractFunction('normTacticalPos'),
+  extractFunction('normalizeYouthAcademyPositions'),
   extractFunction('normalizeYouthAcademyRoster'),
   extractFunction('addYouthAcademyPlayer'),
   extractFunction('restoreYouthAcademyOverflow')
@@ -37,5 +39,10 @@ save.youthAcademy.pop();
 if(helpers.restoreYouthAcademyOverflow(save) !== 1 || save.youthAcademy.length !== 15 || save.youthAcademyOverflow.length !== 162){
   throw new Error('A free academy spot must restore exactly one waiting player');
 }
+const positionSave = { youthAcademy: [{ position: 'MEI' }, { pos: 'ZAG' }, {}], youthAcademyOverflow: [] };
+helpers.normalizeYouthAcademyRoster(positionSave);
+if(positionSave.youthAcademy[0].pos !== 'AM' || positionSave.youthAcademy[1].pos !== 'CB' || !positionSave.youthAcademy[2].pos){
+  throw new Error('Legacy youth players must receive a normalized position');
+}
 
-console.log('PASS: base limitada a 15, excedentes preservados e vagas restauráveis da fila.');
+console.log('PASS: base limitada a 15, excedentes preservados, vagas restauráveis e posições normalizadas.');
