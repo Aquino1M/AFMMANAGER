@@ -12,6 +12,7 @@
     "test:sponsor-contracts": "node scripts/test-sponsor-contract-lifecycle.js",
     "test:sponsor-offers": "node scripts/test-sponsor-offer-deduplication.js",
     "test:manager-payday": "node scripts/test-manager-payday.js",
+    "test:coach-career-sync": "node scripts/test-coach-career-sync.js",
     "test:service-worker": "node scripts/test-service-worker.js",
     "test:season-transitions": "node scripts/test-season-transitions.js",
     "test:calendar-recovery": "node scripts/test-calendar-recovery.js",

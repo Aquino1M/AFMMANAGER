@@ -125,6 +125,16 @@
         }
         mp.balanceMigrationV1 = true;
       }
+      // Older saves may already have V1 marked while still carrying the real
+      // cash only in managerMoney. Recover that zero balance once on V2.
+      if (!mp.balanceMigrationV2) {
+        const savedPersonalBalance = Number(mp.personalBalance);
+        const legacyPersonalBalance = Number(state.managerMoney);
+        if ((!Number.isFinite(savedPersonalBalance) || savedPersonalBalance === 0) && legacyPersonalBalance > 0) {
+          mp.personalBalance = legacyPersonalBalance;
+        }
+        mp.balanceMigrationV2 = true;
+      }
       mp.personalBalance = Math.max(0, Number(mp.personalBalance) || 0);
       state.managerMoney = mp.personalBalance;
       const prestige = Math.max(5, Number(mp.prestigeScore) || 5, Number(state.coachPrestige) || 0);
@@ -150,6 +160,9 @@
         const salary = Math.max(0, Number(state.managerSalary) || Number(state.managerPersonal.salary) || 18000);
         state.managerSalary = salary;
         state.managerPersonal.salary = salary;
+      }
+      if (window.AFM_CoachRanking?.syncCareerProgress) {
+        window.AFM_CoachRanking.syncCareerProgress(state);
       }
 
       if (!Array.isArray(state.safMarketTrades) || state.safMarketTrades.length === 0) {
@@ -1271,7 +1284,8 @@
     renderLifeAndSharesUI(containerId, state) {
       const container = (typeof document !== 'undefined' && typeof containerId === 'string') ? document.getElementById(containerId) : containerId;
       if (!container) return;
-      const careerDataNeedsMigration = !state?.managerPersonal || state.managerPersonal.balanceMigrationV1 !== true ||
+      const careerDataNeedsMigration = !state?.managerPersonal || state.managerPersonal.balanceMigrationV2 !== true ||
+        (Number(state.managerMoney) > 0 && Number(state.managerPersonal?.personalBalance) === 0) ||
         (Number(state.coachPrestige) > Number(state.managerPersonal?.prestigeScore || 0));
       this.ensureState(state);
       if (careerDataNeedsMigration && typeof window.save === 'function') window.save();

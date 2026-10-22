@@ -141,35 +141,36 @@
     // 4. Calcula Pontos Reais de Carreira do Jogador
     getUserCareerPoints(state) {
       if(!state) return 500;
-      let points = 0;
+      state.managerPersonal = state.managerPersonal || {};
+      const mp = state.managerPersonal;
+      const stats = state.managerCareer || {};
+      const wins = Math.max(0, Number(stats.wins) || 0);
+      const draws = Math.max(0, Number(stats.draws) || 0);
+      const losses = Math.max(0, Number(stats.losses) || 0);
+      let statsPoints = wins * 30 + draws * 10 + losses * 2;
 
-      // Base: Pontos de managerPersonal se existirem
-      if(state.managerPersonal && typeof state.managerPersonal.careerPoints === 'number'){
-        points = state.managerPersonal.careerPoints;
-      } else if(state.coachPrestige) {
-        points = state.coachPrestige * 35;
-      } else {
-        points = 750;
+      // Saves antigos podem não ter managerCareer completo, mas ainda guardam partidas.
+      if (Array.isArray(state.history)) {
+        const historyPoints = state.history.reduce((total, match) => {
+          const isHome = match.h === state.club;
+          const isAway = match.a === state.club;
+          if (!isHome && !isAway) return total;
+          const goalsFor = Number(isHome ? match.hg : match.ag) || 0;
+          const goalsAgainst = Number(isHome ? match.ag : match.hg) || 0;
+          return total + (goalsFor > goalsAgainst ? 30 : goalsFor === goalsAgainst ? 10 : 2);
+        }, 0);
+        statsPoints = Math.max(statsPoints, historyPoints);
       }
 
-      // Adiciona vitórias históricas
-      const wins = (state.history || []).filter(h => {
-        const isH = (h.h === state.club);
-        const isA = (h.a === state.club);
-        if(!isH && !isA) return false;
-        return isH ? (h.hg > h.ag) : (h.ag > h.hg);
-      }).length;
+      const savedPoints = Math.max(0, Number(mp.careerPoints) || (Number(state.coachPrestige) || 0) * 35);
+      mp.careerPoints = Math.max(savedPoints, statsPoints);
+      state.coachPrestige = Math.max(5, Math.round(mp.careerPoints / 35));
+      mp.prestigeScore = Math.min(99, Math.max(5, Number(mp.prestigeScore) || 5, state.coachPrestige));
+      return mp.careerPoints;
+    },
 
-      // Títulos conquistados
-      const titles = (state.titles || []).length;
-      points += wins * 30 + titles * 300;
-
-      // Garante sincronia em state
-      state.managerPersonal = state.managerPersonal || {};
-      state.managerPersonal.careerPoints = Math.max(points, state.managerPersonal.careerPoints || 0);
-      state.coachPrestige = Math.round(state.managerPersonal.careerPoints / 35);
-
-      return state.managerPersonal.careerPoints;
+    syncCareerProgress(state) {
+      return this.getUserCareerPoints(state);
     },
 
     // 5. Gera ou Atualiza o Leaderboard Completo
