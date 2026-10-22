@@ -631,18 +631,24 @@
   function bindCreateClubEvents(app, activeUser) {
     const $ = sel => document.querySelector(sel);
     const $$ = sel => document.querySelectorAll(sel);
+    const syncBadgePreview = () => {
+      const bBox = $('#customBadgePreviewBox');
+      if (bBox) bBox.innerHTML = renderBadgePreviewHtml(customClubDraft.badgeImage, customClubDraft.badge, 120);
+    };
 
     const nameInp = $('#customClubNameInput');
-    if (nameInp) nameInp.oninput = () => { customClubDraft.name = nameInp.value; };
+    if (nameInp) nameInp.oninput = () => {
+      customClubDraft.name = nameInp.value;
+      syncBadgePreview();
+    };
 
     const shortInp = $('#customClubShortNameInput');
     if (shortInp) shortInp.oninput = () => {
       customClubDraft.shortName = shortInp.value.toUpperCase();
       if (customClubDraft.badge.motto.length <= 4) {
         customClubDraft.badge.motto = customClubDraft.shortName;
-        const bBox = $('#customBadgePreviewBox');
-        if (bBox) bBox.innerHTML = generateBadgeSvg(customClubDraft.badge, 120);
       }
+      syncBadgePreview();
     };
 
     const stdInp = $('#customClubStadiumInput');
@@ -1204,7 +1210,7 @@
             <div class="create-club-modal-body">
               <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
                 <div id="modalKitPreview" style="width:100%;min-height:220px;background:radial-gradient(circle,rgba(255,255,255,0.06) 0%,rgba(0,0,0,0.5) 100%);border:1px solid rgba(255,255,255,0.1);border-radius:16px;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
-                  ${generateKitSvg(tempKit, '', 140)}
+                  ${generateKitSvg(tempKit, customClubDraft.badgeImage || '', 140)}
                 </div>
                 <div style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">
                   VISUALIZAÇÃO COMPLETA (2D)
@@ -1284,7 +1290,7 @@
 
     function updateLivePreview() {
       const prev = document.querySelector('#modalKitPreview');
-      if (prev) prev.innerHTML = generateKitSvg(tempKit, '', 140);
+      if (prev) prev.innerHTML = generateKitSvg(tempKit, customClubDraft.badgeImage || '', 140);
     }
 
     function bindKitModalEvents() {
@@ -1357,11 +1363,11 @@
         if (kitType === 'home') {
           customClubDraft.homeKit = { ...tempKit };
           const prevBox = document.querySelector('#customHomeKitPreviewBox');
-          if (prevBox) prevBox.innerHTML = generateKitSvg(customClubDraft.homeKit, '', 110);
+          if (prevBox) prevBox.innerHTML = generateKitSvg(customClubDraft.homeKit, customClubDraft.badgeImage || '', 110);
         } else {
           customClubDraft.awayKit = { ...tempKit };
           const prevBox = document.querySelector('#customAwayKitPreviewBox');
-          if (prevBox) prevBox.innerHTML = generateKitSvg(customClubDraft.awayKit, '', 110);
+          if (prevBox) prevBox.innerHTML = generateKitSvg(customClubDraft.awayKit, customClubDraft.badgeImage || '', 110);
         }
         close();
       };
