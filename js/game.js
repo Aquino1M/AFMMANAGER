@@ -24462,13 +24462,14 @@ function openLoanNegotiationModal(key){
         <div style="display:flex;align-items:center;gap:12px">
           ${playerPhoto(p, 54)}
           <div>
-            <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <h2 style="margin:0;font-size:18px">${esc(p.name)}</h2>
               <span class="rating-pill ${ratingClass(ovr)}">${ovr}</span>
               <span class="pill">${esc(p.pos)}</span>
+              ${p.age ? `<span class="pill" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.9);background:rgba(255,255,255,0.08)">${p.age} anos</span>` : ''}
             </div>
             <div class="small muted" style="margin-top:2px">
-              Cedente: <b>${esc(from)}</b> • Prazo: ${loanDurationMonths} meses, até ${formatDatePtBr(loanEndDate)}
+              Cedente: <b>${esc(from)}</b>${p.age ? ` • <b>${p.age} anos</b>` : ''} • Prazo: ${loanDurationMonths} meses, até ${formatDatePtBr(loanEndDate)}
             </div>
           </div>
         </div>
