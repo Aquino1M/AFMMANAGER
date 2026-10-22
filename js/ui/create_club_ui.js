@@ -1636,6 +1636,7 @@
   window.generateBadgeSvg = generateBadgeSvg;
   window.generateKitSvg = generateKitSvg;
   window.generateCustomClubSquad = generateCustomClubSquad;
+  window.AFM_generateCustomClubSquad = generateCustomClubSquad;
   window.renderCreateClubScreen = renderCreateClubScreen;
   window.openCustomBadgeModal = openCustomBadgeModal;
   window.openCustomKitModal = openCustomKitModal;

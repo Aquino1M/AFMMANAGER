@@ -38,7 +38,7 @@ require('../js/core/stadium_3d_manager.js');
 const AFMStadium3D = globalWindow.AFMStadium3D;
 assert.ok(AFMStadium3D, 'AFMStadium3D deve estar definido');
 assert.ok(AFMStadium3D.catalog, 'Catálogo deve estar presente');
-assert.strictEqual(Object.keys(AFMStadium3D.catalog).length, 4, 'Catálogo deve ter 4 modelos');
+assert.ok(Object.keys(AFMStadium3D.catalog).length >= 4, 'Catálogo deve ter os modelos requeridos');
 
 assert.strictEqual(AFMStadium3D.catalog.arena_aberta.stLevel, 1);
 assert.strictEqual(AFMStadium3D.catalog.arena_classica.stLevel, 2);

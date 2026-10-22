@@ -3,13 +3,66 @@
   window.__AFM_RANKING_LICENSES_V3 = true;
 
   const LICENSES = [
-    { id: 'cbf_d', name: 'Licença CBF D (Iniciante)', cost: 0, minPrestige: 0, bonus: '+2% Evolução da Base' },
-    { id: 'cbf_c', name: 'Licença CBF C (Estadual)', cost: 15000, minPrestige: 5, bonus: '+4% Treino Tático' },
-    { id: 'cbf_b', name: 'Licença CBF B (Nacional Série B/C)', cost: 45000, minPrestige: 12, bonus: '+7% Moral & Tática' },
-    { id: 'cbf_a', name: 'Licença CBF A (Elite Série A)', cost: 120000, minPrestige: 25, bonus: '+10% Atração no Mercado' },
-    { id: 'cbf_pro', name: 'Licença CONMEBOL / CBF PRO', cost: 280000, minPrestige: 45, bonus: '+15% Prestígio Continental' },
-    { id: 'uefa_pro', name: 'Licença UEFA PRO (Mundial)', cost: 650000, minPrestige: 70, bonus: 'Acesso Irrestrito a Gigantes Europeus' }
+    { id: 'cbf_d', name: 'Licença CBF D (Iniciante)', cost: 0, minPrestige: 0, bonus: '+2% Evolução da Base', salaryBonusPct: 5, salaryBonusLabel: '+5% no Salário' },
+    { id: 'cbf_c', name: 'Licença CBF C (Estadual)', cost: 15000, minPrestige: 5, bonus: '+4% Treino Tático', salaryBonusPct: 10, salaryBonusLabel: '+10% no Salário' },
+    { id: 'cbf_b', name: 'Licença CBF B (Nacional Série B/C)', cost: 45000, minPrestige: 12, bonus: '+7% Moral & Tática', salaryBonusPct: 15, salaryBonusLabel: '+15% no Salário' },
+    { id: 'cbf_a', name: 'Licença CBF A (Elite Série A)', cost: 120000, minPrestige: 25, bonus: '+10% Atração no Mercado', salaryBonusPct: 20, salaryBonusLabel: '+20% no Salário' },
+    { id: 'cbf_pro', name: 'Licença CONMEBOL / CBF PRO', cost: 280000, minPrestige: 45, bonus: '+15% Prestígio Continental', salaryBonusPct: 25, salaryBonusLabel: '+25% no Salário' },
+    { id: 'uefa_pro', name: 'Licença UEFA PRO (Mundial)', cost: 650000, minPrestige: 70, bonus: 'Acesso Irrestrito a Gigantes Europeus', salaryBonusPct: 35, salaryBonusLabel: '+35% no Salário' }
   ];
+  window.AFM_COACH_LICENSES = LICENSES;
+
+  function getCoachLicensesData(state) {
+    const st = state || (typeof window !== 'undefined' ? (window.state || window.gameState) : null) || {};
+    const currentLicId = (st.manager && st.manager.license) || (st.managerPersonal && st.managerPersonal.licenseId) || (typeof localStorage !== 'undefined' && localStorage.getItem('afm_user_license_id')) || 'cbf_d';
+
+    const currIdx = LICENSES.findIndex(function(l) { return l.id === currentLicId; });
+    const targetIdx = currIdx >= 0 ? currIdx : 0;
+
+    const completedSet = new Set();
+    for (let i = 0; i <= targetIdx; i++) {
+      if (LICENSES[i]) completedSet.add(LICENSES[i].id);
+    }
+    if (Array.isArray(st.completedLicenses)) {
+      st.completedLicenses.forEach(function(id) { completedSet.add(id); });
+    }
+
+    const completedList = LICENSES.filter(function(l) { return completedSet.has(l.id); });
+    const totalBonusPct = completedList.reduce(function(acc, l) { return acc + (l.salaryBonusPct || 0); }, 0);
+
+    const baseSalary = Number(st.managerBaseSalary || st.managerSalary || 9500);
+    const bonusValue = Math.round(baseSalary * (totalBonusPct / 100));
+    const totalSalary = baseSalary + bonusValue;
+
+    const currentLic = LICENSES[targetIdx] || LICENSES[0];
+
+    return {
+      currentLicId: currentLicId,
+      currentLic: currentLic,
+      completedSet: completedSet,
+      completedList: completedList,
+      totalBonusPct: totalBonusPct,
+      baseSalary: baseSalary,
+      bonusValue: bonusValue,
+      totalSalary: totalSalary
+    };
+  }
+  window.getCoachLicensesData = getCoachLicensesData;
+
+  function syncCoachSalaryWithLicenses(state) {
+    const st = state || (typeof window !== 'undefined' ? (window.state || window.gameState) : null);
+    if (!st) return 9500;
+    const data = getCoachLicensesData(st);
+    if (!st.managerBaseSalary) {
+      st.managerBaseSalary = data.baseSalary;
+    }
+    st.managerSalary = data.totalSalary;
+    if (st.managerPersonal) {
+      st.managerPersonal.salary = data.totalSalary;
+    }
+    return data.totalSalary;
+  }
+  window.syncCoachSalaryWithLicenses = syncCoachSalaryWithLicenses;
 
   // Mapeamento amplo de Técnicos Reais (Brasil Séries A/B/C/D + Mundo)
   const REAL_COACHES_DB = [
@@ -567,39 +620,61 @@
 
     var user = getUserData();
     var st = window.state || window.gameState || {};
-    var currentLicId = (st.manager && st.manager.license) || (st.managerPersonal && st.managerPersonal.licenseId) || localStorage.getItem('afm_user_license_id') || 'cbf_d';
+    var licData = getCoachLicensesData(st);
+    var currentLicId = licData.currentLicId;
     var userPrestige = (st.managerPersonal && st.managerPersonal.prestigeScore) || st.coachPrestige || (user && user.prestige) || (user && user.level) || 5;
     var userMoney = (typeof st.managerMoney === 'number') ? st.managerMoney : ((st.managerPersonal && typeof st.managerPersonal.personalBalance === 'number') ? st.managerPersonal.personalBalance : 57000);
+    var baseSal = licData.baseSalary;
 
     var modal = document.createElement('div');
     modal.id = 'afm-lic-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(5,5,15,0.85);backdrop-filter:blur(6px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,-apple-system,sans-serif;';
 
     var cardsHtml = LICENSES.map(function(lic) {
-      var owned = lic.id === currentLicId;
+      var isCompleted = licData.completedSet.has(lic.id);
+      var isCurrent = lic.id === currentLicId;
       var canAfford = userMoney >= lic.cost;
       var hasPrestige = userPrestige >= lic.minPrestige;
-      var canBuy = !owned && canAfford && hasPrestige;
+      var canBuy = !isCompleted && canAfford && hasPrestige;
+      var licBonusVal = Math.round(baseSal * (lic.salaryBonusPct / 100));
 
-      var btnLabel = owned ? '✔ Habilitado' : (lic.cost === 0 ? 'Habilitar Grátis' : ('Comprar (R$ ' + lic.cost.toLocaleString('pt-BR') + ')'));
+      var btnLabel = isCurrent ? '✔ Habilitado (Atual)' : (isCompleted ? '✔ Habilitado' : (lic.cost === 0 ? 'Habilitar Grátis' : ('Comprar (R$ ' + lic.cost.toLocaleString('pt-BR') + ')')));
 
-      return '<div style="background:#1e293b;border:1px solid ' + (owned ? '#22c55e' : (hasPrestige ? 'rgba(255,255,255,0.1)' : 'rgba(239,68,68,0.3)')) + ';border-radius:14px;padding:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap;">' +
-        '<div>' +
-          '<div style="font-size:14px;font-weight:800;color:#fff;">🎓 ' + lic.name + (owned ? ' <span style="color:#22c55e;font-size:11px;">(ATUAL)</span>' : '') + '</div>' +
-          '<div style="font-size:12px;color:#38bdf8;margin-top:4px;">Bônus: ' + lic.bonus + ' | Requisito: Prestígio ' + lic.minPrestige + '+ ' + (hasPrestige ? '<span style="color:#22c55e">✓</span>' : '<span style="color:#ef4444">(Seu Prestígio: ' + userPrestige + ')</span>') + '</div>' +
+      return '<div style="background:#1e293b;border:1px solid ' + (isCompleted ? '#22c55e' : (hasPrestige ? 'rgba(255,255,255,0.1)' : 'rgba(239,68,68,0.3)')) + ';border-radius:14px;padding:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap;">' +
+        '<div style="flex:1;min-width:280px;">' +
+          '<div style="font-size:14px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+            '<span>🎓 ' + lic.name + '</span>' +
+            (isCurrent ? '<span style="color:#22c55e;font-size:11px;font-weight:900;background:rgba(34,197,94,0.15);padding:2px 7px;border-radius:4px;border:1px solid rgba(34,197,94,0.4);">(ATUAL)</span>' : (isCompleted ? '<span style="color:#38bdf8;font-size:11px;font-weight:800;background:rgba(56,189,248,0.15);padding:2px 7px;border-radius:4px;">(CONCLUÍDA)</span>' : '')) +
+          '</div>' +
+          '<div style="font-size:12px;color:#38bdf8;margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+            '<span>Bônus Especial: <b>' + lic.bonus + '</b></span>' +
+            '<span style="color:' + (isCompleted ? '#4ade80' : '#86efac') + ';font-weight:800;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.3);padding:2px 7px;border-radius:5px;">' +
+              '💵 ' + lic.salaryBonusLabel + ' (+R$ ' + licBonusVal.toLocaleString('pt-BR') + '/mês)' + (isCompleted ? ' ✓ Ativo' : '') +
+            '</span>' +
+            '<span style="color:#94a3b8;">| Requisito: Prestígio ' + lic.minPrestige + '+ ' + (hasPrestige ? '<span style="color:#22c55e">✓</span>' : '<span style="color:#ef4444">(Seu Prestígio: ' + userPrestige + ')</span>') + '</span>' +
+          '</div>' +
         '</div>' +
-        '<button class="btn-buy-lic" data-id="' + lic.id + '" data-cost="' + lic.cost + '" style="background:' + (owned ? '#16a34a' : (canBuy ? '#7c3aed' : '#334155')) + ';color:#fff;border:none;padding:9px 16px;border-radius:10px;font-weight:800;font-size:12px;cursor:' + (owned ? 'default' : 'pointer') + ';" ' + (owned ? 'disabled' : '') + '>' +
+        '<button class="btn-buy-lic" data-id="' + lic.id + '" data-cost="' + lic.cost + '" style="background:' + (isCompleted ? '#16a34a' : (canBuy ? '#7c3aed' : '#334155')) + ';color:#fff;border:none;padding:9px 16px;border-radius:10px;font-weight:800;font-size:12px;cursor:' + (isCompleted ? 'default' : (canBuy ? 'pointer' : 'not-allowed')) + ';" ' + (isCompleted || !canBuy ? 'disabled' : '') + '>' +
           btnLabel +
         '</button>' +
       '</div>';
     }).join('');
 
     modal.innerHTML =
-      '<div style="width:100%;max-width:680px;background:#0f172a;border:1px solid rgba(56,189,248,0.45);border-radius:18px;padding:20px;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,0.85);">' +
+      '<div style="width:100%;max-width:760px;background:#0f172a;border:1px solid rgba(56,189,248,0.45);border-radius:18px;padding:20px;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,0.85);">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">' +
           '<div>' +
             '<h2 style="margin:0;font-size:18px;font-weight:900;">🎓 Academia de Licenças de Treinador (CBF & UEFA)</h2>' +
-            '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">Seu Prestígio: <b style="color:#facc15;">' + userPrestige + '/99</b> · Patrimônio Pessoal: <b style="color:#4ade80;">R$ ' + userMoney.toLocaleString('pt-BR') + '</b></div>' +
+            '<div style="font-size:11px;color:#94a3b8;margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+              '<span>Seu Prestígio: <b style="color:#facc15;">' + userPrestige + '/99</b></span>' +
+              '<span>·</span>' +
+              '<span>Patrimônio: <b style="color:#4ade80;">R$ ' + userMoney.toLocaleString('pt-BR') + '</b></span>' +
+              '<span>·</span>' +
+              '<span>Salário Base: <b>R$ ' + baseSal.toLocaleString('pt-BR') + '/mês</b></span>' +
+              '<span style="background:rgba(34,197,94,0.15);border:1px solid #22c55e;color:#4ade80;padding:2px 8px;border-radius:6px;font-weight:900;">' +
+                '💰 Bônus Salarial Total: +' + licData.totalBonusPct + '% (+R$ ' + licData.bonusValue.toLocaleString('pt-BR') + '/mês) ➔ R$ ' + licData.totalSalary.toLocaleString('pt-BR') + '/mês' +
+              '</span>' +
+            '</div>' +
           '</div>' +
           '<button id="close-lic" type="button" style="background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:800;">✕ Fechar</button>' +
         '</div>' +
@@ -642,8 +717,22 @@
         st.manager.license = id;
         if (st.managerPersonal) st.managerPersonal.licenseId = id;
 
+        // Registra na lista de licenças concluídas
+        st.completedLicenses = Array.isArray(st.completedLicenses) ? st.completedLicenses : [];
+        var licIdx = LICENSES.findIndex(function(l) { return l.id === id; });
+        for (var i = 0; i <= licIdx; i++) {
+          if (LICENSES[i] && !st.completedLicenses.includes(LICENSES[i].id)) {
+            st.completedLicenses.push(LICENSES[i].id);
+          }
+        }
+
+        // Sincroniza salário do treinador com o novo bônus acumulado
+        var newTotalSalary = syncCoachSalaryWithLicenses(st);
+
         if (typeof window.save === 'function') window.save();
-        if (typeof window.toast === 'function') window.toast('🎉 Parabéns! Você obteve ' + targetLic.name + ' com sucesso!');
+        if (typeof window.toast === 'function') {
+          window.toast('🎓 Parabéns! Você obteve ' + targetLic.name + '! Salário atualizado: R$ ' + newTotalSalary.toLocaleString('pt-BR') + '/mês (+' + targetLic.salaryBonusPct + '% de bônus salarial)!');
+        }
 
         modal.remove();
         injectTopPrestigeAndButtons();

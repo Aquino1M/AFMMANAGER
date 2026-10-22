@@ -4,12 +4,15 @@
  * Arquivo: js/core/stadium_3d_manager.js
  * 
  * Gerencia a catalogação, seleção por nível de infraestrutura/capacidade,
- * visualizador 3D interativo (WebGL / model-viewer) e parametrização visual
- * dos modelos 3D do pack oficial BRFC27:
- * - arena_aberta.glb
- * - arena_classica.glb
- * - arena_moderna.glb
- * - gradas_modulares_sem_campo.glb
+ * visualizador 3D interativo (WebGL / model-viewer) e acompanhamento de evolução
+ * das arquibancadas de 5.000 até 100.000 lugares:
+ * 1. Estádio Aberto Tradicional / Raiz (Até 14k)
+ * 2. Estádio Regional com Módulos (Até 24k)
+ * 3. Estádio Clássico Brasileiro / Ferradura (Até 40k)
+ * 4. Estádio Monumental Fechado (Até 60k)
+ * 5. Arena Multiuso Padrão FIFA (Até 80k)
+ * 6. Mega Coliseu Esportivo 100k (Até 100k)
+ * 7. Arquibancadas Modulares de Expansão (Módulos de Obra)
  * ==============================================================================
  */
 
@@ -20,88 +23,178 @@
     'arena_aberta': {
       id: 'arena_aberta',
       name: 'Estádio Aberto Tradicional',
-      badge: '🏟️ Aberto / Raiz',
+      badge: '🏟️ Nível 1 • Aberto / Raiz (Até 14k)',
       file: 'assets/stadiums/arena_aberta.glb',
       fallbackFile: 'assets/stadios/arena_aberta.glb',
       preview: 'assets/stadiums/PREVIA_ESTADIOS.png',
-      description: 'Estádio de raiz com arquibancadas abertas e torres de iluminação nos quatro cantos, ideal para clubes de divisões de acesso e centros regionais.',
+      description: 'Estádio de raiz com arquibancadas baixas de concreto a céu aberto e torres de refletores nos cantos. Ideal para divisões de acesso e clubes de bairro.',
       capacityRange: '3.000 a 14.999 lugares',
       stLevel: 1,
       minCapacity: 0,
       maxCapacity: 14999,
       meshes: 16,
       triangles: 9504,
-      coverType: 'Sem cobertura (Setores abertos ao céu)',
+      standEvolution: 'Degraus térreos abertos de concreto sem marquise',
+      coverType: 'Sem cobertura (Setores 100% abertos ao céu)',
       lighting: '4 Torres de Refletores Halógenos nos Cantos',
-      soundAcoustic: 'Som aberto com dispersão natural',
-      themeColor: '#38bdf8'
+      soundAcoustic: 'Dispersão sonora natural de estádio raiz',
+      themeColor: '#38bdf8',
+      defaultOrbit: '40deg 58deg 95%'
+    },
+    'arena_regional': {
+      id: 'arena_regional',
+      name: 'Estádio Regional com Módulos',
+      badge: '🏗️ Nível 2 • Regional com Módulos (Até 24k)',
+      file: 'assets/stadiums/arena_aberta.glb',
+      fallbackFile: 'assets/stadios/arena_aberta.glb',
+      preview: 'assets/stadiums/PREVIA_ESTADIOS.png',
+      description: 'Primeira fase de ampliação de arquibancadas: degraus modulares nos setores Norte e Sul, cabines suspensas de rádio e novos acessos de torcida.',
+      capacityRange: '15.000 a 24.999 lugares',
+      stLevel: 2,
+      minCapacity: 15000,
+      maxCapacity: 24999,
+      meshes: 16,
+      triangles: 10240,
+      standEvolution: 'Módulos pré-moldados e expansão dos setores Norte e Sul',
+      coverType: 'Cobertura parcial metálica sobre as cabines de imprensa',
+      lighting: '6 Torres de Refletores Reforçados',
+      soundAcoustic: 'Eco regional com pressão nas arquibancadas de fundo',
+      themeColor: '#0ea5e9',
+      defaultOrbit: '45deg 60deg 105%'
     },
     'arena_classica': {
       id: 'arena_classica',
       name: 'Estádio Clássico Brasileiro',
-      badge: '🏛️ Ferradura Clássica',
+      badge: '🏛️ Nível 3 • Ferradura Clássica (Até 40k)',
       file: 'assets/stadiums/arena_classica.glb',
       fallbackFile: 'assets/stadios/arena_classica.glb',
       preview: 'assets/stadiums/PREVIA_ESTADIOS.png',
-      description: 'Arquitetura clássica brasileira em ferradura, com cobertura lateral metálica, cabines de imprensa suspensas e cabeceiras populares.',
+      description: 'Arquitetura clássica brasileira em ferradura contínua, conectando as curvas Norte, Sul e Leste, com setor nobre coberto no setor Oeste.',
       capacityRange: '15.000 a 39.999 lugares',
       stLevel: 2,
       minCapacity: 15000,
       maxCapacity: 39999,
       meshes: 17,
       triangles: 12912,
-      coverType: 'Cobertura Lateral Metálica sobre o setor social',
+      standEvolution: 'Anel em ferradura conectando curvas e arquibancadas sociais',
+      coverType: 'Cobertura Metálica Tradicional sobre o Setor Oeste (Social)',
       lighting: 'Refletores em Marquises e Estrutura Tubular',
       soundAcoustic: 'Pressão sonora média com caldeirão lateral',
-      themeColor: '#f59e0b'
+      themeColor: '#f59e0b',
+      defaultOrbit: '45deg 55deg 105%'
+    },
+    'arena_monumental': {
+      id: 'arena_monumental',
+      name: 'Estádio Monumental Fechado',
+      badge: '🏟️ Nível 4 • Monumental Fechado (Até 60k)',
+      file: 'assets/stadiums/arena_classica.glb',
+      fallbackFile: 'assets/stadios/arena_classica.glb',
+      preview: 'assets/stadiums/PREVIA_ESTADIOS.png',
+      description: 'Fechamento integral do quarto lado com anel monumental 360°, fosso de segurança rebaixado e ampliação estrutural para receber clássicos de massa.',
+      capacityRange: '40.001 a 59.999 lugares',
+      stLevel: 4,
+      minCapacity: 40001,
+      maxCapacity: 59999,
+      meshes: 17,
+      triangles: 13500,
+      standEvolution: 'Anel 360° completo fechando os 4 quadrantes com fosso rebaixado',
+      coverType: 'Marquise circular contínua cobrindo o anel superior',
+      lighting: 'Anel de Holofotes Perimetrais 2000 Lux',
+      soundAcoustic: 'Caldeirão fechado com ressonância acústica circular',
+      themeColor: '#f97316',
+      defaultOrbit: '45deg 65deg 115%'
     },
     'arena_moderna': {
       id: 'arena_moderna',
       name: 'Arena Multiuso Padrão FIFA',
-      badge: '⭐ Arena Padrão FIFA',
+      badge: '⭐ Nível 5 • Arena Padrão FIFA (Até 80k)',
       file: 'assets/stadiums/arena_moderna.glb',
       fallbackFile: 'assets/stadios/arena_moderna.glb',
       preview: 'assets/stadiums/PREVIA_ESTADIOS.png',
-      description: 'Arena monumental fechada em quatro lados, cobertura em balanço (cantilever), anel perimetral de LED, camarotes executivos e telão central.',
-      capacityRange: '40.000 a 85.000+ lugares',
+      description: 'Arena moderna fechada em 4 lados com cobertura cantilever integral em balanço, anel de camarotes VIP climatizados, painéis de LED contínuos e telão central 360°.',
+      capacityRange: '60.000 a 79.999 lugares',
       stLevel: 3,
-      minCapacity: 40000,
-      maxCapacity: 120000,
+      minCapacity: 60000,
+      maxCapacity: 79999,
       meshes: 17,
       triangles: 14136,
-      coverType: 'Cobertura Cantilever 100% dos 4 Setores',
-      lighting: 'Holofotes LED Volumétricos de Transmissão 4K',
+      standEvolution: 'Dois anéis cobertos, camarotes VIP entre anéis e assentos retráteis',
+      coverType: 'Cobertura Cantilever 100% dos 4 Setores em Balanço',
+      lighting: 'Holofotes LED Volumétricos de Transmissão 4K Ultra HD',
       soundAcoustic: 'Caldeirão acústico total com reverberação amplificada',
-      themeColor: '#22c55e'
+      themeColor: '#22c55e',
+      defaultOrbit: '45deg 55deg 105%'
+    },
+    'arena_coliseu': {
+      id: 'arena_coliseu',
+      name: 'Mega Coliseu Esportivo 100k',
+      badge: '👑 Nível 6 • Mega Coliseu 100k (Até 100k)',
+      file: 'assets/stadiums/arena_moderna.glb',
+      fallbackFile: 'assets/stadios/arena_moderna.glb',
+      preview: 'assets/stadiums/PREVIA_ESTADIOS.png',
+      description: 'O topo da engenharia esportiva mundial com 100.000 lugares. Três anéis monumentais de arquibancadas, cúpula translúcida de policarbonato e acústica ensurdecedora.',
+      capacityRange: '80.000 a 100.000+ lugares',
+      stLevel: 6,
+      minCapacity: 80000,
+      maxCapacity: 120000,
+      meshes: 17,
+      triangles: 15800,
+      standEvolution: 'Triplo anel monumental (Inferior, Camarote VIP e Anel Panorâmico 100k)',
+      coverType: 'Domo Arquitetônico com Cobertura Translúcida Total',
+      lighting: 'Show de Luzes Dinâmicas LED RGB + 3000 Lux FIFA Pro',
+      soundAcoustic: 'Caldeirão ensurdecedor de 100.000 vozes (Vantagem máxima em casa)',
+      themeColor: '#a855f7',
+      defaultOrbit: '45deg 68deg 125%'
     },
     'gradas_modulares': {
       id: 'gradas_modulares',
       name: 'Arquibancadas Modulares de Expansão',
-      badge: '🏗️ Módulos de Obra',
+      badge: '🔨 Módulos de Obra de Arquibancada',
       file: 'assets/stadiums/gradas_modulares_sem_campo.glb',
       fallbackFile: 'assets/stadios/gradas_modulares_sem_campo.glb',
       preview: 'assets/stadiums/PREVIA_ESTADIOS.png',
-      description: 'Estruturas modulares pré-fabricadas de arquibancada para acoplamento direto nas ampliações de setores Norte, Sul, Leste ou Oeste.',
-      capacityRange: 'Módulos customizáveis para obras',
+      description: 'Estruturas modulares pré-fabricadas de arquibancada para acoplamento e expansão progressiva dos setores Norte, Sul, Leste ou Oeste.',
+      capacityRange: 'Módulos customizáveis para expansões',
       stLevel: 0,
       minCapacity: 0,
       maxCapacity: 0,
       meshes: 11,
       triangles: 13092,
-      coverType: 'Módulos com ou sem cobertura',
+      standEvolution: 'Estruturas independentes de expansão e reforço estrutural',
+      coverType: 'Módulos acopláveis com ou sem cobertura',
       lighting: 'Focos direcionais modulares',
-      soundAcoustic: 'Ajustável por setor',
-      themeColor: '#a855f7'
+      soundAcoustic: 'Acústica ajustável por setor em obra',
+      themeColor: '#eab308',
+      defaultOrbit: '35deg 65deg 100%'
     }
   };
 
-  // Clubes com arenas modernas nativas conhecidas
+  // Aliases para retrocompatibilidade total
+  STADIUM_3D_CATALOG['arena_raiz'] = STADIUM_3D_CATALOG['arena_aberta'];
+
+  // Ordem cronológica da evolução de arquibancadas
+  const EVOLUTION_STYLES = [
+    'arena_aberta',
+    'arena_regional',
+    'arena_classica',
+    'arena_monumental',
+    'arena_moderna',
+    'arena_coliseu',
+    'gradas_modulares'
+  ];
+
+  // Clubes com praças esportivas históricas consagradas
   const KNOWN_ARENAS = {
-    'flamengo': 'arena_moderna',
-    'fluminense': 'arena_moderna',
+    // 80k - 100k
+    'flamengo': 'arena_coliseu',
+    'fluminense': 'arena_coliseu',
+    'sao_paulo': 'arena_coliseu',
+    'river_plate': 'arena_coliseu',
+    'boca_juniors': 'arena_coliseu',
+
+    // 40k - 80k
     'palmeiras': 'arena_moderna',
     'corinthians': 'arena_moderna',
-    'sao_paulo': 'arena_moderna',
     'atletico_mg': 'arena_moderna',
     'cruzeiro': 'arena_moderna',
     'gremio': 'arena_moderna',
@@ -113,11 +206,9 @@
     'athletico_paranaense': 'arena_moderna',
     'botafogo': 'arena_moderna',
     'cuiaba': 'arena_moderna',
-    'river_plate': 'arena_moderna',
-    'boca_juniors': 'arena_moderna',
     'racing_club': 'arena_moderna',
 
-    // Clubes com estádios clássicos consagrados
+    // 15k - 40k
     'santos': 'arena_classica',
     'vasco': 'arena_classica',
     'vasco_da_gama': 'arena_classica',
@@ -161,10 +252,11 @@
 
   const AFMStadium3D = {
     catalog: STADIUM_3D_CATALOG,
+    evolutionStyles: EVOLUTION_STYLES,
 
     /**
      * Resolve o modelo 3D ideal para um clube com base em:
-     * 1. Capacidade real do estádio
+     * 1. Capacidade real do estádio (jornada até 100k)
      * 2. Nível de infraestrutura de estádio no save
      * 3. Tradição histórica conhecida do clube
      */
@@ -182,8 +274,14 @@
 
       // Se for o clube do usuário ou tiver capacidade explicitada
       if (cap > 0) {
-        if (cap >= 40000 || infraLevel >= 4) {
+        if (cap >= 80000 || infraLevel >= 6) {
+          return STADIUM_3D_CATALOG['arena_coliseu'];
+        }
+        if (cap >= 60000 || infraLevel >= 5) {
           return STADIUM_3D_CATALOG['arena_moderna'];
+        }
+        if (cap >= 40001 || infraLevel >= 4) {
+          return STADIUM_3D_CATALOG['arena_monumental'];
         }
         if (cap >= 15000 || infraLevel >= 2) {
           return STADIUM_3D_CATALOG['arena_classica'];
@@ -193,7 +291,8 @@
 
       // Heurística por clube histórico
       if (KNOWN_ARENAS[slug]) {
-        return STADIUM_3D_CATALOG[KNOWN_ARENAS[slug]];
+        const k = KNOWN_ARENAS[slug];
+        return STADIUM_3D_CATALOG[k] || STADIUM_3D_CATALOG['arena_moderna'];
       }
 
       return STADIUM_3D_CATALOG['arena_aberta'];
@@ -204,24 +303,35 @@
      */
     renderStadium3DCardHTML(clubName, stateRef) {
       const model = this.resolveStadiumModel(clubName, stateRef);
-      const cap = stateRef?.infrastructure?.stadium?.capacity || stateRef?.stadiumCapacity || 25000;
+      const cap = Number(stateRef?.infrastructure?.stadium?.capacity || stateRef?.stadiumCapacity || 25000);
+      const cName = clubName || stateRef?.club || (typeof window !== 'undefined' && window.state ? window.state.club : '');
       const stadiumName = (typeof window.clubStadiumName === 'function') 
-        ? window.clubStadiumName() 
-        : (stateRef?.stadiumName || 'Estádio Oficial');
+        ? window.clubStadiumName(cName) 
+        : (stateRef?.stadiumName || (cName ? `Estádio do ${cName}` : 'Estádio Oficial'));
+      const pct100k = Math.min(100, Math.round((cap / 100000) * 100));
+
+      const tiers = [
+        { label: 'Raiz (14k)', key: 'arena_aberta', max: 14999 },
+        { label: 'Regional (24k)', key: 'arena_regional', max: 24999 },
+        { label: 'Ferradura (40k)', key: 'arena_classica', max: 39999 },
+        { label: 'Monumental (60k)', key: 'arena_monumental', max: 59999 },
+        { label: 'Arena FIFA (80k)', key: 'arena_moderna', max: 79999 },
+        { label: 'Mega Coliseu (100k)', key: 'arena_coliseu', max: 100000 }
+      ];
 
       return `
         <div class="card afm-stadium-3d-card" style="margin-top:16px;background:linear-gradient(180deg,rgba(15,23,42,0.96) 0%,rgba(24,36,54,0.92) 100%);border:1px solid rgba(56,189,248,0.3);border-radius:14px;padding:20px;box-shadow:0 10px 28px rgba(0,0,0,0.45)">
-          <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap;gap:8px">
             <div>
               <h3 style="margin:0;font-size:16px;font-weight:900;color:#38bdf8;display:flex;align-items:center;gap:8px">
-                🏟️ Modelo 3D Oficial da Praça Esportiva
+                🏟️ Modelo 3D Oficial & Arquitetura da Praça Esportiva
               </h3>
               <div class="muted small" style="margin-top:2px">
-                Renderização volumétrica oficial para transmissões ao vivo de partidas (Pack BRFC27).
+                Renderização volumétrica oficial e acompanhamento de evolução até 100.000 torcedores.
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
-              <span class="badge ${model.id === 'arena_moderna' ? 'success' : (model.id === 'arena_classica' ? 'warning' : 'info')}" style="font-size:11px;padding:4px 10px;font-weight:800">
+              <span class="badge ${model.id === 'arena_coliseu' ? 'purple' : (model.id === 'arena_moderna' ? 'success' : (model.id === 'arena_monumental' || model.id === 'arena_classica' ? 'warning' : 'info'))}" style="font-size:11px;padding:4px 10px;font-weight:800">
                 ${model.badge}
               </span>
               <button class="btn btn-sm btn-outline-info" onclick="window.AFMStadium3D.openStadium3DViewerModal('${model.id}', '${clubName}')" style="font-size:11px;padding:4px 10px;font-weight:900;border-radius:6px;cursor:pointer">
@@ -230,10 +340,35 @@
             </div>
           </div>
 
+          <!-- Linha Visual de Evolução das Arquibancadas -->
+          <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 14px;margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:6px">
+              <span style="color:#94a3b8;font-weight:800">📈 JORNADA RUMO A 100.000 LUGARES:</span>
+              <b style="color:#38bdf8">${cap.toLocaleString('pt-BR')} / 100.000 lugares (${pct100k}%)</b>
+            </div>
+            <div style="width:100%;height:8px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;margin-bottom:10px">
+              <div style="width:${pct100k}%;height:100%;background:linear-gradient(90deg,#0284c7,#22c55e,#a855f7);border-radius:999px;transition:width 0.4s ease"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px">
+              ${tiers.map(t => {
+                const isCurrent = (model.id === t.key);
+                const isReached = (cap >= t.max);
+                return `
+                  <div style="font-size:10px;text-align:center;padding:5px 4px;border-radius:6px;font-weight:800;background:${isCurrent ? 'rgba(56,189,248,0.2)' : (isReached ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)')};border:1px solid ${isCurrent ? '#38bdf8' : (isReached ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.05)')};color:${isCurrent ? '#38bdf8' : (isReached ? '#4ade80' : '#64748b')}">
+                    ${t.label} ${isCurrent ? '●' : (isReached ? '✓' : '')}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:center">
             <div>
-              <div style="font-size:15px;font-weight:800;color:#f8fafc;margin-bottom:6px">
-                ${stadiumName}
+              <div style="font-size:18px;font-weight:900;color:#38bdf8;margin-bottom:3px;display:flex;align-items:center;gap:6px">
+                <span>🏟️</span> <span>${stadiumName}</span>
+              </div>
+              <div style="font-size:11px;color:#c084fc;font-weight:800;margin-bottom:10px">
+                ${model.name} (${model.capacityRange})
               </div>
               <div style="font-size:12px;color:#94a3b8;margin-bottom:12px;line-height:1.5">
                 ${model.description}
@@ -245,16 +380,16 @@
                   <b style="color:#f8fafc">${cap.toLocaleString('pt-BR')} pessoas (${model.capacityRange})</b>
                 </div>
                 <div style="display:flex;justify-content:space-between">
+                  <span class="muted">Upgrade de Arquibancadas:</span>
+                  <b style="color:#a855f7">${model.standEvolution}</b>
+                </div>
+                <div style="display:flex;justify-content:space-between">
                   <span class="muted">Estrutura de Cobertura:</span>
                   <b style="color:#38bdf8">${model.coverType}</b>
                 </div>
                 <div style="display:flex;justify-content:space-between">
                   <span class="muted">Sistema de Iluminação:</span>
                   <b style="color:#facc15">${model.lighting}</b>
-                </div>
-                <div style="display:flex;justify-content:space-between">
-                  <span class="muted">Geometria 3D Low-Poly:</span>
-                  <b style="color:#a855f7">${model.triangles.toLocaleString('pt-BR')} triângulos • GLB Leve</b>
                 </div>
                 <div style="display:flex;justify-content:space-between">
                   <span class="muted">Acústica da Torcida:</span>
@@ -265,18 +400,18 @@
 
             <div style="display:flex;flex-direction:column;gap:10px;align-items:center;background:rgba(0,0,0,0.3);padding:16px;border-radius:12px;border:1px dashed rgba(56,189,248,0.25);position:relative">
               <div style="text-align:center">
-                <span style="font-size:36px;display:block;margin-bottom:4px">
-                  ${model.id === 'arena_moderna' ? '🏟️' : (model.id === 'arena_classica' ? '🏛️' : '⚽')}
+                <span style="font-size:36px;display:block;margin-bottom:6px">
+                  ${model.id === 'arena_coliseu' ? '👑' : (model.id === 'arena_moderna' ? '🏟️' : (model.id === 'arena_monumental' || model.id === 'arena_classica' ? '🏛️' : '⚽'))}
                 </span>
-                <b style="color:#f8fafc;font-size:13px">${model.name}</b>
-                <div class="muted small" style="margin-top:4px">Arquivo GLB: <code>${model.file}</code></div>
+                <b style="color:#f8fafc;font-size:15px;display:block;font-weight:900;letter-spacing:0.3px">${stadiumName}</b>
+                <div class="muted small" style="margin-top:4px;color:#38bdf8;font-weight:700">${cap.toLocaleString('pt-BR')} torcedores • ${model.name}</div>
               </div>
 
               <div style="display:flex;gap:8px;width:100%;justify-content:center;margin-top:6px;flex-wrap:wrap">
                 <button class="btn btn-sm btn-primary" onclick="window.AFMStadium3D.openStadium3DViewerModal('${model.id}', '${clubName}')" style="font-size:11px;padding:6px 14px;background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;font-weight:900;border:none;border-radius:6px;cursor:pointer">
                   🎮 Inspecionar 3D Interativo
                 </button>
-                <button class="btn btn-sm" onclick="if(typeof window.openStadiumModal==='function') window.openStadiumModal('arena');" style="font-size:11px;padding:6px 14px;background:rgba(255,255,255,0.08);color:#fff;border-radius:6px;cursor:pointer">
+                <button class="btn btn-sm btn-open-stadium-expansion" data-stadium-action="expansion" onclick="if(typeof window.openStadiumModal==='function'){ window.openStadiumModal('expansion'); } else if(typeof openStadiumModal==='function'){ openStadiumModal('expansion'); }" style="font-size:11px;padding:6px 14px;background:rgba(255,255,255,0.08);color:#fff;border-radius:6px;cursor:pointer">
                   🔍 Setores & Obras
                 </button>
               </div>
@@ -288,9 +423,9 @@
 
     /**
      * Abre a Modal Interativa 3D para inspecionar os modelos GLB em tempo real
-     * com rotação orbital 360°, zoom e alternância entre modelos
+     * com rotação orbital 360°, zoom e alternância entre todos os estilos de evolução
      */
-    openStadium3DViewerModal(initialModelId = 'arena_classica', clubName = '') {
+    openStadium3DViewerModal(initialModelId = null, clubName = '') {
       let modalEl = document.getElementById('afmStadium3DModal');
       if (!modalEl) {
         modalEl = document.createElement('div');
@@ -298,24 +433,33 @@
         document.body.appendChild(modalEl);
       }
 
-      const activeId = initialModelId || 'arena_classica';
-      const model = STADIUM_3D_CATALOG[activeId] || STADIUM_3D_CATALOG['arena_classica'];
       const currentClub = clubName || (typeof window !== 'undefined' && window.state ? window.state.club : 'Clube');
+      const userStadiumModel = this.resolveStadiumModel(currentClub, typeof window !== 'undefined' ? window.state : null);
+      
+      const activeId = initialModelId || userStadiumModel.id || 'arena_classica';
+      const model = STADIUM_3D_CATALOG[activeId] || STADIUM_3D_CATALOG['arena_classica'];
+
+      const st = typeof window !== 'undefined' ? window.state : null;
+      const stadiumName = (typeof window !== 'undefined' && typeof window.clubStadiumName === 'function')
+        ? window.clubStadiumName(currentClub)
+        : (st?.stadiumName || (currentClub ? `Estádio do ${currentClub}` : 'Estádio Oficial'));
+      const currentCap = Number(st?.infrastructure?.stadium?.capacity || st?.stadiumCapacity || 25000);
+      const pctProgress = Math.min(100, Math.round((currentCap / 100000) * 100));
 
       modalEl.innerHTML = `
         <div class="afm-modal-backdrop" style="position:fixed;inset:0;background:rgba(2,6,23,0.88);backdrop-filter:blur(8px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px">
-          <div class="afm-modal-card" style="background:#0f172a;border:1px solid rgba(56,189,248,0.4);border-radius:18px;width:min(95vw, 1100px);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.7)">
+          <div class="afm-modal-card" style="background:#0f172a;border:1px solid rgba(56,189,248,0.4);border-radius:18px;width:min(95vw, 1140px);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 60px rgba(0,0,0,0.7)">
             
-            <!-- Modal Header -->
+            <!-- Modal Header (Título limpo com o nome oficial de verdade do estádio) -->
             <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(15,23,42,0.9)">
               <div style="display:flex;align-items:center;gap:12px">
                 <span style="font-size:26px">🏟️</span>
                 <div>
                   <h2 style="margin:0;font-size:17px;font-weight:900;color:#f8fafc;display:flex;align-items:center;gap:8px">
-                    Visualizador Oficial de Estádios 3D — ${currentClub}
+                    Visualizador 3D — ${stadiumName} (${currentClub})
                   </h2>
-                  <div style="font-size:12px;color:#94a3b8">
-                    Pack Oficial BRFC27 • Modelos Low-Poly Otimizados para WebGL / Transmissão de Partidas
+                  <div style="font-size:12px;color:#38bdf8;font-weight:700">
+                    Acompanhamento e Evolução Arquitetônica de Arquibancadas • 5.000 a 100.000 lugares
                   </div>
                 </div>
               </div>
@@ -324,18 +468,25 @@
               </button>
             </div>
 
-            <!-- Model Switcher Tabs -->
-            <div style="display:flex;gap:8px;padding:12px 22px;background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.06);overflow-x:auto">
-              ${Object.values(STADIUM_3D_CATALOG).map(m => `
-                <button class="btn btn-sm btn-select-3d-model ${m.id === activeId ? 'btn-primary' : 'btn-secondary'}" data-model-id="${m.id}" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;${m.id === activeId ? 'background:#0284c7;color:#fff;border:1px solid #38bdf8' : 'background:rgba(255,255,255,0.05);color:#94a3b8;border:1px solid rgba(255,255,255,0.1)'}">
-                  <span>${m.badge}</span>
-                  <span>${m.name}</span>
-                </button>
-              `).join('')}
+            <!-- Model Switcher Tabs (Estilos e Progressão de Arquibancadas até 100k) -->
+            <div style="display:flex;gap:8px;padding:12px 22px;background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.06);overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch">
+              ${EVOLUTION_STYLES.map(sid => {
+                const m = STADIUM_3D_CATALOG[sid];
+                if (!m) return '';
+                const isSelected = (m.id === activeId);
+                const isUserClubLevel = (userStadiumModel.id === m.id);
+                return `
+                  <button class="btn btn-sm btn-select-3d-model" data-model-id="${m.id}" style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;${isSelected ? 'background:#0284c7;color:#fff;border:1px solid #38bdf8;box-shadow:0 0 10px rgba(56,189,248,0.4)' : 'background:rgba(255,255,255,0.05);color:#94a3b8;border:1px solid rgba(255,255,255,0.1)'}">
+                    <span>${m.badge.split(' ')[0]}</span>
+                    <span>${m.name}</span>
+                    ${isUserClubLevel ? '<span style="background:#22c55e;color:#000;font-size:9px;padding:1px 5px;border-radius:4px;font-weight:900">SEU ESTÁDIO</span>' : ''}
+                  </button>
+                `;
+              }).join('')}
             </div>
 
             <!-- Viewport & Info Container -->
-            <div style="display:grid;grid-template-columns:1fr minmax(280px, 340px);gap:18px;padding:18px 22px;overflow-y:auto;flex:1">
+            <div style="display:grid;grid-template-columns:1fr minmax(280px, 350px);gap:18px;padding:18px 22px;overflow-y:auto;flex:1">
               
               <!-- Left: 3D Viewport -->
               <div style="display:flex;flex-direction:column;gap:12px">
@@ -358,7 +509,7 @@
                       shadow-softness="0.8"
                       exposure="1.0"
                       rotation-per-second="16deg"
-                      camera-orbit="45deg 55deg 105%"
+                      camera-orbit="${model.defaultOrbit || '45deg 55deg 105%'}"
                       style="width:100%;height:100%;background:#090d16">
                       
                       <!-- Fallback caso model-viewer esteja carregando ou offline -->
@@ -390,28 +541,50 @@
 
                 <div style="font-size:11px;color:#64748b;display:flex;align-items:center;justify-content:space-between">
                   <span>💡 Use o botão esquerdo para girar, botão direito para arrastar e a roda do mouse para zoom.</span>
-                  <span>Cores nativas incorporadas no GLB (sem texturas pesadas).</span>
+                  <span>Cores e geometria otimizadas para WebGL.</span>
                 </div>
               </div>
 
-              <!-- Right: Technical Details & Stats -->
-              <div style="display:flex;flex-direction:column;gap:14px;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px">
+              <!-- Right: Technical Details & Stand Evolution -->
+              <div style="display:flex;flex-direction:column;gap:12px;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:16px">
                 <div>
-                  <span class="badge ${model.id === 'arena_moderna' ? 'success' : (model.id === 'arena_classica' ? 'warning' : 'info')}" style="font-size:10px;padding:3px 8px;font-weight:800">
+                  <span class="badge ${model.id === 'arena_coliseu' ? 'purple' : (model.id === 'arena_moderna' ? 'success' : (model.id === 'arena_monumental' || model.id === 'arena_classica' ? 'warning' : 'info'))}" style="font-size:10px;padding:3px 8px;font-weight:800">
                     ${model.badge}
                   </span>
                   <h3 style="margin:6px 0 0 0;font-size:16px;color:#f8fafc;font-weight:900">
-                    ${model.name}
+                    ${model.id === userStadiumModel.id ? stadiumName : model.name}
                   </h3>
-                  <div style="font-size:12px;color:#94a3b8;margin-top:4px;line-height:1.4">
+                  <div style="font-size:12px;color:#38bdf8;font-weight:700;margin-top:2px">
+                    ${model.name} (${model.capacityRange})
+                  </div>
+                  <div style="font-size:12px;color:#94a3b8;margin-top:6px;line-height:1.4">
                     ${model.description}
                   </div>
                 </div>
 
-                <div style="display:flex;flex-direction:column;gap:8px;font-size:11px">
+                <!-- Box da Jornada rumo aos 100k -->
+                <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);padding:10px 12px;border-radius:10px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:4px">
+                    <span style="color:#94a3b8;font-weight:800">🏟️ ${stadiumName}:</span>
+                    <b style="color:#38bdf8">${currentCap.toLocaleString('pt-BR')} lugares</b>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#cbd5e1;margin-bottom:6px">
+                    <span>Meta: 100.000 lugares</span>
+                    <b style="color:#22c55e">${pctProgress}% concluído</b>
+                  </div>
+                  <div style="width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden">
+                    <div style="width:${pctProgress}%;height:100%;background:linear-gradient(90deg,#0284c7,#22c55e,#a855f7);border-radius:999px"></div>
+                  </div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:7px;font-size:11px">
                   <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:8px">
-                    <span class="muted" style="display:block;font-size:10px">CAPACIDADE ARQUITETÔNICA</span>
+                    <span class="muted" style="display:block;font-size:10px">CAPACIDADE DO ESTILO</span>
                     <b style="color:#f8fafc;font-size:12px">${model.capacityRange}</b>
+                  </div>
+                  <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:8px">
+                    <span class="muted" style="display:block;font-size:10px">ARQUITETURA DE ARQUIBANCADA</span>
+                    <b style="color:#c084fc;font-size:12px">${model.standEvolution}</b>
                   </div>
                   <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:8px">
                     <span class="muted" style="display:block;font-size:10px">COBERTURA & MARQUISE</span>
@@ -425,17 +598,16 @@
                     <span class="muted" style="display:block;font-size:10px">ACÚSTICA DA TORCIDA</span>
                     <b style="color:#22c55e;font-size:12px">${model.soundAcoustic}</b>
                   </div>
-                  <div style="background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:8px">
-                    <span class="muted" style="display:block;font-size:10px">ESTRUTURA POLIGONAL</span>
-                    <b style="color:#c084fc;font-size:12px">${model.triangles.toLocaleString('pt-BR')} triângulos • ${model.meshes} malhas</b>
-                  </div>
                 </div>
 
                 <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
-                  <button class="btn btn-primary" onclick="if(typeof window.openStadiumModal==='function'){ document.getElementById('afmStadium3DModal').style.display='none'; window.openStadiumModal('summary'); }" style="width:100%;padding:10px;font-weight:900;font-size:12px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#0284c7);color:#fff;border:none;cursor:pointer">
+                  <button class="btn btn-primary btn-open-stadium-expansion" data-stadium-action="expansion" onclick="if(typeof window.openStadiumModal==='function'){ const m=document.getElementById('afmStadium3DModal'); if(m) m.style.display='none'; window.openStadiumModal('expansion'); } else if(typeof openStadiumModal==='function'){ openStadiumModal('expansion'); }" style="width:100%;padding:10px;font-weight:900;font-size:12px;border-radius:8px;background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;border:none;cursor:pointer">
+                    🏗️ Obras de Arquibancada (Ampliar)
+                  </button>
+                  <button class="btn btn-open-stadium-summary" data-stadium-action="summary" onclick="if(typeof window.openStadiumModal==='function'){ const m=document.getElementById('afmStadium3DModal'); if(m) m.style.display='none'; window.openStadiumModal('summary'); } else if(typeof openStadiumModal==='function'){ openStadiumModal('summary'); }" style="width:100%;padding:8px;font-weight:800;font-size:11px;border-radius:8px;background:rgba(255,255,255,0.08);color:#f8fafc;border:none;cursor:pointer">
                     🏟️ Gerenciar Obras & Naming Rights
                   </button>
-                  <button class="btn btn-secondary" onclick="document.getElementById('afmStadium3DModal').style.display='none';" style="width:100%;padding:8px;font-weight:800;font-size:11px;border-radius:8px;background:rgba(255,255,255,0.08);color:#94a3b8;border:none;cursor:pointer">
+                  <button class="btn btn-secondary" onclick="document.getElementById('afmStadium3DModal').style.display='none';" style="width:100%;padding:8px;font-weight:800;font-size:11px;border-radius:8px;background:rgba(255,255,255,0.05);color:#94a3b8;border:none;cursor:pointer">
                     Fechar Visualizador
                   </button>
                 </div>
@@ -453,6 +625,26 @@
       if (btnClose) {
         btnClose.onclick = () => { modalEl.style.display = 'none'; };
       }
+
+      modalEl.querySelectorAll('.btn-open-stadium-expansion').forEach(btn => {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          modalEl.style.display = 'none';
+          if (typeof window.openStadiumModal === 'function') {
+            window.openStadiumModal('expansion');
+          }
+        };
+      });
+
+      modalEl.querySelectorAll('.btn-open-stadium-summary').forEach(btn => {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          modalEl.style.display = 'none';
+          if (typeof window.openStadiumModal === 'function') {
+            window.openStadiumModal('summary');
+          }
+        };
+      });
 
       modalEl.querySelectorAll('.btn-select-3d-model').forEach(btn => {
         btn.onclick = () => {
@@ -472,6 +664,23 @@
       });
     }
   };
+
+  // Fallback global delegado para garantir disparo infalível dos botões de obra do estádio
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function' && !window.__afmStadiumTabDelegated) {
+    window.__afmStadiumTabDelegated = true;
+    document.addEventListener('click', function(e) {
+      const btn = e.target && e.target.closest ? e.target.closest('[data-stadium-action]') : null;
+      if (btn) {
+        e.preventDefault();
+        const action = btn.getAttribute('data-stadium-action') || 'expansion';
+        const m = document.getElementById('afmStadium3DModal');
+        if (m) m.style.display = 'none';
+        if (typeof window.openStadiumModal === 'function') {
+          window.openStadiumModal(action);
+        }
+      }
+    });
+  }
 
   window.AFMStadium3D = AFMStadium3D;
 })(typeof window !== 'undefined' ? window : globalThis);

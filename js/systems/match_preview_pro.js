@@ -580,7 +580,12 @@
               </thead>
               <tbody>
                 <tr style="background:rgba(56,189,248,0.12)">
-                  <td><b>${esc(homeClub)}</b></td>
+                  <td>
+                    <div style="display:inline-flex;align-items:center;gap:4px">
+                      <b>${esc(homeClub)}</b>
+                      ${(homeClub === state.club || (typeof norm === 'function' && norm(homeClub) === norm(state.club))) ? '<span class="tag-you" style="font-size:9px;padding:1px 5px;margin-left:4px">VOCÊ</span>' : ''}
+                    </div>
+                  </td>
                   <td><b style="color:var(--neon)">#${homeRank}</b></td>
                   <td><b>${tableHome.p || 0}</b></td>
                   <td>${tableHome.j || 0}</td>
@@ -592,7 +597,12 @@
                   <td>${(tableHome.sg || 0) > 0 ? '+' : ''}${tableHome.sg || 0}</td>
                 </tr>
                 <tr style="background:rgba(244,63,94,0.12)">
-                  <td><b>${esc(awayClub)}</b></td>
+                  <td>
+                    <div style="display:inline-flex;align-items:center;gap:4px">
+                      <b>${esc(awayClub)}</b>
+                      ${(awayClub === state.club || (typeof norm === 'function' && norm(awayClub) === norm(state.club))) ? '<span class="tag-you" style="font-size:9px;padding:1px 5px;margin-left:4px">VOCÊ</span>' : ''}
+                    </div>
+                  </td>
                   <td><b style="color:#f43f5e">#${awayRank}</b></td>
                   <td><b>${tableAway.p || 0}</b></td>
                   <td>${tableAway.j || 0}</td>

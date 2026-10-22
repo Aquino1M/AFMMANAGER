@@ -270,7 +270,7 @@
       return ptsGained;
     },
 
-    // 7. Modal de Cadastro / Edição da Chave PIX
+    // 7. Modal de Cadastro / Edição da Chave PIX (Em Breve)
     openPixKeyModal() {
       const currentPix = this.getUserPixKey();
       let modalEl = document.getElementById('pixKeyModalContainer');
@@ -282,28 +282,46 @@
 
       modalEl.innerHTML = `
         <div class="afm-modal-backdrop" style="position:fixed;inset:0;background:rgba(5,7,15,0.88);backdrop-filter:blur(10px);z-index:10010;display:flex;align-items:center;justify-content:center;padding:16px">
-          <div class="afm-modal-card" style="background:#0d111d;border:1px solid #10b981;box-shadow:0 12px 40px rgba(0,0,0,0.85),0 0 20px rgba(16,185,129,0.25);border-radius:16px;width:100%;max-width:480px;padding:24px;color:#fff;position:relative">
+          <div class="afm-modal-card" style="background:#0d111d;border:1px solid #eab308;box-shadow:0 12px 40px rgba(0,0,0,0.85),0 0 25px rgba(234,179,8,0.25);border-radius:16px;width:100%;max-width:500px;padding:24px;color:#fff;position:relative">
             
             <button type="button" id="btnClosePixModal" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer">✕</button>
 
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-              <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#059669,#10b981);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 15px rgba(16,185,129,0.4)">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+              <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#eab308,#ca8a04);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 15px rgba(234,179,8,0.4);flex-shrink:0">
                 💠
               </div>
               <div>
-                <h2 style="font-size:20px;font-weight:900;margin:0;letter-spacing:0.5px;color:#fff">Chave PIX da Premiação</h2>
-                <p style="font-size:12px;color:#10b981;font-weight:700;margin:2px 0 0">R$ 1.000,00 no PIX para o TOP 5 da Edição</p>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <h2 style="font-size:19px;font-weight:900;margin:0;letter-spacing:0.5px;color:#fff">Chave PIX da Premiação</h2>
+                  <span style="font-size:10px;font-weight:900;background:linear-gradient(135deg,#eab308,#ca8a04);color:#000;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:0.8px">Em Breve</span>
+                </div>
+                <p style="font-size:12px;color:#facc15;font-weight:700;margin:2px 0 0">R$ 1.000,00 no PIX para o TOP 5 da Edição</p>
               </div>
             </div>
 
-            <p style="font-size:13px;color:#cbd5e1;line-height:1.5;margin-bottom:18px">
-              Informe a sua chave PIX para receber automaticamente a transferência caso termine a rodada/temporada entre os <b>5 melhores técnicos</b> do ranking nacional!
-            </p>
+            <!-- Banner Informativo: Recurso Em Breve -->
+            <div style="background:linear-gradient(135deg,rgba(234,179,8,0.14) 0%,rgba(147,51,234,0.12) 100%);border:1px solid rgba(234,179,8,0.35);border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;margin-bottom:16px">
+              <div style="font-size:28px;flex-shrink:0;line-height:1">⏳</div>
+              <div>
+                <div style="font-size:13px;font-weight:900;color:#facc15;text-transform:uppercase;letter-spacing:0.5px">
+                  Cadastro de Chave PIX Em Breve!
+                </div>
+                <div style="font-size:12px;color:#e2e8f0;line-height:1.45;margin-top:3px">
+                  O módulo de cadastro de chave PIX e transferências automáticas aos <b>5 melhores técnicos</b> do ranking nacional está em fase final de homologação e será liberado nas próximas atualizações oficiais do AFM.
+                </div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:6px">
+                  🏆 <b>Fique tranquilo:</b> seus pontos, vitórias e classificação já estão sendo computados normalmente em tempo real!
+                </div>
+              </div>
+            </div>
 
             <form id="afmPixKeyForm" style="display:flex;flex-direction:column;gap:14px">
               <div>
-                <label style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px">Tipo de Chave PIX</label>
-                <select id="pixKeyType" style="width:100%;background:#161f30;border:1px solid rgba(255,255,255,0.15);color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:700">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <label style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Tipo de Chave PIX</label>
+                  <span style="font-size:10px;font-weight:800;color:#eab308;background:rgba(234,179,8,0.15);padding:1px 6px;border-radius:4px">🔒 Em Breve</span>
+                </div>
+                <select id="pixKeyType" disabled style="width:100%;background:#111827;border:1px solid rgba(255,255,255,0.1);color:#64748b;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:700;cursor:not-allowed">
                   <option value="cpf" ${currentPix?.type==='cpf'?'selected':''}>CPF</option>
                   <option value="email" ${currentPix?.type==='email'?'selected':''}>E-mail</option>
                   <option value="phone" ${currentPix?.type==='phone'?'selected':''}>Telefone Celular</option>
@@ -312,20 +330,23 @@
               </div>
 
               <div>
-                <label style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px">Chave PIX</label>
-                <input type="text" id="pixKeyValue" value="${currentPix?.key ? window.esc(currentPix.key) : ''}" placeholder="Ex: seu-cpf@email.com ou 11999999999" required style="width:100%;box-sizing:border-box;background:#161f30;border:1px solid rgba(255,255,255,0.15);color:#fff;padding:12px 14px;border-radius:8px;font-size:14px;font-weight:800;outline:none">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <label style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Chave PIX</label>
+                  <span style="font-size:10px;font-weight:800;color:#eab308;background:rgba(234,179,8,0.15);padding:1px 6px;border-radius:4px">🔒 Bloqueado</span>
+                </div>
+                <input type="text" id="pixKeyValue" disabled value="${currentPix?.key ? window.esc(currentPix.key) : ''}" placeholder="Cadastro de chaves será liberado em breve..." style="width:100%;box-sizing:border-box;background:#111827;border:1px solid rgba(255,255,255,0.1);color:#94a3b8;padding:12px 14px;border-radius:8px;font-size:14px;font-weight:700;cursor:not-allowed">
               </div>
 
-              <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px 12px;font-size:12px;color:#a7f3d0;line-height:1.4">
-                🔒 <b>Pagamento 100% Seguro:</b> Seus dados são salvos localmente e protegidos para recebimento direto do prêmio.
+              <div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:8px;padding:10px 12px;font-size:12px;color:#fef08a;line-height:1.4">
+                🔒 <b>Pagamento 100% Seguro:</b> Quando liberado, seus dados serão protegidos para recebimento direto do prêmio de até R$ 450,00 no PIX.
               </div>
 
               <div style="display:flex;gap:10px;margin-top:6px">
-                <button type="submit" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);border:none;color:#fff;font-weight:900;font-size:14px;padding:12px;border-radius:8px;cursor:pointer;box-shadow:0 4px 15px rgba(16,185,129,0.4)">
-                  ✓ Salvar Chave PIX
+                <button type="button" id="btnEntendidoPixModal" style="flex:1;background:linear-gradient(135deg,#eab308,#ca8a04);border:none;color:#000;font-weight:900;font-size:13px;padding:12px;border-radius:8px;cursor:pointer;box-shadow:0 4px 15px rgba(234,179,8,0.35);letter-spacing:0.5px;text-transform:uppercase">
+                  ✓ Entendido (Em Breve)
                 </button>
                 <button type="button" id="btnCancelPixModal" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;font-weight:700;font-size:13px;padding:12px 16px;border-radius:8px;cursor:pointer">
-                  Cancelar
+                  Fechar
                 </button>
               </div>
             </form>
@@ -337,23 +358,18 @@
       const close = () => modalEl.remove();
       document.getElementById('btnClosePixModal').onclick = close;
       document.getElementById('btnCancelPixModal').onclick = close;
+      const btnEntendido = document.getElementById('btnEntendidoPixModal');
+      if(btnEntendido){
+        btnEntendido.onclick = () => {
+          close();
+          if(window.toast) window.toast('⏳ O cadastro de chave PIX da premiação será liberado em breve!');
+        };
+      }
 
       document.getElementById('afmPixKeyForm').onsubmit = (e) => {
         e.preventDefault();
-        const type = document.getElementById('pixKeyType').value;
-        const key = document.getElementById('pixKeyValue').value.trim();
-        if(!key){
-          alert('Por favor, informe uma chave PIX válida!');
-          return;
-        }
-        AFM_CoachRanking.setUserPixKey(type, key);
         close();
-        if(window.toast) window.toast('✓ Chave PIX cadastrada com sucesso para a premiação!');
-        if(window.setupViewMode === 'ranking' && typeof window.renderSetup === 'function'){
-          window.renderSetup(document.querySelector('#app'));
-        } else if(typeof window.render === 'function') {
-          window.render();
-        }
+        if(window.toast) window.toast('⏳ O cadastro de chave PIX da premiação será liberado em breve!');
       };
     },
 
@@ -393,11 +409,11 @@
                 </div>
               ` : `
                 <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
-                  <button type="button" class="btn btn-neon-pix" id="btnOpenPixModalBanner" style="background:linear-gradient(135deg,#10b981,#059669);border:1px solid #34d399;color:#fff;font-weight:900;font-size:13px;padding:10px 18px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(16,185,129,0.4);transition:all 0.15s">
-                    💠 ${hasKey ? `✓ CHAVE PIX: ${window.esc((pixKey.type || 'pix').toUpperCase())} · ALTERAR` : '➕ CADASTRAR MINHA CHAVE PIX'}
+                  <button type="button" class="btn btn-neon-pix" id="btnOpenPixModalBanner" style="background:linear-gradient(135deg,#f59e0b,#d97706);border:1px solid #facc15;color:#000;font-weight:900;font-size:13px;padding:10px 18px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(245,158,11,0.35);transition:all 0.15s">
+                    💠 CADASTRAR CHAVE PIX (EM BREVE)
                   </button>
-                  <span style="font-size:11px;font-weight:700;color:${hasKey ? '#6ee7b7' : '#f87171'}">
-                    ${hasKey ? `Chave: ${window.esc(pixKey.key.slice(0, 4))}***${window.esc(pixKey.key.slice(-3))} · Pronta para receber` : '⚠️ Cadastre sua chave para receber se vencer!'}
+                  <span style="font-size:11px;font-weight:700;color:#facc15">
+                    ⏳ Cadastro de chaves PIX em breve nas próximas atualizações
                   </span>
                 </div>
               `}
@@ -698,8 +714,8 @@
             </div>
 
             ${!isLanding ? `
-              <button type="button" class="btn" id="btnSidebarManagePix" style="width:100%;background:rgba(16,185,129,0.15);border:1px solid #10b981;color:#6ee7b7;font-weight:800;font-size:12px;padding:9px;border-radius:8px;margin-top:14px;cursor:pointer">
-                ${pixKey?.key ? '⚙️ Alterar Chave PIX' : '➕ Cadastrar Minha Chave PIX'}
+              <button type="button" class="btn" id="btnSidebarManagePix" style="width:100%;background:rgba(234,179,8,0.15);border:1px solid #eab308;color:#facc15;font-weight:800;font-size:12px;padding:9px;border-radius:8px;margin-top:14px;cursor:pointer">
+                💠 Chave PIX (Em Breve)
               </button>
             ` : `
               <button type="button" class="btn" id="btnSidebarManagePix" onclick="window.setupViewMode='auth';if(typeof window.renderSetup==='function')window.renderSetup(document.querySelector('#app'));" style="width:100%;background:rgba(16,185,129,0.15);border:1px solid #10b981;color:#6ee7b7;font-weight:800;font-size:12px;padding:9px;border-radius:8px;margin-top:14px;cursor:pointer">
@@ -1043,8 +1059,8 @@
                   </div>
                 </div>
 
-                <button type="button" class="btn btn-neon-pix afm-ranking-pix-btn" id="btnHeroOpenPixModal" style="background:linear-gradient(135deg,#10b981,#059669);border:1px solid #34d399;color:#fff;font-weight:900;font-size:12px;padding:12px 16px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 15px rgba(16,185,129,0.35)">
-                  💠 ${hasKey ? '⚙️ Chave PIX Cadastrada' : '➕ Cadastrar Minha Chave PIX'}
+                <button type="button" class="btn btn-neon-pix afm-ranking-pix-btn" id="btnHeroOpenPixModal" style="background:linear-gradient(135deg,#f59e0b,#d97706);border:1px solid #facc15;color:#000;font-weight:900;font-size:12px;padding:12px 16px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 15px rgba(245,158,11,0.35)">
+                  💠 Cadastrar Chave PIX (Em Breve)
                 </button>
               </div>
             </div>

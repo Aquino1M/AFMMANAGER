@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no,maximum-scale=1">
+<title>AFM Mobile Visual Test Harness</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app"></div>
+
+<!-- 1. Bancos de Dados e Motores Base -->
+<script src="js/core/error_log.js"></script>
+<script src="js/core/hotfix_bankloans_and_img_tags.js"></script>
+<script src="js/competitions.js"></script>
+<script src="data/competition_teams.js"></script>
+<script src="data/international_teams_2026_27.js"></script>
+<script src="data/continental_2026.js"></script>
+<script src="js/core/tournament_engine.js"></script>
+<script src="js/core/competition_integrity.js"></script>
+<script src="data/players_live.js"></script>
+<script src="data/club_badges.js"></script>
+<script src="data/club_badges_unverified.js"></script>
+<script src="data/club_badges_competitions.js"></script>
+<script src="js/core/club_badges_core.js"></script>
+<script src="data/club_badges_verified_2026.js"></script>
+<script src="data/club_badges_verified_world.js"></script>
+<script src="data/club_badges_verified_overrides.js"></script>
+<script src="data/club_badges_local_index.js"></script>
+<script src="data/player_photos.js"></script>
+<script src="data/player_photos_modular.js"></script>
+<script src="data/player_photos_blocked.js"></script>
+<script src="data/player_photos_verified.js"></script>
+<script src="js/core/real_player_faces_auto_fetcher.js"></script>
+<script src="js/database.js"></script>
+<script src="js/features30.js"></script>
+<script src="js/core/audio_engine.js"></script>
+<script src="js/core/match_engine.js"></script>
+<script src="js/core/stadium_3d_manager.js"></script>
+<script src="js/core/tactics_pitch.js"></script>
+<script src="js/core/real_football_engine.js"></script>
+<script src="js/ui/settings_modal.js"></script>
+<script src="js/ui/pwa_and_landscape_enforcer.js"></script>
+<script src="js/systems/day_advance_news_modal.js"></script>
+<script src="js/ui/create_club_ui.js"></script>
+<script src="js/ui/squad_reports_modal.js"></script>
+<script src="js/ui/training_center_modal.js"></script>
+<script src="js/game.js"></script>
+<script src="js/core/isolated_save_manager.js"></script>
+<script src="js/core/player_photos_manager.js"></script>
+<script src="js/core/calendar_and_day_advance_fix.js"></script>
+<script src="js/systems/real_world_leagues_and_pyramid.js"></script>
+<script src="js/systems/manager_economy.js"></script>
+<script src="js/systems/squad_assistant_and_stars.js"></script>
+<script src="js/systems/global_ranking_and_confidence.js"></script>
+<script src="js/systems/coach_ranking_pix.js"></script>
+<script src="js/systems/club_finance_and_stadium.js"></script>
+<script src="js/systems/manager_life_and_shares_pro.js"></script>
+<script src="js/systems/transfer_market_pro.js"></script>
+<script src="js/match/tactical_4phases_enhancer.js"></script>
+<script src="js/match/live_match_hud.js"></script>
+<script src="js/systems/competitions_and_awards.js"></script>
+<script src="js/systems/press_and_boardroom.js"></script>
+<script src="js/systems/global_ranking_and_x1.js"></script>
+<script src="js/systems/trophies_tv_1year_marketing_and_payroll.js"></script>
+<script src="js/systems/cup_highlight_ranking_world_and_licenses.js"></script>
+<script src="js/systems/market_lupa_aging_and_regens.js"></script>
+<script src="js/systems/player_xp_evolution.js"></script>
+<script src="js/systems/copinha_sub20_engine.js"></script>
+<script src="js/systems/market_favorites_wishlist.js"></script>
+<script src="js/ui/changelog_14outubro.js"></script>
+<script src="js/ui/global_shortcuts_and_theme.js"></script>
+<script src="js/systems/match_preview_pro.js"></script>
+
+<script>
+  window.addEventListener('load', () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const isAdm = params.get('user') === 'admin';
+      const isCustom = params.get('custom') === '1';
+      localStorage.setItem('afm_accounts_v1', JSON.stringify([
+        { username: 'aquino', name: 'Prof. Aquino', password: '123', role: 'player' },
+        { username: 'admin', name: 'Administrador', password: '123', role: 'admin' }
+      ]));
+      localStorage.setItem('afm_active_user_v1', isAdm ? 'admin' : 'aquino');
+      if (!window.state) {
+        if (isCustom) {
+          try {
+            newCareer({
+              isCustomClub: true,
+              compId: 'bra-est-sp',
+              stateCompId: 'bra-est-sp',
+              clubName: 'Valência Futebol Clube',
+              shortName: 'VFC',
+              stadiumName: 'Arena dos Sonhos',
+              badgeConfig: {
+                shape: 'classic',
+                primaryColor: '#1e3a8a',
+                secondaryColor: '#facc15',
+                pattern: 'star',
+                patternColor: '#ffffff',
+                motto: 'VFC',
+                mottoColor: '#ffffff',
+                borderStyle: 'classic'
+              },
+              homeKit: { shirtColor: '#1e3a8a', secondaryColor: '#ffffff' },
+              awayKit: { shirtColor: '#ffffff', secondaryColor: '#1e3a8a' },
+              manager: isAdm ? 'Administrador' : 'Prof. Aquino',
+              slot: 1
+            });
+          } catch(e) {
+            document.body.innerHTML = '<div style="color:red;padding:40px;font-size:20px">' + (e.stack || e.message) + '</div>';
+            return;
+          }
+        } else {
+          newCareer({ clubName: 'Corinthians', compId: 'bra-a', managerName: isAdm ? 'Administrador' : 'Prof. Aquino' });
+        }
+      }
+      if (params.get('balance')) {
+        window.state.balance = Number(params.get('balance'));
+      }
+      const targetView = params.get('view') || 'meutime';
+      window.view = targetView;
+      if (params.get('configTab')) {
+        window.configTab = params.get('configTab');
+      }
+      render();
+    } catch(err) {
+      console.error('Harness init error:', err);
+      document.body.innerHTML += '<div style="color:red;padding:20px;font-size:18px">' + err.stack + '</div>';
+    }
+  });
+</script>
+</body>
+</html>

@@ -750,7 +750,7 @@ window.AFM30 = (function(){
 
     m.innerHTML = `
       <div style="background:#130f26;border:2px solid #38bdf8;box-shadow:0 0 35px rgba(56,189,248,0.3);border-radius:20px;padding:26px;max-width:540px;width:92%;text-align:center;color:#fff">
-        <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;color:#38bdf8;text-transform:uppercase">🌐 AMISTOSO MULTIPLAYER CLOUD · SUPABASE</div>
+        <div style="font-size:11px;font-weight:900;letter-spacing:1.5px;color:#38bdf8;text-transform:uppercase">🌐 AMISTOSO MULTIPLAYER CLOUD · NUVEM OFICIAL AFM</div>
         <h2 style="margin:8px 0;font-size:24px;font-weight:900">DESAFIO DE TREINADORES</h2>
 
         <div style="display:flex;align-items:center;justify-content:space-around;margin:20px 0;background:#181333;border-radius:14px;padding:16px">

@@ -451,21 +451,107 @@
     ];
   }
 
+  function getClubTitlesWonInSave(clubName, state) {
+    if (!state) return [];
+    const clubKey = norm(clubName);
+    const wonList = [];
+    const seen = new Set();
+
+    function addTitle(name, year, badge, icon = '🏆') {
+      if (!name) return;
+      const cleanName = String(name).trim();
+      const cleanYear = year ? String(year).trim() : (state.season ? `Temporada ${state.season}` : 'No Save');
+      const uniqueKey = `${norm(cleanName)}_${norm(cleanYear)}`;
+      if (seen.has(uniqueKey)) return;
+      seen.add(uniqueKey);
+      wonList.push({
+        name: cleanName,
+        year: cleanYear,
+        badge: badge || 'CAMPEÃO NO SAVE',
+        icon: icon || '🏆',
+        club: clubName
+      });
+    }
+
+    // 1. state.titles (Principal array de títulos conquistados pelo treinador no save)
+    if (Array.isArray(state.titles)) {
+      state.titles.forEach((t) => {
+        if (!t) return;
+        if (typeof t === 'string') {
+          addTitle(t, state.season ? `Temporada ${state.season}` : 'No Save', 'CAMPEÃO NO SAVE', '🏆');
+        } else if (typeof t === 'object') {
+          if (!t.club || norm(t.club) === clubKey) {
+            addTitle(t.name || t.title, t.year || (t.season ? `Temporada ${t.season}` : 'No Save'), t.badge || 'CAMPEÃO NO SAVE', t.icon || '🏆');
+          }
+        }
+      });
+    }
+
+    // 2. state.seasonHistory (Temporadas concluídas pelo treinador no save)
+    if (Array.isArray(state.seasonHistory)) {
+      state.seasonHistory.forEach((sh) => {
+        if (!sh) return;
+        const isThisClub = norm(sh.userClub || state.club) === clubKey;
+        if (isThisClub) {
+          if (sh.champion && norm(sh.champion) === clubKey) {
+            addTitle(sh.compName || 'Campeonato Nacional', `Temporada ${sh.season}`, 'CAMPEÃO DA LIGA', '🥇');
+          }
+          if (Array.isArray(sh.titlesWon)) {
+            sh.titlesWon.forEach((tw) => {
+              addTitle(typeof tw === 'string' ? tw : (tw?.name || tw?.title), `Temporada ${sh.season}`, 'CONQUISTA NO SAVE', '🏆');
+            });
+          }
+        }
+      });
+    }
+
+    // 3. Torneios continentais e copas no save (state.tournaments)
+    if (state.tournaments && typeof state.tournaments === 'object') {
+      Object.entries(state.tournaments).forEach(([tId, tourney]) => {
+        if (!tourney) return;
+        const champ = tourney.champion || tourney.winner;
+        if (champ && norm(champ) === clubKey) {
+          const tName = tourney.name || (typeof compById === 'function' && compById(tId)?.name) || tId;
+          addTitle(tName, tourney.season ? `Temporada ${tourney.season}` : (state.season ? `Temporada ${state.season}` : 'No Save'), 'CAMPEÃO DO TORNEIO', '🏆');
+        }
+      });
+    }
+
+    // 4. Copa do Brasil no save
+    const cdb = (typeof getCopaDoBrasilState === 'function') ? getCopaDoBrasilState() : state.copaDoBrasil;
+    if (cdb && cdb.champion && norm(cdb.champion) === clubKey) {
+      addTitle('Copa do Brasil', state.season ? `Temporada ${state.season}` : 'No Save', 'CAMPEÃO DA COPA', '🏆');
+    }
+
+    // 5. Copinha Sub-20 no save
+    if (state.copinhaSub20 && state.copinhaSub20.champion && norm(state.copinhaSub20.champion) === clubKey) {
+      addTitle('Copa São Paulo de Juniores (Sub-20)', state.season ? `Temporada ${state.season}` : 'No Save', 'CAMPEÃO DA BASE', '🌟');
+    }
+
+    // 6. managerPersonal.trophies ou state.trophies (filtrando rigorosamente apenas títulos no save)
+    const personal = state.managerPersonal?.trophies || state.trophies;
+    if (Array.isArray(personal)) {
+      personal.forEach((pt) => {
+        if (!pt) return;
+        const isHistoricalYear = typeof pt.year === 'string' && /^(19\d\d|200\d|201\d|202[0-5])\b/.test(pt.year);
+        if (isHistoricalYear) return;
+        if (!pt.club || norm(pt.club) === clubKey) {
+          addTitle(pt.name || pt.title, pt.year, pt.badge, pt.icon);
+        }
+      });
+    }
+
+    return wonList;
+  }
+
   function getTrophiesHtmlBlock(state) {
     const clubName = getActiveClubName(state);
     const upperClub = clubName.toUpperCase();
-    const clubKey = norm(clubName);
     const clubHistorical = getClubOwnHistoricalTrophies(clubName, state);
+    const coachWonHere = getClubTitlesWonInSave(clubName, state);
 
-    const allCoachTrophies = (state?.managerPersonal?.trophies || state?.trophies || []);
-    const coachWonHere = Array.isArray(allCoachTrophies)
-      ? allCoachTrophies.filter((t) => !t.club || norm(t.club) === clubKey)
-      : [];
-
-    const managerName = (state?.managerPersonal?.name || state?.manager?.name || 'Aquino').toUpperCase();
-    const coachDisplay = coachWonHere.length > 0
-      ? coachWonHere
-      : [{ name: 'Em busca da 1ª Taça no Comando do ' + clubName, year: 'Temporada Atual no Save', badge: 'COMANDO TÉC. ' + managerName, icon: '🎯' }];
+    const managerName = (state?.managerPersonal?.name || state?.manager?.name || state?.manager || 'Aquino').toUpperCase();
+    const currentSeason = state?.season || 2026;
 
     return `
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
@@ -487,16 +573,25 @@
           </div>
         `).join('')}
       </div>
-      <div style="font-size:11px;font-weight:800;color:#a78bfa;margin-bottom:10px;letter-spacing:0.5px;">👑 TÍTULOS CONQUISTADOS NO COMANDO DO ${upperClub} (NO SAVE)</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;">
-        ${coachDisplay.map((t) => `
-          <div style="background:#1e1b4b;border:1px solid #7c3aed;border-radius:10px;padding:12px;text-align:center;">
+      <div style="font-size:11px;font-weight:800;color:#a78bfa;margin-bottom:10px;letter-spacing:0.5px;">
+        👑 TÍTULOS CONQUISTADOS NO COMANDO DO ${upperClub} (NO SAVE) ${coachWonHere.length > 0 ? `(${coachWonHere.length})` : ''}
+      </div>
+      <div class="coach-trophies-container" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;">
+        ${coachWonHere.length > 0 ? coachWonHere.map((t) => `
+          <div style="background:#1e1b4b;border:1px solid #7c3aed;border-radius:10px;padding:12px;text-align:center;box-shadow:0 4px 14px rgba(124,58,237,0.25);">
             <div style="font-size:24px;margin-bottom:4px;">${t.icon || '🏆'}</div>
             <div style="font-size:12px;font-weight:800;color:#fff;">${t.name || t.title}</div>
             <div style="font-size:11px;color:#c4b5fd;margin-top:3px;">(${t.year || 'No Save'})</div>
             <div style="font-size:9px;color:#34d399;font-weight:800;margin-top:6px;">${t.badge || 'CONQUISTA NO SAVE'}</div>
           </div>
-        `).join('')}
+        `).join('') : `
+          <div style="background:#1e1b4b;border:1px dashed #7c3aed;border-radius:12px;padding:18px;text-align:center;grid-column:1/-1;">
+            <div style="font-size:28px;margin-bottom:6px;">🎯</div>
+            <div style="font-size:13px;font-weight:900;color:#fff;">Em busca da 1ª Taça no Comando do ${clubName}</div>
+            <div style="font-size:11px;color:#c4b5fd;margin-top:4px;">Temporada ${currentSeason} • Comando Téc. ${managerName}</div>
+            <div style="font-size:10px;color:#a78bfa;font-weight:700;margin-top:6px;">Nenhum título conquistado ainda no save. Dispute campeonatos e copas para erguer troféus na sua carreira!</div>
+          </div>
+        `}
       </div>
     `;
   }
@@ -527,7 +622,7 @@
 
   const TrophiesTvMarketingPayroll = {
     // ------------------------------------------------------------------------
-    // 1. BOTÃO DO MUSEU EM "Museu do clube (NÍVEL 1/8)" + ESTANTE PRÓPRIA
+    // 1. BOTÃO DO MUSEU EM "Museu do clube" + ESTANTE PRÓPRIA
     // ------------------------------------------------------------------------
     setupMuseumButtonAndBottomCabinet(state) {
       const app = document.getElementById('app');
@@ -535,7 +630,6 @@
 
       const clubName = getActiveClubName(state);
       const clubKey = norm(clubName);
-      const clubHistorical = getClubOwnHistoricalTrophies(clubName, state);
 
       // A) Procura qualquer card de Estrutura que tenha o texto "Museu do clube" e um botão "Evoluir"
       const allButtons = app.querySelectorAll('button');
@@ -567,12 +661,12 @@
         }
       }
 
-      // B) Se estiver na sub-aba "🏆 MUSEU DO CLUBE (Estante de Troféus)", exibe os troféus próprios do clube!
+      // B) Se estiver na sub-aba "🏆 MUSEU DO CLUBE", exibe a galeria histórica e títulos no comando
       const allEls = app.querySelectorAll('h2, h3, h4, div, span');
       for (let i = 0; i < allEls.length; i++) {
         const el = allEls[i];
         const txt = (el.textContent || '').trim();
-        if (el.children.length <= 1 && txt.toUpperCase().includes('MUSEU DO CLUBE: ESTANTE DE TROFÉUS')) {
+        if (el.children.length <= 1 && txt.toUpperCase().includes('MUSEU DO CLUBE:')) {
           const parentCard = el.parentElement;
           if (parentCard && parentCard.id !== 'app') {
             let customBox = document.getElementById('afm-club-own-museum-box');
@@ -582,26 +676,12 @@
               customBox.style.cssText = 'margin:14px 0;padding:16px;background:rgba(15,23,42,0.9);border:1px solid rgba(234,179,8,0.35);border-radius:14px;';
               parentCard.appendChild(customBox);
             }
-            if (customBox.dataset.renderedClub !== clubKey) {
-              customBox.dataset.renderedClub = clubKey;
+            const wonCount = getClubTitlesWonInSave(clubName, state).length;
+            const renderKey = `${clubKey}_${wonCount}_${state?.season || 2026}`;
+            if (customBox.dataset.renderKey !== renderKey) {
+              customBox.dataset.renderKey = renderKey;
               customBox.innerHTML = getTrophiesHtmlBlock(state);
             }
-          }
-        } else if (el.children.length <= 1 && txt.includes('Taças em Exibição na Vitrine')) {
-          const vitrineContainer = el.parentElement;
-          if (vitrineContainer && vitrineContainer.dataset.vitrineClub !== clubKey) {
-            vitrineContainer.dataset.vitrineClub = clubKey;
-            const cards = vitrineContainer.querySelectorAll('div[style*="border"]');
-            cards.forEach((c, idx) => {
-              const t = clubHistorical[idx % clubHistorical.length];
-              if (t && c.children.length <= 4 && !c.querySelector('#afm-club-own-museum-box')) {
-                c.innerHTML = `
-                  <div style="font-size:22px;margin-bottom:4px;">${t.icon}</div>
-                  <div style="font-size:13px;font-weight:800;color:#fff;">${t.name}</div>
-                  <div style="font-size:11px;color:#fbbf24;margin-top:2px;">${t.year} · ${clubName}</div>
-                `;
-              }
-            });
           }
         }
       }
@@ -858,7 +938,9 @@
     },
     injectTvBroadcastSectionInOffice(st) {
       this.injectTvBroadcastBelowExpenses(st || window.GameState || window.state || {});
-    }
+    },
+    getClubTitlesWonInSave,
+    getTrophiesHtmlBlock
   };
 
   // Registra no Hook Instantâneo (0ms) para rodar junto com window.render()!

@@ -173,6 +173,7 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
 .club-cell{display:flex;align-items:center;font-weight:700}
 .my-row{background:#34205866!important;border-left:3px solid var(--accent2)}
 .my-row td{color:#fff;font-weight:700}
+.tag-you{display:inline-flex;align-items:center;justify-content:center;gap:3px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;font-size:10px;font-weight:900;padding:2px 7px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase;margin-left:8px;vertical-align:middle;line-height:1;box-shadow:0 2px 8px rgba(2,132,199,0.4);border:1px solid #38bdf8;flex-shrink:0}
 
 /* Form Dots */
 .form-dots{display:inline-flex;gap:4px;vertical-align:middle}
@@ -2184,6 +2185,48 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
 @keyframes constructionGlow {
   0%, 100% { background-color: rgba(245, 158, 11, 0.15); }
   50% { background-color: rgba(245, 158, 11, 0.35); }
+}
+
+@keyframes soundWavePulse {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.18); opacity: 1; filter: drop-shadow(0 0 6px #38bdf8); }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+.soundwave-pulse {
+  animation: soundWavePulse 1.2s infinite ease-in-out;
+  display: inline-block;
+}
+
+@keyframes vipGoldGlow {
+  0%, 100% { box-shadow: 0 0 4px rgba(250, 204, 21, 0.4); border-color: rgba(250, 204, 21, 0.6); }
+  50% { box-shadow: 0 0 14px rgba(250, 204, 21, 0.9); border-color: #facc15; }
+}
+
+.vip-box-glow {
+  animation: vipGoldGlow 2s infinite ease-in-out;
+}
+
+@keyframes solarPulseGlow {
+  0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 3px #22c55e); }
+  50% { opacity: 1; filter: drop-shadow(0 0 10px #4ade80); }
+}
+
+.solar-panel-glow {
+  animation: solarPulseGlow 2.5s infinite ease-in-out;
+}
+
+.upgrade-preview-active-card {
+  border-color: #c084fc !important;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.18) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+  box-shadow: 0 0 18px rgba(192, 132, 252, 0.45) !important;
+}
+
+.stadium-mode-switcher button {
+  outline: none;
+}
+.stadium-mode-switcher button:hover {
+  filter: brightness(1.15);
 }
 
 /* ==========================================================================
@@ -5580,6 +5623,14 @@ body.theme-emerald {
 /* ==========================================================================
    AJUSTE DE ZOOM E VISUALIZAÇÃO COMPLETA - ABA ESTÁDIO (AFM MANAGER 2027)
    ========================================================================== */
+#stadiumVisualModalContainer {
+  position: relative;
+  z-index: 100000 !important;
+}
+#stadiumVisualModalContainer .visual-modal-overlay {
+  z-index: 100000 !important;
+}
+
 #aba-estadio,
 .stadium-modal-container,
 .estadio-dashboard-wrapper,
@@ -7101,47 +7152,79 @@ body.theme-emerald {
 /* AFM 2027: OTIMIZAÇÃO DE ESCALA PARA MOBILE LANDSCAPE (LARGURA <= 1024px)   */
 /* ========================================================================= */
 
-@media screen and (max-width: 1024px) and (max-height: 650px) {
+@media screen and (max-width: 1024px) and (max-height: 650px), screen and (max-height: 520px) and (max-width: 1024px), screen and (max-width: 900px) and (orientation: landscape) {
   /* Escala geral de tela e cabeçalhos */
   .main {
-    padding: 6px 10px !important;
+    padding: 4px 8px !important;
   }
   .hero {
-    padding: 6px 10px !important;
-    margin-bottom: 6px !important;
+    padding: 4px 8px !important;
+    margin-bottom: 4px !important;
   }
   .hero h1 {
-    font-size: 15px !important;
+    font-size: 14px !important;
     line-height: 1.2 !important;
     margin: 0 0 2px 0 !important;
   }
   .hero .muted {
-    font-size: 10px !important;
+    font-size: 9.5px !important;
   }
   .card {
-    padding: 8px 12px !important;
-    border-radius: 10px !important;
-    margin-bottom: 8px !important;
+    padding: 6px 10px !important;
+    border-radius: 8px !important;
+    margin-bottom: 6px !important;
   }
   .card h2 {
-    font-size: 14px !important;
-    margin: 0 0 4px 0 !important;
+    font-size: 13px !important;
+    margin: 0 0 3px 0 !important;
   }
   .card h3 {
-    font-size: 12px !important;
+    font-size: 11px !important;
     margin: 0 0 2px 0 !important;
   }
   .card p, .card .small, .card .muted {
-    font-size: 10px !important;
+    font-size: 9.5px !important;
   }
   .btn {
-    padding: 5px 9px !important;
-    font-size: 10.5px !important;
+    padding: 4px 8px !important;
+    font-size: 10px !important;
     border-radius: 6px !important;
   }
   .pill {
-    padding: 2px 6px !important;
-    font-size: 9.5px !important;
+    padding: 2px 5px !important;
+    font-size: 9px !important;
+  }
+
+  /* Barra Superior Fixa Compacta no Mobile Landscape */
+  .top {
+    padding: 3px 10px !important;
+    min-height: 36px !important;
+    max-height: 38px !important;
+    gap: 8px !important;
+  }
+  .top .brand {
+    font-size: 13px !important;
+    gap: 6px !important;
+  }
+  .top .brand img, .top .brand svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  .top-right {
+    font-size: 10px !important;
+    gap: 6px !important;
+  }
+  .top-right .pill {
+    padding: 1px 5px !important;
+    font-size: 8.5px !important;
+  }
+
+  /* Oculta Fita de Tarefas e Hero no Mobile Landscape para Maximizar Área Útil */
+  .sm-task-ribbon {
+    display: none !important;
+  }
+  .hero {
+    display: none !important;
   }
 
   /* Otimização da Tela do Ranking In-Game (Hero & Badges) */
@@ -7511,83 +7594,409 @@ body.theme-emerald {
 
   /* 1. ABA CENTRAL (DASHBOARD) */
   .central-dashboard-grid {
-    grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.6fr) !important;
-    gap: 10px !important;
+    grid-template-columns: minmax(210px, 0.85fr) minmax(280px, 1.4fr) minmax(190px, 0.75fr) !important;
+    gap: 8px !important;
   }
-  @media screen and (max-width: 860px) {
+  @media screen and (max-width: 900px) {
     .central-dashboard-grid {
-      grid-template-columns: 1fr !important;
+      grid-template-columns: minmax(210px, 1fr) minmax(280px, 1.3fr) !important;
     }
   }
+  .central-dashboard-grid .card:first-child > div:first-child {
+    height: 52px !important;
+  }
+  .central-dashboard-grid .card:first-child > div:first-child > div[style*="position:absolute"] {
+    bottom: -16px !important;
+  }
+  .central-dashboard-grid .card:first-child img,
+  .central-dashboard-grid .card:first-child svg {
+    width: 38px !important;
+    height: 38px !important;
+  }
+  .central-dashboard-grid .card:first-child > div:last-child {
+    padding: 18px 8px 8px 8px !important;
+  }
+  .central-dashboard-grid .card:first-child h2 {
+    font-size: 14px !important;
+  }
+  .central-dashboard-grid div[style*="width:58px;height:58px"] {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 18px !important;
+  }
+  .central-next-match-card,
+  .central-dashboard-grid div[style*="background:#0b0819"],
+  .central-dashboard-grid div[style*="background: #0b0819"] {
+    padding: 6px 10px !important;
+  }
+  .central-dashboard-grid div[style*="font-size:28px"],
+  .central-dashboard-grid div[style*="font-size: 28px"] {
+    font-size: 18px !important;
+  }
 
-  /* 2. ABA MEU TIME & TÁTICA */
+  /* 2. ABA MEU TIME & TÁTICA (CAMPO & SLOTS ULTRA CALIBRADOS) */
+  .tactics-setpieces-panel {
+    display: none !important;
+  }
+  .tactics-actions-bar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    margin: 2px 0 4px 0 !important;
+    gap: 4px !important;
+  }
+  .tactics-actions-bar::-webkit-scrollbar {
+    display: none !important;
+  }
+  .tactics-actions-bar .btn {
+    flex-shrink: 0 !important;
+    padding: 3px 6px !important;
+    font-size: 8.5px !important;
+    border-radius: 6px !important;
+  }
+  .tactics-strength-card {
+    padding: 2px 8px !important;
+    margin-bottom: 4px !important;
+    border-radius: 8px !important;
+    gap: 6px !important;
+  }
+  .tactics-strength-card h2 {
+    font-size: 11.5px !important;
+  }
+  .tactics-strength-card select {
+    padding: 2px 5px !important;
+    font-size: 9px !important;
+  }
+  .tactics-strength-card b {
+    font-size: 12px !important;
+  }
+
+  /* ESTRUTURA DO GRAMADO E BANCO */
   .tactics-modal-container {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
     height: auto !important;
-    min-height: 380px !important;
-    grid-template-columns: minmax(280px, 1fr) minmax(280px, 1.2fr) !important;
-    gap: 10px !important;
-    margin-bottom: 10px !important;
+    min-height: 290px !important;
+    max-height: 330px !important;
+    gap: 6px !important;
+    margin-bottom: 6px !important;
   }
   .tactics-pitch-wrapper {
-    min-height: 360px !important;
-    max-height: 480px !important;
+    flex: 1 1 68% !important;
+    min-height: 290px !important;
+    height: 310px !important;
+    max-height: 330px !important;
+    border-radius: 8px !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+  .tactics-bench-wrapper {
+    flex: 0 0 32% !important;
+    width: 32% !important;
+    min-height: 290px !important;
+    height: 310px !important;
+    max-height: 330px !important;
+    padding: 4px 6px !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+  }
+  .tactics-bench-wrapper > div:first-child {
+    font-size: 9.5px !important;
+    margin-bottom: 3px !important;
+  }
+  .tactics-bench-wrapper > div:first-child span {
+    font-size: 8.5px !important;
+  }
+  .bench-player-row {
+    padding: 2px 4px !important;
+    margin-bottom: 2px !important;
+    gap: 4px !important;
+    border-radius: 5px !important;
+  }
+  .bench-player-row img,
+  .bench-player-row svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  .bench-player-row b {
+    font-size: 9px !important;
+  }
+  .bench-player-row .rating-pill {
+    font-size: 7.5px !important;
+    padding: 1px 3px !important;
+  }
+  .bench-player-row span {
+    font-size: 7.5px !important;
+  }
+  .tactics-bench-wrapper > div:last-child {
+    padding: 2px 5px !important;
+    font-size: 7.5px !important;
+    margin-top: 3px !important;
+    line-height: 1.15 !important;
+  }
+
+  /* SLOTS TÁTICOS NO GRAMADO: DIMENSÕES OTIMIZADAS COM ZERO SOBREPOSIÇÃO */
+  .pitch-slot-dropzone {
+    width: 38px !important;
+    height: 48px !important;
+    border-radius: 5px !important;
+    z-index: 20 !important;
+  }
+  .fifa-mini-card {
+    width: 38px !important;
+    height: 48px !important;
+    padding: 1px 2px !important;
+    border-radius: 5px !important;
+    box-sizing: border-box !important;
+  }
+  .fifa-mini-card-top {
+    height: 9px !important;
+    margin-bottom: 1px !important;
+  }
+  .fifa-mini-card-ovr {
+    font-size: 7.5px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+  }
+  .fifa-mini-card-pos {
+    font-size: 5.5px !important;
+    line-height: 1 !important;
+  }
+  .fifa-mini-card-crest {
+    display: none !important;
+  }
+  .fifa-mini-card-tier-icon {
+    font-size: 6px !important;
+    line-height: 1 !important;
+  }
+  .fifa-mini-card-photo-wrap {
+    height: 22px !important;
+  }
+  .fifa-mini-card-photo {
+    height: 22px !important;
+    max-width: 26px !important;
+  }
+  .fifa-mini-card-bottom {
+    height: 9px !important;
+  }
+  .fifa-mini-card-name {
+    font-size: 5.5px !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    max-width: 34px !important;
+  }
+  .fifa-mini-card-num,
+  .fifa-mini-card-role-adapted,
+  .fifa-mini-card-role-incompatible {
+    display: none !important;
+  }
+
+  /* Pedestal Ultra Compacto Integrado ao Card */
+  .pitch-slot-pedestal {
+    bottom: -11px !important;
+    width: 40px !important;
+    padding: 0 2px !important;
+    border-radius: 3px !important;
+    border-width: 1px !important;
+    line-height: 1 !important;
+  }
+  .pitch-slot-pedestal .pedestal-role-line {
+    font-size: 6px !important;
+  }
+  .pitch-slot-pedestal .pedestal-role-line span {
+    font-size: 5.5px !important;
+  }
+  .pitch-slot-pedestal .pedestal-focus,
+  .pitch-slot-pedestal .pedestal-chem {
+    display: none !important;
+  }
+  .pitch-slot-dropzone[data-slot-role="GK"] {
+    z-index: 28 !important;
+  }
+  .pitch-slot-dropzone[data-slot-role="GK"] .pitch-slot-pedestal {
+    bottom: -10px !important;
+    top: auto !important;
+    max-width: 42px !important;
+  }
+
+  /* HUD do Topo do Gramado Compacto */
+  .fut-pitch-hud-left {
+    top: 3px !important;
+    left: 3px !important;
+    padding: 2px 4px !important;
+    border-radius: 5px !important;
+    gap: 3px !important;
+    transform: scale(0.75) !important;
+    transform-origin: top left !important;
+  }
+  .fut-hud-team-name {
+    font-size: 8.5px !important;
+  }
+  .fut-hud-stars {
+    font-size: 7px !important;
+  }
+  .fut-hud-chem-row {
+    font-size: 6.5px !important;
+  }
+  .fut-stadium-top-ambience {
+    height: 50px !important;
   }
 
   /* 3. ABA ELENCO & TABELAS GERAIS */
+  .squad-actions-bar,
+  div[style*="display:flex;gap:8px;flex-wrap:wrap"] {
+    gap: 4px !important;
+    margin-bottom: 4px !important;
+  }
+  .squad-actions-bar .btn {
+    padding: 3px 6px !important;
+    font-size: 9px !important;
+  }
   .tablewrap {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
     scrollbar-width: thin !important;
-    margin-top: 6px !important;
+    margin-top: 4px !important;
   }
   .tablewrap table {
-    font-size: 11px !important;
+    font-size: 9.5px !important;
   }
   .tablewrap th, 
   .tablewrap td {
-    padding: 4px 6px !important;
+    padding: 2px 4px !important;
     white-space: nowrap !important;
+    line-height: 1.15 !important;
+  }
+  .tablewrap td img,
+  .tablewrap td svg {
+    width: 18px !important;
+    height: 18px !important;
   }
   .tablewrap td b {
-    font-size: 11.5px !important;
+    font-size: 10px !important;
+  }
+  .tablewrap .rating-pill {
+    padding: 1px 3px !important;
+    font-size: 8px !important;
+  }
+  .tablewrap .btn {
+    padding: 1px 4px !important;
+    font-size: 8px !important;
   }
 
   /* 4. ABA MERCADO & TRANSFERÊNCIAS */
-  .market-hero, .market-filter-bar {
-    padding: 6px 10px !important;
-    margin-bottom: 6px !important;
+  .market-hero {
+    padding: 4px 8px !important;
+    margin-bottom: 4px !important;
+  }
+  .market-hero h1 {
+    font-size: 13px !important;
+  }
+  .market-metrics-grid,
+  div[style*="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr))"],
+  div[style*="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+    margin-bottom: 5px !important;
+  }
+  .market-metric-card,
+  div[style*="background:#0f172a;border:1px solid rgba(255,255,255,0.08)"] {
+    padding: 3px 6px !important;
+    border-radius: 6px !important;
+  }
+  .market-metric-card .val,
+  div[style*="font-size:22px"] {
+    font-size: 13px !important;
+  }
+  .market-filter-bar {
+    padding: 3px 6px !important;
+    margin-bottom: 4px !important;
+    gap: 4px !important;
+  }
+  .market-filter-bar input,
+  .market-filter-bar select {
+    padding: 2px 5px !important;
+    font-size: 9px !important;
   }
 
   /* 5. ABA ESTRUTURA & ESTÁDIO */
   .structure-tabs, .structure-subtabs {
-    gap: 6px !important;
-    margin-bottom: 8px !important;
+    gap: 4px !important;
+    margin-bottom: 4px !important;
+  }
+  .structure-tabs .btn, .structure-subtabs .btn {
+    padding: 3px 6px !important;
+    font-size: 9.5px !important;
+  }
+  #afmStadium3DViewport,
+  .stadium-visual-container {
+    max-height: 180px !important;
+  }
+  .stadium-upgrades-grid,
+  .structure-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
+    gap: 4px !important;
+  }
+  .structure-card {
+    padding: 4px 6px !important;
   }
 
   /* 6. ABA ESCRITÓRIO & FINANÇAS */
   .office-summary-grid {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
-    gap: 8px !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    margin-bottom: 4px !important;
+  }
+  .office-stat-card {
+    padding: 4px 6px !important;
+  }
+  .office-stat-card .val {
+    font-size: 12px !important;
+  }
+  .office-sponsors-grid,
+  .office-staff-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+    gap: 4px !important;
   }
 
   /* 7. ABA NOTÍCIAS & MÍDIA */
   .news-list-item {
-    padding: 8px 10px !important;
-    gap: 8px !important;
-    margin-bottom: 6px !important;
+    padding: 4px 6px !important;
+    gap: 6px !important;
+    margin-bottom: 3px !important;
+    font-size: 9.5px !important;
   }
 
   /* 8. ABA TEMPORADA & CLASSIFICAÇÃO */
   .standings-table th, 
   .standings-table td {
-    padding: 3px 5px !important;
-    font-size: 10.5px !important;
+    padding: 2px 3px !important;
+    font-size: 9px !important;
+  }
+  .standings-table img,
+  .standings-table svg {
+    width: 15px !important;
+    height: 15px !important;
   }
 
   /* 9. ABA CARREIRA DO TREINADOR */
   .career-trophies-grid {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)) !important;
+    gap: 4px !important;
+  }
+  .career-stats-strip {
+    padding: 4px 8px !important;
     gap: 6px !important;
+  }
+  .career-stat-box b {
+    font-size: 13px !important;
+  }
+
+  /* 10. MODAL GERAL & AJUSTES DE TOPO */
+  .afm-orientation-guard {
+    display: none !important;
   }
 }
 
@@ -8966,4 +9375,43 @@ body.theme-emerald {
     height: 95vh !important;
   }
 }
+
+/* ==========================================================================
+   AFM 2027 — MODAL DO VISUALIZADOR 3D OFICIAL DE ESTÁDIOS
+   ========================================================================== */
+#afmStadium3DModal .afm-modal-card {
+  box-sizing: border-box;
+}
+
+@media (max-width: 820px) {
+  #afmStadium3DModal .afm-modal-card {
+    width: 98vw !important;
+    max-height: 96vh !important;
+  }
+  #afmStadium3DModal div[style*="grid-template-columns:1fr minmax"] {
+    grid-template-columns: 1fr !important;
+  }
+  #stadium3DCanvasArea {
+    height: 320px !important;
+  }
+}
+
+/* ==========================================================================
+   AFM 2027 — MODAIS DE ESTACIONAMENTO E CONCESSÃO EMPRESARIAL
+   ========================================================================== */
+#parkingConcessionModalContainer .visual-modal-overlay,
+#parkingVisualModalContainer .visual-modal-overlay {
+  z-index: 100000 !important;
+}
+
+.btnOpenParkingConcession:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
+.btnOpenParkingInteractive:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
 

@@ -1,29 +1,27 @@
 
 function generateCustomClubSquad(clubName){
-  if (typeof window.generateCustomClubSquad === 'function') {
-    return window.generateCustomClubSquad(clubName);
+  if (typeof window !== 'undefined' && typeof window.AFM_generateCustomClubSquad === 'function') {
+    return window.AFM_generateCustomClubSquad(clubName);
   }
-  const positionsNeeded = ['GK','GK','RB','RB','CB','CB','CB','CB','LB','LB','DM','DM','CM','CM','AM','AM','RW','LW','ST','ST'];
-  const usedNames = new Set();
-  return positionsNeeded.map((pos, idx) => {
-    let name;
-    do {
-      name = `${NAMES[rnd(0, NAMES.length - 1)]} ${LAST[rnd(0, LAST.length - 1)]}`;
-    } while(usedNames.has(name));
-    usedNames.add(name);
-
-    const age = rnd(19, 31);
-    const ovr = rnd(54, 64);
-    const wage = Math.round(clamp(1500 + (ovr - 54) * 230 + rnd(-100, 150), 1200, 4200));
-    const value = Math.round(clamp(0.04 + (ovr - 54) * 0.02 + (30 - age) * 0.01, 0.03, 0.35) * 100) / 100;
+  const posList = ['GK','GK','RB','RB','CB','CB','CB','CB','LB','LB','DM','DM','CM','CM','AM','AM','RW','LW','ST','ST'];
+  const firsts = ['Gabriel','Lucas','Matheus','Rafael','Bruno','Gustavo','Caio','João','Felipe','Thiago','Rodrigo','Leonardo','Vinicius','Danilo','Eduardo','Arthur','Diego','Pedro','Henrique','Renan'];
+  const lasts = ['Silva','Santos','Oliveira','Souza','Rodrigues','Ferreira','Alves','Pereira','Lima','Gomes','Costa','Ribeiro','Martins','Carvalho','Almeida','Lopes','Soares','Fernandes','Vieira','Barbosa'];
+  const rndInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  const nClub = (typeof norm === 'function' ? norm(clubName) : String(clubName || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
+  return posList.map((pos, idx) => {
+    const name = `${firsts[rndInt(0, firsts.length - 1)]} ${lasts[rndInt(0, lasts.length - 1)]}`;
+    const age = rndInt(19, 31);
+    const ovr = rndInt(54, 64);
+    const wage = Math.round(1500 + (ovr - 54) * 230);
+    const value = Math.round((0.04 + (ovr - 54) * 0.02 + (30 - age) * 0.01) * 100) / 100;
     return {
-      id: `custom_${norm(clubName)}_${idx}_${Date.now()}`,
+      id: `custom_${nClub}_${idx}_${Date.now()}_${idx}`,
       name,
       pos,
       age,
       ovr,
       overall: ovr,
-      pot: clamp(ovr + rnd(3, 14), ovr, 82),
+      pot: ovr + 8,
       wage,
       value,
       contractUntil: 2028,
@@ -1785,6 +1783,10 @@ function openParkingModal(){
   const curLvlObj = PARKING_LEVELS[curLvl] || PARKING_LEVELS[0];
   const nextLvlObj = PARKING_LEVELS[curLvl + 1] || null;
 
+  const conc = state.parkingConcession || null;
+  const bonusSpaces = conc?.bonusInvestedSpaces || 0;
+  const totalSpots = (curLvlObj.spots || 0) + bonusSpaces;
+
   const f = userFixture();
   const opp = f && f[0] === state.club ? f[1] : (f ? f[0] : 'Adversário');
   const proj = attendanceProjection(opp);
@@ -1792,12 +1794,14 @@ function openParkingModal(){
   const price = state.parkingPrice || 14;
 
   const carsSeeking = Math.round(avgAtt * 0.12);
-  const carsParked = Math.min(curLvlObj.spots, carsSeeking);
-  const revenuePerGame = carsParked * price;
+  const carsParked = Math.min(totalSpots, carsSeeking);
+  const grossRevPerGame = carsParked * price;
+  const revenuePerGame = conc ? Math.round(grossRevPerGame * (conc.revenueSharePct / 100)) : grossRevPerGame;
 
-  const nextCarsParked = nextLvlObj ? Math.min(nextLvlObj.spots, carsSeeking) : 0;
-  const nextRevPerGame = nextCarsParked * price;
-  const hasExtraSpots = curLvlObj.spots >= carsSeeking && curLvlObj.spots > 0;
+  const nextCarsParked = nextLvlObj ? Math.min((nextLvlObj.spots + bonusSpaces), carsSeeking) : 0;
+  const nextGrossRevPerGame = nextCarsParked * price;
+  const nextRevPerGame = conc ? Math.round(nextGrossRevPerGame * (conc.revenueSharePct / 100)) : nextGrossRevPerGame;
+  const hasExtraSpots = totalSpots >= carsSeeking && totalSpots > 0;
 
   el.innerHTML = `
     <div class="visual-modal-overlay">
@@ -1809,12 +1813,13 @@ function openParkingModal(){
           <div style="background:#1a1438;border:2px solid #a855f7;box-shadow:0 0 16px rgba(168,85,247,0.4);padding:6px 18px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:1px;color:#fff;margin-bottom:14px;display:flex;align-items:center;gap:8px">
             <span>🚗</span>
             <span>ESTACIONAMENTO</span>
+            ${conc ? `<span class="pill good" style="font-size:10px;margin-left:auto">🤝 Concessão: ${esc(conc.companyName)}</span>` : ''}
           </div>
 
           <!-- Terreno com Borda Roxa Tracejada (Screenshot 6) -->
-          <div style="position:relative;width:95%;max-width:540px;aspect-ratio:1.2;background:${curLvl===0?'#927254':curLvl===1?'#816447':'#1e2530'};border:3px dashed #c084fc;border-radius:18px;box-shadow:0 0 25px rgba(192,132,252,0.35);padding:14px;display:flex;align-items:center;justify-content:center;overflow:hidden">
+          <div style="position:relative;width:95%;max-width:540px;aspect-ratio:1.2;background:${curLvl===0&&!conc?'#927254':curLvl===1&&!conc?'#816447':'#1e2530'};border:3px dashed #c084fc;border-radius:18px;box-shadow:0 0 25px rgba(192,132,252,0.35);padding:14px;display:flex;align-items:center;justify-content:center;overflow:hidden">
             
-            ${curLvl === 0 ? `
+            ${curLvl === 0 && !conc ? `
               <!-- Nível 0: Placa de Madeira no Terreno de Terra Batida (Screenshot 6) -->
               <div style="position:relative;text-align:center">
                 <div style="width:70px;height:42px;background:#ffffff;border:3px solid #1e3a8a;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(0,0,0,0.5)">
@@ -1824,7 +1829,7 @@ function openParkingModal(){
                 <!-- Haste de Madeira da Placa -->
                 <div style="width:8px;height:24px;background:#5c3a21;margin:0 auto;box-shadow:0 2px 4px rgba(0,0,0,0.4)"></div>
               </div>
-            ` : curLvl === 1 ? `
+            ` : curLvl === 1 && !conc ? `
               <!-- Nível 1: Terreno com pedriscos e alguns carros -->
               <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:14px">
                 <div style="font-size:24px">🚗</div>
@@ -1834,7 +1839,7 @@ function openParkingModal(){
                 <div style="font-size:24px;opacity:0.3">🔲</div>
               </div>
             ` : `
-              <!-- Níveis 2+: Asfalto e Múltiplos Carros Coloridos -->
+              <!-- Níveis 2+ ou com Concessão: Asfalto e Múltiplos Carros Coloridos -->
               <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:10px;width:100%;padding:10px">
                 ${[...Array(18)].map((_, i) => `
                   <div style="border:1px dashed rgba(255,255,255,0.25);border-radius:6px;padding:6px;text-align:center">
@@ -1863,7 +1868,7 @@ function openParkingModal(){
           </div>
 
           <!-- Card de Status Atual (Screenshot 6) -->
-          <div style="background:#161226;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px">
+          <div style="background:#161226;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;margin-top:10px">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase">${curLvlObj.name}</span>
               <span style="font-size:11px;color:rgba(255,255,255,0.5)">nível ${curLvl} de 5</span>
@@ -1871,8 +1876,8 @@ function openParkingModal(){
 
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:14px;text-align:center">
               <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
-                <div style="font-size:18px;font-weight:900;color:#fff">${curLvlObj.spots.toLocaleString('pt-BR')}</div>
-                <div style="font-size:9px;color:rgba(255,255,255,0.4)">vagas</div>
+                <div style="font-size:18px;font-weight:900;color:#fff">${totalSpots.toLocaleString('pt-BR')}</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.4)">vagas totais</div>
               </div>
               <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
                 <div style="font-size:18px;font-weight:900;color:#f59e0b">${carsParked.toLocaleString('pt-BR')}</div>
@@ -1880,12 +1885,12 @@ function openParkingModal(){
               </div>
               <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
                 <div style="font-size:18px;font-weight:900;color:#22c55e">${fmtMoney(revenuePerGame)}</div>
-                <div style="font-size:9px;color:rgba(255,255,255,0.4)">por jogo</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.4)">${conc ? `repasse (${conc.revenueSharePct}%)` : 'por jogo'}</div>
               </div>
             </div>
 
             <p style="font-size:11px;color:rgba(255,255,255,0.7);line-height:1.5;margin:12px 0 0 0">
-              Vaga a <b>${fmtMoney(price)} por jogo</b>. Os carros vêm do público: com <b>${avgAtt.toLocaleString('pt-BR')} torcedores em média</b>, uns <b>${carsSeeking.toLocaleString('pt-BR')} procuram vaga</b>. Quem não acha vaga para na rua e o clube não ganha.
+              Vaga a <b>${fmtMoney(price)} por jogo</b>. Com <b>${avgAtt.toLocaleString('pt-BR')} torcedores em média</b>, cerca de <b>${carsSeeking.toLocaleString('pt-BR')} procuram vaga</b>.${conc ? ` Operação em parceria com <b>${esc(conc.companyName)}</b>: repasse contratual de <b>${conc.revenueSharePct}%</b> + <b>${fmtMoney(conc.monthlyFee)}/mês</b> fixos.` : ''}
             </p>
 
             <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between">
@@ -1895,17 +1900,33 @@ function openParkingModal(){
             </div>
           </div>
 
-          <!-- Card de Próxima Obra (Screenshot 6) -->
+          <!-- BLOCO DE CONCESSÃO & PARCERIAS EMPRESARIAIS -->
+          <div style="margin-top:12px;background:${conc ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.03)'};border:1px ${conc ? 'solid #8b5cf6' : 'dashed rgba(139,92,246,0.4)'};border-radius:14px;padding:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:18px">${conc ? conc.logo || '🅿️' : '🤝'}</span>
+                <div>
+                  <div style="font-size:12px;font-weight:900;color:#fff">${conc ? `CONCESSÃO: ${esc(conc.companyName)}` : 'CONCESSÃO & PARCERIAS'}</div>
+                  <div style="font-size:10px;color:rgba(255,255,255,0.5)">${conc ? `${conc.monthsRemaining} de ${conc.durationMonths} meses restantes` : 'Liberar gestão para empresas com luvas e % por jogo'}</div>
+                </div>
+              </div>
+              <button class="btn" id="btnOpenParkingConcessionFromModal" style="background:linear-gradient(135deg, #8b5cf6, #6366f1);color:#fff;border:none;font-size:11px;font-weight:800;padding:6px 12px;border-radius:8px;cursor:pointer">
+                ${conc ? '⚙️ Ver Contrato / Multa' : '🤝 Ver Propostas de Empresas'}
+              </button>
+            </div>
+          </div>
+
+          <!-- Card de Próxima Obra Própria (Screenshot 6) -->
           ${nextLvlObj ? `
-            <div style="background:#161226;border:1px solid #7c3aed;border-radius:14px;padding:16px;margin-top:auto">
+            <div style="background:#161226;border:1px solid #7c3aed;border-radius:14px;padding:16px;margin-top:12px">
               <div style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase">
-                PRÓXIMA OBRA · ${nextLvlObj.name.toUpperCase()}
+                OBRA PRÓPRIA DO CLUBE · ${nextLvlObj.name.toUpperCase()}
               </div>
 
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:14px;text-align:center">
                 <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
-                  <div style="font-size:16px;font-weight:900;color:#22c55e">${nextLvlObj.spots.toLocaleString('pt-BR')}</div>
-                  <div style="font-size:9px;color:rgba(255,255,255,0.4)">vagas</div>
+                  <div style="font-size:16px;font-weight:900;color:#22c55e">${(nextLvlObj.spots + bonusSpaces).toLocaleString('pt-BR')}</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.4)">vagas totais</div>
                 </div>
                 <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
                   <div style="font-size:16px;font-weight:900;color:#fff">${nextLvlObj.days}</div>
@@ -1913,7 +1934,7 @@ function openParkingModal(){
                 </div>
                 <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
                   <div style="font-size:16px;font-weight:900;color:#22c55e">${fmtMoney(nextRevPerGame)}</div>
-                  <div style="font-size:9px;color:rgba(255,255,255,0.4)">por jogo, com o público de hoje</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.4)">por jogo (público hoje)</div>
                 </div>
               </div>
 
@@ -1932,7 +1953,7 @@ function openParkingModal(){
               </button>
             </div>
           ` : `
-            <div style="background:#161226;border:1px solid #22c55e;border-radius:14px;padding:16px;text-align:center;color:#22c55e;font-weight:800;font-size:13px">
+            <div style="background:#161226;border:1px solid #22c55e;border-radius:14px;padding:16px;text-align:center;color:#22c55e;font-weight:800;font-size:13px;margin-top:12px">
               ✓ ESTACIONAMENTO NO NÍVEL MÁXIMO
             </div>
           `}
@@ -1944,6 +1965,14 @@ function openParkingModal(){
 
   // Bindings Estacionamento
   $('#btnCloseParkingModal').onclick = () => { el.remove(); };
+
+  const btnConcShortcut = $('#btnOpenParkingConcessionFromModal');
+  if(btnConcShortcut){
+    btnConcShortcut.onclick = () => {
+      el.remove();
+      openParkingConcessionModal();
+    };
+  }
 
   const rngPrice = $('#rngParkingPriceModal');
   if(rngPrice){
@@ -1975,6 +2004,394 @@ function openParkingModal(){
     };
   }
 }
+
+// =========================================================================
+// SISTEMA DE CONCESSÃO E PARCERIAS DE ESTACIONAMENTO (AFM MANAGER 2027)
+// =========================================================================
+
+function getParkingConcessionMultiplier(club, st){
+  const s = st || state || window.state || {};
+  const c = club || s.club;
+  const clubObj = typeof clubByName === 'function' ? clubByName(c) : null;
+  const str = clubObj ? (typeof strength === 'function' ? strength(clubObj) : 70) : 70;
+  const cap = s.infrastructure?.stadium?.capacity || 18000;
+  
+  let mult = 1.0;
+  if(cap > 55000 || str >= 78) mult = 2.2;
+  else if(cap > 38000 || str >= 73) mult = 1.7;
+  else if(cap > 22000 || str >= 68) mult = 1.3;
+  else if(cap > 12000) mult = 1.0;
+  else mult = 0.8;
+  return mult;
+}
+
+function getParkingConcessionProposals(club, st){
+  const mult = getParkingConcessionMultiplier(club, st);
+  return [
+    {
+      id: 'estapar',
+      name: 'Estapar Operadora de Estacionamentos',
+      logo: '🅿️',
+      highlight: 'Líder de Mercado & Solidez',
+      tagline: 'Líder nacional em mobilidade e cancelas automáticas',
+      upfrontBonus: Math.round(260000 * mult),
+      monthlyFee: Math.round(36000 * mult),
+      revenueSharePct: 30,
+      bonusInvestedSpaces: 500,
+      durationMonths: 24,
+      basePenalty: Math.round(380000 * mult),
+      tagBg: 'rgba(59,130,246,0.18)',
+      tagColor: '#60a5fa',
+      description: 'A maior rede do Brasil assume toda a operação comercial, implanta cancelas automáticas de leitura rápida e segurança 24h.'
+    },
+    {
+      id: 'indigo',
+      name: 'Indigo Park Arenas',
+      logo: '🌐',
+      highlight: 'Maior Aporte & Longo Prazo',
+      tagline: 'Multinacional com know-how em arenas globais',
+      upfrontBonus: Math.round(340000 * mult),
+      monthlyFee: Math.round(48000 * mult),
+      revenueSharePct: 25,
+      bonusInvestedSpaces: 700,
+      durationMonths: 36,
+      basePenalty: Math.round(520000 * mult),
+      tagBg: 'rgba(168,85,247,0.18)',
+      tagColor: '#c084fc',
+      description: 'Maior bônus inicial no caixa e maior acréscimo de vagas no complexo, ideal para clubes com estádios de grande porte.'
+    },
+    {
+      id: 'parebem',
+      name: 'PareBem Gestão de Vagas',
+      logo: '🚗',
+      highlight: 'Maior Repasse por Jogo (45%)',
+      tagline: 'Foco em alta rotação e dias de grandes públicos',
+      upfrontBonus: Math.round(150000 * mult),
+      monthlyFee: Math.round(22000 * mult),
+      revenueSharePct: 45,
+      bonusInvestedSpaces: 350,
+      durationMonths: 12,
+      basePenalty: Math.round(220000 * mult),
+      tagBg: 'rgba(34,197,94,0.18)',
+      tagColor: '#4ade80',
+      description: 'Quase metade de toda a bilheteria de carros volta para o clube em cada jogo com mando de campo. Contrato ágil de 12 meses.'
+    },
+    {
+      id: 'multipark',
+      name: 'MultiPark Mobilidade Inteligente',
+      logo: '⚡',
+      highlight: 'Equilíbrio & Gestão Digital',
+      tagline: 'Aplicativo de reserva antecipada para sócios',
+      upfrontBonus: Math.round(200000 * mult),
+      monthlyFee: Math.round(30000 * mult),
+      revenueSharePct: 35,
+      bonusInvestedSpaces: 450,
+      durationMonths: 18,
+      basePenalty: Math.round(290000 * mult),
+      tagBg: 'rgba(245,158,11,0.18)',
+      tagColor: '#fbbf24',
+      description: 'Integração de reserva de vagas por app para a torcida, reduzindo filas no entorno e garantindo ótima receita mista.'
+    }
+  ];
+}
+
+function openParkingConcessionModal(){
+  let el = $('#parkingConcessionModalContainer');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'parkingConcessionModalContainer';
+    document.body.appendChild(el);
+  }
+
+  const st = (typeof state !== 'undefined' && state) ? state : (window && window.state ? window.state : {});
+  const conc = st.parkingConcession || null;
+  const proposals = getParkingConcessionProposals(st.club, st);
+  const curLvlSpots = parkingSpots(st.infrastructure?.parking?.level || 0);
+
+  let penalty = 0;
+  if(conc){
+    const rem = Math.max(1, conc.monthsRemaining || 1);
+    const dur = Math.max(1, conc.durationMonths || 1);
+    penalty = Math.round((conc.basePenalty || 300000) * (rem / dur));
+  }
+
+  el.innerHTML = `
+    <div class="visual-modal-overlay">
+      <div class="visual-modal-card" style="width:min(96vw,1050px);max-width:1050px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;padding:22px;background:#0d0a1a;border:1px solid rgba(139,92,246,0.4);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.85)">
+        
+        <!-- CABEÇALHO DA MODAL -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:26px">🤝</span>
+              <div>
+                <span style="font-size:10px;font-weight:900;letter-spacing:1.2px;color:#a855f7;text-transform:uppercase">Parcerias Comerciais & Concessões</span>
+                <h2 style="margin:2px 0 0 0;font-size:22px;font-weight:900;color:#fff">CONCESSÃO DE ESTACIONAMENTO</h2>
+              </div>
+            </div>
+            <p style="margin:8px 0 0 0;font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5;max-width:760px">
+              Você pode construir e operar com recursos próprios ou conceder a exploração comercial do estacionamento para empresas operadoras. A concessionária assume a operação, investe em vagas adicionais, paga luvas imediatas ao clube, garante uma renda fixa mensal e repassa uma porcentagem da bilheteria de veículos em cada jogo em casa.
+            </p>
+          </div>
+          <button class="btn" id="btnCloseParkingConcessionModal" style="background:rgba(255,255,255,0.08);border:none;padding:8px 12px;font-size:16px;border-radius:10px;cursor:pointer">✕</button>
+        </div>
+
+        ${conc ? `
+          <!-- CARD DE CONTRATO EM VIGOR -->
+          <div style="background:linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.1));border:2px solid #8b5cf6;border-radius:16px;padding:20px;box-shadow:0 8px 30px rgba(139,92,246,0.25)">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="font-size:34px">${conc.logo || '🅿️'}</span>
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:19px;font-weight:900;color:#fff">${esc(conc.companyName)}</span>
+                    <span class="pill good" style="font-size:11px;font-weight:900">CONTRATO ATIVO</span>
+                  </div>
+                  <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Assinado em ${conc.startDate || st.date || '2026-01-01'} • Temporada ${conc.startSeason || st.season || 2026}</div>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:11px;color:rgba(255,255,255,0.5)">Duração Restante</div>
+                <div style="font-size:18px;font-weight:900;color:var(--neon)">${conc.monthsRemaining} de ${conc.durationMonths} meses</div>
+              </div>
+            </div>
+
+            <!-- Barra de Progresso do Contrato -->
+            <div style="margin-top:14px">
+              <div class="bar" style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden">
+                <div style="height:100%;width:${Math.round(((conc.durationMonths - conc.monthsRemaining) / conc.durationMonths) * 100)}%;background:linear-gradient(90deg, #7c3aed, #22c55e);border-radius:4px"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px">
+                <span>Início</span>
+                <span>${Math.round(((conc.durationMonths - conc.monthsRemaining) / conc.durationMonths) * 100)}% concluído</span>
+                <span>Término</span>
+              </div>
+            </div>
+
+            <!-- Grade de Benefícios Ativos -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;margin-top:16px">
+              <div style="background:#130f24;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">Vagas da Concessionária</div>
+                <div style="font-size:20px;font-weight:900;color:var(--cyan);margin-top:2px">+${(conc.bonusInvestedSpaces || 0).toLocaleString('pt-BR')} vagas</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.4)">Total no estádio: ${(curLvlSpots + conc.bonusInvestedSpaces).toLocaleString('pt-BR')}</div>
+              </div>
+              <div style="background:#130f24;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">Repasse por Jogo em Casa</div>
+                <div style="font-size:20px;font-weight:900;color:#22c55e;margin-top:2px">${conc.revenueSharePct}%</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.4)">da receita bruta por partida</div>
+              </div>
+              <div style="background:#130f24;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">Renda Fixa Mensal</div>
+                <div style="font-size:20px;font-weight:900;color:#f59e0b;margin-top:2px">${fmtMoney(conc.monthlyFee)}</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.4)">creditada todo dia 1º de cada mês</div>
+              </div>
+              <div style="background:#130f24;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase">Total Já Faturado</div>
+                <div style="font-size:20px;font-weight:900;color:var(--neon);margin-top:2px">${fmtMoney(conc.totalEarned || conc.upfrontBonus)}</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.4)">inclui luvas e repasses</div>
+              </div>
+            </div>
+
+            <!-- Cláusula Rescisória e Multa Contratual -->
+            <div style="margin-top:18px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+              <div style="max-width:600px">
+                <div style="font-size:12px;font-weight:900;color:#ef4444;display:flex;align-items:center;gap:6px">
+                  <span>⚖️</span> CLÁUSULA RESCISÓRIA & MULTA CONTRATUAL
+                </div>
+                <p style="margin:4px 0 0 0;font-size:11px;color:rgba(255,255,255,0.7);line-height:1.4">
+                  Caso o clube queira quebrar o contrato antes do término para retomar 100% da gestão própria ou contratar outra concessionária, deverá arcar com a multa rescisória proporcional de <b>${fmtMoney(penalty)}</b> (${conc.monthsRemaining} meses restantes de ${conc.durationMonths}).
+                </p>
+              </div>
+              <button class="btn" id="btnCancelParkingConcession" style="background:#dc2626;color:#fff;border:none;font-weight:900;padding:10px 16px;border-radius:10px;font-size:12px;cursor:pointer;box-shadow:0 4px 15px rgba(220,38,38,0.3)">
+                🚨 Rescindir e Pagar Multa (${fmtMoney(penalty)})
+              </button>
+            </div>
+          </div>
+        ` : `
+          <!-- LISTA DE PROPOSTAS DISPONÍVEIS -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <span style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase">Empresas Interessadas na Concessão (${proposals.length} propostas oficiais)</span>
+              <span class="pill" style="font-size:10px">Selecione uma proposta para assinar</span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:14px">
+              ${proposals.map(p => `
+                <div style="background:#141026;border:1px solid rgba(139,92,246,0.3);border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 4px 20px rgba(0,0,0,0.4);position:relative;overflow:hidden">
+                  
+                  <!-- Tag de Destaque -->
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span class="pill" style="background:${p.tagBg || 'rgba(139,92,246,0.2)'};color:${p.tagColor || '#c084fc'};font-size:10px;font-weight:900">
+                      ${esc(p.highlight)}
+                    </span>
+                    <span style="font-size:11px;color:rgba(255,255,255,0.4)">${p.durationMonths} meses</span>
+                  </div>
+
+                  <!-- Identidade da Empresa -->
+                  <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
+                    <span style="font-size:26px">${p.logo}</span>
+                    <div>
+                      <h3 style="margin:0;font-size:15px;font-weight:900;color:#fff">${esc(p.name)}</h3>
+                      <div style="font-size:10px;color:rgba(255,255,255,0.5)">${esc(p.tagline)}</div>
+                    </div>
+                  </div>
+
+                  <!-- Detalhes Financeiros da Proposta -->
+                  <div style="margin-top:14px;background:#0d0a1a;border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                      <span style="color:rgba(255,255,255,0.6)">💰 Luvas Imediatas (Caixa):</span>
+                      <b style="color:var(--neon);font-size:13px">${fmtMoney(p.upfrontBonus)}</b>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                      <span style="color:rgba(255,255,255,0.6)">📅 Renda Fixa Mensal:</span>
+                      <b style="color:#f59e0b">${fmtMoney(p.monthlyFee)}/mês</b>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                      <span style="color:rgba(255,255,255,0.6)">🎟️ Repasse por Jogo:</span>
+                      <b style="color:#22c55e">${p.revenueSharePct}%</b>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                      <span style="color:rgba(255,255,255,0.6)">🚗 Vagas Investidas:</span>
+                      <b style="color:var(--cyan)">+${p.bonusInvestedSpaces.toLocaleString('pt-BR')} vagas</b>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;border-top:1px dashed rgba(255,255,255,0.08);padding-top:4px">
+                      <span style="color:rgba(255,255,255,0.4)">⚖️ Multa Rescisória Base:</span>
+                      <span style="color:#ef4444">${fmtMoney(p.basePenalty)}</span>
+                    </div>
+                  </div>
+
+                  <p style="font-size:10px;color:rgba(255,255,255,0.5);margin:10px 0;line-height:1.4">
+                    ${esc(p.description)}
+                  </p>
+
+                  <button class="btn primary btnSignParkingConcession" data-company-id="${p.id}" style="width:100%;padding:10px;font-size:12px;font-weight:900;border-radius:10px;background:linear-gradient(135deg, #7c3aed, #4f46e5);border:none;cursor:pointer">
+                    ✍️ Assinar Concessão com ${esc(p.name)}
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `}
+
+        <div style="margin-top:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:rgba(255,255,255,0.6);flex-wrap:wrap;gap:8px">
+          <span>💡 <b>Dica de Gestão:</b> Você ainda pode construir e fazer upgrades próprios de estacionamento mesmo com a concessão ativa. As vagas somam-se!</span>
+          <button class="btn btnOpenParkingInteractive" style="background:rgba(255,255,255,0.08);border:none;color:#fff;font-size:11px;padding:6px 12px;border-radius:6px;cursor:pointer">
+            🚗 Ver Obras Próprias
+          </button>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  // Bindings Concessão
+  const btnClose = $('#btnCloseParkingConcessionModal');
+  if(btnClose) btnClose.onclick = () => { el.remove(); };
+
+  $$('.btnSignParkingConcession').forEach(b => {
+    b.onclick = () => {
+      signParkingConcession(b.dataset.companyId);
+    };
+  });
+
+  const btnCancel = $('#btnCancelParkingConcession');
+  if(btnCancel){
+    btnCancel.onclick = () => {
+      cancelParkingConcession();
+    };
+  }
+
+  $$('.btnOpenParkingInteractive').forEach(b => {
+    b.onclick = () => {
+      el.remove();
+      openParkingModal();
+    };
+  });
+}
+
+function signParkingConcession(proposalId){
+  const st = (typeof state !== 'undefined' && state) ? state : (window && window.state ? window.state : null);
+  if(!st) return;
+  if(typeof state !== 'undefined' && !state) { state = st; }
+  const proposals = getParkingConcessionProposals(st.club, st);
+  const p = proposals.find(item => item.id === proposalId);
+  if(!p){
+    if(typeof toast === 'function') toast('Proposta de concessão não encontrada.');
+    return;
+  }
+
+  const concData = {
+    companyId: p.id,
+    companyName: p.name,
+    logo: p.logo,
+    upfrontBonus: p.upfrontBonus,
+    monthlyFee: p.monthlyFee,
+    revenueSharePct: p.revenueSharePct,
+    bonusInvestedSpaces: p.bonusInvestedSpaces,
+    durationMonths: p.durationMonths,
+    monthsRemaining: p.durationMonths,
+    basePenalty: p.basePenalty,
+    startDate: st.date || '2026-01-01',
+    startSeason: Number(st.season || 2026),
+    totalEarned: p.upfrontBonus
+  };
+
+  st.parkingConcession = concData;
+  if(typeof state !== 'undefined' && state) state.parkingConcession = concData;
+  if(window && window.state) window.state.parkingConcession = concData;
+
+  // Credita luvas imediatas
+  st.balance += p.upfrontBonus;
+  st.income = (st.income || 0) + p.upfrontBonus;
+
+  // Notícia
+  st.news = Array.isArray(st.news) ? st.news : [];
+  st.news.unshift(`🤝 O ${st.club} assinou contrato de concessão do estacionamento com a empresa ${p.name}! Luvas imediatas de ${fmtMoney(p.upfrontBonus)} creditadas no caixa, repasse de ${p.revenueSharePct}% por jogo, renda fixa de ${fmtMoney(p.monthlyFee)}/mês e +${p.bonusInvestedSpaces} vagas instaladas.`);
+  st.news = st.news.slice(0, 50);
+
+  if(typeof toast === 'function') toast(`🎉 Contrato assinado com ${p.name}! ${fmtMoney(p.upfrontBonus)} creditados no caixa!`);
+  if(typeof save === 'function') save();
+  if(typeof openParkingConcessionModal === 'function') openParkingConcessionModal();
+  if(typeof render === 'function') render();
+}
+
+function cancelParkingConcession(){
+  const st = (typeof state !== 'undefined' && state) ? state : (window && window.state ? window.state : null);
+  if(!st || !st.parkingConcession) return;
+  if(typeof state !== 'undefined' && !state) { state = st; }
+  const conc = st.parkingConcession;
+  const rem = Math.max(1, conc.monthsRemaining || 1);
+  const dur = Math.max(1, conc.durationMonths || 1);
+  const penalty = Math.round((conc.basePenalty || 300000) * (rem / dur));
+
+  if(st.balance < penalty){
+    if(typeof toast === 'function') toast(`Saldo insuficiente! O clube precisa de ${fmtMoney(penalty)} para quitar a multa rescisória.`);
+    return;
+  }
+
+  st.balance -= penalty;
+  st.expense = (st.expense || 0) + penalty;
+
+  st.news = Array.isArray(st.news) ? st.news : [];
+  st.news.unshift(`🚨 Contrato de concessão do estacionamento com ${conc.companyName} rescindido antecipadamente. O clube pagou ${fmtMoney(penalty)} de multa rescisória e reassumiu integralmente a gestão das vagas.`);
+  st.news = st.news.slice(0, 50);
+
+  st.parkingConcession = null;
+  if(typeof state !== 'undefined' && state) state.parkingConcession = null;
+  if(window && window.state) window.state.parkingConcession = null;
+
+  if(typeof toast === 'function') toast(`⚠️ Concessão rescindida. Multa de ${fmtMoney(penalty)} debitada do caixa. A gestão voltou ao clube.`);
+  if(typeof save === 'function') save();
+  if(typeof openParkingConcessionModal === 'function') openParkingConcessionModal();
+  if(typeof render === 'function') render();
+}
+
+window.getParkingConcessionMultiplier = getParkingConcessionMultiplier;
+window.getParkingConcessionProposals = getParkingConcessionProposals;
+window.openParkingConcessionModal = openParkingConcessionModal;
+window.signParkingConcession = signParkingConcession;
+window.cancelParkingConcession = cancelParkingConcession;
+window.openParkingModal = openParkingModal;
 
 // =========================================================================
 // SISTEMA DE MANUTENÇÃO DO ESTÁDIO, CONVITES DE SHOWS E GRAMADO
@@ -2037,12 +2454,29 @@ function installPitchType(type){
   openStadiumModal('maintenance');
 }
 
-function clubStadiumName(){
-  if(state && state.namingRights && state.namingRights.stadiumName){
-    return state.namingRights.stadiumName;
+function clubStadiumName(targetClub){
+  const st = (typeof state !== 'undefined' && state) ? state : (window && window.state ? window.state : null);
+  const cName = targetClub || st?.club;
+  if(st && (!targetClub || (typeof norm === 'function' && norm(targetClub) === norm(st.club)))){
+    if(st.namingRights && st.namingRights.stadiumName){
+      return st.namingRights.stadiumName;
+    }
+    const isRealBrasilia = typeof norm === 'function' && norm(cName) === norm('Real Brasília');
+    if(st.stadiumName && (isRealBrasilia || !String(st.stadiumName).includes('Defelê'))){
+      return st.stadiumName;
+    }
+    if(st.stadium?.name && (isRealBrasilia || !String(st.stadium.name).includes('Defelê'))){
+      return st.stadium.name;
+    }
+    if(st.infrastructure?.stadium?.name && (isRealBrasilia || !String(st.infrastructure.stadium.name).includes('Defelê'))){
+      return st.infrastructure.stadium.name;
+    }
   }
-  const clubObj = clubByName(state?.club);
-  return clubObj?.stadium || 'Ciro Machado do Espírito Santo (Defelê)';
+  const clubObj = typeof clubByName === 'function' ? clubByName(cName) : null;
+  if(clubObj && clubObj.stadium) {
+    return clubObj.stadium;
+  }
+  return cName ? `Estádio do ${cName}` : 'Estádio Municipal';
 }
 
 function getCaldeiraoData(){
@@ -2091,10 +2525,54 @@ let stadiumPreviewUpgrade = null;
 let selectedArenaName = 'Arena Real Brasília';
 let selectedArenaCapacity = 15000;
 let selectedArenaFinancing = 'cash';
+let stadiumVisualMode = (typeof window !== 'undefined' && window.stadiumVisualMode) ? window.stadiumVisualMode : 'plano'; // 'plano' | '3d'
+
+const STADIUM_UPGRADE_LABELS = {
+  chairs: 'Cadeiras Novas',
+  mosaic: 'Mosaico com o Escudo',
+  ledRing: 'Anel de LED do Clube',
+  flares: 'Fogos e Sinalizadores',
+  screen: 'Telão do Clube',
+  ledLights: 'Refletores de LED',
+  vipBoxes: 'Camarotes VIP Corporativos',
+  surroundSound: 'Sistema de Som Acústico Caldeirão',
+  museumTour: 'Tour da Arena & Museu Imersivo',
+  solarPitch: 'Climatização de Gramado & Energia Solar'
+};
+
+const STADIUM_UPGRADE_CALD = {
+  chairs: 1,
+  mosaic: 2,
+  ledRing: 1,
+  flares: 3,
+  screen: 1,
+  ledLights: 1,
+  vipBoxes: 2,
+  surroundSound: 3,
+  museumTour: 2,
+  solarPitch: 3
+};
 
 function openStadiumModal(initialTab){
+  if (!state && typeof window !== 'undefined' && window.state) {
+    state = window.state;
+  }
+  if (!state) {
+    if (typeof toast === 'function') toast('Inicie ou carregue uma carreira para gerenciar as obras do estádio.');
+    return;
+  }
   if(initialTab) stadiumModalTab = initialTab;
   selectedArenaCapacity = getSelectedArenaCapacity();
+  if (typeof window !== 'undefined' && window.stadiumVisualMode) {
+    stadiumVisualMode = window.stadiumVisualMode;
+  }
+  if (typeof window !== 'undefined' && typeof window.stadiumPreviewUpgrade !== 'undefined') {
+    stadiumPreviewUpgrade = window.stadiumPreviewUpgrade;
+  }
+
+  // Fecha visualizador 3D se aberto para não sobrepor
+  const m3d = document.getElementById('afmStadium3DModal');
+  if (m3d) { m3d.style.display = 'none'; }
 
   let el = $('#stadiumVisualModalContainer');
   const prevPanelScroll = el?.querySelector('.visual-panel-right')?.scrollTop || 0;
@@ -2103,140 +2581,264 @@ function openStadiumModal(initialTab){
     el.id = 'stadiumVisualModalContainer';
     document.body.appendChild(el);
   }
+  el.style.display = 'block';
 
   const sName = clubStadiumName();
-  const stadLevel = Number(state.infrastructure?.stadium?.level) || 1;
+  const stadLevel = Number(state?.infrastructure?.stadium?.level) || 1;
   const namingMult = 1 + (stadLevel - 1) * 0.45;
-  const cap = state.infrastructure?.stadium?.capacity || 3000;
+  const cap = state?.infrastructure?.stadium?.capacity || 3000;
   const cald = getCaldeiraoData();
   const stData = getStadiumExpansionData();
   if(!stadiumSelectedSide) stadiumSelectedSide = 'norte';
   const u = {
-    ...state.stadiumUpgrades,
+    ...(state?.stadiumUpgrades || {}),
     ...(stadiumPreviewUpgrade ? { [stadiumPreviewUpgrade]: true } : {})
   };
   const isExp = stadiumModalTab === 'expansion';
   const isArena = stadiumModalTab === 'arena';
 
+  // Resolução da maquete 3D dinâmica para o modo 3D
+  const userClub = state?.club || 'Clube';
+  let model3D = null;
+  if (typeof window.AFMStadium3D !== 'undefined' && typeof window.AFMStadium3D.resolveStadiumModel === 'function') {
+    if (isArena) {
+      const pseudoState = {
+        infrastructure: { stadium: { capacity: selectedArenaCapacity, level: selectedArenaCapacity >= 80000 ? 6 : selectedArenaCapacity >= 50000 ? 5 : selectedArenaCapacity >= 30000 ? 3 : 2 } },
+        stadiumCapacity: selectedArenaCapacity
+      };
+      model3D = window.AFMStadium3D.resolveStadiumModel(userClub, pseudoState);
+    } else {
+      model3D = window.AFMStadium3D.resolveStadiumModel(userClub, state);
+    }
+  }
+  if (!model3D && typeof window.STADIUM_3D_CATALOG !== 'undefined') {
+    model3D = window.STADIUM_3D_CATALOG['arena_classica'];
+  }
+
   el.innerHTML = `
     <div class="visual-modal-overlay">
       <div class="visual-modal-card" style="width:min(98vw,1550px);max-width:1550px;max-height:97vh;overflow:hidden;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;padding:18px">
         
-        <!-- ================= LADO ESQUERDO: CAMPO E ARQUIBANCADA PIXEL-ART ================= -->
+        <!-- ================= LADO ESQUERDO: VISUALIZADOR (3D OU PLANO) ================= -->
         <div class="visual-canvas-left">
           
-          <!-- Placa Suspensa do Estádio -->
-          <div style="background:#1a1438;border:2px solid #a855f7;box-shadow:0 0 16px rgba(168,85,247,0.4);padding:6px 18px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:1px;color:#fff;margin-bottom:14px;display:flex;align-items:center;gap:8px">
-            <span>🏠</span>
-            <span>${esc(isArena ? selectedArenaName : sName).toUpperCase()}</span>
-          </div>
-
-          <!-- Moldura do Estádio com Borda Roxa Iluminada -->
-          <div style="position:relative;width:95%;max-width:560px;aspect-ratio:1.2;background:${isArena ? '#0b0817' : '#181622'};border:3px solid ${isArena ? '#ec4899' : '#9333ea'};border-radius:18px;box-shadow:0 0 25px ${isArena ? 'rgba(236,72,153,0.45)' : 'rgba(147,51,234,0.35)'};padding:14px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden">
+          <!-- Topo: Placa Suspensa & Seletor de Modo 3D / Plano (Conforme desenho do usuário) -->
+          <div style="display:flex;align-items:center;justify-content:space-between;width:95%;max-width:560px;margin-bottom:12px;gap:8px;flex-wrap:wrap">
             
-            ${stadiumPreviewUpgrade ? `
-              <div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:10" class="stadium-preview-banner">
-                👀 PRÉVIA AO VIVO: ${stadiumPreviewUpgrade.toUpperCase()}
-              </div>
-            ` : ''}
-
-            ${isArena ? `
-              <div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:10;background:linear-gradient(90deg,#7c3aed,#ec4899);color:#fff;font-size:10px;font-weight:900;padding:3px 12px;border-radius:999px;box-shadow:0 0 12px rgba(236,72,153,0.7)">
-                🏟️ PROJETO ARENA: ${selectedArenaCapacity.toLocaleString('pt-BR')} LUGARES
-              </div>
-            ` : ''}
-
-            <!-- Arquibancada Norte (Superior) -->
-            <div class="${isExp && stadiumSelectedSide==='norte' ? 'stand-construction-active' : ''}" style="height:48px;background:${stData.sides['norte']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='norte'?'#f59e0b':'rgba(255,255,255,0.08)'}">
-              ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
-              ${isExp && stadiumSelectedSide==='norte' ? (
-                stData.sides['norte'] ?
-                  `<div style="z-index:3;background:#22c55e;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #22c55e">✓ NORTE CONCLUÍDO (+3.500)</div>` :
-                  `<div style="z-index:3;background:#f59e0b;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #f59e0b">🏗️ OBRA NORTE (+3.500 LUGARES)</div>`
-              ) : u.screen ? `
-                <div style="z-index:2;background:#000;border:1px solid #22c55e;color:#22c55e;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px">TELÃO • 0 X 0</div>
-              ` : `
-                <span style="font-size:10px;font-weight:800;color:${stData.sides['norte']?'#4ade80':'rgba(255,255,255,0.3)'}">SETOR NORTE ${stData.sides['norte']?'✓':''}</span>
-              `}
-              ${u.flares ? '<div class="animated-flare" style="position:absolute;left:15%;top:2px;font-size:18px">🔥</div><div class="animated-flare" style="position:absolute;right:15%;top:2px;font-size:18px">🔥</div>' : ''}
+            <!-- Placa Suspensa do Estádio -->
+            <div style="background:#1a1438;border:2px solid #a855f7;box-shadow:0 0 16px rgba(168,85,247,0.4);padding:6px 16px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:1px;color:#fff;display:flex;align-items:center;gap:6px">
+              <span>🏠</span>
+              <span>${esc(isArena ? selectedArenaName : sName).toUpperCase()}</span>
             </div>
 
-            <!-- Centro: Arquibancada Oeste + Gramado + Arquibancada Leste -->
-            <div style="display:grid;grid-template-columns:48px 1fr 48px;gap:8px;flex:1;margin:8px 0;align-items:stretch">
-              
-              <!-- Arquibancada Oeste -->
-              <div class="${isExp && stadiumSelectedSide==='oeste' ? 'stand-construction-active' : ''}" style="background:${stData.sides['oeste']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='oeste'?'#f59e0b':(stData.sides['oeste']?'#22c55e':'rgba(255,255,255,0.08)')}">
-                ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
-                ${isExp && stadiumSelectedSide==='oeste' ? (stData.sides['oeste'] ? '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#4ade80">✓ CONCLUÍDO</span>' : '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#f59e0b">🏗️ OBRA (+1.750)</span>') : `
-                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:800;color:${stData.sides['oeste']?'#4ade80':'rgba(255,255,255,0.3)'}">${stData.sides['oeste']?'OESTE ✓':'OESTE'}</span>
-                `}
-                ${u.flares ? '<div class="animated-flare" style="position:absolute;top:20%;font-size:16px">🔥</div>' : ''}
-              </div>
-
-              <!-- O Gramado com Listras e Jogadores -->
-              <div class="${u.ledRing?'led-ring-active':''} ${u.ledLights?'led-lights-active':''}" style="background:repeating-linear-gradient(90deg, #15803d, #15803d 28px, #166534 28px, #166534 56px);border-radius:6px;border:2px solid ${isArena?'#f472b6':'#fff'};position:relative;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 10px rgba(0,0,0,0.5)">
-                
-                <!-- Linhas do Campo (Linha Central, Círculo Central, Áreas) -->
-                <div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:#fff;transform:translateX(-50%)"></div>
-                <div style="position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.1)">
-                  ${clubBadge(state.club, 32)}
-                </div>
-
-                <!-- Pequenas Áreas / Traves -->
-                <div style="position:absolute;left:0;top:25%;bottom:25%;width:22px;border:2px solid #fff;border-left:none"></div>
-                <div style="position:absolute;right:0;top:25%;bottom:25%;width:22px;border:2px solid #fff;border-right:none"></div>
-
-                <!-- Jogadores em Aquecimento -->
-                <div style="position:absolute;left:18%;display:flex;flex-direction:column;gap:10px">
-                  <div style="width:10px;height:10px;background:#1e40af;border:1px solid #60a5fa;border-radius:50%"></div>
-                  <div style="width:10px;height:10px;background:#1e40af;border:1px solid #60a5fa;border-radius:50%"></div>
-                  <div style="width:10px;height:10px;background:#1e40af;border:1px solid #60a5fa;border-radius:50%"></div>
-                </div>
-
-                <div style="position:absolute;right:18%;display:flex;flex-direction:column;gap:10px">
-                  <div style="width:10px;height:10px;background:#b91c1c;border:1px solid #f87171;border-radius:50%"></div>
-                  <div style="width:10px;height:10px;background:#b91c1c;border:1px solid #f87171;border-radius:50%"></div>
-                  <div style="width:10px;height:10px;background:#b91c1c;border:1px solid #f87171;border-radius:50%"></div>
-                </div>
-
-                <!-- Refletores de LED (Luzes nos 4 cantos) -->
-                ${u.ledLights ? `
-                  <div style="position:absolute;top:4px;left:4px;width:10px;height:10px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
-                  <div style="position:absolute;top:4px;right:4px;width:10px;height:10px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
-                  <div style="position:absolute;bottom:4px;left:4px;width:10px;height:10px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
-                  <div style="position:absolute;bottom:4px;right:4px;width:10px;height:10px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
-                ` : ''}
-              </div>
-
-              <!-- Arquibancada Leste -->
-              <div class="${isExp && stadiumSelectedSide==='leste' ? 'stand-construction-active' : ''}" style="background:${stData.sides['leste']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='leste'?'#f59e0b':(stData.sides['leste']?'#22c55e':'rgba(255,255,255,0.08)')}">
-                ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
-                ${isExp && stadiumSelectedSide==='leste' ? (stData.sides['leste'] ? '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#4ade80">✓ CONCLUÍDO</span>' : '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#f59e0b">🏗️ OBRA (+1.750)</span>') : `
-                  <span style="writing-mode:vertical-rl;font-size:9px;font-weight:800;color:${stData.sides['leste']?'#4ade80':'rgba(255,255,255,0.3)'}">${stData.sides['leste']?'LESTE ✓':'LESTE'}</span>
-                `}
-                ${u.flares ? '<div class="animated-flare" style="position:absolute;bottom:20%;font-size:16px">🔥</div>' : ''}
-              </div>
+            <!-- Switcher: 3D ou Plano (Alternância Dinâmica em Tempo Real) -->
+            <div class="stadium-mode-switcher" style="display:inline-flex;background:#0b0f19;border:1px solid rgba(255,255,255,0.18);border-radius:999px;padding:3px;gap:3px;box-shadow:0 0 14px rgba(0,0,0,0.5)">
+              <button type="button" id="btnStadiumMode3D" class="btn btn-sm" style="border:none;border-radius:999px;padding:5px 14px;font-size:11px;font-weight:900;display:flex;align-items:center;gap:6px;cursor:pointer;transition:all 0.2s;${stadiumVisualMode==='3d' ? 'background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;box-shadow:0 0 12px rgba(56,189,248,0.5)' : 'background:transparent;color:#94a3b8'}">
+                <span>🏟️</span>
+                <span>Visão 3D</span>
+              </button>
+              <button type="button" id="btnStadiumModePlano" class="btn btn-sm" style="border:none;border-radius:999px;padding:5px 14px;font-size:11px;font-weight:900;display:flex;align-items:center;gap:6px;cursor:pointer;transition:all 0.2s;${stadiumVisualMode==='plano' ? 'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;box-shadow:0 0 12px rgba(168,85,247,0.5)' : 'background:transparent;color:#94a3b8'}">
+                <span>📐</span>
+                <span>Visão Plano</span>
+              </button>
             </div>
-
-            <!-- Arquibancada Sul (Inferior com Mosaico) -->
-            <div class="${isExp && stadiumSelectedSide==='sul' ? 'stand-construction-active' : ''}" style="height:48px;background:${stData.sides['sul']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='sul'?'#f59e0b':'rgba(255,255,255,0.08)'}">
-              ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
-              ${isExp && stadiumSelectedSide==='sul' ? (
-                stData.sides['sul'] ?
-                  `<div style="z-index:3;background:#22c55e;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #22c55e">✓ SUL CONCLUÍDO (+3.500)</div>` :
-                  `<div style="z-index:3;background:#f59e0b;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #f59e0b">🏗️ OBRA SUL (+3.500 LUGARES)</div>`
-              ) : u.mosaic ? `
-                <div style="z-index:2;background:#7c3aed;color:#fff;font-size:10px;font-weight:900;padding:2px 10px;border-radius:4px;letter-spacing:1px;box-shadow:0 0 10px rgba(124,58,237,0.5)">MOSAICO OFICIAL ★</div>
-              ` : `
-                <span style="font-size:10px;font-weight:800;color:${stData.sides['sul']?'#4ade80':'rgba(255,255,255,0.3)'}">SETOR SUL ${stData.sides['sul']?'✓':''}</span>
-              `}
-              ${u.flares ? '<div class="animated-flare" style="position:absolute;left:25%;bottom:2px;font-size:18px">🔥</div><div class="animated-flare" style="position:absolute;right:25%;bottom:2px;font-size:18px">🔥</div>' : ''}
-            </div>
-
           </div>
 
-          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:12px;text-align:center">
-            ${stadiumPreviewUpgrade ? '👀 Visualizando demonstração em tempo real da melhoria' : isExp ? '🏗️ Prévia em tempo real da ampliação do anel do estádio' : isArena ? '✨ Maquete conceitual da Nova Arena do clube' : 'Visualização isométrica em tempo real com melhorias estruturais do seu clube'}
+          ${stadiumVisualMode === '3d' ? `
+            <!-- ================= VIEWPORT 3D DO ESTÁDIO COM UPGRADES EM TEMPO REAL ================= -->
+            <div style="position:relative;width:95%;max-width:560px;aspect-ratio:1.2;background:#060b13;border:3px solid ${isArena ? '#ec4899' : '#0284c7'};border-radius:18px;box-shadow:0 0 25px ${isArena ? 'rgba(236,72,153,0.45)' : 'rgba(2,132,199,0.35)'};overflow:hidden;display:flex;flex-direction:column">
+              
+              <!-- model-viewer 3D Oficial -->
+              <model-viewer
+                id="afmStadiumVisualModelViewer"
+                src="${model3D ? model3D.file : 'assets/stadiums/arena_classica.glb'}"
+                alt="${model3D ? model3D.name : 'Estádio 3D'}"
+                auto-rotate
+                camera-controls
+                shadow-intensity="1.5"
+                shadow-softness="0.8"
+                exposure="${u.ledLights ? '1.3' : '1.0'}"
+                rotation-per-second="14deg"
+                camera-orbit="${model3D?.defaultOrbit || '45deg 55deg 105%'}"
+                style="width:100%;height:100%;background:#090d16">
+                
+                <div slot="poster" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#090d16;gap:8px">
+                  <img src="${model3D ? model3D.preview : 'assets/stadiums/PREVIA_ESTADIOS.png'}" alt="Estádio 3D" style="max-width:70%;max-height:180px;border-radius:8px">
+                  <div style="color:#94a3b8;font-size:11px">🏟️ Carregando maquete 3D...</div>
+                </div>
+              </model-viewer>
+
+              <!-- Banner de Prévia em Tempo Real no 3D -->
+              ${stadiumPreviewUpgrade ? `
+                <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:10;box-shadow:0 0 20px rgba(192,132,252,0.8)" class="stadium-preview-banner">
+                  👀 PRÉVIA AO VIVO 3D: ${(STADIUM_UPGRADE_LABELS[stadiumPreviewUpgrade] || stadiumPreviewUpgrade).toUpperCase()} • CALDEIRÃO +${STADIUM_UPGRADE_CALD[stadiumPreviewUpgrade] || 1}%
+                </div>
+              ` : ''}
+
+              ${isArena ? `
+                <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:10;background:linear-gradient(90deg,#7c3aed,#ec4899);color:#fff;font-size:10px;font-weight:900;padding:3px 12px;border-radius:999px;box-shadow:0 0 12px rgba(236,72,153,0.7)">
+                  🏟️ MAQUETE ARENA: ${selectedArenaCapacity.toLocaleString('pt-BR')} LUGARES
+                </div>
+              ` : ''}
+
+              <!-- Badges de Upgrades Ativos no 3D (Lado Esquerdo) -->
+              <div style="position:absolute;top:10px;left:10px;z-index:5;display:flex;flex-direction:column;gap:4px;pointer-events:none">
+                ${u.screen ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #22c55e;color:#22c55e;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px;box-shadow:0 0 8px rgba(34,197,94,0.4)">📺 TELÃO DIGITAL</span>' : ''}
+                ${u.ledRing ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #a855f7;color:#c084fc;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px" class="led-ring-active">✨ ANEL DE LED 360°</span>' : ''}
+                ${u.vipBoxes ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #facc15;color:#facc15;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px" class="vip-box-glow">🥂 CAMAROTES VIP</span>' : ''}
+                ${u.surroundSound ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #38bdf8;color:#38bdf8;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px" class="soundwave-pulse">🔊 SOM CALDEIRÃO</span>' : ''}
+              </div>
+
+              <!-- Badges de Upgrades Ativos no 3D (Lado Direito) -->
+              <div style="position:absolute;top:10px;right:10px;z-index:5;display:flex;flex-direction:column;gap:4px;align-items:flex-end;pointer-events:none">
+                ${u.ledLights ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #fef08a;color:#fef08a;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px">💡 REFLETORES LED</span>' : ''}
+                ${u.mosaic ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #38bdf8;color:#38bdf8;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px">★ MOSAICO OFICIAL</span>' : ''}
+                ${u.flares ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #f97316;color:#f97316;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px">🔥 FOGOS E SINALIZADORES</span>' : ''}
+                ${u.solarPitch ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #4ade80;color:#4ade80;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px" class="solar-panel-glow">☀️ ECO SOLAR</span>' : ''}
+                ${u.museumTour ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #06b6d4;color:#06b6d4;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px">🏛️ TOUR & MUSEU</span>' : ''}
+              </div>
+
+              <!-- Efeitos Visuais Dinâmicos sobre a Maquete 3D -->
+              ${u.flares ? `
+                <div style="position:absolute;bottom:42px;left:18%;z-index:4;pointer-events:none;font-size:24px" class="animated-flare">🔥</div>
+                <div style="position:absolute;bottom:42px;right:18%;z-index:4;pointer-events:none;font-size:24px" class="animated-flare">🔥</div>
+              ` : ''}
+
+              ${u.ledLights ? `
+                <div style="position:absolute;top:0;left:0;width:50px;height:50px;background:radial-gradient(circle,rgba(254,240,138,0.7) 0%,transparent 70%);pointer-events:none;z-index:4"></div>
+                <div style="position:absolute;top:0;right:0;width:50px;height:50px;background:radial-gradient(circle,rgba(254,240,138,0.7) 0%,transparent 70%);pointer-events:none;z-index:4"></div>
+                <div style="position:absolute;bottom:35px;left:0;width:50px;height:50px;background:radial-gradient(circle,rgba(254,240,138,0.7) 0%,transparent 70%);pointer-events:none;z-index:4"></div>
+                <div style="position:absolute;bottom:35px;right:0;width:50px;height:50px;background:radial-gradient(circle,rgba(254,240,138,0.7) 0%,transparent 70%);pointer-events:none;z-index:4"></div>
+              ` : ''}
+
+              <!-- Presets de Câmera 3D -->
+              <div style="position:absolute;bottom:8px;left:8px;right:8px;z-index:6;display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
+                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="45deg 55deg 105%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🛰️ Panorâmica</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="0deg 75deg 90%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">📺 TV</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="90deg 82deg 70%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🥁 Arquibancada</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="-45deg 85deg 45%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">💺 Campo</button>
+              </div>
+            </div>
+          ` : `
+            <!-- ================= MOLDURA DO ESTÁDIO PLANO (2D / ISOMÉTRICO) ================= -->
+            <div style="position:relative;width:95%;max-width:560px;aspect-ratio:1.2;background:${isArena ? '#0b0817' : '#181622'};border:3px solid ${isArena ? '#ec4899' : '#9333ea'};border-radius:18px;box-shadow:0 0 25px ${isArena ? 'rgba(236,72,153,0.45)' : 'rgba(147,51,234,0.35)'};padding:14px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden">
+              
+              ${stadiumPreviewUpgrade ? `
+                <div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:10;box-shadow:0 0 16px rgba(192,132,252,0.8)" class="stadium-preview-banner">
+                  👀 PRÉVIA AO VIVO: ${(STADIUM_UPGRADE_LABELS[stadiumPreviewUpgrade] || stadiumPreviewUpgrade).toUpperCase()} • CALDEIRÃO +${STADIUM_UPGRADE_CALD[stadiumPreviewUpgrade] || 1}%
+                </div>
+              ` : ''}
+
+              ${isArena ? `
+                <div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:10;background:linear-gradient(90deg,#7c3aed,#ec4899);color:#fff;font-size:10px;font-weight:900;padding:3px 12px;border-radius:999px;box-shadow:0 0 12px rgba(236,72,153,0.7)">
+                  🏟️ PROJETO ARENA: ${selectedArenaCapacity.toLocaleString('pt-BR')} LUGARES
+                </div>
+              ` : ''}
+
+              <!-- Arquibancada Norte (Superior) -->
+              <div class="${isExp && stadiumSelectedSide==='norte' ? 'stand-construction-active' : ''}" style="height:48px;background:${stData.sides['norte']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='norte'?'#f59e0b':'rgba(255,255,255,0.08)'}">
+                ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
+                ${isExp && stadiumSelectedSide==='norte' ? (
+                  stData.sides['norte'] ?
+                    `<div style="z-index:3;background:#22c55e;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #22c55e">✓ NORTE CONCLUÍDO (+3.500)</div>` :
+                    `<div style="z-index:3;background:#f59e0b;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #f59e0b">🏗️ OBRA NORTE (+3.500 LUGARES)</div>`
+                ) : u.screen ? `
+                  <div style="z-index:2;background:#000;border:1px solid #22c55e;color:#22c55e;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 8px rgba(34,197,94,0.4)">📺 TELÃO • ${esc(state.club).toUpperCase()} 1 X 0 ADV</div>
+                ` : `
+                  <span style="font-size:10px;font-weight:800;color:${stData.sides['norte']?'#4ade80':'rgba(255,255,255,0.3)'}">SETOR NORTE ${stData.sides['norte']?'✓':''}</span>
+                `}
+                ${u.solarPitch ? '<div class="solar-panel-glow" style="position:absolute;top:3px;right:6px;background:rgba(34,197,94,0.25);border:1px solid #4ade80;color:#4ade80;font-size:7px;font-weight:900;padding:1px 4px;border-radius:3px">☀️ ECO SOLAR</div>' : ''}
+                ${u.surroundSound ? '<div class="soundwave-pulse" style="position:absolute;left:8px;top:4px;font-size:10px;color:#38bdf8">🔊</div>' : ''}
+                ${u.flares ? '<div class="animated-flare" style="position:absolute;left:15%;top:2px;font-size:18px">🔥</div><div class="animated-flare" style="position:absolute;right:15%;top:2px;font-size:18px">🔥</div>' : ''}
+              </div>
+
+              <!-- Centro: Arquibancada Oeste + Gramado + Arquibancada Leste -->
+              <div style="display:grid;grid-template-columns:48px 1fr 48px;gap:8px;flex:1;margin:8px 0;align-items:stretch">
+                
+                <!-- Arquibancada Oeste -->
+                <div class="${isExp && stadiumSelectedSide==='oeste' ? 'stand-construction-active' : ''}" style="background:${stData.sides['oeste']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='oeste'?'#f59e0b':(stData.sides['oeste']?'#22c55e':'rgba(255,255,255,0.08)')}">
+                  ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
+                  ${u.vipBoxes ? '<div class="vip-box-glow" style="position:absolute;top:6px;background:rgba(250,204,21,0.2);border:1px solid #facc15;color:#facc15;font-size:7px;font-weight:900;padding:1px 3px;border-radius:3px">🥂 VIP</div>' : ''}
+                  ${u.museumTour ? '<div style="position:absolute;bottom:4px;background:rgba(6,182,212,0.2);border:1px solid #06b6d4;color:#06b6d4;font-size:7px;font-weight:900;padding:1px 3px;border-radius:3px">🏛️ MUSEU</div>' : ''}
+                  ${isExp && stadiumSelectedSide==='oeste' ? (stData.sides['oeste'] ? '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#4ade80">✓ CONCLUÍDO</span>' : '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#f59e0b">🏗️ OBRA (+1.750)</span>') : `
+                    <span style="writing-mode:vertical-rl;font-size:9px;font-weight:800;color:${stData.sides['oeste']?'#4ade80':'rgba(255,255,255,0.3)'}">${stData.sides['oeste']?'OESTE ✓':'OESTE'}</span>
+                  `}
+                  ${u.flares ? '<div class="animated-flare" style="position:absolute;top:20%;font-size:16px">🔥</div>' : ''}
+                </div>
+
+                <!-- O Gramado com Listras, Jogadores e Efeitos de Upgrades -->
+                <div class="${u.ledRing?'led-ring-active':''} ${u.ledLights?'led-lights-active':''}" style="background:repeating-linear-gradient(90deg, #15803d, #15803d 28px, #166534 28px, #166534 56px);border-radius:6px;border:2px solid ${isArena?'#f472b6':'#fff'};position:relative;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 10px rgba(0,0,0,0.5)">
+                  
+                  <!-- Linhas do Campo (Linha Central, Círculo Central, Áreas) -->
+                  <div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:#fff;transform:translateX(-50%)"></div>
+                  <div style="position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.1)">
+                    ${clubBadge(state.club, 32)}
+                  </div>
+
+                  <!-- Pequenas Áreas / Traves -->
+                  <div style="position:absolute;left:0;top:25%;bottom:25%;width:22px;border:2px solid #fff;border-left:none"></div>
+                  <div style="position:absolute;right:0;top:25%;bottom:25%;width:22px;border:2px solid #fff;border-right:none"></div>
+
+                  <!-- Jogadores em Aquecimento -->
+                  <div style="position:absolute;left:18%;display:flex;flex-direction:column;gap:10px">
+                    <div style="width:10px;height:10px;background:#1e40af;border:1px solid #60a5fa;border-radius:50%"></div>
+                    <div style="width:10px;height:10px;background:#1e40af;border:1px solid #60a5fa;border-radius:50%"></div>
+                    <div style="width:10px;height:10px;background:#1e40af;border:1px solid #60a5fa;border-radius:50%"></div>
+                  </div>
+
+                  <div style="position:absolute;right:18%;display:flex;flex-direction:column;gap:10px">
+                    <div style="width:10px;height:10px;background:#b91c1c;border:1px solid #f87171;border-radius:50%"></div>
+                    <div style="width:10px;height:10px;background:#b91c1c;border:1px solid #f87171;border-radius:50%"></div>
+                    <div style="width:10px;height:10px;background:#b91c1c;border:1px solid #f87171;border-radius:50%"></div>
+                  </div>
+
+                  <!-- Refletores de LED (Luzes nos 4 cantos) -->
+                  ${u.ledLights ? `
+                    <div style="position:absolute;top:4px;left:4px;width:12px;height:12px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
+                    <div style="position:absolute;top:4px;right:4px;width:12px;height:12px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
+                    <div style="position:absolute;bottom:4px;left:4px;width:12px;height:12px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
+                    <div style="position:absolute;bottom:4px;right:4px;width:12px;height:12px;background:#fef08a;box-shadow:0 0 16px #fef08a, 0 0 25px #fef08a;border-radius:50%"></div>
+                  ` : ''}
+
+                  <!-- Efeito de Anel de LED perimetral -->
+                  ${u.ledRing ? `
+                    <div style="position:absolute;top:2px;left:26px;right:26px;height:2px;background:linear-gradient(90deg,#06b6d4,#a855f7,#ec4899,#06b6d4);box-shadow:0 0 6px #c084fc"></div>
+                    <div style="position:absolute;bottom:2px;left:26px;right:26px;height:2px;background:linear-gradient(90deg,#ec4899,#a855f7,#06b6d4,#ec4899);box-shadow:0 0 6px #c084fc"></div>
+                  ` : ''}
+                </div>
+
+                <!-- Arquibancada Leste -->
+                <div class="${isExp && stadiumSelectedSide==='leste' ? 'stand-construction-active' : ''}" style="background:${stData.sides['leste']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='leste'?'#f59e0b':(stData.sides['leste']?'#22c55e':'rgba(255,255,255,0.08)')}">
+                  ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
+                  ${u.vipBoxes ? '<div class="vip-box-glow" style="position:absolute;top:6px;background:rgba(250,204,21,0.2);border:1px solid #facc15;color:#facc15;font-size:7px;font-weight:900;padding:1px 3px;border-radius:3px">🥂 VIP</div>' : ''}
+                  ${isExp && stadiumSelectedSide==='leste' ? (stData.sides['leste'] ? '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#4ade80">✓ CONCLUÍDO</span>' : '<span style="writing-mode:vertical-rl;font-size:9px;font-weight:900;color:#f59e0b">🏗️ OBRA (+1.750)</span>') : `
+                    <span style="writing-mode:vertical-rl;font-size:9px;font-weight:800;color:${stData.sides['leste']?'#4ade80':'rgba(255,255,255,0.3)'}">${stData.sides['leste']?'LESTE ✓':'LESTE'}</span>
+                  `}
+                  ${u.flares ? '<div class="animated-flare" style="position:absolute;bottom:20%;font-size:16px">🔥</div>' : ''}
+                </div>
+              </div>
+
+              <!-- Arquibancada Sul (Inferior com Mosaico) -->
+              <div class="${isExp && stadiumSelectedSide==='sul' ? 'stand-construction-active' : ''}" style="height:48px;background:${stData.sides['sul']?'#162a1c':(u.chairs?'#251d45':'#22202a')};border-radius:8px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid ${isExp && stadiumSelectedSide==='sul'?'#f59e0b':'rgba(255,255,255,0.08)'}">
+                ${u.chairs ? '<div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg, #3b2d71, #3b2d71 4px, #1f173b 4px, #1f173b 8px);opacity:0.6"></div>' : ''}
+                ${isExp && stadiumSelectedSide==='sul' ? (
+                  stData.sides['sul'] ?
+                    `<div style="z-index:3;background:#22c55e;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #22c55e">✓ SUL CONCLUÍDO (+3.500)</div>` :
+                    `<div style="z-index:3;background:#f59e0b;color:#000;font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;box-shadow:0 0 10px #f59e0b">🏗️ OBRA SUL (+3.500 LUGARES)</div>`
+                ) : u.mosaic ? `
+                  <div style="z-index:2;background:#7c3aed;color:#fff;font-size:10px;font-weight:900;padding:2px 10px;border-radius:4px;letter-spacing:1px;box-shadow:0 0 10px rgba(124,58,237,0.5)">MOSAICO OFICIAL ★ ${esc(state.club).toUpperCase()}</div>
+                ` : `
+                  <span style="font-size:10px;font-weight:800;color:${stData.sides['sul']?'#4ade80':'rgba(255,255,255,0.3)'}">SETOR SUL ${stData.sides['sul']?'✓':''}</span>
+                `}
+                ${u.surroundSound ? '<div class="soundwave-pulse" style="position:absolute;right:8px;bottom:4px;font-size:10px;color:#38bdf8">🔊</div>' : ''}
+                ${u.flares ? '<div class="animated-flare" style="position:absolute;left:25%;bottom:2px;font-size:18px">🔥</div><div class="animated-flare" style="position:absolute;right:25%;bottom:2px;font-size:18px">🔥</div>' : ''}
+              </div>
+
+            </div>
+          `}
+
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:12px;text-align:center">
+            ${stadiumPreviewUpgrade ? `👀 Visualizando demonstração em tempo real: <b>${STADIUM_UPGRADE_LABELS[stadiumPreviewUpgrade] || stadiumPreviewUpgrade}</b>` : isExp ? '🏗️ Prévia em tempo real da ampliação do anel do estádio' : isArena ? '✨ Maquete conceitual da Nova Arena do clube' : (stadiumVisualMode === '3d' ? '🎮 Maquete 3D Interativa em tempo real (Arraste para girar 360°)' : '📐 Visualização isométrica em tempo real com melhorias estruturais do seu clube')}
           </div>
         </div>
 
@@ -2329,7 +2931,7 @@ function openStadiumModal(initialTab){
                 `}
               </div>
 
-              <!-- Integração Oficial do Estádio 3D (Pack BRFC27) -->
+              <!-- Integração Oficial do Estádio 3D -->
               ${(typeof window.AFMStadium3D !== 'undefined' && window.AFMStadium3D.renderStadium3DCardHTML) 
                 ? window.AFMStadium3D.renderStadium3DCardHTML(state.club, state) 
                 : ''}
@@ -2398,10 +3000,11 @@ function openStadiumModal(initialTab){
                   const isPreviewing = stadiumPreviewUpgrade === item.key;
                   const isUnlocked = stadLevel >= (item.reqLvl || 1);
                   return `
-                    <div class="upgrade-row-card" data-key="${item.key}" style="background:#161226;border:1px solid ${has?'#22c55e':isPreviewing?'#c084fc':'rgba(255,255,255,0.06)'};padding:12px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;transition:all 0.2s;box-shadow:${isPreviewing?'0 0 12px rgba(192,132,252,0.4)':''}">
+                    <div class="upgrade-row-card ${isPreviewing ? 'upgrade-preview-active-card' : ''}" data-key="${item.key}" style="background:#161226;border:1px solid ${has?'#22c55e':isPreviewing?'#c084fc':'rgba(255,255,255,0.06)'};padding:12px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;transition:all 0.2s;box-shadow:${isPreviewing?'0 0 16px rgba(192,132,252,0.5)':''}">
                       <div style="flex:1;min-width:0;padding-right:8px">
                         <div style="font-size:13px;font-weight:900;color:#fff;display:flex;align-items:center;gap:6px">
                           ${item.name}
+                          ${isPreviewing ? `<span class="pill" style="font-size:9px;background:rgba(192,132,252,0.25);color:#c084fc;border:1px solid #c084fc">👀 EM PRÉVIA</span>` : ''}
                           ${!isUnlocked ? `<span class="pill" style="font-size:9px;background:rgba(239,68,68,0.15);color:#ef4444;border-color:rgba(239,68,68,0.3)">🔒 Requer Nível ${item.reqLvl}</span>` : ''}
                         </div>
                         <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px">${item.desc}</div>
@@ -2412,7 +3015,7 @@ function openStadiumModal(initialTab){
                         <span style="color:rgba(255,255,255,0.35);font-size:11px;font-weight:800;flex-shrink:0">BLOQUEADO</span>
                       ` : `
                         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-                          <button class="btn btnToggleUpgradePreview ${isPreviewing?'active':''}" data-key="${item.key}" style="font-size:11px;padding:6px 12px;background:${isPreviewing?'#7c3aed':'rgba(255,255,255,0.08)'};color:#fff;border:none;border-radius:8px;font-weight:800;cursor:pointer">
+                          <button class="btn btnToggleUpgradePreview ${isPreviewing?'active':''}" data-key="${item.key}" style="font-size:11px;padding:6px 12px;background:${isPreviewing?'linear-gradient(135deg,#7c3aed,#9333ea)':'rgba(255,255,255,0.08)'};color:#fff;border:none;border-radius:8px;font-weight:800;cursor:pointer;transition:all 0.2s;box-shadow:${isPreviewing?'0 0 10px rgba(168,85,247,0.5)':''}">
                             ${isPreviewing ? '✕ Fechar Prévia' : '👁️ Ver Prévia'}
                           </button>
                           <button class="btn primary btnBuyUpgrade" data-key="${item.key}" data-cost="${item.cost}" style="font-size:11px;font-weight:800;padding:6px 12px;border-radius:8px">
@@ -2442,11 +3045,16 @@ function openStadiumModal(initialTab){
 
               <!-- Badges dos Anéis Dinâmicos (1º ao 6º Anel) -->
               <div>
-                <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:6px">
-                  RUMO A 100.000 LUGARES: <b>${(() => {
-                    const totalDone = (stData.purchasedSectors || []).length;
-                    return `${totalDone} de 24 obras prontas, em 6 anéis de 4 lados.`;
-                  })()}</b>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">
+                    RUMO A 100.000 LUGARES: <b>${(() => {
+                      const totalDone = (stData.purchasedSectors || []).length;
+                      return `${totalDone} de 24 obras prontas, em 6 anéis de 4 lados.`;
+                    })()}</b>
+                  </div>
+                  <button class="btn btn-sm btn-outline-info" onclick="if(window.AFMStadium3D) window.AFMStadium3D.openStadium3DViewerModal(null, state.club);" style="font-size:10px;padding:3px 8px;font-weight:800;border-radius:6px;cursor:pointer">
+                    🎮 Inspecionar 3D
+                  </button>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
                   ${[1, 2, 3, 4, 5, 6].map(rNum => {
@@ -2605,10 +3213,11 @@ function openStadiumModal(initialTab){
                 <!-- ETAPA 2: PROJETO ARQUITETÔNICO DA ARENA -->
                 <label style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">2. CAPACIDADE PROJETADA (CUSTOS REALISTAS):</label>
                 <select id="selArenaCapVisual" class="btn" style="width:100%;margin-top:4px;font-size:13px;padding:8px">
-                  <option value="15000" ${selectedArenaCapacity===15000?'selected':''}>15.000 lugares · R$ 75.000.000 (R$ 5.000/lugar)</option>
-                  <option value="30000" ${selectedArenaCapacity===30000?'selected':''}>30.000 lugares · R$ 165.000.000 (R$ 5.500/lugar)</option>
-                  <option value="50000" ${selectedArenaCapacity===50000?'selected':''}>50.000 lugares · R$ 325.000.000 (R$ 6.500/lugar)</option>
-                  <option value="80000" ${selectedArenaCapacity===80000?'selected':''}>80.000 lugares · R$ 600.000.000 (R$ 7.500/lugar)</option>
+                  <option value="15000" ${selectedArenaCapacity===15000?'selected':''}>15.000 lugares · R$ 75.000.000 (Regional)</option>
+                  <option value="30000" ${selectedArenaCapacity===30000?'selected':''}>30.000 lugares · R$ 165.000.000 (Ferradura Clássica)</option>
+                  <option value="50000" ${selectedArenaCapacity===50000?'selected':''}>50.000 lugares · R$ 325.000.000 (Monumental Fechado)</option>
+                  <option value="80000" ${selectedArenaCapacity===80000?'selected':''}>80.000 lugares · R$ 600.000.000 (Arena Padrão FIFA)</option>
+                  <option value="100000" ${selectedArenaCapacity===100000?'selected':''}>100.000 lugares · R$ 850.000.000 (Mega Coliseu 100k)</option>
                 </select>
 
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px">
@@ -2634,7 +3243,7 @@ function openStadiumModal(initialTab){
                     <div style="font-size:9px;color:rgba(255,255,255,0.4)">lugares</div>
                   </div>
                   <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
-                    <div style="color:#fff;font-size:15px;font-weight:900" id="lblArenaTempo">${selectedArenaCapacity<=15000?'~1.5':selectedArenaCapacity<=30000?'~2.0':selectedArenaCapacity<=50000?'~2.5':'~3.0'}</div>
+                    <div style="color:#fff;font-size:15px;font-weight:900" id="lblArenaTempo">${selectedArenaCapacity<=15000?'~1.5':selectedArenaCapacity<=30000?'~2.0':selectedArenaCapacity<=50000?'~2.5':selectedArenaCapacity<=80000?'~3.0':'~3.5'}</div>
                     <div style="font-size:9px;color:rgba(255,255,255,0.4)">anos de obra</div>
                   </div>
                   <div style="background:#110e1d;padding:8px 4px;border-radius:8px">
@@ -2808,11 +3417,46 @@ function openStadiumModal(initialTab){
   `;
 
   // Bindings do Modal do Estádio
-  $('#btnCloseStadiumModal').onclick = () => { el.remove(); };
+  const bClose = $('#btnCloseStadiumModal') || el?.querySelector('#btnCloseStadiumModal');
+  if(bClose) bClose.onclick = () => { el.remove(); };
+
+  // Alternância entre Visão 3D e Visão Plano (Conforme solicitação do usuário)
+  const b3D = $('#btnStadiumMode3D') || el?.querySelector('#btnStadiumMode3D');
+  if (b3D) {
+    b3D.onclick = (e) => {
+      e.preventDefault();
+      stadiumVisualMode = '3d';
+      window.stadiumVisualMode = '3d';
+      openStadiumModal();
+    };
+  }
+
+  const bPlano = $('#btnStadiumModePlano') || el?.querySelector('#btnStadiumModePlano');
+  if (bPlano) {
+    bPlano.onclick = (e) => {
+      e.preventDefault();
+      stadiumVisualMode = 'plano';
+      window.stadiumVisualMode = 'plano';
+      openStadiumModal();
+    };
+  }
+
+  // Presets de Câmera 3D
+  (el?.querySelectorAll('.btn-visual-cam') || $$('.btn-visual-cam')).forEach(b => {
+    b.onclick = (e) => {
+      e.preventDefault();
+      const orbit = b.getAttribute('data-orbit');
+      const mv = document.getElementById('afmStadiumVisualModelViewer');
+      if (mv && orbit) {
+        mv.setAttribute('camera-orbit', orbit);
+      }
+    };
+  });
   $$('.btn-stadium-modal-tab').forEach(b => {
     b.onclick = () => {
       stadiumModalTab = b.dataset.stab;
       stadiumPreviewUpgrade = null;
+      if (typeof window !== 'undefined') window.stadiumPreviewUpgrade = null;
       openStadiumModal();
     };
   });
@@ -2823,6 +3467,7 @@ function openStadiumModal(initialTab){
       e.stopPropagation();
       const k = b.dataset.key;
       stadiumPreviewUpgrade = (stadiumPreviewUpgrade === k ? null : k);
+      if (typeof window !== 'undefined') window.stadiumPreviewUpgrade = stadiumPreviewUpgrade;
       openStadiumModal();
     };
   });
@@ -2918,6 +3563,7 @@ function openStadiumModal(initialTab){
       state.expense = (state.expense || 0) + c;
       state.stadiumUpgrades[k] = true;
       stadiumPreviewUpgrade = null;
+      if (typeof window !== 'undefined') window.stadiumPreviewUpgrade = null;
       toast(`Melhoria instalada com sucesso! O visual do estádio e o Caldeirão foram aprimorados!`);
       save();
       openStadiumModal();
@@ -2994,6 +3640,7 @@ function openStadiumModal(initialTab){
     newPanel.scrollTop = prevPanelScroll;
   }
 }
+window.openStadiumModal = openStadiumModal;
 
 // =========================================================================
 // GESTÃO DE ESTÁDIO: ALUGUEL, SHOWS CULTURAIS, MANUTENÇÃO & GRAMADO
@@ -3730,16 +4377,37 @@ function openTrainingCenterModal(){
 // APLICAÇÃO MENSAL: EVOLUÇÃO DE OVERALL PELO CT E RECEITAS DE NAMING RIGHTS/LOJA
 // -------------------------------------------------------------------------
 function applyMonthlyTrainingAndCommercial(){
+  const st = (typeof state !== 'undefined' && state) ? state : (window && window.state ? window.state : null);
+  if(!st) return;
+
   // 1. Naming Rights
-  if(state.namingRights && state.namingRights.monthsRemaining > 0){
-    const v = state.namingRights.monthlyValue;
-    state.balance += v;
-    state.income = (state.income || 0) + v;
-    state.namingRights.monthsRemaining--;
-    state.news.unshift(`🏢 Naming Rights: ${fmtMoney(v)} recebidos do contrato com ${state.namingRights.sponsor}.`);
-    if(state.namingRights.monthsRemaining <= 0){
-      state.news.unshift(`⚠️ O contrato de Naming Rights com ${state.namingRights.sponsor} terminou!`);
-      state.namingRights = null;
+  if(st.namingRights && st.namingRights.monthsRemaining > 0){
+    const v = st.namingRights.monthlyValue;
+    st.balance += v;
+    st.income = (st.income || 0) + v;
+    st.namingRights.monthsRemaining--;
+    st.news = Array.isArray(st.news) ? st.news : [];
+    st.news.unshift(`🏢 Naming Rights: ${fmtMoney(v)} recebidos do contrato com ${st.namingRights.sponsor}.`);
+    if(st.namingRights.monthsRemaining <= 0){
+      st.news.unshift(`⚠️ O contrato de Naming Rights com ${st.namingRights.sponsor} terminou!`);
+      st.namingRights = null;
+    }
+  }
+
+  // 1.1 Concessão de Estacionamento
+  if(st.parkingConcession && st.parkingConcession.monthsRemaining > 0){
+    const monthlyFix = st.parkingConcession.monthlyFee || 0;
+    if(monthlyFix > 0){
+      st.balance += monthlyFix;
+      st.income = (st.income || 0) + monthlyFix;
+      st.parkingConcession.totalEarned = (st.parkingConcession.totalEarned || 0) + monthlyFix;
+    }
+    st.parkingConcession.monthsRemaining--;
+    st.news = Array.isArray(st.news) ? st.news : [];
+    st.news.unshift(`🚗 Concessão de Estacionamento: ${fmtMoney(monthlyFix)} de repasse mensal recebidos da parceira ${st.parkingConcession.companyName}. (${st.parkingConcession.monthsRemaining} meses restantes)`);
+    if(st.parkingConcession.monthsRemaining <= 0){
+      st.news.unshift(`⌛ O contrato de concessão do estacionamento com ${st.parkingConcession.companyName} encerrou! A administração voltou integralmente ao clube.`);
+      st.parkingConcession = null;
     }
   }
 
@@ -3785,6 +4453,7 @@ function applyMonthlyTrainingAndCommercial(){
     }
   });
 }
+window.applyMonthlyTrainingAndCommercial = applyMonthlyTrainingAndCommercial;
 
 
 
@@ -4169,7 +4838,7 @@ function startNewArenaProject(name, cap, financingMethod = 'cash'){
   const finalCap = [15000, 30000, 50000, 80000, 100000].includes(Number(cap)) ? Number(cap) : 15000;
   const totalCost = calcArenaTotalCost(finalCap);
   let downPayment = totalCost;
-  let months = finalCap <= 15000 ? 18 : finalCap <= 30000 ? 24 : finalCap <= 50000 ? 30 : 36;
+  let months = finalCap <= 15000 ? 18 : finalCap <= 30000 ? 24 : finalCap <= 50000 ? 30 : finalCap <= 80000 ? 36 : 42;
   let monthly = 0;
 
   if(financingMethod === 'cash'){
@@ -5244,7 +5913,7 @@ function getMuseumData(){
   
   // Taças do clube (históricas + da carreira)
   const _cKey = (state.club||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); const _cDb = (typeof window !== 'undefined' && window.REAL_CLUB_TROPHIES_DB) ? window.REAL_CLUB_TROPHIES_DB : {}; const _cTr = _cDb[_cKey] || Object.entries(_cDb).find(([k]) => _cKey.includes(k) || k.includes(_cKey))?.[1] || [{ name: 'Campeonato Estadual / Regional (' + (state.club||'Clube') + ')', year: 'Tradição Histórica' }, { name: 'Taça de Tradição Nacional (' + (state.club||'Clube') + ')', year: 'Acervo Oficial' }]; const historicalTitles = _cTr.map(t => `${t.name} (${t.year})`);
-  const careerTitles = (state.titles || []).map(t => `${t} (${state.season})`);
+  const careerTitles = (state.titles || []).map(t => typeof t === 'string' ? `${t} (${state.season})` : `${t?.name || t?.title || 'Título'} (${t?.year || state.season})`);
   const allTitles = [...historicalTitles, ...careerTitles];
   const inVitrine = allTitles.slice(0, curLvlObj.capacity);
   const overflow = allTitles.slice(curLvlObj.capacity);
@@ -6568,7 +7237,14 @@ function getActiveAccount(){
     if(!user){
       const activeU = localStorage.getItem('afm_active_user_v1') || localStorage.getItem(AFM_SESSION_KEY) || (typeof state !== 'undefined' && state?.userOwner);
       if(activeU){
-        const cleanU = String(activeU).toLowerCase().trim();
+        let cleanU = String(activeU).trim();
+        if(cleanU.startsWith('{') && cleanU.endsWith('}')){
+          try {
+            const parsed = JSON.parse(cleanU);
+            if(parsed?.username) cleanU = parsed.username;
+          } catch(e){}
+        }
+        cleanU = cleanU.toLowerCase();
         const acc = accounts.find(a => (a.username || '').toLowerCase() === cleanU);
         const isAdm = cleanU === 'admin' || (window.AFM_DB?.isAdmin?.() === true);
         const role = isAdm ? 'admin' : 'player';
@@ -7296,7 +7972,7 @@ function renderAdminTabContent(){
         </div>
         <div class="card" style="padding:14px;background:#17202c">
           <div class="small muted">Armazenamento</div>
-          <div style="font-size:20px;font-weight:900;color:#38bdf8;display:flex;align-items:center;gap:6px"><span>☁️</span> Supabase Cloud (afm_saves)</div>
+          <div style="font-size:20px;font-weight:900;color:#38bdf8;display:flex;align-items:center;gap:6px"><span>☁️</span> Nuvem Oficial (afm_saves)</div>
         </div>
       </div>
 
@@ -7398,7 +8074,7 @@ function renderAdminTabContent(){
         </div>
         <div class="card" style="padding:14px;background:#17202c">
           <div class="small muted">Conexão do Banco</div>
-          <div style="font-size:24px;font-weight:900;color:${isCloud ? '#22c55e' : '#94a3b8'}">${isCloud ? '🟢 Supabase Cloud' : '⚪ Local-First'}</div>
+          <div style="font-size:24px;font-weight:900;color:${isCloud ? '#22c55e' : '#94a3b8'}">${isCloud ? '🟢 Nuvem Conectada' : '⚪ Local-First'}</div>
         </div>
       </div>
 
@@ -8390,6 +9066,7 @@ function syncExpiringContractsToTransferList(stateRef){
     }
   });
 }
+window.applyMonthlyTrainingAndCommercial = applyMonthlyTrainingAndCommercial;
 
 function calcSalary(p){
   return playerSalary(p);
@@ -9885,6 +10562,7 @@ function ensureSquadShirtNumbers(targetState = (typeof state !== 'undefined' ? s
     }
   });
 }
+window.applyMonthlyTrainingAndCommercial = applyMonthlyTrainingAndCommercial;
 
 function setPlayerShirtNumber(playerOrKey, newNumber, targetState = (typeof state !== 'undefined' ? state : null)){
   if(!targetState || !Array.isArray(targetState.squad)) return false;
@@ -11059,7 +11737,9 @@ function openManagerContractRenewalModal(){
       if(b1) b1.onclick = () => {
         const roll = Math.random() * 100;
         if(roll <= chance1){
-          state.managerSalary = Math.round((state.managerSalary||9500)*1.25);
+          state.managerBaseSalary = Math.round((state.managerBaseSalary||state.managerSalary||9500)*1.25);
+          if(typeof window.syncCoachSalaryWithLicenses === 'function') window.syncCoachSalaryWithLicenses(state);
+          else state.managerSalary = state.managerBaseSalary;
           state.managerContractDate = 'dom, 31 dez 2028';
           state.trust.board = clamp(state.trust.board + 5, 0, 100);
           state.managerContractCooldownRound = null;
@@ -11079,7 +11759,9 @@ function openManagerContractRenewalModal(){
       if(b2) b2.onclick = () => {
         const roll = Math.random() * 100;
         if(roll <= chance2){
-          state.managerSalary = Math.round((state.managerSalary||9500)*1.40);
+          state.managerBaseSalary = Math.round((state.managerBaseSalary||state.managerSalary||9500)*1.40);
+          if(typeof window.syncCoachSalaryWithLicenses === 'function') window.syncCoachSalaryWithLicenses(state);
+          else state.managerSalary = state.managerBaseSalary;
           state.managerContractDate = 'seg, 31 dez 2029';
           state.trust.board = clamp(state.trust.board + 8, 0, 100);
           state.managerContractCooldownRound = null;
@@ -13971,13 +14653,19 @@ function attendanceProjection(opponent){
 
   // Cálculo de vagas e receita de estacionamento
   const parkingLvl = st.infrastructure?.parking?.level || 0;
-  const spots = parkingSpots(parkingLvl);
+  const concession = st.parkingConcession || null;
+  const baseSpots = parkingSpots(parkingLvl);
+  const bonusSpots = concession?.bonusInvestedSpaces || 0;
+  const spots = baseSpots + bonusSpots;
   const currentParking = st.parkingPrice || 25;
   const recParking = 25;
   const parkingRatio = spots > 0 ? (currentParking / recParking) : 1.0;
   const parkRate = spots > 0 ? clamp(rate * (1 - (currentParking - 20)/60), 0.1, 0.98) : 0;
   const parkCars = Math.round(spots * parkRate);
-  const parkRevenue = parkCars * currentParking;
+  const grossParkRevenue = parkCars * currentParking;
+  const parkRevenue = concession 
+    ? Math.round(grossParkRevenue * (concession.revenueSharePct / 100))
+    : grossParkRevenue;
   const storeShop = Math.round(attendance * (.18 + .12 * (st.infrastructure?.store?.level || 1)));
 
   // Reação combinada da torcida: Ingresso (70%) + Estacionamento (30%) se houver vagas
@@ -14018,9 +14706,15 @@ function attendanceProjection(opponent){
     priceColor,
     revenue:ticketRevenue,
     parkSpots: spots,
+    baseParkSpots: baseSpots,
+    concessionSpots: bonusSpots,
     parkCars,
     parkRate,
+    grossParkRevenue,
     parkRevenue,
+    isConcession: !!concession,
+    concessionSharePct: concession ? concession.revenueSharePct : 100,
+    concessionCompany: concession ? concession.companyName : null,
     storeShop,
     totalRevenue: ticketRevenue + parkRevenue + storeShop
   };
@@ -14028,7 +14722,7 @@ function attendanceProjection(opponent){
 
 function ticketMoodDelta(){
   const st = state || window.state || {};
-  const spots = parkingSpots(st.infrastructure?.parking?.level || 0);
+  const spots = parkingSpots(st.infrastructure?.parking?.level || 0) + (st.parkingConcession?.bonusInvestedSpaces || 0);
   const ticketRatio = (st.ticketPrice || 40) / Math.max(1, recommendedTicketPrice());
   const parkingRatio = spots > 0 ? ((st.parkingPrice || 25) / 25) : 1.0;
   const r = spots > 0 ? (ticketRatio * 0.70 + parkingRatio * 0.30) : ticketRatio;
@@ -14336,7 +15030,12 @@ function finalizeRound(userRes, winners, isKO){
     const penTxt=userRes.pens?` (${userRes.pens[0]}-${userRes.pens[1]} nos pênaltis)`:'';
     state.news.unshift(`${state.club} ${gf} x ${ga} ${isHome?userRes.a:userRes.h}${penTxt} — ${isKO?(advanced?'classificado':'eliminado'):(win?'vitória':draw?'empate':'derrota')}.`);
     if(isHome){
-      state.news.unshift(`Público: ${state.lastHome.attendance.toLocaleString('pt-BR')} torcedores • Bilheteria ${fmtMoney(gate)} • Estacionamento ${fmtMoney(parkingRev)}.`);
+      if(state.parkingConcession){
+        state.parkingConcession.totalEarned = (state.parkingConcession.totalEarned || 0) + parkingRev;
+        state.news.unshift(`Público: ${state.lastHome.attendance.toLocaleString('pt-BR')} torcedores • Bilheteria ${fmtMoney(gate)} • Estacionamento (Repasse ${state.parkingConcession.revenueSharePct}% Concessão ${state.parkingConcession.companyName}) ${fmtMoney(parkingRev)}.`);
+      } else {
+        state.news.unshift(`Público: ${state.lastHome.attendance.toLocaleString('pt-BR')} torcedores • Bilheteria ${fmtMoney(gate)} • Estacionamento ${fmtMoney(parkingRev)}.`);
+      }
     }
     userRes.events = Array.isArray(userRes.events) ? userRes.events.filter(event => event?.type === 'gol').slice(0, 20) : [];
     addPlayerMatchStats(comp.id, state.club, userRes.events);
@@ -14722,13 +15421,17 @@ function finalizeRound(userRes, winners, isKO){
     // compartilhado de quatro rodadas em finalizeRound(). Não duplicar aqui:
     // a rotina mensal anterior permitia ignorar o intervalo econômico.
 
-    // Salário mensal do técnico creditado em seu patrimônio pessoal
+    // Salário mensal do técnico creditado em seu patrimônio pessoal (com bônus de licenças CBF/UEFA)
+    if(typeof window.syncCoachSalaryWithLicenses === 'function') {
+      window.syncCoachSalaryWithLicenses(state);
+    }
     state.managerSalary = state.managerSalary || 9500;
     state.managerMoney = (state.managerMoney || 57000) + state.managerSalary;
     state.managerFinanceHistory = state.managerFinanceHistory || [];
+    const licDataPay = (typeof window.getCoachLicensesData === 'function') ? window.getCoachLicensesData(state) : null;
     state.managerFinanceHistory.unshift({
       date: state.date,
-      desc: `Salário mensal de técnico (${state.club})`,
+      desc: `Salário mensal de técnico (${state.club})${licDataPay && licDataPay.totalBonusPct > 0 ? ` [Bônus Licenças +${licDataPay.totalBonusPct}%]` : ''}`,
       amount: state.managerSalary
     });
     state.news.unshift(`📢 Ciclo mensal concluído: finanças, receitas de patrocinadores e relatórios comerciais atualizados.`);
@@ -15715,6 +16418,9 @@ function advanceTransferWindowDay(){
     state.currentDate = state.date;
     state.currentDateFormatted = formatDatePtBr(state.date);
 
+    if(typeof window.syncCoachSalaryWithLicenses === 'function'){
+      window.syncCoachSalaryWithLicenses(state);
+    }
     if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.syncDateInDOM === 'function'){
       window.AFM_CalendarFix.syncDateInDOM(state);
     }
@@ -15760,7 +16466,10 @@ function advanceTransferWindowHours(){
         state.currentDate = state.date;
         state.currentDateFormatted = formatDatePtBr(state.date);
       }
-      if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.syncDateInDOM === 'function'){
+      if(typeof window.syncCoachSalaryWithLicenses === 'function'){
+      window.syncCoachSalaryWithLicenses(state);
+    }
+    if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.syncDateInDOM === 'function'){
         window.AFM_CalendarFix.syncDateInDOM(state);
       }
       toast('🔒 JANELA DE TRANSFERÊNCIAS ENCERRADA! O prazo de transferências terminou e a temporada de jogos continua.');
@@ -15858,6 +16567,9 @@ function skipPreSeason(){
     state.date = activeMatch?.date || getDateForRound(state.round || 0, state.season);
     state.currentDate = state.date;
     state.currentDateFormatted = formatDatePtBr(state.date);
+    if(typeof window.syncCoachSalaryWithLicenses === 'function'){
+      window.syncCoachSalaryWithLicenses(state);
+    }
     if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.syncDateInDOM === 'function'){
       window.AFM_CalendarFix.syncDateInDOM(state);
     }
@@ -23949,6 +24661,9 @@ function openBankLoansModal(initialTab = null){
 function triggerAFMSystemEnhancements(){
   if(!state || typeof document === 'undefined') return; try { window.state = state; window.GameState = state; if(typeof window.AFM_InstantCareerHook === 'function') window.AFM_InstantCareerHook(); if(typeof window.__AFM_RUN_INSTANT_HOOKS === 'function') window.__AFM_RUN_INSTANT_HOOKS(); } catch(e){}
   try {
+    if(typeof window.syncCoachSalaryWithLicenses === 'function'){
+      window.syncCoachSalaryWithLicenses(state);
+    }
     if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.syncDateInDOM === 'function'){
       window.AFM_CalendarFix.syncDateInDOM(state);
     }
@@ -23973,7 +24688,8 @@ function triggerAFMSystemEnhancements(){
 }
 
 function render() {
-;/* window.__AFM_STATE_SYNCED */ try { if (typeof state !== 'undefined') { window.state = state; window.GameState = state; } if (typeof render === 'function') { window.render = render; } } catch(e) {}
+  if(typeof state !== 'undefined' && !state && typeof window !== 'undefined' && window.state) { state = window.state; }
+  try { if (typeof state !== 'undefined' && state) { window.state = state; window.GameState = state; } if (typeof render === 'function') { window.render = render; } } catch(e) {}
 
   const app=$('#app');
   if(!app) return;
@@ -25188,7 +25904,7 @@ function centralPage(){
   const oppStr = opp ? teamStrengthByName(opp) : 60;
   const tw = (typeof getTransferWindowState === 'function') ? getTransferWindowState() : { active: false };
   const winInfo = getTransferWindowInfo(state.date);
-  const clubObj = clubByName(state.club) || { stadium: 'Ciro Machado do Espírito Santo (Defelê)', competition: 'Campeonato Candango' };
+  const clubObj = clubByName(state.club) || { stadium: clubStadiumName(state.club), competition: state.competition || 'Campeonato Candango' };
   const rivalry = isRivalryMatch(state.club, opp);
   const weather = getMatchWeather(state.date, state.round);
   const matchGate = canStartMatch(f, state);
@@ -25974,6 +26690,7 @@ function centralPage(){
                         <div style="display:flex;align-items:center;gap:6px">
                           ${clubBadge(t.name, 16)}
                           <span style="color:${isMy?'#c084fc':'#fff'}">${esc(t.name)}</span>
+                          ${isMy ? '<span class="tag-you" style="font-size:9px;padding:1px 5px;margin-left:4px">VOCÊ</span>' : ''}
                         </div>
                       </td>
                       <td style="text-align:center;font-weight:900">${t.p}</td>
@@ -26090,6 +26807,7 @@ function centralPage(){
                                 <div style="display:flex;align-items:center;gap:5px">
                                   ${clubBadge(t.name, 14)}
                                   <span style="color:${isMy ? '#34d399' : '#fff'}">${esc(t.name)}</span>
+                                  ${isMy ? '<span class="tag-you" style="font-size:9px;padding:1px 5px;margin-left:4px">VOCÊ</span>' : ''}
                                 </div>
                               </td>
                               <td style="text-align:center;font-weight:900">${pts}</td>
@@ -26217,6 +26935,7 @@ function centralPage(){
                                 <div style="display:flex;align-items:center;gap:5px">
                                   ${clubBadge(t.name, 14)}
                                   <span style="color:${isMy ? '#facc15' : '#fff'}">${esc(t.name)}</span>
+                                  ${isMy ? '<span class="tag-you" style="font-size:9px;padding:1px 5px;margin-left:4px">VOCÊ</span>' : ''}
                                 </div>
                               </td>
                               <td style="text-align:center;font-weight:900">${pts}</td>
@@ -26569,7 +27288,7 @@ function myTeamPage(){
     </div>
 
     <!-- Painel de Bolas Paradas e Capitães (AFM30) -->
-    <div style="background:#130f26;border:1px solid rgba(139,92,246,0.3);border-radius:12px;padding:10px 16px;margin:8px 0 12px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div class="tactics-setpieces-panel" style="background:#130f26;border:1px solid rgba(139,92,246,0.3);border-radius:12px;padding:10px 16px;margin:8px 0 12px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         <div>
           <span style="font-size:11px;font-weight:900;color:#facc15">🎯 PÊNALTIS:</span>
@@ -26596,7 +27315,7 @@ function myTeamPage(){
     </div>
 
     <!-- Barra de Ações e Atalhos Táticos -->
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 10px 0">
+    <div class="tactics-actions-bar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 10px 0">
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button class="btn btnOpenSquadReportsModal" id="btnOpenSquadReportsMyTeam" style="font-size:11px;font-weight:900;padding:6px 12px;border-radius:8px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;box-shadow:0 2px 8px rgba(16,185,129,0.35);cursor:pointer;display:inline-flex;align-items:center;gap:6px" title="Ver perspetiva geral, lesões, suspensões, moral, contratos e juventude">
           📊 Relatórios do Elenco
@@ -26632,7 +27351,7 @@ function myTeamPage(){
     </div>
 
     <!-- Card de FORÇA Compacto e Moderno (Menor e sem ocupar espaço excessivo) -->
-    <div class="card" style="background:#ffffff;color:#0f172a;border-radius:12px;padding:8px 18px;box-shadow:0 4px 14px rgba(0,0,0,0.15);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div class="card tactics-strength-card" style="background:#ffffff;color:#0f172a;border-radius:12px;padding:8px 18px;box-shadow:0 4px 14px rgba(0,0,0,0.15);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <!-- Lado Esquerdo: FORÇA, Estrelas e Médias -->
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:8px">
@@ -26673,7 +27392,7 @@ function myTeamPage(){
     </div>
 
     <!-- ESTRUTURA RÍGIDA DE 2 COLUNAS (.tactics-modal-container) -->
-    <div class="tactics-modal-container" id="myTeamTacticsContainer" style="height: calc(100vh - 210px); min-height: 560px; margin-bottom: 18px">
+    <div class="tactics-modal-container" id="myTeamTacticsContainer" style="margin-bottom: 18px">
       <!-- COLUNA 1: GRAMADO VERTICAL OFICIAL -->
       <div class="tactics-pitch-wrapper" id="myTeamPitchWrapper">
         ${renderVerticalTacticsPitch(startingPlayers, state.formation || '4-3-3', { isHalftime: false, selectedStarterKey: tacticalSelectedKey })}
@@ -28753,7 +29472,14 @@ function structurePage(){
                 <h3>${d.name}</h3>
                 <p>${d.effect}</p>
                 ${k==='stadium'?`<div class="facility-stat">Capacidade: <b>${(x.capacity||0).toLocaleString('pt-BR')} torcedores</b></div>`:''}
-                ${k==='parking'?`<div class="facility-stat">Vagas: <b>${parkingSpots(x.level).toLocaleString('pt-BR')} vagas</b></div>`:''}
+                ${k==='parking'?`
+                  <div class="facility-stat">Vagas: <b>${(parkingSpots(x.level) + (state.parkingConcession?.bonusInvestedSpaces || 0)).toLocaleString('pt-BR')} vagas</b> ${state.parkingConcession ? `<span class="pill good" style="font-size:10px;margin-left:4px">🤝 Concessão: ${esc(state.parkingConcession.companyName)} (+${state.parkingConcession.bonusInvestedSpaces} vagas)</span>` : ''}</div>
+                  ${state.parkingConcession ? `
+                    <div class="facility-stat" style="color:var(--neon);font-size:11px">
+                      Repasse: <b>${state.parkingConcession.revenueSharePct}% por jogo</b> + <b>${fmtMoney(state.parkingConcession.monthlyFee)}/mês</b> (${state.parkingConcession.monthsRemaining} meses rest.)
+                    </div>
+                  ` : ''}
+                `:''}
                 ${k==='academy'?`<div class="facility-stat" style="color:var(--neon)">Atletas na Base: <b>${(state.youthAcademy||[]).length} atletas (15 a 18 anos)</b></div>`:''}
                 ${k==='training'?`<div class="facility-stat" style="color:var(--cyan)">Vagas do elenco: <b>${squadCapacity(x.level)} jogadores</b> (+3 por nível)</div>`:''}
                 ${k==='marketing'?`<div class="facility-stat" style="color:var(--cyan)">Aporte Semanal: <b>${fmtMoney(state.marketingWeekly||36000)}/semana</b></div>`:''}
@@ -28770,6 +29496,14 @@ function structurePage(){
                   <button class="btn ${!max&&state.balance>=cost?'primary':''} upgrade" data-facility="${k}" ${max||state.balance<cost?'disabled':''}>
                     ${max?'Nível Máximo':`Evoluir • ${fmtMoney(cost)}`}
                   </button>
+                  ${k==='parking'?`
+                    <button class="btn btnOpenParkingConcession" style="background:linear-gradient(135deg, #8b5cf6, #6366f1);color:#fff;border:none;font-weight:800;display:inline-flex;align-items:center;gap:6px" title="Gerenciar parcerias e concessão empresarial de estacionamento">
+                      🤝 ${state.parkingConcession ? `Concessão: ${esc(state.parkingConcession.companyName)}` : 'Concessão & Parcerias'}
+                    </button>
+                    <button class="btn btnOpenParkingInteractive" style="background:#2563eb;color:#fff;border:none;font-weight:800;display:inline-flex;align-items:center;gap:6px" title="Painel visual e obras do estacionamento">
+                      🚗 Obras do Estacionamento
+                    </button>
+                  `:''}
                   ${k==='academy'?`<button class="btn btnOpenAcademy" style="background:#059669;color:#fff;border:none">🌱 Ver Jogadores da Base</button>`:''}
                   ${k==='marketing'?`<button class="btn btnOpenMarketing" style="background:#0284c7;color:#fff;border:none">📢 Gerenciar Marketing</button>`:''}
                   ${k==='bank'?`<button class="btn btnOpenBank" style="background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;font-weight:900">🏦 Gerenciar Empréstimos</button>`:''}
@@ -28813,7 +29547,7 @@ function structurePage(){
               <input type="range" id="parkingPrice" min="10" max="60" step="5" value="${state.parkingPrice||25}" style="width:100%;margin:8px 0">
               <div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.4)">
                 <span>Mín R$ 10</span>
-                <span>Vagas Totais: <b>${parkingSpots(state.infrastructure.parking?.level||0).toLocaleString('pt-BR')}</b></span>
+                <span>Vagas Totais: <b>${(parkingSpots(state.infrastructure.parking?.level||0) + (state.parkingConcession?.bonusInvestedSpaces || 0)).toLocaleString('pt-BR')}</b> ${state.parkingConcession ? `<span style="color:var(--neon)">(${state.parkingConcession.revenueSharePct}% repasse)</span>` : ''}</span>
                 <span>Máx R$ 60</span>
               </div>
             </div>
@@ -28870,7 +29604,10 @@ function structurePage(){
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
                 <span style="color:rgba(255,255,255,0.6)">🚗 Estacionamento:</span>
-                <b id="dashParkRev" style="color:var(--cyan)">${fmtMoney(proj.parkRevenue)}</b>
+                <div style="text-align:right">
+                  <b id="dashParkRev" style="color:var(--cyan)">${fmtMoney(proj.parkRevenue)}</b>
+                  ${state.parkingConcession ? `<span style="font-size:9px;color:rgba(255,255,255,0.4);display:block">(${state.parkingConcession.revenueSharePct}% repasse)</span>` : ''}
+                </div>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
                 <span style="color:rgba(255,255,255,0.6)">🛍️ Loja do Clube:</span>
@@ -29770,40 +30507,57 @@ function officePage(){
     </div>
 
     <!-- PAINEL COMPACTO: SEU CONTRATO (SCREENSHOT 3 REDUZIDO) -->
-    <div class="card" style="margin-top:16px;padding:14px 18px;background:#13111c;border:1px solid rgba(139,92,246,0.3);border-radius:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <h2 style="margin:0;font-size:15px;font-weight:900;letter-spacing:0.5px;color:#fff;text-transform:uppercase">💼 SEU CONTRATO</h2>
-          <span class="pill" style="font-size:11px;padding:2px 8px;background:rgba(255,255,255,0.06)">Treinador: <b>${esc(state.manager)}</b></span>
-        </div>
-        <button class="btn" id="btnOpenCareerEconomyFromOffice" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);border:1px solid #a855f7;color:#fff;font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
-          💼 Cotas & Negócios ➔
-        </button>
-        <button class="btn" id="btnRequestManagerRenewal" style="background:rgba(139,92,246,0.22);border:1px solid #a855f7;color:#fff;font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
-          📝 Negociar com a Diretoria
-        </button>
-      </div>
+    ${(() => {
+      const coachLicData = (typeof window.getCoachLicensesData === 'function')
+        ? window.getCoachLicensesData(state)
+        : { totalBonusPct: 0, bonusValue: 0, currentLic: { name: 'Licença CBF' } };
+      return `
+        <div class="card" style="margin-top:16px;padding:14px 18px;background:#13111c;border:1px solid rgba(139,92,246,0.3);border-radius:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <h2 style="margin:0;font-size:15px;font-weight:900;letter-spacing:0.5px;color:#fff;text-transform:uppercase">💼 SEU CONTRATO</h2>
+              <span class="pill" style="font-size:11px;padding:2px 8px;background:rgba(255,255,255,0.06)">Treinador: <b>${esc(state.manager)}</b></span>
+              <button type="button" class="btn btn-sm" onclick="if(typeof openLicensesModal==='function')openLicensesModal();" style="border:none;background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer;">🎓 ${esc(coachLicData.currentLic?.name || 'Licença CBF')}</button>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn" id="btnOpenCareerEconomyFromOffice" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);border:1px solid #a855f7;color:#fff;font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+                💼 Cotas & Negócios ➔
+              </button>
+              <button class="btn" id="btnRequestManagerRenewal" style="background:rgba(139,92,246,0.22);border:1px solid #a855f7;color:#fff;font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+                📝 Negociar com a Diretoria
+              </button>
+            </div>
+          </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1.1fr 1fr;gap:10px">
-        <div style="background:#1b1829;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 12px">
-          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">SALÁRIO</div>
-          <div style="font-size:18px;font-weight:900;color:#fff;margin-top:2px">${fmtMoney(state.managerSalary || 9500)} <span style="font-size:11px;font-weight:normal;color:rgba(255,255,255,0.4)">/mês</span></div>
-        </div>
+          <div style="display:grid;grid-template-columns:1fr 1.1fr 1fr;gap:10px">
+            <div style="background:#1b1829;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 12px">
+              <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">SALÁRIO</div>
+              <div style="font-size:18px;font-weight:900;color:#fff;margin-top:2px">${fmtMoney(state.managerSalary || 9500)} <span style="font-size:11px;font-weight:normal;color:rgba(255,255,255,0.4)">/mês</span></div>
+              ${coachLicData.totalBonusPct > 0 ? `
+                <div style="font-size:10px;color:#4ade80;font-weight:800;margin-top:3px;display:flex;align-items:center;gap:4px">
+                  <span>🎓</span> <span>+${coachLicData.totalBonusPct}% Licenças (+${fmtMoney(coachLicData.bonusValue)})</span>
+                </div>
+              ` : ''}
+            </div>
 
-        <div style="background:#1b1829;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 12px">
-          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">CONTRATO ATÉ</div>
-          <div style="font-size:15px;font-weight:900;color:#38bdf8;margin-top:4px">${state.managerContractDate || 'sex, 31 dez 2027'}</div>
-        </div>
+            <div style="background:#1b1829;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 12px">
+              <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">CONTRATO ATÉ</div>
+              <div style="font-size:15px;font-weight:900;color:#38bdf8;margin-top:4px">${state.managerContractDate || 'sex, 31 dez 2027'}</div>
+            </div>
 
-        <div style="background:linear-gradient(180deg, #18152b 0%, #131024 100%);border:1px solid rgba(139,92,246,0.25);border-radius:10px;padding:10px 12px">
-          <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">SEU PATRIMÔNIO</div>
-          <div style="font-size:18px;font-weight:900;color:#22c55e;margin-top:2px">${fmtMoney(state.managerMoney || 57000)}</div>
-        </div>
-      </div>
+            <div style="background:linear-gradient(180deg, #18152b 0%, #131024 100%);border:1px solid rgba(139,92,246,0.25);border-radius:10px;padding:10px 12px">
+              <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">SEU PATRIMÔNIO</div>
+              <div style="font-size:18px;font-weight:900;color:#22c55e;margin-top:2px">${fmtMoney(state.managerMoney || 57000)}</div>
+            </div>
+          </div>
 
-      <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:rgba(255,255,255,0.5)">
-        <span>💰 Cai todo dia 1º · Último: ${esc((state.managerFinanceHistory?.[0]?.desc) || 'Economias')} (+${fmtMoney(state.managerFinanceHistory?.[0]?.amount || state.managerMoney || 57000)})</span>
-        <span style="color:#a855f7;cursor:pointer;font-weight:700" id="btnOpenManagerExtrato">Ver extrato completo ➔</span>
+          <div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:rgba(255,255,255,0.5)">
+            <span>💰 Cai todo dia 1º · Último: ${esc((state.managerFinanceHistory?.[0]?.desc) || 'Economias')} (+${fmtMoney(state.managerFinanceHistory?.[0]?.amount || state.managerMoney || 57000)})</span>
+            <span style="color:#a855f7;cursor:pointer;font-weight:700" id="btnOpenManagerExtrato">Ver extrato completo ➔</span>
+          </div>
+        </div>
+      `;
+    })()}
       </div>
     </div>
 
@@ -30030,9 +30784,23 @@ function renderContinentalGroupStage(competitionId){
             <div style="overflow:auto;margin:8px 0 10px">
               <table style="width:100%;font-size:10px;border-collapse:collapse">
                 <thead><tr><th style="text-align:left">Clube</th><th>J</th><th>SG</th><th>Pts</th></tr></thead>
-                <tbody>${(tournament?.standings?.[group] || teams.map(name => ({name,played:0,gf:0,ga:0,points:0}))).map(row => `
-                  <tr><td>${clubBadge(row.name,16)} ${esc(row.name)}</td><td style="text-align:center">${row.played}</td><td style="text-align:center">${row.gf-row.ga}</td><td style="text-align:center;font-weight:800">${row.points}</td></tr>
-                `).join('')}</tbody>
+                <tbody>${(tournament?.standings?.[group] || teams.map(name => ({name,played:0,gf:0,ga:0,points:0}))).map(row => {
+                  const isMy = (row.name === state.club) || (norm(row.name) === norm(state.club));
+                  return `
+                    <tr style="${isMy ? 'background:rgba(245,158,11,0.22);font-weight:900;' : ''}">
+                      <td>
+                        <div style="display:inline-flex;align-items:center;gap:4px">
+                          ${clubBadge(row.name,16)} 
+                          <span style="color:${isMy ? '#facc15' : '#fff'}">${esc(row.name)}</span>
+                          ${isMy ? '<span class="tag-you" style="font-size:8px;padding:1px 4px;margin-left:3px">VOCÊ</span>' : ''}
+                        </div>
+                      </td>
+                      <td style="text-align:center">${row.played}</td>
+                      <td style="text-align:center">${row.gf-row.ga}</td>
+                      <td style="text-align:center;font-weight:800">${row.points}</td>
+                    </tr>
+                  `;
+                }).join('')}</tbody>
               </table>
             </div>
             ${[0, 1, 2, 3, 4, 5].map(index => {
@@ -31320,7 +32088,7 @@ function seasonPage(){
               <span class="pill">${groupRows.some(team=>team._unplayed) ? 'Tabela inicial' : `${groupRows.filter(team=>team.groupPosition===1&&team.j>0).length ? 'Líder atual' : 'Classificação'}`}</span>
             </div>
             <div class="tablewrap"><table><thead><tr><th>#</th><th>Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th><th>%</th><th>Forma</th></tr></thead><tbody>
-              ${groupRows.map(t=>{const isMy=norm(t.name)===norm(state.club);const pct=t.j>0?Math.round((t.p/(t.j*3))*100):0;const formDots=(t.form||[]).map(f=>`<span class="form-dot form-${String(f).toLowerCase()}">${esc(f)}</span>`).join('');return `<tr class="${isMy?'my-row ':''}${t.groupPosition===1&&t.j>0?'zone-lib':''}"><td style="text-align:center;font-weight:900">${t.groupPosition}</td><td><div class="club-cell">${clubBadge(t.name,22)}<span>${esc(t.name)}</span></div></td><td style="text-align:center;font-weight:900">${Number(t.p)||0}</td><td style="text-align:center">${Number(t.j)||0}</td><td style="text-align:center">${Number(t.v)||0}</td><td style="text-align:center">${Number(t.e)||0}</td><td style="text-align:center">${Number(t.d)||0}</td><td style="text-align:center">${Number(t.gp)||0}</td><td style="text-align:center">${Number(t.gc)||0}</td><td style="text-align:center">${Number(t.sg)||0}</td><td style="text-align:center">${pct}%</td><td><div class="form-dots">${formDots||'-'}</div></td></tr>`;}).join('')}
+              ${groupRows.map(t=>{const isMy=(t.name===state.club)||(norm(t.name)===norm(state.club));const pct=t.j>0?Math.round((t.p/(t.j*3))*100):0;const formDots=(t.form||[]).map(f=>`<span class="form-dot form-${String(f).toLowerCase()}">${esc(f)}</span>`).join('');return `<tr class="${isMy?'my-row ':''}${t.groupPosition===1&&t.j>0?'zone-lib':''}"><td style="text-align:center;font-weight:900">${t.groupPosition}</td><td><div class="club-cell">${clubBadge(t.name,22)}<span>${esc(t.name)}</span>${isMy ? '<span class="tag-you">VOCÊ</span>' : ''}</div></td><td style="text-align:center;font-weight:900">${Number(t.p)||0}</td><td style="text-align:center">${Number(t.j)||0}</td><td style="text-align:center">${Number(t.v)||0}</td><td style="text-align:center">${Number(t.e)||0}</td><td style="text-align:center">${Number(t.d)||0}</td><td style="text-align:center">${Number(t.gp)||0}</td><td style="text-align:center">${Number(t.gc)||0}</td><td style="text-align:center">${Number(t.sg)||0}</td><td style="text-align:center">${pct}%</td><td><div class="form-dots">${formDots||'-'}</div></td></tr>`;}).join('')}
             </tbody></table></div>
           </section>`;
         }).join('') : `<div class="tablewrap">
@@ -31343,7 +32111,7 @@ function seasonPage(){
             </thead>
             <tbody>
               ${r.map((t,i)=>{
-                const isMy = t.name === state.club;
+                const isMy = (t.name === state.club) || (norm(t.name) === norm(state.club));
                 const pos = i + 1;
                 const total = r.length;
                 let zoneClass = '';
@@ -31367,6 +32135,7 @@ function seasonPage(){
                       <div class="club-cell">
                         ${clubBadge(t.name, 22)}
                         <span>${esc(t.name)}</span>
+                        ${isMy ? '<span class="tag-you">VOCÊ</span>' : ''}
                       </div>
                     </td>
                     <td style="font-weight:900;text-align:center">${t.p}</td>
@@ -31495,7 +32264,7 @@ function seasonPage(){
                 <tbody>
                   ${estData.teams.map((t, idx) => {
                     const pos = idx + 1;
-                    const isMy = norm(t.name) === norm(state.club);
+                    const isMy = (t.name === state.club) || (norm(t.name) === norm(state.club));
                     const isAdvancing = pos <= (estData.teams.length >= 10 ? 8 : 4);
                     const isRelegated = pos > (estData.teams.length - 2);
                     const barColor = isAdvancing ? '#7c3aed' : isRelegated ? '#ef4444' : 'transparent';
@@ -31513,6 +32282,7 @@ function seasonPage(){
                           <div class="clickable-club-name" data-club="${esc(t.name)}" style="display:flex;align-items:center;gap:6px;cursor:pointer">
                             ${clubBadge(t.name, 20)}
                             <b style="color:${isMy ? '#c084fc' : '#fff'}">${esc(t.name)}</b>
+                            ${isMy ? '<span class="tag-you">VOCÊ</span>' : ''}
                           </div>
                         </td>
                         <td style="font-weight:900;text-align:center;color:#fff">${t.p}</td>
@@ -31647,11 +32417,239 @@ function seasonPage(){
 }
 
 // -------------------------------------------------------------
+// REFORMULAÇÃO E IDENTIDADE VISUAL DO CLUBE CRIADO (R$ 200.000)
+// -------------------------------------------------------------
+function renderCustomClubReformSection(state){
+  const club = state?.customClub || {};
+  const balance = Number(state?.balance) || 0;
+  const cost = 200000;
+  const hasFunds = balance >= cost;
+
+  const currentName = state?.club || club.name || 'Meu Clube';
+  const currentShort = club.shortName || (typeof initials === 'function' ? initials(currentName) : 'CLB');
+  const currentStadium = state?.stadium?.name || club.stadiumName || club.stadium || 'Arena dos Sonhos';
+  const currentPrimaryColor = club.badgeConfig?.primaryColor || club.homeKit?.shirtColor || '#1e3a8a';
+  const currentSecondaryColor = club.badgeConfig?.secondaryColor || club.homeKit?.secondaryColor || '#facc15';
+
+  const currentBadgeImage = (typeof window !== 'undefined' && window._reformDraftBadgeImage !== undefined)
+    ? window._reformDraftBadgeImage
+    : (club.badgeImage || null);
+
+  let badgePreviewContent = '';
+  if(currentBadgeImage){
+    badgePreviewContent = `<img src="${currentBadgeImage}" id="reformBadgePreviewImg" style="width:110px;height:110px;object-fit:contain;filter:drop-shadow(0 6px 16px rgba(0,0,0,0.6));border-radius:8px" alt="Escudo">`;
+  } else if(typeof window.generateBadgeSvg === 'function'){
+    const badgeConf = club.badgeConfig || {
+      shape: 'classic',
+      primaryColor: currentPrimaryColor,
+      secondaryColor: currentSecondaryColor,
+      pattern: 'star',
+      patternColor: '#ffffff',
+      motto: currentShort,
+      mottoColor: '#ffffff',
+      borderStyle: 'classic'
+    };
+    badgePreviewContent = window.generateBadgeSvg({
+      ...badgeConf,
+      primaryColor: currentPrimaryColor,
+      secondaryColor: currentSecondaryColor,
+      motto: currentShort
+    }, 110);
+  } else {
+    badgePreviewContent = clubBadge(currentName, 110);
+  }
+
+  return `
+    <div class="card" style="margin-top:14px;background:linear-gradient(180deg, rgba(20,27,45,0.96) 0%, rgba(10,15,30,0.98) 100%);border:1px solid rgba(168,85,247,0.35);border-radius:16px;padding:22px">
+      <!-- CABEÇALHO DA ABA COM TAXA DE REGISTRO E STATUS -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,0.09)">
+        <div>
+          <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(168,85,247,0.18);border:1px solid rgba(168,85,247,0.4);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px">
+            <span>🎨</span> MODO EXCLUSIVO DO CRIADOR DE CLUBE
+          </div>
+          <h2 style="margin:0;font-size:22px;font-weight:900;color:#fff;display:flex;align-items:center;gap:10px">
+            Reformulação Oficial & Identidade do Clube
+          </h2>
+          <p style="margin:6px 0 0 0;font-size:13px;color:#94a3b8;max-width:700px;line-height:1.5">
+            Personalize o nome da agremiação, escudo, sigla de transmissão, nome do estádio e cores oficiais. A federação exige uma taxa de cartório e homologação de <b>R$ 200.000</b> debitada dos cofres do time.
+          </p>
+        </div>
+
+        <!-- BOX FINANCEIRO DE TAXA -->
+        <div style="background:rgba(15,23,42,0.85);border:1px solid ${hasFunds ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'};border-radius:12px;padding:12px 18px;text-align:right;min-width:260px">
+          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:800;letter-spacing:0.5px">Taxa de Reformulação de Marca</div>
+          <div style="font-size:22px;font-weight:900;color:#facc15;margin:3px 0">R$ 200.000</div>
+          <div style="font-size:12px;color:#e2e8f0;margin-top:4px">
+            Seu Caixa: <b style="color:${hasFunds ? '#4ade80' : '#f87171'}">${fmtMoney(balance)}</b>
+          </div>
+          <div style="margin-top:6px">
+            ${hasFunds ? `
+              <span class="pill good" style="font-size:11px;font-weight:900">✅ Saldo Suficiente</span>
+            ` : `
+              <span class="pill warn" style="font-size:11px;font-weight:900;background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.4)">⚠️ Faltam ${fmtMoney(cost - balance)}</span>
+            `}
+          </div>
+        </div>
+      </div>
+
+      <!-- FORMULÁRIO E PREVIEW EM DUAS COLUNAS -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:24px;margin-top:20px">
+        <!-- COLUNA 1: CAMPOS DE PERSONALIZAÇÃO -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div>
+            <label style="display:block;font-size:13px;font-weight:800;color:#e2e8f0;margin-bottom:6px">
+              🏷️ Nome Oficial do Clube:
+            </label>
+            <input type="text" id="inputCustomReformName" class="btn" style="width:100%;text-align:left;background:#0d1322;border:1px solid rgba(255,255,255,0.2);color:#fff;padding:12px;font-size:15px;font-weight:700;border-radius:8px" value="${esc(currentName)}" placeholder="Ex: Valência Futebol Clube" maxlength="32">
+            <div class="muted small" style="margin-top:4px">Atualiza a classificação, notícias, calendário e elenco em todo o jogo.</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label style="display:block;font-size:13px;font-weight:800;color:#e2e8f0;margin-bottom:6px">
+                🔤 Sigla Oficial (2 a 4 Letras):
+              </label>
+              <input type="text" id="inputCustomReformShortName" maxlength="4" class="btn" style="width:100%;text-align:center;background:#0d1322;border:1px solid rgba(255,255,255,0.2);color:#facc15;padding:12px;font-size:16px;font-weight:900;letter-spacing:2px;text-transform:uppercase;border-radius:8px" value="${esc(currentShort)}" placeholder="VFC">
+            </div>
+            <div>
+              <label style="display:block;font-size:13px;font-weight:800;color:#e2e8f0;margin-bottom:6px">
+                🏟️ Nome do Estádio:
+              </label>
+              <input type="text" id="inputCustomReformStadium" class="btn" style="width:100%;text-align:left;background:#0d1322;border:1px solid rgba(255,255,255,0.2);color:#fff;padding:12px;font-size:14px;font-weight:700;border-radius:8px" value="${esc(currentStadium)}" placeholder="Ex: Arena dos Sonhos" maxlength="32">
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:800;color:#e2e8f0;margin-bottom:6px">
+              🎨 Cores Oficiais da Agremiação:
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="background:#0d1322;border:1px solid rgba(255,255,255,0.15);padding:10px 14px;border-radius:8px;display:flex;align-items:center;gap:10px">
+                <input type="color" id="inputCustomReformColorHome" value="${currentPrimaryColor}" style="width:38px;height:38px;border:none;border-radius:6px;cursor:pointer;background:transparent">
+                <div>
+                  <div style="font-size:12px;font-weight:800;color:#fff">Cor Primária</div>
+                  <div class="muted small">Uniforme e Escudo</div>
+                </div>
+              </div>
+              <div style="background:#0d1322;border:1px solid rgba(255,255,255,0.15);padding:10px 14px;border-radius:8px;display:flex;align-items:center;gap:10px">
+                <input type="color" id="inputCustomReformColorAway" value="${currentSecondaryColor}" style="width:38px;height:38px;border:none;border-radius:6px;cursor:pointer;background:transparent">
+                <div>
+                  <div style="font-size:12px;font-weight:800;color:#fff">Cor Secundária</div>
+                  <div class="muted small">Detalhes e Sigla</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:13px;font-weight:800;color:#e2e8f0;margin-bottom:6px">
+              🛡️ Escudo / Emblema do Clube:
+            </label>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+              <input type="file" id="inputCustomReformBadgeFile" accept="image/*" style="display:none">
+              <button type="button" class="btn secondary" id="btnUploadReformBadge" style="display:inline-flex;align-items:center;gap:8px;font-weight:800">
+                📁 Carregar Imagem do Computador (PNG/SVG/JPG)
+              </button>
+              ${currentBadgeImage ? `
+                <button type="button" class="btn danger" id="btnRemoveReformBadge" style="font-weight:800">
+                  🗑️ Remover Imagem (Usar Vetor)
+                </button>
+              ` : ''}
+            </div>
+            <div class="muted small" style="margin-top:6px">
+              Envie uma imagem quadrada sem fundo (PNG transparente recomendado) ou use as cores do clube para o escudo vetorial.
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUNA 2: PRÉVIA AO VIVO (LIVE PREVIEW) -->
+        <div style="background:rgba(15,23,42,0.9);border:1px solid rgba(168,85,247,0.3);border-radius:14px;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+              <div style="font-size:12px;font-weight:900;text-transform:uppercase;color:#c084fc;letter-spacing:0.8px">
+                👁️ Prévia Oficial em Tempo Real
+              </div>
+              <span class="pill" style="font-size:10px;background:rgba(255,255,255,0.1)">Homologação</span>
+            </div>
+
+            <div id="customReformPreviewBox" style="background:radial-gradient(circle at center, rgba(30,41,59,0.85) 0%, rgba(15,23,42,0.95) 100%);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;text-align:center;box-shadow:inset 0 0 20px rgba(0,0,0,0.5)">
+              <div id="previewReformBadgeBox" style="min-height:120px;display:flex;align-items:center;justify-content:center;margin-bottom:14px">
+                ${badgePreviewContent}
+              </div>
+              <h3 id="previewReformClubName" style="margin:0 0 4px 0;font-size:22px;font-weight:900;color:#fff">
+                ${esc(currentName)}
+              </h3>
+              <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px">
+                <span id="previewReformShortName" class="pill primary" style="font-size:13px;font-weight:900;letter-spacing:1px;padding:3px 10px">
+                  ${esc(currentShort)}
+                </span>
+                <span class="pill" style="font-size:11px;background:rgba(255,255,255,0.08);color:#94a3b8">Clube Criado</span>
+              </div>
+              <div style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#94a3b8;background:rgba(0,0,0,0.3);padding:6px 14px;border-radius:20px">
+                <span>🏟️</span> <span id="previewReformStadiumName">${esc(currentStadium)}</span>
+              </div>
+            </div>
+
+            <!-- SIMULAÇÃO VISUAL NA BARRA DE JOGO -->
+            <div style="margin-top:16px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px">
+              <div style="font-size:11px;color:#94a3b8;font-weight:800;margin-bottom:6px">Exibição na Tabela e Placar:</div>
+              <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);padding:8px 12px;border-radius:6px">
+                <div id="previewReformBadgeSmall" style="width:24px;height:24px;display:flex;align-items:center;justify-content:center">
+                  ${currentBadgeImage ? `<img src="${currentBadgeImage}" style="width:24px;height:24px;object-fit:contain;border-radius:3px">` : clubBadge(currentName, 24)}
+                </div>
+                <div style="flex:1;font-weight:800;font-size:14px;color:#fff" id="previewReformRowName">
+                  ${esc(currentName)}
+                </div>
+                <span class="pill good" style="font-size:11px;font-weight:900">1º Lugar</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AVISO DE CONTRATO FEDERATIVO -->
+          <div style="margin-top:16px;padding:10px 14px;background:rgba(250,204,21,0.08);border:1px solid rgba(250,204,21,0.25);border-radius:8px;font-size:12px;color:#fef08a;line-height:1.4">
+            ⚠️ <b>Atenção:</b> Esta operação é definitiva e debitará <b>R$ 200.000</b> do caixa do clube. Certifique-se de que o time terá fundos suficientes para salários e custos da temporada.
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTÃO DE PAGAR E CONFIRMAR -->
+      <div style="margin-top:24px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.09);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+        <div style="font-size:13px;color:#94a3b8">
+          Status de Pagamento: <b style="color:${hasFunds ? '#4ade80' : '#f87171'}">${hasFunds ? 'Liberado para Quitação' : 'Bloqueado por Falta de Recursos'}</b>
+        </div>
+        ${hasFunds ? `
+          <button class="btn success" id="btnConfirmCustomClubReform" style="font-weight:900;padding:14px 28px;font-size:15px;border-radius:10px;background:#22c55e;color:#000;box-shadow:0 4px 14px rgba(34,197,94,0.35);cursor:pointer">
+            💳 Pagar R$ 200.000 & Atualizar Marca Oficial
+          </button>
+        ` : `
+          <button class="btn disabled" id="btnConfirmCustomClubReform" disabled style="font-weight:900;padding:14px 28px;font-size:15px;border-radius:10px;background:#334155;color:#94a3b8;cursor:not-allowed;opacity:0.7">
+            🔒 Saldo Insuficiente (Necessário R$ 200.000)
+          </button>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+// -------------------------------------------------------------
 // CONFIGURAÇÕES
 // -------------------------------------------------------------
 function configPage(){
+  if(typeof window !== 'undefined' && window.configTab) configTab = window.configTab;
   const m=window.PLAYER_DB_META||{};
   const activeUser = getActiveAccount() || { username: state?.userOwner || 'aquino', name: state?.manager || 'Treinador' };
+  const isAdminUser = Boolean(
+    activeUser?.role === 'admin' ||
+    activeUser?.username?.toLowerCase() === 'admin' ||
+    (window.AFM_DB && typeof window.AFM_DB.isAdmin === 'function' && window.AFM_DB.isAdmin())
+  );
+  const isCustomClub = Boolean(state && state.customClub);
+  if(!isAdminUser && (configTab === 'db' || configTab === 'audit')){
+    configTab = 'save';
+  }
+  if(!isCustomClub && configTab === 'customclub'){
+    configTab = 'save';
+  }
   const userSlots = getUserSaveSlots(activeUser.username);
   const currentSlot = Math.max(1, Math.min(3, Number(state?.userSlot) || 1));
   return `
@@ -31665,8 +32663,13 @@ function configPage(){
 
     <div class="tabs" style="margin-top:14px">
       <button class="btn ${configTab==='save'?'active':''}" data-config-tab="save">💾 Save & Backup Local</button>
-      <button class="btn ${configTab==='db'?'active':''}" data-config-tab="db">🗄️ Banco de Dados & Elencos</button>
-      <button class="btn ${configTab==='audit'?'active':''}" data-config-tab="audit">🔍 Auditoria Visual de Futebol</button>
+      ${isCustomClub ? `
+        <button class="btn ${configTab==='customclub'?'active':''}" data-config-tab="customclub">🎨 Identidade do Clube (R$ 200k)</button>
+      ` : ''}
+      ${isAdminUser ? `
+        <button class="btn ${configTab==='db'?'active':''}" data-config-tab="db">🗄️ Banco de Dados & Elencos</button>
+        <button class="btn ${configTab==='audit'?'active':''}" data-config-tab="audit">🔍 Auditoria Visual de Futebol</button>
+      ` : ''}
       <button class="btn ${configTab==='options'?'active':''}" data-config-tab="options">⚙️ Preferências do Jogo</button>
       <button class="btn ${configTab==='multiplayer'?'active':''}" data-config-tab="multiplayer">🌐 Multiplayer Cloud</button>
     </div>
@@ -31771,7 +32774,7 @@ function configPage(){
           <button class="btn danger" id="btnResetCareer" style="margin-top:14px">🗑️ Apagar Save Deste Slot e Começar do Zero</button>
         </div>
       </div>
-    ` : configTab==='db' ? `
+    ` : (configTab==='db' && isAdminUser) ? `
       <div class="grid g4" style="margin-top:14px">
         <div class="card metric"><div class="muted">Jogadores Reais</div><div class="value good">${livePlayers.length.toLocaleString('pt-BR')}</div></div>
         <div class="card metric"><div class="muted">Jogadores Gerados</div><div class="value">${(state.worldGenerated||[]).length.toLocaleString('pt-BR')}</div></div>
@@ -31804,7 +32807,7 @@ function configPage(){
           </table>
         </div>
       </div>
-    ` : configTab==='audit' ? `
+    ` : (configTab==='audit' && isAdminUser) ? `
       <div class="card" style="margin-top:14px;background:linear-gradient(180deg, rgba(30,41,59,0.7) 0%, rgba(15,23,42,0.95) 100%);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.07);padding-bottom:12px">
           <div>
@@ -31888,6 +32891,8 @@ function configPage(){
           </table>
         </div>
       </div>
+    ` : (configTab==='customclub' && isCustomClub) ? `
+      ${renderCustomClubReformSection(state)}
     ` : configTab==='options' ? `
       <div class="card" style="margin-top:14px">
         <h2>Preferências do Jogo</h2>
@@ -31921,9 +32926,9 @@ function configPage(){
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
           <span style="font-size:32px">🌐</span>
           <div>
-            <h2 style="color:#38bdf8;margin:0">Amistosos Multiplayer Assíncronos (Supabase Cloud)</h2>
+            <h2 style="color:#38bdf8;margin:0">Amistosos Multiplayer Assíncronos (Nuvem Oficial AFM)</h2>
             <p style="color:rgba(255,255,255,0.7);font-size:13px;margin:4px 0 0 0">
-              Desafie o time salvo de qualquer outro treinador registrado no Supabase! Digite o nome de usuário do seu amigo para simular um grande amistoso interestadual.
+              Desafie o time salvo de qualquer outro treinador registrado nos servidores oficiais! Digite o nome de usuário do seu amigo para simular um grande amistoso interestadual.
             </p>
           </div>
         </div>
@@ -32557,7 +33562,7 @@ function renderSetup(app){
                 Central de Novidades & Atualizações AFM 2027
               </h1>
               <p style="font-size:15px;color:#94a3b8;margin:0;max-width:760px;line-height:1.6">
-                Confira o histórico completo das <b>mais de 75 novidades</b> implementadas no simulador: novas arenas de até 100k lugares, 11 estaduais oficiais, mercado dinâmico, banco Supabase Cloud e motor tático realista.
+                Confira o histórico completo das <b>mais de 75 novidades</b> implementadas no simulador: novas arenas de até 100k lugares, 11 estaduais oficiais, mercado dinâmico, banco de dados em Nuvem Oficial e motor tático realista.
               </p>
             </div>
 
@@ -32982,7 +33987,7 @@ function renderSetup(app){
           <div class="afm-split-left">
             <div class="afm-split-left-content">
               <div class="afm-hero-chip">
-                <span class="afm-hero-chip-icon">⚡</span> NOVO MOTOR TÁTICO & CLOUD SUPABASE 2027
+                <span class="afm-hero-chip-icon">⚡</span> NOVO MOTOR TÁTICO & NUVEM OFICIAL 2027
               </div>
 
               <h1 class="afm-hero-headline">
@@ -33113,7 +34118,7 @@ function renderSetup(app){
 
             <!-- FOOTER COM SEGURANÇA E SUPABASE -->
             <div class="afm-left-footer">
-              <span>🔒 Seus dados e saves estão protegidos na nuvem (Supabase) · ⚡ 100% Gratuito no Navegador</span>
+              <span>🔒 Seus dados e saves estão protegidos na nuvem oficial · ⚡ 100% Gratuito no Navegador</span>
             </div>
           </div>
 
@@ -33328,7 +34333,7 @@ function renderSetup(app){
             </div>
           </div>
           <div>
-            © 2027 AFM Manager. Todos os direitos reservados. Sincronizado e persistido na nuvem Supabase Cloud.<br>
+            © 2027 AFM Manager. Todos os direitos reservados. Sincronizado e persistido na Nuvem Oficial AFM.<br>
             Simulador de futebol local-first para navegadores modernos. Não requer downloads ou instalações.
           </div>
         </footer>
@@ -33401,8 +34406,8 @@ function renderSetup(app){
         </div>
 
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <span class="pill" style="background:rgba(56,189,248,0.12);color:#38bdf8;padding:6px 14px;font-weight:800;border:1px solid rgba(56,189,248,0.3)" title="Banco de Dados Supabase Cloud (afm_saves) Conectado">
-            ☁️ Supabase Cloud Ativo
+          <span class="pill" style="background:rgba(56,189,248,0.12);color:#38bdf8;padding:6px 14px;font-weight:800;border:1px solid rgba(56,189,248,0.3)" title="Banco de Dados em Nuvem Conectado">
+            ☁️ Nuvem Oficial Ativa
           </span>
           ${rawActiveUser ? `
             <span class="pill" style="background:rgba(255,255,255,0.08);color:#fff;padding:6px 14px;font-weight:800;border:1px solid rgba(255,255,255,0.12)">
@@ -34822,6 +35827,18 @@ function bind(){
 
   // Listeners de Estrutura
   if(view==='estrutura'){
+    $$('.btnOpenParkingConcession').forEach(b => {
+      b.onclick = (e) => {
+        if(e) { e.preventDefault(); e.stopPropagation(); }
+        openParkingConcessionModal();
+      };
+    });
+    $$('.btnOpenParkingInteractive').forEach(b => {
+      b.onclick = (e) => {
+        if(e) { e.preventDefault(); e.stopPropagation(); }
+        openParkingModal();
+      };
+    });
     const bParkInt = $('#btnOpenParkingInteractive');
     if(bParkInt) bParkInt.onclick = openParkingModal;
     const bCardPark = $('#btnCardOpenParking');
@@ -35675,6 +36692,18 @@ function bind(){
     $$('.btnOpenAcademy').forEach(b=>b.onclick=openYouthAcademyModal);
     $$('.btnOpenMarketing').forEach(b=>b.onclick=openMarketingModal);
     $$('.btnOpenBank').forEach(b=>b.onclick=openBankLoansModal);
+    $$('.btnOpenParkingConcession').forEach(b => {
+      b.onclick = (e) => {
+        if(e) { e.preventDefault(); e.stopPropagation(); }
+        openParkingConcessionModal();
+      };
+    });
+    $$('.btnOpenParkingInteractive').forEach(b => {
+      b.onclick = (e) => {
+        if(e) { e.preventDefault(); e.stopPropagation(); }
+        openParkingModal();
+      };
+    });
     const bnkInteractive = $('#btnOpenBankInteractive');
     if(bnkInteractive) bnkInteractive.onclick = openBankLoansModal;
     const r=$('#ticketPrice');
@@ -35696,7 +36725,14 @@ function bind(){
       const occEl=$('#dashOccRate'); if(occEl) occEl.textContent=Math.round(proj.rate*100)+'%';
       const occBar=$('#dashOccBar'); if(occBar) occBar.style.width=Math.round(proj.rate*100)+'%';
       const tickRevEl=$('#dashTicketRev'); if(tickRevEl) tickRevEl.textContent=fmtMoney(proj.revenue);
-      const parkRevEl=$('#dashParkRev'); if(parkRevEl) parkRevEl.textContent=fmtMoney(proj.parkRevenue);
+      const parkRevEl=$('#dashParkRev');
+      if(parkRevEl) {
+        if(state.parkingConcession){
+          parkRevEl.innerHTML = `${fmtMoney(proj.parkRevenue)} <span style="font-size:10px;font-weight:normal;color:rgba(255,255,255,0.5)">(${state.parkingConcession.revenueSharePct}% repasse)</span>`;
+        } else {
+          parkRevEl.textContent = fmtMoney(proj.parkRevenue);
+        }
+      }
       const parkBar=$('#dashParkBar'); if(parkBar) parkBar.style.width=(proj.parkSpots>0?Math.round(proj.parkRate*100):0)+'%';
       const totalRevEl=$('#dashTotalRev'); if(totalRevEl) totalRevEl.textContent=fmtMoney(proj.totalRevenue);
       const subTick=$('#dashSubTick'); if(subTick) subTick.textContent=fmtMoney(proj.revenue);
@@ -35881,7 +36917,27 @@ function bind(){
   }
 
   if(view==='config'){
-    $$('[data-config-tab]').forEach(b=>b.onclick=()=>{configTab=b.dataset.configTab;render()});
+    $$('[data-config-tab]').forEach(b=>{
+      b.onclick=()=>{
+        const targetTab = b.dataset.configTab;
+        const curUser = getActiveAccount();
+        const isAdm = Boolean(
+          curUser?.role === 'admin' ||
+          curUser?.username?.toLowerCase() === 'admin' ||
+          (window.AFM_DB && typeof window.AFM_DB.isAdmin === 'function' && window.AFM_DB.isAdmin())
+        );
+        if((targetTab === 'db' || targetTab === 'audit') && !isAdm){
+          toast('Acesso restrito ao Administrador do jogo.');
+          return;
+        }
+        if(targetTab === 'customclub' && !state?.customClub){
+          toast('Disponível apenas para clubes criados no Criador de Clubes.');
+          return;
+        }
+        configTab = targetTab;
+        render();
+      };
+    });
     const selAudit = $('#selAuditCompFilter');
     if(selAudit) selAudit.onchange = () => { auditCompFilter = selAudit.value; render(); };
     const exp1=$('#btnExportJson'); if(exp1) exp1.onclick=exportSave;
@@ -35949,6 +37005,238 @@ function bind(){
         window.AFM30.challengeFriendSquad(u);
       };
     }
+
+    // ---------------------------------------------------------
+    // BINDS DA REFORMULAÇÃO E MARCA DO CLUBE CRIADO (R$ 200.000)
+    // ---------------------------------------------------------
+    const inpReformName = $('#inputCustomReformName');
+    const inpReformShort = $('#inputCustomReformShortName');
+    const inpReformStadium = $('#inputCustomReformStadium');
+    const inpReformColHome = $('#inputCustomReformColorHome');
+    const inpReformColAway = $('#inputCustomReformColorAway');
+    const boxBadgePreview = $('#previewReformBadgeBox');
+    const elClubName = $('#previewReformClubName');
+    const elRowName = $('#previewReformRowName');
+    const elShortName = $('#previewReformShortName');
+    const elStadiumName = $('#previewReformStadiumName');
+    const badgeSmall = $('#previewReformBadgeSmall');
+
+    function updateReformLivePreview(){
+      const cName = (inpReformName?.value || '').trim() || 'Meu Clube';
+      const cShort = (inpReformShort?.value || '').trim().toUpperCase() || 'CLB';
+      const cStadium = (inpReformStadium?.value || '').trim() || 'Arena dos Sonhos';
+      const colH = inpReformColHome?.value || '#1e3a8a';
+      const colA = inpReformColAway?.value || '#facc15';
+
+      if(elClubName) elClubName.textContent = cName;
+      if(elRowName) elRowName.textContent = cName;
+      if(elShortName) elShortName.textContent = cShort;
+      if(elStadiumName) elStadiumName.textContent = cStadium;
+
+      const hasImg = (typeof window !== 'undefined' && window._reformDraftBadgeImage !== undefined)
+        ? window._reformDraftBadgeImage
+        : (state?.customClub?.badgeImage || null);
+
+      if(!hasImg && boxBadgePreview && typeof window.generateBadgeSvg === 'function'){
+        const badgeConf = state?.customClub?.badgeConfig || {
+          shape: 'classic',
+          pattern: 'star',
+          patternColor: '#ffffff',
+          borderStyle: 'classic'
+        };
+        const svg110 = window.generateBadgeSvg({
+          ...badgeConf,
+          primaryColor: colH,
+          secondaryColor: colA,
+          motto: cShort
+        }, 110);
+        boxBadgePreview.innerHTML = svg110;
+
+        if(badgeSmall){
+          const svg24 = window.generateBadgeSvg({
+            ...badgeConf,
+            primaryColor: colH,
+            secondaryColor: colA,
+            motto: cShort
+          }, 24);
+          badgeSmall.innerHTML = svg24;
+        }
+      }
+    }
+
+    if(inpReformName) inpReformName.oninput = updateReformLivePreview;
+    if(inpReformShort) inpReformShort.oninput = updateReformLivePreview;
+    if(inpReformStadium) inpReformStadium.oninput = updateReformLivePreview;
+    if(inpReformColHome) inpReformColHome.oninput = updateReformLivePreview;
+    if(inpReformColAway) inpReformColAway.oninput = updateReformLivePreview;
+
+    const btnUpBadge = $('#btnUploadReformBadge');
+    const inpFileBadge = $('#inputCustomReformBadgeFile');
+    if(btnUpBadge && inpFileBadge){
+      btnUpBadge.onclick = () => inpFileBadge.click();
+      inpFileBadge.onchange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if(!file) return;
+        if(file.size > 3 * 1024 * 1024){
+          toast('A imagem deve ter no máximo 3MB.');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          window._reformDraftBadgeImage = ev.target.result;
+          render();
+        };
+        reader.readAsDataURL(file);
+      };
+    }
+
+    const btnRemBadge = $('#btnRemoveReformBadge');
+    if(btnRemBadge){
+      btnRemBadge.onclick = () => {
+        window._reformDraftBadgeImage = null;
+        render();
+      };
+    }
+
+    const btnConfirmReform = $('#btnConfirmCustomClubReform');
+    if(btnConfirmReform){
+      btnConfirmReform.onclick = () => {
+        const curBal = Number(state?.balance) || 0;
+        if(curBal < 200000){
+          toast('Saldo insuficiente! O clube precisa de pelo menos R$ 200.000 em caixa para registrar a nova marca.');
+          return;
+        }
+
+        const newName = (inpReformName?.value || '').trim();
+        const newShort = (inpReformShort?.value || '').trim().toUpperCase();
+        const newStadium = (inpReformStadium?.value || '').trim();
+        const colHome = inpReformColHome?.value || '#1e3a8a';
+        const colAway = inpReformColAway?.value || '#facc15';
+
+        if(newName.length < 3){
+          toast('O nome do clube deve ter pelo menos 3 caracteres.');
+          return;
+        }
+        if(newShort.length < 2 || newShort.length > 4){
+          toast('A sigla do clube deve conter entre 2 e 4 letras.');
+          return;
+        }
+        if(newStadium.length < 3){
+          toast('O nome do estádio deve ter pelo menos 3 caracteres.');
+          return;
+        }
+
+        // 1. Debitar taxa de registro de R$ 200.000
+        state.balance = curBal - 200000;
+        state.expense = (state.expense || 0) + 200000;
+
+        const oldName = state.club;
+        state.club = newName;
+
+        if(!state.customClub) state.customClub = { isCustom: true };
+        state.customClub.name = newName;
+        state.customClub.shortName = newShort;
+        state.customClub.stadium = newStadium;
+        state.customClub.stadiumName = newStadium;
+        if(state.stadium) state.stadium.name = newStadium;
+
+        // 2. Atualizar escudo oficial
+        if(window._reformDraftBadgeImage){
+          state.customClub.badgeImage = window._reformDraftBadgeImage;
+        } else if(window._reformDraftBadgeImage === null){
+          state.customClub.badgeImage = null;
+          state.customClub.badgeConfig = state.customClub.badgeConfig || {
+            shape: 'classic',
+            pattern: 'star',
+            patternColor: '#ffffff',
+            borderStyle: 'classic'
+          };
+          state.customClub.badgeConfig.primaryColor = colHome;
+          state.customClub.badgeConfig.secondaryColor = colAway;
+          state.customClub.badgeConfig.motto = newShort;
+          if(typeof window.generateBadgeSvg === 'function'){
+            state.customClub.badgeSvg = window.generateBadgeSvg(state.customClub.badgeConfig, 64);
+          }
+        } else {
+          if(!state.customClub.badgeImage && state.customClub.badgeConfig){
+            state.customClub.badgeConfig.primaryColor = colHome;
+            state.customClub.badgeConfig.secondaryColor = colAway;
+            state.customClub.badgeConfig.motto = newShort;
+            if(typeof window.generateBadgeSvg === 'function'){
+              state.customClub.badgeSvg = window.generateBadgeSvg(state.customClub.badgeConfig, 64);
+            }
+          }
+        }
+
+        if(state.customClub.homeKit) state.customClub.homeKit.shirtColor = colHome;
+        if(state.customClub.awayKit) state.customClub.awayKit.secondaryColor = colAway;
+
+        // 3. Propagação das referências no save para zero inconsistências
+        (state.teams || []).forEach(t => {
+          if(t && (t.name === oldName || t.club === oldName)){
+            t.name = newName;
+            t.club = newName;
+          }
+        });
+        (state.schedule || []).forEach(round => {
+          (round || []).forEach(match => {
+            if(match && match[0] === oldName) match[0] = newName;
+            if(match && match[1] === oldName) match[1] = newName;
+          });
+        });
+        (state.squad || []).forEach(p => {
+          if(p && p.club === oldName) p.club = newName;
+        });
+        (state.history || []).forEach(h => {
+          if(h && h.home === oldName) h.home = newName;
+          if(h && h.away === oldName) h.away = newName;
+          if(h && h.winner === oldName) h.winner = newName;
+        });
+        if(state.competitionTeams && typeof state.competitionTeams === 'object'){
+          Object.keys(state.competitionTeams).forEach(k => {
+            const arr = state.competitionTeams[k];
+            if(Array.isArray(arr)){
+              const idx = arr.indexOf(oldName);
+              if(idx !== -1) arr[idx] = newName;
+            }
+          });
+        }
+        if(Array.isArray(state.stateMatches)){
+          state.stateMatches.forEach(m => {
+            if(m && m.home === oldName) m.home = newName;
+            if(m && m.away === oldName) m.away = newName;
+          });
+        }
+
+        // 4. Atualização de Caches Globais do Navegador
+        if(typeof window !== 'undefined'){
+          window.CUSTOM_CLUB_BADGES = window.CUSTOM_CLUB_BADGES || {};
+          window.CUSTOM_CLUB_BADGES[norm(newName)] = state.customClub.badgeImage || state.customClub.badgeSvg;
+          window.CUSTOM_CLUBS = window.CUSTOM_CLUBS || {};
+          window.CUSTOM_CLUBS[norm(newName)] = state.customClub;
+          if(oldName !== newName){
+            delete window.CUSTOM_CLUB_BADGES[norm(oldName)];
+            delete window.CUSTOM_CLUBS[norm(oldName)];
+          }
+        }
+
+        // 5. Notícia no Feed Oficial
+        state.news = state.news || [];
+        state.news.unshift({
+          id: 'news_reform_' + Date.now(),
+          date: state.date,
+          title: '🎨 Reformulação de Marca Registrada',
+          body: `O clube oficializou sua nova marca como ${esc(newName)} (${esc(newShort)}). A taxa de registro e homologação de ${fmtMoney(200000)} foi quitada e a nova identidade visual já está em vigor em todas as competições e no estádio ${esc(newStadium)}.`,
+          unread: true
+        });
+        if(state.news.length > 50) state.news = state.news.slice(0, 50);
+
+        delete window._reformDraftBadgeImage;
+        save();
+        toast(`✓ Marca do ${newName} atualizada com sucesso! R$ 200.000 debitados do caixa.`);
+        render();
+      };
+    }
   }
 
   if(view === 'ranking'){
@@ -35966,6 +37254,18 @@ function bind(){
   $$('.btnOpenTrainingModal').forEach(b => {
     b.onclick = () => {
       openTrainingCenterModal();
+    };
+  });
+  $$('.btnOpenParkingConcession').forEach(b => {
+    b.onclick = (e) => {
+      if(e) { e.preventDefault(); e.stopPropagation(); }
+      openParkingConcessionModal();
+    };
+  });
+  $$('.btnOpenParkingInteractive').forEach(b => {
+    b.onclick = (e) => {
+      if(e) { e.preventDefault(); e.stopPropagation(); }
+      openParkingModal();
     };
   });
 }
@@ -36525,6 +37825,13 @@ if (typeof window !== 'undefined' && window.AFM_DB && typeof window.AFM_DB.init 
   window.setContinentalCategory = function(c){ continentalCategory = c; };
   window.setView = function(v){ view = v; window.view = v; };
   window.getView = function(){ return view; };
+  window.structurePage = structurePage;
+  window.openParkingConcessionModal = openParkingConcessionModal;
+  window.openParkingModal = openParkingModal;
+  window.signParkingConcession = signParkingConcession;
+  window.cancelParkingConcession = cancelParkingConcession;
+  window.getParkingConcessionProposals = getParkingConcessionProposals;
+  window.getParkingConcessionMultiplier = getParkingConcessionMultiplier;
 })();
 
 ;/* window.__AFM_STATE_SYNCED */ try {
@@ -36558,6 +37865,33 @@ if (typeof window !== 'undefined' && window.AFM_DB && typeof window.AFM_DB.init 
   if (typeof getActualCurrentMatch === 'function') { window.getActualCurrentMatch = getActualCurrentMatch; }
   if (typeof userFixture === 'function') { window.userFixture = userFixture; }
   if (typeof save === 'function') { window.save = save; }
+  if (typeof openStadiumModal === 'function') { window.openStadiumModal = openStadiumModal; }
+  if (typeof openOfficialStoreModal === 'function') { window.openOfficialStoreModal = openOfficialStoreModal; }
+  if (typeof openTrainingCenterModal === 'function') { window.openTrainingCenterModal = openTrainingCenterModal; }
+  if (typeof openParkingModal === 'function') { window.openParkingModal = openParkingModal; }
+  if (typeof openParkingConcessionModal === 'function') { window.openParkingConcessionModal = openParkingConcessionModal; }
+  if (typeof signParkingConcession === 'function') { window.signParkingConcession = signParkingConcession; }
+  if (typeof cancelParkingConcession === 'function') { window.cancelParkingConcession = cancelParkingConcession; }
+  if (typeof getParkingConcessionProposals === 'function') { window.getParkingConcessionProposals = getParkingConcessionProposals; }
+  if (typeof getParkingConcessionMultiplier === 'function') { window.getParkingConcessionMultiplier = getParkingConcessionMultiplier; }
+} catch(e) {}
+
+// Fallback delegado global para abertura do estacionamento e concessão
+try {
+  document.addEventListener('click', function(e){
+    const bConc = e.target && e.target.closest ? e.target.closest('.btnOpenParkingConcession') : null;
+    if(bConc){
+      e.preventDefault();
+      if(typeof openParkingConcessionModal === 'function') openParkingConcessionModal();
+      return;
+    }
+    const bPark = e.target && e.target.closest ? e.target.closest('.btnOpenParkingInteractive') : null;
+    if(bPark){
+      e.preventDefault();
+      if(typeof openParkingModal === 'function') openParkingModal();
+      return;
+    }
+  }, true);
 } catch(e) {}
 
 ;(function(){
@@ -36566,7 +37900,7 @@ if (typeof window !== 'undefined' && window.AFM_DB && typeof window.AFM_DB.init 
         render = window.render = function() {
           var res = origRender.apply(this, arguments);
           try {
-            if (typeof state !== 'undefined') { window.state = state; window.GameState = state; }
+            if (typeof state !== 'undefined' && state) { window.state = state; window.GameState = state; }
             if (typeof window.__AFM_RUN_INSTANT_HOOKS === 'function') window.__AFM_RUN_INSTANT_HOOKS();
           } catch(e) {}
           return res;
