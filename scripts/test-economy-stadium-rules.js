@@ -70,7 +70,7 @@ assert(source.includes('const MARKETING_MINIMUM_WEEKLY = 36000'), 'weekly market
 assert(source.includes('marketing: Math.max(MARKETING_MINIMUM_WEEKLY, Number(state.marketingWeekly) || 36000) * 4'), 'monthly projection uses the same increased marketing minimum as actual debits');
 console.log('PASS: marketing save migration triples once, weekly accounting follows it, and upgrades add 20%.');
 
-// The same saved cooldown governs rentals and shows.
+// The automatic schedule shares a cooldown; manual rental prospecting tracks rentals separately.
 const rentalFn = extractFunction('generateStadiumRentalProposal');
 const showFn = extractFunction('generateStadiumEventProposal');
 const offerContext = {
@@ -93,8 +93,12 @@ assert(show && show.fee > 0);
 assert.equal(offerContext.state.lastStadiumCommercialOfferRound,14);
 offerContext.state.stadiumEventProposal = null;
 offerContext.state.round = 17;
-assert.equal(offerContext.rental(),null,'rental cannot replace a show before four rounds');
-offerContext.state.round = 18;
+assert(offerContext.rental(),'manual prospecting can find a rental even when a recent show used the shared schedule');
+assert.equal(offerContext.state.lastStadiumRentalOfferRound,17);
+offerContext.state.stadiumClubRental = null;
+offerContext.state.round = 20;
+assert.equal(offerContext.rental(),null,'a rental opportunity cannot be generated again before its four-round cooldown');
+offerContext.state.round = 21;
 assert(offerContext.rental());
 assert(source.includes('const lastStadiumOfferRound = Number(state.lastStadiumCommercialOfferRound)'));
 assert(source.includes('state.round - lastStadiumOfferRound >= 4'));
@@ -103,7 +107,7 @@ const monthlyStart = source.indexOf('function monthlyFinancialProjection(');
 const monthlyEnd = source.indexOf('\nfunction ', monthlyStart + 10);
 const monthlySource = source.slice(monthlyStart, monthlyEnd);
 assert(!monthlySource.includes('state.stadiumEventProposal = { ...show') && !monthlySource.includes('state.stadiumClubRental = {'), 'monthly finance has no separate offer-generation bypass');
-console.log('PASS: aluguel e shows compartilham intervalo real de quatro rodadas em todos os caminhos.');
+console.log('PASS: agenda automática mantém intervalo de quatro rodadas e a prospecção manual de aluguel tem intervalo próprio.');
 
 assert(source.includes('const homeAttendanceBonus = Math.min(5, Math.max(0, Number(crowdProjection?.attendanceForceBonus) || 0))'));
 assert(source.includes('const hs = (homeStrength || teamStrengthByName(home)) + homeAttendanceBonus'));

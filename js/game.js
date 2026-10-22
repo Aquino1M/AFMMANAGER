@@ -3811,13 +3811,14 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
 // GESTÃO DE ESTÁDIO: ALUGUEL, SHOWS CULTURAIS, MANUTENÇÃO & GRAMADO
 // =========================================================================
 
-function generateStadiumRentalProposal(force = false){
+function generateStadiumRentalProposal(){
   const currentRound = Math.max(0, Number(state.round) || 0);
-  const lastOfferRound = Number(state.lastStadiumCommercialOfferRound);
-  const offerWindowClosed = Number.isFinite(lastOfferRound) && currentRound - lastOfferRound < STADIUM_OFFER_INTERVAL_ROUNDS;
-  if(offerWindowClosed) return null;
-  if(state.stadiumClubRental && !force) return state.stadiumClubRental;
-  if(state.stadiumEventProposal && !force) return null;
+  if(state.stadiumClubRental) return state.stadiumClubRental;
+  if(state.stadiumEventProposal) return null;
+  const lastRentalRound = Number.isFinite(Number(state.lastStadiumRentalOfferRound))
+    ? Number(state.lastStadiumRentalOfferRound)
+    : state.lastStadiumCommercialOfferType === 'rental' ? Number(state.lastStadiumCommercialOfferRound) : NaN;
+  if(Number.isFinite(lastRentalRound) && currentRound - lastRentalRound < STADIUM_OFFER_INTERVAL_ROUNDS) return null;
   if(state.lastStadiumEvent?.date === state.date) return null;
   const currentClubNorm = norm(state.club || '');
   const candidates = (state.teams || [])
@@ -3840,6 +3841,7 @@ function generateStadiumRentalProposal(force = false){
     expiresAfterRound: (Number(state.round) || 0) + 3,
     receivedDate: state.date
   };
+  state.lastStadiumRentalOfferRound = currentRound;
   state.lastStadiumCommercialOfferRound = currentRound;
   state.lastStadiumCommercialOfferType = 'rental';
   return state.stadiumClubRental;
