@@ -32,7 +32,12 @@
       }
 
       // Garante atletas suficientes na base (mínimo 14 jovens talentos)
-      state.youthAcademy = Array.isArray(state.youthAcademy) ? state.youthAcademy : [];
+      if(typeof window.normalizeYouthAcademyRoster === 'function'){
+        window.normalizeYouthAcademyRoster(state);
+        window.restoreYouthAcademyOverflow?.(state);
+      } else {
+        state.youthAcademy = Array.isArray(state.youthAcademy) ? state.youthAcademy.slice(0, 15) : [];
+      }
       const acadLvl = state.infrastructure?.academy?.level || 1;
       while(state.youthAcademy.length < 14){
         if(typeof window.generateYouthPlayer === 'function'){

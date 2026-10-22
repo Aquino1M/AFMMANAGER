@@ -834,8 +834,10 @@
             isGeneticRegen: true
           };
           players[idx] = regen;
-          if (Array.isArray(state?.youthAcademy)) {
-            state.youthAcademy.push(regen);
+          if (Array.isArray(state?.youthAcademy)
+            && window.norm?.(destClub) === window.norm?.(state.club)
+            && typeof window.addYouthAcademyPlayer === 'function') {
+            window.addYouthAcademyPlayer(regen, state);
           }
           regensLog.push(`🌟 ${p.name} aposentou-se aos ${p.age} anos! Seu regen genético (${regen.name}, 16 anos, POT ${regen.potential}) surgiu nas Categorias de Base do ${destClub}!`);
         }

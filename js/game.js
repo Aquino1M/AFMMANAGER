@@ -10035,6 +10035,35 @@ function generateYouthPlayer(academyLevel=1, fixedAge=null, fixedPos=null){
   return p;
 }
 
+const YOUTH_ACADEMY_CAPACITY = 15;
+
+function normalizeYouthAcademyRoster(saveState=state){
+  if(!saveState) return [];
+  if(!Array.isArray(saveState.youthAcademy)) saveState.youthAcademy = [];
+  if(!Array.isArray(saveState.youthAcademyOverflow)) saveState.youthAcademyOverflow = [];
+  if(saveState.youthAcademy.length > YOUTH_ACADEMY_CAPACITY){
+    saveState.youthAcademyOverflow.push(...saveState.youthAcademy.splice(YOUTH_ACADEMY_CAPACITY));
+  }
+  return saveState.youthAcademy;
+}
+
+function addYouthAcademyPlayer(player, saveState=state){
+  const roster = normalizeYouthAcademyRoster(saveState);
+  if(!player || roster.length >= YOUTH_ACADEMY_CAPACITY) return false;
+  roster.unshift(player);
+  return true;
+}
+
+function restoreYouthAcademyOverflow(saveState=state){
+  const roster = normalizeYouthAcademyRoster(saveState);
+  const overflow = saveState?.youthAcademyOverflow || [];
+  const available = YOUTH_ACADEMY_CAPACITY - roster.length;
+  if(available <= 0 || !overflow.length) return 0;
+  const restored = overflow.splice(0, available);
+  roster.push(...restored);
+  return restored.length;
+}
+
 function generateInitialYouthAcademy(academyLevel=1, clubName=null){
   const club = clubName || state?.club || 'Clube';
   const positions = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'RW', 'LW', 'ST'];
@@ -10051,14 +10080,16 @@ function generateInitialYouthAcademy(academyLevel=1, clubName=null){
 }
 
 function boostYouthAcademyOnUpgrade(newLevel){
-  if(!Array.isArray(state.youthAcademy)) state.youthAcademy = [];
+  normalizeYouthAcademyRoster(state);
   state.youthAcademy.forEach(p => {
     p.potential = clamp((p.potential || playerOverall(p)) + 2, playerOverall(p) + 4, 96);
   });
   const topProspect = generateYouthPlayer(newLevel, rnd(15, 16));
   topProspect.potential = Math.min(96, topProspect.potential + 4);
-  state.youthAcademy.unshift(topProspect);
-  state.news.unshift(`🌱 A Categoria de Base foi ampliada para o Nível ${newLevel}! O jovem prodígio ${topProspect.name} (${topProspect.pos}, ${topProspect.age} anos, POT ${topProspect.potential}) ingressou na base.`);
+  const joined = addYouthAcademyPlayer(topProspect, state);
+  state.news.unshift(joined
+    ? `🌱 A Categoria de Base foi ampliada para o Nível ${newLevel}! O jovem prodígio ${topProspect.name} (${topProspect.pos}, ${topProspect.age} anos, POT ${topProspect.potential}) ingressou na base.`
+    : `🌱 A Categoria de Base foi ampliada para o Nível ${newLevel}, mas ${topProspect.name} não ingressou porque as 15 vagas estão ocupadas.`);
 }
 
 function processYouthDevelopment(){
@@ -13069,10 +13100,11 @@ function migrate(s){
   }
   s.marketingWeekly = Math.max(MARKETING_MINIMUM_WEEKLY, Number(s.marketingWeekly) || 36000);
   s.marketingMonthly=s.marketingWeekly * 4;
-  if(!Array.isArray(s.youthAcademy) || s.youthAcademy.length === 0){
+  if(!Array.isArray(s.youthAcademy) || (s.youthAcademy.length === 0 && !s.youthAcademyOverflow?.length)){
     const acadLvl = s.infrastructure?.academy?.level || 1;
     s.youthAcademy = generateInitialYouthAcademy(acadLvl, s.club);
   }
+  normalizeYouthAcademyRoster(s);
   s.youthAcademy.forEach(p => {
     p.age = clamp(Number(p.age) || 16, 15, 18);
   });
@@ -13354,13 +13386,17 @@ function checkTrainingInjury(){
 }
 
 function triggerPeneiraBaseEvent(){
+  normalizeYouthAcademyRoster(state);
+  if(state.youthAcademy.length >= YOUTH_ACADEMY_CAPACITY){
+    state.news.unshift('🌱 A peneira anual foi realizada, mas a Categoria de Base está sem vagas. Libere espaço para receber novos talentos.');
+    return;
+  }
   const newJewel = generateYouthPlayer(state?.infrastructure?.academy?.level || 1);
   newJewel.potential = clamp(rnd(86, 94), 85, 96);
   newJewel.fc = clamp(rnd(60, 68), 58, 72);
   newJewel.pes = newJewel.fc;
   newJewel.name = `${NAMES[rnd(0,NAMES.length-1)]} ${LAST[rnd(0,LAST.length-1)]} (Joia da Base)`;
-  state.youthAcademy = state.youthAcademy || [];
-  state.youthAcademy.unshift(newJewel);
+  addYouthAcademyPlayer(newJewel, state);
   state.news.unshift(`🌟 PENEIRA ANUAL DA BASE: O olheiro descobriu a jovem promessa ${newJewel.name} (${newJewel.pos}, ${newJewel.fc} OVR, ${newJewel.potential} POT)! Já integrado aos juniores.`);
   toast(`🌟 Peneira concluída! ${newJewel.name} chegou à base!`);
 }
@@ -22961,23 +22997,25 @@ function signProContract(youthKey){
 
 function runYouthScoutPeneira(){
   if(!state) return;
+  normalizeYouthAcademyRoster(state);
   const cost = 25000;
   if(state.balance < cost){
     toast('Caixa insuficiente para organizar a peneira (R$ 25.000).');
     return;
   }
-  if((state.youthAcademy || []).length >= 16){
-    toast('A categoria de base está cheia (máximo 16 atletas). Promova ou dispense atletas.');
+  const availableSlots = YOUTH_ACADEMY_CAPACITY - state.youthAcademy.length;
+  if(availableSlots <= 0){
+    toast(`A categoria de base está cheia (máximo ${YOUTH_ACADEMY_CAPACITY} atletas). Promova ou dispense atletas.`);
     return;
   }
   state.balance -= cost;
   state.expense += cost;
   const lvl = state.infrastructure?.academy?.level || 1;
   const p1 = generateYouthPlayer(lvl, rnd(15, 17));
-  const p2 = generateYouthPlayer(lvl, rnd(15, 16));
-  state.youthAcademy.unshift(p1);
-  if(state.youthAcademy.length < 16) state.youthAcademy.unshift(p2);
-  state.news.unshift(`⚽ Nova peneira realizada! ${p1.name} (${p1.pos}, ${p1.age} anos) e ${p2.name} (${p2.pos}, ${p2.age} anos) foram integrados à base.`);
+  const prospects = [p1];
+  if(availableSlots > 1) prospects.push(generateYouthPlayer(lvl, rnd(15, 16)));
+  prospects.forEach(p => addYouthAcademyPlayer(p, state));
+  state.news.unshift(`⚽ Nova peneira realizada! ${prospects.map(p => `${p.name} (${p.pos}, ${p.age} anos)`).join(' e ')} ${prospects.length === 1 ? 'foi integrado' : 'foram integrados'} à base.`);
   toast(`⚽ Peneira concluída! Novos jovens talentos integrados.`);
   save();
   openYouthAcademyModal();
@@ -22985,13 +23023,15 @@ function runYouthScoutPeneira(){
 
 function runCopinhaSub20(){
   if(!state) return;
+  normalizeYouthAcademyRoster(state);
   const cost = 50000;
   if(state.balance < cost){
     toast('Saldo insuficiente para inscrever o time na Copinha (R$ 50.000).');
     return;
   }
-  if((state.youthAcademy || []).length >= 16){
-    toast('A base está cheia (máximo 16 atletas). Promova ou dispense atletas.');
+  const availableSlots = YOUTH_ACADEMY_CAPACITY - state.youthAcademy.length;
+  if(availableSlots <= 0){
+    toast(`A base está cheia (máximo ${YOUTH_ACADEMY_CAPACITY} atletas). Promova ou dispense atletas.`);
     return;
   }
   state.balance -= cost;
@@ -23000,12 +23040,13 @@ function runCopinhaSub20(){
 
   const p1 = generateYouthPlayer(Math.min(10, lvl + 2), rnd(16, 18));
   p1.potential = clamp((p1.potential || 82) + 5, 84, 94);
-  const p2 = generateYouthPlayer(Math.min(10, lvl + 2), rnd(16, 17));
-  p2.potential = clamp((p2.potential || 80) + 6, 83, 92);
-
-  state.youthAcademy = state.youthAcademy || [];
-  state.youthAcademy.unshift(p1);
-  if(state.youthAcademy.length < 16) state.youthAcademy.unshift(p2);
+  const prospects = [p1];
+  if(availableSlots > 1){
+    const p2 = generateYouthPlayer(Math.min(10, lvl + 2), rnd(16, 17));
+    p2.potential = clamp((p2.potential || 80) + 6, 83, 92);
+    prospects.push(p2);
+  }
+  prospects.forEach(p => addYouthAcademyPlayer(p, state));
 
   const wonTitle = Math.random() < 0.45;
   const prize = wonTitle ? 350000 : 120000;
@@ -23018,7 +23059,7 @@ function runCopinhaSub20(){
     ? `🏆 É CAMPEÃO DA COPINHA SUB-20! Nossos juniores conquistaram a taça e faturaram ${fmtMoney(prize)} de premiação!`
     : `⭐ GRANDE CAMPANHA NA COPINHA: O time de juniores avançou até as semifinais e faturou ${fmtMoney(prize)}!`;
 
-  state.news.unshift(`${titleMsg} Destaques: ${p1.name} (Potencial ⭐${p1.potential}) e ${p2.name} (Potencial ⭐${p2.potential}) promovidos.`);
+  state.news.unshift(`${titleMsg} Destaques: ${prospects.map(p => `${p.name} (Potencial ⭐${p.potential})`).join(' e ')} integrados à base.`);
   toast(wonTitle ? '🏆 Campeão da Copinha Sub-20! +R$ 350k no caixa!' : '⭐ Grande campanha na Copinha! Joias reveladas.');
   save();
   openYouthAcademyModal();
@@ -23037,9 +23078,11 @@ function releaseYouthPlayer(youthKey){
 
 function openYouthAcademyModal(){
   if(!state) return;
+  normalizeYouthAcademyRoster(state);
   const acadLvl = state.infrastructure?.academy?.level || 1;
   const maxLvl = FACILITIES.academy.max;
-  const list = state.youthAcademy || [];
+  const list = state.youthAcademy;
+  const waitingCount = state.youthAcademyOverflow.length;
   const avgOvr = list.length ? Math.round(list.reduce((acc, p) => acc + playerOverall(p), 0) / list.length) : 0;
   const bestPot = list.length ? Math.max(...list.map(p => p.potential || playerOverall(p))) : 0;
 
@@ -23063,7 +23106,8 @@ function openYouthAcademyModal(){
     <div class="grid g4" style="margin-bottom:14px">
       <div class="card metric" style="padding:10px">
         <div class="muted" style="font-size:11px">Atletas na Base</div>
-        <div class="value" style="font-size:18px;color:#fff">${list.length}/16</div>
+        <div class="value" style="font-size:18px;color:#fff">${list.length}/${YOUTH_ACADEMY_CAPACITY}</div>
+        ${waitingCount ? `<div class="small muted">${waitingCount} na fila de espera</div>` : ''}
       </div>
       <div class="card metric" style="padding:10px">
         <div class="muted" style="font-size:11px">Faixa Etária</div>
@@ -23145,7 +23189,8 @@ function openYouthAcademyModal(){
 
     <div style="margin-top:14px;padding:10px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:10px;display:flex;justify-content:space-between;align-items:center">
       <div class="small muted">
-        💡 <b>Regra da Base:</b> Jovens têm entre 15 e 18 anos. Ao fechar contrato com o profissional, eles são promovidos instantaneamente para o seu elenco!
+        💡 <b>Regra da Base:</b> limite de ${YOUTH_ACADEMY_CAPACITY} atletas entre 15 e 18 anos. Ao fechar contrato com o profissional, eles são promovidos instantaneamente para o seu elenco!
+        ${waitingCount && list.length < YOUTH_ACADEMY_CAPACITY ? `<button class="btn" id="btnRestoreYouthQueue" style="margin-left:10px">Restaurar da fila (${waitingCount})</button>` : waitingCount ? `<span style="display:block;margin-top:6px">Atletas excedentes de saves antigos foram preservados na fila; libere uma vaga para restaurá-los.</span>` : ''}
       </div>
       <button class="btn" id="btnCloseYouthModal">Fechar</button>
     </div>
@@ -23158,6 +23203,13 @@ function openYouthAcademyModal(){
 
   const copinhaBtn = $('#btnPlayCopinhaSub20');
   if(copinhaBtn) copinhaBtn.onclick = runCopinhaSub20;
+
+  const restoreQueueBtn = $('#btnRestoreYouthQueue');
+  if(restoreQueueBtn) restoreQueueBtn.onclick = () => {
+    restoreYouthAcademyOverflow(state);
+    save();
+    openYouthAcademyModal();
+  };
 
   $$('.btnSignPro').forEach(b => {
     b.onclick = () => signProContract(b.dataset.youthKey);
@@ -30348,7 +30400,7 @@ function structurePage(){
                     </div>
                   ` : ''}
                 `:''}
-                ${k==='academy'?`<div class="facility-stat" style="color:var(--neon)">Atletas na Base: <b>${(state.youthAcademy||[]).length} atletas (15 a 18 anos)</b></div>`:''}
+                ${k==='academy'?`<div class="facility-stat" style="color:var(--neon)">Atletas na Base: <b>${normalizeYouthAcademyRoster(state).length}/${YOUTH_ACADEMY_CAPACITY} atletas (15 a 18 anos)</b></div>`:''}
                 ${k==='training'?`<div class="facility-stat" style="color:var(--cyan)">Vagas do elenco: <b>${squadCapacity(x.level)} jogadores</b> (+3 por nível)</div>`:''}
                 ${k==='marketing'?`<div class="facility-stat" style="color:var(--cyan)">Aporte Semanal: <b>${fmtMoney(state.marketingWeekly||36000)}/semana</b></div>`:''}
                 ${k==='bank'?`
@@ -38569,6 +38621,9 @@ window.newCareer = newCareer;
 window.advanceSeasonYear = advanceSeasonYear;
 window.executeSeasonTransitions = executeSeasonTransitions;
 window.save = save;
+window.normalizeYouthAcademyRoster = normalizeYouthAcademyRoster;
+window.addYouthAcademyPlayer = addYouthAcademyPlayer;
+window.restoreYouthAcademyOverflow = restoreYouthAcademyOverflow;
 window.saveUserSlot = saveUserSlot;
 window.load = load;
 window.loadUserSlot = loadUserSlot;

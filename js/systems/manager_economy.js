@@ -290,10 +290,13 @@
             fitness: 100,
             source: 'Escolinha de Futebol do Treinador'
           };
-          state.youthAcademy.unshift(youthPlayer);
-          state.news = Array.isArray(state.news) ? state.news : [];
-          state.news.unshift(`⚽ ESCOLINHA DO PROFESSOR: Sua escolinha revelou uma jovem promessa para a base do ${state.club}: ${youthPlayer.name} (${youthPlayer.pos}, 16 anos, Potencial ${youthPlayer.potential})!`);
-          if (state.news.length > 50) state.news = state.news.slice(0, 50);
+          const joinedAcademy = typeof window.addYouthAcademyPlayer === 'function'
+            && window.addYouthAcademyPlayer(youthPlayer, state);
+          if (joinedAcademy) {
+            state.news = Array.isArray(state.news) ? state.news : [];
+            state.news.unshift(`⚽ ESCOLINHA DO PROFESSOR: Sua escolinha revelou uma jovem promessa para a base do ${state.club}: ${youthPlayer.name} (${youthPlayer.pos}, 16 anos, Potencial ${youthPlayer.potential})!`);
+            if (state.news.length > 50) state.news = state.news.slice(0, 50);
+          }
         }
       });
 
