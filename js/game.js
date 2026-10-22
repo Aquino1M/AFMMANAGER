@@ -15384,6 +15384,7 @@ function finalizeRound(userRes, winners, isKO){
 
   // Atualiza propostas de mercado para jogadores colocados à venda ou para empréstimo
   let newOffersCount = 0;
+  const incomingOfferAlerts = [];
   state.transferOffers = state.transferOffers || {};
   state.loanOffers = state.loanOffers || {};
   // 1. Sincroniza atletas com 6 meses ou menos de contrato para a lista de venda
@@ -15405,6 +15406,7 @@ function finalizeRound(userRes, winners, isKO){
             state.transferOffers[k].push(newOffer);
             newOffersCount++;
             state.news.unshift(`📬 MERCADO: O ${newOffer.buyer} enviou uma proposta oficial de ${fmtMoney(newOffer.price)} por ${p.name}!`);
+            incomingOfferAlerts.push(`${p.name}: ${newOffer.buyer} ofereceu ${fmtMoney(newOffer.price)}`);
           }
         }
       }
@@ -15425,6 +15427,7 @@ function finalizeRound(userRes, winners, isKO){
             state.loanOffers[k].push(newOffer);
             newOffersCount++;
             state.news.unshift(`🤝 EMPRÉSTIMO: O ${newOffer.buyer} enviou proposta para levar ${p.name} por empréstimo com taxa de ${fmtMoney(newOffer.fee)}!`);
+            incomingOfferAlerts.push(`${p.name}: ${newOffer.buyer} propôs empréstimo (${fmtMoney(newOffer.fee)})`);
           }
         }
       }
@@ -15450,6 +15453,9 @@ function finalizeRound(userRes, winners, isKO){
   }
   if(newOffersCount > 0){
     state.news.unshift(`📬 Chegaram novas propostas de compra e empréstimo para seus jogadores na lista de transferências!`);
+    const visibleAlerts = incomingOfferAlerts.slice(0, 2);
+    const remainingAlerts = incomingOfferAlerts.length - visibleAlerts.length;
+    toast(`📬 ${visibleAlerts.join(' • ')}${remainingAlerts > 0 ? ` • +${remainingAlerts} proposta(s)` : ''}`);
   }
 
   // 1. Simulação do Mercado Vivo da IA (Clubes da CPU negociam entre si)
@@ -15955,6 +15961,9 @@ function checkIncomingPlayerBids(){
   } else {
     state.news.unshift(`💰 PROPOSTA OFICIAL MILIONÁRIA: O ${pickedClubs[0]} ofereceu ${fmtMoney(state.incomingBids[state.incomingBids.length-1].fee)} + 20% de venda futura por ${target.name}!`);
   }
+  const targetBids = state.incomingBids.filter(b => b.playerKey === playerKey(target));
+  const bestBid = targetBids.reduce((best, bid) => Math.max(best, Number(bid.fee) || 0), 0);
+  toast(`📬 ${pickedClubs.length > 1 ? 'Leilão por' : 'Nova proposta por'} ${target.name}: ${pickedClubs.join(', ')} • ${fmtMoney(bestBid)}`);
 }
 
 function renderHomeBidsBanner(){
