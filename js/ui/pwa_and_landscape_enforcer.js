@@ -226,13 +226,89 @@
     document.body.insertAdjacentHTML('afterbegin', guardHtml);
   }
 
-  // 5. Drawer / Menu Lateral Deslizante Mobile
+  // =========================================================================
+  // 4.5. DETECTOR E SEPARADOR DE PLATAFORMAS (PC vs MOBILE)
+  // Permite separar 100% o jogo: layout, menus, escalas táticas e cards
+  // =========================================================================
+  const AFM_Platform = {
+    getPreference() {
+      try {
+        return localStorage.getItem('afm_platform_mode') || 'auto';
+      } catch (e) {
+        return 'auto';
+      }
+    },
+    setPreference(mode) {
+      try {
+        if (mode === 'pc' || mode === 'mobile') {
+          localStorage.setItem('afm_platform_mode', mode);
+        } else {
+          localStorage.removeItem('afm_platform_mode');
+        }
+      } catch (e) {}
+      this.syncClasses();
+    },
+    detectDeviceIsMobile() {
+      if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+      const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
+      const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i;
+      const hasTouch = (navigator.maxTouchPoints && navigator.maxTouchPoints > 1) || ('ontouchstart' in window);
+      const isCoarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+      const isNarrow = window.innerWidth <= 1024;
+      
+      // Se for dispositivo móvel típico por UA
+      if (mobileRegex.test(ua)) return true;
+      // Se tiver toque e largura <= 1024px
+      if (hasTouch && isNarrow) return true;
+      // Se for tela menor ou igual a 1024px com ponteiro impreciso/touch
+      if (isCoarse && isNarrow) return true;
+      // Se estiver em modo paisagem com altura baixa (típico celular)
+      if (window.innerHeight <= 520 && isNarrow) return true;
+      
+      return false;
+    },
+    isMobile() {
+      const pref = this.getPreference();
+      if (pref === 'mobile') return true;
+      if (pref === 'pc') return false;
+      return this.detectDeviceIsMobile();
+    },
+    isPC() {
+      return !this.isMobile();
+    },
+    syncClasses() {
+      if (typeof document === 'undefined') return;
+      const isMob = this.isMobile();
+      const root = document.documentElement;
+      const body = document.body;
+      
+      if (isMob) {
+        root.classList.remove('platform-pc');
+        root.classList.add('platform-mobile');
+        if (body) {
+          body.classList.remove('platform-pc');
+          body.classList.add('platform-mobile');
+        }
+      } else {
+        root.classList.remove('platform-mobile');
+        root.classList.add('platform-pc');
+        if (body) {
+          body.classList.remove('platform-mobile');
+          body.classList.add('platform-pc');
+        }
+      }
+    }
+  };
+  window.AFM_Platform = AFM_Platform;
+
+  // Sincroniza classes imediatamente
+  try {
+    AFM_Platform.syncClasses();
+  } catch(e) {}
+
   // 5. Drawer / Menu Lateral Deslizante Mobile vs Menu Fixo no PC
   function isAFMMobileViewport() {
-    if (typeof window === 'undefined') return false;
-    // Dispositivos móveis (smartphones e tablets) são estritamente delimitados por largura <= 1024px
-    // No PC (Desktop widescreen >= 1025px), NUNCA é mobile, preservando o menu lateral fixo na grade
-    return window.innerWidth <= 1024;
+    return AFM_Platform.isMobile();
   }
   window.isAFMMobileViewport = isAFMMobileViewport;
 
@@ -317,6 +393,9 @@
   // Observador de Redimensionamento: garante limpeza imediata ao alternar entre PC e Mobile
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     const handleViewportChange = () => {
+      if (window.AFM_Platform && typeof window.AFM_Platform.syncClasses === 'function') {
+        window.AFM_Platform.syncClasses();
+      }
       if (!isAFMMobileViewport()) {
         const drawer = document.getElementById('afmSideDrawer');
         const backdrop = document.getElementById('afmDrawerBackdrop');

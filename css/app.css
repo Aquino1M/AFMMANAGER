@@ -6451,8 +6451,8 @@ body.theme-emerald {
 }
 
 .sm-drawer-footer {
-  margin-top: auto;
-  padding-top: 14px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -8001,11 +8001,12 @@ body.theme-emerald {
 }
 
 /* ========================================================================= */
-/* SEPARAÇÃO EXPLÍCITA PC (DESKTOP WIDESCREEN >= 1025px)                     */
+/* ========================================================================= */
+/* SEPARAÇÃO EXPLÍCITA PC (DESKTOP WIDESCREEN >= 1025px OU .platform-pc)     */
 /* Garante que o PC mantenha experiência pura de desktop com MENU FIXO LATERAL */
+/* e ESCALAÇÃO ESPAÇOSA COM CARDS E PEDESTAIS VISÍVEIS                        */
 /* ========================================================================= */
 @media screen and (min-width: 1025px) {
-  /* No PC o layout é SEMPRE grade fixa de 2 colunas com menu lateral permanente */
   .layout {
     display: grid !important;
     grid-template-columns: 240px minmax(0, 1fr) !important;
@@ -8014,7 +8015,6 @@ body.theme-emerald {
     position: relative !important;
   }
 
-  /* No PC o menu lateral é ESTÁTICO E INTEGRADO NA COLUNA ESQUERDA (NUNCA gaveta flutuante!) */
   .side,
   .side.sm-drawer,
   #afmSideDrawer {
@@ -8041,20 +8041,17 @@ body.theme-emerald {
     box-sizing: border-box !important;
   }
 
-  /* No PC o cabeçalho duplicado do drawer e o botão 'X' de fechar NUNCA aparecem */
   .sm-drawer-header,
   .sm-drawer-close,
   #btnCloseMobileDrawer {
     display: none !important;
   }
 
-  /* No PC o botão hambúrguer no topo NUNCA aparece */
   .sm-btn-hamburger,
   #btnToggleSidebarDrawer {
     display: none !important;
   }
 
-  /* No PC o backdrop escuro do mobile NUNCA aparece */
   .afm-drawer-backdrop,
   #afmDrawerBackdrop {
     display: none !important;
@@ -8062,7 +8059,6 @@ body.theme-emerald {
     opacity: 0 !important;
   }
 
-  /* No PC a navegação lateral é uma coluna vertical única (1 coluna) limpa e elegante */
   .sm-drawer-nav {
     display: flex !important;
     flex-direction: column !important;
@@ -8085,32 +8081,159 @@ body.theme-emerald {
   }
 
   .sm-drawer-footer {
-    margin-top: auto !important;
-    padding-top: 14px !important;
+    margin-top: 10px !important;
+    padding-top: 10px !important;
     border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
     display: flex !important;
     gap: 6px !important;
   }
 
-  /* Área principal à direita no PC */
+  .sm-topbar {
+    min-height: 54px !important;
+    padding: 6px 20px !important;
+  }
+  .sm-task-ribbon {
+    display: flex !important;
+  }
+  .hero {
+    display: flex !important;
+  }
+
   .main {
     width: auto !important;
     min-width: 0 !important;
     flex: 1 !important;
+    padding: 16px 24px !important;
   }
 
-  /* Central no PC com 3 colunas completas */
   .central-dashboard-grid {
     grid-template-columns: 280px minmax(0, 1.8fr) 300px !important;
     gap: 18px !important;
   }
 
-  /* Meu Time no PC com altura de monitor widescreen */
   .tactics-modal-container {
     height: calc(100vh - 210px) !important;
-    min-height: 560px !important;
+    min-height: 540px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 16px !important;
+  }
+  .tactics-pitch-wrapper {
+    flex: 1 1 70% !important;
+    height: 100% !important;
+    min-height: 520px !important;
+    border-radius: 14px !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+  .tactics-bench-wrapper {
+    flex: 0 0 30% !important;
+    width: 30% !important;
+    height: 100% !important;
+    min-height: 520px !important;
+    padding: 14px 16px !important;
+    border-radius: 14px !important;
+    box-sizing: border-box !important;
+  }
+  .tactics-setpieces-panel {
+    display: flex !important;
+  }
+  .pitch-slot-dropzone {
+    width: 68px !important;
+    height: 86px !important;
+  }
+  .fifa-mini-card {
+    width: 68px !important;
+    height: 86px !important;
+    padding: 3px 3px 2px 3px !important;
+  }
+  .fifa-mini-card-photo {
+    height: 42px !important;
+    max-width: 52px !important;
+  }
+  .fifa-mini-card-name {
+    font-size: 8px !important;
+  }
+  .pitch-slot-pedestal {
+    display: block !important;
+    bottom: -18px !important;
+    width: 72px !important;
+    font-size: 8.5px !important;
+  }
+  .fut-pitch-hud-left {
+    transform: scale(1) !important;
   }
 }
+
+/* ========================================================================= */
+/* SEPARAÇÃO EXPLÍCITA MOBILE (.platform-mobile)                              */
+/* Escala compacta Soccer Manager 2027, mini-cards 38x48px, zero overflow    */
+/* ========================================================================= */
+.platform-mobile .layout {
+  display: block !important;
+}
+.platform-mobile .sm-task-ribbon,
+.platform-mobile .hero {
+  display: none !important;
+}
+.platform-mobile .sm-btn-hamburger,
+.platform-mobile #btnToggleSidebarDrawer {
+  display: inline-flex !important;
+}
+.platform-mobile .main {
+  padding: 4px 8px !important;
+  width: 100% !important;
+}
+.platform-mobile .tactics-modal-container {
+  height: auto !important;
+  min-height: 290px !important;
+  max-height: 330px !important;
+  gap: 6px !important;
+  display: flex !important;
+  flex-direction: row !important;
+}
+.platform-mobile .tactics-pitch-wrapper {
+  flex: 1 1 68% !important;
+  height: 310px !important;
+  min-height: 290px !important;
+  max-height: 330px !important;
+}
+.platform-mobile .tactics-bench-wrapper {
+  flex: 0 0 32% !important;
+  width: 32% !important;
+  height: 310px !important;
+  min-height: 290px !important;
+  max-height: 330px !important;
+  padding: 4px 6px !important;
+}
+.platform-mobile .pitch-slot-dropzone {
+  width: 38px !important;
+  height: 48px !important;
+}
+.platform-mobile .fifa-mini-card {
+  width: 38px !important;
+  height: 48px !important;
+  padding: 1px 2px !important;
+}
+.platform-mobile .fifa-mini-card-photo {
+  height: 22px !important;
+  max-width: 26px !important;
+}
+.platform-mobile .fifa-mini-card-name {
+  font-size: 5.5px !important;
+}
+.platform-mobile .pitch-slot-pedestal {
+  bottom: -11px !important;
+  width: 40px !important;
+}
+.platform-mobile .pitch-slot-pedestal .pedestal-role-line {
+  font-size: 6px !important;
+}
+.platform-mobile .fut-pitch-hud-left {
+  transform: scale(0.75) !important;
+}
+
+
 
 
 
@@ -9413,5 +9536,217 @@ body.theme-emerald {
   filter: brightness(1.12);
   transform: translateY(-1px);
 }
+
+/* ==========================================================================
+   AFM 2027 — ACOPLAMENTO 3D EM TEMPO REAL: MELHORIAS & AMPLIAÇÃO DE ARQUIBANCADA
+   ========================================================================== */
+.afm-3d-hotspot {
+  pointer-events: auto;
+  user-select: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 10;
+}
+
+@keyframes afm3dLedScroll {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes afm3dFlareFlicker {
+  0%, 100% { transform: scale(1) translateY(0); filter: drop-shadow(0 0 12px #f97316); }
+  50% { transform: scale(1.18) translateY(-5px); filter: drop-shadow(0 0 24px #ef4444); }
+}
+
+@keyframes afm3dSoundWave {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes afm3dGlowPulse {
+  0%, 100% { opacity: 0.88; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); filter: drop-shadow(0 0 14px currentColor); }
+}
+
+/* Módulo 3D de Arquibancada Acoplada (Zona Leste / Oeste / Norte / Sul) */
+.afm-3d-stand-module {
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 2px solid #38bdf8;
+  border-radius: 10px;
+  padding: 6px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  animation: afm3dGlowPulse 3s infinite ease-in-out;
+  transform: translate(-50%, -50%);
+}
+
+.afm-3d-stand-module.done {
+  border-color: #22c55e;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 18px rgba(34, 197, 94, 0.55);
+}
+
+.afm-3d-stand-module.work {
+  border-color: #f59e0b;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 18px rgba(245, 158, 11, 0.55);
+}
+
+.afm-3d-stand-module .stand-title {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.afm-3d-stand-module.done .stand-title { color: #4ade80; }
+.afm-3d-stand-module.work .stand-title { color: #facc15; }
+
+.afm-3d-stand-visual-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 90px;
+  margin: 2px 0;
+}
+
+.afm-3d-stand-visual-tiers .tier-step {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #334155, #64748b, #334155);
+}
+
+.afm-3d-stand-module.done .tier-step {
+  background: linear-gradient(90deg, #15803d, #22c55e, #15803d);
+}
+
+.afm-3d-stand-module.work .tier-step {
+  background: repeating-linear-gradient(45deg, #b45309, #b45309 6px, #f59e0b 6px, #f59e0b 12px);
+}
+
+/* Telão Digital 3D (Jumbotron) */
+.afm-3d-screen-jumbotron {
+  background: #020617;
+  border: 2px solid #22c55e;
+  border-radius: 8px;
+  padding: 6px 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(34, 197, 94, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transform: translate(-50%, -50%);
+  animation: afm3dGlowPulse 4s infinite ease-in-out;
+}
+
+/* Camarotes VIP Corporativos 3D */
+.afm-3d-vip-lounge {
+  background: rgba(30, 27, 75, 0.92);
+  border: 2px solid #facc15;
+  border-radius: 8px;
+  padding: 5px 10px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7), 0 0 20px rgba(250, 204, 21, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transform: translate(-50%, -50%);
+  color: #fef08a;
+}
+
+/* Anel de LED 360° no 3D */
+.afm-3d-led-ring-ribbon {
+  background: linear-gradient(90deg, #06b6d4, #a855f7, #ec4899, #38bdf8, #06b6d4);
+  background-size: 200% 100%;
+  animation: afm3dLedScroll 3s linear infinite;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 3px 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.8), 0 0 25px rgba(6, 182, 212, 0.6);
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}
+
+/* Refletores LED 3D (Holofotes de Alta Potência) */
+.afm-3d-spotlight-source {
+  width: 22px;
+  height: 22px;
+  background: radial-gradient(circle, #ffffff 0%, #fef08a 60%, rgba(254, 240, 138, 0.2) 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 25px #fef08a, 0 0 45px rgba(254, 240, 138, 0.9);
+  transform: translate(-50%, -50%);
+}
+
+/* Fogos e Sinalizadores da Torcida 3D */
+.afm-3d-flare-pyro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -50%);
+  animation: afm3dFlareFlicker 1.4s infinite ease-in-out;
+}
+
+/* Mosaico com o Escudo 3D */
+.afm-3d-mosaic-banner {
+  background: linear-gradient(135deg, #1e1b4b, #4338ca);
+  border: 2px solid #818cf8;
+  border-radius: 8px;
+  padding: 5px 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7), 0 0 18px rgba(129, 140, 248, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transform: translate(-50%, -50%);
+}
+
+/* Painel Solar e Climatização 3D */
+.afm-3d-solar-roof {
+  background: linear-gradient(135deg, #064e3b, #047857);
+  border: 1.5px solid #34d399;
+  border-radius: 8px;
+  padding: 4px 10px;
+  box-shadow: 0 0 16px rgba(52, 211, 153, 0.6);
+  color: #a7f3d0;
+  font-size: 9px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transform: translate(-50%, -50%);
+}
+
+/* Sistema de Som Acústico 3D */
+.afm-3d-sound-tower {
+  background: rgba(14, 165, 233, 0.25);
+  border: 1.5px solid #38bdf8;
+  border-radius: 999px;
+  padding: 4px 8px;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.7);
+  color: #bae6fd;
+  font-size: 9px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transform: translate(-50%, -50%);
+}
+
+/* Cadeiras Novas 3D */
+.afm-3d-chairs-badge {
+  background: rgba(88, 28, 135, 0.85);
+  border: 1.5px solid #c084fc;
+  border-radius: 8px;
+  padding: 4px 8px;
+  box-shadow: 0 0 14px rgba(192, 132, 252, 0.5);
+  color: #f3e8ff;
+  font-size: 9px;
+  font-weight: 900;
+  transform: translate(-50%, -50%);
+}
+
 
 

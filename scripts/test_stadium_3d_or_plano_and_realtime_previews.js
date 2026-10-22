@@ -171,4 +171,46 @@ assert.ok(arenaHtml100k.includes('MAQUETE ARENA: 100.000 LUGARES'), 'Deve exibir
 assert.ok(arenaHtml100k.includes('arena_coliseu') || arenaHtml100k.includes('arena_moderna.glb'), 'Para 100k deve carregar modelo Coliseu');
 console.log('✓ 5. Resolução dinâmica de maquete 3D na aba Arena (100k Mega Coliseu) validada com sucesso');
 
-console.log('\n🎉 TODOS OS TESTES DE 3D VS PLANO E PRÉVIAS EM TEMPO REAL PASSARAM COM 100% DE SUCESSO!');
+// 8. Testar Ampliação da Zona Leste Acoplada na Maquete 3D
+console.log('Testando acoplamento 3D da ampliação de arquibancada (Zona Leste)...');
+window.stadiumVisualMode = '3d';
+window.stadiumModalTab = 'expansion';
+window.stadiumSelectedSide = 'leste';
+global.getStadiumExpansionData = () => ({
+  sides: { norte: false, sul: false, leste: true, oeste: false },
+  purchasedSectors: ['r1_leste'],
+  ring: 1,
+  rings: { 1: { norte: false, sul: false, leste: true, oeste: false } }
+});
+
+window.openStadiumModal('expansion');
+const expHtml = container.innerHTML;
+assert.ok(expHtml.includes('slot="hotspot-stand-leste"'), 'Maquete 3D deve conter hotspot acoplado para a Zona Leste');
+assert.ok(expHtml.includes('ZONA LESTE AMPLIADA'), 'Hotspot 3D da Zona Leste deve exibir ZONA LESTE AMPLIADA');
+assert.ok(expHtml.includes('+3.500 Lugares Acoplados'), 'Hotspot 3D da Zona Leste deve exibir +3.500 Lugares Acoplados');
+assert.ok(expHtml.includes('camera-orbit="90deg 68deg 82%"'), 'Câmera 3D deve focar no setor Leste ao selecionar o setor');
+console.log('✓ 6. Acoplamento 3D da Ampliação da Zona Leste (+3.500 Lugares) e foco de câmera validados com sucesso');
+
+// 9. Testar Acoplamento 3D de Melhorias em Prévia (Camarotes VIP, Telão e LED)
+console.log('Testando hotspots 3D em tempo real das melhorias...');
+window.stadiumPreviewUpgrade = 'vipBoxes';
+window.openStadiumModal('upgrades');
+const vip3DHtml = container.innerHTML;
+assert.ok(vip3DHtml.includes('slot="hotspot-vip"'), 'Maquete 3D deve acoplar hotspot dos Camarotes VIP');
+assert.ok(vip3DHtml.includes('CAMAROTES VIP CORPORATIVOS'), 'Hotspot 3D deve conter texto dos Camarotes VIP');
+
+window.stadiumPreviewUpgrade = 'screen';
+window.openStadiumModal('upgrades');
+const screen3DHtml = container.innerHTML;
+assert.ok(screen3DHtml.includes('slot="hotspot-screen"'), 'Maquete 3D deve acoplar hotspot do Telão Digital');
+assert.ok(screen3DHtml.includes('TELÃO DIGITAL CENTRAL'), 'Hotspot 3D deve conter texto do Telão Digital Central');
+
+window.stadiumPreviewUpgrade = 'ledRing';
+window.openStadiumModal('upgrades');
+const led3DHtml = container.innerHTML;
+assert.ok(led3DHtml.includes('slot="hotspot-led-ring"'), 'Maquete 3D deve acoplar hotspot do Anel de LED');
+assert.ok(led3DHtml.includes('PAINÉIS DE LED 360°'), 'Hotspot 3D deve conter texto do Anel de LED 360°');
+console.log('✓ 7. Acoplamento 3D de Camarotes VIP, Telão Digital e Anel de LED em tempo real validados com sucesso');
+
+console.log('\n🎉 TODOS OS TESTES DE 3D VS PLANO, AMPLIAÇÃO DA ZONA LESTE E PRÉVIAS EM TEMPO REAL PASSARAM COM 100% DE SUCESSO!');
+

@@ -270,6 +270,20 @@
       if (st) {
         cap = Number(st.infrastructure?.stadium?.capacity || st.stadiumCapacity || 0);
         infraLevel = Number(st.infrastructure?.stadium?.level || 1);
+
+        // Se houver obras e ampliações concluídas no anel de arquibancadas (ex: Zona Leste, Sul, etc.)
+        const ringData = st.stadiumRingData;
+        if (ringData) {
+          const purchasedCount = Array.isArray(ringData.purchasedSectors)
+            ? ringData.purchasedSectors.length
+            : (ringData.rings
+                ? Object.values(ringData.rings).reduce((acc, r) => acc + Object.values(r).filter(Boolean).length, 0)
+                : 0);
+          if (purchasedCount > 0) {
+            const extraSectorsCap = purchasedCount * 3500;
+            cap = Math.max(cap, (cap > 0 ? cap : 8000) + extraSectorsCap);
+          }
+        }
       }
 
       // Se for o clube do usuário ou tiver capacidade explicitada
@@ -297,6 +311,39 @@
 
       return STADIUM_3D_CATALOG['arena_aberta'];
     },
+
+    /**
+     * Retorna o preset de câmera ideal para focar no setor sendo ampliado
+     */
+    getSectorCameraOrbit(side) {
+      switch (String(side || '').toLowerCase()) {
+        case 'leste': return '90deg 68deg 82%';
+        case 'oeste': return '-90deg 68deg 82%';
+        case 'norte': return '0deg 68deg 88%';
+        case 'sul': return '180deg 68deg 88%';
+        default: return '45deg 55deg 105%';
+      }
+    },
+
+    /**
+     * Retorna o preset de câmera ideal para destacar a melhoria em tempo real
+     */
+    getUpgradeCameraOrbit(upgradeKey) {
+      switch (String(upgradeKey || '')) {
+        case 'screen': return '0deg 75deg 90%';
+        case 'vipBoxes': return '-75deg 65deg 80%';
+        case 'mosaic': return '180deg 70deg 85%';
+        case 'chairs': return '90deg 65deg 78%';
+        case 'flares': return '160deg 68deg 90%';
+        case 'ledLights': return '45deg 55deg 105%';
+        case 'solarPitch': return '35deg 45deg 110%';
+        case 'ledRing': return '-45deg 82deg 50%';
+        case 'surroundSound': return '0deg 60deg 95%';
+        case 'museumTour': return '-90deg 80deg 85%';
+        default: return '45deg 55deg 105%';
+      }
+    },
+
 
     /**
      * Renderiza o Card Informativo do Estádio 3D para a aba Estrutura & Estádio e Modais

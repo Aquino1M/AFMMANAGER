@@ -2,6 +2,43 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.23] - 2026-10-22 (Painel de Botões das Copas na Central em Largura Total)
+
+### 🏆 Painel de Botões de Navegação das Copas na Tela Central
+- **Remoção do Título Redundante**:
+  - Removido o bloco de texto à esquerda (`widgetCardTitle` e `widgetCardSub`), que comprimia os botões e causava truncamento em nomes longos como "LIBERTADORES".
+  - A pessoa já identifica a competição diretamente pelos botões e pelo conteúdo detalhado do confronto e classificação abaixo.
+- **Botões em 100% da Largura Superior do Card**:
+  - Grid de navegação expandido para ocupar toda a largura superior (`display: grid; grid-template-columns: repeat(N, minmax(0, 1fr))`).
+  - Calibragem milimétrica de espaçamento (`gap: 3px`, `padding: 2px`) e tipografia (`font-size: 8.5px`, `font-weight: 800`) garantindo que `🏟️ ESTADUAL`, `🇧🇷 COPA` e `🏆 LIBERTADORES` / `🥈 SUL-AMERICANA` caibam com folga e sem qualquer corte de texto (`offsetWidth == scrollWidth == 87px`).
+- **Cache Atualizado**:
+  - `index.html` atualizado para `v68` e `sw.js` para `afm-2027-cache-v42`.
+
+## [3.9.22] - 2026-10-22 (Separação Completa PC vs Mobile & Escalas Táticas Independentes)
+
+### 🖥️ 1. Separação Estrita de Plataformas (PC vs Mobile)
+- **Detector e Controlador Central (`AFM_Platform`)**:
+  - Implementado em [pwa_and_landscape_enforcer.js](file:///e:/PROJETOS%20SAAS/VSCODE%20PROJETOS/Aquino_Futebol_Manager_2026/js/ui/pwa_and_landscape_enforcer.js).
+  - Identificação precisa de dispositivos móveis por User Agent (`Android`, `iPhone`, `iPad`, `Mobile`), touchscreen (`maxTouchPoints > 1`) e pointer coarse, diferenciando monitores e notebooks de smartphones e tablets.
+  - Sincronização dinâmica de classes `.platform-pc` e `.platform-mobile` nos elementos `<html>` e `<body>`.
+  - **Seletor de Modo na Tela de Configurações**:
+    - Opções: `🔄 Automático`, `🖥️ Modo PC (Desktop Widescreen)` e `📱 Modo Mobile (Celular/Tablet)`.
+
+### ⚽ 2. Escalações Separadas por Plataforma (PC x Mobile)
+- **Escalação no PC (`.platform-pc` / Widescreen >= 1025px)**:
+  - Gramado tático amplo com altura mínima de 540px.
+  - Mini-cards no padrão EA FC 27 com escala generosa (68px x 86px), foto em alta definição (42px) e tipografia nítida.
+  - Pedestais táticos completos com função tática, foco e entrosamento (`◆◆◆`).
+  - Painel de reservas lateral estático de 30% da largura, permitindo substituições fluidas sem compressão.
+- **Escalação no Mobile (`.platform-mobile` / Telas compactas em paisagem)**:
+  - Gramado proporcional (310px–330px de altura), calibrado para smartphones em modo paisagem.
+  - Mini-cards compactos (38px x 48px) evitando sobreposições com HUD ou linhas do gramado.
+  - Banco de reservas compacto e adaptado para toque touch.
+
+### 🧭 3. Menus e Navegação Calibrados
+- **PC**: Barra lateral esquerda permanentemente visível em grade de duas colunas, barra superior completa com todos os indicadores financeiros e prestígio, sem botões de gaveta ou backdrops.
+- **Mobile**: Gaveta deslizante lateral com botão hambúrguer de alto contraste, backdrop com desfoque e fechamento automático ao selecionar opções.
+
 ## [3.9.21] - 2026-10-21 (Relatórios do Elenco, Novo Sistema de Treino Interativo & Preparador Físico Automático)
 
 ### 📊 1. Modal de Relatórios do Elenco & Análise Tática (`js/ui/squad_reports_modal.js`)

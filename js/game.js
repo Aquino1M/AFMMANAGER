@@ -2615,6 +2615,14 @@ function openStadiumModal(initialTab){
     model3D = window.STADIUM_3D_CATALOG['arena_classica'];
   }
 
+  // Ângulo de câmera inteligente para focar na melhoria em prévia ou no setor em ampliação
+  let activeOrbit = model3D?.defaultOrbit || '45deg 55deg 105%';
+  if (isExp && stadiumSelectedSide && typeof window.AFMStadium3D?.getSectorCameraOrbit === 'function') {
+    activeOrbit = window.AFMStadium3D.getSectorCameraOrbit(stadiumSelectedSide);
+  } else if (stadiumPreviewUpgrade && typeof window.AFMStadium3D?.getUpgradeCameraOrbit === 'function') {
+    activeOrbit = window.AFMStadium3D.getUpgradeCameraOrbit(stadiumPreviewUpgrade);
+  }
+
   el.innerHTML = `
     <div class="visual-modal-overlay">
       <div class="visual-modal-card" style="width:min(98vw,1550px);max-width:1550px;max-height:97vh;overflow:hidden;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;padding:18px">
@@ -2645,10 +2653,10 @@ function openStadiumModal(initialTab){
           </div>
 
           ${stadiumVisualMode === '3d' ? `
-            <!-- ================= VIEWPORT 3D DO ESTÁDIO COM UPGRADES EM TEMPO REAL ================= -->
+            <!-- ================= VIEWPORT 3D DO ESTÁDIO COM UPGRADES E ARQUIBANCADAS ACOPLADAS ================= -->
             <div style="position:relative;width:95%;max-width:560px;aspect-ratio:1.2;background:#060b13;border:3px solid ${isArena ? '#ec4899' : '#0284c7'};border-radius:18px;box-shadow:0 0 25px ${isArena ? 'rgba(236,72,153,0.45)' : 'rgba(2,132,199,0.35)'};overflow:hidden;display:flex;flex-direction:column">
               
-              <!-- model-viewer 3D Oficial -->
+              <!-- model-viewer 3D Oficial com Suporte a Hotspots 3D em Tempo Real -->
               <model-viewer
                 id="afmStadiumVisualModelViewer"
                 src="${model3D ? model3D.file : 'assets/stadiums/arena_classica.glb'}"
@@ -2657,15 +2665,189 @@ function openStadiumModal(initialTab){
                 camera-controls
                 shadow-intensity="1.5"
                 shadow-softness="0.8"
-                exposure="${u.ledLights ? '1.3' : '1.0'}"
-                rotation-per-second="14deg"
-                camera-orbit="${model3D?.defaultOrbit || '45deg 55deg 105%'}"
+                exposure="${u.ledLights ? '1.6' : '1.0'}"
+                rotation-per-second="${stadiumPreviewUpgrade ? '6deg' : '12deg'}"
+                camera-orbit="${activeOrbit}"
                 style="width:100%;height:100%;background:#090d16">
                 
                 <div slot="poster" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#090d16;gap:8px">
                   <img src="${model3D ? model3D.preview : 'assets/stadiums/PREVIA_ESTADIOS.png'}" alt="Estádio 3D" style="max-width:70%;max-height:180px;border-radius:8px">
                   <div style="color:#94a3b8;font-size:11px">🏟️ Carregando maquete 3D...</div>
                 </div>
+
+                <!-- ================= 1. ACOPLAMENTO 3D DAS ARQUIBANCADAS NOS 4 SETORES ================= -->
+                <!-- Setor Leste (Zona Leste): Acoplado quando construído ou em foco na ampliação -->
+                ${(stData.sides['leste'] || (isExp && stadiumSelectedSide === 'leste')) ? `
+                  <div slot="hotspot-stand-leste" data-position="15 3.5 0" data-normal="1 0 0" class="afm-3d-hotspot">
+                    <div class="afm-3d-stand-module ${stData.sides['leste'] ? 'done' : 'work'}">
+                      <div class="stand-title">${stData.sides['leste'] ? '✓ ZONA LESTE AMPLIADA' : (stData.activeWork?.side === 'leste' ? '🏗️ OBRA LESTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO LESTE')}</div>
+                      <div class="afm-3d-stand-visual-tiers">
+                        <div class="tier-step"></div>
+                        <div class="tier-step"></div>
+                        <div class="tier-step"></div>
+                      </div>
+                      <span style="font-size:8px;font-weight:900;color:${stData.sides['leste']?'#4ade80':'#facc15'}">${stData.sides['leste'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Setor Oeste: Acoplado quando construído ou em foco na ampliação -->
+                ${(stData.sides['oeste'] || (isExp && stadiumSelectedSide === 'oeste')) ? `
+                  <div slot="hotspot-stand-oeste" data-position="-15 3.5 0" data-normal="-1 0 0" class="afm-3d-hotspot">
+                    <div class="afm-3d-stand-module ${stData.sides['oeste'] ? 'done' : 'work'}">
+                      <div class="stand-title">${stData.sides['oeste'] ? '✓ SETOR OESTE AMPLIADO' : (stData.activeWork?.side === 'oeste' ? '🏗️ OBRA OESTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO OESTE')}</div>
+                      <div class="afm-3d-stand-visual-tiers">
+                        <div class="tier-step"></div>
+                        <div class="tier-step"></div>
+                        <div class="tier-step"></div>
+                      </div>
+                      <span style="font-size:8px;font-weight:900;color:${stData.sides['oeste']?'#4ade80':'#facc15'}">${stData.sides['oeste'] ? '+1.750 Lugares Sociais' : '+1.750 Lugares Projetados'}</span>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Setor Norte: Acoplado quando construído ou em foco na ampliação -->
+                ${(stData.sides['norte'] || (isExp && stadiumSelectedSide === 'norte')) ? `
+                  <div slot="hotspot-stand-norte" data-position="0 3.5 -12" data-normal="0 0 -1" class="afm-3d-hotspot">
+                    <div class="afm-3d-stand-module ${stData.sides['norte'] ? 'done' : 'work'}">
+                      <div class="stand-title">${stData.sides['norte'] ? '✓ SETOR NORTE AMPLIADO' : (stData.activeWork?.side === 'norte' ? '🏗️ OBRA NORTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO NORTE')}</div>
+                      <div class="afm-3d-stand-visual-tiers">
+                        <div class="tier-step"></div>
+                        <div class="tier-step"></div>
+                        <div class="tier-step"></div>
+                      </div>
+                      <span style="font-size:8px;font-weight:900;color:${stData.sides['norte']?'#4ade80':'#facc15'}">${stData.sides['norte'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Setor Sul: Acoplado quando construído ou em foco na ampliação -->
+                ${(stData.sides['sul'] || (isExp && stadiumSelectedSide === 'sul')) ? `
+                  <div slot="hotspot-stand-sul" data-position="0 3.5 12" data-normal="0 0 1" class="afm-3d-hotspot">
+                    <div class="afm-3d-stand-module ${stData.sides['sul'] ? 'done' : 'work'}">
+                      <div class="stand-title">${stData.sides['sul'] ? '✓ SETOR SUL AMPLIADO' : (stData.activeWork?.side === 'sul' ? '🏗️ OBRA SUL EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO SUL')}</div>
+                      <div class="afm-3d-stand-visual-tiers">
+                        <div class="tier-step"></div>
+                        <div class="tier-step"></div>
+                        <div class="tier-step"></div>
+                      </div>
+                      <span style="font-size:8px;font-weight:900;color:${stData.sides['sul']?'#4ade80':'#facc15'}">${stData.sides['sul'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- ================= 2. ACOPLAMENTO 3D DAS MELHORIAS EM TEMPO REAL ================= -->
+                <!-- Telão Digital 3D -->
+                ${u.screen ? `
+                  <div slot="hotspot-screen" data-position="0 7.2 -13" data-normal="0 0 1" class="afm-3d-hotspot">
+                    <div class="afm-3d-screen-jumbotron">
+                      <div style="font-size:8px;color:#4ade80;font-weight:900;letter-spacing:1px;display:flex;align-items:center;gap:4px">
+                        <span>● AO VIVO</span> <span>4K DIGITAL</span>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1)">
+                        ${clubBadge(state.club, 14)}
+                        <span style="color:#fff;font-weight:900;font-size:10px">${esc(state.club).slice(0,3).toUpperCase()} 1 X 0 ADV</span>
+                        <span style="color:#facc15;font-size:8px;font-weight:800">74'</span>
+                      </div>
+                      <span style="font-size:8px;color:#94a3b8;font-weight:700">TELÃO DIGITAL CENTRAL</span>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Camarotes VIP Corporativos 3D -->
+                ${u.vipBoxes ? `
+                  <div slot="hotspot-vip" data-position="-13 4.5 0" data-normal="1 0 0" class="afm-3d-hotspot">
+                    <div class="afm-3d-vip-lounge">
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <span style="font-size:11px">🥂</span>
+                        <b style="font-size:9px;font-weight:900;color:#facc15">CAMAROTES VIP CORPORATIVOS</b>
+                      </div>
+                      <div style="font-size:8px;color:#fef08a;font-weight:700">Suítes Climatizadas Acopladas</div>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Anel de LED 360° em Volta do Campo -->
+                ${u.ledRing ? `
+                  <div slot="hotspot-led-ring" data-position="0 0.5 7" data-normal="0 1 0" class="afm-3d-hotspot">
+                    <div class="afm-3d-led-ring-ribbon">
+                      ✨ PAINÉIS DE LED 360° • ${esc(state.club).toUpperCase()} • CALDEIRÃO TOTAL ✨
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Refletores LED 3D nos 4 Cantos -->
+                ${u.ledLights ? `
+                  <div slot="hotspot-light-nw" data-position="-15 8 -11" data-normal="1 -0.5 1" class="afm-3d-hotspot"><div class="afm-3d-spotlight-source"></div></div>
+                  <div slot="hotspot-light-ne" data-position="15 8 -11" data-normal="-1 -0.5 1" class="afm-3d-hotspot"><div class="afm-3d-spotlight-source"></div></div>
+                  <div slot="hotspot-light-sw" data-position="-15 8 11" data-normal="1 -0.5 -1" class="afm-3d-hotspot"><div class="afm-3d-spotlight-source"></div></div>
+                  <div slot="hotspot-light-se" data-position="15 8 11" data-normal="-1 -0.5 -1" class="afm-3d-hotspot"><div class="afm-3d-spotlight-source"></div></div>
+                ` : ''}
+
+                <!-- Fogos e Sinalizadores da Torcida 3D -->
+                ${u.flares ? `
+                  <div slot="hotspot-flares-1" data-position="9 4 10" data-normal="0 1 0" class="afm-3d-hotspot">
+                    <div class="afm-3d-flare-pyro">
+                      <span style="font-size:22px">🔥</span>
+                      <span style="font-size:7px;font-weight:900;background:#ef4444;color:#fff;padding:1px 4px;border-radius:3px">SINALIZADORES</span>
+                    </div>
+                  </div>
+                  <div slot="hotspot-flares-2" data-position="-9 4 10" data-normal="0 1 0" class="afm-3d-hotspot">
+                    <div class="afm-3d-flare-pyro">
+                      <span style="font-size:22px">🔥</span>
+                      <span style="font-size:7px;font-weight:900;background:#f97316;color:#fff;padding:1px 4px;border-radius:3px">FESTA DA TORCIDA</span>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Mosaico com o Escudo 3D -->
+                ${u.mosaic ? `
+                  <div slot="hotspot-mosaic" data-position="0 3 11" data-normal="0 0.5 -1" class="afm-3d-hotspot">
+                    <div class="afm-3d-mosaic-banner">
+                      ${clubBadge(state.club, 16)}
+                      <div style="font-size:9px;font-weight:900;color:#fff;letter-spacing:0.8px">
+                        ★ MOSAICO OFICIAL DA MASSA ★
+                      </div>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Cadeiras Novas 3D -->
+                ${u.chairs ? `
+                  <div slot="hotspot-chairs" data-position="12 2.5 0" data-normal="-1 0.5 0" class="afm-3d-hotspot">
+                    <div class="afm-3d-chairs-badge">
+                      💺 CADEIRAS ANATÔMICAS 100% INSTALADAS
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Climatização de Gramado & Energia Solar 3D -->
+                ${u.solarPitch ? `
+                  <div slot="hotspot-solar" data-position="-13 7.5 0" data-normal="0 1 0" class="afm-3d-hotspot">
+                    <div class="afm-3d-solar-roof">
+                      <span>☀️</span> <span>USINA SOLAR & ECO GRAMADO</span>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Sistema de Som Acústico Caldeirão 3D -->
+                ${u.surroundSound ? `
+                  <div slot="hotspot-sound" data-position="0 7 0" data-normal="0 -1 0" class="afm-3d-hotspot">
+                    <div class="afm-3d-sound-tower">
+                      <span>🔊</span> <span>SOM ENSURDECEDOR CALDEIRÃO</span>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- Tour da Arena & Museu Imersivo 3D -->
+                ${u.museumTour ? `
+                  <div slot="hotspot-museum" data-position="-15 1.5 5" data-normal="-1 0 0" class="afm-3d-hotspot">
+                    <div style="background:rgba(6,182,212,0.25);border:1.5px solid #06b6d4;border-radius:8px;padding:4px 8px;color:#cffafe;font-size:9px;font-weight:900;display:flex;align-items:center;gap:4px;box-shadow:0 0 14px rgba(6,182,212,0.6)">
+                      <span>🏛️</span> <span>MUSEU DE GLÓRIAS & TOUR IMERSIVO</span>
+                    </div>
+                  </div>
+                ` : ''}
+
               </model-viewer>
 
               <!-- Banner de Prévia em Tempo Real no 3D -->
@@ -2711,11 +2893,13 @@ function openStadiumModal(initialTab){
                 <div style="position:absolute;bottom:35px;right:0;width:50px;height:50px;background:radial-gradient(circle,rgba(254,240,138,0.7) 0%,transparent 70%);pointer-events:none;z-index:4"></div>
               ` : ''}
 
-              <!-- Presets de Câmera 3D -->
+              <!-- Presets de Câmera 3D Inteligentes -->
               <div style="position:absolute;bottom:8px;left:8px;right:8px;z-index:6;display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
                 <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="45deg 55deg 105%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🛰️ Panorâmica</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="0deg 75deg 90%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">📺 TV</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="90deg 82deg 70%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🥁 Arquibancada</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="0deg 75deg 90%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">📺 TV / Telão</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="90deg 68deg 82%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#38bdf8;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer;font-weight:900">🔭 Setor Leste</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="-90deg 68deg 82%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🔭 Setor Oeste</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="180deg 68deg 88%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🥁 Arquibancada</button>
                 <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="-45deg 85deg 45%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">💺 Campo</button>
               </div>
             </div>
@@ -26722,37 +26906,26 @@ function centralPage(){
           const widgetCardBorder = isEstTab ? 'rgba(16,185,129,0.35)' : (isCopaTab ? 'rgba(139,92,246,0.3)' : 'rgba(245,158,11,0.35)');
 
           return `
-            <div class="card" style="padding:18px;background:#100d1e;border:1px solid ${widgetCardBorder};border-radius:18px">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <div>
-                  <div style="font-size:13px;font-weight:900;color:#fff;letter-spacing:0.5px">
-                    ${widgetCardTitle}
-                  </div>
-                  <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;margin-top:2px">
-                    ${widgetCardSub}
-                  </div>
-                </div>
-
-                <!-- Botões para Alternar entre os Campeonatos que o Clube Disputa -->
-                <div style="display:flex;gap:4px;align-items:center;background:#161228;padding:3px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
-                  ${userCentralCupTabs.map(tab => {
-                    const isActive = activeCentralTabId === tab.id;
-                    let activeStyle = '';
-                    if (isActive) {
-                      if (tab.id === 'estadual') activeStyle = 'background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;box-shadow:0 0 10px rgba(16,185,129,0.5)';
-                      else if (tab.id === 'copa') activeStyle = 'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border:none;box-shadow:0 0 10px rgba(124,58,237,0.5)';
-                      else activeStyle = 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border:none;box-shadow:0 0 10px rgba(245,158,11,0.5)';
-                    } else {
-                      activeStyle = 'background:transparent;color:rgba(255,255,255,0.6);border:none';
-                    }
-                    const btnId = tab.id === 'estadual' ? 'btnCentralTabEstadual' : (tab.id === 'copa' ? 'btnCentralTabCopa' : 'btnCentralTabLib');
-                    return `
-                      <button type="button" class="btn btn-central-cup-tab" id="${btnId}" data-tab-id="${tab.id}" title="Ver ${esc(tab.title)}" style="padding:4px 9px;font-size:10px;font-weight:900;border-radius:8px;cursor:pointer;transition:all 0.2s;${activeStyle}">
-                        ${tab.label}
-                      </button>
-                    `;
-                  }).join('')}
-                </div>
+            <div class="card" style="padding:14px 12px;background:#100d1e;border:1px solid ${widgetCardBorder};border-radius:18px">
+              <!-- Painel de Botões/Abas de Navegação em Largura Total (Sem título para máxima amplitude) -->
+              <div style="display:grid;grid-template-columns:repeat(${userCentralCupTabs.length}, minmax(0, 1fr));gap:3px;background:#161228;padding:2px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);margin-bottom:12px">
+                ${userCentralCupTabs.map(tab => {
+                  const isActive = activeCentralTabId === tab.id;
+                  let activeStyle = '';
+                  if (isActive) {
+                    if (tab.id === 'estadual') activeStyle = 'background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;box-shadow:0 0 10px rgba(16,185,129,0.5)';
+                    else if (tab.id === 'copa') activeStyle = 'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border:none;box-shadow:0 0 10px rgba(124,58,237,0.5)';
+                    else activeStyle = 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border:none;box-shadow:0 0 10px rgba(245,158,11,0.5)';
+                  } else {
+                    activeStyle = 'background:transparent;color:rgba(255,255,255,0.6);border:none';
+                  }
+                  const btnId = tab.id === 'estadual' ? 'btnCentralTabEstadual' : (tab.id === 'copa' ? 'btnCentralTabCopa' : 'btnCentralTabLib');
+                  return `
+                    <button type="button" class="btn btn-central-cup-tab" id="${btnId}" data-tab-id="${tab.id}" title="Ver ${esc(tab.title)}" style="padding:6px 1px;font-size:8.5px;font-weight:800;border-radius:7px;cursor:pointer;transition:all 0.2s;text-align:center;justify-content:center;display:flex;align-items:center;gap:2px;white-space:nowrap;letter-spacing:0;${activeStyle}">
+                      ${tab.label}
+                    </button>
+                  `;
+                }).join('')}
               </div>
 
               ${isEstTab ? `
@@ -32643,11 +32816,7 @@ function configPage(){
     activeUser?.username?.toLowerCase() === 'admin' ||
     (window.AFM_DB && typeof window.AFM_DB.isAdmin === 'function' && window.AFM_DB.isAdmin())
   );
-  const isCustomClub = Boolean(state && state.customClub);
   if(!isAdminUser && (configTab === 'db' || configTab === 'audit')){
-    configTab = 'save';
-  }
-  if(!isCustomClub && configTab === 'customclub'){
     configTab = 'save';
   }
   const userSlots = getUserSaveSlots(activeUser.username);
@@ -32663,15 +32832,13 @@ function configPage(){
 
     <div class="tabs" style="margin-top:14px">
       <button class="btn ${configTab==='save'?'active':''}" data-config-tab="save">💾 Save & Backup Local</button>
-      ${isCustomClub ? `
-        <button class="btn ${configTab==='customclub'?'active':''}" data-config-tab="customclub">🎨 Identidade do Clube (R$ 200k)</button>
-      ` : ''}
       ${isAdminUser ? `
         <button class="btn ${configTab==='db'?'active':''}" data-config-tab="db">🗄️ Banco de Dados & Elencos</button>
         <button class="btn ${configTab==='audit'?'active':''}" data-config-tab="audit">🔍 Auditoria Visual de Futebol</button>
       ` : ''}
       <button class="btn ${configTab==='options'?'active':''}" data-config-tab="options">⚙️ Preferências do Jogo</button>
       <button class="btn ${configTab==='multiplayer'?'active':''}" data-config-tab="multiplayer">🌐 Multiplayer Cloud</button>
+      <button class="btn ${configTab==='customclub'?'active':''}" data-config-tab="customclub">🎨 Identidade do Clube (R$ 200k)</button>
     </div>
 
     ${configTab==='save' ? `
@@ -32891,7 +33058,7 @@ function configPage(){
           </table>
         </div>
       </div>
-    ` : (configTab==='customclub' && isCustomClub) ? `
+    ` : configTab==='customclub' ? `
       ${renderCustomClubReformSection(state)}
     ` : configTab==='options' ? `
       <div class="card" style="margin-top:14px">
@@ -32910,6 +33077,18 @@ function configPage(){
             <input type="checkbox" id="chkFreeTransfers" ${state.freeTransferWindow?'checked':''}>
             Permitir transferências o ano todo (Janela de transferências sempre aberta)
           </label>
+        </div>
+
+        <div style="margin:14px 0">
+          <label style="display:block;margin-bottom:8px">📱 Modo de Plataforma & Escalação (PC vs Mobile):</label>
+          <select id="selPlatformMode" class="btn" style="min-width:260px">
+            <option value="auto" ${(!localStorage.getItem('afm_platform_mode') || localStorage.getItem('afm_platform_mode')==='auto')?'selected':''}>🔄 Automático (Detectar Tela & Dispositivo)</option>
+            <option value="pc" ${localStorage.getItem('afm_platform_mode')==='pc'?'selected':''}>🖥️ Modo PC (Escala Widescreen, Menu Fixo, Escalação Ampla)</option>
+            <option value="mobile" ${localStorage.getItem('afm_platform_mode')==='mobile'?'selected':''}>📱 Modo Mobile (Menu Deslizante SM27, Cards Compactos)</option>
+          </select>
+          <div class="small muted" style="margin-top:4px">
+            Define a escala dos menus, do campo tático e dos cards dos atletas para o dispositivo desejado.
+          </div>
         </div>
 
         <div style="margin:14px 0">
@@ -36930,10 +37109,6 @@ function bind(){
           toast('Acesso restrito ao Administrador do jogo.');
           return;
         }
-        if(targetTab === 'customclub' && !state?.customClub){
-          toast('Disponível apenas para clubes criados no Criador de Clubes.');
-          return;
-        }
         configTab = targetTab;
         render();
       };
@@ -36995,6 +37170,13 @@ function bind(){
     };
     const spd=$('#selSimSpeed'); if(spd) spd.onchange=()=>{state.simSpeed=spd.value;save();toast('Preferência de velocidade salva!')};
     const chkFree=$('#chkFreeTransfers'); if(chkFree) chkFree.onchange=()=>{state.freeTransferWindow=chkFree.checked;save();toast('Configuração de transferências atualizada!')};
+    const selPlat=$('#selPlatformMode'); if(selPlat) selPlat.onchange=()=>{
+      if (window.AFM_Platform && typeof window.AFM_Platform.setPreference === 'function') {
+        window.AFM_Platform.setPreference(selPlat.value);
+        toast(`Modo ${selPlat.value === 'pc' ? 'PC (Desktop)' : selPlat.value === 'mobile' ? 'Mobile' : 'Automático'} ativado!`);
+        render();
+      }
+    };
     const selThm=$('#selThemeOptions'); if(selThm) selThm.onchange=()=>{ if(window.AFM30 && window.AFM30.applyTheme) window.AFM30.applyTheme(selThm.value); };
     const btnChal = $('#btnChallengeFriend');
     const inpFriend = $('#inputFriendUsername');
