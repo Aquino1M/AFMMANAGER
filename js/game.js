@@ -24342,7 +24342,7 @@ function openPlayerTransferModal(key){
               <div style="font-size:10px;font-weight:900;color:#cbd5e1;margin-bottom:6px">CONTRAPROPOSTA · VALOR E REVENDA FUTURA</div>
               <div style="display:flex;gap:7px;align-items:center">
                 <label style="flex:1;font-size:10px;color:#94a3b8">Valor à vista
-                  <input class="saleCounterPrice" data-offer-idx="${oIdx}" type="number" min="1" step="1000" value="${Math.round(Number(o.counterPrice) || o.price)}" ${o.counterAccepted ? 'disabled' : ''} style="display:block;width:100%;box-sizing:border-box;margin-top:3px;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:6px;padding:6px;font-weight:800">
+                  <input class="saleCounterPrice" data-offer-idx="${oIdx}" type="text" inputmode="numeric" autocomplete="off" value="${Math.round(Number(o.counterPrice) || o.price).toLocaleString('pt-BR')}" ${o.counterAccepted ? 'disabled' : ''} style="display:block;width:100%;box-sizing:border-box;margin-top:3px;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:6px;padding:6px;font-weight:800">
                 </label>
                 <label style="width:100px;font-size:10px;color:#94a3b8">Revenda futura
                   <select class="saleCounterPct" data-offer-idx="${oIdx}" ${o.counterAccepted ? 'disabled' : ''} style="display:block;width:100%;margin-top:3px;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:6px;padding:6px;font-weight:800">${[0,5,10,15,20,25,30,35,40,50].map(pct=>`<option value="${pct}" ${Number(o.counterSellOnPct ?? o.sellOnPct ?? 20)===pct?'selected':''}>${pct}%</option>`).join('')}</select>
@@ -24402,7 +24402,7 @@ function openPlayerTransferModal(key){
     if(!offer || !panel) return;
     const priceInput = $(`.saleCounterPrice[data-offer-idx="${oIdx}"]`);
     const pctSelect = $(`.saleCounterPct[data-offer-idx="${oIdx}"]`);
-    const price = Math.max(1, Number(priceInput?.value) || Number(offer.price) || 1);
+    const price = Math.max(1, Number(String(priceInput?.value || '').replace(/\D/g, '')) || Number(offer.price) || 1);
     const pct = clamp(Number(pctSelect?.value) || 0, 0, 50);
     const draft = {...offer, counterPrice: price, counterSellOnPct: pct};
     const chance = buyerCounterChance(draft);
@@ -24410,7 +24410,23 @@ function openPlayerTransferModal(key){
     panel.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:#cbd5e1"><span>📊 Aceitação do clube comprador</span><b style="color:${color}">${chance}% estimada</b></div><div style="height:7px;background:#263244;border-radius:999px;overflow:hidden;margin-top:5px"><div style="width:${chance}%;height:100%;background:${color};border-radius:999px;transition:width .2s,background .2s"></div></div>`;
   };
   $$('.saleCounterPrice, .saleCounterPct').forEach(input => {
-    input.oninput = () => refreshSaleCounterChance(Number(input.dataset.offerIdx));
+    input.oninput = () => {
+      if(input.classList.contains('saleCounterPrice')){
+        const caret = input.selectionStart ?? input.value.length;
+        const digitsBeforeCaret = input.value.slice(0, caret).replace(/\D/g, '').length;
+        const digits = input.value.replace(/\D/g, '');
+        const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        input.value = formatted;
+        let nextCaret = 0;
+        let digitsCounted = 0;
+        while(nextCaret < formatted.length && digitsCounted < digitsBeforeCaret){
+          if(/\d/.test(formatted[nextCaret])) digitsCounted++;
+          nextCaret++;
+        }
+        input.setSelectionRange(nextCaret, nextCaret);
+      }
+      refreshSaleCounterChance(Number(input.dataset.offerIdx));
+    };
     input.onchange = () => refreshSaleCounterChance(Number(input.dataset.offerIdx));
   });
   $$('.btnCounterSale').forEach(btn => {
@@ -24420,7 +24436,7 @@ function openPlayerTransferModal(key){
       if(!offer || offer.counterAccepted) return;
       const priceInput = $(`.saleCounterPrice[data-offer-idx="${oIdx}"]`);
       const pctSelect = $(`.saleCounterPct[data-offer-idx="${oIdx}"]`);
-      const proposedPrice = Math.round(Number(priceInput?.value) || 0);
+      const proposedPrice = Math.round(Number(String(priceInput?.value || '').replace(/\D/g, '')) || 0);
       if(proposedPrice < 1){ toast('Informe um valor válido para a contraproposta.'); return; }
       const sellOnPct = clamp(Number(pctSelect?.value) || 0, 0, 50);
       offer.originalPrice = Number(offer.originalPrice) || Number(offer.price);
