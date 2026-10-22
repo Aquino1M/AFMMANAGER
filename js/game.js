@@ -1753,6 +1753,7 @@ let squadFilter='ALL';
 let calendarFilter='ALL';
 let squadViewMode='roster';
 let salarySort='salary';
+let squadRosterSort='overall';
 let statsTab='scorers';
 let selectedEstadualId=null;
 let estadualRound=1;
@@ -18127,7 +18128,7 @@ function startLiveShot(s, shooter){
   s.ball.startX = shooter.x;
   s.ball.startY = shooter.y;
   s.ball.targetX = isHomeAttacking ? 99.5 : 0.5;
-  s.ball.targetY = 50 + (((s.prng ? s.prng() : Math.random()) * 16) - 8);
+  s.ball.targetY = 50 + ((Math.random() * 16) - 8);
   s.ball.progress = 0;
   s.ball.curveZ = 5.5;
 
@@ -18136,7 +18137,10 @@ function startLiveShot(s, shooter){
   // Jamais altera s.hg / s.ag nem insere eventos de gol no feed.
   // Todos os gols, estatísticas e lances oficiais da partida são de responsabilidade
   // exclusiva de simulateMinute() -> executeShotSim(), executePenaltySim() e executeFreeKickSim().
-  s.ball.shotOutcome = 'save';
+  // A animação não altera placar nem estatísticas; varie o desfecho visual
+  // para que os chutes cosméticos não pareçam sempre a mesma defesa.
+  const visualRoll = Math.random();
+  s.ball.shotOutcome = visualRoll < 0.52 ? 'save' : visualRoll < 0.79 ? 'blocked' : visualRoll < 0.96 ? 'miss' : 'post';
   s.ball.isCorner = false;
   s.ball.isRebound = false;
   s.ball.liveDecisionCooldown = 180;
@@ -18313,8 +18317,10 @@ function updateLiveCanvasPositions(s){
     const isHome = (p.team === 'home');
     const teamHasBall = carrier ? (carrier.team === p.team) : false;
 
-    let tX = p.baseX;
-    let tY = p.baseY;
+    // Mantém posições válidas em elencos antigos ou testes sem baseX/baseY.
+    // Sem fallback, x/y viravam NaN e impediam progressão e finalizações.
+    let tX = Number.isFinite(Number(p.baseX)) ? Number(p.baseX) : (Number(p.x) || 50);
+    let tY = Number.isFinite(Number(p.baseY)) ? Number(p.baseY) : (Number(p.y) || 50);
 
     if(hasTheBall){
       // Portador conduz a bola em direção ao gol adversário
@@ -19899,19 +19905,29 @@ function simulateMinute(s, min){
     const goalProgressOf = p => isHome ? (Number(p?.x) || 50) : 100 - (Number(p?.x) || 50);
     const rankedForwards = [...fwPool].sort((a, b) => goalProgressOf(b) - goalProgressOf(a));
     const topOptions = rankedForwards.slice(0, Math.min(3, rankedForwards.length));
-    s.ball.carrier = topOptions.length ? topOptions[Math.floor(s.prng() * topOptions.length)] : (attPlayers.find(p => !p.isGK && !p.redCard) || attPlayers[9]);
+    const continuingAttacker = previousCarrier && attPlayers.includes(previousCarrier) && !previousCarrier.isGK && !previousCarrier.redCard && ['ST','CF','RW','LW','AM','CM'].includes(previousCarrier.pos)
+      ? previousCarrier
+      : null;
+    s.ball.carrier = continuingAttacker || (topOptions.length ? topOptions[Math.floor(s.prng() * topOptions.length)] : (attPlayers.find(p => !p.isGK && !p.redCard) || attPlayers[9]));
     s.ball.isHomeAttacking = isHome;
 
-    const carrierProgress = goalProgressOf(s.ball.carrier);
-    if(carrierProgress < 72){
-      // Ainda longe da área: progride com passe para um companheiro mais adiantado, sem chute forçado do meio-campo.
+    const shootZoneProgress = 68;
+    let carrierProgress = goalProgressOf(s.ball.carrier);
+    if(carrierProgress < shootZoneProgress){
+      // Cada chegada ao terço final avança a jogada no campo, em vez de repetir
+      // passes na mesma coordenada. A próxima etapa pode então concluir em chute.
+      const dir = isHome ? 1 : -1;
+      const advance = Math.min(18, shootZoneProgress - carrierProgress);
+      s.ball.carrier.x = clamp((Number(s.ball.carrier.x) || 50) + dir * advance, 4, 96);
+      s.ball.x = s.ball.carrier.x;
+      s.ball.y = s.ball.carrier.y;
+      carrierProgress = goalProgressOf(s.ball.carrier);
+    }
+
+    if(carrierProgress < shootZoneProgress){
       const receiver = selectLivePassTarget(attPlayers, s.ball.carrier, 0.8, 30);
       if(receiver){
         startLivePass(s, s.ball.carrier, receiver, { logEvent: true, cooldownFrames: 110 });
-      } else {
-        const dir = isHome ? 1 : -1;
-        s.ball.carrier.x = clamp((Number(s.ball.carrier.x) || 50) + dir * 2.5, 4, 96);
-        s.ball.x = s.ball.carrier.x; s.ball.y = s.ball.carrier.y;
       }
     } else {
       const boxRoll = s.prng();
@@ -28313,8 +28329,18 @@ function squadPage(){
     `;
   }
 
-  // Visualização clássica do elenco
-  ps.sort((a,b)=>playerOverall(b)-playerOverall(a));
+  // A ordenação atua somente sobre a lista filtrada e não altera o elenco salvo.
+  const squadSorters = {
+    age: (a, b) => {
+      const ageA = Number(a.age), ageB = Number(b.age);
+      return (Number.isFinite(ageA) && ageA > 0 ? ageA : Infinity) - (Number.isFinite(ageB) && ageB > 0 ? ageB : Infinity);
+    },
+    salary: (a, b) => playerSalary(b) - playerSalary(a),
+    value: (a, b) => calcValueMi(b) - calcValueMi(a),
+    overall: (a, b) => playerOverall(b) - playerOverall(a)
+  };
+  const compareSquadPlayers = squadSorters[squadRosterSort] || squadSorters.overall;
+  ps.sort((a, b) => compareSquadPlayers(a, b) || String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR'));
 
   return `
     <div class="hero">
@@ -28350,6 +28376,15 @@ function squadPage(){
       <button class="btn ${squadFilter==='ATK'?'primary':''}" data-squad-filter="ATK">Atacantes</button>
       <button class="btn ${squadFilter==='TRANSFER'?'primary':''}" data-squad-filter="TRANSFER" style="${squadFilter==='TRANSFER'?'background:rgba(249,115,22,0.9);color:#fff;border:none':''}">🏷️ À Venda (${state.squad.filter(p=>isPlayerTransferListed(p)).length})</button>
       <button class="btn ${squadFilter==='LOAN'?'primary':''}" data-squad-filter="LOAN" style="${squadFilter==='LOAN'?'background:rgba(14,165,233,0.9);color:#fff;border:none':''}">🤝 Empréstimo (${state.squad.filter(p=>isPlayerLoanListed(p)).length})</button>
+      <label for="squadRosterSort" style="display:flex;align-items:center;gap:8px;margin-left:auto;color:var(--muted,#94a3b8);font-size:12px;font-weight:700;white-space:nowrap">
+        Organizar:
+        <select id="squadRosterSort" aria-label="Organizar elenco" style="min-width:190px;padding:9px 12px;border:1px solid var(--line,#263244);border-radius:9px;background:#111827;color:#e2e8f0">
+          <option value="overall" ${squadRosterSort==='overall'?'selected':''}>Maior overall</option>
+          <option value="age" ${squadRosterSort==='age'?'selected':''}>Mais jovens</option>
+          <option value="salary" ${squadRosterSort==='salary'?'selected':''}>Maior salário</option>
+          <option value="value" ${squadRosterSort==='value'?'selected':''}>Maior valor de mercado</option>
+        </select>
+      </label>
     </div>
 
     <div class="card" style="margin-top:10px">
@@ -36851,6 +36886,11 @@ function bind(){
       squadFilter = b.dataset.squadFilter;
       render();
     });
+    const squadSortSelect = $('#squadRosterSort');
+    if(squadSortSelect) squadSortSelect.onchange = () => {
+      squadRosterSort = squadSortSelect.value;
+      render();
+    };
     const sdb = $('#btnSearchAllDb');
     if(sdb) sdb.onclick = showGlobalDatabaseModal;
     const yBtn = $('#btnOpenYouthFromSquad');

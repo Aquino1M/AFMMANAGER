@@ -680,6 +680,17 @@
         if((ball.liveDecisionCooldown || 0) <= 0 && passFn){
           const isHome = carrier.team === 'home';
           const distToGoal = isHome ? (100 - carrier.x) : carrier.x;
+          const shotTendency = Number(carrier.shotTendency) || 0;
+          const shootingRangeChance = distToGoal <= 13 ? 0.30 : distToGoal <= 22 ? 0.15 : distToGoal <= 30 ? 0.04 : 0;
+          const anglePenalty = Math.max(0, Math.abs((Number(carrier.y) || 50) - 50) - 22) * 0.006;
+          const shotChance = Math.max(0, shootingRangeChance + shotTendency * 0.001 - anglePenalty);
+
+          // O ciclo de animação precisa finalizar ataques por conta própria:
+          // antes, o callback de chute nunca era chamado e a jogada só circulava.
+          if(shotFn && carrier.canShoot !== false && Math.random() < shotChance){
+            shotFn(s, carrier);
+            return;
+          }
 
           // Busca passe progressivo (triangulação / infiltração)
           const teammates = (isHome ? s.homePlayers : s.awayPlayers);

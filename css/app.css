@@ -1596,8 +1596,17 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
   .halftime-card .halftime-title-group h2 { font-size: 16px !important; }
   .halftime-card .halftime-title-group .sub { font-size: 10px !important; }
   .halftime-card .tactics-modal-container { gap: 6px !important; }
-  .halftime-card .pitch-slot-dropzone { width: 60px !important; height: 78px !important; }
+  .halftime-card .pitch-slot-dropzone { width: 66px !important; height: 84px !important; }
+  .halftime-card .fifa-mini-card { width: 66px !important; height: 84px !important; }
+  .halftime-card .fifa-mini-card-photo { height: 42px !important; max-width: 52px !important; }
   .halftime-card .halftime-footer { padding-top: 3px !important; }
+}
+
+@media (min-width: 961px) {
+  .halftime-card .halftime-tactics-bar { padding: 8px 12px !important; gap: 10px !important; }
+  .halftime-card .tactics-bench-wrapper { flex-basis: 29% !important; padding: 10px !important; }
+  .halftime-card .bench-player-row { min-height: 54px; padding: 7px 9px !important; margin-bottom: 0 !important; }
+  .halftime-card .halftime-footer { padding-top: 8px !important; }
 }
 
 @media (max-height: 650px) {

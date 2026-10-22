@@ -120,8 +120,8 @@ console.log('✅ js/game.js carregado no contexto de teste com sucesso.\n');
 // Função auxiliar para inicializar uma partida ao vivo entre Criciúma e CRB
 function setupLiveMatch(homeTeam = 'Criciúma', awayTeam = 'CRB', speed = 40){
   const makePlayers = (team, isHome) => [
-    { name: isHome ? 'Gustavo' : 'Matheus Albino', team: isHome ? 'home' : 'away', pos: 'GK', isGK: true, x: isHome ? 4 : 96, y: 50, overall: 73, stamina: 100, attrs: { reactions: 73, positioning: 72 } },
-    { name: isHome ? 'Claudinho' : 'Hereda', team: isHome ? 'home' : 'away', pos: 'RB', x: isHome ? 22 : 78, y: 15, overall: 70, stamina: 100, attrs: { passing: 70, tackling: 70 } },
+    { type: 'PLAYER', name: isHome ? 'Gustavo' : 'Matheus Albino', team: isHome ? 'home' : 'away', pos: 'GK', isGK: true, x: isHome ? 4 : 96, y: 50, overall: 73, stamina: 100, attrs: { reactions: 73, positioning: 72 } },
+    { type: 'PLAYER', name: isHome ? 'Claudinho' : 'Hereda', team: isHome ? 'home' : 'away', pos: 'RB', x: isHome ? 22 : 78, y: 15, overall: 70, stamina: 100, attrs: { passing: 70, tackling: 70 } },
     { name: isHome ? 'Rodrigo' : 'Saimon', team: isHome ? 'home' : 'away', pos: 'CB', x: isHome ? 18 : 82, y: 38, overall: 72, stamina: 100, attrs: { tackling: 72, positioning: 72 } },
     { name: isHome ? 'Wilker Ángel' : 'Fábio Alemão', team: isHome ? 'home' : 'away', pos: 'CB', x: isHome ? 18 : 82, y: 62, overall: 73, stamina: 100, attrs: { tackling: 73, positioning: 73 } },
     { name: isHome ? 'Trauco' : 'Willian Formiga', team: isHome ? 'home' : 'away', pos: 'LB', x: isHome ? 22 : 78, y: 85, overall: 71, stamina: 100, attrs: { passing: 71, tackling: 71 } },
@@ -131,7 +131,7 @@ function setupLiveMatch(homeTeam = 'Criciúma', awayTeam = 'CRB', speed = 40){
     { name: isHome ? 'Fellipe Mateus' : 'Mike', team: isHome ? 'home' : 'away', pos: 'RW', x: isHome ? 68 : 32, y: 20, overall: 73, stamina: 100, attrs: { passing: 73, finishing: 71, dribbling: 73 } },
     { name: isHome ? 'Mateus' : 'Anselmo Ramon', team: isHome ? 'home' : 'away', pos: 'ST', x: isHome ? 75 : 25, y: 50, overall: 74, stamina: 100, attrs: { finishing: 75, composure: 72, dribbling: 73 } },
     { name: isHome ? 'Bolasie' : 'Léo Pereira', team: isHome ? 'home' : 'away', pos: 'LW', x: isHome ? 68 : 32, y: 80, overall: 75, stamina: 100, attrs: { finishing: 74, composure: 74, dribbling: 76 } }
-  ];
+  ].map(player => ({ type: 'PLAYER', ...player }));
 
   const s = {
     matchId: 'match_test_' + Date.now(),
@@ -262,6 +262,31 @@ speeds.forEach((spd, idx) => {
   console.log(`   🎯 Gols marcados: ${goalEvents.length ? goalEvents.map(g => g.scorer + ' (' + g.min + "\\')").join(', ') : 'Nenhum (0x0)'}`);
   console.log(`   ✅ Velocidade ${spd}x testada com SUCESSO absoluto!\n`);
 });
+
+// Garante que um atacante em zona de finalização aciona o callback visual de chute.
+const actionState = setupLiveMatch();
+const visualShooter = actionState.homePlayers[9];
+visualShooter.x = 90;
+visualShooter.y = 50;
+actionState.ball.mode = 'play';
+actionState.ball.carrier = visualShooter;
+actionState.ball.liveDecisionCooldown = 0;
+let visualShots = 0;
+const originalRandom = Math.random;
+try {
+  Math.random = () => 0;
+  RFE.rules.handleLiveMatchAction(
+    actionState,
+    true,
+    () => {},
+    () => {},
+    () => { visualShots++; }
+  );
+} finally {
+  Math.random = originalRandom;
+}
+assert.strictEqual(visualShots, 1, 'Atacante perto do gol deve concluir a jogada com um chute visual.');
+console.log('✅ Finalização visual acionada quando o atacante chega à zona de chute.\n');
 
 console.log('================================================================');
 console.log('🎉 TODAS AS 5 PARTIDAS AO VIVO FORAM CONCLUÍDAS COM SUCESSO!');
