@@ -10743,6 +10743,45 @@ const TRANSFER_WINDOWS = [
   { startMonth: 6, startDay: 1, endMonth: 8, endDay: 1, name: 'Janela de Meio de Temporada' }
 ];
 
+function closeSeasonTransferWindow(saveState = state){
+  if(!saveState) return;
+  const dateYear = Number(String(saveState.date || saveState.currentDate || '').slice(0, 4));
+  saveState.transferWindowClosedForSeason = dateYear || Number(saveState.season) || null;
+  saveState.transferWindowActive = false;
+  saveState.isPreSeason = false;
+  saveState.preSeasonDays = 0;
+}
+
+function startSeasonTransferWindow(saveState){
+  if(!saveState) return;
+  saveState.isPreSeason = true;
+  saveState.preSeasonDays = 4;
+  saveState.transferWindowActive = true;
+  saveState.transferWindowDay = 1;
+  saveState.transferWindowHour = 0;
+  saveState.transferWindowClosedForSeason = null;
+}
+
+function recoverJanuaryTransferWindow(saveState){
+  if(!saveState) return false;
+  const savedDate = String(saveState.date || saveState.currentDate || '').slice(0, 10);
+  const parts = /^(\d{4})-01-\d{2}$/.exec(savedDate);
+  if(!parts || (Number(saveState.round) || 0) > 1) return false;
+  const year = Number(parts[1]);
+  if(Number(saveState.transferWindowClosedForSeason) === year || saveState.transferWindowActive) return false;
+
+  // Saves antigos não registravam o fechamento deliberado da janela.
+  saveState.transferWindowActive = true;
+  saveState.transferWindowDay = 1;
+  saveState.transferWindowHour = 0;
+  if(savedDate === `${year}-01-01`){
+    saveState.isPreSeason = true;
+    saveState.preSeasonDays = 4;
+  }
+  saveState.transferWindowSaveRepairKey = `v3-${year}`;
+  return true;
+}
+
 function getTransferWindowState(){
   if(!state) return { active: false };
   if(state.freeTransferWindow) return { active: true, free: true, text: 'Janela Aberta (Modo Livre)' };
@@ -10757,9 +10796,7 @@ function getTransferWindowState(){
   }
   if(state.transferWindowActive){
     if(Number(state.transferWindowHour) >= 24 || Number(state.transferWindowDay) > 4){
-      state.transferWindowActive = false;
-      state.isPreSeason = false;
-      state.preSeasonDays = 0;
+      closeSeasonTransferWindow(state);
       return { active: false, text: 'Janela de Transferências Fechada' };
     }
     const day = Math.min(4, Math.max(1, Number(state.transferWindowDay) || 1));
@@ -12919,17 +12956,10 @@ function migrate(s){
   const savedDate = String(s.date || s.currentDate || '').slice(0, 10);
   const savedDateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(savedDate);
   const savedCalendarYear = savedDateParts ? Number(savedDateParts[1]) : Number(s.season) || 2026;
-  const repairKey = `v2-${savedCalendarYear}`;
-  if(savedDateParts && Number(savedDateParts[2]) === 1 && (Number(s.round) || 0) <= 1 && s.transferWindowSaveRepairKey !== repairKey){
-    if(savedDate === `${savedCalendarYear}-01-01`){
-      s.isPreSeason = true;
-      s.preSeasonDays = 4;
-    }
-    s.transferWindowActive = true;
-    s.transferWindowDay = 1;
-    s.transferWindowHour = 0;
-    s.transferWindowSaveRepairKey = repairKey;
-  } else if(!s.transferWindowActive && s.isPreSeason && Number(s.preSeasonDays) > 0){
+  if(savedDateParts && Number(savedDateParts[2]) === 1){
+    recoverJanuaryTransferWindow(s);
+  }
+  if(!s.transferWindowActive && s.isPreSeason && Number(s.preSeasonDays) > 0){
     s.transferWindowActive = true;
     s.transferWindowDay = Math.max(1, Math.min(4, 5 - Number(s.preSeasonDays)));
     s.transferWindowHour = 0;
@@ -16948,9 +16978,9 @@ function advanceTransferWindowHours(){
 
     if(state.transferWindowHour >= 24){
       state.transferWindowHour = 24;
-      state.transferWindowActive = false;
-      state.isPreSeason = false;
-      state.preSeasonDays = 0;
+      closeSeasonTransferWindow(state);
+      state.transferWindowHour = 24;
+      state.transferWindowDay = 4;
       const activeMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
       const targetDate = activeMatch?.date || getDateForRound(state.round || 0, state.season);
       if(targetDate && targetDate >= String(state.date || '')){
@@ -16996,8 +17026,9 @@ function advanceTransferWindow(step = 24){
       if(state.transferWindowDay >= 4 && step === 6){
         state.transferWindowHour = (Number(state.transferWindowHour) || 0) + 6;
         if(state.transferWindowHour >= 24){
-          state.transferWindowActive = false;
-          state.isPreSeason = false;
+          closeSeasonTransferWindow(state);
+          state.transferWindowDay = 4;
+          state.transferWindowHour = 24;
         }
       }
       try { save(); } catch(_){}
@@ -17050,9 +17081,7 @@ function _oldAdvancePreSeasonDay(){
 function skipPreSeason(){
   if(!state) return;
   try {
-    state.isPreSeason = false;
-    state.preSeasonDays = 0;
-    state.transferWindowActive = false;
+    closeSeasonTransferWindow(state);
     state.transferWindowDay = 4;
     state.transferWindowHour = 24;
     const activeMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
@@ -22713,12 +22742,10 @@ function advanceSeasonYear(){
   (state.bankLoans || []).forEach(loan => {
     if(loan.remainingDebt > 0 && loan.remainingInstallments > 0) loan.nextDueRound = 2;
   });
-  state.isPreSeason = true;
-  state.preSeasonDays = 4;
-  state.transferWindowActive = true;
-  state.transferWindowDay = 1;
-  state.transferWindowHour = 0;
   state.date = `${state.season}-01-01`;
+  state.currentDate = state.date;
+  state.currentDateFormatted = formatDatePtBr(state.date);
+  startSeasonTransferWindow(state);
   state.seasonPrizeClaimed = null;
   state.seasonConcluded = false;
   expireStadiumEventConfirmation();
@@ -22780,7 +22807,7 @@ function advanceSeasonYear(){
     window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens(state);
   }
 
-  closeCustomModal(); save(); render(); return true; } catch(err) { console.error('[AFM advanceSeasonYear Error]', err); try { state.season = (Number(state.season) || 2027) + 1; state.round = 0; state.isPreSeason = true; state.preSeasonDays = 4; state.transferWindowActive = true; state.transferWindowDay = 1; state.transferWindowHour = 0; state.date = `${state.season}-01-01`; state.currentDate = state.date; state.currentDateFormatted = formatDatePtBr(state.date); state.seasonPrizeClaimed = null; state.seasonConcluded = false; closeCustomModal(); save(); render(); toast('🚀 Temporada ' + state.season + ' iniciada com sucesso!'); } catch(fallbackErr) { console.error('[AFM Fallback Error]', fallbackErr); } return false; }
+  closeCustomModal(); save(); render(); return true; } catch(err) { console.error('[AFM advanceSeasonYear Error]', err); try { state.season = (Number(state.season) || 2027) + 1; state.round = 0; state.date = `${state.season}-01-01`; state.currentDate = state.date; state.currentDateFormatted = formatDatePtBr(state.date); startSeasonTransferWindow(state); state.seasonPrizeClaimed = null; state.seasonConcluded = false; closeCustomModal(); save(); render(); toast('🚀 Temporada ' + state.season + ' iniciada com sucesso!'); } catch(fallbackErr) { console.error('[AFM Fallback Error]', fallbackErr); } return false; }
 
 }
 

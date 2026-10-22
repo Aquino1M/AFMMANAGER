@@ -22,6 +22,10 @@ const advanceStart = source.indexOf('function advanceSeasonYear(');
 const advanceEnd = source.indexOf('\nfunction generateWorldRegens(', advanceStart);
 assert(advanceStart >= 0 && advanceEnd > advanceStart, 'Não foi possível localizar a virada real de temporada.');
 const actualAdvanceSeasonYear = source.slice(advanceStart, advanceEnd).trim();
+const transferWindowHelpersStart = source.indexOf('function closeSeasonTransferWindow(');
+const transferWindowHelpersEnd = source.indexOf('\nfunction getTransferWindowState(', transferWindowHelpersStart);
+assert(transferWindowHelpersStart >= 0 && transferWindowHelpersEnd > transferWindowHelpersStart, 'Não foi possível localizar as regras de recuperação da janela de janeiro.');
+const actualTransferWindowHelpers = source.slice(transferWindowHelpersStart, transferWindowHelpersEnd).trim();
 const singleRoundRobinStart = source.indexOf('function roundRobinSingleLeg(');
 const singleRoundRobinEnd = source.indexOf('\nfunction leaguePhaseSchedule(', singleRoundRobinStart);
 const groupScheduleStart = source.indexOf('function groupSchedule(');
@@ -93,7 +97,31 @@ function auditRosterSizesAndDuplicates(map){
 assert.match(actualAdvanceSeasonYear, /finalSeasonSnapshot/);
 assert.match(actualAdvanceSeasonYear, /executeSeasonTransitions\(finishedCompId, rankingTable, requestedDestinationCompId, sourceNationalDivision, finalSeasonSnapshot\)/);
 assert.ok(actualAdvanceSeasonYear.indexOf('finalSeasonSnapshot') < actualAdvanceSeasonYear.indexOf('state.season++'), 'O snapshot precisa capturar o ranking antes da limpeza/virada do ano.');
+assert.match(actualAdvanceSeasonYear, /startSeasonTransferWindow\(state\)/, 'A virada precisa inicializar explicitamente a janela da nova temporada.');
 console.log('PASS: advanceSeasonYear captura resultados antes da virada e encaminha snapshot persistível ao pipeline crítico.');
+
+// Recuperação de janela para saves legados com marca v2, ainda no começo de janeiro.
+{
+  const context = {};
+  vm.runInNewContext(`${actualTransferWindowHelpers}\nthis.recover = recoverJanuaryTransferWindow; this.start = startSeasonTransferWindow;`, context, { filename: 'js/game.js:transfer-window-recovery' });
+  const legacySave = { season: 2027, round: 1, date: '2027-01-17', transferWindowActive: false, transferWindowSaveRepairKey: 'v2-2027' };
+  assert.equal(context.recover(legacySave), true, 'Save antigo no início de janeiro deve recuperar a janela mesmo com a marca de reparo anterior.');
+  assert.equal(legacySave.transferWindowActive, true);
+  assert.equal(legacySave.transferWindowDay, 1);
+  assert.equal(legacySave.transferWindowHour, 0);
+  assert.equal(context.recover(legacySave), false, 'A recuperação do save deve ser idempotente depois de abrir a janela.');
+
+  const deliberatelyClosed = { season: 2027, round: 1, date: '2027-01-17', transferWindowActive: false, transferWindowClosedForSeason: 2027 };
+  assert.equal(context.recover(deliberatelyClosed), false, 'A correção não pode reabrir uma janela encerrada deliberadamente.');
+
+  const nextSeason = { season: 2028, round: 0, date: '2028-12-31', transferWindowClosedForSeason: 2028 };
+  context.start(nextSeason);
+  assert.equal(nextSeason.transferWindowActive, true);
+  assert.equal(nextSeason.transferWindowClosedForSeason, null);
+  assert.equal(nextSeason.transferWindowDay, 1);
+  assert.equal(nextSeason.transferWindowHour, 0);
+  console.log('PASS: janela de janeiro recuperada em save legado, protegida após fechamento e reiniciada na virada.');
+}
 
 // A divisão nacional válida não pode ser revertida por reparos do catálogo estadual.
 {
