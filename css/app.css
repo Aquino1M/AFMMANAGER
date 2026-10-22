@@ -8404,6 +8404,20 @@ body.theme-emerald {
   white-space: nowrap !important;
   touch-action: manipulation !important;
 }
+/* Mantém o retorno ao elenco visível na tela de salários no modo mobile. */
+.platform-mobile #btnToggleSquadView,
+.platform-mobile #btnToggleSquadViewLink {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 36px !important;
+  padding: 6px 10px !important;
+  margin: 4px 0 !important;
+  position: relative !important;
+  z-index: 2 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
 .platform-mobile .sm-btn-hamburger,
 .platform-mobile #btnToggleSidebarDrawer {
   display: inline-flex !important;

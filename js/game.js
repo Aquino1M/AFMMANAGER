@@ -3323,6 +3323,10 @@ function openStadiumModal(initialTab){
                   const totDays = stData.activeWork?.durationDays || 30;
                   const elapsed = Math.max(0, totDays - daysLeft);
                   const pct = Math.min(100, Math.round((elapsed / Math.max(1, totDays)) * 100));
+                  const contractorOptions = [3, 7, 14].filter(days => days < daysLeft).map(days => {
+                    const fee = getStadiumContractorRushCost(stData.activeWork, days);
+                    return `<button type="button" class="btn btnContractorRush" data-days="${days}" style="flex:1 1 120px;padding:8px 10px;background:#172033;border:1px solid rgba(34,197,94,.35);color:#bbf7d0;border-radius:8px;font-size:11px;font-weight:800">⚡ -${days} dias<br><span style="color:#4ade80">${fmtMoney(fee)}</span></button>`;
+                  }).join('');
                   return `
                     <div style="margin-top:12px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;border:1px solid rgba(139,92,246,0.3)">
                       <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#c084fc;margin-bottom:4px">
@@ -3331,6 +3335,11 @@ function openStadiumModal(initialTab){
                       </div>
                       <div style="background:rgba(255,255,255,0.1);height:8px;border-radius:4px;overflow:hidden">
                         <div style="background:linear-gradient(90deg, #7c3aed, #22c55e);height:100%;width:${pct}%;transition:width 0.3s"></div>
+                      </div>
+                      <div style="margin-top:12px;padding:10px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:10px">
+                        <div style="font-size:12px;font-weight:900;color:#bbf7d0;margin-bottom:4px">🏗️ Contratar construtora para acelerar</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,.62);margin-bottom:8px">Pague uma taxa extra para antecipar parte do prazo. O valor é debitado do caixa do clube.</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px">${contractorOptions || '<span style="font-size:11px;color:#94a3b8">A obra já está perto da conclusão; avance os dias normalmente.</span>'}</div>
                       </div>
                     </div>
                   `;
@@ -3845,6 +3854,10 @@ function openStadiumModal(initialTab){
       openStadiumModal();
     };
   }
+
+  $$('.btnContractorRush').forEach(btn => {
+    btn.onclick = () => hireStadiumContractor(Number(btn.dataset.days));
+  });
 
   // Bindings específicos da Aba Arena (Screenshot 5)
   $$('.btnSelectArenaName').forEach(b => {
@@ -4930,6 +4943,53 @@ function getStadiumWorkDaysRemaining(work = state?.stadiumRingData?.activeWork){
   const today = Date.parse(`${state.date}T00:00:00`);
   const finish = Date.parse(`${work.finishDate}T00:00:00`);
   return Number.isFinite(today) && Number.isFinite(finish) ? Math.max(0, Math.ceil((finish - today) / 86400000)) : 0;
+}
+
+function getStadiumContractorRushCost(work, days){
+  const remaining = getStadiumWorkDaysRemaining(work);
+  const requestedDays = Math.max(0, Math.floor(Number(days) || 0));
+  if(!work || requestedDays <= 0 || requestedDays >= remaining) return 0;
+  const sectorCost = getStadiumSectorCost(Number(work.ring) || 1);
+  // Taxa adicional de urgência: custo maior para acelerar mais dias.
+  const baseRushPct = requestedDays <= 3 ? 0.035 : requestedDays <= 7 ? 0.07 : 0.12;
+  return Math.max(10000, Math.round(sectorCost * baseRushPct));
+}
+
+function hireStadiumContractor(days){
+  const work = state?.stadiumRingData?.activeWork;
+  if(!work){ toast('Não há uma obra ativa para acelerar.'); return false; }
+  const remaining = getStadiumWorkDaysRemaining(work);
+  const requestedDays = Math.floor(Number(days) || 0);
+  if(![3, 7, 14].includes(requestedDays) || requestedDays >= remaining){
+    toast('Selecione uma opção válida de aceleração para esta obra.');
+    return false;
+  }
+  const cost = getStadiumContractorRushCost(work, requestedDays);
+  if(!Number.isFinite(cost) || cost <= 0){ toast('Não foi possível calcular o custo da construtora.'); return false; }
+  if((Number(state.balance) || 0) < cost){
+    toast(`Saldo insuficiente para contratar a construtora. Custo: ${fmtMoney(cost)}.`);
+    return false;
+  }
+
+  const currentFinish = new Date(`${work.finishDate}T12:00:00`);
+  if(!Number.isFinite(currentFinish.getTime())){ toast('A data de conclusão da obra está inválida.'); return false; }
+  currentFinish.setDate(currentFinish.getDate() - requestedDays);
+  const today = Date.parse(`${state.date}T00:00:00`);
+  const newFinishDay = Date.parse(`${currentFinish.toISOString().slice(0, 10)}T00:00:00`);
+  if(!Number.isFinite(today) || newFinishDay <= today){ toast('A aceleração não pode concluir a obra antes de um dia válido.'); return false; }
+
+  state.balance = (Number(state.balance) || 0) - cost;
+  state.expense = (Number(state.expense) || 0) + cost;
+  work.finishDate = currentFinish.toISOString().slice(0, 10);
+  work.contractorRushDays = (Number(work.contractorRushDays) || 0) + requestedDays;
+  work.contractorRushCost = (Number(work.contractorRushCost) || 0) + cost;
+  state.news = Array.isArray(state.news) ? state.news : [];
+  state.news.unshift(`🏗️ CONSTRUTORA CONTRATADA: obra do setor ${String(work.side).toUpperCase()} do Anel ${work.ring} antecipada em ${requestedDays} dias por ${fmtMoney(cost)}.`);
+  state.news = state.news.slice(0, 50);
+  save();
+  toast(`Construtora contratada! ${requestedDays} dias antecipados por ${fmtMoney(cost)}.`);
+  openStadiumModal('expansion');
+  return true;
 }
 
 function processStadiumConstructionDay(){
@@ -13687,6 +13747,7 @@ function migrate(s){
   if(!s.infrastructure.marketing) s.infrastructure.marketing = {level:1};
   if(!s.infrastructure.bank) s.infrastructure.bank = {level:1};
   s.bankLoans = Array.isArray(s.bankLoans) ? s.bankLoans : [];
+  if(typeof s.bankAutoDebitEnabled !== 'boolean') s.bankAutoDebitEnabled = false;
   for(const k of Object.keys(FACILITIES)) s.infrastructure[k]=s.infrastructure[k]||{level:1};
   normalizeSquadState(s);
   s.ticketPrice=+s.ticketPrice||Math.round(clamp(18+(strength(clubByName(s.club)||{atk:65,mid:65,def:65})-58)*1.7,15,130));
@@ -25631,10 +25692,14 @@ function processBankLoansOnRound(){
     if(loan.remainingInstallments <= 0 || loan.remainingDebt <= 0) return;
     if((state.round || 0) >= (loan.nextDueRound || 0)){
       const instVal = Math.round(loan.installmentValue || (loan.remainingDebt / Math.max(1, loan.remainingInstallments)));
-      if(state.balance >= instVal){
+      const alreadyChargedThisRound = Number(loan.lastPenaltyRound) === Number(state.round || 0);
+      // O débito automático só tenta a parcela no vencimento inicial. Se falhar,
+      // a dívida fica em atraso e exige regularização manual com os juros acumulados.
+      if(state.bankAutoDebitEnabled && !loan.overdue && state.balance >= instVal){
         const wasOverdue = !!loan.overdue;
-        state.balance -= instVal;
-        const breakdown = bankLoanPaymentBreakdown(loan, instVal);
+        const amountDue = instVal + Math.max(0, Number(loan.penalty) || 0);
+        state.balance -= amountDue;
+        const breakdown = bankLoanPaymentBreakdown(loan, amountDue);
         loan.remainingPrincipal = breakdown.remainingPrincipal;
         state.debtPrincipalPaid = (state.debtPrincipalPaid || 0) + breakdown.principalPaid;
         state.expense = (state.expense || 0) + breakdown.interestPaid;
@@ -25645,15 +25710,19 @@ function processBankLoansOnRound(){
         loan.nextDueRound = (state.round || 0) + 2;
         loan.overdue = false;
         loan.penalty = 0;
+        loan.lastPenaltyRound = null;
         if(loan.remainingDebt <= 0 || loan.remainingInstallments <= 0) recordBankCreditPayment('completed');
-        state.news.unshift(`🏦 Banco & Finanças: Parcela de ${fmtMoney(instVal)} debitada com sucesso (${loan.paidInstallments}/${loan.totalInstallments}).`);
+        state.news.unshift(`🏦 Banco & Finanças: Débito automático de ${fmtMoney(amountDue)} realizado (${loan.paidInstallments}/${loan.totalInstallments}).`);
       } else {
-        recordBankCreditPayment('late');
+        if(!loan.overdue) recordBankCreditPayment('late');
         loan.overdue = true;
-        const penaltyFee = Math.round(instVal * 0.02);
-        loan.penalty = (loan.penalty || 0) + penaltyFee;
-        loan.remainingDebt += penaltyFee;
-        state.news.unshift(`🚨 ALERTA BANCÁRIO: Saldo insuficiente para honrar a parcela de ${fmtMoney(instVal)}! Incidência de juros por atraso: +${fmtMoney(penaltyFee)}.`);
+        if(!alreadyChargedThisRound){
+          const penaltyFee = Math.max(1, Math.round(instVal * 0.02));
+          loan.penalty = (Number(loan.penalty) || 0) + penaltyFee;
+          loan.remainingDebt += penaltyFee;
+          loan.lastPenaltyRound = Number(state.round) || 0;
+          state.news.unshift(`🚨 ALERTA BANCÁRIO: parcela de ${fmtMoney(instVal)} vencida${state.bankAutoDebitEnabled ? ' por saldo insuficiente' : ' (débito automático desativado)'}. Juros de atraso: +${fmtMoney(penaltyFee)}.`);
+        }
       }
     }
   });
@@ -25921,6 +25990,13 @@ function openBankLoansModal(initialTab = null){
           ` : `
             <!-- Conteúdo da Aba 2: MINHAS PARCELAS & ANTECIPAÇÃO -->
             <div style="padding:24px;display:flex;flex-direction:column;gap:16px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#161a2e;border:1px solid ${state.bankAutoDebitEnabled?'rgba(16,185,129,.5)':'rgba(255,255,255,.12)'};border-radius:14px;padding:14px 16px">
+                <div style="flex:1;min-width:220px">
+                  <div style="font-size:13px;font-weight:900;color:#fff">Débito automático de parcelas</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.62);margin-top:4px;line-height:1.45">${state.bankAutoDebitEnabled?'Ativado: tenta pagar no vencimento. Se o caixa não cobrir parcela e juros acumulados, a dívida fica atrasada e continua recebendo juros.':'Desativado: as parcelas não serão debitadas automaticamente; parcelas vencidas acumulam juros até o pagamento manual.'}</div>
+                </div>
+                <button type="button" id="btnToggleBankAutoDebit" aria-pressed="${!!state.bankAutoDebitEnabled}" style="padding:10px 16px;border:0;border-radius:9px;background:${state.bankAutoDebitEnabled?'#059669':'#475569'};color:#fff;font-size:11px;font-weight:900;cursor:pointer;min-width:120px">${state.bankAutoDebitEnabled?'✓ ATIVADO':'○ DESATIVADO'}</button>
+              </div>
               ${state.bankLoans.length === 0 ? `
                 <div style="text-align:center;padding:48px 20px;background:#161a2e;border-radius:16px;border:1px dashed rgba(255,255,255,0.15)">
                   <div style="font-size:42px">✓</div>
@@ -25931,6 +26007,7 @@ function openBankLoansModal(initialTab = null){
                 <div style="display:flex;flex-direction:column;gap:14px">
                   ${state.bankLoans.map((loan, idx) => {
                     const instVal = Math.round(loan.installmentValue || (loan.remainingDebt / Math.max(1, loan.remainingInstallments)));
+                    const amountDue = instVal + Math.max(0, Number(loan.penalty) || 0);
                     const bonusPayoff = Math.round(loan.remainingDebt * 0.90);
                     const dueDate = bankLoanDueDate(loan);
                     const daysUntilDue = daysUntilBankLoanDue(loan);
@@ -25967,8 +26044,8 @@ function openBankLoansModal(initialTab = null){
 
                         <!-- Ações de Pagamento e Antecipação -->
                         <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,0.06);padding-top:12px">
-                          <button class="btn btnPayInstallment" data-idx="${idx}" style="background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15);font-size:12px;font-weight:800;padding:8px 14px;border-radius:8px;cursor:pointer" ${state.balance < instVal ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
-                            💳 Pagar Próxima Parcela (${fmtMoney(instVal)})
+                          <button class="btn btnPayInstallment" data-idx="${idx}" style="background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15);font-size:12px;font-weight:800;padding:8px 14px;border-radius:8px;cursor:pointer" ${state.balance < amountDue ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
+                            💳 ${loan.overdue ? 'Regularizar Parcela' : 'Pagar Próxima Parcela'} (${fmtMoney(amountDue)}${loan.penalty > 0 ? ' c/ juros' : ''})
                           </button>
                           <button class="btn btnPayoffLoan" data-idx="${idx}" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;font-size:12px;font-weight:900;padding:8px 16px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px" ${state.balance < bonusPayoff ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
                             <span>⚡</span> <span>Quitar Tudo com 10% Bônus (${fmtMoney(bonusPayoff)})</span>
@@ -26003,6 +26080,13 @@ function openBankLoansModal(initialTab = null){
     if(tabBorrow) tabBorrow.onclick = () => { activeBankModalTab = 'borrow'; renderModalContent(); };
     const tabActive = $('#tabBankActive');
     if(tabActive) tabActive.onclick = () => { activeBankModalTab = 'active'; renderModalContent(); };
+    const btnAutoDebit = $('#btnToggleBankAutoDebit');
+    if(btnAutoDebit) btnAutoDebit.onclick = () => {
+      state.bankAutoDebitEnabled = !state.bankAutoDebitEnabled;
+      save();
+      toast(`Débito automático ${state.bankAutoDebitEnabled ? 'ativado' : 'desativado'}.`);
+      renderModalContent();
+    };
 
     $$('.afm-btn-preset-loan').forEach(b => {
       b.onclick = () => { selectedLoanAmount = +b.dataset.val; renderModalContent(); };
@@ -26059,11 +26143,12 @@ function openBankLoansModal(initialTab = null){
         const loan = state.bankLoans[idx];
         if(!loan) return;
         const instVal = Math.round(loan.installmentValue || (loan.remainingDebt / Math.max(1, loan.remainingInstallments)));
-        if(state.balance < instVal){ toast('Saldo insuficiente no caixa para pagar a parcela.'); return; }
+        const amountDue = instVal + Math.max(0, Number(loan.penalty) || 0);
+        if(state.balance < amountDue){ toast(`Saldo insuficiente. Para regularizar a parcela vencida, são necessários ${fmtMoney(amountDue)} incluindo juros.`); return; }
 
         const wasOverdue = !!loan.overdue;
-        state.balance -= instVal;
-        const breakdown = bankLoanPaymentBreakdown(loan, instVal);
+        state.balance -= amountDue;
+        const breakdown = bankLoanPaymentBreakdown(loan, amountDue);
         loan.remainingPrincipal = breakdown.remainingPrincipal;
         state.debtPrincipalPaid = (state.debtPrincipalPaid || 0) + breakdown.principalPaid;
         state.expense = (state.expense || 0) + breakdown.interestPaid;
@@ -26074,13 +26159,14 @@ function openBankLoansModal(initialTab = null){
         loan.nextDueRound = (state.round || 0) + 2;
         loan.overdue = false;
         loan.penalty = 0;
+        loan.lastPenaltyRound = null;
 
         if(loan.remainingDebt <= 0 || loan.remainingInstallments <= 0){
           recordBankCreditPayment('completed');
           state.bankLoans.splice(idx, 1);
           toast('🎉 Empréstimo 100% quitado com sucesso!');
         } else {
-          toast(`Parcela de ${fmtMoney(instVal)} paga com sucesso!`);
+          toast(`Parcela regularizada por ${fmtMoney(amountDue)}${wasOverdue ? ' (incluindo juros de atraso)' : ''}.`);
         }
         save();
         renderModalContent();
