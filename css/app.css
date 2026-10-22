@@ -7975,8 +7975,13 @@ body.theme-emerald {
   }
   /* Keep the same squad actions available on mobile; allow horizontal scrolling
      instead of hiding or squeezing the actions into unreadable buttons. */
-  .hero > div:last-child:has(#btnOpenSquadReports),
-  .hero > div:last-child:has(#btnOpenSquadReportsMyTeam) {
+  .hero > div:has(> #btnOpenSquadReports),
+  .hero > div:has(> #btnOpenSquadReportsMyTeam),
+  .hero > div:has(> #btnOpenTrainingFromSquad),
+  .hero > div:has(> #btnGoToSalariesView),
+  .hero > div:has(> #btnOpenCompareModalSquad),
+  .hero > div:has(> #btnOpenYouthFromSquad),
+  .hero > div:has(> #btnSearchAllDb) {
     display: flex !important;
     flex-wrap: nowrap !important;
     align-items: stretch !important;
@@ -7992,8 +7997,13 @@ body.theme-emerald {
     scrollbar-width: thin;
     overscroll-behavior-x: contain;
   }
-  .hero > div:last-child:has(#btnOpenSquadReports) > .btn,
-  .hero > div:last-child:has(#btnOpenSquadReportsMyTeam) > .btn {
+  .hero > div:has(> #btnOpenSquadReports) > .btn,
+  .hero > div:has(> #btnOpenSquadReportsMyTeam) > .btn,
+  .hero > div:has(> #btnOpenTrainingFromSquad) > .btn,
+  .hero > div:has(> #btnGoToSalariesView) > .btn,
+  .hero > div:has(> #btnOpenCompareModalSquad) > .btn,
+  .hero > div:has(> #btnOpenYouthFromSquad) > .btn,
+  .hero > div:has(> #btnSearchAllDb) > .btn {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -8006,8 +8016,13 @@ body.theme-emerald {
     white-space: nowrap !important;
     touch-action: manipulation !important;
   }
-  .hero > div:last-child:has(#btnOpenSquadReports) #btnOpenSquadReports,
-  .hero > div:last-child:has(#btnOpenSquadReportsMyTeam) #btnOpenSquadReportsMyTeam {
+  .hero > div:has(> #btnOpenSquadReports) #btnOpenSquadReports,
+  .hero > div:has(> #btnOpenSquadReportsMyTeam) #btnOpenSquadReportsMyTeam,
+  .hero > div:has(> #btnOpenTrainingFromSquad) #btnOpenTrainingFromSquad,
+  .hero > div:has(> #btnGoToSalariesView) #btnGoToSalariesView,
+  .hero > div:has(> #btnOpenCompareModalSquad) #btnOpenCompareModalSquad,
+  .hero > div:has(> #btnOpenYouthFromSquad) #btnOpenYouthFromSquad,
+  .hero > div:has(> #btnSearchAllDb) #btnSearchAllDb {
     display: inline-flex !important;
   }
   .squad-actions-bar .btn {
