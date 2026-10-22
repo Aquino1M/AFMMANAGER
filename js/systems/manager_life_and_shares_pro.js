@@ -21,6 +21,15 @@
       .replace(/'/g, '&#039;');
   }
 
+  function fmtMoney(value) {
+    if (typeof window.fmtMoney === 'function') return window.fmtMoney(value);
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      maximumFractionDigits: 0
+    }).format(Number(value) || 0);
+  }
+
   const REAL_ESTATE_CATALOG = [
     { id: 'apt_studio', name: 'Apartamento Studio Executivo', cost: 280000, monthlyRent: 2400, appreciationRate: 0.08, prestige: 1, icon: '🏢' },
     { id: 'casa_condominio', name: 'Casa em Condomínio Fechado', cost: 850000, monthlyRent: 7500, appreciationRate: 0.12, prestige: 3, icon: '🏡' },

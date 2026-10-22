@@ -58,6 +58,7 @@ window.__afmAsRoundArray = window.__afmAsRoundArray || function(r) {
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const STORAGE='aquino_futebol_manager_2026_v1';
 const fmtMoney=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(Number(v)||0);
+window.fmtMoney = fmtMoney;
 const fmtMi=v=>`R$ ${Number(v||0).toFixed(1).replace('.',',')} mi`;
 const fmtCompactMoney=v=>{
   const n=Number(v)||0;
