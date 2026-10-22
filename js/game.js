@@ -12707,14 +12707,19 @@ window.repairSaveIfCorrupted = repairSaveIfCorrupted;
 function migrate(s){
   if(!s)return null;
   s.version=4;
-  const seasonStart = `${Number(s.season)}-01-01`;
   const savedDate = String(s.date || s.currentDate || '').slice(0, 10);
-  if(savedDate === seasonStart && (Number(s.round) || 0) <= 1){
-    s.isPreSeason = true;
-    s.preSeasonDays = 4;
+  const savedDateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(savedDate);
+  const savedCalendarYear = savedDateParts ? Number(savedDateParts[1]) : Number(s.season) || 2026;
+  const repairKey = `v2-${savedCalendarYear}`;
+  if(savedDateParts && Number(savedDateParts[2]) === 1 && (Number(s.round) || 0) <= 1 && s.transferWindowSaveRepairKey !== repairKey){
+    if(savedDate === `${savedCalendarYear}-01-01`){
+      s.isPreSeason = true;
+      s.preSeasonDays = 4;
+    }
     s.transferWindowActive = true;
     s.transferWindowDay = 1;
     s.transferWindowHour = 0;
+    s.transferWindowSaveRepairKey = repairKey;
   } else if(!s.transferWindowActive && s.isPreSeason && Number(s.preSeasonDays) > 0){
     s.transferWindowActive = true;
     s.transferWindowDay = Math.max(1, Math.min(4, 5 - Number(s.preSeasonDays)));
@@ -16715,7 +16720,7 @@ function advanceTransferWindowHours(){
       state.preSeasonDays = 0;
       const activeMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
       const targetDate = activeMatch?.date || getDateForRound(state.round || 0, state.season);
-      if(targetDate){
+      if(targetDate && targetDate >= String(state.date || '')){
         state.date = targetDate;
         state.currentDate = state.date;
         state.currentDateFormatted = formatDatePtBr(state.date);
