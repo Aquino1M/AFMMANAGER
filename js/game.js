@@ -302,6 +302,30 @@ function renderTacticalCard(player, index, isSelected = false) {
 }
 window.renderTacticalCard = renderTacticalCard;
 
+function splitPlayerCardName(fullName) {
+  if (!fullName) return { first: '', last: 'VAZIO', isSingle: true };
+  const raw = String(fullName).trim();
+  if (!raw) return { first: '', last: 'VAZIO', isSingle: true };
+  const parts = raw.split(/\s+/);
+  if (parts.length === 1) {
+    return { first: '', last: parts[0].toUpperCase(), isSingle: true };
+  }
+  if (parts.length === 2) {
+    return { first: parts[0].toUpperCase(), last: parts[1].toUpperCase(), isSingle: false };
+  }
+  const connectors = new Set(['DE', 'DA', 'DO', 'DOS', 'DAS', 'E']);
+  if (parts.length === 3 && connectors.has(parts[1].toUpperCase())) {
+    return { first: parts[0].toUpperCase(), last: (parts[1] + ' ' + parts[2]).toUpperCase(), isSingle: false };
+  }
+  const first = parts[0].toUpperCase();
+  let last = parts[parts.length - 1].toUpperCase();
+  if (parts.length > 2 && connectors.has(parts[parts.length - 2].toUpperCase())) {
+    last = (parts[parts.length - 2] + ' ' + parts[parts.length - 1]).toUpperCase();
+  }
+  return { first, last, isSingle: false };
+}
+window.splitPlayerCardName = splitPlayerCardName;
+
 function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const i = slot.index ?? 0;
   const role = slot.role || (p?.pos || 'ST');
@@ -320,7 +344,11 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
   const isHalftime = !!opts.isHalftime;
   const stamina = p ? Math.round(p.stamina ?? p.fitness ?? 100) : 100;
   const staminaClass = stamina >= 75 ? 'stamina-good' : stamina >= 50 ? 'stamina-warn' : 'stamina-tired';
-  const shortName = p ? (p.name.split(' ').pop() || p.name).toUpperCase() : 'VAZIO';
+  const cardNameData = p ? splitPlayerCardName(p.name) : { first: '', last: 'VAZIO', isSingle: true };
+  const firstLen = cardNameData.first.length;
+  const lastLen = cardNameData.last.length;
+  const firstLenClass = firstLen > 8 ? 'len-huge' : (firstLen > 6 ? 'len-long' : '');
+  const lastLenClass = lastLen > 8 ? 'len-huge' : (lastLen > 6 ? 'len-long' : '');
   const photoUrl = p ? resolvePlayerPhotoUrl(p) : null;
   const fallbackUrl = "img/players/default_avatar.svg";
   const clubName = p?.club || state?.club || '';
@@ -373,10 +401,11 @@ function renderFifaMiniCard(p, slot = {}, opts = {}) {
              onerror="this.onerror=null;this.src='${fallbackUrl}';" />
       </div>
 
-      <!-- Base: Nome do Atleta, Função Tática e Barra de Stamina -->
+      <!-- Base: Nome do Atleta (2 Camadas: Nome e Sobrenome) e Barra de Stamina -->
       <div class="fifa-mini-card-bottom">
-        <div class="fifa-mini-card-name">
-          ${esc(shortName)}
+        <div class="fifa-mini-card-name ${cardNameData.isSingle ? 'is-single-name' : 'is-double-name'}">
+          ${cardNameData.first ? `<span class="fifa-name-layer-first ${firstLenClass}">${esc(cardNameData.first)}</span>` : ''}
+          <span class="fifa-name-layer-last ${lastLenClass}">${esc(cardNameData.last)}</span>
         </div>
         ${isHalftime ? `
           <div class="fifa-mini-card-stamina" title="Energia: ${stamina}%">
@@ -1762,11 +1791,11 @@ function initStoredGameState(){
 // =========================================================================
 const PARKING_LEVELS = [
   { level: 0, name: 'Sem Estacionamento', spots: 0, cost: 0, days: 0 },
-  { level: 1, name: 'Terreno de Terra', spots: 300, cost: 32400, days: 15 },
-  { level: 2, name: 'Estacionamento Asfaltado', spots: 1000, cost: 75000, days: 25 },
-  { level: 3, name: 'Estacionamento Coberto', spots: 2500, cost: 160000, days: 40 },
-  { level: 4, name: 'Edifício Garagem', spots: 5000, cost: 320000, days: 60 },
-  { level: 5, name: 'Complexo Multinível Inteligente', spots: 10000, cost: 650000, days: 90 }
+  { level: 1, name: 'Terreno de Terra', spots: 300, cost: 480000, days: 15 },
+  { level: 2, name: 'Estacionamento Asfaltado', spots: 1000, cost: 1250000, days: 25 },
+  { level: 3, name: 'Estacionamento Coberto', spots: 2500, cost: 2800000, days: 40 },
+  { level: 4, name: 'Edifício Garagem', spots: 5000, cost: 6200000, days: 60 },
+  { level: 5, name: 'Complexo Multinível Inteligente', spots: 10000, cost: 13500000, days: 90 }
 ];
 
 function openParkingModal(){
@@ -1938,14 +1967,18 @@ function openParkingModal(){
                 </div>
               </div>
 
-              <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:12px">
-                Custa <b>${fmtMoney(nextLvlObj.cost)}</b>.
+              <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+                <span>Investimento em Obra Própria:</span>
+                <b style="color:#f59e0b;font-size:14px">${fmtMoney(nextLvlObj.cost)}</b>
               </div>
 
-              <div style="font-size:10px;color:${hasExtraSpots?'#facc15':'rgba(255,255,255,0.5)'};margin-top:4px;line-height:1.4">
+              <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-top:6px;line-height:1.4;background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
                 ${hasExtraSpots 
                   ? 'Hoje já sobram vagas: com o público atual, este nível não traz renda a mais. Vale quando o estádio encher mais.' 
                   : 'Faltam vagas nos dias de casa: a ampliação captará motoristas que hoje estacionam na rua!'}
+                <div style="margin-top:5px;color:#c084fc">
+                  💡 <b>Dica de Gestão:</b> Obras de infraestrutura própria exigem alto desembolso do clube (${fmtMoney(nextLvlObj.cost)}). Caso prefira economizar o caixa para o elenco, assine uma <b>Concessão Empresarial</b> acima: você recebe luvas imediatas e a empresa investe as vagas sem custo!
+                </div>
               </div>
 
               <button class="btn primary" id="btnStartParkingUpgrade" style="width:100%;margin-top:14px;padding:12px;font-size:13px;font-weight:900;border-radius:10px">
@@ -2525,7 +2558,7 @@ let stadiumPreviewUpgrade = null;
 let selectedArenaName = 'Arena Real Brasília';
 let selectedArenaCapacity = 15000;
 let selectedArenaFinancing = 'cash';
-let stadiumVisualMode = (typeof window !== 'undefined' && window.stadiumVisualMode) ? window.stadiumVisualMode : 'plano'; // 'plano' | '3d'
+let stadiumVisualMode = (typeof window !== 'undefined' && window.stadiumVisualMode) ? window.stadiumVisualMode : '3d'; // '3d' | 'plano'
 
 const STADIUM_UPGRADE_LABELS = {
   chairs: 'Cadeiras Novas',
@@ -2565,6 +2598,9 @@ function openStadiumModal(initialTab){
   selectedArenaCapacity = getSelectedArenaCapacity();
   if (typeof window !== 'undefined' && window.stadiumVisualMode) {
     stadiumVisualMode = window.stadiumVisualMode;
+  }
+  if (typeof window !== 'undefined' && window.stadiumSelectedSide) {
+    stadiumSelectedSide = window.stadiumSelectedSide;
   }
   if (typeof window !== 'undefined' && typeof window.stadiumPreviewUpgrade !== 'undefined') {
     stadiumPreviewUpgrade = window.stadiumPreviewUpgrade;
@@ -2653,202 +2689,86 @@ function openStadiumModal(initialTab){
           </div>
 
           ${stadiumVisualMode === '3d' ? `
-            <!-- ================= VIEWPORT 3D DO ESTÁDIO COM UPGRADES E ARQUIBANCADAS ACOPLADAS ================= -->
-            <div style="position:relative;width:95%;max-width:560px;aspect-ratio:1.2;background:#060b13;border:3px solid ${isArena ? '#ec4899' : '#0284c7'};border-radius:18px;box-shadow:0 0 25px ${isArena ? 'rgba(236,72,153,0.45)' : 'rgba(2,132,199,0.35)'};overflow:hidden;display:flex;flex-direction:column">
+            <!-- ================= VIEWPORT 3D DO ESTÁDIO COM MAQUETE LOW-POLY PROGRESSIVA ================= -->
+            <div id="afmStadiumViewportWrap" style="position:relative;width:95%;max-width:560px;aspect-ratio:1.2;background:#060b13;border:3px solid ${isArena ? '#ec4899' : '#0284c7'};border-radius:18px;box-shadow:0 0 25px ${isArena ? 'rgba(236,72,153,0.45)' : 'rgba(2,132,199,0.35)'};overflow:hidden;display:flex;flex-direction:column">
               
-              <!-- model-viewer 3D Oficial com Suporte a Hotspots 3D em Tempo Real -->
-              <model-viewer
-                id="afmStadiumVisualModelViewer"
-                src="${model3D ? model3D.file : 'assets/stadiums/arena_classica.glb'}"
-                alt="${model3D ? model3D.name : 'Estádio 3D'}"
-                auto-rotate
-                camera-controls
-                shadow-intensity="1.5"
-                shadow-softness="0.8"
-                exposure="${u.ledLights ? '1.6' : '1.0'}"
-                rotation-per-second="${stadiumPreviewUpgrade ? '6deg' : '12deg'}"
-                camera-orbit="${activeOrbit}"
-                style="width:100%;height:100%;background:#090d16">
-                
-                <div slot="poster" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#090d16;gap:8px">
-                  <img src="${model3D ? model3D.preview : 'assets/stadiums/PREVIA_ESTADIOS.png'}" alt="Estádio 3D" style="max-width:70%;max-height:180px;border-radius:8px">
-                  <div style="color:#94a3b8;font-size:11px">🏟️ Carregando maquete 3D...</div>
-                </div>
+              <!-- Canvas 3D Low-Poly WebGL em Tempo Real (Three.js) -->
+              <canvas id="afmStadiumLowPolyCanvas" style="width:100%;height:100%;display:block;outline:none;touch-action:none"></canvas>
 
-                <!-- ================= 1. ACOPLAMENTO 3D DAS ARQUIBANCADAS NOS 4 SETORES ================= -->
-                <!-- Setor Leste (Zona Leste): Acoplado quando construído ou em foco na ampliação -->
-                ${(stData.sides['leste'] || (isExp && stadiumSelectedSide === 'leste')) ? `
-                  <div slot="hotspot-stand-leste" data-position="15 3.5 0" data-normal="1 0 0" class="afm-3d-hotspot">
-                    <div class="afm-3d-stand-module ${stData.sides['leste'] ? 'done' : 'work'}">
-                      <div class="stand-title">${stData.sides['leste'] ? '✓ ZONA LESTE AMPLIADA' : (stData.activeWork?.side === 'leste' ? '🏗️ OBRA LESTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO LESTE')}</div>
-                      <div class="afm-3d-stand-visual-tiers">
-                        <div class="tier-step"></div>
-                        <div class="tier-step"></div>
-                        <div class="tier-step"></div>
-                      </div>
-                      <span style="font-size:8px;font-weight:900;color:${stData.sides['leste']?'#4ade80':'#facc15'}">${stData.sides['leste'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
-                    </div>
+              <!-- Fallback caso Three.js/WebGL não esteja disponível -->
+              <div id="afmStadiumFallbackViewer" style="display:none;width:100%;height:100%;position:absolute;inset:0">
+                <model-viewer
+                  id="afmStadiumVisualModelViewer"
+                  src="${model3D ? model3D.file : 'assets/stadiums/arena_classica.glb'}"
+                  alt="${model3D ? model3D.name : 'Estádio 3D'}"
+                  auto-rotate
+                  camera-controls
+                  shadow-intensity="1.5"
+                  exposure="${u.ledLights ? '1.6' : '1.0'}"
+                  rotation-per-second="${stadiumPreviewUpgrade ? '6deg' : '12deg'}"
+                  camera-orbit="${activeOrbit}"
+                  style="width:100%;height:100%;background:#090d16">
+                  <div slot="poster" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#090d16;gap:8px">
+                    <img src="${model3D ? model3D.preview : 'assets/stadiums/PREVIA_ESTADIOS.png'}" alt="Estádio 3D" style="max-width:70%;max-height:180px;border-radius:8px">
+                    <div style="color:#94a3b8;font-size:11px">🏟️ Carregando maquete 3D...</div>
                   </div>
-                ` : ''}
 
-                <!-- Setor Oeste: Acoplado quando construído ou em foco na ampliação -->
-                ${(stData.sides['oeste'] || (isExp && stadiumSelectedSide === 'oeste')) ? `
-                  <div slot="hotspot-stand-oeste" data-position="-15 3.5 0" data-normal="-1 0 0" class="afm-3d-hotspot">
-                    <div class="afm-3d-stand-module ${stData.sides['oeste'] ? 'done' : 'work'}">
-                      <div class="stand-title">${stData.sides['oeste'] ? '✓ SETOR OESTE AMPLIADO' : (stData.activeWork?.side === 'oeste' ? '🏗️ OBRA OESTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO OESTE')}</div>
-                      <div class="afm-3d-stand-visual-tiers">
-                        <div class="tier-step"></div>
-                        <div class="tier-step"></div>
-                        <div class="tier-step"></div>
+                  <!-- Hotspots de Setores -->
+                  ${(stData.sides['leste'] || (isExp && stadiumSelectedSide === 'leste')) ? `
+                    <div slot="hotspot-stand-leste" data-position="15 3.5 0" data-normal="1 0 0" class="afm-3d-hotspot">
+                      <div class="afm-3d-stand-module ${stData.sides['leste'] ? 'done' : 'work'}">
+                        <div class="stand-title">${stData.sides['leste'] ? '✓ ZONA LESTE AMPLIADA' : (stData.activeWork?.side === 'leste' ? '🏗️ OBRA LESTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO LESTE')}</div>
+                        <span style="font-size:8px;font-weight:900;color:${stData.sides['leste']?'#4ade80':'#facc15'}">${stData.sides['leste'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
                       </div>
-                      <span style="font-size:8px;font-weight:900;color:${stData.sides['oeste']?'#4ade80':'#facc15'}">${stData.sides['oeste'] ? '+1.750 Lugares Sociais' : '+1.750 Lugares Projetados'}</span>
                     </div>
-                  </div>
-                ` : ''}
-
-                <!-- Setor Norte: Acoplado quando construído ou em foco na ampliação -->
-                ${(stData.sides['norte'] || (isExp && stadiumSelectedSide === 'norte')) ? `
-                  <div slot="hotspot-stand-norte" data-position="0 3.5 -12" data-normal="0 0 -1" class="afm-3d-hotspot">
-                    <div class="afm-3d-stand-module ${stData.sides['norte'] ? 'done' : 'work'}">
-                      <div class="stand-title">${stData.sides['norte'] ? '✓ SETOR NORTE AMPLIADO' : (stData.activeWork?.side === 'norte' ? '🏗️ OBRA NORTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO NORTE')}</div>
-                      <div class="afm-3d-stand-visual-tiers">
-                        <div class="tier-step"></div>
-                        <div class="tier-step"></div>
-                        <div class="tier-step"></div>
+                  ` : ''}
+                  ${(stData.sides['oeste'] || (isExp && stadiumSelectedSide === 'oeste')) ? `
+                    <div slot="hotspot-stand-oeste" data-position="-15 3.5 0" data-normal="-1 0 0" class="afm-3d-hotspot">
+                      <div class="afm-3d-stand-module ${stData.sides['oeste'] ? 'done' : 'work'}">
+                        <div class="stand-title">${stData.sides['oeste'] ? '✓ SETOR OESTE AMPLIADO' : (stData.activeWork?.side === 'oeste' ? '🏗️ OBRA OESTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO OESTE')}</div>
+                        <span style="font-size:8px;font-weight:900;color:${stData.sides['oeste']?'#4ade80':'#facc15'}">${stData.sides['oeste'] ? '+1.750 Lugares Sociais' : '+1.750 Lugares Projetados'}</span>
                       </div>
-                      <span style="font-size:8px;font-weight:900;color:${stData.sides['norte']?'#4ade80':'#facc15'}">${stData.sides['norte'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
                     </div>
-                  </div>
-                ` : ''}
-
-                <!-- Setor Sul: Acoplado quando construído ou em foco na ampliação -->
-                ${(stData.sides['sul'] || (isExp && stadiumSelectedSide === 'sul')) ? `
-                  <div slot="hotspot-stand-sul" data-position="0 3.5 12" data-normal="0 0 1" class="afm-3d-hotspot">
-                    <div class="afm-3d-stand-module ${stData.sides['sul'] ? 'done' : 'work'}">
-                      <div class="stand-title">${stData.sides['sul'] ? '✓ SETOR SUL AMPLIADO' : (stData.activeWork?.side === 'sul' ? '🏗️ OBRA SUL EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO SUL')}</div>
-                      <div class="afm-3d-stand-visual-tiers">
-                        <div class="tier-step"></div>
-                        <div class="tier-step"></div>
-                        <div class="tier-step"></div>
+                  ` : ''}
+                  ${(stData.sides['norte'] || (isExp && stadiumSelectedSide === 'norte')) ? `
+                    <div slot="hotspot-stand-norte" data-position="0 3.5 -12" data-normal="0 0 -1" class="afm-3d-hotspot">
+                      <div class="afm-3d-stand-module ${stData.sides['norte'] ? 'done' : 'work'}">
+                        <div class="stand-title">${stData.sides['norte'] ? '✓ SETOR NORTE AMPLIADO' : (stData.activeWork?.side === 'norte' ? '🏗️ OBRA NORTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO NORTE')}</div>
+                        <span style="font-size:8px;font-weight:900;color:${stData.sides['norte']?'#4ade80':'#facc15'}">${stData.sides['norte'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
                       </div>
-                      <span style="font-size:8px;font-weight:900;color:${stData.sides['sul']?'#4ade80':'#facc15'}">${stData.sides['sul'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
                     </div>
-                  </div>
-                ` : ''}
-
-                <!-- ================= 2. ACOPLAMENTO 3D DAS MELHORIAS EM TEMPO REAL ================= -->
-                <!-- Telão Digital 3D -->
-                ${u.screen ? `
-                  <div slot="hotspot-screen" data-position="0 7.2 -13" data-normal="0 0 1" class="afm-3d-hotspot">
-                    <div class="afm-3d-screen-jumbotron">
-                      <div style="font-size:8px;color:#4ade80;font-weight:900;letter-spacing:1px;display:flex;align-items:center;gap:4px">
-                        <span>● AO VIVO</span> <span>4K DIGITAL</span>
+                  ` : ''}
+                  ${(stData.sides['sul'] || (isExp && stadiumSelectedSide === 'sul')) ? `
+                    <div slot="hotspot-stand-sul" data-position="0 3.5 12" data-normal="0 0 1" class="afm-3d-hotspot">
+                      <div class="afm-3d-stand-module ${stData.sides['sul'] ? 'done' : 'work'}">
+                        <div class="stand-title">${stData.sides['sul'] ? '✓ SETOR SUL AMPLIADO' : (stData.activeWork?.side === 'sul' ? '🏗️ OBRA SUL EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO SUL')}</div>
+                        <span style="font-size:8px;font-weight:900;color:${stData.sides['sul']?'#4ade80':'#facc15'}">${stData.sides['sul'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
                       </div>
-                      <div style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1)">
-                        ${clubBadge(state.club, 14)}
-                        <span style="color:#fff;font-weight:900;font-size:10px">${esc(state.club).slice(0,3).toUpperCase()} 1 X 0 ADV</span>
-                        <span style="color:#facc15;font-size:8px;font-weight:800">74'</span>
-                      </div>
-                      <span style="font-size:8px;color:#94a3b8;font-weight:700">TELÃO DIGITAL CENTRAL</span>
                     </div>
-                  </div>
-                ` : ''}
+                  ` : ''}
 
-                <!-- Camarotes VIP Corporativos 3D -->
-                ${u.vipBoxes ? `
-                  <div slot="hotspot-vip" data-position="-13 4.5 0" data-normal="1 0 0" class="afm-3d-hotspot">
-                    <div class="afm-3d-vip-lounge">
-                      <div style="display:flex;align-items:center;gap:4px">
-                        <span style="font-size:11px">🥂</span>
+                  <!-- Hotspots de Upgrades -->
+                  ${u.screen ? `
+                    <div slot="hotspot-screen" data-position="0 7.2 -13" data-normal="0 0 1" class="afm-3d-hotspot">
+                      <div class="afm-3d-screen-jumbotron">
+                        <span style="font-size:8px;color:#94a3b8;font-weight:700">TELÃO DIGITAL CENTRAL</span>
+                      </div>
+                    </div>
+                  ` : ''}
+                  ${u.vipBoxes ? `
+                    <div slot="hotspot-vip" data-position="-13 4.5 0" data-normal="1 0 0" class="afm-3d-hotspot">
+                      <div class="afm-3d-vip-lounge">
                         <b style="font-size:9px;font-weight:900;color:#facc15">CAMAROTES VIP CORPORATIVOS</b>
                       </div>
-                      <div style="font-size:8px;color:#fef08a;font-weight:700">Suítes Climatizadas Acopladas</div>
                     </div>
-                  </div>
-                ` : ''}
-
-                <!-- Anel de LED 360° em Volta do Campo -->
-                ${u.ledRing ? `
-                  <div slot="hotspot-led-ring" data-position="0 0.5 7" data-normal="0 1 0" class="afm-3d-hotspot">
-                    <div class="afm-3d-led-ring-ribbon">
-                      ✨ PAINÉIS DE LED 360° • ${esc(state.club).toUpperCase()} • CALDEIRÃO TOTAL ✨
+                  ` : ''}
+                  ${u.ledRing ? `
+                    <div slot="hotspot-led-ring" data-position="0 0.5 7" data-normal="0 1 0" class="afm-3d-hotspot">
+                      <div class="afm-3d-led-ring-ribbon">✨ PAINÉIS DE LED 360° ✨</div>
                     </div>
-                  </div>
-                ` : ''}
-
-                <!-- Refletores LED 3D nos 4 Cantos -->
-                ${u.ledLights ? `
-                  <div slot="hotspot-light-nw" data-position="-15 8 -11" data-normal="1 -0.5 1" class="afm-3d-hotspot"><div class="afm-3d-spotlight-source"></div></div>
-                  <div slot="hotspot-light-ne" data-position="15 8 -11" data-normal="-1 -0.5 1" class="afm-3d-hotspot"><div class="afm-3d-spotlight-source"></div></div>
-                  <div slot="hotspot-light-sw" data-position="-15 8 11" data-normal="1 -0.5 -1" class="afm-3d-hotspot"><div class="afm-3d-spotlight-source"></div></div>
-                  <div slot="hotspot-light-se" data-position="15 8 11" data-normal="-1 -0.5 -1" class="afm-3d-hotspot"><div class="afm-3d-spotlight-source"></div></div>
-                ` : ''}
-
-                <!-- Fogos e Sinalizadores da Torcida 3D -->
-                ${u.flares ? `
-                  <div slot="hotspot-flares-1" data-position="9 4 10" data-normal="0 1 0" class="afm-3d-hotspot">
-                    <div class="afm-3d-flare-pyro">
-                      <span style="font-size:22px">🔥</span>
-                      <span style="font-size:7px;font-weight:900;background:#ef4444;color:#fff;padding:1px 4px;border-radius:3px">SINALIZADORES</span>
-                    </div>
-                  </div>
-                  <div slot="hotspot-flares-2" data-position="-9 4 10" data-normal="0 1 0" class="afm-3d-hotspot">
-                    <div class="afm-3d-flare-pyro">
-                      <span style="font-size:22px">🔥</span>
-                      <span style="font-size:7px;font-weight:900;background:#f97316;color:#fff;padding:1px 4px;border-radius:3px">FESTA DA TORCIDA</span>
-                    </div>
-                  </div>
-                ` : ''}
-
-                <!-- Mosaico com o Escudo 3D -->
-                ${u.mosaic ? `
-                  <div slot="hotspot-mosaic" data-position="0 3 11" data-normal="0 0.5 -1" class="afm-3d-hotspot">
-                    <div class="afm-3d-mosaic-banner">
-                      ${clubBadge(state.club, 16)}
-                      <div style="font-size:9px;font-weight:900;color:#fff;letter-spacing:0.8px">
-                        ★ MOSAICO OFICIAL DA MASSA ★
-                      </div>
-                    </div>
-                  </div>
-                ` : ''}
-
-                <!-- Cadeiras Novas 3D -->
-                ${u.chairs ? `
-                  <div slot="hotspot-chairs" data-position="12 2.5 0" data-normal="-1 0.5 0" class="afm-3d-hotspot">
-                    <div class="afm-3d-chairs-badge">
-                      💺 CADEIRAS ANATÔMICAS 100% INSTALADAS
-                    </div>
-                  </div>
-                ` : ''}
-
-                <!-- Climatização de Gramado & Energia Solar 3D -->
-                ${u.solarPitch ? `
-                  <div slot="hotspot-solar" data-position="-13 7.5 0" data-normal="0 1 0" class="afm-3d-hotspot">
-                    <div class="afm-3d-solar-roof">
-                      <span>☀️</span> <span>USINA SOLAR & ECO GRAMADO</span>
-                    </div>
-                  </div>
-                ` : ''}
-
-                <!-- Sistema de Som Acústico Caldeirão 3D -->
-                ${u.surroundSound ? `
-                  <div slot="hotspot-sound" data-position="0 7 0" data-normal="0 -1 0" class="afm-3d-hotspot">
-                    <div class="afm-3d-sound-tower">
-                      <span>🔊</span> <span>SOM ENSURDECEDOR CALDEIRÃO</span>
-                    </div>
-                  </div>
-                ` : ''}
-
-                <!-- Tour da Arena & Museu Imersivo 3D -->
-                ${u.museumTour ? `
-                  <div slot="hotspot-museum" data-position="-15 1.5 5" data-normal="-1 0 0" class="afm-3d-hotspot">
-                    <div style="background:rgba(6,182,212,0.25);border:1.5px solid #06b6d4;border-radius:8px;padding:4px 8px;color:#cffafe;font-size:9px;font-weight:900;display:flex;align-items:center;gap:4px;box-shadow:0 0 14px rgba(6,182,212,0.6)">
-                      <span>🏛️</span> <span>MUSEU DE GLÓRIAS & TOUR IMERSIVO</span>
-                    </div>
-                  </div>
-                ` : ''}
-
-              </model-viewer>
+                  ` : ''}
+                </model-viewer>
+              </div>
 
               <!-- Banner de Prévia em Tempo Real no 3D -->
               ${stadiumPreviewUpgrade ? `
@@ -2863,8 +2783,17 @@ function openStadiumModal(initialTab){
                 </div>
               ` : ''}
 
+              ${(stData.activeWork && !isArena && !stadiumPreviewUpgrade) ? `
+                <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:10;background:rgba(245,158,11,0.92);color:#000;font-size:10px;font-weight:900;padding:3px 12px;border-radius:999px;box-shadow:0 0 14px rgba(245,158,11,0.7);display:flex;align-items:center;gap:6px">
+                  <span>🏗️</span> <span>OBRA ATIVA NO SETOR ${stData.activeWork.side.toUpperCase()} • ANEL ${stData.activeWork.ring}</span>
+                </div>
+              ` : ''}
+
               <!-- Badges de Upgrades Ativos no 3D (Lado Esquerdo) -->
               <div style="position:absolute;top:10px;left:10px;z-index:5;display:flex;flex-direction:column;gap:4px;pointer-events:none">
+                <span style="background:rgba(15,23,42,0.9);border:1px solid rgba(56,189,248,0.5);color:#38bdf8;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px;backdrop-filter:blur(4px)">
+                  🏟️ Low-Poly 360° • ${isArena ? `${selectedArenaCapacity.toLocaleString('pt-BR')} Lugares` : `${stData.ring}º Anel (${cap.toLocaleString('pt-BR')} Lugares)`}
+                </span>
                 ${u.screen ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #22c55e;color:#22c55e;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px;box-shadow:0 0 8px rgba(34,197,94,0.4)">📺 TELÃO DIGITAL</span>' : ''}
                 ${u.ledRing ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #a855f7;color:#c084fc;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px" class="led-ring-active">✨ ANEL DE LED 360°</span>' : ''}
                 ${u.vipBoxes ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #facc15;color:#facc15;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px" class="vip-box-glow">🥂 CAMAROTES VIP</span>' : ''}
@@ -2880,27 +2809,15 @@ function openStadiumModal(initialTab){
                 ${u.museumTour ? '<span style="background:rgba(15,23,42,0.9);border:1px solid #06b6d4;color:#06b6d4;font-size:9px;font-weight:900;padding:2px 7px;border-radius:4px">🏛️ TOUR & MUSEU</span>' : ''}
               </div>
 
-              <!-- Efeitos Visuais Dinâmicos sobre a Maquete 3D -->
-              ${u.flares ? `
-                <div style="position:absolute;bottom:42px;left:18%;z-index:4;pointer-events:none;font-size:24px" class="animated-flare">🔥</div>
-                <div style="position:absolute;bottom:42px;right:18%;z-index:4;pointer-events:none;font-size:24px" class="animated-flare">🔥</div>
-              ` : ''}
-
-              ${u.ledLights ? `
-                <div style="position:absolute;top:0;left:0;width:50px;height:50px;background:radial-gradient(circle,rgba(254,240,138,0.7) 0%,transparent 70%);pointer-events:none;z-index:4"></div>
-                <div style="position:absolute;top:0;right:0;width:50px;height:50px;background:radial-gradient(circle,rgba(254,240,138,0.7) 0%,transparent 70%);pointer-events:none;z-index:4"></div>
-                <div style="position:absolute;bottom:35px;left:0;width:50px;height:50px;background:radial-gradient(circle,rgba(254,240,138,0.7) 0%,transparent 70%);pointer-events:none;z-index:4"></div>
-                <div style="position:absolute;bottom:35px;right:0;width:50px;height:50px;background:radial-gradient(circle,rgba(254,240,138,0.7) 0%,transparent 70%);pointer-events:none;z-index:4"></div>
-              ` : ''}
-
               <!-- Presets de Câmera 3D Inteligentes -->
               <div style="position:absolute;bottom:8px;left:8px;right:8px;z-index:6;display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
-                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="45deg 55deg 105%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🛰️ Panorâmica</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="0deg 75deg 90%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">📺 TV / Telão</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="90deg 68deg 82%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#38bdf8;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer;font-weight:900">🔭 Setor Leste</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="-90deg 68deg 82%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🔭 Setor Oeste</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="180deg 68deg 88%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🥁 Arquibancada</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-orbit="-45deg 85deg 45%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">💺 Campo</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="panoramic" data-orbit="45deg 55deg 105%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🛰️ Panorâmica</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="tv" data-orbit="0deg 75deg 90%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">📺 TV / Telão</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="leste" data-orbit="90deg 68deg 82%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#38bdf8;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer;font-weight:900">🔭 Setor Leste</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="oeste" data-orbit="-90deg 68deg 82%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🔭 Setor Oeste</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="norte" data-orbit="0deg 68deg 88%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🥁 Setor Norte</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="sul" data-orbit="180deg 68deg 88%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🥁 Setor Sul</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="campo" data-orbit="-45deg 85deg 45%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">💺 Campo</button>
               </div>
             </div>
           ` : `
@@ -3600,9 +3517,45 @@ function openStadiumModal(initialTab){
     </div>
   `;
 
+  // Inicialização e atualização da Maquete Low-Poly 3D Progressiva (Three.js WebGL)
+  if (stadiumVisualMode === '3d') {
+    const canvas = document.getElementById('afmStadiumLowPolyCanvas');
+    if (canvas && window.THREE && window.AFMStadiumLowPoly) {
+      try {
+        window.AFMStadiumLowPoly.init(canvas);
+        window.AFMStadiumLowPoly.update(state, {
+          selectedSide: stadiumSelectedSide,
+          previewUpgrade: stadiumPreviewUpgrade,
+          isArena: isArena,
+          selectedArenaCapacity: selectedArenaCapacity,
+          isExp: isExp
+        });
+
+        // Foco de câmera inteligente para melhoria em prévia ou setor em ampliação
+        if (stadiumPreviewUpgrade) {
+          window.AFMStadiumLowPoly.setCameraPreset(stadiumPreviewUpgrade);
+        } else if (isExp && stadiumSelectedSide) {
+          window.AFMStadiumLowPoly.setCameraPreset(stadiumSelectedSide);
+        }
+      } catch (err) {
+        console.warn('[AFMStadiumLowPoly] Erro ao renderizar Three.js, ativando fallback:', err);
+        const fb = document.getElementById('afmStadiumFallbackViewer');
+        if (fb) fb.style.display = 'block';
+      }
+    } else {
+      const fb = document.getElementById('afmStadiumFallbackViewer');
+      if (fb) fb.style.display = 'block';
+    }
+  } else {
+    if (window.AFMStadiumLowPoly) window.AFMStadiumLowPoly.dispose();
+  }
+
   // Bindings do Modal do Estádio
   const bClose = $('#btnCloseStadiumModal') || el?.querySelector('#btnCloseStadiumModal');
-  if(bClose) bClose.onclick = () => { el.remove(); };
+  if(bClose) bClose.onclick = () => { 
+    if (window.AFMStadiumLowPoly) window.AFMStadiumLowPoly.dispose();
+    el.remove(); 
+  };
 
   // Alternância entre Visão 3D e Visão Plano (Conforme solicitação do usuário)
   const b3D = $('#btnStadiumMode3D') || el?.querySelector('#btnStadiumMode3D');
@@ -3619,6 +3572,7 @@ function openStadiumModal(initialTab){
   if (bPlano) {
     bPlano.onclick = (e) => {
       e.preventDefault();
+      if (window.AFMStadiumLowPoly) window.AFMStadiumLowPoly.dispose();
       stadiumVisualMode = 'plano';
       window.stadiumVisualMode = 'plano';
       openStadiumModal();
@@ -3629,6 +3583,10 @@ function openStadiumModal(initialTab){
   (el?.querySelectorAll('.btn-visual-cam') || $$('.btn-visual-cam')).forEach(b => {
     b.onclick = (e) => {
       e.preventDefault();
+      const cam = b.getAttribute('data-cam');
+      if (cam && window.AFMStadiumLowPoly) {
+        window.AFMStadiumLowPoly.setCameraPreset(cam);
+      }
       const orbit = b.getAttribute('data-orbit');
       const mv = document.getElementById('afmStadiumVisualModelViewer');
       if (mv && orbit) {
@@ -3825,6 +3783,29 @@ function openStadiumModal(initialTab){
   }
 }
 window.openStadiumModal = openStadiumModal;
+
+// Fallback delegado global infalível para troca de modo 3D / Plano no estádio
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function' && !window.__afmStadiumDelegatedHandlers) {
+  window.__afmStadiumDelegatedHandlers = true;
+  document.addEventListener('click', function(e) {
+    const b3d = e.target?.closest?.('#btnStadiumMode3D');
+    if (b3d) {
+      e.preventDefault();
+      stadiumVisualMode = '3d';
+      window.stadiumVisualMode = '3d';
+      if (typeof openStadiumModal === 'function') openStadiumModal();
+      return;
+    }
+    const bPlano = e.target?.closest?.('#btnStadiumModePlano');
+    if (bPlano) {
+      e.preventDefault();
+      stadiumVisualMode = 'plano';
+      window.stadiumVisualMode = 'plano';
+      if (typeof openStadiumModal === 'function') openStadiumModal();
+      return;
+    }
+  });
+}
 
 // =========================================================================
 // GESTÃO DE ESTÁDIO: ALUGUEL, SHOWS CULTURAIS, MANUTENÇÃO & GRAMADO
@@ -9898,8 +9879,8 @@ function processYouthDevelopment(){
 
 
 function parkingSpots(lvl){
-  const table = [0, 600, 1800, 4000, 8000, 14000];
-  return table[lvl] || (lvl * 2500);
+  const table = [0, 300, 1000, 2500, 5000, 10000];
+  return table[lvl] || (lvl * 2000);
 }
 
 function recommendedTicketPrice(){const st=state||window.state||{};const c=clubByName(st.club);return Math.round(clamp(18+(strength(c)-58)*1.7,15,130))}
@@ -10123,7 +10104,8 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
       </svg>
     </div>
 
-    <!-- HUD Superior Esquerdo: Informações do Clube, Rating e Entrosamento 33/33 -->
+    <!-- HUD Superior Esquerdo: Informações do Clube, Rating e Entrosamento 33/33 (Apenas em tela cheia fora de jogo) -->
+    ${!isHalftime ? `
     <div class="fut-pitch-hud-left">
       <div class="fut-hud-badge-wrap">
         ${typeof clubBadge === 'function' ? clubBadge(clubName, 26) : ''}
@@ -10143,6 +10125,7 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
         </div>
       </div>
     </div>
+    ` : ''}
 
     <!-- Slots dos Jogadores no Gramado -->
     ${formSlots.map((slot, idx) => {
@@ -10182,29 +10165,35 @@ function renderVerticalTacticsPitch(starters = [], formationName = '4-3-3', opts
             <span class="tb tb-bl"></span>
             <span class="tb tb-br"></span>
           </div>
-          <!-- Pedestal Oval com Posição, Função Tática e Diamantes de Entrosamento -->
-          <div class="pitch-slot-pedestal ${isSelected ? 'selected' : ''}">
-            ${(() => {
-              const roleInfo = formatTacticalPedestalRole(slotRole, slotRoleDef);
-              return `
-                <div style="display:flex;flex-direction:column;align-items:center;line-height:1.15;gap:1px;">
-                  <div class="pedestal-role-line" title="${esc(roleInfo.pos)} • ${esc(roleInfo.fullName)}">
-                    <span style="font-size:8.5px;font-weight:900;color:#ffffff;letter-spacing:0.3px;">${esc(roleInfo.pos)}</span>
-                    <span style="color:rgba(255,255,255,0.4);font-size:7px;">•</span>
-                    <span style="font-size:8px;font-weight:800;color:#38bdf8;">${esc(roleInfo.shortName)}</span>
-                  </div>
-                  <div style="display:inline-flex;align-items:center;gap:4px;">
-                    <span class="pedestal-focus" style="font-size:7px;color:#c084fc;font-weight:800;letter-spacing:0.3px;text-transform:uppercase;">${esc(slotFocus)}</span>
-                    <div class="pedestal-chem" style="display:inline-flex;gap:1.5px;font-size:6.5px;" title="Entrosamento: ${chemScore}/3">
-                      <span class="chem-diamond ${chemScore >= 1 ? 'active' : ''}">◆</span>
-                      <span class="chem-diamond ${chemScore >= 2 ? 'active' : ''}">◆</span>
-                      <span class="chem-diamond ${chemScore >= 3 ? 'active' : ''}">◆</span>
+          ${!isHalftime ? `
+            <!-- Pedestal Oval com Posição, Função Tática e Diamantes de Entrosamento -->
+            <div class="pitch-slot-pedestal ${isSelected ? 'selected' : ''}">
+              ${(() => {
+                const roleInfo = formatTacticalPedestalRole(slotRole, slotRoleDef);
+                return `
+                  <div style="display:flex;flex-direction:column;align-items:center;line-height:1.15;gap:1px;">
+                    <div class="pedestal-role-line" title="${esc(roleInfo.pos)} • ${esc(roleInfo.fullName)}">
+                      <span style="font-size:8.5px;font-weight:900;color:#ffffff;letter-spacing:0.3px;">${esc(roleInfo.pos)}</span>
+                      <span style="color:rgba(255,255,255,0.4);font-size:7px;">•</span>
+                      <span style="font-size:8px;font-weight:800;color:#38bdf8;">${esc(roleInfo.shortName)}</span>
+                    </div>
+                    <div style="display:inline-flex;align-items:center;gap:4px;">
+                      <span class="pedestal-focus" style="font-size:7px;color:#c084fc;font-weight:800;letter-spacing:0.3px;text-transform:uppercase;">${esc(slotFocus)}</span>
+                      <div class="pedestal-chem" style="display:inline-flex;gap:1.5px;font-size:6.5px;" title="Entrosamento: ${chemScore}/3">
+                        <span class="chem-diamond ${chemScore >= 1 ? 'active' : ''}">◆</span>
+                        <span class="chem-diamond ${chemScore >= 2 ? 'active' : ''}">◆</span>
+                        <span class="chem-diamond ${chemScore >= 3 ? 'active' : ''}">◆</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              `;
-            })()}
-          </div>
+                `;
+              })()}
+            </div>
+          ` : `
+            <div class="pitch-slot-pedestal-mini" style="font-size:8px;font-weight:900;color:#38bdf8;background:rgba(15,23,42,0.9);padding:1px 5px;border-radius:4px;margin-top:2px;white-space:nowrap;border:1px solid rgba(56,189,248,0.3);letter-spacing:0.3px">
+              ${esc(formatPedestalRole(slotRole))}
+            </div>
+          `}
         </div>
       `;
     }).join('')}
@@ -17923,20 +17912,22 @@ function renderLiveMatchModal(){
           </div>
         </div>
 
-        <!-- BARRA DE GRITOS DA BEIRA DO CAMPO (Melhoria 3) -->
-        <div class="live-coach-shouts" style="display:flex;gap:8px;align-items:center;padding:8px 14px;background:rgba(15,23,42,0.92);border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap">
-          <span style="font-size:11px;font-weight:900;color:#38bdf8;letter-spacing:0.5px">🗣️ BEIRA DO CAMPO:</span>
-          <button class="live-shout-btn" data-shout="press" style="background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#fca5a5;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
-            🔥 Subir Linhas & Pressão
-          </button>
-          <button class="live-shout-btn" data-shout="calm" style="background:rgba(56,189,248,0.2);border:1px solid #38bdf8;color:#bae6fd;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
-            🧠 Calma & Posse de Bola
-          </button>
-          <button class="live-shout-btn" data-shout="counter" style="background:rgba(234,179,8,0.2);border:1px solid #eab308;color:#fef08a;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
-            🎯 Fechar Espaços & Contragolpe
-          </button>
-          ${s.coachShout ? `<span style="font-size:11px;color:#22c55e;font-weight:800;margin-left:auto">✓ Instrução em andamento</span>` : ''}
-        </div>
+        ${!s.done ? `
+          <!-- BARRA DE GRITOS DA BEIRA DO CAMPO (Melhoria 3) -->
+          <div class="live-coach-shouts" style="display:flex;gap:8px;align-items:center;padding:8px 14px;background:rgba(15,23,42,0.92);border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:900;color:#38bdf8;letter-spacing:0.5px">🗣️ BEIRA DO CAMPO:</span>
+            <button class="live-shout-btn" data-shout="press" style="background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#fca5a5;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+              🔥 Subir Linhas & Pressão
+            </button>
+            <button class="live-shout-btn" data-shout="calm" style="background:rgba(56,189,248,0.2);border:1px solid #38bdf8;color:#bae6fd;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+              🧠 Calma & Posse de Bola
+            </button>
+            <button class="live-shout-btn" data-shout="counter" style="background:rgba(234,179,8,0.2);border:1px solid #eab308;color:#fef08a;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+              🎯 Fechar Espaços & Contragolpe
+            </button>
+            ${s.coachShout ? `<span style="font-size:11px;color:#22c55e;font-weight:800;margin-left:auto">✓ Instrução em andamento</span>` : ''}
+          </div>
+        ` : ''}
 
         ${s.done ? `
           <div class="live-postmatch-diag" style="margin:8px 14px;padding:12px 16px;background:rgba(15,23,42,0.96);border:1px solid #38bdf8;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.6)">
@@ -17970,27 +17961,37 @@ function renderLiveMatchModal(){
         ` : ''}
 
         <div class="live-dock-controls">
-          <button class="live-ctrl-btn ${s.speed === 1 ? 'active' : ''}" id="btnLiveSpeed1">1x</button>
-          <button class="live-ctrl-btn ${s.speed === 2 ? 'active' : ''}" id="btnLiveSpeed2">2x</button>
-          <button class="live-ctrl-btn ${s.speed === 5 ? 'active' : ''}" id="btnLiveSpeed5">5x</button>
-          <button class="live-ctrl-btn ${s.speed === 10 ? 'active' : ''}" id="btnLiveSpeed10">10x</button>
-          <button class="live-ctrl-btn ${s.speed === 20 ? 'active' : ''}" id="btnLiveSpeed20">20x</button>
-          <button class="live-ctrl-btn ${s.speed === 40 ? 'active' : ''}" id="btnLiveSpeed40">40x</button>
-          
-          <button class="live-ctrl-btn play-circle" id="btnLivePlayToggle" title="Pausar / Continuar">
-            ${s.playing ? '⏸' : '▶'}
-          </button>
-          
-          <button class="live-ctrl-btn" id="btnLiveForward1" title="Avançar 1 minuto no jogo">⏩ 1 min</button>
-          <button class="live-ctrl-btn green-tactics" id="btnLiveTactics" title="Substituições e Tática">
-            ⚡ MEXER NO TIME
-          </button>
-          ${s.phase === 'FIRST_HALF' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Pular para o intervalo">⏩| PULAR 1º TEMPO</button>` : (s.phase === 'HALF_TIME' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Iniciar 2º Tempo">▶ INICIAR 2º TEMPO</button>` : '')}
-          <button class="live-ctrl-btn" id="btnLiveSkipEnd" title="Simular até o apito final">⏭| IR AO FIM</button>
-          <button class="live-ctrl-btn" id="btnLiveSound" title="Ligar/Desligar som">
-            ${s.soundMuted ? '🔇 MUDO' : '🔊 SOM'}
-          </button>
-          ${s.done ? `<button class="live-ctrl-btn" id="btnLiveAdvanceRound" style="background:#22c55e;color:#000;font-weight:900">AVANÇAR RODADA ➔</button>` : ''}
+          ${!s.done ? `
+            <button class="live-ctrl-btn ${s.speed === 1 ? 'active' : ''}" id="btnLiveSpeed1">1x</button>
+            <button class="live-ctrl-btn ${s.speed === 2 ? 'active' : ''}" id="btnLiveSpeed2">2x</button>
+            <button class="live-ctrl-btn ${s.speed === 5 ? 'active' : ''}" id="btnLiveSpeed5">5x</button>
+            <button class="live-ctrl-btn ${s.speed === 10 ? 'active' : ''}" id="btnLiveSpeed10">10x</button>
+            <button class="live-ctrl-btn ${s.speed === 20 ? 'active' : ''}" id="btnLiveSpeed20">20x</button>
+            <button class="live-ctrl-btn ${s.speed === 40 ? 'active' : ''}" id="btnLiveSpeed40">40x</button>
+            
+            <button class="live-ctrl-btn play-circle" id="btnLivePlayToggle" title="Pausar / Continuar">
+              ${s.playing ? '⏸' : '▶'}
+            </button>
+            
+            <button class="live-ctrl-btn" id="btnLiveForward1" title="Avançar 1 minuto no jogo">⏩ 1 min</button>
+            <button class="live-ctrl-btn green-tactics" id="btnLiveTactics" title="Substituições e Tática">
+              ⚡ MEXER NO TIME
+            </button>
+            ${s.phase === 'FIRST_HALF' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Pular para o intervalo">⏩| PULAR 1º TEMPO</button>` : (s.phase === 'HALF_TIME' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Iniciar 2º Tempo">▶ INICIAR 2º TEMPO</button>` : '')}
+            <button class="live-ctrl-btn" id="btnLiveSkipEnd" title="Simular até o apito final">⏭| IR AO FIM</button>
+            <button class="live-ctrl-btn" id="btnLiveSound" title="Ligar/Desligar som">
+              ${s.soundMuted ? '🔇 MUDO' : '🔊 SOM'}
+            </button>
+          ` : `
+            <div style="display:flex;align-items:center;justify-content:center;gap:14px;width:100%;flex-wrap:wrap;padding:4px 0">
+              <button class="live-ctrl-btn" id="btnLiveSound" title="Ligar/Desligar som" style="padding:10px 18px;font-size:12px">
+                ${s.soundMuted ? '🔇 MUDO' : '🔊 SOM'}
+              </button>
+              <button class="live-ctrl-btn" id="btnLiveAdvanceRound" style="background:#22c55e;color:#052e16;font-weight:900;font-size:14px;padding:12px 36px;border-radius:10px;box-shadow:0 0 24px rgba(34,197,94,0.5);border:none;cursor:pointer">
+                AVANÇAR RODADA ➔
+              </button>
+            </div>
+          `}
         </div>
       </div>
     </div>
@@ -20691,10 +20692,12 @@ function bindLiveMatchEvents(){
   if(btnSound) btnSound.onclick = () => {
     s.soundMuted = !s.soundMuted;
     if(window.afmAudio){
+      window.afmAudio.toggleCrowdAudio(!s.soundMuted);
+      window.afmAudio.toggleSFXAudio(!s.soundMuted);
       if(s.soundMuted){
         window.afmAudio.stopCrowdAmbient();
       } else {
-        window.afmAudio.startCrowdAmbient(s.home, comp?.id);
+        if(!s.done) window.afmAudio.startCrowdAmbient(s.home, comp?.id);
       }
     }
     btnSound.textContent = s.soundMuted ? '🔇 MUDO' : '🔊 SOM';
@@ -20851,48 +20854,36 @@ function openHalftimeModal(isQuickTactics = false){
   modalEl.innerHTML = `
     <div class="halftime-overlay">
       <div class="halftime-card">
-        <!-- HEADER -->
-        <div class="halftime-header">
+        <!-- HEADER COMPACTO -->
+        <div class="halftime-header" style="padding-bottom:4px">
           <div class="halftime-title-group">
-            <h2 style="font-size:20px;font-weight:900;letter-spacing:1px">${isQuickTactics ? 'SUBSTITUIÇÃO E TÁTICA' : 'INTERVALO'}</h2>
-            <div class="sub" style="font-size:13px;font-weight:800;color:#c084fc">VESTIÁRIO DO ${esc(state.club.toUpperCase())}</div>
-            <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:2px;font-weight:600">
-              O ${esc(state.club)} vai para o segundo tempo <span style="color:#facc15;font-weight:800">${scoreText}</span>.
-            </div>
+            <h2 style="font-size:16px;font-weight:900;letter-spacing:1px;margin:0">${isQuickTactics ? 'SUBSTITUIÇÃO E TÁTICA' : 'INTERVALO'}</h2>
+            <div class="sub" style="font-size:10px;font-weight:800;color:#c084fc">VESTIÁRIO DO ${esc(state.club.toUpperCase())} · <span style="color:#facc15;font-weight:700">${scoreText}</span></div>
           </div>
-          <div class="halftime-scoreboard-badge" style="padding:6px 16px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:12px">
-            ${clubBadge(s.home, 32)}
-            <span style="font-size:18px;font-weight:900;letter-spacing:2px;margin:0 10px">${s.hg} - ${s.ag}</span>
-            ${clubBadge(s.away, 32)}
+          <div class="halftime-scoreboard-badge" style="padding:3px 10px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:8px">
+            ${clubBadge(s.home, 22)}
+            <span style="font-size:15px;font-weight:900;letter-spacing:2px;margin:0 6px">${s.hg} - ${s.ag}</span>
+            ${clubBadge(s.away, 22)}
           </div>
         </div>
 
-        <!-- SEÇÃO PRELEÇÃO E POSTURA TÁTICA COMPACTA (SEM ROLAGEM) -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;flex-shrink:0">
-          <!-- PRELEÇÃO -->
-          <div style="background:rgba(255,255,255,0.02);padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;gap:3px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:10px;font-weight:900;letter-spacing:1px;color:#a855f7;text-transform:uppercase">🗣️ PRELEÇÃO</span>
-              <span style="font-size:10px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px" id="halftimeSpeechDesc">${speechDescriptions[s.prelecao] || 'Sem instrução'}</span>
-            </div>
-            <div class="halftime-speech-row" style="display:flex;gap:4px;flex-wrap:wrap">
+        <!-- SEÇÃO PRELEÇÃO E POSTURA TÁTICA COMPACTA -->
+        <div class="halftime-tactics-bar" style="display:flex;gap:6px;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.02);padding:4px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);flex-shrink:0;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            <span style="font-size:10px;font-weight:900;color:#a855f7">🗣️ PRELEÇÃO:</span>
+            <div class="halftime-speech-row" style="display:flex;gap:3px;flex-wrap:wrap">
               ${['Manter a calma', 'Cobrar o time', 'Elogiar o time', 'Pedir raça'].map(t => `
-                <button class="btn-halftime-speech ${s.prelecao === t ? 'active' : ''}" data-speech="${t}" style="font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px">
+                <button class="btn-halftime-speech ${s.prelecao === t ? 'active' : ''}" data-speech="${t}" style="font-size:10px;font-weight:800;padding:2px 7px;border-radius:5px">
                   ${t}
                 </button>
               `).join('')}
             </div>
           </div>
-
-          <!-- POSTURA TÁTICA -->
-          <div style="background:rgba(255,255,255,0.02);padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;gap:3px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:10px;font-weight:900;letter-spacing:1px;color:#38bdf8;text-transform:uppercase">⚔️ POSTURA TÁTICA</span>
-              <span style="font-size:10px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px" id="halftimePostureDesc">${postureDescriptions[currentPosture] || 'Equilíbrio'}</span>
-            </div>
-            <div class="halftime-speech-row" style="display:flex;gap:4px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            <span style="font-size:10px;font-weight:900;color:#38bdf8">⚔️ POSTURA:</span>
+            <div class="halftime-speech-row" style="display:flex;gap:3px;flex-wrap:wrap">
               ${['Retranca', 'Defensiva', 'Equilibrada', 'Ofensiva', 'Pressão total'].map(p => `
-                <button class="btn-halftime-speech ${(userIsHome ? s.homePosture : s.awayPosture) === p ? 'active' : ''}" data-posture="${p}" style="font-size:11px;font-weight:800;padding:3px 7px;border-radius:6px">
+                <button class="btn-halftime-speech ${(userIsHome ? s.homePosture : s.awayPosture) === p ? 'active' : ''}" data-posture="${p}" style="font-size:10px;font-weight:800;padding:2px 6px;border-radius:5px">
                   ${p}
                 </button>
               `).join('')}
@@ -20901,23 +20892,23 @@ function openHalftimeModal(isQuickTactics = false){
         </div>
 
         <!-- SEÇÃO SUBSTITUIÇÕES COM ESTRUTURA RÍGIDA DE 2 COLUNAS (.tactics-modal-container) -->
-        <div style="flex:1;display:flex;flex-direction:column;min-height:0;gap:6px">
-          <div style="display:flex;justify-content:space-between;align-items:center;background:#141d2c;padding:6px 14px;border-radius:8px;flex-shrink:0">
-            <span style="font-size:12px;color:rgba(255,255,255,0.9);font-weight:700">
-              👉 <b>Clique em quem sai</b> (no campo) e <b>em quem entra</b> (no banco) para substituir (ou vice-versa).
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0;gap:4px">
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#141d2c;padding:4px 10px;border-radius:8px;flex-shrink:0;gap:6px;flex-wrap:wrap">
+            <span style="font-size:11px;color:rgba(255,255,255,0.9);font-weight:700">
+              👉 <b>Clique em quem sai e em quem entra</b> para substituir
             </span>
-            <div style="display:flex;align-items:center;gap:12px">
-              <span id="halftimePitchFormTitle" style="font-size:12px;font-weight:900;color:#38bdf8">EM CAMPO · ${currentForm}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span id="halftimePitchFormTitle" style="font-size:10px;font-weight:900;color:#38bdf8">FORMAÇÃO:</span>
               <!-- Seletor de Formações Compacto -->
-              <div style="display:flex;gap:4px">
+              <div style="display:flex;gap:2px;overflow-x:auto;max-width:260px">
                 ${['4-3-3', '4-4-2', '3-5-2', '4-2-3-1', '5-3-2', '4-1-4-1', '4-5-1', '3-4-3'].map(f => `
-                  <button class="btn btnFormSelectHalftime ${currentForm === f ? 'primary' : ''}" data-form="${f}" style="font-size:10px;padding:2px 6px;font-weight:900;border-radius:6px">
+                  <button class="btn btnFormSelectHalftime ${currentForm === f ? 'primary' : ''}" data-form="${f}" style="font-size:9px;padding:2px 5px;font-weight:900;border-radius:4px;white-space:nowrap">
                     ${f}
                   </button>
                 `).join('')}
               </div>
-              <span style="font-size:12px;font-weight:900;color:#facc15;background:rgba(250,204,21,0.15);padding:2px 8px;border-radius:6px;border:1px solid #facc15">
-                ${s.subsLeft} trocas restantes
+              <span style="font-size:10px;font-weight:900;color:#facc15;background:rgba(250,204,21,0.15);padding:2px 6px;border-radius:5px;border:1px solid #facc15;white-space:nowrap">
+                ${s.subsLeft} trocas
               </span>
             </div>
           </div>
@@ -24182,6 +24173,11 @@ function saleOffer(p){
 }
 
 function facilityCost(key){
+  if(key === 'parking' && typeof PARKING_LEVELS !== 'undefined'){
+    const curLvl = Math.max(0, Number(state?.infrastructure?.parking?.level) || 0);
+    const nextObj = PARKING_LEVELS[curLvl + 1];
+    if(nextObj && typeof nextObj.cost === 'number') return nextObj.cost;
+  }
   const f=state.infrastructure[key]||{level:1},d=FACILITIES[key];
   const level = Math.max(0, Number(f.level) || 0);
   return Math.round(Number(d.base || 0) * Math.pow(FACILITY_LEVEL_MULTIPLIER, level) * Math.pow(FACILITY_COST_INCREASE, level + 1));
@@ -26007,8 +26003,23 @@ function inGameRankingPage(){
     : (typeof window.rankingPage === 'function' ? window.rankingPage({ isLanding: false }) : '<div class="card" style="padding:24px;text-align:center;color:#fff">Carregando Ranking...</div>');
 }
 
+function setGameView(nextView){
+  if(!nextView) return;
+  view = nextView;
+  if(typeof window !== 'undefined'){
+    window.view = nextView;
+  }
+}
+window.setGameView = setGameView;
+window.setView = setGameView;
+
 function page(){
-  const activeView = (typeof window !== 'undefined' && typeof window.view === 'string' && window.view) ? window.view : view;
+  if(typeof window !== 'undefined' && typeof window.view === 'string' && window.view && window.view !== view){
+    view = window.view;
+  } else if(typeof window !== 'undefined'){
+    window.view = view;
+  }
+  const activeView = view || 'central';
   return ({
     central:centralPage,
     noticias:newsMediaPage,
@@ -26901,14 +26912,12 @@ function centralPage(){
           const isCopaTab = currentTabObj.id === 'copa';
           const isContTab = currentTabObj.id === 'libertadores' || currentTabObj.id === 'sulamericana';
 
-          const widgetCardTitle = isEstTab ? esc(stateComp?.name?.toUpperCase() || 'CAMPEONATO ESTADUAL') : (isCopaTab ? 'COPA DO BRASIL' : esc(continentalCompName));
-          const widgetCardSub = isEstTab ? 'FASE REGIONAL • ESTADUAL' : (isCopaTab ? `MATA-MATA • ${esc(activeCopaPhaseKey.toUpperCase())}` : `FASE DE GRUPOS • GRUPO ${userLibGroup}`);
           const widgetCardBorder = isEstTab ? 'rgba(16,185,129,0.35)' : (isCopaTab ? 'rgba(139,92,246,0.3)' : 'rgba(245,158,11,0.35)');
 
           return `
             <div class="card" style="padding:14px 12px;background:#100d1e;border:1px solid ${widgetCardBorder};border-radius:18px">
-              <!-- Painel de Botões/Abas de Navegação em Largura Total (Sem título para máxima amplitude) -->
-              <div style="display:grid;grid-template-columns:repeat(${userCentralCupTabs.length}, minmax(0, 1fr));gap:3px;background:#161228;padding:2px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);margin-bottom:12px">
+              <!-- Painel de Botões das Competições em Largura Total (Sem títulos redundantes) -->
+              <div style="display:grid;grid-template-columns:repeat(${userCentralCupTabs.length}, minmax(0, 1fr));gap:4px;background:#161228;padding:3px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);margin-bottom:12px">
                 ${userCentralCupTabs.map(tab => {
                   const isActive = activeCentralTabId === tab.id;
                   let activeStyle = '';
@@ -26921,7 +26930,7 @@ function centralPage(){
                   }
                   const btnId = tab.id === 'estadual' ? 'btnCentralTabEstadual' : (tab.id === 'copa' ? 'btnCentralTabCopa' : 'btnCentralTabLib');
                   return `
-                    <button type="button" class="btn btn-central-cup-tab" id="${btnId}" data-tab-id="${tab.id}" title="Ver ${esc(tab.title)}" style="padding:6px 1px;font-size:8.5px;font-weight:800;border-radius:7px;cursor:pointer;transition:all 0.2s;text-align:center;justify-content:center;display:flex;align-items:center;gap:2px;white-space:nowrap;letter-spacing:0;${activeStyle}">
+                    <button type="button" class="btn btn-central-cup-tab" id="${btnId}" data-tab-id="${tab.id}" title="Ver ${esc(tab.title)}" style="padding:7px 3px;font-size:9.5px;font-weight:800;border-radius:8px;cursor:pointer;transition:all 0.2s;text-align:center;justify-content:center;display:flex;align-items:center;gap:4px;white-space:nowrap;letter-spacing:0;${activeStyle}">
                       ${tab.label}
                     </button>
                   `;
@@ -26934,14 +26943,14 @@ function centralPage(){
                 ${myEstFixture ? `
                   <div style="margin-top:12px;background:#13261e;border:1px solid #10b981;border-radius:12px;padding:12px">
                     <div style="font-size:10px;font-weight:800;color:#34d399;letter-spacing:0.5px">RODADA ${(Number(myEstFixture.roundIndex ?? 0)) + 1} • SEU CONFRONTO</div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-                      <div style="display:flex;align-items:center;gap:6px">
+                    <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;margin-top:8px">
+                      <div style="display:flex;align-items:center;gap:5px;min-width:0">
                         ${clubBadge(myEstFixture.home, 18)}
-                        <span style="font-size:12px;font-weight:900;color:#fff">${esc(myEstFixture.home)}</span>
+                        <span style="font-size:11.5px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(myEstFixture.home)}">${esc(myEstFixture.home)}</span>
                       </div>
-                      <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900">x</span>
-                      <div style="display:flex;align-items:center;gap:6px">
-                        <span style="font-size:12px;font-weight:900;color:#fff">${esc(myEstFixture.away)}</span>
+                      <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900;padding:0 2px">x</span>
+                      <div style="display:flex;align-items:center;justify-content:flex-end;gap:5px;min-width:0">
+                        <span style="font-size:11.5px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right" title="${esc(myEstFixture.away)}">${esc(myEstFixture.away)}</span>
                         ${clubBadge(myEstFixture.away, 18)}
                       </div>
                     </div>
@@ -27000,10 +27009,10 @@ function centralPage(){
                     <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:6px">OUTROS JOGOS DA RODADA</div>
                     <div style="display:flex;flex-direction:column;gap:5px">
                       ${otherEstFixtures.map(f => `
-                        <div style="background:#161324;padding:5px 8px;border-radius:6px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
-                          <span style="display:flex;align-items:center;gap:4px">${clubBadge(f.home, 12)} <span>${esc(f.home)}</span></span>
-                          <span style="color:rgba(255,255,255,0.4);font-weight:700">${(f.score || f.result) ? `${(f.score || f.result)[0]} - ${(f.score || f.result)[1]}` : esc(formatDatePtBr(f.isoDate || state.date))}</span>
-                          <span style="display:flex;align-items:center;gap:4px"><span>${esc(f.away)}</span> ${clubBadge(f.away, 12)}</span>
+                        <div style="background:#161324;padding:5px 8px;border-radius:6px;font-size:10px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:4px">
+                          <span style="display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${clubBadge(f.home, 12)} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.home)}</span></span>
+                          <span style="color:rgba(255,255,255,0.4);font-weight:700;text-align:center;padding:0 4px;white-space:nowrap">${(f.score || f.result) ? `${(f.score || f.result)[0]} - ${(f.score || f.result)[1]}` : esc(formatDatePtBr(f.isoDate || state.date))}</span>
+                          <span style="display:flex;align-items:center;justify-content:flex-end;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">${esc(f.away)}</span> ${clubBadge(f.away, 12)}</span>
                         </div>
                       `).join('')}
                     </div>
@@ -27021,14 +27030,14 @@ function centralPage(){
                 <!-- Seu Confronto -->
                 <div style="margin-top:12px;background:#241945;border:1px solid #7c3aed;border-radius:12px;padding:12px">
                   <div style="font-size:10px;font-weight:800;color:#c084fc;letter-spacing:0.5px">${esc(activeCopaPhaseKey.toUpperCase())} • SEU CONFRONTO</div>
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-                    <div style="display:flex;align-items:center;gap:6px">
+                  <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;margin-top:8px">
+                    <div style="display:flex;align-items:center;gap:5px;min-width:0">
                       ${clubBadge(myCopaFixture.home, 18)}
-                      <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.home)}</span>
+                      <span style="font-size:11.5px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(myCopaFixture.home)}">${esc(myCopaFixture.home)}</span>
                     </div>
-                    <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900">x</span>
-                    <div style="display:flex;align-items:center;gap:6px">
-                      <span style="font-size:12px;font-weight:900;color:#fff">${esc(myCopaFixture.away)}</span>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900;padding:0 2px">x</span>
+                    <div style="display:flex;align-items:center;justify-content:flex-end;gap:5px;min-width:0">
+                      <span style="font-size:11.5px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right" title="${esc(myCopaFixture.away)}">${esc(myCopaFixture.away)}</span>
                       ${clubBadge(myCopaFixture.away, 18)}
                     </div>
                   </div>
@@ -27043,10 +27052,10 @@ function centralPage(){
                   <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">OUTROS CONFRONTOS (${esc(activeCopaPhaseKey)})</div>
                   <div style="display:flex;flex-direction:column;gap:6px">
                     ${otherCopaFixtures.map(f => `
-                      <div style="background:#161324;padding:6px 10px;border-radius:8px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
-                        <span style="display:flex;align-items:center;gap:5px">${clubBadge(f.home, 14)} <span>${esc(f.home)}</span></span>
-                        <span style="color:rgba(255,255,255,0.4);font-weight:700">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(f.date || curPhaseObj.dateStr)}</span>
-                        <span style="display:flex;align-items:center;gap:5px"><span>${esc(f.away)}</span> ${clubBadge(f.away, 14)}</span>
+                      <div style="background:#161324;padding:6px 10px;border-radius:8px;font-size:10px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:4px">
+                        <span style="display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${clubBadge(f.home, 14)} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.home)}</span></span>
+                        <span style="color:rgba(255,255,255,0.4);font-weight:700;text-align:center;padding:0 4px;white-space:nowrap">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(f.date || curPhaseObj.dateStr)}</span>
+                        <span style="display:flex;align-items:center;justify-content:flex-end;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">${esc(f.away)}</span> ${clubBadge(f.away, 14)}</span>
                       </div>
                     `).join('')}
                   </div>
@@ -27063,14 +27072,14 @@ function centralPage(){
                 <!-- Seu Confronto -->
                 <div style="margin-top:12px;background:#2b2014;border:1px solid #f59e0b;border-radius:12px;padding:12px">
                   <div style="font-size:10px;font-weight:800;color:#facc15;letter-spacing:0.5px">GRUPO ${userLibGroup} • SEU CONFRONTO</div>
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-                    <div style="display:flex;align-items:center;gap:6px">
+                  <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;margin-top:8px">
+                    <div style="display:flex;align-items:center;gap:5px;min-width:0">
                       ${clubBadge(myLibFixture.home, 18)}
-                      <span style="font-size:12px;font-weight:900;color:#fff">${esc(myLibFixture.home)}</span>
+                      <span style="font-size:11.5px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(myLibFixture.home)}">${esc(myLibFixture.home)}</span>
                     </div>
-                    <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900">x</span>
-                    <div style="display:flex;align-items:center;gap:6px">
-                      <span style="font-size:12px;font-weight:900;color:#fff">${esc(myLibFixture.away)}</span>
+                    <span style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:900;padding:0 2px">x</span>
+                    <div style="display:flex;align-items:center;justify-content:flex-end;gap:5px;min-width:0">
+                      <span style="font-size:11.5px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right" title="${esc(myLibFixture.away)}">${esc(myLibFixture.away)}</span>
                       ${clubBadge(myLibFixture.away, 18)}
                     </div>
                   </div>
@@ -27128,10 +27137,10 @@ function centralPage(){
                     <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:6px">OUTROS JOGOS DO GRUPO</div>
                     <div style="display:flex;flex-direction:column;gap:5px">
                       ${otherLibFixtures.map(f => `
-                        <div style="background:#161324;padding:5px 8px;border-radius:6px;font-size:10px;display:flex;justify-content:space-between;align-items:center">
-                          <span style="display:flex;align-items:center;gap:4px">${clubBadge(f.home, 12)} <span>${esc(f.home)}</span></span>
-                          <span style="color:rgba(255,255,255,0.4);font-weight:700">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(formatDatePtBr(f.date))}</span>
-                          <span style="display:flex;align-items:center;gap:4px"><span>${esc(f.away)}</span> ${clubBadge(f.away, 12)}</span>
+                        <div style="background:#161324;padding:5px 8px;border-radius:6px;font-size:10px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:4px">
+                          <span style="display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${clubBadge(f.home, 12)} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.home)}</span></span>
+                          <span style="color:rgba(255,255,255,0.4);font-weight:700;text-align:center;padding:0 4px;white-space:nowrap">${f.score ? `${f.score[0]} - ${f.score[1]}` : esc(formatDatePtBr(f.date))}</span>
+                          <span style="display:flex;align-items:center;justify-content:flex-end;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">${esc(f.away)}</span> ${clubBadge(f.away, 12)}</span>
                         </div>
                       `).join('')}
                     </div>
@@ -36135,7 +36144,7 @@ function bind(){
       openAdminModal();
       return;
     }
-    view=nextView;
+    setGameView(nextView);
     if(typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
     const drawer = document.getElementById('afmSideDrawer');
     if(drawer) drawer.classList.remove('drawer-open');
@@ -36153,18 +36162,18 @@ function bind(){
   const btnDrawerSet=$('#btnDrawerSettings'); if(btnDrawerSet) btnDrawerSet.onclick=()=>{ if(typeof openSettingsModal==='function') openSettingsModal(); };
   
   const bQuickStrength = $('#btnTopQuickTeamStrength');
-  if(bQuickStrength) bQuickStrength.onclick = () => { view = 'meutime'; render(); };
+  if(bQuickStrength) bQuickStrength.onclick = () => { setGameView('meutime'); render(); };
   const bQuickStrengthCard = $('#btnTopQuickTeamStrengthCard');
-  if(bQuickStrengthCard) bQuickStrengthCard.onclick = () => { view = 'meutime'; render(); };
+  if(bQuickStrengthCard) bQuickStrengthCard.onclick = () => { setGameView('meutime'); render(); };
 
   const bQuickPrestige = $('#btnTopQuickPrestige');
-  if(bQuickPrestige) bQuickPrestige.onclick = () => { view = 'carreira'; render(); };
+  if(bQuickPrestige) bQuickPrestige.onclick = () => { setGameView('carreira'); render(); };
   const bQuickPrestigeCard = $('#btnTopQuickPrestigeCard');
-  if(bQuickPrestigeCard) bQuickPrestigeCard.onclick = () => { view = 'carreira'; render(); };
+  if(bQuickPrestigeCard) bQuickPrestigeCard.onclick = () => { setGameView('carreira'); render(); };
 
   const bQuickCash = $('#btnTopQuickCash');
-  if(bQuickCash) bQuickCash.onclick = () => { view = 'escritorio'; render(); }; if(bQuickCash) bQuickCash.onclick=()=>{ view='escritorio'; render(); };
-  const dSearch=$('#drawerQuickSearch'); if(dSearch) dSearch.onkeydown=(e)=>{ if(e.key==='Enter'){ view='mercado'; render(); } };
+  if(bQuickCash) bQuickCash.onclick = () => { setGameView('escritorio'); render(); };
+  const dSearch=$('#drawerQuickSearch'); if(dSearch) dSearch.onkeydown=(e)=>{ if(e.key==='Enter'){ setGameView('mercado'); render(); } };
   
   const bToggleSnd = $('#btnToggleSoundTop');
   if(bToggleSnd && window.AFM30){

@@ -2,6 +2,43 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.25] - 2026-10-22 (Motor de Maquete 3D Low-Poly Progressiva: Obras e Ampliações até 100k Lugares)
+
+### 🏟️ Maquete 3D Low-Poly Progressiva em Tempo Real (Three.js WebGL Local-First)
+- **Construção Visual do Estádio Passo a Passo (Setor por Setor, Anel por Anel)**:
+  - Substituída a maquete estática anterior por um motor procedural 3D estilizado em Low-Poly (`js/core/stadium_lowpoly_engine.js`), permitindo ao usuário montar o estádio do seu clube desde as categorias de base até o coliseu mundial:
+    - **1º Anel — Aberto Raiz (~7.800 lugares)**: Degraus térreos de concreto, túneis de acesso para o gramado e bancos de reservas técnicos.
+    - **2º Anel — Módulos Pré-moldados (~18.800 lugares)**: Segundo piso elevado com pilastras estruturais independentes nos setores Norte, Sul, Leste e Oeste.
+    - **3º Anel — Ferradura Clássica (~30.640 lugares)**: Degraus chanfrados e curvas em 45° unindo os quadrantes em anel contínuo com assentos nas cores do clube.
+    - **4º Anel — Fechamento 360° Monumental (~49.000 lugares)**: Fechamento integral do 4º quadrante e fachada externa com pilastras verticais colossais.
+    - **5º Anel — Arena FIFA Moderna (~72.160 lugares)**: Anel contínuo de camarotes VIP envidraçados com iluminação interna e cobertura cantilever em balanço.
+    - **6º Anel — Mega Coliseu 100k (100.000 lugares)**: Anel panorâmico superior, mega arco de treliça monumental e cubo de telão 360° central suspenso no domo.
+- **Visualização de Obras Ativas com Guindaste e Beacon**:
+  - Quando há uma ampliação em andamento (`activeWork`), um guindaste de torre amarelo low-poly com lança metálica, cabo de aço, bloco de concreto suspenso e luz de beacon vermelha pulsante é posicionado exatamente sobre o setor em construção.
+- **Melhorias Integradas em 3D**:
+  - Telão digital de alta resolução no setor norte, refletores LED com holofotes volumétricos nos 4 cantos, anel de LED 360° contornando o campo, sinalizadores e fogos animados da torcida, camarotes VIP climatizados, usina solar na marquise e museu do clube.
+- **Controles de Câmera 360° & Presets Inteligentes**:
+  - Rotação e zoom orbitais 360° com amortecimento suave (Three.js OrbitControls local-first).
+  - Presets com foco automático inteligente: `🛰️ Panorâmica`, `📺 TV / Telão`, `🔭 Setor Leste`, `🔭 Setor Oeste`, `🥁 Setor Norte`, `🥁 Setor Sul` e `💺 Campo`.
+- **Bibliotecas e Cache Local-First**:
+  - Três novas bibliotecas locais integradas sem requisições externas: `js/lib/three.min.js`, `js/lib/OrbitControls.js` e `js/core/stadium_lowpoly_engine.js`.
+  - Service Worker atualizado para `afm-2027-cache-v44`.
+
+## [3.9.24] - 2026-10-22 (Nomes dos Jogadores em 2 Camadas: Nome + Sobrenome & Zero Truncamento no Mobile)
+
+### ⚽ Mini-Cards Táticos nos Padrões EA FC 27 (Mobile & PC)
+- **Divisão Inteligente em Duas Camadas (`splitPlayerCardName`)**:
+  - Implementada função nativa que divide os nomes dos atletas em duas camadas verticais estilizadas:
+    - **1ª Camada (Topo)**: Primeiro nome do atleta (ex: `YURI`, `RODRIGO`, `CARLOS`, `LUCAS`, `GABRIEL`).
+    - **2ª Camada (Base)**: Sobrenome ou nome principal (ex: `ALBERTO`, `FERREIRA`, `MIGUEL`, `CAMPOS`, `BARBOSA`).
+  - Atletas com nome único (monônimos como `XANDÃO`, `LULA`, `FELCA`, `RANIELE`, `FAGNER`) são centralizados harmoniosamente em camada única com tipografia ajustada.
+- **Fim dos Cortes e Truncamentos (`...`) no Mobile**:
+  - Card mobile ampliado de `38x48px` para `46x55px`, aproveitando o espaçamento amplo do gramado tático.
+  - Box de nome com `display: flex; flex-direction: column;` e classes adaptativas por quantidade de caracteres (`.len-long` para 7–8 letras e `.len-huge` para 9+ letras), garantindo encaixe 100% perfeito de nomes longos como `RODRIGUES`, `FERREIRA`, `BOLSONARO`, `PAVANELLI` e `MATHEUZINHO`.
+  - Goleiro (GK) posicionado com margem de segurança contra o rodapé do gramado, mantendo nome e pedestal visíveis.
+- **Cache & Performance**:
+  - `index.html` atualizado para `v69`, `css/app.css` para `v69` e `sw.js` para o cache `v43`.
+
 ## [3.9.23] - 2026-10-22 (Painel de Botões das Copas na Central em Largura Total)
 
 ### 🏆 Painel de Botões de Navegação das Copas na Tela Central

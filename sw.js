@@ -1,10 +1,14 @@
 // Service Worker do AFM Manager 2027
-const CACHE_NAME = 'afm-2027-cache-v42';
+const CACHE_NAME = 'afm-2027-cache-v44';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './css/app.css',
   './js/game.js',
+  './js/lib/three.min.js',
+  './js/lib/OrbitControls.js',
+  './js/core/stadium_lowpoly_engine.js',
+  './js/core/stadium_3d_manager.js',
   './js/ui/create_club_ui.js',
   './js/ui/squad_reports_modal.js',
   './js/ui/training_center_modal.js',

@@ -212,6 +212,7 @@ class AFMAudioManager {
    * ------------------------------------------------------------- */
   playSFX(sfxKey, customVolume = null) {
     if (!this.sfxEnabled) return;
+    if (window.liveMatchState && window.liveMatchState.soundMuted) return;
 
     const now = performance.now();
     this._sfxCooldown = this._sfxCooldown || new Map();
@@ -567,6 +568,7 @@ class AFMAudioManager {
     // 4. Som ambiente padrão neutro
     pushIfNew('sounds/crowd/ambient_default.mp3');
 
+    this._ambientCancelled = false;
     let curIdx = 0;
     const audio = new Audio();
     audio.loop = true;
@@ -574,7 +576,9 @@ class AFMAudioManager {
     this.ambientAudioEl = audio;
 
     const tryNext = () => {
+      if (!this.crowdEnabled || this._ambientCancelled) return;
       if (curIdx >= queue.length) {
+        if (!this.crowdEnabled || this._ambientCancelled) return;
         this._startProceduralCrowdDrone();
         return;
       }
@@ -583,14 +587,20 @@ class AFMAudioManager {
       const p = audio.play();
       if (p !== undefined) {
         p.then(() => {
+          if (!this.crowdEnabled || this._ambientCancelled) {
+            try { audio.pause(); audio.currentTime = 0; audio.src = ''; } catch(e){}
+            return;
+          }
           this.isAmbientPlaying = true;
         }).catch(() => {
+          if (!this.crowdEnabled || this._ambientCancelled) return;
           tryNext();
         });
       }
     };
 
     audio.onerror = () => {
+      if (!this.crowdEnabled || this._ambientCancelled) return;
       tryNext();
     };
 
@@ -598,22 +608,15 @@ class AFMAudioManager {
   }
 
   stopCrowdAmbient() {
+    this._ambientCancelled = true;
     if (this.ambientAudioEl) {
       try {
         const el = this.ambientAudioEl;
-        // Fade out suave de 200ms
-        const curVol = el.volume;
-        const fadeInterval = setInterval(() => {
-          if (el.volume > 0.05) {
-            el.volume = Math.max(0, el.volume - 0.05);
-          } else {
-            clearInterval(fadeInterval);
-            el.pause();
-            el.currentTime = 0;
-          }
-        }, 30);
+        el.pause();
+        el.currentTime = 0;
+        el.src = '';
       } catch (e) {
-        this.ambientAudioEl.pause();
+        window.AFMErrorLog?.recordHandled(e, 'audio.stopCrowdAmbient');
       }
       this.ambientAudioEl = null;
     }
@@ -623,7 +626,8 @@ class AFMAudioManager {
   }
 
   boostCrowdCheer(durationSec = 4) {
-    if (!this.crowdEnabled) return;
+    if (!this.crowdEnabled || this._ambientCancelled) return;
+    if (window.liveMatchState && window.liveMatchState.soundMuted) return;
 
     if (this.ambientAudioEl) {
       const origVol = this.crowdVolume;
@@ -708,10 +712,12 @@ window.afmAudio = new AFMAudioManager();
 
 // Aliases para compatibilidade reversa com códigos existentes
 window.playWhistleSound = function() {
+  if (window.liveMatchState && window.liveMatchState.soundMuted) return;
   if (window.afmAudio) window.afmAudio.playSFX('whistle_start');
 };
 
 window.playCheerSound = function() {
+  if (window.liveMatchState && window.liveMatchState.soundMuted) return;
   if (window.afmAudio) {
     window.afmAudio.playSFX('goal_celebration');
     window.afmAudio.boostCrowdCheer(4);

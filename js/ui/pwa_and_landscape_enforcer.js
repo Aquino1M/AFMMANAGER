@@ -376,6 +376,9 @@
       if (drawer.style) {
         drawer.style.transform = '';
         drawer.style.webkitTransform = '';
+        drawer.style.display = '';
+        drawer.style.visibility = '';
+        drawer.style.pointerEvents = '';
         drawer.style.zIndex = '';
       }
       if (backdrop) {
@@ -464,9 +467,35 @@
         return;
       }
 
-      // Fechar gaveta imediatamente ao clicar em um item de navegação do menu lateral
-      if (e.target.closest('.sm-drawer-nav [data-view]')) {
-        window.toggleAFMMobileDrawer(false);
+      // Navegação infalível para qualquer item com data-view (Gaveta lateral ou Fita superior)
+      const dataViewBtn = e.target.closest('[data-view]');
+      if (dataViewBtn) {
+        const nextView = dataViewBtn.getAttribute('data-view');
+        if (nextView) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (nextView === 'admin') {
+            if (typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
+            if (typeof window.openAdminModal === 'function') window.openAdminModal();
+            return;
+          }
+          if (typeof window.setGameView === 'function') {
+            window.setGameView(nextView);
+          } else if (typeof window.setView === 'function') {
+            window.setView(nextView);
+          } else {
+            window.view = nextView;
+          }
+          if (typeof window.toggleAFMMobileDrawer === 'function') {
+            window.toggleAFMMobileDrawer(false);
+          }
+          const drawer = document.getElementById('afmSideDrawer');
+          if (drawer) drawer.classList.remove('drawer-open');
+          const backdrop = document.getElementById('afmDrawerBackdrop');
+          if (backdrop) backdrop.classList.remove('active');
+          if (typeof window.render === 'function') window.render();
+          return;
+        }
       }
 
       // Botão de Tela Cheia
@@ -586,7 +615,7 @@
 
     document.addEventListener('click', handleDrawerInteraction);
     document.addEventListener('touchend', (e) => {
-      if (e.target.closest('#btnToggleSidebarDrawer') || e.target.closest('#btnCloseMobileDrawer') || e.target.closest('#afmDrawerBackdrop')) {
+      if (e.target.closest('#btnToggleSidebarDrawer') || e.target.closest('#btnCloseMobileDrawer') || e.target.closest('#afmDrawerBackdrop') || e.target.closest('[data-view]')) {
         handleDrawerInteraction(e);
       }
     }, { passive: false });

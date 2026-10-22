@@ -4475,17 +4475,50 @@ body.theme-emerald {
   background: rgba(3, 7, 18, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 4px;
-  padding: 2px 1px;
+  padding: 1.5px 1px;
   font-size: 8.5px;
   font-weight: 900;
   color: #ffffff;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
   text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  line-height: 1.05;
+  box-sizing: border-box;
+  overflow: hidden;
+  width: 100%;
+}
+.fifa-mini-card-name .fifa-name-layer-first {
+  font-size: 7px;
+  font-weight: 700;
+  opacity: 0.82;
+  letter-spacing: 0.2px;
+  line-height: 1.05;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  max-width: 100%;
+}
+.fifa-mini-card-name .fifa-name-layer-last {
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.fifa-mini-card-name.is-single-name .fifa-name-layer-last {
+  font-size: 8.5px;
+  line-height: 1.2;
+}
+.fifa-mini-card-name.is-single-name .fifa-name-layer-last.long-text {
+  font-size: 7.5px;
+  letter-spacing: -0.2px;
 }
 .fifa-mini-card.tier-legendary .fifa-mini-card-name {
   background: rgba(2, 44, 43, 0.95) !important;
@@ -6528,8 +6561,11 @@ body.theme-emerald {
     backdrop-filter: blur(24px);
     border-right: 1.5px solid rgba(168, 85, 247, 0.35);
     box-shadow: 12px 0 50px rgba(0, 0, 0, 0.85);
-    transform: translateX(-100%);
-    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateX(-105%) !important;
+    -webkit-transform: translateX(-105%) !important;
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.28s;
     padding: 14px;
     overflow-y: auto;
     display: flex;
@@ -7739,15 +7775,15 @@ body.theme-emerald {
 
   /* SLOTS TÁTICOS NO GRAMADO: DIMENSÕES OTIMIZADAS COM ZERO SOBREPOSIÇÃO */
   .pitch-slot-dropzone {
-    width: 38px !important;
-    height: 48px !important;
+    width: 46px !important;
+    height: 55px !important;
     border-radius: 5px !important;
     z-index: 20 !important;
   }
   .fifa-mini-card {
-    width: 38px !important;
-    height: 48px !important;
-    padding: 1px 2px !important;
+    width: 46px !important;
+    height: 55px !important;
+    padding: 1px 2px 2px 2px !important;
     border-radius: 5px !important;
     box-sizing: border-box !important;
   }
@@ -7772,20 +7808,60 @@ body.theme-emerald {
     line-height: 1 !important;
   }
   .fifa-mini-card-photo-wrap {
-    height: 22px !important;
+    height: 24px !important;
   }
   .fifa-mini-card-photo {
-    height: 22px !important;
-    max-width: 26px !important;
+    height: 24px !important;
+    max-width: 30px !important;
   }
   .fifa-mini-card-bottom {
-    height: 9px !important;
+    height: auto !important;
+    min-height: 15px !important;
+    margin-top: auto !important;
   }
   .fifa-mini-card-name {
-    font-size: 5.5px !important;
-    font-weight: 800 !important;
+    padding: 1px 1px !important;
+    border-radius: 3px !important;
+    max-width: 43px !important;
+    width: 100% !important;
+  }
+  .fifa-mini-card-name .fifa-name-layer-first {
+    font-size: 5px !important;
     line-height: 1 !important;
-    max-width: 34px !important;
+    letter-spacing: 0 !important;
+  }
+  .fifa-mini-card-name .fifa-name-layer-first.len-long {
+    font-size: 4.5px !important;
+    letter-spacing: -0.15px !important;
+  }
+  .fifa-mini-card-name .fifa-name-layer-first.len-huge {
+    font-size: 4px !important;
+    letter-spacing: -0.25px !important;
+  }
+  .fifa-mini-card-name .fifa-name-layer-last {
+    font-size: 5.5px !important;
+    line-height: 1.05 !important;
+    letter-spacing: 0 !important;
+  }
+  .fifa-mini-card-name .fifa-name-layer-last.len-long {
+    font-size: 4.8px !important;
+    letter-spacing: -0.15px !important;
+  }
+  .fifa-mini-card-name .fifa-name-layer-last.len-huge {
+    font-size: 4.2px !important;
+    letter-spacing: -0.25px !important;
+  }
+  .fifa-mini-card-name.is-single-name .fifa-name-layer-last {
+    font-size: 6px !important;
+    line-height: 1.15 !important;
+  }
+  .fifa-mini-card-name.is-single-name .fifa-name-layer-last.len-long {
+    font-size: 5.2px !important;
+    letter-spacing: -0.15px !important;
+  }
+  .fifa-mini-card-name.is-single-name .fifa-name-layer-last.len-huge {
+    font-size: 4.4px !important;
+    letter-spacing: -0.25px !important;
   }
   .fifa-mini-card-num,
   .fifa-mini-card-role-adapted,
@@ -7796,7 +7872,7 @@ body.theme-emerald {
   /* Pedestal Ultra Compacto Integrado ao Card */
   .pitch-slot-pedestal {
     bottom: -11px !important;
-    width: 40px !important;
+    width: 46px !important;
     padding: 0 2px !important;
     border-radius: 3px !important;
     border-width: 1px !important;
@@ -7814,11 +7890,12 @@ body.theme-emerald {
   }
   .pitch-slot-dropzone[data-slot-role="GK"] {
     z-index: 28 !important;
+    margin-top: -8px !important;
   }
   .pitch-slot-dropzone[data-slot-role="GK"] .pitch-slot-pedestal {
     bottom: -10px !important;
     top: auto !important;
-    max-width: 42px !important;
+    max-width: 46px !important;
   }
 
   /* HUD do Topo do Gramado Compacto */
@@ -8207,27 +8284,79 @@ body.theme-emerald {
   padding: 4px 6px !important;
 }
 .platform-mobile .pitch-slot-dropzone {
-  width: 38px !important;
-  height: 48px !important;
+  width: 46px !important;
+  height: 55px !important;
 }
 .platform-mobile .fifa-mini-card {
-  width: 38px !important;
-  height: 48px !important;
-  padding: 1px 2px !important;
+  width: 46px !important;
+  height: 55px !important;
+  padding: 1px 2px 2px 2px !important;
 }
 .platform-mobile .fifa-mini-card-photo {
-  height: 22px !important;
-  max-width: 26px !important;
+  height: 24px !important;
+  max-width: 30px !important;
+}
+.platform-mobile .fifa-mini-card-bottom {
+  height: auto !important;
+  min-height: 15px !important;
+  margin-top: auto !important;
 }
 .platform-mobile .fifa-mini-card-name {
+  padding: 1px 1px !important;
+  border-radius: 3px !important;
+  max-width: 43px !important;
+  width: 100% !important;
+}
+.platform-mobile .fifa-mini-card-name .fifa-name-layer-first {
+  font-size: 5px !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+}
+.platform-mobile .fifa-mini-card-name .fifa-name-layer-first.len-long {
+  font-size: 4.5px !important;
+  letter-spacing: -0.15px !important;
+}
+.platform-mobile .fifa-mini-card-name .fifa-name-layer-first.len-huge {
+  font-size: 4px !important;
+  letter-spacing: -0.25px !important;
+}
+.platform-mobile .fifa-mini-card-name .fifa-name-layer-last {
   font-size: 5.5px !important;
+  line-height: 1.05 !important;
+  letter-spacing: 0 !important;
+}
+.platform-mobile .fifa-mini-card-name .fifa-name-layer-last.len-long {
+  font-size: 4.8px !important;
+  letter-spacing: -0.15px !important;
+}
+.platform-mobile .fifa-mini-card-name .fifa-name-layer-last.len-huge {
+  font-size: 4.2px !important;
+  letter-spacing: -0.25px !important;
+}
+.platform-mobile .fifa-mini-card-name.is-single-name .fifa-name-layer-last {
+  font-size: 6px !important;
+  line-height: 1.15 !important;
+}
+.platform-mobile .fifa-mini-card-name.is-single-name .fifa-name-layer-last.len-long {
+  font-size: 5.2px !important;
+  letter-spacing: -0.15px !important;
+}
+.platform-mobile .fifa-mini-card-name.is-single-name .fifa-name-layer-last.len-huge {
+  font-size: 4.4px !important;
+  letter-spacing: -0.25px !important;
 }
 .platform-mobile .pitch-slot-pedestal {
   bottom: -11px !important;
-  width: 40px !important;
+  width: 46px !important;
 }
 .platform-mobile .pitch-slot-pedestal .pedestal-role-line {
   font-size: 6px !important;
+}
+.platform-mobile .pitch-slot-dropzone[data-slot-role="GK"] {
+  margin-top: -8px !important;
+}
+.platform-mobile .pitch-slot-dropzone[data-slot-role="GK"] .pitch-slot-pedestal {
+  max-width: 46px !important;
 }
 .platform-mobile .fut-pitch-hud-left {
   transform: scale(0.75) !important;
@@ -8396,6 +8525,7 @@ body.theme-emerald {
 .afm-hero-headline-highlight {
   background: linear-gradient(90deg, #c084fc 0%, #38bdf8 55%, #a7ff3f 100%) !important;
   -webkit-background-clip: text !important;
+  background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   display: inline-block !important;
 }
@@ -9747,6 +9877,261 @@ body.theme-emerald {
   font-weight: 900;
   transform: translate(-50%, -50%);
 }
+
+/* =========================================================================
+   RESPONSIVIDADE OFICIAL MOBILE: PARTIDA, SUBSTITUIÇÃO & SALA DE IMPRENSA
+   ========================================================================= */
+
+/* 1. PARTIDA AO VIVO (CANVAS, DOCK E PLACAR) EM DISPOSITIVOS MÓVEIS */
+@media (max-width: 960px), (max-height: 520px) {
+  .live-match-header {
+    padding: 3px 8px !important;
+    gap: 6px !important;
+  }
+  .live-match-breadcrumb {
+    display: none !important;
+  }
+  .live-scoreboard-floating {
+    position: static !important;
+    transform: none !important;
+    min-width: unset !important;
+    padding: 2px 10px !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    margin: 0 auto !important;
+  }
+  .live-scoreboard-comp {
+    display: none !important;
+  }
+  .live-scoreboard-main {
+    gap: 8px !important;
+  }
+  .live-scoreboard-team {
+    font-size: 11px !important;
+    gap: 4px !important;
+  }
+  .live-scoreboard-team img {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  .live-scoreboard-score {
+    font-size: 17px !important;
+    letter-spacing: 1px !important;
+    padding: 0 2px !important;
+  }
+  .live-scoreboard-clock {
+    font-size: 9.5px !important;
+    margin-top: 0 !important;
+  }
+  .live-cam-group button {
+    padding: 3px 6px !important;
+    font-size: 10px !important;
+  }
+  #btnToggle2D3D, #btnLiveClose {
+    padding: 3px 7px !important;
+    font-size: 10px !important;
+  }
+  .live-sidebar {
+    width: 200px !important;
+  }
+  .live-sidebar-header {
+    padding: 6px 10px !important;
+    font-size: 10.5px !important;
+  }
+  .live-sidebar-feed {
+    padding: 6px !important;
+    gap: 5px !important;
+  }
+  .live-sidebar-item {
+    padding: 6px 8px !important;
+    font-size: 10.5px !important;
+    gap: 5px !important;
+  }
+  .live-bottom-dock {
+    padding: 3px 8px 5px !important;
+    gap: 4px !important;
+  }
+  .live-dock-stats-row {
+    font-size: 9px !important;
+  }
+  .live-shots-bar {
+    height: 3px !important;
+  }
+  .live-dock-subtext {
+    font-size: 8.5px !important;
+  }
+  .live-coach-shouts {
+    padding: 3px 6px !important;
+    gap: 4px !important;
+  }
+  .live-shout-btn {
+    padding: 2px 7px !important;
+    font-size: 9.5px !important;
+  }
+  .live-dock-controls {
+    gap: 4px !important;
+  }
+  .live-ctrl-btn {
+    padding: 3px 7px !important;
+    font-size: 9.5px !important;
+    border-radius: 6px !important;
+  }
+  .live-ctrl-btn.play-circle {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 12px !important;
+  }
+  /* Oculta botões redundantes de velocidade em telas compactas */
+  #btnLiveSpeed10, #btnLiveSpeed40 {
+    display: none !important;
+  }
+}
+
+/* 2. MODAL DE INTERVALO E SUBSTITUIÇÃO CLEAN & DESCOMPACTADO */
+@media (max-width: 960px), (max-height: 520px) {
+  .halftime-card {
+    padding: 2px 6px 4px !important;
+    gap: 3px !important;
+    overflow-y: auto !important;
+  }
+  .halftime-header {
+    padding-bottom: 2px !important;
+  }
+  .halftime-title-group h2 {
+    font-size: 14px !important;
+  }
+  .halftime-title-group .sub {
+    font-size: 9px !important;
+  }
+  .halftime-scoreboard-badge {
+    padding: 2px 8px !important;
+    font-size: 13px !important;
+  }
+  .halftime-tactics-bar {
+    padding: 2px 6px !important;
+    gap: 4px !important;
+  }
+  .halftime-speech-row .btn-halftime-speech {
+    padding: 1px 5px !important;
+    font-size: 8.5px !important;
+  }
+  .tactics-modal-container {
+    gap: 4px !important;
+    min-height: 230px !important;
+  }
+  .tactics-pitch-wrapper {
+    flex: 1 1 65% !important;
+  }
+  .tactics-bench-wrapper {
+    flex: 0 0 35% !important;
+    padding: 4px 6px !important;
+  }
+  .halftime-card .pitch-slot-dropzone {
+    width: 42px !important;
+    height: 54px !important;
+  }
+  .halftime-card .fifa-mini-card {
+    width: 42px !important;
+    height: 50px !important;
+  }
+  .halftime-card .fifa-mini-card-ovr {
+    font-size: 9px !important;
+  }
+  .halftime-card .fifa-mini-card-pos {
+    font-size: 7px !important;
+  }
+  .halftime-card .fifa-mini-card-name {
+    font-size: 7px !important;
+  }
+  .halftime-card .bench-player-row {
+    padding: 3px 5px !important;
+    margin-bottom: 2px !important;
+  }
+  .halftime-footer {
+    padding-top: 2px !important;
+  }
+  .halftime-footer label {
+    font-size: 8.5px !important;
+  }
+  .halftime-card #btnResumeSecondHalf {
+    padding: 5px 14px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* 3. SALA DE IMPRENSA OFICIAL (COLETIVA PÓS-JOGO) SEM CORTES */
+@media (max-width: 960px), (max-height: 520px) {
+  .press-room-card {
+    max-height: 98vh !important;
+    width: 98vw !important;
+    overflow-y: auto !important;
+    border-radius: 12px !important;
+  }
+  .press-room-stage {
+    height: 80px !important;
+    min-height: 80px !important;
+  }
+  .press-backdrop-pattern {
+    gap: 3px !important;
+    padding: 3px !important;
+  }
+  .press-backdrop-item {
+    font-size: 7.5px !important;
+    padding: 1px 3px !important;
+  }
+  .press-manager-figure {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 18px !important;
+    margin-bottom: -6px !important;
+    border-width: 2px !important;
+  }
+  .press-desk-banner {
+    padding: 3px 8px !important;
+    width: 94% !important;
+  }
+  .press-mics-cluster {
+    gap: 4px !important;
+  }
+  .press-mic-head {
+    width: 9px !important;
+    height: 11px !important;
+    font-size: 5.5px !important;
+  }
+  .press-mic-stem {
+    width: 2px !important;
+    height: 7px !important;
+  }
+  .press-journalists-silhouette {
+    height: 20px !important;
+  }
+  .press-journalist-head {
+    font-size: 13px !important;
+  }
+  .press-content-body {
+    padding: 8px 10px !important;
+    gap: 6px !important;
+    overflow-y: visible !important;
+  }
+  .press-question-box {
+    padding: 7px 9px !important;
+  }
+  .press-question-box div:last-child {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+  .press-options-container {
+    gap: 5px !important;
+  }
+  .btn-press-option {
+    padding: 6px 9px !important;
+  }
+  .btn-press-option div[style*="font-size:13px"] {
+    font-size: 10.5px !important;
+    line-height: 1.3 !important;
+  }
+}
+
 
 
 

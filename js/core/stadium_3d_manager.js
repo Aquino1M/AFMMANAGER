@@ -544,43 +544,47 @@
                     Orbitar 360° • Clique e arraste para girar
                   </div>
 
-                  <!-- 3D Component (model-viewer with fallback) -->
-                  <div id="stadium3DCanvasArea" style="width:100%;height:100%">
-                    <model-viewer 
-                      id="afmActiveModelViewer"
-                      src="${model.file}" 
-                      alt="${model.name}" 
-                      auto-rotate 
-                      camera-controls 
-                      shadow-intensity="1.5" 
-                      shadow-softness="0.8"
-                      exposure="1.0"
-                      rotation-per-second="16deg"
-                      camera-orbit="${model.defaultOrbit || '45deg 55deg 105%'}"
-                      style="width:100%;height:100%;background:#090d16">
-                      
-                      <!-- Fallback caso model-viewer esteja carregando ou offline -->
-                      <div slot="poster" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#090d16;gap:12px">
-                        <img src="${model.preview}" alt="Prévia Estádios" style="max-width:70%;max-height:220px;border-radius:8px;border:1px solid rgba(255,255,255,0.1)">
-                        <div style="color:#94a3b8;font-size:12px;text-align:center">
-                          🏟️ Carregando malha 3D low-poly (${model.triangles.toLocaleString('pt-BR')} triângulos)...
+                  <!-- 3D Component (Three.js Low-Poly procedural com fallback model-viewer) -->
+                  <div id="stadium3DCanvasArea" style="width:100%;height:100%;position:relative">
+                    <canvas id="afmViewerModalLowPolyCanvas" style="width:100%;height:100%;display:block;outline:none"></canvas>
+                    
+                    <div id="afmViewerFallbackArea" style="display:none;position:absolute;inset:0">
+                      <model-viewer 
+                        id="afmActiveModelViewer"
+                        src="${model.file}" 
+                        alt="${model.name}" 
+                        auto-rotate 
+                        camera-controls 
+                        shadow-intensity="1.5" 
+                        shadow-softness="0.8"
+                        exposure="1.0"
+                        rotation-per-second="16deg"
+                        camera-orbit="${model.defaultOrbit || '45deg 55deg 105%'}"
+                        style="width:100%;height:100%;background:#090d16">
+                        
+                        <!-- Fallback caso model-viewer esteja carregando ou offline -->
+                        <div slot="poster" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#090d16;gap:12px">
+                          <img src="${model.preview}" alt="Prévia Estádios" style="max-width:70%;max-height:220px;border-radius:8px;border:1px solid rgba(255,255,255,0.1)">
+                          <div style="color:#94a3b8;font-size:12px;text-align:center">
+                            🏟️ Carregando malha 3D low-poly (${model.triangles.toLocaleString('pt-BR')} triângulos)...
+                          </div>
                         </div>
-                      </div>
-                    </model-viewer>
+                      </model-viewer>
+                    </div>
                   </div>
 
                   <!-- Floating Camera Presets -->
                   <div style="position:absolute;bottom:12px;left:12px;right:12px;z-index:2;display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
-                    <button class="btn btn-sm btn-cam-angle" data-orbit="45deg 55deg 105%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer">
+                    <button class="btn btn-sm btn-cam-angle" data-cam="panoramic" data-orbit="45deg 55deg 105%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer">
                       🛰️ Panorâmica Geral
                     </button>
-                    <button class="btn btn-sm btn-cam-angle" data-orbit="0deg 75deg 90%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer">
+                    <button class="btn btn-sm btn-cam-angle" data-cam="tv" data-orbit="0deg 75deg 90%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer">
                       📺 Câmera de TV
                     </button>
-                    <button class="btn btn-sm btn-cam-angle" data-orbit="90deg 82deg 70%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer">
+                    <button class="btn btn-sm btn-cam-angle" data-cam="leste" data-orbit="90deg 82deg 70%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer">
                       🥁 Arquibancada
                     </button>
-                    <button class="btn btn-sm btn-cam-angle" data-orbit="-45deg 85deg 45%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer">
+                    <button class="btn btn-sm btn-cam-angle" data-cam="campo" data-orbit="-45deg 85deg 45%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer">
                       💺 Beira do Campo
                     </button>
                   </div>
@@ -667,15 +671,48 @@
 
       modalEl.style.display = 'block';
 
+      // Inicialização da Maquete Low-Poly 3D no visualizador (Three.js WebGL)
+      const vCanvas = modalEl.querySelector('#afmViewerModalLowPolyCanvas');
+      if (vCanvas && window.THREE && window.AFMStadiumLowPoly) {
+        try {
+          window.AFMStadiumLowPoly.init(vCanvas);
+          const capMap = {
+            'arena_aberta': 7800,
+            'arena_regional': 18800,
+            'arena_classica': 30640,
+            'arena_monumental': 49000,
+            'arena_moderna': 72160,
+            'arena_coliseu': 100000,
+            'gradas_modulares': 18800
+          };
+          const previewCap = capMap[activeId] || currentCap;
+          window.AFMStadiumLowPoly.update(st, {
+            isArena: true,
+            selectedArenaCapacity: previewCap
+          });
+        } catch (err) {
+          console.warn('[AFMStadium3D] Fallback model-viewer:', err);
+          const fb = modalEl.querySelector('#afmViewerFallbackArea');
+          if (fb) fb.style.display = 'block';
+        }
+      } else {
+        const fb = modalEl.querySelector('#afmViewerFallbackArea');
+        if (fb) fb.style.display = 'block';
+      }
+
       // Event Listeners
       const btnClose = modalEl.querySelector('#btnCloseStadium3DModal');
       if (btnClose) {
-        btnClose.onclick = () => { modalEl.style.display = 'none'; };
+        btnClose.onclick = () => { 
+          if (window.AFMStadiumLowPoly) window.AFMStadiumLowPoly.dispose();
+          modalEl.style.display = 'none'; 
+        };
       }
 
       modalEl.querySelectorAll('.btn-open-stadium-expansion').forEach(btn => {
         btn.onclick = (e) => {
           e.preventDefault();
+          if (window.AFMStadiumLowPoly) window.AFMStadiumLowPoly.dispose();
           modalEl.style.display = 'none';
           if (typeof window.openStadiumModal === 'function') {
             window.openStadiumModal('expansion');
@@ -686,6 +723,7 @@
       modalEl.querySelectorAll('.btn-open-stadium-summary').forEach(btn => {
         btn.onclick = (e) => {
           e.preventDefault();
+          if (window.AFMStadiumLowPoly) window.AFMStadiumLowPoly.dispose();
           modalEl.style.display = 'none';
           if (typeof window.openStadiumModal === 'function') {
             window.openStadiumModal('summary');
@@ -702,6 +740,10 @@
 
       modalEl.querySelectorAll('.btn-cam-angle').forEach(btn => {
         btn.onclick = () => {
+          const cam = btn.getAttribute('data-cam');
+          if (cam && window.AFMStadiumLowPoly) {
+            window.AFMStadiumLowPoly.setCameraPreset(cam);
+          }
           const orbit = btn.getAttribute('data-orbit');
           const mv = modalEl.querySelector('#afmActiveModelViewer');
           if (mv && orbit) {
