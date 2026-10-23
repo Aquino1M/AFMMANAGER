@@ -399,8 +399,9 @@
     // Concedido periodicamente a TODO o elenco (titulares e reservas continuam evoluindo)
     processMonthlyTrainingXP(state) {
       if (!state || !Array.isArray(state.squad)) return [];
-      const lvl = state.infrastructure?.training?.level || 1;
-      const baseTrainingPoints = [35, 50, 70, 95, 130][Math.max(0, Math.min(4, lvl - 1))] || 40;
+      const lvl = Math.max(1, Math.min(8, Math.round(Number(state.infrastructure?.training?.level) || 1)));
+      // O CT concede mais XP mensal a cada nível, cobrindo toda a progressão de 1 a 8.
+      const baseTrainingPoints = Math.round(35 + (lvl - 1) * 13.5);
 
       const levelUps = [];
 

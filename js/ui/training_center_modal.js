@@ -170,7 +170,7 @@
               <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 22px;">⚽</span>
                 <div>
-                  <div style="font-size: 10px; font-weight: 800; color: #10b981; letter-spacing: 1px; text-transform: uppercase;">CENTRO DE TREINAMENTO</div>
+                  <div style="font-size: 10px; font-weight: 800; color: #10b981; letter-spacing: 1px; text-transform: uppercase;">CENTRO DE TREINAMENTO · NÍVEL ${ctLvl}/8 · BÔNUS +${Math.round((Math.max(1, Math.min(8, ctLvl)) - 1) * 8)}% XP</div>
                   <h2 style="margin: 0; font-size: 18px; font-weight: 900; color: #fff;">${esc(clubName)}</h2>
                 </div>
               </div>
@@ -493,8 +493,11 @@
     // Seleciona os exercícios ativos nos slots liberados
     const activeExercises = activeSlots.slice(0, unlockedCount).map(id => TRAINING_EXERCISES.find(e => e.id === id)).filter(Boolean);
 
-    // Multiplicador de XP: 100% no manual; 50% com preparador físico automático
-    const coachMult = isAutoFitnessCoach ? 0.50 : 1.0;
+    // Instalações melhores aumentam o XP por sessão em todos os níveis do CT (1–8).
+    // O preparador automático mantém metade do ganho da sessão manual equivalente.
+    const trainingLevel = Math.max(1, Math.min(8, ctLvl));
+    const facilityBonus = 1 + (trainingLevel - 1) * 0.08;
+    const coachMult = (isAutoFitnessCoach ? 0.50 : 1.0) * facilityBonus;
 
     let totalSquadXP = 0;
     const levelUps = [];
@@ -505,8 +508,8 @@
         window.AFM_PlayerXPEvolution.initPlayerXP(p, state);
       }
 
-      // Base aleatória e balanceada de XP (entre 8 e 16 XP)
-      let playerGainXP = Math.floor(Math.random() * 9) + 8; // 8 a 16
+      // Base aleatória de XP (8–16 XP), amplificada pelo nível do Centro de Treinamento.
+      let playerGainXP = Math.round((Math.floor(Math.random() * 9) + 8) * facilityBonus);
 
       // Bônus se o jogador atuar no setor de algum exercício ativo
       const pos = String(p.pos || '').toUpperCase();
@@ -516,11 +519,11 @@
           hasPositionBonus = true;
         }
       });
-      if (hasPositionBonus) playerGainXP += Math.floor(Math.random() * 4) + 3; // +3 a +6
+      if (hasPositionBonus) playerGainXP += Math.round((Math.floor(Math.random() * 4) + 3) * facilityBonus); // +3 a +6, com bônus do CT
 
       // Bônus para jovens talentos (< 21 anos)
       if (Number(p.age) <= 21) {
-        playerGainXP += Math.floor(Math.random() * 3) + 2; // +2 a +4
+        playerGainXP += Math.round((Math.floor(Math.random() * 3) + 2) * facilityBonus); // +2 a +4, com bônus do CT
       }
 
       // Aplica o multiplicador do preparador físico se for automático (50%)
@@ -553,7 +556,7 @@
 
     if (!isAutoFitnessCoach) {
       if (typeof window.toast === 'function') {
-        window.toast(`🏋️ Treino concluído! O elenco absorveu os exercícios e ganhou XP diário.`);
+        window.toast(`🏋️ Treino concluído! Bônus do CT nível ${trainingLevel}: +${Math.round((facilityBonus - 1) * 100)}% XP.`);
       }
       if (containerToUpdate) {
         renderModal(containerToUpdate);

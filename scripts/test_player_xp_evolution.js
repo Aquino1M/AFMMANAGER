@@ -141,12 +141,26 @@ assert(mockState.news.some(n => n.includes('PRODÍGIO INDOMÁVEL')), 'Should gen
 console.log(`✓ Breakthrough successfully broken ceiling: OVR ${prodigy.overall}, new POT ${prodigy.potential}!`);
 
 console.log('--- TEST 7: Training XP via CT for Entire Squad ---');
-mockState.infrastructure = { training: { level: 3 } }; // Level 3 CT gives 70 base XP
+mockState.infrastructure = { training: { level: 3 } }; // Level 3 CT gives more XP than level 1
 const reserveBefore = mockState.squad[2].xp;
 XP.processMonthlyTrainingXP(mockState);
 assert(mockState.squad[2].xp > reserveBefore, 'Reserve player must gain training XP from CT');
 assert(mockState.squad[2].monthlyEvolution.trainingXP > 0, 'monthlyEvolution.trainingXP must track CT points');
 console.log(`✓ Training XP successfully processed (Reserve XP went from ${reserveBefore} to ${mockState.squad[2].xp}).`);
+
+const trainingXpAtLevel = (level) => {
+  const isolatedState = {
+    date: '2026-05-01',
+    squad: [{ name: `CT ${level}`, pos: 'CM', age: 25, overall: 60, potential: 90, xp: 0, xpNext: 99999 }],
+    infrastructure: { training: { level } }
+  };
+  XP.processMonthlyTrainingXP(isolatedState);
+  return isolatedState.squad[0].monthlyEvolution.trainingXP;
+};
+const monthlyTrainingByLevel = Array.from({ length: 8 }, (_, idx) => trainingXpAtLevel(idx + 1));
+assert(monthlyTrainingByLevel.every((xp, idx) => idx === 0 || xp > monthlyTrainingByLevel[idx - 1]),
+  `Monthly CT training XP must increase at every level 1–8, got ${monthlyTrainingByLevel.join(', ')}`);
+console.log(`✓ Monthly CT bonus increases continuously from level 1 to 8: ${monthlyTrainingByLevel.join(' → ')} XP.`);
 
 console.log('--- TEST 8: UI Components Rendering ---');
 const miniHtml = XP.renderMiniXPBar(mockState.squad[0]);

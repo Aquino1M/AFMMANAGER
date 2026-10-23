@@ -1710,8 +1710,8 @@
         ctx.restore();
       }
 
-      // Mureta de borda com contorno fino dourado
-      ctx.strokeStyle = style === 'generic' ? '#64748b' : stadiumAccent;
+      // Mureta de borda neutra: o contorno do campo não deve herdar a cor de destaque do estádio.
+      ctx.strokeStyle = '#64748b';
       ctx.lineWidth = 1;
       ctx.strokeRect(wallLeft, boardY, wallWidth, boardH);
 
