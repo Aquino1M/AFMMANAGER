@@ -24,10 +24,10 @@
       "name": "Neo Química Arena",
       "style": "neo-quimica",
       "file": "neo-quimica.glb",
-      "bytes": 193716,
-      "sha256": "e2f0da47d784ef2935f14f2a54580bc9c1d3d4068c1be0e81735499eb17ef326",
+      "bytes": 245764,
+      "sha256": "b5d1d6c093b90d63d08dc0cbf2b4b47bfc89c046030e5ba567fdbe7404acd589",
       "roof": "partial",
-      "shell": "dark-led",
+      "shell": "neo-quimica",
       "capacity": 49200,
       "colors": {
         "primary": "#20242a",
