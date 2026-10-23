@@ -1800,10 +1800,10 @@
       cam.mode = cMode;
 
       if(cMode === 'lateral' || cMode === 'wide' || cMode === 'tv'){
-        // MODO LATERAL / PANORÂMICO: Campo 100% visível, ambas as traves e 22 jogadores na tela
+        // Camera de transmissao mais aberta: campo e arquibancadas permanecem no quadro.
         cam.targetX = 640;
-        cam.targetY = 360;
-        cam.targetZoom = 1.0;
+        cam.targetY = 350;
+        cam.targetZoom = cMode === 'wide' ? 0.86 : 0.92;
       } else if(cMode === 'ball'){
         // MODO BOLA: Foco sutil na bola com limites seguros para nunca cortar o campo
         const ball = s.ball || { x: 50, y: 50 };

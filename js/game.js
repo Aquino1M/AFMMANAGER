@@ -7275,6 +7275,23 @@ function getCopaDoBrasilState(){
   return state.copaData;
 }
 
+// A inscrição da carreira precisa existir no estado salvo da Copa e ter um
+// confronto próprio nesta edição. Fixtures órfãos em saves antigos não podem
+// criar compromissos fictícios para o clube controlado pelo usuário.
+function isClubRegisteredInCopaDoBrasil(gameState = state, clubName = gameState?.club){
+  if(!gameState || !clubName) return false;
+  const clubKey = norm(clubName);
+  const cup = gameState === state && typeof getCopaDoBrasilState === 'function'
+    ? getCopaDoBrasilState()
+    : (gameState.copaData && Number(gameState.copaData.season) === Number(gameState.season) ? gameState.copaData : null);
+  if(!cup || Number(cup.season) !== Number(gameState.season)) return false;
+  const entrants = Array.isArray(cup.entrants) ? cup.entrants : [];
+  if(!entrants.some(team => norm(typeof team === 'string' ? team : team?.name) === clubKey)) return false;
+  return Object.values(cup.phases || {}).some(phase => Array.isArray(phase?.fixtures)
+    && phase.fixtures.some(fixture => (norm(fixture?.home) === clubKey || norm(fixture?.away) === clubKey)
+      && Boolean(fixture?.home && fixture?.away)));
+}
+
 function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   const copa = getCopaDoBrasilState();
   const phase = copa.phases[phaseName];
@@ -10290,7 +10307,7 @@ function getPendingClubCompetitions(gameState = state){
   const copa = gameState === state && typeof getCopaDoBrasilState === 'function'
     ? getCopaDoBrasilState()
     : (gameState.copaData && Number(gameState.copaData.season) === season ? gameState.copaData : null);
-  if(copa?.phases){
+  if(copa?.phases && (typeof isClubRegisteredInCopaDoBrasil !== 'function' || isClubRegisteredInCopaDoBrasil(gameState, gameState.club))){
     Object.entries(copa.phases).forEach(([phaseName, phase]) => (phase.fixtures || []).forEach(fixture => {
       if(norm(fixture.home) !== clubKey && norm(fixture.away) !== clubKey) return;
       const playedInHistory = history.some(item => Number(item.season || season) === season && item.competitionId === 'bra-cup' && ((norm(item.h) === norm(fixture.home) && norm(item.a) === norm(fixture.away)) || (norm(item.h) === norm(fixture.away) && norm(item.a) === norm(fixture.home))));
@@ -19855,139 +19872,29 @@ function drawLiveStadium(ctx, s){
 
   ctx.clearRect(0, 0, 1280, 720);
 
-  // 1. Aplica Câmera Dinâmica de Transmissão de Televisão (Broadcast TV Camera)
-  if(window.AFM_REAL_FOOTBALL?.renderer?.applyTvBroadcastCamera){
-    window.AFM_REAL_FOOTBALL.renderer.applyTvBroadcastCamera(ctx, s, proj);
-  }
-
-  // 2. Renderiza Estádio com os 4 Setores (Norte, Sul, Leste, Oeste) e Nível Real de Upgrades
-  if(window.AFM_REAL_FOOTBALL?.renderer?.draw4SectorsStadium){
-    window.AFM_REAL_FOOTBALL.renderer.draw4SectorsStadium(ctx, s, proj);
-  } else {
-    // 1. Céu e Neblina do Estádio
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, 180);
-    skyGrad.addColorStop(0, '#0a101a');
-    skyGrad.addColorStop(0.6, '#1a2433');
-    skyGrad.addColorStop(1, '#2c3748');
-    ctx.fillStyle = skyGrad;
-    ctx.fillRect(0, 0, 1280, 200);
-
-  // 2. Arquibancada Superior (Fundo)
-  const standTop = 100, standBottom = 190;
-  ctx.fillStyle = '#1e2837';
-  ctx.beginPath();
-  ctx.moveTo(140, standTop);
-  ctx.lineTo(1140, standTop);
-  ctx.lineTo(1040, standBottom);
-  ctx.lineTo(240, standBottom);
-  ctx.closePath();
-  ctx.fill();
-
-  // Degraus da Arquibancada Superior
-  const tiers = 6;
-  for(let i=0; i<tiers; i++){
-    const ty = standTop + (i / tiers) * (standBottom - standTop);
-    const lx = 140 + (i / tiers) * 100;
-    const rx = 1140 - (i / tiers) * 100;
-    ctx.strokeStyle = '#293547';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(lx, ty); ctx.lineTo(rx, ty);
-    ctx.stroke();
-
-    // Cadeiras ou Concreto
-    const hasChairs = s.stadium.upgrades?.chairs;
-    const crowdRate = clamp(s.stadium.attendance / (s.stadium.capacity || 1), 0.08, 0.95);
-    const chairCount = 42;
-    for(let c=0; c<chairCount; c++){
-      const cx = lx + (c / chairCount) * (rx - lx);
-      if(hasChairs){
-        ctx.fillStyle = (c % 2 === 0) ? '#2563eb' : '#dc2626';
-        ctx.fillRect(cx, ty - 3, 6, 4);
-      }
-      // Torcedores na arquibancada
-      if(Math.random() < crowdRate * 0.7){
-        ctx.fillStyle = (c % 3 === 0) ? '#fbbf24' : (c % 2 === 0) ? '#3b82f6' : '#ef4444';
-        ctx.beginPath();
-        ctx.arc(cx + 3, ty - 5, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
+  // Camera e estadio isolados para que uma falha de geometria nao deixe a tela preta.
+  let cameraApplied = false;
+  let stadiumRenderFailed = false;
+  const renderer = window.AFM_REAL_FOOTBALL?.renderer;
+  try {
+    if(renderer?.applyTvBroadcastCamera){ renderer.applyTvBroadcastCamera(ctx, s, proj); cameraApplied = true; }
+    if(renderer?.draw4SectorsStadium){ renderer.draw4SectorsStadium(ctx, s, proj); }
+    else {
+      const sky=ctx.createLinearGradient(0,0,0,220);sky.addColorStop(0,'#77b7ec');sky.addColorStop(1,'#d6e9fa');ctx.fillStyle=sky;ctx.fillRect(0,0,1280,220);
+      ctx.fillStyle='#475569';ctx.fillRect(0,125,1280,90);ctx.fillStyle='#cbd5e1';for(let row=0;row<6;row++){const y=135+row*12,inset=row*23;ctx.fillRect(inset,y,1280-inset*2,8);}
     }
+  } catch(stadiumRenderError) {
+    stadiumRenderFailed = true;
+    console.warn('Falha no desenho do estadio; mantendo a transmissao visivel:', stadiumRenderError);
+  } finally {
+    if(cameraApplied&&renderer?.restoreTvBroadcastCamera){try{renderer.restoreTvBroadcastCamera(ctx,s);}catch(restoreError){console.warn('Falha ao restaurar camera de TV:',restoreError);}}
+    if(typeof ctx.setTransform==='function')ctx.setTransform(1,0,0,1,0,0);
   }
-
-  // Mosaico oficial na arquibancada se comprado
-  if(s.stadium.upgrades?.mosaic){
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 16px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(esc(s.home.toUpperCase().slice(0, 10)), 640, 140);
-  }
-
-  // Painel de LED Superior com Patrocinadores / Anúncios
-  ctx.fillStyle = '#0f172a';
-  ctx.fillRect(230, 172, 820, 16);
-  ctx.fillStyle = '#38bdf8';
-  ctx.font = 'bold 9px monospace';
-  ctx.textAlign = 'center';
-  const adText = `BETANO • IFOOD • BYD • SAMSUNG • FATAL MODEL • NUBANK • ${s.home.toUpperCase()}`;
-  ctx.fillText(adText, 640, 184);
-
-  // Placar / Telão Superior se comprado
-  if(s.stadium.upgrades?.screen){
-    ctx.fillStyle = '#050811';
-    ctx.fillRect(560, 92, 160, 48);
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(560, 92, 160, 48);
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = 'bold 12px monospace';
-    ctx.fillText(`${s.home.slice(0,3)} ${s.hg} - ${s.ag} ${s.away.slice(0,3)}`, 640, 116);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 9px monospace';
-    ctx.fillText(`${Math.floor(s.timeSec/60)}'`, 640, 132);
-  }
-
-  // Torres de Refletores LED se compradas
-  if(s.stadium.upgrades?.ledLights){
-    // Torre Esquerda
-    ctx.fillStyle = '#64748b';
-    ctx.fillRect(175, 50, 10, 110);
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(160, 40, 40, 14);
-    // Torre Direita
-    ctx.fillStyle = '#64748b';
-    ctx.fillRect(1095, 50, 10, 110);
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(1080, 40, 40, 14);
-    // Fachos sutis de luz
-    const lightGlow = ctx.createRadialGradient(640, 360, 50, 640, 360, 600);
-    lightGlow.addColorStop(0, 'rgba(255,255,255,0.06)');
-    lightGlow.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = lightGlow;
-    ctx.fillRect(0, 0, 1280, 720);
-  }
-
-  // 3. Arquibancadas Laterais (Esquerda e Direita em perspectiva)
-  ctx.fillStyle = '#17202d';
-  // Lateral Esquerda
-  ctx.beginPath();
-  ctx.moveTo(140, standTop);
-  ctx.lineTo(240, standBottom);
-  ctx.lineTo(40, 530);
-  ctx.lineTo(0, 530);
-  ctx.lineTo(0, 120);
-  ctx.closePath();
-  ctx.fill();
-
-  // Lateral Direita
-  ctx.beginPath();
-  ctx.moveTo(1140, standTop);
-  ctx.lineTo(1040, standBottom);
-  ctx.lineTo(1240, 530);
-  ctx.lineTo(1280, 530);
-  ctx.lineTo(1280, 120);
-  ctx.closePath();
-  ctx.fill();
+  if(stadiumRenderFailed){
+    // Recria um cenario de transmissao util se um detalhe arquitetonico lancar excecao.
+    ctx.fillStyle='#0b1522';ctx.fillRect(0,0,1280,720);
+    const sky=ctx.createLinearGradient(0,0,0,210);sky.addColorStop(0,'#7db9ee');sky.addColorStop(1,'#e2effb');ctx.fillStyle=sky;ctx.fillRect(0,0,1280,205);
+    ctx.fillStyle='#334155';ctx.fillRect(0,135,1280,75);ctx.fillStyle='#cbd5e1';for(let y=145;y<205;y+=10)ctx.fillRect(100,y,1080,4);
   }
 
   // 4. Gramado em Perspectiva (Trapezóide)
@@ -27657,24 +27564,30 @@ function centralPage(){
   const priorCompetitionName = comp?.name || state.competition || 'Campeonato principal';
 
   // Dados da Tabela da Competição Atual em Disputa (Screenshot 1)
-  const currentWidgetCompId = (activeMatch?.type === 'estadual' ? activeMatch.competitionId : (activeMatch?.competitionId || curComp()?.id));
-  const activeComp = compById(currentWidgetCompId) || curComp() || { name: 'Campeonato Atual' };
-  const isEstadualActive = activeComp.id && activeComp.id.startsWith('bra-est-');
-  let compStandings = [];
-  if(Array.isArray(state.teams) && state.teams.length > 0){
-    compStandings = state.teams.slice().sort((a,b) => b.p - a.p || b.sg - a.sg || b.gp - a.gp).slice(0, 10);
-  } else {
-    const estId = clubStateCompId(state.club);
-    const estData = getStateCompData(estId);
-    compStandings = (estData?.teams || []).slice(0, 10);
-  }
-  const myPos = (compStandings.findIndex(t => norm(t.name) === norm(state.club)) + 1) || position() || 1;
-  const totalInTable = (state.teams?.length) || compStandings.length || 20;
-  const leaderPts = compStandings[0]?.p || 0;
-  const myTeamObj = compStandings.find(t => norm(t.name) === norm(state.club));
-  const myPts = myTeamObj?.p || 0;
+  const currentWidgetCompId = activeMatch?.competitionId || curComp()?.id || state.compId;
+  const activeComp = compById(currentWidgetCompId) || curComp() || { id:currentWidgetCompId, name:state.competition || 'Campeonato Atual' };
+  const isEstadualActive = String(currentWidgetCompId || '').startsWith('bra-est-');
+  const sortWidgetRows = rows => (Array.isArray(rows) ? rows.slice() : []).sort((a,b) => Number(b.p ?? b.points ?? 0)-Number(a.p ?? a.points ?? 0) || Number(b.sg ?? ((b.gp||b.gf||0)-(b.gc||b.ga||0)))-Number(a.sg ?? ((a.gp||a.gf||0)-(a.gc||a.ga||0))) || String(a.name || a.club || '').localeCompare(String(b.name || b.club || ''),'pt-BR'));
+  let compRows = [];
+  let compTableKind = 'league';
+  if(isEstadualActive){ compRows = sortWidgetRows(getStateCompData(currentWidgetCompId)?.teams); }
+  else if(currentWidgetCompId === state.compId){ compRows = sortWidgetRows(state.teams); }
+  else if(currentWidgetCompId === 'bra-cup'){ compTableKind = 'knockout'; }
+  else if(['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc'].includes(currentWidgetCompId)){
+    compTableKind = 'groups';
+    const tourney = typeof getContinentalTournament === 'function' ? getContinentalTournament(currentWidgetCompId) : null;
+    const groups = tourney?.standings || {};
+    const clubGroup = Object.entries(groups).find(([,rows]) => Array.isArray(rows) && rows.some(row => norm(row.name || row.club) === norm(state.club)));
+    compRows = sortWidgetRows(clubGroup ? clubGroup[1] : Object.values(groups).flat());
+  } else if(currentWidgetCompId && typeof getNationalCompetitionStandings === 'function'){ compRows = sortWidgetRows(getNationalCompetitionStandings(currentWidgetCompId)); }
+  const compStandings = compRows.slice(0,10);
+  const totalInTable = compRows.length || Number(activeComp.teams) || 0;
+  const myIndexInTable = compRows.findIndex(t => norm(t.name || t.club || t.team) === norm(state.club));
+  const myPos = myIndexInTable >= 0 ? myIndexInTable + 1 : null;
+  const leaderPts = Number(compRows[0]?.p ?? compRows[0]?.points ?? 0);
+  const myTeamObj = myIndexInTable >= 0 ? compRows[myIndexInTable] : null;
+  const myPts = Number(myTeamObj?.p ?? myTeamObj?.points ?? 0);
   const ptsDiff = Math.max(0, leaderPts - myPts);
-
   const clubDivRegion = getClubDivisionAndState(state.club);
   const clubStarsInfo = getClubStarRating(state.club);
 
@@ -27694,6 +27607,7 @@ function centralPage(){
   processCopaDoBrasilCalendar(state.date);
   const copa = getCopaDoBrasilState();
   const phaseKeys = ['1ª Fase', '2ª Fase', '3ª Fase', '4ª Fase', '5ª Fase', 'Oitavas de Final', 'Quartas de Final', 'Semifinais', 'Final'];
+  const userCopaRegistered = isClubRegisteredInCopaDoBrasil(state, state.club);
   
   let activeCopaPhaseKey = '1ª Fase';
   let myCopaFixture = null;
@@ -27708,17 +27622,17 @@ function centralPage(){
     }
   }
 
-  if(!myCopaFixture){
-    const firstPh = copa.phases['1ª Fase'];
-    myCopaFixture = firstPh?.fixtures?.[0] || { home: 'Gazin Porto Velho', away: 'Real Brasília', date: 'qua, 11 fev 2026', isoDate: '2026-02-11' };
-  }
-
-  const curPhaseObj = copa.phases[activeCopaPhaseKey] || copa.phases['1ª Fase'];
-  const otherCopaFixtures = (curPhaseObj.fixtures || []).filter(x => x !== myCopaFixture).slice(0, 4);
+  if(!userCopaRegistered) myCopaFixture = null;
+  const curPhaseObj = copa.phases[activeCopaPhaseKey] || copa.phases['1ª Fase'] || { fixtures: [], dateStr: '' };
+  const otherCopaFixtures = userCopaRegistered
+    ? (curPhaseObj.fixtures || []).filter(x => x !== myCopaFixture).slice(0, 4)
+    : [];
 
   // Calcula contagem regressiva real para o jogo da Copa
   let copaCountdownHtml = '';
-  if(myCopaFixture.score){
+  if(!myCopaFixture){
+    copaCountdownHtml = '<b style="color:#cbd5e1">Seu clube ainda não está classificado para a Copa do Brasil nesta temporada.</b>';
+  } else if(myCopaFixture.score){
     copaCountdownHtml = `<b style="color:#4ade80">PARTIDA FINALIZADA: ${myCopaFixture.score[0]} x ${myCopaFixture.score[1]}</b>`;
   } else if(myCopaFixture.isoDate === state.date){
     copaCountdownHtml = `<b style="color:#22c55e">🔥 HOJE É DIA DE JOGO NA COPA DO BRASIL!</b>`;
@@ -27855,7 +27769,7 @@ function centralPage(){
   }
 
   let userInCopa = false;
-  if (copa?.phases) {
+  if (userCopaRegistered && copa?.phases) {
     for (const phase of Object.values(copa.phases)) {
       if (Array.isArray(phase.fixtures) && phase.fixtures.some(f => norm(f.home) === myClubKey || norm(f.away) === myClubKey)) {
         userInCopa = true;
@@ -27863,7 +27777,7 @@ function centralPage(){
       }
     }
   }
-  if (userInCopa || (stateCompId && stateCompId.startsWith('bra-'))) {
+  if (userInCopa) {
     userCentralCupTabs.push({
       id: 'copa',
       label: '🇧🇷 COPA',
@@ -27883,12 +27797,7 @@ function centralPage(){
   }
 
   if (userCentralCupTabs.length === 0) {
-    userCentralCupTabs.push({
-      id: 'copa',
-      label: '🇧🇷 COPA',
-      shortName: 'Copa do Brasil',
-      title: 'COPA DO BRASIL'
-    });
+    userCentralCupTabs.push({ id: 'copa', label: 'COPA', shortName: 'Copa do Brasil', title: 'COPA DO BRASIL' });
   }
 
   if (!state.centralCupTab || !userCentralCupTabs.some(t => t.id === state.centralCupTab)) {
@@ -28108,31 +28017,27 @@ function centralPage(){
             </div>
           ` : ''}
 
-          <!-- WIDGET DE CLIMA E CONDIÇÕES DO GRAMADO -->
+          <!-- WIDGET DE CLIMA E CONDI??ES DO GRAMADO -->
           <div style="display:flex;flex-direction:column;gap:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;margin-top:10px;font-size:11px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:14px">${weather.icon}</span>
-              <span style="color:#e2e8f0;font-weight:700">Clima: ${esc(weather.condition)} (${weather.temp}°C)</span>
-            </div>
-            <span style="color:${weather.drain>1.1?'#f87171':'#94a3b8'};font-size:10px;font-weight:700">${esc(weather.impact)}</span>
-            </div>
-            ${homePitchCondition ? `
-              <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.28);border-radius:8px;padding:6px 10px;gap:8px;flex-wrap:wrap;">
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <span style="font-size:14px;">🌱</span>
-                  <span style="color:#86efac;font-weight:800;font-size:11px;">CONDIÇÃO DO GRAMADO (MANDANTE):</span>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <span class="pill" style="font-size:10px;font-weight:900;background:${homePitchCondition.statusColor};color:#000;padding:2px 7px;border-radius:5px;">${esc(homePitchCondition.statusText)}</span>
-                  <span style="color:#f8fafc;font-weight:900;font-size:11px;">${Math.round(homePitchCondition.val)}%</span>
-                  <span style="color:#94a3b8;font-size:10px;">(${homePitchCondition.pitch === 'synthetic' ? 'Sintético' : homePitchCondition.pitch === 'hybrid' ? 'Híbrido' : 'Natural'})</span>
-                </div>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span style="font-size:14px">${weather.icon}</span>
+                <span style="color:#e2e8f0;font-weight:700">Clima: ${esc(weather.condition)} (${weather.temp} C)</span>
+                <span style="color:${weather.drain>1.1?'#f87171':'#94a3b8'};font-size:10px;font-weight:700">${esc(weather.impact)}</span>
               </div>
-            ` : ''}
+              ${homePitchCondition ? `
+                <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.28);border-radius:8px;padding:5px 8px">
+                  <span style="font-size:14px">GRAMADO</span>
+                  <span style="color:#86efac;font-weight:800;font-size:10px">GRAMADO:</span>
+                  <span class="pill" style="font-size:10px;font-weight:900;background:${homePitchCondition.statusColor};color:#000;padding:2px 7px;border-radius:5px">${esc(homePitchCondition.statusText)}</span>
+                  <span style="color:#f8fafc;font-weight:900;font-size:10px">${Math.round(homePitchCondition.val)}%</span>
+                  <span style="color:#94a3b8;font-size:10px">(${homePitchCondition.pitch === 'synthetic' ? 'Sintetico' : homePitchCondition.pitch === 'hybrid' ? 'Hibrido' : 'Natural'})</span>
+                </div>
+              ` : ''}
+            </div>
           </div>
 
-          <!-- Próximo compromisso oficial ou folga real -->
+                    <!-- Próximo compromisso oficial ou folga real -->
           ${!f && primaryScheduleEnded && nextPendingFixture ? `
             <div style="background:linear-gradient(135deg,#17142d,#111827);border:1px solid #7c3aed;border-radius:14px;padding:18px;margin:18px 0 10px 0">
               <div style="font-size:10px;font-weight:900;color:#c084fc;letter-spacing:1.2px;text-transform:uppercase">COMPETIÇÃO ANTERIOR CONCLUÍDA</div>
@@ -28156,30 +28061,6 @@ function centralPage(){
               </div>
             </div>
           ` : `
-          <!-- CARD EXCLUSIVO DE CONDIÇÃO DO GRAMADO EM JOGOS EM CASA -->
-          ${homePitchCondition ? `
-            <div class="card home-pitch-card" style="background:linear-gradient(135deg, rgba(16,185,129,0.14), rgba(6,78,59,0.28));border:1.5px solid rgba(34,197,94,0.45);border-radius:14px;padding:12px 16px;margin:12px 0 6px 0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.35);">
-              <div style="display:flex;align-items:center;gap:10px;">
-                <span style="font-size:26px;">🌱</span>
-                <div>
-                  <div style="font-size:12px;font-weight:900;color:#86efac;letter-spacing:0.5px;text-transform:uppercase;">
-                    Condição do Gramado (Jogo em Casa)
-                  </div>
-                  <div style="font-size:11px;color:rgba(255,255,255,0.85);margin-top:2px;">
-                    Estádio: <b style="color:#fff;">${esc(clubObj.stadium || 'Estádio Principal')}</b> · Gramado: <b>${homePitchCondition.pitch === 'synthetic' ? 'Sintético' : homePitchCondition.pitch === 'hybrid' ? 'Híbrido' : 'Natural'}</b>
-                  </div>
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span class="pill" style="font-size:11px;font-weight:900;background:${homePitchCondition.statusColor};color:#000;padding:4px 10px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);">
-                  ${esc(homePitchCondition.statusText)}
-                </span>
-                <span style="font-size:14px;font-weight:900;color:#4ade80;">
-                  ${Math.round(homePitchCondition.val)}%
-                </span>
-              </div>
-            </div>
-          ` : ''}
 
           <div class="sm-hero-match-pitch" style="padding:18px 16px;margin:10px 0 10px 0;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -28438,10 +28319,10 @@ function centralPage(){
             <div>
               <div style="font-size:13px;font-weight:900;color:#fff;letter-spacing:0.5px;text-transform:uppercase">${esc(activeComp.name)}</div>
               <div style="font-size:9px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase">
-                ${isEstadualActive ? 'FASE REGIONAL • CLASSIFICAÇÃO' : `PONTOS CORRIDOS • RODADA ${state.round + 1}`}
+                ${compTableKind === 'knockout' ? 'MATA-MATA - CONFRONTOS' : compTableKind === 'groups' ? 'CLASSIFICACAO - FASE DE GRUPOS' : isEstadualActive ? 'FASE REGIONAL - CLASSIFICACAO' : `PONTOS CORRIDOS - RODADA ${state.round + 1}`}
               </div>
             </div>
-            <span class="pill" style="font-size:10px;font-weight:800;background:rgba(255,255,255,0.08)">${myPos}º/${totalInTable}</span>
+            <span class="pill" style="font-size:10px;font-weight:800;background:rgba(255,255,255,0.08)">${myPos ? `${myPos}?` : '-'}${totalInTable ? `/${totalInTable}` : ''}</span>
           </div>
 
           <div class="tablewrap" style="max-height:260px">
@@ -28457,25 +28338,23 @@ function centralPage(){
               </thead>
               <tbody>
                 ${compStandings.map((t, idx) => {
+                  const teamName = t.name || t.club || t.team || 'Clube';
                   const pos = idx + 1;
-                  const isMy = norm(t.name) === norm(state.club);
-
+                  const isMy = norm(teamName) === norm(state.club);
+                  const points = Number(t.p ?? t.points ?? 0);
+                  const played = Number(t.j ?? t.played ?? 0);
+                  const gd = Number(t.sg ?? (Number(t.gp ?? t.gf ?? 0) - Number(t.gc ?? t.ga ?? 0)));
                   return `
                     <tr style="${isMy ? 'background:rgba(124,58,237,0.35);font-weight:900;' : ''}font-size:11px">
-                      <td style="font-weight:800;color:${pos<=4?'var(--neon)':pos>=totalInTable-3?'var(--bad)':'#fff'}">${pos}</td>
-                      <td>
-                        <div style="display:flex;align-items:center;gap:6px">
-                          ${clubBadge(t.name, 16)}
-                          <span style="color:${isMy?'#c084fc':'#fff'}">${esc(t.name)}</span>
-                          ${isMy ? '<span class="tag-you" style="font-size:9px;padding:1px 5px;margin-left:4px">VOCÊ</span>' : ''}
-                        </div>
-                      </td>
-                      <td style="text-align:center;font-weight:900">${t.p}</td>
-                      <td style="text-align:center">${t.j}</td>
-                      <td style="text-align:center">${t.sg>0?'+':''}${t.sg}</td>
+                      <td style="font-weight:800;color:${pos<=4?'var(--neon)':(totalInTable && pos>=totalInTable-3)?'var(--bad)':'#fff'}">${pos}</td>
+                      <td><div style="display:flex;align-items:center;gap:6px">${clubBadge(teamName,16)}<span style="color:${isMy?'#c084fc':'#fff'}">${esc(teamName)}</span>${isMy?'<span class="tag-you" style="font-size:9px;padding:1px 5px;margin-left:4px">VOCE</span>':''}</div></td>
+                      <td style="text-align:center;font-weight:900">${points}</td>
+                      <td style="text-align:center">${played}</td>
+                      <td style="text-align:center">${gd>0?'+':''}${gd}</td>
                     </tr>
                   `;
                 }).join('')}
+                ${!compStandings.length ? `<tr><td colspan="5" style="padding:16px 8px;text-align:center;color:#94a3b8;font-size:11px">${compTableKind === 'knockout' ? 'Competicao em mata-mata: consulte os confrontos e resultados.' : 'A classificacao desta competicao ainda nao esta disponivel.'}</td></tr>` : ''}
               </tbody>
             </table>
           </div>
@@ -28610,7 +28489,7 @@ function centralPage(){
               ` : isCopaTab ? `
                 <!-- CONTEÚDO DA COPA DO BRASIL -->
                 <!-- Seu Confronto -->
-                <div style="margin-top:12px;background:#241945;border:1px solid #7c3aed;border-radius:12px;padding:12px">
+                ${myCopaFixture ? `<div style="margin-top:12px;background:#241945;border:1px solid #7c3aed;border-radius:12px;padding:12px">
                   <div style="font-size:10px;font-weight:800;color:#c084fc;letter-spacing:0.5px">${esc(activeCopaPhaseKey.toUpperCase())} • SEU CONFRONTO</div>
                   <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;margin-top:8px">
                     <div style="display:flex;align-items:center;gap:5px;min-width:0">
@@ -28627,10 +28506,10 @@ function centralPage(){
                     JOGO ÚNICO • ${esc((myCopaFixture.date || curPhaseObj.dateStr)).toUpperCase()}<br>
                     ${copaCountdownHtml}
                   </div>
-                </div>
+                </div>` : `<div style="margin-top:12px;background:#161324;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:18px;text-align:center;color:#cbd5e1;font-size:12px;line-height:1.5">Seu clube ainda não está classificado para a Copa do Brasil nesta temporada. Nenhum confronto foi registrado para esta carreira.</div>`}
 
                 <!-- Outros Confrontos -->
-                <div style="margin-top:12px">
+                ${userCopaRegistered ? `<div style="margin-top:12px">
                   <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">OUTROS CONFRONTOS (${esc(activeCopaPhaseKey)})</div>
                   <div style="display:flex;flex-direction:column;gap:6px">
                     ${otherCopaFixtures.map(f => `
@@ -28641,7 +28520,7 @@ function centralPage(){
                       </div>
                     `).join('')}
                   </div>
-                </div>
+                </div>` : ''}
 
                 <!-- Link para Tabela e Chaveamento Completo da Copa -->
                 <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
@@ -28907,7 +28786,7 @@ function calendarPage(){
   const winInfo=getTransferWindowInfo(state.date), extraMatches=[];
   const copa=getCopaDoBrasilState();
   processCopaDoBrasilCalendar(state.date);
-  Object.entries(copa.phases || {}).forEach(([phaseName,phase])=>(phase.fixtures||[]).forEach((fixture,fixtureIndex)=>{
+  if(isClubRegisteredInCopaDoBrasil(state, myClub)) Object.entries(copa.phases || {}).forEach(([phaseName,phase])=>(phase.fixtures||[]).forEach((fixture,fixtureIndex)=>{
     if(calendarClubKey(fixture.home)!==calendarClubKey(myClub)&&calendarClubKey(fixture.away)!==calendarClubKey(myClub))return;
     const cDate = ensureMidweekDate(fixture.isoDate || phase.isoDate, state.season);
     const savedCupResult = (state.history || []).find(h => h.competitionId === 'bra-cup' && Number(h.season) === Number(state.season) && ((calendarClubKey(h.h)===calendarClubKey(fixture.home)&&calendarClubKey(h.a)===calendarClubKey(fixture.away))||(calendarClubKey(h.h)===calendarClubKey(fixture.away)&&calendarClubKey(h.a)===calendarClubKey(fixture.home))));
@@ -33789,9 +33668,9 @@ function getSavedSeasonMemberships(clubName = state?.club){
   if(!stateId && state.compId?.startsWith('bra-est-')) stateId = state.compId;
 
   // Copa do Brasil is visible only when the current save has a fixture for this club.
-  const cupState = state.copaData && Number(state.copaData.season) === Number(state.season) ? state.copaData : null;
-  const cupFixtures = Object.values(cupState?.phases || {}).flatMap(phase => Array.isArray(phase?.fixtures) ? phase.fixtures : []);
-  const copa = cupFixtures.some(fixture => norm(fixture?.home) === key || norm(fixture?.away) === key);
+  const copa = typeof isClubRegisteredInCopaDoBrasil === 'function'
+    ? isClubRegisteredInCopaDoBrasil(state, clubName)
+    : false;
 
   const continentalIds = ['lib','sud','ucl','uel','uecl','afc-el','afc2','cwc'].filter(id => {
     const savedTournament = state.tournaments?.[id];
@@ -33822,7 +33701,7 @@ function seasonPage(){
   const estCompObj = estCompId ? compById(estCompId) : null;
   const hasNational = Boolean(natCompObj);
   const hasState = Boolean(estCompObj && estCompId?.startsWith('bra-est-'));
-  const hasCopa = Boolean(isBrazil);
+  const hasCopa = Boolean(memberships.copa);
   const hasContinental = true;
   const seasonTabs = [];
   if(hasNational) seasonTabs.push({ id:'nacional', label:`🇧🇷 ${natCompObj.name}` });
@@ -38015,7 +37894,12 @@ function bind(){
     const bHeroSquad = $('#btnHeroQuickSquad');
     if(bHeroSquad) bHeroSquad.onclick = () => { view = 'elenco'; render(); };
     const bHeroTactics = $('#btnHeroQuickTactics');
-    if(bHeroTactics) bHeroTactics.onclick = () => { view = 'meutime'; render(); };
+    if(bHeroTactics) bHeroTactics.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setGameView('meutime');
+      render();
+    };
 
     const pEndSeason = $('#btnOpenEndOfSeasonCentral'); if(pEndSeason) pEndSeason.onclick = showEndOfSeasonModal;
     const pNextPending = $('#btnOpenNextPendingCentral');

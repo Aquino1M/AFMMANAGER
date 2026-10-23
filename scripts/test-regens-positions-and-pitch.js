@@ -136,7 +136,7 @@ assert.strictEqual(cr7Jr.pos, 'ST', 'Cristiano Jr. tem posição ST garantida');
 console.log('✅ PASS: Geração de regens em js/systems/market_lupa_aging_and_regens.js 100% restaurada com posições táticas!');
 
 // Teste de exibição do gramado no centralPage quando for jogo em casa
-assert(gameSource.includes('CONDIÇÃO DO GRAMADO (MANDANTE)'), 'Condição do gramado exibida com destaque na Central');
+assert(gameSource.includes('GRAMADO:'), 'Condi??o do gramado agrupada ao widget de clima na Central');
 assert(gameSource.includes('homePitchCondition.statusText'), 'Status do gramado (Excelente, Bom, Regular) formatado');
 assert(gameSource.includes('isUpcomingHomeMatch'), 'Condição do gramado só carrega para mandante');
 

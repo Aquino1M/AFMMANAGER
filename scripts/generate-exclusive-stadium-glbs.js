@@ -19,7 +19,7 @@ const profiles = profileModule.exports;
 if (!Array.isArray(profiles) || profiles.length !== 23) throw new Error(`Expected 23 existing profiles, got ${profiles?.length}`);
 
 const shape = {
-  maracana:{form:'oval',roof:'ring',shell:'concrete',rx:1.0,rz:1.0,open:0.94,beams:28,pattern:1},
+  maracana:{form:'oval',roof:'ring',shell:'maracana',rx:1.04,rz:1.0,open:0.94,beams:36,pattern:1},
   'neo-quimica':{form:'rounded',roof:'partial',shell:'neo-quimica',rx:1.0,rz:.94,open:.30,beams:28,pattern:2},
   'allianz-parque':{form:'rounded',roof:'full',shell:'facade-ribs',rx:.82,rz:.82,open:.24,beams:24,pattern:3},
   morumbi:{form:'oval',roof:'partial',shell:'concrete',rx:1.06,rz:1.06,open:.36,beams:12,pattern:4},
@@ -44,7 +44,7 @@ const shape = {
   'king-abdullah':{form:'rounded',roof:'partial',shell:'national-bowl',rx:1,rz:1,open:.28,beams:22,pattern:23}
 };
 const colors = {
-  maracana:'#c7cbd1','neo-quimica':'#20242a','allianz-parque':'#15803d',morumbis:'#20242a',
+  maracana:'#f8fafc','neo-quimica':'#20242a','allianz-parque':'#15803d',morumbis:'#20242a',
   'arena-gremio':'#0284c7','beira-rio':'#dc2626','arena-mrv':'#111827',mineirao:'#0284c7',
   'nilton-santos':'#111827','fonte-nova':'#0284c7',bernabeu:'#d1d5db','camp-nou':'#1e3a8a',
   allianz:'#e2e8f0',etihad:'#38bdf8','old-trafford':'#dc2626','parc-des-princes':'#1e3a8a',
@@ -58,8 +58,8 @@ function exportGlb(profile) {
   const cfg=shape[profile.style]; if(!cfg)throw new Error(`No geometry spec for ${profile.style}`);
   const mats=[], matMap=new Map();
   const mat=(name,color,metal=0.08,rough=.82,emission=null)=>{const key=[name,color,metal,rough,emission].join('|');if(matMap.has(key))return matMap.get(key);const id=mats.length;mats.push({name,pbrMetallicRoughness:{baseColorFactor:rgba(color),metallicFactor:metal,roughnessFactor:rough},...(emission?{emissiveFactor:rgba(emission).slice(0,3)}:{}),doubleSided:true});matMap.set(key,id);return id;};
-  const isNeoQuimica=cfg.shell==='neo-quimica';
-  const concrete=mat('Concrete',isNeoQuimica?'#e5e7eb':'#64748b'),dark=mat('Steel and shade','#1e293b',.34),seat1=mat('Seat color',isNeoQuimica?'#f1f5f9':(profile.secondary||colors[profile.style]||'#2563eb')),seat2=mat('Seat contrast',isNeoQuimica?'#f8fafc':(profile.primary||'#e2e8f0')),accent=mat('Profile accents',isNeoQuimica?'#94a3b8':(profile.accent||'#facc15'),.38,.44,isNeoQuimica?null:(profile.accent||null)),roofMat=mat('Roof shell',isNeoQuimica?'#f3f4f6':['silver-shell','minimal-white'].includes(cfg.shell)?'#dbe4eb':cfg.shell==='diamond'?'#dbeafe':'#94a3b8',.56,.44),glass=mat('Facade panels',cfg.shell==='dark-led'||isNeoQuimica?'#e5e7eb':'#334155',.18,.38),grass=mat('Pitch','#176b37',.02,.96),stripe=mat('Pitch stripes','#218447',.02,.96),line=mat('Pitch lines','#f8fafc',.0,.7);
+  const isNeoQuimica=cfg.shell==='neo-quimica',isMaracana=cfg.shell==='maracana';
+  const concrete=mat('Concrete',isNeoQuimica||isMaracana?'#e5e7eb':'#64748b'),dark=mat('Steel and shade',isMaracana?'#334155':'#1e293b',.34),seat1=mat('Seat color',isNeoQuimica?'#f1f5f9':isMaracana?'#2563eb':(profile.secondary||colors[profile.style]||'#2563eb')),seat2=mat('Seat contrast',isNeoQuimica?'#f8fafc':isMaracana?'#facc15':(profile.primary||'#e2e8f0')),accent=mat('Profile accents',isNeoQuimica?'#94a3b8':(profile.accent||'#facc15'),.38,.44,isNeoQuimica?null:(profile.accent||null)),roofMat=mat('Roof shell',isNeoQuimica||isMaracana?'#f8fafc':['silver-shell','minimal-white'].includes(cfg.shell)?'#dbe4eb':cfg.shell==='diamond'?'#dbeafe':'#94a3b8',.56,.44),glass=mat('Facade panels',cfg.shell==='dark-led'||isNeoQuimica?'#e5e7eb':isMaracana?'#64748b':'#334155',.18,.38),grass=mat('Pitch','#176b37',.02,.96),stripe=mat('Pitch stripes','#218447',.02,.96),line=mat('Pitch lines','#f8fafc',.0,.7);
   const positions=[],normals=[],indices=[],triMat=[];
   function tri(a,b,c,m){const i=positions.length/3,ab=b.map((v,k)=>v-a[k]),ac=c.map((v,k)=>v-a[k]),cr=[ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]],l=Math.hypot(...cr)||1,n=cr.map(v=>v/l);for(const p of [a,b,c]){positions.push(...p);normals.push(...n);}indices.push(i,i+1,i+2);triMat.push(m);}
   function quad(a,b,c,d,m){tri(a,b,c,m);tri(a,c,d,m);}
@@ -76,16 +76,33 @@ function exportGlb(profile) {
   // Different outer façade rhythms by silhouette rather than a shared generic shell.
   for(let j=0;j<cfg.beams;j++){const a=j/cfg.beams*Math.PI*2;if(cfg.form==='horseshoe'&&Math.sin(a)<-cfg.open)continue;let [x,z]=xy(a,orx+3,orz+3),y=levels*2.15+3.8;beam([x,.4,z],[x*1.025,y,z*1.025],cfg.shell==='diamond'?.9:.5,(j%3===0)?accent:dark,4);if(['diamond','silver-shell','dark-led','compact-enclosed'].includes(cfg.shell)){const [x2,z2]=xy(a+Math.PI*2/cfg.beams,orx+4,orz+4);quad([x,2.3,z],[x2,2.3,z2],[x2,y-.2,z2],[x,y-.2,z],cfg.shell==='dark-led'?glass:(j%2?roofMat:seat1));}if(cfg.shell==='truss'&&j%2===0)beam([x,y-1,z],[x*1.06,y+2,z*1.06],.22,roofMat,4);if(cfg.shell==='leaf'&&j%2===0){const [x2,z2]=xy(a+Math.PI*2/cfg.beams,orx+4,orz+4);quad([x,y-2,z],[x2,y-1,z2],[x*1.04,y+.4,z*1.04],[x*.98,y+.2,z*.98],roofMat);}}
   const roofY=levels*2.15+5.4;
-  if(isNeoQuimica){
-    // Neo Quimica Arena: roof shell white, broad and rectangular-ish, with central opening.
-    const long=orx+8,wide=orz+7,innerLong=irx-2,innerWide=irz-3;
-    box(0,roofY,0,long*2,.72,wide*2,roofMat);
-    box(0,roofY+.42,0,long*2,.12,wide*2,seat2);
-    // Re-open the center visually with a dark opening / pitch seen through the canopy.
-    box(0,roofY+.1,0,innerLong*2,.92,innerWide*2,glass);
-    for(let x=-long+3;x<=long-3;x+=5){beam([x,roofY+.48,-wide],[x,roofY+2,-wide],.18,dark,4);beam([x,roofY+.48,wide],[x,roofY+2,wide],.18,dark,4);}
-    for(let z=-wide+3;z<=wide-3;z+=5){beam([-long,roofY+.48,z],[-long+2,roofY+2,z],.18,dark,4);beam([long,roofY+.48,z],[long-2,roofY+2,z],.18,dark,4);}
-    // High pale facade blocks and darker glazing around the perimeter.
+  if(isMaracana){
+    // Maracan?: cobertura clara em anel, com grande abertura central e suportes aparentes.
+    const outerRx=orx+11,outerRz=orz+11,innerRx=irx+1,innerRz=irz+1;
+    for(let j=0;j<segments;j++){
+      const a=j/segments*Math.PI*2,b=(j+1)/segments*Math.PI*2;
+      const p0=xy(a,outerRx,outerRz),p1=xy(b,outerRx,outerRz),q0=xy(a,innerRx,innerRz),q1=xy(b,innerRx,innerRz);
+      quad([p0[0],roofY,p0[1]],[p1[0],roofY,p1[1]],[q1[0],roofY+.25,q1[1]],[q0[0],roofY+.25,q0[1]],roofMat);
+      if(j%2===0) beam([p0[0],roofY+.15,p0[1]],[q0[0],roofY+.3,q0[1]],.17,dark,4);
+      if(j%3===0){const m0=xy(a,outerRx+1.2,outerRz+1.2),m1=xy(a,outerRx-1.0,outerRz-1.0);beam([m0[0],roofY-.1,m0[1]],[m1[0],roofY+.1,m1[1]],.16,seat2,4);}
+    }
+    // An?is de assentos azuis e amarelos, mais a fachada externa escura.
+    for(let j=0;j<segments;j++){const a=j/segments*Math.PI*2,b=(j+1)/segments*Math.PI*2;const rx=irx+15,rz=irz+15,ox=rx+4.6,oz=rz+4.6;const p0=xy(a,rx,rz),p1=xy(b,rx,rz),q0=xy(a,ox,oz),q1=xy(b,ox,oz);quad([p0[0],5.6,p0[1]],[p1[0],5.6,p1[1]],[q1[0],5.8,q1[1]],[q0[0],5.8,q0[1]],j%7===0?seat2:seat1);}
+    for(let j=0;j<segments;j+=2){const a=j/segments*Math.PI*2,b=(j+1)/segments*Math.PI*2;const p0=xy(a,outerRx+1.5,outerRz+1.5),p1=xy(b,outerRx+1.5,outerRz+1.5),q0=xy(a,outerRx+4.0,outerRz+4.0),q1=xy(b,outerRx+4.0,outerRz+4.0);quad([p0[0],1.0,p0[1]],[p1[0],1.0,p1[1]],[q1[0],3.2,q1[1]],[q0[0],3.2,q0[1]],glass);}
+  } else if(isNeoQuimica){
+    // Neo Quimica Arena: four-sided seating bowl and white perimeter canopy with center open.
+    const long=orx+8,wide=orz+7,roofInnerX=irx+4,roofInnerZ=irz+6;
+    // Four canopy wings form a roof ring: do not cover the pitch opening.
+    box(0,roofY,-(wide+roofInnerZ)/2,long*2,.72,wide-roofInnerZ,roofMat);
+    box(0,roofY,(wide+roofInnerZ)/2,long*2,.72,wide-roofInnerZ,roofMat);
+    box(-(long+roofInnerX)/2,roofY,0,long-roofInnerX,.72,roofInnerZ*2,roofMat);
+    box((long+roofInnerX)/2,roofY,0,long-roofInnerX,.72,roofInnerZ*2,roofMat);
+    // White cantilever fascia and visible steel trusses.
+    box(0,roofY+.42,-wide+1,long*2,.45,1.4,seat2);box(0,roofY+.42,wide-1,long*2,.45,1.4,seat2);
+    box(-long+1,roofY+.42,0,1.4,.45,roofInnerZ*2,seat2);box(long-1,roofY+.42,0,1.4,.45,roofInnerZ*2,seat2);
+    for(let x=-long+3;x<=long-3;x+=4){beam([x,roofY+.35,-wide+1],[x,roofY+1.65,-roofInnerZ],.15,dark,4);beam([x,roofY+.35,wide-1],[x,roofY+1.65,roofInnerZ],.15,dark,4);}
+    for(let z=-roofInnerZ+3;z<=roofInnerZ-3;z+=4){beam([-long+1,roofY+.35,z],[-roofInnerX,roofY+1.55,z],.15,dark,4);beam([long-1,roofY+.35,z],[roofInnerX,roofY+1.55,z],.15,dark,4);}
+    // Distinct pale exterior facade and dark concourse glazing.
     box(long-1,levels*2.15+1,-2,5,levels*2.2+2,wide*.82,concrete);
     box(long-3,levels*2.15+2,wide*.18,2.2,levels*2.8+1,wide*.32,glass);
     box(-long+1,levels*2.15+1,2,3.6,levels*2.0+2,wide*.78,concrete);
