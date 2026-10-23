@@ -464,3 +464,64 @@ console.log('PASS: guarda arquitetural exige transições e novas carreiras isol
 
   console.log('PASS: clube promovido (AQF) aparece no Grupo A da Série D com posição, pontos e forma corretos.');
 }
+
+{
+  const context = { window: {} };
+  vm.runInNewContext(integritySource, context);
+  const integrity = context.window.AFM_COMPETITION_INTEGRITY;
+  const engineContext = { window: {} };
+  vm.runInNewContext(tournamentEngineSource, engineContext);
+  const engine = engineContext.window.AFM_TOURNAMENT_ENGINE;
+
+  const testRosters = {
+    'bra-a': names('ROSTER-A', 20),
+    'bra-b': names('ROSTER-B', 20),
+    'bra-c': names('ROSTER-C', 20),
+    'bra-d': ['AQF', ...names('ROSTER-D', 95)]
+  };
+
+  // Teste 1: Promoção de Série D para Série C
+  const promoDToC = integrity.simulateBrazilSeason(
+    testRosters, 2028, 'bra-d', null, engine, {},
+    { requestedDestinationCompId: 'bra-c', userClub: 'AQF', sourceCompId: 'bra-d' }
+  );
+  assert.equal(promoDToC.valid, true, 'Transição D -> C deve ser válida');
+  assert.equal(promoDToC.rosters['bra-c'].some(n => integrity.normalize(n) === 'aqf'), true, 'AQF deve estar na Série C');
+  assert.equal(promoDToC.rosters['bra-d'].some(n => integrity.normalize(n) === 'aqf'), false, 'AQF deve sair da Série D');
+  assert.equal(promoDToC.rosters['bra-c'].length, 20, 'Série C deve manter 20 clubes');
+  assert.equal(promoDToC.rosters['bra-d'].length, 96, 'Série D deve manter 96 clubes');
+
+  // Teste 2: Promoção de Série C para Série B
+  const cRosters = {
+    ...testRosters,
+    'bra-c': ['AQF', ...names('ROSTER-C', 19)],
+    'bra-d': names('ROSTER-D', 96)
+  };
+  const promoCToB = integrity.simulateBrazilSeason(
+    cRosters, 2029, 'bra-c', null, engine, {},
+    { requestedDestinationCompId: 'bra-b', userClub: 'AQF', sourceCompId: 'bra-c' }
+  );
+  assert.equal(promoCToB.valid, true, 'Transição C -> B deve ser válida');
+  assert.equal(promoCToB.rosters['bra-b'].some(n => integrity.normalize(n) === 'aqf'), true, 'AQF deve estar na Série B');
+  assert.equal(promoCToB.rosters['bra-c'].some(n => integrity.normalize(n) === 'aqf'), false, 'AQF deve sair da Série C');
+  assert.equal(promoCToB.rosters['bra-b'].length, 20, 'Série B deve manter 20 clubes');
+  assert.equal(promoCToB.rosters['bra-c'].length, 20, 'Série C deve manter 20 clubes');
+
+  // Teste 3: Rebaixamento de Série B para Série C
+  const bRosters = {
+    ...testRosters,
+    'bra-b': ['AQF', ...names('ROSTER-B', 19)],
+    'bra-d': names('ROSTER-D', 96)
+  };
+  const relBToC = integrity.simulateBrazilSeason(
+    bRosters, 2030, 'bra-b', null, engine, {},
+    { requestedDestinationCompId: 'bra-c', userClub: 'AQF', sourceCompId: 'bra-b' }
+  );
+  assert.equal(relBToC.valid, true, 'Transição rebaixamento B -> C deve ser válida');
+  assert.equal(relBToC.rosters['bra-c'].some(n => integrity.normalize(n) === 'aqf'), true, 'AQF deve estar na Série C após rebaixamento');
+  assert.equal(relBToC.rosters['bra-b'].some(n => integrity.normalize(n) === 'aqf'), false, 'AQF deve sair da Série B após rebaixamento');
+  assert.equal(relBToC.rosters['bra-b'].length, 20, 'Série B deve manter 20 clubes');
+  assert.equal(relBToC.rosters['bra-c'].length, 20, 'Série C deve manter 20 clubes');
+
+  console.log('PASS: regra inviolável de acesso e rebaixamento testada e garantida em todas as divisões.');
+}

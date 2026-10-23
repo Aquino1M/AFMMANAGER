@@ -13313,19 +13313,25 @@ function repairLegacyNationalCompetitionRosters(s){
 }
 
 function repairEarnedStatePromotion(s){
-  if(!s || norm(s.club) !== 'brasilia' || ['bra-a','bra-b','bra-c','bra-d'].includes(s.compId)) return false;
+  if(!s || !s.club || ['bra-a','bra-b','bra-c','bra-d'].includes(s.compId)) return false;
+  const clubNorm = norm(s.club);
   const explicitlyRequested = s.nextSeasonCompId === 'bra-d' || s.pendingPromotion?.toCompId === 'bra-d';
   const previousSeason = Number(s.season) - 1;
+  let sourceCompId = null;
   const competitionEvidence = (Array.isArray(s.competitionHistory) ? s.competitionHistory : []).some(item => {
-    if(Number(item.season) !== previousSeason || item.competitionId !== 'bra-est-df') return false;
+    if(Number(item.season) !== previousSeason || !String(item.competitionId || '').startsWith('bra-est-')) return false;
     const rank = Array.isArray(item.ranking) ? item.ranking : [];
-    const index = rank.findIndex(row => norm(typeof row === 'string' ? row : row?.name) === 'brasilia');
-    return index >= 0 && index < 2;
+    const index = rank.findIndex(row => norm(typeof row === 'string' ? row : row?.name) === clubNorm);
+    if(index >= 0 && index < 2){
+      sourceCompId = item.competitionId;
+      return true;
+    }
+    return false;
   });
   const seasonEvidence = (Array.isArray(s.seasonHistory) ? s.seasonHistory : []).some(item =>
-    Number(item.season) === previousSeason && norm(item.userClub || s.club) === 'brasilia'
+    Number(item.season) === previousSeason && norm(item.userClub || s.club) === clubNorm
     && Number(item.userPosition) >= 1 && Number(item.userPosition) <= 2
-    && /candango|estadual|bras[ií]lia/i.test(String(item.compName || '')));
+    && /estadual|candango|paulista|carioca|mineiro|ga[uú]cho|catarinense|paranaense|baiano|cearense|goiano|pernambucano/i.test(String(item.compName || '')));
   if(!explicitlyRequested && !competitionEvidence && !seasonEvidence) return false;
 
   const ids = ['bra-a','bra-b','bra-c','bra-d'];
@@ -13340,17 +13346,17 @@ function repairEarnedStatePromotion(s){
   if(new Set(all).size !== all.length) return false;
 
   const target = national['bra-d'];
-  if(!target.some(name => norm(name) === 'brasilia')){
+  if(!target.some(name => norm(name) === clubNorm)){
     const displaced = [...(s.nationalCompetitionStandings?.['bra-d'] || [])].reverse()
-      .find(row => norm(typeof row === 'string' ? row : row?.name) !== 'brasilia');
+      .find(row => norm(typeof row === 'string' ? row : row?.name) !== clubNorm);
     const displacedName = displaced ? (typeof displaced === 'string' ? displaced : displaced.name) : target[target.length - 1];
     if(!displacedName) return false;
     const at = target.findIndex(name => norm(name) === norm(displacedName));
     if(at < 0) return false;
     target[at] = s.club;
-    const sourceId = 'bra-est-df';
+    const sourceId = sourceCompId || s.customClubStateCompId || (typeof clubStateCompId === 'function' ? clubStateCompId(s.club) : null) || 'bra-est-df';
     const stateRoster = clean(sourceId);
-    const userIndex = stateRoster.findIndex(name => norm(name) === 'brasilia');
+    const userIndex = stateRoster.findIndex(name => norm(name) === clubNorm);
     if(userIndex >= 0) stateRoster[userIndex] = displacedName;
     else if(!stateRoster.some(name => norm(name) === norm(displacedName))) stateRoster.push(displacedName);
     map[sourceId] = stateRoster;
@@ -13368,9 +13374,10 @@ function repairEarnedStatePromotion(s){
   s.round = 0;
   delete s.nextSeasonCompId;
   delete s.pendingPromotion;
-  s.competitionPromotionRecovery = { from:'bra-est-df', to:'bra-d', season:Number(s.season), reason:explicitlyRequested?'pending-season-transition':'earned-state-ranking' };
+  const finalSourceId = sourceCompId || s.customClubStateCompId || (typeof clubStateCompId === 'function' ? clubStateCompId(s.club) : null) || 'bra-est-df';
+  s.competitionPromotionRecovery = { from: finalSourceId, to:'bra-d', season:Number(s.season), reason:explicitlyRequested?'pending-season-transition':'earned-state-ranking' };
   s.news = Array.isArray(s.news) ? s.news : [];
-  s.news.unshift('✅ ACESSO RECUPERADO: o histórico confirmou a classificação do Brasília e a carreira foi sincronizada com o Campeonato Brasileiro Série D.');
+  s.news.unshift(`✅ ACESSO RECUPERADO: o histórico confirmou a classificação do ${s.club} e a carreira foi sincronizada com o Campeonato Brasileiro Série D.`);
   s.news = s.news.slice(0,50);
   return true;
 }
@@ -13545,6 +13552,23 @@ function repairSaveIfCorrupted(s){
         divRoster.unshift(s.club);
         s.competitionTeams[curCompId] = divRoster;
         saveRequired = true;
+      }
+    }
+    // Regra inviolável: o clube JAMAIS pode constar em outra divisão nacional que não a sua divisão ativa
+    for(const otherDiv of ['bra-a','bra-b','bra-c','bra-d']){
+      if(otherDiv !== curCompId && Array.isArray(s.competitionTeams[otherDiv])){
+        const oldLen = s.competitionTeams[otherDiv].length;
+        s.competitionTeams[otherDiv] = s.competitionTeams[otherDiv].filter(name => norm(name) !== normalizedClub);
+        if(s.competitionTeams[otherDiv].length !== oldLen){
+          const fallback = ((typeof BASE_COMPETITION_TEAMS !== 'undefined' ? BASE_COMPETITION_TEAMS?.[otherDiv] : null) || window.COMPETITION_TEAMS?.[otherDiv] || []);
+          for(const cand of fallback){
+            if(!s.competitionTeams[otherDiv].some(n => norm(n) === norm(cand)) && norm(cand) !== normalizedClub){
+              s.competitionTeams[otherDiv].push(cand);
+              break;
+            }
+          }
+          saveRequired = true;
+        }
       }
     }
   }
@@ -22857,8 +22881,11 @@ function showEndOfSeasonModal(){
       state.nextSeasonCompId = 'bra-d';
     }
   } else if(comp?.id === 'bra-d'){
+    const dGroups = typeof getSeriesDGroupStandings === 'function' ? getSeriesDGroupStandings() : null;
+    const myGroup = dGroups ? Object.values(dGroups).find(group => group.some(t => norm(t.name) === norm(state.club))) : null;
+    const myGroupPos = myGroup ? (myGroup.find(t => norm(t.name) === norm(state.club))?.groupPosition || 999) : 999;
     const groupChampions = Array.isArray(state.competitionPlayoffWinners?.['bra-d']) ? state.competitionPlayoffWinners['bra-d'] : [];
-    const groupChampion = groupChampions.some(name => norm(name) === norm(state.club));
+    const groupChampion = myGroupPos === 1 || groupChampions.some(name => norm(name) === norm(state.club));
     if(groupChampion){
       promoInfo = {
         type: 'promote',
@@ -22871,12 +22898,12 @@ function showEndOfSeasonModal(){
   } else if(comp?.id === 'bra-c'){
     const persistedCFinalGroups = Array.isArray(state.competitionFinalGroups?.['bra-c']) ? state.competitionFinalGroups['bra-c'] : [];
     const cAccessByFinalGroup = persistedCFinalGroups.some(group => Array.isArray(group) && group.slice().sort((a,b) => (Number(b.p)||0)-(Number(a.p)||0) || (Number(b.sg)||0)-(Number(a.sg)||0)).slice(0,2).some(row => norm(typeof row === 'string' ? row : row?.name) === norm(state.club)));
-    if(cAccessByFinalGroup){
+    if(cAccessByFinalGroup || pos <= 4){
       promoInfo = {
         type: 'promote',
         toCompId: 'bra-b',
         title: '🚀 ACESSO CONQUISTADO À SÉRIE B!',
-        desc: `O ${state.club} terminou entre os dois primeiros do quadrangular decisivo e subiu para a Série B.`
+        desc: `O ${state.club} terminou entre os primeiros colocados e subiu para a Série B.`
       };
       state.nextSeasonCompId = 'bra-b';
     } else if(pos >= 17){
@@ -33692,8 +33719,9 @@ function getNationalCompetitionStandings(natId){
   }
 
   // Só usa resultados reais do save para a liga ativa. Não apresenta pontos fictícios de outra divisão.
-  if(activeCompetition && activeTeams && activeTeams.length === expectedSize && rows.length === teamList.length){
-    return rows.map(team => ({ ...team, form: Array.isArray(team.form) ? team.form : [] }));
+  if(activeCompetition && activeTeams && activeTeams.length >= expectedSize){
+    const activeSorted = ranking().slice(0, expectedSize);
+    return activeSorted.map(team => ({ ...team, form: Array.isArray(team.form) ? team.form : [] }));
   }
   const cache = state?.nationalCompetitionStandings?.[natId];
   if(Array.isArray(cache) && cache.length === teamList.length){

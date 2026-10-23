@@ -62,27 +62,53 @@ window.AFM_COMPETITION_INTEGRITY = (() => {
     const dWinners=Object.values(dSim.tables).map(group=>ranking(group)[0]?.name).filter(Boolean);
     const plan=applyBrazilPromotions(map,standings,{activeCompId:activeId,activeRanking,finalGroups:{'bra-c':Object.values(cSim.tables)},groupStandings:{'bra-d':Object.values(dSim.tables)},playoffWinners:{'bra-b':bWinners,'bra-d':dWinners}});
     const stateRosterUpdates={};
-    // An explicit state-league access earned by this career must survive the
-    // national rollover. Exchange one Serie D place and persist both lists.
-    if(!activeId && transition.requestedDestinationCompId==='bra-d' && transition.userClub){
-      const user=transition.userClub,userKey=normalize(user);
-      if(!plan.rosters['bra-d'].some(name=>normalize(name)===userKey)){
-        const dRows=[...(standings['bra-d']||[])].reverse();
-        const demoteCandidate=dRows.find(row=>normalize(row.name)!==userKey && !plan.decisions['bra-d']?.promoted?.some(name=>normalize(name)===normalize(row.name)))?.name
-          || plan.rosters['bra-d'].find(name=>normalize(name)!==userKey);
-        if(!demoteCandidate){plan.issues.push({code:'no-replaceable-series-d-slot',club:user});plan.valid=false;}
-        else{
-          plan.rosters['bra-d']=plan.rosters['bra-d'].filter(name=>normalize(name)!==normalize(demoteCandidate));
-          plan.rosters['bra-d'].push(user);
-          const stateId=transition.sourceCompId;
-          if(stateId && String(stateId).startsWith('bra-est-')){
-            const stateRoster=[...(transition.stateRosters?.[stateId]||[])],index=stateRoster.findIndex(name=>normalize(name)===userKey);
-            if(index>=0)stateRoster[index]=demoteCandidate;
-            else if(!stateRoster.some(name=>normalize(name)===normalize(demoteCandidate)))stateRoster.push(demoteCandidate);
-            stateRosterUpdates[stateId]=stateRoster;
+    // REGRA INVIOLÁVEL: qualquer clube que conquistar acesso ou sofrer rebaixamento
+    // para uma divisão precisa obrigatoriamente constar na divisão de destino
+    // e ser removido de sua divisão de origem, mantendo a capacidade estrita de cada divisão.
+    if(transition.requestedDestinationCompId && NATIONAL_IDS.includes(transition.requestedDestinationCompId) && transition.userClub){
+      const user = transition.userClub;
+      const userKey = normalize(user);
+      const targetDiv = transition.requestedDestinationCompId;
+      if(!plan.rosters[targetDiv].some(name => normalize(name) === userKey)){
+        const sourceDiv = NATIONAL_IDS.find(id => plan.rosters[id].some(name => normalize(name) === userKey)) || null;
+        if(sourceDiv && sourceDiv !== targetDiv){
+          // Movimentação entre divisões nacionais (ex: D->C, C->B, B->A ou rebaixamentos)
+          // O candidato a ceder a vaga DEVE pertencer aos remanescentes de plan.rosters[targetDiv]
+          const targetRoster = plan.rosters[targetDiv];
+          const targetStandings = [...(standings[targetDiv] || [])].reverse();
+          let swapCandidate = targetStandings.find(row => targetRoster.some(n => normalize(n) === normalize(row.name)) && normalize(row.name) !== userKey)?.name;
+          if(!swapCandidate){
+            swapCandidate = targetRoster.find(name => normalize(name) !== userKey);
           }
-          plan.movers.push({name:user,from:stateId||'estadual',to:'bra-d',reason:'state-promotion'});
-          plan.movers.push({name:demoteCandidate,from:'bra-d',to:stateId||'estadual',reason:'state-slot-reallocation'});
+          if(swapCandidate){
+            plan.rosters[targetDiv] = plan.rosters[targetDiv].filter(name => normalize(name) !== normalize(swapCandidate));
+            plan.rosters[targetDiv].push(user);
+            plan.rosters[sourceDiv] = plan.rosters[sourceDiv].filter(name => normalize(name) !== userKey);
+            plan.rosters[sourceDiv].push(swapCandidate);
+            plan.movers.push({ name: user, from: sourceDiv, to: targetDiv, reason: 'division-movement' });
+            plan.movers.push({ name: swapCandidate, from: targetDiv, to: sourceDiv, reason: 'division-exchange' });
+          }
+        } else if(!sourceDiv && targetDiv === 'bra-d'){
+          // Acesso conquistado no estadual para a Série D
+          const dRows = [...(standings['bra-d'] || [])].reverse();
+          const demoteCandidate = dRows.find(row => normalize(row.name) !== userKey && !plan.decisions['bra-d']?.promoted?.some(name => normalize(name) === normalize(row.name)))?.name
+            || plan.rosters['bra-d'].find(name => normalize(name) !== userKey);
+          if(!demoteCandidate){
+            plan.issues.push({ code: 'no-replaceable-series-d-slot', club: user });
+            plan.valid = false;
+          } else {
+            plan.rosters['bra-d'] = plan.rosters['bra-d'].filter(name => normalize(name) !== normalize(demoteCandidate));
+            plan.rosters['bra-d'].push(user);
+            const stateId = transition.sourceCompId;
+            if(stateId && String(stateId).startsWith('bra-est-')){
+              const stateRoster = [...(transition.stateRosters?.[stateId] || [])], index = stateRoster.findIndex(name => normalize(name) === userKey);
+              if(index >= 0) stateRoster[index] = demoteCandidate;
+              else if(!stateRoster.some(name => normalize(name) === normalize(demoteCandidate))) stateRoster.push(demoteCandidate);
+              stateRosterUpdates[stateId] = stateRoster;
+            }
+            plan.movers.push({ name: user, from: stateId || 'estadual', to: 'bra-d', reason: 'state-promotion' });
+            plan.movers.push({ name: demoteCandidate, from: 'bra-d', to: stateId || 'estadual', reason: 'state-slot-reallocation' });
+          }
         }
       }
     }

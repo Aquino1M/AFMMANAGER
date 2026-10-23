@@ -1,4 +1,4 @@
-﻿# AFM Manager — instruções do projeto
+# AFM Manager — instruções do projeto
 
 ## Arquitetura e compatibilidade
 
@@ -13,6 +13,7 @@
 - Use `resolveCalendarMatchResult(match, state)` para identificar resultados já registrados e impedir que uma partida concluída seja iniciada ou contabilizada novamente. A UI do calendário deve refletir o resultado persistido.
 - Resultados de competições adicionais alteram apenas seu próprio estado, classificação e rodada; não devem avançar nem sobrescrever a liga principal (`state.teams`). Mantenha a inscrição estadual de clubes de todas as divisões nacionais.
 - Promoção, rebaixamento, vagas, participantes e reparos de ligas devem alterar os dados da carreira (`state.competitionTeams`), nunca catálogos globais compartilhados. Carreiras e usuários diferentes devem permanecer isolados.
+- Regra inviolável de promoção, rebaixamento e grupos: Qualquer clube que conquistar acesso a uma divisão ou competição (seja o clube do usuário ou IA, vindo de estadual para Série D, ou entre Séries D, C, B, A) DEVE obrigatoriamente constar no grupo/tabela da competição de destino e ser removido da divisão anterior. Clubes rebaixados DEVEM sair do seu grupo/divisão anterior e aparecer na divisão inferior. As tabelas, grupos e calendários de TODAS as competições (`seasonPage`, `getSeriesDGroupStandings`, `getNationalCompetitionStandings`, `getStateCompData`, continentais, etc.) devem consumir os elencos e times ativos do save (`state.teams`, `state.competitionTeams`), JAMAIS catálogos estáticos imutáveis.
 - Preserve os invariantes das coleções: elenco/escalação válidos e sem duplicatas; histórico sem partidas duplicadas; classificação consistente (`J = V + E + D`, `SG = GP - GC`, `P = 3V + E`); finanças e confiança consistentes entre competições. Limite de persistência: `news` 50, `marketWorldFeed` 30 e `seasonHistory` 20 registros.
 - Não inicie partidas com menos de 11 atletas válidos por lado. Partidas ao vivo devem manter placar, eventos e animação coerentes; valide comportamento visual no navegador ao alterar o motor de partida.
 - Depois de mudanças críticas de estado, persista a carreira e re-renderize a interface sem engolir falhas silenciosamente. Botões de calendário, pré-temporada e janela de transferências precisam manter seus binds funcionais após renderização.
