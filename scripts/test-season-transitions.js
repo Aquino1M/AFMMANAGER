@@ -415,3 +415,52 @@ const newCareerSource = source.slice(source.indexOf('function newCareer('), sour
 assert.match(newCareerSource, /competitionTeams\s*:\s*careerCompetitionTeams/, 'Toda carreira nova deve ter uma cópia própria do catálogo-base.');
 assert.match(newCareerSource, /competitionClubs\(comp,\s*club\.name,\s*careerCompetitionTeams\)/, 'A liga inicial deve vir do catálogo-base, nunca da carreira anterior.');
 console.log('PASS: guarda arquitetural exige transições e novas carreiras isoladas do catálogo global.');
+
+{
+  const seriesDStandingsStart = source.indexOf('function getSeriesDGroupStandings(');
+  const seriesDStandingsEnd = source.indexOf('\nfunction getSavedSeasonMemberships(', seriesDStandingsStart);
+  assert(seriesDStandingsStart >= 0 && seriesDStandingsEnd > seriesDStandingsStart, 'getSeriesDGroupStandings não encontrado');
+  const seriesDSource = source.slice(seriesDStandingsStart, seriesDStandingsEnd);
+
+  const staticD = names('STATIC-D', 96);
+  const userClub = 'AQF';
+  const customRoster = [userClub, ...staticD.slice(0, 95)];
+  const teams = customRoster.map((name, i) => ({ name, p: i === 0 ? 15 : 3, j: 5, v: i === 0 ? 5 : 1, e: 0, d: i === 0 ? 0 : 4, gp: 10, gc: 2, sg: 8, form: ['V','V','V','V','V'] }));
+  const state = {
+    club: userClub,
+    compId: 'bra-d',
+    season: 2028,
+    teams,
+    competitionTeams: { 'bra-d': customRoster }
+  };
+  const context = {
+    window: { COMPETITION_TEAMS: { 'bra-d': staticD } },
+    state,
+    norm,
+    BASE_COMPETITION_TEAMS: { 'bra-d': staticD }
+  };
+  vm.runInNewContext(seriesDSource, context);
+  const groups = context.getSeriesDGroupStandings();
+  assert.ok(groups.A, 'Grupo A deve existir');
+  assert.equal(groups.A.length, 24, 'Grupo A deve conter 24 clubes');
+  assert.equal(groups.B.length, 24, 'Grupo B deve conter 24 clubes');
+  assert.equal(groups.C.length, 24, 'Grupo C deve conter 24 clubes');
+  assert.equal(groups.D.length, 24, 'Grupo D deve conter 24 clubes');
+  const aqfInA = groups.A.find(r => r.name === userClub);
+  assert.ok(aqfInA, 'Clube do usuário (AQF) DEVE constar no Grupo A');
+  assert.equal(aqfInA.group, 'A');
+  assert.equal(aqfInA.p, 15);
+  assert.equal(aqfInA.groupPosition, 1);
+
+  // Mesmo se alguém passar teamList = staticD (sem AQF), o clube do usuário ativo em bra-d deve aparecer
+  const groupsPassedStatic = context.getSeriesDGroupStandings(staticD);
+  const aqfInPassed = Object.values(groupsPassedStatic).flat().find(r => r.name === userClub);
+  assert.ok(aqfInPassed, 'AQF deve aparecer no grupo mesmo se passado teamList estático sem ele');
+
+  // getNationalCompetitionStandings para bra-d
+  const natStandings = context.getNationalCompetitionStandings('bra-d');
+  assert.equal(natStandings.length, 96, 'Classificação nacional da Série D deve ter 96 clubes');
+  assert.ok(natStandings.some(r => r.name === userClub), 'Classificação nacional deve incluir AQF');
+
+  console.log('PASS: clube promovido (AQF) aparece no Grupo A da Série D com posição, pontos e forma corretos.');
+}

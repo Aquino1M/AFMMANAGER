@@ -9387,19 +9387,21 @@ function getClubDivisionAndState(clubName){
     else if(state.compId === 'bra-d') division = 'BRASILEIRÃO SÉRIE D';
     else if(state.compId.startsWith('bra-est-')) division = (comp?.name || 'CAMPEONATO ESTADUAL').toUpperCase();
     else division = (comp?.name || 'LIGA NACIONAL').toUpperCase();
-  } else
-  if(window.COMPETITION_TEAMS?.['bra-a']?.some(x => norm(x) === norm(clubName))){
-    division = 'BRASILEIRÃO SÉRIE A';
-  } else if(window.COMPETITION_TEAMS?.['bra-b']?.some(x => norm(x) === norm(clubName))){
-    division = 'BRASILEIRÃO SÉRIE B';
-  } else if(window.COMPETITION_TEAMS?.['bra-c']?.some(x => norm(x) === norm(clubName))){
-    division = 'BRASILEIRÃO SÉRIE C';
-  } else if(window.COMPETITION_TEAMS?.['bra-d']?.some(x => norm(x) === norm(clubName))){
-    division = 'BRASILEIRÃO SÉRIE D';
-  } else if(c?.country && c.country !== 'Brasil'){
-    division = (c.competition || comp?.name || 'LIGA NACIONAL').toUpperCase();
   } else {
-    division = 'SEM DIVISÃO NACIONAL';
+    const tMap = state?.competitionTeams || window.COMPETITION_TEAMS || {};
+    if(tMap['bra-a']?.some(x => norm(x) === norm(clubName))){
+      division = 'BRASILEIRÃO SÉRIE A';
+    } else if(tMap['bra-b']?.some(x => norm(x) === norm(clubName))){
+      division = 'BRASILEIRÃO SÉRIE B';
+    } else if(tMap['bra-c']?.some(x => norm(x) === norm(clubName))){
+      division = 'BRASILEIRÃO SÉRIE C';
+    } else if(tMap['bra-d']?.some(x => norm(x) === norm(clubName))){
+      division = 'BRASILEIRÃO SÉRIE D';
+    } else if(c?.country && c.country !== 'Brasil'){
+      division = (c.competition || comp?.name || 'LIGA NACIONAL').toUpperCase();
+    } else {
+      division = 'SEM DIVISÃO NACIONAL';
+    }
   }
 
   // 2. Identificação da Região / Estado / País
@@ -10240,8 +10242,11 @@ function eligibleClubNames(comp, rosterOverride = null){
 
 function competitionClubs(comp,selected,rosterOverride=null){
   let names=eligibleClubNames(comp,rosterOverride);
-  if(selected&&!names.some(x=>norm(x)===norm(selected)))names.unshift(selected);
   const target=comp.teams||Math.max(10,names.length);
+  if(selected&&!names.some(x=>norm(x)===norm(selected))){
+    names.unshift(selected);
+    if(names.length > target) names.pop();
+  }
   const base=compBaseStrength(comp);
   const out=names.map(name=>clubByName(name)||{name,country:comp.country,competition:comp.name,stadium:'Estádio do clube',atk:base,mid:base,def:base,budget:5});
   const selectedRoster = rosterOverride?.[comp.id] || state?.competitionTeams?.[comp.id];
@@ -10258,7 +10263,7 @@ function competitionClubs(comp,selected,rosterOverride=null){
       out.unshift(selItem);
     }
   }
-  return hasBaseRoster || hasSavedRoster ? out : out.slice(0,target);
+  return out.slice(0,target);
 }
 
 // Auditoria central: a temporada só termina quando todas as competições
@@ -13524,6 +13529,24 @@ function repairSaveIfCorrupted(s){
     saveRequired = true;
     s.schedule = buildSchedule(activeCompObj, (s.teams || []).map(t => t.name));
     s.round = Math.min(Number(s.round) || 0, Math.max(0, s.schedule.length - 1));
+  }
+
+  // Garante que o clube ativo na divisão nacional conste no roster oficial persistido (Grupo A na Série D)
+  if(['bra-a','bra-b','bra-c','bra-d'].includes(curCompId)){
+    s.competitionTeams = s.competitionTeams || {};
+    if(Array.isArray(s.teams) && s.teams.length === expectedNationalTeamCount && s.teams.some(t => norm(t?.name) === normalizedClub)){
+      s.competitionTeams[curCompId] = s.teams.map(t => t.name);
+    } else {
+      const divRoster = Array.isArray(s.competitionTeams[curCompId])
+        ? s.competitionTeams[curCompId]
+        : ((typeof BASE_COMPETITION_TEAMS !== 'undefined' ? BASE_COMPETITION_TEAMS?.[curCompId] : null) || window.COMPETITION_TEAMS?.[curCompId] || []).slice();
+      if(!divRoster.some(name => norm(name) === normalizedClub)){
+        if(divRoster.length >= expectedNationalTeamCount) divRoster.pop();
+        divRoster.unshift(s.club);
+        s.competitionTeams[curCompId] = divRoster;
+        saveRequired = true;
+      }
+    }
   }
 
   if(isAcreanoBug || (isBrasiliaInWrongComp && !isValidSavedNationalDivision) || isClubMissingFromTeams || isSelfMatchBug || isScheduleEmptyOrNoUser || (isCompMismatched && !isValidSavedNationalDivision)){
@@ -28835,7 +28858,12 @@ function calendarPage(){
     if(!fixture)return [];
     const [home,away]=fixture,isHome=calendarClubKey(home)===calendarClubKey(myClub),date=getDateForRound(rIndex,state.season),opponentKey=calendarClubKey(isHome?away:home);
     const historyMatch=(state.history||[]).find(h=>Number(h.round)===rIndex+1&&(!h.competitionId||h.competitionId===comp.id||h.competitionId==='COMP')&&(!h.season||Number(h.season)===Number(state.season))&&((calendarClubKey(h.h)===calendarClubKey(myClub)&&calendarClubKey(h.a)===opponentKey)||(calendarClubKey(h.a)===calendarClubKey(myClub)&&calendarClubKey(h.h)===opponentKey)));
-    const groupIndex=comp.id==='bra-d'?Math.floor((window.COMPETITION_TEAMS?.['bra-d']||[]).findIndex(name=>norm(name)===norm(myClub))/24):-1,groupName=groupIndex>=0?String.fromCharCode(65+groupIndex):'';
+    const dRoster = (state.compId === 'bra-d' && Array.isArray(state.teams) && state.teams.length >= 96)
+      ? state.teams.map(t => t.name)
+      : (state.competitionTeams?.['bra-d'] || window.COMPETITION_TEAMS?.['bra-d'] || []);
+    let groupIndex = comp.id === 'bra-d' ? Math.floor(dRoster.findIndex(name => norm(name) === norm(myClub)) / 24) : -1;
+    if(comp.id === 'bra-d' && groupIndex < 0) groupIndex = 0;
+    const groupName = groupIndex >= 0 ? String.fromCharCode(65 + groupIndex) : '';
     const result = historyMatch ? (calendarClubKey(historyMatch.h) === calendarClubKey(home) ? [Number(historyMatch.hg)||0, Number(historyMatch.ag)||0] : [Number(historyMatch.ag)||0, Number(historyMatch.hg)||0]) : null;
     return [{competitionId:'COMP',name:comp.name,home,away,isHome,date,round:comp.id==='bra-d'?`Grupo ${groupName} - Rodada ${rIndex+1}`:`Rodada ${rIndex+1}`,current:rIndex===state.round,past:date<state.date,historyMatch,result,matchIndex:rIndex}];
   })};
@@ -32709,7 +32737,7 @@ function getDivisionStandingsList(divId){
     const nat = getNationalCompetitionStandings(divId);
     if(Array.isArray(nat) && nat.length > 0) return nat;
   }
-  const defaultList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[divId]) || [];
+  const defaultList = state?.competitionTeams?.[divId] || (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[divId]) || [];
   return defaultList.map((name, idx) => ({ name, p: 0, j: 0, v: 0, e: 0, d: 0, sg: 0, defaultPos: idx + 1 }));
 }
 
@@ -33615,7 +33643,24 @@ function __unused_old_renderContinentalBlock(){
 // TEMPORADA & TABELA ESTILO ORIGINAL
 // -------------------------------------------------------------
 function getSeriesDGroupStandings(teamList = null, sourceRows = null){
-  const roster = Array.isArray(teamList) ? teamList : (state?.competitionTeams?.['bra-d'] || window.COMPETITION_TEAMS?.['bra-d'] || []);
+  let roster = null;
+  if(state?.compId === 'bra-d' && Array.isArray(state?.teams) && state.teams.length >= 96){
+    roster = state.teams.map(t => t.name);
+  } else if(Array.isArray(teamList) && teamList.length >= 96){
+    roster = [...teamList];
+  } else if(Array.isArray(state?.competitionTeams?.['bra-d']) && state.competitionTeams['bra-d'].length >= 96){
+    roster = [...state.competitionTeams['bra-d']];
+  } else {
+    roster = [...((typeof BASE_COMPETITION_TEAMS !== 'undefined' ? BASE_COMPETITION_TEAMS?.['bra-d'] : null) || window.COMPETITION_TEAMS?.['bra-d'] || [])];
+  }
+  if(state?.club && (state.compId === 'bra-d' || state.competition?.includes('Série D') || state.currentLeague?.includes('Série D') || (Array.isArray(state?.competitionTeams?.['bra-d']) && state.competitionTeams['bra-d'].some(name => norm(name) === norm(state.club))))){
+    const clubNorm = norm(state.club);
+    const existingIdx = roster.findIndex(name => norm(name) === clubNorm);
+    if(existingIdx < 0){
+      if(roster.length >= 96) roster.pop();
+      roster.unshift(state.club);
+    }
+  }
   const activeRows = Array.isArray(sourceRows) ? sourceRows : (state?.compId === 'bra-d' ? (state.teams || []) : (state?.nationalCompetitionStandings?.['bra-d'] || []));
   const byName = new Map(activeRows.map(row => [norm(row?.name), row]));
   return Object.fromEntries(['A','B','C','D'].map((group,index) => {
@@ -33629,7 +33674,10 @@ function getSeriesDGroupStandings(teamList = null, sourceRows = null){
 }
 
 function getNationalCompetitionStandings(natId){
-  const teamList = (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[natId]) || [];
+  const savedRoster = state?.competitionTeams?.[natId];
+  const teamList = (Array.isArray(savedRoster) && savedRoster.length)
+    ? savedRoster
+    : ((window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[natId]) || []);
   const expectedSize = natId === 'bra-d' ? 96 : 20;
   const activeCompetition = state?.compId === natId;
   const activeTeams = activeCompetition && Array.isArray(state?.teams) ? state.teams : null;
@@ -33637,7 +33685,10 @@ function getNationalCompetitionStandings(natId){
   const rows = teamList.map(name => activeByName.get(norm(name))).filter(Boolean);
 
   if(natId === 'bra-d'){
-    return Object.values(getSeriesDGroupStandings(teamList, activeCompetition ? activeTeams : null)).flat();
+    const dRoster = (activeCompetition && activeTeams?.length >= 96)
+      ? activeTeams.map(t => t.name)
+      : teamList;
+    return Object.values(getSeriesDGroupStandings(dRoster, activeCompetition ? activeTeams : null)).flat();
   }
 
   // Só usa resultados reais do save para a liga ativa. Não apresenta pontos fictícios de outra divisão.
@@ -33720,7 +33771,12 @@ function seasonPage(){
   const r = isViewingNationalWhileInEstadual ? nationalStandings : ranking();
   const worldChampionSeasons = Array.isArray(state.worldChampionHistory) ? state.worldChampionHistory : [];
   const seriesDGroups = comp.id === 'bra-d'
-    ? getSeriesDGroupStandings(window.COMPETITION_TEAMS?.['bra-d'] || [], state.compId === 'bra-d' ? (state.teams || []) : (state.nationalCompetitionStandings?.['bra-d'] || []))
+    ? getSeriesDGroupStandings(
+        state.compId === 'bra-d' && Array.isArray(state.teams) && state.teams.length >= 96
+          ? state.teams.map(t => t.name)
+          : (state.competitionTeams?.['bra-d'] || (typeof BASE_COMPETITION_TEAMS !== 'undefined' ? BASE_COMPETITION_TEAMS?.['bra-d'] : null) || window.COMPETITION_TEAMS?.['bra-d'] || []),
+        state.compId === 'bra-d' ? (state.teams || []) : (state.nationalCompetitionStandings?.['bra-d'] || [])
+      )
     : null;
   
   return `
