@@ -1,10 +1,10 @@
-# AFM Manager
+﻿# AFM Manager
 
-Jogo de gerenciamento de futebol em HTML, CSS e JavaScript, executado no navegador e com saves locais. A integração Supabase é opcional e sincroniza saves quando configurada.
+Jogo de gerenciamento de futebol feito em HTML, CSS e JavaScript, executado no navegador. A carreira é salva localmente; a sincronização Supabase é opcional e depende da configuração e da disponibilidade do serviço.
 
 ## Executar
 
-Abra `index.html` ou inicie um servidor estático na pasta do projeto:
+Abra `index.html` ou rode um servidor estático na raiz do projeto:
 
 ```sh
 npx serve .
@@ -12,26 +12,25 @@ npx serve .
 
 ## Estrutura
 
-- `index.html`: carrega dados, módulos e interface.
 - `js/game.js`: fluxo da carreira e interface principal.
-- `js/core/`: motor de partidas, tática e áudio.
-- `js/competitions.js`, `data/competition_teams.js`: catálogo e clubes das competições.
-- `data/`: dados locais de clubes, jogadores, escudos e torneios.
-- `scripts/`: verificações e manutenção de dados.
-- `supabase/schema.sql`: esquema usado pela sincronização opcional.
+- `js/core/`: motores de partida, tática, áudio e sistemas reutilizáveis.
+- `js/competitions.js` e `data/`: catálogos, clubes e dados das competições.
+- `scripts/`: testes e ferramentas de manutenção.
+- `supabase/schema.sql`: schema de referência da integração opcional.
 
-## Saves e sincronização
+## Saves, login e segurança
 
-O jogo mantém três slots locais por conta. A cópia local é a fonte de recuperação offline. A sincronização na nuvem depende do projeto Supabase e de políticas RLS compatíveis com a autenticação usada pelo jogo.
-
-O código atual usa Supabase Auth e define políticas RLS por proprietário em `supabase/schema.sql`. A configuração e as políticas do projeto remoto não foram verificadas nesta auditoria; confirme que o schema atual foi aplicado antes de habilitar sincronização para outros usuários.
+O jogo mantém três slots locais por conta, permitindo uso offline. O código usa autenticação própria baseada em `afm_users`, não Supabase Auth. O schema versionado contém políticas amplamente públicas para `afm_users` e `afm_saves`; por isso, não habilite o banco para usuários reais antes de corrigir e verificar autenticação, propriedade dos dados e políticas RLS. A configuração remota não foi verificada por este documento.
 
 ## Verificações
 
+Alguns testes úteis:
+
 ```sh
-node scripts/test-gameplay-systems.js
-node scripts/test-error-log.js
-node scripts/audit-football-data.js
+npm run test:finance
+npm run test:season-transitions
+npm run test:calendar-recovery
+npm run test:username-login
 ```
 
-O comando `npm run build` é apenas uma mensagem de confirmação; não compila nem testa o jogo.
+`npm run build` apenas imprime `Static build ready`; não compila nem testa o jogo.

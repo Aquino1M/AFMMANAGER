@@ -838,6 +838,8 @@
           const firstName = (p.name || 'Craque').split(' ')[0];
           const regenName = `${firstName} Jr.`;
 
+          // Um regen herda o perfil esportivo, não a identidade nem as fotos do veterano.
+          // Não copiar photo, photoUrl, faceUrl ou tmId do jogador aposentado.
           const regen = {
             id: `regen_${Date.now()}_${idx}_${Math.floor(Math.random() * 1000)}`,
             name: regenName,

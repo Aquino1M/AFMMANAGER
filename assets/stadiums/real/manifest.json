@@ -1,0 +1,375 @@
+{
+  "generator": "AFM Profile-Specific Low Poly GLB Generator",
+  "version": 1,
+  "source": "js/core/real_football_engine.js (RealPitchRenderer3D.getStadiumProfile)",
+  "models": [
+    {
+      "id": "maracana",
+      "name": "Maracanã",
+      "style": "maracana",
+      "file": "maracana.glb",
+      "bytes": 214388,
+      "sha256": "8a95f6586e5dae5d5aca85c336037be927c498f72b3c928660913c820294b62c",
+      "roof": "ring",
+      "shell": "concrete",
+      "capacity": 78838,
+      "colors": {
+        "primary": "#c7cbd1",
+        "secondary": "#64748b",
+        "accent": "#facc15"
+      }
+    },
+    {
+      "id": "neo-quimica",
+      "name": "Neo Química Arena",
+      "style": "neo-quimica",
+      "file": "neo-quimica.glb",
+      "bytes": 193716,
+      "sha256": "e2f0da47d784ef2935f14f2a54580bc9c1d3d4068c1be0e81735499eb17ef326",
+      "roof": "partial",
+      "shell": "dark-led",
+      "capacity": 49200,
+      "colors": {
+        "primary": "#20242a",
+        "secondary": "#f8fafc",
+        "accent": "#e11d48"
+      }
+    },
+    {
+      "id": "allianz-parque",
+      "name": "Allianz Parque",
+      "style": "allianz-parque",
+      "file": "allianz-parque.glb",
+      "bytes": 287016,
+      "sha256": "8da16adabb84a2ef37eefcec0f6a5f724d817878ee85da0b8bed90d0ce7d006b",
+      "roof": "full",
+      "shell": "facade-ribs",
+      "capacity": 43713,
+      "colors": {
+        "primary": "#d1d5db",
+        "secondary": "#15803d",
+        "accent": "#22c55e"
+      }
+    },
+    {
+      "id": "morumbis",
+      "name": "MorumBIS",
+      "style": "morumbi",
+      "file": "morumbis.glb",
+      "bytes": 221956,
+      "sha256": "c1a1059fec7bb21548e9ef757a9d2cf9f52f1a45cac5c9314937b22acf5c9ed7",
+      "roof": "partial",
+      "shell": "concrete",
+      "capacity": 66700,
+      "colors": {
+        "primary": "#d1d5db",
+        "secondary": "#dc2626",
+        "accent": "#111827"
+      }
+    },
+    {
+      "id": "arena-gremio",
+      "name": "Arena do Grêmio",
+      "style": "arena-gremio",
+      "file": "arena-gremio.glb",
+      "bytes": 185240,
+      "sha256": "a07b244c4c32f42e8d00b28d6780fd06443a610259de77d98ba0ae9f20762ee0",
+      "roof": "full",
+      "shell": "metal-ribs",
+      "capacity": 55600,
+      "colors": {
+        "primary": "#64748b",
+        "secondary": "#0284c7",
+        "accent": "#f8fafc"
+      }
+    },
+    {
+      "id": "beira-rio",
+      "name": "Beira-Rio",
+      "style": "beira-rio",
+      "file": "beira-rio.glb",
+      "bytes": 298156,
+      "sha256": "7c7cc73f3486ab76d91eceb68f1b587a39405f6aed3b1e4862fd58b584a8af1c",
+      "roof": "full",
+      "shell": "leaf",
+      "capacity": 50800,
+      "colors": {
+        "primary": "#dc2626",
+        "secondary": "#64748b",
+        "accent": "#f8fafc"
+      }
+    },
+    {
+      "id": "arena-mrv",
+      "name": "Arena MRV",
+      "style": "arena-mrv",
+      "file": "arena-mrv.glb",
+      "bytes": 205976,
+      "sha256": "5364cd3cf99c8929c98040ee8aa27c52500c721ec72eef7a4aa43e3c94c10122",
+      "roof": "full",
+      "shell": "dark-led",
+      "capacity": 47400,
+      "colors": {
+        "primary": "#111827",
+        "secondary": "#f8fafc",
+        "accent": "#dc2626"
+      }
+    },
+    {
+      "id": "mineirao",
+      "name": "Mineirão",
+      "style": "mineirao",
+      "file": "mineirao.glb",
+      "bytes": 184816,
+      "sha256": "302009cd23a478a725508bada6cd6ff0b9e4ccb5580e3fd5b4cfa5decacdb745",
+      "roof": "ring",
+      "shell": "concrete",
+      "capacity": 62000,
+      "colors": {
+        "primary": "#0284c7",
+        "secondary": "#e2e8f0",
+        "accent": "#2563eb"
+      }
+    },
+    {
+      "id": "nilton-santos",
+      "name": "Nilton Santos",
+      "style": "nilton-santos",
+      "file": "nilton-santos.glb",
+      "bytes": 318404,
+      "sha256": "a04440b14b1e230651509f77602932bd5546908a96283629acae04fbce8484d6",
+      "roof": "partial",
+      "shell": "truss",
+      "capacity": 45200,
+      "colors": {
+        "primary": "#111827",
+        "secondary": "#f8fafc",
+        "accent": "#6b7280"
+      }
+    },
+    {
+      "id": "fonte-nova",
+      "name": "Arena Fonte Nova",
+      "style": "fonte-nova",
+      "file": "fonte-nova.glb",
+      "bytes": 179216,
+      "sha256": "2760508eeebe74d7bdf9949ac626dc7d7582dd13dc1369e0a6c80fbb502cbedf",
+      "roof": "ring",
+      "shell": "concrete",
+      "capacity": 56500,
+      "colors": {
+        "primary": "#0284c7",
+        "secondary": "#dc2626",
+        "accent": "#f8fafc"
+      }
+    },
+    {
+      "id": "bernabeu",
+      "name": "Santiago Bernabéu",
+      "style": "bernabeu",
+      "file": "bernabeu.glb",
+      "bytes": 264368,
+      "sha256": "576bc2aa5e8e3589c2b5b90a1edc4475ae542ee541f013a882deb4e74ab12e03",
+      "roof": "retractable",
+      "shell": "silver-shell",
+      "capacity": 82000,
+      "colors": {
+        "primary": "#d1d5db",
+        "secondary": "#f8fafc",
+        "accent": "#2563eb"
+      }
+    },
+    {
+      "id": "camp-nou",
+      "name": "Spotify Camp Nou",
+      "style": "camp-nou",
+      "file": "camp-nou.glb",
+      "bytes": 385272,
+      "sha256": "d5b728136f7da446ec3ea8eec7f6f5a9edad75210079c7a67a445741eff69f76",
+      "roof": "partial",
+      "shell": "tiered-open",
+      "capacity": 99000,
+      "colors": {
+        "primary": "#1e3a8a",
+        "secondary": "#991b1b",
+        "accent": "#facc15"
+      }
+    },
+    {
+      "id": "allianz-arena",
+      "name": "Allianz Arena",
+      "style": "allianz",
+      "file": "allianz-arena.glb",
+      "bytes": 260732,
+      "sha256": "8e79ff9c15b40a6e4ed584a10698c5227c56cc64ca9570b8ba03d1c92ee8b4c0",
+      "roof": "full",
+      "shell": "diamond",
+      "capacity": 71137,
+      "colors": {
+        "primary": "#e2e8f0",
+        "secondary": "#dc2626",
+        "accent": "#2563eb"
+      }
+    },
+    {
+      "id": "etihad",
+      "name": "Etihad Stadium",
+      "style": "etihad",
+      "file": "etihad.glb",
+      "bytes": 194936,
+      "sha256": "bd8a988d02d3eb4c2534f1417332f6f7ec4f6fb6e1d2783b8601bf152b7cf332",
+      "roof": "partial",
+      "shell": "mast-cable",
+      "capacity": 53400,
+      "colors": {
+        "primary": "#38bdf8",
+        "secondary": "#e2e8f0",
+        "accent": "#0284c7"
+      }
+    },
+    {
+      "id": "old-trafford",
+      "name": "Old Trafford",
+      "style": "old-trafford",
+      "file": "old-trafford.glb",
+      "bytes": 305788,
+      "sha256": "2c4b3e441fa5314f0443b1b46323d2d549508586ac13930520eb920deea3bed8",
+      "roof": "partial",
+      "shell": "classic-gables",
+      "capacity": 74300,
+      "colors": {
+        "primary": "#dc2626",
+        "secondary": "#475569",
+        "accent": "#f8fafc"
+      }
+    },
+    {
+      "id": "parc-des-princes",
+      "name": "Parc des Princes",
+      "style": "parc-des-princes",
+      "file": "parc-des-princes.glb",
+      "bytes": 205684,
+      "sha256": "b2b834706d91b29a02b62b87e26695a5402fa3cd2d35a5300c0abb4273001df0",
+      "roof": "full",
+      "shell": "concrete-ribbon",
+      "capacity": 47900,
+      "colors": {
+        "primary": "#1e3a8a",
+        "secondary": "#dc2626",
+        "accent": "#f8fafc"
+      }
+    },
+    {
+      "id": "allianz-stadium-torino",
+      "name": "Allianz Stadium",
+      "style": "allianz-torino",
+      "file": "allianz-stadium-torino.glb",
+      "bytes": 178720,
+      "sha256": "6ad509300baecbc05e9d7ad70257591d01d885211780146ce5ede0a9fb3eddea",
+      "roof": "full",
+      "shell": "minimal-white",
+      "capacity": 41500,
+      "colors": {
+        "primary": "#111827",
+        "secondary": "#f8fafc",
+        "accent": "#facc15"
+      }
+    },
+    {
+      "id": "saitama-stadium",
+      "name": "Saitama Stadium 2002",
+      "style": "saitama",
+      "file": "saitama-stadium.glb",
+      "bytes": 309808,
+      "sha256": "206082b93065fa06300959acf1b1e27d69e89c06b90d76aa95e7be49c4a1f571",
+      "roof": "partial",
+      "shell": "gable-east-west",
+      "capacity": 62040,
+      "colors": {
+        "primary": "#dc2626",
+        "secondary": "#f8fafc",
+        "accent": "#991b1b"
+      }
+    },
+    {
+      "id": "nissan-stadium",
+      "name": "Nissan Stadium",
+      "style": "nissan-stadium",
+      "file": "nissan-stadium.glb",
+      "bytes": 236924,
+      "sha256": "4b7ac84a000569404932d05bbd21d730e74b129d5b0022142517c48a701ebd39",
+      "roof": "partial",
+      "shell": "truss",
+      "capacity": 72327,
+      "colors": {
+        "primary": "#0284c7",
+        "secondary": "#f8fafc",
+        "accent": "#dc2626"
+      }
+    },
+    {
+      "id": "ajinomoto-stadium",
+      "name": "Ajinomoto Stadium",
+      "style": "ajinomoto",
+      "file": "ajinomoto-stadium.glb",
+      "bytes": 201652,
+      "sha256": "f39eaf83caaa405558cfab157f87974a17c553c3b0ff8853339ef4bbd93731b6",
+      "roof": "partial",
+      "shell": "cable-ring",
+      "capacity": 48955,
+      "colors": {
+        "primary": "#1d4ed8",
+        "secondary": "#f8fafc",
+        "accent": "#dc2626"
+      }
+    },
+    {
+      "id": "kingdom-arena",
+      "name": "Kingdom Arena",
+      "style": "asian-elite",
+      "file": "kingdom-arena.glb",
+      "bytes": 203976,
+      "sha256": "2b8e00b90ddec6a6d43cd3ccb40445b5e4ea1b80bc829dfbf6c3e8dfa45c0508",
+      "roof": "full",
+      "shell": "compact-enclosed",
+      "capacity": 26000,
+      "colors": {
+        "primary": "#1e3a8a",
+        "secondary": "#f8fafc",
+        "accent": "#60a5fa"
+      }
+    },
+    {
+      "id": "al-awwal-park",
+      "name": "Al-Awwal Park",
+      "style": "al-awwal-park",
+      "file": "al-awwal-park.glb",
+      "bytes": 164464,
+      "sha256": "d988f9ed20bc49e55e43a2ba0422eb9d7580659537cc7e5f73f5333e46a308a3",
+      "roof": "partial",
+      "shell": "asymmetric-crown",
+      "capacity": 25000,
+      "colors": {
+        "primary": "#facc15",
+        "secondary": "#1e3a8a",
+        "accent": "#f8fafc"
+      }
+    },
+    {
+      "id": "king-abdullah-sports-city",
+      "name": "King Abdullah Sports City",
+      "style": "king-abdullah",
+      "file": "king-abdullah-sports-city.glb",
+      "bytes": 198316,
+      "sha256": "298183e9ce4ad76cba9da75ea0985a34659dcc63bf9ef583571633c2a360c9c2",
+      "roof": "partial",
+      "shell": "national-bowl",
+      "capacity": 62000,
+      "colors": {
+        "primary": "#facc15",
+        "secondary": "#111827",
+        "accent": "#f8fafc"
+      }
+    }
+  ]
+}

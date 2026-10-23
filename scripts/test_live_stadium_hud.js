@@ -93,8 +93,8 @@ console.log('Total radial gradients rendered (flares + floodlights):', drawnGrad
 console.log('Floodlight volumetric light cones count:', floodlightTowers);
 
 assert(floodlightTowers === 4, 'Must render exactly 4 3D floodlight towers');
-assert(renderedTexts.includes('BRFC27'), 'Must render BRFC27 advertising board');
-assert(renderedTexts.includes('BETANO'), 'Must render Betano advertising board');
+assert(renderedTexts.includes('ESTÁDIO MUNICIPAL'), 'Generic opponent stadium must use neutral municipal boards');
+assert(!renderedTexts.includes('BRFC27'), 'Generic opponent stadium must not inherit branded career boards');
 assert(drawnGradients >= 15, 'Must render multiple flare and floodlight radial gradients');
 console.log('✓ draw4SectorsStadium passed with 4 floodlights, flares, and ad boards!');
 

@@ -1316,42 +1316,97 @@
     },
 
     // 8. Novo Estádio 3D Imersivo Cinema (Estrutura Real, Mosaicos Vivos, Holofotes Volumétricos e Sem Bloqueios)
-    draw4SectorsStadium(ctx, s, projFn) {
-      const stData = (typeof window !== 'undefined' && window.getStadiumExpansionData) ? window.getStadiumExpansionData() : null;
-      const capacity = s.stadium?.capacity || 20000;
-      const infraLevel = (typeof window !== 'undefined' && window.state && window.state.infrastructure?.stadium?.level) || 1;
+    getStadiumProfile(clubName, gameState = null) {
+      const n = String(clubName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const careerClub = String(gameState?.club || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      if(gameState && n === careerClub){
+        const custom = gameState.stadiumCustomization || {};
+        return { id:'career-stadium', style:'career', name:custom.name || gameState.stadiumName || gameState.stadium?.name || `Estádio do ${clubName}`, primary:custom.standColor || '#334155', secondary:custom.seatColor || gameState.homeKit?.shirtColor || '#2563eb', accent:custom.accentColor || '#facc15', grassColor:custom.grassColor || '#15803d', capacity:Number(gameState.infrastructure?.stadium?.capacity || gameState.stadium?.capacity) || 18000, roof:Number(gameState.infrastructure?.stadium?.level || 1) >= 3 ? 'full' : 'partial', upgrades:gameState.stadiumUpgrades || {}, customization:custom };
+      }
+      const profiles = [
+        { match:['flamengo','clube de regatas do flamengo','fluminense','fluminense football club'], id:'maracana',name:'Maracanã',style:'maracana',primary:'#c7cbd1',secondary:'#64748b',accent:'#facc15',capacity:78838,roof:'ring' },
+        { match:['corinthians','sport club corinthians paulista'], id:'neo-quimica',name:'Neo Química Arena',style:'neo-quimica',primary:'#20242a',secondary:'#f8fafc',accent:'#e11d48',capacity:49200,roof:'partial' },
+        { match:['palmeiras','sociedade esportiva palmeiras'], id:'allianz-parque',name:'Allianz Parque',style:'allianz-parque',primary:'#d1d5db',secondary:'#15803d',accent:'#22c55e',capacity:43713,roof:'full' },
+        { match:['sao paulo','sao paulo futebol clube'], id:'morumbis',name:'MorumBIS',style:'morumbi',primary:'#d1d5db',secondary:'#dc2626',accent:'#111827',capacity:66700,roof:'partial' },
+        { match:['gremio','gremio foot ball porto alegrense'], id:'arena-gremio',name:'Arena do Grêmio',style:'arena-gremio',primary:'#64748b',secondary:'#0284c7',accent:'#f8fafc',capacity:55600,roof:'full' },
+        { match:['internacional','sport club internacional'], id:'beira-rio',name:'Beira-Rio',style:'beira-rio',primary:'#dc2626',secondary:'#64748b',accent:'#f8fafc',capacity:50800,roof:'full' },
+        { match:['atletico mineiro','atletico mg','clube atletico mineiro'], id:'arena-mrv',name:'Arena MRV',style:'arena-mrv',primary:'#111827',secondary:'#f8fafc',accent:'#dc2626',capacity:47400,roof:'full' },
+        { match:['cruzeiro'], id:'mineirao',name:'Mineirão',style:'mineirao',primary:'#0284c7',secondary:'#e2e8f0',accent:'#2563eb',capacity:62000,roof:'ring' },
+        { match:['botafogo'], id:'nilton-santos',name:'Nilton Santos',style:'nilton-santos',primary:'#111827',secondary:'#f8fafc',accent:'#6b7280',capacity:45200,roof:'partial' },
+        { match:['bahia'], id:'fonte-nova',name:'Arena Fonte Nova',style:'fonte-nova',primary:'#0284c7',secondary:'#dc2626',accent:'#f8fafc',capacity:56500,roof:'ring' },
+        { match:['real madrid'], id:'bernabeu',name:'Santiago Bernabéu',style:'bernabeu',primary:'#d1d5db',secondary:'#f8fafc',accent:'#2563eb',capacity:82000,roof:'retractable' },
+        { match:['barcelona','fc barcelona'], id:'camp-nou',name:'Spotify Camp Nou',style:'camp-nou',primary:'#1e3a8a',secondary:'#991b1b',accent:'#facc15',capacity:99000,roof:'partial' },
+        { match:['bayern munich','bayern de munique','bayern munchen','fc bayern munchen'], id:'allianz-arena',name:'Allianz Arena',style:'allianz',primary:'#e2e8f0',secondary:'#dc2626',accent:'#2563eb',capacity:71137,roof:'full' },
+        { match:['manchester city'], id:'etihad',name:'Etihad Stadium',style:'etihad',primary:'#38bdf8',secondary:'#e2e8f0',accent:'#0284c7',capacity:53400,roof:'partial' },
+        { match:['manchester united'], id:'old-trafford',name:'Old Trafford',style:'old-trafford',primary:'#dc2626',secondary:'#475569',accent:'#f8fafc',capacity:74300,roof:'partial' },
+        { match:['paris saint germain','psg'], id:'parc-des-princes',name:'Parc des Princes',style:'parc-des-princes',primary:'#1e3a8a',secondary:'#dc2626',accent:'#f8fafc',capacity:47900,roof:'full' },
+        { match:['juventus'], id:'allianz-stadium-torino',name:'Allianz Stadium',style:'allianz-torino',primary:'#111827',secondary:'#f8fafc',accent:'#facc15',capacity:41500,roof:'full' },
+        { match:['urawa reds','urawa red diamonds','urawa'], id:'saitama-stadium',name:'Saitama Stadium 2002',style:'saitama',primary:'#dc2626',secondary:'#f8fafc',accent:'#991b1b',capacity:62040,roof:'partial' },
+        { match:['yokohama f marinos','yokohama f marinos fc'], id:'nissan-stadium',name:'Nissan Stadium',style:'nissan-stadium',primary:'#0284c7',secondary:'#f8fafc',accent:'#dc2626',capacity:72327,roof:'partial' },
+        { match:['tokyo','fc tokyo'], id:'ajinomoto-stadium',name:'Ajinomoto Stadium',style:'ajinomoto',primary:'#1d4ed8',secondary:'#f8fafc',accent:'#dc2626',capacity:48955,roof:'partial' },
+        { match:['al hilal','al hilal saudi club'], id:'kingdom-arena',name:'Kingdom Arena',style:'asian-elite',primary:'#1e3a8a',secondary:'#f8fafc',accent:'#60a5fa',capacity:26000,roof:'full' },
+        { match:['al nassr','al nassr fc'], id:'al-awwal-park',name:'Al-Awwal Park',style:'al-awwal-park',primary:'#facc15',secondary:'#1e3a8a',accent:'#f8fafc',capacity:25000,roof:'partial' },
+        { match:['al ittihad','al ittihad club'], id:'king-abdullah-sports-city',name:'King Abdullah Sports City',style:'king-abdullah',primary:'#facc15',secondary:'#111827',accent:'#f8fafc',capacity:62000,roof:'partial' }
+      ];
+      const found = profiles.find(profile => profile.match.includes(n));
+      return found ? { ...found } : { id:'generic', name:`Estádio Municipal de ${clubName || 'Visitante'}`, style:'generic', primary:'#475569', secondary:'#64748b', accent:'#94a3b8', capacity:22000, roof:'partial' };
+    },
 
-      // Integração oficial com os modelos 3D do pack BRFC27
+    draw4SectorsStadium(ctx, s, projFn) {
+      const capacity = s.stadium?.capacity || 20000;
+      const stadiumProfile = s.stadium?.profile || this.getStadiumProfile(s.home, null);
+      // O estádio da carreira herda o save; visitante de elite recebe silhueta/cores próprias, os demais usam genérico.
       let stModel = null;
-      if (typeof window !== 'undefined' && window.AFMStadium3D?.resolveStadiumModel) {
+      if (stadiumProfile?.id === 'career-stadium' && typeof window !== 'undefined' && window.AFMStadium3D?.resolveStadiumModel) {
         stModel = window.AFMStadium3D.resolveStadiumModel(s.home, window.state);
       }
-      const stLevel = stModel ? stModel.stLevel : Math.max(infraLevel, capacity >= 40000 ? 3 : (capacity >= 15000 ? 2 : 1));
+      const profileLevel = Number(stadiumProfile.level || stadiumProfile.infrastructureLevel || 0);
+      const stLevel = stModel ? stModel.stLevel : (profileLevel || (capacity >= 60000 ? 3 : (capacity >= 30000 ? 2 : 1)));
       const upgrades = s.stadium?.upgrades || {};
-      const homeColor = s.homeKit?.primary || '#f59e0b';
-      const homeSecColor = s.homeKit?.secondary || '#111111';
+      const homeColor = stadiumProfile?.secondary || s.homeKit?.primary || '#f59e0b';
+      const homeSecColor = stadiumProfile?.primary || s.homeKit?.secondary || '#111111';
+      const stadiumAccent = stadiumProfile?.accent || '#facc15';
+      const grassBase = stadiumProfile?.grassColor || s.stadium?.customization?.grassColor || '#14532d';
+      const grassStripeA = s.stadium?.customization?.grassStripeA || '#15803d';
+      const grassStripeB = s.stadium?.customization?.grassStripeB || '#16a34a';
+      const style = stadiumProfile.style || 'generic';
+      const userCareerStadium = stadiumProfile.id === 'career-stadium';
+      // O gramado do broadcast compartilha a paleta salva usada pela maquete 3D.
+      const pitchBaseColor = userCareerStadium ? grassBase : '#14532d';
+      const pitchStripeColors = userCareerStadium ? [grassStripeA, grassStripeB] : ['#166534', '#15803d'];
+      s.stadium.profile = stadiumProfile;
+      s.stadium.renderStyle = style;
+      s.stadium.colors = { primary: stadiumProfile.primary, seats: stadiumProfile.secondary, accent: stadiumAccent, grass: grassBase };
       const ticks = s.renderTicks || 0;
 
       // 1. Céu Noturno / Crepúsculo Atmosférico com Neblina de Estádio
       const skyGrad = ctx.createLinearGradient(0, 0, 0, 210);
       skyGrad.addColorStop(0, '#040711');
-      skyGrad.addColorStop(0.45, '#0b1329');
+      skyGrad.addColorStop(0.45, stadiumProfile.style === 'allianz' ? '#10295a' : '#0b1329');
       skyGrad.addColorStop(0.85, '#162035');
       skyGrad.addColorStop(1, '#1e293b');
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, 1280, 210);
 
       // 2. Cobertura Monumental Cantilever (Nível 2 e 3+)
-      const standTop = stLevel >= 3 ? 42 : (stLevel === 2 ? 80 : 120);
+      const standTop = ['allianz','bernabeu','camp-nou','old-trafford','asian-elite'].includes(style) ? 30 : ['maracana','mineirao','fonte-nova','japan-national'].includes(style) ? 58 : (stLevel >= 3 ? 42 : (stLevel === 2 ? 80 : 120));
       const standBottom = 190;
 
-      if(stLevel >= 2){
-        ctx.fillStyle = '#070b14';
+      if(stadiumProfile.roof !== 'none' && stLevel >= 2){
+        ctx.fillStyle = style === 'allianz' ? '#dbeafe' : style === 'bernabeu' ? '#9ca3af' : '#070b14';
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(1280, 0);
         ctx.lineTo(1280, standTop - 10);
-        ctx.quadraticCurveTo(640, standTop + 14, 0, standTop - 10);
+        if(style === 'bernabeu'){
+          ctx.lineTo(1120, standTop - 25); ctx.lineTo(960, standTop - 18); ctx.lineTo(800, standTop - 8);
+          ctx.lineTo(640, standTop - 3); ctx.lineTo(480, standTop - 8); ctx.lineTo(320, standTop - 18); ctx.lineTo(160, standTop - 25);
+        } else if(['maracana','mineirao','fonte-nova','japan-national'].includes(style)){
+          ctx.lineTo(1280, standTop + 5); ctx.lineTo(1120, standTop - 5); ctx.lineTo(960, standTop + 2);
+          ctx.lineTo(800, standTop - 3); ctx.lineTo(640, standTop + 4); ctx.lineTo(480, standTop - 3); ctx.lineTo(320, standTop + 2); ctx.lineTo(160, standTop - 5);
+        } else {
+          ctx.quadraticCurveTo(640, standTop + 14, 0, standTop - 10);
+        }
         ctx.closePath();
         ctx.fill();
 
@@ -1366,9 +1421,36 @@
         }
       }
 
+      // Silhuetas de fachadas específicas em low-poly: Allianz (painéis), Bernabéu (lâminas metálicas),
+      // e Saitama (duas coberturas elevadas sobre a entrada central).
+      if(style === 'allianz-parque'){
+        ctx.save();
+        ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+        for(let x = 110; x <= 1170; x += 32){
+          ctx.beginPath(); ctx.moveTo(x, standTop + 14); ctx.lineTo(x + 12, standTop + 2); ctx.stroke();
+        }
+        ctx.restore();
+      } else if(style === 'saitama'){
+        ctx.save();
+        ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2;
+        [[80,standTop+2,250,-22],[950,standTop+2,250,-22]].forEach(([x,y,w,h])=>{
+          ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+35,y+h); ctx.lineTo(x+w-35,y+h); ctx.lineTo(x+w,y); ctx.closePath(); ctx.fill(); ctx.stroke();
+        });
+        ctx.fillStyle = '#64748b'; ctx.fillRect(510, standTop + 4, 260, 20);
+        ctx.restore();
+      } else if(style === 'nissan-stadium' || style === 'ajinomoto'){
+        ctx.save(); ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 3;
+        for(let x=120;x<1180;x+=70){ctx.beginPath();ctx.moveTo(x,standTop-3);ctx.lineTo(x+20,standTop+18);ctx.stroke();}
+        ctx.restore();
+      } else if(style === 'al-awwal-park' || style === 'king-abdullah'){
+        ctx.save(); ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(160,standTop+1); ctx.lineTo(270,standTop-16); ctx.lineTo(1010,standTop-16); ctx.lineTo(1120,standTop+1); ctx.stroke();
+        ctx.restore();
+      }
+
       // 3. SETOR LESTE (Arquibancada Superior de Fundo)
       const tiersCount = stLevel >= 3 ? 12 : (stLevel === 2 ? 8 : 5);
-      ctx.fillStyle = '#111827';
+      ctx.fillStyle = style === 'allianz' ? '#e2e8f0' : style === 'bernabeu' ? '#6b7280' : (stadiumProfile.primary || '#111827');
       ctx.beginPath();
       ctx.moveTo(0, standTop);
       ctx.lineTo(1280, standTop);
@@ -1384,7 +1466,7 @@
         const rx = 1280 - (i / tiersCount) * 240;
         
         // Linha do degrau de concreto
-        ctx.strokeStyle = '#1f293d';
+        ctx.strokeStyle = style === 'allianz' ? '#94a3b8' : style === 'bernabeu' ? '#4b5563' : '#1f293d';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(lx, ty);
@@ -1396,7 +1478,9 @@
         for(let c = 0; c < seats; c++){
           const cx = lx + (c / seats) * (rx - lx);
           // Alternância estética de assentos: Amarelo ouro (#facc15), Cinza ardósia (#475569) e cor do clube
-          const seatColor = (c % 4 === 0) ? '#facc15' : ((c % 4 === 1) ? '#475569' : ((c % 4 === 2) ? homeColor : '#334155'));
+          const seatColor = style === 'generic'
+            ? ['#64748b', '#475569', '#334155', '#1e293b'][c % 4]
+            : [stadiumAccent, homeSecColor, homeColor, stadiumProfile.primary || '#334155'][c % 4];
           ctx.fillStyle = seatColor;
           ctx.fillRect(cx, ty - 3.5, 4.5, 2.5);
 
@@ -1404,7 +1488,9 @@
           const seatHash = (c * 17 + i * 31) % 100;
           const crowdPct = stLevel >= 3 ? 90 : (stLevel === 2 ? 72 : 40);
           if(seatHash < crowdPct){
-            ctx.fillStyle = (seatHash % 4 === 0) ? homeColor : ((seatHash % 4 === 1) ? '#ffffff' : ((seatHash % 4 === 2) ? '#facc15' : homeSecColor));
+            ctx.fillStyle = style === 'generic'
+              ? ['#64748b', '#9ca3af', '#475569'][seatHash % 3]
+              : [homeColor, '#ffffff', stadiumAccent, homeSecColor][seatHash % 4];
             ctx.beginPath();
             ctx.arc(cx + 2.2, ty - 5, 2.3, 0, Math.PI * 2);
             ctx.fill();
@@ -1414,7 +1500,7 @@
 
       // 4. BANDEIRÕES OFICIAIS DA TORCIDA NO SETOR SUPERIOR
       if(stLevel >= 2){
-        const flagColors = [homeColor, '#ffffff', homeSecColor, '#facc15'];
+      const flagColors = style === 'generic' ? ['#64748b','#cbd5e1','#475569','#e2e8f0'] : [homeColor, '#ffffff', homeSecColor, stadiumAccent];
         for(let f = 0; f < 5; f++){
           const fx = 260 + f * 180;
           const wave = Math.sin(ticks * 0.08 + f) * 5;
@@ -1431,7 +1517,7 @@
 
       // 5. SINALIZADORES E FUMAÇA DOURADA DA TORCIDA (CROWD FLARES & SMOKE BRFC27)
       // Núcleos incandescentes de sinalizadores na curva da torcida
-      const flarePositions = [380, 440, 500, 800, 860];
+      const flarePositions = upgrades.flares ? [380, 440, 500, 800, 860] : [];
       flarePositions.forEach((fx, idx) => {
         const fy = standBottom - 10;
         const sparkPulse = 3.5 + Math.sin(ticks * 0.25 + idx * 1.7) * 1.5;
@@ -1473,7 +1559,7 @@
 
       // 6. SETOR NORTE & SETOR SUL (Laterais Curvas com Degraus e Assentos em Perspectiva)
       // Lateral Esquerda (Norte)
-      ctx.fillStyle = '#0f172a';
+      ctx.fillStyle = style === 'generic' ? '#334155' : (stadiumProfile.primary || '#0f172a');
       ctx.beginPath();
       ctx.moveTo(0, standTop);
       ctx.lineTo(240, standBottom);
@@ -1488,7 +1574,7 @@
         const yLine = standTop + lt * (530 - standTop);
         const xStart = 130 - lt * 130;
         const xEnd = 240 - lt * 200;
-        ctx.strokeStyle = '#1e293b';
+        ctx.strokeStyle = style === 'generic' ? '#475569' : (stadiumProfile.secondary || '#1e293b');
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(xStart, yLine);
@@ -1498,13 +1584,13 @@
         // Assentos na lateral norte
         for(let sc = 0; sc < 6; sc++){
           const ax = xStart + (sc / 6) * (xEnd - xStart);
-          ctx.fillStyle = (sc % 2 === 0) ? '#facc15' : '#475569';
+          ctx.fillStyle = style === 'generic' ? (sc % 2 === 0 ? '#64748b' : '#475569') : [homeColor, homeSecColor, stadiumAccent][sc % 3];
           ctx.fillRect(ax, yLine - 2.5, 3.5, 2);
         }
       }
 
       // Lateral Direita (Sul)
-      ctx.fillStyle = '#0f172a';
+      ctx.fillStyle = style === 'generic' ? '#334155' : (stadiumProfile.primary || '#0f172a');
       ctx.beginPath();
       ctx.moveTo(1040, standBottom);
       ctx.lineTo(1280, standTop);
@@ -1519,7 +1605,7 @@
         const yLine = standTop + rt * (530 - standTop);
         const xStart = 1040 + rt * 200;
         const xEnd = 1150 + rt * 130;
-        ctx.strokeStyle = '#1e293b';
+        ctx.strokeStyle = style === 'generic' ? '#475569' : (stadiumProfile.secondary || '#1e293b');
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(xStart, yLine);
@@ -1529,7 +1615,7 @@
         // Assentos na lateral sul
         for(let sc = 0; sc < 6; sc++){
           const ax = xStart + (sc / 6) * (xEnd - xStart);
-          ctx.fillStyle = (sc % 2 === 0) ? '#facc15' : '#475569';
+          ctx.fillStyle = style === 'generic' ? (sc % 2 === 0 ? '#64748b' : '#475569') : [homeColor, homeSecColor, stadiumAccent][sc % 3];
           ctx.fillRect(ax, yLine - 2.5, 3.5, 2);
         }
       }
@@ -1545,7 +1631,19 @@
         { name: 'SUPERMERCADO DO BAIRRO', bg: '#16a34a', fg: '#ffffff' },
         { name: 'AÇAÍ DA VILA', bg: '#4c1d95', fg: '#facc15' },
         { name: 'FUTEBOL PARA TODOS', bg: '#facc15', fg: '#111111' }
-      ];
+      ].map(board => style === 'generic' ? { ...board, bg:'#334155', fg:'#e2e8f0' } : board);
+      if(style === 'generic'){
+        adBoards.splice(0, adBoards.length,
+          {name:'ESTÁDIO MUNICIPAL',bg:'#334155',fg:'#e2e8f0'},
+          {name:'FUTEBOL LOCAL',bg:'#475569',fg:'#f8fafc'},
+          {name:'ESPORTE PARA TODOS',bg:'#1e293b',fg:'#cbd5e1'},
+          {name:'ARENA MUNICIPAL',bg:'#334155',fg:'#f8fafc'},
+          {name:'TORCIDA PRESENTE',bg:'#475569',fg:'#e2e8f0'},
+          {name:'DIA DE JOGO',bg:'#1e293b',fg:'#f8fafc'},
+          {name:'SEJA BEM-VINDO',bg:'#334155',fg:'#cbd5e1'},
+          {name:'FUTEBOL',bg:'#475569',fg:'#f8fafc'}
+        );
+      }
 
       const boardY = 172;
       const boardH = 17;
@@ -1554,7 +1652,7 @@
       const singleBoardW = wallWidth / adBoards.length;
 
       // Moldura e fundo das placas
-      ctx.fillStyle = '#0b0f19';
+      ctx.fillStyle = style === 'generic' ? '#1e293b' : (stadiumProfile.primary || '#0b0f19');
       ctx.fillRect(wallLeft, boardY, wallWidth, boardH);
 
       adBoards.forEach((board, bIdx) => {
@@ -1575,8 +1673,45 @@
         ctx.fillText(board.name, bx + singleBoardW / 2, boardY + boardH / 2 + 0.5);
       });
 
+      // Silhuetas arquitetônicas reconhecíveis (interpretação low-poly, não cópia fotogramétrica).
+      if(style === 'allianz'){
+        ctx.save();
+        for(let i=0;i<32;i++){
+          const x=24+i*39;
+          ctx.fillStyle=(i%3===0)?'#2563eb':(i%3===1?'#dc2626':'#f8fafc'); ctx.globalAlpha=0.8;
+          ctx.beginPath(); ctx.moveTo(x,standTop-10); ctx.lineTo(x+20,standTop-15); ctx.lineTo(x+30,standTop+8); ctx.lineTo(x+10,standTop+10); ctx.closePath(); ctx.fill();
+        }
+        ctx.globalAlpha=1; ctx.restore();
+      } else if(style === 'bernabeu'){
+        ctx.save(); ctx.fillStyle='#9ca3af'; ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(115,standTop-8); ctx.lineTo(210,standTop-31); ctx.lineTo(1070,standTop-31); ctx.lineTo(1165,standTop-8); ctx.lineTo(1080,standTop+1); ctx.lineTo(200,standTop+1); ctx.closePath(); ctx.fill(); ctx.stroke();
+        for(let x=230;x<1080;x+=34){ctx.strokeStyle=(x%2)?'#6b7280':'#d1d5db';ctx.beginPath();ctx.moveTo(x,standTop-27);ctx.lineTo(x+15,standTop-3);ctx.stroke();}
+        ctx.restore();
+      } else if(['maracana','mineirao','fonte-nova'].includes(style)){
+        ctx.save(); ctx.strokeStyle=stadiumAccent; ctx.lineWidth=8; ctx.beginPath(); ctx.ellipse(640,standBottom-12,440,54,0,Math.PI,Math.PI*2); ctx.stroke();
+        ctx.strokeStyle='#e2e8f0'; ctx.lineWidth=2; ctx.beginPath(); ctx.ellipse(640,standBottom-12,440,54,0,Math.PI,Math.PI*2); ctx.stroke(); ctx.restore();
+      } else if(['neo-quimica','camp-nou','old-trafford'].includes(style)){
+        ctx.save(); for(let i=0;i<8;i++){const x=255+i*110;ctx.fillStyle=stadiumAccent;ctx.fillRect(x,standBottom-17,96,6);} ctx.restore();
+      }
+
+      if(stadiumProfile.id === 'career-stadium'){
+        const custom=stadiumProfile.customization||{};
+        if(custom.accentColor){ctx.save();ctx.fillStyle=custom.accentColor;ctx.fillRect(236,boardY-3,wallWidth,2);ctx.restore();}
+        if(custom.name){ctx.save();ctx.fillStyle='rgba(2,6,23,.9)';ctx.fillRect(450,standBottom+6,380,20);ctx.strokeStyle=custom.accentColor||'#facc15';ctx.strokeRect(450,standBottom+6,380,20);ctx.fillStyle='#fff';ctx.font='bold 11px Inter, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(custom.name).slice(0,40),640,standBottom+16);ctx.restore();}
+      }
+
+      // Acabamentos do campo no broadcast acompanham a paleta personalizada do estádio da carreira.
+      if(userCareerStadium){
+        ctx.save();
+        ctx.strokeStyle = grassBase; ctx.lineWidth = 2;
+        ctx.strokeRect(238, boardY + boardH + 3, wallWidth - 4, 4);
+        ctx.fillStyle = pitchStripeColors[0]; ctx.fillRect(240, boardY + boardH + 4, 80, 2);
+        ctx.fillStyle = pitchStripeColors[1]; ctx.fillRect(320, boardY + boardH + 4, 80, 2);
+        ctx.restore();
+      }
+
       // Mureta de borda com contorno fino dourado
-      ctx.strokeStyle = '#facc15';
+      ctx.strokeStyle = style === 'generic' ? '#64748b' : stadiumAccent;
       ctx.lineWidth = 1;
       ctx.strokeRect(wallLeft, boardY, wallWidth, boardH);
 
@@ -1590,7 +1725,7 @@
       ctx.lineTo(28, 520);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = 'rgba(250, 204, 21, 0.4)';
+      ctx.strokeStyle = style === 'generic' ? 'rgba(148,163,184,0.35)' : `${stadiumAccent}66`;
       ctx.stroke();
 
       // Lateral direita (perspectiva de 190 até 520)
@@ -1602,11 +1737,11 @@
       ctx.lineTo(1242, 520);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = 'rgba(250, 204, 21, 0.4)';
+      ctx.strokeStyle = style === 'generic' ? 'rgba(148,163,184,0.35)' : `${stadiumAccent}66`;
       ctx.stroke();
 
       // 9. 4 TORRES DE REFLETORES VOLUMÉTRICOS DE TRANSMISSÃO 3D (4 CANTORES DO ESTÁDIO)
-      const towerPositions = [
+      const towerPositions = stadiumProfile.id === 'career-stadium' && !upgrades.ledLights ? [] : [
         { x: 125, y: standTop - 24, lightX: 360, lightY: 340, side: 'TL' },
         { x: 1145, y: standTop - 24, lightX: 920, lightY: 340, side: 'TR' },
         { x: 26, y: 460, lightX: 320, lightY: 420, side: 'BL' },
@@ -1625,7 +1760,7 @@
         ctx.fill();
 
         // Estrutura metálica de aço da torre (pilar treliçado)
-        ctx.fillStyle = '#334155';
+        ctx.fillStyle = stadiumProfile.id === 'career-stadium' ? (stadiumProfile.primary || '#334155') : '#334155';
         ctx.fillRect(tower.x + 5, tower.y + 12, 8, 90);
         // Treliças diagonais da torre
         ctx.strokeStyle = '#475569';

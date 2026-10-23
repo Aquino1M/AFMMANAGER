@@ -178,16 +178,62 @@
     var st = window.state || window.gameState || {};
     var managerName = (st.manager && st.manager.name) || st.managerName || st.coachName || 'Aquino';
     var clubName = (st.club && st.club.name) || (typeof st.club === 'string' ? st.club : '') || (st.userTeam && st.userTeam.name) || 'Corinthians';
-    var w = Number(st.wins || (st.career && st.career.wins) || 0);
-    var d = Number(st.draws || (st.career && st.career.draws) || 1);
-    var l = Number(st.losses || (st.career && st.career.losses) || 0);
-    var titles = Array.isArray(st.trophies) ? st.trophies.length : Number(st.titles || 0);
-    var pts = 50 + (titles * 160) + (w * 14) + (d * 4) - (l * 6);
-    if (pts < 10) pts = 70;
-    var level = Math.min(99, Math.max(1, Math.floor(pts / 12)));
+    var matches = Array.isArray(st.history) ? st.history.filter(function(match) {
+      return norm(match.h) === norm(clubName) || norm(match.a) === norm(clubName);
+    }) : [];
+    var wins = matches.filter(function(match) {
+      var isHome = norm(match.h) === norm(clubName);
+      var goalsFor = Number(isHome ? match.hg : match.ag) || 0;
+      var goalsAgainst = Number(isHome ? match.ag : match.hg) || 0;
+      return goalsFor > goalsAgainst;
+    }).length;
+    var draws = matches.filter(function(match) { return Number(match.hg) === Number(match.ag); }).length;
+    var losses = matches.length - wins - draws;
+    var career = st.managerCareer || st.career || {};
+    wins = Math.max(wins, Number(career.wins) || 0, Number(st.wins) || 0);
+    draws = Math.max(draws, Number(career.draws) || 0, Number(st.draws) || 0);
+    losses = Math.max(losses, Number(career.losses) || 0, Number(st.losses) || 0);
+    var titleNames = [];
+    function addTitle(value) {
+      var name = typeof value === 'string' ? value : (value && (value.name || value.title || value.competitionName));
+      if (!name) return;
+      var key = norm(name);
+      if (key && titleNames.indexOf(key) < 0) titleNames.push(key);
+    }
+    (Array.isArray(st.titles) ? st.titles : []).forEach(addTitle);
+    (Array.isArray(st.trophies) ? st.trophies : []).forEach(addTitle);
+    (Array.isArray(st.worldChampionHistory) ? st.worldChampionHistory : []).forEach(function(record) {
+      (Array.isArray(record.titlesWon) ? record.titlesWon : []).forEach(addTitle);
+      (Array.isArray(record.competitions) ? record.competitions : []).forEach(function(comp) {
+        if (norm(comp && (comp.champion || comp.winner)) === norm(clubName)) addTitle(comp.name || comp.competitionName);
+      });
+    });
+    (Array.isArray(st.seasonHistory) ? st.seasonHistory : []).forEach(function(record) {
+      if (norm(record.userClub || record.club) === norm(clubName)) {
+        (Array.isArray(record.titlesWon) ? record.titlesWon : []).forEach(addTitle);
+        (Array.isArray(record.titulos) ? record.titulos : []).forEach(addTitle);
+        if (Number(record.userPosition) === 1 || Number(record.position) === 1) addTitle(record.compName || record.competitionName || record.competition);
+      }
+      (Array.isArray(record.competitions) ? record.competitions : []).forEach(function(comp) {
+        if (norm(comp && (comp.champion || comp.winner)) === norm(clubName)) addTitle(comp.name || comp.competitionName);
+      });
+    });
+    var titles = titleNames.length;
+    var personal = st.managerPersonal || {};
+    var prestigeScore = Math.max(5, Number(personal.prestigeScore) || 0, Number(st.coachPrestige) || 0);
+    var careerPoints = Math.max(0, Number(personal.careerPoints) || 0);
+    var matchPoints = wins * 14 + draws * 4 - losses * 6;
+    var pts = Math.max(50 + (titles * 160) + matchPoints, careerPoints, Math.round(prestigeScore * 35));
+    var level = Math.min(99, Math.max(5, Number(personal.prestigeScore) || Number(st.coachPrestige) || Math.floor(pts / 35)));
+    if (personal.prestigeScore !== level || Number(personal.careerPoints) < pts) {
+      st.managerPersonal = personal;
+      personal.prestigeScore = Math.max(Number(personal.prestigeScore) || 0, level);
+      personal.careerPoints = Math.max(careerPoints, pts);
+      st.coachPrestige = Math.max(Number(st.coachPrestige) || 0, personal.prestigeScore);
+    }
     var licId = localStorage.getItem('afm_user_license_id') || 'cbf_d';
     var licObj = LICENSES.find(function(x) { return x.id === licId; }) || LICENSES[0];
-    return { managerName: managerName, clubName: clubName, w: w, d: d, l: l, titles: titles, pts: pts, level: level, license: licObj, division: resolveUserDivision(st) };
+    return { managerName: managerName, clubName: clubName, w: wins, d: draws, l: losses, titles: titles, pts: pts, level: level, license: licObj, division: resolveUserDivision(st) };
   }
 
   // Coleta TODOS os clubes do jogo + técnicos reais para não faltar nenhum time!

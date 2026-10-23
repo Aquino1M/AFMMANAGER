@@ -163,6 +163,11 @@ function resolvePlayerPhotoUrl(p) {
   const name = typeof p === 'string' ? p : (p.name || '');
   if (!name) return null;
 
+  // Regens s?o atletas novos: n?o reutilizar fotos, IDs ou mapas de rostos do veterano.
+  if (typeof p === 'object' && (p.isGeneticRegen || p.regenOf || p.geneticOrigin || String(p.id || '').startsWith('regen_'))) {
+    return null;
+  }
+
   // 1. Verificar se o atleta já possui foto explícita
   if (typeof p === 'object' && p.photo && typeof p.photo === 'string') {
     const trusted = trustedPlayerPhotoUrl(p.photo);
@@ -2593,6 +2598,7 @@ function clubStadiumName(targetClub){
   const st = (typeof state !== 'undefined' && state) ? state : (window && window.state ? window.state : null);
   const cName = targetClub || st?.club;
   if(st && (!targetClub || (typeof norm === 'function' && norm(targetClub) === norm(st.club)))){
+    if(st.stadiumCustomization?.name) return st.stadiumCustomization.name;
     if(st.namingRights && st.namingRights.stadiumName){
       return st.namingRights.stadiumName;
     }
@@ -2721,12 +2727,18 @@ function openStadiumModal(initialTab){
   }
   el.style.display = 'block';
 
-  const sName = clubStadiumName();
+  const sName = (state?.stadiumCustomization?.name || state?.stadiumName || clubStadiumName());
   const stadLevel = Number(state?.infrastructure?.stadium?.level) || 1;
   const namingMult = 1 + (stadLevel - 1) * 0.45;
   const cap = state?.infrastructure?.stadium?.capacity || 3000;
   const cald = getCaldeiraoData();
   const stData = getStadiumExpansionData();
+  state.stadiumCustomization = state.stadiumCustomization || {
+    standColor: '#334155', seatColor: '#2563eb', accentColor: '#facc15',
+    grassColor: '#14532d', grassStripeA: '#15803d', grassStripeB: '#16a34a'
+  };
+  const stadiumCustomization = state.stadiumCustomization;
+  if(!stadiumCustomization.name) stadiumCustomization.name = state.stadiumName || state.stadium?.name || state.customClub?.stadiumName || '';
   if(!stadiumSelectedSide) stadiumSelectedSide = 'norte';
   const u = {
     ...(state?.stadiumUpgrades || {}),
@@ -3184,6 +3196,26 @@ function openStadiumModal(initialTab){
                 </div>
               </div>
 
+              <!-- Personalização persistida do estádio -->
+              <div style="background:#111827;border:1px solid rgba(56,189,248,.35);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px">
+                <div style="font-size:13px;font-weight:900;color:#7dd3fc">🎨 PERSONALIZAÇÃO DO ESTÁDIO</div>
+                <div style="font-size:10px;color:rgba(255,255,255,.62)">Defina o nome e as cores do estádio. As cores atualizam os materiais da maquete 3D e ficam salvas na carreira.</div>
+                <label style="font-size:11px;color:#cbd5e1;font-weight:800">Nome personalizado</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <input id="inputCustomStadiumName" maxlength="48" value="${esc(stadiumCustomization.name || sName || '')}" placeholder="Ex.: Coliseu do Povo" style="flex:1;min-width:180px;background:#0b1220;color:#fff;border:1px solid #334155;border-radius:8px;padding:9px;font-size:12px" />
+                  <button type="button" class="btn primary" id="btnSaveCustomStadiumName" style="padding:8px 12px;font-size:11px;font-weight:900">Salvar nome</button>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px">
+                  <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0b1220;padding:9px;border-radius:8px;font-size:11px;color:#e2e8f0">Arquibancadas <input type="color" id="stadiumStandColor" value="${stadiumCustomization.standColor || '#334155'}" style="width:40px;height:30px;background:transparent;border:0;padding:0;cursor:pointer" /></label>
+                  <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0b1220;padding:9px;border-radius:8px;font-size:11px;color:#e2e8f0">Cadeiras <input type="color" id="stadiumSeatColor" value="${stadiumCustomization.seatColor || '#2563eb'}" style="width:40px;height:30px;background:transparent;border:0;padding:0;cursor:pointer" /></label>
+                  <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0b1220;padding:9px;border-radius:8px;font-size:11px;color:#e2e8f0">Detalhes e LEDs <input type="color" id="stadiumAccentColor" value="${stadiumCustomization.accentColor || '#facc15'}" style="width:40px;height:30px;background:transparent;border:0;padding:0;cursor:pointer" /></label>
+                  <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0b1220;padding:9px;border-radius:8px;font-size:11px;color:#e2e8f0">Gramado base <input type="color" id="stadiumGrassColor" value="${stadiumCustomization.grassColor || '#14532d'}" style="width:40px;height:30px;background:transparent;border:0;padding:0;cursor:pointer" /></label>
+                  <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0b1220;padding:9px;border-radius:8px;font-size:11px;color:#e2e8f0">Listra escura <input type="color" id="stadiumGrassStripeA" value="${stadiumCustomization.grassStripeA || '#15803d'}" style="width:40px;height:30px;background:transparent;border:0;padding:0;cursor:pointer" /></label>
+                  <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0b1220;padding:9px;border-radius:8px;font-size:11px;color:#e2e8f0">Listra clara <input type="color" id="stadiumGrassStripeB" value="${stadiumCustomization.grassStripeB || '#16a34a'}" style="width:40px;height:30px;background:transparent;border:0;padding:0;cursor:pointer" /></label>
+                </div>
+                <button type="button" class="btn primary" id="btnSaveStadiumCustomization" style="padding:10px;font-size:11px;font-weight:900">Aplicar cores e atualizar maquete 3D</button>
+              </div>
+
               <!-- Lista de Melhorias Compráveis com Prévia em Tempo Real -->
               <div style="display:flex;flex-direction:column;gap:8px">
                 ${[
@@ -3327,6 +3359,10 @@ function openStadiumModal(initialTab){
                     const fee = getStadiumContractorRushCost(stData.activeWork, days);
                     return `<button type="button" class="btn btnContractorRush" data-days="${days}" style="flex:1 1 120px;padding:8px 10px;background:#172033;border:1px solid rgba(34,197,94,.35);color:#bbf7d0;border-radius:8px;font-size:11px;font-weight:800">⚡ -${days} dias<br><span style="color:#4ade80">${fmtMoney(fee)}</span></button>`;
                   }).join('');
+                  const instantFee = getStadiumContractorRushCost(stData.activeWork, 'instant');
+                  const instantOption = daysLeft > 0
+                    ? `<button type="button" class="btn btnContractorRush" data-days="instant" style="flex:1 1 100%;padding:10px;background:linear-gradient(135deg,#7f1d1d,#b91c1c);border:1px solid rgba(248,113,113,.75);color:#fff;border-radius:8px;font-size:12px;font-weight:900">🚧 CONCLUIR AGORA — SEM ESPERAR<br><span style="color:#fecaca">${fmtMoney(instantFee)}</span></button>`
+                    : '';
                   return `
                     <div style="margin-top:12px;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;border:1px solid rgba(139,92,246,0.3)">
                       <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#c084fc;margin-bottom:4px">
@@ -3339,7 +3375,7 @@ function openStadiumModal(initialTab){
                       <div style="margin-top:12px;padding:10px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:10px">
                         <div style="font-size:12px;font-weight:900;color:#bbf7d0;margin-bottom:4px">🏗️ Contratar construtora para acelerar</div>
                         <div style="font-size:10px;color:rgba(255,255,255,.62);margin-bottom:8px">Pague uma taxa extra para antecipar parte do prazo. O valor é debitado do caixa do clube.</div>
-                        <div style="display:flex;flex-wrap:wrap;gap:6px">${contractorOptions || '<span style="font-size:11px;color:#94a3b8">A obra já está perto da conclusão; avance os dias normalmente.</span>'}</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px">${contractorOptions}${instantOption}${contractorOptions || instantOption ? '' : '<span style="font-size:11px;color:#94a3b8">A obra já está perto da conclusão; avance os dias normalmente.</span>'}</div>
                       </div>
                     </div>
                   `;
@@ -3612,8 +3648,8 @@ function openStadiumModal(initialTab){
                     <div style="font-size:11px;color:rgba(255,255,255,0.5);flex:1;min-width:200px">
                       Grandes eventos (Thiaguinho, Ludmilla, Villa Mix, Festivais) geram milhões em aluguel e visibilidade ao clube.
                     </div>
-                    <button class="btn primary" id="btnSearchConcertEvents" ${Number.isFinite(Number(state.lastStadiumCommercialOfferRound)) && Number(state.round)-Number(state.lastStadiumCommercialOfferRound)<STADIUM_OFFER_INTERVAL_ROUNDS ? 'disabled title="Nova proposta disponível após quatro rodadas"' : ''} style="font-size:11px;padding:8px 14px;background:linear-gradient(135deg,#7c3aed,#a855f7);white-space:nowrap;font-weight:900">
-                      🎤 ${Number.isFinite(Number(state.lastStadiumCommercialOfferRound)) && Number(state.round)-Number(state.lastStadiumCommercialOfferRound)<STADIUM_OFFER_INTERVAL_ROUNDS ? `Aguarde ${STADIUM_OFFER_INTERVAL_ROUNDS-(Number(state.round)-Number(state.lastStadiumCommercialOfferRound))} rodada(s)` : 'Convidar Produtoras de Shows'}
+                    <button class="btn primary" id="btnSearchConcertEvents" ${Number.isFinite(Number(state.lastStadiumCommercialOfferRound)) && Number(state.round)>=Number(state.lastStadiumCommercialOfferRound) && Number(state.round)-Number(state.lastStadiumCommercialOfferRound)<STADIUM_OFFER_INTERVAL_ROUNDS ? 'disabled title="Nova proposta disponível após quatro rodadas"' : ''} style="font-size:11px;padding:8px 14px;background:linear-gradient(135deg,#7c3aed,#a855f7);white-space:nowrap;font-weight:900">
+                      🎤 ${Number.isFinite(Number(state.lastStadiumCommercialOfferRound)) && Number(state.round)>=Number(state.lastStadiumCommercialOfferRound) && Number(state.round)-Number(state.lastStadiumCommercialOfferRound)<STADIUM_OFFER_INTERVAL_ROUNDS ? `Aguarde ${STADIUM_OFFER_INTERVAL_ROUNDS-(Number(state.round)-Number(state.lastStadiumCommercialOfferRound))} rodada(s)` : 'Convidar Produtoras de Shows'}
                     </button>
                   </div>
                 `}
@@ -3724,6 +3760,39 @@ function openStadiumModal(initialTab){
       openStadiumModal();
     };
   });
+
+  const btnSaveStadiumName = $('#btnSaveCustomStadiumName');
+  if(btnSaveStadiumName) btnSaveStadiumName.onclick = () => {
+    const input = $('#inputCustomStadiumName');
+    const customName = String(input?.value || '').trim().slice(0, 48);
+    if(!customName){ toast('Digite um nome válido para o estádio.'); return; }
+    state.stadiumCustomization = state.stadiumCustomization || {};
+    state.stadiumCustomization.name = customName;
+    state.stadiumName = customName;
+    state.stadium = state.stadium || {};
+    state.stadium.name = customName;
+    if(state.customClub){ state.customClub.stadium = customName; state.customClub.stadiumName = customName; }
+    if(state.namingRights) state.namingRights = null;
+    save();
+    toast(`Estádio renomeado para ${customName}.`);
+    openStadiumModal('upgrades');
+  };
+
+  const btnSaveStadiumColors = $('#btnSaveStadiumCustomization');
+  if(btnSaveStadiumColors) btnSaveStadiumColors.onclick = () => {
+    const colorInputs = {
+      standColor: '#stadiumStandColor', seatColor: '#stadiumSeatColor', accentColor: '#stadiumAccentColor',
+      grassColor: '#stadiumGrassColor', grassStripeA: '#stadiumGrassStripeA', grassStripeB: '#stadiumGrassStripeB'
+    };
+    state.stadiumCustomization = state.stadiumCustomization || {};
+    Object.entries(colorInputs).forEach(([key, selector]) => {
+      const value = String($(selector)?.value || '');
+      if(/^#[0-9a-f]{6}$/i.test(value)) state.stadiumCustomization[key] = value;
+    });
+    save();
+    toast('Personalização salva. Cores aplicadas à maquete 3D.');
+    openStadiumModal('upgrades');
+  };
 
   const btnBuyLand = $('#btnBuyArenaLand');
   if(btnBuyLand){
@@ -3856,7 +3925,7 @@ function openStadiumModal(initialTab){
   }
 
   $$('.btnContractorRush').forEach(btn => {
-    btn.onclick = () => hireStadiumContractor(Number(btn.dataset.days));
+    btn.onclick = () => hireStadiumContractor(btn.dataset.days === 'instant' ? 'instant' : Number(btn.dataset.days));
   });
 
   // Bindings específicos da Aba Arena (Screenshot 5)
@@ -3933,7 +4002,7 @@ function generateStadiumRentalProposal(){
   const lastRentalRound = Number.isFinite(Number(state.lastStadiumRentalOfferRound))
     ? Number(state.lastStadiumRentalOfferRound)
     : state.lastStadiumCommercialOfferType === 'rental' ? Number(state.lastStadiumCommercialOfferRound) : NaN;
-  if(Number.isFinite(lastRentalRound) && currentRound - lastRentalRound < STADIUM_OFFER_INTERVAL_ROUNDS) return null;
+  if(Number.isFinite(lastRentalRound) && currentRound >= lastRentalRound && currentRound - lastRentalRound < STADIUM_OFFER_INTERVAL_ROUNDS) return null;
   if(state.lastStadiumEvent?.date === state.date) return null;
   const currentClubNorm = norm(state.club || '');
   const candidates = (state.teams || [])
@@ -3959,6 +4028,7 @@ function generateStadiumRentalProposal(){
   state.lastStadiumRentalOfferRound = currentRound;
   state.lastStadiumCommercialOfferRound = currentRound;
   state.lastStadiumCommercialOfferType = 'rental';
+  if(typeof addNews === 'function') addNews(`📬 PROPOSTA DE ALUGUEL: ${randomClub} quer jogar no nosso estádio e oferece ${fmtMoney(baseFee)}.`);
   return state.stadiumClubRental;
 }
 
@@ -4008,7 +4078,7 @@ function rejectClubRental(returnToCentral = false){
 function generateStadiumEventProposal(force = false){
   const currentRound = Math.max(0, Number(state.round) || 0);
   const lastOfferRound = Number(state.lastStadiumCommercialOfferRound);
-  const offerWindowClosed = Number.isFinite(lastOfferRound) && currentRound - lastOfferRound < STADIUM_OFFER_INTERVAL_ROUNDS;
+  const offerWindowClosed = Number.isFinite(lastOfferRound) && currentRound >= lastOfferRound && currentRound - lastOfferRound < STADIUM_OFFER_INTERVAL_ROUNDS;
   if(offerWindowClosed) return null;
   if(state.stadiumClubRental && !force) return null;
   if(state.stadiumEventProposal && !force) return state.stadiumEventProposal;
@@ -4036,6 +4106,7 @@ function generateStadiumEventProposal(force = false){
   };
   state.lastStadiumCommercialOfferRound = currentRound;
   state.lastStadiumCommercialOfferType = 'show';
+  if(typeof addNews === 'function') addNews(`🎤 CONVITE PARA EVENTO: ${chosen.name} oferece ${fmtMoney(baseFee)} para realizar um show no estádio.`);
   return state.stadiumEventProposal;
 }
 
@@ -4947,30 +5018,47 @@ function getStadiumWorkDaysRemaining(work = state?.stadiumRingData?.activeWork){
 
 function getStadiumContractorRushCost(work, days){
   const remaining = getStadiumWorkDaysRemaining(work);
+  if(days === 'instant'){
+    if(!work || remaining <= 0) return 0;
+    return Math.max(250000, Math.round(getStadiumSectorCost(Number(work.ring) || 1) * 0.75));
+  }
   const requestedDays = Math.max(0, Math.floor(Number(days) || 0));
   if(!work || requestedDays <= 0 || requestedDays >= remaining) return 0;
   const sectorCost = getStadiumSectorCost(Number(work.ring) || 1);
-  // Taxa adicional de urgência: custo maior para acelerar mais dias.
-  const baseRushPct = requestedDays <= 3 ? 0.035 : requestedDays <= 7 ? 0.07 : 0.12;
-  return Math.max(10000, Math.round(sectorCost * baseRushPct));
+  // Taxas mais altas: equipe extra, turnos noturnos e entrega prioritária.
+  const baseRushPct = requestedDays <= 3 ? 0.08 : requestedDays <= 7 ? 0.15 : 0.25;
+  return Math.max(50000, Math.round(sectorCost * baseRushPct));
 }
 
 function hireStadiumContractor(days){
   const work = state?.stadiumRingData?.activeWork;
   if(!work){ toast('Não há uma obra ativa para acelerar.'); return false; }
   const remaining = getStadiumWorkDaysRemaining(work);
+  const instant = days === 'instant';
   const requestedDays = Math.floor(Number(days) || 0);
-  if(![3, 7, 14].includes(requestedDays) || requestedDays >= remaining){
+  if((!instant && (![3, 7, 14].includes(requestedDays) || requestedDays >= remaining)) || remaining <= 0){
     toast('Selecione uma opção válida de aceleração para esta obra.');
     return false;
   }
-  const cost = getStadiumContractorRushCost(work, requestedDays);
+  const cost = getStadiumContractorRushCost(work, instant ? 'instant' : requestedDays);
   if(!Number.isFinite(cost) || cost <= 0){ toast('Não foi possível calcular o custo da construtora.'); return false; }
   if((Number(state.balance) || 0) < cost){
     toast(`Saldo insuficiente para contratar a construtora. Custo: ${fmtMoney(cost)}.`);
     return false;
   }
 
+  if(instant){
+    state.balance = (Number(state.balance) || 0) - cost;
+    state.expense = (Number(state.expense) || 0) + cost;
+    work.contractorRushDays = (Number(work.contractorRushDays) || 0) + remaining;
+    work.contractorRushCost = (Number(work.contractorRushCost) || 0) + cost;
+    work.finishDate = state.date;
+    processStadiumConstructionDay();
+    save();
+    toast(`Obra concluída na hora! Taxa premium: ${fmtMoney(cost)}.`);
+    openStadiumModal('expansion');
+    return true;
+  }
   const currentFinish = new Date(`${work.finishDate}T12:00:00`);
   if(!Number.isFinite(currentFinish.getTime())){ toast('A data de conclusão da obra está inválida.'); return false; }
   currentFinish.setDate(currentFinish.getDate() - requestedDays);
@@ -4997,7 +5085,9 @@ function processStadiumConstructionDay(){
   const st = getStadiumExpansionData();
   if(!st.activeWork) return;
   if(getStadiumWorkDaysRemaining(st.activeWork) > 0) return;
-  const { ring, side } = st.activeWork;
+  const completedWork = st.activeWork;
+  const { ring, side } = completedWork;
+  const wasPremiumBuild = Number(completedWork.contractorRushCost) > 0 && Number(completedWork.contractorRushDays) >= Number(completedWork.durationDays || 0);
   st.rings[ring][side] = true;
   st.purchasedSectors = Array.isArray(st.purchasedSectors) ? st.purchasedSectors : [];
   const key = `r${ring}_${side}`;
@@ -5013,7 +5103,11 @@ function processStadiumConstructionDay(){
     st.sides = st.rings[st.ring];
     stadiumSelectedSide = 'norte';
   }
-  addNews(`🏟️ Obra do setor ${side} do anel ${ring} concluída. Capacidade atual: ${state.infrastructure.stadium.capacity.toLocaleString('pt-BR')} lugares.`);
+  const completionMessage = `🏟️ OBRA CONCLUÍDA! O setor ${String(side).toUpperCase()} do Anel ${ring} está pronto. Capacidade atual: ${state.infrastructure.stadium.capacity.toLocaleString('pt-BR')} lugares.`;
+  addNews(completionMessage);
+  if(typeof toast === 'function') toast(completionMessage);
+  if(wasPremiumBuild) addNews(`🏗️ CONSTRUTORA PREMIUM: serviço expresso concluído por ${fmtMoney(Number(completedWork.contractorRushCost) || 0)}.`);
+  if(typeof save === 'function') save();
 }
 
 // =========================================================================
@@ -6247,17 +6341,64 @@ function getMuseumHistoricalTitles(gameState = state){
   return records.map(trophy => `${trophy.name} (${trophy.year})`);
 }
 
+function syncCareerTitlesFromCompetitionHistory(gameState = state){
+  if(!gameState) return [];
+  gameState.titles = Array.isArray(gameState.titles) ? gameState.titles : [];
+  const normalizeTitle = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+  const clubKey = normalizeTitle(gameState.club);
+  const seen = new Set(gameState.titles.map(title => normalizeTitle(typeof title === 'string' ? title : title?.name || title?.title)));
+  const addTitle = (name, season = gameState.season) => {
+    const titleName = String(name || '').trim();
+    const key = normalizeTitle(titleName);
+    if(!titleName || !key || !clubKey || seen.has(key)) return false;
+    gameState.titles.push({ name:titleName, year:Number(season) || Number(gameState.season) || 2026 });
+    seen.add(key);
+    return true;
+  };
+
+  // Salvo antigo pode ter o campeão registrado apenas na tabela final do estadual.
+  for(const [competitionId, data] of Object.entries(gameState.estadualData || {})){
+    if(!data || !Array.isArray(data.teams)) continue;
+    const rows = data.teams.filter(team => Number(team?.j || 0) > 0 || Number(team?.played || 0) > 0);
+    if(!rows.length) continue;
+    const sorted = rows.slice().sort((a,b) => (Number(b.p ?? b.points)||0)-(Number(a.p ?? a.points)||0)
+      || ((Number(b.gp)||0)-(Number(b.gc)||0))-((Number(a.gp)||0)-(Number(a.gc)||0))
+      || (Number(b.v)||0)-(Number(a.v)||0));
+    if(normalizeTitle(sorted[0]?.name) === clubKey){
+      const competitionName = data.name || compById(competitionId)?.name || 'Campeonato Estadual';
+      if(addTitle(competitionName, data.season || gameState.season)){
+        gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+        gameState.news.unshift(`🏆 TÍTULO RECUPERADO NO ACERVO: ${gameState.club} campeão de ${competitionName} (${data.season || gameState.season}).`);
+        gameState.news = gameState.news.slice(0,50);
+      }
+    }
+  }
+
+  // O histórico anual guarda campeões mesmo quando o estado da competição já foi limpo na virada.
+  for(const seasonRecord of [...(gameState.worldChampionHistory || []), ...(gameState.seasonHistory || []), ...(gameState.competitionHistory || [])]){
+    if(!seasonRecord) continue;
+    const competitions = Array.isArray(seasonRecord.competitions) ? seasonRecord.competitions : [seasonRecord];
+    for(const competition of competitions){
+      if(normalizeTitle(competition?.champion || competition?.winner || competition?.userClub) !== clubKey) continue;
+      if(competition?.userPosition != null && Number(competition.userPosition) !== 1) continue;
+      addTitle(competition?.name || competition?.competitionName || competition?.compName, seasonRecord.season || competition?.season || gameState.season);
+    }
+  }
+  return gameState.titles;
+}
+
 function getMuseumData(){
   state.museumData = state.museumData || {
     level: 1,
     skipOfferUsed: false
   };
+  syncCareerTitlesFromCompetitionHistory(state);
   const curLvlObj = MUSEUM_LEVELS.find(m => m.level === state.museumData.level) || MUSEUM_LEVELS[0];
   
   // Taças do clube (históricas + da carreira)
   const historicalTitles = getMuseumHistoricalTitles(state);
   const careerTitles = (state.titles || []).map(t => typeof t === 'string' ? `${t} (${state.season})` : `${t?.name || t?.title || 'Título'} (${t?.year || state.season})`);
-  const allTitles = [...historicalTitles, ...careerTitles];
+  const allTitles = [...new Set([...historicalTitles, ...careerTitles])];
   const inVitrine = allTitles.slice(0, curLvlObj.capacity);
   const overflow = allTitles.slice(curLvlObj.capacity);
 
@@ -16384,7 +16525,7 @@ function finalizeRound(userRes, winners, isKO){
   // metadata start their cooldown on the first proposal after this migration.
   const lastStadiumOfferRound = Number(state.lastStadiumCommercialOfferRound);
   if(!state.stadiumClubRental && !state.stadiumEventProposal &&
-     (!Number.isFinite(lastStadiumOfferRound) || state.round - lastStadiumOfferRound >= 4)){
+     (!Number.isFinite(lastStadiumOfferRound) || state.round < lastStadiumOfferRound || state.round - lastStadiumOfferRound >= 4)){
     if(state.lastStadiumCommercialOfferType !== 'show') generateStadiumEventProposal();
     else generateStadiumRentalProposal();
   }
@@ -18366,11 +18507,15 @@ function startLiveMatch(){
   const oppName = isUserHome ? away : home;
   const proj = attendanceProjection(oppName);
   
-  const hostClubObj = clubByName(home) || { stadium: 'Estádio Municipal', capacity: 15000 };
-  const stadiumName = isUserHome 
-    ? (state.namingRights?.stadiumName || hostClubObj.stadium || 'Estádio do Clube')
-    : (hostClubObj.stadium || 'Estádio Municipal');
-  const stadiumCap = isUserHome ? (state.infrastructure?.stadium?.capacity || 18000) : (hostClubObj.capacity || 22000);
+  const hostClubObj = clubByName(home) || { stadium: 'Estádio Genérico', capacity: 15000 };
+  const stadiumProfile = typeof window.AFM_REAL_FOOTBALL?.renderer?.getStadiumProfile === 'function'
+    ? window.AFM_REAL_FOOTBALL.renderer.getStadiumProfile(home, isUserHome ? state : null)
+    : { id: 'generic', name: hostClubObj.stadium || 'Estádio Genérico', style: 'generic', primary: '#334155', secondary: '#64748b', roof: 'partial', capacity: hostClubObj.capacity || 22000 };
+  const savedStadiumName = isUserHome
+    ? (state.stadiumCustomization?.name || state.stadiumName || state.stadium?.name || state.namingRights?.stadiumName || stadiumProfile.name)
+    : stadiumProfile.name;
+  const stadiumName = savedStadiumName || (isUserHome ? `Estádio do ${state.club}` : 'Estádio Genérico');
+  const stadiumCap = isUserHome ? (state.infrastructure?.stadium?.capacity || 18000) : (stadiumProfile.capacity || hostClubObj.capacity || 22000);
   const stadiumPitch = isUserHome ? (state.stadiumPitchType || 'natural') : 'natural';
   const stadiumUpgrades = isUserHome ? (state.stadiumUpgrades || {}) : { chairs: true, screen: false, ledRing: false, flares: false, ledLights: true };
   const attendance = isUserHome ? proj.attendance : Math.round(stadiumCap * clamp(0.3 + (hs/150), 0.15, 0.95));
@@ -18782,6 +18927,8 @@ function startLiveMatch(){
     },
     stadium: {
       name: stadiumName,
+      profile: stadiumProfile,
+      customization: isUserHome ? (state.stadiumCustomization || {}) : {},
       capacity: stadiumCap,
       attendance,
       pitch: stadiumPitch,
@@ -19853,9 +20000,15 @@ function drawLiveStadium(ctx, s){
   ctx.closePath();
   ctx.clip();
 
-  // Faixas do Gramado (Verde Claro / Verde Escuro)
+  // Faixas do gramado: no estádio da carreira respeita a paleta salva no preview 3D.
   const isSynthetic = s.stadium.pitch === 'synthetic';
   const isHybrid = s.stadium.pitch === 'hybrid';
+  const customStadium = s.stadium?.profile?.id === 'career-stadium';
+  const grassBase = customStadium ? (s.stadium.customization?.grassColor || s.stadium.profile.grassColor || '#14532d') : '#14532d';
+  const grassStripeA = customStadium ? (s.stadium.customization?.grassStripeA || '#15803d') : (isSynthetic ? '#229854' : isHybrid ? '#248645' : '#2d8c4e');
+  const grassStripeB = customStadium ? (s.stadium.customization?.grassStripeB || '#16a34a') : (isSynthetic ? '#27a35c' : isHybrid ? '#2b984f' : '#359f5a');
+  ctx.fillStyle = grassBase;
+  ctx.fillRect(0, 190, 1280, 340);
   const stripes = 12;
   for(let i=0; i<stripes; i++){
     const x0 = (i / stripes) * 100;
@@ -19870,7 +20023,9 @@ function drawLiveStadium(ctx, s){
     ctx.lineTo(p0b.x, p0b.y);
     ctx.closePath();
 
-    if(isSynthetic){
+    if(customStadium){
+      ctx.fillStyle = (i % 2 === 0) ? grassStripeA : grassStripeB;
+    } else if(isSynthetic){
       ctx.fillStyle = (i % 2 === 0) ? '#229854' : '#27a35c';
     } else if(isHybrid){
       ctx.fillStyle = (i % 2 === 0) ? '#248645' : '#2b984f';
@@ -34727,8 +34882,11 @@ const AFM_ARENAS_DATA = [
   {
     name: "Neo Química Arena",
     club: "Corinthians",
+    primaryClub: "Corinthians",
+    profileId: "neo-quimica",
     city: "São Paulo, SP",
     capacity: "49.205 lugares",
+        model: "arena_moderna",
     pitch: "Híbrido Pro Grass",
     opened: "2014",
     history: "Inaugurada para a Copa do Mundo de 2014, sediou a abertura do mundial e jogos das Olimpíadas Rio 2016. Projetada para ser um caldeirão com arquibancadas próximas ao campo, conta com o maior painel em fachada de LED da América Latina e iluminação LED de nível europeu. A casa da Fiel é sinônimo de modernidade e pressão nos adversários.",
@@ -34739,8 +34897,11 @@ const AFM_ARENAS_DATA = [
   {
     name: "Maracanã (Mário Filho)",
     club: "Flamengo & Fluminense",
+    primaryClub: "Flamengo",
+    profileId: "maracana",
     city: "Rio de Janeiro, RJ",
     capacity: "78.838 lugares",
+        model: "arena_coliseu",
     pitch: "Bermuda Celebration Natural",
     opened: "1950 (Modernizado 2014)",
     history: "O templo sagrado do futebol mundial. Palco de duas finais de Copa do Mundo (1950 e 2014), do milésimo gol de Pelé e de decisões inesquecíveis da Copa Libertadores e do Brasileirão. Sob gestão de Flamengo e Fluminense, reúne a mística das maiores torcidas do planeta em tardes ensolaradas e noites de puro delírio futebolístico.",
@@ -34751,8 +34912,11 @@ const AFM_ARENAS_DATA = [
   {
     name: "Allianz Parque",
     club: "Palmeiras",
+    primaryClub: "Palmeiras",
+    profileId: "allianz-parque",
     city: "São Paulo, SP",
     capacity: "43.713 lugares",
+        model: "arena_moderna",
     pitch: "Sintético Monofilamento FIFA Pro",
     opened: "2014 (Parque Antártica)",
     history: "Erguido sobre o lendário estádio Palestra Itália, o Allianz Parque é a arena multiuso mais moderna e lucrativa do país. Com gramado sintético ultrarrápido que favorece a velocidade do jogo, transformou-se no grande bastião do Palmeiras nas conquistas de duas Copas Libertadores, três Brasileirões e múltiplas Copas do Brasil.",
@@ -34763,8 +34927,11 @@ const AFM_ARENAS_DATA = [
   {
     name: "MorumBIS (Cícero Pompeu de Toledo)",
     club: "São Paulo FC",
+    primaryClub: "São Paulo",
+    profileId: "morumbis",
     city: "São Paulo, SP",
     capacity: "66.795 lugares",
+        model: "arena_moderna",
     pitch: "Bermuda Tifway 419 Natural",
     opened: "1960",
     history: "O maior estádio particular do Brasil. Projetado pelo arquiteto Vilanova Artigas, foi testemunha de grandes glórias: o São Paulo de Telê Santana, Raí, o recorde de gols do goleiro Rogério Ceni e finais épicas de Libertadores e Mundiais. Revitalizado com histórico naming rights MorumBIS, segue impondo respeito pelo seu tamanho monumental.",
@@ -34773,22 +34940,13 @@ const AFM_ARENAS_DATA = [
     accentColor: "#f87171"
   },
   {
-    name: "Arena BRB Mané Garrincha",
-    club: "Capital-DF, Brasília, Gama & Brasiliense",
-    city: "Brasília, DF",
-    capacity: "72.788 lugares",
-    pitch: "Bermuda Celebration Natural",
-    opened: "1974 (Reconstruído 2013)",
-    history: "O segundo maior estádio do Brasil e monumento arquitetônico da capital federal, cercado por 288 pilares circulares de concreto de 36 metros de altura. Sede de jogos decisivos do Candangão DF, da Seleção Brasileira e da Supercopa do Brasil. No AFM 2027, você pode comandar clubes de Brasília e lotar as arquibancadas monumentais do Mané Garrincha.",
-    features: ["Colunata monumental circular", "Selo LEED Platinum sustentável", "Maior arena do Centro-Oeste", "Palco de superclássicos"],
-    photoBg: "linear-gradient(135deg, #1e3a8a, #0f172a)",
-    accentColor: "#60a5fa"
-  },
-  {
     name: "Mineirão (Magalhães Pinto)",
     club: "Cruzeiro & Atlético-MG",
+    primaryClub: "Cruzeiro",
+    profileId: "mineirao",
     city: "Belo Horizonte, MG",
     capacity: "61.846 lugares",
+        model: "arena_classica",
     pitch: "Bermuda Celebration Natural",
     opened: "1965",
     history: "O Gigante da Pampulha. Tombado pelo patrimônio histórico e vizinho da famosa lagoa de Niemeyer, é o templo do futebol mineiro onde brilharam Tostão, Dirceu Lopes, Reinaldo, Ronaldinho Gaúcho e Alex. Palco de conquistas de Libertadores e do clássico mais elétrico de Minas Gerais.",
@@ -34799,8 +34957,11 @@ const AFM_ARENAS_DATA = [
   {
     name: "Beira-Rio (José Pinheiro Borda)",
     club: "Internacional",
+    primaryClub: "Internacional",
+    profileId: "beira-rio",
     city: "Porto Alegre, RS",
     capacity: "50.842 lugares",
+        model: "arena_moderna",
     pitch: "Híbrido Natural e Sintético",
     opened: "1969 (Modernizado 2014)",
     history: "Construído sobre as águas do Lago Guaíba com a participação direta da torcida que doou cimento e tijolos (o lendário Gigante da Beira-Rio). Palco das conquistas das Libertadores e da arrancada do Mundial do Inter. Recebeu modernização com cobertura futurista em formato de folhas de acácia para a Copa de 2014.",
@@ -34811,8 +34972,11 @@ const AFM_ARENAS_DATA = [
   {
     name: "Arena do Grêmio",
     club: "Grêmio FBPA",
+    primaryClub: "Grêmio",
+    profileId: "arena-gremio",
     city: "Porto Alegre, RS",
     capacity: "55.662 lugares",
+        model: "arena_moderna",
     pitch: "Bermuda Celebration Natural",
     opened: "2012",
     history: "A moderna casa do tricolor gaúcho, construída na zona norte de Porto Alegre para substituir o lendário Estádio Olímpico. Famosa pelo setor Norte onde a torcida faz a tradicional 'avalanche' e canta ininterruptamente por 90 minutos. Palco da consagração do Tri da América em 2017.",
@@ -34821,22 +34985,13 @@ const AFM_ARENAS_DATA = [
     accentColor: "#38bdf8"
   },
   {
-    name: "Ligga Arena (Arena da Baixada)",
-    club: "Athletico-PR",
-    city: "Curitiba, PR",
-    capacity: "42.372 lugares",
-    pitch: "Sintético Pro com Teto Retrátil",
-    opened: "1999 (Reconstruída 2014)",
-    history: "O estádio mais moderno e tecnológico da América Latina. Primeiro com teto totalmente retrátil no hemisfério sul e pioneiro absoluto no gramado sintético profissional aprovado pela FIFA. Conhecido como o 'Caldeirão do Furacão', onde a torcida rubro-negra e a acústica fechada pressionam os rivais do início ao fim.",
-    features: ["Teto retrátil automatizado", "Gramado artificial de alta precisão", "Pioneirismo tecnológico", "Acústica de caldeirão"],
-    photoBg: "linear-gradient(135deg, #991b1b, #000000)",
-    accentColor: "#ef4444"
-  },
-  {
     name: "Arena Fonte Nova",
     club: "Bahia & Vitória",
+    primaryClub: "Bahia",
+    profileId: "fonte-nova",
     city: "Salvador, BA",
     capacity: "48.000 lugares",
+        model: "arena_classica",
     pitch: "Bermuda Tifway Natural",
     opened: "2013",
     history: "Erguida em Salvador com sua famosa ferradura voltada para o Dique do Tororó e as esculturas dos Orixás. Foi palco de goleadas antológicas na Copa de 2014 e é a casa pulsar do Esporte Clube Bahia com festa de trios, cantos afros e uma das torcidas mais vibrantes e apaixonadas do país.",
@@ -34845,30 +35000,102 @@ const AFM_ARENAS_DATA = [
     accentColor: "#60a5fa"
   },
   {
-    name: "Arena Castelão",
-    club: "Fortaleza & Ceará",
-    city: "Fortaleza, CE",
-    capacity: "63.903 lugares",
-    pitch: "Bermuda Celebration Natural",
-    opened: "1973 (Modernizado 2013)",
-    history: "O maior estádio do Norte/Nordeste e um dos mais festivos do planeta. Casa do Leão do Pici e do Vozão, onde as duas maiores torcidas do Ceará criam mosaicos 3D que rodam o mundo. Palco de jogos memoráveis da Copa do Mundo de 2014 e de noites épicas da Copa Sul-Americana e Libertadores.",
-    features: ["Mosaicos 3D mundialmente famosos", "Maior público do Nordeste", "Clássico-Rei fervilhante", "Excelente conforto e acesso"],
-    photoBg: "linear-gradient(135deg, #0f172a, #1e3a8a)",
-    accentColor: "#facc15"
-  },
-  {
     name: "Santiago Bernabéu",
     club: "Real Madrid",
+    primaryClub: "Real Madrid",
+    profileId: "bernabeu",
     city: "Madri, Espanha",
     capacity: "81.044 lugares",
+        model: "arena_coliseu",
     pitch: "Retrátil Subterrâneo Multiuso",
     opened: "1947 (Supermodernização 2024)",
     history: "A catedral máxima do futebol europeu. Palco de 15 títulos de Champions League do Real Madrid. Recentemente concluída uma obra monumental que adicionou fachada futurista de aço escovado, teto retrátil automatizado, telão circular de 360 graus e gramado retrátil armazenado em estufa subterrânea.",
     features: ["Teto retrátil 360 graus", "Gramado subterrâneo em estufa", "Telão LED panorâmico 360°", "Museu histórico mais visitado"],
     photoBg: "linear-gradient(135deg, #4338ca, #1e1b4b)",
     accentColor: "#a855f7"
+  },
+  {
+    name: "Nilton Santos (Engenhão)", club: "Botafogo", city: "Rio de Janeiro, RJ", capacity: "44.661 lugares", pitch: "Natural", opened: "2007",
+    history: "Inaugurado para os Jogos Pan-Americanos de 2007, tornou-se a casa do Botafogo e recebeu provas de atletismo dos Jogos Olímpicos Rio 2016. A pista ao redor do gramado e a cobertura leve fazem parte de sua identidade arquitetônica.",
+    features: ["Legado do Pan 2007", "Pista de atletismo", "Cobertura sobre arquibancadas", "Casa alvinegra"], model: "arena_classica", photoBg: "linear-gradient(135deg,#111827,#374151)", accentColor: "#d1d5db", primaryClub: "Botafogo", profileId: "nilton-santos"
+  },
+  {
+    name: "Arena MRV", club: "Atlético-MG", city: "Belo Horizonte, MG", capacity: "46.000+ lugares", pitch: "Natural híbrido", opened: "2023",
+    history: "Aberta em 2023, a Arena MRV foi construída para ser a nova casa do Atlético Mineiro no bairro Califórnia, em Belo Horizonte. A arena compacta e coberta foi planejada para aproximar a torcida do campo e tornar os jogos uma experiência intensa.",
+    features: ["Nova casa do Galo", "Arquibancadas próximas", "Cobertura moderna", "Estrutura multiuso"], model: "arena_moderna", photoBg: "linear-gradient(135deg,#111827,#991b1b)", accentColor: "#f87171", primaryClub: "Atlético-MG", profileId: "arena-mrv"
+  },
+  {
+    name: "Spotify Camp Nou", club: "FC Barcelona", city: "Barcelona, Espanha", capacity: "Projeto superior a 100.000 lugares", pitch: "Natural", opened: "1957 (reconstrução em fases)",
+    history: "O Camp Nou foi inaugurado em 1957 e se tornou a casa histórica do Barcelona. A renovação Espai Barça moderniza a estrutura e prevê uma cobertura abrangente e áreas de experiência para torcedores. A capacidade e a configuração disponíveis podem variar conforme a fase das obras.",
+    features: ["Casa histórica do Barça", "Grande bowl de arquibancadas", "Projeto Espai Barça", "Renovação em etapas"], model: "arena_coliseu", photoBg: "linear-gradient(135deg,#1e3a8a,#991b1b)", accentColor: "#60a5fa", primaryClub: "FC Barcelona", profileId: "camp-nou"
+  },
+  {
+    name: "Allianz Arena", club: "Bayern München", city: "Munique, Alemanha", capacity: "75.000 lugares em jogos nacionais", pitch: "Natural", opened: "2005",
+    history: "Inaugurada em 2005, a Allianz Arena ficou mundialmente conhecida pela fachada de painéis em forma de losango que pode ser iluminada em diferentes cores. A estrutura foi criada para oferecer uma visão fechada do campo e hoje é a casa do Bayern München.",
+    features: ["Fachada luminosa de losangos", "Três níveis de arquibancada", "Cobertura ampla", "Palco da Copa de 2006"], model: "arena_moderna", photoBg: "linear-gradient(135deg,#dc2626,#1d4ed8)", accentColor: "#60a5fa", primaryClub: "Bayern München", profileId: "allianz-arena"
+  },
+  {
+    name: "Etihad Stadium", club: "Manchester City", city: "Manchester, Inglaterra", capacity: "53.000+ lugares", pitch: "Natural", opened: "2002",
+    history: "Construído originalmente para os Jogos da Commonwealth de 2002, o estádio foi convertido para o futebol e se tornou a casa do Manchester City. A configuração oval e os mastros externos que sustentam a cobertura são elementos marcantes de seu desenho.",
+    features: ["Legado dos Commonwealth Games", "Cobertura sustentada por mastros", "Expansões recentes", "Casa do Manchester City"], model: "arena_moderna", photoBg: "linear-gradient(135deg,#0284c7,#0f172a)", accentColor: "#38bdf8", primaryClub: "Manchester City", profileId: "etihad"
+  },
+  {
+    name: "Old Trafford", club: "Manchester United", city: "Manchester, Inglaterra", capacity: "74.000+ lugares", pitch: "Natural", opened: "1910",
+    history: "Inaugurado em 1910, Old Trafford é conhecido como o Theatre of Dreams. Apesar dos danos sofridos na Segunda Guerra Mundial e das ampliações posteriores, preserva a identidade de estádio tradicional inglês com arquibancadas altas e cobertura sobre os setores.",
+    features: ["Inauguração em 1910", "Arquibancadas históricas", "Museu e tour do clube", "Casa dos Red Devils"], model: "arena_classica", photoBg: "linear-gradient(135deg,#991b1b,#111827)", accentColor: "#ef4444", primaryClub: "Manchester United", profileId: "old-trafford"
+  },
+  {
+    name: "Parc des Princes", club: "Paris Saint-Germain", city: "Paris, França", capacity: "48.000 lugares", pitch: "Natural", opened: "1972 (estádio atual)",
+    history: "A versão atual do Parc des Princes foi inaugurada em 1972, com projeto de Roger Taillibert. Sua cobertura de concreto e as linhas curvas das arquibancadas formam uma silhueta arquitetônica reconhecível no oeste de Paris. É a casa tradicional do PSG.",
+    features: ["Projeto de Roger Taillibert", "Cobertura de concreto", "Bowl compacto e fechado", "Casa do PSG"], model: "arena_classica", photoBg: "linear-gradient(135deg,#1e3a8a,#dc2626)", accentColor: "#60a5fa", primaryClub: "Paris Saint-Germain", profileId: "parc-des-princes"
+  },
+  {
+    name: "Allianz Stadium", club: "Juventus", city: "Turim, Itália", capacity: "41.500 lugares", pitch: "Natural", opened: "2011",
+    history: "Inaugurado em 2011 no local do antigo Stadio delle Alpi, o estádio da Juventus foi projetado com arquibancadas próximas ao campo, criando uma atmosfera mais compacta. O projeto moderno privilegia a visibilidade e a experiência dos torcedores.",
+    features: ["Arquibancadas próximas do campo", "Projeto moderno", "Museu da Juventus", "Casa bianconera"], model: "arena_moderna", photoBg: "linear-gradient(135deg,#111827,#f8fafc)", accentColor: "#e2e8f0", primaryClub: "Juventus", profileId: "allianz-stadium-torino"
+  },
+  {
+    name: "Saitama Stadium 2002", club: "Urawa Red Diamonds", city: "Saitama, Japão", capacity: "63.700 lugares", pitch: "Natural", opened: "2001",
+    history: "Construído para a Copa do Mundo de 2002 e inaugurado em 2001, é um dos maiores estádios exclusivos de futebol do Japão. Sua grande cobertura e arquibancadas simétricas recebem jogos da seleção e os mandos do Urawa Red Diamonds.",
+    features: ["Copa do Mundo de 2002", "Estádio dedicado ao futebol", "Cobertura de grande vão", "Torcida do Urawa"], model: "arena_moderna", photoBg: "linear-gradient(135deg,#b91c1c,#111827)", accentColor: "#ef4444", primaryClub: "Urawa Red Diamonds", profileId: "saitama-stadium"
+  },
+  {
+    name: "Nissan Stadium", club: "Yokohama F. Marinos", city: "Yokohama, Japão", capacity: "72.000+ lugares", pitch: "Natural", opened: "1998",
+    history: "Inaugurado em 1998 como International Stadium Yokohama, o Nissan Stadium recebeu a final da Copa do Mundo de 2002. É um grande estádio multiuso com pista de atletismo, arquibancadas em formato oval e capacidade elevada para eventos internacionais.",
+    features: ["Final da Copa de 2002", "Estádio multiuso", "Grande capacidade", "Casa do Yokohama F. Marinos"], model: "arena_coliseu", photoBg: "linear-gradient(135deg,#0284c7,#0f172a)", accentColor: "#38bdf8", primaryClub: "Yokohama F. Marinos", profileId: "nissan-stadium"
+  },
+  {
+    name: "Ajinomoto Stadium", club: "FC Tokyo (e Tokyo Verdy em jogos selecionados)", city: "Chōfu, Tóquio, Japão", capacity: "49.970 lugares", pitch: "Natural", opened: "2001",
+    history: "Aberto em 2001, o Ajinomoto Stadium é um estádio multiuso na região metropolitana de Tóquio. O nome comercial atual é usado desde 2003. Sua estrutura oval com cobertura contínua atende partidas de futebol, rugby e outros eventos.",
+    features: ["Cobertura ampla", "Uso multi-esportivo", "Acesso pela região de Tóquio", "Mandos de clubes locais"], model: "arena_classica", photoBg: "linear-gradient(135deg,#1d4ed8,#dc2626)", accentColor: "#60a5fa", primaryClub: "FC Tokyo", profileId: "ajinomoto-stadium"
+  },
+  {
+    name: "Kingdom Arena", club: "Al-Hilal", city: "Riade, Arábia Saudita", capacity: "26.000 lugares (configuração de futebol)", pitch: "Natural", opened: "2023",
+    history: "Arena coberta inaugurada em 2023, conhecida pela estrutura compacta e pela cobertura que envolve o campo. Tornou-se a casa do Al-Hilal e ganhou projeção internacional por sediar grandes partidas e eventos em Riade.",
+    features: ["Arena coberta", "Cobertura de grande vão", "Bowl compacto", "Casa do Al-Hilal"], model: "arena_moderna", photoBg: "linear-gradient(135deg,#1d4ed8,#0f172a)", accentColor: "#60a5fa", primaryClub: "Al-Hilal", profileId: "kingdom-arena"
+  },
+  {
+    name: "Al-Awwal Park", club: "Al-Nassr", city: "Riade, Arábia Saudita", capacity: "25.000 lugares", pitch: "Natural", opened: "2015",
+    history: "Inaugurado em 2015 como parte do complexo esportivo da Universidade Rei Saud, o estádio passou a receber os mandos do Al-Nassr. Sua escala mais compacta e a cobertura parcial contrastam com os grandes estádios nacionais multiuso da região.",
+    features: ["Estádio compacto", "Cobertura parcial", "Complexo universitário", "Casa do Al-Nassr"], model: "arena_classica", photoBg: "linear-gradient(135deg,#ca8a04,#1e3a8a)", accentColor: "#facc15", primaryClub: "Al-Nassr", profileId: "al-awwal-park"
+  },
+  {
+    name: "King Abdullah Sports City", club: "Al-Ittihad (também Al-Ahli em jogos selecionados)", city: "Jidá, Arábia Saudita", capacity: "62.000+ lugares", pitch: "Natural", opened: "2014",
+    history: "Inaugurado em 2014, o complexo conhecido como The Shining Jewel inclui um grande estádio de futebol com cobertura em anel e fachada exterior distintiva. Recebeu jogos internacionais e é usado por grandes clubes de Jidá, incluindo o Al-Ittihad e, em determinados contextos, o Al-Ahli.",
+    features: ["Grande estádio nacional", "Cobertura em anel", "Complexo esportivo", "Palco de jogos internacionais"], model: "arena_coliseu", photoBg: "linear-gradient(135deg,#ca8a04,#111827)", accentColor: "#facc15", primaryClub: "Al-Ittihad", profileId: "king-abdullah-sports-city"
   }
 ];
+
+function normalizeArenaSearch(value){
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function getArenaRegion(arena){
+  const location = normalizeArenaSearch(`${arena?.city || ''} ${arena?.club || ''}`);
+  if(/japao|toquio|tokyo|saitama|yokohama|arabia saudita|riade|jida/.test(location)) return 'Ásia';
+  if(/espanha|alemanha|inglaterra|franca|italia|madri|munique|manchester|paris|turim|barcelona/.test(location)) return 'Europa';
+  return 'Brasil';
+}
 
 const AFM_ESTADUAIS_DATA = [
   {
@@ -35329,6 +35556,28 @@ function renderSetup(app){
         </div>
       `;
       bindSetup();
+      const stadiumCards = Array.from(app.querySelectorAll('.afm-stadium-gallery-card'));
+      let stadiumRegionFilter = 'todos';
+      let stadiumSearch = '';
+      const applyStadiumFilters = () => {
+        stadiumCards.forEach(card => {
+          const matchesRegion = stadiumRegionFilter === 'todos' || card.dataset.region === stadiumRegionFilter;
+          const matchesSearch = !stadiumSearch || (card.dataset.search || '').includes(stadiumSearch);
+          card.hidden = !(matchesRegion && matchesSearch);
+        });
+      };
+      app.querySelectorAll('.afm-stadium-region-filter').forEach(btn => {
+        btn.onclick = () => {
+          stadiumRegionFilter = btn.dataset.region || 'todos';
+          app.querySelectorAll('.afm-stadium-region-filter').forEach(other => other.classList.toggle('primary', other === btn));
+          applyStadiumFilters();
+        };
+      });
+      const stadiumSearchInput = app.querySelector('#afmStadiumGallerySearch');
+      if(stadiumSearchInput) stadiumSearchInput.oninput = () => {
+        stadiumSearch = normalizeArenaSearch(stadiumSearchInput.value);
+        applyStadiumFilters();
+      };
       return;
     }
 
@@ -35371,11 +35620,27 @@ function renderSetup(app){
               </div>
             </div>
 
-            <!-- GRID DE ARENAS FAMOSAS -->
-            <div class="afm-arena-grid">
+            <!-- GALERIA DE ESTÁDIOS: FILTROS POR REGIÃO E BUSCA -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:24px 0 8px">
+              <div style="display:flex;gap:8px;flex-wrap:wrap" role="group" aria-label="Filtrar por região">
+                <button class="btn afm-stadium-region-filter primary" data-region="todos" style="font-size:11px;font-weight:900">🌍 Todos (23)</button>
+                <button class="btn afm-stadium-region-filter" data-region="Brasil" style="font-size:11px;font-weight:900">🇧🇷 Brasil</button>
+                <button class="btn afm-stadium-region-filter" data-region="Europa" style="font-size:11px;font-weight:900">🇪🇺 Europa</button>
+                <button class="btn afm-stadium-region-filter" data-region="Ásia" style="font-size:11px;font-weight:900">🌏 Ásia</button>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;flex:1;max-width:340px;min-width:220px">
+                <span style="font-size:12px;color:#94a3b8">🔎</span>
+                <input id="afmStadiumGallerySearch" type="search" placeholder="Buscar estádio ou clube..." aria-label="Buscar estádio ou clube" style="width:100%;background:#0b1220;color:#fff;border:1px solid #334155;border-radius:9px;padding:10px 12px;font-size:12px;outline:none">
+              </label>
+            </div>
+            <div style="color:#64748b;font-size:11px;line-height:1.5;margin-bottom:12px">Cada estádio carrega seu próprio GLB low-poly, com silhueta, cobertura, fachada e paleta específicas inspiradas no perfil real já criado para o AFM. A representação é estilizada, não uma reprodução arquitetônica milimétrica.</div>
+            <div class="afm-arena-grid afm-stadium-gallery-grid" id="afmStadiumGalleryGrid">
               ${AFM_ARENAS_DATA.map(arena => `
-                <div class="afm-arena-card">
+                <article class="afm-arena-card afm-stadium-gallery-card" data-region="${getArenaRegion(arena)}" data-search="${esc(normalizeArenaSearch(`${arena.name} ${arena.club} ${arena.city} ${arena.opened}`))}">
                   <div class="afm-arena-header" style="background:${arena.photoBg};border-bottom:1px solid rgba(255,255,255,0.08)">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                      <span class="pill" style="font-size:10px;font-weight:900;background:rgba(0,0,0,0.6);color:#fff;border:1px solid rgba(255,255,255,0.2)">${getArenaRegion(arena) === 'Brasil' ? '🇧🇷' : getArenaRegion(arena) === 'Europa' ? '🇪🇺' : '🌏'} ${getArenaRegion(arena)}</span>
+                    </div>
                     <div style="display:flex;justify-content:space-between;align-items:flex-start">
                       <span class="pill" style="font-size:10px;font-weight:900;background:rgba(0,0,0,0.6);color:#fff;border:1px solid rgba(255,255,255,0.2);backdrop-filter:blur(6px)">
                         📍 ${arena.city}
@@ -35394,6 +35659,16 @@ function renderSetup(app){
                     </div>
                   </div>
 
+                  <div class="afm-stadium-model-frame" style="position:relative;height:210px;background:radial-gradient(ellipse at 50% 55%,${arena.accentColor}22,transparent 66%),#060b13;border-bottom:1px solid rgba(255,255,255,.07);overflow:hidden">
+                    <model-viewer class="afm-stadium-model-viewer" data-model="${arena.profileId}" src="assets/stadiums/real/${arena.profileId}.glb" alt="Maquete 3D low-poly exclusiva de ${esc(arena.name)}" camera-controls auto-rotate rotation-per-second="12deg" shadow-intensity="1" exposure="1.05" camera-orbit="45deg 65deg 105%" loading="lazy" reveal="auto" style="width:100%;height:100%;background:transparent;--poster-color:transparent">
+                      <div slot="poster" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:radial-gradient(ellipse at center,${arena.accentColor}18,#060b13 72%);color:#cbd5e1;text-align:center;padding:12px">
+                        <img src="assets/stadiums/PREVIA_ESTADIOS.png" alt="" loading="lazy" style="width:78%;height:130px;object-fit:contain;opacity:.9">
+                        <b style="font-size:10px;color:${arena.accentColor}">GLB EXCLUSIVO · ${esc(arena.name.toUpperCase())}</b>
+                      </div>
+                    </model-viewer>
+                    <div style="position:absolute;bottom:8px;left:8px;z-index:2;background:rgba(2,6,23,.82);border:1px solid ${arena.accentColor}55;border-radius:7px;padding:4px 7px;font-size:9px;font-weight:900;color:${arena.accentColor};pointer-events:none">↻ Arraste para girar · Scroll para zoom</div>
+                  </div>
+
                   <div class="afm-arena-body">
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
                       <span class="pill" style="font-size:10px;font-weight:800;background:rgba(255,255,255,0.05);color:#cbd5e1">
@@ -35408,6 +35683,8 @@ function renderSetup(app){
                       ${arena.history}
                     </p>
 
+                    <div style="font-size:10px;color:#64748b;margin:-4px 0 14px;line-height:1.45">Modelo próprio <b style="color:#cbd5e1">${esc(arena.profileId)}</b>, derivado do perfil low-poly existente no motor AFM. A forma, a cobertura e as cores variam por estádio; o resultado é uma interpretação estilizada.</div>
+
                     <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;margin-bottom:16px">
                       <div style="font-size:10px;font-weight:800;color:#a855f7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Destaques da Arena:</div>
                       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
@@ -35419,11 +35696,11 @@ function renderSetup(app){
                       </div>
                     </div>
 
-                    <button class="btn btnPlayInArena" data-club="${arena.club.split('&')[0].trim().split(',')[0].trim()}" style="width:100%;padding:10px;font-size:12px;font-weight:800;border-radius:8px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);color:#c084fc;cursor:pointer;transition:all 0.2s">
+                    <button class="btn btnPlayInArena" data-club="${arena.primaryClub || arena.club.split('&')[0].trim().split(',')[0].trim()}" style="width:100%;padding:10px;font-size:12px;font-weight:800;border-radius:8px;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);color:#c084fc;cursor:pointer;transition:all 0.2s">
                       ⚽ Comandar Clube nesta Arena
                     </button>
                   </div>
-                </div>
+                </article>
               `).join('')}
             </div>
 
@@ -35443,6 +35720,26 @@ function renderSetup(app){
         </div>
       `;
       bindSetup();
+      const stadiumCards = Array.from(app.querySelectorAll('.afm-stadium-gallery-card'));
+      let stadiumRegionFilter = 'todos';
+      let stadiumSearch = '';
+      const applyStadiumFilters = () => stadiumCards.forEach(card => {
+        const matchesRegion = stadiumRegionFilter === 'todos' || card.dataset.region === stadiumRegionFilter;
+        const matchesSearch = !stadiumSearch || (card.dataset.search || '').includes(stadiumSearch);
+        card.hidden = !(matchesRegion && matchesSearch);
+      });
+      app.querySelectorAll('.afm-stadium-region-filter').forEach(btn => {
+        btn.onclick = () => {
+          stadiumRegionFilter = btn.dataset.region || 'todos';
+          app.querySelectorAll('.afm-stadium-region-filter').forEach(other => other.classList.toggle('primary', other === btn));
+          applyStadiumFilters();
+        };
+      });
+      const stadiumSearchInput = app.querySelector('#afmStadiumGallerySearch');
+      if(stadiumSearchInput) stadiumSearchInput.oninput = () => {
+        stadiumSearch = normalizeArenaSearch(stadiumSearchInput.value);
+        applyStadiumFilters();
+      };
       return;
     }
 

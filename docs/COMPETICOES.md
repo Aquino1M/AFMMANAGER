@@ -1,19 +1,18 @@
-# Competições: estado do projeto
+﻿# Competições: estado do projeto
 
-Este arquivo registra o que o código atualmente modela. A presença de uma regra ou confronto na tela não significa que a competição esteja conectada ao motor de partidas.
+Este documento descreve limites conhecidos da implementação; uma tela ou fixture exibida não comprova integração completa ao motor de partidas.
 
-## Ligação com o motor
+## Estado de integração
 
-- O motor principal usa `state.schedule`, `state.teams` e `state.round` para a competição escolhida ao criar a carreira.
-- `Copa do Brasil` tem listas e simulador de calendário legado em `js/game.js`; seus resultados ainda não formam uma chave completa integrada ao motor principal.
-- Libertadores e Sul-Americana ainda usam participantes e fixtures de grupos fixos de 2026 em `data/continental_2026.js`. Os placares dos jogos de grupo agora são salvos na carreira e atualizam uma tabela de classificação; partidas vencidas ao avançar o calendário são simuladas. Mata-mata, vagas da temporada seguinte e novos participantes por classificação ainda não estão integrados.
-- Mundial de Clubes e acessos/rebaixamentos internacionais não devem ser descritos como sistemas dinâmicos até serem implementados e verificados.
+- A liga principal usa `state.schedule`, `state.teams` e `state.round` da competição selecionada ao criar a carreira.
+- A Copa do Brasil ainda mantém listas e um simulador de calendário legado em `js/game.js`; não presuma que todas as fases formam uma chave totalmente integrada ao motor principal.
+- Libertadores e Sul-Americana usam participantes e fixtures de grupos estáticos em `data/continental_2026.js`. Resultados de grupos são salvos na carreira e atualizam a classificação, mas mata-mata, vagas e participantes dinâmicos de temporadas seguintes ainda não estão integrados por completo.
+- Não descreva Mundial de Clubes ou promoção/rebaixamento internacional como dinâmicos sem implementação e testes confirmatórios.
 
-## Referência das regras
+## Fontes de regulamento
 
-- **Copa do Brasil 2026:** 126 clubes e nove fases. As fases 1–4 e a final são jogos únicos; as fases 5–8 são ida e volta. Os 20 clubes da Série A entram na 5ª fase; quatro campeões entram na 3ª. Consulte o regulamento oficial da [CBF](https://www.cbf.com.br/futebol-brasileiro/noticias/undefined/ponte-preta-x-ituano/cbf-divulga-tabela-basica-plano-geral-de-acoes-e-regulamento-especifico-da-copa-do-brasil-2026).
-- **Libertadores e Sul-Americana:** use os manuais CONMEBOL da temporada correspondente. Participantes, acesso e chaveamento variam por temporada; não reutilize fixtures estáticos como se fossem classificação oficial.
+Para a Copa do Brasil, use o regulamento oficial da [CBF](https://www.cbf.com.br/futebol-brasileiro/noticias/undefined/ponte-preta-x-ituano/cbf-divulga-tabela-basica-plano-geral-de-acoes-e-regulamento-especifico-da-copa-do-brasil-2026) e reconfirme os dados a cada temporada. Para Libertadores e Sul-Americana, consulte os manuais oficiais da CONMEBOL da temporada correspondente. Participantes, acesso e chaveamento mudam; fixtures estáticos não são prova de classificação oficial.
 
-## Critério para declarar uma competição funcional
+## Critério de integração
 
-Uma competição só está integrada quando calendário, início de partida ao vivo/simulada, persistência de resultados, classificação ou chaveamento, avanço de fase, campeão/título e save da carreira usam o mesmo estado. Teste jogos de usuário, simulação dos demais confrontos, empate e pênaltis quando aplicável, carregamento do save e virada de temporada.
+Considere uma competição integrada somente quando calendário, partida ao vivo/simulada, persistência do resultado, tabela ou chaveamento, avanço de fase, título e save usam estado consistente. Teste partidas do usuário e dos demais clubes, empates e pênaltis quando aplicáveis, recarga do save e transição de temporada.
