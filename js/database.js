@@ -414,7 +414,6 @@ const AFM_DB = (function(){
     try {
       const payload = {
         username: cleanUser,
-        user_id: authSession.user.id,
         slot,
         club: saveEntry.club || state.club,
         manager: saveEntry.manager || state.manager || 'Treinador',
@@ -433,7 +432,7 @@ const AFM_DB = (function(){
       const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
       const writeQuery = cli
         .from('afm_saves')
-        .upsert(payload, { onConflict: 'user_id,slot' })
+        .upsert(payload, { onConflict: 'username,slot' })
         .select()
         .single();
       const { data, error } = await Promise.race([writeQuery, timeoutP]);
@@ -467,7 +466,7 @@ const AFM_DB = (function(){
       const delQuery = cli
         .from('afm_saves')
         .delete()
-        .eq('user_id', authSession.user.id)
+        .ilike('username', cleanUser)
         .eq('slot', Number(slotNum));
       const { error } = await Promise.race([delQuery, timeoutP]);
       if(error) recordHandledError('save-sync-delete', error);

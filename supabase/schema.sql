@@ -81,6 +81,12 @@ BEGIN
     ) THEN
         ALTER TABLE public.afm_saves ALTER COLUMN user_id DROP NOT NULL;
     END IF;
+    -- Garantir restrição única (username, slot) caso tabela já existisse
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_afm_saves_username_slot'
+    ) THEN
+        ALTER TABLE public.afm_saves ADD CONSTRAINT uq_afm_saves_username_slot UNIQUE (username, slot);
+    END IF;
 END $$;
 
 -- Índices otimizados para busca de saves
