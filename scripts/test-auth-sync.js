@@ -16,7 +16,7 @@ const auth = {
   async signInWithPassword(credentials){
     calls.push(['signInWithPassword', credentials]);
     if(authFailure) return { data: {}, error: authFailure };
-    responseSession = { user };
+    responseSession = { access_token: 'test-access-token', user };
     listener('SIGNED_IN', responseSession);
     return { data: { user, session: responseSession }, error: null };
   },
@@ -37,6 +37,9 @@ const supabase = {
           ilike(column, value){ queryCalls.push(['ilike', table, column, value]); if(column === 'username') filteredUsername = String(value).toLowerCase(); return this; },
           maybeSingle: async () => ({ data: queryFailure ? null : (table === 'afm_users' && filteredUsername === 'coach@example.com' ? { id: user.id, username: 'coach@example.com', name: 'Coach', role: 'player', password: 'a long password' } : (table === 'afm_users' && ['aquino','admin'].includes(filteredUsername) ? { id: filteredUsername, username: filteredUsername, name: filteredUsername === 'admin' ? 'Administrador AFM' : 'Aquino', role: filteredUsername === 'admin' ? 'admin' : 'player', password: filteredUsername === 'admin' ? 'secure-admin-test' : 'secure-coach-test' } : null)), error: queryFailure }),
           order(){ return Promise.resolve({ data: saveRows, error: queryFailure }); },
+          limit(){ return Promise.resolve({ data: [], error: queryFailure }); },
+          insert(payload){ queryCalls.push(['insert', table, payload]); return { select(){ return { single: async () => ({ data: { ...payload[0], id: 'new-user' }, error: queryFailure }) }; } }; },
+          update(payload){ queryCalls.push(['update', table, payload]); return { ilike(column, value){ queryCalls.push(['ilike', table, column, value]); return Promise.resolve({ error: queryFailure }); } }; },
           upsert(payload, options){
             queryCalls.push(['upsert', table, payload, options]);
             return { select(){ return { single: async () => ({ data: payload, error: queryFailure }) }; } };
@@ -67,7 +70,7 @@ vm.runInNewContext(fs.readFileSync('js/database.js', 'utf8'), context);
   authFailure = null;
   const login = await db.signIn(' Coach@Example.com ', 'a long password');
   assert.equal(login.ok, true);
-  assert(queryCalls.some(call => call[0] === 'ilike' && call[2] === 'username' && call[3] === 'coach@example.com'), 'username normalized before account lookup');
+  assert(calls.some(call => call[0] === 'signInWithPassword' && call[1].email === 'coach@example.com'), 'username normalized before Supabase Auth login');
   assert.equal(db.getUser().id, user.id);
   assert.equal(db.isAdmin(), false, 'treinador nÃ£o recebe painel administrativo por padrÃ£o');
   user.user_metadata.role = 'admin';
@@ -112,6 +115,8 @@ vm.runInNewContext(fs.readFileSync('js/database.js', 'utf8'), context);
   assert.equal(saved.ok, true, 'a conta cloud ativa pode gravar no seu slot');
   const upsert = queryCalls.find(call => call[0] === 'upsert' && call[1] === 'afm_saves');
   assert(upsert, 'save da conta ativa deve ser enviado à nuvem');
+  assert.equal(upsert[2].user_id, user.id, 'cloud save is bound to the authenticated user ID');
+  assert.deepEqual(upsert[3], { onConflict: 'user_id,slot' }, 'save upsert uses authenticated-owner uniqueness');
   const noAuthRead = await db.getSaves();
   assert.equal(noAuthRead.ok, true, 'save reads usam a conta ativa');
   queryFailure = { message: 'RLS denied save read', code: '42501' };
@@ -127,9 +132,8 @@ vm.runInNewContext(fs.readFileSync('js/database.js', 'utf8'), context);
   assert.equal(db.getUser(), null);
   assert.equal((await db.saveSlot('', 1, { club: 'x', data: { club: 'x' } })).ok, false, 'anonymous writes rejected');
   const signup = await db.signUp('new@example.com', 'password-123', 'Novo treinador');
-  assert.equal(signup.ok, true, 'local registration stays available when cloud client cannot insert');
-  assert.equal(signup.user.role, 'player', 'signup never grants administrator role');
-  assert.equal(db.getUser().username, 'newexample.com');
+  assert.equal(signup.ok, false, 'signup without confirmed cloud session must not create a false cloud login');
+  assert.equal(db.getUser(), null);
   assert.equal(db.isAdmin(), false);
-  console.log('Auth/sync checks passed: 20');
+  console.log('Auth/sync checks passed: 21');
 })().catch(error => { console.error(error); process.exitCode = 1; });

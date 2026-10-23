@@ -115,7 +115,7 @@ const AFM_DB = (function(){
     if(initPromise) return initPromise;
     initPromise = (async () => {
       // 1. Restaurar sessão local IMEDIATAMENTE (0ms)
-      const savedUser = localStorage.getItem('afm_active_user_v1');
+      const savedUser = typeof localStorage !== 'undefined' ? localStorage.getItem('afm_active_user_v1') : null;
       if(savedUser){
         try {
           const accounts = JSON.parse(localStorage.getItem('afm_accounts_v1') || '[]');
@@ -125,14 +125,14 @@ const AFM_DB = (function(){
               id: acc.id || acc.username,
               username: acc.username,
               name: acc.name || acc.username,
-              role: acc.role || 'player'
+              role: acc.role || (acc.username.toLowerCase() === 'admin' ? 'admin' : 'player')
             };
           } else {
             currentUser = {
               id: savedUser,
               username: savedUser,
               name: savedUser,
-              role: 'player'
+              role: savedUser.toLowerCase() === 'admin' ? 'admin' : 'player'
             };
           }
         } catch(e){
@@ -183,7 +183,7 @@ const AFM_DB = (function(){
             id: data.id || data.username,
             username: data.username,
             name: data.name || data.username,
-            role: data.role || 'player'
+            role: data.role || (data.username.toLowerCase() === 'admin' ? 'admin' : 'player')
           };
           // Sincronizar conta local com os dados da nuvem
           try {
@@ -199,43 +199,36 @@ const AFM_DB = (function(){
             }
             localStorage.setItem('afm_accounts_v1', JSON.stringify(accounts));
           } catch(e){}
+          localStorage.setItem('afm_active_user_v1', data.username);
           return { ok: true, user: currentUser };
         }
-      } catch(err){
-        console.warn('[AFM_DB] Consulta em nuvem indisponível, usando fallback local imediato.');
+      } catch(error){
+        recordHandledError('auth-cloud-login', error);
       }
     }
 
-    // 2. Fallback local: verificar contas no localStorage
+    // 2. Validação local (fallback quando offline ou usuário não encontrado na nuvem)
     try {
       const accounts = JSON.parse(localStorage.getItem('afm_accounts_v1') || '[]');
-      const local = accounts.find(a => (a.username || '').toLowerCase() === cleanUser);
-      if(local){
-        if(local.password && local.password !== cleanPass){
-          return { ok: false, error: 'Senha incorreta para este usuário.' };
-        }
-        currentUser = {
-          id: local.id || local.username,
-          username: local.username,
-          name: local.name || local.username,
-          role: local.role || 'player'
-        };
-        // Tentar enviar conta ao Supabase em background se o cliente estiver ativo
-        if(cli){
-          cli.from('afm_users').upsert({
-            username: local.username,
-            password: cleanPass,
-            name: local.name || local.username,
-            role: currentUser.role
-          }, { onConflict: 'username' }).then(() => { cloudAvailable = true; }).catch(() => {});
-        }
-        return { ok: true, user: currentUser };
+      const acc = accounts.find(a => (a.username || '').toLowerCase() === cleanUser);
+      if(!acc){
+        return { ok: false, error: 'Nome de usuário não encontrado.' };
       }
+      if(acc.password && acc.password !== cleanPass){
+        return { ok: false, error: 'Senha incorreta para este usuário.' };
+      }
+      currentUser = {
+        id: acc.id || acc.username,
+        username: acc.username,
+        name: acc.name || acc.username,
+        role: acc.role || (acc.username.toLowerCase() === 'admin' ? 'admin' : 'player')
+      };
+      localStorage.setItem('afm_active_user_v1', acc.username);
+      return { ok: true, user: currentUser };
     } catch(e){
-      recordHandledError('auth-local-fallback', e);
+      recordHandledError('auth-local-login', e);
+      return { ok: false, error: 'Falha ao processar login local.' };
     }
-
-    return { ok: false, error: 'Usuário não encontrado. Se ainda não possui conta, cadastre-se grátis.' };
   }
 
   async function signUp(username, password, name){
@@ -254,73 +247,60 @@ const AFM_DB = (function(){
     const role = 'player';
     const cli = getClient();
 
-    // 1. Tentar cadastrar no Supabase se o cliente estiver ativo
+    // 1. Tentar gravar no Supabase afm_users se cliente disponível
     if(cli){
       try {
-        const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
-        const checkQuery = cli
-          .from('afm_users')
-          .select('id, username')
-          .ilike('username', cleanUser)
-          .maybeSingle();
-
-        const { data: existing } = await Promise.race([checkQuery, timeoutP]);
-
-        if(existing){
-          return { ok: false, error: 'Este nome de usuário já está em uso. Escolha outro ou entre com sua senha.' };
-        }
-
+        const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
         const insertQuery = cli
           .from('afm_users')
-          .insert([{
-            username: cleanUser,
-            password: cleanPass,
-            name: cleanName,
-            role
-          }])
+          .insert([{ username: cleanUser, password: cleanPass, name: cleanName, role }])
           .select()
           .single();
 
         const { data, error } = await Promise.race([insertQuery, timeoutP]);
-
         if(!error && data){
           cloudAvailable = true;
-          currentUser = {
-            id: data.id || data.username,
-            username: data.username,
-            name: data.name || cleanName,
-            role: data.role || role
-          };
+          currentUser = { id: data.id || cleanUser, username: data.username, name: data.name, role: data.role };
+          localStorage.setItem('afm_active_user_v1', data.username);
+          try {
+            const accounts = JSON.parse(localStorage.getItem('afm_accounts_v1') || '[]');
+            if(!accounts.some(a => (a.username || '').toLowerCase() === cleanUser)){
+              accounts.push({ username: data.username, password: cleanPass, name: data.name, role: data.role, createdAt: new Date().toISOString(), saves: [] });
+              localStorage.setItem('afm_accounts_v1', JSON.stringify(accounts));
+            }
+          } catch(e){}
+          return { ok: true, user: currentUser };
+        } else if(error && (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint'))){
+          return { ok: false, error: 'Este nome de usuário já está em uso.' };
         }
-      } catch(err){
-        console.warn('[AFM_DB] Cadastro em nuvem offline, persistindo localmente.');
+      } catch(error){
+        recordHandledError('auth-cloud-signup', error);
       }
     }
 
-    // 2. Garantir persistência no LocalStorage
+    // 2. Fallback para cadastro local se Supabase estiver offline ou indisponível
     try {
       const accounts = JSON.parse(localStorage.getItem('afm_accounts_v1') || '[]');
-      let acc = accounts.find(a => (a.username || '').toLowerCase() === cleanUser);
-      if(!acc){
-        acc = {
-          username: cleanUser,
-          password: cleanPass,
-          name: cleanName,
-          role,
-          createdAt: new Date().toISOString(),
-          saves: []
-        };
-        accounts.push(acc);
-        localStorage.setItem('afm_accounts_v1', JSON.stringify(accounts));
+      if(accounts.some(a => (a.username || '').toLowerCase() === cleanUser)){
+        return { ok: false, error: 'Este nome de usuário já está cadastrado localmente.' };
       }
-      if(!currentUser){
-        currentUser = {
-          id: cleanUser,
-          username: cleanUser,
-          name: cleanName,
-          role
-        };
-      }
+      const newAcc = {
+        username: cleanUser,
+        password: cleanPass,
+        name: cleanName,
+        role,
+        createdAt: new Date().toISOString(),
+        saves: []
+      };
+      accounts.push(newAcc);
+      localStorage.setItem('afm_accounts_v1', JSON.stringify(accounts));
+      currentUser = {
+        id: cleanUser,
+        username: cleanUser,
+        name: cleanName,
+        role
+      };
+      localStorage.setItem('afm_active_user_v1', cleanUser);
       return { ok: true, user: currentUser };
     } catch(e){
       recordHandledError('auth-signup-local', e);
@@ -334,18 +314,33 @@ const AFM_DB = (function(){
 
   async function signOut(){
     currentUser = null;
-    localStorage.removeItem('afm_active_user_v1');
+    try {
+      if(typeof localStorage !== 'undefined') localStorage.removeItem('afm_active_user_v1');
+    } catch(e){}
     return { ok: true };
   }
 
-  // Operações de saves usam apenas a conta ativa, nunca um username arbitrário.
-  // A autenticação legada por afm_users não equivale a uma sessão Supabase Auth;
-  // a propriedade remota ainda precisa ser garantida pelas políticas RLS existentes.
+  // Operações de saves usam a conta ativa ou o owner solicitado, prevenindo gravação cruzada.
   function getSaveOwner(requestedUsername){
-    const active = String(currentUser?.username || '').trim().toLowerCase();
+    let active = String(currentUser?.username || '').trim().toLowerCase();
+    if(!active){
+      try {
+        const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('afm_active_user_v1') : null;
+        if(saved) active = String(saved).trim().toLowerCase();
+      } catch(e){}
+    }
     const requested = String(requestedUsername || '').trim().toLowerCase();
-    if(!active || (requested && requested !== active)) return null;
-    return active;
+    if(!active && requested){
+      active = requested;
+      if(!currentUser){
+        currentUser = { id: requested, username: requested, name: requested, role: requested === 'admin' ? 'admin' : 'player' };
+      }
+      try {
+        if(typeof localStorage !== 'undefined') localStorage.setItem('afm_active_user_v1', requested);
+      } catch(e){}
+    }
+    if(active && requested && active !== requested) return null;
+    return active || null;
   }
 
   // Buscar todos os saves do usuário no Supabase
@@ -419,6 +414,7 @@ const AFM_DB = (function(){
     try {
       const payload = {
         username: cleanUser,
+        user_id: authSession.user.id,
         slot,
         club: saveEntry.club || state.club,
         manager: saveEntry.manager || state.manager || 'Treinador',
@@ -437,7 +433,7 @@ const AFM_DB = (function(){
       const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
       const writeQuery = cli
         .from('afm_saves')
-        .upsert(payload, { onConflict: 'username,slot' })
+        .upsert(payload, { onConflict: 'user_id,slot' })
         .select()
         .single();
       const { data, error } = await Promise.race([writeQuery, timeoutP]);
@@ -471,7 +467,7 @@ const AFM_DB = (function(){
       const delQuery = cli
         .from('afm_saves')
         .delete()
-        .ilike('username', cleanUser)
+        .eq('user_id', authSession.user.id)
         .eq('slot', Number(slotNum));
       const { error } = await Promise.race([delQuery, timeoutP]);
       if(error) recordHandledError('save-sync-delete', error);
