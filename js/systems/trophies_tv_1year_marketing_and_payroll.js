@@ -454,9 +454,27 @@
 
   function getClubTitlesWonInSave(clubName, state) {
     if (!state) return [];
+    if (typeof window !== 'undefined' && typeof window.syncAllTrophiesToMuseum === 'function') {
+      window.syncAllTrophiesToMuseum(state);
+    } else if (typeof syncAllTrophiesToMuseum === 'function') {
+      syncAllTrophiesToMuseum(state);
+    }
+
     const clubKey = norm(clubName);
     const wonList = [];
     const seen = new Set();
+
+    const isUserClub = targetName => {
+      if (!targetName) return true;
+      const tNorm = norm(targetName);
+      if (tNorm === clubKey) return true;
+      if (state.club && tNorm === norm(state.club)) return true;
+      if (state.customClub?.name && tNorm === norm(state.customClub.name)) return true;
+      if (state.customClub?.shortName && tNorm === norm(state.customClub.shortName)) return true;
+      const strip = str => norm(str).replace(/\b(fc|f\.c\.|ec|e\.c\.|sc|s\.c\.|saf|ltda)\b/g, '').trim();
+      if (strip(targetName) && (strip(targetName) === strip(clubName) || (state.club && strip(targetName) === strip(state.club)))) return true;
+      return false;
+    };
 
     function addTitle(name, year, badge, icon = '🏆') {
       if (!name) return;
@@ -481,8 +499,8 @@
         if (typeof t === 'string') {
           addTitle(t, state.season ? `Temporada ${state.season}` : 'No Save', 'CAMPEÃO NO SAVE', '🏆');
         } else if (typeof t === 'object') {
-          if (!t.club || norm(t.club) === clubKey) {
-            addTitle(t.name || t.title, t.year || (t.season ? `Temporada ${t.season}` : 'No Save'), t.badge || 'CAMPEÃO NO SAVE', t.icon || '🏆');
+          if (!t.club || isUserClub(t.club)) {
+            addTitle(t.name || t.title, t.year ? (String(t.year).includes('Temporada') ? t.year : `Temporada ${t.year}`) : (state.season ? `Temporada ${state.season}` : 'No Save'), t.badge || 'CAMPEÃO NO SAVE', t.icon || '🏆');
           }
         }
       });
@@ -492,10 +510,10 @@
     if (Array.isArray(state.seasonHistory)) {
       state.seasonHistory.forEach((sh) => {
         if (!sh) return;
-        const isThisClub = norm(sh.userClub || state.club) === clubKey;
+        const isThisClub = isUserClub(sh.userClub || sh.club || state.club);
         if (isThisClub) {
-          if (sh.champion && norm(sh.champion) === clubKey) {
-            addTitle(sh.compName || 'Campeonato Nacional', `Temporada ${sh.season}`, 'CAMPEÃO DA LIGA', '🥇');
+          if (sh.champion && isUserClub(sh.champion)) {
+            addTitle(sh.compName || 'Campeonato', `Temporada ${sh.season}`, 'CAMPEÃO DA TEMPORADA', '🥇');
           }
           if (Array.isArray(sh.titlesWon)) {
             sh.titlesWon.forEach((tw) => {
@@ -506,37 +524,82 @@
       });
     }
 
-    // 3. Torneios continentais e copas no save (state.tournaments)
+    // 3. Campeões do mundo e histórico anual (state.worldChampionHistory / state.campeoesDoMundoSave / state.historicoCarreira)
+    const worldHist = [...(state.worldChampionHistory || []), ...(state.campeoesDoMundoSave || []), ...(state.historicoCarreira || [])];
+    worldHist.forEach(record => {
+      if(!record) return;
+      const year = record.season ? `Temporada ${record.season}` : (state.season ? `Temporada ${state.season}` : 'No Save');
+      (Array.isArray(record.competitions) ? record.competitions : []).forEach(c => {
+        if(isUserClub(c?.champion || c?.winner)){
+          addTitle(c.name || c.id, year, 'CAMPEÃO DO TORNEIO', '🏆');
+        }
+      });
+      (Array.isArray(record.titlesWon) ? record.titlesWon : []).forEach(tw => {
+        const tName = typeof tw === 'string' ? tw : (tw?.name || tw?.title);
+        addTitle(tName, year, 'CONQUISTA NO SAVE', '🏆');
+      });
+    });
+
+    // 4. Histórico geral de competições (state.competitionHistory)
+    (Array.isArray(state.competitionHistory) ? state.competitionHistory : []).forEach(ch => {
+      if(!ch) return;
+      const year = ch.season ? `Temporada ${ch.season}` : (state.season ? `Temporada ${state.season}` : 'No Save');
+      if(isUserClub(ch.champion || ch.winner)){
+        const compObj = typeof compById === 'function' ? compById(ch.competitionId) : null;
+        addTitle(ch.name || compObj?.name || ch.competitionId, year, 'CAMPEÃO DO TORNEIO', '🏆');
+      }
+      const rank = Array.isArray(ch.ranking) ? ch.ranking : [];
+      if(rank.length && isUserClub(typeof rank[0] === 'string' ? rank[0] : rank[0]?.name)){
+        const compObj = typeof compById === 'function' ? compById(ch.competitionId) : null;
+        addTitle(compObj?.name || ch.competitionName || ch.competitionId, year, 'CAMPEÃO DA EDIÇÃO', '🏆');
+      }
+    });
+
+    // 5. Arquivo de Estaduais (state.estadualArchive)
+    if(state.estadualArchive && typeof state.estadualArchive === 'object'){
+      Object.entries(state.estadualArchive).forEach(([cId, archives]) => {
+        (Array.isArray(archives) ? archives : [archives]).forEach(arch => {
+          if(!arch || !Array.isArray(arch.teams)) return;
+          const sorted = arch.teams.slice().sort((a,b) => (Number(b.p ?? b.points)||0)-(Number(a.p ?? a.points)||0) || ((Number(b.gp)||0)-(Number(b.gc)||0))-((Number(a.gp)||0)-(Number(a.gc)||0)));
+          if(sorted.length && isUserClub(sorted[0]?.name) && Number(sorted[0]?.j || 0) > 0){
+            const compName = arch.name || (typeof compById === 'function' ? compById(cId)?.name : null) || 'Campeonato Estadual';
+            addTitle(compName, arch.season ? `Temporada ${arch.season}` : 'Temporada 2026', 'CAMPEÃO ESTADUAL', '🏆');
+          }
+        });
+      });
+    }
+
+    // 6. Torneios continentais e copas no save (state.tournaments)
     if (state.tournaments && typeof state.tournaments === 'object') {
       Object.entries(state.tournaments).forEach(([tId, tourney]) => {
         if (!tourney) return;
         const champ = tourney.champion || tourney.winner;
-        if (champ && norm(champ) === clubKey) {
+        if (champ && isUserClub(champ)) {
           const tName = tourney.name || (typeof compById === 'function' && compById(tId)?.name) || tId;
           addTitle(tName, tourney.season ? `Temporada ${tourney.season}` : (state.season ? `Temporada ${state.season}` : 'No Save'), 'CAMPEÃO DO TORNEIO', '🏆');
         }
       });
     }
 
-    // 4. Copa do Brasil no save
+    // 7. Copa do Brasil no save
     const cdb = (typeof getCopaDoBrasilState === 'function') ? getCopaDoBrasilState() : state.copaDoBrasil;
-    if (cdb && cdb.champion && norm(cdb.champion) === clubKey) {
+    if (cdb && cdb.champion && isUserClub(cdb.champion)) {
       addTitle('Copa do Brasil', state.season ? `Temporada ${state.season}` : 'No Save', 'CAMPEÃO DA COPA', '🏆');
     }
 
-    // 5. Copinha Sub-20 no save
-    if (state.copinhaSub20 && state.copinhaSub20.champion && norm(state.copinhaSub20.champion) === clubKey) {
+    // 8. Copinha Sub-20 no save
+    if (state.copinhaSub20 && state.copinhaSub20.champion && isUserClub(state.copinhaSub20.champion)) {
       addTitle('Copa São Paulo de Juniores (Sub-20)', state.season ? `Temporada ${state.season}` : 'No Save', 'CAMPEÃO DA BASE', '🌟');
     }
 
-    // 6. managerPersonal.trophies ou state.trophies (filtrando rigorosamente apenas títulos no save)
+    // 9. managerPersonal.trophies ou state.trophies (filtrando rigorosamente apenas títulos no save)
     const personal = state.managerPersonal?.trophies || state.trophies;
     if (Array.isArray(personal)) {
       personal.forEach((pt) => {
         if (!pt) return;
         const isHistoricalYear = typeof pt.year === 'string' && /^(19\d\d|200\d|201\d|202[0-5])\b/.test(pt.year);
         if (isHistoricalYear) return;
-        if (!pt.club || norm(pt.club) === clubKey) {
+        if (!pt.club || isUserClub(pt.club)) {
           addTitle(pt.name || pt.title, pt.year, pt.badge, pt.icon);
         }
       });
