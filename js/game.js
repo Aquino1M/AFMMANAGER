@@ -2739,7 +2739,7 @@ function openStadiumModal(initialTab){
     grassColor: '#14532d', grassStripeA: '#15803d', grassStripeB: '#16a34a'
   };
   // A prÃ©via Ã© um rascunho local; sÃ³ confirmar altera o estado persistido.
-  const activeStadiumCustomization = stadiumCustomizationPreview || stadiumCustomization;
+  const activeStadiumCustomization = stadiumCustomizationPreview || state.stadiumCustomization;
   const stadiumCustomization = state.stadiumCustomization;
   if(!stadiumCustomization.name) stadiumCustomization.name = state.stadiumName || state.stadium?.name || state.customClub?.stadiumName || '';
   if(!stadiumSelectedSide) stadiumSelectedSide = 'norte';
@@ -5182,6 +5182,7 @@ function hireStadiumContractor(days){
     work.contractorRushDays = previousRushDays + remaining;
     work.contractorRushCost = previousRushCost + cost;
     work.finishDate = state.date;
+    processStadiumConstructionDay();
     if(state.stadiumRingData?.activeWork){
       state.balance = (Number(state.balance) || 0) + cost;
       state.expense = Math.max(0, (Number(state.expense) || 0) - cost);
@@ -5191,7 +5192,6 @@ function hireStadiumContractor(days){
       toast('NÃ£o foi possÃ­vel concluir a obra. O pagamento foi estornado.');
       return false;
     }
-    processStadiumConstructionDay();
     save();
     toast(`Obra concluÃ­da na hora! Taxa premium: ${fmtMoney(cost)}.`);
     openStadiumModal('expansion');
