@@ -6364,9 +6364,14 @@ function getStadiumExpansionData(){
     if(['norte', 'sul', 'leste', 'oeste'].every(side => st.rings[ring][side] === true)) contiguousCompleteRings = ring;
     else break;
   }
-  const completedThrough = Math.max(capacityRing, contiguousCompleteRings);
-  for(let ring = 1; ring <= completedThrough; ring++){
-    st.rings[ring] = { norte: true, sul: true, leste: true, oeste: true };
+  // Legacy saves without explicit purchase history can infer only fully finished rings from capacity.
+  // Once a save has purchasedSectors, never auto-complete unpaid sides from total stadium capacity.
+  const hasExplicitSectorHistory = Array.isArray(st.purchasedSectors) && st.purchasedSectors.length > 0;
+  if(!hasExplicitSectorHistory){
+    const completedThrough = Math.max(capacityRing, contiguousCompleteRings);
+    for(let ring = 1; ring <= completedThrough; ring++){
+      st.rings[ring] = { norte: true, sul: true, leste: true, oeste: true };
+    }
   }
   const stadiumSides = ['norte', 'sul', 'leste', 'oeste'];
   const hasValidActiveWork = !!st.activeWork && Number(st.activeWork.ring) >= 1 && Number(st.activeWork.ring) <= 6;
