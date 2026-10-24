@@ -3092,10 +3092,20 @@ function openStadiumModal(initialTab){
           <!-- ================= ABA 1: RESUMO & NAMING RIGHTS ================= -->
           ${stadiumModalTab === 'summary' ? `
             <div style="display:flex;flex-direction:column;gap:14px">
-              <div style="background:#161226;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
-                <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">FINANÇAS DO ESTÁDIO</div>
-                <div style="font-size:20px;font-weight:900;color:#22c55e;margin-top:4px">${fmtMoney(state.balance)}</div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Caixa do Clube Disponível</div>
+              <div style="background:#161226;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+                <div>
+                  <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">FINANÇAS DO ESTÁDIO</div>
+                  <div style="font-size:20px;font-weight:900;color:#22c55e;margin-top:4px">${fmtMoney(state.balance)}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Caixa do Clube Disponível • Nível do Estádio: <b>${stadLevel}/8</b></div>
+                </div>
+                ${stadLevel < 8 ? `
+                  <button class="btn primary btnUpgradeStadiumInModal" type="button" style="padding:10px 16px;font-size:12px;font-weight:900;border-radius:10px;background:linear-gradient(135deg, #7c3aed, #4f46e5);border:1px solid #a78bfa;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;box-shadow:0 4px 15px rgba(124,58,237,0.3)">
+                    <span style="display:flex;align-items:center;gap:6px">🏟️ SUBIR NÍVEL DO ESTÁDIO (${stadLevel}/8) • ${fmtMoney(facilityCost('stadium'))}</span>
+                    <span style="font-size:10px;color:#ddd6fe;font-weight:700">Libera o ${Math.min(6, stadLevel + 1)}º Anel para expansão</span>
+                  </button>
+                ` : `
+                  <div class="pill good" style="font-weight:900;padding:8px 14px">🏟️ ESTÁDIO NO NÍVEL MÁXIMO (8/8)</div>
+                `}
               </div>
 
               <!-- Seção de Naming Rights -->
@@ -3280,16 +3290,23 @@ function openStadiumModal(initialTab){
 
               <!-- Badges dos Anéis Dinâmicos (1º ao 6º Anel) -->
               <div>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px">
                   <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">
                     RUMO A 100.000 LUGARES: <b>${(() => {
                       const totalDone = (stData.purchasedSectors || []).length;
                       return `${totalDone} de 24 obras prontas, em 6 anéis de 4 lados.`;
                     })()}</b>
                   </div>
-                  <button class="btn btn-sm btn-outline-info" onclick="if(window.AFMStadium3D) window.AFMStadium3D.openStadium3DViewerModal(null, state.club);" style="font-size:10px;padding:3px 8px;font-weight:800;border-radius:6px;cursor:pointer">
-                    🎮 Inspecionar 3D
-                  </button>
+                  <div style="display:flex;gap:6px;align-items:center">
+                    ${stadLevel < 6 ? `
+                      <button class="btn btnUpgradeStadiumInModal" type="button" style="font-size:10px;padding:4px 10px;font-weight:900;background:#7c3aed;color:#fff;border-radius:6px;border:none;cursor:pointer">
+                        🏟️ Subir Nível (${stadLevel}/8) • ${fmtMoney(facilityCost('stadium'))}
+                      </button>
+                    ` : ''}
+                    <button class="btn btn-sm btn-outline-info" onclick="if(window.AFMStadium3D) window.AFMStadium3D.openStadium3DViewerModal(null, state.club);" style="font-size:10px;padding:3px 8px;font-weight:800;border-radius:6px;cursor:pointer">
+                      🎮 Inspecionar 3D
+                    </button>
+                  </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
                   ${[1, 2, 3, 4, 5, 6].map(rNum => {
@@ -3297,15 +3314,16 @@ function openStadiumModal(initialTab){
                     const doneCount = ['norte', 'sul', 'leste', 'oeste'].filter(s => rSides[s]).length;
                     const isCur = (stData.ring === rNum);
                     const isDone = (doneCount === 4);
+                    const isUnlocked = rNum <= (stData.maxUnlockedRing || 1);
                     const capTier = [7800, 18800, 30640, 49000, 72160, 100000][rNum - 1];
-                    const bg = isDone ? 'rgba(34,197,94,0.15)' : isCur ? '#241945' : '#151226';
-                    const border = isDone ? '1px solid #22c55e' : isCur ? '1px solid #7c3aed' : '1px solid rgba(255,255,255,0.06)';
-                    const color = isDone ? '#4ade80' : isCur ? '#fff' : 'rgba(255,255,255,0.4)';
-                    const badgeTxt = isDone ? `(${doneCount}/4) ✓` : isCur ? `(${doneCount}/4) ●` : `(0/4)`;
+                    const bg = isDone ? 'rgba(34,197,94,0.15)' : isCur ? '#241945' : (isUnlocked ? '#151226' : '#0c0a17');
+                    const border = isDone ? '1px solid #22c55e' : isCur ? '1px solid #7c3aed' : (isUnlocked ? '1px solid rgba(255,255,255,0.12)' : '1px dashed rgba(255,255,255,0.06)');
+                    const color = isDone ? '#4ade80' : isCur ? '#fff' : (isUnlocked ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)');
+                    const badgeTxt = isDone ? `(${doneCount}/4) ✓` : isCur ? `(${doneCount}/4) ●` : (isUnlocked ? `(${doneCount}/4)` : `🔒 Nvl ${rNum}`);
                     return `
-                      <div style="background:${bg};border:${border};padding:6px;border-radius:8px;font-size:10px;text-align:center;color:${color};font-weight:800">
+                      <button class="btn btnSelectRing" type="button" data-ring="${rNum}" style="background:${bg};border:${border};padding:8px 4px;border-radius:8px;font-size:10px;text-align:center;color:${color};font-weight:800;cursor:${isUnlocked ? 'pointer' : 'not-allowed'};width:100%">
                         ${rNum}º anel · ${capTier.toLocaleString('pt-BR')} ${badgeTxt}
-                      </div>
+                      </button>
                     `;
                   }).join('')}
                 </div>
@@ -3346,7 +3364,7 @@ function openStadiumModal(initialTab){
                   </div>
                   <div style="background:#110e1d;padding:10px 4px;border-radius:8px">
                     <div style="color:#f59e0b;font-size:16px;font-weight:900">${fmtMoney(getStadiumSectorCost(stData.ring||1))}</div>
-                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">custo (+30%)</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4)">custo (+60%/anel)</div>
                   </div>
                 </div>
 
@@ -3828,7 +3846,30 @@ function openStadiumModal(initialTab){
     };
   }
 
-  $$('.btnSelectSide').forEach(b => {
+  $('.btnUpgradeStadiumInModal').forEach(btn => {
+    btn.onclick = () => {
+      if(typeof upgradeFacility === 'function') upgradeFacility('stadium');
+      openStadiumModal();
+    };
+  });
+
+  $('.btnSelectRing').forEach(btn => {
+    btn.onclick = () => {
+      const targetRing = Number(btn.dataset.ring);
+      const stData = getStadiumExpansionData();
+      if(targetRing > (stData.maxUnlockedRing || 1)){
+        if(typeof toast === 'function') toast(`🔒 O ${targetRing}º Anel exige Estádio Nível ${targetRing}. Clique em Subir Nível para liberar!`);
+        return;
+      }
+      stData.selectedViewRing = targetRing;
+      stData.ring = targetRing;
+      stData.sides = stData.rings[targetRing] || { norte: false, sul: false, leste: false, oeste: false };
+      stadiumSelectedSide = ['norte', 'sul', 'leste', 'oeste'].find(s => !stData.sides[s]) || 'norte';
+      openStadiumModal('expansion');
+    };
+  });
+
+  $('.btnSelectSide').forEach(b => {
     b.onclick = () => {
       stadiumSelectedSide = b.dataset.side;
       openStadiumModal();
@@ -6206,6 +6247,16 @@ function getStadiumExpansionData(){
   }
   st.purchasedSectors = Array.isArray(st.purchasedSectors) ? st.purchasedSectors : [];
 
+  // Self-healing: Se o usuário só comprou o Norte, ou a capacidade é <= 8500 lugares
+  // (5.000 base + 3.500 do setor Norte), reverte o auto-completar indevido que marcava 4/4
+  const currentCap = Math.max(0, Number(state.infrastructure?.stadium?.capacity) || 0);
+  if(st.rings[1]?.norte && st.rings[1]?.sul && st.rings[1]?.leste && st.rings[1]?.oeste && currentCap <= 8500){
+    st.rings[1].sul = false;
+    st.rings[1].leste = false;
+    st.rings[1].oeste = false;
+    st.purchasedSectors = st.purchasedSectors.filter(k => k === 'r1_norte');
+  }
+
   // Migração transparente de saves legados que só tinham st.sides
   if(st.sides && st.ring === 1 && (!st.purchasedSectors || st.purchasedSectors.length === 0)){
     ['norte', 'sul', 'leste', 'oeste'].forEach(side => {
@@ -6215,15 +6266,25 @@ function getStadiumExpansionData(){
     });
   }
 
-  // A capacidade inicial define quantos anéis já existiam. Cada anel até
-  // esse nível começa completo; um nível superior nunca pode pular etapas.
+  // Sincroniza st.rings com os setores que foram de fato adquiridos
+  st.purchasedSectors.forEach(k => {
+    const match = String(k).match(/^r(\d+)_(norte|sul|leste|oeste)$/);
+    if(match){
+      const ringNum = Number(match[1]);
+      const sideName = match[2];
+      if(st.rings[ringNum]) st.rings[ringNum][sideName] = true;
+    }
+  });
+
+  // A capacidade inicial define quantos anéis já existiam em saves legados.
+  // Clubes com estádio de 8.500 lugares (5.000 base + 3.500 Norte) não têm anel 1 completo.
   const capacity = Math.max(0, Number(state.infrastructure?.stadium?.capacity) || 0);
   const capacityRing = capacity >= 100000 ? 6
     : capacity >= 72160 ? 5
     : capacity >= 49000 ? 4
     : capacity >= 30640 ? 3
     : capacity >= 18000 ? 2
-    : capacity >= 7000 ? 1 : 0;
+    : (capacity >= 7000 && capacity !== 8500 && (!st.purchasedSectors || !st.purchasedSectors.includes('r1_norte') || st.purchasedSectors.length > 1)) ? 1 : 0;
   let contiguousCompleteRings = 0;
   for(let ring = 1; ring <= 6; ring++){
     if(['norte', 'sul', 'leste', 'oeste'].every(side => st.rings[ring][side] === true)) contiguousCompleteRings = ring;
@@ -6240,7 +6301,6 @@ function getStadiumExpansionData(){
     if(!stadiumSides.includes(st.activeWork.side)){
       st.activeWork.side = stadiumSides.find(side => st.rings[workRing][side] !== true) || 'norte';
     }
-    // Marcar a obra como pendente antes de identificar o primeiro anel incompleto.
     st.rings[workRing][st.activeWork.side] = false;
   }
   // Mantém os setores já concluídos somente no primeiro anel incompleto,
@@ -6253,8 +6313,7 @@ function getStadiumExpansionData(){
   for(let ring = firstIncompleteRing + 1; ring <= 6; ring++){
     st.rings[ring] = { norte: false, sul: false, leste: false, oeste: false };
   }
-  // Uma obra legada fora de sequência é migrada para o primeiro anel incompleto,
-  // para que a construção termine num setor válido sem desbloquear anéis superiores.
+  // Uma obra legada fora de sequência é migrada para o primeiro anel incompleto
   if(hasValidActiveWork){
     let workRing = Number(st.activeWork.ring);
     let workSide = st.activeWork.side;
@@ -6267,36 +6326,32 @@ function getStadiumExpansionData(){
       st.activeWork.side = workSide;
     }
     st.rings[workRing][workSide] = false;
-    st.ring = Math.max(1, Math.min(workRing, st.maxUnlockedRing));
+    st.ring = Math.max(1, Math.min(workRing, st.maxUnlockedRing || 6));
+  } else if(st.selectedViewRing && Number(st.selectedViewRing) <= (st.maxUnlockedRing || 1)){
+    st.ring = Number(st.selectedViewRing);
   } else {
     st.ring = Math.max(1, Math.min(firstIncompleteRing, st.maxUnlockedRing || 6));
   }
-  // Sincroniza purchasedSectors com todos os anéis
-  st.purchasedSectors = st.purchasedSectors.filter(key => {
-    const match = /^r([1-6])_(norte|sul|leste|oeste)$/.exec(key);
-    return !!match && st.rings[Number(match[1])]?.[match[2]] === true;
-  });
+
+  // Atualiza lista limpa de purchasedSectors
+  const cleanSectors = [];
   for(let r = 1; r <= 6; r++){
     ['norte', 'sul', 'leste', 'oeste'].forEach(side => {
       if(st.rings[r][side]){
-        const key = `r${r}_${side}`;
-        if(!st.purchasedSectors.includes(key)){
-          st.purchasedSectors.push(key);
-        }
+        cleanSectors.push(`r${r}_${side}`);
       }
     });
   }
-
-  // Sincroniza st.sides com o anel atual ativo
-  st.sides = st.rings[st.ring];
+  st.purchasedSectors = cleanSectors;
+  st.sides = st.rings[st.ring] || { norte: false, sul: false, leste: false, oeste: false };
 
   return st;
 }
-
 function getStadiumSectorCost(ring = 1){
-  // 2. Aumento Geral de Custos (+30%): Multiplicador de 1.30 sobre o valor base de construção
-  const baseCost = ring <= 2 ? 850000 : ring <= 4 ? 1200000 : 1800000;
-  return Math.round(baseCost * 1.30);
+  const r = Math.max(1, Math.min(6, Number(ring) || 1));
+  const baseAnel1 = 1105000;
+  // Aumento de 60% por nível de anel (1.60x a cada anel)
+  return Math.round(baseAnel1 * Math.pow(1.60, r - 1));
 }
 
 function getStadiumSectorWorkDays(ring = 1){
@@ -14007,6 +14062,19 @@ function repairSaveIfCorrupted(s){
   // =========================================================================
   // NORMALIZAÇÃO UNIVERSAL DE DADOS: ZERO DUPLICAÇÕES E 100% SINCRONIZAÇÃO
   // =========================================================================
+  // 0. Auto-Reparação de Setores Indevidamente Marcados como 4/4 no Anel 1
+  if(s.stadiumRingData && s.stadiumRingData.rings && s.stadiumRingData.rings[1]){
+    const sCap = Math.max(0, Number(s.infrastructure?.stadium?.capacity) || 0);
+    if(s.stadiumRingData.rings[1].norte && s.stadiumRingData.rings[1].sul && s.stadiumRingData.rings[1].leste && s.stadiumRingData.rings[1].oeste && sCap <= 8500){
+      s.stadiumRingData.rings[1].sul = false;
+      s.stadiumRingData.rings[1].leste = false;
+      s.stadiumRingData.rings[1].oeste = false;
+      s.stadiumRingData.purchasedSectors = (s.stadiumRingData.purchasedSectors || []).filter(k => k === 'r1_norte');
+      s.stadiumRingData.sides = s.stadiumRingData.rings[s.stadiumRingData.ring || 1];
+      saveRequired = true;
+    }
+  }
+
   // 1. Desduplicação do Elenco (s.squad)
   if(Array.isArray(s.squad)){
     const seenPKeys = new Set();

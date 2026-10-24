@@ -54,9 +54,12 @@ assert(['norte', 'sul', 'leste', 'oeste'].every(side => repairedWork.rings[3][si
 console.log('PASS: obra ativa legada fora de sequência é migrada para o primeiro anel incompleto.');
 
 assert.equal(context.stadiumCost(1), 1105000);
-assert.equal(context.stadiumCost(3), 1560000);
-assert.equal(context.stadiumCost(5), 2340000);
-console.log('PASS: custos dos setores aplicam multiplicador de 1,30.');
+assert.equal(context.stadiumCost(2), 1768000);
+assert.equal(context.stadiumCost(3), 2828800);
+assert.equal(context.stadiumCost(4), 4526080);
+assert.equal(context.stadiumCost(5), 7241728);
+assert.equal(context.stadiumCost(6), 11586765);
+console.log('PASS: custos dos setores dos anéis escalam em +60% por nível.');
 
 const expectedRanges = {
   1: { min: 15, max: 25 }, 2: { min: 15, max: 25 },
