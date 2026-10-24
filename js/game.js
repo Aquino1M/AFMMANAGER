@@ -5150,18 +5150,20 @@ function hireStadiumContractor(days){
     }
 
   if(instant){
-    state.balance = (Number(state.balance) || 0) - cost;
-    state.expense = (Number(state.expense) || 0) + cost;
+    const previousBalance = Number(state.balance) || 0;
+    const previousExpense = Number(state.expense) || 0;
     const previousFinishDate = work.finishDate;
     const previousRushDays = Number(work.contractorRushDays) || 0;
     const previousRushCost = Number(work.contractorRushCost) || 0;
+    state.balance = previousBalance - cost;
+    state.expense = previousExpense + cost;
     work.contractorRushDays = previousRushDays + remaining;
     work.contractorRushCost = previousRushCost + cost;
     work.finishDate = state.date;
     processStadiumConstructionDay();
     if(state.stadiumRingData?.activeWork){
-      state.balance = (Number(state.balance) || 0) + cost;
-      state.expense = Math.max(0, (Number(state.expense) || 0) - cost);
+      state.balance = previousBalance;
+      state.expense = previousExpense;
       work.finishDate = previousFinishDate;
       work.contractorRushDays = previousRushDays;
       work.contractorRushCost = previousRushCost;
@@ -5172,8 +5174,7 @@ function hireStadiumContractor(days){
     toast(`Obra concluída na hora! Taxa premium: ${fmtMoney(cost)}.`);
     openStadiumModal('expansion');
     return true;
-  }
-  const currentFinish = new Date(`${work.finishDate}T12:00:00`);
+  }  const currentFinish = new Date(`${work.finishDate}T12:00:00`);
   if(!Number.isFinite(currentFinish.getTime())){ toast('A data de conclusão da obra está inválida.'); return false; }
   currentFinish.setDate(currentFinish.getDate() - requestedDays);
   const today = Date.parse(`${state.date}T00:00:00`);
