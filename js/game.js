@@ -2663,7 +2663,7 @@ function getCaldeiraoData(){
 let stadiumModalTab = 'upgrades'; // 'summary' | 'upgrades' | 'expansion' | 'arena' | 'maintenance'
 let stadiumSelectedSide = 'norte';
 let stadiumPreviewUpgrade = null;
-let stadiumCustomizationPreview = null;
+
 let selectedArenaName = 'Arena Real Brasília';
 let selectedArenaCapacity = 15000;
 let selectedArenaFinancing = 'cash';
@@ -2739,7 +2739,7 @@ function openStadiumModal(initialTab){
     grassColor: '#14532d', grassStripeA: '#15803d', grassStripeB: '#16a34a'
   };
   // A prévia é um rascunho local; só confirmar altera o estado persistido.
-  const activeStadiumCustomization = stadiumCustomizationPreview || state.stadiumCustomization;
+  const activeStadiumCustomization = state.stadiumCustomization;
   const stadiumCustomization = state.stadiumCustomization;
   if(!stadiumCustomization.name) stadiumCustomization.name = state.stadiumName || state.stadium?.name || state.customClub?.stadiumName || '';
   if(!stadiumSelectedSide) stadiumSelectedSide = 'norte';
@@ -3226,7 +3226,7 @@ function openStadiumModal(initialTab){
                   <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0b1220;padding:9px;border-radius:8px;font-size:11px;color:#e2e8f0">Listra escura <input type="color" id="stadiumGrassStripeA" value="${activeStadiumCustomization.grassStripeA || '#15803d'}" style="width:40px;height:30px;background:transparent;border:0;padding:0;cursor:pointer" /></label>
                   <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#0b1220;padding:9px;border-radius:8px;font-size:11px;color:#e2e8f0">Listra clara <input type="color" id="stadiumGrassStripeB" value="${activeStadiumCustomization.grassStripeB || '#16a34a'}" style="width:40px;height:30px;background:transparent;border:0;padding:0;cursor:pointer" /></label>
                 </div>
-                <div id="stadiumCustomizationPreviewStatus" style="font-size:10px;color:#38bdf8">${stadiumCustomizationPreview ? 'Prévia ativa — as alterações ainda não foram salvas.' : 'Altere uma cor para ver a prévia antes de confirmar.'}</div>
+                <div id="stadiumCustomizationPreviewStatus" style="font-size:10px;color:#38bdf8">Escolha as cores e confirme para aplicar à maquete 3D.</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
                   <button type="button" class="btn" id="btnResetStadiumCustomizationPreview" style="flex:1;padding:8px;font-size:11px;font-weight:800;background:#1e293b;color:#cbd5e1">Descartar prévia</button>
                   <button type="button" class="btn primary" id="btnSaveStadiumCustomization" style="flex:2;padding:10px;font-size:11px;font-weight:900">Confirmar e salvar personalização</button>
@@ -3812,46 +3812,22 @@ function openStadiumModal(initialTab){
       standColor: '#stadiumStandColor', seatColor: '#stadiumSeatColor', accentColor: '#stadiumAccentColor',
       grassColor: '#stadiumGrassColor', grassStripeA: '#stadiumGrassStripeA', grassStripeB: '#stadiumGrassStripeB'
     };
-    const nextCustomization = { ...(stadiumCustomizationPreview || {}) };
+    const nextCustomization = { ...(state.stadiumCustomization || {}) };
     state.stadiumCustomization = state.stadiumCustomization || {};
     Object.entries(colorInputs).forEach(([key, selector]) => {
       const value = String($(selector)?.value || '');
       if(/^#[0-9a-f]{6}$/i.test(value)) nextCustomization[key] = value;
     });
     Object.assign(state.stadiumCustomization, nextCustomization);
-    stadiumCustomizationPreview = null;
+
     save();
     toast('Personalização salva. Cores aplicadas à maquete 3D.');
     openStadiumModal('upgrades');
   };
-  // Atualiza a maquete em tempo real sem persistir as cores antes da confirmação.
-  const previewColorInputs = ['#stadiumStandColor','#stadiumSeatColor','#stadiumAccentColor','#stadiumGrassColor','#stadiumGrassStripeA','#stadiumGrassStripeB'];
-  const refreshCustomizationPreview = () => {
-    const preview = { ...(stadiumCustomizationPreview || {}) };
-    const keys = { '#stadiumStandColor':'standColor', '#stadiumSeatColor':'seatColor', '#stadiumAccentColor':'accentColor', '#stadiumGrassColor':'grassColor', '#stadiumGrassStripeA':'grassStripeA', '#stadiumGrassStripeB':'grassStripeB' };
-    previewColorInputs.forEach(selector => {
-      const value = String(el?.querySelector(selector)?.value || '');
-      const key = keys[selector];
-      if(/^#[0-9a-f]{6}$/i.test(value)) preview[key] = value;
-    });
-    stadiumCustomizationPreview = preview;
-    const status = el?.querySelector('#stadiumCustomizationPreviewStatus');
-    if(status) status.textContent = 'Prévia ao vivo ativa — ainda não salva na carreira.';
-    if(stadiumVisualMode === '3d' && window.AFMStadiumLowPoly && typeof window.AFMStadiumLowPoly.update === 'function'){
-      const canvas = el?.querySelector('#afmStadiumLowPolyCanvas');
-      if(canvas) window.AFMStadiumLowPoly.update({ ...state, stadiumCustomization: { ...(state.stadiumCustomization || {}), ...preview } }, {
-        selectedSide: stadiumSelectedSide, previewUpgrade: stadiumPreviewUpgrade, isArena, selectedArenaCapacity, isExp
-      });
-    }
-  };
-  previewColorInputs.forEach(selector => {
-    const input = el?.querySelector(selector);
-    if(input && typeof input.addEventListener === 'function') { input.addEventListener('input', refreshCustomizationPreview); input.addEventListener('change', refreshCustomizationPreview); }
-  });
   const btnResetCustomizationPreview = el?.querySelector('#btnResetStadiumCustomizationPreview');
   if(btnResetCustomizationPreview) btnResetCustomizationPreview.onclick = () => {
-    stadiumCustomizationPreview = null;
-    toast('Prévia descartada. A personalização salva foi restaurada.');
+
+    toast('Alterações descartadas. As cores salvas foram mantidas.');
     openStadiumModal('upgrades');
   };
 
