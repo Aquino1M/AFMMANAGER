@@ -3344,7 +3344,7 @@ function openStadiumModal(initialTab){
                     ${['norte', 'sul', 'leste', 'oeste'].map(s => {
                       const isSideDone = !!stData.sides[s];
                       return `
-                        <button class="btn btnSelectSide ${stadiumSelectedSide===s?'primary':''}" data-side="${s}" style="padding:6px;font-size:11px;font-weight:800;border-radius:8px;${isSideDone?'border:1px solid #22c55e;color:#4ade80':''}">
+                        <button type="button" class="btn btnSelectSide ${stadiumSelectedSide===s?'primary':''}" data-side="${s}" aria-pressed="${stadiumSelectedSide===s?'true':'false'}" style="position:relative;z-index:2;pointer-events:auto;touch-action:manipulation;cursor:pointer;padding:6px;font-size:11px;font-weight:800;border-radius:8px;${isSideDone?'border:1px solid #22c55e;color:#4ade80':''}">
                           ${s.toUpperCase()} ${isSideDone ? '✓' : ''}
                         </button>
                       `;
@@ -3869,12 +3869,22 @@ function openStadiumModal(initialTab){
     };
   });
 
-  $('.btnSelectSide').forEach(b => {
-    b.onclick = () => {
-      stadiumSelectedSide = b.dataset.side;
-      openStadiumModal();
-    };
-  });
+  // Delegação no container do modal: os controles são recriados a cada renderização.
+  // Capturar a seleção pelo container evita perder o clique por handlers ligados a nós antigos.
+  if(el && !el.dataset.stadiumSideDelegationBound){
+    el.dataset.stadiumSideDelegationBound = 'true';
+    el.addEventListener('click', (event) => {
+      const button = event.target?.closest?.('.btnSelectSide');
+      if(!button || !el.contains(button)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const side = String(button.dataset.side || '').toLowerCase();
+      if(!['norte','sul','leste','oeste'].includes(side)) return;
+      stadiumSelectedSide = side;
+      window.stadiumSelectedSide = side;
+      openStadiumModal('expansion');
+    }, true);
+  }
 
   $$('.btnRepairStadium').forEach(b => {
     b.onclick = () => repairStadium(b.dataset.mode);
