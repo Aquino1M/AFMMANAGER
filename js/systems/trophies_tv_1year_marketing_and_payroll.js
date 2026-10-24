@@ -454,6 +454,9 @@
 
   function getClubTitlesWonInSave(clubName, state) {
     if (!state) return [];
+    if (typeof window !== 'undefined' && window.AFM_TitlesAndHistoryService && typeof window.AFM_TitlesAndHistoryService.getClubTitles === 'function') {
+      return window.AFM_TitlesAndHistoryService.getClubTitles(clubName, state).trophiesWonInSave;
+    }
     if (typeof window !== 'undefined' && typeof window.syncAllTrophiesToMuseum === 'function') {
       window.syncAllTrophiesToMuseum(state);
     } else if (typeof syncAllTrophiesToMuseum === 'function') {

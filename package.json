@@ -10,6 +10,7 @@
     "test:finance": "node scripts/test-finance-systems.js",
     "test:balance-recovery": "node scripts/test-balance-recovery.js",
     "test:custom-club-trophies": "node scripts/test-custom-club-trophies.js",
+    "test:unified-titles": "node scripts/test-unified-titles-and-world-history.js",
     "test:youth-academy-capacity": "node scripts/test-youth-academy-capacity.js",
     "test:sponsor-contracts": "node scripts/test-sponsor-contract-lifecycle.js",
     "test:sponsor-offers": "node scripts/test-sponsor-offer-deduplication.js",

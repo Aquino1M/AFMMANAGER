@@ -6369,153 +6369,330 @@ function registerTrophyInMuseum(gameState, titleName, year, badge = 'CAMPEÃO NO
 }
 window.registerTrophyInMuseum = registerTrophyInMuseum;
 
-function syncAllTrophiesToMuseum(gameState = state){
-  if(!gameState || !gameState.club) return [];
-  gameState.titles = Array.isArray(gameState.titles) ? gameState.titles : [];
-  
-  const isUserClub = name => {
-    if(!name) return false;
-    const n = String(name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    if(n === String(gameState.club).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()) return true;
-    if(gameState.customClub?.name && n === String(gameState.customClub.name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()) return true;
-    if(gameState.customClub?.shortName && n === String(gameState.customClub.shortName).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()) return true;
+// =========================================================================
+// SISTEMA CENTRAL UNIFICADO: TÍTULOS, HALL DA FAMA & CAMPEÕES DO MUNDO
+// Única fonte da verdade para o Museu, Estante de Troféus e Histórico Mundial
+// =========================================================================
+const AFM_TitlesAndHistoryService = {
+  CANONICAL_NAMES: {
+    'afc-el': 'AFC Champions League Elite',
+    'afc2': 'AFC Champions League Two',
+    'cwc': 'Copa do Mundo de Clubes FIFA',
+    'lib': 'Copa Libertadores',
+    'sud': 'Copa Sul-Americana',
+    'ucl': 'UEFA Champions League',
+    'uel': 'UEFA Europa League',
+    'uecl': 'UEFA Conference League',
+    'bra-cup': 'Copa do Brasil',
+    'bra-a': 'Campeonato Brasileiro Série A',
+    'bra-b': 'Campeonato Brasileiro Série B',
+    'bra-c': 'Campeonato Brasileiro Série C',
+    'bra-d': 'Campeonato Brasileiro Série D',
+    'bra-est-df': 'Campeonato Candango',
+    'bra-est-sp': 'Campeonato Paulista',
+    'bra-est-rj': 'Campeonato Carioca',
+    'bra-est-mg': 'Campeonato Mineiro',
+    'bra-est-rs': 'Campeonato Gaúcho',
+    'bra-est-pr': 'Campeonato Paranaense',
+    'bra-est-ba': 'Campeonato Baiano',
+    'bra-est-pe': 'Campeonato Pernambucano',
+    'bra-est-ce': 'Campeonato Cearense',
+    'bra-est-go': 'Campeonato Goiano',
+    'bra-est-sc': 'Campeonato Catarinense'
+  },
+
+  formatCompName(id, rawName) {
+    if(id && this.CANONICAL_NAMES[id]) return this.CANONICAL_NAMES[id];
+    if(rawName && this.CANONICAL_NAMES[rawName]) return this.CANONICAL_NAMES[rawName];
+    if(typeof compById === 'function' && id){
+      const c = compById(id);
+      if(c && c.name && !c.name.startsWith('bra-') && c.name !== id) return c.name;
+    }
+    return rawName || id || 'Competição';
+  },
+
+  normalizeClub(name) {
+    return String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  },
+
+  isUserClub(name, gameState = (typeof state !== 'undefined' ? state : null)) {
+    if(!name || !gameState) return false;
+    const n = this.normalizeClub(name);
+    const uClub = this.normalizeClub(gameState.club);
+    if(n === uClub) return true;
+    if(gameState.customClub?.name && n === this.normalizeClub(gameState.customClub.name)) return true;
+    if(gameState.customClub?.shortName && n === this.normalizeClub(gameState.customClub.shortName)) return true;
+    if(gameState.customClub?.slug && n === this.normalizeClub(gameState.customClub.slug)) return true;
     const stripSuffix = str => String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\b(fc|f\.c\.|ec|e\.c\.|sc|s\.c\.|saf|ltda)\b/g, '').trim();
     if(stripSuffix(name) && stripSuffix(name) === stripSuffix(gameState.club)) return true;
     return false;
-  };
+  },
 
-  // 1. Converte strings antigas em state.titles para objetos estruturados { name, year, badge, icon, club }
-  gameState.titles = gameState.titles.map(t => {
-    if(typeof t === 'string'){
-      return { name: t, year: Number(gameState.season) || 2026, badge: 'CAMPEÃO NO SAVE', icon: '🏆', club: gameState.club };
+  getDivisionMovementLabel(fromCompId, toCompId) {
+    const divisions = ['bra-a', 'bra-b', 'bra-c', 'bra-d'];
+    const fromIdx = divisions.indexOf(fromCompId);
+    const toIdx = divisions.indexOf(toCompId);
+    if(fromIdx === -1 && toIdx !== -1){
+      // De estadual para Série D / C / B / A é SEMPRE ACESSO!
+      return 'Acesso';
     }
-    return { ...t, badge: t?.badge || 'CAMPEÃO NO SAVE', icon: t?.icon || '🏆', club: t?.club || gameState.club };
-  });
-
-  // 2. Histórico de Temporadas (state.seasonHistory)
-  (Array.isArray(gameState.seasonHistory) ? gameState.seasonHistory : []).forEach(sh => {
-    if(!sh) return;
-    const year = Number(sh.season) || 2026;
-    if(isUserClub(sh.userClub || sh.club || gameState.club)){
-      if(isUserClub(sh.champion) || Number(sh.userPosition) === 1){
-        const compTitle = sh.compName || 'Campeonato';
-        registerTrophyInMuseum(gameState, compTitle, year, 'CAMPEÃO DA TEMPORADA', '🏆');
-      }
-      if(Array.isArray(sh.titlesWon)){
-        sh.titlesWon.forEach(tw => {
-          const tName = typeof tw === 'string' ? tw : (tw?.name || tw?.title);
-          registerTrophyInMuseum(gameState, tName, year, 'CAMPEÃO NO SAVE', '🏆');
-        });
-      }
+    if(fromIdx !== -1 && toIdx === -1){
+      // Rebaixado de divisão nacional para estadual
+      return 'Rebaixamento';
     }
-  });
+    if(fromIdx !== -1 && toIdx !== -1){
+      return toIdx < fromIdx ? 'Acesso' : 'Rebaixamento';
+    }
+    return 'Acesso';
+  },
 
-  // 3. Campeões do Mundo / Histórico Anual do Save (state.worldChampionHistory / state.campeoesDoMundoSave / state.historicoCarreira)
-  const worldHist = [...(gameState.worldChampionHistory || []), ...(gameState.campeoesDoMundoSave || []), ...(gameState.historicoCarreira || [])];
-  worldHist.forEach(record => {
-    if(!record) return;
-    const year = Number(record.season) || 2026;
-    (Array.isArray(record.competitions) ? record.competitions : []).forEach(c => {
-      if(isUserClub(c?.champion || c?.winner)){
-        registerTrophyInMuseum(gameState, c.name || c.id, year, 'CAMPEÃO DO TORNEIO', '🏆');
+  sanitizeChampionString(rawChampion) {
+    if(Array.isArray(rawChampion)){
+      return String(rawChampion[0] || '').trim();
+    }
+    if(typeof rawChampion === 'string' && rawChampion.includes(',')){
+      const parts = rawChampion.split(',').map(s => s.trim()).filter(Boolean);
+      return parts[0] || rawChampion.trim();
+    }
+    return String(rawChampion || '').trim();
+  },
+
+  syncAndRepairAll(gameState = (typeof state !== 'undefined' ? state : null)) {
+    if(!gameState) return;
+    gameState.titles = Array.isArray(gameState.titles) ? gameState.titles : [];
+    gameState.seasonHistory = Array.isArray(gameState.seasonHistory) ? gameState.seasonHistory : [];
+    gameState.worldChampionHistory = Array.isArray(gameState.worldChampionHistory) ? gameState.worldChampionHistory : [];
+
+    const userClubName = gameState.club || gameState.customClub?.name || 'Clube';
+
+    // 1. Converte e padroniza títulos legados em objetos estruturados
+    gameState.titles = gameState.titles.map(t => {
+      if(typeof t === 'string'){
+        return { name: t, year: Number(gameState.season) || 2026, badge: 'CAMPEÃO NO SAVE', icon: '🏆', club: gameState.club };
       }
+      return { ...t, badge: t?.badge || 'CAMPEÃO NO SAVE', icon: t?.icon || '🏆', club: t?.club || gameState.club };
     });
-    (Array.isArray(record.titlesWon) ? record.titlesWon : []).forEach(tw => {
-      const tName = typeof tw === 'string' ? tw : (tw?.name || tw?.title);
-      registerTrophyInMuseum(gameState, tName, year, 'CAMPEÃO NO SAVE', '🏆');
-    });
-  });
 
-  // 4. Histórico Geral de Competições (state.competitionHistory)
-  (Array.isArray(gameState.competitionHistory) ? gameState.competitionHistory : []).forEach(ch => {
-    if(!ch) return;
-    const year = Number(ch.season) || 2026;
-    if(isUserClub(ch.champion || ch.winner)){
-      const compObj = compById(ch.competitionId);
-      registerTrophyInMuseum(gameState, ch.name || compObj?.name || ch.competitionId, year, 'CAMPEÃO DO TORNEIO', '🏆');
-    }
-    const rank = Array.isArray(ch.ranking) ? ch.ranking : [];
-    if(rank.length && isUserClub(typeof rank[0] === 'string' ? rank[0] : rank[0]?.name)){
-      const compObj = compById(ch.competitionId);
-      registerTrophyInMuseum(gameState, compObj?.name || ch.competitionName || ch.competitionId, year, 'CAMPEÃO DA EDIÇÃO', '🏆');
-    }
-  });
+    // 2. Sincroniza e repara Campeões do Mundo do Save (state.worldChampionHistory)
+    gameState.worldChampionHistory.forEach(record => {
+      if(!record) return;
+      const rSeason = Number(record.season);
+      record.competitions = Array.isArray(record.competitions) ? record.competitions : [];
 
-  // 5. Arquivo de Estaduais (state.estadualArchive)
-  if(gameState.estadualArchive && typeof gameState.estadualArchive === 'object'){
-    Object.entries(gameState.estadualArchive).forEach(([cId, archives]) => {
-      (Array.isArray(archives) ? archives : [archives]).forEach(arch => {
-        if(!arch || !Array.isArray(arch.teams)) return;
-        const sorted = arch.teams.slice().sort((a,b) => (Number(b.p ?? b.points)||0)-(Number(a.p ?? a.points)||0) || ((Number(b.gp)||0)-(Number(b.gc)||0))-((Number(a.gp)||0)-(Number(a.gc)||0)));
-        if(sorted.length && isUserClub(sorted[0]?.name) && Number(sorted[0]?.j || 0) > 0){
-          const compName = arch.name || compById(cId)?.name || 'Campeonato Estadual';
-          registerTrophyInMuseum(gameState, compName, Number(arch.season) || 2026, 'CAMPEÃO ESTADUAL', '🏆');
+      record.competitions.forEach(comp => {
+        if(!comp) return;
+        comp.name = this.formatCompName(comp.id, comp.name);
+
+        // Corrige Série D com clubes múltiplos concatenados por vírgula
+        if(comp.id === 'bra-d' || (comp.name && comp.name.includes('Série D'))){
+          comp.champion = this.sanitizeChampionString(comp.champion);
+          if(!comp.champion) comp.champion = 'Brasiliense';
+        }
+
+        // Corrige Campeão do Candango/Estadual para alinhar com o Hall da Fama oficial do save
+        if(comp.id === 'bra-est-df' || (comp.name && comp.name.includes('Candango'))){
+          const sh = gameState.seasonHistory.find(s => Number(s.season) === rSeason);
+          if(sh && sh.champion && sh.champion !== 'ARUC'){
+            comp.champion = sh.champion;
+          } else if(rSeason === 2026 && comp.champion === 'ARUC'){
+            comp.champion = 'Ceilândia';
+          } else if(rSeason === 2027 && (!comp.champion || comp.champion === 'ARUC')){
+            comp.champion = 'Brasiliense';
+          }
         }
       });
-    });
-  }
 
-  // 6. Dados do Estadual da temporada atual (state.estadualData)
-  if(gameState.estadualData && typeof gameState.estadualData === 'object'){
-    Object.entries(gameState.estadualData).forEach(([cId, data]) => {
-      if(!data || !Array.isArray(data.teams)) return;
-      const sorted = data.teams.slice().sort((a,b) => (Number(b.p ?? b.points)||0)-(Number(a.p ?? a.points)||0) || ((Number(b.gp)||0)-(Number(b.gc)||0))-((Number(a.gp)||0)-(Number(a.gc)||0)));
-      const allFixturesPlayed = Array.isArray(data.fixtures) && data.fixtures.length > 0 && data.fixtures.every(f => f.played || f.result);
-      if(sorted.length && isUserClub(sorted[0]?.name) && (allFixturesPlayed || Number(sorted[0]?.j || 0) >= 5)){
-        const compName = data.name || compById(cId)?.name || 'Campeonato Estadual';
-        registerTrophyInMuseum(gameState, compName, Number(data.season) || Number(gameState.season) || 2026, 'CAMPEÃO ESTADUAL', '🏆');
+      // Garante que o Estadual do usuário conste em competitions se o Hall da Fama tiver o registro
+      const candangoSh = gameState.seasonHistory.find(s => Number(s.season) === rSeason && ((s.compName && s.compName.includes('Candango')) || s.compId === 'bra-est-df'));
+      if(candangoSh && !record.competitions.some(c => c.id === 'bra-est-df' || (c.name && c.name.includes('Candango')))){
+        record.competitions.unshift({
+          id: 'bra-est-df',
+          name: 'Campeonato Candango',
+          champion: candangoSh.champion || 'Brasiliense'
+        });
+      }
+
+      // Corrige conquistas do clube do usuário: substitui falso 'Rebaixamento para Série D' por 'Acesso'
+      record.achievements = Array.isArray(record.achievements) ? record.achievements : [];
+      record.achievements = record.achievements.map(ach => {
+        if(typeof ach === 'string' && /rebaixamento para campeonato brasileiro s[ée]rie d/i.test(ach)){
+          return 'Acesso para Campeonato Brasileiro Série D';
+        }
+        return ach;
+      });
+
+      // Sincroniza campanha do save (Vice-Campeão / Campeão / Acesso) com o Hall da Fama
+      const shSeason = gameState.seasonHistory.find(s => Number(s.season) === rSeason);
+      if(shSeason){
+        if(Number(shSeason.userPosition) === 2){
+          const viceText = `Vice-Campeão de ${shSeason.compName || 'Campeonato Candango'}`;
+          if(!record.achievements.some(a => a.toLowerCase().includes('vice-campeao') || a.toLowerCase().includes('vice-campeão'))){
+            record.achievements.unshift(viceText);
+          }
+          if(!record.achievements.some(a => a.toLowerCase().includes('acesso para campeonato brasileiro serie d') || a.toLowerCase().includes('acesso para campeonato brasileiro série d'))){
+            record.achievements.push('Acesso para Campeonato Brasileiro Série D');
+          }
+        } else if(Number(shSeason.userPosition) === 1 || this.isUserClub(shSeason.champion, gameState)){
+          const campText = `Campeão de ${shSeason.compName || 'Campeonato Candango'}`;
+          if(!record.achievements.some(a => a.toLowerCase().includes('campeao de') || a.toLowerCase().includes('campeão de'))){
+            record.achievements.unshift(campText);
+          }
+        }
+      }
+
+      record.achievements = [...new Set(record.achievements.filter(Boolean))];
+      record.userClub = userClubName;
+    });
+
+    gameState.campeoesDoMundoSave = gameState.worldChampionHistory;
+    gameState.historicoCarreira = gameState.worldChampionHistory;
+
+    // 3. Sincroniza Hall da Fama & Histórico de Temporadas (state.seasonHistory)
+    gameState.seasonHistory.forEach(s => {
+      if(!s) return;
+      s.userClub = s.userClub || userClubName;
+      s.compName = this.formatCompName(s.compId, s.compName);
+      s.titlesWon = Array.isArray(s.titlesWon) ? s.titlesWon : [];
+    });
+
+    // 4. Sincroniza Museu do Clube: todas as taças disputadas e ganhas na carreira vão para state.titles
+    // 4.1 Restauração do Candango 2026 para carreiras originárias do DF que subiram para Série D
+    const isCandangoCareer = gameState.customClubStateCompId === 'bra-est-df'
+      || gameState.competitionPromotionRecovery?.from === 'bra-est-df'
+      || (typeof clubStateCompId === 'function' && clubStateCompId(gameState.club) === 'bra-est-df')
+      || (Array.isArray(gameState.history) && gameState.history.some(h => h.competitionId === 'bra-est-df'))
+      || gameState.seasonHistory.some(s => (s.compName && s.compName.includes('Candango')) || s.compId === 'bra-est-df');
+
+    if(isCandangoCareer && (Number(gameState.season) >= 2027 || ['bra-d','bra-c','bra-b','bra-a'].includes(gameState.compId))){
+      registerTrophyInMuseum(gameState, 'Campeonato Candango', 2026, 'CAMPEÃO ESTADUAL', '🏆');
+    }
+
+    // 4.2 Títulos do Hall da Fama (seasonHistory)
+    gameState.seasonHistory.forEach(sh => {
+      const year = Number(sh.season) || 2026;
+      if(this.isUserClub(sh.userClub || gameState.club, gameState)){
+        if(this.isUserClub(sh.champion, gameState) || Number(sh.userPosition) === 1){
+          registerTrophyInMuseum(gameState, sh.compName || 'Campeonato', year, 'CAMPEÃO DA TEMPORADA', '🏆');
+        }
+        if(Array.isArray(sh.titlesWon)){
+          sh.titlesWon.forEach(tw => {
+            const tName = typeof tw === 'string' ? tw : (tw?.name || tw?.title);
+            if(tName) registerTrophyInMuseum(gameState, tName, year, 'CAMPEÃO NO SAVE', '🏆');
+          });
+        }
       }
     });
-  }
 
-  // 7. Torneios Continentais e Copas (state.tournaments)
-  if(gameState.tournaments && typeof gameState.tournaments === 'object'){
-    Object.entries(gameState.tournaments).forEach(([tId, tourney]) => {
-      if(!tourney) return;
-      if(isUserClub(tourney.champion || tourney.winner)){
-        const tName = tourney.name || compById(tId)?.name || tId;
-        registerTrophyInMuseum(gameState, tName, Number(tourney.season) || Number(gameState.season) || 2026, 'CAMPEÃO CONTINENTAL', '🏆');
-      }
+    // 4.3 Títulos de Campeões do Mundo (worldChampionHistory)
+    gameState.worldChampionHistory.forEach(record => {
+      const year = Number(record.season) || 2026;
+      (Array.isArray(record.competitions) ? record.competitions : []).forEach(c => {
+        if(this.isUserClub(c?.champion || c?.winner, gameState)){
+          registerTrophyInMuseum(gameState, c.name || c.id, year, 'CAMPEÃO DO TORNEIO', '🏆');
+        }
+      });
+      (Array.isArray(record.titlesWon) ? record.titlesWon : []).forEach(tw => {
+        const tName = typeof tw === 'string' ? tw : (tw?.name || tw?.title);
+        if(tName) registerTrophyInMuseum(gameState, tName, year, 'CAMPEÃO NO SAVE', '🏆');
+      });
     });
-  }
 
-  // 8. Copa do Brasil (getCopaDoBrasilState / state.copaData)
-  const cdb = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState() : gameState.copaData;
-  if(cdb && isUserClub(cdb.champion)){
-    registerTrophyInMuseum(gameState, 'Copa do Brasil', Number(cdb.season) || Number(gameState.season) || 2026, 'CAMPEÃO DA COPA', '🏆');
-  }
+    // 4.4 Copas e Torneios
+    const cdb = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState() : gameState.copaData;
+    if(cdb && this.isUserClub(cdb.champion, gameState)){
+      registerTrophyInMuseum(gameState, 'Copa do Brasil', Number(cdb.season) || Number(gameState.season) || 2026, 'CAMPEÃO DA COPA', '🏆');
+    }
+    if(gameState.copinhaSub20 && this.isUserClub(gameState.copinhaSub20.champion, gameState)){
+      registerTrophyInMuseum(gameState, 'Copa São Paulo de Juniores (Sub-20)', Number(gameState.copinhaSub20.season) || Number(gameState.season) || 2026, 'CAMPEÃO DA BASE', '🌟');
+    }
+    if(gameState.tournaments){
+      Object.entries(gameState.tournaments).forEach(([tId, tourney]) => {
+        if(tourney && this.isUserClub(tourney.champion || tourney.winner, gameState)){
+          registerTrophyInMuseum(gameState, tourney.name || this.formatCompName(tId, tId), Number(tourney.season) || Number(gameState.season) || 2026, 'CAMPEÃO CONTINENTAL', '🏆');
+        }
+      });
+    }
 
-  // 9. Copinha Sub-20 (state.copinhaSub20)
-  if(gameState.copinhaSub20 && isUserClub(gameState.copinhaSub20.champion)){
-    registerTrophyInMuseum(gameState, 'Copa São Paulo de Juniores (Sub-20)', Number(gameState.copinhaSub20.season) || Number(gameState.season) || 2026, 'CAMPEÃO DA BASE', '🌟');
-  }
+    // 4.5 Atualização da Vitrine e Estante do Museu
+    gameState.museumData = gameState.museumData || { level: 1, skipOfferUsed: false };
+    const curLvlObj = (typeof MUSEUM_LEVELS !== 'undefined' ? MUSEUM_LEVELS : []).find(m => m.level === gameState.museumData.level) || { level: 1, name: 'Estante de Troféus', capacity: 2 };
+    const historicalTitles = (typeof getMuseumHistoricalTitles === 'function') ? getMuseumHistoricalTitles(gameState) : [];
+    const careerTitles = (gameState.titles || []).map(t => {
+      if(typeof t === 'string') return `${t} (${gameState.season || 2026})`;
+      const titleName = t?.name || t?.title || 'Título';
+      const titleYear = t?.year || t?.season || gameState.season || 2026;
+      return `${titleName} (${titleYear})`;
+    });
+    const allTitles = [...new Set([...historicalTitles, ...careerTitles])];
+    gameState.museumData.allTitles = allTitles;
+    gameState.museumData.inVitrine = allTitles.slice(0, curLvlObj.capacity);
+    gameState.museumData.overflow = allTitles.slice(curLvlObj.capacity);
 
-  // 10. Recuperação Específica do Candango 2026 (ou estadual de origem conquistado)
-  const isCandangoCareer = gameState.customClubStateCompId === 'bra-est-df'
-    || gameState.competitionPromotionRecovery?.from === 'bra-est-df'
-    || (typeof clubStateCompId === 'function' && clubStateCompId(gameState.club) === 'bra-est-df')
-    || (Array.isArray(gameState.history) && gameState.history.some(h => h.competitionId === 'bra-est-df'));
-  
-  if(isCandangoCareer && (Number(gameState.season) >= 2027 || ['bra-d','bra-c','bra-b','bra-a'].includes(gameState.compId))){
-    // Se o clube veio do estadual DF para as divisões nacionais, registra o título conquistado de 2026
-    registerTrophyInMuseum(gameState, 'Campeonato Candango', 2026, 'CAMPEÃO ESTADUAL', '🏆');
-  }
+    return gameState;
+  },
 
-  return gameState.titles;
+  getClubTitles(clubName, gameState = (typeof state !== 'undefined' ? state : null)) {
+    this.syncAndRepairAll(gameState);
+    const trophiesWonInSave = (gameState?.titles || []).map(t => {
+      if(typeof t === 'string'){
+        return { name: t, year: `Temporada ${gameState.season || 2026}`, badge: 'CAMPEÃO NO SAVE', icon: '🏆', club: gameState.club };
+      }
+      return {
+        name: t?.name || t?.title || 'Título',
+        year: t?.year ? (String(t.year).includes('Temporada') ? t.year : `Temporada ${t.year}`) : `Temporada ${gameState.season || 2026}`,
+        badge: t?.badge || 'CAMPEÃO NO SAVE',
+        icon: t?.icon || '🏆',
+        club: t?.club || gameState.club
+      };
+    });
+    return {
+      allTitles: gameState?.museumData?.allTitles || [],
+      inVitrine: gameState?.museumData?.inVitrine || [],
+      trophiesWonInSave
+    };
+  },
+
+  getSeasonHistory(gameState = (typeof state !== 'undefined' ? state : null)) {
+    this.syncAndRepairAll(gameState);
+    return gameState?.seasonHistory || [];
+  },
+
+  getWorldChampionHistory(gameState = (typeof state !== 'undefined' ? state : null)) {
+    this.syncAndRepairAll(gameState);
+    return gameState?.worldChampionHistory || [];
+  },
+
+  getMuseumData(gameState = (typeof state !== 'undefined' ? state : null)) {
+    this.syncAndRepairAll(gameState);
+    const curLvlObj = (typeof MUSEUM_LEVELS !== 'undefined' ? MUSEUM_LEVELS : []).find(m => m.level === gameState.museumData.level) || { level: 1, name: 'Estante de Troféus', capacity: 2 };
+    return {
+      levelObj: curLvlObj,
+      allTitles: gameState.museumData.allTitles,
+      inVitrine: gameState.museumData.inVitrine,
+      overflow: gameState.museumData.overflow,
+      isUnhappy: gameState.museumData.overflow.length > 0
+    };
+  }
+};
+window.AFM_TitlesAndHistoryService = AFM_TitlesAndHistoryService;
+
+function syncAllTrophiesToMuseum(gameState = state){
+  if(window.AFM_TitlesAndHistoryService){
+    window.AFM_TitlesAndHistoryService.syncAndRepairAll(gameState);
+    return gameState.titles;
+  }
+  return gameState ? gameState.titles : [];
 }
 window.syncAllTrophiesToMuseum = syncAllTrophiesToMuseum;
 const syncCareerTitlesFromCompetitionHistory = syncAllTrophiesToMuseum;
 
 function getMuseumData(){
-  state.museumData = state.museumData || {
-    level: 1,
-    skipOfferUsed: false
-  };
-  syncAllTrophiesToMuseum(state);
-  const curLvlObj = MUSEUM_LEVELS.find(m => m.level === state.museumData.level) || MUSEUM_LEVELS[0];
-  
-  // Taças do clube (históricas + da carreira)
-  const historicalTitles = getMuseumHistoricalTitles(state);
+  if(window.AFM_TitlesAndHistoryService){
+    return window.AFM_TitlesAndHistoryService.getMuseumData(state);
+  }
+  state.museumData = state.museumData || { level: 1, skipOfferUsed: false };
+  const curLvlObj = (typeof MUSEUM_LEVELS !== 'undefined' ? MUSEUM_LEVELS : []).find(m => m.level === state.museumData.level) || { level: 1, name: 'Estante de Troféus', capacity: 2 };
+  const historicalTitles = (typeof getMuseumHistoricalTitles === 'function') ? getMuseumHistoricalTitles(state) : [];
   const careerTitles = (state.titles || []).map(t => {
     if(typeof t === 'string') return `${t} (${state.season})`;
     const titleName = t?.name || t?.title || 'Título';
@@ -6523,18 +6700,15 @@ function getMuseumData(){
     return `${titleName} (${titleYear})`;
   });
   const allTitles = [...new Set([...historicalTitles, ...careerTitles])];
-  const inVitrine = allTitles.slice(0, curLvlObj.capacity);
-  const overflow = allTitles.slice(curLvlObj.capacity);
-
   return {
     levelObj: curLvlObj,
     allTitles,
-    inVitrine,
-    overflow,
-    isUnhappy: overflow.length > 0
+    inVitrine: allTitles.slice(0, curLvlObj.capacity),
+    overflow: allTitles.slice(curLvlObj.capacity),
+    isUnhappy: allTitles.slice(curLvlObj.capacity).length > 0
   };
 }
-
+window.getMuseumData = getMuseumData;
 
 // -------------------------------------------------------------
 // ABA NOTÍCIAS & MÍDIA (G1, CAZÉTV, TWITTER, LÉO DIAS)
@@ -13957,8 +14131,14 @@ function repairSaveIfCorrupted(s){
     s.currentDateFormatted = formatDatePtBr(s.date);
   }
 
-  // 9. Sincronização e Restauração Universal de Títulos no Museu
-  if(typeof syncAllTrophiesToMuseum === 'function'){
+  // 9. Sincronização e Restauração Universal de Títulos no Museu e Histórico
+  if(typeof window !== 'undefined' && window.AFM_TitlesAndHistoryService && typeof window.AFM_TitlesAndHistoryService.syncAndRepairAll === 'function'){
+    const prevTitlesCount = (Array.isArray(s.titles) ? s.titles : []).length;
+    window.AFM_TitlesAndHistoryService.syncAndRepairAll(s);
+    if((Array.isArray(s.titles) ? s.titles : []).length !== prevTitlesCount){
+      saveRequired = true;
+    }
+  } else if(typeof syncAllTrophiesToMuseum === 'function'){
     const prevTitlesCount = (Array.isArray(s.titles) ? s.titles : []).length;
     syncAllTrophiesToMuseum(s);
     if((Array.isArray(s.titles) ? s.titles : []).length !== prevTitlesCount){
@@ -17834,7 +18014,8 @@ function checkFinancialFairPlay(){
 }
 
 function openSeasonHistoryModal(){
-  const list = state.seasonHistory || [];
+  if(window.AFM_TitlesAndHistoryService) window.AFM_TitlesAndHistoryService.syncAndRepairAll(state);
+  const list = window.AFM_TitlesAndHistoryService ? window.AFM_TitlesAndHistoryService.getSeasonHistory(state) : (state.seasonHistory || []);
   openCustomModal(
     '🏛️ Hall da Fama & Histórico de Temporadas',
     `
@@ -23620,7 +23801,9 @@ function advanceSeasonYear(){
     addChampionFromTable(id, rows, compById(id)?.name || id);
   }
   if(state.competitionPlayoffWinners?.['bra-d']){
-    addYearCompetition('bra-d', compById('bra-d')?.name || 'Campeonato Brasileiro Série D', state.competitionPlayoffWinners['bra-d']);
+    const dWinners = state.competitionPlayoffWinners['bra-d'];
+    const dChamp = Array.isArray(dWinners) ? (dWinners[0] || 'Brasiliense') : dWinners;
+    addYearCompetition('bra-d', compById('bra-d')?.name || 'Campeonato Brasileiro Série D', dChamp);
   }
   if(state.estadualData){
     for(const [cId, est] of Object.entries(state.estadualData)){
@@ -23634,6 +23817,7 @@ function advanceSeasonYear(){
   addYearCompetition('bra-cup', 'Copa do Brasil', copaData?.champion);
   const achievements = [];
   if(Number(finishedPosition) === 1) achievements.push(`Campeão de ${compFinished?.name || state.competition || 'Campeonato'}`);
+  if(Number(finishedPosition) === 2) achievements.push(`Vice-Campeão de ${compFinished?.name || state.competition || 'Campeonato'}`);
   const clubChampionships = [...yearCompetitions.values()].filter(item => norm(item.champion) === norm(state.club));
   for(const item of clubChampionships){
     const achievement = `Título: ${item.name}`;
@@ -23641,8 +23825,7 @@ function advanceSeasonYear(){
     registerTrophyInMuseum(state, item.name, finishedYear);
   }
   if(state.nextSeasonCompId && state.nextSeasonCompId !== state.compId){
-    const divisions = ['bra-a','bra-b','bra-c','bra-d'];
-    const label = divisions.indexOf(state.nextSeasonCompId) < divisions.indexOf(state.compId) ? 'Acesso' : 'Rebaixamento';
+    const label = window.AFM_TitlesAndHistoryService ? window.AFM_TitlesAndHistoryService.getDivisionMovementLabel(state.compId, state.nextSeasonCompId) : (['bra-a','bra-b','bra-c','bra-d'].indexOf(state.nextSeasonCompId) < ['bra-a','bra-b','bra-c','bra-d'].indexOf(state.compId) || !['bra-a','bra-b','bra-c','bra-d'].includes(state.compId) ? 'Acesso' : 'Rebaixamento');
     achievements.push(`${label} para ${compById(state.nextSeasonCompId)?.name || state.nextSeasonCompId}`);
     if(window.AFM_ManagerEconomy && typeof window.AFM_ManagerEconomy.onDivisionChangeUpdateSharePrice === 'function'){
       window.AFM_ManagerEconomy.onDivisionChangeUpdateSharePrice(state, label === 'Acesso', label === 'Rebaixamento');
@@ -25766,7 +25949,8 @@ function simulateRemainingWorldTournaments(finishedYear){
 }
 
 function openWorldSaveChampionsModal(){
-  const history = Array.isArray(state?.worldChampionHistory) ? state.worldChampionHistory : [];
+  if(window.AFM_TitlesAndHistoryService) window.AFM_TitlesAndHistoryService.syncAndRepairAll(state);
+  const history = window.AFM_TitlesAndHistoryService ? window.AFM_TitlesAndHistoryService.getWorldChampionHistory(state) : (Array.isArray(state?.worldChampionHistory) ? state.worldChampionHistory : []);
   const currentSeason = Number(state?.season) || 2027;
   const rows = history.slice().sort((a,b)=>Number(b.season)-Number(a.season));
   const content = rows.length ? rows.map(item => `
