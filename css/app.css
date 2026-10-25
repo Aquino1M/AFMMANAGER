@@ -10066,7 +10066,11 @@ body.theme-emerald {
   50% { opacity: 1; transform: scale(1.03); filter: drop-shadow(0 0 14px currentColor); }
 }
 
-/* Módulo 3D de Arquibancada Acoplada (Zona Leste / Oeste / Norte / Sul) */
+/* Módulo 3D de Arquibancada Acoplada (Desativado para manter maquete limpa) */
+.afm-3d-hotspot,
+.afm-3d-stand-module {
+  display: none !important;
+}
 .afm-3d-stand-module {
   background: rgba(15, 23, 42, 0.92);
   backdrop-filter: blur(8px);

@@ -2869,61 +2869,6 @@ function openStadiumModal(initialTab){
                     <img src="${model3D ? model3D.preview : 'assets/stadiums/PREVIA_ESTADIOS.png'}" alt="Estádio 3D" style="max-width:70%;max-height:180px;border-radius:8px">
                     <div style="color:#94a3b8;font-size:11px">🏟️ Carregando maquete 3D...</div>
                   </div>
-
-                  <!-- Hotspots de Setores -->
-                  ${(stData.sides['leste'] || (isExp && stadiumSelectedSide === 'leste')) ? `
-                    <div slot="hotspot-stand-leste" data-position="15 3.5 0" data-normal="1 0 0" class="afm-3d-hotspot">
-                      <div class="afm-3d-stand-module ${stData.sides['leste'] ? 'done' : 'work'}">
-                        <div class="stand-title">${stData.sides['leste'] ? '✓ ZONA LESTE AMPLIADA' : (stData.activeWork?.side === 'leste' ? '🏗️ OBRA LESTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO LESTE')}</div>
-                        <span style="font-size:8px;font-weight:900;color:${stData.sides['leste']?'#4ade80':'#facc15'}">${stData.sides['leste'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
-                      </div>
-                    </div>
-                  ` : ''}
-                  ${(stData.sides['oeste'] || (isExp && stadiumSelectedSide === 'oeste')) ? `
-                    <div slot="hotspot-stand-oeste" data-position="-15 3.5 0" data-normal="-1 0 0" class="afm-3d-hotspot">
-                      <div class="afm-3d-stand-module ${stData.sides['oeste'] ? 'done' : 'work'}">
-                        <div class="stand-title">${stData.sides['oeste'] ? '✓ SETOR OESTE AMPLIADO' : (stData.activeWork?.side === 'oeste' ? '🏗️ OBRA OESTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO OESTE')}</div>
-                        <span style="font-size:8px;font-weight:900;color:${stData.sides['oeste']?'#4ade80':'#facc15'}">${stData.sides['oeste'] ? '+1.750 Lugares Sociais' : '+1.750 Lugares Projetados'}</span>
-                      </div>
-                    </div>
-                  ` : ''}
-                  ${(stData.sides['norte'] || (isExp && stadiumSelectedSide === 'norte')) ? `
-                    <div slot="hotspot-stand-norte" data-position="0 3.5 -12" data-normal="0 0 -1" class="afm-3d-hotspot">
-                      <div class="afm-3d-stand-module ${stData.sides['norte'] ? 'done' : 'work'}">
-                        <div class="stand-title">${stData.sides['norte'] ? '✓ SETOR NORTE AMPLIADO' : (stData.activeWork?.side === 'norte' ? '🏗️ OBRA NORTE EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO NORTE')}</div>
-                        <span style="font-size:8px;font-weight:900;color:${stData.sides['norte']?'#4ade80':'#facc15'}">${stData.sides['norte'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
-                      </div>
-                    </div>
-                  ` : ''}
-                  ${(stData.sides['sul'] || (isExp && stadiumSelectedSide === 'sul')) ? `
-                    <div slot="hotspot-stand-sul" data-position="0 3.5 12" data-normal="0 0 1" class="afm-3d-hotspot">
-                      <div class="afm-3d-stand-module ${stData.sides['sul'] ? 'done' : 'work'}">
-                        <div class="stand-title">${stData.sides['sul'] ? '✓ SETOR SUL AMPLIADO' : (stData.activeWork?.side === 'sul' ? '🏗️ OBRA SUL EM ANDAMENTO' : '🏗️ PROJETO EXPANSÃO SUL')}</div>
-                        <span style="font-size:8px;font-weight:900;color:${stData.sides['sul']?'#4ade80':'#facc15'}">${stData.sides['sul'] ? '+3.500 Lugares Acoplados' : '+3.500 Lugares Projetados'}</span>
-                      </div>
-                    </div>
-                  ` : ''}
-
-                  <!-- Hotspots de Upgrades -->
-                  ${u.screen ? `
-                    <div slot="hotspot-screen" data-position="0 7.2 -13" data-normal="0 0 1" class="afm-3d-hotspot">
-                      <div class="afm-3d-screen-jumbotron">
-                        <span style="font-size:8px;color:#94a3b8;font-weight:700">TELÃO DIGITAL CENTRAL</span>
-                      </div>
-                    </div>
-                  ` : ''}
-                  ${u.vipBoxes ? `
-                    <div slot="hotspot-vip" data-position="-13 4.5 0" data-normal="1 0 0" class="afm-3d-hotspot">
-                      <div class="afm-3d-vip-lounge">
-                        <b style="font-size:9px;font-weight:900;color:#facc15">CAMAROTES VIP CORPORATIVOS</b>
-                      </div>
-                    </div>
-                  ` : ''}
-                  ${u.ledRing ? `
-                    <div slot="hotspot-led-ring" data-position="0 0.5 7" data-normal="0 1 0" class="afm-3d-hotspot">
-                      <div class="afm-3d-led-ring-ribbon">✨ PAINÉIS DE LED 360° ✨</div>
-                    </div>
-                  ` : ''}
                 </model-viewer>
               </div>
 
@@ -3733,8 +3678,11 @@ function openStadiumModal(initialTab){
   // Inicialização e atualização da Maquete Low-Poly 3D Progressiva (Three.js WebGL)
   if (stadiumVisualMode === '3d') {
     const canvas = document.getElementById('afmStadiumLowPolyCanvas');
+    const fb = document.getElementById('afmStadiumFallbackViewer');
     if (canvas && window.THREE && window.AFMStadiumLowPoly) {
       try {
+        if (fb) fb.style.display = 'none';
+        canvas.style.display = 'block';
         window.AFMStadiumLowPoly.init(canvas);
         const previewState = stadiumCustomizationPreview
           ? { ...state, stadiumCustomization: { ...(state.stadiumCustomization || {}), ...stadiumCustomizationPreview } }
@@ -3755,12 +3703,12 @@ function openStadiumModal(initialTab){
         }
       } catch (err) {
         console.warn('[AFMStadiumLowPoly] Erro ao renderizar Three.js, ativando fallback:', err);
-        const fb = document.getElementById('afmStadiumFallbackViewer');
         if (fb) fb.style.display = 'block';
+        if (canvas) canvas.style.display = 'none';
       }
     } else {
-      const fb = document.getElementById('afmStadiumFallbackViewer');
       if (fb) fb.style.display = 'block';
+      if (canvas) canvas.style.display = 'none';
     }
   } else {
     if (window.AFMStadiumLowPoly) window.AFMStadiumLowPoly.dispose();
@@ -21390,8 +21338,34 @@ function evaluateAiCoachAdjustments(s, min){
     if(tiredPlayer && (!s.cpuSubsCount || s.cpuSubsCount < 5)){
       s.cpuSubsCount = (s.cpuSubsCount || 0) + 1;
       tiredPlayer.isSubbed = true;
-      const subNames = ['Matheusinho', 'Lucas Moura', 'Rodrigo Silva', 'Paulinho', 'Danilo'];
-      const subName = subNames[s.cpuSubsCount % subNames.length];
+
+      let subName = '';
+      // Busca reservas autênticos do próprio clube em LIVE_PLAYERS
+      if(typeof window !== 'undefined' && Array.isArray(window.LIVE_PLAYERS)){
+        const benchLive = window.LIVE_PLAYERS.filter(lp =>
+          norm(lp.club) === norm(cpuTeam) &&
+          !cpuPlayers.some(cp => norm(cp.name) === norm(lp.name)) &&
+          lp.pos !== 'GK'
+        );
+        if(benchLive.length > 0){
+          subName = benchLive[(s.cpuSubsCount - 1) % benchLive.length].name;
+        }
+      }
+      // Ou na squad ativa da carreira
+      if(!subName && state?.teams && state.teams[cpuTeam] && Array.isArray(state.teams[cpuTeam].squad)){
+        const squadBench = state.teams[cpuTeam].squad.filter(p =>
+          !cpuPlayers.some(cp => norm(cp.name) === norm(p.name)) && p.pos !== 'GK'
+        );
+        if(squadBench.length > 0){
+          subName = squadBench[(s.cpuSubsCount - 1) % squadBench.length].name;
+        }
+      }
+      // Fallback inteligente
+      if(!subName){
+        const subNames = ['Matheusinho', 'Lucas Moura', 'Rodrigo Silva', 'Paulinho', 'Danilo'];
+        subName = subNames[s.cpuSubsCount % subNames.length];
+      }
+
       tiredPlayer.name = subName;
       tiredPlayer.fullName = `${subName} (Sub)`;
       tiredPlayer.stamina = 100;

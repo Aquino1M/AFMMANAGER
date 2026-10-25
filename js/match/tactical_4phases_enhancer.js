@@ -15,13 +15,24 @@
       return POSTURE_MODIFIERS[key] || POSTURE_MODIFIERS.EQUILIBRADA;
     },
 
-    // #089: IA Rival adapta a postura nos 20 minutos finais se estiver perdendo
+    // #089: IA Rival adapta a postura nos 20 minutos finais com base no placar real
     evaluateAICoachAdjustment(matchState) {
-      if (!matchState || matchState.minute < 68) return matchState.awayPosture || 'EQUILIBRADA';
-      const diff = (matchState.awayGoals || 0) - (matchState.homeGoals || 0);
-      if (diff < 0) return 'OFENSIVA';
-      if (diff > 0 && matchState.minute >= 80) return 'RETRANCA';
-      return 'EQUILIBRADA';
+      if (!matchState) return 'EQUILIBRADA';
+      const minute = matchState.minute || 0;
+      if (minute < 68) return matchState.awayPosture || 'EQUILIBRADA';
+
+      const userClub = (typeof window !== 'undefined' && window.state && window.state.club) ? window.state.club : null;
+      const isUserHome = (typeof window.norm === 'function' && userClub)
+        ? (window.norm(matchState.home) === window.norm(userClub))
+        : true;
+
+      const hg = matchState.hg ?? matchState.homeGoals ?? 0;
+      const ag = matchState.ag ?? matchState.awayGoals ?? 0;
+      const cpuDiff = isUserHome ? (ag - hg) : (hg - ag);
+
+      if (cpuDiff < 0) return 'OFENSIVA';
+      if (cpuDiff > 0 && minute >= 80) return 'RETRANCA';
+      return isUserHome ? (matchState.awayPosture || 'EQUILIBRADA') : (matchState.homePosture || 'EQUILIBRADA');
     },
 
     // #086 & #100: Cálculo de xG (Expected Goals) e Resolução de Goleiro 1v1

@@ -20,17 +20,24 @@
     evaluateAICoachAdjustment(matchState) {
       if (!matchState) return 'EQUILIBRADA';
       const minute = matchState.minute || 0;
-      const homeGoals = matchState.homeGoals || 0;
-      const awayGoals = matchState.awayGoals || 0;
-      const diff = awayGoals - homeGoals;
+      if (minute < 68) return matchState.awayPosture || 'EQUILIBRADA';
 
-      if (diff < 0 && minute >= 70) {
+      const userClub = (typeof window !== 'undefined' && window.state && window.state.club) ? window.state.club : null;
+      const isUserHome = (typeof window.norm === 'function' && userClub)
+        ? (window.norm(matchState.home) === window.norm(userClub))
+        : true;
+
+      const homeGoals = matchState.hg ?? matchState.homeGoals ?? 0;
+      const awayGoals = matchState.ag ?? matchState.awayGoals ?? 0;
+      const cpuDiff = isUserHome ? (awayGoals - homeGoals) : (homeGoals - awayGoals);
+
+      if (cpuDiff < 0 && minute >= 70) {
         return 'OFENSIVA';
       }
-      if (diff > 0 && minute >= 80) {
+      if (cpuDiff > 0 && minute >= 80) {
         return 'RETRANCA';
       }
-      return matchState.awayPosture || 'EQUILIBRADA';
+      return isUserHome ? (matchState.awayPosture || 'EQUILIBRADA') : (matchState.homePosture || 'EQUILIBRADA');
     }
   };
 

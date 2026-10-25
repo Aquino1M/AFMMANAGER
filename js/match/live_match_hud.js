@@ -106,6 +106,9 @@
     },
 
     openPenaltyShootoutModal(matchState, onShootoutFinished) {
+      const existingModal = document.getElementById('afm-penalty-modal');
+      if (existingModal) existingModal.remove();
+
       const modal = document.createElement('div');
       modal.id = 'afm-penalty-modal';
       modal.style.cssText = 'position:fixed;inset:0;background:rgba(5,8,17,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:Inter,sans-serif;color:#fff;';
@@ -113,18 +116,27 @@
       const homeName = matchState?.homeTeamName || matchState?.home || 'Mandante';
       const awayName = matchState?.awayTeamName || matchState?.away || 'Visitante';
 
+      const userClubName = (typeof window !== 'undefined' && window.state && window.state.club) ? window.state.club : null;
+      const userIsHome = (typeof window.norm === 'function' && userClubName)
+        ? (window.norm(matchState?.home) === window.norm(userClubName))
+        : (matchState?.isUserHome !== false);
+
       let homeScore = 0;
       let awayScore = 0;
       let kickIndex = 0;
       let selectedCorner = 'CENTER';
 
+      const userTeamLabel = userIsHome ? homeName : awayName;
+      const aiTeamLabel = userIsHome ? awayName : homeName;
+
       const renderModal = (statusText = 'Escolha o canto da baliza e clique em COBRAR PÊNALTI!') => {
         modal.innerHTML = `
           <div style="background:#0f172a;border:1px solid #334155;border-radius:14px;max-width:520px;width:100%;padding:20px;text-align:center;">
-            <div style="font-size:12px;color:#a78bfa;font-weight:800;letter-spacing:0.08em;">DISPUTA DE PÊNALTIS AO VIVO</div>
+            <div style="font-size:12px;color:#a78bfa;font-weight:800;letter-spacing:0.08em;">DISPUTA DE PÊNALTIS AO VIVO (MATA-MATA)</div>
             <div style="font-size:28px;font-weight:900;margin:10px 0;">
-              ${homeName} <span style="color:#34d399;">${homeScore}</span> x <span style="color:#38bdf8;">${awayScore}</span> ${awayName}
+              <span style="${userIsHome ? 'color:#a78bfa;' : ''}">${homeName}</span> <span style="color:#34d399;">${homeScore}</span> x <span style="color:#38bdf8;">${awayScore}</span> <span style="${!userIsHome ? 'color:#a78bfa;' : ''}">${awayName}</span>
             </div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Seu clube: <b style="color:#38bdf8;">${userTeamLabel}</b> (${userIsHome ? 'Mandante' : 'Visitante'})</div>
             <div style="font-size:13px;color:#cbd5e1;margin-bottom:16px;">${statusText}</div>
 
             <div style="border:4px solid #f8fafc;border-bottom:2px dashed #34d399;height:130px;margin:0 auto 16px;max-width:360px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px;background:rgba(16,185,129,0.12);border-radius:8px 8px 0 0;">
@@ -157,13 +169,26 @@
           const corners = ['LEFT', 'CENTER', 'RIGHT'];
           const gkDive = corners[Math.floor(Math.random() * 3)];
           const userScored = selectedCorner !== gkDive || Math.random() < 0.35;
-          if (userScored) homeScore++;
+          if (userScored) {
+            if (userIsHome) homeScore++;
+            else awayScore++;
+            if (window.AFMMatchEngine && typeof window.AFMMatchEngine.triggerSound === 'function') {
+              window.AFMMatchEngine.triggerSound('goal_celebration');
+            }
+          } else {
+            if (window.AFMMatchEngine && typeof window.AFMMatchEngine.triggerSound === 'function') {
+              window.AFMMatchEngine.triggerSound('goal_post');
+            }
+          }
 
-          const aiScored = Math.random() < 0.76;
-          if (aiScored) awayScore++;
+          const aiScored = Math.random() < 0.74;
+          if (aiScored) {
+            if (userIsHome) awayScore++;
+            else homeScore++;
+          }
           kickIndex++;
 
-          const roundMsg = `${userScored ? 'GOL SEU!' : 'GOLEIRO DEFENDEU!'} | Adversário: ${aiScored ? 'Gol' : 'Perdeu'} (Série ${kickIndex})`;
+          const roundMsg = `${userScored ? '⚽ GOL SEU!' : '🧤 GOLEIRO DEFENDEU!'} | ${aiTeamLabel}: ${aiScored ? 'Gol' : 'Perdeu'} (Série ${kickIndex})`;
 
           if ((kickIndex >= 5 && homeScore !== awayScore) || kickIndex >= 10) {
             setTimeout(() => {
@@ -182,11 +207,19 @@
         if (btnAuto) {
           btnAuto.onclick = () => {
             while ((kickIndex < 5 || homeScore === awayScore) && kickIndex < 15) {
-              if (Math.random() < 0.78) homeScore++;
-              if (Math.random() < 0.75) awayScore++;
+              const uIn = Math.random() < 0.78;
+              const aIn = Math.random() < 0.74;
+              if (uIn) { if (userIsHome) homeScore++; else awayScore++; }
+              if (aIn) { if (userIsHome) awayScore++; else homeScore++; }
               kickIndex++;
             }
-            if (homeScore === awayScore) homeScore++;
+            if (homeScore === awayScore) {
+              if (Math.random() < 0.52) {
+                if (userIsHome) homeScore++; else awayScore++;
+              } else {
+                if (userIsHome) awayScore++; else homeScore++;
+              }
+            }
             modal.remove();
             if (onShootoutFinished) onShootoutFinished({ homeScore, awayScore });
           };

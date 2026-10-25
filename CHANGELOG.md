@@ -2,6 +2,34 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.28] - 2026-10-25 (Auditoria Global de Bugs, Refinamentos da IA Tática da CPU, Gestão de Memória 3D & Correção nos Pênaltis)
+
+### 🎯 Correção Crítica na Disputa de Pênaltis de Mata-Mata (`js/match/live_match_hud.js`)
+
+- **Correção da Inversão de Placar como Visitante**:
+  - Identificada e corrigida a falha na qual os gols do usuário eram atribuídos ao mandante (`homeScore`) mesmo quando o clube do jogador atuava como visitante, transferindo a vitória injustamente para a CPU.
+  - Implementada detecção de mando de campo com `userIsHome`, garantindo que os gols do usuário e da CPU sejam creditados com precisão absoluta.
+  - Adicionado feedback visual do clube controlado pelo usuário e acionamento dinâmico dos efeitos sonoros de comemoração (`goal_celebration`) e trave (`goal_post`).
+
+### 🧠 Inteligência Artificial Tática da CPU & Substituições Realistas (`js/game.js` & `js/match/tactical_4phases_enhancer.js`)
+
+- **Ajuste Tático com Mando de Campo Real**:
+  - A adaptação de postura da CPU (abafa ofensivo quando perdendo ou retranca no fim de jogo) agora calcula a diferença de gols de acordo com o mando real da partida (mandante ou visitante).
+- **Substituições Inteligentes com Atletas do Clube**:
+  - A CPU agora consulta `window.LIVE_PLAYERS` e o elenco real da carreira (`state.teams[cpuTeam].squad`) para selecionar reservas autênticos do próprio clube adversário antes de aplicar nomes de fallback.
+
+### 🏟️ Renderização 3D, Shaders & Prevenção de Memory Leaks (`js/core/stadium_lowpoly_engine.js` & `js/game.js`)
+
+- **Restauração Completa da Maquete 3D Low-Poly Procedural**:
+  - Revertidas as cores distorcidas do gramado e arquibancadas: restaurado o clássico gramado verde oficial cortado em faixas alternadas (`#14532d`, `#15803d`, `#16a34a`), concreto arquitetônico autêntico (`#475569`, `#334155`) e assentos com a paleta cromática oficial do clube do save.
+  - Remoção de todos os hotspots e cards 2D intrusivos no fallback do visualizador (`✓ SETOR SUL AMPLIADO`, `TELÃO DIGITAL CENTRAL`, etc.) que cobriam o campo da maquete no navegador.
+  - Adicionada regra CSS global de proteção para garantir que nenhum hotspot legado obstrua o campo 3D.
+  - Suporte a `ResizeObserver` com fallback inteligente de dimensões seguras (540x450px) para contêineres recém-injetados no DOM, impedindo erros de matriz degenerada (`aspect: NaN`).
+- **Liberação Total de Memória GPU (WebGL / Three.js)**:
+  - Adicionado descarte recursivo obrigatório de malhas (`BufferGeometry`), materiais (`MeshStandardMaterial`), controles orbitais e loops de animação no encerramento da cena (`dispose()`), garantindo 60+ FPS sustentado sem consumo excessivo de VRAM.
+
+---
+
 ## [3.9.27] - 2026-10-25 (Correção de Codificação Mojibake, Feedback Visual de Setores e Conclusão Imediata de Obras)
 
 ### 🔤 Restauração de Codificação UTF-8 & Higienização Automática de Saves (`fixMojibake`)

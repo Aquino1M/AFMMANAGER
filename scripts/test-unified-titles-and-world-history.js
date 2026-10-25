@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const gameJsSource = fs.readFileSync(path.resolve(__dirname, '../js/game.js'), 'utf8');
+const gameJsSource = fs.readFileSync(path.resolve(__dirname, '../js/game.js'), 'utf8').replace(/\r\n/g, '\n');
 
 // Monta contexto para testar AFM_TitlesAndHistoryService
 const mockWindow = {
@@ -39,7 +39,7 @@ const testContext = {
 
 // Executa a definição de AFM_TitlesAndHistoryService e registerTrophyInMuseum
 const serviceStart = gameJsSource.indexOf('function registerTrophyInMuseum(');
-const serviceEnd = gameJsSource.indexOf('\n// -------------------------------------------------------------\n// ABA NOTÍCIAS & MÍDIA');
+const serviceEnd = gameJsSource.indexOf('ABA NOT');
 if(serviceStart < 0 || serviceEnd < 0) throw new Error('AFM_TitlesAndHistoryService não encontrado em js/game.js');
 
 const serviceCode = gameJsSource.slice(serviceStart, serviceEnd);

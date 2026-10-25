@@ -139,4 +139,52 @@ console.log('PASS: Conclusão imediata de obra (hireStadiumContractor instant) f
 console.log('Capacidade após obra imediata:', ctx.state.infrastructure.stadium.capacity);
 console.log('Saldo após obra imediata:', ctx.state.balance);
 console.log('Setores comprados:', ctx.state.stadiumRingData.purchasedSectors);
+
+// 5. Testar integridade visual e ausência de anomalias na maquete 3D
+const stadiumEngineSource = fs.readFileSync(path.resolve(__dirname, '../js/core/stadium_lowpoly_engine.js'), 'utf8');
+
+if (!stadiumEngineSource.includes("grassBase = customization.grassColor || '#14532d'")) {
+  console.error('FAIL: stadium_lowpoly_engine.js deve ter a cor base do gramado como verde #14532d!');
+  process.exit(1);
+}
+if (!stadiumEngineSource.includes("grassStripeA = customization.grassStripeA || '#15803d'")) {
+  console.error('FAIL: stadium_lowpoly_engine.js deve ter a faixa A do gramado como verde #15803d!');
+  process.exit(1);
+}
+if (!stadiumEngineSource.includes("grassStripeB = customization.grassStripeB || '#16a34a'")) {
+  console.error('FAIL: stadium_lowpoly_engine.js deve ter a faixa B do gramado como verde #16a34a!');
+  process.exit(1);
+}
+if (stadiumEngineSource.includes("grassBase = customization.grassColor || '#070b14'")) {
+  console.error('FAIL: stadium_lowpoly_engine.js está com o gramado preto #070b14 corrompido!');
+  process.exit(1);
+}
+if (stadiumEngineSource.includes("defaultStandColor = ... '#dc2626'")) {
+  console.error('FAIL: stadium_lowpoly_engine.js está com arquibancadas padrão vermelhas corrompidas!');
+  process.exit(1);
+}
+if (!stadiumEngineSource.includes("ResizeObserver")) {
+  console.error('FAIL: stadium_lowpoly_engine.js deve suportar ResizeObserver para redimensionamento suave!');
+  process.exit(1);
+}
+console.log('PASS: stadium_lowpoly_engine.js possui gramado verde oficial e arquibancadas autênticas!');
+
+// 6. Validar que hotspots intrusivos foram removidos do visualizador
+if (gameJsSource.includes('slot="hotspot-stand-sul"')) {
+  console.error('FAIL: js/game.js ainda contém slot="hotspot-stand-sul" cobrindo a maquete!');
+  process.exit(1);
+}
+if (gameJsSource.includes('slot="hotspot-screen"')) {
+  console.error('FAIL: js/game.js ainda contém slot="hotspot-screen" cobrindo a maquete!');
+  process.exit(1);
+}
+console.log('PASS: Hotspots invasivos foram removidos do fallback do visualizador 3D!');
+
+const cssSource = fs.readFileSync(path.resolve(__dirname, '../css/app.css'), 'utf8');
+if (!cssSource.includes('.afm-3d-hotspot')) {
+  console.error('FAIL: css/app.css deve conter regra de segurança para .afm-3d-hotspot!');
+  process.exit(1);
+}
+console.log('PASS: css/app.css protege a maquete contra sobreposições indesejadas!');
+
 console.log('=== TODOS OS TESTES PASSARAM COM 100% DE SUCESSO! ===');

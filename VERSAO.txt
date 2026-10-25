@@ -1,5 +1,5 @@
 Aquino Futebol Manager 2027 (AFM MANAGER)
-Versão: 3.5.0 (Build 2026-10-14 - Pacote Supremo 220 Melhorias, Modo X1, 4 Fases Táticas, Coletivas, Paginação 50 Atletas & O(1) Index)
+Versão: 3.9.28 (Build 2026-10-25 - Auditoria Global, Pênaltis de Mata-Mata Infalíveis, IA Tática da CPU com Mando Real, Gestão de Memória Three.js & Estádio 3D Fiel à Referência)
 Histórico completo disponível em: CHANGELOG.md
 
 Destaques da Versão Atual:

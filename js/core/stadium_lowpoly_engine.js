@@ -91,8 +91,10 @@
       }
 
       const THREE = window.THREE;
-      const width = this.canvas.parentElement ? this.canvas.parentElement.clientWidth : 540;
-      const height = this.canvas.parentElement ? this.canvas.parentElement.clientHeight : 450;
+      const parentW = this.canvas.parentElement ? this.canvas.parentElement.clientWidth : 0;
+      const parentH = this.canvas.parentElement ? this.canvas.parentElement.clientHeight : 0;
+      const width = parentW > 50 ? parentW : (this.canvas.clientWidth > 50 ? this.canvas.clientWidth : 540);
+      const height = parentH > 50 ? parentH : (this.canvas.clientHeight > 50 ? this.canvas.clientHeight : 450);
 
       // 1. Cena
       this.scene = new THREE.Scene();
@@ -111,7 +113,7 @@
         powerPreference: 'high-performance'
       });
       this.renderer.setSize(width, height);
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -135,16 +137,24 @@
 
       // 7. Redimensionamento
       this.handleResize = () => {
-        if (!this.canvas || !this.canvas.parentElement || this.isDisposed) return;
-        const w = this.canvas.parentElement.clientWidth;
-        const h = this.canvas.parentElement.clientHeight;
-        if (w > 0 && h > 0) {
+        if (!this.canvas || this.isDisposed) return;
+        const p = this.canvas.parentElement;
+        const w = (p && p.clientWidth > 50) ? p.clientWidth : (this.canvas.clientWidth > 50 ? this.canvas.clientWidth : 540);
+        const h = (p && p.clientHeight > 50) ? p.clientHeight : (this.canvas.clientHeight > 50 ? this.canvas.clientHeight : 450);
+        if (w > 0 && h > 0 && this.camera && this.renderer) {
           this.camera.aspect = w / h;
           this.camera.updateProjectionMatrix();
           this.renderer.setSize(w, h);
         }
       };
       window.addEventListener('resize', this.handleResize);
+      if (typeof ResizeObserver !== 'undefined' && this.canvas.parentElement) {
+        this.resizeObserver = new ResizeObserver(() => {
+          if (!this.isDisposed) this.handleResize();
+        });
+        this.resizeObserver.observe(this.canvas.parentElement);
+      }
+      setTimeout(() => this.handleResize(), 60);
 
       // 8. Loop de Animação
       this.clock = new THREE.Clock();
@@ -215,8 +225,8 @@
         : (state?.stadiumRingData || { ring: 1, rings: { 1: { norte: true, sul: true, leste: true, oeste: true } } });
 
       const ring = Number(stData?.ring || 1);
-      let rings = stData?.rings || state?.stadiumRingData?.rings || { 1: { norte: true, sul: true, leste: true, oeste: true } };
-      const activeWork = stData?.activeWork || state?.stadiumRingData?.activeWork || null;
+      let rings = stData?.rings || { 1: { norte: true, sul: true, leste: true, oeste: true } };
+      const activeWork = stData?.activeWork || null;
 
       // Se estiver na aba Arena, gera a maquete simulada da capacidade selecionada
       if (params.isArena && params.selectedArenaCapacity) {
@@ -239,7 +249,7 @@
       this.buildPlaza();
 
       // 2. Gramado Oficial Cortado em Faixas + Linhas e Traves
-      this.buildPitch(stadiumCustomization, palette);
+      this.buildPitch(stadiumCustomization);
 
       // 3. Os 6 Anéis de Arquibancadas Progressivas
       this.buildStands(rings, palette, cap, params, ring);
@@ -300,13 +310,13 @@
     /**
      * 2. Gramado Oficial com Faixas e Marcações de Jogo
      */
-    buildPitch(customization = {}, palette = {}) {
+    buildPitch(customization = {}) {
       const THREE = window.THREE;
       const fieldW = 24;
       const fieldL = 36;
-      const grassBase = customization.grassColor || '#070b14';
-      const grassStripeA = customization.grassStripeA || palette.primary || '#18181b';
-      const grassStripeB = customization.grassStripeB || palette.secondary || '#ffffff';
+      const grassBase = customization.grassColor || '#14532d';
+      const grassStripeA = customization.grassStripeA || '#15803d';
+      const grassStripeB = customization.grassStripeB || '#16a34a';
 
       // Base do Campo Verde
       const pitchBaseGeo = new THREE.BoxGeometry(fieldW + 2, 0.3, fieldL + 2);
@@ -420,13 +430,10 @@
      */
     buildStands(rings, palette, cap, params = {}, currentRing = 1) {
       const THREE = window.THREE;
-      const defaultStandColor = (palette.accent && palette.accent !== '#ffffff' && palette.accent !== '#18181b')
-        ? palette.accent
-        : (palette.primary && palette.primary !== '#ffffff' && palette.primary !== '#18181b' ? palette.primary : '#dc2626');
-      const concreteColor = this.customization?.standColor || defaultStandColor;
-      const concreteDark = '#18181b';
-      const seatPrimary = this.customization?.seatColor || defaultStandColor;
-      const seatSecondary = this.customization?.seatColor || defaultStandColor;
+      const concreteColor = this.customization?.standColor || '#475569';
+      const concreteDark = '#334155';
+      const seatPrimary = this.customization?.seatColor || palette.primary || '#0284c7';
+      const seatSecondary = this.customization?.seatColor || palette.secondary || '#ffffff';
 
       const standSides = ['norte', 'sul', 'leste', 'oeste'];
 
@@ -486,7 +493,7 @@
       }
 
       // 5. Fachada Externa Monumental (Anel 4 em diante)
-      if (maxBuiltRing >= 5) {
+      if (maxBuiltRing >= 4) {
         this.buildOuterFacade(maxBuiltRing, palette);
       }
     }
@@ -508,17 +515,17 @@
 
       // Materiais (Holograma dourado se for prévia de projeto antes da compra)
       const concMat = new THREE.MeshStandardMaterial({
-        color: isProjectPreview ? '#f59e0b' : concreteColor,
-        roughness: isProjectPreview ? 0.3 : 0.75,
+        color: isProjectPreview ? '#f59e0b' : (ringNum % 2 === 0 ? concreteDark : concreteColor),
+        roughness: isProjectPreview ? 0.3 : 0.85,
         transparent: isProjectPreview,
         opacity: isProjectPreview ? 0.6 : 1.0,
         flatShading: true
       });
-      const seatColor = isProjectPreview ? '#fbbf24' : (cfg.seatColor || concreteColor);
+      const seatColor = (ringNum % 2 === 1) ? palette.primary : palette.secondary;
       const seatMat = new THREE.MeshStandardMaterial({
-        color: seatColor,
-        roughness: isProjectPreview ? 0.2 : 0.5,
-        metalness: isProjectPreview ? 0.8 : 0.15,
+        color: isProjectPreview ? '#fbbf24' : seatColor,
+        roughness: isProjectPreview ? 0.2 : 0.6,
+        metalness: isProjectPreview ? 0.8 : 0.2,
         transparent: isProjectPreview,
         opacity: isProjectPreview ? 0.75 : 1.0,
         flatShading: true
@@ -785,6 +792,83 @@
       const upgradeGroup = new THREE.Group();
       const trimColor = customization.accentColor || palette.accent || '#38bdf8';
 
+      // Instalações físicas que acompanham as melhorias compradas.
+      if (upgrades.mosaic) {
+        const base = new THREE.Mesh(new THREE.BoxGeometry(15, 2.6, 0.5), new THREE.MeshStandardMaterial({ color: '#111827', metalness: 0.25 }));
+        base.position.set(0, 7.5, -27.5); upgradeGroup.add(base);
+        const tileMat = new THREE.MeshStandardMaterial({ color: trimColor, roughness: 0.6, emissive: trimColor, emissiveIntensity: 0.16 });
+        for (let i = 0; i < 15; i++) {
+          const tile = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.9, 0.12), tileMat);
+          tile.position.set(-5.1 + i * 0.73, 7.5 + Math.sin(i * Math.PI / 7) * 0.45, -27.18);
+          upgradeGroup.add(tile);
+        }
+      }
+
+      if (upgrades.ledRing) {
+        const beamMat = new THREE.MeshStandardMaterial({ color: '#1e293b', metalness: 0.65, roughness: 0.35 });
+        const ribbonMat = new THREE.MeshBasicMaterial({ color: trimColor });
+        [[24,0.55,0.38,0,0.75,-19],[24,0.55,0.38,0,0.75,19],[0.38,0.55,38,-12.2,0.75,0],[0.38,0.55,38,12.2,0.75,0]].forEach(([w,h,d,x,y,z]) => {
+          const beam = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), beamMat); beam.position.set(x,y,z); upgradeGroup.add(beam);
+          const ribbon = new THREE.Mesh(new THREE.BoxGeometry(w,h * 0.36,d + 0.05), ribbonMat); ribbon.position.set(x,y + 0.08,z); upgradeGroup.add(ribbon);
+        });
+      }
+
+      if (upgrades.surroundSound) {
+        const speakerMat = new THREE.MeshStandardMaterial({ color: '#111827', metalness: 0.45, roughness: 0.38 });
+        const coneMat = new THREE.MeshStandardMaterial({ color: trimColor, metalness: 0.2 });
+        [[-13,8,-22],[13,8,-22],[-13,8,22],[13,8,22]].forEach(([x,y,z]) => {
+          const speaker = new THREE.Mesh(new THREE.BoxGeometry(1.6,2.4,1.5), speakerMat); speaker.position.set(x,y,z); upgradeGroup.add(speaker);
+          const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.36,0.45,0.16,12), coneMat); cone.rotation.x = Math.PI/2; cone.position.set(x,y,z + (z > 0 ? 0.8 : -0.8)); upgradeGroup.add(cone);
+        });
+      }
+
+      if (upgrades.screen) {
+        const supportMat = new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.55 });
+        [-4.4,4.4].forEach(x => { const post = new THREE.Mesh(new THREE.BoxGeometry(0.35,5.5,0.35), supportMat); post.position.set(x,10.5,-22); upgradeGroup.add(post); });
+      }
+
+      if (upgrades.vipBoxes) {
+        const slabMat = new THREE.MeshStandardMaterial({ color: customization.standColor || '#334155', roughness: 0.55, metalness: 0.25 });
+        const glassMat = new THREE.MeshStandardMaterial({ color: trimColor, transparent: true, opacity: 0.65, roughness: 0.2, metalness: 0.35 });
+        [-1, 1].forEach(side => {
+          const x = side * 15.5;
+          const slab = new THREE.Mesh(new THREE.BoxGeometry(3.2,0.65,26),slabMat); slab.position.set(x,7.3,0); slab.castShadow = true; upgradeGroup.add(slab);
+          const back = new THREE.Mesh(new THREE.BoxGeometry(0.25,2.1,25),slabMat); back.position.set(x - side * 1.35,8.55,0); upgradeGroup.add(back);
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(0.16,1.05,25),glassMat); rail.position.set(x + side * 1.45,8.25,0); upgradeGroup.add(rail);
+          for(let z = -10; z <= 10; z += 5){ const divider = new THREE.Mesh(new THREE.BoxGeometry(2.8,1.8,0.16),slabMat); divider.position.set(x,8.45,z); upgradeGroup.add(divider); }
+        });
+      }
+
+      if (upgrades.solarPitch) {
+        const frameMat = new THREE.MeshStandardMaterial({ color: '#64748b', metalness: 0.8, roughness: 0.28 });
+        const panelMat = new THREE.MeshStandardMaterial({ color: '#1d4ed8', metalness: 0.6, roughness: 0.22, emissive: '#0f172a' });
+        [-1,1].forEach(side => {
+          const beam = new THREE.Mesh(new THREE.BoxGeometry(4.6,0.28,32),frameMat); beam.position.set(side * 22,18.1,0); upgradeGroup.add(beam);
+          for(let i=0;i<6;i++){ const panel = new THREE.Mesh(new THREE.BoxGeometry(4.3,0.12,4.8),panelMat); panel.position.set(side * 22,18.32,-12 + i * 4.8); upgradeGroup.add(panel); }
+        });
+      }
+
+      if (upgrades.museumTour) {
+        const baseMat = new THREE.MeshStandardMaterial({ color: '#155e75', metalness: 0.25, roughness: 0.45 });
+        const glassMat = new THREE.MeshStandardMaterial({ color: '#67e8f9', transparent: true, opacity: 0.42, metalness: 0.25 });
+        const base = new THREE.Mesh(new THREE.BoxGeometry(5.5,0.7,11),baseMat); base.position.set(-23,0.4,0); base.castShadow = true; upgradeGroup.add(base);
+        const back = new THREE.Mesh(new THREE.BoxGeometry(5.4,4.5,0.28),glassMat); back.position.set(-23,2.95,-5.35); upgradeGroup.add(back);
+        [-25.6,-23,-20.4].forEach(x => { const post = new THREE.Mesh(new THREE.BoxGeometry(0.2,4.5,0.2),baseMat); post.position.set(x,2.95,-5.3); upgradeGroup.add(post); });
+        const sign = new THREE.Mesh(new THREE.BoxGeometry(5.6,1.05,0.25),new THREE.MeshStandardMaterial({color:trimColor,emissive:trimColor,emissiveIntensity:0.18})); sign.position.set(-23,5.8,-5.2); upgradeGroup.add(sign);
+      }
+
+      // Fileiras reais de assentos 3D nas quatro arquibancadas.
+      if (upgrades.chairs) {
+        const seatMat = new THREE.MeshStandardMaterial({ color: customization.seatColor || palette.primary || '#2563eb', roughness: 0.65 });
+        for (let i = 0; i < 32; i++) {
+          const t = (i / 31) - 0.5;
+          [[-15.5, t * 28, 0],[15.5,t * 28,0],[t * 26,-24,1],[t * 26,24,1]].forEach(([x,z,end]) => {
+            const seat = new THREE.Mesh(new THREE.BoxGeometry(end ? 0.48 : 0.42,0.22,end ? 0.42 : 0.58), seatMat);
+            seat.position.set(x, 2.1 + (i % 4) * 0.13, z); seat.castShadow = true; upgradeGroup.add(seat);
+          });
+        }
+      }
+
       // 1. Refletores de LED nos 4 Cantos
       const lightPositions = [
         [-19, 0, -28], [19, 0, -28],
@@ -815,77 +899,47 @@
         }
       });
 
-      // 2. Telão Digital do Clube (Setor Fundo/Direita com suporte tubular e tela verde vibrante)
+      // 2. Telão Digital do Clube (Setor Norte)
       if (upgrades.screen) {
-        const screenGroup = new THREE.Group();
-        const supportMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.5, metalness: 0.7 });
-        [-3.2, 3.2].forEach(px => {
-          const post = new THREE.Mesh(new THREE.BoxGeometry(0.45, 14, 0.45), supportMat);
-          post.position.set(px + 12, 7, -22);
-          post.castShadow = true;
-          screenGroup.add(post);
-        });
         const screenFrame = new THREE.Mesh(
           new THREE.BoxGeometry(10, 5, 0.8),
           new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.3, metalness: 0.8 })
         );
-        screenFrame.position.set(12, 14, -22);
-        screenGroup.add(screenFrame);
+        screenFrame.position.set(0, 14, -22);
+        upgradeGroup.add(screenFrame);
 
         const screenFace = new THREE.Mesh(
           new THREE.PlaneGeometry(9.2, 4.2),
           new THREE.MeshBasicMaterial({ color: '#22c55e' })
         );
-        screenFace.position.set(12, 14, -21.55);
-        screenGroup.add(screenFace);
-        upgradeGroup.add(screenGroup);
+        screenFace.position.set(0, 14, -21.55);
+        upgradeGroup.add(screenFace);
       }
 
-      // 3. Mosaico Oficial (Onda / Estandarte Amarelo Ouro na lateral direita)
-      if (upgrades.mosaic) {
-        const mosaicGroup = new THREE.Group();
-        const bannerMat = new THREE.MeshStandardMaterial({ color: '#facc15', roughness: 0.4, side: THREE.DoubleSide });
-        const banner = new THREE.Mesh(new THREE.BoxGeometry(8, 3.5, 0.3), bannerMat);
-        banner.position.set(18, 9, -12);
-        banner.rotation.y = -Math.PI / 6;
-        banner.castShadow = true;
-        mosaicGroup.add(banner);
-        upgradeGroup.add(mosaicGroup);
-      }
-
-      // 4. Fogos e Sinalizadores da Torcida (Festa Pirotécnica em arco à esquerda)
+      // 3. Fogos e Sinalizadores da Torcida (Festa Pirotécnica)
       if (upgrades.flares) {
-        [-12, -8, -4, 0, 4, 8].forEach((fx, idx) => {
+        [-8, 0, 8].forEach((fx, idx) => {
           const flareMat = new THREE.MeshBasicMaterial({ color: idx % 2 === 0 ? '#ef4444' : '#f97316' });
           const flareMesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), flareMat);
-          flareMesh.position.set(fx - 4, 4.5 + Math.sin(idx * 0.8) * 0.8, -20);
+          flareMesh.position.set(fx, 4.5, 20);
           upgradeGroup.add(flareMesh);
           this.animatedElements.push({ mesh: flareMesh, type: 'flare', baseScale: 0.7, offset: idx });
         });
       }
 
-      // 5. Anel de LED 360° em Volta do Gramado (Faixa neon magenta/pink vibrante contornando o campo)
+      // 4. Anel de LED 360° em Volta do Gramado
       if (upgrades.ledRing) {
-        const ledMat = new THREE.MeshBasicMaterial({ color: '#d946ef' });
-        // Norte
-        const ledNorth = new THREE.Mesh(new THREE.BoxGeometry(24.8, 0.45, 0.25), ledMat);
-        ledNorth.position.set(0, 0.5, -18.25);
-        upgradeGroup.add(ledNorth);
-        // Sul
-        const ledSouth = new THREE.Mesh(new THREE.BoxGeometry(24.8, 0.45, 0.25), ledMat);
-        ledSouth.position.set(0, 0.5, 18.25);
-        upgradeGroup.add(ledSouth);
-        // Leste (sideline frontal)
-        const ledEast = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 36.8), ledMat);
-        ledEast.position.set(12.25, 0.5, 0);
-        upgradeGroup.add(ledEast);
-        // Oeste (sideline oposta)
-        const ledWest = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 36.8), ledMat);
-        ledWest.position.set(-12.25, 0.5, 0);
-        upgradeGroup.add(ledWest);
+        const ledMat = new THREE.MeshBasicMaterial({ color: palette.accent || '#38bdf8' });
+        const ledRibbonNorth = new THREE.Mesh(new THREE.BoxGeometry(24, 0.4, 0.2), ledMat);
+        ledRibbonNorth.position.set(0, 0.6, -18.2);
+        upgradeGroup.add(ledRibbonNorth);
+
+        const ledRibbonSouth = new THREE.Mesh(new THREE.BoxGeometry(24, 0.4, 0.2), ledMat);
+        ledRibbonSouth.position.set(0, 0.6, 18.2);
+        upgradeGroup.add(ledRibbonSouth);
       }
 
-      // 6. Camarotes VIP Corporativos em Vidro com Luz Interior
+      // 5. Camarotes VIP Corporativos em Vidro com Luz Interior
       if (upgrades.vipBoxes) {
         const vipMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.1, metalness: 0.9, flatShading: true });
         const glassMat = new THREE.MeshBasicMaterial({ color: '#fef08a', transparent: true, opacity: 0.8 });
@@ -906,7 +960,7 @@
         });
       }
 
-      // 7. Usina Solar e Climatização Eco
+      // 6. Usina Solar e Climatização Eco
       if (upgrades.solarPitch) {
         const solarMat = new THREE.MeshStandardMaterial({ color: '#1e3a8a', roughness: 0.2, metalness: 0.8, flatShading: true });
         [-1, 1].forEach(sideDir => {
@@ -916,7 +970,7 @@
         });
       }
 
-      // 8. Tour da Arena & Museu Imersivo
+      // 7. Tour da Arena & Museu Imersivo
       if (upgrades.museumTour) {
         const museumMat = new THREE.MeshStandardMaterial({ color: '#0891b2', roughness: 0.3, metalness: 0.7, flatShading: true });
         const museumAtrium = new THREE.Mesh(new THREE.BoxGeometry(3.5, 4.5, 10), museumMat);
@@ -996,6 +1050,10 @@
       this.isDisposed = true;
       if (this.animId) cancelAnimationFrame(this.animId);
       window.removeEventListener('resize', this.handleResize);
+      if (this.resizeObserver) {
+        this.resizeObserver.disconnect();
+        this.resizeObserver = null;
+      }
       if (this.controls) this.controls.dispose();
       if (this.renderer) this.renderer.dispose();
     }

@@ -740,6 +740,17 @@
 
       modalEl.querySelectorAll('.btn-cam-angle').forEach(btn => {
         btn.onclick = () => {
+          modalEl.querySelectorAll('.btn-cam-angle').forEach(b => {
+            b.style.background = 'rgba(15,23,42,0.85)';
+            b.style.borderColor = 'rgba(255,255,255,0.15)';
+            b.style.color = '#fff';
+            b.style.boxShadow = 'none';
+          });
+          btn.style.background = '#0284c7';
+          btn.style.borderColor = '#38bdf8';
+          btn.style.color = '#fff';
+          btn.style.boxShadow = '0 0 10px rgba(56,189,248,0.5)';
+
           const cam = btn.getAttribute('data-cam');
           if (cam && window.AFMStadiumLowPoly) {
             window.AFMStadiumLowPoly.setCameraPreset(cam);
