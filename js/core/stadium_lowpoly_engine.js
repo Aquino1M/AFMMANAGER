@@ -483,7 +483,7 @@
       }
 
       // 5. Fachada Externa Monumental (Anel 4 em diante)
-      if (maxBuiltRing >= 4) {
+      if (maxBuiltRing >= 5) {
         this.buildOuterFacade(maxBuiltRing, palette);
       }
     }
