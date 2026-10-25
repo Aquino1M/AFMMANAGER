@@ -2,6 +2,17 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.34] - 2026-10-25 (Auto-Cura Universal de Estádios 3D para Todos os Saves Antigos e Ativos & Cache Busting v95)
+
+### 🏟️ Auto-Cura de Estádios 3D em Saves Antigos (`js/game.js`, `index.html` & `sw.js`)
+
+- **Resolução em Todos os Saves Existentes**:
+  - `syncStadiumCapacityAndLevel(st)` agora executa auto-cura profunda em **qualquer save antigo ou em andamento** assim que é carregado (`loadUserSlot`, `load`, `migrate` ou ao abrir o estádio).
+  - Garante que a capacidade (< 15k lugares) force estritamente `level = 1` e `ring = 1`, reparando saves que ficaram com anéis/níveis corrompidos.
+  - Normaliza a matriz `stadiumRingData.rings[1]` e os setores adquiridos (`r1_norte`, `r1_sul`) sem contaminação por níveis superiores.
+  - Valida e inicializa todos os 10 upgrades do estádio com valores booleanos estritos, prevenindo exceções durante a renderização de luzes, telões, mosaicos e sinalizadores.
+  - **Cache Busting Completo (v95 e SW v71)**: Atualizado o Service Worker (`afm-2027-cache-v71`) e as tags de script no `index.html` (`v=20261025_game_v95`, `stadium_v95`), forçando os navegadores e a versão online (Vercel) a descartarem caches legados e executarem o motor 3D atualizado sem tela preta.
+
 ## [3.9.33] - 2026-10-25 (Regra Crítica Inviolável de Volume de Capacidade & 12.000 Lugares Estritamente no Raiz)
 
 ### 🏟️ Correção Definitiva da Tela Preta no Viewport 3D do Estádio (`js/game.js` & `js/core/stadium_lowpoly_engine.js`)

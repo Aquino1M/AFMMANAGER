@@ -1,5 +1,5 @@
 Aquino Futebol Manager 2027 (AFM MANAGER)
-Versão: 3.9.31 (Build 2026-10-25 - Restauração Oficial da Carreira AQN FC para Aquino na Nuvem Supabase, Auditoria de Estádios Reais & Neo Química Arena)
+Versão: 3.9.34 (Build 2026-10-25 - Auto-Cura Universal de Estádios 3D para Todos os Saves Antigos e Ativos, Cache Busting v95 e SW v71)
 Histórico completo disponível em: CHANGELOG.md
 
 Destaques da Versão Atual:

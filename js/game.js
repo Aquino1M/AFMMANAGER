@@ -5410,16 +5410,62 @@ function syncStadiumCapacityAndLevel(st = (typeof state !== 'undefined' ? state 
   st.stadiumCapacity = cap;
   if(st.stadium) st.stadium.capacity = cap;
 
-  const expectedLevel = getStadiumLevelByCapacity(cap);
+  const expectedLevel = (typeof getStadiumLevelByCapacity === 'function')
+    ? getStadiumLevelByCapacity(cap)
+    : (cap >= 80000 ? 6 : cap >= 60000 ? 5 : cap >= 40000 ? 4 : cap >= 25000 ? 3 : cap >= 15000 ? 2 : 1);
 
-  // O nível do estádio representa os anéis desbloqueados, nunca podendo ser inferior ao exigido pela capacidade
-  st.infrastructure.stadium.level = Math.max(Number(st.infrastructure.stadium.level) || 1, expectedLevel);
+  // Regra crítica: estádios com menos de 15.000 pessoas são estritamente Nível 1 (Raiz)
+  if(cap < 15000){
+    st.infrastructure.stadium.level = 1;
+  } else {
+    st.infrastructure.stadium.level = Math.max(1, expectedLevel);
+  }
   if(st.stadium) st.stadium.level = st.infrastructure.stadium.level;
 
-  if(st.stadiumRingData){
-    st.stadiumRingData.maxUnlockedRing = Math.max(Number(st.stadiumRingData.maxUnlockedRing) || 1, st.infrastructure.stadium.level);
-    st.stadiumRingData.ring = Math.min(st.stadiumRingData.maxUnlockedRing, Math.max(1, Number(st.stadiumRingData.ring) || 1));
+  if(!st.stadiumRingData){
+    st.stadiumRingData = {
+      ring: st.infrastructure.stadium.level,
+      maxRings: 6,
+      maxUnlockedRing: st.infrastructure.stadium.level,
+      sides: { norte: false, sul: false, leste: false, oeste: false },
+      rings: {
+        1: { norte: false, sul: false, leste: false, oeste: false },
+        2: { norte: false, sul: false, leste: false, oeste: false },
+        3: { norte: false, sul: false, leste: false, oeste: false },
+        4: { norte: false, sul: false, leste: false, oeste: false },
+        5: { norte: false, sul: false, leste: false, oeste: false },
+        6: { norte: false, sul: false, leste: false, oeste: false }
+      },
+      purchasedSectors: [],
+      activeWork: null
+    };
   }
+
+  st.stadiumRingData.maxUnlockedRing = st.infrastructure.stadium.level;
+  st.stadiumRingData.ring = Math.min(st.stadiumRingData.maxUnlockedRing, Math.max(1, Number(st.stadiumRingData.ring) || 1));
+
+  // Auto-cura de setores para saves antigos
+  if(cap < 15000){
+    st.stadiumRingData.rings = st.stadiumRingData.rings || {};
+    st.stadiumRingData.rings[1] = st.stadiumRingData.rings[1] || {};
+    st.stadiumRingData.rings[1].norte = (cap > 5000);
+    st.stadiumRingData.rings[1].sul = (cap > 8500);
+    st.stadiumRingData.rings[1].leste = false;
+    st.stadiumRingData.rings[1].oeste = false;
+    st.stadiumRingData.purchasedSectors = [];
+    if(st.stadiumRingData.rings[1].norte) st.stadiumRingData.purchasedSectors.push('r1_norte');
+    if(st.stadiumRingData.rings[1].sul) st.stadiumRingData.purchasedSectors.push('r1_sul');
+    for(let r = 2; r <= 6; r++){
+      st.stadiumRingData.rings[r] = { norte: false, sul: false, leste: false, oeste: false };
+    }
+  }
+
+  // Auto-cura de upgrades para todos os saves
+  st.stadiumUpgrades = st.stadiumUpgrades || {};
+  const allUpgradeKeys = ['chairs', 'mosaic', 'ledRing', 'flares', 'screen', 'ledLights', 'vipBoxes', 'surroundSound', 'museumTour', 'solarPitch'];
+  allUpgradeKeys.forEach(k => {
+    st.stadiumUpgrades[k] = !!st.stadiumUpgrades[k];
+  });
 }
 if(typeof window !== 'undefined') window.syncStadiumCapacityAndLevel = syncStadiumCapacityAndLevel;
 

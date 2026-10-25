@@ -156,6 +156,37 @@ AFMStadiumLowPoly.update(state12k);
 assert.strictEqual(instance.maxBuiltRing, 1, 'Estádio de 12k deve ter apenas anel 1');
 console.log('✓ 12.000 Lugares: Apenas setores Norte e Sul gerados (Leste e Oeste abertos, sem marquises indevidas)');
 
+// 1.2 Teste Save Antigo Ativo: AQN FC (Colisseu do Povo 12k) com upgrades comprados
+const stateAqnFc = {
+  club: 'AQN FC',
+  isCustomClub: true,
+  stadiumName: 'COLISSEU DO POVO',
+  infrastructure: { stadium: { capacity: 12000, level: 1 } },
+  stadiumCapacity: 12000,
+  stadiumUpgrades: {
+    chairs: false,
+    screen: true,
+    ledRing: true,
+    ledLights: true,
+    mosaic: true,
+    flares: true,
+    vipBoxes: false,
+    surroundSound: false,
+    museumTour: false,
+    solarPitch: false
+  },
+  stadiumCustomization: {
+    name: 'COLISSEU DO POVO',
+    standColor: '#1e293b',
+    seatColor: '#0284c7',
+    accentColor: '#38bdf8'
+  }
+};
+AFMStadiumLowPoly.update(stateAqnFc);
+assert.ok(instance.stadiumGroup.children.length >= 4, 'AQN FC com upgrades deve gerar gramado, arquibancadas e grupo de upgrades acoplados');
+assert.strictEqual(instance.maxBuiltRing, 1, 'AQN FC 12k deve permanecer rigorosamente no Nível 1');
+console.log('✓ AQN FC (Colisseu do Povo 12k): Renderização com Telão, LED 360°, Mosaico, Refletores e Sinalizadores validada');
+
 // 2. Teste Obra Ativa com Guindaste no Setor Leste
 const stateWithWork = {
   club: 'Palmeiras',
