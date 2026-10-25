@@ -1409,6 +1409,43 @@ function stadiumAttendanceStrengthBonus(attendance, capacity){
   return clamp(bonus, 1, 5);
 }
 
+function formatAttendanceForceBonusData(bonus){
+  const b = clamp(Math.round(Number(bonus) || 1), 1, 5);
+  let desc = 'Público tímido';
+  let bg = 'rgba(234,179,8,.10)';
+  let border = 'rgba(234,179,8,.25)';
+  let color = '#fde047';
+  if(b >= 5){
+    desc = 'Caldeirão lotado!';
+    bg = 'rgba(34,197,94,.15)';
+    border = 'rgba(34,197,94,.35)';
+    color = '#86efac';
+  } else if(b === 4){
+    desc = 'Pressão da torcida!';
+    bg = 'rgba(34,197,94,.10)';
+    border = 'rgba(34,197,94,.25)';
+    color = '#86efac';
+  } else if(b === 3){
+    desc = 'Bom apoio das arquibancadas';
+    bg = 'rgba(14,165,233,.12)';
+    border = 'rgba(14,165,233,.30)';
+    color = '#38bdf8';
+  } else if(b === 2){
+    desc = 'Apoio moderado';
+    bg = 'rgba(234,179,8,.10)';
+    border = 'rgba(234,179,8,.25)';
+    color = '#fde047';
+  }
+  return {
+    bonus: b,
+    desc,
+    bg,
+    border,
+    color,
+    text: `Bônus de força em casa: +${b} (${desc} · máximo +5 conforme o público)`
+  };
+}
+
 const FACILITIES={
  stadium:{name:'Estádio',icon:'🏟️',base:1800000,max:6,effect:'Libera anéis para obras; a capacidade cresce quando cada setor fica pronto.'},
  parking:{name:'Estacionamento',icon:'🚗',base:350000,max:6,effect:'Gera receita com vagas de estacionamento em jogos em casa.'},
@@ -12332,9 +12369,21 @@ function teamFameScore(){
 // projeção de público e ofertas comerciais.
 function marketingBenefits(weeklyInvestment = state?.marketingWeekly, marketingLevel = state?.infrastructure?.marketing?.level){
   const level = clamp(Math.round(Number(marketingLevel) || 1), 1, FACILITIES.marketing.max);
-  const investment = Math.max(9000, Number(weeklyInvestment) || 36000);
-  const attendanceBoost = (0.015 * level) + clamp((investment - 2500) / 100000, 0, 0.08);
-  const sponsorBoost = (0.03 * (level - 1)) + clamp((investment - 2500) / 90000, 0, 0.15);
+  const minWeekly = (typeof MARKETING_MINIMUM_WEEKLY !== 'undefined' ? MARKETING_MINIMUM_WEEKLY : 36000);
+  const investment = Math.max(minWeekly, Number(weeklyInvestment) || minWeekly);
+
+  // Parcela estrutural equilibrada (nível da sede de marketing: 1 a 8)
+  const baseAttLevel = 0.005 * level; // Nível 1: 0.5% ... Nível 4: 2.0% ... Nível 8: 4.0%
+  const baseSponLevel = 0.008 * (level - 1); // Nível 1: 0.0% ... Nível 4: 2.4% ... Nível 8: 5.6%
+
+  // Parcela dinâmica de ativação de marca equilibrada e crível:
+  const extraInvest = Math.max(0, investment - minWeekly);
+  const investAttBoost = 0.005 + (extraInvest / 36000) * 0.0045; // Piso: +0.5% ... escala moderada
+  const investSponBoost = 0.015 + (extraInvest / 36000) * 0.0065; // Piso: +1.5% ... escala moderada
+
+  const attendanceBoost = baseAttLevel + investAttBoost;
+  const sponsorBoost = baseSponLevel + investSponBoost;
+
   return {
     level,
     weeklyInvestment: investment,
@@ -24879,11 +24928,13 @@ function openMarketingModal(){
   const mktLvl = benefits.level;
   const maxLvl = FACILITIES.marketing.max;
   const currentInvest = benefits.weeklyInvestment;
-  const sliderMax = Math.max(144000, Math.ceil((currentInvest * MARKETING_UPGRADE_MINIMUM_GROWTH) / MARKETING_MINIMUM_WEEKLY) * MARKETING_MINIMUM_WEEKLY);
+  const levelMaxCap = MARKETING_MINIMUM_WEEKLY * Math.max(4, mktLvl * 2);
+  const sliderMax = Math.max(144000, Math.max(currentInvest, levelMaxCap, Math.ceil((currentInvest * MARKETING_UPGRADE_MINIMUM_GROWTH) / MARKETING_MINIMUM_WEEKLY) * MARKETING_MINIMUM_WEEKLY));
   const cost = facilityCost('marketing');
   const max = mktLvl >= maxLvl;
 
-  const sponMonthly = totalSponsorMonthly();
+  const baseSponsor = ((Number(state?.sponsors?.master?.monthly) || 0) + (Number(state?.sponsors?.sleeves?.monthly) || 0) + (Number(state?.sponsors?.back?.monthly) || 0)) || 50000;
+  const sponMonthly = Math.round(baseSponsor * benefits.sponsorMultiplier);
 
   const bodyHtml = `
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:12px;background:var(--panel2);border-radius:12px">
@@ -24959,14 +25010,14 @@ function openMarketingModal(){
     const lbl = $('#modalMktValLabel'); if(lbl) lbl.textContent = fmtMoney(val) + '/sem';
     const abEl = $('#modalMktAttBoost'); if(abEl) abEl.textContent = `+${preview.attendancePercent}% torcida`;
     const sbEl = $('#modalMktSponBoost'); if(sbEl) sbEl.textContent = `+${preview.sponsorPercent}% bônus`;
-    // Preview calcula a receita com o valor provisório sem alterar o save.
+    // Preview calcula a receita com o valor provisório do multiplicador em tempo real
     const tsEl = $('#modalMktTotalSpon');
-    const curMult = Number(marketingBenefits().sponsorMultiplier) || 1;
-    const newMult = Number(preview.sponsorMultiplier) || 1;
-    if(tsEl) tsEl.textContent = fmtMoney(Math.round((totalSponsorMonthly() / curMult) * newMult)) + '/mês';
+    if(tsEl) tsEl.textContent = fmtMoney(Math.round(baseSponsor * preview.sponsorMultiplier)) + '/mês';
   }
 
   if(slider){
+    slider.addEventListener('input', updateMktLive);
+    slider.addEventListener('change', updateMktLive);
     slider.oninput = updateMktLive;
     slider.onchange = updateMktLive;
     updateMktLive();
@@ -32289,7 +32340,12 @@ function structurePage(){
               <div style="text-align:right;font-size:10px;color:rgba(255,255,255,0.4);margin-top:3px">
                 Taxa de Ocupação: <b id="dashOccRate" style="color:#22c55e">${Math.round(proj.rate*100)}%</b>
               </div>
-              <div id="dashAttendanceForceBonus" style="margin-top:7px;padding:7px 9px;border-radius:8px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);font-size:11px;color:#86efac">Bônus de força em casa: +${proj.attendanceForceBonus} (máximo +5 conforme o público)</div>
+              ${(() => {
+                const fb = typeof formatAttendanceForceBonusData === 'function'
+                  ? formatAttendanceForceBonusData(proj.attendanceForceBonus)
+                  : { bg: 'rgba(34,197,94,.08)', border: 'rgba(34,197,94,.2)', color: '#86efac', text: `Bônus de força em casa: +${proj.attendanceForceBonus} (máximo +5 conforme o público)` };
+                return `<div id="dashAttendanceForceBonus" style="margin-top:7px;padding:7px 9px;border-radius:8px;background:${fb.bg};border:1px solid ${fb.border};font-size:11px;color:${fb.color}">${fb.text}</div>`;
+              })()}
             </div>
 
             <!-- Detalhamento de Arrecadação -->
@@ -39738,6 +39794,17 @@ function bind(){
       const subTick=$('#dashSubTick'); if(subTick) subTick.textContent=fmtMoney(proj.revenue);
       const subPark=$('#dashSubPark'); if(subPark) subPark.textContent=fmtMoney(proj.parkRevenue);
       const subStore=$('#dashSubStore'); if(subStore) subStore.textContent=fmtMoney(proj.storeShop);
+
+      const forceBonusEl=$('#dashAttendanceForceBonus');
+      if(forceBonusEl){
+        const fb = typeof formatAttendanceForceBonusData === 'function'
+          ? formatAttendanceForceBonusData(proj.attendanceForceBonus)
+          : { bg: 'rgba(34,197,94,.08)', border: 'rgba(34,197,94,.2)', color: '#86efac', text: `Bônus de força em casa: +${proj.attendanceForceBonus} (máximo +5 conforme o público)` };
+        forceBonusEl.style.background = fb.bg;
+        forceBonusEl.style.borderColor = fb.border;
+        forceBonusEl.style.color = fb.color;
+        forceBonusEl.textContent = fb.text;
+      }
     }
 
     if(r){
