@@ -359,30 +359,39 @@
    * com base no nome e estado do clube, sem nunca vazar estádios de terceiros.
    */
   function getClubStadiumInfo(clubName) {
-    if (!clubName) return { name: 'Estádio Municipal', city: 'Brasília', state: 'DF', capacity: 15000, style: 'generic' };
+    if (!clubName) return { name: 'Estádio Municipal', stadium: 'Estádio Municipal', city: 'Brasília', state: 'DF', capacity: 15000, style: 'generic' };
 
     const key = normKey(clubName);
+    let match = null;
 
     // 1. Busca direta no dicionário oficial
     if (REAL_CLUB_STADIUMS[key]) {
-      return { ...REAL_CLUB_STADIUMS[key] };
+      match = { ...REAL_CLUB_STADIUMS[key] };
     }
 
     // 2. Busca por correspondência parcial de palavras-chave
-    for (const [k, v] of Object.entries(REAL_CLUB_STADIUMS)) {
-      if (key.length >= 4 && (k === key || k.includes(key) || key.includes(k))) {
-        return { ...v };
+    if (!match) {
+      for (const [k, v] of Object.entries(REAL_CLUB_STADIUMS)) {
+        if (key.length >= 4 && (k === key || k.includes(key) || key.includes(k))) {
+          match = { ...v };
+          break;
+        }
       }
     }
 
     // 3. Fallback inteligente e seguro por cidade/estado
-    return {
-      name: `Estádio Municipal de ${clubName}`,
-      city: 'Brasil',
-      state: 'BR',
-      capacity: 15000,
-      style: 'generic'
-    };
+    if (!match) {
+      match = {
+        name: `Estádio de ${clubName}`,
+        city: 'Brasil',
+        state: 'BR',
+        capacity: 15000,
+        style: 'generic'
+      };
+    }
+
+    if (!match.stadium) match.stadium = match.name;
+    return match;
   }
 
   // Exporta globalmente

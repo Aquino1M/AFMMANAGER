@@ -36,8 +36,24 @@ supConfigHandler({}, {
 assert.deepStrictEqual(supConfigData, configData, 'api/supabase-config deve ter o mesmo comportamento');
 console.log('PASS: api/supabase-config.js funciona perfeitamente!');
 
-// 3. Validar api/restore-saves.js para o usuário vhc0808
+// 3. Validar api/restore-saves.js para o usuário aquino (AQN FC) e vhc0808
 const restoreHandler = require('../api/restore-saves.js');
+restoreHandler({ query: { username: 'aquino' } }, {
+  setHeader: () => {},
+  status: (code) => {
+    assert.strictEqual(code, 200, 'api/restore-saves status deve ser 200');
+    return {
+      json: (d) => {
+        assert.ok(d.ok, 'd.ok deve ser true');
+        assert.ok(Array.isArray(d.saves) && d.saves.length > 0, 'Deve retornar ao menos 1 save para aquino');
+        const s1 = d.saves[0];
+        assert.strictEqual(s1.club, 'AQN FC', 'Clube deve ser AQN FC');
+        console.log(`PASS: api/restore-saves.js recuperou save do clube "${s1.club}" para @aquino (Temporada ${s1.season}, Saldo: R$ ${s1.balance.toLocaleString('pt-BR')})!`);
+      }
+    };
+  }
+});
+
 restoreHandler({ query: { username: 'vhc0808' } }, {
   setHeader: () => {},
   status: (code) => {

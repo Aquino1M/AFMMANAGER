@@ -2,6 +2,23 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.31] - 2026-10-25 (Auditoria Geral de Estádios Reais de Todos os Clubes & Neo Química Arena no Corinthians)
+
+### 🏟️ Mapeamento e Correção Oficial de Estádios Reais (`js/core/club_stadiums_catalog.js`, `js/game.js`, `js/competitions.js` & `js/core/real_football_engine.js`)
+
+- **Corinthians 100% na Neo Química Arena**:
+  - Corrigido o bug onde o Corinthians podia carregar ou exibir o "Estádio Augustinho Pires de Lima" (de Sobradinho/DF) no Modal do Estádio, na ficha do clube ou durante transmissões ao vivo.
+  - O Corinthians agora tem como casa oficial garantida a **Neo Química Arena** (São Paulo - SP, capacidade oficial de 49.205 lugares).
+- **Catálogo Centralizado de Estádios Reais (`js/core/club_stadiums_catalog.js`)**:
+  - Criado módulo com mais de 250 clubes mapeados individualmente com seus estádios reais, cidades, estados/países e capacidades reais (Série A, Série B, Série C, Série D, 11 campeonatos estaduais e gigantes internacionais).
+  - Eliminado o fallback genérico `"Estádio do clube"` em `buildClubs()`, preenchendo todos os clubes com suas praças esportivas legítimas (ex: Santos na Vila Belmiro, Palmeiras no Allianz Parque, São Paulo no MorumBIS, Flamengo e Fluminense no Maracanã, Vasco em São Januário, Botafogo no Nilton Santos, Grêmio na Arena do Grêmio, Inter no Beira-Rio, Atlético-MG na Arena MRV, Cruzeiro no Mineirão, etc.).
+- **Remoção de Subtítulos Hardcoded e Auto-Cura de Saves**:
+  - Removido texto estático `"Núcleo Bandeirante · DF · 40.000 lugares · casa também de ARUC"` do Modal do Estádio. O cabeçalho agora calcula dinamicamente cidade, estado, capacidade e clube proprietário real em tempo de execução.
+  - Implementada rotina de auto-cura idempotente em `clubStadiumName()`: qualquer save que possua estádio descalibrado ou herdado de slots de teste (como Augustinho Lima ou Defelê fora de seus respectivos clubes do DF) é automaticamente recuperado para o estádio real da agremiação.
+- **Otimização da Maquete 3D Low-Poly WebGL**:
+  - Removidos scripts obsoletos com `document.write` de `index.html`.
+  - Aumentada a tolerância de inicialização do Three.js para 25 tentativas e prevenido o travamento com tela estática/poster de `<model-viewer>`.
+
 ## [3.9.30] - 2026-10-25 (Sincronização Automática com Supabase na Vercel & Recuperação Direta de Saves)
 
 ### ☁️ Integração Vercel Serverless & Supabase Cloud (`api/config.js`, `api/restore-saves.js` & `js/database.js`)

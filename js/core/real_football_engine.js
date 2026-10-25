@@ -1321,7 +1321,22 @@
       const careerClub = String(gameState?.club || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
       if(gameState && n === careerClub){
         const custom = gameState.stadiumCustomization || {};
-        return { id:'career-stadium', style:'career', name:custom.name || gameState.stadiumName || gameState.stadium?.name || `Estádio do ${clubName}`, primary:custom.standColor || '#334155', secondary:custom.seatColor || gameState.homeKit?.shirtColor || '#2563eb', accent:custom.accentColor || '#facc15', grassColor:custom.grassColor || '#15803d', capacity:Number(gameState.infrastructure?.stadium?.capacity || gameState.stadium?.capacity) || 18000, roof:Number(gameState.infrastructure?.stadium?.level || 1) >= 3 ? 'full' : 'partial', upgrades:gameState.stadiumUpgrades || {}, customization:custom };
+        const safeName = (typeof window !== 'undefined' && typeof window.clubStadiumName === 'function')
+          ? window.clubStadiumName(clubName)
+          : (custom.name || gameState.stadiumName || `Estádio do ${clubName}`);
+        return {
+          id:'career-stadium',
+          style:'career',
+          name: safeName,
+          primary: custom.standColor || '#334155',
+          secondary: custom.seatColor || gameState.homeKit?.shirtColor || '#2563eb',
+          accent: custom.accentColor || '#facc15',
+          grassColor: custom.grassColor || '#15803d',
+          capacity: Number(gameState.infrastructure?.stadium?.capacity || gameState.stadium?.capacity) || 18000,
+          roof: Number(gameState.infrastructure?.stadium?.level || 1) >= 3 ? 'full' : 'partial',
+          upgrades: gameState.stadiumUpgrades || {},
+          customization: custom
+        };
       }
       const profiles = [
         { match:['flamengo','clube de regatas do flamengo','fluminense','fluminense football club'], id:'maracana',name:'Maracanã',style:'maracana',primary:'#c7cbd1',secondary:'#64748b',accent:'#facc15',capacity:78838,roof:'ring' },
@@ -1349,7 +1364,23 @@
         { match:['al ittihad','al ittihad club'], id:'king-abdullah-sports-city',name:'King Abdullah Sports City',style:'king-abdullah',primary:'#facc15',secondary:'#111827',accent:'#f8fafc',capacity:62000,roof:'partial' }
       ];
       const found = profiles.find(profile => profile.match.includes(n));
-      return found ? { ...found } : { id:'generic', name:`Estádio Municipal de ${clubName || 'Visitante'}`, style:'generic', primary:'#475569', secondary:'#64748b', accent:'#94a3b8', capacity:22000, roof:'partial' };
+      if (found) return { ...found };
+      const catalogStad = (typeof window !== 'undefined' && typeof window.getClubStadiumInfo === 'function')
+        ? window.getClubStadiumInfo(clubName)
+        : null;
+      if (catalogStad) {
+        return {
+          id: 'catalog-stadium',
+          name: catalogStad.name,
+          style: 'generic',
+          primary: '#334155',
+          secondary: '#64748b',
+          accent: '#94a3b8',
+          capacity: catalogStad.capacity || 22000,
+          roof: (catalogStad.capacity || 22000) >= 40000 ? 'full' : 'partial'
+        };
+      }
+      return { id:'generic', name:`Estádio do ${clubName || 'Visitante'}`, style:'generic', primary:'#475569', secondary:'#64748b', accent:'#94a3b8', capacity:22000, roof:'partial' };
     },
 
     draw4SectorsStadium(ctx, s, projFn) {

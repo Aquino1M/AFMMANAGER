@@ -2643,7 +2643,7 @@ function clubStadiumName(targetClub){
   const realStad = (typeof window !== 'undefined' && typeof window.getClubStadiumInfo === 'function')
     ? window.getClubStadiumInfo(cName)
     : (typeof getClubStadiumInfo === 'function' ? getClubStadiumInfo(cName) : null);
-  const realName = realStad?.name;
+  const realName = realStad?.name || realStad?.stadium;
 
   if(targetClub && st?.club && typeof norm === 'function' && norm(targetClub) !== norm(st.club)){
     return realName || (typeof clubByName === 'function' && clubByName(targetClub)?.stadium) || `Estádio do ${targetClub}`;
@@ -2803,9 +2803,13 @@ function openStadiumModal(initialTab){
   el.style.display = 'block';
 
   const sName = clubStadiumName();
+  const userClub = state?.club || 'Clube';
+  const stadInfo = (typeof window !== 'undefined' && typeof window.getClubStadiumInfo === 'function')
+    ? window.getClubStadiumInfo(userClub)
+    : (typeof getClubStadiumInfo === 'function' ? getClubStadiumInfo(userClub) : { city: 'São Paulo', state: 'SP', capacity: 40000 });
   const stadLevel = Number(state?.infrastructure?.stadium?.level) || 1;
   const namingMult = 1 + (stadLevel - 1) * 0.45;
-  const cap = state?.infrastructure?.stadium?.capacity || 3000;
+  const cap = state?.infrastructure?.stadium?.capacity || state?.stadiumCapacity || stadInfo?.capacity || 40000;
   const cald = getCaldeiraoData();
   const stData = getStadiumExpansionData();
   state.stadiumCustomization = state.stadiumCustomization || {};
@@ -2822,10 +2826,6 @@ function openStadiumModal(initialTab){
   const isArena = stadiumModalTab === 'arena';
 
   // Resolução da maquete 3D dinâmica para o modo 3D
-  const userClub = state?.club || 'Clube';
-  const stadInfo = (typeof window !== 'undefined' && typeof window.getClubStadiumInfo === 'function')
-    ? window.getClubStadiumInfo(userClub)
-    : (typeof getClubStadiumInfo === 'function' ? getClubStadiumInfo(userClub) : { city: 'São Paulo', state: 'SP' });
   let model3D = null;
   if (typeof window.AFMStadium3D !== 'undefined' && typeof window.AFMStadium3D.resolveStadiumModel === 'function') {
     if (isArena) {
@@ -36038,7 +36038,7 @@ function openRestoreCloudModal(defaultUser = ''){
     document.body.appendChild(modal);
   }
 
-  const userGuess = defaultUser || (typeof getActiveAccount === 'function' ? getActiveAccount()?.username : '') || 'vhc0808';
+  const userGuess = defaultUser || (typeof getActiveAccount === 'function' ? getActiveAccount()?.username : '') || (typeof localStorage !== 'undefined' ? localStorage.getItem('afm_active_user_v1') : '') || 'aquino';
 
   modal.innerHTML = `
     <div style="background:#0f172a;border:1px solid #38bdf8;border-radius:18px;max-width:480px;width:100%;padding:24px;box-shadow:0 25px 60px rgba(0,0,0,0.85);color:#fff;font-family:Inter,sans-serif">
@@ -36055,7 +36055,7 @@ function openRestoreCloudModal(defaultUser = ''){
         <label style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Nome de Usuário da Conta:</label>
         <div style="margin-top:6px;display:flex;align-items:center;background:#1e293b;border:1px solid #334155;border-radius:10px;padding:2px 12px">
           <span style="font-size:16px;margin-right:8px;color:#94a3b8">👤</span>
-          <input type="text" id="inputRestoreUsername" value="${esc(userGuess)}" style="width:100%;background:transparent;border:none;color:#fff;font-size:14px;font-weight:800;padding:10px 0;outline:none" placeholder="Ex: vhc0808">
+          <input type="text" id="inputRestoreUsername" value="${esc(userGuess)}" style="width:100%;background:transparent;border:none;color:#fff;font-size:14px;font-weight:800;padding:10px 0;outline:none" placeholder="Ex: aquino">
         </div>
       </div>
       <div id="restoreStatusMsg" style="margin-bottom:14px;font-size:12px;display:none;padding:10px 14px;border-radius:8px"></div>
