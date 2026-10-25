@@ -2,6 +2,22 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.27] - 2026-10-25 (Correção de Codificação Mojibake, Feedback Visual de Setores e Conclusão Imediata de Obras)
+
+### 🔤 Restauração de Codificação UTF-8 & Higienização Automática de Saves (`fixMojibake`)
+- **Correção de Caracteres Corrompidos (Mojibake)**:
+  - Eliminada a exibição indevida de caracteres desformatados (`ðŸš—`, `NÃVEL`, `âš½`, `BRASILEIRÃƒO`, `TÃ‰CNICO`, etc.) em toda a interface do jogo.
+  - Implementada função de higienização profunda `fixMojibake(str)` e `deepSanitizeSaveMojibake(state)`, executada na inicialização e em `migrate(s)` para recuperar instantaneamente textos, nomes de treinador, notícias e históricos gravados com caracteres corrompidos.
+  - Incrementada a versão do Service Worker (`v65`) e adicionado `charset="utf-8"` com cache buster em `index.html` para forçar atualização imediata nos navegadores dos usuários.
+
+### 🏟️ Expansão do Estádio: Feedback Visual de Seleção & Conclusão Imediata ("Concluir Agora")
+- **Feedback Visual Claro nos Botões de Setor (`.btnSelectSide`)**:
+  - Os botões dos setores Norte, Sul, Leste e Oeste agora contam com efeito de seleção explícito e vibrante: borda ciano destacada (`#38bdf8`), brilho neon glow, leve elevação (`transform: translateY(-2px) scale(1.03)`), classe `.is-selected` e indicação `⚡` instantânea.
+  - O clique atualiza os botões imediatamente no DOM sem delay e direciona a maquete 3D para o setor correspondente.
+- **Conclusão Imediata de Obras Sem Esperar (`hireStadiumContractor('instant')`)**:
+  - Corrigido o fluxo do botão *"CONCLUIR AGORA — SEM ESPERAR"*: o pagamento premium é debitado do caixa com sucesso, a obra é finalizada na hora, a capacidade do estádio aumenta em +3.500 lugares e o setor é devidamente marcado como concluído no anel.
+  - Adicionado listener delegado de contingência e exportação global das funções de expansão (`hireStadiumContractor`, `buildStadiumSide`, `getStadiumExpansionData`, `processStadiumConstructionDay`).
+
 ## [3.9.26] - 2026-10-22 (Correção Crítica de Saldo na Virada de Temporada & Restauração Automática de Caixa)
 
 ### 💰 Integridade Financeira & Fim do Saldo Negativo na Virada de Temporada

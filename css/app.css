@@ -5703,19 +5703,38 @@ body.theme-emerald {
   pointer-events: auto;
 }
 #stadiumVisualModalContainer .btnSelectSide,
-#stadiumVisualModalContainer #btnStartSideWork {
+#stadiumVisualModalContainer #btnStartSideWork,
+#stadiumVisualModalContainer .btnContractorRush,
+#stadiumVisualModalContainer .btnSelectRing,
+#stadiumVisualModalContainer .btnUpgradeStadiumInModal {
   position: relative !important;
-  z-index: 5 !important;
+  z-index: 10 !important;
   pointer-events: auto !important;
   touch-action: manipulation !important;
-  cursor: pointer;
+  cursor: pointer !important;
+}
+
+/* Efeito visual explícito para o setor selecionado no estádio */
+#stadiumVisualModalContainer .btnSelectSide.selected,
+#stadiumVisualModalContainer .btnSelectSide.is-selected {
+  background: linear-gradient(135deg, #7c3aed, #9333ea) !important;
+  color: #ffffff !important;
+  border: 2px solid #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.45), 0 0 20px rgba(147, 51, 234, 0.9) !important;
+  transform: translateY(-2px) scale(1.04) !important;
+  font-weight: 900 !important;
+}
+
+#stadiumVisualModalContainer .btnContractorRush:hover,
+#stadiumVisualModalContainer .btnContractorRush:active {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
 }
 
 #aba-estadio,
 .stadium-modal-container,
 .estadio-dashboard-wrapper,
 #stadiumVisualModalContainer .visual-modal-card {
-  zoom: 1.05;
   max-width: 96vw !important;
   width: 100% !important;
   box-sizing: border-box !important;

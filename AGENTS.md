@@ -34,3 +34,10 @@
 - Rode testes e verificações relevantes, relatando comandos e resultados reais. `npm run build` apenas imprime `Static build ready`; não é compilação nem teste.
 - Não declare funcionalidade concluída com base apenas em UI/dados representados. Informe o que foi e o que não foi verificado.
 - Mantenha `CHANGELOG.md` como histórico; não reescreva releases anteriores para ocultar limitações.
+
+## Criação de jogos, modelagem 3D, shaders e UI/UX
+
+- Trate Three.js, WebGL e shaders como cidadãos de primeira classe na renderização visual do jogo (como maquetes 3D de estádios, campos e animações). Mantenha sempre o ciclo de vida limpo com descarte obrigatório de geometrias, materiais e texturas (`dispose()`) e cancelamento de loops de animação (`cancelAnimationFrame`).
+- Modelagem 3D e assets gráficos devem priorizar arquivos `.glb`/`.gltf` binários otimizados, estética Low-Poly estilizada e consistente, além de ícones, mini-mapas e distintivos em SVG vetorial leve e escalável.
+- Interfaces e HUDs de jogo devem seguir o padrão estético dos melhores simuladores (EA FC / FM): tipografia legível e moderna, paletas cromáticas coordenadas, efeitos neon sutis, glassmorphism com backdrop blur, e taxa de quadros estável (60+ FPS) sem adição de dependências pesadas desnecessárias.
+

@@ -1,14 +1,23 @@
 {
   "recommendations": [
+    "cesium.gltf-vscode",
+    "slevesque.vscode-3dviewer",
+    "slevesque.shader",
+    "stevensona.shader-toy",
+    "JacquesLucke.blender-development",
+    "nerohoop.threejs-snippets",
+    "jock.svg",
+    "kisstkondoros.vscode-gutter-preview",
+    "Tyriar.luna-paint",
+    "bradlc.vscode-tailwindcss",
+    "figma.figma-vscode-extension",
+    "webhint.vscode-webhint",
+    "wix.vscode-import-cost",
+    "naumovs.color-highlight",
     "usernamehw.errorlens",
     "ritwickdey.liveserver",
-    "eamodio.gitlens",
     "esbenp.prettier-vscode",
     "dbaeumer.vscode-eslint",
-    "christian-kohler.path-intellisense",
-    "bradlc.tailwindcss",
-    "naumovs.color-highlight",
-    "gruntfuggly.todo-tree",
-    "xabikos.javascriptsnippets"
+    "christian-kohler.path-intellisense"
   ]
 }

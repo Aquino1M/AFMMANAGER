@@ -89,6 +89,49 @@ window.esc = esc;
 window.norm = norm;
 const hashStr=s=>{let h=2166136261;for(const ch of String(s)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h>>>0)};
 
+function fixMojibake(str){
+  if(typeof str !== 'string' || !str) return str;
+  if(!/[\u00C2-\u00C3][\u0080-\u00BF]|ðŸ|âš|âœ|â€|ï¿½|Ã/.test(str)) return str;
+  try {
+    const decoded = decodeURIComponent(escape(str));
+    if(decoded && !decoded.includes('') && !/Ã|ðŸ/.test(decoded)){
+      return decoded;
+    }
+  } catch(e) {}
+  let res = str;
+  const map = {
+    'Ã¡': 'á', 'Ã©': 'é', 'Ã­': 'í', 'Ã³': 'ó', 'Ãº': 'ú',
+    'Ã£': 'ã', 'Ãµ': 'õ', 'Ã§': 'ç', 'Ã¢': 'â', 'Ãª': 'ê', 'Ã´': 'ô',
+    'Ã ': 'à', 'Ã‰': 'É', 'Ã ': 'Í', 'Ã“': 'Ó', 'Ãš': 'Ú',
+    'Ãƒ': 'Ã', 'Ã•': 'Õ', 'Ã‡': 'Ç', 'Ã‚': 'Â', 'ÃŠ': 'Ê', 'Ã”': 'Ô',
+    'Â·': '·', 'â€¢': '•', 'âš½': '⚽', 'ðŸš—': '🚗', 'ðŸŒ±': '🌱',
+    'âœ¨': '✨', 'ðŸ¢': '🏢', 'ðŸ›’': '🛍️', 'ðŸ†': '🏆', 'ðŸŽ™': '🎙️',
+    'ðŸ’ª': '🤝', 'ðŸ“°': '📰', 'ðŸ’°': '💰', 'ðŸŽ¯': '🎯', 'ðŸ—“': '📅',
+    'ðŸ‘”': '👔', 'ðŸ‘•': '👕', 'ðŸ': '🏟️', 'ðŸ”’': '🔒'
+  };
+  for(const [k, v] of Object.entries(map)){
+    res = res.split(k).join(v);
+  }
+  return res;
+}
+window.fixMojibake = fixMojibake;
+
+function deepSanitizeSaveMojibake(obj, depth = 0){
+  if(!obj || depth > 6) return;
+  if(Array.isArray(obj)){
+    for(let i = 0; i < obj.length; i++){
+      if(typeof obj[i] === 'string') obj[i] = fixMojibake(obj[i]);
+      else if(typeof obj[i] === 'object') deepSanitizeSaveMojibake(obj[i], depth + 1);
+    }
+  } else if(typeof obj === 'object'){
+    for(const key of Object.keys(obj)){
+      if(typeof obj[key] === 'string') obj[key] = fixMojibake(obj[key]);
+      else if(typeof obj[key] === 'object') deepSanitizeSaveMojibake(obj[key], depth + 1);
+    }
+  }
+}
+window.deepSanitizeSaveMojibake = deepSanitizeSaveMojibake;
+
 // =============================================================
 // O jogo usa exclusivamente o pacote da comunidade.
 // =============================================================
@@ -2734,10 +2777,7 @@ function openStadiumModal(initialTab){
   const cap = state?.infrastructure?.stadium?.capacity || 3000;
   const cald = getCaldeiraoData();
   const stData = getStadiumExpansionData();
-  state.stadiumCustomization = state.stadiumCustomization || {
-    standColor: '#334155', seatColor: '#2563eb', accentColor: '#facc15',
-    grassColor: '#14532d', grassStripeA: '#15803d', grassStripeB: '#16a34a'
-  };
+  state.stadiumCustomization = state.stadiumCustomization || {};
   // A prévia é um rascunho local; só confirmar altera o estado persistido.
   const activeStadiumCustomization = state.stadiumCustomization;
   const stadiumCustomization = state.stadiumCustomization;
@@ -2795,7 +2835,7 @@ function openStadiumModal(initialTab){
             <!-- Switcher: 3D ou Plano (Alternância Dinâmica em Tempo Real) -->
             <div class="stadium-mode-switcher" style="display:inline-flex;background:#0b0f19;border:1px solid rgba(255,255,255,0.18);border-radius:999px;padding:3px;gap:3px;box-shadow:0 0 14px rgba(0,0,0,0.5)">
               <button type="button" id="btnStadiumMode3D" class="btn btn-sm" style="border:none;border-radius:999px;padding:5px 14px;font-size:11px;font-weight:900;display:flex;align-items:center;gap:6px;cursor:pointer;transition:all 0.2s;${stadiumVisualMode==='3d' ? 'background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;box-shadow:0 0 12px rgba(56,189,248,0.5)' : 'background:transparent;color:#94a3b8'}">
-                <span>🏟️</span>
+                <span>🏛️</span>
                 <span>Visão 3D</span>
               </button>
               <button type="button" id="btnStadiumModePlano" class="btn btn-sm" style="border:none;border-radius:999px;padding:5px 14px;font-size:11px;font-weight:900;display:flex;align-items:center;gap:6px;cursor:pointer;transition:all 0.2s;${stadiumVisualMode==='plano' ? 'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;box-shadow:0 0 12px rgba(168,85,247,0.5)' : 'background:transparent;color:#94a3b8'}">
@@ -2928,13 +2968,13 @@ function openStadiumModal(initialTab){
 
               <!-- Presets de Câmera 3D Inteligentes -->
               <div style="position:absolute;bottom:8px;left:8px;right:8px;z-index:6;display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="panoramic" data-orbit="45deg 55deg 105%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🛰️ Panorâmica</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="panoramic" data-orbit="45deg 55deg 105%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🌌 Panorâmica</button>
                 <button type="button" class="btn btn-sm btn-visual-cam" data-cam="tv" data-orbit="0deg 75deg 90%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">📺 TV / Telão</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="leste" data-orbit="90deg 68deg 82%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#38bdf8;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer;font-weight:900">🔭 Setor Leste</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="leste" data-orbit="90deg 68deg 82%" style="background:rgba(2,132,199,0.4);backdrop-filter:blur(6px);border:1px solid #38bdf8;color:#38bdf8;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer;font-weight:900;box-shadow:0 0 10px rgba(56,189,248,0.5)">🔭 Setor Leste</button>
                 <button type="button" class="btn btn-sm btn-visual-cam" data-cam="oeste" data-orbit="-90deg 68deg 82%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🔭 Setor Oeste</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="norte" data-orbit="0deg 68deg 88%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🥁 Setor Norte</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="sul" data-orbit="180deg 68deg 88%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🥁 Setor Sul</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="campo" data-orbit="-45deg 85deg 45%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">💺 Campo</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="norte" data-orbit="0deg 68deg 88%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🐷 Setor Norte</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="sul" data-orbit="180deg 68deg 88%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🐷 Setor Sul</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="campo" data-orbit="-45deg 85deg 45%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">👟 Campo</button>
               </div>
             </div>
           ` : `
@@ -3350,9 +3390,10 @@ function openStadiumModal(initialTab){
                   <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:6px">
                     ${['norte', 'sul', 'leste', 'oeste'].map(s => {
                       const isSideDone = !!stData.sides[s];
+                      const isSelected = (stadiumSelectedSide === s);
                       return `
-                        <button type="button" class="btn btnSelectSide ${stadiumSelectedSide===s?'primary':''}" data-side="${s}" aria-pressed="${stadiumSelectedSide===s?'true':'false'}" style="position:relative;z-index:2;pointer-events:auto;touch-action:manipulation;cursor:pointer;padding:8px 6px;font-size:11px;font-weight:900;border-radius:8px;transition:background .15s,border-color .15s,box-shadow .15s,transform .15s;${stadiumSelectedSide===s?'background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:2px solid #d8b4fe;box-shadow:0 0 0 2px rgba(168,85,247,.25),0 0 15px rgba(168,85,247,.65);transform:translateY(-1px)':''};${isSideDone?'border:1px solid #22c55e;color:#4ade80':''}">
-                          ${stadiumSelectedSide===s ? '✓ SELECIONADO · ' : ''}${s.toUpperCase()} ${isSideDone ? '✓' : ''}
+                        <button type="button" class="btn btnSelectSide ${isSelected ? 'selected is-selected' : ''}" data-side="${s}" aria-pressed="${isSelected ? 'true' : 'false'}" style="position:relative;z-index:10;pointer-events:auto;touch-action:manipulation;cursor:pointer;padding:10px 6px;font-size:11px;font-weight:900;border-radius:10px;transition:all .15s ease;${isSelected ? 'background:linear-gradient(135deg,#7c3aed,#9333ea)!important;color:#fff!important;border:2px solid #38bdf8!important;box-shadow:0 0 0 3px rgba(56,189,248,0.45),0 0 18px rgba(147,51,234,0.9)!important;transform:translateY(-2px) scale(1.03)!important;' : (isSideDone ? 'background:#14231b;border:1px solid #22c55e;color:#4ade80;' : 'background:#1f1b33;border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;')};">
+                          ${isSelected ? '⚡ ' : ''}${s.toUpperCase()} ${isSideDone ? '✓' : ''}
                         </button>
                       `;
                     }).join('')}
@@ -3758,6 +3799,20 @@ function openStadiumModal(initialTab){
   (el?.querySelectorAll('.btn-visual-cam') || $$('.btn-visual-cam')).forEach(b => {
     b.onclick = (e) => {
       e.preventDefault();
+      const allBtns = el?.querySelectorAll('.btn-visual-cam') || $$('.btn-visual-cam');
+      allBtns.forEach(other => {
+        other.style.background = 'rgba(15,23,42,0.85)';
+        other.style.border = '1px solid rgba(255,255,255,0.15)';
+        other.style.color = '#fff';
+        other.style.fontWeight = 'normal';
+        other.style.boxShadow = 'none';
+      });
+      b.style.background = 'rgba(2,132,199,0.4)';
+      b.style.border = '1px solid #38bdf8';
+      b.style.color = '#38bdf8';
+      b.style.fontWeight = '900';
+      b.style.boxShadow = '0 0 10px rgba(56,189,248,0.5)';
+
       const cam = b.getAttribute('data-cam');
       if (cam && window.AFMStadiumLowPoly) {
         window.AFMStadiumLowPoly.setCameraPreset(cam);
@@ -3888,22 +3943,62 @@ function openStadiumModal(initialTab){
     };
   });
 
-  // Delegação no container do modal: os controles são recriados a cada renderização.
-  // Capturar a seleção pelo container evita perder o clique por handlers ligados a nós antigos.
-  if(el && el.dataset && typeof el.addEventListener === 'function' && !el.dataset.stadiumSideDelegationBound){
-    el.dataset.stadiumSideDelegationBound = 'true';
-    const handleStadiumSideSelection = (event) => {
-      const button = event.target?.closest?.('.btnSelectSide');
-      if(!button || !el.contains(button)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const side = String(button.dataset.side || '').toLowerCase();
-      if(!['norte','sul','leste','oeste'].includes(side)) return;
-      stadiumSelectedSide = side;
-      window.stadiumSelectedSide = side;
-      openStadiumModal('expansion');
-    };
-    el.addEventListener('click', handleStadiumSideSelection, true);
+  // Manipulação de seleção de setor com feedback visual instantâneo
+  const handleStadiumSideSelection = (event) => {
+    const button = event.target?.closest?.('.btnSelectSide');
+    if(!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const side = String(button.dataset.side || '').toLowerCase();
+    if(!['norte','sul','leste','oeste'].includes(side)) return;
+    stadiumSelectedSide = side;
+    window.stadiumSelectedSide = side;
+
+    // Feedback visual imediato nos botões antes do re-render
+    const container = button.closest('.visual-modal-card') || el;
+    if(container){
+      container.querySelectorAll('.btnSelectSide').forEach(b => {
+        const bSide = String(b.dataset.side || '').toLowerCase();
+        const isSel = (bSide === side);
+        b.classList.toggle('selected', isSel);
+        b.classList.toggle('is-selected', isSel);
+        b.setAttribute('aria-pressed', isSel ? 'true' : 'false');
+      });
+    }
+
+    if(window.AFMStadiumLowPoly && typeof window.AFMStadiumLowPoly.setCameraPreset === 'function'){
+      try { window.AFMStadiumLowPoly.setCameraPreset(side); } catch(err) {}
+    }
+    openStadiumModal('expansion');
+  };
+
+  const handleContractorRush = (event) => {
+    const button = event.target?.closest?.('.btnContractorRush');
+    if(!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const days = button.dataset.days === 'instant' ? 'instant' : Number(button.dataset.days);
+    hireStadiumContractor(days);
+  };
+
+  $$('.btnSelectSide').forEach(b => {
+    b.onclick = handleStadiumSideSelection;
+  });
+
+  if(el && el.dataset && typeof el.addEventListener === 'function' && !el.dataset.stadiumExpansionDelegationBound){
+    el.dataset.stadiumExpansionDelegationBound = 'true';
+    el.addEventListener('click', (event) => {
+      const sideBtn = event.target?.closest?.('.btnSelectSide');
+      if(sideBtn && el.contains(sideBtn)){
+        handleStadiumSideSelection(event);
+        return;
+      }
+      const rushBtn = event.target?.closest?.('.btnContractorRush');
+      if(rushBtn && el.contains(rushBtn)){
+        handleContractorRush(event);
+        return;
+      }
+    });
   }
 
   $$('.btnRepairStadium').forEach(b => {
@@ -4000,12 +4095,7 @@ function openStadiumModal(initialTab){
   }
 
   $$('.btnContractorRush').forEach(btn => {
-    btn.onclick = (event) => {
-      event.preventDefault();
-      const days = btn.dataset.days === 'instant' ? 'instant' : Number(btn.dataset.days);
-      const succeeded = hireStadiumContractor(days);
-      if(succeeded) openStadiumModal('expansion');
-    };
+    btn.onclick = handleContractorRush;
   });
 
   // Bindings específicos da Aba Arena (Screenshot 5)
@@ -5016,6 +5106,9 @@ function openRedCardTacticalModal(sentOffPlayer, minute, reason, isUser){
 // =========================================================================
 let isBuildingStadiumSide = false;
 function buildStadiumSide(side, mode = 'cash'){
+  if(typeof state === 'undefined' || !state){
+    if(typeof window !== 'undefined' && window.state) state = window.state;
+  }
   if(isBuildingStadiumSide) return false;
   const stData = getStadiumExpansionData();
   if(stData.activeWork){ toast(`Obra do Anel ${stData.activeWork.ring} em andamento: faltam ${getStadiumWorkDaysRemaining(stData.activeWork)} dias.`); return false; }
@@ -5128,19 +5221,31 @@ function getStadiumContractorRushCost(work, days){
 }
 
 function hireStadiumContractor(days){
+  if(typeof state === 'undefined' || !state){
+    if(typeof window !== 'undefined' && window.state) state = window.state;
+  }
   const work = state?.stadiumRingData?.activeWork;
-  if(!work){ toast('Não há uma obra ativa para acelerar.'); return false; }
+  if(!work){
+    if(typeof toast === 'function') toast('Não há uma obra ativa para acelerar.');
+    return false;
+  }
   const remaining = getStadiumWorkDaysRemaining(work);
   const instant = days === 'instant';
   const requestedDays = Math.floor(Number(days) || 0);
-  if((!instant && (![3, 7, 14].includes(requestedDays) || requestedDays >= remaining)) || remaining <= 0){
-    toast('Selecione uma opção válida de aceleração para esta obra.');
+  if(!instant && (![3, 7, 14].includes(requestedDays) || requestedDays >= remaining || remaining <= 0)){
+    if(typeof toast === 'function') toast('Selecione uma opção válida de aceleração para esta obra.');
     return false;
   }
-  const cost = getStadiumContractorRushCost(work, instant ? 'instant' : requestedDays);
-  if(!Number.isFinite(cost) || cost <= 0){ toast('Não foi possível calcular o custo da construtora.'); return false; }
+  let cost = getStadiumContractorRushCost(work, instant ? 'instant' : requestedDays);
+  if(instant && (!Number.isFinite(cost) || cost <= 0)){
+    cost = Math.max(250000, Math.round(getStadiumSectorCost(Number(work.ring) || 1) * 0.75));
+  }
+  if(!Number.isFinite(cost) || cost <= 0){
+    if(typeof toast === 'function') toast('Não foi possível calcular o custo da construtora.');
+    return false;
+  }
   if((Number(state.balance) || 0) < cost){
-    toast(`Saldo insuficiente para contratar a construtora. Custo: ${fmtMoney(cost)}.`);
+    if(typeof toast === 'function') toast(`Saldo insuficiente para contratar a construtora. Custo: ${fmtMoney(cost)}.`);
     return false;
   }
     // Não cobrar se a obra não tiver setor válido para concluir.
@@ -5150,31 +5255,53 @@ function hireStadiumContractor(days){
     }
 
   if(instant){
-    const previousBalance = Number(state.balance) || 0;
-    const previousExpense = Number(state.expense) || 0;
-    const previousFinishDate = work.finishDate;
-    const previousRushDays = Number(work.contractorRushDays) || 0;
-    const previousRushCost = Number(work.contractorRushCost) || 0;
-    state.balance = previousBalance - cost;
-    state.expense = previousExpense + cost;
-    work.contractorRushDays = previousRushDays + remaining;
-    work.contractorRushCost = previousRushCost + cost;
+    const ringNum = Number(work.ring) || 1;
+    const sideName = String(work.side || '').toLowerCase();
+    state.balance = (Number(state.balance) || 0) - cost;
+    state.expense = (Number(state.expense) || 0) + cost;
+    work.contractorRushDays = (Number(work.contractorRushDays) || 0) + Math.max(1, remaining);
+    work.contractorRushCost = (Number(work.contractorRushCost) || 0) + cost;
     work.finishDate = state.date;
+
+    // Processa dia da obra
     processStadiumConstructionDay();
-    if(state.stadiumRingData?.activeWork){
-      state.balance = previousBalance;
-      state.expense = previousExpense;
-      work.finishDate = previousFinishDate;
-      work.contractorRushDays = previousRushDays;
-      work.contractorRushCost = previousRushCost;
-      toast('Não foi possível concluir a obra. O pagamento foi estornado.');
-      return false;
+
+    // Garante que o setor seja registrado como concluído e activeWork seja limpo
+    const st = getStadiumExpansionData();
+    st.rings = st.rings || {};
+    st.rings[ringNum] = st.rings[ringNum] || { norte: false, sul: false, leste: false, oeste: false };
+    st.rings[ringNum][sideName] = true;
+    st.purchasedSectors = Array.isArray(st.purchasedSectors) ? st.purchasedSectors : [];
+    const secKey = `r${ringNum}_${sideName}`;
+    if(!st.purchasedSectors.includes(secKey)){
+      st.purchasedSectors.push(secKey);
+      const curCap = Math.max(0, Number(state.infrastructure?.stadium?.capacity) || 8000);
+      state.infrastructure.stadium.capacity = Math.min(100000, curCap + 3500);
+      if(state.stadium) state.stadium.capacity = state.infrastructure.stadium.capacity;
     }
+    st.activeWork = null;
+    if(state.stadiumRingData) state.stadiumRingData.activeWork = null;
+    st.sides = st.rings[st.ring];
+
+    // Próximo setor disponível selecionado automaticamente
+    const nextUnbuiltSide = ['norte', 'sul', 'leste', 'oeste'].find(s => !st.rings[ringNum][s]);
+    if(nextUnbuiltSide) {
+      stadiumSelectedSide = nextUnbuiltSide;
+      if(typeof window !== 'undefined') window.stadiumSelectedSide = nextUnbuiltSide;
+    }
+
+    state.news = Array.isArray(state.news) ? state.news : [];
+    state.news.unshift(`🏗️ CONSTRUTORA EXPRESSA: O setor ${sideName.toUpperCase()} do Anel ${ringNum} foi concluído na hora por ${fmtMoney(cost)}.`);
+    state.news = state.news.slice(0, 50);
+
     save();
-    toast(`Obra concluída na hora! Taxa premium: ${fmtMoney(cost)}.`);
+    render();
+    if(typeof toast === 'function') toast(`⚡ Obra concluída na hora! Taxa premium: ${fmtMoney(cost)}.`);
     openStadiumModal('expansion');
     return true;
-  }  const currentFinish = new Date(`${work.finishDate}T12:00:00`);
+  }
+
+  const currentFinish = new Date(`${work.finishDate}T12:00:00`);
   if(!Number.isFinite(currentFinish.getTime())){ toast('A data de conclusão da obra está inválida.'); return false; }
   currentFinish.setDate(currentFinish.getDate() - requestedDays);
   const today = Date.parse(`${state.date}T00:00:00`);
@@ -5196,6 +5323,9 @@ function hireStadiumContractor(days){
 }
 
 function processStadiumConstructionDay(){
+  if(typeof state === 'undefined' || !state){
+    if(typeof window !== 'undefined' && window.state) state = window.state;
+  }
   if(!state) return;
   const st = getStadiumExpansionData();
   if(!st.activeWork) return;
@@ -6296,6 +6426,10 @@ const HOUSE_ITEMS = [
 ];
 
 function getStadiumExpansionData(){
+  if(typeof state === 'undefined' || !state){
+    if(typeof window !== 'undefined' && window.state) state = window.state;
+  }
+  if(!state) return { ring: 1, maxRings: 6, maxUnlockedRing: 1, rings: { 1: { norte: false, sul: false, leste: false, oeste: false } }, sides: { norte: false, sul: false, leste: false, oeste: false }, purchasedSectors: [], activeWork: null };
   if(!state.stadiumRingData){
     state.stadiumRingData = {
       ring: Math.max(1, Math.min(6, Number(state.infrastructure?.stadium?.level) || 1)),
@@ -14305,6 +14439,7 @@ window.repairSaveIfCorrupted = repairSaveIfCorrupted;
 
 function migrate(s){
   if(!s)return null;
+  deepSanitizeSaveMojibake(s);
   purgeBuggedExploitPlayers(s);
   (s.squad || []).forEach(p => {
     if(p && (!p.pos || p.pos === "-" || p.pos === "undefined" || p.pos === "null")){
@@ -40242,6 +40377,11 @@ if (typeof window !== 'undefined' && window.AFM_DB && typeof window.AFM_DB.init 
   window.cancelParkingConcession = cancelParkingConcession;
   window.getParkingConcessionProposals = getParkingConcessionProposals;
   window.getParkingConcessionMultiplier = getParkingConcessionMultiplier;
+  window.openStadiumModal = openStadiumModal;
+  window.hireStadiumContractor = hireStadiumContractor;
+  window.buildStadiumSide = buildStadiumSide;
+  window.getStadiumExpansionData = getStadiumExpansionData;
+  window.processStadiumConstructionDay = processStadiumConstructionDay;
 })();
 
 ;/* window.__AFM_STATE_SYNCED */ try {
@@ -40276,6 +40416,10 @@ if (typeof window !== 'undefined' && window.AFM_DB && typeof window.AFM_DB.init 
   if (typeof userFixture === 'function') { window.userFixture = userFixture; }
   if (typeof save === 'function') { window.save = save; }
   if (typeof openStadiumModal === 'function') { window.openStadiumModal = openStadiumModal; }
+  if (typeof hireStadiumContractor === 'function') { window.hireStadiumContractor = hireStadiumContractor; }
+  if (typeof buildStadiumSide === 'function') { window.buildStadiumSide = buildStadiumSide; }
+  if (typeof getStadiumExpansionData === 'function') { window.getStadiumExpansionData = getStadiumExpansionData; }
+  if (typeof processStadiumConstructionDay === 'function') { window.processStadiumConstructionDay = processStadiumConstructionDay; }
   if (typeof openOfficialStoreModal === 'function') { window.openOfficialStoreModal = openOfficialStoreModal; }
   if (typeof openTrainingCenterModal === 'function') { window.openTrainingCenterModal = openTrainingCenterModal; }
   if (typeof openParkingModal === 'function') { window.openParkingModal = openParkingModal; }
@@ -40299,6 +40443,24 @@ try {
     if(bPark){
       e.preventDefault();
       if(typeof openParkingModal === 'function') openParkingModal();
+      return;
+    }
+    const bRush = e.target && e.target.closest ? e.target.closest('.btnContractorRush') : null;
+    if(bRush){
+      e.preventDefault();
+      const days = bRush.dataset.days === 'instant' ? 'instant' : Number(bRush.dataset.days);
+      if(typeof hireStadiumContractor === 'function') hireStadiumContractor(days);
+      return;
+    }
+    const bSide = e.target && e.target.closest ? e.target.closest('.btnSelectSide') : null;
+    if(bSide){
+      e.preventDefault();
+      const s = String(bSide.dataset.side || '').toLowerCase();
+      if(['norte','sul','leste','oeste'].includes(s)){
+        stadiumSelectedSide = s;
+        if(typeof window !== 'undefined') window.stadiumSelectedSide = s;
+        if(typeof openStadiumModal === 'function') openStadiumModal('expansion');
+      }
       return;
     }
   }, true);
