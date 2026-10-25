@@ -215,8 +215,8 @@
         : (state?.stadiumRingData || { ring: 1, rings: { 1: { norte: true, sul: true, leste: true, oeste: true } } });
 
       const ring = Number(stData?.ring || 1);
-      let rings = stData?.rings || { 1: { norte: true, sul: true, leste: true, oeste: true } };
-      const activeWork = stData?.activeWork || null;
+      let rings = stData?.rings || state?.stadiumRingData?.rings || { 1: { norte: true, sul: true, leste: true, oeste: true } };
+      const activeWork = stData?.activeWork || state?.stadiumRingData?.activeWork || null;
 
       // Se estiver na aba Arena, gera a maquete simulada da capacidade selecionada
       if (params.isArena && params.selectedArenaCapacity) {
