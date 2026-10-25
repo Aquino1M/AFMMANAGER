@@ -1423,6 +1423,80 @@ const FACILITIES={
  bank:{name:'Banco & Financiamento',icon:'🏦',base:500000,max:8,effect:'Linhas de crédito para o clube, antecipação com bônus e controle de dívidas.'}
 };
 
+const FACILITY_MAINTENANCE_LEVELS = {
+  stadium:   [0, 12000, 24000, 42000, 68000, 105000, 150000],
+  parking:   [0, 2500,  5000,  9000,  14500, 21500,  30000],
+  training:  [0, 8000,  14000, 22000, 32000, 45000,  62000, 82000, 110000],
+  academy:   [0, 6000,  11000, 18000, 26000, 37000,  50000, 68000, 90000],
+  medical:   [0, 7000,  12000, 19000, 28000, 39000,  52000, 70000, 92000],
+  admin:     [0, 6500,  11500, 18000, 26000, 36000,  48000, 64000, 84000],
+  store:     [0, 4500,  8500,  14000, 21000, 30000,  41000, 55000, 72000],
+  museum:    [0, 3500,  6500,  11000, 17000, 24000,  33000, 44000, 58000],
+  press:     [0, 3000,  5500,  9000,  14000, 20000,  28000, 38000, 50000],
+  marketing: [0, 5000,  9500,  15500, 23000, 33000,  45000, 60000, 78000],
+  bank:      [0, 4000,  7500,  12500, 19000, 27000,  37000, 49000, 65000]
+};
+
+const TRAINING_BONUS_BY_LEVEL = {
+  1: 5,
+  2: 12,
+  3: 20,
+  4: 30,
+  5: 42,
+  6: 55,
+  7: 70,
+  8: 85
+};
+
+function trainingBonusPct(lvl){
+  const l = clamp(Math.round(Number(lvl) || 1), 1, 8);
+  return TRAINING_BONUS_BY_LEVEL[l] || (5 + (l - 1) * 11);
+}
+
+function facilityMonthlyCost(key, level){
+  const lvl = Math.max(0, Math.round(Number(level) || 0));
+  const table = FACILITY_MAINTENANCE_LEVELS[key];
+  if(Array.isArray(table)){
+    if(lvl < table.length) return table[lvl];
+    return table[table.length - 1];
+  }
+  return 5000;
+}
+
+function stadiumMonthlyCost(gameState = (typeof state !== 'undefined' ? state : null)){
+  if(!gameState) return 12000;
+  const stadLvl = Math.max(1, Math.min(6, Math.round(Number(gameState.infrastructure?.stadium?.level) || 1)));
+  const baseCost = FACILITY_MAINTENANCE_LEVELS.stadium[stadLvl] || 12000;
+  const cap = Number(gameState.infrastructure?.stadium?.capacity || gameState.stadiumCapacity) || 10000;
+  const capAdjustment = Math.max(0, Math.round((cap - 10000) / 1000) * 350);
+  return baseCost + capAdjustment;
+}
+
+function totalFacilitiesMonthlyExpense(gameState = (typeof state !== 'undefined' ? state : null)){
+  if(!gameState || !gameState.infrastructure) return 0;
+  let total = stadiumMonthlyCost(gameState);
+  for(const k of Object.keys(FACILITIES)){
+    if(k === 'stadium') continue;
+    const lvl = Math.max(0, Number(gameState.infrastructure[k]?.level) || (k === 'parking' ? 0 : 1));
+    total += facilityMonthlyCost(k, lvl);
+  }
+  return total;
+}
+
+function facilitiesExpensesPerRound(gameState = (typeof state !== 'undefined' ? state : null)){
+  return Math.round(totalFacilitiesMonthlyExpense(gameState) / 4);
+}
+
+if(typeof window !== 'undefined'){
+  window.FACILITY_MAINTENANCE_LEVELS = FACILITY_MAINTENANCE_LEVELS;
+  window.TRAINING_BONUS_BY_LEVEL = TRAINING_BONUS_BY_LEVEL;
+  window.trainingBonusPct = trainingBonusPct;
+  window.facilityMonthlyCost = facilityMonthlyCost;
+  window.stadiumMonthlyCost = stadiumMonthlyCost;
+  window.totalFacilitiesMonthlyExpense = totalFacilitiesMonthlyExpense;
+  window.facilitiesExpensesPerRound = facilitiesExpensesPerRound;
+}
+
 const SPONSOR_BRANDS=[
   {name:'iFood',category:'Master',color:'#ea1d2c',desc:'Delivery líder do Brasil',bonusWin:45000},
   {name:'Betano',category:'Master',color:'#f35b04',desc:'Casa de apostas oficial do Brasileirão',bonusWin:55000},
@@ -3128,7 +3202,7 @@ function openStadiumModal(initialTab){
                 <div>
                   <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5)">FINANÇAS DO ESTÁDIO</div>
                   <div style="font-size:20px;font-weight:900;color:#22c55e;margin-top:4px">${fmtMoney(state.balance)}</div>
-                  <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Caixa do Clube Disponível • Nível do Estádio: <b>${stadLevel}/8</b></div>
+                  <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px">Caixa do Clube Disponível • Nível do Estádio: <b>${stadLevel}/8</b> • Manutenção & Staff: <b style="color:#fbbf24">${fmtMoney(stadiumMonthlyCost(state))}/mês</b></div>
                 </div>
                 ${stadLevel < 8 ? `
                   <button class="btn primary btnUpgradeStadiumInModal" type="button" style="padding:10px 16px;font-size:12px;font-weight:900;border-radius:10px;background:linear-gradient(135deg, #7c3aed, #4f46e5);border:1px solid #a78bfa;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;box-shadow:0 4px 15px rgba(124,58,237,0.3)">
@@ -3601,6 +3675,10 @@ function openStadiumModal(initialTab){
                 </div>
                 <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:6px;line-height:1.4">
                   Estádio bem conservado atrai grandes shows e mantém a torcida feliz. Manutenção baixa (<40%) cansa mais os jogadores e traz risco de lesões.
+                </div>
+                <div style="margin-top:8px;padding:7px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.22);border-radius:8px;font-size:11px;color:#fbbf24;display:flex;justify-content:space-between;align-items:center">
+                  <span>💼 <b>Custo Fixo de Manutenção & Staff do Estádio:</b></span>
+                  <b>${fmtMoney(stadiumMonthlyCost(state))}/mês</b>
                 </div>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
@@ -17072,14 +17150,16 @@ function processDevelopment(){
   const lvl=state.infrastructure?.training?.level||1;
   const starters = new Set(state.lineup || []);
   const candidates=state.squad.filter(p=>(+p.age||25)<=25&&(p.potential||playerOverall(p))>playerOverall(p));
+  const ctBonus = typeof trainingBonusPct === 'function' ? trainingBonusPct(lvl) : (5 + (lvl - 1) * 11);
   for(const p of candidates){
     const starterBonus = starters.has(playerKey(p)) ? 8 : 0;
-    if((hashStr(playerKey(p)+'|'+state.round)%100)<8+lvl*3+starterBonus){
+    const ctChanceBonus = Math.round(ctBonus / 5);
+    if((hashStr(playerKey(p)+'|'+state.round)%100)<8+lvl*3+starterBonus+ctChanceBonus){
       const oldOvr = playerOverall(p);
       p.fc=clamp(playerOverall(p)+1,40,p.potential||94);
       p.pes=p.pes?clamp(+p.pes+1,40,99):p.fc;
       if(starters.has(playerKey(p)) && playerOverall(p) > oldOvr){
-        state.news.unshift(`⭐ EVOLUÇÃO: O jovem talento titular ${p.name} evoluiu para ${playerOverall(p)} OVR!`);
+        state.news.unshift(`⭐ EVOLUÇÃO: O jovem talento titular ${p.name} evoluiu para ${playerOverall(p)} OVR (CT Nível ${lvl} · +${ctBonus}% bônus de treino)!`);
       }
     }
   }
@@ -17147,9 +17227,10 @@ function finalizeRound(userRes, winners, isKO){
     const roundSponsor = Math.round(totalSponsorMonthly() / 4);
     const rev=gate+parkingRev+shop+bonus+roundSponsor;
     const payroll=payrollPerRound();
-    state.balance+=rev-payroll;
+    const facilitiesExp = typeof facilitiesExpensesPerRound === 'function' ? facilitiesExpensesPerRound(state) : 0;
+    state.balance+=rev-payroll-facilitiesExp;
     state.income+=rev;
-    state.expense+=payroll;
+    state.expense+=payroll+facilitiesExp;
 
     // Pagamento de Bônus de Desempenho Contratuais (Vitória e Gols)
     let totalContractBonuses = 0;
@@ -26462,7 +26543,7 @@ function upgradeFacility(key){
     state.marketingMonthly = state.marketingWeekly * 4;
     state.news.unshift(`📢 Aporte semanal de marketing reajustado em 20% após o upgrade: ${fmtMoney(state.marketingWeekly)}/semana.`);
   }
-  if(key==='training') state.news.unshift(`⚽ CENTRO DE TREINAMENTO NÍVEL ${f.level}: capacidade do elenco profissional ampliada para ${squadCapacity(f.level)} vagas (+3 por melhoria).`);
+  if(key==='training') state.news.unshift(`⚽ CENTRO DE TREINAMENTO NÍVEL ${f.level}: elenco ampliado para ${squadCapacity(f.level)} vagas e bônus de treino elevado para +${trainingBonusPct(f.level)}% no desenvolvimento dos atletas!`);
   if(key==='museum'||key==='stadium') state.trust.fans=clamp(state.trust.fans+4,0,100);
   if(key==='press') state.trust.board=clamp(state.trust.board+1,0,100);
   if(key==='academy') boostYouthAcademyOnUpgrade(f.level);
@@ -30527,7 +30608,7 @@ function squadPage(){
     <div class="hero">
       <div>
         <h1>Elenco do Clube</h1>
-        <div class="muted">${ps.length} jogadores no plantel · Limite de ${squadCapacity()} vagas (${Math.max(0, squadCapacity()-ps.length)} disponíveis) • Folha mensal: ${fmtMoney(totalMonthlyPayroll())}</div>
+        <div class="muted">${ps.length} jogadores no plantel · Limite de ${squadCapacity()} vagas (${Math.max(0, squadCapacity()-ps.length)} disponíveis) • Folha: ${fmtMoney(totalMonthlyPayroll())}/mês • Estrutura & Staff: ${fmtMoney(totalFacilitiesMonthlyExpense())}/mês</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btnOpenSquadReportsModal" id="btnOpenSquadReports" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;font-weight:900;box-shadow:0 2px 8px rgba(16,185,129,0.35);display:inline-flex;align-items:center;gap:6px" title="Ver perspetiva geral, lesões, suspensões, moral, contratos e juventude">
@@ -31954,7 +32035,12 @@ function structurePage(){
         <h1>Estrutura do Clube & Estádio</h1>
         <div class="muted">Ampliação do estádio anel por anel, nova arena do clube, museu histórico de taças e instalações</div>
       </div>
-      <span class="pill good">Caixa: ${fmtMoney(state.balance)}</span>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <span class="pill good">Caixa: ${fmtMoney(state.balance)}</span>
+        <span style="font-size:11px;color:#fbbf24;font-weight:800;background:rgba(245,158,11,0.12);padding:4px 10px;border-radius:6px;border:1px solid rgba(245,158,11,0.3)">
+          Manutenção & Staff Geral: <b>${fmtMoney(totalFacilitiesMonthlyExpense(state))}/mês</b> (${fmtMoney(facilitiesExpensesPerRound(state))}/rodada)
+        </span>
+      </div>
     </div>
 
     <!-- Sub-Abas de Estrutura -->
@@ -32005,6 +32091,10 @@ function structurePage(){
       <div style="font-size:12px;color:rgba(255,255,255,0.72)">
         🏟️ <b style="color:#38bdf8">Anéis liberados: ${Math.min(Number(stadiumFacility.level) || 1, FACILITIES.stadium.max)}/${FACILITIES.stadium.max}</b>
         <span style="margin-left:6px">${stadiumFacilityMax ? 'Todos os anéis estão disponíveis para obras.' : 'Evolua para liberar o próximo anel de arquibancadas.'}</span>
+        <div style="font-size:11px;color:#fbbf24;font-weight:700;margin-top:4px">
+          Manutenção & Staff do Estádio: <b>${fmtMoney(stadiumMonthlyCost(state))}/mês</b>
+          ${!stadiumFacilityMax ? `<span class="muted" style="margin-left:6px">(Próx. Anel: ~${fmtMoney(stadiumMonthlyCost({ ...state, infrastructure: { ...state.infrastructure, stadium: { ...stadiumFacility, level: stadiumFacility.level + 1 } } }))}/mês)</span>` : ''}
+        </div>
       </div>
       <button class="btn upgrade" data-facility="stadium" ${stadiumFacilityMax || state.balance < stadiumFacilityCost ? 'disabled' : ''} style="padding:7px 12px;font-size:11px;font-weight:800">
         ${stadiumFacilityMax ? 'Nível máximo' : `Liberar anel ${Math.min(Number(stadiumFacility.level) || 1, FACILITIES.stadium.max) + 1} · ${fmtMoney(stadiumFacilityCost)}`}
@@ -32023,6 +32113,10 @@ function structurePage(){
                 <div class="small">NÍVEL ${x.level}/${d.max}</div>
                 <h3>${d.name}</h3>
                 <p>${d.effect}</p>
+                <div class="facility-stat" style="color:#fbbf24;font-size:11px">
+                  Manutenção & Staff: <b>${fmtMoney(facilityMonthlyCost(k, x.level))}/mês</b>
+                  ${!max ? `<span class="muted" style="margin-left:4px">(Próx: ${fmtMoney(facilityMonthlyCost(k, x.level + 1))}/mês)</span>` : ''}
+                </div>
                 ${k==='stadium'?`<div class="facility-stat">Capacidade: <b>${(x.capacity||0).toLocaleString('pt-BR')} torcedores</b></div>`:''}
                 ${k==='parking'?`
                   <div class="facility-stat">Vagas: <b>${(parkingSpots(x.level) + (state.parkingConcession?.bonusInvestedSpaces || 0)).toLocaleString('pt-BR')} vagas</b> ${state.parkingConcession ? `<span class="pill good" style="font-size:10px;margin-left:4px">🤝 Concessão: ${esc(state.parkingConcession.companyName)} (+${state.parkingConcession.bonusInvestedSpaces} vagas)</span>` : ''}</div>
@@ -32033,7 +32127,10 @@ function structurePage(){
                   ` : ''}
                 `:''}
                 ${k==='academy'?`<div class="facility-stat" style="color:var(--neon)">Atletas na Base: <b>${normalizeYouthAcademyRoster(state).length}/${YOUTH_ACADEMY_CAPACITY} atletas (15 a 18 anos)</b></div>`:''}
-                ${k==='training'?`<div class="facility-stat" style="color:var(--cyan)">Vagas do elenco: <b>${squadCapacity(x.level)} jogadores</b> (+3 por nível)</div>`:''}
+                ${k==='training'?`
+                  <div class="facility-stat" style="color:var(--cyan)">Vagas do elenco: <b>${squadCapacity(x.level)} jogadores</b> (+3 por nível)</div>
+                  <div class="facility-stat" style="color:#10b981">Bônus de treino: <b>+${trainingBonusPct(x.level)}% no desenvolvimento</b> ${!max ? `<span class="muted" style="margin-left:4px">(Próx: +${trainingBonusPct(x.level + 1)}%)</span>` : ''}</div>
+                `:''}
                 ${k==='marketing'?`<div class="facility-stat" style="color:var(--cyan)">Aporte Semanal: <b>${fmtMoney(state.marketingWeekly||36000)}/semana</b></div>`:''}
                 ${k==='bank'?`
                   <div class="facility-stat" style="color:${(state.bankLoans||[]).some(l=>l.overdue)?'#ef4444':'#f59e0b'}">

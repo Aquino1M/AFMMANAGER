@@ -2,6 +2,25 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.36] - 2026-10-25 (Custos Operacionais Mensais por Estrutura & Estádio e Bônus de Treino do CT por Level)
+
+### 🏢 Gestão Realista de Estruturas & Estádio (`js/game.js`, `js/ui/training_center_modal.js` & `js/systems/player_xp_evolution.js`)
+
+- **Custos Mensais por Estrutura & Estádio (Manutenção & Salários dos Funcionários)**:
+  - Implementado sistema de despesas operacionais mensais para todas as 11 instalações do clube (`stadium`, `parking`, `training`, `academy`, `medical`, `admin`, `store`, `museum`, `press`, `marketing`, `bank`), refletindo a realidade de clubes profissionais.
+  - O custo de cada instalação cresce conforme o seu nível de evolução (1 a 8, ou 1 a 6 no estádio/estacionamento), cobrindo folha de funcionários especializados e manutenção predial/técnica.
+  - Para o estádio, o custo mensal considera tanto o nível dos anéis quanto a capacidade total de público (segurança por catraca, eletricidade dos refletores, equipes de limpeza e conservação do gramado).
+  - Dedução financeira balanceada por rodada (`facilitiesExpensesPerRound()`), integrada ao fluxo de caixa de `finalizeRound()`.
+  - Exibição transparente nos cards de `Estrutura do Clube & Estádio`, no cabeçalho do Estádio, nas abas de Estádio e no resumo financeiro do elenco em `Meu Time`.
+
+- **Centro de Treinamento: Bônus de Treinamento por Level**:
+  - Cada nível do Centro de Treinamento concede bônus progressivo no desenvolvimento dos atletas:
+    - Nível 1: +5% • Nível 2: +12% • Nível 3: +20% • Nível 4: +30%
+    - Nível 5: +42% • Nível 6: +55% • Nível 7: +70% • Nível 8: +85%
+  - Aplicado tanto na sessão de treino manual do técnico e do preparador físico (`executeTrainingSession`), quanto no processamento mensal de XP do elenco (`processMonthlyTrainingXP`) e na evolução periódica de jovens talentos (`processDevelopment`).
+  - Destaque visual no card do CT em `Estrutura do Clube` (mostrando bônus atual e próx. nível) e no topo do modal oficial de Treinamento.
+  - **Cache Busting v97 e SW v73**: Atualizados `sw.js` (`afm-2027-cache-v73`) e scripts no `index.html` para distribuição imediata.
+
 ## [3.9.35] - 2026-10-25 (Correção da Tribuna Social Oeste no 1º Anel da Maquete 3D & Cache Busting v96)
 
 ### 🏟️ Renderização Fiel do Setor Oeste na Maquete Low-Poly 3D (`js/core/stadium_lowpoly_engine.js`)

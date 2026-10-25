@@ -170,7 +170,7 @@
               <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 22px;">⚽</span>
                 <div>
-                  <div style="font-size: 10px; font-weight: 800; color: #10b981; letter-spacing: 1px; text-transform: uppercase;">CENTRO DE TREINAMENTO · NÍVEL ${ctLvl}/8 · BÔNUS +${Math.round((Math.max(1, Math.min(8, ctLvl)) - 1) * 8)}% XP</div>
+                  <div style="font-size: 10px; font-weight: 800; color: #10b981; letter-spacing: 1px; text-transform: uppercase;">CENTRO DE TREINAMENTO · NÍVEL ${ctLvl}/8 · BÔNUS +${typeof window.trainingBonusPct === 'function' ? window.trainingBonusPct(ctLvl) : Math.round(5 + (Math.max(1, Math.min(8, ctLvl)) - 1) * 11)}% NO TREINO (XP)</div>
                   <h2 style="margin: 0; font-size: 18px; font-weight: 900; color: #fff;">${esc(clubName)}</h2>
                 </div>
               </div>
@@ -493,10 +493,11 @@
     // Seleciona os exercícios ativos nos slots liberados
     const activeExercises = activeSlots.slice(0, unlockedCount).map(id => TRAINING_EXERCISES.find(e => e.id === id)).filter(Boolean);
 
-    // Instalações melhores aumentam o XP por sessão em todos os níveis do CT (1–8).
+    // Instalações melhores aumentam o XP por sessão com bônus por level do CT (1–8).
     // O preparador automático mantém metade do ganho da sessão manual equivalente.
     const trainingLevel = Math.max(1, Math.min(8, ctLvl));
-    const facilityBonus = 1 + (trainingLevel - 1) * 0.08;
+    const ctBonusPct = typeof window.trainingBonusPct === 'function' ? window.trainingBonusPct(trainingLevel) : (5 + (trainingLevel - 1) * 11);
+    const facilityBonus = 1 + (ctBonusPct / 100);
     const coachMult = (isAutoFitnessCoach ? 0.50 : 1.0) * facilityBonus;
 
     let totalSquadXP = 0;
@@ -556,7 +557,7 @@
 
     if (!isAutoFitnessCoach) {
       if (typeof window.toast === 'function') {
-        window.toast(`🏋️ Treino concluído! Bônus do CT nível ${trainingLevel}: +${Math.round((facilityBonus - 1) * 100)}% XP.`);
+        window.toast(`🏋️ Treino concluído! Bônus do CT nível ${trainingLevel}: +${ctBonusPct}% no ganho de XP dos atletas.`);
       }
       if (containerToUpdate) {
         renderModal(containerToUpdate);
