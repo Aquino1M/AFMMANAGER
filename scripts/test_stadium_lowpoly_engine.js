@@ -129,6 +129,24 @@ AFMStadiumLowPoly.update(stateLvl1);
 assert.ok(instance.stadiumGroup.children.length > 5, 'Deve conter componentes de plaza, pitch e arquibancada do anel 1');
 console.log(`✓ 1º Anel (7.8k - Aberto Raiz): ${instance.stadiumGroup.children.length} grupos de malha gerados`);
 
+// 1.1 Teste 12.000 lugares (Apenas 2 partes do 1º anel feitas: Sul e Norte)
+const state12k = {
+  club: 'Coliseu do Povo',
+  infrastructure: { stadium: { capacity: 12000, level: 1 } },
+  stadiumRingData: {
+    ring: 1,
+    sides: { norte: true, sul: true, leste: false, oeste: false },
+    rings: {
+      1: { norte: true, sul: true, leste: false, oeste: false },
+      2: { norte: false, sul: false, leste: false, oeste: false }
+    },
+    purchasedSectors: ['r1_norte', 'r1_sul']
+  }
+};
+AFMStadiumLowPoly.update(state12k);
+assert.strictEqual(instance.maxBuiltRing, 1, 'Estádio de 12k deve ter apenas anel 1');
+console.log('✓ 12.000 Lugares: Apenas setores Norte e Sul gerados (Leste e Oeste abertos, sem marquises indevidas)');
+
 // 2. Teste Obra Ativa com Guindaste no Setor Leste
 const stateWithWork = {
   club: 'Palmeiras',

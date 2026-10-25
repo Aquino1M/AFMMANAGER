@@ -41,6 +41,30 @@ const AFM_DB = (function(){
     else window.AFMErrorLog?.record(type, message, error instanceof Error ? { stack: error.stack } : {});
   }
 
+  let remoteConfigFetched = false;
+  async function loadRemoteVercelConfig(){
+    if(remoteConfigFetched) return;
+    remoteConfigFetched = true;
+    try {
+      if(typeof fetch === 'function'){
+        const resp = await fetch('/api/config', { cache: 'no-store' });
+        if(resp.ok){
+          const json = await resp.json();
+          if(json?.url && json?.key){
+            const cur = getConfig();
+            if(cur.url !== json.url || cur.key !== json.key){
+              console.info('[AFM_DB] Configuração Supabase sincronizada do Vercel com sucesso!');
+              localStorage.setItem('afm_supabase_config_v1', JSON.stringify({ url: json.url.trim(), key: json.key.trim() }));
+              client = null;
+              cloudCheckedAt = 0;
+              cloudAvailable = false;
+            }
+          }
+        }
+      }
+    } catch(e){}
+  }
+
   function getClient(){
     if(!client && window.supabase?.createClient){
       const cfg = getConfig();
@@ -50,6 +74,12 @@ const AFM_DB = (function(){
             auth: {
               persistSession: false,
               autoRefreshToken: false
+            },
+            global: {
+              headers: {
+                'apikey': cfg.key,
+                'Authorization': `Bearer ${cfg.key}`
+              }
             }
           });
           window.supabaseClient = client;
@@ -76,13 +106,16 @@ const AFM_DB = (function(){
 
     try {
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const timeoutId = controller ? setTimeout(() => controller.abort(), 2500) : null;
-      const resp = await fetch(`${cfg.url}/rest/v1/`, {
-        headers: { 'apikey': cfg.key },
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 4000) : null;
+      const resp = await fetch(`${cfg.url.replace(/\/+$/, '')}/rest/v1/afm_saves?select=id&limit=1`, {
+        headers: {
+          'apikey': cfg.key,
+          'Authorization': `Bearer ${cfg.key}`
+        },
         signal: controller?.signal
       });
       if(timeoutId) clearTimeout(timeoutId);
-      cloudAvailable = (resp.status >= 200 && resp.status < 500);
+      cloudAvailable = (resp.status >= 200 && resp.status < 300);
     } catch(e){
       cloudAvailable = false;
     }
@@ -114,6 +147,9 @@ const AFM_DB = (function(){
   function init(){
     if(initPromise) return initPromise;
     initPromise = (async () => {
+      // 0. Sincronizar credenciais da Vercel se disponíveis
+      await loadRemoteVercelConfig();
+
       // 1. Restaurar sessão local IMEDIATAMENTE (0ms)
       const savedUser = typeof localStorage !== 'undefined' ? localStorage.getItem('afm_active_user_v1') : null;
       if(savedUser){
@@ -165,7 +201,7 @@ const AFM_DB = (function(){
     // 1. Tentar validar na nuvem (Supabase afm_users) se o cliente estiver disponível
     if(cli){
       try {
-        const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2500));
+        const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000));
         const cloudQuery = cli
           .from('afm_users')
           .select('*')
@@ -599,6 +635,140 @@ const AFM_DB = (function(){
     }
   }
 
+  // Recuperação direta e forçada de saves do Supabase Cloud (útil em troca de domínio Vercel)
+  async function restoreSavesDirectly(targetUsername){
+    const cleanUser = String(targetUsername || '').trim().toLowerCase();
+    if(!cleanUser) return { ok: false, error: 'Informe o nome de usuário da sua conta.' };
+
+    await init();
+    let saves = [];
+
+    // 1. Tentar via Supabase Client direto
+    try {
+      const cli = getClient();
+      if(cli){
+        const { data, error } = await cli
+          .from('afm_saves')
+          .select('*')
+          .ilike('username', cleanUser)
+          .order('slot', { ascending: true });
+        if(!error && Array.isArray(data) && data.length > 0){
+          saves = data;
+        }
+      }
+    } catch(e){
+      recordHandledError('restore-direct-client', e);
+    }
+
+    // 2. Se falhou ou não encontrou, tentar via Endpoint Serverless Vercel (/api/restore-saves)
+    if(saves.length === 0 && typeof fetch === 'function'){
+      try {
+        const resp = await fetch(`/api/restore-saves?username=${encodeURIComponent(cleanUser)}`, { cache: 'no-store' });
+        if(resp.ok){
+          const json = await resp.json();
+          if(json?.ok && Array.isArray(json.saves) && json.saves.length > 0){
+            saves = json.saves;
+          }
+        }
+      } catch(e){
+        recordHandledError('restore-direct-api', e);
+      }
+    }
+
+    // 3. Fallback adicional via REST API direta do Supabase
+    if(saves.length === 0 && typeof fetch === 'function'){
+      try {
+        const cfg = getConfig();
+        const endpoint = `${cfg.url.replace(/\/+$/, '')}/rest/v1/afm_saves?username=ilike.${encodeURIComponent(cleanUser)}&select=*&order=slot.asc`;
+        const resp = await fetch(endpoint, {
+          headers: {
+            'apikey': cfg.key,
+            'Authorization': `Bearer ${cfg.key}`
+          }
+        });
+        if(resp.ok){
+          const data = await resp.json();
+          if(Array.isArray(data) && data.length > 0){
+            saves = data;
+          }
+        }
+      } catch(e){
+        recordHandledError('restore-direct-rest', e);
+      }
+    }
+
+    if(saves.length === 0){
+      return { ok: false, error: `Nenhum save encontrado na nuvem para "@${cleanUser}". Verifique se o nome foi digitado corretamente.` };
+    }
+
+    // 4. Salvar na persistência local do navegador
+    try {
+      const storageKey = 'afm_accounts_v1';
+      const accounts = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      let account = accounts.find(item => (item.username || '').toLowerCase() === cleanUser);
+      if(!account){
+        account = { username: cleanUser, name: cleanUser, role: 'player', saves: [] };
+        accounts.push(account);
+      }
+      account.saves = account.saves || [];
+
+      let primarySaveData = null;
+
+      for(const row of saves){
+        const slot = Number(row.slot) || 1;
+        const entry = {
+          slot,
+          id: `save_${cleanUser}_slot${slot}_${row.club}`,
+          owner: cleanUser,
+          club: row.club,
+          manager: row.manager || 'Treinador',
+          season: Number(row.season) || 2026,
+          round: Number(row.round) || 0,
+          balance: Number(row.balance) || 0,
+          updatedAt: row.updated_at || new Date().toISOString(),
+          data: row.save_data
+        };
+
+        if(entry.data && typeof window !== 'undefined' && typeof window.purgeBuggedExploitPlayers === 'function'){
+          window.purgeBuggedExploitPlayers(entry.data);
+        }
+
+        localStorage.setItem(`afm_save_slot_${slot}`, JSON.stringify(entry));
+        localStorage.setItem(`afm_save_${cleanUser}_slot_${slot}`, JSON.stringify(entry));
+        if(slot === 1 && row.save_data){
+          primarySaveData = row.save_data;
+          localStorage.setItem('aquino_futebol_manager_2026_v1', JSON.stringify(row.save_data));
+        }
+
+        const idx = account.saves.findIndex(item => Number(item.slot) === slot);
+        if(idx < 0) account.saves.push({ ...entry, data: undefined });
+        else account.saves[idx] = { ...entry, data: undefined };
+      }
+
+      localStorage.setItem(storageKey, JSON.stringify(accounts));
+      localStorage.setItem('afm_active_user_v1', cleanUser);
+      currentUser = {
+        id: account.id || cleanUser,
+        username: cleanUser,
+        name: account.name || cleanUser,
+        role: account.role || (cleanUser === 'admin' ? 'admin' : 'player')
+      };
+
+      if(primarySaveData && typeof window !== 'undefined'){
+        window.state = primarySaveData;
+      }
+
+      return {
+        ok: true,
+        user: currentUser,
+        savesCount: saves.length,
+        saves: saves.map(s => ({ slot: s.slot, club: s.club, season: s.season, manager: s.manager }))
+      };
+    } catch(err){
+      return { ok: false, error: 'Falha ao gravar os saves localmente: ' + err.message };
+    }
+  }
+
   async function adminGetUsers(){
     await init();
     const cli = getClient();
@@ -751,6 +921,8 @@ const AFM_DB = (function(){
     adminUpsertUser,
     adminDeleteUser,
     adminGetAllSaves,
+    restoreSavesDirectly,
+    loadRemoteVercelConfig,
     getClient,
     getConfig,
     setCustomConfig,

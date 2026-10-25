@@ -118,8 +118,9 @@
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
       // 4. Controles Orbitais
-      if (window.THREE.OrbitControls) {
-        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+      const OrbitCtrl = (window.THREE && window.THREE.OrbitControls) || window.OrbitControls;
+      if (OrbitCtrl) {
+        this.controls = new OrbitCtrl(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.08;
         this.controls.maxPolarAngle = Math.PI / 2 - 0.05;
@@ -219,14 +220,43 @@
       palette.accent = stadiumCustomization.accentColor || palette.accent;
       let cap = Number(state?.infrastructure?.stadium?.capacity || state?.stadiumCapacity || 7800);
       
-      // Obtém dados dos anéis de ampliação
+      // Obtém dados dos anéis de ampliação da carreira
       const stData = (typeof window.getStadiumExpansionData === 'function')
         ? window.getStadiumExpansionData()
-        : (state?.stadiumRingData || { ring: 1, rings: { 1: { norte: true, sul: true, leste: true, oeste: true } } });
+        : (state?.stadiumRingData || { ring: 1, rings: { 1: { norte: true, sul: true, leste: false, oeste: false } } });
 
       const ring = Number(stData?.ring || 1);
-      let rings = stData?.rings || { 1: { norte: true, sul: true, leste: true, oeste: true } };
+      let rings = JSON.parse(JSON.stringify(stData?.rings || {
+        1: { norte: true, sul: false, leste: false, oeste: false },
+        2: { norte: false, sul: false, leste: false, oeste: false },
+        3: { norte: false, sul: false, leste: false, oeste: false },
+        4: { norte: false, sul: false, leste: false, oeste: false },
+        5: { norte: false, sul: false, leste: false, oeste: false },
+        6: { norte: false, sul: false, leste: false, oeste: false }
+      }));
       const activeWork = stData?.activeWork || null;
+
+      // Sincronização estrita de setores com os dados reais do save
+      if (stData?.sides && ring === 1) {
+        rings[1] = rings[1] || {};
+        rings[1].norte = !!stData.sides.norte;
+        rings[1].sul = !!stData.sides.sul;
+        rings[1].leste = !!stData.sides.leste;
+        rings[1].oeste = !!stData.sides.oeste;
+      }
+
+      // Estádio com até 14.000 lugares (ex: 12.000 do usuário):
+      // Apenas os setores Norte e Sul estão construídos no 1º anel. Leste e Oeste permanecem abertos!
+      if (!params.isArena && cap <= 14000) {
+        rings[1] = rings[1] || {};
+        rings[1].norte = (cap > 5000);
+        rings[1].sul = (cap > 8500);
+        rings[1].leste = false;
+        rings[1].oeste = false;
+        for (let r = 2; r <= 6; r++) {
+          rings[r] = { norte: false, sul: false, leste: false, oeste: false };
+        }
+      }
 
       // Se estiver na aba Arena, gera a maquete simulada da capacidade selecionada
       if (params.isArena && params.selectedArenaCapacity) {

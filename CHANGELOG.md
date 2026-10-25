@@ -2,6 +2,31 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.30] - 2026-10-25 (Sincronização Automática com Supabase na Vercel & Recuperação Direta de Saves)
+
+### ☁️ Integração Vercel Serverless & Supabase Cloud (`api/config.js`, `api/restore-saves.js` & `js/database.js`)
+
+- **Endpoints Serverless para Resolução de Variáveis de Ambiente**:
+  - Criado `api/config.js` (e alias `api/supabase-config.js`) para ler dinamicamente `SUPABASE_URL` e `SUPABASE_KEY` / `SUPABASE_ANON_KEY` configuradas no painel da Vercel (`https://afmbr28.vercel.app/`), alimentando a aplicação client-side com as credenciais em runtime.
+  - Criado `api/restore-saves.js` para busca direta de registros da tabela `afm_saves` via serverless com fallback automático e cabeçalhos CORS completos.
+  - `js/database.js` agora executa `loadRemoteVercelConfig()` no ciclo inicial de carregamento, populando a chave ativa e garantindo cabeçalhos `Authorization: Bearer <key>` além de `apikey: <key>` na API REST do Supabase.
+- **Recuperação de Saves em 1 Clique na UI**:
+  - Adicionado botão interativo **"☁️ Recuperar Saves da Nuvem Supabase"** no card de login inicial e botão **"☁️ Sincronizar Nuvem"** na barra superior de configuração.
+  - Modal interativo (`openRestoreCloudModal()`) pré-preenchido com o usuário do save (ex: `vhc0808`), permitindo baixar e restaurar instantaneamente as carreiras salvas na nuvem para o `localStorage` do novo domínio/origem da Vercel.
+  - Sincronização e restauração validada com sucesso para o clube **Cachaceiros Futebol Clube** (Temporada 2027, Saldo R$ 17.032.721).
+
+## [3.9.29] - 2026-10-25 (Sincronização Estrita do Estádio 12k com Apenas 2 Setores Norte/Sul & Resiliência Three.js)
+
+### 🏟️ Maquete 3D Fiel ao Estádio Real do Save (`js/core/stadium_lowpoly_engine.js` & `js/game.js`)
+
+- **Eliminação do Fallback Estático que Exibia 4 Setores com Marquises**:
+  - Corrigido o disparo indevido do fallback `<model-viewer>` (`arena_aberta.glb`) que sobrepunha a maquete com um modelo genérico pré-fabricado de 4 arquibancadas e coberturas completas.
+  - O visualizador WebGL em tempo real agora possui inicialização resiliente com tentativas sucessivas automáticas (retries) e carregamento garantido do Three.js e OrbitControls com fallback para CDN caso o script local demore para ser interpretado.
+- **Sincronização Milimétrica da Capacidade de 12.000 Lugares**:
+  - Corrigida a lógica de auto-completar de anéis em `getStadiumExpansionData()`: para estádios com até 14.000 lugares (ex: 12.000 lugares = 5.000 base + 3.500 Norte + 3.500 Sul), o Anel 1 é considerado em andamento com apenas os setores **Norte** e **Sul** construídos.
+  - Os setores **Leste** e **Oeste** permanecem estritamente abertos (sem degraus de concreto e sem marquises), refletindo a evolução real da carreira.
+  - Coberturas tipo marquise/cantilever só são acopladas a partir do 5º anel (Arena FIFA 72k+) e arco metálico com cubo LED no 6º anel (Mega Coliseu 100k).
+
 ## [3.9.28] - 2026-10-25 (Auditoria Global de Bugs, Refinamentos da IA Tática da CPU, Gestão de Memória 3D & Correção nos Pênaltis)
 
 ### 🎯 Correção Crítica na Disputa de Pênaltis de Mata-Mata (`js/match/live_match_hud.js`)

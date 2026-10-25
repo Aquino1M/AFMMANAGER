@@ -27,6 +27,7 @@
     "test:offer-expiry": "node scripts/test-offer-expiry.js",
     "test:economy-stadium-rules": "node scripts/test-economy-stadium-rules.js",
     "test:stadium-and-encoding": "node scripts/test-stadium-and-encoding-fix.js",
+    "test:vercel-restore": "node scripts/test-vercel-supabase-restore.js",
     "start": "npx serve .",
     "dev": "npx serve ."
   },

@@ -2640,27 +2640,58 @@ function installPitchType(type){
 function clubStadiumName(targetClub){
   const st = (typeof state !== 'undefined' && state) ? state : (window && window.state ? window.state : null);
   const cName = targetClub || st?.club;
+  const realStad = (typeof window !== 'undefined' && typeof window.getClubStadiumInfo === 'function')
+    ? window.getClubStadiumInfo(cName)
+    : (typeof getClubStadiumInfo === 'function' ? getClubStadiumInfo(cName) : null);
+  const realName = realStad?.name;
+
+  if(targetClub && st?.club && typeof norm === 'function' && norm(targetClub) !== norm(st.club)){
+    return realName || (typeof clubByName === 'function' && clubByName(targetClub)?.stadium) || `Estádio do ${targetClub}`;
+  }
+
   if(st && (!targetClub || (typeof norm === 'function' && norm(targetClub) === norm(st.club)))){
-    if(st.stadiumCustomization?.name) return st.stadiumCustomization.name;
     if(st.namingRights && st.namingRights.stadiumName){
       return st.namingRights.stadiumName;
     }
     const isRealBrasilia = typeof norm === 'function' && norm(cName) === norm('Real Brasília');
-    if(st.stadiumName && (isRealBrasilia || !String(st.stadiumName).includes('Defelê'))){
+    const isArucOrSobradinho = typeof norm === 'function' && (norm(cName) === norm('ARUC') || norm(cName) === norm('Sobradinho'));
+    const isCorrupted = (str) => {
+      if(!str) return false;
+      const s = String(str);
+      if(s === 'Estádio do clube' || s === 'Arena Oficial' || s === 'Arena Municipal' || s === 'Estádio Municipal') return true;
+      if(!isRealBrasilia && s.includes('Defelê')) return true;
+      if(!isArucOrSobradinho && (s.includes('Augustinho') || s.includes('Pires de Lima'))) return true;
+      return false;
+    };
+
+    if(st.stadiumCustomization?.name && !isCorrupted(st.stadiumCustomization.name)){
+      return st.stadiumCustomization.name;
+    }
+    if(st.stadiumName && !isCorrupted(st.stadiumName)){
       return st.stadiumName;
     }
-    if(st.stadium?.name && (isRealBrasilia || !String(st.stadium.name).includes('Defelê'))){
+    if(st.stadium?.name && !isCorrupted(st.stadium.name)){
       return st.stadium.name;
     }
-    if(st.infrastructure?.stadium?.name && (isRealBrasilia || !String(st.infrastructure.stadium.name).includes('Defelê'))){
+    if(st.infrastructure?.stadium?.name && !isCorrupted(st.infrastructure.stadium.name)){
       return st.infrastructure.stadium.name;
     }
+
+    // Auto-cura caso estivesse contaminado por save antigo
+    if(realName){
+      if(st.stadiumName && isCorrupted(st.stadiumName)) st.stadiumName = realName;
+      if(st.stadium && isCorrupted(st.stadium.name)) st.stadium.name = realName;
+      if(st.stadiumCustomization && isCorrupted(st.stadiumCustomization.name)) st.stadiumCustomization.name = realName;
+      if(st.infrastructure?.stadium && isCorrupted(st.infrastructure.stadium.name)) st.infrastructure.stadium.name = realName;
+      return realName;
+    }
   }
+
   const clubObj = typeof clubByName === 'function' ? clubByName(cName) : null;
-  if(clubObj && clubObj.stadium) {
+  if(clubObj && clubObj.stadium && clubObj.stadium !== 'Estádio do clube') {
     return clubObj.stadium;
   }
-  return cName ? `Estádio do ${cName}` : 'Estádio Municipal';
+  return realName || (cName ? `Estádio do ${cName}` : 'Estádio Municipal');
 }
 
 function getCaldeiraoData(){
@@ -2771,7 +2802,7 @@ function openStadiumModal(initialTab){
   }
   el.style.display = 'block';
 
-  const sName = (state?.stadiumCustomization?.name || state?.stadiumName || clubStadiumName());
+  const sName = clubStadiumName();
   const stadLevel = Number(state?.infrastructure?.stadium?.level) || 1;
   const namingMult = 1 + (stadLevel - 1) * 0.45;
   const cap = state?.infrastructure?.stadium?.capacity || 3000;
@@ -2781,7 +2812,7 @@ function openStadiumModal(initialTab){
   // A prévia é um rascunho local; só confirmar altera o estado persistido.
   const activeStadiumCustomization = state.stadiumCustomization;
   const stadiumCustomization = state.stadiumCustomization;
-  if(!stadiumCustomization.name) stadiumCustomization.name = state.stadiumName || state.stadium?.name || state.customClub?.stadiumName || '';
+  if(!stadiumCustomization.name || stadiumCustomization.name === 'Estádio do clube' || stadiumCustomization.name === 'Arena Oficial') stadiumCustomization.name = sName;
   if(!stadiumSelectedSide) stadiumSelectedSide = 'norte';
   const u = {
     ...(state?.stadiumUpgrades || {}),
@@ -2792,6 +2823,9 @@ function openStadiumModal(initialTab){
 
   // Resolução da maquete 3D dinâmica para o modo 3D
   const userClub = state?.club || 'Clube';
+  const stadInfo = (typeof window !== 'undefined' && typeof window.getClubStadiumInfo === 'function')
+    ? window.getClubStadiumInfo(userClub)
+    : (typeof getClubStadiumInfo === 'function' ? getClubStadiumInfo(userClub) : { city: 'São Paulo', state: 'SP' });
   let model3D = null;
   if (typeof window.AFMStadium3D !== 'undefined' && typeof window.AFMStadium3D.resolveStadiumModel === 'function') {
     if (isArena) {
@@ -3056,7 +3090,7 @@ function openStadiumModal(initialTab){
                 ${esc(sName)}
               </h2>
               <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">
-                Núcleo Bandeirante · DF · <b>${cap.toLocaleString('pt-BR')} lugares</b> · casa também de ARUC
+                ${esc(stadInfo.city)} · ${esc(stadInfo.state)} · <b>${cap.toLocaleString('pt-BR')} lugares</b> · Casa do ${esc(state?.club || 'Clube')}
               </div>
             </div>
             <button class="btn" id="btnCloseStadiumModal" style="background:rgba(255,255,255,0.08);border:none;padding:6px 10px;font-size:14px;border-radius:8px">✕</button>
@@ -3488,7 +3522,7 @@ function openStadiumModal(initialTab){
 
                 <label style="display:block;margin-top:14px;font-size:11px;font-weight:800;color:rgba(255,255,255,0.6)">3. NOME DA NOVA ARENA:</label>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
-                  ${['Arena Real Brasília', 'Estádio Real Brasília', 'Arena Núcleo Bandeirante', 'Nova Arena Real Brasília'].map(name => `
+                  ${[`Arena ${state?.club || 'do Clube'}`, `Estádio ${state?.club || 'do Clube'}`, `Nova Arena ${state?.club || 'do Clube'}`, `Parque ${state?.club || 'do Clube'}`].map(name => `
                     <button class="btn btnSelectArenaName ${selectedArenaName===name?'primary':''}" data-aname="${esc(name)}" style="font-size:11px;padding:8px 6px;border-radius:8px;font-weight:800;${selectedArenaName===name?'background:#7c3aed;color:#fff;border-color:#a855f7;box-shadow:0 0 10px rgba(168,85,247,0.4)':''}">
                       ${esc(name)}
                     </button>
@@ -3677,39 +3711,51 @@ function openStadiumModal(initialTab){
 
   // Inicialização e atualização da Maquete Low-Poly 3D Progressiva (Three.js WebGL)
   if (stadiumVisualMode === '3d') {
-    const canvas = document.getElementById('afmStadiumLowPolyCanvas');
-    const fb = document.getElementById('afmStadiumFallbackViewer');
-    if (canvas && window.THREE && window.AFMStadiumLowPoly) {
-      try {
-        if (fb) fb.style.display = 'none';
-        canvas.style.display = 'block';
-        window.AFMStadiumLowPoly.init(canvas);
-        const previewState = stadiumCustomizationPreview
-          ? { ...state, stadiumCustomization: { ...(state.stadiumCustomization || {}), ...stadiumCustomizationPreview } }
-          : state;
-        window.AFMStadiumLowPoly.update(previewState, {
-          selectedSide: stadiumSelectedSide,
-          previewUpgrade: stadiumPreviewUpgrade,
-          isArena: isArena,
-          selectedArenaCapacity: selectedArenaCapacity,
-          isExp: isExp
-        });
+    let retries = 0;
+    const initThreeStadium = () => {
+      const canvas = document.getElementById('afmStadiumLowPolyCanvas');
+      const fb = document.getElementById('afmStadiumFallbackViewer');
+      if (canvas && window.THREE && window.AFMStadiumLowPoly) {
+        try {
+          if (fb) fb.style.display = 'none';
+          canvas.style.display = 'block';
+          window.AFMStadiumLowPoly.init(canvas);
+          const previewState = stadiumCustomizationPreview
+            ? { ...state, stadiumCustomization: { ...(state.stadiumCustomization || {}), ...stadiumCustomizationPreview } }
+            : state;
+          window.AFMStadiumLowPoly.update(previewState, {
+            selectedSide: stadiumSelectedSide,
+            previewUpgrade: stadiumPreviewUpgrade,
+            isArena: isArena,
+            selectedArenaCapacity: selectedArenaCapacity,
+            isExp: isExp
+          });
 
-        // Foco de câmera inteligente para melhoria em prévia ou setor em ampliação
-        if (stadiumPreviewUpgrade) {
-          window.AFMStadiumLowPoly.setCameraPreset(stadiumPreviewUpgrade);
-        } else if (isExp && stadiumSelectedSide) {
-          window.AFMStadiumLowPoly.setCameraPreset(stadiumSelectedSide);
+          // Foco de câmera inteligente para melhoria em prévia ou setor em ampliação
+          if (stadiumPreviewUpgrade) {
+            window.AFMStadiumLowPoly.setCameraPreset(stadiumPreviewUpgrade);
+          } else if (isExp && stadiumSelectedSide) {
+            window.AFMStadiumLowPoly.setCameraPreset(stadiumSelectedSide);
+          }
+          return;
+        } catch (err) {
+          console.warn('[AFMStadiumLowPoly] Erro ao renderizar Three.js:', err);
         }
-      } catch (err) {
-        console.warn('[AFMStadiumLowPoly] Erro ao renderizar Three.js, ativando fallback:', err);
-        if (fb) fb.style.display = 'block';
-        if (canvas) canvas.style.display = 'none';
       }
-    } else {
-      if (fb) fb.style.display = 'block';
-      if (canvas) canvas.style.display = 'none';
-    }
+      if (retries < 25) {
+        retries++;
+        setTimeout(initThreeStadium, 80);
+      } else {
+        const canvasEl = document.getElementById('afmStadiumLowPolyCanvas');
+        const fallbackEl = document.getElementById('afmStadiumFallbackViewer');
+        // Se WebGL inicializou mesmo que com aviso, não force o fallback poster
+        if (!window.THREE || !window.AFMStadiumLowPoly) {
+          if (fallbackEl) fallbackEl.style.display = 'block';
+          if (canvasEl) canvasEl.style.display = 'none';
+        }
+      }
+    };
+    initThreeStadium();
   } else {
     if (window.AFMStadiumLowPoly) window.AFMStadiumLowPoly.dispose();
   }
@@ -6411,12 +6457,33 @@ function getStadiumExpansionData(){
 
   // Self-healing: Se o usuário só comprou o Norte, ou a capacidade é <= 8500 lugares
   // (5.000 base + 3.500 do setor Norte), reverte o auto-completar indevido que marcava 4/4
+  // Self-healing de setores conforme capacidade física real:
+  // Base 5.000 + Norte (+3.500) = 8.500 | + Sul (+3.500) = 12.000 | + Leste (+3.500) = 15.500 | + Oeste (+1.750) = 17.250 / 18.000 (1º anel completo)
   const currentCap = Math.max(0, Number(state.infrastructure?.stadium?.capacity) || 0);
-  if(st.rings[1]?.norte && st.rings[1]?.sul && st.rings[1]?.leste && st.rings[1]?.oeste && currentCap <= 8500){
-    st.rings[1].sul = false;
-    st.rings[1].leste = false;
-    st.rings[1].oeste = false;
-    st.purchasedSectors = st.purchasedSectors.filter(k => k === 'r1_norte');
+  if(st.rings[1]){
+    if(currentCap <= 8500 && currentCap > 5000){
+      st.rings[1].norte = true;
+      st.rings[1].sul = false;
+      st.rings[1].leste = false;
+      st.rings[1].oeste = false;
+      st.purchasedSectors = st.purchasedSectors.filter(k => k === 'r1_norte');
+      if(!st.purchasedSectors.includes('r1_norte')) st.purchasedSectors.push('r1_norte');
+    } else if(currentCap <= 12500 && currentCap > 8500){
+      // Estádio de 12.000 lugares: exatamente 2 setores concluídos (Norte e Sul). Leste e Oeste permanecem não comprados!
+      st.rings[1].norte = true;
+      st.rings[1].sul = true;
+      st.rings[1].leste = false;
+      st.rings[1].oeste = false;
+      st.purchasedSectors = st.purchasedSectors.filter(k => k === 'r1_norte' || k === 'r1_sul');
+      if(!st.purchasedSectors.includes('r1_norte')) st.purchasedSectors.push('r1_norte');
+      if(!st.purchasedSectors.includes('r1_sul')) st.purchasedSectors.push('r1_sul');
+    } else if(currentCap <= 16000 && currentCap > 12500){
+      st.rings[1].norte = true;
+      st.rings[1].sul = true;
+      st.rings[1].leste = true;
+      st.rings[1].oeste = false;
+      st.purchasedSectors = st.purchasedSectors.filter(k => k === 'r1_norte' || k === 'r1_sul' || k === 'r1_leste');
+    }
   }
 
   // Migração transparente de saves legados que só tinham st.sides
@@ -6438,15 +6505,14 @@ function getStadiumExpansionData(){
     }
   });
 
-  // A capacidade inicial define quantos anéis já existiam em saves legados.
-  // Clubes com estádio de 8.500 lugares (5.000 base + 3.500 Norte) não têm anel 1 completo.
+  // A capacidade define quantos anéis completos já existiam em saves legados
   const capacity = Math.max(0, Number(state.infrastructure?.stadium?.capacity) || 0);
   const capacityRing = capacity >= 100000 ? 6
-    : capacity >= 72160 ? 5
-    : capacity >= 49000 ? 4
-    : capacity >= 30640 ? 3
-    : capacity >= 18000 ? 2
-    : (capacity >= 7000 && capacity !== 8500 && (!st.purchasedSectors || !st.purchasedSectors.includes('r1_norte') || st.purchasedSectors.length > 1)) ? 1 : 0;
+    : capacity >= 72160 ? 4
+    : capacity >= 49000 ? 3
+    : capacity >= 30640 ? 2
+    : capacity >= 18000 ? 1
+    : 0;
   let contiguousCompleteRings = 0;
   for(let ring = 1; ring <= 6; ring++){
     if(['norte', 'sul', 'leste', 'oeste'].every(side => st.rings[ring][side] === true)) contiguousCompleteRings = ring;
@@ -10718,17 +10784,45 @@ function inferClubMeta(p){
 
 function buildClubs(){
   const map=new Map();
-  (window.BASE_CLUBS||[]).forEach(c=>map.set(norm(c.name),clone(c)));
+  (window.BASE_CLUBS||[]).forEach(c => {
+    const item = clone(c);
+    const sInfo = (typeof getClubStadiumInfo === 'function') ? getClubStadiumInfo(item.name) : (window.getClubStadiumInfo ? window.getClubStadiumInfo(item.name) : null);
+    if (sInfo?.stadium && (!item.stadium || item.stadium === 'Estádio do clube' || item.stadium.toLowerCase().startsWith('estádio ' + item.name.toLowerCase()))) {
+      item.stadium = sInfo.stadium;
+    }
+    map.set(norm(item.name), item);
+  });
   const liveByClub={};
   for(const p of livePlayers){if(!p.club)continue;(liveByClub[p.club]??=[]).push(p)}
   for(const [name,ps] of Object.entries(liveByClub)){
     const vals=ps.map(playerOverall).filter(Boolean);const avg=Math.round(vals.reduce((a,b)=>a+b,0)/(vals.length||1));const key=norm(name);const existing=map.get(key);const meta=inferClubMeta(ps[0]);
-    if(existing){existing.atk=Math.round(((existing.atk||avg)+avg)/2);existing.mid=Math.round(((existing.mid||avg)+avg)/2);existing.def=Math.round(((existing.def||avg)+avg)/2);existing.playerCount=ps.length;}
-    else map.set(key,{name,country:meta.country,competition:meta.competition,stadium:'Estádio do clube',atk:avg,mid:avg,def:avg,budget:Math.max(.4,(avg-52)*2.2),playerCount:ps.length});
+    const sInfo = (typeof getClubStadiumInfo === 'function') ? getClubStadiumInfo(name) : (window.getClubStadiumInfo ? window.getClubStadiumInfo(name) : null);
+    const stadName = sInfo?.stadium || 'Estádio do clube';
+    if(existing){
+      existing.atk=Math.round(((existing.atk||avg)+avg)/2);
+      existing.mid=Math.round(((existing.mid||avg)+avg)/2);
+      existing.def=Math.round(((existing.def||avg)+avg)/2);
+      existing.playerCount=ps.length;
+      if (!existing.stadium || existing.stadium === 'Estádio do clube') existing.stadium = stadName;
+    }
+    else map.set(key,{name,country:meta.country,competition:meta.competition,stadium:stadName,atk:avg,mid:avg,def:avg,budget:Math.max(.4,(avg-52)*2.2),playerCount:ps.length});
   }
   for(const [compId,names] of Object.entries(teamMap)){
     const comp=compById(compId);if(!comp)continue;const base=compBaseStrength(comp);
-    names.forEach((name,i)=>{const key=norm(name);if(!map.has(key)){const wiggle=(hashStr(name)%7)-3;const s=clamp(base+wiggle,48,88);map.set(key,{name,country:comp.country==='CONMEBOL'||comp.country==='UEFA'||comp.country==='AFC'?'Outro':comp.country,competition:comp.name,stadium:'Estádio do clube',atk:s+rnd(-1,1),mid:s+rnd(-1,1),def:s+rnd(-1,1),budget:Math.max(.25,Math.pow(Math.max(3,s-48),1.35)/2.6)});}});
+    names.forEach((name,i)=>{
+      const key=norm(name);
+      const sInfo = (typeof getClubStadiumInfo === 'function') ? getClubStadiumInfo(name) : (window.getClubStadiumInfo ? window.getClubStadiumInfo(name) : null);
+      const stadName = sInfo?.stadium || 'Estádio do clube';
+      if(!map.has(key)){
+        const wiggle=(hashStr(name)%7)-3;const s=clamp(base+wiggle,48,88);
+        map.set(key,{name,country:comp.country==='CONMEBOL'||comp.country==='UEFA'||comp.country==='AFC'?'Outro':comp.country,competition:comp.name,stadium:stadName,atk:s+rnd(-1,1),mid:s+rnd(-1,1),def:s+rnd(-1,1),budget:Math.max(.25,Math.pow(Math.max(3,s-48),1.35)/2.6)});
+      } else {
+        const exist = map.get(key);
+        if (exist && (!exist.stadium || exist.stadium === 'Estádio do clube')) {
+          exist.stadium = stadName;
+        }
+      }
+    });
   }
   return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
 }
@@ -35933,6 +36027,117 @@ function renderLandingNavbar(activeTab){
 // 2. Não exibir botão de página inicial no topbar dos saves.
 // 3. O retorno à página inicial só ocorre no logout ('🚪 Sair da Conta').
 // =========================================================================
+
+function openRestoreCloudModal(defaultUser = ''){
+  let modal = document.getElementById('afmRestoreCloudModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'afmRestoreCloudModal';
+    modal.className = 'afm-modal-backdrop';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.88);backdrop-filter:blur(8px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(modal);
+  }
+
+  const userGuess = defaultUser || (typeof getActiveAccount === 'function' ? getActiveAccount()?.username : '') || 'vhc0808';
+
+  modal.innerHTML = `
+    <div style="background:#0f172a;border:1px solid #38bdf8;border-radius:18px;max-width:480px;width:100%;padding:24px;box-shadow:0 25px 60px rgba(0,0,0,0.85);color:#fff;font-family:Inter,sans-serif">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px">
+        <div style="font-size:16px;font-weight:900;color:#38bdf8;display:flex;align-items:center;gap:8px">
+          <span>☁️</span> Restaurar Carreira da Nuvem (Supabase)
+        </div>
+        <button type="button" id="btnCloseRestoreCloudModal" style="background:none;border:none;color:#94a3b8;font-size:20px;font-weight:900;cursor:pointer">✕</button>
+      </div>
+      <p style="font-size:13px;color:#cbd5e1;line-height:1.5;margin-bottom:16px">
+        Trocou de domínio na Vercel (<b>afmbr28.vercel.app</b>) ou limpou o navegador? Digite seu nome de usuário para buscar e baixar seus saves armazenados na Nuvem Supabase:
+      </p>
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Nome de Usuário da Conta:</label>
+        <div style="margin-top:6px;display:flex;align-items:center;background:#1e293b;border:1px solid #334155;border-radius:10px;padding:2px 12px">
+          <span style="font-size:16px;margin-right:8px;color:#94a3b8">👤</span>
+          <input type="text" id="inputRestoreUsername" value="${esc(userGuess)}" style="width:100%;background:transparent;border:none;color:#fff;font-size:14px;font-weight:800;padding:10px 0;outline:none" placeholder="Ex: vhc0808">
+        </div>
+      </div>
+      <div id="restoreStatusMsg" style="margin-bottom:14px;font-size:12px;display:none;padding:10px 14px;border-radius:8px"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button type="button" id="btnCancelRestoreModal" class="btn" style="background:rgba(255,255,255,0.08);color:#cbd5e1;border:none;padding:10px 18px;border-radius:8px;font-weight:800;cursor:pointer">Cancelar</button>
+        <button type="button" id="btnConfirmRestoreModal" class="btn primary" style="background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;border:none;padding:10px 22px;border-radius:8px;font-weight:900;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 0 16px rgba(56,189,248,0.4)">
+          <span>📥</span> Baixar e Restaurar Saves
+        </button>
+      </div>
+    </div>
+  `;
+  modal.style.display = 'flex';
+
+  const btnClose = modal.querySelector('#btnCloseRestoreCloudModal');
+  const btnCancel = modal.querySelector('#btnCancelRestoreModal');
+  if(btnClose) btnClose.onclick = () => { modal.style.display = 'none'; };
+  if(btnCancel) btnCancel.onclick = () => { modal.style.display = 'none'; };
+
+  const btnConfirm = modal.querySelector('#btnConfirmRestoreModal');
+  const inpUser = modal.querySelector('#inputRestoreUsername');
+  const statusMsg = modal.querySelector('#restoreStatusMsg');
+
+  if(inpUser && btnConfirm){
+    inpUser.onkeydown = (e) => { if(e.key === 'Enter') btnConfirm.click(); };
+  }
+
+  if(btnConfirm){
+    btnConfirm.onclick = async () => {
+      const u = inpUser?.value.trim();
+      if(!u){
+        if(statusMsg){
+          statusMsg.style.display = 'block';
+          statusMsg.style.background = 'rgba(239,68,68,0.15)';
+          statusMsg.style.border = '1px solid #ef4444';
+          statusMsg.style.color = '#f87171';
+          statusMsg.textContent = 'Por favor, digite o seu nome de usuário.';
+        }
+        return;
+      }
+
+      btnConfirm.disabled = true;
+      btnConfirm.textContent = 'Conectando ao Supabase…';
+      if(statusMsg){
+        statusMsg.style.display = 'block';
+        statusMsg.style.background = 'rgba(56,189,248,0.15)';
+        statusMsg.style.border = '1px solid #38bdf8';
+        statusMsg.style.color = '#38bdf8';
+        statusMsg.textContent = 'Buscando saves na nuvem oficial Supabase…';
+      }
+
+      try {
+        const res = await window.AFM_DB.restoreSavesDirectly(u);
+        if(!res.ok){
+          if(statusMsg){
+            statusMsg.style.background = 'rgba(239,68,68,0.15)';
+            statusMsg.style.border = '1px solid #ef4444';
+            statusMsg.style.color = '#f87171';
+            statusMsg.textContent = res.error || 'Nenhum save encontrado para este usuário.';
+          }
+          btnConfirm.disabled = false;
+          btnConfirm.textContent = 'Tentar Novamente';
+        } else {
+          toast(`✅ ${res.savesCount} save(s) restaurados com sucesso! Bem-vindo de volta!`, 5000);
+          modal.style.display = 'none';
+          setupViewMode = 'select';
+          renderSetup(document.querySelector('#app'));
+        }
+      } catch(err){
+        if(statusMsg){
+          statusMsg.style.background = 'rgba(239,68,68,0.15)';
+          statusMsg.style.border = '1px solid #ef4444';
+          statusMsg.style.color = '#f87171';
+          statusMsg.textContent = err?.message || 'Falha ao conectar com o Supabase.';
+        }
+        btnConfirm.disabled = false;
+        btnConfirm.textContent = 'Tentar Novamente';
+      }
+    };
+  }
+}
+window.openRestoreCloudModal = openRestoreCloudModal;
+
 function renderSetup(app){
   if (!app) app = document.querySelector('#app');
   if (!app) return;
@@ -36676,6 +36881,12 @@ function renderSetup(app){
                 ${setupAuthTab==='login' ? '🚀 Entrar na Carreira' : '✨ Criar Conta & Continuar'}
               </button>
 
+              <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08);text-align:center">
+                <button type="button" id="btnRestoreCloudSavesModal" class="btn btn-sm" style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.35);color:#38bdf8;padding:9px 14px;font-size:11px;font-weight:900;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;width:100%;transition:all 0.2s">
+                  <span>☁️</span> Recuperar Saves da Nuvem Supabase
+                </button>
+              </div>
+
 
 
               <div style="text-align:center;font-size:13px;color:#94a3b8;margin-top:16px">
@@ -36910,6 +37121,9 @@ function renderSetup(app){
           <span class="pill" style="background:rgba(56,189,248,0.12);color:#38bdf8;padding:6px 14px;font-weight:800;border:1px solid rgba(56,189,248,0.3)" title="Banco de Dados em Nuvem Conectado">
             ☁️ Nuvem Oficial Ativa
           </span>
+          <button type="button" id="btnTopRestoreCloud" class="btn btn-sm" style="background:rgba(56,189,248,0.15);color:#38bdf8;padding:6px 14px;font-weight:800;border:1px solid rgba(56,189,248,0.4);border-radius:20px;cursor:pointer;display:flex;align-items:center;gap:6px" title="Sincronizar ou restaurar saves da Nuvem Oficial">
+            <span>☁️</span> Sincronizar Nuvem
+          </button>
           ${rawActiveUser ? `
             <span class="pill" style="background:rgba(255,255,255,0.08);color:#fff;padding:6px 14px;font-weight:800;border:1px solid rgba(255,255,255,0.12)">
               👤 Prof. ${esc(activeUser.name)} <span class="muted">(@${esc(activeUser.username)})</span>
@@ -37995,6 +38209,12 @@ function bindSetup(){
       }
     };
   }
+
+  const btnRestModal = $('#btnRestoreCloudSavesModal');
+  if(btnRestModal) btnRestModal.onclick = () => openRestoreCloudModal();
+
+  const btnTopRest = $('#btnTopRestoreCloud');
+  if(btnTopRest) btnTopRest.onclick = () => openRestoreCloudModal();
 
   const btnLogoutTop = $('#btnLogoutFromSetup');
   if(btnLogoutTop) btnLogoutTop.onclick = logoutUser;
