@@ -353,6 +353,31 @@
     'atlanta united': { name: 'Mercedes-Benz Stadium', city: 'Atlanta', state: 'EUA', capacity: 71000, style: 'mercedes-benz' }
   };
 
+  const STATE_COMP_MAP = {
+    'bra-est-sp': { city: 'São Paulo', state: 'SP' },
+    'bra-est-rj': { city: 'Rio de Janeiro', state: 'RJ' },
+    'bra-est-mg': { city: 'Belo Horizonte', state: 'MG' },
+    'bra-est-rs': { city: 'Porto Alegre', state: 'RS' },
+    'bra-est-pr': { city: 'Curitiba', state: 'PR' },
+    'bra-est-sc': { city: 'Florianópolis', state: 'SC' },
+    'bra-est-ba': { city: 'Salvador', state: 'BA' },
+    'bra-est-ce': { city: 'Fortaleza', state: 'CE' },
+    'bra-est-pe': { city: 'Recife', state: 'PE' },
+    'bra-est-go': { city: 'Goiânia', state: 'GO' },
+    'bra-est-df': { city: 'Brasília', state: 'DF' },
+    'bra-est-al': { city: 'Maceió', state: 'AL' },
+    'bra-est-rn': { city: 'Natal', state: 'RN' },
+    'bra-est-pb': { city: 'João Pessoa', state: 'PB' },
+    'bra-est-ma': { city: 'São Luís', state: 'MA' },
+    'bra-est-pa': { city: 'Belém', state: 'PA' },
+    'bra-est-am': { city: 'Manaus', state: 'AM' },
+    'bra-est-mt': { city: 'Cuiabá', state: 'MT' },
+    'bra-est-ms': { city: 'Campo Grande', state: 'MS' },
+    'bra-est-es': { city: 'Vitória', state: 'ES' },
+    'bra-est-se': { city: 'Aracaju', state: 'SE' },
+    'bra-est-pi': { city: 'Teresina', state: 'PI' }
+  };
+
   /**
    * Obtém as informações oficiais do estádio de um clube.
    * Se o clube não estiver mapeado explicitamente, gera dados coerentes
@@ -360,6 +385,25 @@
    */
   function getClubStadiumInfo(clubName) {
     if (!clubName) return { name: 'Estádio Municipal', stadium: 'Estádio Municipal', city: 'Brasília', state: 'DF', capacity: 15000, style: 'generic' };
+
+    const activeState = (typeof state !== 'undefined' && state) ? state : (typeof window !== 'undefined' && window.state ? window.state : null);
+    const isCustom = activeState && Boolean(activeState.isCustomClub || activeState.customClub || activeState.customClubStateCompId) &&
+      (!clubName || activeState.club === clubName || (activeState.customClub && activeState.customClub.name === clubName));
+
+    if (isCustom) {
+      const stateCompId = activeState.customClubStateCompId || activeState.customClub?.stateCompId || 'bra-est-sp';
+      const loc = STATE_COMP_MAP[stateCompId] || { city: 'São Paulo', state: 'SP' };
+      const sName = activeState.stadiumName || activeState.stadium?.name || activeState.customClub?.stadium || activeState.customClub?.stadiumName || `Arena do ${clubName}`;
+      const sCap = Number(activeState.infrastructure?.stadium?.capacity || activeState.stadiumCapacity || 5000);
+      return {
+        name: sName,
+        stadium: sName,
+        city: loc.city,
+        state: loc.state,
+        capacity: sCap,
+        style: 'starter-5k'
+      };
+    }
 
     const key = normKey(clubName);
     let match = null;

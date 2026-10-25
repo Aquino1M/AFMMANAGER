@@ -41,10 +41,13 @@ assert.ok(AFMStadium3D.catalog, 'Catálogo deve estar presente');
 assert.ok(Object.keys(AFMStadium3D.catalog).length >= 4, 'Catálogo deve ter os modelos requeridos');
 
 assert.strictEqual(AFMStadium3D.catalog.arena_aberta.stLevel, 1);
-assert.strictEqual(AFMStadium3D.catalog.arena_classica.stLevel, 2);
-assert.strictEqual(AFMStadium3D.catalog.arena_moderna.stLevel, 3);
+assert.strictEqual(AFMStadium3D.catalog.arena_regional.stLevel, 2);
+assert.strictEqual(AFMStadium3D.catalog.arena_classica.stLevel, 3);
+assert.strictEqual(AFMStadium3D.catalog.arena_monumental.stLevel, 4);
+assert.strictEqual(AFMStadium3D.catalog.arena_moderna.stLevel, 5);
+assert.strictEqual(AFMStadium3D.catalog.arena_coliseu.stLevel, 6);
 assert.strictEqual(AFMStadium3D.catalog.gradas_modulares.stLevel, 0);
-console.log('  ✓ Catálogo carregado com sucesso (4 modelos validados)');
+console.log('  ✓ Catálogo carregado com sucesso (todos os 6 modelos oficiais validados)');
 
 console.log('\n--- TEST 3: Testar Resolução Dinâmica de Estádios ---');
 // 1. Criciúma (Heriberto Hülse ~19.200 lugares -> arena_classica)

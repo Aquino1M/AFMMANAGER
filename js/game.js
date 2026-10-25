@@ -2742,6 +2742,7 @@ let selectedArenaName = 'Arena Real Brasília';
 let selectedArenaCapacity = 15000;
 let selectedArenaFinancing = 'cash';
 let stadiumVisualMode = (typeof window !== 'undefined' && window.stadiumVisualMode) ? window.stadiumVisualMode : '3d'; // '3d' | 'plano'
+let stadiumActiveCameraPreset = (typeof window !== 'undefined' && window.stadiumActiveCameraPreset) ? window.stadiumActiveCameraPreset : 'panoramic';
 
 const STADIUM_UPGRADE_LABELS = {
   chairs: 'Cadeiras Novas',
@@ -2782,6 +2783,9 @@ function openStadiumModal(initialTab){
   if (typeof window !== 'undefined' && window.stadiumVisualMode) {
     stadiumVisualMode = window.stadiumVisualMode;
   }
+  if (typeof window !== 'undefined' && window.stadiumActiveCameraPreset) {
+    stadiumActiveCameraPreset = window.stadiumActiveCameraPreset;
+  }
   if (typeof window !== 'undefined' && window.stadiumSelectedSide) {
     stadiumSelectedSide = window.stadiumSelectedSide;
   }
@@ -2802,8 +2806,13 @@ function openStadiumModal(initialTab){
   }
   el.style.display = 'block';
 
+  if(typeof syncStadiumCapacityAndLevel === 'function'){
+    syncStadiumCapacityAndLevel(state);
+  }
+
   const sName = clubStadiumName();
   const userClub = state?.club || 'Clube';
+  const isCreatedFromScratch = Boolean(state?.isCustomClub || state?.customClub || state?.customClubStateCompId);
   const stadInfo = (typeof window !== 'undefined' && typeof window.getClubStadiumInfo === 'function')
     ? window.getClubStadiumInfo(userClub)
     : (typeof getClubStadiumInfo === 'function' ? getClubStadiumInfo(userClub) : { city: 'São Paulo', state: 'SP', capacity: 40000 });
@@ -2814,6 +2823,7 @@ function openStadiumModal(initialTab){
   const stData = getStadiumExpansionData();
   state.stadiumCustomization = state.stadiumCustomization || {};
   // A prévia é um rascunho local; só confirmar altera o estado persistido.
+  let stadiumCustomizationPreview = (typeof window !== 'undefined' && window.stadiumCustomizationPreview) ? window.stadiumCustomizationPreview : null;
   const activeStadiumCustomization = state.stadiumCustomization;
   const stadiumCustomization = state.stadiumCustomization;
   if(!stadiumCustomization.name || stadiumCustomization.name === 'Estádio do clube' || stadiumCustomization.name === 'Arena Oficial') stadiumCustomization.name = sName;
@@ -2947,13 +2957,13 @@ function openStadiumModal(initialTab){
 
               <!-- Presets de Câmera 3D Inteligentes -->
               <div style="position:absolute;bottom:8px;left:8px;right:8px;z-index:6;display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="panoramic" data-orbit="45deg 55deg 105%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🌌 Panorâmica</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="tv" data-orbit="0deg 75deg 90%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">📺 TV / Telão</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="leste" data-orbit="90deg 68deg 82%" style="background:rgba(2,132,199,0.4);backdrop-filter:blur(6px);border:1px solid #38bdf8;color:#38bdf8;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer;font-weight:900;box-shadow:0 0 10px rgba(56,189,248,0.5)">🔭 Setor Leste</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="oeste" data-orbit="-90deg 68deg 82%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🔭 Setor Oeste</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="norte" data-orbit="0deg 68deg 88%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🐷 Setor Norte</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="sul" data-orbit="180deg 68deg 88%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🐷 Setor Sul</button>
-                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="campo" data-orbit="-45deg 85deg 45%" style="background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">👟 Campo</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="panoramic" data-orbit="45deg 55deg 105%" style="${stadiumActiveCameraPreset==='panoramic'?'background:rgba(2,132,199,0.4);border:1px solid #38bdf8;color:#38bdf8;font-weight:900;box-shadow:0 0 10px rgba(56,189,248,0.5)':'background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);color:#fff'};backdrop-filter:blur(6px);font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🌌 Panorâmica</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="tv" data-orbit="0deg 75deg 90%" style="${stadiumActiveCameraPreset==='tv'?'background:rgba(2,132,199,0.4);border:1px solid #38bdf8;color:#38bdf8;font-weight:900;box-shadow:0 0 10px rgba(56,189,248,0.5)':'background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);color:#fff'};backdrop-filter:blur(6px);font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">📺 TV / Telão</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="leste" data-orbit="90deg 68deg 82%" style="${stadiumActiveCameraPreset==='leste'?'background:rgba(2,132,199,0.4);border:1px solid #38bdf8;color:#38bdf8;font-weight:900;box-shadow:0 0 10px rgba(56,189,248,0.5)':'background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);color:#fff'};backdrop-filter:blur(6px);font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🔭 Setor Leste</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="oeste" data-orbit="-90deg 68deg 82%" style="${stadiumActiveCameraPreset==='oeste'?'background:rgba(2,132,199,0.4);border:1px solid #38bdf8;color:#38bdf8;font-weight:900;box-shadow:0 0 10px rgba(56,189,248,0.5)':'background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);color:#fff'};backdrop-filter:blur(6px);font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🔭 Setor Oeste</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="norte" data-orbit="0deg 68deg 88%" style="${stadiumActiveCameraPreset==='norte'?'background:rgba(2,132,199,0.4);border:1px solid #38bdf8;color:#38bdf8;font-weight:900;box-shadow:0 0 10px rgba(56,189,248,0.5)':'background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);color:#fff'};backdrop-filter:blur(6px);font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🐷 Setor Norte</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="sul" data-orbit="180deg 68deg 88%" style="${stadiumActiveCameraPreset==='sul'?'background:rgba(2,132,199,0.4);border:1px solid #38bdf8;color:#38bdf8;font-weight:900;box-shadow:0 0 10px rgba(56,189,248,0.5)':'background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);color:#fff'};backdrop-filter:blur(6px);font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">🐷 Setor Sul</button>
+                <button type="button" class="btn btn-sm btn-visual-cam" data-cam="campo" data-orbit="-45deg 85deg 45%" style="${stadiumActiveCameraPreset==='campo'?'background:rgba(2,132,199,0.4);border:1px solid #38bdf8;color:#38bdf8;font-weight:900;box-shadow:0 0 10px rgba(56,189,248,0.5)':'background:rgba(15,23,42,0.85);border:1px solid rgba(255,255,255,0.15);color:#fff'};backdrop-filter:blur(6px);font-size:9px;padding:3px 7px;border-radius:5px;cursor:pointer">👟 Campo</button>
               </div>
             </div>
           ` : `
@@ -3228,7 +3238,8 @@ function openStadiumModal(initialTab){
                 </div>
               </div>
 
-              <!-- Personalização persistida do estádio -->
+              ${isCreatedFromScratch ? `
+              <!-- Personalização persistida do estádio (Apenas para clubes criados do zero no criador de times) -->
               <div style="background:#111827;border:1px solid rgba(56,189,248,.35);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px">
                 <div style="font-size:13px;font-weight:900;color:#7dd3fc">🎨 PERSONALIZAÇÃO DO ESTÁDIO</div>
                 <div style="font-size:10px;color:rgba(255,255,255,.62)">Defina o nome e as cores do estádio. As cores atualizam os materiais da maquete 3D e ficam salvas na carreira.</div>
@@ -3251,6 +3262,7 @@ function openStadiumModal(initialTab){
                   <button type="button" class="btn primary" id="btnSaveStadiumCustomization" style="flex:2;padding:10px;font-size:11px;font-weight:900">Confirmar e salvar personalização</button>
                 </div>
               </div>
+              ` : ''}
 
               <!-- Lista de Melhorias Compráveis com Prévia em Tempo Real -->
               <div style="display:flex;flex-direction:column;gap:8px">
@@ -3720,8 +3732,11 @@ function openStadiumModal(initialTab){
           if (fb) fb.style.display = 'none';
           canvas.style.display = 'block';
           window.AFMStadiumLowPoly.init(canvas);
-          const previewState = stadiumCustomizationPreview
-            ? { ...state, stadiumCustomization: { ...(state.stadiumCustomization || {}), ...stadiumCustomizationPreview } }
+          const previewCustom = (typeof stadiumCustomizationPreview !== 'undefined' && stadiumCustomizationPreview)
+            ? stadiumCustomizationPreview
+            : ((typeof window !== 'undefined' && window.stadiumCustomizationPreview) ? window.stadiumCustomizationPreview : null);
+          const previewState = previewCustom
+            ? { ...state, stadiumCustomization: { ...(state.stadiumCustomization || {}), ...previewCustom } }
             : state;
           window.AFMStadiumLowPoly.update(previewState, {
             selectedSide: stadiumSelectedSide,
@@ -3736,6 +3751,8 @@ function openStadiumModal(initialTab){
             window.AFMStadiumLowPoly.setCameraPreset(stadiumPreviewUpgrade);
           } else if (isExp && stadiumSelectedSide) {
             window.AFMStadiumLowPoly.setCameraPreset(stadiumSelectedSide);
+          } else {
+            window.AFMStadiumLowPoly.setCameraPreset(stadiumActiveCameraPreset || 'panoramic');
           }
           return;
         } catch (err) {
@@ -3808,8 +3825,12 @@ function openStadiumModal(initialTab){
       b.style.boxShadow = '0 0 10px rgba(56,189,248,0.5)';
 
       const cam = b.getAttribute('data-cam');
-      if (cam && window.AFMStadiumLowPoly) {
-        window.AFMStadiumLowPoly.setCameraPreset(cam);
+      if (cam) {
+        stadiumActiveCameraPreset = cam;
+        if (typeof window !== 'undefined') window.stadiumActiveCameraPreset = cam;
+        if (window.AFMStadiumLowPoly) {
+          window.AFMStadiumLowPoly.setCameraPreset(cam);
+        }
       }
       const orbit = b.getAttribute('data-orbit');
       const mv = document.getElementById('afmStadiumVisualModelViewer');
@@ -5272,6 +5293,7 @@ function hireStadiumContractor(days){
       const curCap = Math.max(0, Number(state.infrastructure?.stadium?.capacity) || 8000);
       state.infrastructure.stadium.capacity = Math.min(100000, curCap + 3500);
       if(state.stadium) state.stadium.capacity = state.infrastructure.stadium.capacity;
+      if(typeof syncStadiumCapacityAndLevel === 'function') syncStadiumCapacityAndLevel(state);
     }
     st.activeWork = null;
     if(state.stadiumRingData) state.stadiumRingData.activeWork = null;
@@ -5339,6 +5361,7 @@ function processStadiumConstructionDay(){
     state.infrastructure.stadium.capacity = Math.min(100000, baseCapacity + 3500);
   }
   if(state.stadium) state.stadium.capacity = state.infrastructure.stadium.capacity;
+  if(typeof syncStadiumCapacityAndLevel === 'function') syncStadiumCapacityAndLevel(state);
   st.activeWork = null;
   st.sides = st.rings[st.ring];
   const nextSide = ['norte', 'sul', 'leste', 'oeste'].find(s => !st.rings[ring][s]);
@@ -5354,6 +5377,51 @@ function processStadiumConstructionDay(){
   if(wasPremiumBuild) addNews(`🏗️ CONSTRUTORA PREMIUM: serviço expresso concluído por ${fmtMoney(Number(completedWork.contractorRushCost) || 0)}.`);
   if(typeof save === 'function') save();
 }
+
+function getStadiumLevelByCapacity(cap){
+  const c = Math.max(0, Number(cap) || 0);
+  if(c >= 80000) return 6;
+  if(c >= 60000) return 5;
+  if(c >= 40000) return 4;
+  if(c >= 25000) return 3;
+  if(c >= 15000) return 2;
+  return 1;
+}
+if(typeof window !== 'undefined') window.getStadiumLevelByCapacity = getStadiumLevelByCapacity;
+
+/**
+ * REGRA CRÍTICA INVIOLÁVEL: Sincronização bidirecional entre o volume da capacidade real
+ * e o nível arquitetônico de infraestrutura do estádio no save.
+ * Ex: 12.000 pessoas é estritamente Nível 1 (Raiz), nunca Nível 3 (Ferradura).
+ */
+function syncStadiumCapacityAndLevel(st = (typeof state !== 'undefined' ? state : (typeof window !== 'undefined' ? window.state : null))){
+  if(!st) return;
+  st.infrastructure = st.infrastructure || {};
+  st.infrastructure.stadium = st.infrastructure.stadium || { level: 1, capacity: 5000 };
+  
+  let cap = Number(st.infrastructure.stadium.capacity || st.stadiumCapacity || 0);
+  if(cap <= 0){
+    const cName = st.club || '';
+    const info = (typeof window !== 'undefined' && typeof window.getClubStadiumInfo === 'function') ? window.getClubStadiumInfo(cName) : null;
+    cap = Number(info?.capacity || 5000);
+  }
+  
+  st.infrastructure.stadium.capacity = cap;
+  st.stadiumCapacity = cap;
+  if(st.stadium) st.stadium.capacity = cap;
+
+  const expectedLevel = getStadiumLevelByCapacity(cap);
+
+  // O nível do estádio representa os anéis desbloqueados, nunca podendo ser inferior ao exigido pela capacidade
+  st.infrastructure.stadium.level = Math.max(Number(st.infrastructure.stadium.level) || 1, expectedLevel);
+  if(st.stadium) st.stadium.level = st.infrastructure.stadium.level;
+
+  if(st.stadiumRingData){
+    st.stadiumRingData.maxUnlockedRing = Math.max(Number(st.stadiumRingData.maxUnlockedRing) || 1, st.infrastructure.stadium.level);
+    st.stadiumRingData.ring = Math.min(st.stadiumRingData.maxUnlockedRing, Math.max(1, Number(st.stadiumRingData.ring) || 1));
+  }
+}
+if(typeof window !== 'undefined') window.syncStadiumCapacityAndLevel = syncStadiumCapacityAndLevel;
 
 // =========================================================================
 // SISTEMA DE CONSTRUÇÃO DE NOVA ARENA DO CLUBE (ATÉ 100 MIL)
@@ -13755,6 +13823,7 @@ function newCareer(data){
     club: club.name,
     country: club.country,
     compId: comp.id,
+    isCustomClub: isCustom,
     customClubStateCompId: isCustom ? targetCompId : null,
     competitionTeams: careerCompetitionTeams,
     competition: comp.name,
@@ -14660,6 +14729,9 @@ function migrate(s){
     s.stadiumRingData.purchasedSectors = Array.isArray(s.stadiumRingData.purchasedSectors) ? s.stadiumRingData.purchasedSectors : [];
     // INVARIANT: sides is derived UI state; never promote it into paid construction.
     s.stadiumRingData.sides = s.stadiumRingData.rings[s.stadiumRingData.ring];
+  }
+  if(typeof syncStadiumCapacityAndLevel === 'function'){
+    syncStadiumCapacityAndLevel(s);
   }
   s.namingRights=s.namingRights||null;
   s.storeConfig=s.storeConfig||{level:1,kitSelected:'kit1',pricing:'normal',stock:'normal'};
@@ -31813,6 +31885,7 @@ function renderMarketScout(){
 // ESTRUTURA COM DASHBOARD VISUAL DE RENDA EM CASA
 // -------------------------------------------------------------
 function structurePage(){
+  if(typeof syncStadiumCapacityAndLevel === 'function') syncStadiumCapacityAndLevel(state);
   if (!Array.isArray(state.bankLoans)) state.bankLoans = Array.isArray(state.bankLoans?.activeLoans) ? state.bankLoans.activeLoans : [];
   const f = userFixture(), opp = f && f[0] === state.club ? f[1] : null;
   const proj = attendanceProjection(opp || 'Adversário');
@@ -40444,6 +40517,8 @@ window.deleteUserSlot = deleteUserSlot;
 window.buildStadiumSide = buildStadiumSide;
 window.getStadiumExpansionData = getStadiumExpansionData;
 window.processStadiumConstructionDay = processStadiumConstructionDay;
+window.getStadiumLevelByCapacity = getStadiumLevelByCapacity;
+window.syncStadiumCapacityAndLevel = syncStadiumCapacityAndLevel;
 window.calcArenaTotalCost = calcArenaTotalCost;
 window.getState = () => state;
 window.setState = (s) => { state = s; if(window.AFM) window.AFM.state = s; };

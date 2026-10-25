@@ -39,7 +39,7 @@ Em TODAS as tarefas no projeto **Aquino Futebol Manager 2026**, você DEVE utili
 
 ## 2. REGRAS DE EXECUÇÃO INVIOLÁVEIS PARA O AFM MANAGER
 
-1. **Estádios 3D:** Toda alteração no motor 3D ([stadium_lowpoly_engine.js](file:///e:/PROJETOS%20SAAS/VSCODE%20PROJETOS/Aquino_Futebol_Manager_2026/js/core/stadium_lowpoly_engine.js)) deve respeitar o descarte de memória (`dispose()`), paletas fieis aos clubes e renderização suave a 60 FPS.
+1. **Estádios 3D & Zero Tela Preta:** O canvas do Three.js (`#afmStadiumLowPolyCanvas` e `#afmViewerModalLowPolyCanvas`) NUNCA deve ficar preto. Toda alteração no motor 3D ([stadium_lowpoly_engine.js](file:///e:/PROJETOS%20SAAS/VSCODE%20PROJETOS/Aquino_Futebol_Manager_2026/js/core/stadium_lowpoly_engine.js)) e em `openStadiumModal()` / "Setores & Obras" deve garantir variáveis de escopo declaradas sem `ReferenceError`, descarte seguro de memória com `renderer.dispose()` sem quebrar o contexto WebGL (`forceContextLoss`), paletas fieis aos clubes e renderização suave a 60 FPS com gramado, setores e iluminação sempre visíveis.
 2. **IA Tática Inteligente:** A IA da CPU ([real_football_engine.js](file:///e:/PROJETOS%20SAAS/VSCODE%20PROJETOS/Aquino_Futebol_Manager_2026/js/core/real_football_engine.js)) deve tomar decisões com base em postura tática real (pressão, linhas defensivas, contra-ataque e atributos mentais dos atletas).
 3. **Design e UI Premium:** A interface deve seguir padrão moderno esportivo (Glassmorphism sutil, tons escuros coordenados, feedback visual neon, miniaturas de fotos e escudos perfeitos).
 4. **Preservação de Código e Saves:** NUNCA sobrescreva ou quebre sistemas em produção (histórico unificado, Museu, saves locais e integridade das competições).

@@ -78,10 +78,13 @@ console.log('✓ 2. Todos os 6 estilos de evolução de arquibancada até 100k +
 const testCapacities = [
   { cap: 5000, expected: 'arena_aberta' },
   { cap: 12000, expected: 'arena_aberta' },
-  { cap: 18000, expected: 'arena_classica' },
-  { cap: 24000, expected: 'arena_classica' },
+  { cap: 14999, expected: 'arena_aberta' },
+  { cap: 15000, expected: 'arena_regional' },
+  { cap: 18000, expected: 'arena_regional' },
+  { cap: 24000, expected: 'arena_regional' },
+  { cap: 25000, expected: 'arena_classica' },
   { cap: 35000, expected: 'arena_classica' },
-  { cap: 40000, expected: 'arena_classica' },
+  { cap: 40000, expected: 'arena_monumental' },
   { cap: 50000, expected: 'arena_monumental' },
   { cap: 60000, expected: 'arena_moderna' },
   { cap: 75000, expected: 'arena_moderna' },
@@ -96,7 +99,17 @@ testCapacities.forEach(({ cap, expected }) => {
   });
   assert.strictEqual(model.id, expected, `Para capacidade ${cap}, modelo esperado é ${expected}, mas obteve ${model.id}`);
 });
-console.log('✓ 3. Resolução dinâmica de estádio conforme capacidade testada e validada para 5k, 18k, 35k, 50k, 75k e 100k');
+
+// Teste específico de garantia contra bug de dupla contagem de setores (caso 12.000 torcedores)
+const aquinoArenaModel = AFMStadium3D.resolveStadiumModel('Aquino Arena', {
+  infrastructure: { stadium: { capacity: 12000, level: 1 } },
+  stadiumRingData: {
+    ring: 1,
+    purchasedSectors: ['r1_norte', 'r1_sul']
+  }
+});
+assert.strictEqual(aquinoArenaModel.id, 'arena_aberta', 'Estádio com 12.000 pessoas e 2 setores DEVE resolver estritamente para arena_aberta (Raiz)');
+console.log('✓ 3. Resolução dinâmica de estádio conforme capacidade testada e validada para 5k, 12k (Raiz), 18k (Regional), 35k (Ferradura), 50k (Monumental), 75k (FIFA) e 100k (Coliseu)');
 
 // 4. Teste de renderização do Card Informativo
 const cardHTML = AFMStadium3D.renderStadium3DCardHTML('Real Brasília', {

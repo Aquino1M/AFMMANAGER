@@ -2,6 +2,73 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.33] - 2026-10-25 (Regra Crítica Inviolável de Volume de Capacidade & 12.000 Lugares Estritamente no Raiz)
+
+### 🏟️ Correção Definitiva da Tela Preta no Viewport 3D do Estádio (`js/game.js` & `js/core/stadium_lowpoly_engine.js`)
+
+- **Causa Raiz Identificada e Corrigida**:
+  - `ReferenceError: stadiumCustomizationPreview is not defined`: Durante a inicialização do Three.js em `initThreeStadium` no modal `openStadiumModal()`, uma referência à variável não declarada `stadiumCustomizationPreview` interrompia a chamada `window.AFMStadiumLowPoly.update()`, deixando a cena WebGL com fundo preto vazio sem adicionar a malha do estádio.
+  - Declarado `let stadiumCustomizationPreview` com fallback seguro `(typeof window !== 'undefined' && window.stadiumCustomizationPreview) ? window.stadiumCustomizationPreview : null`.
+  - Removido `forceContextLoss()` / `ext.loseContext()` no método `dispose()` de `stadium_lowpoly_engine.js`, garantindo que o WebGLRenderer seja descartado de forma limpa (`dispose()`) sem invalidar o pipeline do navegador em alternâncias de tela ou abas.
+  - **Validação Visual Completa**: Testado no navegador em tempo real com o clube Aquino Arena (12.000 lugares) — gramado verde com faixas, traves com redes, alambrado, arquibancadas norte e sul, refletores, árvores na praça e todos os 7 presets de câmera (Panorâmica, TV/Telão, Leste, Oeste, Norte, Sul, Campo) funcionando perfeitamente sem tela preta.
+
+### 🏟️ Sincronização Inviolável de Capacidade e Nível do Estádio (`js/core/stadium_3d_manager.js`, `js/game.js` & `js/core/stadium_lowpoly_engine.js`)
+
+- **Regra Crítica Inviolável de Volume da Capacidade**:
+  - Implementada sincronização bidirecional e estrita entre o volume real de público e os 6 níveis arquitetônicos de estádio:
+    - **Nível 1 (0 a 14.999 lugares)**: `arena_aberta` • `Raiz (14k)` (ex: 5.000, 8.500, **12.000**, 14.999 lugares).
+    - **Nível 2 (15.000 a 24.999 lugares)**: `arena_regional` • `Regional (24k)`.
+    - **Nível 3 (25.000 a 39.999 lugares)**: `arena_classica` • `Ferradura Clássica (40k)`.
+    - **Nível 4 (40.000 a 59.999 lugares)**: `arena_monumental` • `Monumental Fechado (60k)`.
+    - **Nível 5 (60.000 a 79.999 lugares)**: `arena_moderna` • `Arena Padrão FIFA (80k)`.
+    - **Nível 6 (80.000 a 100.000+ lugares)**: `arena_coliseu` • `Mega Coliseu 100k`.
+
+- **Correção Definitiva do Bug de 12.000 Pessoas Exibindo Ferradura (40k)**:
+  - **Eliminação da Contagem Dupla de Capacidade em `resolveStadiumModel`**:
+    - Anteriormente, `resolveStadiumModel` somava os setores adquiridos (`purchasedCount * 3500`) sobre `state.infrastructure.stadium.capacity` mesmo quando esta já incluía a ampliação, inflando 12.000 para 19.000 e acionando indevidamente a verificação `>= 15000` que pulava direto para `arena_classica`.
+    - Agora a capacidade persistida no save é a fonte única e absoluta da verdade.
+  - **Correção do Salto Incorreto de Estilo e Metadados do Catálogo**:
+    - `arena_classica` foi corrigida no catálogo de `stLevel: 2` (15k-40k) para `stLevel: 3` (25k-40k).
+    - `arena_regional` foi devidamente integrada à resolução dinâmica para a faixa 15k-25k.
+    - `arena_moderna` foi corrigida no catálogo de `stLevel: 3` para `stLevel: 5` (60k-80k).
+  - **Jornada de Evolução das Arquibancadas**:
+    - Para 12.000 lugares, a barra e os seletores marcam ativamente `Raiz (14k) ●`, com badge `🏟️ Nível 1 • Aberto / Raiz (Até 14k)` e texto `12.000 pessoas (3.000 a 14.999 lugares)`.
+  - **Função Global `syncStadiumCapacityAndLevel(state)`**:
+    - Adicionada verificação e reparo contínuo em `structurePage()`, `openStadiumModal()`, na conclusão de obras por dia/aceleração e na migração de saves.
+
+---
+
+## [3.9.32] - 2026-10-25 (Correção da Tela Preta na Maquete 3D, Estádio Inicial de 5k & Restrição de Personalização a Times Criados do Zero)
+
+### 🏟️ Renderização 3D WebGL sem Tela Preta & Estádio Inicial de 5.000 Lugares (`js/core/stadium_lowpoly_engine.js`, `js/game.js` & `js/core/club_stadiums_catalog.js`)
+
+- **Eliminação Definitiva da Tela Preta na Maquete 3D**:
+  - **Correção do Preset de Câmera `[Campo]`**:
+    - O preset de câmera no nível do gramado anteriormente apontava para `(0, 10 * ringScale, -20 * ringScale)` com `camera.position.y = 2.2`, virando o vetor de visão do OrbitControls diretamente para cima contra o fundo escuro de neblina `#070b14` (tela preta).
+    - Ajustado para visão cinematográfica na beira do gramado/banco de reservas em `(-16, 4.2, 12)` apontando diagonalmente para o centro do campo `(2, 2.2, -4)`, exibindo o gramado verde cortado em faixas, traves e arquibancadas com perfeição.
+  - **Prevenção de Esgotamento de Contextos WebGL (Limite de 16 do Chrome)**:
+    - Implementada liberação ativa de recursos em `StadiumLowPolyScene.dispose()`: agora executa `renderer.forceContextLoss()`, invoca a extensão `WEBGL_lose_context.loseContext()`, destrói os OrbitControls e zera as referências de cena/câmera.
+    - Isso impede que alternar entre abas do estádio exceda o limite de contextos WebGL do navegador e cause falha silenciosa de inicialização.
+  - **Renderização Imediata e Sincronização de Câmera Ativa**:
+    - Adicionado render imediato `this.renderer.render(this.scene, this.camera)` ao aplicar presets de câmera e ao finalizar `buildStadium()`.
+    - Ao trocar de aba no Modal do Estádio (ex: entrar na aba "Melhorias"), a câmera ativa memorizada (`stadiumActiveCameraPreset`) é reaplicada automaticamente em vez de resetar o alvo.
+
+- **🏟️ Estádio Inicial de 5.000 Lugares para Times Criados do Zero**:
+  - Implementado `buildStarterStands(palette, cap)` no motor Three.js: quando um time é criado do zero (5.000 lugares base), o estádio renderiza uma autêntica estrutura de acesso do futebol brasileiro:
+    - **Tribuna Social Oeste Coberta** com degraus de assentos nas cores do clube e marquise metálica em balanço.
+    - **Cabines de Imprensa e Rádio** no topo da social com janelas de vidro.
+    - **Túnel de acesso dos jogadores** no centro do campo.
+    - **Muro e alambrado perimetral de concreto** contornando todo o gramado.
+    - **Torres de refletores** nos 4 cantos.
+  - O estádio inicial de 5.000 lugares nunca mais aparece como um retângulo vazio de grama ou aciona poster de erro.
+
+- **🎨 Restrição Exclusiva da Personalização do Estádio para Times Criados do Zero**:
+  - O card **"🎨 PERSONALIZAÇÃO DO ESTÁDIO"** (seletor de cores da arquibancada, assentos e acabamentos/detalhes) agora é condicional: só é renderizado em saves onde o clube foi criado no criador de times (`isCreatedFromScratch = state.isCustomClub || state.customClub || state.customClubStateCompId`).
+  - Clubes reais do futebol brasileiro e mundial (Corinthians, Palmeiras, Flamengo, São Paulo, Real Brasília, etc.) **NÃO** exibem o card de personalização, garantindo que suas cores oficiais e paletas de estádios sejam preservadas e nunca apareçam campos com `[-]` inválido.
+  - `stadiumCustomization` só é injetado no motor de renderização quando o clube é do usuário criado do zero.
+
+---
+
 ## [3.9.31] - 2026-10-25 (Auditoria Geral de Estádios Reais de Todos os Clubes & Neo Química Arena no Corinthians)
 
 ### 🏟️ Mapeamento e Correção Oficial de Estádios Reais (`js/core/club_stadiums_catalog.js`, `js/game.js`, `js/competitions.js` & `js/core/real_football_engine.js`)

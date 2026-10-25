@@ -212,5 +212,23 @@ assert.ok(led3DHtml.includes('slot="hotspot-led-ring"'), 'Maquete 3D deve acopla
 assert.ok(led3DHtml.includes('PAINÉIS DE LED 360°'), 'Hotspot 3D deve conter texto do Anel de LED 360°');
 console.log('✓ 7. Acoplamento 3D de Camarotes VIP, Telão Digital e Anel de LED em tempo real validados com sucesso');
 
-console.log('\n🎉 TODOS OS TESTES DE 3D VS PLANO, AMPLIAÇÃO DA ZONA LESTE E PRÉVIAS EM TEMPO REAL PASSARAM COM 100% DE SUCESSO!');
+// 8. Testar Restrição da Personalização de Cores do Estádio (Apenas para times criados do zero)
+console.log('Testando restrição de exibição da Personalização do Estádio...');
+global.state.isCustomClub = false;
+delete global.state.customClub;
+delete global.state.customClubStateCompId;
+window.stadiumPreviewUpgrade = null;
+window.openStadiumModal('upgrades');
+const realClubHtml = container.innerHTML;
+assert.ok(!realClubHtml.includes('PERSONALIZAÇÃO DO ESTÁDIO'), 'Clube real (não customizado) NÃO deve exibir o card de personalização de cores do estádio');
+console.log('  ✓ Clube real: Card 🎨 PERSONALIZAÇÃO DO ESTÁDIO ocultado com sucesso');
+
+global.state.isCustomClub = true;
+global.state.customClubStateCompId = 'bra-est-sp';
+window.openStadiumModal('upgrades');
+const customClubHtml = container.innerHTML;
+assert.ok(customClubHtml.includes('PERSONALIZAÇÃO DO ESTÁDIO'), 'Clube criado do zero DEVE exibir o card de personalização de cores do estádio');
+console.log('  ✓ Clube criado do zero: Card 🎨 PERSONALIZAÇÃO DO ESTÁDIO exibido com sucesso');
+
+console.log('\n🎉 TODOS OS TESTES DE 3D VS PLANO, AMPLIAÇÃO DA ZONA LESTE, PRÉVIAS E PERSONALIZAÇÃO PASSARAM COM 100% DE SUCESSO!');
 

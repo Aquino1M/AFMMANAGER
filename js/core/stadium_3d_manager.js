@@ -70,9 +70,9 @@
       fallbackFile: 'assets/stadios/arena_classica.glb',
       preview: 'assets/stadiums/PREVIA_ESTADIOS.png',
       description: 'Arquitetura clássica brasileira em ferradura contínua, conectando as curvas Norte, Sul e Leste, com setor nobre coberto no setor Oeste.',
-      capacityRange: '15.000 a 39.999 lugares',
-      stLevel: 2,
-      minCapacity: 15000,
+      capacityRange: '25.000 a 39.999 lugares',
+      stLevel: 3,
+      minCapacity: 25000,
       maxCapacity: 39999,
       meshes: 17,
       triangles: 12912,
@@ -91,9 +91,9 @@
       fallbackFile: 'assets/stadios/arena_classica.glb',
       preview: 'assets/stadiums/PREVIA_ESTADIOS.png',
       description: 'Fechamento integral do quarto lado com anel monumental 360°, fosso de segurança rebaixado e ampliação estrutural para receber clássicos de massa.',
-      capacityRange: '40.001 a 59.999 lugares',
+      capacityRange: '40.000 a 59.999 lugares',
       stLevel: 4,
-      minCapacity: 40001,
+      minCapacity: 40000,
       maxCapacity: 59999,
       meshes: 17,
       triangles: 13500,
@@ -113,7 +113,7 @@
       preview: 'assets/stadiums/PREVIA_ESTADIOS.png',
       description: 'Arena moderna fechada em 4 lados com cobertura cantilever integral em balanço, anel de camarotes VIP climatizados, painéis de LED contínuos e telão central 360°.',
       capacityRange: '60.000 a 79.999 lugares',
-      stLevel: 3,
+      stLevel: 5,
       minCapacity: 60000,
       maxCapacity: 79999,
       meshes: 17,
@@ -255,58 +255,101 @@
     evolutionStyles: EVOLUTION_STYLES,
 
     /**
-     * Resolve o modelo 3D ideal para um clube com base em:
-     * 1. Capacidade real do estádio (jornada até 100k)
-     * 2. Nível de infraestrutura de estádio no save
-     * 3. Tradição histórica conhecida do clube
+     * REGRA CRÍTICA INVIOLÁVEL: Converte volume de capacidade real em nível arquitetônico (1 a 6)
+     * - Nível 1: 0 a 14.999 (ex: 5k, 7.8k, 8.5k, 12k, 14k) -> Raiz
+     * - Nível 2: 15.000 a 24.999 -> Regional
+     * - Nível 3: 25.000 a 39.999 -> Ferradura Clássica
+     * - Nível 4: 40.000 a 59.999 -> Monumental Fechado
+     * - Nível 5: 60.000 a 79.999 -> Arena Padrão FIFA
+     * - Nível 6: 80.000 a 100.000+ -> Mega Coliseu 100k
+     */
+    getStadiumLevelByCapacity(cap) {
+      const c = Math.max(0, Number(cap) || 0);
+      if (c >= 80000) return 6;
+      if (c >= 60000) return 5;
+      if (c >= 40000) return 4;
+      if (c >= 25000) return 3;
+      if (c >= 15000) return 2;
+      return 1;
+    },
+
+    /**
+     * REGRA CRÍTICA INVIOLÁVEL: Retorna o modelo 3D correspondente estritamente à capacidade
+     */
+    getStadiumModelByCapacity(cap, slug = '') {
+      const lvl = this.getStadiumLevelByCapacity(cap);
+      if (lvl === 6) return STADIUM_3D_CATALOG['arena_coliseu'];
+      if (lvl === 5) return STADIUM_3D_CATALOG['arena_moderna'];
+      if (lvl === 4) return STADIUM_3D_CATALOG['arena_monumental'];
+      if (lvl === 3) return STADIUM_3D_CATALOG['arena_classica'];
+      if (lvl === 2) {
+        if (slug && KNOWN_ARENAS[slug] === 'arena_classica') {
+          return STADIUM_3D_CATALOG['arena_classica'];
+        }
+        return STADIUM_3D_CATALOG['arena_regional'];
+      }
+      // Nível 1: ESTRITAMENTE RAIZ (3.000 a 14.999 lugares, ex: 12.000 pessoas)
+      return STADIUM_3D_CATALOG['arena_aberta'];
+    },
+
+    /**
+     * Resolve o modelo 3D ideal para um clube com base na REGRA CRÍTICA INVIOLÁVEL:
+     * O volume da capacidade real do estádio SEMPRE define estritamente o nível arquitetônico e o modelo 3D.
+     * Capacidades < 15.000 (ex: 5k, 7.8k, 8.5k, 12k, 14k) são ESTRITAMENTE Nível 1 • Raiz (arena_aberta).
      */
     resolveStadiumModel(clubName, contextState = null) {
       const slug = normalizeSlug(clubName);
       const st = contextState || (typeof window !== 'undefined' ? window.state : null);
       
       let cap = 0;
-      let infraLevel = 1;
 
+      // 1. Prioridade absoluta: capacidade persistida no estado do clube/save
       if (st) {
-        cap = Number(st.infrastructure?.stadium?.capacity || st.stadiumCapacity || 0);
-        infraLevel = Number(st.infrastructure?.stadium?.level || 1);
+        cap = Number(st.infrastructure?.stadium?.capacity || st.stadiumCapacity || st.stadium?.capacity || 0);
 
-        // Se houver obras e ampliações concluídas no anel de arquibancadas (ex: Zona Leste, Sul, etc.)
-        const ringData = st.stadiumRingData;
-        if (ringData) {
+        // Se a capacidade ainda não foi explicitada, busca no catálogo de estádios
+        if (cap <= 0 && st.club) {
+          const info = (typeof window !== 'undefined' && typeof window.getClubStadiumInfo === 'function')
+            ? window.getClubStadiumInfo(st.club)
+            : null;
+          if (info && Number(info.capacity) > 0) {
+            cap = Number(info.capacity);
+          }
+        }
+
+        // Se ainda for 0 mas houver setores comprados, calcula com base no starter (5.000 + 3.500 * setores)
+        if (cap <= 0 && st.stadiumRingData) {
+          const ringData = st.stadiumRingData;
           const purchasedCount = Array.isArray(ringData.purchasedSectors)
             ? ringData.purchasedSectors.length
             : (ringData.rings
                 ? Object.values(ringData.rings).reduce((acc, r) => acc + Object.values(r).filter(Boolean).length, 0)
                 : 0);
           if (purchasedCount > 0) {
-            const extraSectorsCap = purchasedCount * 3500;
-            cap = Math.max(cap, (cap > 0 ? cap : 8000) + extraSectorsCap);
+            cap = 5000 + (purchasedCount * 3500);
           }
         }
       }
 
-      // Se for o clube do usuário ou tiver capacidade explicitada
-      if (cap > 0) {
-        if (cap >= 80000 || infraLevel >= 6) {
-          return STADIUM_3D_CATALOG['arena_coliseu'];
+      // 2. Se for clube externo consultado por nome
+      if (cap <= 0 && clubName) {
+        const info = (typeof window !== 'undefined' && typeof window.getClubStadiumInfo === 'function')
+          ? window.getClubStadiumInfo(clubName)
+          : null;
+        if (info && Number(info.capacity) > 0) {
+          cap = Number(info.capacity);
         }
-        if (cap >= 60000 || infraLevel >= 5) {
-          return STADIUM_3D_CATALOG['arena_moderna'];
-        }
-        if (cap >= 40001 || infraLevel >= 4) {
-          return STADIUM_3D_CATALOG['arena_monumental'];
-        }
-        if (cap >= 15000 || infraLevel >= 2) {
-          return STADIUM_3D_CATALOG['arena_classica'];
-        }
-        return STADIUM_3D_CATALOG['arena_aberta'];
       }
 
-      // Heurística por clube histórico
+      // 3. REGRA CRÍTICA INVIOLÁVEL: Capacidade positiva determina estritamente o modelo e nível
+      if (cap > 0) {
+        return this.getStadiumModelByCapacity(cap, slug);
+      }
+
+      // 4. Heurística por clube histórico cadastrado caso não haja capacidade detectada
       if (KNOWN_ARENAS[slug]) {
         const k = KNOWN_ARENAS[slug];
-        return STADIUM_3D_CATALOG[k] || STADIUM_3D_CATALOG['arena_moderna'];
+        return STADIUM_3D_CATALOG[k] || STADIUM_3D_CATALOG['arena_aberta'];
       }
 
       return STADIUM_3D_CATALOG['arena_aberta'];
@@ -398,8 +441,8 @@
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px">
               ${tiers.map(t => {
-                const isCurrent = (model.id === t.key);
-                const isReached = (cap >= t.max);
+                const isCurrent = (model.id === t.key || (t.key === 'arena_aberta' && model.id === 'arena_raiz'));
+                const isReached = (cap > t.max);
                 return `
                   <div style="font-size:10px;text-align:center;padding:5px 4px;border-radius:6px;font-weight:800;background:${isCurrent ? 'rgba(56,189,248,0.2)' : (isReached ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)')};border:1px solid ${isCurrent ? '#38bdf8' : (isReached ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.05)')};color:${isCurrent ? '#38bdf8' : (isReached ? '#4ade80' : '#64748b')}">
                     ${t.label} ${isCurrent ? '●' : (isReached ? '✓' : '')}
@@ -685,9 +728,10 @@
             'arena_coliseu': 100000,
             'gradas_modulares': 18800
           };
-          const previewCap = capMap[activeId] || currentCap;
+          const isUserStadium = (activeId === userStadiumModel.id);
+          const previewCap = isUserStadium ? currentCap : (capMap[activeId] || currentCap);
           window.AFMStadiumLowPoly.update(st, {
-            isArena: true,
+            isArena: !isUserStadium,
             selectedArenaCapacity: previewCap
           });
         } catch (err) {
@@ -783,4 +827,8 @@
   }
 
   window.AFMStadium3D = AFMStadium3D;
+  if (typeof window !== 'undefined') {
+    window.getStadiumLevelByCapacity = AFMStadium3D.getStadiumLevelByCapacity.bind(AFMStadium3D);
+    window.getStadiumModelByCapacity = AFMStadium3D.getStadiumModelByCapacity.bind(AFMStadium3D);
+  }
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -112,7 +112,7 @@
         alpha: false,
         powerPreference: 'high-performance'
       });
-      this.renderer.setSize(width, height);
+      this.renderer.setSize(width, height, false);
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -145,7 +145,8 @@
         if (w > 0 && h > 0 && this.camera && this.renderer) {
           this.camera.aspect = w / h;
           this.camera.updateProjectionMatrix();
-          this.renderer.setSize(w, h);
+          this.renderer.setSize(w, h, false);
+          this.renderer.render(this.scene, this.camera);
         }
       };
       window.addEventListener('resize', this.handleResize);
@@ -213,11 +214,14 @@
       this.animatedElements = [];
 
       const clubName = state?.club || 'Clube';
+      const isCreatedFromScratch = Boolean(state?.isCustomClub || state?.customClub || state?.customClubStateCompId);
       const palette = getClubPalette(clubName, state);
-      const stadiumCustomization = state?.stadiumCustomization || {};
-      palette.primary = stadiumCustomization.standColor || palette.primary;
-      palette.secondary = stadiumCustomization.seatColor || palette.secondary;
-      palette.accent = stadiumCustomization.accentColor || palette.accent;
+      const stadiumCustomization = isCreatedFromScratch ? (state?.stadiumCustomization || {}) : {};
+      if (isCreatedFromScratch) {
+        palette.primary = stadiumCustomization.standColor || palette.primary;
+        palette.secondary = stadiumCustomization.seatColor || palette.secondary;
+        palette.accent = stadiumCustomization.accentColor || palette.accent;
+      }
       let cap = Number(state?.infrastructure?.stadium?.capacity || state?.stadiumCapacity || 7800);
       
       // Obtém dados dos anéis de ampliação da carreira
@@ -245,9 +249,9 @@
         rings[1].oeste = !!stData.sides.oeste;
       }
 
-      // Estádio com até 14.000 lugares (ex: 12.000 do usuário):
+      // Estádio com até 14.999 lugares (ex: 12.000 do usuário):
       // Apenas os setores Norte e Sul estão construídos no 1º anel. Leste e Oeste permanecem abertos!
-      if (!params.isArena && cap <= 14000) {
+      if (!params.isArena && cap < 15000) {
         rings[1] = rings[1] || {};
         rings[1].norte = (cap > 5000);
         rings[1].sul = (cap > 8500);
@@ -272,7 +276,7 @@
         ...(state?.stadiumUpgrades || {}),
         ...(params.previewUpgrade ? { [params.previewUpgrade]: true } : {})
       };
-      // Cores personalizadas também se aplicam aos materiais físicos das arquibancadas.
+      // Cores personalizadas aplicam-se apenas para clubes criados do zero
       this.customization = stadiumCustomization;
 
       // 1. Base / Praça Esportiva Externa (Podium de Asfalto e Calçadas)
@@ -281,16 +285,168 @@
       // 2. Gramado Oficial Cortado em Faixas + Linhas e Traves
       this.buildPitch(stadiumCustomization);
 
-      // 3. Os 6 Anéis de Arquibancadas Progressivas
+      // 3. Estrutura Base de 5.000 Lugares (Tribuna Social Oeste Coberta, Cabines de Imprensa e Muro do Campo)
+      this.buildStarterStands(palette, cap);
+
+      // 4. Os 6 Anéis de Arquibancadas Progressivas
       this.buildStands(rings, palette, cap, params, ring);
 
-      // 4. Obras Ativas com Guindaste e Andaimes no Setor Sendo Construído
+      // 5. Obras Ativas com Guindaste e Andaimes no Setor Sendo Construído
       if (activeWork && activeWork.side) {
         this.buildConstructionCrane(activeWork.side, Number(activeWork.ring) || 1);
       }
 
-      // 5. Melhorias em Tempo Real (Telão, Refletores LED, Fogos, Mosaico, Camarotes VIP, etc.)
+      // 6. Melhorias em Tempo Real (Telão, Refletores LED, Fogos, Mosaico, Camarotes VIP, etc.)
       this.buildUpgrades(upgrades, palette, rings, clubName, stadiumCustomization);
+
+      // Renderiza imediatamente o frame atualizado
+      if (this.renderer && this.scene && this.camera) {
+        this.renderer.render(this.scene, this.camera);
+      }
+    }
+
+    /**
+     * 0. Constrói as instalações fundamentais de um estádio de 5.000 lugares base (Time do zero / Divisões de acesso):
+     * - Arquibancada Social Coberta (Setor Oeste com assentos nas cores do clube, marquise metálica em balanço)
+     * - Cabines de Imprensa e Rádio suspensas no topo da social
+     * - Mureta e Alambrado perimetral de concreto contornando todo o gramado
+     * - Túnel de acesso dos jogadores no centro do campo
+     */
+    buildStarterStands(palette, cap) {
+      const THREE = window.THREE;
+      const starterGroup = new THREE.Group();
+      
+      const concreteColor = this.customization?.standColor || '#475569';
+      const seatColor = this.customization?.seatColor || palette.primary || '#0284c7';
+      const trimColor = this.customization?.accentColor || palette.accent || '#facc15';
+
+      const concMat = new THREE.MeshStandardMaterial({ color: concreteColor, roughness: 0.85, flatShading: true });
+      const darkConcMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.9, flatShading: true });
+      const seatMat = new THREE.MeshStandardMaterial({ color: seatColor, roughness: 0.5, flatShading: true });
+      const roofMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.4, metalness: 0.6, flatShading: true });
+      const glassMat = new THREE.MeshStandardMaterial({ color: '#38bdf8', transparent: true, opacity: 0.6, roughness: 0.2 });
+      const fenceMat = new THREE.MeshStandardMaterial({ color: '#64748b', roughness: 0.5, metalness: 0.7, flatShading: true });
+
+      // 1. Mureta Perimetral do Campo (Baixa, contornando o campo de jogo)
+      const fieldW = 24;
+      const fieldL = 36;
+      const wallH = 0.9;
+      const wallThick = 0.25;
+      
+      // Muros Norte e Sul (atrás dos gols)
+      [-1, 1].forEach(dir => {
+        const wallN = new THREE.Mesh(new THREE.BoxGeometry(fieldW + 2, wallH, wallThick), concMat);
+        wallN.position.set(0, wallH / 2 + 0.3, dir * (fieldL / 2 + 1.2));
+        wallN.castShadow = true;
+        wallN.receiveShadow = true;
+        starterGroup.add(wallN);
+
+        // Grade metálica superior do alambrado
+        const fenceGeo = new THREE.BoxGeometry(fieldW + 1.8, 0.8, 0.08);
+        const fence = new THREE.Mesh(fenceGeo, fenceMat);
+        fence.position.set(0, wallH + 0.7, dir * (fieldL / 2 + 1.2));
+        starterGroup.add(fence);
+      });
+
+      // Muro Leste (lateral oposta)
+      const wallEast = new THREE.Mesh(new THREE.BoxGeometry(wallThick, wallH, fieldL + 2), concMat);
+      wallEast.position.set(fieldW / 2 + 1.2, wallH / 2 + 0.3, 0);
+      wallEast.castShadow = true;
+      wallEast.receiveShadow = true;
+      starterGroup.add(wallEast);
+
+      // Grade Leste
+      const fenceEast = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.8, fieldL + 1.8), fenceMat);
+      fenceEast.position.set(fieldW / 2 + 1.2, wallH + 0.7, 0);
+      starterGroup.add(fenceEast);
+
+      // Muro Oeste com vão central para o túnel de jogadores
+      [-1, 1].forEach(sideZ => {
+        const wallWestPart = new THREE.Mesh(new THREE.BoxGeometry(wallThick, wallH, (fieldL / 2) - 2.5), concMat);
+        wallWestPart.position.set(-fieldW / 2 - 1.2, wallH / 2 + 0.3, sideZ * ((fieldL / 4) + 1.8));
+        wallWestPart.castShadow = true;
+        wallWestPart.receiveShadow = true;
+        starterGroup.add(wallWestPart);
+      });
+
+      // 2. Túnel dos Jogadores (Acesso Central Oeste com Cobertura Retrátil Sanfonada)
+      const tunnelGeo = new THREE.BoxGeometry(2.4, 1.8, 3.2);
+      const tunnelMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.3, metalness: 0.8 });
+      const tunnel = new THREE.Mesh(tunnelGeo, tunnelMat);
+      tunnel.position.set(-fieldW / 2 - 0.4, 1.2, 0);
+      starterGroup.add(tunnel);
+
+      // Faixa colorida do clube sobre o túnel
+      const stripeGeo = new THREE.BoxGeometry(2.44, 0.2, 3.24);
+      const stripeMat = new THREE.MeshBasicMaterial({ color: trimColor });
+      const tunnelStripe = new THREE.Mesh(stripeGeo, stripeMat);
+      tunnelStripe.position.set(-fieldW / 2 - 0.4, 2.1, 0);
+      starterGroup.add(tunnelStripe);
+
+      // 3. Tribuna Social Oeste (A arquibancada sede de 5.000 lugares cobertos)
+      const socialStandLength = 34;
+      const numSteps = 5;
+      const stepH = 0.55;
+      const stepD = 1.2;
+      const startDist = fieldW / 2 + 2.0;
+
+      for (let s = 0; s < numSteps; s++) {
+        const sy = 0.3 + s * stepH;
+        const sx = -(startDist + s * stepD);
+
+        // Bloco de degrau
+        const sGeo = new THREE.BoxGeometry(stepD, stepH, socialStandLength);
+        const sMesh = new THREE.Mesh(sGeo, concMat);
+        sMesh.position.set(sx - stepD / 2, sy + stepH / 2, 0);
+        sMesh.castShadow = true;
+        sMesh.receiveShadow = true;
+        starterGroup.add(sMesh);
+
+        // Assentos individuais do setor social
+        const seatRowGeo = new THREE.BoxGeometry(stepD * 0.7, stepH * 0.4, socialStandLength * 0.94);
+        const seatRow = new THREE.Mesh(seatRowGeo, seatMat);
+        seatRow.position.set(sx - stepD / 2, sy + stepH + stepH * 0.2, 0);
+        seatRow.castShadow = true;
+        starterGroup.add(seatRow);
+      }
+
+      // Pilares de Sustentação da Cobertura Social
+      const roofH = 0.3 + numSteps * stepH + 4.2;
+      const backX = -(startDist + numSteps * stepD);
+      const pillarPositions = [-14, -7, 0, 7, 14];
+      pillarPositions.forEach(pz => {
+        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, roofH, 6), roofMat);
+        pillar.position.set(backX, roofH / 2, pz);
+        pillar.castShadow = true;
+        starterGroup.add(pillar);
+
+        // Braço em balanço (Cantilever beam)
+        const armGeo = new THREE.BoxGeometry(numSteps * stepD + 2.5, 0.25, 0.25);
+        const arm = new THREE.Mesh(armGeo, roofMat);
+        arm.position.set(backX + (numSteps * stepD + 2.5) / 2, roofH - 0.2, pz);
+        starterGroup.add(arm);
+      });
+
+      // Teto / Marquise da Tribuna Social
+      const roofWidth = numSteps * stepD + 3.2;
+      const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(roofWidth, 0.22, socialStandLength + 2.0), roofMat);
+      roofMesh.position.set(backX + roofWidth / 2, roofH, 0);
+      roofMesh.castShadow = true;
+      starterGroup.add(roofMesh);
+
+      // 4. Cabines de Rádio & Imprensa suspensas no alto da Tribuna Social
+      const pressBoxGeo = new THREE.BoxGeometry(2.8, 1.8, 12);
+      const pressBox = new THREE.Mesh(pressBoxGeo, darkConcMat);
+      pressBox.position.set(backX - 1.2, roofH - 1.2, 0);
+      pressBox.castShadow = true;
+      starterGroup.add(pressBox);
+
+      // Vidro das cabines de transmissão
+      const pressGlass = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.2, 11), glassMat);
+      pressGlass.position.set(backX + 0.22, roofH - 1.2, 0);
+      starterGroup.add(pressGlass);
+
+      this.stadiumGroup.add(starterGroup);
     }
 
     /**
@@ -924,8 +1080,8 @@
           const spot = new THREE.SpotLight('#fef08a', 0.6, 60, Math.PI / 4, 0.4);
           spot.position.set(x, towerH + 0.9, z);
           spot.target.position.set(0, 0, 0);
-          this.scene.add(spot.target);
-          this.scene.add(spot);
+          upgradeGroup.add(spot.target);
+          upgradeGroup.add(spot);
         }
       });
 
@@ -1034,17 +1190,21 @@
 
       const targetPos = {
         panoramic: { x: 44 * ringScale, y: 32 * ringScale, z: 50 * ringScale, tx: 0, ty: 2, tz: 0 },
-        tv: { x: -38 * ringScale, y: 24 * ringScale, z: 0, tx: 8, ty: 4, tz: 0 },
-        leste: { x: -34 * ringScale, y: 20 * ringScale, z: 0, tx: 16, ty: 4, tz: 0 },
-        oeste: { x: 34 * ringScale, y: 20 * ringScale, z: 0, tx: -16, ty: 4, tz: 0 },
-        norte: { x: 0, y: 22 * ringScale, z: 38 * ringScale, tx: 0, ty: 4, tz: -16 },
-        sul: { x: 0, y: 22 * ringScale, z: -38 * ringScale, tx: 0, ty: 4, tz: 16 },
-        campo: { x: 0, y: 2.2, z: 2, tx: 0, ty: 10 * ringScale, tz: -20 * ringScale }
+        tv: { x: -36 * ringScale, y: 22 * ringScale, z: 0, tx: 4, ty: 2, tz: 0 },
+        leste: { x: -32 * ringScale, y: 18 * ringScale, z: 0, tx: 12 * ringScale, ty: 3, tz: 0 },
+        oeste: { x: 32 * ringScale, y: 18 * ringScale, z: 0, tx: -12 * ringScale, ty: 3, tz: 0 },
+        norte: { x: 0, y: 18 * ringScale, z: 34 * ringScale, tx: 0, ty: 3, tz: -12 * ringScale },
+        sul: { x: 0, y: 18 * ringScale, z: -34 * ringScale, tx: 0, ty: 3, tz: 12 * ringScale },
+        campo: { x: -16, y: 4.2, z: 12, tx: 2, ty: 2.2, tz: -4 }
       }[p] || { x: 44 * ringScale, y: 32 * ringScale, z: 50 * ringScale, tx: 0, ty: 2, tz: 0 };
 
       this.camera.position.set(targetPos.x, targetPos.y, targetPos.z);
       this.controls.target.set(targetPos.tx, targetPos.ty, targetPos.tz);
       this.controls.update();
+
+      if (this.renderer && this.scene && this.camera) {
+        this.renderer.render(this.scene, this.camera);
+      }
     }
 
     /**
@@ -1054,25 +1214,30 @@
       if (this.isDisposed) return;
       this.animId = requestAnimationFrame(() => this.animate());
 
-      const elapsed = this.clock ? this.clock.getElapsedTime() : 0;
+      try {
+        const elapsed = this.clock ? this.clock.getElapsedTime() : 0;
 
-      // Anima sinalizadores e beacons
-      if (this.animatedElements.length > 0) {
-        this.animatedElements.forEach(item => {
-          if (item.type === 'flare') {
-            const scale = item.baseScale * (1 + 0.3 * Math.sin(elapsed * 6 + item.offset));
-            item.mesh.scale.set(scale, scale * 1.5, scale);
-            item.mesh.rotation.y += 0.05;
-          } else if (item.type === 'beacon') {
-            const blink = (Math.sin(elapsed * 8) > 0) ? 1 : 0.2;
-            item.mesh.scale.set(blink, blink, blink);
-          }
-        });
-      }
+        // Anima sinalizadores e beacons
+        if (this.animatedElements && this.animatedElements.length > 0) {
+          this.animatedElements.forEach(item => {
+            if (!item || !item.mesh) return;
+            if (item.type === 'flare') {
+              const scale = (item.baseScale || 1) * (1 + 0.3 * Math.sin(elapsed * 6 + (item.offset || 0)));
+              item.mesh.scale.set(scale, scale * 1.5, scale);
+              item.mesh.rotation.y += 0.05;
+            } else if (item.type === 'beacon') {
+              const blink = (Math.sin(elapsed * 8) > 0) ? 1 : 0.2;
+              item.mesh.scale.set(blink, blink, blink);
+            }
+          });
+        }
 
-      if (this.controls) this.controls.update();
-      if (this.renderer && this.scene && this.camera) {
-        this.renderer.render(this.scene, this.camera);
+        if (this.controls) this.controls.update();
+        if (this.renderer && this.scene && this.camera) {
+          this.renderer.render(this.scene, this.camera);
+        }
+      } catch (err) {
+        // Ignora silenciosamente pequenas inconsistências de frame para manter o loop a 60 FPS
       }
     }
 
@@ -1084,8 +1249,16 @@
         this.resizeObserver.disconnect();
         this.resizeObserver = null;
       }
-      if (this.controls) this.controls.dispose();
-      if (this.renderer) this.renderer.dispose();
+      if (this.controls) {
+        try { this.controls.dispose(); } catch (_) {}
+        this.controls = null;
+      }
+      if (this.renderer) {
+        try { this.renderer.dispose(); } catch (_) {}
+        this.renderer = null;
+      }
+      this.scene = null;
+      this.camera = null;
     }
   }
 
@@ -1094,6 +1267,9 @@
 
   const AFMStadiumLowPoly = {
     init(canvas, options) {
+      if (activeLowPolyInstance && activeLowPolyInstance.canvas === canvas && !activeLowPolyInstance.isDisposed && activeLowPolyInstance.renderer) {
+        return activeLowPolyInstance;
+      }
       if (activeLowPolyInstance) {
         activeLowPolyInstance.dispose();
         activeLowPolyInstance = null;

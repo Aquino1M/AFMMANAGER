@@ -52,6 +52,15 @@ const THREE = {
     setPixelRatio() {}
     render() {}
     dispose() {}
+    forceContextLoss() {}
+    getContext() {
+      return {
+        getExtension(name) {
+          if (name === 'WEBGL_lose_context') return { loseContext() {} };
+          return null;
+        }
+      };
+    }
   },
   OrbitControls: class {
     constructor() {
@@ -194,15 +203,61 @@ assert.ok(instance.stadiumGroup.children.length >= 8, 'Mega Coliseu 100k deve co
 assert.ok(instance.animatedElements.some(e => e.type === 'flare'), 'Festa pirotécnica com sinalizadores animados deve estar ativa');
 console.log(`✓ 6º Anel (100k - Mega Coliseu): ${instance.stadiumGroup.children.length} grupos estruturais com treliça, fachada e upgrades`);
 
-// 4. Teste Presets de Câmera
+// 4. Teste Estádio 5.000 Lugares (Time Criado do Zero)
+const state5kStarter = {
+  club: 'Valência FC',
+  isCustomClub: true,
+  customClubStateCompId: 'bra-est-sp',
+  stadiumName: 'Arena dos Sonhos',
+  infrastructure: { stadium: { capacity: 5000, level: 1 } },
+  stadiumRingData: {
+    ring: 1,
+    rings: {
+      1: { norte: false, sul: false, leste: false, oeste: false }
+    }
+  },
+  stadiumCustomization: {
+    standColor: '#1e3a8a',
+    seatColor: '#facc15',
+    accentColor: '#ffffff'
+  }
+};
+AFMStadiumLowPoly.update(state5kStarter);
+assert.ok(instance.stadiumGroup.children.length >= 3, 'Estádio de 5.000 lugares deve conter praça, gramado e tribuna social oeste coberta');
+assert.strictEqual(instance.customization.standColor, '#1e3a8a', 'Clube criado do zero deve aplicar personalização customizada de cores');
+console.log('✓ 5.000 Lugares (Time Criado do Zero): Tribuna Social Oeste, cabines, túnel e muro gerados com sucesso');
+
+// 4.1 Teste Clube Real (Corinthians) — Personalização não deve vazar
+const stateRealClub = {
+  club: 'Corinthians',
+  isCustomClub: false,
+  infrastructure: { stadium: { capacity: 39000, level: 3 } },
+  stadiumCustomization: {
+    standColor: '#ff0000', // Vermelho tentado
+    seatColor: '#00ff00'
+  }
+};
+AFMStadiumLowPoly.update(stateRealClub);
+assert.strictEqual(Object.keys(instance.customization).length, 0, 'Clube real não deve carregar personalização customizada');
+console.log('✓ Clube Real (Corinthians): Paleta oficial preservada e personalização restrita');
+
+// 5. Teste Presets de Câmera
 const presets = ['panoramic', 'tv', 'leste', 'oeste', 'norte', 'sul', 'campo'];
 presets.forEach(p => {
   AFMStadiumLowPoly.setCameraPreset(p);
   assert.ok(instance.camera.position.x !== undefined, `Posição de câmera para preset ${p} deve ser válida`);
 });
-console.log('✓ Todos os 7 presets de câmera orbitais (Panorâmica, TV, Leste, Oeste, Norte, Sul, Campo) validados');
+AFMStadiumLowPoly.setCameraPreset('campo');
+assert.strictEqual(instance.camera.position.x, -16, 'Preset campo deve estar posicionado na borda do campo (-16, 4.2, 12)');
+assert.strictEqual(instance.camera.position.y, 4.2, 'Preset campo não deve estar mirando o céu escuro');
+assert.strictEqual(instance.controls.target.x, 2, 'Alvo do preset campo deve mirar o centro do gramado');
+console.log('✓ Todos os 7 presets de câmera orbitais (Panorâmica, TV, Leste, Oeste, Norte, Sul, Campo) validados com visão de campo perfeita');
 
 AFMStadiumLowPoly.dispose();
+assert.strictEqual(instance.isDisposed, true, 'Instância deve ser descartada');
+assert.strictEqual(instance.renderer, null, 'Renderer deve ser liberado');
+console.log('✓ Descarte de contexto WebGL e desvinculação Three.js concluídos sem vazamento de memória');
+
 console.log('\n========================================');
 console.log('🎉 TODOS OS TESTES DO MOTOR LOW-POLY 3D PASSARAM COM 100% DE SUCESSO!');
 console.log('========================================');
