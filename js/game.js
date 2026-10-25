@@ -5206,8 +5206,14 @@ function processStadiumConstructionDay(){
   st.rings[ring][side] = true;
   st.purchasedSectors = Array.isArray(st.purchasedSectors) ? st.purchasedSectors : [];
   const key = `r${ring}_${side}`;
-  if(!st.purchasedSectors.includes(key)) st.purchasedSectors.push(key);
-  state.infrastructure.stadium.capacity = Math.min(100000, (Number(state.infrastructure.stadium.capacity) || 8000) + 3500);
+
+  // INVIOLABLE RULE: capacity increases exactly once for each newly completed, unique sector.
+  const baseCapacity = Math.max(0, Number(state.infrastructure.stadium.capacity) || 8000);
+  const isNewPurchasedSector = !st.purchasedSectors.includes(key);
+  if(isNewPurchasedSector){
+    st.purchasedSectors.push(key);
+    state.infrastructure.stadium.capacity = Math.min(100000, baseCapacity + 3500);
+  }
   if(state.stadium) state.stadium.capacity = state.infrastructure.stadium.capacity;
   st.activeWork = null;
   st.sides = st.rings[st.ring];
@@ -14475,15 +14481,7 @@ function migrate(s){
       s.stadiumRingData.rings[r] = s.stadiumRingData.rings[r] || { norte: false, sul: false, leste: false, oeste: false };
     }
     s.stadiumRingData.purchasedSectors = Array.isArray(s.stadiumRingData.purchasedSectors) ? s.stadiumRingData.purchasedSectors : [];
-    if(s.stadiumRingData.sides){
-      ['norte', 'sul', 'leste', 'oeste'].forEach(side => {
-        if(s.stadiumRingData.sides[side]){
-          s.stadiumRingData.rings[s.stadiumRingData.ring][side] = true;
-          const k = `r${s.stadiumRingData.ring}_${side}`;
-          if(!s.stadiumRingData.purchasedSectors.includes(k)) s.stadiumRingData.purchasedSectors.push(k);
-        }
-      });
-    }
+    // INVARIANT: sides is derived UI state; never promote it into paid construction.
     s.stadiumRingData.sides = s.stadiumRingData.rings[s.stadiumRingData.ring];
   }
   s.namingRights=s.namingRights||null;

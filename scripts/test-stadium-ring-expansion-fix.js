@@ -76,3 +76,30 @@ if (stData.purchasedSectors.length !== 1 || stData.purchasedSectors[0] !== 'r1_n
 }
 
 console.log('PASS: reparação de anel 1 bem-sucedida (apenas Norte construído, Sul/Leste/Oeste disponíveis).');
+
+// INVIOLABLE RULE: an explicit purchased-sector history is authoritative.
+// Two paid sectors must never be upgraded to four merely because capacity is high.
+testContext.state = {
+  club: 'AQN FC',
+  infrastructure: { stadium: { level: 1, capacity: 12000 } },
+  stadiumRingData: {
+    ring: 1,
+    maxRings: 6,
+    sides: { norte: true, sul: true, leste: false, oeste: false },
+    rings: {
+      1: { norte: true, sul: true, leste: false, oeste: false },
+      2: { norte: false, sul: false, leste: false, oeste: false },
+      3: { norte: false, sul: false, leste: false, oeste: false },
+      4: { norte: false, sul: false, leste: false, oeste: false },
+      5: { norte: false, sul: false, leste: false, oeste: false },
+      6: { norte: false, sul: false, leste: false, oeste: false }
+    },
+    purchasedSectors: ['r1_norte', 'r1_sul'],
+    activeWork: null
+  }
+};
+const twoBought = testContext.getStadiumExpansionData();
+if(twoBought.rings[1].norte !== true || twoBought.rings[1].sul !== true) throw new Error('Os dois setores pagos devem continuar concluídos.');
+if(twoBought.rings[1].leste !== false || twoBought.rings[1].oeste !== false) throw new Error('Regra inviolável: Leste/Oeste não comprados não podem virar construídos.');
+if(twoBought.purchasedSectors.length !== 2) throw new Error('Regra inviolável: o histórico de compras deve conter exatamente dois setores.');
+console.log('PASS: REGRA INVIOLÁVEL — dois setores comprados permanecem dois, mesmo com capacidade de 12.000.');
