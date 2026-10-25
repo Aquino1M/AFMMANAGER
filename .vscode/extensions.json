@@ -18,6 +18,8 @@
     "ritwickdey.liveserver",
     "esbenp.prettier-vscode",
     "dbaeumer.vscode-eslint",
-    "christian-kohler.path-intellisense"
+    "christian-kohler.path-intellisense",
+    "wallabyjs.quokka-vscode",
+    "aaron-bond.better-comments"
   ]
 }
