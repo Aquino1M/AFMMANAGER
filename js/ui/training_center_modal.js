@@ -170,7 +170,7 @@
               <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 22px;">⚽</span>
                 <div>
-                  <div style="font-size: 10px; font-weight: 800; color: #10b981; letter-spacing: 1px; text-transform: uppercase;">CENTRO DE TREINAMENTO · NÍVEL ${ctLvl}/8 · BÔNUS +${typeof window.trainingBonusPct === 'function' ? window.trainingBonusPct(ctLvl) : Math.round(5 + (Math.max(1, Math.min(8, ctLvl)) - 1) * 11)}% NO TREINO (XP)</div>
+                  <div style="font-size: 10px; font-weight: 800; color: #10b981; letter-spacing: 1px; text-transform: uppercase;">CENTRO DE TREINAMENTO · NÍVEL ${ctLvl}/8 · BÔNUS +${typeof window.trainingBonusPct === 'function' ? window.trainingBonusPct(ctLvl) : Math.max(1, Math.min(8, ctLvl))}% NO TREINO (XP)</div>
                   <h2 style="margin: 0; font-size: 18px; font-weight: 900; color: #fff;">${esc(clubName)}</h2>
                 </div>
               </div>
@@ -496,7 +496,7 @@
     // Instalações melhores aumentam o XP por sessão com bônus por level do CT (1–8).
     // O preparador automático mantém metade do ganho da sessão manual equivalente.
     const trainingLevel = Math.max(1, Math.min(8, ctLvl));
-    const ctBonusPct = typeof window.trainingBonusPct === 'function' ? window.trainingBonusPct(trainingLevel) : (5 + (trainingLevel - 1) * 11);
+    const ctBonusPct = typeof window.trainingBonusPct === 'function' ? window.trainingBonusPct(trainingLevel) : trainingLevel;
     const facilityBonus = 1 + (ctBonusPct / 100);
     const coachMult = (isAutoFitnessCoach ? 0.50 : 1.0) * facilityBonus;
 

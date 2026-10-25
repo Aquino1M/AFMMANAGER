@@ -399,8 +399,8 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
 /* Facilities */
 .facility-map{
   display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(270px,1fr));
+  gap:14px;
   padding:18px;
   border:1px solid var(--line);
   border-radius:16px;
@@ -408,20 +408,52 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
 }
 .facility-card{
   display:flex;
-  gap:12px;
-  min-height:180px;
+  flex-direction:column;
+  min-height:220px;
   background:var(--panel);
   border:1px solid var(--line);
   border-radius:13px;
   padding:14px;
+  box-sizing:border-box;
 }
 .facility-card:hover{border-color:var(--accent)}
 .facility-stadium{grid-column:span 2;background:linear-gradient(135deg,#141e2b,#1a2738)}
-.facility-icon{font-size:32px;line-height:1}
+.facility-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.facility-icon{font-size:28px;line-height:1;flex-shrink:0}
 .facility-body{min-width:0;flex:1;display:flex;flex-direction:column}
-.facility-body h3{margin:3px 0 6px;font-size:15px}
-.facility-body p{color:var(--muted);font-size:12px;flex:1;margin:0 0 8px}
-.facility-stat{display:flex;justify-content:space-between;gap:8px;background:#0d131c;padding:6px 9px;border-radius:8px;margin-bottom:8px;font-size:12px}
+.facility-body h3{margin:2px 0 0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.facility-body p{color:var(--muted);font-size:11.5px;line-height:1.35;margin:0 0 10px;min-height:30px}
+.facility-stat{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:6px;
+  background:#0d131c;
+  padding:6px 9px;
+  border-radius:8px;
+  margin-bottom:6px;
+  font-size:11px;
+  overflow:hidden;
+}
+.facility-stat-label{
+  flex-shrink:0;
+  font-weight:600;
+  white-space:nowrap;
+}
+.facility-stat-val{
+  text-align:right;
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.facility-actions{
+  display:flex;
+  gap:8px;
+  margin-top:auto;
+  padding-top:10px;
+  flex-wrap:wrap;
+}
 
 /* Ticket & Parking Controls */
 .ticket-control{display:grid;gap:10px;margin:12px 0 16px}

@@ -1438,19 +1438,19 @@ const FACILITY_MAINTENANCE_LEVELS = {
 };
 
 const TRAINING_BONUS_BY_LEVEL = {
-  1: 5,
-  2: 12,
-  3: 20,
-  4: 30,
-  5: 42,
-  6: 55,
-  7: 70,
-  8: 85
+  1: 1,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8
 };
 
 function trainingBonusPct(lvl){
   const l = clamp(Math.round(Number(lvl) || 1), 1, 8);
-  return TRAINING_BONUS_BY_LEVEL[l] || (5 + (l - 1) * 11);
+  return TRAINING_BONUS_BY_LEVEL[l] || l;
 }
 
 function facilityMonthlyCost(key, level){
@@ -8106,6 +8106,10 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
     const oppGoals = norm(fixture.home) === norm(state.club) ? ag : hg;
     if(typeof registrarEliminacaoMataMata === 'function') registrarEliminacaoMataMata(state, 'Copa do Brasil', phase.name, opp, userGoals, oppGoals);
   }
+  const payroll = typeof payrollPerRound === 'function' ? payrollPerRound() : 0;
+  const facilitiesExp = typeof facilitiesExpensesPerRound === 'function' ? facilitiesExpensesPerRound(state) : 0;
+  state.balance -= (payroll + facilitiesExp);
+  state.expense = (state.expense || 0) + (payroll + facilitiesExp);
   if(typeof advanceDateAfterMatch === 'function') advanceDateAfterMatch(state);
   if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
     window.AFM_LifeAndSharesPro.processRoundTurn(state);
@@ -17077,6 +17081,7 @@ function monthlyFinancialProjection(socioData = null){
   };
   const expenses = {
     payroll: totalMonthlyPayroll(),
+    facilities: totalFacilitiesMonthlyExpense(state),
     scouts: getMonthlyScoutPayroll(state),
     marketing: Math.max(MARKETING_MINIMUM_WEEKLY, Number(state.marketingWeekly) || 36000) * 4,
     bankRepayments: bankInstallments,
@@ -17150,7 +17155,7 @@ function processDevelopment(){
   const lvl=state.infrastructure?.training?.level||1;
   const starters = new Set(state.lineup || []);
   const candidates=state.squad.filter(p=>(+p.age||25)<=25&&(p.potential||playerOverall(p))>playerOverall(p));
-  const ctBonus = typeof trainingBonusPct === 'function' ? trainingBonusPct(lvl) : (5 + (lvl - 1) * 11);
+  const ctBonus = typeof trainingBonusPct === 'function' ? trainingBonusPct(lvl) : lvl;
   for(const p of candidates){
     const starterBonus = starters.has(playerKey(p)) ? 8 : 0;
     const ctChanceBonus = Math.round(ctBonus / 5);
@@ -19050,6 +19055,10 @@ function simulateQuickStateLeagueRound(competitionId, roundIndex){
     state.balance += gate;
     state.income += gate;
   }
+  const payroll = typeof payrollPerRound === 'function' ? payrollPerRound() : 0;
+  const facilitiesExp = typeof facilitiesExpensesPerRound === 'function' ? facilitiesExpensesPerRound(state) : 0;
+  state.balance -= (payroll + facilitiesExp);
+  state.expense = (state.expense || 0) + (payroll + facilitiesExp);
   if(typeof processFitness === 'function') processFitness();
   if(typeof processDevelopment === 'function') processDevelopment();
 
@@ -29653,6 +29662,10 @@ function playContinentalFixture(competitionId, matchId){
       window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: userResult.h, a: userResult.a, hg: userResult.hg, ag: userResult.ag, gf: (norm(userResult.h) === norm(state.club) ? userResult.hg : userResult.ag), ga: (norm(userResult.h) === norm(state.club) ? userResult.ag : userResult.hg), won: state.lastMatchSummary?.won, events: userResult.events });
     }
     state.lastMatchSummary = { h:userResult.h, a:userResult.a, hg:userResult.hg, ag:userResult.ag, isHome:norm(userResult.h)===norm(state.club), won:(norm(userResult.h)===norm(state.club)?userResult.hg>userResult.ag:userResult.ag>userResult.hg) };
+    const payroll = typeof payrollPerRound === 'function' ? payrollPerRound() : 0;
+    const facilitiesExp = typeof facilitiesExpensesPerRound === 'function' ? facilitiesExpensesPerRound(state) : 0;
+    state.balance -= (payroll + facilitiesExp);
+    state.expense = (state.expense || 0) + (payroll + facilitiesExp);
   }
   state.news = state.news || [];
   const compLabel = compById(match.competitionId)?.name || (match.competitionId === 'lib' ? 'Libertadores' : match.competitionId === 'sud' ? 'Sul-Americana' : match.competitionId);
@@ -32108,40 +32121,74 @@ function structurePage(){
           const max=x.level>=d.max;
           return `
             <div class="facility-card ${k==='stadium'?'facility-stadium':''}">
-              <div class="facility-icon">${d.icon}</div>
-              <div class="facility-body">
-                <div class="small">NÍVEL ${x.level}/${d.max}</div>
-                <h3>${d.name}</h3>
-                <p>${d.effect}</p>
-                <div class="facility-stat" style="color:#fbbf24;font-size:11px">
-                  Manutenção & Staff: <b>${fmtMoney(facilityMonthlyCost(k, x.level))}/mês</b>
-                  ${!max ? `<span class="muted" style="margin-left:4px">(Próx: ${fmtMoney(facilityMonthlyCost(k, x.level + 1))}/mês)</span>` : ''}
+              <div class="facility-head">
+                <div class="facility-icon">${d.icon}</div>
+                <div style="min-width:0;flex:1">
+                  <div class="small" style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">NÍVEL ${x.level}/${d.max}</div>
+                  <h3 style="margin:2px 0 0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.name}</h3>
                 </div>
-                ${k==='stadium'?`<div class="facility-stat">Capacidade: <b>${(x.capacity||0).toLocaleString('pt-BR')} torcedores</b></div>`:''}
+              </div>
+              <div class="facility-body">
+                <p>${d.effect}</p>
+                <div class="facility-stat" style="color:#fbbf24">
+                  <span class="facility-stat-label">Manutenção & Staff:</span>
+                  <span class="facility-stat-val">
+                    <b>${fmtMoney(facilityMonthlyCost(k, x.level))}/mês</b>
+                    ${!max ? `<span class="muted" style="margin-left:3px;font-size:10px">(Próx: ${fmtMoney(facilityMonthlyCost(k, x.level + 1))})</span>` : ''}
+                  </span>
+                </div>
+                ${k==='stadium'?`
+                  <div class="facility-stat">
+                    <span class="facility-stat-label">Capacidade:</span>
+                    <span class="facility-stat-val"><b>${(x.capacity||0).toLocaleString('pt-BR')} torcedores</b></span>
+                  </div>
+                `:''}
                 ${k==='parking'?`
-                  <div class="facility-stat">Vagas: <b>${(parkingSpots(x.level) + (state.parkingConcession?.bonusInvestedSpaces || 0)).toLocaleString('pt-BR')} vagas</b> ${state.parkingConcession ? `<span class="pill good" style="font-size:10px;margin-left:4px">🤝 Concessão: ${esc(state.parkingConcession.companyName)} (+${state.parkingConcession.bonusInvestedSpaces} vagas)</span>` : ''}</div>
+                  <div class="facility-stat">
+                    <span class="facility-stat-label">Vagas:</span>
+                    <span class="facility-stat-val"><b>${(parkingSpots(x.level) + (state.parkingConcession?.bonusInvestedSpaces || 0)).toLocaleString('pt-BR')}</b> ${state.parkingConcession ? `<span class="pill good" style="font-size:9px;margin-left:2px">🤝 ${esc(state.parkingConcession.companyName)}</span>` : ''}</span>
+                  </div>
                   ${state.parkingConcession ? `
-                    <div class="facility-stat" style="color:var(--neon);font-size:11px">
-                      Repasse: <b>${state.parkingConcession.revenueSharePct}% por jogo</b> + <b>${fmtMoney(state.parkingConcession.monthlyFee)}/mês</b> (${state.parkingConcession.monthsRemaining} meses rest.)
+                    <div class="facility-stat" style="color:var(--neon)">
+                      <span class="facility-stat-label">Repasse Concessão:</span>
+                      <span class="facility-stat-val"><b>${state.parkingConcession.revenueSharePct}%/jogo</b> + <b>${fmtMoney(state.parkingConcession.monthlyFee)}/mês</b></span>
                     </div>
                   ` : ''}
                 `:''}
-                ${k==='academy'?`<div class="facility-stat" style="color:var(--neon)">Atletas na Base: <b>${normalizeYouthAcademyRoster(state).length}/${YOUTH_ACADEMY_CAPACITY} atletas (15 a 18 anos)</b></div>`:''}
-                ${k==='training'?`
-                  <div class="facility-stat" style="color:var(--cyan)">Vagas do elenco: <b>${squadCapacity(x.level)} jogadores</b> (+3 por nível)</div>
-                  <div class="facility-stat" style="color:#10b981">Bônus de treino: <b>+${trainingBonusPct(x.level)}% no desenvolvimento</b> ${!max ? `<span class="muted" style="margin-left:4px">(Próx: +${trainingBonusPct(x.level + 1)}%)</span>` : ''}</div>
+                ${k==='academy'?`
+                  <div class="facility-stat" style="color:var(--neon)">
+                    <span class="facility-stat-label">Atletas na Base:</span>
+                    <span class="facility-stat-val"><b>${normalizeYouthAcademyRoster(state).length}/${YOUTH_ACADEMY_CAPACITY}</b> <span class="muted" style="margin-left:2px;font-size:10px">(15 a 18 anos)</span></span>
+                  </div>
                 `:''}
-                ${k==='marketing'?`<div class="facility-stat" style="color:var(--cyan)">Aporte Semanal: <b>${fmtMoney(state.marketingWeekly||36000)}/semana</b></div>`:''}
+                ${k==='training'?`
+                  <div class="facility-stat" style="color:var(--cyan)">
+                    <span class="facility-stat-label">Vagas do elenco:</span>
+                    <span class="facility-stat-val"><b>${squadCapacity(x.level)} atletas</b> <span class="muted" style="margin-left:2px;font-size:10px">(+3)</span></span>
+                  </div>
+                  <div class="facility-stat" style="color:#10b981">
+                    <span class="facility-stat-label">Bônus de treino:</span>
+                    <span class="facility-stat-val"><b>+${trainingBonusPct(x.level)}%</b> ${!max ? `<span class="muted" style="margin-left:3px;font-size:10px">(Próx: +${trainingBonusPct(x.level + 1)}%)</span>` : ''}</span>
+                  </div>
+                `:''}
+                ${k==='marketing'?`
+                  <div class="facility-stat" style="color:var(--cyan)">
+                    <span class="facility-stat-label">Aporte Semanal:</span>
+                    <span class="facility-stat-val"><b>${fmtMoney(state.marketingWeekly||36000)}/sem</b></span>
+                  </div>
+                `:''}
                 ${k==='bank'?`
                   <div class="facility-stat" style="color:${(state.bankLoans||[]).some(l=>l.overdue)?'#ef4444':'#f59e0b'}">
-                    Dívida Ativa: <b>${fmtMoney(totalBankDebt())}</b> (${(state.bankLoans||[]).length} empréstimo(s))
+                    <span class="facility-stat-label">Dívida Ativa:</span>
+                    <span class="facility-stat-val"><b>${fmtMoney(totalBankDebt())}</b> <span class="muted" style="margin-left:2px;font-size:10px">(${(state.bankLoans||[]).length})</span></span>
                   </div>
-                  <div class="facility-stat" style="color:var(--neon);font-size:11px">
-                    Limite Disponível: <b>${fmtMoney(bankAvailableCredit())}</b>
+                  <div class="facility-stat" style="color:var(--neon)">
+                    <span class="facility-stat-label">Limite Disponível:</span>
+                    <span class="facility-stat-val"><b>${fmtMoney(bankAvailableCredit())}</b></span>
                   </div>
-                  ${(state.bankLoans||[]).some(l=>l.overdue)?`<div class="facility-stat" style="color:#ef4444;font-weight:900;font-size:11px">🚨 PARCELA VENCIDA COM JUROS!</div>`:''}
+                  ${(state.bankLoans||[]).some(l=>l.overdue)?`<div class="facility-stat" style="color:#ef4444;font-weight:900">🚨 PARCELA VENCIDA COM JUROS!</div>`:''}
                 `:''}
-                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+                <div class="facility-actions">
                   <button class="btn ${!max&&state.balance>=cost?'primary':''} upgrade" data-facility="${k}" ${max||state.balance<cost?'disabled':''}>
                     ${max?'Nível Máximo':`Evoluir • ${fmtMoney(cost)}`}
                   </button>
@@ -33033,7 +33080,7 @@ function officePage(){
         <span class="pill warn" style="font-size:10px;font-weight:900">SAÍDAS ESTIMADAS</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;font-size:12px">
-        ${[['Salários do elenco',finance.expenses.payroll],['Salários dos olheiros',finance.expenses.scouts],['Marketing',finance.expenses.marketing],['Parcelas bancárias previstas',finance.expenses.bankRepayments],['Parcelas de obras do estádio',finance.expenses.stadiumRepayments],['Despesa com Dividendos aos Acionistas',(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro?.calculateMonthlyClubDividendExpense ? window.AFM_LifeAndSharesPro.calculateMonthlyClubDividendExpense(state).totalClubDividendExpense : (state.lastMonthDividendExpense || 0))]].map(([label,value])=>`<div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)"><div class="muted">${label}</div><b style="color:#f87171;font-size:15px">${fmtMoney(value)}/mês</b></div>`).join('')}
+        ${[['Salários do elenco',finance.expenses.payroll],['Manutenção & Staff',finance.expenses.facilities],['Salários dos olheiros',finance.expenses.scouts],['Marketing',finance.expenses.marketing],['Parcelas bancárias previstas',finance.expenses.bankRepayments],['Parcelas de obras do estádio',finance.expenses.stadiumRepayments],['Despesa com Dividendos aos Acionistas',(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro?.calculateMonthlyClubDividendExpense ? window.AFM_LifeAndSharesPro.calculateMonthlyClubDividendExpense(state).totalClubDividendExpense : (state.lastMonthDividendExpense || 0))]].map(([label,value])=>`<div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)"><div class="muted">${label}</div><b style="color:#f87171;font-size:15px">${fmtMoney(value)}/mês</b></div>`).join('')}
       </div>
     </div>
     ${renderTvBroadcastCard(state)}

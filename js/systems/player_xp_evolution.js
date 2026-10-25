@@ -400,7 +400,7 @@
     processMonthlyTrainingXP(state) {
       if (!state || !Array.isArray(state.squad)) return [];
       const lvl = Math.max(1, Math.min(8, Math.round(Number(state.infrastructure?.training?.level) || 1)));
-      const bonusPct = typeof window.trainingBonusPct === 'function' ? window.trainingBonusPct(lvl) : (5 + (lvl - 1) * 11);
+      const bonusPct = typeof window.trainingBonusPct === 'function' ? window.trainingBonusPct(lvl) : lvl;
       const ctBonusMult = 1 + (bonusPct / 100);
       // O CT concede mais XP mensal a cada nível com o bônus de treino por level
       const baseTrainingPoints = Math.round((35 + (lvl - 1) * 12) * ctBonusMult);
