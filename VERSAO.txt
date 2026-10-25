@@ -1,5 +1,5 @@
 Aquino Futebol Manager 2027 (AFM MANAGER)
-Versão: 3.9.34 (Build 2026-10-25 - Auto-Cura Universal de Estádios 3D para Todos os Saves Antigos e Ativos, Cache Busting v95 e SW v71)
+Versão: 3.9.35 (Build 2026-10-25 - Correção do Setor Oeste no 1º Anel da Maquete 3D, Cache Busting v96 e SW v72)
 Histórico completo disponível em: CHANGELOG.md
 
 Destaques da Versão Atual:

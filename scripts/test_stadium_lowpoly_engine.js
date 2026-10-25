@@ -187,6 +187,26 @@ assert.ok(instance.stadiumGroup.children.length >= 4, 'AQN FC com upgrades deve 
 assert.strictEqual(instance.maxBuiltRing, 1, 'AQN FC 12k deve permanecer rigorosamente no Nível 1');
 console.log('✓ AQN FC (Colisseu do Povo 12k): Renderização com Telão, LED 360°, Mosaico, Refletores e Sinalizadores validada');
 
+// 1.3 Teste 15.500 Lugares: 3 de 4 obras prontas (Norte, Sul, Leste feitas; Oeste NÃO comprado)
+const state15k5 = {
+  club: 'AQN FC',
+  isCustomClub: true,
+  stadiumName: 'COLISSEU DO POVO',
+  infrastructure: { stadium: { capacity: 15500, level: 2 } },
+  stadiumCapacity: 15500,
+  stadiumRingData: {
+    ring: 1,
+    sides: { norte: true, sul: true, leste: true, oeste: false },
+    rings: {
+      1: { norte: true, sul: true, leste: true, oeste: false },
+      2: { norte: false, sul: false, leste: false, oeste: false }
+    },
+    purchasedSectors: ['r1_norte', 'r1_sul', 'r1_leste']
+  }
+};
+AFMStadiumLowPoly.update(state15k5, { selectedSide: 'oeste', isExp: true });
+console.log('✓ 15.500 Lugares (3/4 obras): Setor Oeste permanece aberto até ser comprado, sem marquise indevida antecipada');
+
 // 2. Teste Obra Ativa com Guindaste no Setor Leste
 const stateWithWork = {
   club: 'Palmeiras',

@@ -2,6 +2,16 @@
 
 Todas as principais atualizações e novidades do **Aquino Futebol Manager 2027** são documentadas neste arquivo seguindo o padrão [Keep a Changelog](https://keepachangelog.com/).
 
+## [3.9.35] - 2026-10-25 (Correção da Tribuna Social Oeste no 1º Anel da Maquete 3D & Cache Busting v96)
+
+### 🏟️ Renderização Fiel do Setor Oeste na Maquete Low-Poly 3D (`js/core/stadium_lowpoly_engine.js`)
+
+- **Correção da Tribuna Social Oeste Antecipada**:
+  - Corrigido bug onde a arquibancada do setor Oeste (Tribuna Social coberta com marquise, pilares em balanço e cabines de imprensa) era construída incondicionalmente no método `buildStarterStands`, aparecendo já pronta na maquete 3D mesmo quando o usuário ainda não havia adquirido a ampliação do setor Oeste (ex: Colisseu do Povo com 15.500 lugares e 3 de 4 obras prontas no 1º anel).
+  - A renderização da Tribuna Social Oeste agora é estritamente condicionada a `isWestBuilt = !!(rings[1] && rings[1].oeste)`. Enquanto o setor Oeste não for adquirido, o lado Oeste permanece aberto (apenas com o muro perimetral e túnel de jogadores).
+  - Na aba Ampliação, ao selecionar o setor Oeste não adquirido, o motor exibe apenas a prévia holográfica/dourada do projeto antes da compra, e passa a construir a arquibancada física coberta assim que a obra for concluída, sem malhas duplicadas ou sobrepostas.
+  - **Cache Busting Completo (v96 e SW v72)**: Atualizado o Service Worker (`afm-2027-cache-v72`) e os scripts no `index.html` (`v=20261025_game_v96`, `stadium_v96`, etc.) para garantir atualização imediata no Vercel e navegadores.
+
 ## [3.9.34] - 2026-10-25 (Auto-Cura Universal de Estádios 3D para Todos os Saves Antigos e Ativos & Cache Busting v95)
 
 ### 🏟️ Auto-Cura de Estádios 3D em Saves Antigos (`js/game.js`, `index.html` & `sw.js`)

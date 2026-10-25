@@ -285,8 +285,9 @@
       // 2. Gramado Oficial Cortado em Faixas + Linhas e Traves
       this.buildPitch(stadiumCustomization);
 
-      // 3. Estrutura Base de 5.000 Lugares (Tribuna Social Oeste Coberta, Cabines de Imprensa e Muro do Campo)
-      this.buildStarterStands(palette, cap);
+      // 3. Estrutura Base (Muro do Campo, Alambrado, Túnel de Jogadores e Tribuna Social Oeste se construída)
+      const isWestBuilt = !!(rings[1] && rings[1].oeste);
+      this.buildStarterStands(palette, cap, isWestBuilt);
 
       // 4. Os 6 Anéis de Arquibancadas Progressivas
       this.buildStands(rings, palette, cap, params, ring);
@@ -312,7 +313,7 @@
      * - Mureta e Alambrado perimetral de concreto contornando todo o gramado
      * - Túnel de acesso dos jogadores no centro do campo
      */
-    buildStarterStands(palette, cap) {
+    buildStarterStands(palette, cap, isWestBuilt = false) {
       const THREE = window.THREE;
       const starterGroup = new THREE.Group();
       
@@ -383,68 +384,71 @@
       tunnelStripe.position.set(-fieldW / 2 - 0.4, 2.1, 0);
       starterGroup.add(tunnelStripe);
 
-      // 3. Tribuna Social Oeste (A arquibancada sede de 5.000 lugares cobertos)
-      const socialStandLength = 34;
-      const numSteps = 5;
-      const stepH = 0.55;
-      const stepD = 1.2;
-      const startDist = fieldW / 2 + 2.0;
+      // 3. Tribuna Social Oeste (A arquibancada do setor Oeste com cobertura)
+      // REGRA INVIOLÁVEL: Só é construída se o setor Oeste estiver realmente concluído/comprado no 1º anel!
+      if (isWestBuilt) {
+        const socialStandLength = 34;
+        const numSteps = 5;
+        const stepH = 0.55;
+        const stepD = 1.2;
+        const startDist = fieldW / 2 + 2.0;
 
-      for (let s = 0; s < numSteps; s++) {
-        const sy = 0.3 + s * stepH;
-        const sx = -(startDist + s * stepD);
+        for (let s = 0; s < numSteps; s++) {
+          const sy = 0.3 + s * stepH;
+          const sx = -(startDist + s * stepD);
 
-        // Bloco de degrau
-        const sGeo = new THREE.BoxGeometry(stepD, stepH, socialStandLength);
-        const sMesh = new THREE.Mesh(sGeo, concMat);
-        sMesh.position.set(sx - stepD / 2, sy + stepH / 2, 0);
-        sMesh.castShadow = true;
-        sMesh.receiveShadow = true;
-        starterGroup.add(sMesh);
+          // Bloco de degrau
+          const sGeo = new THREE.BoxGeometry(stepD, stepH, socialStandLength);
+          const sMesh = new THREE.Mesh(sGeo, concMat);
+          sMesh.position.set(sx - stepD / 2, sy + stepH / 2, 0);
+          sMesh.castShadow = true;
+          sMesh.receiveShadow = true;
+          starterGroup.add(sMesh);
 
-        // Assentos individuais do setor social
-        const seatRowGeo = new THREE.BoxGeometry(stepD * 0.7, stepH * 0.4, socialStandLength * 0.94);
-        const seatRow = new THREE.Mesh(seatRowGeo, seatMat);
-        seatRow.position.set(sx - stepD / 2, sy + stepH + stepH * 0.2, 0);
-        seatRow.castShadow = true;
-        starterGroup.add(seatRow);
+          // Assentos individuais do setor social
+          const seatRowGeo = new THREE.BoxGeometry(stepD * 0.7, stepH * 0.4, socialStandLength * 0.94);
+          const seatRow = new THREE.Mesh(seatRowGeo, seatMat);
+          seatRow.position.set(sx - stepD / 2, sy + stepH + stepH * 0.2, 0);
+          seatRow.castShadow = true;
+          starterGroup.add(seatRow);
+        }
+
+        // Pilares de Sustentação da Cobertura Social
+        const roofH = 0.3 + numSteps * stepH + 4.2;
+        const backX = -(startDist + numSteps * stepD);
+        const pillarPositions = [-14, -7, 0, 7, 14];
+        pillarPositions.forEach(pz => {
+          const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, roofH, 6), roofMat);
+          pillar.position.set(backX, roofH / 2, pz);
+          pillar.castShadow = true;
+          starterGroup.add(pillar);
+
+          // Braço em balanço (Cantilever beam)
+          const armGeo = new THREE.BoxGeometry(numSteps * stepD + 2.5, 0.25, 0.25);
+          const arm = new THREE.Mesh(armGeo, roofMat);
+          arm.position.set(backX + (numSteps * stepD + 2.5) / 2, roofH - 0.2, pz);
+          starterGroup.add(arm);
+        });
+
+        // Teto / Marquise da Tribuna Social
+        const roofWidth = numSteps * stepD + 3.2;
+        const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(roofWidth, 0.22, socialStandLength + 2.0), roofMat);
+        roofMesh.position.set(backX + roofWidth / 2, roofH, 0);
+        roofMesh.castShadow = true;
+        starterGroup.add(roofMesh);
+
+        // 4. Cabines de Rádio & Imprensa suspensas no alto da Tribuna Social
+        const pressBoxGeo = new THREE.BoxGeometry(2.8, 1.8, 12);
+        const pressBox = new THREE.Mesh(pressBoxGeo, darkConcMat);
+        pressBox.position.set(backX - 1.2, roofH - 1.2, 0);
+        pressBox.castShadow = true;
+        starterGroup.add(pressBox);
+
+        // Vidro das cabines de transmissão
+        const pressGlass = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.2, 11), glassMat);
+        pressGlass.position.set(backX + 0.22, roofH - 1.2, 0);
+        starterGroup.add(pressGlass);
       }
-
-      // Pilares de Sustentação da Cobertura Social
-      const roofH = 0.3 + numSteps * stepH + 4.2;
-      const backX = -(startDist + numSteps * stepD);
-      const pillarPositions = [-14, -7, 0, 7, 14];
-      pillarPositions.forEach(pz => {
-        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, roofH, 6), roofMat);
-        pillar.position.set(backX, roofH / 2, pz);
-        pillar.castShadow = true;
-        starterGroup.add(pillar);
-
-        // Braço em balanço (Cantilever beam)
-        const armGeo = new THREE.BoxGeometry(numSteps * stepD + 2.5, 0.25, 0.25);
-        const arm = new THREE.Mesh(armGeo, roofMat);
-        arm.position.set(backX + (numSteps * stepD + 2.5) / 2, roofH - 0.2, pz);
-        starterGroup.add(arm);
-      });
-
-      // Teto / Marquise da Tribuna Social
-      const roofWidth = numSteps * stepD + 3.2;
-      const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(roofWidth, 0.22, socialStandLength + 2.0), roofMat);
-      roofMesh.position.set(backX + roofWidth / 2, roofH, 0);
-      roofMesh.castShadow = true;
-      starterGroup.add(roofMesh);
-
-      // 4. Cabines de Rádio & Imprensa suspensas no alto da Tribuna Social
-      const pressBoxGeo = new THREE.BoxGeometry(2.8, 1.8, 12);
-      const pressBox = new THREE.Mesh(pressBoxGeo, darkConcMat);
-      pressBox.position.set(backX - 1.2, roofH - 1.2, 0);
-      pressBox.castShadow = true;
-      starterGroup.add(pressBox);
-
-      // Vidro das cabines de transmissão
-      const pressGlass = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.2, 11), glassMat);
-      pressGlass.position.set(backX + 0.22, roofH - 1.2, 0);
-      starterGroup.add(pressGlass);
 
       this.stadiumGroup.add(starterGroup);
     }
@@ -648,6 +652,8 @@
         standSides.forEach(side => {
           const isBuilt = !!rData[side];
           if (!isBuilt) return;
+          // Se o Anel 1 Oeste já foi construído como Tribuna Social coberta, evita duplicata
+          if (r === 1 && side === 'oeste') return;
 
           this.buildStandSector(side, r, cfg, concreteColor, concreteDark, palette, false);
         });
