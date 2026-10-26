@@ -8933,11 +8933,18 @@ function getUserSaveSlots(username){
       }
     } catch(e){ recordAFMError('save-slot-read', e); }
 
-    // 1. Carregar/complementar a partir do slot dedicado do localStorage
+    // 1. Carregar/complementar a partir do slot dedicado do localStorage (com recuperação automática de backup)
     try {
-      const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
+      let raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
+      if(!raw) raw = localStorage.getItem(`afm_save_slot_${slotNum}_backup`);
       if(raw){
-        const parsed = JSON.parse(raw);
+        let parsed = null;
+        try {
+          parsed = JSON.parse(raw);
+        } catch(parseErr){
+          const bRaw = localStorage.getItem(`afm_save_slot_${slotNum}_backup`);
+          if(bRaw) parsed = JSON.parse(bRaw);
+        }
         if(parsed && parsed.club && (!parsed.owner || parsed.owner.toLowerCase() === cleanU)){
           const existingTime = Date.parse(s?.updatedAt || '');
           const sharedTime = Date.parse(parsed.updatedAt || '');
@@ -9004,12 +9011,16 @@ function freeUpLocalStorageQuota(){
     localStorage.removeItem('afm_ranking_cache');
     localStorage.removeItem('afm_tm_last_sync');
 
-    // 2. Remove chaves temporárias e duplicatas obsoletas
+    // 2. Remove apenas chaves temporárias e caches descartáveis (protegendo rigorosamente saves e backups)
     const keysToRemove = [];
     for(let i = 0; i < localStorage.length; i++){
       const k = localStorage.key(i);
       if(!k) continue;
-      if(k.startsWith('afm2027_individual_save_') || k.startsWith('afm_temp_') || k.startsWith('afm_save_active_')){
+      // Nunca remover saves permanentes (afm_save_slot_*, afm2027_individual_save_*, backups)
+      if(k.includes('_backup') || k.startsWith('afm_save_slot_') || k.startsWith('afm2027_individual_save_') || k === 'aquino_futebol_manager_2026_v1'){
+        continue;
+      }
+      if(k.startsWith('afm_temp_') || k.startsWith('afm_save_active_') || k.startsWith('aquino_fm_temp_')){
         keysToRemove.push(k);
       }
     }
@@ -9083,11 +9094,13 @@ function save(){
   try {
     localStorage.setItem(`afm_save_slot_${slotNum}`, entryStr);
     localSaved = true;
+    try { localStorage.setItem(`afm_save_slot_${slotNum}_backup`, entryStr); } catch(_){}
   } catch(e){
     freeUpLocalStorageQuota();
     try {
       localStorage.setItem(`afm_save_slot_${slotNum}`, entryStr);
       localSaved = true;
+      try { localStorage.setItem(`afm_save_slot_${slotNum}_backup`, entryStr); } catch(_){}
     } catch(retryErr){
       recordAFMError('local-save-write', retryErr);
     }
@@ -9097,6 +9110,7 @@ function save(){
   if(state.userOwner && localSaved){
     try {
       localStorage.setItem(`afm_save_${state.userOwner.toLowerCase()}_slot_${slotNum}`, entryStr);
+      localStorage.setItem(`afm_save_${state.userOwner.toLowerCase()}_slot_${slotNum}_backup`, entryStr);
     } catch(e){
       // Não bloqueia o jogo se a chave redundante não couber na cota
     }
@@ -10376,6 +10390,166 @@ function isPlayerLoanListed(p, st = state){
   });
 }
 window.isPlayerLoanListed = isPlayerLoanListed;
+
+function getPlayerPendingTransfer(p, st = state){
+  if(!p) return null;
+  if(p.pendingTransfer) return p.pendingTransfer;
+  if(!st) return null;
+  const pK = (typeof playerKey === 'function') ? playerKey(p) : (p.id || p.name);
+  const pNorm = norm(p.name || '');
+  if(Array.isArray(st.pendingSignings)){
+    const match = st.pendingSignings.find(sp => {
+      if(!sp) return false;
+      const sK = (typeof playerKey === 'function') ? playerKey(sp) : (sp.id || sp.name);
+      return sK === pK || norm(sp.name || '') === pNorm;
+    });
+    if(match?.pendingTransfer) return match.pendingTransfer;
+  }
+  if(Array.isArray(st.pendingCPUTransfers)){
+    const matchCpu = st.pendingCPUTransfers.find(cp => cp && (cp.playerKey === pK || norm(cp.playerName || '') === pNorm));
+    if(matchCpu) return matchCpu;
+  }
+  return null;
+}
+window.getPlayerPendingTransfer = getPlayerPendingTransfer;
+
+function renderPendingTransferTag(p, isCompact = false){
+  const pt = getPlayerPendingTransfer(p);
+  if(!pt) return '';
+  const type = pt.type || 'sale';
+  const buyer = pt.buyerClub || pt.to || 'Outro Clube';
+
+  if(type === 'sale'){
+    return `<span class="pill afm-tag-transfer afm-tag-sold" style="background:rgba(239,68,68,0.22);color:#fca5a5;border:1px solid #ef4444;font-size:10px;font-weight:900;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;box-shadow:0 0 8px rgba(239,68,68,0.2)" title="Venda acertada: O atleta se apresentará ao ${esc(buyer)} na reabertura da janela de transferências">✈️ Vendido p/ ${esc(buyer)} (Janela)</span>`;
+  }
+  if(type === 'loan_out'){
+    return `<span class="pill afm-tag-transfer afm-tag-loaned" style="background:rgba(6,182,212,0.22);color:#67e8f9;border:1px solid #06b6d4;font-size:10px;font-weight:900;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;box-shadow:0 0 8px rgba(6,182,212,0.2)" title="Empréstimo acertado: O atleta defenderá o ${esc(buyer)} a partir da reabertura da janela de transferências">🤝 Emprestado p/ ${esc(buyer)} (Janela)</span>`;
+  }
+  if(type === 'buy'){
+    return `<span class="pill afm-tag-transfer afm-tag-bought" style="background:rgba(16,185,129,0.22);color:#6ee7b7;border:1px solid #10b981;font-size:10px;font-weight:900;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;box-shadow:0 0 8px rgba(16,185,129,0.2)" title="Contratação acertada: Chega ao ${esc(buyer)} na reabertura da janela de transferências">📥 Contratado p/ ${esc(buyer)} (Janela)</span>`;
+  }
+  if(type === 'loan_in'){
+    return `<span class="pill afm-tag-transfer afm-tag-loanin" style="background:rgba(168,85,247,0.22);color:#d8b4fe;border:1px solid #a855f7;font-size:10px;font-weight:900;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;box-shadow:0 0 8px rgba(168,85,247,0.2)" title="Empréstimo acertado: Chega ao ${esc(buyer)} na reabertura da janela de transferências">🤝 Empréstimo c/ ${esc(buyer)} (Janela)</span>`;
+  }
+  return '';
+}
+window.renderPendingTransferTag = renderPendingTransferTag;
+
+function processPendingTransfersOnWindowOpen(gameState = state){
+  if(!gameState) return false;
+  const isWinOpen = (typeof isTransferWindowOpen === 'function') ? isTransferWindowOpen(gameState.date) : false;
+  if(!isWinOpen) return false;
+
+  let changed = false;
+  gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+  gameState.playerMoves = gameState.playerMoves || {};
+
+  // 1. Processa saídas do elenco do usuário (atletas vendidos ou emprestados fora da janela que aguardavam abertura)
+  if(Array.isArray(gameState.squad) && gameState.squad.length > 0){
+    const remaining = [];
+    const departedSales = [];
+    const departedLoans = [];
+
+    gameState.squad.forEach(p => {
+      if(!p){ return; }
+      const pt = p.pendingTransfer;
+      if(pt && pt.type === 'sale'){
+        departedSales.push({ player: p, transfer: pt });
+      } else if(pt && pt.type === 'loan_out'){
+        departedLoans.push({ player: p, transfer: pt });
+      } else {
+        remaining.push(p);
+      }
+    });
+
+    if(departedSales.length > 0 || departedLoans.length > 0){
+      gameState.squad = remaining;
+      changed = true;
+
+      departedSales.forEach(({ player, transfer }) => {
+        const pKey = (typeof playerKey === 'function') ? playerKey(player) : (player.id || player.name);
+        const buyerClub = transfer.buyerClub || 'novo clube';
+        gameState.playerMoves[pKey] = buyerClub;
+        gameState.playerMoves[norm(player.name)] = buyerClub;
+        gameState.lineup = (gameState.lineup || []).map(k => (k === pKey || k === player.name) ? null : k);
+        gameState.news.unshift(`⭐ TRANSFERÊNCIA OFICIALIZADA: Com a reabertura da janela de transferências, ${player.name} despediu-se do ${gameState.club} e apresentou-se oficialmente ao ${buyerClub}!`);
+        if(typeof toast === 'function') toast(`✈️ Janela Aberta: ${player.name} se apresentou ao ${buyerClub}!`);
+      });
+
+      departedLoans.forEach(({ player, transfer }) => {
+        const pKey = (typeof playerKey === 'function') ? playerKey(player) : (player.id || player.name);
+        const buyerClub = transfer.buyerClub || 'novo clube';
+        gameState.playerMoves[pKey] = buyerClub;
+        gameState.playerMoves[norm(player.name)] = buyerClub;
+        gameState.loanedOut = Array.isArray(gameState.loanedOut) ? gameState.loanedOut : [];
+        gameState.loanedOut.push({
+          ...player,
+          loanTo: buyerClub,
+          isLoan: true,
+          pendingTransfer: null
+        });
+        gameState.lineup = (gameState.lineup || []).map(k => (k === pKey || k === player.name) ? null : k);
+        gameState.news.unshift(`🤝 EMPRÉSTIMO OFICIALIZADO: Com a janela aberta, ${player.name} apresentou-se ao ${buyerClub} para iniciar o período de empréstimo.`);
+        if(typeof toast === 'function') toast(`🤝 Janela Aberta: ${player.name} apresentou-se ao ${buyerClub} por empréstimo!`);
+      });
+    }
+  }
+
+  // 2. Processa entradas no elenco do usuário (atletas contratados em pré-contrato ou pré-empréstimo)
+  if(Array.isArray(gameState.pendingSignings) && gameState.pendingSignings.length > 0){
+    gameState.squad = Array.isArray(gameState.squad) ? gameState.squad : [];
+    gameState.pendingSignings.forEach(sp => {
+      if(!sp) return;
+      const pt = sp.pendingTransfer || { type: 'buy', buyerClub: gameState.club };
+      const pKey = (typeof playerKey === 'function') ? playerKey(sp) : (sp.id || sp.name);
+      const isAlreadyIn = gameState.squad.some(s => s && ((typeof playerKey === 'function' && playerKey(s) === pKey) || norm(s.name) === norm(sp.name)));
+      if(!isAlreadyIn){
+        const cleanPlayer = {
+          ...sp,
+          club: gameState.club,
+          owned: pt.type === 'buy',
+          isLoan: pt.type === 'loan_in',
+          pendingTransfer: null
+        };
+        gameState.squad.push(cleanPlayer);
+        gameState.playerMoves[pKey] = gameState.club;
+        gameState.playerMoves[norm(sp.name)] = gameState.club;
+        changed = true;
+
+        if(pt.type === 'buy'){
+          gameState.news.unshift(`🎉 REFORÇO APRESENTADO: Com a reabertura da janela, ${cleanPlayer.name} vestiu a camisa do ${gameState.club} e foi integrado oficialmente ao elenco!`);
+          if(typeof toast === 'function') toast(`🎉 Janela Aberta: ${cleanPlayer.name} foi integrado oficialmente ao seu elenco!`);
+        } else {
+          gameState.news.unshift(`🤝 REFORÇO POR EMPRÉSTIMO: ${cleanPlayer.name} apresentou-se ao ${gameState.club} e já está à disposição da comissão técnica!`);
+          if(typeof toast === 'function') toast(`🤝 Janela Aberta: ${cleanPlayer.name} chegou por empréstimo ao seu elenco!`);
+        }
+      }
+    });
+    gameState.pendingSignings = [];
+  }
+
+  // 3. Processa pendências de clubes da CPU (IA)
+  if(Array.isArray(gameState.pendingCPUTransfers) && gameState.pendingCPUTransfers.length > 0){
+    gameState.pendingCPUTransfers.forEach(cpuTr => {
+      if(!cpuTr) return;
+      const key = cpuTr.playerKey || cpuTr.playerName;
+      if(key && cpuTr.buyerClub){
+        gameState.playerMoves[key] = cpuTr.buyerClub;
+        gameState.playerMoves[norm(cpuTr.playerName || '')] = cpuTr.buyerClub;
+        changed = true;
+      }
+    });
+    gameState.pendingCPUTransfers = [];
+  }
+
+  if(gameState.news.length > 50) gameState.news = gameState.news.slice(0, 50);
+
+  if(changed && typeof optimizeLineup === 'function'){
+    optimizeLineup();
+  }
+  return changed;
+}
+window.processPendingTransfersOnWindowOpen = processPendingTransfersOnWindowOpen;
 
 function findGlobalPlayerByKey(key){
   if(!key) return null;
@@ -16589,8 +16763,8 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       if(typeof processLoanContractReturns === 'function') processLoanContractReturns(state, nextDate);
       if(typeof processStadiumConstructionDay === 'function') processStadiumConstructionDay();
       if(typeof processContinentalFixturesBefore === 'function') processContinentalFixturesBefore(state.date);
-      if(typeof expireStadiumEventConfirmation === 'function') expireStadiumEventConfirmation();
       if(typeof checkIncomingPlayerBids === 'function' && isTransferWindowOpen(state.date) && Math.random() < 0.12) checkIncomingPlayerBids();
+      if(typeof processPendingTransfersOnWindowOpen === 'function') processPendingTransfersOnWindowOpen(state);
       daysAdvanced++;
 
       if(stopAtMatch){
@@ -23277,6 +23451,47 @@ function openHalftimeModal(isQuickTactics = false){
     isHalftime: true
   });
 
+  // IA Tática Reativa da CPU no Intervalo
+  function applyCpuReactiveHalftimeTactics(s) {
+    try {
+      const cpuIsHome = !userIsHome;
+      const cpuClub = cpuIsHome ? s.home : s.away;
+      const cpuGoals = cpuIsHome ? s.hg : s.ag;
+      const userGoals = cpuIsHome ? s.ag : s.hg;
+      const diff = cpuGoals - userGoals;
+
+      if (diff <= -2) {
+        if (cpuIsHome) s.homePosture = 'Pressão Total';
+        else s.awayPosture = 'Pressão Total';
+        s.events.unshift({
+          min: 46,
+          type: 'tactic',
+          text: `⚡ [Tática da CPU] O técnico do ${cpuClub} adiantou as linhas e colocou a equipe em PRESSÃO TOTAL para buscar a virada!`
+        });
+        toast(`⚡ Atenção: O ${cpuClub} adotou postura de Pressão Total no 2º tempo!`);
+      } else if (diff === -1) {
+        if (cpuIsHome) s.homePosture = 'Ofensiva';
+        else s.awayPosture = 'Ofensiva';
+        s.events.unshift({
+          min: 46,
+          type: 'tactic',
+          text: `⚡ [Tática da CPU] O técnico do ${cpuClub} alterou a postura para OFENSIVA em busca do empate.`
+        });
+        toast(`⚡ O ${cpuClub} voltou para o 2º tempo com postura Ofensiva!`);
+      } else if (diff >= 1) {
+        if (cpuIsHome) s.homePosture = 'Contra-Ataque';
+        else s.awayPosture = 'Contra-Ataque';
+        s.events.unshift({
+          min: 46,
+          type: 'tactic',
+          text: `🛡️ [Tática da CPU] O técnico do ${cpuClub} recuou as linhas para compactar a defesa e explorar o CONTRA-ATAQUE.`
+        });
+      }
+    } catch (e) {
+      // Ignora silenciosamente para manter estabilidade
+    }
+  }
+
   // Retomar 2º tempo
   const chkAux = $('#chkAutoSubAssistant');
   if(chkAux) chkAux.onchange = () => { s.autoSubAssistant = chkAux.checked; };
@@ -23285,6 +23500,7 @@ function openHalftimeModal(isQuickTactics = false){
   if(btnResume){
     btnResume.onclick = () => {
       $('#halftimeModalContainer')?.remove();
+      applyCpuReactiveHalftimeTactics(s);
       transitionMatchPhase('SECOND_HALF');
       s.playing = true;
       const playBtn = $('#btnLivePlayToggle');
@@ -25094,14 +25310,14 @@ function marketUniverse(){
 // SISTEMA DE NEGOCIAÇÃO DE TRANSFERÊNCIAS (COM RIVAIS E INTERESSE DO JOGADOR)
 // =========================================================================
 function buyPlayer(key){
-  if(!isTransferWindowOpen(state?.date)){
-    const win = getTransferWindowInfo(state?.date);
-    toast(`🔒 MERCADO FECHADO: A janela de transferências está fechada! Próxima abertura em ${win.nextOpenDate}.`);
-    return;
-  }
   if(state && state.transferBan){
     toast('🚨 TRANSFER BAN ATIVO: Devido a parcelas de empréstimo atrasadas no Banco, novas contratações estão bloqueadas até quitação!');
     return;
+  }
+  const isWinOpen = isTransferWindowOpen(state?.date);
+  if(!isWinOpen){
+    const win = getTransferWindowInfo(state?.date);
+    toast(`⏳ JANELA FECHADA: O acordo será firmado como pré-contrato! O atleta permanecerá no clube de origem e se apresentará na reabertura da janela (${win.nextOpenDate}).`);
   }
   openTransferNegotiationModal(key);
 }
@@ -25258,162 +25474,22 @@ function openTransferNegotiationModal(key){
           <!-- Concorrentes Ativos -->
           <div>
             <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:6px">Outros Clubes Interessados:</div>
-            <div style="display:flex;flex-direction:column;gap:6px">
-              ${rivalBids.map((rb, idx) => `
-                <div class="nego-rival-pill ${idx===0 ? 'leading' : ''}">
-                  <div style="display:flex;align-items:center;gap:6px">
-                    ${clubBadge(rb.club, 18)}
-                    <b>${esc(rb.club)}</b>
-                    ${idx===0 ? '<span class="pill danger" style="font-size:9px">MAIOR LANCE</span>' : ''}
-                  </div>
-                  <strong style="color:${idx===0?'#ef4444':'#f59e0b'}">${fmtMoney(rb.bid)}</strong>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-
-          <!-- Ajuste do Valor da Proposta -->
-          <div style="background:#090e17;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span class="small muted">Sua Oferta de Compra:</span>
-              <b style="font-size:20px;color:#a855f7">${fmtMoney(offerBid)}</b>
-            </div>
-
-            <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:4px;margin-top:10px">
-              <button class="btn btnBidStep" data-step="-500000" style="padding:4px;font-size:10px">-500k</button>
-              <button class="btn btnBidStep" data-step="-100000" style="padding:4px;font-size:10px">-100k</button>
-              <button class="btn btnBidStep" data-step="100000" style="padding:4px;font-size:10px">+100k</button>
-              <button class="btn primary btnBidStep" data-step="500000" style="padding:4px;font-size:10px">+500k</button>
-              <button class="btn primary btnBidStep" data-step="1000000" style="padding:4px;font-size:10px">+1M</button>
-            </div>
-          </div>
-
-          <div style="font-size:11px;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;line-height:1.4">
-            ${clubFeedback}
-          </div>
-        </div>
-
-        <!-- COLUNA DIREITA: CONTRATO DO ATLETA & BARRA DE INTERESSE -->
-        <div class="nego-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
-            <span style="font-size:12px;font-weight:900;color:#c084fc;text-transform:uppercase">2. SALÁRIO & BÔNUS DO JOGADOR</span>
-            <div style="display:flex;gap:6px">
-              <span class="pill" style="font-size:10px;background:rgba(56,189,248,0.12);color:#38bdf8;border:1px solid rgba(56,189,248,0.3)">
-                Folha Atual: ${fmtMoney(totalMonthlyPayroll())}/mês
-              </span>
-              <span class="pill" style="font-size:10px">Base: ${fmtMoney(baseSalary)}/mês</span>
-            </div>
-          </div>
-
-          <!-- Salário Mensal -->
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:11px;font-weight:700">Salário Oferecido:</span>
-              <strong id="dispWageOffered" style="color:var(--neon);font-size:16px">${fmtMoney(wageOffered)}/mês</strong>
-            </div>
-            <input type="range" id="rngWageOffer" min="${Math.round(baseSalary*0.6)}" max="${Math.round(baseSalary*2.2)}" step="2000" value="${wageOffered}" style="width:100%;margin-top:6px">
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.4)">
-              <span>-40%</span>
-              <span id="dispNewPayrollImpact" style="color:#38bdf8;font-weight:800">Nova Folha: ${fmtMoney(totalMonthlyPayroll() + wageOffered)}/mês</span>
-              <span>+120%</span>
-            </div>
-          </div>
-
-          <!-- Duração e Luvas -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div>
-              <label style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6)">DURAÇÃO:</label>
-              <div style="display:flex;gap:4px;margin-top:3px">
-                ${[1, 2, 3, 4].map(y => `
-                  <button class="btn btnContractYear ${contractYears===y?'primary':''}" data-year="${y}" style="flex:1;padding:4px;font-size:10px;font-weight:800">
-                    ${y}a
-                  </button>
-                `).join('')}
-              </div>
-            </div>
-
-            <div>
-              <label style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6)">LUVAS (ASSINATURA):</label>
-              <div style="display:flex;gap:3px;margin-top:3px">
-                ${[0, 150000, 500000, 1200000].map(lv => `
-                  <button class="btn btnLuvasChip ${signingBonus===lv?'primary':''}" data-val="${lv}" style="flex:1;padding:4px;font-size:9px">
-                    ${lv===0?'0':lv>=1000000?'+1.2M':`+${lv/1000}k`}
-                  </button>
-                `).join('')}
-              </div>
-            </div>
-          </div>
-
-          <!-- Bônus de Desempenho (Vitória, Gol, Título) -->
-          <div>
-            <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:4px">BÔNUS POR DESEMPENHO:</div>
-
-            <!-- Vitória -->
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-              <span style="font-size:10px;color:rgba(255,255,255,0.7)">🏆 Bônus por Vitória:</span>
-              <div style="display:flex;gap:3px">
-                ${[0, 5000, 15000, 30000].map(v => `
-                  <button class="btn btnBonusWin ${bonusWin===v?'primary':''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
-                    ${v===0?'Não':fmtMoney(v)}
-                  </button>
-                `).join('')}
-              </div>
-            </div>
-
-            <!-- Gol -->
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-              <span style="font-size:10px;color:rgba(255,255,255,0.7)">⚽ Bônus por Gol:</span>
-              <div style="display:flex;gap:3px">
-                ${[0, 4000, 10000, 20000].map(v => `
-                  <button class="btn btnBonusGoal ${bonusGoal===v?'primary':''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
-                    ${v===0?'Não':fmtMoney(v)}
-                  </button>
-                `).join('')}
-              </div>
-            </div>
-
-            <!-- Título -->
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <span style="font-size:10px;color:rgba(255,255,255,0.7)">🥇 Bônus por Título:</span>
-              <div style="display:flex;gap:3px">
-                ${[0, 50000, 150000, 400000].map(v => `
-                  <button class="btn btnBonusTitle ${bonusTitle===v?'primary':''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
-                    ${v===0?'Não':v>=100000?`+${v/1000}k`:fmtMoney(v)}
-                  </button>
-                `).join('')}
-              </div>
-            </div>
-          </div>
-
-          <!-- BARRA DE INTERESSE DO JOGADOR -->
-          <div class="nego-interest-wrapper">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:11px;font-weight:900;color:#fff">INTERESSE DO ATLETA</span>
-              <span id="dispInterestPct" style="font-size:13px;font-weight:900;color:${interest>=75?'#10b981':interest>=50?'#f59e0b':'#ef4444'}">${interest}%</span>
-            </div>
-
-            <div class="nego-interest-bar-bg">
-              <div id="dispInterestBarFill" class="nego-interest-bar-fill ${interestClass}" style="width:${interest}%"></div>
-            </div>
-
-            <div id="dispInterestDesc" style="font-size:10px;color:rgba(255,255,255,0.6);margin-top:6px;line-height:1.3">
-              ${interestText} (Meta: 75%+)
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-
-      <!-- PAINEL DE CHANCES REALISTAS DE ACEITE -->
-      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;margin-top:12px;display:flex;justify-content:space-around;align-items:center;flex-wrap:wrap;gap:8px">
-        <div style="font-size:12px">
+                  <div style="font-size:12px">
           🏛️ Chance de Aceite do Clube Vendedor: <b id="dispClubChance" style="color:${clubChance>=70?'#22c55e':'#ef4444'}">${clubChance}%</b>
         </div>
         <div style="font-size:12px">
           👤 Chance de Aceite do Atleta (Termos): <b id="dispPlayerChance" style="color:${playerChance>=65?'#22c55e':'#ef4444'}">${playerChance}%</b>
         </div>
       </div>
+
+      ${!windowOpen ? `
+        <div style="background:rgba(245,158,11,0.12);border:1px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-top:12px;font-size:12px;color:#fbbf24;display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">⏳</span>
+          <div>
+            <b>JANELA DE TRANSFERÊNCIAS FECHADA:</b> A compra será oficializada hoje como <b>pré-contrato garantido</b>. ${esc(p.name)} continuará atuando no <b>${esc(from)}</b> e se apresentará oficialmente ao <b>${esc(state.club)}</b> na abertura da próxima janela!
+          </div>
+        </div>
+      ` : ''}
 
       <!-- RODAPÉ DE AÇÃO -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;gap:10px">
@@ -25426,7 +25502,7 @@ function openTransferNegotiationModal(key){
         <div style="display:flex;gap:8px">
           <button class="btn" id="btnCancelNego">Cancelar</button>
           <button class="btn primary" id="btnConfirmBuyTransfer" ${canFinalize ? '' : 'disabled'} style="padding:10px 22px;font-size:13px;font-weight:900;background:${canFinalize?'linear-gradient(135deg,#059669,#10b981)':'#374151'}">
-            ✍️ Fechar Contratação Definitiva
+            ${windowOpen ? '✍️ Fechar Contratação Definitiva' : '✍️ Assinar Pré-Contrato (Janela)'}
           </button>
         </div>
       </div>
@@ -25509,11 +25585,12 @@ function openTransferNegotiationModal(key){
         }
         state.balance -= totalCashNeeded;
         state.expense = (state.expense || 0) + totalCashNeeded;
-        state.playerMoves[key] = state.club;
 
         const signedPlayer = {
           ...p,
-          club: state.club,
+          club: windowOpen ? state.club : from,
+          originalClub: from,
+          preContractClub: state.club,
           owned: true,
           marketKey: key,
           fitness: 100,
@@ -25525,10 +25602,31 @@ function openTransferNegotiationModal(key){
           bonusTitle
         };
 
-        state.squad.push(signedPlayer);
-        state.transfers.unshift({ type: 'in', name: p.name, from, to: state.club, value: offerBid, date: state.date });
-        state.news.unshift(`⭐ CONTRATAÇÃO DE PESO: O ${state.club} superou a concorrência do ${highestRivalClub} e fechou a compra de ${p.name} por ${fmtMoney(offerBid)}!`);
-        toast(`🎉 ${p.name} contratado com sucesso! Contrato assinado por ${contractYears} anos.`);
+        if(windowOpen){
+          state.playerMoves[key] = state.club;
+          state.playerMoves[norm(p.name)] = state.club;
+          state.squad.push(signedPlayer);
+          state.transfers.unshift({ type: 'in', name: p.name, from, to: state.club, value: offerBid, date: state.date });
+          state.news.unshift(`⭐ CONTRATAÇÃO DE PESO: O ${state.club} superou a concorrência do ${highestRivalClub} e fechou a compra de ${p.name} por ${fmtMoney(offerBid)}!`);
+          toast(`🎉 ${p.name} contratado com sucesso! Contrato assinado por ${contractYears} anos.`);
+        } else {
+          signedPlayer.pendingTransfer = {
+            type: 'buy',
+            buyerClub: state.club,
+            sellerClub: from,
+            date: state.date,
+            fee: offerBid,
+            wage: wageOffered,
+            contractYears
+          };
+          p.pendingTransfer = signedPlayer.pendingTransfer;
+          state.pendingSignings = Array.isArray(state.pendingSignings) ? state.pendingSignings : [];
+          state.pendingSignings.push(signedPlayer);
+          state.transfers.unshift({ type: 'in_pending', name: p.name, from, to: state.club, value: offerBid, date: state.date });
+          state.news.unshift(`⭐ PRÉ-CONTRATO ASSINADO: O ${state.club} acertou a compra de ${p.name} por ${fmtMoney(offerBid)}! O atleta permanecerá no ${from} e se integrará ao elenco na reabertura da janela de transferências.`);
+          toast(`🎉 Pré-contrato de ${p.name} assinado com sucesso! Apresentação marcada para a abertura da janela.`);
+        }
+
         closeCustomModal();
         save();
         render();
@@ -25543,10 +25641,10 @@ function openTransferNegotiationModal(key){
 // SISTEMA DE NEGOCIAÇÃO DE EMPRÉSTIMO (COM RIVAIS E SALÁRIO/BÔNUS)
 // =========================================================================
 function loanInPlayer(key){
-  if(!isTransferWindowOpen(state?.date)){
+  const isWinOpen = isTransferWindowOpen(state?.date);
+  if(!isWinOpen){
     const win = getTransferWindowInfo(state?.date);
-    toast(`🔒 MERCADO FECHADO: A janela de empréstimos está fechada! Próxima abertura em ${win.nextOpenDate}.`);
-    return;
+    toast(`⏳ JANELA FECHADA: O empréstimo será acertado com antecedência e o jogador chegará na reabertura da janela (${win.nextOpenDate}).`);
   }
   openLoanNegotiationModal(key);
 }
@@ -25820,7 +25918,7 @@ function openLoanNegotiationModal(key){
         <div style="display:flex;gap:8px">
           <button class="btn" id="btnCancelLoanNego">Cancelar</button>
           <button class="btn primary" id="btnConfirmLoanNego" ${canFinalize ? '' : 'disabled'} style="padding:10px 22px;font-size:13px;font-weight:900;background:${canFinalize?'linear-gradient(135deg,#059669,#10b981)':'#374151'}">
-            ⇄ Fechar Empréstimo do Atleta
+            ${windowOpen ? '⇄ Fechar Empréstimo do Atleta' : '🤝 Pré-Acordo de Empréstimo (Janela)'}
           </button>
         </div>
       </div>
@@ -25914,16 +26012,17 @@ function openLoanNegotiationModal(key){
         }
         state.balance -= offeredFee;
         state.expense = (state.expense || 0) + offeredFee;
-        state.playerMoves[key] = state.club;
 
         const loanedPlayer = {
           ...p,
-          club: state.club,
+          club: windowOpen ? state.club : from,
+          originalClub: from,
+          preContractClub: state.club,
           owned: true,
           marketKey: key,
           isLoan: true,
           loanFrom: from,
-          loanStartDate: state.date,
+          loanStartDate: windowOpen ? state.date : null,
           loanEndDate: getLoanEndDate(state.date, loanDurationMonths),
           loanDurationMonths,
           loanBuyOptionPrice: hasBuyOption ? buyOptionPrice : null,
@@ -25938,10 +26037,31 @@ function openLoanNegotiationModal(key){
           bonusTitle
         };
 
-        state.squad.push(loanedPlayer);
-        state.loans.unshift({ type: 'loan_in', name: p.name, from, to: state.club, fee: offeredFee, date: state.date, endDate: loanedPlayer.loanEndDate, durationMonths: loanDurationMonths, buyOptionPrice: loanedPlayer.loanBuyOptionPrice });
-        state.news.unshift(`⇄ EMPRÉSTIMO FECHADO: ${p.name} chegou do ${from} por ${loanDurationMonths} meses, até ${formatDatePtBr(loanedPlayer.loanEndDate)}.${hasBuyOption ? ` Opção de compra: ${fmtMoney(buyOptionPrice)}.` : ''}`);
-        toast(`🎉 ${p.name} chegou por ${loanDurationMonths} meses, com retorno previsto para ${formatDatePtBr(loanedPlayer.loanEndDate)}.`);
+        if(windowOpen){
+          state.playerMoves[key] = state.club;
+          state.playerMoves[norm(p.name)] = state.club;
+          state.squad.push(loanedPlayer);
+          state.loans.unshift({ type: 'loan_in', name: p.name, from, to: state.club, fee: offeredFee, date: state.date, endDate: loanedPlayer.loanEndDate, durationMonths: loanDurationMonths, buyOptionPrice: loanedPlayer.loanBuyOptionPrice });
+          state.news.unshift(`⇄ EMPRÉSTIMO FECHADO: ${p.name} chegou do ${from} por ${loanDurationMonths} meses, até ${formatDatePtBr(loanedPlayer.loanEndDate)}.${hasBuyOption ? ` Opção de compra: ${fmtMoney(buyOptionPrice)}.` : ''}`);
+          toast(`🎉 ${p.name} chegou por ${loanDurationMonths} meses, com retorno previsto para ${formatDatePtBr(loanedPlayer.loanEndDate)}.`);
+        } else {
+          loanedPlayer.pendingTransfer = {
+            type: 'loan_in',
+            buyerClub: state.club,
+            sellerClub: from,
+            date: state.date,
+            fee: offeredFee,
+            durationMonths: loanDurationMonths,
+            buyOptionPrice: loanedPlayer.loanBuyOptionPrice
+          };
+          p.pendingTransfer = loanedPlayer.pendingTransfer;
+          state.pendingSignings = Array.isArray(state.pendingSignings) ? state.pendingSignings : [];
+          state.pendingSignings.push(loanedPlayer);
+          state.loans.unshift({ type: 'loan_in_pending', name: p.name, from, to: state.club, fee: offeredFee, date: state.date, durationMonths: loanDurationMonths });
+          state.news.unshift(`🤝 EMPRÉSTIMO ACERTADO: O ${state.club} acertou o empréstimo de ${p.name}! O atleta se apresentará na reabertura da janela de transferências.`);
+          toast(`🤝 Empréstimo de ${p.name} acertado! O jogador se apresentará na reabertura da janela.`);
+        }
+
         closeCustomModal();
         save();
         render();
@@ -26081,14 +26201,22 @@ function openPlayerTransferModal(key){
       </div>
     </div>
 
+    <!-- BANNER DE JOGADOR COM NEGÓCIO AGENDADO SE JÁ TIVER PENDING TRANSFER -->
+    ${p.pendingTransfer ? `
+      <div style="background:rgba(234,179,8,0.15);border:1px solid #eab308;padding:10px 14px;border-radius:10px;margin-bottom:12px;color:#fde047;font-weight:700;display:flex;align-items:center;gap:8px">
+        <span>⏳</span>
+        <span>Este atleta já possui pré-acordo fechado (${p.pendingTransfer.type === 'loan_out' ? 'Empréstimo' : 'Venda'} para o ${esc(p.pendingTransfer.buyerClub || 'outro clube')}). A transferência será oficializada na abertura da janela de transferências.</span>
+      </div>
+    ` : ''}
+
     <!-- BANNER DE VENDA RÁPIDA IMEDIATA (80%) -->
     <div style="background:linear-gradient(90deg,rgba(16,185,129,0.18),rgba(6,182,212,0.12));border:1px solid #10b981;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <div>
         <div style="font-weight:900;color:#34d399;font-size:13px">⚡ VENDA RÁPIDA IMEDIATA (80% DO PASSE)</div>
-        <div class="small muted" style="margin-top:2px">Venda na hora para clube da divisão por <b style="color:#fbbf24">${fmtMoney(quickSaleVal)}</b> à vista sem aguardar propostas.</div>
+        <div class="small muted" style="margin-top:2px">Venda para clube da divisão por <b style="color:#fbbf24">${fmtMoney(quickSaleVal)}</b> à vista ${(!winInfo.open && !state.freeTransferWindow && !(state.isPreSeason && state.preSeasonDays > 0)) ? '(sai na abertura da janela)' : 'sem aguardar propostas'}.</div>
       </div>
       <button class="btn success" id="btnModalQuickSellAction" style="font-weight:900;padding:8px 16px;font-size:12px;cursor:pointer">
-        ⚡ Vender Agora por ${fmtMoney(quickSaleVal)}
+        ⚡ ${(!winInfo.open && !state.freeTransferWindow && !(state.isPreSeason && state.preSeasonDays > 0)) ? `Vender (Sai na Janela) por ${fmtMoney(quickSaleVal)}` : `Vender Agora por ${fmtMoney(quickSaleVal)}`}
       </button>
     </div>
 
@@ -26130,8 +26258,8 @@ function openPlayerTransferModal(key){
               </div>
               <button class="btn btnCounterSale" data-offer-idx="${oIdx}" ${o.counterAccepted ? 'disabled' : ''} style="width:100%;margin-top:8px;background:${o.counterAccepted ? '#14532d' : '#7c3aed'};color:#fff;border:0;font-weight:900;padding:7px 9px;cursor:${o.counterAccepted ? 'default' : 'pointer'}">${o.counterAccepted ? '✓ Contraproposta aceita' : '🤝 Enviar contraproposta'}</button>
             </div>
-            <button class="btn primary btnAcceptSale" data-offer-idx="${oIdx}" ${(!winInfo.open && !state.freeTransferWindow)?'disabled title="Janela Fechada"':''}>
-              ${(!winInfo.open && !state.freeTransferWindow)?'Janela Fechada':'Aceitar Venda'}
+            <button class="btn primary btnAcceptSale" data-offer-idx="${oIdx}">
+              ${(!winInfo.open && !state.freeTransferWindow && !(state.isPreSeason && state.preSeasonDays > 0)) ? '✈️ Vender (Sai na Janela)' : 'Aceitar Venda'}
             </button>
           </div>
         </div>
@@ -26157,8 +26285,8 @@ function openPlayerTransferModal(key){
               <div class="small muted">Taxa de empréstimo</div>
               <div style="font-size:10px;color:#facc15;margin-top:2px">🎲 Aceite do Atleta: <b>${clamp(Math.round(80 + ((o.fee - calcValueMi(p)*1e6*0.08)/(calcValueMi(p)*1e6*0.08||1))*15), 60, 95)}%</b></div>
             </div>
-            <button class="btn success btnAcceptLoan" data-offer-idx="${oIdx}" ${(!winInfo.open && !state.freeTransferWindow)?'disabled title="Janela Fechada"':''}>
-              ${(!winInfo.open && !state.freeTransferWindow)?'Janela Fechada':'Aceitar Empréstimo'}
+            <button class="btn success btnAcceptLoan" data-offer-idx="${oIdx}">
+              ${(!winInfo.open && !state.freeTransferWindow && !(state.isPreSeason && state.preSeasonDays > 0)) ? '🤝 Emprestar (Sai na Janela)' : 'Aceitar Empréstimo'}
             </button>
           </div>
         </div>
@@ -26277,10 +26405,7 @@ function openPlayerTransferModal(key){
 
   $$('.btnAcceptSale').forEach(b=>{
     b.onclick = () => {
-      if(!winInfo.open && !state.freeTransferWindow && !(state.isPreSeason && state.preSeasonDays > 0)){
-        toast('A janela de transferências está fechada!');
-        return;
-      }
+      const isWindowOpen = winInfo.open || state.freeTransferWindow || (state.isPreSeason && state.preSeasonDays > 0);
       if(state.squad.length <= 14){
         toast('Você precisa manter pelo menos 14 jogadores no elenco.');
         return;
@@ -26298,6 +26423,47 @@ function openPlayerTransferModal(key){
 
       const curIdx = state.squad.findIndex(q=>playerKey(q)===actualKey || norm(q.name)===norm(p.name));
       if(curIdx < 0) return;
+
+      const sellOnPct = clamp(Number(offer.sellOnPct ?? offer.counterSellOnPct ?? 20), 0, 50);
+
+      if(!isWindowOpen){
+        // FORA DA JANELA: Marca pré-acordo/saída agendada, mas o jogador NÃO sai do elenco agora!
+        p.pendingTransfer = {
+          type: 'sale',
+          buyerClub: offer.buyer,
+          sellerClub: state.club,
+          date: state.date,
+          price: offer.price,
+          sellOnPct: sellOnPct,
+          wage: offer.wage,
+          contractYears: offer.contractYears
+        };
+        state.balance += offer.price;
+        state.income = (state.income || 0) + offer.price;
+        state.transferListed = (state.transferListed||[]).filter(k=>k!==actualKey);
+        delete state.transferOffers[actualKey];
+        delete state.loanOffers[actualKey];
+        state.transfers.unshift({type:'out', name:p.name, from:state.club, to:offer.buyer, value:offer.price, date:state.date, pending:true});
+        state.news.unshift(`✈️ ACORDO FECHADO: ${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)} (${sellOnPct}% na revenda futura). O atleta continuará jogando pelo ${state.club} até a abertura da janela de transferências.`);
+
+        state.futureSaleClauses = state.futureSaleClauses || [];
+        state.futureSaleClauses.push({
+          playerName: p.name,
+          buyer: offer.buyer,
+          sharePct: sellOnPct,
+          sellOnPct,
+          initialPrice: offer.price,
+          soldDate: state.date
+        });
+        if(state.futureSaleClauses.length > 20) state.futureSaleClauses = state.futureSaleClauses.slice(-20);
+
+        save();
+        closeCustomModal();
+        render();
+        toast(`✈️ Venda acordada! ${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)}. Ele jogará pelo seu time até a abertura da janela.`);
+        return;
+      }
+
       state.squad.splice(curIdx, 1);
       state.playerMoves[actualKey] = offer.buyer;
       state.balance += offer.price;
@@ -26306,7 +26472,6 @@ function openPlayerTransferModal(key){
       delete state.transferOffers[actualKey];
       delete state.loanOffers[actualKey];
       state.transfers.unshift({type:'out', name:p.name, from:state.club, to:offer.buyer, value:offer.price, date:state.date});
-      const sellOnPct = clamp(Number(offer.sellOnPct ?? offer.counterSellOnPct ?? 20), 0, 50);
       state.news.unshift(`${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)} (${sellOnPct}% de participação na revenda futura).`);
 
       // Cláusula de venda futura definida na negociação.
@@ -26332,10 +26497,7 @@ function openPlayerTransferModal(key){
 
   $$('.btnAcceptLoan').forEach(b=>{
     b.onclick = () => {
-      if(!winInfo.open && !state.freeTransferWindow && !(state.isPreSeason && state.preSeasonDays > 0)){
-        toast('A janela de transferências está fechada!');
-        return;
-      }
+      const isWindowOpen = winInfo.open || state.freeTransferWindow || (state.isPreSeason && state.preSeasonDays > 0);
       const oIdx = +b.dataset.offerIdx;
       const offer = loanOffers[oIdx];
       if(!offer) return;
@@ -26349,6 +26511,32 @@ function openPlayerTransferModal(key){
 
       const curIdx = state.squad.findIndex(q=>playerKey(q)===actualKey || norm(q.name)===norm(p.name));
       if(curIdx < 0) return;
+
+      if(!isWindowOpen){
+        // FORA DA JANELA: Marca empréstimo agendado, continua no time até abrir a janela
+        p.pendingTransfer = {
+          type: 'loan_out',
+          buyerClub: offer.buyer,
+          sellerClub: state.club,
+          date: state.date,
+          fee: offer.fee,
+          durationMonths: 12,
+          wagePct: 100
+        };
+        state.balance += offer.fee;
+        state.income = (state.income || 0) + offer.fee;
+        state.loanListed = (state.loanListed||[]).filter(k=>k!==actualKey);
+        delete state.transferOffers[actualKey];
+        delete state.loanOffers[actualKey];
+        state.loans.unshift({type:'loan_out', name:p.name, from:state.club, to:offer.buyer, fee:offer.fee, date:state.date, pending:true});
+        state.news.unshift(`🤝 EMPRÉSTIMO AGENDADO: ${p.name} acertou empréstimo com o ${offer.buyer} por 1 temporada. Ele defenderá o ${state.club} até a abertura oficial da janela.`);
+        save();
+        closeCustomModal();
+        render();
+        toast(`🤝 Empréstimo acordado! ${p.name} continuará jogando pelo ${state.club} até a abertura da janela.`);
+        return;
+      }
+
       state.squad.splice(curIdx, 1);
       state.playerMoves[actualKey] = offer.buyer;
       state.balance += offer.fee;
@@ -26389,10 +26577,6 @@ function quickSellSquadPlayer(key){
   }
   const winInfo = getTransferWindowInfo(state.date);
   const isWindowOrPreSeason = winInfo.open || state.freeTransferWindow || (state.isPreSeason && state.preSeasonDays > 0);
-  if(!isWindowOrPreSeason){
-    toast('A janela de transferências está fechada!');
-    return;
-  }
   if(state.squad.length <= 14){
     toast('Você precisa manter pelo menos 14 jogadores no elenco.');
     return;
@@ -26403,6 +26587,42 @@ function quickSellSquadPlayer(key){
 
   const otherClubs = clubs.filter(c => norm(c.name) !== norm(state.club));
   const buyer = otherClubs[hashStr(actualKey + (state.round||0)) % otherClubs.length]?.name || 'Ceilândia';
+
+  if(!isWindowOrPreSeason){
+    const confirmPreSell = confirm(`A janela está fechada! Deseja realizar a VENDA RÁPIDA de ${p.name} para o ${buyer} por ${fmtMoney(quickPrice)} (80% do valor de mercado à vista)?\n\nO dinheiro entrará no caixa imediatamente e o jogador defenderá o ${state.club} até a abertura oficial da janela.`);
+    if(!confirmPreSell) return;
+
+    p.pendingTransfer = {
+      type: 'sale',
+      buyerClub: buyer,
+      sellerClub: state.club,
+      date: state.date,
+      price: quickPrice,
+      sellOnPct: 20
+    };
+    state.balance += quickPrice;
+    state.income = (state.income || 0) + quickPrice;
+    state.transferListed = (state.transferListed||[]).filter(k => k !== actualKey);
+    delete (state.transferOffers||{})[actualKey];
+    delete (state.loanOffers||{})[actualKey];
+    state.transfers.unshift({ type: 'out', name: p.name, from: state.club, to: buyer, value: quickPrice, date: state.date, pending: true });
+    state.news.unshift(`⚡ VENDA RÁPIDA AGENDADA: ${p.name} foi negociado com o ${buyer} por ${fmtMoney(quickPrice)} à vista (20% de revenda retidos). Ele seguirá no time até a abertura da janela.`);
+
+    state.futureSaleClauses = state.futureSaleClauses || [];
+    state.futureSaleClauses.push({
+      playerName: p.name,
+      buyer: buyer,
+      sharePct: 20,
+      initialPrice: quickPrice,
+      soldDate: state.date
+    });
+    if(state.futureSaleClauses.length > 20) state.futureSaleClauses = state.futureSaleClauses.slice(-20);
+
+    save();
+    render();
+    toast(`⚡ Venda rápida acordada! ${p.name} foi vendido ao ${buyer} por ${fmtMoney(quickPrice)}. Ele sairá na abertura da janela.`);
+    return;
+  }
 
   const confirmSell = confirm(`Deseja realizar a VENDA RÁPIDA de ${p.name} para o ${buyer} por ${fmtMoney(quickPrice)} (80% do valor de mercado à vista no caixa)?`);
   if(!confirmSell) return;
@@ -26437,6 +26657,7 @@ function quickSellSquadPlayer(key){
   render();
   toast(`🎉 Venda rápida de ${p.name} para o ${buyer} concluída por ${fmtMoney(quickPrice)}! (20% de revenda retidos)`);
 }
+window.quickSellSquadPlayer = quickSellSquadPlayer;
 window.quickSellSquadPlayer = quickSellSquadPlayer;
 
 function promptSellPlayer(key){
@@ -30034,9 +30255,9 @@ function myTeamPage(){
             return `
               <div class="bench-player-row" data-bench-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}" title="Clique para selecionar e trocar">
                 ${playerPhoto(p, 36)}
-                <div style="flex:1;min-width:0;margin-left:8px">
-                  <div style="display:flex;justify-content:space-between;align-items:center">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
                     <b style="font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</b>
+                    ${(typeof renderPendingTransferTag === 'function') ? renderPendingTransferTag(p, true) : ''}
                     <span class="rating-pill ${ratingClass(pOvr)}">${pOvr}</span>
                   </div>
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;font-size:10px">
@@ -30570,7 +30791,7 @@ function squadPage(){
               const remainingMonths = Math.ceil(remainingDays / 30.4375);
               const optionActive = Number(player.loanBuyOptionPrice) > 0 && (!player.loanBuyOptionEndDate || state.date <= player.loanBuyOptionEndDate);
               return `<tr class="salary-loan-item" data-player-key="${esc(playerKey(player))}">
-                <td><b>${esc(player.name)}</b><div class="small muted">${esc(player.pos || '-')} · ${playerOverall(player)} OVR</div></td>
+                <td><b>${esc(player.name)}</b> ${(typeof renderPendingTransferTag === 'function') ? renderPendingTransferTag(player) : ''}<div class="small muted">${esc(player.pos || '-')} · ${playerOverall(player)} OVR</div></td>
                 <td>${clubBadge(player.loanFrom, 18)} ${esc(player.loanFrom || 'Clube de origem')}</td>
                 <td>${player.loanEndDate ? formatDatePtBr(player.loanEndDate) : 'A definir'}</td>
                 <td><b style="color:${remainingDays <= 30 ? '#f59e0b' : '#38bdf8'}">${remainingDays} dias</b><div class="small muted">aprox. ${remainingMonths} mês(es)</div></td>
@@ -30629,8 +30850,10 @@ function squadPage(){
                 <div style="display:flex;justify-content:space-between;align-items:center">
                   <div style="display:flex;align-items:center;gap:12px">
                     <span class="pill" style="font-size:11px;font-weight:800;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);min-width:32px;text-align:center">${esc(p.pos||'-')}</span>
-                    <div>
-                      <div style="font-size:15px;font-weight:800;color:#fff">${esc(p.name)}</div>
+                      <div style="font-size:15px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                        <span>${esc(p.name)}</span>
+                        ${(typeof renderPendingTransferTag === 'function') ? renderPendingTransferTag(p, true) : ''}
+                      </div>
                       <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;display:flex;align-items:center;flex-wrap:wrap;gap:6px">
                         <span>${ovr} · ${p.age||22} anos · até ${until}</span>
                         ${p.isLoan ? `<span style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:900;letter-spacing:0.5px">EMPRESTADO (${esc(p.loanFrom||'ORIGEM')})</span>` : ''}
@@ -30739,6 +30962,7 @@ function squadPage(){
                 <td style="width:42px;text-align:center"><button class="btn btn-sm btn-subtle" onclick="openSquadShirtNumbersModal('${esc(typeof playerKey === 'function' ? playerKey(p) : p.name)}')" title="Alterar camisa de ${esc(p.name)}" style="padding:2px 7px;font-size:12px;font-weight:900;border-radius:6px;min-width:32px;color:#38bdf8;border:1px solid rgba(56,189,248,0.3)">#${p.number || '-'}</button></td>
                 <td>
                   <b style="cursor:pointer" class="btn-lupa-details" data-key="${esc(playerKey(p))}" onclick="if(window.AFM_MarketLupaAndAging)window.AFM_MarketLupaAndAging.openPlayerDetails(this)" title="Ver ficha técnica de ${esc(p.name)}">${esc(p.name)}</b>
+                  ${(typeof renderPendingTransferTag === 'function') ? renderPendingTransferTag(p) : ''}
                   ${p.injury ? `<span class="pill bad" style="font-size:9px;padding:1px 5px" title="${esc(p.injury)} (${p.injuryMatches} jogos)">🚑 ${p.injuryMatches}j</span>` : ''}
                   ${p.suspended > 0 ? `<span class="pill bad" style="font-size:9px;padding:1px 5px" title="Suspenso por cartões">🟥 ${p.suspended}j</span>` : (p.yellowCards > 0 ? `<span class="pill" style="font-size:9px;padding:1px 5px;background:rgba(234,179,8,0.2);color:#facc15" title="${p.yellowCards} cartão amarelo">🟨 ${p.yellowCards}</span>` : '')}
                   ${(p.morale || 75) >= 90 ? `<span class="pill good" style="font-size:9px;padding:1px 4px" title="Moral em alta">⭐</span>` : ((p.morale || 75) <= 50 ? `<span class="pill bad" style="font-size:9px;padding:1px 4px" title="Moral baixa">⚠️</span>` : '')}
@@ -30769,7 +30993,7 @@ function squadPage(){
                 <button type="button" class="btn btn-lupa-details btn-lupa-squad" data-key="${esc(playerKey(p))}" onclick="if(window.AFM_MarketLupaAndAging)window.AFM_MarketLupaAndAging.openPlayerDetails(this)" title="Ver ficha técnica e atributos reais de ${esc(p.name)}" style="background:#3b1d7a;color:#fff;border:1px solid #a78bfa;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:12px;line-height:1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(124,58,237,0.3);flex-shrink:0;">🔍</button>
                 ${p.isLoan ? `<button class="btn btnManageLoanRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">🤝 Negociar c/ detentor</button>` : `
                   <button class="btn btnRenewContractRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">📝 Renovar contrato</button>
-                  <button class="btn open-transfer-modal ${isPlayerTransferListed(p)?'warn':isPlayerLoanListed(p)?'primary':''}" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">${isPlayerTransferListed(p)?'🏷️ Gerenciar Venda':isPlayerLoanListed(p)?'🤝 Gerenciar Empréstimo':'📄 Propostas / Vender'}</button>
+                  <button class="btn open-transfer-modal ${p.pendingTransfer?'warn':isPlayerTransferListed(p)?'warn':isPlayerLoanListed(p)?'primary':''}" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">${p.pendingTransfer ? (p.pendingTransfer.type==='loan_out'?'🤝 Empréstimo Agendado':'✈️ Venda Agendada') : isPlayerTransferListed(p)?'🏷️ Gerenciar Venda':isPlayerLoanListed(p)?'🤝 Gerenciar Empréstimo':'📄 Propostas / Vender'}</button>
                 `}
               </div>
                 </td>
@@ -31338,27 +31562,49 @@ function renderMarketBuy(){
   el.innerHTML=`
     <div class="tablewrap card">
       <table>
-        <thead><tr><th style="width:36px;text-align:center">⭐</th><th>Jogador</th><th>Clube</th><th>Pos</th><th>Overall</th><th>Idade</th><th>Valor de Mercado</th><th>Ação</th></tr></thead>
+        <thead>
+          <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
+            <th style="width:36px;text-align:center">⭐</th>
+            <th style="width:36px;text-align:center">FOTO</th>
+            <th>JOGADOR</th>
+            <th>CLUBE</th>
+            <th style="text-align:center">POS</th>
+            <th style="text-align:center">OVERALL</th>
+            <th style="text-align:center">IDADE</th>
+            <th style="text-align:right">SALÁRIO / MÊS</th>
+            <th style="text-align:right">VALOR DE MERCADO</th>
+            <th style="text-align:center">AÇÃO</th>
+          </tr>
+        </thead>
         <tbody>
           ${pageSlice.map(p=>{
             const val = p.value != null ? p.value : calcValueMi(p), key = p.marketKey || playerKey(p);
+            const pending = (typeof getPlayerPendingTransfer === 'function') ? getPlayerPendingTransfer(p) : (p.pendingTransfer || null);
+            const isAlreadySigned = pending && (pending.buyerClub === state.club || pending.type === 'buy' || pending.type === 'loan_in');
             const canAfford = val*1e6 <= state.balance;
-            const canBuy = windowOpen && canAfford;
-            const btnText = !windowOpen ? 'Janela Fechada' : (!canAfford ? 'Sem caixa' : 'Comprar');
-            const btnTitle = !windowOpen ? 'Mercado de transferências fechado fora da janela' : (!canAfford ? 'Saldo em caixa insuficiente' : 'Iniciar negociação');
+            const canBuy = !isAlreadySigned && canAfford;
+            const btnText = isAlreadySigned ? '✓ Acertado (Janela)' : (!windowOpen ? (!canAfford ? 'Sem caixa' : '✍️ Pré-Contrato') : (!canAfford ? 'Sem caixa' : 'Comprar'));
+            const btnTitle = isAlreadySigned ? 'Atleta já acertado com o clube para a abertura da janela' : (!windowOpen ? 'Iniciar negociação de pré-contrato (se apresenta na janela)' : (!canAfford ? 'Saldo em caixa insuficiente' : 'Iniciar negociação'));
             const ovr = playerOverall(p);
+            const isFav = Array.isArray(state.marketFavorites) && state.marketFavorites.includes(key);
+            const wage = p.wage || (typeof playerSalary === 'function' ? playerSalary(p) : 50000);
             return `
               <tr>
-                <td><b>${esc(p.name)}</b></td>
-                <td><div class="club-cell">${clubBadge(p.club, 22)} ${esc(p.club||'-')}</div></td>
-                <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
-                <td><span class="rating-pill ${ratingClass(ovr)}">${ovr}</span></td>
-                <td>${p.age||'-'} anos</td>
-                <td><b class="good">${fmtMi(val)}</b></td>
-                <td>
-                  <div style="display:inline-flex;gap:6px;align-items:center;justify-content:flex-end">
+                <td style="width:36px;text-align:center">
+                  <button type="button" class="btn-fav-star" data-key="${esc(key)}" title="Favoritar atleta" style="background:none;border:none;cursor:pointer;font-size:15px;line-height:1;padding:2px">${isFav ? '⭐' : '☆'}</button>
+                </td>
+                <td style="width:36px;text-align:center">${playerPhoto(p, 28)}</td>
+                <td><b>${esc(p.name)}</b> ${(typeof renderPendingTransferTag === 'function') ? renderPendingTransferTag(p) : ''}</td>
+                <td><div class="club-cell">${clubBadge(p.club, 18)} ${esc(p.club||'-')}</div></td>
+                <td style="text-align:center"><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                <td style="text-align:center"><span class="rating-pill ${ratingClass(ovr)}">${ovr}</span></td>
+                <td style="text-align:center">${p.age||'-'} anos</td>
+                <td style="text-align:right;color:#fbbf24;font-weight:700">R$ ${wage.toLocaleString('pt-BR')}/mês</td>
+                <td style="text-align:right"><b class="good">${fmtMi(val)}</b></td>
+                <td style="text-align:center">
+                  <div style="display:inline-flex;gap:6px;align-items:center;justify-content:center">
                     <button type="button" class="btn btn-lupa-details" data-key="${esc(key)}" title="Ver atributos e ficha técnica do atleta" style="background:#3b1d7a;color:#fff;border:1px solid #a78bfa;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(124,58,237,0.3);flex-shrink:0;">🔍</button>
-                    <button class="btn primary buy" data-key="${esc(key)}" title="${esc(btnTitle)}" ${!canBuy?'disabled':''}>${btnText}</button>
+                    <button class="btn ${isAlreadySigned ? '' : 'primary'} buy" data-key="${esc(key)}" title="${esc(btnTitle)}" ${!canBuy?'disabled':''} style="${isAlreadySigned ? 'background:#1e1b4b;color:#a5b4fc;border:1px solid #6366f1;cursor:default' : ''}">${btnText}</button>
                   </div>
                 </td>
               </tr>
@@ -31506,12 +31752,13 @@ function renderMarketLoans(){
       <table>
         <thead>
           <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
-            <th style="width:36px">FOTO</th>
+            <th style="width:36px;text-align:center">FOTO</th>
             <th>JOGADOR</th>
             <th>CLUBE</th>
-            <th>POS</th>
+            <th style="text-align:center">POS</th>
             <th style="text-align:center">NOTA</th>
             <th style="text-align:center">IDADE</th>
+            <th style="text-align:right">SALÁRIO / MÊS</th>
             <th style="text-align:right">TAXA ANUAL</th>
             <th style="text-align:center">AÇÃO</th>
           </tr>
@@ -31521,23 +31768,28 @@ function renderMarketLoans(){
             const fee = Math.round(calcValueMi(p) * 1e6 * 0.10);
             const key = playerKey(p);
             const windowOpen = isTransferWindowOpen(state?.date);
-            const canLoan = windowOpen && fee <= state.balance;
-            const btnText = !windowOpen ? 'Janela Fechada' : (fee > state.balance ? 'Sem caixa' : 'Negociar Empréstimo');
-            const btnTitle = !windowOpen ? 'Mercado de transferências fechado fora da janela' : 'Negociar contratação por empréstimo';
+            const pending = (typeof getPlayerPendingTransfer === 'function') ? getPlayerPendingTransfer(p) : (p.pendingTransfer || null);
+            const isAlreadySigned = pending && (pending.buyerClub === state.club || pending.type === 'loan_in' || pending.type === 'buy');
+            const canAfford = fee <= state.balance;
+            const canLoan = !isAlreadySigned && canAfford;
+            const btnText = isAlreadySigned ? '✓ Empréstimo Acertado' : (!windowOpen ? (!canAfford ? 'Sem caixa' : '🤝 Pré-Empréstimo') : (!canAfford ? 'Sem caixa' : 'Negociar Empréstimo'));
+            const btnTitle = isAlreadySigned ? 'Empréstimo já agendado para a abertura da janela' : (!windowOpen ? 'Negociar pré-contrato de empréstimo (chega na abertura da janela)' : 'Negociar contratação por empréstimo');
+            const wage = p.wage || (typeof playerSalary === 'function' ? playerSalary(p) : 50000);
 
             return `
               <tr>
-                <td style="width:36px">${playerPhoto(p, 28)}</td>
-                <td><b>${esc(p.name)}</b></td>
+                <td style="width:36px;text-align:center">${playerPhoto(p, 28)}</td>
+                <td><b>${esc(p.name)}</b> ${(typeof renderPendingTransferTag === 'function') ? renderPendingTransferTag(p) : ''}</td>
                 <td><div class="club-cell">${clubBadge(p.club, 18)} ${esc(p.club||'-')}</div></td>
-                <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                <td style="text-align:center"><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
                 <td style="text-align:center"><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
                 <td style="text-align:center">${p.age||22} anos</td>
+                <td style="text-align:right;color:#fbbf24;font-weight:700">R$ ${wage.toLocaleString('pt-BR')}/mês</td>
                 <td style="text-align:right;color:#22c55e;font-weight:800">${fmtMoney(fee)}</td>
                 <td style="text-align:center">
                   <div style="display:inline-flex;gap:6px;align-items:center;justify-content:center">
                     <button type="button" class="btn btn-lupa-details" data-key="${esc(key)}" title="Ver atributos e ficha técnica do atleta" style="background:#3b1d7a;color:#fff;border:1px solid #a78bfa;border-radius:8px;padding:5px 9px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(124,58,237,0.3);flex-shrink:0;">🔍</button>
-                  <button class="btn success loan-in" data-key="${esc(key)}" title="${esc(btnTitle)}" ${!canLoan?'disabled':''} style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:6px;${!canLoan?'background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);cursor:not-allowed':'background:#16a34a;color:#fff;cursor:pointer'};border:none">
+                  <button class="btn success loan-in" data-key="${esc(key)}" title="${esc(btnTitle)}" ${!canLoan?'disabled':''} style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:6px;${!canLoan?'background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);cursor:not-allowed':isAlreadySigned?'background:#1e1b4b;color:#a5b4fc;border:1px solid #6366f1':'background:#16a34a;color:#fff;cursor:pointer'};border:none">
                     ${btnText}
                   </button>
                   </div>
@@ -31607,17 +31859,17 @@ function renderMarketLend(){
               return `
                 <tr>
                   <td style="width:36px">${playerPhoto(p, 30)}</td>
-                  <td><b>${esc(p.name)}</b></td>
+                  <td><b>${esc(p.name)}</b> ${(typeof renderPendingTransferTag === 'function') ? renderPendingTransferTag(p) : ''}</td>
                   <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
                   <td style="text-align:center"><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
                   <td style="text-align:center">${p.age||22} anos</td>
                   <td style="text-align:right;color:#22c55e">R$ ${(p.wage||playerSalary(p)).toLocaleString('pt-BR')}/mês</td>
                   <td style="text-align:center">
-                    <span class="pill ${isListed?'good':''}" style="font-size:10px">${isListed?'LISTADO':'NO CLUBE'}</span>
+                    <span class="pill ${p.pendingTransfer?'warn':isListed?'good':''}" style="font-size:10px">${p.pendingTransfer?(p.pendingTransfer.type==='sale'?'VENDA AGENDADA':'EMPRÉSTIMO AGENDADO'):isListed?'LISTADO':'NO CLUBE'}</span>
                   </td>
                   <td style="text-align:center">
                     <div style="display:inline-flex;gap:6px">
-                      <button class="btn btnToggleLoanListed" data-key="${esc(k)}" style="padding:4px 10px;font-size:11px">
+                      <button class="btn btnToggleLoanListed" data-key="${esc(k)}" style="padding:4px 10px;font-size:11px" ${p.pendingTransfer?'disabled':''}>
                         ${isListed?'Retirar da Lista':'Disponibilizar'}
                       </button>
                       ${offers.length ? `
@@ -31691,7 +31943,7 @@ function renderMarketMyLoans(){
                 ${borrowed.map(p => `
                   <tr>
                     <td style="width:36px">${playerPhoto(p, 28)}</td>
-                    <td><b>${esc(p.name)}</b></td>
+                    <td><b>${esc(p.name)}</b> ${(typeof renderPendingTransferTag === 'function') ? renderPendingTransferTag(p) : ''}</td>
                     <td><div class="club-cell">${clubBadge(p.loanFrom, 18)} ${esc(p.loanFrom||'-')}</div></td>
                     <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
                     <td style="text-align:center"><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>

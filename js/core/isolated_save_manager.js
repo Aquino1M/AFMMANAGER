@@ -56,10 +56,11 @@
       return gameState.isolatedWorld;
     },
 
-    // Salva o estado exclusivamente no slot individual do usuario
+    // Salva o estado exclusivamente no slot individual do usuario com Dual-Slot Backup espelho
     saveToUserSlot(gameState, slotName = 'default_user') {
       this.ensureSaveIsolation(gameState);
       const storageKey = `afm2027_individual_save_${slotName}`;
+      const backupKey = `afm2027_individual_save_${slotName}_backup`;
       if (typeof localStorage !== 'undefined') {
         try {
           const toSave = JSON.parse(JSON.stringify(gameState));
@@ -69,8 +70,14 @@
             delete toSave.isolatedWorld.competitions;
           }
           delete toSave.worldGenerated;
-          localStorage.setItem(storageKey, JSON.stringify(toSave));
+          const payload = JSON.stringify(toSave);
+          localStorage.setItem(storageKey, payload);
           localStorage.setItem('afm2027_last_active_slot', slotName);
+
+          // Dual-Slot Backup: Réplica de segurança para garantir integridade contra falhas repentinas
+          try {
+            localStorage.setItem(backupKey, payload);
+          } catch (_) {}
         } catch (e) {
           if (typeof window.freeUpLocalStorageQuota === 'function') {
             window.freeUpLocalStorageQuota();
@@ -80,16 +87,41 @@
       return storageKey;
     },
 
+    // Carrega o save individual com restauração automática por backup em caso de corrupção
     loadFromUserSlot(slotName = 'default_user') {
       const storageKey = `afm2027_individual_save_${slotName}`;
+      const backupKey = `afm2027_individual_save_${slotName}_backup`;
       if (typeof localStorage === 'undefined') return null;
-      const raw = localStorage.getItem(storageKey);
+
+      let raw = localStorage.getItem(storageKey);
+      if (!raw) {
+        // Tenta recuperar do backup se a chave principal foi perdida
+        raw = localStorage.getItem(backupKey);
+      }
       if (!raw) return null;
+
       try {
         const parsed = JSON.parse(raw);
         this.ensureSaveIsolation(parsed);
         return parsed;
       } catch (e) {
+        console.warn(`[AFM Backup Engine] Save principal corrompido em ${storageKey}. Acionando backup de segurança...`, e);
+        // Tenta restaurar imediatamente do slot backup de emergência
+        const backupRaw = localStorage.getItem(backupKey);
+        if (backupRaw) {
+          try {
+            const backupParsed = JSON.parse(backupRaw);
+            this.ensureSaveIsolation(backupParsed);
+            // Auto-repara a chave primária
+            localStorage.setItem(storageKey, backupRaw);
+            if (typeof window.toast === 'function') {
+              window.toast('🛡️ Carreira restaurada com sucesso pelo backup de segurança!');
+            }
+            return backupParsed;
+          } catch (backupErr) {
+            console.error('[AFM Backup Engine] Falha no backup secundário:', backupErr);
+          }
+        }
         return null;
       }
     }

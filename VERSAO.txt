@@ -1,8 +1,15 @@
 Aquino Futebol Manager 2027 (AFM MANAGER)
-Versão: 3.9.35 (Build 2026-10-25 - Correção do Setor Oeste no 1º Anel da Maquete 3D, Cache Busting v96 e SW v72)
+Versão: 3.9.37 (Build 2026-10-26 - Setas Táticas Vetoriais SVG no Campo, Mosaico 3D nas Arquibancadas e Blindagem de Quota de Saves)
 Histórico completo disponível em: CHANGELOG.md
 
 Destaques da Versão Atual:
+0. Setas Táticas Vetoriais SVG: Quadro tático horizontal com setas de movimentação dinâmicas (subida de laterais, diagonais de pontas, infiltração do meia e âncora do volante estilo EA FC/FM).
+0.1 Mosaico 3D da Torcida nas Arquibancadas: Renderização tridimensional procedural de mosaicos nos anéis do setor sul com as cores e contraste oficiais do clube.
+0.2 Blindagem Inteligente de Armazenamento: Proteção absoluta de todos os saves e backups de slots contra limpeza acidental de quota do navegador.
+0.3 Dual-Slot Backup de Saves: Salvamento espelho automático em slot redundante com autorrecuperação anti-corrupção (Zero Perda de Saves).
+0.4 Scouting Avançado (Radar Hexagonal & Heatmap SVG): Lupa com polígono de performance EA FC/FM, mini-campo com mapa de calor por posição e badge de personalidade de vestiário.
+0.5 IA Tática Reativa da CPU no Intervalo: A CPU reage ao placar no intervalo, alterando postura tática (Pressão Total / Contra-Ataque) com avisos e relatos dinâmicos.
+0.6 Estádio 3D Low-Poly Dinâmico: Presets de iluminação Dia, Noite e Golden Hour, além de placas publicitárias de LED animadas na beira do gramado.
 0. Acesso à Série D via Estadual: Campeão e vice de estaduais (ex: Candangão) sem divisão superior sobem automaticamente à Série D.
 1. Mundo Vivo & Virada de Temporada: Transição completa de acessos e rebaixamentos para Séries A, B, C, D e Estaduais sem divisões estáticas.
 2. Gestão de Empréstimos: Modal com clube detentor (exercer compra definitiva, extensão de 6/12 meses ou devolução do atleta).

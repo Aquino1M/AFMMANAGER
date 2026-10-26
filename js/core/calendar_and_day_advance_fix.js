@@ -146,6 +146,10 @@
           window.AFM_LifeAndSharesPro.processRoundTurn(state);
         }
 
+        if (typeof window.processPendingTransfersOnWindowOpen === 'function') {
+          window.processPendingTransfersOnWindowOpen(state);
+        }
+
         this.syncDateInDOM(state, newPtBr);
         if (typeof window.save === 'function') window.save();
         if (typeof window.render === 'function') window.render();

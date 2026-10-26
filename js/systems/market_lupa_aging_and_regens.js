@@ -576,7 +576,10 @@
                 <!-- Topo da Direita: Nome, Chips e Botão Fechar -->
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px;">
                   <div style="min-width:0;">
-                    <h2 style="margin:0 0 6px 0;font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</h2>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+                      <h2 style="margin:0;font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</h2>
+                      ${(typeof window.renderPendingTransferTag === 'function' && p) ? window.renderPendingTransferTag(p) : ''}
+                    </div>
                     
                     <!-- Chips de Idade, Valor, Salário -->
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:#cbd5e1;">

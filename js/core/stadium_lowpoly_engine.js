@@ -167,28 +167,67 @@
       const THREE = window.THREE;
       
       // Luz ambiente suave
-      const hemiLight = new THREE.HemisphereLight('#cbd5e1', '#0f172a', 0.65);
-      this.scene.add(hemiLight);
+      this.hemiLight = new THREE.HemisphereLight('#cbd5e1', '#0f172a', 0.65);
+      this.scene.add(this.hemiLight);
 
       // Sol principal direcional com sombra
-      const dirLight = new THREE.DirectionalLight('#ffffff', 0.85);
-      dirLight.position.set(32, 45, 28);
-      dirLight.castShadow = true;
-      dirLight.shadow.mapSize.width = 1024;
-      dirLight.shadow.mapSize.height = 1024;
-      dirLight.shadow.camera.near = 10;
-      dirLight.shadow.camera.far = 120;
-      dirLight.shadow.camera.left = -40;
-      dirLight.shadow.camera.right = 40;
-      dirLight.shadow.camera.top = 40;
-      dirLight.shadow.camera.bottom = -40;
-      dirLight.shadow.bias = -0.001;
-      this.scene.add(dirLight);
+      this.dirLight = new THREE.DirectionalLight('#ffffff', 0.85);
+      this.dirLight.position.set(32, 45, 28);
+      this.dirLight.castShadow = true;
+      this.dirLight.shadow.mapSize.width = 1024;
+      this.dirLight.shadow.mapSize.height = 1024;
+      this.dirLight.shadow.camera.near = 10;
+      this.dirLight.shadow.camera.far = 120;
+      this.dirLight.shadow.camera.left = -40;
+      this.dirLight.shadow.camera.right = 40;
+      this.dirLight.shadow.camera.top = 40;
+      this.dirLight.shadow.camera.bottom = -40;
+      this.dirLight.shadow.bias = -0.001;
+      this.scene.add(this.dirLight);
 
       // Luz de preenchimento azulada oposta
-      const fillLight = new THREE.DirectionalLight('#38bdf8', 0.25);
-      fillLight.position.set(-25, 20, -30);
-      this.scene.add(fillLight);
+      this.fillLight = new THREE.DirectionalLight('#38bdf8', 0.25);
+      this.fillLight.position.set(-25, 20, -30);
+      this.scene.add(this.fillLight);
+    }
+
+    setLightingPreset(mode = 'night') {
+      const THREE = window.THREE;
+      if (!this.dirLight || !this.hemiLight || !THREE) return;
+      if (mode === 'day') {
+        this.scene.background = new THREE.Color('#38bdf8');
+        if (this.scene.fog) this.scene.fog.color = new THREE.Color('#38bdf8');
+        this.hemiLight.color.set('#f8fafc');
+        this.hemiLight.groundColor.set('#64748b');
+        this.hemiLight.intensity = 0.85;
+        this.dirLight.color.set('#fffbeb');
+        this.dirLight.intensity = 1.1;
+        this.dirLight.position.set(20, 55, 20);
+        if (this.fillLight) { this.fillLight.color.set('#bae6fd'); this.fillLight.intensity = 0.4; }
+      } else if (mode === 'golden_hour') {
+        this.scene.background = new THREE.Color('#1e1b4b');
+        if (this.scene.fog) this.scene.fog.color = new THREE.Color('#1e1b4b');
+        this.hemiLight.color.set('#fed7aa');
+        this.hemiLight.groundColor.set('#312e81');
+        this.hemiLight.intensity = 0.7;
+        this.dirLight.color.set('#fb923c');
+        this.dirLight.intensity = 0.95;
+        this.dirLight.position.set(45, 25, 25);
+        if (this.fillLight) { this.fillLight.color.set('#c084fc'); this.fillLight.intensity = 0.3; }
+      } else { // 'night' default
+        this.scene.background = new THREE.Color('#070b14');
+        if (this.scene.fog) this.scene.fog.color = new THREE.Color('#070b14');
+        this.hemiLight.color.set('#cbd5e1');
+        this.hemiLight.groundColor.set('#0f172a');
+        this.hemiLight.intensity = 0.65;
+        this.dirLight.color.set('#ffffff');
+        this.dirLight.intensity = 0.85;
+        this.dirLight.position.set(32, 45, 28);
+        if (this.fillLight) { this.fillLight.color.set('#38bdf8'); this.fillLight.intensity = 0.25; }
+      }
+      if (this.renderer && this.scene && this.camera) {
+        this.renderer.render(this.scene, this.camera);
+      }
     }
 
     /**
@@ -613,6 +652,30 @@
         benchCanopy.position.set(-fieldW / 2 - 1.2, 1.0, offsetZ);
         this.stadiumGroup.add(benchCanopy);
       });
+
+      // 4. Painéis de LED Publicitários Animados na Beira do Gramado (Estilo Transmissão FIFA/EA FC)
+      const ledMat = new THREE.MeshStandardMaterial({
+        color: '#06b6d4',
+        emissive: '#0891b2',
+        emissiveIntensity: 0.5,
+        roughness: 0.2,
+        metalness: 0.8
+      });
+      this.ledMaterial = ledMat;
+
+      // Painéis Laterais Leste
+      const ledEast = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.65, fieldL - 2), ledMat);
+      ledEast.position.set(fieldW / 2 + 0.8, 0.62, 0);
+      this.stadiumGroup.add(ledEast);
+
+      // Painéis Norte e Sul (atrás dos gols)
+      [-1, 1].forEach(dir => {
+        const ledEnd = new THREE.Mesh(new THREE.BoxGeometry(fieldW - 6, 0.65, 0.18), ledMat);
+        ledEnd.position.set(0, 0.62, dir * (fieldL / 2 + 0.8));
+        this.stadiumGroup.add(ledEnd);
+      });
+
+      this.animatedElements.push({ type: 'led_boards', mat: ledMat });
     }
 
     /**
@@ -1171,6 +1234,44 @@
         upgradeGroup.add(museumAtrium);
       }
 
+      // 8. Mosaico Dinâmico 3D da Torcida nas Arquibancadas (Setor Sul)
+      if (upgrades.mosaic) {
+        const mosaicGroup = new THREE.Group();
+        const primaryColor = palette.primary || '#dc2626';
+        const secondaryColor = palette.secondary || '#ffffff';
+        const accentColor = palette.accent || '#facc15';
+
+        const matPrimary = new THREE.MeshStandardMaterial({ color: primaryColor, roughness: 0.5, flatShading: true });
+        const matSecondary = new THREE.MeshStandardMaterial({ color: secondaryColor, roughness: 0.5, flatShading: true });
+        const matAccent = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.5, flatShading: true });
+
+        // Desenha painéis quadriculados coordenados nas arquibancadas do Setor Sul
+        const rows = 4;
+        const cols = 12;
+        const panelW = 1.6;
+        const panelD = 0.8;
+        const panelH = 0.15;
+
+        for (let r = 0; r < rows; r++) {
+          const stepY = 2.4 + r * 0.65;
+          const stepZ = 16.5 + r * 1.35;
+          for (let c = 0; c < cols; c++) {
+            const posX = -((cols * panelW) / 2) + c * panelW + panelW / 2;
+            let curMat = matPrimary;
+            if ((c >= 4 && c <= 7 && r >= 1 && r <= 2) || (c % 2 === 0 && r % 2 === 0)) {
+              curMat = matSecondary;
+            } else if (c === 5 || c === 6) {
+              curMat = matAccent;
+            }
+            const tile = new THREE.Mesh(new THREE.BoxGeometry(panelW * 0.9, panelH, panelD * 0.9), curMat);
+            tile.position.set(posX, stepY, stepZ);
+            tile.castShadow = true;
+            mosaicGroup.add(tile);
+          }
+        }
+        upgradeGroup.add(mosaicGroup);
+      }
+
       this.stadiumGroup.add(upgradeGroup);
     }
 
@@ -1223,17 +1324,21 @@
       try {
         const elapsed = this.clock ? this.clock.getElapsedTime() : 0;
 
-        // Anima sinalizadores e beacons
+        // Anima sinalizadores, beacons e placas de LED da beira do campo
         if (this.animatedElements && this.animatedElements.length > 0) {
           this.animatedElements.forEach(item => {
-            if (!item || !item.mesh) return;
-            if (item.type === 'flare') {
+            if (!item) return;
+            if (item.type === 'flare' && item.mesh) {
               const scale = (item.baseScale || 1) * (1 + 0.3 * Math.sin(elapsed * 6 + (item.offset || 0)));
               item.mesh.scale.set(scale, scale * 1.5, scale);
               item.mesh.rotation.y += 0.05;
-            } else if (item.type === 'beacon') {
+            } else if (item.type === 'beacon' && item.mesh) {
               const blink = (Math.sin(elapsed * 8) > 0) ? 1 : 0.2;
               item.mesh.scale.set(blink, blink, blink);
+            } else if (item.type === 'led_boards' && item.mat) {
+              // Pulsação neon suave em cores coordenadas da transmissão esportiva
+              const pulse = 0.5 + 0.35 * Math.sin(elapsed * 3.5);
+              item.mat.emissiveIntensity = pulse;
             }
           });
         }

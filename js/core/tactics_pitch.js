@@ -132,6 +132,41 @@ function renderHorizontalTacticsPitch(players, formationName = '4-3-3', opts = {
       <div style="position:absolute;right:0;top:20%;bottom:20%;width:18%;border:2px solid rgba(255,255,255,0.45);border-right:none"></div>
       <div style="position:absolute;right:0;top:35%;bottom:35%;width:7%;border:2px solid rgba(255,255,255,0.45);border-right:none"></div>
 
+      <!-- Camada Vetorial de Setas Táticas de Movimentação (Padrão EA FC / FM) -->
+      <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs>
+          <marker id="arrowHeadCyan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38bdf8" />
+          </marker>
+          <marker id="arrowHeadGold" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#fbbf24" />
+          </marker>
+        </defs>
+        ${form.map(slot => {
+          if (!slot || !slot.r) return '';
+          const r = slot.r.toUpperCase();
+          if (r === 'LB') {
+            return `<line x1="${slot.x + 4}" y1="${slot.y}" x2="${slot.x + 14}" y2="${slot.y}" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="2 2" stroke-opacity="0.6" marker-end="url(#arrowHeadCyan)" />`;
+          }
+          if (r === 'RB') {
+            return `<line x1="${slot.x + 4}" y1="${slot.y}" x2="${slot.x + 14}" y2="${slot.y}" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="2 2" stroke-opacity="0.6" marker-end="url(#arrowHeadCyan)" />`;
+          }
+          if (r === 'LW') {
+            return `<line x1="${slot.x + 2}" y1="${slot.y + 2}" x2="${slot.x + 7}" y2="${slot.y + 12}" stroke="#fbbf24" stroke-width="1.2" stroke-dasharray="2 2" stroke-opacity="0.7" marker-end="url(#arrowHeadGold)" />`;
+          }
+          if (r === 'RW') {
+            return `<line x1="${slot.x + 2}" y1="${slot.y - 2}" x2="${slot.x + 7}" y2="${slot.y - 12}" stroke="#fbbf24" stroke-width="1.2" stroke-dasharray="2 2" stroke-opacity="0.7" marker-end="url(#arrowHeadGold)" />`;
+          }
+          if (r === 'AM') {
+            return `<line x1="${slot.x + 4}" y1="${slot.y}" x2="${slot.x + 12}" y2="${slot.y}" stroke="#fbbf24" stroke-width="1.2" stroke-dasharray="2 2" stroke-opacity="0.7" marker-end="url(#arrowHeadGold)" />`;
+          }
+          if (r === 'DM') {
+            return `<line x1="${slot.x - 2}" y1="${slot.y}" x2="${slot.x + 6}" y2="${slot.y}" stroke="rgba(255,255,255,0.4)" stroke-width="1" stroke-dasharray="1.5 1.5" />`;
+          }
+          return '';
+        }).join('')}
+      </svg>
+
       <!-- Jogadores em Pílulas Horizontais -->
       ${players.map((p, idx) => {
         const slot = form[idx] || { r: p?.pos || 'CM', x: 10 + idx * 8, y: 50 };
