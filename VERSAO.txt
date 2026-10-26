@@ -1,8 +1,17 @@
 Aquino Futebol Manager 2027 (AFM MANAGER)
-Versão: 3.9.37 (Build 2026-10-26 - Setas Táticas Vetoriais SVG no Campo, Mosaico 3D nas Arquibancadas e Blindagem de Quota de Saves)
+Versão: 3.9.46 (Build 2026-10-26 - Fluidez Total na Partida ao Vivo 2x-40x & Sincronia Multiplataforma PC ⇄ Mobile ⇄ Supabase)
 Histórico completo disponível em: CHANGELOG.md
 
 Destaques da Versão Atual:
+0. Fluidez Total na Partida ao Vivo (1x até 40x): Motor 2.5D otimizado com interpolação adaptativa lerp e timers proporcionais à velocidade do jogo, eliminando congelamento de atletas em chutes e passes.
+0.1 Sincronização Multiplataforma 1:1 (PC ⇄ Mobile ⇄ Supabase): Regra inviolável do maior timestamp (`updated_at`), garantindo paridade absoluta entre computador, celular e nuvem.
+0.2 Limpeza Visual do Ranking Oficial: Remoção total da tag "SAVE SUPABASE" nos pódios e na tabela, deixando a interface limpa, elegante e minimalista.
+0.1 Exclusão Estrita de Contas Teste: Filtro automático e profundo que impede que contas de teste e desenvolvimento apareçam no ranking, mantendo apenas técnicos e jogadores reais.
+0.2 Sincronização Multiplataforma (PC ⇄ Mobile ⇄ Supabase): Regra inviolável de resolução de conflito pelo maior timestamp (`updated_at`). Saves feitos no computador abrem instantaneamente no celular e vice-versa, com badge de status da nuvem nos slots e botão dedicado "🔄 Sincronizar Nuvem (PC ⇄ Celular)".
+0.3 Ranking de Técnicos & PIX na Nuvem Supabase: O Leaderboard agora sincroniza diretamente com a tabela oficial `afm_saves` do Supabase. Cada entrada exibe o `@username` do jogador, o time que ele comanda com escudo oficial, seus pontos reais de carreira/temporada/semana e selo de prestígio.
+0.1 Tags de Empréstimo no Mercado: Identificação imediata e organizada de atletas emprestados ao clube, listados para empréstimo, listados à venda e com transferência agendada.
+0.2 Efeito Neon de Propostas Ativas: Botão de propostas com animação pulsante neon dourado/fogo e contador dinâmico (ex: 🔥 2 PROPOSTAS) alertando instantaneamente ofertas na mesa.
+0.2 Gestão de Empréstimos Integrada: Acesso direto à gestão e compra definitiva de atletas emprestados e botão de disponibilização rápida para empréstimo.
 0. Setas Táticas Vetoriais SVG: Quadro tático horizontal com setas de movimentação dinâmicas (subida de laterais, diagonais de pontas, infiltração do meia e âncora do volante estilo EA FC/FM).
 0.1 Mosaico 3D da Torcida nas Arquibancadas: Renderização tridimensional procedural de mosaicos nos anéis do setor sul com as cores e contraste oficiais do clube.
 0.2 Blindagem Inteligente de Armazenamento: Proteção absoluta de todos os saves e backups de slots contra limpeza acidental de quota do navegador.

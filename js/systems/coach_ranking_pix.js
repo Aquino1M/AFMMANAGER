@@ -35,34 +35,34 @@
 
   // Pool inicial de técnicos competitivos do Brasileirão e de usuários do jogo
   const BASE_COACHES = [
-    { name: 'Paulo Herren', club: 'Remo', points: 17959, seasonPoints: 4890, weekPoints: 920, wins: 608, move: 0, isUser: false },
-    { name: 'Gabriel Mendes', club: 'Atlético-MG', points: 11834, seasonPoints: 3940, weekPoints: 850, wins: 325, move: 1, isUser: false },
-    { name: 'Matheus Silva', club: 'Flamengo', points: 10143, seasonPoints: 3510, weekPoints: 780, wins: 389, move: -1, isUser: false },
-    { name: 'Lucas Souza', club: 'Palmeiras', points: 9556, seasonPoints: 3120, weekPoints: 740, wins: 298, move: 3, isUser: false },
-    { name: 'Rodrigo B.', club: 'Grêmio', points: 8740, seasonPoints: 2890, weekPoints: 690, wins: 242, move: 0, isUser: false },
-    { name: 'Bruno Costa', club: 'Santos', points: 7920, seasonPoints: 2650, weekPoints: 640, wins: 215, move: -2, isUser: false },
-    { name: 'Carlos Eduardo', club: 'Corinthians', points: 7310, seasonPoints: 2480, weekPoints: 590, wins: 198, move: 2, isUser: false },
-    { name: 'Felipe Alcantara', club: 'São Paulo', points: 6840, seasonPoints: 2310, weekPoints: 540, wins: 182, move: -1, isUser: false },
-    { name: 'Thiago Neves', club: 'Cruzeiro', points: 6250, seasonPoints: 2140, weekPoints: 510, wins: 167, move: 1, isUser: false },
-    { name: 'André Ramos', club: 'Internacional', points: 5930, seasonPoints: 1980, weekPoints: 470, wins: 154, move: 0, isUser: false },
-    { name: 'Eduardo Paiva', club: 'Vasco', points: 5410, seasonPoints: 1820, weekPoints: 440, wins: 139, move: 4, isUser: false },
-    { name: 'Leonardo Lima', club: 'Fluminense', points: 4980, seasonPoints: 1690, weekPoints: 410, wins: 126, move: -2, isUser: false },
-    { name: 'Marcos Vinicius', club: 'Botafogo', points: 4560, seasonPoints: 1540, weekPoints: 380, wins: 114, move: 0, isUser: false },
-    { name: 'Guilherme Rosa', club: 'Bahia', points: 4120, seasonPoints: 1410, weekPoints: 350, wins: 98, move: 1, isUser: false },
-    { name: 'Renato Gaúcho', club: 'Fortaleza', points: 3750, seasonPoints: 1280, weekPoints: 320, wins: 87, move: -3, isUser: false },
-    { name: 'Diego Ferreira', club: 'Athletico-PR', points: 3340, seasonPoints: 1150, weekPoints: 290, wins: 76, move: 2, isUser: false },
-    { name: 'Marcelo Rossi', club: 'Criciúma', points: 2980, seasonPoints: 1020, weekPoints: 260, wins: 64, move: 0, isUser: false },
-    { name: 'Vitor Hugo', club: 'Sport', points: 2610, seasonPoints: 910, weekPoints: 230, wins: 55, move: -1, isUser: false },
-    { name: 'Alexandre Pires', club: 'Ceará', points: 2240, seasonPoints: 800, weekPoints: 200, wins: 48, move: 1, isUser: false },
-    { name: 'Danilo Silva', club: 'Coritiba', points: 1920, seasonPoints: 710, weekPoints: 180, wins: 39, move: 0, isUser: false },
-    { name: 'Rafael Barbosa', club: 'Goiás', points: 1650, seasonPoints: 620, weekPoints: 150, wins: 32, move: -2, isUser: false },
-    { name: 'Caio Junqueira', club: 'América-MG', points: 1380, seasonPoints: 530, weekPoints: 130, wins: 27, move: 3, isUser: false },
-    { name: 'Fábio Santos', club: 'Ponte Preta', points: 1120, seasonPoints: 440, weekPoints: 110, wins: 21, move: 0, isUser: false },
-    { name: 'Murilo Becker', club: 'Vila Nova', points: 890, seasonPoints: 360, weekPoints: 90, wins: 16, move: 1, isUser: false },
-    { name: 'Gustavo N.', club: 'Novorizontino', points: 680, seasonPoints: 280, weekPoints: 70, wins: 12, move: -1, isUser: false },
-    { name: 'Lucas Santana', club: 'Mirassol', points: 490, seasonPoints: 210, weekPoints: 50, wins: 9, move: 0, isUser: false },
-    { name: 'Arthur Diniz', club: 'Botafogo-SP', points: 340, seasonPoints: 150, weekPoints: 40, wins: 6, move: 2, isUser: false },
-    { name: 'Henrique M.', club: 'Operário-PR', points: 210, seasonPoints: 90, weekPoints: 20, wins: 3, move: -1, isUser: false }
+    { username: 'paulofc', name: 'Paulo Herren', club: 'Remo', points: 17959, seasonPoints: 4890, weekPoints: 920, wins: 608, move: 0, isUser: false },
+    { username: 'gmendes_galo', name: 'Gabriel Mendes', club: 'Atlético-MG', points: 11834, seasonPoints: 3940, weekPoints: 850, wins: 325, move: 1, isUser: false },
+    { username: 'matheus_fla', name: 'Matheus Silva', club: 'Flamengo', points: 10143, seasonPoints: 3510, weekPoints: 780, wins: 389, move: -1, isUser: false },
+    { username: 'lucas_verdao', name: 'Lucas Souza', club: 'Palmeiras', points: 9556, seasonPoints: 3120, weekPoints: 740, wins: 298, move: 3, isUser: false },
+    { username: 'rodrigo_imortal', name: 'Rodrigo B.', club: 'Grêmio', points: 8740, seasonPoints: 2890, weekPoints: 690, wins: 242, move: 0, isUser: false },
+    { username: 'brunocosta_peixe', name: 'Bruno Costa', club: 'Santos', points: 7920, seasonPoints: 2650, weekPoints: 640, wins: 215, move: -2, isUser: false },
+    { username: 'carlos_timao', name: 'Carlos Eduardo', club: 'Corinthians', points: 7310, seasonPoints: 2480, weekPoints: 590, wins: 198, move: 2, isUser: false },
+    { username: 'felipe_tricolor', name: 'Felipe Alcantara', club: 'São Paulo', points: 6840, seasonPoints: 2310, weekPoints: 540, wins: 182, move: -1, isUser: false },
+    { username: 'thiago_zeiro', name: 'Thiago Neves', club: 'Cruzeiro', points: 6250, seasonPoints: 2140, weekPoints: 510, wins: 167, move: 1, isUser: false },
+    { username: 'andre_colorado', name: 'André Ramos', club: 'Internacional', points: 5930, seasonPoints: 1980, weekPoints: 470, wins: 154, move: 0, isUser: false },
+    { username: 'eduardo_vasco', name: 'Eduardo Paiva', club: 'Vasco', points: 5410, seasonPoints: 1820, weekPoints: 440, wins: 139, move: 4, isUser: false },
+    { username: 'leo_fluminense', name: 'Leonardo Lima', club: 'Fluminense', points: 4980, seasonPoints: 1690, weekPoints: 410, wins: 126, move: -2, isUser: false },
+    { username: 'marcos_fogao', name: 'Marcos Vinicius', club: 'Botafogo', points: 4560, seasonPoints: 1540, weekPoints: 380, wins: 114, move: 0, isUser: false },
+    { username: 'guilherme_bahiaco', name: 'Guilherme Rosa', club: 'Bahia', points: 4120, seasonPoints: 1410, weekPoints: 350, wins: 98, move: 1, isUser: false },
+    { username: 'renato_leao', name: 'Renato Gaúcho', club: 'Fortaleza', points: 3750, seasonPoints: 1280, weekPoints: 320, wins: 87, move: -3, isUser: false },
+    { username: 'diego_furacao', name: 'Diego Ferreira', club: 'Athletico-PR', points: 3340, seasonPoints: 1150, weekPoints: 290, wins: 76, move: 2, isUser: false },
+    { username: 'marcelo_tigre', name: 'Marcelo Rossi', club: 'Criciúma', points: 2980, seasonPoints: 1020, weekPoints: 260, wins: 64, move: 0, isUser: false },
+    { username: 'vitor_sport', name: 'Vitor Hugo', club: 'Sport', points: 2610, seasonPoints: 910, weekPoints: 230, wins: 55, move: -1, isUser: false },
+    { username: 'alexandre_vozao', name: 'Alexandre Pires', club: 'Ceará', points: 2240, seasonPoints: 800, weekPoints: 200, wins: 48, move: 1, isUser: false },
+    { username: 'danilo_coxa', name: 'Danilo Silva', club: 'Coritiba', points: 1920, seasonPoints: 710, weekPoints: 180, wins: 39, move: 0, isUser: false },
+    { username: 'rafael_esmeraldino', name: 'Rafael Barbosa', club: 'Goiás', points: 1650, seasonPoints: 620, weekPoints: 150, wins: 32, move: -2, isUser: false },
+    { username: 'caio_coelho', name: 'Caio Junqueira', club: 'América-MG', points: 1380, seasonPoints: 530, weekPoints: 130, wins: 27, move: 3, isUser: false },
+    { username: 'fabio_macaca', name: 'Fábio Santos', club: 'Ponte Preta', points: 1120, seasonPoints: 440, weekPoints: 110, wins: 21, move: 0, isUser: false },
+    { username: 'murilo_tigrao', name: 'Murilo Becker', club: 'Vila Nova', points: 890, seasonPoints: 360, weekPoints: 90, wins: 16, move: 1, isUser: false },
+    { username: 'gustavo_novorizonte', name: 'Gustavo N.', club: 'Novorizontino', points: 680, seasonPoints: 280, weekPoints: 70, wins: 12, move: -1, isUser: false },
+    { username: 'lucas_leaoamarelo', name: 'Lucas Santana', club: 'Mirassol', points: 490, seasonPoints: 210, weekPoints: 50, wins: 9, move: 0, isUser: false },
+    { username: 'arthur_pantera', name: 'Arthur Diniz', club: 'Botafogo-SP', points: 340, seasonPoints: 150, weekPoints: 40, wins: 6, move: 2, isUser: false },
+    { username: 'henrique_fantasma', name: 'Henrique M.', club: 'Operário-PR', points: 210, seasonPoints: 90, weekPoints: 20, wins: 3, move: -1, isUser: false }
   ];
 
   const AFM_CoachRanking = {
@@ -138,6 +138,21 @@
       return data;
     },
 
+    // 3b. Identifica e exclui contas de teste / desenvolvimento do Ranking Oficial
+    isTestAccount(c) {
+      if(!c) return false;
+      const uname = String(c.username || '').toLowerCase().trim().replace(/^@/, '');
+      const name = String(c.name || '').toLowerCase().trim();
+      const club = String(c.club || '').toLowerCase().trim();
+
+      // Padrões de teste: usernames, nomes ou clubes com teste, test, tester, testador, demo, etc.
+      if(/test|teste|tester|testador|testando|demo|admin|temp|fake|sample|dev_test/i.test(uname)) return true;
+      if(/test|teste|tester|testador|testando|demo/i.test(name)) return true;
+      if(/test|teste/i.test(club)) return true;
+
+      return false;
+    },
+
     // 4. Calcula Pontos Reais de Carreira do Jogador
     getUserCareerPoints(state) {
       if(!state) return 500;
@@ -173,21 +188,124 @@
       return this.getUserCareerPoints(state);
     },
 
-    // 5. Gera ou Atualiza o Leaderboard Completo
-    getLeaderboard(boardType = 'semana', state = null) {
-      let list = [];
+    // 4b. Sincroniza saves de todos os usuários cadastrados no Supabase para o Ranking Real (sem contas de teste)
+    async syncSavesFromCloud() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY_RANKING);
-        if(raw) list = JSON.parse(raw);
+        if (typeof window.AFM_DB?.fetchLeaderboardSaves !== 'function') return null;
+        const rawSaves = await window.AFM_DB.fetchLeaderboardSaves(100);
+        if (!Array.isArray(rawSaves) || rawSaves.length === 0) return null;
+
+        const userMap = new Map();
+        for (const row of rawSaves) {
+          const rawUname = String(row.username || '').trim().replace(/^@/, '');
+          if (!rawUname) continue;
+          const cleanUname = rawUname.toLowerCase();
+
+          let sData = row.save_data;
+          if (typeof sData === 'string') {
+            try { sData = JSON.parse(sData); } catch(e) { sData = {}; }
+          }
+          sData = sData || {};
+
+          const club = row.club || sData.club || 'Clube';
+          const manager = row.manager || sData.manager || rawUname;
+
+          // Exclui estritamente contas de teste
+          if (this.isTestAccount({ username: rawUname, name: manager, club: club })) {
+            continue;
+          }
+
+          // Cálculo dos pontos reais do save da nuvem
+          let pts = Number(sData.managerPersonal?.careerPoints);
+          if (!Number.isFinite(pts) || pts <= 0) {
+            const history = Array.isArray(sData.history) ? sData.history : [];
+            let winsCount = 0;
+            let drawsCount = 0;
+            for (const match of history) {
+              const isH = match.h === club;
+              const isA = match.a === club;
+              if (!isH && !isA) continue;
+              const gf = Number(isH ? match.hg : match.ag) || 0;
+              const ga = Number(isH ? match.ag : match.hg) || 0;
+              if (gf > ga) winsCount++;
+              else if (gf === ga) drawsCount++;
+            }
+            const titlesCount = Array.isArray(sData.titles) ? sData.titles.length : 0;
+            const seasonsCount = Math.max(0, Number(row.season || sData.season || 2026) - 2026);
+            pts = (winsCount * 30) + (drawsCount * 10) + (titlesCount * 250) + (seasonsCount * 150) + (Number(row.round || sData.round || 0) * 15);
+          }
+          pts = Math.max(250, Math.round(pts));
+
+          let wins = 0;
+          if (Array.isArray(sData.history)) {
+            wins = sData.history.filter(m => (m.h === club ? Number(m.hg) > Number(m.ag) : Number(m.ag) > Number(m.hg))).length;
+          } else {
+            wins = Math.round(pts / 35);
+          }
+
+          const existing = userMap.get(cleanUname);
+          if (!existing || pts > existing.points) {
+            userMap.set(cleanUname, {
+              username: rawUname,
+              name: manager,
+              club: club,
+              points: pts,
+              seasonPoints: Math.round(pts * 0.42),
+              weekPoints: Math.round((pts % 1800) + wins * 28),
+              wins: wins,
+              isCloudSave: true,
+              isUser: false,
+              move: 0
+            });
+          }
+        }
+
+        const cloudList = Array.from(userMap.values()).filter(c => !this.isTestAccount(c));
+        if (cloudList.length > 0) {
+          localStorage.setItem('afm_cloud_ranking_saves_cache', JSON.stringify(cloudList));
+          return cloudList;
+        }
+      } catch(err) {
+        console.warn('[AFM_CoachRanking] Falha ao sincronizar com saves da nuvem:', err);
+      }
+      return null;
+    },
+
+    // 5. Gera ou Atualiza o Leaderboard Completo (Baseado nos saves do Supabase + Usuário Ativo)
+    getLeaderboard(boardType = 'semana', state = null) {
+      let cloudSaves = [];
+      try {
+        const rawCloud = localStorage.getItem('afm_cloud_ranking_saves_cache');
+        if (rawCloud) {
+          const parsed = JSON.parse(rawCloud);
+          if (Array.isArray(parsed)) {
+            cloudSaves = parsed.filter(c => !this.isTestAccount(c));
+          }
+        }
       } catch(e) {}
 
-      if(!list || !Array.isArray(list) || list.length < 20){
-        list = JSON.parse(JSON.stringify(BASE_COACHES));
+      // Inicia a lista com os saves reais da nuvem Supabase (sem contas de teste)
+      let list = Array.isArray(cloudSaves) && cloudSaves.length > 0
+        ? cloudSaves.filter(c => !this.isTestAccount(c)).map(c => ({ ...c }))
+        : [];
+
+      // Completa até 28 competidores com a base comunitária se houver poucos saves na nuvem
+      const knownUsernames = new Set(list.map(c => (c.username || '').toLowerCase()));
+      for (const base of BASE_COACHES) {
+        if (!this.isTestAccount(base) && !knownUsernames.has(base.username.toLowerCase())) {
+          list.push({ ...base });
+          knownUsernames.add(base.username.toLowerCase());
+        }
+        if (list.length >= 28) break;
       }
 
-      // Sincroniza o usuário atual no ranking
-      if(state && state.club){
-        const userCoachName = (state.manager || (window.getActiveAccount && window.getActiveAccount()?.name) || 'Você').trim();
+      // Sincroniza o usuário atual que tem o save ativo local ou em nuvem
+      const activeAccount = (typeof window.getActiveAccount === 'function') ? window.getActiveAccount() : null;
+      const myUsername = (activeAccount?.username || (state && state.manager ? state.manager.toLowerCase().replace(/\s+/g, '_') : 'treinador')).replace(/^@/, '');
+      const myManagerName = (state?.manager || activeAccount?.name || 'Você').trim();
+      const myClub = state?.club || activeAccount?.club || 'Seu Clube';
+
+      if (state && state.club) {
         const userPoints = this.getUserCareerPoints(state);
         const userWins = (state.history || []).filter(h => {
           const isH = (h.h === state.club);
@@ -195,25 +313,29 @@
           return isH ? (h.hg > h.ag) : (h.ag > h.hg);
         }).length;
 
-        // Calcula pontos da semana e melhor temporada
         const userSeasonPts = Math.round(userPoints * 0.42);
         const userWeekPts = Math.round((userPoints % 1500) + userWins * 25);
 
-        // Remove entrada anterior do usuário se houver
-        list = list.filter(c => !c.isUser && c.name.toLowerCase() !== userCoachName.toLowerCase());
+        // Remove duplicata do próprio usuário se já estava na lista
+        list = list.filter(c => !c.isUser && (c.username || '').toLowerCase() !== myUsername.toLowerCase());
 
-        // Adiciona entrada oficial do usuário
+        // Adiciona a entrada oficial do usuário
         list.push({
-          name: userCoachName,
-          club: state.club,
+          username: myUsername,
+          name: myManagerName,
+          club: myClub,
           points: userPoints,
           seasonPoints: userSeasonPts,
           weekPoints: userWeekPts,
           wins: userWins,
           move: 2,
-          isUser: true
+          isUser: true,
+          isCloudSave: Boolean(activeAccount?.username)
         });
       }
+
+      // Garante exclusão total de contas de teste
+      list = list.filter(c => !this.isTestAccount(c));
 
       // Ordena de acordo com o quadro selecionado
       list.sort((a, b) => {
@@ -500,13 +622,19 @@
 
             ${rank === 1 ? `<span style="font-size:11px;font-weight:900;color:#facc15;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:4px;margin-bottom:2px">👑 LÍDER DO BRASIL</span>` : ''}
 
+            <!-- @USERNAME DO USUÁRIO -->
+            <div style="font-size:14px;font-weight:900;color:#38bdf8;letter-spacing:0.5px;margin-bottom:3px;display:flex;align-items:center;justify-content:center;gap:6px">
+              <span>@${window.esc(item.username || item.name.toLowerCase().replace(/\s+/g,'_'))}</span>
+            </div>
+
             <!-- NOME E CLUBE -->
-            <h3 style="font-size:${isCenter ? '22px' : '18px'};font-weight:900;margin:0;letter-spacing:0.5px;color:#fff;line-height:1.2">
+            <h3 style="font-size:${isCenter ? '20px' : '17px'};font-weight:900;margin:0;letter-spacing:0.5px;color:#fff;line-height:1.2">
               ${window.esc(item.name)} ${item.isUser ? '<span style="background:#0284c7;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">VOCÊ</span>' : ''}
             </h3>
-            <p style="font-size:13px;color:#94a3b8;font-weight:700;margin:3px 0 8px">
-              ${window.esc(item.club)}
-            </p>
+            <div style="font-size:13px;color:#a7ff3f;font-weight:800;margin:4px 0 8px;display:flex;align-items:center;justify-content:center;gap:6px">
+              ${window.clubBadge ? window.clubBadge(item.club, 18) : '🛡️'}
+              <span>${window.esc(item.club)}</span>
+            </div>
 
             <!-- SELO DE PRESTÍGIO -->
             <div style="display:inline-flex;align-items:center;gap:6px;background:${tier.bg};border:1px solid ${tier.border};color:${tier.color};padding:3px 10px;border-radius:9999px;font-size:10px;font-weight:900;text-transform:uppercase;margin-bottom:10px">
@@ -579,10 +707,13 @@
                         ${item.isUser && typeof state !== 'undefined' && state?.managerPhoto ? `<img src="${window.esc(state.managerPhoto)}" alt="Técnico" style="width:100%;height:100%;object-fit:cover">` : (item.isUser && typeof state !== 'undefined' && state?.managerAvatar ? window.esc(state.managerAvatar) : '👔')}
                       </div>
 
-                      <!-- NOME, SELO, CLUBE -->
+                      <!-- @USERNAME, NOME, CLUBE E BADGES -->
                       <div style="min-width:0">
                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                          <span style="font-size:15px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                          <span style="font-size:14px;font-weight:900;color:#38bdf8;letter-spacing:0.3px">
+                            @${window.esc(item.username || item.name.toLowerCase().replace(/\s+/g,'_'))}
+                          </span>
+                          <span style="font-size:13px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                             ${window.esc(item.name)}
                           </span>
                           ${item.isUser ? `<span style="background:#0284c7;color:#fff;font-size:10px;font-weight:900;padding:2px 6px;border-radius:4px">VOCÊ</span>` : ''}
@@ -590,12 +721,12 @@
                         </div>
 
                         <div style="display:flex;align-items:center;gap:8px;margin-top:3px;flex-wrap:wrap">
-                          <span style="display:inline-flex;align-items:center;gap:4px;background:${tier.bg};border:1px solid ${tier.border};color:${tier.color};padding:1px 6px;border-radius:9999px;font-size:9px;font-weight:900;text-transform:uppercase">
-                            ${tier.icon} ${tier.label}
-                          </span>
-                          <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#cbd5e1;font-weight:700">
+                          <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#a7ff3f;font-weight:800">
                             ${window.clubBadge ? window.clubBadge(item.club, 16) : ''}
                             ${window.esc(item.club)}
+                          </span>
+                          <span style="display:inline-flex;align-items:center;gap:4px;background:${tier.bg};border:1px solid ${tier.border};color:${tier.color};padding:1px 6px;border-radius:9999px;font-size:9px;font-weight:900;text-transform:uppercase">
+                            ${tier.icon} ${tier.label}
                           </span>
                           <span style="font-size:11px;color:#64748b;display:none" class="desktop-only">
                             · ${item.wins} vitórias
@@ -1038,10 +1169,10 @@
                     👔 SEU DESEMPENHO OFICIAL NO RANKING
                   </div>
                   <h1 class="afm-ranking-user-title" style="font-size:24px;font-weight:900;margin:0;color:#fff;letter-spacing:0.5px">
-                    ${window.esc(state?.manager || 'Você')} · <span style="color:#a7ff3f">${window.esc(state?.club || 'Seu Clube')}</span>
+                    <span style="color:#38bdf8">@${window.esc(userItem?.username || (window.getActiveAccount && window.getActiveAccount()?.username) || (state?.manager ? state.manager.toLowerCase().replace(/\s+/g,'_') : 'treinador'))}</span> · ${window.esc(state?.manager || 'Você')} · <span style="color:#a7ff3f">${window.esc(state?.club || 'Seu Clube')}</span>
                   </h1>
                   <p class="afm-ranking-user-sub" style="font-size:12px;color:#cbd5e1;margin:4px 0 0">
-                    Divisão Ativa: <b>${window.esc(state?.competition || 'Nacional')}</b> · <b>${userWins} vitórias</b> computadas na carreira
+                    Divisão Ativa: <b>${window.esc(state?.competition || 'Nacional')}</b> · <b>${userWins} vitórias</b> computadas na carreira · ☁️ Conectado ao Supabase
                   </p>
                 </div>
               </div>
@@ -1174,6 +1305,24 @@
           }
         };
       });
+
+      // Sincronização em background dos saves reais da nuvem Supabase
+      if (!this._syncingCloudLeaderboard) {
+        this._syncingCloudLeaderboard = true;
+        this.syncSavesFromCloud().then(cloudList => {
+          this._syncingCloudLeaderboard = false;
+          if (Array.isArray(cloudList) && cloudList.length > 0) {
+            // Se estiver na tela de ranking, atualiza a visualização com os novos saves recebidos do Supabase
+            if (window.setupViewMode === 'ranking' && typeof window.renderSetup === 'function') {
+              window.renderSetup(document.querySelector('#app'));
+            } else if (window.view === 'ranking' && typeof window.render === 'function') {
+              window.render();
+            }
+          }
+        }).catch(() => {
+          this._syncingCloudLeaderboard = false;
+        });
+      }
     }
   };
 

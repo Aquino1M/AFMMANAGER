@@ -536,9 +536,26 @@ const AFM_DB = (function(){
     }
   }
 
-  // Sincronização Inteligente (Nuvem <-> LocalStorage)
+  function parseSaveTimestamp(val){
+    if(!val) return 0;
+    if(typeof val === 'number') return Number.isFinite(val) ? val : 0;
+    const str = String(val).trim();
+    const parsed = Date.parse(str);
+    if(Number.isFinite(parsed)) return parsed;
+    // Fallback para datas brasileiras: "DD/MM/YYYY, HH:MM:SS" ou "DD/MM/YYYY HH:MM:SS"
+    const match = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[,\s]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+    if(match){
+      const [ , day, month, year, hour, min, sec ] = match;
+      const d = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(min), Number(sec || 0));
+      const t = d.getTime();
+      if(Number.isFinite(t)) return t;
+    }
+    return 0;
+  }
+
+  // Sincronização Inteligente (Nuvem <-> LocalStorage com Garantia de Paridade PC x Celular x Supabase)
   async function syncUser(targetUsername){
-    if(syncInProgress) return { ok: true };
+    if(syncInProgress) return { ok: true, inProgress: true };
     const cleanUser = getSaveOwner(targetUsername);
     if(!cleanUser) return { ok: false, error: 'Sessão inválida para sincronizar saves.' };
     syncInProgress = true;
@@ -559,9 +576,14 @@ const AFM_DB = (function(){
       }
       account.saves = account.saves || [];
 
-      // 1. Atualizar com saves vindos da nuvem
+      let updatedActiveState = false;
+      let pulledFromCloud = 0;
+      let pushedToCloud = 0;
+
+      // 1. Atualizar com saves vindos da nuvem (Cloud -> Local)
       for(const row of (result.data || [])){
         const slot = Number(row.slot);
+        if(!Number.isInteger(slot) || slot < 1 || slot > 3 || !row.save_data) continue;
         const idx = account.saves.findIndex(item => Number(item.slot) === slot);
         const userRaw = localStorage.getItem(`afm_save_${cleanUser}_slot_${slot}`);
         const sharedRaw = localStorage.getItem(`afm_save_slot_${slot}`);
@@ -571,10 +593,12 @@ const AFM_DB = (function(){
           const sharedOwner = String(shared?.owner || '').trim().toLowerCase();
           if(!sharedOwner || sharedOwner === cleanUser) local = shared;
         }
-        const localTime = Date.parse(local?.updatedAt || '');
-        const cloudTime = Date.parse(row.updated_at || '');
 
-        if(local?.data && (!Number.isFinite(cloudTime) || (Number.isFinite(localTime) && localTime >= cloudTime))){
+        const localTime = parseSaveTimestamp(local?.updatedAt || local?.data?.updatedAt);
+        const cloudTime = parseSaveTimestamp(row.updated_at);
+
+        // Se local tem dados e a nuvem não é mais recente, não sobrescreve
+        if(local?.data && cloudTime <= localTime){
           continue;
         }
 
@@ -587,46 +611,87 @@ const AFM_DB = (function(){
           season: row.season,
           round: row.round,
           balance: row.balance,
-          updatedAt: row.updated_at,
+          updatedAt: row.updated_at || new Date().toISOString(),
           data: row.save_data
         };
-        if(entry.data && typeof window !== "undefined" && typeof window.purgeBuggedExploitPlayers === "function") window.purgeBuggedExploitPlayers(entry.data);
+        if(entry.data && typeof window !== "undefined" && typeof window.purgeBuggedExploitPlayers === "function") {
+          window.purgeBuggedExploitPlayers(entry.data);
+        }
         const existingSharedRaw = localStorage.getItem(`afm_save_slot_${slot}`);
         const existingShared = existingSharedRaw ? JSON.parse(existingSharedRaw) : null;
         const existingOwner = String(existingShared?.owner || '').trim().toLowerCase();
         if(!existingShared || !existingOwner || existingOwner === cleanUser){
           localStorage.setItem(`afm_save_slot_${slot}`, JSON.stringify(entry));
+          localStorage.setItem(`afm_save_slot_${slot}_backup`, JSON.stringify(entry));
         }
         localStorage.setItem(`afm_save_${cleanUser}_slot_${slot}`, JSON.stringify(entry));
+        localStorage.setItem(`afm2027_individual_save_slot_${slot}`, JSON.stringify(entry));
+        localStorage.setItem(`afm2027_individual_save_slot_${slot}_backup`, JSON.stringify(entry));
         if(slot === 1) localStorage.setItem('aquino_futebol_manager_2026_v1', JSON.stringify(row.save_data));
         if(idx < 0) account.saves.push({ ...entry, data: undefined });
         else account.saves[idx] = { ...entry, data: undefined };
+        pulledFromCloud++;
+
+        // REGRA CRÍTICA INVIOLÁVEL: Se a carreira ativa em memória é deste slot e deste usuário,
+        // sincroniza imediatamente a memória (state) para que o celular ou o PC nunca fique desatualizado!
+        if(typeof window !== "undefined" && window.state){
+          const currentSlot = Number(window.state.userSlot) || 1;
+          const currentOwner = String(window.state.userOwner || '').trim().toLowerCase();
+          if(slot === currentSlot && (!currentOwner || currentOwner === cleanUser)){
+            const activeTime = parseSaveTimestamp(window.state.updatedAt || local?.updatedAt);
+            if(cloudTime > activeTime){
+              let freshData = typeof window.clone === 'function' ? window.clone(row.save_data) : JSON.parse(JSON.stringify(row.save_data));
+              freshData.userSlot = slot;
+              freshData.userOwner = cleanUser;
+              freshData.updatedAt = row.updated_at;
+              if(typeof window.purgeBuggedExploitPlayers === 'function') window.purgeBuggedExploitPlayers(freshData);
+              if(typeof window.migrate === 'function') freshData = window.migrate(freshData);
+              window.state = freshData;
+              window.GameState = freshData;
+              updatedActiveState = true;
+            }
+          }
+        }
       }
 
-      // 2. Enviar somente saves individuais ausentes ou comprovadamente mais novos.
-      // Slots compartilhados sem owner são ambíguos e não são enviados automaticamente.
+      // 2. Enviar saves locais que sejam mais recentes que a nuvem (Local -> Cloud)
       for(const s of [1, 2, 3]){
         const userRaw = localStorage.getItem(`afm_save_${cleanUser}_slot_${s}`);
         const sharedRaw = localStorage.getItem(`afm_save_slot_${s}`);
+        const indivRaw = localStorage.getItem(`afm2027_individual_save_slot_${s}`);
         let loc = userRaw ? JSON.parse(userRaw) : null;
         if(!loc && sharedRaw){
           const shared = JSON.parse(sharedRaw);
           const sharedOwner = String(shared?.owner || '').trim().toLowerCase();
-          if(sharedOwner === cleanUser) loc = shared;
+          if(!sharedOwner || sharedOwner === cleanUser) loc = shared;
+        }
+        if(!loc && indivRaw){
+          try {
+            const ind = JSON.parse(indivRaw);
+            const indOwner = String(ind?.owner || '').trim().toLowerCase();
+            if(!indOwner || indOwner === cleanUser) loc = ind;
+          } catch(e){}
         }
         const cloudRow = (result.data || []).find(row => Number(row.slot) === s);
-        const localTime = Date.parse(loc?.updatedAt || '');
-        const cloudTime = Date.parse(cloudRow?.updated_at || '');
-        const localIsNewer = !cloudRow || (Number.isFinite(localTime) && (!Number.isFinite(cloudTime) || localTime > cloudTime));
-        if(loc?.data?.club && localIsNewer){
-          const entry = { ...loc, owner: cleanUser };
+        const localTime = parseSaveTimestamp(loc?.updatedAt || loc?.data?.updatedAt);
+        const cloudTime = parseSaveTimestamp(cloudRow?.updated_at);
+        const localIsNewer = (loc?.data?.club || loc?.club) && (!cloudRow || localTime > cloudTime);
+        if(localIsNewer){
+          const entry = { ...loc, owner: cleanUser, updatedAt: loc.updatedAt || new Date().toISOString() };
           const saved = await saveSlot(cleanUser, s, entry);
-          if(saved.ok) localStorage.setItem(`afm_save_${cleanUser}_slot_${s}`, JSON.stringify(entry));
+          if(saved.ok) {
+            localStorage.setItem(`afm_save_${cleanUser}_slot_${s}`, JSON.stringify(entry));
+            localStorage.setItem(`afm2027_individual_save_slot_${s}`, JSON.stringify(entry));
+            pushedToCloud++;
+          }
         }
       }
 
       localStorage.setItem(storageKey, JSON.stringify(accounts));
-      return { ok: true };
+      if(updatedActiveState && typeof window !== "undefined" && typeof window.render === 'function'){
+        window.render();
+      }
+      return { ok: true, pulledFromCloud, pushedToCloud, updatedActiveState };
     } catch(error){
       recordHandledError('save-sync', error);
       return { ok: false, error: error.message };
@@ -899,6 +964,87 @@ const AFM_DB = (function(){
     return { ok: true, data: saves };
   }
 
+  // Busca saves de todos os usuários para o Ranking de Técnicos & PIX (Baseado em afm_saves do Supabase)
+  async function fetchLeaderboardSaves(limit = 100){
+    try {
+      await init();
+      const cli = getClient();
+      if(cli){
+        const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
+        const query = cli
+          .from('afm_saves')
+          .select('username, slot, club, manager, season, round, division, balance, manager_money, save_data, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(limit);
+        const { data, error } = await Promise.race([query, timeoutP]);
+      function isTestRow(r){
+        if(!r) return false;
+        const u = String(r.username || '').toLowerCase().trim();
+        const m = String(r.manager || '').toLowerCase().trim();
+        const c = String(r.club || '').toLowerCase().trim();
+        return /test|teste|tester|testador|testando|demo|admin|temp|fake|sample|dev_test/i.test(u) ||
+               /test|teste|tester|testador|testando|demo/i.test(m) ||
+               /test|teste/i.test(c);
+      }
+
+      if(!error && Array.isArray(data) && data.length > 0){
+        cloudAvailable = true;
+        return data.filter(r => !isTestRow(r));
+      }
+    }
+
+    // Fallback direto via REST fetch
+    const cfg = getConfig();
+    if(cfg?.url && cfg?.key){
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 4000) : null;
+      const endpoint = `${cfg.url.replace(/\/+$/, '')}/rest/v1/afm_saves?select=username,slot,club,manager,season,round,division,balance,manager_money,save_data,updated_at&order=updated_at.desc&limit=${limit}`;
+      const resp = await fetch(endpoint, {
+        headers: {
+          'apikey': cfg.key,
+          'Authorization': `Bearer ${cfg.key}`
+        },
+        signal: controller?.signal
+      });
+      if(timeoutId) clearTimeout(timeoutId);
+      if(resp.ok){
+        const rows = await resp.json();
+        if(Array.isArray(rows) && rows.length > 0){
+          cloudAvailable = true;
+          return rows.filter(r => !isTestRow(r));
+        }
+      }
+    }
+  } catch(e){
+    recordHandledError('fetch-leaderboard-saves', e);
+  }
+
+  // Fallback: Lê os saves locais das contas salvas no navegador (sem contas teste)
+  function isTestAcc(name){
+    return /test|teste|tester|testador|testando|demo|admin|temp|fake|sample/i.test(String(name || '').toLowerCase());
+  }
+  const accounts = JSON.parse(localStorage.getItem('afm_accounts_v1') || '[]');
+  const localSaves = [];
+  for(const acc of accounts){
+    if(isTestAcc(acc.username) || isTestAcc(acc.name)) continue;
+    for(const s of (acc.saves || [])){
+      if(isTestAcc(s.manager) || isTestAcc(s.club)) continue;
+      localSaves.push({
+        username: acc.username,
+        slot: s.slot,
+        club: s.club,
+        manager: s.manager,
+        season: s.season,
+        round: s.round,
+        division: s.division || 'Série A',
+        save_data: s.data || s,
+        updated_at: s.updatedAt || new Date().toISOString()
+      });
+    }
+  }
+  return localSaves;
+}
+
   function isCloudAvailable(){
     return Boolean(client && cloudAvailable);
   }
@@ -917,6 +1063,7 @@ const AFM_DB = (function(){
     saveUserPix,
     syncUser,
     cloudGetSaves,
+    fetchLeaderboardSaves,
     adminGetUsers,
     adminUpsertUser,
     adminDeleteUser,
@@ -927,8 +1074,12 @@ const AFM_DB = (function(){
     getConfig,
     setCustomConfig,
     isCloudAvailable,
+    parseSaveTimestamp,
     keepAlive: startCloudKeepAlive
   };
 })();
 
 window.AFM_DB = AFM_DB;
+if(typeof window !== 'undefined' && AFM_DB.parseSaveTimestamp){
+  window.parseSaveTimestamp = AFM_DB.parseSaveTimestamp;
+}

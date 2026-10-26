@@ -1035,14 +1035,29 @@ const clubValuationSerieD = window.AFM_LifeAndSharesPro.getClubValuationAndShare
 assert(clubValuationSerieD.onePercentPrice === 220000,
   'Preço de 1% da cota em divisões inferiores é R$ 220 mil');
 
-const managerState = {
+// Validacao de clube NAO-SAF (Associativo): Dividendos sao ZERO
+const nonSafState = {
   club: 'Corinthians',
+  clubDivision: 1,
+  balance: 50000000,
+  clubBalance: 50000000,
+  clubIsSaf: false,
+  managerPersonal: { personalBalance: 50000000, clubSharesPct: 0 }
+};
+const nonSafDividendCalc = window.AFM_LifeAndSharesPro.calculateMonthlyClubDividendExpense(nonSafState);
+assert(nonSafDividendCalc.totalClubDividendExpense === 0 && nonSafDividendCalc.isSaf === false,
+  'Clube tradicional não-SAF possui despesa de dividendos ZERO');
+
+const managerState = {
+  club: 'Botafogo SAF',
+  clubIsSaf: true,
   clubDivision: 1,
   balance: 50000000,
   clubBalance: 50000000,
   managerPersonal: {
     personalBalance: 50000000,
     clubSharesPct: 0,
+    externalShareholdersPct: 22,
     properties: [],
     businesses: [],
     vehicles: []
@@ -1054,13 +1069,13 @@ assert(buyQuarterRes.ok && managerState.managerPersonal.clubSharesPct === 0.25,
   'Permite compra fracionada de cotas em 0.25%');
 
 const dividendCalc = window.AFM_LifeAndSharesPro.calculateMonthlyClubDividendExpense(managerState);
-assert(dividendCalc.totalClubDividendExpense > 0 && dividendCalc.totalShareholdersPct > 0,
-  'Calcula despesa mensal de dividendos para todos os acionistas');
+assert(dividendCalc.totalClubDividendExpense > 0 && dividendCalc.totalShareholdersPct > 0 && dividendCalc.isSaf === true,
+  'Calcula despesa mensal de dividendos para todos os acionistas em clube SAF');
 
 const balanceBeforeTurn = managerState.clubBalance;
 window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(managerState);
 assert(managerState.clubBalance < balanceBeforeTurn,
-  'Despesa com dividendos é descontada do caixa do clube como despesa real mensal');
+  'Despesa com dividendos é descontada do caixa do clube como despesa real mensal apenas em SAF');
 assert(managerState.managerPersonal.lastDividendReceivedByManager > 0,
   'Parte dos dividendos correspondente ao treinador é depositada no saldo pessoal');
 

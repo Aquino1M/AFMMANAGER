@@ -108,15 +108,39 @@
       ];
     },
 
+    isClubSaf(state, clubName) {
+      const targetClub = clubName || state?.club || '';
+      if (!targetClub) return false;
+      const targetNorm = typeof norm === 'function' ? norm(targetClub) : String(targetClub).toLowerCase().trim();
+
+      // Se for o clube do treinador no save ativo e houver flag explicita
+      if (state && state.club && (typeof norm === 'function' ? norm(state.club) : String(state.club).toLowerCase().trim()) === targetNorm) {
+        if (state.clubIsSaf === true) return true;
+        if (state.clubIsSaf === false) return false;
+      }
+
+      // Verificacao por sigla SAF ou termo explicito
+      if (/\bsaf\b/i.test(targetClub)) return true;
+
+      // Lista canonica de clubes brasileiros que ja sao SAF constituida
+      const KNOWN_SAFS = [
+        'botafogo', 'cruzeiro', 'bahia', 'vasco', 'atletico-mg', 'atletico mineiro',
+        'fortaleza', 'cuiaba', 'red bull bragantino', 'bragantino', 'coritiba',
+        'america-mg', 'america mineiro', 'londrina', 'maringa', 'athletic club'
+      ];
+      return KNOWN_SAFS.some(n => targetNorm.includes(typeof norm === 'function' ? norm(n) : n));
+    },
+
     ensureState(state) {
       if (!state) return;
       if (window.AFM_NormalizeBankLoans) window.AFM_NormalizeBankLoans(state);
+      const isUserClubSaf = this.isClubSaf(state);
       state.managerPersonal = state.managerPersonal || {
         name: state.managerName || state.manager || 'Aquino',
         personalBalance: Number.isFinite(Number(state.managerMoney)) ? Math.max(0, Number(state.managerMoney)) : 120000,
         salary: 18000,
         clubSharesPct: state.managerPersonal?.clubShares || 0,
-        externalShareholdersPct: 22,
+        externalShareholdersPct: isUserClubSaf ? 22 : 0,
         properties: [],
         businesses: [],
         vehicles: [],
@@ -158,7 +182,9 @@
         state.managerPersonal.safPortfolio = {};
       }
       if (typeof state.managerPersonal.externalShareholdersPct !== 'number') {
-        state.managerPersonal.externalShareholdersPct = 22;
+        state.managerPersonal.externalShareholdersPct = isUserClubSaf ? 22 : 0;
+      } else if (!isUserClubSaf) {
+        state.managerPersonal.externalShareholdersPct = 0;
       }
       state.financeLog = Array.isArray(state.financeLog) ? state.financeLog : [];
       state.safP2POffers = Array.isArray(state.safP2POffers) ? state.safP2POffers : [];
@@ -259,11 +285,7 @@
         : SAF_CLUBS_DEFAULT.map(c => ({ ...c }));
 
       const userClub = state.club || 'Meu Clube';
-      const isUserClubSaf = Boolean(
-        state.clubIsSaf ||
-        (state.club && /saf/i.test(state.club)) ||
-        ['botafogo', 'cruzeiro', 'bahia', 'vasco', 'atletico-mg', 'atletico mineiro', 'fortaleza', 'cuiaba', 'red bull bragantino', 'bragantino', 'coritiba', 'america-mg', 'america mineiro'].some(n => norm(userClub).includes(norm(n)))
-      );
+      const isUserClubSaf = this.isClubSaf(state, userClub);
 
       if (isUserClubSaf) {
         const userClubId = norm(userClub).replace(/\s+/g, '-');
@@ -1212,32 +1234,48 @@
 
     calculateMonthlyClubDividendExpense(state) {
       this.ensureState(state);
+      const isSaf = this.isClubSaf(state);
+      if (!isSaf) {
+        return {
+          isSaf: false,
+          totalClubDividendExpense: 0,
+          managerDividendShare: 0,
+          totalShareholdersPct: 0
+        };
+      }
       const mp = state.managerPersonal;
       const { onePercentPrice } = this.getClubValuationAndSharePrice(state);
       const dividendPerOnePercent = Math.round(onePercentPrice * 0.0065);
-      const totalShareholdersPct = (mp.externalShareholdersPct || 22) + (mp.clubSharesPct || 0);
+      const externalPct = Number.isFinite(Number(mp.externalShareholdersPct)) && mp.externalShareholdersPct > 0 ? Number(mp.externalShareholdersPct) : 22;
+      const totalShareholdersPct = externalPct + (mp.clubSharesPct || 0);
       const totalClubDividendExpense = Math.round(dividendPerOnePercent * totalShareholdersPct);
       const managerDividendShare = Math.round(dividendPerOnePercent * (mp.clubSharesPct || 0));
-      return { totalClubDividendExpense, managerDividendShare, totalShareholdersPct };
+      return { isSaf: true, totalClubDividendExpense, managerDividendShare, totalShareholdersPct };
     },
 
     processMonthlyLifeAndDividendsTurn(state) {
       this.ensureState(state);
       const mp = state.managerPersonal;
-      const { totalClubDividendExpense, managerDividendShare, totalShareholdersPct } = this.calculateMonthlyClubDividendExpense(state);
+      const { isSaf, totalClubDividendExpense, managerDividendShare, totalShareholdersPct } = this.calculateMonthlyClubDividendExpense(state);
 
-      state.balance = (Number(state.balance) || 0) - totalClubDividendExpense;
-      state.clubBalance = state.balance;
-      state.lastMonthDividendExpense = totalClubDividendExpense;
-      mp.lastDividendPaidByClub = totalClubDividendExpense;
-      mp.lastDividendReceivedByManager = managerDividendShare;
+      if (isSaf && totalClubDividendExpense > 0) {
+        state.balance = (Number(state.balance) || 0) - totalClubDividendExpense;
+        state.clubBalance = state.balance;
+        state.lastMonthDividendExpense = totalClubDividendExpense;
+        mp.lastDividendPaidByClub = totalClubDividendExpense;
+        mp.lastDividendReceivedByManager = managerDividendShare;
 
-      state.financeLog.unshift({
-        date: state.date || state.currentDate || 'Dia 1º',
-        type: 'DESPESA',
-        title: `Dividendos pagos aos Acionistas (${totalShareholdersPct.toFixed(2)}% cotas ativas)`,
-        amount: -totalClubDividendExpense
-      });
+        state.financeLog.unshift({
+          date: state.date || state.currentDate || 'Dia 1º',
+          type: 'DESPESA',
+          title: `Dividendos pagos aos Acionistas SAF (${totalShareholdersPct.toFixed(2)}% cotas ativas)`,
+          amount: -totalClubDividendExpense
+        });
+      } else {
+        state.lastMonthDividendExpense = 0;
+        mp.lastDividendPaidByClub = 0;
+        mp.lastDividendReceivedByManager = 0;
+      }
 
       const salaryPayment = this.payMonthlyCoachSalary(state);
       const salary = salaryPayment.paid;
@@ -1347,13 +1385,8 @@
       const monthlyClubDividend = mp.lastDividendReceivedByManager || managerDividendShare || 0;
       const totalMonthlyGains = monthlySalary + monthlyRent + monthlyBiz + monthlyClubDividend + safPortfolioDividends;
 
-      // Status SAF do Clube do Usuário
       const userClubName = state.club || 'Meu Clube';
-      const isAlreadySaf = Boolean(
-        state.clubIsSaf ||
-        (state.club && /saf/i.test(state.club)) ||
-        ['botafogo', 'cruzeiro', 'bahia', 'vasco', 'atletico-mg', 'atletico mineiro', 'fortaleza', 'cuiaba', 'red bull bragantino', 'bragantino', 'coritiba', 'america-mg', 'america mineiro'].some(name => norm(userClubName).includes(norm(name)))
-      );
+      const isAlreadySaf = this.isClubSaf(state, userClubName);
 
       const userPts = (state.history || []).reduce((acc, h) => {
         const isH = h.h === state.club;
@@ -2400,8 +2433,33 @@
           this.renderLifeAndSharesUI(containerId, state);
         };
       });
+    },
+
+    calculateManagerTotalNetWorth(state) {
+      if (!state) return 0;
+      const mp = state.managerPersonal || {};
+      const personalBalance = Number(state.managerMoney !== undefined ? state.managerMoney : (mp.personalBalance || 57000));
+      const propertiesTotal = (mp.properties || []).reduce((acc, p) => acc + (p.currentValue || p.cost || 0), 0);
+      const vehiclesTotal = (mp.vehicles || []).reduce((acc, v) => acc + (v.cost || 0), 0);
+      const businessesTotal = (mp.businesses || []).reduce((acc, b) => acc + (b.investedCapital || b.cost || 0), 0);
+      const totalValuation = (typeof this.getClubValuation === 'function') ? this.getClubValuation(state) : 10000000;
+      const clubSharesValue = Math.round(totalValuation * ((mp.clubSharesPct || 0) / 100));
+
+      let safPortfolioValue = 0;
+      const safList = (typeof this.getSafMarketList === 'function') ? this.getSafMarketList(state) : [];
+      if (mp.safPortfolio) {
+        Object.keys(mp.safPortfolio).forEach(clubId => {
+          const holding = mp.safPortfolio[clubId];
+          const saf = safList.find(s => s.id === clubId);
+          if (holding && holding.sharesCount > 0 && saf) {
+            safPortfolioValue += Math.round(holding.sharesCount * saf.sharePrice);
+          }
+        });
+      }
+      return personalBalance + propertiesTotal + vehiclesTotal + businessesTotal + clubSharesValue + safPortfolioValue;
     }
   };
 
   window.AFM_LifeAndSharesPro = ManagerLifeAndSharesPro;
+  window.isClubSaf = (state, clubName) => ManagerLifeAndSharesPro.isClubSaf(state, clubName);
 })(typeof window !== 'undefined' ? window : global);

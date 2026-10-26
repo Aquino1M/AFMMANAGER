@@ -10642,3 +10642,37 @@ body.theme-emerald {
     font-size: 8px !important;
   }
 }
+
+/* =========================================================================
+   EFEITO PULSANTE NEON / OURO PARA PROPOSTAS RECEBIDAS NO MERCADO
+   ========================================================================= */
+@keyframes afmOfferPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.4), 0 0 2px #fbbf24;
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 18px rgba(245, 158, 11, 0.9), 0 0 8px #fef08a;
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.4), 0 0 2px #fbbf24;
+  }
+}
+
+.btn-has-proposals {
+  animation: afmOfferPulse 1.4s ease-in-out infinite !important;
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  color: #0f172a !important;
+  border: 1px solid #fef08a !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.3px !important;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+}
+
+.btn-has-proposals:hover {
+  filter: brightness(1.15) !important;
+  transform: scale(1.08) !important;
+}
+

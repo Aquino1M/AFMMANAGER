@@ -8772,9 +8772,31 @@ function saveStoredAccounts(accs){
   return false;
 }
 
+function parseSaveTimestamp(val){
+  if(!val) return 0;
+  if(typeof val === 'number') return Number.isFinite(val) ? val : 0;
+  const str = String(val).trim();
+  const parsed = Date.parse(str);
+  if(Number.isFinite(parsed)) return parsed;
+  // Fallback para datas brasileiras: DD/MM/YYYY, HH:MM:SS ou DD/MM/YYYY HH:MM:SS
+  const match = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[,\s]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+  if(match){
+    const [ , day, month, year, hour, min, sec ] = match;
+    const d = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(min), Number(sec || 0));
+    const t = d.getTime();
+    if(Number.isFinite(t)) return t;
+  }
+  return 0;
+}
+window.parseSaveTimestamp = parseSaveTimestamp;
+
 function formatSaveTimestamp(value){
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('pt-BR');
+  if(!value) return 'Recentemente';
+  const t = parseSaveTimestamp(value);
+  if(t > 0){
+    return new Date(t).toLocaleString('pt-BR');
+  }
+  return String(value);
 }
 
 function getActiveAccount(){
@@ -8946,9 +8968,9 @@ function getUserSaveSlots(username){
           if(bRaw) parsed = JSON.parse(bRaw);
         }
         if(parsed && parsed.club && (!parsed.owner || parsed.owner.toLowerCase() === cleanU)){
-          const existingTime = Date.parse(s?.updatedAt || '');
-          const sharedTime = Date.parse(parsed.updatedAt || '');
-          if(!s || (!s.data && !s.club) || !Number.isFinite(existingTime) || (Number.isFinite(sharedTime) && sharedTime > existingTime)){
+          const existingTime = parseSaveTimestamp(s?.updatedAt || '');
+          const sharedTime = parseSaveTimestamp(parsed.updatedAt || '');
+          if(!s || (!s.data && !s.club) || (sharedTime > existingTime)){
             s = s ? { ...s, ...parsed } : parsed;
           }
         }
@@ -8972,7 +8994,7 @@ function getUserSaveSlots(username){
               date: leg.date || '2026-01-01',
               round: Number(leg.round) || 0,
               balance: Number(leg.balance) || 0,
-              updatedAt: new Date().toLocaleString('pt-BR'),
+              updatedAt: new Date().toISOString(),
               data: leg
             };
             try { localStorage.setItem('afm_save_slot_1', JSON.stringify(s)); } catch(e){ recordAFMError('save-slot-migration', e); }
@@ -8993,7 +9015,7 @@ function getUserSaveSlots(username){
         date: s.date || '2026-01-01',
         round: Number(s.round) || 0,
         balance: Number(s.balance) || 0,
-        updatedAt: s.updatedAt || s.date || new Date().toLocaleString('pt-BR'),
+        updatedAt: s.updatedAt || s.date || new Date().toISOString(),
         data: clone(s)
       };
       try { localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(s)); } catch(e){ recordAFMError('save-slot-migration', e); }
@@ -9180,24 +9202,89 @@ function save(){
   return true;
 }
 
-async function saveAndConfirmCloud(){
-  if(!save()) return false;
-  const syncPromise = window.__afmLastSaveSyncPromise;
-  if(!syncPromise){
-    toast('Save guardado neste dispositivo; Supabase não está disponível.', 6000);
-    return false;
+async function syncCloudWithLocal(showToasts = true){
+  const activeUser = getActiveAccount();
+  const username = (activeUser?.username || state?.userOwner || 'aquino').toLowerCase().trim();
+  if(!username){
+    if(showToasts) toast('Faça login para sincronizar saves com a Nuvem Supabase.', 4000);
+    return { ok: false, error: 'Usuário não autenticado' };
   }
 
-  toast('Sincronizando save com o Supabase…', 1800);
-  const result = await syncPromise;
-  if(result?.ok && !result.localOnly){
-    toast('Jogo salvo no Supabase e neste dispositivo.');
+  if(showToasts) toast('🔄 Conectando à Nuvem Supabase e sincronizando saves (PC ⇄ Celular)...', 2500);
+
+  if(!window.AFM_DB || typeof window.AFM_DB.syncUser !== 'function'){
+    if(showToasts) toast('Nuvem Supabase temporariamente indisponível.', 4000);
+    return { ok: false, error: 'AFM_DB indisponível' };
+  }
+
+  try {
+    const res = await window.AFM_DB.syncUser(username);
+    if(res.ok){
+      if(showToasts){
+        const detail = res.pulledFromCloud > 0 
+          ? ` (${res.pulledFromCloud} save(s) atualizados da nuvem)` 
+          : (res.pushedToCloud > 0 ? ` (${res.pushedToCloud} save(s) enviados para a nuvem)` : ' (tudo atualizado)');
+        toast(`✅ Sincronia concluída com sucesso! Jogo no PC e no Celular 100% alinhado${detail}.`, 4500);
+      }
+      if(typeof render === 'function') render();
+      return res;
+    } else {
+      if(showToasts) toast(`Sincronização local mantida: ${res.error || 'A nuvem não respondeu'}`, 5000);
+      return res;
+    }
+  } catch(err){
+    recordAFMError('sync-cloud-action', err);
+    if(showToasts) toast('Erro ao sincronizar com a Nuvem Supabase. Saves locais preservados.', 4000);
+    return { ok: false, error: err?.message };
+  }
+}
+window.syncCloudWithLocal = syncCloudWithLocal;
+
+async function saveAndConfirmCloud(){
+  if(!state) return false;
+  state.updatedAt = new Date().toISOString();
+  if(!save()) return false;
+
+  const slotNum = Math.max(1, Math.min(3, Number(state.userSlot) || 1));
+  const activeUser = getActiveAccount();
+  const username = (state.userOwner || activeUser?.username || 'aquino').toLowerCase().trim();
+
+  toast('☁️ Gravando no dispositivo e sincronizando com o Supabase...', 2000);
+
+  let cloudSuccess = false;
+  let cloudError = null;
+
+  if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
+    try {
+      const saveEntry = {
+        slot: slotNum,
+        club: state.club,
+        manager: state.manager || 'Treinador',
+        season: state.season || 2026,
+        round: state.round || 0,
+        balance: state.balance || 0,
+        updatedAt: state.updatedAt,
+        data: state
+      };
+      const res = await window.AFM_DB.saveSlot(username, slotNum, saveEntry);
+      if(res?.ok && !res.localOnly){
+        cloudSuccess = true;
+      } else {
+        cloudError = res?.error || 'A nuvem não confirmou';
+      }
+    } catch(err){
+      cloudError = err?.message || 'Falha de conexão com o Supabase';
+    }
+  }
+
+  if(cloudSuccess){
+    toast('✅ Jogo salvo no Supabase e neste dispositivo! Carreira sincronizada entre PC e Celular.', 4500);
     return true;
   }
 
-  const detail = result?.error ? ` (${result.error})` : '';
-  toast(`Save local atualizado, mas o Supabase não confirmou a gravação${detail}`, 7000);
-  return false;
+  const detail = cloudError ? ` (${cloudError})` : '';
+  toast(`💾 Save local gravado com sucesso! Nuvem pendente${detail}`, 6000);
+  return true;
 }
 
 function load(){
@@ -13540,41 +13627,189 @@ function getStateCompStats(cId){
   state.competitionStats = state.competitionStats || {};
   if(state.competitionStats[cId] && (Number(state.competitionStats[cId].season) === Number(state.season) || (!state.competitionStats[cId].season && Number(state.season) === 2026))){
     state.competitionStats[cId].season = Number(state.season);
+    state.competitionStats[cId].scorers = Array.isArray(state.competitionStats[cId].scorers) ? state.competitionStats[cId].scorers : [];
+    state.competitionStats[cId].assists = Array.isArray(state.competitionStats[cId].assists) ? state.competitionStats[cId].assists : [];
     return state.competitionStats[cId];
   }
   state.competitionStats[cId] = { season: Number(state.season), scorers: [], assists: [] };
   return state.competitionStats[cId];
 }
 
+function getClubSquadForStats(clubName){
+  if(!clubName) return [];
+  if(norm(clubName) === norm(state.club) && Array.isArray(state.squad) && state.squad.length){
+    return state.squad;
+  }
+  let squad = (typeof playersForClub === 'function') ? playersForClub(clubName, state.worldGenerated || []) : [];
+  if(!squad.length && typeof generatedRosterForClub === 'function'){
+    squad = generatedRosterForClub(clubName);
+  }
+  return squad || [];
+}
+
+function simulateClubGoalEvents(clubName, goals, compId){
+  const count = Math.max(0, Number(goals) || 0);
+  if(count <= 0) return [];
+
+  // Se for o clube do usuário, utiliza os atletas reais do elenco
+  if(norm(clubName) === norm(state.club)){
+    const eligible = (state.squad || []).filter(player => !/^(GK|GOLEIRO)$/i.test(player.pos || ''));
+    if(!eligible.length) return [];
+    return Array.from({length: count}, (_, index) => {
+      const attackers = eligible.filter(p => /^(ST|CF|RW|LW|CA|ATA|PD|PE)$/i.test(p.pos || ''));
+      const midfielders = eligible.filter(p => /^(AM|CM|CAM|MEI|MC)$/i.test(p.pos || ''));
+      const pool = attackers.length && Math.random() < 0.65 
+        ? attackers 
+        : (midfielders.length && Math.random() < 0.70 ? midfielders : eligible);
+      const scorer = pool[rnd(0, pool.length - 1)];
+      const helpers = eligible.filter(p => p !== scorer);
+      const assist = helpers.length && Math.random() < 0.72 ? helpers[rnd(0, helpers.length - 1)] : null;
+      return {
+        type: 'gol',
+        teamId: clubName,
+        scorer: scorer.name,
+        pos: scorer.pos || 'ST',
+        assist: assist?.name || null,
+        assistPos: assist?.pos || 'CM',
+        min: 8 + index * 18
+      };
+    }).filter(Boolean);
+  }
+
+  // Clubes da CPU (outros clubes da liga/competição)
+  const squad = getClubSquadForStats(clubName);
+  const outfield = squad.filter(p => !/^(GK|GOLEIRO)$/i.test(p.pos || ''));
+  const eligible = outfield.length ? outfield : squad;
+  if(!eligible.length) return [];
+
+  const attackers = eligible.filter(p => /^(ST|CF|RW|LW|CA|ATA|PD|PE)$/i.test(p.pos || ''));
+  const midfielders = eligible.filter(p => /^(AM|CM|CAM|MEI|MC)$/i.test(p.pos || ''));
+
+  return Array.from({length: count}, (_, index) => {
+    const pool = attackers.length && Math.random() < 0.68
+      ? attackers
+      : (midfielders.length && Math.random() < 0.75 ? midfielders : eligible);
+    const scorer = pool[rnd(0, pool.length - 1)];
+    const helpers = eligible.filter(p => p !== scorer);
+    const assist = helpers.length && Math.random() < 0.72 ? helpers[rnd(0, helpers.length - 1)] : null;
+    return {
+      type: 'gol',
+      teamId: clubName,
+      scorer: scorer.name,
+      pos: scorer.pos || 'ST',
+      assist: assist?.name || null,
+      assistPos: assist?.pos || 'CM',
+      min: 10 + index * 18
+    };
+  }).filter(Boolean);
+}
+
 function addPlayerMatchStats(competitionId, clubName, events){
-  if(!clubName || !Array.isArray(events)) return;
+  if(!competitionId || !clubName || !Array.isArray(events)) return;
   const stats = getStateCompStats(competitionId);
-  const add = (list, playerName, key) => {
+  const isUserClub = norm(clubName) === norm(state.club);
+
+  const add = (list, playerName, key, pos) => {
     if(!playerName) return;
-    const player = state.squad?.find(p => norm(p.name) === norm(playerName));
+    const player = isUserClub ? state.squad?.find(p => norm(p.name) === norm(playerName)) : null;
+    let resolvedPos = pos;
+    if(!resolvedPos && isUserClub){
+      resolvedPos = player?.pos;
+    }
+    if(!resolvedPos){
+      const clubSquad = getClubSquadForStats(clubName);
+      const found = clubSquad.find(p => norm(p.name) === norm(playerName));
+      resolvedPos = found?.pos || (key === 'goals' ? 'ST' : 'CM');
+    }
+
     const row = list.find(item => norm(item.name) === norm(playerName) && norm(item.club) === norm(clubName)) || {
-      name: playerName, club: clubName, pos: player?.pos || 'JOGADOR', [key]: 0
+      name: playerName, club: clubName, pos: resolvedPos || 'AT', [key]: 0
     };
     if(!list.includes(row)) list.push(row);
+    if(resolvedPos && (!row.pos || row.pos === 'JOGADOR')) row.pos = resolvedPos;
     row[key] = (Number(row[key]) || 0) + 1;
     if(player) player[key] = (Number(player[key]) || 0) + 1;
   };
+
   events.filter(event => event?.type === 'gol' && norm(event.teamId) === norm(clubName)).forEach(event => {
-    add(stats.scorers, event.scorer, 'goals');
-    add(stats.assists, event.assist, 'assists');
+    add(stats.scorers, event.scorer, 'goals', event.pos);
+    if(event.assist){
+      add(stats.assists, event.assist, 'assists', event.assistPos);
+    }
   });
 }
 
 function simulateUserGoalEvents(clubName, goals){
-  const eligible = (state.squad || []).filter(player => !/^(GK|GOLEIRO)$/i.test(player.pos || ''));
-  return Array.from({length: Math.max(0, Number(goals) || 0)}, (_, index) => {
-    if(!eligible.length) return null;
-    const scorer = eligible[rnd(0, eligible.length - 1)];
-    const helpers = eligible.filter(player => player !== scorer);
-    const assist = helpers.length && Math.random() < 0.72 ? helpers[rnd(0, helpers.length - 1)] : null;
-    return { type: 'gol', teamId: clubName, scorer: scorer.name, assist: assist?.name || null, min: 8 + index * 19 };
-  }).filter(Boolean);
+  return simulateClubGoalEvents(clubName, goals);
 }
+
+function syncCompetitionStatsWithLeagueTeams(competitionId, teamsList){
+  if(!competitionId || !Array.isArray(teamsList) || !teamsList.length) return;
+  const stats = getStateCompStats(competitionId);
+  stats.scorers = Array.isArray(stats.scorers) ? stats.scorers : [];
+  stats.assists = Array.isArray(stats.assists) ? stats.assists : [];
+
+  for(const team of teamsList){
+    const clubName = team.name;
+    if(!clubName) continue;
+    const isUser = norm(clubName) === norm(state.club);
+    const targetGoals = Math.max(0, Number(team.gp) || 0);
+    if(targetGoals <= 0) continue;
+
+    // Gols atualmente registrados para este clube na competição
+    const currentClubScorers = stats.scorers.filter(s => norm(s.club) === norm(clubName));
+    const currentGoals = currentClubScorers.reduce((acc, s) => acc + (Number(s.goals) || 0), 0);
+
+    // Se for clube da CPU e tiver menos gols registrados que os gols pró na tabela da liga:
+    if(!isUser && currentGoals < targetGoals){
+      const needed = targetGoals - currentGoals;
+      const squad = getClubSquadForStats(clubName);
+      const eligible = squad.filter(p => !/^(GK|GOLEIRO)$/i.test(p.pos || ''));
+      if(!eligible.length) continue;
+
+      const attackers = eligible.filter(p => /^(ST|CF|RW|LW|CA|ATA|PD|PE)$/i.test(p.pos || ''));
+      const midfielders = eligible.filter(p => /^(AM|CM|CAM|MEI|MC)$/i.test(p.pos || ''));
+      
+      const mainStriker = attackers[0] || eligible[0];
+      const secondaryAttackers = attackers.slice(1);
+
+      for(let g = 0; g < needed; g++){
+        let scorer;
+        if(Math.random() < 0.55 && mainStriker){
+          scorer = mainStriker;
+        } else if(secondaryAttackers.length && Math.random() < 0.65){
+          scorer = secondaryAttackers[hashStr(clubName + g) % secondaryAttackers.length];
+        } else if(midfielders.length && Math.random() < 0.70){
+          scorer = midfielders[hashStr(clubName + 'm' + g) % midfielders.length];
+        } else {
+          scorer = eligible[hashStr(clubName + 'e' + g) % eligible.length];
+        }
+
+        let row = stats.scorers.find(item => norm(item.name) === norm(scorer.name) && norm(item.club) === norm(clubName));
+        if(!row){
+          row = { name: scorer.name, club: clubName, pos: scorer.pos || 'ST', goals: 0 };
+          stats.scorers.push(row);
+        }
+        row.goals = (Number(row.goals) || 0) + 1;
+
+        if(Math.random() < 0.72){
+          const assistPool = eligible.filter(p => norm(p.name) !== norm(scorer.name));
+          if(assistPool.length){
+            const assistMid = assistPool.filter(p => /^(AM|CM|CAM|MEI|MC|RW|LW|LB|RB)$/i.test(p.pos || ''));
+            const assister = assistMid.length ? assistMid[hashStr(clubName + 'a' + g) % assistMid.length] : assistPool[0];
+            let aRow = stats.assists.find(item => norm(item.name) === norm(assister.name) && norm(item.club) === norm(clubName));
+            if(!aRow){
+              aRow = { name: assister.name, club: clubName, pos: assister.pos || 'CM', assists: 0 };
+              stats.assists.push(aRow);
+            }
+            aRow.assists = (Number(aRow.assists) || 0) + 1;
+          }
+        }
+      }
+    }
+  }
+}
+
 
 function openClubInfoModal(clubName){
   const clubObj = clubByName(clubName) || { name: clubName, country: 'Brasil', competition: curComp()?.name || 'Brasileirão', atk: 60, mid: 60, def: 60, budget: 1, stadium: 'Estádio Municipal' };
@@ -19253,6 +19488,18 @@ function simulateQuickStateLeagueRound(competitionId, roundIndex){
           tm.form.push(tm === tH ? (hg > ag ? 'V' : hg < ag ? 'D' : 'E') : (ag > hg ? 'V' : ag < hg ? 'D' : 'E'));
           tm.form = tm.form.slice(-5);
         }
+
+        // Registra artilharia e assistências para os clubes da CPU que se enfrentam
+        if(norm(fix.home) !== norm(state.club) && norm(fix.away) !== norm(state.club)){
+          if(hg > 0){
+            const hEvents = simulateClubGoalEvents(fix.home, hg, competitionId);
+            addPlayerMatchStats(competitionId, fix.home, hEvents);
+          }
+          if(ag > 0){
+            const aEvents = simulateClubGoalEvents(fix.away, ag, competitionId);
+            addPlayerMatchStats(competitionId, fix.away, aEvents);
+          }
+        }
       }
     }
   });
@@ -19266,8 +19513,14 @@ function simulateQuickStateLeagueRound(competitionId, roundIndex){
 
   state.lastMatchSummary = { h: home, a: away, hg: uHg, ag: uAg, ga, isHome, won: gf > ga };
   const userGoals = isHome ? uHg : uAg;
+  const oppGoals = isHome ? uAg : uHg;
+  const oppClub = isHome ? away : home;
   const events = simulateUserGoalEvents(state.club, userGoals);
   addPlayerMatchStats(competitionId, state.club, events);
+  if(oppGoals > 0){
+    const oppEvents = simulateClubGoalEvents(oppClub, oppGoals, competitionId);
+    addPlayerMatchStats(competitionId, oppClub, oppEvents);
+  }
   if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
     window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: home, a: away, hg: uHg, ag: uAg, gf: userGoals, ga, won: gf > ga, events });
   }
@@ -20336,17 +20589,18 @@ function showLiveBalloon(x, y, text, color){
   if(!liveMatchState) return;
   liveMatchState.balloons = liveMatchState.balloons || [];
   const textStr = String(text || '');
-  // Evita balões duplicados no mesmo lance
   const existing = liveMatchState.balloons.find(b => b.text === textStr && (b.maxLife - b.life) < 1.4);
   if(existing) return;
   if(liveMatchState.balloons.length >= 2) liveMatchState.balloons.shift();
+  const speed = Math.max(1, liveMatchState.speed || 1);
+  const balloonLife = speed >= 20 ? 0.6 : speed >= 10 ? 0.9 : speed >= 2 ? 1.3 : 2.2;
   liveMatchState.balloons.push({
     x: clamp(Number(x) || 50, 14, 86),
     y: clamp(Number(y) || 50, 18, 82),
     text: textStr,
     color: color || '#fbbf24',
-    life: 2.2,
-    maxLife: 2.2
+    life: balloonLife,
+    maxLife: balloonLife
   });
 }
 
@@ -20356,6 +20610,9 @@ function showLiveBanner(text, type, durationMs){
     const origHtml = overlay.innerHTML;
     overlay.innerHTML = `<span>${esc(text)}</span>`;
     overlay.style.display = 'inline-flex';
+    const sSpeed = (liveMatchState && liveMatchState.speed) ? Math.max(1, liveMatchState.speed) : 1;
+    // Em velocidades aceleradas (2x, 5x, 10x, 20x, 40x), escala o tempo do banner para não tampar o campo
+    const scaledDuration = Math.max(500, Math.round((durationMs || 3000) / (sSpeed >= 20 ? (sSpeed * 0.35) : sSpeed >= 5 ? (sSpeed * 0.45) : Math.max(1, sSpeed * 0.6))));
     setTimeout(() => {
       if(liveMatchState && !liveMatchState.playing){
         overlay.innerHTML = origHtml;
@@ -20363,7 +20620,7 @@ function showLiveBanner(text, type, durationMs){
         overlay.style.display = 'none';
         overlay.innerHTML = origHtml;
       }
-    }, durationMs || 3000);
+    }, scaledDuration);
   }
 }
 
@@ -20422,13 +20679,6 @@ function startLiveShot(s, shooter){
   s.ball.progress = 0;
   s.ball.curveZ = 5.5;
 
-  // SEGURANÇA E INTEGRIDADE DO MATCH ENGINE:
-  // startLiveShot é uma rotina puramente cosmética/visual do canvas 2.5D.
-  // Jamais altera s.hg / s.ag nem insere eventos de gol no feed.
-  // Todos os gols, estatísticas e lances oficiais da partida são de responsabilidade
-  // exclusiva de simulateMinute() -> executeShotSim(), executePenaltySim() e executeFreeKickSim().
-  // A animação não altera placar nem estatísticas; varie o desfecho visual
-  // para que os chutes cosméticos não pareçam sempre a mesma defesa.
   const visualRoll = Math.random();
   s.ball.shotOutcome = visualRoll < 0.52 ? 'save' : visualRoll < 0.79 ? 'blocked' : visualRoll < 0.96 ? 'miss' : 'post';
   s.ball.isCorner = false;
@@ -20440,14 +20690,20 @@ function updateLiveCanvasPositions(s){
   if(!s || !Array.isArray(s.homePlayers) || !Array.isArray(s.awayPlayers)) return;
 
   const isPlaying = s.playing && !s.done && s.phase !== 'HALF_TIME';
+  const speed = Math.max(1, s.speed || 1);
+  // Multiplicador de velocidade suave para animação 60 FPS fluida em qualquer velocidade (1x a 40x)
+  const animSpeedMult = isPlaying ? Math.min(8.0, 1 + (speed - 1) * 0.28) : 1.0;
   const ball = s.ball || { x: 50, y: 50, z: 0, vx: 0, vy: 0, vz: 0, carrier: null, mode: 'play' };
   s.ball = ball;
-  if(isPlaying && Number(ball.liveDecisionCooldown) > 0) ball.liveDecisionCooldown--;
+  if(isPlaying && Number(ball.liveDecisionCooldown) > 0) {
+    ball.liveDecisionCooldown = Math.max(0, ball.liveDecisionCooldown - animSpeedMult);
+  }
   const allPlayers = [...s.homePlayers, ...s.awayPlayers];
 
   // 1. Trata o modo de chute (Shot Animation)
   if(ball.mode === 'shot'){
-    ball.progress = (ball.progress || 0) + (isPlaying ? 0.055 : 0.015);
+    const shotStep = (isPlaying ? 0.055 : 0.015) * animSpeedMult;
+    ball.progress = (ball.progress || 0) + shotStep;
     const startX = ball.startX ?? 50;
     const startY = ball.startY ?? 50;
     const tgtX = ball.targetX ?? 50;
@@ -20466,8 +20722,8 @@ function updateLiveCanvasPositions(s){
     if(oppGk){
       oppGk.diveTimer = 1.8;
       oppGk.diving = true;
-      oppGk.y += (tgtY - oppGk.y) * 0.18;
-      oppGk.animFrame = (oppGk.animFrame || 0) + 0.25;
+      oppGk.y += (tgtY - oppGk.y) * 0.18 * animSpeedMult;
+      oppGk.animFrame = (oppGk.animFrame || 0) + 0.25 * animSpeedMult;
     }
 
     if(p >= 1){
@@ -20480,7 +20736,6 @@ function updateLiveCanvasPositions(s){
       if(ball.shotOutcome === 'gol'){
         if(ball.shooter) ball.shooter.celebrateTimer = 3.0;
         showLiveBalloon(ball.x, ball.y, '⚽ GOOOOL!', '#facc15');
-        // Reposiciona a bola no centro e passa posse para o adversário dar a saída
         ball.x = 50;
         ball.y = 50;
         const otherSide = ball.shooter?.team === 'home' ? s.awayPlayers : s.homePlayers;
@@ -20524,12 +20779,10 @@ function updateLiveCanvasPositions(s){
         ball.y = oppGk ? oppGk.y : 50;
       }
     }
-    return;
-  }
-
-  // 1.1 Trata o modo de passe (Pass Animation)
-  if(ball.mode === 'pass'){
-    ball.progress = (ball.progress || 0) + (isPlaying ? 0.08 : 0.02);
+  } else if(ball.mode === 'pass'){
+    // 1.1 Trata o modo de passe (Pass Animation)
+    const passStep = (isPlaying ? 0.08 : 0.02) * animSpeedMult;
+    ball.progress = (ball.progress || 0) + passStep;
     const startX = ball.startX ?? 50;
     const startY = ball.startY ?? 50;
     const tgt = ball.passTarget || { x: 50, y: 50 };
@@ -20548,7 +20801,6 @@ function updateLiveCanvasPositions(s){
       ball.passTarget = null;
       ball.passer = null;
     }
-    return;
   }
 
   if(window.AFM_REAL_FOOTBALL?.rules?.handleLiveMatchAction){
@@ -20556,8 +20808,11 @@ function updateLiveCanvasPositions(s){
   } else if(isPlaying && ball.mode === 'play' && ball.carrier && !ball.carrier.isGK && !ball.carrier.redCard && Number(ball.liveDecisionCooldown || 0) <= 0){
     const carrierForPass = ball.carrier;
     const passTarget = selectLivePassTarget(carrierForPass.team === 'home' ? s.homePlayers : s.awayPlayers, carrierForPass, 1.5, 25);
-    if(passTarget && startLivePass(s, carrierForPass, passTarget, { cooldownFrames: 24 })) return;
-    ball.liveDecisionCooldown = 24;
+    if(passTarget) {
+      startLivePass(s, carrierForPass, passTarget, { cooldownFrames: 24 });
+    } else {
+      ball.liveDecisionCooldown = 24;
+    }
   }
 
   // 2. Valida ou transfere portador da bola (carrier)
@@ -20568,7 +20823,7 @@ function updateLiveCanvasPositions(s){
   }
 
   // Se bola solta, jogador mais próximo domina
-  if(!carrier){
+  if(!carrier && ball.mode !== 'shot' && ball.mode !== 'pass'){
     let minDist = 999;
     let nearest = null;
     allPlayers.forEach(p => {
@@ -20586,35 +20841,33 @@ function updateLiveCanvasPositions(s){
       const dx = ball.x - nearest.x;
       const dy = ball.y - nearest.y;
       const dist = Math.hypot(dx, dy) || 1;
-      nearest.x += (dx / dist) * 0.45;
-      nearest.y += (dy / dist) * 0.45;
-      nearest.animFrame = (nearest.animFrame || 0) + 0.25;
+      nearest.x += (dx / dist) * 0.45 * animSpeedMult;
+      nearest.y += (dy / dist) * 0.45 * animSpeedMult;
+      nearest.animFrame = (nearest.animFrame || 0) + 0.25 * animSpeedMult;
     }
   }
 
-  // 3. Atualiza os 22 jogadores
+  // 3. Atualiza os 22 jogadores (executa de forma contínua em qualquer velocidade)
   allPlayers.forEach(p => {
     if(p.redCard) return;
 
-    p.animFrame = (p.animFrame || 0) + (isPlaying ? 0.22 : 0.04);
-    if(p.celebrateTimer > 0) p.celebrateTimer -= 0.03;
+    p.animFrame = (p.animFrame || 0) + (isPlaying ? 0.22 : 0.04) * animSpeedMult;
+    if(p.celebrateTimer > 0) p.celebrateTimer -= 0.03 * animSpeedMult;
     p.celebrating = (p.celebrateTimer > 0);
-    if(p.diveTimer > 0) p.diveTimer -= 0.03;
+    if(p.diveTimer > 0) p.diveTimer -= 0.03 * animSpeedMult;
     p.diving = (p.diveTimer > 0);
 
-    const hasTheBall = (carrier === p);
+    const hasTheBall = (carrier === p && ball.mode === 'play');
     p.hasBall = hasTheBall;
     const isHome = (p.team === 'home');
-    const teamHasBall = carrier ? (carrier.team === p.team) : false;
+    const teamHasBall = carrier ? (carrier.team === p.team) : (ball.isHomeAttacking === isHome);
 
-    // Mantém posições válidas em elencos antigos ou testes sem baseX/baseY.
-    // Sem fallback, x/y viravam NaN e impediam progressão e finalizações.
     let tX = Number.isFinite(Number(p.baseX)) ? Number(p.baseX) : (Number(p.x) || 50);
     let tY = Number.isFinite(Number(p.baseY)) ? Number(p.baseY) : (Number(p.y) || 50);
 
     if(hasTheBall){
       // Portador conduz a bola em direção ao gol adversário
-      const paceSpeed = 0.55 + ((p.attrs?.pace || p.overall || 65) - 60) * 0.005;
+      const paceSpeed = (0.55 + ((p.attrs?.pace || p.overall || 65) - 60) * 0.005) * animSpeedMult;
       if(isHome){
         tX = clamp(p.x + paceSpeed + (p.depthRuns ? 0.25 : 0), 4, 96);
       } else {
@@ -20626,7 +20879,7 @@ function updateLiveCanvasPositions(s){
       ball.x = p.x + (isHome ? 1.4 : -1.4);
       ball.y = p.y;
       ball.z = Math.abs(Math.sin(p.animFrame * 1.5)) * 0.3;
-      ball.spin = (ball.spin || 0) + 0.25;
+      ball.spin = (ball.spin || 0) + 0.25 * animSpeedMult;
 
     } else if(teamHasBall){
       // Time atacando: avança e ocupa espaços
@@ -20668,21 +20921,23 @@ function updateLiveCanvasPositions(s){
     p.targetX = tX;
     p.targetY = tY;
 
-    const lerpSpeed = isPlaying ? 0.06 : 0.02;
+    // Suavização adaptativa calibrada para 60 FPS estável sem atraso do boneco
+    const baseLerp = isPlaying ? 0.06 : 0.02;
+    const lerpSpeed = Math.min(0.40, baseLerp * animSpeedMult);
     p.x += (p.targetX - p.x) * lerpSpeed;
     p.y += (p.targetY - p.y) * lerpSpeed;
   });
 
   // 4. Movimento de bola solta
   if(!carrier && ball.mode !== 'shot' && ball.mode !== 'pass'){
-    ball.x += (ball.vx || 0);
-    ball.y += (ball.vy || 0);
-    ball.z = Math.max(0, (ball.z || 0) + (ball.vz || 0));
+    ball.x += (ball.vx || 0) * animSpeedMult;
+    ball.y += (ball.vy || 0) * animSpeedMult;
+    ball.z = Math.max(0, (ball.z || 0) + (ball.vz || 0) * animSpeedMult);
 
     ball.vx = (ball.vx || 0) * 0.94;
     ball.vy = (ball.vy || 0) * 0.94;
-    ball.vz = (ball.vz || 0) - 0.15;
-    ball.spin = (ball.spin || 0) + 0.1;
+    ball.vz = (ball.vz || 0) - 0.15 * animSpeedMult;
+    ball.spin = (ball.spin || 0) + 0.1 * animSpeedMult;
 
     if(ball.z <= 0){
       ball.z = 0;
@@ -20699,11 +20954,11 @@ function updateLiveCanvasPositions(s){
   // 5. Movimentação do árbitro
   if(s.referee){
     const ref = s.referee;
-    ref.animFrame = (ref.animFrame || 0) + (isPlaying ? 0.16 : 0.03);
+    ref.animFrame = (ref.animFrame || 0) + (isPlaying ? 0.16 : 0.03) * animSpeedMult;
     const tgtRefX = clamp((ball.x + 50) * 0.5, 28, 72);
     const tgtRefY = clamp((ball.y + 50) * 0.5 + 8, 22, 78);
-    ref.x += (tgtRefX - ref.x) * 0.04;
-    ref.y += (tgtRefY - ref.y) * 0.04;
+    ref.x += (tgtRefX - ref.x) * (0.04 * animSpeedMult);
+    ref.y += (tgtRefY - ref.y) * (0.04 * animSpeedMult);
   }
 }
 
@@ -23649,10 +23904,28 @@ function finalizeMatchRound(){
               tm.form.push(tm === tH ? (hg > ag ? 'V' : hg < ag ? 'D' : 'E') : (ag > hg ? 'V' : ag < hg ? 'D' : 'E'));
               tm.form = tm.form.slice(-5);
             }
+
+            // Registra artilharia e assistências dos outros confrontos da rodada estadual
+            if(norm(fix.home) !== norm(state.club) && norm(fix.away) !== norm(state.club)){
+              if(hg > 0){
+                const hEv = simulateClubGoalEvents(fix.home, hg, session.competitionId);
+                addPlayerMatchStats(session.competitionId, fix.home, hEv);
+              }
+              if(ag > 0){
+                const aEv = simulateClubGoalEvents(fix.away, ag, session.competitionId);
+                addPlayerMatchStats(session.competitionId, fix.away, aEv);
+              }
+            }
           }
         }
       });
       addPlayerMatchStats(session.competitionId,state.club,(s.events||[]).filter(event=>event?.type==='gol'));
+      const oppClubLive = isHome ? away : home;
+      const oppGoalsLive = isHome ? s.ag : s.hg;
+      if(oppGoalsLive > 0){
+        const oppEv = simulateClubGoalEvents(oppClubLive, oppGoalsLive, session.competitionId);
+        addPlayerMatchStats(session.competitionId, oppClubLive, oppEv);
+      }
       state.history=state.history||[];
       state.history.unshift({...userRes,round:session.roundIndex+1,season:Number(state.season),date:fixture?.isoDate||state.date,competitionId:session.competitionId,competitionName:data.name,isHome,won:gf>ga});
       state.history=state.history.slice(0,100);
@@ -25462,23 +25735,148 @@ function openTransferNegotiationModal(key){
         </div>
       </div>
 
-      <div class="nego-container">
+      <div class="nego-container" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
 
         <!-- COLUNA ESQUERDA: CLUBE VENDEDOR & CONCORRÊNCIA -->
-        <div class="nego-card">
+        <div class="nego-card" style="background:#090e17;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:12px;font-weight:900;color:var(--cyan);text-transform:uppercase">1. COMPRA DO PASSE (CLUBE VENDEDOR)</span>
+            <span style="font-size:12px;font-weight:900;color:#38bdf8;text-transform:uppercase">1. COMPRA DO PASSE (CLUBE VENDEDOR)</span>
             <span class="pill" style="font-size:10px">Pedida: ${fmtMoney(askingPrice)}</span>
           </div>
 
           <!-- Concorrentes Ativos -->
           <div>
             <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);margin-bottom:6px">Outros Clubes Interessados:</div>
-                  <div style="font-size:12px">
-          🏛️ Chance de Aceite do Clube Vendedor: <b id="dispClubChance" style="color:${clubChance>=70?'#22c55e':'#ef4444'}">${clubChance}%</b>
+            ${rivalBids.length > 0 ? rivalBids.map(r => `
+              <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.04);padding:6px 10px;border-radius:8px;font-size:11px;margin-bottom:4px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  ${typeof clubBadge === 'function' ? clubBadge(r.club, 16) : ''}
+                  <b>${esc(r.club)}</b>
+                </div>
+                <span style="color:#f59e0b;font-weight:800">${fmtMoney(r.bid)}</span>
+              </div>
+            `).join('') : '<div style="font-size:11px;color:#94a3b8">Nenhum concorrente ativo no momento.</div>'}
+          </div>
+
+          <!-- Oferta de Compra do Passe -->
+          <div style="background:#111827;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:#94a3b8">Sua Oferta de Compra:</span>
+              <b style="font-size:20px;color:#38bdf8">${fmtMoney(offerBid)}</b>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:4px;margin-top:10px">
+              <button type="button" class="btn btnBidStep" data-step="-500000" style="padding:4px 2px;font-size:10px">-500k</button>
+              <button type="button" class="btn btnBidStep" data-step="-100000" style="padding:4px 2px;font-size:10px">-100k</button>
+              <button type="button" class="btn primary btnBidStep" data-step="100000" style="padding:4px 2px;font-size:10px">+100k</button>
+              <button type="button" class="btn primary btnBidStep" data-step="500000" style="padding:4px 2px;font-size:10px">+500k</button>
+              <button type="button" class="btn primary btnBidStep" data-step="1000000" style="padding:4px 2px;font-size:10px">+1M</button>
+            </div>
+          </div>
+
+          <!-- Chance de Aceite do Clube Vendedor -->
+          <div style="background:rgba(255,255,255,0.03);padding:10px;border-radius:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:11px">
+              <span style="font-weight:800;color:#cbd5e1">Chance de Aceite do Clube:</span>
+              <b style="color:${clubChance >= 70 ? '#22c55e' : '#ef4444'};font-size:13px">${clubChance}%</b>
+            </div>
+            <div style="background:rgba(255,255,255,0.08);height:8px;border-radius:4px;overflow:hidden">
+              <div style="width:${clubChance}%;height:100%;background:${clubChance >= 70 ? 'linear-gradient(90deg,#22c55e,#4ade80)' : 'linear-gradient(90deg,#ef4444,#f87171)'};border-radius:4px;transition:width 0.3s"></div>
+            </div>
+            <div style="font-size:11px;margin-top:6px;color:#94a3b8">
+              ${clubFeedback}
+            </div>
+          </div>
         </div>
-        <div style="font-size:12px">
-          👤 Chance de Aceite do Atleta (Termos): <b id="dispPlayerChance" style="color:${playerChance>=65?'#22c55e':'#ef4444'}">${playerChance}%</b>
+
+        <!-- COLUNA DIREITA: CONTRATO DO ATLETA (SALÁRIO, LUVAS & BÔNUS) -->
+        <div class="nego-card" style="background:#090e17;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:900;color:#c084fc;text-transform:uppercase">2. CONTRATO DO ATLETA</span>
+            <span class="pill" style="font-size:10px">Base: ${fmtMoney(baseSalary)}/mês</span>
+          </div>
+
+          <!-- Slider de Salário -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:11px;color:#94a3b8">Salário Oferecido:</span>
+              <b style="font-size:16px;color:#fbbf24">${fmtMoney(wageOffered)}/mês</b>
+            </div>
+            <input type="range" id="rngWageOffer" min="${Math.round(baseSalary * 0.7)}" max="${Math.round(baseSalary * 2.5)}" step="5000" value="${wageOffered}" style="width:100%;cursor:pointer;accent-color:#a855f7">
+          </div>
+
+          <!-- Duração do Contrato -->
+          <div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">Duração do Contrato:</div>
+            <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:4px">
+              ${[1, 2, 3, 4, 5].map(y => `
+                <button type="button" class="btn btnContractYear ${contractYears === y ? 'primary' : ''}" data-year="${y}" style="padding:4px;font-size:11px">
+                  ${y} ${y === 1 ? 'ano' : 'anos'}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Luvas na Assinatura -->
+          <div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:4px">Luvas na Assinatura:</div>
+            <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:4px">
+              ${[0, 100000, 300000, 1000000].map(v => `
+                <button type="button" class="btn btnLuvasChip ${signingBonus === v ? 'primary' : ''}" data-val="${v}" style="padding:4px;font-size:10px">
+                  ${v === 0 ? 'Sem Luvas' : fmtMoney(v)}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Bônus Adicionais -->
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="font-size:11px;font-weight:800;color:#cbd5e1">BÔNUS POR DESEMPENHO:</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px">
+              <span>🏆 Por Vitória:</span>
+              <div style="display:flex;gap:3px">
+                ${[0, 10000, 25000].map(v => `
+                  <button type="button" class="btn btnBonusWin ${bonusWin === v ? 'primary' : ''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
+                    ${v === 0 ? 'Não' : fmtMoney(v)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px">
+              <span>⚽ Por Gol/Clean Sheet:</span>
+              <div style="display:flex;gap:3px">
+                ${[0, 8000, 15000].map(v => `
+                  <button type="button" class="btn btnBonusGoal ${bonusGoal === v ? 'primary' : ''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
+                    ${v === 0 ? 'Não' : fmtMoney(v)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px">
+              <span>🥇 Por Título:</span>
+              <div style="display:flex;gap:3px">
+                ${[0, 100000, 300000].map(v => `
+                  <button type="button" class="btn btnBonusTitle ${bonusTitle === v ? 'primary' : ''}" data-val="${v}" style="padding:2px 6px;font-size:9px">
+                    ${v === 0 ? 'Não' : fmtMoney(v)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- Chance de Aceite do Atleta -->
+          <div style="background:rgba(255,255,255,0.03);padding:10px;border-radius:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:11px">
+              <span style="font-weight:800;color:#cbd5e1">Interesse do Atleta (Termos):</span>
+              <b style="color:${playerChance >= 65 ? '#22c55e' : '#ef4444'};font-size:13px">${playerChance}%</b>
+            </div>
+            <div style="background:rgba(255,255,255,0.08);height:8px;border-radius:4px;overflow:hidden">
+              <div style="width:${playerChance}%;height:100%;background:${playerChance >= 65 ? 'linear-gradient(90deg,#22c55e,#4ade80)' : 'linear-gradient(90deg,#ef4444,#f87171)'};border-radius:4px;transition:width 0.3s"></div>
+            </div>
+            <div style="font-size:11px;margin-top:6px;color:#94a3b8">
+              ${interestText}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -28773,7 +29171,6 @@ function centralPage(){
     const clubGroup = Object.entries(groups).find(([,rows]) => Array.isArray(rows) && rows.some(row => norm(row.name || row.club) === norm(state.club)));
     compRows = sortWidgetRows(clubGroup ? clubGroup[1] : Object.values(groups).flat());
   } else if(currentWidgetCompId && typeof getNationalCompetitionStandings === 'function'){ compRows = sortWidgetRows(getNationalCompetitionStandings(currentWidgetCompId)); }
-  const compStandings = compRows.slice(0,10);
   const totalInTable = compRows.length || Number(activeComp.teams) || 0;
   const myIndexInTable = compRows.findIndex(t => norm(t.name || t.club || t.team) === norm(state.club));
   const myPos = myIndexInTable >= 0 ? myIndexInTable + 1 : null;
@@ -28781,6 +29178,34 @@ function centralPage(){
   const myTeamObj = myIndexInTable >= 0 ? compRows[myIndexInTable] : null;
   const myPts = Number(myTeamObj?.p ?? myTeamObj?.points ?? 0);
   const ptsDiff = Math.max(0, leaderPts - myPts);
+
+  // REGRA INVIOLÁVEL: A tabela da Central DEVE SEMPRE exibir a posição do time do usuário!
+  // Se o time estiver além dos primeiros colocados (ex: 15º, 28º, 53º), mostra os líderes (Top 3) + divisor estilizado + time do usuário e vizinhos
+  let compStandings = [];
+  if(compRows.length <= 10 || myIndexInTable < 0){
+    compStandings = compRows.slice(0, 10).map((t, idx) => ({ ...t, displayPos: idx + 1 }));
+  } else if(myIndexInTable <= 6){
+    compStandings = compRows.slice(0, Math.min(compRows.length, 10)).map((t, idx) => ({ ...t, displayPos: idx + 1 }));
+  } else {
+    // 1. Líderes do Top 3
+    const topRows = compRows.slice(0, 3).map((t, idx) => ({ ...t, displayPos: idx + 1 }));
+    // 2. Vizinhos do time do usuário
+    const midRows = [];
+    midRows.push({ isEllipsis: true, id: 'el-top' });
+    if(myIndexInTable - 1 >= 3){
+      midRows.push({ ...compRows[myIndexInTable - 1], displayPos: myIndexInTable });
+    }
+    midRows.push({ ...compRows[myIndexInTable], displayPos: myIndexInTable + 1, isUser: true });
+    if(myIndexInTable + 1 < compRows.length){
+      midRows.push({ ...compRows[myIndexInTable + 1], displayPos: myIndexInTable + 2 });
+    }
+    // 3. Lanterna da tabela se houver distância
+    if(myIndexInTable + 2 < compRows.length - 1){
+      midRows.push({ isEllipsis: true, id: 'el-bottom' });
+      midRows.push({ ...compRows[compRows.length - 1], displayPos: compRows.length });
+    }
+    compStandings = [...topRows, ...midRows];
+  }
   const clubDivRegion = getClubDivisionAndState(state.club);
   const clubStarsInfo = getClubStarRating(state.club);
 
@@ -29515,10 +29940,12 @@ function centralPage(){
                 ${compTableKind === 'knockout' ? 'MATA-MATA - CONFRONTOS' : compTableKind === 'groups' ? 'CLASSIFICACAO - FASE DE GRUPOS' : isEstadualActive ? 'FASE REGIONAL - CLASSIFICACAO' : `PONTOS CORRIDOS - RODADA ${state.round + 1}`}
               </div>
             </div>
-            <span class="pill" style="font-size:10px;font-weight:800;background:rgba(255,255,255,0.08)">${myPos ? `${myPos}?` : '-'}${totalInTable ? `/${totalInTable}` : ''}</span>
+            <span class="pill" style="font-size:10px;font-weight:900;background:rgba(124,58,237,0.25);color:#c084fc;border:1px solid rgba(139,92,246,0.35);padding:3px 8px;border-radius:6px">
+              ${myPos ? `${myPos}º` : '-'}${totalInTable ? ` / ${totalInTable}` : ''}
+            </span>
           </div>
 
-          <div class="tablewrap" style="max-height:260px">
+          <div class="tablewrap" id="centralLeagueTableWrap" style="max-height:270px;overflow-y:auto">
             <table>
               <thead>
                 <tr style="font-size:10px;color:rgba(255,255,255,0.4)">
@@ -29530,17 +29957,30 @@ function centralPage(){
                 </tr>
               </thead>
               <tbody>
-                ${compStandings.map((t, idx) => {
+                ${compStandings.map((t) => {
+                  if(t.isEllipsis){
+                    return `
+                      <tr style="text-align:center;color:rgba(255,255,255,0.35);background:rgba(255,255,255,0.02)">
+                        <td colspan="5" style="padding:4px 0;font-size:9px;letter-spacing:5px">• • •</td>
+                      </tr>
+                    `;
+                  }
                   const teamName = t.name || t.club || t.team || 'Clube';
-                  const pos = idx + 1;
+                  const pos = t.displayPos || 1;
                   const isMy = norm(teamName) === norm(state.club);
                   const points = Number(t.p ?? t.points ?? 0);
                   const played = Number(t.j ?? t.played ?? 0);
                   const gd = Number(t.sg ?? (Number(t.gp ?? t.gf ?? 0) - Number(t.gc ?? t.ga ?? 0)));
                   return `
-                    <tr style="${isMy ? 'background:rgba(124,58,237,0.35);font-weight:900;' : ''}font-size:11px">
-                      <td style="font-weight:800;color:${pos<=4?'var(--neon)':(totalInTable && pos>=totalInTable-3)?'var(--bad)':'#fff'}">${pos}</td>
-                      <td><div style="display:flex;align-items:center;gap:6px">${clubBadge(teamName,16)}<span style="color:${isMy?'#c084fc':'#fff'}">${esc(teamName)}</span>${isMy?'<span class="tag-you" style="font-size:9px;padding:1px 5px;margin-left:4px">VOCE</span>':''}</div></td>
+                    <tr class="${isMy ? 'user-standing-row' : ''}" style="${isMy ? 'background:linear-gradient(90deg,rgba(124,58,237,0.42),rgba(168,85,247,0.20));border-left:3px solid #c084fc;font-weight:900;' : ''}font-size:11px">
+                      <td style="font-weight:800;color:${isMy ? '#c084fc' : (pos<=4 ? 'var(--neon)' : (totalInTable && pos>=totalInTable-3) ? 'var(--bad)' : '#fff')}">${pos}</td>
+                      <td>
+                        <div style="display:flex;align-items:center;gap:6px">
+                          ${clubBadge(teamName,16)}
+                          <span style="color:${isMy?'#c084fc':'#fff'}">${esc(teamName)}</span>
+                          ${isMy?'<span class="tag-you" style="font-size:9px;padding:2px 6px;margin-left:4px;background:#7c3aed;color:#fff;border-radius:4px;font-weight:900;letter-spacing:0.5px">VOCÊ</span>':''}
+                        </div>
+                      </td>
                       <td style="text-align:center;font-weight:900">${points}</td>
                       <td style="text-align:center">${played}</td>
                       <td style="text-align:center">${gd>0?'+':''}${gd}</td>
@@ -29551,6 +29991,23 @@ function centralPage(){
               </tbody>
             </table>
           </div>
+
+          ${myPos ? `
+            <!-- Painel Fixo: Posição Atual do Clube do Usuário na Tabela -->
+            <div style="margin-top:10px;padding:8px 12px;background:linear-gradient(90deg,rgba(124,58,237,0.22),rgba(168,85,247,0.12));border:1px solid rgba(139,92,246,0.35);border-radius:12px;display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:7px">
+                <span style="font-size:13px">📍</span>
+                <span style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.7)">Sua Posição:</span>
+                <span class="pill" style="font-size:11px;font-weight:900;background:#7c3aed;color:#fff;padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.2)">
+                  ${myPos}º Lugar ${totalInTable ? `(${myPos}º / ${totalInTable})` : ''}
+                </span>
+              </div>
+              <div style="font-size:11px;font-weight:800;color:#c084fc;text-align:right">
+                ${myTeamObj ? `<b>${myPts}</b> pts · <b>${myTeamObj.j ?? myTeamObj.played ?? 0}</b>J` : ''}
+                ${ptsDiff > 0 ? `<div style="font-size:9.5px;color:#94a3b8">-${ptsDiff} pts do líder</div>` : '<div style="font-size:9.5px;color:#4ade80">Líder isolado!</div>'}
+              </div>
+            </div>
+          ` : ''}
 
           <div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">
             <button class="btn" id="btnGoToSeasonFromCentral" style="background:none;border:none;color:#a855f7;font-size:12px;font-weight:800;cursor:pointer">
@@ -30255,6 +30712,7 @@ function myTeamPage(){
             return `
               <div class="bench-player-row" data-bench-key="${esc(playerKey(p))}" data-player-pos="${esc(p.pos)}" title="Clique para selecionar e trocar">
                 ${playerPhoto(p, 36)}
+                <div style="flex:1;min-width:0;margin-left:8px">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
                     <b style="font-size:12px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</b>
                     ${(typeof renderPendingTransferTag === 'function') ? renderPendingTransferTag(p, true) : ''}
@@ -31873,8 +32331,8 @@ function renderMarketLend(){
                         ${isListed?'Retirar da Lista':'Disponibilizar'}
                       </button>
                       ${offers.length ? `
-                        <button class="btn primary btnViewLoanOffers" data-key="${esc(k)}" style="padding:4px 10px;font-size:11px">
-                          📬 Ver Propostas (${offers.length})
+                        <button class="btn btnViewLoanOffers btn-has-proposals" data-key="${esc(k)}" style="padding:4px 10px;font-size:11px">
+                          🔥 Ver Propostas (${offers.length})
                         </button>
                       ` : ''}
                     </div>
@@ -32043,6 +32501,11 @@ function renderMarketMyLoans(){
 
 function renderMarketSell(){
   const el = $('#sellList'); if(!el) return;
+  state.loanListed = state.loanListed || [];
+  state.transferListed = state.transferListed || [];
+  state.transferOffers = state.transferOffers || {};
+  state.loanOffers = state.loanOffers || {};
+
   let ps = [...state.squad];
 
   if(sellFilterType === 'BENCH'){
@@ -32071,7 +32534,7 @@ function renderMarketSell(){
             <th>POS</th>
             <th style="text-align:center">NOTA</th>
             <th style="text-align:center">IDADE</th>
-            <th style="text-align:center">NA POSIÇÃO</th>
+            <th style="text-align:center">STATUS</th>
             <th style="text-align:right">RECEBE</th>
             <th style="text-align:right">VALE</th>
             <th style="text-align:center">AÇÃO</th>
@@ -32082,24 +32545,73 @@ function renderMarketSell(){
             const key = playerKey(p);
             const wage = playerSalary(p);
             const val = Math.round(calcValueMi(p) * 1e6);
+            const isLoan = Boolean(p.isLoan);
+            const isLoanListed = state.loanListed.includes(key);
+            const isTransferListed = state.transferListed.includes(key);
+            const pending = p.pendingTransfer;
+            const buyOffers = state.transferOffers[key] || [];
+            const loanOffers = state.loanOffers[key] || [];
+            const totalOffers = buyOffers.length + loanOffers.length;
 
             return `
               <tr>
                 <td style="width:36px">${playerPhoto(p, 30)}</td>
-                <td><b>${esc(p.name)}</b></td>
+                <td>
+                  <div style="display:flex;flex-direction:column;gap:3px">
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                      <b style="font-size:13px;color:#f8fafc">${esc(p.name)}</b>
+                      ${isLoan ? `
+                        <span class="pill warn" style="font-size:9px;font-weight:900;padding:2px 6px;background:rgba(245,158,11,0.22);color:#fbbf24;border:1px solid rgba(245,158,11,0.45)" title="Atleta emprestado ao seu clube pelo ${esc(p.loanFrom || p.originalClub || 'cedente')}">
+                          🤝 EMPRESTADO
+                        </span>
+                      ` : ''}
+                      ${isLoanListed ? `
+                        <span class="pill" style="font-size:9px;font-weight:900;padding:2px 6px;background:rgba(56,189,248,0.2);color:#38bdf8;border:1px solid rgba(56,189,248,0.45)" title="Disponibilizado na lista de empréstimos para outros clubes">
+                          📤 P/ EMPRÉSTIMO
+                        </span>
+                      ` : ''}
+                      ${isTransferListed ? `
+                        <span class="pill" style="font-size:9px;font-weight:900;padding:2px 6px;background:rgba(34,197,94,0.2);color:#4ade80;border:1px solid rgba(34,197,94,0.45)" title="Colocado oficialmente na lista de transferências">
+                          🏷️ À VENDA
+                        </span>
+                      ` : ''}
+                      ${pending ? `
+                        <span class="pill" style="font-size:9px;font-weight:900;padding:2px 6px;background:${pending.type==='loan_out'?'rgba(56,189,248,0.2)':'rgba(239,68,68,0.2)'};color:${pending.type==='loan_out'?'#38bdf8':'#f87171'};border:1px solid ${pending.type==='loan_out'?'#38bdf8':'#f87171'}">
+                          ${pending.type==='loan_out'?'⏳ EMPRÉSTIMO AGENDADO':'✈️ VENDA AGENDADA'}
+                        </span>
+                      ` : ''}
+                    </div>
+                    ${isLoan && (p.loanFrom || p.originalClub) ? `
+                      <div style="font-size:10px;color:#94a3b8">Cedente: <b style="color:#cbd5e1">${esc(p.loanFrom || p.originalClub)}</b> · Até: <span style="color:#fbbf24">${p.loanEndDate ? formatDatePtBr(p.loanEndDate) : 'Fim da temporada'}</span></div>
+                    ` : ''}
+                  </div>
+                </td>
                 <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
                 <td style="text-align:center"><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
                 <td style="text-align:center">${p.age||22}</td>
-                <td style="text-align:center"><span class="small muted">2</span></td>
+                <td style="text-align:center">
+                  <span class="small muted" style="font-weight:800;color:${isLoan?'#fbbf24':isLoanListed?'#38bdf8':isTransferListed?'#4ade80':'#94a3b8'}">
+                    ${isLoan ? '🤝 Emprestado' : isLoanListed ? '📤 P/ Empréstimo' : isTransferListed ? '🏷️ À Venda' : 'No Elenco'}
+                  </span>
+                </td>
                 <td style="text-align:right;color:#22c55e;font-weight:800">R$ ${wage.toLocaleString('pt-BR')}</td>
                 <td style="text-align:right;color:#fbbf24;font-weight:800">R$ ${val.toLocaleString('pt-BR')}</td>
                 <td style="text-align:center">
-                  <div style="display:inline-flex;gap:6px;align-items:center">
-                    <button class="btn btnQuickSellSquadRow" data-key="${esc(key)}" style="padding:5px 10px;font-size:11px;font-weight:900;border-radius:6px;background:#059669;color:#fff;border:none;cursor:pointer" title="Venda rápida na hora por 80% (R$ ${Math.round(val*0.8).toLocaleString('pt-BR')})">
-                      ⚡ RÁPIDA (80%)
-                    </button>
-                    <button class="btn btnOpenSellModalRow" data-key="${esc(key)}" style="padding:5px 10px;font-size:11px;font-weight:800;border-radius:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#fff;cursor:pointer" title="Ver propostas de compra e empréstimo">
-                      💼 PROPOSTAS
+                  <div style="display:inline-flex;gap:6px;align-items:center;justify-content:center">
+                    ${isLoan ? `
+                      <button class="btn btnManageBorrowedPlayer" data-key="${esc(key)}" style="padding:5px 10px;font-size:11px;font-weight:900;border-radius:6px;background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border:none;cursor:pointer" title="Gerenciar empréstimo, comprar em definitivo ou estender vínculo">
+                        🤝 GESTÃO EMPRÉSTIMO
+                      </button>
+                    ` : `
+                      <button class="btn btnQuickSellSquadRow" data-key="${esc(key)}" style="padding:5px 10px;font-size:11px;font-weight:900;border-radius:6px;background:#059669;color:#fff;border:none;cursor:pointer" title="Venda rápida na hora por 80% (R$ ${Math.round(val*0.8).toLocaleString('pt-BR')})">
+                        ⚡ RÁPIDA (80%)
+                      </button>
+                      <button class="btn btnToggleLoanQuick" data-key="${esc(key)}" style="padding:5px 8px;font-size:10px;font-weight:900;border-radius:6px;${isLoanListed ? 'background:rgba(56,189,248,0.22);border:1px solid #38bdf8;color:#38bdf8;' : 'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;'}cursor:pointer" title="${isLoanListed ? 'Clique para retirar da lista de empréstimos' : 'Disponibilizar jogador para empréstimo a outros clubes'}">
+                        ${isLoanListed ? '🤝 CEDENDO' : '🤝 EMPRESTAR'}
+                      </button>
+                    `}
+                    <button class="btn btnOpenSellModalRow ${totalOffers > 0 ? 'btn-has-proposals' : ''}" data-key="${esc(key)}" style="padding:5px 10px;font-size:11px;font-weight:800;border-radius:6px;${totalOffers > 0 ? '' : 'background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#fff;'}cursor:pointer" title="${totalOffers > 0 ? `🔥 ${buyOffers.length} proposta(s) de compra e ${loanOffers.length} de empréstimo recebidas!` : 'Ver propostas e opções de transferência'}">
+                      ${totalOffers > 0 ? `🔥 ${totalOffers} PROPOSTA${totalOffers > 1 ? 'S' : ''}` : '💼 PROPOSTAS'}
                     </button>
                   </div>
                 </td>
@@ -32112,6 +32624,34 @@ function renderMarketSell(){
   `;
 
   $$('.btnQuickSellSquadRow').forEach(b => b.onclick = () => quickSellSquadPlayer(b.dataset.key));
+  $$('.btnManageBorrowedPlayer').forEach(b => {
+    b.onclick = () => {
+      const p = findSquadPlayerByKey(b.dataset.key);
+      if(p) openBorrowedPlayerManagementModal(p);
+    };
+  });
+  $$('.btnToggleLoanQuick').forEach(b => {
+    b.onclick = () => {
+      const k = b.dataset.key;
+      state.loanListed = state.loanListed || [];
+      state.loanOffers = state.loanOffers || {};
+      const idx = state.loanListed.indexOf(k);
+      const p = findSquadPlayerByKey(k);
+      if(idx >= 0){
+        state.loanListed.splice(idx, 1);
+        delete state.loanOffers[k];
+        toast(`${p?.name || 'Jogador'} retirado da lista de empréstimos.`);
+      } else {
+        state.loanListed.push(k);
+        if(p && !state.loanOffers[k]){
+          state.loanOffers[k] = generateLoanOffers(p);
+        }
+        toast(`🤝 ${p?.name || 'Jogador'} colocado para empréstimo! Propostas recebidas.`);
+      }
+      save();
+      renderMarketSell();
+    };
+  });
   $$('.btnOpenSellModalRow').forEach(b => b.onclick = () => openPlayerTransferModal(b.dataset.key));
   $$('.open-transfer-modal').forEach(b => b.onclick = () => openPlayerTransferModal(b.dataset.key));
 }
@@ -32976,7 +33516,7 @@ function structurePage(){
               🎓 CURSOS & LICENÇAS (CBF & UEFA)
             </button>
             <span class="pill" style="background:#059669;color:#fff;font-weight:800">
-              Seu Patrimônio Pessoal: ${fmtMoney(state.managerMoney||57000)}
+              🏦 Saldo no Banco: ${fmtMoney(state.managerMoney||57000)}
             </span>
           </div>
         </div>
@@ -33004,7 +33544,7 @@ function structurePage(){
 
                 ${!hasBought ? `
                   <button class="btn ${canBuy && (state.managerMoney||0)>=item.cost ? 'primary' : ''} btnBuyHouseItem" data-item-id="${item.id}" ${!canBuy || (state.managerMoney||0)<item.cost ? 'disabled' : ''} style="width:100%;margin-top:10px;padding:8px;font-size:12px;font-weight:800">
-                    ${(state.managerMoney||0)<item.cost ? 'Saldo Pessoal Insuficiente' : 'Comprar com Patrimônio'}
+                    ${(state.managerMoney||0)<item.cost ? 'Saldo Insuficiente no Banco' : 'Comprar com Saldo Bancário'}
                   </button>
                 ` : ''}
               </div>
@@ -33387,8 +33927,32 @@ function officePage(){
         <div><b style="color:#fff;font-size:13px;text-transform:uppercase">📉 Despesas e parcelas mensais</b><div class="small muted">O principal das dívidas é mostrado como parcela de caixa, separado da despesa operacional.</div></div>
         <span class="pill warn" style="font-size:10px;font-weight:900">SAÍDAS ESTIMADAS</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;font-size:12px">
-        ${[['Salários do elenco',finance.expenses.payroll],['Manutenção & Staff',finance.expenses.facilities],['Salários dos olheiros',finance.expenses.scouts],['Marketing',finance.expenses.marketing],['Parcelas bancárias previstas',finance.expenses.bankRepayments],['Parcelas de obras do estádio',finance.expenses.stadiumRepayments],['Despesa com Dividendos aos Acionistas',(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro?.calculateMonthlyClubDividendExpense ? window.AFM_LifeAndSharesPro.calculateMonthlyClubDividendExpense(state).totalClubDividendExpense : (state.lastMonthDividendExpense || 0))]].map(([label,value])=>`<div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)"><div class="muted">${label}</div><b style="color:#f87171;font-size:15px">${fmtMoney(value)}/mês</b></div>`).join('')}
+        ${(() => {
+          const isClubSaf = typeof window.isClubSaf === 'function' ? window.isClubSaf(state) : (Boolean(state.clubIsSaf) || Boolean((state.club || '').match(/\bsaf\b/i)));
+          const divExpense = isClubSaf && typeof window !== 'undefined' && window.AFM_LifeAndSharesPro?.calculateMonthlyClubDividendExpense
+            ? window.AFM_LifeAndSharesPro.calculateMonthlyClubDividendExpense(state).totalClubDividendExpense
+            : 0;
+
+          const expenseList = [
+            ['Salários do elenco', finance.expenses.payroll, null],
+            ['Manutenção & Staff', finance.expenses.facilities, null],
+            ['Salários dos olheiros', finance.expenses.scouts, null],
+            ['Marketing', finance.expenses.marketing, null],
+            ['Parcelas bancárias previstas', finance.expenses.bankRepayments, null],
+            ['Parcelas de obras do estádio', finance.expenses.stadiumRepayments, null],
+            ['Despesa com Dividendos aos Acionistas', divExpense, isClubSaf ? 'SAF Ativa' : 'Não se aplica (Clube Tradicional / Não-SAF)']
+          ];
+
+          return expenseList.map(([label, value, badge]) => `
+            <div style="background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+                <div class="muted">${label}</div>
+                ${badge ? `<span class="pill" style="font-size:9px;font-weight:800;padding:2px 6px;background:${isClubSaf ? 'rgba(56,189,248,0.15)' : 'rgba(34,197,94,0.15)'};color:${isClubSaf ? '#38bdf8' : '#4ade80'}">${badge}</span>` : ''}
+              </div>
+              <b style="color:${value > 0 ? '#f87171' : '#94a3b8'};font-size:15px;margin-top:4px;display:block">${fmtMoney(value)}/mês</b>
+            </div>
+          `).join('');
+        })()}
       </div>
     </div>
     ${renderTvBroadcastCard(state)}
@@ -33500,6 +34064,17 @@ function officePage(){
       const coachLicData = (typeof window.getCoachLicensesData === 'function')
         ? window.getCoachLicensesData(state)
         : { totalBonusPct: 0, bonusValue: 0, currentLic: { name: 'Licença CBF' } };
+      const managerBankBalance = Number(state.managerMoney !== undefined ? state.managerMoney : (state.managerPersonal?.personalBalance || 57000));
+      let managerTotalNetWorth = managerBankBalance;
+      try {
+        if (window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.calculateManagerTotalNetWorth === 'function') {
+          managerTotalNetWorth = window.AFM_LifeAndSharesPro.calculateManagerTotalNetWorth(state);
+        } else if (window.AFM_GlobalRankingAndConfidence && typeof window.AFM_GlobalRankingAndConfidence.calculateManagerTotalNetWorth === 'function') {
+          managerTotalNetWorth = window.AFM_GlobalRankingAndConfidence.calculateManagerTotalNetWorth(state);
+        }
+      } catch(e) {
+        managerTotalNetWorth = managerBankBalance;
+      }
       return `
         <div class="card" style="margin-top:16px;padding:14px 18px;background:#13111c;border:1px solid rgba(139,92,246,0.3);border-radius:14px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
@@ -33535,8 +34110,13 @@ function officePage(){
             </div>
 
             <div style="background:linear-gradient(180deg, #18152b 0%, #131024 100%);border:1px solid rgba(139,92,246,0.25);border-radius:10px;padding:10px 12px">
-              <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">SEU PATRIMÔNIO</div>
-              <div style="font-size:18px;font-weight:900;color:#22c55e;margin-top:2px">${fmtMoney(state.managerMoney || 57000)}</div>
+              <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase">SALDO NO BANCO</div>
+              <div style="font-size:18px;font-weight:900;color:#22c55e;margin-top:2px">${fmtMoney(managerBankBalance)}</div>
+              ${managerTotalNetWorth > managerBankBalance ? `
+                <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:3px;font-weight:600">
+                  Patrimônio Total: <b style="color:#c084fc">${fmtMoney(managerTotalNetWorth)}</b>
+                </div>
+              ` : ''}
             </div>
           </div>
 
@@ -35176,12 +35756,7 @@ function seasonPage(){
     ` : seasonTab==='estadual' && hasState ? (() => {
       const estCompId = memberships.stateId;
       const estData = getStateCompData(estCompId);
-      const estStats = getStateCompStats(estCompId);
       const myStateComp = clubStateCompId(state.club);
-      const statKey = statsTab === 'scorers' ? 'goals' : 'assists';
-      const rankedStats = [...(statsTab === 'scorers' ? estStats.scorers : estStats.assists)].sort((a,b) =>
-        (Number(b[statKey]) || 0) - (Number(a[statKey]) || 0) || norm(a.name).localeCompare(norm(b.name))
-      );
 
       // Sincronização em tempo real: se for a competição atual do clube em disputa
       if((estCompId === state.compId || (state.compId && state.compId.startsWith('bra-est-') && estCompId === myStateComp)) && Array.isArray(state.teams) && state.teams.length > 0){
@@ -35208,6 +35783,17 @@ function seasonPage(){
         // Never replace the full persisted estadual calendar with the active round only.
         // Live standings may sync here, but every round/date/result stays in estData.fixtures.
       }
+
+      // Sincroniza artilharia e assistências para TODOS os clubes da liga estadual
+      if(typeof syncCompetitionStatsWithLeagueTeams === 'function'){
+        syncCompetitionStatsWithLeagueTeams(estCompId, estData.teams);
+      }
+
+      const estStats = getStateCompStats(estCompId);
+      const statKey = statsTab === 'scorers' ? 'goals' : 'assists';
+      const rankedStats = [...(statsTab === 'scorers' ? estStats.scorers : estStats.assists)].sort((a,b) =>
+        (Number(b[statKey]) || 0) - (Number(a[statKey]) || 0) || norm(a.name).localeCompare(norm(b.name))
+      );
 
       const allEstList = estCompObj ? [{ id:estCompId, name:estCompObj.name }] : [];
 
@@ -35701,6 +36287,9 @@ function configPage(){
             <button class="btn success" id="btnSaveCurrentSlotNow" style="font-weight:800;padding:8px 14px;border-radius:8px">
               💾 Salvar no Slot ${currentSlot}
             </button>
+            <button class="btn primary" id="btnSyncCloudSlotsNow" style="font-weight:800;padding:8px 14px;border-radius:8px;background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;box-shadow:0 0 12px rgba(56,189,248,0.3);display:flex;align-items:center;gap:6px" title="Sincroniza os saves entre PC, Celular e Supabase automaticamente">
+              <span>🔄</span> Sincronizar Nuvem (PC ⇄ Celular)
+            </button>
             <button class="btn secondary" id="btnExitToMainMenu" style="font-weight:700;padding:8px 14px;border-radius:8px">
               🏠 Menu Principal / Trocar Carreira
             </button>
@@ -35731,6 +36320,9 @@ function configPage(){
                       <div>📅 <b>Data:</b> ${esc(s.date || '2026-01-01')}</div>
                       <div>💰 <b>Caixa:</b> ${fmtMoney(s.balance || 0)}</div>
                       <div style="font-size:10px;color:#94a3b8;margin-top:4px">🕒 <b>Atualizado:</b> ${esc(formatSaveTimestamp(s.updatedAt || 'Recentemente'))}</div>
+                      <div style="font-size:10px;color:#38bdf8;margin-top:3px;display:flex;align-items:center;gap:4px">
+                        <span>☁️</span> <b>Nuvem Supabase:</b> <span>Sincronizada (PC ⇄ Celular)</span>
+                      </div>
                     </div>
                   </div>
                   <div style="display:flex;gap:8px;align-items:center;margin-top:auto">
@@ -37783,7 +38375,8 @@ function renderSetup(app){
                       ▶ Continuar Campanha (Slot ${slotNum})
                     </button>
                     <div style="display:flex;justify-content:space-between;align-items:center">
-                      <span class="small muted" style="font-size:10px">Salvo em: ${esc(formatSaveTimestamp(s.updatedAt || s.date))}</span>
+                      <span class="small muted" style="font-size:10px">🕒 Salvo: ${esc(formatSaveTimestamp(s.updatedAt || s.date))}</span>
+                      <span style="font-size:10px;color:#38bdf8;font-weight:700;display:inline-flex;align-items:center;gap:3px">☁️ Nuvem OK</span>
                       <button class="btn danger btnDeleteUserSlot" data-slot="${slotNum}" style="font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer" title="Excluir save deste slot">
                         🗑️ Excluir Save
                       </button>
@@ -38516,6 +39109,13 @@ function bindSetup(){
 
   const btnNavGoSaves = $('#btnNavGoSaves');
   if(btnNavGoSaves) btnNavGoSaves.onclick = () => { setupViewMode = 'select'; renderSetup($('#app')); };
+
+  const btnTopRestoreCloud = $('#btnTopRestoreCloud');
+  if(btnTopRestoreCloud) {
+    btnTopRestoreCloud.onclick = () => {
+      void syncCloudWithLocal(true);
+    };
+  }
 
 
   const btnGoLogin = $('#btnGoLoginFromSetup');
@@ -39374,6 +39974,12 @@ function bind(){
       view = 'temporada';
       render();
     };
+    const userStandingRow = $('#centralLeagueTableWrap tr.user-standing-row');
+    if(userStandingRow){
+      try {
+        userStandingRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } catch(_) {}
+    }
     $$('.btn-central-cup-tab').forEach(b => {
       b.onclick = (e) => {
         e.preventDefault();
@@ -40264,6 +40870,9 @@ function bind(){
     const curSlotBtn = $('#btnSaveCurrentSlotNow');
     if(curSlotBtn) curSlotBtn.onclick = () => { void saveAndConfirmCloud(); render(); };
 
+    const syncCloudBtn = $('#btnSyncCloudSlotsNow');
+    if(syncCloudBtn) syncCloudBtn.onclick = () => { void syncCloudWithLocal(true); };
+
     const exitMenuBtn = $('#btnExitToMainMenu');
     if(exitMenuBtn) exitMenuBtn.onclick = () => {
       handleExitGameAction();
@@ -41125,14 +41734,23 @@ if(typeof initStoredGameState === 'function') {
 // Renderização instantânea e remoção imediata da splash screen (0ms)
 triggerSafeBootRender();
 
-// Sincronização em background sem bloquear o boot ou travar a tela
+// Sincronização em background sem bloquear o boot ou travar a tela (Multiplataforma: PC ⇄ Mobile ⇄ Supabase)
 if (typeof window !== 'undefined' && window.AFM_DB && typeof window.AFM_DB.init === 'function') {
   window.AFM_DB.init()
-    .then(user => {
-      if(user && typeof activateAuthenticatedUser === 'function') {
-        activateAuthenticatedUser(user).catch(err => {
+    .then(async user => {
+      const activeUser = user || (typeof getActiveAccount === 'function' ? getActiveAccount() : null);
+      if(activeUser && typeof activateAuthenticatedUser === 'function') {
+        try {
+          await activateAuthenticatedUser(activeUser);
+        } catch(err) {
           console.warn('[AFM] Sincronização de sessão em segundo plano:', err);
-        });
+        }
+      } else if(activeUser && window.AFM_DB && typeof window.AFM_DB.syncUser === 'function'){
+        try {
+          await window.AFM_DB.syncUser(activeUser.username || activeUser.id);
+        } catch(err){
+          console.warn('[AFM] Sincronização de saves em segundo plano:', err);
+        }
       }
     })
     .catch(error => {

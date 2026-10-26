@@ -92,7 +92,13 @@ assert(leaderboard.length > 20, 'Leaderboard must have at least 20 coaches');
 console.log(`✓ Leaderboard generated with ${leaderboard.length} coaches.`);
 
 // 6. Test onMatchFinished Awarding
-console.log('\n6. Testing Match Points Awarding...');
+console.log('\n6. Testing Match Points Awarding and Test Account Filtering...');
+assert(typeof window.AFM_CoachRanking.isTestAccount === 'function', 'isTestAccount must be a function');
+assert(window.AFM_CoachRanking.isTestAccount({ username: 'teste' }) === true, 'Username teste must be detected as test account');
+assert(window.AFM_CoachRanking.isTestAccount({ username: 'test123' }) === true, 'Username test123 must be detected as test account');
+assert(window.AFM_CoachRanking.isTestAccount({ name: 'Conta Teste' }) === true, 'Name Conta Teste must be detected as test account');
+assert(window.AFM_CoachRanking.isTestAccount({ username: 'aquino', name: 'Prof. Aquino', club: 'Criciúma' }) === false, 'Real account must not be test account');
+
 const ptsAwarded = window.AFM_CoachRanking.onMatchFinished(mockState, {
   h: 'Criciúma',
   a: 'Joinville',
@@ -110,11 +116,16 @@ const html = window.AFM_CoachRanking.renderPage(mockState);
 assert(html.includes('afm-ranking-page'), 'HTML must contain afm-ranking-page container');
 assert(html.includes('R$ 1.000,00 NO PIX'), 'HTML must display PIX R$ 1.000 prize banner');
 assert(html.includes('Prof. Aquino'), 'HTML must contain user coach name');
+assert(html.includes('@'), 'HTML must contain @username tag for users');
+assert(!html.includes('SAVE SUPABASE'), 'HTML must NOT contain SAVE SUPABASE tag');
 assert(html.includes('1º LUGAR'), 'HTML must show 1st place in podium');
 assert(html.includes('2º LUGAR'), 'HTML must show 2nd place in podium');
 assert(html.includes('3º LUGAR'), 'HTML must show 3rd place in podium');
 assert(html.includes('afm-ranking-list-section'), 'HTML must show full table');
-console.log('✓ Ranking Page HTML structure verified completely');
+assert(leaderboard[0].username, 'Leaderboard entries must have username property');
+assert(leaderboard[0].club, 'Leaderboard entries must have club property');
+assert(typeof leaderboard[0].points === 'number', 'Leaderboard entries must have numeric points');
+console.log('✓ Ranking Page HTML structure and @username/club/points verified completely (and SAVE SUPABASE absent)');
 
 // 8. Test codebase integration files
 console.log('\n8. Verifying codebase integrations...');
