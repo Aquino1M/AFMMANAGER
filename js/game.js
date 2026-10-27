@@ -1997,6 +1997,10 @@ let selectedEstadualId=null;
 let estadualRound=1;
 let clubs=buildClubs();
 let state = null;
+if(typeof window !== 'undefined'){
+  window.getState = () => state;
+  window.setState = (s) => { state = s; window.state = s; return state; };
+}
 function initStoredGameState(){
   try {
     purgeAllStorageSavesOfExploitPlayers();
@@ -7612,31 +7616,46 @@ function openPostMatchInterviewModal(matchData, onComplete){
       `,
       null,
       null,
-      false
+      false,
+      '560px',
+      () => {
+        if(typeof onComplete === 'function') onComplete();
+      }
     );
 
-    setTimeout(() => {
-      $$('.btn-interview-opt').forEach(b => {
-        b.onclick = () => {
+    const setupInterviewOptions = () => {
+      const modalEl = document.getElementById('appCustomModal');
+      const optBtns = modalEl ? modalEl.querySelectorAll('.btn-interview-opt') : document.querySelectorAll('.btn-interview-opt');
+      optBtns.forEach(b => {
+        b.onclick = (e) => {
+          if(e) { e.preventDefault(); e.stopPropagation(); }
           const idx = +b.dataset.optIdx;
-          const chosen = current.opts[idx];
-          state.trust.fans = clamp(state.trust.fans + chosen.tFans, 0, 100);
-          state.trust.squad = clamp(state.trust.squad + chosen.tSquad, 0, 100);
-          state.trust.board = clamp(state.trust.board + chosen.tBoard, 0, 100);
+          const chosen = current.opts[idx] || current.opts[0];
+          if(state){
+            state.trust = state.trust || { fans: 70, squad: 70, board: 70 };
+            state.trust.fans = clamp((state.trust.fans ?? 70) + (chosen.tFans || 0), 0, 100);
+            state.trust.squad = clamp((state.trust.squad ?? 70) + (chosen.tSquad || 0), 0, 100);
+            state.trust.board = clamp((state.trust.board ?? 70) + (chosen.tBoard || 0), 0, 100);
+          }
 
           curQIdx++;
           if(curQIdx < questions.length){
             renderCurrentQuestion();
           } else {
-            closeActiveModal();
-            toast('Coletiva de imprensa concluída com sucesso!');
+            if(typeof closeCustomModal === 'function') closeCustomModal(false);
+            const m = document.getElementById('appCustomModal');
+            if(m) m.remove();
+            toast('🎙️ Coletiva de imprensa concluída com sucesso!');
             save();
             render();
             if(typeof onComplete === 'function') onComplete();
           }
         };
       });
-    }, 50);
+    };
+
+    setupInterviewOptions();
+    setTimeout(setupInterviewOptions, 40);
   }
 
   renderCurrentQuestion();
@@ -8533,8 +8552,11 @@ function __unused_old_renderCopaDoBrasilBlock(){
 }
 
 
-function getSocioTorcedorMeta(){
-  state.socioTorcedor = state.socioTorcedor || {
+function getSocioTorcedorMeta(targetState = state){
+  const currState = targetState || state || (typeof window !== 'undefined' ? window.state : null);
+  if(!currState) return { plan: 'normal', members: 1100, targetMembers: 1100, lastPointsRatio: 0.0, daysLocked: 0, currentIncome: 50000 };
+
+  currState.socioTorcedor = currState.socioTorcedor || {
     plan: 'normal',
     members: 1100,
     targetMembers: 1100,
@@ -8542,16 +8564,16 @@ function getSocioTorcedorMeta(){
     daysLocked: 0
   };
 
-  const st = state.socioTorcedor;
+  const st = currState.socioTorcedor;
   const plan = st.plan || 'normal';
-  const fans = state.trust?.fans ?? 70;
+  const fans = currState.trust?.fans ?? 70;
 
   // Pontos recentes
-  const recentHist = (state.history || []).slice(0, 3);
+  const recentHist = (currState.history || []).slice(0, 3);
   let pts = 0;
   recentHist.forEach(h => {
-    if(h.hg > h.ag) pts += (h.h === state.club ? 3 : 0);
-    else if(h.hg < h.ag) pts += (h.a === state.club ? 3 : 0);
+    if(h.hg > h.ag) pts += (h.h === currState.club ? 3 : 0);
+    else if(h.hg < h.ag) pts += (h.a === currState.club ? 3 : 0);
     else pts += 1;
   });
   const recentGames = Math.max(1, recentHist.length);
@@ -10481,6 +10503,7 @@ window.isPlayerLoanListed = isPlayerLoanListed;
 function getPlayerPendingTransfer(p, st = state){
   if(!p) return null;
   if(p.pendingTransfer) return p.pendingTransfer;
+  if(p.isSold) return { type: 'sale', buyerClub: p.soldTo || 'Outro Clube', fee: p.soldFee || p.price || 0, date: p.soldDate || st?.date };
   if(!st) return null;
   const pK = (typeof playerKey === 'function') ? playerKey(p) : (p.id || p.name);
   const pNorm = norm(p.name || '');
@@ -10504,18 +10527,30 @@ function renderPendingTransferTag(p, isCompact = false){
   const pt = getPlayerPendingTransfer(p);
   if(!pt) return '';
   const type = pt.type || 'sale';
-  const buyer = pt.buyerClub || pt.to || 'Outro Clube';
+  const buyer = pt.buyerClub || pt.to || pt.soldTo || 'Outro Clube';
 
   if(type === 'sale'){
-    return `<span class="pill afm-tag-transfer afm-tag-sold" style="background:rgba(239,68,68,0.22);color:#fca5a5;border:1px solid #ef4444;font-size:10px;font-weight:900;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;box-shadow:0 0 8px rgba(239,68,68,0.2)" title="Venda acertada: O atleta se apresentará ao ${esc(buyer)} na reabertura da janela de transferências">✈️ Vendido p/ ${esc(buyer)} (Janela)</span>`;
+    if(isCompact){
+      return `<span class="pill afm-tag-transfer afm-tag-sold" style="background:rgba(239,68,68,0.25);color:#fca5a5;border:1px solid #ef4444;font-size:9px;font-weight:900;padding:1px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:3px;box-shadow:0 0 8px rgba(239,68,68,0.25)" title="Vendido p/ ${esc(buyer)}: se apresentará na janela de transferências">🏷️ VENDIDO</span>`;
+    }
+    return `<span class="pill afm-tag-transfer afm-tag-sold" style="background:rgba(239,68,68,0.22);color:#fca5a5;border:1px solid #ef4444;font-size:10px;font-weight:900;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;box-shadow:0 0 8px rgba(239,68,68,0.2)" title="Venda acertada: O atleta se apresentará ao ${esc(buyer)} na reabertura da janela de transferências">🏷️ VENDIDO (${esc(buyer)})</span>`;
   }
   if(type === 'loan_out'){
+    if(isCompact){
+      return `<span class="pill afm-tag-transfer afm-tag-loaned" style="background:rgba(6,182,212,0.25);color:#67e8f9;border:1px solid #06b6d4;font-size:9px;font-weight:900;padding:1px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:3px" title="Empréstimo agendado para o ${esc(buyer)}">🤝 EMPRESTADO</span>`;
+    }
     return `<span class="pill afm-tag-transfer afm-tag-loaned" style="background:rgba(6,182,212,0.22);color:#67e8f9;border:1px solid #06b6d4;font-size:10px;font-weight:900;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;box-shadow:0 0 8px rgba(6,182,212,0.2)" title="Empréstimo acertado: O atleta defenderá o ${esc(buyer)} a partir da reabertura da janela de transferências">🤝 Emprestado p/ ${esc(buyer)} (Janela)</span>`;
   }
   if(type === 'buy'){
+    if(isCompact){
+      return `<span class="pill afm-tag-transfer afm-tag-bought" style="background:rgba(16,185,129,0.25);color:#6ee7b7;border:1px solid #10b981;font-size:9px;font-weight:900;padding:1px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:3px" title="Contratado">📥 CONTRATADO</span>`;
+    }
     return `<span class="pill afm-tag-transfer afm-tag-bought" style="background:rgba(16,185,129,0.22);color:#6ee7b7;border:1px solid #10b981;font-size:10px;font-weight:900;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;box-shadow:0 0 8px rgba(16,185,129,0.2)" title="Contratação acertada: Chega ao ${esc(buyer)} na reabertura da janela de transferências">📥 Contratado p/ ${esc(buyer)} (Janela)</span>`;
   }
   if(type === 'loan_in'){
+    if(isCompact){
+      return `<span class="pill afm-tag-transfer afm-tag-loanin" style="background:rgba(168,85,247,0.25);color:#d8b4fe;border:1px solid #a855f7;font-size:9px;font-weight:900;padding:1px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:3px" title="Empréstimo acordado">🤝 EMPRÉSTIMO</span>`;
+    }
     return `<span class="pill afm-tag-transfer afm-tag-loanin" style="background:rgba(168,85,247,0.22);color:#d8b4fe;border:1px solid #a855f7;font-size:10px;font-weight:900;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;box-shadow:0 0 8px rgba(168,85,247,0.2)" title="Empréstimo acertado: Chega ao ${esc(buyer)} na reabertura da janela de transferências">🤝 Empréstimo c/ ${esc(buyer)} (Janela)</span>`;
   }
   return '';
@@ -10539,7 +10574,7 @@ function processPendingTransfersOnWindowOpen(gameState = state){
 
     gameState.squad.forEach(p => {
       if(!p){ return; }
-      const pt = p.pendingTransfer;
+      const pt = p.pendingTransfer || (p.isSold ? { type: 'sale', buyerClub: p.soldTo || 'Outro Clube', fee: p.soldFee || p.price || 0 } : null);
       if(pt && pt.type === 'sale'){
         departedSales.push({ player: p, transfer: pt });
       } else if(pt && pt.type === 'loan_out'){
@@ -10558,7 +10593,36 @@ function processPendingTransfersOnWindowOpen(gameState = state){
         const buyerClub = transfer.buyerClub || 'novo clube';
         gameState.playerMoves[pKey] = buyerClub;
         gameState.playerMoves[norm(player.name)] = buyerClub;
-        gameState.lineup = (gameState.lineup || []).map(k => (k === pKey || k === player.name) ? null : k);
+        gameState.lineup = (gameState.lineup || []).map(k => (k === pKey || k === player.name || k === player.id || (player.id && k === String(player.id))) ? null : k);
+
+        // Feed mundial do mercado
+        gameState.marketWorldFeed = gameState.marketWorldFeed || [];
+        gameState.marketWorldFeed.unshift({
+          player: player.name,
+          pos: player.pos,
+          ovr: (typeof playerOverall === 'function') ? playerOverall(player) : 75,
+          from: gameState.club,
+          to: buyerClub,
+          fee: transfer.fee || transfer.price || 0,
+          date: gameState.date
+        });
+        if(gameState.marketWorldFeed.length > 30) gameState.marketWorldFeed = gameState.marketWorldFeed.slice(0, 30);
+
+        // Atualiza histórico de transferências
+        if(Array.isArray(gameState.transfers)){
+          const trRecord = gameState.transfers.find(t => (t.name === player.name || t.playerName === player.name || t.player === player.name) && t.pending);
+          if(trRecord){
+            trRecord.pending = false;
+            trRecord.finalizedDate = gameState.date;
+          }
+        }
+
+        player.pendingTransfer = null;
+        player.isSold = false;
+        delete player.soldTo;
+        delete player.soldFee;
+        delete player.soldDate;
+
         gameState.news.unshift(`⭐ TRANSFERÊNCIA OFICIALIZADA: Com a reabertura da janela de transferências, ${player.name} despediu-se do ${gameState.club} e apresentou-se oficialmente ao ${buyerClub}!`);
         if(typeof toast === 'function') toast(`✈️ Janela Aberta: ${player.name} se apresentou ao ${buyerClub}!`);
       });
@@ -10575,7 +10639,7 @@ function processPendingTransfersOnWindowOpen(gameState = state){
           isLoan: true,
           pendingTransfer: null
         });
-        gameState.lineup = (gameState.lineup || []).map(k => (k === pKey || k === player.name) ? null : k);
+        gameState.lineup = (gameState.lineup || []).map(k => (k === pKey || k === player.name || k === player.id || (player.id && k === String(player.id))) ? null : k);
         gameState.news.unshift(`🤝 EMPRÉSTIMO OFICIALIZADO: Com a janela aberta, ${player.name} apresentou-se ao ${buyerClub} para iniciar o período de empréstimo.`);
         if(typeof toast === 'function') toast(`🤝 Janela Aberta: ${player.name} apresentou-se ao ${buyerClub} por empréstimo!`);
       });
@@ -12487,6 +12551,9 @@ function startSeasonTransferWindow(saveState){
   saveState.transferWindowDay = 1;
   saveState.transferWindowHour = 0;
   saveState.transferWindowClosedForSeason = null;
+  if(typeof processPendingTransfersOnWindowOpen === 'function'){
+    processPendingTransfersOnWindowOpen(saveState);
+  }
 }
 
 function recoverJanuaryTransferWindow(saveState){
@@ -12542,9 +12609,31 @@ function getTransferWindowState(){
 }
 
 function isTransferWindowOpen(dateStr){
-  if(!state) return false;
-  if(state.freeTransferWindow) return true;
-  return Boolean(getTransferWindowState().active);
+  const st = (typeof state !== 'undefined' && state) ? state : ((typeof window !== 'undefined' && window.state) ? window.state : null);
+  if(st && st.freeTransferWindow) return true;
+  if(typeof getTransferWindowState === 'function' && getTransferWindowState().active) return true;
+
+  const dStr = dateStr || st?.date || st?.currentDate;
+  if(!dStr) return false;
+  const parts = String(dStr).split('-');
+  if(parts.length < 3) return false;
+  const year = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  const day = parseInt(parts[2], 10);
+
+  // Se a janela da pré-temporada foi deliberadamente fechada e ainda estamos na primeira metade do ano:
+  if(st && Number(st.transferWindowClosedForSeason) === year && m < 6){
+    return false;
+  }
+  // Janela 1 (Verão): 01/01 a 01/03 (inclusive)
+  if((m === 1) || (m === 2) || (m === 3 && day <= 1)){
+    return !st || Number(st.transferWindowClosedForSeason) !== year;
+  }
+  // Janela 2 (Inverno / Meio de ano): 01/06 a 01/08 (inclusive)
+  if((m === 6) || (m === 7) || (m === 8 && day <= 1)){
+    return true;
+  }
+  return false;
 }
 function _oldIsTransferWindowOpen(dateStr){
   if(state?.freeTransferWindow) return true;
@@ -12564,12 +12653,14 @@ function _oldIsTransferWindowOpen(dateStr){
   }
   return false;
 }
+window.isTransferWindowOpen = isTransferWindowOpen;
 
 function getTransferWindowInfo(dateStr){
-  if(state?.freeTransferWindow) {
+  const st = (typeof state !== 'undefined' && state) ? state : ((typeof window !== 'undefined' && window.state) ? window.state : null);
+  if(st?.freeTransferWindow) {
     return { open: true, text: 'Janela Aberta (Modo Livre)', nextOpenDate: 'Sempre Aberto', currentWindow: 'Livre' };
   }
-  const tw = getTransferWindowState();
+  const tw = (typeof getTransferWindowState === 'function') ? getTransferWindowState() : { active: false };
   if(tw.active){
     return {
       open: true,
@@ -12577,8 +12668,19 @@ function getTransferWindowInfo(dateStr){
       currentWindow: tw.isDeadlineDay ? 'Deadline Day' : `Dia ${tw.day} de 4`
     };
   }
-  const dateParts = String(dateStr || state.date || '').split('-').map(Number);
-  const year = dateParts[0] || Number(state.season) || new Date().getFullYear();
+  const dateOpen = isTransferWindowOpen(dateStr);
+  if(dateOpen){
+    const dStr = dateStr || st?.date || '2026-01-01';
+    const m = parseInt(String(dStr).split('-')[1], 10) || 1;
+    return {
+      open: true,
+      text: m <= 3 ? 'Janela de Verão Aberta (fecha em 01/03)' : 'Janela de Inverno Aberta (fecha em 01/08)',
+      nextOpenDate: m <= 3 ? '01/06' : '01/01',
+      currentWindow: m <= 3 ? 'Início de Temporada' : 'Meio de Temporada'
+    };
+  }
+  const dateParts = String(dateStr || st?.date || '').split('-').map(Number);
+  const year = dateParts[0] || Number(st?.season) || new Date().getFullYear();
   const month = dateParts[1] || 1;
   const nextOpen = month < 6 ? { year, month: 6 } : { year: year + 1, month: 1 };
   const nextOpenDate = `01/${String(nextOpen.month).padStart(2, '0')}/${nextOpen.year}`;
@@ -12606,6 +12708,7 @@ function _oldGetTransferWindowInfo(dateStr){
     return { open: false, text: 'Janela Fechada (reabre em 01/01)', nextOpenDate: '01/01', currentWindow: null };
   }
 }
+window.getTransferWindowInfo = getTransferWindowInfo;
 
 function teamFameScore(){
   if(!state) return 50;
@@ -14130,13 +14233,13 @@ function openPlayerContractRenewalModal(pk){
       p.morale = clamp((p.morale || 70) + 10, 0, 100);
       save();
       render();
-      closeActiveModal();
+      closeCustomModal();
       toast(`🎉 ${p.name} ACEITOU a renovação até ${p.contractUntil} por R$ ${p.wage.toLocaleString('pt-BR')}/mês!`);
     } else {
       p.morale = clamp((p.morale || 70) - 5, 10, 100);
       save();
       render();
-      closeActiveModal();
+      closeCustomModal();
       toast(`❌ ${p.name} RECUSOU a proposta (+${Math.round((wageFactor - 1)*100)}%)! O atleta ou seu agente exigem números maiores.`);
     }
   };
@@ -15340,6 +15443,7 @@ function migrate(s){
     s.sponsorOffers = offers.slice(1, 4);
   }
   ensureTvBroadcastContract(s);
+  if(typeof processClubMonthlyFinances === 'function') processClubMonthlyFinances(s, s.date);
 
   if(Array.isArray(s.teams)){
     s.teams.forEach(t=>{ if(!Array.isArray(t.form)) t.form = []; const c = clubByName(t.name); if(c && typeof strength === 'function') t.strength = strength(c); });
@@ -17034,20 +17138,12 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
           if(p.injuryDays <= 0){ delete p.injuryDays; delete p.injury; delete p.injuryDesc; state.news.unshift(`ALTA MÉDICA: ${p.name} recuperou-se da lesão.`); }
         }
       });
-      if(Array.isArray(state.squad)){
-        const departed = [];
-        state.squad = state.squad.filter(p => {
-          if(p && p.pendingTransfer && state.date >= (p.pendingTransfer.effectiveDate || '2025-07-01')){
-            departed.push(p);
-            return false;
-          }
-          return true;
-        });
-        departed.forEach(p => {
-          state.news = Array.isArray(state.news) ? state.news : [];
-          state.news.unshift(`TRANSFERÊNCIA OFICIALIZADA: ${p.name} apresentou-se oficialmente ao ${p.pendingTransfer.buyerClub || 'novo clube'}.`);
-        });
+      if(Array.isArray(state.squad) && typeof isTransferWindowOpen === 'function' && isTransferWindowOpen(state.date)){
+        if(typeof processPendingTransfersOnWindowOpen === 'function'){
+          processPendingTransfersOnWindowOpen(state);
+        }
       }
+      if(typeof processClubMonthlyFinances === 'function') processClubMonthlyFinances(state, nextDate);
       if(nextDate.endsWith('-01') && typeof processBankLoansOnRound === 'function') processBankLoansOnRound();
       if(nextDate.endsWith('-01') && typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function') window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(state);
       processCopaDoBrasilCalendar(state.date);
@@ -17413,24 +17509,31 @@ function ticketMoodDelta(){
 window.attendanceProjection = attendanceProjection;
 window.ticketMoodDelta = ticketMoodDelta;
 
-function totalSponsorMonthly(){
+function totalSponsorMonthly(targetState = state){
+  const st = targetState || state || (typeof window !== 'undefined' ? window.state : null);
+  if(!st) return 50000;
   let sum = 0;
-  if(state.sponsors?.master) sum += state.sponsors.master.monthly;
-  if(state.sponsors?.sleeves) sum += state.sponsors.sleeves.monthly;
-  if(state.sponsors?.back) sum += state.sponsors.back.monthly;
-  return Math.round((sum || 50000) * marketingBenefits().sponsorMultiplier);
+  if(st.sponsors?.master) sum += Number(st.sponsors.master.monthly) || 0;
+  if(st.sponsors?.sleeves) sum += Number(st.sponsors.sleeves.monthly) || 0;
+  if(st.sponsors?.back) sum += Number(st.sponsors.back.monthly) || 0;
+  const multiplier = typeof marketingBenefits === 'function' ? (marketingBenefits().sponsorMultiplier || 1) : 1;
+  return Math.round((sum || 50000) * multiplier);
 }
 
-function totalSponsorWinBonus(){
+function totalSponsorWinBonus(targetState = state){
+  const st = targetState || state || (typeof window !== 'undefined' ? window.state : null);
+  if(!st) return 10000;
   let sum = 0;
-  if(state.sponsors?.master) sum += state.sponsors.master.winBonus;
-  if(state.sponsors?.sleeves) sum += state.sponsors.sleeves.winBonus;
-  if(state.sponsors?.back) sum += state.sponsors.back.winBonus;
+  if(st.sponsors?.master) sum += Number(st.sponsors.master.winBonus) || 0;
+  if(st.sponsors?.sleeves) sum += Number(st.sponsors.sleeves.winBonus) || 0;
+  if(st.sponsors?.back) sum += Number(st.sponsors.back.winBonus) || 0;
   return sum || 10000;
 }
 
-function monthlyFacilityIncome(){
-  return Math.round((state.infrastructure.store?.level||1)*9000+(state.infrastructure.museum?.level||1)*4000);
+function monthlyFacilityIncome(targetState = state){
+  const st = targetState || state || (typeof window !== 'undefined' ? window.state : null);
+  if(!st) return 0;
+  return Math.round((st.infrastructure?.store?.level||1)*9000+(st.infrastructure?.museum?.level||1)*4000);
 }
 
 function bankLoanPaymentBreakdown(loan, payment){
@@ -17549,6 +17652,198 @@ function monthlyFinancialProjection(socioData = null){
   const monthlyExpenses = Object.values(expenses).reduce((sum, value) => sum + value, 0);
   const monthlyBalance = monthlyRevenue - monthlyExpenses;
   return { revenue, expenses, monthlyRevenue, monthlyExpenses, monthlyBalance, projectedClosingBalance: (Number(state.balance) || 0) + monthlyBalance, homeSample: recentHome.length };
+}
+
+/**
+ * REGRA INVIOLÁVEL DO SISTEMA FINANCEIRO MENSAL, TV E PATROCÍNIOS:
+ * Executa de forma atômica, contínua e retroativa o ciclo financeiro do clube:
+ * 1. A cota mensal da TV oficial contratada (ex: Globo) é creditada e subtraída de 'Quanto Ainda Falta Receber'.
+ * 2. As cotas mensais de patrocínio são creditadas e subtraem meses e valor restante do contrato.
+ * 3. Todas as contas mensais (folha do elenco, staff, olheiros, marketing, estádio e bancos) são quitadas.
+ * 4. Extrato transparente consolidado é enviado ao feed de notícias.
+ */
+function processClubMonthlyFinances(st, targetDate = st?.date){
+  if(!st) return;
+  const curDateStr = String(targetDate || st.date || '2026-01-01');
+  const [yearStr, monthStr] = curDateStr.split('-');
+  const curYear = parseInt(yearStr, 10) || Number(st.season) || 2026;
+  const curMonth = parseInt(monthStr, 10) || 1;
+
+  st.processedFinancialMonths = Array.isArray(st.processedFinancialMonths) ? st.processedFinancialMonths : [];
+
+  // Gera todos os meses desde o início da temporada atual até o mês corrente
+  const eligibleMonths = [];
+  for(let m = 1; m <= curMonth; m++){
+    const mStr = String(m).padStart(2, '0');
+    eligibleMonths.push(`${curYear}-${mStr}`);
+  }
+
+  const pendingMonths = eligibleMonths.filter(ym => !st.processedFinancialMonths.includes(ym));
+  if(pendingMonths.length === 0) return;
+
+  const tvContract = ensureTvBroadcastContract(st);
+  const socioData = typeof getSocioTorcedorMeta === 'function' ? getSocioTorcedorMeta(st) : { currentIncome: 50000 };
+
+  pendingMonths.forEach(ym => {
+    let monthTotalIncome = 0;
+    let monthTotalExpenses = 0;
+
+    // --- 1. RECEITAS MENSAIS ---
+    // A. Cota de Transmissão da TV Oficial (Globo, Amazon, Record, etc.)
+    if(tvContract){
+      const annualTotal = Number(tvContract.annualTotal) || 11000000;
+      let monthlyTv = Number(tvContract.monthly) || Math.round(annualTotal / 12);
+      if(tvContract.advancedTaken){
+        monthlyTv = Math.round(monthlyTv * 0.55);
+      }
+      if(monthlyTv > 0){
+        st.balance = (Number(st.balance) || 0) + monthlyTv;
+        st.income = (Number(st.income) || 0) + monthlyTv;
+        monthTotalIncome += monthlyTv;
+
+        tvContract.monthsPaid = (Number(tvContract.monthsPaid) || 0) + 1;
+        tvContract.totalPaidToClub = (Number(tvContract.totalPaidToClub) || 0) + monthlyTv;
+
+        st.news = Array.isArray(st.news) ? st.news : [];
+        st.news.unshift(`📺 Cota de Transmissão (${tvContract.name}): +${fmtMoney(monthlyTv)} creditada no caixa do clube (${ym}).`);
+      }
+    }
+
+    // B. Patrocínios Oficiais (Master, Mangas, Costas)
+    ['master', 'sleeves', 'back'].forEach(slot => {
+      const sp = st.sponsors?.[slot];
+      if(sp && Number(sp.monthly) > 0){
+        const spMonthly = Number(sp.monthly);
+        st.balance = (Number(st.balance) || 0) + spMonthly;
+        st.income = (Number(st.income) || 0) + spMonthly;
+        monthTotalIncome += spMonthly;
+
+        const curRemMonths = Number(sp.monthsRemaining ?? sp.contractMonthsRemaining ?? (Number(sp.years || sp.contractYears || 1) * 12));
+        sp.monthsRemaining = Math.max(0, curRemMonths - 1);
+        sp.contractMonthsRemaining = sp.monthsRemaining;
+        sp.monthsPaid = (Number(sp.monthsPaid) || 0) + 1;
+        sp.totalPaidToClub = (Number(sp.totalPaidToClub) || 0) + spMonthly;
+
+        st.news = Array.isArray(st.news) ? st.news : [];
+        st.news.unshift(`💰 Patrocínio (${sp.brand || sp.name || slot}): +${fmtMoney(spMonthly)} creditado no caixa (${ym}).`);
+      }
+    });
+
+    // C. Sócio-Torcedor Mensal
+    const socioIncome = Number(socioData.currentIncome) || 0;
+    if(socioIncome > 0){
+      st.balance = (Number(st.balance) || 0) + socioIncome;
+      st.income = (Number(st.income) || 0) + socioIncome;
+      monthTotalIncome += socioIncome;
+    }
+
+    // D. Naming Rights
+    if(st.namingRights && Number(st.namingRights.monthsRemaining) > 0){
+      const namingVal = Math.max(0, Number(state?.namingRights?.monthlyValue || st.namingRights.monthlyValue) || 0);
+      if(namingVal > 0){
+        st.balance = (Number(st.balance) || 0) + namingVal;
+        st.income = (Number(st.income) || 0) + namingVal;
+        monthTotalIncome += namingVal;
+        st.namingRights.monthsRemaining = Math.max(0, st.namingRights.monthsRemaining - 1);
+      }
+    }
+
+    // E. Estruturas e Bônus Administrativo
+    const adminBonus = Math.round(totalSponsorMonthly(st) * 0.03 * (st.infrastructure?.admin?.level || 1));
+    const facIncome = typeof monthlyFacilityIncome === 'function' ? monthlyFacilityIncome(st) : 0;
+    const structureExtras = adminBonus + facIncome;
+    if(structureExtras > 0){
+      st.balance = (Number(st.balance) || 0) + structureExtras;
+      st.income = (Number(st.income) || 0) + structureExtras;
+      monthTotalIncome += structureExtras;
+    }
+
+    // --- 2. DESPESAS MENSAIS (CONTAS DO CLUBE) ---
+    // A. Salários do Elenco
+    const squadPayroll = typeof totalMonthlyPayroll === 'function' ? totalMonthlyPayroll() : 0;
+    if(squadPayroll > 0){
+      st.balance = (Number(st.balance) || 0) - squadPayroll;
+      st.expense = (Number(st.expense) || 0) + squadPayroll;
+      monthTotalExpenses += squadPayroll;
+      st.news = Array.isArray(st.news) ? st.news : [];
+      st.news.unshift(`👥 Pagamento de Salários: Folha do elenco (-${fmtMoney(squadPayroll)}) quitada ref. ${ym}.`);
+    }
+
+    // B. Manutenção & Staff
+    const facilitiesExp = typeof totalFacilitiesMonthlyExpense === 'function' ? totalFacilitiesMonthlyExpense(st) : 0;
+    if(facilitiesExp > 0){
+      st.balance = (Number(st.balance) || 0) - facilitiesExp;
+      st.expense = (Number(st.expense) || 0) + facilitiesExp;
+      monthTotalExpenses += facilitiesExp;
+    }
+
+    // C. Salários dos Olheiros
+    const scoutExp = typeof getMonthlyScoutPayroll === 'function' ? getMonthlyScoutPayroll(st) : 0;
+    if(scoutExp > 0){
+      st.balance = (Number(st.balance) || 0) - scoutExp;
+      st.expense = (Number(st.expense) || 0) + scoutExp;
+      monthTotalExpenses += scoutExp;
+    }
+
+    // D. Marketing Mensal
+    const mktWeekly = Math.max(typeof MARKETING_MINIMUM_WEEKLY !== 'undefined' ? MARKETING_MINIMUM_WEEKLY : 36000, Number(st.marketingWeekly) || 36000);
+    const mktMonthly = mktWeekly * 4;
+    if(mktMonthly > 0){
+      st.balance = (Number(st.balance) || 0) - mktMonthly;
+      st.expense = (Number(st.expense) || 0) + mktMonthly;
+      monthTotalExpenses += mktMonthly;
+    }
+
+    // E. Parcelas de Obras do Estádio
+    if(st.stadiumRingData?.debt && st.stadiumRingData.debt.remaining > 0){
+      const inst = Math.min(st.stadiumRingData.debt.remaining, Number(st.stadiumRingData.debt.monthly) || 0);
+      if(inst > 0){
+        st.balance = (Number(st.balance) || 0) - inst;
+        st.debtPrincipalPaid = (Number(st.debtPrincipalPaid) || 0) + inst;
+        st.stadiumRingData.debt.remaining = Math.max(0, st.stadiumRingData.debt.remaining - inst);
+        st.stadiumRingData.debt.monthsLeft = Math.max(0, (Number(st.stadiumRingData.debt.monthsLeft) || 1) - 1);
+        monthTotalExpenses += inst;
+      }
+    }
+
+    // F. Parcelas Bancárias
+    if(window.AFM_Guards && typeof window.AFM_Guards.processMonthlyBankInstallments === 'function'){
+      try { window.AFM_Guards.processMonthlyBankInstallments(st, ym); } catch(e){}
+    }
+
+    // G. Dividendos aos Acionistas (SAF)
+    if(window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function'){
+      try { window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(st); } catch(e){}
+    }
+
+    // H. Salário do Treinador
+    if(window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.payMonthlyCoachSalary === 'function'){
+      try { window.AFM_LifeAndSharesPro.payMonthlyCoachSalary(st); } catch(e){}
+    } else {
+      const salary = Math.max(0, Number(st.managerSalary) || 9500);
+      st.managerMoney = (Number(st.managerMoney) || 0) + salary;
+      st.managerFinanceHistory = Array.isArray(st.managerFinanceHistory) ? st.managerFinanceHistory : [];
+      st.managerFinanceHistory.unshift({ date: st.date, desc: `Salário mensal de técnico (${st.club})`, amount: salary });
+    }
+
+    // I. Rotina de Treinamento CT e Desgaste
+    if(typeof applyMonthlyTrainingAndCommercial === 'function'){
+      try { applyMonthlyTrainingAndCommercial(); } catch(e){}
+    }
+    st.stadiumMaintenance = Math.max(10, (st.stadiumMaintenance || 90) - 2);
+
+    // Marca o mês como processado com segurança
+    st.processedFinancialMonths.push(ym);
+
+    // Notícia consolidada do fechamento
+    st.news = Array.isArray(st.news) ? st.news : [];
+    const netMonth = monthTotalIncome - monthTotalExpenses;
+    st.news.unshift(`📒 BALANÇO FINANCEIRO DE ${ym}: Receitas (+${fmtMoney(monthTotalIncome)}) | Despesas (-${fmtMoney(monthTotalExpenses)}) | Resultado: ${netMonth >= 0 ? '+' : ''}${fmtMoney(netMonth)}.`);
+    st.news = st.news.slice(0, 50);
+  });
+}
+if(typeof window !== 'undefined'){
+  window.processClubMonthlyFinances = processClubMonthlyFinances;
 }
 
 function processFitness(){
@@ -18155,6 +18450,26 @@ function finalizeRound(userRes, winners, isKO){
   // Checa fim de temporada
   const maxRounds = comp.rounds || (state.schedule?.length || 38);
   if(state.round >= maxRounds){
+    const proceedSeasonEnd = () => {
+      const pendingCompetitions = typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(state) : [];
+      const pos = position();
+      if(pendingCompetitions.length){
+        const next = pendingCompetitions[0];
+        state.news = Array.isArray(state.news) ? state.news : [];
+        state.news.unshift(`📅 TEMPORADA EM ANDAMENTO: o campeonato principal acabou, mas ainda falta ${next.name}${next.detail ? ` (${next.detail})` : ''}${next.date ? ` em ${formatDatePtBr(next.date)}` : ''}. A virada do ano ficará bloqueada até concluir todas as competições.`);
+        state.news = state.news.slice(0, 50);
+        setTimeout(() => { view = 'calendario'; save(); render(); toast(`Próxima competição pendente: ${next.name}.`); }, 400);
+      } else if(pos === 1){
+        setTimeout(() => {
+          showChampionTrophyCeremonyModal(comp, () => {
+            showEndOfSeasonModal();
+          });
+        }, 500);
+      } else {
+        setTimeout(showEndOfSeasonModal, 400);
+      }
+    };
+
     // Coletiva de imprensa pós-partida com 3 perguntas olhando o placar
     if(userRes && typeof openPostMatchInterviewModal === 'function'){
       const isHomeFinal = (userRes.h === state.club) || (typeof norm === 'function' && norm(userRes.h) === norm(state.club));
@@ -18163,26 +18478,10 @@ function finalizeRound(userRes, winners, isKO){
           gf: isHomeFinal ? userRes.hg : userRes.ag,
           ga: isHomeFinal ? userRes.ag : userRes.hg,
           opponent: isHomeFinal ? userRes.a : userRes.h
-        });
+        }, proceedSeasonEnd);
       }, 400);
-    }
-
-    const pendingCompetitions = typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(state) : [];
-    const pos = position();
-    if(pendingCompetitions.length){
-      const next = pendingCompetitions[0];
-      state.news = Array.isArray(state.news) ? state.news : [];
-      state.news.unshift(`📅 TEMPORADA EM ANDAMENTO: o campeonato principal acabou, mas ainda falta ${next.name}${next.detail ? ` (${next.detail})` : ''}${next.date ? ` em ${formatDatePtBr(next.date)}` : ''}. A virada do ano ficará bloqueada até concluir todas as competições.`);
-      state.news = state.news.slice(0, 50);
-      setTimeout(() => { view = 'calendario'; save(); render(); toast(`Próxima competição pendente: ${next.name}.`); }, 400);
-    } else if(pos === 1){
-      setTimeout(() => {
-        showChampionTrophyCeremonyModal(comp, () => {
-          showEndOfSeasonModal();
-        });
-      }, 700);
     } else {
-      setTimeout(showEndOfSeasonModal, 600);
+      proceedSeasonEnd();
     }
   }
 
@@ -18383,7 +18682,7 @@ function checkIncomingPlayerBids(){
     const candidates = state.squad.filter(p => {
       const ovr = playerOverall(p);
       return (lineupKeys.includes(playerKey(p)) || ovr >= 80 || Number(p.goals) >= 8 || Number(p.averageRating || p.rating) >= 7.2)
-        && !p.injuryDays && !p.injuredRounds;
+        && !p.injuryDays && !p.injuredRounds && !p.pendingTransfer && !p.isSold;
     }).sort((a,b) => {
       const score = p => playerOverall(p) * 2 + Math.min(24, Number(p.goals) || 0) + Math.max(0, Number(p.averageRating || p.rating) - 6) * 5 + ((Number(p.age) || 25) >= 29 ? 4 : 0);
       return score(b) - score(a);
@@ -18427,7 +18726,7 @@ function checkIncomingPlayerBids(){
   // Propostas espontâneas comuns: apenas para atletas na lista de venda ou com contrato acabando (<= 6m)
   const eligibleCandidates = (state.squad || []).filter(p => {
     const k = playerKey(p);
-    return ((state.transferListed || []).includes(k) || isPlayerContractExpiringSoon(p, state)) && !p.isLoan && !p.injuryDays && !p.injuredRounds;
+    return ((state.transferListed || []).includes(k) || isPlayerContractExpiringSoon(p, state)) && !p.isLoan && !p.injuryDays && !p.injuredRounds && !p.pendingTransfer && !p.isSold;
   });
   if(!eligibleCandidates.length) return;
   const lineupKeys = []; const starters = eligibleCandidates;
@@ -18531,6 +18830,9 @@ function openIncomingBidModal(selectedBidId){
   }
 
   const bidsCount = state.incomingBids.length;
+  const winInfo = (typeof getTransferWindowInfo === 'function') ? getTransferWindowInfo(state.date) : { open: false };
+  const isWindowOpen = Boolean(winInfo.open || state.freeTransferWindow || (state.isPreSeason && Number(state.preSeasonDays) > 0) || (typeof isTransferWindowOpen === 'function' && isTransferWindowOpen(state.date)));
+
   const counterRelationChance = bid => {
     const requestedPct = Number(bid.requestedSellOnPct ?? bid.sellOnPct ?? 0);
     const currentPct = Number(bid.sellOnPct) || 0;
@@ -18561,6 +18863,17 @@ function openIncomingBidModal(selectedBidId){
               ? `💎 PROPOSTA FORA DO PADRÃO: o clube oferece ${firstBid.salaryMultiplier}× seu salário atual (${fmtMoney(playerSalary(p))} → ${fmtMoney(firstBid.offeredSalary)}) e ${fmtMoney(firstBid.fee)} pelo passe. Se a diretoria recusar, o jogador ficará insatisfeito temporariamente.`
               : `Chegou uma proposta timbrada com oferta oficial irrevogável na mesa da diretoria.`}
           </div>
+        </div>
+      </div>
+
+      <!-- Status da Janela de Transferências e Nova Regra de Vendas -->
+      <div style="background:${isWindowOpen ? 'rgba(34,197,94,0.12)' : 'rgba(234,179,8,0.12)'};border:1px solid ${isWindowOpen ? 'rgba(34,197,94,0.35)' : 'rgba(234,179,8,0.35)'};border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">${isWindowOpen ? '🟢' : '🔒'}</span>
+        <div style="font-size:11px;color:#fff;line-height:1.4">
+          <b style="color:${isWindowOpen ? '#4ade80' : '#fde047'};text-transform:uppercase;letter-spacing:0.5px">${isWindowOpen ? 'Janela de Transferências Aberta' : 'Regra Oficial: Janela de Transferências Fechada'}</b><br>
+          ${isWindowOpen
+            ? 'Ao aceitar a proposta, a venda é concluída e o atleta se transferirá imediatamente ao clube comprador.'
+            : 'O valor da venda entrará imediatamente no caixa do clube. O atleta receberá a <b>tag de VENDIDO</b> e continuará jogando pela sua equipe até a reabertura da janela de transferências, quando se apresentará ao novo clube!'}
         </div>
       </div>
 
@@ -18604,7 +18917,7 @@ function openIncomingBidModal(selectedBidId){
             <!-- Botões de Ação para cada Proposta -->
             <div style="display:grid;grid-template-columns:1.3fr 1.1fr 0.8fr;gap:8px;margin-top:2px">
               <button class="btn primary btnAcceptSingleBid" data-id="${b.id}" style="background:#16a34a;border:none;font-weight:900;padding:10px 8px;font-size:12px;border-radius:8px;cursor:pointer">
-                ✅ Aceitar e Vender
+                ${isWindowOpen ? '✅ Aceitar e Vender Agora' : '🏷️ Aceitar Venda (Sai na Janela)'}
               </button>
               <button class="btn btnCounterSingleBid" data-id="${b.id}" ${b.counterOffered ? 'disabled style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3);border:none;padding:10px 8px;font-size:12px;border-radius:8px;cursor:not-allowed"' : 'style="background:#7c3aed;color:#fff;border:none;font-weight:900;padding:10px 8px;font-size:12px;border-radius:8px;cursor:pointer"'}>
                 ${b.counterOffered ? '✓ Contraproposta aceita' : (b.offerType === 'arabic' ? '📈 Pedir +20%' : '🤝 Negociar oferta + cláusula')}
@@ -18685,7 +18998,60 @@ function openIncomingBidModal(selectedBidId){
         });
       }
 
-      // Feed mundial do mercado
+      const winInfo = (typeof getTransferWindowInfo === 'function') ? getTransferWindowInfo(state.date) : { open: false };
+      const isWindowOpen = Boolean(winInfo.open || state.freeTransferWindow || (state.isPreSeason && Number(state.preSeasonDays) > 0) || (typeof isTransferWindowOpen === 'function' && isTransferWindowOpen(state.date)));
+
+      // Remove TODAS as propostas pendentes para este jogador (já que foi vendido!)
+      state.incomingBids = (state.incomingBids || []).filter(x => x.playerKey !== b.playerKey);
+      state.transferListed = (state.transferListed || []).filter(k => k !== b.playerKey);
+      state.loanListed = (state.loanListed || []).filter(k => k !== b.playerKey);
+      if(state.transferOffers) delete state.transferOffers[b.playerKey];
+      if(state.loanOffers) delete state.loanOffers[b.playerKey];
+
+      if(!isWindowOpen){
+        // FORA DA JANELA: Marca a venda, credita o valor e o atleta fica com a tag de VENDIDO jogando até a janela abrir
+        playerToSell.pendingTransfer = {
+          type: 'sale',
+          buyerClub: b.club,
+          sellerClub: state.club,
+          date: state.date,
+          fee: b.fee,
+          price: b.fee,
+          sellOnPct: finalSellOnPct,
+          offerType: b.offerType || 'millionaire',
+          salaryMultiplier: b.salaryMultiplier || 1,
+          offeredSalary: b.offeredSalary || 0
+        };
+        playerToSell.isSold = true;
+        playerToSell.soldTo = b.club;
+        playerToSell.soldDate = state.date;
+        playerToSell.soldFee = b.fee;
+
+        state.transfers = state.transfers || [];
+        state.transfers.unshift({
+          type: 'out',
+          name: playerToSell.name,
+          from: state.club,
+          to: b.club,
+          value: b.fee,
+          date: state.date,
+          pending: true
+        });
+
+        state.news.unshift(b.offerType === 'arabic'
+          ? `💎 NEGÓCIO HISTÓRICO AGENDADO: ${playerToSell.name} foi vendido ao ${b.club} por ${fmtMoney(b.fee)} (oferta de ${b.transferMultiplier}× o valor de mercado). O atleta continuará no ${state.club} com a tag de VENDIDO e só se apresentará ao novo clube na reabertura da janela de transferências!`
+          : `🤝 VENDA AGENDADA: ${playerToSell.name} foi vendido ao ${b.club} por ${fmtMoney(b.fee)} (+${finalSellOnPct}% de venda futura). O jogador defenderá o ${state.club} com a tag de VENDIDO até a abertura oficial da janela de transferências!`);
+        state.news = state.news.slice(0, 50);
+
+        closeCustomModal();
+        save();
+        renderHomeBidsBanner();
+        render();
+        toast(`🏷️ Venda acordada! ${fmtMoney(b.fee)} no caixa. ${playerToSell.name} jogará pelo seu clube com a tag de VENDIDO até a reabertura da janela!`);
+        return;
+      }
+
+      // COM A JANELA ABERTA: O atleta se transfere imediatamente
       state.marketWorldFeed = state.marketWorldFeed || [];
       state.marketWorldFeed.unshift({
         player: playerToSell.name,
@@ -18698,12 +19064,25 @@ function openIncomingBidModal(selectedBidId){
       });
       state.marketWorldFeed = state.marketWorldFeed.slice(0, 30);
 
+      state.transfers = state.transfers || [];
+      state.transfers.unshift({
+        type: 'out',
+        name: playerToSell.name,
+        from: state.club,
+        to: b.club,
+        value: b.fee,
+        fee: b.fee,
+        date: state.date
+      });
+
+      state.playerMoves = state.playerMoves || {};
+      state.playerMoves[b.playerKey] = b.club;
+      state.playerMoves[norm(playerToSell.name)] = b.club;
+
       // Remove jogador do elenco e da escalação
       state.squad = state.squad.filter(x => playerKey(x) !== b.playerKey);
       state.lineup = (state.lineup || []).filter(k => k !== b.playerKey);
-
-      // Remove TODAS as propostas pendentes para este jogador (já que foi vendido!)
-      state.incomingBids = (state.incomingBids || []).filter(x => x.playerKey !== b.playerKey);
+      if(typeof optimizeLineup === 'function') optimizeLineup();
 
       state.news.unshift(b.offerType === 'arabic'
         ? `💎 NEGÓCIO HISTÓRICO: ${playerToSell.name} foi vendido ao ${b.club} por ${fmtMoney(b.fee)} (oferta de ${b.transferMultiplier}× o valor de mercado). Salário prometido ao atleta: ${fmtMoney(b.offeredSalary)}/mês.`
@@ -19166,6 +19545,9 @@ function advanceTransferWindowDay(){
     }
     if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
       try { window.AFM_LifeAndSharesPro.processRoundTurn(state); } catch(_){}
+    }
+    if(typeof processPendingTransfersOnWindowOpen === 'function'){
+      processPendingTransfersOnWindowOpen(state);
     }
     save();
     render();
@@ -25145,12 +25527,24 @@ function openCustomModal(title, bodyHtml, onConfirm, confirmText='Confirmar', sh
 function closeCustomModal(triggerOnClose = true){
   const cb = window.__afmCustomModalOnClose;
   window.__afmCustomModalOnClose = null;
-  const m = $('#appCustomModal');
+  const m = $('#appCustomModal') || document.getElementById('appCustomModal');
   if(m) m.remove();
   if(triggerOnClose && typeof cb === 'function'){
     try { cb(); } catch(err){ console.warn('Error in custom modal onClose:', err); }
   }
 }
+window.closeCustomModal = closeCustomModal;
+
+function closeActiveModal(triggerOnClose = true){
+  if(typeof closeCustomModal === 'function') closeCustomModal(triggerOnClose);
+  const m = document.getElementById('appCustomModal');
+  if(m) m.remove();
+  const backdrops = document.querySelectorAll('.modal-overlay, .modal-backdrop');
+  backdrops.forEach(b => {
+    try { b.remove(); } catch(e) {}
+  });
+}
+window.closeActiveModal = closeActiveModal;
 
 // -------------------------------------------------------------
 // CATEGORIA DE BASE & MARKETING - MODAIS E AÇÕES
@@ -26836,13 +27230,17 @@ function openPlayerTransferModal(key){
           wage: offer.wage,
           contractYears: offer.contractYears
         };
+        p.isSold = true;
+        p.soldTo = offer.buyer;
+        p.soldDate = state.date;
+        p.soldFee = offer.price;
         state.balance += offer.price;
         state.income = (state.income || 0) + offer.price;
         state.transferListed = (state.transferListed||[]).filter(k=>k!==actualKey);
         delete state.transferOffers[actualKey];
         delete state.loanOffers[actualKey];
         state.transfers.unshift({type:'out', name:p.name, from:state.club, to:offer.buyer, value:offer.price, date:state.date, pending:true});
-        state.news.unshift(`✈️ ACORDO FECHADO: ${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)} (${sellOnPct}% na revenda futura). O atleta continuará jogando pelo ${state.club} até a abertura da janela de transferências.`);
+        state.news.unshift(`✈️ ACORDO FECHADO: ${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)} (${sellOnPct}% na revenda futura). O atleta continuará no ${state.club} com a tag de VENDIDO até a abertura oficial da janela de transferências.`);
 
         state.futureSaleClauses = state.futureSaleClauses || [];
         state.futureSaleClauses.push({
@@ -26858,7 +27256,7 @@ function openPlayerTransferModal(key){
         save();
         closeCustomModal();
         render();
-        toast(`✈️ Venda acordada! ${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)}. Ele jogará pelo seu time até a abertura da janela.`);
+        toast(`✈️ Venda acordada! ${p.name} foi vendido ao ${offer.buyer} por ${fmtMoney(offer.price)}. Ele jogará pelo seu time com a tag de VENDIDO até a abertura da janela.`);
         return;
       }
 
@@ -26987,7 +27385,7 @@ function quickSellSquadPlayer(key){
   const buyer = otherClubs[hashStr(actualKey + (state.round||0)) % otherClubs.length]?.name || 'Ceilândia';
 
   if(!isWindowOrPreSeason){
-    const confirmPreSell = confirm(`A janela está fechada! Deseja realizar a VENDA RÁPIDA de ${p.name} para o ${buyer} por ${fmtMoney(quickPrice)} (80% do valor de mercado à vista)?\n\nO dinheiro entrará no caixa imediatamente e o jogador defenderá o ${state.club} até a abertura oficial da janela.`);
+    const confirmPreSell = confirm(`A janela está fechada! Deseja realizar a VENDA RÁPIDA de ${p.name} para o ${buyer} por ${fmtMoney(quickPrice)} (80% do valor de mercado à vista)?\n\nO dinheiro entrará no caixa imediatamente e o jogador defenderá o ${state.club} com a tag de VENDIDO até a abertura oficial da janela.`);
     if(!confirmPreSell) return;
 
     p.pendingTransfer = {
@@ -26998,6 +27396,10 @@ function quickSellSquadPlayer(key){
       price: quickPrice,
       sellOnPct: 20
     };
+    p.isSold = true;
+    p.soldTo = buyer;
+    p.soldDate = state.date;
+    p.soldFee = quickPrice;
     state.balance += quickPrice;
     state.income = (state.income || 0) + quickPrice;
     state.transferListed = (state.transferListed||[]).filter(k => k !== actualKey);
@@ -31451,7 +31853,7 @@ function squadPage(){
                 <button type="button" class="btn btn-lupa-details btn-lupa-squad" data-key="${esc(playerKey(p))}" onclick="if(window.AFM_MarketLupaAndAging)window.AFM_MarketLupaAndAging.openPlayerDetails(this)" title="Ver ficha técnica e atributos reais de ${esc(p.name)}" style="background:#3b1d7a;color:#fff;border:1px solid #a78bfa;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:12px;line-height:1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(124,58,237,0.3);flex-shrink:0;">🔍</button>
                 ${p.isLoan ? `<button class="btn btnManageLoanRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">🤝 Negociar c/ detentor</button>` : `
                   <button class="btn btnRenewContractRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">📝 Renovar contrato</button>
-                  <button class="btn open-transfer-modal ${p.pendingTransfer?'warn':isPlayerTransferListed(p)?'warn':isPlayerLoanListed(p)?'primary':''}" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">${p.pendingTransfer ? (p.pendingTransfer.type==='loan_out'?'🤝 Empréstimo Agendado':'✈️ Venda Agendada') : isPlayerTransferListed(p)?'🏷️ Gerenciar Venda':isPlayerLoanListed(p)?'🤝 Gerenciar Empréstimo':'📄 Propostas / Vender'}</button>
+                  <button class="btn open-transfer-modal ${(p.pendingTransfer||p.isSold)?'warn':isPlayerTransferListed(p)?'warn':isPlayerLoanListed(p)?'primary':''}" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">${(p.pendingTransfer||p.isSold) ? (p.pendingTransfer?.type==='loan_out'?'🤝 Empréstimo Agendado':'🏷️ Venda Agendada (Janela)') : isPlayerTransferListed(p)?'🏷️ Gerenciar Venda':isPlayerLoanListed(p)?'🤝 Gerenciar Empréstimo':'📄 Propostas / Vender'}</button>
                 `}
               </div>
                 </td>
@@ -33763,9 +34165,11 @@ function renderTvBroadcastCard(st){
 
   const act = st.tvContract1Year;
   const annualTotal = Number(act.annualTotal) || Math.round(baseAnnual * 1.25);
+  const monthlyQuota = Number(act.monthly) || Math.round(annualTotal / 12);
   const advancedAmount = Math.max(0, Number(act.advancedAmount) || (act.advancedTaken ? Math.round(annualTotal * 0.45) : 0));
   const advancedPaid = Math.max(0, Number(act.advancedPaid) || 0);
-  const remainingToReceive = Math.max(0, annualTotal - advancedAmount);
+  const totalPaidMonthly = Math.max(0, Number(act.totalPaidToClub) || ((Number(act.monthsPaid) || 0) * monthlyQuota));
+  const remainingToReceive = Math.max(0, annualTotal - advancedAmount - totalPaidMonthly);
   const breakFee30 = Math.round(annualTotal * 0.30);
 
   const proposals = TV_COMPANIES.filter(co => co.id !== act.id);
@@ -33807,6 +34211,7 @@ function renderTvBroadcastCard(st){
         <div style="background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
           <div class="small muted" style="font-size:11px">⏳ Quanto Ainda Falta Receber</div>
           <b style="color:#38bdf8;font-size:15px;display:block;margin-top:4px">${fmtMoney(remainingToReceive)}</b>
+          <div class="small muted" style="font-size:10px;margin-top:2px">${Number(act.monthsPaid) || 0} de 12 parcelas recebidas</div>
         </div>
         <div style="background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:10px;border:1px solid rgba(239,68,68,0.25)">
           <div class="small muted" style="font-size:11px">⚠️ Multa Rescisória de 30%</div>
@@ -33858,6 +34263,8 @@ function renderTvBroadcastCard(st){
 
 function officePage(){
   ensureClubSponsors(state);
+  ensureTvBroadcastContract(state);
+  if(typeof processClubMonthlyFinances === 'function') processClubMonthlyFinances(state, state.date);
   if (!Array.isArray(state.bankLoans)) state.bankLoans = Array.isArray(state.bankLoans?.activeLoans) ? state.bankLoans.activeLoans : [];
   const socioData = getSocioTorcedorMeta();
   const finance = monthlyFinancialProjection(socioData);
@@ -33874,6 +34281,9 @@ function officePage(){
     const sponsor = state.sponsors?.[slot];
     const active = Boolean(sponsor?.brand || sponsor?.name);
     const endSeason = Number(sponsor?.contractEndSeason);
+    const contractYears = Math.max(1, Number(sponsor?.contractYears || sponsor?.years) || 1);
+    const monthsRemaining = active ? Math.max(0, Number(sponsor?.monthsRemaining ?? sponsor?.contractMonthsRemaining ?? (contractYears * 12))) : 0;
+    const remainingVal = active ? Math.round((Number(sponsor.monthly) || 0) * monthsRemaining) : 0;
     return `<div class="card sponsor-card">
       <div>
         <span class="sponsor-badge" style="background:${badgeBg};color:${badgeColor}">${label}</span>
@@ -33883,7 +34293,7 @@ function officePage(){
       <div style="margin-top:14px">
         <div>Mensal: <b class="good">${fmtMoney(active ? sponsor.monthly || 0 : 0)}/mês</b></div>
         <div class="small muted">+ ${fmtMoney(active ? sponsor.winBonus ?? sponsor.bonus ?? 0 : 0)} por vitória</div>
-        <div class="small ${active ? 'muted' : 'good'}" style="margin-top:5px">${active && Number.isFinite(endSeason) ? `Contrato até o fim de ${endSeason}` : active ? 'Contrato ativo' : 'Aguardando nova assinatura'}</div>
+        <div class="small ${active ? 'good' : 'muted'}" style="margin-top:5px;font-size:11px">${active ? `Contrato ativo até ${endSeason || (state.season + contractYears - 1)} • Restam ${monthsRemaining} meses (${fmtMoney(remainingVal)} a receber)` : 'Aguardando nova assinatura'}</div>
       </div>
     </div>`;
   }).join('');
@@ -33927,6 +34337,7 @@ function officePage(){
         <div><b style="color:#fff;font-size:13px;text-transform:uppercase">📉 Despesas e parcelas mensais</b><div class="small muted">O principal das dívidas é mostrado como parcela de caixa, separado da despesa operacional.</div></div>
         <span class="pill warn" style="font-size:10px;font-weight:900">SAÍDAS ESTIMADAS</span>
       </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;font-size:12px">
         ${(() => {
           const isClubSaf = typeof window.isClubSaf === 'function' ? window.isClubSaf(state) : (Boolean(state.clubIsSaf) || Boolean((state.club || '').match(/\bsaf\b/i)));
           const divExpense = isClubSaf && typeof window !== 'undefined' && window.AFM_LifeAndSharesPro?.calculateMonthlyClubDividendExpense

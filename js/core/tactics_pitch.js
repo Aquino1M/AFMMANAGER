@@ -87,16 +87,19 @@ function renderPitchPlayerPill(player, slot = {}, opts = {}) {
   const stClass = stamina >= 75 ? 'stamina-good' : stamina >= 50 ? 'stamina-warn' : 'stamina-tired';
   const shortName = player ? (player.name.split(' ').pop() || player.name) : 'Vazio';
   const customClass = opts.customClass || '';
+  const pt = player ? ((typeof getPlayerPendingTransfer === 'function') ? getPlayerPendingTransfer(player) : (player.pendingTransfer || (player.isSold ? { type: 'sale' } : null))) : null;
+  const isSoldPill = pt && (pt.type === 'sale' || player?.isSold);
 
   return `
     <div class="pitch-player-pill ${isSelected ? 'selected selected-glow' : ''} ${customClass}"
-         style="left:${x}%;top:${y}%;"
+         style="left:${x}%;top:${y}%;position:absolute;"
          data-slot-index="${i}"
          data-slot-role="${escHtml(role)}"
          data-player-key="${escHtml(pk)}"
          data-starterkey="${escHtml(pk)}"
          draggable="true"
-         title="${player ? `${escHtml(player.name)} (${escHtml(pos)}) • OVR ${ovr}` : 'Slot Vazio'}">
+         title="${player ? `${escHtml(player.name)} (${escHtml(pos)}) • OVR ${ovr}${isSoldPill ? ' [🏷️ VENDIDO - Aguardando Janela]' : ''}` : 'Slot Vazio'}">
+      ${isSoldPill ? `<span class="pill-sold-badge" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 0 6px #ef4444;z-index:4;border:1px solid #fff" title="🏷️ VENDIDO (Aguardando Janela)">🏷️</span>` : ''}
       <span class="pill-pos">${escHtml(pos)}</span>
       <span class="pill-name">${escHtml(shortName)}</span>
       <span class="pill-ovr">${ovr}</span>
