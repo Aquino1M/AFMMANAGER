@@ -64,14 +64,13 @@
       addMesh(model, new THREE.BoxGeometry(0.22, 0.055, 0.34), bootAccent, x, 0.055, 0.055);
       addMesh(model, new THREE.BoxGeometry(0.21, 0.095, 0.33), boot, x, 0.12, 0.07);
       for(let i = -1; i <= 1; i++) addMesh(model, new THREE.ConeGeometry(0.018, 0.04, 5), bootAccent, x + i * 0.065, 0.018, 0.14);
-      addLimb(model, v(x, 0.2, 0), v(x, 0.79, 0), 0.082, white);
-      addMesh(model, new THREE.SphereGeometry(0.082, 10, 8), white, x, 0.77, 0);
+      addMesh(model, new THREE.BoxGeometry(0.19, 0.61, 0.2), white, x, 0.49, 0);
       addLimb(model, v(x, 0.78, 0), v(x, 1.02, 0), 0.095, skin);
     }
 
     // Calção e camisa listrada verde e branca.
     addMesh(model, new THREE.BoxGeometry(0.49 * width, 0.28, 0.31), kitShorts, 0, 1.03, 0);
-    addMesh(model, new THREE.CylinderGeometry(0.29 * width, 0.39 * width, 0.72, 12), kitPrimary, 0, 1.54, 0);
+    addMesh(model, new THREE.BoxGeometry(0.58 * width, 0.72, 0.34), kitPrimary, 0, 1.54, 0);
     addMesh(model, new THREE.BoxGeometry(0.12 * width, 0.67, 0.018), kitSecondary, -0.12 * width, 1.54, 0.36);
     addMesh(model, new THREE.BoxGeometry(0.12 * width, 0.67, 0.018), kitSecondary, 0.12 * width, 1.54, 0.36);
     addMesh(model, new THREE.BoxGeometry(0.37 * width, 0.035, 0.02), kitSecondary, 0, 1.24, 0.37);
@@ -82,7 +81,7 @@
       const shoulder = v(side * 0.34 * width, 1.82, 0);
       const elbow = v(side * 0.48 * width, 1.47, 0.02);
       const wrist = v(side * 0.5 * width, 1.2, 0.08);
-      addLimb(model, shoulder, elbow, 0.115, white);
+      addMesh(model, new THREE.BoxGeometry(0.2, 0.48, 0.25), kitPrimary, side * 0.42 * width, 1.66, 0);
       addLimb(model, elbow, wrist, 0.076, skin);
       addMesh(model, new THREE.SphereGeometry(0.078, 10, 8), skin, wrist.x, wrist.y - 0.035, wrist.z + 0.015);
     }
@@ -139,7 +138,7 @@
       nicknameCanvas.width = 512; nicknameCanvas.height = 96;
       const nicknameCtx = nicknameCanvas.getContext('2d');
       if(nicknameCtx){
-        nicknameCtx.fillStyle = '#fff'; nicknameCtx.font = '900 58px system-ui';
+        nicknameCtx.fillStyle = '#111827'; nicknameCtx.font = '900 58px system-ui';
         nicknameCtx.textAlign = 'center'; nicknameCtx.textBaseline = 'middle';
         nicknameCtx.fillText(String(options.nickname || options.name || '').toUpperCase().slice(0, 14), 256, 48);
         const name = addMesh(model, new THREE.PlaneGeometry(0.54, 0.1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(nicknameCanvas), transparent: true }), 0, 1.69, -0.367);
