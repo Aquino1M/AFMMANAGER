@@ -1168,10 +1168,11 @@
     switch(style){
       case 'Raspado':
         return isBack ? `
-          <rect x="94" y="36" width="52" height="12" rx="4" fill="${color}" opacity="0.9" />
+          <rect x="94" y="36" width="52" height="12" rx="4" fill="${color}" stroke="#334155" stroke-width="1.2" />
+          <path d="M 101 40h38 M 101 44h38" stroke="#334155" stroke-width=".8" opacity=".42" />
         ` : `
-          <path d="M 94 44 Q 120 30 146 44 L 146 38 Q 120 26 94 38 Z" fill="${color}" />
-          <rect x="95" y="36" width="50" height="6" rx="2" fill="${color}" opacity="0.85" />
+          <path d="M 94 44 Q 120 30 146 44 L 146 38 Q 120 26 94 38 Z" fill="${color}" stroke="#334155" stroke-width="1.2" />
+          <path d="M 102 39q8-5 16-5 M 124 34q9 1 14 6" fill="none" stroke="#334155" stroke-width=".9" opacity=".45" />
         `;
 
       case 'Fade':
@@ -1179,10 +1180,11 @@
           <rect x="95" y="34" width="50" height="18" rx="5" fill="${color}" />
           <rect x="94" y="44" width="52" height="8" rx="2" fill="${color}" opacity="0.45" />
         ` : `
-          <rect x="95" y="34" width="50" height="12" rx="4" fill="${color}" />
-          <path d="M 94 46 Q 120 38 146 46 L 146 34 L 94 34 Z" fill="${color}" />
+          <rect x="95" y="34" width="50" height="12" rx="4" fill="${color}" stroke="#334155" stroke-width="1.2" />
+          <path d="M 94 46 Q 120 38 146 46 L 146 34 L 94 34 Z" fill="${color}" stroke="#334155" stroke-width="1.2" />
           <rect x="94" y="42" width="6" height="8" rx="2" fill="${color}" opacity="0.45" />
           <rect x="140" y="42" width="6" height="8" rx="2" fill="${color}" opacity="0.45" />
+          <path d="M 101 39h38 M 105 42h30" stroke="#334155" stroke-width=".8" opacity=".35" />
           <line x1="97" y1="45" x2="103" y2="44" stroke="#ffffff" stroke-width="1.2" opacity="0.9" />
         `;
 
@@ -1198,10 +1200,15 @@
 
       case 'Black power':
         return `
-          <circle cx="120" cy="38" r="28" fill="${color}" />
-          <circle cx="102" cy="45" r="16" fill="${color}" />
-          <circle cx="138" cy="45" r="16" fill="${color}" />
-          <rect x="96" y="32" width="48" height="14" fill="${color}" />
+          <path d="M 96 48 Q 91 41 96 35 Q 98 26 107 25 Q 112 17 121 21 Q 131 18 136 27 Q 146 29 145 39 Q 150 46 143 51 L 140 54 L 100 54 Z" fill="${color}" stroke="#334155" stroke-width="1.5" />
+          <g fill="none" stroke="#334155" stroke-width="1.15" opacity=".56">
+            <path d="M 99 37q4-7 8 0t8 0t8 0t8 0t8 0t7 0" />
+            <path d="M 98 44q4-7 8 0t8 0t8 0t8 0t8 0t7 0" />
+          </g>
+          <g fill="${color}" stroke="#334155" stroke-width="1">
+            <circle cx="101" cy="31" r="4"/><circle cx="112" cy="25" r="4"/><circle cx="124" cy="25" r="4"/><circle cx="136" cy="31" r="4"/>
+            <circle cx="96" cy="40" r="4"/><circle cx="108" cy="36" r="4"/><circle cx="120" cy="36" r="4"/><circle cx="132" cy="36" r="4"/><circle cx="144" cy="40" r="4"/>
+          </g>
         `;
 
       case 'Tranças':
@@ -1232,7 +1239,7 @@
 
       case 'Franja':
         return isBack ? `
-          <rect x="94" y="34" width="52" height="20" rx="5" fill="${color}" />
+          <rect x="94" y="34" width="52" height="20" rx="5" fill="${color}" stroke="#334155" stroke-width="1.2" />
         ` : `
           <rect x="94" y="34" width="52" height="10" rx="3" fill="${color}" />
           <path d="M 94 36 Q 110 34 130 42 L 126 50 Q 108 42 94 44 Z" fill="${color}" />
@@ -1254,8 +1261,9 @@
         return isBack ? `
           <rect x="94" y="34" width="52" height="20" rx="6" fill="${color}" />
         ` : `
-          <rect x="94" y="34" width="52" height="12" rx="4" fill="${color}" />
-          <path d="M 94 46 Q 120 38 146 46 L 146 34 L 94 34 Z" fill="${color}" />
+          <rect x="94" y="34" width="52" height="12" rx="4" fill="${color}" stroke="#334155" stroke-width="1.2" />
+          <path d="M 94 46 Q 120 38 146 46 L 146 34 L 94 34 Z" fill="${color}" stroke="#334155" stroke-width="1.2" />
+          <path d="M 102 37q8-4 16-2 M 124 35q9 0 14 4" fill="none" stroke="#334155" stroke-width=".9" opacity=".42" />
         `;
     }
   }
