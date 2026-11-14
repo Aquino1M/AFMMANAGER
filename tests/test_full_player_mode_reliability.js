@@ -76,6 +76,24 @@ console.log('✓ XP legado acima do limite é convertido em nível e pontos uma 
 const playerUiJs = fs.readFileSync('js/player/player_mode_ui.js', 'utf8');
 eval(playerUiJs);
 console.log('✓ player_mode_ui.js carregado com sucesso.');
+window.state = {
+  gameMode: 'player', club: 'Manaus', date: '2026-01-01', userSlot: 2,
+  controlledPlayerId: 'missing-athlete', squad: [],
+  playerCareerState: { athleteName: 'Atleta Recuperado', pos: 'ATA', athleteOvr: 35, personalBank: 800 }, news: []
+};
+const previousCurrentMatch = window.getActualCurrentMatch;
+window.getActualCurrentMatch = () => null;
+const recoveredHub = window.AFM_PlayerMode.renderPage('player_hub');
+assert(recoveredHub.includes('ATLETA RECUPERADO') && !recoveredHub.includes('Carregando perfil do atleta...'));
+assert.equal(window.state.squad[0].id, 'missing-athlete', 'perfil salvo deve reconstruir atleta controlado ausente no elenco');
+window.state = {
+  gameMode: 'player', club: 'Manaus', date: '2026-01-01', controlledPlayerId: 'controlled-athlete',
+  squad: [{ id: 'controlled-athlete', isControlled: true, name: 'Perfil Recriado', pos: 'ATA', ovr: 36 }], news: []
+};
+const rebuiltHub = window.AFM_PlayerMode.renderPage('player_hub');
+assert(rebuiltHub.includes('PERFIL RECRIADO') && window.state.playerCareerState, 'hub deve criar estado mínimo quando o jogador existe mas os metadados de carreira faltam');
+window.getActualCurrentMatch = previousCurrentMatch;
+console.log('✓ Hub recupera perfil incompleto e não fica preso no carregamento.');
 const benchChance = window.AFM_PlayerMode.getPlayerSubstitutionChance(35, 'Empatando', false);
 assert.strictEqual(benchChance, 36);
 assert.strictEqual(window.AFM_PlayerMode.getPlayerSubstitutionChance(35, 'Perdendo', true), 61);

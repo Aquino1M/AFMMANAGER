@@ -41,8 +41,38 @@
 
   function getControlledPlayer(state){
     if(!state) return null;
-    const cid = state.controlledPlayerId;
-    return (state.squad || []).find(p => p.id === cid) || (state.squad && state.squad[0]) || null;
+    const squad = Array.isArray(state.squad) ? state.squad : (state.squad = []);
+    const pState = state.playerCareerState;
+    const athlete = squad.find(p => p.id === state.controlledPlayerId) ||
+      squad.find(p => p.isControlled) ||
+      (pState?.athleteName && squad.find(p => String(p.name || '').toLowerCase() === String(pState.athleteName).toLowerCase()));
+    if(athlete){
+      state.controlledPlayerId = athlete.id;
+      return athlete;
+    }
+    if(pState?.athleteName){
+      const id = state.controlledPlayerId || `player_user_recovered_${Date.now()}`;
+      const recovered = {
+        id,
+        name: pState.athleteName,
+        nickname: pState.nickname || pState.athleteName,
+        pos: pState.position || pState.pos || 'ATA',
+        position: pState.position || pState.pos || 'ATA',
+        number: Number(pState.shirtNumber) || 10,
+        age: Number(pState.age) || 15,
+        ovr: Number(pState.athleteOvr || pState.overall) || 35,
+        overall: Number(pState.athleteOvr || pState.overall) || 35,
+        attributes: pState.attributes || { vel: 35, chu: 35, pas: 35, dri: 35, def: 35, fis: 35 },
+        photo: pState.appearance?.customFacePhoto || pState.appearance?.facePhoto || null,
+        wage: Number(pState.weeklySalary) || 0,
+        isControlled: true,
+        club: state.club || ''
+      };
+      state.controlledPlayerId = id;
+      squad.unshift(recovered);
+      return recovered;
+    }
+    return state.gameMode === 'player' || state.controlledPlayerId ? null : (squad[0] || null);
   }
 
   function syncControlledPlayerOverall(state){
@@ -55,7 +85,30 @@
   }
 
   function getCareerState(state){
-    if(!state?.playerCareerState) return null;
+    if(!state) return null;
+    if(!state.playerCareerState){
+      const athlete = getControlledPlayer(state);
+      if(!athlete || !(state.controlledPlayerId || athlete.isControlled || state.gameMode === 'player')) return null;
+      state.playerCareerState = {
+        athleteName: athlete.name || 'Atleta',
+        nickname: athlete.nickname || athlete.name || 'Atleta',
+        pos: athlete.pos || athlete.position || 'ATA',
+        position: athlete.pos || athlete.position || 'ATA',
+        age: Number(athlete.age) || 15,
+        shirtNumber: Number(athlete.number) || 10,
+        athleteOvr: Number(athlete.ovr || athlete.overall) || 35,
+        overall: Number(athlete.ovr || athlete.overall) || 35,
+        attributes: athlete.attributes || {},
+        appearance: {},
+        personalBank: 0,
+        xp: 0,
+        xpToNextLevel: 400,
+        level: 1,
+        skillPoints: 0,
+        managerTrust: 45,
+        careerStats: { matches: 0, goals: 0, assists: 0, minutes: 0, averageRating: 0 }
+      };
+    }
     const pState = state.playerCareerState;
     window.AFM_PlayerEngine?.normalizePlayerProgression?.(pState);
     pState.weeklyTrainingFocus = pState.weeklyTrainingFocus || 'finalizacao';
@@ -101,6 +154,25 @@
       };
     }
     return pState;
+  }
+
+  async function restorePlayerProfile(){
+    const state = window.state || {};
+    const username = String(state.userOwner || window.AFM_DB?.getUser?.()?.username || '').toLowerCase();
+    if(!username || !window.AFM_DB?.syncUser || typeof window.loadUserSlot !== 'function'){
+      window.toast?.('Não foi possível localizar a conta para restaurar o save.');
+      return;
+    }
+    try {
+      const result = await window.AFM_DB.syncUser(username);
+      if(!result?.ok){
+        window.toast?.('Falha ao restaurar o save da nuvem. Verifique a conexão e tente novamente.');
+        return;
+      }
+      window.loadUserSlot(Number(state.userSlot) || 1, username);
+    } catch(e){
+      window.toast?.('Falha ao restaurar o save da nuvem. Verifique a conexão e tente novamente.');
+    }
   }
 
   /**
@@ -372,7 +444,7 @@
   function renderPlayerHub(state){
     const pState = getCareerState(state);
     const athlete = getControlledPlayer(state);
-    if(!pState || !athlete) return `<div class="card" style="padding:20px;color:#fff">Carregando perfil do atleta...</div>`;
+    if(!pState || !athlete) return `<div class="card" style="padding:24px;color:#fff"><h2>Perfil do atleta indisponível</h2><p>Os dados deste atleta não vieram neste save. Tente restaurar a carreira pela nuvem.</p><button class="btn primary" onclick="window.AFM_PlayerMode.restorePlayerProfile()">☁️ Tentar restaurar save</button></div>`;
 
     const eng = window.AFM_PlayerEngine;
     const trustRole = eng ? eng.getTrustRole(pState.managerTrust) : { role: 'Reserva', color: '#f59e0b', desc: '' };
@@ -6154,6 +6226,7 @@
   // Exportação Global
   window.AFM_PlayerMode = {
     renderPage,
+    restorePlayerProfile,
     renderPlayerSocialMedia,
     renderPlayerNationalTeam,
     openCallUpAnnouncementModal,

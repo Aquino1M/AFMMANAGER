@@ -8931,6 +8931,25 @@ async function activateAuthenticatedUser(user){
     recordAFMError('save-sync', synced.error);
     console.warn('[AFM] Sincronização de saves indisponível:', synced.error);
   }
+  let activeSlot = Number(localStorage.getItem(`afm_active_slot_${userIdentifier}`));
+  if(synced.ok && !(activeSlot >= 1 && activeSlot <= 3)){
+    const newestSave = [1, 2, 3].flatMap(slot => [`afm_save_${userIdentifier}_slot_${slot}`, `afm_save_slot_${slot}`]
+      .map(key => {
+        try { return JSON.parse(localStorage.getItem(key) || 'null'); }
+        catch(e){ return null; }
+      })
+      .filter(entry => {
+        const owner = String(entry?.owner || entry?.data?.userOwner || '').toLowerCase();
+        return entry?.data?.squad && (!owner || owner === userIdentifier);
+      })
+      .map(entry => ({ entry, slot })))
+      .sort((a, b) => parseSaveTimestamp(b.entry.updatedAt || b.entry.data.updatedAt) - parseSaveTimestamp(a.entry.updatedAt || a.entry.data.updatedAt))[0];
+    activeSlot = Number(newestSave?.slot) || 0;
+  }
+  if(synced.ok && activeSlot >= 1 && activeSlot <= 3){
+    rememberActiveSaveSlot(userIdentifier, activeSlot);
+    loadUserSlot(activeSlot, userIdentifier);
+  }
   // syncUser já compara os saves locais com os remotos e importa o mais recente.
   // Não reenviar todos os slots aqui: isso pode sobrescrever uma versão remota nova
   // com um snapshot local antigo logo após a sincronização.
@@ -9154,6 +9173,14 @@ function cleanupConfirmedLocalSaveCopies(username, slotNum, saveEntry, entryStr)
   } catch(e){ return false; }
 }
 
+function rememberActiveSaveSlot(username, slotNum){
+  const owner = String(username || '').toLowerCase().trim();
+  const slot = Number(slotNum);
+  if(!owner || !Number.isInteger(slot) || slot < 1 || slot > 3) return false;
+  try { localStorage.setItem(`afm_active_slot_${owner}`, String(slot)); return true; }
+  catch(e){ return false; }
+}
+
 function save(){
   if(!state && typeof window !== 'undefined' && window.state){
     state = window.state;
@@ -9262,6 +9289,7 @@ function save(){
       // Não bloqueia o jogo se a chave redundante não couber na cota
     }
   }
+  rememberActiveSaveSlot(state.userOwner, slotNum);
 
   // 2. Salvar no STORAGE legado apenas se for Slot 1
   if(slotNum === 1){
@@ -9317,6 +9345,7 @@ function save(){
           if(!localSaved) toast('A nuvem não confirmou o save. Sua carreira não está garantida; conecte-se e tente salvar novamente.', 7000);
         } else if(!localSaved){
           localSaved = cleanupConfirmedLocalSaveCopies(saveEntry.owner, slotNum, saveEntry, entryStr);
+          rememberActiveSaveSlot(saveEntry.owner, slotNum);
           window.__afmStorageWarning = !localSaved;
           toast(localSaved
             ? '✅ Save confirmado no Supabase; cópias redundantes removidas e cópia local restaurada.'
@@ -9425,6 +9454,26 @@ async function saveAndConfirmCloud(){
 
 function load(){
   try {
+    const username = String(getActiveAccount()?.username || '').toLowerCase().trim();
+    const activeSlot = Number(username && localStorage.getItem(`afm_active_slot_${username}`));
+    if(username){
+      const slots = activeSlot >= 1 && activeSlot <= 3 ? [activeSlot] : [1, 2, 3];
+      const candidates = slots.flatMap(slot => [`afm_save_${username}_slot_${slot}`, `afm_save_slot_${slot}`]
+        .map(key => {
+          try { return JSON.parse(localStorage.getItem(key) || 'null'); }
+          catch(e){ return null; }
+        })
+        .filter(entry => {
+          const savedOwner = String(entry?.owner || entry?.data?.userOwner || '').toLowerCase();
+          return entry?.data?.squad && (!savedOwner || savedOwner === username);
+        })
+        .map(entry => ({ ...entry, slot })))
+        .sort((a, b) => parseSaveTimestamp(b.updatedAt || b.data.updatedAt) - parseSaveTimestamp(a.updatedAt || a.data.updatedAt));
+      if(candidates[0]){
+        rememberActiveSaveSlot(username, candidates[0].slot);
+        return candidates[0].data;
+      }
+    }
     return JSON.parse(localStorage.getItem(STORAGE) || 'null');
   } catch(e){
     recordAFMError('local-save-read', e);
@@ -9500,6 +9549,7 @@ function loadUserSlot(slotNum, ownerUsername = null){
   }
 
   const rawData = saveEntry.data || saveEntry;
+  rememberActiveSaveSlot(username, slotNum);
   state = clone(rawData);
   state.userSlot = slotNum;
   state.userOwner = username;

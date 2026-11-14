@@ -617,17 +617,33 @@ const AFM_DB = (function(){
         if(entry.data && typeof window !== "undefined" && typeof window.purgeBuggedExploitPlayers === "function") {
           window.purgeBuggedExploitPlayers(entry.data);
         }
-        const existingSharedRaw = localStorage.getItem(`afm_save_slot_${slot}`);
-        const existingShared = existingSharedRaw ? JSON.parse(existingSharedRaw) : null;
-        const existingOwner = String(existingShared?.owner || '').trim().toLowerCase();
-        if(!existingShared || !existingOwner || existingOwner === cleanUser){
-          localStorage.setItem(`afm_save_slot_${slot}`, JSON.stringify(entry));
-          localStorage.setItem(`afm_save_slot_${slot}_backup`, JSON.stringify(entry));
+        const entryJson = JSON.stringify(entry);
+        const ownedByUser = raw => {
+          try {
+            const parsed = JSON.parse(raw);
+            return String(parsed?.owner || parsed?.data?.userOwner || parsed?.userOwner || '').trim().toLowerCase() === cleanUser;
+          } catch(e){ return false; }
+        };
+        const sharedKey = `afm_save_slot_${slot}`;
+        const shared = sharedRaw ? JSON.parse(sharedRaw) : null;
+        const sharedOwner = String(shared?.owner || shared?.data?.userOwner || '').trim().toLowerCase();
+        const sharedAvailable = !shared || !sharedOwner || sharedOwner === cleanUser;
+        // A cloud-confirmed row is the recovery copy; discard only this user's redundant copies.
+        for(const key of [
+          `afm_save_${cleanUser}_slot_${slot}`,
+          `afm_save_${cleanUser}_slot_${slot}_backup`,
+          `afm_save_slot_${slot}_backup`,
+          `afm2027_individual_save_slot_${slot}`,
+          `afm2027_individual_save_slot_${slot}_backup`,
+          ...(slot === 1 ? ['aquino_futebol_manager_2026_v1'] : [])
+        ]){
+          try {
+            const raw = localStorage.getItem(key);
+            if(raw && (key.startsWith(`afm_save_${cleanUser}_`) || ownedByUser(raw))) localStorage.removeItem(key);
+          } catch(e){}
         }
-        localStorage.setItem(`afm_save_${cleanUser}_slot_${slot}`, JSON.stringify(entry));
-        localStorage.setItem(`afm2027_individual_save_slot_${slot}`, JSON.stringify(entry));
-        localStorage.setItem(`afm2027_individual_save_slot_${slot}_backup`, JSON.stringify(entry));
-        if(slot === 1) localStorage.setItem('aquino_futebol_manager_2026_v1', JSON.stringify(row.save_data));
+        // Keep one full local copy so tight browser quotas don't abort cloud recovery.
+        localStorage.setItem(sharedAvailable ? sharedKey : `afm_save_${cleanUser}_slot_${slot}`, entryJson);
         if(idx < 0) account.saves.push({ ...entry, data: undefined });
         else account.saves[idx] = { ...entry, data: undefined };
         pulledFromCloud++;
