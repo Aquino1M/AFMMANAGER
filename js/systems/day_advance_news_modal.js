@@ -93,6 +93,23 @@
         });
       }
 
+      // 1.1 Notícia Especial de Vida do Atleta (Modo Jogador)
+      if (state && state.gameMode === 'player' && state.playerCareerState) {
+        const athleteName = state.playerCareerState.athleteName || 'Atleta';
+        const athleteNewsTemplates = [
+          `CT do ${userClub}: ${athleteName} treina forte e ganha moral com a comissão técnica`,
+          `Bastidores: O jovem ${athleteName} recebe conselhos de companheiros no vestiário do ${userClub}`,
+          `Imprensa destaca ritmo e dedicação de ${athleteName} nos treinamentos da semana`,
+          `Torcida do ${userClub} pede sequência e protagonismo para a joia ${athleteName}`,
+          `Foco total: ${athleteName} cumpre rotina física intensa e busca espaço no ${userClub}`
+        ];
+        items.push({
+          type: 'player',
+          highlight: isMatchDay,
+          text: `⭐ ${pickRandom(athleteNewsTemplates)}`
+        });
+      }
+
       // 2. Notícias de Transferências / Mercado Fechado (borda roxa)
       const dealsCount = rndInt(1, 3);
       for (let i = 0; i < dealsCount; i++) {
@@ -263,6 +280,7 @@
       const isUserHome = (typeof window.norm === 'function' ? window.norm(userClub) === window.norm(h) : userClub.toLowerCase() === h.toLowerCase());
       const userGoals = isUserHome ? hg : ag;
       const oppGoals = isUserHome ? ag : hg;
+      const isPlayerMode = window.state?.gameMode === 'player' || Boolean(window.state?.playerCareerState);
 
       let resultBadge = '';
       let resultBadgeClass = '';
@@ -308,11 +326,11 @@
             <!-- Opções do Usuário: Escolher dar entrevista ou ver notícias -->
             <div class="afm-postmatch-body" style="padding:16px;display:flex;flex-direction:column;gap:10px">
               <div class="afm-postmatch-prompt" style="font-size:11.5px;color:#94a3b8;font-weight:700;margin-bottom:2px">
-                O que você deseja fazer agora, Professor?
+                ${isPlayerMode ? 'Fim de jogo. O que você deseja fazer agora?' : 'O que você deseja fazer agora, Professor?'}
               </div>
 
               <!-- Opção 1: Dar Entrevista Coletiva -->
-              <button id="btnPostMatchInterview" class="afm-postmatch-btn" style="background:#16102b;border:1px solid #7c3aed;border-radius:12px;padding:11px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:all 0.15s ease">
+              ${isPlayerMode ? '' : `<button id="btnPostMatchInterview" class="afm-postmatch-btn" style="background:#16102b;border:1px solid #7c3aed;border-radius:12px;padding:11px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:all 0.15s ease">
                 <div style="display:flex;align-items:center;gap:10px">
                   <span class="afm-postmatch-btn-icon" style="font-size:24px">🎙️</span>
                   <div>
@@ -326,7 +344,7 @@
                   </div>
                 </div>
                 <span style="font-size:18px;color:#c084fc">›</span>
-              </button>
+              </button>`}
 
               <!-- Opção 2: Ver Últimas Notícias do Dia -->
               <button id="btnPostMatchNews" class="afm-postmatch-btn" style="background:#131226;border:1px solid rgba(56,189,248,0.3);border-radius:12px;padding:11px 14px;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:all 0.15s ease">

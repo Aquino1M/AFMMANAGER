@@ -1,36 +1,52 @@
-﻿# AFM Manager
+# Aquino Futebol Manager 2026 / 2027 (AFM 2026)
 
-Jogo de gerenciamento de futebol feito em HTML, CSS e JavaScript, executado no navegador. A carreira é salva localmente; a sincronização Supabase é opcional e depende da configuração e da disponibilidade do serviço.
+Simulador de futebol local-first completo executado diretamente no navegador. Construído em HTML5, CSS3 e JavaScript ES2022 nativo (sem dependências pesadas ou bundlers).
 
-## Executar
+---
 
-Abra `index.html` ou rode um servidor estático na raiz do projeto:
+## 🎮 Modos de Jogo
+- **Modo Treinador:** Gerencie finanças, táticas, mercado de transferências, comissão técnica, categorias de base e ampliação dos anéis do estádio 3D.
+- **Modo Carreira Jogador (Modo Craque):** Crie seu próprio atleta do zero, participe de peneiras, evolua atributos em treinos semanais, dispute a Bola de Ouro, seja convocado para a Seleção Nacional na Data FIFA e domine a rede social oficial *FootGram*.
+- **Criação de Clube Próprio:** Crie um time com cores, escudo, estádio e uniforme personalizados e suba desde os estaduais até as glórias continentais.
+
+---
+
+## 🚀 Como Executar
+
+Abra `index.html` diretamente em seu navegador ou inicie um servidor local:
 
 ```sh
+# Usando npx serve
 npx serve .
+
+# Ou via Python
+python -m http.server 8080
 ```
 
-## Estrutura
+---
 
-- `js/game.js`: fluxo da carreira e interface principal.
-- `js/core/`: motores de partida, tática, áudio e sistemas reutilizáveis.
-- `js/competitions.js` e `data/`: catálogos, clubes e dados das competições.
-- `scripts/`: testes e ferramentas de manutenção.
-- `supabase/schema.sql`: schema de referência da integração opcional.
+## 📂 Arquitetura do Projeto
+- `index.html`: Casca principal da aplicação e estrutura de visualização.
+- `js/game.js`: Orquestrador central de estado, calendário, partidas e interface.
+- `js/core/`: Motores de simulação tática, áudio da torcida e renderização 3D dos estádios (Three.js).
+- `js/player/`: Motores exclusivos do Modo Carreira Jogador (Evolução, Rede Social FootGram e Seleções Nacionais).
+- `js/competitions.js` e `data/`: Catálogo oficial de competições, clubes e ligas nacionais/estaduais.
+- `supabase/`: Schema e scripts de sincronização remota multiplataforma (PC ⇄ Mobile).
+- `tests/`: Bateria de testes automatizados de regressão e estresse.
 
-## Saves, login e segurança
+---
 
-O jogo mantém três slots locais por conta, permitindo uso offline. O código usa autenticação própria baseada em `afm_users`, não Supabase Auth. O schema versionado contém políticas amplamente públicas para `afm_users` e `afm_saves`; por isso, não habilite o banco para usuários reais antes de corrigir e verificar autenticação, propriedade dos dados e políticas RLS. A configuração remota não foi verificada por este documento.
+## 🧪 Testes Automatizados
 
-## Verificações
-
-Alguns testes úteis:
+Execute os testes diretamente via Node.js:
 
 ```sh
-npm run test:finance
-npm run test:season-transitions
-npm run test:calendar-recovery
-npm run test:username-login
-```
+# Teste de Estresse do Modo Jogador (5 Anos e 3 Saves)
+node tests/stress_test_player_career_5years.js
 
-`npm run build` apenas imprime `Static build ready`; não compila nem testa o jogo.
+# Teste de Integridade Financeira e Orçamentos Iniciais
+node tests/check_brasilia_budget.js
+
+# Teste de Criação de Jogador e Slots
+node tests/test_create_player_button.js
+```

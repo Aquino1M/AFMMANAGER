@@ -72,7 +72,11 @@
     const isStandalone = window.matchMedia('(display-mode: fullscreen)').matches || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
     if (isStandalone) {
-      alert('⚽ O AFM Manager já está instalado e rodando em modo aplicativo!');
+      if (typeof window.showCustomAlert === 'function') {
+        window.showCustomAlert({ title: 'AFM Manager Instalado', message: '⚽ O AFM Manager já está instalado e rodando em modo aplicativo!', type: 'success' });
+      } else if (typeof window.toast === 'function') {
+        window.toast('⚽ O AFM Manager já está instalado e rodando em modo aplicativo!');
+      }
       return;
     }
 

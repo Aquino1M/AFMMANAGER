@@ -716,9 +716,15 @@
 
       // Inicialização da Maquete Low-Poly 3D no visualizador (Three.js WebGL)
       const vCanvas = modalEl.querySelector('#afmViewerModalLowPolyCanvas');
+      const fb = modalEl.querySelector('#afmViewerFallbackArea');
       if (vCanvas && window.THREE && window.AFMStadiumLowPoly) {
         try {
-          window.AFMStadiumLowPoly.init(vCanvas);
+          const inst = window.AFMStadiumLowPoly.init(vCanvas);
+          if (!inst || inst.failed) {
+            throw new Error('Falha ao inicializar WebGL');
+          }
+          if (fb) fb.style.display = 'none';
+          vCanvas.style.display = 'block';
           const capMap = {
             'arena_aberta': 7800,
             'arena_regional': 18800,
@@ -736,12 +742,12 @@
           });
         } catch (err) {
           console.warn('[AFMStadium3D] Fallback model-viewer:', err);
-          const fb = modalEl.querySelector('#afmViewerFallbackArea');
           if (fb) fb.style.display = 'block';
+          if (vCanvas) vCanvas.style.display = 'none';
         }
       } else {
-        const fb = modalEl.querySelector('#afmViewerFallbackArea');
         if (fb) fb.style.display = 'block';
+        if (vCanvas) vCanvas.style.display = 'none';
       }
 
       // Event Listeners

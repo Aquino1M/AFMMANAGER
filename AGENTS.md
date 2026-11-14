@@ -1,50 +1,38 @@
-# AFM Manager — instruções do projeto
+# AFM Manager — Diretrizes e Invariantes do Projeto
 
-## Arquitetura e compatibilidade
+## 1. Arquitetura e Integridade do Código
+- **Stack:** Local-first em HTML5, CSS3 e JavaScript ES2022 nativo (sem frameworks, bundlers ou build steps). Interface em PT-BR.
+- **Coordenação Central:** `js/game.js` coordena estado e UI. Reutilize módulos em `js/core/`, `js/player/` e catálogos existentes. Proibido criar fontes paralelas de verdade.
+- **Compatibilidade Aditiva:** Saves antigos devem carregar sem erros. Migrações em `migrate()` devem ser idempotentes e aditivas.
+- **Isolamento de Modos:** `state.gameMode === 'player'` (Carreira Jogador) e `state.gameMode === 'manager'` (Modo Treinador) são estritamente isolados. Modificações em um modo não devem corromper o outro.
+- **Segurança Operacional:** Nunca execute `git reset --hard`, `git clean` ou reversões destrutivas de código local.
 
-- Aplicação local-first em HTML, CSS e JavaScript ES2022, sem framework ou bundler. Preserve a interface em português do Brasil e reutilize `js/core/`, os módulos e catálogos existentes.
-- `js/game.js` coordena carreira e interface. Não crie uma segunda fonte de verdade para estado, elenco ou competições.
-- Saves antigos devem continuar carregáveis. Migrações devem ser aditivas, idempotentes e compatíveis; preservar salários/contratos de carreiras existentes e aplicar novos modelos somente a carreiras elegíveis.
-- Não reverta alterações locais nem execute `reset`, `clean`, checkout forçado, rebase ou sincronização destrutiva.
+## 2. Invariantes de Jogo e Competições
+- **Calendário e Partidas:** Partidas pendentes do clube devem ser processadas em ordem cronológica (estaduais, copas, torneios continentais e ligas nacionais). Use `resolveCalendarMatchResult(match, state)` para evitar partidas duplicadas. Mínimo de 11 atletas válidos por lado.
+- **Promoção e Rebaixamento Dinâmicos:** Acessos e descensos alteram exclusivamente a carreira ativa (`state.competitionTeams`), nunca catálogos estáticos globais. Times promovidos entram no grupo/tabela da nova divisão e saem da anterior; rebaixados descem para a divisão inferior.
+- **Museu e Histórico Unificado:** Conquistas oficiais integram `state.titles` imediatamente e refletem no Museu do Clube. Hall da Fama (`state.seasonHistory`), Campeões do Mundo (`state.worldChampionHistory`) e Museu devem consultar o serviço centralizador `AFM_TitlesAndHistoryService`. Acessos são categorizados como 'Acesso' (nunca 'Rebaixamento').
+- **Ciclo Financeiro Mensal:** A cada virada de mês (`nextDate.endsWith('-01')` ou transição `YYYY-MM`) ou em data avançada, execute `processClubMonthlyFinances(state)`. O ciclo credita cota de TV (`tvContract1Year.monthly`), reduz parcelas restantes, credita patrocínios (`sponsors`) e quita custos operacionais (folha `totalMonthlyPayroll`, infraestrutura `facilities`, olheiros `scouts`, marketing e dívidas).
+- **Limites de Coleções (Prevenção de Estouro de Memória):** `state.news` (máx. 50), `state.marketWorldFeed` (máx. 30), `state.seasonHistory` (máx. 20), `socialMedia.feedPosts` (máx. 25).
 
-## Invariantes de jogo
+## 3. Modo Carreira Jogador (Be a Pro / Craque)
+- **REGRA INVIOLÁVEL — Acesso e Criação Permanentes:** O banner/botão de criação de atleta (`#btnGoCreatePlayer`) na tela de seleção de saves e o atalho na navegação principal (`#btnNavGoPlayerMode`) são **estritamente obrigatórios e permanentes**. É **PROIBIDO** remover, ocultar ou suprimir o botão e a rota de criação de jogador (`setupViewMode === 'create_player'` / `window.renderCreatePlayerScreen`) sob qualquer pretexto.
+- **Evolução & Atributos:** Limite máximo estrito de 99 em qualquer atributo. XP e Skill Points acumulados via treinos e partidas.
+- **Integridade de Estatísticas do Atleta:** Toda rota de partida (ao vivo, rápida ou calendário) registra uma única atuação por atleta somente quando houver minutos jogados, via `AFM_PlayerEngine.processMatchPerformance`; normalize `playedMinutes`/`minutesPlayed` na fronteira. Não deixe gols/assistências da súmula sem atualizar a carreira e o histórico individual. A interface e a Gala usam dados da temporada correspondente, nunca totais de outra temporada; prêmios devem mostrar nome, clube e métrica do vencedor real ou “A definir”, sem números/campeões fictícios. Mudanças nesse fluxo exigem teste de regressão para partida, histórico e prêmios.
+- **Data FIFA & Seleções:** O avanço diário do modo jogador deve processar janelas, convocação, resultado/histórico/notícia e retorno ao clube via `AFM_NationalTeams`, uma vez por partida; não convocados acompanham os resultados sem ganhar caps ou estatísticas individuais. A pontuação da convocação deve considerar os dados atuais da temporada. Mudanças exigem teste de regressão de janela, resultado, não convocado e duplicidade.
+- **Patrocínio de Chuteiras:** Contrato ativo aplica seu bônus de atributo efetivo sem alterar o atributo base, acumula com item equipado quando aplicável e nunca ultrapassa 99; a interface deve informar o efeito vigente. Alterações exigem teste por categoria, combinação e limite.
+- **Rede Social FootGram:** Posts diários com reset em `onDayAdvance`, comentários contextuais da IA (elogios em vitórias, cobranças em derrotas) e selo azul aos 50.000 seguidores.
+- **Premiações e Gala:** Cerimônia anual em `processEndOfSeasonAwards()`. Preservar histórico consolidado em `careerStats.seasonHistory`.
 
-- Processe partidas pendentes do clube em ordem cronológica, incluindo estaduais, copas, torneios continentais e liga nacional. Não pule compromisso pendente; partidas no mesmo dia precisam ser resolvidas antes de avançar a data.
-- Use `resolveCalendarMatchResult(match, state)` para identificar resultados já registrados e impedir que uma partida concluída seja iniciada ou contabilizada novamente. A UI do calendário deve refletir o resultado persistido.
-- Resultados de competições adicionais alteram apenas seu próprio estado, classificação e rodada; não devem avançar nem sobrescrever a liga principal (`state.teams`). Mantenha a inscrição estadual de clubes de todas as divisões nacionais.
-- Promoção, rebaixamento, vagas, participantes e reparos de ligas devem alterar os dados da carreira (`state.competitionTeams`), nunca catálogos globais compartilhados. Carreiras e usuários diferentes devem permanecer isolados.
-- Regra inviolável de promoção, rebaixamento e grupos: Qualquer clube que conquistar acesso a uma divisão ou competição (seja o clube do usuário ou IA, vindo de estadual para Série D, ou entre Séries D, C, B, A) DEVE obrigatoriamente constar no grupo/tabela da competição de destino e ser removido da divisão anterior. Clubes rebaixados DEVEM sair do seu grupo/divisão anterior e aparecer na divisão inferior. As tabelas, grupos e calendários de TODAS as competições (`seasonPage`, `getSeriesDGroupStandings`, `getNationalCompetitionStandings`, `getStateCompData`, continentais, etc.) devem consumir os elencos e times ativos do save (`state.teams`, `state.competitionTeams`), JAMAIS catálogos estáticos imutáveis.
-- Regra inviolável de títulos e Museu: Todo título conquistado no save (campeonatos estaduais como o Candango, copas nacionais, divisões do Brasileirão, torneios continentais, mundiais ou copas de base) DEVE ser imediatamente adicionado a `state.titles` e exibido no Museu do Clube (tanto na vitrine/estante quanto na galeria de conquistas no comando do treinador). Nenhuma conquista pode ser omitida ou perdida na virada de temporada.
-- Regra inviolável de histórico unificado (Hall da Fama, Campeões do Mundo e Museu): Todos os módulos de títulos e histórico devem consultar e ser sincronizados pelo serviço único centralizado `AFM_TitlesAndHistoryService`. Os registros do Hall da Fama (`state.seasonHistory`), Campeões do Mundo (`state.worldChampionHistory`) e Museu (`state.titles`) devem permanecer 100% alinhados, sem campeões conflitantes, sem exibir múltiplos times concatenados por vírgula em competições como a Série D, e classificando sempre acessos estaduais ou nacionais como 'Acesso' (nunca 'Rebaixamento').
-- Regra inviolável do Sistema Financeiro Mensal, Contratos de TV e Patrocínios: A cada virada de mês no calendário (`nextDate.endsWith('-01')` ou mudança de mês `YYYY-MM`), ou de forma retroativa idempotente ao carregar um save em data avançada, o sistema DEVE obrigatoriamente processar o ciclo financeiro e contábil mensal completo através de `processClubMonthlyFinances(state)`. Isso inclui:
-  1. Creditar a cota mensal integral da emissora de TV oficial contratada (`state.tvContract1Year.monthly`), registrar a parcela paga (`monthsPaid`, `totalPaidToClub`) e DIMINUIR rigorosamente o 'Quanto Ainda Falta Receber' no card oficial de transmissão.
-  2. Creditar as parcelas mensais dos patrocinadores oficiais (`state.sponsors`) e diminuir os meses/valores contratuais restantes.
-  3. Debitar e quitar todas as despesas e contas operacionais do clube: folha salarial completa do elenco (`totalMonthlyPayroll`), manutenção e staff (`facilities`), salários da equipe de olheiros (`scouts`), investimento em marketing e parcelas de obras/empréstimos.
-  4. Publicar extrato mensal detalhado no feed de notícias (`state.news`) e manter o caixa e histórico financeiro 100% sincronizados e consistentes em qualquer modo de avanço de calendário ou partidas.
-- Preserve os invariantes das coleções: elenco/escalação válidos e sem duplicatas; histórico sem partidas duplicadas; classificação consistente (`J = V + E + D`, `SG = GP - GC`, `P = 3V + E`); finanças e confiança consistentes entre competições. Limite de persistência: `news` 50, `marketWorldFeed` 30 e `seasonHistory` 20 registros.
-- Não inicie partidas com menos de 11 atletas válidos por lado. Partidas ao vivo devem manter placar, eventos e animação coerentes; valide comportamento visual no navegador ao alterar o motor de partida.
-- Depois de mudanças críticas de estado, persista a carreira e re-renderize a interface sem engolir falhas silenciosamente. Botões de calendário, pré-temporada e janela de transferências precisam manter seus binds funcionais após renderização.
+## 4. Estádios 3D, Three.js & WebGL (Zero Tela Preta)
+- **Renderização Contínua:** O canvas WebGL (`#afmStadiumLowPolyCanvas`, `#afmViewerModalLowPolyCanvas`) nunca pode ficar preto. Todas as variáveis de cena e prévia devem possuir declaração segura.
+- **Descarte Seguro:** Ao alternar abas ou fechar modais, use `renderer.dispose()` e descarte geometrias/materiais. **PROIBIDO** chamar `forceContextLoss()` ou `loseContext()` em fluxos normais de alternância, preservando o contexto WebGL do navegador.
+- **Assets e Performance:** Priorize modelos `.glb` compactos, estética Low-Poly estilizada e taxa de quadros estável (60+ FPS).
 
-## Saves, login e segurança
+## 5. Persistência, Sincronização e Segurança
+- **Paridade Multiplataforma (PC, Mobile & Supabase):** A resolução de conflitos de saves é governada pela regra do maior timestamp (`updated_at` / `timestamp`). O save mais recente sempre prevalece; nunca sobrescreva save mais novo por mais antigo.
+- **Sanitização XSS:** Trate entradas do usuário, nomes importados e datas como não confiáveis. Sempre aplique `esc()` ao injetar variáveis dinâmicas no HTML.
+- **Valores Monetários:** Arredonde valores financeiros com `Math.round()`.
 
-- Regra inviolável de sincronia multiplataforma (PC, Mobile & Supabase): O save do jogo executado no PC, no celular (Mobile) e na nuvem Supabase (`afm_saves`) deve manter estrita paridade 1:1. A sincronização e resolução de conflitos deve ser governada obrigatoriamente pela regra do maior timestamp (`updated_at` / `timestamp`). Se o save da nuvem for mais recente que o save local (ex: jogador avançou a carreira no PC e depois abriu no celular), o save local DEVE ser atualizado automaticamente com os dados da nuvem. Se o save local for mais recente (ex: jogador continuou jogando no celular), os dados devem ser enviados via upsert para a nuvem. Toda operação de salvamento de slot (`saveSlotToAccount`, `#btnSaveCurrentSlotNow`, `save()`) deve persistir no cache local e propagar imediatamente para o Supabase, exibindo feedback visual de status (`☁️ Nuvem Sincronizada`) e disponibilizando sincronização manual instantânea (`🔄 Sincronizar Nuvem (PC ⇄ Celular)`). Nunca sobrescreva um save mais novo com um save mais antigo.
-- A persistência local é essencial para uso offline; a sincronização Supabase é condicional à configuração/disponibilidade. Não prometa sincronização remota quando ela não foi confirmada.
-- O login próprio baseado em `afm_users` não é Supabase Auth. Não trate um nome de usuário salvo no navegador como identidade remota confiável.
-- `supabase/schema.sql` atualmente define políticas amplamente públicas para `afm_users` e `afm_saves`; não considere os dados de conta/saves protegidos por proprietário enquanto isso não for corrigido e verificado. Nunca exponha credenciais de serviço. Alterações de schema/RLS exigem migração compatível e validação separada.
-- Trate saves, datas, resultados e entradas importadas como não confiáveis. Valide os dados e escape conteúdo dinâmico inserido em HTML com `esc()` ou mecanismo equivalente.
-- Arredonde valores financeiros com `Math.round()` e preserve os limites de conta e slots de save existentes.
-
-## Desenvolvimento e verificação
-
-- Antes de alterar/remover código compartilhado, confirme referências e chamadores, investigue a causa raiz e adicione testes para a regressão quando apropriado.
-- Rode testes e verificações relevantes, relatando comandos e resultados reais. `npm run build` apenas imprime `Static build ready`; não é compilação nem teste.
-- Não declare funcionalidade concluída com base apenas em UI/dados representados. Informe o que foi e o que não foi verificado.
-- Mantenha `CHANGELOG.md` como histórico; não reescreva releases anteriores para ocultar limitações.
-
-## Criação de jogos, modelagem 3D, shaders e UI/UX
-
-- Trate Three.js, WebGL e shaders como cidadãos de primeira classe na renderização visual do jogo (como maquetes 3D de estádios, campos e animações). Mantenha sempre o ciclo de vida limpo com descarte obrigatório de geometrias, materiais e texturas (`dispose()`) e cancelamento de loops de animação (`cancelAnimationFrame`).
-- Regra crítica inviolável de renderização 3D e viewport dos estádios: O canvas do Three.js (`#afmStadiumLowPolyCanvas` e `#afmViewerModalLowPolyCanvas`) em `openStadiumModal()` e `openStadium3DViewerModal()` NUNCA pode ficar preto. Todas as variáveis de estado e prévia (`stadiumCustomizationPreview`, etc.) devem ser estritamente declaradas e protegidas contra `ReferenceError`. O descarte de instâncias (`dispose()`) deve preservar a integridade do contexto WebGL do navegador (`renderer.dispose()`), NUNCA chamando `forceContextLoss()` ou `loseContext()` em fluxos de alternância de abas/telas, garantindo que a maquete 3D com gramado, arquibancadas, iluminação e setores apareça de forma instantânea e contínua em qualquer aba ('Resumo', 'Melhorias', 'Ampliação / Setores & Obras', 'Arena', 'Gramado & Eventos').
-- Modelagem 3D e assets gráficos devem priorizar arquivos `.glb`/`.gltf` binários otimizados, estética Low-Poly estilizada e consistente, além de ícones, mini-mapas e distintivos em SVG vetorial leve e escalável.
-- Interfaces e HUDs de jogo devem seguir o padrão estético dos melhores simuladores (EA FC / FM): tipografia legível e moderna, paletas cromáticas coordenadas, efeitos neon sutis, glassmorphism com backdrop blur, e taxa de quadros estável (60+ FPS) sem adição de dependências pesadas desnecessárias.
-
+## 6. Verificação e Qualidade (QA)
+- Antes de alterar código compartilhado, confirme chamadores e referências.
+- Validações devem ser executadas com comandos e scripts reais (Node.js / navegadores), reportando resultados autênticos sem simulação fictícia.

@@ -102,20 +102,46 @@
       this.scene.fog = new THREE.FogExp2('#070b14', 0.007);
 
       // 2. Câmera
-      this.camera = new THREE.PerspectiveCamera(40, width / height, 0.5, 450);
+      const aspect = Math.max(0.1, width / (height || 1));
+      this.camera = new THREE.PerspectiveCamera(40, aspect, 0.5, 450);
       this.camera.position.set(44, 32, 50);
 
-      // 3. Renderizador
-      this.renderer = new THREE.WebGLRenderer({
-        canvas: this.canvas,
-        antialias: true,
-        alpha: false,
-        powerPreference: 'high-performance'
-      });
+      // 3. Renderizador (com tratamento defensivo contra falhas de contexto WebGL)
+      try {
+        this.renderer = new THREE.WebGLRenderer({
+          canvas: this.canvas,
+          antialias: true,
+          alpha: false,
+          powerPreference: 'high-performance'
+        });
+      } catch (err) {
+        console.warn('[AFMStadiumLowPoly] WebGLRenderer falhou ao inicializar:', err);
+        this.failed = true;
+        this.isDisposed = true;
+        return;
+      }
       this.renderer.setSize(width, height, false);
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      // Tratamento de perda e restauração segura de contexto WebGL
+      this.onContextLost = (e) => {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+        console.warn('[AFMStadiumLowPoly] WebGL context lost. Pausando renderizador.');
+        if (this.animId) cancelAnimationFrame(this.animId);
+        this.animId = null;
+      };
+      this.onContextRestored = () => {
+        console.info('[AFMStadiumLowPoly] WebGL context restored. Reiniciando maquete.');
+        if (!this.isDisposed) {
+          this.init();
+        }
+      };
+      if (this.canvas && typeof this.canvas.addEventListener === 'function') {
+        this.canvas.addEventListener('webglcontextlost', this.onContextLost, false);
+        this.canvas.addEventListener('webglcontextrestored', this.onContextRestored, false);
+      }
 
       // 4. Controles Orbitais
       const OrbitCtrl = (window.THREE && window.THREE.OrbitControls) || window.OrbitControls;
@@ -298,6 +324,22 @@
         rings[1].oeste = false;
         for (let r = 2; r <= 6; r++) {
           rings[r] = { norte: false, sul: false, leste: false, oeste: false };
+        }
+      } else if (!params.isArena) {
+        // Para clubes médios/grandes (ex: Corinthians com 39.000 lugares) ou saves sem obras manuais,
+        // se os setores não foram construídos manualmente, preenche de acordo com a capacidade real do estádio!
+        const sidesList = ['norte', 'sul', 'leste', 'oeste'];
+        const hasAnyBuilt = Object.values(rings).some(r => r && sidesList.some(s => r[s]));
+        if (!hasAnyBuilt) {
+          const defaultMaxR = cap >= 100000 ? 6 : cap >= 72160 ? 5 : cap >= 49000 ? 4 : cap >= 30640 ? 3 : cap >= 18000 ? 2 : 1;
+          for (let r = 1; r <= 6; r++) {
+            rings[r] = {
+              norte: r <= defaultMaxR,
+              sul: r <= defaultMaxR,
+              leste: r <= defaultMaxR,
+              oeste: r <= defaultMaxR
+            };
+          }
         }
       }
 
@@ -1319,6 +1361,10 @@
      */
     animate() {
       if (this.isDisposed) return;
+      if (!this.canvas || (typeof this.canvas.isConnected === 'boolean' && !this.canvas.isConnected)) {
+        this.dispose();
+        return;
+      }
       this.animId = requestAnimationFrame(() => this.animate());
 
       try {
@@ -1356,6 +1402,12 @@
       this.isDisposed = true;
       if (this.animId) cancelAnimationFrame(this.animId);
       window.removeEventListener('resize', this.handleResize);
+      if (this.canvas && typeof this.canvas.removeEventListener === 'function') {
+        try {
+          this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
+          this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
+        } catch (_) {}
+      }
       if (this.resizeObserver) {
         this.resizeObserver.disconnect();
         this.resizeObserver = null;
@@ -1386,6 +1438,11 @@
         activeLowPolyInstance = null;
       }
       activeLowPolyInstance = new StadiumLowPolyScene(canvas, options);
+      if (activeLowPolyInstance.failed) {
+        activeLowPolyInstance.dispose();
+        activeLowPolyInstance = null;
+        return null;
+      }
       return activeLowPolyInstance;
     },
 

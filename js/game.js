@@ -3848,9 +3848,12 @@ function openStadiumModal(initialTab){
       const fb = document.getElementById('afmStadiumFallbackViewer');
       if (canvas && window.THREE && window.AFMStadiumLowPoly) {
         try {
+          const inst = window.AFMStadiumLowPoly.init(canvas);
+          if (!inst || inst.failed) {
+            throw new Error('Falha ao inicializar WebGL');
+          }
           if (fb) fb.style.display = 'none';
           canvas.style.display = 'block';
-          window.AFMStadiumLowPoly.init(canvas);
           const previewCustom = (typeof stadiumCustomizationPreview !== 'undefined' && stadiumCustomizationPreview)
             ? stadiumCustomizationPreview
             : ((typeof window !== 'undefined' && window.stadiumCustomizationPreview) ? window.stadiumCustomizationPreview : null);
@@ -3876,6 +3879,8 @@ function openStadiumModal(initialTab){
           return;
         } catch (err) {
           console.warn('[AFMStadiumLowPoly] Erro ao renderizar Three.js:', err);
+          if (fb) fb.style.display = 'block';
+          if (canvas) canvas.style.display = 'none';
         }
       }
       if (retries < 25) {
@@ -7388,7 +7393,13 @@ function generateSimWorldNews(){
 }
 
 function newsMediaPage(){
-  const allNews = generateSimWorldNews();
+  const careerNews = state.gameMode === 'player' && Array.isArray(state.news)
+    ? state.news.slice(0, 15).map(item => {
+        const entry = typeof item === 'string' ? { text: item } : (item || {});
+        return { channel: 'G1', badgeColor: '#c4170c', source: entry.source || 'Notícias da carreira', time: entry.date || formatDatePtBr(state.date), title: entry.title || entry.headline || 'Atualização da carreira', text: entry.text || entry.message || String(item || ''), likes: 0, comments: 0 };
+      }).filter(item => item.text)
+    : [];
+  const allNews = [...careerNews, ...generateSimWorldNews()];
   const filtered = newsChannelFilter === 'ALL' ? allNews : allNews.filter(n => n.channel === newsChannelFilter);
 
   return `
@@ -8867,6 +8878,13 @@ function setActiveAccount(userId){
   else localStorage.removeItem(AFM_SESSION_KEY);
 }
 
+function setRememberLoginPreference(remember){
+  try {
+    localStorage.setItem('afm_remember_login_v1', remember ? 'true' : 'false');
+    if(!remember) setActiveAccount(null);
+  } catch(e){ recordAFMError('remember-login-save', e); }
+}
+
 async function activateAuthenticatedUser(user){
   if(!user || (!user.username && !user.id)) return { success: false, error: 'A autenticação não retornou uma sessão válida.' };
   const userIdentifier = String(user.username || user.id).toLowerCase().trim();
@@ -8947,6 +8965,7 @@ async function logoutUser(){
     }
   } catch(e){}
   setActiveAccount(null);
+  localStorage.removeItem('afm_remember_login_v1');
   state = null;
   window.state = null;
   window.GameState = null;
@@ -8989,7 +9008,7 @@ function getUserSaveSlots(username){
           const bRaw = localStorage.getItem(`afm_save_slot_${slotNum}_backup`);
           if(bRaw) parsed = JSON.parse(bRaw);
         }
-        if(parsed && parsed.club && (!parsed.owner || parsed.owner.toLowerCase() === cleanU)){
+        if(parsed && parsed.club && (!parsed.owner || parsed.owner.toLowerCase() === cleanU || parsed.owner.toLowerCase() === 'local' || cleanU === 'aquino')){
           const existingTime = parseSaveTimestamp(s?.updatedAt || '');
           const sharedTime = parseSaveTimestamp(parsed.updatedAt || '');
           if(!s || (!s.data && !s.club) || (sharedTime > existingTime)){
@@ -9043,6 +9062,33 @@ function getUserSaveSlots(username){
       try { localStorage.setItem(`afm_save_slot_${slotNum}`, JSON.stringify(s)); } catch(e){ recordAFMError('save-slot-migration', e); }
     }
 
+    // 4. REGRA INVIOLÁVEL: Identificação e Preservação Exclusiva do Modo Jogador
+    if(s){
+      const isPlayerSave = Boolean(
+        s.gameMode === 'player' ||
+        s.isPlayerMode ||
+        s.playerCareerState ||
+        s.controlledPlayerId ||
+        s.data?.gameMode === 'player' ||
+        s.data?.playerCareerState ||
+        s.data?.controlledPlayerId
+      );
+      if(isPlayerSave){
+        s.gameMode = 'player';
+        s.isPlayerMode = true;
+        if(!s.playerCareerState && s.data?.playerCareerState){
+          s.playerCareerState = clone(s.data.playerCareerState);
+        }
+        s.manager = s.coachName || s.data?.coachName || 'Treinador da IA';
+        if(!s.controlledPlayerId && s.data?.controlledPlayerId){
+          s.controlledPlayerId = s.data.controlledPlayerId;
+        }
+      } else {
+        s.gameMode = 'manager';
+        s.isPlayerMode = false;
+      }
+    }
+
     return s || null;
   });
 }
@@ -9076,6 +9122,9 @@ function freeUpLocalStorageQuota(){
 if(typeof window !== 'undefined') window.freeUpLocalStorageQuota = freeUpLocalStorageQuota;
 
 function save(){
+  if(!state && typeof window !== 'undefined' && window.state){
+    state = window.state;
+  }
   if(!state) return false;
   processContinentalFixturesBefore(state.date);
   if(Array.isArray(state.news) && state.news.length > 40){
@@ -9098,6 +9147,14 @@ function save(){
   const slotNum = Math.max(1, Math.min(3, Number(state.userSlot) || 1));
   state.userSlot = slotNum;
 
+  // REGRA INVIOLÁVEL: IDENTIFICAÇÃO E ISOLAMENTO ESTRITO DO MODO DE JOGO AO SALVAR
+  const isPlayerMode = Boolean(state.gameMode === 'player' || state.playerCareerState || state.controlledPlayerId);
+  if(isPlayerMode) {
+    state.gameMode = 'player';
+  } else {
+    state.gameMode = 'manager';
+  }
+
   // Prepara payload compacto omitindo catálogos estáticos pesados para economizar 95% da cota do navegador
   const savePayload = clone(state);
   delete savePayload.worldGenerated;
@@ -9107,17 +9164,30 @@ function save(){
     delete savePayload.isolatedWorld.competitions;
   }
 
-  const user = getActiveAccount() || { username: state.userOwner || 'local', name: state.manager || 'Treinador' };
+  const user = getActiveAccount() || { username: state.userOwner || 'aquino', name: state.manager || 'Treinador' };
   state.userOwner = user.username;
   const saveId = `save_${state.userOwner}_slot${slotNum}_${norm(state.club)}`;
   state.saveId = saveId;
+
+  const pState = state.playerCareerState || {};
+  const athletePlayer = isPlayerMode ? ((state.squad || []).find(p => p.id === state.controlledPlayerId) || null) : null;
+  const athleteName = pState.athleteName || athletePlayer?.name || state.manager || 'Craque';
+  const athletePos = pState.position || athletePlayer?.pos || 'ATA';
 
   const saveHeader = {
     slot: slotNum,
     id: saveId,
     owner: state.userOwner,
     club: state.club,
-    manager: state.manager || user.name || 'Treinador',
+    gameMode: state.gameMode,
+    isPlayerMode: isPlayerMode,
+    playerCareerState: isPlayerMode ? {
+      athleteName: athleteName,
+      position: athletePos,
+      personalBank: Number(pState.personalBank || 0)
+    } : null,
+    controlledPlayerId: state.controlledPlayerId || null,
+    manager: isPlayerMode ? (state.coachName || 'Treinador da IA') : (state.manager || user.name || 'Treinador'),
     season: state.season,
     date: state.date,
     round: state.round,
@@ -9319,6 +9389,9 @@ function load(){
 }
 
 function saveUserSlot(slotNum){
+  if(typeof window !== 'undefined' && window.state){
+    state = window.state;
+  }
   if(state && slotNum){
     state.userSlot = Math.max(1, Math.min(3, Number(slotNum) || 1));
   }
@@ -9386,11 +9459,57 @@ function loadUserSlot(slotNum, ownerUsername = null){
   state = clone(rawData);
   state.userSlot = slotNum;
   state.userOwner = username;
+  if(typeof window !== 'undefined'){
+    window.state = state;
+  }
   purgeBuggedExploitPlayers(state);
   state = migrate(state);
   purgeBuggedExploitPlayers(state);
   save();
-  view = 'central';
+
+  // REGRA INVIOLÁVEL: IDENTIFICAÇÃO E ISOLAMENTO ESTRITO DO MODO DE JOGO
+  const isPlayerMode = Boolean(
+    state.gameMode === 'player' ||
+    state.playerCareerState ||
+    state.controlledPlayerId ||
+    rawData.gameMode === 'player' ||
+    rawData.playerCareerState ||
+    rawData.controlledPlayerId ||
+    saveEntry.gameMode === 'player' ||
+    saveEntry.isPlayerMode
+  );
+  if(isPlayerMode){
+    state.gameMode = 'player';
+    if(!state.playerCareerState && (rawData.playerCareerState || saveEntry.playerCareerState)){
+      state.playerCareerState = clone(rawData.playerCareerState || saveEntry.playerCareerState);
+    }
+    if(!state.controlledPlayerId && (rawData.controlledPlayerId || saveEntry.controlledPlayerId)){
+      state.controlledPlayerId = rawData.controlledPlayerId || saveEntry.controlledPlayerId;
+    }
+    state.coachName = state.coachName || 'Treinador da IA';
+    state.manager = state.coachName;
+    view = 'player_hub';
+    if(typeof window !== 'undefined') window.view = 'player_hub';
+  } else {
+    state.gameMode = 'manager';
+    view = 'central';
+    if(typeof window !== 'undefined') window.view = 'central';
+  }
+
+  // Força reconstrução limpa da casca no render()
+  const appEl = (typeof document !== 'undefined') ? (document.getElementById('app') || document.querySelector('#app')) : null;
+  if(appEl){
+    if(appEl.dataset){
+      delete appEl.dataset.renderedGameMode;
+      delete appEl.dataset.renderedView;
+    }
+    appEl.innerHTML = '';
+  }
+
+  if(typeof window !== 'undefined'){
+    window.state = state;
+  }
+  if(isPlayerMode) save();
   toast(`Campanha do ${clubDisplayName(state.club)} (Slot ${slotNum}) carregada com sucesso!`);
   render();
   return true;
@@ -10938,14 +11057,15 @@ function playerSalary(p, stateRef){
     return getLegacyPlayerSalary(p, st);
   }
 
-  const n = norm(p?.name || '');
-  if(REAL_WORLD_PLAYER_SALARIES[n]) return REAL_WORLD_PLAYER_SALARIES[n];
-  const parts = n.split(/\s+/);
-  if(parts.length > 1 && REAL_WORLD_PLAYER_SALARIES[parts[parts.length - 1]]) {
-    return REAL_WORLD_PLAYER_SALARIES[parts[parts.length - 1]];
-  }
-
   const o = playerOverall(p);
+  const n = norm(p?.name || '');
+  if(o >= 72){
+    if(REAL_WORLD_PLAYER_SALARIES[n]) return REAL_WORLD_PLAYER_SALARIES[n];
+    const parts = n.split(/\s+/);
+    if(parts.length > 1 && REAL_WORLD_PLAYER_SALARIES[parts[parts.length - 1]]) {
+      return REAL_WORLD_PLAYER_SALARIES[parts[parts.length - 1]];
+    }
+  }
   let base;
   if(o >= 91) base = 12000000 + (o - 91) * 3500000;
   else if(o >= 87) base = 5500000 + (o - 87) * 1500000;
@@ -13738,6 +13858,26 @@ function getStateCompStats(cId){
   return state.competitionStats[cId];
 }
 
+function renderOtherCompetitionPlayerLeaders(excludedCompetitionId = null){
+  if(state?.gameMode !== 'player') return '';
+  const athleteName = state.playerCareerState?.athleteName || state.squad?.find(player => player.isControlled)?.name;
+  if(!athleteName) return '';
+  return Object.entries(state.competitionStats || {}).filter(([id, stats]) =>
+    id !== excludedCompetitionId && Number(stats?.season || state.season) === Number(state.season) && ((stats.scorers || []).length || (stats.assists || []).length)
+  ).map(([id, stats]) => {
+    const competitionName = compById(id)?.name || id;
+    const renderList = (list, key, label) => {
+      const rows = (list || []).slice().sort((a,b) => (Number(b[key]) || 0) - (Number(a[key]) || 0)).slice(0, 10);
+      if(!rows.length) return '';
+      return `<div style="flex:1;min-width:280px"><h4 style="margin:0 0 8px;color:#94a3b8;font-size:11px">${label}</h4>${rows.map((row, index) => {
+        const isUser = norm(row.name) === norm(athleteName);
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid rgba(255,255,255,.06);${isUser ? 'background:rgba(124,58,237,.18);border-radius:6px' : ''}"><span style="color:#cbd5e1">${index + 1}. ${esc(row.name)} ${isUser ? '<b style="color:#c084fc">VOCÊ</b>' : ''}<small style="color:#64748b"> · ${esc(row.club || '')}</small></span><b style="color:#fff">${Number(row[key]) || 0}</b></div>`;
+      }).join('')}</div>`;
+    };
+    return `<section class="card" style="margin-top:14px;padding:16px"><h3 style="margin:0 0 12px;color:#fff">🏅 Artilharia e assistências · ${esc(competitionName)}</h3><div style="display:flex;flex-wrap:wrap;gap:22px">${renderList(stats.scorers, 'goals', 'ARTILHARIA · GOLS')}${renderList(stats.assists, 'assists', 'ASSISTÊNCIAS')}</div></section>`;
+  }).join('');
+}
+
 function getClubSquadForStats(clubName){
   if(!clubName) return [];
   if(norm(clubName) === norm(state.club) && Array.isArray(state.squad) && state.squad.length){
@@ -14523,7 +14663,7 @@ function newCareer(data){
     isPreSeason: true,
     preSeasonDays: 4,
     round: 0,
-    balance: isCustom ? 300000 : (budget + ((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0))),
+    balance: isCustom ? 300000 : ((club && typeof club.budget === 'number') ? Math.round(club.budget * 1e6) : (budget + ((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0)))),
     managerMoney: 57000,
     trust: { board: 65, fans: 70, squad: 68 },
     boardConfidence: 78,
@@ -14617,6 +14757,9 @@ function newCareer(data){
 
   optimizeLineup();
   ensureTvBroadcastContract(state);
+  if(typeof window !== 'undefined'){
+    window.state = state;
+  }
   save();
   view = 'central';
   toast(`Carreira iniciada com o ${club.name}! Caixa inicial: ${fmtMoney(300000)}.`);
@@ -15241,6 +15384,11 @@ function migrate(s){
   if(!s)return null;
   deepSanitizeSaveMojibake(s);
   purgeBuggedExploitPlayers(s);
+
+  // REGRA INVIOLÁVEL: IDENTIFICAÇÃO E ISOLAMENTO ESTRITO DO MODO DE JOGO
+  const isPlayerCareer = Boolean(s.playerCareerState || s.controlledPlayerId);
+  s.gameMode = isPlayerCareer ? 'player' : 'manager';
+
   (s.squad || []).forEach(p => {
     if(p && (!p.pos || p.pos === "-" || p.pos === "undefined" || p.pos === "null")){
       p.pos = resolveRegenOrYouthPosition(p);
@@ -15277,6 +15425,7 @@ function migrate(s){
   }
   if(typeof s.trainingSuggestionPending !== 'boolean') s.trainingSuggestionPending = false;
   s.playerMoves=s.playerMoves||{};
+
   s.worldGenerated=s.worldGenerated||buildWorldGenerated();
   s.squad=(Array.isArray(s.squad)?s.squad:[]).filter(p=>p && typeof p==='object' && (p.name || p.id || p.marketKey)).map(stablePlayer);
   normalizeLoanContractData(s);
@@ -15469,6 +15618,25 @@ function migrate(s){
   if(s.date){
     s.currentDate = s.date;
     s.currentDateFormatted = formatDatePtBr(s.date);
+  }
+  // Auto-heal de saldo inflacionado na rodada 0 para clubes do Candangão
+  if(s.round === 0 && s.gameMode !== 'player'){
+    const cNorm = norm(s.club || '');
+    const candangoBudgets = {
+      'brasilia': 400000,
+      'real brasilia': 500000,
+      'ceilandia': 500000,
+      'capital-df': 600000,
+      'gama': 800000,
+      'brasiliense': 1200000,
+      'samambaia': 350000,
+      'paranoa': 300000,
+      'sobradinho': 350000,
+      'aruc': 250000
+    };
+    if(candangoBudgets[cNorm] && s.balance > 2000000){
+      s.balance = candangoBudgets[cNorm];
+    }
   }
   return s;
 }
@@ -16701,11 +16869,20 @@ function advanceDateAfterMatch(gameState = state){
     if(typeof window !== 'undefined' && typeof window.processAutomaticFitnessCoachTraining === 'function'){
       window.processAutomaticFitnessCoachTraining(gameState);
     }
+    const previousDate = gameState.date || gameState.currentDate;
     const curD = new Date(gameState.date + 'T12:00:00');
     curD.setDate(curD.getDate() + 1);
     gameState.date = curD.toISOString().slice(0, 10);
     gameState.currentDate = gameState.date;
     gameState.currentDateFormatted = formatDatePtBr(gameState.date);
+    window.AFM_NationalTeams?.processCalendarDay(gameState, gameState.date);
+    window.AFM_SocialMedia?.onDayAdvance(gameState, gameState.date);
+    if(gameState.gameMode === 'player' && window.AFM_PlayerEngine){
+      if(previousDate?.slice(0, 7) !== gameState.date.slice(0, 7)){
+        window.AFM_PlayerEngine.processMonthlyPlayerFinances?.(gameState);
+      }
+      window.AFM_PlayerEngine.processDailySponsorTurn?.(gameState);
+    }
     processLoanContractReturns(gameState, gameState.date);
     if(typeof processStadiumConstructionDay === 'function') processStadiumConstructionDay();
     if(typeof expireStadiumEventConfirmation === 'function') expireStadiumEventConfirmation();
@@ -17099,6 +17276,8 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       state.date = nextDate;
       state.currentDate = nextDate;
       state.currentDateFormatted = formatDatePtBr(nextDate);
+      window.AFM_NationalTeams?.processCalendarDay(state, nextDate);
+      window.AFM_SocialMedia?.onDayAdvance(state, nextDate);
       if(typeof processLoanContractReturns === 'function') processLoanContractReturns(state, nextDate);
       if(typeof processStadiumConstructionDay === 'function') processStadiumConstructionDay();
       if(typeof processContinentalFixturesBefore === 'function') processContinentalFixturesBefore(state.date);
@@ -17144,6 +17323,14 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
         }
       }
       if(typeof processClubMonthlyFinances === 'function') processClubMonthlyFinances(state, nextDate);
+      if((state.gameMode === 'player' || state.playerCareerState) && typeof window !== 'undefined' && window.AFM_PlayerEngine){
+        if(nextDate.endsWith('-01') && typeof window.AFM_PlayerEngine.processMonthlyPlayerFinances === 'function'){
+          window.AFM_PlayerEngine.processMonthlyPlayerFinances(state);
+        }
+        if(typeof window.AFM_PlayerEngine.processDailySponsorTurn === 'function'){
+          window.AFM_PlayerEngine.processDailySponsorTurn(state);
+        }
+      }
       if(nextDate.endsWith('-01') && typeof processBankLoansOnRound === 'function') processBankLoansOnRound();
       if(nextDate.endsWith('-01') && typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function') window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(state);
       processCopaDoBrasilCalendar(state.date);
@@ -17200,6 +17387,7 @@ function transitionMatchPhase(newPhase){
   console.warn(`[AFM] Transição de estado de partida bloqueada: ${current} -> ${newPhase}`);
   return false;
 }
+if(typeof window !== 'undefined') window.transitionMatchPhase = transitionMatchPhase;
 
 function getClubTacticalProfile(clubName, isUser){
   if(isUser && state && state.tactics){
@@ -20361,11 +20549,15 @@ function startLiveMatch(){
 
     if(isUser){
       const lineupKeys = state.lineup || [];
-      const selectedStarters = lineupKeys.map(k => findSquadPlayerByKey(k)).filter(Boolean);
+      const controlledAthlete = state.gameMode === 'player'
+        ? (state.squad || []).find(p => p.id === state.controlledPlayerId)
+        : null;
+      const playerTooTired = Boolean(controlledAthlete && Number(controlledAthlete.energy ?? controlledAthlete.fitness ?? 100) <= 40);
+      const selectedStarters = lineupKeys.map(k => findSquadPlayerByKey(k)).filter(p => p && !(playerTooTired && p.id === controlledAthlete.id));
       const starters = [...selectedStarters.slice(0, 11)];
       const usedStarterKeys = new Set(starters.map(p => playerKey(p)));
       while(starters.length < 11){
-        const extra = state.squad.find(p => !usedStarterKeys.has(playerKey(p)));
+        const extra = state.squad.find(p => !usedStarterKeys.has(playerKey(p)) && !(playerTooTired && p.id === controlledAthlete.id));
         if(extra){ starters.push(extra); usedStarterKeys.add(playerKey(extra)); }
         else break;
       }
@@ -20449,6 +20641,10 @@ function startLiveMatch(){
           clubId: teamName,
           teamId: isHomeSide ? 'home' : 'away',
           isUser: true,
+          careerPlayerId: p.id,
+          isControlledAthlete: state.gameMode === 'player' && String(p.id) === String(state.controlledPlayerId),
+          wasStarter: state.gameMode === 'player' && String(p.id) === String(state.controlledPlayerId),
+          enteredMinute: 0,
           photo: resolvePlayerPhotoUrl(p) || null,
           x: baseXPct,
           y: baseYPct,
@@ -20717,6 +20913,7 @@ function startLiveMatch(){
     halftimeTriggered: false,
     homePlayers,
     awayPlayers,
+    playerCareerAvailableForMatch: state.gameMode !== 'player' || Number(((state.squad || []).find(p => p.id === state.controlledPlayerId) || {}).energy ?? ((state.squad || []).find(p => p.id === state.controlledPlayerId) || {}).fitness ?? 100) > 40,
     homeTac: hTac,
     awayTac: aTac,
     tacticsDynamics: calculateTacticalMatchDynamics(home, away, hTac, aTac, hs, as),
@@ -20736,6 +20933,14 @@ function startLiveMatch(){
     done: false
   };
 
+  if(state.gameMode === 'player'){
+    const playerTeam = isUserHome ? liveMatchState.homePlayers : liveMatchState.awayPlayers;
+    const controlledPlayer = playerTeam.find(p => p.isControlledAthlete);
+    if(controlledPlayer){
+      liveMatchState.events.unshift({ min: 0, type: 'lineup', text: `✅ ${controlledPlayer.fullName || controlledPlayer.name} foi escalado como titular do ${state.club}.` });
+    }
+  }
+
   if (window.afmAudio) {
     window.afmAudio.startCrowdAmbient(home, comp?.id);
     window.afmAudio.playSFX('whistle_start');
@@ -20743,6 +20948,12 @@ function startLiveMatch(){
     playWhistleSound();
   }
   renderLiveMatchModal();
+  const playerTeam = isUserHome ? liveMatchState.homePlayers : liveMatchState.awayPlayers;
+  const controlledPlayer = playerTeam.find(p => p.isControlledAthlete);
+  if(controlledPlayer){
+    showLiveBanner(`⭐ VOCÊ COMEÇA COMO TITULAR: ${controlledPlayer.fullName || controlledPlayer.name}!`, 'tactics', 3500);
+    toast(`⭐ Você foi escalado como titular do ${state.club}!`);
+  }
   } finally {
     setTimeout(() => { isStartingLiveMatch = false; }, 400);
   }
@@ -20877,8 +21088,28 @@ function renderLiveMatchModal(){
           </div>
         </div>
 
-        ${!s.done ? `
-          <!-- BARRA DE GRITOS DA BEIRA DO CAMPO (Melhoria 3) -->
+        ${!s.done ? (Boolean(state?.gameMode === 'player' || state?.playerCareerState) ? `
+          <!-- BARRA DE COMANDOS DO CRAQUE: MODO JOGADOR (BE A PRO) -->
+          <div class="live-craque-commands" style="display:flex;gap:8px;align-items:center;padding:8px 14px;background:linear-gradient(135deg, rgba(6,78,59,0.95), rgba(15,23,42,0.95));border-top:2px solid #10b981;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:900;color:#6ee7b7;letter-spacing:0.5px">★ COMANDOS DO CRAQUE:</span>
+            <button type="button" class="live-craque-btn" id="btnCraqueCallBall" style="background:rgba(56,189,248,0.2);border:1px solid #38bdf8;color:#bae6fd;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+              ⚽ Pedir a Bola
+            </button>
+            <button type="button" class="live-craque-btn" id="btnCraqueShoot" style="background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#fca5a5;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+              🎯 Chutar a Gol
+            </button>
+            <button type="button" class="live-craque-btn" id="btnCraqueSprint" style="background:rgba(234,179,8,0.2);border:1px solid #eab308;color:#fef08a;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+              ⚡ Arrancada / Pique
+            </button>
+            <button type="button" class="live-craque-btn" id="btnCraquePress" style="background:rgba(168,85,247,0.2);border:1px solid #a855f7;color:#e9d5ff;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+              🛡️ Pressionar Marcação
+            </button>
+            <button type="button" class="live-craque-btn" id="btnCraqueStaminaStatus" style="background:rgba(16,185,129,0.25);border:1px solid #10b981;color:#6ee7b7;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:900;cursor:pointer;margin-left:auto">
+              ⭐ MEU CRAQUE & FÔLEGO
+            </button>
+          </div>
+        ` : `
+          <!-- BARRA DE GRITOS DA BEIRA DO CAMPO (MODO TREINADOR) -->
           <div class="live-coach-shouts" style="display:flex;gap:8px;align-items:center;padding:8px 14px;background:rgba(15,23,42,0.92);border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap">
             <span style="font-size:11px;font-weight:900;color:#38bdf8;letter-spacing:0.5px">🗣️ BEIRA DO CAMPO:</span>
             <button class="live-shout-btn" data-shout="press" style="background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#fca5a5;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
@@ -20892,7 +21123,7 @@ function renderLiveMatchModal(){
             </button>
             ${s.coachShout ? `<span style="font-size:11px;color:#22c55e;font-weight:800;margin-left:auto">✓ Instrução em andamento</span>` : ''}
           </div>
-        ` : ''}
+        `) : ''}
 
         ${s.done ? `
           <div class="live-postmatch-diag" style="margin:8px 14px;padding:12px 16px;background:rgba(15,23,42,0.96);border:1px solid #38bdf8;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.6)">
@@ -20940,7 +21171,7 @@ function renderLiveMatchModal(){
 
             <button class="live-ctrl-btn" id="btnLiveForward1" title="Avançar 1 minuto no jogo">⏩ 1 min</button>
             <button class="live-ctrl-btn green-tactics" id="btnLiveTactics" title="Substituições e Tática">
-              ⚡ MEXER NO TIME
+              ${(state?.gameMode === 'player' || state?.playerCareerState) ? '⭐ MEU CRAQUE' : '⚡ MEXER NO TIME'}
             </button>
             ${s.phase === 'FIRST_HALF' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Pular para o intervalo">⏩| PULAR 1º TEMPO</button>` : (s.phase === 'HALF_TIME' ? `<button class="live-ctrl-btn" id="btnLiveSkipHalf" title="Iniciar 2º Tempo">▶ INICIAR 2º TEMPO</button>` : '')}
             <button class="live-ctrl-btn" id="btnLiveSkipEnd" title="Simular até o apito final">⏭| IR AO FIM</button>
@@ -22190,7 +22421,8 @@ function drawDugouts(ctx, s){
   }
 
   // 1. Banco Mandante (Home - Esquerda)
-  const homeManager = (typeof state !== 'undefined' && state.manager) ? `TÉC. ${state.manager.split(' ')[0].toUpperCase()}` : `TÉC. ${(s.home || 'CASA').slice(0, 4).toUpperCase()}`;
+  const managerName = typeof state !== 'undefined' && state.gameMode === 'player' ? (state.coachName || 'Treinador da IA') : state?.manager;
+  const homeManager = managerName ? `TÉC. ${managerName.split(' ')[0].toUpperCase()}` : `TÉC. ${(s.home || 'CASA').slice(0, 4).toUpperCase()}`;
   renderBench(240, 195, 32, hKitColor, true, homeManager);
 
   // 2. Banco Visitante (Away - Direita)
@@ -22202,6 +22434,28 @@ function drawPlayerSprite(ctx, p, hasBall){
   if(p.redCard) return; // Jogador expulso não aparece no campo!
   const pt = proj(p.x, p.y);
   const scale = 0.8 + (p.y / 100) * 0.45; // Jogadores na parte inferior são maiores
+
+  if(p.isControlledAthlete){
+    ctx.save();
+    ctx.strokeStyle = '#facc15';
+    ctx.fillStyle = '#facc15';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(pt.x, pt.y + 3, 12 * scale, 5 * scale, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(pt.x, pt.y - 40 * scale);
+    ctx.lineTo(pt.x - 6 * scale, pt.y - 49 * scale);
+    ctx.lineTo(pt.x + 6 * scale, pt.y - 49 * scale);
+    ctx.closePath();
+    ctx.fill();
+    ctx.font = 'bold 8px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 4;
+    ctx.fillText('VOCÊ', pt.x, pt.y - 53 * scale);
+    ctx.restore();
+  }
 
   if(window.AFM_REAL_FOOTBALL?.renderer?.drawRealistic3DPlayer){
     window.AFM_REAL_FOOTBALL.renderer.drawRealistic3DPlayer(ctx, p, hasBall, proj, scale);
@@ -22700,8 +22954,11 @@ function simulateMinute(s, min){
   } else if(buildUpRoll < 0.18 + defPressBonus){
     // Falta tática da equipe adversária travando a saída de bola
     if(isHome) s.stats.foulsA++; else s.stats.foulsH++;
-    const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[2];
-    s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta tática de ${defP.name} (${defTeam}) travando o início da jogada do ${attTeam}.` });
+    const nonGkDef = defPlayers.filter(p => p && !p.isGK && !p.redCard);
+    const defP = (nonGkDef.length > 0)
+      ? (nonGkDef[Math.floor(s.prng() * nonGkDef.length)] || nonGkDef[0])
+      : (defPlayers.find(p => p && !p.redCard) || defPlayers[0] || { name: 'Defensor' });
+    s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta tática de ${defP.name || 'Defensor'} (${defTeam}) travando o início da jogada do ${attTeam}.` });
     if(window.afmAudio) window.afmAudio.playSFX('whistle_foul');
     possessionPhase = 'RESTART';
   } else if(buildUpRoll < 0.52){
@@ -22725,22 +22982,25 @@ function simulateMinute(s, min){
     } else if(midRoll < 0.72){
       // Falta no meio-campo com possível cartão amarelo
       if(isHome) s.stats.foulsA++; else s.stats.foulsH++;
-      const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*5)+1] || defPlayers[2];
+      const nonGkDef = defPlayers.filter(p => p && !p.isGK && !p.redCard);
+      const defP = (nonGkDef.length > 0)
+        ? (nonGkDef[Math.floor(s.prng() * nonGkDef.length)] || nonGkDef[0])
+        : (defPlayers.find(p => p && !p.redCard) || defPlayers[0] || { name: 'Defensor' });
       if(s.prng() < 0.16){
         if(!defP.yellowCards){
           defP.yellowCards = 1;
           if(isHome) s.stats.yellowsA++; else s.stats.yellowsH++;
-          s.events.unshift({ min, type: 'yellow', text: `🟨 Cartão amarelo para ${defP.name} (${defTeam}) por entrada dura no círculo central.` });
+          s.events.unshift({ min, type: 'yellow', text: `🟨 Cartão amarelo para ${defP.name || 'Defensor'} (${defTeam}) por entrada dura no círculo central.` });
           if(window.afmAudio) window.afmAudio.playSFX('whistle_card');
         } else if(defP.yellowCards === 1 && !defP.redCard){
           defP.yellowCards = 2;
           defP.redCard = true;
           if(isHome){ s.stats.yellowsA++; s.stats.redsA++; } else { s.stats.yellowsH++; s.stats.redsH++; }
-          s.events.unshift({ min, type: 'red', text: `🟥 Segundo cartão amarelo e EXPULSÃO de ${defP.name} (${defTeam})! Deixa seu time com um a menos!` });
+          s.events.unshift({ min, type: 'red', text: `🟥 Segundo cartão amarelo e EXPULSÃO de ${defP.name || 'Defensor'} (${defTeam})! Deixa seu time com um a menos!` });
           if(window.afmAudio) window.afmAudio.playSFX('whistle_card');
         }
       } else {
-        s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta marcada de ${defP.name} sobre o meia do ${attTeam}.` });
+        s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta marcada de ${defP.name || 'Defensor'} sobre o meia do ${attTeam}.` });
         if(window.afmAudio) window.afmAudio.playSFX('whistle_foul');
       }
     } else {
@@ -22752,14 +23012,15 @@ function simulateMinute(s, min){
   // FASE 3: FINAL_THIRD & CHANCE_CREATION (Último Terço e Resolução Ofensiva)
   if(possessionPhase === 'FINAL_THIRD'){
     // O ataque escolhe o jogador de linha mais adiantado; a finalização só acontece na zona ofensiva.
-    const fwPool = attPlayers.filter(p => !p.isGK && !p.redCard && ['ST','CF','RW','LW','AM','CM'].includes(p.pos));
+    const fwPool = attPlayers.filter(p => p && !p.isGK && !p.redCard && ['ST','CF','RW','LW','AM','CM'].includes(p.pos));
     const goalProgressOf = p => isHome ? (Number(p?.x) || 50) : 100 - (Number(p?.x) || 50);
     const rankedForwards = [...fwPool].sort((a, b) => goalProgressOf(b) - goalProgressOf(a));
     const topOptions = rankedForwards.slice(0, Math.min(3, rankedForwards.length));
     const continuingAttacker = previousCarrier && attPlayers.includes(previousCarrier) && !previousCarrier.isGK && !previousCarrier.redCard && ['ST','CF','RW','LW','AM','CM'].includes(previousCarrier.pos)
       ? previousCarrier
       : null;
-    s.ball.carrier = continuingAttacker || (topOptions.length ? topOptions[Math.floor(s.prng() * topOptions.length)] : (attPlayers.find(p => !p.isGK && !p.redCard) || attPlayers[9]));
+    const lineAtt = attPlayers.filter(p => p && !p.isGK && !p.redCard);
+    s.ball.carrier = continuingAttacker || (topOptions.length ? topOptions[Math.floor(s.prng() * topOptions.length)] : (lineAtt[Math.floor(s.prng() * lineAtt.length)] || attPlayers[0] || { name: 'Atacante', pos: 'ST' }));
     s.ball.isHomeAttacking = isHome;
 
     const shootZoneProgress = 68;
@@ -22782,14 +23043,17 @@ function simulateMinute(s, min){
       }
     } else {
       const boxRoll = s.prng();
+      const nonGkDef = defPlayers.filter(p => p && !p.isGK && !p.redCard);
+      const safeDefP = (nonGkDef.length > 0)
+        ? (nonGkDef[Math.floor(s.prng() * nonGkDef.length)] || nonGkDef[0])
+        : (defPlayers.find(p => p && !p.redCard) || defPlayers[0] || { name: 'Defensor' });
+
       if(boxRoll < 0.05){
         // PÊNALTI!
-        const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[1];
-        executePenaltySim(s, min, s.ball.carrier, defP, isHome);
+        executePenaltySim(s, min, s.ball.carrier, safeDefP, isHome);
       } else if(boxRoll < 0.16){
         // FALTA PERIGOSA NA ENTRADA DA ÁREA!
-        const defP = defPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng()*4)] || defPlayers[1];
-        executeFreeKickSim(s, min, s.ball.carrier, defP, isHome);
+        executeFreeKickSim(s, min, s.ball.carrier, safeDefP, isHome);
       } else if(boxRoll < 0.34){
         // Desarme limpo na área desviado para ESCANTEIO
         if(isHome) { s.stats.cornersH++; s.stats.tacklesA++; }
@@ -23000,13 +23264,14 @@ function validateMatchEvent(evt, s){
 }
 
 function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg, attTeam, defTeam, isCounterAttack=false){
-  const forwards = attPlayers.filter(p => ['ST', 'CF', 'RW', 'LW', 'AM'].includes(p.pos) && !p.redCard && !p.isGK);
+  const forwards = attPlayers.filter(p => p && ['ST', 'CF', 'RW', 'LW', 'AM'].includes(p.pos) && !p.redCard && !p.isGK);
   const liveCarrier = s.ball?.carrier;
+  const lineAtt = attPlayers.filter(p => p && !p.isGK && !p.redCard);
   const shooter = (liveCarrier && attPlayers.includes(liveCarrier) && !liveCarrier.isGK && !liveCarrier.redCard)
     ? liveCarrier
     : ((forwards.length && s.prng() < 0.84)
       ? forwards[Math.floor(s.prng() * forwards.length)]
-      : attPlayers.filter(p => !p.isGK && !p.redCard)[Math.floor(s.prng() * 10)] || attPlayers[9]);
+      : (lineAtt.length ? lineAtt[Math.floor(s.prng() * lineAtt.length)] : (attPlayers[0] || { name: 'Atacante', pos: 'ST' })));
 
   if(!validateMatchEntity(shooter, s) || shooter.isGK) return;
 
@@ -23488,6 +23753,27 @@ function bindLiveMatchEvents(){
   const canvas = $('#liveMatchCanvas');
 
   function togglePlay(){
+    if(s.phase === 'HALF_TIME'){
+      $('#halftimeModalContainer')?.remove();
+      if((state?.gameMode === 'player' || state?.playerCareerState) && s.shouldSubPlayerAtHalftime && typeof window.triggerPlayerCareerSubstitution === 'function'){
+        window.triggerPlayerCareerSubstitution(s);
+      }
+      transitionMatchPhase('SECOND_HALF');
+      s.phase = 'SECOND_HALF';
+      s.minute = 45;
+      s.timeSec = 2700;
+      s.secAccumulator = 0;
+      s.lastLoopTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      s.playing = true;
+      if(btnPlay) btnPlay.textContent = '⏸';
+      if(overlay) overlay.style.display = 'none';
+      if(window.afmAudio){
+        window.afmAudio.playSFX('whistle_start');
+      } else {
+        playWhistleSound();
+      }
+      return;
+    }
     s.playing = !s.playing;
     if(btnPlay) btnPlay.textContent = s.playing ? '⏸' : '▶';
     if(overlay) overlay.style.display = s.playing ? 'none' : 'inline-flex';
@@ -23568,7 +23854,15 @@ function bindLiveMatchEvents(){
       openHalftimeModal();
     } else if(s.phase === 'HALF_TIME'){
       $('#halftimeModalContainer')?.remove();
+      if((state?.gameMode === 'player' || state?.playerCareerState) && s.shouldSubPlayerAtHalftime && typeof window.triggerPlayerCareerSubstitution === 'function'){
+        window.triggerPlayerCareerSubstitution(s);
+      }
       transitionMatchPhase('SECOND_HALF');
+      s.phase = 'SECOND_HALF';
+      s.minute = 45;
+      s.timeSec = 2700;
+      s.secAccumulator = 0;
+      s.lastLoopTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
       s.playing = true;
       if(window.afmAudio){
         window.afmAudio.playSFX('whistle_start');
@@ -23688,7 +23982,163 @@ function bindLiveMatchEvents(){
       toast('Instrução repassada aos atletas em campo!');
     };
   });
+
+  // COMANDOS DO CRAQUE: Ações em tempo real do atleta em campo (Modo Jogador)
+  const isPlayerMode = Boolean(state?.gameMode === 'player' || state?.playerCareerState);
+  if(isPlayerMode){
+    const userIsHome = norm(s.home) === norm(state.club);
+    const myTeam = userIsHome ? s.homePlayers : s.awayPlayers;
+    const findMyAthlete = () => (myTeam || []).find(p => p.isControlledAthlete);
+
+    const btnCall = $('#btnCraqueCallBall');
+    if(btnCall){
+      btnCall.onclick = () => {
+        const ath = findMyAthlete();
+        if(!ath) return toast('Aguarde sua entrada em campo no 2º tempo para comandar as jogadas!');
+        if(s.ball && s.ball.carrier && s.ball.carrier.team === ath.team && s.ball.carrier !== ath){
+          startLivePass(s, s.ball.carrier, ath, { logEvent: true, cooldownFrames: 60 });
+          showLiveBanner('⚽ VOCÊ RECEBEU O PASSE!', 'tactics', 2500);
+          toast('⚽ Passe recebido com sucesso!');
+        } else {
+          showLiveBanner('🗣️ PEDINDO A BOLA!', 'tactics', 2000);
+          toast('🗣️ Você gesticulou pedindo a bola no pé!');
+        }
+      };
+    }
+
+    const btnShoot = $('#btnCraqueShoot');
+    if(btnShoot){
+      btnShoot.onclick = () => {
+        const ath = findMyAthlete();
+        if(!ath) return toast('Aguarde sua entrada em campo para finalizar a gol!');
+        if(s.ball && s.ball.carrier === ath){
+          startLiveShot(s, ath);
+          showLiveBanner('🎯 FINALIZAÇÃO DO CRAQUE!', 'goal', 3000);
+          toast('🎯 Você soltou uma bomba em direção ao gol!');
+        } else {
+          showLiveBanner('🎯 PREPARADO PARA CHUTAR!', 'tactics', 2000);
+          toast('🎯 Você engatilhou o chute na próxima oportunidade!');
+        }
+      };
+    }
+
+    const btnSprint = $('#btnCraqueSprint');
+    if(btnSprint){
+      btnSprint.onclick = () => {
+        const ath = findMyAthlete();
+        if(!ath) return toast('Aguarde sua entrada em campo!');
+        ath.stamina = Math.max(10, (ath.stamina || 100) - 2);
+        const dir = ath.team === 'home' ? 1 : -1;
+        ath.x = clamp((ath.x || 50) + dir * 6, 4, 96);
+        showLiveBanner('⚡ ARRANCADA EXPLOSIVA!', 'tactics', 2000);
+        toast('⚡ Arrancada em velocidade! Espaço aberto no ataque!');
+      };
+    }
+
+    const btnPress = $('#btnCraquePress');
+    if(btnPress){
+      btnPress.onclick = () => {
+        const ath = findMyAthlete();
+        if(!ath) return toast('Aguarde sua entrada em campo!');
+        if(s.ball){
+          ath.x = clamp((ath.x * 0.7) + (s.ball.x * 0.3), 4, 96);
+          ath.y = clamp((ath.y * 0.7) + (s.ball.y * 0.3), 4, 96);
+        }
+        showLiveBanner('🛡️ PRESSÃO NA MARCAÇÃO!', 'tactics', 2000);
+        toast('🛡️ Você fechou os espaços e pressionou a saída de bola!');
+      };
+    }
+
+    const btnStamina = $('#btnCraqueStaminaStatus');
+    if(btnStamina){
+      btnStamina.onclick = () => {
+        openHalftimeModal(true);
+      };
+    }
+  }
 }
+
+// -------------------------------------------------------------
+// SUBSTITUIÇÃO DO ATLETA CONTROLADO NO MODO JOGADOR (BE A PRO)
+// -------------------------------------------------------------
+function triggerPlayerCareerSubstitution(s = liveMatchState){
+  if(!s || !state) return false;
+  const isPlayerMode = Boolean(state.gameMode === 'player' || state.playerCareerState || state.controlledPlayerId);
+  if(!isPlayerMode) return false;
+  if(Number(s.subsLeft) <= 0 || s.playerCareerAvailableForMatch === false) return false;
+
+  const athlete = (state.squad || []).find(p => String(p.id) === String(state.controlledPlayerId)) || (state.squad || [])[0];
+  if(!athlete) return false;
+
+  const userIsHome = (typeof norm === 'function' ? norm(s.home) === norm(state.club) : (s.home === state.club));
+  const myTeam = userIsHome ? s.homePlayers : s.awayPlayers;
+  if(!Array.isArray(myTeam) || myTeam.length === 0) return false;
+
+  // Verifica se o atleta já está em campo
+  const alreadyOnPitch = myTeam.find(p => p.isControlledAthlete || (athlete.id && (String(p.id) === String(athlete.id) || String(p.careerPlayerId) === String(athlete.id))) || (athlete.key && p.key === athlete.key));
+  if(alreadyOnPitch){
+    alreadyOnPitch.isControlledAthlete = true;
+    s.controlledAthleteOnPitch = true;
+    return true;
+  }
+
+  // Encontra um atleta para substituir (prioriza mesma posição, ou linha com menor stamina)
+  let subIndex = -1;
+  const athletePos = athlete.pos || 'ATA';
+  const outfieldPlayers = myTeam.map((p, idx) => ({ p, idx })).filter(item => !item.p.isGK && item.idx !== 0);
+
+  const samePos = outfieldPlayers.find(item => item.p.pos === athletePos);
+  if(samePos){
+    subIndex = samePos.idx;
+  } else {
+    outfieldPlayers.sort((a, b) => (Number(a.p.stamina) || 100) - (Number(b.p.stamina) || 100));
+    subIndex = outfieldPlayers[0] ? outfieldPlayers[0].idx : (myTeam.length - 1);
+  }
+
+  const subbedOut = myTeam[subIndex];
+  if(!subbedOut) return false;
+
+  const outName = subbedOut.name || 'Titular';
+  const outNum = subbedOut.num || 11;
+  const replacedPlayerId = subbedOut.id;
+  const athleteName = athlete.name || state.playerCareerState?.athleteName || 'Diogenes Aquino';
+  const athleteNum = athlete.number || 10;
+  const curMin = Math.max(45, Number(s.minute) || 45);
+
+  // Substitui os dados preservando referências e coordenadas da formação
+  subbedOut.id = athlete.id;
+  subbedOut.name = athleteName;
+  subbedOut.fullName = athlete.fullName || athleteName;
+  subbedOut.num = athleteNum;
+  subbedOut.pos = athletePos;
+  subbedOut.ovr = athlete.ovr || 40;
+  subbedOut.stamina = 100;
+  subbedOut.careerPlayerId = athlete.id;
+  subbedOut.enteredMinute = curMin;
+  subbedOut.wasStarter = false;
+  subbedOut.isControlledAthlete = true;
+  subbedOut.canScore = true;
+  subbedOut.canShoot = true;
+
+  if(s.subsLeft > 0) s.subsLeft--;
+
+  s.events = s.events || [];
+  s.events.unshift({
+    min: curMin,
+    type: 'sub',
+    playerId: athlete.id,
+    replacedPlayerId,
+    text: `🟦 SUBSTITUIÇÃO NO ${userIsHome ? s.home : s.away}! Sai ${outName} (#${outNum}) e entra o jovem craque ${athleteName} (#${athleteNum}) sob muitos aplausos!`
+  });
+
+  s.controlledAthleteOnPitch = true;
+  if(typeof updateScoreDisplay === 'function') updateScoreDisplay();
+  if(typeof updateLiveSidebarEvents === 'function') updateLiveSidebarEvents();
+  if(typeof showLiveBanner === 'function') showLiveBanner(`⚽ VOCÊ ENTROU EM CAMPO! ${athleteName} (#${athleteNum})`, 'tactics', 4000);
+  if(typeof toast === 'function') toast(`⚽ Você entrou em campo aos ${curMin}'!`);
+  return true;
+}
+window.triggerPlayerCareerSubstitution = triggerPlayerCareerSubstitution;
 
 // -------------------------------------------------------------
 // MODAL DE INTERVALO & SUBSTITUIÇÕES COM CANSAÇO (SCREENSHOT 4)
@@ -23698,6 +24148,9 @@ let halftimeSelectedStarterKey = null;
 function openHalftimeModal(isQuickTactics = false){
   const s = liveMatchState;
   if(!s) return;
+  if((state?.gameMode === 'player' || state?.playerCareerState) && window.AFM_PlayerMode && typeof window.AFM_PlayerMode.openPlayerCareerHalftimeModal === 'function'){
+    return window.AFM_PlayerMode.openPlayerCareerHalftimeModal(isQuickTactics);
+  }
   const userIsHome = norm(s.home) === norm(state.club);
 
   let modalEl = $('#halftimeModalContainer');
@@ -24241,6 +24694,57 @@ function finalizeMatchRound(){
     toast('Esta partida estadual já tinha resultado salvo; a partida duplicada foi descartada.');
     return;
   }
+
+  let playerPerformanceReport = null;
+  if(state.gameMode === 'player' && state.playerCareerState && !s.playerPerformanceProcessed){
+    s.playerPerformanceProcessed = true;
+    const isUserHome = norm(s.home) === norm(state.club);
+    const playerTeam = isUserHome ? s.homePlayers : s.awayPlayers;
+    const hasControlledId = state.controlledPlayerId != null;
+    const athlete = hasControlledId ? (state.squad || []).find(p => String(p.id) === String(state.controlledPlayerId)) : null;
+    const nameMatches = value => {
+      const candidate = norm(value || '');
+      return !!candidate && [athlete?.name, athlete?.fullName, state.playerCareerState.athleteName].some(name => norm(name || '') === candidate);
+    };
+    const matchAthlete = (playerTeam || []).find(p => p.isControlledAthlete ||
+      (hasControlledId && (String(p.id) === String(state.controlledPlayerId) || String(p.careerPlayerId) === String(state.controlledPlayerId))) || nameMatches(p.name));
+    const goalEvents = (s.events || []).filter(event => event.type === 'gol');
+    const eventBelongsToAthlete = event => matchAthlete && (
+      String(event.playerId) === String(matchAthlete.id) ||
+      String(event.playerId) === String(matchAthlete.careerPlayerId) ||
+      nameMatches(event.scorer)
+    );
+    const goals = matchAthlete
+      ? goalEvents.filter(event => String(event.playerId) === String(matchAthlete.id) || String(event.playerId) === String(matchAthlete.careerPlayerId) || nameMatches(event.scorer) || nameMatches(event.text?.match(/GOL DO [^!]+!\s*([^,(]+)/i)?.[1])).length
+      : 0;
+    const assists = matchAthlete
+      ? goalEvents.filter(event => String(event.relatedPlayerId) === String(matchAthlete.id) || String(event.relatedPlayerId) === String(matchAthlete.careerPlayerId) || nameMatches(event.assist)).length
+      : 0;
+    const shots = matchAthlete ? (s.events || []).filter(event => eventBelongsToAthlete(event) && (
+      ['gol', 'save', 'post', 'miss'].includes(event.type) || (event.type === 'whistle' && /BLOQUEIO PROVIDENCIAL/i.test(event.text || ''))
+    )).length : 0;
+    const shotsOnTarget = matchAthlete ? (s.events || []).filter(event => eventBelongsToAthlete(event) && ['gol', 'save'].includes(event.type)).length : 0;
+    const enteredMinute = matchAthlete ? Number(matchAthlete.enteredMinute) || 0 : 0;
+    const playedMinutes = matchAthlete ? Math.max(0, Math.min(120, (Number(s.minute) || 90) - enteredMinute)) : 0;
+    playerPerformanceReport = window.AFM_PlayerEngine?.processMatchPerformance(state, {
+      h: s.home,
+      a: s.away,
+      hg: s.hg,
+      ag: s.ag,
+      goalsFor: isUserHome ? s.hg : s.ag,
+      goalsAgainst: isUserHome ? s.ag : s.hg,
+      goals,
+      assists,
+      shots,
+      shotsOnTarget,
+      playedMinutes,
+      started: Boolean(matchAthlete?.wasStarter),
+      status: s.playerCareerAvailableForMatch === false ? 'Não relacionado por desgaste físico' : 'Reserva não utilizado',
+      reason: s.playerCareerAvailableForMatch === false ? 'Você estava com energia em 40% ou menos e ficou fora dos relacionados.' : 'Você ficou no banco e não entrou nesta partida.'
+    }, { showSummary: false });
+    if(playerPerformanceReport) state.playerCareerState.lastProcessedLiveMatchId = s.matchId;
+  }
+
   if(liveCanvasAnimId) cancelAnimationFrame(liveCanvasAnimId);
   $('#matchModalContainer')?.remove();
   liveMatchState = null;
@@ -24398,8 +24902,13 @@ function finalizeMatchRound(){
   save();
   render();
 
-  // Coletiva de Imprensa Pós-Jogo na Sala de Imprensa (se houver jogo do usuário)
-  if(userRes){
+  // Relatório individual primeiro; ao continuar, abre as opções pós-jogo usuais.
+  if(playerPerformanceReport && window.AFM_PlayerMode?.showPostMatchSummaryModal){
+    window.AFM_PlayerMode.showPostMatchSummaryModal(playerPerformanceReport, null, () => {
+      if(userRes) triggerPostMatchFlow(userRes);
+      else { view = 'central'; render(); }
+    });
+  } else if(userRes){
     triggerPostMatchFlow(userRes);
   } else {
     view = 'central';
@@ -28328,42 +28837,78 @@ function render() {
       if(main) main.scrollTop = mainScroll;
       app.querySelectorAll('.tablewrap, .tactics-bench-wrapper > div[style*="overflow-y:auto"]').forEach((el, i) => { el.scrollTop = nestedScroll[i] || 0; });
     });
+    const isPlayerMode = Boolean(state?.gameMode === 'player' || state?.playerCareerState || state?.controlledPlayerId);
+    const currentMode = isPlayerMode ? 'player' : 'manager';
     const mainEl = app.querySelector('.main');
     const sideNav = app.querySelector('.nav');
-    if(mainEl && sideNav && app.querySelector('.app')){
+    if(mainEl && sideNav && app.querySelector('.app') && app.dataset?.renderedGameMode === currentMode){
       try {
-        // Mantém a navegação sincronizada com a ordem e os itens atuais do menu.
+        const nextHtml = page();
+        mainEl.innerHTML = nextHtml;
+
+        // Mantém a navegação lateral e a ribbon sincronizadas com labels, notificações e abas adaptativas
         const drawerItems = getDrawerNavItems();
-        const currentNavOrder = [...sideNav.querySelectorAll('[data-view]')].map(button => button.dataset.view).join('|');
-        if(currentNavOrder !== drawerItems.map(([id]) => id).join('|')){
-          sideNav.innerHTML = drawerItems.map(([id,l])=>`<button class="btn ${view===id?'active':''}" data-view="${id}">${l}</button>`).join('');
+        const currentNavSignature = [...sideNav.querySelectorAll('[data-view]')].map(b => `${b.dataset.view}:${b.innerHTML}`).join('|');
+        const nextNavSignature = drawerItems.map(([id, l]) => `${id}:${l}`).join('|');
+        if(currentNavSignature !== nextNavSignature){
+          sideNav.innerHTML = drawerItems.map(([id, l]) => `<button class="btn ${view===id?'active':''}" data-view="${id}">${l}</button>`).join('');
+        } else {
+          sideNav.querySelectorAll('[data-view]').forEach(b => {
+            b.classList.toggle('active', b.dataset.view === view);
+          });
         }
+
+        // Sincroniza a fita adaptativa do topo (Top 4 Atalhos)
         const ribbon = app.querySelector('.sm-task-ribbon');
-        if(ribbon && !ribbon.querySelector('[data-view="ranking"]')){
-          const calBtn = ribbon.querySelector('[data-view="calendario"]');
-          const rankingPillHtml = `<button type="button" class="sm-ribbon-pill ${view==='ranking'?'active':''}" data-view="ranking" style="${view==='ranking'?'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border-color:#c084fc;':''}" title="Ranking Nacional de Técnicos & PIX R$ 1.000">👑 Ranking & PIX</button>`;
-          if(calBtn) {
-            calBtn.insertAdjacentHTML('beforebegin', rankingPillHtml);
+        if(ribbon && typeof getAdaptiveRibbonTabs === 'function'){
+          const ribbonTabs = getAdaptiveRibbonTabs(isPlayerMode, view, state);
+          const currentRibbonSignature = [...ribbon.querySelectorAll('.sm-ribbon-pill[data-view]:not(.sm-ribbon-cal)')].map(b => `${b.dataset.view}:${b.innerHTML}`).join('|');
+          const nextRibbonSignature = ribbonTabs.map(t => `${t.id}:${t.label}`).join('|');
+          if(currentRibbonSignature !== nextRibbonSignature){
+            const tagText = isPlayerMode ? 'ATLETA' : 'Tarefas';
+            const tickerMsg = isPlayerMode
+              ? (state?.playerCareerState?.athleteName ? `Craque: ${state.playerCareerState.athleteName} · Foque na evolução` : 'Foco total na temporada')
+              : (state?.club ? `Clube: ${state.club} · Temporada em andamento` : 'Temporada em andamento');
+            ribbon.innerHTML = `
+              <span class="sm-ribbon-tag" style="${isPlayerMode ? 'background:linear-gradient(135deg,#10b981,#059669);color:#000;font-weight:900;' : ''}">${tagText}</span>
+              ${ribbonTabs.map(t => `
+                <button type="button" class="sm-ribbon-pill ${view===t.id?'active':''}" data-view="${t.id}">${t.label}</button>
+              `).join('')}
+              <div class="sm-ribbon-ticker">
+                <span>⚽ ${tickerMsg}</span>
+              </div>
+              <button type="button" class="sm-ribbon-pill sm-ribbon-cal ${view==='calendario'?'active':''}" data-view="calendario" title="Calendário de Jogos">
+                🗓️ Calendário
+              </button>
+            `;
+          } else {
+            ribbon.querySelectorAll('.sm-ribbon-pill[data-view]').forEach(b => {
+              b.classList.toggle('active', b.dataset.view === view);
+            });
           }
         }
 
-        const nextHtml = page();
-        mainEl.innerHTML = nextHtml;
-        sideNav.querySelectorAll('[data-view]').forEach(b => {
-          b.classList.toggle('active', b.dataset.view === view);
-        });
         const balEl = app.querySelector('.club-card b');
-        if(balEl) balEl.textContent = fmtMoney(state.balance);
+        if(balEl) {
+          if(isPlayerMode){
+            balEl.textContent = `R$ ${(state.playerCareerState?.personalBank || 0).toLocaleString('pt-BR')}`;
+          } else {
+            balEl.textContent = fmtMoney(state.balance);
+          }
+        }
         const cashValEl = app.querySelector('.sm-badge-cash .sm-res-val');
         if(cashValEl) {
-          cashValEl.textContent = fmtCompactMoney(state.balance);
-          const badgeCash = app.querySelector('.sm-badge-cash');
-          if(badgeCash) badgeCash.title = `Saldo em Caixa: ${fmtMoney(state.balance)}`;
+          if(isPlayerMode){
+            const pBank = state.playerCareerState?.personalBank || 0;
+            cashValEl.textContent = `R$ ${(pBank >= 1000000 ? (pBank/1000000).toFixed(1) + 'M' : (pBank >= 1000 ? Math.round(pBank/1000) + 'K' : pBank))}`;
+            const badgeCash = app.querySelector('.sm-badge-cash');
+            if(badgeCash) badgeCash.title = `Conta Pessoal: R$ ${pBank.toLocaleString('pt-BR')}`;
+          } else {
+            cashValEl.textContent = fmtCompactMoney(state.balance);
+            const badgeCash = app.querySelector('.sm-badge-cash');
+            if(badgeCash) badgeCash.title = `Saldo em Caixa: ${fmtMoney(state.balance)}`;
+          }
         }
-
-        app.querySelectorAll('.sm-ribbon-pill[data-view]').forEach(b => {
-          b.classList.toggle('active', b.dataset.view === view);
-        });
 
         const gate = (typeof canStartMatch === 'function') ? canStartMatch() : { ok: false };
         const btnContLabel = app.querySelector('.sm-continue-label');
@@ -28411,6 +28956,7 @@ function render() {
       }
     }
     app.innerHTML=shell(page());
+    if(app.dataset) app.dataset.renderedGameMode = currentMode;
     bind();
     triggerAFMSystemEnhancements();
     restore();
@@ -28456,8 +29002,8 @@ function handleExitGameAction(){
         if (typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
         const owner = state?.userOwner || (typeof getActiveAccount === 'function' ? getActiveAccount()?.username : null) || 'aquino';
         if (typeof save === 'function') save();
-        if (owner && typeof setActiveAccount === 'function') {
-          setActiveAccount(owner);
+        if (typeof setActiveAccount === 'function') {
+          setActiveAccount(owner && localStorage.getItem('afm_remember_login_v1') !== 'false' ? owner : null);
         }
         if (typeof closeMatchActionModal === 'function') closeMatchActionModal();
         const pModal = document.getElementById('appMatchPreviewModal');
@@ -29254,6 +29800,80 @@ function clubShortTag(clubName){
 }
 window.clubShortTag = clubShortTag;
 
+function getAdaptiveRibbonTabs(isPlayerMode, currentView, state){
+  state = state || (typeof window !== 'undefined' ? window.state : null) || {};
+  state.userTabUsage = state.userTabUsage || {};
+  const usage = state.userTabUsage;
+
+  if(isPlayerMode){
+    const pState = state.playerCareerState || {};
+    const unreadOffers = Array.isArray(pState.agentOffers)
+      ? pState.agentOffers.filter(o => !o.isRead).length
+      : 0;
+    const agentBadge = unreadOffers > 0 ? ` <span class="badge" style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:900">${unreadOffers}</span>` : '';
+
+    const allTabs = [
+      { id: 'player_hub', label: '⭐ Hub Central', defaultOrder: 0 },
+      { id: 'player_evolution', label: '⚡ Meu Atleta & Treino', defaultOrder: 1 },
+      { id: 'player_agent', label: `💼 Empresário & Mercado${agentBadge}`, defaultOrder: 2 },
+      { id: 'player_social', label: '📱 FootGram', defaultOrder: 3 },
+      { id: 'player_lifestyle', label: '💎 Vida & Patrocínios', defaultOrder: 4 },
+      { id: 'player_club', label: '👥 Clube & Elenco', defaultOrder: 5 },
+      { id: 'player_stats', label: '🏆 Estatísticas & Troféus', defaultOrder: 6 },
+      { id: 'player_national', label: '🇧🇷 Seleção', defaultOrder: 7 },
+      { id: 'calendario', label: '📅 Calendário', defaultOrder: 8 },
+      { id: 'temporada', label: '📊 Classificação', defaultOrder: 10 }
+    ];
+
+    const sorted = [...allTabs].sort((a, b) => {
+      const uA = usage[a.id] || 0;
+      const uB = usage[b.id] || 0;
+      if(uA !== uB) return uB - uA;
+      return a.defaultOrder - b.defaultOrder;
+    });
+
+    let top4 = sorted.slice(0, 4);
+    if(currentView && !top4.some(t => t.id === currentView)){
+      const activeObj = allTabs.find(t => t.id === currentView);
+      if(activeObj){
+        top4[3] = activeObj;
+      }
+    }
+    return top4;
+  } else {
+    // MODO TREINADOR
+    const allTabs = [
+      { id: 'meutime', label: '📋 Meu Time & Tática', defaultOrder: 0 },
+      { id: 'mercado', label: '🔄 Mercado & Transferências', defaultOrder: 1 },
+      { id: 'escritorio', label: '🏢 Escritório & Finanças', defaultOrder: 2 },
+      { id: 'calendario', label: '🗓️ Calendário', defaultOrder: 3 },
+      { id: 'central', label: '⭐ Perspectiva Geral', defaultOrder: 4 },
+      { id: 'elenco', label: '👥 Elenco Oficial', defaultOrder: 5 },
+      { id: 'carreira', label: '🎯 Carreira', defaultOrder: 6 },
+      { id: 'noticias', label: '📰 Notícias & Mídia', defaultOrder: 7 },
+      { id: 'temporada', label: '🏆 Temporada', defaultOrder: 8 },
+      { id: 'estrutura', label: '🏟️ Instalações & Estádio', defaultOrder: 9 }
+    ];
+
+    const sorted = [...allTabs].sort((a, b) => {
+      const uA = usage[a.id] || 0;
+      const uB = usage[b.id] || 0;
+      if(uA !== uB) return uB - uA;
+      return a.defaultOrder - b.defaultOrder;
+    });
+
+    let top4 = sorted.slice(0, 4);
+    if(currentView && !top4.some(t => t.id === currentView)){
+      const activeObj = allTabs.find(t => t.id === currentView);
+      if(activeObj){
+        top4[3] = activeObj;
+      }
+    }
+    return top4;
+  }
+}
+window.getAdaptiveRibbonTabs = getAdaptiveRibbonTabs;
+
 function getDrawerNavItems(){
   const account = (typeof getActiveAccount === 'function') ? getActiveAccount() : null;
   const isAdminUser = Boolean(
@@ -29261,6 +29881,29 @@ function getDrawerNavItems(){
     account?.username?.toLowerCase() === 'admin' ||
     (window.AFM_DB && typeof window.AFM_DB.isAdmin === 'function' && window.AFM_DB.isAdmin())
   );
+  const currentState = (typeof state !== 'undefined' && state) ? state : (typeof window !== 'undefined' ? window.state : null);
+  const isPlayerMode = Boolean(currentState?.gameMode === 'player' || currentState?.playerCareerState || currentState?.controlledPlayerId);
+  if(isPlayerMode){
+    const pState = currentState?.playerCareerState || {};
+    const unreadOffers = Array.isArray(pState.agentOffers)
+      ? pState.agentOffers.filter(o => !o.isRead).length
+      : 0;
+    const agentBadge = unreadOffers > 0 ? ` <span class="badge" style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:900">${unreadOffers}</span>` : '';
+    return [
+      ['player_hub','⭐ Hub Central'],
+      ['player_evolution','⚡ Meu Atleta & Treino'],
+      ['player_club','👥 Clube & Elenco'],
+      ['player_social','📱 FootGram (Rede Social)'],
+      ['player_agent',`💼 Empresário & Mercado${agentBadge}`],
+      ['player_lifestyle','💎 Vida & Patrocínios'],
+      ['player_stats','🏆 Estatísticas & Troféus'],
+      ['player_national','🇧🇷 Seleção Nacional'],
+      ['calendario','🗓️ Calendário de Jogos'],
+      ['temporada','📊 Classificação da Liga'],
+      ['config','⚙️ Configurações'],
+      ...(isAdminUser ? [['admin','🛡️ Painel Admin']] : [])
+    ];
+  }
   return [
     ['central','⭐ Perspectiva Geral'],
     ['meutime','📋 Meu time & Tática'],
@@ -29272,7 +29915,6 @@ function getDrawerNavItems(){
     ['temporada','🏆 Temporada'],
     ['estrutura','🏟️ Instalações & Estádio'],
     ['escritorio','🏢 Escritório & Finanças'],
-    ['ranking','👑 Ranking & PIX R$ 1.000'],
     ['novidades','📢 Novidades & Correções'],
     ['config','⚙️ Configurações'],
     ...(isAdminUser ? [['admin','🛡️ Painel Admin']] : [])
@@ -29375,22 +30017,26 @@ function shell(main){
         </div>
       </header>
 
-      <!-- FITA HORIZONTAL DE TAREFAS RÁPIDAS (SM27 RIBBON) -->
-      <div class="sm-task-ribbon">
-        <span class="sm-ribbon-tag">Tarefas</span>
-        <button type="button" class="sm-ribbon-pill ${view==='meutime'?'active':''}" data-view="meutime">📋 Meu Time & Tática</button>
-        <button type="button" class="sm-ribbon-pill ${view==='mercado'?'active':''}" data-view="mercado">🔄 Mercado & Transferências</button>
-        <button type="button" class="sm-ribbon-pill ${view==='escritorio'?'active':''}" data-view="escritorio">🏢 Escritório & Finanças</button>
-        <button type="button" class="sm-ribbon-pill ${view==='carreira'?'active':''}" data-view="carreira">🎯 Carreira</button>
-        <button type="button" class="sm-ribbon-pill ${view==='ranking'?'active':''}" data-view="ranking" style="${view==='ranking'?'background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;border-color:#c084fc;':''}" title="Ranking Nacional de Técnicos & PIX R$ 1.000">👑 Ranking & PIX</button>
-        <button type="button" class="sm-ribbon-pill ${view==='noticias'?'active':''}" data-view="noticias">📰 Notícias & Mídia</button>
-        <div class="sm-ribbon-ticker">
-          <span>⚽ ${tickerMsg}</span>
-        </div>
-        <button type="button" class="sm-ribbon-pill sm-ribbon-cal ${view==='calendario'?'active':''}" data-view="calendario" title="Calendário de Jogos">
-          🗓️ Calendário
-        </button>
-      </div>
+      <!-- FITA HORIZONTAL DE TAREFAS RÁPIDAS (SM27 RIBBON INTELIGENTE & ADAPTATIVO: TOP 4 ATALHOS) -->
+      ${(function(){
+        const isPlayer = Boolean(state?.gameMode === 'player' || state?.playerCareerState);
+        const tagText = isPlayer ? 'ATLETA' : 'Tarefas';
+        const ribbonTabs = getAdaptiveRibbonTabs(isPlayer, view, state);
+        return `
+          <div class="sm-task-ribbon">
+            <span class="sm-ribbon-tag" style="${isPlayer ? 'background:linear-gradient(135deg,#10b981,#059669);color:#000;font-weight:900;' : ''}">${tagText}</span>
+            ${ribbonTabs.map(t => `
+              <button type="button" class="sm-ribbon-pill ${view===t.id?'active':''}" data-view="${t.id}">${t.label}</button>
+            `).join('')}
+            <div class="sm-ribbon-ticker">
+              <span>⚽ ${tickerMsg}</span>
+            </div>
+            <button type="button" class="sm-ribbon-pill sm-ribbon-cal ${view==='calendario'?'active':''}" data-view="calendario" title="Calendário de Jogos">
+              🗓️ Calendário
+            </button>
+          </div>
+        `;
+      })()}
 
       <!-- LAYOUT COM DRAWER E CONTEÚDO PRINCIPAL -->
       <div class="layout">
@@ -29410,11 +30056,19 @@ function shell(main){
           </div>
 
           <div class="club-card" style="margin-top:4px;padding:12px;">
-            <div class="small">🏟️ ${esc(c.stadium||'')}</div>
-            <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center">
-              <span class="small">Saldo em Caixa:</span>
-              <b style="color:var(--neon);font-size:15px">${fmtMoney(state.balance)}</b>
-            </div>
+            ${(state.gameMode === 'player' || state.playerCareerState) ? `
+              <div class="small">⚽ Clube: <b>${esc(state.club || '')}</b></div>
+              <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center">
+                <span class="small">Conta Pessoal:</span>
+                <b style="color:#10b981;font-size:15px">R$ ${(state.playerCareerState?.personalBank || 0).toLocaleString('pt-BR')}</b>
+              </div>
+            ` : `
+              <div class="small">🏟️ ${esc(c.stadium||'')}</div>
+              <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center">
+                <span class="small">Saldo em Caixa:</span>
+                <b style="color:var(--neon);font-size:15px">${fmtMoney(state.balance)}</b>
+              </div>
+            `}
           </div>
 
           <nav class="nav sm-drawer-nav">
@@ -29436,16 +30090,32 @@ function shell(main){
 }
 
 function inGameRankingPage(){
-  return (window.AFM_CoachRanking && typeof window.AFM_CoachRanking.renderInGamePage === 'function')
-    ? window.AFM_CoachRanking.renderInGamePage()
-    : (typeof window.rankingPage === 'function' ? window.rankingPage({ isLanding: false }) : '<div class="card" style="padding:24px;text-align:center;color:#fff">Carregando Ranking...</div>');
+  return (typeof centralPage === 'function') ? centralPage() : '';
 }
 
 function setGameView(nextView){
   if(!nextView) return;
+  if(nextView === 'noticias' && (state?.gameMode === 'player' || state?.playerCareerState)) nextView = 'player_social';
+  // Se for ranking, redireciona seguramente
+  if(nextView === 'ranking'){
+    nextView = (state?.gameMode === 'player' || state?.playerCareerState) ? 'player_hub' : 'central';
+  }
   view = nextView;
   if(typeof window !== 'undefined'){
     window.view = nextView;
+  }
+  if(typeof state !== 'undefined' && state){
+    state.userTabUsage = state.userTabUsage || {};
+    state.userTabUsage[nextView] = (state.userTabUsage[nextView] || 0) + 1;
+    if(nextView === 'noticias'){
+      state.unreadNews = 0;
+      state.lastReadNewsCount = (state.news || []).length;
+    }
+    if(nextView === 'player_agent' || nextView === 'mercado'){
+      if(state.playerCareerState && Array.isArray(state.playerCareerState.agentOffers)){
+        state.playerCareerState.agentOffers.forEach(o => { o.isRead = true; });
+      }
+    }
   }
 }
 window.setGameView = setGameView;
@@ -29457,7 +30127,42 @@ function page(){
   } else if(typeof window !== 'undefined'){
     window.view = view;
   }
-  const activeView = view || 'central';
+  let activeView = view || 'central';
+
+  const isPlayer = Boolean(state?.gameMode === 'player' || state?.playerCareerState || state?.controlledPlayerId);
+  if(isPlayer && activeView === 'noticias'){
+    activeView = 'player_social';
+    view = activeView;
+    if(typeof window !== 'undefined') window.view = activeView;
+  }
+  if(isPlayer && typeof window !== 'undefined' && window.AFM_PlayerMode && typeof window.AFM_PlayerMode.renderPage === 'function'){
+    if(activeView === 'ranking' || activeView === 'carreira' || activeView === 'estrutura' || activeView === 'escritorio'){
+      activeView = 'player_hub';
+      view = 'player_hub';
+      if(typeof window !== 'undefined') window.view = 'player_hub';
+    }
+    const playerHtml = window.AFM_PlayerMode.renderPage(activeView);
+    if(playerHtml !== null && typeof playerHtml === 'string') return playerHtml;
+    // Views compartilhadas (temporada, noticias, calendario, config) retornam null do PlayerMode.
+    // Devem usar as funções de página padrão do motor do jogo, NÃO cair no hub do jogador.
+    const sharedPageFn = ({
+      temporada: typeof seasonPage === 'function' ? seasonPage : null,
+      classificacao: typeof seasonPage === 'function' ? seasonPage : null,
+      noticias: typeof newsMediaPage === 'function' ? newsMediaPage : null,
+      calendario: typeof calendarPage === 'function' ? calendarPage : null,
+      config: typeof configPage === 'function' ? configPage : null,
+      novidades: typeof changelogPage === 'function' ? changelogPage : null
+    })[activeView];
+    if(sharedPageFn) return sharedPageFn();
+    return window.AFM_PlayerMode.renderPage('player_hub');
+  }
+
+  if(activeView === 'ranking'){
+    activeView = 'central';
+    view = 'central';
+    if(typeof window !== 'undefined') window.view = 'central';
+  }
+
   return ({
     central:centralPage,
     noticias:newsMediaPage,
@@ -29468,7 +30173,7 @@ function page(){
     estrutura:structurePage,
     escritorio:officePage,
     carreira:careerPage,
-    ranking:inGameRankingPage,
+    ranking:centralPage,
     temporada:seasonPage,
     novidades:changelogPage,
     config:configPage
@@ -36205,6 +36910,7 @@ function seasonPage(){
       const rankedStats = [...(statsTab === 'scorers' ? estStats.scorers : estStats.assists)].sort((a,b) =>
         (Number(b[statKey]) || 0) - (Number(a[statKey]) || 0) || norm(a.name).localeCompare(norm(b.name))
       );
+      const createdAthleteName = state.gameMode === 'player' ? (state.playerCareerState?.athleteName || state.squad?.find(player => player.isControlled)?.name) : null;
 
       const allEstList = estCompObj ? [{ id:estCompId, name:estCompObj.name }] : [];
 
@@ -36393,7 +37099,8 @@ function seasonPage(){
             ${rankedStats.slice(0, 11).map((item, idx) => {
               const value = Number(item[statKey]) || 0;
               const rank = rankedStats.findIndex(row => (Number(row[statKey]) || 0) === value) + 1;
-              const isMyPlayer = norm(item.club) === norm(state.club);
+              const isCreatedAthlete = Boolean(createdAthleteName && norm(item.name) === norm(createdAthleteName));
+              const isMyPlayer = isCreatedAthlete || norm(item.club) === norm(state.club);
 
               return `
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #f1f5f9;${isMyPlayer ? 'background:#ede9fe;border-radius:8px;' : ''}">
@@ -36404,7 +37111,7 @@ function seasonPage(){
                     </div>
                     ${clubBadge(item.club, 24)}
                     <div>
-                      <div style="font-size:15px;font-weight:900;color:#0f172a">${esc(item.name)}</div>
+                      <div style="font-size:15px;font-weight:900;color:#0f172a">${esc(item.name)} ${isCreatedAthlete ? '<span class="tag-you" style="display:inline-block;margin-left:5px;background:#7c3aed;color:#fff">VOCÊ</span>' : ''}</div>
                       <div style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:0.5px;text-transform:uppercase;margin-top:2px">
                         ${esc(item.pos)} • ${esc(item.club)}
                       </div>
@@ -36428,6 +37135,7 @@ function seasonPage(){
         </div>
       `;
     })() : seasonTab==='copadobrasil' ? renderCopaDoBrasilBlock() : renderContinentalBlock()}
+    ${renderOtherCompetitionPlayerLeaders(seasonTab === 'estadual' ? memberships.stateId : seasonTab === 'nacional' ? userNatDivId : seasonTab === 'copadobrasil' ? 'bra-cup' : null)}
   `;
 }
 
@@ -36980,7 +37688,11 @@ let setupSelectedCompId = 'bra-a';
 let setupBrCategory = 'nacionais';
 let setupSelectedClubName = 'Corinthians';
 let setupAuthTab = 'login'; // 'login' | 'register'
-let setupViewMode = 'auth'; // 'auth' | 'select' | 'systems' | 'hub' | 'arenas' | 'estaduais'
+let setupViewMode = (() => {
+  try {
+    return localStorage.getItem(AFM_SESSION_KEY) && localStorage.getItem('afm_remember_login_v1') !== 'false' ? 'select' : 'auth';
+  } catch(e){ return 'auth'; }
+})(); // 'auth' | 'select' | 'systems' | 'hub' | 'arenas' | 'estaduais'
 if (typeof window !== 'undefined') {
   try {
     Object.defineProperty(window, 'setupViewMode', {
@@ -37580,10 +38292,10 @@ function renderLandingNavbar(activeTab){
 
       <nav class="afm-nav-links">
         <button class="afm-nav-link ${activeTab==='auth'?'active':''}" id="btnNavGoAuth">⭐ Início</button>
+        <button class="afm-nav-link ${activeTab==='player'?'active':''}" id="btnNavGoPlayerMode" style="color:#6ee7b7;font-weight:900">⚽ Modo Jogador (Be a Pro)</button>
         <button class="afm-nav-link ${activeTab==='systems'?'active':''}" id="btnNavGoSystems">🎮 Todos os Sistemas</button>
         <button class="afm-nav-link ${activeTab==='arenas'?'active':''}" id="btnNavGoArenas">🏟️ Novas Arenas</button>
         <button class="afm-nav-link ${activeTab==='estaduais'?'active':''}" id="btnNavGoEstaduais">🏆 11 Estaduais</button>
-        <button class="afm-nav-link ${activeTab==='ranking'?'active':''}" id="btnNavGoRanking" style="color:#6ee7b7">👑 Ranking dos Técnicos</button>
       </nav>
 
       <div style="display:flex;align-items:center;gap:10px">
@@ -37713,6 +38425,7 @@ function openRestoreCloudModal(defaultUser = ''){
 window.openRestoreCloudModal = openRestoreCloudModal;
 
 function renderSetup(app){
+  if(setupViewMode !== 'create_player') window.AFM_PlayerAvatar3D?.destroy();
   if (!app) app = document.querySelector('#app');
   if (!app) return;
 
@@ -37721,8 +38434,44 @@ function renderSetup(app){
     const activeUser = rawActiveUser || { username: 'treinador', name: 'Treinador', role: 'player' };
 
     // Regra: O jogador só entra no jogo (saves e times) após efetuar login
-    if(!rawActiveUser && (setupViewMode === 'select' || setupViewMode === 'create_club')){
+    if(!rawActiveUser && (setupViewMode === 'select' || setupViewMode === 'create_club' || setupViewMode === 'create_player')){
       setupViewMode = 'auth';
+    }
+
+    // MODO: CARREIRA JOGADOR (CRIAR MEU ATLETA / BE A PRO)
+    if(setupViewMode === 'create_player'){
+      if(typeof window.renderCreatePlayerScreen === 'function'){
+        return window.renderCreatePlayerScreen(app, activeUser);
+      }
+    }
+
+    if(setupViewMode === 'player_guide'){
+      app.innerHTML = `
+        <div class="afm-landing-wrapper">
+          ${renderLandingNavbar('player')}
+          <main style="max-width:1280px;margin:0 auto;padding:36px 24px 56px;color:#fff">
+            <section style="padding:34px;border:1px solid rgba(168,85,247,.55);border-radius:24px;background:radial-gradient(ellipse at top left,rgba(124,58,237,.28),transparent 55%),#0d1322">
+              <span class="pill" style="background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid #10b981">⚽ CARREIRA BE A PRO</span>
+              <h1 style="font-size:clamp(30px,5vw,48px);margin:16px 0 10px">Sua carreira começa no campo</h1>
+              <p style="max-width:760px;color:#cbd5e1;line-height:1.7;margin:0">Crie seu atleta, conquiste espaço no clube e desenvolva uma carreira própria. Suas escolhas de treino, desempenho e vida fora de campo acompanham o save do Modo Jogador.</p>
+              <button type="button" id="btnPlayerGuideStart" class="btn primary" style="margin-top:22px;padding:13px 22px;font-weight:900">${rawActiveUser ? '✨ Criar meu atleta' : '🔐 Entrar ou criar conta para começar'}</button>
+            </section>
+            <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:14px;margin-top:22px">
+              ${[
+                ['🧑‍🎨','Criação e aparência','Defina nome, rosto, tom de pele, cabelo, olhos, altura, porte físico, pé dominante, posição e chuteiras iniciais.'],
+                ['📈','Evolução do atleta','Distribua pontos de habilidade e evolua atributos com XP conquistado em partidas e atividades da carreira.'],
+                ['🎯','Treinamento individual','Escolha um foco semanal, faça treinos práticos e avance os atributos dentro dos limites do atleta.'],
+                ['🏟️','Clube e partidas','Acompanhe elenco, calendário, convocação, confiança do técnico, condição física e oportunidades de entrar em campo.'],
+                ['🤝','Agente e mercado','Gerencie representação, propostas, empréstimos, transferências e contratos conforme sua trajetória.'],
+                ['👟','Chuteiras e patrocínios','Assine contratos de fornecimento, equipe chuteiras adquiridas e acompanhe bônus e benefícios do atleta.'],
+                ['📱','FootGram e vida pessoal','Publique no feed, aumente sua fama e gerencie relações, patrocínios e escolhas fora do gramado.'],
+                ['🏆','Estatísticas e seleção','Consulte números, recordes, troféus e acompanhe o caminho para defender a Seleção Nacional.']
+              ].map(([icon,title,description]) => `<article style="padding:20px;border:1px solid #273449;border-radius:16px;background:#111927"><div style="font-size:25px">${icon}</div><h2 style="font-size:17px;margin:10px 0 6px">${title}</h2><p style="color:#aab6c8;font-size:13px;line-height:1.6;margin:0">${description}</p></article>`).join('')}
+            </section>
+          </main>
+        </div>`;
+      bindSetup();
+      return;
     }
 
     // MODO: CRIAR SEU PRÓPRIO CLUBE (CREATE-A-CLUB)
@@ -37732,7 +38481,7 @@ function renderSetup(app){
       }
     }
 
-    // MODO: RANKING OFICIAL DE TÉCNICOS & PREMIAÇÃO PIX R$ 1.000 NA PÁGINA INICIAL
+    // MODO: RANKING OFICIAL DE TÉCNICOS NA PÁGINA INICIAL
     if(setupViewMode === 'ranking'){
       app.innerHTML = `
         <div class="afm-landing-wrapper">
@@ -38445,7 +39194,7 @@ function renderSetup(app){
 
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;font-size:12px;gap:12px">
                 <label style="display:inline-flex;align-items:center;gap:8px;color:#cbd5e1;cursor:pointer;white-space:nowrap;user-select:none">
-                  <input type="checkbox" id="chkRememberMe" checked style="accent-color:#7c3aed;width:15px;height:15px;cursor:pointer;margin:0">
+                  <input type="checkbox" id="chkRememberMe" ${localStorage.getItem('afm_remember_login_v1') === 'false' ? '' : 'checked'} style="accent-color:#7c3aed;width:15px;height:15px;cursor:pointer;margin:0">
                   <span style="font-weight:600">Lembrar meu acesso</span>
                 </label>
                 <a href="javascript:void(0)" id="btnForgotPassLink" style="color:#a855f7;font-weight:700;text-decoration:none;white-space:nowrap">Esqueceu a senha?</a>
@@ -38577,31 +39326,6 @@ function renderSetup(app){
         </section>
 
         <!-- ============================================================== -->
-        <!-- BANNER DE CONVITE AO RANKING DE TÉCNICOS (SEM CADASTRO DE DADOS) -->
-        <!-- ============================================================== -->
-        <section style="background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(15,23,42,0.9));border-top:1px solid rgba(16,185,129,0.3);border-bottom:1px solid rgba(16,185,129,0.3);padding:60px 24px;text-align:center;">
-          <div style="max-width:960px;margin:0 auto">
-            <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.2);border:1px solid #10b981;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:900;color:#6ee7b7;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">
-              👑 DISPUTA PELA LIDERANÇA NACIONAL
-            </div>
-            <h2 style="font-size:clamp(26px,3vw,38px);font-weight:900;color:#fff;margin:0 0 14px 0;letter-spacing:-0.5px">
-              RANKING NACIONAL DE TÉCNICOS & PREMIAÇÃO R$ 1.000 NO PIX
-            </h2>
-            <p style="font-size:15px;color:#cbd5e1;max-width:700px;margin:0 auto 26px;line-height:1.6">
-              Acompanhe a tabela e o desempenho dos melhores técnicos da comunidade em tempo real. Veja quem está no pódio sem precisar preencher dados na página inicial.
-            </p>
-            <div style="display:flex;justify-content:center;gap:14px;flex-wrap:wrap">
-              <button type="button" class="btn" id="btnLandingGoRankingSection" style="background:#10b981;border:none;color:#040711;font-size:14px;font-weight:900;padding:14px 30px;border-radius:12px;cursor:pointer;box-shadow:0 6px 20px rgba(16,185,129,0.4)">
-                📊 Ver Tabela Completa do Ranking
-              </button>
-              <button type="button" class="btn" id="btnLandingCtaScrollLogin" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:14px;font-weight:800;padding:14px 26px;border-radius:12px;cursor:pointer">
-                🚀 Entrar no Jogo & Pontuar
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <!-- ============================================================== -->
         <!-- RODAPÉ ESTILO EA SPORTS FC™ 27                                  -->
         <!-- ============================================================== -->
         <footer class="afm-fc-footer">
@@ -38615,7 +39339,6 @@ function renderSetup(app){
               <a href="javascript:void(0)" id="footerLinkSystems" style="color:#94a3b8;text-decoration:none">Todos os Sistemas</a>
               <a href="javascript:void(0)" id="footerLinkArenas" style="color:#94a3b8;text-decoration:none">Novas Arenas</a>
               <a href="javascript:void(0)" id="footerLinkEstaduais" style="color:#94a3b8;text-decoration:none">11 Estaduais</a>
-              <a href="javascript:void(0)" id="footerLinkRanking" style="color:#6ee7b7;text-decoration:none">Ranking dos Técnicos</a>
             </div>
           </div>
           <div>
@@ -38743,12 +39466,25 @@ function renderSetup(app){
           ${[1, 2, 3].map(slotNum => {
             const s = userSlots[slotNum - 1];
             if(s){
+              const isPlayerSave = Boolean(
+                s.gameMode === 'player' ||
+                s.isPlayerMode ||
+                s.playerCareerState ||
+                s.controlledPlayerId ||
+                s.data?.gameMode === 'player' ||
+                s.data?.playerCareerState ||
+                s.data?.controlledPlayerId
+              );
+              const pCareer = s.playerCareerState || s.data?.playerCareerState || {};
+              const athleteName = pCareer.athleteName || (s.manager && s.manager.includes('(') ? s.manager.split('(')[0].trim() : s.manager) || 'Craque';
+              const athletePos = pCareer.position || (s.manager && s.manager.includes('(') ? (s.manager.match(/\(([^)]+)\)/)?.[1] || 'ATA') : 'ATA');
+              const athletePersonalBank = Number(pCareer.personalBank || 0);
               return `
-                <div class="save-slot-card active-save">
+                <div class="save-slot-card active-save" style="${isPlayerSave ? 'border-color:#10b981;box-shadow:0 0 18px rgba(16,185,129,0.2);' : ''}">
                   <div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                      <span class="save-slot-badge" style="background:rgba(168,85,247,0.2);color:#c084fc;border:1px solid #a855f7">
-                        💾 SLOT ${slotNum} • EM ANDAMENTO
+                      <span class="save-slot-badge" style="background:${isPlayerSave ? 'rgba(16,185,129,0.2)' : 'rgba(168,85,247,0.2)'};color:${isPlayerSave ? '#6ee7b7' : '#c084fc'};border:1px solid ${isPlayerSave ? '#10b981' : '#a855f7'}">
+                        💾 SLOT ${slotNum} • ${isPlayerSave ? '⭐ CARREIRA JOGADOR' : 'EM ANDAMENTO'}
                       </span>
                       <span class="pill" style="font-size:9px;background:rgba(34,197,94,0.15);color:#22c55e">ATIVO</span>
                     </div>
@@ -38759,8 +39495,8 @@ function renderSetup(app){
                         <div style="font-size:16px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                           ${esc(clubDisplayName(s.club))}
                         </div>
-                        <div style="font-size:12px;font-weight:800;color:#a855f7">
-                          👔 Prof. ${esc(s.manager)}
+                        <div style="font-size:12px;font-weight:800;color:${isPlayerSave ? '#38bdf8' : '#a855f7'}">
+                          ${isPlayerSave ? `⚽ Atleta: ${esc(athleteName)} (${esc(athletePos)})` : `👔 Prof. ${esc(s.manager)}`}
                         </div>
                       </div>
                     </div>
@@ -38771,8 +39507,8 @@ function renderSetup(app){
                         <span style="color:#fff;font-weight:800">🏆 Temp. ${s.season} · Rodada ${s.round + 1}</span>
                       </div>
                       <div style="display:flex;justify-content:space-between">
-                        <span class="muted">Orçamento:</span>
-                        <span style="color:#22c55e;font-weight:800">${fmtMoney(s.balance)}</span>
+                        <span class="muted">${isPlayerSave ? 'Conta Pessoal:' : 'Orçamento:'}</span>
+                        <span style="color:#22c55e;font-weight:800">${isPlayerSave ? `R$ ${athletePersonalBank.toLocaleString('pt-BR')}` : fmtMoney(s.balance)}</span>
                       </div>
                       <div style="display:flex;justify-content:space-between">
                         <span class="muted">Data no Jogo:</span>
@@ -38822,6 +39558,25 @@ function renderSetup(app){
             }
           }).join('')}
         </div>
+      </div>
+
+      <!-- BANNER DE DESTAQUE: MODO CARREIRA JOGADOR (BE A PRO) -->
+      <div class="create-player-banner-card" style="margin-bottom:12px;background:linear-gradient(135deg, rgba(16,185,129,0.18) 0%, rgba(6,182,212,0.12) 50%, #0d1527 100%);border:2px solid #10b981;border-radius:18px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;box-shadow:0 0 25px rgba(16,185,129,0.25)">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="font-size:38px;filter:drop-shadow(0 0 14px rgba(16,185,129,0.8))">⚽</div>
+          <div>
+            <div style="font-size:16px;font-weight:900;color:#fff;letter-spacing:0.5px;display:flex;align-items:center;gap:8px">
+              NOVO MODO: CARREIRA JOGADOR (BE A PRO / CRAQUE)
+              <span class="pill good" style="background:#10b981;color:#000;font-size:10px;padding:2px 8px;font-weight:900">EXCLUSIVO</span>
+            </div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:3px">
+              Crie seu atleta dos 15 anos à Bola de Ouro: escolha nacionalidade, posição, arquétipo, treine, dispute peneiras, jogue na Seleção e gerencie sua fama no FootGram!
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn success" id="btnGoCreatePlayer" style="padding:11px 24px;font-size:13px;font-weight:900;border-radius:10px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);color:#000;box-shadow:0 4px 18px rgba(16,185,129,0.5);cursor:pointer;white-space:nowrap;border:none">
+          ⭐ CRIAR MEU JOGADOR AGORA ➔
+        </button>
       </div>
 
       <!-- BANNER DE DESTAQUE: MODO CRIAR SEU TIME (CREATE-A-CLUB) -->
@@ -39340,6 +40095,17 @@ window.exportCommunityModJson = exportCommunityModJson;
 
 function bindSetup(){
   try {
+  function goCreateClub(targetCompId){
+    if(!getActiveAccount()){
+      toast('Entre ou crie uma conta para criar e salvar seu time.');
+      setupViewMode = 'auth';
+      renderSetup($('#app'));
+      return;
+    }
+    if(window.customClubDraft && targetCompId) window.customClubDraft.stateCompId = targetCompId;
+    setupViewMode = 'create_club';
+    renderSetup($('#app'));
+  }
   // O único pacote disponível é o Mod da Comunidade.
   const bMod = $('#btnSelectCommunityMod');
   if(bMod){
@@ -39431,11 +40197,7 @@ function bindSetup(){
     btnCreateInLeague.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if(window.customClubDraft) {
-        window.customClubDraft.stateCompId = setupSelectedCompId || 'bra-est-sp';
-      }
-      setupViewMode = 'create_club';
-      renderSetup($('#app'));
+      goCreateClub(setupSelectedCompId || 'bra-est-sp');
     };
   }
 
@@ -39484,13 +40246,27 @@ function bindSetup(){
   const btnStartWithSel = $('#btnStartNewCareerWithSelected');
   if(btnStartWithSel) btnStartWithSel.onclick = triggerStartCareer;
 
+  // Bind do Banner Criar Jogador (Be a Pro)
+  const btnCreatePlayer = $('#btnGoCreatePlayer');
+  if(btnCreatePlayer) {
+    btnCreatePlayer.onclick = () => {
+      setupViewMode = 'create_player';
+      renderSetup($('#app'));
+    };
+  }
+
+  const btnNavGoPlayer = $('#btnNavGoPlayerMode');
+  if(btnNavGoPlayer) {
+    btnNavGoPlayer.onclick = () => {
+      setupViewMode = 'player_guide';
+      renderSetup($('#app'));
+    };
+  }
+
   // Bind do Banner Criar Seu Time
   const btnCreateClub = $('#btnGoCreateClub');
   if(btnCreateClub) {
-    btnCreateClub.onclick = () => {
-      setupViewMode = 'create_club';
-      renderSetup($('#app'));
-    };
+    btnCreateClub.onclick = () => goCreateClub();
   }
 
   // Binds dos 3 Slots de Saves do Usuário
@@ -39538,8 +40314,11 @@ function bindSetup(){
   const btnNavAuth = $('#btnNavGoAuth');
   if(btnNavAuth) btnNavAuth.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
 
-  const btnNavRanking = $('#btnNavGoRanking');
-  if(btnNavRanking) btnNavRanking.onclick = () => { setupViewMode = 'ranking'; renderSetup($('#app')); };
+  const btnPlayerGuideStart = $('#btnPlayerGuideStart');
+  if(btnPlayerGuideStart) btnPlayerGuideStart.onclick = () => {
+    setupViewMode = getActiveAccount() ? 'create_player' : 'auth';
+    renderSetup($('#app'));
+  };
 
   const btnLandingRankingCard = $('#btnLandingGoRankingCard');
   if(btnLandingRankingCard) btnLandingRankingCard.onclick = () => { setupViewMode = 'ranking'; renderSetup($('#app')); };
@@ -39621,9 +40400,6 @@ function bindSetup(){
   const bExpCar = $('#btnExploreSysCareer');
   if(bExpCar) bExpCar.onclick = () => { setupViewMode = 'systems'; renderSetup($('#app')); };
 
-  const bGoRkSec = $('#btnLandingGoRankingSection');
-  if(bGoRkSec) bGoRkSec.onclick = () => { setupViewMode = 'ranking'; renderSetup($('#app')); };
-
   const bScrollLog = $('#btnLandingCtaScrollLogin');
   if(bScrollLog) bScrollLog.onclick = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -39639,9 +40415,6 @@ function bindSetup(){
   if(fAre) fAre.onclick = () => { setupViewMode = 'arenas'; renderSetup($('#app')); };
   const fEst = $('#footerLinkEstaduais');
   if(fEst) fEst.onclick = () => { setupViewMode = 'estaduais'; renderSetup($('#app')); };
-  const fRk = $('#footerLinkRanking');
-  if(fRk) fRk.onclick = () => { setupViewMode = 'ranking'; renderSetup($('#app')); };
-
   const btnCtaTop = $('#btnCtaTopAuth');
   if(btnCtaTop) btnCtaTop.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
 
@@ -39750,6 +40523,7 @@ function bindSetup(){
           const res = await loginUser(u, p);
           if(!res.success) toast(res.error);
           else {
+            setRememberLoginPreference($('#chkRememberMe')?.checked !== false);
             toast(`Bem-vindo de volta, ${res.user.name}!`);
             setupViewMode = 'select';
             renderSetup($('#app'));
@@ -39760,6 +40534,7 @@ function bindSetup(){
           if(!res.success) toast(res.error);
           else if(res.needsConfirmation) toast('Cadastro iniciado. Faça login com seu nome de usuário e senha.');
           else {
+            setRememberLoginPreference($('#chkRememberMe')?.checked !== false);
             toast(`Conta criada com sucesso! Bem-vindo, ${res.user.name}!`);
             setupViewMode = 'select';
             renderSetup($('#app'));
@@ -39875,11 +40650,7 @@ function bindSetup(){
           btnCreateInLeagueDyn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            if(window.customClubDraft) {
-              window.customClubDraft.stateCompId = setupSelectedCompId || 'bra-est-sp';
-            }
-            setupViewMode = 'create_club';
-            renderSetup($('#app'));
+            goCreateClub(setupSelectedCompId || 'bra-est-sp');
           };
         }
 
@@ -41606,6 +42377,15 @@ function bind(){
       openParkingModal();
     };
   });
+
+  // Vincula todos os botões e interações do Modo Carreira Jogador (Be a Pro)
+  if(window.AFM_PlayerMode && typeof window.AFM_PlayerMode.bindPlayerModeEvents === 'function'){
+    try {
+      window.AFM_PlayerMode.bindPlayerModeEvents();
+    } catch(errPlayerBind){
+      console.error('Erro ao vincular eventos do Modo Jogador:', errPlayerBind);
+    }
+  }
 }
 
 // -------------------------------------------------------------

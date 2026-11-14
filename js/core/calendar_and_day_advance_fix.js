@@ -84,7 +84,7 @@
       return schedule;
     },
 
-    advanceDaysGuaranteed(state, days = 1) {
+    advanceDaysGuaranteed(state, days = 1, showModal = false) {
       if (!state) return null;
       if (isAdvancingNow) {
         if (Date.now() - (this._lastAdvanceTime || 0) > 1200) {
@@ -100,8 +100,17 @@
         const activeDateStr = state.date || state.currentDate || '2026-01-01';
         const currentObj = parseSafeLocalNoon(activeDateStr);
         const oldMonth = currentObj.getMonth();
+        const oldYear = currentObj.getFullYear();
 
         currentObj.setDate(currentObj.getDate() + add);
+        const crossedMonths = [];
+        const monthCursor = new Date(oldYear, oldMonth, 1, 12);
+        const targetMonth = new Date(currentObj.getFullYear(), currentObj.getMonth(), 1, 12);
+        while(monthCursor < targetMonth){
+          monthCursor.setMonth(monthCursor.getMonth() + 1);
+          crossedMonths.push(`${monthCursor.getFullYear()}-${String(monthCursor.getMonth() + 1).padStart(2, '0')}`);
+        }
+        const monthChanged = crossedMonths.length > 0;
         const newIso = toIso(currentObj);
         const newPtBr = toPtBr(currentObj);
 
@@ -139,15 +148,45 @@
           window.AFM_WorldSimulation.simulateWorldStepOnDayAdvance(state, newIso);
         }
 
-        if (currentObj.getMonth() !== oldMonth && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function') {
-          window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(state);
+        if (state && state.gameMode !== 'player') {
+          if (monthChanged && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function') {
+            window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(state);
+          }
+          if (window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function') {
+            window.AFM_LifeAndSharesPro.processRoundTurn(state);
+          }
         }
-        if (window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function') {
-          window.AFM_LifeAndSharesPro.processRoundTurn(state);
+
+        if (state && state.gameMode === 'player' && window.AFM_PlayerEngine) {
+          if (typeof window.AFM_PlayerEngine.processWeeklyTraining === 'function') {
+            window.AFM_PlayerEngine.processWeeklyTraining(state);
+          }
+          if (monthChanged && typeof window.AFM_PlayerEngine.processMonthlyAttributeTraining === 'function') {
+            crossedMonths.forEach(monthKey => window.AFM_PlayerEngine.processMonthlyAttributeTraining(state, monthKey));
+          }
+          if (monthChanged && typeof window.AFM_PlayerEngine.processMonthlyPlayerFinances === 'function') {
+            window.AFM_PlayerEngine.processMonthlyPlayerFinances(state);
+          }
+          if (typeof window.AFM_PlayerEngine.processDailySponsorTurn === 'function') {
+            window.AFM_PlayerEngine.processDailySponsorTurn(state);
+          }
         }
 
         if (typeof window.processPendingTransfersOnWindowOpen === 'function') {
           window.processPendingTransfersOnWindowOpen(state);
+        }
+
+        // Limite estrito de coleções em memória (AGENTS.md Seção 2)
+        if (Array.isArray(state.news) && state.news.length > 50) state.news = state.news.slice(0, 50);
+        if (Array.isArray(state.marketWorldFeed) && state.marketWorldFeed.length > 30) state.marketWorldFeed = state.marketWorldFeed.slice(0, 30);
+        if (Array.isArray(state.seasonHistory) && state.seasonHistory.length > 20) state.seasonHistory = state.seasonHistory.slice(0, 20);
+        if (state.playerCareerState?.socialMedia?.feedPosts && Array.isArray(state.playerCareerState.socialMedia.feedPosts) && state.playerCareerState.socialMedia.feedPosts.length > 25) {
+          state.playerCareerState.socialMedia.feedPosts = state.playerCareerState.socialMedia.feedPosts.slice(0, 25);
+        }
+
+        // Checkpoint de save intermediário em avanços longos (>= 15 dias) para evitar perda de dados
+        if (add >= 15 && typeof window.save === 'function') {
+          try { window.save(); } catch (_) {}
         }
 
         this.syncDateInDOM(state, newPtBr);
@@ -158,7 +197,9 @@
         if (showModal && window.AFM_DayAdvanceNews && typeof window.AFM_DayAdvanceNews.openDayAdvanceModal === 'function') {
           const daysList = [];
           const startObj = parseSafeLocalNoon(activeDateStr);
-          for (let step = 1; step <= add; step++) {
+          // Em saltos longos (>14 dias), limita renderização do modal aos últimos 14 dias para manter fluidez
+          const stepStart = add > 14 ? (add - 13) : 1;
+          for (let step = stepStart; step <= add; step++) {
             const stepDate = new Date(startObj.getTime());
             stepDate.setDate(stepDate.getDate() + step);
             const isMatchDay = (step === add);

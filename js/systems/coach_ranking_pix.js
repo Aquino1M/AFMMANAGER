@@ -2,6 +2,8 @@
  * AFM 2027 - Ranking Oficial de Técnicos & Premiação PIX R$ 1.000,00
  * Sistema de pontuação competitiva, selos de prestígio, divisão de premiação para o TOP 5 no PIX
  * e interface fiel ao Brasileirinho FC.
+ * AFM 2026 - Módulo de Pontuação & Prestígio do Treinador (Sistema PIX descontinuado)
+ * Mantido estritamente para compatibilidade de API com o histórico da carreira.
  */
 (function(window){
   'use strict';
@@ -186,6 +188,7 @@
 
     syncCareerProgress(state) {
       return this.getUserCareerPoints(state);
+      if(!state) return;
     },
 
     // 4b. Sincroniza saves de todos os usuários cadastrados no Supabase para o Ranking Real (sem contas de teste)
@@ -499,6 +502,7 @@
         close();
         if(window.toast) window.toast('⏳ O cadastro de chave PIX da premiação será liberado em breve!');
       };
+      return '';
     },
 
     // 8. Renderiza Banner Especial de Premiação PIX R$ 1.000
@@ -1323,7 +1327,7 @@
           this._syncingCloudLeaderboard = false;
         });
       }
-    }
+    },
   };
 
   // Exportação Global

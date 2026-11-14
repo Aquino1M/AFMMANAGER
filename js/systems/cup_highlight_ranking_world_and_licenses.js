@@ -655,7 +655,7 @@
           renderRows();
         } else {
           if (typeof toast === 'function') toast('ℹ️ Seu treinador não aparece no filtro selecionado.');
-          else alert('Seu treinador não aparece no filtro selecionado.');
+          else if (typeof window.showCustomAlert === 'function') window.showCustomAlert({ title: 'Ranking', message: 'Seu treinador não aparece no filtro selecionado.', type: 'warning' });
         }
       };
     }
@@ -750,13 +750,15 @@
 
         if (userPrestige < targetLic.minPrestige) {
           var msg = 'Requisito não atingido: Prestígio mínimo ' + targetLic.minPrestige + '+ necessário (Seu prestígio atual é ' + userPrestige + ').';
-          if (typeof window.toast === 'function') window.toast(msg); else alert(msg);
+          if (typeof window.toast === 'function') window.toast(msg);
+          else if (typeof window.showCustomAlert === 'function') window.showCustomAlert({ title: 'Prestígio Insuficiente', message: msg, type: 'warning' });
           return;
         }
 
         if (cost > 0 && userMoney < cost) {
           var msgMoney = 'Patrimônio pessoal insuficiente para adquirir a ' + targetLic.name + '!';
-          if (typeof window.toast === 'function') window.toast(msgMoney); else alert(msgMoney);
+          if (typeof window.toast === 'function') window.toast(msgMoney);
+          else if (typeof window.showCustomAlert === 'function') window.showCustomAlert({ title: 'Saldo Insuficiente', message: msgMoney, type: 'warning' });
           return;
         }
 

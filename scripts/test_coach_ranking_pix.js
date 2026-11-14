@@ -8,7 +8,7 @@ console.log('\n1. Testing coach_ranking_pix.js module loading...');
 const code = fs.readFileSync('js/systems/coach_ranking_pix.js', 'utf8');
 
 // Mock browser global environment
-global.window = {};
+global.window = global;
 global.localStorage = {
   store: {},
   getItem(k) { return this.store[k] || null; },
@@ -133,7 +133,10 @@ const indexContent = fs.readFileSync('index.html', 'utf8');
 assert(indexContent.includes('js/systems/coach_ranking_pix.js'), 'index.html must load coach_ranking_pix.js');
 
 const gameContent = fs.readFileSync('js/game.js', 'utf8');
-assert(gameContent.includes('btnNavGoRanking'), 'js/game.js must include btnNavGoRanking on landing page');
+assert(!gameContent.includes('id="btnNavGoRanking"'), 'Ranking dos Técnicos must not appear in the landing navigation');
+assert(!gameContent.includes('id="btnLandingGoRankingSection"'), 'Landing page must not expose the PIX ranking banner');
+assert(!gameContent.includes('id="footerLinkRanking"'), 'Landing footer must not expose the PIX ranking link');
+assert(gameContent.includes("setupViewMode === 'player_guide'"), 'Modo Jogador navigation must open its dedicated mechanics guide');
 assert(gameContent.includes('ranking:'), 'js/game.js page() router must have ranking:');
 assert(gameContent.includes('AFM_CoachRanking.onMatchFinished'), 'js/game.js finalizeRound must call AFM_CoachRanking.onMatchFinished');
 

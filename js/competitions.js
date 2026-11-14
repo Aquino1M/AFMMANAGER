@@ -146,6 +146,12 @@ window.BASE_CLUBS = [
   {name:'Brasília',country:'Brasil',competition:'Campeonato Candango',stadium:'Bezerrão',atk:57,mid:57,def:58,budget:0.4},
   {name:'Gama',country:'Brasil',competition:'Campeonato Candango',stadium:'Bezerrão',atk:61,mid:60,def:61,budget:0.8},
   {name:'Brasiliense',country:'Brasil',competition:'Campeonato Candango',stadium:'Serejão',atk:62,mid:62,def:61,budget:1.2},
+  {name:'Ceilândia',country:'Brasil',competition:'Campeonato Candango',stadium:'Abadião',atk:58,mid:58,def:58,budget:0.5},
+  {name:'Capital-DF',country:'Brasil',competition:'Campeonato Candango',stadium:'JK Paranoá',atk:60,mid:59,def:59,budget:0.6},
+  {name:'Samambaia',country:'Brasil',competition:'Campeonato Candango',stadium:'Rorizão',atk:55,mid:55,def:55,budget:0.35},
+  {name:'Paranoá',country:'Brasil',competition:'Campeonato Candango',stadium:'JK Paranoá',atk:54,mid:54,def:54,budget:0.3},
+  {name:'Sobradinho',country:'Brasil',competition:'Campeonato Candango',stadium:'Augustinho Lima',atk:55,mid:55,def:55,budget:0.35},
+  {name:'ARUC',country:'Brasil',competition:'Campeonato Candango',stadium:'Bezerrão',atk:53,mid:53,def:53,budget:0.25},
 
   // Argentina / América do Sul
   {name:'River Plate',country:'Argentina',competition:'Liga Profesional Argentina',stadium:'Monumental',atk:81,mid:80,def:79,budget:75},

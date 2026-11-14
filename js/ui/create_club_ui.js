@@ -1631,10 +1631,15 @@
 
   // Exportar para o escopo global
   function openCreateClubModal(targetCompId) {
+    const account = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    if(!account){
+      window.toast?.('Entre ou crie uma conta para criar e salvar seu time.');
+      return;
+    }
     if (targetCompId) customClubDraft.stateCompId = targetCompId;
     window.setupViewMode = 'create_club';
     const app = document.querySelector('#app');
-    if (app) renderCreateClubScreen(app, typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null);
+    if (app) renderCreateClubScreen(app, account);
   }
 
   window.AFM_ESTADUAIS_DATA = (window.AFM_ESTADUAIS_DATA && window.AFM_ESTADUAIS_DATA.length) ? window.AFM_ESTADUAIS_DATA : DEFAULT_ESTADUAIS;

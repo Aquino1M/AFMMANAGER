@@ -574,6 +574,7 @@
   // =========================================================================
   function processAutomaticFitnessCoachTraining(gameState = window.state) {
     if (!gameState || !Array.isArray(gameState.squad)) return;
+    if (gameState.gameMode === 'player' || !!gameState.playerCareerState) return; // No Modo Jogador, a IA conduz os treinos do time e o atleta possui treino próprio
     
     // Se o treino já foi realizado na data atual, não faz nada
     if (gameState.lastManualTrainingDate === gameState.date) return;

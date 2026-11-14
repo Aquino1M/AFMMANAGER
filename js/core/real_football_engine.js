@@ -891,7 +891,7 @@
       ctx.fill();
 
       // Número nas costas do jogador
-      const jerseyNumber = p.jerseyNumber || (p.index ? p.index + 1 : (isGK ? 1 : Math.floor(Math.abs(hashStr(p.name)) % 30 + 2)));
+      const jerseyNumber = p.jerseyNumber || p.shirtNumber || p.number || (p.index ? p.index + 1 : (isGK ? 1 : Math.floor(Math.abs(hashStr(p.name)) % 30 + 2)));
       ctx.fillStyle = isGK ? '#111111' : (kit.number || '#ffffff');
       ctx.font = `900 ${Math.round(6.5 * scale)}px Inter, sans-serif`;
       ctx.textAlign = 'center';

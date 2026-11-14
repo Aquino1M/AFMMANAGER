@@ -34,6 +34,10 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'js/database.js'),
 
   const unknownUser = await db.signIn('usuario_inexistente', 'test-password');
   assert.equal(unknownUser.ok, false, 'Usuário inexistente não pode autenticar.');
-  assert.match(unknownUser.error, /usuário não encontrado/i);
-  console.log('Username login checks passed: 3');
+  assert.match(unknownUser.error, /conta não encontrada neste navegador/i);
+  const registered = await db.signUp('novo_treinador', 'local-password', 'Novo Treinador');
+  assert.equal(registered.ok, true, 'cadastro deve criar a conta para login local');
+  const localLogin = await db.signIn('novo_treinador', 'local-password');
+  assert.equal(localLogin.ok, true, 'conta recém-criada deve autenticar localmente');
+  console.log('Username login checks passed: 5');
 })().catch(error => { console.error(error); process.exitCode = 1; });

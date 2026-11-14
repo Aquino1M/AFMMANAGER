@@ -248,7 +248,7 @@ const AFM_DB = (function(){
       const accounts = JSON.parse(localStorage.getItem('afm_accounts_v1') || '[]');
       const acc = accounts.find(a => (a.username || '').toLowerCase() === cleanUser);
       if(!acc){
-        return { ok: false, error: 'Nome de usuário não encontrado.' };
+        return { ok: false, error: 'Conta não encontrada neste navegador. Cadastre-se ou entre pela conta onde ela foi criada.' };
       }
       if(acc.password && acc.password !== cleanPass){
         return { ok: false, error: 'Senha incorreta para este usuário.' };
@@ -964,7 +964,7 @@ const AFM_DB = (function(){
     return { ok: true, data: saves };
   }
 
-  // Busca saves de todos os usuários para o Ranking de Técnicos & PIX (Baseado em afm_saves do Supabase)
+  // Busca saves de todos os usuários para o Ranking Geral de Técnicos (Baseado em afm_saves do Supabase)
   async function fetchLeaderboardSaves(limit = 100){
     try {
       await init();

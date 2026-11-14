@@ -2336,7 +2336,7 @@ th{color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--pan
   color: #94a3b8;
 }
 
-input, select, .saas-input, .saas-select {
+input:not([type="radio"]):not([type="checkbox"]):not([type="range"]), select, .saas-input, .saas-select {
   background: #0f172a !important;
   border: 1px solid #334155 !important;
   color: #f8fafc !important;
@@ -2350,7 +2350,20 @@ input, select, .saas-input, .saas-select {
   width: 100%;
 }
 
-input:focus, select:focus, .saas-input:focus, .saas-select:focus {
+input[type="radio"], input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
+}
+
+input:not([type="radio"]):not([type="checkbox"]):not([type="range"]):focus, select:focus, .saas-input:focus, .saas-select:focus {
   border-color: #a855f7 !important;
   box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.25), inset 0 2px 4px rgba(0,0,0,0.2) !important;
   background: #111c34 !important;
@@ -4052,6 +4065,18 @@ select, .saas-select {
 }
 .afm-systems-category-tabs::-webkit-scrollbar {
   display: none;
+}
+
+@media (min-width: 900px) {
+  .afm-systems-category-tabs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    white-space: normal;
+  }
+
+  .afm-sys-cat-btn {
+    flex: 0 0 auto;
+  }
 }
 
 .afm-sys-cat-btn {

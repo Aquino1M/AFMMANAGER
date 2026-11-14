@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>AFM 2027 - Stadium 3D WebGL Real Browser Test</title>
+  <style>
+    body { background: #070b14; color: #fff; font-family: sans-serif; margin: 0; padding: 20px; }
+    #canvas-container { width: 540px; height: 450px; position: relative; background: #070b14; }
+    #afmTestCanvas { width: 100%; height: 100%; display: block; }
+  </style>
+</head>
+<body>
+  <h1>Teste Gráfico Three.js WebGL Real - Estádio 3D</h1>
+  <div id="canvas-container">
+    <canvas id="afmTestCanvas"></canvas>
+  </div>
+  <div id="test-status">Iniciando...</div>
+  <div id="test-results"></div>
+
+  <script src="../js/lib/three.min.js"></script>
+  <script src="../js/lib/OrbitControls.js"></script>
+  <script src="../js/core/stadium_lowpoly_engine.js"></script>
+
+  <script>
+    (function() {
+      const logs = [];
+      function log(msg) {
+        logs.push(msg);
+        console.log(msg);
+      }
+
+      try {
+        log('1. Verificando Three.js e OrbitControls...');
+        if (!window.THREE) throw new Error('THREE não encontrado');
+        if (!window.THREE.OrbitControls && !window.OrbitControls) throw new Error('OrbitControls não encontrado');
+        log('✓ THREE e OrbitControls carregados.');
+
+        log('2. Inicializando maquete no canvas real com WebGL...');
+        const canvas = document.getElementById('afmTestCanvas');
+        const instance = window.AFMStadiumLowPoly.init(canvas);
+        if (!instance) throw new Error('Falha ao instanciar StadiumLowPolyScene');
+        if (instance.failed) throw new Error('Instância marcou falha no WebGL');
+        log('✓ AFMStadiumLowPoly instanciado com sucesso no canvas.');
+
+        log('3. Construindo geometria do Estádio...');
+        const mockState = {
+          club: 'Real Brasília',
+          infrastructure: { stadium: { capacity: 18800, level: 2 } },
+          stadiumUpgrades: { screen: true, ledRing: true }
+        };
+        window.AFMStadiumLowPoly.update(mockState, {
+          selectedSide: 'norte',
+          previewUpgrade: 'screen'
+        });
+        log('✓ Geometria construída (anel, gramado, telão, anel led).');
+
+        log('4. Testando presets de câmera...');
+        window.AFMStadiumLowPoly.setCameraPreset('tv');
+        window.AFMStadiumLowPoly.setCameraPreset('panoramic');
+        log('✓ Presets de câmera aplicados sem erro.');
+
+        log('5. Testando descarte seguro de recursos WebGL...');
+        window.AFMStadiumLowPoly.dispose();
+        if (!instance.isDisposed) throw new Error('Instância deveria estar marcada como descartada');
+        log('✓ Descarte seguro concluído sem erros.');
+
+        document.getElementById('test-status').textContent = 'Concluído com sucesso!';
+        document.getElementById('test-results').textContent = 'SUCCESS: ALL WEBGL TESTS PASSED\n' + logs.join('\n');
+      } catch (err) {
+        document.getElementById('test-status').textContent = 'ERRO: ' + err.message;
+        document.getElementById('test-results').textContent = 'FAILURE: ' + err.message + '\n' + logs.join('\n');
+        console.error(err);
+      }
+    })();
+  </script>
+</body>
+</html>
