@@ -9249,14 +9249,15 @@ function save(){
     }
   }
 
-  if(!localSaved){
+  const cloudSaveAvailable = window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function';
+  if(!localSaved && !cloudSaveAvailable){
     if(!window.__afmStorageWarning){
-      toast('Falha ao salvar localmente. Libere espaço no navegador e tente novamente.', 6000);
+      toast('Não foi possível salvar: armazenamento local cheio e Supabase indisponível.', 6000);
       window.__afmStorageWarning = true;
     }
     return false;
   }
-  window.__afmStorageWarning = false;
+  if(localSaved) window.__afmStorageWarning = false;
 
   // 3. Salvar na lista de contas do sistema (armazena cabeçalho leve para economizar 95% de quota)
   const accs = getStoredAccounts();
@@ -9275,16 +9276,21 @@ function save(){
   }
 
   // 4. REGRA CRÍTICA INVIOLÁVEL: Sincronização obrigatória com o Supabase Cloud (afm_saves)
-  if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
+  if(cloudSaveAvailable){
     window.__afmLastSaveSyncPromise = window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry)
       .then(result => {
         if(!result?.ok) {
           window.AFMErrorLog?.record('save-sync', result?.error || 'Falha ao sincronizar save no Supabase');
+          if(!localSaved) toast('A nuvem não confirmou o save. Sua carreira não está garantida; conecte-se e tente salvar novamente.', 7000);
+        } else if(!localSaved){
+          window.__afmStorageWarning = false;
+          toast('✅ Carreira salva no Supabase. O dispositivo está sem espaço para cópia local.', 5000);
         }
         return result;
       })
       .catch(error => {
         window.AFMErrorLog?.record('save-sync', error?.message || 'Falha ao sincronizar save no Supabase');
+        if(!localSaved) toast('Falha ao salvar na nuvem. Sua carreira não está garantida; conecte-se e tente novamente.', 7000);
         return { ok: false, localOnly: true, error: error?.message || 'Falha ao sincronizar save no Supabase' };
       });
   } else {
