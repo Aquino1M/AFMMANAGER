@@ -9121,6 +9121,39 @@ function freeUpLocalStorageQuota(){
 }
 if(typeof window !== 'undefined') window.freeUpLocalStorageQuota = freeUpLocalStorageQuota;
 
+function cleanupConfirmedLocalSaveCopies(username, slotNum, saveEntry, entryStr){
+  if(typeof localStorage === 'undefined') return false;
+  const owner = String(username || '').toLowerCase().trim();
+  const slot = Number(slotNum);
+  if(!owner || !Number.isInteger(slot) || !saveEntry?.data) return false;
+  const belongsToOwner = raw => {
+    try {
+      const parsed = JSON.parse(raw);
+      const data = parsed?.data || parsed;
+      const savedOwner = String(parsed?.owner || data?.userOwner || '').toLowerCase().trim();
+      return savedOwner === owner;
+    } catch(e){ return false; }
+  };
+  const candidates = [
+    `afm_save_${owner}_slot_${slot}`,
+    `afm_save_${owner}_slot_${slot}_backup`,
+    `afm_save_slot_${slot}_backup`,
+    `afm2027_individual_save_slot_${slot}`,
+    `afm2027_individual_save_slot_${slot}_backup`
+  ];
+  if(slot === 1) candidates.push('aquino_futebol_manager_2026_v1');
+  candidates.forEach(key => {
+    try {
+      const raw = localStorage.getItem(key);
+      if(raw && belongsToOwner(raw)) localStorage.removeItem(key);
+    } catch(e){}
+  });
+  try {
+    localStorage.setItem(`afm_save_slot_${slot}`, entryStr);
+    return true;
+  } catch(e){ return false; }
+}
+
 function save(){
   if(!state && typeof window !== 'undefined' && window.state){
     state = window.state;
@@ -9283,8 +9316,13 @@ function save(){
           window.AFMErrorLog?.record('save-sync', result?.error || 'Falha ao sincronizar save no Supabase');
           if(!localSaved) toast('A nuvem não confirmou o save. Sua carreira não está garantida; conecte-se e tente salvar novamente.', 7000);
         } else if(!localSaved){
-          window.__afmStorageWarning = false;
-          toast('✅ Carreira salva no Supabase. O dispositivo está sem espaço para cópia local.', 5000);
+          localSaved = cleanupConfirmedLocalSaveCopies(saveEntry.owner, slotNum, saveEntry, entryStr);
+          window.__afmStorageWarning = !localSaved;
+          toast(localSaved
+            ? '✅ Save confirmado no Supabase; cópias redundantes removidas e cópia local restaurada.'
+            : '✅ Carreira salva no Supabase. Ainda não há espaço para a cópia local.', 5000);
+        } else {
+          cleanupConfirmedLocalSaveCopies(saveEntry.owner, slotNum, saveEntry, entryStr);
         }
         return result;
       })
