@@ -85,6 +85,8 @@ const previousCurrentMatch = window.getActualCurrentMatch;
 window.getActualCurrentMatch = () => null;
 const recoveredHub = window.AFM_PlayerMode.renderPage('player_hub');
 assert(recoveredHub.includes('ATLETA RECUPERADO') && !recoveredHub.includes('Carregando perfil do atleta...'));
+assert(recoveredHub.includes('45%') && !recoveredHub.includes('undefined%') && !recoveredHub.includes('undefined anos') && !recoveredHub.includes('undefined/'));
+assert.equal(window.state.playerCareerState.managerTrust, 45, 'perfil legado sem confiança deve receber um padrão válido');
 assert.equal(window.state.squad[0].id, 'missing-athlete', 'perfil salvo deve reconstruir atleta controlado ausente no elenco');
 window.state = {
   gameMode: 'player', club: 'Manaus', date: '2026-01-01', controlledPlayerId: 'controlled-athlete',

@@ -110,6 +110,26 @@
       };
     }
     const pState = state.playerCareerState;
+    const athlete = getControlledPlayer(state);
+    const trust = Number(pState.managerTrust);
+    pState.managerTrust = Number.isFinite(trust) ? Math.max(0, Math.min(100, trust)) : 45;
+    pState.age = Number(pState.age || athlete?.age) || 15;
+    pState.city = pState.city || athlete?.city || 'Brasília';
+    pState.stateUf = pState.stateUf || athlete?.stateUf || 'DF';
+    pState.position = pState.position || pState.pos || athlete?.pos || athlete?.position || 'ATA';
+    pState.pos = pState.pos || pState.position;
+    pState.shirtNumber = Number(pState.shirtNumber || athlete?.number) || 10;
+    pState.level = Math.max(1, Number(pState.level) || 1);
+    pState.skillPoints = Math.max(0, Number(pState.skillPoints) || 0);
+    pState.athleteOvr = Number(pState.athleteOvr || pState.overall || athlete?.ovr || athlete?.overall) || 35;
+    pState.appearance = pState.appearance || {};
+    if(athlete){
+      athlete.name = athlete.name || pState.athleteName || 'Atleta';
+      athlete.number = Number(athlete.number || pState.shirtNumber) || 10;
+      athlete.pos = athlete.pos || athlete.position || pState.position;
+      athlete.ovr = Number(athlete.ovr || athlete.overall || pState.athleteOvr) || 35;
+      athlete.overall = athlete.ovr;
+    }
     window.AFM_PlayerEngine?.normalizePlayerProgression?.(pState);
     pState.weeklyTrainingFocus = pState.weeklyTrainingFocus || 'finalizacao';
     // Migração idempotente: se o save estava no nível 1 com 0 XP e ainda tinha pontos livres
