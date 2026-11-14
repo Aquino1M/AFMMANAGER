@@ -66,7 +66,7 @@ assert(!availableSponsors.some(sp => sp.name === activeSp.name), 'Contrato em vi
 console.log('✓ Contrato ativo filtrado com sucesso. Apenas propostas disponíveis no grid:', availableSponsors.map(s => s.name));
 
 console.log('\n--- TESTE 2: Diferenciação entre marcas iguais com termos diferentes ---');
-// Penalty Brasil Raiz é uma proposta disponível com R$ 1.500+ de mensalidade
+// Penalty Brasil Raiz é uma proposta disponível compatível com o overall
 // Comércio Esportivo Local é o contrato de R$ 600
 const penaltyProposal = availableSponsors.find(sp => sp.brand === 'Penalty');
 if(penaltyProposal){
@@ -95,5 +95,21 @@ const maxWage2027 = Math.max(...season2Offers.map(o => o.monthlyStipend));
 const maxWage2026 = Math.max(...offers.map(o => o.monthlyStipend));
 assert(maxWage2027 > maxWage2026, `Salários em 2027 (R$ ${maxWage2027}) devem ser maiores que em 2026 (R$ ${maxWage2026}) devido à evolução`);
 console.log(`✓ Valorização confirmada: Maior proposta subiu de R$ ${maxWage2026.toLocaleString('pt-BR')} para R$ ${maxWage2027.toLocaleString('pt-BR')}/mês!`);
+
+const youthState = {
+  gameMode: 'player', date: '2026-02-01', controlledPlayerId: 'youth',
+  squad: [{ id: 'youth', name: 'Atleta Iniciante', ovr: 34 }],
+  playerCareerState: {
+    athleteOvr: 34,
+    availableSponsorOffers: [{ brand: 'Puma', minOvr: 55, monthlyStipend: 3500 }],
+    lastSponsorSeasonGenerated: 2026,
+    sponsorOfferBalanceVersion: 1
+  }
+};
+const youthOffers = engine.getPlayerSponsorOffers(youthState);
+assert.equal(youthOffers.length, 3, 'OVR 34 deve receber somente as três propostas regionais compatíveis');
+assert(youthOffers.every(offer => offer.minOvr <= 34 && offer.monthlyStipend <= 250 && offer.bonusGoal <= 120 && offer.bonusWin <= 90));
+assert(!youthOffers.some(offer => ['Puma', 'Adidas', 'Nike'].includes(offer.brand)), 'marcas de categoria superior não devem aparecer para OVR 34');
+console.log('✓ OVR 34 recebe valores de base proporcionais e proposta antiga de Puma é regenerada.');
 
 console.log('\n✅ TODOS OS TESTES DE PATROCÍNIO PASSARAM COM 100% DE SUCESSO!');

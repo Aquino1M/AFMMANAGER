@@ -317,16 +317,16 @@
 
   // Catálogo Geral de Marcas Esportivas Mundiais e Linhas Oficiais
   const SPONSOR_TIERS_CATALOG = [
-    // Nível 1: Base / Regional (OVR 40 - 54)
+    // Nível 1: Base / Regional (OVR 30 - 54)
     {
       id: 'sp_penalty_base',
       name: 'Penalty Brasil Raiz',
       brand: 'Penalty',
       tier: 'base',
-      minOvr: 40,
-      monthlyBase: 1500,
-      bonusGoalBase: 800,
-      bonusWinBase: 600,
+      minOvr: 32,
+      monthlyBase: 180,
+      bonusGoalBase: 90,
+      bonusWinBase: 70,
       durationDays: 180,
       description: 'Apoio de entrada para joias da base, fornecimento de chuteiras e incentivo financeiro.'
     },
@@ -335,10 +335,10 @@
       name: 'Topper Dominator Pro',
       brand: 'Topper',
       tier: 'base',
-      minOvr: 42,
-      monthlyBase: 1800,
-      bonusGoalBase: 900,
-      bonusWinBase: 700,
+      minOvr: 34,
+      monthlyBase: 250,
+      bonusGoalBase: 120,
+      bonusWinBase: 90,
       durationDays: 180,
       description: 'Chuteiras resistentes para campeonatos estaduais e torneios de base.'
     },
@@ -347,10 +347,10 @@
       name: 'Kanxa Elite Classic',
       brand: 'Kanxa',
       tier: 'base',
-      minOvr: 40,
-      monthlyBase: 1300,
-      bonusGoalBase: 700,
-      bonusWinBase: 500,
+      minOvr: 30,
+      monthlyBase: 120,
+      bonusGoalBase: 60,
+      bonusWinBase: 40,
       durationDays: 180,
       description: 'Parceria esportiva voltada a jovens revelações regionais.'
     },
@@ -555,8 +555,8 @@
     const curYear = parseInt(String(gameState.date || gameState.currentDate || '2026').slice(0, 4), 10) || 2026;
     const followers = Number(pState.socialMedia?.followers || 500);
 
-    const eligible = SPONSOR_TIERS_CATALOG.filter(sp => ovr >= (sp.minOvr - 6));
-    const pool = eligible.length >= 3 ? eligible : SPONSOR_TIERS_CATALOG.slice(0, 4);
+    const eligible = SPONSOR_TIERS_CATALOG.filter(sp => ovr >= sp.minOvr);
+    const pool = eligible;
 
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
     const picked = [];
@@ -568,7 +568,6 @@
       }
       if(picked.length >= 4) break;
     }
-    if(picked.length < 3) picked.push(...shuffled.slice(0, 3 - picked.length));
 
     const ovrMultiplier = Math.max(1, (ovr - 40) * 0.04 + (followers > 50000 ? 0.35 : followers > 10000 ? 0.15 : 0));
 
@@ -594,6 +593,7 @@
 
     pState.availableSponsorOffers = seasonOffers;
     pState.lastSponsorSeasonGenerated = curYear;
+    pState.sponsorOfferBalanceVersion = 2;
     return seasonOffers;
   }
 
@@ -605,7 +605,9 @@
     const pState = gameState.playerCareerState;
     const curYear = parseInt(String(gameState.date || gameState.currentDate || '2026').slice(0, 4), 10) || 2026;
 
-    if(!Array.isArray(pState.availableSponsorOffers) || pState.availableSponsorOffers.length === 0 || pState.lastSponsorSeasonGenerated !== curYear){
+    const athlete = (gameState.squad || []).find(p => p.id === gameState.controlledPlayerId) || {};
+    const ovr = Number(athlete.ovr) || Number(athlete.overall) || Number(pState.athleteOvr) || Number(pState.overall) || 0;
+    if(!Array.isArray(pState.availableSponsorOffers) || pState.availableSponsorOffers.length === 0 || pState.lastSponsorSeasonGenerated !== curYear || pState.sponsorOfferBalanceVersion !== 2 || pState.availableSponsorOffers.some(offer => Number(offer.minOvr) > ovr)){
       return generateSeasonSponsorOffers(gameState);
     }
     return pState.availableSponsorOffers;
