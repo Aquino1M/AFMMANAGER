@@ -1,5 +1,5 @@
 // Service Worker do AFM Manager 2027
-const CACHE_NAME = 'afm-2027-cache-v121';
+const CACHE_NAME = 'afm-2027-cache-v122';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -8,7 +8,6 @@ const ASSETS_TO_CACHE = [
   './js/player/social_media_manager.js',
   './js/player/national_teams_manager.js',
   './js/player/player_career_engine.js',
-  './js/player/player_avatar_3d.js',
   './js/ui/create_player_ui.js',
   './js/player/player_mode_ui.js',
   './js/systems/interactive_set_pieces.js',

@@ -1006,6 +1006,7 @@
     const sockStyle = wizardState.appearance.sockStyle || 'Meião alto';
     const bootId = wizardState.appearance.starterBoot || 'boot_black_classic';
     const num = wizardState.shirtNumber || 10;
+    const nickname = (wizardState.nickname || wizardState.name || '').toUpperCase().slice(0, 14);
     const height = Number(wizardState.height) || 1.78;
     const bodyBuild = wizardState.bodyBuild || 'Médio';
 
@@ -1066,8 +1067,9 @@
           <polygon points="${b.shoulderX1},85 ${b.shoulderX2},85 ${120 + (b.torsoW / 2)},145 ${120 - (b.torsoW / 2)},145" fill="#ffffff" stroke="#e2e8f0" stroke-width="2" />
 
           ${isBack ? `
-            <!-- NÚMERO NAS COSTAS -->
-            <text x="120" y="126" font-family="'Segoe UI',sans-serif" font-size="28" font-weight="900" fill="#7c3aed" text-anchor="middle">${num}</text>
+            <!-- APELIDO E NÚMERO EM PRETO PARA CONTRASTE -->
+            <text x="120" y="105" font-family="'Segoe UI',sans-serif" font-size="9" font-weight="900" fill="#111827" text-anchor="middle" letter-spacing=".5">${esc(nickname)}</text>
+            <text x="120" y="132" font-family="'Segoe UI',sans-serif" font-size="28" font-weight="900" fill="#111827" text-anchor="middle">${num}</text>
           ` : `
             <!-- DETALHE NO PEITO -->
             <circle cx="106" cy="102" r="5" fill="#7c3aed" />
@@ -1263,14 +1265,12 @@
    */
   function bindWizardEvents(container, activeUser){
     const initialStage = container.querySelector('#afmDynamicAvatarContainer');
-    if(initialStage) window.AFM_PlayerAvatar3D?.mount(initialStage, wizardState);
+    if(initialStage) initialStage.innerHTML = renderDynamicAthleteSvg();
 
     // Atualizar preview dinâmico instantaneamente
     function refreshAvatarPreview(){
       const stage = container.querySelector('#afmDynamicAvatarContainer');
-      if(stage){
-        if(!window.AFM_PlayerAvatar3D?.update(wizardState)) stage.innerHTML = renderDynamicAthleteSvg();
-      }
+      if(stage) stage.innerHTML = renderDynamicAthleteSvg();
       const ovrEl = container.querySelector('#previewOvrNumber');
       if(ovrEl) ovrEl.textContent = getCurrentOverall();
 
