@@ -668,7 +668,6 @@ window.PLAYERS_BRA_A = [
   {"name":"Tulio Eduardo","club":"Chapecoense","country":"Brasil","pos":"ST","age":21,"fc":71,"pes":71,"potential":75,"value":1.5,"number":9,"tmId":"1102308"},
   {"name":"Franco Rossi","club":"Chapecoense","country":"Uruguai","pos":"ST","age":24,"fc":71,"pes":71,"potential":73,"value":1.5,"number":29,"tmId":"1118587","photo":"img/players/tm_1118587.jpg"},
   {"name":"Yannick Bolasie","club":"Chapecoense","country":"RD do Congo","pos":"ST","age":37,"fc":65,"pes":65,"potential":65,"value":0.15,"number":11,"tmId":"75471","photo":"img/players/tm_75471.jpg"},
-  {"name":"Neymar Jr","club":"Santos","country":"Brasil","pos":"LW","age":34,"fc":88,"pes":88,"potential":88,"value":30,"number":10,"tmId":"68290","photo":"img/players/tm_68290.jpg"},
   {"name":"Guilherme","club":"Santos","country":"Brasil","pos":"LW","age":30,"fc":76,"pes":76,"potential":76,"value":3,"number":11},
   {"name":"Rómulo Otero","club":"Santos","country":"Venezuela","pos":"AM","age":33,"fc":74,"pes":74,"potential":74,"value":1.5,"number":22},
   {"name":"Gil","club":"Santos","country":"Brasil","pos":"CB","age":38,"fc":75,"pes":75,"potential":75,"value":0.8,"number":4},

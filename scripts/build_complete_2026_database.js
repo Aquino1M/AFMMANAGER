@@ -50,9 +50,7 @@ for (const [clubName, players] of Object.entries(tmSquads)) {
 
 console.log(`Players added from Série A and B Transfermarkt sync: ${masterPlayerList.length}`);
 
-// 3. Ensure Santos has Neymar Jr (#10) and top stars
-addPlayer({ name: 'Neymar Jr', club: 'Santos', country: 'Brasil', pos: 'LW', age: 34, fc: 88, pes: 88, potential: 88, value: 30.0, number: 10 });
-addPlayer({ name: 'Neymar', club: 'Santos', country: 'Brasil', pos: 'LW', age: 34, fc: 88, pes: 88, potential: 88, value: 30.0, number: 10 });
+// 3. Ensure Santos has key players missing from the scraped roster
 addPlayer({ name: 'Gabriel Brazão', club: 'Santos', country: 'Brasil', pos: 'GK', age: 25, fc: 75, pes: 75, potential: 80, value: 3.5, number: 77 });
 addPlayer({ name: 'Guilherme', club: 'Santos', country: 'Brasil', pos: 'LW', age: 30, fc: 76, pes: 76, potential: 76, value: 3.0, number: 11 });
 addPlayer({ name: 'Rómulo Otero', club: 'Santos', country: 'Venezuela', pos: 'AM', age: 33, fc: 74, pes: 74, potential: 74, value: 1.5, number: 22 });

@@ -61,6 +61,10 @@ const gameJs = fs.readFileSync('js/game.js', 'utf8');
 // Executa game.js no contexto
 eval(gameJs);
 console.log('✓ game.js carregado com sucesso.');
+const santosKeyPlayers = window.getClubFullProfile('Santos').keyPlayers;
+assert.strictEqual(santosKeyPlayers.filter(player => player.tmId === '68290').length, 1, 'destaques do Santos não podem listar Neymar e Neymar Jr como duas pessoas');
+assert.strictEqual(window.livePlayers.filter(player => player.club === 'Santos' && player.tmId === '68290').length, 1, 'catálogo ativo do Santos deve manter uma entrada para Neymar');
+console.log('✓ Santos apresenta Neymar uma vez no catálogo e nos destaques do elenco.');
 
 // Carrega player_career_engine e player_mode_ui
 const playerEngineJs = fs.readFileSync('js/player/player_career_engine.js', 'utf8');

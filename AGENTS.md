@@ -10,6 +10,7 @@
 - Títulos oficiais atualizam `state.titles`, o Museu e `AFM_TitlesAndHistoryService`; preserve `seasonHistory`/`worldChampionHistory` e classifique acessos como “Acesso”. Prêmios exibem vencedor e métrica reais ou “A definir”; processe-os em `processEndOfSeasonAwards()`.
 - Ao cruzar cada mês, processe uma vez as finanças do modo ativo na ordem das datas. No treinador, credite TV/patrocínios e quite folha, instalações, olheiros, marketing e dívidas; no jogador, processe salário/despesas/dívidas pessoais. Não dependa apenas do dia 1; mantenha idempotência em avanços longos, jogos e recargas.
 - Limite coleções persistidas: `news` 50, `marketWorldFeed` 30, `seasonHistory` 20 e `socialMedia.feedPosts` 25.
+- Catálogos e telas de elenco não podem repetir a mesma pessoa no mesmo clube por variações de nome (ex.: sufixo “Jr.”); deduplique por clube, identidade validada e nome normalizado sem fundir atletas distintos.
 
 ## Carreira do jogador
 - Preserve sempre a criação do atleta (`#btnGoCreatePlayer`, `#btnNavGoPlayerMode`, `setupViewMode === 'create_player'` e `renderCreatePlayerScreen`). Elenco legado incompleto deve ser completado sem duplicar atletas nem remover o controlado; mudanças exigem teste de migração idempotente.

@@ -9807,7 +9807,14 @@ function getClubFullProfile(clubName){
 
   // 5. Principais Jogadores
   const clubPlayers = (window.livePlayers || []).filter(p => norm(p.club) === n);
-  const keyPlayers = clubPlayers.slice().sort((a,b) => playerOverall(b) - playerOverall(a)).slice(0, 3);
+  const seenPlayers = new Set();
+  const keyPlayers = clubPlayers.slice().sort((a,b) => playerOverall(b) - playerOverall(a)).filter(p => {
+    const name = norm(p.name).replace(/\s+jr\.?$/, '');
+    const identity = `${norm(p.club)}::${p.tmId || ''}::${name}`;
+    if(seenPlayers.has(identity)) return false;
+    seenPlayers.add(identity);
+    return true;
+  }).slice(0, 3);
 
   return {
     name: c.name,

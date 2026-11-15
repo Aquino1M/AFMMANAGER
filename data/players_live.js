@@ -1399,7 +1399,6 @@ window.LIVE_PLAYERS = [
   {name:"João Victor",club:"Guarani",country:"Brasil",pos:"RW",age:25,fc:71,pes:71,potential:74,value:1},
   {name:"Airton",club:"Guarani",country:"Brasil",pos:"LW",age:25,fc:70,pes:70,potential:73,value:0.8},
   {name:"Caio Dantas",club:"Guarani",country:"Brasil",pos:"ST",age:31,fc:73,pes:73,potential:73,value:1.4},
-  {name:"Neymar Jr",club:"Santos",country:"Brasil",pos:"LW",age:34,fc:88,pes:88,potential:88,value:30,number:10,tmId:"68290",photo:"img/players/tm_68290.jpg"},
   {name:"Guilherme",club:"Santos",country:"Brasil",pos:"LW",age:30,fc:76,pes:76,potential:76,value:3,number:11},
   {name:"Rómulo Otero",club:"Santos",country:"Venezuela",pos:"AM",age:33,fc:74,pes:74,potential:74,value:1.5,number:22},
   {name:"Gil",club:"Santos",country:"Brasil",pos:"CB",age:38,fc:75,pes:75,potential:75,value:0.8,number:4},
