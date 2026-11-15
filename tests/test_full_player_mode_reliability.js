@@ -433,6 +433,17 @@ assert.strictEqual(careerLineup[0].pos, 'GK', 'goleiro deve ocupar a vaga de GK'
 assert.strictEqual(careerLineup[2].id, 'striker-user', 'atacante controlado deve ser alinhado no slot ST');
 console.log('✓ Atleta controlado é reposicionado na vaga compatível da formação e o goleiro fica no gol.');
 
+const lineupWithoutKeeper = [
+  { id: 'striker-user', pos: 'ST' },
+  ...Array.from({ length: 10 }, (_, i) => ({ id: `outfield-${i}`, pos: 'CM' }))
+];
+const squadWithKeeper = [...lineupWithoutKeeper, { id: 'real-keeper', pos: 'GK' }];
+window.alignPlayerCareerStarter(lineupWithoutKeeper, [{ r:'GK' },{ r:'CB' },{ r:'ST' },{ r:'RW' }], lineupWithoutKeeper[0], squadWithKeeper);
+assert.strictEqual(lineupWithoutKeeper[0].id, 'real-keeper', 'goleiro do elenco deve preencher a vaga GK quando não foi selecionado');
+assert.strictEqual(lineupWithoutKeeper.find(player => player.id === 'striker-user').pos, 'ST', 'atacante controlado deve continuar fora do gol quando o GK faltava na escalação');
+assert.strictEqual(lineupWithoutKeeper.findIndex(player => player.id === 'striker-user'), 2, 'atacante deve ocupar a vaga ST da formação');
+console.log('✓ Escalação sem goleiro corrige a vaga antes do jogo e mantém o atleta controlado na posição ST.');
+
 // TESTE 5: Simulação de Partida Be a Pro com Substituição aos 46'
 console.log('\n6. Testando partida ao vivo com entrada do atleta aos 46 minutos (Zero Travamento)...');
 const match = {

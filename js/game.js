@@ -20486,16 +20486,31 @@ function restorePrimaryLeagueAfterCopaMatch(){
 }
 
 let isStartingLiveMatch = false;
-function alignPlayerCareerStarter(starters, formation, athlete){
-  const gkIndex = formation.findIndex(slot => slot.r === 'GK');
-  const keeperIndex = starters.findIndex(player => isGoalkeeperPosition(player?.pos));
-  if(gkIndex >= 0 && keeperIndex >= 0 && keeperIndex !== gkIndex && keeperIndex < formation.length){
+function alignPlayerCareerStarter(starters, formation, athlete, squad = starters){
+  const gkIndex = formation.findIndex(slot => isGoalkeeperPosition(slot?.r));
+  if(gkIndex < 0 || gkIndex >= starters.length) return starters;
+  const naturalPosition = String(athlete?.pos || athlete?.position || state.playerCareerState?.position || '').toUpperCase().trim();
+  let keeperIndex = starters.findIndex(player => isGoalkeeperPosition(player?.pos));
+  if(keeperIndex < 0){
+    const keeper = (squad || []).find(player => isGoalkeeperPosition(player?.pos) && (String(player?.id) !== String(athlete?.id) || isGoalkeeperPosition(naturalPosition)));
+    const athleteAtGoal = Boolean(athlete) && String(starters[gkIndex]?.id) === String(athlete.id) && !isGoalkeeperPosition(naturalPosition);
+    if(athleteAtGoal){
+      const forwardSlot = formation.findIndex((slot, index) => index !== gkIndex && ['ST','CF','LW','RW','AM','CM'].includes(String(slot?.r || '').toUpperCase()));
+      if(forwardSlot >= 0 && forwardSlot < starters.length){
+        [starters[gkIndex], starters[forwardSlot]] = [starters[forwardSlot], starters[gkIndex]];
+      }
+    }
+    starters[gkIndex] = keeper || {
+      id: `emergency-gk-${String(athlete?.id || 'career')}`,
+      name: 'Goleiro reserva', pos: 'GK', club: state.club, fc: 45, overall: 45
+    };
+    keeperIndex = gkIndex;
+  } else if(keeperIndex !== gkIndex && keeperIndex < formation.length){
     [starters[gkIndex], starters[keeperIndex]] = [starters[keeperIndex], starters[gkIndex]];
   }
   if(!athlete) return starters;
   const athleteIndex = starters.findIndex(player => String(player?.id) === String(athlete.id));
   if(athleteIndex < 0) return starters;
-  const naturalPosition = String(athlete.pos || athlete.position || '').toUpperCase();
   const compatible = {
     ST: ['ST','CF'], ATA: ['ST','CF'], CA: ['ST','CF'], CF: ['CF','ST'], LW: ['LW','LM'], RW: ['RW','RM'],
     LM: ['LM','LW'], RM: ['RM','RW'], AM: ['AM','CM'], CM: ['CM','AM','DM'],
@@ -20504,7 +20519,10 @@ function alignPlayerCareerStarter(starters, formation, athlete){
     VOL: ['DM','CM'], MEI: ['AM','CM'], PON: ['LW','RW'], GK: ['GK'], GOL: ['GK']
   };
   const allowed = compatible[naturalPosition] || [naturalPosition];
-  const targetIndex = formation.findIndex((slot, index) => index !== gkIndex && allowed.includes(slot.r));
+  const compatibleIndex = formation.findIndex((slot, index) => index !== gkIndex && allowed.includes(String(slot?.r || '').toUpperCase()));
+  const targetIndex = isGoalkeeperPosition(naturalPosition)
+    ? gkIndex
+    : (compatibleIndex >= 0 ? compatibleIndex : formation.findIndex((slot, index) => index !== gkIndex && !isGoalkeeperPosition(slot?.r)));
   if(targetIndex >= 0 && targetIndex !== athleteIndex && targetIndex < starters.length){
     [starters[athleteIndex], starters[targetIndex]] = [starters[targetIndex], starters[athleteIndex]];
   }
@@ -20699,7 +20717,7 @@ function startLiveMatch(){
       const playerTooTired = Boolean(controlledAthlete && Number(controlledAthlete.energy ?? controlledAthlete.fitness ?? 100) <= 40);
       const selectedStarters = lineupKeys.map(k => findSquadPlayerByKey(k)).filter(p => p && !(playerTooTired && p.id === controlledAthlete.id));
       const starters = [...selectedStarters.slice(0, 11)];
-      alignPlayerCareerStarter(starters, formDef, playerTooTired ? null : controlledAthlete);
+      alignPlayerCareerStarter(starters, formDef, playerTooTired ? null : controlledAthlete, state.squad);
       const usedStarterKeys = new Set(starters.map(p => playerKey(p)));
       while(starters.length < 11){
         const extra = state.squad.find(p => !usedStarterKeys.has(playerKey(p)) && !(playerTooTired && p.id === controlledAthlete.id));
