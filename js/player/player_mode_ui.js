@@ -18,6 +18,21 @@
         return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
       });
 
+  function getPlayerMarketValueBrl(player){
+    const marketValueMi = Number(player?.marketValueMi);
+    const marketValueBrl = Number(player?.marketValue);
+    const valueMi = Number(player?.value);
+    const estimatedValue = Math.pow((Number(player?.ovr || player?.overall) || 35) / 10, 3.8) * 100000;
+    if(Number.isFinite(marketValueMi) && marketValueMi > 0) return Math.round(marketValueMi * 1000000);
+    if(Number.isFinite(marketValueBrl) && marketValueBrl > 0) return Math.round(marketValueBrl);
+    if(Number.isFinite(valueMi) && valueMi > 0) return Math.round(valueMi * 1000000);
+    return Math.round(estimatedValue);
+  }
+
+  function formatPlayerMarketValueMi(player){
+    return (getPlayerMarketValueBrl(player) / 1000000).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+
   function addDaysToIso(isoDateStr, days){
     const parts = String(isoDateStr || '2026-01-01').split('-');
     const y = Number(parts[0]) || 2026;
@@ -789,17 +804,7 @@
     const samePosPlayers = (state.squad || []).filter(p => (p.pos || p.position || '').toUpperCase() === myPos);
     samePosPlayers.sort((a,b) => (b.ovr || b.overall || 35) - (a.ovr || a.overall || 35));
     const squad = state.squad || [];
-    const marketValue = p => {
-      const marketValueMi = Number(p.marketValueMi);
-      const marketValueBrl = Number(p.marketValue);
-      const valueMi = Number(p.value);
-      const estimatedValue = Math.pow((Number(p.ovr || p.overall) || 35) / 10, 3.8) * 100000;
-      if(Number.isFinite(marketValueMi) && marketValueMi > 0) return Math.round(marketValueMi * 1000000);
-      if(Number.isFinite(marketValueBrl) && marketValueBrl > 0) return Math.round(marketValueBrl);
-      if(Number.isFinite(valueMi) && valueMi > 0) return Math.round(valueMi * 1000000);
-      return Math.round(estimatedValue);
-    };
-    const controlledMarketValueMi = marketValue(athlete) / 1000000;
+    const marketValue = getPlayerMarketValueBrl;
     const monthlyWage = p => Math.round(Number(p.wage || p.salary || p.monthlySalary) || 0);
     const highestValue = squad.reduce((best, p) => marketValue(p) > marketValue(best || {}) ? p : best, null);
     const highestWage = squad.reduce((best, p) => monthlyWage(p) > monthlyWage(best || {}) ? p : best, null);
@@ -920,6 +925,7 @@
     const athlete = getControlledPlayer(state);
     const pState = getCareerState(state);
     if(!athlete || !pState) return `<div class="card" style="padding:20px;color:#fff">Carregando empresário...</div>`;
+    const controlledMarketValueMi = formatPlayerMarketValueMi(athlete);
 
     // Ao acessar a aba Empresário & Mercado, marca automaticamente as propostas como lidas para limpar a notificação
     if(Array.isArray(pState.agentOffers)){
@@ -5294,7 +5300,7 @@
               <div style="width:65%;height:100%;background:#38bdf8;border-radius:8px"></div>
             </div>
             <div style="display:flex;gap:12px;font-size:11px;color:#94a3b8">
-              <div>Valor de Mercado: <b style="color:#10b981">R$ ${controlledMarketValueMi.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} Mi</b></div>
+              <div>Valor de Mercado: <b style="color:#10b981">R$ ${controlledMarketValueMi} Mi</b></div>
               <div>•</div>
               <div>Multa Rescisória: <b style="color:#fff">R$ 5.000.000</b></div>
             </div>
