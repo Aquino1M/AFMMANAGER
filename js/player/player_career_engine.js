@@ -1476,6 +1476,7 @@
       },
       age: athletePlayer.age,
       birthYear: (Number(s.season) || 2026) - athletePlayer.age,
+      lastAgingYear: Number(s.season) || 2026,
       pos: athletePlayer.pos,
       position: athletePlayer.position,
       overall: athleteOvr,
@@ -2121,6 +2122,226 @@
     gameState.news.unshift(`📈 TREINO DO MÊS: ${pState.athleteName || athlete.name} evoluiu +1 em ${attribute.toUpperCase()} após o foco mensal.`);
     gameState.news.length = Math.min(gameState.news.length, 50);
     return { success: true, attribute, value: attrs[attribute], month: monthKey };
+  }
+
+  function ensureCoachCareerOffer(gameState){
+    const pState = gameState?.playerCareerState;
+    if(gameState?.gameMode !== 'player' || !pState || Number(pState.age) < 35 || pState.coachCareerOfferDeclined) return null;
+    pState.agentOffers = Array.isArray(pState.agentOffers) ? pState.agentOffers : [];
+    let offer = pState.agentOffers.find(item => item.type === 'coach_career');
+    if(!offer && !pState.hasReceived35RetirementLetter){
+      const clubName = String(gameState.club || 'Real Brasília').trim();
+      pState.hasReceived35RetirementLetter = true;
+      offer = {
+        id: `offer_coach_career_${Number(pState.birthYear) || 0}_35`,
+        type: 'coach_career',
+        title: 'O Ciclo se Encerra? Proposta de Transição de Carreira',
+        clubOrBrand: clubName,
+        newClub: clubName,
+        date: gameState.date || gameState.currentDate || '2026-01-01',
+        isRead: false,
+        details: `Aos 35 anos de idade e com uma trajetória consolidada nos gramados, o ${clubName} oferece formalmente a oportunidade de você encerrar sua carreira como jogador e assumir imediatamente como Treinador Principal do clube! Você pode aceitar a transição agora (levando bônus exclusivos de ex-atleta) ou recusar para continuar jogando.`
+      };
+      pState.agentOffers.unshift(offer);
+      gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+      gameState.news.unshift(`📬 MESA DO EMPRESÁRIO: Aos 35 anos, ${pState.athleteName || 'o atleta'} recebeu uma carta formal com proposta para encerrar as chuteiras e assumir como Treinador Principal do ${clubName}!`);
+      gameState.news = gameState.news.slice(0, 50);
+    }
+    return offer;
+  }
+
+  function generateCoachOfferForRetirement(gameState){
+    const pState = gameState?.playerCareerState;
+    if(!pState) return null;
+    pState.agentOffers = Array.isArray(pState.agentOffers) ? pState.agentOffers : [];
+    let offer = pState.agentOffers.find(item => item.type === 'coach_career');
+    if(offer) return offer;
+    const clubName = String(gameState.club || 'Real Brasília').trim();
+    return {
+      id: `offer_coach_career_${Date.now()}`,
+      type: 'coach_career',
+      title: `Proposta de Treinador: ${clubName}`,
+      clubOrBrand: clubName,
+      newClub: clubName,
+      date: gameState.date || gameState.currentDate || '2026-01-01',
+      isRead: false,
+      details: `O ${clubName} ofereceu a ${pState.athleteName || 'você'} o cargo de Treinador Principal para marcar sua transição oficial dos gramados para a área técnica.`
+    };
+  }
+
+  function processPlayerAging(gameState, currentDate = gameState?.date || gameState?.currentDate){
+    if(gameState?.gameMode !== 'player' || !gameState.playerCareerState) return { success: false, reason: 'invalid_state' };
+    const pState = gameState.playerCareerState;
+    const year = Number(String(currentDate || '').slice(0, 4));
+    if(!Number.isInteger(year)) return { success: false, reason: 'invalid_date' };
+    const athlete = (gameState.squad || []).find(player => player.id === gameState.controlledPlayerId);
+    const storedAge = Math.max(15, Number(pState.age || athlete?.age) || 15);
+    pState.birthYear = Number(pState.birthYear) || year - storedAge;
+    let lastYear = Number(pState.lastAgingYear);
+    if(!Number.isInteger(lastYear)){
+      pState.age = Math.max(storedAge, year - pState.birthYear);
+      pState.lastAgingYear = year;
+      lastYear = year;
+    }
+    const oldAge = Number(pState.age) || storedAge;
+    let age = Math.max(oldAge, lastYear - pState.birthYear);
+    const attributes = athlete?.attributes;
+    let declined = 0;
+    if(year > lastYear){
+      for(let agingYear = lastYear + 1; agingYear <= year; agingYear++){
+        age = Math.max(age + 1, agingYear - pState.birthYear);
+
+        // Regra de Declínio Físico/Técnico (30+ anos):
+        // 30-33 anos: -1 a -2 pontos por temporada
+        // 34+ anos: -2 a -4 pontos por temporada
+        let points = 0;
+        if(age >= 34){
+          points = 3; // base de 3 pontos (faixa de 2 a 4)
+        } else if(age >= 30){
+          points = 2; // base de 2 pontos (faixa de 1 a 2)
+        }
+
+        // Exceção de Manutenção:
+        // Caso o jogador tenha treino físico, moral ou condição física excelentes ou staff,
+        // o declínio é suavizado (-1 pt), mas NUNCA zerado após os 32 anos.
+        const isFocusFisico = pState.weeklyTrainingFocus === 'fisico';
+        const isGoodCondition = (Number(athlete?.fitness || 100) >= 90) || (Number(athlete?.morale || 70) >= 80) || (Number(pState.energy || 100) >= 85);
+        const hasPerk = Boolean(pState.lifestylePerks?.personalTrainer || pState.lifestylePerks?.physio);
+        if((isFocusFisico || isGoodCondition || hasPerk) && points > 0){
+          if(age <= 32){
+            points = Math.max(0, points - 1);
+          } else {
+            // Após os 32 anos: declínio nunca zerado (mínimo 1 ponto)
+            points = Math.max(1, points - 1);
+          }
+        }
+
+        if(points > 0 && attributes){
+          // Prioridade para atributos físicos (velocidade/arranque e físico/fôlego)
+          const physKeys = ['vel', 'fis'].filter(k => attributes[k] && Number(attributes[k]) > 1);
+          const techKeys = Object.keys(attributes).filter(k => !['vel', 'fis'].includes(k) && Number(attributes[k]) > 1);
+
+          for(let i = 0; i < points; i++){
+            let key = null;
+            if(physKeys.length > 0 && (Math.random() < 0.70 || techKeys.length === 0)){
+              key = physKeys[Math.floor(Math.random() * physKeys.length)];
+            } else if(techKeys.length > 0){
+              key = techKeys[Math.floor(Math.random() * techKeys.length)];
+            } else if(physKeys.length > 0){
+              key = physKeys[0];
+            }
+            if(key){
+              attributes[key] = Math.max(1, Number(attributes[key]) - 1);
+              declined++;
+            }
+          }
+        }
+      }
+    }
+    pState.age = age;
+    pState.lastAgingYear = Math.max(lastYear, year);
+    if(athlete) athlete.age = age;
+    if(declined && athlete){
+      const effectiveAttrs = getPlayerEffectiveAttributes(gameState, athlete);
+      athlete.ovr = calculatePlayerOverall(effectiveAttrs, athlete.pos);
+      athlete.overall = athlete.ovr;
+      pState.athleteOvr = athlete.ovr;
+      gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+      gameState.news.unshift(`📉 DECLÍNIO NATURAL: Aos ${age} anos, ${pState.athleteName || athlete.name} sofreu declínio natural de atributos físicos e técnicos (-${declined} pts). Foco em treinos físicos ajuda a atenuar.`);
+      gameState.news = gameState.news.slice(0, 50);
+    }
+    if(oldAge < 30 && age >= 30){
+      gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+      gameState.news.unshift(`🎂 NOVA FASE DA CARREIRA: ${pState.athleteName || athlete?.name || 'O atleta'} completou 30 anos. A idade passa a influenciar gradualmente a velocidade e resistência física.`);
+      gameState.news = gameState.news.slice(0, 50);
+    }
+    const offer = ensureCoachCareerOffer(gameState);
+    return { success: true, age, declined, declinedPoints: declined, offer };
+  }
+
+  function startManagerCareerFromPlayerRetirement(gameState, offer = null){
+    if(gameState?.gameMode !== 'player' || !gameState.playerCareerState) return { ok: false, error: 'Carreira de atleta inválida.' };
+    const pState = gameState.playerCareerState;
+    const athlete = (gameState.squad || []).find(player => player.id === gameState.controlledPlayerId);
+    const age = Math.max(15, Number(pState.age || athlete?.age) || 35);
+    const clubName = String(offer?.newClub || offer?.clubOrBrand || gameState.club || '').trim();
+    if(!clubName) return { ok: false, error: 'Não foi possível identificar o clube da proposta.' };
+    
+    const summary = {
+      origin: 'former_player',
+      playerName: pState.athleteName || athlete?.name || gameState.manager || 'Ex-jogador',
+      nationality: athlete?.nationality || pState.nationality || 'Brasil',
+      nickname: pState.nickname || athlete?.nickname || '',
+      retirementAge: age,
+      retiredAt: gameState.date || gameState.currentDate || '2026-01-01',
+      formerClub: gameState.club,
+      overall: Number(athlete?.ovr || pState.athleteOvr) || 0,
+      matches: Number(pState.careerStats?.matches) || 0,
+      goals: Number(pState.careerStats?.goals) || 0,
+      assists: Number(pState.careerStats?.assists) || 0,
+      titles: Array.isArray(pState.careerStats?.titles) ? pState.careerStats.titles.slice(0, 20) : []
+    };
+
+    // Migração in-place: NÃO reseta o universo do save
+    gameState.gameMode = 'manager';
+    gameState.isPlayerMode = false;
+    gameState.manager = summary.playerName;
+    gameState.managerNationality = summary.nationality;
+    gameState.managerAge = age;
+    gameState.managerBirthYear = (Number(gameState.season) || 2026) - age;
+    gameState.managerLegacy = summary;
+    gameState.exPlayerBio = summary;
+    gameState.managerReputation = 'Ex-Jogador Profissional / Ídolo';
+
+    // Bônus exclusivos de ex-atleta no Modo Treinador
+    gameState.managerCareerBonuses = { salaryPct: 10, playerSigningChancePct: 5 };
+    gameState.bonusSalarioTreinador = 10;
+    gameState.bonusNegociacaoJogadores = 5;
+
+    // Respeito imediato de elenco e diretoria
+    gameState.trust = { board: 85, fans: 85, squad: 88 };
+    gameState.boardConfidence = 85;
+
+    // Se assumir clube diferente ou o próprio
+    if(clubName !== gameState.club){
+      gameState.club = clubName;
+      if(typeof playersForClub === 'function'){
+        gameState.squad = playersForClub(clubName, gameState.worldGenerated);
+      }
+      if(typeof defaultInfrastructure === 'function'){
+        gameState.infrastructure = defaultInfrastructure(clubByName(clubName) || { name: clubName });
+      }
+      gameState.balance = Math.max(500000, Math.round(((typeof clubByName === 'function' ? clubByName(clubName)?.budget : 5) || 5) * 1e6));
+    } else {
+      // Remove o atleta do elenco de linha ativo
+      if(gameState.controlledPlayerId){
+        gameState.squad = (gameState.squad || []).filter(p => p.id !== gameState.controlledPlayerId);
+      }
+    }
+
+    // Limpeza de variáveis residuais do Modo Jogador para evitar qualquer NaN ou tela preta
+    delete gameState.controlledPlayerId;
+    gameState.retiredPlayerCareer = pState;
+    delete gameState.playerCareerState;
+
+    // Salário com +10% de bônus
+    const clubObj = (typeof clubByName === 'function') ? clubByName(clubName) : null;
+    const baseWage = clubObj ? ((clubObj.budget || 5) > 15 ? 75000 : 45000) : 45000;
+    gameState.managerSalary = Math.round(baseWage * 1.10);
+    gameState.managerBaseSalary = gameState.managerSalary;
+    gameState.managerPersonal = gameState.managerPersonal || { personalBalance: 57000, salary: gameState.managerSalary, coursesCompleted: [], businesses: [] };
+    gameState.managerPersonal.salary = gameState.managerSalary;
+
+    gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+    gameState.news.unshift(`🧑‍🏫 NOVO COMANDANTE: O ídolo ${summary.playerName} pendurou as chuteiras aos ${age} anos e assumiu como Treinador Principal do ${clubName}! Carreira técnica iniciada com moral alta e respeito imediato.`);
+    gameState.news = gameState.news.slice(0, 50);
+
+    gameState.view = 'central';
+    if(typeof window !== 'undefined') window.view = 'central';
+
+    if(typeof window.save === 'function') window.save({ allowModeReplace: true });
+    if(typeof window.render === 'function') window.render();
+    return { ok: true, state: gameState, legacy: summary };
   }
 
   /**
@@ -3017,6 +3238,10 @@
     calculateHiredStaffMonthlyCost,
     generateSeasonSponsorOffers,
     getPlayerSponsorOffers,
+    ensureCoachCareerOffer,
+    generateCoachOfferForRetirement,
+    processPlayerAging,
+    startManagerCareerFromPlayerRetirement,
     LIFESTYLE_CATALOG,
     getClubPrimaryCompetitionId,
     calculatePlayerOverall,

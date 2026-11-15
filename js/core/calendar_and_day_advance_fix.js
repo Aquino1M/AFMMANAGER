@@ -117,6 +117,9 @@
         state.date = newIso;
         state.currentDate = newIso;
         state.currentDateFormatted = newPtBr;
+        if(state.gameMode === 'manager' && state.managerLegacy && Number.isInteger(Number(state.managerBirthYear))){
+          state.managerAge = Math.max(Number(state.managerAge) || 0, currentObj.getFullYear() - Number(state.managerBirthYear));
+        }
 
         if (state.pendingStadiumShow && state.pendingStadiumShow.blocking) {
           state.pendingStadiumShow.blocking = false;
@@ -158,6 +161,9 @@
         }
 
         if (state && state.gameMode === 'player' && window.AFM_PlayerEngine) {
+          if (typeof window.AFM_PlayerEngine.processPlayerAging === 'function') {
+            window.AFM_PlayerEngine.processPlayerAging(state, newIso);
+          }
           if (typeof window.AFM_PlayerEngine.processWeeklyTraining === 'function') {
             window.AFM_PlayerEngine.processWeeklyTraining(state);
           }

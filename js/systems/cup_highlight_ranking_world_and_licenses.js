@@ -28,7 +28,11 @@
     }
 
     const completedList = LICENSES.filter(function(l) { return completedSet.has(l.id); });
-    const totalBonusPct = completedList.reduce(function(acc, l) { return acc + (l.salaryBonusPct || 0); }, 0);
+    let totalBonusPct = completedList.reduce(function(acc, l) { return acc + (l.salaryBonusPct || 0); }, 0);
+    const exPlayerBonus = Number(st.managerCareerBonuses?.salaryPct || st.bonusSalarioTreinador || 0);
+    if (exPlayerBonus > 0) {
+      totalBonusPct += exPlayerBonus;
+    }
 
     const baseSalary = Number(st.managerBaseSalary || st.managerSalary || 9500);
     const bonusValue = Math.round(baseSalary * (totalBonusPct / 100));

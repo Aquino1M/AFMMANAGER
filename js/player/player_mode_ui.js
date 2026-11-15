@@ -292,6 +292,7 @@
 
       case 'player_agent':
       case 'mercado':
+        window.AFM_PlayerEngine?.processPlayerAging?.(s);
         window.AFM_PlayerEngine?.getPlayerSponsorOffers?.(s);
         return renderPlayerAgentAndMarket(s);
 
@@ -1149,7 +1150,36 @@
           `;
         })()}
 
-        <!-- LISTA DE PROPOSTAS DE CLUBES DA IA (CATEGORIZADAS E COM NOTIFICAÇÃO) -->
+        <!-- APOSENTADORIA E TRANSIÇÃO PARA TREINADOR -->
+        ${(function(){
+          const canRetire = Number(pState.age) >= 35 || Boolean(pState.coachCareerOfferDeclined || pState.hasReceived35RetirementLetter);
+          return `
+            <div class="card" style="background:linear-gradient(135deg,#111827,#1e1b4b);border:1px solid ${canRetire ? '#7c3aed' : '#334155'};border-radius:16px;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">
+              <div>
+                <div style="font-weight:900;color:#fff;display:flex;align-items:center;gap:8px">
+                  <span>👟 Transição de Carreira: Pendurar as Chuteiras</span>
+                  ${canRetire ? `<span class="pill" style="font-size:9px;font-weight:900;background:rgba(16,185,129,0.2);color:#34d399">LIBERADO</span>` : `<span class="pill" style="font-size:9px;font-weight:800;background:rgba(148,163,184,0.15);color:#94a3b8">BLOQUEADO (35+ ANOS)</span>`}
+                </div>
+                <div style="font-size:12px;color:#cbd5e1;margin-top:4px">
+                  ${canRetire
+                    ? `Você tem ${pState.age} anos e pode encerrar a carreira a qualquer momento para assumir como Treinador Principal, levando seus bônus de ex-atleta (+10% salário e +5% em contratações).`
+                    : `O ciclo natural de aposentadoria e a proposta formal de transição técnica chegam automaticamente aos 35 anos de idade.`}
+                </div>
+              </div>
+              ${canRetire ? `
+                <button type="button" class="btn btn-retire-player-career" style="background:linear-gradient(135deg,#7c3aed,#a855f7);border:0;border-radius:10px;padding:10px 18px;color:#fff;font-weight:900;cursor:pointer;box-shadow:0 0 12px rgba(124,58,237,0.4)">
+                  Pendurar as Chuteiras (Aposentar)
+                </button>
+              ` : `
+                <button type="button" class="btn" disabled style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px 18px;color:#64748b;font-weight:800;cursor:not-allowed">
+                  🔒 Pendurar as Chuteiras (Aos 35 anos)
+                </button>
+              `}
+            </div>
+          `;
+        })()}
+
+        <!-- LISTA DE PROPOSTAS DO EMPRESÁRIO (CATEGORIZADAS E COM NOTIFICAÇÃO) -->
         ${(function(){
           const curCat = window.__afmAgentOfferCategory || 'all';
           const offers = (pState.agentOffers || []).map((o, idx) => ({ ...o, __originalIndex: idx }));
@@ -1163,6 +1193,9 @@
           const countTransfer = offers.filter(o => o.type === 'transfer').length;
           const unreadTransfer = offers.filter(o => o.type === 'transfer' && !o.isRead).length;
 
+          const countCoach = offers.filter(o => o.type === 'coach_career').length;
+          const unreadCoach = offers.filter(o => o.type === 'coach_career' && !o.isRead).length;
+
           const countLoan = offers.filter(o => o.type === 'club_loan').length;
           const unreadLoan = offers.filter(o => o.type === 'club_loan' && !o.isRead).length;
 
@@ -1170,6 +1203,7 @@
             if(curCat === 'sponsor') return o.type === 'sponsor';
             if(curCat === 'transfer') return o.type === 'transfer';
             if(curCat === 'loan') return o.type === 'club_loan';
+            if(curCat === 'coach_career') return o.type === 'coach_career';
             return true;
           });
 
@@ -1211,6 +1245,7 @@
                   📋 Empréstimos (${countLoan})
                   ${unreadLoan > 0 ? `<span style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px">${unreadLoan}</span>` : ''}
                 </button>
+                ${countCoach ? `<button type="button" class="btn btn-agent-category" data-category="coach_career" style="background:${curCat === 'coach_career' ? '#059669' : '#1e293b'};color:#fff;border:1px solid ${curCat === 'coach_career' ? '#10b981' : '#334155'};font-size:12px;font-weight:900;padding:8px 16px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">🧑‍🏫 Treinador (${countCoach})${unreadCoach ? ` <span style="background:#ef4444;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px">${unreadCoach}</span>` : ''}</button>` : ''}
               </div>
 
               <!-- LISTAGEM DE PROPOSTAS -->
@@ -1225,9 +1260,11 @@
 
                     const catTag = o.type === 'sponsor'
                       ? `<span style="background:rgba(6,182,212,0.15);border:1px solid #06b6d4;color:#67e8f9;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900">📦 PATROCÍNIO ESPORTIVO</span>`
+                      : (o.type === 'coach_career'
+                        ? `<span style="background:rgba(16,185,129,0.15);border:1px solid #10b981;color:#6ee7b7;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900">🧑‍🏫 PROPOSTA DE TREINADOR</span>`
                       : (o.type === 'transfer'
                         ? `<span style="background:rgba(168,85,247,0.15);border:1px solid #a855f7;color:#d8b4fe;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900">✈️ COMPRA DEFINITIVA</span>`
-                        : `<span style="background:rgba(245,158,11,0.15);border:1px solid #f59e0b;color:#fde68a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900">📋 EMPRÉSTIMO</span>`);
+                        : `<span style="background:rgba(245,158,11,0.15);border:1px solid #f59e0b;color:#fde68a;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900">📋 EMPRÉSTIMO</span>`));
 
                     const winBadge = isClubOffer
                       ? (isWinOpen
@@ -1276,7 +1313,7 @@
                               🔍 Detalhes
                             </button>
                             <button type="button" class="btn success btn-accept-offer" data-index="${o.__originalIndex}" style="background:#10b981;color:#000;font-weight:900;padding:8px 16px;border-radius:8px;border:none;cursor:pointer">
-                              Aceitar Proposta
+                              ${o.type === 'coach_career' ? 'Aposentar & assumir cargo' : 'Aceitar Proposta'}
                             </button>
                             <button type="button" class="btn danger btn-reject-offer" data-index="${o.__originalIndex}" style="background:#ef4444;color:#fff;font-weight:800;padding:8px 12px;border-radius:8px;border:none;cursor:pointer">
                               Recusar
@@ -4182,6 +4219,19 @@
         const idx = Number(btn.dataset.index);
         const offer = pState.agentOffers[idx];
         if(offer){
+          if(offer.type === 'coach_career'){
+            const clubName = offer.newClub || offer.clubOrBrand || s.club;
+            showCustomAlert({
+              title: 'Confirmar aposentadoria esportiva? 👔',
+              message: `Ao aceitar, você encerra sua carreira nos gramados como atleta aos ${pState.age} anos e assume como Treinador Principal do ${clubName}.\n\n✓ O universo do save (data, temporada, campeonatos e clubes) é preservado.\n✓ Seus feitos históricos serão salvos na sua biografia de técnico.\n✓ Bônus de Ex-Atleta Vitalício: +10% no salário de técnico e +5% em contratações/renovações de jogadores!`,
+              type: 'warning',
+              onConfirm: () => {
+                const result = window.AFM_PlayerEngine?.startManagerCareerFromPlayerRetirement?.(s, offer);
+                if(!result?.ok) showCustomAlert({ title: 'Não foi possível iniciar a carreira de treinador', message: result?.error || 'Tente novamente.', type: 'warning' });
+              }
+            });
+            return;
+          }
           let sponsorTerms = null;
           if(offer.type === 'transfer' || offer.type === 'club_loan'){
             const isWindowOpen = (typeof isTransferWindowOpen === 'function')
@@ -4230,9 +4280,40 @@
       btn.onclick = () => {
         const idx = Number(btn.dataset.index);
         const [offer] = pState.agentOffers.splice(idx, 1);
+        if(offer?.type === 'coach_career'){
+          pState.coachCareerOfferDeclined = true;
+          pState.hasReceived35RetirementLetter = true;
+          s.news = Array.isArray(s.news) ? s.news : [];
+          s.news.unshift(`Você recusou a transição imediata para treinador aos 35 anos e decidiu estender sua carreira como atleta. O botão 'Pendurar as Chuteiras (Aposentar)' continuará disponível na mesa do empresário.`);
+          s.news = s.news.slice(0, 50);
+          showCustomAlert({
+            title: 'Carreira de Atleta Mantida! ⚽',
+            message: 'Você decidiu continuar nos gramados como atleta! Quando quiser pendurar as chuteiras no futuro, basta clicar no botão "Pendurar as Chuteiras (Aposentar)" na mesa do empresário.',
+            type: 'info'
+          });
+        }
         if(offer?.type === 'sponsor') pState.availableSponsorOffers = (pState.availableSponsorOffers || []).filter(item => item.id !== offer.id);
         if(typeof window.save === 'function') window.save();
         if(typeof window.render === 'function') window.render();
+      };
+    });
+
+    document.querySelectorAll('.btn-retire-player-career').forEach(btn => {
+      btn.onclick = () => {
+        let offer = (pState.agentOffers || []).find(item => item.type === 'coach_career');
+        if(!offer && typeof window.AFM_PlayerEngine?.generateCoachOfferForRetirement === 'function'){
+          offer = window.AFM_PlayerEngine.generateCoachOfferForRetirement(s);
+        }
+        const clubName = offer?.newClub || offer?.clubOrBrand || s.club;
+        showCustomAlert({
+          title: 'Pendurar as Chuteiras? 👔',
+          message: `Sua carreira como jogador nos gramados será encerrada aos ${pState.age} anos e você assumirá como Treinador Principal do ${clubName}.\n\n✓ O universo do save (data, temporada, campeonatos e clubes) é preservado.\n✓ Seus feitos históricos serão salvos na biografia de técnico.\n✓ Bônus de Ex-Atleta: +10% no salário de treinador e +5% de chance em contratações/renovações de jogadores!\n\nDeseja confirmar a aposentadoria agora?`,
+          type: 'warning',
+          onConfirm: () => {
+            const result = window.AFM_PlayerEngine?.startManagerCareerFromPlayerRetirement?.(s, offer);
+            if(!result?.ok) showCustomAlert({ title: 'Não foi possível aposentar', message: result?.error || 'Tente novamente.', type: 'warning' });
+          }
+        });
       };
     });
 
@@ -5428,6 +5509,7 @@
     const isTransfer = offer.type === 'transfer';
     const isLoan = offer.type === 'club_loan';
     const isSponsor = offer.type === 'sponsor';
+    const isCoachCareer = offer.type === 'coach_career';
     const isRenewal = !!offer.isRenewal;
 
     const isWindowOpen = (typeof isTransferWindowOpen === 'function')
@@ -5456,6 +5538,9 @@
     } else if(isSponsor){
       categoryBadge = '<span style="background:rgba(6,182,212,0.2);border:1px solid #06b6d4;color:#67e8f9;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:900">👟 PATROCÍNIO ESPORTIVO</span>';
       categoryIcon = '👟';
+    } else if(isCoachCareer){
+      categoryBadge = '<span style="background:rgba(16,185,129,0.2);border:1px solid #10b981;color:#6ee7b7;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:900">🧑‍🏫 PROPOSTA DE TREINADOR</span>';
+      categoryIcon = '🧑‍🏫';
     } else if(isLoan){
       categoryBadge = '<span style="background:rgba(245,158,11,0.2);border:1px solid #f59e0b;color:#fde68a;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:900">📋 PROPOSTA DE EMPRÉSTIMO</span>';
       categoryIcon = '📋';
@@ -5470,6 +5555,8 @@
       agentOpinionText = offer.reasonText || `A diretoria da ${offer.brand || 'marca'} ficou muito impressionada com o seu rendimento em campo e atendeu integralmente nossas exigências! Além do reajuste generoso nas mensalidades e bônus por gol, incluíram luvas à vista na assinatura. Meu conselho profissional é assinar e selar esse grande momento!`;
     } else if(isSponsor){
       agentOpinionText = `Ter uma grande marca oficial como a ${offer.clubOrBrand} fornecendo suas chuteiras traz prestígio comercial imediato e dinheiro direto no seu bolso todo mês. É o primeiro passo para consolidar sua imagem no futebol. Vale muito a pena assinar!`;
+    } else if(isCoachCareer){
+      agentOpinionText = `Depois de uma carreira dentro de campo, o ${proposedClub} quer transformar sua experiência em liderança. Você começará a carreira de treinador com seu nome conhecido no futebol e os benefícios conquistados como ex-jogador.`;
     } else if(isLoan){
       agentOpinionText = `O empréstimo para o ${proposedClub} é uma oportunidade estratégica de ouro! Lá o técnico garantiu espaço entre os titulares e você terá rodagem contínua nos gramados. O clube cobre seu salário integralmente. Vale muito a pena para acelerar sua evolução!`;
     } else {
@@ -5553,6 +5640,11 @@
                 <div>📌 <b>Multa Rescisória:</b> ${isLoan ? 'Fixada no Contrato de Empréstimo' : 'R$ 8.000.000 a R$ 10.000.000'}</div>
                 <div>🎯 <b>Bônus de Desempenho:</b> R$ 500 por gol e premiações por vitórias</div>
               </div>
+            ` : isCoachCareer ? `
+              <div style="background:rgba(16,185,129,0.12);border:1.5px solid #10b981;border-radius:10px;padding:16px;color:#d1fae5;line-height:1.6">
+                <b>${esc(proposedClub)}</b> oferece a primeira oportunidade como treinador aos ${Number(pState.age) || Number(athlete?.age) || 35} anos. Ao aceitar, você encerra a carreira de atleta, inicia uma carreira de treinador no clube e mantém idade, identidade e resumo esportivo no save.
+                <div style="margin-top:8px">Benefícios de ex-jogador: <b>+10% no salário de treinador</b> e <b>+5 pontos percentuais</b> na chance de fechar contratação de jogadores.</div>
+              </div>
             ` : `
               <!-- DETALHES DE PATROCÍNIO ESPORTIVO -->
               <div style="background:rgba(15,23,42,0.8);border:1.5px solid ${isRenewal ? '#10b981' : '#06b6d4'};border-radius:10px;padding:14px">
@@ -5626,7 +5718,7 @@
                 ❌ Recusar Proposta
               </button>
               <button type="button" id="btnOfferModalAccept" style="background:${(!isWindowOpen && (isTransfer || isLoan)) ? '#334155' : '#10b981'};color:${(!isWindowOpen && (isTransfer || isLoan)) ? '#94a3b8' : '#000'};font-weight:900;padding:10px 22px;border-radius:10px;border:none;cursor:pointer;font-size:13px;box-shadow:${(!isWindowOpen && (isTransfer || isLoan)) ? 'none' : '0 0 16px rgba(16,185,129,0.4)'}">
-                ${(!isWindowOpen && (isTransfer || isLoan)) ? '🔒 Janela Fechada (Bloqueado)' : '✅ Aceitar e Assinar Contrato ✍️'}
+                ${(!isWindowOpen && (isTransfer || isLoan)) ? '🔒 Janela Fechada (Bloqueado)' : (isCoachCareer ? '✅ Aposentar e assumir o clube' : '✅ Aceitar e Assinar Contrato ✍️')}
               </button>
             </div>
           </div>
@@ -5646,6 +5738,7 @@
 
       document.getElementById('btnOfferModalReject')?.addEventListener('click', () => {
         const [rejected] = pState.agentOffers.splice(originalIndex, 1);
+        if(rejected?.type === 'coach_career') pState.coachCareerOfferDeclined = true;
         if(rejected?.type === 'sponsor') pState.availableSponsorOffers = (pState.availableSponsorOffers || []).filter(item => item.id !== rejected.id);
         closeActionModal();
         if(typeof window.save === 'function') window.save();
@@ -5653,6 +5746,11 @@
       });
 
       document.getElementById('btnOfferModalAccept')?.addEventListener('click', () => {
+        if(isCoachCareer){
+          const result = window.AFM_PlayerEngine?.startManagerCareerFromPlayerRetirement?.(state, offer);
+          if(!result?.ok) showCustomAlert({ title: 'Não foi possível iniciar a carreira de treinador', message: result?.error || 'Tente novamente.', type: 'warning' });
+          return;
+        }
         if(isTransfer || isLoan){
           if(!isWindowOpen){
             showCustomAlert({

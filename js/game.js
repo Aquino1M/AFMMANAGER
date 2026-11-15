@@ -14477,9 +14477,12 @@ function openPlayerContractRenewalModal(pk){
   const morale = p.morale || 70;
 
   // Chances de aceite baseadas no moral do atleta e no patamar salarial
-  const chance1 = clamp(Math.round(morale * 0.90 + 15), 25, 95);
-  const chance2 = clamp(Math.round(morale * 0.85 + 20), 20, 92);
-  const chance3 = clamp(Math.round(morale * 0.80 + 25), 15, 88);
+  const legacySigningBonus = state.gameMode === 'manager'
+    ? clamp(Number(state.managerCareerBonuses?.playerSigningChancePct ?? state.bonusNegociacaoJogadores) || 0, 0, 5)
+    : 0;
+  const chance1 = clamp(Math.round(morale * 0.90 + 15) + legacySigningBonus, 25, 95);
+  const chance2 = clamp(Math.round(morale * 0.85 + 20) + legacySigningBonus, 20, 92);
+  const chance3 = clamp(Math.round(morale * 0.80 + 25) + legacySigningBonus, 15, 88);
 
   openCustomModal(
     `Renovação Contratual: ${esc(p.name)}`,
@@ -14501,7 +14504,7 @@ function openPlayerContractRenewalModal(pk){
           <div>
             <div style="font-weight:800;font-size:13px">📅 +1 ano (Até ${curUntil + 1}) • Aumento de 10%</div>
             <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">
-              🎲 Chance de Aceite do Atleta: <b style="color:#facc15">${chance1}%</b>
+              🎲 Chance de Aceite do Atleta: <b style="color:#facc15">${chance1}%</b>${legacySigningBonus > 0 ? ' <span style="color:#10b981;font-weight:800;font-size:10px">(+5% Ex-Atleta)</span>' : ''}
             </div>
           </div>
           <b style="font-size:14px;color:#fff">R$ ${Math.round(curWage * 1.10).toLocaleString('pt-BR')}/mês</b>
@@ -14511,7 +14514,7 @@ function openPlayerContractRenewalModal(pk){
           <div>
             <div style="font-weight:800;font-size:13px">📅 +2 anos (Até ${curUntil + 2}) • Aumento de 15%</div>
             <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">
-              🎲 Chance de Aceite do Atleta: <b style="color:#facc15">${chance2}%</b>
+              🎲 Chance de Aceite do Atleta: <b style="color:#facc15">${chance2}%</b>${legacySigningBonus > 0 ? ' <span style="color:#10b981;font-weight:800;font-size:10px">(+5% Ex-Atleta)</span>' : ''}
             </div>
           </div>
           <b style="font-size:14px;color:#fff">R$ ${Math.round(curWage * 1.15).toLocaleString('pt-BR')}/mês</b>
@@ -14521,7 +14524,7 @@ function openPlayerContractRenewalModal(pk){
           <div>
             <div style="font-weight:800;font-size:13px">📅 +3 anos (Até ${curUntil + 3}) • Aumento de 20%</div>
             <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">
-              🎲 Chance de Aceite do Atleta: <b style="color:#facc15">${chance3}%</b>
+              🎲 Chance de Aceite do Atleta: <b style="color:#facc15">${chance3}%</b>${legacySigningBonus > 0 ? ' <span style="color:#10b981;font-weight:800;font-size:10px">(+5% Ex-Atleta)</span>' : ''}
             </div>
           </div>
           <b style="font-size:14px;color:#fff">R$ ${Math.round(curWage * 1.20).toLocaleString('pt-BR')}/mês</b>
@@ -26213,7 +26216,8 @@ function changeUserClub(newClubName){
   }
   state.club = club.name;
   state.managerContractDate = `sex, 31 dez ${state.season + 2}`;
-  state.managerSalary = Math.round((club.budget || 5) * 8000 + 15000);
+  const managerSalaryBonus = state.gameMode === 'manager' ? clamp(Number(state.managerCareerBonuses?.salaryPct) || 0, 0, 10) : 0;
+  state.managerSalary = Math.round(((club.budget || 5) * 8000 + 15000) * (1 + managerSalaryBonus / 100));
   state.squad = playersForClub(club.name, state.worldGenerated);
   state.infrastructure = defaultInfrastructure(club);
   state.youthAcademy = generateInitialYouthAcademy(1, club.name);
@@ -26828,7 +26832,10 @@ function openTransferNegotiationModal(key){
     else if(bonusTitle >= 100000) score += 10;
     else if(bonusTitle > 0) score += 5;
 
-    return clamp(score, 15, 100);
+    const legacySigningBonus = state.gameMode === 'manager'
+      ? clamp(Number(state.managerCareerBonuses?.playerSigningChancePct) || 0, 0, 5)
+      : 0;
+    return clamp(score + legacySigningBonus, 15, 100);
   }
 
   function transferNegotiationSnapshot(){
@@ -30835,9 +30842,9 @@ function centralPage(){
             <div>
               <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px">TÉCNICO</div>
               <div style="font-size:17px;font-weight:900;color:#fff;text-transform:uppercase">${esc(state.manager)}</div>
+              ${Number(state.managerAge) > 0 ? `<div style="font-size:10px;color:#94a3b8;margin-top:2px">${Number(state.managerAge)} anos${state.managerLegacy?.playerName ? ' · ex-jogador profissional' : ''}</div>` : ''}
               <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
-                <span class="pill" style="font-size:9px;font-weight:800;background:rgba(124,58,237,0.3);color:#c084fc;padding:1px 6px">CARISMÁTICO</span>
-                <span class="pill" style="font-size:9px;font-weight:800;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);padding:1px 6px">ESTAGIÁRIO</span>
+                ${state.managerLegacy ? `<span class="pill" style="font-size:9px;font-weight:800;background:rgba(16,185,129,0.2);color:#6ee7b7;padding:1px 6px">NOME CONHECIDO</span><span class="pill" style="font-size:9px;font-weight:800;background:rgba(245,158,11,0.18);color:#fcd34d;padding:1px 6px">EX-JOGADOR</span>` : `<span class="pill" style="font-size:9px;font-weight:800;background:rgba(124,58,237,0.3);color:#c084fc;padding:1px 6px">CARISMÁTICO</span><span class="pill" style="font-size:9px;font-weight:800;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);padding:1px 6px">ESTAGIÁRIO</span>`}
               </div>
               <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">BRASIL</div>
             </div>
@@ -30846,6 +30853,18 @@ function centralPage(){
           <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:14px;line-height:1.4">
             Torcida e imprensa na mão. Sorriso fácil, pressão zero.
           </div>
+
+          ${(state.managerLegacy || state.managerCareerBonuses || state.bonusSalarioTreinador) ? `
+            <div style="margin-top:12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.35);border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:3px">
+              <div style="font-size:10px;font-weight:900;color:#10b981;display:flex;align-items:center;gap:6px">
+                <span>⭐ BÔNUS DE EX-ATLETA ATIVO</span>
+              </div>
+              <div style="font-size:10px;color:#a7f3d0;display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
+                <span>💰 +10% Salário de Treinador</span>
+                <span>🤝 +5% Negociação de Jogadores</span>
+              </div>
+            </div>
+          ` : ''}
 
           <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:10px;margin-top:14px">
             <div style="background:#161324;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.05)">

@@ -7,6 +7,7 @@ Simulador de futebol local-first completo executado diretamente no navegador. Co
 ## 🎮 Modos de Jogo
 - **Modo Treinador:** Gerencie finanças, táticas, mercado de transferências, comissão técnica, categorias de base e ampliação dos anéis do estádio 3D.
 - **Modo Carreira Jogador (Modo Craque):** Crie seu próprio atleta do zero, participe de peneiras, evolua atributos em treinos semanais, dispute a Bola de Ouro, seja convocado para a Seleção Nacional na Data FIFA e domine a rede social oficial *FootGram*.
+- **Ciclo de Vida, Aposentadoria e Transição para Treinador:** Sistema de envelhecimento anual com declínio gradual a partir dos 30 anos (30-33: -1 a -2 pts; 34+: -2 a -4 pts, suavizado por treinos físicos e staff). Aos 35 anos, oferta formal de transição na mesa do empresário ou opção de pendurar as chuteiras a qualquer momento; ao aceitar, o save migra diretamente para o Modo Treinador preservando o universo do jogo, idade, legado de atleta e bônus vitalícios de ex-jogador (+10% salário e +5% de aceitação em negociações).
 - **Criação de Clube Próprio:** Crie um time com cores, escudo, estádio e uniforme personalizados e suba desde os estaduais até as glórias continentais.
 
 ---
