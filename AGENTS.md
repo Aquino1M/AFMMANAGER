@@ -47,6 +47,11 @@
   - Sincronização salarial no card de status lê o salário oficial do atleta (`athlete.wage`), mantendo paridade com Vida & Patrocínios.
   - Quebra de recordes históricos em tempo real (+15 gols em um ano, +9 assistências, +12 jogos invicto) concede +500 XP, premiação financeira no banco e troféu individual na galeria.
   - Sub-aba 4 `📈 Carreira Total` cataloga a linha do tempo completa de clubes e temporadas e alimenta a biografia esportiva de legado para quando o atleta se aposentar e virar treinador.
+- Gestão de Elenco, Finanças e Vestiário (Aba 👥 Clube & Elenco):
+  - REGRA IRRESTRITA DE ELENCO E REFERÊNCIAS: Os indicadores de 'Referências do Elenco' (Maior Valor e Maior Salário) devem ser sempre calculados dinamicamente a partir do array real do elenco do clube (`getSquadReferences`), proibindo valores estáticos ou nomes nulos ('—'). O valor de mercado do atleta do usuário deve seguir a mesma curva proporcional de OVR e idade dos demais jogadores.
+  - Hierarquia de status do elenco distingue 11 Titulares (🟢 Titular), 7 Reservas imediatos (🟡 Reserva) e Plantel restante (⚪ Plantel), com badge dourado de Capitão (© CAPITÃO) para a liderança do grupo.
+  - Vestiário e Mentoria: Jogadores com 27+ anos e OVR superior podem conceder mentoria semanal (1x a cada 7 dias), consumindo 10% de energia e concedendo +20 XP e +5% de afinidade.
+  - Finanças e Bicho: Caixa crítico alerta risco de atrasos salariais quando inferior à folha mensal total; atrasos de 2+ meses autorizam Rescisão por Justa Causa (Passe Livre) para transferência sem multa rescisória.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis

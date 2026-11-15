@@ -12,6 +12,7 @@ Simulador de futebol local-first completo executado diretamente no navegador. Co
 - **Treinamento Prático em Campo & Anti-Glitch (3x/dia):** Minigames interativos de cobrança de pênaltis e faltas conectados ao ganho real de XP e evolução do atleta, com interface Dark-Neon, consumo imediato no disparo da cobrança e trava diária rígida sincronizada ao calendário do jogo.
 - **Vida & Patrocínios (Economia Completa do Atleta):** Loja de chuteiras com durabilidade e bônus aplicados nas partidas; 8 profissionais de staff pessoal com honorários e bônus reais; bens de luxo à vista ou financiados em 12x (com 30% de entrada); negócios passivos (aluguéis de kitnets, escolinha de futebol, marca própria), aplicação em CDB com rendimentos compostos, campanhas de mídia e livro-razão de transações financeiras. Botões inteligentes adaptativos com feedback visual de saldo insuficiente (`🔒 Faltam R$ X`).
 - **Estatísticas, Recordes & Carreira Total:** Aba oficial de estatísticas com 4 sub-abas: Dados da Temporada (sem nota média falsa quando 0 jogos e sincronia salarial), Sala de Troféus (bônus ativos do arquétipo dominante Maverick/Heartbeat/Virtuoso e barras de recordes da competição com recompensas), Histórico de Jogos (filtros rápidos por gol, assistência e MVP) e Sub-aba Carreira Total All-Time com linha do tempo de clubes e legado para aposentadoria.
+- **Clube, Elenco & Vestiário Interativo:** Hierarquia por posição e elenco completo com referências reais (`getSquadReferences`), valor de mercado dinâmico e proporcional ao OVR/idade, status de Titular, Reserva ou Plantel, Capitão oficial, filtros rápidos por setor, modal de Raio-X comparativo com veteranos e mentoria semanal (+20 XP, +5% afinidade). Sub-aba de Finanças do Clube com alerta de Caixa Crítico, tabela de Bicho por vitória/título e ações anti-calote de salários atrasados com Rescisão por Justa Causa.
 - **Criação de Clube Próprio:** Crie um time com cores, escudo, estádio e uniforme personalizados e suba desde os estaduais até as glórias continentais.
 
 ---
@@ -53,6 +54,7 @@ node tests/test_full_player_mode_reliability.js
 node tests/test_player_photo_xss.js
 
 # Outros testes disponíveis
+node tests/test_player_club_and_squad_systems.js
 node tests/test_player_stats_and_career_history.js
 node tests/test_player_lifestyle_system.js
 node tests/test_player_financial_system.js

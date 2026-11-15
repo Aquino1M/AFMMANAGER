@@ -1423,6 +1423,37 @@
   }
 
   /**
+   * Cálculo realista de valor de mercado para o atleta jovem/veterano e elenco
+   */
+  function calculateAthleteInitialMarketValue(ovr, age){
+    const baseOvr = Math.max(30, Number(ovr) || 35);
+    const playerAge = Math.max(15, Number(age) || 16);
+    let valBrl;
+    if (baseOvr <= 40) {
+      valBrl = 45000 + (baseOvr - 30) * 2500;
+    } else if (baseOvr <= 50) {
+      valBrl = 70000 + (baseOvr - 40) * 5000;
+    } else if (baseOvr <= 60) {
+      valBrl = 120000 + (baseOvr - 50) * 20000;
+    } else if (baseOvr <= 70) {
+      valBrl = 320000 + Math.pow(baseOvr - 60, 2) * 25000;
+    } else if (baseOvr <= 80) {
+      valBrl = 2820000 + Math.pow(baseOvr - 70, 2) * 200000;
+    } else if (baseOvr <= 85) {
+      valBrl = 22820000 + Math.pow(baseOvr - 80, 2) * 1500000;
+    } else {
+      valBrl = 60320000 + (baseOvr - 85) * 12000000;
+    }
+
+    if (playerAge <= 17) valBrl *= 1.25;
+    else if (playerAge <= 21) valBrl *= 1.15;
+    else if (playerAge >= 33) valBrl *= 0.65;
+    else if (playerAge >= 30) valBrl *= 0.85;
+
+    return Math.round(valBrl);
+  }
+
+  /**
    * Inicialização de uma Nova Carreira no Modo Jogador
    */
   function startPlayerCareer(playerData, targetSlot){
@@ -1508,7 +1539,9 @@
       energy: 100,
       fitness: 100,
       photo: playerData.appearance?.customFacePhoto || playerData.appearance?.facePhoto || null,
-      marketValueMi: Math.max(0.1, Number((athleteOvr * 0.02).toFixed(2)))
+      marketValue: calculateAthleteInitialMarketValue(athleteOvr, playerData.age || 15),
+      marketValueMi: Number((calculateAthleteInitialMarketValue(athleteOvr, playerData.age || 15) / 1000000).toFixed(3)),
+      value: Number((calculateAthleteInitialMarketValue(athleteOvr, playerData.age || 15) / 1000000).toFixed(3))
     };
 
     // 5. Injeta no elenco do clube escolhido
@@ -3591,6 +3624,7 @@
     processDailySponsorTurn,
     processEndOfSeasonAwards,
     ensurePlayerCareerHistory,
+    calculateAthleteInitialMarketValue,
     lifestyle: (typeof window !== 'undefined' ? window.AFM_Lifestyle : null)
   };
   window.AFM_PlayerCareerEngine = window.AFM_PlayerEngine;

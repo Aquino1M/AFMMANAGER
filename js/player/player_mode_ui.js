@@ -25,20 +25,90 @@
           return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
         };
 
+  function calculateAthleteInitialMarketValue(ovr, age) {
+    if (window.AFM_PlayerEngine?.calculateAthleteInitialMarketValue) {
+      return window.AFM_PlayerEngine.calculateAthleteInitialMarketValue(ovr, age);
+    }
+    const baseOvr = Math.max(30, Number(ovr) || 35);
+    const playerAge = Math.max(15, Number(age) || 16);
+    let valBrl;
+    if (baseOvr <= 40) {
+      valBrl = 45000 + (baseOvr - 30) * 2500;
+    } else if (baseOvr <= 50) {
+      valBrl = 70000 + (baseOvr - 40) * 5000;
+    } else if (baseOvr <= 60) {
+      valBrl = 120000 + (baseOvr - 50) * 20000;
+    } else if (baseOvr <= 70) {
+      valBrl = 320000 + Math.pow(baseOvr - 60, 2) * 25000;
+    } else if (baseOvr <= 80) {
+      valBrl = 2820000 + Math.pow(baseOvr - 70, 2) * 200000;
+    } else if (baseOvr <= 85) {
+      valBrl = 22820000 + Math.pow(baseOvr - 80, 2) * 1500000;
+    } else {
+      valBrl = 60320000 + (baseOvr - 85) * 12000000;
+    }
+
+    if (playerAge <= 17) valBrl *= 1.25;
+    else if (playerAge <= 21) valBrl *= 1.15;
+    else if (playerAge >= 33) valBrl *= 0.65;
+    else if (playerAge >= 30) valBrl *= 0.85;
+
+    return Math.round(valBrl);
+  }
+
   function getPlayerMarketValueBrl(player) {
-    const marketValueMi = Number(player?.marketValueMi);
+    if (!player || typeof player !== "object") return 0;
+    if (!player.name && !player.id && !player.ovr && !player.overall) return 0;
+
+    const ovr = Number(player?.ovr || player?.overall || 35);
+    const age = Number(player?.age || 20);
+
+    // Corrige atleta do usuário caso esteja com valor distorcido de save legado (ex: R$ 760k para OVR 34)
+    if (player.isControlled && ovr < 45) {
+      const rawMi = Number(player.marketValueMi || player.value);
+      const rawBrl = Number(player.marketValue);
+      if ((rawMi && rawMi > 0.3) || (rawBrl && rawBrl > 350000) || !rawBrl) {
+        const fixedVal = calculateAthleteInitialMarketValue(ovr, age);
+        player.marketValue = fixedVal;
+        player.marketValueMi = Number((fixedVal / 1000000).toFixed(3));
+        player.value = Number((fixedVal / 1000000).toFixed(3));
+        return fixedVal;
+      }
+    }
+
     const marketValueBrl = Number(player?.marketValue);
-    const valueMi = Number(player?.value);
-    const estimatedValue =
-      Math.pow((Number(player?.ovr || player?.overall) || 35) / 10, 3.8) *
-      100000;
-    if (Number.isFinite(marketValueMi) && marketValueMi > 0)
-      return Math.round(marketValueMi * 1000000);
     if (Number.isFinite(marketValueBrl) && marketValueBrl > 0)
       return Math.round(marketValueBrl);
+    const marketValueMi = Number(player?.marketValueMi);
+    if (Number.isFinite(marketValueMi) && marketValueMi > 0)
+      return Math.round(marketValueMi * 1000000);
+    const valueMi = Number(player?.value);
     if (Number.isFinite(valueMi) && valueMi > 0)
       return Math.round(valueMi * 1000000);
-    return Math.round(estimatedValue);
+
+    return calculateAthleteInitialMarketValue(ovr, age);
+  }
+
+  function getSquadReferences(squad) {
+    if (!Array.isArray(squad) || squad.length === 0) {
+      return { topValuePlayer: null, topSalaryPlayer: null, totalPayroll: 0, avgOvr: 0, avgAge: "0.0" };
+    }
+    const validSquad = squad.map((p) => ({
+      ...p,
+      displayName: p.name || p.nome || "Atleta",
+      numericValue: getPlayerMarketValueBrl(p),
+      numericSalary: Math.round(Number(p.wage || p.salary || p.monthlySalary || p.salario || 0)),
+      numericOvr: Number(p.ovr || p.overall || 50),
+      numericAge: Number(p.age || p.idade || 20),
+    }));
+
+    const topValuePlayer = [...validSquad].sort((a, b) => b.numericValue - a.numericValue)[0] || null;
+    const topSalaryPlayer = [...validSquad].sort((a, b) => b.numericSalary - a.numericSalary)[0] || null;
+    const totalPayroll = validSquad.reduce((acc, p) => acc + p.numericSalary, 0);
+    const avgOvr = Math.round(validSquad.reduce((acc, p) => acc + p.numericOvr, 0) / validSquad.length);
+    const avgAge = (validSquad.reduce((acc, p) => acc + p.numericAge, 0) / validSquad.length).toFixed(1);
+
+    return { topValuePlayer, topSalaryPlayer, totalPayroll, avgOvr, avgAge };
   }
 
   function formatPlayerMarketValueMi(player) {
@@ -1137,7 +1207,7 @@
   }
 
   // =========================================================================
-  // ABA 3: CLUBE & ELENCO (HIERARQUIA DA POSIÇÃO NO TIME)
+  // ABA 3: CLUBE & ELENCO (HIERARQUIA DA POSIÇÃO NO TIME & FINANÇAS DO CLUBE)
   // =========================================================================
   function renderPlayerClubAndSquad(state) {
     const athlete = getControlledPlayer(state) || { ovr: 45, wage: 1500, attributes: {} };
@@ -1146,24 +1216,85 @@
       return `<div class="card" style="padding:20px;color:#fff">Carregando elenco...</div>`;
 
     const myPos = (athlete.pos || "ATA").toUpperCase();
-    const samePosPlayers = (state.squad || []).filter(
+    const squad = Array.isArray(state.squad) ? state.squad : [];
+    const samePosPlayers = squad.filter(
       (p) => (p.pos || p.position || "").toUpperCase() === myPos,
     );
     samePosPlayers.sort(
       (a, b) => (b.ovr || b.overall || 35) - (a.ovr || a.overall || 35),
     );
-    const squad = state.squad || [];
+
     const marketValue = getPlayerMarketValueBrl;
     const monthlyWage = (p) =>
       Math.round(Number(p.wage || p.salary || p.monthlySalary) || 0);
-    const highestValue = squad.reduce(
-      (best, p) => (marketValue(p) > marketValue(best || {}) ? p : best),
-      null,
+
+    // Indicadores e referências calculados dinamicamente do elenco real
+    const refs = getSquadReferences(squad);
+
+    // Determina o Capitão: veterano (27+ anos) com maior OVR do elenco
+    const captainCandidate = [...squad]
+      .filter((p) => p.id !== athlete.id)
+      .sort((a, b) => {
+        const ageDiff = (Number(b.age || 20) >= 27 ? 1 : 0) - (Number(a.age || 20) >= 27 ? 1 : 0);
+        if (ageDiff !== 0) return ageDiff;
+        return Number(b.ovr || b.overall || 50) - Number(a.ovr || a.overall || 50);
+      })[0] || squad[0];
+    const captainId = squad.find((p) => p.isCaptain)?.id || captainCandidate?.id;
+
+    // Determinação dos 11 Titulares, 7 Reservas e Plantel
+    const sortedByOvr = [...squad].sort(
+      (a, b) => Number(b.ovr || b.overall || 35) - Number(a.ovr || a.overall || 35),
     );
-    const highestWage = squad.reduce(
-      (best, p) => (monthlyWage(p) > monthlyWage(best || {}) ? p : best),
-      null,
+    const gks = squad.filter((p) => (p.pos || p.position || "").toUpperCase() === "GK");
+    const bestGk = gks.sort(
+      (a, b) => Number(b.ovr || b.overall || 35) - Number(a.ovr || a.overall || 35),
+    )[0];
+    const outfieldPlayers = sortedByOvr.filter(
+      (p) => p !== bestGk && (p.pos || p.position || "").toUpperCase() !== "GK",
     );
+    const starterOutfield = outfieldPlayers.slice(0, 10);
+    const starterIds = new Set([bestGk?.id, ...starterOutfield.map((p) => p.id)].filter(Boolean));
+
+    const isUserStarter = (Number(pState.managerTrust) >= 60) || starterIds.has(athlete.id);
+    if (isUserStarter) starterIds.add(athlete.id);
+    else starterIds.delete(athlete.id);
+
+    const reserveCandidates = sortedByOvr.filter((p) => !starterIds.has(p.id));
+    const reserveIds = new Set(reserveCandidates.slice(0, 7).map((p) => p.id));
+    if (!isUserStarter && Number(pState.managerTrust) >= 30) {
+      reserveIds.add(athlete.id);
+    }
+
+    // Filtros e ordenação para a tabela do elenco
+    const activeFilter = window.__afmClubSquadFilter || "all";
+    const activeSort = window.__afmClubSquadSort || "number";
+
+    let filteredSquad = squad.filter((p) => {
+      if (activeFilter === "all") return true;
+      const pos = (p.pos || p.position || "").toUpperCase();
+      if (activeFilter === "gk") return pos === "GK";
+      if (activeFilter === "def") return ["CB", "LB", "RB", "ZAG", "LD", "LE"].includes(pos);
+      if (activeFilter === "mid") return ["DM", "CM", "AM", "VOL", "MC", "MEI"].includes(pos);
+      if (activeFilter === "att") return ["ST", "CF", "LW", "RW", "ATA", "PE", "PD"].includes(pos);
+      return true;
+    });
+
+    filteredSquad.sort((a, b) => {
+      if (activeSort === "ovr") {
+        return Number(b.ovr || b.overall || 35) - Number(a.ovr || a.overall || 35);
+      }
+      if (activeSort === "value") {
+        return marketValue(b) - marketValue(a);
+      }
+      if (activeSort === "salary") {
+        return monthlyWage(b) - monthlyWage(a);
+      }
+      if (activeSort === "name") {
+        return String(a.name || "").localeCompare(String(b.name || ""));
+      }
+      return (Number(a.number) || 99) - (Number(b.number) || 99);
+    });
+
     const arrears = pState.clubSalaryArrears || {
       amount: 0,
       months: 0,
@@ -1172,11 +1303,22 @@
     const clubSubTab =
       window.__afmPlayerClubSubTab === "debts" ? "debts" : "squad";
 
+    const clubBalance = Number(state.balance ?? state.budget ?? 0);
+    const isTreasuryCritical = clubBalance < refs.totalPayroll;
+    const bichoBonusPct = Number(pState.bichoBonusPct) || 0;
+    const winBonus = Math.round(150 * (1 + bichoBonusPct / 100));
+    const derbyBonus = Math.round(400 * (1 + bichoBonusPct / 100));
+    const titleBonus = Math.round(2500 * (1 + bichoBonusPct / 100));
+    const canPressureBicho =
+      Number(pState.managerTrust) >= 80 ||
+      Number(pState.relationships?.boardRelation) >= 80 ||
+      captainId === athlete.id;
+
     return `
       <div style="display:flex;flex-direction:column;gap:18px">
         <div role="tablist" aria-label="Abas do clube" style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:10px">
-          <button type="button" role="tab" aria-selected="${clubSubTab === "squad"}" aria-controls="player-club-tab-content" class="btn btn-player-club-subtab ${clubSubTab === "squad" ? "primary" : ""}" data-subtab="squad">👥 Elenco & Valores</button>
-          <button type="button" role="tab" aria-selected="${clubSubTab === "debts"}" aria-controls="player-club-tab-content" class="btn btn-player-club-subtab ${clubSubTab === "debts" ? "primary" : ""}" data-subtab="debts">⚖️ Dívidas do Clube ${Number(arrears.amount) > 0 ? `· R$ ${Math.round(Number(arrears.amount)).toLocaleString("pt-BR")}` : ""}</button>
+          <button type="button" role="tab" aria-selected="${clubSubTab === "squad"}" aria-controls="player-club-tab-content" class="btn btn-player-club-subtab ${clubSubTab === "squad" ? "primary" : ""}" data-subtab="squad" style="font-weight:900;border-radius:10px;padding:9px 18px">👥 Elenco & Valores</button>
+          <button type="button" role="tab" aria-selected="${clubSubTab === "debts"}" aria-controls="player-club-tab-content" class="btn btn-player-club-subtab ${clubSubTab === "debts" ? "primary" : ""}" data-subtab="debts" style="font-weight:900;border-radius:10px;padding:9px 18px">💸 Finanças, Bicho & Dívidas ${Number(arrears.amount) > 0 ? `· 🚨 R$ ${Math.round(Number(arrears.amount)).toLocaleString("pt-BR")}` : ""}</button>
         </div>
         <div id="player-club-tab-content" role="tabpanel" style="display:flex;flex-direction:column;gap:18px">
         ${
@@ -1189,7 +1331,7 @@
               <h3 style="margin:0;font-size:15px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
                 👥 HIERARQUIA NA POSIÇÃO: ${myPos}
               </h3>
-              <div style="font-size:11px;color:#94a3b8;margin-top:2px">Sua disputa direta por vaga no time titular com outros atletas do ${esc(state.club)}.</div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:2px">Sua disputa direta por vaga no time titular com outros atletas do ${esc(state.club)}. Clique em um companheiro para ver o Raio-X & Mentoria.</div>
             </div>
           </div>
 
@@ -1198,19 +1340,21 @@
               .map((p, idx) => {
                 const isUser = p.id === state.controlledPlayerId;
                 return `
-                <div style="background:${isUser ? "linear-gradient(135deg,rgba(124,58,237,0.3),rgba(16,185,129,0.1))" : "#090d16"};border:2px solid ${isUser ? "#a855f7" : "#334155"};border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+                <div class="teammate-clickable-row" data-teammate-id="${p.id}" style="background:${isUser ? "linear-gradient(135deg,rgba(124,58,237,0.3),rgba(16,185,129,0.1))" : "#090d16"};border:2px solid ${isUser ? "#a855f7" : "#334155"};border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:${isUser ? "default" : "pointer"};transition:border 0.2s" title="${isUser ? "Você" : "Clique para ver Raio-X comparativo e pedir mentoria"}">
                   <div style="display:flex;align-items:center;gap:12px">
                     <span style="font-size:14px;font-weight:900;color:${isUser ? "#c084fc" : "#94a3b8"}">#${idx + 1}</span>
                     <div>
                       <div style="font-size:14px;font-weight:900;color:#fff;display:flex;align-items:center;gap:8px">
                         ${esc(p.name)}
                         ${isUser ? '<span class="pill primary" style="font-size:9px">VOCÊ</span>' : ""}
+                        ${p.id === captainId ? '<span class="pill" style="background:#eab308;color:#000;font-size:8px;font-weight:900;padding:1px 5px;border-radius:4px">© CAPITÃO</span>' : ""}
                       </div>
                       <div style="font-size:11px;color:#94a3b8">${p.age || 22} anos · Camisa #${p.number || 10}</div>
                     </div>
                   </div>
                   <div style="display:flex;align-items:center;gap:14px">
                     <span style="font-size:18px;font-weight:900;color:#10b981">${p.ovr || p.overall || 35} OVR</span>
+                    ${!isUser ? '<span class="pill" style="background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid #0284c7;font-size:10px;font-weight:800;padding:3px 8px">🔍 Raio-X</span>' : ""}
                   </div>
                 </div>
               `;
@@ -1221,11 +1365,66 @@
 
         <!-- ELENCO COMPLETO DO CLUBE -->
         <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          
+          <!-- KPIS RÁPIDOS DO ELENCO -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px;margin-bottom:18px">
+            <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px">
+              <span style="font-size:24px">⭐</span>
+              <div>
+                <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">MÉDIA DO TIME</div>
+                <div style="font-size:18px;font-weight:900;color:#10b981">${refs.avgOvr} OVR</div>
+              </div>
+            </div>
+            <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px">
+              <span style="font-size:24px">🎂</span>
+              <div>
+                <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">MÉDIA DE IDADE</div>
+                <div style="font-size:18px;font-weight:900;color:#38bdf8">${refs.avgAge} anos</div>
+              </div>
+            </div>
+            <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px">
+              <span style="font-size:24px">🎖️</span>
+              <div>
+                <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">CAPITÃO</div>
+                <div style="font-size:14px;font-weight:900;color:#facc15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">${esc(captainCandidate?.name || "A definir")}</div>
+              </div>
+            </div>
+            <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px">
+              <span style="font-size:24px">💵</span>
+              <div>
+                <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">FOLHA TOTAL</div>
+                <div style="font-size:17px;font-weight:900;color:#f87171">R$ ${refs.totalPayroll.toLocaleString("pt-BR")}/mês</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
             <h3 style="margin:0;font-size:15px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
               📋 ELENCO COMPLETO DO ${esc(state.club.toUpperCase())}
             </h3>
-            <span style="font-size:11px;color:#94a3b8">${(state.squad || []).length} Atletas</span>
+            <span style="font-size:11px;color:#94a3b8">${squad.length} Atletas</span>
+          </div>
+
+          <!-- BARRA DE FILTROS POR SETOR & ORDENAÇÃO -->
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;background:#090d16;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.05)">
+            <div style="display:flex;gap:6px;flex-wrap:wrap" role="group" aria-label="Filtro de setor">
+              <button type="button" class="btn btn-club-pos-filter ${activeFilter === "all" ? "primary" : ""}" data-filter="all" style="padding:6px 12px;font-size:11px;font-weight:800;border-radius:8px">Todos (${squad.length})</button>
+              <button type="button" class="btn btn-club-pos-filter ${activeFilter === "gk" ? "primary" : ""}" data-filter="gk" style="padding:6px 12px;font-size:11px;font-weight:800;border-radius:8px">🧤 Goleiros</button>
+              <button type="button" class="btn btn-club-pos-filter ${activeFilter === "def" ? "primary" : ""}" data-filter="def" style="padding:6px 12px;font-size:11px;font-weight:800;border-radius:8px">🛡️ Defensores</button>
+              <button type="button" class="btn btn-club-pos-filter ${activeFilter === "mid" ? "primary" : ""}" data-filter="mid" style="padding:6px 12px;font-size:11px;font-weight:800;border-radius:8px">⚙️ Meio-Campo</button>
+              <button type="button" class="btn btn-club-pos-filter ${activeFilter === "att" ? "primary" : ""}" data-filter="att" style="padding:6px 12px;font-size:11px;font-weight:800;border-radius:8px">⚽ Atacantes</button>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:11px;color:#94a3b8;font-weight:700">Ordenar por:</span>
+              <select id="selClubSquadSort" style="background:#1e293b;border:1px solid #334155;color:#fff;font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;outline:none;cursor:pointer">
+                <option value="number" ${activeSort === "number" ? "selected" : ""}>Camisa (#)</option>
+                <option value="ovr" ${activeSort === "ovr" ? "selected" : ""}>Maior OVR</option>
+                <option value="value" ${activeSort === "value" ? "selected" : ""}>Maior Valor</option>
+                <option value="salary" ${activeSort === "salary" ? "selected" : ""}>Maior Salário</option>
+                <option value="name" ${activeSort === "name" ? "selected" : ""}>Nome (A-Z)</option>
+              </select>
+            </div>
           </div>
 
           <div class="tablewrap" style="overflow-x:auto">
@@ -1240,22 +1439,43 @@
                   <th style="padding:8px;text-align:right">Valor de mercado</th>
                   <th style="padding:8px;text-align:right">Salário/mês</th>
                   <th style="padding:8px;text-align:center">Status</th>
+                  <th style="padding:8px;text-align:center">Ação</th>
                 </tr>
               </thead>
               <tbody>
-                ${(state.squad || [])
+                ${filteredSquad
                   .map((p) => {
                     const isUser = p.id === state.controlledPlayerId;
+                    const isCaptain = p.id === captainId;
+                    const isStarter = starterIds.has(p.id);
+                    const isReserve = reserveIds.has(p.id);
+
+                    let statusBadge;
+                    if (isStarter) {
+                      statusBadge = `<span class="pill good" style="font-size:10px;font-weight:900;padding:2px 8px">🟢 Titular</span>`;
+                    } else if (isReserve) {
+                      statusBadge = `<span class="pill warn" style="font-size:10px;font-weight:900;padding:2px 8px;background:rgba(245,158,11,0.2);color:#facc15;border:1px solid #f59e0b">🟡 Reserva</span>`;
+                    } else {
+                      statusBadge = `<span class="pill muted" style="font-size:10px;font-weight:700;padding:2px 8px;background:rgba(148,163,184,0.15);color:#94a3b8">⚪ Plantel</span>`;
+                    }
+
                     return `
-                    <tr style="border-bottom:1px solid rgba(255,255,255,0.04);background:${isUser ? "rgba(124,58,237,0.15)" : "transparent"};color:${isUser ? "#c084fc" : "#fff"};font-weight:${isUser ? "900" : "500"}">
+                    <tr class="teammate-clickable-row" data-teammate-id="${p.id}" style="border-bottom:1px solid rgba(255,255,255,0.04);background:${isUser ? "rgba(124,58,237,0.15)" : "transparent"};color:${isUser ? "#c084fc" : "#fff"};font-weight:${isUser ? "900" : "500"};cursor:${isUser ? "default" : "pointer"};transition:background 0.2s" title="${isUser ? "Você" : "Clique para abrir o Raio-X & Mentoria"}">
                       <td style="padding:8px">${p.number || 10}</td>
-                      <td style="padding:8px">${esc(p.name)} ${isUser ? '<span class="pill primary" style="font-size:8px">VOCÊ</span>' : ""}</td>
-                      <td style="padding:8px;text-align:center">${p.pos}</td>
+                      <td style="padding:8px">
+                        ${esc(p.name)} 
+                        ${isUser ? '<span class="pill primary" style="font-size:8px">VOCÊ</span>' : ""}
+                        ${isCaptain ? '<span class="pill" style="background:#eab308;color:#000;font-size:8px;font-weight:900;padding:1px 5px;margin-left:4px" title="Capitão da Equipe">© CAPITÃO</span>' : ""}
+                      </td>
+                      <td style="padding:8px;text-align:center"><span class="pill" style="background:#1e293b;font-size:10px">${p.pos}</span></td>
                       <td style="padding:8px;text-align:center">${p.age || 20}</td>
                       <td style="padding:8px;text-align:center;font-weight:900;color:#10b981">${p.ovr || p.overall || 35}</td>
                       <td style="padding:8px;text-align:right">R$ ${marketValue(p).toLocaleString("pt-BR")}</td>
                       <td style="padding:8px;text-align:right">R$ ${monthlyWage(p).toLocaleString("pt-BR")}</td>
-                      <td style="padding:8px;text-align:center">${isUser ? (pState.managerTrust >= 60 ? "Titular" : "Reserva") : "Plantel"}</td>
+                      <td style="padding:8px;text-align:center">${statusBadge}</td>
+                      <td style="padding:8px;text-align:center">
+                        ${!isUser ? `<button type="button" class="btn" style="padding:3px 8px;font-size:10px;background:#1e293b;border:1px solid #38bdf8;color:#38bdf8;border-radius:6px;cursor:pointer">Raio-X</button>` : `<span style="color:#64748b">—</span>`}
+                      </td>
                     </tr>
                   `;
                   })
@@ -1265,11 +1485,22 @@
           </div>
         </div>
 
+        <!-- 🔎 REFERÊNCIAS DO ELENCO (DINÂMICO E SEMPRE CALCULADO) -->
         <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:18px">
-          <h3 style="margin:0 0 12px;color:#fff;font-size:14px">🔎 REFERÊNCIAS DO ELENCO</h3>
+          <h3 style="margin:0 0 12px;color:#fff;font-size:14px;font-weight:900;letter-spacing:0.5px">🔎 REFERÊNCIAS DO ELENCO</h3>
           <div style="display:flex;flex-wrap:wrap;gap:12px">
-            <div style="flex:1;min-width:220px;background:#090d16;padding:12px;border-radius:10px;color:#cbd5e1">💎 Maior valor: <b style="color:#c084fc">${esc(highestValue?.name || "—")}</b> · R$ ${marketValue(highestValue || {}).toLocaleString("pt-BR")}</div>
-            <div style="flex:1;min-width:220px;background:#090d16;padding:12px;border-radius:10px;color:#cbd5e1">💰 Maior salário: <b style="color:#34d399">${esc(highestWage?.name || "—")}</b> · R$ ${monthlyWage(highestWage || {}).toLocaleString("pt-BR")}/mês</div>
+            <div style="flex:1;min-width:220px;background:#090d16;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);color:#cbd5e1">
+              <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:4px">💎 MAIOR VALOR DE MERCADO</div>
+              <div style="font-size:14px;font-weight:900;color:#fff">
+                <b style="color:#c084fc">${esc(refs.topValuePlayer?.displayName || refs.topValuePlayer?.name || "—")}</b> · R$ ${(refs.topValuePlayer?.numericValue || 0).toLocaleString("pt-BR")}
+              </div>
+            </div>
+            <div style="flex:1;min-width:220px;background:#090d16;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);color:#cbd5e1">
+              <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:4px">💰 MAIOR SALÁRIO DO ELENCO</div>
+              <div style="font-size:14px;font-weight:900;color:#fff">
+                <b style="color:#34d399">${esc(refs.topSalaryPlayer?.displayName || refs.topSalaryPlayer?.name || "—")}</b> · R$ ${(refs.topSalaryPlayer?.numericSalary || 0).toLocaleString("pt-BR")}/mês
+              </div>
+            </div>
           </div>
         </div>
         `
@@ -1278,15 +1509,168 @@
 
         ${
           clubSubTab === "debts"
-            ? `<div class="card" style="background:#101724;border:1px solid ${Number(arrears.amount) > 0 ? "#f59e0b" : "rgba(255,255,255,0.08)"};border-radius:18px;padding:18px;color:#cbd5e1">
-          <h3 style="margin:0 0 8px;color:#fff;font-size:14px">⚖️ SALÁRIOS ATRASADOS & DÍVIDA DO CLUBE</h3>
-          ${
-            Number(arrears.amount) > 0
-              ? `<p>O ${esc(state.club)} deve <b style="color:#fbbf24">R$ ${Math.round(Number(arrears.amount)).toLocaleString("pt-BR")}</b> em ${Number(arrears.months) || 0} mês(es) de salário.</p>
-            ${arrears.claim?.status === "pending" ? `<p>Processo em andamento com ${Number(arrears.claim.monthsRemaining) || 0} mês(es) estimado(s).</p>` : `<button type="button" id="btnPlayerSalaryClaim" class="btn" style="padding:9px 14px" ${Number(pState.personalBank) < Math.max(300, Math.min(1000, Math.round(Number(arrears.amount) * 0.08))) ? "disabled" : ""}>👨‍⚖️ Contratar advogado e cobrar (R$ ${Math.max(300, Math.min(1000, Math.round(Number(arrears.amount) * 0.08))).toLocaleString("pt-BR")})</button>`}`
-              : "<p>Não há salários atrasados registrados.</p>"
-          }
-        </div>`
+            ? `
+        <!-- PAINEL DE TRANSPARÊNCIA FINANCEIRA & PREMIAÇÕES -->
+        <div style="display:flex;flex-direction:column;gap:18px">
+
+          <!-- 1. CARDS DE SAÚDE FINANCEIRA DO CLUBE -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:14px">
+            
+            <div class="card" style="background:#101724;border:1px solid ${isTreasuryCritical ? "#ef4444" : "rgba(255,255,255,0.08)"};border-radius:16px;padding:18px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                <span style="font-size:24px">🏦</span>
+                <span class="pill ${isTreasuryCritical ? "bad" : "good"}" style="font-size:9px;font-weight:900">
+                  ${isTreasuryCritical ? "⚠️ CAIXA CRÍTICO" : "✅ CAIXA EQUILIBRADO"}
+                </span>
+              </div>
+              <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase">CAIXA ATUAL DO CLUBE</div>
+              <div style="font-size:22px;font-weight:900;color:${isTreasuryCritical ? "#f87171" : "#10b981"};margin-top:2px">
+                R$ ${clubBalance.toLocaleString("pt-BR")}
+              </div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:4px">
+                ${isTreasuryCritical ? "Caixa menor que a folha mensal. Risco de atraso salarial." : "Caixa suficiente para honrar compromissos operacionais."}
+              </div>
+            </div>
+
+            <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                <span style="font-size:24px">📋</span>
+                <span class="pill primary" style="font-size:9px;font-weight:900">${squad.length} ATLETAS</span>
+              </div>
+              <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase">FOLHA SALARIAL MENSAL</div>
+              <div style="font-size:22px;font-weight:900;color:#fff;margin-top:2px">
+                R$ ${refs.totalPayroll.toLocaleString("pt-BR")}
+              </div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:4px">
+                Custo de salários dos atletas e comissão técnica.
+              </div>
+            </div>
+
+            <div class="card" style="background:#101724;border:1px solid ${Number(arrears.amount) > 0 ? "#f59e0b" : "rgba(255,255,255,0.08)"};border-radius:16px;padding:18px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                <span style="font-size:24px">⚖️</span>
+                <span class="pill ${Number(arrears.amount) > 0 ? "warn" : "good"}" style="font-size:9px;font-weight:900">
+                  ${Number(arrears.amount) > 0 ? "🚨 ATRASO DETECTADO" : "✅ SALÁRIOS EM DIA"}
+                </span>
+              </div>
+              <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase">STATUS DE PAGAMENTO</div>
+              <div style="font-size:20px;font-weight:900;color:${Number(arrears.amount) > 0 ? "#fbbf24" : "#10b981"};margin-top:2px">
+                ${Number(arrears.amount) > 0 ? `R$ ${Math.round(Number(arrears.amount)).toLocaleString("pt-BR")}` : "100% Em Dia"}
+              </div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:4px">
+                ${Number(arrears.amount) > 0 ? `${arrears.months} mês(es) de salários pendentes do atleta.` : "Nenhuma pendência trabalhista registrada."}
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 2. SISTEMA DE BICHO (PREMIAÇÕES COLETIVAS DO VESTIÁRIO) -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+              <div>
+                <h3 style="margin:0;font-size:15px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+                  🏆 TABELA DE BICHO & PREMIAÇÕES POR VITÓRIA
+                </h3>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+                  Valores pagos pela diretoria por metas alcançadas. Líderes de vestiário podem pressionar por bonificação.
+                </div>
+              </div>
+              ${bichoBonusPct > 0 ? `<span class="pill good" style="font-size:10px;font-weight:900">🔥 +${bichoBonusPct}% DE BÔNUS NEGOCIADO</span>` : ""}
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin-bottom:16px">
+              <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px">
+                <div style="font-size:11px;color:#94a3b8">⚽ Vitória Normal (Estadual/Liga)</div>
+                <div style="font-size:20px;font-weight:900;color:#10b981;margin-top:4px">R$ ${winBonus.toLocaleString("pt-BR")} <span style="font-size:11px;color:#94a3b8;font-weight:500">/atleta</span></div>
+              </div>
+              <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px">
+                <div style="font-size:11px;color:#94a3b8">🔥 Vitória em Clássico / Mata-Mata</div>
+                <div style="font-size:20px;font-weight:900;color:#38bdf8;margin-top:4px">R$ ${derbyBonus.toLocaleString("pt-BR")} <span style="font-size:11px;color:#94a3b8;font-weight:500">/atleta</span></div>
+              </div>
+              <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px">
+                <div style="font-size:11px;color:#94a3b8">👑 Título Oficial da Competição</div>
+                <div style="font-size:20px;font-weight:900;color:#facc15;margin-top:4px">R$ ${titleBonus.toLocaleString("pt-BR")} <span style="font-size:11px;color:#94a3b8;font-weight:500">rateio</span></div>
+              </div>
+            </div>
+
+            <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+              <div style="font-size:11px;color:#94a3b8">
+                Exigência para liderar negociação: <b>80+ de confiança</b> com o técnico ou <b>Capitão</b> da equipe.
+              </div>
+              <div>
+                ${
+                  canPressureBicho
+                    ? `<button type="button" id="btnPressureBicho" class="btn warning" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-weight:900;padding:9px 18px;border-radius:10px;font-size:11px;border:none;cursor:pointer">
+                        🗣️ Pressionar Diretoria por Bicho Maior (+20%)
+                      </button>`
+                    : `<button type="button" class="btn" disabled style="background:#1e293b;color:#94a3b8;padding:9px 16px;border-radius:10px;font-size:11px">
+                        🔒 Pressionar Bicho (Requer Liderança ou Capitania)
+                      </button>`
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. PAINEL DE DÍVIDAS & AÇÕES ANTI-CALOTE -->
+          <div class="card" style="background:#101724;border:1px solid ${Number(arrears.amount) > 0 ? "#f59e0b" : "rgba(255,255,255,0.08)"};border-radius:18px;padding:22px">
+            <h3 style="margin:0 0 10px;font-size:15px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+              ⚖️ SALÁRIOS ATRASADOS & AÇÕES TRABALHISTAS
+            </h3>
+            
+            ${
+              Number(arrears.amount) > 0
+                ? `
+              <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:16px;margin-bottom:16px">
+                <div style="font-size:14px;font-weight:900;color:#fbbf24;margin-bottom:6px">
+                  🚨 Dívida Ativa com o Atleta: R$ ${Math.round(Number(arrears.amount)).toLocaleString("pt-BR")}
+                </div>
+                <div style="font-size:12px;color:#cbd5e1;line-height:1.5">
+                  O ${esc(state.club)} acumulou <b>${arrears.months} mês(es)</b> de salários sem quitação. Escolha sua postura profissional e jurídica para reaver o montante.
+                </div>
+              </div>
+
+              <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <button type="button" id="btnDemandImmediateSalary" class="btn" style="flex:1;min-width:200px;background:#1e293b;border:1px solid #38bdf8;color:#38bdf8;font-weight:900;padding:11px 16px;border-radius:10px;font-size:12px;cursor:pointer">
+                  📢 Cobrar Diretoria Diretamente (-10% Relação)
+                </button>
+
+                ${
+                  Number(arrears.months) >= 2
+                    ? `<button type="button" id="btnJustaCausaResignation" class="btn danger" style="flex:1;min-width:200px;background:#ef4444;color:#fff;font-weight:900;padding:11px 16px;border-radius:10px;font-size:12px;cursor:pointer;border:none">
+                        ⚖️ Rescisão por Justa Causa (Passe Livre)
+                      </button>`
+                    : `<button type="button" class="btn" disabled style="flex:1;min-width:200px;background:#1e293b;color:#94a3b8;padding:11px 16px;border-radius:10px;font-size:11px">
+                        🔒 Justa Causa (Desbloqueia em 2 meses de atraso)
+                      </button>`
+                }
+
+                ${
+                  arrears.claim?.status === "pending"
+                    ? `<div style="background:#090d16;padding:10px 16px;border-radius:10px;border:1px solid #a855f7;color:#c084fc;font-size:11px;font-weight:800;display:flex;align-items:center;gap:8px">
+                        ⏳ Ação na Justiça em andamento (${Number(arrears.claim.monthsRemaining) || 0} meses)
+                      </div>`
+                    : `<button type="button" id="btnPlayerSalaryClaim" class="btn" style="flex:1;min-width:200px;background:#1e293b;border:1px solid #a855f7;color:#c084fc;font-weight:900;padding:11px 16px;border-radius:10px;font-size:12px;cursor:pointer" ${Number(pState.personalBank) < Math.max(300, Math.min(1000, Math.round(Number(arrears.amount) * 0.08))) ? "disabled" : ""}>
+                        👨‍⚖️ Contratar Advogado (R$ ${Math.max(300, Math.min(1000, Math.round(Number(arrears.amount) * 0.08))).toLocaleString("pt-BR")})
+                      </button>`
+                }
+              </div>
+            `
+                : `
+              <div style="background:#090d16;border:1px solid rgba(16,185,129,0.2);border-radius:14px;padding:18px;display:flex;align-items:center;gap:14px">
+                <span style="font-size:28px">✨</span>
+                <div>
+                  <div style="font-size:14px;font-weight:900;color:#34d399">Situação Trabalhista 100% Regularizada</div>
+                  <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+                    O ${esc(state.club)} não possui dívidas trabalhistas ou atrasos pendentes com o atleta. Seus vencimentos mensais estão em dia.
+                  </div>
+                </div>
+              </div>
+            `
+            }
+          </div>
+
+        </div>
+        `
             : ""
         }
         </div>
@@ -5555,6 +5939,58 @@
         });
       });
 
+    // Filtros por setor do elenco do clube
+    document.querySelectorAll(".btn-club-pos-filter").forEach((btn) => {
+      btn.onclick = () => {
+        window.__afmClubSquadFilter = btn.dataset.filter || "all";
+        window.render?.();
+      };
+    });
+
+    // Seletor de ordenação do elenco
+    const selClubSort = document.getElementById("selClubSquadSort");
+    if (selClubSort) {
+      selClubSort.onchange = (e) => {
+        window.__afmClubSquadSort = e.target.value;
+        window.render?.();
+      };
+    }
+
+    // Clique no companheiro para abrir Raio-X comparativo & mentoria
+    document.querySelectorAll(".teammate-clickable-row").forEach((el) => {
+      el.onclick = () => {
+        const tId = el.dataset.teammateId;
+        if (!tId || tId === s.controlledPlayerId) return;
+        const targetTeammate = (s.squad || []).find(
+          (p) => String(p.id) === String(tId),
+        );
+        if (targetTeammate) {
+          openTeammateDetailModal(targetTeammate, athlete, pState, s);
+        }
+      };
+    });
+
+    // Cobrança direta de salários atrasados à diretoria
+    document
+      .getElementById("btnDemandImmediateSalary")
+      ?.addEventListener("click", () => {
+        executeImmediateSalaryDemand(s, pState, athlete);
+      });
+
+    // Rescisão por Justa Causa (Passe Livre)
+    document
+      .getElementById("btnJustaCausaResignation")
+      ?.addEventListener("click", () => {
+        executeJustaCausaResignation(s, pState, athlete);
+      });
+
+    // Pressionar Diretoria por Bicho Maior
+    document
+      .getElementById("btnPressureBicho")
+      ?.addEventListener("click", () => {
+        executePressureBicho(s, pState, athlete);
+      });
+
     // Botão de Rever Cerimônia de Gala
     document.querySelectorAll(".btn-open-gala-modal").forEach((btn) => {
       btn.onclick = () => {
@@ -8838,6 +9274,333 @@
       ?.addEventListener("click", () => closeActionModal());
   }
 
+  // =========================================================================
+  // MODAIS E AÇÕES DO VESTIÁRIO (CLUBE & ELENCO)
+  // =========================================================================
+
+  function openTeammateDetailModal(player, athlete, pState, state) {
+    if (!player) return;
+    const isUser = player.id === athlete.id;
+    if (isUser) return;
+
+    const modal = createActionModalContainer();
+    const pOvr = Number(player.ovr || player.overall || 50);
+    const aOvr = Number(athlete.ovr || athlete.overall || 35);
+
+    const pAge = Number(player.age || 25);
+    const aAge = Number(athlete.age || 15);
+
+    const pAttrs = player.attributes || {};
+    const aAttrs = athlete.attributes || {};
+
+    const pFin = Number(pAttrs.fin || pAttrs.rem || pAttrs.chute || pOvr);
+    const aFin = Number(aAttrs.fin || aAttrs.rem || aAttrs.chute || aOvr);
+
+    const pVel = Number(pAttrs.vel || pAttrs.arranque || pOvr);
+    const aVel = Number(aAttrs.vel || aAttrs.arranque || aOvr);
+
+    const pPas = Number(pAttrs.pas || pAttrs.visao || pOvr);
+    const aPas = Number(aAttrs.pas || aAttrs.visao || aOvr);
+
+    const pFis = Number(pAttrs.fis || pAttrs.res || pAttrs.folego || pOvr);
+    const aFis = Number(aAttrs.fis || aAttrs.res || aAttrs.folego || aOvr);
+
+    pState.teammatesAffinity = pState.teammatesAffinity || {};
+    const affinity = pState.teammatesAffinity[player.id] ?? 50;
+
+    const isVeteran = pAge >= 27;
+    const isHigherOvr = pOvr > aOvr;
+    const canMentor = isVeteran && isHigherOvr;
+
+    const curDate = state.date || state.currentDate || "2026-01-01";
+    let daysSinceLast = 999;
+    if (pState.lastMentorshipDate && typeof getDaysBetween === "function") {
+      daysSinceLast = getDaysBetween(pState.lastMentorshipDate, curDate);
+    }
+    const isCooldownActive = daysSinceLast < 7;
+    const athleteEnergy = Number(athlete.energy ?? 100);
+    const hasEnergy = athleteEnergy >= 10;
+
+    const affinityLabel =
+      affinity >= 85
+        ? "🔥 Irmandade & Parceria Perfeita"
+        : affinity >= 65
+          ? "⚡ Boa Química & Entrosamento"
+          : affinity >= 35
+            ? "🤝 Colegas de Equipe (Profissional)"
+            : "❄️ Clima Frio / Relação Distante";
+
+    const affinityColor =
+      affinity >= 85
+        ? "#10b981"
+        : affinity >= 65
+          ? "#38bdf8"
+          : affinity >= 35
+            ? "#facc15"
+            : "#94a3b8";
+
+    function renderComparisonBar(label, userVal, peerVal, maxVal = 99) {
+      const userPct = Math.min(100, Math.round((userVal / maxVal) * 100));
+      const peerPct = Math.min(100, Math.round((peerVal / maxVal) * 100));
+      const userAdv = userVal > peerVal;
+      const peerAdv = peerVal > userVal;
+
+      return `
+        <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:10px 14px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:800;color:#cbd5e1;margin-bottom:6px">
+            <span style="color:${userAdv ? "#c084fc" : "#94a3b8"}">Você: <b style="font-size:13px;color:#fff">${userVal}</b></span>
+            <span style="text-transform:uppercase;letter-spacing:0.5px;color:#94a3b8">${label}</span>
+            <span style="color:${peerAdv ? "#38bdf8" : "#94a3b8"}"><b style="font-size:13px;color:#fff">${peerVal}</b> :${esc(player.name.split(" ")[0])}</span>
+          </div>
+          <div style="display:flex;gap:4px;height:8px;background:#1e293b;border-radius:4px;overflow:hidden">
+            <div style="width:50%;display:flex;justify-content:flex-end">
+              <div style="width:${userPct}%;height:100%;background:linear-gradient(90deg, #7c3aed, #a855f7);border-radius:4px 0 0 4px"></div>
+            </div>
+            <div style="width:50%;display:flex;justify-content:flex-start">
+              <div style="width:${peerPct}%;height:100%;background:linear-gradient(90deg, #0284c7, #38bdf8);border-radius:0 4px 4px 0"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    modal.innerHTML = `
+      <div class="card" style="width:100%;max-width:580px;background:#101724;border:2px solid #38bdf8;border-radius:20px;padding:22px;box-shadow:0 0 30px rgba(56,189,248,0.25);max-height:90vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:48px;height:48px;border-radius:12px;background:#1e293b;border:2px solid #38bdf8;display:flex;align-items:center;justify-content:center;font-size:24px">
+              ${player.photo ? `<img src="${player.photo}" style="width:100%;height:100%;border-radius:10px;object-fit:cover">` : "👤"}
+            </div>
+            <div>
+              <div style="font-size:16px;font-weight:900;color:#fff;display:flex;align-items:center;gap:8px">
+                ${esc(player.name)} <span style="color:#a855f7">#${player.number || 10}</span>
+                <span class="pill" style="background:#38bdf8;color:#000;font-size:10px;font-weight:900">${player.pos || "ATA"}</span>
+              </div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+                ${player.age || 25} anos • ${esc(state.club)} • ${pOvr} OVR
+              </div>
+            </div>
+          </div>
+          <button type="button" id="btnCloseTeammateModal" class="btn" style="background:transparent;border:none;color:#94a3b8;font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+        </div>
+
+        <!-- AFINIDADE NO VESTIÁRIO -->
+        <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px 16px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase">🤝 Afinidade no Vestiário</span>
+            <span style="font-size:12px;font-weight:900;color:${affinityColor}">${affinityLabel} (${affinity}%)</span>
+          </div>
+          <div style="width:100%;height:8px;background:#1e293b;border-radius:4px;overflow:hidden">
+            <div style="width:${affinity}%;height:100%;background:${affinityColor};border-radius:4px;transition:width 0.3s"></div>
+          </div>
+          <div style="font-size:10px;color:#64748b;margin-top:6px">
+            A afinidade aumenta com treinos de mentoria, jogos juntos e passes decisivos em campo.
+          </div>
+        </div>
+
+        <!-- COMPARATIVO DIRETO -->
+        <div style="margin-bottom:16px">
+          <div style="font-size:12px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+            <span>⚔️</span> Comparativo Direto: Você vs ${esc(player.name.split(" ")[0])}
+          </div>
+          ${renderComparisonBar("OVR Geral", aOvr, pOvr, 99)}
+          ${renderComparisonBar("Finalização / Chute", aFin, pFin, 99)}
+          ${renderComparisonBar("Velocidade / Arranque", aVel, pVel, 99)}
+          ${renderComparisonBar("Passe / Visão", aPas, pPas, 99)}
+          ${renderComparisonBar("Físico / Resistência", aFis, pFis, 99)}
+          ${renderComparisonBar("Idade / Experiência", aAge, pAge, 40)}
+        </div>
+
+        <!-- MENTORIA COM VETERANO -->
+        <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(168,85,247,0.3);border-radius:14px;padding:16px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <span style="font-size:24px">🎓</span>
+            <div>
+              <div style="font-size:13px;font-weight:900;color:#fff">Mentoria & Treino Especial com Veterano</div>
+              <div style="font-size:10px;color:#c084fc">Aprenda macetes de jogo com atletas experientes do elenco</div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:12px">
+            Veteranos (27+ anos) com maior OVR podem orientar seu atleta em treinos intensivos. Consome 10% de energia e concede +20 XP além de +5% de entrosamento imediato.
+          </div>
+          <div>
+            ${
+              canMentor
+                ? (!isCooldownActive && hasEnergy
+                    ? `<button type="button" id="btnExecuteMentorship" class="btn success" style="width:100%;background:linear-gradient(135deg,#10b981,#059669);color:#000;font-weight:900;padding:11px;border-radius:10px;font-size:12px;cursor:pointer;border:none">
+                        🎓 Treinar Junto & Pedir Mentoria (-10% Energia · +20 XP · +5% Afinidade)
+                      </button>`
+                    : isCooldownActive
+                      ? `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;padding:10px;border-radius:10px;font-size:11px">
+                          ⏳ Mentoria em Cooldown (Disponível a cada 7 dias)
+                        </button>`
+                      : `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;padding:10px;border-radius:10px;font-size:11px">
+                          🔒 Energia Insuficiente (${athleteEnergy}% · Mínimo 10%)
+                        </button>`)
+                : `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;padding:10px;border-radius:10px;font-size:11px">
+                    🔒 Mentoria Indisponível (${!isVeteran ? "Atleta precisa ter 27+ anos" : "OVR do companheiro deve ser superior ao seu"})
+                  </button>`
+            }
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end">
+          <button type="button" id="btnOkCloseTeammate" class="btn" style="background:#1e293b;color:#cbd5e1;font-weight:800;padding:8px 18px;border-radius:8px;font-size:12px;cursor:pointer">Fechar</button>
+        </div>
+      </div>
+    `;
+
+    document
+      .getElementById("btnCloseTeammateModal")
+      ?.addEventListener("click", () => closeActionModal());
+    document
+      .getElementById("btnOkCloseTeammate")
+      ?.addEventListener("click", () => closeActionModal());
+
+    document
+      .getElementById("btnExecuteMentorship")
+      ?.addEventListener("click", () => {
+        athlete.energy = Math.max(0, (Number(athlete.energy) || 100) - 10);
+        athlete.fitness = athlete.energy;
+        pState.xp = (Number(pState.xp) || 0) + 20;
+        if (window.AFM_PlayerEngine?.normalizePlayerProgression) {
+          window.AFM_PlayerEngine.normalizePlayerProgression(pState);
+        }
+        pState.teammatesAffinity[player.id] = Math.min(100, affinity + 5);
+        pState.lastMentorshipDate = curDate;
+
+        window.save?.();
+        closeActionModal();
+        if (typeof window.render === "function") window.render();
+
+        showCustomAlert({
+          title: "Mentoria Realizada!",
+          message: `Você realizou uma sessão de treinamento com ${player.name}. Ganhou +20 XP e sua afinidade subiu para ${pState.teammatesAffinity[player.id]}%!`,
+          type: "success",
+        });
+      });
+  }
+
+  function executeImmediateSalaryDemand(state, pState, athlete) {
+    const arrears = pState.clubSalaryArrears;
+    if (!arrears || Number(arrears.amount) <= 0) {
+      showCustomAlert({
+        title: "Finanças do Clube",
+        message: "Não há salários em atraso para cobrar.",
+        type: "warning",
+      });
+      return;
+    }
+    const clubCash = Number(state.balance ?? state.budget ?? 0);
+    const owed = Number(arrears.amount);
+    const canPay = clubCash > 0 ? Math.min(clubCash, owed) : 0;
+
+    pState.relationships = pState.relationships || {};
+    pState.relationships.boardRelation = Math.max(
+      0,
+      (Number(pState.relationships.boardRelation) || 65) - 10,
+    );
+
+    if (canPay > 0 && Math.random() < 0.85) {
+      state.balance = Math.max(0, clubCash - canPay);
+      if (state.budget !== undefined) state.budget = state.balance;
+      arrears.amount = Math.max(0, owed - canPay);
+      if (arrears.amount === 0) arrears.months = 0;
+
+      if (window.AFM_Lifestyle?.addPlayerTransaction) {
+        window.AFM_Lifestyle.addPlayerTransaction(
+          pState,
+          state.date || "2026-01-01",
+          "Acerto Emergencial de Salário com Diretoria",
+          canPay,
+          "in",
+        );
+      } else {
+        pState.personalBank = (Number(pState.personalBank) || 0) + canPay;
+      }
+
+      state.news = Array.isArray(state.news) ? state.news : [];
+      state.news.unshift(
+        `💵 ACERTO FINANCEIRO: Após cobrança direta de ${athlete.name}, a diretoria do ${state.club} quitou R$ ${canPay.toLocaleString("pt-BR")} da dívida salarial. A relação com a diretoria foi desgastada (-10%).`,
+      );
+
+      window.save?.();
+      window.render?.();
+      showCustomAlert({
+        title: "Pagamento Liberado!",
+        message: `A diretoria liberou R$ ${canPay.toLocaleString("pt-BR")}. O valor foi creditado em sua conta pessoal. A relação com a diretoria caiu 10%.`,
+        type: "success",
+      });
+    } else {
+      state.news = Array.isArray(state.news) ? state.news : [];
+      state.news.unshift(
+        `🚨 TENSÃO: ${athlete.name} cobrou o pagamento de salários atrasados da diretoria, mas o clube alegou fluxo de caixa zerado. A relação com a diretoria caiu 10%.`,
+      );
+
+      window.save?.();
+      window.render?.();
+      showCustomAlert({
+        title: "Cobrança Sem Sucesso",
+        message: `A diretoria informou que o clube não possui liquidez imediata no caixa neste momento. A relação com a diretoria caiu 10%.`,
+        type: "warning",
+      });
+    }
+  }
+
+  function executeJustaCausaResignation(state, pState, athlete) {
+    const arrears = pState.clubSalaryArrears;
+    if (!arrears || Number(arrears.months) < 2) {
+      showCustomAlert({
+        title: "Rescisão Trabalhista",
+        message:
+          "A rescisão por justa causa exige pelo menos 2 meses de salários atrasados comprovados.",
+        type: "warning",
+      });
+      return;
+    }
+
+    const oldClub = state.club;
+    athlete.club = "Sem Clube";
+    athlete.wage = 0;
+    pState.club = "Sem Clube";
+    pState.transferListing = null;
+
+    state.news = Array.isArray(state.news) ? state.news : [];
+    state.news.unshift(
+      `⚖️ RESCISÃO POR JUSTA CAUSA: Devido a ${arrears.months} meses de salários atrasados não pagos, ${pState.athleteName} rescindiu unilateralmente com o ${oldClub} e agora é um agente livre no mercado!`,
+    );
+
+    window.save?.();
+    window.render?.();
+    showCustomAlert({
+      title: "Rescisão Concedida!",
+      message: `Contrato com o ${oldClub} rescindido por justa causa! Você está livre no mercado (Free Agent) e pode assinar com um novo clube na aba Empresário & Mercado.`,
+      type: "success",
+    });
+  }
+
+  function executePressureBicho(state, pState, athlete) {
+    pState.bichoBonusPct = (Number(pState.bichoBonusPct) || 0) + 20;
+    pState.relationships = pState.relationships || {};
+    pState.relationships.boardRelation = Math.max(
+      0,
+      (Number(pState.relationships.boardRelation) || 65) - 5,
+    );
+
+    state.news = Array.isArray(state.news) ? state.news : [];
+    state.news.unshift(
+      `🗣️ LIDERANÇA NO VESTIÁRIO: ${athlete.name} reuniu os companheiros e pressionou a diretoria por aumento na tabela de premiações (Bicho). Bicho aumentado em +20%!`,
+    );
+
+    window.save?.();
+    window.render?.();
+    showCustomAlert({
+      title: "Bicho Aumentado!",
+      message: `A diretoria atendeu à pressão da liderança e aumentou as premiações por vitória em +20%!`,
+      type: "success",
+    });
+  }
+
   /**
    * VESTIÁRIO EXCLUSIVO DO MODO JOGADOR (BE A PRO) — INTERVALO DE PARTIDA
    * Substitui a prancheta de técnico por um relatório individual do atleta:
@@ -9435,5 +10198,11 @@
     openWageNegotiationModal,
     openRequestLoanModal,
     openRequestTransferModal,
+    getSquadReferences,
+    calculateAthleteInitialMarketValue,
+    openTeammateDetailModal,
+    executeImmediateSalaryDemand,
+    executeJustaCausaResignation,
+    executePressureBicho,
   };
 })(window);
