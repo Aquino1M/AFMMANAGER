@@ -2510,7 +2510,8 @@
               </div>
               <div>
                 ${(function () {
-                  const athleteEnergy = athlete?.energy !== undefined ? Number(athlete.energy) : 100;
+                  const ath = (typeof athlete !== "undefined" && athlete) ? athlete : (getControlledPlayer(state) || null);
+                  const athleteEnergy = ath?.energy !== undefined ? Number(ath.energy) : (pState?.energy ?? 100);
                   const canMedia = ls?.weeklyMediaGigAvailable !== false && athleteEnergy >= 15;
                   if (canMedia) {
                     return `
@@ -2727,6 +2728,11 @@
     const currentSeason = Number(state.season) || 2026;
     const currentClub = state.club || athlete?.club || "Clube";
 
+    // Garante inicialização e integridade do histórico acumulado da carreira
+    const ch = window.AFM_PlayerEngine?.ensurePlayerCareerHistory
+      ? window.AFM_PlayerEngine.ensurePlayerCareerHistory(pState, state)
+      : (pState.careerHistory || { totals: {}, seasons: [], bestMatch: null });
+
     // 1. Sincroniza e obtém todos os troféus da carreira do atleta
     pState.careerStats = pState.careerStats || {};
     pState.careerStats.titles = Array.isArray(pState.careerStats.titles)
@@ -2785,6 +2791,7 @@
       seasonMatchesList.length,
       seasonGoals || seasonAssists ? 1 : 0,
     );
+    const hasSeasonMatches = seasonMatches > 0;
     const seasonStarter = Math.max(
       Number(sStats.starterCount) || 0,
       seasonMatchesList.filter((match) => match.minutes >= 60).length,
@@ -2808,9 +2815,11 @@
           0,
         ) / seasonMatchesList.length
       : 0;
-    const seasonAvgRating = seasonHistoryRating
-      ? seasonHistoryRating.toFixed(2)
-      : Number(sStats.avgRating) || Number(stats.avgRating) || 6.5;
+    const seasonAvgRating = hasSeasonMatches
+      ? (seasonHistoryRating
+          ? seasonHistoryRating.toFixed(2)
+          : (Number(sStats.avgRating) || 6.5).toFixed(2))
+      : "—";
     const seasonShots =
       sStats.shots ?? seasonGoals * 3 + Math.round(seasonMatches * 1.5);
     const seasonShotsOnTarget =
@@ -2845,18 +2854,23 @@
         <!-- SUB-ABAS DE NAVEGAÇÃO -->
         <div style="display:flex;gap:10px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px;overflow-x:auto;-webkit-overflow-scrolling:touch">
           <button type="button" class="btn btn-player-stats-subtab" data-subtab="season"
-            style="flex:1;min-width:180px;padding:12px 16px;border-radius:12px;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.2s;${subTab === "season" ? "background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:1px solid #c084fc;box-shadow:0 0 20px rgba(168,85,247,0.4);" : "background:#101724;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+            style="flex:1;min-width:170px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.2s;${subTab === "season" ? "background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:1px solid #c084fc;box-shadow:0 0 20px rgba(168,85,247,0.4);" : "background:#101724;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
             <span>📊</span> Dados da Temporada (${currentSeason})
           </button>
           
           <button type="button" class="btn btn-player-stats-subtab" data-subtab="trophies"
-            style="flex:1;min-width:180px;padding:12px 16px;border-radius:12px;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.2s;${subTab === "trophies" ? "background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:1px solid #fde68a;box-shadow:0 0 20px rgba(245,158,11,0.4);" : "background:#101724;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+            style="flex:1;min-width:170px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.2s;${subTab === "trophies" ? "background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:1px solid #fde68a;box-shadow:0 0 20px rgba(245,158,11,0.4);" : "background:#101724;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
             <span>🏆</span> Sala de Troféus (${allTitles.length})
           </button>
 
           <button type="button" class="btn btn-player-stats-subtab" data-subtab="matches"
-            style="flex:1;min-width:180px;padding:12px 16px;border-radius:12px;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.2s;${subTab === "matches" ? "background:linear-gradient(135deg,#0284c7,#38bdf8);color:#fff;border:1px solid #7dd3fc;box-shadow:0 0 20px rgba(56,189,248,0.4);" : "background:#101724;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+            style="flex:1;min-width:170px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.2s;${subTab === "matches" ? "background:linear-gradient(135deg,#0284c7,#38bdf8);color:#fff;border:1px solid #7dd3fc;box-shadow:0 0 20px rgba(56,189,248,0.4);" : "background:#101724;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
             <span>⭐</span> Histórico de Jogos (${history.length})
+          </button>
+
+          <button type="button" class="btn btn-player-stats-subtab" data-subtab="career"
+            style="flex:1;min-width:170px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.2s;${subTab === "career" ? "background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:1px solid #34d399;box-shadow:0 0 20px rgba(16,185,129,0.4);" : "background:#101724;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+            <span>📈</span> Carreira Total
           </button>
         </div>
 
@@ -2903,7 +2917,7 @@
           </div>
 
           <!-- GRID DE 8 MÉTRICAS PRINCIPAIS DA TEMPORADA -->
-          <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:14px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));gap:14px">
             
             <!-- 1. JOGOS -->
             <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;text-align:center">
@@ -2944,11 +2958,11 @@
             <!-- 5. NOTA MÉDIA -->
             <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;text-align:center">
               <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:6px">NOTA MÉDIA</div>
-              <div style="font-size:28px;font-weight:900;color:${Number(seasonAvgRating) >= 7.5 ? "#10b981" : Number(seasonAvgRating) >= 6.5 ? "#f59e0b" : "#ef4444"}">
+              <div style="font-size:28px;font-weight:900;color:${hasSeasonMatches ? (Number(seasonAvgRating) >= 7.5 ? "#10b981" : Number(seasonAvgRating) >= 6.5 ? "#f59e0b" : "#ef4444") : "#94a3b8"}">
                 ${seasonAvgRating}
               </div>
               <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-top:4px">
-                ${Number(seasonAvgRating) >= 7.5 ? "⭐ Destaque" : Number(seasonAvgRating) >= 6.5 ? "✓ Regular/Boa" : "⚠️ Em Evolução"}
+                ${hasSeasonMatches ? (Number(seasonAvgRating) >= 7.5 ? "⭐ Destaque" : Number(seasonAvgRating) >= 6.5 ? "✓ Regular/Boa" : "⚠️ Em Evolução") : "Aguardando estreia"}
               </div>
             </div>
 
@@ -2996,11 +3010,13 @@
                 <div style="font-size:11px;color:#a855f7;font-weight:800;text-transform:uppercase;margin-bottom:6px">PARECER DO TREINADOR:</div>
                 <div style="font-size:13px;color:#cbd5e1;line-height:1.6">
                   ${
-                    Number(seasonAvgRating) >= 7.5
-                      ? `“O rendimento do ${athlete?.name || "atleta"} nesta temporada é extraordinário. Tem sido decisivo, ganhando respeito dos companheiros e garantindo sua vaga com autoridade!”`
-                      : Number(seasonAvgRating) >= 6.5
-                        ? `“Temporada de afirmação consistente. O atleta tem cumprido as orientações táticas e está pronto para voos ainda maiores quando a equipe precisar.”`
-                        : `“A comissão técnica reconhece a dedicação, mas cobra mais intensidade nos treinos e precisão em campo para consolidar uma sequência maior como titular.”`
+                    !hasSeasonMatches
+                      ? `“Pré-temporada em andamento. Mostre serviço nos treinos e aproveite os minutos quando entrar em campo para conquistar a titularidade.”`
+                      : Number(seasonAvgRating) >= 7.5
+                        ? `“O rendimento do ${athlete?.name || "atleta"} nesta temporada é extraordinário. Tem sido decisivo, ganhando respeito dos companheiros e garantindo sua vaga com autoridade!”`
+                        : Number(seasonAvgRating) >= 6.5
+                          ? `“Temporada de afirmação consistente. O atleta tem cumprido as orientações táticas e está pronto para voos ainda maiores quando a equipe precisar.”`
+                          : `“A comissão técnica reconhece a dedicação, mas cobra mais intensidade nos treinos e precisão em campo para consolidar uma sequência maior como titular.”`
                   }
                 </div>
               </div>
@@ -3008,7 +3024,7 @@
               <div style="background:#090d16;padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.05);display:flex;flex-direction:column;justify-content:center">
                 <div style="font-size:11px;color:#38bdf8;font-weight:800;text-transform:uppercase;margin-bottom:6px">STATUS DO VÍNCULO NO ${esc(currentClub.toUpperCase())}:</div>
                 <div style="font-size:13px;color:#fff;line-height:1.6">
-                  <div>💵 Salário no Clube: <b>R$ ${(pState.weeklySalary ? pState.weeklySalary * 4 : 1200).toLocaleString("pt-BR")}/mês</b></div>
+                  <div>💵 Salário no Clube: <b>R$ ${Math.round(athlete?.wage || (pState.weeklySalary ? pState.weeklySalary * 4 : 1045)).toLocaleString("pt-BR")}/mês</b></div>
                   <div>💼 Vínculo Contratual: <b>Válido até o fim de ${athlete?.contractUntil || currentSeason + 2}</b></div>
                   <div>⭐ Nível do Atleta: <b>Nível ${pState.level || 1} (${pState.xp || 0} / ${pState.xpToNextLevel || 400} XP)</b></div>
                 </div>
@@ -3196,7 +3212,7 @@
               }
             </div>
 
-            <!-- SEÇÃO 3: 📜 RECORDES HISTÓRICOS QUEBRADOS -->
+            <!-- SEÇÃO 3: 📜 RECORDES HISTÓRICOS DA COMPETIÇÃO -->
             <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
                 <h3 style="margin:0;font-size:16px;font-weight:900;color:#38bdf8;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:8px">
@@ -3205,6 +3221,103 @@
                 <span style="font-size:12px;color:#94a3b8;font-weight:700">Marcas lendárias eternizadas nos livros da liga</span>
               </div>
 
+              <!-- CARDS COM BARRAS DE PROGRESSO AO VIVO DOS 3 RECORDES -->
+              <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:14px;margin-bottom:16px">
+                
+                <!-- 1. RECORDE DE GOLS EM 1 ANO (META: 14 GOLS) -->
+                ${(function () {
+                  const goalsGoal = 14;
+                  const goalsPct = Math.min(100, Math.round((seasonGoals / goalsGoal) * 100));
+                  const isBroken = seasonGoals > goalsGoal;
+                  return `
+                    <div style="background:#090d16;border:1.5px solid ${isBroken ? "#facc15" : "rgba(245,158,11,0.3)"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+                      <div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                          <span style="font-size:11px;color:#f59e0b;font-weight:800;text-transform:uppercase">⚽ RECORDE DE GOLS EM 1 ANO:</span>
+                          <span class="pill ${isBroken ? "good" : "warning"}" style="font-size:9px;font-weight:900">${isBroken ? "🏆 QUEBRADO!" : "EM DISPUTA"}</span>
+                        </div>
+                        <div style="font-size:22px;font-weight:900;color:#fff">${seasonGoals} <span style="font-size:13px;color:#94a3b8">/ ${goalsGoal} gols</span></div>
+                        <div style="font-size:11px;color:#cbd5e1;margin:6px 0 10px 0">
+                          ${isBroken ? `⭐ Novo Recordista Oficial com ${seasonGoals} gols!` : `Marque ${goalsGoal + 1} gols na temporada para quebrar o recorde!`}
+                        </div>
+                      </div>
+                      <div>
+                        <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:#94a3b8;margin-bottom:4px">
+                          <span>Progresso da Marca</span>
+                          <span style="color:#facc15;font-weight:900">${goalsPct}%</span>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.06);height:8px;border-radius:4px;overflow:hidden">
+                          <div style="background:linear-gradient(90deg,#f59e0b,#facc15);width:${goalsPct}%;height:100%;border-radius:4px"></div>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                })()}
+
+                <!-- 2. RECORDE DE ASSISTÊNCIAS EM 1 ANO (META: 8 PASSES) -->
+                ${(function () {
+                  const assistsGoal = 8;
+                  const assistsPct = Math.min(100, Math.round((seasonAssists / assistsGoal) * 100));
+                  const isBroken = seasonAssists > assistsGoal;
+                  return `
+                    <div style="background:#090d16;border:1.5px solid ${isBroken ? "#38bdf8" : "rgba(56,189,248,0.3)"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+                      <div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                          <span style="font-size:11px;color:#38bdf8;font-weight:800;text-transform:uppercase">🎯 RECORDE DE ASSISTÊNCIAS:</span>
+                          <span class="pill ${isBroken ? "good" : "warning"}" style="font-size:9px;font-weight:900">${isBroken ? "🏆 QUEBRADO!" : "EM DISPUTA"}</span>
+                        </div>
+                        <div style="font-size:22px;font-weight:900;color:#fff">${seasonAssists} <span style="font-size:13px;color:#94a3b8">/ ${assistsGoal} passes</span></div>
+                        <div style="font-size:11px;color:#cbd5e1;margin:6px 0 10px 0">
+                          ${isBroken ? `⭐ Novo Recordista Oficial com ${seasonAssists} assistências!` : `Dê ${assistsGoal + 1} assistências na temporada para bater a marca!`}
+                        </div>
+                      </div>
+                      <div>
+                        <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:#94a3b8;margin-bottom:4px">
+                          <span>Progresso da Marca</span>
+                          <span style="color:#38bdf8;font-weight:900">${assistsPct}%</span>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.06);height:8px;border-radius:4px;overflow:hidden">
+                          <div style="background:linear-gradient(90deg,#0284c7,#38bdf8);width:${assistsPct}%;height:100%;border-radius:4px"></div>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                })()}
+
+                <!-- 3. SEQUÊNCIA INVICTA (META: 11 PARTIDAS) -->
+                ${(function () {
+                  const streakGoal = 11;
+                  const currentStreakVal = sStats.unbeatenStreak || sStats.currentStreak || 0;
+                  const streakPct = Math.min(100, Math.round((currentStreakVal / streakGoal) * 100));
+                  const isBroken = currentStreakVal > streakGoal;
+                  return `
+                    <div style="background:#090d16;border:1.5px solid ${isBroken ? "#10b981" : "rgba(16,185,129,0.3)"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+                      <div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                          <span style="font-size:11px;color:#10b981;font-weight:800;text-transform:uppercase">🛡️ SEQUÊNCIA INVICTA:</span>
+                          <span class="pill ${isBroken ? "good" : "warning"}" style="font-size:9px;font-weight:900">${isBroken ? "🏆 QUEBRADO!" : "EM DISPUTA"}</span>
+                        </div>
+                        <div style="font-size:22px;font-weight:900;color:#fff">${currentStreakVal} <span style="font-size:13px;color:#94a3b8">/ ${streakGoal} partidas</span></div>
+                        <div style="font-size:11px;color:#cbd5e1;margin:6px 0 10px 0">
+                          ${isBroken ? `⭐ Novo Recordista com ${currentStreakVal} jogos invictos!` : `Alcance ${streakGoal + 1} jogos seguidos sem derrota!`}
+                        </div>
+                      </div>
+                      <div>
+                        <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:#94a3b8;margin-bottom:4px">
+                          <span>Progresso da Marca</span>
+                          <span style="color:#10b981;font-weight:900">${streakPct}%</span>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.06);height:8px;border-radius:4px;overflow:hidden">
+                          <div style="background:linear-gradient(90deg,#059669,#10b981);width:${streakPct}%;height:100%;border-radius:4px"></div>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                })()}
+
+              </div>
+
+              <!-- GALERIA DE RECORDES HISTÓRICOS OFICIALMENTE SUPERADOS -->
               ${
                 (pState.competitionRecordsBroken || []).length > 0
                   ? `
@@ -3229,30 +3342,7 @@
                     .join("")}
                 </div>
               `
-                  : `
-                <div style="background:#090d16;border:1px dashed rgba(56,189,248,0.25);border-radius:14px;padding:24px 18px">
-                  <div style="text-align:center;font-size:13px;color:#94a3b8;margin-bottom:14px">
-                    Você ainda não quebrou nenhum recorde histórico oficial. Veja as marcas lendárias atuais a serem batidas:
-                  </div>
-                  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px">
-                    <div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
-                      <div style="font-size:11px;color:#f59e0b;font-weight:800">⚽ RECORDE DE GOLS EM 1 ANO:</div>
-                      <div style="font-size:18px;font-weight:900;color:#fff;margin:4px 0">14 Gols</div>
-                      <div style="font-size:11px;color:#64748b">Marque 15 gols na temporada para se tornar o recordista!</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
-                      <div style="font-size:11px;color:#38bdf8;font-weight:800">🎯 RECORDE DE ASSISTÊNCIAS:</div>
-                      <div style="font-size:18px;font-weight:900;color:#fff;margin:4px 0">8 Passes Decisivos</div>
-                      <div style="font-size:11px;color:#64748b">Dê 9 assistências na temporada para bater a marca!</div>
-                    </div>
-                    <div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
-                      <div style="font-size:11px;color:#10b981;font-weight:800">🛡️ SEQUÊNCIA INVICTA:</div>
-                      <div style="font-size:18px;font-weight:900;color:#fff;margin:4px 0">11 Partidas</div>
-                      <div style="font-size:11px;color:#64748b">Atinja 12 jogos seguidos sem derrota!</div>
-                    </div>
-                  </div>
-                </div>
-              `
+                  : ""
               }
             </div>
 
@@ -3271,48 +3361,74 @@
                 <div style="background:#090d16;padding:18px;border-radius:14px;border:1px solid rgba(255,255,255,0.06)">
                   
                   <!-- ARQUÉTIPO DOMINANTE -->
-                  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06)">
-                    <div style="font-size:32px">${pState.personality?.maverick >= pState.personality?.heartbeat && pState.personality?.maverick >= pState.personality?.virtuoso ? "🔥" : pState.personality?.heartbeat >= pState.personality?.maverick && pState.personality?.heartbeat >= pState.personality?.virtuoso ? "💙" : "⚡"}</div>
-                    <div>
-                      <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">ARQUÉTIPO DOMINANTE:</div>
-                      <div style="font-size:16px;font-weight:900;color:${pState.personality?.maverick >= pState.personality?.heartbeat && pState.personality?.maverick >= pState.personality?.virtuoso ? "#ef4444" : pState.personality?.heartbeat >= pState.personality?.maverick && pState.personality?.heartbeat >= pState.personality?.virtuoso ? "#38bdf8" : "#a855f7"}">
-                        ${pState.personality?.maverick >= pState.personality?.heartbeat && pState.personality?.maverick >= pState.personality?.virtuoso ? "Astro Individualista (Maverick)" : pState.personality?.heartbeat >= pState.personality?.maverick && pState.personality?.heartbeat >= pState.personality?.virtuoso ? "Líder de Equipe (Heartbeat)" : "Mestre Focado (Virtuoso)"}
-                      </div>
-                    </div>
-                  </div>
+                  ${(function () {
+                    const p = pState.personality || { maverick: 30, heartbeat: 30, virtuoso: 40 };
+                    let dominantKey = "virtuoso";
+                    if ((p.maverick || 0) >= (p.heartbeat || 0) && (p.maverick || 0) >= (p.virtuoso || 0)) dominantKey = "maverick";
+                    else if ((p.heartbeat || 0) >= (p.maverick || 0) && (p.heartbeat || 0) >= (p.virtuoso || 0)) dominantKey = "heartbeat";
 
-                  <!-- 3 BARRAS DE PERSONALIDADE -->
-                  <div style="display:flex;flex-direction:column;gap:10px">
-                    <div>
-                      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#ef4444;margin-bottom:4px">
-                        <span>🔥 MAVERICK (Astro / Decisivo)</span>
-                        <span>${pState.personality?.maverick || 30} pts</span>
-                      </div>
-                      <div style="background:rgba(255,255,255,0.06);height:8px;border-radius:4px;overflow:hidden">
-                        <div style="background:#ef4444;width:${Math.min(100, (pState.personality?.maverick || 30) / 2)}%;height:100%;border-radius:4px"></div>
-                      </div>
-                    </div>
+                    const title = dominantKey === "maverick" ? "Astro Individualista (Maverick)" : dominantKey === "heartbeat" ? "Líder de Equipe (Heartbeat)" : "Mestre Focado (Virtuoso)";
+                    const color = dominantKey === "maverick" ? "#ef4444" : dominantKey === "heartbeat" ? "#38bdf8" : "#a855f7";
+                    const icon = dominantKey === "maverick" ? "🔥" : dominantKey === "heartbeat" ? "💙" : "⚡";
 
-                    <div>
-                      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#38bdf8;margin-bottom:4px">
-                        <span>💙 HEARTBEAT (Líder / Espírito Coletivo)</span>
-                        <span>${pState.personality?.heartbeat || 30} pts</span>
+                    return `
+                      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                        <div style="font-size:32px">${icon}</div>
+                        <div>
+                          <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">ARQUÉTIPO DOMINANTE:</div>
+                          <div style="font-size:16px;font-weight:900;color:${color}">${title}</div>
+                        </div>
                       </div>
-                      <div style="background:rgba(255,255,255,0.06);height:8px;border-radius:4px;overflow:hidden">
-                        <div style="background:#38bdf8;width:${Math.min(100, (pState.personality?.heartbeat || 30) / 2)}%;height:100%;border-radius:4px"></div>
-                      </div>
-                    </div>
 
-                    <div>
-                      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#a855f7;margin-bottom:4px">
-                        <span>⚡ VIRTUOSO (Técnico / Focado / Profissional)</span>
-                        <span>${pState.personality?.virtuoso || 40} pts</span>
+                      <!-- 3 BARRAS DE PERSONALIDADE -->
+                      <div style="display:flex;flex-direction:column;gap:10px">
+                        <div>
+                          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#ef4444;margin-bottom:4px">
+                            <span>🔥 MAVERICK (Astro / Decisivo)</span>
+                            <span>${p.maverick || 30} pts</span>
+                          </div>
+                          <div style="background:rgba(255,255,255,0.06);height:8px;border-radius:4px;overflow:hidden">
+                            <div style="background:#ef4444;width:${Math.min(100, (p.maverick || 30) / 2)}%;height:100%;border-radius:4px"></div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#38bdf8;margin-bottom:4px">
+                            <span>💙 HEARTBEAT (Líder / Espírito Coletivo)</span>
+                            <span>${p.heartbeat || 30} pts</span>
+                          </div>
+                          <div style="background:rgba(255,255,255,0.06);height:8px;border-radius:4px;overflow:hidden">
+                            <div style="background:#38bdf8;width:${Math.min(100, (p.heartbeat || 30) / 2)}%;height:100%;border-radius:4px"></div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#a855f7;margin-bottom:4px">
+                            <span>⚡ VIRTUOSO (Técnico / Focado / Profissional)</span>
+                            <span>${p.virtuoso || 40} pts</span>
+                          </div>
+                          <div style="background:rgba(255,255,255,0.06);height:8px;border-radius:4px;overflow:hidden">
+                            <div style="background:#a855f7;width:${Math.min(100, (p.virtuoso || 40) / 2)}%;height:100%;border-radius:4px"></div>
+                          </div>
+                        </div>
                       </div>
-                      <div style="background:rgba(255,255,255,0.06);height:8px;border-radius:4px;overflow:hidden">
-                        <div style="background:#a855f7;width:${Math.min(100, (pState.personality?.virtuoso || 40) / 2)}%;height:100%;border-radius:4px"></div>
+
+                      <!-- BÔNUS ATIVO DO ARQUÉTIPO -->
+                      <div style="margin-top:14px;background:${dominantKey === "maverick" ? "rgba(239,68,68,0.12)" : dominantKey === "heartbeat" ? "rgba(56,189,248,0.12)" : "rgba(168,85,247,0.12)"};border:1px solid ${dominantKey === "maverick" ? "rgba(239,68,68,0.3)" : dominantKey === "heartbeat" ? "rgba(56,189,248,0.3)" : "rgba(168,85,247,0.3)"};border-radius:10px;padding:12px;font-size:11px;color:${dominantKey === "maverick" ? "#fca5a5" : dominantKey === "heartbeat" ? "#7dd3fc" : "#d8b4fe"};font-weight:700;line-height:1.5">
+                        <div style="font-size:12px;font-weight:900;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+                          <span>${icon}</span>
+                          <span>BÔNUS ATIVO DE ARQUÉTIPO (${dominantKey.toUpperCase()}):</span>
+                        </div>
+                        ${
+                          dominantKey === "maverick"
+                            ? "+8% de precisão em finalizações nos últimos 15 min de jogo e +15% de seguidores ganhos no FootGram após marcar gols."
+                            : dominantKey === "heartbeat"
+                              ? "+10% de moral do elenco, resistência à pressão em clássicos e maior facilidade para virar Capitão."
+                              : "+12% de ganho de XP nos treinos semanais, recuperação acelerada de energia e desaceleração do declínio físico."
+                        }
                       </div>
-                    </div>
-                  </div>
+                    `;
+                  })()}
                 </div>
 
                 <!-- COLUNA 2: BARRAS DE RELACIONAMENTO (0 A 100%) -->
@@ -3363,10 +3479,12 @@
 
           </div>
         `
-              : `
+            : subTab === "matches"
+              ? `
           <!-- SUB-ABA 3: HISTÓRICO DE JOGOS DISPUTADOS -->
-          
           <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
+            
+            <!-- HEADER DA SUB-ABA -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
               <div>
                 <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
@@ -3382,62 +3500,411 @@
               </div>
             </div>
 
-            ${
-              history.length > 0
-                ? `
+            <!-- CARD DESTAQUE: MELHOR ATUAÇÃO DA TEMPORADA -->
+            ${(function () {
+              if (!seasonMatchesList.length) {
+                return `
+                  <div style="background:#090d16;border:1px dashed rgba(56,189,248,0.3);border-radius:14px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;color:#94a3b8;font-size:12px">
+                    <span style="font-size:24px">⭐</span>
+                    <span><b>Melhor Atuação da Temporada:</b> Aguardando sua estreia em campo para registrar a maior nota do ano!</span>
+                  </div>
+                `;
+              }
+              const bestMatch = [...seasonMatchesList].sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0))[0];
+              return `
+                <div style="background:linear-gradient(135deg,rgba(56,189,248,0.12),#090d16);border:1.5px solid rgba(56,189,248,0.4);border-radius:16px;padding:18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+                  <div style="display:flex;align-items:center;gap:14px">
+                    <div style="width:48px;height:48px;border-radius:12px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);display:flex;align-items:center;justify-content:center;font-size:24px">
+                      ⭐
+                    </div>
+                    <div>
+                      <div style="font-size:10px;color:#38bdf8;font-weight:900;text-transform:uppercase;letter-spacing:0.5px">MELHOR ATUAÇÃO DA TEMPORADA</div>
+                      <div style="font-size:16px;font-weight:900;color:#fff">${esc(bestMatch.opponent || "Adversário")} (${bestMatch.score || "-"})</div>
+                      <div style="font-size:11px;color:#cbd5e1;margin-top:2px">
+                        📅 ${bestMatch.date || "—"} • ⏱️ ${bestMatch.minutes || 0}' jogados • ⚽ ${bestMatch.goals || 0} gol(s) • 🎯 ${bestMatch.assists || 0} assist(s)
+                      </div>
+                    </div>
+                  </div>
+                  <div style="text-align:right">
+                    <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">NOTA OFICIAL</div>
+                    <div style="font-size:26px;font-weight:900;color:#10b981">${bestMatch.rating}</div>
+                  </div>
+                </div>
+              `;
+            })()}
+
+            <!-- FITA DE FORMA RECENTE (ÚLTIMOS 5 JOGOS) & FILTROS RÁPIDOS -->
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06)">
+              
+              <!-- FORMA RECENTE -->
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase">Forma Recente:</span>
+                ${(function () {
+                  const last5 = (history || []).slice(0, 5);
+                  if (!last5.length) return `<span style="font-size:11px;color:#64748b">—</span>`;
+                  return last5
+                    .map((m) => {
+                      const isWin = m.won === true || (m.score && parseInt(m.score.split("x")[0]) > parseInt(m.score.split("x")[1]));
+                      const isLoss = m.lost === true || (m.score && parseInt(m.score.split("x")[0]) < parseInt(m.score.split("x")[1]));
+                      const badge = isWin ? "V" : isLoss ? "D" : "E";
+                      const bg = isWin ? "#10b981" : isLoss ? "#ef4444" : "#64748b";
+                      return `
+                        <span title="${m.date || ""} vs ${m.opponent || ""} (${m.score || ""}) - Nota ${m.rating}"
+                          style="width:26px;height:26px;border-radius:50%;background:${bg};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,0.5)">
+                          ${badge}
+                        </span>
+                      `;
+                    })
+                    .join("");
+                })()}
+              </div>
+
+              <!-- BOTÕES DE FILTRO -->
+              ${(function () {
+                const curFilter = window.__afmPlayerMatchesFilter || "all";
+                return `
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <button type="button" class="btn btn-player-match-filter" data-filter="all"
+                      style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "all" ? "background:#38bdf8;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+                      Todos (${history.length})
+                    </button>
+                    <button type="button" class="btn btn-player-match-filter" data-filter="goals"
+                      style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "goals" ? "background:#10b981;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+                      ⚽ Com Gol (${history.filter((m) => (Number(m.goals) || 0) > 0).length})
+                    </button>
+                    <button type="button" class="btn btn-player-match-filter" data-filter="assists"
+                      style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "assists" ? "background:#60a5fa;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+                      🎯 Com Assistência (${history.filter((m) => (Number(m.assists) || 0) > 0).length})
+                    </button>
+                    <button type="button" class="btn btn-player-match-filter" data-filter="mvp"
+                      style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "mvp" ? "background:#facc15;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+                      ⭐ Nota 8.0+ / MVP (${history.filter((m) => (Number(m.rating) || 0) >= 8.0 || m.isMvp).length})
+                    </button>
+                  </div>
+                `;
+              })()}
+            </div>
+
+            <!-- TABELA DE ATUAÇÕES -->
+            ${(function () {
+              const curFilter = window.__afmPlayerMatchesFilter || "all";
+              const filteredMatches = history.filter((m) => {
+                if (curFilter === "goals") return (Number(m.goals) || 0) > 0;
+                if (curFilter === "assists") return (Number(m.assists) || 0) > 0;
+                if (curFilter === "mvp") return (Number(m.rating) || 0) >= 8.0 || m.isMvp;
+                return true;
+              });
+
+              if (!filteredMatches.length) {
+                return `
+                  <div style="text-align:center;padding:36px 12px;color:#64748b;font-size:13px">
+                    ${history.length ? "Nenhuma partida corresponde ao filtro selecionado." : "Nenhuma partida oficial registrada ainda. Entre em campo na próxima rodada para inaugurar seu histórico!"}
+                  </div>
+                `;
+              }
+
+              return `
+                <div class="tablewrap" style="overflow-x:auto">
+                  <table class="table" style="width:100%;border-collapse:collapse;font-size:12px">
+                    <thead>
+                      <tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:#94a3b8;text-align:left">
+                        <th style="padding:10px 8px">Data</th>
+                        <th style="padding:10px 8px">Adversário</th>
+                        <th style="padding:10px 8px;text-align:center">Placar</th>
+                        <th style="padding:10px 8px;text-align:center">Minutos</th>
+                        <th style="padding:10px 8px;text-align:center">Gols</th>
+                        <th style="padding:10px 8px;text-align:center">Assists</th>
+                        <th style="padding:10px 8px;text-align:center">Cartões</th>
+                        <th style="padding:10px 8px;text-align:center">Nota</th>
+                        <th style="padding:10px 8px;text-align:center">Súmula Pop-up</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${filteredMatches
+                        .map(
+                          (m, idx) => `
+                        <tr class="btn-match-history-row" data-match-idx="${idx}" style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:background 0.2s" title="Clique para abrir a súmula e detalhes da partida">
+                          <td style="padding:10px 8px;color:#cbd5e1">${m.date || "—"}</td>
+                          <td style="padding:10px 8px;font-weight:700;color:#fff">${esc(m.opponent || "Adversário")}</td>
+                          <td style="padding:10px 8px;text-align:center;font-weight:800;color:#fff">${m.score || "-"}</td>
+                          <td style="padding:10px 8px;text-align:center;color:#94a3b8">${m.minutes || 0}'</td>
+                          <td style="padding:10px 8px;text-align:center;font-weight:900;color:#10b981">${m.goals ? `⚽ ${m.goals}` : "—"}</td>
+                          <td style="padding:10px 8px;text-align:center;font-weight:900;color:#38bdf8">${m.assists ? `👟 ${m.assists}` : "—"}</td>
+                          <td style="padding:10px 8px;text-align:center;font-size:13px">
+                            ${m.redCard ? "🟥" : m.yellowCard ? "🟨" : "—"}
+                          </td>
+                          <td style="padding:10px 8px;text-align:center">
+                            <span class="pill ${Number(m.rating) >= 7.5 ? "good" : Number(m.rating) >= 6.0 ? "primary" : "danger"}" style="font-weight:900;padding:3px 8px;border-radius:6px">
+                              ${m.rating}
+                            </span>
+                          </td>
+                          <td style="padding:10px 8px;text-align:center">
+                            <button type="button" class="btn btn-view-match-details" data-match-idx="${idx}" style="background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+                              🔍 Súmula
+                            </button>
+                          </td>
+                        </tr>
+                      `,
+                        )
+                        .join("")}
+                    </tbody>
+                  </table>
+                </div>
+              `;
+            })()}
+
+          </div>
+        `
+            : `
+          <!-- SUB-ABA 4: CARREIRA TOTAL & LINHA DO TEMPO HISTÓRICA -->
+          <div style="display:flex;flex-direction:column;gap:18px">
+            
+            <!-- HEADER DA CARREIRA ALL-TIME -->
+            <div class="card" style="background:linear-gradient(135deg,#064e3b,#090d16);border:1.5px solid rgba(16,185,129,0.4);border-radius:20px;padding:22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;box-shadow:0 12px 35px rgba(0,0,0,0.6)">
+              <div style="display:flex;align-items:center;gap:16px">
+                <div style="width:60px;height:60px;border-radius:16px;background:rgba(16,185,129,0.15);border:1.5px solid rgba(16,185,129,0.3);display:flex;align-items:center;justify-content:center;font-size:32px">
+                  📈
+                </div>
+                <div>
+                  <div style="font-size:11px;color:#34d399;font-weight:900;text-transform:uppercase;letter-spacing:1px">
+                    HISTÓRICO ACUMULADO DA CARREIRA PROFISSIONAL
+                  </div>
+                  <h2 style="margin:2px 0 6px 0;font-size:22px;font-weight:900;color:#fff">
+                    ${esc(athlete?.name || "Seu Craque")} <span style="font-size:12px;color:#34d399;background:rgba(16,185,129,0.15);padding:3px 10px;border-radius:8px;border:1px solid rgba(16,185,129,0.3)">${athlete?.pos || "ATA"}</span>
+                  </h2>
+                  <div style="font-size:13px;color:#cbd5e1">
+                    Defendendo as cores do: <b style="color:#fff">${esc(currentClub)}</b> • ${currentSeason - 2026 + 1}ª Temporada Oficial
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <div style="background:#090d16;padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);text-align:center">
+                  <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">G+A ALL-TIME</div>
+                  <div style="font-size:22px;font-weight:900;color:#34d399">${(ch?.totals?.goals || 0) + (ch?.totals?.assists || 0)}</div>
+                </div>
+                <div style="background:#090d16;padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);text-align:center">
+                  <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">TÍTULOS TOTAIS</div>
+                  <div style="font-size:22px;font-weight:900;color:#facc15">${allTitles.length}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- GRID DE 8 MÉTRICAS GERAIS DA CARREIRA (ALL-TIME) -->
+            ${(function () {
+              const totals = ch?.totals || { games: 0, starts: 0, minutes: 0, goals: 0, assists: 0, mvp: 0, yellowCards: 0, redCards: 0, ratingSum: 0 };
+              const games = totals.games || 0;
+              const starts = totals.starts || 0;
+              const bench = Math.max(0, games - starts);
+              const minutes = totals.minutes || 0;
+              const goals = totals.goals || 0;
+              const assists = totals.assists || 0;
+              const ga = goals + assists;
+              const avgRating = games > 0 ? (totals.ratingSum / games).toFixed(2) : "—";
+              const mvp = totals.mvp || 0;
+              const yellows = totals.yellowCards || 0;
+              const reds = totals.redCards || 0;
+
+              return `
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));gap:14px">
+                  
+                  <!-- 1. JOGOS TOTAIS -->
+                  <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;text-align:center">
+                    <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:6px">JOGOS NA CARREIRA</div>
+                    <div style="font-size:28px;font-weight:900;color:#fff">${games}</div>
+                    <div style="font-size:11px;color:#34d399;font-weight:700;margin-top:4px">
+                      ${starts} Titular • ${bench} Reserva
+                    </div>
+                  </div>
+
+                  <!-- 2. MINUTOS TOTAIS -->
+                  <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;text-align:center">
+                    <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:6px">MINUTOS JOGADOS</div>
+                    <div style="font-size:28px;font-weight:900;color:#38bdf8">${minutes}'</div>
+                    <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:4px">
+                      Média: ${games ? Math.round(minutes / games) : 0}' / jogo
+                    </div>
+                  </div>
+
+                  <!-- 3. GOLS TOTAIS -->
+                  <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;text-align:center">
+                    <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:6px">GOLS MARCADOS</div>
+                    <div style="font-size:28px;font-weight:900;color:#10b981">${goals}</div>
+                    <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:4px">
+                      Média: ${games ? (goals / games).toFixed(2) : "0.00"} / jogo
+                    </div>
+                  </div>
+
+                  <!-- 4. ASSISTÊNCIAS TOTAIS -->
+                  <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;text-align:center">
+                    <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:6px">ASSISTÊNCIAS TOTAIS</div>
+                    <div style="font-size:28px;font-weight:900;color:#60a5fa">${assists}</div>
+                    <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:4px">
+                      Média: ${games ? (assists / games).toFixed(2) : "0.00"} / jogo
+                    </div>
+                  </div>
+
+                  <!-- 5. NOTA MÉDIA GERAL -->
+                  <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;text-align:center">
+                    <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:6px">NOTA MÉDIA GERAL</div>
+                    <div style="font-size:28px;font-weight:900;color:${games > 0 ? (Number(avgRating) >= 7.5 ? "#10b981" : Number(avgRating) >= 6.5 ? "#f59e0b" : "#ef4444") : "#94a3b8"}">
+                      ${avgRating}
+                    </div>
+                    <div style="font-size:11px;color:#94a3b8;font-weight:700;margin-top:4px">
+                      ${games > 0 ? (Number(avgRating) >= 7.5 ? "⭐ Lendária" : Number(avgRating) >= 6.5 ? "✓ Regular/Boa" : "⚠️ Em Evolução") : "Aguardando estreia"}
+                    </div>
+                  </div>
+
+                  <!-- 6. PARTICIPAÇÕES DIRETAS (G/A) -->
+                  <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;text-align:center">
+                    <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:6px">PARTICIPAÇÕES (G+A)</div>
+                    <div style="font-size:28px;font-weight:900;color:#c084fc">${ga}</div>
+                    <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:4px">
+                      ${goals} Gols + ${assists} Assists
+                    </div>
+                  </div>
+
+                  <!-- 7. MELHOR DA PARTIDA (MVP) -->
+                  <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;text-align:center">
+                    <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:6px">MELHOR EM CAMPO</div>
+                    <div style="font-size:28px;font-weight:900;color:#facc15">${mvp}</div>
+                    <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:4px">
+                      Prêmios MVP da Partida
+                    </div>
+                  </div>
+
+                  <!-- 8. DISCIPLINA ALL-TIME -->
+                  <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;text-align:center">
+                    <div style="font-size:11px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:6px">DISCIPLINA HISTÓRICA</div>
+                    <div style="font-size:24px;font-weight:900;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px">
+                      <span>🟨 ${yellows}</span>
+                      <span>•</span>
+                      <span>🟥 ${reds}</span>
+                    </div>
+                    <div style="font-size:11px;color:#64748b;font-weight:700;margin-top:4px">
+                      Total de Cartões Recebidos
+                    </div>
+                  </div>
+
+                </div>
+              `;
+            })()}
+
+            <!-- CARD DESTAQUE: MELHOR PARTIDA DA CARREIRA (ALL-TIME) -->
+            ${(function () {
+              const best = ch?.bestMatch;
+              if (!best) {
+                return `
+                  <div class="card" style="background:#101724;border:1px dashed rgba(16,185,129,0.3);border-radius:18px;padding:22px;text-align:center;color:#94a3b8;font-size:13px">
+                    <span style="font-size:32px;display:block;margin-bottom:8px">⭐</span>
+                    <b>Partida Inesquecível:</b> Nenhuma atuação lendária registrada ainda. Entre em campo para cravar seu recorde pessoal de todos os tempos!
+                  </div>
+                `;
+              }
+              return `
+                <div class="card" style="background:linear-gradient(135deg,rgba(16,185,129,0.12),#101724);border:1.5px solid rgba(16,185,129,0.4);border-radius:18px;padding:22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+                  <div style="display:flex;align-items:center;gap:16px">
+                    <div style="width:54px;height:54px;border-radius:14px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);display:flex;align-items:center;justify-content:center;font-size:28px">
+                      ⭐
+                    </div>
+                    <div>
+                      <div style="font-size:10px;color:#34d399;font-weight:900;text-transform:uppercase;letter-spacing:1px">MELHOR ATUAÇÃO DE TODOS OS TEMPOS</div>
+                      <div style="font-size:18px;font-weight:900;color:#fff">${esc(best.opponent || "Adversário")} (${best.score || "-"})</div>
+                      <div style="font-size:12px;color:#cbd5e1;margin-top:2px">
+                        📅 ${best.date || "—"} • ⚽ ${best.goals || 0} gol(s) • 🎯 ${best.assists || 0} assist(s)
+                      </div>
+                    </div>
+                  </div>
+                  <div style="text-align:right">
+                    <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">MAIOR NOTA DA CARREIRA</div>
+                    <div style="font-size:32px;font-weight:900;color:#10b981">${best.rating}</div>
+                  </div>
+                </div>
+              `;
+            })()}
+
+            <!-- TIMELINE / TABELA DE TEMPORADAS E CLUBES DEFENDIDOS -->
+            <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+                <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+                  📅 LINHA DO TEMPO & CLUBES DEFENDIDOS
+                </h3>
+                <span style="font-size:12px;color:#94a3b8;font-weight:700">Histórico cronológico detalhado por temporada</span>
+              </div>
+
               <div class="tablewrap" style="overflow-x:auto">
                 <table class="table" style="width:100%;border-collapse:collapse;font-size:12px">
                   <thead>
                     <tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:#94a3b8;text-align:left">
-                      <th style="padding:10px 8px">Data</th>
-                      <th style="padding:10px 8px">Adversário</th>
-                      <th style="padding:10px 8px;text-align:center">Placar</th>
-                      <th style="padding:10px 8px;text-align:center">Minutos</th>
+                      <th style="padding:10px 8px">Temporada</th>
+                      <th style="padding:10px 8px">Clube & Divisão</th>
+                      <th style="padding:10px 8px;text-align:center">Jogos</th>
                       <th style="padding:10px 8px;text-align:center">Gols</th>
                       <th style="padding:10px 8px;text-align:center">Assists</th>
-                      <th style="padding:10px 8px;text-align:center">Cartões</th>
-                      <th style="padding:10px 8px;text-align:center">Nota</th>
-                      <th style="padding:10px 8px;text-align:center">Súmula Pop-up</th>
+                      <th style="padding:10px 8px;text-align:center">Nota Média</th>
+                      <th style="padding:10px 8px;text-align:center">Títulos no Ano</th>
                     </tr>
                   </thead>
                   <tbody>
-                    ${history
+                    <!-- Linha da Temporada Atual -->
+                    <tr style="border-bottom:1px solid rgba(16,185,129,0.2);background:rgba(16,185,129,0.05);font-weight:700">
+                      <td style="padding:12px 8px;color:#34d399">
+                        ${currentSeason} <span class="pill good" style="font-size:9px;padding:2px 6px;margin-left:4px">ATUAL</span>
+                      </td>
+                      <td style="padding:12px 8px;color:#fff">
+                        <b>${esc(currentClub)}</b> <span style="font-size:11px;color:#94a3b8">(${esc(state.competition || "Divisão Principal")})</span>
+                      </td>
+                      <td style="padding:12px 8px;text-align:center;color:#fff">${seasonMatches}</td>
+                      <td style="padding:12px 8px;text-align:center;font-weight:900;color:#10b981">${seasonGoals}</td>
+                      <td style="padding:12px 8px;text-align:center;font-weight:900;color:#38bdf8">${seasonAssists}</td>
+                      <td style="padding:12px 8px;text-align:center">
+                        <span class="pill ${hasSeasonMatches ? (Number(seasonAvgRating) >= 7.5 ? "good" : Number(seasonAvgRating) >= 6.0 ? "primary" : "danger") : ""}" style="font-weight:900;padding:3px 8px">
+                          ${seasonAvgRating}
+                        </span>
+                      </td>
+                      <td style="padding:12px 8px;text-align:center;color:#facc15">
+                        ${allTitles.filter((t) => t.year === currentSeason).map((t) => esc(t.name)).join(", ") || "—"}
+                      </td>
+                    </tr>
+
+                    <!-- Linhas das Temporadas Anteriores -->
+                    ${(ch?.seasons || [])
+                      .filter((s) => Number(s.year) !== currentSeason)
                       .map(
-                        (m, idx) => `
-                      <tr class="btn-match-history-row" data-match-idx="${idx}" style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:background 0.2s" title="Clique para abrir a súmula e detalhes da partida">
-                        <td style="padding:10px 8px;color:#cbd5e1">${m.date || "—"}</td>
-                        <td style="padding:10px 8px;font-weight:700;color:#fff">${esc(m.opponent || "Adversário")}</td>
-                        <td style="padding:10px 8px;text-align:center;font-weight:800;color:#fff">${m.score || "-"}</td>
-                        <td style="padding:10px 8px;text-align:center;color:#94a3b8">${m.minutes || 0}'</td>
-                        <td style="padding:10px 8px;text-align:center;font-weight:900;color:#10b981">${m.goals ? `⚽ ${m.goals}` : "—"}</td>
-                        <td style="padding:10px 8px;text-align:center;font-weight:900;color:#38bdf8">${m.assists ? `👟 ${m.assists}` : "—"}</td>
-                        <td style="padding:10px 8px;text-align:center;font-size:13px">
-                          ${m.redCard ? "🟥" : m.yellowCard ? "🟨" : "—"}
-                        </td>
-                        <td style="padding:10px 8px;text-align:center">
-                          <span class="pill ${m.rating >= 7.5 ? "good" : m.rating >= 6.0 ? "primary" : "danger"}" style="font-weight:900;padding:3px 8px;border-radius:6px">
-                            ${m.rating}
-                          </span>
-                        </td>
-                        <td style="padding:10px 8px;text-align:center">
-                          <button type="button" class="btn btn-view-match-details" data-match-idx="${idx}" style="background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
-                            🔍 Súmula
-                          </button>
-                        </td>
-                      </tr>
-                    `,
+                        (s) => `
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.04);color:#cbd5e1">
+                          <td style="padding:10px 8px;font-weight:800">${s.year}</td>
+                          <td style="padding:10px 8px;color:#fff">
+                            ${esc(s.club || "Clube")} <span style="font-size:11px;color:#64748b">(${esc(s.division || "")})</span>
+                          </td>
+                          <td style="padding:10px 8px;text-align:center">${s.games || 0}</td>
+                          <td style="padding:10px 8px;text-align:center;font-weight:800;color:#10b981">${s.goals || 0}</td>
+                          <td style="padding:10px 8px;text-align:center;font-weight:800;color:#38bdf8">${s.assists || 0}</td>
+                          <td style="padding:10px 8px;text-align:center">
+                            <span class="pill ${Number(s.avgRating) >= 7.5 ? "good" : Number(s.avgRating) >= 6.0 ? "primary" : "danger"}" style="font-weight:900;padding:2px 6px">
+                              ${Number(s.avgRating) ? Number(s.avgRating).toFixed(2) : "—"}
+                            </span>
+                          </td>
+                          <td style="padding:10px 8px;text-align:center;color:#facc15">
+                            ${(s.titles || []).map((t) => esc(t)).join(", ") || "—"}
+                          </td>
+                        </tr>
+                      `,
                       )
                       .join("")}
                   </tbody>
                 </table>
               </div>
-            `
-                : `
-              <div style="text-align:center;padding:36px 12px;color:#64748b;font-size:13px">
-                Nenhuma partida oficial registrada ainda. Entre em campo na próxima rodada para inaugurar seu histórico!
+
+              <!-- CARD DE TRANSIÇÃO E BIOGRAFIA DE TREINADOR -->
+              <div style="margin-top:16px;background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+                <span style="font-size:22px">🎓</span>
+                <div style="font-size:11px;color:#94a3b8;line-height:1.5">
+                  <b style="color:#34d399">Legado & Transição para Treinador:</b> Cada partida, gol e título registrado nesta linha do tempo é preservado na sua carreira e construirá a sua reputação esportiva como ex-atleta quando você decidir se aposentar dos gramados.
+                </div>
               </div>
-            `
-            }
+            </div>
+
           </div>
         `
         }
@@ -4747,6 +5214,8 @@
 
     window.__afmGalaTab = window.__afmGalaTab || "ballon";
 
+    const isPreview = !s?.playerCareerState?.lastSeasonGalaAwards || Number(s?.playerCareerState?.lastSeasonGalaAwards?.season) !== Number(galaData.season);
+
     function renderGalaContent() {
       const activeTab = window.__afmGalaTab || "ballon";
       const b3 = galaData.ballonDorTop3 || [];
@@ -4948,11 +5417,12 @@
           <!-- BANNER DO EVENTO -->
           <div style="text-align:center;margin-bottom:18px">
             <div style="font-size:11px;font-weight:900;color:#facc15;text-transform:uppercase;letter-spacing:2px">
-              🏆 CERIMÔNIA OFICIAL DE GALA DO FUTEBOL
+              ${isPreview ? "🌟 PRÉVIA DA CERIMÔNIA DE GALA & CANDIDATOS À BOLA DE OURO" : "🏆 CERIMÔNIA OFICIAL DE GALA DO FUTEBOL"}
             </div>
             <h2 style="margin:4px 0 2px 0;font-size:24px;font-weight:900;color:#fff">
-              MELHORES DO ANO & PRÊMIOS DA TEMPORADA ${galaData.season} 🌟
+              ${isPreview ? `PROJEÇÕES & CANDIDATOS À BOLA DE OURO (${galaData.season}) 🌟` : `MELHORES DO ANO & PRÊMIOS DA TEMPORADA ${galaData.season} 🌟`}
             </h2>
+            ${isPreview ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px">Ranking e projeções atuais para os prêmios da temporada em andamento.</div>` : ""}
           </div>
 
           <!-- BANNER DE CELEBRAÇÃO CASO O USUÁRIO TENHA VENCIDO ALGUM PRÊMIO -->
@@ -5101,6 +5571,14 @@
       btn.onclick = () => {
         const target = btn.dataset.subtab || "season";
         window.__afmPlayerStatsSubTab = target;
+        if (typeof window.render === "function") window.render();
+      };
+    });
+
+    // Filtros Rápidos de Partidas em Histórico de Jogos
+    document.querySelectorAll(".btn-player-match-filter").forEach((btn) => {
+      btn.onclick = () => {
+        window.__afmPlayerMatchesFilter = btn.dataset.filter || "all";
         if (typeof window.render === "function") window.render();
       };
     });
@@ -5475,10 +5953,18 @@
       };
     });
 
-    // Navegação de Sub-Abas em Estatísticas & Troféus (Dados da Temporada, Sala de Troféus, Histórico)
+    // Navegação de Sub-Abas em Estatísticas & Troféus (Dados da Temporada, Sala de Troféus, Histórico, Carreira)
     document.querySelectorAll(".btn-player-stats-subtab").forEach((btn) => {
       btn.onclick = () => {
         window.__afmPlayerStatsSubTab = btn.dataset.subtab || "season";
+        if (typeof window.render === "function") window.render();
+      };
+    });
+
+    // Filtros Rápidos de Partidas em Histórico de Jogos
+    document.querySelectorAll(".btn-player-match-filter").forEach((btn) => {
+      btn.onclick = () => {
+        window.__afmPlayerMatchesFilter = btn.dataset.filter || "all";
         if (typeof window.render === "function") window.render();
       };
     });

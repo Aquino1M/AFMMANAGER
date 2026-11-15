@@ -1619,6 +1619,9 @@
       matchRatingHistory: []
     };
 
+    // Inicializa histórico acumulado da carreira
+    ensurePlayerCareerHistory(s.playerCareerState, s);
+
     // Gera proposta de patrocínio inicial regional humilde
     s.playerCareerState.agentOffers.push(createStarterSponsorOffer(athleteOvr, s.date));
 
@@ -1636,6 +1639,69 @@
     if(typeof window.render === 'function') window.render();
 
     return s;
+  }
+
+  /**
+   * Garante a inicialização e integridade do histórico acumulado da carreira
+   */
+  function ensurePlayerCareerHistory(pState, gameState) {
+    if (!pState) return null;
+    pState.careerHistory = pState.careerHistory || {};
+    const ch = pState.careerHistory;
+    if (!ch.totals) {
+      ch.totals = {
+        games: 0,
+        starts: 0,
+        minutes: 0,
+        goals: 0,
+        assists: 0,
+        mvp: 0,
+        yellowCards: 0,
+        redCards: 0,
+        ratingSum: 0
+      };
+    }
+    if (!Array.isArray(ch.seasons)) {
+      ch.seasons = [];
+    }
+    if (!('bestMatch' in ch)) {
+      ch.bestMatch = null;
+    }
+
+    // Sincronização retroativa com careerStats caso totals.games esteja zerado mas já existam partidas no save
+    const cStats = pState.careerStats || {};
+    if (ch.totals.games === 0 && (cStats.matches > 0 || (pState.matchRatingHistory || []).length > 0)) {
+      ch.totals.games = cStats.matches || (pState.matchRatingHistory || []).length || 0;
+      ch.totals.starts = cStats.starterCount || 0;
+      ch.totals.minutes = cStats.minutesPlayed || 0;
+      ch.totals.goals = cStats.goals || 0;
+      ch.totals.assists = cStats.assists || 0;
+      ch.totals.mvp = cStats.mvpCount || cStats.manOfTheMatch || 0;
+      ch.totals.yellowCards = cStats.yellowCards || 0;
+      ch.totals.redCards = cStats.redCards || 0;
+      ch.totals.ratingSum = Number(((cStats.avgRating || 6.5) * ch.totals.games).toFixed(2));
+    }
+
+    // Sincroniza bestMatch se ainda for nulo
+    if (!ch.bestMatch && Array.isArray(pState.matchRatingHistory) && pState.matchRatingHistory.length > 0) {
+      let best = null;
+      pState.matchRatingHistory.forEach(m => {
+        const r = Number(m.rating) || 0;
+        if (!best || r > (Number(best.rating) || 0)) {
+          best = {
+            date: m.date || '2026-01-01',
+            opponent: m.opponent || 'Adversário',
+            score: m.score || '1 x 0',
+            goals: Number(m.goals) || 0,
+            assists: Number(m.assists) || 0,
+            rating: r
+          };
+        }
+      });
+      if (best) ch.bestMatch = best;
+    }
+
+    return ch;
   }
 
   /**
@@ -1671,6 +1737,7 @@
     }
 
     const clubName = gameState.club;
+    const matchDate = matchResult?.date || matchResult?.matchDate || gameState?.date || gameState?.currentDate || '2026-01-01';
     const isHome = (matchResult?.h === clubName) || (typeof window.norm === 'function' && window.norm(matchResult?.h) === window.norm(clubName));
     const goalsFor = (typeof matchResult?.goalsFor === 'number') ? matchResult.goalsFor : (isHome ? (matchResult?.hg || 0) : (matchResult?.ag || 0));
     const goalsAgainst = (typeof matchResult?.goalsAgainst === 'number') ? matchResult.goalsAgainst : (isHome ? (matchResult?.ag || 0) : (matchResult?.hg || 0));
@@ -1954,6 +2021,110 @@
       won: won
     });
     pState.matchRatingHistory = pState.matchRatingHistory.slice(0, 30);
+
+    // REGRA IRRESTRITA DE ESTATÍSTICAS E HISTÓRICO: Atualização do histórico acumulado da carreira
+    const ch = ensurePlayerCareerHistory(pState, gameState);
+    if(ch && ch.totals){
+      ch.totals.games = (ch.totals.games || 0) + 1;
+      if(started) ch.totals.starts = (ch.totals.starts || 0) + 1;
+      ch.totals.minutes = (ch.totals.minutes || 0) + playedMinutes;
+      ch.totals.goals = (ch.totals.goals || 0) + goalsScored;
+      ch.totals.assists = (ch.totals.assists || 0) + assistsGiven;
+      if(isMvp) ch.totals.mvp = (ch.totals.mvp || 0) + 1;
+      if(yellowCard) ch.totals.yellowCards = (ch.totals.yellowCards || 0) + 1;
+      if(redCard) ch.totals.redCards = (ch.totals.redCards || 0) + 1;
+      ch.totals.ratingSum = Number(((ch.totals.ratingSum || 0) + finalRating).toFixed(2));
+
+      // Atualiza melhor partida de todos os tempos se superada
+      if(!ch.bestMatch || finalRating > (Number(ch.bestMatch.rating) || 0)){
+        ch.bestMatch = {
+          date: gameState.date || '2026-01-01',
+          opponent: isHome ? matchResult?.a : matchResult?.h,
+          score: `${goalsFor} x ${goalsAgainst}`,
+          goals: goalsScored,
+          assists: assistsGiven,
+          rating: finalRating
+        };
+      }
+    }
+
+    // Verificação de quebra de recordes históricos da competição
+    const cRec = { mostGoals: 14, mostAssists: 8, unbeatenStreak: 11 };
+    pState.competitionRecordsBroken = Array.isArray(pState.competitionRecordsBroken) ? pState.competitionRecordsBroken : [];
+    pState.individualAwards = Array.isArray(pState.individualAwards) ? pState.individualAwards : [];
+
+    if(sStats.goals > cRec.mostGoals && !pState.competitionRecordsBroken.some(r => r.type === 'mostGoalsSeason' && r.year === currentSeasonYear)){
+      const recItem = {
+        type: 'mostGoalsSeason',
+        title: 'Recorde Histórico de Gols em uma Temporada',
+        compName: gameState.league || 'Campeonato Oficial',
+        previousHolder: 'Lenda do Campeonato (14 gols)',
+        value: sStats.goals,
+        year: currentSeasonYear
+      };
+      pState.competitionRecordsBroken.push(recItem);
+      pState.individualAwards.push({
+        id: 'record_goals_' + currentSeasonYear,
+        title: 'Recordista Histórico: Artilharia da Competição',
+        year: currentSeasonYear,
+        icon: '📜',
+        desc: `Novo recorde histórico de ${sStats.goals} gols em uma única temporada!`
+      });
+      pState.xp = (pState.xp || 0) + 500;
+      normalizePlayerProgression(pState);
+      if(window.AFM_Lifestyle?.addPlayerTransaction){
+        window.AFM_Lifestyle.addPlayerTransaction(pState, 15000, 'Premiação por Quebra de Recorde Histórico de Gols (Bônus)', 'in');
+      }
+    }
+
+    if(sStats.assists > cRec.mostAssists && !pState.competitionRecordsBroken.some(r => r.type === 'mostAssistsSeason' && r.year === currentSeasonYear)){
+      const recItem = {
+        type: 'mostAssistsSeason',
+        title: 'Recorde Histórico de Assistências em uma Temporada',
+        compName: gameState.league || 'Campeonato Oficial',
+        previousHolder: 'Meia Clássico (8 assistências)',
+        value: sStats.assists,
+        year: currentSeasonYear
+      };
+      pState.competitionRecordsBroken.push(recItem);
+      pState.individualAwards.push({
+        id: 'record_assists_' + currentSeasonYear,
+        title: 'Recordista Histórico: Líder de Assistências',
+        year: currentSeasonYear,
+        icon: '📜',
+        desc: `Novo recorde histórico de ${sStats.assists} assistências em uma única temporada!`
+      });
+      pState.xp = (pState.xp || 0) + 500;
+      normalizePlayerProgression(pState);
+      if(window.AFM_Lifestyle?.addPlayerTransaction){
+        window.AFM_Lifestyle.addPlayerTransaction(pState, 10000, 'Premiação por Quebra de Recorde Histórico de Assistências (Bônus)', 'in');
+      }
+    }
+
+    const currentStreakVal = sStats.unbeatenStreak || sStats.currentStreak || 0;
+    if(currentStreakVal > cRec.unbeatenStreak && !pState.competitionRecordsBroken.some(r => r.type === 'unbeatenStreak' && r.year === currentSeasonYear)){
+      const recItem = {
+        type: 'unbeatenStreak',
+        title: 'Recorde Histórico de Invencibilidade Consecutiva',
+        compName: gameState.league || 'Campeonato Oficial',
+        previousHolder: 'Esquadrão Imbatível (11 partidas)',
+        value: currentStreakVal,
+        year: currentSeasonYear
+      };
+      pState.competitionRecordsBroken.push(recItem);
+      pState.individualAwards.push({
+        id: 'record_streak_' + currentSeasonYear,
+        title: 'Recordista Histórico: Sequência Invicta',
+        year: currentSeasonYear,
+        icon: '📜',
+        desc: `Incríveis ${currentStreakVal} jogos consecutivos sem derrota!`
+      });
+      pState.xp = (pState.xp || 0) + 500;
+      normalizePlayerProgression(pState);
+      if(window.AFM_Lifestyle?.addPlayerTransaction){
+        window.AFM_Lifestyle.addPlayerTransaction(pState, 12000, 'Premiação por Quebra de Recorde Histórico de Invencibilidade (Bônus)', 'in');
+      }
+    }
 
     const performanceReport = {
       played: true,
@@ -3223,6 +3394,28 @@
     }
     pState.seasonHistory = pState.careerStats.seasonHistory;
 
+    // Sincroniza linha do tempo acumulada em careerHistory.seasons
+    const chAwards = ensurePlayerCareerHistory(pState, gameState);
+    if(chAwards && Array.isArray(chAwards.seasons)){
+      const existCareerIdx = chAwards.seasons.findIndex(h => Number(h.year) === targetSeason);
+      const chSnapshot = {
+        year: targetSeason,
+        club: userClub,
+        division: gameState.division || userCompName || 'Divisão Principal',
+        games: Number(sStats.matches || 0),
+        goals: userGoals,
+        assists: userAssists,
+        avgRating: userAvgRating,
+        ovrEnd: userOvr,
+        titles: (gameState.titles || []).filter(t => ((typeof t === 'object' && t.year) ? Number(t.year) : targetSeason) === targetSeason).map(t => typeof t === 'object' ? t.name : t)
+      };
+      if(existCareerIdx >= 0){
+        chAwards.seasons[existCareerIdx] = chSnapshot;
+      } else {
+        chAwards.seasons.unshift(chSnapshot);
+      }
+    }
+
     const galaData = {
       season: targetSeason,
       ballonDorTop3: ballonDorTop3,
@@ -3397,6 +3590,7 @@
     searchPlayerTransferMarket,
     processDailySponsorTurn,
     processEndOfSeasonAwards,
+    ensurePlayerCareerHistory,
     lifestyle: (typeof window !== 'undefined' ? window.AFM_Lifestyle : null)
   };
   window.AFM_PlayerCareerEngine = window.AFM_PlayerEngine;

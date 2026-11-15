@@ -41,6 +41,12 @@
   - Bens de luxo suportam compra à vista ou financiamento bancário em 12x (30% de entrada imediata e saldo com juros de 10% dividido em 12 meses, quitando automaticamente ao término). Contador Pessoal concede 15% de desconto na manutenção mensal de bens e eleva rendimento do CDB de 1.1% para 1.5%/mês.
   - Negócios e mídia: campanhas de publicidade/VIP consomem 15% de estamina com cooldown semanal; aluguéis de kitnets (R$ 650/mês), escolinha (R$ 2.100/mês) e marca própria (R$ 5.400/mês) creditam na virada mensal. O extrato financeiro preserva histórico das 20 transações mais recentes com valores e cores padronizados.
   - A interface deve exibir botões inteligentes desabilitados com o texto '🔒 Faltam R$ X' sempre que o saldo for inferior ao custo de compra, reforma, contratação, entrada ou investimento.
+- Estatísticas, Recordes e Histórico de Carreira (Aba 🏆 Estatísticas & Troféus):
+  - REGRA IRRESTRITA DE ESTATÍSTICAS E HISTÓRICO: Toda partida simulada ou jogada pelo atleta deve registrar simultaneamente os dados na temporada atual (`seasonStats`), no histórico acumulado da carreira (`careerHistory.totals`), na lista de partidas (`matchRatingHistory`) e verificar quebra de recordes históricos, impedindo exibição de nota média fictícia quando games === 0.
+  - Com 0 partidas disputadas na temporada, a nota média exibe rigorosamente `—` com subtítulo 'Aguardando estreia' (nunca nota fictícia como 6.5) e o parecer do treinador reflete período de pré-temporada em andamento.
+  - Sincronização salarial no card de status lê o salário oficial do atleta (`athlete.wage`), mantendo paridade com Vida & Patrocínios.
+  - Quebra de recordes históricos em tempo real (+15 gols em um ano, +9 assistências, +12 jogos invicto) concede +500 XP, premiação financeira no banco e troféu individual na galeria.
+  - Sub-aba 4 `📈 Carreira Total` cataloga a linha do tempo completa de clubes e temporadas e alimenta a biografia esportiva de legado para quando o atleta se aposentar e virar treinador.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis
