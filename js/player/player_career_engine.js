@@ -327,7 +327,7 @@
       monthlyBase: 180,
       bonusGoalBase: 90,
       bonusWinBase: 70,
-      durationDays: 180,
+      durationDays: 120,
       description: 'Apoio de entrada para joias da base, fornecimento de chuteiras e incentivo financeiro.'
     },
     {
@@ -351,7 +351,7 @@
       monthlyBase: 120,
       bonusGoalBase: 60,
       bonusWinBase: 40,
-      durationDays: 180,
+      durationDays: 90,
       description: 'Parceria esportiva voltada a jovens revelações regionais.'
     },
     // Nível 2: Aspirante / Série C e B (OVR 55 - 64)
@@ -364,7 +364,7 @@
       monthlyBase: 3500,
       bonusGoalBase: 1400,
       bonusWinBase: 1000,
-      durationDays: 180,
+      durationDays: 270,
       description: 'Chuteiras com ajuste adaptativo FUZIONFIT e bônus agressivo por gols.'
     },
     {
@@ -388,7 +388,7 @@
       monthlyBase: 3800,
       bonusGoalBase: 1500,
       bonusWinBase: 1100,
-      durationDays: 180,
+      durationDays: 240,
       description: 'Tradição italiana nos gramados com suporte esportivo completo.'
     },
     // Nível 3: Série A / Destaque Nacional (OVR 65 - 74)
@@ -413,7 +413,7 @@
       monthlyBase: 7000,
       bonusGoalBase: 2200,
       bonusWinBase: 1800,
-      durationDays: 365,
+      durationDays: 300,
       description: 'Leveza ultra fina e conforto superior para atletas velozes e técnicos.'
     },
     {
@@ -425,7 +425,7 @@
       monthlyBase: 8200,
       bonusGoalBase: 2800,
       bonusWinBase: 2200,
-      durationDays: 365,
+      durationDays: 330,
       description: 'Explosão de velocidade e alta remuneração por desempenho nas grandes ligas.'
     },
     // Nível 4: Estrela Internacional / Europa (OVR 75 - 84)
@@ -450,7 +450,7 @@
       monthlyBase: 19000,
       bonusGoalBase: 5500,
       bonusWinBase: 4500,
-      durationDays: 365,
+      durationDays: 330,
       description: 'Contrato de prestígio global com a gigante das três listras.'
     },
     {
@@ -462,7 +462,7 @@
       monthlyBase: 17500,
       bonusGoalBase: 4800,
       bonusWinBase: 3800,
-      durationDays: 365,
+      durationDays: 300,
       description: 'Inovação de ajuste personalizado e grandes bonificações contratuais.'
     },
     // Nível 5: Craque Mundial / Superastro (OVR 85+)
@@ -487,7 +487,7 @@
       monthlyBase: 50000,
       bonusGoalBase: 14000,
       bonusWinBase: 11000,
-      durationDays: 365,
+      durationDays: 450,
       description: 'Edição de ouro com bonificações históricas de campeão mundial.'
     }
   ];
@@ -502,7 +502,7 @@
       bonusGoal: 1000,
       bonusAssist: 700,
       monthlyStipend: 1800,
-      durationDays: 180,
+      durationDays: 120,
       minOvr: 42,
       description: 'Apoio direto desde a categoria de base com materiais esportivos e incentivo financeiro.'
     },
@@ -514,7 +514,7 @@
       bonusGoal: 1600,
       bonusAssist: 800,
       monthlyStipend: 3200,
-      durationDays: 180,
+      durationDays: 240,
       minOvr: 55,
       description: 'Bônus agressivo por gols marcados e campanhas digitais.'
     },
@@ -593,7 +593,7 @@
 
     pState.availableSponsorOffers = seasonOffers;
     pState.lastSponsorSeasonGenerated = curYear;
-    pState.sponsorOfferBalanceVersion = 2;
+    pState.sponsorOfferBalanceVersion = 3;
     return seasonOffers;
   }
 
@@ -607,7 +607,7 @@
 
     const athlete = (gameState.squad || []).find(p => p.id === gameState.controlledPlayerId) || {};
     const ovr = Number(athlete.ovr) || Number(athlete.overall) || Number(pState.athleteOvr) || Number(pState.overall) || 0;
-    if(!Array.isArray(pState.availableSponsorOffers) || pState.availableSponsorOffers.length === 0 || pState.lastSponsorSeasonGenerated !== curYear || pState.sponsorOfferBalanceVersion !== 2 || pState.availableSponsorOffers.some(offer => Number(offer.minOvr) > ovr)){
+    if(!Array.isArray(pState.availableSponsorOffers) || pState.availableSponsorOffers.length === 0 || pState.lastSponsorSeasonGenerated !== curYear || pState.sponsorOfferBalanceVersion !== 3 || pState.availableSponsorOffers.some(offer => Number(offer.minOvr) > ovr)){
       return generateSeasonSponsorOffers(gameState);
     }
     return pState.availableSponsorOffers;
@@ -1040,6 +1040,62 @@
     const key = `${sponsor.id || ''} ${sponsor.brand || ''}`.toLowerCase();
     const tier = sponsor.tier || (Number(sponsor.minOvr) >= 85 || key.includes('superstar') ? 'superstar' : Number(sponsor.minOvr) >= 75 || key.includes('internacional') ? 'internacional' : Number(sponsor.minOvr) >= 65 || key.includes('nacional') ? 'nacional' : Number(sponsor.minOvr) >= 55 || key.includes('aspirante') ? 'aspirante' : 'base');
     return { base: 1, aspirante: 2, nacional: 3, internacional: 4, superstar: 5 }[tier] || 1;
+  }
+
+  function getSponsorTerminationFee(contract, currentDate){
+    if(!contract) return 0;
+    const monthlyAmount = Number(contract.monthlyStipend || contract.monthly) || 0;
+    const monthly = Number.isFinite(monthlyAmount) ? Math.max(0, monthlyAmount) : 0;
+    const days = contract.endDate && currentDate ? getDaysBetween(currentDate, contract.endDate) : Number(contract.daysRemaining) || Number(contract.totalDays) || 0;
+    const remainingDays = Math.max(0, Number.isFinite(days) ? days : 0);
+    const configuredPct = contract.terminationFeePct;
+    const feePctValue = Number(configuredPct);
+    const feePct = Math.min(100, Math.max(0, configuredPct != null && configuredPct !== '' && Number.isFinite(feePctValue) ? feePctValue : 50));
+    return Math.round(monthly * remainingDays / 30 * feePct / 100);
+  }
+
+  function signSponsorContract(pState, offer, currentDate){
+    if(!pState || !offer) return { ok: false, terminationFee: 0 };
+    const terminationFee = getSponsorTerminationFee(pState.sponsorContract, currentDate);
+    const balance = Math.max(0, Number(pState.personalBank) || 0);
+    if(terminationFee > balance) return { ok: false, terminationFee, shortfall: terminationFee - balance };
+
+    const startDate = /^\d{4}-\d{2}-\d{2}$/.test(String(currentDate || '')) ? currentDate : '2026-01-18';
+    const durationDays = Math.max(30, Math.min(730, Math.round(Number(offer.durationDays) || 180)));
+    const endDate = addDaysToIso(startDate, durationDays);
+    const monthlyStipend = Math.max(0, Math.round(Number(offer.monthlyStipend || offer.monthly) || 1000));
+    pState.personalBank = balance - terminationFee;
+    pState.sponsorContract = {
+      id: offer.id,
+      name: offer.name || offer.clubOrBrand || `${offer.brand || 'Fornecedor'} Sports`,
+      brand: offer.brand || 'Penalty',
+      tier: offer.tier || (Number(offer.minOvr) >= 85 ? 'superstar' : Number(offer.minOvr) >= 75 ? 'internacional' : Number(offer.minOvr) >= 65 ? 'nacional' : Number(offer.minOvr) >= 55 ? 'aspirante' : 'base'),
+      minOvr: Number(offer.minOvr) || 0,
+      monthlyStipend,
+      bonusGoal: Math.max(0, Math.round(Number(offer.bonusGoal) || 500)),
+      bonusWin: Math.max(0, Math.round(Number(offer.bonusWin) || 500)),
+      bonusAssist: Math.max(0, Math.round(Number(offer.bonusAssist) || Math.round((Number(offer.bonusGoal) || 500) * 0.7))),
+      startDate,
+      totalDays: durationDays,
+      endDate,
+      daysRemaining: durationDays,
+      terminationFeePct: 50,
+      matchesDuringContract: 0,
+      goalsDuringContract: 0,
+      assistsDuringContract: 0,
+      ratingsList: []
+    };
+    return { ok: true, terminationFee, durationDays, endDate };
+  }
+
+  function terminateSponsorContract(pState, currentDate){
+    if(!pState?.sponsorContract) return { ok: false, terminationFee: 0 };
+    const terminationFee = getSponsorTerminationFee(pState.sponsorContract, currentDate);
+    const balance = Math.max(0, Number(pState.personalBank) || 0);
+    if(terminationFee > balance) return { ok: false, terminationFee, shortfall: terminationFee - balance };
+    pState.personalBank = balance - terminationFee;
+    pState.sponsorContract = null;
+    return { ok: true, terminationFee };
   }
 
   function getPlayerEffectiveAttributes(gameState, athlete){
@@ -2234,6 +2290,7 @@
       let renewalBonus = 0;
       let reasonText = '';
 
+      const renewalDuration = Math.max(30, Number(sp.totalDays || sp.durationDays) || 180);
       if(goals >= 3 || avgRating >= 7.0 || matches >= 6){
         multiplier = 1.35; // +35% de valorização
         renewalBonus = Math.round((sp.monthlyStipend || 1500) * 1.5);
@@ -2241,10 +2298,10 @@
       } else if(goals >= 1 || avgRating >= 6.2 || matches >= 2){
         multiplier = 1.15; // +15% de reajuste
         renewalBonus = Math.round((sp.monthlyStipend || 1500) * 0.5);
-        reasonText = `Bom rendimento esportivo! A ${sp.brand} quer continuar a parceria por mais 180 dias com reajuste de 15%.`;
+        reasonText = `Bom rendimento esportivo! A ${sp.brand} quer continuar a parceria por mais ${renewalDuration} dias com reajuste de 15%.`;
       } else {
         multiplier = 1.0;
-        reasonText = `A ${sp.brand} oferece mais 180 dias de contrato para você ganhar sequência e provar seu talento.`;
+        reasonText = `A ${sp.brand} oferece mais ${renewalDuration} dias de contrato para você ganhar sequência e provar seu talento.`;
       }
 
       const newMonthly = Math.round((sp.monthlyStipend || 1500) * multiplier);
@@ -2260,13 +2317,13 @@
         brand: sp.brand,
         clubOrBrand: sp.name || `${sp.brand} Sports`,
         title: `✨ Proposta de Renovação: ${sp.name}`,
-        details: `Vínculo de 180 Dias • Mensalidade: R$ ${newMonthly.toLocaleString('pt-BR')}/mês • Bônus Gol: R$ ${newBonusGoal.toLocaleString('pt-BR')}${renewalBonus > 0 ? ` • Luvas: R$ ${renewalBonus.toLocaleString('pt-BR')}` : ''}`,
+        details: `Vínculo de ${renewalDuration} Dias • Mensalidade: R$ ${newMonthly.toLocaleString('pt-BR')}/mês • Bônus Gol: R$ ${newBonusGoal.toLocaleString('pt-BR')}${renewalBonus > 0 ? ` • Luvas: R$ ${renewalBonus.toLocaleString('pt-BR')}` : ''}`,
         monthly: newMonthly,
         monthlyStipend: newMonthly,
         bonusGoal: newBonusGoal,
         bonusWin: newBonusWin,
         renewalBonus: renewalBonus,
-        durationDays: 180,
+        durationDays: renewalDuration,
         date: currentDate,
         reasonText: reasonText
       };
@@ -2830,6 +2887,9 @@
     STARTER_BOOTS,
     SPONSOR_OFFERS,
     SPONSOR_TIERS_CATALOG,
+    getSponsorTerminationFee,
+    signSponsorContract,
+    terminateSponsorContract,
     AGENTS_CATALOG,
     STAFF_CATALOG,
     getPlayerAgent,

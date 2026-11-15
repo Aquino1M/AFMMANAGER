@@ -1315,6 +1315,7 @@
       }
       activeSp.daysRemaining = Math.max(0, getDaysBetween(curDate, activeSp.endDate));
     }
+    const sponsorExitFee = activeSp ? eng?.getSponsorTerminationFee(activeSp, curDate) || 0 : 0;
 
     // FILTRO ESTRITO: Na seção de propostas, mostramos EXCLUSIVAMENTE propostas disponíveis para assinar!
     // O contrato que já está assinado e ativo NUNCA é duplicado aqui embaixo.
@@ -1476,10 +1477,11 @@
               <div style="font-size:12px;color:#cbd5e1">
                 <div>💰 Mensalidade: <b style="color:#10b981">R$ ${(activeSp.monthlyStipend || 1000).toLocaleString('pt-BR')}/mês</b> · Gol: <b>R$ ${(activeSp.bonusGoal || 500).toLocaleString('pt-BR')}</b> · Vitória: <b>R$ ${(activeSp.bonusWin || 500).toLocaleString('pt-BR')}</b></div>
                 <div style="font-size:11px;color:#94a3b8;margin-top:2px">💡 Ao término dos dias, a empresa analisará seus números para propor uma renovação valorizada com luvas!</div>
+                <div style="font-size:11px;color:#fca5a5;margin-top:3px">⚖️ Multa de rescisão hoje: <b>R$ ${sponsorExitFee.toLocaleString('pt-BR')}</b> (50% dos pagamentos mensais restantes)</div>
               </div>
               <div>
-                <button type="button" class="btn danger btn-cancel-sponsor" style="background:#ef4444;color:#fff;font-weight:800;padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-size:11px">
-                  Rescindir Contrato
+                <button type="button" class="btn danger btn-cancel-sponsor" ${Number(pState.personalBank) < sponsorExitFee ? 'disabled title="Saldo insuficiente para pagar a multa"' : ''} style="background:${Number(pState.personalBank) < sponsorExitFee ? '#475569' : '#ef4444'};color:#fff;font-weight:800;padding:8px 14px;border-radius:8px;border:none;cursor:${Number(pState.personalBank) < sponsorExitFee ? 'not-allowed' : 'pointer'};font-size:11px">
+                  ${Number(pState.personalBank) < sponsorExitFee ? 'Saldo insuficiente' : 'Rescindir Contrato'}
                 </button>
               </div>
             </div>
@@ -1511,6 +1513,7 @@
               <div style="font-size:11px;color:#94a3b8;margin-top:2px">
                 Propostas oficiais de fornecedores esportivos. A cada temporada chegam novas ofertas baseadas na sua evolução.
               </div>
+              ${activeSp ? `<div style="font-size:11px;color:#fca5a5;margin-top:4px">Trocar de marca encerra o vínculo atual e cobra multa de R$ ${sponsorExitFee.toLocaleString('pt-BR')}.</div>` : ''}
             </div>
             <span class="pill primary" style="font-size:10px;font-weight:900">TEMPORADA ${state.date ? state.date.slice(0, 4) : '2026'}</span>
           </div>
@@ -4143,6 +4146,7 @@
         const idx = Number(btn.dataset.index);
         const offer = pState.agentOffers[idx];
         if(offer){
+          let sponsorTerms = null;
           if(offer.type === 'transfer' || offer.type === 'club_loan'){
             const isWindowOpen = (typeof isTransferWindowOpen === 'function')
               ? isTransferWindowOpen(s.date)
@@ -4162,31 +4166,20 @@
           }
           if(offer.type === 'sponsor'){
             const curDate = s.date || s.currentDate || '2026-01-18';
-            const totalDays = offer.durationDays || 180;
-            const endDate = addDaysToIso(curDate, totalDays);
-            pState.sponsorContract = {
-              name: offer.clubOrBrand,
-              brand: offer.brand || 'Penalty',
-              monthlyStipend: offer.monthly || offer.monthlyStipend || 1000,
-              bonusGoal: offer.bonusGoal || 500,
-              bonusWin: offer.bonusWin || 500,
-              startDate: curDate,
-              totalDays: totalDays,
-              endDate: endDate,
-              daysRemaining: totalDays,
-              matchesDuringContract: 0,
-              goalsDuringContract: 0,
-              assistsDuringContract: 0,
-              ratingsList: []
-            };
+            const signed = window.AFM_PlayerEngine?.signSponsorContract(pState, offer, curDate);
+            if(!signed?.ok){
+              showCustomAlert({ title: 'Saldo insuficiente para a rescisão ⚖️', message: `A multa para encerrar o contrato atual é de R$ ${(signed?.terminationFee || 0).toLocaleString('pt-BR')}. Faltam R$ ${(signed?.shortfall || 0).toLocaleString('pt-BR')}.`, type: 'warning' });
+              return;
+            }
             if(offer.renewalBonus && offer.renewalBonus > 0){
               pState.personalBank = (pState.personalBank || 0) + offer.renewalBonus;
             }
+            sponsorTerms = signed;
           }
           pState.agentOffers.splice(idx, 1);
           showCustomAlert({
             title: offer.isRenewal ? 'Renovação Concluída! ✍️' : 'Proposta Aceita! 👟',
-            message: `Contrato assinado com sucesso por ${offer.durationDays || 180} dias!\n${(offer.renewalBonus && offer.renewalBonus > 0) ? `Luvas de R$ ${offer.renewalBonus.toLocaleString('pt-BR')} creditadas na sua conta pessoal!\n` : ''}Os novos termos já estão em vigor para sua carreira!`,
+            message: `Contrato assinado com sucesso por ${sponsorTerms?.durationDays || offer.durationDays || 180} dias!${sponsorTerms?.terminationFee ? `\nMulta de rescisão anterior: R$ ${sponsorTerms.terminationFee.toLocaleString('pt-BR')} paga.` : ''}\n${(offer.renewalBonus && offer.renewalBonus > 0) ? `Luvas de R$ ${offer.renewalBonus.toLocaleString('pt-BR')} creditadas na sua conta pessoal!\n` : ''}Os novos termos já estão em vigor para sua carreira!`,
             type: 'success',
             onConfirm: () => {
               if(typeof window.save === 'function') window.save();
@@ -4217,30 +4210,15 @@
         const sp = allPool.find(o => o.id === spId);
         if(sp && pState){
           const curDate = s.date || s.currentDate || '2026-01-18';
-          const totalDays = sp.durationDays || 180;
-          const endDate = addDaysToIso(curDate, totalDays);
           const wasSwitch = Boolean(pState.sponsorContract);
           const oldBrand = pState.sponsorContract?.brand;
-
-          pState.sponsorContract = {
-            id: sp.id,
-            name: sp.name,
-            brand: sp.brand,
-            tier: sp.tier || (sp.minOvr >= 85 ? 'superstar' : sp.minOvr >= 75 ? 'internacional' : sp.minOvr >= 65 ? 'nacional' : sp.minOvr >= 55 ? 'aspirante' : 'base'),
-            minOvr: sp.minOvr,
-            monthlyStipend: sp.monthlyStipend,
-            bonusGoal: sp.bonusGoal,
-            bonusWin: sp.bonusWin,
-            bonusAssist: sp.bonusAssist || Math.round(sp.bonusGoal * 0.7),
-            startDate: curDate,
-            totalDays: totalDays,
-            endDate: endDate,
-            daysRemaining: totalDays,
-            matchesDuringContract: 0,
-            goalsDuringContract: 0,
-            assistsDuringContract: 0,
-            ratingsList: []
-          };
+          const signed = window.AFM_PlayerEngine?.signSponsorContract(pState, sp, curDate);
+          if(!signed?.ok){
+            showCustomAlert({ title: 'Saldo insuficiente para a rescisão ⚖️', message: `A multa para encerrar o contrato atual é de R$ ${(signed?.terminationFee || 0).toLocaleString('pt-BR')}. Faltam R$ ${(signed?.shortfall || 0).toLocaleString('pt-BR')}.`, type: 'warning' });
+            return;
+          }
+          const totalDays = signed.durationDays;
+          const endDate = signed.endDate;
 
           // Remove da lista de propostas disponíveis pois agora é o contrato em vigor
           if(Array.isArray(pState.availableSponsorOffers)){
@@ -4250,7 +4228,7 @@
           showCustomAlert({
             title: wasSwitch ? `Fornecedor Atualizado para ${sp.brand}! 👟` : 'Patrocínio Oficial Assinado! 👟',
             message: wasSwitch
-              ? `Você encerrou a parceria anterior com a ${oldBrand} e agora é atleta oficial da ${sp.brand}!\nNovo vínculo de ${totalDays} dias (até ${formatDatePtBr(endDate)}) com R$ ${sp.monthlyStipend.toLocaleString('pt-BR')}/mês e bônus por vitórias e gols.`
+              ? `Você encerrou a parceria anterior com a ${oldBrand} e agora é atleta oficial da ${sp.brand}!\nMulta paga: R$ ${signed.terminationFee.toLocaleString('pt-BR')}. Novo vínculo de ${totalDays} dias (até ${formatDatePtBr(endDate)}) com R$ ${Number(sp.monthlyStipend).toLocaleString('pt-BR')}/mês e bônus por vitórias e gols.`
               : `Contrato com a ${sp.brand} assinado com sucesso por ${totalDays} dias (até ${formatDatePtBr(endDate)})!\nVocê receberá R$ ${sp.monthlyStipend.toLocaleString('pt-BR')}/mês e bônus por gols e vitórias.\nAo término dos dias, a empresa analisará seu rendimento para propor renovação valorizada!`,
             type: 'success',
             onConfirm: () => {
@@ -4266,10 +4244,14 @@
       bCancelSp.onclick = () => {
         if(pState && pState.sponsorContract){
           const oldBrand = pState.sponsorContract.brand || 'material esportivo';
-          pState.sponsorContract = null;
+          const result = window.AFM_PlayerEngine?.terminateSponsorContract(pState, s.date || s.currentDate || '2026-01-18');
+          if(!result?.ok){
+            showCustomAlert({ title: 'Saldo insuficiente para a rescisão ⚖️', message: `A multa para encerrar o contrato é de R$ ${(result?.terminationFee || 0).toLocaleString('pt-BR')}. Faltam R$ ${(result?.shortfall || 0).toLocaleString('pt-BR')}.`, type: 'warning' });
+            return;
+          }
           showCustomAlert({
             title: 'Contrato Rescindido 👟',
-            message: `O contrato com a ${oldBrand} foi encerrado amigavelmente.\nVocê agora está 100% livre no mercado para assinar com qualquer outra marca do catálogo ou aguardar propostas de renovação!`,
+            message: `O contrato com a ${oldBrand} foi encerrado. Multa paga: R$ ${result.terminationFee.toLocaleString('pt-BR')}.\nVocê está livre no mercado para assinar com outra marca ou aguardar novas propostas.`,
             type: 'info',
             onConfirm: () => {
               if(typeof window.save === 'function') window.save();
@@ -5636,23 +5618,13 @@
 
         if(isSponsor){
           const curDate = state.date || state.currentDate || '2026-01-18';
-          const totalDays = offer.durationDays || 180;
-          const endDate = addDaysToIso(curDate, totalDays);
-          pState.sponsorContract = {
-            name: offer.clubOrBrand,
-            brand: offer.brand || 'Penalty',
-            monthlyStipend: offer.monthly || offer.monthlyStipend || 1000,
-            bonusGoal: offer.bonusGoal || 500,
-            bonusWin: offer.bonusWin || 500,
-            startDate: curDate,
-            totalDays: totalDays,
-            endDate: endDate,
-            daysRemaining: totalDays,
-            matchesDuringContract: 0,
-            goalsDuringContract: 0,
-            assistsDuringContract: 0,
-            ratingsList: []
-          };
+          const signed = window.AFM_PlayerEngine?.signSponsorContract(pState, offer, curDate);
+          if(!signed?.ok){
+            showCustomAlert({ title: 'Saldo insuficiente para a rescisão ⚖️', message: `A multa para encerrar o contrato atual é de R$ ${(signed?.terminationFee || 0).toLocaleString('pt-BR')}. Faltam R$ ${(signed?.shortfall || 0).toLocaleString('pt-BR')}.`, type: 'warning' });
+            return;
+          }
+          const totalDays = signed.durationDays;
+          const endDate = signed.endDate;
           if(offer.renewalBonus && offer.renewalBonus > 0){
             pState.personalBank = (pState.personalBank || 0) + offer.renewalBonus;
           }
@@ -5660,7 +5632,7 @@
           closeActionModal();
           showCustomAlert({
             title: isRenewal ? 'Renovação Concluída! ✍️' : 'Patrocínio Assinado! 👟',
-            message: `Contrato com a ${offer.clubOrBrand} assinado com sucesso por ${totalDays} dias (até ${formatDatePtBr(endDate)})!\n${(offer.renewalBonus && offer.renewalBonus > 0) ? `Luvas de R$ ${offer.renewalBonus.toLocaleString('pt-BR')} creditadas à vista na sua conta bancária!\n` : ''}Você receberá R$ ${(offer.monthly || offer.monthlyStipend || 1000).toLocaleString('pt-BR')}/mês e bônus por gols.\nAo término dos dias, a empresa analisará seu desempenho para nova proposta de renovação!`,
+            message: `Contrato com a ${offer.clubOrBrand} assinado com sucesso por ${totalDays} dias (até ${formatDatePtBr(endDate)})!${signed.terminationFee ? `\nMulta de rescisão anterior: R$ ${signed.terminationFee.toLocaleString('pt-BR')} paga.` : ''}\n${(offer.renewalBonus && offer.renewalBonus > 0) ? `Luvas de R$ ${offer.renewalBonus.toLocaleString('pt-BR')} creditadas à vista na sua conta bancária!\n` : ''}Você receberá R$ ${(offer.monthly || offer.monthlyStipend || 1000).toLocaleString('pt-BR')}/mês e bônus por gols.\nAo término dos dias, a empresa analisará seu desempenho para nova proposta de renovação!`,
             type: 'success',
             onConfirm: () => {
               if(typeof window.save === 'function') window.save();

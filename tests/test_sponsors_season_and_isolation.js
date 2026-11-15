@@ -103,7 +103,7 @@ const youthState = {
     athleteOvr: 34,
     availableSponsorOffers: [{ brand: 'Puma', minOvr: 55, monthlyStipend: 3500 }],
     lastSponsorSeasonGenerated: 2026,
-    sponsorOfferBalanceVersion: 1
+    sponsorOfferBalanceVersion: 2
   }
 };
 const youthOffers = engine.getPlayerSponsorOffers(youthState);
@@ -111,5 +111,41 @@ assert.equal(youthOffers.length, 3, 'OVR 34 deve receber somente as três propos
 assert(youthOffers.every(offer => offer.minOvr <= 34 && offer.monthlyStipend <= 250 && offer.bonusGoal <= 120 && offer.bonusWin <= 90));
 assert(!youthOffers.some(offer => ['Puma', 'Adidas', 'Nike'].includes(offer.brand)), 'marcas de categoria superior não devem aparecer para OVR 34');
 console.log('✓ OVR 34 recebe valores de base proporcionais e proposta antiga de Puma é regenerada.');
+
+assert(new Set(engine.SPONSOR_TIERS_CATALOG.map(offer => offer.durationDays)).size > 1, 'contratos do catálogo devem ter prazos variados');
+const contractState = {
+  personalBank: 1799,
+  sponsorContract: { id: 'old', brand: 'Penalty', monthlyStipend: 600, daysRemaining: 180 }
+};
+const newSponsor = { id: 'new', name: 'Puma Match', brand: 'Puma', monthlyStipend: 900, durationDays: 240 };
+assert.equal(engine.getSponsorTerminationFee(contractState.sponsorContract, '2026-01-01'), 1800);
+const insufficientSwitch = engine.signSponsorContract(contractState, newSponsor, '2026-01-01');
+assert.equal(insufficientSwitch.ok, false, 'não deve permitir troca sem saldo para a multa');
+assert.equal(contractState.sponsorContract.id, 'old', 'falha de saldo não pode substituir o contrato ativo');
+assert.equal(contractState.personalBank, 1799, 'falha de saldo não pode debitar valores');
+contractState.personalBank = 1800;
+const signedSwitch = engine.signSponsorContract(contractState, newSponsor, '2026-01-01');
+assert.equal(signedSwitch.ok, true);
+assert.equal(signedSwitch.durationDays, 240, 'o prazo assinado deve respeitar a proposta da marca');
+assert.equal(contractState.personalBank, 0, 'multa deve ser debitada uma única vez na troca');
+assert.equal(contractState.sponsorContract.terminationFeePct, 50);
+contractState.personalBank = 3599;
+const unpaidTermination = engine.terminateSponsorContract(contractState, '2026-01-01');
+assert.equal(unpaidTermination.ok, false, 'rescisão direta também exige saldo suficiente');
+assert(contractState.sponsorContract, 'rescisão sem pagamento deve preservar o vínculo');
+contractState.personalBank = 3600;
+assert.equal(engine.terminateSponsorContract(contractState, '2026-01-01').ok, true);
+assert.equal(contractState.personalBank, 0);
+
+const renewalState = {
+  gameMode: 'player', date: '2026-01-02', playerCareerState: {
+    sponsorContract: { brand: 'Mizuno', name: 'Mizuno Pro', monthlyStipend: 7000, totalDays: 300, endDate: '2026-01-01' },
+    agentOffers: [], expiredSponsorHistory: []
+  }, news: []
+};
+engine.processDailySponsorTurn(renewalState);
+assert.equal(renewalState.playerCareerState.agentOffers[0].durationDays, 300, 'renovação deve manter o prazo do contrato encerrado');
+assert(renewalState.playerCareerState.agentOffers[0].details.includes('300 Dias'));
+console.log('✓ Multa de rescisão, saldo, duração individual e renovação validados.');
 
 console.log('\n✅ TODOS OS TESTES DE PATROCÍNIO PASSARAM COM 100% DE SUCESSO!');
