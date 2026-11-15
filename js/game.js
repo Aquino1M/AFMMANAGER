@@ -9584,6 +9584,7 @@ function loadUserSlot(slotNum, ownerUsername = null){
     state.manager = state.coachName;
     view = 'player_hub';
     if(typeof window !== 'undefined') window.view = 'player_hub';
+    restorePlayerCareerSquad(state);
   } else {
     state.gameMode = 'manager';
     view = 'central';
@@ -11896,6 +11897,28 @@ function playersForClub(club,worldGenerated){
   }
   const gen=(worldGenerated||[]).filter(p=>norm(p.club)===norm(club));
   return [...live,...gen].slice(0,25).map(p=>({...p,club,owned:true,marketKey:playerKey(p)}));
+}
+
+function restorePlayerCareerSquad(gameState){
+  if(gameState?.gameMode !== 'player' || !gameState.club || !Array.isArray(gameState.squad) || gameState.squad.length >= 11) return false;
+  let roster = playersForClub(gameState.club, gameState.worldGenerated || []);
+  if(roster.length < 11) roster = generatedRosterForClub(gameState.club);
+  const knownNames = new Set(gameState.squad.map(player => norm(player.name || '')).filter(Boolean));
+  const targetSize = Math.min(25, Math.max(11, gameState.squad.length + roster.length));
+  const initialSize = gameState.squad.length;
+  for(const player of roster){
+    const key = norm(player?.name || '');
+    if(!key || knownNames.has(key) || gameState.squad.length >= targetSize) continue;
+    knownNames.add(key);
+    gameState.squad.push(stablePlayer({
+      ...player,
+      club: gameState.club,
+      wage: Number(player.wage) > 0 ? Math.round(player.wage) : playerSalary(player, gameState),
+      contractUntil: player.contractUntil || (Number(gameState.season) || 2026) + 2,
+      owned: true
+    }));
+  }
+  return gameState.squad.length > initialSize;
 }
 
 function stablePlayer(p){
@@ -15591,6 +15614,7 @@ function migrate(s){
       });
     }
   }
+  if(restorePlayerCareerSquad(s)) saveRequired = true;
   s.infrastructure=s.infrastructure||defaultInfrastructure(clubByName(s.club)||{atk:65,mid:65,def:65});
   if(!s.infrastructure.parking) s.infrastructure.parking = {level:0, spots:0};
   if(!s.infrastructure.marketing) s.infrastructure.marketing = {level:1};

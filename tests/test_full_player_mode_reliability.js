@@ -96,6 +96,23 @@ const rebuiltHub = window.AFM_PlayerMode.renderPage('player_hub');
 assert(rebuiltHub.includes('PERFIL RECRIADO') && window.state.playerCareerState, 'hub deve criar estado mínimo quando o jogador existe mas os metadados de carreira faltam');
 window.getActualCurrentMatch = previousCurrentMatch;
 console.log('✓ Hub recupera perfil incompleto e não fica preso no carregamento.');
+const shortRosterCareer = {
+  gameMode: 'player', club: 'Manaus', compId: 'bra-d', competition: 'Campeonato Brasileiro Série D',
+  date: '2026-01-01', season: 2026, round: 1, salaryModelVersion: 2, worldGenerated: [],
+  controlledPlayerId: 'only-user-athlete',
+  squad: [{ id: 'only-user-athlete', name: 'Atleta Único', pos: 'ST', age: 15, ovr: 35, isControlled: true }],
+  playerCareerState: { athleteName: 'Atleta Único', managerTrust: 45, age: 15 }, news: [], history: [], teams: []
+};
+window.setState(shortRosterCareer);
+window.migrate(shortRosterCareer);
+const restoredRosterNames = shortRosterCareer.squad.map(player => player.name.toLowerCase());
+assert(shortRosterCareer.squad.length >= 11, 'migração deve repor atletas suficientes para disputar partidas');
+assert(shortRosterCareer.squad.some(player => player.id === shortRosterCareer.controlledPlayerId), 'jogador controlado deve permanecer no elenco');
+assert.equal(new Set(restoredRosterNames).size, restoredRosterNames.length, 'migração não pode duplicar atletas');
+const rosterSizeAfterFirstMigration = shortRosterCareer.squad.length;
+window.migrate(shortRosterCareer);
+assert.equal(shortRosterCareer.squad.length, rosterSizeAfterFirstMigration, 'reparar save deve ser idempotente');
+console.log('✓ Migração repara elenco curto, preserva o usuário e não duplica atletas.');
 const benchChance = window.AFM_PlayerMode.getPlayerSubstitutionChance(35, 'Empatando', false);
 assert.strictEqual(benchChance, 36);
 assert.strictEqual(window.AFM_PlayerMode.getPlayerSubstitutionChance(35, 'Perdendo', true), 61);
@@ -180,6 +197,7 @@ assert(clubPage.includes('Maior valor') && clubPage.includes('Maior salário'));
 assert(clubPage.includes('Salário/mês') && clubPage.includes('VOCÊ'));
 assert(clubPage.includes('Capitão') && clubPage.includes('100.000.000'), 'plantel antigo deve usar valores em reais, sem zerar estimativas');
 assert(clubPage.includes('Dívidas do Clube'));
+assert(clubPage.includes('class="btn btn-player-club-subtab') && clubPage.includes('role="tablist"') && clubPage.includes('aria-selected="true"'));
 window.__afmPlayerClubSubTab = 'debts';
 const clubDebtPage = window.AFM_PlayerMode.renderPage('player_club');
 assert(clubDebtPage.includes('SALÁRIOS ATRASADOS') && clubDebtPage.includes('btnPlayerSalaryClaim'));

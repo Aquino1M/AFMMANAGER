@@ -798,10 +798,11 @@
 
     return `
       <div style="display:flex;flex-direction:column;gap:18px">
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button type="button" class="btn-player-club-subtab ${clubSubTab === 'squad' ? 'primary' : ''}" data-subtab="squad">👥 Elenco & Valores</button>
-          <button type="button" class="btn-player-club-subtab ${clubSubTab === 'debts' ? 'primary' : ''}" data-subtab="debts">⚖️ Dívidas do Clube ${Number(arrears.amount) > 0 ? `· R$ ${Math.round(Number(arrears.amount)).toLocaleString('pt-BR')}` : ''}</button>
+        <div role="tablist" aria-label="Abas do clube" style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:10px">
+          <button type="button" role="tab" aria-selected="${clubSubTab === 'squad'}" aria-controls="player-club-tab-content" class="btn btn-player-club-subtab ${clubSubTab === 'squad' ? 'primary' : ''}" data-subtab="squad">👥 Elenco & Valores</button>
+          <button type="button" role="tab" aria-selected="${clubSubTab === 'debts'}" aria-controls="player-club-tab-content" class="btn btn-player-club-subtab ${clubSubTab === 'debts' ? 'primary' : ''}" data-subtab="debts">⚖️ Dívidas do Clube ${Number(arrears.amount) > 0 ? `· R$ ${Math.round(Number(arrears.amount)).toLocaleString('pt-BR')}` : ''}</button>
         </div>
+        <div id="player-club-tab-content" role="tabpanel" style="display:flex;flex-direction:column;gap:18px">
         ${clubSubTab === 'squad' ? `
         <!-- HIERARQUIA DA SUA POSIÇÃO NO CLUBE -->
         <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
@@ -897,7 +898,7 @@
             ${arrears.claim?.status === 'pending' ? `<p>Processo em andamento com ${Number(arrears.claim.monthsRemaining) || 0} mês(es) estimado(s).</p>` : `<button type="button" id="btnPlayerSalaryClaim" class="btn" style="padding:9px 14px" ${Number(pState.personalBank) < Math.max(300, Math.min(1000, Math.round(Number(arrears.amount) * 0.08))) ? 'disabled' : ''}>👨‍⚖️ Contratar advogado e cobrar (R$ ${Math.max(300, Math.min(1000, Math.round(Number(arrears.amount) * 0.08))).toLocaleString('pt-BR')})</button>`}`
             : '<p>Não há salários atrasados registrados.</p>'}
         </div>` : ''}
-
+        </div>
       </div>
     `;
   }
@@ -3672,6 +3673,14 @@
       btn.onclick = () => {
         window.__afmPlayerClubSubTab = btn.dataset.subtab === 'debts' ? 'debts' : 'squad';
         window.render?.();
+        document.querySelector(`.btn-player-club-subtab[data-subtab="${window.__afmPlayerClubSubTab}"]`)?.focus();
+      };
+      btn.onkeydown = event => {
+        if(event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const tabs = [...document.querySelectorAll('.btn-player-club-subtab')];
+        const next = tabs[(tabs.indexOf(btn) + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+        next?.click();
       };
     });
 
