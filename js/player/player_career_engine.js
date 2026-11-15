@@ -1352,7 +1352,9 @@
         clubName: clubName,
         compId: resolvedCompId,
         slot: targetSlot || 1,
-        manager: 'Treinador da IA'
+        manager: 'Treinador da IA',
+        gameMode: 'player',
+        deferInitialSave: true
       });
     }
 
@@ -1548,7 +1550,7 @@
     window.view = 'player_hub';
     const appEl = document.getElementById('app') || document.querySelector('#app');
     if(appEl && appEl.dataset) delete appEl.dataset.renderedGameMode;
-    if(typeof window.save === 'function') window.save();
+    if(typeof window.save === 'function') window.save({ allowModeReplace: true });
     if(typeof window.render === 'function') window.render();
 
     return s;

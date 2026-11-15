@@ -431,7 +431,7 @@ const AFM_DB = (function(){
   }
 
   // Salvar Carreira / Slot no Supabase (Upsert direto na tabela afm_saves)
-  async function saveSlot(username, slotNum, saveEntry){
+  async function saveSlot(username, slotNum, saveEntry, options = {}){
     if(!saveEntry) return { ok: false, error: 'Save inválido.' };
     const state = saveEntry.data || saveEntry;
     const slot = Number(slotNum);
@@ -448,6 +448,23 @@ const AFM_DB = (function(){
     if(!cli) return { ok: false, localOnly: true, error: 'Supabase indisponível ou não configurado.' };
 
     try {
+      if(options.allowModeReplace !== true){
+        let timeoutId;
+        const timeoutP = new Promise((_, reject) => { timeoutId = setTimeout(() => reject(new Error('Timeout ao validar o modo do save na nuvem.')), 5000); });
+        let existingResult;
+        try {
+          const existingQuery = cli.from('afm_saves').select('save_data').ilike('username', cleanUser).eq('slot', slot).maybeSingle();
+          existingResult = await Promise.race([existingQuery, timeoutP]);
+        } finally { clearTimeout(timeoutId); }
+        const { data: existing, error: readError } = existingResult;
+        if(readError) throw readError;
+        const incomingMode = getSavedGameMode(state) || 'manager';
+        const existingMode = existing ? (getSavedGameMode(existing.save_data) || 'manager') : null;
+        if(existingMode && existingMode !== incomingMode){
+          return { ok: false, localOnly: true, modeConflict: true, error: 'O slot da nuvem pertence a outro modo de carreira. Inicie uma nova carreira no slot para substituí-lo.' };
+        }
+      }
+
       const payload = {
         username: cleanUser,
         slot,

@@ -2,7 +2,7 @@
 
 ## Arquitetura e mudanças
 - Aplicação local-first em HTML, CSS e JavaScript ES2022, sem build obrigatório. `js/game.js` coordena UI/estado; reutilize serviços em `js/core/`, `js/player/` e catálogos existentes.
-- `gameMode` e `isPlayerMode` persistidos definem o modo do save. Migração só infere modo por campos legados quando ambos faltam; carregar/sincronizar nunca troca modos por timestamp. Só uma nova carreira escolhida pelo usuário pode substituir um slot. Migrações devem ser aditivas, idempotentes e compatíveis com saves antigos.
+- `gameMode` persistido é a autoridade; use `isPlayerMode`/campos legados só quando ele faltar. Carregamento, autosave e sincronização nunca substituem um slot de outro modo, mesmo por timestamp; só uma nova carreira escolhida pelo usuário autoriza a troca. Migrações devem ser aditivas, idempotentes e compatíveis com saves antigos.
 - Preserve mudanças locais. Nunca use `git reset --hard`, `git clean` ou reversão destrutiva.
 
 ## Jogo e estado consistente
@@ -11,7 +11,7 @@
 - Ao cruzar cada mês, processe uma vez as finanças do modo ativo na ordem das datas. No treinador, credite TV/patrocínios e quite folha, instalações, olheiros, marketing e dívidas; no jogador, processe salário/despesas/dívidas pessoais. Não dependa apenas do dia 1; mantenha idempotência em avanços longos, jogos e recargas.
 - Limite coleções persistidas: `news` 50, `marketWorldFeed` 30, `seasonHistory` 20 e `socialMedia.feedPosts` 25.
 - Catálogos e telas de elenco não podem repetir a mesma pessoa no mesmo clube por variações de nome (ex.: sufixo “Jr.”); deduplique por clube, identidade validada e nome normalizado sem fundir atletas distintos.
-- Orçamentos gerados respeitam a divisão; Série D não herda caixa de clube de elite por OVR médio. Corrija saves somente quando forem inequivocamente de abertura, sem partidas/histórico, sem alterar carreira do jogador ou progresso financeiro.
+- Limites de caixa por divisão aplicam-se somente à criação do Modo Jogador, em todas as ligas; treinador mantém os orçamentos existentes. Repare save de jogador apenas na abertura comprovada, sem partidas ou progresso financeiro.
 
 ## Carreira do jogador
 - Preserve sempre a criação do atleta (`#btnGoCreatePlayer`, `#btnNavGoPlayerMode`, `setupViewMode === 'create_player'` e `renderCreatePlayerScreen`). Elenco legado incompleto deve ser completado sem duplicar atletas nem remover o controlado; mudanças exigem teste de migração idempotente.

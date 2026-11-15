@@ -9192,7 +9192,7 @@ function rememberActiveSaveSlot(username, slotNum){
   catch(e){ return false; }
 }
 
-function save(){
+function save(options = {}){
   if(!state && typeof window !== 'undefined' && window.state){
     state = window.state;
   }
@@ -9215,6 +9215,7 @@ function save(){
   }
 
   purgeBuggedExploitPlayers(state);
+  const allowModeReplace = options?.allowModeReplace === true;
   const slotNum = Math.max(1, Math.min(3, Number(state.userSlot) || 1));
   state.userSlot = slotNum;
 
@@ -9271,28 +9272,51 @@ function save(){
   let localSaved = false;
   const entryStr = JSON.stringify(saveEntry);
   const payloadStr = JSON.stringify(savePayload);
+  let preserveConflictingSlot = false;
+  if(!allowModeReplace){
+    const owner = String(state.userOwner).toLowerCase();
+    const keys = [
+      `afm_save_slot_${slotNum}`, `afm_save_slot_${slotNum}_backup`,
+      `afm_save_${owner}_slot_${slotNum}`, `afm_save_${owner}_slot_${slotNum}_backup`,
+      ...(slotNum === 1 ? [STORAGE] : [])
+    ];
+    for(const key of keys){
+      try {
+        const entry = JSON.parse(localStorage.getItem(key) || 'null');
+        const savedOwner = String(entry?.owner || entry?.data?.userOwner || '').trim().toLowerCase();
+        const savedMode = getSaveGameMode(entry);
+        if(entry && ((savedOwner && savedOwner !== owner) || (savedMode && savedMode !== state.gameMode))){
+          preserveConflictingSlot = true;
+          break;
+        }
+      } catch(e){ recordAFMError('save-slot-mode-check', e); }
+    }
+  }
 
   // 1. Salvar no slot primário dedicado no localStorage com recuperação de cota inteligente
-  try {
-    localStorage.setItem(`afm_save_slot_${slotNum}`, entryStr);
-    localSaved = true;
-    try { localStorage.setItem(`afm_save_slot_${slotNum}_backup`, entryStr); } catch(_){}
-  } catch(e){
-    freeUpLocalStorageQuota();
+  if(!preserveConflictingSlot){
     try {
       localStorage.setItem(`afm_save_slot_${slotNum}`, entryStr);
       localSaved = true;
       try { localStorage.setItem(`afm_save_slot_${slotNum}_backup`, entryStr); } catch(_){}
-    } catch(retryErr){
-      recordAFMError('local-save-write', retryErr);
+    } catch(e){
+      freeUpLocalStorageQuota();
+      try {
+        localStorage.setItem(`afm_save_slot_${slotNum}`, entryStr);
+        localSaved = true;
+        try { localStorage.setItem(`afm_save_slot_${slotNum}_backup`, entryStr); } catch(_){}
+      } catch(retryErr){
+        recordAFMError('local-save-write', retryErr);
+      }
     }
   }
 
   // 1b. Salvar cópia no slot individual do usuário se houver cota disponível
-  if(state.userOwner && localSaved){
+  if(state.userOwner && !preserveConflictingSlot){
     try {
       localStorage.setItem(`afm_save_${state.userOwner.toLowerCase()}_slot_${slotNum}`, entryStr);
       localStorage.setItem(`afm_save_${state.userOwner.toLowerCase()}_slot_${slotNum}_backup`, entryStr);
+      localSaved = true;
     } catch(e){
       // Não bloqueia o jogo se a chave redundante não couber na cota
     }
@@ -9300,7 +9324,7 @@ function save(){
   rememberActiveSaveSlot(state.userOwner, slotNum);
 
   // 2. Salvar no STORAGE legado apenas se for Slot 1
-  if(slotNum === 1){
+  if(slotNum === 1 && !preserveConflictingSlot){
     try {
       localStorage.setItem(STORAGE, payloadStr);
       localSaved = true;
@@ -9331,7 +9355,7 @@ function save(){
   // 3. Salvar na lista de contas do sistema (armazena cabeçalho leve para economizar 95% de quota)
   const accs = getStoredAccounts();
   let acc = accs.find(a => a.username === state.userOwner);
-  if(acc){
+  if(acc && !preserveConflictingSlot){
     acc.saves = acc.saves || [];
     const existingIdx = acc.saves.findIndex(s => s.slot === slotNum);
     const lightweightHeader = { ...saveHeader };
@@ -9346,7 +9370,7 @@ function save(){
 
   // 4. REGRA CRÍTICA INVIOLÁVEL: Sincronização obrigatória com o Supabase Cloud (afm_saves)
   if(cloudSaveAvailable){
-    window.__afmLastSaveSyncPromise = window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry)
+    window.__afmLastSaveSyncPromise = window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry, { allowModeReplace })
       .then(result => {
         if(!result?.ok) {
           window.AFMErrorLog?.record('save-sync', result?.error || 'Falha ao sincronizar save no Supabase');
@@ -11553,6 +11577,24 @@ function compBaseStrength(comp){
   return 68;
 }
 
+function playerModeBudgetCap(comp){
+  if(comp?.id === 'bra-a') return 25000000;
+  if(comp?.id === 'bra-b') return 8000000;
+  if(comp?.id === 'bra-c') return 2500000;
+  if(comp?.id === 'bra-d') return 1200000;
+  if(comp?.country === 'Brasil') return 1500000;
+  if(comp?.continent === 'Europa') return compBaseStrength(comp) >= 78 ? 75000000 : 15000000;
+  if(comp?.continent === 'América do Sul') return /segunda|divisi[oó]n intermedia|primera nacional|s[eé]rie b/i.test(comp.name) ? 5000000 : 15000000;
+  if(comp?.continent === 'Ásia') return 15000000;
+  return 10000000;
+}
+
+function playerModeStartingBudget(comp, club, squad, isCustom = false){
+  if(isCustom) return 300000;
+  const payroll = (Array.isArray(squad) ? squad : []).reduce((sum, player) => sum + (Number(player.wage) || 0), 0);
+  return Math.min(playerModeBudgetCap(comp), Math.max(250000, (Number(club?.budget) || 5) * 1000000, Math.round(payroll * 2.5)));
+}
+
 function inferClubMeta(p){
   const league=String(p?.league||'');
   const rules=[
@@ -11587,10 +11629,7 @@ function buildClubs(){
       existing.playerCount=ps.length;
       if (!existing.stadium || existing.stadium === 'Estádio do clube') existing.stadium = stadName;
     }
-    else {
-      const compId = Object.entries(teamMap).find(([, names]) => Array.isArray(names) && names.some(teamName => norm(teamName) === norm(name)))?.[0];
-      map.set(key,{name,country:meta.country,competition:meta.competition,stadium:stadName,atk:avg,mid:avg,def:avg,budget:compId === 'bra-d' ? Math.max(.35,Math.min(1.5,(avg-52)*.08)) : Math.max(.4,(avg-52)*2.2),playerCount:ps.length});
-    }
+    else map.set(key,{name,country:meta.country,competition:meta.competition,stadium:stadName,atk:avg,mid:avg,def:avg,budget:Math.max(.4,(avg-52)*2.2),playerCount:ps.length});
   }
   for(const [compId,names] of Object.entries(teamMap)){
     const comp=compById(compId);if(!comp)continue;const base=compBaseStrength(comp);
@@ -11600,8 +11639,7 @@ function buildClubs(){
       const stadName = sInfo?.stadium || 'Estádio do clube';
       if(!map.has(key)){
         const wiggle=(hashStr(name)%7)-3;const s=clamp(base+wiggle,48,88);
-        const budget = compId === 'bra-d' ? Math.max(.35,Math.min(1.5,(s-52)*.08)) : Math.max(.25,Math.pow(Math.max(3,s-48),1.35)/2.6);
-        map.set(key,{name,country:comp.country==='CONMEBOL'||comp.country==='UEFA'||comp.country==='AFC'?'Outro':comp.country,competition:comp.name,stadium:stadName,atk:s+rnd(-1,1),mid:s+rnd(-1,1),def:s+rnd(-1,1),budget});
+        map.set(key,{name,country:comp.country==='CONMEBOL'||comp.country==='UEFA'||comp.country==='AFC'?'Outro':comp.country,competition:comp.name,stadium:stadName,atk:s+rnd(-1,1),mid:s+rnd(-1,1),def:s+rnd(-1,1),budget:Math.max(.25,Math.pow(Math.max(3,s-48),1.35)/2.6)});
       } else {
         const exist = map.get(key);
         if (exist && (!exist.stadium || exist.stadium === 'Estádio do clube')) {
@@ -14659,6 +14697,7 @@ function openManagerContractRenewalModal(){
 
 function newCareer(data){
   const isCustom = !!data.isCustomClub;
+  const isPlayerMode = data.gameMode === 'player' || data.isPlayerMode === true;
   const targetCompId = isCustom ? (data.stateCompId || 'bra-est-sp') : (compById(data.compId) ? data.compId : (getClubPrimaryCompetitionId(data.clubName, data.compId) || data.compId));
   const comp = compById(targetCompId) || compById(data.compId) || compById('bra-est-sp');
   if(!comp) return;
@@ -14727,7 +14766,9 @@ function newCareer(data){
 
   const startingPayroll = squad.reduce((sum, p) => sum + (Number(p.wage) || 0), 0);
   // REGRA DO USUÁRIO: "so tem 300 mil no caixa"
-  const budget = isCustom ? 300000 : Math.max(250000, (club.budget || 5) * 1e6, Math.round(startingPayroll * 2.5));
+  const budget = isPlayerMode
+    ? playerModeStartingBudget(comp, club, squad, isCustom)
+    : (isCustom ? 300000 : Math.max(250000, (club.budget || 5) * 1e6, Math.round(startingPayroll * 2.5)));
 
   const sponsorOffers = generateSponsorOffers(budget, club.name, squad, { salaryModelVersion: 2, club: club.name, compId: comp.id });
   let activeSponsors;
@@ -14776,8 +14817,8 @@ function newCareer(data){
     userSlot: targetSlot,
     userOwner: targetOwner,
     version: 4,
-    gameMode: 'manager',
-    isPlayerMode: false,
+    gameMode: isPlayerMode ? 'player' : 'manager',
+    isPlayerMode,
     salaryModelVersion: 2,
     manager: mgrName,
     managerSalary: isCustom ? 25000 : ((club.budget || 5) > 15 ? 75000 : 45000),
@@ -14795,7 +14836,11 @@ function newCareer(data){
     isPreSeason: true,
     preSeasonDays: 4,
     round: 0,
-    balance: isCustom ? 300000 : ((club && typeof club.budget === 'number') ? Math.round(club.budget * 1e6) : (budget + ((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0)))),
+    balance: isPlayerMode ? budget : (
+      isCustom ? 300000
+        : (club && typeof club.budget === 'number') ? Math.round(club.budget * 1e6)
+          : budget + ((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0))
+    ),
     managerMoney: 57000,
     trust: { board: 65, fans: 70, squad: 68 },
     boardConfidence: 78,
@@ -14892,9 +14937,9 @@ function newCareer(data){
   if(typeof window !== 'undefined'){
     window.state = state;
   }
-  save();
+  if(!data.deferInitialSave) save({ allowModeReplace: true });
   view = 'central';
-  toast(`Carreira iniciada com o ${club.name}! Caixa inicial: ${fmtMoney(300000)}.`);
+  toast(`Carreira iniciada com o ${club.name}! Caixa inicial: ${fmtMoney(budget)}.`);
   render();
 }
 
@@ -15522,14 +15567,15 @@ function migrate(s){
   s.gameMode = isPlayerCareer ? 'player' : 'manager';
   s.isPlayerMode = isPlayerCareer;
 
-  // Corrige apenas caixa inflado de saves Série D ainda sem partidas ou progresso financeiro.
+  // Corrige somente o caixa inicial inflado do modo jogador, antes de qualquer progresso.
   const saveDate = String(s.date || s.currentDate || '').slice(0, 10);
-  const cleanOpeningSave = !isPlayerCareer && s.compId === 'bra-d' && saveDate === '2026-01-01' && Number(s.round || 0) === 0 && !(s.history || []).length;
-  if(cleanOpeningSave && Number(s.balance) > 10000000){
-    const initialBudget = Number(clubByName(s.club)?.budget) * 1000000;
-    if(Number.isFinite(initialBudget) && initialBudget > 0){
+  const cleanPlayerOpeningSave = isPlayerCareer && saveDate === '2026-01-01' && Number(s.round || 0) === 0
+    && !(s.history || []).length && !(s.processedFinancialMonths || []).length && !(s.playerCareerState?.financialHistory || []).length;
+  if(cleanPlayerOpeningSave){
+    const initialBudget = playerModeStartingBudget(compById(s.compId), clubByName(s.club), s.squad, !!s.isCustomClub);
+    if(Number(s.balance) > initialBudget){
       s.balance = Math.round(initialBudget);
-      s.saveRepairNotes = [...new Set([...(s.saveRepairNotes || []), 'serie-d-opening-budget'])];
+      s.saveRepairNotes = [...new Set([...(s.saveRepairNotes || []), 'player-opening-budget-cap'])];
     }
   }
 

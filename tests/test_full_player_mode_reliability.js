@@ -476,19 +476,27 @@ const sharedManagerSave = {
 localStorage.setItem('afm_save_slot_2', JSON.stringify(sharedManagerSave));
 assert.strictEqual(window.getUserSaveSlots('aquino')[1].gameMode, 'player', 'save individual jogador não pode ser trocado por save compartilhado treinador mais recente');
 assert.strictEqual(window.getSaveGameMode({ gameMode: 'player', isPlayerMode: false }), 'player', 'gameMode explícito prevalece sobre marcador legado contraditório');
+window.save();
+assert.strictEqual(JSON.parse(localStorage.getItem('afm_save_slot_2')).gameMode, 'manager', 'save automático de outro modo deve preservar o slot compartilhado existente');
+assert.strictEqual(JSON.parse(localStorage.getItem('afm_save_aquino_slot_2')).gameMode, 'player', 'save ativo deve continuar gravado na cópia isolada do usuário');
+const playerStateBeforeModeConflict = window.state;
+window.setState({ ...playerStateBeforeModeConflict, gameMode: 'manager', isPlayerMode: false, playerCareerState: null, controlledPlayerId: null });
+window.save();
+assert.strictEqual(JSON.parse(localStorage.getItem('afm_save_aquino_slot_2')).gameMode, 'player', 'save de treinador não pode sobrescrever cópia individual de jogador no mesmo slot');
+window.setState(playerStateBeforeModeConflict);
 const playerWithoutLegacyMarkers = window.migrate({
   gameMode: 'player', isPlayerMode: true, club: 'Manaus', compId: 'bra-d', date: '2026-01-01',
   round: 0, balance: 50000000, history: [], squad: []
 });
 assert.strictEqual(playerWithoutLegacyMarkers.gameMode, 'player', 'migração deve respeitar gameMode explícito sem campos legados do atleta');
-assert(playerWithoutLegacyMarkers.balance >= 50000000, 'correção do caixa Série D não pode zerar/reduzir o saldo de uma carreira do modo jogador');
+assert(playerWithoutLegacyMarkers.balance <= 1200000, 'caixa inicial Série D do modo jogador deve respeitar o teto da divisão');
 const openingManagerSave = window.migrate({
   gameMode: 'manager', isPlayerMode: false, club: 'Manaus', compId: 'bra-d', date: '2026-01-01',
   round: 0, balance: 50000000, history: [], squad: []
 });
-assert(openingManagerSave.balance <= 10000000, `save inicial Série D não pode preservar caixa inflado de R$ 50 milhões (obtido: ${openingManagerSave.balance})`);
-assert(window.clubByName('Manaus').budget <= 1.5, 'catálogo gerado da Série D não pode inflar o caixa pelo OVR médio');
-console.log('✓ O modo explícito prevalece, conflito não mistura modos e Manaus Série D recebe caixa plausível.');
+assert(openingManagerSave.balance >= 50000000, 'limite do modo jogador não deve alterar o caixa do modo treinador');
+assert(window.clubByName('Manaus').budget > 1.5, 'catálogo de clubes permanece inalterado para o modo treinador');
+console.log('✓ O modo explícito prevalece, conflito não mistura modos e limites financeiros ficam isolados no modo jogador.');
 
 // TESTE 4: Carregamento do Slot 2 (loadUserSlot) e Isolamento
 console.log('\n5. Testando loadUserSlot(2)...');
@@ -607,6 +615,7 @@ console.log('✓ 2º tempo avançou fluidamente de 46 até 90 minutos com o craq
 // TESTE 6: Alternância contínua entre Modos (Treinador x Jogador)
 console.log('\n7. Testando ciclo de alternância contínua entre saves...');
 // Cria Save Treinador no Slot 1
+['afm_save_aquino_slot_1','afm_save_aquino_slot_1_backup','afm_save_slot_1','afm_save_slot_1_backup','aquino_futebol_manager_2026_v1'].forEach(key => localStorage.removeItem(key));
 window.state = {
   club: 'Palmeiras',
   manager: 'Prof. Aquino',
@@ -634,8 +643,14 @@ for(let round = 1; round <= 3; round++){
 console.log('✓ 3 ciclos de alternância executados com 100% de isolamento e zero contaminação!');
 
 window.newCareer({ manager: 'Aquino', compId: 'bra-d', clubName: 'Manaus', slot: 3 });
-assert(window.state.balance <= 1500000, `nova carreira do Manaus Série D deve começar abaixo de R$ 1,5 milhão (obtido: ${window.state.balance})`);
-console.log('✓ Nova carreira do Manaus Série D não começa com caixa de clube de elite.');
+assert(window.state.balance > 10000000, 'nova carreira do treinador mantém o orçamento atual do Manaus');
+window.newCareer({ manager: 'Treinador da IA', gameMode: 'player', compId: 'bra-d', clubName: 'Manaus', slot: 3 });
+assert(window.state.balance <= 1200000, `modo jogador do Manaus Série D deve respeitar R$ 1,2 milhão (obtido: ${window.state.balance})`);
+window.newCareer({ manager: 'Treinador da IA', gameMode: 'player', compId: 'bra-a', clubName: 'Palmeiras', slot: 3 });
+assert(window.state.balance <= 25000000, 'modo jogador da Série A deve respeitar o teto próprio da liga');
+window.newCareer({ manager: 'Treinador da IA', gameMode: 'player', compId: 'eng-1', clubName: 'Manchester City', slot: 3 });
+assert(window.state.balance <= 75000000, 'modo jogador na Premier League deve respeitar teto aplicável a liga internacional');
+console.log('✓ Orçamentos do modo jogador são limitados por liga; modo treinador preserva os valores anteriores.');
 
 console.log('\n======================================================');
 console.log('🎉 TODOS OS TESTES PASSARAM COM 100% DE SUCESSO! 🎉');

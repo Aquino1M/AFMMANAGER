@@ -31,11 +31,18 @@ const supabase = {
       auth,
       from(table){
         let filteredUsername = null;
+        let filteredSlot = null;
         return {
           select(columns){ queryCalls.push(['select', table, columns]); return this; },
-          eq(column, value){ queryCalls.push(['eq', table, column, value]); return this; },
+          eq(column, value){ queryCalls.push(['eq', table, column, value]); if(column === 'slot') filteredSlot = Number(value); return this; },
           ilike(column, value){ queryCalls.push(['ilike', table, column, value]); if(column === 'username') filteredUsername = String(value).toLowerCase(); return this; },
-          maybeSingle: async () => ({ data: queryFailure ? null : (table === 'afm_users' && filteredUsername === 'coach@example.com' ? { id: user.id, username: 'coach@example.com', name: 'Coach', role: 'player', password: 'a long password' } : (table === 'afm_users' && ['aquino','admin'].includes(filteredUsername) ? { id: filteredUsername, username: filteredUsername, name: filteredUsername === 'admin' ? 'Administrador AFM' : 'Aquino', role: filteredUsername === 'admin' ? 'admin' : 'player', password: filteredUsername === 'admin' ? 'secure-admin-test' : 'secure-coach-test' } : null)), error: queryFailure }),
+          maybeSingle: async () => {
+            let data = null;
+            if(!queryFailure && table === 'afm_users' && filteredUsername === 'coach@example.com') data = { id: user.id, username: 'coach@example.com', name: 'Coach', role: 'player', password: 'a long password' };
+            else if(!queryFailure && table === 'afm_users' && ['aquino','admin'].includes(filteredUsername)) data = { id: filteredUsername, username: filteredUsername, name: filteredUsername === 'admin' ? 'Administrador AFM' : 'Aquino', role: filteredUsername === 'admin' ? 'admin' : 'player', password: filteredUsername === 'admin' ? 'secure-admin-test' : 'secure-coach-test' };
+            else if(!queryFailure && table === 'afm_saves') data = saveRows.find(row => Number(row.slot) === filteredSlot) || null;
+            return { data, error: queryFailure };
+          },
           order(){ return Promise.resolve({ data: saveRows, error: queryFailure }); },
           limit(){ return Promise.resolve({ data: [], error: queryFailure }); },
           insert(payload){ queryCalls.push(['insert', table, payload]); return { select(){ return { single: async () => ({ data: { ...payload[0], id: 'new-user' }, error: queryFailure }) }; } }; },
@@ -117,9 +124,15 @@ vm.runInNewContext(fs.readFileSync('js/database.js', 'utf8'), context);
   const saveCalls = queryCalls.slice(saveCallStart);
   const upsert = saveCalls.find(call => call[0] === 'upsert' && call[1] === 'afm_saves');
   assert(upsert, 'save da conta ativa deve ser enviado à nuvem');
+  assert(saveCalls.some(call => call[0] === 'select' && call[1] === 'afm_saves'), 'modo persistido do slot deve ser verificado antes de substituir a nuvem');
   assert.equal(upsert[2].username, 'coach@example.com', 'cloud save is bound to the account username');
   assert.equal(upsert[3]?.onConflict, 'username,slot', 'save upsert uses unique username and slot');
-  assert(!saveCalls.some(call => call[0] === 'select'), 'upsert não deve baixar a cópia completa do save após gravar');
+  saveRows.push({ slot: 2, save_data: { gameMode: 'manager', isPlayerMode: false, club: 'Manaus' } });
+  const conflictStart = queryCalls.length;
+  const modeConflict = await db.saveSlot('coach@example.com', 2, { club: 'Real Brasília', data: { gameMode: 'player', isPlayerMode: true, club: 'Real Brasília' } });
+  assert.equal(modeConflict.modeConflict, true, 'save jogador não pode substituir slot de treinador na nuvem');
+  assert(!queryCalls.slice(conflictStart).some(call => call[0] === 'upsert'), 'conflito de modo deve bloquear escrita remota');
+  assert.equal((await db.saveSlot('coach@example.com', 2, { club: 'Real Brasília', data: { gameMode: 'player', isPlayerMode: true, club: 'Real Brasília' } }, { allowModeReplace: true })).ok, true, 'nova carreira escolhida explicitamente pode substituir o slot');
   queryFailure = { message: 'RLS denied save write', code: '42501' };
   assert.equal((await db.saveSlot('coach@example.com', 2, { club: 'Corinthians', data: { club: 'Corinthians' } })).ok, false, 'falhas do Supabase continuam sendo reportadas');
   queryFailure = null;
