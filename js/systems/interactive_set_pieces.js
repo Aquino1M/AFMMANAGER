@@ -86,16 +86,16 @@
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:14px;margin-bottom:16px">
           <div>
             <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(250,204,21,0.18);border:1px solid #facc15;color:#facc15;font-size:11px;font-weight:900;padding:3px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:0.8px">
-              ⏱️ ${min}' · PÊNALTI MARCADO!
+              ${s.isTraining ? `🏟️ CT DO CLUBE - TREINO PRÁTICO (Tentativa ${s.trainingAttempt || 1}/3)` : `⏱️ ${min}' · PÊNALTI MARCADO!`}
             </div>
             <div style="font-size:18px;font-weight:900;margin-top:4px;color:#fff">
-              ${isUserAttacking ? (isPlayerMode ? '⭐ É A SUA VEZ DE BATER O PÊNALTI!' : `⚽ PÊNALTI A FAVOR DO ${attTeam.toUpperCase()}!`) : `🧤 PÊNALTI CONTRA! SEU GOLEIRO DEVE DEFENDER!`}
+              ${s.isTraining ? '⭐ É A SUA VEZ DE BATER O PÊNALTI!' : (isUserAttacking ? (isPlayerMode ? '⭐ É A SUA VEZ DE BATER O PÊNALTI!' : `⚽ PÊNALTI A FAVOR DO ${attTeam.toUpperCase()}!`) : `🧤 PÊNALTI CONTRA! SEU GOLEIRO DEVE DEFENDER!`)}
             </div>
           </div>
 
-          <!-- PLACAR ATUAL -->
-          <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.1);padding:6px 14px;border-radius:10px;font-weight:900;font-size:14px">
-            ${s.home.slice(0,3).toUpperCase()} <b style="color:#facc15">${s.hg}</b> x <b style="color:#facc15">${s.ag}</b> ${s.away.slice(0,3).toUpperCase()}
+          <!-- PLACAR ATUAL OU BADGE DE RECOMPENSA -->
+          <div style="background:#1e293b;border:1px solid ${s.isTraining ? '#facc15' : 'rgba(255,255,255,0.1)'};padding:6px 14px;border-radius:10px;font-weight:900;font-size:14px;color:${s.isTraining ? '#facc15' : '#fff'}">
+            ${s.isTraining ? 'RECOMPENSA: +20 XP (Pênalti)' : `${s.home.slice(0,3).toUpperCase()} <b style="color:#facc15">${s.hg}</b> x <b style="color:#facc15">${s.ag}</b> ${s.away.slice(0,3).toUpperCase()}`}
           </div>
         </div>
 
@@ -312,13 +312,41 @@
         }
       }
 
+      // Se for modo treino prático, dispara imediatamente o consumo da carga anti-glitch e cálculo de XP
+      let trainingResult = null;
+      if(s.isTraining && typeof s.onShotExecuted === 'function'){
+        try { trainingResult = s.onShotExecuted(isGoal); } catch(err) { console.error('Erro ao executar treino pratico:', err); }
+      }
+
       // Aplica o som e o resultado visual após 550ms (tempo de viagem da bola)
       setTimeout(() => {
         banner.style.display = 'block';
         btnCont.style.display = 'inline-block';
         overlay.querySelector('#penaltyInstructions').style.display = 'none';
 
-        if(isGoal){
+        if(s.isTraining){
+          btnCont.textContent = 'CONCLUIR TREINO ➔';
+          if(isGoal){
+            if(window.afmAudio){
+              window.afmAudio.playSFX('goal_celebration');
+            } else if(typeof window.playCheerSound === 'function'){
+              window.playCheerSound();
+            }
+            banner.style.borderColor = '#10b981';
+            banner.querySelector('#penaltyOutcomeIcon').textContent = '⚽';
+            banner.querySelector('#penaltyOutcomeTitle').textContent = style === 'panenka' ? 'GOLAÇO DE CAVADINHA NO TREINO!' : 'GOLAÇO NO TREINO!';
+            banner.querySelector('#penaltyOutcomeTitle').style.color = '#10b981';
+            const remainingCount = trainingResult ? trainingResult.remainingToday : Math.max(0, 3 - (s.trainingAttempt || 1));
+            banner.querySelector('#penaltyOutcomeDesc').textContent = `⚽ GOLAÇO NO TREINO! Você ganhou +20 XP em Finalização & Evolution!${trainingResult?.gainedAttributePoint ? ' ⭐ VOCÊ SUBIU DE NÍVEL E GANHOU 1 PONTO LIVRE!' : ''} (Restam ${remainingCount}/3 treinos hoje)`;
+          } else {
+            banner.style.borderColor = '#ef4444';
+            banner.querySelector('#penaltyOutcomeIcon').textContent = isSave ? '🧤' : (isPost ? '💥' : '⚠️');
+            banner.querySelector('#penaltyOutcomeTitle').textContent = isSave ? 'DEFENDEU NO TREINO!' : (isPost ? 'NA TRAVE!' : 'PARA FORA!');
+            banner.querySelector('#penaltyOutcomeTitle').style.color = '#ef4444';
+            const remainingCount = trainingResult ? trainingResult.remainingToday : Math.max(0, 3 - (s.trainingAttempt || 1));
+            banner.querySelector('#penaltyOutcomeDesc').textContent = `🧤 DEFENDEU / PARA FORA! Você ganhou apenas +3 XP pela tentativa. Restam ${remainingCount}/3 treinos hoje.`;
+          }
+        } else if(isGoal){
           if(window.afmAudio){
             window.afmAudio.playSFX('goal_celebration');
             window.afmAudio.boostCrowdCheer(4);
@@ -446,15 +474,16 @@
         <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:14px;margin-bottom:16px">
           <div>
             <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(56,189,248,0.18);border:1px solid #38bdf8;color:#38bdf8;font-size:11px;font-weight:900;padding:3px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:0.8px">
-              ⏱️ ${min}' · FALTA PERIGOSA NA ENTRADA DA ÁREA (23M)
+              ${s.isTraining ? `🏟️ CT DO CLUBE - TREINO PRÁTICO (Tentativa ${s.trainingAttempt || 1}/3)` : `⏱️ ${min}' · FALTA PERIGOSA NA ENTRADA DA ÁREA (23M)`}
             </div>
             <div style="font-size:18px;font-weight:900;margin-top:4px;color:#fff">
-              ${isUserAttacking ? (isPlayerMode ? '⭐ COBRANÇA DE FALTA: ESCOLHA COMO BATER!' : `🎯 FALTA PERIGOSA PARA O ${attTeam.toUpperCase()}!`) : `🛡️ BARREIRA MONTADA! DEFENDA A COBRANÇA!`}
+              ${s.isTraining ? '⭐ COBRANÇA DE FALTA: ESCOLHA COMO BATER!' : (isUserAttacking ? (isPlayerMode ? '⭐ COBRANÇA DE FALTA: ESCOLHA COMO BATER!' : `🎯 FALTA PERIGOSA PARA O ${attTeam.toUpperCase()}!`) : `🛡️ BARREIRA MONTADA! DEFENDA A COBRANÇA!`)}
             </div>
           </div>
 
-          <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.1);padding:6px 14px;border-radius:10px;font-weight:900;font-size:14px">
-            ${s.home.slice(0,3).toUpperCase()} <b style="color:#38bdf8">${s.hg}</b> x <b style="color:#38bdf8">${s.ag}</b> ${s.away.slice(0,3).toUpperCase()}
+          <!-- PLACAR ATUAL OU BADGE DE RECOMPENSA -->
+          <div style="background:#1e293b;border:1px solid ${s.isTraining ? '#38bdf8' : 'rgba(255,255,255,0.1)'};padding:6px 14px;border-radius:10px;font-weight:900;font-size:14px;color:${s.isTraining ? '#38bdf8' : '#fff'}">
+            ${s.isTraining ? 'RECOMPENSA: +35 XP (Falta)' : `${s.home.slice(0,3).toUpperCase()} <b style="color:#38bdf8">${s.hg}</b> x <b style="color:#38bdf8">${s.ag}</b> ${s.away.slice(0,3).toUpperCase()}`}
           </div>
         </div>
 
@@ -595,11 +624,39 @@
         }
       }
 
+      // Se for modo treino prático, dispara imediatamente o consumo da carga anti-glitch e cálculo de XP
+      let trainingResult = null;
+      if(s.isTraining && typeof s.onShotExecuted === 'function'){
+        try { trainingResult = s.onShotExecuted(isGoal); } catch(err) { console.error('Erro ao executar treino pratico:', err); }
+      }
+
       setTimeout(() => {
         banner.style.display = 'block';
         btnCont.style.display = 'inline-block';
 
-        if(isGoal){
+        if(s.isTraining){
+          btnCont.textContent = 'CONCLUIR TREINO ➔';
+          if(isGoal){
+            if(window.afmAudio){
+              window.afmAudio.playSFX('goal_celebration');
+            } else if(typeof window.playCheerSound === 'function'){
+              window.playCheerSound();
+            }
+            banner.style.borderColor = '#10b981';
+            banner.querySelector('#freeKickOutcomeIcon').textContent = '⚽';
+            banner.querySelector('#freeKickOutcomeTitle').textContent = 'GOLAÇO NO TREINO!';
+            banner.querySelector('#freeKickOutcomeTitle').style.color = '#10b981';
+            const remainingCount = trainingResult ? trainingResult.remainingToday : Math.max(0, 3 - (s.trainingAttempt || 1));
+            banner.querySelector('#freeKickOutcomeDesc').textContent = `⚽ GOLAÇO NO TREINO! Você ganhou +35 XP em Finalização & Evolution!${trainingResult?.gainedAttributePoint ? ' ⭐ VOCÊ SUBIU DE NÍVEL E GANHOU 1 PONTO LIVRE!' : ''} (Restam ${remainingCount}/3 treinos hoje)`;
+          } else {
+            banner.style.borderColor = '#ef4444';
+            banner.querySelector('#freeKickOutcomeIcon').textContent = isSave ? '🧤' : '🧱';
+            banner.querySelector('#freeKickOutcomeTitle').textContent = isSave ? 'DEFENDEU NO TREINO!' : 'NA BARREIRA / PARA FORA!';
+            banner.querySelector('#freeKickOutcomeTitle').style.color = '#ef4444';
+            const remainingCount = trainingResult ? trainingResult.remainingToday : Math.max(0, 3 - (s.trainingAttempt || 1));
+            banner.querySelector('#freeKickOutcomeDesc').textContent = `🧤 DEFENDEU / PARA FORA! Você ganhou apenas +5 XP pela tentativa. Restam ${remainingCount}/3 treinos hoje.`;
+          }
+        } else if(isGoal){
           if(window.afmAudio){
             window.afmAudio.playSFX('goal_celebration');
             window.afmAudio.boostCrowdCheer(4);

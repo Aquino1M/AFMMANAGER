@@ -29,6 +29,11 @@
 - Modais de negociação da aba `💼 Empresário & Mercado` (Pedir Aumento & Renovação, Solicitar Empréstimo e Solicitar Transferência):
   - Todo componente de negociação contratual, empréstimo ou transferência deve ter 100% dos seus inputs (sliders, botões de duração, divisão salarial e motivos) reativos e vinculados ao cálculo central da barra de aprovação/resistência em tempo real (nunca valores mockados ou estáticos).
   - Qualquer alteração futura nos modais da aba `💼 Empresário & Mercado` deve preservar a sincronia matemática entre estado da UI, cálculo de probabilidade e persistência no save, aplicando clamp estrito de `Math.min(100, Math.max(5, chance))` em todas as barras.
+- Treinamento Prático em Campo e Trava Anti-Glitch (3x/dia):
+  - Na aba `Meu Atleta & Treino`, os minigames interativos de **Treinar Pênaltis** e **Treinar Faltas** são limitados rigidamente a 3 execuções por dia do calendário (`trainingState.dailyCount` máximo 3).
+  - A troca de data no calendário (`CONTINUAR`) via `syncDailyTrainingLimit` reseta idempotentemente `dailyCount = 0` sincronizando com a nova data.
+  - A carga é consumida imediatamente no momento do disparo do chute (clique no alvo do gol no Pênalti ou no estilo de batida na Falta) com persistência imediata (`save()`), impedindo burlas por reload/F5 ou fechamento de modal.
+  - Pênalti concede +20 XP no gol e +3 XP no erro; Falta concede +35 XP no gol e +5 XP no erro, alimentando `xp` e `shootingXp`. Ao atingir a meta de nível, sobe de nível, concede 1 ponto de atributo livre (`skillPoints` / `availablePoints`) e escala a meta em 1.2x.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis

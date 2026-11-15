@@ -3210,10 +3210,70 @@
       pState.xp -= pState.xpToNextLevel;
       pState.level++;
       pState.skillPoints += 2;
+      pState.availablePoints = (pState.availablePoints || 0) + 2;
       pState.xpToNextLevel = Math.round(pState.xpToNextLevel * 1.25);
       levelUps++;
     }
     return levelUps;
+  }
+
+  function syncDailyTrainingLimit(playerState, currentGameDate){
+    if(!playerState) return null;
+    const dateStr = String(currentGameDate || '2026-01-01');
+    if(!playerState.trainingState){
+      playerState.trainingState = { dailyCount: 0, lastTrainingDate: dateStr, maxDailyLimit: 3 };
+    }
+    if(playerState.trainingState.lastTrainingDate !== dateStr){
+      playerState.trainingState.dailyCount = 0;
+      playerState.trainingState.lastTrainingDate = dateStr;
+    }
+    playerState.trainingState.maxDailyLimit = 3;
+    return playerState;
+  }
+
+  function executePracticalTraining({ type, isGoal, playerState, currentGameDate }){
+    if(!playerState) return { blocked: true, message: "Estado do jogador inválido." };
+    const dateStr = String(currentGameDate || '2026-01-01');
+    syncDailyTrainingLimit(playerState, dateStr);
+
+    if(playerState.trainingState.dailyCount >= 3){
+      return { blocked: true, message: "Limite diário de 3 treinos atingido!" };
+    }
+
+    playerState.trainingState.dailyCount += 1;
+    playerState.trainingState.lastTrainingDate = dateStr;
+
+    const xpEarned = isGoal
+      ? (type === 'penalty' ? 20 : 35)
+      : (type === 'penalty' ? 3 : 5);
+
+    playerState.xp = (playerState.xp || 0) + xpEarned;
+    playerState.shootingXp = (playerState.shootingXp || 0) + xpEarned;
+
+    let gainedAttributePoint = false;
+    while(playerState.xp >= (playerState.xpToNextLevel || 100)){
+      playerState.xp -= (playerState.xpToNextLevel || 100);
+      playerState.level = (playerState.level || 1) + 1;
+      playerState.availablePoints = (playerState.availablePoints || 0) + 1;
+      playerState.skillPoints = (playerState.skillPoints || 0) + 1;
+      playerState.xpToNextLevel = Math.round((playerState.xpToNextLevel || 100) * 1.2);
+      gainedAttributePoint = true;
+    }
+
+    playerState.availablePoints = Math.max(playerState.availablePoints || 0, playerState.skillPoints || 0);
+    playerState.skillPoints = playerState.availablePoints;
+
+    if(typeof window.save === 'function'){
+      try { window.save(); } catch(_) {}
+    }
+
+    return {
+      blocked: false,
+      isGoal,
+      xpEarned,
+      gainedAttributePoint,
+      remainingToday: Math.max(0, playerState.trainingState.maxDailyLimit - playerState.trainingState.dailyCount)
+    };
   }
 
   // Exporta o motor global
@@ -3246,6 +3306,8 @@
     getClubPrimaryCompetitionId,
     calculatePlayerOverall,
     normalizePlayerProgression,
+    syncDailyTrainingLimit,
+    executePracticalTraining,
     recoverDailyEnergy,
     isPlayerAvailableForMatch,
     calculateBodyModifiers,

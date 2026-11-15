@@ -161,6 +161,9 @@
         }
 
         if (state && state.gameMode === 'player' && window.AFM_PlayerEngine) {
+          if (typeof window.AFM_PlayerEngine.syncDailyTrainingLimit === 'function' && state.playerCareerState) {
+            window.AFM_PlayerEngine.syncDailyTrainingLimit(state.playerCareerState, newIso);
+          }
           if (typeof window.AFM_PlayerEngine.processPlayerAging === 'function') {
             window.AFM_PlayerEngine.processPlayerAging(state, newIso);
           }
