@@ -29149,11 +29149,22 @@ function render() {
           }
         }
 
-        const balEl = app.querySelector('.club-card b');
-        if(balEl) {
-          if(isPlayerMode){
-            balEl.textContent = `R$ ${(state.playerCareerState?.personalBank || 0).toLocaleString('pt-BR')}`;
-          } else {
+        if(isPlayerMode) {
+          const pState = state.playerCareerState;
+          const athlete = (typeof getControlledPlayer === 'function') ? getControlledPlayer(state) : (state?.squad?.find(p => p.id === state.controlledPlayerId || p.isControlled));
+          const pBank = Number(pState?.personalBank ?? athlete?.cash ?? pState?.lifestyle?.cash ?? 0);
+          const patrimony = typeof window.AFM_Lifestyle?.getPlayerTotalPatrimony === 'function'
+            ? window.AFM_Lifestyle.getPlayerTotalPatrimony(pState || athlete)
+            : (pBank + (Number(pState?.lifestyle?.investments?.cdbBalance) || 0));
+
+          const dPatrimonyEl = app.querySelector('#drawerPatrimonyVal');
+          if (dPatrimonyEl) dPatrimonyEl.textContent = `R$ ${patrimony.toLocaleString('pt-BR')}`;
+
+          const dCashEl = app.querySelector('#drawerPersonalCashVal');
+          if (dCashEl) dCashEl.textContent = `R$ ${pBank.toLocaleString('pt-BR')}`;
+        } else {
+          const balEl = app.querySelector('.club-card b:last-of-type') || app.querySelector('.club-card b');
+          if(balEl) {
             balEl.textContent = fmtMoney(state.balance);
           }
         }
@@ -29191,10 +29202,16 @@ function render() {
         const cashValEl = app.querySelector('.sm-badge-cash .sm-res-val');
         if(cashValEl) {
           if(isPlayerMode){
-            const pBank = state.playerCareerState?.personalBank || 0;
+            const pState = state.playerCareerState;
+            const athlete = (typeof getControlledPlayer === 'function') ? getControlledPlayer(state) : (state?.squad?.find(p => p.id === state.controlledPlayerId || p.isControlled));
+            const pBank = Number(pState?.personalBank ?? athlete?.cash ?? pState?.lifestyle?.cash ?? 0);
+            const patrimony = typeof window.AFM_Lifestyle?.getPlayerTotalPatrimony === 'function'
+              ? window.AFM_Lifestyle.getPlayerTotalPatrimony(pState || athlete)
+              : (pBank + (Number(pState?.lifestyle?.investments?.cdbBalance) || 0));
+
             cashValEl.textContent = `R$ ${(pBank >= 1000000 ? (pBank/1000000).toFixed(1) + 'M' : (pBank >= 1000 ? Math.round(pBank/1000) + 'K' : pBank))}`;
             const badgeCash = app.querySelector('.sm-badge-cash');
-            if(badgeCash) badgeCash.title = `Conta Pessoal: R$ ${pBank.toLocaleString('pt-BR')}`;
+            if(badgeCash) badgeCash.title = `Conta Pessoal: R$ ${pBank.toLocaleString('pt-BR')} · Patrimônio: R$ ${patrimony.toLocaleString('pt-BR')}`;
           } else {
             cashValEl.textContent = fmtCompactMoney(state.balance);
             const badgeCash = app.querySelector('.sm-badge-cash');
@@ -30232,6 +30249,11 @@ function shell(main){
   const athleteOvr = Math.max(1, Number(athlete?.ovr || athlete?.overall || pState?.athleteOvr || pState?.overall) || 35);
   const skillPts = Number(pState?.availablePoints ?? pState?.skillPoints ?? 0);
   const personalBank = Number(pState?.personalBank ?? athlete?.cash ?? 0);
+  const athletePatrimony = isPlayerMode
+    ? (typeof window.AFM_Lifestyle?.getPlayerTotalPatrimony === 'function'
+        ? window.AFM_Lifestyle.getPlayerTotalPatrimony(pState || athlete)
+        : (personalBank + (Number(pState?.lifestyle?.investments?.cdbBalance) || 0)))
+    : 0;
 
   const teamOvr = isPlayerMode
     ? athleteOvr
@@ -30250,7 +30272,7 @@ function shell(main){
     : fmtCompactMoney(state.balance);
 
   const displayCashTitle = isPlayerMode
-    ? `Conta Pessoal: R$ ${personalBank.toLocaleString('pt-BR')}`
+    ? `Conta Pessoal: R$ ${personalBank.toLocaleString('pt-BR')} · Patrimônio: R$ ${athletePatrimony.toLocaleString('pt-BR')}`
     : `Saldo em Caixa: ${fmtMoney(state.balance)}`;
 
   const strengthTitle = isPlayerMode
@@ -30390,10 +30412,13 @@ function shell(main){
 
           <div class="club-card" style="margin-top:4px;padding:12px;">
             ${(state.gameMode === 'player' || state.playerCareerState) ? `
-              <div class="small">⚽ Clube: <b>${esc(state.club || '')}</b></div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="small" style="color:#94a3b8">💎 Patrimônio:</span>
+                <b id="drawerPatrimonyVal" style="color:#38bdf8;font-size:13px;font-weight:900">R$ ${(athletePatrimony).toLocaleString('pt-BR')}</b>
+              </div>
               <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center">
-                <span class="small">Conta Pessoal:</span>
-                <b style="color:#10b981;font-size:15px">R$ ${(state.playerCareerState?.personalBank || 0).toLocaleString('pt-BR')}</b>
+                <span class="small" style="color:#cbd5e1">Conta Pessoal:</span>
+                <b id="drawerPersonalCashVal" style="color:#10b981;font-size:15px;font-weight:900">R$ ${(personalBank).toLocaleString('pt-BR')}</b>
               </div>
             ` : `
               <div class="small">🏟️ ${esc(c.stadium||'')}</div>

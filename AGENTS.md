@@ -1,11 +1,13 @@
 # AFM Manager — regras de engenharia
 
 ## Arquitetura e mudanças
+
 - Aplicação local-first em HTML, CSS e JavaScript ES2022, sem build obrigatório. `js/game.js` coordena UI/estado; reutilize serviços em `js/core/`, `js/player/` e catálogos existentes.
 - `gameMode` persistido é a autoridade; use `isPlayerMode`/campos legados só quando ele faltar. Carregamento, autosave e sincronização nunca substituem um slot de outro modo, mesmo por timestamp; só uma nova carreira escolhida pelo usuário autoriza a troca. Migrações devem ser aditivas, idempotentes e compatíveis com saves antigos.
 - Preserve mudanças locais. Nunca use `git reset --hard`, `git clean` ou reversão destrutiva.
 
 ## Jogo e estado consistente
+
 - Processe partidas pendentes em ordem cronológica usando `resolveCalendarMatchResult(match, state)` e elencos válidos de 11 atletas. Promoção/rebaixamento altera somente `state.competitionTeams` da carreira ativa.
 - Títulos oficiais atualizam `state.titles`, o Museu e `AFM_TitlesAndHistoryService`; preserve `seasonHistory`/`worldChampionHistory` e classifique acessos como “Acesso”. Prêmios exibem vencedor e métrica reais ou “A definir”; processe-os em `processEndOfSeasonAwards()`.
 - Ao cruzar cada mês, processe uma vez as finanças do modo ativo na ordem das datas. No treinador, credite TV/patrocínios e quite folha, instalações, olheiros, marketing e dívidas; no jogador, processe salário/despesas/dívidas pessoais. Não dependa apenas do dia 1; mantenha idempotência em avanços longos, jogos e recargas.
@@ -14,6 +16,7 @@
 - Limites de caixa por divisão aplicam-se somente à criação do Modo Jogador, em todas as ligas; treinador mantém os orçamentos existentes. Repare save de jogador apenas na abertura comprovada, sem partidas ou progresso financeiro.
 
 ## Carreira do jogador
+
 - Preserve sempre a criação do atleta (`#btnGoCreatePlayer`, `#btnNavGoPlayerMode`, `setupViewMode === 'create_player'` e `renderCreatePlayerScreen`). Elenco legado incompleto deve ser completado sem duplicar atletas nem remover o controlado; mudanças exigem teste de migração idempotente.
 - Limite atributos a 99. Toda rota de partida registra uma só atuação com minutos via `AFM_PlayerEngine.processMatchPerformance`; normalize minutos na fronteira. Súmula, eventos, intervalo, nota final, gols, assistências, histórico, XP, patrocínio e prêmios devem compartilhar os mesmos dados, sem inferir gol pelo placar.
 - Nunca coloque o atleta de linha no slot GK. Garanta goleiro válido, preserve posição natural e reposicione coordenadas após substituições/intervalo. Teste titular, reserva, troca, goleiro ausente e estatísticas duplicadas.
@@ -62,12 +65,15 @@
     - O 'Radar de Interesse & Rumores' monitora sondagens de mercado em tempo real e permite solicitar proposta formal diretamente para a mesa de negociação.
     - O atleta pode submeter '🤝 Contraproposta (+15% Salário)' em propostas recebidas, limitando a uma renegociação por oferta.
     - No modo atleta (`gameMode === 'player'`), a barra superior (`sm-topbar`) reflete o atleta: OVR em força, pontos livres em prestígio e conta bancária pessoal no saldo financeiro.
+  - REGRA IRRESTRITA DE UI FINANCEIRA: No Modo Atleta, o topo esquerdo deve refletir o Patrimônio Total do Atleta (líquido + investimentos), enquanto o card central da aba Vida & Patrocínios exibe o Saldo Líquido Disponível. Toda aplicação em CDB ou resgate deve disparar a atualização global da DOM financeira.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis
+
 - Preserve os canvases WebGL e trate falhas de renderização; dispose recursos ao fechar/trocar cena. Não use `forceContextLoss()`/`loseContext()` em navegação normal. Detalhes em `.agents/rules/3d_game_studio.md`.
 - Saves em `afm_saves` usam upsert; resposta sem corpo e sem erro confirma sucesso. Em timeout, aborte quando possível e preserve o save local. Compare timestamp apenas entre saves do mesmo modo; conflito entre treinador/jogador preserva cada cópia e nunca hidrata a carreira ativa com o outro modo. Mudanças de autenticação/RLS devem ser revisadas junto com `js/database.js` e migrations; nunca publique senhas, credenciais reais ou acesso `anon` a dados privados.
 - Trate save, importação, rede e nomes como entrada não confiável: valide trust boundaries e use `esc()` em HTML; prefira propriedades/DOM APIs a interpolar dados em `innerHTML`. Arredonde dinheiro com `Math.round()`.
 
 ## Verificação
+
 - Antes de mudar código compartilhado, localize chamadores e testes. Execute testes reais pertinentes (Node/browser), confira erros introduzidos e descreva o que não foi verificado; não declare sucesso sem evidência.

@@ -409,6 +409,130 @@
   // =========================================================================
   // 6. ADIÇÃO DE TRANSAÇÕES NO LIVRO-RAZÃO & SINCRONIZAÇÃO DE SALDO
   // =========================================================================
+  function getPlayerTotalPatrimony(player) {
+    if (!player) return 0;
+    const ls = ensurePlayerLifestyleState(player);
+    const liquidCash = Number(player.personalBank ?? player.cash ?? ls.cash ?? 0);
+    const cdb = Number(ls.investments?.cdbBalance || 0);
+
+    let businessVal = 0;
+    businessVal += (Number(ls.investments?.rentalUnits) || 0) * 25000;
+    if (ls.investments?.academyOwned) businessVal += 90000;
+    if (ls.investments?.brandOwned) businessVal += 180000;
+
+    let assetsVal = 0;
+    if (Array.isArray(ls.ownedAssets)) {
+      ls.ownedAssets.forEach(id => {
+        const item = AFM_ASSETS_CATALOG.find(a => a.id === id);
+        if (item && item.price) assetsVal += item.price;
+      });
+    }
+    if (Array.isArray(ls.financedAssets)) {
+      ls.financedAssets.forEach(fin => {
+        const item = AFM_ASSETS_CATALOG.find(a => a.id === fin.id);
+        if (item && item.price) {
+          const downPayment = Math.round(item.price * 0.3);
+          const paidInstallments = (12 - (Number(fin.installmentsRemaining) || 12)) * (Number(fin.monthlyInstallment) || 0);
+          assetsVal += (downPayment + Math.max(0, paidInstallments));
+        }
+      });
+    }
+
+    return Math.round(liquidCash + cdb + businessVal + assetsVal);
+  }
+
+  function updatePlayerFinancialDisplay(player) {
+    if (!player && typeof window !== "undefined") {
+      const gs = window.game?.state || window.gameState || window.state;
+      player = gs?.playerCareerState || (gs?.squad || []).find(p => p.id === gs?.controlledPlayerId || p.isControlled);
+    }
+    if (!player) return { liquidCash: 0, totalInvested: 0, totalPatrimony: 0 };
+
+    const ls = ensurePlayerLifestyleState(player);
+    const liquidCash = Number(player.personalBank ?? player.cash ?? ls.cash ?? 0);
+    const totalInvested = Number(ls.investments?.cdbBalance || 0);
+    const totalPatrimony = getPlayerTotalPatrimony(player);
+
+    // Paridade 100% estrita de saldo
+    ls.cash = liquidCash;
+    player.cash = liquidCash;
+    player.personalBank = liquidCash;
+
+    if (typeof window !== "undefined") {
+      const gs = window.game?.state || window.gameState || window.state;
+      if (gs) {
+        if (gs.playerCareerState) {
+          gs.playerCareerState.personalBank = liquidCash;
+          gs.playerCareerState.cash = liquidCash;
+          if (gs.playerCareerState.lifestyle) {
+            gs.playerCareerState.lifestyle.cash = liquidCash;
+          }
+        }
+        const controlled = (gs.squad || []).find(p => p.id === gs.controlledPlayerId || p.isControlled);
+        if (controlled) {
+          controlled.cash = liquidCash;
+          controlled.personalBank = liquidCash;
+          if (controlled.lifestyle) {
+            controlled.lifestyle.cash = liquidCash;
+          }
+        }
+      }
+
+      if (typeof document !== "undefined") {
+        const formattedLiquid = `R$ ${liquidCash.toLocaleString("pt-BR")}`;
+        const formattedPatrimony = `R$ ${totalPatrimony.toLocaleString("pt-BR")}`;
+
+        // Atualiza elementos da UI do Topo e Painéis
+        if (typeof document.querySelectorAll === "function") {
+          document.querySelectorAll('.sm-badge-cash .sm-res-val, [id*="Cash"], [id*="Saldo"]').forEach(el => {
+            if (el && typeof el.matches === 'function' && !el.matches('input, textarea, select')) {
+              el.textContent = `R$ ${liquidCash.toLocaleString('pt-BR')}`;
+            }
+          });
+        }
+
+        // Badge Topbar
+        if (typeof document.querySelector === "function") {
+          const cashValEl = document.querySelector(".sm-badge-cash .sm-res-val");
+          if (cashValEl) {
+            cashValEl.textContent = `R$ ${(liquidCash >= 1000000 ? (liquidCash / 1000000).toFixed(1) + 'M' : (liquidCash >= 1000 ? Math.round(liquidCash / 1000) + 'K' : liquidCash))}`;
+          }
+          const badgeCash = document.querySelector(".sm-badge-cash");
+          if (badgeCash) {
+            badgeCash.title = `Conta Pessoal: ${formattedLiquid} · Patrimônio: ${formattedPatrimony}`;
+          }
+        }
+
+        // Drawer Lateral
+        if (typeof document.getElementById === "function") {
+          const dPatrimonyEl = document.getElementById("drawerPatrimonyVal");
+          if (dPatrimonyEl) dPatrimonyEl.textContent = formattedPatrimony;
+
+          const dCashEl = document.getElementById("drawerPersonalCashVal");
+          if (dCashEl) dCashEl.textContent = formattedLiquid;
+
+          // Card de Conta Bancária Pessoal na aba Vida & Patrocínios
+          const personalBankEl = document.getElementById("personalBankBalanceCard");
+          if (personalBankEl) {
+            personalBankEl.textContent = formattedLiquid;
+          }
+
+          // Card do CDB Esportivo (Saldo Atual Investido)
+          const cdbInvestedEl = document.getElementById("cdbInvestedBalanceVal");
+          if (cdbInvestedEl) {
+            cdbInvestedEl.textContent = `R$ ${totalInvested.toLocaleString("pt-BR")}`;
+          }
+        }
+      }
+
+      if (typeof window.updateTopBar === "function") {
+        window.updateTopBar();
+      }
+    }
+
+    return { liquidCash, totalInvested, totalPatrimony };
+  }
+
   function addPlayerTransaction(player, date, desc, amount, type = "in") {
     if (!player) return 0;
     const ls = ensurePlayerLifestyleState(player);
@@ -433,6 +557,8 @@
     if (ls.transactions.length > 20) {
       ls.transactions = ls.transactions.slice(0, 20);
     }
+
+    updatePlayerFinancialDisplay(player);
 
     return ls.cash;
   }
@@ -695,6 +821,7 @@
     const curDate = state?.date || state?.currentDate || "2026-01-01";
     addPlayerTransaction(pState, curDate, `Aplicação em CDB Esportivo`, amt, "out");
     ls.investments.cdbBalance = (ls.investments.cdbBalance || 0) + amt;
+    updatePlayerFinancialDisplay(pState);
 
     return {
       success: true,
@@ -715,6 +842,7 @@
     const curDate = state?.date || state?.currentDate || "2026-01-01";
     ls.investments.cdbBalance = 0;
     addPlayerTransaction(pState, curDate, `Resgate Total CDB Esportivo`, balance, "in");
+    updatePlayerFinancialDisplay(pState);
 
     return {
       success: true,
@@ -1073,6 +1201,8 @@
     AFM_ASSETS_CATALOG,
     resolveContext,
     ensurePlayerLifestyleState,
+    getPlayerTotalPatrimony,
+    updatePlayerFinancialDisplay,
     addPlayerTransaction,
     buyBoot,
     repairBoot,
