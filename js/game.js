@@ -16993,6 +16993,7 @@ function advanceDateAfterMatch(gameState = state){
     gameState.date = curD.toISOString().slice(0, 10);
     gameState.currentDate = gameState.date;
     gameState.currentDateFormatted = formatDatePtBr(gameState.date);
+    window.AFM_PlayerEngine?.recoverDailyEnergy?.(gameState, gameState.date);
     window.AFM_NationalTeams?.processCalendarDay(gameState, gameState.date);
     window.AFM_SocialMedia?.onDayAdvance(gameState, gameState.date);
     if(gameState.gameMode === 'player' && window.AFM_PlayerEngine){
@@ -17394,6 +17395,7 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       state.date = nextDate;
       state.currentDate = nextDate;
       state.currentDateFormatted = formatDatePtBr(nextDate);
+      window.AFM_PlayerEngine?.recoverDailyEnergy?.(state, nextDate);
       window.AFM_NationalTeams?.processCalendarDay(state, nextDate);
       window.AFM_SocialMedia?.onDayAdvance(state, nextDate);
       if(typeof processLoanContractReturns === 'function') processLoanContractReturns(state, nextDate);

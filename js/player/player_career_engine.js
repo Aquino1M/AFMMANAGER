@@ -1556,6 +1556,18 @@
   /**
    * Resolução da atuação do atleta em uma partida concluída
    */
+  function recoverDailyEnergy(gameState, date = gameState?.date || gameState?.currentDate){
+    if(!gameState || gameState.gameMode !== 'player' || !gameState.playerCareerState || !date) return null;
+    const athlete = (gameState.squad || []).find(player => String(player?.id) === String(gameState.controlledPlayerId));
+    if(!athlete || athlete.lastEnergyRecoveryDate === date) return null;
+    const currentEnergy = Number(athlete.energy ?? athlete.fitness ?? 100);
+    const recovery = 8 + (gameState.playerCareerState.lifestylePerks?.physio ? 3 : 0);
+    athlete.energy = Math.min(100, Math.max(0, (Number.isFinite(currentEnergy) ? currentEnergy : 100) + recovery));
+    athlete.fitness = athlete.energy;
+    athlete.lastEnergyRecoveryDate = date;
+    return { energy: athlete.energy, recovered: athlete.energy - (Number.isFinite(currentEnergy) ? currentEnergy : 100) };
+  }
+
   function processMatchPerformance(gameState, matchResult, { showSummary = true } = {}){
     if(!gameState || gameState.gameMode !== 'player' || !gameState.playerCareerState) return null;
     const pState = gameState.playerCareerState;
@@ -2972,6 +2984,7 @@
     getClubPrimaryCompetitionId,
     calculatePlayerOverall,
     normalizePlayerProgression,
+    recoverDailyEnergy,
     calculateBodyModifiers,
     getTrustRole,
     simulateTryoutMatch,
