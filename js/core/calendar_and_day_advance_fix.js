@@ -165,7 +165,7 @@
             crossedMonths.forEach(monthKey => window.AFM_PlayerEngine.processMonthlyAttributeTraining(state, monthKey));
           }
           if (monthChanged && typeof window.AFM_PlayerEngine.processMonthlyPlayerFinances === 'function') {
-            window.AFM_PlayerEngine.processMonthlyPlayerFinances(state);
+            crossedMonths.forEach(monthKey => window.AFM_PlayerEngine.processMonthlyPlayerFinances(state, `${monthKey}-01`));
           }
           if (typeof window.AFM_PlayerEngine.processDailySponsorTurn === 'function') {
             window.AFM_PlayerEngine.processDailySponsorTurn(state);

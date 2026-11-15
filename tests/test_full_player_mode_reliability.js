@@ -76,6 +76,14 @@ console.log('✓ XP legado acima do limite é convertido em nível e pontos uma 
 const playerUiJs = fs.readFileSync('js/player/player_mode_ui.js', 'utf8');
 eval(playerUiJs);
 console.log('✓ player_mode_ui.js carregado com sucesso.');
+const gameSource = fs.readFileSync(path.join(__dirname, '..', 'js', 'game.js'), 'utf8');
+const calendarAdvanceSource = gameSource.slice(gameSource.indexOf('function advanceCalendarDays('), gameSource.indexOf('// -------------------------------------------------------------\n// MÁQUINA DE ESTADOS DA PARTIDA AO VIVO'));
+const financeOnMonthRollover = calendarAdvanceSource.indexOf('processMonthlyPlayerFinances?.(state, nextDate)');
+const stopAtMatch = calendarAdvanceSource.indexOf('if(checkMatch && checkMatch.date === nextDate)');
+assert(financeOnMonthRollover >= 0 && stopAtMatch > financeOnMonthRollover, 'folha mensal precisa ser processada antes de parar em partida no primeiro dia do mês');
+const calendarFixSource = fs.readFileSync(path.join(__dirname, '..', 'js', 'core', 'calendar_and_day_advance_fix.js'), 'utf8');
+assert(calendarFixSource.includes('crossedMonths.forEach(monthKey => window.AFM_PlayerEngine.processMonthlyPlayerFinances(state, `${monthKey}-01`))'), 'avanço longo precisa processar cada competência financeira cruzada');
+console.log('✓ Folha mensal roda antes da parada por jogo e avanço longo fecha cada mês cruzado.');
 window.state = {
   gameMode: 'player', club: 'Manaus', date: '2026-01-01', userSlot: 2,
   controlledPlayerId: 'missing-athlete', squad: [],
@@ -207,6 +215,20 @@ assert.equal(salaryDelayState.playerCareerState.clubSalaryArrears.claim.status, 
 assert(salaryDelayState.playerCareerState.clubSalaryArrears.amount < 4000, 'decisão favorável deve abater a dívida acumulada');
 Math.random = previousRandom;
 console.log('✓ Salário atualizado do contrato é pago, atraso por falta de caixa fica registrado sem duplicar e a ação jurídica evolui até decisão.');
+
+const catchUpFinanceState = {
+  gameMode: 'player', date: '2026-04-17', balance: 100000, controlledPlayerId: 'catchup-athlete',
+  squad: [{ id: 'catchup-athlete', name: 'Atleta de Teste', wage: 1000, ovr: 50, pos: 'ATA' }],
+  playerCareerState: { athleteName: 'Atleta de Teste', personalBank: 1000, lastFinancialMonth: '2026-01' }, news: []
+};
+Math.random = () => 0.5;
+['2026-02-01', '2026-03-01', '2026-04-01'].forEach(date => window.AFM_PlayerEngine.processMonthlyPlayerFinances(catchUpFinanceState, date));
+const catchUpBalance = catchUpFinanceState.playerCareerState.personalBank;
+window.AFM_PlayerEngine.processMonthlyPlayerFinances(catchUpFinanceState, '2026-03-01');
+Math.random = previousRandom;
+assert.deepStrictEqual(catchUpFinanceState.playerCareerState.financialHistory.map(entry => entry.month), ['2026-04', '2026-03', '2026-02'], 'avanço de vários meses deve gerar um extrato para cada competência');
+assert.strictEqual(catchUpFinanceState.playerCareerState.personalBank, catchUpBalance, 'competência antiga repetida não pode duplicar crédito ou despesas');
+console.log('✓ Avanço de vários meses processa cada salário/despesa uma vez e rejeita competência retroativa duplicada.');
 
 window.state = salaryDelayState;
 salaryDelayState.squad.push({ id: 'captain', name: 'Capitão', ovr: 80, marketValue: 100000000, wage: 90000, pos: 'ATA' });

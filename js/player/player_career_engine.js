@@ -2092,12 +2092,12 @@
    * Processa salários, patrocínios, comissões de empresário, folha de staff pessoal
    * e custo de manutenção de estilo de vida conforme o estrelato do jogador.
    */
-  function processMonthlyPlayerFinances(gameState){
+  function processMonthlyPlayerFinances(gameState, paymentDate = gameState?.date || gameState?.currentDate){
     if(!gameState || gameState.gameMode !== 'player' || !gameState.playerCareerState) return;
     const pState = gameState.playerCareerState;
-    const curDate = gameState.date || gameState.currentDate || '2026-01-01';
+    const curDate = paymentDate || gameState.date || gameState.currentDate || '2026-01-01';
     const monthKey = String(curDate).slice(0, 7);
-    if(pState.lastFinancialMonth === monthKey) return;
+    if(pState.lastFinancialMonth && monthKey <= pState.lastFinancialMonth) return;
     pState.lastFinancialMonth = monthKey;
     const playerObj = (gameState.squad || []).find(p => p.id === gameState.controlledPlayerId);
     const athleteOvr = Number(playerObj?.ovr || pState.athleteOvr || 45);

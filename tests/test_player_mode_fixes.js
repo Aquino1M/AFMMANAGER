@@ -19,7 +19,7 @@ console.log('✔ Teste 2: addNews filtra rigorosamente eventos de estádio/shows
 
 // 3. Validar avanço do calendário com contagem diária de patrocínio
 assert(gameJs.includes('window.AFM_PlayerEngine.processDailySponsorTurn(state)'), 'Erro: processDailySponsorTurn não chamado no loop de advanceCalendarDays');
-assert(gameJs.includes('window.AFM_PlayerEngine.processMonthlyPlayerFinances(state, nextDate)'), 'Erro: processMonthlyPlayerFinances não chamado na virada do mês');
+assert(gameJs.includes('processMonthlyPlayerFinances?.(state, nextDate)'), 'Erro: processMonthlyPlayerFinances não chamado antes da parada do calendário na virada do mês');
 assert(gameJs.includes('window.AFM_PlayerEngine.processDailySponsorTurn?.(gameState)'), 'Erro: pós-partida não atualiza a contagem diária de patrocínio');
 assert(gameJs.includes('window.AFM_PlayerEngine.processMonthlyPlayerFinances?.(gameState)'), 'Erro: pós-partida não fecha o mês financeiro do atleta');
 console.log('✔ Teste 3: avanço manual e pós-partida processam patrocínio e fechamento financeiro do atleta.');

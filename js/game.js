@@ -17392,9 +17392,13 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       if(!current || !Number.isFinite(current.getTime())) current = new Date(2026, 0, 18, 12, 0, 0);
       current.setDate(current.getDate() + 1);
       const nextDate = current.toISOString().slice(0, 10);
+      const previousDate = state.date;
       state.date = nextDate;
       state.currentDate = nextDate;
       state.currentDateFormatted = formatDatePtBr(nextDate);
+      if(previousDate?.slice(0, 7) !== nextDate.slice(0, 7)){
+        window.AFM_PlayerEngine?.processMonthlyPlayerFinances?.(state, nextDate);
+      }
       window.AFM_PlayerEngine?.recoverDailyEnergy?.(state, nextDate);
       window.AFM_NationalTeams?.processCalendarDay(state, nextDate);
       window.AFM_SocialMedia?.onDayAdvance(state, nextDate);
@@ -17444,9 +17448,6 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       }
       if(typeof processClubMonthlyFinances === 'function') processClubMonthlyFinances(state, nextDate);
       if((state.gameMode === 'player' || state.playerCareerState) && typeof window !== 'undefined' && window.AFM_PlayerEngine){
-        if(nextDate.endsWith('-01') && typeof window.AFM_PlayerEngine.processMonthlyPlayerFinances === 'function'){
-          window.AFM_PlayerEngine.processMonthlyPlayerFinances(state);
-        }
         if(typeof window.AFM_PlayerEngine.processDailySponsorTurn === 'function'){
           window.AFM_PlayerEngine.processDailySponsorTurn(state);
         }
