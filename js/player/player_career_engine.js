@@ -2215,6 +2215,73 @@
     return { ok: true, listing: pState.transferListing };
   }
 
+  function searchPlayerTransferMarket(gameState){
+    if(gameState?.gameMode !== 'player' || !gameState.playerCareerState) return { ok: false, error: 'Carreira de jogador inválida.' };
+    const currentDate = gameState.date || gameState.currentDate;
+    const isWindowOpen = typeof isTransferWindowOpen === 'function'
+      ? isTransferWindowOpen(currentDate)
+      : (function(){
+          const [, month, day] = String(currentDate || '').split('-').map(Number);
+          return Boolean(gameState.freeTransferWindow) || [1, 2, 6, 7].includes(month) || ([3, 8].includes(month) && day === 1);
+        })();
+    if(!isWindowOpen) return { ok: false, error: 'As propostas de clubes só podem ser buscadas durante a janela de transferências.' };
+
+    const pState = gameState.playerCareerState;
+    pState.agentOffers = Array.isArray(pState.agentOffers) ? pState.agentOffers : [];
+    if(pState.agentOffers.filter(offer => offer.type === 'transfer' || offer.type === 'club_loan').length >= 3){
+      return { ok: false, error: 'Você já tem três propostas de clubes em análise. Avalie uma delas antes de buscar outras.' };
+    }
+    if(pState.lastAgentMarketSearchDate === currentDate){
+      return { ok: false, error: 'Seu empresário já consultou os clubes hoje. Avance a carreira para uma nova busca.' };
+    }
+
+    const athlete = (gameState.squad || []).find(player => player.id === gameState.controlledPlayerId || player.isControlled) || {};
+    const ovr = Math.max(1, Number(athlete.ovr || athlete.overall || pState.athleteOvr || pState.overall) || 35);
+    const candidates = ovr < 40
+      ? ['Ceilândia', 'Gama', 'Real Brasília', 'Capital-DF', 'Paranoá', 'Samambaia', 'Sobradinho', 'Planaltina']
+      : ovr < 50
+        ? ['Ceilândia', 'Gama', 'Brasiliense', 'Volta Redonda', 'Botafogo-PB', 'Figueirense', 'Remo', 'Paysandu', 'Náutico']
+        : ovr < 60
+          ? ['Volta Redonda', 'Botafogo-PB', 'Náutico', 'Ponte Preta', 'Paysandu', 'Chapecoense', 'Guarani', 'Criciúma']
+          : ovr < 70
+            ? ['Sport', 'Coritiba', 'Goiás', 'Ceará', 'Vila Nova', 'Avaí', 'Chapecoense', 'Novorizontino']
+            : ovr < 80
+              ? ['Flamengo', 'Palmeiras', 'São Paulo', 'Grêmio', 'Internacional', 'Fluminense', 'Cruzeiro', 'Bahia']
+              : ['Real Madrid', 'Barcelona', 'Manchester City', 'Arsenal', 'Liverpool', 'Paris Saint-Germain', 'Bayern de Munique', 'Flamengo'];
+    const eligible = candidates.filter(club => norm(club) !== norm(gameState.club));
+    if(!eligible.length) return { ok: false, error: 'Não encontramos um clube compatível para consultar neste momento.' };
+
+    const buyerClub = eligible[Math.floor(Math.random() * eligible.length)];
+    const listingType = pState.transferListing?.status === 'active' ? pState.transferListing.type : null;
+    const isLoan = listingType ? listingType === 'loan' : ovr < 52 && Math.random() < 0.5;
+    const currentWage = Math.max(800, Number(athlete.wage || pState.monthlySalary || (pState.weeklySalary || 0) * 4) || 1500);
+    const wageFloor = ovr < 40 ? 900 : ovr < 50 ? 1300 : ovr < 60 ? 2500 : ovr < 70 ? 6000 : ovr < 80 ? 15000 : 35000;
+    const offeredWage = Math.round(Math.max(wageFloor, currentWage * (0.95 + Math.random() * 0.3)));
+    const durationYears = isLoan ? 1 : 2 + Math.floor(Math.random() * 2);
+    const offer = {
+      id: `offer_search_${String(currentDate).replace(/-/g, '')}_${Math.floor(Math.random() * 100000)}`,
+      type: isLoan ? 'club_loan' : 'transfer',
+      clubOrBrand: buyerClub,
+      newClub: buyerClub,
+      title: isLoan ? `Empréstimo: ${buyerClub}` : `Compra Definitiva: ${buyerClub}`,
+      details: isLoan
+        ? `Empréstimo de ${durationYears} temporada • Salário de R$ ${offeredWage.toLocaleString('pt-BR')}/mês • Em avaliação pelo clube atual`
+        : `Contrato de ${durationYears} anos • Salário de R$ ${offeredWage.toLocaleString('pt-BR')}/mês • Interesse compatível com OVR ${ovr}`,
+      wage: offeredWage,
+      durationYears,
+      buyoutClause: Math.round(offeredWage * 12 * durationYears * 3),
+      date: currentDate,
+      isRead: false
+    };
+    pState.agentOffers.unshift(offer);
+    pState.lastAgentMarketSearchDate = currentDate;
+    gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+    gameState.news.unshift(`💼 PROPOSTA NA MESA: ${buyerClub} consultou o empresário sobre ${isLoan ? 'um empréstimo' : 'uma contratação'} de ${pState.athleteName || athlete.name || 'seu atleta'}. Salário proposto: R$ ${offeredWage.toLocaleString('pt-BR')}/mês.`);
+    gameState.news.length = Math.min(gameState.news.length, 50);
+    window.AFM_SocialMedia?.publishTransferProposal?.(gameState, offer);
+    return { ok: true, offer };
+  }
+
   function addDaysToIso(isoDateStr, days){
     const parts = String(isoDateStr || '2026-01-01').split('-');
     const y = Number(parts[0]) || 2026;
@@ -2917,6 +2984,7 @@
     processMonthlyPlayerFinances,
     filePlayerSalaryClaim,
     registerPlayerTransferListing,
+    searchPlayerTransferMarket,
     processDailySponsorTurn,
     processEndOfSeasonAwards
   };

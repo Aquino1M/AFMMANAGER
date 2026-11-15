@@ -264,6 +264,26 @@ assert.match(listingState.playerCareerState.socialMedia.feedPosts[0].text, /list
 assert.equal(window.AFM_PlayerEngine.registerPlayerTransferListing(listingState, 'transfer').ok, false, 'não pode duplicar pedido com listagem ativa');
 console.log('✓ Pedido aceito entra na lista correta, gera notícia/feed e bloqueia uma segunda listagem simultânea.');
 
+const marketSearchState = { gameMode: 'player', date: '2026-01-20', club: 'Manaus', controlledPlayerId: 'market-user', squad: [{ id: 'market-user', name: 'Atleta de Mercado', pos: 'ST', ovr: 38, wage: 1500 }], playerCareerState: { athleteName: 'Atleta de Mercado', athleteOvr: 38, agentOffers: [], socialMedia: { feedPosts: [] } }, news: [] };
+const marketSearch = window.AFM_PlayerEngine.searchPlayerTransferMarket(marketSearchState);
+assert.equal(marketSearch.ok, true, 'busca ativa dentro da janela deve achar uma proposta compatível');
+assert.equal(marketSearch.offer.date, marketSearchState.date);
+assert.equal(marketSearchState.playerCareerState.agentOffers[0].id, marketSearch.offer.id, 'proposta localizada precisa entrar na mesa do empresário');
+assert.match(marketSearchState.news[0], /PROPOSTA NA MESA/);
+assert.equal(window.AFM_PlayerEngine.searchPlayerTransferMarket(marketSearchState).ok, false, 'busca repetida no mesmo dia não duplica proposta');
+const cappedMarketState = { ...marketSearchState, playerCareerState: { ...marketSearchState.playerCareerState, agentOffers: [{ type: 'transfer' }, { type: 'club_loan' }, { type: 'transfer' }] } };
+assert.equal(window.AFM_PlayerEngine.searchPlayerTransferMarket(cappedMarketState).ok, false, 'não pode exceder três propostas de clubes em aberto');
+marketSearchState.squad[0].isControlled = true;
+window.state = marketSearchState;
+const marketPage = window.AFM_PlayerMode.renderPage('player_agent');
+assert(marketPage.includes(marketSearch.offer.title), 'proposta nova deve aparecer na aba do empresário');
+assert.equal(marketSearchState.playerCareerState.agentOffers[0].isRead, false, 'abrir a aba não pode marcar propostas novas como lidas');
+const previousWindowCheck = window.isTransferWindowOpen;
+window.isTransferWindowOpen = null;
+assert.equal(window.AFM_PlayerEngine.searchPlayerTransferMarket({ ...marketSearchState, date: '2026-04-20', playerCareerState: { ...marketSearchState.playerCareerState, lastAgentMarketSearchDate: null, agentOffers: [] } }).ok, false, 'busca fora da janela é bloqueada');
+window.isTransferWindowOpen = previousWindowCheck;
+console.log('✓ Busca do empresário cria proposta proporcional ao OVR, publica notícia e respeita janela e limite diário.');
+
 const saudiOfferState = makeLiveCareer();
 saudiOfferState.date = '2026-01-17';
 saudiOfferState.playerCareerState.overall = 90;

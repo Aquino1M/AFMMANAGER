@@ -927,11 +927,6 @@
     if(!athlete || !pState) return `<div class="card" style="padding:20px;color:#fff">Carregando empresário...</div>`;
     const controlledMarketValueMi = formatPlayerMarketValueMi(athlete);
 
-    // Ao acessar a aba Empresário & Mercado, marca automaticamente as propostas como lidas para limpar a notificação
-    if(Array.isArray(pState.agentOffers)){
-      pState.agentOffers.forEach(o => { o.isRead = true; });
-    }
-
     const isWinOpen = (typeof isTransferWindowOpen === 'function') ? isTransferWindowOpen(state.date) : false;
     const winInfo = (typeof getTransferWindowInfo === 'function') ? getTransferWindowInfo(state.date) : { open: false, text: 'Janela Fechada' };
     const transferListing = pState.transferListing?.status === 'active' ? pState.transferListing : null;
@@ -3938,7 +3933,18 @@
     const bScoutMarket = document.querySelector('.btn-scout-transfer-market');
     if(bScoutMarket){
       bScoutMarket.onclick = () => {
-        handleAgentAction('request_transfer', s, athlete, pState);
+        const result = window.AFM_PlayerEngine?.searchPlayerTransferMarket?.(s);
+        showCustomAlert({
+          title: result?.ok ? 'Proposta encontrada! 💼' : 'Busca de mercado',
+          message: result?.ok
+            ? `${result.offer.title}\n${result.offer.details}\n\nA proposta já está disponível na Mesa do Empresário.`
+            : (result?.error || 'Não foi possível consultar o mercado agora.'),
+          type: result?.ok ? 'success' : 'info',
+          onConfirm: () => {
+            if(typeof window.save === 'function') window.save();
+            if(typeof window.render === 'function') window.render();
+          }
+        });
       };
     }
 
@@ -5262,6 +5268,7 @@
   // 4. MODAL: SOLICITAR TRANSFERÊNCIA DEFINITIVA
   function openRequestTransferModal(state, athlete, pState){
     const modal = createActionModalContainer();
+    const controlledMarketValueMi = formatPlayerMarketValueMi(athlete);
     const isWinOpen = (typeof isTransferWindowOpen === 'function') ? isTransferWindowOpen(state.date) : false;
     const winInfo = (typeof getTransferWindowInfo === 'function') ? getTransferWindowInfo(state.date) : { open: false, text: 'Janela Fechada' };
 
