@@ -234,10 +234,18 @@ const photoPost = window.AFM_SocialMedia.publishUserPost('tpl_training_1', photo
 assert.equal(photoPost.post.avatarUrl, '/img/player-test.jpg', 'posts do atleta devem usar a foto do perfil do jogador');
 assert.equal(window.AFM_SocialMedia.WORLD_PROFILES.find(profile => profile.handle === '@ViniJr').avatarUrl, 'img/players/tm_371998.jpg');
 
-const dailyFeedState = { gameMode: 'player', date: '2026-02-01', club: 'Real Brasília', playerCareerState: { athleteName: 'Atleta', matchRatingHistory: [], socialMedia: { followers: 1000, celebrityLevel: 10, feedPosts: [{ id: 'existing' }], postedToday: false } }, news: [] };
+const dailyFeedState = { gameMode: 'player', date: '2026-02-01', club: 'Real Brasília', controlledPlayerId: 'daily-user', squad: [{ id: 'daily-user', name: 'Atleta', isControlled: true }, { id: 'daily-teammate', name: 'Companheiro Silva' }], playerCareerState: { athleteName: 'Atleta', matchRatingHistory: [], socialMedia: { followers: 1000, celebrityLevel: 10, feedPosts: [{ id: 'existing' }], postedToday: false } }, news: [] };
 window.AFM_SocialMedia.onDayAdvance(dailyFeedState, '2026-02-02');
 assert.equal(dailyFeedState.playerCareerState.socialMedia.feedPosts.length, 4, 'avanço de um dia cria três novos posts de páginas/personagens');
 assert.equal(new Set(dailyFeedState.playerCareerState.socialMedia.feedPosts.map(post => post.id)).size, 4, 'posts gerados no mesmo dia precisam ter IDs diferentes');
+const dailyPosts = dailyFeedState.playerCareerState.socialMedia.feedPosts.filter(post => post.createdDate === '2026-02-02');
+assert.deepEqual(new Set(dailyPosts.map(post => post.category)), new Set(['club', 'player', 'gossip']), 'cada dia deve gerar post do clube, de jogador e da imprensa/fofoca');
+assert(dailyPosts.some(post => post.authorName === 'Companheiro Silva'), 'jogador do elenco deve publicar no feed');
+assert.equal(window.AFM_SocialMedia.formatPostTimestamp({ isUser: true, createdDate: '2026-02-02', timestamp: 'Agora mesmo' }, '2026-02-05'), 'Há 3 dias', 'idade de post deve acompanhar a data simulada da carreira');
+assert.equal(window.AFM_SocialMedia.formatPostTimestamp({ isUser: true, timestamp: 'Agora mesmo' }, '2026-02-05'), 'Data anterior (registro legado)', 'post antigo sem data não pode continuar aparecendo como atual');
+const legacySocialState = { gameMode: 'player', date: '2026-02-05', playerCareerState: { athleteName: 'Atleta', socialMedia: { lastPostDate: '2026-02-02', feedPosts: [{ id: 'legacy-user-post', isUser: true, timestamp: 'Agora mesmo' }] } }, news: [] };
+const migratedLegacyPost = window.AFM_SocialMedia.initSocialMediaState(legacySocialState).feedPosts[0];
+assert.equal(window.AFM_SocialMedia.formatPostTimestamp(migratedLegacyPost, legacySocialState.date, legacySocialState.playerCareerState.socialMedia.lastPostDate), 'Há 3 dias', 'save antigo deve recuperar a data da última publicação pessoal conhecida');
 window.AFM_SocialMedia.onDayAdvance(dailyFeedState, '2026-02-02');
 assert.equal(dailyFeedState.playerCareerState.socialMedia.feedPosts.length, 4, 'avanço repetido no mesmo dia não duplica o feed');
 const poorFormFeed = { ...dailyFeedState, date: '2026-02-02', playerCareerState: { ...dailyFeedState.playerCareerState, matchRatingHistory: [{ rating: 5.2 }], socialMedia: { followers: 1000, celebrityLevel: 10, feedPosts: [], postedToday: false } } };

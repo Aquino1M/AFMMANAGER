@@ -185,6 +185,10 @@
     sm.celebrityLevel = Math.max(1, Math.min(100, Number(sm.celebrityLevel) || 10));
     sm.postedToday = Boolean(sm.postedToday);
     sm.feedPosts = Array.isArray(sm.feedPosts) ? sm.feedPosts : [];
+    // shortcut: saves antigos guardam apenas a data do último post pessoal; os novos persistem a data individual.
+    sm.feedPosts.forEach(post => {
+      if(post?.isUser && !post.createdDate && sm.lastPostDate) post.createdDate = sm.lastPostDate;
+    });
 
     // Verificação automática se passar de 50.000 seguidores ou se já jogou pela Seleção
     if(!sm.isVerified && (sm.followers >= 50000 || (pState.internationalStats?.caps || 0) > 0)){
@@ -219,6 +223,7 @@
       avatarBg: '#0284c7',
       isVerified: true,
       isUser: false,
+      createdDate: gameState.date || gameState.currentDate || null,
       timestamp: 'Hoje às 10:15',
       category: 'club',
       text: `Bem-vindos ao FootGram oficial do ${club}! Temporada 2026 começou com tudo e o elenco está 100% focado nos treinamentos diários. Vamos juntos! 🏟️⚽ #Avante`,
@@ -253,6 +258,7 @@
       avatarBg: '#0ea5e9',
       isVerified: true,
       isUser: false,
+      createdDate: gameState.date || gameState.currentDate || null,
       timestamp: 'Ontem às 18:30',
       category: 'press',
       text: `🚨 Olheiros de clubes nacionais e internacionais estão de olho nas categorias de base e jovens talentos do futebol brasileiro para 2026. Grandes histórias começam agora! Here we go! 🇧🇷✨`,
@@ -549,6 +555,7 @@
       avatarBg: '#10b981',
       isVerified: Boolean(sm.isVerified),
       isUser: true,
+      createdDate: gameState.date || gameState.currentDate || null,
       timestamp: 'Agora mesmo',
       category: tpl.category,
       categoryLabel: tpl.categoryLabel,
@@ -695,6 +702,7 @@
         avatarBg: isIntMatch ? '#facc15' : '#16a34a',
         isVerified: true,
         isUser: false,
+        createdDate: gameState.date || gameState.currentDate || null,
         timestamp: 'Hoje após o apito final',
         category: 'press',
         text: `${isIntMatch ? '🇧🇷' : '⚽'} FIM DE JOGO: ${resultLine}. ${athleteName}: nota ${rating.toFixed(1)}, ${goals} gol(s), ${assists} assistência(s)${isMvp ? ' e eleito Craque do Jogo 🏆' : ''}. #FutebolBrasileiro`,
@@ -731,6 +739,7 @@
         id: `post_fans_${gameState.date || Date.now()}_${Date.now()}`,
         authorName: `Torcida Organizada do ${club}`, handle: `@organizada_${clubSlug}`,
         avatarText: 'TO', avatarBg: '#dc2626', isVerified: false, isUser: false,
+        createdDate: gameState.date || gameState.currentDate || null,
         timestamp: 'Hoje após o apito final', category: 'fans',
         text: `📣 A torcida cobra ${athleteName} após nota ${rating.toFixed(1)} contra ${performanceReport?.opponent || 'o adversário'}: queremos mais entrega e reação no próximo jogo.`,
         likes: Math.floor(90 + Math.random() * 250), reposts: Math.floor(15 + Math.random() * 70), userLiked: false,
@@ -747,6 +756,7 @@
     sm.feedPosts.unshift({
       id: `post_offer_${offer.id || Date.now()}`, authorName: 'Central da Bola', handle: '@CentralDaBola',
       avatarText: 'CB', avatarBg: '#9333ea', isVerified: true, isUser: false,
+      createdDate: gameState.date || gameState.currentDate || null,
       timestamp: 'Agora', category: 'market',
       text: `🚨 MERCADO: ${club} enviou uma proposta de ${offer.type === 'club_loan' ? 'empréstimo' : 'transferência'} por ${gameState.playerCareerState.athleteName || 'o atleta'}. A oferta está com o empresário para avaliação.`,
       likes: Math.floor(250 + Math.random() * 900), reposts: Math.floor(30 + Math.random() * 180), userLiked: false,
@@ -766,6 +776,7 @@
       authorName: `${club} Oficial`,
       handle: `@${club.toLowerCase().replace(/[^a-z0-9]/g, '')}_oficial`,
       avatarText: club.slice(0, 2).toUpperCase(), avatarBg: '#0284c7', isVerified: true, isUser: false,
+      createdDate: gameState.date || gameState.currentDate || null,
       timestamp: 'Agora', category: 'market',
       text: `📋 ${club} aceitou o pedido de ${athlete} e o colocou na lista de ${listing.type === 'loan' ? 'empréstimos' : 'transferências'}. Propostas serão divulgadas quando chegarem ao empresário.`,
       likes: Math.floor(80 + Math.random() * 220), reposts: Math.floor(8 + Math.random() * 35), userLiked: false,
@@ -795,6 +806,7 @@
       avatarBg: '#10b981',
       isVerified: Boolean(sm.isVerified),
       isUser: true,
+      createdDate: gameState.date || gameState.currentDate || null,
       timestamp: 'Agora mesmo · entrevista pós-jogo',
       category: 'interview',
       text: `🎙️ Eleito Craque da Partida contra o ${opponent}, ${athleteName} falou à imprensa: “${quote}” #CraqueDaPartida`,
@@ -858,6 +870,24 @@
     }
   }
 
+  function formatPostTimestamp(post, currentDate, legacyUserPostDate){
+    const createdDate = post?.createdDate || (post?.isUser ? legacyUserPostDate : null);
+    if(!createdDate || !currentDate){
+      return /^(Agora|Hoje|Ontem|Há\s)/i.test(String(post?.timestamp || '')) ? 'Data anterior (registro legado)' : (post?.timestamp || 'Data não informada');
+    }
+    const toDay = value => {
+      const day = String(value).slice(0, 10);
+      const time = Date.parse(`${day}T00:00:00Z`);
+      return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === day ? time : null;
+    };
+    const created = toDay(createdDate);
+    const current = toDay(currentDate);
+    if(created === null || current === null) return post?.timestamp || 'Data não informada';
+    if(created > current) return 'Data futura';
+    const days = Math.floor((current - created) / 86400000);
+    return days === 0 ? 'Hoje' : days === 1 ? 'Há 1 dia' : `Há ${days} dias`;
+  }
+
   // Gera posts do mundo aleatórios (Rumores de mercado de gigantes, outros craques, etc.)
   function generateRandomWorldPost(gameState, postIndex = 0, postDate = null){
     const pState = gameState.playerCareerState;
@@ -872,7 +902,7 @@
         id: `post_fans_day_${dateKey}_${postIndex}`, authorName: `Torcida Organizada do ${club}`,
         handle: `@organizada_${club.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
         avatarText: 'TO', avatarBg: '#dc2626', isVerified: false, isUser: false,
-        timestamp: 'Hoje', category: 'fans',
+        timestamp: 'Hoje', createdDate: dateKey, category: 'fans',
         text: `📣 A fase pede reação: a torcida do ${club} espera mais de ${athleteName} depois das últimas atuações. Apoio existe, mas queremos entrega!`,
         likes: Math.floor(250 + Math.random() * 700), reposts: Math.floor(20 + Math.random() * 100), userLiked: false,
         comments: [{ id: `cw_${dateKey}`, authorName: 'Torcedor', handle: '@futebol_raiz', text: 'Tem que responder em campo no próximo jogo.', timestamp: 'Há 1 hora', likes: 14 }]
@@ -883,7 +913,34 @@
 
     let worldPost = null;
 
-    if(celebrity >= 30 && Math.random() < 0.5){
+    if(postIndex === 0){
+      worldPost = {
+        id: `post_club_day_${String(postDate || gameState.date || Date.now()).slice(0, 10)}`,
+        authorName: `${club} Oficial`, handle: `@${club.toLowerCase().replace(/[^a-z0-9]/g, '')}_oficial`,
+        avatarText: club.slice(0, 2).toUpperCase(), avatarBg: '#0284c7', isVerified: true, isUser: false,
+        timestamp: 'Hoje', createdDate: String(postDate || gameState.date || Date.now()).slice(0, 10), category: 'club',
+        text: `🏟️ Bastidores do ${club}: elenco treinou hoje e segue focado nos próximos desafios da temporada. #Avante${club.replace(/\s+/g, '')}`,
+        likes: Math.floor(350 + Math.random() * 900), reposts: Math.floor(25 + Math.random() * 120), userLiked: false, comments: []
+      };
+    } else if(postIndex === 1){
+      const teammates = (gameState.squad || []).filter(player => player && player.id !== gameState.controlledPlayerId && !player.isControlled && player.name);
+      const teammate = teammates.length ? teammates[Math.floor(Math.random() * teammates.length)] : null;
+      const worldStar = WORLD_PROFILES.filter(profile => profile.role === 'star');
+      const author = teammate || worldStar[Math.floor(Math.random() * worldStar.length)];
+      const authorName = teammate?.name || author?.name || 'Craque do futebol';
+      const handle = teammate ? `@${authorName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').slice(0, 18) || 'jogador'}_${String(teammate.id || '10').replace(/[^a-z0-9]/gi, '').slice(-3)}` : author?.handle || '@craque_do_dia';
+      worldPost = {
+        id: `post_player_day_${String(postDate || gameState.date || Date.now()).slice(0, 10)}`,
+        authorName, handle, avatarText: teammate ? authorName.slice(0, 2).toUpperCase() : author?.avatarText || 'FC',
+        avatarBg: teammate ? '#10b981' : author?.avatarBg || '#f97316', avatarUrl: teammate?.photo || author?.avatarUrl || null,
+        isVerified: teammate ? false : Boolean(author?.isVerified), isUser: false,
+        timestamp: 'Hoje', createdDate: String(postDate || gameState.date || Date.now()).slice(0, 10), category: 'player',
+        text: `⚽ Dia de trabalho no ${club}. Cada treino conta para chegar mais forte ao próximo jogo! 💪 #FocoNoJogo`,
+        likes: Math.floor(120 + Math.random() * 650), reposts: Math.floor(12 + Math.random() * 90), userLiked: false, comments: []
+      };
+    }
+
+    if(!worldPost && celebrity >= 30 && Math.random() < 0.5){
       // Rumor de transferência para gigantes mundiais
       const giants = ['Real Madrid', 'Barcelona', 'Manchester City', 'Paris Saint-Germain', 'Bayern de Munique', 'Arsenal', 'Flamengo', 'Palmeiras'];
       const giant = giants[Math.floor(Math.random() * giants.length)];
@@ -895,6 +952,7 @@
         avatarBg: '#0284c7',
         isVerified: true,
         isUser: false,
+        createdDate: String(postDate || gameState.date || Date.now()).slice(0, 10),
         timestamp: 'Há 1 hora',
         category: 'market',
         text: `🚨 Sondagem de peso: Olheiros do ${giant} acompanham de perto os relatórios de ${athleteName} no ${club}. O apelo de mídia e a evolução em campo chamam atenção para as próximas janelas! ⏳👀`,
@@ -912,7 +970,7 @@
           }
         ]
       };
-    } else {
+    } else if(!worldPost){
       // Página de fofoca acompanha a trajetória do atleta do save.
       const star = { name: 'Fuxico da Bola', handle: '@FuxicoDaBola', avatarText: 'FX', avatarBg: '#db2777' };
       worldPost = {
@@ -923,6 +981,7 @@
         avatarBg: star.avatarBg,
         isVerified: true,
         isUser: false,
+        createdDate: String(postDate || gameState.date || Date.now()).slice(0, 10),
         timestamp: 'Há 3 horas',
         category: 'gossip',
         text: celebrity >= 30
@@ -1034,6 +1093,7 @@
     publishPlayerListing,
     publishPlayerInterview,
     onDayAdvance,
+    formatPostTimestamp,
     updateProfileHandle,
     updateProfileBio,
     updateProfileAvatar,

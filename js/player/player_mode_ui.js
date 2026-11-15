@@ -2975,6 +2975,7 @@
             const worldProfile = window.AFM_SocialMedia?.WORLD_PROFILES?.find(profile => profile.handle === post.handle || normalizeAuthor(profile.name) === authorName);
             const isAthletePost = post.isUser || authorName === normalizeAuthor(athleteName);
             const postAvatar = post.avatarUrl || (isAthletePost ? avatarPhoto : null) || worldProfile?.avatarUrl || window.resolvePlayerPhotoUrl?.({ name: post.authorName, club: post.club }) || null;
+            const postTimestamp = window.AFM_SocialMedia?.formatPostTimestamp?.(post, state.date, sm.lastPostDate) || post.timestamp || 'Data não informada';
             return `
               <div class="card social-post-card" style="background:#090d16;border:1px solid ${post.isUser ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)'};border-radius:18px;padding:20px;box-shadow:0 6px 24px rgba(0,0,0,0.5)">
                 
@@ -2999,7 +3000,7 @@
                       </div>
                       <div style="display:flex;align-items:center;gap:8px;margin-top:1px">
                         <span style="font-size:12px;color:#38bdf8;font-family:'Courier New', monospace">${esc(post.handle)}</span>
-                        <span style="font-size:10px;color:#64748b">• ${esc(post.timestamp)}</span>
+                        <span style="font-size:10px;color:#64748b">• ${esc(postTimestamp)}</span>
                       </div>
                     </div>
                   </div>
