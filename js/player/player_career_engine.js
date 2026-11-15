@@ -1363,6 +1363,7 @@
 
     // 2. Define o modo de jogo como 'player' e sincroniza o slot selecionado
     s.gameMode = 'player';
+    s.isPlayerMode = true;
     s.userSlot = targetSlot ? Number(targetSlot) : (s.userSlot || 1);
     s.aiCoachControlled = true; // O time do jogador é gerido pela IA do treinador
     if(typeof window !== 'undefined'){

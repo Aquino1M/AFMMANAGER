@@ -8823,6 +8823,16 @@ function parseSaveTimestamp(val){
 }
 window.parseSaveTimestamp = parseSaveTimestamp;
 
+function getSaveGameMode(entry){
+  const data = entry?.data && typeof entry.data === 'object' ? entry.data : entry;
+  if(data?.gameMode === 'player' || data?.gameMode === 'manager') return data.gameMode;
+  if(typeof data?.isPlayerMode === 'boolean') return data.isPlayerMode ? 'player' : 'manager';
+  if(entry?.gameMode === 'player' || entry?.gameMode === 'manager') return entry.gameMode;
+  if(typeof entry?.isPlayerMode === 'boolean') return entry.isPlayerMode ? 'player' : 'manager';
+  return data?.playerCareerState || data?.controlledPlayerId || entry?.playerCareerState || entry?.controlledPlayerId ? 'player' : null;
+}
+window.getSaveGameMode = getSaveGameMode;
+
 function formatSaveTimestamp(value){
   if(!value) return 'Recentemente';
   const t = parseSaveTimestamp(value);
@@ -9030,7 +9040,8 @@ function getUserSaveSlots(username){
         if(parsed && parsed.club && (!parsed.owner || parsed.owner.toLowerCase() === cleanU || parsed.owner.toLowerCase() === 'local' || cleanU === 'aquino')){
           const existingTime = parseSaveTimestamp(s?.updatedAt || '');
           const sharedTime = parseSaveTimestamp(parsed.updatedAt || '');
-          if(!s || (!s.data && !s.club) || (sharedTime > existingTime)){
+          const modesMatch = !s || !getSaveGameMode(s) || !getSaveGameMode(parsed) || getSaveGameMode(s) === getSaveGameMode(parsed);
+          if(modesMatch && (!s || (!s.data && !s.club) || (sharedTime > existingTime))){
             s = s ? { ...s, ...parsed } : parsed;
           }
         }
@@ -9208,12 +9219,9 @@ function save(){
   state.userSlot = slotNum;
 
   // REGRA INVIOLÁVEL: IDENTIFICAÇÃO E ISOLAMENTO ESTRITO DO MODO DE JOGO AO SALVAR
-  const isPlayerMode = Boolean(state.gameMode === 'player' || state.playerCareerState || state.controlledPlayerId);
-  if(isPlayerMode) {
-    state.gameMode = 'player';
-  } else {
-    state.gameMode = 'manager';
-  }
+  const isPlayerMode = getSaveGameMode(state) === 'player';
+  state.gameMode = isPlayerMode ? 'player' : 'manager';
+  state.isPlayerMode = isPlayerMode;
 
   // Prepara payload compacto omitindo catálogos estáticos pesados para economizar 95% da cota do navegador
   const savePayload = clone(state);
@@ -9514,7 +9522,8 @@ function loadUserSlot(slotNum, ownerUsername = null){
       const sharedEntry = JSON.parse(raw);
       const sharedOwner = String(sharedEntry?.owner || '').toLowerCase();
       const belongsToUser = sharedEntry && (!sharedOwner || sharedOwner === username);
-      if(belongsToUser && (!hasCompleteData(saveEntry) || (sharedEntry?.updatedAt && Date.parse(sharedEntry.updatedAt) > Date.parse(saveEntry?.updatedAt || '')))){
+      const modesMatch = !saveEntry || !getSaveGameMode(saveEntry) || !getSaveGameMode(sharedEntry) || getSaveGameMode(saveEntry) === getSaveGameMode(sharedEntry);
+      if(belongsToUser && modesMatch && (!hasCompleteData(saveEntry) || (sharedEntry?.updatedAt && Date.parse(sharedEntry.updatedAt) > Date.parse(saveEntry?.updatedAt || '')))){
         saveEntry = sharedEntry;
       }
     }
@@ -9549,8 +9558,11 @@ function loadUserSlot(slotNum, ownerUsername = null){
   }
 
   const rawData = saveEntry.data || saveEntry;
+  const savedMode = getSaveGameMode(saveEntry) || getSaveGameMode(rawData) || 'manager';
   rememberActiveSaveSlot(username, slotNum);
   state = clone(rawData);
+  state.gameMode = savedMode;
+  state.isPlayerMode = savedMode === 'player';
   state.userSlot = slotNum;
   state.userOwner = username;
   if(typeof window !== 'undefined'){
@@ -9559,19 +9571,9 @@ function loadUserSlot(slotNum, ownerUsername = null){
   purgeBuggedExploitPlayers(state);
   state = migrate(state);
   purgeBuggedExploitPlayers(state);
-  save();
 
   // REGRA INVIOLÁVEL: IDENTIFICAÇÃO E ISOLAMENTO ESTRITO DO MODO DE JOGO
-  const isPlayerMode = Boolean(
-    state.gameMode === 'player' ||
-    state.playerCareerState ||
-    state.controlledPlayerId ||
-    rawData.gameMode === 'player' ||
-    rawData.playerCareerState ||
-    rawData.controlledPlayerId ||
-    saveEntry.gameMode === 'player' ||
-    saveEntry.isPlayerMode
-  );
+  const isPlayerMode = savedMode === 'player';
   if(isPlayerMode){
     state.gameMode = 'player';
     if(!state.playerCareerState && (rawData.playerCareerState || saveEntry.playerCareerState)){
@@ -9604,7 +9606,7 @@ function loadUserSlot(slotNum, ownerUsername = null){
   if(typeof window !== 'undefined'){
     window.state = state;
   }
-  if(isPlayerMode) save();
+  save();
   toast(`Campanha do ${clubDisplayName(state.club)} (Slot ${slotNum}) carregada com sucesso!`);
   render();
   return true;
@@ -11585,7 +11587,10 @@ function buildClubs(){
       existing.playerCount=ps.length;
       if (!existing.stadium || existing.stadium === 'Estádio do clube') existing.stadium = stadName;
     }
-    else map.set(key,{name,country:meta.country,competition:meta.competition,stadium:stadName,atk:avg,mid:avg,def:avg,budget:Math.max(.4,(avg-52)*2.2),playerCount:ps.length});
+    else {
+      const compId = Object.entries(teamMap).find(([, names]) => Array.isArray(names) && names.some(teamName => norm(teamName) === norm(name)))?.[0];
+      map.set(key,{name,country:meta.country,competition:meta.competition,stadium:stadName,atk:avg,mid:avg,def:avg,budget:compId === 'bra-d' ? Math.max(.35,Math.min(1.5,(avg-52)*.08)) : Math.max(.4,(avg-52)*2.2),playerCount:ps.length});
+    }
   }
   for(const [compId,names] of Object.entries(teamMap)){
     const comp=compById(compId);if(!comp)continue;const base=compBaseStrength(comp);
@@ -11595,7 +11600,8 @@ function buildClubs(){
       const stadName = sInfo?.stadium || 'Estádio do clube';
       if(!map.has(key)){
         const wiggle=(hashStr(name)%7)-3;const s=clamp(base+wiggle,48,88);
-        map.set(key,{name,country:comp.country==='CONMEBOL'||comp.country==='UEFA'||comp.country==='AFC'?'Outro':comp.country,competition:comp.name,stadium:stadName,atk:s+rnd(-1,1),mid:s+rnd(-1,1),def:s+rnd(-1,1),budget:Math.max(.25,Math.pow(Math.max(3,s-48),1.35)/2.6)});
+        const budget = compId === 'bra-d' ? Math.max(.35,Math.min(1.5,(s-52)*.08)) : Math.max(.25,Math.pow(Math.max(3,s-48),1.35)/2.6);
+        map.set(key,{name,country:comp.country==='CONMEBOL'||comp.country==='UEFA'||comp.country==='AFC'?'Outro':comp.country,competition:comp.name,stadium:stadName,atk:s+rnd(-1,1),mid:s+rnd(-1,1),def:s+rnd(-1,1),budget});
       } else {
         const exist = map.get(key);
         if (exist && (!exist.stadium || exist.stadium === 'Estádio do clube')) {
@@ -14770,6 +14776,8 @@ function newCareer(data){
     userSlot: targetSlot,
     userOwner: targetOwner,
     version: 4,
+    gameMode: 'manager',
+    isPlayerMode: false,
     salaryModelVersion: 2,
     manager: mgrName,
     managerSalary: isCustom ? 25000 : ((club.budget || 5) > 15 ? 75000 : 45000),
@@ -15022,7 +15030,7 @@ function repairEarnedStatePromotion(s){
 }
 
 function repairCorruptedBalanceAndRestoreFunds(s){
-  if(!s || !s.club) return false;
+  if(!s || !s.club || s.gameMode === 'player') return false;
 
   if(typeof s.clubBalance !== 'undefined' && Number.isFinite(Number(s.clubBalance))){
     if(Number(s.balance) > Number(s.clubBalance)){
@@ -15276,7 +15284,7 @@ function repairSaveIfCorrupted(s){
   }
 
   // Recalibração e Auditoria Financeira Automática para Saves com Despesas Infladas
-  if(s && (!s.version || s.version < 4) && Number(s.expense) > 2000000 && Number(s.round) <= 18){
+  if(s && s.gameMode !== 'player' && (!s.version || s.version < 4) && Number(s.expense) > 2000000 && Number(s.round) <= 18){
     const realMonthly = (s.squad || []).reduce((acc, p) => acc + playerSalary(p), 0);
     const realRoundPayroll = Math.round(realMonthly / 4);
     const estimatedRealExpense = Math.max(100000, Math.round((Number(s.round) || 1) * realRoundPayroll + (Number(s.round) || 1) * 8000));
@@ -15510,8 +15518,20 @@ function migrate(s){
   purgeBuggedExploitPlayers(s);
 
   // REGRA INVIOLÁVEL: IDENTIFICAÇÃO E ISOLAMENTO ESTRITO DO MODO DE JOGO
-  const isPlayerCareer = Boolean(s.playerCareerState || s.controlledPlayerId);
+  const isPlayerCareer = getSaveGameMode(s) === 'player';
   s.gameMode = isPlayerCareer ? 'player' : 'manager';
+  s.isPlayerMode = isPlayerCareer;
+
+  // Corrige apenas caixa inflado de saves Série D ainda sem partidas ou progresso financeiro.
+  const saveDate = String(s.date || s.currentDate || '').slice(0, 10);
+  const cleanOpeningSave = !isPlayerCareer && s.compId === 'bra-d' && saveDate === '2026-01-01' && Number(s.round || 0) === 0 && !(s.history || []).length;
+  if(cleanOpeningSave && Number(s.balance) > 10000000){
+    const initialBudget = Number(clubByName(s.club)?.budget) * 1000000;
+    if(Number.isFinite(initialBudget) && initialBudget > 0){
+      s.balance = Math.round(initialBudget);
+      s.saveRepairNotes = [...new Set([...(s.saveRepairNotes || []), 'serie-d-opening-budget'])];
+    }
+  }
 
   (s.squad || []).forEach(p => {
     if(p && (!p.pos || p.pos === "-" || p.pos === "undefined" || p.pos === "null")){
@@ -15621,7 +15641,7 @@ function migrate(s){
       });
     }
   }
-  if(restorePlayerCareerSquad(s)) saveRequired = true;
+  restorePlayerCareerSquad(s);
   s.infrastructure=s.infrastructure||defaultInfrastructure(clubByName(s.club)||{atk:65,mid:65,def:65});
   if(!s.infrastructure.parking) s.infrastructure.parking = {level:0, spots:0};
   if(!s.infrastructure.marketing) s.infrastructure.marketing = {level:1};
@@ -15717,7 +15737,7 @@ function migrate(s){
     s.sponsorOffers = offers.slice(1, 4);
   }
   ensureTvBroadcastContract(s);
-  if(typeof processClubMonthlyFinances === 'function') processClubMonthlyFinances(s, s.date);
+  if(s.gameMode !== 'player' && typeof processClubMonthlyFinances === 'function') processClubMonthlyFinances(s, s.date);
 
   if(Array.isArray(s.teams)){
     s.teams.forEach(t=>{ if(!Array.isArray(t.form)) t.form = []; const c = clubByName(t.name); if(c && typeof strength === 'function') t.strength = strength(c); });

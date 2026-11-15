@@ -468,6 +468,28 @@ assert.strictEqual(s2.playerCareerState.athleteName, 'Diogenes Aquino');
 assert.strictEqual(s2.playerCareerState.personalBank, 2520);
 console.log('✓ Slot 2 formatado corretamente como Carreira Jogador (R$ 2.520 de conta pessoal, Atleta Diogenes Aquino)');
 
+console.log('\n4.1 Verificando modo persistido, conflito entre slots e orçamento da Série D...');
+const sharedManagerSave = {
+  slot: 2, owner: 'aquino', club: 'Manaus', gameMode: 'manager', isPlayerMode: false,
+  updatedAt: '2099-01-01T00:00:00.000Z', data: { gameMode: 'manager', isPlayerMode: false, club: 'Manaus', squad: [] }
+};
+localStorage.setItem('afm_save_slot_2', JSON.stringify(sharedManagerSave));
+assert.strictEqual(window.getUserSaveSlots('aquino')[1].gameMode, 'player', 'save individual jogador não pode ser trocado por save compartilhado treinador mais recente');
+assert.strictEqual(window.getSaveGameMode({ gameMode: 'player', isPlayerMode: false }), 'player', 'gameMode explícito prevalece sobre marcador legado contraditório');
+const playerWithoutLegacyMarkers = window.migrate({
+  gameMode: 'player', isPlayerMode: true, club: 'Manaus', compId: 'bra-d', date: '2026-01-01',
+  round: 0, balance: 50000000, history: [], squad: []
+});
+assert.strictEqual(playerWithoutLegacyMarkers.gameMode, 'player', 'migração deve respeitar gameMode explícito sem campos legados do atleta');
+assert(playerWithoutLegacyMarkers.balance >= 50000000, 'correção do caixa Série D não pode zerar/reduzir o saldo de uma carreira do modo jogador');
+const openingManagerSave = window.migrate({
+  gameMode: 'manager', isPlayerMode: false, club: 'Manaus', compId: 'bra-d', date: '2026-01-01',
+  round: 0, balance: 50000000, history: [], squad: []
+});
+assert(openingManagerSave.balance <= 10000000, `save inicial Série D não pode preservar caixa inflado de R$ 50 milhões (obtido: ${openingManagerSave.balance})`);
+assert(window.clubByName('Manaus').budget <= 1.5, 'catálogo gerado da Série D não pode inflar o caixa pelo OVR médio');
+console.log('✓ O modo explícito prevalece, conflito não mistura modos e Manaus Série D recebe caixa plausível.');
+
 // TESTE 4: Carregamento do Slot 2 (loadUserSlot) e Isolamento
 console.log('\n5. Testando loadUserSlot(2)...');
 // Reseta state temporariamente
@@ -610,6 +632,10 @@ for(let round = 1; round <= 3; round++){
   assert.strictEqual(window.state.playerCareerState.athleteName, 'Diogenes Aquino', `Rodada ${round}: Atleta deve ser Diogenes Aquino`);
 }
 console.log('✓ 3 ciclos de alternância executados com 100% de isolamento e zero contaminação!');
+
+window.newCareer({ manager: 'Aquino', compId: 'bra-d', clubName: 'Manaus', slot: 3 });
+assert(window.state.balance <= 1500000, `nova carreira do Manaus Série D deve começar abaixo de R$ 1,5 milhão (obtido: ${window.state.balance})`);
+console.log('✓ Nova carreira do Manaus Série D não começa com caixa de clube de elite.');
 
 console.log('\n======================================================');
 console.log('🎉 TODOS OS TESTES PASSARAM COM 100% DE SUCESSO! 🎉');

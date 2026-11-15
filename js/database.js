@@ -558,6 +558,15 @@ const AFM_DB = (function(){
     return 0;
   }
 
+  function getSavedGameMode(entry){
+    const data = entry?.data && typeof entry.data === 'object' ? entry.data : entry;
+    if(data?.gameMode === 'player' || data?.gameMode === 'manager') return data.gameMode;
+    if(typeof data?.isPlayerMode === 'boolean') return data.isPlayerMode ? 'player' : 'manager';
+    if(entry?.gameMode === 'player' || entry?.gameMode === 'manager') return entry.gameMode;
+    if(typeof entry?.isPlayerMode === 'boolean') return entry.isPlayerMode ? 'player' : 'manager';
+    return data?.playerCareerState || data?.controlledPlayerId || entry?.playerCareerState || entry?.controlledPlayerId ? 'player' : null;
+  }
+
   // Sincronização Inteligente (Nuvem <-> LocalStorage com Garantia de Paridade PC x Celular x Supabase)
   async function syncUser(targetUsername){
     if(syncInProgress) return { ok: true, inProgress: true };
@@ -584,6 +593,7 @@ const AFM_DB = (function(){
       let updatedActiveState = false;
       let pulledFromCloud = 0;
       let pushedToCloud = 0;
+      let modeConflicts = 0;
 
       // 1. Atualizar com saves vindos da nuvem (Cloud -> Local)
       for(const row of (result.data || [])){
@@ -601,6 +611,17 @@ const AFM_DB = (function(){
 
         const localTime = parseSaveTimestamp(local?.updatedAt || local?.data?.updatedAt);
         const cloudTime = parseSaveTimestamp(row.updated_at);
+        const localMode = getSavedGameMode(local);
+        const cloudMode = getSavedGameMode(row.save_data);
+        const activeSave = typeof window !== 'undefined' ? window.state : null;
+        const activeSlot = Number(activeSave?.userSlot) || 1;
+        const activeOwner = String(activeSave?.userOwner || '').trim().toLowerCase();
+        const activeMode = getSavedGameMode(activeSave);
+        const activeModeConflict = activeSave && slot === activeSlot && (!activeOwner || activeOwner === cleanUser) && activeMode && cloudMode && activeMode !== cloudMode;
+        if((local && localMode && cloudMode && localMode !== cloudMode) || activeModeConflict){
+          modeConflicts++;
+          continue;
+        }
 
         // Se local tem dados e a nuvem não é mais recente, não sobrescreve
         if(local?.data && cloudTime <= localTime){
@@ -658,7 +679,8 @@ const AFM_DB = (function(){
         if(typeof window !== "undefined" && window.state){
           const currentSlot = Number(window.state.userSlot) || 1;
           const currentOwner = String(window.state.userOwner || '').trim().toLowerCase();
-          if(slot === currentSlot && (!currentOwner || currentOwner === cleanUser)){
+          const activeMode = getSavedGameMode(window.state);
+          if(slot === currentSlot && (!currentOwner || currentOwner === cleanUser) && (!activeMode || !cloudMode || activeMode === cloudMode)){
             const activeTime = parseSaveTimestamp(window.state.updatedAt || local?.updatedAt);
             if(cloudTime > activeTime){
               let freshData = typeof window.clone === 'function' ? window.clone(row.save_data) : JSON.parse(JSON.stringify(row.save_data));
@@ -694,6 +716,12 @@ const AFM_DB = (function(){
           } catch(e){}
         }
         const cloudRow = (result.data || []).find(row => Number(row.slot) === s);
+        const localMode = getSavedGameMode(loc);
+        const cloudMode = getSavedGameMode(cloudRow?.save_data);
+        if(loc && localMode && cloudMode && localMode !== cloudMode){
+          modeConflicts++;
+          continue;
+        }
         const localTime = parseSaveTimestamp(loc?.updatedAt || loc?.data?.updatedAt);
         const cloudTime = parseSaveTimestamp(cloudRow?.updated_at);
         const localIsNewer = (loc?.data?.club || loc?.club) && (!cloudRow || localTime > cloudTime);
@@ -712,7 +740,7 @@ const AFM_DB = (function(){
       if(updatedActiveState && typeof window !== "undefined" && typeof window.render === 'function'){
         window.render();
       }
-      return { ok: true, pulledFromCloud, pushedToCloud, updatedActiveState };
+      return { ok: true, pulledFromCloud, pushedToCloud, updatedActiveState, modeConflicts };
     } catch(error){
       recordHandledError('save-sync', error);
       return { ok: false, error: error.message };

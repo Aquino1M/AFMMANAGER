@@ -2,7 +2,7 @@
 
 ## Arquitetura e mudanças
 - Aplicação local-first em HTML, CSS e JavaScript ES2022, sem build obrigatório. `js/game.js` coordena UI/estado; reutilize serviços em `js/core/`, `js/player/` e catálogos existentes.
-- `gameMode` isola carreira de treinador e jogador. Migrações devem ser aditivas, idempotentes e compatíveis com saves antigos; não crie fontes paralelas de verdade.
+- `gameMode` e `isPlayerMode` persistidos definem o modo do save. Migração só infere modo por campos legados quando ambos faltam; carregar/sincronizar nunca troca modos por timestamp. Só uma nova carreira escolhida pelo usuário pode substituir um slot. Migrações devem ser aditivas, idempotentes e compatíveis com saves antigos.
 - Preserve mudanças locais. Nunca use `git reset --hard`, `git clean` ou reversão destrutiva.
 
 ## Jogo e estado consistente
@@ -11,6 +11,7 @@
 - Ao cruzar cada mês, processe uma vez as finanças do modo ativo na ordem das datas. No treinador, credite TV/patrocínios e quite folha, instalações, olheiros, marketing e dívidas; no jogador, processe salário/despesas/dívidas pessoais. Não dependa apenas do dia 1; mantenha idempotência em avanços longos, jogos e recargas.
 - Limite coleções persistidas: `news` 50, `marketWorldFeed` 30, `seasonHistory` 20 e `socialMedia.feedPosts` 25.
 - Catálogos e telas de elenco não podem repetir a mesma pessoa no mesmo clube por variações de nome (ex.: sufixo “Jr.”); deduplique por clube, identidade validada e nome normalizado sem fundir atletas distintos.
+- Orçamentos gerados respeitam a divisão; Série D não herda caixa de clube de elite por OVR médio. Corrija saves somente quando forem inequivocamente de abertura, sem partidas/histórico, sem alterar carreira do jogador ou progresso financeiro.
 
 ## Carreira do jogador
 - Preserve sempre a criação do atleta (`#btnGoCreatePlayer`, `#btnNavGoPlayerMode`, `setupViewMode === 'create_player'` e `renderCreatePlayerScreen`). Elenco legado incompleto deve ser completado sem duplicar atletas nem remover o controlado; mudanças exigem teste de migração idempotente.
@@ -25,7 +26,7 @@
 
 ## Renderização e dados confiáveis
 - Preserve os canvases WebGL e trate falhas de renderização; dispose recursos ao fechar/trocar cena. Não use `forceContextLoss()`/`loseContext()` em navegação normal. Detalhes em `.agents/rules/3d_game_studio.md`.
-- Saves em `afm_saves` usam upsert; resposta sem corpo e sem erro confirma sucesso. Em timeout, aborte quando possível e preserve o save local. Conflitos favorecem o maior `updated_at`/timestamp. Mudanças de autenticação/RLS devem ser revisadas junto com `js/database.js` e migrations; nunca publique senhas, credenciais reais ou acesso `anon` a dados privados.
+- Saves em `afm_saves` usam upsert; resposta sem corpo e sem erro confirma sucesso. Em timeout, aborte quando possível e preserve o save local. Compare timestamp apenas entre saves do mesmo modo; conflito entre treinador/jogador preserva cada cópia e nunca hidrata a carreira ativa com o outro modo. Mudanças de autenticação/RLS devem ser revisadas junto com `js/database.js` e migrations; nunca publique senhas, credenciais reais ou acesso `anon` a dados privados.
 - Trate save, importação, rede e nomes como entrada não confiável: valide trust boundaries e use `esc()` em HTML; prefira propriedades/DOM APIs a interpolar dados em `innerHTML`. Arredonde dinheiro com `Math.round()`.
 
 ## Verificação
