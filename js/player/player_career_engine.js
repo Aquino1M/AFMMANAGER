@@ -1622,9 +1622,10 @@
 
     // Calcula nota individual (0.0 a 10.0)
     const ovr = playerObj.ovr || 35;
-    let baseRating = 6.0 + (ovr - 35) * 0.05 + (Math.random() * 1.6 - 0.8);
-    if(won) baseRating += 0.6;
-    if(lost) baseRating -= 0.6;
+    const reportedRating = Number(matchResult?.rating);
+    let baseRating = Number.isFinite(reportedRating) && reportedRating >= 0
+      ? reportedRating
+      : 6.0 + (ovr - 35) * 0.05 + (Math.random() * 1.6 - 0.8) + (won ? 0.6 : lost ? -0.6 : 0);
 
     // Chances de gol e assistência
     let goalsScored = (typeof matchResult?.goals === 'number') ? matchResult.goals : 0;

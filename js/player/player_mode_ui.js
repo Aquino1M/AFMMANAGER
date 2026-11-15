@@ -5878,6 +5878,12 @@
       passesCompleted = athleteOnPitch.passesCompleted || Math.round(passesAttempted * (0.78 + Math.min(0.18, (athlete.attributes?.pas || 35) * 0.002)));
       tackles = athleteOnPitch.matchTackles || Math.floor((athlete.attributes?.def || 30) * 0.05);
       staminaPct = Math.max(40, Math.round(athleteOnPitch.stamina || (100 - (s.minute * 0.3))));
+      athleteOnPitch.matchGoals = goals;
+      athleteOnPitch.matchAssists = assists;
+      athleteOnPitch.matchShots = shots;
+      athleteOnPitch.passesAttempted = passesAttempted;
+      athleteOnPitch.passesCompleted = passesCompleted;
+      athleteOnPitch.matchTackles = tackles;
 
       // Nota do 1º tempo calculada dinamicamente
       let calcRating = 6.2 + (goals * 1.3) + (assists * 0.8) + ((passesCompleted / passesAttempted) * 0.5) + (shots * 0.2);

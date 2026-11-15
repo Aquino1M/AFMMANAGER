@@ -24873,9 +24873,10 @@ function finalizeMatchRound(){
     );
     const goals = scorerEvents.length;
     const assists = assistEvents.length;
-    const shots = matchAthlete ? (s.events || []).filter(event => eventBelongsToAthlete(event) && (
+    const recordedShots = matchAthlete ? (s.events || []).filter(event => eventBelongsToAthlete(event) && (
       ['gol', 'save', 'post', 'miss'].includes(event.type) || (event.type === 'whistle' && /BLOQUEIO PROVIDENCIAL/i.test(event.text || ''))
     )).length : 0;
+    const shots = matchAthlete ? Math.max(Number(matchAthlete.matchShots) || 0, recordedShots) : 0;
     const shotsOnTarget = matchAthlete ? (s.events || []).filter(event => eventBelongsToAthlete(event) && ['gol', 'save'].includes(event.type)).length : 0;
     const enteredMinute = matchAthlete ? Number(matchAthlete.enteredMinute) || 0 : 0;
     const playedMinutes = matchAthlete ? Math.max(0, Math.min(120, (Number(s.minute) || 90) - enteredMinute)) : 0;
@@ -24890,6 +24891,7 @@ function finalizeMatchRound(){
       assists,
       shots,
       shotsOnTarget,
+      rating: Number(matchAthlete?.firstHalfRating) || undefined,
       playedMinutes,
       started: Boolean(matchAthlete?.wasStarter),
       status: s.playerCareerAvailableForMatch === false ? 'Não relacionado por desgaste físico' : 'Reserva não utilizado',
