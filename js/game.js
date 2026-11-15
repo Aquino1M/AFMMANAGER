@@ -20486,6 +20486,32 @@ function restorePrimaryLeagueAfterCopaMatch(){
 }
 
 let isStartingLiveMatch = false;
+function alignPlayerCareerStarter(starters, formation, athlete){
+  const gkIndex = formation.findIndex(slot => slot.r === 'GK');
+  const keeperIndex = starters.findIndex(player => isGoalkeeperPosition(player?.pos));
+  if(gkIndex >= 0 && keeperIndex >= 0 && keeperIndex !== gkIndex && keeperIndex < formation.length){
+    [starters[gkIndex], starters[keeperIndex]] = [starters[keeperIndex], starters[gkIndex]];
+  }
+  if(!athlete) return starters;
+  const athleteIndex = starters.findIndex(player => String(player?.id) === String(athlete.id));
+  if(athleteIndex < 0) return starters;
+  const naturalPosition = String(athlete.pos || athlete.position || '').toUpperCase();
+  const compatible = {
+    ST: ['ST','CF'], ATA: ['ST','CF'], CA: ['ST','CF'], CF: ['CF','ST'], LW: ['LW','LM'], RW: ['RW','RM'],
+    LM: ['LM','LW'], RM: ['RM','RW'], AM: ['AM','CM'], CM: ['CM','AM','DM'],
+    DM: ['DM','CM'], LB: ['LB','LWB'], RB: ['RB','RWB'],
+    LWB: ['LWB','LB'], RWB: ['RWB','RB'], CB: ['CB'], ZAG: ['CB'],
+    VOL: ['DM','CM'], MEI: ['AM','CM'], PON: ['LW','RW'], GK: ['GK'], GOL: ['GK']
+  };
+  const allowed = compatible[naturalPosition] || [naturalPosition];
+  const targetIndex = formation.findIndex((slot, index) => index !== gkIndex && allowed.includes(slot.r));
+  if(targetIndex >= 0 && targetIndex !== athleteIndex && targetIndex < starters.length){
+    [starters[athleteIndex], starters[targetIndex]] = [starters[targetIndex], starters[athleteIndex]];
+  }
+  return starters;
+}
+window.alignPlayerCareerStarter = alignPlayerCareerStarter;
+
 function startLiveMatch(){
   if(isStartingLiveMatch) return;
   if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save();
@@ -20673,18 +20699,7 @@ function startLiveMatch(){
       const playerTooTired = Boolean(controlledAthlete && Number(controlledAthlete.energy ?? controlledAthlete.fitness ?? 100) <= 40);
       const selectedStarters = lineupKeys.map(k => findSquadPlayerByKey(k)).filter(p => p && !(playerTooTired && p.id === controlledAthlete.id));
       const starters = [...selectedStarters.slice(0, 11)];
-      if(controlledAthlete && !playerTooTired && !isGoalkeeperPosition(controlledAthlete.pos)){
-        const athleteIndex = starters.findIndex(p => p.id === controlledAthlete.id);
-        const gkIndex = formDef.findIndex(slot => slot.r === 'GK');
-        if(athleteIndex === gkIndex && gkIndex >= 0){
-          const replacementIndex = starters.findIndex((p, i) => i !== athleteIndex && isGoalkeeperPosition(p.pos));
-          if(replacementIndex >= 0) [starters[athleteIndex], starters[replacementIndex]] = [starters[replacementIndex], starters[athleteIndex]];
-          else {
-            const forwardIndex = formDef.findIndex(slot => ['ST','CF','LW','RW'].includes(slot.r));
-            if(forwardIndex >= 0 && forwardIndex < starters.length) [starters[athleteIndex], starters[forwardIndex]] = [starters[forwardIndex], starters[athleteIndex]];
-          }
-        }
-      }
+      alignPlayerCareerStarter(starters, formDef, playerTooTired ? null : controlledAthlete);
       const usedStarterKeys = new Set(starters.map(p => playerKey(p)));
       while(starters.length < 11){
         const extra = state.squad.find(p => !usedStarterKeys.has(playerKey(p)) && !(playerTooTired && p.id === controlledAthlete.id));
@@ -20703,7 +20718,7 @@ function startLiveMatch(){
         });
       }
       for(let i=0; i<11; i++){
-        const isGoalkeeper = (i === 0);
+        const isGoalkeeper = formDef[i]?.r === 'GK' || (i === 0 && !formDef.some(slot => slot.r === 'GK'));
         const p = starters[i] || { name: `Jogador ${i+1}`, pos: formDef[i]?.r || (isGoalkeeper ? 'GK' : 'CM'), fc: 65 };
         const slot = formDef[i] || { r: isGoalkeeper ? 'GK' : (p.pos || 'CM'), x: 50, y: isGoalkeeper ? 89 : 50 };
         const effectiveOvr = (typeof getPlayerEffectiveOverall === 'function') ? getPlayerEffectiveOverall(p, isGoalkeeper ? 'GK' : slot.r) : (playerOverall(p) || 65);

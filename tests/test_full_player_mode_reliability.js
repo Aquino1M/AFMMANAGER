@@ -392,6 +392,15 @@ assert(window.state.playerCareerState, 'playerCareerState deve estar presente');
 assert.strictEqual(window.state.manager, 'Treinador da IA', 'save antigo deve migrar a identidade do técnico ao carregar');
 console.log('✓ loadUserSlot(2) abriu diretamente na Central do Atleta (player_hub) sem contaminar com modo treinador!');
 
+const careerLineup = [
+  { id: 'striker-user', pos: 'ST' }, { id: 'keeper', pos: 'GK' },
+  { id: 'wing', pos: 'RW' }, { id: 'mid', pos: 'CM' }
+];
+window.alignPlayerCareerStarter(careerLineup, [{ r:'GK' },{ r:'CB' },{ r:'ST' },{ r:'RW' }], careerLineup[0]);
+assert.strictEqual(careerLineup[0].pos, 'GK', 'goleiro deve ocupar a vaga de GK');
+assert.strictEqual(careerLineup[2].id, 'striker-user', 'atacante controlado deve ser alinhado no slot ST');
+console.log('✓ Atleta controlado é reposicionado na vaga compatível da formação e o goleiro fica no gol.');
+
 // TESTE 5: Simulação de Partida Be a Pro com Substituição aos 46'
 console.log('\n6. Testando partida ao vivo com entrada do atleta aos 46 minutos (Zero Travamento)...');
 const match = {
