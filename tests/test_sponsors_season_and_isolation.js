@@ -26,6 +26,23 @@ require('../js/competitions.js');
 require('../js/player/player_career_engine.js');
 const engine = global.AFM_PlayerCareerEngine;
 
+const starterAt35 = engine.createStarterSponsorOffer(35, '2026-01-01');
+const starterAt75 = engine.createStarterSponsorOffer(75, '2026-01-01');
+assert.equal(starterAt35.monthlyStipend, 120, 'incentivo regional de OVR baixo deve usar a faixa financeira de base');
+assert.equal(starterAt35.bonusGoal, 60);
+assert.equal(starterAt35.bonusWin, 40);
+assert(starterAt75.monthlyStipend > starterAt35.monthlyStipend, 'valores do incentivo crescem com o OVR');
+const legacyStarter = { id: 'off_1', type: 'sponsor', title: 'Incentivo Esportivo Regional de Base', monthly: 600, bonusGoal: 500, isRead: true };
+const legacyStarterState = {
+  gameMode: 'player', date: '2026-01-01', controlledPlayerId: 'legacy-starter',
+  squad: [{ id: 'legacy-starter', ovr: 35 }],
+  playerCareerState: { athleteOvr: 35, agentOffers: [legacyStarter], availableSponsorOffers: [{ id: 'valid-season-offer', minOvr: 30 }], lastSponsorSeasonGenerated: 2026, sponsorOfferBalanceVersion: 3 }
+};
+engine.getPlayerSponsorOffers(legacyStarterState);
+assert.equal(legacyStarter.monthlyStipend, 120, 'save legado atualiza termos exagerados do patrocínio pendente');
+assert.equal(legacyStarter.isRead, true, 'normalização mantém o estado de leitura da proposta');
+assert.equal(legacyStarter.id, 'offer_sponsor_starter', 'save legado recebe o ID canônico para compartilhar a mesma proposta nas telas');
+
 console.log('--- TESTE 1: Isolamento de Contrato Ativo vs Propostas ---');
 const testState = {
   gameMode: 'player',

@@ -292,6 +292,7 @@
 
       case 'player_agent':
       case 'mercado':
+        window.AFM_PlayerEngine?.getPlayerSponsorOffers?.(s);
         return renderPlayerAgentAndMarket(s);
 
       case 'player_lifestyle':
@@ -1315,6 +1316,10 @@
     const allSponsorOffers = (eng && typeof eng.getPlayerSponsorOffers === 'function')
       ? eng.getPlayerSponsorOffers(state)
       : (eng ? eng.SPONSOR_OFFERS : []);
+    const sponsorOffers = [...(allSponsorOffers || [])];
+    for(const offer of (pState.agentOffers || []).filter(item => item.type === 'sponsor')){
+      if(!sponsorOffers.some(item => String(item.id) === String(offer.id))) sponsorOffers.push(offer);
+    }
     const items = eng ? eng.LIFESTYLE_CATALOG : [];
     const bank = pState.personalBank || 0;
     const curDate = state.date || state.currentDate || '2026-01-18';
@@ -1333,7 +1338,7 @@
 
     // FILTRO ESTRITO: Na seção de propostas, mostramos EXCLUSIVAMENTE propostas disponíveis para assinar!
     // O contrato que já está assinado e ativo NUNCA é duplicado aqui embaixo.
-    const availableSponsors = (allSponsorOffers || []).filter(sp => {
+    const availableSponsors = sponsorOffers.filter(sp => {
       if(!activeSp) return true;
       if(sp.id && activeSp.id && String(sp.id).trim() === String(activeSp.id).trim()) return false;
       if(sp.name && activeSp.name && String(sp.name).trim().toLowerCase() === String(activeSp.name).trim().toLowerCase()) return false;
@@ -4205,6 +4210,7 @@
             if(offer.renewalBonus && offer.renewalBonus > 0){
               pState.personalBank = (pState.personalBank || 0) + offer.renewalBonus;
             }
+            pState.availableSponsorOffers = (pState.availableSponsorOffers || []).filter(item => item.id !== offer.id);
             sponsorTerms = signed;
           }
           pState.agentOffers.splice(idx, 1);
@@ -4223,7 +4229,8 @@
     document.querySelectorAll('.btn-reject-offer').forEach(btn => {
       btn.onclick = () => {
         const idx = Number(btn.dataset.index);
-        pState.agentOffers.splice(idx, 1);
+        const [offer] = pState.agentOffers.splice(idx, 1);
+        if(offer?.type === 'sponsor') pState.availableSponsorOffers = (pState.availableSponsorOffers || []).filter(item => item.id !== offer.id);
         if(typeof window.save === 'function') window.save();
         if(typeof window.render === 'function') window.render();
       };
@@ -4231,7 +4238,7 @@
 
     document.querySelectorAll('.btn-sponsor-details').forEach(btn => {
       btn.onclick = () => {
-        const offer = (pState.availableSponsorOffers || []).find(item => String(item.id) === String(btn.dataset.sponsorId));
+        const offer = [...(pState.availableSponsorOffers || []), ...(pState.agentOffers || [])].find(item => String(item.id) === String(btn.dataset.sponsorId));
         if(!offer) return;
         const fee = pState.sponsorContract ? (window.AFM_PlayerEngine?.getSponsorTerminationFee(pState.sponsorContract, s.date || s.currentDate) || 0) : 0;
         showCustomAlert({
@@ -4248,6 +4255,7 @@
         const spId = btn.dataset.sponsorId;
         const allPool = [
           ...(pState.availableSponsorOffers || []),
+          ...(pState.agentOffers || []),
           ...(window.AFM_PlayerEngine?.SPONSOR_TIERS_CATALOG || []),
           ...(window.AFM_PlayerEngine?.SPONSOR_OFFERS || [])
         ];
@@ -4268,6 +4276,7 @@
           if(Array.isArray(pState.availableSponsorOffers)){
             pState.availableSponsorOffers = pState.availableSponsorOffers.filter(o => o.id !== sp.id);
           }
+          if(Array.isArray(pState.agentOffers)) pState.agentOffers = pState.agentOffers.filter(o => o.id !== sp.id);
 
           showCustomAlert({
             title: wasSwitch ? `Fornecedor Atualizado para ${sp.brand}! 👟` : 'Patrocínio Oficial Assinado! 👟',
@@ -5636,7 +5645,8 @@
       });
 
       document.getElementById('btnOfferModalReject')?.addEventListener('click', () => {
-        pState.agentOffers.splice(originalIndex, 1);
+        const [rejected] = pState.agentOffers.splice(originalIndex, 1);
+        if(rejected?.type === 'sponsor') pState.availableSponsorOffers = (pState.availableSponsorOffers || []).filter(item => item.id !== rejected.id);
         closeActionModal();
         if(typeof window.save === 'function') window.save();
         if(typeof window.render === 'function') window.render();
@@ -5654,6 +5664,7 @@
             return;
           }
           pState.agentOffers.splice(originalIndex, 1);
+          pState.availableSponsorOffers = (pState.availableSponsorOffers || []).filter(item => item.id !== offer.id);
           closeActionModal();
           executePlayerTransfer(offer, state, athlete, pState);
           return;
@@ -5671,6 +5682,7 @@
           if(offer.renewalBonus && offer.renewalBonus > 0){
             pState.personalBank = (pState.personalBank || 0) + offer.renewalBonus;
           }
+          pState.availableSponsorOffers = (pState.availableSponsorOffers || []).filter(item => item.id !== offer.id);
           pState.agentOffers.splice(originalIndex, 1);
           closeActionModal();
           showCustomAlert({

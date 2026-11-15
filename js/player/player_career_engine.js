@@ -544,6 +544,35 @@
     }
   ];
 
+  function createStarterSponsorOffer(ovr, date = '2026-01-01'){
+    const overall = Math.max(1, Number(ovr) || 1);
+    const multiplier = Math.max(1, (overall - 40) * 0.04);
+    const monthly = Math.round(120 * multiplier);
+    const bonusGoal = Math.round(60 * multiplier);
+    const bonusWin = Math.round(40 * multiplier);
+    return {
+      id: 'offer_sponsor_starter',
+      type: 'sponsor',
+      title: 'Incentivo Esportivo Regional de Base',
+      name: 'Incentivo Esportivo Regional de Base',
+      brand: 'Comércio Esportivo Local',
+      clubOrBrand: 'Comércio Esportivo Local',
+      tier: 'base',
+      minOvr: 30,
+      isStarterSponsor: true,
+      details: `Chuteiras reserva, R$ ${monthly.toLocaleString('pt-BR')}/mês, R$ ${bonusGoal.toLocaleString('pt-BR')} por gol e R$ ${bonusWin.toLocaleString('pt-BR')} por vitória. Valores ajustados ao OVR ${overall}.`,
+      description: 'Patrocínio regional de entrada com fornecimento de chuteiras reserva.',
+      monthly,
+      monthlyStipend: monthly,
+      bonusGoal,
+      bonusAssist: Math.round(bonusGoal * 0.7),
+      bonusWin,
+      durationDays: 90,
+      date,
+      isRead: false
+    };
+  }
+
   /**
    * Gera novas propostas oficiais de patrocínio dinâmicas para a temporada ativa
    */
@@ -607,6 +636,11 @@
 
     const athlete = (gameState.squad || []).find(p => p.id === gameState.controlledPlayerId) || {};
     const ovr = Number(athlete.ovr) || Number(athlete.overall) || Number(pState.athleteOvr) || Number(pState.overall) || 0;
+    const starterOffer = (pState.agentOffers || []).find(offer => offer.type === 'sponsor' && (
+      offer.id === 'offer_sponsor_starter' || offer.isStarterSponsor ||
+      [offer.title, offer.name, offer.clubOrBrand].some(value => norm(value) === norm('Incentivo Esportivo Regional de Base'))
+    ));
+    if(starterOffer) Object.assign(starterOffer, createStarterSponsorOffer(ovr, starterOffer.date || gameState.date || `${curYear}-01-01`), { isRead: starterOffer.isRead === true });
     if(!Array.isArray(pState.availableSponsorOffers) || pState.availableSponsorOffers.length === 0 || pState.lastSponsorSeasonGenerated !== curYear || pState.sponsorOfferBalanceVersion !== 3 || pState.availableSponsorOffers.some(offer => Number(offer.minOvr) > ovr)){
       return generateSeasonSponsorOffers(gameState);
     }
@@ -1528,17 +1562,7 @@
     };
 
     // Gera proposta de patrocínio inicial regional humilde
-    s.playerCareerState.agentOffers.push({
-      id: 'offer_sponsor_starter',
-      type: 'sponsor',
-      title: 'Incentivo Esportivo Regional de Base',
-      clubOrBrand: 'Comércio Esportivo Local',
-      details: 'Fornecimento de chuteiras reserva e bônus de R$ 500 por gol marcado!',
-      bonusGoal: 500,
-      monthly: 600,
-      date: s.date,
-      isRead: false
-    });
+    s.playerCareerState.agentOffers.push(createStarterSponsorOffer(athleteOvr, s.date));
 
     s.news = Array.isArray(s.news) ? s.news : [];
     s.news.unshift(`⭐ JOIA DA BASE: ${athletePlayer.name} (#${athletePlayer.number}), 15 anos, foi aprovado na ${tier.name} e assina seu primeiro vínculo com o ${clubName}!`);
@@ -2979,6 +3003,7 @@
     STARTER_BOOTS,
     SPONSOR_OFFERS,
     SPONSOR_TIERS_CATALOG,
+    createStarterSponsorOffer,
     getSponsorTerminationFee,
     signSponsorContract,
     terminateSponsorContract,

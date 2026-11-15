@@ -132,6 +132,8 @@ assert.doesNotThrow(() => {
   lifestyleHtml = window.AFM_PlayerMode.renderPage('player_lifestyle');
 }, 'Erro ao renderizar player_lifestyle');
 assert(lifestyleHtml.includes('CONTA BANCÁRIA PESSOAL'), 'Aba de finanças do atleta presente');
+assert(lifestyleHtml.includes('Incentivo Esportivo Regional de Base'), 'proposta inicial também aparece na seção de patrocínios');
+assert(lifestyleHtml.includes('R$ 120'), 'valores da proposta regional refletem o OVR baixo do atleta');
 assert(!lifestyleHtml.includes('athlete is not defined'), 'athlete is not defined corrigido');
 console.log('✔ Aba Vida & Patrocínios renderizada com sucesso!');
 

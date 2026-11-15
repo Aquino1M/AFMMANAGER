@@ -442,6 +442,11 @@ assert(window.state.playerCareerState, 'state.playerCareerState deve existir');
 assert.strictEqual(window.state.playerCareerState.athleteName, 'Diogenes Aquino');
 assert.strictEqual(window.state.playerCareerState.personalBank, 2520);
 assert.notStrictEqual(window.state.manager, window.state.playerCareerState.athleteName, 'o atleta não pode ser identificado como técnico');
+const starterSponsor = window.state.playerCareerState.agentOffers.find(offer => offer.id === 'offer_sponsor_starter');
+const expectedStarterSponsor = window.AFM_PlayerEngine.createStarterSponsorOffer(window.state.playerCareerState.athleteOvr, window.state.date);
+assert(starterSponsor, 'carreira nova deve receber incentivo esportivo regional');
+assert.equal(starterSponsor.monthlyStipend, expectedStarterSponsor.monthlyStipend, 'patrocínio inicial usa valores calculados pelo OVR');
+assert.equal(starterSponsor.bonusGoal, expectedStarterSponsor.bonusGoal);
 
 // Salva o jogo no slot 2
 window.saveUserSlot(2);
