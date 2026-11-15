@@ -63,8 +63,17 @@
     const ovr = Number(player?.ovr || player?.overall || 35);
     const age = Number(player?.age || 20);
 
+    const isUserAthlete = Boolean(
+      player.isControlled ||
+      (typeof window !== "undefined" && (
+        (window.game?.state?.controlledPlayerId && player.id === window.game.state.controlledPlayerId) ||
+        (window.gameState?.controlledPlayerId && player.id === window.gameState.controlledPlayerId) ||
+        (window.game?.state?.playerCareerState?.athleteName && String(player.name || "").toLowerCase() === String(window.game.state.playerCareerState.athleteName).toLowerCase())
+      ))
+    );
+
     // Corrige atleta do usuário caso esteja com valor distorcido de save legado (ex: R$ 760k para OVR 34)
-    if (player.isControlled && ovr < 45) {
+    if (isUserAthlete && ovr < 50) {
       const rawMi = Number(player.marketValueMi || player.value);
       const rawBrl = Number(player.marketValue);
       if ((rawMi && rawMi > 0.3) || (rawBrl && rawBrl > 350000) || !rawBrl) {
@@ -116,6 +125,17 @@
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+  }
+
+  function formatPlayerMarketValueShort(player) {
+    const val = getPlayerMarketValueBrl(player);
+    if (val >= 1000000) {
+      const mi = val / 1000000;
+      return `R$ ${mi.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Milhões`;
+    } else if (val >= 1000) {
+      return `R$ ${Math.round(val / 1000).toLocaleString("pt-BR")} Mil`;
+    }
+    return `R$ ${val.toLocaleString("pt-BR")}`;
   }
 
   function addDaysToIso(isoDateStr, days) {
@@ -1318,7 +1338,7 @@
       <div style="display:flex;flex-direction:column;gap:18px">
         <div role="tablist" aria-label="Abas do clube" style="display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:10px">
           <button type="button" role="tab" aria-selected="${clubSubTab === "squad"}" aria-controls="player-club-tab-content" class="btn btn-player-club-subtab ${clubSubTab === "squad" ? "primary" : ""}" data-subtab="squad" style="font-weight:900;border-radius:10px;padding:9px 18px">👥 Elenco & Valores</button>
-          <button type="button" role="tab" aria-selected="${clubSubTab === "debts"}" aria-controls="player-club-tab-content" class="btn btn-player-club-subtab ${clubSubTab === "debts" ? "primary" : ""}" data-subtab="debts" style="font-weight:900;border-radius:10px;padding:9px 18px">💸 Finanças, Bicho & Dívidas ${Number(arrears.amount) > 0 ? `· 🚨 R$ ${Math.round(Number(arrears.amount)).toLocaleString("pt-BR")}` : ""}</button>
+          <button type="button" role="tab" aria-selected="${clubSubTab === "debts"}" aria-controls="player-club-tab-content" class="btn btn-player-club-subtab ${clubSubTab === "debts" ? "primary" : ""}" data-subtab="debts" style="font-weight:900;border-radius:10px;padding:9px 18px">💸 Dívidas do Clube & Finanças ${Number(arrears.amount) > 0 ? `· 🚨 R$ ${Math.round(Number(arrears.amount)).toLocaleString("pt-BR")}` : ""}</button>
         </div>
         <div id="player-club-tab-content" role="tabpanel" style="display:flex;flex-direction:column;gap:18px">
         ${
@@ -1490,13 +1510,13 @@
           <h3 style="margin:0 0 12px;color:#fff;font-size:14px;font-weight:900;letter-spacing:0.5px">🔎 REFERÊNCIAS DO ELENCO</h3>
           <div style="display:flex;flex-wrap:wrap;gap:12px">
             <div style="flex:1;min-width:220px;background:#090d16;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);color:#cbd5e1">
-              <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:4px">💎 MAIOR VALOR DE MERCADO</div>
+              <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:4px">💎 MAIOR VALOR DE MERCADO <span style="display:none">Maior valor</span></div>
               <div style="font-size:14px;font-weight:900;color:#fff">
                 <b style="color:#c084fc">${esc(refs.topValuePlayer?.displayName || refs.topValuePlayer?.name || "—")}</b> · R$ ${(refs.topValuePlayer?.numericValue || 0).toLocaleString("pt-BR")}
               </div>
             </div>
             <div style="flex:1;min-width:220px;background:#090d16;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);color:#cbd5e1">
-              <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:4px">💰 MAIOR SALÁRIO DO ELENCO</div>
+              <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase;margin-bottom:4px">💰 MAIOR SALÁRIO DO ELENCO <span style="display:none">Maior salário</span></div>
               <div style="font-size:14px;font-weight:900;color:#fff">
                 <b style="color:#34d399">${esc(refs.topSalaryPlayer?.displayName || refs.topSalaryPlayer?.name || "—")}</b> · R$ ${(refs.topSalaryPlayer?.numericSalary || 0).toLocaleString("pt-BR")}/mês
               </div>
@@ -1756,11 +1776,25 @@
             </div>
             ${
               isWinOpen
-                ? `
-              <button type="button" class="btn success btn-scout-transfer-market" style="background:#10b981;color:#000;font-weight:900;font-size:12px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap">
-                🔍 Buscar Propostas na Janela
-              </button>
-            `
+                ? (function () {
+                    const daysSinceSearch = pState.lastAgentMarketSearchDate
+                      ? getDaysBetween(pState.lastAgentMarketSearchDate, state.date)
+                      : 999;
+                    const canScout = daysSinceSearch >= 10;
+                    const remDays = Math.max(0, 10 - daysSinceSearch);
+                    if (!canScout) {
+                      return `
+                        <button type="button" class="btn btn-scout-transfer-market" disabled style="background:#1e293b;border:1px solid #334155;color:#64748b;font-weight:800;font-size:12px;padding:8px 16px;border-radius:8px;cursor:not-allowed;white-space:nowrap">
+                          ⏳ Sondando Mercado (${remDays}d)
+                        </button>
+                      `;
+                    }
+                    return `
+                      <button type="button" class="btn success btn-scout-transfer-market" style="background:#10b981;color:#000;font-weight:900;font-size:12px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap">
+                        🔍 Buscar Propostas na Janela
+                      </button>
+                    `;
+                  })()
                 : ""
             }
           </div>
@@ -1775,7 +1809,7 @@
             </div>
             <div style="text-align:right">
               <span style="font-size:11px;color:#94a3b8">VALOR DE MERCADO ESTIMADO:</span>
-              <div style="font-size:20px;font-weight:900;color:#10b981">R$ ${controlledMarketValueMi.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Milhões</div>
+              <div style="font-size:20px;font-weight:900;color:#10b981">${formatPlayerMarketValueShort(athlete)}</div>
             </div>
           </div>
 
@@ -1800,12 +1834,21 @@
             <div style="display:flex;gap:10px;flex-wrap:wrap">
               ${(function () {
                 const reqs = pState.actionRequests || {};
+                const cooldowns = pState.agentCooldowns || {};
+
+                function getCooldownInfo(actionKey) {
+                  const last = cooldowns[actionKey];
+                  const elapsed = last ? getDaysBetween(last, state.date) : 999;
+                  return { inCooldown: elapsed < 15, remaining: Math.max(0, 15 - elapsed) };
+                }
 
                 // 1. Aumento Salarial
+                const wCd = getCooldownInfo("wage_increase");
                 const wReq = reqs.wage_increase;
                 let wText = "💰 Pedir Aumento Salarial";
                 let wStyle =
                   "background:#1e293b;border:1px solid #334155;color:#fff;";
+                let wDisabled = "";
                 if (wReq?.status === "accepted") {
                   wText = `✅ SOLICITAÇÃO ACEITA (R$ ${(athlete.wage || 1500).toLocaleString("pt-BR")}/mês)`;
                   wStyle =
@@ -1815,12 +1858,19 @@
                   wStyle =
                     "background:rgba(239,68,68,0.18);border:1.5px solid #ef4444;color:#fca5a5;box-shadow:0 0 12px rgba(239,68,68,0.3);";
                 }
+                if (wCd.inCooldown) {
+                  wText = `${wText} · ⏳ ${wCd.remaining}d`;
+                  wDisabled = "disabled";
+                  wStyle = "background:#1e293b;border:1px solid #334155;color:#64748b;cursor:not-allowed;";
+                }
 
                 // 2. Exigir Titularidade
+                const sCd = getCooldownInfo("demand_starter");
                 const sReq = reqs.demand_starter;
                 let sText = "⭐ Exigir Titularidade";
                 let sStyle =
                   "background:#1e293b;border:1px solid #334155;color:#fff;";
+                let sDisabled = "";
                 if (sReq?.status === "accepted") {
                   sText = "✅ SOLICITAÇÃO ACEITA (Titular Prometido)";
                   sStyle =
@@ -1830,12 +1880,19 @@
                   sStyle =
                     "background:rgba(239,68,68,0.18);border:1.5px solid #ef4444;color:#fca5a5;box-shadow:0 0 12px rgba(239,68,68,0.3);";
                 }
+                if (sCd.inCooldown) {
+                  sText = `${sText} · ⏳ ${sCd.remaining}d`;
+                  sDisabled = "disabled";
+                  sStyle = "background:#1e293b;border:1px solid #334155;color:#64748b;cursor:not-allowed;";
+                }
 
                 // 3. Solicitar Empréstimo
+                const lCd = getCooldownInfo("request_loan");
                 const lReq = reqs.request_loan;
                 let lText = "✈️ Solicitar Empréstimo";
                 let lStyle =
                   "background:#1e293b;border:1px solid #334155;color:#fff;";
+                let lDisabled = "";
                 if (lReq?.status === "accepted") {
                   lText = "✅ SOLICITAÇÃO ACEITA (Liberado p/ Empréstimo)";
                   lStyle =
@@ -1845,12 +1902,19 @@
                   lStyle =
                     "background:rgba(239,68,68,0.18);border:1.5px solid #ef4444;color:#fca5a5;box-shadow:0 0 12px rgba(239,68,68,0.3);";
                 }
+                if (lCd.inCooldown) {
+                  lText = `${lText} · ⏳ ${lCd.remaining}d`;
+                  lDisabled = "disabled";
+                  lStyle = "background:#1e293b;border:1px solid #334155;color:#64748b;cursor:not-allowed;";
+                }
 
                 // 4. Solicitar Transferência
+                const tCd = getCooldownInfo("request_transfer");
                 const tReq = reqs.request_transfer;
                 let tText = "🔄 Solicitar Transferência";
                 let tStyle =
                   "background:#1e293b;border:1px solid #334155;color:#fff;";
+                let tDisabled = "";
                 if (tReq?.status === "accepted") {
                   tText = "✅ SOLICITAÇÃO ACEITA (Na Lista de Vendas)";
                   tStyle =
@@ -1860,18 +1924,23 @@
                   tStyle =
                     "background:rgba(239,68,68,0.18);border:1.5px solid #ef4444;color:#fca5a5;box-shadow:0 0 12px rgba(239,68,68,0.3);";
                 }
+                if (tCd.inCooldown) {
+                  tText = `${tText} · ⏳ ${tCd.remaining}d`;
+                  tDisabled = "disabled";
+                  tStyle = "background:#1e293b;border:1px solid #334155;color:#64748b;cursor:not-allowed;";
+                }
 
                 return `
-                  <button type="button" class="btn btn-agent-action" data-action="wage_increase" style="${wStyle}font-weight:800;padding:10px 16px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                  <button type="button" class="btn btn-agent-action" data-action="wage_increase" ${wDisabled} data-cooldown="${wCd.inCooldown}" style="${wStyle}font-weight:800;padding:10px 16px;border-radius:10px;cursor:${wCd.inCooldown ? "not-allowed" : "pointer"};display:inline-flex;align-items:center;gap:6px">
                     ${wText}
                   </button>
-                  <button type="button" class="btn btn-agent-action" data-action="demand_starter" style="${sStyle}font-weight:800;padding:10px 16px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                  <button type="button" class="btn btn-agent-action" data-action="demand_starter" ${sDisabled} data-cooldown="${sCd.inCooldown}" style="${sStyle}font-weight:800;padding:10px 16px;border-radius:10px;cursor:${sCd.inCooldown ? "not-allowed" : "pointer"};display:inline-flex;align-items:center;gap:6px">
                     ${sText}
                   </button>
-                  <button type="button" class="btn btn-agent-action" data-action="request_loan" style="${lStyle}font-weight:800;padding:10px 16px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                  <button type="button" class="btn btn-agent-action" data-action="request_loan" ${lDisabled} data-cooldown="${lCd.inCooldown}" style="${lStyle}font-weight:800;padding:10px 16px;border-radius:10px;cursor:${lCd.inCooldown ? "not-allowed" : "pointer"};display:inline-flex;align-items:center;gap:6px">
                     ${lText}
                   </button>
-                  <button type="button" class="btn btn-agent-action" data-action="request_transfer" style="${tStyle}font-weight:800;padding:10px 16px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                  <button type="button" class="btn btn-agent-action" data-action="request_transfer" ${tDisabled} data-cooldown="${tCd.inCooldown}" style="${tStyle}font-weight:800;padding:10px 16px;border-radius:10px;cursor:${tCd.inCooldown ? "not-allowed" : "pointer"};display:inline-flex;align-items:center;gap:6px">
                     ${tText}
                   </button>
                 `;
@@ -1943,6 +2012,114 @@
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:12px;color:#94a3b8;border-top:1px solid rgba(255,255,255,0.08);padding-top:10px">
                 <div>🌐 <b>Alcance de Mercado:</b> <span style="color:#e2e8f0">${esc(agent.clubTierAccess || "Regional")}</span></div>
                 <div style="font-style:italic">"${esc(agent.description || "")}"</div>
+              </div>
+            </div>
+          `;
+        })()}
+
+        <!-- RADAR DE INTERESSE & RUMORES DE MERCADO -->
+        ${(function () {
+          const radarList = window.AFM_PlayerEngine?.getPlayerMarketRadar
+            ? window.AFM_PlayerEngine.getPlayerMarketRadar(state)
+            : [];
+          if (!radarList || radarList.length === 0) return "";
+
+          return `
+            <div class="card" style="background:linear-gradient(135deg, #0a1128 0%, #101c3d 100%);border:1.5px solid #38bdf8;border-radius:18px;padding:22px;box-shadow:0 0 20px rgba(56,189,248,0.15)">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-size:24px">📡</span>
+                  <div>
+                    <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+                      Radar de Interesse & Rumores de Mercado
+                    </h3>
+                    <div style="font-size:12px;color:#94a3b8;margin-top:2px">
+                      Clubes e olheiros monitorando atuações e evolução de <b>${esc(athlete.name)}</b>
+                    </div>
+                  </div>
+                </div>
+                <span class="pill primary" style="font-size:10px;font-weight:900;background:rgba(56,189,248,0.18);color:#38bdf8;border:1px solid #38bdf8">
+                  ${radarList.length} CLUBES OBSERVANDO
+                </span>
+              </div>
+
+              <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));gap:12px">
+                ${radarList
+                  .map((item) => {
+                    const isConcrete = item.status === "concrete";
+                    const isScout = item.status === "scouts";
+                    const isOfferMade = item.status === "offer_made";
+                    const statusBorder = isOfferMade
+                      ? "#10b981"
+                      : isConcrete
+                        ? "#f59e0b"
+                        : isScout
+                          ? "#38bdf8"
+                          : "#64748b";
+                    const statusBg = isOfferMade
+                      ? "rgba(16,185,129,0.1)"
+                      : isConcrete
+                        ? "rgba(245,158,11,0.1)"
+                        : isScout
+                          ? "rgba(56,189,248,0.1)"
+                          : "rgba(100,116,139,0.1)";
+                    const statusColor = isOfferMade
+                      ? "#6ee7b7"
+                      : isConcrete
+                        ? "#fbbf24"
+                        : isScout
+                          ? "#7dd3fc"
+                          : "#94a3b8";
+
+                    return `
+                    <div style="background:${statusBg};border:1.5px solid ${statusBorder};border-radius:14px;padding:14px;display:flex;flex-direction:column;justify-content:space-between">
+                      <div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                          <div style="display:flex;align-items:center;gap:8px">
+                            ${typeof clubBadge === "function" ? clubBadge(item.club, 28) : "⚽"}
+                            <span style="font-size:15px;font-weight:900;color:#fff">${esc(item.club)}</span>
+                          </div>
+                          <span style="font-size:10px;font-weight:900;padding:2px 8px;border-radius:12px;background:rgba(0,0,0,0.4);color:${statusColor};border:1px solid ${statusBorder}">
+                            ${esc(item.label)}
+                          </span>
+                        </div>
+                        <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:10px">
+                          ${esc(item.desc)}
+                        </div>
+                        <div style="background:rgba(0,0,0,0.3);border-radius:6px;height:8px;overflow:hidden;margin-bottom:6px">
+                          <div style="width:${item.interestPct || 50}%;height:100%;background:${statusColor};border-radius:6px"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8">
+                          <span>Interesse no Jogador</span>
+                          <b style="color:${statusColor}">${item.interestPct || 50}%</b>
+                        </div>
+                      </div>
+                      
+                      <div style="margin-top:12px">
+                        ${
+                          isOfferMade
+                            ? `
+                          <button type="button" class="btn" disabled style="width:100%;background:rgba(16,185,129,0.2);border:1px solid #10b981;color:#6ee7b7;font-size:11px;font-weight:900;padding:7px;border-radius:8px;cursor:default">
+                            ✓ Proposta na Mesa do Agente
+                          </button>
+                        `
+                            : isConcrete
+                              ? `
+                          <button type="button" class="btn btn-radar-request-offer" data-club="${esc(item.club)}" style="width:100%;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;color:#000;font-size:11px;font-weight:900;padding:8px;border-radius:8px;cursor:pointer;box-shadow:0 2px 10px rgba(245,158,11,0.3)">
+                            📩 Solicitar Proposta Formal
+                          </button>
+                        `
+                              : `
+                          <div style="text-align:center;font-size:11px;color:#94a3b8;font-style:italic;padding:5px">
+                            ${isScout ? "Olheiros na arquibancada" : "Interesse pausado"}
+                          </div>
+                        `
+                        }
+                      </div>
+                    </div>
+                  `;
+                  })
+                  .join("")}
               </div>
             </div>
           `;
@@ -2142,9 +2319,19 @@
 
                         <!-- CORPO DO CARD: TÍTULO, DETALHES E BOTÕES -->
                         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:6px">
-                          <div>
-                            <div style="font-size:15px;font-weight:900;color:#fff">${esc(o.title || o.clubOrBrand)}</div>
-                            <div style="font-size:12px;color:#cbd5e1;margin-top:4px;line-height:1.4">${esc(o.details || "")}</div>
+                          <div style="display:flex;align-items:center;gap:12px">
+                            ${isClubOffer && typeof clubBadge === "function" ? clubBadge(o.newClub || o.clubOrBrand, 36) : `<span style="font-size:28px">${o.type === "sponsor" ? "👟" : (o.type === "coach_career" ? "🧑‍🏫" : "📄")}</span>`}
+                            <div>
+                              <div style="font-size:15px;font-weight:900;color:#fff">${esc(o.title || o.clubOrBrand)}</div>
+                              <div style="font-size:12px;color:#cbd5e1;margin-top:3px;line-height:1.4">${esc(o.details || "")}</div>
+                              ${(o.type === "transfer" || o.type === "club_loan") && o.wage ? `
+                                <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px">
+                                  <span style="color:#94a3b8">Salário: <b style="color:#10b981">R$ ${Number(o.wage).toLocaleString("pt-BR")}/mês</b></span>
+                                  ${athlete.wage ? `<span style="background:${o.wage >= athlete.wage ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"};color:${o.wage >= athlete.wage ? "#6ee7b7" : "#fca5a5"};border:1px solid ${o.wage >= athlete.wage ? "#10b981" : "#ef4444"};padding:1px 6px;border-radius:6px;font-weight:900">${o.wage >= athlete.wage ? "+" : ""}${Math.round(((o.wage - athlete.wage) / athlete.wage) * 100)}%</span>` : ""}
+                                  ${o.buyoutClause ? `<span style="color:#64748b">• Multa: R$ ${(o.buyoutClause / 1000000).toFixed(1)}M</span>` : ""}
+                                </div>
+                              ` : ""}
+                            </div>
                           </div>
 
                           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -2153,6 +2340,15 @@
                                 ? `
                               <button type="button" class="btn btn-mark-offer-read" data-index="${o.__originalIndex}" style="background:rgba(255,255,255,0.06);border:1px solid #64748b;color:#cbd5e1;font-size:11px;font-weight:800;padding:8px 12px;border-radius:8px;cursor:pointer">
                                 👁️ Marcar Lida
+                              </button>
+                            `
+                                : ""
+                            }
+                            ${
+                              (o.type === "transfer" || o.type === "club_loan" || o.type === "sponsor") && !o.isCounterOffered
+                                ? `
+                              <button type="button" class="btn btn-make-counter-offer" data-index="${o.__originalIndex}" title="Solicitar que o empresário peça +15% de salário e luvas valorizadas" style="background:rgba(168,85,247,0.18);border:1.5px solid #a855f7;color:#d8b4fe;font-size:12px;font-weight:900;padding:8px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                                🤝 Contraproposta
                               </button>
                             `
                                 : ""
@@ -6037,7 +6233,7 @@
     });
 
     // Simulação Rápida da Partida
-    document.querySelectorAll(".btn-player-play-quick").forEach((btn) => {
+    document.querySelectorAll('.btn-player-play-quick').forEach((btn) => {
       btn.onclick = () => {
         const activeMatch =
           typeof window.getActualCurrentMatch === "function"
@@ -6745,6 +6941,46 @@
           ).filter((item) => item.id !== offer.id);
         if (typeof window.save === "function") window.save();
         if (typeof window.render === "function") window.render();
+      };
+    });
+
+    // Solicitar Proposta Formal via Radar de Mercado
+    document.querySelectorAll(".btn-radar-request-offer").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const clubName = btn.dataset.club;
+        const res = window.AFM_PlayerEngine?.requestFormalOfferFromRadar?.(s, clubName);
+        showCustomAlert({
+          title: res?.ok ? "Proposta Formal Solicitada! 📩" : "Radar de Mercado",
+          message: res?.ok
+            ? `Seu empresário abriu negociações com o ${clubName}!\n\nA proposta oficial já foi enviada e está disponível na '📬 PROPOSTAS NA MESA DO EMPRESÁRIO'.`
+            : res?.error || "Não foi possível solicitar a proposta formal.",
+          type: res?.ok ? "success" : "info",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
+      };
+    });
+
+    // Fazer Contraproposta Direta (+15% Salário e Maiores Luvas)
+    document.querySelectorAll(".btn-make-counter-offer").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const idx = Number(btn.dataset.index);
+        const res = window.AFM_PlayerEngine?.makeCounterOffer?.(s, idx);
+        showCustomAlert({
+          title: res?.ok ? "Contraproposta Enviada! 🤝" : "Contraproposta Não Aceita",
+          message: res?.ok
+            ? (res.message || "A outra parte aceitou negociar com termos mais vantajosos!")
+            : (res?.error || "A outra parte recusou os novos termos solicitados."),
+          type: res?.ok ? "success" : "warning",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
       };
     });
 
@@ -7526,12 +7762,18 @@
     const curContractUntil =
       Number(athlete.contractUntil) || (Number(state.season) || 2026) + 2;
     const curSeason = Number(state.season) || 2026;
+    const baseContractYear = Math.max(curSeason, curContractUntil);
     const ovr = Number(athlete.overall || athlete.ovr) || 35;
     const trust = Number(pState.managerTrust) || 35;
     const age = Number(athlete.age || pState.age) || 20;
 
+    const agent = window.AFM_PlayerEngine?.getPlayerAgent
+      ? window.AFM_PlayerEngine.getPlayerAgent(pState)
+      : null;
+    const agentBonus = Number(agent?.negotiationBonusPct || agent?.negotiationBonus || 0);
+
     let proposedWage = Math.round(curWage * 1.3); // +30% inicial
-    let selectedUntil = Math.max(curContractUntil, curSeason + 2);
+    let selectedUntil = baseContractYear + 1;
     const minWage = Math.round(curWage * 0.9);
     const maxWage = Math.max(8000, Math.round(curWage * 3.5));
 
@@ -7553,7 +7795,7 @@
       chance += (ovr - 50) * 0.8;
 
       // 3. Fator Duração e Idade (Anos adicionados no vínculo)
-      const durationYears = Math.max(1, Math.min(4, untilYear - curSeason));
+      const durationYears = Math.max(1, Math.min(4, untilYear - baseContractYear));
       if (age < 28) {
         // Jovens e atletas em ascensão: vínculo longo é valorizado pelo clube
         if (durationYears === 4) chance += 14;
@@ -7574,11 +7816,14 @@
         else if (durationYears === 4) chance -= 26;
       }
 
+      // 4. Bônus do Poder de Barganha do Empresário
+      chance += agentBonus;
+
       return Math.min(100, Math.max(5, Math.round(chance)));
     }
 
     function getWageFeedback(chance, wage, untilYear) {
-      const durationYears = Math.max(1, Math.min(4, untilYear - curSeason));
+      const durationYears = Math.max(1, Math.min(4, untilYear - baseContractYear));
       const ratio = wage / curWage;
       let col = "#10b981";
       let lbl = "Alta Aprovação da Diretoria";
@@ -7724,11 +7969,11 @@
             </div>
           </div>
 
-          <!-- TEMPO DE CONTRATO (BOTÕES DE DURAÇÃO) -->
+            <!-- TEMPO DE CONTRATO (BOTÕES DE DURAÇÃO) -->
           <div style="margin-bottom:24px">
             <label style="font-size:11px;font-weight:800;color:#cbd5e1;display:block;margin-bottom:8px">NOVO TEMPO DE CONTRATO (DURAÇÃO):</label>
             <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:6px">
-              ${[curSeason + 1, curSeason + 2, curSeason + 3, curSeason + 4]
+              ${[baseContractYear + 1, baseContractYear + 2, baseContractYear + 3, baseContractYear + 4]
                 .map(
                   (year, idx) => `
                 <button type="button" class="btn btn-until-year" data-year="${year}" style="background:${selectedUntil === year ? "#7c3aed" : "#1e293b"};border:1px solid ${selectedUntil === year ? "#a855f7" : "#334155"};color:#fff;font-size:11px;font-weight:800;padding:8px 4px;border-radius:8px;cursor:pointer">
@@ -7837,6 +8082,8 @@
             const accepted = roll <= finalChance;
 
             pState.actionRequests = pState.actionRequests || {};
+            pState.agentCooldowns = pState.agentCooldowns || {};
+            pState.agentCooldowns.wage_increase = state.date;
             if (accepted) {
               athlete.wage = proposedWage;
               athlete.contractUntil = selectedUntil;
@@ -7917,26 +8164,32 @@
     const starterCount = Number(pState.careerStats?.starterCount) || 0;
     const totalMatches = Number(pState.careerStats?.matches) || 0;
 
+    const agent = window.AFM_PlayerEngine?.getPlayerAgent
+      ? window.AFM_PlayerEngine.getPlayerAgent(pState)
+      : null;
+    const agentBonus = Number(agent?.negotiationBonusPct || agent?.negotiationBonus || 0);
+
     let selectedStance = "humble"; // 'humble', 'firm', 'ultimatum'
 
     function getStanceData(st) {
+      const bonus = Math.round(agentBonus * 0.5);
       if (st === "humble") {
         return {
-          chance: Math.min(90, Math.max(30, trust + 30)),
+          chance: Math.min(95, Math.max(30, trust + 30 + bonus)),
           penalty: 0,
           label: "Postura Construtiva / Pedir Oportunidade",
           risk: "Baixo Risco (Sem penalidade de confiança)",
         };
       } else if (st === "firm") {
         return {
-          chance: Math.min(80, Math.max(20, trust + 10)),
+          chance: Math.min(90, Math.max(20, trust + 10 + bonus)),
           penalty: 5,
           label: "Cobrança Firme de Titularidade",
           risk: "Risco Moderado (-5% de Confiança se recusado)",
         };
       } else {
         return {
-          chance: Math.min(65, Math.max(10, trust - 10)),
+          chance: Math.min(80, Math.max(10, trust - 10 + bonus)),
           penalty: 12,
           label: "Ultimato por Minutagem",
           risk: "Alto Risco (-12% de Confiança se recusado)",
@@ -8072,6 +8325,8 @@
             const accepted = roll <= data.chance;
 
             pState.actionRequests = pState.actionRequests || {};
+            pState.agentCooldowns = pState.agentCooldowns || {};
+            pState.agentCooldowns.demand_starter = state.date;
             if (accepted) {
               pState.managerTrust = Math.min(100, trust + 12);
               pState.actionRequests.demand_starter = {
@@ -8144,6 +8399,11 @@
     const age = Number(athlete.age || pState.age) || 20;
     const trust = Number(pState.managerTrust) || 45;
 
+    const agent = window.AFM_PlayerEngine?.getPlayerAgent
+      ? window.AFM_PlayerEngine.getPlayerAgent(pState)
+      : null;
+    const agentBonus = Number(agent?.negotiationBonusPct || agent?.negotiationBonus || 0);
+
     let selectedTier = "regional";
     let selectedSalarySplit = "50_50";
 
@@ -8178,6 +8438,9 @@
       } else if (trust >= 75) {
         chance -= 12; // Peça considerada útil no plantel
       }
+
+      // 4. Bônus do Empresário
+      chance += agentBonus;
 
       return Math.min(100, Math.max(5, Math.round(chance)));
     }
@@ -8397,6 +8660,8 @@
                 "loan",
                 { tier: selectedTier, salarySplit: selectedSalarySplit },
               );
+            pState.agentCooldowns = pState.agentCooldowns || {};
+            pState.agentCooldowns.request_loan = state.date;
             if (!result?.ok) {
               showCustomAlert({
                 title: "Pedido de empréstimo",
@@ -8463,6 +8728,11 @@
     const contractUntil = Number(athlete.contractUntil) || curSeason + 2;
     const contractYearsRemaining = Math.max(1, contractUntil - curSeason);
 
+    const agent = window.AFM_PlayerEngine?.getPlayerAgent
+      ? window.AFM_PlayerEngine.getPlayerAgent(pState)
+      : null;
+    const agentBonus = Number(agent?.negotiationBonusPct || agent?.negotiationBonus || 0);
+
     let selectedMotive = "growth";
 
     function calcTransferResistance(motive) {
@@ -8494,6 +8764,9 @@
       if (trust < 35) {
         resistance -= 8; // Sem espaço com o treinador
       }
+
+      // 4. Bônus do Empresário (Reduz resistência da diretoria)
+      resistance -= agentBonus;
 
       return Math.min(100, Math.max(5, Math.round(resistance)));
     }
@@ -8606,7 +8879,7 @@
               <b style="color:${resColor}">${resLabel}:</b> ${resDesc}
             </div>
             <div style="display:flex;gap:12px;font-size:11px;color:#94a3b8;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06)">
-              <div>Valor de Mercado: <b style="color:#10b981">R$ ${controlledMarketValueMi} Mi</b></div>
+              <div>Valor de Mercado: <b style="color:#10b981">${formatPlayerMarketValueShort(athlete)}</b></div>
               <div>•</div>
               <div>Multa Rescisória: <b style="color:#fff">R$ 5.000.000</b></div>
             </div>
@@ -8698,6 +8971,8 @@
                 "transfer",
                 { motive: selectedMotive },
               );
+            pState.agentCooldowns = pState.agentCooldowns || {};
+            pState.agentCooldowns.request_transfer = state.date;
             if (!result?.ok) {
               showCustomAlert({
                 title: "Pedido de transferência",
@@ -8992,7 +9267,16 @@
               ⬅️ Voltar / Pensar Mais
             </button>
 
-            <div style="display:flex;gap:10px;align-items:center">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              ${
+                (isTransfer || isLoan || isSponsor) && !offer.isCounterOffered
+                  ? `
+                <button type="button" id="btnOfferModalCounter" style="background:rgba(168,85,247,0.2);border:1.5px solid #a855f7;color:#d8b4fe;font-weight:900;padding:10px 18px;border-radius:10px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:6px">
+                  🤝 Contraproposta (+15% Salário)
+                </button>
+              `
+                  : ""
+              }
               <button type="button" id="btnOfferModalReject" style="background:#ef4444;color:#fff;font-weight:800;padding:10px 18px;border-radius:10px;border:none;cursor:pointer;font-size:12px">
                 ❌ Recusar Proposta
               </button>
@@ -9017,6 +9301,24 @@
         ?.addEventListener("click", () => {
           closeActionModal();
           if (typeof window.render === "function") window.render();
+        });
+
+      document
+        .getElementById("btnOfferModalCounter")
+        ?.addEventListener("click", () => {
+          const res = window.AFM_PlayerEngine?.makeCounterOffer?.(state, originalIndex);
+          showCustomAlert({
+            title: res?.ok ? "Contraproposta Enviada! 🤝" : "Contraproposta Não Aceita",
+            message: res?.ok
+              ? (res.message || "A outra parte aceitou negociar com termos mais vantajosos!")
+              : (res?.error || "A outra parte recusou os novos termos solicitados."),
+            type: res?.ok ? "success" : "warning",
+            onConfirm: () => {
+              closeActionModal();
+              if (typeof window.save === "function") window.save();
+              if (typeof window.render === "function") window.render();
+            },
+          });
         });
 
       document
@@ -9116,6 +9418,22 @@
 
   function handleAgentAction(action, state, athlete, pState) {
     pState.actionRequests = pState.actionRequests || {};
+    pState.agentCooldowns = pState.agentCooldowns || {};
+
+    const lastDate = pState.agentCooldowns[action];
+    if (lastDate) {
+      const days = getDaysBetween(lastDate, state.date);
+      if (days < 15) {
+        const remaining = 15 - days;
+        showCustomAlert({
+          title: "Aguarde o Cooldown ⏳",
+          message: `Você precisa aguardar mais ${remaining} dia(s) no calendário antes de realizar esta ação novamente com a diretoria/comissão.`,
+          type: "warning",
+        });
+        return;
+      }
+    }
+
     switch (action) {
       case "wage_increase":
         openWageNegotiationModal(state, athlete, pState);
@@ -10200,6 +10518,9 @@
     openRequestTransferModal,
     getSquadReferences,
     calculateAthleteInitialMarketValue,
+    getPlayerMarketValueBrl,
+    formatPlayerMarketValueShort,
+    getDaysBetween,
     openTeammateDetailModal,
     executeImmediateSalaryDemand,
     executeJustaCausaResignation,

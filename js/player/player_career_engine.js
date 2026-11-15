@@ -653,15 +653,18 @@
   const AGENTS_CATALOG = [
     {
       id: 'agent_family',
+      aliases: ['family_agent'],
       name: 'Família & Amigo de Infância (Tio/Pai)',
       agency: 'Gestão Familiar Amadora',
       tier: 'familiar',
+      level: 1,
       minOvr: 30,
       minFollowers: 0,
-      monthlySalary: 0, // Sem taxa fixa mensal inicial
+      monthlySalary: 0, // Isento (R$ 0/mês)
       transferCommissionPct: 3, // 3% de comissão em transferências
       sponsorCommissionPct: 5, // 5% de comissão em patrocínios
-      negotiationPower: 'Básico',
+      negotiationPower: 'Básico (+0% Negociação)',
+      negotiationBonusPct: 0,
       wageMultiplier: 1.0,
       signingBonusMultiplier: 1.0,
       clubTierAccess: 'Clubes Regionais / Séries D e C',
@@ -671,15 +674,18 @@
     },
     {
       id: 'agent_regional',
+      aliases: ['regional_scout'],
       name: "Carlos 'Mineiro' Dantas",
       agency: 'Prime Goal Representações (CBF)',
       tier: 'regional',
+      level: 2,
       minOvr: 40,
       minFollowers: 500,
       monthlySalary: 350,
       transferCommissionPct: 5,
       sponsorCommissionPct: 6,
-      negotiationPower: 'Bom (+5% Salário)',
+      negotiationPower: 'Bom (+5% Negociação)',
+      negotiationBonusPct: 5,
       wageMultiplier: 1.05,
       signingBonusMultiplier: 1.10,
       clubTierAccess: 'Séries C, B e Estaduais Módulo I',
@@ -689,15 +695,18 @@
     },
     {
       id: 'agent_national',
+      aliases: ['national_pro'],
       name: 'Rodrigo Bessa & Associados',
       agency: 'Alpha Sports Management Brasil',
       tier: 'national',
+      level: 3,
       minOvr: 58,
       minFollowers: 5000,
       monthlySalary: 1500,
       transferCommissionPct: 8,
       sponsorCommissionPct: 9,
-      negotiationPower: 'Forte (+12% Salário)',
+      negotiationPower: 'Forte (+12% Negociação)',
+      negotiationBonusPct: 12,
       wageMultiplier: 1.12,
       signingBonusMultiplier: 1.25,
       clubTierAccess: 'Série A Nacional e Clubes Médios da Europa',
@@ -706,22 +715,46 @@
       description: 'Agência nacional com acesso a clubes da Série A e mercados intermediários da Europa. Negocia salários até 12% maiores e luvas moderadas.'
     },
     {
+      id: 'agent_euro',
+      aliases: ['euro_bridge'],
+      name: 'Jean-Paul Moreau & Associados',
+      agency: 'Euro Bridge Sports International',
+      tier: 'euro',
+      level: 4,
+      minOvr: 70,
+      minFollowers: 15000,
+      monthlySalary: 3500,
+      transferCommissionPct: 9,
+      sponsorCommissionPct: 10,
+      negotiationPower: 'Internacional (+18% Negociação)',
+      negotiationBonusPct: 18,
+      wageMultiplier: 1.18,
+      signingBonusMultiplier: 1.35,
+      clubTierAccess: 'Portugal, Turquia, Holanda e Ligas Médias da Europa',
+      icon: '✈️',
+      reputationStars: 4,
+      description: 'Conexão direta com clubes europeus de primeiro e segundo escalão. Negocia salários expressivos em moeda forte e ampla cobertura de mídia internacional.'
+    },
+    {
       id: 'agent_global',
+      aliases: ['super_agent'],
       name: 'Stefano Castiglione & Mendes Global',
       agency: 'OmniStar Worldwide Football',
       tier: 'global',
+      level: 5,
       minOvr: 78,
       minFollowers: 25000,
-      monthlySalary: 6000,
+      monthlySalary: 7500,
       transferCommissionPct: 10,
       sponsorCommissionPct: 12,
-      negotiationPower: 'Internacional (+20% Salário)',
-      wageMultiplier: 1.20,
+      negotiationPower: 'Galáctico (+25% Negociação)',
+      negotiationBonusPct: 25,
+      wageMultiplier: 1.25,
       signingBonusMultiplier: 1.50,
       clubTierAccess: 'Big 5 da Europa & Champions League',
       icon: '🌐',
       reputationStars: 5,
-      description: 'Agência internacional para atletas consolidados. Abre portas nas principais ligas e negocia salários até 20% maiores.'
+      description: 'Superagente internacional para atletas consolidados e craques mundiais. Abre portas nas principais potências da Champions League e negocia salários astronômicos.'
     }
   ];
 
@@ -825,10 +858,11 @@
    */
   function getPlayerAgent(pState){
     if(!pState) return AGENTS_CATALOG[0];
-    if(pState.agent && pState.agent.id){
-      const found = AGENTS_CATALOG.find(a => a.id === pState.agent.id);
-      if(found) return { ...pState.agent, ...found };
-      return pState.agent;
+    const candidateId = pState.agent?.id || pState.agentId;
+    if(candidateId){
+      const found = AGENTS_CATALOG.find(a => a.id === candidateId || (a.aliases && a.aliases.includes(candidateId)));
+      if(found) return { ...(pState.agent || {}), ...found };
+      return pState.agent || { id: candidateId };
     }
     pState.agent = { ...AGENTS_CATALOG[0] };
     return pState.agent;
@@ -905,7 +939,7 @@
     const ovr = Math.max(Number(athlete.ovr) || 0, Number(pState.athleteOvr) || 0, 45);
     const followers = Number(pState.socialMedia?.followers || 500);
 
-    const targetAgent = AGENTS_CATALOG.find(a => a.id === agentId);
+    const targetAgent = AGENTS_CATALOG.find(a => a.id === agentId || (a.aliases && a.aliases.includes(agentId)));
     if(!targetAgent) return { success: false, message: 'Empresário não encontrado no catálogo.' };
 
     if(pState.agent?.id === targetAgent.id){
@@ -2776,8 +2810,9 @@
     if(pState.agentOffers.filter(offer => offer.type === 'transfer' || offer.type === 'club_loan').length >= 3){
       return { ok: false, error: 'Você já tem três propostas de clubes em análise. Avalie uma delas antes de buscar outras.' };
     }
-    if(pState.lastAgentMarketSearchDate === currentDate){
-      return { ok: false, error: 'Seu empresário já consultou os clubes hoje. Avance a carreira para uma nova busca.' };
+    const daysSinceSearch = pState.lastAgentMarketSearchDate ? getDaysBetween(pState.lastAgentMarketSearchDate, currentDate) : 999;
+    if(pState.lastAgentMarketSearchDate === currentDate || daysSinceSearch < 10){
+      return { ok: false, error: `Seu empresário já consultou os clubes recentemente. Aguarde ${Math.max(1, 10 - daysSinceSearch)} dia(s) no calendário para nova prospecção.` };
     }
 
     const athlete = (gameState.squad || []).find(player => player.id === gameState.controlledPlayerId || player.isControlled) || {};
@@ -3508,7 +3543,9 @@
       pState.xp -= pState.xpToNextLevel;
       pState.level++;
       pState.skillPoints += 2;
-      pState.availablePoints = (pState.availablePoints || 0) + 2;
+      if (pState.availablePoints !== undefined) {
+        pState.availablePoints += 2;
+      }
       pState.xpToNextLevel = Math.round(pState.xpToNextLevel * 1.25);
       levelUps++;
     }
@@ -3574,6 +3611,174 @@
     };
   }
 
+  /**
+   * Obtém ou atualiza o Radar de Interesse & Rumores de Mercado do atleta
+   */
+  function getPlayerMarketRadar(gameState) {
+    if (!gameState || !gameState.playerCareerState) return [];
+    const pState = gameState.playerCareerState;
+    pState.marketRadar = Array.isArray(pState.marketRadar) ? pState.marketRadar : [];
+    
+    const currentDate = gameState.date || '2026-01-01';
+    const lastUpdate = pState.marketRadarLastUpdate || '';
+    const shouldRefresh = pState.marketRadar.length === 0 || getDaysBetween(lastUpdate, currentDate) >= 14;
+
+    if (shouldRefresh) {
+      const athlete = (gameState.squad || []).find(player => player.id === gameState.controlledPlayerId || player.isControlled) || {};
+      const ovr = Math.max(1, Number(athlete.ovr || athlete.overall || pState.athleteOvr || pState.overall) || 35);
+      const agent = getPlayerAgent(pState);
+
+      let pool = [];
+      if (ovr < 45) {
+        pool = ['Ceilândia', 'Gama', 'Real Brasília', 'Capital-DF', 'Paranoá', 'Samambaia', 'Sobradinho', 'Planaltina'];
+      } else if (ovr < 55) {
+        pool = ['Brasiliense', 'Volta Redonda', 'Botafogo-PB', 'Figueirense', 'Remo', 'Paysandu', 'Náutico', 'Ferroviária'];
+      } else if (ovr < 65) {
+        pool = ['Ponte Preta', 'Chapecoense', 'Guarani', 'Criciúma', 'Vila Nova', 'Avaí', 'Novorizontino', 'CRB'];
+      } else if (ovr < 75) {
+        pool = ['Sport', 'Coritiba', 'Goiás', 'Ceará', 'Fortaleza', 'Athletico-PR', 'Bahia', 'Cruzeiro'];
+      } else if (ovr < 82) {
+        pool = ['Flamengo', 'Palmeiras', 'São Paulo', 'Grêmio', 'Internacional', 'Fluminense', 'Atlético-MG', 'Botafogo'];
+      } else {
+        pool = ['Real Madrid', 'Barcelona', 'Manchester City', 'Arsenal', 'Liverpool', 'Paris Saint-Germain', 'Bayern de Munique', 'Chelsea'];
+      }
+
+      if (agent.tier === 'euro' || agent.tier === 'global') {
+        pool = pool.concat(['Porto', 'Benfica', 'Sporting', 'Ajax', 'Feyenoord', 'Galatasaray']);
+      }
+      if (agent.tier === 'global') {
+        pool = pool.concat(['Real Madrid', 'Manchester City', 'Bayern de Munique', 'Arsenal']);
+      }
+
+      const currentClubNorm = norm(gameState.club || '');
+      const validPool = pool.filter(c => norm(c) !== currentClubNorm);
+
+      const statuses = [
+        { status: 'concrete', label: '🔥 Interesse Concreto', desc: 'Clube avalia proposta formal na abertura da janela.', interestPct: 85 },
+        { status: 'scouts', label: '👀 Olheiros na Arquibancada', desc: 'Observando regularidade física e técnica nos jogos.', interestPct: 55 },
+        { status: 'cooled', label: '🥶 Esfriou', desc: 'Monitoramento em espera após atuações recentes.', interestPct: 25 }
+      ];
+
+      const newRadar = [];
+      const used = new Set();
+      for (let i = 0; i < 3 && validPool.length > 0; i++) {
+        const available = validPool.filter(c => !used.has(norm(c)));
+        if (!available.length) break;
+        const chosen = available[Math.floor(Math.random() * available.length)];
+        used.add(norm(chosen));
+        const st = statuses[i % statuses.length];
+        newRadar.push({
+          id: `radar_${norm(chosen)}_${Date.now()}_${i}`,
+          club: chosen,
+          status: st.status,
+          label: st.label,
+          desc: st.desc,
+          interestPct: st.interestPct,
+          addedDate: currentDate
+        });
+      }
+      pState.marketRadar = newRadar;
+      pState.marketRadarLastUpdate = currentDate;
+    }
+    return pState.marketRadar;
+  }
+
+  /**
+   * Solicita formalização de proposta a partir de rumor com Interesse Concreto
+   */
+  function requestFormalOfferFromRadar(gameState, radarClub) {
+    if (!gameState || !gameState.playerCareerState) return { ok: false, error: 'Carreira inválida.' };
+    const pState = gameState.playerCareerState;
+
+    pState.agentOffers = Array.isArray(pState.agentOffers) ? pState.agentOffers : [];
+    if (pState.agentOffers.filter(o => o.type === 'transfer' || o.type === 'club_loan').length >= 3) {
+      return { ok: false, error: 'Mesa do empresário cheia (máximo de 3 propostas de clubes). Avalie ou recuse uma delas primeiro.' };
+    }
+
+    const athlete = (gameState.squad || []).find(p => p.id === gameState.controlledPlayerId || p.isControlled) || {};
+    const ovr = Math.max(1, Number(athlete.ovr || athlete.overall || pState.athleteOvr || pState.overall) || 35);
+    const currentWage = Math.max(800, Number(athlete.wage || pState.monthlySalary) || 1500);
+    const offeredWage = Math.round(currentWage * (1.15 + Math.random() * 0.25));
+    const isLoan = ovr < 52 && Math.random() < 0.4;
+    const durationYears = isLoan ? 1 : 2 + Math.floor(Math.random() * 2);
+
+    const offer = {
+      id: `offer_radar_${norm(radarClub)}_${Date.now()}`,
+      type: isLoan ? 'club_loan' : 'transfer',
+      clubOrBrand: radarClub,
+      newClub: radarClub,
+      title: isLoan ? `Empréstimo: ${radarClub}` : `Compra Definitiva: ${radarClub}`,
+      details: isLoan
+        ? `Empréstimo de ${durationYears} temporada • Salário de R$ ${offeredWage.toLocaleString('pt-BR')}/mês • Acordado após interesse no radar`
+        : `Contrato de ${durationYears} anos • Salário de R$ ${offeredWage.toLocaleString('pt-BR')}/mês • Convertido a partir de sondagem oficial`,
+      wage: offeredWage,
+      durationYears,
+      buyoutClause: Math.round(offeredWage * 12 * durationYears * 3),
+      date: gameState.date || '2026-01-01',
+      isRead: false,
+      fromRadar: true
+    };
+
+    pState.agentOffers.unshift(offer);
+
+    if (Array.isArray(pState.marketRadar)) {
+      const radarItem = pState.marketRadar.find(r => norm(r.club) === norm(radarClub));
+      if (radarItem) {
+        radarItem.status = 'offer_made';
+        radarItem.label = '📬 Proposta na Mesa';
+        radarItem.desc = 'Seu empresário converteu o interesse e a proposta já está na sua mesa!';
+        radarItem.interestPct = 100;
+      }
+    }
+
+    gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+    gameState.news.unshift(`💼 RADAR DE MERCADO: O empresário de ${pState.athleteName || athlete.name} formalizou a aproximação com o ${radarClub}. Proposta já enviada para a mesa!`);
+    gameState.news.length = Math.min(gameState.news.length, 50);
+
+    return { ok: true, offer };
+  }
+
+  /**
+   * Executa contraproposta com aumento salarial de 15% na mesa do empresário
+   */
+  function makeCounterOffer(gameState, offerIndex) {
+    if (!gameState || !gameState.playerCareerState) return { ok: false, error: 'Carreira inválida.' };
+    const pState = gameState.playerCareerState;
+    const offer = (pState.agentOffers || [])[offerIndex];
+    if (!offer) return { ok: false, error: 'Proposta não encontrada.' };
+    if (offer.isCounterOffered) return { ok: false, error: 'Você já fez uma contraproposta para esta oferta!' };
+
+    const agent = getPlayerAgent(pState);
+    const agentBonus = Number(agent.negotiationBonusPct || 0);
+    const chance = Math.min(90, Math.max(20, 50 + agentBonus));
+    const roll = Math.random() * 100;
+
+    offer.isCounterOffered = true;
+
+    if (roll <= chance) {
+      const oldWage = Number(offer.wage || offer.monthly || offer.monthlyStipend) || 1500;
+      const newWage = Math.round(oldWage * 1.15);
+      if (offer.wage !== undefined) offer.wage = newWage;
+      if (offer.monthly !== undefined) offer.monthly = newWage;
+      if (offer.monthlyStipend !== undefined) offer.monthlyStipend = newWage;
+      if (offer.renewalBonus) offer.renewalBonus = Math.round(offer.renewalBonus * 1.25);
+      offer.details = `${offer.details} (Contraproposta ACEITA pelo clube/marca: +15% de salário!)`;
+      return {
+        ok: true,
+        success: true,
+        message: `Contraproposta aceita! ${agent.name} negociou com maestria e conseguiu +15% de salário (R$ ${newWage.toLocaleString('pt-BR')}/mês) e luvas valorizadas!`,
+        newWage
+      };
+    } else {
+      return {
+        ok: false,
+        success: false,
+        error: `A outra parte recusou a pedida extra: "Os termos originais já estão no limite do nosso orçamento." A proposta inicial foi mantida.`,
+        newWage: offer.wage || offer.monthly
+      };
+    }
+  }
+
   // Exporta o motor global
   window.AFM_PlayerEngine = {
     BRAZILIAN_REGIONS_DATA,
@@ -3621,6 +3826,9 @@
     filePlayerSalaryClaim,
     registerPlayerTransferListing,
     searchPlayerTransferMarket,
+    getPlayerMarketRadar,
+    requestFormalOfferFromRadar,
+    makeCounterOffer,
     processDailySponsorTurn,
     processEndOfSeasonAwards,
     ensurePlayerCareerHistory,

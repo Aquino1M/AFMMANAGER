@@ -29157,6 +29157,37 @@ function render() {
             balEl.textContent = fmtMoney(state.balance);
           }
         }
+        const strengthValEl = app.querySelector('.sm-badge-strength .sm-res-val');
+        if(strengthValEl) {
+          if(isPlayerMode){
+            const pState = state.playerCareerState;
+            const athlete = (typeof getControlledPlayer === 'function') ? getControlledPlayer(state) : (state?.squad?.find(p => p.id === state.controlledPlayerId || p.isControlled));
+            const aOvr = Number(athlete?.ovr || athlete?.overall || pState?.athleteOvr || 35);
+            strengthValEl.textContent = `${aOvr} OVR`;
+            const badgeStr = app.querySelector('.sm-badge-strength');
+            if(badgeStr) badgeStr.title = `Overall do Atleta: ${aOvr}`;
+          } else {
+            const tOvr = (typeof overallSquad === 'function') ? overallSquad() : 70;
+            strengthValEl.textContent = `${tOvr} OVR`;
+            const badgeStr = app.querySelector('.sm-badge-strength');
+            if(badgeStr) badgeStr.title = `Força Geral do Time (Overall: ${tOvr})`;
+          }
+        }
+        const prestigeValEl = app.querySelector('.sm-badge-prestige .sm-res-val');
+        if(prestigeValEl) {
+          if(isPlayerMode){
+            const pState = state.playerCareerState;
+            const pts = Number(pState?.availablePoints ?? pState?.skillPoints ?? 0);
+            prestigeValEl.textContent = `${pts} pts`;
+            const badgePres = app.querySelector('.sm-badge-prestige');
+            if(badgePres) badgePres.title = `Pontos de Atributos Livres: ${pts} pts`;
+          } else {
+            const cPres = state?.managerPersonal?.prestigeScore || state?.coachPrestige || 5;
+            prestigeValEl.textContent = `${cPres} pts`;
+            const badgePres = app.querySelector('.sm-badge-prestige');
+            if(badgePres) badgePres.title = `Prestígio do Treinador: ${cPres} pts`;
+          }
+        }
         const cashValEl = app.querySelector('.sm-badge-cash .sm-res-val');
         if(cashValEl) {
           if(isPlayerMode){
@@ -30192,14 +30223,55 @@ function shell(main){
   const continueLabel = isMatchReady ? 'JOGAR' : 'CONTINUAR';
   const continueTime = isMatchReady ? '🔥 Dia de Jogo!' : `${formatDatePtBr(state?.date)}`;
 
-  // Força Geral do Elenco e Prestígio do Treinador
-  const teamOvr = (typeof overallSquad === 'function')
-    ? overallSquad()
-    : ((state?.squad && state.squad.length)
-        ? Math.round(state.squad.reduce((a, b) => a + (b.ovr || 70), 0) / state.squad.length)
-        : 70);
+  // Força Geral do Elenco e Prestígio do Treinador (ou Atleta no Modo Jogador)
+  const isPlayerMode = Boolean(state?.gameMode === 'player' || state?.playerCareerState || state?.controlledPlayerId);
+  const pState = state?.playerCareerState;
+  const athlete = (typeof getControlledPlayer === 'function')
+    ? getControlledPlayer(state)
+    : ((state?.squad || []).find(p => p.id === state.controlledPlayerId || p.isControlled));
+  const athleteOvr = Math.max(1, Number(athlete?.ovr || athlete?.overall || pState?.athleteOvr || pState?.overall) || 35);
+  const skillPts = Number(pState?.availablePoints ?? pState?.skillPoints ?? 0);
+  const personalBank = Number(pState?.personalBank ?? athlete?.cash ?? 0);
 
-  const coachPrestige = state?.managerPersonal?.prestigeScore || state?.coachPrestige || 5;
+  const teamOvr = isPlayerMode
+    ? athleteOvr
+    : ((typeof overallSquad === 'function')
+        ? overallSquad()
+        : ((state?.squad && state.squad.length)
+            ? Math.round(state.squad.reduce((a, b) => a + (b.ovr || 70), 0) / state.squad.length)
+            : 70));
+
+  const coachPrestige = isPlayerMode
+    ? skillPts
+    : (state?.managerPersonal?.prestigeScore || state?.coachPrestige || 5);
+
+  const displayCashVal = isPlayerMode
+    ? `R$ ${(personalBank >= 1000000 ? (personalBank/1000000).toFixed(1) + 'M' : (personalBank >= 1000 ? Math.round(personalBank/1000) + 'K' : personalBank))}`
+    : fmtCompactMoney(state.balance);
+
+  const displayCashTitle = isPlayerMode
+    ? `Conta Pessoal: R$ ${personalBank.toLocaleString('pt-BR')}`
+    : `Saldo em Caixa: ${fmtMoney(state.balance)}`;
+
+  const strengthTitle = isPlayerMode
+    ? `Overall do Atleta: ${athleteOvr}`
+    : `Força Geral do Time (Overall: ${teamOvr})`;
+
+  const prestigeTitle = isPlayerMode
+    ? `Pontos de Atributos Livres: ${skillPts} pts`
+    : `Prestígio do Treinador: ${coachPrestige} pts`;
+
+  const strengthAddTitle = isPlayerMode
+    ? `Meu Atleta & Treino`
+    : `Ver Meu Time & Tática`;
+
+  const prestigeAddTitle = isPlayerMode
+    ? `Evolução do Atleta`
+    : `Carreira do Treinador`;
+
+  const cashAddTitle = isPlayerMode
+    ? `Vida & Patrocínios`
+    : `Finanças & Escritório`;
 
   const fitness = (state?.squad && state.squad.length)
     ? Math.round(state.squad.reduce((a, b) => a + (b.energy ?? b.fitness ?? 95), 0) / state.squad.length)
@@ -30230,20 +30302,20 @@ function shell(main){
 
         <!-- BLOCO CENTRAL: RECURSOS (FORÇA DO TIME, PRESTÍGIO DO TREINADOR, DINHEIRO) -->
         <div class="sm-top-center">
-          <div class="sm-res-badge sm-badge-strength" id="btnTopQuickTeamStrengthCard" title="Força Geral do Time (Overall: ${teamOvr})" style="cursor:pointer">
+          <div class="sm-res-badge sm-badge-strength" id="btnTopQuickTeamStrengthCard" title="${strengthTitle}" style="cursor:pointer">
             <span class="sm-res-icon">⭐</span>
             <span class="sm-res-val">${teamOvr} OVR</span>
-            <span class="sm-res-add" id="btnTopQuickTeamStrength" title="Ver Meu Time & Tática">+</span>
+            <span class="sm-res-add" id="btnTopQuickTeamStrength" title="${strengthAddTitle}">+</span>
           </div>
-          <div class="sm-res-badge sm-badge-prestige" id="btnTopQuickPrestigeCard" title="Prestígio do Treinador: ${coachPrestige} pts" style="cursor:pointer">
+          <div class="sm-res-badge sm-badge-prestige" id="btnTopQuickPrestigeCard" title="${prestigeTitle}" style="cursor:pointer">
             <span class="sm-res-icon">🎖️</span>
             <span class="sm-res-val">${coachPrestige} pts</span>
-            <span class="sm-res-add" id="btnTopQuickPrestige" title="Carreira do Treinador">+</span>
+            <span class="sm-res-add" id="btnTopQuickPrestige" title="${prestigeAddTitle}">+</span>
           </div>
-          <div class="sm-res-badge sm-badge-cash" title="Saldo em Caixa: ${fmtMoney(state.balance)}">
+          <div class="sm-res-badge sm-badge-cash" title="${displayCashTitle}">
             <span class="sm-res-icon">💵</span>
-            <span class="sm-res-val">${fmtCompactMoney(state.balance)}</span>
-            <span class="sm-res-add" id="btnTopQuickCash" title="Finanças & Escritório">+</span>
+            <span class="sm-res-val">${displayCashVal}</span>
+            <span class="sm-res-add" id="btnTopQuickCash" title="${cashAddTitle}">+</span>
           </div>
         </div>
 

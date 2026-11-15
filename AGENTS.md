@@ -52,6 +52,16 @@
   - Hierarquia de status do elenco distingue 11 Titulares (🟢 Titular), 7 Reservas imediatos (🟡 Reserva) e Plantel restante (⚪ Plantel), com badge dourado de Capitão (© CAPITÃO) para a liderança do grupo.
   - Vestiário e Mentoria: Jogadores com 27+ anos e OVR superior podem conceder mentoria semanal (1x a cada 7 dias), consumindo 10% de energia e concedendo +20 XP e +5% de afinidade.
   - Finanças e Bicho: Caixa crítico alerta risco de atrasos salariais quando inferior à folha mensal total; atrasos de 2+ meses autorizam Rescisão por Justa Causa (Passe Livre) para transferência sem multa rescisória.
+- Gestão de Carreira, Negociações e Mercado (Aba 💼 Empresário & Mercado):
+  - REGRA IRRESTRITA DE EMPRESÁRIO, NEGOCIAÇÃO E MERCADO:
+    - As datas de renovação contratual no modal 'Pedir Aumento & Renovação' devem sempre partir do fim do vínculo vigente do atleta (`baseContractYear = Math.max(curSeason, curContractUntil)`), oferecendo extensões reais futuras (+1 a +4 anos), proibindo anos já superados pelo contrato ativo.
+    - O valor de mercado exibido e utilizado nas negociações deve ser sempre realista e proporcional ao OVR/idade (`formatPlayerMarketValueShort`), corrigindo saves legados inflados (ex.: OVR 34 a R$ 69 Mil).
+    - As 4 ações com diretoria/comissão técnica (`wage_increase`, `demand_starter`, `request_loan`, `request_transfer`) são submetidas a um cooldown rígido de 15 dias de calendário via `pState.agentCooldowns`, desabilitando botões e impedindo repetições em loop ('⏳ Aguarde Xd').
+    - A busca de propostas na janela possui cooldown de 10 dias de calendário e considera o alcance do empresário contratado.
+    - O catálogo oficial de representação dispõe de 5 agências hierárquicas (`agent_family`, `agent_regional`, `agent_national`, `agent_euro`, `agent_global` com aliases suportados), aplicando bônus de barganha de 0% a 25% diretamente nas chances de aprovação dos modais.
+    - O 'Radar de Interesse & Rumores' monitora sondagens de mercado em tempo real e permite solicitar proposta formal diretamente para a mesa de negociação.
+    - O atleta pode submeter '🤝 Contraproposta (+15% Salário)' em propostas recebidas, limitando a uma renegociação por oferta.
+    - No modo atleta (`gameMode === 'player'`), a barra superior (`sm-topbar`) reflete o atleta: OVR em força, pontos livres em prestígio e conta bancária pessoal no saldo financeiro.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis
