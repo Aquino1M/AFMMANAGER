@@ -799,6 +799,7 @@
       if(Number.isFinite(valueMi) && valueMi > 0) return Math.round(valueMi * 1000000);
       return Math.round(estimatedValue);
     };
+    const controlledMarketValueMi = marketValue(athlete) / 1000000;
     const monthlyWage = p => Math.round(Number(p.wage || p.salary || p.monthlySalary) || 0);
     const highestValue = squad.reduce((best, p) => marketValue(p) > marketValue(best || {}) ? p : best, null);
     const highestWage = squad.reduce((best, p) => monthlyWage(p) > monthlyWage(best || {}) ? p : best, null);
@@ -993,7 +994,7 @@
             </div>
             <div style="text-align:right">
               <span style="font-size:11px;color:#94a3b8">VALOR DE MERCADO ESTIMADO:</span>
-              <div style="font-size:20px;font-weight:900;color:#10b981">R$ ${(athlete.marketValueMi || 0.2)} Milhões</div>
+              <div style="font-size:20px;font-weight:900;color:#10b981">R$ ${controlledMarketValueMi.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} Milhões</div>
             </div>
           </div>
 
@@ -5293,7 +5294,7 @@
               <div style="width:65%;height:100%;background:#38bdf8;border-radius:8px"></div>
             </div>
             <div style="display:flex;gap:12px;font-size:11px;color:#94a3b8">
-              <div>Valor de Mercado: <b style="color:#10b981">R$ ${(athlete.marketValueMi || 0.2)} Mi</b></div>
+              <div>Valor de Mercado: <b style="color:#10b981">R$ ${controlledMarketValueMi.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} Mi</b></div>
               <div>•</div>
               <div>Multa Rescisória: <b style="color:#fff">R$ 5.000.000</b></div>
             </div>
