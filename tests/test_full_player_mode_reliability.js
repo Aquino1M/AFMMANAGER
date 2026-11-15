@@ -192,10 +192,14 @@ console.log('✓ Salário atualizado do contrato é pago, atraso por falta de ca
 
 window.state = salaryDelayState;
 salaryDelayState.squad.push({ id: 'captain', name: 'Capitão', ovr: 80, marketValue: 100000000, wage: 90000, pos: 'ATA' });
+salaryDelayState.squad.push({ id: 'million-value', name: 'Valor em Milhões', ovr: 65, value: 1, wage: 4600, pos: 'GK' });
+salaryDelayState.squad.push({ id: 'invalid-value', name: 'Valor Inválido', ovr: 65, marketValueMi: NaN, value: 'inválido', wage: 4600, pos: 'CB' });
 const clubPage = window.AFM_PlayerMode.renderPage('player_club');
 assert(clubPage.includes('Maior valor') && clubPage.includes('Maior salário'));
 assert(clubPage.includes('Salário/mês') && clubPage.includes('VOCÊ'));
 assert(clubPage.includes('Capitão') && clubPage.includes('100.000.000'), 'plantel antigo deve usar valores em reais, sem zerar estimativas');
+assert(clubPage.includes('Valor em Milhões') && clubPage.includes('1.000.000'), 'campo value de calcValueMi deve ser convertido de milhões para reais completos');
+assert(clubPage.includes('Valor Inválido') && !clubPage.includes('R$ NaN'), 'valor ausente ou inválido deve usar estimativa válida por OVR');
 assert(clubPage.includes('Dívidas do Clube'));
 assert(clubPage.includes('class="btn btn-player-club-subtab') && clubPage.includes('role="tablist"') && clubPage.includes('aria-selected="true"'));
 window.__afmPlayerClubSubTab = 'debts';

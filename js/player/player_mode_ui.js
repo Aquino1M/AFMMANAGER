@@ -789,7 +789,16 @@
     const samePosPlayers = (state.squad || []).filter(p => (p.pos || p.position || '').toUpperCase() === myPos);
     samePosPlayers.sort((a,b) => (b.ovr || b.overall || 35) - (a.ovr || a.overall || 35));
     const squad = state.squad || [];
-    const marketValue = p => Number(p.marketValueMi) > 0 ? Math.round(Number(p.marketValueMi) * 1000000) : Math.round(Number(p.marketValue || p.value) || Math.pow((Number(p.ovr || p.overall) || 35) / 10, 3.8) * 100000);
+    const marketValue = p => {
+      const marketValueMi = Number(p.marketValueMi);
+      const marketValueBrl = Number(p.marketValue);
+      const valueMi = Number(p.value);
+      const estimatedValue = Math.pow((Number(p.ovr || p.overall) || 35) / 10, 3.8) * 100000;
+      if(Number.isFinite(marketValueMi) && marketValueMi > 0) return Math.round(marketValueMi * 1000000);
+      if(Number.isFinite(marketValueBrl) && marketValueBrl > 0) return Math.round(marketValueBrl);
+      if(Number.isFinite(valueMi) && valueMi > 0) return Math.round(valueMi * 1000000);
+      return Math.round(estimatedValue);
+    };
     const monthlyWage = p => Math.round(Number(p.wage || p.salary || p.monthlySalary) || 0);
     const highestValue = squad.reduce((best, p) => marketValue(p) > marketValue(best || {}) ? p : best, null);
     const highestWage = squad.reduce((best, p) => monthlyWage(p) > monthlyWage(best || {}) ? p : best, null);

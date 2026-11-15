@@ -42,7 +42,7 @@ const supabase = {
           update(payload){ queryCalls.push(['update', table, payload]); return { ilike(column, value){ queryCalls.push(['ilike', table, column, value]); return Promise.resolve({ error: queryFailure }); } }; },
           upsert(payload, options){
             queryCalls.push(['upsert', table, payload, options]);
-            return { select(){ return { single: async () => ({ data: payload, error: queryFailure }) }; } };
+            return Promise.resolve({ data: null, error: queryFailure });
           },
           delete(){
             return { eq(column, value){ queryCalls.push(['delete', table, column, value]); return { eq: async (nextColumn, nextValue) => { queryCalls.push(['delete', table, nextColumn, nextValue]); return { error: queryFailure }; } }; } };
@@ -58,7 +58,7 @@ const localStorage = {
   setItem(key, value){ storage.set(key, String(value)); },
   removeItem(key){ storage.delete(key); }
 };
-const context = { window: { supabase, AFMErrorLog: { recordHandled(error, source){ handledErrors.push({ message: error.message, source }); } } }, localStorage, location: { href: 'https://example.com/' }, console, Date, JSON, Number, Math, Promise };
+const context = { window: { supabase, AFMErrorLog: { recordHandled(error, source){ handledErrors.push({ message: error.message, source }); } } }, localStorage, location: { href: 'https://example.com/' }, console, Date, JSON, Number, Math, Promise, setTimeout, clearTimeout };
 vm.runInNewContext(fs.readFileSync('js/database.js', 'utf8'), context);
 
 (async () => {
@@ -98,7 +98,7 @@ vm.runInNewContext(fs.readFileSync('js/database.js', 'utf8'), context);
 
   const authLogin = await db.signIn('coach@example.com', 'a long password');
   assert.equal(authLogin.ok, true, 'coach cloud account signs in before save sync');
-  storage.set('afm_save_slot_1', JSON.stringify({ slot: 1, updatedAt: 'data invÃ¡lida', data: { club: 'Save local corrompido' } }));
+  storage.set('afm_save_slot_1', JSON.stringify({ slot: 1, owner: 'another-user', updatedAt: 'data invÃ¡lida', data: { club: 'Save local corrompido' } }));
   saveRows = [{ slot: 1, club: 'Corinthians', manager: 'Coach', season: 2026, round: 1, balance: 0, updated_at: '2026-01-02T00:00:00.000Z', save_data: { club: 'Corinthians', season: 2026 } }];
   const recovered = await db.syncUser('coach@example.com');
   assert.equal(recovered.ok, true, 'active cloud account reconciles saves');
@@ -111,12 +111,18 @@ vm.runInNewContext(fs.readFileSync('js/database.js', 'utf8'), context);
   const staleSync = await db.syncUser('coach@example.com');
   assert.equal(staleSync.ok, true, 'active account may reconcile its saves');
   assert.equal(JSON.parse(storage.get('afm_save_coach@example.com_slot_1')).data.club, 'Save local mais novo', 'newer per-user local save is preserved');
+  const saveCallStart = queryCalls.length;
   const saved = await db.saveSlot('coach@example.com', 2, { club: 'Corinthians', data: { club: 'Corinthians', season: 2026 } });
   assert.equal(saved.ok, true, 'a conta cloud ativa pode gravar no seu slot');
-  const upsert = queryCalls.find(call => call[0] === 'upsert' && call[1] === 'afm_saves');
+  const saveCalls = queryCalls.slice(saveCallStart);
+  const upsert = saveCalls.find(call => call[0] === 'upsert' && call[1] === 'afm_saves');
   assert(upsert, 'save da conta ativa deve ser enviado à nuvem');
   assert.equal(upsert[2].username, 'coach@example.com', 'cloud save is bound to the account username');
   assert.equal(upsert[3]?.onConflict, 'username,slot', 'save upsert uses unique username and slot');
+  assert(!saveCalls.some(call => call[0] === 'select'), 'upsert não deve baixar a cópia completa do save após gravar');
+  queryFailure = { message: 'RLS denied save write', code: '42501' };
+  assert.equal((await db.saveSlot('coach@example.com', 2, { club: 'Corinthians', data: { club: 'Corinthians' } })).ok, false, 'falhas do Supabase continuam sendo reportadas');
+  queryFailure = null;
   const noAuthRead = await db.getSaves();
   assert.equal(noAuthRead.ok, true, 'save reads usam a conta ativa');
   queryFailure = { message: 'RLS denied save read', code: '42501' };

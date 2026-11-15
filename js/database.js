@@ -465,24 +465,29 @@ const AFM_DB = (function(){
         updated_at: new Date().toISOString()
       };
 
-      const timeoutP = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
-      const writeQuery = cli
-        .from('afm_saves')
-        .upsert(payload, { onConflict: 'username,slot' })
-        .select()
-        .single();
-      const { data, error } = await Promise.race([writeQuery, timeoutP]);
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      let timeoutId;
+      const timeoutP = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Supabase demorou mais de 15 segundos para confirmar o save.'));
+          controller?.abort();
+        }, 15000);
+      });
+      let writeQuery = cli.from('afm_saves').upsert(payload, { onConflict: 'username,slot' });
+      if(controller && typeof writeQuery.abortSignal === 'function') writeQuery = writeQuery.abortSignal(controller.signal);
+      let result;
+      try {
+        result = await Promise.race([writeQuery, timeoutP]);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      const { error } = result;
       if(error){
         recordHandledError('save-sync-write', error);
         return { ok: false, localOnly: true, error: error.message };
       }
-      if(!data) {
-        const message = 'Supabase não confirmou a gravação do save.';
-        recordHandledError('save-sync-write', message);
-        return { ok: false, localOnly: true, error: message };
-      }
       cloudAvailable = true;
-      return { ok: true, data };
+      return { ok: true };
     } catch(error){
       recordHandledError('save-sync-write', error);
       return { ok: false, localOnly: true, error: error.message };
