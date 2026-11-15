@@ -1835,7 +1835,8 @@
         sponsorOffers.push(offer);
     }
     const items = eng ? eng.LIFESTYLE_CATALOG : [];
-    const bank = pState.personalBank || 0;
+    const ls = window.AFM_Lifestyle?.ensurePlayerLifestyleState(pState) || pState.lifestyle;
+    const bank = (ls ? ls.cash : pState.personalBank) || 0;
     const curDate = state.date || state.currentDate || "2026-01-18";
 
     // Normaliza integridade das variáveis de tempo do patrocínio ativo
@@ -1896,7 +1897,13 @@
           const athlete = getControlledPlayer(state) || { ovr: 45, wage: 1500, attributes: {} };
           const wage = Number(athlete?.wage) || 1500;
           const spIncome = Number(activeSp?.monthlyStipend) || 0;
-          const expIncome = wage + spIncome;
+          const hasAccountant = ls?.hiredStaff?.includes("accountant");
+          const cdbYield = Math.round((Number(ls?.investments?.cdbBalance) || 0) * (hasAccountant ? 0.015 : 0.011));
+          const rentalIncome = (Number(ls?.investments?.rentalUnits) || 0) * 650;
+          const academyIncome = ls?.investments?.academyOwned ? 2100 : 0;
+          const brandIncome = ls?.investments?.brandOwned ? 5400 : 0;
+          const businessIncome = rentalIncome + academyIncome + brandIncome;
+          const expIncome = wage + spIncome + cdbYield + businessIncome;
 
           const agent = window.AFM_PlayerEngine?.getPlayerAgent
             ? window.AFM_PlayerEngine.getPlayerAgent(pState)
@@ -1909,20 +1916,46 @@
                 )
               : 0;
           const agentCost = agentWage + agentSponsorCut;
-          const staffCost = window.AFM_PlayerEngine
-            ?.calculateHiredStaffMonthlyCost
-            ? window.AFM_PlayerEngine.calculateHiredStaffMonthlyCost(
-                pState,
-                athlete?.ovr,
-              )
-            : 0;
+          
+          const staffCost = (function () {
+            let total = 0;
+            const staffCatalog = window.AFM_Lifestyle?.AFM_STAFF_CATALOG || [];
+            const ovrFactor = Math.max(1, 1 + (Number(athlete?.ovr || 45) - 45) * 0.03);
+            (ls?.hiredStaff || []).forEach((stId) => {
+              const st = staffCatalog.find((s) => s.id === stId);
+              if (st) total += Math.round(st.monthlyCostBase * ovrFactor);
+            });
+            return total;
+          })();
+
           const lifeCost = window.AFM_PlayerEngine?.calculatePlayerLifestyleCost
             ? window.AFM_PlayerEngine.calculatePlayerLifestyleCost(
                 pState,
                 athlete?.ovr,
               )
             : 350;
-          const expExpenses = agentCost + staffCost + lifeCost;
+
+          // Manutenção de Bens e Parcelas de Financiamento
+          const assetsUpkeep = (function () {
+            let total = 0;
+            const assetsCatalog = window.AFM_Lifestyle?.AFM_ASSETS_CATALOG || [];
+            const allHeld = [...(ls?.ownedAssets || []), ...(ls?.financedAssets || []).map((f) => f.id)];
+            allHeld.forEach((aId) => {
+              const a = assetsCatalog.find((item) => item.id === aId);
+              if (a) total += a.monthlyUpkeep;
+            });
+            return hasAccountant ? Math.round(total * 0.85) : total;
+          })();
+
+          const financingCost = (function () {
+            let total = 0;
+            (ls?.financedAssets || []).forEach((f) => {
+              total += Number(f.monthlyPayment) || 0;
+            });
+            return total;
+          })();
+
+          const expExpenses = agentCost + staffCost + lifeCost + assetsUpkeep + financingCost;
           const netExp = expIncome - expExpenses;
 
           const ovr = Number(athlete?.ovr || pState?.athleteOvr || 45);
@@ -1964,12 +1997,12 @@
                 <div>
                   <div style="font-size:11px;color:#94a3b8;font-weight:700">🟢 ENTRADAS PREVISTAS:</div>
                   <div style="font-size:17px;font-weight:900;color:#10b981">+ R$ ${expIncome.toLocaleString("pt-BR")}/mês</div>
-                  <div style="font-size:10px;color:#6ee7b7">Salário: R$ ${wage.toLocaleString("pt-BR")} ${spIncome > 0 ? `· Patrocínio: R$ ${spIncome.toLocaleString("pt-BR")}` : ""}</div>
+                  <div style="font-size:10px;color:#6ee7b7">Salário: R$ ${wage.toLocaleString("pt-BR")} ${spIncome > 0 ? `· Patrocínio: R$ ${spIncome.toLocaleString("pt-BR")}` : ""} ${businessIncome > 0 ? `· Negócios: R$ ${businessIncome.toLocaleString("pt-BR")}` : ""} ${cdbYield > 0 ? `· CDB: R$ ${cdbYield.toLocaleString("pt-BR")}` : ""}</div>
                 </div>
                 <div>
                   <div style="font-size:11px;color:#94a3b8;font-weight:700">🔴 DESPESAS PREVISTAS:</div>
                   <div style="font-size:17px;font-weight:900;color:#f87171">- R$ ${expExpenses.toLocaleString("pt-BR")}/mês</div>
-                  <div style="font-size:10px;color:#fca5a5">Empresário: R$ ${agentCost.toLocaleString("pt-BR")} ${agentSponsorCut > 0 ? `(Fixo R$ ${agentWage.toLocaleString("pt-BR")} + Com. R$ ${agentSponsorCut.toLocaleString("pt-BR")})` : ""} · Staff: R$ ${staffCost.toLocaleString("pt-BR")} · Custo Vida: R$ ${lifeCost.toLocaleString("pt-BR")}</div>
+                  <div style="font-size:10px;color:#fca5a5">Empresário: R$ ${agentCost.toLocaleString("pt-BR")} · Staff: R$ ${staffCost.toLocaleString("pt-BR")} · Custo Vida: R$ ${lifeCost.toLocaleString("pt-BR")} ${assetsUpkeep > 0 ? `· Manutenção: R$ ${assetsUpkeep.toLocaleString("pt-BR")}` : ""} ${financingCost > 0 ? `· Financiamento: R$ ${financingCost.toLocaleString("pt-BR")}` : ""}</div>
                 </div>
                 <div>
                   <div style="font-size:11px;color:#94a3b8;font-weight:700">💰 BALANÇO LÍQUIDO PREVISTO:</div>
@@ -2145,7 +2178,114 @@
           }
         </div>
 
-        <!-- SEÇÃO 1: STAFF PESSOAL DE ALTA PERFORMANCE -->
+        <!-- SEÇÃO 1: LOJA DE CHUTEIRAS & EQUIPAMENTOS COM DURABILIDADE -->
+        <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+            <div>
+              <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+                👟 LOJA DE CHUTEIRAS & EQUIPAMENTOS
+              </h3>
+              <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+                Modelos de alta tecnologia com bônus reais em campo. A chuteira equipada perde 1 de durabilidade a cada partida. Reforme as travas antes que ela zere!
+              </div>
+            </div>
+            <span class="pill primary" style="font-size:10px;font-weight:900">OFICINA & CALÇADOS</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
+            ${(function () {
+              const bootsList = window.AFM_Lifestyle?.AFM_BOOTS_CATALOG || [];
+              const ownedBoots = ls?.ownedBoots || {};
+              const equippedId = ls?.equippedBootsId || "boots_basic";
+
+              return bootsList
+                .map((boot) => {
+                  const owned = ownedBoots[boot.id];
+                  const isOwned = Boolean(owned);
+                  const isEquipped = equippedId === boot.id;
+                  const dur = owned ? Math.max(0, owned.durability) : 0;
+                  const maxDur = boot.maxDurability;
+                  const durPct = isOwned ? Math.min(100, Math.round((dur / maxDur) * 100)) : 0;
+                  const durColor = durPct > 50 ? "#10b981" : durPct > 20 ? "#f59e0b" : "#ef4444";
+                  const repairCost = Math.round(boot.price * 0.35);
+
+                  return `
+                    <div style="background:${isEquipped ? "linear-gradient(135deg, rgba(6,182,212,0.12), #090d16)" : isOwned ? "#0d131f" : "#090d16"};border:1.5px solid ${isEquipped ? "#06b6d4" : isOwned ? "#1e293b" : "#334155"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:${isEquipped ? "0 0 16px rgba(6,182,212,0.2)" : "none"}">
+                      <div>
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+                          <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:28px">${boot.icon}</span>
+                            <div>
+                              <div style="font-size:14px;font-weight:900;color:#fff">${esc(boot.name)}</div>
+                              <div style="font-size:11px;color:#38bdf8;font-weight:700">${esc(boot.tier)}</div>
+                            </div>
+                          </div>
+                          ${
+                            isEquipped
+                              ? `<span class="pill good" style="font-size:9px;font-weight:900">⚡ EQUIPADA</span>`
+                              : isOwned
+                                ? `<span class="pill muted" style="font-size:9px;font-weight:900">NO ARMÁRIO</span>`
+                                : `<span class="pill warning" style="font-size:9px;font-weight:900">DISPONÍVEL</span>`
+                          }
+                        </div>
+
+                        <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:10px">${esc(boot.description)}</div>
+                        
+                        <div style="background:rgba(0,0,0,0.35);padding:10px;border-radius:8px;font-size:11px;color:#67e8f9;margin-bottom:12px;border-left:3px solid #06b6d4">
+                          <b>Bônus:</b> ${esc(boot.bonusText)}
+                        </div>
+
+                        <!-- BARRA DE DURABILIDADE -->
+                        <div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:8px 10px;margin-bottom:12px">
+                          <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:4px">
+                            <span>DURABILIDADE:</span>
+                            <span style="color:${isOwned ? durColor : "#64748b"}">${isOwned ? `${dur} / ${maxDur} Jogos (${durPct}%)` : `Máx: ${maxDur} Jogos`}</span>
+                          </div>
+                          <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:7px;overflow:hidden">
+                            <div style="background:${durColor};height:100%;width:${durPct}%;transition:width 0.3s"></div>
+                          </div>
+                          ${isOwned && dur === 0 ? `<div style="font-size:9px;color:#f87171;font-weight:800;margin-top:3px">⚠️ Chuteira gasta! Bônus inativo até reformar as travas.</div>` : ""}
+                        </div>
+                      </div>
+
+                      <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                        <div>
+                          <div style="font-size:10px;color:#94a3b8">Valor de Loja:</div>
+                          <div style="font-size:13px;font-weight:900;color:#10b981">R$ ${boot.price.toLocaleString("pt-BR")}</div>
+                        </div>
+
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                          ${
+                            isOwned
+                              ? `
+                            ${
+                              !isEquipped
+                                ? `<button type="button" class="btn btn-equip-boot" data-boot-id="${boot.id}" style="background:#1e293b;border:1px solid #38bdf8;color:#38bdf8;font-weight:900;padding:7px 12px;border-radius:8px;font-size:11px;cursor:pointer">Equipar</button>`
+                                : ""
+                            }
+                            ${
+                              dur < maxDur
+                                ? bank >= repairCost
+                                  ? `<button type="button" class="btn warning btn-repair-boot" data-boot-id="${boot.id}" style="font-weight:900;padding:7px 11px;border-radius:8px;font-size:11px;cursor:pointer">🔧 Reformar (R$ ${repairCost.toLocaleString("pt-BR")})</button>`
+                                  : `<button type="button" class="btn" disabled style="background:#1e293b;color:#94a3b8;font-size:10px;padding:7px 10px;border-radius:8px">🔒 Faltam R$ ${(repairCost - bank).toLocaleString("pt-BR")}</button>`
+                                : ""
+                            }
+                          `
+                              : bank >= boot.price
+                                ? `<button type="button" class="btn success btn-buy-boot" data-boot-id="${boot.id}" style="background:linear-gradient(135deg,#10b981,#059669);color:#000;font-weight:900;padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-size:11px">Comprar</button>`
+                                : `<button type="button" class="btn" disabled style="background:#1e293b;color:#94a3b8;font-size:11px;padding:8px 12px;border-radius:8px">🔒 Faltam R$ ${(boot.price - bank).toLocaleString("pt-BR")}</button>`
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                })
+                .join("");
+            })()}
+          </div>
+        </div>
+
+        <!-- SEÇÃO 2: STAFF PESSOAL DE ALTA PERFORMANCE (8 PROFISSIONAIS) -->
         <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
             <div>
@@ -2153,169 +2293,421 @@
                 🩺 STAFF PESSOAL DE ALTA PERFORMANCE
               </h3>
               <div style="font-size:11px;color:#94a3b8;margin-top:2px">
-                Profissionais particulares exclusivos para acelerar sua evolução física, mental, técnica e de imagem no FootGram.
+                Profissionais particulares exclusivos para acelerar sua evolução física, mental, técnica, financeira e de imagem no FootGram.
               </div>
             </div>
+            <span class="pill primary" style="font-size:10px;font-weight:900">8 PROFISSIONAIS</span>
           </div>
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
             ${(function () {
-              const staffList = window.AFM_PlayerEngine?.STAFF_CATALOG || [];
-              const athleteOvr = Number(
-                athlete?.ovr || pState?.athleteOvr || 45,
-              );
-              const hired = pState.hiredStaff || {};
+              const staffList = window.AFM_Lifestyle?.AFM_STAFF_CATALOG || [];
+              const athleteOvr = Number(athlete?.ovr || pState?.athleteOvr || 45);
+              const hiredList = ls?.hiredStaff || [];
 
               return staffList
                 .map((st) => {
-                  const isHired = Boolean(hired[st.id]);
+                  const isHired = hiredList.includes(st.id);
                   const ovrFactor = Math.max(1, 1 + (athleteOvr - 45) * 0.03);
-                  const currentMonthly = Math.round(
-                    st.monthlyCostBase * ovrFactor,
-                  );
+                  const currentMonthly = Math.round(st.monthlyCostBase * ovrFactor);
 
                   return `
-                  <div style="background:${isHired ? "linear-gradient(135deg, rgba(16,185,129,0.08), #090d16)" : "#090d16"};border:1.5px solid ${isHired ? "#10b981" : "#334155"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:${isHired ? "0 0 14px rgba(16,185,129,0.15)" : "none"}">
-                    <div>
-                      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-                        <div style="display:flex;align-items:center;gap:10px">
-                          <span style="font-size:28px">${st.icon}</span>
-                          <div>
-                            <div style="font-size:14px;font-weight:900;color:#fff">${esc(st.name)}</div>
-                            <div style="font-size:11px;color:#38bdf8;font-weight:700">${esc(st.role)}</div>
+                    <div style="background:${isHired ? "linear-gradient(135deg, rgba(16,185,129,0.08), #090d16)" : "#090d16"};border:1.5px solid ${isHired ? "#10b981" : "#334155"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:${isHired ? "0 0 14px rgba(16,185,129,0.15)" : "none"}">
+                      <div>
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+                          <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:28px">${st.icon}</span>
+                            <div>
+                              <div style="font-size:14px;font-weight:900;color:#fff">${esc(st.name)}</div>
+                              <div style="font-size:11px;color:#38bdf8;font-weight:700">${esc(st.role)}</div>
+                            </div>
                           </div>
+                          ${
+                            isHired
+                              ? `<span class="pill good" style="font-size:9px;font-weight:900">CONTRATADO</span>`
+                              : `<span class="pill muted" style="font-size:9px;font-weight:900">DISPONÍVEL</span>`
+                          }
                         </div>
-                        ${
-                          isHired
-                            ? `<span class="pill good" style="font-size:9px;font-weight:900">CONTRATADO</span>`
-                            : `<span class="pill muted" style="font-size:9px;font-weight:900">DISPONÍVEL</span>`
-                        }
+
+                        <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:10px">${esc(st.description)}</div>
+                        <div style="background:rgba(0,0,0,0.35);padding:10px;border-radius:8px;font-size:11px;color:#a7f3d0;margin-bottom:12px;border-left:3px solid #10b981">
+                          <b>Bônus:</b> ${esc(st.bonusText || st.benefitText)}
+                        </div>
                       </div>
 
-                      <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:10px">${esc(st.description)}</div>
-                      <div style="background:rgba(0,0,0,0.35);padding:10px;border-radius:8px;font-size:11px;color:#a7f3d0;margin-bottom:12px;border-left:3px solid #10b981">
-                        <b>Bônus:</b> ${esc(st.benefitText)}
+                      <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+                        <div>
+                          ${
+                            isHired
+                              ? `
+                            <div style="font-size:11px;color:#94a3b8">Honorários:</div>
+                            <div style="font-size:14px;font-weight:900;color:#f87171">R$ ${currentMonthly.toLocaleString("pt-BR")}/mês</div>
+                          `
+                              : `
+                            <div style="font-size:10px;color:#94a3b8">Taxa de Contratação: <b>R$ ${st.hireCost.toLocaleString("pt-BR")}</b></div>
+                            <div style="font-size:12px;font-weight:900;color:#cbd5e1">Mensalidade: R$ ${currentMonthly.toLocaleString("pt-BR")}/mês</div>
+                          `
+                          }
+                        </div>
+                        <div>
+                          ${
+                            isHired
+                              ? `
+                            <button type="button" class="btn danger btn-dismiss-staff" data-staff-id="${st.id}" style="background:#ef4444;color:#fff;font-weight:900;font-size:11px;padding:8px 14px;border-radius:8px;border:none;cursor:pointer">
+                              Dispensar
+                            </button>
+                          `
+                              : bank >= st.hireCost
+                                ? `
+                            <button type="button" class="btn success btn-hire-staff" data-staff-id="${st.id}" style="background:#10b981;color:#000;font-weight:900;font-size:11px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer">
+                              Contratar
+                            </button>
+                          `
+                                : `
+                            <button type="button" class="btn" disabled style="background:#1e293b;color:#94a3b8;font-size:11px;padding:8px 12px;border-radius:8px">
+                              🔒 Faltam R$ ${(st.hireCost - bank).toLocaleString("pt-BR")}
+                            </button>
+                          `
+                          }
+                        </div>
                       </div>
                     </div>
-
-                    <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px">
-                      <div>
-                        ${
-                          isHired
-                            ? `
-                          <div style="font-size:11px;color:#94a3b8">Honorários:</div>
-                          <div style="font-size:14px;font-weight:900;color:#f87171">R$ ${currentMonthly.toLocaleString("pt-BR")}/mês</div>
-                        `
-                            : `
-                          <div style="font-size:10px;color:#94a3b8">Taxa de Contratação: <b>R$ ${st.hireCost.toLocaleString("pt-BR")}</b></div>
-                          <div style="font-size:12px;font-weight:900;color:#cbd5e1">Mensalidade: R$ ${currentMonthly.toLocaleString("pt-BR")}/mês</div>
-                        `
-                        }
-                      </div>
-                      <div>
-                        ${
-                          isHired
-                            ? `
-                          <button type="button" class="btn danger btn-dismiss-staff" data-staff-id="${st.id}" style="background:#ef4444;color:#fff;font-weight:900;font-size:11px;padding:8px 14px;border-radius:8px;border:none;cursor:pointer">
-                            Dispensar
-                          </button>
-                        `
-                            : `
-                          <button type="button" class="btn success btn-hire-staff" data-staff-id="${st.id}" ${bank < st.hireCost ? "disabled" : ""} style="background:${bank >= st.hireCost ? "#10b981" : "#334155"};color:#000;font-weight:900;font-size:11px;padding:8px 16px;border-radius:8px;border:none;cursor:${bank >= st.hireCost ? "pointer" : "not-allowed"}">
-                            Contratar
-                          </button>
-                        `
-                        }
-                      </div>
-                    </div>
-                  </div>
-                `;
+                  `;
                 })
                 .join("");
             })()}
           </div>
         </div>
 
-        <!-- SEÇÃO 2: BENS DE CONSUMO & LUXO -->
+        <!-- SEÇÃO 3: BENS DE LUXO, VEÍCULOS & IMÓVEIS (À VISTA OU FINANCIAMENTO 12x) -->
         <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
-          <h3 style="margin:0 0 14px 0;font-size:15px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
-            💎 BENS DE LUXO & SÍMBOLOS DE CONQUISTA
-          </h3>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:gap:8px;margin-bottom:14px">
+            <div>
+              <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+                💎 BENS DE LUXO, VEÍCULOS & IMÓVEIS
+              </h3>
+              <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+                Patrimônio, status e descanso. Escolha entre compra à vista ou financiamento bancário em 12x com 30% de entrada.
+              </div>
+            </div>
+            <span class="pill primary" style="font-size:10px;font-weight:900">PATRIMÔNIO PESSOAL</span>
+          </div>
 
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:12px">
-            ${items
-              .filter((it) => it.category === "luxury")
-              .map((it) => {
-                const hasIt = (pState.luxuryItems || []).includes(it.id);
-                const isBootEquipped =
-                  it.id === "luxury_boots" &&
-                  pState.luxuryBootsEquipped !== false;
-                return `
-                <div style="background:${hasIt ? "linear-gradient(135deg,rgba(124,58,237,0.2),rgba(15,23,42,0.4))" : "#090d16"};border:1px solid ${hasIt ? "#a855f7" : "#334155"};border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:space-between">
-                  <div style="display:flex;align-items:center;gap:12px">
-                    <span style="font-size:28px">${it.icon}</span>
-                    <div>
-                      <div style="font-size:13px;font-weight:900;color:#fff">${it.name}</div>
-                      <div style="font-size:11px;color:#94a3b8">${it.benefit}</div>
-                      <div style="font-size:11px;color:#10b981;font-weight:800;margin-top:2px">Custo: R$ ${it.cost.toLocaleString("pt-BR")}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px">
+            ${(function () {
+              const assetsList = window.AFM_Lifestyle?.AFM_ASSETS_CATALOG || [];
+              const ownedAssets = ls?.ownedAssets || [];
+              const financedAssets = ls?.financedAssets || [];
+
+              return assetsList
+                .map((asset) => {
+                  const isOwned = ownedAssets.includes(asset.id);
+                  const finItem = financedAssets.find((f) => f.id === asset.id);
+                  const isFinanced = Boolean(finItem);
+                  const downPayment = Math.round(asset.price * 0.30);
+                  const monthlyPayment = Math.round((asset.price * 0.70 * 1.10) / 12);
+
+                  return `
+                    <div style="background:${isOwned ? "linear-gradient(135deg,rgba(124,58,237,0.18),#090d16)" : isFinanced ? "linear-gradient(135deg,rgba(245,158,11,0.12),#090d16)" : "#090d16"};border:1.5px solid ${isOwned ? "#a855f7" : isFinanced ? "#f59e0b" : "#334155"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:${isOwned ? "0 0 14px rgba(168,85,247,0.15)" : "none"}">
+                      <div>
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+                          <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:28px">${asset.icon}</span>
+                            <div>
+                              <div style="font-size:14px;font-weight:900;color:#fff">${esc(asset.name)}</div>
+                              <div style="font-size:11px;color:#a855f7;font-weight:700">${esc(asset.tierName)}</div>
+                            </div>
+                          </div>
+                          ${
+                            isOwned
+                              ? `<span class="pill good" style="font-size:9px;font-weight:900">👑 ADQUIRIDO</span>`
+                              : isFinanced
+                                ? `<span class="pill warning" style="font-size:9px;font-weight:900">⏳ 12x (${finItem.remainingInstallments} rest.)</span>`
+                                : `<span class="pill muted" style="font-size:9px;font-weight:900">CATÁLOGO</span>`
+                          }
+                        </div>
+
+                        <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:10px">${esc(asset.description)}</div>
+
+                        <div style="background:rgba(0,0,0,0.35);padding:10px;border-radius:8px;font-size:11px;color:#d8b4fe;margin-bottom:10px;border-left:3px solid #a855f7">
+                          <b>Bônus:</b> ${esc(asset.bonus)}
+                        </div>
+
+                        <div style="font-size:11px;color:#94a3b8;margin-bottom:12px">
+                          Manutenção Mensal: <b style="color:#f87171">R$ ${asset.monthlyUpkeep.toLocaleString("pt-BR")}/mês</b>
+                        </div>
+                      </div>
+
+                      <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px">
+                        ${
+                          isOwned
+                            ? `<div style="text-align:center;font-size:12px;font-weight:900;color:#10b981">✨ Bem quitado e em seu patrimônio</div>`
+                            : isFinanced
+                              ? `<div style="text-align:center;font-size:11px;color:#fcd34d;font-weight:800">Parcelas: ${finItem.remainingInstallments}x de R$ ${finItem.monthlyPayment.toLocaleString("pt-BR")}/mês</div>`
+                              : `
+                            <div style="display:flex;flex-direction:column;gap:7px">
+                              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+                                ${
+                                  bank >= asset.price
+                                    ? `<button type="button" class="btn success btn-buy-asset-cash" data-asset-id="${asset.id}" style="flex:1;background:#10b981;color:#000;font-weight:900;padding:8px 10px;border-radius:8px;border:none;cursor:pointer;font-size:11px">À Vista (R$ ${asset.price.toLocaleString("pt-BR")})</button>`
+                                    : `<button type="button" class="btn" disabled style="flex:1;background:#1e293b;color:#94a3b8;font-size:10px;padding:8px 6px;border-radius:8px">🔒 Faltam R$ ${(asset.price - bank).toLocaleString("pt-BR")}</button>`
+                                }
+                              </div>
+                              ${
+                                asset.financeable
+                                  ? `
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+                                  ${
+                                    bank >= downPayment
+                                      ? `<button type="button" class="btn btn-finance-asset" data-asset-id="${asset.id}" style="width:100%;background:#1e293b;border:1px solid #38bdf8;color:#38bdf8;font-weight:900;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:10px">Financiar 12x (Entrada R$ ${downPayment.toLocaleString("pt-BR")})</button>`
+                                      : `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;font-size:10px;padding:7px 6px;border-radius:8px">🔒 Entrada: Faltam R$ ${(downPayment - bank).toLocaleString("pt-BR")}</button>`
+                                  }
+                                </div>
+                              `
+                                  : ""
+                              }
+                            </div>
+                          `
+                        }
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    ${
-                      hasIt
-                        ? `
-                      ${it.id === "luxury_boots" ? `<button type="button" class="btn btn-toggle-lifestyle-equip ${isBootEquipped ? "success" : ""}" data-item-id="${it.id}" style="font-weight:900;padding:8px 14px;border-radius:8px;border:1px solid ${isBootEquipped ? "#10b981" : "#64748b"};background:${isBootEquipped ? "rgba(16,185,129,0.18)" : "#1e293b"};color:${isBootEquipped ? "#6ee7b7" : "#cbd5e1"}">${isBootEquipped ? "Em uso · +2 CHU" : "Equipar · +2 CHU"}</button>` : '<span class="pill good" style="font-size:10px;font-weight:900">ADQUIRIDO</span>'}
-                    `
-                        : `
-                      <button type="button" class="btn btn-buy-lifestyle success" data-item-id="${it.id}" ${bank < it.cost ? "disabled" : ""} style="background:${bank >= it.cost ? "#10b981" : "#334155"};color:#000;font-weight:900;padding:8px 14px;border-radius:8px;border:none;cursor:${bank >= it.cost ? "pointer" : "not-allowed"}">
-                        Comprar
-                      </button>
-                    `
-                    }
-                  </div>
-                </div>
-              `;
-              })
-              .join("")}
+                  `;
+                })
+                .join("");
+            })()}
           </div>
         </div>
 
-        <!-- SEÇÃO 3: EXTRATO FINANCEIRO DOS ÚLTIMOS MESES -->
-        ${
-          Array.isArray(pState.financialHistory) &&
-          pState.financialHistory.length > 0
-            ? `
-          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
-            <h3 style="margin:0 0 14px 0;font-size:15px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
-              📜 HISTÓRICO DE EXTRATOS MENSAIS
-            </h3>
-            <div style="display:flex;flex-direction:column;gap:10px">
-              ${pState.financialHistory
-                .slice(0, 6)
-                .map(
-                  (fh) => `
-                <div style="background:#090d16;border:1px solid #1e293b;border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <!-- SEÇÃO 4: NEGÓCIOS, INVESTIMENTOS & AÇÕES DE MÍDIA -->
+        <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+            <div>
+              <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+                📈 NEGÓCIOS, INVESTIMENTOS & AÇÕES DE MÍDIA
+              </h3>
+              <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+                Multiplique seus ganhos com renda passiva de imóveis, franquias esportivas, marcas próprias, CDB e presença VIP publicitária.
+              </div>
+            </div>
+            <span class="pill good" style="font-size:10px;font-weight:900">RENDA EXTRA & PASSIVA</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:14px">
+            
+            <!-- 1. GRAVAR COMERCIAL / PRESENÇA VIP -->
+            <div style="background:#090d16;border:1px solid #334155;border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <span style="font-size:26px">📸</span>
                   <div>
-                    <div style="font-size:13px;font-weight:900;color:#38bdf8">📅 ${fh.month || fh.date}</div>
-                    <div style="font-size:11px;color:#94a3b8;margin-top:2px">
-                      Salário: R$ ${Number(fh.salary || 0).toLocaleString("pt-BR")} · Empresário (${esc(fh.agentName || "Agente")}): R$ ${Number(fh.agentSalary || 0).toLocaleString("pt-BR")} · Staff: R$ ${Number(fh.staffExpenses || 0).toLocaleString("pt-BR")} · Custo Vida: R$ ${Number(fh.lifestyleCost || 0).toLocaleString("pt-BR")}
-                    </div>
-                  </div>
-                  <div style="text-align:right">
-                    <div style="font-size:14px;font-weight:900;color:${(fh.netBalance || 0) >= 0 ? "#10b981" : "#ef4444"}">
-                      ${(fh.netBalance || 0) >= 0 ? "+" : ""} R$ ${(fh.netBalance || 0).toLocaleString("pt-BR")}
-                    </div>
-                    <div style="font-size:10px;color:#64748b">Saldo em conta: R$ ${(fh.finalBank || 0).toLocaleString("pt-BR")}</div>
+                    <div style="font-size:14px;font-weight:900;color:#fff">Gravar Comercial / Presença VIP</div>
+                    <div style="font-size:10px;color:#38bdf8;font-weight:700">1x por semana · Cachê R$ 450 a R$ 12.000</div>
                   </div>
                 </div>
-              `,
-                )
-                .join("")}
+                <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:12px">
+                  Participe de sessões de fotos e gravações publicitárias. Rende cachê imediato proporcional ao seu OVR e seguidores no FootGram, consumindo 15% de estamina.
+                </div>
+              </div>
+              <div>
+                ${(function () {
+                  const athleteEnergy = athlete?.energy !== undefined ? Number(athlete.energy) : 100;
+                  const canMedia = ls?.weeklyMediaGigAvailable !== false && athleteEnergy >= 15;
+                  if (canMedia) {
+                    return `
+                      <button type="button" class="btn success btn-media-gig" style="width:100%;background:linear-gradient(135deg,#10b981,#059669);color:#000;font-weight:900;padding:9px;border-radius:8px;border:none;cursor:pointer;font-size:11px">
+                        Gravar Comercial (-15% Estamina)
+                      </button>
+                    `;
+                  }
+                  if (athleteEnergy < 15) {
+                    return `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;font-size:10px;padding:9px;border-radius:8px">🔒 Exausto (${athleteEnergy}% estamina)</button>`;
+                  }
+                  return `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;font-size:10px;padding:9px;border-radius:8px">⏳ Cooldown de Mídia Ativo</button>`;
+                })()}
+              </div>
             </div>
+
+            <!-- 2. CDB ESPORTIVO (RENDA FIXA) -->
+            <div style="background:#090d16;border:1px solid #334155;border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <span style="font-size:26px">🏦</span>
+                  <div>
+                    <div style="font-size:14px;font-weight:900;color:#fff">CDB Esportivo (Renda Fixa)</div>
+                    <div style="font-size:10px;color:#10b981;font-weight:700">Rendimento: ${ls?.hiredStaff?.includes("accountant") ? "1.5%/mês (Contador)" : "1.1%/mês"}</div>
+                  </div>
+                </div>
+                <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:10px">
+                  Aplicação segura para preservar patrimônio com liquidez diária e juros compostos todo mês.
+                </div>
+                <div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:8px 10px;margin-bottom:12px">
+                  <div style="font-size:10px;color:#94a3b8">Saldo Atual Investido:</div>
+                  <div style="font-size:16px;font-weight:900;color:#38bdf8">R$ ${(Number(ls?.investments?.cdbBalance) || 0).toLocaleString("pt-BR")}</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:6px">
+                ${
+                  bank >= 500
+                    ? `<button type="button" class="btn success btn-cdb-deposit" style="flex:1;background:#10b981;color:#000;font-weight:900;padding:8px;border-radius:8px;border:none;cursor:pointer;font-size:11px">+ R$ 500</button>`
+                    : `<button type="button" class="btn" disabled style="flex:1;background:#1e293b;color:#94a3b8;font-size:10px;padding:8px;border-radius:8px">🔒 Faltam R$ ${(500 - bank).toLocaleString("pt-BR")}</button>`
+                }
+                <button type="button" class="btn btn-cdb-withdraw" ${(Number(ls?.investments?.cdbBalance) || 0) <= 0 ? "disabled" : ""} style="flex:1;background:#1e293b;border:1px solid #38bdf8;color:#38bdf8;font-weight:900;padding:8px;border-radius:8px;cursor:${(Number(ls?.investments?.cdbBalance) || 0) > 0 ? "pointer" : "not-allowed"};font-size:11px">
+                  Resgatar
+                </button>
+              </div>
+            </div>
+
+            <!-- 3. KITNETS PARA ALUGUEL -->
+            <div style="background:#090d16;border:1px solid #334155;border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <span style="font-size:26px">🏠</span>
+                  <div>
+                    <div style="font-size:14px;font-weight:900;color:#fff">Kitnets de Aluguel</div>
+                    <div style="font-size:10px;color:#f59e0b;font-weight:700">R$ 25.000 / unidade · Rende +R$ 650/mês</div>
+                  </div>
+                </div>
+                <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:10px">
+                  Imóveis populares para locação. Compre quantas unidades desejar para acumular renda mensal sem esforço.
+                </div>
+                <div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:8px 10px;margin-bottom:12px">
+                  <div style="font-size:10px;color:#94a3b8">Unidades Adquiridas:</div>
+                  <div style="font-size:16px;font-weight:900;color:#f59e0b">${ls?.investments?.rentalUnits || 0} unidade(s) (+R$ ${((ls?.investments?.rentalUnits || 0) * 650).toLocaleString("pt-BR")}/mês)</div>
+                </div>
+              </div>
+              <div>
+                ${
+                  bank >= 25000
+                    ? `<button type="button" class="btn success btn-buy-rental" style="width:100%;background:#10b981;color:#000;font-weight:900;padding:9px;border-radius:8px;border:none;cursor:pointer;font-size:11px">Comprar Kitnet (R$ 25.000)</button>`
+                    : `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;font-size:10px;padding:9px;border-radius:8px">🔒 Faltam R$ ${(25000 - bank).toLocaleString("pt-BR")}</button>`
+                }
+              </div>
+            </div>
+
+            <!-- 4. FRANQUIA DE ESCOLINHA DE FUTEBOL -->
+            <div style="background:#090d16;border:1px solid #334155;border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <span style="font-size:26px">⚽</span>
+                  <div>
+                    <div style="font-size:14px;font-weight:900;color:#fff">Escolinha de Futebol</div>
+                    <div style="font-size:10px;color:#10b981;font-weight:700">R$ 75.000 · Rende +R$ 2.100/mês</div>
+                  </div>
+                </div>
+                <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:10px">
+                  Formação de novos talentos levando seu nome. Proporciona renda mensal contínua e status no meio esportivo.
+                </div>
+                <div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:8px 10px;margin-bottom:12px">
+                  <div style="font-size:10px;color:#94a3b8">Status da Franquia:</div>
+                  <div style="font-size:14px;font-weight:900;color:${ls?.investments?.academyOwned ? "#10b981" : "#94a3b8"}">
+                    ${ls?.investments?.academyOwned ? "Inaugurada (+R$ 2.100/mês)" : "Disponível para Abertura"}
+                  </div>
+                </div>
+              </div>
+              <div>
+                ${
+                  ls?.investments?.academyOwned
+                    ? `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#10b981;font-weight:900;font-size:11px;padding:9px;border-radius:8px">✨ Franquia Operando</button>`
+                    : bank >= 75000
+                      ? `<button type="button" class="btn success btn-buy-academy" style="width:100%;background:#10b981;color:#000;font-weight:900;padding:9px;border-radius:8px;border:none;cursor:pointer;font-size:11px">Abrir Franquia (R$ 75.000)</button>`
+                      : `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;font-size:10px;padding:9px;border-radius:8px">🔒 Faltam R$ ${(75000 - bank).toLocaleString("pt-BR")}</button>`
+                }
+              </div>
+            </div>
+
+            <!-- 5. MARCA PRÓPRIA DE ROUPAS -->
+            <div style="background:#090d16;border:1px solid #334155;border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <span style="font-size:26px">✨</span>
+                  <div>
+                    <div style="font-size:14px;font-weight:900;color:#fff">Marca Própria de Roupas</div>
+                    <div style="font-size:10px;color:#a855f7;font-weight:700">R$ 180.000 · Rende +R$ 5.400/mês</div>
+                  </div>
+                </div>
+                <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:10px">
+                  Linha de vestuário esportivo e casual com seu logotipo. Gera royalties expressivos e eleva seu prestígio mundial.
+                </div>
+                <div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:8px 10px;margin-bottom:12px">
+                  <div style="font-size:10px;color:#94a3b8">Status da Marca:</div>
+                  <div style="font-size:14px;font-weight:900;color:${ls?.investments?.brandOwned ? "#a855f7" : "#94a3b8"}">
+                    ${ls?.investments?.brandOwned ? "Lançada (+R$ 5.400/mês)" : "Disponível para Lançamento"}
+                  </div>
+                </div>
+              </div>
+              <div>
+                ${
+                  ls?.investments?.brandOwned
+                    ? `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#a855f7;font-weight:900;font-size:11px;padding:9px;border-radius:8px">✨ Marca Ativa no Mercado</button>`
+                    : bank >= 180000
+                      ? `<button type="button" class="btn success btn-buy-brand" style="width:100%;background:#a855f7;color:#fff;font-weight:900;padding:9px;border-radius:8px;border:none;cursor:pointer;font-size:11px">Lançar Marca (R$ 180.000)</button>`
+                      : `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;font-size:10px;padding:9px;border-radius:8px">🔒 Faltam R$ ${(180000 - bank).toLocaleString("pt-BR")}</button>`
+                }
+              </div>
+            </div>
+
           </div>
-        `
-            : ""
-        }
+        </div>
+
+        <!-- SEÇÃO 5: EXTRATO FINANCEIRO DOS ÚLTIMOS MESES (LIVRO-RAZÃO) -->
+        <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+            <div>
+              <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+                📊 EXTRATO FINANCEIRO DOS ÚLTIMOS MESES
+              </h3>
+              <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+                Livro-razão com o histórico de entradas e saídas financeiras da sua carreira de atleta.
+              </div>
+            </div>
+            <span class="pill primary" style="font-size:10px;font-weight:900">EXTRATO BANCÁRIO</span>
+          </div>
+
+          ${(function () {
+            const txs = (ls?.transactions && ls.transactions.length > 0)
+              ? ls.transactions
+              : [];
+
+            if (txs.length === 0) {
+              return `
+                <div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);border-radius:12px;padding:24px;text-align:center;color:#94a3b8;font-size:13px">
+                  Nenhuma transação financeira registrada recentemente. Ao comprar itens, receber salários ou investir, os lançamentos aparecerão aqui!
+                </div>
+              `;
+            }
+
+            return `
+              <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
+                  <thead>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:#94a3b8;font-size:11px;font-weight:800">
+                      <th style="padding:10px">DATA</th>
+                      <th style="padding:10px">DESCRIÇÃO DA OPERAÇÃO</th>
+                      <th style="padding:10px;text-align:right">VALOR (R$)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${txs
+                      .slice(0, 20)
+                      .map((tx) => {
+                        const isIn = tx.type === "in";
+                        return `
+                          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.2s">
+                            <td style="padding:10px;color:#94a3b8;white-space:nowrap">${formatDatePtBr(tx.date)}</td>
+                            <td style="padding:10px;color:#fff;font-weight:700">${esc(tx.desc)}</td>
+                            <td style="padding:10px;text-align:right;font-weight:900;color:${isIn ? "#10b981" : "#f87171"};white-space:nowrap">
+                              ${isIn ? "+ R$ " : "- R$ "} ${(Number(tx.amount) || 0).toLocaleString("pt-BR")}
+                            </td>
+                          </tr>
+                        `;
+                      })
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>
+            `;
+          })()}
+        </div>
 
       </div>
     `;
@@ -5624,13 +6016,68 @@
       };
     });
 
+    // Comprar Chuteira
+    document.querySelectorAll(".btn-buy-boot").forEach((btn) => {
+      btn.onclick = () => {
+        const bootId = btn.dataset.bootId;
+        const res = window.AFM_Lifestyle?.buyBoot
+          ? window.AFM_Lifestyle.buyBoot(s, bootId)
+          : { success: false, message: "Erro ao comprar chuteira." };
+        syncControlledPlayerOverall(s);
+        showCustomAlert({
+          title: res.success ? "Chuteira Nova! 👟" : "Saldo Insuficiente ❌",
+          message: res.message,
+          type: res.success ? "success" : "warning",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
+      };
+    });
+
+    // Reformar Chuteira (35% do valor da nova)
+    document.querySelectorAll(".btn-repair-boot").forEach((btn) => {
+      btn.onclick = () => {
+        const bootId = btn.dataset.bootId;
+        const res = window.AFM_Lifestyle?.repairBoot
+          ? window.AFM_Lifestyle.repairBoot(s, bootId)
+          : { success: false, message: "Erro ao reformar chuteira." };
+        syncControlledPlayerOverall(s);
+        showCustomAlert({
+          title: res.success ? "Reforma Concluída! 🔧" : "Saldo Insuficiente ❌",
+          message: res.message,
+          type: res.success ? "success" : "warning",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
+      };
+    });
+
+    // Equipar Chuteira
+    document.querySelectorAll(".btn-equip-boot").forEach((btn) => {
+      btn.onclick = () => {
+        const bootId = btn.dataset.bootId;
+        const res = window.AFM_Lifestyle?.equipBoot
+          ? window.AFM_Lifestyle.equipBoot(s, bootId)
+          : { success: false, message: "Erro ao equipar chuteira." };
+        syncControlledPlayerOverall(s);
+        if (typeof window.save === "function") window.save();
+        if (typeof window.render === "function") window.render();
+      };
+    });
+
     // Contratar Membro de Staff Pessoal
     document.querySelectorAll(".btn-hire-staff").forEach((btn) => {
       btn.onclick = () => {
         const staffId = btn.dataset.staffId;
-        const res = window.AFM_PlayerEngine?.hireStaffMember
-          ? window.AFM_PlayerEngine.hireStaffMember(s, staffId)
-          : { success: false, message: "Erro ao contratar staff." };
+        const res = window.AFM_Lifestyle?.hireStaffMember
+          ? window.AFM_Lifestyle.hireStaffMember(s, staffId)
+          : window.AFM_PlayerEngine?.hireStaffMember
+            ? window.AFM_PlayerEngine.hireStaffMember(s, staffId)
+            : { success: false, message: "Erro ao contratar staff." };
         showCustomAlert({
           title: res.success ? "Staff Contratado! ⭐" : "Saldo Insuficiente ❌",
           message: res.message,
@@ -5647,13 +6094,161 @@
     document.querySelectorAll(".btn-dismiss-staff").forEach((btn) => {
       btn.onclick = () => {
         const staffId = btn.dataset.staffId;
-        const res = window.AFM_PlayerEngine?.dismissStaffMember
-          ? window.AFM_PlayerEngine.dismissStaffMember(s, staffId)
-          : { success: false, message: "Erro ao dispensar staff." };
+        const res = window.AFM_Lifestyle?.dismissStaffMember
+          ? window.AFM_Lifestyle.dismissStaffMember(s, staffId)
+          : window.AFM_PlayerEngine?.dismissStaffMember
+            ? window.AFM_PlayerEngine.dismissStaffMember(s, staffId)
+            : { success: false, message: "Erro ao dispensar staff." };
         showCustomAlert({
           title: "Vínculo Encerrado 📋",
           message: res.message,
           type: "info",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
+      };
+    });
+
+    // Comprar Bem de Luxo à Vista
+    document.querySelectorAll(".btn-buy-asset-cash").forEach((btn) => {
+      btn.onclick = () => {
+        const assetId = btn.dataset.assetId;
+        const res = window.AFM_Lifestyle?.buyAssetCash
+          ? window.AFM_Lifestyle.buyAssetCash(s, assetId)
+          : { success: false, message: "Erro ao adquirir bem." };
+        showCustomAlert({
+          title: res.success ? "Conquista Desbloqueada! 💎" : "Saldo Insuficiente ❌",
+          message: res.message,
+          type: res.success ? "success" : "warning",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
+      };
+    });
+
+    // Financiar Bem em 12x
+    document.querySelectorAll(".btn-finance-asset").forEach((btn) => {
+      btn.onclick = () => {
+        const assetId = btn.dataset.assetId;
+        const res = window.AFM_Lifestyle?.financeAsset
+          ? window.AFM_Lifestyle.financeAsset(s, assetId)
+          : { success: false, message: "Erro ao financiar bem." };
+        showCustomAlert({
+          title: res.success ? "Financiamento Bancário Aprovado! 🚗" : "Não Autorizado ❌",
+          message: res.message,
+          type: res.success ? "success" : "warning",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
+      };
+    });
+
+    // Gravar Comercial / Presença VIP
+    document.querySelectorAll(".btn-media-gig").forEach((btn) => {
+      btn.onclick = () => {
+        const res = window.AFM_Lifestyle?.executeMediaGig
+          ? window.AFM_Lifestyle.executeMediaGig(s)
+          : { success: false, message: "Erro ao gravar comercial." };
+        showCustomAlert({
+          title: res.success ? "Campanha de Sucesso! 📸" : "Aviso de Mídia ⚠️",
+          message: res.message,
+          type: res.success ? "success" : "warning",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
+      };
+    });
+
+    // Depósito CDB
+    document.querySelectorAll(".btn-cdb-deposit").forEach((btn) => {
+      btn.onclick = () => {
+        const res = window.AFM_Lifestyle?.depositCdb
+          ? window.AFM_Lifestyle.depositCdb(s, 500)
+          : { success: false, message: "Erro ao aplicar no CDB." };
+        showCustomAlert({
+          title: res.success ? "Aplicação Realizada! 🏦" : "Saldo Insuficiente ❌",
+          message: res.message,
+          type: res.success ? "success" : "warning",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
+      };
+    });
+
+    // Resgate CDB
+    document.querySelectorAll(".btn-cdb-withdraw").forEach((btn) => {
+      btn.onclick = () => {
+        const res = window.AFM_Lifestyle?.withdrawCdb
+          ? window.AFM_Lifestyle.withdrawCdb(s)
+          : { success: false, message: "Erro ao resgatar CDB." };
+        showCustomAlert({
+          title: res.success ? "Resgate Concluído! 💰" : "Aviso ⚠️",
+          message: res.message,
+          type: res.success ? "success" : "warning",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
+      };
+    });
+
+    // Comprar Kitnet
+    document.querySelectorAll(".btn-buy-rental").forEach((btn) => {
+      btn.onclick = () => {
+        const res = window.AFM_Lifestyle?.buyRentalUnit
+          ? window.AFM_Lifestyle.buyRentalUnit(s)
+          : { success: false, message: "Erro ao comprar imóvel." };
+        showCustomAlert({
+          title: res.success ? "Imóvel Adquirido! 🏠" : "Saldo Insuficiente ❌",
+          message: res.message,
+          type: res.success ? "success" : "warning",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
+      };
+    });
+
+    // Abrir Franquia de Escolinha
+    document.querySelectorAll(".btn-buy-academy").forEach((btn) => {
+      btn.onclick = () => {
+        const res = window.AFM_Lifestyle?.buyAcademy
+          ? window.AFM_Lifestyle.buyAcademy(s)
+          : { success: false, message: "Erro ao abrir escolinha." };
+        showCustomAlert({
+          title: res.success ? "Franquia Inaugurada! ⚽" : "Saldo Insuficiente ❌",
+          message: res.message,
+          type: res.success ? "success" : "warning",
+          onConfirm: () => {
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          },
+        });
+      };
+    });
+
+    // Lançar Marca Própria
+    document.querySelectorAll(".btn-buy-brand").forEach((btn) => {
+      btn.onclick = () => {
+        const res = window.AFM_Lifestyle?.buyBrand
+          ? window.AFM_Lifestyle.buyBrand(s)
+          : { success: false, message: "Erro ao lançar marca." };
+        showCustomAlert({
+          title: res.success ? "Marca Própria Lançada! ✨" : "Saldo Insuficiente ❌",
+          message: res.message,
+          type: res.success ? "success" : "warning",
           onConfirm: () => {
             if (typeof window.save === "function") window.save();
             if (typeof window.render === "function") window.render();

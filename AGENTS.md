@@ -34,6 +34,13 @@
   - A troca de data no calendário (`CONTINUAR`) via `syncDailyTrainingLimit` reseta idempotentemente `dailyCount = 0` sincronizando com a nova data.
   - A carga é consumida imediatamente no momento do disparo do chute (clique no alvo do gol no Pênalti ou no estilo de batida na Falta) com persistência imediata (`save()`), impedindo burlas por reload/F5 ou fechamento de modal.
   - Pênalti concede +20 XP no gol e +3 XP no erro; Falta concede +35 XP no gol e +5 XP no erro, alimentando `xp` e `shootingXp`. Ao atingir a meta de nível, sobe de nível, concede 1 ponto de atributo livre (`skillPoints` / `availablePoints`) e escala a meta em 1.2x.
+- Economia e Estilo de Vida do Atleta (Aba 💎 Vida & Patrocínios):
+  - A conta bancária do atleta mantém 100% de paridade entre `player.cash`, `lifestyle.cash` e `player.personalBank` (e o badge do HUD), sincronizada em cada transação via `addPlayerTransaction`.
+  - Chuteiras possuem durabilidade e perdem 1 ponto de integridade por partida disputada; durabilidade zerada suspende os bônus de atributos até reforma das travas (custo fixo de 35% do valor da nova).
+  - Staff Pessoal conta com 8 profissionais exclusivos com honorários e bônus aplicados no motor (Analista de Vídeo +1 Passe/Visão, Personal Trainer +20% XP, Fisioterapeuta -35% fadiga, etc.). Saldo negativo na virada de mês suspende automaticamente 1 profissional por inadimplência.
+  - Bens de luxo suportam compra à vista ou financiamento bancário em 12x (30% de entrada imediata e saldo com juros de 10% dividido em 12 meses, quitando automaticamente ao término). Contador Pessoal concede 15% de desconto na manutenção mensal de bens e eleva rendimento do CDB de 1.1% para 1.5%/mês.
+  - Negócios e mídia: campanhas de publicidade/VIP consomem 15% de estamina com cooldown semanal; aluguéis de kitnets (R$ 650/mês), escolinha (R$ 2.100/mês) e marca própria (R$ 5.400/mês) creditam na virada mensal. O extrato financeiro preserva histórico das 20 transações mais recentes com valores e cores padronizados.
+  - A interface deve exibir botões inteligentes desabilitados com o texto '🔒 Faltam R$ X' sempre que o saldo for inferior ao custo de compra, reforma, contratação, entrada ou investimento.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis

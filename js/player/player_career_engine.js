@@ -795,6 +795,28 @@
       benefitText: 'Proteção contra assédio da torcida/mídia e pontualidade 100% garantida',
       icon: '🛡️',
       description: 'Veículo blindado particular e segurança discreto para viagens e deslocamento aos treinos.'
+    },
+    {
+      id: 'video_analyst',
+      name: 'Analista de Desempenho Tático Individual',
+      role: 'Análise Tática & Posicionamento',
+      category: 'tactics',
+      hireCost: 4200,
+      monthlyCostBase: 1050,
+      benefitText: '+1 em Passe/Visão de Jogo (visão tática avançada de posicionamento)',
+      icon: '📹',
+      description: 'Análise detalhada de movimentação adversária, mapas de calor e leitura de jogo moderna.'
+    },
+    {
+      id: 'accountant',
+      name: 'Consultor Financeiro & Contador Pessoal',
+      role: 'Gestão Patrimonial & Tributária',
+      category: 'finance',
+      hireCost: 5000,
+      monthlyCostBase: 1300,
+      benefitText: 'Reduz em 15% a manutenção de bens/veículos e aumenta rendimentos do CDB de 1.1% para 1.5%/mês',
+      icon: '💼',
+      description: 'Planejamento financeiro de carreira, elisão fiscal legal e blindagem de patrimônio esportivo.'
     }
   ];
 
@@ -1135,12 +1157,47 @@
   function getPlayerEffectiveAttributes(gameState, athlete){
     const attrs = { ...(athlete?.attributes || {}) };
     const pState = gameState?.playerCareerState;
-    const ownsBoots = Array.isArray(pState?.luxuryItems) && pState.luxuryItems.includes('luxury_boots');
-    const sponsorBonus = getSponsorBootBonus(pState?.sponsorContract);
-    if((ownsBoots && pState.luxuryBootsEquipped !== false) || sponsorBonus){
-      const baseShot = Number.isFinite(Number(attrs.chu)) ? Number(attrs.chu) : 35;
-      attrs.chu = Math.min(99, Math.max(1, baseShot) + (ownsBoots && pState.luxuryBootsEquipped !== false ? 2 : 0) + sponsorBonus);
+    const ls = pState?.lifestyle;
+
+    // 1. Chuteira Equipada e Durabilidade
+    if(ls && ls.equippedBootsId && ls.ownedBoots && ls.ownedBoots[ls.equippedBootsId]){
+      const bootData = ls.ownedBoots[ls.equippedBootsId];
+      if(bootData.durability > 0){
+        const catalog = window.AFM_Lifestyle?.AFM_BOOTS_CATALOG || [];
+        const boot = catalog.find(b => b.id === ls.equippedBootsId);
+        if(boot && boot.stats){
+          const p = boot.stats.pace || boot.stats.vel || 0;
+          const s = boot.stats.shooting || boot.stats.chu || 0;
+          const ps = boot.stats.passing || boot.stats.pas || 0;
+          const d = boot.stats.dribbling || boot.stats.dri || 0;
+          if(p) attrs.vel = Math.min(99, Math.max(1, (Number(attrs.vel) || 35) + p));
+          if(s) attrs.chu = Math.min(99, Math.max(1, (Number(attrs.chu) || 35) + s));
+          if(ps) attrs.pas = Math.min(99, Math.max(1, (Number(attrs.pas) || 35) + ps));
+          if(d) attrs.dri = Math.min(99, Math.max(1, (Number(attrs.dri) || 35) + d));
+        }
+      }
+    } else {
+      const ownsBoots = Array.isArray(pState?.luxuryItems) && pState.luxuryItems.includes('luxury_boots');
+      if(ownsBoots && pState.luxuryBootsEquipped !== false){
+        const baseShot = Number.isFinite(Number(attrs.chu)) ? Number(attrs.chu) : 35;
+        attrs.chu = Math.min(99, Math.max(1, baseShot + 2));
+      }
     }
+
+    // 2. Bônus de Fornecedor Esportivo de Chuteiras (Patrocínio de Material Esportivo)
+    const sponsorBonus = getSponsorBootBonus(pState?.sponsorContract);
+    if(sponsorBonus){
+      const baseShot = Number.isFinite(Number(attrs.chu)) ? Number(attrs.chu) : 35;
+      attrs.chu = Math.min(99, Math.max(1, baseShot + sponsorBonus));
+    }
+
+    // 3. Bônus do Analista de Desempenho Tático Individual (+1 Passe & Visão)
+    const hasAnalyst = ls?.hiredStaff?.includes('video_analyst') || pState?.hiredStaff?.video_analyst;
+    if(hasAnalyst){
+      const basePass = Number.isFinite(Number(attrs.pas)) ? Number(attrs.pas) : 35;
+      attrs.pas = Math.min(99, Math.max(1, basePass + 1));
+    }
+
     return attrs;
   }
 
@@ -1713,8 +1770,9 @@
 
     pState.managerTrust = Math.max(0, Math.min(100, (pState.managerTrust || 35) + trustDelta));
 
-    // Cálculo de XP ganho
-    let xpMultiplier = pState.lifestylePerks?.personalTrainer ? 1.15 : 1.0;
+    // Cálculo de XP ganho (+20% com Personal Trainer)
+    const hasTrainer = pState.lifestylePerks?.personalTrainer || pState.lifestyle?.hiredStaff?.includes('personal_trainer') || pState.hiredStaff?.personal_trainer;
+    let xpMultiplier = hasTrainer ? 1.20 : 1.0;
     let xpEarned = Math.round((finalRating * 32 + (goalsScored * 65) + (assistsGiven * 45) + (won ? 35 : 10)) * xpMultiplier);
 
     pState.xp = (pState.xp || 0) + xpEarned;
@@ -1723,8 +1781,9 @@
     let levelUps = 0;
     levelUps += normalizePlayerProgression(pState);
 
-    // Aplicação de fadiga física
-    const fatigueFactor = pState.lifestylePerks?.physio ? 0.7 : 1.0;
+    // Aplicação de fadiga física (35% menor perda com Fisioterapeuta)
+    const hasPhysio = pState.lifestylePerks?.physio || pState.lifestyle?.hiredStaff?.includes('physio') || pState.hiredStaff?.physio;
+    const fatigueFactor = hasPhysio ? 0.65 : 1.0;
     const energyLost = Math.round((playedMinutes * 0.28) * fatigueFactor);
     playerObj.energy = Math.max(40, (playerObj.energy || 100) - energyLost);
 
@@ -1735,7 +1794,12 @@
       if(won && sp.bonusWin) sponsorBonusMoney += sp.bonusWin;
       if(goalsScored > 0 && sp.bonusGoal) sponsorBonusMoney += (goalsScored * sp.bonusGoal);
       if(assistsGiven > 0 && sp.bonusAssist) sponsorBonusMoney += (assistsGiven * sp.bonusAssist);
-      pState.personalBank = (pState.personalBank || 0) + sponsorBonusMoney;
+      
+      if(window.AFM_Lifestyle?.addPlayerTransaction && sponsorBonusMoney > 0){
+        window.AFM_Lifestyle.addPlayerTransaction(pState, matchDate || gameState?.date, `Bônus de Partida (Patrocínio)`, sponsorBonusMoney, 'in');
+      } else {
+        pState.personalBank = (pState.personalBank || 0) + sponsorBonusMoney;
+      }
 
       // Monitoramento de desempenho durante o vínculo do contrato de patrocínio
       sp.matchesDuringContract = (sp.matchesDuringContract || 0) + 1;
@@ -1743,6 +1807,11 @@
       sp.assistsDuringContract = (sp.assistsDuringContract || 0) + assistsGiven;
       sp.ratingsList = Array.isArray(sp.ratingsList) ? sp.ratingsList : [];
       sp.ratingsList.push(finalRating);
+    }
+
+    // Efeitos de Estilo de Vida & Chuteiras (desgaste, bônus de gol)
+    if(window.AFM_Lifestyle?.processMatchLifestyleEffects){
+      window.AFM_Lifestyle.processMatchLifestyleEffects(gameState, { goalsScored, assistsGiven, won }, matchDate || gameState?.date);
     }
 
     // Atualização das estatísticas da carreira
@@ -2351,6 +2420,9 @@
    */
   function processMonthlyPlayerFinances(gameState, paymentDate = gameState?.date || gameState?.currentDate){
     if(!gameState || gameState.gameMode !== 'player' || !gameState.playerCareerState) return;
+    if(window.AFM_Lifestyle && typeof window.AFM_Lifestyle.processMonthlyPlayerFinances === 'function'){
+      return window.AFM_Lifestyle.processMonthlyPlayerFinances(gameState, paymentDate);
+    }
     const pState = gameState.playerCareerState;
     const curDate = paymentDate || gameState.date || gameState.currentDate || '2026-01-01';
     const monthKey = String(curDate).slice(0, 7);
@@ -3324,7 +3396,8 @@
     registerPlayerTransferListing,
     searchPlayerTransferMarket,
     processDailySponsorTurn,
-    processEndOfSeasonAwards
+    processEndOfSeasonAwards,
+    lifestyle: (typeof window !== 'undefined' ? window.AFM_Lifestyle : null)
   };
   window.AFM_PlayerCareerEngine = window.AFM_PlayerEngine;
 
