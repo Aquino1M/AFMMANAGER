@@ -17,6 +17,7 @@
 
 ## Carreira do jogador
 
+- REGRA IRRESTRITA DO CRIADOR DE ATLETA 3D (MODO CARREIRA JOGADOR): Todos os catálogos do criador (Estados/Cidades, Aparência 3D, Biotipos, Chuteiras, Arquétipos e Peneiras) devem existir em window.AFM_CREATOR_CATALOG sem dependências externas. Toda edição de pele, cabelo, cor de cabelo, olhos, face, porte ou chuteira deve atualizar o boneco 3D e o retrato jovem (Data URI anti-404) em tempo real, com navegação funcional tanto pelo stepper superior quanto pelos botões Voltar/Avançar.
 - Preserve sempre a criação do atleta (`#btnGoCreatePlayer`, `#btnNavGoPlayerMode`, `setupViewMode === 'create_player'` e `renderCreatePlayerScreen`). Elenco legado incompleto deve ser completado sem duplicar atletas nem remover o controlado; mudanças exigem teste de migração idempotente.
 - Limite atributos a 99. Toda rota de partida registra uma só atuação com minutos via `AFM_PlayerEngine.processMatchPerformance`; normalize minutos na fronteira. Súmula, eventos, intervalo, nota final, gols, assistências, histórico, XP, patrocínio e prêmios devem compartilhar os mesmos dados, sem inferir gol pelo placar.
 - Nunca coloque o atleta de linha no slot GK. Garanta goleiro válido, preserve posição natural e reposicione coordenadas após substituições/intervalo. Teste titular, reserva, troca, goleiro ausente e estatísticas duplicadas.

@@ -29242,6 +29242,12 @@ function render() {
     return;
   }
 
+  // Blindagem contra sobrescrita durante criação de atleta (Hipótese 6)
+  if (app.querySelector && (app.querySelector('.afm-player-creator-wrapper') || (typeof setupViewMode !== 'undefined' && setupViewMode === 'create_player') || (typeof window !== 'undefined' && window.setupViewMode === 'create_player'))) {
+    window.__afmIsRendering = false;
+    return;
+  }
+
   try {
     if(!state){
       renderSetup(app);

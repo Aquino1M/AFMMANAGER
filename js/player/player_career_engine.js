@@ -224,7 +224,29 @@
       description: 'Reflexos debaixo das traves e segurança nas saídas pelo alto.',
       pos: 'GOL',
       attrs: { vel: 26, chu: 18, pas: 26, dri: 18, def: 42, fis: 36 } // OVR ~35
-    }
+    },
+    // Catálogo Expandido 21 Arquétipos (AFM_CREATOR_CATALOG)
+    'gk_reflex': { name: 'Goleiro de Reflexo', pos: 'GOL', attrs: { vel: 32, chu: 22, pas: 34, dri: 30, def: 42, fis: 38 } },
+    'gk_sweeper': { name: 'Goleiro-Líbero', pos: 'GOL', attrs: { vel: 36, chu: 25, pas: 40, dri: 35, def: 39, fis: 36 } },
+    'gk_wall': { name: 'Muralha Aérea', pos: 'GOL', attrs: { vel: 29, chu: 22, pas: 32, dri: 28, def: 41, fis: 44 } },
+    'cb_stopper': { name: 'Xerife de Contenção', pos: 'ZAG', attrs: { vel: 33, chu: 25, pas: 31, dri: 30, def: 41, fis: 42 } },
+    'cb_ballplaying': { name: 'Zagueiro Construtor', pos: 'ZAG', attrs: { vel: 35, chu: 27, pas: 39, dri: 35, def: 39, fis: 37 } },
+    'cb_fast': { name: 'Zagueiro de Cobertura', pos: 'ZAG', attrs: { vel: 40, chu: 24, pas: 33, dri: 33, def: 39, fis: 38 } },
+    'fb_offensive': { name: 'Ala Ofensivo', pos: 'LAT', attrs: { vel: 41, chu: 31, pas: 37, dri: 38, def: 34, fis: 34 } },
+    'fb_defensive': { name: 'Lateral Defensivo', pos: 'LAT', attrs: { vel: 37, chu: 27, pas: 34, dri: 33, def: 40, fis: 38 } },
+    'fb_inverted': { name: 'Lateral Construtor', pos: 'LAT', attrs: { vel: 36, chu: 30, pas: 40, dri: 38, def: 36, fis: 34 } },
+    'cdm_destroyer': { name: 'Cão de Guarda', pos: 'VOL', attrs: { vel: 34, chu: 28, pas: 35, dri: 33, def: 41, fis: 41 } },
+    'cdm_regista': { name: 'Primeiro Volante Armador', pos: 'VOL', attrs: { vel: 33, chu: 31, pas: 42, dri: 37, def: 37, fis: 35 } },
+    'cdm_box': { name: 'Volante Box-to-Box', pos: 'VOL', attrs: { vel: 37, chu: 34, pas: 37, dri: 36, def: 37, fis: 39 } },
+    'cam_maestro': { name: 'Camisa 10 Clássico', pos: 'MEI', attrs: { vel: 34, chu: 37, pas: 43, dri: 41, def: 26, fis: 31 } },
+    'cam_shadow': { name: 'Segundo Atacante', pos: 'MEI', attrs: { vel: 38, chu: 40, pas: 37, dri: 40, def: 25, fis: 32 } },
+    'cam_dribbler': { name: 'Meia Driblador', pos: 'MEI', attrs: { vel: 39, chu: 35, pas: 38, dri: 44, def: 25, fis: 30 } },
+    'rw_speedster': { name: 'Ponta Velocista', pos: 'PON', attrs: { vel: 44, chu: 36, pas: 35, dri: 41, def: 24, fis: 31 } },
+    'rw_inside': { name: 'Ponta Corta-pra-Dentro', pos: 'PON', attrs: { vel: 40, chu: 41, pas: 36, dri: 42, def: 24, fis: 31 } },
+    'rw_playmaker': { name: 'Ponta Criador', pos: 'PON', attrs: { vel: 39, chu: 35, pas: 41, dri: 42, def: 26, fis: 30 } },
+    'st_poacher': { name: 'Matador de Área', pos: 'ATA', attrs: { vel: 37, chu: 43, pas: 32, dri: 37, def: 22, fis: 38 } },
+    'st_false9': { name: 'Falso 9 Técnico', pos: 'ATA', attrs: { vel: 37, chu: 38, pas: 40, dri: 42, def: 24, fis: 33 } },
+    'st_target': { name: 'Centroavante Pivô', pos: 'ATA', attrs: { vel: 33, chu: 41, pas: 33, dri: 33, def: 23, fis: 44 } }
   };
 
   // Os 3 Tipos de Peneira Inicial
@@ -275,6 +297,70 @@
       difficultyColor: '#ef4444',
       icon: '🥇',
       scoutCommentSuccess: 'Sensacional! Entre centenas de garotos, você encheu os olhos do coordenador da base.',
+      scoutCommentFail: 'Concorrência feroz. O clube busca atletas prontos fisicamente. Uma passagem pela Série D ou C ajudará na sua maturação.'
+    },
+    'varzea_local': {
+      id: 'varzea_local',
+      name: 'Peneira de Várzea & Clube Local',
+      subtitle: 'Clubes Estaduais / Série D · Alta chance de aprovação',
+      description: 'Teste aberto na sua cidade natal. Basta participar bem do coletivo de 30 minutos para receber até 3 propostas de times regionais.',
+      approvalBaseChance: 0.90,
+      wageRange: [950, 1350],
+      initialTrust: 45,
+      defaultRole: 'Reserva Imediato',
+      badgeClass: 'good',
+      difficultyBadge: 'Alta Aprovação (~90%)',
+      difficultyColor: '#10b981',
+      icon: '🏘️',
+      scoutCommentSuccess: 'Aprovado com louvor! O treinador viu potencial para ser lapidado na equipe principal rapidamente.',
+      scoutCommentFail: 'O teste foi equilibrado, mas o clube tem poucas vagas para alojamento neste semestre.'
+    },
+    'estadual_federada': {
+      id: 'estadual_federada',
+      name: 'Peneira Federada Estadual',
+      subtitle: '1ª Divisão Estadual & Série D · Exige Nota 6.5+',
+      description: 'Olheiros de clubes tradicionais do seu estado estarão na arquibancada. Marque gol, dê assistência ou mantenha nota acima de 6.5.',
+      approvalBaseChance: 0.70,
+      wageRange: [1400, 2400],
+      initialTrust: 40,
+      defaultRole: 'Reserva Imediato',
+      badgeClass: 'good',
+      difficultyBadge: 'Boa Aprovação (~70%)',
+      difficultyColor: '#10b981',
+      icon: '🏟️',
+      scoutCommentSuccess: 'Excelente atuação no coletivo! Você conquistou uma das vagas e treinará com os aspirantes.',
+      scoutCommentFail: 'Faltou um pouco mais de ritmo de jogo contra atletas mais velhos. Tente novamente ou busque uma divisão mais acessível.'
+    },
+    'nacional_cb': {
+      id: 'nacional_cb',
+      name: 'Seletiva Nacional Séries C & B',
+      subtitle: 'Clubes Nacionais · Exige Nota 7.2+ no Coletivo',
+      description: 'Peneira altamente disputada com jovens promessas de todo o país. Exige atuação decisiva para conquistar contrato.',
+      approvalBaseChance: 0.50,
+      wageRange: [2800, 5200],
+      initialTrust: 30,
+      defaultRole: 'Disputa Posição',
+      badgeClass: 'warning',
+      difficultyBadge: 'Média Aprovação (~50%)',
+      difficultyColor: '#f59e0b',
+      icon: '⭐',
+      scoutCommentSuccess: 'Destaque absoluto no teste! Você foi selecionado entre centenas de candidatos para a divisão nacional.',
+      scoutCommentFail: 'Concorrência acirrada. Recomendamos ganhar experiência em nível estadual primeiro.'
+    },
+    'elite_serie_a': {
+      id: 'elite_serie_a',
+      name: 'Peneira de Gigantes (Série A)',
+      subtitle: 'Clubes da Elite Nacional · Exige Nota 8.0+ (MVP)',
+      description: 'Apenas os melhores talentos da base passam. Se brilhar no jogo-treino, você já inicia a carreira na base de um gigante do Brasil!',
+      approvalBaseChance: 0.28,
+      wageRange: [6000, 12000],
+      initialTrust: 25,
+      defaultRole: 'Sub-20 / Não Relacionado',
+      badgeClass: 'danger',
+      difficultyBadge: 'Exigência Extrema (~28%)',
+      difficultyColor: '#ef4444',
+      icon: '🔥',
+      scoutCommentSuccess: 'Sensacional! Entre centenas de garotos, você encheu os olhos do coordenador da base da Série A.',
       scoutCommentFail: 'Concorrência feroz. O clube busca atletas prontos fisicamente. Uma passagem pela Série D ou C ajudará na sua maturação.'
     }
   };
@@ -1359,15 +1445,18 @@
     let candidatePool = [];
     let divisionName = 'Série D / Acesso Estadual';
 
-    if(tier.id === 'basica'){
+    if(tier.id === 'basica' || tier.id === 'varzea_local'){
       divisionName = 'Série D / Acesso Estadual';
       const uf = athleteData?.stateUf || 'DF';
       const localRegion = BRAZILIAN_REGIONS_DATA[uf];
       const localClubs = (localRegion?.cities || []).flatMap(c => c.clubs).filter(c => !serieA.includes(c) && !serieB.includes(c));
       candidatePool = localClubs.length > 0 ? [...localClubs, ...serieD] : [...serieD];
-    } else if(tier.id === 'media'){
+    } else if(tier.id === 'media' || tier.id === 'estadual_federada'){
       divisionName = 'Série C / Estadual Módulo I';
       candidatePool = [...serieC];
+    } else if(tier.id === 'nacional_cb'){
+      divisionName = 'Séries C e B Nacionais';
+      candidatePool = [...serieC, ...serieB];
     } else {
       divisionName = 'Séries B e A do Brasileirão';
       candidatePool = [...serieB, ...serieA];
