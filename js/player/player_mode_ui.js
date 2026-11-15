@@ -4722,6 +4722,7 @@
     const curSeason = Number(state.season) || 2026;
     const ovr = Number(athlete.overall || athlete.ovr) || 35;
     const trust = Number(pState.managerTrust) || 35;
+    const age = Number(athlete.age || pState.age) || 20;
 
     let proposedWage = Math.round(curWage * 1.3); // +30% inicial
     let selectedUntil = Math.max(curContractUntil, curSeason + 2);
@@ -4730,15 +4731,85 @@
 
     function calcWageApproval(wage, untilYear){
       const ratio = wage / curWage;
-      let chance = 85;
-      if(ratio > 1.15){
-        chance -= (ratio - 1.15) * 55;
+      let chance = 70; // baseline de negociação equilibrada
+
+      // 1. Fator Salário
+      if(ratio <= 1.0){
+        chance += (1.0 - ratio) * 40;
+      } else if(ratio <= 1.25){
+        chance -= (ratio - 1.0) * 45;
+      } else {
+        chance -= 11.25 + (ratio - 1.25) * 65;
       }
-      chance += (trust - 40) * 0.45;
-      chance += (ovr - 35) * 1.2;
-      const yearsAdded = Math.max(0, untilYear - curSeason);
-      if(yearsAdded >= 3 && ratio > 1.3) chance -= 8;
-      return Math.max(5, Math.min(95, Math.round(chance)));
+
+      // 2. Fator Confiança e OVR
+      chance += (trust - 40) * 0.4;
+      chance += (ovr - 50) * 0.8;
+
+      // 3. Fator Duração e Idade (Anos adicionados no vínculo)
+      const durationYears = Math.max(1, Math.min(4, untilYear - curSeason));
+      if(age < 28){
+        // Jovens e atletas em ascensão: vínculo longo é valorizado pelo clube
+        if(durationYears === 4) chance += 14;
+        else if(durationYears === 3) chance += 8;
+        else if(durationYears === 2) chance += 2;
+        else if(durationYears === 1) chance -= 6;
+      } else if(age < 30){
+        // Auge / transição
+        if(durationYears === 2) chance += 5;
+        else if(durationYears === 3) chance += 2;
+        else if(durationYears === 1) chance += 0;
+        else if(durationYears === 4) chance -= 6;
+      } else {
+        // Veteranos (30+ anos, declínio de Overall ativo): clube prefere contratos curtos
+        if(durationYears === 1) chance += 15;
+        else if(durationYears === 2) chance += 6;
+        else if(durationYears === 3) chance -= 14;
+        else if(durationYears === 4) chance -= 26;
+      }
+
+      return Math.min(100, Math.max(5, Math.round(chance)));
+    }
+
+    function getWageFeedback(chance, wage, untilYear){
+      const durationYears = Math.max(1, Math.min(4, untilYear - curSeason));
+      const ratio = wage / curWage;
+      let col = '#10b981';
+      let lbl = 'Alta Aprovação da Diretoria';
+      let desc = 'A diretoria avalia o pedido como justo e compatível com a folha salarial da sua categoria.';
+
+      if(chance >= 65){
+        col = '#10b981';
+        lbl = 'Alta Aprovação da Diretoria';
+        if(age >= 30 && durationYears <= 2){
+          desc = `Excelente aceitação! Contrato seguro de ${durationYears} ano(s) para um atleta experiente de ${age} anos.`;
+        } else if(age < 28 && durationYears >= 3){
+          desc = `Ótima receptividade! A diretoria valoriza a segurança de vínculo longo (${durationYears} anos) para um atleta jovem.`;
+        } else {
+          desc = 'A diretoria avalia a proposta como justa e plenamente compatível com o planejamento financeiro.';
+        }
+      } else if(chance >= 40){
+        col = '#f59e0b';
+        lbl = 'Aprovação Moderada (Negociação Exigente)';
+        if(age >= 30 && durationYears >= 3){
+          desc = `Duração de ${durationYears} anos preocupa a diretoria devido à idade (${age} anos). Reduzir a duração aumentará as chances.`;
+        } else if(ratio > 1.8){
+          desc = 'Pedida salarial elevada para a realidade atual do clube. A diretoria pode hesitar ou fazer contraproposta.';
+        } else {
+          desc = 'Negociação equilibrada. A diretoria pode aceitar ou solicitar metas de desempenho adicionais.';
+        }
+      } else {
+        col = '#ef4444';
+        lbl = 'Baixa Aprovação (Risco Alto de Recusa)';
+        if(age >= 30 && durationYears >= 3){
+          desc = `Vínculo de ${durationYears} anos considerado muito longo e arriscado para um atleta veterano de ${age} anos.`;
+        } else if(ratio > 2.2){
+          desc = 'Pedida salarial muito acima do teto orçamentário do clube para seu papel no elenco.';
+        } else {
+          desc = 'Condições exigentes demais. Reduza a pedida salarial ou ajuste o tempo de contrato para ter aval da diretoria.';
+        }
+      }
+      return { col, lbl, desc };
     }
 
     function renderContent(){
@@ -4747,18 +4818,7 @@
       const isRejected = req?.status === 'rejected';
 
       const chance = calcWageApproval(proposedWage, selectedUntil);
-      let chanceColor = '#10b981';
-      let chanceLabel = 'Alta Aprovação da Diretoria';
-      let chanceDesc = 'A diretoria avalia o pedido como justo e compatível com a folha salarial da sua categoria.';
-      if(chance < 35){
-        chanceColor = '#ef4444';
-        chanceLabel = 'Baixa Aprovação (Risco Alto de Recusa)';
-        chanceDesc = 'Pedida muito acima dos padrões do clube para seu papel no elenco. Alto risco de recusa.';
-      } else if(chance < 65){
-        chanceColor = '#f59e0b';
-        chanceLabel = 'Aprovação Média (Negociação Exigente)';
-        chanceDesc = 'A diretoria pode hesitar ou solicitar metas de desempenho antes de assinar.';
-      }
+      const { col: chanceColor, lbl: chanceLabel, desc: chanceDesc } = getWageFeedback(chance, proposedWage, selectedUntil);
 
       modal.innerHTML = `
         <div style="background:#0f172a;border:2px solid rgba(168,85,247,0.5);border-radius:22px;padding:26px;max-width:540px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.95);color:#fff;animation:afmScaleUp 0.25s ease;position:relative">
@@ -4874,23 +4934,11 @@
       const slider = document.getElementById('sliderWage');
       function updateLiveChance(){
         const ch = calcWageApproval(proposedWage, selectedUntil);
+        const { col, lbl, desc } = getWageFeedback(ch, proposedWage, selectedUntil);
         const valEl = document.getElementById('txtWageChanceVal');
         const barEl = document.getElementById('barWageVisual');
         const descEl = document.getElementById('descWageText');
         const dispEl = document.getElementById('txtWageDisplay');
-
-        let col = '#10b981';
-        let lbl = 'Alta Aprovação da Diretoria';
-        let d = 'A diretoria avalia o pedido como justo e compatível com a folha salarial da sua categoria.';
-        if(ch < 35){
-          col = '#ef4444';
-          lbl = 'Baixa Aprovação (Risco Alto de Recusa)';
-          d = 'Pedida muito acima dos padrões do clube para seu papel no elenco. Alto risco de recusa.';
-        } else if(ch < 65){
-          col = '#f59e0b';
-          lbl = 'Aprovação Média (Negociação Exigente)';
-          d = 'A diretoria pode hesitar ou solicitar metas de desempenho antes de assinar.';
-        }
 
         if(valEl){
           valEl.textContent = `${ch}% de Chance`;
@@ -4902,7 +4950,7 @@
           barEl.style.boxShadow = `0 0 10px ${col}`;
         }
         if(descEl){
-          descEl.innerHTML = `<b style="color:${col}">${lbl}:</b> ${d}`;
+          descEl.innerHTML = `<b style="color:${col}">${lbl}:</b> ${desc}`;
         }
         if(dispEl){
           dispEl.innerHTML = `R$ ${proposedWage.toLocaleString('pt-BR')} <span style="font-size:13px;color:#94a3b8;font-weight:600">/mês</span>`;
@@ -5215,19 +5263,93 @@
   // 3. MODAL: SOLICITAR EMPRÉSTIMO
   function openRequestLoanModal(state, athlete, pState){
     const modal = createActionModalContainer();
+    const ovr = Number(athlete.overall || athlete.ovr) || 50;
+    const age = Number(athlete.age || pState.age) || 20;
+    const trust = Number(pState.managerTrust) || 45;
 
     let selectedTier = 'regional';
     let selectedSalarySplit = '50_50';
+
+    function calcLoanApproval(tier, salarySplit){
+      let chance = 72; // baseline equilibrado
+
+      // 1. Divisão Salarial (Impacto determinante na folha)
+      if(salarySplit === '100_dest'){
+        chance += 18; // 100% pago pelo destino: diretoria comemora economia imediata
+      } else {
+        chance -= 14; // 50/50: clube continua pagando metade
+      }
+
+      // 2. Perfil de Destino Desejado
+      if(tier === 'regional'){
+        if(ovr <= 65 || age < 23){
+          chance += 10; // Jovem ou OVR em desenvolvimento: ideal rodagem estadual
+        } else {
+          chance -= 8; // Atleta pronto subaproveitado em divisão menor
+        }
+      } else if(tier === 'serie_cd'){
+        if(ovr >= 60 && ovr <= 75){
+          chance += 6; // Vitrine nacional equilibrada
+        }
+      } else if(tier === 'any'){
+        chance += 8; // Flexibilidade máxima
+      }
+
+      // 3. Confiança do Treinador
+      if(trust < 40){
+        chance += 8; // Sem espaço no time titular: diretoria facilita saída
+      } else if(trust >= 75){
+        chance -= 12; // Peça considerada útil no plantel
+      }
+
+      return Math.min(100, Math.max(5, Math.round(chance)));
+    }
+
+    function getLoanFeedback(chance, tier, salarySplit){
+      let col = '#10b981';
+      let lbl = 'Alta Disposição da Diretoria';
+      let desc = '';
+
+      if(chance >= 65){
+        col = '#10b981';
+        lbl = 'Alta Disposição para Empréstimo';
+        if(salarySplit === '100_dest'){
+          desc = 'A diretoria apoia com entusiasmo: 100% dos salários serão cobertos pelo clube de destino, aliviando a folha salarial.';
+        } else {
+          desc = 'A diretoria vê com excelentes olhos a oportunidade de você somar minutos e elevar seu valor de mercado.';
+        }
+      } else if(chance >= 40){
+        col = '#f59e0b';
+        lbl = 'Aprovação Moderada (Negociação Ponderada)';
+        if(salarySplit === '50_50'){
+          desc = 'A diretoria aceita negociar o empréstimo, mas pondera o impacto de manter 50% dos seus salários na folha.';
+        } else {
+          desc = 'A diretoria avaliará as propostas recebidas exigindo garantia de titularidade antes de assinar.';
+        }
+      } else {
+        col = '#ef4444';
+        lbl = 'Baixa Disposição (Risco de Veto)';
+        if(salarySplit === '50_50'){
+          desc = 'A diretoria reluta em subsidiar 50% dos vencimentos para outro clube usufruir. Selecionar "100% Clube Destino" aumenta a aprovação.';
+        } else {
+          desc = 'A comissão técnica considera você peça do elenco e prefere mantê-lo treinando no clube.';
+        }
+      }
+      return { col, lbl, desc };
+    }
 
     function renderContent(){
       const req = pState.actionRequests?.request_loan;
       const isAccepted = req?.status === 'accepted';
       const isRejected = req?.status === 'rejected';
 
+      const chance = calcLoanApproval(selectedTier, selectedSalarySplit);
+      const { col: chanceColor, lbl: chanceLabel, desc: chanceDesc } = getLoanFeedback(chance, selectedTier, selectedSalarySplit);
+
       modal.innerHTML = `
         <div style="background:#0f172a;border:2px solid rgba(168,85,247,0.5);border-radius:22px;padding:26px;max-width:520px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.95);color:#fff;animation:afmScaleUp 0.25s ease;position:relative">
           
-          <button type="button" id="btnCloseLoanModal" style="position:absolute;top:16px;right:18px;background:none;border:none;color:#94a3b8;font-size:22px;font-weight:900;cursor:pointer;line-height:1">✕</button>
+          <button type="button" id="btnCloseLoanModal" style="position:absolute;top:16px;right:18px;background:none;border:none;color:#94a3b8;font-size:22px;font-weight:900;cursor:line-height:1">✕</button>
 
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
             <div style="width:46px;height:46px;background:rgba(168,85,247,0.2);border:1px solid #a855f7;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px">
@@ -5259,13 +5381,13 @@
           <div style="background:#182234;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;margin-bottom:18px">
             <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:800;color:#cbd5e1;margin-bottom:6px">
               <span>DISPOSIÇÃO DO ${esc(state.club)} PARA EMPRESTAR</span>
-              <span style="color:#10b981;font-weight:900">80% de Aprovação</span>
+              <span id="txtLoanChanceVal" style="color:${chanceColor};font-weight:900">${chance}% de Aprovação</span>
             </div>
             <div style="background:rgba(0,0,0,0.5);border-radius:8px;height:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);margin-bottom:8px">
-              <div style="width:80%;height:100%;background:#10b981;border-radius:8px;box-shadow:0 0 10px #10b981"></div>
+              <div id="barLoanVisual" style="width:${chance}%;height:100%;background:${chanceColor};border-radius:8px;box-shadow:0 0 10px ${chanceColor};transition:all 0.25s ease"></div>
             </div>
-            <div style="font-size:11px;color:#94a3b8">
-              A diretoria vê com bons olhos um empréstimo para você somar 100% de minutos como titular.
+            <div id="descLoanText" style="font-size:11px;color:#94a3b8;line-height:1.4">
+              <b style="color:${chanceColor}">${chanceLabel}:</b> ${chanceDesc}
             </div>
           </div>
 
@@ -5312,11 +5434,49 @@
       document.getElementById('btnCloseLoanModal')?.addEventListener('click', closeActionModal);
       document.getElementById('btnCancelLoan')?.addEventListener('click', closeActionModal);
 
+      function updateLiveLoanChance(){
+        const ch = calcLoanApproval(selectedTier, selectedSalarySplit);
+        const { col, lbl, desc } = getLoanFeedback(ch, selectedTier, selectedSalarySplit);
+        const valEl = document.getElementById('txtLoanChanceVal');
+        const barEl = document.getElementById('barLoanVisual');
+        const descEl = document.getElementById('descLoanText');
+
+        if(valEl){
+          valEl.textContent = `${ch}% de Aprovação`;
+          valEl.style.color = col;
+        }
+        if(barEl){
+          barEl.style.width = `${ch}%`;
+          barEl.style.background = col;
+          barEl.style.boxShadow = `0 0 10px ${col}`;
+        }
+        if(descEl){
+          descEl.innerHTML = `<b style="color:${col}">${lbl}:</b> ${desc}`;
+        }
+      }
+
       modal.querySelectorAll('.btn-loan-tier').forEach(b => {
-        b.onclick = () => { selectedTier = b.dataset.tier || 'regional'; renderContent(); };
+        b.onclick = () => {
+          selectedTier = b.dataset.tier || 'regional';
+          modal.querySelectorAll('.btn-loan-tier').forEach(btn => {
+            const isSel = btn.dataset.tier === selectedTier;
+            btn.style.background = isSel ? '#7c3aed' : '#1e293b';
+            btn.style.borderColor = isSel ? '#a855f7' : '#334155';
+          });
+          updateLiveLoanChance();
+        };
       });
+
       modal.querySelectorAll('.btn-loan-split').forEach(b => {
-        b.onclick = () => { selectedSalarySplit = b.dataset.split || '50_50'; renderContent(); };
+        b.onclick = () => {
+          selectedSalarySplit = b.dataset.split || '50_50';
+          modal.querySelectorAll('.btn-loan-split').forEach(btn => {
+            const isSel = btn.dataset.split === selectedSalarySplit;
+            btn.style.background = isSel ? '#0891b2' : '#1e293b';
+            btn.style.borderColor = isSel ? '#06b6d4' : '#334155';
+          });
+          updateLiveLoanChance();
+        };
       });
 
       const btnSubmit = document.getElementById('btnSubmitLoan');
@@ -5368,13 +5528,90 @@
     const controlledMarketValueMi = formatPlayerMarketValueMi(athlete);
     const isWinOpen = (typeof isTransferWindowOpen === 'function') ? isTransferWindowOpen(state.date) : false;
     const winInfo = (typeof getTransferWindowInfo === 'function') ? getTransferWindowInfo(state.date) : { open: false, text: 'Janela Fechada' };
+    const ovr = Number(athlete.overall || athlete.ovr) || 50;
+    const age = Number(athlete.age || pState.age) || 20;
+    const trust = Number(pState.managerTrust) || 45;
+    const curSeason = Number(state.season) || 2026;
+    const contractUntil = Number(athlete.contractUntil) || (curSeason + 2);
+    const contractYearsRemaining = Math.max(1, contractUntil - curSeason);
 
     let selectedMotive = 'growth';
+
+    function calcTransferResistance(motive){
+      let resistance = 55; // baseline de resistência da diretoria
+
+      // 1. Status da Janela de Transferências
+      if(!isWinOpen){
+        resistance += 18; // Janela fechada: clube não pode repor nem vender de imediato
+      } else {
+        resistance -= 10; // Janela aberta: mercado ativo e reposições possíveis
+      }
+
+      // 2. Motivo do Pedido de Saída
+      if(motive === 'divergence'){
+        resistance -= 18; // Vestiário / atrito: clube prefere liberar para não contaminar o grupo
+      } else if(motive === 'salary'){
+        resistance += 6; // Pedido salarial: clube tenta renegociar antes de ceder à venda
+      } else if(motive === 'growth'){
+        resistance += 0; // Ambição esportiva: diretoria compreensiva se atingir valuation
+      }
+
+      // 3. Vínculo e Valor de Mercado do Atleta
+      if(contractYearsRemaining >= 3 && ovr >= 70){
+        resistance += 12; // Contrato longo de titular: clube faz jogo duro
+      }
+      if(age >= 32){
+        resistance -= 10; // Veterano: clube facilita liberação para renovar plantel
+      }
+      if(trust < 35){
+        resistance -= 8; // Sem espaço com o treinador
+      }
+
+      return Math.min(100, Math.max(5, Math.round(resistance)));
+    }
+
+    function getTransferFeedback(resistance, motive){
+      let col = '#38bdf8';
+      let lbl = 'Resistência Moderada da Diretoria';
+      let desc = '';
+
+      if(resistance <= 35){
+        col = '#10b981';
+        lbl = 'Baixa Resistência (Saída Facilitada)';
+        if(motive === 'divergence'){
+          desc = 'A diretoria reconhece o desgaste interno e aceita negociar seus direitos para evitar problemas no vestiário.';
+        } else {
+          desc = 'O clube está aberto a propostas e não criará obstáculos caso surja um interessado formal.';
+        }
+      } else if(resistance <= 65){
+        col = '#f59e0b';
+        lbl = 'Resistência Moderada (Negociação Comercial)';
+        if(motive === 'growth'){
+          desc = 'A diretoria compreende sua ambição, mas só aceitará liberá-lo se a proposta atingir o valor de mercado.';
+        } else if(!isWinOpen){
+          desc = 'Janela fechada no momento. A diretoria autoriza o empresário a prospectar, mas a venda só ocorrerá na abertura.';
+        } else {
+          desc = 'O clube aceita ouvir sondagens, exigindo pagamento da rescisão ou compensação justa.';
+        }
+      } else {
+        col = '#ef4444';
+        lbl = 'Alta Resistência (Clube Faz Jogo Duro)';
+        if(!isWinOpen){
+          desc = 'Com a janela fechada e contrato vigente, a presidência reluta em aceitar qualquer pedido de saída imediata.';
+        } else {
+          desc = 'A diretoria considera você essencial e fará jogo duro, exigindo propostas expressivas ou multa rescisória.';
+        }
+      }
+      return { col, lbl, desc };
+    }
 
     function renderContent(){
       const req = pState.actionRequests?.request_transfer;
       const isAccepted = req?.status === 'accepted';
       const isRejected = req?.status === 'rejected';
+
+      const resistance = calcTransferResistance(selectedMotive);
+      const { col: resColor, lbl: resLabel, desc: resDesc } = getTransferFeedback(resistance, selectedMotive);
 
       modal.innerHTML = `
         <div style="background:#0f172a;border:2px solid rgba(168,85,247,0.5);border-radius:22px;padding:26px;max-width:520px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.95);color:#fff;animation:afmScaleUp 0.25s ease;position:relative">
@@ -5411,12 +5648,19 @@
           <div style="background:#182234;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;margin-bottom:18px">
             <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:800;color:#cbd5e1;margin-bottom:6px">
               <span>STATUS NO MERCADO · RESISTÊNCIA À VENDA</span>
-              <span style="color:${isWinOpen ? '#10b981' : '#f59e0b'};font-weight:900">${isWinOpen ? 'Janela Aberta' : 'Janela Fechada'}</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="color:${isWinOpen ? '#10b981' : '#f59e0b'};font-weight:900">${isWinOpen ? 'Janela Aberta' : 'Janela Fechada'}</span>
+                <span>•</span>
+                <span id="txtTransferResVal" style="color:${resColor};font-weight:900">${resistance}% de Resistência</span>
+              </div>
             </div>
             <div style="background:rgba(0,0,0,0.5);border-radius:8px;height:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);margin-bottom:8px">
-              <div style="width:65%;height:100%;background:#38bdf8;border-radius:8px"></div>
+              <div id="barTransferVisual" style="width:${resistance}%;height:100%;background:${resColor};border-radius:8px;box-shadow:0 0 10px ${resColor};transition:all 0.25s ease"></div>
             </div>
-            <div style="display:flex;gap:12px;font-size:11px;color:#94a3b8">
+            <div id="descTransferText" style="font-size:11px;color:#94a3b8;line-height:1.4;margin-bottom:8px">
+              <b style="color:${resColor}">${resLabel}:</b> ${resDesc}
+            </div>
+            <div style="display:flex;gap:12px;font-size:11px;color:#94a3b8;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06)">
               <div>Valor de Mercado: <b style="color:#10b981">R$ ${controlledMarketValueMi} Mi</b></div>
               <div>•</div>
               <div>Multa Rescisória: <b style="color:#fff">R$ 5.000.000</b></div>
@@ -5453,8 +5697,37 @@
       document.getElementById('btnCloseTransferModal')?.addEventListener('click', closeActionModal);
       document.getElementById('btnCancelTransfer')?.addEventListener('click', closeActionModal);
 
+      function updateLiveTransferResistance(){
+        const res = calcTransferResistance(selectedMotive);
+        const { col, lbl, desc } = getTransferFeedback(res, selectedMotive);
+        const valEl = document.getElementById('txtTransferResVal');
+        const barEl = document.getElementById('barTransferVisual');
+        const descEl = document.getElementById('descTransferText');
+
+        if(valEl){
+          valEl.textContent = `${res}% de Resistência`;
+          valEl.style.color = col;
+        }
+        if(barEl){
+          barEl.style.width = `${res}%`;
+          barEl.style.background = col;
+          barEl.style.boxShadow = `0 0 10px ${col}`;
+        }
+        if(descEl){
+          descEl.innerHTML = `<b style="color:${col}">${lbl}:</b> ${desc}`;
+        }
+      }
+
       modal.querySelectorAll('.card-transfer-motive').forEach(c => {
-        c.onclick = () => { selectedMotive = c.dataset.motive || 'growth'; renderContent(); };
+        c.onclick = () => {
+          selectedMotive = c.dataset.motive || 'growth';
+          modal.querySelectorAll('.card-transfer-motive').forEach(card => {
+            const isSel = card.dataset.motive === selectedMotive;
+            card.style.background = isSel ? 'rgba(168,85,247,0.15)' : '#182234';
+            card.style.borderColor = isSel ? '#a855f7' : 'rgba(255,255,255,0.08)';
+          });
+          updateLiveTransferResistance();
+        };
       });
 
       const btnSubmit = document.getElementById('btnSubmitTransfer');
@@ -6397,7 +6670,10 @@
     isSubstitutionAccepted,
     openSeasonGalaAwardsModal,
     bindPlayerModeEvents,
-    getCareerState
+    getCareerState,
+    openWageNegotiationModal,
+    openRequestLoanModal,
+    openRequestTransferModal
   };
 
 })(window);
