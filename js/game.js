@@ -20673,6 +20673,18 @@ function startLiveMatch(){
       const playerTooTired = Boolean(controlledAthlete && Number(controlledAthlete.energy ?? controlledAthlete.fitness ?? 100) <= 40);
       const selectedStarters = lineupKeys.map(k => findSquadPlayerByKey(k)).filter(p => p && !(playerTooTired && p.id === controlledAthlete.id));
       const starters = [...selectedStarters.slice(0, 11)];
+      if(controlledAthlete && !playerTooTired && !isGoalkeeperPosition(controlledAthlete.pos)){
+        const athleteIndex = starters.findIndex(p => p.id === controlledAthlete.id);
+        const gkIndex = formDef.findIndex(slot => slot.r === 'GK');
+        if(athleteIndex === gkIndex && gkIndex >= 0){
+          const replacementIndex = starters.findIndex((p, i) => i !== athleteIndex && isGoalkeeperPosition(p.pos));
+          if(replacementIndex >= 0) [starters[athleteIndex], starters[replacementIndex]] = [starters[replacementIndex], starters[athleteIndex]];
+          else {
+            const forwardIndex = formDef.findIndex(slot => ['ST','CF','LW','RW'].includes(slot.r));
+            if(forwardIndex >= 0 && forwardIndex < starters.length) [starters[athleteIndex], starters[forwardIndex]] = [starters[forwardIndex], starters[athleteIndex]];
+          }
+        }
+      }
       const usedStarterKeys = new Set(starters.map(p => playerKey(p)));
       while(starters.length < 11){
         const extra = state.squad.find(p => !usedStarterKeys.has(playerKey(p)) && !(playerTooTired && p.id === controlledAthlete.id));
