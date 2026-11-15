@@ -485,6 +485,7 @@
     const trustRole = eng ? eng.getTrustRole(pState.managerTrust) : { role: 'Reserva', color: '#f59e0b', desc: '' };
     const ovr = athlete.ovr || athlete.overall || 35;
     const energy = athlete.energy ?? athlete.fitness ?? 95;
+    const canPlayMatch = eng?.isPlayerAvailableForMatch?.(state) ?? Number(energy) >= 50;
 
     // Próximo jogo do clube
     const activeMatch = (typeof window.getActualCurrentMatch === 'function') ? window.getActualCurrentMatch(state) : null;
@@ -555,12 +556,12 @@
             <div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                 <span style="font-size:12px;font-weight:800;color:#cbd5e1">CONDIÇÃO FÍSICA:</span>
-                <span style="font-size:12px;font-weight:900;color:${energy >= 80 ? '#10b981' : energy >= 60 ? '#f59e0b' : '#ef4444'}">${energy}% ${energy >= 85 ? '100% Pronto' : 'Recuperando'}</span>
+                <span style="font-size:12px;font-weight:900;color:${energy >= 80 ? '#10b981' : energy >= 60 ? '#f59e0b' : '#ef4444'}">${energy}% ${canPlayMatch ? (energy >= 85 ? 'Pronto para jogar' : 'Recuperando · relacionado') : 'Fora dos relacionados'}</span>
               </div>
               <div style="width:100%;height:10px;background:#334155;border-radius:5px;overflow:hidden">
                 <div style="width:${energy}%;height:100%;background:${energy >= 80 ? '#10b981' : energy >= 60 ? '#f59e0b' : '#ef4444'};border-radius:5px;transition:width 0.3s ease"></div>
               </div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:4px">O atleta recupera energia nos dias sem jogo e com staff fisioterapêutico.</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:4px">${canPlayMatch ? 'Abaixo de 50%, o atleta não é relacionado. Sem jogar, recupera 8 pontos por dia (11 com fisioterapeuta), até 100%.' : 'Abaixo de 50%, o atleta não é relacionado. Simule a partida para descansar; recupera 8 pontos por dia (11 com fisioterapeuta), até 100%.'}</div>
             </div>
 
           </div>
@@ -589,18 +590,20 @@
             <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
               <span style="font-size:20px">📋</span>
               <div style="font-size:12px;color:#cbd5e1">
-                Sua projeção para este jogo: <b style="color:${trustRole.color}">${trustRole.role}</b>
+                ${canPlayMatch ? 'Sua projeção para este jogo:' : 'Situação para este jogo:'} <b style="color:${canPlayMatch ? trustRole.color : '#ef4444'}">${canPlayMatch ? trustRole.role : 'Fora dos relacionados · condição abaixo de 50%'}</b>
               </div>
             </div>
 
             <!-- BOTÕES DE JOGO / AVANÇO DE CALENDÁRIO (EM TEMPO REAL) -->
             <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
               ${isMatchToday ? `
+                ${canPlayMatch ? `
                 <button type="button" class="btn primary btn-player-play-live" style="width:100%;padding:13px;font-size:13px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 18px rgba(124,58,237,0.4)">
                   ▶ JOGAR AO VIVO (EM TEMPO REAL)
                 </button>
+                ` : ''}
                 <button type="button" class="btn btn-player-play-quick" style="width:100%;padding:10px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:10px;cursor:pointer">
-                  ⚡ Simular Rápido
+                  ⚡ ${canPlayMatch ? 'Simular Rápido' : 'Simular Partida · descansar'}
                 </button>
               ` : `
                 <button type="button" class="btn primary btn-player-advance-to-match" style="width:100%;padding:13px;font-size:13px;font-weight:900;background:linear-gradient(135deg,#06b6d4,#0891b2);border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 18px rgba(6,182,212,0.4)">
@@ -610,9 +613,9 @@
                   <button type="button" class="btn btn-player-advance-1day" style="padding:10px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:8px;cursor:pointer">
                     📅 Avançar 1 Dia
                   </button>
-                  <button type="button" class="btn primary btn-player-play-live" style="padding:10px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:8px;cursor:pointer">
+                  ${canPlayMatch ? `<button type="button" class="btn primary btn-player-play-live" style="padding:10px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:8px;cursor:pointer">
                     ▶ Jogar Direto
-                  </button>
+                  </button>` : `<div style="padding:10px;font-size:11px;text-align:center;color:#ef4444">🩺 Descanso até o jogo</div>`}
                 </div>
               `}
             </div>
@@ -3753,14 +3756,15 @@
           s.date = activeMatch.date;
           s.currentDate = activeMatch.date;
         }
+        const eligibleAtKickoff = window.AFM_PlayerEngine?.isPlayerAvailableForMatch?.(s) ?? Number(getControlledPlayer(s)?.energy ?? getControlledPlayer(s)?.fitness ?? 100) >= 50;
         if(typeof window.simulateQuickRound === 'function'){
           window.simulateQuickRound();
         }
         const pEng = window.AFM_PlayerEngine;
         if(pEng){
           const trust = pState?.managerTrust || 35;
-          const played = trust >= 30;
-          const isStarter = trust >= 60;
+          const played = eligibleAtKickoff && trust >= 30;
+          const isStarter = played && trust >= 60;
           const goals = played && Math.random() < 0.35 ? 1 : 0;
           const assists = played && Math.random() < 0.25 ? 1 : 0;
           const rating = played ? Number((6.0 + (goals * 1.5) + (assists * 0.8) + Math.random() * 1.2).toFixed(1)) : 0;
@@ -3769,6 +3773,9 @@
             assists,
             rating,
             played,
+            eligibleForMatch: eligibleAtKickoff,
+            status: eligibleAtKickoff ? 'Reserva não utilizado' : 'Não relacionado por condição física',
+            reason: eligibleAtKickoff ? undefined : 'Condição abaixo de 50%; a partida foi simulada enquanto o atleta descansava.',
             playedMinutes: isStarter ? 90 : (played ? 30 : 0)
           });
           showPostMatchSummaryModal(s, rep);

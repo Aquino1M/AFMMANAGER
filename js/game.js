@@ -20536,6 +20536,10 @@ window.alignPlayerCareerStarter = alignPlayerCareerStarter;
 function startLiveMatch(){
   if(isStartingLiveMatch) return;
   if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save();
+  if(state.gameMode === 'player' && !window.AFM_PlayerEngine?.isPlayerAvailableForMatch?.(state)){
+    toast('🩺 Com condição abaixo de 50%, você não foi relacionado. Simule a partida para descansar e recuperar energia.');
+    return;
+  }
   const matchGate = canStartMatch();
   if(!matchGate.canStart){
     if(matchGate.status === 'season_finished'){ showEndOfSeasonModal(); return; }
@@ -20717,7 +20721,7 @@ function startLiveMatch(){
       const controlledAthlete = state.gameMode === 'player'
         ? (state.squad || []).find(p => p.id === state.controlledPlayerId)
         : null;
-      const playerTooTired = Boolean(controlledAthlete && Number(controlledAthlete.energy ?? controlledAthlete.fitness ?? 100) <= 40);
+      const playerTooTired = Boolean(controlledAthlete && !window.AFM_PlayerEngine?.isPlayerAvailableForMatch?.(state));
       const selectedStarters = lineupKeys.map(k => findSquadPlayerByKey(k)).filter(p => p && !(playerTooTired && p.id === controlledAthlete.id));
       const starters = [...selectedStarters.slice(0, 11)];
       alignPlayerCareerStarter(starters, formDef, playerTooTired ? null : controlledAthlete, state.squad);
@@ -21079,7 +21083,7 @@ function startLiveMatch(){
     halftimeTriggered: false,
     homePlayers,
     awayPlayers,
-    playerCareerAvailableForMatch: state.gameMode !== 'player' || Number(((state.squad || []).find(p => p.id === state.controlledPlayerId) || {}).energy ?? ((state.squad || []).find(p => p.id === state.controlledPlayerId) || {}).fitness ?? 100) > 40,
+    playerCareerAvailableForMatch: window.AFM_PlayerEngine?.isPlayerAvailableForMatch?.(state) ?? state.gameMode !== 'player',
     homeTac: hTac,
     awayTac: aTac,
     tacticsDynamics: calculateTacticalMatchDynamics(home, away, hTac, aTac, hs, as),
@@ -24915,8 +24919,9 @@ function finalizeMatchRound(){
       rating: Number(matchAthlete?.firstHalfRating) || undefined,
       playedMinutes,
       started: Boolean(matchAthlete?.wasStarter),
-      status: s.playerCareerAvailableForMatch === false ? 'Não relacionado por desgaste físico' : 'Reserva não utilizado',
-      reason: s.playerCareerAvailableForMatch === false ? 'Você estava com energia em 40% ou menos e ficou fora dos relacionados.' : 'Você ficou no banco e não entrou nesta partida.'
+      eligibleForMatch: s.playerCareerAvailableForMatch !== false,
+      status: s.playerCareerAvailableForMatch === false ? 'Não relacionado por condição física' : 'Reserva não utilizado',
+      reason: s.playerCareerAvailableForMatch === false ? 'Você estava com condição abaixo de 50% e ficou fora dos relacionados.' : 'Você ficou no banco e não entrou nesta partida.'
     }, { showSummary: false });
     if(playerPerformanceReport) state.playerCareerState.lastProcessedLiveMatchId = s.matchId;
   }

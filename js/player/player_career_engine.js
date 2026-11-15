@@ -1568,6 +1568,12 @@
     return { energy: athlete.energy, recovered: athlete.energy - (Number.isFinite(currentEnergy) ? currentEnergy : 100) };
   }
 
+  function isPlayerAvailableForMatch(gameState){
+    if(gameState?.gameMode !== 'player') return true;
+    const athlete = (gameState.squad || []).find(player => String(player?.id) === String(gameState.controlledPlayerId));
+    return Boolean(athlete) && Number(athlete.energy ?? athlete.fitness ?? 100) >= 50;
+  }
+
   function processMatchPerformance(gameState, matchResult, { showSummary = true } = {}){
     if(!gameState || gameState.gameMode !== 'player' || !gameState.playerCareerState) return null;
     const pState = gameState.playerCareerState;
@@ -1575,6 +1581,9 @@
     if(controlledId == null) return null;
     const playerObj = (gameState.squad || []).find(p => p.id === controlledId);
     if(!playerObj) return null;
+    if(matchResult?.eligibleForMatch === false){
+      return { played: false, status: 'Não relacionado por condição física', reason: 'Condição abaixo de 50%; a partida foi simulada enquanto o atleta descansava.', minutes: 0, rating: 0, goals: 0, assists: 0, xpGained: 0, trustDelta: 0, sponsorBonus: 0, isMvp: false };
+    }
 
     const clubName = gameState.club;
     const isHome = (matchResult?.h === clubName) || (typeof window.norm === 'function' && window.norm(matchResult?.h) === window.norm(clubName));
@@ -2985,6 +2994,7 @@
     calculatePlayerOverall,
     normalizePlayerProgression,
     recoverDailyEnergy,
+    isPlayerAvailableForMatch,
     calculateBodyModifiers,
     getTrustRole,
     simulateTryoutMatch,
