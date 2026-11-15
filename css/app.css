@@ -10701,3 +10701,23 @@ body.theme-emerald {
   transform: scale(1.08) !important;
 }
 
+/* BLINDAGEM DE OVERLAYS E BACKDROPS CONTRA CLIQUES FANTASMAS */
+#afmLoadingScreen.fade-out,
+#afmLoadingScreen[style*="opacity: 0"],
+#afmLoadingScreen[style*="opacity:0"],
+#afmLoadingScreen[style*="display: none"] {
+  pointer-events: none !important;
+  display: none !important;
+}
+
+.afm-drawer-backdrop:not(.active),
+#afmDrawerBackdrop:not(.active) {
+  pointer-events: none !important;
+  display: none !important;
+}
+
+.modal-overlay:not(.active):not([style*="display: flex"]):not([style*="display: block"]) {
+  pointer-events: none !important;
+}
+
+

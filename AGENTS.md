@@ -66,6 +66,10 @@
     - O atleta pode submeter '🤝 Contraproposta (+15% Salário)' em propostas recebidas, limitando a uma renegociação por oferta.
     - No modo atleta (`gameMode === 'player'`), a barra superior (`sm-topbar`) reflete o atleta: OVR em força, pontos livres em prestígio e conta bancária pessoal no saldo financeiro.
   - REGRA IRRESTRITA DE UI FINANCEIRA: No Modo Atleta, o topo esquerdo deve refletir o Patrimônio Total do Atleta (líquido + investimentos), enquanto o card central da aba Vida & Patrocínios exibe o Saldo Líquido Disponível. Toda aplicação em CDB ou resgate deve disparar a atualização global da DOM financeira.
+- REGRA IRRESTRITA DE ROTEAMENTO, SAVE E NAVEGAÇÃO (ANTI-TRAVAMENTO):
+  1. Todo carregamento de save deve executar migrateAndSanitizeSaveState(state) antes do render() para inicializar objetos novos e impedir TypeError em saves antigos.
+  2. window.isPlayerCareerActive(state) é a única fonte de verdade para diferenciar Modo Atleta e Modo Treinador. No Modo Atleta, renderCentral() e views exclusivas de treinador são estritamente proibidas.
+  3. A navegação por [data-view] deve usar delegação global em document (fase de captura), e window.render() deve sempre usar try/catch/finally resetando travas de renderização para que as abas jamais fiquem inclicáveis.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis

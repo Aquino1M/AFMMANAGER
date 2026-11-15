@@ -503,53 +503,71 @@
    */
   function renderPage(view) {
     const s = window.state;
-    if (!s || s.gameMode !== "player") return null;
+    const isPlayer = typeof window.isPlayerCareerActive === 'function'
+      ? window.isPlayerCareerActive(s)
+      : Boolean(s && (s.gameMode === "player" || s.playerCareerState));
+    if (!s || !isPlayer) return null;
     syncControlledPlayerOverall(s);
 
-    switch (view) {
-      case "player_hub":
-      case "central":
-        return renderPlayerHub(s);
+    try {
+      switch (view) {
+        case "player_hub":
+        case "central":
+          return renderPlayerHub(s);
 
-      case "player_evolution":
-      case "meutime":
-        return renderPlayerEvolution(s);
+        case "player_evolution":
+        case "meutime":
+          return renderPlayerEvolution(s);
 
-      case "player_club":
-      case "elenco":
-        return renderPlayerClubAndSquad(s);
+        case "player_club":
+        case "elenco":
+          return renderPlayerClubAndSquad(s);
 
-      case "player_agent":
-      case "mercado":
-        window.AFM_PlayerEngine?.processPlayerAging?.(s);
-        window.AFM_PlayerEngine?.getPlayerSponsorOffers?.(s);
-        return renderPlayerAgentAndMarket(s);
+        case "player_agent":
+        case "mercado":
+          window.AFM_PlayerEngine?.processPlayerAging?.(s);
+          window.AFM_PlayerEngine?.getPlayerSponsorOffers?.(s);
+          return renderPlayerAgentAndMarket(s);
 
-      case "player_lifestyle":
-      case "escritorio":
-      case "carreira":
-        return renderPlayerLifestyleAndSponsors(s);
+        case "player_lifestyle":
+        case "escritorio":
+        case "carreira":
+          return renderPlayerLifestyleAndSponsors(s);
 
-      case "player_stats":
-        return renderPlayerStatsAndTrophies(s);
+        case "player_stats":
+          return renderPlayerStatsAndTrophies(s);
 
-      case "player_national":
-        return renderPlayerNationalTeam(s);
+        case "player_national":
+          return renderPlayerNationalTeam(s);
 
-      case "player_social":
-      case "footgram":
-      case "instafut":
-        return renderPlayerSocialMedia(s);
+        case "player_social":
+        case "footgram":
+        case "instafut":
+          return renderPlayerSocialMedia(s);
 
-      // Notícias, Calendário e Classificação da Liga usam os motores oficiais do jogo!
-      case "temporada":
-      case "classificacao":
-      case "noticias":
-      case "calendario":
-      case "config":
-      default:
-        // Retorna null para que js/game.js invoque a respectiva função de página dedicada
-        return null;
+        // Notícias, Calendário e Classificação da Liga usam os motores oficiais do jogo!
+        case "temporada":
+        case "classificacao":
+        case "noticias":
+        case "calendario":
+        case "config":
+        case "novidades":
+          return null;
+
+        default:
+          return renderPlayerHub(s);
+      }
+    } catch (err) {
+      console.error("[AFM PlayerMode] Erro ao renderizar página " + view + ":", err);
+      return `<div class="card" style="padding:24px;border:1px solid #ef4444;background:#181024;color:#fff;border-radius:14px;margin:16px">
+        <h2 style="color:#f87171;margin-top:0">⚠️ Não foi possível carregar esta aba</h2>
+        <p style="color:#cbd5e1">Ocorreu uma falha inesperada ao abrir <b>${esc(view)}</b>.</p>
+        <pre style="background:rgba(0,0,0,0.4);padding:10px;border-radius:8px;color:#fca5a5;font-size:12px;white-space:pre-wrap">${esc(err?.message || String(err))}</pre>
+        <div style="display:flex;gap:10px;margin-top:14px">
+          <button type="button" class="btn primary" onclick="if(window.render)window.render()">🔄 Tentar Novamente</button>
+          <button type="button" class="btn" onclick="if(window.setGameView){window.setGameView('player_hub');window.render();}else{window.view='player_hub';window.render();}">⭐ Voltar ao Hub do Atleta</button>
+        </div>
+      </div>`;
     }
   }
 
@@ -2563,7 +2581,7 @@
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:18px">
                 <div>
                   <span class="pill good" style="font-size:10px;font-weight:900">CONTA BANCÁRIA PESSOAL</span>
-                  <h2 style="margin:4px 0 0 0;font-size:32px;font-weight:900;color:#fff">R$ ${bank.toLocaleString("pt-BR")}</h2>
+                  <h2 id="personalBankBalanceCard" style="margin:4px 0 0 0;font-size:32px;font-weight:900;color:#fff">R$ ${bank.toLocaleString("pt-BR")}</h2>
                   <div style="font-size:12px;color:#a7f3d0;margin-top:2px">Saldo pessoal para contratação de staff, empresário e manutenção de carreira.</div>
                 </div>
                 <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:12px 18px;text-align:right">
@@ -3123,7 +3141,7 @@
                 </div>
                 <div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:8px 10px;margin-bottom:12px">
                   <div style="font-size:10px;color:#94a3b8">Saldo Atual Investido:</div>
-                  <div style="font-size:16px;font-weight:900;color:#38bdf8">R$ ${(Number(ls?.investments?.cdbBalance) || 0).toLocaleString("pt-BR")}</div>
+                  <div id="cdbInvestedBalanceVal" style="font-size:16px;font-weight:900;color:#38bdf8">R$ ${(Number(ls?.investments?.cdbBalance) || 0).toLocaleString("pt-BR")}</div>
                 </div>
               </div>
               <div style="display:flex;gap:6px">
@@ -7331,11 +7349,17 @@
         const res = window.AFM_Lifestyle?.depositCdb
           ? window.AFM_Lifestyle.depositCdb(s, 500)
           : { success: false, message: "Erro ao aplicar no CDB." };
+        if (window.AFM_Lifestyle?.updatePlayerFinancialDisplay) {
+          window.AFM_Lifestyle.updatePlayerFinancialDisplay(s);
+        }
         showCustomAlert({
           title: res.success ? "Aplicação Realizada! 🏦" : "Saldo Insuficiente ❌",
           message: res.message,
           type: res.success ? "success" : "warning",
           onConfirm: () => {
+            if (window.AFM_Lifestyle?.updatePlayerFinancialDisplay) {
+              window.AFM_Lifestyle.updatePlayerFinancialDisplay(s);
+            }
             if (typeof window.save === "function") window.save();
             if (typeof window.render === "function") window.render();
           },
@@ -7349,11 +7373,17 @@
         const res = window.AFM_Lifestyle?.withdrawCdb
           ? window.AFM_Lifestyle.withdrawCdb(s)
           : { success: false, message: "Erro ao resgatar CDB." };
+        if (window.AFM_Lifestyle?.updatePlayerFinancialDisplay) {
+          window.AFM_Lifestyle.updatePlayerFinancialDisplay(s);
+        }
         showCustomAlert({
           title: res.success ? "Resgate Concluído! 💰" : "Aviso ⚠️",
           message: res.message,
           type: res.success ? "success" : "warning",
           onConfirm: () => {
+            if (window.AFM_Lifestyle?.updatePlayerFinancialDisplay) {
+              window.AFM_Lifestyle.updatePlayerFinancialDisplay(s);
+            }
             if (typeof window.save === "function") window.save();
             if (typeof window.render === "function") window.render();
           },
@@ -9092,4 +9122,1438 @@
         offer.reasonText ||
         `A diretoria da ${offer.brand || "marca"} ficou muito impressionada com o seu rendimento em campo e atendeu integralmente nossas exigências! Além do reajuste generoso nas mensalidades e bônus por gol, incluíram luvas à vista na assinatura. Meu conselho profissional é assinar e selar esse grande momento!`;
     } else if (isSponsor) {
-... [truncated for diff preview]
+      agentOpinionText = `Ter uma grande marca oficial como a ${offer.clubOrBrand} fornecendo suas chuteiras traz prestígio comercial imediato e dinheiro direto no seu bolso todo mês. É o primeiro passo para consolidar sua imagem no futebol. Vale muito a pena assinar!`;
+    } else if (isCoachCareer) {
+      agentOpinionText = `Depois de uma carreira dentro de campo, o ${proposedClub} quer transformar sua experiência em liderança. Você começará a carreira de treinador com seu nome conhecido no futebol e os benefícios conquistados como ex-jogador.`;
+    } else if (isLoan) {
+      agentOpinionText = `O empréstimo para o ${proposedClub} é uma oportunidade estratégica de ouro! Lá o técnico garantiu espaço entre os titulares e você terá rodagem contínua nos gramados. O clube cobre seu salário integralmente. Vale muito a pena para acelerar sua evolução!`;
+    } else {
+      if (wagePct >= 25) {
+        agentOpinionText = `Negócio espetacular! O ${proposedClub} formalizou uma oferta de alto escalão com valorização salarial de ${wagePct >= 0 ? "+" : ""}${wagePct}%. É um clube competitivo, estruturado e com grande visibilidade na mídia. Assinar esse contrato definitivo colocará sua carreira em outro patamar!`;
+      } else if (wagePct >= 0) {
+        agentOpinionText = `O ${proposedClub} oferece um projeto esportivo bastante sério e estável. O salário é equilibrado com o seu momento de carreira. Se você quer novos ares e busca protagonismo em outro elenco, é uma ótima escolha.`;
+      } else {
+        agentOpinionText = `Atenção: financeiramente a pedida é próxima da atual. Considere a mudança apenas se o projeto técnico do ${proposedClub} oferecer mais minutos como titular do que você tem hoje.`;
+      }
+    }
+
+    function renderModalContent() {
+      modal.innerHTML = `
+        <div style="background:linear-gradient(135deg, #0b1120 0%, #060913 100%);border:2px solid #38bdf8;border-radius:20px;width:100%;max-width:680px;padding:26px;box-shadow:0 0 35px rgba(56,189,248,0.28);color:#fff;font-family:inherit;position:relative">
+          
+          <!-- BOTÃO FECHAR -->
+          <button type="button" id="btnCloseOfferDetails" style="position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#94a3b8;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;transition:all 0.2s ease">
+            ✕
+          </button>
+
+          <!-- HEADER -->
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+            <div style="width:46px;height:46px;border-radius:12px;background:rgba(56,189,248,0.14);border:1.5px solid #38bdf8;display:flex;align-items:center;justify-content:center;font-size:22px">
+              ${categoryIcon}
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <h2 style="margin:0;font-size:20px;font-weight:900;color:#fff">${esc(offer.title || offer.clubOrBrand)}</h2>
+                ${categoryBadge}
+                ${
+                  isTransfer || isLoan
+                    ? isWindowOpen
+                      ? `<span style="background:rgba(34,197,94,0.15);border:1px solid #22c55e;color:#86efac;font-size:10px;font-weight:900;padding:3px 8px;border-radius:12px;display:inline-flex;align-items:center;gap:4px">🟢 JANELA ABERTA</span>`
+                      : `<span style="background:rgba(239,68,68,0.15);border:1px solid #ef4444;color:#fca5a5;font-size:10px;font-weight:900;padding:3px 8px;border-radius:12px;display:inline-flex;align-items:center;gap:4px">🔒 JANELA FECHADA</span>`
+                    : ""
+                }
+              </div>
+              <div style="font-size:12px;color:#94a3b8;margin-top:2px">
+                Data do recebimento: ${offer.date ? formatDatePtBr(offer.date) : "Recente"} • Mesa do Agente Oficial
+              </div>
+            </div>
+          </div>
+
+          <!-- CORPO: ANÁLISE COMPARATIVA 'VALE A PENA?' -->
+          <div style="background:#090d16;border:1px solid #1e293b;border-radius:14px;padding:16px;margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+              <span style="font-size:16px">⚖️</span>
+              <span style="font-size:13px;font-weight:900;color:#38bdf8;text-transform:uppercase;letter-spacing:0.5px">VALE A PENA? ANÁLISE COMPARATIVA DA NEGOCIAÇÃO</span>
+            </div>
+
+            ${
+              isTransfer || isLoan
+                ? `
+              <!-- COMPARAÇÃO DE CLUBES E CONTRATO -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                
+                <!-- SITUAÇÃO ATUAL -->
+                <div style="background:rgba(15,23,42,0.8);border:1px solid #334155;border-radius:10px;padding:12px">
+                  <div style="font-size:11px;font-weight:800;color:#94a3b8;margin-bottom:6px">SITUAÇÃO ATUAL:</div>
+                  <div style="font-size:14px;font-weight:900;color:#fff">${esc(currentClub)}</div>
+                  <div style="margin-top:8px;font-size:12px;color:#cbd5e1;line-height:1.6">
+                    <div>💰 Salário: <b>R$ ${curWage.toLocaleString("pt-BR")}/mês</b></div>
+                    <div>📅 Contrato: <b>Até ${athlete?.contractUntil || 2028}</b></div>
+                    <div>🛡️ Papel: <b>${pState.role || "Reserva Imediato"}</b></div>
+                    <div>🤝 Confiança: <b>${pState.managerTrust || 40}%</b></div>
+                  </div>
+                </div>
+
+                <!-- NOVA PROPOSTA -->
+                <div style="background:rgba(6,78,59,0.25);border:1.5px solid #10b981;border-radius:10px;padding:12px">
+                  <div style="font-size:11px;font-weight:800;color:#6ee7b7;margin-bottom:6px">PROPOSTA DO CLUBE:</div>
+                  <div style="font-size:14px;font-weight:900;color:#fff">${esc(proposedClub)}</div>
+                  <div style="margin-top:8px;font-size:12px;color:#cbd5e1;line-height:1.6">
+                    <div>💰 Salário Proposto: <b style="color:#10b981">R$ ${offeredWage.toLocaleString("pt-BR")}/mês</b></div>
+                    <div>📈 Variação: <span style="background:${wagePct >= 0 ? "#10b981" : "#ef4444"};color:#000;font-weight:900;padding:1px 6px;border-radius:4px;font-size:11px">${wagePct >= 0 ? "+" : ""}${wagePct}% (${wageDiff >= 0 ? "+R$ " : "-R$ "}${Math.abs(wageDiff).toLocaleString("pt-BR")})</span></div>
+                    <div>📅 Duração: <b>${isLoan ? "1 Temporada (Empréstimo)" : "3 Anos (Definitivo)"}</b></div>
+                    <div>⭐ Minutagem: <b>${isLoan ? "Garantia de Minutos" : "Disputa de Titularidade"}</b></div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;font-size:11px;color:#94a3b8;background:rgba(0,0,0,0.3);padding:10px;border-radius:8px">
+                <div>📌 <b>Multa Rescisória:</b> ${isLoan ? "Fixada no Contrato de Empréstimo" : "R$ 8.000.000 a R$ 10.000.000"}</div>
+                <div>🎯 <b>Bônus de Desempenho:</b> R$ 500 por gol e premiações por vitórias</div>
+              </div>
+            `
+                : isCoachCareer
+                  ? `
+              <div style="background:rgba(16,185,129,0.12);border:1.5px solid #10b981;border-radius:10px;padding:16px;color:#d1fae5;line-height:1.6">
+                <b>${esc(proposedClub)}</b> oferece a primeira oportunidade como treinador aos ${Number(pState.age) || Number(athlete?.age) || 35} anos. Ao aceitar, você encerra a carreira de atleta, inicia uma carreira de treinador no clube e mantém idade, identidade e resumo esportivo no save.
+                <div style="margin-top:8px">Benefícios de ex-jogador: <b>+10% no salário de treinador</b> e <b>+5 pontos percentuais</b> na chance de fechar contratação de jogadores.</div>
+              </div>
+            `
+                  : `
+              <!-- DETALHES DE PATROCÍNIO ESPORTIVO -->
+              <div style="background:rgba(15,23,42,0.8);border:1.5px solid ${isRenewal ? "#10b981" : "#06b6d4"};border-radius:10px;padding:14px">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+                  <div style="font-size:16px;font-weight:900;color:#fff">${esc(offer.clubOrBrand || offer.brand)}</div>
+                  <div style="font-size:12px;color:#67e8f9;font-weight:900">Vínculo: ${offer.durationDays || 180} Dias no Calendário</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;margin-top:10px;text-align:center">
+                  <div style="background:#090d16;padding:8px;border-radius:8px">
+                    <div style="font-size:10px;color:#94a3b8">MENSALIDADE FIXA</div>
+                    <div style="font-size:15px;font-weight:900;color:#10b981">R$ ${(offer.monthly || offer.monthlyStipend || 1000).toLocaleString("pt-BR")}</div>
+                    <div style="font-size:10px;color:#64748b">por mês</div>
+                  </div>
+                  <div style="background:#090d16;padding:8px;border-radius:8px">
+                    <div style="font-size:10px;color:#94a3b8">BÔNUS POR GOL</div>
+                    <div style="font-size:15px;font-weight:900;color:#38bdf8">R$ ${(offer.bonusGoal || 500).toLocaleString("pt-BR")}</div>
+                    <div style="font-size:10px;color:#64748b">a cada gol marcado</div>
+                  </div>
+                  <div style="background:#090d16;padding:8px;border-radius:8px">
+                    <div style="font-size:10px;color:#94a3b8">BÔNUS POR VITÓRIA</div>
+                    <div style="font-size:15px;font-weight:900;color:#f59e0b">R$ ${(offer.bonusWin || 500).toLocaleString("pt-BR")}</div>
+                    <div style="font-size:10px;color:#64748b">em partidas oficiais</div>
+                  </div>
+                </div>
+
+                ${
+                  offer.renewalBonus && offer.renewalBonus > 0
+                    ? `
+                  <div style="margin-top:12px;background:linear-gradient(135deg,rgba(16,185,129,0.2),rgba(6,78,59,0.3));border:1px solid #10b981;border-radius:8px;padding:10px;display:flex;align-items:center;justify-content:space-between">
+                    <div>
+                      <div style="font-size:12px;font-weight:900;color:#fff">🎁 LUVAS DE ASSINATURA / BÔNUS DE FIDELIDADE:</div>
+                      <div style="font-size:11px;color:#a7f3d0">Creditados integralmente e à vista na sua conta bancária pessoal ao assinar!</div>
+                    </div>
+                    <div style="font-size:18px;font-weight:900;color:#10b981">
+                      + R$ ${offer.renewalBonus.toLocaleString("pt-BR")}
+                    </div>
+                  </div>
+                `
+                    : ""
+                }
+
+                ${
+                  offer.reasonText
+                    ? `
+                  <div style="margin-top:10px;font-size:11px;color:#94a3b8;line-height:1.4">
+                    📝 <b>Avaliação de Desempenho da Empresa:</b> ${esc(offer.reasonText)}
+                  </div>
+                `
+                    : ""
+                }
+              </div>
+            `
+            }
+          </div>
+
+          <!-- PARECER TÉCNICO DO EMPRESÁRIO -->
+          <div style="background:linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(15,23,42,0.8) 100%);border:1.5px solid rgba(245,158,11,0.5);border-radius:14px;padding:16px;margin-bottom:20px">
+            <div style="display:flex;align-items:flex-start;gap:12px">
+              <span style="font-size:26px">👔</span>
+              <div>
+                <div style="font-size:13px;font-weight:900;color:#fbbf24;margin-bottom:4px">
+                  PARECER TÉCNICO DO SEU EMPRESÁRIO:
+                </div>
+                <div style="font-size:12px;color:#e2e8f0;line-height:1.5;font-style:italic">
+                  "${esc(agentOpinionText)}"
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BOTÕES DE AÇÃO -->
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <button type="button" id="btnOfferModalBack" style="background:rgba(255,255,255,0.08);border:1px solid #475569;color:#cbd5e1;font-weight:800;padding:10px 18px;border-radius:10px;cursor:pointer;font-size:12px">
+              ⬅️ Voltar / Pensar Mais
+            </button>
+
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              ${
+                (isTransfer || isLoan || isSponsor) && !offer.isCounterOffered
+                  ? `
+                <button type="button" id="btnOfferModalCounter" style="background:rgba(168,85,247,0.2);border:1.5px solid #a855f7;color:#d8b4fe;font-weight:900;padding:10px 18px;border-radius:10px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:6px">
+                  🤝 Contraproposta (+15% Salário)
+                </button>
+              `
+                  : ""
+              }
+              <button type="button" id="btnOfferModalReject" style="background:#ef4444;color:#fff;font-weight:800;padding:10px 18px;border-radius:10px;border:none;cursor:pointer;font-size:12px">
+                ❌ Recusar Proposta
+              </button>
+              <button type="button" id="btnOfferModalAccept" style="background:${!isWindowOpen && (isTransfer || isLoan) ? "#334155" : "#10b981"};color:${!isWindowOpen && (isTransfer || isLoan) ? "#94a3b8" : "#000"};font-weight:900;padding:10px 22px;border-radius:10px;border:none;cursor:pointer;font-size:13px;box-shadow:${!isWindowOpen && (isTransfer || isLoan) ? "none" : "0 0 16px rgba(16,185,129,0.4)"}">
+                ${!isWindowOpen && (isTransfer || isLoan) ? "🔒 Janela Fechada (Bloqueado)" : isCoachCareer ? "✅ Aposentar e assumir o clube" : "✅ Aceitar e Assinar Contrato ✍️"}
+              </button>
+            </div>
+          </div>
+
+        </div>
+      `;
+
+      // Eventos dos botões do modal
+      document
+        .getElementById("btnCloseOfferDetails")
+        ?.addEventListener("click", () => {
+          closeActionModal();
+          if (typeof window.render === "function") window.render();
+        });
+      document
+        .getElementById("btnOfferModalBack")
+        ?.addEventListener("click", () => {
+          closeActionModal();
+          if (typeof window.render === "function") window.render();
+        });
+
+      document
+        .getElementById("btnOfferModalCounter")
+        ?.addEventListener("click", () => {
+          const res = window.AFM_PlayerEngine?.makeCounterOffer?.(state, originalIndex);
+          showCustomAlert({
+            title: res?.ok ? "Contraproposta Enviada! 🤝" : "Contraproposta Não Aceita",
+            message: res?.ok
+              ? (res.message || "A outra parte aceitou negociar com termos mais vantajosos!")
+              : (res?.error || "A outra parte recusou os novos termos solicitados."),
+            type: res?.ok ? "success" : "warning",
+            onConfirm: () => {
+              closeActionModal();
+              if (typeof window.save === "function") window.save();
+              if (typeof window.render === "function") window.render();
+            },
+          });
+        });
+
+      document
+        .getElementById("btnOfferModalReject")
+        ?.addEventListener("click", () => {
+          const [rejected] = pState.agentOffers.splice(originalIndex, 1);
+          if (rejected?.type === "coach_career")
+            pState.coachCareerOfferDeclined = true;
+          if (rejected?.type === "sponsor")
+            pState.availableSponsorOffers = (
+              pState.availableSponsorOffers || []
+            ).filter((item) => item.id !== rejected.id);
+          closeActionModal();
+          if (typeof window.save === "function") window.save();
+          if (typeof window.render === "function") window.render();
+        });
+
+      document
+        .getElementById("btnOfferModalAccept")
+        ?.addEventListener("click", () => {
+          if (isCoachCareer) {
+            const result =
+              window.AFM_PlayerEngine?.startManagerCareerFromPlayerRetirement?.(
+                state,
+                offer,
+              );
+            if (!result?.ok)
+              showCustomAlert({
+                title: "Não foi possível iniciar a carreira de treinador",
+                message: result?.error || "Tente novamente.",
+                type: "warning",
+              });
+            return;
+          }
+          if (isTransfer || isLoan) {
+            if (!isWindowOpen) {
+              showCustomAlert({
+                title: "Janela de Transferências Fechada! 🔒",
+                message: `O mercado da bola está FECHADO na data atual (${formatDatePtBr(state.date)}).\n\nVocê só pode mudar de clube durante a Janela de Transferências aberta (Janeiro/Fevereiro e Julho/Agosto).\n\nAguarde a reabertura oficial da janela para formalizar sua transferência!`,
+                icon: "🔒",
+                type: "warning",
+              });
+              return;
+            }
+            pState.agentOffers.splice(originalIndex, 1);
+            pState.availableSponsorOffers = (
+              pState.availableSponsorOffers || []
+            ).filter((item) => item.id !== offer.id);
+            closeActionModal();
+            executePlayerTransfer(offer, state, athlete, pState);
+            return;
+          }
+
+          if (isSponsor) {
+            const curDate = state.date || state.currentDate || "2026-01-18";
+            const signed = window.AFM_PlayerEngine?.signSponsorContract(
+              pState,
+              offer,
+              curDate,
+            );
+            if (!signed?.ok) {
+              showCustomAlert({
+                title: "Saldo insuficiente para a rescisão ⚖️",
+                message: `A multa para encerrar o contrato atual é de R$ ${(signed?.terminationFee || 0).toLocaleString("pt-BR")}. Faltam R$ ${(signed?.shortfall || 0).toLocaleString("pt-BR")}.`,
+                type: "warning",
+              });
+              return;
+            }
+            const totalDays = signed.durationDays;
+            const endDate = signed.endDate;
+            if (offer.renewalBonus && offer.renewalBonus > 0) {
+              pState.personalBank =
+                (pState.personalBank || 0) + offer.renewalBonus;
+            }
+            pState.availableSponsorOffers = (
+              pState.availableSponsorOffers || []
+            ).filter((item) => item.id !== offer.id);
+            pState.agentOffers.splice(originalIndex, 1);
+            closeActionModal();
+            showCustomAlert({
+              title: isRenewal
+                ? "Renovação Concluída! ✍️"
+                : "Patrocínio Assinado! 👟",
+              message: `Contrato com a ${offer.clubOrBrand} assinado com sucesso por ${totalDays} dias (até ${formatDatePtBr(endDate)})!${signed.terminationFee ? `\nMulta de rescisão anterior: R$ ${signed.terminationFee.toLocaleString("pt-BR")} paga.` : ""}\n${offer.renewalBonus && offer.renewalBonus > 0 ? `Luvas de R$ ${offer.renewalBonus.toLocaleString("pt-BR")} creditadas à vista na sua conta bancária!\n` : ""}Você receberá R$ ${(offer.monthly || offer.monthlyStipend || 1000).toLocaleString("pt-BR")}/mês e bônus por gols.\nAo término dos dias, a empresa analisará seu desempenho para nova proposta de renovação!`,
+              type: "success",
+              onConfirm: () => {
+                if (typeof window.save === "function") window.save();
+                if (typeof window.render === "function") window.render();
+              },
+            });
+          }
+        });
+    }
+
+    renderModalContent();
+  }
+
+  function handleAgentAction(action, state, athlete, pState) {
+    pState.actionRequests = pState.actionRequests || {};
+    pState.agentCooldowns = pState.agentCooldowns || {};
+
+    const lastDate = pState.agentCooldowns[action];
+    if (lastDate) {
+      const days = getDaysBetween(lastDate, state.date);
+      if (days < 15) {
+        const remaining = 15 - days;
+        showCustomAlert({
+          title: "Aguarde o Cooldown ⏳",
+          message: `Você precisa aguardar mais ${remaining} dia(s) no calendário antes de realizar esta ação novamente com a diretoria/comissão.`,
+          type: "warning",
+        });
+        return;
+      }
+    }
+
+    switch (action) {
+      case "wage_increase":
+        openWageNegotiationModal(state, athlete, pState);
+        break;
+      case "demand_starter":
+        openDemandStarterModal(state, athlete, pState);
+        break;
+      case "request_loan":
+        openRequestLoanModal(state, athlete, pState);
+        break;
+      case "request_transfer":
+        openRequestTransferModal(state, athlete, pState);
+        break;
+    }
+  }
+
+  // 6. MODAL: SÚMULA E DETALHES POP-UP DA PARTIDA DISPUTADA
+  function openMatchDetailsPopup(m, state) {
+    if (!m) return;
+    const modal = createActionModalContainer();
+    const athlete = getControlledPlayer(state) || { ovr: 45, wage: 1500, attributes: {} };
+    const pState = getCareerState(state);
+    const isMvp = Boolean(m.isMvp || Number(m.rating) >= 8.0);
+    const goals = Number(m.goals) || 0;
+    const assists = Number(m.assists) || 0;
+    const minutes = Number(m.minutes) || 90;
+    const rating = Number(m.rating) || 6.5;
+    const ratingColor =
+      rating >= 8.0
+        ? "#10b981"
+        : rating >= 7.0
+          ? "#38bdf8"
+          : rating >= 6.0
+            ? "#facc15"
+            : "#ef4444";
+
+    let coachVerdict = "";
+    if (rating >= 8.5) {
+      coachVerdict =
+        "Atuação magistral de cinema! O jogador dominou as ações ofensivas, desequilibrou a zaga adversária e foi o grande maestro da partida.";
+    } else if (rating >= 7.5) {
+      coachVerdict =
+        "Excelente desempenho tático e técnico. Cumpriu com maestria o plano de jogo e foi fundamental na construção das jogadas.";
+    } else if (rating >= 6.5) {
+      coachVerdict =
+        "Partida segura e disciplinada. Ajudou na marcação e cumpriu as orientações da comissão técnica.";
+    } else {
+      coachVerdict =
+        "Partida abaixo do esperado. Faltou intensidade e precisão nas finalizações e passes finais.";
+    }
+
+    modal.innerHTML = `
+      <div style="background:linear-gradient(135deg, #0b1120 0%, #060913 100%);border:2px solid ${isMvp ? "#facc15" : "#38bdf8"};border-radius:22px;width:100%;max-width:620px;padding:26px;box-shadow:0 0 35px ${isMvp ? "rgba(250,204,21,0.28)" : "rgba(56,189,248,0.28)"};color:#fff;font-family:inherit;position:relative;animation:afmScaleUp 0.25s ease">
+        
+        <!-- BOTÃO FECHAR -->
+        <button type="button" id="btnCloseMatchDetailsPopup" style="position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#94a3b8;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;transition:all 0.2s ease">
+          ✕
+        </button>
+
+        <!-- CABEÇALHO DA PARTIDA -->
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+          <div style="width:48px;height:48px;border-radius:14px;background:${isMvp ? "rgba(250,204,21,0.15)" : "rgba(56,189,248,0.15)"};border:1.5px solid ${isMvp ? "#facc15" : "#38bdf8"};display:flex;align-items:center;justify-content:center;font-size:24px">
+            ${isMvp ? "⭐" : "📋"}
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <h2 style="margin:0;font-size:18px;font-weight:900;color:#fff">SÚMULA OFICIAL DA PARTIDA</h2>
+              ${
+                isMvp
+                  ? `
+                <span style="background:rgba(250,204,21,0.2);border:1px solid #facc15;color:#fde68a;font-size:10px;font-weight:900;padding:2px 8px;border-radius:12px">
+                  ⭐ MELHOR EM CAMPO (MVP)
+                </span>
+              `
+                  : ""
+              }
+            </div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px">
+              ${m.competitionName || state.competition || "Campeonato"} • ${m.date ? formatDatePtBr(m.date) : "Data Registrada"}
+            </div>
+          </div>
+        </div>
+
+        <!-- PLACAR DO JOGO -->
+        <div style="background:#090d16;border:1px solid #1e293b;border-radius:16px;padding:16px;text-align:center;margin-bottom:18px">
+          <div style="display:flex;align-items:center;justify-content:center;gap:18px">
+            <div style="font-size:16px;font-weight:900;color:#fff">${esc(state.club)}</div>
+            <div style="font-size:24px;font-weight:900;color:#10b981;background:rgba(16,185,129,0.15);padding:4px 16px;border-radius:10px;border:1px solid rgba(16,185,129,0.3)">
+              ${esc(m.score || "-")}
+            </div>
+            <div style="font-size:16px;font-weight:900;color:#fff">${esc(m.opponent || "Adversário")}</div>
+          </div>
+        </div>
+
+        <!-- ATUAÇÃO INDIVIDUAL DO ATLETA -->
+        <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;margin-bottom:18px;text-align:center">
+          <div style="background:#090d16;border:1px solid #1e293b;border-radius:12px;padding:10px">
+            <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">NOTA OFICIAL</div>
+            <div style="font-size:22px;font-weight:900;color:${ratingColor};margin-top:2px">${rating.toFixed(1)}</div>
+          </div>
+          <div style="background:#090d16;border:1px solid #1e293b;border-radius:12px;padding:10px">
+            <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">MINUTOS</div>
+            <div style="font-size:22px;font-weight:900;color:#38bdf8;margin-top:2px">${minutes}'</div>
+          </div>
+          <div style="background:#090d16;border:1px solid #1e293b;border-radius:12px;padding:10px">
+            <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">GOLS</div>
+            <div style="font-size:22px;font-weight:900;color:#10b981;margin-top:2px">${goals > 0 ? `⚽ ${goals}` : "0"}</div>
+          </div>
+          <div style="background:#090d16;border:1px solid #1e293b;border-radius:12px;padding:10px">
+            <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">ASSISTS</div>
+            <div style="font-size:22px;font-weight:900;color:#c084fc;margin-top:2px">${assists > 0 ? `👟 ${assists}` : "0"}</div>
+          </div>
+        </div>
+
+        <!-- PARECER DO TREINADOR -->
+        <div style="background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:14px">
+          <div style="font-size:11px;font-weight:900;color:#facc15;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+            <span>👔</span> AVALIAÇÃO DA COMISSÃO TÉCNICA
+          </div>
+          <div style="font-size:12px;color:#cbd5e1;line-height:1.5;font-style:italic">
+            "${esc(coachVerdict)}"
+          </div>
+        </div>
+
+        <!-- REPERCUSSÃO NAS REDES E IMPRENSA -->
+        <div style="background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:20px">
+          <div style="font-size:11px;font-weight:900;color:#38bdf8;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+            <span>📱</span> REPERCUSSÃO NO FOOTGRAM & TORCIDA
+          </div>
+          <div style="font-size:12px;color:#cbd5e1;line-height:1.5">
+            ${
+              rating >= 8.0
+                ? `Os torcedores foram à loucura nas redes sociais exaltando a atuação de <b>${esc(athlete?.name || "Craque")}</b>! O nome do atleta figurou entre os mais comentados do dia no FootGram!`
+                : rating >= 6.5
+                  ? `A torcida aplaudiu a garra em campo e destacou a entrega tática na partida.`
+                  : `Comentários nas redes pedem mais minutos e apoio da torcida para recuperar a melhor fase.`
+            }
+          </div>
+        </div>
+
+        <!-- BOTÃO FECHAR -->
+        <div style="display:flex;justify-content:center">
+          <button type="button" id="btnOkCloseMatchDetails" class="btn primary" style="background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;font-weight:900;padding:11px 32px;border-radius:10px;border:none;cursor:pointer;font-size:13px">
+            Fechar Súmula
+          </button>
+        </div>
+
+      </div>
+    `;
+
+    document
+      .getElementById("btnCloseMatchDetailsPopup")
+      ?.addEventListener("click", () => closeActionModal());
+    document
+      .getElementById("btnOkCloseMatchDetails")
+      ?.addEventListener("click", () => closeActionModal());
+  }
+
+  // =========================================================================
+  // MODAIS E AÇÕES DO VESTIÁRIO (CLUBE & ELENCO)
+  // =========================================================================
+
+  function openTeammateDetailModal(player, athlete, pState, state) {
+    if (!player) return;
+    const isUser = player.id === athlete.id;
+    if (isUser) return;
+
+    const modal = createActionModalContainer();
+    const pOvr = Number(player.ovr || player.overall || 50);
+    const aOvr = Number(athlete.ovr || athlete.overall || 35);
+
+    const pAge = Number(player.age || 25);
+    const aAge = Number(athlete.age || 15);
+
+    const pAttrs = player.attributes || {};
+    const aAttrs = athlete.attributes || {};
+
+    const pFin = Number(pAttrs.fin || pAttrs.rem || pAttrs.chute || pOvr);
+    const aFin = Number(aAttrs.fin || aAttrs.rem || aAttrs.chute || aOvr);
+
+    const pVel = Number(pAttrs.vel || pAttrs.arranque || pOvr);
+    const aVel = Number(aAttrs.vel || aAttrs.arranque || aOvr);
+
+    const pPas = Number(pAttrs.pas || pAttrs.visao || pOvr);
+    const aPas = Number(aAttrs.pas || aAttrs.visao || aOvr);
+
+    const pFis = Number(pAttrs.fis || pAttrs.res || pAttrs.folego || pOvr);
+    const aFis = Number(aAttrs.fis || aAttrs.res || aAttrs.folego || aOvr);
+
+    pState.teammatesAffinity = pState.teammatesAffinity || {};
+    const affinity = pState.teammatesAffinity[player.id] ?? 50;
+
+    const isVeteran = pAge >= 27;
+    const isHigherOvr = pOvr > aOvr;
+    const canMentor = isVeteran && isHigherOvr;
+
+    const curDate = state.date || state.currentDate || "2026-01-01";
+    let daysSinceLast = 999;
+    if (pState.lastMentorshipDate && typeof getDaysBetween === "function") {
+      daysSinceLast = getDaysBetween(pState.lastMentorshipDate, curDate);
+    }
+    const isCooldownActive = daysSinceLast < 7;
+    const athleteEnergy = Number(athlete.energy ?? 100);
+    const hasEnergy = athleteEnergy >= 10;
+
+    const affinityLabel =
+      affinity >= 85
+        ? "🔥 Irmandade & Parceria Perfeita"
+        : affinity >= 65
+          ? "⚡ Boa Química & Entrosamento"
+          : affinity >= 35
+            ? "🤝 Colegas de Equipe (Profissional)"
+            : "❄️ Clima Frio / Relação Distante";
+
+    const affinityColor =
+      affinity >= 85
+        ? "#10b981"
+        : affinity >= 65
+          ? "#38bdf8"
+          : affinity >= 35
+            ? "#facc15"
+            : "#94a3b8";
+
+    function renderComparisonBar(label, userVal, peerVal, maxVal = 99) {
+      const userPct = Math.min(100, Math.round((userVal / maxVal) * 100));
+      const peerPct = Math.min(100, Math.round((peerVal / maxVal) * 100));
+      const userAdv = userVal > peerVal;
+      const peerAdv = peerVal > userVal;
+
+      return `
+        <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:10px 14px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:800;color:#cbd5e1;margin-bottom:6px">
+            <span style="color:${userAdv ? "#c084fc" : "#94a3b8"}">Você: <b style="font-size:13px;color:#fff">${userVal}</b></span>
+            <span style="text-transform:uppercase;letter-spacing:0.5px;color:#94a3b8">${label}</span>
+            <span style="color:${peerAdv ? "#38bdf8" : "#94a3b8"}"><b style="font-size:13px;color:#fff">${peerVal}</b> :${esc(player.name.split(" ")[0])}</span>
+          </div>
+          <div style="display:flex;gap:4px;height:8px;background:#1e293b;border-radius:4px;overflow:hidden">
+            <div style="width:50%;display:flex;justify-content:flex-end">
+              <div style="width:${userPct}%;height:100%;background:linear-gradient(90deg, #7c3aed, #a855f7);border-radius:4px 0 0 4px"></div>
+            </div>
+            <div style="width:50%;display:flex;justify-content:flex-start">
+              <div style="width:${peerPct}%;height:100%;background:linear-gradient(90deg, #0284c7, #38bdf8);border-radius:0 4px 4px 0"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    modal.innerHTML = `
+      <div class="card" style="width:100%;max-width:580px;background:#101724;border:2px solid #38bdf8;border-radius:20px;padding:22px;box-shadow:0 0 30px rgba(56,189,248,0.25);max-height:90vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:48px;height:48px;border-radius:12px;background:#1e293b;border:2px solid #38bdf8;display:flex;align-items:center;justify-content:center;font-size:24px">
+              ${player.photo ? `<img src="${player.photo}" style="width:100%;height:100%;border-radius:10px;object-fit:cover">` : "👤"}
+            </div>
+            <div>
+              <div style="font-size:16px;font-weight:900;color:#fff;display:flex;align-items:center;gap:8px">
+                ${esc(player.name)} <span style="color:#a855f7">#${player.number || 10}</span>
+                <span class="pill" style="background:#38bdf8;color:#000;font-size:10px;font-weight:900">${player.pos || "ATA"}</span>
+              </div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:2px">
+                ${player.age || 25} anos • ${esc(state.club)} • ${pOvr} OVR
+              </div>
+            </div>
+          </div>
+          <button type="button" id="btnCloseTeammateModal" class="btn" style="background:transparent;border:none;color:#94a3b8;font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+        </div>
+
+        <!-- AFINIDADE NO VESTIÁRIO -->
+        <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px 16px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase">🤝 Afinidade no Vestiário</span>
+            <span style="font-size:12px;font-weight:900;color:${affinityColor}">${affinityLabel} (${affinity}%)</span>
+          </div>
+          <div style="width:100%;height:8px;background:#1e293b;border-radius:4px;overflow:hidden">
+            <div style="width:${affinity}%;height:100%;background:${affinityColor};border-radius:4px;transition:width 0.3s"></div>
+          </div>
+          <div style="font-size:10px;color:#64748b;margin-top:6px">
+            A afinidade aumenta com treinos de mentoria, jogos juntos e passes decisivos em campo.
+          </div>
+        </div>
+
+        <!-- COMPARATIVO DIRETO -->
+        <div style="margin-bottom:16px">
+          <div style="font-size:12px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+            <span>⚔️</span> Comparativo Direto: Você vs ${esc(player.name.split(" ")[0])}
+          </div>
+          ${renderComparisonBar("OVR Geral", aOvr, pOvr, 99)}
+          ${renderComparisonBar("Finalização / Chute", aFin, pFin, 99)}
+          ${renderComparisonBar("Velocidade / Arranque", aVel, pVel, 99)}
+          ${renderComparisonBar("Passe / Visão", aPas, pPas, 99)}
+          ${renderComparisonBar("Físico / Resistência", aFis, pFis, 99)}
+          ${renderComparisonBar("Idade / Experiência", aAge, pAge, 40)}
+        </div>
+
+        <!-- MENTORIA COM VETERANO -->
+        <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(168,85,247,0.3);border-radius:14px;padding:16px;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <span style="font-size:24px">🎓</span>
+            <div>
+              <div style="font-size:13px;font-weight:900;color:#fff">Mentoria & Treino Especial com Veterano</div>
+              <div style="font-size:10px;color:#c084fc">Aprenda macetes de jogo com atletas experientes do elenco</div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:#cbd5e1;line-height:1.4;margin-bottom:12px">
+            Veteranos (27+ anos) com maior OVR podem orientar seu atleta em treinos intensivos. Consome 10% de energia e concede +20 XP além de +5% de entrosamento imediato.
+          </div>
+          <div>
+            ${
+              canMentor
+                ? (!isCooldownActive && hasEnergy
+                    ? `<button type="button" id="btnExecuteMentorship" class="btn success" style="width:100%;background:linear-gradient(135deg,#10b981,#059669);color:#000;font-weight:900;padding:11px;border-radius:10px;font-size:12px;cursor:pointer;border:none">
+                        🎓 Treinar Junto & Pedir Mentoria (-10% Energia · +20 XP · +5% Afinidade)
+                      </button>`
+                    : isCooldownActive
+                      ? `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;padding:10px;border-radius:10px;font-size:11px">
+                          ⏳ Mentoria em Cooldown (Disponível a cada 7 dias)
+                        </button>`
+                      : `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;padding:10px;border-radius:10px;font-size:11px">
+                          🔒 Energia Insuficiente (${athleteEnergy}% · Mínimo 10%)
+                        </button>`)
+                : `<button type="button" class="btn" disabled style="width:100%;background:#1e293b;color:#94a3b8;padding:10px;border-radius:10px;font-size:11px">
+                    🔒 Mentoria Indisponível (${!isVeteran ? "Atleta precisa ter 27+ anos" : "OVR do companheiro deve ser superior ao seu"})
+                  </button>`
+            }
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end">
+          <button type="button" id="btnOkCloseTeammate" class="btn" style="background:#1e293b;color:#cbd5e1;font-weight:800;padding:8px 18px;border-radius:8px;font-size:12px;cursor:pointer">Fechar</button>
+        </div>
+      </div>
+    `;
+
+    document
+      .getElementById("btnCloseTeammateModal")
+      ?.addEventListener("click", () => closeActionModal());
+    document
+      .getElementById("btnOkCloseTeammate")
+      ?.addEventListener("click", () => closeActionModal());
+
+    document
+      .getElementById("btnExecuteMentorship")
+      ?.addEventListener("click", () => {
+        athlete.energy = Math.max(0, (Number(athlete.energy) || 100) - 10);
+        athlete.fitness = athlete.energy;
+        pState.xp = (Number(pState.xp) || 0) + 20;
+        if (window.AFM_PlayerEngine?.normalizePlayerProgression) {
+          window.AFM_PlayerEngine.normalizePlayerProgression(pState);
+        }
+        pState.teammatesAffinity[player.id] = Math.min(100, affinity + 5);
+        pState.lastMentorshipDate = curDate;
+
+        window.save?.();
+        closeActionModal();
+        if (typeof window.render === "function") window.render();
+
+        showCustomAlert({
+          title: "Mentoria Realizada!",
+          message: `Você realizou uma sessão de treinamento com ${player.name}. Ganhou +20 XP e sua afinidade subiu para ${pState.teammatesAffinity[player.id]}%!`,
+          type: "success",
+        });
+      });
+  }
+
+  function executeImmediateSalaryDemand(state, pState, athlete) {
+    const arrears = pState.clubSalaryArrears;
+    if (!arrears || Number(arrears.amount) <= 0) {
+      showCustomAlert({
+        title: "Finanças do Clube",
+        message: "Não há salários em atraso para cobrar.",
+        type: "warning",
+      });
+      return;
+    }
+    const clubCash = Number(state.balance ?? state.budget ?? 0);
+    const owed = Number(arrears.amount);
+    const canPay = clubCash > 0 ? Math.min(clubCash, owed) : 0;
+
+    pState.relationships = pState.relationships || {};
+    pState.relationships.boardRelation = Math.max(
+      0,
+      (Number(pState.relationships.boardRelation) || 65) - 10,
+    );
+
+    if (canPay > 0 && Math.random() < 0.85) {
+      state.balance = Math.max(0, clubCash - canPay);
+      if (state.budget !== undefined) state.budget = state.balance;
+      arrears.amount = Math.max(0, owed - canPay);
+      if (arrears.amount === 0) arrears.months = 0;
+
+      if (window.AFM_Lifestyle?.addPlayerTransaction) {
+        window.AFM_Lifestyle.addPlayerTransaction(
+          pState,
+          state.date || "2026-01-01",
+          "Acerto Emergencial de Salário com Diretoria",
+          canPay,
+          "in",
+        );
+      } else {
+        pState.personalBank = (Number(pState.personalBank) || 0) + canPay;
+      }
+
+      state.news = Array.isArray(state.news) ? state.news : [];
+      state.news.unshift(
+        `💵 ACERTO FINANCEIRO: Após cobrança direta de ${athlete.name}, a diretoria do ${state.club} quitou R$ ${canPay.toLocaleString("pt-BR")} da dívida salarial. A relação com a diretoria foi desgastada (-10%).`,
+      );
+
+      window.save?.();
+      window.render?.();
+      showCustomAlert({
+        title: "Pagamento Liberado!",
+        message: `A diretoria liberou R$ ${canPay.toLocaleString("pt-BR")}. O valor foi creditado em sua conta pessoal. A relação com a diretoria caiu 10%.`,
+        type: "success",
+      });
+    } else {
+      state.news = Array.isArray(state.news) ? state.news : [];
+      state.news.unshift(
+        `🚨 TENSÃO: ${athlete.name} cobrou o pagamento de salários atrasados da diretoria, mas o clube alegou fluxo de caixa zerado. A relação com a diretoria caiu 10%.`,
+      );
+
+      window.save?.();
+      window.render?.();
+      showCustomAlert({
+        title: "Cobrança Sem Sucesso",
+        message: `A diretoria informou que o clube não possui liquidez imediata no caixa neste momento. A relação com a diretoria caiu 10%.`,
+        type: "warning",
+      });
+    }
+  }
+
+  function executeJustaCausaResignation(state, pState, athlete) {
+    const arrears = pState.clubSalaryArrears;
+    if (!arrears || Number(arrears.months) < 2) {
+      showCustomAlert({
+        title: "Rescisão Trabalhista",
+        message:
+          "A rescisão por justa causa exige pelo menos 2 meses de salários atrasados comprovados.",
+        type: "warning",
+      });
+      return;
+    }
+
+    const oldClub = state.club;
+    athlete.club = "Sem Clube";
+    athlete.wage = 0;
+    pState.club = "Sem Clube";
+    pState.transferListing = null;
+
+    state.news = Array.isArray(state.news) ? state.news : [];
+    state.news.unshift(
+      `⚖️ RESCISÃO POR JUSTA CAUSA: Devido a ${arrears.months} meses de salários atrasados não pagos, ${pState.athleteName} rescindiu unilateralmente com o ${oldClub} e agora é um agente livre no mercado!`,
+    );
+
+    window.save?.();
+    window.render?.();
+    showCustomAlert({
+      title: "Rescisão Concedida!",
+      message: `Contrato com o ${oldClub} rescindido por justa causa! Você está livre no mercado (Free Agent) e pode assinar com um novo clube na aba Empresário & Mercado.`,
+      type: "success",
+    });
+  }
+
+  function executePressureBicho(state, pState, athlete) {
+    pState.bichoBonusPct = (Number(pState.bichoBonusPct) || 0) + 20;
+    pState.relationships = pState.relationships || {};
+    pState.relationships.boardRelation = Math.max(
+      0,
+      (Number(pState.relationships.boardRelation) || 65) - 5,
+    );
+
+    state.news = Array.isArray(state.news) ? state.news : [];
+    state.news.unshift(
+      `🗣️ LIDERANÇA NO VESTIÁRIO: ${athlete.name} reuniu os companheiros e pressionou a diretoria por aumento na tabela de premiações (Bicho). Bicho aumentado em +20%!`,
+    );
+
+    window.save?.();
+    window.render?.();
+    showCustomAlert({
+      title: "Bicho Aumentado!",
+      message: `A diretoria atendeu à pressão da liderança e aumentou as premiações por vitória em +20%!`,
+      type: "success",
+    });
+  }
+
+  /**
+   * VESTIÁRIO EXCLUSIVO DO MODO JOGADOR (BE A PRO) — INTERVALO DE PARTIDA
+   * Substitui a prancheta de técnico por um relatório individual do atleta:
+   * nota da atuação até o momento, estatísticas de passes/gols/assistências,
+   * confiança com o treinador e decisões da IA para o 2º tempo.
+   */
+  function getPlayerSubstitutionChance(trust, scoreText, warmedUp) {
+    return Math.max(
+      10,
+      Math.min(
+        90,
+        Math.round(
+          20 +
+            Math.max(0, Math.min(100, Number(trust) || 0)) * 0.45 +
+            (scoreText === "Perdendo" ? 15 : 0) +
+            (warmedUp ? 10 : 0),
+        ),
+      ),
+    );
+  }
+  function isSubstitutionAccepted(chance, roll = Math.random()) {
+    return Math.max(0, Math.min(100, Number(chance) || 0)) > roll * 100;
+  }
+
+  function openPlayerCareerHalftimeModal(isQuickTactics = false) {
+    const s = window.liveMatchState;
+    const gameState = window.state;
+    if (!s || !gameState) return;
+
+    let modalEl = document.getElementById("halftimeModalContainer");
+    if (!modalEl) {
+      modalEl = document.createElement("div");
+      modalEl.id = "halftimeModalContainer";
+      document.body.appendChild(modalEl);
+    }
+
+    const userIsHome =
+      typeof window.norm === "function"
+        ? window.norm(s.home) === window.norm(gameState.club)
+        : s.home === gameState.club;
+    const pCareer = gameState.playerCareerState || {};
+    const athlete = (gameState.squad || []).find(
+      (p) => p.id === gameState.controlledPlayerId,
+    ) || {
+      name: pCareer.athleteName || "Seu Atleta",
+      pos: pCareer.position || "ATA",
+      number: pCareer.shirtNumber || 10,
+      ovr: 40,
+    };
+
+    const myTeam = userIsHome ? s.homePlayers : s.awayPlayers;
+    const athleteOnPitch = (myTeam || []).find((p) => p.isControlledAthlete);
+    const isOnPitch = Boolean(athleteOnPitch);
+    const canAskCoach =
+      !isOnPitch &&
+      s.playerCareerAvailableForMatch !== false &&
+      Number(s.subsLeft) > 0;
+    let trust = Number(pCareer.managerTrust) || 35;
+
+    // Placar e contexto
+    const scoreText =
+      s.hg === s.ag
+        ? "Empatando"
+        : userIsHome
+          ? s.hg > s.ag
+            ? "Vencendo"
+            : "Perdendo"
+          : s.ag > s.hg
+            ? "Vencendo"
+            : "Perdendo";
+    const scoreColor =
+      s.hg === s.ag
+        ? "#38bdf8"
+        : scoreText === "Vencendo"
+          ? "#10b981"
+          : "#f87171";
+
+    // Estatísticas individuais do 1º tempo
+    let goals = 0;
+    let assists = 0;
+    let shots = 0;
+    let passesCompleted = 0;
+    let passesAttempted = 0;
+    let tackles = 0;
+    let staminaPct = 100;
+    let rating = 6.5;
+
+    if (isOnPitch && athleteOnPitch) {
+      goals =
+        athleteOnPitch.matchGoals ||
+        (s.events || []).filter(
+          (e) =>
+            e.type === "gol" &&
+            (e.playerId === athleteOnPitch.id ||
+              e.text?.includes(athlete.name)),
+        ).length;
+      assists =
+        athleteOnPitch.matchAssists ||
+        (s.events || []).filter(
+          (e) => e.type === "gol" && e.relatedPlayerId === athleteOnPitch.id,
+        ).length;
+      shots =
+        athleteOnPitch.matchShots ||
+        Math.max(
+          goals,
+          Math.floor(
+            (s.events || []).filter(
+              (e) =>
+                e.type === "finalizacao" &&
+                (e.playerId === athleteOnPitch.id ||
+                  e.text?.includes(athlete.name)),
+            ).length,
+          ) || (goals > 0 ? goals + 1 : 2),
+        );
+      passesAttempted =
+        athleteOnPitch.passesAttempted || 14 + Math.floor(athlete.ovr * 0.1);
+      passesCompleted =
+        athleteOnPitch.passesCompleted ||
+        Math.round(
+          passesAttempted *
+            (0.78 + Math.min(0.18, (athlete.attributes?.pas || 35) * 0.002)),
+        );
+      tackles =
+        athleteOnPitch.matchTackles ||
+        Math.floor((athlete.attributes?.def || 30) * 0.05);
+      staminaPct = Math.max(
+        40,
+        Math.round(athleteOnPitch.stamina || 100 - s.minute * 0.3),
+      );
+      athleteOnPitch.matchGoals = goals;
+      athleteOnPitch.matchAssists = assists;
+      athleteOnPitch.matchShots = shots;
+      athleteOnPitch.passesAttempted = passesAttempted;
+      athleteOnPitch.passesCompleted = passesCompleted;
+      athleteOnPitch.matchTackles = tackles;
+
+      // Nota do 1º tempo calculada dinamicamente
+      let calcRating =
+        6.2 +
+        goals * 1.3 +
+        assists * 0.8 +
+        (passesCompleted / passesAttempted) * 0.5 +
+        shots * 0.2;
+      if (scoreText === "Vencendo") calcRating += 0.4;
+      if (scoreText === "Perdendo") calcRating -= 0.4;
+      rating = Math.max(4.5, Math.min(10.0, Number(calcRating.toFixed(1))));
+      athleteOnPitch.firstHalfRating = rating;
+    }
+
+    // Classificação da Nota
+    const ratingBadgeColor =
+      rating >= 8.0
+        ? "#10b981"
+        : rating >= 7.0
+          ? "#38bdf8"
+          : rating >= 6.0
+            ? "#facc15"
+            : "#ef4444";
+    const ratingLabel =
+      rating >= 8.5
+        ? "Craque do Jogo"
+        : rating >= 7.5
+          ? "Excelente"
+          : rating >= 6.5
+            ? "Bom Desempenho"
+            : rating >= 5.5
+              ? "Regular"
+              : "Abaixo do Esperado";
+
+    // Status da Confiança do Treinador
+    let trustStatus = "Reserva Imediato";
+    let trustBadgeBg = "#f59e0b";
+    if (trust >= 85) {
+      trustStatus = "Estrela & Capitão";
+      trustBadgeBg = "#a855f7";
+    } else if (trust >= 60) {
+      trustStatus = "Titular de Confiança";
+      trustBadgeBg = "#10b981";
+    } else if (trust >= 30) {
+      trustStatus = "Reserva Imediato / Opção";
+      trustBadgeBg = "#f59e0b";
+    } else {
+      trustStatus = "Pouco Prestígio / Em Avaliação";
+      trustBadgeBg = "#ef4444";
+    }
+
+    // Fala do Treinador no Vestiário
+    let coachSpeech = "";
+    const coachTitle = `Palavra do Professor (${gameState.manager || "Treinador da IA"})`;
+    let subDecisionNotice = "";
+
+    if (!isOnPitch) {
+      s.shouldSubPlayerAtHalftime = false;
+      if (canAskCoach) {
+        coachSpeech = `"Mantenha o foco no banco de reservas, ${athlete.name}. O aquecimento e o andamento da partida podem abrir uma oportunidade."`;
+        subDecisionNotice =
+          "⏳ STATUS: No banco, aguardando uma oportunidade da comissão.";
+      } else if (s.playerCareerAvailableForMatch === false) {
+        coachSpeech = `"Você está com desgaste físico alto, ${athlete.name}. Vamos preservar sua condição e evitar uma entrada sem segurança."`;
+        subDecisionNotice =
+          "🩺 STATUS: Fora dos relacionados por desgaste físico (40% ou menos).";
+      } else {
+        coachSpeech = `"As substituições disponíveis já foram usadas, ${athlete.name}. Continue apoiando a equipe do banco."`;
+        subDecisionNotice =
+          "⏳ STATUS: Sem substituições disponíveis para esta partida.";
+      }
+    } else {
+      if (rating >= 7.5) {
+        coachSpeech = `"Excelente primeira etapa, ${athlete.name}! Você está vencendo os duelos individuais e criando perigo. Continue nessa mesma pegada no segundo tempo!"`;
+        subDecisionNotice =
+          "✅ STATUS: Confirmado e mantido como titular absoluto no 2º tempo.";
+      } else if (rating >= 6.5) {
+        coachSpeech = `"Bom trabalho coletivo no primeiro tempo, ${athlete.name}. No segundo tempo quero mais aproximação com os companheiros e chutes rápidos de média distância."`;
+        subDecisionNotice = "✅ STATUS: Mantido na equipe para a etapa final.";
+      } else {
+        coachSpeech = `"Você está sumido no jogo, ${athlete.name}! Quero mais entrega, bote pressão na saída de bola e movimentação rápida, senão serei obrigado a mexer no time."`;
+        subDecisionNotice =
+          "⚠️ ALERTA DO TÉCNICO: Sob observação (risco de substituição se cansar).";
+      }
+    }
+
+    modalEl.innerHTML = `
+      <div class="halftime-overlay" style="position:fixed;inset:0;background:rgba(2,6,23,0.94);backdrop-filter:blur(14px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:14px;animation:afmFadeIn 0.25s ease">
+        <div style="background:linear-gradient(145deg, #0f172a 0%, #1e1b4b 55%, #090d16 100%);border:2px solid #7c3aed;border-radius:24px;padding:22px 24px;max-width:880px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,0.85);color:#fff;display:flex;flex-direction:column;gap:16px">
+          
+          <!-- TOPO DO VESTIÁRIO: CABEÇALHO & PLACAR AO VIVO -->
+          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px">
+            <div>
+              <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,0.25);border:1px solid #a855f7;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.5px">
+                ⚽ VESTIÁRIO DO ATLETA · MODO JOGADOR (BE A PRO)
+              </div>
+              <h2 style="margin:4px 0 0 0;font-size:20px;font-weight:900;color:#fff">
+                ${isQuickTactics ? "PARADA TÁTICA / INSTRUÇÕES" : "INTERVALO DE JOGO"}
+              </h2>
+              <div style="font-size:11px;color:#94a3b8">
+                Clube: <b style="color:#fff">${window.esc ? window.esc(gameState.club) : gameState.club}</b> · Situação: <span style="color:${scoreColor};font-weight:800">${scoreText.toUpperCase()}</span>
+              </div>
+            </div>
+
+            <!-- PLACAR CENTRAL DO JOGO -->
+            <div style="display:flex;align-items:center;gap:12px;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:8px 18px">
+              <div style="display:flex;align-items:center;gap:6px">
+                ${typeof window.clubBadge === "function" ? window.clubBadge(s.home, 26) : ""}
+                <span style="font-size:13px;font-weight:900;color:#fff">${window.esc ? window.esc(s.home) : s.home}</span>
+              </div>
+              <div style="font-size:22px;font-weight:900;letter-spacing:2px;color:#facc15;background:#090d16;padding:2px 12px;border-radius:8px;border:1px solid rgba(250,204,21,0.3)">
+                ${s.hg} - ${s.ag}
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:13px;font-weight:900;color:#fff">${window.esc ? window.esc(s.away) : s.away}</span>
+                ${typeof window.clubBadge === "function" ? window.clubBadge(s.away, 26) : ""}
+              </div>
+            </div>
+          </div>
+
+          <!-- CORPO: DUAS COLUNAS (PERFIL & DESEMPENHO vs CONFIANÇA & FALA DO TÉCNICO) -->
+          <div style="display:grid;grid-template-columns:1.15fr 1fr;gap:18px">
+            
+            <!-- COLUNA ESQUERDA: DESEMPENHO INDIVIDUAL DO ATLETA -->
+            <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:14px">
+              
+              <!-- IDENTIFICAÇÃO DO ATLETA -->
+              <div style="display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:12px">
+                <div style="width:52px;height:52px;border-radius:12px;overflow:hidden;background:#1e293b;border:2px solid #7c3aed;flex-shrink:0">
+                  ${athlete.photo ? `<img src="${athlete.photo}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:22px">⭐</div>'}
+                </div>
+                <div style="flex:1">
+                  <div style="font-size:16px;font-weight:900;color:#fff">
+                    ${window.esc ? window.esc(athlete.name.toUpperCase()) : athlete.name.toUpperCase()} <span style="color:#a855f7">#${athlete.number || 10}</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+                    <span class="pill" style="background:#7c3aed;color:#fff;font-size:9px;font-weight:900">${athlete.pos || "ATA"}</span>
+                    <span class="pill" style="background:${isOnPitch ? "rgba(16,185,129,0.2)" : "rgba(245,158,11,0.2)"};color:${isOnPitch ? "#34d399" : "#facc15"};border:1px solid ${isOnPitch ? "#10b981" : "#f59e0b"};font-size:9px;font-weight:900">
+                      ${isOnPitch ? "🟢 EM CAMPO (TITULAR)" : "🟡 BANCO DE RESERVAS"}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- NOTA DO JOGO EM DESTAQUE -->
+                <div style="text-align:center;background:#1e293b;border:2px solid ${ratingBadgeColor};border-radius:12px;padding:6px 14px">
+                  <div id="valAthleteHalftimeRating" style="font-size:24px;font-weight:900;color:${ratingBadgeColor}">${isOnPitch ? rating : "---"}</div>
+                  <div id="lblAthleteHalftimeRating" style="font-size:9px;font-weight:800;color:#94a3b8;white-space:nowrap">${isOnPitch ? ratingLabel : "NO BANCO"}</div>
+                </div>
+              </div>
+
+              <!-- GRADE DE ESTATÍSTICAS INDIVIDUAIS -->
+              <div>
+                <div style="font-size:11px;font-weight:800;color:#94a3b8;margin-bottom:8px;text-transform:uppercase">
+                  📊 ESTATÍSTICAS INDIVIDUAIS NO JOGO:
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px">
+                  <div style="background:#131d2e;border:1px solid #1e293b;border-radius:10px;padding:8px;text-align:center">
+                    <div style="font-size:18px;font-weight:900;color:#10b981">${goals}</div>
+                    <div style="font-size:10px;color:#94a3b8;font-weight:700">⚽ Gols</div>
+                  </div>
+                  <div style="background:#131d2e;border:1px solid #1e293b;border-radius:10px;padding:8px;text-align:center">
+                    <div style="font-size:18px;font-weight:900;color:#38bdf8">${assists}</div>
+                    <div style="font-size:10px;color:#94a3b8;font-weight:700">🎯 Assistências</div>
+                  </div>
+                  <div style="background:#131d2e;border:1px solid #1e293b;border-radius:10px;padding:8px;text-align:center">
+                    <div style="font-size:18px;font-weight:900;color:#facc15">${shots}</div>
+                    <div style="font-size:10px;color:#94a3b8;font-weight:700">⚡ Chutes a Gol</div>
+                  </div>
+                  <div style="background:#131d2e;border:1px solid #1e293b;border-radius:10px;padding:8px;text-align:center">
+                    <div style="font-size:15px;font-weight:900;color:#fff">${isOnPitch ? `${passesCompleted}/${passesAttempted}` : "0/0"}</div>
+                    <div style="font-size:10px;color:#94a3b8;font-weight:700">👟 Passes (${passesAttempted > 0 ? Math.round((passesCompleted / passesAttempted) * 100) : 0}%)</div>
+                  </div>
+                  <div style="background:#131d2e;border:1px solid #1e293b;border-radius:10px;padding:8px;text-align:center">
+                    <div style="font-size:18px;font-weight:900;color:#a855f7">${tackles}</div>
+                    <div style="font-size:10px;color:#94a3b8;font-weight:700">🛡️ Desarmes</div>
+                  </div>
+                  <div style="background:#131d2e;border:1px solid #1e293b;border-radius:10px;padding:8px;text-align:center">
+                    <div id="txtAthleteStaminaVal" style="font-size:18px;font-weight:900;color:${staminaPct >= 70 ? "#10b981" : "#f59e0b"}">${staminaPct}%</div>
+                    <div style="font-size:10px;color:#94a3b8;font-weight:700">🔋 Fôlego</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- BARRA DE ENERGIA / FÔLEGO DO JOGADOR -->
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#cbd5e1;margin-bottom:4px">
+                  <span>CONDIÇÃO FÍSICA PARA O 2º TEMPO</span>
+                  <span id="txtAthleteStaminaHeader" style="color:#10b981">${staminaPct}%</span>
+                </div>
+                <div style="width:100%;height:8px;background:#1e293b;border-radius:4px;overflow:hidden">
+                  <div id="barAthleteHalftimeEnergy" style="width:${staminaPct}%;height:100%;background:linear-gradient(90deg, #10b981, #38bdf8);border-radius:4px;transition:width 0.3s"></div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- COLUNA DIREITA: CONFIANÇA COM O TREINADOR & AÇÕES DO VESTIÁRIO -->
+            <div style="display:flex;flex-direction:column;gap:14px">
+              
+              <!-- CARD DE CONFIANÇA DO TREINADOR -->
+              <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:18px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                  <div>
+                    <span style="font-size:10px;font-weight:800;color:#c084fc;text-transform:uppercase">RELAÇÃO COM O TREINADOR:</span>
+                    <div id="txtHalftimeTrustStatus" style="font-size:15px;font-weight:900;color:#fff">${trustStatus}</div>
+                  </div>
+                  <span id="badgeHalftimeTrust" class="pill" style="background:${trustBadgeBg};color:#000;font-size:11px;font-weight:900;padding:4px 10px;border-radius:8px">
+                    ${trust} / 100
+                  </span>
+                </div>
+
+                <div style="width:100%;height:8px;background:#1e293b;border-radius:4px;overflow:hidden;margin-bottom:12px">
+                  <div id="barHalftimeTrust" style="width:${trust}%;height:100%;background:linear-gradient(90deg,#7c3aed,#a855f7);border-radius:4px;transition:width 0.3s"></div>
+                </div>
+
+                <!-- FALA DO TREINADOR NO VESTIÁRIO -->
+                <div style="background:rgba(124,58,237,0.12);border-left:3px solid #a855f7;border-radius:8px;padding:10px 12px">
+                  <div style="font-size:10px;font-weight:800;color:#c084fc;margin-bottom:2px">
+                    🗣️ ${coachTitle}:
+                  </div>
+                  <div id="txtHalftimeCoachSpeech" style="font-size:12px;color:#e2e8f0;line-height:1.4;font-style:italic">
+                    ${coachSpeech}
+                  </div>
+                </div>
+
+                <div id="txtHalftimeSubNotice" style="margin-top:10px;font-size:11px;font-weight:800;color:#38bdf8;display:flex;align-items:center;gap:6px">
+                  ${subDecisionNotice}
+                </div>
+              </div>
+
+              <!-- AÇÕES INTERATIVAS DO JOGADOR NO VESTIÁRIO -->
+              <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:16px;flex:1;display:flex;flex-direction:column;justify-content:space-between">
+                <div>
+                  <div style="font-size:11px;font-weight:800;color:#94a3b8;margin-bottom:10px;text-transform:uppercase">
+                    ⚡ ATITUDE DO ATLETA NO INTERVALO:
+                  </div>
+
+                  <div style="display:flex;flex-direction:column;gap:8px">
+                    ${
+                      canAskCoach
+                        ? `
+                      <button type="button" id="btnHalftimeWarmup" class="btn warning" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-size:12px;font-weight:900;padding:10px 14px;border-radius:10px;cursor:pointer;border:none;text-align:left;display:flex;justify-content:space-between;align-items:center">
+                        <span>🔥 Aquecer Intensamente no Gramado</span>
+                        <span style="font-size:10px;opacity:0.9;background:rgba(0,0,0,0.25);padding:2px 8px;border-radius:6px">+10% chance de entrada</span>
+                      </button>
+
+                      <button type="button" id="btnHalftimeAskToPlay" class="btn primary" style="background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;font-size:12px;font-weight:900;padding:10px 14px;border-radius:10px;cursor:pointer;border:none;text-align:left;display:flex;justify-content:space-between;align-items:center">
+                        <span>🗣️ Pedir Chance ao Professor</span>
+                        <span style="font-size:10px;color:#c084fc;background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:6px">${getPlayerSubstitutionChance(trust, scoreText, Boolean(s.playerCareerWarmup))}% de chance</span>
+                      </button>
+                    `
+                        : !isOnPitch
+                          ? `
+                      <div style="padding:10px 12px;border-radius:10px;background:#111827;color:#94a3b8;font-size:12px">${s.playerCareerAvailableForMatch === false ? "🩺 Descanse para recuperar o físico antes de voltar a ser relacionado." : "⏳ A comissão não tem substituições disponíveis."}</div>
+                    `
+                          : `
+                      <button type="button" id="btnHalftimeHydrate" class="btn success" style="background:linear-gradient(135deg,#10b981,#059669);color:#000;font-size:12px;font-weight:900;padding:10px 14px;border-radius:10px;cursor:pointer;border:none;text-align:left;display:flex;justify-content:space-between;align-items:center">
+                        <span>💧 Hidratar & Recuperar Fôlego</span>
+                        <span style="font-size:10px;opacity:0.9;background:rgba(0,0,0,0.25);padding:2px 8px;border-radius:6px">+8% Energia</span>
+                      </button>
+
+                      <button type="button" id="btnHalftimeTacticsFocus" class="btn primary" style="background:linear-gradient(135deg,#7c3aed,#9333ea);color:#fff;font-size:12px;font-weight:900;padding:10px 14px;border-radius:10px;cursor:pointer;border:none;text-align:left;display:flex;justify-content:space-between;align-items:center">
+                        <span>🎯 Ouvir Instruções Específicas</span>
+                        <span style="font-size:10px;color:#c084fc;background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:6px">+Precisão de Passes</span>
+                      </button>
+                    `
+                    }
+                  </div>
+                </div>
+
+                <div id="halftimeFeedbackMsg" style="min-height:20px;font-size:11px;font-weight:800;color:#34d399;margin-top:8px;text-align:center"></div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- RODAPÉ: BOTÃO DE VOLTAR AO JOGO -->
+          <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.08);padding-top:14px">
+            <div style="font-size:12px;color:#94a3b8">
+              A comissão técnica da IA comanda o restante da equipe. Você controla o destino do seu atleta!
+            </div>
+            
+            <button type="button" id="btnPlayerResumeMatch" class="btn success" style="background:linear-gradient(135deg,#10b981,#059669);color:#000;font-size:15px;font-weight:900;padding:12px 36px;border-radius:12px;cursor:pointer;border:none;box-shadow:0 0 24px rgba(16,185,129,0.5)">
+              ${isQuickTactics ? "▶️ RETOMAR PARTIDA ➔" : "▶️ COMEÇAR O 2º TEMPO ➔"}
+            </button>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    // Interações de Vestiário
+    const btnWarmup = modalEl.querySelector("#btnHalftimeWarmup");
+    if (btnWarmup) {
+      btnWarmup.onclick = () => {
+        s.playerCareerWarmup = true;
+        btnWarmup.disabled = true;
+        btnWarmup.style.opacity = "0.6";
+        const msg = modalEl.querySelector("#halftimeFeedbackMsg");
+        if (msg)
+          msg.textContent =
+            "🔥 Aquecimento concluído: sua chance de ser chamado aumentou em 10 pontos percentuais.";
+        const notice = modalEl.querySelector("#txtHalftimeSubNotice");
+        if (notice)
+          notice.innerHTML =
+            "🔥 Você está aquecido. A decisão final continua com o professor.";
+        const askButton = modalEl.querySelector("#btnHalftimeAskToPlay");
+        if (askButton)
+          askButton.querySelector("span:last-child").textContent =
+            `${getPlayerSubstitutionChance(trust, scoreText, true)}% de chance`;
+        if (typeof window.toast === "function")
+          window.toast("🔥 Aquecimento realizado com sucesso!");
+      };
+    }
+
+    const btnAskToPlay = modalEl.querySelector("#btnHalftimeAskToPlay");
+    if (btnAskToPlay) {
+      btnAskToPlay.onclick = () => {
+        btnAskToPlay.disabled = true;
+        btnAskToPlay.style.opacity = "0.6";
+        const chance = getPlayerSubstitutionChance(
+          trust,
+          scoreText,
+          Boolean(s.playerCareerWarmup),
+        );
+        const accepted = isSubstitutionAccepted(chance);
+        const msg = modalEl.querySelector("#halftimeFeedbackMsg");
+        if (accepted) {
+          pCareer.managerTrust = Math.min(100, trust + 1);
+          trust = pCareer.managerTrust;
+          s.shouldSubPlayerAtHalftime = true;
+          if (msg)
+            msg.textContent = `🗣️ O professor aceitou seu pedido (${chance}%): prepare-se, você entra na próxima parada do jogo.`;
+          if (typeof window.toast === "function")
+            window.toast(`🗣️ Pedido aceito! Chance calculada: ${chance}%.`);
+        } else {
+          s.shouldSubPlayerAtHalftime = false;
+          if (msg)
+            msg.textContent = `🗣️ O professor agradeceu, mas decidiu manter a formação por enquanto (${chance}% de chance).`;
+          if (typeof window.toast === "function")
+            window.toast(
+              `🗣️ Pedido recusado desta vez (${chance}% de chance).`,
+            );
+        }
+        const bTrust = modalEl.querySelector("#barHalftimeTrust");
+        if (bTrust) bTrust.style.width = `${trust}%`;
+        const badge = modalEl.querySelector("#badgeHalftimeTrust");
+        if (badge) badge.textContent = `${trust} / 100`;
+      };
+    }
+
+    const btnHydrate = modalEl.querySelector("#btnHalftimeHydrate");
+    if (btnHydrate) {
+      btnHydrate.onclick = () => {
+        btnHydrate.disabled = true;
+        btnHydrate.style.opacity = "0.6";
+        staminaPct = Math.min(100, staminaPct + 8);
+        if (athleteOnPitch) athleteOnPitch.stamina = staminaPct;
+        const bEnergy = modalEl.querySelector("#barAthleteHalftimeEnergy");
+        if (bEnergy) bEnergy.style.width = `${staminaPct}%`;
+        const txtVal = modalEl.querySelector("#txtAthleteStaminaVal");
+        if (txtVal) txtVal.textContent = `${staminaPct}%`;
+        const txtH = modalEl.querySelector("#txtAthleteStaminaHeader");
+        if (txtH) txtH.textContent = `${staminaPct}%`;
+        const msg = modalEl.querySelector("#halftimeFeedbackMsg");
+        if (msg)
+          msg.textContent =
+            "💧 Você se hidratou com isotônico e recuperou +8% de fôlego!";
+        if (typeof window.toast === "function")
+          window.toast("💧 Energia recuperada para a etapa final!");
+      };
+    }
+
+    const btnTacticsFocus = modalEl.querySelector("#btnHalftimeTacticsFocus");
+    if (btnTacticsFocus) {
+      btnTacticsFocus.onclick = () => {
+        btnTacticsFocus.disabled = true;
+        btnTacticsFocus.style.opacity = "0.6";
+        pCareer.managerTrust = Math.min(100, (pCareer.managerTrust || 35) + 1);
+        const msg = modalEl.querySelector("#halftimeFeedbackMsg");
+        if (msg)
+          msg.textContent =
+            "🎯 Foco tático ajustado! Passes e visão aprimorados para o 2º tempo!";
+        if (typeof window.toast === "function")
+          window.toast("🎯 Instruções assimiladas com sucesso!");
+      };
+    }
+
+    // Retomada da Partida
+    const btnResume = modalEl.querySelector("#btnPlayerResumeMatch");
+    if (btnResume) {
+      btnResume.onclick = () => {
+        modalEl.remove();
+
+        // Se o atleta estava no banco e o técnico marcou a entrada dele:
+        if (canAskCoach && s.shouldSubPlayerAtHalftime) {
+          if (typeof window.triggerPlayerCareerSubstitution === "function") {
+            const entered = window.triggerPlayerCareerSubstitution(s);
+            if (!entered && typeof window.toast === "function")
+              window.toast(
+                "A comissão não conseguiu realizar a substituição. Você permanece no banco.",
+              );
+          }
+        }
+
+        if (typeof window.applyCpuReactiveHalftimeTactics === "function") {
+          window.applyCpuReactiveHalftimeTactics(s);
+        }
+
+        if (typeof window.transitionMatchPhase === "function") {
+          window.transitionMatchPhase("SECOND_HALF");
+        }
+        s.phase = "SECOND_HALF";
+        s.minute = 45;
+        s.timeSec = 2700;
+
+        s.playing = true;
+        s.lastLoopTime =
+          typeof performance !== "undefined" && performance.now
+            ? performance.now()
+            : Date.now();
+        s.secAccumulator = 0;
+        const playBtn = document.getElementById("btnLivePlayToggle");
+        if (playBtn) playBtn.textContent = "⏸";
+        const overlay = document.getElementById("livePauseOverlay");
+        if (overlay) overlay.style.display = "none";
+
+        if (window.afmAudio) {
+          window.afmAudio.playSFX("whistle_start");
+        } else if (typeof window.playWhistleSound === "function") {
+          window.playWhistleSound();
+        }
+
+        if (typeof window.renderLiveMatchModal === "function") {
+          window.renderLiveMatchModal();
+        }
+        if (typeof window.toast === "function") {
+          window.toast("Bola rolando para a etapa complementar!");
+        }
+      };
+    }
+  }
+
+  // Exportação Global
+  window.AFM_PlayerMode = {
+    renderPage,
+    restorePlayerProfile,
+    renderPlayerSocialMedia,
+    renderPlayerNationalTeam,
+    openCallUpAnnouncementModal,
+    showCustomAlert,
+    showPostMatchSummaryModal,
+    openPlayerCareerHalftimeModal,
+    getPlayerSubstitutionChance,
+    isSubstitutionAccepted,
+    openSeasonGalaAwardsModal,
+    bindPlayerModeEvents,
+    getCareerState,
+    openWageNegotiationModal,
+    openRequestLoanModal,
+    openRequestTransferModal,
+    getSquadReferences,
+    calculateAthleteInitialMarketValue,
+    getPlayerMarketValueBrl,
+    formatPlayerMarketValueShort,
+    getDaysBetween,
+    openTeammateDetailModal,
+    executeImmediateSalaryDemand,
+    executeJustaCausaResignation,
+    executePressureBicho,
+  };
+})(window);

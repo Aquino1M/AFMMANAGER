@@ -484,44 +484,50 @@
 
         // Atualiza elementos da UI do Topo e Painéis
         if (typeof document.querySelectorAll === "function") {
-          document.querySelectorAll('.sm-badge-cash .sm-res-val, [id*="Cash"], [id*="Saldo"]').forEach(el => {
-            if (el && typeof el.matches === 'function' && !el.matches('input, textarea, select')) {
-              el.textContent = `R$ ${liquidCash.toLocaleString('pt-BR')}`;
-            }
-          });
+          try {
+            document.querySelectorAll('.sm-badge-cash .sm-res-val, [id*="Cash"], [id*="Saldo"]').forEach(el => {
+              if (el && typeof el.matches === 'function' && !el.matches('input, textarea, select')) {
+                el.textContent = `R$ ${liquidCash.toLocaleString('pt-BR')}`;
+              }
+            });
+          } catch (_) {}
         }
 
         // Badge Topbar
         if (typeof document.querySelector === "function") {
-          const cashValEl = document.querySelector(".sm-badge-cash .sm-res-val");
-          if (cashValEl) {
-            cashValEl.textContent = `R$ ${(liquidCash >= 1000000 ? (liquidCash / 1000000).toFixed(1) + 'M' : (liquidCash >= 1000 ? Math.round(liquidCash / 1000) + 'K' : liquidCash))}`;
-          }
-          const badgeCash = document.querySelector(".sm-badge-cash");
-          if (badgeCash) {
-            badgeCash.title = `Conta Pessoal: ${formattedLiquid} · Patrimônio: ${formattedPatrimony}`;
-          }
+          try {
+            const cashValEl = document.querySelector(".sm-badge-cash .sm-res-val");
+            if (cashValEl) {
+              cashValEl.textContent = `R$ ${(liquidCash >= 1000000 ? (liquidCash / 1000000).toFixed(1) + 'M' : (liquidCash >= 1000 ? Math.round(liquidCash / 1000) + 'K' : liquidCash))}`;
+            }
+            const badgeCash = document.querySelector(".sm-badge-cash");
+            if (badgeCash) {
+              badgeCash.title = `Conta Pessoal: ${formattedLiquid} · Patrimônio: ${formattedPatrimony}`;
+            }
+          } catch (_) {}
         }
 
         // Drawer Lateral
         if (typeof document.getElementById === "function") {
-          const dPatrimonyEl = document.getElementById("drawerPatrimonyVal");
-          if (dPatrimonyEl) dPatrimonyEl.textContent = formattedPatrimony;
+          try {
+            const dPatrimonyEl = document.getElementById("drawerPatrimonyVal");
+            if (dPatrimonyEl) dPatrimonyEl.textContent = formattedPatrimony;
 
-          const dCashEl = document.getElementById("drawerPersonalCashVal");
-          if (dCashEl) dCashEl.textContent = formattedLiquid;
+            const dCashEl = document.getElementById("drawerPersonalCashVal");
+            if (dCashEl) dCashEl.textContent = formattedLiquid;
 
-          // Card de Conta Bancária Pessoal na aba Vida & Patrocínios
-          const personalBankEl = document.getElementById("personalBankBalanceCard");
-          if (personalBankEl) {
-            personalBankEl.textContent = formattedLiquid;
-          }
+            // Card de Conta Bancária Pessoal na aba Vida & Patrocínios
+            const personalBankEl = document.getElementById("personalBankBalanceCard");
+            if (personalBankEl) {
+              personalBankEl.textContent = formattedLiquid;
+            }
 
-          // Card do CDB Esportivo (Saldo Atual Investido)
-          const cdbInvestedEl = document.getElementById("cdbInvestedBalanceVal");
-          if (cdbInvestedEl) {
-            cdbInvestedEl.textContent = `R$ ${totalInvested.toLocaleString("pt-BR")}`;
-          }
+            // Card do CDB Esportivo (Saldo Atual Investido)
+            const cdbInvestedEl = document.getElementById("cdbInvestedBalanceVal");
+            if (cdbInvestedEl) {
+              cdbInvestedEl.textContent = `R$ ${totalInvested.toLocaleString("pt-BR")}`;
+            }
+          } catch (_) {}
         }
       }
 

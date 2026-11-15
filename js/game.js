@@ -89,6 +89,147 @@ window.esc = esc;
 window.norm = norm;
 const hashStr=s=>{let h=2166136261;for(const ch of String(s)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h>>>0)};
 
+// =========================================================================
+// FONTE ÚNICA DE VERDADE DO MODO DE JOGO & MIGRAÇÃO SANEADA DE SAVES
+// =========================================================================
+window.isPlayerCareerActive = function(st) {
+  const targetState = st || (typeof window !== 'undefined' && window.state ? window.state : (typeof state !== 'undefined' && state ? state : null));
+  if (!targetState || typeof targetState !== 'object') return false;
+  const hasPlayerObj = Boolean(
+    targetState.playerCareer?.active ||
+    targetState.player?.isUserPlayer ||
+    targetState.playerCareerState ||
+    targetState.controlledPlayerId ||
+    targetState.gameMode === "player" ||
+    targetState.mode === "player" ||
+    targetState.isPlayerMode === true ||
+    ((targetState.coach?.name === "Treinador da IA" || targetState.coachName === "Treinador da IA" || targetState.manager === "Treinador da IA") &&
+     (targetState.player || targetState.playerCareerState || targetState.controlledPlayerId))
+  );
+  if (hasPlayerObj) {
+    targetState.gameMode = "player";
+    targetState.mode = "player";
+    targetState.isPlayerMode = true;
+    if (targetState.playerCareer) targetState.playerCareer.active = true;
+  }
+  return hasPlayerObj;
+};
+
+window.migrateAndSanitizeSaveState = function(targetState) {
+  if (!targetState || typeof targetState !== "object") return targetState;
+
+  const isPlayer = window.isPlayerCareerActive(targetState);
+  const managerViews = ["central", "tatica", "elenco", "mercado", "financas", "estrutura", "escritorio", "treinos", "ranking", "carreira"];
+  const playerViews = ["player_hub", "player_evolution", "player_club", "player_social", "player_agent", "player_lifestyle", "player_stats", "player_national", "calendario", "temporada", "config"];
+
+  if (isPlayer) {
+    if (!targetState.view || managerViews.includes(targetState.view)) {
+      targetState.view = "player_hub";
+    }
+    targetState.playerCareerState = targetState.playerCareerState || {};
+    targetState.player = targetState.player || targetState.playerCareerState.player || {};
+    targetState.player.name = targetState.player.name || targetState.playerCareerState.athleteName || "Atleta";
+    targetState.player.ovr = Number(targetState.player.ovr || targetState.playerCareerState.athleteOvr || 50);
+    targetState.player.age = Number(targetState.player.age || targetState.playerCareerState.age || 16);
+    targetState.player.cash = Number(targetState.player.cash ?? targetState.playerCareerState.personalBank ?? 1000);
+    targetState.player.salary = Number(targetState.player.salary ?? targetState.playerCareerState.salary ?? 1045);
+    targetState.player.energy = Number(targetState.player.energy ?? targetState.playerCareerState.fitness ?? 100);
+    targetState.player.xp = Number(targetState.player.xp ?? targetState.playerCareerState.xp ?? 0);
+    targetState.player.attributePoints = Number(targetState.player.attributePoints ?? targetState.playerCareerState.availablePoints ?? 0);
+
+    targetState.playerCareerState.athleteName = targetState.playerCareerState.athleteName || targetState.player.name;
+    targetState.playerCareerState.athleteOvr = targetState.playerCareerState.athleteOvr || targetState.player.ovr;
+    targetState.playerCareerState.personalBank = Number(targetState.playerCareerState.personalBank ?? targetState.player.cash ?? 1000);
+    targetState.playerCareerState.salary = Number(targetState.playerCareerState.salary ?? targetState.player.salary ?? 1045);
+    targetState.playerCareerState.availablePoints = Number(targetState.playerCareerState.availablePoints ?? targetState.player.attributePoints ?? 0);
+
+    targetState.player.seasonStats = Object.assign({
+      games: 0, starts: 0, minutes: 0, goals: 0, assists: 0, mvp: 0, yellowCards: 0, redCards: 0, totalRating: 0
+    }, targetState.player.seasonStats || targetState.playerCareerState.seasonStats || {});
+    targetState.playerCareerState.seasonStats = targetState.player.seasonStats;
+
+    targetState.player.careerHistory = Object.assign({
+      totals: { games: 0, starts: 0, minutes: 0, goals: 0, assists: 0, mvp: 0, yellowCards: 0, redCards: 0, ratingSum: 0 },
+      seasons: [],
+      bestMatch: null
+    }, targetState.player.careerHistory || targetState.playerCareerState.careerHistory || {});
+    targetState.playerCareerState.careerHistory = targetState.player.careerHistory;
+
+    targetState.player.agentCooldowns = Object.assign({
+      wage_increase: 0, demand_starter: 0, request_loan: 0, request_transfer: 0, scout_market: 0
+    }, targetState.player.agentCooldowns || targetState.playerCareerState.agentCooldowns || {});
+    targetState.playerCareerState.agentCooldowns = targetState.player.agentCooldowns;
+
+    targetState.player.lifestyle = Object.assign({
+      investments: { cdbBalance: 0 },
+      assets: [],
+      staff: []
+    }, targetState.player.lifestyle || targetState.playerCareerState.lifestyle || {});
+    if (!targetState.player.lifestyle.investments) {
+      targetState.player.lifestyle.investments = { cdbBalance: 0 };
+    }
+    targetState.playerCareerState.lifestyle = targetState.player.lifestyle;
+
+    if (typeof window.AFM_Lifestyle?.ensurePlayerLifestyleState === "function") {
+      window.AFM_Lifestyle.ensurePlayerLifestyleState(targetState.playerCareerState);
+    }
+  } else {
+    if (!targetState.view || playerViews.includes(targetState.view)) {
+      targetState.view = "central";
+    }
+  }
+
+  return targetState;
+};
+
+// Navegação Global com delegação em document (Capture Phase)
+if (typeof window !== "undefined" && typeof document !== "undefined" && typeof document.addEventListener === "function") {
+  if (!window.__afmGlobalNavBound) {
+    window.__afmGlobalNavBound = true;
+    document.addEventListener("click", function(e) {
+      const navBtn = e.target.closest("[data-view]");
+      if (!navBtn) return;
+      const targetView = navBtn.getAttribute("data-view");
+      if (!targetView) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const drawer = document.getElementById("afmSideDrawer");
+      const backdrop = document.getElementById("afmDrawerBackdrop");
+      if (drawer) drawer.classList.remove("drawer-open");
+      if (backdrop) {
+        backdrop.classList.remove("active");
+        backdrop.style.display = "none";
+      }
+
+      const curState = (typeof state !== "undefined" && state) || (typeof window !== "undefined" && window.state);
+      const isPlayer = typeof window.isPlayerCareerActive === "function"
+        ? window.isPlayerCareerActive(curState)
+        : Boolean(curState?.gameMode === "player" || curState?.playerCareerState);
+
+      const managerOnlyViews = ["tatica", "elenco", "mercado", "financas", "estrutura", "escritorio", "treinos", "ranking", "carreira"];
+      let safeView = targetView;
+      if (isPlayer && (managerOnlyViews.includes(targetView) || targetView === "central")) {
+        safeView = "player_hub";
+      }
+
+      if (typeof window.setGameView === "function") {
+        window.setGameView(safeView);
+      } else {
+        if (typeof view !== "undefined") view = safeView;
+        if (typeof window !== "undefined") window.view = safeView;
+        if (curState) curState.view = safeView;
+      }
+
+      window.__afmIsRendering = false;
+      if (typeof window.render === "function") {
+        window.render();
+      }
+    }, true);
+  }
+}
+
 function fixMojibake(str){
   if(typeof str !== 'string' || !str) return str;
   if(!/[\u00C2-\u00C3][\u0080-\u00BF]|ðŸ|âš|âœ|â€|ï¿½|Ã/.test(str)) return str;
@@ -8825,6 +8966,7 @@ window.parseSaveTimestamp = parseSaveTimestamp;
 
 function getSaveGameMode(entry){
   const data = entry?.data && typeof entry.data === 'object' ? entry.data : entry;
+  if(typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(data)) return 'player';
   if(data?.gameMode === 'player' || data?.gameMode === 'manager') return data.gameMode;
   if(typeof data?.isPlayerMode === 'boolean') return data.isPlayerMode ? 'player' : 'manager';
   if(entry?.gameMode === 'player' || entry?.gameMode === 'manager') return entry.gameMode;
@@ -9592,14 +9734,19 @@ function loadUserSlot(slotNum, ownerUsername = null){
   if(typeof window !== 'undefined'){
     window.state = state;
   }
+  if(typeof window.migrateAndSanitizeSaveState === 'function'){
+    state = window.migrateAndSanitizeSaveState(state);
+  }
   purgeBuggedExploitPlayers(state);
   state = migrate(state);
   purgeBuggedExploitPlayers(state);
 
   // REGRA INVIOLÁVEL: IDENTIFICAÇÃO E ISOLAMENTO ESTRITO DO MODO DE JOGO
-  const isPlayerMode = savedMode === 'player';
+  const isPlayerMode = typeof window.isPlayerCareerActive === 'function' ? window.isPlayerCareerActive(state) : (savedMode === 'player');
   if(isPlayerMode){
     state.gameMode = 'player';
+    state.mode = 'player';
+    state.isPlayerMode = true;
     if(!state.playerCareerState && (rawData.playerCareerState || saveEntry.playerCareerState)){
       state.playerCareerState = clone(rawData.playerCareerState || saveEntry.playerCareerState);
     }
@@ -9609,12 +9756,19 @@ function loadUserSlot(slotNum, ownerUsername = null){
     state.coachName = state.coachName || 'Treinador da IA';
     state.manager = state.coachName;
     view = 'player_hub';
+    state.view = 'player_hub';
     if(typeof window !== 'undefined') window.view = 'player_hub';
     restorePlayerCareerSquad(state);
   } else {
     state.gameMode = 'manager';
+    state.mode = 'manager';
+    state.isPlayerMode = false;
     view = 'central';
+    state.view = 'central';
     if(typeof window !== 'undefined') window.view = 'central';
+  }
+  if(typeof window.migrateAndSanitizeSaveState === 'function'){
+    state = window.migrateAndSanitizeSaveState(state);
   }
 
   // Força reconstrução limpa da casca no render()
@@ -15566,9 +15720,13 @@ function migrate(s){
   purgeBuggedExploitPlayers(s);
 
   // REGRA INVIOLÁVEL: IDENTIFICAÇÃO E ISOLAMENTO ESTRITO DO MODO DE JOGO
-  const isPlayerCareer = getSaveGameMode(s) === 'player';
+  const isPlayerCareer = typeof window.isPlayerCareerActive === 'function' ? window.isPlayerCareerActive(s) : (getSaveGameMode(s) === 'player');
   s.gameMode = isPlayerCareer ? 'player' : 'manager';
+  s.mode = s.gameMode;
   s.isPlayerMode = isPlayerCareer;
+  if(typeof window.migrateAndSanitizeSaveState === 'function'){
+    window.migrateAndSanitizeSaveState(s);
+  }
 
   // Corrige somente o caixa inicial inflado do modo jogador, antes de qualquer progresso.
   const saveDate = String(s.date || s.currentDate || '').slice(0, 10);
@@ -29075,13 +29233,22 @@ function render() {
   if(typeof state !== 'undefined' && !state && typeof window !== 'undefined' && window.state) { state = window.state; }
   try { if (typeof state !== 'undefined' && state) { window.state = state; window.GameState = state; } if (typeof render === 'function') { window.render = render; } } catch(e) {}
 
+  if (window.__afmIsRendering) return;
+  window.__afmIsRendering = true;
+
   const app=$('#app');
-  if(!app) return;
+  if(!app) {
+    window.__afmIsRendering = false;
+    return;
+  }
 
   try {
     if(!state){
       renderSetup(app);
       return;
+    }
+    if (typeof window.migrateAndSanitizeSaveState === 'function') {
+      state = window.migrateAndSanitizeSaveState(state);
     }
     try { if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)) save(); } catch(e){}
     try { processLoanContractReturns(state); } catch(e){ recordAFMError('loan-contract-expiration', e); }
@@ -29098,7 +29265,7 @@ function render() {
       if(main) main.scrollTop = mainScroll;
       app.querySelectorAll('.tablewrap, .tactics-bench-wrapper > div[style*="overflow-y:auto"]').forEach((el, i) => { el.scrollTop = nestedScroll[i] || 0; });
     });
-    const isPlayerMode = Boolean(state?.gameMode === 'player' || state?.playerCareerState || state?.controlledPlayerId);
+    const isPlayerMode = typeof window.isPlayerCareerActive === 'function' ? window.isPlayerCareerActive(state) : Boolean(state?.gameMode === 'player' || state?.playerCareerState || state?.controlledPlayerId);
     const currentMode = isPlayerMode ? 'player' : 'manager';
     const mainEl = app.querySelector('.main');
     const sideNav = app.querySelector('.nav');
@@ -29243,16 +29410,19 @@ function render() {
         recordAFMError('render-page', err);
         console.error('Falha ao renderizar a tela ' + view + ':', err);
         const safeMessage = esc(err?.message || 'Erro inesperado ao montar a tela.');
+        const isPlayerMode = typeof window.isPlayerCareerActive === 'function' ? window.isPlayerCareerActive(state) : Boolean(state?.gameMode === 'player' || state?.playerCareerState);
+        const homeView = isPlayerMode ? 'player_hub' : 'central';
+        const homeLabel = isPlayerMode ? 'Voltar ao Hub do Atleta' : 'Voltar à Central';
         try {
           mainEl.innerHTML = `<section class="card" role="alert" style="margin:20px;padding:20px;border:1px solid #ef4444;background:#1b1020;color:#fff">
             <h2 style="margin-top:0">Não foi possível abrir esta tela</h2>
             <p>O jogo encontrou um erro ao renderizar <b>${esc(view)}</b>.</p>
             <pre style="white-space:pre-wrap;overflow-wrap:anywhere;color:#fecaca">${safeMessage}</pre>
             <button type="button" class="btn primary" id="btnRetryRenderPage">Tentar abrir novamente</button>
-            <button type="button" class="btn" id="btnReturnCentralAfterRenderError">Voltar à Central</button>
+            <button type="button" class="btn" id="btnReturnCentralAfterRenderError">${homeLabel}</button>
           </section>`;
           $('#btnRetryRenderPage')?.addEventListener('click', render);
-          $('#btnReturnCentralAfterRenderError')?.addEventListener('click', () => { view = 'central'; render(); });
+          $('#btnReturnCentralAfterRenderError')?.addEventListener('click', () => { view = homeView; render(); });
         } catch(fallbackError){
           recordAFMError('render-error-ui', fallbackError);
           mainEl.textContent = 'Erro ao renderizar a tela: ' + safeMessage;
@@ -29282,10 +29452,12 @@ function render() {
       </div>`;
     }
   } finally {
+    window.__afmIsRendering = false;
     const loader = document.getElementById('afmLoadingScreen');
     if(loader){
       loader.style.transition = 'opacity 0.2s ease';
       loader.style.opacity = '0';
+      loader.style.pointerEvents = 'none';
       setTimeout(() => { if(loader && loader.parentNode) loader.remove(); }, 200);
     }
   }
@@ -30453,25 +30625,36 @@ function inGameRankingPage(){
 
 function setGameView(nextView){
   if(!nextView) return;
-  if(nextView === 'noticias' && (state?.gameMode === 'player' || state?.playerCareerState)) nextView = 'player_social';
-  // Se for ranking, redireciona seguramente
-  if(nextView === 'ranking'){
-    nextView = (state?.gameMode === 'player' || state?.playerCareerState) ? 'player_hub' : 'central';
+  if(typeof state !== 'undefined' && !state && typeof window !== 'undefined' && window.state) {
+    state = window.state;
   }
+  const curState = (typeof state !== 'undefined' && state) || (typeof window !== 'undefined' && window.state);
+  const isPlayer = typeof window.isPlayerCareerActive === 'function'
+    ? window.isPlayerCareerActive(curState)
+    : Boolean(curState?.gameMode === 'player' || curState?.playerCareerState);
+
+  const managerOnlyViews = ["central", "tatica", "elenco", "mercado", "financas", "estrutura", "escritorio", "treinos", "ranking", "carreira"];
+  if(isPlayer && (managerOnlyViews.includes(nextView) || nextView === 'central')){
+    nextView = 'player_hub';
+  }
+  if(nextView === 'noticias' && isPlayer) nextView = 'player_social';
+  if(nextView === 'ranking' && !isPlayer) nextView = 'central';
+
   view = nextView;
   if(typeof window !== 'undefined'){
     window.view = nextView;
   }
-  if(typeof state !== 'undefined' && state){
-    state.userTabUsage = state.userTabUsage || {};
-    state.userTabUsage[nextView] = (state.userTabUsage[nextView] || 0) + 1;
-    if(nextView === 'noticias'){
-      state.unreadNews = 0;
-      state.lastReadNewsCount = (state.news || []).length;
+  if(curState){
+    curState.view = nextView;
+    curState.userTabUsage = curState.userTabUsage || {};
+    curState.userTabUsage[nextView] = (curState.userTabUsage[nextView] || 0) + 1;
+    if(nextView === 'noticias' || nextView === 'player_social'){
+      curState.unreadNews = 0;
+      curState.lastReadNewsCount = (curState.news || []).length;
     }
     if(nextView === 'player_agent' || nextView === 'mercado'){
-      if(state.playerCareerState && Array.isArray(state.playerCareerState.agentOffers)){
-        state.playerCareerState.agentOffers.forEach(o => { o.isRead = true; });
+      if(curState.playerCareerState && Array.isArray(curState.playerCareerState.agentOffers)){
+        curState.playerCareerState.agentOffers.forEach(o => { o.isRead = true; });
       }
     }
   }
@@ -30487,32 +30670,49 @@ function page(){
   }
   let activeView = view || 'central';
 
-  const isPlayer = Boolean(state?.gameMode === 'player' || state?.playerCareerState || state?.controlledPlayerId);
+  if(typeof state !== 'undefined' && !state && typeof window !== 'undefined' && window.state) {
+    state = window.state;
+  }
+  const curState = (typeof state !== 'undefined' && state) || (typeof window !== 'undefined' && window.state);
+  const isPlayer = typeof window.isPlayerCareerActive === 'function'
+    ? window.isPlayerCareerActive(curState)
+    : Boolean(curState?.gameMode === 'player' || curState?.playerCareerState || curState?.controlledPlayerId);
+
+  const managerViews = ["central", "tatica", "elenco", "mercado", "financas", "estrutura", "escritorio", "treinos", "ranking", "carreira"];
+  if(isPlayer && (managerViews.includes(activeView) || activeView === 'central')){
+    activeView = 'player_hub';
+    view = 'player_hub';
+    if(typeof window !== 'undefined') window.view = 'player_hub';
+    if(curState) curState.view = 'player_hub';
+  }
+
   if(isPlayer && activeView === 'noticias'){
     activeView = 'player_social';
     view = activeView;
     if(typeof window !== 'undefined') window.view = activeView;
+    if(state) state.view = activeView;
   }
-  if(isPlayer && typeof window !== 'undefined' && window.AFM_PlayerMode && typeof window.AFM_PlayerMode.renderPage === 'function'){
-    if(activeView === 'ranking' || activeView === 'carreira' || activeView === 'estrutura' || activeView === 'escritorio'){
-      activeView = 'player_hub';
-      view = 'player_hub';
-      if(typeof window !== 'undefined') window.view = 'player_hub';
+
+  if(isPlayer){
+    if(typeof window !== 'undefined' && window.AFM_PlayerMode && typeof window.AFM_PlayerMode.renderPage === 'function'){
+      const playerHtml = window.AFM_PlayerMode.renderPage(activeView);
+      if(playerHtml !== null && typeof playerHtml === 'string') return playerHtml;
+      // Views compartilhadas (temporada, noticias, calendario, config) retornam null do PlayerMode.
+      // Devem usar as funções de página padrão do motor do jogo, NÃO cair no hub do jogador.
+      const sharedPageFn = ({
+        temporada: typeof seasonPage === 'function' ? seasonPage : null,
+        classificacao: typeof seasonPage === 'function' ? seasonPage : null,
+        noticias: typeof newsMediaPage === 'function' ? newsMediaPage : null,
+        calendario: typeof calendarPage === 'function' ? calendarPage : null,
+        config: typeof configPage === 'function' ? configPage : null,
+        novidades: typeof changelogPage === 'function' ? changelogPage : null
+      })[activeView];
+      if(sharedPageFn) return sharedPageFn();
+
+      // No Modo Atleta, NUNCA executa centralPage()!
+      return window.AFM_PlayerMode.renderPage('player_hub') || '<div class="card" style="padding:24px;color:#fff"><h2>Carregando Central do Atleta...</h2></div>';
     }
-    const playerHtml = window.AFM_PlayerMode.renderPage(activeView);
-    if(playerHtml !== null && typeof playerHtml === 'string') return playerHtml;
-    // Views compartilhadas (temporada, noticias, calendario, config) retornam null do PlayerMode.
-    // Devem usar as funções de página padrão do motor do jogo, NÃO cair no hub do jogador.
-    const sharedPageFn = ({
-      temporada: typeof seasonPage === 'function' ? seasonPage : null,
-      classificacao: typeof seasonPage === 'function' ? seasonPage : null,
-      noticias: typeof newsMediaPage === 'function' ? newsMediaPage : null,
-      calendario: typeof calendarPage === 'function' ? calendarPage : null,
-      config: typeof configPage === 'function' ? configPage : null,
-      novidades: typeof changelogPage === 'function' ? changelogPage : null
-    })[activeView];
-    if(sharedPageFn) return sharedPageFn();
-    return window.AFM_PlayerMode.renderPage('player_hub');
+    return '<div class="card" style="padding:24px;color:#fff"><h2>Carregando Modo Atleta...</h2></div>';
   }
 
   if(activeView === 'ranking'){

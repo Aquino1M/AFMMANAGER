@@ -449,7 +449,17 @@
         totalDays: daysCount,
         onContinue: () => {
           if (typeof window.render === 'function') {
-            window.view = 'central';
+            const curState = (typeof window !== 'undefined' && window.state) || (typeof state !== 'undefined' ? state : null);
+            const isPlayer = typeof window.isPlayerCareerActive === 'function'
+              ? window.isPlayerCareerActive(curState)
+              : Boolean(curState?.gameMode === 'player' || curState?.playerCareerState);
+            const targetView = isPlayer ? 'player_hub' : 'central';
+            if (typeof window.setGameView === 'function') {
+              window.setGameView(targetView);
+            } else {
+              window.view = targetView;
+              if (curState) curState.view = targetView;
+            }
             window.render();
           }
         }
