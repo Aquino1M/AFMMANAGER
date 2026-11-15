@@ -139,6 +139,9 @@ const legacyMinutesReport = window.AFM_PlayerEngine.processMatchPerformance(lega
 Math.random = previousRandom;
 assert(standoutReport.xpGained > cleanReport.xpGained, 'Desempenho com dois gols deve render mais XP que jogo sem participação ofensiva');
 assert.strictEqual(standoutMatchState.playerCareerState.careerStats.goals, 2);
+assert.strictEqual(standoutReport.goals, 2);
+assert.strictEqual(standoutMatchState.playerCareerState.matchRatingHistory[0].goals, 2, 'gols recebidos da súmula devem aparecer no histórico da partida');
+assert.strictEqual(standoutMatchState.playerCareerState.seasonStats.goals, 2, 'gols da súmula devem atualizar o painel da temporada');
 assert.strictEqual(unusedReport.xpGained, 0, 'Atleta que não entrou não recebe XP de atuação');
 assert.strictEqual(unusedMatchState.playerCareerState.xp, 0);
 assert.strictEqual(legacyMinutesReport.minutes, 90, 'o formato minutesPlayed da simulação rápida deve ser aceito');
@@ -152,6 +155,8 @@ assert.strictEqual(sponsoredState.playerCareerState.sponsorContract.matchesDurin
 assert.strictEqual(sponsoredState.playerCareerState.sponsorContract.goalsDuringContract, 1);
 assert.strictEqual(sponsoredState.playerCareerState.sponsorContract.assistsDuringContract, 1);
 assert.strictEqual(sponsoredState.playerCareerState.personalBank, 1700, 'Bônus de vitória, gol e assistência devem cair no saldo pessoal');
+assert.strictEqual(sponsoredState.playerCareerState.matchRatingHistory[0].goals, 1);
+assert.strictEqual(sponsoredState.playerCareerState.matchRatingHistory[0].assists, 1);
 console.log('✓ Patrocínio registra partidas, gols, assistências e credita bônus no saldo bancário.');
 const bootAthlete = { attributes: { vel: 40, chu: 50, pas: 40, dri: 40, def: 40, fis: 40 } };
 assert.equal(window.AFM_PlayerEngine.getPlayerEffectiveAttributes({ playerCareerState: { sponsorContract: { tier: 'base' } } }, bootAthlete).chu, 51);

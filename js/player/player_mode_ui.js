@@ -1557,6 +1557,7 @@
                   </div>
 
                   <div>
+                    <button type="button" class="btn btn-sponsor-details" data-sponsor-id="${esc(sp.id)}" style="width:100%;margin-bottom:7px;background:#182234;border:1px solid #38bdf8;color:#7dd3fc;font-weight:900;padding:8px;border-radius:8px;cursor:pointer;font-size:11px">🔍 Ver detalhes da proposta</button>
                     ${activeSp ? `
                       <button type="button" class="btn warning btn-sign-sponsor" data-sponsor-id="${sp.id}" style="width:100%;background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-weight:900;padding:9px;border-radius:8px;border:none;cursor:pointer;font-size:12px;box-shadow:0 3px 10px rgba(245,158,11,0.3)">
                         🔄 Trocar Fornecedor para ${esc(sp.brand)} (${sp.durationDays || 180} Dias)
@@ -4214,6 +4215,19 @@
       };
     });
 
+    document.querySelectorAll('.btn-sponsor-details').forEach(btn => {
+      btn.onclick = () => {
+        const offer = (pState.availableSponsorOffers || []).find(item => String(item.id) === String(btn.dataset.sponsorId));
+        if(!offer) return;
+        const fee = pState.sponsorContract ? (window.AFM_PlayerEngine?.getSponsorTerminationFee(pState.sponsorContract, s.date || s.currentDate) || 0) : 0;
+        showCustomAlert({
+          title: `Proposta ${offer.brand || offer.name} 👟`,
+          message: `Duração: ${offer.durationDays || 180} dias\nMensalidade: R$ ${Number(offer.monthlyStipend || 0).toLocaleString('pt-BR')}/mês\nBônus por gol: R$ ${Number(offer.bonusGoal || 0).toLocaleString('pt-BR')}\nBônus por assistência: R$ ${Number(offer.bonusAssist || 0).toLocaleString('pt-BR')}\nBônus por vitória: R$ ${Number(offer.bonusWin || 0).toLocaleString('pt-BR')}\nBônus de assinatura: R$ ${Number(offer.renewalBonus || 0).toLocaleString('pt-BR')}\nBônus atual nas chuteiras: +${Number(window.AFM_PlayerEngine?.getSponsorBootBonus(offer) || 0)} em finalização\nMulta estimada para trocar agora: R$ ${fee.toLocaleString('pt-BR')}\nSaldo pessoal: R$ ${Number(pState.personalBank || 0).toLocaleString('pt-BR')}`,
+          type: 'info'
+        });
+      };
+    });
+
     // Assinar / Trocar Patrocinador
     document.querySelectorAll('.btn-sign-sponsor').forEach(btn => {
       btn.onclick = () => {
@@ -4243,9 +4257,7 @@
 
           showCustomAlert({
             title: wasSwitch ? `Fornecedor Atualizado para ${sp.brand}! 👟` : 'Patrocínio Oficial Assinado! 👟',
-            message: wasSwitch
-              ? `Você encerrou a parceria anterior com a ${oldBrand} e agora é atleta oficial da ${sp.brand}!\nMulta paga: R$ ${signed.terminationFee.toLocaleString('pt-BR')}. Novo vínculo de ${totalDays} dias (até ${formatDatePtBr(endDate)}) com R$ ${Number(sp.monthlyStipend).toLocaleString('pt-BR')}/mês e bônus por vitórias e gols.`
-              : `Contrato com a ${sp.brand} assinado com sucesso por ${totalDays} dias (até ${formatDatePtBr(endDate)})!\nVocê receberá R$ ${sp.monthlyStipend.toLocaleString('pt-BR')}/mês e bônus por gols e vitórias.\nAo término dos dias, a empresa analisará seu rendimento para propor renovação valorizada!`,
+            message: `${wasSwitch ? `Fornecedor anterior: ${oldBrand}\nMulta de rescisão paga: R$ ${Number(signed.terminationFee || 0).toLocaleString('pt-BR')}\n` : ''}Novo fornecedor: ${sp.brand}\nVigência: ${totalDays} dias (até ${formatDatePtBr(endDate)})\nMensalidade: R$ ${Number(sp.monthlyStipend || 0).toLocaleString('pt-BR')}/mês\nBônus por gol: R$ ${Number(sp.bonusGoal || 0).toLocaleString('pt-BR')}\nBônus por assistência: R$ ${Number(sp.bonusAssist || 0).toLocaleString('pt-BR')}\nBônus por vitória: R$ ${Number(sp.bonusWin || 0).toLocaleString('pt-BR')}\nBônus em finalização: +${Number(window.AFM_PlayerEngine?.getSponsorBootBonus(sp) || 0)}\n${sp.renewalBonus ? `Luvas: R$ ${Number(sp.renewalBonus).toLocaleString('pt-BR')}\n` : ''}Efeito do contrato ativo já aplicado à carreira.`,
             type: 'success',
             onConfirm: () => {
               if(typeof window.save === 'function') window.save();

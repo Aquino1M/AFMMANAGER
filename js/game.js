@@ -24834,22 +24834,30 @@ function finalizeMatchRound(){
     const athlete = hasControlledId ? (state.squad || []).find(p => String(p.id) === String(state.controlledPlayerId)) : null;
     const nameMatches = value => {
       const candidate = norm(value || '');
-      return !!candidate && [athlete?.name, athlete?.fullName, state.playerCareerState.athleteName].some(name => norm(name || '') === candidate);
+      return !!candidate && [athlete?.name, athlete?.fullName, state.playerCareerState.athleteName]
+        .some(name => norm(name || '') === candidate);
     };
     const matchAthlete = (playerTeam || []).find(p => p.isControlledAthlete ||
       (hasControlledId && (String(p.id) === String(state.controlledPlayerId) || String(p.careerPlayerId) === String(state.controlledPlayerId))) || nameMatches(p.name));
     const goalEvents = (s.events || []).filter(event => event.type === 'gol');
+    const eventHasPlayerId = (eventId, playerId) => eventId != null && playerId != null && String(eventId) === String(playerId);
+    const scorerEvents = matchAthlete ? goalEvents.filter(event =>
+      eventHasPlayerId(event.playerId, matchAthlete.id) ||
+      eventHasPlayerId(event.playerId, matchAthlete.careerPlayerId) ||
+      nameMatches(event.scorer)
+    ) : [];
+    const assistEvents = matchAthlete ? goalEvents.filter(event =>
+      eventHasPlayerId(event.relatedPlayerId, matchAthlete.id) ||
+      eventHasPlayerId(event.relatedPlayerId, matchAthlete.careerPlayerId) ||
+      nameMatches(event.assist)
+    ) : [];
     const eventBelongsToAthlete = event => matchAthlete && (
-      String(event.playerId) === String(matchAthlete.id) ||
-      String(event.playerId) === String(matchAthlete.careerPlayerId) ||
+      eventHasPlayerId(event.playerId, matchAthlete.id) ||
+      eventHasPlayerId(event.playerId, matchAthlete.careerPlayerId) ||
       nameMatches(event.scorer)
     );
-    const goals = matchAthlete
-      ? goalEvents.filter(event => String(event.playerId) === String(matchAthlete.id) || String(event.playerId) === String(matchAthlete.careerPlayerId) || nameMatches(event.scorer) || nameMatches(event.text?.match(/GOL DO [^!]+!\s*([^,(]+)/i)?.[1])).length
-      : 0;
-    const assists = matchAthlete
-      ? goalEvents.filter(event => String(event.relatedPlayerId) === String(matchAthlete.id) || String(event.relatedPlayerId) === String(matchAthlete.careerPlayerId) || nameMatches(event.assist)).length
-      : 0;
+    const goals = scorerEvents.length;
+    const assists = assistEvents.length;
     const shots = matchAthlete ? (s.events || []).filter(event => eventBelongsToAthlete(event) && (
       ['gol', 'save', 'post', 'miss'].includes(event.type) || (event.type === 'whistle' && /BLOQUEIO PROVIDENCIAL/i.test(event.text || ''))
     )).length : 0;
