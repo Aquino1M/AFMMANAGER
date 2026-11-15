@@ -11,7 +11,7 @@ Este documento descreve limites conhecidos da implementação; uma tela ou fixtu
 
 ## Fontes de regulamento
 
-Para a Copa do Brasil, use o regulamento oficial da [CBF](https://www.cbf.com.br/futebol-brasileiro/noticias/undefined/ponte-preta-x-ituano/cbf-divulga-tabela-basica-plano-geral-de-acoes-e-regulamento-especifico-da-copa-do-brasil-2026) e reconfirme os dados a cada temporada. Para Libertadores e Sul-Americana, consulte os manuais oficiais da CONMEBOL da temporada correspondente. Participantes, acesso e chaveamento mudam; fixtures estáticos não são prova de classificação oficial.
+Para regras e participantes atuais, consulte as publicações oficiais da CBF e os manuais da CONMEBOL da temporada correspondente. Regulamentos mudam; fixtures estáticos não comprovam classificação oficial. Evite links profundos de temporada sem validar que continuam ativos.
 
 ## Critério de integração
 

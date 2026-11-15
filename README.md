@@ -38,15 +38,18 @@ python -m http.server 8080
 
 ## 🧪 Testes Automatizados
 
-Execute os testes diretamente via Node.js:
+Execute um teste de regressão versionado via Node.js:
 
 ```sh
-# Teste de Estresse do Modo Jogador (5 Anos e 3 Saves)
+# Fluxo integrado da carreira de jogador
+node tests/test_full_player_mode_reliability.js
+
+# Segurança: renderização da foto não interpreta HTML
+node tests/test_player_photo_xss.js
+
+# Outros testes disponíveis
+node tests/test_player_financial_system.js
 node tests/stress_test_player_career_5years.js
-
-# Teste de Integridade Financeira e Orçamentos Iniciais
-node tests/check_brasilia_budget.js
-
-# Teste de Criação de Jogador e Slots
-node tests/test_create_player_button.js
 ```
+
+Os testes são scripts independentes; consulte `package.json` para comandos adicionais do modo treinador. Não há um comando único de suíte.

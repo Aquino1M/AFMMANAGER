@@ -80,7 +80,11 @@
         if (el.tagName === 'IMG') {
           el.src = url;
         } else {
-          el.innerHTML = `<img src="${url}" alt="${playerName}" style="width:100%;height:100%;object-fit:cover;object-position:center top;border-radius:50%;" />`;
+          const image = document.createElement('img');
+          image.src = url;
+          image.alt = typeof playerName === 'string' ? playerName : (playerName.name || playerName.shortName || 'Jogador');
+          image.style.cssText = 'width:100%;height:100%;object-fit:cover;object-position:center top;border-radius:50%;';
+          el.replaceChildren(image);
         }
       }
     }
