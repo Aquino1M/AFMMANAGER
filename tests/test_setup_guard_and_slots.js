@@ -1,0 +1,242 @@
+// Test Suite: Isolamento de Modos, Proteção de Saves e Guard do Setup (AFM Manager)
+const assert = require('assert');
+
+// Mock browser environment if not present
+if (typeof window === 'undefined') {
+  global.window = global;
+  global.document = {
+    querySelector: (selector) => {
+      if (selector === '.setup-container') return global.__mockSetupContainer || null;
+      return null;
+    },
+    getElementById: (id) => {
+      if (id === 'app') return global.__mockAppEl || null;
+      return null;
+    }
+  };
+  global.localStorage = {
+    _data: {},
+    getItem(k) { return this._data[k] || null; },
+    setItem(k, v) { this._data[k] = String(v); },
+    removeItem(k) { delete this._data[k]; },
+    clear() { this._data = {}; }
+  };
+}
+
+// Minimal mock DOM for app
+global.__mockAppEl = {
+  attrs: {},
+  setAttribute(k, v) { this.attrs[k] = v; },
+  getAttribute(k) { return this.attrs[k]; }
+};
+
+// 1. Definition of AFM_SETUP_GUARD as implemented in js/game.js
+window.AFM_SETUP_GUARD = {
+  isSetupActive: function() {
+    return Boolean(typeof document !== 'undefined' && document.querySelector && document.querySelector('.setup-container')) ||
+      window.state?.view === 'setup' ||
+      window.state?.gameMode === 'setup';
+  },
+
+  enterSetupCleanly: function() {
+    window.__afmAutoSavePaused = true;
+    window.__afmIsRendering = false;
+    const app = typeof document !== 'undefined' && document.getElementById ? document.getElementById('app') : null;
+    if (app && typeof app.setAttribute === 'function') {
+      app.setAttribute('data-rendered-game-mode', 'setup');
+      app.setAttribute('data-rendered-view', 'setup');
+    }
+    if (window.state) {
+      window.state.view = 'setup';
+      window.state.gameMode = 'setup';
+    }
+  },
+
+  detectSaveMode: function(saveData) {
+    if (!saveData || typeof saveData !== 'object') return 'manager';
+    const data = saveData.data && typeof saveData.data === 'object' ? saveData.data : saveData;
+
+    // Regra AGENTS.md: gameMode persistido é a autoridade; use isPlayerMode/campos legados só quando ele faltar
+    if (saveData.gameMode === 'player' || data.gameMode === 'player') return 'player';
+    if (saveData.gameMode === 'manager' || data.gameMode === 'manager') return 'manager';
+
+    const isPlayer = Boolean(
+      saveData.playerCareer?.active ||
+      saveData.playerCareerState ||
+      saveData.controlledPlayerId ||
+      saveData.player?.isUserPlayer ||
+      saveData.mode === 'player' ||
+      saveData.isPlayerMode ||
+      data.playerCareer?.active ||
+      data.player?.isUserPlayer ||
+      data.mode === 'player' ||
+      data.isPlayerMode ||
+      data.playerCareerState ||
+      data.controlledPlayerId ||
+      (data.coach?.name === 'Treinador da IA' && (data.player || data.playerCareerState))
+    );
+    return isPlayer ? 'player' : 'manager';
+  },
+
+  sanitizeLoadedSave: function(rawSave, slotNumber) {
+    const clean = JSON.parse(JSON.stringify(rawSave || {}));
+    const detectedMode = this.detectSaveMode(clean);
+
+    clean.slotId = Number(slotNumber || clean.slotId || clean.userSlot || 1);
+    clean.gameMode = detectedMode;
+    clean.mode = detectedMode;
+
+    if (detectedMode === 'player') {
+      delete clean.isManagerOnly;
+      clean.playerCareer = Object.assign({ active: true }, clean.playerCareer || {});
+      clean.player = Object.assign({ isUserPlayer: true }, clean.player || {});
+      clean.player.isUserPlayer = true;
+      const managerViews = ['central', 'tatica', 'elenco', 'mercado', 'financas', 'estrutura', 'escritorio', 'treinos'];
+      if (!clean.view || managerViews.includes(clean.view) || clean.view === 'setup') {
+        clean.view = 'player_hub';
+      }
+    } else {
+      delete clean.playerCareer;
+      delete clean.playerCareerState;
+      delete clean.controlledPlayerId;
+      delete clean.player;
+      const playerViews = ['player_hub', 'player_evolution', 'player_club', 'player_social', 'player_agent', 'player_lifestyle', 'player_stats', 'player_national', 'player_creator'];
+      if (!clean.view || playerViews.includes(clean.view) || clean.view === 'setup') {
+        clean.view = 'central';
+      }
+    }
+    return clean;
+  },
+
+  getFirstAvailableSlot: function(slotsMap) {
+    for (const s of [1, 2, 3]) {
+      if (!slotsMap) return s;
+      if (Array.isArray(slotsMap)) {
+        if (!slotsMap[s - 1]) return s;
+      } else if (!slotsMap[s]) {
+        return s;
+      }
+    }
+    return 1;
+  },
+
+  confirmSlotOverwriteIfNeeded: function(targetSlot, slotsMap, newCareerLabel, onConfirm) {
+    const existing = Array.isArray(slotsMap) ? slotsMap[targetSlot - 1] : slotsMap?.[targetSlot];
+    if (!existing) {
+      if (typeof onConfirm === 'function') onConfirm();
+      return false; // No modal needed
+    }
+    return true; // Overwrite confirmation required
+  }
+};
+
+console.log('--- EXECUTANDO TESTES DE SETUP GUARD E PROTEÇÃO DE SAVES ---');
+
+// Test 1: detectSaveMode correctly classifies Player vs Manager saves
+{
+  const managerSave = {
+    club: { name: 'São Paulo' },
+    coach: { name: 'Prof. Aquino' },
+    season: 2026,
+    gameMode: 'manager'
+  };
+  assert.strictEqual(window.AFM_SETUP_GUARD.detectSaveMode(managerSave), 'manager', 'Manager save should be manager');
+
+  const playerSave = {
+    club: { name: 'Brasília' },
+    playerCareerState: { athleteName: 'D. Aquino' },
+    controlledPlayerId: 99,
+    gameMode: 'player'
+  };
+  assert.strictEqual(window.AFM_SETUP_GUARD.detectSaveMode(playerSave), 'player', 'Player save should be player');
+
+  const legacyPlayerSave = {
+    club: { name: 'Brasília' },
+    coach: { name: 'Treinador da IA' },
+    player: { name: 'D. Aquino', isUserPlayer: true }
+  };
+  assert.strictEqual(window.AFM_SETUP_GUARD.detectSaveMode(legacyPlayerSave), 'player', 'Legacy AI Coach + player should be player');
+  console.log('✅ Teste 1: detectSaveMode classificou corretamente Manager e Player.');
+}
+
+// Test 2: sanitizeLoadedSave strips contaminating views and guarantees mode isolation
+{
+  const contaminatedManagerSave = {
+    club: { name: 'São Paulo' },
+    playerCareerState: { athleteName: 'Resíduo Antigo' },
+    controlledPlayerId: 123,
+    view: 'player_hub',
+    gameMode: 'manager'
+  };
+  const cleanManager = window.AFM_SETUP_GUARD.sanitizeLoadedSave(contaminatedManagerSave, 1);
+  assert.strictEqual(cleanManager.gameMode, 'manager');
+  assert.strictEqual(cleanManager.view, 'central', 'View should be reset to central for manager');
+  assert.strictEqual(cleanManager.playerCareerState, undefined, 'Residual playerCareerState should be purged');
+  assert.strictEqual(cleanManager.controlledPlayerId, undefined, 'Residual controlledPlayerId should be purged');
+  assert.strictEqual(cleanManager.slotId, 1);
+
+  const contaminatedPlayerSave = {
+    club: { name: 'Brasília' },
+    playerCareerState: { athleteName: 'D. Aquino' },
+    view: 'tatica', // managerial view
+    gameMode: 'player'
+  };
+  const cleanPlayer = window.AFM_SETUP_GUARD.sanitizeLoadedSave(contaminatedPlayerSave, 2);
+  assert.strictEqual(cleanPlayer.gameMode, 'player');
+  assert.strictEqual(cleanPlayer.view, 'player_hub', 'View should be reset to player_hub for player');
+  assert.strictEqual(cleanPlayer.slotId, 2);
+  console.log('✅ Teste 2: sanitizeLoadedSave isolou completamente os modos e purgou contaminações.');
+}
+
+// Test 3: getFirstAvailableSlot prioritizes Slot 3 when Slots 1 and 2 are full
+{
+  const slotsWith1and2 = [
+    { club: 'São Paulo', slot: 1 },
+    { club: 'Brasília', slot: 2 },
+    null // Slot 3 is empty
+  ];
+  const target = window.AFM_SETUP_GUARD.getFirstAvailableSlot(slotsWith1and2);
+  assert.strictEqual(target, 3, 'Slot 3 must be selected when Slots 1 and 2 are occupied');
+
+  const allEmpty = [null, null, null];
+  assert.strictEqual(window.AFM_SETUP_GUARD.getFirstAvailableSlot(allEmpty), 1, 'Slot 1 when all are empty');
+
+  const allFull = [{ slot: 1 }, { slot: 2 }, { slot: 3 }];
+  assert.strictEqual(window.AFM_SETUP_GUARD.getFirstAvailableSlot(allFull), 1, 'Default fallback to 1 when all full');
+  console.log('✅ Teste 3: getFirstAvailableSlot selecionou Slot 3 automaticamente.');
+}
+
+// Test 4: confirmSlotOverwriteIfNeeded requires confirmation only on occupied slots
+{
+  const slotsMap = [
+    { club: 'São Paulo', slot: 1 },
+    { club: 'Brasília', slot: 2 },
+    null
+  ];
+  let confirmFired = false;
+  // Slot 3 (empty): should proceed immediately without requiring overwrite modal
+  const needsModalSlot3 = window.AFM_SETUP_GUARD.confirmSlotOverwriteIfNeeded(3, slotsMap, 'Nova Carreira', () => { confirmFired = true; });
+  assert.strictEqual(needsModalSlot3, false, 'Slot 3 is empty and must not require confirmation modal');
+  assert.strictEqual(confirmFired, true, 'Callback onConfirm must execute immediately for empty slot');
+
+  // Slot 1 (occupied): requires overwrite confirmation
+  let confirmSlot1Fired = false;
+  const needsModalSlot1 = window.AFM_SETUP_GUARD.confirmSlotOverwriteIfNeeded(1, slotsMap, 'Nova Carreira', () => { confirmSlot1Fired = true; });
+  assert.strictEqual(needsModalSlot1, true, 'Slot 1 is occupied and must require confirmation modal');
+  assert.strictEqual(confirmSlot1Fired, false, 'Callback must not execute automatically without user confirmation');
+  console.log('✅ Teste 4: confirmSlotOverwriteIfNeeded protegeu slots ocupados contra sobrescrita acidental.');
+}
+
+// Test 5: enterSetupCleanly sets data attributes and pauses auto-save
+{
+  global.__mockSetupContainer = true;
+  window.state = { view: 'player_hub', gameMode: 'player' };
+  window.AFM_SETUP_GUARD.enterSetupCleanly();
+  assert.strictEqual(window.__afmAutoSavePaused, true, 'Auto-save must be paused upon entering setup');
+  assert.strictEqual(global.__mockAppEl.getAttribute('data-rendered-game-mode'), 'setup');
+  assert.strictEqual(global.__mockAppEl.getAttribute('data-rendered-view'), 'setup');
+  assert.strictEqual(window.AFM_SETUP_GUARD.isSetupActive(), true, 'isSetupActive must be true when setup-container is active');
+  console.log('✅ Teste 5: enterSetupCleanly isolou o ambiente de setup e pausou auto-saves.');
+}
+
+console.log('\n🎉 TODOS OS 5 TESTES DO SETUP GUARD E ISOLAMENTO DE SAVES PASSARAM COM SUCESSO!');

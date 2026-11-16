@@ -24,7 +24,8 @@
       stats: { pace: 1, vel: 1 },
       icon: "👟",
       tier: "Iniciante",
-      description: "Modelo de entrada resistente e confiável para os primeiros treinos na base."
+      description:
+        "Modelo de entrada resistente e confiável para os primeiros treinos na base.",
     },
     {
       id: "boots_kangaroo",
@@ -35,7 +36,8 @@
       stats: { passing: 2, pas: 2 },
       icon: "⚽",
       tier: "Profissional",
-      description: "Couro macio premium para toque refinado, lançamentos milimétricos e controle absoluto."
+      description:
+        "Couro macio premium para toque refinado, lançamentos milimétricos e controle absoluto.",
     },
     {
       id: "boots_precision",
@@ -46,7 +48,8 @@
       stats: { shooting: 2, chu: 2, dribbling: 1, dri: 1 },
       icon: "🎯",
       tier: "Elite",
-      description: "Zonas emborrachadas de aderência para curvas letais na bola e arremates certeiros."
+      description:
+        "Zonas emborrachadas de aderência para curvas letais na bola e arremates certeiros.",
     },
     {
       id: "boots_carbon",
@@ -57,7 +60,8 @@
       stats: { pace: 3, vel: 3 },
       icon: "⚡",
       tier: "Alta Performance",
-      description: "Solado de fibra de carbono ultraleve para explosão máxima em arrancadas e contra-ataques."
+      description:
+        "Solado de fibra de carbono ultraleve para explosão máxima em arrancadas e contra-ataques.",
     },
     {
       id: "boots_signature",
@@ -68,8 +72,9 @@
       stats: { shooting: 3, chu: 3, fameMult: 1.2, goalCashBonus: 250 },
       icon: "💎",
       tier: "Assinatura Mundial",
-      description: "Personalizada com detalhes folheados a ouro, travas de titânio e bônus financeiro a cada gol."
-    }
+      description:
+        "Personalizada com detalhes folheados a ouro, travas de titânio e bônus financeiro a cada gol.",
+    },
   ];
 
   // =========================================================================
@@ -84,9 +89,11 @@
       hireCost: 3500,
       monthlyCost: 1000,
       monthlyCostBase: 1000,
-      bonusText: "+20% de ganho de XP semanal/pós-jogos e menor perda de físico",
+      bonusText:
+        "+20% de ganho de XP semanal/pós-jogos e menor perda de físico",
       icon: "🏋️‍♂️",
-      description: "Treinos individualizados de potência muscular, pliometria e aceleração."
+      description:
+        "Treinos individualizados de potência muscular, pliometria e aceleração.",
     },
     {
       id: "physio",
@@ -96,9 +103,11 @@
       hireCost: 4500,
       monthlyCost: 1200,
       monthlyCostBase: 1200,
-      bonusText: "Recupera estamina 35% mais rápido entre jogos e previne fadiga crônica",
+      bonusText:
+        "Recupera estamina 35% mais rápido entre jogos e previne fadiga crônica",
       icon: "🩺",
-      description: "Banhos de gelo, botas pneumáticas de compressão e liberação miofascial imediata."
+      description:
+        "Banhos de gelo, botas pneumáticas de compressão e liberação miofascial imediata.",
     },
     {
       id: "nutritionist",
@@ -108,9 +117,11 @@
       hireCost: 4000,
       monthlyCost: 1100,
       monthlyCostBase: 1100,
-      bonusText: "+5% de precisão nos chutes, energia máxima e consistência nas notas",
+      bonusText:
+        "+5% de precisão nos chutes, energia máxima e consistência nas notas",
       icon: "🥗",
-      description: "Cardápio hipercalórico balanceado milimetricamente para dias de jogo e descanso."
+      description:
+        "Cardápio hipercalórico balanceado milimetricamente para dias de jogo e descanso.",
     },
     {
       id: "marketing_team",
@@ -120,9 +131,11 @@
       hireCost: 5500,
       monthlyCost: 1500,
       monthlyCostBase: 1500,
-      bonusText: "Crescimento orgânico contínuo no FootGram (+50 a +350 seg/semana) e atrai melhores marcas",
+      bonusText:
+        "Crescimento orgânico contínuo no FootGram (+50 a +350 seg/semana) e atrai melhores marcas",
       icon: "📱",
-      description: "Criação diária de conteúdo, reels profissionais, relacionamento com marcas e blindagem de crises."
+      description:
+        "Criação diária de conteúdo, reels profissionais, relacionamento com marcas e blindagem de crises.",
     },
     {
       id: "mental_coach",
@@ -132,9 +145,11 @@
       hireCost: 3800,
       monthlyCost: 950,
       monthlyCostBase: 950,
-      bonusText: "Moral blindada em derrotas e bônus de frieza em clássicos, finais e pênaltis",
+      bonusText:
+        "Moral blindada em derrotas e bônus de frieza em clássicos, finais e pênaltis",
       icon: "🧠",
-      description: "Controle de ansiedade pré-jogo, foco inabalável sob pressão e mindset campeão."
+      description:
+        "Controle de ansiedade pré-jogo, foco inabalável sob pressão e mindset campeão.",
     },
     {
       id: "security_driver",
@@ -144,9 +159,11 @@
       hireCost: 6000,
       monthlyCost: 1800,
       monthlyCostBase: 1800,
-      bonusText: "Proteção contra assédio da torcida/mídia e pontualidade 100% garantida",
+      bonusText:
+        "Proteção contra assédio da torcida/mídia e pontualidade 100% garantida",
       icon: "🛡️",
-      description: "Veículo blindado particular e segurança discreto para viagens e deslocamento aos treinos."
+      description:
+        "Veículo blindado particular e segurança discreto para viagens e deslocamento aos treinos.",
     },
     {
       id: "video_analyst",
@@ -156,9 +173,11 @@
       hireCost: 4200,
       monthlyCost: 1050,
       monthlyCostBase: 1050,
-      bonusText: "+1 em Passe/Visão de Jogo (visão tática avançada de posicionamento)",
+      bonusText:
+        "+1 em Passe/Visão de Jogo (visão tática avançada de posicionamento)",
       icon: "📹",
-      description: "Análise detalhada de movimentação adversária, mapas de calor e leitura de jogo moderna."
+      description:
+        "Análise detalhada de movimentação adversária, mapas de calor e leitura de jogo moderna.",
     },
     {
       id: "accountant",
@@ -168,10 +187,12 @@
       hireCost: 5000,
       monthlyCost: 1300,
       monthlyCostBase: 1300,
-      bonusText: "Reduz em 15% a manutenção de bens/veículos e aumenta rendimentos do CDB de 1.1% para 1.5%/mês",
+      bonusText:
+        "Reduz em 15% a manutenção de bens/veículos e aumenta rendimentos do CDB de 1.1% para 1.5%/mês",
       icon: "💼",
-      description: "Planejamento financeiro de carreira, elisão fiscal legal e blindagem de patrimônio esportivo."
-    }
+      description:
+        "Planejamento financeiro de carreira, elisão fiscal legal e blindagem de patrimônio esportivo.",
+    },
   ];
 
   // =========================================================================
@@ -187,7 +208,8 @@
       bonus: "+2 Moral em folgas",
       financeable: false,
       icon: "🎮",
-      description: "Setup gamer completo para relaxar nas concentrações e dias de descanso."
+      description:
+        "Setup gamer completo para relaxar nas concentrações e dias de descanso.",
     },
     {
       id: "swiss_watch",
@@ -198,7 +220,8 @@
       bonus: "+5 Fama & Status",
       financeable: false,
       icon: "⌚",
-      description: "Peça de alta relojoaria de prestígio internacional para premiações e eventos."
+      description:
+        "Peça de alta relojoaria de prestígio internacional para premiações e eventos.",
     },
     {
       id: "sport_hatch",
@@ -209,7 +232,8 @@
       bonus: "Agilidade no dia a dia",
       financeable: true,
       icon: "🚗",
-      description: "Veículo veloz e moderno para os deslocamentos diários entre casa e o centro de treinamento."
+      description:
+        "Veículo veloz e moderno para os deslocamentos diários entre casa e o centro de treinamento.",
     },
     {
       id: "first_car",
@@ -220,7 +244,8 @@
       bonus: "+8 Fama & Respeito no Elenco",
       financeable: true,
       icon: "🏎️",
-      description: "Coupe esportivo com ronco inconfundível e presença no estacionamento do clube."
+      description:
+        "Coupe esportivo com ronco inconfundível e presença no estacionamento do clube.",
     },
     {
       id: "armored_suv",
@@ -231,7 +256,8 @@
       bonus: "Máxima segurança familiar",
       financeable: true,
       icon: "🚙",
-      description: "Blindagem de padrão militar, vidros escurecidos e conforto total para a família."
+      description:
+        "Blindagem de padrão militar, vidros escurecidos e conforto total para a família.",
     },
     {
       id: "luxury_apt",
@@ -242,7 +268,8 @@
       bonus: "+10 Descanso & Regeneração",
       financeable: true,
       icon: "🏢",
-      description: "Apartamento panorâmico com spa privativo, isolamento acústico e descanso restaurador."
+      description:
+        "Apartamento panorâmico com spa privativo, isolamento acústico e descanso restaurador.",
     },
     {
       id: "mansion_ct",
@@ -253,7 +280,8 @@
       bonus: "+1 Ponto de Treino semanal extra",
       financeable: true,
       icon: "🏰",
-      description: "Mansão com campo de futebol particular, academia moderna e piscina aquecida para treinos em casa."
+      description:
+        "Mansão com campo de futebol particular, academia moderna e piscina aquecida para treinos em casa.",
     },
     {
       id: "private_jet",
@@ -264,36 +292,49 @@
       bonus: "+25 Fama Mundial & Cansaço zero em viagens",
       financeable: true,
       icon: "✈️",
-      description: "Aeronave executiva para viagens de lazer e negócios internacionais sem desgaste de voos comerciais."
-    }
+      description:
+        "Aeronave executiva para viagens de lazer e negócios internacionais sem desgaste de voos comerciais.",
+    },
   ];
 
   // =========================================================================
   // 4. HELPER DE RESOLUÇÃO DE CONTEXTO DO SAVE
   // =========================================================================
   function resolveContext(target) {
-    const defaultState = (typeof window !== "undefined" && window.state) ? window.state : {};
+    const defaultState =
+      typeof window !== "undefined" && window.state ? window.state : {};
     if (!target) {
       return {
         state: defaultState,
         pState: defaultState?.playerCareerState || null,
-        athlete: (defaultState?.squad || []).find(p => p.id === defaultState?.controlledPlayerId) || null
+        athlete:
+          (defaultState?.squad || []).find(
+            (p) => p.id === defaultState?.controlledPlayerId,
+          ) || null,
       };
     }
     if (target.playerCareerState) {
       const pState = target.playerCareerState;
-      const athlete = (target.squad || []).find(p => p.id === target.controlledPlayerId) || null;
+      const athlete =
+        (target.squad || []).find((p) => p.id === target.controlledPlayerId) ||
+        null;
       return { state: target, pState, athlete };
     }
-    if (target.lifestyle || target.personalBank !== undefined || target.athleteName) {
+    if (
+      target.lifestyle ||
+      target.personalBank !== undefined ||
+      target.athleteName
+    ) {
       const state = defaultState;
-      const athlete = (state?.squad || []).find(p => p.id === state?.controlledPlayerId) || null;
+      const athlete =
+        (state?.squad || []).find((p) => p.id === state?.controlledPlayerId) ||
+        null;
       return { state, pState: target, athlete };
     }
     return {
       state: defaultState,
       pState: defaultState?.playerCareerState || null,
-      athlete: target
+      athlete: target,
     };
   }
 
@@ -302,16 +343,19 @@
   // =========================================================================
   function ensurePlayerLifestyleState(player) {
     if (!player) return null;
-    const initialBank = player.personalBank !== undefined
-      ? Number(player.personalBank)
-      : (player.cash !== undefined ? Number(player.cash) : 1045);
+    const initialBank =
+      player.personalBank !== undefined
+        ? Number(player.personalBank)
+        : player.cash !== undefined
+          ? Number(player.cash)
+          : 1045;
 
     if (!player.lifestyle) {
       player.lifestyle = {
         cash: initialBank,
         equippedBootsId: "boots_basic",
         ownedBoots: {
-          boots_basic: { durability: 15, maxDurability: 15 }
+          boots_basic: { durability: 15, maxDurability: 15 },
         },
         hiredStaff: [],
         ownedAssets: [],
@@ -320,11 +364,11 @@
           cdbBalance: 0,
           rentalUnits: 0,
           academyOwned: false,
-          brandOwned: false
+          brandOwned: false,
         },
         weeklyMediaGigAvailable: true,
         lastMediaGigDate: null,
-        transactions: []
+        transactions: [],
       };
     }
 
@@ -339,8 +383,8 @@
       ls.ownedBoots = { boots_basic: { durability: 15, maxDurability: 15 } };
     }
     // Garante que boots_basic possui maxDurability se criada antigamente
-    Object.keys(ls.ownedBoots).forEach(id => {
-      const cat = AFM_BOOTS_CATALOG.find(b => b.id === id);
+    Object.keys(ls.ownedBoots).forEach((id) => {
+      const cat = AFM_BOOTS_CATALOG.find((b) => b.id === id);
       if (cat && !ls.ownedBoots[id].maxDurability) {
         ls.ownedBoots[id].maxDurability = cat.maxDurability;
       }
@@ -348,8 +392,14 @@
 
     // Normaliza hiredStaff (array de IDs)
     if (!Array.isArray(ls.hiredStaff)) {
-      if (player.hiredStaff && typeof player.hiredStaff === "object" && !Array.isArray(player.hiredStaff)) {
-        ls.hiredStaff = Object.keys(player.hiredStaff).filter(k => player.hiredStaff[k]);
+      if (
+        player.hiredStaff &&
+        typeof player.hiredStaff === "object" &&
+        !Array.isArray(player.hiredStaff)
+      ) {
+        ls.hiredStaff = Object.keys(player.hiredStaff).filter(
+          (k) => player.hiredStaff[k],
+        );
       } else {
         ls.hiredStaff = [];
       }
@@ -358,7 +408,7 @@
     // Normaliza ownedAssets (array de IDs)
     if (!Array.isArray(ls.ownedAssets)) {
       ls.ownedAssets = Array.isArray(player.luxuryItems)
-        ? [...player.luxuryItems.filter(id => id !== "luxury_boots")]
+        ? [...player.luxuryItems.filter((id) => id !== "luxury_boots")]
         : [];
     }
 
@@ -373,7 +423,7 @@
         cdbBalance: 0,
         rentalUnits: 0,
         academyOwned: false,
-        brandOwned: false
+        brandOwned: false,
       };
     } else {
       ls.investments.cdbBalance = Number(ls.investments.cdbBalance) || 0;
@@ -395,11 +445,12 @@
 
     // Sincroniza retrocompatibilidade com objeto player.hiredStaff e flags lifestylePerks
     player.hiredStaff = player.hiredStaff || {};
-    AFM_STAFF_CATALOG.forEach(st => {
+    AFM_STAFF_CATALOG.forEach((st) => {
       player.hiredStaff[st.id] = ls.hiredStaff.includes(st.id);
     });
     player.lifestylePerks = player.lifestylePerks || {};
-    player.lifestylePerks.personalTrainer = ls.hiredStaff.includes("personal_trainer");
+    player.lifestylePerks.personalTrainer =
+      ls.hiredStaff.includes("personal_trainer");
     player.lifestylePerks.physio = ls.hiredStaff.includes("physio");
     player.lifestylePerks.pressAgent = ls.hiredStaff.includes("marketing_team");
 
@@ -412,7 +463,9 @@
   function getPlayerTotalPatrimony(player) {
     if (!player) return 0;
     const ls = ensurePlayerLifestyleState(player);
-    const liquidCash = Number(player.personalBank ?? player.cash ?? ls.cash ?? 0);
+    const liquidCash = Number(
+      player.personalBank ?? player.cash ?? ls.cash ?? 0,
+    );
     const cdb = Number(ls.investments?.cdbBalance || 0);
 
     let businessVal = 0;
@@ -432,8 +485,10 @@
         const item = AFM_ASSETS_CATALOG.find(a => a.id === fin.id);
         if (item && item.price) {
           const downPayment = Math.round(item.price * 0.3);
-          const paidInstallments = (12 - (Number(fin.installmentsRemaining) || 12)) * (Number(fin.monthlyInstallment) || 0);
-          assetsVal += (downPayment + Math.max(0, paidInstallments));
+          const paidInstallments =
+            (12 - (Number(fin.installmentsRemaining) || 12)) *
+            (Number(fin.monthlyInstallment) || 0);
+          assetsVal += downPayment + Math.max(0, paidInstallments);
         }
       });
     }
@@ -444,12 +499,18 @@
   function updatePlayerFinancialDisplay(player) {
     if (!player && typeof window !== "undefined") {
       const gs = window.game?.state || window.gameState || window.state;
-      player = gs?.playerCareerState || (gs?.squad || []).find(p => p.id === gs?.controlledPlayerId || p.isControlled);
+      player =
+        gs?.playerCareerState ||
+        (gs?.squad || []).find(
+          (p) => p.id === gs?.controlledPlayerId || p.isControlled,
+        );
     }
     if (!player) return { liquidCash: 0, totalInvested: 0, totalPatrimony: 0 };
 
     const ls = ensurePlayerLifestyleState(player);
-    const liquidCash = Number(player.personalBank ?? player.cash ?? ls.cash ?? 0);
+    const liquidCash = Number(
+      player.personalBank ?? player.cash ?? ls.cash ?? 0,
+    );
     const totalInvested = Number(ls.investments?.cdbBalance || 0);
     const totalPatrimony = getPlayerTotalPatrimony(player);
 
@@ -468,7 +529,9 @@
             gs.playerCareerState.lifestyle.cash = liquidCash;
           }
         }
-        const controlled = (gs.squad || []).find(p => p.id === gs.controlledPlayerId || p.isControlled);
+        const controlled = (gs.squad || []).find(
+          (p) => p.id === gs.controlledPlayerId || p.isControlled,
+        );
         if (controlled) {
           controlled.cash = liquidCash;
           controlled.personalBank = liquidCash;
@@ -557,7 +620,7 @@
       date: date || new Date().toISOString().slice(0, 10),
       desc: String(desc || "Movimentação Financeira"),
       amount: amt,
-      type: type === "out" ? "out" : "in"
+      type: type === "out" ? "out" : "in",
     });
 
     if (ls.transactions.length > 20) {
@@ -574,30 +637,52 @@
   // =========================================================================
   function buyBoot(gameState, bootId) {
     const { pState, state } = resolveContext(gameState);
-    if (!pState) return { success: false, message: "Estado de carreira de jogador não encontrado." };
+    if (!pState)
+      return {
+        success: false,
+        message: "Estado de carreira de jogador não encontrado.",
+      };
     const ls = ensurePlayerLifestyleState(pState);
-    const boot = AFM_BOOTS_CATALOG.find(b => b.id === bootId);
-    if (!boot) return { success: false, message: "Chuteira não encontrada no catálogo." };
+    const boot = AFM_BOOTS_CATALOG.find((b) => b.id === bootId);
+    if (!boot)
+      return {
+        success: false,
+        message: "Chuteira não encontrada no catálogo.",
+      };
 
     if (ls.cash < boot.price) {
       const shortfall = boot.price - ls.cash;
-      return { success: false, message: `Saldo insuficiente! Faltam R$ ${shortfall.toLocaleString("pt-BR")}.` };
+      return {
+        success: false,
+        message: `Saldo insuficiente! Faltam R$ ${shortfall.toLocaleString("pt-BR")}.`,
+      };
     }
 
     const curDate = state?.date || state?.currentDate || "2026-01-01";
-    addPlayerTransaction(pState, curDate, `Compra de Chuteira: ${boot.name}`, boot.price, "out");
-    ls.ownedBoots[boot.id] = { durability: boot.maxDurability, maxDurability: boot.maxDurability };
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Compra de Chuteira: ${boot.name}`,
+      boot.price,
+      "out",
+    );
+    ls.ownedBoots[boot.id] = {
+      durability: boot.maxDurability,
+      maxDurability: boot.maxDurability,
+    };
     ls.equippedBootsId = boot.id; // Auto-equipa ao comprar modelo superior
 
     if (state) {
       state.news = Array.isArray(state.news) ? state.news : [];
-      state.news.unshift(`👟 EQUIPAMENTO NOVO: ${pState.athleteName || "Você"} adquiriu a ${boot.name} por R$ ${boot.price.toLocaleString("pt-BR")}!`);
+      state.news.unshift(
+        `👟 EQUIPAMENTO NOVO: ${pState.athleteName || "Você"} adquiriu a ${boot.name} por R$ ${boot.price.toLocaleString("pt-BR")}!`,
+      );
     }
 
     return {
       success: true,
       message: `${boot.name} adquirida e equipada com sucesso! (${boot.bonusText})`,
-      boot
+      boot,
     };
   }
 
@@ -605,28 +690,49 @@
     const { pState, state } = resolveContext(gameState);
     if (!pState) return { success: false, message: "Estado inválido." };
     const ls = ensurePlayerLifestyleState(pState);
-    const boot = AFM_BOOTS_CATALOG.find(b => b.id === bootId);
-    if (!boot) return { success: false, message: "Chuteira não encontrada no catálogo." };
+    const boot = AFM_BOOTS_CATALOG.find((b) => b.id === bootId);
+    if (!boot)
+      return {
+        success: false,
+        message: "Chuteira não encontrada no catálogo.",
+      };
     const owned = ls.ownedBoots?.[bootId];
-    if (!owned) return { success: false, message: "Você não possui esta chuteira para reformar." };
+    if (!owned)
+      return {
+        success: false,
+        message: "Você não possui esta chuteira para reformar.",
+      };
 
     if (owned.durability >= boot.maxDurability) {
-      return { success: false, message: "As travas e o couro desta chuteira já estão 100% conservados!" };
+      return {
+        success: false,
+        message:
+          "As travas e o couro desta chuteira já estão 100% conservados!",
+      };
     }
 
     const repairCost = Math.round(boot.price * 0.35);
     if (ls.cash < repairCost) {
       const shortfall = repairCost - ls.cash;
-      return { success: false, message: `Saldo insuficiente para a reforma das travas! Faltam R$ ${shortfall.toLocaleString("pt-BR")}.` };
+      return {
+        success: false,
+        message: `Saldo insuficiente para a reforma das travas! Faltam R$ ${shortfall.toLocaleString("pt-BR")}.`,
+      };
     }
 
     const curDate = state?.date || state?.currentDate || "2026-01-01";
-    addPlayerTransaction(pState, curDate, `Reforma & Travas Novas: ${boot.name}`, repairCost, "out");
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Reforma & Travas Novas: ${boot.name}`,
+      repairCost,
+      "out",
+    );
     owned.durability = boot.maxDurability;
 
     return {
       success: true,
-      message: `Chuteira reformada! Durabilidade restaurada para ${boot.maxDurability}/${boot.maxDurability} jogos.`
+      message: `Chuteira reformada! Durabilidade restaurada para ${boot.maxDurability}/${boot.maxDurability} jogos.`,
     };
   }
 
@@ -635,10 +741,16 @@
     if (!pState) return { success: false, message: "Estado inválido." };
     const ls = ensurePlayerLifestyleState(pState);
     if (!ls.ownedBoots?.[bootId]) {
-      return { success: false, message: "Você não possui esta chuteira para equipar." };
+      return {
+        success: false,
+        message: "Você não possui esta chuteira para equipar.",
+      };
     }
     ls.equippedBootsId = bootId;
-    return { success: true, message: "Chuteira equipada para as próximas partidas!" };
+    return {
+      success: true,
+      message: "Chuteira equipada para as próximas partidas!",
+    };
   }
 
   // =========================================================================
@@ -648,39 +760,55 @@
     const { pState, state } = resolveContext(gameState);
     if (!pState) return { success: false, message: "Estado inválido." };
     const ls = ensurePlayerLifestyleState(pState);
-    const staff = AFM_STAFF_CATALOG.find(s => s.id === staffId);
-    if (!staff) return { success: false, message: "Membro de staff não encontrado." };
+    const staff = AFM_STAFF_CATALOG.find((s) => s.id === staffId);
+    if (!staff)
+      return { success: false, message: "Membro de staff não encontrado." };
 
     if (ls.hiredStaff.includes(staffId)) {
-      return { success: false, message: `${staff.name} já faz parte da sua comissão particular!` };
+      return {
+        success: false,
+        message: `${staff.name} já faz parte da sua comissão particular!`,
+      };
     }
 
     if (ls.cash < staff.hireCost) {
       const shortfall = staff.hireCost - ls.cash;
-      return { success: false, message: `Saldo insuficiente na conta pessoal! Custo de contratação: R$ ${staff.hireCost.toLocaleString("pt-BR")}. Faltam R$ ${shortfall.toLocaleString("pt-BR")}.` };
+      return {
+        success: false,
+        message: `Saldo insuficiente na conta pessoal! Custo de contratação: R$ ${staff.hireCost.toLocaleString("pt-BR")}. Faltam R$ ${shortfall.toLocaleString("pt-BR")}.`,
+      };
     }
 
     const curDate = state?.date || state?.currentDate || "2026-01-01";
-    addPlayerTransaction(pState, curDate, `Contratação de Staff: ${staff.name}`, staff.hireCost, "out");
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Contratação de Staff: ${staff.name}`,
+      staff.hireCost,
+      "out",
+    );
     ls.hiredStaff.push(staffId);
 
     // Sincroniza retrocompatibilidade
     pState.hiredStaff = pState.hiredStaff || {};
     pState.hiredStaff[staffId] = true;
     pState.lifestylePerks = pState.lifestylePerks || {};
-    if (staffId === "personal_trainer") pState.lifestylePerks.personalTrainer = true;
+    if (staffId === "personal_trainer")
+      pState.lifestylePerks.personalTrainer = true;
     if (staffId === "physio") pState.lifestylePerks.physio = true;
     if (staffId === "marketing_team") pState.lifestylePerks.pressAgent = true;
 
     if (state) {
       state.news = Array.isArray(state.news) ? state.news : [];
-      state.news.unshift(`⭐ STAFF PESSOAL: ${pState.athleteName || "O atleta"} contratou ${staff.name} para sua comissão particular. Custo de contratação quitado.`);
+      state.news.unshift(
+        `⭐ STAFF PESSOAL: ${pState.athleteName || "O atleta"} contratou ${staff.name} para sua comissão particular. Custo de contratação quitado.`,
+      );
     }
 
     return {
       success: true,
       message: `${staff.name} contratado com sucesso!`,
-      staff
+      staff,
     };
   }
 
@@ -688,18 +816,22 @@
     const { pState, state } = resolveContext(gameState);
     if (!pState) return { success: false, message: "Estado inválido." };
     const ls = ensurePlayerLifestyleState(pState);
-    const staff = AFM_STAFF_CATALOG.find(s => s.id === staffId);
+    const staff = AFM_STAFF_CATALOG.find((s) => s.id === staffId);
     const staffName = staff ? staff.name : staffId;
 
     if (!ls.hiredStaff.includes(staffId)) {
-      return { success: false, message: `${staffName} não está contratado na sua equipe.` };
+      return {
+        success: false,
+        message: `${staffName} não está contratado na sua equipe.`,
+      };
     }
 
-    ls.hiredStaff = ls.hiredStaff.filter(id => id !== staffId);
+    ls.hiredStaff = ls.hiredStaff.filter((id) => id !== staffId);
     pState.hiredStaff = pState.hiredStaff || {};
     pState.hiredStaff[staffId] = false;
     pState.lifestylePerks = pState.lifestylePerks || {};
-    if (staffId === "personal_trainer") pState.lifestylePerks.personalTrainer = false;
+    if (staffId === "personal_trainer")
+      pState.lifestylePerks.personalTrainer = false;
     if (staffId === "physio") pState.lifestylePerks.physio = false;
     if (staffId === "marketing_team") pState.lifestylePerks.pressAgent = false;
 
@@ -709,18 +841,21 @@
       date: curDate,
       desc: `Encerramento de Vínculo: ${staffName}`,
       amount: 0,
-      type: "out"
+      type: "out",
     });
-    if (ls.transactions.length > 20) ls.transactions = ls.transactions.slice(0, 20);
+    if (ls.transactions.length > 20)
+      ls.transactions = ls.transactions.slice(0, 20);
 
     if (state) {
       state.news = Array.isArray(state.news) ? state.news : [];
-      state.news.unshift(`📋 GESTÃO DE CARREIRA: ${pState.athleteName || "O atleta"} encerrou o vínculo com ${staffName} para otimizar seus custos mensais.`);
+      state.news.unshift(
+        `📋 GESTÃO DE CARREIRA: ${pState.athleteName || "O atleta"} encerrou o vínculo com ${staffName} para otimizar seus custos mensais.`,
+      );
     }
 
     return {
       success: true,
-      message: `${staffName} dispensado da sua comissão particular.`
+      message: `${staffName} dispensado da sua comissão particular.`,
     };
   }
 
@@ -731,8 +866,9 @@
     const { pState, state } = resolveContext(gameState);
     if (!pState) return { success: false, message: "Estado inválido." };
     const ls = ensurePlayerLifestyleState(pState);
-    const asset = AFM_ASSETS_CATALOG.find(a => a.id === assetId);
-    if (!asset) return { success: false, message: "Bem não encontrado no catálogo." };
+    const asset = AFM_ASSETS_CATALOG.find((a) => a.id === assetId);
+    if (!asset)
+      return { success: false, message: "Bem não encontrado no catálogo." };
 
     if (ls.ownedAssets.includes(assetId)) {
       return { success: false, message: "Você já possui este bem de luxo!" };
@@ -740,25 +876,38 @@
 
     if (ls.cash < asset.price) {
       const shortfall = asset.price - ls.cash;
-      return { success: false, message: `Saldo insuficiente para compra à vista! Faltam R$ ${shortfall.toLocaleString("pt-BR")}.` };
+      return {
+        success: false,
+        message: `Saldo insuficiente para compra à vista! Faltam R$ ${shortfall.toLocaleString("pt-BR")}.`,
+      };
     }
 
     const curDate = state?.date || state?.currentDate || "2026-01-01";
-    addPlayerTransaction(pState, curDate, `Compra de Bem (À Vista): ${asset.name}`, asset.price, "out");
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Compra de Bem (À Vista): ${asset.name}`,
+      asset.price,
+      "out",
+    );
     ls.ownedAssets.push(assetId);
 
     // Retrocompatibilidade
-    pState.luxuryItems = Array.isArray(pState.luxuryItems) ? pState.luxuryItems : [];
+    pState.luxuryItems = Array.isArray(pState.luxuryItems)
+      ? pState.luxuryItems
+      : [];
     if (!pState.luxuryItems.includes(assetId)) pState.luxuryItems.push(assetId);
 
     if (state) {
       state.news = Array.isArray(state.news) ? state.news : [];
-      state.news.unshift(`💎 CONQUISTA & STATUS: ${pState.athleteName || "O atleta"} comprou ${asset.name} à vista por R$ ${asset.price.toLocaleString("pt-BR")}!`);
+      state.news.unshift(
+        `💎 CONQUISTA & STATUS: ${pState.athleteName || "O atleta"} comprou ${asset.name} à vista por R$ ${asset.price.toLocaleString("pt-BR")}!`,
+      );
     }
 
     return {
       success: true,
-      message: `${asset.name} adquirido à vista com sucesso! (${asset.bonus})`
+      message: `${asset.name} adquirido à vista com sucesso! (${asset.bonus})`,
     };
   }
 
@@ -766,47 +915,69 @@
     const { pState, state } = resolveContext(gameState);
     if (!pState) return { success: false, message: "Estado inválido." };
     const ls = ensurePlayerLifestyleState(pState);
-    const asset = AFM_ASSETS_CATALOG.find(a => a.id === assetId);
+    const asset = AFM_ASSETS_CATALOG.find((a) => a.id === assetId);
     if (!asset) return { success: false, message: "Item não encontrado." };
 
     if (!asset.financeable) {
-      return { success: false, message: "Este item não é elegível para financiamento bancário." };
+      return {
+        success: false,
+        message: "Este item não é elegível para financiamento bancário.",
+      };
     }
 
-    if (ls.ownedAssets.includes(assetId) || ls.financedAssets.some(f => f.id === assetId)) {
-      return { success: false, message: "Você já possui ou já está financiando este bem!" };
+    if (
+      ls.ownedAssets.includes(assetId) ||
+      ls.financedAssets.some((f) => f.id === assetId)
+    ) {
+      return {
+        success: false,
+        message: "Você já possui ou já está financiando este bem!",
+      };
     }
 
-    const downPayment = Math.round(asset.price * 0.30);
+    const downPayment = Math.round(asset.price * 0.3);
     if (ls.cash < downPayment) {
       const shortfall = downPayment - ls.cash;
-      return { success: false, message: `Saldo insuficiente para a entrada (30%)! Necessário R$ ${downPayment.toLocaleString("pt-BR")}. Faltam R$ ${shortfall.toLocaleString("pt-BR")}.` };
+      return {
+        success: false,
+        message: `Saldo insuficiente para a entrada (30%)! Necessário R$ ${downPayment.toLocaleString("pt-BR")}. Faltam R$ ${shortfall.toLocaleString("pt-BR")}.`,
+      };
     }
 
-    const remaining = asset.price * 0.70;
-    const monthlyPayment = Math.round((remaining * 1.10) / 12);
+    const remaining = asset.price * 0.7;
+    const monthlyPayment = Math.round((remaining * 1.1) / 12);
 
     const curDate = state?.date || state?.currentDate || "2026-01-01";
-    addPlayerTransaction(pState, curDate, `Entrada Financiamento (30%): ${asset.name}`, downPayment, "out");
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Entrada Financiamento (30%): ${asset.name}`,
+      downPayment,
+      "out",
+    );
     ls.financedAssets.push({
       id: asset.id,
       name: asset.name,
       remainingInstallments: 12,
-      monthlyPayment
+      monthlyPayment,
     });
 
     // Retrocompatibilidade
-    pState.luxuryItems = Array.isArray(pState.luxuryItems) ? pState.luxuryItems : [];
+    pState.luxuryItems = Array.isArray(pState.luxuryItems)
+      ? pState.luxuryItems
+      : [];
     if (!pState.luxuryItems.includes(assetId)) pState.luxuryItems.push(assetId);
 
     if (state) {
       state.news = Array.isArray(state.news) ? state.news : [];
-      state.news.unshift(`🚗 FINANCIAMENTO APROVADO: ${pState.athleteName || "O atleta"} financiou ${asset.name} em 12 parcelas de R$ ${monthlyPayment.toLocaleString("pt-BR")} (Entrada quitada de R$ ${downPayment.toLocaleString("pt-BR")}).`);
+      state.news.unshift(
+        `🚗 FINANCIAMENTO APROVADO: ${pState.athleteName || "O atleta"} financiou ${asset.name} em 12 parcelas de R$ ${monthlyPayment.toLocaleString("pt-BR")} (Entrada quitada de R$ ${downPayment.toLocaleString("pt-BR")}).`,
+      );
     }
 
     return {
       success: true,
-      message: `Financiamento aprovado! Entrada de R$ ${downPayment.toLocaleString("pt-BR")} paga. Parcelas de R$ ${monthlyPayment.toLocaleString("pt-BR")}/mês por 12 meses.`
+      message: `Financiamento aprovado! Entrada de R$ ${downPayment.toLocaleString("pt-BR")} paga. Parcelas de R$ ${monthlyPayment.toLocaleString("pt-BR")}/mês por 12 meses.`,
     };
   }
 
@@ -821,17 +992,26 @@
 
     if (ls.cash < amt) {
       const shortfall = amt - ls.cash;
-      return { success: false, message: `Saldo insuficiente para aplicar no CDB! Faltam R$ ${shortfall.toLocaleString("pt-BR")}.` };
+      return {
+        success: false,
+        message: `Saldo insuficiente para aplicar no CDB! Faltam R$ ${shortfall.toLocaleString("pt-BR")}.`,
+      };
     }
 
     const curDate = state?.date || state?.currentDate || "2026-01-01";
-    addPlayerTransaction(pState, curDate, `Aplicação em CDB Esportivo`, amt, "out");
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Aplicação em CDB Esportivo`,
+      amt,
+      "out",
+    );
     ls.investments.cdbBalance = (ls.investments.cdbBalance || 0) + amt;
     updatePlayerFinancialDisplay(pState);
 
     return {
       success: true,
-      message: `R$ ${amt.toLocaleString("pt-BR")} aplicados no CDB Esportivo! Saldo total no CDB: R$ ${ls.investments.cdbBalance.toLocaleString("pt-BR")}.`
+      message: `R$ ${amt.toLocaleString("pt-BR")} aplicados no CDB Esportivo! Saldo total no CDB: R$ ${ls.investments.cdbBalance.toLocaleString("pt-BR")}.`,
     };
   }
 
@@ -842,17 +1022,26 @@
     const balance = Number(ls.investments.cdbBalance) || 0;
 
     if (balance <= 0) {
-      return { success: false, message: "Você não possui saldo investido no CDB para resgatar." };
+      return {
+        success: false,
+        message: "Você não possui saldo investido no CDB para resgatar.",
+      };
     }
 
     const curDate = state?.date || state?.currentDate || "2026-01-01";
     ls.investments.cdbBalance = 0;
-    addPlayerTransaction(pState, curDate, `Resgate Total CDB Esportivo`, balance, "in");
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Resgate Total CDB Esportivo`,
+      balance,
+      "in",
+    );
     updatePlayerFinancialDisplay(pState);
 
     return {
       success: true,
-      message: `Resgate de R$ ${balance.toLocaleString("pt-BR")} creditado na sua conta com sucesso!`
+      message: `Resgate de R$ ${balance.toLocaleString("pt-BR")} creditado na sua conta com sucesso!`,
     };
   }
 
@@ -864,16 +1053,25 @@
 
     if (ls.cash < cost) {
       const shortfall = cost - ls.cash;
-      return { success: false, message: `Saldo insuficiente! Kitnet de aluguel custa R$ ${cost.toLocaleString("pt-BR")}. Faltam R$ ${shortfall.toLocaleString("pt-BR")}.` };
+      return {
+        success: false,
+        message: `Saldo insuficiente! Kitnet de aluguel custa R$ ${cost.toLocaleString("pt-BR")}. Faltam R$ ${shortfall.toLocaleString("pt-BR")}.`,
+      };
     }
 
     const curDate = state?.date || state?.currentDate || "2026-01-01";
-    addPlayerTransaction(pState, curDate, `Compra de Kitnet para Aluguel`, cost, "out");
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Compra de Kitnet para Aluguel`,
+      cost,
+      "out",
+    );
     ls.investments.rentalUnits = (ls.investments.rentalUnits || 0) + 1;
 
     return {
       success: true,
-      message: `Kitnet adquirida com sucesso! Você possui agora ${ls.investments.rentalUnits} unidade(s) gerando R$ ${(ls.investments.rentalUnits * 650).toLocaleString("pt-BR")}/mês de renda passiva.`
+      message: `Kitnet adquirida com sucesso! Você possui agora ${ls.investments.rentalUnits} unidade(s) gerando R$ ${(ls.investments.rentalUnits * 650).toLocaleString("pt-BR")}/mês de renda passiva.`,
     };
   }
 
@@ -884,26 +1082,40 @@
     const cost = 75000;
 
     if (ls.investments.academyOwned) {
-      return { success: false, message: "Você já possui sua franquia de escolinha de futebol!" };
+      return {
+        success: false,
+        message: "Você já possui sua franquia de escolinha de futebol!",
+      };
     }
 
     if (ls.cash < cost) {
       const shortfall = cost - ls.cash;
-      return { success: false, message: `Saldo insuficiente! A franquia de escolinha custa R$ ${cost.toLocaleString("pt-BR")}. Faltam R$ ${shortfall.toLocaleString("pt-BR")}.` };
+      return {
+        success: false,
+        message: `Saldo insuficiente! A franquia de escolinha custa R$ ${cost.toLocaleString("pt-BR")}. Faltam R$ ${shortfall.toLocaleString("pt-BR")}.`,
+      };
     }
 
     const curDate = state?.date || state?.currentDate || "2026-01-01";
-    addPlayerTransaction(pState, curDate, `Abertura de Franquia de Escolinha`, cost, "out");
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Abertura de Franquia de Escolinha`,
+      cost,
+      "out",
+    );
     ls.investments.academyOwned = true;
 
     if (state) {
       state.news = Array.isArray(state.news) ? state.news : [];
-      state.news.unshift(`⚽ NEGÓCIOS & FORMAÇÃO: ${pState.athleteName || "O atleta"} inaugurou sua própria franquia de escolinha de futebol! Renda passiva de R$ 2.100/mês.`);
+      state.news.unshift(
+        `⚽ NEGÓCIOS & FORMAÇÃO: ${pState.athleteName || "O atleta"} inaugurou sua própria franquia de escolinha de futebol! Renda passiva de R$ 2.100/mês.`,
+      );
     }
 
     return {
       success: true,
-      message: `Escolinha inaugurada com sucesso! Gera R$ 2.100/mês de renda passiva e fortalece seu nome nas categorias de base.`
+      message: `Escolinha inaugurada com sucesso! Gera R$ 2.100/mês de renda passiva e fortalece seu nome nas categorias de base.`,
     };
   }
 
@@ -914,26 +1126,40 @@
     const cost = 180000;
 
     if (ls.investments.brandOwned) {
-      return { success: false, message: "Você já possui sua marca própria de vestuário e lifestyle!" };
+      return {
+        success: false,
+        message: "Você já possui sua marca própria de vestuário e lifestyle!",
+      };
     }
 
     if (ls.cash < cost) {
       const shortfall = cost - ls.cash;
-      return { success: false, message: `Saldo insuficiente! O lançamento da marca própria custa R$ ${cost.toLocaleString("pt-BR")}. Faltam R$ ${shortfall.toLocaleString("pt-BR")}.` };
+      return {
+        success: false,
+        message: `Saldo insuficiente! O lançamento da marca própria custa R$ ${cost.toLocaleString("pt-BR")}. Faltam R$ ${shortfall.toLocaleString("pt-BR")}.`,
+      };
     }
 
     const curDate = state?.date || state?.currentDate || "2026-01-01";
-    addPlayerTransaction(pState, curDate, `Lançamento de Marca Própria de Roupas`, cost, "out");
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Lançamento de Marca Própria de Roupas`,
+      cost,
+      "out",
+    );
     ls.investments.brandOwned = true;
 
     if (state) {
       state.news = Array.isArray(state.news) ? state.news : [];
-      state.news.unshift(`✨ EMPREENDEDORISMO: ${pState.athleteName || "O atleta"} lançou oficialmente sua marca própria de vestuário e lifestyle! Renda passiva de R$ 5.400/mês.`);
+      state.news.unshift(
+        `✨ EMPREENDEDORISMO: ${pState.athleteName || "O atleta"} lançou oficialmente sua marca própria de vestuário e lifestyle! Renda passiva de R$ 5.400/mês.`,
+      );
     }
 
     return {
       success: true,
-      message: `Marca própria lançada com sucesso! Gera R$ 5.400/mês de royalties e eleva sua fama mundial.`
+      message: `Marca própria lançada com sucesso! Gera R$ 5.400/mês de royalties e eleva sua fama mundial.`,
     };
   }
 
@@ -950,42 +1176,62 @@
       const diffDays = Math.abs((d1 - d2) / (1000 * 60 * 60 * 24));
       if (diffDays < 7) {
         const remaining = Math.max(1, 7 - Math.floor(diffDays));
-        return { success: false, message: `Sua agenda de mídia está cheia! Aguarde mais ${remaining} dia(s) para uma nova gravação comercial.` };
+        return {
+          success: false,
+          message: `Sua agenda de mídia está cheia! Aguarde mais ${remaining} dia(s) para uma nova gravação comercial.`,
+        };
       }
     }
 
     // Checagem de condição física / estamina (exige ao menos 15%)
-    const currentEnergy = athlete?.energy !== undefined
-      ? Number(athlete.energy)
-      : (pState.energy !== undefined ? Number(pState.energy) : 100);
+    const currentEnergy =
+      athlete?.energy !== undefined
+        ? Number(athlete.energy)
+        : pState.energy !== undefined
+          ? Number(pState.energy)
+          : 100;
 
     if (currentEnergy < 15) {
-      return { success: false, message: `Condição física muito baixa (${currentEnergy}%)! Descanse antes de gravar um comercial (exige 15% de energia).` };
+      return {
+        success: false,
+        message: `Condição física muito baixa (${currentEnergy}%)! Descanse antes de gravar um comercial (exige 15% de energia).`,
+      };
     }
 
     // Consome 15% de estamina
     if (athlete) athlete.energy = Math.max(0, currentEnergy - 15);
-    if (pState.energy !== undefined) pState.energy = Math.max(0, currentEnergy - 15);
+    if (pState.energy !== undefined)
+      pState.energy = Math.max(0, currentEnergy - 15);
 
     // Cálculo do Cachê: R$ 450 a R$ 12.000 baseado em OVR e Fama/Seguidores
     const ovr = Number(athlete?.ovr || pState?.athleteOvr || 45);
     const followers = Number(pState?.socialMedia?.followers || 500);
     const fameBonus = Math.min(6000, Math.round(followers / 20));
-    const payout = Math.round(Math.min(12000, Math.max(450, 450 + (ovr - 40) * 120 + fameBonus)));
+    const payout = Math.round(
+      Math.min(12000, Math.max(450, 450 + (ovr - 40) * 120 + fameBonus)),
+    );
 
-    addPlayerTransaction(pState, curDate, `Cachê: Comercial & Presença VIP`, payout, "in");
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Cachê: Comercial & Presença VIP`,
+      payout,
+      "in",
+    );
     ls.weeklyMediaGigAvailable = false;
     ls.lastMediaGigDate = curDate;
 
     if (state) {
       state.news = Array.isArray(state.news) ? state.news : [];
-      state.news.unshift(`📸 MÍDIA & PUBLICIDADE: ${pState.athleteName || "O atleta"} gravou uma campanha publicitária e faturou R$ ${payout.toLocaleString("pt-BR")} de cachê.`);
+      state.news.unshift(
+        `📸 MÍDIA & PUBLICIDADE: ${pState.athleteName || "O atleta"} gravou uma campanha publicitária e faturou R$ ${payout.toLocaleString("pt-BR")} de cachê.`,
+      );
     }
 
     return {
       success: true,
       payout,
-      message: `Gravação concluída com sucesso! Cachê de R$ ${payout.toLocaleString("pt-BR")} recebido (-15% de energia).`
+      message: `Gravação concluída com sucesso! Cachê de R$ ${payout.toLocaleString("pt-BR")} recebido (-15% de energia).`,
     };
   }
 
@@ -996,7 +1242,8 @@
     const { pState } = resolveContext(gameState);
     if (!pState) return;
     const ls = ensurePlayerLifestyleState(pState);
-    const curDate = currentDate || gameState?.date || gameState?.currentDate || "2026-01-01";
+    const curDate =
+      currentDate || gameState?.date || gameState?.currentDate || "2026-01-01";
 
     // 1. Redução de 1 na durabilidade da chuteira equipada
     const equippedId = ls.equippedBootsId || "boots_basic";
@@ -1008,12 +1255,23 @@
     }
 
     // 2. Bônus por gol da Chuteira Ouro / Signature (+R$ 250/gol)
-    const bootCatalog = AFM_BOOTS_CATALOG.find(b => b.id === equippedId);
+    const bootCatalog = AFM_BOOTS_CATALOG.find((b) => b.id === equippedId);
     const goals = Number(matchStats?.goalsScored || matchStats?.goals || 0);
-    const goalBonus = bootCatalog?.goalCashBonus || bootCatalog?.stats?.goalCashBonus;
-    if (goalBonus && goals > 0 && (ls.ownedBoots?.[equippedId]?.durability || 0) > 0) {
+    const goalBonus =
+      bootCatalog?.goalCashBonus || bootCatalog?.stats?.goalCashBonus;
+    if (
+      goalBonus &&
+      goals > 0 &&
+      (ls.ownedBoots?.[equippedId]?.durability || 0) > 0
+    ) {
       const cashBonus = goals * goalBonus;
-      addPlayerTransaction(pState, curDate, `Bônus Chuteira Ouro (${goals} gol(s))`, cashBonus, "in");
+      addPlayerTransaction(
+        pState,
+        curDate,
+        `Bônus Chuteira Ouro (${goals} gol(s))`,
+        cashBonus,
+        "in",
+      );
     }
 
     // Sincronização estrita
@@ -1029,7 +1287,8 @@
     if (!pState || (state && state.gameMode !== "player")) return null;
     const ls = ensurePlayerLifestyleState(pState);
 
-    const curDate = paymentDate || state?.date || state?.currentDate || "2026-01-01";
+    const curDate =
+      paymentDate || state?.date || state?.currentDate || "2026-01-01";
     const monthKey = String(curDate).slice(0, 7);
 
     // Idempotência estrita: processa apenas uma vez por mês do calendário
@@ -1046,13 +1305,35 @@
     // ENTRADAS DO MÊS
     // -----------------------------------------------------------------------
     // Salário do Clube
-    const salary = Math.round(Number(athlete?.wage || (pState.weeklySalary ? pState.weeklySalary * 4 : 1500)));
-    addPlayerTransaction(pState, curDate, `Salário Mensal do Clube`, salary, "in");
+    const salary = Math.round(
+      Number(
+        athlete?.wage || (pState.weeklySalary ? pState.weeklySalary * 4 : 1500),
+      ),
+    );
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Salário Mensal do Clube`,
+      salary,
+      "in",
+    );
 
     // Patrocínio Esportivo Ativo
-    const sponsorMonthly = Math.round(Number(pState.sponsorContract?.monthlyStipend || pState.sponsorContract?.monthly || 0));
+    const sponsorMonthly = Math.round(
+      Number(
+        pState.sponsorContract?.monthlyStipend ||
+          pState.sponsorContract?.monthly ||
+          0,
+      ),
+    );
     if (sponsorMonthly > 0) {
-      addPlayerTransaction(pState, curDate, `Mensalidade Patrocínio (${pState.sponsorContract?.brand || "Material Esportivo"})`, sponsorMonthly, "in");
+      addPlayerTransaction(
+        pState,
+        curDate,
+        `Mensalidade Patrocínio (${pState.sponsorContract?.brand || "Material Esportivo"})`,
+        sponsorMonthly,
+        "in",
+      );
     }
 
     // Rendimento CDB Esportivo (1.1%/mês, ou 1.5% com Contador)
@@ -1062,7 +1343,13 @@
     if (cdbBalance > 0) {
       cdbYield = Math.round(cdbBalance * cdbRate);
       ls.investments.cdbBalance += cdbYield; // Reinveste juros compostos
-      addPlayerTransaction(pState, curDate, `Rendimento CDB Esportivo (${hasAccountant ? "1.5%" : "1.1%"})`, cdbYield, "in");
+      addPlayerTransaction(
+        pState,
+        curDate,
+        `Rendimento CDB Esportivo (${hasAccountant ? "1.5%" : "1.1%"})`,
+        cdbYield,
+        "in",
+      );
     }
 
     // Aluguéis e Negócios
@@ -1073,7 +1360,13 @@
     const totalBusinessIncome = rentalIncome + academyIncome + brandIncome;
 
     if (totalBusinessIncome > 0) {
-      addPlayerTransaction(pState, curDate, `Rendimentos de Aluguéis & Negócios`, totalBusinessIncome, "in");
+      addPlayerTransaction(
+        pState,
+        curDate,
+        `Rendimentos de Aluguéis & Negócios`,
+        totalBusinessIncome,
+        "in",
+      );
     }
 
     // -----------------------------------------------------------------------
@@ -1087,16 +1380,22 @@
     else if (athleteOvr >= 62) baseLifestyleCost = 3500;
     else if (athleteOvr >= 52) baseLifestyleCost = 1200;
 
-    addPlayerTransaction(pState, curDate, `Custo de Vida & Moradia`, baseLifestyleCost, "out");
+    addPlayerTransaction(
+      pState,
+      curDate,
+      `Custo de Vida & Moradia`,
+      baseLifestyleCost,
+      "out",
+    );
 
     // Manutenção de Bens de Luxo e Veículos (-15% se tiver Contador)
     let totalUpkeep = 0;
     const allHeldAssetIds = [
       ...ls.ownedAssets,
-      ...ls.financedAssets.map(f => f.id)
+      ...ls.financedAssets.map((f) => f.id),
     ];
-    allHeldAssetIds.forEach(aId => {
-      const asset = AFM_ASSETS_CATALOG.find(a => a.id === aId);
+    allHeldAssetIds.forEach((aId) => {
+      const asset = AFM_ASSETS_CATALOG.find((a) => a.id === aId);
       if (asset) totalUpkeep += asset.monthlyUpkeep;
     });
 
@@ -1104,14 +1403,29 @@
       totalUpkeep = Math.round(totalUpkeep * 0.85);
     }
     if (totalUpkeep > 0) {
-      addPlayerTransaction(pState, curDate, `Manutenção de Bens & Veículos${hasAccountant ? " (-15% Contador)" : ""}`, totalUpkeep, "out");
+      addPlayerTransaction(
+        pState,
+        curDate,
+        `Manutenção de Bens & Veículos${hasAccountant ? " (-15% Contador)" : ""}`,
+        totalUpkeep,
+        "out",
+      );
     }
 
     // Parcelas de Financiamento (12x)
     const financedToRemove = [];
     ls.financedAssets.forEach((item, idx) => {
-      addPlayerTransaction(pState, curDate, `Parcela Financiamento: ${item.name}`, item.monthlyPayment, "out");
-      item.remainingInstallments = Math.max(0, (Number(item.remainingInstallments) || 12) - 1);
+      addPlayerTransaction(
+        pState,
+        curDate,
+        `Parcela Financiamento: ${item.name}`,
+        item.monthlyPayment,
+        "out",
+      );
+      item.remainingInstallments = Math.max(
+        0,
+        (Number(item.remainingInstallments) || 12) - 1,
+      );
       if (item.remainingInstallments <= 0) {
         financedToRemove.push(idx);
         if (!ls.ownedAssets.includes(item.id)) {
@@ -1119,7 +1433,9 @@
         }
         if (state) {
           state.news = Array.isArray(state.news) ? state.news : [];
-          state.news.unshift(`🎉 QUITAÇÃO: ${pState.athleteName || "Você"} quitou integralmente o financiamento de ${item.name}! O bem agora é 100% seu.`);
+          state.news.unshift(
+            `🎉 QUITAÇÃO: ${pState.athleteName || "Você"} quitou integralmente o financiamento de ${item.name}! O bem agora é 100% seu.`,
+          );
         }
       }
     });
@@ -1130,13 +1446,19 @@
 
     // Folha de Pagamento do Staff Pessoal
     let totalStaffPayroll = 0;
-    ls.hiredStaff.forEach(staffId => {
-      const st = AFM_STAFF_CATALOG.find(s => s.id === staffId);
+    ls.hiredStaff.forEach((staffId) => {
+      const st = AFM_STAFF_CATALOG.find((s) => s.id === staffId);
       if (st) {
         const ovrFactor = Math.max(1, 1 + (athleteOvr - 45) * 0.03);
         const monthly = Math.round(st.monthlyCostBase * ovrFactor);
         totalStaffPayroll += monthly;
-        addPlayerTransaction(pState, curDate, `Honorários Staff: ${st.name}`, monthly, "out");
+        addPlayerTransaction(
+          pState,
+          curDate,
+          `Honorários Staff: ${st.name}`,
+          monthly,
+          "out",
+        );
       }
     });
 
@@ -1148,28 +1470,44 @@
     // -----------------------------------------------------------------------
     if (ls.cash < 0 && ls.hiredStaff.length > 0) {
       const droppedStaffId = ls.hiredStaff.pop();
-      const droppedStaff = AFM_STAFF_CATALOG.find(s => s.id === droppedStaffId);
+      const droppedStaff = AFM_STAFF_CATALOG.find(
+        (s) => s.id === droppedStaffId,
+      );
       const droppedName = droppedStaff ? droppedStaff.name : droppedStaffId;
 
       pState.hiredStaff = pState.hiredStaff || {};
       pState.hiredStaff[droppedStaffId] = false;
       pState.lifestylePerks = pState.lifestylePerks || {};
-      if (droppedStaffId === "personal_trainer") pState.lifestylePerks.personalTrainer = false;
+      if (droppedStaffId === "personal_trainer")
+        pState.lifestylePerks.personalTrainer = false;
       if (droppedStaffId === "physio") pState.lifestylePerks.physio = false;
-      if (droppedStaffId === "marketing_team") pState.lifestylePerks.pressAgent = false;
+      if (droppedStaffId === "marketing_team")
+        pState.lifestylePerks.pressAgent = false;
 
-      addPlayerTransaction(pState, curDate, `Suspensão por Falta de Fundos: ${droppedName}`, 0, "out");
+      addPlayerTransaction(
+        pState,
+        curDate,
+        `Suspensão por Falta de Fundos: ${droppedName}`,
+        0,
+        "out",
+      );
 
       if (state) {
         state.news = Array.isArray(state.news) ? state.news : [];
-        state.news.unshift(`⚠️ INADIMPLÊNCIA: Por saldo negativo em conta, ${droppedName} encerrou a prestação de serviços com ${pState.athleteName || "você"}.`);
+        state.news.unshift(
+          `⚠️ INADIMPLÊNCIA: Por saldo negativo em conta, ${droppedName} encerrou a prestação de serviços com ${pState.athleteName || "você"}.`,
+        );
       }
     }
 
     // Histórico Financeiro Mensal (Extrato dos últimos 12 meses para retrocompatibilidade)
-    pState.financialHistory = Array.isArray(pState.financialHistory) ? pState.financialHistory : [];
-    const totalMonthIncome = salary + sponsorMonthly + cdbYield + totalBusinessIncome;
-    const totalMonthExpenses = baseLifestyleCost + totalUpkeep + totalStaffPayroll;
+    pState.financialHistory = Array.isArray(pState.financialHistory)
+      ? pState.financialHistory
+      : [];
+    const totalMonthIncome =
+      salary + sponsorMonthly + cdbYield + totalBusinessIncome;
+    const totalMonthExpenses =
+      baseLifestyleCost + totalUpkeep + totalStaffPayroll;
     pState.financialHistory.unshift({
       date: curDate,
       month: monthKey,
@@ -1180,7 +1518,7 @@
       lifestyleCost: baseLifestyleCost + totalUpkeep,
       totalExpenses: totalMonthExpenses,
       netBalance: totalMonthIncome - totalMonthExpenses,
-      finalBank: ls.cash
+      finalBank: ls.cash,
     });
     pState.financialHistory = pState.financialHistory.slice(0, 12);
     pState.monthlyMatchBonuses = 0;
@@ -1194,7 +1532,7 @@
       totalBusinessIncome,
       baseLifestyleCost,
       totalUpkeep,
-      totalStaffPayroll
+      totalStaffPayroll,
     };
   }
 
@@ -1224,7 +1562,7 @@
     buyBrand,
     executeMediaGig,
     processMatchLifestyleEffects,
-    processMonthlyPlayerFinances
+    processMonthlyPlayerFinances,
   };
 
   if (typeof window !== "undefined") {

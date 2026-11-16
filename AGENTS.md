@@ -71,6 +71,10 @@
   1. Todo carregamento de save deve executar migrateAndSanitizeSaveState(state) antes do render() para inicializar objetos novos e impedir TypeError em saves antigos.
   2. window.isPlayerCareerActive(state) é a única fonte de verdade para diferenciar Modo Atleta e Modo Treinador. No Modo Atleta, renderCentral() e views exclusivas de treinador são estritamente proibidas.
   3. A navegação por [data-view] deve usar delegação global em document (fase de captura), e window.render() deve sempre usar try/catch/finally resetando travas de renderização para que as abas jamais fiquem inclicáveis.
+- REGRA IRRESTRITA DA TELA INICIAL, MODOS E SLOTS DE SAVE (ANTI-CONFLITO):
+  1. Ao entrar na tela inicial (`.setup-container`), o jogo deve pausar auto-saves (`window.__afmAutoSavePaused = true`) e marcar `#app` com `data-rendered-game-mode="setup"`.
+  2. Toda nova carreira (Treinador, Carreira Jogador ou Criar Seu Time) deve selecionar automaticamente um slot vazio por padrão, pedir confirmação explícita caso o jogador escolha um slot ocupado, e inicializar um objeto `state` 100% limpo sem resíduos de campanhas anteriores.
+  3. Todo carregamento de save (local, arquivo JSON ou nuvem Supabase) deve passar obrigatoriamente por `AFM_SETUP_GUARD.sanitizeLoadedSave()` com deep-clone antes do primeiro `render()`, garantindo que um save de Treinador jamais abra no Modo Jogador e vice-versa.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis

@@ -90,6 +90,147 @@ window.norm = norm;
 const hashStr=s=>{let h=2166136261;for(const ch of String(s)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h>>>0)};
 
 // =========================================================================
+// MOTOR DE ISOLAMENTO DE MODO E PROTEÇÃO DE SAVES (AFM_SETUP_GUARD)
+// =========================================================================
+window.AFM_SETUP_GUARD = {
+  isSetupActive: function() {
+    return Boolean(
+      (typeof document !== 'undefined' && document.querySelector(".setup-container")) ||
+      (typeof window !== 'undefined' && (window.state?.view === "setup" || window.state?.gameMode === "setup")) ||
+      (typeof setupViewMode !== 'undefined' && ['select', 'auth', 'hub', 'arenas', 'ranking', 'systems', 'player_guide'].includes(setupViewMode))
+    );
+  },
+
+  enterSetupCleanly: function() {
+    window.__afmAutoSavePaused = true;
+    window.__afmIsRendering = false;
+    const app = typeof document !== 'undefined' ? document.getElementById("app") : null;
+    if (app) {
+      app.setAttribute("data-rendered-game-mode", "setup");
+      app.setAttribute("data-rendered-view", "setup");
+    }
+    if (typeof state !== 'undefined' && state) {
+      state.view = "setup";
+      state.gameMode = "setup";
+    }
+    if (typeof window !== 'undefined' && window.state) {
+      window.state.view = "setup";
+      window.state.gameMode = "setup";
+    }
+  },
+
+  detectSaveMode: function(saveData) {
+    if (!saveData || typeof saveData !== "object") return "manager";
+    const data = saveData.data && typeof saveData.data === "object" ? saveData.data : saveData;
+
+    // Regra AGENTS.md: gameMode persistido é a autoridade; use isPlayerMode/campos legados só quando ele faltar
+    if (saveData.gameMode === "player" || data.gameMode === "player") return "player";
+    if (saveData.gameMode === "manager" || data.gameMode === "manager") return "manager";
+
+    const isPlayer = Boolean(
+      saveData.playerCareer?.active ||
+      saveData.player?.isUserPlayer ||
+      saveData.mode === "player" ||
+      saveData.isPlayerMode === true ||
+      saveData.playerCareerState ||
+      saveData.controlledPlayerId ||
+      data.playerCareer?.active ||
+      data.player?.isUserPlayer ||
+      data.mode === "player" ||
+      data.isPlayerMode === true ||
+      data.playerCareerState ||
+      data.controlledPlayerId ||
+      ((data.coach?.name === "Treinador da IA" || data.coachName === "Treinador da IA" || data.manager === "Treinador da IA") &&
+       (data.player || data.playerCareerState || data.controlledPlayerId))
+    );
+    return isPlayer ? "player" : "manager";
+  },
+
+  sanitizeLoadedSave: function(rawSave, slotNumber) {
+    const clean = JSON.parse(JSON.stringify(rawSave));
+    const detectedMode = this.detectSaveMode(clean);
+
+    clean.slotId = Number(slotNumber || clean.slotId || clean.slot || clean.userSlot || 1);
+    clean.userSlot = clean.slotId;
+    clean.gameMode = detectedMode;
+    clean.mode = detectedMode;
+    clean.isPlayerMode = (detectedMode === "player");
+
+    if (detectedMode === "player") {
+      delete clean.isManagerOnly;
+      clean.playerCareer = Object.assign({ active: true }, clean.playerCareer || {});
+      clean.player = Object.assign({ isUserPlayer: true }, clean.player || {});
+      clean.player.isUserPlayer = true;
+      const managerViews = ["central", "tatica", "elenco", "mercado", "financas", "estrutura", "escritorio", "treinos"];
+      if (!clean.view || managerViews.includes(clean.view) || clean.view === "setup") {
+        clean.view = "player_hub";
+      }
+    } else {
+      // Remove qualquer resíduo do Modo Jogador para jamais trocar de modo sozinho
+      delete clean.playerCareer;
+      delete clean.player;
+      delete clean.playerCareerState;
+      delete clean.controlledPlayerId;
+      const playerViews = ["player_hub", "player_evolution", "player_club", "player_social", "player_agent", "player_lifestyle", "player_stats", "player_national", "player_creator"];
+      if (!clean.view || playerViews.includes(clean.view) || clean.view === "setup") {
+        clean.view = "central";
+      }
+    }
+    return clean;
+  },
+
+  getFirstAvailableSlot: function(slotsMap) {
+    if (!slotsMap) return 1;
+    for (const s of [1, 2, 3]) {
+      const entry = Array.isArray(slotsMap) ? slotsMap[s - 1] : slotsMap[s];
+      if (!entry) return s;
+    }
+    return 1;
+  },
+
+  confirmSlotOverwriteIfNeeded: function(targetSlot, slotsMap, newCareerLabel, onConfirm) {
+    if (typeof document === 'undefined') {
+      onConfirm();
+      return;
+    }
+    const existing = slotsMap ? (Array.isArray(slotsMap) ? slotsMap[targetSlot - 1] : slotsMap[targetSlot]) : null;
+    if (!existing) {
+      onConfirm();
+      return;
+    }
+    const oldMode = this.detectSaveMode(existing) === "player" ? "⭐ Carreira Jogador" : "👔 Carreira Treinador";
+    const oldClub = existing.club?.name || existing.club || existing.player?.clubName || "Clube";
+    const oldProgress = `Temp. ${existing.season || 2026} · Rodada ${(existing.round != null ? existing.round + 1 : 1)}`;
+
+    const overlay = document.createElement("div");
+    overlay.id = "afmSlotOverwriteModalOverlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(2,6,23,0.9);backdrop-filter:blur(8px);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;";
+    overlay.innerHTML = `
+      <div style="background:#0f172a;border:2px solid #f59e0b;border-radius:18px;max-width:460px;width:100%;padding:24px;color:#fff;box-shadow:0 24px 60px rgba(0,0,0,0.85);font-family:Inter,sans-serif">
+        <div style="font-size:18px;font-weight:900;color:#fbbf24;margin-bottom:8px;">⚠️ SOBRESCREVER SLOT ${targetSlot}?</div>
+        <p style="font-size:13px;color:#cbd5e1;line-height:1.5;margin:0 0 14px 0;">
+          O <b>Slot ${targetSlot}</b> já possui uma campanha salva. Iniciar <b>${newCareerLabel}</b> neste slot substituirá permanentemente o save atual:
+        </p>
+        <div style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:12px;padding:12px;margin-bottom:18px;font-size:12px;">
+          <div style="font-weight:900;color:#fca5a5;">SAVE QUE SERÁ SUBSTITUÍDO:</div>
+          <div style="margin-top:4px;color:#fff;font-weight:800;">${oldMode} · ${oldClub} (${oldProgress})</div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" id="btnCancelOverwriteSlot" class="btn" style="background:rgba(255,255,255,0.08);color:#fff;border:none;padding:10px 16px;border-radius:10px;font-weight:800;cursor:pointer;">Cancelar</button>
+          <button type="button" id="btnConfirmOverwriteSlot" class="btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border:none;padding:10px 18px;border-radius:10px;font-weight:900;cursor:pointer;">Sobrescrever Slot ${targetSlot}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector("#btnCancelOverwriteSlot").onclick = () => overlay.remove();
+    overlay.querySelector("#btnConfirmOverwriteSlot").onclick = () => {
+      overlay.remove();
+      onConfirm();
+    };
+  }
+};
+
+// =========================================================================
 // FONTE ÚNICA DE VERDADE DO MODO DE JOGO & MIGRAÇÃO SANEADA DE SAVES
 // =========================================================================
 window.isPlayerCareerActive = function(st) {
@@ -9335,6 +9476,9 @@ function rememberActiveSaveSlot(username, slotNum){
 }
 
 function save(options = {}){
+  if(typeof window !== 'undefined' && (window.__afmAutoSavePaused || window.AFM_SETUP_GUARD?.isSetupActive())){
+    if(!options?.allowModeReplace && !options?.force) return false;
+  }
   if(!state && typeof window !== 'undefined' && window.state){
     state = window.state;
   }
@@ -9724,14 +9868,18 @@ function loadUserSlot(slotNum, ownerUsername = null){
   }
 
   const rawData = saveEntry.data || saveEntry;
-  const savedMode = getSaveGameMode(saveEntry) || getSaveGameMode(rawData) || 'manager';
+  const sanitized = (window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.sanitizeLoadedSave === 'function')
+    ? window.AFM_SETUP_GUARD.sanitizeLoadedSave(rawData, slotNum)
+    : clone(rawData);
+  const savedMode = sanitized.gameMode || getSaveGameMode(saveEntry) || getSaveGameMode(rawData) || 'manager';
   rememberActiveSaveSlot(username, slotNum);
-  state = clone(rawData);
+  state = sanitized;
   state.gameMode = savedMode;
   state.isPlayerMode = savedMode === 'player';
   state.userSlot = slotNum;
   state.userOwner = username;
   if(typeof window !== 'undefined'){
+    window.__afmAutoSavePaused = false;
     window.state = state;
   }
   if(typeof window.migrateAndSanitizeSaveState === 'function'){
@@ -9797,8 +9945,20 @@ function deleteUserSlot(slotNum, ownerUsername = null){
 
   try {
     localStorage.removeItem(`afm_save_slot_${slotNum}`);
+    localStorage.removeItem(`afm_save_slot_${slotNum}_backup`);
     localStorage.removeItem(`afm_save_${username}_slot_${slotNum}`);
-    if(slotNum === 1) localStorage.removeItem(STORAGE);
+    localStorage.removeItem(`afm_save_${username}_slot_${slotNum}_backup`);
+    if(slotNum === 1){
+      localStorage.removeItem(STORAGE);
+      localStorage.removeItem(`${STORAGE}_backup`);
+    }
+    // save-delete-sweep: varredura profunda de chaves do slot
+    for(let i = localStorage.length - 1; i >= 0; i--){
+      const k = localStorage.key(i);
+      if(k && (k.includes(`slot_${slotNum}`) || k.includes(`slot${slotNum}`))){
+        localStorage.removeItem(k);
+      }
+    }
   } catch(e){
     recordAFMError('save-delete-local', e);
     toast('Não foi possível excluir o save local. Verifique o armazenamento do navegador.');
@@ -14922,10 +15082,31 @@ function newCareer(data){
   });
 
   const startingPayroll = squad.reduce((sum, p) => sum + (Number(p.wage) || 0), 0);
+  const budgetMultiplier = Number(data.budgetMultiplier) || 1.0;
   // REGRA DO USUÁRIO: "so tem 300 mil no caixa"
-  const budget = isPlayerMode
+  const rawBudget = isPlayerMode
     ? playerModeStartingBudget(comp, club, squad, isCustom)
     : (isCustom ? 300000 : Math.max(250000, (club.budget || 5) * 1e6, Math.round(startingPayroll * 2.5)));
+  const budget = isPlayerMode ? rawBudget : Math.round(rawBudget * budgetMultiplier);
+
+  const mgrNationality = data.managerNationality || 'Brasil';
+  const mgrBackground = data.managerBackground || 'ex_player';
+  const tacticalPhilosophy = data.tacticalPhilosophy || 'balanced';
+  const aiDifficulty = data.aiDifficulty || 'Profissional';
+  const sackingEnabled = data.sackingRule !== 'disabled';
+
+  let initialTrustBoard = 65;
+  let initialTrustFans = 70;
+  let initialTrustSquad = 68;
+  if(mgrBackground === 'ex_player'){
+    initialTrustSquad += 10;
+    initialTrustFans += 5;
+  } else if(mgrBackground === 'tactician'){
+    initialTrustBoard += 6;
+  } else if(mgrBackground === 'academy'){
+    initialTrustBoard += 5;
+    initialTrustSquad += 5;
+  }
 
   const sponsorOffers = generateSponsorOffers(budget, club.name, squad, { salaryModelVersion: 2, club: club.name, compId: comp.id });
   let activeSponsors;
@@ -14999,7 +15180,14 @@ function newCareer(data){
           : budget + ((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0))
     ),
     managerMoney: 57000,
-    trust: { board: 65, fans: 70, squad: 68 },
+    trust: { board: initialTrustBoard, fans: initialTrustFans, squad: initialTrustSquad },
+    managerProfile: {
+      nationality: mgrNationality,
+      background: mgrBackground,
+      philosophy: tacticalPhilosophy
+    },
+    aiDifficulty,
+    sackingEnabled,
     boardConfidence: 78,
     markingIntensity: 'equilibrada',
     setPieces: {
@@ -15092,6 +15280,7 @@ function newCareer(data){
   optimizeLineup();
   ensureTvBroadcastContract(state);
   if(typeof window !== 'undefined'){
+    window.__afmAutoSavePaused = false;
     window.state = state;
   }
   if(!data.deferInitialSave) save({ allowModeReplace: true });
@@ -38902,6 +39091,8 @@ function openRestoreCloudModal(defaultUser = ''){
 
   const userGuess = defaultUser || (typeof getActiveAccount === 'function' ? getActiveAccount()?.username : '') || (typeof localStorage !== 'undefined' ? localStorage.getItem('afm_active_user_v1') : '') || 'aquino';
 
+  const curHostname = (typeof window !== 'undefined' && window.location?.hostname) ? window.location.hostname : 'afm.app';
+
   modal.innerHTML = `
     <div style="background:#0f172a;border:1px solid #38bdf8;border-radius:18px;max-width:480px;width:100%;padding:24px;box-shadow:0 25px 60px rgba(0,0,0,0.85);color:#fff;font-family:Inter,sans-serif">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px">
@@ -38911,7 +39102,7 @@ function openRestoreCloudModal(defaultUser = ''){
         <button type="button" id="btnCloseRestoreCloudModal" style="background:none;border:none;color:#94a3b8;font-size:20px;font-weight:900;cursor:pointer">✕</button>
       </div>
       <p style="font-size:13px;color:#cbd5e1;line-height:1.5;margin-bottom:16px">
-        Trocou de domínio na Vercel (<b>afmbr28.vercel.app</b>) ou limpou o navegador? Digite seu nome de usuário para buscar e baixar seus saves armazenados na Nuvem Supabase:
+        Trocou de dispositivo, domínio (<b>${esc(curHostname)}</b>) ou limpou o navegador? Digite seu nome de usuário para buscar e baixar seus saves armazenados na Nuvem Supabase:
       </p>
       <div style="margin-bottom:16px">
         <label style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Nome de Usuário da Conta:</label>
@@ -39001,6 +39192,9 @@ function openRestoreCloudModal(defaultUser = ''){
 window.openRestoreCloudModal = openRestoreCloudModal;
 
 function renderSetup(app){
+  if(window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.enterSetupCleanly === 'function'){
+    window.AFM_SETUP_GUARD.enterSetupCleanly();
+  }
   if(setupViewMode !== 'create_player') window.AFM_PlayerAvatar3D?.destroy();
   if (!app) app = document.querySelector('#app');
   if (!app) return;
@@ -39930,6 +40124,15 @@ function renderSetup(app){
 
   // MODO 'select' (PADRÃO): CARREGA SLOTS E EXIBE A TELA COMPLETA COM OS 3 SAVES E OS TIMES!
   const userSlots = getUserSaveSlots(activeUser.username);
+  const firstAvailable = (window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.getFirstAvailableSlot === 'function')
+    ? window.AFM_SETUP_GUARD.getFirstAvailableSlot(userSlots) : 1;
+  if (!setupSelectedSlot || (userSlots[setupSelectedSlot - 1] && !window.__afmExplicitSlotSelected)) {
+    setupSelectedSlot = firstAvailable;
+  }
+  window.setupSelectedSlot = setupSelectedSlot;
+  const lastActiveSlot = (typeof localStorage !== 'undefined')
+    ? (Number(localStorage.getItem(`afm_active_slot_${(activeUser.username || '').toLowerCase()}`)) || 0) : 0;
+
   const conts = ['América do Sul', 'Europa', 'Ásia', 'América do Norte'];
   const curCountries = allCountries(setupSelectedContinent);
   if(!curCountries.includes(setupSelectedCountry)){
@@ -39972,6 +40175,33 @@ function renderSetup(app){
   };
   if(!prof.titlesDetail) prof.titlesDetail = 'Taças e Troféus';
   if(!prof.historySummary) prof.historySummary = 'Clube tradicional do futebol.';
+
+  const clObj = clubByName(setupSelectedClubName);
+  const clubOvr = strength(clObj) || prof.ovr || 75;
+  let challengeStars = '★★★☆☆';
+  let challengeLabel = 'Competitivo';
+  let leagueGoal = 'Vaga Continental / G-6';
+  let cupGoal = 'Quartas de Final';
+  let boardPatience = 'Média (cobrança por regularidade)';
+  if (clubOvr >= 83) {
+    challengeStars = '★★☆☆☆';
+    challengeLabel = 'Favorito ao Título';
+    leagueGoal = 'Campeão ou Disputa do Título';
+    cupGoal = 'Chegar à Final';
+    boardPatience = 'Baixa (pressão imediata por vitórias)';
+  } else if (clubOvr <= 76) {
+    challengeStars = '★★★★★';
+    challengeLabel = 'Sobrevivência / Desafio Extremo';
+    leagueGoal = 'Evitar o Rebaixamento / Meio de Tabela';
+    cupGoal = 'Passar da 1ª Fase';
+    boardPatience = 'Alta (projeto de reconstrução)';
+  }
+  const squadPlayers = clObj?.players || (prof.keyPlayers || []);
+  const squadAvgAge = squadPlayers.length > 0
+    ? (squadPlayers.reduce((acc, p) => acc + (p.age || 26), 0) / squadPlayers.length).toFixed(1)
+    : '25.6';
+  const clubFormation = clObj?.tactic || clObj?.formation || (clubOvr >= 82 ? '4-2-3-1' : '4-3-3');
+  const top5Craques = [...squadPlayers].sort((a,b) => (playerOverall(b) - playerOverall(a))).slice(0, 5);
 
   app.innerHTML = `
     <div class="setup-container">
@@ -40036,6 +40266,12 @@ function renderSetup(app){
               </div>
             </div>
           </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="file" id="inputImportSaveFile" accept=".json" style="display:none">
+            <button type="button" id="btnImportSaveJson" class="btn" style="background:rgba(168,85,247,0.18);border:1px solid rgba(168,85,247,0.4);color:#c084fc;font-size:11px;font-weight:900;padding:6px 14px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px" title="Importar arquivo .JSON de save para o slot ativo">
+              <span>📤</span> Importar Save (.JSON)
+            </button>
+          </div>
         </div>
 
         <div class="saves-slots-grid">
@@ -40055,6 +40291,7 @@ function renderSetup(app){
               const athleteName = pCareer.athleteName || (s.manager && s.manager.includes('(') ? s.manager.split('(')[0].trim() : s.manager) || 'Craque';
               const athletePos = pCareer.position || (s.manager && s.manager.includes('(') ? (s.manager.match(/\(([^)]+)\)/)?.[1] || 'ATA') : 'ATA');
               const athletePersonalBank = Number(pCareer.personalBank || 0);
+              const isLastActive = (slotNum === lastActiveSlot);
               return `
                 <div class="save-slot-card active-save" style="${isPlayerSave ? 'border-color:#10b981;box-shadow:0 0 18px rgba(16,185,129,0.2);' : ''}">
                   <div>
@@ -40062,7 +40299,9 @@ function renderSetup(app){
                       <span class="save-slot-badge" style="background:${isPlayerSave ? 'rgba(16,185,129,0.2)' : 'rgba(168,85,247,0.2)'};color:${isPlayerSave ? '#6ee7b7' : '#c084fc'};border:1px solid ${isPlayerSave ? '#10b981' : '#a855f7'}">
                         💾 SLOT ${slotNum} • ${isPlayerSave ? '⭐ CARREIRA JOGADOR' : 'EM ANDAMENTO'}
                       </span>
-                      <span class="pill" style="font-size:9px;background:rgba(34,197,94,0.15);color:#22c55e">ATIVO</span>
+                      <span class="pill" style="font-size:9px;background:${isLastActive ? 'rgba(34,197,94,0.2)' : 'rgba(56,189,248,0.15)'};color:${isLastActive ? '#22c55e' : '#38bdf8'};border:1px solid ${isLastActive ? '#22c55e' : 'rgba(56,189,248,0.3)'}">
+                        ${isLastActive ? 'ÚLTIMO JOGADO' : 'SALVO'}
+                      </span>
                     </div>
 
                     <div style="display:flex;align-items:center;gap:12px">
@@ -40097,12 +40336,20 @@ function renderSetup(app){
                     <button class="btn success btnContinueUserSlot" data-slot="${slotNum}" style="width:100%;font-size:13px;font-weight:900;padding:10px;border-radius:10px;box-shadow:0 4px 14px rgba(34,197,94,0.3);cursor:pointer">
                       ▶ Continuar Campanha (Slot ${slotNum})
                     </button>
-                    <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
                       <span class="small muted" style="font-size:10px">🕒 Salvo: ${esc(formatSaveTimestamp(s.updatedAt || s.date))}</span>
                       <span style="font-size:10px;color:#38bdf8;font-weight:700;display:inline-flex;align-items:center;gap:3px">☁️ Nuvem OK</span>
-                      <button class="btn danger btnDeleteUserSlot" data-slot="${slotNum}" style="font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer" title="Excluir save deste slot">
-                        🗑️ Excluir Save
-                      </button>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <button type="button" class="btn btn-sm btnExportSlotJson" data-slot="${slotNum}" style="font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer;background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3)" title="Baixar backup deste save (.json)">
+                          📥 Backup
+                        </button>
+                        <button type="button" class="btn btn-sm btnDuplicateSlot" data-slot="${slotNum}" style="font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer;background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3)" title="Duplicar para outro slot disponível">
+                          📋 Duplicar
+                        </button>
+                        <button type="button" class="btn danger btnDeleteUserSlot" data-slot="${slotNum}" style="font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer" title="Excluir save deste slot">
+                          🗑️
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -40126,7 +40373,7 @@ function renderSetup(app){
                     </div>
                   </div>
 
-                  <button class="btn ${isTarget ? 'primary' : ''} btnSelectSlotForNew" data-slot="${slotNum}" style="font-size:11px;font-weight:800;padding:8px 16px;border-radius:8px;cursor:pointer;width:100%">
+                  <button class="btn ${isTarget ? 'primary' : ''} btnSelectSlotForNew btnSelectSlotForPlayer" data-slot="${slotNum}" style="font-size:11px;font-weight:800;padding:8px 16px;border-radius:8px;cursor:pointer;width:100%">
                     ${isTarget ? `✓ Slot ${slotNum} Selecionado Abaixo` : `➕ Iniciar Nova Campanha no Slot ${slotNum}`}
                   </button>
                 </div>
@@ -40144,6 +40391,7 @@ function renderSetup(app){
             <div style="font-size:16px;font-weight:900;color:#fff;letter-spacing:0.5px;display:flex;align-items:center;gap:8px">
               NOVO MODO: CARREIRA JOGADOR (BE A PRO / CRAQUE)
               <span class="pill good" style="background:#10b981;color:#000;font-size:10px;padding:2px 8px;font-weight:900">EXCLUSIVO</span>
+              <span class="pill" style="background:rgba(16,185,129,0.25);color:#6ee7b7;font-size:10px;padding:2px 8px;font-weight:800;border:1px solid #10b981">SLOT ALVO ATIVO: Slot ${setupSelectedSlot}</span>
             </div>
             <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:3px">
               Crie seu atleta dos 15 anos à Bola de Ouro: escolha nacionalidade, posição, arquétipo, treine, dispute peneiras, jogue na Seleção e gerencie sua fama no FootGram!
@@ -40151,7 +40399,7 @@ function renderSetup(app){
           </div>
         </div>
         <button type="button" class="btn success" id="btnGoCreatePlayer" style="padding:11px 24px;font-size:13px;font-weight:900;border-radius:10px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);color:#000;box-shadow:0 4px 18px rgba(16,185,129,0.5);cursor:pointer;white-space:nowrap;border:none">
-          ⭐ CRIAR MEU JOGADOR AGORA ➔
+          ⭐ CRIAR MEU JOGADOR AGORA (Slot ${setupSelectedSlot}) ➔
         </button>
       </div>
 
@@ -40163,6 +40411,7 @@ function renderSetup(app){
             <div style="font-size:16px;font-weight:900;color:#fff;letter-spacing:0.5px;display:flex;align-items:center;gap:8px">
               NOVO MODO: CRIAR SEU PRÓPRIO CLUBE
               <span class="pill good" style="font-size:10px;padding:2px 8px;font-weight:900">EXCLUSIVO</span>
+              <span class="pill" style="background:rgba(168,85,247,0.25);color:#c084fc;font-size:10px;padding:2px 8px;font-weight:800;border:1px solid #a855f7">SLOT ALVO ATIVO: Slot ${setupSelectedSlot}</span>
             </div>
             <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:2px">
               Monte seu clube do zero: crie o escudo, desenhe os uniformes e comece no estadual com R$ 300 mil em caixa e instalações nível 1!
@@ -40170,7 +40419,7 @@ function renderSetup(app){
           </div>
         </div>
         <button type="button" class="btn primary" id="btnGoCreateClub" style="padding:10px 22px;font-size:13px;font-weight:900;border-radius:10px;background:linear-gradient(135deg, #a855f7 0%, #38bdf8 100%);box-shadow:0 4px 18px rgba(168,85,247,0.5);cursor:pointer;white-space:nowrap">
-          ✨ CRIAR MEU TIME AGORA ➔
+          ✨ CRIAR MEU TIME AGORA (Slot ${setupSelectedSlot}) ➔
         </button>
       </div>
 
@@ -40188,12 +40437,12 @@ function renderSetup(app){
 
           <!-- SELETOR DO SLOT ONDE A CARREIRA SERÁ SALVA -->
           <div style="display:flex;align-items:center;gap:8px;background:#0d1527;padding:6px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.1)">
-            <span style="font-size:11px;font-weight:800;color:#94a3b8">GRAVAR NO:</span>
+            <span style="font-size:11px;font-weight:800;color:#94a3b8">SLOT ALVO ATIVO:</span>
             ${[1, 2, 3].map(slotNum => {
               const hasSave = !!userSlots[slotNum - 1];
               const isSel = (setupSelectedSlot === slotNum);
               return `
-                <button class="pill ${isSel ? 'good' : 'muted'} btnPickSlot" data-slot="${slotNum}" style="cursor:pointer;font-weight:900;font-size:11px;padding:3px 8px">
+                <button class="pill ${isSel ? 'good' : 'muted'} btnPickSlot" data-slot="${slotNum}" style="cursor:pointer;font-weight:900;font-size:11px;padding:3px 8px;${isSel ? 'border:1px solid #22c55e;' : ''}">
                   Slot ${slotNum} ${hasSave ? '⚠️' : '✨'}
                 </button>
               `;
@@ -40313,7 +40562,12 @@ function renderSetup(app){
             <span style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);text-transform:uppercase">
               ESCOLHA O SEU TIME (${eligibleClubs.length} CLUBES NA LIGA):
             </span>
-            <input id="setupSearchClub" class="saas-input" placeholder="🔍 Filtrar clube..." value="${esc(setupClubSearchQuery||'')}" style="padding:6px 12px;font-size:11px;max-width:160px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <input id="setupSearchClub" class="saas-input" placeholder="🔍 Filtrar clube..." value="${esc(setupClubSearchQuery||'')}" style="padding:6px 12px;font-size:11px;max-width:160px">
+              <button type="button" id="btnRandomClubDraw" class="btn" style="padding:6px 12px;font-size:11px;font-weight:800;border-radius:8px;background:rgba(168,85,247,0.2);color:#c084fc;border:1px solid rgba(168,85,247,0.4);cursor:pointer;white-space:nowrap" title="Sortear um clube aleatório da liga!">
+                🎲 Sortear Time
+              </button>
+            </div>
           </div>
 
           <div class="club-thumb-grid">
@@ -40362,7 +40616,7 @@ function renderSetup(app){
                 ${esc(clubDisplayName(prof.name))}
               </h1>
               <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px">
-                ${esc(prof.country)} · ${esc(prof.competition)} · 🏟️ ${esc(prof.stadium)}
+                ${esc(prof.country)} · ${esc(prof.competition)} · 🏟️ ${esc(prof.stadium)} · 📐 Formação: ${clubFormation} · 📊 Média de Idade: ${squadAvgAge} anos
               </div>
             </div>
           </div>
@@ -40404,6 +40658,23 @@ function renderSetup(app){
           </div>
         </div>
 
+        <!-- EXPECTATIVAS DA DIRETORIA & DESAFIO -->
+        <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(250,204,21,0.25);border-radius:14px;padding:12px 16px;margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+            <div style="font-size:12px;font-weight:900;color:#facc15;display:flex;align-items:center;gap:6px">
+              <span>🎯 EXPECTATIVAS DA DIRETORIA & DESAFIO</span>
+            </div>
+            <span class="pill" style="background:rgba(250,204,21,0.15);color:#facc15;font-size:11px;font-weight:900">
+              Desafio: ${challengeStars} (${challengeLabel})
+            </span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;font-size:11px">
+            <div><span class="muted">Meta na Liga:</span> <b style="color:#fff">${leagueGoal}</b></div>
+            <div><span class="muted">Meta na Copa:</span> <b style="color:#fff">${cupGoal}</b></div>
+            <div><span class="muted">Paciência da Diretoria:</span> <b style="color:#38bdf8">${boardPatience}</b></div>
+          </div>
+        </div>
+
         <!-- HISTÓRIA E TRADIÇÃO DO CLUBE -->
         <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:16px">
           <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);text-transform:uppercase;margin-bottom:4px">
@@ -40415,18 +40686,18 @@ function renderSetup(app){
         </div>
 
         <!-- CRAQUES DE DESTAQUE DO ELENCO -->
-        ${(prof.keyPlayers && prof.keyPlayers.length > 0) ? `
+        ${(top5Craques && top5Craques.length > 0) ? `
           <div style="margin-bottom:16px">
             <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.6);text-transform:uppercase;margin-bottom:8px">
-              🌟 PRINCIPAIS CRAQUES DO ELENCO:
+              🌟 TOP 5 CRAQUES DO ELENCO:
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
-              ${prof.keyPlayers.map(p => `
+              ${top5Craques.map(p => `
                 <div style="display:flex;align-items:center;gap:8px;background:#161d28;border:1px solid rgba(255,255,255,0.08);padding:6px 12px;border-radius:10px">
                   ${playerPhoto(p.name, 32)}
                   <div>
                     <div style="font-size:12px;font-weight:800;color:#fff">${esc(p.name)}</div>
-                    <div style="font-size:10px;font-weight:700;color:#a855f7">${esc(p.pos)} · ${playerOverall(p)} OVR</div>
+                    <div style="font-size:10px;font-weight:700;color:#a855f7">${esc(p.pos || p.position || 'MEI')} · ${playerOverall(p)} OVR</div>
                   </div>
                 </div>
               `).join('')}
@@ -40434,14 +40705,84 @@ function renderSetup(app){
           </div>
         ` : ''}
 
-        <!-- NOME DO TREINADOR & BOTÃO DE INICIAR CARREIRA -->
-        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px">
-          <label class="field" style="margin:0;flex:1;min-width:220px">
-            <span style="font-size:12px;font-weight:700;color:#94a3b8">Nome do Seu Técnico</span>
-            <input class="saas-input" id="setupManagerName" value="${esc(activeUser?.name || 'Aquino')}" placeholder="Seu nome de treinador">
-          </label>
+        <!-- PERFIL DO TÉCNICO & FILOSOFIA TÁTICA -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:16px">
+          <div style="font-size:11px;font-weight:900;color:#38bdf8;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:10px">
+            👔 PERFIL & FILOSOFIA DO TÉCNICO
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px">
+            <label class="field" style="margin:0">
+              <span style="font-size:11px;font-weight:800;color:#94a3b8">Nome do Treinador</span>
+              <input class="saas-input" id="setupManagerName" value="${esc(activeUser?.name || 'Aquino')}" placeholder="Seu nome">
+            </label>
+            <label class="field" style="margin:0">
+              <span style="font-size:11px;font-weight:800;color:#94a3b8">Nacionalidade</span>
+              <select id="setupManagerNationality" class="saas-select">
+                <option value="Brasil" selected>🇧🇷 Brasil</option>
+                <option value="Argentina">🇦🇷 Argentina</option>
+                <option value="Portugal">🇵🇹 Portugal</option>
+                <option value="Espanha">🇪🇸 Espanha</option>
+                <option value="Alemanha">🇩🇪 Alemanha</option>
+                <option value="Itália">🇮🇹 Itália</option>
+                <option value="Inglaterra">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra</option>
+                <option value="França">🇫🇷 França</option>
+              </select>
+            </label>
+            <label class="field" style="margin:0">
+              <span style="font-size:11px;font-weight:800;color:#94a3b8">Passado do Técnico (Bônus)</span>
+              <select id="setupManagerBackground" class="saas-select">
+                <option value="player" selected>⚽ Ex-Jogador (+15% Moral & Respeito)</option>
+                <option value="tactician">📋 Estudioso Tático (+15% Familiaridade Tática)</option>
+                <option value="youth">🌱 Treinador da Base (+20% Evolução Sub-21)</option>
+              </select>
+            </label>
+            <label class="field" style="margin:0">
+              <span style="font-size:11px;font-weight:800;color:#94a3b8">Filosofia Tática Preferida</span>
+              <select id="setupTacticalPhilosophy" class="saas-select">
+                <option value="balanced" selected>⚖️ Equilibrado (Adaptação ao Adversário)</option>
+                <option value="gegenpress">⚡ Gegenpressing (Pressão Alta & Intensidade)</option>
+                <option value="possession">🎯 Posse de Bola (Controle & Passes Curtos)</option>
+                <option value="counter">🚀 Contra-Ataque Veloz (Transições Rápidas)</option>
+              </select>
+            </label>
+          </div>
+        </div>
 
-          <button class="btn primary saas-launch-btn" id="btnStartCareerFromShowcase">
+        <!-- CONFIGURAÇÕES DA CAMPANHA (DIFICULDADE & REGRAS) -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:16px">
+          <div style="font-size:11px;font-weight:900;color:#a855f7;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:10px">
+            ⚙️ CONFIGURAÇÕES DA CAMPANHA
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px">
+            <label class="field" style="margin:0">
+              <span style="font-size:11px;font-weight:800;color:#94a3b8">Dificuldade da IA</span>
+              <select id="setupAiDifficulty" class="saas-select">
+                <option value="Amador">🟢 Amador (IA mais passiva)</option>
+                <option value="Profissional" selected>🟡 Profissional (Padrão competitivo)</option>
+                <option value="Lendário">🔴 Lendário (Pressão tática máxima)</option>
+              </select>
+            </label>
+            <label class="field" style="margin:0">
+              <span style="font-size:11px;font-weight:800;color:#94a3b8">Orçamento Inicial</span>
+              <select id="setupBudgetMultiplier" class="saas-select">
+                <option value="1.0" selected>💵 Realista (100% do valor de mercado)</option>
+                <option value="1.5">💎 Magnata (150% de caixa inicial)</option>
+                <option value="0.6">📉 Austero (60% - Desafio financeiro)</option>
+              </select>
+            </label>
+            <label class="field" style="margin:0">
+              <span style="font-size:11px;font-weight:800;color:#94a3b8">Demissão por Resultados</span>
+              <select id="setupSackingRule" class="saas-select">
+                <option value="true" selected>⚠️ Ativada (Diretoria pode demitir)</option>
+                <option value="false">🛡️ Protegido (Modo Livre / Sem demissão)</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <!-- BOTÃO DE INICIAR CARREIRA -->
+        <div style="display:flex;justify-content:flex-end;border-top:1px solid rgba(255,255,255,0.1);padding-top:16px">
+          <button class="btn primary saas-launch-btn" id="btnStartCareerFromShowcase" style="width:100%;max-width:540px;padding:14px;font-size:14px;font-weight:900">
             🚀 Iniciar Carreira com o ${esc(clubDisplayName(prof.name))} (Salvar no Slot ${setupSelectedSlot}) ➔
           </button>
         </div>
@@ -40669,6 +41010,198 @@ function exportCommunityModJson(){
 }
 window.exportCommunityModJson = exportCommunityModJson;
 
+function exportSaveSlotJson(slotNum){
+  slotNum = Math.max(1, Math.min(3, Number(slotNum) || 1));
+  const curUser = getActiveAccount();
+  const username = (curUser?.username || 'aquino').toLowerCase();
+  let raw = null;
+  try {
+    const uRaw = localStorage.getItem(`afm_save_${username}_slot_${slotNum}`);
+    if (uRaw) raw = JSON.parse(uRaw);
+  } catch(e) {}
+  if (!raw) {
+    try {
+      const sRaw = localStorage.getItem(`afm_save_slot_${slotNum}`);
+      if (sRaw) raw = JSON.parse(sRaw);
+    } catch(e) {}
+  }
+  if (!raw && slotNum === 1) {
+    try {
+      const legRaw = localStorage.getItem(STORAGE);
+      if (legRaw) raw = JSON.parse(legRaw);
+    } catch(e) {}
+  }
+  if (!raw) {
+    toast(`Slot ${slotNum} está vazio. Nenhum save para exportar.`);
+    return;
+  }
+  const payload = raw.data || raw;
+  const clubOrPlayer = payload.club?.name || payload.club || payload.playerCareerState?.athleteName || 'Campanha';
+  const fileName = `AFM_Save_Slot${slotNum}_${String(clubOrPlayer).replace(/[^a-zA-Z0-9_-]/g, '_')}.json`;
+  const jsonStr = JSON.stringify(payload, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast(`📥 Backup do Slot ${slotNum} exportado com sucesso!`);
+}
+window.exportSaveSlotJson = exportSaveSlotJson;
+
+function duplicateSaveSlot(sourceSlotNum){
+  sourceSlotNum = Math.max(1, Math.min(3, Number(sourceSlotNum) || 1));
+  const curUser = getActiveAccount();
+  const username = (curUser?.username || 'aquino').toLowerCase();
+  const userSlots = getUserSaveSlots(username);
+
+  const freeSlot = [1, 2, 3].find(s => s !== sourceSlotNum && !userSlots[s - 1]);
+  if (!freeSlot) {
+    toast('Todos os 3 slots estão ocupados. Exclua um slot para poder duplicar.');
+    return;
+  }
+
+  let raw = null;
+  try {
+    const uRaw = localStorage.getItem(`afm_save_${username}_slot_${sourceSlotNum}`);
+    if (uRaw) raw = JSON.parse(uRaw);
+  } catch(e) {}
+  if (!raw) {
+    try {
+      const sRaw = localStorage.getItem(`afm_save_slot_${sourceSlotNum}`);
+      if (sRaw) raw = JSON.parse(sRaw);
+    } catch(e) {}
+  }
+  if (!raw && sourceSlotNum === 1) {
+    try {
+      const legRaw = localStorage.getItem(STORAGE);
+      if (legRaw) raw = JSON.parse(legRaw);
+    } catch(e) {}
+  }
+  if (!raw) {
+    toast(`Slot de origem ${sourceSlotNum} está vazio.`);
+    return;
+  }
+
+  const cleanPayload = JSON.parse(JSON.stringify(raw.data || raw));
+  cleanPayload.userSlot = freeSlot;
+  cleanPayload.slot = freeSlot;
+  cleanPayload.slotId = freeSlot;
+  cleanPayload.updatedAt = new Date().toISOString();
+
+  try {
+    localStorage.setItem(`afm_save_${username}_slot_${freeSlot}`, JSON.stringify(cleanPayload));
+    localStorage.setItem(`afm_save_slot_${freeSlot}`, JSON.stringify(cleanPayload));
+    if (freeSlot === 1) {
+      localStorage.setItem(STORAGE, JSON.stringify(cleanPayload));
+    }
+  } catch(e) {
+    toast('Erro ao salvar cópia no armazenamento local.');
+    return;
+  }
+
+  const accs = getStoredAccounts();
+  const acc = accs.find(a => (a.username || '').toLowerCase() === username);
+  if (acc) {
+    acc.saves = acc.saves || [];
+    acc.saves = acc.saves.filter(s => s.slot !== freeSlot);
+    acc.saves.push({
+      slot: freeSlot,
+      id: `save_${username}_slot${freeSlot}_${Date.now()}`,
+      club: cleanPayload.club?.name || cleanPayload.club || 'Clube',
+      manager: cleanPayload.manager || cleanPayload.coachName || 'Treinador',
+      season: cleanPayload.season || 2026,
+      round: cleanPayload.round || 0,
+      balance: cleanPayload.balance || 0,
+      date: cleanPayload.date || '01 de janeiro de 2026',
+      updatedAt: cleanPayload.updatedAt,
+      gameMode: cleanPayload.gameMode || 'manager'
+    });
+    saveStoredAccounts(accs);
+  }
+
+  toast(`📋 Save do Slot ${sourceSlotNum} duplicado para o Slot ${freeSlot}!`);
+  renderSetup($('#app'));
+}
+window.duplicateSaveSlot = duplicateSaveSlot;
+
+function importSaveJsonFile(file, targetSlot){
+  if (!file) return;
+  const curUser = getActiveAccount();
+  const username = (curUser?.username || 'aquino').toLowerCase();
+  const userSlots = getUserSaveSlots(username);
+  const destSlot = Math.max(1, Math.min(3, Number(targetSlot || window.setupSelectedSlot || 1)));
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed || typeof parsed !== 'object') {
+        toast('Arquivo JSON de save inválido.');
+        return;
+      }
+      const sanitized = (window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.sanitizeLoadedSave === 'function')
+        ? window.AFM_SETUP_GUARD.sanitizeLoadedSave(parsed, destSlot)
+        : parsed;
+
+      sanitized.userSlot = destSlot;
+      sanitized.slot = destSlot;
+      sanitized.slotId = destSlot;
+      sanitized.updatedAt = new Date().toISOString();
+
+      const proceedImport = () => {
+        try {
+          localStorage.setItem(`afm_save_${username}_slot_${destSlot}`, JSON.stringify(sanitized));
+          localStorage.setItem(`afm_save_slot_${destSlot}`, JSON.stringify(sanitized));
+          if (destSlot === 1) {
+            localStorage.setItem(STORAGE, JSON.stringify(sanitized));
+          }
+        } catch(storageErr) {
+          toast('Erro ao gravar save importado.');
+          return;
+        }
+
+        const accs = getStoredAccounts();
+        const acc = accs.find(a => (a.username || '').toLowerCase() === username);
+        if (acc) {
+          acc.saves = acc.saves || [];
+          acc.saves = acc.saves.filter(s => s.slot !== destSlot);
+          acc.saves.push({
+            slot: destSlot,
+            id: `save_${username}_slot${destSlot}_${Date.now()}`,
+            club: sanitized.club?.name || sanitized.club || 'Clube',
+            manager: sanitized.manager || sanitized.coachName || 'Treinador',
+            season: sanitized.season || 2026,
+            round: sanitized.round || 0,
+            balance: sanitized.balance || 0,
+            date: sanitized.date || '01 de janeiro de 2026',
+            updatedAt: sanitized.updatedAt,
+            gameMode: sanitized.gameMode || 'manager'
+          });
+          saveStoredAccounts(accs);
+        }
+
+        toast(`📤 Save importado com sucesso no Slot ${destSlot}!`);
+        renderSetup($('#app'));
+      };
+
+      if (userSlots[destSlot - 1] && window.AFM_SETUP_GUARD?.confirmSlotOverwriteIfNeeded) {
+        window.AFM_SETUP_GUARD.confirmSlotOverwriteIfNeeded(destSlot, userSlots, 'Importação de Save JSON', proceedImport);
+      } else {
+        proceedImport();
+      }
+    } catch(err) {
+      recordAFMError('save-import-json', err);
+      toast('Falha ao processar arquivo JSON de save.');
+    }
+  };
+  reader.readAsText(file);
+}
+window.importSaveJsonFile = importSaveJsonFile;
+
 function bindSetup(){
   try {
   function goCreateClub(targetCompId){
@@ -40807,13 +41340,37 @@ function bindSetup(){
       toast('Selecione um clube para iniciar.');
       return;
     }
+    const targetSlot = Number(setupSelectedSlot || 1);
+    const userSlots = getUserSaveSlots(curUser.username);
     const properCompId = getClubPrimaryCompetitionId(setupSelectedClubName, setupSelectedCompId) || setupSelectedCompId;
-    newCareer({
-      manager: mgrName || 'Aquino',
-      compId: properCompId,
-      clubName: setupSelectedClubName,
-      slot: setupSelectedSlot || 1
-    });
+
+    const mgrNationality = $('#setupManagerNationality')?.value || 'Brasil';
+    const mgrBackground = $('#setupManagerBackground')?.value || 'player';
+    const tacticalPhilosophy = $('#setupTacticalPhilosophy')?.value || 'balanced';
+    const aiDifficulty = $('#setupAiDifficulty')?.value || 'Profissional';
+    const budgetMultiplier = Number($('#setupBudgetMultiplier')?.value) || 1.0;
+    const sackingRule = $('#setupSackingRule')?.value !== 'false';
+
+    const startAction = () => {
+      newCareer({
+        manager: mgrName || 'Aquino',
+        compId: properCompId,
+        clubName: setupSelectedClubName,
+        slot: targetSlot,
+        managerNationality: mgrNationality,
+        managerBackground: mgrBackground,
+        tacticalPhilosophy: tacticalPhilosophy,
+        aiDifficulty: aiDifficulty,
+        budgetMultiplier: budgetMultiplier,
+        sackingRule: sackingRule
+      });
+    };
+
+    if(userSlots[targetSlot - 1] && window.AFM_SETUP_GUARD?.confirmSlotOverwriteIfNeeded){
+      window.AFM_SETUP_GUARD.confirmSlotOverwriteIfNeeded(targetSlot, userSlots, `Carreira com o ${clubDisplayName(setupSelectedClubName)}`, startAction);
+    } else {
+      startAction();
+    }
   }
 
   const btnStartShowcase = $('#btnStartCareerFromShowcase');
@@ -40822,12 +41379,22 @@ function bindSetup(){
   const btnStartWithSel = $('#btnStartNewCareerWithSelected');
   if(btnStartWithSel) btnStartWithSel.onclick = triggerStartCareer;
 
-  // Bind do Banner Criar Jogador (Be a Pro)
+  // Bind do Banner Criar Jogador (Be a Pro) com checagem de slot
   const btnCreatePlayer = $('#btnGoCreatePlayer');
   if(btnCreatePlayer) {
     btnCreatePlayer.onclick = () => {
-      setupViewMode = 'create_player';
-      renderSetup($('#app'));
+      const curUser = getActiveAccount();
+      const targetSlot = Number(setupSelectedSlot || 1);
+      const userSlots = curUser ? getUserSaveSlots(curUser.username) : [];
+      const proceed = () => {
+        setupViewMode = 'create_player';
+        renderSetup($('#app'));
+      };
+      if(userSlots[targetSlot - 1] && window.AFM_SETUP_GUARD?.confirmSlotOverwriteIfNeeded){
+        window.AFM_SETUP_GUARD.confirmSlotOverwriteIfNeeded(targetSlot, userSlots, 'Criar Meu Atleta (Carreira Jogador)', proceed);
+      } else {
+        proceed();
+      }
     };
   }
 
@@ -40839,10 +41406,70 @@ function bindSetup(){
     };
   }
 
-  // Bind do Banner Criar Seu Time
+  // Bind do Banner Criar Seu Time com checagem de slot
   const btnCreateClub = $('#btnGoCreateClub');
   if(btnCreateClub) {
-    btnCreateClub.onclick = () => goCreateClub();
+    btnCreateClub.onclick = () => {
+      const curUser = getActiveAccount();
+      const targetSlot = Number(setupSelectedSlot || 1);
+      const userSlots = curUser ? getUserSaveSlots(curUser.username) : [];
+      const proceed = () => goCreateClub();
+      if(userSlots[targetSlot - 1] && window.AFM_SETUP_GUARD?.confirmSlotOverwriteIfNeeded){
+        window.AFM_SETUP_GUARD.confirmSlotOverwriteIfNeeded(targetSlot, userSlots, 'Criar Seu Próprio Clube', proceed);
+      } else {
+        proceed();
+      }
+    };
+  }
+
+  // Bind do Botão Sortear Clube Aleatório
+  const btnRandomClub = $('#btnRandomClubDraw');
+  if(btnRandomClub) {
+    btnRandomClub.onclick = () => {
+      const pool = (displayedClubs && displayedClubs.length > 0) ? displayedClubs : eligibleClubs;
+      if(!pool || pool.length === 0) {
+        toast('Nenhum clube disponível para sortear.');
+        return;
+      }
+      const randomIdx = Math.floor(Math.random() * pool.length);
+      setupSelectedClubName = pool[randomIdx];
+      toast(`🎲 Clube sorteado: ${clubDisplayName(setupSelectedClubName)}!`);
+      renderSetup($('#app'));
+      setTimeout(() => {
+        const hero = document.querySelector('.club-detail-hero');
+        if(hero && typeof hero.scrollIntoView === 'function') {
+          hero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 60);
+    };
+  }
+
+  // Binds de Backup, Duplicação e Importação de Saves
+  $$('.btnExportSlotJson').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      exportSaveSlotJson(Number(btn.dataset.slot));
+    };
+  });
+
+  $$('.btnDuplicateSlot').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      duplicateSaveSlot(Number(btn.dataset.slot));
+    };
+  });
+
+  const btnImport = $('#btnImportSaveJson');
+  const inputImport = $('#inputImportSaveFile');
+  if(btnImport && inputImport) {
+    btnImport.onclick = () => {
+      inputImport.value = '';
+      inputImport.click();
+    };
+    inputImport.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if(file) importSaveJsonFile(file, setupSelectedSlot);
+    };
   }
 
   // Binds dos 3 Slots de Saves do Usuário
@@ -40861,6 +41488,8 @@ function bindSetup(){
   $$('.btnSelectSlotForNew, .btnPickSlot').forEach(b => {
     b.onclick = () => {
       setupSelectedSlot = Number(b.dataset.slot);
+      window.setupSelectedSlot = setupSelectedSlot;
+      window.__afmExplicitSlotSelected = true;
       toast(`Slot ${setupSelectedSlot} selecionado para a nova carreira!`);
       renderSetup($('#app'));
     };
