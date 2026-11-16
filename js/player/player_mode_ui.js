@@ -5818,45 +5818,44 @@
     window._afmSocialSelectedTemplateId || "tpl_training_1";
   window._afmSocialExpandedComments = window._afmSocialExpandedComments || {};
 
+    // =========================================================================
+  // ABA 4: FOOTGRAM (REDE SOCIAL OFICIAL DO ATLETA - STORIES, PUBLI, LIVE, DMs)
+  // =========================================================================
   function renderPlayerSocialMedia(state) {
     const pState = getCareerState(state);
     const athlete = getControlledPlayer(state) || { ovr: 45, wage: 1500, attributes: {} };
     if (!pState || !athlete)
-      return `<div class="card" style="padding:20px;color:#fff">Carregando FootGram...</div>`;
+      return '<div class="card" style="padding:20px;color:#fff">Carregando FootGram...</div>';
 
-    const sm =
-      typeof window.AFM_SocialMedia?.initSocialMediaState === "function"
+    const sm = (window.AFM_FOOTGRAM && typeof window.AFM_FOOTGRAM.ensureSocialData === "function")
+      ? window.AFM_FOOTGRAM.ensureSocialData(state)
+      : (typeof window.AFM_SocialMedia?.initSocialMediaState === "function"
         ? window.AFM_SocialMedia.initSocialMediaState(state)
-        : pState.socialMedia || {};
+        : pState.socialMedia || {});
 
     const athleteName = athlete.name || pState.athleteName || "Atleta";
-    const club = state.club || "Clube";
-    const tierInfo =
-      typeof window.AFM_SocialMedia?.getFollowerTier === "function"
-        ? window.AFM_SocialMedia.getFollowerTier(sm.followers)
-        : {
-            label: "Promessa da Base ⚽",
-            color: "#94a3b8",
-            perk: "Iniciando trajetória nas redes sociais.",
-          };
+    const clubName = state.club?.name || state.club || "Clube";
 
-    const fmtFollowers =
-      typeof window.AFM_SocialMedia?.formatFollowersCount === "function"
+    const celebrityTier = window.AFM_FOOTGRAM?.getCelebrityTier?.(sm.followers) || {
+      title: "Promessa da Base",
+      badge: "🌱",
+      mult: 1.0,
+      color: "#94a3b8"
+    };
+
+    const fmtFollowers = window.AFM_FOOTGRAM?.formatCompactNumber?.(sm.followers) ||
+      (typeof window.AFM_SocialMedia?.formatFollowersCount === "function"
         ? window.AFM_SocialMedia.formatFollowersCount(sm.followers)
-        : String(sm.followers || 1000);
+        : String(sm.followers || 1000));
 
-    const templates =
-      typeof window.AFM_SocialMedia?.getDynamicPostTemplates === "function"
-        ? window.AFM_SocialMedia.getDynamicPostTemplates(state)
-        : [];
+    const templates = typeof window.AFM_SocialMedia?.getDynamicPostTemplates === "function"
+      ? window.AFM_SocialMedia.getDynamicPostTemplates(state)
+      : [];
 
     const activeCat = window._afmSocialActiveCategory || "training";
     const catTemplates = templates.filter((t) => t.category === activeCat);
-    if (
-      !catTemplates.some((t) => t.id === window._afmSocialSelectedTemplateId)
-    ) {
-      window._afmSocialSelectedTemplateId =
-        catTemplates[0]?.id || templates[0]?.id;
+    if (!catTemplates.some((t) => t.id === window._afmSocialSelectedTemplateId)) {
+      window._afmSocialSelectedTemplateId = catTemplates[0]?.id || templates[0]?.id;
     }
 
     const curFilter = window._afmSocialActiveFilter || "all";
@@ -5867,38 +5866,84 @@
       filteredPosts = filteredPosts.filter((p) => !p.isUser);
     }
 
-    const mediaValue = Math.round(
-      (sm.followers || 1000) * 0.15 + (sm.celebrityLevel || 10) * 80,
-    );
+    const estPostValue = window.AFM_FOOTGRAM?.calculatePostValue?.(athlete, sm) ||
+      Math.round((sm.followers || 1000) * 0.15 + (sm.celebrityLevel || 10) * 80);
 
-    // Avatar do atleta (Foto customizada via proxy / foto do elenco / iniciais)
-    const avatarPhoto =
-      sm.avatarUrl ||
-      (typeof resolvePlayerPhotoUrl === "function"
-        ? resolvePlayerPhotoUrl(athlete)
-        : null);
+    // Avatar do atleta (3D, URL customizada ou foto)
+    let avatarPhoto = sm.avatarUrl;
+    if (!avatarPhoto && typeof window.generateYoungAthletePortraitUri === "function") {
+      avatarPhoto = window.generateYoungAthletePortraitUri(athlete);
+      sm.avatarUrl = avatarPhoto;
+    }
+    if (!avatarPhoto && typeof resolvePlayerPhotoUrl === "function") {
+      avatarPhoto = resolvePlayerPhotoUrl(athlete);
+    }
+
+    const stories = window.AFM_FOOTGRAM?.STORIES_CATALOG || [
+      { id: "story_user", name: "Seu Story", icon: "📸", isUser: true, title: "Bastidores do Treino", desc: "Foco total na preparação diária. A dedicação no CT não para!", time: "Há 1h" },
+      { id: "story_club", name: clubName, icon: "🏟️", isClub: true, title: "Aquecimento no CT", desc: "Elenco concentrado e pronto para o próximo desafio!", time: "Há 2h" },
+      { id: "story_coach", name: "Treinador", icon: "📋", isCoach: true, title: "Quadro Tático", desc: "Bola parada decide jogo. Atenção redobrada nas marcações!", time: "Há 3h" },
+      { id: "story_fabrizio", name: "Fabrizio Romano", icon: "🚨", isPress: true, title: "Radar do Mercado", desc: "Grandes clubes monitorando as promessas do futebol brasileiro!", time: "Há 4h" },
+      { id: "story_squad", name: "Vestiário", icon: "👥", isSquad: true, title: "Resenha do Grupo", desc: "Ambiente leve e clima unido antes da decisão!", time: "Há 5h" }
+    ];
+
+    const unreadDMsCount = (sm.dms || []).filter(d => !d.answered).length;
+    const isLiveDisabled = Boolean(sm.liveDoneThisMonth);
+    const brandOffer = sm.activeBrandOffer;
 
     return `
-      <div class="afm-social-media-view" style="display:flex;flex-direction:column;gap:20px;max-width:880px;margin:0 auto">
+      <div class="afm-social-media-view" style="display:flex;flex-direction:column;gap:18px;max-width:920px;margin:0 auto">
         
-        <!-- HEADER DO PERFIL NO FOOTGRAM (ESTILO INSTAGRAM/THREADS VIP) -->
-        <div class="card" style="background:linear-gradient(135deg,#090d16 0%,#111827 100%);border:2px solid rgba(56,189,248,0.3);border-radius:24px;padding:26px;box-shadow:0 12px 40px rgba(0,0,0,0.7);position:relative;overflow:hidden">
+        <!-- 1. BARRA DE STORIES 24H (INSTAGRAM VIP) -->
+        <div class="card" style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:14px 18px;box-shadow:0 8px 30px rgba(0,0,0,0.6)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:14px">⚡</span>
+              <span style="font-size:11px;font-weight:900;color:#cbd5e1;text-transform:uppercase;letter-spacing:0.5px">STORIES 24H DOS BASTIDORES</span>
+            </div>
+            <span style="font-size:10px;color:#64748b;font-weight:700">Toque para assistir e reagir</span>
+          </div>
+
+          <div class="footgram-stories-bar" style="display:flex;gap:16px;overflow-x:auto;padding-bottom:4px">
+            ${stories.map((st) => {
+              const hasReacted = Boolean(sm.storyReactions?.[st.id]);
+              return `
+                <div class="btn-story-bubble" data-story-id="${st.id}" style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;flex-shrink:0;transition:transform 0.15s ease">
+                  <div style="width:64px;height:64px;border-radius:50%;padding:2.5px;background:${hasReacted ? '#334155' : 'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)'};box-shadow:${hasReacted ? 'none' : '0 0 12px rgba(220,39,67,0.4)'}">
+                    <div style="width:100%;height:100%;border-radius:50%;background:#0b1329;display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid #090d16;overflow:hidden">
+                      ${st.isUser && avatarPhoto ? `<img src="${avatarPhoto}" alt="Avatar" style="width:100%;height:100%;object-fit:cover">` : `<span>${st.icon}</span>`}
+                    </div>
+                  </div>
+                  <span style="font-size:10px;font-weight:800;color:${hasReacted ? '#64748b' : '#fff'};max-width:70px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    ${esc(st.name)}
+                  </span>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+
+        <!-- 2. HEADER DO PERFIL NO FOOTGRAM (VIP THREADS / INSTA PRO) -->
+        <div class="card" style="background:linear-gradient(135deg,#090d16 0%,#111827 100%);border:2px solid rgba(56,189,248,0.3);border-radius:24px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,0.7);position:relative;overflow:hidden">
           
           <div style="position:absolute;top:-20px;right:-15px;font-size:140px;opacity:0.04;pointer-events:none;line-height:1">
             📱
           </div>
 
-          <div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;position:relative;z-index:1">
+          <div style="display:flex;align-items:flex-start;gap:22px;flex-wrap:wrap;position:relative;z-index:1">
             
-            <!-- AVATAR COM BADGE DE EDIÇÃO -->
+            <!-- AVATAR COM BADGE DE EDIÇÃO E STATUS -->
             <div style="position:relative;flex-shrink:0;text-align:center">
               ${
                 avatarPhoto
                   ? `
-                <img src="${avatarPhoto}" alt="${esc(athleteName)}" style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:3px solid ${sm.isVerified ? "#38bdf8" : "#10b981"};box-shadow:0 0 20px ${sm.isVerified ? "rgba(56,189,248,0.4)" : "rgba(16,185,129,0.3)"}">
+                <img src="${avatarPhoto}" alt="${esc(athleteName)}" onerror="this.onerror=null;this.src='';this.style.display='none';this.nextElementSibling.style.display='flex';" style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid ${sm.isVerified ? "#38bdf8" : "#a855f7"};box-shadow:0 0 24px ${sm.isVerified ? "rgba(56,189,248,0.5)" : "rgba(168,85,247,0.4)"}">
+                <div style="display:none;width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:3px solid #a855f7;align-items:center;justify-content:center;font-size:32px;font-weight:900;color:#fff">
+                  ${esc(athleteName.slice(0, 2).toUpperCase())}
+                </div>
               `
                   : `
-                <div style="width:84px;height:84px;border-radius:50%;background:linear-gradient(135deg,#0284c7,#0369a1);border:3px solid #38bdf8;box-shadow:0 0 20px rgba(56,189,248,0.4);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;color:#fff">
+                <div style="width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:3px solid #a855f7;box-shadow:0 0 24px rgba(168,85,247,0.4);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:900;color:#fff">
                   ${esc(athleteName.slice(0, 2).toUpperCase())}
                 </div>
               `
@@ -5918,12 +5963,12 @@
                 ${
                   sm.isVerified
                     ? `
-                  <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(56,189,248,0.18);border:1px solid #38bdf8;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:900;color:#38bdf8" title="Atleta Verificado Oficial">
+                  <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(56,189,248,0.18);border:1px solid #38bdf8;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:900;color:#38bdf8" title="Atleta Verificado Oficial">
                     ✓ Verificado
                   </span>
                 `
                     : `
-                  <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(148,163,184,0.12);border:1px solid rgba(148,163,184,0.3);padding:2px 8px;border-radius:12px;font-size:10px;font-weight:800;color:#94a3b8" title="Alcance 50.000 seguidores ou seja convocado para a Seleção para verificar">
+                  <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(148,163,184,0.12);border:1px solid rgba(148,163,184,0.3);padding:3px 10px;border-radius:12px;font-size:10px;font-weight:800;color:#94a3b8" title="Alcance 50.000 seguidores para verificar sua conta">
                     ⚪ Não Verificado (${fmtFollowers}/50K)
                   </span>
                 `
@@ -5950,16 +5995,38 @@
                 </button>
               </div>
 
-              <!-- TIER DE SEGUIDORES E PERK -->
-              <div style="display:inline-flex;align-items:center;gap:8px;margin-top:10px;background:rgba(255,255,255,0.04);border:1px solid ${tierInfo.color};padding:4px 12px;border-radius:20px;font-size:11px;font-weight:800;color:${tierInfo.color}">
-                <span>${tierInfo.label}</span>
-                <span style="color:#94a3b8;font-weight:600;font-size:10px">• ${esc(tierInfo.perk)}</span>
+              <!-- NÍVEL DE CELEBRIDADE & BARRA DE PROGRESSÃO -->
+              <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
+                <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.04);border:1px solid ${celebrityTier.color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:900;color:${celebrityTier.color}">
+                  <span>${celebrityTier.badge}</span>
+                  <span>${celebrityTier.title}</span>
+                </div>
+                <div style="font-size:10px;color:#94a3b8">Multiplicador de Mídia: <b>${celebrityTier.mult}x</b></div>
               </div>
+            </div>
+
+            <!-- BOTÕES DE AÇÃO RÁPIDA (LIVE, DMs, CRISE) -->
+            <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+              <button type="button" id="btnStartFootGramLive" style="padding:7px 14px;border-radius:10px;font-size:11px;font-weight:900;cursor:${isLiveDisabled ? 'not-allowed' : 'pointer'};background:${isLiveDisabled ? '#1e293b' : 'linear-gradient(135deg,#ef4444,#dc2626)'};color:#fff;border:none;box-shadow:${isLiveDisabled ? 'none' : '0 2px 10px rgba(239,68,68,0.4)'};display:inline-flex;align-items:center;gap:6px">
+                <span>🔴</span>
+                <span>${isLiveDisabled ? "Live Mensal Concluída" : "ABRIR LIVE COM A TORCIDA"}</span>
+              </button>
+
+              <button type="button" id="btnOpenFootGramDMs" style="padding:7px 14px;border-radius:10px;font-size:11px;font-weight:900;cursor:pointer;background:#1e293b;border:1px solid rgba(255,255,255,0.15);color:#fff;display:inline-flex;align-items:center;gap:6px">
+                <span>✉️</span>
+                <span>MENSAGENS DIRETAS (DMs)</span>
+                ${unreadDMsCount > 0 ? `<span style="background:#38bdf8;color:#000;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:900">${unreadDMsCount}</span>` : ""}
+              </button>
+
+              <button type="button" id="btnOpenCrisisManagement" style="padding:6px 12px;border-radius:8px;font-size:10px;font-weight:800;cursor:pointer;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#fde047;display:inline-flex;align-items:center;gap:4px">
+                <span>🚨</span>
+                <span>Gestão de Crise & PR</span>
+              </button>
             </div>
           </div>
 
           <!-- BARRA DE ESTATÍSTICAS DO FOOTGRAM (4 CARDS) -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:12px;margin-top:22px;border-top:1px solid rgba(255,255,255,0.08);padding-top:18px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:12px;margin-top:20px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px">
             
             <div style="background:#060a12;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px;text-align:center">
               <div style="font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">👥 SEGUIDORES</div>
@@ -5983,19 +6050,44 @@
 
             <div style="background:#060a12;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px;text-align:center">
               <div style="font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">💎 VALOR ESTIMADO / POST</div>
-              <div style="font-size:20px;font-weight:900;color:#a855f7;margin-top:2px">R$ ${mediaValue.toLocaleString("pt-BR")}</div>
+              <div style="font-size:20px;font-weight:900;color:#a855f7;margin-top:2px">R$ ${estPostValue.toLocaleString("pt-BR")}</div>
               <div style="font-size:9px;color:#64748b;margin-top:1px">Apelo de marketing</div>
             </div>
           </div>
         </div>
 
-        <!-- PAINEL DE CRIAÇÃO DE POST DIÁRIO (COMPACTO & ELEGANTE - PADRÃO EA FC) -->
-        <div class="card" style="background:linear-gradient(135deg, #090e1a 0%, #111827 100%);border:1.5px solid ${sm.postedToday ? "rgba(255,255,255,0.08)" : "rgba(16,185,129,0.5)"};border-radius:14px;padding:12px 16px;box-shadow:0 4px 20px rgba(0,0,0,0.5)">
+        <!-- 3. CARD DE PUBLIPOST & CAMPANHA PATROCINADA DISPONÍVEL (MONETIZAÇÃO REAL) -->
+        ${brandOffer ? `
+          <div class="card" style="background:linear-gradient(135deg,#13112c 0%,#090d16 100%);border:1.5px solid #a855f7;border-radius:18px;padding:16px 20px;box-shadow:0 8px 30px rgba(168,85,247,0.25);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
+            <div style="flex:1;min-width:260px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:16px">💰</span>
+                <span style="font-size:12px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.5px">CAMPANHA PATROCINADA DISPONÍVEL</span>
+                <span style="background:rgba(168,85,247,0.2);color:#c084fc;border:1px solid #a855f7;font-size:9px;font-weight:900;padding:1px 6px;border-radius:6px">PAGAMENTO DIRETO</span>
+              </div>
+              <div style="font-size:14px;font-weight:900;color:#fff;margin-top:4px">${brandOffer.brand}</div>
+              <div style="font-size:11px;color:#cbd5e1;margin-top:2px;font-style:italic">"${esc(brandOffer.caption)}"</div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="text-align:right">
+                <div style="font-size:10px;color:#94a3b8;font-weight:700">CACHÊ POR POST:</div>
+                <div style="font-size:18px;font-weight:900;color:#34d399">+R$ ${brandOffer.payout.toLocaleString("pt-BR")}</div>
+              </div>
+              <button type="button" id="btnPublishSponsoredPost" ${brandOffer.claimed ? 'disabled' : ''} style="padding:10px 18px;border-radius:10px;font-size:11px;font-weight:900;cursor:${brandOffer.claimed ? 'not-allowed' : 'pointer'};background:${brandOffer.claimed ? '#334155' : 'linear-gradient(135deg,#a855f7,#7c3aed)'};border:none;color:#fff;box-shadow:${brandOffer.claimed ? 'none' : '0 4px 15px rgba(168,85,247,0.4)'}">
+                ${brandOffer.claimed ? "✅ Publi de Hoje Concluída" : "💸 Publicar Publi & Receber"}
+              </button>
+            </div>
+          </div>
+        ` : ""}
+
+        <!-- 4. PAINEL DE CRIAÇÃO DE POST DIÁRIO + LEGENDA LIVRE + TRENDING TAGS -->
+        <div class="card" style="background:linear-gradient(135deg, #090e1a 0%, #111827 100%);border:1.5px solid ${sm.postedToday ? "rgba(255,255,255,0.08)" : "rgba(16,185,129,0.5)"};border-radius:18px;padding:16px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.5)">
           
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:16px">✍️</span>
-              <span style="font-size:13px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+              <span style="font-size:18px">✍️</span>
+              <span style="font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
                 ${sm.postedToday ? "Publicação Diária (Limite Atingido)" : "Criar Publicação Diária (1 post/dia)"}
               </span>
             </div>
@@ -6003,12 +6095,12 @@
             ${
               sm.postedToday
                 ? `
-              <span style="background:rgba(234,179,8,0.15);border:1px solid #eab308;color:#fde047;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:900;display:inline-flex;align-items:center;gap:4px">
+              <span style="background:rgba(234,179,8,0.15);border:1px solid #eab308;color:#fde047;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:900;display:inline-flex;align-items:center;gap:4px">
                 ⏱️ Post Realizado Hoje
               </span>
             `
                 : `
-              <span style="background:rgba(16,185,129,0.15);border:1px solid #10b981;color:#6ee7b7;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:900;display:inline-flex;align-items:center;gap:4px">
+              <span style="background:rgba(16,185,129,0.15);border:1px solid #10b981;color:#6ee7b7;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:900;display:inline-flex;align-items:center;gap:4px">
                 🟢 Disponível Agora
               </span>
             `
@@ -6018,77 +6110,82 @@
           ${
             sm.postedToday
               ? `
-            <div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px;font-size:11px;color:#94a3b8;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-              <span>✅ <b>Post de hoje publicado!</b> As interações e comentários da IA já estão no feed abaixo.</span>
-              <span style="color:#64748b;font-size:10px">Avance o dia no calendário para liberar nova publicação.</span>
+            <div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);border-radius:10px;padding:12px 16px;font-size:12px;color:#94a3b8;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+              <span>✅ <b>Post de hoje publicado com sucesso!</b> O engajamento, curtidas e comentários já estão no feed abaixo.</span>
+              <span style="color:#64748b;font-size:11px">Avance o dia no calendário para liberar nova publicação.</span>
             </div>
           `
               : `
             <!-- SELETOR COMPACTO DE CATEGORIA DO POST -->
-            <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px">
-              <button type="button" class="btn-social-cat-pill ${activeCat === "training" ? "active" : ""}" data-cat="training" style="background:${activeCat === "training" ? "linear-gradient(135deg,#059669,#10b981)" : "rgba(255,255,255,0.05)"};color:${activeCat === "training" ? "#000" : "#cbd5e1"};border:${activeCat === "training" ? "none" : "1px solid rgba(255,255,255,0.1)"};padding:4px 10px;border-radius:8px;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
+            <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px">
+              <button type="button" class="btn-social-cat-pill ${activeCat === "training" ? "active" : ""}" data-cat="training" style="background:${activeCat === "training" ? "linear-gradient(135deg,#059669,#10b981)" : "rgba(255,255,255,0.05)"};color:${activeCat === "training" ? "#000" : "#cbd5e1"};border:${activeCat === "training" ? "none" : "1px solid rgba(255,255,255,0.1)"};padding:5px 12px;border-radius:8px;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
                 🏋️‍♂️ Treino & Foco
               </button>
-              <button type="button" class="btn-social-cat-pill ${activeCat === "fans" ? "active" : ""}" data-cat="fans" style="background:${activeCat === "fans" ? "linear-gradient(135deg,#0284c7,#38bdf8)" : "rgba(255,255,255,0.05)"};color:${activeCat === "fans" ? "#000" : "#cbd5e1"};border:${activeCat === "fans" ? "none" : "1px solid rgba(255,255,255,0.1)"};padding:4px 10px;border-radius:8px;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
+              <button type="button" class="btn-social-cat-pill ${activeCat === "fans" ? "active" : ""}" data-cat="fans" style="background:${activeCat === "fans" ? "linear-gradient(135deg,#0284c7,#38bdf8)" : "rgba(255,255,255,0.05)"};color:${activeCat === "fans" ? "#000" : "#cbd5e1"};border:${activeCat === "fans" ? "none" : "1px solid rgba(255,255,255,0.1)"};padding:5px 12px;border-radius:8px;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
                 👥 Torcida & Grupo
               </button>
-              <button type="button" class="btn-social-cat-pill ${activeCat === "lifestyle" ? "active" : ""}" data-cat="lifestyle" style="background:${activeCat === "lifestyle" ? "linear-gradient(135deg,#ca8a04,#facc15)" : "rgba(255,255,255,0.05)"};color:${activeCat === "lifestyle" ? "#000" : "#cbd5e1"};border:${activeCat === "lifestyle" ? "none" : "1px solid rgba(255,255,255,0.1)"};padding:4px 10px;border-radius:8px;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
+              <button type="button" class="btn-social-cat-pill ${activeCat === "lifestyle" ? "active" : ""}" data-cat="lifestyle" style="background:${activeCat === "lifestyle" ? "linear-gradient(135deg,#ca8a04,#facc15)" : "rgba(255,255,255,0.05)"};color:${activeCat === "lifestyle" ? "#000" : "#cbd5e1"};border:${activeCat === "lifestyle" ? "none" : "1px solid rgba(255,255,255,0.1)"};padding:5px 12px;border-radius:8px;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
                 💎 Estilo de Vida
               </button>
-              <button type="button" class="btn-social-cat-pill ${activeCat === "market" ? "active" : ""}" data-cat="market" style="background:${activeCat === "market" ? "linear-gradient(135deg,#7c3aed,#a855f7)" : "rgba(255,255,255,0.05)"};color:${activeCat === "market" ? "#fff" : "#cbd5e1"};border:${activeCat === "market" ? "none" : "1px solid rgba(255,255,255,0.1)"};padding:4px 10px;border-radius:8px;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
+              <button type="button" class="btn-social-cat-pill ${activeCat === "market" ? "active" : ""}" data-cat="market" style="background:${activeCat === "market" ? "linear-gradient(135deg,#7c3aed,#a855f7)" : "rgba(255,255,255,0.05)"};color:${activeCat === "market" ? "#fff" : "#cbd5e1"};border:${activeCat === "market" ? "none" : "1px solid rgba(255,255,255,0.1)"};padding:5px 12px;border-radius:8px;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap">
                 👀 Mercado & Futuro
               </button>
             </div>
 
-            <!-- LISTA COMPACTA DE MENSAGENS ESTRATÉGICAS -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:6px;margin-bottom:10px">
-              ${catTemplates
-                .map((tpl) => {
-                  const isSelected =
-                    tpl.id === window._afmSocialSelectedTemplateId;
-                  return `
-                  <div class="social-template-card" data-template-id="${tpl.id}" style="background:${isSelected ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.03)"};border:1.5px solid ${isSelected ? "#10b981" : "rgba(255,255,255,0.08)"};border-radius:10px;padding:8px 10px;cursor:pointer;transition:all 0.15s ease;display:flex;align-items:center;gap:8px">
-                    <div style="width:14px;height:14px;min-width:14px;border-radius:50%;border:1.5px solid ${isSelected ? "#10b981" : "#64748b"};background:${isSelected ? "#10b981" : "transparent"};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                      ${isSelected ? '<span style="color:#000;font-size:8px;font-weight:900">✓</span>' : ""}
+            <!-- LISTA DE RASCUNHOS ESTRATÉGICOS -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:8px;margin-bottom:12px">
+              ${catTemplates.map((tpl) => {
+                const isSelected = tpl.id === window._afmSocialSelectedTemplateId;
+                return `
+                  <div class="social-template-card" data-template-id="${tpl.id}" style="background:${isSelected ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.03)"};border:1.5px solid ${isSelected ? "#10b981" : "rgba(255,255,255,0.08)"};border-radius:10px;padding:10px 12px;cursor:pointer;transition:all 0.15s ease;display:flex;align-items:center;gap:10px">
+                    <div style="width:16px;height:16px;min-width:16px;border-radius:50%;border:1.5px solid ${isSelected ? "#10b981" : "#64748b"};background:${isSelected ? "#10b981" : "transparent"};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                      ${isSelected ? '<span style="color:#000;font-size:9px;font-weight:900">✓</span>' : ""}
                     </div>
                     <div style="flex:1;min-width:0">
                       <div style="font-size:11px;color:#f8fafc;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(tpl.text)}">
                         "${esc(tpl.text)}"
                       </div>
-                      <div style="display:flex;gap:4px;align-items:center;margin-top:3px;font-size:9px">
+                      <div style="display:flex;gap:6px;align-items:center;margin-top:3px;font-size:9px">
                         <span style="color:#6ee7b7;font-weight:800">${esc(tpl.impactDesc)}</span>
                         <span style="color:#64748b">• Risco: ${esc(tpl.risk)}</span>
                       </div>
                     </div>
                   </div>
                 `;
-                })
-                .join("")}
+              }).join("")}
             </div>
 
-            <!-- PRÉVIA DO POST SELECIONADO & BOTÃO DE PUBLICAR LADO A LADO -->
-            ${(function () {
-              const curTpl =
-                catTemplates.find(
-                  (t) => t.id === window._afmSocialSelectedTemplateId,
-                ) || catTemplates[0];
-              return `
-                <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-                  <div style="flex:1;min-width:200px">
-                    <div style="font-size:10px;color:#94a3b8;font-weight:700">MENSAGEM SELECIONADA:</div>
-                    <div style="font-size:11px;color:#e2e8f0;font-style:italic;line-height:1.3;margin-top:2px">"${esc(curTpl ? curTpl.text : "")}"</div>
-                  </div>
-                  <button type="button" id="btnPublishFootGramPost" style="padding:8px 18px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:8px;color:#000;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(16,185,129,0.35);transition:transform 0.15s ease">
-                    🚀 PUBLICAR AGORA
-                  </button>
-                </div>
-              `;
-            })()}
+            <!-- TRENDING TOPICS (HASHTAGS EM ALTA) -->
+            <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:11px;font-weight:900;color:#f59e0b">🔥 EM ALTA (+ALCANCE):</span>
+              ${(window.AFM_FOOTGRAM?.TRENDING_TAGS || []).map(t => `
+                <button type="button" class="btn-trending-tag" data-tag="${t.tag}" style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#fbbf24;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;cursor:pointer">
+                  ${t.tag} <span style="font-size:9px;opacity:0.7">(${Math.round((t.bonusMult - 1) * 100)}%)</span>
+                </button>
+              `).join("")}
+            </div>
+
+            <!-- INPUT DE LEGENDA CUSTOMIZADA & ANEXO DE CARD DE PARTIDA -->
+            <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;gap:10px;align-items:center">
+                <input type="text" id="footgramCustomCaptionInput" placeholder="Ou digite sua própria legenda personalizada... #PromessaDaBase" style="flex:1;background:#050811;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:9px 14px;color:#fff;font-size:12px;box-sizing:border-box">
+                <button type="button" id="btnPublishFootGramPost" style="padding:9px 20px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:8px;color:#000;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(16,185,129,0.35);transition:transform 0.15s ease">
+                  🚀 PUBLICAR AGORA
+                </button>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="font-size:11px;color:#94a3b8;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                  <input type="checkbox" id="chkAttachMatchPhoto" style="cursor:pointer">
+                  <span>📸 Anexar Card de Atuação da Última Partida</span>
+                </label>
+              </div>
+            </div>
           `
           }
         </div>
 
-        <!-- BARRA DE FILTROS DO FEED -->
+        <!-- 5. BARRA DE FILTROS DO FEED -->
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px">
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:18px">🔥</span>
@@ -6108,7 +6205,7 @@
           </div>
         </div>
 
-        <!-- LISTA DE POSTS DO FEED (CARD ESTILO THREADS / X) -->
+        <!-- 6. LISTA DE POSTS DO FEED (CARDS INTERATIVOS COM LIKE E RESPOSTA) -->
         <div style="display:flex;flex-direction:column;gap:16px">
           ${
             filteredPosts.length === 0
@@ -6119,49 +6216,16 @@
           `
               : filteredPosts
                   .map((post) => {
-                    const isCommentsOpen = Boolean(
-                      window._afmSocialExpandedComments[post.id],
-                    );
-                    const commentsCount = Array.isArray(post.comments)
-                      ? post.comments.length
-                      : 0;
-                    const normalizeAuthor = (value) =>
-                      String(value || "")
-                        .normalize("NFD")
-                        .replace(/[\u0300-\u036f]/g, "")
-                        .toLowerCase()
-                        .trim();
-                    const authorName = normalizeAuthor(post.authorName);
-                    const worldProfile =
-                      window.AFM_SocialMedia?.WORLD_PROFILES?.find(
-                        (profile) =>
-                          profile.handle === post.handle ||
-                          normalizeAuthor(profile.name) === authorName,
-                      );
-                    const isAthletePost =
-                      post.isUser ||
-                      authorName === normalizeAuthor(athleteName);
-                    const postAvatar =
-                      post.avatarUrl ||
-                      (isAthletePost ? avatarPhoto : null) ||
-                      worldProfile?.avatarUrl ||
-                      window.resolvePlayerPhotoUrl?.({
-                        name: post.authorName,
-                        club: post.club,
-                      }) ||
-                      null;
-                    const postTimestamp =
-                      window.AFM_SocialMedia?.formatPostTimestamp?.(
-                        post,
-                        state.date,
-                        sm.lastPostDate,
-                      ) ||
-                      post.timestamp ||
-                      "Data não informada";
+                    const isCommentsOpen = Boolean(window._afmSocialExpandedComments[post.id]);
+                    const commentsCount = Array.isArray(post.comments) ? post.comments.length : 0;
+                    const isAthletePost = post.isUser || post.authorName === athleteName;
+                    const postAvatar = post.avatarUrl || (isAthletePost ? avatarPhoto : null);
+                    const postTimestamp = post.timestamp || post.createdDate || "Hoje";
+
                     return `
-              <div class="card social-post-card" style="background:#090d16;border:1px solid ${post.isUser ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.08)"};border-radius:18px;padding:20px;box-shadow:0 6px 24px rgba(0,0,0,0.5)">
+              <div class="card social-post-card" style="background:#090d16;border:1px solid ${post.isSponsored ? "#a855f7" : (post.isUser ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.08)")};border-radius:18px;padding:20px;box-shadow:0 6px 24px rgba(0,0,0,0.5)">
                 
-                <!-- HEADER DO POST: AUTOR, HANDLE, DATA -->
+                <!-- HEADER DO POST -->
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px">
                   <div style="display:flex;align-items:center;gap:12px">
                     ${postAvatar ? `<img src="${esc(postAvatar)}" alt="${esc(post.authorName)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid ${post.isVerified ? "#38bdf8" : "#64748b"}">` : ""}
@@ -6173,20 +6237,8 @@
                         <span style="font-weight:900;color:#fff;font-size:14px">
                           ${esc(post.authorName)}
                         </span>
-                        ${
-                          post.isVerified
-                            ? `
-                          <span style="color:#38bdf8;font-size:12px;font-weight:900" title="Verificado Oficial">✓</span>
-                        `
-                            : ""
-                        }
-                        ${
-                          post.isUser
-                            ? `
-                          <span style="background:rgba(16,185,129,0.2);color:#6ee7b7;border:1px solid #10b981;font-size:9px;font-weight:900;padding:1px 6px;border-radius:6px">VOCÊ</span>
-                        `
-                            : ""
-                        }
+                        ${post.isVerified ? `<span style="color:#38bdf8;font-size:12px;font-weight:900" title="Verificado Oficial">✓</span>` : ""}
+                        ${post.isSponsored ? `<span style="background:rgba(168,85,247,0.2);color:#c084fc;border:1px solid #a855f7;font-size:9px;font-weight:900;padding:1px 6px;border-radius:6px">PUBLI</span>` : (post.isUser ? `<span style="background:rgba(16,185,129,0.2);color:#6ee7b7;border:1px solid #10b981;font-size:9px;font-weight:900;padding:1px 6px;border-radius:6px">VOCÊ</span>` : "")}
                       </div>
                       <div style="display:flex;align-items:center;gap:8px;margin-top:1px">
                         <span style="font-size:12px;color:#38bdf8;font-family:'Courier New', monospace">${esc(post.handle)}</span>
@@ -6199,21 +6251,32 @@
                     post.categoryLabel
                       ? `
                     <span style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);padding:3px 8px;border-radius:8px;font-size:10px;font-weight:800;color:#94a3b8">
-                      ${esc(post.categoryLabel.split(" ")[0])}
+                      ${esc(post.categoryLabel)}
                     </span>
                   `
                       : ""
                   }
                 </div>
 
-                <!-- CORPO DO TEXTO DO POST (SEM IMAGEM, DESIGN TEXTO PURO ELEGANTE) -->
-                <div style="background:rgba(255,255,255,0.02);border-left:3px solid ${post.isUser ? "#10b981" : "#38bdf8"};border-radius:0 12px 12px 0;padding:14px 16px;font-size:14px;color:#f1f5f9;line-height:1.6;margin-bottom:14px">
+                <!-- CORPO DO TEXTO -->
+                <div style="background:rgba(255,255,255,0.02);border-left:3px solid ${post.isSponsored ? "#a855f7" : (post.isUser ? "#10b981" : "#38bdf8")};border-radius:0 12px 12px 0;padding:14px 16px;font-size:14px;color:#f1f5f9;line-height:1.6;margin-bottom:14px">
                   ${esc(post.text).replace(/(#[a-zA-Z0-9_]+)/g, '<span style="color:#38bdf8;font-weight:800">$1</span>')}
                 </div>
 
-                <!-- BARRA DE ENGAJAMENTO (LIKES, REPOSTS, COMENTÁRIOS) -->
+                <!-- CARD DE PARTIDA ANEXADO (SE HOUVER) -->
+                ${post.matchCard ? `
+                  <div style="background:#050811;border:1px solid #334155;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="font-size:14px">🏟️</span>
+                      <span style="font-size:11px;font-weight:800;color:#cbd5e1">Partida vs ${esc(post.matchCard.opponent)}</span>
+                      <span style="font-size:11px;font-weight:900;color:#10b981">${esc(post.matchCard.score)}</span>
+                    </div>
+                    <span style="font-size:11px;font-weight:900;color:#facc15">Nota: ${post.matchCard.rating} ★</span>
+                  </div>
+                ` : ""}
+
+                <!-- BARRA DE ENGAJAMENTO -->
                 <div style="display:flex;align-items:center;gap:18px;border-top:1px solid rgba(255,255,255,0.06);padding-top:12px">
-                  
                   <button type="button" class="btn-social-like" data-post-id="${post.id}" style="background:none;border:none;color:${post.userLiked ? "#ef4444" : "#94a3b8"};font-size:13px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;transition:background 0.15s ease">
                     <span>${post.userLiked ? "❤️" : "🤍"}</span>
                     <span>${(post.likes || 0).toLocaleString("pt-BR")}</span>
@@ -6236,7 +6299,7 @@
                     ? `
                   <div style="margin-top:14px;border-top:1px solid rgba(255,255,255,0.06);padding-top:14px;display:flex;flex-direction:column;gap:10px">
                     
-                    <!-- INPUT PARA O USUÁRIO COMENTAR -->
+                    <!-- INPUT PARA COMENTAR -->
                     <div style="display:flex;gap:8px;margin-bottom:6px">
                       <input type="text" class="input-add-comment" data-post-id="${post.id}" placeholder="Escreva um comentário público..." style="flex:1;background:#050811;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;color:#fff;font-size:12px">
                       <button type="button" class="btn-submit-comment" data-post-id="${post.id}" style="background:#10b981;border:none;border-radius:8px;color:#000;font-weight:900;font-size:11px;padding:0 14px;cursor:pointer">
@@ -6244,30 +6307,34 @@
                       </button>
                     </div>
 
-                    <!-- LISTAGEM DOS COMENTÁRIOS SIMULADOS POR IA -->
+                    <!-- LISTA DE COMENTÁRIOS -->
                     ${(post.comments || [])
                       .map(
                         (comm) => `
                       <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:10px;padding:10px 12px;display:flex;gap:10px">
                         <div style="width:32px;height:32px;border-radius:50%;background:${comm.avatarBg || "#3b82f6"};display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:11px;flex-shrink:0">
-                          ${esc(comm.avatarText || "U")}
+                          ${esc(comm.avatarText || comm.authorName?.slice(0, 1) || "U")}
                         </div>
                         <div style="flex:1">
                           <div style="display:flex;align-items:center;gap:6px">
-                            <span style="font-size:12px;font-weight:800;color:#fff">${esc(comm.authorName)}</span>
-                            ${comm.isVerified ? `<span style="color:#38bdf8;font-size:10px">✓</span>` : ""}
-                            <span style="font-size:10px;color:#64748b">${esc(comm.handle)}</span>
-                            <span style="font-size:9px;color:#475569;margin-left:auto">${esc(comm.timestamp)}</span>
+                            <span style="font-size:12px;font-weight:800;color:#fff">${esc(comm.authorName || comm.user || "Fã")}</span>
+                            ${comm.isVerified ? '<span style="color:#38bdf8;font-size:10px">✓</span>' : ""}
+                            <span style="font-size:10px;color:#64748b">${esc(comm.handle || "")}</span>
                           </div>
                           <div style="font-size:12px;color:#cbd5e1;margin-top:2px;line-height:1.4">
                             ${esc(comm.text)}
                           </div>
-                          <div style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#94a3b8;margin-top:4px">
-                            <span>❤️</span> <span>${comm.likes || 1}</span>
+                          <div style="display:flex;align-items:center;gap:12px;margin-top:6px;font-size:10px">
+                            <button type="button" class="btn-like-comment" data-post-id="${post.id}" data-comm-id="${comm.id}" style="background:none;border:none;color:${comm.userLiked ? '#ef4444' : '#94a3b8'};cursor:pointer;padding:0;font-size:10px;display:inline-flex;align-items:center;gap:4px">
+                              <span>${comm.userLiked ? "❤️" : "🤍"}</span> <span>${comm.likes || 1}</span>
+                            </button>
+                            <button type="button" class="btn-reply-comment" data-post-id="${post.id}" data-comm-id="${comm.id}" data-author="${esc(comm.authorName || comm.user || 'amigo')}" style="background:none;border:none;color:#38bdf8;cursor:pointer;padding:0;font-size:10px;font-weight:700">
+                              ↩ Responder
+                            </button>
                           </div>
                         </div>
                       </div>
-                    `,
+                    `
                       )
                       .join("")}
                   </div>
@@ -6284,7 +6351,445 @@
     `;
   }
 
-  // Modais de Edição de @Handle, Bio e Foto de Perfil
+
+  // =========================================================================
+  // MODAIS OFICIAIS DO FOOTGRAM: STORIES, LIVE, DMs, CRISE, AVATAR, HANDLE, BIO
+  // =========================================================================
+
+  function openStoryViewerModal(storyId, state) {
+    const sm = state?.playerCareerState?.socialMedia;
+    if (!sm) return;
+
+    const oldModal = document.getElementById("afmStoryViewerModal");
+    if (oldModal) oldModal.remove();
+
+    const story = (window.AFM_FOOTGRAM?.STORIES_CATALOG || []).find(s => s.id === storyId) || {
+      id: storyId,
+      name: "Story",
+      icon: "📸",
+      title: "Bastidores do Futebol",
+      desc: "Acompanhe o dia a dia e as novidades dos bastidores!",
+      time: "Há 1h"
+    };
+
+    const hasReacted = Boolean(sm.storyReactions?.[story.id]);
+
+    const overlay = document.createElement("div");
+    overlay.id = "afmStoryViewerModal";
+    overlay.className = "afm-custom-modal-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(2,6,23,0.92);backdrop-filter:blur(12px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
+
+    overlay.innerHTML = `
+      <div style="background:linear-gradient(180deg,#1e1b4b 0%,#090d16 100%);border:2px solid #a855f7;border-radius:24px;padding:24px;max-width:380px;width:100%;box-shadow:0 0 50px rgba(168,85,247,0.4);color:#fff;text-align:center;position:relative">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:22px">${story.icon}</span>
+            <div style="text-align:left">
+              <div style="font-size:13px;font-weight:900;color:#fff">${esc(story.name)}</div>
+              <div style="font-size:10px;color:#94a3b8">${esc(story.time)}</div>
+            </div>
+          </div>
+          <button type="button" id="btnCloseStoryModal" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;line-height:1">✕</button>
+        </div>
+
+        <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:26px 16px;margin-bottom:20px;min-height:140px;display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:16px;font-weight:900;color:#38bdf8;margin-bottom:8px">${esc(story.title)}</div>
+          <div style="font-size:13px;color:#f1f5f9;line-height:1.5">"${esc(story.desc)}"</div>
+        </div>
+
+        <div style="margin-bottom:12px;font-size:11px;font-weight:800;color:#cbd5e1">
+          ${hasReacted ? "✅ Você já interagiu com este Story hoje!" : "REAGIR AO STORY (+120 FÃS & +2 QUÍMICA):"}
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button type="button" class="btn-story-react" data-reaction="🔥" ${hasReacted ? "disabled" : ""} style="padding:10px 18px;border-radius:12px;border:none;background:${hasReacted ? '#1e293b' : 'rgba(239,68,68,0.2)'};border:1px solid #ef4444;color:#fff;font-size:18px;cursor:${hasReacted ? 'not-allowed' : 'pointer'}">🔥</button>
+          <button type="button" class="btn-story-react" data-reaction="👏" ${hasReacted ? "disabled" : ""} style="padding:10px 18px;border-radius:12px;border:none;background:${hasReacted ? '#1e293b' : 'rgba(234,179,8,0.2)'};border:1px solid #eab308;color:#fff;font-size:18px;cursor:${hasReacted ? 'not-allowed' : 'pointer'}">👏</button>
+          <button type="button" class="btn-story-react" data-reaction="⚽" ${hasReacted ? "disabled" : ""} style="padding:10px 18px;border-radius:12px;border:none;background:${hasReacted ? '#1e293b' : 'rgba(16,185,129,0.2)'};border:1px solid #10b981;color:#fff;font-size:18px;cursor:${hasReacted ? 'not-allowed' : 'pointer'}">⚽</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    overlay.querySelector("#btnCloseStoryModal").onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    overlay.querySelectorAll(".btn-story-react").forEach(btn => {
+      btn.onclick = () => {
+        sm.storyReactions = sm.storyReactions || {};
+        sm.storyReactions[story.id] = true;
+        sm.followers = (sm.followers || 1000) + 120;
+        if (state.playerCareerState?.relationships) {
+          state.playerCareerState.relationships.teammatesRelation = Math.min(100, (state.playerCareerState.relationships.teammatesRelation || 70) + 2);
+        }
+        showCustomAlert({
+          title: "Reação Enviada! " + btn.dataset.reaction,
+          message: "Você interagiu com o Story! +120 seguidores e +2 de química no elenco conquistados.",
+          type: "success"
+        });
+        if (typeof window.save === "function") window.save();
+        if (typeof window.render === "function") window.render();
+        overlay.remove();
+      };
+    });
+  }
+
+  function openFootGramLiveModal(state) {
+    const sm = state?.playerCareerState?.socialMedia;
+    const pState = state?.playerCareerState;
+    if (!sm || !pState) return;
+
+    if (sm.liveDoneThisMonth) {
+      showCustomAlert({
+        title: "Live Mensal Concluída! 🔴",
+        message: "Você já realizou a Live com a Torcida deste mês. Avance para o próximo mês no calendário para iniciar uma nova transmissão ao vivo!",
+        type: "warning"
+      });
+      return;
+    }
+
+    const oldModal = document.getElementById("afmFootGramLiveModal");
+    if (oldModal) oldModal.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "afmFootGramLiveModal";
+    overlay.className = "afm-custom-modal-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(2,6,23,0.94);backdrop-filter:blur(14px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
+
+    overlay.innerHTML = `
+      <div style="background:linear-gradient(180deg,#180828 0%,#090d16 100%);border:2px solid #ef4444;border-radius:24px;padding:24px;max-width:440px;width:100%;box-shadow:0 0 50px rgba(239,68,68,0.35);color:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;box-shadow:0 0 10px #ef4444"></span>
+            <span style="font-size:13px;font-weight:900;color:#ef4444;text-transform:uppercase;letter-spacing:1px">AO VIVO NO FOOTGRAM</span>
+          </div>
+          <span style="font-size:12px;font-weight:900;color:#38bdf8;background:rgba(56,189,248,0.15);padding:2px 8px;border-radius:10px">👀 ~2.8K assistindo</span>
+        </div>
+
+        <div style="background:#050811;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:18px;height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;font-size:11px">
+          <div style="color:#94a3b8"><b style="color:#38bdf8">@torcedor_fiel:</b> Craque demais! Joga muito! 👏⚽</div>
+          <div style="color:#94a3b8"><b style="color:#facc15">@fã_candango:</b> Manda salve pra rapaziada do DF! 🔥</div>
+          <div style="color:#94a3b8"><b style="color:#34d399">@base_forte:</b> Ano que vem tá na Europa com certeza! 🚀</div>
+          <div style="color:#94a3b8"><b style="color:#c084fc">@jovem_boleiro:</b> Qual a sua meta de gols pra essa temporada?</div>
+        </div>
+
+        <div style="font-size:12px;font-weight:900;color:#cbd5e1;margin-bottom:10px;text-align:center">
+          ESCOLHA O TEMA DA SUA INTERAÇÃO AO VIVO:
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+          <button type="button" class="btn-live-choice" data-choice="review" style="padding:12px 14px;background:#090d16;border:1.5px solid #38bdf8;border-radius:12px;color:#fff;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:12px;font-weight:900;color:#38bdf8">🎙️ Resenha Pós-Jogo & Agradecimento</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Agradecer o apoio da torcida e elogiar o empenho do grupo</div>
+            </div>
+            <span style="font-size:10px;font-weight:900;color:#34d399">+1.2K Fãs · +4 Fama</span>
+          </button>
+
+          <button type="button" class="btn-live-choice" data-choice="skills" style="padding:12px 14px;background:#090d16;border:1.5px solid #eab308;border-radius:12px;color:#fff;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:12px;font-weight:900;color:#facc15">⚽ Desafio de Embaixadinhas ao Vivo</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Demonstrar habilidade técnica e desafiar outros craques</div>
+            </div>
+            <span style="font-size:10px;font-weight:900;color:#34d399">+1.8K Fãs · +3 Fama</span>
+          </button>
+
+          <button type="button" class="btn-live-choice" data-choice="qa" style="padding:12px 14px;background:#090d16;border:1.5px solid #a855f7;border-radius:12px;color:#fff;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:12px;font-weight:900;color:#c084fc">💬 Perguntas & Respostas Sinceras</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Responder dúvidas sobre sua rotina, futuro e sonhos</div>
+            </div>
+            <span style="font-size:10px;font-weight:900;color:#34d399">+2.4K Fãs · +5 Fama</span>
+          </button>
+        </div>
+
+        <div style="display:flex;justify-content:center">
+          <button type="button" id="btnCancelLiveModal" style="padding:8px 18px;background:none;border:none;color:#94a3b8;font-size:11px;font-weight:800;cursor:pointer">Encerrar Transmissão</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    overlay.querySelector("#btnCancelLiveModal").onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    overlay.querySelectorAll(".btn-live-choice").forEach(btn => {
+      btn.onclick = () => {
+        const choice = btn.dataset.choice;
+        let gainedFollowers = 1200;
+        let gainedFame = 4;
+        let choiceText = "Resenha e agradecimento à torcida";
+
+        if (choice === "skills") {
+          gainedFollowers = 1800;
+          gainedFame = 3;
+          choiceText = "Desafio de embaixadinhas e bastidores";
+        } else if (choice === "qa") {
+          gainedFollowers = 2400;
+          gainedFame = 5;
+          choiceText = "Perguntas e respostas sinceras com os fãs";
+        }
+
+        sm.followers = (sm.followers || 1000) + gainedFollowers;
+        sm.fame = Math.min(100, (sm.fame || 10) + gainedFame);
+        sm.celebrityLevel = sm.fame;
+        sm.liveDoneThisMonth = true;
+        sm.lastLiveMonth = String(state.date || state.currentDate || "2026-01-01").slice(0, 7);
+
+        // Adiciona registro no feed
+        sm.feedPosts.unshift({
+          id: "post_live_" + Date.now(),
+          authorName: pState.athleteName || "Você",
+          handle: sm.handle,
+          avatarUrl: sm.avatarUrl,
+          avatarText: (pState.athleteName || "VC").slice(0, 2).toUpperCase(),
+          avatarBg: "#ef4444",
+          isVerified: Boolean(sm.isVerified),
+          isUser: true,
+          createdDate: state.date || state.currentDate || "2026-01-01",
+          timestamp: "Hoje",
+          category: "live",
+          categoryLabel: "🔴 Live Gravada",
+          text: "🔴 Transmissão ao vivo finalizada com sucesso! " + choiceText + ". Mais de 2.8K conectados na resenha. Obrigado pelo carinho de todos! 🙏⚽ #LiveDoCraque #FocoTotal",
+          likes: Math.round(gainedFollowers * 0.35),
+          reposts: Math.round(gainedFollowers * 0.08),
+          userLiked: false,
+          comments: [
+            { id: "c_live_1", authorName: "Fã Clube Oficial", handle: "@fa_clube", text: "A melhor live do ano! Craque demais!", likes: 52 }
+          ]
+        });
+
+        showCustomAlert({
+          title: "Live Concluída com Sucesso! 🔴",
+          message: "Parabéns pela transmissão! +" + gainedFollowers.toLocaleString("pt-BR") + " seguidores e +" + gainedFame + " de Fama conquistados!",
+          type: "success"
+        });
+
+        if (typeof window.save === "function") window.save();
+        if (typeof window.render === "function") window.render();
+        overlay.remove();
+      };
+    });
+  }
+
+  function openFootGramDMsModal(state) {
+    const sm = state?.playerCareerState?.socialMedia;
+    const pState = state?.playerCareerState;
+    if (!sm || !pState) return;
+
+    const oldModal = document.getElementById("afmFootGramDMsModal");
+    if (oldModal) oldModal.remove();
+
+    const dms = sm.dms || [];
+
+    const overlay = document.createElement("div");
+    overlay.id = "afmFootGramDMsModal";
+    overlay.className = "afm-custom-modal-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(2,6,23,0.94);backdrop-filter:blur(12px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
+
+    overlay.innerHTML = `
+      <div style="background:linear-gradient(135deg,#090d16 0%,#111827 100%);border:2px solid #38bdf8;border-radius:24px;padding:24px;max-width:540px;width:100%;box-shadow:0 0 50px rgba(56,189,248,0.3);color:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:20px">✉️</span>
+            <span style="font-size:16px;font-weight:900;color:#fff">MENSAGENS DIRETAS (DMs)</span>
+          </div>
+          <button type="button" id="btnCloseDMsModal" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;line-height:1">✕</button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;max-height:360px;overflow-y:auto;padding-right:4px">
+          ${dms.map(dm => `
+            <div style="background:#050811;border:1px solid ${dm.unread ? '#38bdf8' : 'rgba(255,255,255,0.08)'};border-radius:14px;padding:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:18px">${dm.avatar || "👤"}</span>
+                  <div>
+                    <div style="font-size:12px;font-weight:900;color:#fff">${esc(dm.sender)}</div>
+                    <div style="font-size:10px;color:#94a3b8">${esc(dm.role)}</div>
+                  </div>
+                </div>
+                ${dm.answered ? `<span style="font-size:10px;color:#34d399;font-weight:800">✓ Respondido</span>` : `<span style="background:#38bdf8;color:#000;font-size:9px;font-weight:900;padding:2px 8px;border-radius:8px">Novo</span>`}
+              </div>
+
+              <div style="font-size:12px;color:#cbd5e1;line-height:1.4;margin:8px 0;background:rgba(255,255,255,0.02);padding:8px 10px;border-radius:8px">
+                "${esc(dm.text)}"
+              </div>
+
+              ${!dm.answered ? `
+                <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+                  <div style="font-size:10px;font-weight:800;color:#38bdf8">ESCOLHA SUA RESPOSTA:</div>
+                  ${(dm.replies || []).map(r => `
+                    <button type="button" class="btn-dm-reply" data-dm-id="${dm.id}" data-reply-id="${r.id}" style="padding:8px 12px;background:#090d16;border:1px solid rgba(56,189,248,0.4);border-radius:8px;color:#fff;font-size:11px;font-weight:800;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center">
+                      <span>${esc(r.label)}</span>
+                      <span style="font-size:9px;color:#34d399">${r.effect === 'trust' ? '+Confiança' : (r.effect === 'fame' ? '+Fama' : '+Fãs')}</span>
+                    </button>
+                  `).join("")}
+                </div>
+              ` : ""}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    overlay.querySelector("#btnCloseDMsModal").onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    overlay.querySelectorAll(".btn-dm-reply").forEach(btn => {
+      btn.onclick = () => {
+        const dmId = btn.dataset.dmId;
+        const replyId = btn.dataset.replyId;
+        const dm = dms.find(d => d.id === dmId);
+        const reply = dm?.replies?.find(r => r.id === replyId);
+        if (!dm || !reply) return;
+
+        dm.answered = true;
+        dm.unread = false;
+
+        if (reply.effect === 'trust') {
+          pState.managerTrust = Math.min(100, (pState.managerTrust || 40) + 6);
+          pState.coachTrust = pState.managerTrust;
+        } else if (reply.effect === 'fame') {
+          sm.fame = Math.min(100, (sm.fame || 10) + 4);
+          sm.celebrityLevel = sm.fame;
+        } else {
+          sm.followers = (sm.followers || 1000) + 350;
+        }
+
+        showCustomAlert({
+          title: "Mensagem Enviada! ✉️",
+          message: reply.response,
+          type: "success"
+        });
+
+        if (typeof window.save === "function") window.save();
+        if (typeof window.render === "function") window.render();
+        overlay.remove();
+      };
+    });
+  }
+
+  function openCrisisManagementModal(state) {
+    const pState = state?.playerCareerState;
+    if (!pState) return;
+
+    const oldModal = document.getElementById("afmCrisisManagementModal");
+    if (oldModal) oldModal.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "afmCrisisManagementModal";
+    overlay.className = "afm-custom-modal-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(2,6,23,0.92);backdrop-filter:blur(12px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
+
+    overlay.innerHTML = `
+      <div style="background:linear-gradient(135deg,#1f1606 0%,#090d16 100%);border:2px solid #eab308;border-radius:24px;padding:24px;max-width:460px;width:100%;box-shadow:0 0 40px rgba(234,179,8,0.35);color:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:22px">🚨</span>
+            <span style="font-size:16px;font-weight:900;color:#fde047">GESTÃO DE CRISE & ASSESSORIA DE IMPRENSA</span>
+          </div>
+          <button type="button" id="btnCloseCrisisModal" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;line-height:1">✕</button>
+        </div>
+
+        <div style="font-size:12px;color:#cbd5e1;line-height:1.5;margin-bottom:16px">
+          Postagens polêmicas ou atuações abaixo da média podem desgastar sua imagem com a comissão técnica e a torcida. Tome medidas imediatas para conter danos:
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+          <button type="button" id="btnPublishOfficialStatement" style="padding:14px;background:#090d16;border:1.5px solid #38bdf8;border-radius:12px;color:#fff;text-align:left;cursor:pointer">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:12px;font-weight:900;color:#38bdf8">📄 Nota Oficial de Esclarecimento</span>
+              <span style="font-size:10px;font-weight:800;color:#34d399">Grátis</span>
+            </div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:4px">Publica esclarecimento no feed reafirmando compromisso com o time (+8 Confiança com comissão técnica).</div>
+          </button>
+
+          <button type="button" id="btnHireEmergencyPR" style="padding:14px;background:#090d16;border:1.5px solid #a855f7;border-radius:12px;color:#fff;text-align:left;cursor:pointer">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:12px;font-weight:900;color:#c084fc">🛡️ Assessoria de Imagem Emergencial</span>
+              <span style="font-size:10px;font-weight:800;color:#facc15">R$ 500</span>
+            </div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:4px">Equipe profissional de PR assume moderação de comentários e blindagem de crise (+18 Confiança e +15 Moral).</div>
+          </button>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end">
+          <button type="button" id="btnDismissCrisisModal" style="padding:8px 16px;background:none;border:none;color:#94a3b8;font-size:11px;font-weight:800;cursor:pointer">Fechar</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    overlay.querySelector("#btnCloseCrisisModal").onclick = () => overlay.remove();
+    overlay.querySelector("#btnDismissCrisisModal").onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    overlay.querySelector("#btnPublishOfficialStatement").onclick = () => {
+      pState.managerTrust = Math.min(100, (pState.managerTrust || 40) + 8);
+      pState.coachTrust = pState.managerTrust;
+      pState.socialMedia.feedPosts.unshift({
+        id: "post_statement_" + Date.now(),
+        authorName: pState.athleteName || "Você",
+        handle: pState.socialMedia.handle,
+        avatarUrl: pState.socialMedia.avatarUrl,
+        avatarText: (pState.athleteName || "VC").slice(0, 2).toUpperCase(),
+        avatarBg: "#0284c7",
+        isVerified: Boolean(pState.socialMedia.isVerified),
+        isUser: true,
+        createdDate: state.date || state.currentDate || "2026-01-01",
+        timestamp: "Agora mesmo",
+        category: "press",
+        categoryLabel: "📄 Nota Oficial",
+        text: "COMUNICADO OFICIAL: Reafirmo meu total respeito ao clube, à comissão técnica e aos nossos torcedores. O foco segue 100% no trabalho diário e em dar a resposta dentro das quatro linhas! 🔵⚪⚽",
+        likes: 850,
+        reposts: 120,
+        userLiked: false,
+        comments: []
+      });
+      showCustomAlert({
+        title: "Nota Oficial Publicada! 📄",
+        message: "O esclarecimento foi publicado no FootGram e acalmou os ânimos da torcida e comissão técnica (+8 Confiança).",
+        type: "success"
+      });
+      if (typeof window.save === "function") window.save();
+      if (typeof window.render === "function") window.render();
+      overlay.remove();
+    };
+
+    overlay.querySelector("#btnHireEmergencyPR").onclick = () => {
+      const curCash = Number(pState.lifestyle?.cash ?? pState.personalBank ?? pState.cash ?? 0);
+      if (curCash < 500) {
+        showCustomAlert({
+          title: "Saldo Insuficiente! ⚠️",
+          message: "A assessoria emergencial custa R$ 500. Faltam R$ " + (500 - curCash) + ".",
+          type: "warning"
+        });
+        return;
+      }
+      if (typeof window.AFM_Lifestyle?.addPlayerTransaction === 'function') {
+        window.AFM_Lifestyle.addPlayerTransaction(pState, -500, "Assessoria de Imprensa & PR", "expense");
+      } else {
+        pState.personalBank = Math.max(0, curCash - 500);
+        if (pState.lifestyle) pState.lifestyle.cash = pState.personalBank;
+      }
+      pState.managerTrust = Math.min(100, (pState.managerTrust || 40) + 18);
+      pState.coachTrust = pState.managerTrust;
+      pState.morale = Math.min(100, (pState.morale || 60) + 15);
+      showCustomAlert({
+        title: "Assessoria Contratada! 🛡️",
+        message: "A equipe de PR conteve os danos nas redes sociais e blindou sua imagem perante a imprensa (+18 Confiança e +15 Moral).",
+        type: "success"
+      });
+      if (typeof window.save === "function") window.save();
+      if (typeof window.render === "function") window.render();
+      overlay.remove();
+    };
+  }
+
   function openEditHandleModal(state) {
     const sm = state?.playerCareerState?.socialMedia;
     if (!sm) return;
@@ -6295,8 +6800,7 @@
     const overlay = document.createElement("div");
     overlay.id = "afmEditHandleModal";
     overlay.className = "afm-custom-modal-overlay";
-    overlay.style.cssText =
-      "position:fixed;inset:0;background:rgba(2,6,23,0.92);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(2,6,23,0.92);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
 
     overlay.innerHTML = `
       <div style="background:linear-gradient(135deg,#090d16 0%,#111827 100%);border:2px solid #38bdf8;border-radius:20px;padding:24px;max-width:440px;width:100%;box-shadow:0 0 40px rgba(56,189,248,0.3);color:#fff">
@@ -6318,15 +6822,17 @@
 
     document.body.appendChild(overlay);
 
-    overlay.querySelector("#btnCancelEditHandle").onclick = () =>
-      overlay.remove();
+    overlay.querySelector("#btnCancelEditHandle").onclick = () => overlay.remove();
     overlay.querySelector("#btnConfirmEditHandle").onclick = () => {
       const val = overlay.querySelector("#inputNewHandle").value;
       if (window.AFM_SocialMedia?.updateProfileHandle) {
         window.AFM_SocialMedia.updateProfileHandle(val, state);
-        if (typeof window.save === "function") window.save();
-        if (typeof window.render === "function") window.render();
+      } else {
+        const clean = '@' + val.replace(/^@/, '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+        sm.handle = clean;
       }
+      if (typeof window.save === "function") window.save();
+      if (typeof window.render === "function") window.render();
       overlay.remove();
     };
   }
@@ -6341,8 +6847,7 @@
     const overlay = document.createElement("div");
     overlay.id = "afmEditBioModal";
     overlay.className = "afm-custom-modal-overlay";
-    overlay.style.cssText =
-      "position:fixed;inset:0;background:rgba(2,6,23,0.92);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(2,6,23,0.92);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
 
     overlay.innerHTML = `
       <div style="background:linear-gradient(135deg,#090d16 0%,#111827 100%);border:2px solid #10b981;border-radius:20px;padding:24px;max-width:440px;width:100%;box-shadow:0 0 40px rgba(16,185,129,0.3);color:#fff">
@@ -6368,49 +6873,98 @@
       const val = overlay.querySelector("#textareaNewBio").value;
       if (window.AFM_SocialMedia?.updateProfileBio) {
         window.AFM_SocialMedia.updateProfileBio(val, state);
-        if (typeof window.save === "function") window.save();
-        if (typeof window.render === "function") window.render();
+      } else {
+        sm.bio = val.trim();
       }
+      if (typeof window.save === "function") window.save();
+      if (typeof window.render === "function") window.render();
       overlay.remove();
     };
   }
 
   function openChangeAvatarModal(state) {
     const sm = state?.playerCareerState?.socialMedia;
+    const athlete = getControlledPlayer(state) || { name: "Atleta" };
     if (!sm) return;
 
     const oldModal = document.getElementById("afmChangeAvatarModal");
     if (oldModal) oldModal.remove();
 
+    // 12 Presets Jovens Data URI SVGs
+    const youthPresets = [
+      { id: "y_01", name: "Revelação 1", skinTone: "skin_1", hairStyle: "fade_quiff", hairColor: "hc_black" },
+      { id: "y_02", name: "Revelação 2", skinTone: "skin_2", hairStyle: "buzzcut", hairColor: "hc_dark_brown" },
+      { id: "y_03", name: "Revelação 3", skinTone: "skin_3", hairStyle: "mohawk", hairColor: "hc_blonde" },
+      { id: "y_04", name: "Revelação 4", skinTone: "skin_4", hairStyle: "afro", hairColor: "hc_black" },
+      { id: "y_05", name: "Revelação 5", skinTone: "skin_5", hairStyle: "dreads", hairColor: "hc_black" },
+      { id: "y_06", name: "Revelação 6", skinTone: "skin_6", hairStyle: "medium_flow", hairColor: "hc_platinum" },
+      { id: "y_07", name: "Revelação 7", skinTone: "skin_2", hairStyle: "samurai_bun", hairColor: "hc_black" },
+      { id: "y_08", name: "Revelação 8", skinTone: "skin_3", hairStyle: "fade_quiff", hairColor: "hc_light_brown" },
+      { id: "y_09", name: "Revelação 9", skinTone: "skin_4", hairStyle: "buzzcut", hairColor: "hc_black" },
+      { id: "y_10", name: "Revelação 10", skinTone: "skin_5", hairStyle: "afro", hairColor: "hc_dark_brown" },
+      { id: "y_11", name: "Revelação 11", skinTone: "skin_1", hairStyle: "medium_flow", hairColor: "hc_red" },
+      { id: "y_12", name: "Revelação 12", skinTone: "skin_3", hairStyle: "dreads", hairColor: "hc_cyan" }
+    ];
+
+    const model3DUri = typeof window.generateYoungAthletePortraitUri === 'function'
+      ? window.generateYoungAthletePortraitUri(athlete)
+      : "";
+
     const overlay = document.createElement("div");
     overlay.id = "afmChangeAvatarModal";
     overlay.className = "afm-custom-modal-overlay";
-    overlay.style.cssText =
-      "position:fixed;inset:0;background:rgba(2,6,23,0.92);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(2,6,23,0.92);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
 
     overlay.innerHTML = `
-      <div style="background:linear-gradient(135deg,#090d16 0%,#111827 100%);border:2px solid #a855f7;border-radius:20px;padding:24px;max-width:480px;width:100%;box-shadow:0 0 40px rgba(168,85,247,0.3);color:#fff">
+      <div style="background:linear-gradient(135deg,#090d16 0%,#111827 100%);border:2px solid #a855f7;border-radius:20px;padding:22px;max-width:520px;width:100%;box-shadow:0 0 40px rgba(168,85,247,0.3);color:#fff">
         <h3 style="margin:0 0 6px 0;font-size:18px;font-weight:900;color:#fff">FOTO DE PERFIL DO FOOTGRAM</h3>
-        <div style="font-size:12px;color:#94a3b8;margin-bottom:16px">
-          Insira uma URL de imagem (otimizada automaticamente via proxy WebP 80x80) ou envie um arquivo que será reduzido para 64x64px com zero peso no save.
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:14px">
+          Escolha entre a reprodução 3D do seu atleta, um retrato jovem em alta definição ou uma imagem personalizada.
         </div>
 
-        <!-- OPÇÃO 1: URL COM PROXY AUTOMÁTICO -->
-        <div style="margin-bottom:16px">
-          <label style="font-size:11px;font-weight:800;color:#a855f7;display:block;margin-bottom:4px">OPÇÃO 1 · URL DA FOTO (HTTP / HTTPS):</label>
-          <input type="url" id="inputAvatarUrl" placeholder="https://exemplo.com/minha-foto.jpg" style="width:100%;padding:10px 14px;background:#050811;border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;font-size:13px;box-sizing:border-box">
-          <div style="font-size:10px;color:#64748b;margin-top:4px">A imagem passa pelo proxy de cache wsrv.nl para carregar instantaneamente sem pesar o save.</div>
+        <!-- OPÇÃO 1: RETRATO 3D DO ATLETA -->
+        <div style="background:#090d16;border:1.5px solid #a855f7;border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:12px">
+            ${model3DUri ? `<img src="${model3DUri}" alt="3D" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid #a855f7">` : '<span style="font-size:24px">👤</span>'}
+            <div>
+              <div style="font-size:12px;font-weight:900;color:#fff">Aparência 3D do Meu Atleta</div>
+              <div style="font-size:10px;color:#38bdf8">Espelho direto do modelo criado no editor</div>
+            </div>
+          </div>
+          <button type="button" id="btnSelect3DPortrait" style="padding:6px 14px;background:#a855f7;border:none;border-radius:8px;color:#fff;font-size:11px;font-weight:900;cursor:pointer">
+            Selecionar 3D
+          </button>
         </div>
 
-        <!-- OPÇÃO 2: ARQUIVO LOCAL VIA CANVAS MINIFICADO -->
-        <div style="margin-bottom:20px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);border-radius:10px;padding:12px">
-          <label style="font-size:11px;font-weight:800;color:#cbd5e1;display:block;margin-bottom:4px">OPÇÃO 2 · ENVIAR ARQUIVO LOCAL (REDUÇÃO 64x64):</label>
-          <input type="file" id="inputFileAvatar" accept="image/*" style="font-size:11px;color:#94a3b8">
+        <!-- OPÇÃO 2: GALERIA DE RETRATOS JOVENS (12 PRESETS ANTI-404) -->
+        <div style="margin-bottom:14px">
+          <label style="font-size:11px;font-weight:800;color:#cbd5e1;display:block;margin-bottom:6px">GALERIA DE RETRATOS JOVENS (CLIQUE PARA ESCOLHER):</label>
+          <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:8px">
+            ${youthPresets.map((preset, idx) => {
+              const pUri = typeof window.generateYoungAthletePortraitUri === 'function' ? window.generateYoungAthletePortraitUri(preset) : '';
+              return `
+                <div class="preset-avatar-bubble" data-idx="${idx}" style="cursor:pointer;border-radius:50%;padding:2px;border:2px solid rgba(255,255,255,0.15);transition:border-color 0.15s ease;text-align:center">
+                  ${pUri ? `<img src="${pUri}" alt="Preset" style="width:100%;aspect-ratio:1;border-radius:50%;object-fit:cover">` : `<div style="width:100%;aspect-ratio:1;border-radius:50%;background:#334155;display:flex;align-items:center;justify-content:center;font-size:10px">${idx+1}</div>`}
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+
+        <!-- OPÇÃO 3: URL CUSTOMIZADA COM PROXY E FALLBACK -->
+        <div style="margin-bottom:14px">
+          <label style="font-size:11px;font-weight:800;color:#38bdf8;display:block;margin-bottom:4px">OU INSIRA UMA URL DE FOTO:</label>
+          <input type="url" id="inputAvatarUrl" placeholder="https://exemplo.com/foto.jpg" style="width:100%;padding:8px 12px;background:#050811;border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-size:12px;box-sizing:border-box">
+        </div>
+
+        <!-- OPÇÃO 4: ARQUIVO LOCAL -->
+        <div style="margin-bottom:16px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px">
+          <input type="file" id="inputFileAvatar" accept="image/*" style="font-size:10px;color:#94a3b8">
         </div>
 
         <div style="display:flex;gap:10px;justify-content:flex-end">
-          <button type="button" id="btnCancelAvatar" style="padding:10px 18px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-weight:800;font-size:12px;cursor:pointer">Cancelar</button>
-          <button type="button" id="btnConfirmAvatar" style="padding:10px 20px;background:#a855f7;border:none;border-radius:8px;color:#fff;font-weight:900;font-size:12px;cursor:pointer">Atualizar Foto</button>
+          <button type="button" id="btnCancelAvatar" style="padding:8px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-weight:800;font-size:11px;cursor:pointer">Cancelar</button>
+          <button type="button" id="btnConfirmAvatar" style="padding:8px 18px;background:#a855f7;border:none;border-radius:8px;color:#fff;font-weight:900;font-size:11px;cursor:pointer">Salvar Foto</button>
         </div>
       </div>
     `;
@@ -6418,6 +6972,36 @@
     document.body.appendChild(overlay);
 
     overlay.querySelector("#btnCancelAvatar").onclick = () => overlay.remove();
+
+    // 3D Portrait selection
+    const btn3D = overlay.querySelector("#btnSelect3DPortrait");
+    if (btn3D) {
+      btn3D.onclick = () => {
+        if (model3DUri) {
+          sm.avatarUrl = model3DUri;
+          if (state.player) state.player.avatarUrl = model3DUri;
+          if (typeof window.save === "function") window.save();
+          if (typeof window.render === "function") window.render();
+        }
+        overlay.remove();
+      };
+    }
+
+    // Youth preset bubbles
+    overlay.querySelectorAll(".preset-avatar-bubble").forEach(el => {
+      el.onclick = () => {
+        const idx = Number(el.dataset.idx);
+        const preset = youthPresets[idx];
+        if (preset && typeof window.generateYoungAthletePortraitUri === 'function') {
+          const uri = window.generateYoungAthletePortraitUri(preset);
+          sm.avatarUrl = uri;
+          if (state.player) state.player.avatarUrl = uri;
+          if (typeof window.save === "function") window.save();
+          if (typeof window.render === "function") window.render();
+        }
+        overlay.remove();
+      };
+    });
 
     overlay.querySelector("#btnConfirmAvatar").onclick = () => {
       const urlInput = overlay.querySelector("#inputAvatarUrl").value.trim();
@@ -6429,35 +7013,33 @@
         reader.onload = (e) => {
           const img = new Image();
           img.onload = () => {
-            // Reduz via Canvas para 64x64px com qualidade 0.60 para pesar menos de 2KB
             const canvas = document.createElement("canvas");
             canvas.width = 64;
             canvas.height = 64;
             const ctx = canvas.getContext("2d");
             ctx.drawImage(img, 0, 0, 64, 64);
             const compressed = canvas.toDataURL("image/jpeg", 0.6);
-            if (window.AFM_SocialMedia?.updateProfileAvatar) {
-              window.AFM_SocialMedia.updateProfileAvatar(compressed, state);
-              if (typeof window.save === "function") window.save();
-              if (typeof window.render === "function") window.render();
-            }
+            sm.avatarUrl = compressed;
+            if (state.player) state.player.avatarUrl = compressed;
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
             overlay.remove();
           };
           img.src = e.target.result;
         };
         reader.readAsDataURL(file);
       } else if (urlInput) {
-        if (window.AFM_SocialMedia?.updateProfileAvatar) {
-          window.AFM_SocialMedia.updateProfileAvatar(urlInput, state);
-          if (typeof window.save === "function") window.save();
-          if (typeof window.render === "function") window.render();
-        }
+        sm.avatarUrl = urlInput;
+        if (state.player) state.player.avatarUrl = urlInput;
+        if (typeof window.save === "function") window.save();
+        if (typeof window.render === "function") window.render();
         overlay.remove();
       } else {
         overlay.remove();
       }
     };
   }
+
 
   function showPostMatchSummaryModal(param1, param2, onContinue) {
     const report = param2 && typeof param2 === "object" ? param2 : param1;
@@ -7735,40 +8317,206 @@
       };
     });
 
+        // =========================================================================
+    // EVENTOS DO FOOTGRAM: PUBLICAÇÃO, PUBLIPOST, STORIES, LIVE, DMs, FEED
+    // =========================================================================
+
     const btnPubSocial = document.getElementById("btnPublishFootGramPost");
     if (btnPubSocial) {
       btnPubSocial.onclick = () => {
-        const tplId = window._afmSocialSelectedTemplateId || "tpl_training_1";
-        if (window.AFM_SocialMedia?.publishUserPost) {
-          const res = window.AFM_SocialMedia.publishUserPost(tplId, s);
-          if (!res.ok) {
-            showCustomAlert({
-              title: "Aviso do FootGram",
-              message: res.error,
-              type: "warning",
-            });
-            return;
-          }
-          if (typeof window.save === "function") window.save();
-          if (typeof window.render === "function") window.render();
+        const customCaptionInput = document.getElementById("footgramCustomCaptionInput");
+        const customCaption = customCaptionInput ? customCaptionInput.value.trim() : "";
+        const chkAttach = document.getElementById("chkAttachMatchPhoto");
+        const attachMatchCard = chkAttach ? chkAttach.checked : false;
 
-          if (res.isBadPhase && res.followersDelta < 0) {
-            showCustomAlert({
-              title: "Repercussão Negativa no FootGram ⚠️",
-              message: `A torcida criticou duramente sua postagem de folga/ostentação após uma partida abaixo da média!\n\nVocê perdeu ${Math.abs(res.followersDelta)} seguidores e sofreu cobranças nos comentários. Menos foto e mais futebol!`,
-              type: "danger",
-            });
-          } else {
-            showCustomAlert({
-              title: "Publicado com Sucesso! 🚀",
-              message: `Sua mensagem está no ar no FootGram!\n\nEngajamento imediato: +${res.followersDelta} seguidores conquistados! Confira os comentários e reações no feed.`,
-              type: "success",
-            });
-          }
+        const tplId = window._afmSocialSelectedTemplateId || "tpl_training_1";
+
+        let res = null;
+        if (window.AFM_SocialMedia?.publishUserPost) {
+          res = window.AFM_SocialMedia.publishUserPost(tplId, s, { customCaption, attachMatchCard });
+        } else if (pState?.socialMedia) {
+          const sm = pState.socialMedia;
+          const text = customCaption || "Treino concluído com sucesso!";
+          sm.feedPosts.unshift({
+            id: "post_user_" + Date.now(),
+            authorName: athlete.name || "Você",
+            handle: sm.handle,
+            avatarUrl: sm.avatarUrl,
+            isUser: true,
+            isVerified: Boolean(sm.isVerified),
+            text: text,
+            likes: 120,
+            reposts: 15,
+            timestamp: "Agora mesmo",
+            comments: []
+          });
+          sm.postedToday = true;
+          sm.followers = (sm.followers || 1000) + 150;
+          res = { ok: true, followersDelta: 150 };
         }
+
+        if (res && !res.ok) {
+          showCustomAlert({
+            title: "Aviso do FootGram",
+            message: res.error,
+            type: "warning",
+          });
+          return;
+        }
+
+        if (res && res.isBadPhase && res.followersDelta < 0) {
+          showCustomAlert({
+            title: "Repercussão Negativa no FootGram ⚠️",
+            message: "A torcida criticou sua postagem após partida abaixo da média! Você perdeu " + Math.abs(res.followersDelta) + " seguidores. Foco total em campo!",
+            type: "danger",
+          });
+        } else {
+          showCustomAlert({
+            title: "Publicado com Sucesso! 🚀",
+            message: "Sua mensagem está no ar no FootGram! +" + (res?.followersDelta || 180) + " seguidores conquistados. Confira as reações no feed!",
+            type: "success",
+          });
+        }
+
+        if (typeof window.save === "function") window.save();
+        if (typeof window.render === "function") window.render();
       };
     }
 
+    // Publipost Patrocinado (Monetização Real)
+    const btnPubli = document.getElementById("btnPublishSponsoredPost");
+    if (btnPubli) {
+      btnPubli.onclick = () => {
+        const sm = pState?.socialMedia;
+        const offer = sm?.activeBrandOffer;
+        if (!offer || offer.claimed) return;
+
+        const payout = Number(offer.payout) || 800;
+
+        // Credita valor direto na conta pessoal do jogador
+        if (typeof window.AFM_Lifestyle?.addPlayerTransaction === 'function') {
+          window.AFM_Lifestyle.addPlayerTransaction(pState, payout, "Publipost: " + offer.brand, "income");
+        } else {
+          pState.personalBank = (pState.personalBank || 0) + payout;
+          if (pState.lifestyle) pState.lifestyle.cash = pState.personalBank;
+          if (s.player) s.player.cash = pState.personalBank;
+          pState.cash = pState.personalBank;
+        }
+
+        // Atualiza badge de dinheiro na topbar
+        const cashBadge = document.querySelector(".sm-badge-cash .sm-res-val");
+        if (cashBadge) {
+          cashBadge.textContent = "R$ " + Math.round(pState.personalBank || pState.lifestyle?.cash || 0).toLocaleString("pt-BR");
+        }
+
+        // Adiciona post patrocinado no feed
+        const athleteName = athlete.name || pState.athleteName || "Você";
+        sm.feedPosts.unshift({
+          id: "post_publi_" + Date.now(),
+          authorName: athleteName,
+          handle: sm.handle,
+          avatarUrl: sm.avatarUrl,
+          avatarText: athleteName.slice(0, 2).toUpperCase(),
+          avatarBg: "#a855f7",
+          isVerified: Boolean(sm.isVerified),
+          isUser: true,
+          isSponsored: true,
+          createdDate: s.date || s.currentDate || "2026-01-01",
+          timestamp: "Agora mesmo",
+          category: "sponsored",
+          categoryLabel: "💰 Campanha Patrocinada",
+          text: offer.caption,
+          likes: Math.round((sm.followers || 1000) * 0.18 + 45),
+          reposts: Math.round((sm.followers || 1000) * 0.04 + 10),
+          userLiked: false,
+          comments: [
+            {
+              id: "c_publi_1",
+              authorName: offer.brand,
+              handle: "@" + offer.brand.split(" ")[0].toLowerCase(),
+              isVerified: true,
+              text: "Orgulho em ter esse craque no nosso time de atletas! Voa alto! 🚀",
+              likes: 42
+            }
+          ]
+        });
+
+        offer.claimed = true;
+        sm.followers = (sm.followers || 1000) + 180;
+        sm.fame = Math.min(100, (sm.fame || 10) + 2);
+        sm.celebrityLevel = sm.fame;
+
+        showCustomAlert({
+          title: "Publi Patrocinada no Ar! 💸",
+          message: "Parceria com " + offer.brand + " publicada! R$ " + payout.toLocaleString("pt-BR") + " creditados na sua Conta Pessoal.",
+          type: "success"
+        });
+
+        if (typeof window.save === "function") window.save();
+        if (typeof window.render === "function") window.render();
+      };
+    }
+
+    // Botões de Stories
+    document.querySelectorAll(".btn-story-bubble").forEach(btn => {
+      btn.onclick = () => {
+        const storyId = btn.dataset.storyId;
+        openStoryViewerModal(storyId, s);
+      };
+    });
+
+    // Trending Tags (clique adiciona ao input de legenda)
+    document.querySelectorAll(".btn-trending-tag").forEach(btn => {
+      btn.onclick = () => {
+        const tag = btn.dataset.tag;
+        const input = document.getElementById("footgramCustomCaptionInput");
+        if (input && tag) {
+          if (!input.value.includes(tag)) {
+            input.value = (input.value ? input.value + " " : "") + tag;
+          }
+          input.focus();
+        }
+      };
+    });
+
+    // Abrir Live com a Torcida
+    const btnLive = document.getElementById("btnStartFootGramLive");
+    if (btnLive) {
+      btnLive.onclick = () => openFootGramLiveModal(s);
+    }
+
+    // Abrir DMs
+    const btnDMs = document.getElementById("btnOpenFootGramDMs");
+    if (btnDMs) {
+      btnDMs.onclick = () => openFootGramDMsModal(s);
+    }
+
+    // Abrir Gestão de Crise
+    const btnCrisis = document.getElementById("btnOpenCrisisManagement");
+    if (btnCrisis) {
+      btnCrisis.onclick = () => openCrisisManagementModal(s);
+    }
+
+    // Categorias de post
+    document.querySelectorAll(".btn-social-cat-pill").forEach((btn) => {
+      btn.onclick = () => {
+        window._afmSocialActiveCategory = btn.dataset.cat || "training";
+        window._afmSocialSelectedTemplateId = null;
+        if (typeof window.render === "function") window.render();
+      };
+    });
+
+    // Cards de template
+    document.querySelectorAll(".social-template-card").forEach((card) => {
+      card.onclick = () => {
+        window._afmSocialSelectedTemplateId = card.dataset.templateId;
+        const input = document.getElementById("footgramCustomCaptionInput");
+        if (input) input.value = "";
+        if (typeof window.render === "function") window.render();
+      };
+    });
+
+    // Filtros de feed
     document.querySelectorAll(".btn-social-filter-pill").forEach((btn) => {
       btn.onclick = () => {
         window._afmSocialActiveFilter = btn.dataset.filter || "all";
@@ -7776,6 +8524,7 @@
       };
     });
 
+    // Curtir Post
     document.querySelectorAll(".btn-social-like").forEach((btn) => {
       btn.onclick = () => {
         const pid = btn.dataset.postId;
@@ -7787,30 +8536,85 @@
       };
     });
 
+    // Expandir comentários
     document.querySelectorAll(".btn-toggle-comments").forEach((btn) => {
       btn.onclick = () => {
         const pid = btn.dataset.postId;
         if (pid) {
-          window._afmSocialExpandedComments[pid] =
-            !window._afmSocialExpandedComments[pid];
+          window._afmSocialExpandedComments = window._afmSocialExpandedComments || {};
+          window._afmSocialExpandedComments[pid] = !window._afmSocialExpandedComments[pid];
           if (typeof window.render === "function") window.render();
         }
       };
     });
 
+    // Enviar comentário público
     document.querySelectorAll(".btn-submit-comment").forEach((btn) => {
       btn.onclick = () => {
         const pid = btn.dataset.postId;
-        const input = document.querySelector(
-          `.input-add-comment[data-post-id="${pid}"]`,
-        );
-        if (
-          input &&
-          input.value.trim() &&
-          window.AFM_SocialMedia?.addCommentToPost
-        ) {
-          window.AFM_SocialMedia.addCommentToPost(pid, input.value.trim(), s);
+        const input = document.querySelector('.input-add-comment[data-post-id="' + pid + '"]');
+        if (input && input.value.trim()) {
+          const text = input.value.trim();
+          if (window.AFM_SocialMedia?.addCommentToPost) {
+            window.AFM_SocialMedia.addCommentToPost(pid, text, s);
+          } else {
+            const post = pState.socialMedia?.feedPosts?.find(p => p.id === pid);
+            if (post) {
+              post.comments = post.comments || [];
+              post.comments.push({
+                id: "c_user_" + Date.now(),
+                authorName: athlete.name || "Você",
+                handle: pState.socialMedia.handle,
+                text: text,
+                likes: 1
+              });
+            }
+          }
           input.value = "";
+          if (typeof window.save === "function") window.save();
+          if (typeof window.render === "function") window.render();
+        }
+      };
+    });
+
+    // Curtir Comentário
+    document.querySelectorAll(".btn-like-comment").forEach((btn) => {
+      btn.onclick = () => {
+        const pid = btn.dataset.postId;
+        const cid = btn.dataset.commId;
+        const post = pState?.socialMedia?.feedPosts?.find(p => p.id === pid);
+        const comm = post?.comments?.find(c => c.id === cid);
+        if (comm) {
+          comm.userLiked = !comm.userLiked;
+          comm.likes = (comm.likes || 1) + (comm.userLiked ? 1 : -1);
+          if (typeof window.save === "function") window.save();
+          if (typeof window.render === "function") window.render();
+        }
+      };
+    });
+
+    // Responder Comentário
+    document.querySelectorAll(".btn-reply-comment").forEach((btn) => {
+      btn.onclick = () => {
+        const pid = btn.dataset.postId;
+        const author = btn.dataset.author || "amigo";
+        const post = pState?.socialMedia?.feedPosts?.find(p => p.id === pid);
+        if (post) {
+          post.comments = post.comments || [];
+          post.comments.push({
+            id: "c_reply_" + Date.now(),
+            authorName: athlete.name || "Você",
+            handle: pState.socialMedia.handle,
+            text: "@" + author + " Obrigado pelo carinho e torcida! Seguimos juntos! 👊⚽",
+            likes: 3,
+            timestamp: "Agora"
+          });
+          pState.socialMedia.followers = (pState.socialMedia.followers || 1000) + 25;
+          showCustomAlert({
+            title: "Resposta Publicada! 💬",
+            message: "Você respondeu ao comentário de " + author + "! +25 seguidores e química fortalecida.",
+            type: "success"
+          });
           if (typeof window.save === "function") window.save();
           if (typeof window.render === "function") window.render();
         }
@@ -7825,6 +8629,7 @@
 
     const btnOpenAvatar = document.getElementById("btnOpenChangeAvatarModal");
     if (btnOpenAvatar) btnOpenAvatar.onclick = () => openChangeAvatarModal(s);
+
 
     // Marcar Todas as Propostas como Lidas
     const bMarkAll = document.getElementById("btnMarkAllOffersRead");

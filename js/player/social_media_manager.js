@@ -13,6 +13,224 @@
 (function(window){
   'use strict';
 
+  // =========================================================================
+  // CONTROLADOR CENTRAL: FOOTGRAM (AFM_FOOTGRAM)
+  // =========================================================================
+  const AFM_FOOTGRAM = {
+    CELEBRITY_TIERS: [
+      { minFollowers: 0, title: "Promessa da Base", badge: "🌱", mult: 1.0, color: "#94a3b8" },
+      { minFollowers: 5000, title: "Destaque Regional", badge: "⚡", mult: 1.4, color: "#38bdf8" },
+      { minFollowers: 25000, title: "Queridinho da Torcida", badge: "🔥", mult: 2.0, color: "#f59e0b" },
+      { minFollowers: 50000, title: "Craque Verificado", badge: "✓", mult: 3.0, color: "#38bdf8" },
+      { minFollowers: 250000, title: "Estrela Nacional", badge: "⭐", mult: 4.5, color: "#eab308" },
+      { minFollowers: 1000000, title: "Ícone Mundial", badge: "👑", mult: 7.0, color: "#a855f7" }
+    ],
+
+    TRENDING_TAGS: [
+      { tag: "#FocoTotal", topic: "Preparação Física", bonusMult: 1.35 },
+      { tag: "#PromessaDaBase", topic: "Jovens Talentos", bonusMult: 1.50 },
+      { tag: "#DiaDeJogo", topic: "Rodada da Liga", bonusMult: 1.40 },
+      { tag: "#HereWeGo", topic: "Janela & Rumores", bonusMult: 1.60 }
+    ],
+
+    STORIES_CATALOG: [
+      { id: "story_user", name: "Seu Story", icon: "📸", isUser: true, title: "Bastidores do Treino", desc: "Foco total na preparação diária. A dedicação no CT não para! ⚽💪", time: "Há 1h" },
+      { id: "story_club", name: "Clube Oficial", icon: "🏟️", isClub: true, title: "Aquecimento no CT", desc: "Elenco concentrado e pronto para o próximo desafio pelo campeonato! 🔵⚪", time: "Há 2h" },
+      { id: "story_coach", name: "Treinador", icon: "📋", isCoach: true, title: "Quadro Tático", desc: "Bola parada decide jogo. Atenção redobrada nas marcações e foco nas instruções!", time: "Há 3h" },
+      { id: "story_fabrizio", name: "Fabrizio Romano", icon: "🚨", isPress: true, title: "Radar do Mercado", desc: "Clubes europeus e nacionais monitorando de perto os jovens talentos brasileiros para 2026. Here we go!", time: "Há 4h" },
+      { id: "story_squad", name: "Vestiário & Elenco", icon: "👥", isSquad: true, title: "Resenha do Grupo", desc: "Ambiente leve, pagode rolando e grupo unido antes da decisão! 🔥🙌", time: "Há 5h" }
+    ],
+
+    ensureSocialData: function(state = window.state) {
+      if (!state) return null;
+      const pState = state.playerCareerState || state.player || (typeof getCareerState === 'function' ? getCareerState(state) : null);
+      if (!pState) return null;
+      const athlete = (typeof getControlledPlayer === 'function' ? getControlledPlayer(state) : null) || state.player || (state.squad || []).find(p => p.id === state.controlledPlayerId || p.isControlled || p.isControlledAthlete) || { name: pState.athleteName || 'Atleta', ovr: pState.athleteOvr || 35 };
+
+      pState.socialMedia = pState.socialMedia || pState.social || {};
+      pState.social = pState.socialMedia;
+      if (state.player) {
+        state.player.social = pState.socialMedia;
+        state.player.socialMedia = pState.socialMedia;
+      }
+      const s = pState.socialMedia;
+
+      const gameDate = String(state.currentDate || state.date || "2026-01-01").slice(0, 10);
+      const athleteName = athlete.name || pState.athleteName || "Atleta";
+      const clubName = state.club?.name || state.club || "Clube Oficial";
+
+      s.handle = s.handle || ('@' + String(athleteName).toLowerCase().replace(/[^a-z0-9]/g, '') + '10');
+      s.bio = s.bio || ('⚽ Atleta profissional do ' + clubName + ' | Foco no objetivo! 🇧🇷');
+      s.followers = Math.max(100, Number(s.followers ?? 1012));
+      s.fame = Math.max(1, Math.min(100, Number(s.fame ?? s.celebrityLevel ?? 10)));
+      s.celebrityLevel = s.fame;
+      s.verified = s.followers >= 50000 || Boolean(s.verified || s.isVerified);
+      s.isVerified = s.verified;
+      s.activeCategory = s.activeCategory || "training";
+      s.feedFilter = s.feedFilter || "all";
+      s.selectedDraftIndex = Number(s.selectedDraftIndex || 0);
+      s.feedPosts = Array.isArray(s.feedPosts) ? s.feedPosts : (Array.isArray(s.posts) ? s.posts : []);
+      s.posts = s.feedPosts;
+      s.dms = Array.isArray(s.dms) ? s.dms : [];
+      s.stories = Array.isArray(s.stories) ? s.stories : [];
+      s.storyReactions = s.storyReactions || {};
+
+      // Sincronia estrita com a DATA DO CALENDÁRIO DO JOGO
+      if (s.lastPostGameDate !== gameDate) {
+        s.lastPostGameDate = gameDate;
+        s.lastPostDate = gameDate;
+        s.postsTodayCount = 0;
+        s.postedToday = false;
+        s.storyReactions = {};
+      }
+      s.maxPostsPerDay = 1;
+
+      // Reseta Live mensal
+      const gameMonth = gameDate.slice(0, 7);
+      if (s.lastLiveMonth !== gameMonth) {
+        s.lastLiveMonth = gameMonth;
+        s.liveDoneThisMonth = false;
+      }
+
+      // Garante foto válida sem círculo vazio
+      if (!s.avatarUrl && typeof window.generateYoungAthletePortraitUri === "function") {
+        s.avatarUrl = window.generateYoungAthletePortraitUri(athlete);
+      }
+      if (state.player && !state.player.avatarUrl) {
+        state.player.avatarUrl = s.avatarUrl;
+      }
+
+      // Gera publi paga disponível conforme fama
+      const estValue = this.calculatePostValue(athlete, s);
+      if (!s.activeBrandOffer || s.activeBrandOffer.expiresDate !== gameDate) {
+        const brands = ["Volt Sports ⚡", "Arena Energy 🔋", "Chuteira Pro X 👟", "Isotônico Max 💧", "GameZone BR 🎮"];
+        const brandIndex = (s.feedPosts.length + (pState.level || 1)) % brands.length;
+        const brand = brands[brandIndex];
+        s.activeBrandOffer = {
+          id: "publi_" + gameDate,
+          brand: brand,
+          payout: Math.round(estValue * 0.85),
+          caption: "Parceria fechada com " + brand + "! Equipamento pronto para os próximos desafios em campo. 🚀🔥 #Publi #" + brand.split(" ")[0],
+          claimed: false,
+          expiresDate: gameDate
+        };
+      }
+
+      // Semeia DMs caso vazio
+      if (s.dms.length === 0) {
+        s.dms.push(
+          {
+            id: "dm_coach",
+            sender: "Prof. Treinador (" + clubName + ")",
+            role: "Comissão Técnica",
+            avatar: "👨‍🏫",
+            unread: true,
+            answered: false,
+            text: "Continue focado nos treinamentos e mantenha a disciplina dentro e fora de campo. Quem corre no CT tem minutos no jogo!",
+            replies: [
+              { id: "r1", label: "🤝 Pode deixar, professor! Foco 100% no campo.", effect: "trust", response: "É exatamente essa maturidade que o grupo precisa!" },
+              { id: "r2", label: "🔥 Estou pronto e confiante para ser titular!", effect: "fame", response: "Gosto da gana, mas prove com regularidade em campo." }
+            ]
+          },
+          {
+            id: "dm_agent",
+            sender: "Mesa do Empresário",
+            role: "Representação & Carreira",
+            avatar: "💼",
+            unread: true,
+            answered: false,
+            text: "Estamos monitorando o engajamento do seu FootGram. Bons desempenhos e maior base de seguidores atraem patrocínios e sondagens de gigantes!",
+            replies: [
+              { id: "r1", label: "📈 Vou engajar mais com a torcida e parceiros!", effect: "followers", response: "Perfeito! Já estou prospectando novas marcas para você." }
+            ]
+          },
+          {
+            id: "dm_fan",
+            sender: "@torcida_jovem_oficial",
+            role: "Torcida Organizada",
+            avatar: "🏟️",
+            unread: false,
+            answered: false,
+            text: "Pra cima da próxima partida, garoto! A torcida tá contigo!",
+            replies: [
+              { id: "r1", label: "👊 Tamo junto família! Honrarei a camisa!", effect: "followers", response: "É isso aí craque! Vamos lotar o estádio!" }
+            ]
+          }
+        );
+      }
+
+      // Semeia posts iniciais do mundo se feed vazio
+      if (s.feedPosts.length === 0) {
+        const clubHandle = "@" + clubName.toLowerCase().replace(/[^a-z0-9]/g, "") + "_oficial";
+        s.feedPosts.push(
+          {
+            id: "seed_club_1",
+            authorType: "club",
+            authorName: clubName + " Oficial",
+            handle: clubHandle,
+            isVerified: true,
+            avatarText: clubName.slice(0, 2).toUpperCase(),
+            avatarBg: "#0284c7",
+            createdDate: gameDate,
+            timestamp: "Hoje",
+            text: "Bem-vindos ao FootGram oficial do " + clubName + "! Temporada 2026 começou com tudo e o elenco está 100% focado nos treinamentos diários. Vamos juntos! 🙌⚽ #Avante",
+            likes: 1718,
+            userLiked: false,
+            reposts: 254,
+            comments: [
+              { id: "c1", authorName: "Torcedor Fiel", handle: "@torcedor_fiel", text: "Esse ano o título vem! Pra cima!", likes: 14, replied: false },
+              { id: "c2", authorName: "Olheiro Brasil", handle: "@olheiro_br", text: "Olho na base, tem garoto bom subindo!", likes: 9, replied: false }
+            ]
+          },
+          {
+            id: "seed_fabrizio_1",
+            authorType: "press",
+            authorName: "Fabrizio Romano",
+            handle: "@FabrizioTransfer",
+            isVerified: true,
+            avatarText: "FR",
+            avatarBg: "#0284c7",
+            createdDate: gameDate,
+            timestamp: "Hoje",
+            text: "🚨 Olheiros de clubes nacionais e internacionais estão de olho nas categorias de base e jovens talentos do futebol brasileiro para 2026. Grandes histórias começam agora! Here we go! 🇧🇷✨ #HereWeGo",
+            likes: 10307,
+            userLiked: false,
+            reposts: 1720,
+            comments: [
+              { id: "c3", authorName: "Futebol News", handle: "@futebol_news", text: "A base brasileira nunca decepciona!", likes: 45, replied: false }
+            ]
+          }
+        );
+      }
+
+      return s;
+    },
+
+    getCelebrityTier: function(followers) {
+      let current = this.CELEBRITY_TIERS[0];
+      for (const tier of this.CELEBRITY_TIERS) {
+        if (followers >= tier.minFollowers) current = tier;
+      }
+      return current;
+    },
+
+    calculatePostValue: function(athlete, sm) {
+      const followers = Number(sm?.followers || 1012);
+      const fame = Number(sm?.fame || sm?.celebrityLevel || 10);
+      const ovr = Number(athlete?.ovr || athlete?.overall || 36);
+      const tier = this.getCelebrityTier(followers);
+      return Math.round((850 + followers * 0.04 + fame * 12 + ovr * 3) * tier.mult);
+    },
+
+    formatCompactNumber: function(num) {
+      if (num >= 1000000) return (num / 1000000).toFixed(1).replace(".0", "") + "M";
+      if (num >= 1000) return (num / 1000).toFixed(1).replace(".0", "") + "K";
+      return String(num || 0);
+    }
+  };
+
+  window.AFM_FOOTGRAM = AFM_FOOTGRAM;
+
   // Catálogo de perfis influentes do mundo esportivo (Imprensa, Clubes e Craques)
   const WORLD_PROFILES = [
     {
@@ -169,10 +387,12 @@
         bio: `⚽ Atleta profissional do ${clubName} | Foco no objetivo! 🇧🇷`,
         avatarUrl: null,
         isVerified: false,
+        verified: false,
         followers: Math.floor(800 + Math.random() * 800), // Começa humilde (800 - 1.600)
         celebrityLevel: 10,
         postedToday: false,
         lastPostDate: null,
+        postsTodayCount: 0,
         totalPostsCount: 0,
         feedPosts: []
       };
@@ -184,7 +404,20 @@
     sm.followers = Math.max(100, Number(sm.followers) || 1000);
     sm.celebrityLevel = Math.max(1, Math.min(100, Number(sm.celebrityLevel) || 10));
     sm.postedToday = Boolean(sm.postedToday);
+    sm.postsTodayCount = Number(sm.postsTodayCount) || 0;
+    sm.verified = Boolean(sm.verified || sm.isVerified || sm.followers >= 50000);
+    sm.isVerified = sm.verified;
     sm.feedPosts = Array.isArray(sm.feedPosts) ? sm.feedPosts : [];
+
+    // Sincronia de data pelo calendário do jogo
+    const curGameDate = String(gameState.date || gameState.currentDate || "2026-01-01").slice(0, 10);
+    if (sm.lastPostGameDate !== curGameDate) {
+      sm.lastPostGameDate = curGameDate;
+      if (sm.lastPostDate && sm.lastPostDate !== curGameDate) {
+        sm.postedToday = false;
+        sm.postsTodayCount = 0;
+      }
+    }
     // shortcut: saves antigos guardam apenas a data do último post pessoal; os novos persistem a data individual.
     sm.feedPosts.forEach(post => {
       if(post?.isUser && !post.createdDate && sm.lastPostDate) post.createdDate = sm.lastPostDate;
@@ -510,18 +743,28 @@
   }
 
   // Executa a publicação do post escolhido pelo jogador
-  function publishUserPost(templateId, gameState){
-    if(templateId && typeof templateId === 'object' && templateId.playerCareerState){
-      const tmp = templateId;
-      templateId = gameState;
-      gameState = tmp;
+  function publishUserPost(a, b, c, d){
+    let gameState, templateId, options;
+    if(a && typeof a === 'object' && a.playerCareerState){
+      gameState = a;
+      templateId = b;
+      options = (c && typeof c === 'object') ? c : ((d && typeof d === 'object') ? d : {});
+    } else if(b && typeof b === 'object' && b.playerCareerState){
+      gameState = b;
+      templateId = a;
+      options = (c && typeof c === 'object') ? c : ((d && typeof d === 'object') ? d : {});
+    } else {
+      templateId = a;
+      gameState = b;
+      options = c;
     }
     if(!gameState || !gameState.playerCareerState) return { ok: false, success: false, error: 'Carreira inválida.' };
     const pState = gameState.playerCareerState;
     const sm = initSocialMediaState(gameState);
 
     if(sm.postedToday){
-      return { ok: false, success: false, error: 'Você já fez uma publicação hoje! O engajamento está rolando. Avance o dia no calendário para uma nova publicação.' };
+      const limitMsg = 'Você já fez 1 publicação hoje! O engajamento está rolando. Avance o dia no calendário para uma nova publicação.';
+      return { ok: false, success: false, error: limitMsg, message: limitMsg };
     }
 
     const templates = getDynamicPostTemplates(gameState);
@@ -545,6 +788,8 @@
     // Gera comentários contextuais por IA
     const comments = generateSimulatedAIComments(tpl, gameState);
 
+    const chosenText = (options && options.customCaption) ? String(options.customCaption).trim() : tpl.text;
+
     // Cria o card do post
     const newPost = {
       id: 'post_user_' + Date.now(),
@@ -553,17 +798,26 @@
       avatarUrl: getAthleteAvatar(gameState),
       avatarText: athleteName.slice(0, 2).toUpperCase(),
       avatarBg: '#10b981',
-      isVerified: Boolean(sm.isVerified),
+      isVerified: Boolean(sm.verified || sm.isVerified),
       isUser: true,
       createdDate: gameState.date || gameState.currentDate || null,
       timestamp: 'Agora mesmo',
       category: tpl.category,
       categoryLabel: tpl.categoryLabel,
-      text: tpl.text,
+      text: chosenText,
+      caption: chosenText,
+      tag: (options && options.tag) ? options.tag : null,
       likes: likes,
       reposts: reposts,
       userLiked: false,
-      comments: comments
+      comments: comments,
+      matchCard: (options && options.attachMatchCard && pState.matchRatingHistory && pState.matchRatingHistory[0])
+        ? {
+            opponent: pState.matchRatingHistory[0].opponent || "Adversário",
+            score: pState.matchRatingHistory[0].resultText || pState.matchRatingHistory[0].score || "1 x 0",
+            rating: pState.matchRatingHistory[0].rating || 7.0
+          }
+        : null
     };
 
     // Previne estouro de memória: limita rigidamente aos últimos 25 posts no feed
@@ -573,7 +827,9 @@
     }
 
     sm.postedToday = true;
-    sm.lastPostDate = gameState.date;
+    sm.lastPostDate = String(gameState.date || gameState.currentDate || "2026-01-01").slice(0, 10);
+    sm.lastPostGameDate = sm.lastPostDate;
+    sm.postsTodayCount = 1;
     sm.totalPostsCount = (sm.totalPostsCount || 0) + 1;
 
     // Aplica ganhos/perdas de seguidores e relacionamentos
@@ -1082,6 +1338,7 @@
   // EXPORTAÇÃO GLOBAL
   // =========================================================================
   window.AFM_SocialMedia = {
+    AFM_FOOTGRAM,
     WORLD_PROFILES,
     initSocialMediaState,
     getFollowerTier,
