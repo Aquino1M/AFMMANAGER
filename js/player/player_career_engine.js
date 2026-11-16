@@ -2293,14 +2293,37 @@
     s.coachName = "Treinador da IA";
     s.manager = s.coachName;
 
-    // Sincroniza view para a Central do Atleta e força reconstrução da casca
-    window.view = "player_hub";
+    // Sincroniza view para a Central do Atleta e força desmontagem de containers residuais do criador
+    if (typeof window.setSetupViewMode === "function") window.setSetupViewMode(null);
+    else if (typeof window !== "undefined") window.setupViewMode = null;
+    if (typeof window !== "undefined") window.__afmAutoSavePaused = false;
+
+    if (typeof document !== "undefined") {
+      const creatorWrapper = document.querySelector(".afm-player-creator-wrapper");
+      if (creatorWrapper) {
+        if (typeof creatorWrapper.remove === "function") creatorWrapper.remove();
+        else if (creatorWrapper.parentNode && typeof creatorWrapper.parentNode.removeChild === "function") {
+          creatorWrapper.parentNode.removeChild(creatorWrapper);
+        }
+      }
+    }
+
+    s.gameMode = "player";
+    s.isPlayerMode = true;
+    s.view = "player_hub";
+    if (typeof window !== "undefined") window.view = "player_hub";
+
     const appEl =
-      document.getElementById("app") || document.querySelector("#app");
-    if (appEl && appEl.dataset) delete appEl.dataset.renderedGameMode;
-    if (typeof window.save === "function")
+      typeof document !== "undefined"
+        ? (document.getElementById("app") || document.querySelector("#app"))
+        : null;
+    if (appEl && appEl.dataset) {
+      delete appEl.dataset.renderedGameMode;
+      delete appEl.dataset.renderedView;
+    }
+    if (typeof window !== "undefined" && typeof window.save === "function")
       window.save({ allowModeReplace: true });
-    if (typeof window.render === "function") window.render();
+    if (typeof window !== "undefined" && typeof window.render === "function") window.render();
 
     return s;
   }

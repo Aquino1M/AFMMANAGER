@@ -15319,9 +15319,15 @@ function newCareer(data){
     window.state = state;
   }
   if(!data.deferInitialSave) save({ allowModeReplace: true });
-  view = 'central';
-  toast(`Carreira iniciada com o ${club.name}! Caixa inicial: ${fmtMoney(budget)}.`);
-  render();
+  if(data && (data.gameMode === 'player' || data.isPlayerMode)){
+    view = 'player_hub';
+    state.gameMode = 'player';
+    state.isPlayerMode = true;
+  } else {
+    view = 'central';
+    toast(`Carreira iniciada com o ${club.name}! Caixa inicial: ${fmtMoney(budget)}.`);
+  }
+  if(!data.deferInitialSave) render();
 }
 
 function repairLegacyNationalCompetitionRosters(s){

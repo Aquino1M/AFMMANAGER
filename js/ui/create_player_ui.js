@@ -239,63 +239,90 @@
   };
 
   // =========================================================================
-  // 2. GERADOR DINÂMICO DE RETRATOS DE JOVENS ATLETAS (ANTI-404 DATA URI)
+  // 2. GERADOR DINÂMICO DE RETRATOS DE JOVENS ATLETAS (ANTI-404 DATA URI & PRINT 1:1 DO BONECO 3D)
   // =========================================================================
   window.generateYoungAthletePortraitUri = function(draft) {
     const cat = window.AFM_CREATOR_CATALOG?.appearanceOptions;
     if(!cat) return "";
-    const skinToneId = draft?.skinTone || draft?.appearance?.skinTone || "skin_3";
-    const hairColorId = draft?.hairColor || draft?.appearance?.hairColor || "hc_black";
-    const eyeColorId = draft?.eyeColor || draft?.appearance?.eyeColor || "ec_dark";
-    const hairStyleId = draft?.hairStyle || draft?.appearance?.hairStyle || "fade_quiff";
+    const skinToneId = draft?.appearance?.skinTone || draft?.skinTone || "skin_3";
+    const hairColorId = draft?.appearance?.hairColor || draft?.hairColor || "hc_black";
+    const eyeColorId = draft?.appearance?.eyeColor || draft?.eyeColor || "ec_dark";
+    const hairStyleId = draft?.appearance?.hairStyle || draft?.hairStyle || "fade_quiff";
+    const faceId = draft?.appearance?.face || draft?.face || "smile";
+    const num = draft?.shirtNumber || 10;
 
-    const skin = cat.skinTones.find(s => s.id === skinToneId || s.hex === skinToneId) || cat.skinTones[2];
+    const skinObj = cat.skinTones.find(s => s.id === skinToneId || s.hex === skinToneId) || cat.skinTones[2];
+    const skin = skinObj.hex;
+    const skinShadow = skinObj.shadow;
+
     const hairCol = cat.hairColors.find(h => h.id === hairColorId || h.hex === hairColorId) || cat.hairColors[0];
+    const hair = hairCol.hex;
+
     const eyeCol = cat.eyeColors.find(e => e.id === eyeColorId || e.hex === eyeColorId) || cat.eyeColors[0];
+    const eyeColor = eyeCol.hex;
 
-    const isBald = hairStyleId === "bald" || hairStyleId === "Careca";
-    const isAfro = hairStyleId === "afro" || hairStyleId === "Black power";
-    const isDreads = hairStyleId === "dreads" || hairStyleId === "Tranças";
-    const isMohawk = hairStyleId === "mohawk" || hairStyleId === "Moicano";
-    const isSamurai = hairStyleId === "samurai" || hairStyleId === "Coque Samurai";
-    const isBuzzcut = hairStyleId === "buzzcut" || hairStyleId === "Raspado";
-    const isMediumFlow = hairStyleId === "medium_flow" || hairStyleId === "Franja" || hairStyleId === "Liso Médio";
+    const browD = faceId === 'fierce' ? "M 103 49 L 113 46 M 127 46 L 137 49"
+      : faceId === 'cocky' ? "M 103 45 L 113 47 M 127 48 L 137 45"
+      : "M 103 46 Q 108 44 113 46 M 127 46 Q 132 44 137 46";
 
-    let hairSvg = "";
-    if(!isBald){
-      if(isAfro){
-        hairSvg = `<circle cx="50" cy="30" r="26" fill="${hairCol.hex}"/><circle cx="32" cy="36" r="12" fill="${hairCol.hex}"/><circle cx="68" cy="36" r="12" fill="${hairCol.hex}"/>`;
-      } else if(isDreads){
-        hairSvg = `<path d="M26 36 Q50 10 74 36 L78 64 L71 64 L68 42 L32 42 L29 64 L22 64 Z" fill="${hairCol.hex}"/>`;
-      } else if(isMohawk){
-        hairSvg = `<path d="M44 14 Q50 8 56 14 L56 36 L44 36 Z" fill="${hairCol.hex}"/><path d="M42 22 L58 22" stroke="${hairCol.hex}" stroke-width="4"/>`;
-      } else if(isSamurai){
-        hairSvg = `<path d="M30 36 Q50 16 70 36 Z" fill="${hairCol.hex}"/><circle cx="50" cy="14" r="8" fill="${hairCol.hex}"/><rect x="47" y="18" width="6" height="3" fill="#ef4444"/>`;
-      } else if(isBuzzcut){
-        hairSvg = `<path d="M30 38 Q50 18 70 38 Z" fill="${hairCol.hex}" opacity="0.85"/>`;
-      } else if(isMediumFlow){
-        hairSvg = `<path d="M26 38 Q50 12 74 38 L76 56 Q66 50 50 50 Q34 50 24 56 Z" fill="${hairCol.hex}"/>`;
-      } else { // Topete Degradê / fade_quiff / padrão
-        hairSvg = `<path d="M27 38 Q50 12 73 38 Q68 24 50 24 Q32 24 27 38 Z" fill="${hairCol.hex}"/>`;
-      }
+    const mouthSvg = faceId === 'focused' ? `<line x1="113" y1="67" x2="127" y2="67" stroke="#3f2314" stroke-width="2.4" stroke-linecap="round" />`
+      : faceId === 'cocky' ? `<path d="M 113 68 Q 120 70 128 64" fill="none" stroke="#3f2314" stroke-width="2.4" stroke-linecap="round" />`
+      : faceId === 'fierce' ? `<rect x="113" y="65" width="14" height="4.5" rx="2" fill="#ffffff" stroke="#3f2314" stroke-width="1.2" /><line x1="113" y1="67.2" x2="127" y2="67.2" stroke="#3f2314" stroke-width="0.9" />`
+      : `<path d="M 112 65 Q 120 73 128 65" fill="none" stroke="#3f2314" stroke-width="2.4" stroke-linecap="round" />`;
+
+    let hairGeoSvg = "";
+    if(hairStyleId === 'bald' || hairStyleId === 'Careca'){
+      hairGeoSvg = `<path d="M 95 44 Q 120 30 145 44" fill="none" stroke="${skinShadow}" stroke-width="1.2"/>`;
+    } else if(hairStyleId === 'buzzcut' || hairStyleId === 'Raspado'){
+      hairGeoSvg = `<path d="M 94 44 Q 120 30 146 44 L 146 36 Q 120 26 94 36 Z" fill="${hair}" stroke="#334155" stroke-width="1.2" opacity="0.9"/>`;
+    } else if(hairStyleId === 'afro' || hairStyleId === 'Black power'){
+      hairGeoSvg = `<path d="M 94 48 Q 88 38 96 30 Q 102 18 120 18 Q 138 18 144 30 Q 152 38 146 48 Z" fill="${hair}" stroke="#1e1b4b" stroke-width="1.5"/><circle cx="100" cy="30" r="8" fill="${hair}"/><circle cx="120" cy="22" r="9" fill="${hair}"/><circle cx="140" cy="30" r="8" fill="${hair}"/>`;
+    } else if(hairStyleId === 'dreads' || hairStyleId === 'Tranças'){
+      hairGeoSvg = `<rect x="94" y="34" width="52" height="12" rx="4" fill="${hair}"/><line x1="102" y1="34" x2="102" y2="58" stroke="${hair}" stroke-width="3" stroke-linecap="round"/><line x1="111" y1="34" x2="111" y2="60" stroke="${hair}" stroke-width="3" stroke-linecap="round"/><line x1="120" y1="34" x2="120" y2="62" stroke="${hair}" stroke-width="3" stroke-linecap="round"/><line x1="129" y1="34" x2="129" y2="60" stroke="${hair}" stroke-width="3" stroke-linecap="round"/><line x1="138" y1="34" x2="138" y2="58" stroke="${hair}" stroke-width="3" stroke-linecap="round"/>`;
+    } else if(hairStyleId === 'mohawk' || hairStyleId === 'Moicano'){
+      hairGeoSvg = `<rect x="111" y="20" width="18" height="26" rx="4" fill="${hair}"/><polygon points="111,38 120,16 129,38" fill="${hair}"/>`;
+    } else if(hairStyleId === 'samurai' || hairStyleId === 'Coque Samurai'){
+      hairGeoSvg = `<rect x="94" y="36" width="52" height="16" rx="4" fill="${hair}"/><circle cx="120" cy="22" r="9" fill="${hair}"/><rect x="116" y="27" width="8" height="4" rx="2" fill="#ef4444"/>`;
+    } else if(hairStyleId === 'medium_flow' || hairStyleId === 'Liso Médio' || hairStyleId === 'Franja'){
+      hairGeoSvg = `<rect x="94" y="34" width="52" height="10" rx="3" fill="${hair}"/><path d="M 94 36 Q 110 32 136 44 L 132 54 Q 108 42 94 46 Z" fill="${hair}"/>`;
+    } else { // fade_quiff / Topete Degradê / padrão
+      hairGeoSvg = `<rect x="94" y="36" width="52" height="10" rx="4" fill="${hair}"/><path d="M 95 38 Q 112 18 135 24 Q 146 28 145 38 Z" fill="${hair}" stroke="#1f2937" stroke-width="0.8"/><path d="M 102 38 Q 120 24 138 32" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>`;
     }
 
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    // SVG 1:1 idêntico ao busto do boneco 3D interativo
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="75 14 90 90" width="100" height="100">
       <defs>
-        <linearGradient id="bg_${skin.id}" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#0f172a"/>
+        <linearGradient id="headshotBg_${skinObj.id}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#090d16"/>
         </linearGradient>
       </defs>
-      <rect width="100" height="100" fill="url(#bg_${skin.id})"/>
-      <circle cx="50" cy="88" r="32" fill="#7c3aed"/>
-      <path d="M36 68 L64 68 L68 100 L32 100 Z" fill="#ffffff"/>
-      <rect x="43" y="56" width="14" height="16" rx="5" fill="${skin.shadow}"/>
-      ${hairSvg}
-      <ellipse cx="50" cy="43" rx="18" ry="21" fill="${skin.hex}"/>
-      <circle cx="43" cy="42" r="2.3" fill="${eyeCol.hex}"/>
-      <circle cx="57" cy="42" r="2.3" fill="${eyeCol.hex}"/>
-      <path d="M39 37 Q43 35 47 37 M53 37 Q57 35 61 37" stroke="${hairCol.hex}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-      <path d="M45 52 Q50 56 55 52" stroke="${skin.shadow}" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <rect x="75" y="14" width="90" height="90" fill="url(#headshotBg_${skinObj.id})"/>
+      <circle cx="120" cy="50" r="42" fill="#7c3aed" opacity="0.18"/>
+      <!-- OMBROS E CAMISA -->
+      <polygon points="75,88 165,88 152,115 88,115" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+      <circle cx="102" cy="98" r="4.5" fill="#7c3aed"/>
+      <text x="136" y="101" font-family="'Segoe UI',sans-serif" font-size="8.5" font-weight="900" fill="#7c3aed" text-anchor="middle">${num}</text>
+      <!-- PESCOÇO -->
+      <rect x="112" y="82" width="16" height="8" rx="2" fill="${skinShadow}"/>
+      <!-- CABEÇA -->
+      <rect x="95" y="38" width="50" height="46" rx="6" fill="${skin}" stroke="${skinShadow}" stroke-width="1.2" />
+      <!-- OLHOS REALISTAS -->
+      <ellipse cx="108" cy="54" rx="4.5" ry="4" fill="#ffffff" stroke="#334155" stroke-width="0.8" />
+      <circle cx="108" cy="54" r="2.8" fill="${eyeColor}" />
+      <circle cx="108" cy="54" r="1.5" fill="#000000" />
+      <circle cx="109.2" cy="52.8" r="0.8" fill="#ffffff" />
+      <ellipse cx="132" cy="54" rx="4.5" ry="4" fill="#ffffff" stroke="#334155" stroke-width="0.8" />
+      <circle cx="132" cy="54" r="2.8" fill="${eyeColor}" />
+      <circle cx="132" cy="54" r="1.5" fill="#000000" />
+      <circle cx="133.2" cy="52.8" r="0.8" fill="#ffffff" />
+      <!-- SOBRANCELHAS -->
+      <path d="${browD}" fill="none" stroke="${hair}" stroke-width="2.2" stroke-linecap="round" />
+      <!-- NARIZ -->
+      <path d="M 120 54 L 118 60 L 122 60" fill="none" stroke="${skinShadow}" stroke-width="1.2" stroke-linecap="round" opacity="0.8" />
+      <!-- BOCA -->
+      ${mouthSvg}
+      <!-- CABELO -->
+      ${hairGeoSvg}
     </svg>`;
     return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
   };
@@ -368,7 +395,7 @@
     return cat[uf] || cat['DF'] || ["Brasília"];
   }
 
-  // Helper para obter modificadores de atributos do biotipo
+  // Helper para obter modificadores de atributos e vantagens/desvantagens do biotipo (Porte + Altura)
   function getBodyModifiers(height, build){
     const bio = window.AFM_CREATOR_CATALOG.biotypes[build] || window.AFM_CREATOR_CATALOG.biotypes['Médio'];
     let deltaPace = 0, deltaShooting = 0, deltaPassing = 0, deltaDribbling = 0, deltaDefending = 0, deltaPhysical = 0;
@@ -379,12 +406,24 @@
     } else {
       deltaPassing = 2; deltaDribbling = 2;
     }
-    // Altura: >1.85 penaliza aceleração e bonifica cabeceio/físico
-    if(height >= 1.88){
+
+    const h = Number(height) || 1.78;
+    const pros = [...(bio.pros || [])];
+    const cons = [...(bio.cons || [])];
+
+    // Influência dinâmica da altura nos atributos e vantagens/desvantagens em tempo real
+    if(h >= 1.88){
       deltaPhysical += 2; deltaPace -= 2;
-    } else if(height <= 1.70){
+      pros.push(`Estatura Alta (${h.toFixed(2)}m): +2 Físico & Jogo Aéreo`);
+      cons.push(`Estatura Alta (${h.toFixed(2)}m): -2 Aceleração curta`);
+    } else if(h <= 1.70){
       deltaPace += 2; deltaDribbling += 1; deltaPhysical -= 1;
+      pros.push(`Baixo Centro de Gravidade (${h.toFixed(2)}m): +2 Arranque & +1 Drible`);
+      cons.push(`Baixa Estatura (${h.toFixed(2)}m): -1 Força e Jogo Aéreo`);
+    } else {
+      pros.push(`Estatura Equilibrada (${h.toFixed(2)}m): Mobilidade e impulsão estáveis`);
     }
+
     return {
       pace: deltaPace,
       shooting: deltaShooting,
@@ -392,9 +431,33 @@
       dribbling: deltaDribbling,
       defending: deltaDefending,
       physical: deltaPhysical,
-      pros: bio.pros,
-      cons: bio.cons
+      pros,
+      cons
     };
+  }
+
+  // Helper para renderizar o bloco reativo de Vantagens e Desvantagens do Biotipo
+  function renderBiotypeProsConsHtml(mods, build, height){
+    const h = Number(height) || 1.78;
+    return `
+      <div style="font-size:11px;font-weight:900;color:#94a3b8;letter-spacing:0.5px;margin-bottom:10px">
+        VANTAGENS E DESVANTAGENS DESTE BIOTIPO (${build} · ${h.toFixed(2)}m):
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <div style="font-size:11px;font-weight:800;color:#4ade80;margin-bottom:6px">✅ Vantagens</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            ${mods.pros.map(p => `<div style="font-size:11px;color:#e2e8f0">• ${p}</div>`).join('')}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:800;color:#f87171;margin-bottom:6px">⚠️ Desvantagens</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            ${mods.cons.map(c => `<div style="font-size:11px;color:#e2e8f0">• ${c}</div>`).join('')}
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   // Retorna os atributos totais atuais do atleta
@@ -471,11 +534,11 @@
     const bioScale = window.AFM_CREATOR_CATALOG.biotypes[bodyBuild] || { scaleX: 1.0, scaleY: 1.0 };
     const heightScaleY = Math.max(0.86, Math.min(1.15, height / 1.78));
 
-    // Determina o ângulo de visão pelo Yaw
+    // Determina o ângulo de visão estritamente Frente ou Costas (3/4 e 360 livre removidos)
     const normalizedYaw = ((yaw % 360) + 360) % 360; // 0 a 360
-    const isBack = normalizedYaw > 120 && normalizedYaw < 240;
-    const isThreeQuarter = (normalizedYaw >= 40 && normalizedYaw <= 120) || (normalizedYaw >= 240 && normalizedYaw <= 320);
-    const flipSide = normalizedYaw > 180 ? -1 : 1;
+    const isBack = wizardState.cameraAngle === 'back' || (normalizedYaw > 90 && normalizedYaw < 270);
+    const isThreeQuarter = false;
+    const flipSide = 1;
 
     // Dimensões do corpo
     const baseW = 54 * bioScale.scaleX;
@@ -678,19 +741,18 @@
                 <span id="previewPosLabel" style="font-size:10px;font-weight:800;color:#94a3b8;letter-spacing:0.5px">${wizardState.position} · OVERALL INICIAL</span>
               </div>
               <div style="display:flex;gap:4px;background:#1e293b;padding:3px;border-radius:8px">
-                <button type="button" id="btnCamFront" class="btn-cam ${wizardState.cameraAngle==='front'?'active':''}" style="font-size:11px;font-weight:800;padding:4px 8px;border-radius:6px;border:none;cursor:pointer;background:${wizardState.cameraAngle==='front'?'#7c3aed':'transparent'};color:#fff">Frente</button>
-                <button type="button" id="btnCamThreeQuarter" class="btn-cam ${wizardState.cameraAngle==='threeQuarter'?'active':''}" style="font-size:11px;font-weight:800;padding:4px 8px;border-radius:6px;border:none;cursor:pointer;background:${wizardState.cameraAngle==='threeQuarter'?'#7c3aed':'transparent'};color:#fff">3/4</button>
-                <button type="button" id="btnCamBack" class="btn-cam ${wizardState.cameraAngle==='back'?'active':''}" style="font-size:11px;font-weight:800;padding:4px 8px;border-radius:6px;border:none;cursor:pointer;background:${wizardState.cameraAngle==='back'?'#7c3aed':'transparent'};color:#fff">Costas</button>
+                <button type="button" id="btnCamFront" class="btn-cam ${wizardState.cameraAngle==='front'?'active':''}" style="font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:${wizardState.cameraAngle==='front'?'#7c3aed':'transparent'};color:#fff">Frente</button>
+                <button type="button" id="btnCamBack" class="btn-cam ${wizardState.cameraAngle==='back'?'active':''}" style="font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:${wizardState.cameraAngle==='back'?'#7c3aed':'transparent'};color:#fff">Costas</button>
               </div>
             </div>
 
-            <!-- CONTAINER DO BONECO 3D COM ARRASTE 360° -->
-            <div id="afmDynamicAvatarContainer" class="afm-avatar-stage" style="width:260px;height:300px;position:relative;display:flex;align-items:center;justify-content:center;margin:6px 0;overflow:hidden;border-radius:16px;touch-action:none;cursor:grab">
+            <!-- CONTAINER DO BONECO 3D (FRENTE E COSTAS) -->
+            <div id="afmDynamicAvatarContainer" class="afm-avatar-stage" style="width:260px;height:300px;position:relative;display:flex;align-items:center;justify-content:center;margin:6px 0;overflow:hidden;border-radius:16px;touch-action:none;cursor:default">
               ${renderInteractive3DMannequinSvg()}
             </div>
 
             <div style="font-size:10px;color:#94a3b8;margin-bottom:12px;text-align:center">
-              🔄 Arraste para girar 360°. Rosto, olhos, cabelo, porte e chuteiras atualizam em tempo real.
+              Visualização 3D do atleta (Frente e Costas). Atualização em tempo real.
             </div>
 
             <!-- CARD COMPACTO DO ATLETA NO RODAPÉ -->
@@ -1063,25 +1125,9 @@
           </div>
         </div>
 
-        <!-- BOX DE VANTAGENS E DESVANTAGENS (2 COLUNAS PREENCHIDAS) -->
-        <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;margin-bottom:20px">
-          <div style="font-size:11px;font-weight:900;color:#94a3b8;letter-spacing:0.5px;margin-bottom:10px">
-            VANTAGENS E DESVANTAGENS DESTE BIOTIPO:
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-            <div>
-              <div style="font-size:11px;font-weight:800;color:#4ade80;margin-bottom:6px">✅ Vantagens</div>
-              <div style="display:flex;flex-direction:column;gap:4px">
-                ${mods.pros.map(p => `<div style="font-size:11px;color:#e2e8f0">• ${p}</div>`).join('')}
-              </div>
-            </div>
-            <div>
-              <div style="font-size:11px;font-weight:800;color:#f87171;margin-bottom:6px">⚠️ Desvantagens</div>
-              <div style="display:flex;flex-direction:column;gap:4px">
-                ${mods.cons.map(c => `<div style="font-size:11px;color:#e2e8f0">• ${c}</div>`).join('')}
-              </div>
-            </div>
-          </div>
+        <!-- BOX DE VANTAGENS E DESVANTAGENS (ATUALIZAÇÃO EM TEMPO REAL) -->
+        <div id="biotypeProsConsBox" style="background:#1e293b;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;margin-bottom:20px">
+          ${renderBiotypeProsConsHtml(mods, wizardState.bodyBuild, wizardState.height)}
         </div>
 
         <!-- MEIÃO E ACESSÓRIOS -->
@@ -1487,6 +1533,9 @@
       const ovrEl = root.querySelector('#previewOvrNumber');
       if(ovrEl) ovrEl.textContent = getCurrentOverall();
 
+      const posEl = root.querySelector('#previewPosLabel');
+      if(posEl) posEl.textContent = `${wizardState.position} · OVERALL INICIAL`;
+
       const nickOrName = wizardState.nickname || wizardState.name || 'Seu Jogador';
       const fName = root.querySelector('#cardFooterName');
       if(fName) fName.innerHTML = `${esc(nickOrName.toUpperCase())} <span style="color:#a855f7">#${wizardState.shirtNumber}</span>`;
@@ -1495,59 +1544,18 @@
 
       const fPhoto = root.querySelector('#cardFooterPhoto');
       if(fPhoto){
-        if(wizardState.appearance.avatarMode === 'mirror'){
-          fPhoto.src = window.generateYoungAthletePortraitUri(wizardState);
-        } else if(wizardState.appearance.customFacePhoto){
+        if(wizardState.appearance.customFacePhoto){
           fPhoto.src = wizardState.appearance.customFacePhoto;
-        } else if(wizardState.appearance.facePhoto){
-          fPhoto.src = wizardState.appearance.facePhoto;
+        } else {
+          fPhoto.src = window.generateYoungAthletePortraitUri(wizardState);
         }
       }
-    }
 
-    // Interatividade de Arraste 360° com mouse / touch
-    const stageEl = root.querySelector('#afmDynamicAvatarContainer');
-    if(stageEl){
-      let isDragging = false;
-      let startX = 0;
-      let startYaw = 0;
-
-      const onStart = (clientX) => {
-        isDragging = true;
-        startX = clientX;
-        startYaw = wizardState.rotationYaw || 0;
-        stageEl.style.cursor = 'grabbing';
-      };
-
-      const onMove = (clientX) => {
-        if(!isDragging) return;
-        const deltaX = clientX - startX;
-        let newYaw = startYaw + (deltaX * 0.9);
-        newYaw = ((newYaw % 360) + 360) % 360;
-        wizardState.rotationYaw = newYaw;
-        updateAvatarOnly();
-      };
-
-      const onEnd = () => {
-        if(!isDragging) return;
-        isDragging = false;
-        stageEl.style.cursor = 'grab';
-      };
-
-      if(typeof stageEl.addEventListener === 'function'){
-        stageEl.addEventListener('mousedown', (e) => onStart(e.clientX));
-        stageEl.addEventListener('touchstart', (e) => {
-          if(e.touches?.[0]) onStart(e.touches[0].clientX);
-        }, { passive: true });
-      }
-      if(typeof window.addEventListener === 'function'){
-        window.addEventListener('mousemove', (e) => onMove(e.clientX));
-        window.addEventListener('mouseup', onEnd);
-        window.addEventListener('touchmove', (e) => {
-          if(e.touches?.[0]) onMove(e.touches[0].clientX);
-        }, { passive: true });
-        window.addEventListener('touchend', onEnd);
-      }
+      // Atualiza botões de câmera Frente / Costas
+      const bFront = root.querySelector('#btnCamFront');
+      if(bFront) bFront.style.background = wizardState.cameraAngle === 'front' ? '#7c3aed' : 'transparent';
+      const bBack = root.querySelector('#btnCamBack');
+      if(bBack) bBack.style.background = wizardState.cameraAngle === 'back' ? '#7c3aed' : 'transparent';
     }
 
     // Delegação de cliques na raiz
@@ -1564,23 +1572,17 @@
         }
       }
 
-      // Toggle Câmera (Frente, 3/4, Costas)
+      // Toggle Câmera (Frente e Costas estritos)
       if(e.target.closest('#btnCamFront')){
         wizardState.cameraAngle = 'front';
         wizardState.rotationYaw = 0;
-        renderCreatePlayerScreen(container, activeUser);
-        return;
-      }
-      if(e.target.closest('#btnCamThreeQuarter')){
-        wizardState.cameraAngle = 'threeQuarter';
-        wizardState.rotationYaw = 45;
-        renderCreatePlayerScreen(container, activeUser);
+        updateAvatarOnly();
         return;
       }
       if(e.target.closest('#btnCamBack')){
         wizardState.cameraAngle = 'back';
         wizardState.rotationYaw = 180;
-        renderCreatePlayerScreen(container, activeUser);
+        updateAvatarOnly();
         return;
       }
 
@@ -1876,6 +1878,11 @@
           wizardState.height = Number(e.target.value);
           const valEl = root.querySelector('#wizHeightVal');
           if(valEl) valEl.textContent = `${wizardState.height.toFixed(2)} M`;
+          const prosConsBox = root.querySelector('#biotypeProsConsBox');
+          if(prosConsBox){
+            const m = getBodyModifiers(wizardState.height, wizardState.bodyBuild);
+            prosConsBox.innerHTML = renderBiotypeProsConsHtml(m, wizardState.bodyBuild, wizardState.height);
+          }
           updateAvatarOnly();
         }
       });
@@ -1974,7 +1981,8 @@
     wizardState.shirtNumber = Math.floor(Math.random() * 20) + 1;
     wizardState.stateUf = rUf;
     wizardState.city = rCity;
-    wizardState.clubName = rCity;
+    const rClubs = getRealClubsForPeneira('varzea_local', rUf, rCity);
+    wizardState.clubName = rClubs[0] || 'Brasília';
     wizardState.position = rPos;
     wizardState.archetype = rArch;
     wizardState.bodyBuild = rBuild;
@@ -1986,6 +1994,117 @@
     wizardState.appearance.face = rFace;
     wizardState.appearance.avatarMode = 'mirror';
     wizardState.appearance.facePhoto = window.generateYoungAthletePortraitUri(wizardState);
+  }
+
+  // =========================================================================
+  // CATÁLOGO OFICIAL DE CLUBES REAIS POR UF (ANTI-NOMES FAKES)
+  // =========================================================================
+  const REAL_CLUBS_BY_UF = {
+    DF: ["Brasília", "Gama", "Brasiliense", "Capital-DF", "Ceilândia", "Real Brasília", "Samambaia", "Paranoá", "Sobradinho", "Planaltina", "Santa Maria"],
+    SP: ["Corinthians", "Palmeiras", "São Paulo", "Santos", "Red Bull Bragantino", "Ponte Preta", "Guarani", "Novorizontino", "Mirassol", "Botafogo-SP"],
+    RJ: ["Flamengo", "Fluminense", "Vasco da Gama", "Botafogo", "Volta Redonda", "Nova Iguaçu", "Boavista", "Bangu", "Madureira", "Portuguesa-RJ"],
+    MG: ["Atlético-MG", "Cruzeiro", "América-MG", "Athletic Club", "Tombense", "Pouso Alegre", "Villa Nova", "Ipatinga"],
+    RS: ["Grêmio", "Internacional", "Juventude", "Caxias", "Brasil de Pelotas", "Ypiranga", "São José-RS", "Novo Hamburgo"],
+    PR: ["Athletico-PR", "Coritiba", "Operário-PR", "Maringá", "Londrina", "FC Cascavel", "Cianorte"],
+    SC: ["Criciúma", "Chapecoense", "Avaí", "Figueirense", "Brusque", "Marcílio Dias", "Joinville"],
+    BA: ["Bahia", "Vitória", "Jacuipense", "Juazeirense", "Barcelona de Ilhéus", "Jequié"],
+    CE: ["Fortaleza", "Ceará", "Ferroviário", "Iguatu", "Floresta"],
+    GO: ["Goiás", "Atlético-GO", "Vila Nova", "Aparecidense", "Anápolis"],
+    PE: ["Sport Recife", "Náutico", "Santa Cruz", "Retrô", "Central de Caruaru"],
+    AL: ["CRB", "CSA", "ASA", "Murici"],
+    AM: ["Amazonas FC", "Manaus FC", "Nacional-AM"],
+    PA: ["Paysandu", "Remo", "Águia de Marabá", "Tuna Luso"],
+    MT: ["Cuiabá", "Mixto", "Luverdense", "União Rondonópolis"],
+    MS: ["Operário-MS", "Comercial-MS", "Costa Rica-MS"],
+    ES: ["Rio Branco-ES", "Desportiva Ferroviária", "Real Noroeste", "Vitória-ES"],
+    MA: ["Sampaio Corrêa", "Moto Club", "Maranhão"],
+    PB: ["Botafogo-PB", "Treze", "Campinense", "Sousa"],
+    PI: ["Ríver-PI", "Altos", "Fluminense-PI"],
+    RN: ["ABC", "América-RN", "Potiguar"],
+    SE: ["Confiança", "Sergipe", "Itabaiana"],
+    AC: ["Rio Branco-AC", "Atlético Acreano", "Galvez"],
+    AP: ["Trem", "Santos-AP", "Ypiranga-AP"],
+    RO: ["Porto Velho", "Ji-Paraná", "Real Ariquemes"],
+    RR: ["São Raimundo-RR", "GAS", "Baré"],
+    TO: ["Palmas", "Tocantinópolis", "Gurupi"]
+  };
+
+  // Helper para obter exatamente 3 clubes REAIS e existentes no ecossistema do jogo
+  function getRealClubsForPeneira(tierId, stateUf, city){
+    const uf = (stateUf || 'DF').toUpperCase();
+
+    // 1. Peneira de Gigantes (Série A)
+    if(tierId === 'elite_serie_a'){
+      const elitePool = [
+        "Flamengo", "Palmeiras", "São Paulo", "Corinthians", "Atlético-MG",
+        "Cruzeiro", "Grêmio", "Internacional", "Vasco da Gama", "Fluminense",
+        "Botafogo", "Bahia", "Fortaleza", "Santos"
+      ];
+      return elitePool.slice(0, 3);
+    }
+
+    // 2. Peneira Nacional (Série B / C)
+    if(tierId === 'nacional_cb'){
+      const nationalPool = [
+        "Sport", "Goiás", "América-MG", "Ceará", "Coritiba",
+        "Vila Nova", "Novorizontino", "Avaí", "CRB", "Paysandu",
+        "Chapecoense", "Ponte Preta", "Mirassol", "Athletic Club"
+      ];
+      return nationalPool.slice(0, 3);
+    }
+
+    // 3. Peneira de Várzea ou Estadual Federada: 100% CLUBES REAIS DO ESTADO
+    let candidateClubs = [];
+
+    // Prioridade 1: AFM_ESTADUAIS_DATA
+    if(typeof window !== 'undefined' && Array.isArray(window.AFM_ESTADUAIS_DATA)){
+      const est = window.AFM_ESTADUAIS_DATA.find(e => 
+        (e.id && e.id.toLowerCase().endsWith(uf.toLowerCase())) ||
+        (e.state && e.state.toUpperCase().includes(uf)) ||
+        (e.name && e.name.toUpperCase().includes(uf))
+      );
+      if(est && Array.isArray(est.clubs) && est.clubs.length > 0){
+        candidateClubs = [...est.clubs];
+      }
+    }
+
+    // Prioridade 2: BASE_CLUBS
+    if(typeof window !== 'undefined' && Array.isArray(window.BASE_CLUBS)){
+      const baseFiltered = window.BASE_CLUBS.filter(c => {
+        if(!c.name) return false;
+        if(c.competition && c.competition.toUpperCase().includes(uf)) return true;
+        if(uf === 'DF' && c.competition === 'Campeonato Candango') return true;
+        return false;
+      }).map(c => c.name);
+      if(baseFiltered.length > 0){
+        candidateClubs = [...candidateClubs, ...baseFiltered];
+      }
+    }
+
+    // Prioridade 3: Catálogo estrito por UF
+    if(REAL_CLUBS_BY_UF[uf]){
+      candidateClubs = [...candidateClubs, ...REAL_CLUBS_BY_UF[uf]];
+    }
+
+    // Deduplicação sem corromper
+    candidateClubs = [...new Set(candidateClubs)];
+
+    // Se o nome da cidade coincidir com algum clube (ex: Brasília), coloca-o como titular
+    if(city){
+      const matchIdx = candidateClubs.findIndex(c => c.toLowerCase() === city.toLowerCase() || c.toLowerCase().includes(city.toLowerCase()));
+      if(matchIdx > 0){
+        const matched = candidateClubs.splice(matchIdx, 1)[0];
+        candidateClubs.unshift(matched);
+      }
+    }
+
+    if(candidateClubs.length >= 3){
+      return candidateClubs.slice(0, 3);
+    }
+
+    const fallbackClubs = ["Brasília", "Gama", "Brasiliense", "Capital-DF", "Ceilândia"];
+    const merged = [...new Set([...candidateClubs, ...fallbackClubs])];
+    return merged.slice(0, 3);
   }
 
   // =========================================================================
@@ -2003,9 +2122,9 @@
 
     const approved = scoutRating >= currentTier.minRating;
 
-    // Clubes da região ou do nível
-    const ufsClubs = [wizardState.city, `${wizardState.city} FC`, `${wizardState.stateUf} Esporte Clube`, "Operário Regional", "União Metropolitana"];
-    const selectedClub = ufsClubs[0];
+    // Obtém 3 CLUBES 100% REAIS DO JOGO (Sem nomes fakes inventados)
+    const realClubs = getRealClubsForPeneira(currentTier.id, wizardState.stateUf, wizardState.city);
+    const selectedClub = realClubs[0] || 'Brasília';
 
     // Faixa salarial base da peneira
     let wageOffered = 1000;
@@ -2015,9 +2134,9 @@
     else if(currentTier.id === 'elite_serie_a') wageOffered = Math.round(6000 + Math.random() * 6000);
 
     const clubOffers = [
-      { clubName: ufsClubs[0], wageOffered: wageOffered, division: currentTier.subtitle, squadRole: scoutRating >= 7.5 ? "Titular em Potencial" : "Reserva Imediato" },
-      { clubName: ufsClubs[1], wageOffered: Math.round(wageOffered * 0.95), division: currentTier.subtitle, squadRole: "Reserva Imediato" },
-      { clubName: ufsClubs[2], wageOffered: Math.round(wageOffered * 1.05), division: currentTier.subtitle, squadRole: "Plantel de Aspirantes" }
+      { clubName: realClubs[0], wageOffered: wageOffered, division: currentTier.subtitle, squadRole: scoutRating >= 7.5 ? "Titular em Potencial" : "Reserva Imediato" },
+      { clubName: realClubs[1] || realClubs[0], wageOffered: Math.round(wageOffered * 0.95), division: currentTier.subtitle, squadRole: "Reserva Imediato" },
+      { clubName: realClubs[2] || realClubs[0], wageOffered: Math.round(wageOffered * 1.05), division: currentTier.subtitle, squadRole: "Plantel de Aspirantes" }
     ];
 
     const result = {
@@ -2029,7 +2148,7 @@
       division: currentTier.subtitle,
       squadRole: scoutRating >= 7.5 ? "Titular em Potencial" : "Reserva Imediato",
       scoutComment: approved
-        ? `Excelente imposição técnica para um aspirante de 15 anos. Demonstrou personalidade sob pressão e tem tudo para assinar seu primeiro vínculo profissional!`
+        ? `Excelente imposição técnica para um aspirante de 15 anos. Demonstrou personalidade sob pressão e tem tudo para assinar seu primeiro vínculo profissional com o ${selectedClub}!`
         : `O atleta demonstrou lampejos de qualidade, mas a intensidade competitiva desta seletiva exige maior maturidade física. Recomendamos tentar uma peneira de base regional.`,
       clubOffers
     };
@@ -2041,7 +2160,7 @@
   }
 
   // =========================================================================
-  // 7. FINALIZAR CRIAÇÃO E INICIAR MODO JOGADOR
+  // 7. FINALIZAR CRIAÇÃO E INICIAR MODO JOGADOR (TRANSIÇÃO GARANTIDA)
   // =========================================================================
   function finalizePlayerCareerStart(container){
     const eng = window.AFM_PlayerEngine || window.AFM_PlayerCareerEngine;
@@ -2092,8 +2211,48 @@
         }
       };
 
+      // 1. Limpa o modo de setup para que o render() do jogo prossiga normalmente
+      if (typeof window.setSetupViewMode === 'function') window.setSetupViewMode(null);
+      else window.setupViewMode = null;
+      if (typeof setupViewMode !== 'undefined') setupViewMode = null;
+      window.__afmAutoSavePaused = false;
+
+      // 2. Remove o container do criador do DOM imediatamente
+      const appEl = container || document.querySelector('#app');
+      if (appEl) {
+        const creatorEl = appEl.querySelector('.afm-player-creator-wrapper');
+        if (creatorEl) {
+          if (typeof creatorEl.remove === 'function') creatorEl.remove();
+          else if (creatorEl.parentNode && typeof creatorEl.parentNode.removeChild === 'function') {
+            creatorEl.parentNode.removeChild(creatorEl);
+          }
+        }
+        appEl.innerHTML = '';
+        if (appEl.dataset) {
+          delete appEl.dataset.renderedGameMode;
+          delete appEl.dataset.renderedView;
+        }
+      }
+
+      // 3. Executa a criação no motor do atleta
       const targetSlot = (typeof window.setupSelectedSlot === 'number') ? window.setupSelectedSlot : 2;
       eng.startPlayerCareer(playerData, targetSlot);
+
+      // 4. Garante sincronia das views e renderização da Central do Atleta
+      if (window.state) {
+        window.state.gameMode = 'player';
+        window.state.isPlayerMode = true;
+        window.state.view = 'player_hub';
+      }
+      window.view = 'player_hub';
+
+      if (typeof window.render === 'function') {
+        window.render();
+      }
+
+      if (typeof window.toast === 'function') {
+        window.toast(`⭐ Contrato assinado com o ${playerData.clubName}! Bem-vindo ao futebol profissional!`);
+      }
     } catch(err){
       console.error('Erro ao iniciar carreira jogador:', err);
       if(typeof window.toast === 'function') window.toast(`❌ ${err.message || 'Falha ao iniciar carreira.'}`);
