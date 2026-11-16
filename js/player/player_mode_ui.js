@@ -505,8 +505,8 @@
    * Retorna HTML específico para abas do jogador ou null para permitir que o motor padrão renderize
    * páginas como Notícias, Calendário, Classificação da Liga (temporada) e Configurações.
    */
-  function renderPage(view) {
-    const s = window.state;
+  function renderPage(view, explicitState = null) {
+    const s = explicitState || window.state;
     const isPlayer = typeof window.isPlayerCareerActive === 'function'
       ? window.isPlayerCareerActive(s)
       : Boolean(s && (s.gameMode === "player" || s.playerCareerState));
@@ -5352,32 +5352,30 @@
   // =========================================================================
   // ABA 7: SELEÇÃO NACIONAL (DATA FIFA, CONVOCAÇÕES & RANKING NO PAÍS)
   // =========================================================================
+    // =========================================================================
+  // ABA 7: SELEÇÃO NACIONAL (DATA FIFA, CONVOCAÇÃO, ELENCO & ELIMINATÓRIAS)
+  // =========================================================================
   function renderPlayerNationalTeam(state) {
     const pState = getCareerState(state);
     const athlete = getControlledPlayer(state) || { ovr: 45, wage: 1500, attributes: {} };
     if (!pState || !athlete)
-      return `<div class="card" style="padding:20px;color:#fff">Carregando dados da seleção...</div>`;
+      return '<div class="card" style="padding:20px;color:#fff">Carregando dados da seleção...</div>';
+
+    // 1. Sincroniza e assegura contexto oficial da seleção nacional
+    if (window.AFM_NATIONAL_TEAM && typeof window.AFM_NATIONAL_TEAM.ensureNationalData === "function") {
+      window.AFM_NATIONAL_TEAM.ensureNationalData(state);
+    }
 
     const userCountry =
       window.AFM_NationalTeams?.normalizeNationality(
-        pState.nationality || "Brasil",
+        pState.nationality || athlete.nationality || "Brasil",
       ) || "Brasil";
+
     const callUp = window.AFM_NationalTeams?.generateNationalTeamCallUp(
       userCountry,
       state,
     ) || {
       country: userCountry,
-      meta: {
-        flag: "🇧🇷",
-        name: "Brasil",
-        primaryColor: "#facc15",
-        secondaryColor: "#15803d",
-        federation: "CBF",
-        confed: "CONMEBOL",
-        coach: "Dorival Júnior",
-        stadium: "Maracanã",
-        rivals: ["Argentina", "Uruguai"],
-      },
       bySector: { GK: [], DEF: [], MID: [], ATT: [] },
       rankings: { GK: [], DEF: [], MID: [], ATT: [] },
       isUserCalledUp: false,
@@ -5386,33 +5384,32 @@
       userStatusColor: "#ef4444",
     };
 
-    const meta = callUp.meta || {
-      flag: "🇧🇷",
-      name: "Brasil",
-      primaryColor: "#facc15",
-      secondaryColor: "#15803d",
-      federation: "CBF",
-      confed: "CONMEBOL",
-      coach: "Dorival Júnior",
-      stadium: "Maracanã",
-      rivals: ["Argentina", "Uruguai"],
-    };
+    const natHelper = window.AFM_NATIONAL_TEAM || {};
+    const meta = Object.assign(
+      {},
+      window.AFM_NationalTeams?.getNationalTeamMeta?.(userCountry) || {},
+      natHelper.getNationProfile ? natHelper.getNationProfile(userCountry) : {},
+      callUp.meta || {}
+    );
+
     const intStats = pState.internationalStats || {
-      caps: 0,
-      goals: 0,
-      assists: 0,
+      caps: Number(pState.internationalCaps || 0),
+      goals: Number(pState.internationalGoals || 0),
+      assists: Number(pState.internationalAssists || 0),
       cleanSheets: 0,
       mvpCount: 0,
-      titles: [],
+      titles: Array.isArray(pState.internationalTrophies) ? pState.internationalTrophies : [],
       history: [],
     };
+
     const userSector =
-      window.AFM_NationalTeams?.getPlayerSector(athlete.pos) || "ATT";
+      window.AFM_NationalTeams?.getPlayerSector(athlete.pos || athlete.position) || "ATT";
     const sectorRankingList =
       callUp.rankings && callUp.rankings[userSector]
         ? callUp.rankings[userSector]
         : [];
     const topCompetitors = sectorRankingList.slice(0, 10);
+
     const isFifaWindow = Boolean(
       pState.isFifaWindowActive ||
       pState.onInternationalDuty ||
@@ -5423,44 +5420,127 @@
       ? Boolean(fifaFix.userIsCalledUp)
       : callUp.isUserCalledUp;
 
+    // Termômetro de Convocação & Linha de Corte
+    const userOvr = Number(athlete.ovr || athlete.overall || 45);
+    const userApps = Number(athlete.matches || athlete.seasonStats?.matches || (pState.matchRatingHistory || []).length || 0);
+    const userGoals = Number(athlete.goals || athlete.seasonStats?.goals || 0);
+    const userAssists = Number(athlete.assists || athlete.seasonStats?.assists || 0);
+    const userRating = Number(athlete.averageRating || athlete.rating || athlete.seasonStats?.averageRating || 6.5);
+    
+    const computeScoreFn = natHelper.computeCallUpScore || function(ovr, m, g, a, r) {
+      return Number(((ovr * 1.25) + ((r - 6.0) * 8) + (g * 0.45) + (a * 0.35) + Math.min(20, m * 0.25)).toFixed(1));
+    };
+    const userScore = computeScoreFn(userOvr, userApps, userGoals, userAssists, userRating);
+
+    // Linha de corte baseada no último convocado do setor
+    const sectorCalledList = (callUp.bySector && callUp.bySector[userSector]) || [];
+    const cutOffPlayer = sectorCalledList.length ? sectorCalledList[sectorCalledList.length - 1] : null;
+    const cutOffScore = cutOffPlayer ? Number(cutOffPlayer.score || 112.0) : 110.0;
+    const progressPct = Math.min(100, Math.max(12, Math.round((userScore / Math.max(1, cutOffScore)) * 100)));
+
+    let statusBorderColor = "#ef4444";
+    let progressBarBg = "linear-gradient(90deg, #ef4444, #f97316)";
+    let coachHint = "Evolua seus atributos no clube e ganhe mais minutagem para entrar no radar da Seleção.";
+
+    if (callUp.isUserCalledUp) {
+      statusBorderColor = "#facc15";
+      progressBarBg = "linear-gradient(90deg, #10b981, #facc15)";
+      coachHint = "⭐ <b>Vaga conquistada!</b> O treinador conta com seu talento para a próxima Data FIFA.";
+    } else if (progressPct >= 75) {
+      statusBorderColor = "#38bdf8";
+      progressBarBg = "linear-gradient(90deg, #38bdf8, #22c55e)";
+      coachHint = "⚡ <b>Você está no radar!</b> Mantenha a nota média acima de 7.2 no clube para selar sua convocação.";
+    } else {
+      statusBorderColor = "#ef4444";
+      progressBarBg = "linear-gradient(90deg, #ef4444, #eab308)";
+      coachHint = "🎯 Suba seu OVR para 75+ e busque titularidade no seu clube para alcançar a linha de corte.";
+    }
+
+    const sectorLabel = userSector === "GK" ? "Goleiros" : userSector === "DEF" ? "Defensores" : userSector === "MID" ? "Meio-Campistas" : "Atacantes";
+
+    // Dados da Próxima Data FIFA
+    const currentRound = Number(state.round || 1);
+    const fifaRounds = [6, 12, 18, 24, 30, 36];
+    const nextFifaRound = fifaRounds.find(r => r >= currentRound) || (currentRound + 5);
+    const roundsLeft = Math.max(0, nextFifaRound - currentRound);
+    const pool = (meta.rivals && meta.rivals.length) ? meta.rivals : ["Argentina", "Uruguai", "França", "Alemanha"];
+    const nextOpponent = pool[(nextFifaRound + currentRound) % pool.length] || "Argentina";
+    const oppMeta = natHelper.getNationProfile ? natHelper.getNationProfile(nextOpponent) : { flag: "🌎" };
+    const oppFlag = oppMeta.flag || "🌎";
+    const competition = nextFifaRound % 12 === 0 ? "Eliminatórias da Copa do Mundo" : "Amistoso Internacional FIFA";
+
+    // 11 Titulares da Seleção para a Prancheta Tática
+    const gks = (callUp.bySector && callUp.bySector.GK) || [];
+    const defs = (callUp.bySector && callUp.bySector.DEF) || [];
+    const mids = (callUp.bySector && callUp.bySector.MID) || [];
+    const atts = (callUp.bySector && callUp.bySector.ATT) || [];
+
+    const starters11 = [
+      { role: "GOL", slotName: "Goleiro", player: gks[0] || { name: "Goleiro Titular", ovr: 85, club: "Clube" } },
+      { role: "LE", slotName: "Lateral Esq", player: defs[0] || { name: "Lat. Esquerdo", ovr: 81, club: "Clube" } },
+      { role: "ZAG", slotName: "Zagueiro 1", player: defs[1] || { name: "Zagueiro Central", ovr: 83, club: "Clube" } },
+      { role: "ZAG", slotName: "Zagueiro 2", player: defs[2] || { name: "Zagueiro", ovr: 82, club: "Clube" } },
+      { role: "LD", slotName: "Lateral Dir", player: defs[3] || { name: "Lat. Direito", ovr: 80, club: "Clube" } },
+      { role: "VOL", slotName: "Volante", player: mids[0] || { name: "Primeiro Volante", ovr: 82, club: "Clube" } },
+      { role: "MC", slotName: "Meio-Campo", player: mids[1] || { name: "Segundo Volante", ovr: 84, club: "Clube" } },
+      { role: "MEI", slotName: "Armador", player: mids[2] || { name: "Meia Armador", ovr: 85, club: "Clube" } },
+      { role: "PE", slotName: "Ponta Esq", player: atts[0] || { name: "Ponta Esquerda", ovr: 88, club: "Clube" } },
+      { role: "ATA", slotName: "Centroavante", player: atts[1] || { name: "Centroavante", ovr: 87, club: "Clube" } },
+      { role: "PD", slotName: "Ponta Dir", player: atts[2] || { name: "Ponta Direita", ovr: 86, club: "Clube" } }
+    ];
+
     return `
       <div class="afm-national-team-view" style="display:flex;flex-direction:column;gap:20px">
         
-        <!-- HEADER DA SELEÇÃO NACIONAL COM BANDEIRA E STATUS DO CRAQUE -->
-        <div class="card" style="background:linear-gradient(135deg, rgba(250,204,21,0.12) 0%, #090d16 100%);border:2px solid rgba(250,204,21,0.35);border-radius:22px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,0.7);position:relative;overflow:hidden">
+        <!-- HEADER DA SELEÇÃO NACIONAL COM BANDEIRA E TERMÔMETRO -->
+        <div class="card" style="background:linear-gradient(135deg, ${meta.primaryColor || '#facc15'}18 0%, #090d16 100%);border:2px solid ${meta.primaryColor || '#facc15'}44;border-radius:22px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,0.7);position:relative;overflow:hidden">
           
-          <div style="position:absolute;top:-10px;right:-10px;font-size:120px;opacity:0.08;pointer-events:none;line-height:1">
-            ${meta.flag}
+          <div style="position:absolute;top:-10px;right:-10px;font-size:120px;opacity:0.07;pointer-events:none;line-height:1">
+            ${meta.flag || '🇧🇷'}
           </div>
 
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px;position:relative;z-index:1">
             <div style="display:flex;align-items:center;gap:18px">
               <div style="font-size:58px;line-height:1;filter:drop-shadow(0 6px 14px rgba(0,0,0,0.5))">
-                ${meta.flag}
+                ${meta.flag || '🇧🇷'}
               </div>
               <div>
                 <div style="display:flex;align-items:center;gap:10px">
-                  <h1 style="margin:0;font-size:24px;font-weight:900;color:#fff;letter-spacing:0.5px">SELEÇÃO ${meta.name.toUpperCase()}</h1>
+                  <h1 style="margin:0;font-size:24px;font-weight:900;color:#fff;letter-spacing:0.5px">
+                    ${meta.officialName || ('SELEÇÃO ' + meta.name.toUpperCase())}
+                  </h1>
                   <span style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:3px 10px;border-radius:8px;font-size:11px;font-weight:900;color:#facc15">
-                    ${(meta.confederation && meta.confederation !== 'undefined') ? meta.confederation : ((meta.confed && meta.confed !== 'undefined') ? meta.confed : 'CONMEBOL')} • ${(meta.textBadge && meta.textBadge !== 'undefined') ? meta.textBadge : ((meta.federation && meta.federation !== 'undefined') ? meta.federation : 'CBF')}
+                    ${meta.confed || 'CONMEBOL • CBF'}
                   </span>
                 </div>
                 <div style="font-size:13px;color:#94a3b8;margin-top:6px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-                  <span>👔 Treinador: <b style="color:#fff">${esc(meta.coach)}</b></span>
-                  <span>🏟️ Estádio Principal: <b style="color:#fff">${esc(meta.stadium)}</b></span>
-                  <span>⚽ Rival Histórico: <b style="color:#fff">${esc((meta.rivals || []).join(", ") || "Nenhum")}</b></span>
+                  <span>👔 Treinador: <b style="color:#fff">${esc(meta.coach || 'Dorival Júnior')}</b></span>
+                  <span>🏟️ Estádio Principal: <b style="color:#fff">${esc(meta.stadium || 'Maracanã')}</b></span>
+                  <span>⚽ Rival Histórico: <b style="color:#fff">${esc(Array.isArray(meta.rivals) ? meta.rivals.join(', ') : (meta.rivals || 'Argentina'))}</b></span>
                 </div>
               </div>
             </div>
 
-            <!-- BADGE DE STATUS DO USUÁRIO NA SELEÇÃO -->
-            <div style="background:#050c18;border:2px solid ${callUp.userStatusColor};border-radius:16px;padding:12px 20px;text-align:right;box-shadow:0 0 20px ${callUp.userStatusColor}33">
-              <div style="font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Seu Status na Seleção:</div>
-              <div style="font-size:15px;font-weight:900;color:${callUp.userStatusColor}">
-                ${callUp.userStatus}
+            <!-- TERMÔMETRO DE CONVOCAÇÃO DO ATLETA -->
+            <div style="background:#050c18;border:2px solid ${statusBorderColor};border-radius:18px;padding:16px 20px;min-width:320px;max-width:380px;box-shadow:0 0 25px ${statusBorderColor}28;position:relative">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">Termômetro da Convocação</span>
+                <span style="font-size:12px;font-weight:900;color:${statusBorderColor}">${callUp.userStatus}</span>
               </div>
-              <div style="font-size:11px;color:#cbd5e1;margin-top:3px">
-                Posição no País: <b>#${callUp.userSectorRanking}</b> entre os ${userSector === "GK" ? "Goleiros" : userSector === "DEF" ? "Defensores" : userSector === "MID" ? "Meio-campistas" : "Atacantes"}
+              
+              <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:#cbd5e1;margin-bottom:4px">
+                <span>Seu Índice: <b style="color:#fff">${userScore.toFixed(1)} pts</b></span>
+                <span style="color:#94a3b8">Corte: <b style="color:#facc15">${cutOffScore.toFixed(1)} pts</b></span>
+              </div>
+              <div style="width:100%;height:7px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin-bottom:8px">
+                <div style="width:${progressPct}%;height:100%;background:${progressBarBg};border-radius:4px;transition:width 0.4s ease"></div>
+              </div>
+
+              <div style="font-size:11px;color:#cbd5e1;line-height:1.4">
+                ${coachHint}
+              </div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:6px;border-top:1px solid rgba(255,255,255,0.06);padding-top:4px">
+                Posição no País: <b style="color:#fff">#${callUp.userSectorRanking}</b> entre os ${sectorLabel}
               </div>
             </div>
           </div>
@@ -5484,6 +5564,29 @@
             <span style="font-size:26px;font-weight:900;color:#facc15;line-height:1">${(intStats.titles || []).length}</span>
             <div style="font-size:11px;font-weight:800;color:#94a3b8;margin-top:4px;text-transform:uppercase">Títulos Internacionais</div>
           </div>
+        </div>
+
+        <!-- PRÓXIMA DATA FIFA / CONFRONTO AGENDADO & BOLETIM -->
+        <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:44px;height:44px;border-radius:12px;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);display:flex;align-items:center;justify-content:center;font-size:22px">
+              🗓️
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:14px;font-weight:900;color:#fff">Próxima Janela de Data FIFA:</span>
+                <span style="background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:900">
+                  ${roundsLeft === 0 ? "🔥 NESTA RODADA" : "⏳ FALTAM " + roundsLeft + " RODADAS"}
+                </span>
+              </div>
+              <div style="font-size:12px;color:#94a3b8;margin-top:3px">
+                <b>${meta.flag || '🇧🇷'} ${meta.name || userCountry} vs ${oppFlag} ${nextOpponent}</b> · ${competition} · ${meta.stadium || 'Maracanã'}
+              </div>
+            </div>
+          </div>
+          <button type="button" id="btnPreviewCallUpModal" style="background:linear-gradient(135deg,rgba(56,189,248,0.2),rgba(14,165,233,0.1));border:1px solid #38bdf8;color:#38bdf8;padding:10px 18px;border-radius:10px;font-size:12px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(56,189,248,0.15)">
+            📋 Ver Boletim Oficial da Convocação
+          </button>
         </div>
 
         ${
@@ -5515,15 +5618,15 @@
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
               <div>
                 <span style="background:rgba(16,185,129,0.2);border:1px solid #10b981;color:#6ee7b7;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase">
-                  🔥 DATA FIFA EM ANDAMENTO · ${esc(fifaFix.windowName)}
+                  🔥 DATA FIFA EM ANDAMENTO · ${esc(fifaFix.windowName || 'Amistoso Oficial')}
                 </span>
                 <h3 style="margin:10px 0 4px 0;font-size:18px;font-weight:900;color:#fff">
-                  ${meta.flag} ${userCountry} vs ${fifaFix.oppCallUp?.meta?.flag || "🌎"} ${fifaFix.awayCountry}
+                  ${meta.flag || '🇧🇷'} ${userCountry} vs ${fifaFix.oppCallUp?.meta?.flag || "🌎"} ${fifaFix.awayCountry || 'Rival'}
                 </h3>
                 <div style="font-size:12px;color:#cbd5e1">
-                  Local: <b>${esc(fifaFix.stadium || meta.stadium)}</b> · Data no Jogo: <b>${fifaFix.date}</b> · Status: <b>${fifaFix.played ? "✅ Partida concluída" : userCalledForFixture ? (fifaFix.userIsStarter ? "⭐ Você é Titular" : "🟢 Você começa no Banco") : "🔴 Você não foi convocado"}</b>
+                  Local: <b>${esc(fifaFix.stadium || meta.stadium)}</b> · Data no Jogo: <b>${fifaFix.date || state.date}</b> · Status: <b>${fifaFix.played ? "✅ Partida concluída" : userCalledForFixture ? (fifaFix.userIsStarter ? "⭐ Você é Titular" : "🟢 Você começa no Banco") : "🔴 Você não foi convocado"}</b>
                 </div>
-                ${fifaFix.played && Array.isArray(fifaFix.result) ? `<div style="margin-top:8px;font-size:16px;font-weight:900;color:#facc15">${esc(fifaFix.homeCountry)} ${fifaFix.result[0]} x ${fifaFix.result[1]} ${esc(fifaFix.awayCountry)}</div>` : ""}
+                ${fifaFix.played && Array.isArray(fifaFix.result) ? `<div style="margin-top:8px;font-size:16px;font-weight:900;color:#facc15">${esc(fifaFix.homeCountry || userCountry)} ${fifaFix.result[0]} x ${fifaFix.result[1]} ${esc(fifaFix.awayCountry || 'Rival')}</div>` : ""}
               </div>
 
               <div>
@@ -5536,7 +5639,7 @@
                 `
                     : `
                   <span style="font-size:12px;color:#94a3b8;font-style:italic">
-                    O time nacional disputa esta partida enquanto você treina no ${esc(state.club)}.
+                    O time nacional disputa esta partida enquanto você treina no ${esc(state.club || 'clube')}.
                   </span>
                 `
                 }
@@ -5544,28 +5647,60 @@
             </div>
           </div>
         `
-            : `
-          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-            <div style="display:flex;align-items:center;gap:12px">
-              <span style="font-size:24px">🗓️</span>
-              <div>
-                <div style="font-size:13px;font-weight:800;color:#fff">Próxima Janela de Data FIFA:</div>
-                <div style="font-size:12px;color:#94a3b8">Amistosos Internacionais e Eliminatórias da Copa do Mundo ocorrem periodicamente no calendário.</div>
+            : ""
+        }
+
+        <!-- PRANCHETA TÁTICA DOS 11 TITULARES DA SELEÇÃO (4-3-3) -->
+        <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+            <div>
+              <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:8px">
+                <span>📋</span> ESQUEMA TÁTICO & 11 TITULARES DA SELEÇÃO (4-3-3)
+              </h3>
+              <div style="font-size:12px;color:#94a3b8;margin-top:2px">
+                Configuração titular adotada pelo técnico <b>${esc(meta.coach || 'Dorival Júnior')}</b> para o próximo desafio internacional.
               </div>
             </div>
-            <button type="button" id="btnPreviewCallUpModal" style="background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer">
-              📋 Ver Lista dos 23 da Convocação
-            </button>
+            <span style="background:rgba(250,204,21,0.12);border:1px solid rgba(250,204,21,0.3);color:#facc15;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:900">
+              Formação Oficial 4-3-3
+            </span>
           </div>
-        `
-        }
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px">
+            ${starters11.map(st => {
+              const isMatchUser = (st.player?.isUser) || (st.player?.id === athlete.id);
+              const isUserSector = (st.role === athlete.pos || st.role === userSector || (userSector === 'ATT' && ['PE','ATA','PD'].includes(st.role)));
+              
+              const borderCol = isMatchUser ? "#facc15" : isUserSector ? "#38bdf8" : "rgba(255,255,255,0.06)";
+              const bgCol = isMatchUser ? "rgba(250,204,21,0.12)" : isUserSector ? "rgba(56,189,248,0.08)" : "#090d16";
+              
+              return `
+                <div style="background:${bgCol};border:1px solid ${borderCol};border-radius:12px;padding:10px;text-align:center;position:relative">
+                  <div style="font-size:10px;font-weight:900;color:${isMatchUser ? '#fde047' : '#94a3b8'};text-transform:uppercase;margin-bottom:4px">
+                    ${st.role} · ${st.slotName}
+                  </div>
+                  <div style="width:36px;height:36px;border-radius:8px;background:#1e293b;border:1px solid rgba(255,255,255,0.1);margin:0 auto 6px;overflow:hidden;display:flex;align-items:center;justify-content:center">
+                    <img src="${st.player?.photo || ''}" onerror="this.onerror=null;this.src='${natHelper.buildAvatarFallbackUri ? natHelper.buildAvatarFallbackUri(st.player?.name) : ''}'" style="width:100%;height:100%;object-fit:cover">
+                  </div>
+                  <div style="font-size:12px;font-weight:900;color:${isMatchUser ? '#facc15' : '#fff'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    ${isMatchUser ? '⭐ ' : ''}${esc(st.player?.name || 'Jogador')}
+                  </div>
+                  <div style="font-size:10px;color:#94a3b8;margin-top:2px">
+                    <b style="color:#22c55e">${st.player?.ovr || st.player?.overall || 82} OVR</b>
+                  </div>
+                  ${isMatchUser ? `<span style="background:#facc15;color:#000;font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;position:absolute;top:4px;right:4px">VOCÊ</span>` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
 
         <!-- TABELA DE CONCORRENTES DA POSIÇÃO NO PAÍS -->
         <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
             <div>
               <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:8px">
-                <span>📊</span> RANKING DA SUA POSIÇÃO NA ${userCountry.toUpperCase()} (${userSector})
+                <span>📊</span> RANKING DA SUA POSIÇÃO ${meta.prepIn ? meta.prepIn.toUpperCase() : ('NO ' + userCountry.toUpperCase())} (${userSector})
               </h3>
               <div style="font-size:12px;color:#94a3b8;margin-top:2px">
                 Avaliação do desempenho da temporada entre todos os atletas do pack da mesma nacionalidade e setor.
@@ -5601,28 +5736,28 @@
                     );
                     const statusBadge =
                       idx < (userSector === "GK" ? 1 : 3)
-                        ? `<span style="background:rgba(16,185,129,0.2);color:#6ee7b7;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900">⭐ Titular</span>`
-                        : idx <
-                            (userSector === "GK"
-                              ? 3
-                              : userSector === "DEF"
-                                ? 8
-                                : 6)
-                          ? `<span style="background:rgba(56,189,248,0.2);color:#7dd3fc;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900">🟢 Convocado</span>`
-                          : `<span style="background:rgba(239,68,68,0.2);color:#fca5a5;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800">Fora</span>`;
+                        ? '<span style="background:rgba(16,185,129,0.2);color:#6ee7b7;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900">⭐ Titular</span>'
+                        : idx < (userSector === "GK" ? 3 : userSector === "DEF" ? 8 : 6)
+                          ? '<span style="background:rgba(56,189,248,0.2);color:#7dd3fc;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900">🟢 Convocado</span>'
+                          : '<span style="background:rgba(239,68,68,0.2);color:#fca5a5;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800">Fora</span>';
 
-                    const pOvrVal = Number(p.ovr) || Number(p.overall) || Number(p.fc) || Number(p.pes) || 75;
+                    const pOvrVal = Number(p.ovr) || Number(p.overall) || 75;
                     return `
-                    <tr style="border-bottom:1px solid rgba(255,255,255,0.04);background:${isUser ? "rgba(250,204,21,0.12)" : "transparent"};border-left:${isUser ? "3px solid #facc15" : "none"}">
-                      <td style="padding:10px 8px;text-align:center;font-weight:900;color:${isUser ? "#facc15" : "#fff"}">#${idx + 1}</td>
-                      <td style="padding:10px 8px;font-weight:800;color:${isUser ? "#fde047" : "#fff"}">
-                        ${isUser ? "⭐ " : ""}${esc(p.name)} ${isUser ? '<span style="font-size:9px;background:#facc15;color:#000;padding:1px 5px;border-radius:4px;font-weight:900;margin-left:4px">VOCÊ</span>' : ""}
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.04);${isUser ? "background:rgba(250,204,21,0.12);font-weight:900" : ""}">
+                      <td style="padding:10px 8px;text-align:center;color:${isUser ? "#facc15" : "#94a3b8"}">#${idx + 1}</td>
+                      <td style="padding:10px 8px">
+                        <div style="display:flex;align-items:center;gap:8px">
+                          <div style="width:26px;height:26px;border-radius:6px;overflow:hidden;background:#1e293b;flex-shrink:0">
+                            <img src="${p.photo || ''}" onerror="this.onerror=null;this.src='${natHelper.buildAvatarFallbackUri ? natHelper.buildAvatarFallbackUri(p.name) : ''}'" style="width:100%;height:100%;object-fit:cover">
+                          </div>
+                          <span style="color:${isUser ? "#fde047" : "#fff"}">${esc(p.name)}${isUser ? " ⭐ (VOCÊ)" : ""}</span>
+                        </div>
                       </td>
                       <td style="padding:10px 8px;color:#cbd5e1">${esc(p.club || "Livre")}</td>
-                      <td style="padding:10px 8px;text-align:center;font-weight:900;color:${pOvrVal >= 80 ? "#22c55e" : pOvrVal >= 70 ? "#38bdf8" : "#facc15"}">${pOvrVal}</td>
+                      <td style="padding:10px 8px;text-align:center;font-weight:900;color:${pOvrVal >= 85 ? "#facc15" : pOvrVal >= 80 ? "#22c55e" : "#38bdf8"}">${pOvrVal}</td>
                       <td style="padding:10px 8px;text-align:center;color:#cbd5e1">${p.matches || 0}</td>
                       <td style="padding:10px 8px;text-align:center;color:#cbd5e1">${p.goals || 0} / ${p.assists || 0}</td>
-                      <td style="padding:10px 8px;text-align:center;font-weight:800;color:${(p.avgRating || p.rating || 0) >= 7.5 ? "#10b981" : "#cbd5e1"}">${Number(p.avgRating || p.rating || 6.0).toFixed(1)}</td>
+                      <td style="padding:10px 8px;text-align:center;font-weight:800;color:${(p.avgRating || p.rating || 0) >= 7.5 ? "#10b981" : "#cbd5e1"}">${Number(p.avgRating || p.rating || 6.5).toFixed(1)}</td>
                       <td style="padding:10px 8px;text-align:center;font-weight:900;color:#c084fc">${Number(p.score || 0).toFixed(1)}</td>
                       <td style="padding:10px 8px;text-align:center">${statusBadge}</td>
                     </tr>
@@ -5638,10 +5773,10 @@
         <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
             <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:8px">
-              <span>👥</span> ELENCO OFICIAL DOS 23 CONVOCADOS (${userCountry})
+              <span>👥</span> ELENCO OFICIAL DOS 23 CONVOCADOS (${meta.name || userCountry})
             </h3>
             <span style="font-size:11px;color:#94a3b8">
-              3 Goleiros • 8 Defensores • 6 Meio-Campistas • 6 Atacantes
+              ${gks.length} Goleiros • ${defs.length} Defensores • ${mids.length} Meio-Campistas • ${atts.length} Atacantes
             </span>
           </div>
 
@@ -5650,23 +5785,23 @@
             ${[
               {
                 sectorKey: "GK",
-                label: "🧤 Goleiros (3 Convocados)",
-                list: callUp.bySector?.GK || [],
+                label: `🧤 Goleiros (${gks.length} Convocados)`,
+                list: gks,
               },
               {
                 sectorKey: "DEF",
-                label: "🛡️ Defensores (8 Convocados)",
-                list: callUp.bySector?.DEF || [],
+                label: `🛡️ Defensores (${defs.length} Convocados)`,
+                list: defs,
               },
               {
                 sectorKey: "MID",
-                label: "🎯 Meio-Campistas (6 Convocados)",
-                list: callUp.bySector?.MID || [],
+                label: `🎯 Meio-Campistas (${mids.length} Convocados)`,
+                list: mids,
               },
               {
                 sectorKey: "ATT",
-                label: "⚡ Atacantes (6 Convocados)",
-                list: callUp.bySector?.ATT || [],
+                label: `⚡ Atacantes (${atts.length} Convocados)`,
+                list: atts,
               },
             ]
               .map(
@@ -5677,16 +5812,16 @@
                 </div>
                 <div class="grid g4" style="gap:10px">
                   ${sec.list
-                    .map((p, idx) => {
+                    .map((p) => {
                       const isUser = Boolean(
                         p.isUser ||
                         p.id === athlete.id ||
                         p.name === athlete.name,
                       );
                       return `
-                      <div style="background:${isUser ? "rgba(250,204,21,0.12)" : "#090d16"};border:1px solid ${isUser ? "#facc15" : "rgba(255,255,255,0.06)"};border-radius:10px;padding:10px;display:flex;align-items:center;gap:10px;position:relative">
+                      <div style="background:${isUser ? "rgba(250,204,21,0.12)" : "#090d16"};border:1.5px solid ${isUser ? "#facc15" : "rgba(255,255,255,0.06)"};border-radius:10px;padding:10px;display:flex;align-items:center;gap:10px;position:relative">
                         <div style="width:36px;height:36px;border-radius:8px;background:#1e293b;border:1px solid rgba(255,255,255,0.1);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">
-                          ${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover">` : sec.sectorKey === "GK" ? "🧤" : sec.sectorKey === "DEF" ? "🛡️" : sec.sectorKey === "MID" ? "🎯" : "⚡"}
+                          <img src="${p.photo || ''}" onerror="this.onerror=null;this.src='${natHelper.buildAvatarFallbackUri ? natHelper.buildAvatarFallbackUri(p.name) : ''}'" style="width:100%;height:100%;object-fit:cover">
                         </div>
                         <div style="overflow:hidden;flex:1">
                           <div style="font-size:12px;font-weight:900;color:${isUser ? "#fde047" : "#fff"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
@@ -5696,6 +5831,7 @@
                             ${esc(p.club || "Livre")} • <b style="color:#22c55e">${p.ovr || p.overall || "?"} OVR</b>
                           </div>
                         </div>
+                        ${isUser ? '<span style="background:#facc15;color:#000;font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px">VOCÊ</span>' : ''}
                       </div>
                     `;
                     })
@@ -5708,6 +5844,91 @@
           </div>
         </div>
 
+        <!-- GRID INFERIOR: TABELA DAS ELIMINATÓRIAS & LENDAS HISTÓRICAS -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(340px, 1fr));gap:18px">
+          
+          <!-- COLUNA 1: TABELA DAS ELIMINATÓRIAS -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
+            <h3 style="margin:0 0 12px 0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;display:flex;align-items:center;gap:8px">
+              <span>🏆</span> TABELA DAS ELIMINATÓRIAS (COPA 2026)
+            </h3>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:11px">
+                <thead>
+                  <tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:#94a3b8;text-align:left">
+                    <th style="padding:6px">#</th>
+                    <th style="padding:6px">Seleção</th>
+                    <th style="padding:6px;text-align:center">J</th>
+                    <th style="padding:6px;text-align:center">SG</th>
+                    <th style="padding:6px;text-align:center">PTS</th>
+                    <th style="padding:6px;text-align:center">Zona</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${(meta.qualifiers || [
+                    { rank: 1, team: "Argentina", flag: "🇦🇷", pts: 25, p: 10, gd: +12, zone: "Copa 2026" },
+                    { rank: 2, team: "Uruguai", flag: "🇺🇾", pts: 20, p: 10, gd: +8, zone: "Copa 2026" },
+                    { rank: 3, team: "Brasil", flag: "🇧🇷", pts: 19, p: 10, gd: +7, zone: "Copa 2026" },
+                    { rank: 4, team: "Colômbia", flag: "🇨🇴", pts: 18, p: 10, gd: +5, zone: "Copa 2026" },
+                    { rank: 5, team: "Equador", flag: "🇪🇨", pts: 16, p: 10, gd: +3, zone: "Copa 2026" },
+                    { rank: 6, team: "Paraguai", flag: "🇵🇾", pts: 13, p: 10, gd: 0, zone: "Copa 2026" }
+                  ]).map(q => {
+                    const isMyCountry = q.team === meta.name || q.team === userCountry;
+                    return `
+                      <tr style="border-bottom:1px solid rgba(255,255,255,0.04);${isMyCountry ? 'background:rgba(250,204,21,0.12);font-weight:900' : ''}">
+                        <td style="padding:8px 6px;color:${isMyCountry ? '#facc15' : '#94a3b8'}">${q.rank}º</td>
+                        <td style="padding:8px 6px;color:${isMyCountry ? '#fde047' : '#fff'}">${q.flag} ${q.team}</td>
+                        <td style="padding:8px 6px;text-align:center;color:#cbd5e1">${q.p}</td>
+                        <td style="padding:8px 6px;text-align:center;color:#cbd5e1">${q.gd > 0 ? '+' + q.gd : q.gd}</td>
+                        <td style="padding:8px 6px;text-align:center;font-weight:900;color:#22c55e">${q.pts}</td>
+                        <td style="padding:8px 6px;text-align:center">
+                          <span style="background:rgba(16,185,129,0.15);color:#6ee7b7;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:900">
+                            ${q.zone}
+                          </span>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- COLUNA 2: LENDAS HISTÓRICAS & SEU LEGADO -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
+            <h3 style="margin:0 0 12px 0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;display:flex;align-items:center;gap:8px">
+              <span>👑</span> LENDAS HISTÓRICAS DA SELEÇÃO
+            </h3>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              ${(meta.legends || [
+                { name: "Neymar Jr", caps: 128, goals: 79 },
+                { name: "Pelé", caps: 92, goals: 77 },
+                { name: "Ronaldo Fenômeno", caps: 98, goals: 62 },
+                { name: "Cafu", caps: 142, goals: 5 }
+              ]).map((leg, i) => `
+                <div style="background:#090d16;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;font-size:11px">
+                  <span style="color:#fff;font-weight:800">${i + 1}. ${leg.name}</span>
+                  <div style="display:flex;gap:12px;color:#94a3b8">
+                    <span>${leg.caps} caps</span>
+                    <span style="color:#22c55e;font-weight:900">${leg.goals} gols</span>
+                  </div>
+                </div>
+              `).join('')}
+
+              <div style="background:rgba(250,204,21,0.08);border:1px dashed rgba(250,204,21,0.3);border-radius:10px;padding:10px 12px;margin-top:4px">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:900;color:#facc15">
+                  <span>⭐ Seu Legado na Seleção</span>
+                  <span>${intStats.caps || 0} caps · ${intStats.goals || 0} gols</span>
+                </div>
+                <div style="font-size:10px;color:#cbd5e1;margin-top:4px">
+                  ${intStats.caps === 0 ? "Aguardando estreia oficial para iniciar sua trajetória nas estatísticas históricas." : "Continue marcando para subir no ranking dos maiores artilheiros da história!"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
       </div>
     `;
   }
@@ -5718,14 +5939,18 @@
   function openCallUpAnnouncementModal(fifaFixture, gameState) {
     if (!fifaFixture) return;
     const pCareer = gameState?.playerCareerState || {};
+    const athlete = getControlledPlayer(gameState) || {};
     const callUp = fifaFixture.userCallUp;
     const isCalled = Boolean(fifaFixture.userIsCalledUp);
-    const meta = callUp?.meta || {
-      flag: "🇧🇷",
-      name: "Brasil",
-      primaryColor: "#facc15",
-      coach: "Dorival Júnior",
-    };
+    const natHelper = window.AFM_NATIONAL_TEAM || {};
+    const userCountry = window.AFM_NationalTeams?.normalizeNationality(pCareer.nationality || athlete.nationality || "Brasil") || "Brasil";
+    
+    const meta = Object.assign(
+      {},
+      window.AFM_NationalTeams?.getNationalTeamMeta?.(userCountry) || {},
+      natHelper.getNationProfile ? natHelper.getNationProfile(userCountry) : {},
+      callUp?.meta || {}
+    );
 
     const old = document.getElementById("afmCallUpAnnouncementModal");
     if (old) old.remove();
@@ -5737,24 +5962,24 @@
       "position:fixed;inset:0;background:rgba(2,6,23,0.92);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
 
     overlay.innerHTML = `
-      <div style="background:linear-gradient(135deg, #090d16 0%, #111827 100%);border:2px solid ${isCalled ? "#facc15" : "#38bdf8"};border-radius:24px;padding:28px;max-width:560px;width:100%;box-shadow:0 0 50px ${isCalled ? "rgba(250,204,21,0.35)" : "rgba(56,189,248,0.25)"};color:#fff;text-align:center;position:relative">
+      <div style="background:linear-gradient(135deg, #090d16 0%, #111827 100%);border:2px solid ${isCalled ? "#facc15" : "#38bdf8"};border-radius:24px;padding:28px;max-width:580px;width:100%;box-shadow:0 0 50px ${isCalled ? "rgba(250,204,21,0.35)" : "rgba(56,189,248,0.25)"};color:#fff;text-align:center;position:relative">
         
         <div style="font-size:52px;margin-bottom:8px">
-          ${meta.flag}
+          ${meta.flag || '🇧🇷'}
         </div>
 
         <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(250,204,21,0.15);border:1px solid #facc15;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:900;color:#fde047;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">
-          ${meta.name.toUpperCase()} · CONVOCAÇÃO OFICIAL DATA FIFA
+          ${meta.officialName || (meta.name.toUpperCase() + ' · CONVOCAÇÃO')}
         </div>
 
         <h2 style="margin:0 0 8px 0;font-size:22px;font-weight:900;color:${isCalled ? "#facc15" : "#fff"}">
-          ${isCalled ? `🎉 PARABÉNS! VOCÊ FOI CONVOCADO!` : `📋 LISTA OFICIAL DOS 23 ANUNCIADA`}
+          ${isCalled ? "🎉 PARABÉNS! VOCÊ FOI CONVOCADO!" : "📋 BOLETIM OFICIAL DA CONVOCAÇÃO"}
         </h2>
 
         <div style="font-size:13px;color:#cbd5e1;line-height:1.6;margin-bottom:20px;padding:0 8px">
           ${
             isCalled
-              ? `O treinador <b>${esc(meta.coach)}</b> anunciou a convocação oficial da <b>Seleção ${meta.name}</b> para a Data FIFA e o seu nome está na lista! Você se apresenta ao elenco para disputar o confronto contra a <b>${fifaFixture.awayCountry}</b>.`
+              ? `O treinador <b>${esc(meta.coach)}</b> anunciou a convocação oficial da <b>${meta.officialName || ('Seleção ' + meta.name)}</b> e o seu nome está confirmado na lista dos 23! Você foi chamado como <b>${fifaFixture.userIsStarter ? "Titular" : "Reserva Imediato"}</b> para o duelo diante da <b>${fifaFixture.awayCountry || 'Seleção Adversária'}</b>.`
               : `O técnico <b>${esc(meta.coach)}</b> fechou a lista dos 23 atletas convocados para esta Data FIFA. Seu nome permanece na pré-lista de observação. Mantenha a sequência de atuações destacadas no <b>${esc(gameState?.club || "clube")}</b> para buscar uma vaga na próxima convocação!`
           }
         </div>
@@ -5780,18 +6005,50 @@
             : ""
         }
 
+        <!-- REAÇÃO À IMPRENSA / FOOTGRAM -->
+        <div style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;margin-bottom:20px;text-align:left">
+          <div style="font-size:11px;font-weight:900;color:#38bdf8;text-transform:uppercase;margin-bottom:6px">
+            🎙️ Coletiva & Reação do Atleta
+          </div>
+          <button type="button" id="btnPressReactionNational" style="width:100%;padding:10px 14px;background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#7dd3fc;border-radius:10px;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+            <span>🎤</span>
+            <span>${isCalled ? "Declarar orgulho de vestir a camisa da Seleção (+150 seguidores)" : "Afirmar que seguirá focado no clube até a próxima convocação (+100 seguidores)"}</span>
+          </button>
+        </div>
+
         <div style="display:flex;gap:12px;justify-content:center">
           <button type="button" id="btnGoToNationalTab" class="btn primary" style="background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;padding:12px 24px;border-radius:10px;color:#fff;font-weight:900;font-size:13px;cursor:pointer">
-            🇧🇷 Ver Seleção Nacional
+            ${meta.flag || '🇧🇷'} Ver Elenco da Seleção
           </button>
           <button type="button" id="btnCloseCallUpModal" class="btn secondary" style="background:rgba(255,255,255,0.08);border:1px solid #475569;padding:12px 20px;border-radius:10px;color:#fff;font-weight:800;font-size:13px;cursor:pointer">
-            Entendido
+            Fechar Boletim
           </button>
         </div>
       </div>
     `;
 
     document.body.appendChild(overlay);
+
+    const btnPress = overlay.querySelector("#btnPressReactionNational");
+    if (btnPress) {
+      btnPress.onclick = () => {
+        const pState = gameState?.playerCareerState;
+        if (pState) {
+          const sm = pState.socialMedia || pState.social || {};
+          const added = isCalled ? 150 : 100;
+          sm.followers = Math.max(100, Number(sm.followers || 1000) + added);
+          if (pState.socialMedia) pState.socialMedia.followers = sm.followers;
+          if (pState.social) pState.social.followers = sm.followers;
+          if (gameState.player && gameState.player.socialMedia) gameState.player.socialMedia.followers = sm.followers;
+        }
+        btnPress.disabled = true;
+        btnPress.style.opacity = "0.7";
+        btnPress.style.borderColor = "#22c55e";
+        btnPress.style.color = "#86efac";
+        btnPress.innerHTML = "<span>✓</span> <span>Declaração repercutida na imprensa e no FootGram!</span>";
+        if (typeof window.save === "function") window.save();
+      };
+    }
 
     const btnClose = overlay.querySelector("#btnCloseCallUpModal");
     if (btnClose) btnClose.onclick = () => overlay.remove();
@@ -5808,7 +6065,6 @@
     }
   }
 
-  // =========================================================================
   // SISTEMA DE REDE SOCIAL ("FOOTGRAM / INSTAFUT") - MODO JOGADOR
   // =========================================================================
   window._afmSocialActiveCategory =
