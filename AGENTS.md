@@ -39,11 +39,15 @@
 - Modais de negociação da aba `💼 Empresário & Mercado` (Pedir Aumento & Renovação, Solicitar Empréstimo e Solicitar Transferência):
   - Todo componente de negociação contratual, empréstimo ou transferência deve ter 100% dos seus inputs (sliders, botões de duração, divisão salarial e motivos) reativos e vinculados ao cálculo central da barra de aprovação/resistência em tempo real (nunca valores mockados ou estáticos).
   - Qualquer alteração futura nos modais da aba `💼 Empresário & Mercado` deve preservar a sincronia matemática entre estado da UI, cálculo de probabilidade e persistência no save, aplicando clamp estrito de `Math.min(100, Math.max(5, chance))` em todas as barras.
-- Treinamento Prático em Campo e Trava Anti-Glitch (3x/dia):
-  - Na aba `Meu Atleta & Treino`, os minigames interativos de **Treinar Pênaltis** e **Treinar Faltas** são limitados rigidamente a 3 execuções por dia do calendário (`trainingState.dailyCount` máximo 3).
-  - A troca de data no calendário (`CONTINUAR`) via `syncDailyTrainingLimit` reseta idempotentemente `dailyCount = 0` sincronizando com a nova data.
-  - A carga é consumida imediatamente no momento do disparo do chute (clique no alvo do gol no Pênalti ou no estilo de batida na Falta) com persistência imediata (`save()`), impedindo burlas por reload/F5 ou fechamento de modal.
-  - Pênalti concede +20 XP no gol e +3 XP no erro; Falta concede +35 XP no gol e +5 XP no erro, alimentando `xp` e `shootingXp`. Ao atingir a meta de nível, sobe de nível, concede 1 ponto de atributo livre (`skillPoints` / `availablePoints`) e escala a meta em 1.2x.
+- REGRA IRRESTRITA DE EVOLUÇÃO, TREINOS E ATRIBUTOS (Aba ⚡ Meu Atleta & Treino):
+  - Sincronização estrita e bidirecional de chaves entre português e inglês (`vel`/`pace`, `chu`/`shooting`, `pas`/`passing`, `dri`/`dribbling`, `def`/`defending`, `fis`/`physical`) limitadas rigidamente a 99 em todas as fronteiras de dados.
+  - Recálculo dinâmico de OVR ponderado por posição (`AFM_PLAYER_EVOLUTION.recalculateOvr`), refletindo instantaneamente no HUD superior (`.sm-badge-strength .sm-res-val` e `.sm-badge-prestige .sm-res-val`) e persistido no save ao confirmar os pontos de atributo.
+  - Alocação protegida e estagiada de pontos (`pendingAttributePoints`): botões `+` e `−` operam em rascunho seguro, com travas de limite `<= skillPoints` e `<= 99`; confirmação explícita via `.btn-confirm-skill-points` debita o saldo, aplica os atributos, atualiza o HUD e grava no log de evolução (`evolutionLog`).
+  - Goleiros (`GOL`) possuem foco semanal específico adaptado (`🧤 Reflexos & Defesas Difíceis` / `gk_reflexes`), preservando coerência posicional sem foco padrão genérico de atacante.
+  - Minigames de Treinamento Prático em Campo (Pênalti +20/+3 XP, Falta +35/+5 XP e 3º minigame Drible/1x1 +25/+4 XP com bônus de combo streak): limite rígido de 3 cargas por dia do calendário do jogo (`syncDailyTrainingLimit`), reset idempotente ao avançar a data (`CONTINUAR`) e trava anti-glitch imediata (`save()` no disparo e `window.__minigameLaunchLock`).
+  - Sistema de PlayStyles / Especialidades com catálogo oficial de 8 estilos, requisitos mínimos por atributo e trava rigorosa de até 3 equipados simultaneamente.
+  - Sessões extras no CT & Academia (com consumo calibrado de estamina/caixa e chance de upgrade de perna ruim) e contratação de Staff Pessoal de Performance com multiplicador de XP.
+  - Card evolutivo do atleta estilo FUT dinâmico (Bronze `< 65`, Prata `65–74`, Ouro `75–84`, Especial `85–89`, Lendário/Ídolo `90+`) e gráfico radar hexagonal interativo SVG em tempo real.
 - Economia e Estilo de Vida do Atleta (Aba 💎 Vida & Patrocínios):
   - A conta bancária do atleta mantém 100% de paridade entre `player.cash`, `lifestyle.cash` e `player.personalBank` (e o badge do HUD), sincronizada em cada transação via `addPlayerTransaction`.
   - Chuteiras possuem durabilidade e perdem 1 ponto de integridade por partida disputada; durabilidade zerada suspende os bônus de atributos até reforma das travas (custo fixo de 35% do valor da nova).

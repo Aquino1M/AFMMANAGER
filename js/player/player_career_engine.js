@@ -1348,12 +1348,12 @@
    */
   function calculatePlayerOverall(attrs, pos) {
     if (!attrs) return 35;
-    const v = Number(attrs.vel) || 35;
-    const c = Number(attrs.chu) || 35;
-    const p = Number(attrs.pas) || 35;
-    const d = Number(attrs.dri) || 35;
-    const df = Number(attrs.def) || 35;
-    const f = Number(attrs.fis) || 35;
+    const v = Number(attrs.vel ?? attrs.pace) || 35;
+    const c = Number(attrs.chu ?? attrs.shooting) || 35;
+    const p = Number(attrs.pas ?? attrs.passing) || 35;
+    const d = Number(attrs.dri ?? attrs.dribbling) || 35;
+    const df = Number(attrs.def ?? attrs.defending) || 35;
+    const f = Number(attrs.fis ?? attrs.physical) || 35;
 
     switch ((pos || "ATA").toUpperCase()) {
       case "GOL":
@@ -1504,8 +1504,15 @@
   }
 
   function getPlayerEffectiveAttributes(gameState, athlete) {
-    const attrs = { ...(athlete?.attributes || {}) };
-    const pState = gameState?.playerCareerState;
+    let raw = athlete?.attributes || athlete;
+    let pState = gameState?.playerCareerState;
+    if (!raw && gameState) {
+      raw = gameState.attributes || gameState;
+      if (!gameState.playerCareerState && (gameState.vel !== undefined || gameState.pace !== undefined)) {
+        pState = null;
+      }
+    }
+    const attrs = { ...(raw || {}) };
     const ls = pState?.lifestyle;
 
     // 1. Chuteira Equipada e Durabilidade
@@ -1577,6 +1584,22 @@
         : 35;
       attrs.pas = Math.min(99, Math.max(1, basePass + 1));
     }
+
+    const pairs = [
+      ["vel", "pace"],
+      ["chu", "shooting"],
+      ["pas", "passing"],
+      ["dri", "dribbling"],
+      ["def", "defending"],
+      ["fis", "physical"]
+    ];
+    pairs.forEach(([pt, en]) => {
+      const val = attrs[pt] !== undefined ? attrs[pt] : attrs[en];
+      if (val !== undefined) {
+        attrs[pt] = val;
+        attrs[en] = val;
+      }
+    });
 
     return attrs;
   }
@@ -5426,27 +5449,62 @@
     currentGameDate,
   }) {
     if (!playerState)
-      return { blocked: true, message: "Estado do jogador inválido." };
+      return { success: false, blocked: true, message: "Estado do jogador inválido." };
     const dateStr = String(currentGameDate || "2026-01-01");
     syncDailyTrainingLimit(playerState, dateStr);
 
     if (playerState.trainingState.dailyCount >= 3) {
-      return { blocked: true, message: "Limite diário de 3 treinos atingido!" };
+      return { success: false, blocked: true, message: "Limite diário de 3 treinos atingido!" };
     }
 
     playerState.trainingState.dailyCount += 1;
     playerState.trainingState.lastTrainingDate = dateStr;
 
-    const xpEarned = isGoal
+    const isDribble = type === "dribble" || type === "1v1";
+    let baseEarned = isGoal
       ? type === "penalty"
         ? 20
-        : 35
+        : isDribble
+          ? 25
+          : 35
       : type === "penalty"
         ? 3
-        : 5;
+        : isDribble
+          ? 4
+          : 5;
+
+    if (isDribble) {
+      if (isGoal) {
+        playerState.dribbleStreak = (playerState.dribbleStreak || 0) + 1;
+        if (playerState.dribbleStreak > 1) {
+          baseEarned += 5; // Bônus de combo consecutivo
+        }
+      } else {
+        playerState.dribbleStreak = 0;
+      }
+      playerState.dribblingXp = (playerState.dribblingXp || 0) + baseEarned;
+    } else {
+      playerState.shootingXp = (playerState.shootingXp || 0) + baseEarned;
+    }
+
+    // Bônus multiplicador de staff pessoal (se contratado)
+    let staffMult = 1.0;
+    if (playerState.hiredStaff?.personal_trainer) staffMult += 0.15;
+    if (playerState.hiredStaff?.vip_team) staffMult += 0.25;
+    const xpEarned = Math.round(baseEarned * staffMult);
 
     playerState.xp = (playerState.xp || 0) + xpEarned;
-    playerState.shootingXp = (playerState.shootingXp || 0) + xpEarned;
+
+    // Log de evolução
+    playerState.evolutionLog = Array.isArray(playerState.evolutionLog) ? playerState.evolutionLog : [];
+    const minigameName = type === "penalty" ? "Pênaltis" : (isDribble ? "Drible 1x1" : "Faltas");
+    playerState.evolutionLog.unshift({
+      date: dateStr,
+      icon: isDribble ? "🌀" : (type === "penalty" ? "⚽" : "🎯"),
+      type: "training",
+      desc: `Treino de ${minigameName}: ${isGoal ? "Sucesso!" : "Tentativa incompleta"} (+${xpEarned} XP)`
+    });
+    if (playerState.evolutionLog.length > 25) playerState.evolutionLog.length = 25;
 
     let gainedAttributePoint = false;
     while (playerState.xp >= (playerState.xpToNextLevel || 100)) {
@@ -5473,6 +5531,7 @@
     }
 
     return {
+      success: true,
       blocked: false,
       isGoal,
       xpEarned,

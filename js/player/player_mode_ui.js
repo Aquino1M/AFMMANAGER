@@ -179,7 +179,7 @@
     const pState = state.playerCareerState;
     const athlete =
       squad.find((p) => p.id === state.controlledPlayerId) ||
-      squad.find((p) => p.isControlled) ||
+      squad.find((p) => p.isControlled || p.isControlledAthlete) ||
       (pState?.athleteName &&
         squad.find(
           (p) =>
@@ -317,7 +317,11 @@
       athlete.overall = athlete.ovr;
     }
     window.AFM_PlayerEngine?.normalizePlayerProgression?.(pState);
-    pState.weeklyTrainingFocus = pState.weeklyTrainingFocus || "finalizacao";
+    pState.weeklyTrainingFocus =
+      pState.weeklyTrainingFocus ||
+      ((athlete?.pos === "GOL" || athlete?.position === "GOL")
+        ? "gk_reflexes"
+        : "finalizacao");
     // Migração idempotente: se o save estava no nível 1 com 0 XP e ainda tinha pontos livres
     // indevidos (pois os pontos já foram todos distribuídos na criação do atleta), ajusta para 0 pontos livres
     if (
@@ -970,137 +974,718 @@
   }
 
   // =========================================================================
+  // SISTEMA CENTRAL: MEU ATLETA & TREINO (AFM_PLAYER_EVOLUTION)
+  // =========================================================================
+  const AFM_PLAYER_EVOLUTION = {
+    ATTR_MAP: [
+      { key: "vel", en: "pace", label: "Velocidade & Arranque", icon: "⚡", short: "VEL" },
+      { key: "chu", en: "shooting", label: "Finalização & Chute", icon: "⚽", short: "CHU" },
+      { key: "pas", en: "passing", label: "Passe & Visão de Jogo", icon: "🎯", short: "PAS" },
+      { key: "dri", en: "dribbling", label: "Drible & Agilidade", icon: "🌀", short: "DRI" },
+      { key: "def", en: "defending", label: "Defesa & Desarme", icon: "🛡️", short: "DEF" },
+      { key: "fis", en: "physical", label: "Físico & Fôlego", icon: "💪", short: "FIS" },
+    ],
+
+    PLAYSTYLES_CATALOG: [
+      {
+        id: "chute_colocado",
+        name: "Chute Colocado",
+        icon: "🎯",
+        reqAttr: "chu",
+        reqVal: 40,
+        desc: "Chutes com curva e precisão cirúrgica na gaveta.",
+        effect: "+15% precisão em chutes colocados"
+      },
+      {
+        id: "passe_longo",
+        name: "Passe Milimétrico",
+        icon: "📐",
+        reqAttr: "pas",
+        reqVal: 40,
+        desc: "Lançamentos e inversões precisas que quebram as linhas.",
+        effect: "+15% acerto em lançamentos longos"
+      },
+      {
+        id: "velocidade_pura",
+        name: "Velocidade Pura",
+        icon: "⚡",
+        reqAttr: "vel",
+        reqVal: 40,
+        desc: "Arrancadas fulminantes em transição e contra-ataques.",
+        effect: "+10% velocidade máxima em campo aberto"
+      },
+      {
+        id: "drible_espetacular",
+        name: "Drible Espetacular",
+        icon: "🌀",
+        reqAttr: "dri",
+        reqVal: 40,
+        desc: "Fintas desconcertantes e agilidade extrema no 1x1.",
+        effect: "+20% chance de sucesso em fintas e dribles"
+      },
+      {
+        id: "muralha",
+        name: "Muralha Defensiva",
+        icon: "🛡️",
+        reqAttr: "def",
+        reqVal: 40,
+        desc: "Botes firmes, interceptações cirúrgicas e combate físico.",
+        effect: "+20% desarme limpo sem cometer faltas"
+      },
+      {
+        id: "pe_de_canhao",
+        name: "Pé de Canhão",
+        icon: "🚀",
+        reqAttr: "chu",
+        reqVal: 45,
+        desc: "Bombas indefensáveis de fora da área com força máxima.",
+        effect: "+25% força e velocidade em chutes de longe"
+      },
+      {
+        id: "maestro",
+        name: "Maestro de Jogo",
+        icon: "👑",
+        reqAttr: "pas",
+        reqVal: 45,
+        desc: "Visão periférica e passes que deixam atacantes na cara do gol.",
+        effect: "+20% passes decisivos que geram xG alto"
+      },
+      {
+        id: "folego_de_aco",
+        name: "Fôlego de Aço",
+        icon: "🫁",
+        reqAttr: "fis",
+        reqVal: 40,
+        desc: "Resistência inesgotável para pressionar os 90 minutos.",
+        effect: "-30% perda de estamina ao longo da partida"
+      }
+    ],
+
+    EXTRA_SESSIONS_CATALOG: [
+      {
+        id: "circuito_explosao",
+        name: "Circuito de Explosão & Arranque",
+        icon: "⚡",
+        energyCost: 10,
+        moneyCost: 0,
+        xpReward: 30,
+        attrFocus: "vel",
+        desc: "Piques curtos, saltos pliométricos e tração no CT."
+      },
+      {
+        id: "clinica_finalizacao",
+        name: "Clínica de Finalização com Goleiro",
+        icon: "⚽",
+        energyCost: 10,
+        moneyCost: 0,
+        xpReward: 30,
+        attrFocus: "chu",
+        desc: "Treino de 1x1 cara a cara e finalizações de primeira."
+      },
+      {
+        id: "crioterapia",
+        name: "Crioterapia & Massagem Desportiva",
+        icon: "🧊",
+        energyCost: -25, // Recupera 25% de energia
+        moneyCost: 350,
+        xpReward: 10,
+        attrFocus: "fis",
+        desc: "Banheira de gelo a -110°C e liberação miofascial imediata."
+      },
+      {
+        id: "treino_perna_ruim",
+        name: "Fundamentos & Perna Ruim",
+        icon: "🦶",
+        energyCost: 15,
+        moneyCost: 0,
+        xpReward: 40,
+        attrFocus: "dri",
+        desc: "Repetições intensivas de domínio e chute com a perna não dominante."
+      }
+    ],
+
+    STAFF_CATALOG: [
+      {
+        id: "personal_trainer",
+        name: "Preparador Físico Pessoal",
+        icon: "🏋️",
+        salary: 800,
+        benefit: "+15% XP em treinos físicos e -15% fadiga pós-jogo",
+        xpBonusPct: 15
+      },
+      {
+        id: "video_analyst",
+        name: "Analista Tático de Vídeo",
+        icon: "📹",
+        salary: 1000,
+        benefit: "+15% XP em visão/passe (+1 Passe no motor)",
+        xpBonusPct: 15
+      },
+      {
+        id: "nutritionist",
+        name: "Nutricionista de Alto Rendimento",
+        icon: "🥗",
+        salary: 600,
+        benefit: "+10% recuperação de estamina diária no calendário",
+        staminaBonusPct: 10
+      },
+      {
+        id: "vip_team",
+        name: "Equipe Multidisciplinar VIP",
+        icon: "⭐",
+        salary: 2500,
+        benefit: "+25% XP geral em todos os treinos e recuperação acelerada",
+        xpBonusPct: 25
+      }
+    ],
+
+    recalculateOvr: function (athlete) {
+      if (!athlete) return 35;
+      const attrs = athlete.attributes || {};
+      const v = Math.min(99, Math.max(1, Number(attrs.vel ?? attrs.pace) || 35));
+      const c = Math.min(99, Math.max(1, Number(attrs.chu ?? attrs.shooting) || 35));
+      const p = Math.min(99, Math.max(1, Number(attrs.pas ?? attrs.passing) || 35));
+      const d = Math.min(99, Math.max(1, Number(attrs.dri ?? attrs.dribbling) || 35));
+      const df = Math.min(99, Math.max(1, Number(attrs.def ?? attrs.defending) || 35));
+      const f = Math.min(99, Math.max(1, Number(attrs.fis ?? attrs.physical) || 35));
+
+      const pos = (athlete.pos || athlete.position || "ATA").toUpperCase();
+      let ovr = 35;
+      switch (pos) {
+        case "GOL":
+          ovr = Math.round(df * 0.45 + f * 0.35 + p * 0.20);
+          break;
+        case "ZAG":
+          ovr = Math.round(df * 0.45 + f * 0.35 + v * 0.12 + p * 0.08);
+          break;
+        case "LAT":
+          ovr = Math.round(v * 0.30 + df * 0.25 + p * 0.25 + d * 0.20);
+          break;
+        case "VOL":
+          ovr = Math.round(df * 0.35 + p * 0.30 + f * 0.25 + d * 0.10);
+          break;
+        case "MEI":
+          ovr = Math.round(p * 0.40 + d * 0.30 + c * 0.20 + v * 0.10);
+          break;
+        case "PON":
+          ovr = Math.round(v * 0.40 + d * 0.35 + c * 0.15 + p * 0.10);
+          break;
+        case "ATA":
+          ovr = Math.round(c * 0.45 + d * 0.20 + v * 0.20 + f * 0.15);
+          break;
+        default:
+          ovr = Math.round((v + c + p + d + df + f) / 6);
+      }
+      ovr = Math.min(99, Math.max(1, ovr));
+      athlete.ovr = ovr;
+      athlete.overall = ovr;
+      return ovr;
+    },
+
+    syncAthleteState: function (state) {
+      return this.ensurePlayerEvolutionData(state);
+    },
+
+    renderFutCard: function (athlete, state) {
+      return this.generateFutCardHtml(athlete, state);
+    },
+
+    ensurePlayerEvolutionData: function (state) {
+      if (!state) return null;
+      const pState = getCareerState(state);
+      const athlete = getControlledPlayer(state) || { ovr: 45, wage: 1500, attributes: {} };
+      if (!pState || !athlete) return null;
+
+      athlete.attributes = athlete.attributes || {};
+      const pairs = [
+        ["vel", "pace"],
+        ["chu", "shooting"],
+        ["pas", "passing"],
+        ["dri", "dribbling"],
+        ["def", "defending"],
+        ["fis", "physical"]
+      ];
+
+      pairs.forEach(([pt, en]) => {
+        let val = athlete.attributes[pt] !== undefined ? athlete.attributes[pt] : athlete.attributes[en];
+        if (val === undefined || val === null || isNaN(Number(val))) val = 35;
+        val = Math.min(99, Math.max(1, Math.round(Number(val))));
+        athlete.attributes[pt] = val;
+        athlete.attributes[en] = val;
+      });
+
+      const ovr = AFM_PLAYER_EVOLUTION.recalculateOvr(athlete);
+      pState.athleteOvr = ovr;
+      pState.overall = ovr;
+
+      // Sincronização da trava diária via calendário interno do jogo
+      const curDate = state.date || state.currentDate || "2026-01-01";
+      if (window.AFM_PlayerEngine?.syncDailyTrainingLimit) {
+        window.AFM_PlayerEngine.syncDailyTrainingLimit(pState, curDate);
+      } else {
+        pState.trainingState = pState.trainingState || { dailyCount: 0, lastTrainingDate: curDate, maxDailyLimit: 3 };
+        if (pState.trainingState.lastTrainingDate !== curDate) {
+          pState.trainingState.dailyCount = 0;
+          pState.trainingState.lastTrainingDate = curDate;
+        }
+      }
+
+      // Estruturas de suporte à evolução
+      pState.level = Number(pState.level) || 1;
+      pState.xp = Number(pState.xp) || 0;
+      pState.xpToNextLevel = Number(pState.xpToNextLevel) || 400;
+      pState.skillPoints = Math.max(0, Number(pState.skillPoints ?? pState.availablePoints) || 0);
+      pState.availablePoints = pState.skillPoints;
+      pState.pendingAttributePoints = pState.pendingAttributePoints || {};
+      pState.equippedPlayStyles = Array.isArray(pState.equippedPlayStyles) ? pState.equippedPlayStyles : [];
+      pState.evolutionLog = Array.isArray(pState.evolutionLog) ? pState.evolutionLog : [];
+      pState.hiredStaff = pState.hiredStaff || {};
+      pState.extraSessions = pState.extraSessions || {};
+      athlete.weakFoot = Number(athlete.weakFoot) || 3;
+      athlete.skillMoves = Number(athlete.skillMoves) || 3;
+      athlete.preferredFoot = athlete.preferredFoot || athlete.foot || "Direito";
+      athlete.energy = typeof athlete.energy === 'number' ? athlete.energy : (pState.energy !== undefined ? pState.energy : 100);
+      athlete.fitness = athlete.energy;
+      pState.energy = athlete.energy;
+
+      // Foco semanal padrão com suporte a goleiros
+      if (!pState.weeklyTrainingFocus || ((athlete.pos === "GOL" || athlete.position === "GOL") && pState.weeklyTrainingFocus === "finalizacao")) {
+        pState.weeklyTrainingFocus = (athlete.pos === "GOL" || athlete.position === "GOL") ? "gk_reflexes" : "finalizacao";
+      }
+
+      // Desafios mensais do técnico
+      if (!Array.isArray(pState.monthlyCoachObjectives) || pState.monthlyCoachObjectives.length === 0) {
+        pState.monthlyCoachObjectives = [
+          { id: "obj_train_ct", title: "Dedicação no CT", desc: "Realizar 6 treinamentos práticos em campo", target: 6, current: 0, xp: 150, completed: false, claimed: false },
+          { id: "obj_maintain_stamina", title: "Atleta Exemplar", desc: "Manter energia e fôlego acima de 75%", target: 75, current: athlete.energy, xp: 100, completed: athlete.energy >= 75, claimed: false },
+          { id: "obj_upgrade_skill", title: "Foco no Domínio", desc: "Elevar atributo principal (" + (athlete.pos === 'GOL' ? 'Defesa' : 'Chute') + ")", target: 1, current: 0, xp: 200, completed: false, claimed: false }
+        ];
+      }
+
+      return { pState, athlete };
+    },
+
+    grantPlayerXp: function (state, amount, reason) {
+      if (!state) return { effectiveXp: 0, levelUps: 0 };
+      const { pState, athlete } = AFM_PLAYER_EVOLUTION.ensurePlayerEvolutionData(state) || {};
+      if (!pState) return { effectiveXp: 0, levelUps: 0 };
+
+      let mult = 1.0;
+      if (pState.hiredStaff?.personal_trainer) mult += 0.15;
+      if (pState.hiredStaff?.vip_team) mult += 0.25;
+      const effectiveXp = Math.round((Number(amount) || 0) * mult);
+
+      pState.xp = (pState.xp || 0) + effectiveXp;
+
+      let levelUps = 0;
+      while (pState.xp >= (pState.xpToNextLevel || 400)) {
+        pState.xp -= pState.xpToNextLevel;
+        pState.level = (pState.level || 1) + 1;
+        pState.skillPoints = (pState.skillPoints || 0) + 2;
+        pState.availablePoints = pState.skillPoints;
+        pState.xpToNextLevel = Math.round((pState.xpToNextLevel || 400) * 1.2);
+        levelUps++;
+        pState.evolutionLog.unshift({
+          date: state.date || state.currentDate || "2026-01-01",
+          icon: "⭐",
+          type: "level_up",
+          desc: "Subiu para o Nível " + pState.level + "! (+2 Pontos de Atributo liberados)"
+        });
+      }
+
+      if (reason) {
+        pState.evolutionLog.unshift({
+          date: state.date || state.currentDate || "2026-01-01",
+          icon: "⚡",
+          type: "xp_gain",
+          desc: "+" + effectiveXp + " XP: " + reason
+        });
+      }
+      if (pState.evolutionLog.length > 25) pState.evolutionLog.length = 25;
+
+      return { effectiveXp, levelUps };
+    },
+
+    generateRadarSvg: function (attrs) {
+      const v = Math.min(99, Math.max(1, Number(attrs.vel ?? attrs.pace) || 35));
+      const c = Math.min(99, Math.max(1, Number(attrs.chu ?? attrs.shooting) || 35));
+      const p = Math.min(99, Math.max(1, Number(attrs.pas ?? attrs.passing) || 35));
+      const d = Math.min(99, Math.max(1, Number(attrs.dri ?? attrs.dribbling) || 35));
+      const df = Math.min(99, Math.max(1, Number(attrs.def ?? attrs.defending) || 35));
+      const f = Math.min(99, Math.max(1, Number(attrs.fis ?? attrs.physical) || 35));
+
+      const stats = [
+        { label: "VEL", val: v, angle: -Math.PI / 2 },
+        { label: "CHU", val: c, angle: -Math.PI / 6 },
+        { label: "PAS", val: p, angle: Math.PI / 6 },
+        { label: "DRI", val: d, angle: Math.PI / 2 },
+        { label: "DEF", val: df, angle: (5 * Math.PI) / 6 },
+        { label: "FIS", val: f, angle: (7 * Math.PI) / 6 }
+      ];
+
+      const cx = 130, cy = 130, maxR = 90;
+
+      const webs = [0.25, 0.5, 0.75, 1.0].map(ratio => {
+        const points = stats.map(s => {
+          const x = cx + maxR * ratio * Math.cos(s.angle);
+          const y = cy + maxR * ratio * Math.sin(s.angle);
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(" ");
+        return `<polygon points="${points}" fill="none" stroke="rgba(255,255,255,${ratio === 1 ? '0.2' : '0.08'})" stroke-width="1"/>`;
+      }).join("");
+
+      const spokes = stats.map(s => {
+        const x = cx + maxR * Math.cos(s.angle);
+        const y = cy + maxR * Math.sin(s.angle);
+        return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>`;
+      }).join("");
+
+      const polyPoints = stats.map(s => {
+        const r = (s.val / 99) * maxR;
+        const x = cx + r * Math.cos(s.angle);
+        const y = cy + r * Math.sin(s.angle);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(" ");
+
+      const labelsAndDots = stats.map(s => {
+        const r = (s.val / 99) * maxR;
+        const dotX = cx + r * Math.cos(s.angle);
+        const dotY = cy + r * Math.sin(s.angle);
+
+        const labelR = maxR + 18;
+        const lx = cx + labelR * Math.cos(s.angle);
+        const ly = cy + labelR * Math.sin(s.angle) + 4;
+
+        return `
+          <circle cx="${dotX.toFixed(1)}" cy="${dotY.toFixed(1)}" r="3.5" fill="#a855f7" stroke="#fff" stroke-width="1.5"/>
+          <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10" font-weight="900" fill="#cbd5e1" font-family="Montserrat, sans-serif">
+            ${s.label} <tspan fill="#34d399" font-weight="900">${s.val}</tspan>
+          </text>
+        `;
+      }).join("");
+
+      return `
+        <svg viewBox="0 0 260 260" width="100%" height="240" style="max-width:260px;margin:0 auto;display:block">
+          <defs>
+            <radialGradient id="radarGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#a855f7" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#7c3aed" stop-opacity="0.1"/>
+            </radialGradient>
+          </defs>
+          ${webs}
+          ${spokes}
+          <polygon points="${polyPoints}" fill="url(#radarGrad)" stroke="#c084fc" stroke-width="2.5" stroke-linejoin="round"/>
+          ${labelsAndDots}
+        </svg>
+      `;
+    },
+
+    generateFutCardHtml: function (athlete, state) {
+      const ovr = Number(athlete.ovr || athlete.overall) || 35;
+      let tierClass = "fut-card-bronze";
+      let tierName = "Bronze";
+      if (ovr >= 90) { tierClass = "fut-card-legendary"; tierName = "Lendário"; }
+      else if (ovr >= 85) { tierClass = "fut-card-special"; tierName = "Especial"; }
+      else if (ovr >= 75) { tierClass = "fut-card-gold"; tierName = "Ouro"; }
+      else if (ovr >= 65) { tierClass = "fut-card-silver"; tierName = "Prata"; }
+
+      const attrs = athlete.attributes || {};
+      const v = Math.min(99, Math.max(1, Number(attrs.vel ?? attrs.pace) || 35));
+      const c = Math.min(99, Math.max(1, Number(attrs.chu ?? attrs.shooting) || 35));
+      const p = Math.min(99, Math.max(1, Number(attrs.pas ?? attrs.passing) || 35));
+      const d = Math.min(99, Math.max(1, Number(attrs.dri ?? attrs.dribbling) || 35));
+      const df = Math.min(99, Math.max(1, Number(attrs.def ?? attrs.defending) || 35));
+      const f = Math.min(99, Math.max(1, Number(attrs.fis ?? attrs.physical) || 35));
+
+      const photoUri = (typeof window.generateYoungAthletePortraitUri === 'function' && state?.playerCareerState?.appearance)
+        ? window.generateYoungAthletePortraitUri(state.playerCareerState.appearance, { width: 96, height: 96 })
+        : (athlete.photo || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><circle cx='48' cy='36' r='20' fill='%23a855f7'/><ellipse cx='48' cy='80' rx='32' ry='22' fill='%236366f1'/></svg>");
+
+      const pos = (athlete.pos || athlete.position || "ATA").toUpperCase();
+      const name = athlete.nickname || athlete.name || "Atleta";
+      const weakFootStars = "★".repeat(athlete.weakFoot || 3) + "☆".repeat(5 - (athlete.weakFoot || 3));
+      const skillStars = "★".repeat(athlete.skillMoves || 3) + "☆".repeat(5 - (athlete.skillMoves || 3));
+
+      return `
+        <div class="fut-card ${tierClass}" style="box-shadow:0 10px 25px rgba(0,0,0,0.6);margin:0 auto">
+          <div class="fut-card-top">
+            <div class="fut-card-ovr-box">
+              <div class="fut-card-ovr">${ovr}</div>
+              <div class="fut-card-pos">${pos}</div>
+            </div>
+            <div class="fut-card-crest">
+              <span style="font-size:16px">${athlete.nationality === 'Brasil' || !athlete.nationality ? '🇧🇷' : '🌐'}</span>
+            </div>
+          </div>
+          <div class="fut-card-photo-wrap">
+            <img class="fut-card-photo" src="${photoUri}" alt="${name}" style="background:rgba(0,0,0,0.2)"/>
+          </div>
+          <div class="fut-card-bottom">
+            <div class="fut-card-name">${name}</div>
+            <div class="fut-card-tier-pill">${tierName} · ${athlete.age || 15} ANOS</div>
+            <div style="display:flex;gap:8px;font-size:8px;color:#cbd5e1;margin:3px 0 2px 0">
+              <span>Perna: <strong style="color:#facc15">${weakFootStars}</strong></span>
+              <span>Fintas: <strong style="color:#38bdf8">${skillStars}</strong></span>
+            </div>
+            <div class="fut-card-stats">
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${v}</span> <span class="fut-card-stat-lbl">VEL</span></div>
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${c}</span> <span class="fut-card-stat-lbl">CHU</span></div>
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${p}</span> <span class="fut-card-stat-lbl">PAS</span></div>
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${d}</span> <span class="fut-card-stat-lbl">DRI</span></div>
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${df}</span> <span class="fut-card-stat-lbl">DEF</span></div>
+              <div class="fut-card-stat-item"><span class="fut-card-stat-val">${f}</span> <span class="fut-card-stat-lbl">FIS</span></div>
+            </div>
+          </div>
+        </div>
+      `;
+    },
+
+    openDribbleModal: function (state, onDone) {
+      if (window.__minigameLaunchLock) return;
+      const pState = state?.playerCareerState;
+      const athlete = getControlledPlayer(state);
+      if (!pState || !athlete) return;
+
+      if (window.AFM_PlayerEngine?.syncDailyTrainingLimit) {
+        window.AFM_PlayerEngine.syncDailyTrainingLimit(pState, state.date || state.currentDate || "2026-01-01");
+      }
+      const currentDaily = pState.trainingState?.dailyCount || 0;
+      if (currentDaily >= 3) {
+        showCustomAlert({
+          title: "Limite Diário Atingido! ⚠️",
+          message: "Você já realizou os 3 treinos práticos de hoje. Avance o dia no calendário para liberar mais cargas!",
+          type: "warning"
+        });
+        return;
+      }
+
+      const modalId = "afm-dribble-minigame-modal";
+      const old = document.getElementById(modalId);
+      if (old) old.remove();
+
+      const mySquad = state.squad || [];
+      const defender = mySquad.find(p => p.pos === "ZAG" || p.pos === "CB") || { name: "Zagueiro do CT", ovr: 65, overall: 65, attributes: { def: 65, fis: 65 } };
+      const myDri = Math.min(99, Math.max(1, Number(athlete.attributes?.dri ?? athlete.attributes?.dribbling) || 35));
+      const myVel = Math.min(99, Math.max(1, Number(athlete.attributes?.vel ?? athlete.attributes?.pace) || 35));
+      const defScore = Math.min(99, Math.max(1, Number(defender.attributes?.def ?? defender.ovr ?? 60)));
+      const streak = pState.dribbleStreak || 0;
+
+      const overlay = document.createElement("div");
+      overlay.id = modalId;
+      overlay.style.cssText = "position:fixed;inset:0;background:rgba(3,7,18,0.85);backdrop-filter:blur(8px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px";
+
+      overlay.innerHTML = `
+        <div style="background:linear-gradient(145deg,#0b0f19,#111827);border:1.5px solid #a855f7;border-radius:20px;max-width:520px;width:100%;padding:22px;box-shadow:0 15px 40px rgba(0,0,0,0.8),0 0 25px rgba(168,85,247,0.3);color:#fff;font-family:Montserrat,sans-serif">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:10px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:22px">🌀</span>
+              <div>
+                <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">Drible & 1x1 no CT</h3>
+                <div style="font-size:11px;color:#a855f7;font-weight:700">Encare o zagueiro e abra espaço com sua habilidade</div>
+              </div>
+            </div>
+            <div style="font-size:11px;font-weight:900;padding:4px 10px;border-radius:9999px;background:rgba(168,85,247,0.15);border:1px solid #a855f7;color:#c084fc">
+              ${streak > 0 ? "🔥 Combo Streak: " + streak + "x (+5 XP)" : "Tentativa " + (currentDaily + 1) + "/3"}
+            </div>
+          </div>
+
+          <!-- Campo Miniatura de Duelo -->
+          <div style="background:radial-gradient(ellipse at center,#064e3b 0%,#022c22 70%);border:2px solid #059669;border-radius:14px;padding:16px;margin-bottom:16px;position:relative;overflow:hidden">
+            <div style="display:flex;justify-content:space-around;align-items:center;position:relative;z-index:2">
+              <!-- Atleta -->
+              <div style="text-align:center">
+                <div style="width:50px;height:50px;border-radius:50%;background:#7c3aed;border:2px solid #c084fc;margin:0 auto 6px auto;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 14px rgba(168,85,247,0.6)">🏃</div>
+                <div style="font-size:12px;font-weight:900;color:#fff">${athlete.nickname || athlete.name}</div>
+                <div style="font-size:10px;color:#34d399;font-weight:800">DRI ${myDri} · VEL ${myVel}</div>
+              </div>
+              <!-- VS -->
+              <div style="font-size:18px;font-weight:900;color:#facc15;text-shadow:0 0 10px rgba(250,204,21,0.6)">VS</div>
+              <!-- Zagueiro -->
+              <div style="text-align:center">
+                <div style="width:50px;height:50px;border-radius:50%;background:#991b1b;border:2px solid #f87171;margin:0 auto 6px auto;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 14px rgba(239,68,68,0.6)">🛡️</div>
+                <div style="font-size:12px;font-weight:900;color:#fff">${defender.name}</div>
+                <div style="font-size:10px;color:#f87171;font-weight:800">DEF ${defScore} · OVR ${defender.ovr || defender.overall || 65}</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="dribble-stage-actions">
+            <div style="font-size:12px;font-weight:800;color:#cbd5e1;margin-bottom:8px">ESCOLHA O MOVIMENTO DO DRIBLE:</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+              <button type="button" class="btn-dribble-move" data-move="pedalada" style="background:rgba(15,23,42,0.8);border:1.5px solid #334155;border-radius:12px;padding:12px;color:#fff;text-align:left;cursor:pointer;transition:all 0.2s">
+                <div style="font-size:12px;font-weight:900;color:#38bdf8">🦶 Pedalada Rápida</div>
+                <div style="font-size:10px;color:#94a3b8;margin-top:2px">Usa agilidade e velocidade para desequilibrar</div>
+              </button>
+              <button type="button" class="btn-dribble-move" data-move="vaca" style="background:rgba(15,23,42,0.8);border:1.5px solid #334155;border-radius:12px;padding:12px;color:#fff;text-align:left;cursor:pointer;transition:all 0.2s">
+                <div style="font-size:12px;font-weight:900;color:#facc15">🐄 Drible da Vaca</div>
+                <div style="font-size:10px;color:#94a3b8;margin-top:2px">Joga de um lado e busca no outro na corrida</div>
+              </button>
+              <button type="button" class="btn-dribble-move" data-move="corpo" style="background:rgba(15,23,42,0.8);border:1.5px solid #334155;border-radius:12px;padding:12px;color:#fff;text-align:left;cursor:pointer;transition:all 0.2s">
+                <div style="font-size:12px;font-weight:900;color:#a855f7">🎭 Finta de Corpo</div>
+                <div style="font-size:10px;color:#94a3b8;margin-top:2px">Gingado malicioso para cortar para a perna boa</div>
+              </button>
+              <button type="button" class="btn-dribble-move" data-move="elastico" style="background:rgba(15,23,42,0.8);border:1.5px solid #334155;border-radius:12px;padding:12px;color:#fff;text-align:left;cursor:pointer;transition:all 0.2s">
+                <div style="font-size:12px;font-weight:900;color:#34d399">🌪️ Elástico Rápido</div>
+                <div style="font-size:10px;color:#94a3b8;margin-top:2px">Toque para fora e corte seco para dentro</div>
+              </button>
+            </div>
+            <button type="button" id="btn-close-dribble-modal" style="width:100%;padding:10px;background:#334155;border:none;border-radius:10px;color:#cbd5e1;font-weight:800;font-size:12px;cursor:pointer">Cancelar</button>
+          </div>
+
+          <div id="dribble-stage-result" style="display:none;text-align:center">
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      overlay.querySelector("#btn-close-dribble-modal")?.addEventListener("click", () => {
+        overlay.remove();
+      });
+
+      overlay.querySelectorAll(".btn-dribble-move").forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (window.__minigameLaunchLock) return;
+          window.__minigameLaunchLock = true;
+
+          const move = btn.dataset.move;
+          let bonus = 0;
+          if (move === "pedalada" && myVel >= 40) bonus += 8;
+          if (move === "vaca" && myVel >= 42) bonus += 10;
+          if (move === "corpo" && myDri >= 38) bonus += 8;
+          if (move === "elastico" && myDri >= 42) bonus += 12;
+
+          const baseChance = 50 + (myDri - defScore) * 1.5 + bonus;
+          const finalChance = Math.min(85, Math.max(25, baseChance));
+          const isSuccess = Math.random() * 100 < finalChance;
+
+          const res = window.AFM_PlayerEngine?.executePracticalTraining?.({
+            type: "dribble",
+            isGoal: isSuccess,
+            playerState: pState,
+            currentGameDate: state.date || state.currentDate || "2026-01-01"
+          });
+
+          const actionsEl = overlay.querySelector("#dribble-stage-actions");
+          const resultEl = overlay.querySelector("#dribble-stage-result");
+          if (actionsEl) actionsEl.style.display = "none";
+
+          if (resultEl) {
+            resultEl.style.display = "block";
+            resultEl.innerHTML = `
+              <div style="font-size:44px;margin-bottom:8px">${isSuccess ? "🌪️" : "🛡️"}</div>
+              <div style="font-size:18px;font-weight:900;color:${isSuccess ? "#34d399" : "#f87171"};margin-bottom:6px">
+                ${isSuccess ? "DRIBLE CONCLUÍDO COM SUCESSO!" : "DESARMADO PELO DEFENSOR!"}
+              </div>
+              <div style="font-size:12px;color:#cbd5e1;line-height:1.5;margin-bottom:14px">
+                ${isSuccess 
+                  ? "Gingado perfeito! O zagueiro ficou na saudade e o caminho para o gol ficou completamente livre." 
+                  : "O zagueiro leu o movimento antes da finta e conseguiu o desarme limpo pela lateral."}
+              </div>
+              <div style="display:inline-block;padding:6px 16px;border-radius:9999px;font-size:13px;font-weight:900;background:${isSuccess ? "rgba(16,185,129,0.2)" : "rgba(148,163,184,0.2)"};color:${isSuccess ? "#34d399" : "#cbd5e1"};border:1px solid ${isSuccess ? "#10b981" : "#475569"};margin-bottom:16px">
+                +${res?.xpEarned || (isSuccess ? 25 : 4)} XP Concedido!
+              </div>
+              <div>
+                <button type="button" id="btn-finish-dribble" style="width:100%;padding:12px;background:linear-gradient(90deg,#7c3aed,#a855f7);border:none;border-radius:12px;color:#fff;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 0 16px rgba(168,85,247,0.4)">
+                  ✓ Continuar
+                </button>
+              </div>
+            `;
+
+            resultEl.querySelector("#btn-finish-dribble")?.addEventListener("click", () => {
+              window.__minigameLaunchLock = false;
+              overlay.remove();
+              if (typeof onDone === "function") onDone();
+              if (typeof window.save === "function") window.save();
+              if (typeof window.render === "function") window.render();
+            });
+          }
+        });
+      });
+    }
+  };
+  window.AFM_PLAYER_EVOLUTION = AFM_PLAYER_EVOLUTION;
+  if (window.AFM_InteractiveSetPieces) {
+    window.AFM_InteractiveSetPieces.openDribbleModal = AFM_PLAYER_EVOLUTION.openDribbleModal;
+  }
+
+  // =========================================================================
   // ABA 2: MEU ATLETA & TREINO (EVOLUÇÃO E GASTO DE SKILL POINTS)
   // =========================================================================
   function renderPlayerEvolution(state) {
-    const pState = getCareerState(state);
-    const athlete = getControlledPlayer(state) || { ovr: 45, wage: 1500, attributes: {} };
-    if (!pState || !athlete)
-      return `<div class="card" style="padding:20px;color:#fff">Carregando perfil...</div>`;
+    const evoData = AFM_PLAYER_EVOLUTION.ensurePlayerEvolutionData(state);
+    if (!evoData) {
+      return `<div class="card" style="padding:20px;color:#fff">Carregando perfil de evolução...</div>`;
+    }
+    const { pState, athlete } = evoData;
 
+    const curDate = state.date || state.currentDate || "2026-01-01";
     if (window.AFM_PlayerEngine?.syncDailyTrainingLimit) {
-      window.AFM_PlayerEngine.syncDailyTrainingLimit(pState, state.date || state.currentDate || "2026-01-01");
+      window.AFM_PlayerEngine.syncDailyTrainingLimit(pState, curDate);
     }
     const trainingState = pState.trainingState || { dailyCount: 0, maxDailyLimit: 3 };
     const remainingToday = Math.max(0, (trainingState.maxDailyLimit || 3) - (trainingState.dailyCount || 0));
 
-    const attrs = window.AFM_PlayerEngine?.getPlayerEffectiveAttributes(
-      state,
-      athlete,
-    ) ||
-      athlete.attributes || {
-        vel: 35,
-        chu: 35,
-        pas: 35,
-        dri: 35,
-        def: 35,
-        fis: 35,
-      };
-    const bootsEquipped =
-      (pState.luxuryItems || []).includes("luxury_boots") &&
-      pState.luxuryBootsEquipped !== false;
-    const sponsorBootBonus =
-      window.AFM_PlayerEngine?.getSponsorBootBonus(pState.sponsorContract) || 0;
-    const pending =
-      pState.pendingAttributePoints || (pState.pendingAttributePoints = {});
-    const pendingTotal = Object.values(pending).reduce(
-      (sum, value) => sum + Math.max(0, Number(value) || 0),
-      0,
-    );
+    const attrs = window.AFM_PlayerEngine?.getPlayerEffectiveAttributes(state, athlete) || athlete.attributes || {
+      vel: 35, chu: 35, pas: 35, dri: 35, def: 35, fis: 35
+    };
+
+    const bootsEquipped = (pState.luxuryItems || []).includes("luxury_boots") && pState.luxuryBootsEquipped !== false;
+    const sponsorBootBonus = window.AFM_PlayerEngine?.getSponsorBootBonus(pState.sponsorContract) || 0;
+    const pending = pState.pendingAttributePoints || (pState.pendingAttributePoints = {});
+    const pendingTotal = Object.values(pending).reduce((sum, val) => sum + Math.max(0, Number(val) || 0), 0);
     const sp = Math.max(0, (pState.skillPoints || 0) - pendingTotal);
-    const xpPercent = Math.min(
-      100,
-      Math.round(((pState.xp || 0) / (pState.xpToNextLevel || 400)) * 100),
-    );
+    const xpPercent = Math.min(100, Math.round(((pState.xp || 0) / (pState.xpToNextLevel || 400)) * 100));
 
+    // Opções de treino (com foco específico para goleiros)
     const trainingOptions = [
-      {
-        id: "finalizacao",
-        label: "Finalização & Chutes",
-        icon: "🎯",
-        desc: "Foco em pontaria, chutes colocados e frieza",
-      },
-      {
-        id: "passe",
-        label: "Passe & Criação",
-        icon: "📐",
-        desc: "Foco em lançamentos, visão e passes curtos",
-      },
-      {
-        id: "drible",
-        label: "Drible & Agilidade",
-        icon: "⚡",
-        desc: "Foco em controle de bola e condução rápida",
-      },
-      {
-        id: "fisico",
-        label: "Físico & Resistência",
-        icon: "🏋️‍♂️",
-        desc: "Foco em fôlego, força de arranque e impulsão",
-      },
-      {
-        id: "defesa",
-        label: "Desarme & Marcação",
-        icon: "🛡️",
-        desc: "Foco em interceptações, botes e combate",
-      },
+      ...(athlete.pos === "GOL" || athlete.position === "GOL"
+        ? [{ id: "gk_reflexes", label: "Reflexos & Defesas Difíceis", icon: "🧤", desc: "Foco em tempo de reação, posicionamento e segurança na trave" }]
+        : [{ id: "finalizacao", label: "Finalização & Chutes", icon: "🎯", desc: "Foco em pontaria, chutes colocados e frieza" }]),
+      { id: "passe", label: "Passe & Criação", icon: "📐", desc: "Foco em lançamentos, visão e passes curtos" },
+      { id: "drible", label: "Drible & Agilidade", icon: "⚡", desc: "Foco em controle de bola e condução rápida" },
+      { id: "fisico", label: "Físico & Resistência", icon: "🏋️‍♂️", desc: "Foco em fôlego, força de arranque e impulsão" },
+      { id: "defesa", label: "Desarme & Marcação", icon: "🛡️", desc: "Foco em interceptações, botes e combate" }
     ];
 
-    const attrList = [
-      {
-        key: "vel",
-        label: "Velocidade & Arranque",
-        val: attrs.vel || 35,
-        icon: "⚡",
-      },
-      {
-        key: "chu",
-        label: "Finalização & Chute",
-        val: attrs.chu || 35,
-        icon: "⚽",
-      },
-      {
-        key: "pas",
-        label: "Passe & Visão de Jogo",
-        val: attrs.pas || 35,
-        icon: "🎯",
-      },
-      {
-        key: "dri",
-        label: "Drible & Agilidade",
-        val: attrs.dri || 35,
-        icon: "🌀",
-      },
-      {
-        key: "def",
-        label: "Defesa & Desarme",
-        val: attrs.def || 35,
-        icon: "🛡️",
-      },
-      {
-        key: "fis",
-        label: "Físico & Fôlego",
-        val: attrs.fis || 35,
-        icon: "💪",
-      },
-    ];
+    const attrList = AFM_PLAYER_EVOLUTION.ATTR_MAP.map(a => ({
+      key: a.key,
+      label: a.label,
+      val: attrs[a.key] || 35,
+      icon: a.icon,
+      short: a.short
+    }));
+
+    // Medidor de Condição Física e Risco de Lesão
+    const energyVal = athlete.energy || 100;
+    let staminaStatus = "🟢 Excelente forma física (Risco de Lesão: Baixo)";
+    let staminaColor = "#34d399";
+    if (energyVal < 50) {
+      staminaStatus = "🔴 Atleta desgastado (Risco de Lesão: Alto ⚠️)";
+      staminaColor = "#f87171";
+    } else if (energyVal < 75) {
+      staminaStatus = "🟡 Fadiga moderada (Risco de Lesão: Médio)";
+      staminaColor = "#facc15";
+    }
+
+    const equippedStyles = pState.equippedPlayStyles || [];
 
     return `
       <div style="display:flex;flex-direction:column;gap:18px">
         
-        <!-- CARD DE XP & LEVEL UP -->
-        <div class="card" style="background:linear-gradient(135deg, #1e1b4b, #0f172a);border:1px solid rgba(168,85,247,0.4);border-radius:18px;padding:20px">
+        <!-- 1. CARD DE XP & LEVEL UP -->
+        <div class="card" style="background:linear-gradient(135deg, #1e1b4b, #0f172a);border:1px solid rgba(168,85,247,0.4);border-radius:18px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,0.5)">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px">
             <div>
               <div style="display:flex;align-items:center;gap:10px">
                 <span style="font-size:24px">⭐</span>
-                <h2 style="margin:0;font-size:20px;font-weight:900;color:#fff">NÍVEL ${pState.level || 1} · EVOLUÇÃO</h2>
+                <h2 style="margin:0;font-size:20px;font-weight:900;color:#fff">NÍVEL ${pState.level || 1} · EVOLUÇÃO DO ATLETA</h2>
               </div>
-              <div style="font-size:12px;color:#94a3b8;margin-top:2px">Jogue partidas e treine semanalmente para acumular XP e liberar novos pontos ao subir de nível.</div>
+              <div style="font-size:12px;color:#94a3b8;margin-top:2px">Jogue partidas e treine no CT para acumular XP e liberar novos pontos ao subir de nível.</div>
             </div>
-            <div style="background:rgba(168,85,247,0.2);border:1px solid #a855f7;border-radius:10px;padding:8px 16px;text-align:right">
+            <div style="background:rgba(168,85,247,0.2);border:1px solid #a855f7;border-radius:12px;padding:8px 18px;text-align:right">
               <span style="font-size:11px;font-weight:800;color:#c084fc">PONTOS DISPONÍVEIS:</span>
-              <div style="font-size:22px;font-weight:900;color:#fff">${sp} PTS</div>
+              <div style="font-size:24px;font-weight:900;color:#fff">${sp} PTS</div>
               <div style="font-size:9px;color:#a855f7;margin-top:2px">${sp > 0 ? "Prontos para distribuir" : "+2 pts a cada novo nível"}</div>
             </div>
           </div>
@@ -1117,10 +1702,51 @@
           </div>
         </div>
 
-        <!-- GRID: ATRIBUTOS COM GASTO DE PONTOS + SELETOR DE FOCO DE TREINO -->
+        <!-- 2. DUPLA FUT MINI-CARD + RADAR CHART HEXAGONAL SVG & MEDIDOR DE ESTAMINA -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
           
-          <!-- COLUNA 1: ATRIBUTOS INDIVIDUAIS COM [+] -->
+          <!-- COLUNA 1: CARD FUT ESTILO EA FC -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <h3 style="margin:0 0 14px 0;font-size:13px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px;width:100%;text-align:left">
+              🃏 MINI-CARD FUT DINÂMICO
+            </h3>
+            ${AFM_PLAYER_EVOLUTION.generateFutCardHtml(athlete, state)}
+            <div style="margin-top:14px;font-size:11px;color:#94a3b8;text-align:center;line-height:1.4">
+              Pé Preferido: <strong style="color:#fff">${athlete.preferredFoot || "Direito"}</strong> · OVR ponderado por posição (${athlete.pos || "ATA"})
+            </div>
+          </div>
+
+          <!-- COLUNA 2: RADAR CHART HEXAGONAL SVG + BARRA DE CONDIÇÃO FÍSICA -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                <h3 style="margin:0;font-size:13px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+                  🕸️ RADAR HEXAGONAL DE ATRIBUTOS
+                </h3>
+                <span style="font-size:11px;color:#a855f7;font-weight:800">Escala 0–99</span>
+              </div>
+              ${AFM_PLAYER_EVOLUTION.generateRadarSvg(attrs)}
+            </div>
+
+            <!-- Condição Física e Risco de Lesão -->
+            <div style="margin-top:14px;background:#090d16;border:1px solid #334155;border-radius:12px;padding:12px">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:800;color:#cbd5e1;margin-bottom:6px">
+                <span>⚡ CONDIÇÃO FÍSICA & ESTAMINA</span>
+                <span style="color:${staminaColor}">${energyVal}%</span>
+              </div>
+              <div style="width:100%;height:8px;background:#1e293b;border-radius:4px;overflow:hidden;margin-bottom:6px">
+                <div style="width:${energyVal}%;height:100%;background:${staminaColor};border-radius:4px"></div>
+              </div>
+              <div style="font-size:10px;font-weight:700;color:${staminaColor}">${staminaStatus}</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 3. GRID ATRIBUTOS (GASTAR PONTOS) + FOCO DE TREINO SEMANAL & MINIGAMES -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+          
+          <!-- COLUNA 1: ATRIBUTOS INDIVIDUAIS COM [+] / [-] E CONFIRMAÇÃO -->
           <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
             <h3 style="margin:0 0 14px 0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
               📊 ATRIBUTOS DO ATLETA (GASTAR PONTOS)
@@ -1148,7 +1774,7 @@
             <button type="button" class="btn btn-confirm-skill-points" ${pendingTotal <= 0 ? "disabled" : ""} style="margin-top:14px;width:100%;padding:11px;border:0;border-radius:10px;background:${pendingTotal ? "#10b981" : "#334155"};color:#07111d;font-weight:900;cursor:${pendingTotal ? "pointer" : "not-allowed"}">✓ Confirmar atributos${pendingTotal ? ` (${pendingTotal} ponto${pendingTotal === 1 ? "" : "s"})` : ""}</button>
           </div>
 
-          <!-- COLUNA 2: SELETOR DE FOCO DE TREINO SEMANAL -->
+          <!-- COLUNA 2: SELETOR DE FOCO DE TREINO SEMANAL + MINIGAMES (PÊNALTI, FALTA, 1x1 DRIBLE) -->
           <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
             <h3 style="margin:0 0 14px 0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
               🏋️ FOCO DE TREINO SEMANAL (XP PASSIVO)
@@ -1180,7 +1806,7 @@
               O foco rende XP ao avançar o calendário e dá 10% de chance, uma vez por mês, de aumentar em 1 um atributo relacionado (limite 99).
             </div>
 
-            <!-- MINIGAME DE BOLAS PARADAS (PÊNALTIS E FALTAS) COM ANTI-GLITCH E DARK-NEON -->
+            <!-- TREINAMENTO PRÁTICO EM CAMPO COM OS 3 MINIGAMES -->
             <div class="mt-4 pt-4 border-t border-slate-700/60 flex flex-col gap-3" style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;gap:12px">
               <!-- Cabeçalho com Título e Badge de Cargas Diárias -->
               <div class="flex items-center justify-between" style="display:flex;align-items:center;justify-content:space-between">
@@ -1195,46 +1821,258 @@
                 </div>
               </div>
 
-              <!-- Botões de Ação dos Minigames -->
-              <div class="grid grid-cols-2 gap-3" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                <!-- Botão Treinar Pênaltis -->
+              <!-- Botões de Ação dos 3 Minigames -->
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+                <!-- Botão 1: Treinar Pênaltis -->
                 <button type="button" 
                         id="btn-train-penalty" 
-                        class="btn btn-practice-penalty relative group overflow-hidden p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all duration-200 ${remainingToday > 0 ? 'bg-gradient-to-br from-purple-900/40 via-purple-950/20 to-slate-900 border-purple-500/40 hover:border-purple-400 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] active:scale-95 cursor-pointer' : 'opacity-50 bg-slate-900/50 border-slate-700/50 cursor-not-allowed'}"
-                        style="padding:12px 10px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 0.2s ease;background:${remainingToday > 0 ? 'linear-gradient(135deg, rgba(88,28,135,0.4), rgba(15,23,42,0.95))' : 'rgba(15,23,42,0.5)'};border:1.5px solid ${remainingToday > 0 ? '#a855f7' : '#334155'};opacity:${remainingToday > 0 ? '1' : '0.5'};cursor:${remainingToday > 0 ? 'pointer' : 'not-allowed'};box-shadow:${remainingToday > 0 ? '0 0 16px rgba(168,85,247,0.2)' : 'none'}"
+                        class="btn btn-practice-penalty relative group overflow-hidden p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all duration-200"
+                        style="padding:10px 8px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 0.2s ease;background:${remainingToday > 0 ? 'linear-gradient(135deg, rgba(88,28,135,0.4), rgba(15,23,42,0.95))' : 'rgba(15,23,42,0.5)'};border:1.5px solid ${remainingToday > 0 ? '#a855f7' : '#334155'};opacity:${remainingToday > 0 ? '1' : '0.5'};cursor:${remainingToday > 0 ? 'pointer' : 'not-allowed'};box-shadow:${remainingToday > 0 ? '0 0 16px rgba(168,85,247,0.2)' : 'none'}"
                         ${remainingToday === 0 ? 'disabled' : ''}>
-                  <div class="flex items-center gap-2" style="display:flex;align-items:center;gap:6px">
-                    <span class="text-xl" style="font-size:18px">⚽</span>
-                    <span class="text-xs font-black text-white group-hover:text-purple-300 transition-colors" style="font-size:12px;font-weight:900;color:#fff">Treinar Pênaltis</span>
+                  <div style="display:flex;align-items:center;gap:4px">
+                    <span style="font-size:16px">⚽</span>
+                    <span style="font-size:11px;font-weight:900;color:#fff">Pênaltis</span>
                   </div>
-                  <span class="text-[10px] font-bold text-purple-400/90 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20" style="font-size:10px;font-weight:800;color:#c084fc;background:rgba(168,85,247,0.15);padding:2px 8px;border-radius:6px;border:1px solid rgba(168,85,247,0.3)">
+                  <span style="font-size:9px;font-weight:800;color:#c084fc;background:rgba(168,85,247,0.15);padding:2px 6px;border-radius:6px;border:1px solid rgba(168,85,247,0.3)">
                     +20 XP no Gol
                   </span>
                 </button>
 
-                <!-- Botão Treinar Faltas -->
+                <!-- Botão 2: Treinar Faltas -->
                 <button type="button" 
                         id="btn-train-freekick" 
-                        class="btn btn-practice-freekick relative group overflow-hidden p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all duration-200 ${remainingToday > 0 ? 'bg-gradient-to-br from-cyan-900/40 via-cyan-950/20 to-slate-900 border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] active:scale-95 cursor-pointer' : 'opacity-50 bg-slate-900/50 border-slate-700/50 cursor-not-allowed'}"
-                        style="padding:12px 10px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 0.2s ease;background:${remainingToday > 0 ? 'linear-gradient(135deg, rgba(14,116,144,0.4), rgba(15,23,42,0.95))' : 'rgba(15,23,42,0.5)'};border:1.5px solid ${remainingToday > 0 ? '#06b6d4' : '#334155'};opacity:${remainingToday > 0 ? '1' : '0.5'};cursor:${remainingToday > 0 ? 'pointer' : 'not-allowed'};box-shadow:${remainingToday > 0 ? '0 0 16px rgba(6,182,212,0.2)' : 'none'}"
+                        class="btn btn-practice-freekick relative group overflow-hidden p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all duration-200"
+                        style="padding:10px 8px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 0.2s ease;background:${remainingToday > 0 ? 'linear-gradient(135deg, rgba(14,116,144,0.4), rgba(15,23,42,0.95))' : 'rgba(15,23,42,0.5)'};border:1.5px solid ${remainingToday > 0 ? '#06b6d4' : '#334155'};opacity:${remainingToday > 0 ? '1' : '0.5'};cursor:${remainingToday > 0 ? 'pointer' : 'not-allowed'};box-shadow:${remainingToday > 0 ? '0 0 16px rgba(6,182,212,0.2)' : 'none'}"
                         ${remainingToday === 0 ? 'disabled' : ''}>
-                  <div class="flex items-center gap-2" style="display:flex;align-items:center;gap:6px">
-                    <span class="text-xl" style="font-size:18px">🎯</span>
-                    <span class="text-xs font-black text-white group-hover:text-cyan-300 transition-colors" style="font-size:12px;font-weight:900;color:#fff">Treinar Faltas</span>
+                  <div style="display:flex;align-items:center;gap:4px">
+                    <span style="font-size:16px">🎯</span>
+                    <span style="font-size:11px;font-weight:900;color:#fff">Faltas</span>
                   </div>
-                  <span class="text-[10px] font-bold text-cyan-400/90 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20" style="font-size:10px;font-weight:800;color:#38bdf8;background:rgba(6,182,212,0.15);padding:2px 8px;border-radius:6px;border:1px solid rgba(6,182,212,0.3)">
+                  <span style="font-size:9px;font-weight:800;color:#38bdf8;background:rgba(6,182,212,0.15);padding:2px 6px;border-radius:6px;border:1px solid rgba(6,182,212,0.3)">
                     +35 XP no Gol
+                  </span>
+                </button>
+
+                <!-- Botão 3: Treinar 1x1 & Drible -->
+                <button type="button" 
+                        id="btn-train-dribble" 
+                        class="btn btn-practice-dribble relative group overflow-hidden p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all duration-200"
+                        style="padding:10px 8px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all 0.2s ease;background:${remainingToday > 0 ? 'linear-gradient(135deg, rgba(16,185,129,0.4), rgba(15,23,42,0.95))' : 'rgba(15,23,42,0.5)'};border:1.5px solid ${remainingToday > 0 ? '#10b981' : '#334155'};opacity:${remainingToday > 0 ? '1' : '0.5'};cursor:${remainingToday > 0 ? 'pointer' : 'not-allowed'};box-shadow:${remainingToday > 0 ? '0 0 16px rgba(16,185,129,0.2)' : 'none'}"
+                        ${remainingToday === 0 ? 'disabled' : ''}>
+                  <div style="display:flex;align-items:center;gap:4px">
+                    <span style="font-size:16px">🌀</span>
+                    <span style="font-size:11px;font-weight:900;color:#fff">1x1 Drible</span>
+                  </div>
+                  <span style="font-size:9px;font-weight:800;color:#34d399;background:rgba(168,85,247,0.15);padding:2px 6px;border-radius:6px;border:1px solid rgba(16,185,129,0.3)">
+                    +25 XP no Drible
                   </span>
                 </button>
               </div>
 
-              <!-- Aviso de Limite Esgotado (Exibido apenas quando remainingToday === 0) -->
+              <!-- Aviso de Limite Esgotado -->
               ${remainingToday === 0 ? `
                 <div id="training-limit-warning" class="text-[11px] font-medium text-amber-300/80 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 flex items-center gap-2" style="font-size:11px;font-weight:700;color:#fde047;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px">
                   <span>⚠️</span>
                   <span>Limite diário de 3 treinos atingido. Avance o dia no calendário para liberar mais cargas de treino.</span>
                 </div>
               ` : ''}
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 4. SESSÕES EXTRAS NO CT & FISIOTERAPIA + PLAYSTYLES / ESPECIALIDADES -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+          
+          <!-- COLUNA 1: SESSÕES EXTRAS NO CT -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
+            <h3 style="margin:0 0 14px 0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+              🏥 CT & FISIOTERAPIA (SESSÕES ESPECIAIS)
+            </h3>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              ${AFM_PLAYER_EVOLUTION.EXTRA_SESSIONS_CATALOG.map(sess => {
+                const canAfford = sess.moneyCost <= 0 || (Number(pState.personalBank || pState.lifestyle?.cash || 0) >= sess.moneyCost);
+                const hasEnergy = sess.energyCost <= 0 || (energyVal >= sess.energyCost);
+                return `
+                  <div style="background:#090d16;border:1px solid #334155;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <span style="font-size:20px">${sess.icon}</span>
+                      <div>
+                        <div style="font-size:12px;font-weight:900;color:#fff">${sess.name}</div>
+                        <div style="font-size:10px;color:#94a3b8">${sess.desc}</div>
+                        <div style="font-size:10px;color:#a855f7;font-weight:800;margin-top:2px">
+                          ${sess.energyCost > 0 ? `-${sess.energyCost}% Energia` : `+${Math.abs(sess.energyCost)}% Energia Recuperada`} 
+                          ${sess.moneyCost > 0 ? ` · Custo: R$ ${sess.moneyCost}` : ""} · +${sess.xpReward} XP
+                        </div>
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-extra-session" data-session="${sess.id}" ${!canAfford || !hasEnergy ? "disabled" : ""} style="padding:8px 14px;border:none;border-radius:8px;font-size:11px;font-weight:900;background:${canAfford && hasEnergy ? '#7c3aed' : '#334155'};color:#fff;cursor:${canAfford && hasEnergy ? 'pointer' : 'not-allowed'}">
+                      ${sess.energyCost < 0 ? "Fazer Sessão" : "Treinar"}
+                    </button>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </div>
+
+          <!-- COLUNA 2: PLAYSTYLES / ESPECIALIDADES (ESTILO EA FC) -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+              <h3 style="margin:0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+                ✨ PLAYSTYLES & ESPECIALIDADES
+              </h3>
+              <span style="font-size:11px;font-weight:900;color:#c084fc;background:rgba(168,85,247,0.15);padding:3px 10px;border-radius:9999px;border:1px solid #a855f7">
+                ${equippedStyles.length}/3 Equipados
+              </span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              ${AFM_PLAYER_EVOLUTION.PLAYSTYLES_CATALOG.map(ps => {
+                const isEquipped = equippedStyles.includes(ps.id);
+                const attrVal = Number(athlete.attributes?.[ps.reqAttr] ?? attrs[ps.reqAttr]) || 35;
+                const isUnlocked = attrVal >= ps.reqVal || (athlete.pos === 'GOL' && ps.id === 'muralha');
+                return `
+                  <div style="background:${isEquipped ? 'rgba(124,58,237,0.25)' : '#090d16'};border:1.5px solid ${isEquipped ? '#a855f7' : (isUnlocked ? '#334155' : '#1e293b')};border-radius:10px;padding:10px;display:flex;flex-direction:column;justify-content:space-between;gap:6px">
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <span style="font-size:16px">${ps.icon}</span>
+                      <div style="font-size:11px;font-weight:900;color:#fff">${ps.name}</div>
+                    </div>
+                    <div style="font-size:9px;color:#94a3b8;line-height:1.3">${ps.desc}</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px">
+                      <span style="font-size:9px;font-weight:800;color:${isUnlocked ? '#34d399' : '#f87171'}">
+                        ${isUnlocked ? "✓ Desbloqueado" : `🔒 Requer ${ps.reqVal} ${ps.reqAttr.toUpperCase()}`}
+                      </span>
+                      ${isUnlocked ? `
+                        <button type="button" class="btn btn-playstyle-toggle" data-playstyle="${ps.id}" style="padding:3px 8px;border-radius:6px;border:none;font-size:9px;font-weight:900;background:${isEquipped ? '#10b981' : '#7c3aed'};color:#fff;cursor:pointer">
+                          ${isEquipped ? "Equipado" : "Equipar"}
+                        </button>
+                      ` : ""}
+                    </div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 5. STAFF PESSOAL DE ALTA PERFORMANCE + OBJETIVOS MENSAIS DO TÉCNICO -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+          
+          <!-- COLUNA 1: STAFF PESSOAL DE ALTA PERFORMANCE -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
+            <h3 style="margin:0 0 14px 0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+              👥 STAFF PESSOAL DE ALTA PERFORMANCE
+            </h3>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              ${AFM_PLAYER_EVOLUTION.STAFF_CATALOG.map(st => {
+                const isHired = !!pState.hiredStaff?.[st.id];
+                return `
+                  <div style="background:#090d16;border:1px solid ${isHired ? '#10b981' : '#334155'};border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <span style="font-size:20px">${st.icon}</span>
+                      <div>
+                        <div style="font-size:12px;font-weight:900;color:#fff">${st.name}</div>
+                        <div style="font-size:10px;color:#94a3b8">${st.benefit}</div>
+                        <div style="font-size:10px;color:#38bdf8;font-weight:800;margin-top:2px">Salário: R$ ${st.salary}/mês</div>
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-hire-evolution-staff" data-staff="${st.id}" style="padding:6px 14px;border:none;border-radius:8px;font-size:11px;font-weight:900;background:${isHired ? '#dc2626' : '#10b981'};color:#fff;cursor:pointer">
+                      ${isHired ? "Dispensar" : "Contratar"}
+                    </button>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </div>
+
+          <!-- COLUNA 2: OBJETIVOS MENSAIS DO TREINADOR -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
+            <h3 style="margin:0 0 14px 0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+              🎯 OBJETIVOS MENSAIS DO TREINADOR
+            </h3>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              ${(pState.monthlyCoachObjectives || []).map(obj => {
+                const pct = Math.min(100, Math.round(((obj.current || 0) / (obj.target || 1)) * 100));
+                return `
+                  <div style="background:#090d16;border:1px solid #334155;border-radius:12px;padding:12px 14px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                      <div style="font-size:12px;font-weight:900;color:#fff">${obj.title}</div>
+                      <span style="font-size:10px;font-weight:800;color:#c084fc">+${obj.xp} XP</span>
+                    </div>
+                    <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">${obj.desc}</div>
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <div style="flex:1;height:8px;background:#1e293b;border-radius:4px;overflow:hidden">
+                        <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#7c3aed,#10b981);border-radius:4px"></div>
+                      </div>
+                      <span style="font-size:10px;font-weight:800;color:#cbd5e1">${obj.current}/${obj.target}</span>
+                      ${obj.completed && !obj.claimed ? `
+                        <button type="button" class="btn btn-claim-coach-objective" data-obj="${obj.id}" style="padding:4px 10px;border-radius:6px;border:none;background:#10b981;color:#07111d;font-weight:900;font-size:10px;cursor:pointer">
+                          Resgatar
+                        </button>
+                      ` : (obj.claimed ? `<span style="font-size:10px;font-weight:800;color:#10b981">✓ Resgatado</span>` : "")}
+                    </div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 6. SIMULADOR DE PROJEÇÃO DE CARREIRA + HISTÓRICO DE EVOLUÇÃO -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+          
+          <!-- COLUNA 1: SIMULADOR DE PROJEÇÃO DE CARREIRA -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
+            <h3 style="margin:0 0 14px 0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+              📈 PROJEÇÃO DE CARREIRA (ONDE ESTAREI EM 3 TEMPORADAS?)
+            </h3>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="background:#090d16;border:1px solid #334155;border-radius:12px;padding:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                  <span style="font-size:12px;font-weight:900;color:#38bdf8">Aos 17 anos (2 temporadas)</span>
+                  <span style="font-size:12px;font-weight:900;color:#34d399">~56–63 OVR</span>
+                </div>
+                <div style="font-size:10px;color:#94a3b8">Jovem Revelação no elenco profissional e estreia no time principal.</div>
+              </div>
+              <div style="background:#090d16;border:1px solid #334155;border-radius:12px;padding:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                  <span style="font-size:12px;font-weight:900;color:#facc15">Aos 19 anos (4 temporadas)</span>
+                  <span style="font-size:12px;font-weight:900;color:#34d399">~72–80 OVR</span>
+                </div>
+                <div style="font-size:10px;color:#94a3b8">Titular consolidado e sondagens de grandes clubes e exterior.</div>
+              </div>
+              <div style="background:#090d16;border:1px solid #334155;border-radius:12px;padding:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                  <span style="font-size:12px;font-weight:900;color:#c084fc">Aos 23 anos (Auge & Maturação)</span>
+                  <span style="font-size:12px;font-weight:900;color:#34d399">~85–92 OVR</span>
+                </div>
+                <div style="font-size:10px;color:#94a3b8">Craque Mundial, protagonista da Seleção e postulante a prêmios individuais.</div>
+              </div>
+              <div style="margin-top:4px;padding:8px 12px;border-radius:8px;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.3);font-size:10px;font-weight:800;color:#c084fc;text-align:center">
+                Potencial Estimado: ⭐⭐⭐⭐⭐ (Potencial de Bola de Ouro)
+              </div>
+            </div>
+          </div>
+
+          <!-- COLUNA 2: HISTÓRICO DE EVOLUÇÃO -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
+            <h3 style="margin:0 0 14px 0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+              📜 HISTÓRICO DE EVOLUÇÃO DO CRAQUE
+            </h3>
+            <div style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;padding-right:4px">
+              ${(pState.evolutionLog || []).length === 0 ? `
+                <div style="font-size:11px;color:#64748b;text-align:center;padding:20px">Nenhum evento de evolução registrado ainda. Treine para iniciar seu histórico!</div>
+              ` : (pState.evolutionLog || []).slice(0, 8).map(ev => `
+                <div style="background:#090d16;border:1px solid #1e293b;border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:14px">${ev.icon || "📈"}</span>
+                    <span style="font-size:11px;color:#cbd5e1;font-weight:700">${ev.desc}</span>
+                  </div>
+                  <span style="font-size:9px;color:#64748b">${ev.date || ""}</span>
+                </div>
+              `).join("")}
             </div>
           </div>
 
@@ -6398,15 +7236,58 @@
           def: 35,
           fis: 35,
         };
+        const updatedAttrs = [];
         Object.entries(pending).forEach(([key, amount]) => {
-          athlete.attributes[key] = Math.min(
-            99,
-            (Number(athlete.attributes[key]) || 35) +
-              Math.max(0, Number(amount) || 0),
-          );
+          const add = Math.max(0, Number(amount) || 0);
+          if (add > 0) {
+            const next = Math.min(99, (Number(athlete.attributes[key]) || 35) + add);
+            athlete.attributes[key] = next;
+            updatedAttrs.push(`${key.toUpperCase()} +${add}`);
+          }
         });
-        pState.skillPoints -= pendingTotal;
+
+        // Sincronização estrita de chaves de atributos entre português e inglês
+        const pairs = [
+          ["vel", "pace"],
+          ["chu", "shooting"],
+          ["pas", "passing"],
+          ["dri", "dribbling"],
+          ["def", "defending"],
+          ["fis", "physical"]
+        ];
+        pairs.forEach(([pt, en]) => {
+          const val = athlete.attributes[pt] !== undefined ? athlete.attributes[pt] : athlete.attributes[en];
+          if (val !== undefined) {
+            athlete.attributes[pt] = val;
+            athlete.attributes[en] = val;
+          }
+        });
+
+        pState.skillPoints = Math.max(0, (pState.skillPoints || 0) - pendingTotal);
+        pState.availablePoints = pState.skillPoints;
         pState.pendingAttributePoints = {};
+
+        // Recálculo do OVR ponderado por posição
+        const newOvr = AFM_PLAYER_EVOLUTION.recalculateOvr(athlete);
+        pState.athleteOvr = newOvr;
+        pState.overall = newOvr;
+
+        // Atualização imediata do OVR no topo (DOM)
+        const strengthValEl = document.querySelector(".sm-badge-strength .sm-res-val");
+        if (strengthValEl) strengthValEl.textContent = `${newOvr} OVR`;
+        const prestigeValEl = document.querySelector(".sm-badge-prestige .sm-res-val");
+        if (prestigeValEl) prestigeValEl.textContent = `${pState.skillPoints} pts`;
+
+        // Registro de log de evolução
+        pState.evolutionLog = Array.isArray(pState.evolutionLog) ? pState.evolutionLog : [];
+        pState.evolutionLog.unshift({
+          date: s.date || s.currentDate || "2026-01-01",
+          icon: "📈",
+          type: "attribute_upgrade",
+          desc: `Atributos aprimorados: ${updatedAttrs.join(", ")} (Novo OVR: ${newOvr})`
+        });
+        if (pState.evolutionLog.length > 25) pState.evolutionLog.length = 25;
+
         syncControlledPlayerOverall(s);
         if (typeof window.save === "function") window.save();
         if (typeof window.render === "function") window.render();
@@ -6567,6 +7448,152 @@
         }
       };
     }
+
+    // 3º Minigame: Treinar 1x1 & Drible
+    const btnPracDribble = document.querySelector("#btn-train-dribble") || document.querySelector(".btn-practice-dribble");
+    if (btnPracDribble) {
+      btnPracDribble.onclick = () => {
+        AFM_PLAYER_EVOLUTION.openDribbleModal(s, () => {
+          if (typeof window.save === "function") window.save();
+          if (typeof window.render === "function") window.render();
+        });
+      };
+    }
+
+    // Toggle de PlayStyles & Especialidades (até 3 equipados)
+    document.querySelectorAll(".btn-playstyle-toggle").forEach((btn) => {
+      btn.onclick = () => {
+        const psId = btn.dataset.playstyle;
+        if (!pState || !psId) return;
+        pState.equippedPlayStyles = Array.isArray(pState.equippedPlayStyles) ? pState.equippedPlayStyles : [];
+        const idx = pState.equippedPlayStyles.indexOf(psId);
+        if (idx >= 0) {
+          pState.equippedPlayStyles.splice(idx, 1);
+        } else {
+          if (pState.equippedPlayStyles.length >= 3) {
+            showCustomAlert({
+              title: "Limite de PlayStyles Atingido ⚠️",
+              message: "Você só pode equipar até 3 PlayStyles ativos simultaneamente. Desequipe um para equipar outro.",
+              type: "warning"
+            });
+            return;
+          }
+          pState.equippedPlayStyles.push(psId);
+        }
+        if (typeof window.save === "function") window.save();
+        if (typeof window.render === "function") window.render();
+      };
+    });
+
+    // Sessões Extras no CT & Fisioterapia
+    document.querySelectorAll(".btn-extra-session").forEach((btn) => {
+      btn.onclick = () => {
+        const sessId = btn.dataset.session;
+        const sess = AFM_PLAYER_EVOLUTION.EXTRA_SESSIONS_CATALOG.find(x => x.id === sessId);
+        if (!pState || !athlete || !sess) return;
+
+        const curEnergy = Number(athlete.energy ?? pState.energy ?? 100);
+        if (sess.energyCost > 0 && curEnergy < sess.energyCost) {
+          showCustomAlert({
+            title: "Energia Insuficiente! ⚠️",
+            message: `Você precisa de pelo menos ${sess.energyCost}% de energia para esta sessão. Descanse ou realize crioterapia!`,
+            type: "warning"
+          });
+          return;
+        }
+
+        const curCash = Number(pState.lifestyle?.cash ?? pState.personalBank ?? pState.cash ?? 0);
+        if (sess.moneyCost > 0 && curCash < sess.moneyCost) {
+          showCustomAlert({
+            title: "Saldo Insuficiente! ⚠️",
+            message: `Esta sessão custa R$ ${sess.moneyCost}. Faltam R$ ${sess.moneyCost - curCash}.`,
+            type: "warning"
+          });
+          return;
+        }
+
+        athlete.energy = Math.min(100, Math.max(10, curEnergy - sess.energyCost));
+        athlete.fitness = athlete.energy;
+        pState.energy = athlete.energy;
+
+        if (sess.moneyCost > 0) {
+          if (typeof window.AFM_Lifestyle?.addPlayerTransaction === 'function') {
+            window.AFM_Lifestyle.addPlayerTransaction(pState, -sess.moneyCost, sess.name, 'expense');
+          } else {
+            pState.personalBank = Math.max(0, curCash - sess.moneyCost);
+            if (pState.lifestyle) pState.lifestyle.cash = pState.personalBank;
+          }
+        }
+
+        AFM_PLAYER_EVOLUTION.grantPlayerXp(s, sess.xpReward, sess.name);
+
+        if (sessId === "treino_perna_ruim" && (athlete.weakFoot || 3) < 5 && Math.random() < 0.25) {
+          athlete.weakFoot = (athlete.weakFoot || 3) + 1;
+          pState.evolutionLog.unshift({
+            date: s.date || s.currentDate || "2026-01-01",
+            icon: "🌟",
+            type: "skill_upgrade",
+            desc: `Evolução técnica! Perna Ruim aprimorada para ${athlete.weakFoot}★!`
+          });
+        }
+
+        showCustomAlert({
+          title: "Sessão Concluída! 💪",
+          message: `${sess.name} finalizado com sucesso! (+${sess.xpReward} XP)`,
+          type: "success"
+        });
+
+        if (typeof window.save === "function") window.save();
+        if (typeof window.render === "function") window.render();
+      };
+    });
+
+    // Contratação de Staff Pessoal de Performance
+    document.querySelectorAll(".btn-hire-evolution-staff").forEach((btn) => {
+      btn.onclick = () => {
+        const staffId = btn.dataset.staff;
+        const staff = AFM_PLAYER_EVOLUTION.STAFF_CATALOG.find(x => x.id === staffId);
+        if (!pState || !staff) return;
+        pState.hiredStaff = pState.hiredStaff || {};
+        const isHired = !!pState.hiredStaff[staffId];
+        if (isHired) {
+          delete pState.hiredStaff[staffId];
+          showCustomAlert({
+            title: "Contrato Encerrado",
+            message: `${staff.name} foi dispensado da sua comissão pessoal.`,
+            type: "info"
+          });
+        } else {
+          pState.hiredStaff[staffId] = true;
+          showCustomAlert({
+            title: "Profissional Contratado! 🤝",
+            message: `${staff.name} integrado ao seu estafe! Salário mensal: R$ ${staff.salary}.`,
+            type: "success"
+          });
+        }
+        if (typeof window.save === "function") window.save();
+        if (typeof window.render === "function") window.render();
+      };
+    });
+
+    // Resgate de Recompensa de Objetivos do Treinador
+    document.querySelectorAll(".btn-claim-coach-objective").forEach((btn) => {
+      btn.onclick = () => {
+        const objId = btn.dataset.obj;
+        const obj = (pState.monthlyCoachObjectives || []).find(o => o.id === objId);
+        if (!obj || !obj.completed || obj.claimed) return;
+        obj.claimed = true;
+        AFM_PLAYER_EVOLUTION.grantPlayerXp(s, obj.xp, `Objetivo cumprido: ${obj.title}`);
+        showCustomAlert({
+          title: "Recompensa Resgatada! 🏆",
+          message: `Parabéns! Você recebeu +${obj.xp} XP por cumprir a meta do treinador.`,
+          type: "success"
+        });
+        if (typeof window.save === "function") window.save();
+        if (typeof window.render === "function") window.render();
+      };
+    });
+
 
     // Ações de Empresário
     document.querySelectorAll(".btn-agent-action").forEach((btn) => {
@@ -10533,6 +11560,7 @@
   // Exportação Global
   window.AFM_PlayerMode = {
     renderPage,
+    renderPlayerEvolution,
     restorePlayerProfile,
     renderPlayerSocialMedia,
     renderPlayerNationalTeam,
@@ -10559,3 +11587,4 @@
     executePressureBicho,
   };
 })(window);
+window.AFM_PlayerModeUI = window.AFM_PlayerMode;
