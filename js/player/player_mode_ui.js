@@ -450,9 +450,9 @@
 
     const overlay = document.createElement("div");
     overlay.id = "afmCustomAlertModal";
-    overlay.className = "afm-custom-modal-overlay";
+    overlay.className = "afm-custom-modal-overlay active";
     overlay.style.cssText =
-      "position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px";
+      "position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;pointer-events:auto;";
 
     overlay.innerHTML = `
       <div style="background:#0f172a;border:2px solid rgba(168,85,247,0.5);border-radius:20px;padding:24px;max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.9);color:#fff;animation:afmScaleUp 0.25s ease;text-align:center">
@@ -5634,9 +5634,9 @@
       oldModal.parentNode.removeChild(oldModal);
 
     const overlay = document.createElement("div");
-    overlay.className = "modal-overlay";
+    overlay.className = "modal-overlay active";
     overlay.id = "afmPlayerPostMatchModal";
-    overlay.style.zIndex = "99999";
+    overlay.style.cssText = "display:flex;align-items:center;justify-content:center;z-index:99999;pointer-events:auto;";
 
     overlay.innerHTML = `
       <div class="modal" style="max-width:540px;width:90%;background:#090d16;border:2px solid ${report.isMvp ? "#facc15" : "#a855f7"};border-radius:20px;padding:24px;box-shadow:0 16px 50px rgba(0,0,0,0.9)${report.isMvp ? ", 0 0 35px rgba(250,204,21,0.3)" : ""};color:#fff;text-align:center">
@@ -5756,8 +5756,8 @@
     ];
     const modal = document.createElement("div");
     modal.id = "afmPlayerInterviewModal";
-    modal.className = "modal-overlay";
-    modal.style.zIndex = "100000";
+    modal.className = "modal-overlay active";
+    modal.style.cssText = "display:flex;align-items:center;justify-content:center;z-index:100000;pointer-events:auto;";
     modal.innerHTML = `<div class="modal" style="max-width:560px;width:92%;padding:24px;background:#0b1020;border:2px solid #facc15;border-radius:18px;color:#fff"><div style="font-size:30px">🎙️</div><h2 style="margin:4px 0 8px;color:#fde68a">Entrevista pós-jogo</h2><p style="color:#cbd5e1;line-height:1.5">${esc(athleteName)}, você foi eleito Craque da Partida${report.opponent ? ` contra ${esc(report.opponent)}` : ""}. O que quer dizer à imprensa?</p><div style="display:grid;gap:9px">${choices.map((quote, index) => `<button type="button" class="btn-player-interview-answer" data-answer="${index}" style="padding:12px;text-align:left;color:#fff;background:#151d30;border:1px solid #334155;border-radius:10px;cursor:pointer">${esc(quote)}</button>`).join("")}</div><button type="button" id="btnCancelPlayerInterview" class="btn" style="margin-top:12px;width:100%;padding:10px">Agora não</button></div>`;
     document.body.appendChild(modal);
     modal.querySelector("#btnCancelPlayerInterview").onclick = () => {
@@ -5806,9 +5806,9 @@
     if (oldModal) oldModal.remove();
 
     const overlay = document.createElement("div");
-    overlay.className = "modal-overlay";
+    overlay.className = "modal-overlay active";
     overlay.id = "afmSeasonGalaModal";
-    overlay.style.zIndex = "99999";
+    overlay.style.cssText = "display:flex;align-items:center;justify-content:center;z-index:99999;pointer-events:auto;";
 
     window.__afmGalaTab = window.__afmGalaTab || "ballon";
 
@@ -7648,11 +7648,12 @@
     const modalId = "afmPlayerActionModal";
     let modalEl = document.getElementById(modalId);
     if (modalEl) modalEl.remove();
+    document.querySelectorAll('#afmPlayerActionModal').forEach(el => el.remove());
     modalEl = document.createElement("div");
     modalEl.id = modalId;
-    modalEl.className = "afm-custom-modal-overlay";
+    modalEl.className = "afm-custom-modal-overlay active";
     modalEl.style.cssText =
-      "position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(12px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto";
+      "position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(12px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;pointer-events:auto;";
     document.body.appendChild(modalEl);
     return modalEl;
   }
@@ -7660,6 +7661,7 @@
   function closeActionModal() {
     const modalEl = document.getElementById("afmPlayerActionModal");
     if (modalEl) modalEl.remove();
+    document.querySelectorAll('#afmPlayerActionModal').forEach(el => el.remove());
   }
 
   // MODAL: MERCADO DE EMPRESÁRIOS & AGÊNCIAS

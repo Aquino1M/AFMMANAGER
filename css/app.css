@@ -10705,7 +10705,11 @@ body.theme-emerald {
 #afmLoadingScreen.fade-out,
 #afmLoadingScreen[style*="opacity: 0"],
 #afmLoadingScreen[style*="opacity:0"],
-#afmLoadingScreen[style*="display: none"] {
+#afmLoadingScreen[style*="display: none"],
+.modal-overlay.hidden,
+.modal-overlay[style*="display: none"],
+.modal-overlay[style*="opacity: 0"],
+.modal-overlay[hidden] {
   pointer-events: none !important;
   display: none !important;
 }
@@ -10716,8 +10720,47 @@ body.theme-emerald {
   display: none !important;
 }
 
-.modal-overlay:not(.active):not([style*="display: flex"]):not([style*="display: block"]) {
-  pointer-events: none !important;
+/* OVERLAYS ATIVOS E MODAIS POPUP INTERATIVOS */
+.modal-overlay,
+.visual-modal-overlay,
+.afm-custom-modal-overlay,
+.halftime-overlay,
+.press-room-overlay,
+.trophy-ceremony-overlay,
+.create-club-modal-overlay,
+.squad-reports-overlay,
+.training-modal-overlay,
+#appCustomModal,
+#appMatchActionModal,
+#appStoreComingSoonModal,
+#appGameHelpTutorialModal,
+#afmPlayerActionModal,
+#afmPlayerPostMatchModal,
+#afmPlayerInterviewModal,
+#afmSeasonGalaModal,
+#afmCustomAlertModal,
+#afmEditHandleModal,
+#afmEditBioModal,
+#afmChangeAvatarModal,
+#afmCallUpAnnouncementModal {
+  pointer-events: auto !important;
 }
+
+.modal,
+.modal-header,
+.modal-close-btn,
+.modal-overlay button,
+.modal-overlay .btn,
+.visual-modal-overlay button,
+.visual-modal-overlay .btn,
+.afm-custom-modal-overlay button,
+.afm-custom-modal-overlay .btn,
+#modalCloseXBtn,
+#modalCancelAction,
+#modalConfirmAction {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
 
 

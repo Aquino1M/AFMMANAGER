@@ -26637,39 +26637,81 @@ function openCustomModal(title, bodyHtml, onConfirm, confirmText='Confirmar', sh
   closeCustomModal(false);
   window.__afmCustomModalOnClose = onClose;
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
+  overlay.className = 'modal-overlay active';
   overlay.id = 'appCustomModal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:#060a0fdf;backdrop-filter:blur(12px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;pointer-events:auto;';
   const modalClasses = `${maxWidth ? 'modal-wide' : ''}${title === '⇄ Negociação de Empréstimo de Jogador' ? ' loan-negotiation-modal' : ''}`.trim();
-  const widthStyle = maxWidth ? `style="max-width:${maxWidth};width:96%"` : '';
+  const widthStyle = maxWidth ? `style="max-width:${maxWidth};width:96%;pointer-events:auto;"` : 'style="pointer-events:auto;"';
   overlay.innerHTML = `
     <div class="modal ${modalClasses}" ${widthStyle}>
-      <div class="modal-header">
+      <div class="modal-header" style="pointer-events:auto;">
         <h3 style="margin:0">${esc(title)}</h3>
-        <button class="modal-close-btn" id="modalCloseXBtn">✕</button>
+        <button class="modal-close-btn" id="modalCloseXBtn" style="pointer-events:auto;cursor:pointer;">✕</button>
       </div>
-      <div>${bodyHtml}</div>
+      <div style="pointer-events:auto;">${bodyHtml}</div>
       ${showActions ? `
-        <div class="actions" style="margin-top:20px;justify-content:flex-end">
-          <button class="btn" id="modalCancelAction">Cancelar</button>
-          <button class="btn primary" id="modalConfirmAction">${esc(confirmText)}</button>
+        <div class="actions" style="margin-top:20px;justify-content:flex-end;pointer-events:auto;">
+          <button class="btn" id="modalCancelAction" style="pointer-events:auto;cursor:pointer;">Cancelar</button>
+          <button class="btn primary" id="modalConfirmAction" style="pointer-events:auto;cursor:pointer;">${esc(confirmText)}</button>
         </div>
       ` : ''}
     </div>
   `;
   document.body.appendChild(overlay);
 
-  overlay.onclick = (e) => {
-    if(e.target === overlay) closeCustomModal();
-  };
-  const closeX = overlay.querySelector('#modalCloseXBtn') || $('#modalCloseXBtn');
-  if(closeX) closeX.onclick = closeCustomModal;
-  const cancelBtn = overlay.querySelector('#modalCancelAction') || $('#modalCancelAction');
-  if(cancelBtn) cancelBtn.onclick = closeCustomModal;
-  const confBtn = overlay.querySelector('#modalConfirmAction') || $('#modalConfirmAction');
-  if(confBtn) confBtn.onclick = () => {
+  // Delegação central de eventos no overlay para blindar cliques em qualquer circunstância
+  overlay.addEventListener('click', (e) => {
+    if(e.target === overlay) {
+      closeCustomModal();
+      return;
+    }
+    const closeBtn = e.target.closest('#modalCloseXBtn, .modal-close-btn, [data-modal-close]');
+    if(closeBtn){
+      e.preventDefault();
+      e.stopPropagation();
+      closeCustomModal();
+      return;
+    }
+    const cancelBtn = e.target.closest('#modalCancelAction, [data-modal-cancel]');
+    if(cancelBtn){
+      e.preventDefault();
+      e.stopPropagation();
+      closeCustomModal();
+      return;
+    }
+    const confBtn = e.target.closest('#modalConfirmAction, [data-modal-confirm]');
+    if(confBtn){
+      e.preventDefault();
+      e.stopPropagation();
+      window.__afmCustomModalOnClose = null;
+      try {
+        if(typeof onConfirm === 'function') onConfirm();
+      } catch(err){
+        console.error('Erro no onConfirm do custom modal:', err);
+      } finally {
+        closeCustomModal(false);
+      }
+      return;
+    }
+  });
+
+  // Handlers diretos para compatibilidade com listeners legados
+  const closeX = overlay.querySelector('#modalCloseXBtn');
+  if(closeX) closeX.onclick = (e) => { e.preventDefault(); e.stopPropagation(); closeCustomModal(); };
+  const cancelBtn = overlay.querySelector('#modalCancelAction');
+  if(cancelBtn) cancelBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); closeCustomModal(); };
+  const confBtn = overlay.querySelector('#modalConfirmAction');
+  if(confBtn) confBtn.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     window.__afmCustomModalOnClose = null;
-    if(onConfirm) onConfirm();
-    closeCustomModal(false);
+    try {
+      if(typeof onConfirm === 'function') onConfirm();
+    } catch(err){
+      console.error('Erro no onConfirm do custom modal:', err);
+    } finally {
+      closeCustomModal(false);
+    }
   };
 }
 
@@ -26678,6 +26720,7 @@ function closeCustomModal(triggerOnClose = true){
   window.__afmCustomModalOnClose = null;
   const m = $('#appCustomModal') || document.getElementById('appCustomModal');
   if(m) m.remove();
+  document.querySelectorAll('#appCustomModal').forEach(el => el.remove());
   if(triggerOnClose && typeof cb === 'function'){
     try { cb(); } catch(err){ console.warn('Error in custom modal onClose:', err); }
   }
@@ -29712,7 +29755,7 @@ function handleExitGameAction(){
       try {
         if (typeof window.toggleAFMMobileDrawer === 'function') window.toggleAFMMobileDrawer(false);
         const owner = state?.userOwner || (typeof getActiveAccount === 'function' ? getActiveAccount()?.username : null) || 'aquino';
-        if (typeof save === 'function') save();
+        if (typeof save === 'function') save({ force: true, manual: true });
         if (typeof setActiveAccount === 'function') {
           setActiveAccount(owner && localStorage.getItem('afm_remember_login_v1') !== 'false' ? owner : null);
         }
@@ -29721,6 +29764,8 @@ function handleExitGameAction(){
         if (pModal) pModal.remove();
         const pressModal = document.getElementById('appPressConferenceModal');
         if (pressModal) pressModal.remove();
+        const customModal = document.getElementById('appCustomModal');
+        if (customModal) customModal.remove();
 
         // Limpa estado ativo e direciona infalivelmente para a tela de saves e seleção de times
         state = null;
@@ -29803,8 +29848,9 @@ function openMatchActionModal(){
   }
 
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay afm-match-action-modal-overlay';
+  overlay.className = 'modal-overlay active afm-match-action-modal-overlay';
   overlay.id = 'appMatchActionModal';
+  overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;pointer-events:auto;z-index:999999;';
 
   overlay.innerHTML = `
     <div class="modal afm-match-action-modal" style="max-width:660px;width:95%;padding:22px;background:#0d1117;border:1px solid rgba(168,85,247,0.4);border-radius:20px;box-shadow:0 16px 50px rgba(0,0,0,0.9);position:relative;">
@@ -29998,8 +30044,9 @@ window.closeStoreComingSoonModal = closeStoreComingSoonModal;
 function openStoreComingSoonModal(){
   closeStoreComingSoonModal();
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay afm-store-modal-overlay';
+  overlay.className = 'modal-overlay active afm-store-modal-overlay';
   overlay.id = 'appStoreComingSoonModal';
+  overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;pointer-events:auto;z-index:999999;';
 
   overlay.innerHTML = `
     <div class="modal afm-store-modal" style="max-width:680px;width:95%;padding:22px;background:#0d1117;border:1px solid rgba(234,179,8,0.5);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.95), 0 0 35px rgba(234,179,8,0.25);position:relative;max-height:90vh;display:flex;flex-direction:column;">
@@ -30137,8 +30184,9 @@ window.closeGameHelpTutorialModal = closeGameHelpTutorialModal;
 function openGameHelpTutorialModal(){
   closeGameHelpTutorialModal();
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay afm-help-modal-overlay';
+  overlay.className = 'modal-overlay active afm-help-modal-overlay';
   overlay.id = 'appGameHelpTutorialModal';
+  overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;pointer-events:auto;z-index:999999;';
 
   const tabTutorialData = [
     {
