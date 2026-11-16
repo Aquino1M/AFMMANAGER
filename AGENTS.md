@@ -105,6 +105,19 @@
   - Radar de clássicos e rivalidades históricas: Detecção automática de confrontos clássicos através de `AFM_CALENDAR_HUB.isDerbyMatch`, destacando as partidas com badge `🔥 CLÁSSICO (+50% XP)` e linha lateral vermelha no card.
   - Modais globais `openMatchPreviewModal` e `openMatchSummaryModal`: Disponíveis globalmente para raio-x do confronto (comparação de força OVR, probabilidades de vitória/empate/derrota e histórico de confrontos diretos no save) e súmula detalhada (com nota, minutos, gols e assistências do atleta no Modo Carreira Jogador).
   - Filtros multifuncionais e busca em tempo real: Suporte a filtros (`📅 Todos`, `⏳ Próximos`, `✅ Disputados`, `🔥 Clássicos`, abas por torneio, `🏠 Em Casa`, `✈️ Fora`) e campo de busca por adversário sem perda de foco do teclado.
+- REGRA IRRESTRITA ESPECIAL — ISOLAMENTO DE MODOS & PROTEÇÃO DE ABAS COMPARTILHADAS:
+  1. CLASSIFICAÇÃO OBRIGATÓRIA DAS ABAS DO MENU:
+     - ABAS EXCLUSIVAS DO TREINADOR (proibidas no Modo Carreira): `Meu time & Tática`, `Mercado & Transferências`, `Carreira do Treinador`, `Instalações & Estádio`, `Escritório & Finanças`.
+     - ABAS COMPARTILHADAS (mesmo motor visual/dados, permissões isoladas por modo): `Perspectiva Geral`, `Elenco Oficial`, `Calendário de Jogos`, `Notícias & Mídia`, `Temporada`, `Novidades & Correções`, `Configurações`.
+  2. GUARDIÃO DE CONTEXTO (`resolveModeContext`):
+     - Nenhuma aba compartilhada pode ler ou gravar diretamente em `state.club` ou `state.career` sem passar antes por `const ctx = resolveModeContext(state)`.
+     - É terminantemente proibido vazar dados do Modo Carreira (`state.career.player`, `state.career.club`) para dentro de um save do Modo Treinador, e vice-versa.
+  3. TRAVA DE SEGURANÇA NA SIMULAÇÃO & BOTÕES DE AÇÃO:
+     - Todo botão de ação dentro de uma aba compartilhada (`Jogar Partida`, `Simular`, `Ver Elenco`, `Analisar Adversário`) DEVE validar `ctx.mode` no momento do clique:
+       * Em `MODE_MANAGER`: libera ações de técnico (escalar, negociar, preparar tática, simular partida como treinador).
+       * Em `MODE_PLAYER`: bloqueia ações de técnico (modo somente-leitura para elenco/finanças) e redireciona partidas exclusivamente para o motor do atleta (`startCareerMatch`).
+  4. SINCRONIA DE DADOS & VISUAL DARK NEON:
+     - Todas as abas compartilhadas devem usar `ensureCompetitionFixturesIntegrity` (zero times fantasmas fora de `comp.teams`, clube do usuário presente em todas as rodadas), datas sincronizadas entre cabeçalho e cards, botões sem dead-links (`data-*` delegation) e tema Dark Neon (`#100d1e` / `#161324`, nunca fundo branco `#ffffff`).
 - REGRA IRRESTRITA DE INTEGRIDADE DA ABA TEMPORADA & CLASSIFICAÇÃO (DATA-VIEW="TEMPORADA"):
   - Integridade Absoluta de Clubes e Confrontos: Todos os confrontos de qualquer competição estadual ou nacional (`comp.fixtures`) devem conter estritamente os clubes oficiais cadastrados em `comp.teams`. Toda detecção de equipes fantasmas (ex.: Sobradinho em liga onde não está cadastrado) ou ausência do clube do usuário ativa a regeneração determinística do calendário Round-Robin via `ensureCompetitionFixturesIntegrity(comp, userClubName)`, garantindo a presença do clube do usuário em todas as rodadas e preservando placares já disputados.
   - Sincronização Precisa de Datas da Rodada: A data exibida no cabeçalho da rodada (`comp.roundDate`) deve corresponder rigorosamente à data real da primeira partida daquela rodada (`f.isoDate`), eliminando divergências de agendamento entre tabela e jogos.

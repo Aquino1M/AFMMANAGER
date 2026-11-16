@@ -288,7 +288,7 @@ window.migrateAndSanitizeSaveState = function(targetState) {
   if (!targetState || typeof targetState !== "object") return targetState;
 
   const isPlayer = window.isPlayerCareerActive(targetState);
-  const managerViews = ["central", "tatica", "elenco", "mercado", "financas", "estrutura", "escritorio", "treinos", "ranking", "carreira"];
+  const managerViews = ["central", "tatica", "mercado", "financas", "estrutura", "escritorio", "treinos", "ranking", "carreira"];
   const playerViews = ["player_hub", "player_evolution", "player_club", "player_social", "player_agent", "player_lifestyle", "player_stats", "player_national", "calendario", "temporada", "config"];
 
   if (isPlayer) {
@@ -7714,71 +7714,102 @@ function generateSimWorldNews(){
 }
 
 function newsMediaPage(){
-  const careerNews = state.gameMode === 'player' && Array.isArray(state.news)
+  const ctx = (typeof resolveModeContext === 'function') ? resolveModeContext(state) : { isManager: true, isPlayer: false, clubName: state?.club || '' };
+
+  const careerNews = (ctx.isPlayer && Array.isArray(state.news))
     ? state.news.slice(0, 15).map(item => {
         const entry = typeof item === 'string' ? { text: item } : (item || {});
-        return { channel: 'G1', badgeColor: '#c4170c', source: entry.source || 'Notícias da carreira', time: entry.date || formatDatePtBr(state.date), title: entry.title || entry.headline || 'Atualização da carreira', text: entry.text || entry.message || String(item || ''), likes: 0, comments: 0 };
+        return { channel: 'G1', badgeColor: '#c4170c', source: entry.source || 'Notícias da carreira', time: entry.date || formatDatePtBr(state.date), title: entry.title || entry.headline || 'Atualização da carreira', text: entry.text || entry.message || String(item || ''), likes: 0, comments: 0, category: 'MYCLUB' };
       }).filter(item => item.text)
     : [];
-  const allNews = [...careerNews, ...generateSimWorldNews()];
-  const filtered = newsChannelFilter === 'ALL' ? allNews : allNews.filter(n => n.channel === newsChannelFilter);
+
+  const rawSimNews = (typeof generateSimWorldNews === 'function' ? generateSimWorldNews() : []).map(n => {
+    const textLower = ((n.title || '') + ' ' + (n.text || '')).toLowerCase();
+    const myClubNorm = (typeof norm === 'function' ? norm(ctx.clubName) : String(ctx.clubName).toLowerCase());
+    const isMyClub = textLower.includes(myClubNorm);
+    const isMarket = textLower.includes('transferência') || textLower.includes('contrat') || textLower.includes('mercado') || textLower.includes('reforço') || textLower.includes('proposta');
+    const isComp = textLower.includes('rodada') || textLower.includes('classificação') || textLower.includes('campeonato') || textLower.includes('título') || textLower.includes('goleada') || textLower.includes('vitória');
+    return {
+      ...n,
+      category: isMyClub ? 'MYCLUB' : isMarket ? 'MARKET' : isComp ? 'COMPETITION' : 'ALL'
+    };
+  });
+
+  const allNews = [...careerNews, ...rawSimNews];
+
+  const channelFiltered = newsChannelFilter === 'ALL' ? allNews : allNews.filter(n => n.channel === newsChannelFilter);
+  const filtered = newsCategoryFilter === 'ALL' ? channelFiltered : channelFiltered.filter(n => {
+    if (newsCategoryFilter === 'MYCLUB') {
+      const myClubNorm = (typeof norm === 'function' ? norm(ctx.clubName) : String(ctx.clubName).toLowerCase());
+      return n.category === 'MYCLUB' || ((n.title || '') + ' ' + (n.text || '')).toLowerCase().includes(myClubNorm);
+    }
+    return n.category === newsCategoryFilter;
+  });
 
   return `
     <div class="hero">
       <div>
         <h1>Notícias & Mídia do Futebol</h1>
-        <div class="muted">Cobertura jornalística do G1, CazéTV, repercussão do Twitter/X e bastidores do Portal LeoDias</div>
+        <div class="muted">Cobertura jornalística do G1, CazéTV, repercussão do Twitter/X e bastidores do Portal LeoDias • ${ctx.isManager ? 'Foco no Clube & Mundo da Bola' : 'Foco na Carreira & Mídia Esportiva'}</div>
       </div>
-      <span class="pill good">Mundo Vivo em Tempo Real</span>
+      <span class="pill good">${ctx.isManager ? 'Sala de Imprensa do Treinador' : 'Mundo Vivo em Tempo Real'}</span>
+    </div>
+
+    <!-- Filtros de Categorias Principais (Todas / Meu Clube / Mercado / Competições) -->
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
+      <span style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.6);align-self:center;margin-right:4px">CATEGORIA:</span>
+      <button type="button" class="btn btn-news-cat ${newsCategoryFilter==='ALL'?'active primary':''}" data-news-cat="ALL" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+        📰 Todas as Notícias
+      </button>
+      <button type="button" class="btn btn-news-cat ${newsCategoryFilter==='MYCLUB'?'active primary':''}" data-news-cat="MYCLUB" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+        ⭐ Apenas Meu Clube
+      </button>
+      <button type="button" class="btn btn-news-cat ${newsCategoryFilter==='MARKET'?'active primary':''}" data-news-cat="MARKET" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+        🔁 Mercado & Transferências
+      </button>
+      <button type="button" class="btn btn-news-cat ${newsCategoryFilter==='COMPETITION'?'active primary':''}" data-news-cat="COMPETITION" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+        🏆 Competições & Rodadas
+      </button>
     </div>
 
     <!-- Filtros de Canais de Mídia -->
-    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
-      <button class="btn btn-news-channel ${newsChannelFilter==='ALL'?'primary':''}" data-channel="ALL" style="font-weight:900;padding:8px 18px;border-radius:10px">
-        🌐 TODAS AS NOTÍCIAS
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-news-channel ${newsChannelFilter==='ALL'?'primary':''}" data-channel="ALL" style="font-weight:900;padding:7px 16px;border-radius:10px;font-size:12px">
+        🌐 TODOS OS CANAIS
       </button>
-      <button class="btn btn-news-channel ${newsChannelFilter==='G1'?'primary':''}" data-channel="G1" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #c4170c">
+      <button class="btn btn-news-channel ${newsChannelFilter==='G1'?'primary':''}" data-channel="G1" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #c4170c;font-size:12px">
         🔴 G1 / GLOBO ESPORTE
       </button>
-      <button class="btn btn-news-channel ${newsChannelFilter==='CAZETV'?'primary':''}" data-channel="CAZETV" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #eab308">
+      <button class="btn btn-news-channel ${newsChannelFilter==='CAZETV'?'primary':''}" data-channel="CAZETV" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #eab308;font-size:12px">
         🟡 CAZÉTV
       </button>
-      <button class="btn btn-news-channel ${newsChannelFilter==='TWITTER'?'primary':''}" data-channel="TWITTER" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #1d9bf0">
-        🔵 TWITTER / X (#AFM2026)
+      <button class="btn btn-news-channel ${newsChannelFilter==='TWITTER'?'primary':''}" data-channel="TWITTER" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #1d9bf0;font-size:12px">
+        🔵 TWITTER / X
       </button>
-      <button class="btn btn-news-channel ${newsChannelFilter==='LEODIAS'?'primary':''}" data-channel="LEODIAS" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #ec4899">
-        🟣 LÉO DIAS (BASTIDORES & FOFOCAS)
+      <button class="btn btn-news-channel ${newsChannelFilter==='LEODIAS'?'primary':''}" data-channel="LEODIAS" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #ec4899;font-size:12px">
+        🟣 LÉO DIAS (BASTIDORES)
       </button>
     </div>
 
     <!-- Feed de Matérias -->
-    <div style="display:flex;flex-direction:column;gap:16px;margin-top:20px">
-      ${filtered.map(item => `
-        <div class="card" style="padding:22px;background:#120f20;border:1px solid rgba(139,92,246,0.25);border-radius:16px;position:relative;transition:all 0.2s">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <span style="background:${item.badgeColor};color:#fff;font-size:10px;font-weight:900;padding:3px 8px;border-radius:4px;letter-spacing:1px">
-                ${item.channel}
-              </span>
-              <span style="font-size:12px;color:rgba(255,255,255,0.5)">${item.source}</span>
-            </div>
-            <span style="font-size:11px;color:rgba(255,255,255,0.4)">${item.time}</span>
+    <div style="display:flex;flex-direction:column;gap:16px;margin-top:14px">
+      ${filtered.length ? filtered.map((item, idx) => `
+        <div class="card" style="padding:18px;background:linear-gradient(135deg,#131024 0%,#0e0c1a 100%);border:1px solid rgba(255,255,255,0.08);border-radius:14px;box-shadow:0 4px 15px rgba(0,0,0,0.3)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span class="pill" style="background:${item.badgeColor || '#7c3aed'};color:#fff;font-weight:900;font-size:11px">${esc(item.source)}</span>
+            <span class="small muted" style="font-size:11px">⏱️ ${esc(item.time)}</span>
           </div>
-
-          <h2 style="margin:0 0 10px 0;font-size:18px;font-weight:900;color:#fff;line-height:1.4">
-            ${esc(item.title)}
-          </h2>
-
-          <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6">
-            ${esc(item.text)}
-          </p>
-
-          <div style="display:flex;gap:16px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:rgba(255,255,255,0.4)">
-            <span>❤️ ${item.likes} curtidas</span>
-            <span>💬 ${item.comments} comentários</span>
-          </div>
+          <h2 style="margin:6px 0;font-size:18px;font-weight:900;color:#fff">${esc(item.title)}</h2>
+          <p style="margin:8px 0;font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5">${esc(item.text)}</p>
+          ${(typeof renderNewsLikesAndComments === 'function') ? renderNewsLikesAndComments(item, idx) : ''}
         </div>
-      `).join('')}
+      `).join('') : `
+        <div class="card" style="padding:32px;text-align:center;background:#100d1e;border-radius:14px">
+          <div style="font-size:24px;margin-bottom:8px">📰</div>
+          <div style="font-size:15px;font-weight:800;color:#fff">Nenhuma notícia encontrada nesta categoria.</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px">Avance o calendário em CONTINUAR para ver novas coberturas da imprensa esportiva.</div>
+        </div>
+      `}
     </div>
   `;
 }
@@ -14269,6 +14300,55 @@ function initCandangaoData(season = state?.season || 2026, teamNames = null){
   };
 }
 function initCandangaoStats(){ return { scorers: [], assists: [] }; }
+
+// =============================================================
+// GUARDIÃO DE CONTEXTO & ISOLAMENTO ESTRITO ENTRE MODOS (AFM 2026)
+// =============================================================
+function resolveModeContext(state) {
+  const isCareer = Boolean(
+    state?.gameMode === 'career' ||
+    state?.gameMode === 'player' ||
+    state?.isCareerMode === true ||
+    state?.isPlayerMode === true ||
+    state?.career?.active === true ||
+    (typeof window !== 'undefined' && typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(state))
+  );
+
+  if (isCareer) {
+    const cClub = state?.career?.club || state?.playerCareerState?.clubName || state?.club || state?.userClub;
+    const cPlayer = state?.career?.player || state?.playerCareerState?.athleteName || state?.userPlayer || state?.squad?.find(p => p.isControlled)?.name;
+    return {
+      mode: 'MODE_PLAYER',
+      isManager: false,
+      isPlayer: true,
+      clubName: typeof cClub === 'string' ? cClub : (cClub?.name || ''),
+      clubObj: typeof cClub === 'object' ? cClub : (typeof clubByName === 'function' ? clubByName(cClub) : null),
+      playerName: typeof cPlayer === 'string' ? cPlayer : (cPlayer?.shortName || cPlayer?.name || ''),
+      competitions: state?.career?.competitions || state?.competitions || [],
+      currentDate: state?.career?.currentDate || state?.date || state?.currentDate
+    };
+  }
+
+  const mClub = state?.club || state?.userClub;
+  return {
+    mode: 'MODE_MANAGER',
+    isManager: true,
+    isPlayer: false,
+    clubName: typeof mClub === 'string' ? mClub : (mClub?.name || ''),
+    clubObj: typeof mClub === 'object' ? mClub : (typeof clubByName === 'function' ? clubByName(mClub) : null),
+    playerName: null,
+    competitions: state?.competitions || [],
+    currentDate: state?.date || state?.currentDate
+  };
+}
+window.resolveModeContext = resolveModeContext;
+
+function startCareerMatch() {
+  if (typeof startLiveMatch === 'function') {
+    startLiveMatch();
+  }
+}
+window.startCareerMatch = startCareerMatch;
 
 // =============================================================
 // VALIDAÇÃO E SANITIZAÇÃO DE RODADAS & INTEGRIDADE DE TABELAS
@@ -33097,7 +33177,8 @@ window.openMatchSummaryModal = function(info) {
 // ABA CALENDÁRIO COM DATAS OFICIAIS E JANELAS DE TRANSFERÊNCIA
 // -------------------------------------------------------------
 function calendarPage(){
-  const comp = curComp(), schedule = state.schedule || [], myClub = state.club;
+  const ctx = (typeof resolveModeContext === 'function') ? resolveModeContext(state) : { isManager: true, isPlayer: false, clubName: state?.club || '' };
+  const comp = curComp(), schedule = state.schedule || [], myClub = ctx.clubName || state.club;
   const calendarClubKey = name => ({'red bull bragantino':'bragantino'}[norm(name)] || norm(name));
   const winInfo = (window.AFM_CALENDAR_HUB && typeof window.AFM_CALENDAR_HUB.getTransferWindowStatus === 'function')
     ? window.AFM_CALENDAR_HUB.getTransferWindowStatus(state.date)
@@ -33201,6 +33282,7 @@ function calendarPage(){
     const res = resolveCalendarMatchResult(match, state);
     const isDone = Array.isArray(res) && res.length >= 2;
     if(activeCalendarFilter === 'ALL') return true;
+    if(activeCalendarFilter === 'MYCLUB') return (typeof norm === 'function' && (norm(match.home) === norm(myClub) || norm(match.away) === norm(myClub)));
     if(activeCalendarFilter === 'UPCOMING') return !isDone;
     if(activeCalendarFilter === 'PLAYED') return isDone;
     if(activeCalendarFilter === 'DERBY') return window.AFM_CALENDAR_HUB && window.AFM_CALENDAR_HUB.isDerbyMatch(match.home, match.away);
@@ -33267,6 +33349,7 @@ function calendarPage(){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:10px">
       <div class="filters" style="margin-top:0">
         <button type="button" class="btn ${activeCalendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos (${allMatches.length})</button>
+        <button type="button" class="btn ${activeCalendarFilter==='MYCLUB'?'primary':''}" data-cal-filter="MYCLUB">⭐ Apenas Meu Clube</button>
         <button type="button" class="btn ${activeCalendarFilter==='UPCOMING'?'primary':''}" data-cal-filter="UPCOMING">⏳ Próximos (${upcomingCount})</button>
         <button type="button" class="btn ${activeCalendarFilter==='PLAYED'?'primary':''}" data-cal-filter="PLAYED">✅ Disputados (${playedCount})</button>
         ${derbyCount > 0 ? `<button type="button" class="btn ${activeCalendarFilter==='DERBY'?'primary':''}" data-cal-filter="DERBY">🔥 Clássicos (${derbyCount})</button>` : ''}
@@ -34182,19 +34265,57 @@ function squadPage(){
   }
 
   // A ordenação atua somente sobre a lista filtrada e não altera o elenco salvo.
+  const ctx = (typeof resolveModeContext === 'function') ? resolveModeContext(state) : { isManager: true, isPlayer: false, clubName: state?.club || '' };
+  const posOrderMap = { GK: 1, CB: 2, RB: 3, LB: 4, DM: 5, CM: 6, AM: 7, RW: 8, LW: 9, ST: 10, CF: 11 };
   const squadSorters = {
+    position: (a, b) => (posOrderMap[a.pos] || 99) - (posOrderMap[b.pos] || 99),
+    overall: (a, b) => (Number(playerOverall(b)) || 0) - (Number(playerOverall(a)) || 0),
     age: (a, b) => {
       const ageA = Number(a.age), ageB = Number(b.age);
       return (Number.isFinite(ageA) && ageA > 0 ? ageA : Infinity) - (Number.isFinite(ageB) && ageB > 0 ? ageB : Infinity);
     },
-    salary: (a, b) => playerSalary(b) - playerSalary(a),
-    value: (a, b) => calcValueMi(b) - calcValueMi(a),
-    overall: (a, b) => playerOverall(b) - playerOverall(a)
+    morale: (a, b) => (Number(b.morale ?? 100) || 0) - (Number(a.morale ?? 100) || 0),
+    fitness: (a, b) => (Number(b.fitness ?? 100) || 0) - (Number(a.fitness ?? 100) || 0),
+    salary: (a, b) => (Number(playerSalary(b)) || 0) - (Number(playerSalary(a)) || 0),
+    value: (a, b) => (Number(calcValueMi(b)) || 0) - (Number(calcValueMi(a)) || 0)
   };
   const compareSquadPlayers = squadSorters[squadRosterSort] || squadSorters.overall;
   ps.sort((a, b) => compareSquadPlayers(a, b) || String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR'));
 
   return `
+    <!-- Card de Resumo do Elenco (Dark Neon) -->
+    <div class="card" style="margin-bottom:14px;padding:16px;background:linear-gradient(135deg,#131024 0%,#0d0a1a 100%);border:1px solid rgba(139,92,246,0.25);border-radius:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px">
+          ${typeof clubBadge === 'function' ? clubBadge(ctx.clubName, 36) : ''}
+          <div>
+            <div style="font-size:11px;font-weight:800;color:#a855f7;text-transform:uppercase;letter-spacing:1px">RESUMO DO ELENCO • ${ctx.isManager ? 'GESTÃO DO TREINADOR' : 'CONSULTA DO ATLETA'}</div>
+            <div style="font-size:18px;font-weight:900;color:#fff">${typeof esc === 'function' ? esc(ctx.clubName) : ctx.clubName} <span class="muted" style="font-size:13px;font-weight:600">(${ps.length} atletas)</span></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+          <div style="text-align:center">
+            <div style="font-size:10px;color:rgba(255,255,255,0.5)">MÉDIA OVR</div>
+            <div style="font-size:18px;font-weight:900;color:#22c55e">${ps.length ? Math.round(ps.reduce((acc,p)=>acc+playerOverall(p),0)/ps.length) : 0}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:rgba(255,255,255,0.5)">MÉDIA IDADE</div>
+            <div style="font-size:18px;font-weight:900;color:#38bdf8">${ps.length ? (ps.reduce((acc,p)=>acc+(Number(p.age)||24),0)/ps.length).toFixed(1) : '24.0'} anos</div>
+          </div>
+          ${ctx.isManager ? `
+            <div style="text-align:center">
+              <div style="font-size:10px;color:rgba(255,255,255,0.5)">FOLHA MENSAL</div>
+              <div style="font-size:18px;font-weight:900;color:#facc15">${fmtMoney(typeof totalMonthlyPayroll === 'function' ? totalMonthlyPayroll() : ps.reduce((acc,p)=>acc+playerSalary(p),0))}/mês</div>
+            </div>
+          ` : ''}
+          <div style="text-align:center">
+            <div style="font-size:10px;color:rgba(255,255,255,0.5)">DEPARTAMENTO MÉDICO</div>
+            <div style="font-size:14px;font-weight:900;color:${ps.filter(p=>p.injured||(p.injury&&p.injury.games>0)).length>0?'#ef4444':'#22c55e'}">${ps.filter(p=>p.injured||(p.injury&&p.injury.games>0)).length>0 ? `🚨 ${ps.filter(p=>p.injured||(p.injury&&p.injury.games>0)).length} lesionado(s)` : '✅ Nenhum lesionado'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="hero">
       <div>
         <h1>Elenco do Clube</h1>
@@ -34232,7 +34353,10 @@ function squadPage(){
     <div class="squad-sort-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;background:rgba(15,23,42,.72);border:1px solid var(--line,#263244);border-radius:10px">
       <label for="squadRosterSort" style="color:var(--muted,#94a3b8);font-size:12px;font-weight:800;white-space:nowrap">ORDENAR ELENCO</label>
       <select id="squadRosterSort" aria-label="Organizar elenco" style="min-width:220px;max-width:100%;padding:9px 12px;border:1px solid var(--line,#263244);border-radius:9px;background:#111827;color:#e2e8f0">
-        <option value="overall" ${squadRosterSort==='overall'?'selected':''}>Maior overall</option>
+        <option value="position" ${squadRosterSort==='position'?'selected':''}>Por Posição (GOL, ZAG, MEI, ATA)</option>
+            <option value="overall" ${squadRosterSort==='overall'?'selected':''}>Maior overall</option>
+            <option value="morale" ${squadRosterSort==='morale'?'selected':''}>Maior moral</option>
+            <option value="fitness" ${squadRosterSort==='fitness'?'selected':''}>Melhor forma física</option>
         <option value="age" ${squadRosterSort==='age'?'selected':''}>Mais jovens</option>
         <option value="salary" ${squadRosterSort==='salary'?'selected':''}>Maior salário</option>
         <option value="value" ${squadRosterSort==='value'?'selected':''}>Maior valor de mercado</option>
@@ -34294,10 +34418,14 @@ function squadPage(){
                 <td>
               <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
                 <button type="button" class="btn btn-lupa-details btn-lupa-squad" data-key="${esc(playerKey(p))}" onclick="if(window.AFM_MarketLupaAndAging)window.AFM_MarketLupaAndAging.openPlayerDetails(this)" title="Ver ficha técnica e atributos reais de ${esc(p.name)}" style="background:#3b1d7a;color:#fff;border:1px solid #a78bfa;border-radius:8px;padding:4px 8px;cursor:pointer;font-size:12px;line-height:1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(124,58,237,0.3);flex-shrink:0;">🔍</button>
-                ${p.isLoan ? `<button class="btn btnManageLoanRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">🤝 Negociar c/ detentor</button>` : `
+                ${ctx.isManager ? (p.isLoan ? `<button class="btn btnManageLoanRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">🤝 Negociar c/ detentor</button>` : `
                   <button class="btn btnRenewContractRow" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">📝 Renovar contrato</button>
                   <button class="btn open-transfer-modal ${(p.pendingTransfer||p.isSold)?'warn':isPlayerTransferListed(p)?'warn':isPlayerLoanListed(p)?'primary':''}" data-key="${esc(playerKey(p))}" style="padding:4px 8px;font-size:11px">${(p.pendingTransfer||p.isSold) ? (p.pendingTransfer?.type==='loan_out'?'🤝 Empréstimo Agendado':'🏷️ Venda Agendada (Janela)') : isPlayerTransferListed(p)?'🏷️ Gerenciar Venda':isPlayerLoanListed(p)?'🤝 Gerenciar Empréstimo':'📄 Propostas / Vender'}</button>
-                `}
+                `) : (Boolean(p.isControlled || (ctx.playerName && typeof norm === 'function' && norm(p.name) === norm(ctx.playerName))) ? `
+                  <span class="pill" style="font-size:10px;background:#7c3aed;color:#fff;font-weight:900">VOCÊ</span>
+                ` : `
+                  <span class="pill" style="font-size:10px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6)">👥 Companheiro</span>
+                `)}
               </div>
                 </td>
               </tr>
@@ -38432,6 +38560,7 @@ function getSavedSeasonMemberships(clubName = state?.club){
 }
 
 function seasonPage(){
+  const ctx = resolveModeContext(state);
   if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)){
     save();
   }
@@ -38849,7 +38978,7 @@ function seasonPage(){
                 <div style="display:flex;align-items:center;gap:12px">
                   ${typeof clubBadge === 'function' ? clubBadge(state.club, 38) : ''}
                   <div>
-                    <div style="font-size:11px;font-weight:800;color:#a855f7;text-transform:uppercase;letter-spacing:1px">MEU CLUBE NA COMPETIÇÃO</div>
+                    <div style="font-size:11px;font-weight:800;color:#a855f7;text-transform:uppercase;letter-spacing:1px">${ctx.isManager ? 'EXPECTATIVA DA DIRETORIA & CAMPANHA' : 'MEU CLUBE NA COMPETIÇÃO'}</div>
                     <div style="font-size:18px;font-weight:900;color:#fff">${typeof esc === 'function' ? esc(state.club) : state.club}</div>
                   </div>
                 </div>
@@ -38876,6 +39005,13 @@ function seasonPage(){
                     <div style="padding-left:12px;border-left:1px solid rgba(255,255,255,0.1)">
                       <div style="font-size:10px;color:rgba(255,255,255,0.5)">PRÓXIMO ADVERSÁRIO</div>
                       <div style="font-size:13px;font-weight:900;color:#fff">vs ${esc(nextOpponent)}</div>
+                    </div>
+                  ` : ''}
+                  ${ctx.isManager ? `
+                    <div style="padding-left:12px;border-left:1px solid rgba(255,255,255,0.1)">
+                      <button type="button" class="btn primary" onclick="view='meutime';render();" style="font-size:11px;font-weight:900;padding:6px 14px;border-radius:8px">
+                        ⚡ Ir para Meu Time & Tática
+                      </button>
                     </div>
                   ` : ''}
                 </div>
@@ -43133,9 +43269,15 @@ function bind(){
 
   // Listeners de Notícias
   if(view==='noticias'){
-    $$('.btn-news-channel').forEach(b => {
+    $('.btn-news-channel').forEach(b => {
       b.onclick = () => {
         newsChannelFilter = b.dataset.channel;
+        render();
+      };
+    });
+    $('.btn-news-cat').forEach(b => {
+      b.onclick = () => {
+        newsCategoryFilter = b.dataset.newsCat;
         render();
       };
     });
@@ -44185,12 +44327,17 @@ function bind(){
       }
     };
 
-    $$('.btnCalPlayNow').forEach(b=>b.onclick=()=>{
+    $('.btnCalPlayNow, .btnCalStatePlay, .btnCalCopaPlay, .btnCalTournamentPlay').forEach(b=>b.onclick=()=>{
       runCalendarAction(() => {
+        const ctx = (typeof resolveModeContext === 'function') ? resolveModeContext(state) : { isPlayer: false };
         const mDate = b.dataset.date;
         if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
         if(b.dataset.round !== undefined){ state.round = Number(b.dataset.round); }
-        startLiveMatch();
+        if(ctx.isPlayer){
+          startCareerMatch();
+        } else {
+          startLiveMatch();
+        }
       });
     });
 
