@@ -13246,6 +13246,9 @@ function getTransferWindowState(){
 }
 
 function isTransferWindowOpen(dateStr){
+  if(typeof window !== 'undefined' && window.AFM_CALENDAR_HUB && typeof window.AFM_CALENDAR_HUB.getTransferWindowStatus === 'function'){
+    return window.AFM_CALENDAR_HUB.getTransferWindowStatus(dateStr).open;
+  }
   const st = (typeof state !== 'undefined' && state) ? state : ((typeof window !== 'undefined' && window.state) ? window.state : null);
   if(st && st.freeTransferWindow) return true;
   if(typeof getTransferWindowState === 'function' && getTransferWindowState().active) return true;
@@ -13258,16 +13261,15 @@ function isTransferWindowOpen(dateStr){
   const m = parseInt(parts[1], 10);
   const day = parseInt(parts[2], 10);
 
-  // Se a janela da pré-temporada foi deliberadamente fechada e ainda estamos na primeira metade do ano:
   if(st && Number(st.transferWindowClosedForSeason) === year && m < 6){
     return false;
   }
-  // Janela 1 (Verão): 01/01 a 01/03 (inclusive)
-  if((m === 1) || (m === 2) || (m === 3 && day <= 1)){
+  // Janela 1 (Verão): 01/01 a 31/03 (inclusive)
+  if(m >= 1 && m <= 3){
     return !st || Number(st.transferWindowClosedForSeason) !== year;
   }
-  // Janela 2 (Inverno / Meio de ano): 01/06 a 01/08 (inclusive)
-  if((m === 6) || (m === 7) || (m === 8 && day <= 1)){
+  // Janela 2 (Inverno / Meio de ano): 10/07 a 02/09 (inclusive)
+  if((m === 7 && day >= 10) || (m === 8) || (m === 9 && day <= 2)){
     return true;
   }
   return false;
@@ -13279,31 +13281,19 @@ function _oldIsTransferWindowOpen(dateStr){
   if(parts.length < 3) return true;
   const m = parseInt(parts[1], 10);
   const day = parseInt(parts[2], 10);
-
-  // Janela 1: 01/01 a 01/03 (inclusive)
-  if((m === 1) || (m === 2) || (m === 3 && day <= 1)){
-    return true;
-  }
-  // Janela 2: 01/06 a 01/08 (inclusive)
-  if((m === 6) || (m === 7) || (m === 8 && day <= 1)){
-    return true;
-  }
+  if((m === 1) || (m === 2) || (m === 3 && day <= 1)) return true;
+  if((m === 6) || (m === 7) || (m === 8 && day <= 1)) return true;
   return false;
 }
 window.isTransferWindowOpen = isTransferWindowOpen;
 
 function getTransferWindowInfo(dateStr){
+  if(typeof window !== 'undefined' && window.AFM_CALENDAR_HUB && typeof window.AFM_CALENDAR_HUB.getTransferWindowStatus === 'function'){
+    return window.AFM_CALENDAR_HUB.getTransferWindowStatus(dateStr);
+  }
   const st = (typeof state !== 'undefined' && state) ? state : ((typeof window !== 'undefined' && window.state) ? window.state : null);
   if(st?.freeTransferWindow) {
     return { open: true, text: 'Janela Aberta (Modo Livre)', nextOpenDate: 'Sempre Aberto', currentWindow: 'Livre' };
-  }
-  const tw = (typeof getTransferWindowState === 'function') ? getTransferWindowState() : { active: false };
-  if(tw.active){
-    return {
-      open: true,
-      text: tw.isDeadlineDay ? `Deadline Day (${String(tw.hour).padStart(2,'0')}:00)` : `Janela Aberta (Dia ${tw.day} de 4)`,
-      currentWindow: tw.isDeadlineDay ? 'Deadline Day' : `Dia ${tw.day} de 4`
-    };
   }
   const dateOpen = isTransferWindowOpen(dateStr);
   if(dateOpen){
@@ -13311,16 +13301,16 @@ function getTransferWindowInfo(dateStr){
     const m = parseInt(String(dStr).split('-')[1], 10) || 1;
     return {
       open: true,
-      text: m <= 3 ? 'Janela de Verão Aberta (fecha em 01/03)' : 'Janela de Inverno Aberta (fecha em 01/08)',
-      nextOpenDate: m <= 3 ? '01/06' : '01/01',
-      currentWindow: m <= 3 ? 'Início de Temporada' : 'Meio de Temporada'
+      text: m <= 3 ? 'Janela de Verão Aberta (01/Jan a 31/Mar)' : 'Janela de Inverno Aberta (10/Jul a 02/Set)',
+      nextOpenDate: m <= 3 ? '10/07' : '01/01',
+      currentWindow: m <= 3 ? 'Janela de Verão' : 'Janela de Inverno'
     };
   }
   const dateParts = String(dateStr || st?.date || '').split('-').map(Number);
   const year = dateParts[0] || Number(st?.season) || new Date().getFullYear();
   const month = dateParts[1] || 1;
-  const nextOpen = month < 6 ? { year, month: 6 } : { year: year + 1, month: 1 };
-  const nextOpenDate = `01/${String(nextOpen.month).padStart(2, '0')}/${nextOpen.year}`;
+  const nextOpen = month < 7 ? { year, month: 7, day: 10 } : { year: year + 1, month: 1, day: 1 };
+  const nextOpenDate = `${String(nextOpen.day).padStart(2,'0')}/${String(nextOpen.month).padStart(2, '0')}/${nextOpen.year}`;
   return { open: false, text: `Janela Fechada (reabre em ${nextOpenDate})`, nextOpenDate, currentWindow: null };
 }
 function _oldGetTransferWindowInfo(dateStr){
@@ -32395,11 +32385,474 @@ function processContinentalFixturesBefore(date){
 // -------------------------------------------------------------
 // ABA CALENDÁRIO COM DATAS OFICIAIS E JANELAS DE TRANSFERÊNCIA
 // -------------------------------------------------------------
+// CENTRAL DO CALENDÁRIO OFICIAL & MODAL DE PRÉVIA / SÚMULA
+// -------------------------------------------------------------
+window.AFM_CALENDAR_HUB = {
+  // 1. CÁLCULO PRECISO DAS JANELAS OFICIAIS DE TRANSFERÊNCIA (CBF / FIFA)
+  // Verão: 01/Jan a 31/Mar (90 dias ou 91 em ano bissexto)
+  // Inverno: 10/Jul a 02/Set (55 dias corridos inclusive)
+  getTransferWindowStatus(dateStr) {
+    const st = (typeof state !== 'undefined' && state) ? state : ((typeof window !== 'undefined' && window.state) ? window.state : null);
+    if(st?.freeTransferWindow) {
+      return {
+        open: true,
+        text: 'Janela Aberta (Modo Livre)',
+        detail: 'Contratações e vendas liberadas em todas as datas',
+        badgeClass: 'window-open',
+        windowName: 'Modo Livre',
+        currentDay: 1,
+        totalDays: 1,
+        daysRemaining: 999
+      };
+    }
+
+    const curDateStr = dateStr || st?.date || st?.currentDate || '2026-01-01';
+    const parts = String(curDateStr).split('-').map(Number);
+    const year = parts[0] || 2026;
+    const month = parts[1] || 1;
+    const day = parts[2] || 1;
+    const curTime = new Date(year, month - 1, day).getTime();
+
+    // Janela 1: Verão (01/Jan a 31/Mar)
+    const summerStart = new Date(year, 0, 1).getTime();
+    const summerEnd = new Date(year, 2, 31).getTime();
+    const summerTotalDays = Math.round((summerEnd - summerStart) / 86400000) + 1;
+
+    // Janela 2: Inverno (10/Jul a 02/Set)
+    const winterStart = new Date(year, 6, 10).getTime();
+    const winterEnd = new Date(year, 8, 2).getTime();
+    const winterTotalDays = Math.round((winterEnd - winterStart) / 86400000) + 1;
+
+    if(curTime >= summerStart && curTime <= summerEnd) {
+      const currentDay = Math.round((curTime - summerStart) / 86400000) + 1;
+      const daysRemaining = Math.max(0, summerTotalDays - currentDay);
+      return {
+        open: true,
+        text: `Janela Aberta (Dia ${currentDay} de ${summerTotalDays})`,
+        detail: `${daysRemaining} dias restantes`,
+        badgeClass: 'window-open',
+        windowName: 'Janela de Verão',
+        currentDay,
+        totalDays: summerTotalDays,
+        daysRemaining
+      };
+    }
+
+    if(curTime >= winterStart && curTime <= winterEnd) {
+      const currentDay = Math.round((curTime - winterStart) / 86400000) + 1;
+      const daysRemaining = Math.max(0, winterTotalDays - currentDay);
+      return {
+        open: true,
+        text: `Janela Aberta (Dia ${currentDay} de ${winterTotalDays})`,
+        detail: `${daysRemaining} dias restantes`,
+        badgeClass: 'window-open',
+        windowName: 'Janela de Inverno',
+        currentDay,
+        totalDays: winterTotalDays,
+        daysRemaining
+      };
+    }
+
+    // Janela Fechada
+    let nextOpenDate = '';
+    let daysToNext = 0;
+    if(curTime < winterStart && curTime > summerEnd) {
+      nextOpenDate = `10/07/${year}`;
+      daysToNext = Math.round((winterStart - curTime) / 86400000);
+    } else {
+      const nextSummerStart = new Date(year + 1, 0, 1).getTime();
+      nextOpenDate = `01/01/${year + 1}`;
+      daysToNext = Math.round((nextSummerStart - curTime) / 86400000);
+    }
+
+    return {
+      open: false,
+      text: `Janela Fechada (Reabre em ${nextOpenDate})`,
+      detail: `Reabre em ${daysToNext} dias`,
+      badgeClass: 'window-closed',
+      windowName: 'Janela Fechada',
+      currentDay: 0,
+      totalDays: 0,
+      daysRemaining: 0,
+      nextOpenDate
+    };
+  },
+
+  // 2. DETECTOR DE CLÁSSICOS & RIVALIDADES HISTÓRICAS
+  isDerbyMatch(clubA, clubB) {
+    if(!clubA || !clubB) return false;
+    const nA = (typeof norm === 'function' ? norm(clubA) : String(clubA).toLowerCase().trim());
+    const nB = (typeof norm === 'function' ? norm(clubB) : String(clubB).toLowerCase().trim());
+    if(nA === nB) return false;
+
+    const derbyPairs = [
+      // DF (Candango)
+      ['gama', 'brasiliense'], ['gama', 'ceilandia'], ['brasiliense', 'ceilandia'],
+      ['gama', 'brasilia'], ['brasiliense', 'capital-df'], ['brasilia', 'brasiliense'],
+      ['ceilandia', 'capital-df'], ['paranoa', 'samambaia'], ['real brasilia', 'capital-df'],
+      ['gama', 'real brasilia'], ['brasiliense', 'real brasilia'],
+      // SP
+      ['corinthians', 'palmeiras'], ['sao paulo', 'corinthians'], ['palmeiras', 'sao paulo'],
+      ['santos', 'corinthians'], ['palmeiras', 'santos'], ['sao paulo', 'santos'],
+      ['guarani', 'ponte preta'], ['juventus', 'portuguesa'],
+      // RJ
+      ['flamengo', 'fluminense'], ['flamengo', 'vasco'], ['fluminense', 'vasco'],
+      ['botafogo', 'flamengo'], ['botafogo', 'fluminense'], ['botafogo', 'vasco'],
+      ['bangu', 'america-rj'],
+      // MG
+      ['atletico-mg', 'cruzeiro'], ['america-mg', 'atletico-mg'], ['america-mg', 'cruzeiro'],
+      // RS
+      ['gremio', 'internacional'], ['juventude', 'caxias'], ['brasil de pelotas', 'pelotas'],
+      // PR
+      ['coritiba', 'athletico-pr'], ['coritiba', 'parana'], ['athletico-pr', 'parana'],
+      // BA
+      ['bahia', 'vitoria'],
+      // SC
+      ['avai', 'figueirense'], ['chapecoense', 'criciuma'], ['joinville', 'avai'],
+      // CE
+      ['ceara', 'fortaleza'], ['ferroviario', 'ceara'], ['ferroviario', 'fortaleza'],
+      // PE
+      ['sport', 'santa cruz'], ['nautico', 'sport'], ['nautico', 'santa cruz'],
+      // GO
+      ['goias', 'vila nova'], ['atletico-go', 'goias'], ['atletico-go', 'vila nova'],
+      // PA
+      ['remo', 'paysandu'],
+      // AL
+      ['crb', 'csa'],
+      // RN
+      ['abc', 'america-rn']
+    ];
+
+    return derbyPairs.some(([c1, c2]) => (nA.includes(c1) && nB.includes(c2)) || (nA.includes(c2) && nB.includes(c1)));
+  },
+
+  // 3. ESCUDO VETORIAL FALLBACK ANTI-404
+  buildCrestFallbackUri(abbr, name) {
+    const letters = (abbr || (name ? name.replace(/[^a-zA-Z]/g, '').slice(0, 3) : 'AFM')).toUpperCase() || 'AFM';
+    const bg = '#1e293b';
+    const fg = '#38bdf8';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><polygon points="32,4 58,16 58,44 32,60 6,44 6,16" fill="${bg}" stroke="${fg}" stroke-width="2"/><text x="32" y="38" text-anchor="middle" font-size="14" font-weight="900" font-family="system-ui, sans-serif" fill="${fg}">${letters}</text></svg>`;
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  },
+
+  // 4. RESUMO ESTATÍSTICO DA TEMPORADA
+  computeSeasonSummary(calendarMatches, myClub, gameState) {
+    const clubKey = name => (typeof norm === 'function' ? norm(name) : String(name || '').toLowerCase().trim());
+    const mClubKey = clubKey(myClub);
+
+    let played = 0;
+    let wins = 0;
+    let draws = 0;
+    let losses = 0;
+    let derbiesTotal = 0;
+    let derbiesPlayed = 0;
+    let derbiesWins = 0;
+    let derbiesDraws = 0;
+    let derbiesLosses = 0;
+
+    const streakMatches = [];
+
+    (calendarMatches || []).forEach(match => {
+      const isDerby = window.AFM_CALENDAR_HUB.isDerbyMatch(match.home, match.away);
+      if(isDerby) derbiesTotal++;
+
+      const res = (typeof resolveCalendarMatchResult === 'function')
+        ? resolveCalendarMatchResult(match, gameState)
+        : (Array.isArray(match.result) && match.result.length >= 2 ? match.result : null);
+
+      if(Array.isArray(res) && res.length >= 2) {
+        played++;
+        const isHome = clubKey(match.home) === mClubKey;
+        const myGoals = isHome ? Number(res[0]) || 0 : Number(res[1]) || 0;
+        const oppGoals = isHome ? Number(res[1]) || 0 : Number(res[0]) || 0;
+
+        let resultType = 'E';
+        if(myGoals > oppGoals) {
+          wins++;
+          resultType = 'V';
+          if(isDerby) derbiesWins++;
+        } else if(myGoals < oppGoals) {
+          losses++;
+          resultType = 'D';
+          if(isDerby) derbiesLosses++;
+        } else {
+          draws++;
+          if(isDerby) derbiesDraws++;
+        }
+
+        if(isDerby) derbiesPlayed++;
+        streakMatches.push({ date: match.date, resultType });
+      }
+    });
+
+    const total = (calendarMatches || []).length;
+    const points = wins * 3 + draws;
+    const winRate = played > 0 ? Math.round((points / (played * 3)) * 100) : 0;
+
+    streakMatches.sort((a,b) => b.date.localeCompare(a.date));
+    let streakText = '—';
+    let streakSub = 'Aguardando início';
+    if(streakMatches.length > 0) {
+      const lastRes = streakMatches[0].resultType;
+      let count = 0;
+      for(const m of streakMatches) {
+        if(m.resultType === lastRes) count++;
+        else break;
+      }
+      if(lastRes === 'V') {
+        streakText = `🔥 ${count}V seguidas`;
+        streakSub = 'Fase vitoriosa';
+      } else if(lastRes === 'D') {
+        streakText = `⚠️ ${count}D seguidas`;
+        streakSub = 'Alerta de rendimento';
+      } else {
+        streakText = `⚖️ ${count}E seguidos`;
+        streakSub = 'Sequência de empates';
+      }
+    }
+
+    const derbiesRecord = derbiesPlayed > 0
+      ? `${derbiesWins}V · ${derbiesDraws}E · ${derbiesLosses}D`
+      : 'Nenhum clássico jogado';
+
+    return {
+      played,
+      total,
+      wins,
+      draws,
+      losses,
+      points,
+      winRate,
+      streakText,
+      streakSub,
+      derbiesTotal,
+      derbiesPlayed,
+      derbiesRecord
+    };
+  }
+};
+
+// -------------------------------------------------------------
+// MODAIS OFICIAIS DO CALENDÁRIO: PRÉVIA E SÚMULA
+// -------------------------------------------------------------
+window.openMatchPreviewModal = function(home, away, compName, matchDate, options = {}) {
+  document.getElementById('afmMatchPreviewModal')?.remove();
+
+  const myClub = state?.club || '';
+  const myClubNorm = (typeof norm === 'function' ? norm(myClub) : String(myClub).toLowerCase().trim());
+  const isHome = (typeof norm === 'function' ? norm(home) : String(home).toLowerCase().trim()) === myClubNorm;
+  const opp = isHome ? away : home;
+  const hStrength = typeof teamStrengthByName === 'function' ? teamStrengthByName(home) : 60;
+  const aStrength = typeof teamStrengthByName === 'function' ? teamStrengthByName(away) : 60;
+
+  const homeAdv = 3;
+  const netHomeRating = hStrength + homeAdv;
+  const netAwayRating = aStrength;
+  const diff = netHomeRating - netAwayRating;
+  let pHome = Math.round(42 + diff * 2.2);
+  let pDraw = Math.round(28 - Math.abs(diff) * 0.8);
+  pHome = Math.max(15, Math.min(80, pHome));
+  pDraw = Math.max(12, Math.min(35, pDraw));
+  let pAway = 100 - (pHome + pDraw);
+  if(pAway < 10) { pAway = 10; pDraw = 100 - pHome - pAway; }
+
+  const history = Array.isArray(state?.history) ? state.history : [];
+  const h2h = history.filter(h => {
+    const hh = (typeof norm === 'function' ? norm(h.h) : String(h.h).toLowerCase().trim());
+    const ha = (typeof norm === 'function' ? norm(h.a) : String(h.a).toLowerCase().trim());
+    const hNorm = (typeof norm === 'function' ? norm(home) : String(home).toLowerCase().trim());
+    const aNorm = (typeof norm === 'function' ? norm(away) : String(away).toLowerCase().trim());
+    return (hh === hNorm && ha === aNorm) || (hh === aNorm && ha === hNorm);
+  });
+
+  const isDerby = window.AFM_CALENDAR_HUB ? window.AFM_CALENDAR_HUB.isDerbyMatch(home, away) : false;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'afmMatchPreviewModal';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);animation:fadeIn 0.2s ease;';
+
+  overlay.innerHTML = `
+    <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:14px;max-width:540px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px -12px rgba(0,0,0,0.7);padding:22px;position:relative;color:#f8fafc">
+      <button type="button" id="btnCloseMatchPreviewModal" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.08);border:none;color:#94a3b8;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s">✕</button>
+
+      <div style="text-align:center;margin-bottom:16px">
+        <span class="pill" style="font-size:10px;font-weight:900;background:#1e293b;color:#38bdf8;padding:2px 8px;border-radius:12px">🏆 ${esc(compName || 'Confronto Oficial')}</span>
+        ${isDerby ? '<span class="pill" style="margin-left:6px;font-size:10px;font-weight:900;background:rgba(239,68,68,0.25);color:#f87171;border:1px solid rgba(239,68,68,0.4)">🔥 CLÁSSICO REGIONAL</span>' : ''}
+        <div class="small muted" style="margin-top:6px;font-size:11px">${matchDate ? 'Data: ' + formatDatePtBr(matchDate) : 'Temporada Oficial'}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;background:rgba(255,255,255,0.03);padding:18px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.07)">
+        <div style="text-align:center">
+          <div style="display:flex;justify-content:center;margin-bottom:8px">${clubBadge(home, 48)}</div>
+          <div style="font-weight:900;font-size:14px;color:#fff">${esc(home)}</div>
+          <div class="small muted" style="font-size:11px">Força: <b style="color:#38bdf8">${hStrength}</b></div>
+          <span class="pill" style="font-size:9px;margin-top:4px">🏠 Mandante</span>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:20px;font-weight:900;color:#64748b">VS</div>
+        </div>
+        <div style="text-align:center">
+          <div style="display:flex;justify-content:center;margin-bottom:8px">${clubBadge(away, 48)}</div>
+          <div style="font-weight:900;font-size:14px;color:#fff">${esc(away)}</div>
+          <div class="small muted" style="font-size:11px">Força: <b style="color:#38bdf8">${aStrength}</b></div>
+          <span class="pill" style="font-size:9px;margin-top:4px">✈️ Visitante</span>
+        </div>
+      </div>
+
+      <div style="margin-top:18px">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;display:flex;justify-content:space-between">
+          <span>Probabilidade do Confronto</span>
+          <span>Vitória Casa / Empate / Fora</span>
+        </div>
+        <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:#334155;margin-bottom:6px">
+          <div style="width:${pHome}%;background:#38bdf8" title="${home}: ${pHome}%"></div>
+          <div style="width:${pDraw}%;background:#94a3b8" title="Empate: ${pDraw}%"></div>
+          <div style="width:${pAway}%;background:#f43f5e" title="${away}: ${pAway}%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700">
+          <span style="color:#38bdf8">${pHome}% (${esc(home)})</span>
+          <span style="color:#94a3b8">${pDraw}% (Empate)</span>
+          <span style="color:#f43f5e">${pAway}% (${esc(away)})</span>
+        </div>
+      </div>
+
+      <div style="margin-top:18px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);padding:12px;border-radius:10px">
+        <div style="font-size:11px;font-weight:800;color:#cbd5e1;margin-bottom:6px">📜 Histórico Recente no Save (${h2h.length} confrontos)</div>
+        ${h2h.length === 0 ? '<div class="small muted" style="font-size:11px">Nenhum confronto anterior registrado nesta carreira entre estas equipes.</div>' : `
+          <div style="display:flex;flex-direction:column;gap:4px">
+            ${h2h.slice(-3).map(h => {
+              const hScore = h.hg !== undefined ? h.hg : h.homeGoals;
+              const aScore = h.ag !== undefined ? h.ag : h.awayGoals;
+              return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 6px;border-radius:4px;background:rgba(255,255,255,0.03)">
+                <span>${esc(h.h)} vs ${esc(h.a)} (${esc(h.competitionId || 'Liga')})</span>
+                <b>${hScore} x ${aScore}</b>
+              </div>`;
+            }).join('')}
+          </div>
+        `}
+      </div>
+
+      <div style="margin-top:20px;text-align:center">
+        <button type="button" id="btnConfirmClosePreviewModal" class="btn primary" style="width:100%;padding:10px;font-weight:800;border-radius:8px">Entendido / Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const close = () => {
+    overlay.remove();
+    if(options.onClose) options.onClose();
+  };
+  overlay.querySelector('#btnCloseMatchPreviewModal').onclick = close;
+  overlay.querySelector('#btnConfirmClosePreviewModal').onclick = close;
+  overlay.onclick = (e) => { if(e.target === overlay) close(); };
+};
+
+window.openMatchSummaryModal = function(info) {
+  document.getElementById('afmMatchSummaryModal')?.remove();
+
+  const home = info.home;
+  const away = info.away;
+  const scoreH = info.scoreH;
+  const scoreA = info.scoreA;
+  const compName = info.compName;
+  const dateStr = info.dateStr;
+  const roundStr = info.roundStr;
+
+  const myClub = state?.club || '';
+  const myClubNorm = (typeof norm === 'function' ? norm(myClub) : String(myClub).toLowerCase().trim());
+  const isHome = (typeof norm === 'function' ? norm(home) : String(home).toLowerCase().trim()) === myClubNorm;
+
+  const userGoals = isHome ? scoreH : scoreA;
+  const oppGoals = isHome ? scoreA : scoreH;
+  let outcomeText = '🟡 EMPATE';
+  let outcomeColor = '#eab308';
+  if(userGoals > oppGoals) { outcomeText = '🟢 VITÓRIA'; outcomeColor = '#22c55e'; }
+  else if(userGoals < oppGoals) { outcomeText = '🔴 DERROTA'; outcomeColor = '#ef4444'; }
+
+  const isPlayer = typeof isPlayerCareerActive === 'function' ? isPlayerCareerActive(state) : false;
+  let playerPerf = null;
+  if(isPlayer && state.player && Array.isArray(state.player.matchRatingHistory)) {
+    playerPerf = state.player.matchRatingHistory.find(m => m.date === dateStr || m.opponent === (isHome ? away : home));
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'afmMatchSummaryModal';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);animation:fadeIn 0.2s ease;';
+
+  overlay.innerHTML = `
+    <div style="background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:14px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px -12px rgba(0,0,0,0.7);padding:22px;position:relative;color:#f8fafc">
+      <button type="button" id="btnCloseMatchSummaryModal" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.08);border:none;color:#94a3b8;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+
+      <div style="text-align:center;margin-bottom:16px">
+        <span class="pill" style="font-size:10px;font-weight:900;background:#1e293b;color:#38bdf8;padding:2px 8px;border-radius:12px">🏆 ${esc(compName || 'Partida Oficial')}</span>
+        <div class="small muted" style="margin-top:6px;font-size:11px">${roundStr ? esc(roundStr) + ' • ' : ''}${dateStr ? formatDatePtBr(dateStr) : ''}</div>
+        <div style="margin-top:8px;font-size:14px;font-weight:900;color:${outcomeColor}">${outcomeText}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;background:rgba(255,255,255,0.03);padding:20px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.07)">
+        <div style="text-align:center">
+          <div style="display:flex;justify-content:center;margin-bottom:8px">${clubBadge(home, 48)}</div>
+          <div style="font-weight:900;font-size:14px;color:#fff">${esc(home)}</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:32px;font-weight:900;color:#fff;letter-spacing:4px">${scoreH} x ${scoreA}</div>
+          <span class="pill good" style="font-size:10px;margin-top:4px">Encerrado</span>
+        </div>
+        <div style="text-align:center">
+          <div style="display:flex;justify-content:center;margin-bottom:8px">${clubBadge(away, 48)}</div>
+          <div style="font-weight:900;font-size:14px;color:#fff">${esc(away)}</div>
+        </div>
+      </div>
+
+      ${playerPerf ? `
+        <div style="margin-top:16px;background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.2);padding:14px;border-radius:10px">
+          <div style="font-size:11px;font-weight:800;color:#38bdf8;margin-bottom:8px">⭐ Sua Atuação Individual (Carreira Jogador)</div>
+          <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:8px;text-align:center">
+            <div style="background:rgba(255,255,255,0.03);padding:6px;border-radius:6px">
+              <div class="small muted" style="font-size:9px">NOTA</div>
+              <div style="font-size:14px;font-weight:900;color:#facc15">${playerPerf.rating || playerPerf.note || '—'}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);padding:6px;border-radius:6px">
+              <div class="small muted" style="font-size:9px">MINUTOS</div>
+              <div style="font-size:14px;font-weight:900;color:#fff">${playerPerf.minutes || 90}'</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);padding:6px;border-radius:6px">
+              <div class="small muted" style="font-size:9px">GOLS</div>
+              <div style="font-size:14px;font-weight:900;color:#4ade80">${playerPerf.goals || 0}</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);padding:6px;border-radius:6px">
+              <div class="small muted" style="font-size:9px">ASSIST.</div>
+              <div style="font-size:14px;font-weight:900;color:#38bdf8">${playerPerf.assists || 0}</div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      <div style="margin-top:20px;text-align:center">
+        <button type="button" id="btnConfirmCloseSummaryModal" class="btn primary" style="width:100%;padding:10px;font-weight:800;border-radius:8px">Fechar Súmula</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.querySelector('#btnCloseMatchSummaryModal').onclick = close;
+  overlay.querySelector('#btnConfirmCloseSummaryModal').onclick = close;
+  overlay.onclick = (e) => { if(e.target === overlay) close(); };
+};
+
+// -------------------------------------------------------------
+// ABA CALENDÁRIO COM DATAS OFICIAIS E JANELAS DE TRANSFERÊNCIA
+// -------------------------------------------------------------
 function calendarPage(){
-  const comp=curComp(), schedule=state.schedule||[], myClub=state.club;
-  const calendarClubKey=name=>({'red bull bragantino':'bragantino'}[norm(name)]||norm(name));
-  const winInfo=getTransferWindowInfo(state.date), extraMatches=[];
-  const copa=getCopaDoBrasilState();
+  const comp = curComp(), schedule = state.schedule || [], myClub = state.club;
+  const calendarClubKey = name => ({'red bull bragantino':'bragantino'}[norm(name)] || norm(name));
+  const winInfo = (window.AFM_CALENDAR_HUB && typeof window.AFM_CALENDAR_HUB.getTransferWindowStatus === 'function')
+    ? window.AFM_CALENDAR_HUB.getTransferWindowStatus(state.date)
+    : getTransferWindowInfo(state.date);
+  const extraMatches = [];
+  const copa = getCopaDoBrasilState();
   processCopaDoBrasilCalendar(state.date);
   if(isClubRegisteredInCopaDoBrasil(state, myClub)) Object.entries(copa.phases || {}).forEach(([phaseName,phase])=>(phase.fixtures||[]).forEach((fixture,fixtureIndex)=>{
     if(calendarClubKey(fixture.home)!==calendarClubKey(myClub)&&calendarClubKey(fixture.away)!==calendarClubKey(myClub))return;
@@ -32438,8 +32891,7 @@ function calendarPage(){
   }
   const cupLabels={'bra-cup':'🏅 Copa do Brasil',lib:'🏆 Libertadores',sud:'🥈 Sul-Americana',ucl:'UEFA Champions League',uel:'UEFA Europa League',uecl:'UEFA Conference League','afc-el':'AFC Champions League Elite',afc2:'AFC Champions League Two',cwc:'Mundial de Clubes FIFA'};
   const cupFilters=Object.keys(cupLabels).filter(id=>extraMatches.some(match=>match.competitionId===id)).map(id=>[id,cupLabels[id]]);
-  // Current-save membership is authoritative. When the primary schedule already is
-  // the user's estadual, do not add the same championship a second time as an extra tab.
+
   const memberships=getSavedSeasonMemberships(myClub);
   const stateCompId=memberships.stateId;
   const stateComp=stateCompId?compById(stateCompId):null;
@@ -32474,36 +32926,217 @@ function calendarPage(){
     competitionTabs.push({id:stateCompId,name:stateComp.name,label:`🏟️ ${stateComp.name}`,matches:stateMatches});
   }
   for(const [id,label] of cupFilters){const matches=extraMatches.filter(m=>m.competitionId===id);if(matches.length)competitionTabs.push({id,name:matches[0].name,label,matches});}
-  const activeCalendarFilter=competitionTabs.some(tab=>tab.id===calendarFilter)||['ALL','HOME','AWAY'].includes(calendarFilter)?calendarFilter:'ALL';
-  const allMatches=competitionTabs.flatMap(tab=>tab.matches);
-  const calendarMatches=allMatches.filter(match=>activeCalendarFilter==='ALL'||(activeCalendarFilter==='HOME'||activeCalendarFilter==='AWAY'?match.isHome===(activeCalendarFilter==='HOME'):match.competitionId===activeCalendarFilter)).sort((a,b)=>a.date.localeCompare(b.date)||(a.competitionId==='COMP'?-1:1));
+
+  const allMatches = competitionTabs.flatMap(tab=>tab.matches);
+
+  // Ordem cronológica oficial da temporada para determinar estritamente a próxima partida jogável
+  const chronologicalMatches = allMatches.slice().sort((a,b)=>a.date.localeCompare(b.date)||(a.competitionId==='COMP'?-1:1));
+  const nextUnplayedMatch = chronologicalMatches.find(m => {
+    const res = resolveCalendarMatchResult(m, state);
+    return !(Array.isArray(res) && res.length >= 2);
+  });
+
+  const summary = (window.AFM_CALENDAR_HUB && typeof window.AFM_CALENDAR_HUB.computeSeasonSummary === 'function')
+    ? window.AFM_CALENDAR_HUB.computeSeasonSummary(allMatches, myClub, state)
+    : { played: 0, total: allMatches.length, wins: 0, draws: 0, losses: 0, points: 0, winRate: 0, streakText: '—', streakSub: 'Aguardando início', derbiesTotal: 0, derbiesPlayed: 0, derbiesRecord: '—' };
+
+  const upcomingCount = allMatches.filter(m => { const r = resolveCalendarMatchResult(m, state); return !(Array.isArray(r) && r.length >= 2); }).length;
+  const playedCount = allMatches.length - upcomingCount;
+  const derbyCount = allMatches.filter(m => window.AFM_CALENDAR_HUB && window.AFM_CALENDAR_HUB.isDerbyMatch(m.home, m.away)).length;
+
+  const activeCalendarFilter = competitionTabs.some(tab=>tab.id===calendarFilter) || ['ALL','UPCOMING','PLAYED','DERBY','HOME','AWAY'].includes(calendarFilter) ? calendarFilter : 'ALL';
+
+  const calendarMatches = allMatches.filter(match => {
+    const res = resolveCalendarMatchResult(match, state);
+    const isDone = Array.isArray(res) && res.length >= 2;
+    if(activeCalendarFilter === 'ALL') return true;
+    if(activeCalendarFilter === 'UPCOMING') return !isDone;
+    if(activeCalendarFilter === 'PLAYED') return isDone;
+    if(activeCalendarFilter === 'DERBY') return window.AFM_CALENDAR_HUB && window.AFM_CALENDAR_HUB.isDerbyMatch(match.home, match.away);
+    if(activeCalendarFilter === 'HOME') return match.isHome;
+    if(activeCalendarFilter === 'AWAY') return !match.isHome;
+    return match.competitionId === activeCalendarFilter;
+  }).sort((a,b)=>a.date.localeCompare(b.date)||(a.competitionId==='COMP'?-1:1));
+
   return `
-    <div class="hero"><div><h1>Calendário Oficial de Jogos & Janelas de Transferência</h1><div class="muted">Datas dos confrontos, mandos de campo, torneios da temporada ${state.season} e janelas de contratação</div></div><div style="display:flex;gap:10px;align-items:center"><span class="window-badge ${winInfo.open?'window-open':'window-closed'}">${winInfo.open?'🟢':'🔴'} ${esc(winInfo.text)}</span><span class="pill">${esc(comp.name)}</span></div></div>
-    <div class="grid g2 afm-calendar-windows" style="margin-top:14px"><div class="card afm-window-card" style="border-left:4px solid var(--neon)"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">☀️ Janela de Verão (Início de Ano)</h3><span class="pill ${isTransferWindowOpen(state.season+'-02-01')?'good':''}">01/Jan a 31/Mar</span></div><p class="small muted afm-window-desc" style="margin:6px 0 0 0">Período oficial de montagem do elenco. Permite contratações definitivas, empréstimos e vendas.</p></div><div class="card afm-window-card" style="border-left:4px solid var(--cyan)"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">❄️ Janela de Inverno (Meio de Ano)</h3><span class="pill ${isTransferWindowOpen(state.season+'-08-01')?'good':''}">10/Jul a 02/Set</span></div><p class="small muted afm-window-desc" style="margin:6px 0 0 0">Período de reforços e ajustes do elenco para o segundo semestre e retas finais dos campeonatos.</p></div></div>
-    <div class="filters" style="margin-top:14px"><button type="button" class="btn ${activeCalendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos os Confrontos (${allMatches.length})</button>${competitionTabs.map(tab=>`<button type="button" class="btn ${activeCalendarFilter===tab.id?'primary':''}" data-cal-filter="${tab.id}">${tab.label}</button>`).join('')}<button type="button" class="btn ${activeCalendarFilter==='HOME'?'primary':''}" data-cal-filter="HOME">🏠 Em Casa</button><button type="button" class="btn ${activeCalendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora de Casa</button></div>
-    <div class="calendar-view" style="margin-top:10px">${calendarMatches.map(match=>{
-      const opponent=match.isHome?match.away:match.home,date=new Date(`${match.date}T12:00:00`),dayNames=['DOM','SEG','TER','QUA','QUI','SEX','SÁB'],dayBadge=dayNames[date.getDay()]||'JOGO',isMidweek=date.getDay()===3,dateFormatted=date.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'});
-      const resScore = resolveCalendarMatchResult(match, state);
-      const isCompleted = Array.isArray(resScore) && resScore.length >= 2;
+    <div class="hero">
+      <div>
+        <h1>Calendário Oficial de Jogos & Janelas de Transferência</h1>
+        <div class="muted">Datas dos confrontos, mandos de campo, torneios da temporada ${state.season} e janelas de contratação</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="window-badge ${winInfo.open?'window-open':'window-closed'}" title="${esc(winInfo.detail || '')}">${winInfo.open?'🟢':'🔴'} ${esc(winInfo.text)}</span>
+        <span class="pill">${esc(comp.name)}</span>
+      </div>
+    </div>
 
-      const previewBtn=`<button type="button" class="btn btnCalPreviewNow" data-home="${esc(match.home)}" data-away="${esc(match.away)}" data-comp="${esc(match.name)}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:6px;cursor:pointer" title="Ver Prévia & Histórico do Adversário">📋 Prévia</button>`;
+    <!-- CARDS DAS DUAS JANELAS OFICIAIS -->
+    <div class="grid g2 afm-calendar-windows" style="margin-top:14px">
+      <div class="card afm-window-card" style="border-left:4px solid var(--neon)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">☀️ Janela de Verão (Início de Ano)</h3>
+          <span class="pill ${isTransferWindowOpen(state.season+'-02-01')?'good':''}">01/Jan a 31/Mar</span>
+        </div>
+        <p class="small muted afm-window-desc" style="margin:6px 0 0 0">Período oficial de montagem do elenco (90 dias). Permite contratações definitivas, empréstimos e vendas.</p>
+      </div>
+      <div class="card afm-window-card" style="border-left:4px solid var(--cyan)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">❄️ Janela de Inverno (Meio de Ano)</h3>
+          <span class="pill ${isTransferWindowOpen(state.season+'-08-01')?'good':''}">10/Jul a 02/Set</span>
+        </div>
+        <p class="small muted afm-window-desc" style="margin:6px 0 0 0">Período de reforços e ajustes do elenco (55 dias) para o segundo semestre e retas finais dos campeonatos.</p>
+      </div>
+    </div>
 
-      let status='';
-      if(isCompleted){
-        status=`<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end"><span class="pill good" style="font-size:11px;font-weight:900">${resScore[0]} x ${resScore[1]} · Concluído</span>${previewBtn}</div>`;
-      } else if(match.competitionId==='COMP'){
-        status=`<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end"><button type="button" class="btn primary btnCalPlayNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalSimNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>${previewBtn}</div>`;
-      } else if(match.competitionId.startsWith('bra-est-')){
-        status=`<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end"><button type="button" class="btn primary btnCalStatePlay" data-state-comp="${match.competitionId}" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalStateSim" data-state-comp="${match.competitionId}" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>${previewBtn}</div>`;
-      } else if(match.competitionId==='bra-cup'){
-        status=`<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end"><button type="button" class="btn primary btnCalCopaPlay" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalCopaSim" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>${previewBtn}</div>`;
-      } else if(match.matchId){
-        status=`<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end"><button type="button" class="btn primary btnCalTournamentPlay" data-tournament="${esc(match.competitionId)}" data-match="${esc(match.matchId)}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalTournamentSim" data-tournament="${esc(match.competitionId)}" data-match="${esc(match.matchId)}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>${previewBtn}</div>`;
-      } else {
-        status=`<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end"><button type="button" class="btn primary btnCalPlayNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalSimNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>${previewBtn}</div>`;
-      }
-      return `<div class="calendar-card ${match.current?'current':''}"><div><div style="display:flex;align-items:center;gap:6px"><span class="pill" style="font-size:9px;font-weight:900;padding:1px 5px;background:${isMidweek?'rgba(56,189,248,0.25);color:#38bdf8':'rgba(34,197,94,0.25);color:#4ade80'}">${dayBadge}</span><b>${dateFormatted}</b></div><div class="small muted" style="margin-top:2px">${esc(match.round||'')}</div></div><div><span class="pill" style="font-size:11px">${match.isHome?'🏠 EM CASA':'✈️ FORA'}</span></div><div style="display:flex;align-items:center;gap:12px">${clubBadge(opponent,32)}<div><b>vs ${esc(opponent)}</b><div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div></div></div><div><span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(match.name)}</span></div><div style="text-align:right">${status}</div></div>`;
-    }).join('')}</div>
+    <!-- PAINEL SUPERIOR DE ESTATÍSTICAS DA TEMPORADA -->
+    <div class="card" style="margin-top:14px;padding:12px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;align-items:center">
+      <div>
+        <div class="small muted" style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px">Jogos Disputados</div>
+        <div style="font-size:18px;font-weight:900;color:#fff">${summary.played} / ${summary.total}</div>
+        <div class="small muted" style="font-size:10px">${summary.wins}V · ${summary.draws}E · ${summary.losses}D</div>
+      </div>
+      <div>
+        <div class="small muted" style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px">Aproveitamento</div>
+        <div style="font-size:18px;font-weight:900;color:${summary.winRate >= 50 ? '#4ade80' : summary.winRate >= 35 ? '#facc15' : '#f87171'}">${summary.winRate}%</div>
+        <div class="small muted" style="font-size:10px">${summary.points} pts somados</div>
+      </div>
+      <div>
+        <div class="small muted" style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px">Sequência Atual</div>
+        <div style="font-size:16px;font-weight:900;color:#38bdf8">${summary.streakText}</div>
+        <div class="small muted" style="font-size:10px">${summary.streakSub}</div>
+      </div>
+      <div>
+        <div class="small muted" style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px">Clássicos na Temporada</div>
+        <div style="font-size:16px;font-weight:900;color:#f97316">🔥 ${summary.derbiesPlayed} / ${summary.derbiesTotal}</div>
+        <div class="small muted" style="font-size:10px">${summary.derbiesRecord}</div>
+      </div>
+    </div>
+
+    <!-- BARRA DE FILTROS & BUSCA DE ADVERSÁRIO -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:10px">
+      <div class="filters" style="margin-top:0">
+        <button type="button" class="btn ${activeCalendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos (${allMatches.length})</button>
+        <button type="button" class="btn ${activeCalendarFilter==='UPCOMING'?'primary':''}" data-cal-filter="UPCOMING">⏳ Próximos (${upcomingCount})</button>
+        <button type="button" class="btn ${activeCalendarFilter==='PLAYED'?'primary':''}" data-cal-filter="PLAYED">✅ Disputados (${playedCount})</button>
+        ${derbyCount > 0 ? `<button type="button" class="btn ${activeCalendarFilter==='DERBY'?'primary':''}" data-cal-filter="DERBY">🔥 Clássicos (${derbyCount})</button>` : ''}
+        ${competitionTabs.map(tab=>`<button type="button" class="btn ${activeCalendarFilter===tab.id?'primary':''}" data-cal-filter="${tab.id}">${tab.label}</button>`).join('')}
+        <button type="button" class="btn ${activeCalendarFilter==='HOME'?'primary':''}" data-cal-filter="HOME">🏠 Em Casa</button>
+        <button type="button" class="btn ${activeCalendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora</button>
+      </div>
+      <div>
+        <input type="text" id="calSearchOpponentInput" placeholder="🔍 Filtrar adversário..." value="${esc(window.__calSearchQuery || '')}" class="input" style="max-width:220px;padding:5px 10px;font-size:11px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#fff">
+      </div>
+    </div>
+
+    <!-- LISTA DE PARTIDAS DO CALENDÁRIO COM BLOQUEIO CRONOLÓGICO -->
+    <div class="calendar-view" style="margin-top:10px">
+      ${calendarMatches.map((match, matchIdx) => {
+        const opponent = match.isHome ? match.away : match.home;
+        const date = new Date(`${match.date}T12:00:00`);
+        const dayNames = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
+        const dayBadge = dayNames[date.getDay()] || 'JOGO';
+        const isMidweek = date.getDay() === 3;
+        const dateFormatted = date.toLocaleDateString('pt-BR', {day:'2-digit', month:'long'});
+
+        const resScore = resolveCalendarMatchResult(match, state);
+        const isCompleted = Array.isArray(resScore) && resScore.length >= 2;
+        const isDerby = window.AFM_CALENDAR_HUB && window.AFM_CALENDAR_HUB.isDerbyMatch(match.home, match.away);
+
+        // Bloqueio rigoroso: Apenas a primeira partida não-jogada do calendário é jogável agora
+        const isNextPlayable = Boolean(nextUnplayedMatch && (
+          match === nextUnplayedMatch ||
+          (match.competitionId === nextUnplayedMatch.competitionId && match.date === nextUnplayedMatch.date && match.matchIndex === nextUnplayedMatch.matchIndex)
+        ));
+
+        const previewBtn = `<button type="button" class="btn btnCalPreviewNow" data-home="${esc(match.home)}" data-away="${esc(match.away)}" data-comp="${esc(match.name)}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:6px;cursor:pointer" title="Ver Prévia & Histórico do Adversário">📋 Prévia</button>`;
+
+        let status = '';
+        if(isCompleted){
+          const myClubKey = calendarClubKey(myClub);
+          const isHomeClub = calendarClubKey(match.home) === myClubKey;
+          const userGoals = isHomeClub ? resScore[0] : resScore[1];
+          const oppGoals = isHomeClub ? resScore[1] : resScore[0];
+          let resBadge = '<span class="pill" style="font-size:10px;font-weight:900;background:#475569;color:#cbd5e1;padding:1px 5px">E</span>';
+          if(userGoals > oppGoals) resBadge = '<span class="pill" style="font-size:10px;font-weight:900;background:#15803d;color:#fff;padding:1px 5px">V</span>';
+          else if(userGoals < oppGoals) resBadge = '<span class="pill" style="font-size:10px;font-weight:900;background:#b91c1c;color:#fff;padding:1px 5px">D</span>';
+
+          const summaryBtn = `<button type="button" class="btn btnCalSummaryNow" data-home="${esc(match.home)}" data-away="${esc(match.away)}" data-score-h="${resScore[0]}" data-score-a="${resScore[1]}" data-comp="${esc(match.name)}" data-date="${esc(match.date)}" data-round="${esc(match.round||'')}" style="padding:4px 8px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:6px;cursor:pointer" title="Ver Súmula Oficial">📊 Súmula</button>`;
+
+          status = `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+            ${resBadge}
+            <span class="pill good" style="font-size:11px;font-weight:900">${resScore[0]} x ${resScore[1]}</span>
+            ${summaryBtn}
+            ${previewBtn}
+          </div>`;
+        } else if(isNextPlayable){
+          // Partida ativa para disputar agora
+          let playButtons = '';
+          if(match.competitionId==='COMP'){
+            playButtons = `<button type="button" class="btn primary btnCalPlayNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalSimNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>`;
+          } else if(match.competitionId.startsWith('bra-est-')){
+            playButtons = `<button type="button" class="btn primary btnCalStatePlay" data-state-comp="${match.competitionId}" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalStateSim" data-state-comp="${match.competitionId}" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>`;
+          } else if(match.competitionId==='bra-cup'){
+            playButtons = `<button type="button" class="btn primary btnCalCopaPlay" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalCopaSim" data-phase="${esc(match.phaseName)}" data-index="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>`;
+          } else if(match.matchId){
+            playButtons = `<button type="button" class="btn primary btnCalTournamentPlay" data-tournament="${esc(match.competitionId)}" data-match="${esc(match.matchId)}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalTournamentSim" data-tournament="${esc(match.competitionId)}" data-match="${esc(match.matchId)}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>`;
+          } else {
+            playButtons = `<button type="button" class="btn primary btnCalPlayNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 9px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:6px;cursor:pointer">▶ Jogar</button><button type="button" class="btn btnCalSimNow" data-round="${match.matchIndex}" data-date="${esc(match.date)}" style="padding:4px 8px;font-size:11px;font-weight:800;background:#1e1b4b;border:1px solid #6366f1;color:#a5b4fc;border-radius:6px;cursor:pointer">⚡ Simular</button>`;
+          }
+          status = `<div style="display:flex;align-items:center;gap:5px;justify-content:flex-end">${playButtons}${previewBtn}</div>`;
+        } else {
+          // Partida futura: bloqueada contra saltos arbitrários
+          status = `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+            <span class="pill" style="font-size:10px;font-weight:700;background:rgba(255,255,255,0.05);color:#94a3b8;border:1px dashed rgba(255,255,255,0.15)">🔒 Aguardando Rodada</span>
+            ${previewBtn}
+          </div>`;
+        }
+
+        // Divisores de marcos da temporada (Janela FIFA ou Playoffs)
+        let milestoneDivider = '';
+        if(matchIdx > 0){
+          const prevMatch = calendarMatches[matchIdx - 1];
+          const prevMonth = parseInt(String(prevMatch.date).split('-')[1], 10);
+          const curMonth = parseInt(String(match.date).split('-')[1], 10);
+          if(curMonth !== prevMonth && [3, 6, 9, 10, 11].includes(curMonth)){
+            milestoneDivider = `<div class="calendar-milestone-divider" style="margin:8px 0;padding:6px 12px;background:linear-gradient(90deg,rgba(59,130,246,0.15),transparent);border-left:3px solid #3b82f6;border-radius:6px;font-size:11px;font-weight:700;color:#93c5fd;display:flex;align-items:center;gap:8px"><span>✈️ JANELA FIFA / CONVOCAÇÃO DA SELEÇÃO</span><span class="small muted" style="font-weight:normal">Pausa para amistosos e eliminatórias</span></div>`;
+          }
+        }
+
+        const derbyBadgeHtml = isDerby ? `<span class="pill" style="font-size:9px;font-weight:900;padding:1px 6px;background:rgba(239,68,68,0.25);color:#f87171;border:1px solid rgba(239,68,68,0.4)">🔥 CLÁSSICO (+50% XP)</span>` : '';
+        const cardClass = `calendar-card ${isNextPlayable ? 'current' : ''}`;
+        const cardBorder = isDerby ? 'border-left: 4px solid #ef4444 !important;' : (isNextPlayable ? 'border-left: 4px solid var(--neon) !important;' : '');
+
+        return `
+          ${milestoneDivider}
+          <div class="${cardClass}" data-opponent="${esc(opponent)}" style="${cardBorder}">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="pill" style="font-size:9px;font-weight:900;padding:1px 5px;background:${isMidweek?'rgba(56,189,248,0.25);color:#38bdf8':'rgba(34,197,94,0.25);color:#4ade80'}">${dayBadge}</span>
+                <b>${dateFormatted}</b>
+                ${derbyBadgeHtml}
+              </div>
+              <div class="small muted" style="margin-top:2px">${esc(match.round||'')}</div>
+            </div>
+            <div>
+              <span class="pill" style="font-size:11px">${match.isHome?'🏠 EM CASA':'✈️ FORA'}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              ${clubBadge(opponent,32)}
+              <div>
+                <b>vs ${esc(opponent)}</b>
+                <div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div>
+              </div>
+            </div>
+            <div>
+              <span class="pill" style="font-size:11px;background:#1e293b;color:#93c5fd">🏆 ${esc(match.name)}</span>
+            </div>
+            <div style="text-align:right">
+              ${status}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
   `;
 }
 function myTeamPage(){
@@ -43041,52 +43674,124 @@ function bind(){
   }
 
   if(view==='calendario'){
-    $$('[data-cal-filter]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextFilter=b.dataset.calFilter;if(!nextFilter)return;calendarFilter=nextFilter;render()});
+    // Filtro instantâneo por texto de adversário
+    const searchInp = $('#calSearchOpponentInput');
+    if(searchInp){
+      searchInp.oninput = (e) => {
+        const val = (e.target.value || '').toLowerCase().trim();
+        window.__calSearchQuery = e.target.value;
+        $$('.calendar-card').forEach(card => {
+          const opp = (card.dataset.opponent || '').toLowerCase();
+          card.style.display = (!val || opp.includes(val)) ? '' : 'none';
+        });
+      };
+    }
+
+    $$('[data-cal-filter]').forEach(b=>b.onclick=(event)=>{
+      event.preventDefault();event.stopPropagation();
+      const nextFilter=b.dataset.calFilter;
+      if(!nextFilter)return;
+      calendarFilter=nextFilter;
+      render();
+    });
+
+    const runCalendarAction = (actionFn) => {
+      if(window.__afmCalActionLock) return;
+      window.__afmCalActionLock = true;
+      setTimeout(() => { window.__afmCalActionLock = false; }, 1500);
+      try {
+        actionFn();
+      } catch(e) {
+        window.__afmCalActionLock = false;
+        console.error('Erro na ação do calendário:', e);
+      }
+    };
+
     $$('.btnCalPlayNow').forEach(b=>b.onclick=()=>{
-      const mDate = b.dataset.date;
-      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
-      if(b.dataset.round !== undefined){ state.round = Number(b.dataset.round); }
-      startLiveMatch();
+      runCalendarAction(() => {
+        const mDate = b.dataset.date;
+        if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+        if(b.dataset.round !== undefined){ state.round = Number(b.dataset.round); }
+        startLiveMatch();
+      });
     });
+
     $$('.btnCalSimNow').forEach(b=>b.onclick=()=>{
-      const mDate = b.dataset.date;
-      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
-      if(b.dataset.round !== undefined){ state.round = Number(b.dataset.round); }
-      simulateQuickRound();
+      runCalendarAction(() => {
+        const mDate = b.dataset.date;
+        if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+        if(b.dataset.round !== undefined){ state.round = Number(b.dataset.round); }
+        simulateQuickRound();
+      });
     });
+
     $$('.btnCalStatePlay').forEach(b=>b.onclick=()=>{
-      const mDate = b.dataset.date;
-      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
-      beginStateLeagueMatch(b.dataset.stateComp,Number(b.dataset.round));
+      runCalendarAction(() => {
+        const mDate = b.dataset.date;
+        if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+        beginStateLeagueMatch(b.dataset.stateComp,Number(b.dataset.round));
+      });
     });
+
     $$('.btnCalStateSim').forEach(b=>b.onclick=()=>{
-      const mDate = b.dataset.date;
-      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
-      simulateQuickStateLeagueRound(b.dataset.stateComp,Number(b.dataset.round));
+      runCalendarAction(() => {
+        const mDate = b.dataset.date;
+        if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+        simulateQuickStateLeagueRound(b.dataset.stateComp,Number(b.dataset.round));
+      });
     });
+
     $$('.btnCalCopaPlay').forEach(b=>b.onclick=()=>{
-      const mDate = b.dataset.date;
-      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
-      if(typeof beginCopaDoBrasilLiveMatch==='function') beginCopaDoBrasilLiveMatch(Number(b.dataset.index),b.dataset.phase);
-      else playCopaDoBrasilFixture(b.dataset.index,b.dataset.phase);
+      runCalendarAction(() => {
+        const mDate = b.dataset.date;
+        if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+        if(typeof beginCopaDoBrasilLiveMatch==='function') beginCopaDoBrasilLiveMatch(Number(b.dataset.index),b.dataset.phase);
+        else playCopaDoBrasilFixture(b.dataset.index,b.dataset.phase);
+      });
     });
+
     $$('.btnCalCopaSim').forEach(b=>b.onclick=()=>{
-      const mDate = b.dataset.date;
-      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
-      playCopaDoBrasilFixture(b.dataset.index,b.dataset.phase);
+      runCalendarAction(() => {
+        const mDate = b.dataset.date;
+        if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+        playCopaDoBrasilFixture(b.dataset.index,b.dataset.phase);
+      });
     });
+
     $$('.btnCalTournamentPlay').forEach(b=>b.onclick=()=>{
-      const mDate = b.dataset.date;
-      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
-      if(typeof beginContinentalLiveMatch==='function') beginContinentalLiveMatch(b.dataset.tournament,b.dataset.match);
-      else playContinentalFixture(b.dataset.tournament,b.dataset.match);
+      runCalendarAction(() => {
+        const mDate = b.dataset.date;
+        if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+        if(typeof beginContinentalLiveMatch==='function') beginContinentalLiveMatch(b.dataset.tournament,b.dataset.match);
+        else playContinentalFixture(b.dataset.tournament,b.dataset.match);
+      });
     });
+
     $$('.btnCalTournamentSim').forEach(b=>b.onclick=()=>{
-      const mDate = b.dataset.date;
-      if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
-      playContinentalFixture(b.dataset.tournament,b.dataset.match);
+      runCalendarAction(() => {
+        const mDate = b.dataset.date;
+        if(mDate){ state.date = mDate; state.currentDate = mDate; state.currentDateFormatted = formatDatePtBr(mDate); }
+        playContinentalFixture(b.dataset.tournament,b.dataset.match);
+      });
     });
-    $$('.btnCalPreviewNow').forEach(b=>b.onclick=(e)=>{e.preventDefault();e.stopPropagation();if(typeof openMatchPreviewModal==='function')openMatchPreviewModal(b.dataset.home,b.dataset.away,b.dataset.comp,b.dataset.date);});
+
+    $$('.btnCalPreviewNow').forEach(b=>b.onclick=(e)=>{
+      e.preventDefault();e.stopPropagation();
+      if(typeof openMatchPreviewModal==='function') openMatchPreviewModal(b.dataset.home, b.dataset.away, b.dataset.comp, b.dataset.date);
+    });
+
+    $$('.btnCalSummaryNow').forEach(b=>b.onclick=(e)=>{
+      e.preventDefault();e.stopPropagation();
+      if(typeof openMatchSummaryModal==='function') openMatchSummaryModal({
+        home: b.dataset.home,
+        away: b.dataset.away,
+        scoreH: Number(b.dataset.scoreH) || 0,
+        scoreA: Number(b.dataset.scoreA) || 0,
+        compName: b.dataset.comp,
+        dateStr: b.dataset.date,
+        roundStr: b.dataset.round
+      });
+    });
   }if(view==='estrutura'){
     $$('.upgrade').forEach(b=>b.onclick=()=>upgradeFacility(b.dataset.facility));
     $$('.btnOpenAcademy').forEach(b=>b.onclick=openYouthAcademyModal);
