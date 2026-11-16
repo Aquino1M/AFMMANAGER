@@ -32,7 +32,7 @@ global.document = {
   addEventListener: () => {}
 };
 global.localStorage = {
-  _store: {},
+  _store: { afm_active_user_v1: 'aquino' },
   getItem(k){ return this._store[k] || null; },
   setItem(k, v){ this._store[k] = String(v); },
   removeItem(k){ delete this._store[k]; },

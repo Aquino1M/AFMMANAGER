@@ -89,25 +89,53 @@ window.esc = esc;
 window.norm = norm;
 const hashStr=s=>{let h=2166136261;for(const ch of String(s)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return Math.abs(h>>>0)};
 
+if(typeof window !== 'undefined' && !window.__afmNativeConfirm){
+  window.__afmNativeConfirm = window.confirm;
+  window.confirm = function(msg){
+    if(typeof window.__afmConfirmMock === 'function') return window.__afmConfirmMock(msg);
+    return window.__afmNativeConfirm ? window.__afmNativeConfirm(msg) : true;
+  };
+}
+if(typeof window !== 'undefined' && !window.__afmNativeAlert){
+  window.__afmNativeAlert = window.alert;
+  window.alert = function(msg){
+    if(typeof toast === 'function') toast(msg);
+    else if(window.__afmNativeAlert) window.__afmNativeAlert(msg);
+  };
+}
+const isPlayerModeNow = (s) => (typeof window.isPlayerCareerActive === 'function' ? window.isPlayerCareerActive(s) : s?.gameMode === 'player');
+
 // =========================================================================
 // MOTOR DE ISOLAMENTO DE MODO E PROTEÇÃO DE SAVES (AFM_SETUP_GUARD)
 // =========================================================================
 window.AFM_SETUP_GUARD = {
   isSetupActive: function() {
+    const curState = (typeof state !== 'undefined' && state) || (typeof window !== 'undefined' && window.state);
+    if (curState && curState.club && curState.view && curState.view !== 'setup') {
+      return false;
+    }
+    const appEl = (typeof document !== 'undefined') ? (document.getElementById("app") || document.querySelector('#app')) : null;
+    if (appEl && appEl.getAttribute && appEl.getAttribute("data-rendered-view") === "setup") {
+      return true;
+    }
     return Boolean(
       (typeof document !== 'undefined' && document.querySelector(".setup-container")) ||
-      (typeof window !== 'undefined' && (window.state?.view === "setup" || window.state?.gameMode === "setup")) ||
-      (typeof setupViewMode !== 'undefined' && ['select', 'auth', 'hub', 'arenas', 'ranking', 'systems', 'player_guide'].includes(setupViewMode))
+      (curState && (curState.view === "setup" || curState.gameMode === "setup"))
     );
   },
 
   enterSetupCleanly: function() {
     window.__afmAutoSavePaused = true;
     window.__afmIsRendering = false;
-    const app = typeof document !== 'undefined' ? document.getElementById("app") : null;
+    const app = typeof document !== 'undefined' ? (document.getElementById("app") || document.querySelector?.("#app")) : null;
     if (app) {
-      app.setAttribute("data-rendered-game-mode", "setup");
-      app.setAttribute("data-rendered-view", "setup");
+      if (typeof app.setAttribute === 'function') {
+        app.setAttribute("data-rendered-game-mode", "setup");
+        app.setAttribute("data-rendered-view", "setup");
+      } else if (app.dataset) {
+        app.dataset.renderedGameMode = "setup";
+        app.dataset.renderedView = "setup";
+      }
     }
     if (typeof state !== 'undefined' && state) {
       state.view = "setup";
@@ -4642,6 +4670,13 @@ function generateStadiumRentalProposal(){
 
 function addNews(txt){
   if(!txt || !state) return;
+  const isPlayerMode = typeof window.isPlayerCareerActive === 'function' ? window.isPlayerCareerActive(state) : (state.gameMode === 'player');
+  if(isPlayerMode){
+    const s = String(txt).toLowerCase();
+    if(s.includes('festival eletrônico') || s.includes('só track boa') || s.includes('ausência do técnico') || s.includes('investida árabe')){
+      return;
+    }
+  }
   if(!Array.isArray(state.news)) state.news = [];
   state.news.unshift(txt);
   if(state.news.length > 50) state.news = state.news.slice(0, 50);
@@ -9477,7 +9512,7 @@ function rememberActiveSaveSlot(username, slotNum){
 
 function save(options = {}){
   if(typeof window !== 'undefined' && (window.__afmAutoSavePaused || window.AFM_SETUP_GUARD?.isSetupActive())){
-    if(!options?.allowModeReplace && !options?.force) return false;
+    if(!options?.allowModeReplace && !options?.force && !options?.manual) return false;
   }
   if(!state && typeof window !== 'undefined' && window.state){
     state = window.state;
@@ -9806,7 +9841,7 @@ function saveUserSlot(slotNum){
   if(state && slotNum){
     state.userSlot = Math.max(1, Math.min(3, Number(slotNum) || 1));
   }
-  return save();
+  return save({ force: true, manual: true });
 }
 
 function loadUserSlot(slotNum, ownerUsername = null){
@@ -41495,6 +41530,15 @@ function bindSetup(){
     };
   });
 
+  $$('.btnSelectSlotForPlayer').forEach(b => {
+    b.onclick = () => {
+      setupSelectedSlot = Number(b.dataset.slot);
+      window.setupSelectedSlot = setupSelectedSlot;
+      setupViewMode = 'create_player';
+      renderSetup($('#app'));
+    };
+  });
+
   // Binds da Landing Page, Hub, Arenas, Estaduais e Sistemas
   const btnNavHome = $('#btnNavBrandHome');
   if(btnNavHome) btnNavHome.onclick = () => { setupViewMode = 'auth'; renderSetup($('#app')); };
@@ -41902,6 +41946,7 @@ function bindSetup(){
   });
   } catch(err) { console.error('[AFM] Erro em bindSetup:', err); }
 }
+window.bindSetup = bindSetup;
 
 // -------------------------------------------------------------
 // EVENT BINDINGS

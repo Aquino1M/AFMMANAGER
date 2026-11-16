@@ -38,7 +38,7 @@ assert.equal(gameState.playerCareerState.lastDailyNewsDate, '2026-01-02');
 assert.equal(gameState.news.length, 2, 'daily athlete news should be generated once per date');
 social.onDayAdvance(gameState, '2026-01-02');
 assert.equal(gameState.news.length, 2, 'reprocessing the same date must not duplicate the news item');
-const dailyPagePosts = gameState.playerCareerState.socialMedia.feedPosts.filter(post => post.category === 'gossip' || post.category === 'fans');
+const dailyPagePosts = gameState.playerCareerState.socialMedia.feedPosts.filter(post => post.id.includes('2026-01-02') && post.category !== 'interview');
 assert.equal(dailyPagePosts.length, 3, 'three world/page posts should be generated per day');
 assert.equal(new Set(dailyPagePosts.map(post => post.id)).size, 3, 'daily posts need unique IDs');
 const beforeBadMatchFollowers = gameState.playerCareerState.socialMedia.followers;

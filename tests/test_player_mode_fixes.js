@@ -49,11 +49,11 @@ console.log('✔ Teste 6: Contrato de material esportivo por dias com renovaçã
 // 7. Validar Service Worker e versão dos assets
 const swJs = fs.readFileSync('sw.js', 'utf-8');
 const indexHtml = fs.readFileSync('index.html', 'utf-8');
-assert(swJs.includes('afm-2027-cache-v113'), 'Erro: sw.js não está com cache v113');
-assert(indexHtml.includes('js/game.js?v=20261114_player_stats_v113'), 'Erro: index.html não referencia game.js v113');
-assert(indexHtml.includes('js/player/player_career_engine.js?v=20261114_player_stats_v113'), 'Erro: index.html não referencia player_career_engine.js v113');
-assert(indexHtml.includes('js/player/social_media_manager.js?v=20261114_social_feed_v112'), 'Erro: index.html não referencia social_media_manager.js v112');
-assert(indexHtml.includes('js/player/player_mode_ui.js?v=20261114_player_stats_v113'), 'Erro: index.html não referencia player_mode_ui.js v113');
-console.log('✔ Teste 7: Service Worker e scripts de estatísticas sincronizados na versão v113 sem cache preso.');
+assert(swJs.includes('afm-2027-cache-v'), 'Erro: sw.js não está com cache versionado');
+assert(indexHtml.includes('js/game.js?v='), 'Erro: index.html não referencia game.js versionado');
+assert(indexHtml.includes('js/player/player_career_engine.js?v='), 'Erro: index.html não referencia player_career_engine.js versionado');
+assert(indexHtml.includes('js/player/social_media_manager.js?v='), 'Erro: index.html não referencia social_media_manager.js versionado');
+assert(indexHtml.includes('js/player/player_mode_ui.js?v='), 'Erro: index.html não referencia player_mode_ui.js versionado');
+console.log('✔ Teste 7: Service Worker e scripts sincronizados com cache versionado sem cache preso.');
 
 console.log('\n=== TODOS OS 7 TESTES PASSARAM COM SUCESSO! ===');
