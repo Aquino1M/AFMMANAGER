@@ -1872,6 +1872,10 @@ function scheduleMarketFilter(renderList){
   marketFilterTimer = setTimeout(renderList, 140);
 }
 let seasonTab='nacional';
+let estadualPhase='primeira_fase';
+let estadualTableFilter='geral';
+let nationalDivision='bra-a';
+let statsFilterTab='artilharia';
 let continentalTab='sulamericana';
 let continentalCategory='internacional';
 let continentalPhase='';
@@ -14266,6 +14270,252 @@ function initCandangaoData(season = state?.season || 2026, teamNames = null){
 }
 function initCandangaoStats(){ return { scorers: [], assists: [] }; }
 
+// =============================================================
+// VALIDAÇÃO E SANITIZAÇÃO DE RODADAS & INTEGRIDADE DE TABELAS
+// =============================================================
+function ensureCompetitionFixturesIntegrity(comp, userClubName) {
+  if (!comp || !Array.isArray(comp.teams) || comp.teams.length < 2) return;
+
+  const userKey = userClubName ? (typeof norm === 'function' ? norm(userClubName) : String(userClubName).toLowerCase().trim()) : null;
+
+  // Garante que o clube do usuário está na lista oficial da competição
+  if (userKey && !comp.teams.some(t => (typeof norm === 'function' ? norm(typeof t === 'string' ? t : t.name) : String(t).toLowerCase().trim()) === userKey)) {
+    const lastIdx = comp.teams.length - 1;
+    comp.teams[lastIdx] = typeof comp.teams[0] === 'string' ? userClubName : { name: userClubName };
+  }
+
+  const teamNames = comp.teams.map(t => typeof t === 'string' ? t : t.name);
+  const validTeams = new Set(teamNames.map(name => typeof norm === 'function' ? norm(name) : String(name).toLowerCase().trim()));
+
+  const hasGhostTeam = Array.isArray(comp.fixtures) && comp.fixtures.some(f =>
+    !validTeams.has(typeof norm === 'function' ? norm(f.home) : String(f.home).toLowerCase().trim()) ||
+    !validTeams.has(typeof norm === 'function' ? norm(f.away) : String(f.away).toLowerCase().trim())
+  );
+
+  const isMissingUser = Boolean(userKey && Array.isArray(comp.fixtures) && comp.fixtures.length > 0 &&
+    !comp.fixtures.some(f =>
+      (typeof norm === 'function' ? norm(f.home) : String(f.home).toLowerCase().trim()) === userKey ||
+      (typeof norm === 'function' ? norm(f.away) : String(f.away).toLowerCase().trim()) === userKey
+    )
+  );
+
+  const isCorrupt = !Array.isArray(comp.fixtures) || comp.fixtures.length === 0 || hasGhostTeam || isMissingUser;
+
+  // Se houver time fantasma (ex: Sobradinho fora da tabela) ou falta do clube do usuário, regenera turno único (Round-Robin)
+  if (isCorrupt) {
+    const teams = [...teamNames];
+    if (teams.length % 2 !== 0) teams.push('FOLGA');
+    const numRounds = teams.length - 1;
+    const half = teams.length / 2;
+    const fixtures = [];
+    const baseDate = new Date(2026, 0, 17); // 17 de janeiro de 2026
+
+    const rotating = teams.slice(1);
+    for (let r = 0; r < numRounds; r++) {
+      const roundDate = new Date(baseDate);
+      roundDate.setDate(baseDate.getDate() + r * 4);
+      const isoDate = roundDate.toISOString().split('T')[0];
+
+      const roundPairs = [[teams[0], rotating[0]]];
+      for (let i = 1; i < half; i++) {
+        roundPairs.push([rotating[i], rotating[rotating.length - i]]);
+      }
+
+      roundPairs.forEach(([t1, t2], idx) => {
+        if (t1 === 'FOLGA' || t2 === 'FOLGA') return;
+        const isEven = (r + idx) % 2 === 0;
+        const homeTeam = isEven ? t1 : t2;
+        const awayTeam = isEven ? t2 : t1;
+
+        // Preserva resultados caso a partida já tenha sido jogada anteriormente
+        const prevMatch = (comp.fixtures || []).find(oldF =>
+          Number(oldF.roundIndex) === r &&
+          (((typeof norm === 'function' ? norm(oldF.home) : String(oldF.home).toLowerCase().trim()) === (typeof norm === 'function' ? norm(homeTeam) : String(homeTeam).toLowerCase().trim()) &&
+            (typeof norm === 'function' ? norm(oldF.away) : String(oldF.away).toLowerCase().trim()) === (typeof norm === 'function' ? norm(awayTeam) : String(awayTeam).toLowerCase().trim())) ||
+           ((typeof norm === 'function' ? norm(oldF.home) : String(oldF.home).toLowerCase().trim()) === (typeof norm === 'function' ? norm(awayTeam) : String(awayTeam).toLowerCase().trim()) &&
+            (typeof norm === 'function' ? norm(oldF.away) : String(oldF.away).toLowerCase().trim()) === (typeof norm === 'function' ? norm(homeTeam) : String(homeTeam).toLowerCase().trim())))
+        );
+
+        const stadiumName = (typeof clubByName === 'function' && clubByName(homeTeam)?.stadium) || `Estádio do ${homeTeam}`;
+        const dateFormatted = typeof formatDatePtBr === 'function' ? formatDatePtBr(isoDate) : isoDate;
+
+        fixtures.push({
+          id: `${comp.id}_r${r + 1}_m${idx + 1}`,
+          round: r + 1,
+          roundIndex: r,
+          date: isoDate,
+          isoDate: isoDate,
+          time: '19:00',
+          dateStr: `${dateFormatted} · 19:00`,
+          stadium: stadiumName,
+          home: homeTeam,
+          away: awayTeam,
+          homeGoals: prevMatch?.homeGoals ?? (Array.isArray(prevMatch?.result) ? prevMatch.result[0] : null),
+          awayGoals: prevMatch?.awayGoals ?? (Array.isArray(prevMatch?.result) ? prevMatch.result[1] : null),
+          result: prevMatch?.result || null,
+          score: prevMatch?.score || null,
+          played: Boolean(prevMatch?.played || prevMatch?.result || prevMatch?.score)
+        });
+      });
+
+      rotating.push(rotating.shift());
+    }
+    comp.fixtures = fixtures;
+    if (fixtures.length > 0) {
+      const firstFixture = fixtures.find(f => f.roundIndex === 0);
+      comp.roundDate = (firstFixture?.isoDate && typeof formatDatePtBr === 'function')
+        ? formatDatePtBr(firstFixture.isoDate).toUpperCase()
+        : '17 DE JANEIRO DE 2026';
+    }
+  }
+}
+window.ensureCompetitionFixturesIntegrity = ensureCompetitionFixturesIntegrity;
+
+function computeStandingsFromFixtures(teams, fixtures, filter = 'geral') {
+  const standings = teams.map(t => {
+    const name = typeof t === 'string' ? t : t.name;
+    return {
+      name,
+      p: 0, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, pct: 0,
+      form: [],
+      trend: '—'
+    };
+  });
+
+  const nameMap = new Map(standings.map(s => [(typeof norm === 'function' ? norm(s.name) : String(s.name).toLowerCase().trim()), s]));
+  const playedFixtures = (fixtures || []).filter(f => f.played || (Array.isArray(f.result) && f.result.length >= 2) || (Array.isArray(f.score) && f.score.length >= 2));
+
+  playedFixtures.forEach(f => {
+    const res = Array.isArray(f.result) ? f.result : f.score;
+    if(!res || res.length < 2) return;
+    const hg = Number(res[0]) || 0;
+    const ag = Number(res[1]) || 0;
+    const hKey = typeof norm === 'function' ? norm(f.home) : String(f.home).toLowerCase().trim();
+    const aKey = typeof norm === 'function' ? norm(f.away) : String(f.away).toLowerCase().trim();
+    const hTeam = nameMap.get(hKey);
+    const aTeam = nameMap.get(aKey);
+
+    if(hTeam && (filter === 'geral' || filter === 'mandante' || filter === 'ultimos5')){
+      hTeam.j++;
+      hTeam.gp += hg;
+      hTeam.gc += ag;
+      if(hg > ag){ hTeam.v++; hTeam.p += 3; hTeam.form.push('V'); }
+      else if(hg < ag){ hTeam.d++; hTeam.form.push('D'); }
+      else { hTeam.e++; hTeam.p += 1; hTeam.form.push('E'); }
+    }
+
+    if(aTeam && (filter === 'geral' || filter === 'visitante' || filter === 'ultimos5')){
+      aTeam.j++;
+      aTeam.gp += ag;
+      aTeam.gc += hg;
+      if(ag > hg){ aTeam.v++; aTeam.p += 3; aTeam.form.push('V'); }
+      else if(ag < hg){ aTeam.d++; aTeam.form.push('D'); }
+      else { aTeam.e++; aTeam.p += 1; aTeam.form.push('E'); }
+    }
+  });
+
+  standings.forEach(s => {
+    s.sg = s.gp - s.gc;
+    s.pct = s.j > 0 ? Math.round((s.p / (s.j * 3)) * 100) : 0;
+    if(s.form.length > 0){
+      const last = s.form[s.form.length - 1];
+      s.trend = last === 'V' ? '▲' : last === 'D' ? '▼' : '—';
+    }
+    s.form = s.form.slice(-5);
+  });
+
+  standings.sort((a,b) => (b.p - a.p) || (b.v - a.v) || (b.sg - a.sg) || (b.gp - a.gp) || (typeof norm === 'function' ? norm(a.name).localeCompare(norm(b.name)) : a.name.localeCompare(b.name)));
+  return standings;
+}
+window.computeStandingsFromFixtures = computeStandingsFromFixtures;
+
+function openFullStatsModal(statsTab = 'artilharia', compName = 'Campeonato Candango', compId = null) {
+  const estCompId = compId || (typeof selectedEstadualId !== 'undefined' && selectedEstadualId) || (state && state.club && typeof clubStateCompId === 'function' ? clubStateCompId(state.club) : 'bra-est-df-candango');
+  const estStats = typeof getStateCompStats === 'function' ? getStateCompStats(estCompId) : { scorers: [], assists: [] };
+  
+  let title = 'Ranking Completo de Estatísticas';
+  let metricLabel = 'Gols';
+  let list = [];
+
+  if (statsTab === 'assistencias' || statsTab === 'assists') {
+    title = `Top 30 Garçons — ${compName}`;
+    metricLabel = 'Assistências';
+    list = Array.isArray(estStats.assists) ? estStats.assists : [];
+  } else if (statsTab === 'mvp') {
+    title = `Top 30 Craques (MVP) — ${compName}`;
+    metricLabel = 'Nota Média';
+    list = Array.isArray(estStats.mvp) ? estStats.mvp : [];
+    if (!list.length && Array.isArray(estStats.scorers)) {
+      list = estStats.scorers.map(s => ({
+        ...s,
+        rating: (7.2 + Math.min(2.0, (Number(s.goals) || 0) * 0.25)).toFixed(1)
+      }));
+    }
+  } else if (statsTab === 'cartoes') {
+    title = `Disciplina & Cartões — ${compName}`;
+    metricLabel = 'Amarelos / Vermelhos';
+    list = Array.isArray(estStats.cards) ? estStats.cards : [];
+    if (!list.length && Array.isArray(estStats.scorers)) {
+      list = estStats.scorers.slice().reverse().map((s, idx) => ({
+        ...s,
+        yellowCards: ((idx % 3) + 1),
+        redCards: idx % 7 === 0 ? 1 : 0
+      }));
+    }
+  } else {
+    title = `Top 30 Artilheiros — ${compName}`;
+    metricLabel = 'Gols';
+    list = Array.isArray(estStats.scorers) ? estStats.scorers : [];
+  }
+
+  const createdAthleteName = state?.gameMode === 'player'
+    ? (state.playerCareerState?.athleteName || state.squad?.find(p => p.isControlled)?.name)
+    : null;
+
+  const rowsHtml = list.slice(0, 30).map((item, idx) => {
+    const isMe = createdAthleteName && (typeof norm === 'function' ? norm(item.name) === norm(createdAthleteName) : item.name === createdAthleteName);
+    const value = (statsTab === 'assistencias' || statsTab === 'assists')
+      ? (item.assists || 0)
+      : statsTab === 'mvp'
+      ? (item.rating || '7.0')
+      : statsTab === 'cartoes'
+      ? `${item.yellowCards || 0}🟨 ${item.redCards || 0}🟥`
+      : (item.goals || 0);
+
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);background:${isMe ? 'rgba(124,58,237,0.25)' : idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'};border-radius:8px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-weight:900;color:${idx < 3 ? '#fbbf24' : 'rgba(255,255,255,0.5)'};width:24px;text-align:center">${idx + 1}</span>
+          ${typeof playerPhoto === 'function' ? playerPhoto(item.name, 36) : ''}
+          ${typeof clubBadge === 'function' ? clubBadge(item.club, 22) : ''}
+          <div>
+            <div style="font-weight:800;color:#fff;font-size:13px">${typeof esc === 'function' ? esc(item.name) : item.name} ${isMe ? '<span class="tag-you" style="margin-left:4px">VOCÊ</span>' : ''}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.5)">${typeof esc === 'function' ? esc(item.pos || 'ATA') : (item.pos || 'ATA')} · ${typeof esc === 'function' ? esc(item.club) : item.club}</div>
+          </div>
+        </div>
+        <div style="font-weight:900;font-size:16px;color:#a855f7">
+          ${value}
+        </div>
+      </div>
+    `;
+  }).join('') || '<div style="text-align:center;padding:24px;color:rgba(255,255,255,0.5)">Nenhum registro encontrado nesta competição.</div>';
+
+  const modalBody = `
+    <div style="max-height:480px;overflow-y:auto;padding-right:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.1);font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:800">
+        <span>Atleta & Clube</span>
+        <span>${metricLabel}</span>
+      </div>
+      ${rowsHtml}
+    </div>
+  `;
+
+  if (typeof openCustomModal === 'function') {
+    openCustomModal(title, modalBody, null, 'Fechar', false, '560px');
+  }
+}
+window.openFullStatsModal = openFullStatsModal;
+
 function getStateCompData(cId){
   state.estadualData = state.estadualData || {};
   const saved = state.estadualData[cId];
@@ -14351,6 +14601,7 @@ function getStateCompData(cId){
   // to window.COMPETITION_TEAMS, which is shared by every new career/session.
   state.competitionTeams = state.competitionTeams || {};
   state.competitionTeams[cId] = teams.slice();
+  ensureCompetitionFixturesIntegrity(data, clubForState);
   return data;
 }
 function getStateCompStats(cId){
@@ -38181,48 +38432,35 @@ function getSavedSeasonMemberships(clubName = state?.club){
 }
 
 function seasonPage(){
-  if(repairSaveIfCorrupted(state)){
+  if(typeof repairSaveIfCorrupted === 'function' && repairSaveIfCorrupted(state)){
     save();
   }
-  if(!selectedEstadualId && state && state.club){
+  if(!selectedEstadualId && state && state.club && typeof clubStateCompId === 'function'){
     selectedEstadualId = clubStateCompId(state.club);
   }
 
-  const rawComp = curComp();
+  const rawComp = typeof curComp === 'function' ? curComp() : { name: 'Campeonato', country: 'Brasil', id: 'bra-a' };
   const isBrazil = (rawComp.country === 'Brasil' || rawComp.id?.startsWith('bra-'));
-  const memberships = getSavedSeasonMemberships(state.club);
+  const memberships = typeof getSavedSeasonMemberships === 'function' ? getSavedSeasonMemberships(state.club) : {};
   const userNatDivId = memberships.nationalId || (['bra-a','bra-b','bra-c','bra-d'].includes(state.compId) ? state.compId : null);
-  const natCompObj = userNatDivId ? compById(userNatDivId) : null;
-  const estCompId = memberships.stateId;
-  const estCompObj = estCompId ? compById(estCompId) : null;
-  const hasNational = Boolean(natCompObj);
-  const hasState = Boolean(estCompObj && estCompId?.startsWith('bra-est-'));
-  const hasCopa = Boolean(memberships.copa);
-  const hasContinental = true;
-  const seasonTabs = [];
-  if(hasNational) seasonTabs.push({ id:'nacional', label:`🇧🇷 ${natCompObj.name}` });
-  if(hasState && estCompId !== userNatDivId) seasonTabs.push({ id:'estadual', label:`🏆 ${estCompObj.name}` });
-  if(hasCopa) seasonTabs.push({ id:'copadobrasil', label:'🏅 Copa do Brasil' });
-  if(hasContinental) seasonTabs.push({ id:'continental', label:'🌎 Competições continentais' });
-  if(!seasonTabs.length){ seasonTabs.push({ id:'nacional', label:rawComp.name }); }
-  if(!seasonTabs.some(tab => tab.id === seasonTab)) seasonTab = seasonTabs[0].id;
+  const natCompObj = userNatDivId && typeof compById === 'function' ? compById(userNatDivId) : null;
+  const estCompId = memberships.stateId || selectedEstadualId;
+  const estCompObj = estCompId && typeof compById === 'function' ? compById(estCompId) : null;
 
-  // Visualização unificada: se o clube está jogando Estadual mas selecionou a aba da Divisão Nacional
-  const isViewingNationalWhileInEstadual = (isBrazil && hasNational && state.compId?.startsWith('bra-est-') && seasonTab === 'nacional');
-  const comp = isViewingNationalWhileInEstadual ? natCompObj : (seasonTab === 'estadual' && estCompObj ? estCompObj : rawComp);
-  const isSérieA = comp.id === 'bra-a';
-  const nationalStandings = isViewingNationalWhileInEstadual ? getNationalCompetitionStandings(userNatDivId) : null;
-  const nationalStandingsUnplayed = !!(nationalStandings?.length && nationalStandings.every(team => team._unplayed));
-  const r = isViewingNationalWhileInEstadual ? nationalStandings : ranking();
-  const worldChampionSeasons = Array.isArray(state.worldChampionHistory) ? state.worldChampionHistory : [];
-  const seriesDGroups = comp.id === 'bra-d'
-    ? getSeriesDGroupStandings(
-        state.compId === 'bra-d' && Array.isArray(state.teams) && state.teams.length >= 96
-          ? state.teams.map(t => t.name)
-          : (state.competitionTeams?.['bra-d'] || (typeof BASE_COMPETITION_TEAMS !== 'undefined' ? BASE_COMPETITION_TEAMS?.['bra-d'] : null) || window.COMPETITION_TEAMS?.['bra-d'] || []),
-        state.compId === 'bra-d' ? (state.teams || []) : (state.nationalCompetitionStandings?.['bra-d'] || [])
-      )
-    : null;
+  // Abas oficiais sempre disponíveis para livre exploração
+  const seasonTabs = [
+    { id: 'estadual', label: `🏆 ${estCompObj?.name || 'Campeonato Estadual'}` },
+    { id: 'nacional', label: '🇧🇷 Brasileirão (Séries A/B/C/D)' },
+    { id: 'copadobrasil', label: '🏅 Copa do Brasil' },
+    { id: 'continental', label: '🌎 Continentais & Mundial' }
+  ];
+
+  if (!seasonTabs.some(tab => tab.id === seasonTab)) {
+    seasonTab = seasonTabs[0].id;
+  }
+
+  const currentNatId = (typeof nationalDivision !== 'undefined' && nationalDivision) || userNatDivId || 'bra-a';
+  const comp = seasonTab === 'estadual' && estCompObj ? estCompObj : (typeof compById === 'function' ? compById(currentNatId) : rawComp) || rawComp;
 
   return `
     <div class="hero">
@@ -38233,7 +38471,7 @@ function seasonPage(){
           <div class="muted">Tabela de classificação oficial e calendário das competições</div>
         </div>
       </div>
-      <span class="pill" style="font-size:13px;font-weight:800">${esc(comp.name)}</span>
+      <span class="pill" style="font-size:13px;font-weight:800">${typeof esc === 'function' ? esc(comp.name) : comp.name}</span>
     </div>
 
     <div style="display:flex;justify-content:flex-end;margin-top:10px">
@@ -38241,7 +38479,7 @@ function seasonPage(){
     </div>
 
     <div class="tabs" style="margin-top:14px">
-      ${seasonTabs.map(tab => `<button type="button" class="btn ${seasonTab===tab.id?'active':''}" data-season-tab="${tab.id}">${esc(tab.label)}</button>`).join('')}
+      ${seasonTabs.map(tab => `<button type="button" class="btn ${seasonTab===tab.id?'active':''}" data-season-tab="${tab.id}">${typeof esc === 'function' ? esc(tab.label) : tab.label}</button>`).join('')}
     </div>
 
     ${(seasonTab === 'copadobrasil' || seasonTab === 'continental') ? `
@@ -38260,169 +38498,275 @@ function seasonPage(){
       </div>
     ` : ''}
 
-    ${seasonTab==='nacional' ? `
-      <div class="card" style="margin-top:12px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-          <div>
-            <h2 style="margin:0">${esc(comp.name)}</h2>
-            <div class="small muted">${esc(comp.rule)}</div>
+    ${seasonTab === 'nacional' ? (() => {
+      const activeNatId = (typeof nationalDivision !== 'undefined' && nationalDivision) || 'bra-a';
+      const natComp = typeof compById === 'function' ? compById(activeNatId) : { name: 'Série A', rule: '' };
+      const isSérieA = activeNatId === 'bra-a';
+      const natStandings = typeof getNationalCompetitionStandings === 'function' ? getNationalCompetitionStandings(activeNatId) : [];
+      const seriesDGroups = activeNatId === 'bra-d' && typeof getSeriesDGroupStandings === 'function'
+        ? getSeriesDGroupStandings(
+            state.compId === 'bra-d' && Array.isArray(state.teams) && state.teams.length >= 96
+              ? state.teams.map(t => t.name)
+              : (state.competitionTeams?.['bra-d'] || (typeof BASE_COMPETITION_TEAMS !== 'undefined' ? BASE_COMPETITION_TEAMS?.['bra-d'] : null) || window.COMPETITION_TEAMS?.['bra-d'] || []),
+            state.compId === 'bra-d' ? (state.teams || []) : (state.nationalCompetitionStandings?.['bra-d'] || [])
+          )
+        : null;
+
+      return `
+        <div class="card" style="margin-top:14px;padding:16px;background:linear-gradient(135deg,#131024 0%,#0d0a1a 100%);border:1px solid rgba(139,92,246,0.25);border-radius:14px">
+          <!-- Seletor de Divisões do Brasileirão -->
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px">
+            <div>
+              <h2 style="margin:0;font-size:20px;font-weight:900">${typeof esc === 'function' ? esc(natComp.name) : natComp.name}</h2>
+              <div class="small muted">${typeof esc === 'function' ? esc(natComp.rule || 'Pirâmide Oficial do Futebol Brasileiro') : natComp.rule}</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button type="button" class="btn ${activeNatId==='bra-a'?'active':''}" data-nat-div="bra-a" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;${activeNatId==='bra-a'?'background:#22c55e;color:#000;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)'}">🟢 Série A (20)</button>
+              <button type="button" class="btn ${activeNatId==='bra-b'?'active':''}" data-nat-div="bra-b" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;${activeNatId==='bra-b'?'background:#3b82f6;color:#fff;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)'}">🔵 Série B (20)</button>
+              <button type="button" class="btn ${activeNatId==='bra-c'?'active':''}" data-nat-div="bra-c" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;${activeNatId==='bra-c'?'background:#f97316;color:#fff;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)'}">🟠 Série C (20)</button>
+              <button type="button" class="btn ${activeNatId==='bra-d'?'active':''}" data-nat-div="bra-d" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;${activeNatId==='bra-d'?'background:#a855f7;color:#fff;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)'}">🟣 Série D (96)</button>
+            </div>
           </div>
-          <div style="display:flex;gap:10px;font-size:11px;flex-wrap:wrap">
+
+          <!-- Legendas de Zonas -->
+          <div style="display:flex;gap:12px;font-size:11px;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px">
             ${isSérieA ? `
-              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--green);border-radius:2px"></span> Libertadores (G4)</span>
-              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--cyan);border-radius:2px"></span> Pré-Libertadores</span>
-              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--amber);border-radius:2px"></span> Sul-Americana</span>
-              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--bad);border-radius:2px"></span> Rebaixamento (Z4)</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px"></span> Libertadores (G4)</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#06b6d4;border-radius:2px"></span> Pré-Libertadores (G6)</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#f59e0b;border-radius:2px"></span> Sul-Americana (G12)</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ef4444;border-radius:2px"></span> Rebaixamento (Z4)</span>
+            ` : activeNatId === 'bra-b' ? `
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px"></span> Acesso à Série A (G4)</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ef4444;border-radius:2px"></span> Rebaixamento à Série C (Z4)</span>
+            ` : activeNatId === 'bra-c' ? `
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px"></span> Avança à 2ª Fase (G8)</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ef4444;border-radius:2px"></span> Rebaixamento à Série D (Z4)</span>
             ` : `
-              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--green);border-radius:2px"></span> Zona de Acesso (G${comp.promote||4})</span>
-              ${(comp.relegate||0) > 0 ? `<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:var(--bad);border-radius:2px"></span> Rebaixamento (Z${comp.relegate||4})</span>` : ''}
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px"></span> Avançam ao Mata-Mata (G4 de cada grupo)</span>
             `}
           </div>
-        </div>
 
-        ${nationalStandingsUnplayed ? `<div class="small muted" role="status" style="padding:10px 12px;margin-bottom:10px;border:1px solid rgba(148,163,184,.25);border-radius:8px;background:rgba(148,163,184,.06)">Esta divisão ainda não possui classificação calculada e salva nesta carreira. Os números zerados representam ausência de resultados simulados, não uma classificação oficial.</div>` : ''}
-        ${comp.id === 'bra-d' ? ['A','B','C','D'].map((group,groupIndex) => {
-          const groupRows = seriesDGroups?.[group] || [];
-          return `<section class="card" style="margin:14px 0;padding:12px;border:1px solid rgba(59,130,246,.28)">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-              <h3 style="margin:0">Grupo ${group} <span class="muted" style="font-size:12px">· 24 clubes · ${groupRows.length ? Math.max(0,...groupRows.map(team=>Number(team.j)||0)) : 0} rodadas disputadas</span></h3>
-              <span class="pill">${groupRows.some(team=>team._unplayed) ? 'Tabela inicial' : `${groupRows.filter(team=>team.groupPosition===1&&team.j>0).length ? 'Líder atual' : 'Classificação'}`}</span>
-            </div>
-            <div class="tablewrap"><table><thead><tr><th>#</th><th>Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th><th>%</th><th>Forma</th></tr></thead><tbody>
-              ${groupRows.map(t=>{const isMy=(t.name===state.club)||(norm(t.name)===norm(state.club));const pct=t.j>0?Math.round((t.p/(t.j*3))*100):0;const formDots=(t.form||[]).map(f=>`<span class="form-dot form-${String(f).toLowerCase()}">${esc(f)}</span>`).join('');return `<tr class="${isMy?'my-row ':''}${t.groupPosition===1&&t.j>0?'zone-lib':''}"><td style="text-align:center;font-weight:900">${t.groupPosition}</td><td><div class="club-cell">${clubBadge(t.name,22)}<span>${esc(t.name)}</span>${isMy ? '<span class="tag-you">VOCÊ</span>' : ''}</div></td><td style="text-align:center;font-weight:900">${Number(t.p)||0}</td><td style="text-align:center">${Number(t.j)||0}</td><td style="text-align:center">${Number(t.v)||0}</td><td style="text-align:center">${Number(t.e)||0}</td><td style="text-align:center">${Number(t.d)||0}</td><td style="text-align:center">${Number(t.gp)||0}</td><td style="text-align:center">${Number(t.gc)||0}</td><td style="text-align:center">${Number(t.sg)||0}</td><td style="text-align:center">${pct}%</td><td><div class="form-dots">${formDots||'-'}</div></td></tr>`;}).join('')}
-            </tbody></table></div>
-          </section>`;
-        }).join('') : `<div class="tablewrap">
-          <table>
-            <thead>
-              <tr>
-                <th style="width:36px">#</th>
-                <th>Clube</th>
-                <th style="text-align:center">P</th>
-                <th style="text-align:center">J</th>
-                <th style="text-align:center">V</th>
-                <th style="text-align:center">E</th>
-                <th style="text-align:center">D</th>
-                <th style="text-align:center">GP</th>
-                <th style="text-align:center">GC</th>
-                <th style="text-align:center">SG</th>
-                <th style="text-align:center">%</th>
-                <th style="text-align:center">Últimos 5 Jogos</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${r.map((t,i)=>{
-                const isMy = (t.name === state.club) || (norm(t.name) === norm(state.club));
-                const pos = i + 1;
-                const total = r.length;
-                let zoneClass = '';
-                if(isSérieA){
-                  if(pos <= 4) zoneClass = 'zone-lib';
-                  else if(pos <= 6) zoneClass = 'zone-prelib';
-                  else if(pos <= 12) zoneClass = 'zone-sud';
-                  else if(pos >= total - 3) zoneClass = 'zone-rel';
-                } else {
-                  if(pos <= (comp.promote||4)) zoneClass = 'zone-lib';
-                  else if(pos >= total - (comp.relegate||4) + 1) zoneClass = 'zone-rel';
-                }
-
-                const pct = t.j > 0 ? Math.round((t.p / (t.j * 3)) * 100) : 0;
-                const formDots = (t.form || []).map(f => `<span class="form-dot form-${f.toLowerCase()}">${f}</span>`).join('');
-
-                return `
-                  <tr class="${isMy ? 'my-row ' : ''}${zoneClass}">
-                    <td style="font-weight:900;text-align:center">${pos}</td>
-                    <td>
-                      <div class="club-cell">
-                        ${clubBadge(t.name, 22)}
-                        <span>${esc(t.name)}</span>
-                        ${isMy ? '<span class="tag-you">VOCÊ</span>' : ''}
-                      </div>
-                    </td>
-                    <td style="font-weight:900;text-align:center">${t.p}</td>
-                    <td style="text-align:center">${t.j}</td>
-                    <td style="text-align:center">${t.v}</td>
-                    <td style="text-align:center">${t.e}</td>
-                    <td style="text-align:center">${t.d}</td>
-                    <td style="text-align:center">${t.gp}</td>
-                    <td style="text-align:center">${t.gc}</td>
-                    <td style="text-align:center;font-weight:700">${t.sg>0?'+':''}${t.sg}</td>
-                    <td style="text-align:center;color:var(--muted)">${pct}%</td>
-                    <td style="text-align:center"><div class="form-dots">${formDots||'-'}</div></td>
+          <!-- Tabela da Divisão -->
+          ${activeNatId === 'bra-d' ? ['A','B','C','D'].map(group => {
+            const groupRows = seriesDGroups?.[group] || [];
+            return `
+              <section class="card" style="margin:14px 0;padding:12px;background:rgba(255,255,255,0.02);border:1px solid rgba(139,92,246,0.2);border-radius:10px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                  <h3 style="margin:0;font-size:14px">Grupo ${group} <span class="muted" style="font-size:12px">· 24 clubes</span></h3>
+                  <span class="pill" style="font-size:10px">${groupRows.some(t => t._unplayed) ? 'Aguardando Início' : 'Em Disputa'}</span>
+                </div>
+                <div class="tablewrap">
+                  <table>
+                    <thead>
+                      <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
+                        <th style="width:28px">#</th>
+                        <th>Clube</th>
+                        <th style="text-align:center">P</th>
+                        <th style="text-align:center">J</th>
+                        <th style="text-align:center">V</th>
+                        <th style="text-align:center">E</th>
+                        <th style="text-align:center">D</th>
+                        <th style="text-align:center">GP</th>
+                        <th style="text-align:center">GC</th>
+                        <th style="text-align:center">SG</th>
+                        <th style="text-align:center">%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${groupRows.map((t, idx) => {
+                        const isMy = (t.name === state.club) || (typeof norm === 'function' && norm(t.name) === norm(state.club));
+                        const pos = idx + 1;
+                        const isAdvancing = pos <= 4;
+                        return `
+                          <tr style="${isMy ? 'background:rgba(124,58,237,0.2);border-left:3px solid #a855f7;' : ''}font-size:12px">
+                            <td style="font-weight:900;text-align:center;color:${isAdvancing ? '#22c55e' : '#fff'}">${pos}</td>
+                            <td>
+                              <div class="clickable-club-name" data-club="${typeof esc === 'function' ? esc(t.name) : t.name}" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                                ${typeof clubBadge === 'function' ? clubBadge(t.name, 20) : ''}
+                                <span style="font-weight:700;color:${isMy ? '#c084fc' : '#fff'}">${typeof esc === 'function' ? esc(t.name) : t.name}</span>
+                                ${isMy ? '<span class="tag-you">VOCÊ</span>' : ''}
+                              </div>
+                            </td>
+                            <td style="font-weight:900;text-align:center;color:#fff">${Number(t.p)||0}</td>
+                            <td style="text-align:center">${Number(t.j)||0}</td>
+                            <td style="text-align:center">${Number(t.v)||0}</td>
+                            <td style="text-align:center">${Number(t.e)||0}</td>
+                            <td style="text-align:center">${Number(t.d)||0}</td>
+                            <td style="text-align:center">${Number(t.gp)||0}</td>
+                            <td style="text-align:center">${Number(t.gc)||0}</td>
+                            <td style="text-align:center;font-weight:700">${Number(t.sg)||0}</td>
+                            <td style="text-align:center;color:rgba(255,255,255,0.6)">${t.j>0?Math.round((t.p/(t.j*3))*100):0}%</td>
+                          </tr>
+                        `;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            `;
+          }).join('') : `
+            <div class="tablewrap">
+              <table>
+                <thead>
+                  <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
+                    <th style="width:32px">#</th>
+                    <th>Clube</th>
+                    <th style="text-align:center">P</th>
+                    <th style="text-align:center">J</th>
+                    <th style="text-align:center">V</th>
+                    <th style="text-align:center">E</th>
+                    <th style="text-align:center">D</th>
+                    <th style="text-align:center">GP</th>
+                    <th style="text-align:center">GC</th>
+                    <th style="text-align:center">SG</th>
+                    <th style="text-align:center">%</th>
+                    <th style="text-align:center">Forma</th>
                   </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>`}
-      </div>
-    ` : seasonTab==='estadual' && hasState ? (() => {
-      const estCompId = memberships.stateId;
-      const estData = getStateCompData(estCompId);
-      const myStateComp = clubStateCompId(state.club);
+                </thead>
+                <tbody>
+                  ${natStandings.map((t, i) => {
+                    const isMy = (t.name === state.club) || (typeof norm === 'function' && norm(t.name) === norm(state.club));
+                    const pos = i + 1;
+                    const total = natStandings.length;
+                    let zoneColor = 'transparent';
+                    if (isSérieA) {
+                      if (pos <= 4) zoneColor = '#22c55e';
+                      else if (pos <= 6) zoneColor = '#06b6d4';
+                      else if (pos <= 12) zoneColor = '#f59e0b';
+                      else if (pos >= total - 3) zoneColor = '#ef4444';
+                    } else if (activeNatId === 'bra-b') {
+                      if (pos <= 4) zoneColor = '#22c55e';
+                      else if (pos >= total - 3) zoneColor = '#ef4444';
+                    } else if (activeNatId === 'bra-c') {
+                      if (pos <= 8) zoneColor = '#22c55e';
+                      else if (pos >= total - 3) zoneColor = '#ef4444';
+                    }
 
-      // Sincronização em tempo real: se for a competição atual do clube em disputa
-      if((estCompId === state.compId || (state.compId && state.compId.startsWith('bra-est-') && estCompId === myStateComp)) && Array.isArray(state.teams) && state.teams.length > 0){
-        estData.teams = ranking().map(t => {
-          const pct = t.j > 0 ? Math.round((t.p / (t.j * 3)) * 100) : 0;
-          return {
-            name: t.name,
-            p: t.p,
-            j: t.j,
-            v: t.v,
-            e: t.e,
-            d: t.d,
-            gp: t.gp,
-            gc: t.gc,
-            sg: t.sg,
-            pct: pct,
-            form: (t.form && t.form.length > 0) ? t.form : []
-          };
-        });
+                    const pct = t.j > 0 ? Math.round((t.p / (t.j * 3)) * 100) : 0;
+                    const formDots = (t.form || []).map(f => {
+                      const color = f === 'V' ? '#22c55e' : f === 'E' ? '#94a3b8' : '#ef4444';
+                      return `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin:0 1px"></span>`;
+                    }).join('');
+
+                    return `
+                      <tr style="${isMy ? 'background:rgba(124,58,237,0.2);border-left:3px solid #a855f7;' : ''}font-size:12px">
+                        <td style="font-weight:900;text-align:center;color:${zoneColor !== 'transparent' ? zoneColor : '#fff'};border-left:2px solid ${zoneColor}">${pos}</td>
+                        <td>
+                          <div class="clickable-club-name" data-club="${typeof esc === 'function' ? esc(t.name) : t.name}" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                            ${typeof clubBadge === 'function' ? clubBadge(t.name, 22) : ''}
+                            <span style="font-weight:700;color:${isMy ? '#c084fc' : '#fff'}">${typeof esc === 'function' ? esc(t.name) : t.name}</span>
+                            ${isMy ? '<span class="tag-you">VOCÊ</span>' : ''}
+                          </div>
+                        </td>
+                        <td style="font-weight:900;text-align:center;color:#fff">${t.p}</td>
+                        <td style="text-align:center">${t.j}</td>
+                        <td style="text-align:center">${t.v}</td>
+                        <td style="text-align:center">${t.e}</td>
+                        <td style="text-align:center">${t.d}</td>
+                        <td style="text-align:center">${t.gp}</td>
+                        <td style="text-align:center">${t.gc}</td>
+                        <td style="text-align:center;font-weight:700">${t.sg>0?'+':''}${t.sg}</td>
+                        <td style="text-align:center;color:rgba(255,255,255,0.6)">${pct}%</td>
+                        <td style="text-align:center">${formDots || '—'}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}
+        </div>
+      `;
+    })() : seasonTab === 'estadual' ? (() => {
+      const activeEstId = selectedEstadualId || (typeof clubStateCompId === 'function' ? clubStateCompId(state.club) : 'bra-est-df-candango');
+      const estData = typeof getStateCompData === 'function' ? getStateCompData(activeEstId) : { name: 'Campeonato Estadual', teams: [], fixtures: [] };
+      const myStateComp = typeof clubStateCompId === 'function' ? clubStateCompId(state.club) : null;
+
+      // Sanitiza e assegura sincronismo de equipes e rodadas (elimina times fantasmas como Sobradinho)
+      if (typeof ensureCompetitionFixturesIntegrity === 'function') {
+        ensureCompetitionFixturesIntegrity(estData, state.club);
+      }
+
+      // Sincronização em tempo real caso seja a competição ativa do save
+      if ((activeEstId === state.compId || (state.compId && state.compId.startsWith('bra-est-') && activeEstId === myStateComp)) && Array.isArray(state.teams) && state.teams.length > 0) {
         estData.season = Number(state.season);
-        estData.currentRound = Math.min((state.round || 0) + 1, (state.schedule?.length || 1));
-        const activeRoundDate = getDateForRound(state.round || 0, state.season);
-        estData.roundDate = formatDatePtBr(activeRoundDate).toUpperCase();
-        // Never replace the full persisted estadual calendar with the active round only.
-        // Live standings may sync here, but every round/date/result stays in estData.fixtures.
+        estData.currentRound = Math.min((state.round || 0) + 1, Math.max(1, ...estData.fixtures.map(f => (Number(f.roundIndex) || 0) + 1)));
+        const activeFirstFixture = estData.fixtures.find(f => Number(f.roundIndex || 0) === Number(estData.currentRound - 1));
+        estData.roundDate = (activeFirstFixture?.isoDate && typeof formatDatePtBr === 'function')
+          ? formatDatePtBr(activeFirstFixture.isoDate).toUpperCase()
+          : (typeof getDateForRound === 'function' ? formatDatePtBr(getDateForRound(state.round || 0, state.season)).toUpperCase() : '17 DE JANEIRO DE 2026');
       }
 
-      // Sincroniza artilharia e assistências para TODOS os clubes da liga estadual
-      if(typeof syncCompetitionStatsWithLeagueTeams === 'function'){
-        syncCompetitionStatsWithLeagueTeams(estCompId, estData.teams);
+      const activeFilter = (typeof estadualTableFilter !== 'undefined' && estadualTableFilter) || 'geral';
+      const sortedTeams = (typeof computeStandingsFromFixtures === 'function')
+        ? computeStandingsFromFixtures(estData.teams, estData.fixtures, activeFilter)
+        : estData.teams;
+
+      // Dados para o card "Meu Clube na Competição"
+      const myTeamRow = sortedTeams.find(t => (typeof norm === 'function' ? norm(t.name) === norm(state.club) : t.name === state.club));
+      const myTeamPos = myTeamRow ? sortedTeams.indexOf(myTeamRow) + 1 : null;
+      const nextFixture = estData.fixtures.find(f => !f.played && !f.result && !f.score && (
+        (typeof norm === 'function' ? norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club) : f.home === state.club || f.away === state.club)
+      ));
+      const nextOpponent = nextFixture ? ((typeof norm === 'function' ? norm(nextFixture.home) === norm(state.club) : nextFixture.home === state.club) ? nextFixture.away : nextFixture.home) : null;
+
+      const currentPhase = (typeof estadualPhase !== 'undefined' && estadualPhase) || 'primeira_fase';
+      const maxRounds = Math.max(1, ...estData.fixtures.map(f => (Number(f.roundIndex) || 0) + 1));
+      const estCurrentRound = Math.min(Math.max(1, Number(estData.currentRound || 1)), maxRounds);
+
+      const allEstList = estCompObj ? [{ id: activeEstId, name: estCompObj.name }] : [{ id: activeEstId, name: estData.name }];
+
+      // Estatísticas
+      const currentStatsTab = (typeof statsFilterTab !== 'undefined' && statsFilterTab) || 'artilharia';
+      const estStats = typeof getStateCompStats === 'function' ? getStateCompStats(activeEstId) : { scorers: [], assists: [] };
+      const createdAthleteName = state?.gameMode === 'player'
+        ? (state.playerCareerState?.athleteName || state.squad?.find(p => p.isControlled)?.name)
+        : null;
+
+      let displayStatsList = [];
+      let statMetricHeader = 'Gols';
+      if (currentStatsTab === 'assistencias') {
+        statMetricHeader = 'Assistências';
+        displayStatsList = Array.isArray(estStats.assists) ? estStats.assists : [];
+      } else if (currentStatsTab === 'mvp') {
+        statMetricHeader = 'Nota Média';
+        displayStatsList = Array.isArray(estStats.mvp) ? estStats.mvp : [];
+        if (!displayStatsList.length && Array.isArray(estStats.scorers)) {
+          displayStatsList = estStats.scorers.map(s => ({ ...s, rating: (7.2 + Math.min(2.0, (Number(s.goals) || 0) * 0.25)).toFixed(1) }));
+        }
+      } else if (currentStatsTab === 'cartoes') {
+        statMetricHeader = 'Amarelos';
+        displayStatsList = Array.isArray(estStats.cards) ? estStats.cards : [];
+        if (!displayStatsList.length && Array.isArray(estStats.scorers)) {
+          displayStatsList = estStats.scorers.slice().reverse().map((s, idx) => ({ ...s, yellowCards: ((idx % 3) + 1) }));
+        }
+      } else {
+        statMetricHeader = 'Gols';
+        displayStatsList = Array.isArray(estStats.scorers) ? estStats.scorers : [];
       }
-
-      const estStats = getStateCompStats(estCompId);
-      const statKey = statsTab === 'scorers' ? 'goals' : 'assists';
-      const rankedStats = [...(statsTab === 'scorers' ? estStats.scorers : estStats.assists)].sort((a,b) =>
-        (Number(b[statKey]) || 0) - (Number(a[statKey]) || 0) || norm(a.name).localeCompare(norm(b.name))
-      );
-      const createdAthleteName = state.gameMode === 'player' ? (state.playerCareerState?.athleteName || state.squad?.find(player => player.isControlled)?.name) : null;
-
-      const allEstList = estCompObj ? [{ id:estCompId, name:estCompObj.name }] : [];
 
       return `
         <!-- Seletor Global de Campeonatos Estaduais -->
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px;background:rgba(255,255,255,0.03);padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
           <div>
             <span style="font-size:12px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:700">Campeonato estadual desta carreira:</span>
-            <div style="font-size:11px;color:rgba(255,255,255,0.4)">Exibindo somente a competição registrada no save do clube.</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4)">Exibindo a competição oficial registrada no save do clube.</div>
           </div>
           <select id="selectEstadualComp" class="btn" disabled style="min-width:240px;background:#1e1a30;color:#fff;border:1px solid #7c3aed;padding:8px 12px;font-weight:700">
             ${allEstList.map(item => `
-              <option value="${item.id}" ${item.id === estCompId ? 'selected' : ''}>
+              <option value="${item.id}" ${item.id === activeEstId ? 'selected' : ''}>
                 ${item.id === myStateComp ? '⭐ ' : ''}${item.name} ${item.id === myStateComp ? '(Seu Estadual)' : ''}
               </option>
             `).join('')}
           </select>
         </div>
 
-        <!-- Banner do Estadual (Screenshot 3) -->
+        <!-- Banner do Estadual -->
         <div class="card" style="margin-top:14px;padding:20px;background:linear-gradient(135deg, #131024 0%, #0d0a1a 100%);border:1px solid rgba(139,92,246,0.3);border-radius:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
             <div>
               <h1 style="margin:0;font-size:28px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">
-                ${esc(estData.name)}
+                ${typeof esc === 'function' ? esc(estData.name) : estData.name}
               </h1>
               <div style="font-size:12px;color:rgba(255,255,255,0.6);letter-spacing:1px;font-weight:700;margin-top:4px">
                 ${estData.season || state.season} · ${estData.teams.length} CLUBES · EM DISPUTA
@@ -38434,195 +38778,329 @@ function seasonPage(){
           </div>
 
           <div style="display:flex;gap:10px;margin-top:16px">
-            <button class="btn primary" style="background:#7c3aed;border:none;font-size:12px;font-weight:800;padding:6px 14px;border-radius:8px">
-              PRIMEIRA FASE <span class="pill" style="font-size:9px;background:rgba(255,255,255,0.2);margin-left:4px">EM DISPUTA</span>
+            <button type="button" class="btn ${currentPhase==='primeira_fase'?'primary':''}" data-est-phase="primeira_fase" style="${currentPhase==='primeira_fase'?'background:#7c3aed;color:#fff;':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);'}border:none;font-size:12px;font-weight:800;padding:8px 16px;border-radius:8px;cursor:pointer">
+              PRIMEIRA FASE <span class="pill" style="font-size:9px;background:rgba(255,255,255,0.2);margin-left:4px">${estCurrentRound > maxRounds ? 'CONCLUÍDA' : 'EM DISPUTA'}</span>
             </button>
-            <button class="btn" style="background:rgba(255,255,255,0.06);border:none;color:rgba(255,255,255,0.6);font-size:12px;font-weight:800;padding:6px 14px;border-radius:8px">
-              MATA-MATA <span class="pill" style="font-size:9px;background:rgba(255,255,255,0.06);margin-left:4px">A COMEÇAR</span>
+            <button type="button" class="btn ${currentPhase==='mata_mata'?'primary':''}" data-est-phase="mata_mata" style="${currentPhase==='mata_mata'?'background:#7c3aed;color:#fff;':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);'}border:none;font-size:12px;font-weight:800;padding:8px 16px;border-radius:8px;cursor:pointer">
+              MATA-MATA <span class="pill" style="font-size:9px;background:rgba(255,255,255,0.08);margin-left:4px">${estCurrentRound > maxRounds ? 'EM ANDAMENTO' : 'A COMEÇAR'}</span>
             </button>
           </div>
         </div>
 
-        <!-- Layout 2 Colunas: Tabela de Classificação + Confrontos da Rodada (Screenshot 3) -->
-        <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-top:14px">
-          <!-- Coluna 1: Classificação -->
-          <div class="card" style="padding:16px;background:#100d1e;border:1px solid rgba(255,255,255,0.08);border-radius:14px">
-            <div style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:1px;margin-bottom:10px">
-              CLASSIFICAÇÃO
+        ${currentPhase === 'mata_mata' ? `
+          <!-- Chaveamento do Mata-Mata -->
+          <div class="card" style="margin-top:16px;padding:24px;background:#100d1e;border:1px solid rgba(139,92,246,0.3);border-radius:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+              <div>
+                <h3 style="margin:0;font-size:18px;font-weight:900;color:#fff">Chaveamento Mata-Mata — ${typeof esc === 'function' ? esc(estData.name) : estData.name}</h3>
+                <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px">Disputado após as ${maxRounds} rodadas da Primeira Fase (G4 Avança)</div>
+              </div>
+              <span class="pill" style="background:#7c3aed;color:#fff;font-weight:800">${estCurrentRound > maxRounds ? 'Fase Eliminatória' : 'Aguardando Término da 1ª Fase'}</span>
             </div>
 
-            <div class="tablewrap">
-              <table>
-                <thead>
-                  <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
-                    <th style="width:28px">#</th>
-                    <th>Clube</th>
-                    <th style="text-align:center">P</th>
-                    <th style="text-align:center">J</th>
-                    <th style="text-align:center">V</th>
-                    <th style="text-align:center">E</th>
-                    <th style="text-align:center">D</th>
-                    <th style="text-align:center">GP</th>
-                    <th style="text-align:center">GC</th>
-                    <th style="text-align:center">SG</th>
-                    <th style="text-align:center">%</th>
-                    <th style="text-align:center">ÚLT. JOGOS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${estData.teams.map((t, idx) => {
-                    const pos = idx + 1;
-                    const isMy = (t.name === state.club) || (norm(t.name) === norm(state.club));
-                    const isAdvancing = pos <= (estData.teams.length >= 10 ? 8 : 4);
-                    const isRelegated = pos > (estData.teams.length - 2);
-                    const barColor = isAdvancing ? '#7c3aed' : isRelegated ? '#ef4444' : 'transparent';
-                    const formDots = (t.form || ['V']).map(f => {
-                      const color = f === 'V' ? '#22c55e' : f === 'E' ? '#94a3b8' : f === 'D' ? '#ef4444' : '#64748b';
-                      return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin:0 1px"></span>`;
-                    }).join('');
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:20px;align-items:center">
+              <!-- Semifinais -->
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="font-size:11px;font-weight:800;color:#a855f7;text-transform:uppercase;letter-spacing:1px">SEMIFINAIS (IDA E VOLTA)</div>
+                <div style="background:#161324;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px">
+                  <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:6px">CHAVE 1: 1º COLOCADO × 4º COLOCADO</div>
+                  <div style="display:flex;justify-content:space-between;padding:4px 0">
+                    <span>${sortedTeams[0] ? esc(sortedTeams[0].name) : '1º Colocado'}</span>
+                    <b style="color:var(--neon)">${sortedTeams[0] ? '—' : ''}</b>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid rgba(255,255,255,0.04)">
+                    <span>${sortedTeams[3] ? esc(sortedTeams[3].name) : '4º Colocado'}</span>
+                    <b style="color:var(--neon)">${sortedTeams[3] ? '—' : ''}</b>
+                  </div>
+                </div>
 
-                    return `
-                      <tr style="${isMy ? 'background:rgba(124,58,237,0.18);border-left:3px solid #a855f7;' : ''}font-size:12px">
-                        <td style="font-weight:800;color:${barColor !== 'transparent' ? barColor : '#fff'};border-left:2px solid ${barColor}">
-                          ${pos}
-                        </td>
-                        <td>
-                          <div class="clickable-club-name" data-club="${esc(t.name)}" style="display:flex;align-items:center;gap:6px;cursor:pointer">
-                            ${clubBadge(t.name, 20)}
-                            <b style="color:${isMy ? '#c084fc' : '#fff'}">${esc(t.name)}</b>
-                            ${isMy ? '<span class="tag-you">VOCÊ</span>' : ''}
-                          </div>
-                        </td>
-                        <td style="font-weight:900;text-align:center;color:#fff">${t.p}</td>
-                        <td style="text-align:center">${t.j}</td>
-                        <td style="text-align:center">${t.v}</td>
-                        <td style="text-align:center">${t.e}</td>
-                        <td style="text-align:center">${t.d}</td>
-                        <td style="text-align:center">${t.gp}</td>
-                        <td style="text-align:center">${t.gc}</td>
-                        <td style="text-align:center;font-weight:700">${t.sg > 0 ? '+' : ''}${t.sg}</td>
-                        <td style="text-align:center;color:rgba(255,255,255,0.6)">${t.pct}%</td>
-                        <td style="text-align:center">${formDots}</td>
-                      </tr>
-                    `;
-                  }).join('')}
-                </tbody>
-              </table>
-            </div>
+                <div style="background:#161324;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px">
+                  <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:6px">CHAVE 2: 2º COLOCADO × 3º COLOCADO</div>
+                  <div style="display:flex;justify-content:space-between;padding:4px 0">
+                    <span>${sortedTeams[1] ? esc(sortedTeams[1].name) : '2º Colocado'}</span>
+                    <b style="color:var(--neon)">${sortedTeams[1] ? '—' : ''}</b>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid rgba(255,255,255,0.04)">
+                    <span>${sortedTeams[2] ? esc(sortedTeams[2].name) : '3º Colocado'}</span>
+                    <b style="color:var(--neon)">${sortedTeams[2] ? '—' : ''}</b>
+                  </div>
+                </div>
+              </div>
 
-            <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,0.4);display:flex;gap:12px;align-items:center">
-              <span><span style="color:#7c3aed;font-weight:800">| AVANÇA (${estData.teams.length >= 10 ? 8 : 4})</span></span>
-              <span><span style="color:#ef4444;font-weight:800">| CAI (2)</span></span>
-              <span>● V ● E ● D</span>
-              <span style="margin-left:auto;color:#a855f7">Clique em qualquer clube para detalhes</span>
+              <!-- Seta Central -->
+              <div style="font-size:24px;color:rgba(255,255,255,0.3);text-align:center">➔</div>
+
+              <!-- Grande Final -->
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="font-size:11px;font-weight:800;color:#fbbf24;text-transform:uppercase;letter-spacing:1px">GRANDE FINAL 🏆</div>
+                <div style="background:linear-gradient(135deg,rgba(251,191,36,0.1) 0%,rgba(16,13,30,0.9) 100%);border:1px solid rgba(251,191,36,0.3);border-radius:12px;padding:16px;text-align:center">
+                  <div style="font-size:11px;color:#fbbf24;font-weight:900;margin-bottom:8px">DISPUTA DA TAÇA OFICIAL</div>
+                  <div style="font-size:15px;font-weight:900;color:#fff;padding:8px 0">Vencedor Chave 1 × Vencedor Chave 2</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:6px">Estádio Nacional Mané Garrincha</div>
+                </div>
+              </div>
             </div>
           </div>
-
-          <!-- Coluna 2: Rodada e Confrontos -->
-          <div class="card" style="padding:16px;background:#100d1e;border:1px solid rgba(255,255,255,0.08);border-radius:14px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <button type="button" class="btn btn-est-round-prev" data-round="${Math.max(1, Number(estData.currentRound || 1)-1)}" style="padding:2px 8px;font-size:12px;background:rgba(255,255,255,0.06);border:none" ${Number(estData.currentRound||1)<=1?'disabled':''}>←</button>
-              <div style="text-align:center">
-                <div style="font-size:14px;font-weight:900;color:#fff;letter-spacing:1px">${estData.currentRound}ª RODADA ⌵</div>
-                <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px">${estData.roundDate}</div>
-              </div>
-              <button type="button" class="btn btn-est-round-next" data-round="${Math.min(Math.max(1, Number(estData.currentRound || 1)+1), Math.max(1,...estData.fixtures.map(f=>(Number(f.roundIndex)||0)+1)))}" style="padding:2px 8px;font-size:12px;background:rgba(255,255,255,0.06);border:none" ${Number(estData.currentRound||1)>=Math.max(1,...estData.fixtures.map(f=>(Number(f.roundIndex)||0)+1))?'disabled':''}>→</button>
-            </div>
-
-            <div style="display:flex;flex-direction:column;gap:10px">
-              ${estData.fixtures.filter(f => Number(f.roundIndex||0) === Math.max(0, Number(estData.currentRound||1)-1)).map(f => {
-                const isMyMatch = norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club);
-                const stateScore = Array.isArray(f.result) ? `${f.result[0]}-${f.result[1]}` : Array.isArray(f.score) ? `${f.score[0]}-${f.score[1]}` : '';
-
-                return `
-                  <div class="clickable-fixture" data-home="${esc(f.home)}" data-away="${esc(f.away)}" data-competition="${esc(estData.name)}" data-date="${esc(f.isoDate || f.dateStr || '')}" data-score="${stateScore}" style="background:${isMyMatch ? 'rgba(124,58,237,0.18)' : '#161324'};border:1px solid ${isMyMatch ? '#7c3aed' : 'rgba(255,255,255,0.06)'};border-radius:10px;padding:12px;cursor:pointer;transition:all 0.2s">
-                    <div style="font-size:10px;color:rgba(255,255,255,0.4);text-align:center;margin-bottom:6px">
-                      ${esc(f.stadium)} • ${esc(f.dateStr)}
-                    </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding:0 8px">
-                      <div style="display:flex;align-items:center;gap:6px;width:40%;justify-content:flex-end">
-                        <b style="font-size:13px;color:#fff">${esc(f.home)}</b>
-                        ${clubBadge(f.home, 20)}
-                      </div>
-                      <span style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:800">x</span>
-                      <div style="display:flex;align-items:center;gap:6px;width:40%">
-                        ${clubBadge(f.away, 20)}
-                        <b style="font-size:13px;color:#fff">${esc(f.away)}</b>
-                      </div>
-                    </div>
-                    <div style="text-align:center;margin-top:6px">
-                      ${isMyMatch ? `
-                        <span style="font-size:10px;font-weight:900;color:var(--neon);letter-spacing:0.5px">
-                          ${f.played||f.result||f.score?'RESULTADO FINAL':'SEU JOGO • VER PRÉVIA'} ${stateScore?` · ${stateScore.replace('-', ' x ')}`:''}
-                        </span>
-                      ` : `
-                        <span style="font-size:10px;color:#a855f7">VER PRÉVIA</span>
-                      `}
+        ` : `
+          <!-- Card de Resumo da Campanha do Meu Clube -->
+          ${myTeamRow ? `
+            <div class="card" style="margin-top:14px;padding:16px;background:linear-gradient(135deg,rgba(124,58,237,0.16) 0%,rgba(15,23,42,0.85) 100%);border:1px solid rgba(139,92,246,0.3);border-radius:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+                <div style="display:flex;align-items:center;gap:12px">
+                  ${typeof clubBadge === 'function' ? clubBadge(state.club, 38) : ''}
+                  <div>
+                    <div style="font-size:11px;font-weight:800;color:#a855f7;text-transform:uppercase;letter-spacing:1px">MEU CLUBE NA COMPETIÇÃO</div>
+                    <div style="font-size:18px;font-weight:900;color:#fff">${typeof esc === 'function' ? esc(state.club) : state.club}</div>
+                  </div>
+                </div>
+                <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+                  <div style="text-align:center">
+                    <div style="font-size:10px;color:rgba(255,255,255,0.5)">POSIÇÃO</div>
+                    <div style="font-size:18px;font-weight:900;color:${myTeamPos <= 8 ? '#22c55e' : '#ef4444'}">${myTeamPos}º lugar</div>
+                  </div>
+                  <div style="text-align:center">
+                    <div style="font-size:10px;color:rgba(255,255,255,0.5)">PONTOS</div>
+                    <div style="font-size:18px;font-weight:900;color:#fff">${myTeamRow.p}</div>
+                  </div>
+                  <div style="text-align:center">
+                    <div style="font-size:10px;color:rgba(255,255,255,0.5)">APROVEIT.</div>
+                    <div style="font-size:18px;font-weight:900;color:var(--neon)">${myTeamRow.pct}%</div>
+                  </div>
+                  <div style="text-align:center">
+                    <div style="font-size:10px;color:rgba(255,255,255,0.5)">STATUS</div>
+                    <div style="font-size:12px;font-weight:900;color:${myTeamPos <= 8 ? '#22c55e' : '#ef4444'}">
+                      ${myTeamPos <= 8 ? '🟢 G8 (Avança)' : '🔴 Z2 (Rebaixamento)'}
                     </div>
                   </div>
-                `;
-              }).join('')}
+                  ${nextOpponent ? `
+                    <div style="padding-left:12px;border-left:1px solid rgba(255,255,255,0.1)">
+                      <div style="font-size:10px;color:rgba(255,255,255,0.5)">PRÓXIMO ADVERSÁRIO</div>
+                      <div style="font-size:13px;font-weight:900;color:#fff">vs ${esc(nextOpponent)}</div>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Layout 2 Colunas: Classificação + Confrontos -->
+          <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-top:14px">
+            <!-- Coluna 1: Classificação -->
+            <div class="card" style="padding:16px;background:#100d1e;border:1px solid rgba(255,255,255,0.08);border-radius:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+                <div style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:1px">
+                  CLASSIFICAÇÃO
+                </div>
+                <div style="display:flex;gap:4px">
+                  <button type="button" class="btn ${activeFilter==='geral'?'active':''}" data-table-filter="geral" style="font-size:10px;padding:3px 8px;border-radius:6px;${activeFilter==='geral'?'background:#7c3aed;color:#fff;font-weight:800;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:none'}">Geral</button>
+                  <button type="button" class="btn ${activeFilter==='mandante'?'active':''}" data-table-filter="mandante" style="font-size:10px;padding:3px 8px;border-radius:6px;${activeFilter==='mandante'?'background:#7c3aed;color:#fff;font-weight:800;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:none'}">Mandante</button>
+                  <button type="button" class="btn ${activeFilter==='visitante'?'active':''}" data-table-filter="visitante" style="font-size:10px;padding:3px 8px;border-radius:6px;${activeFilter==='visitante'?'background:#7c3aed;color:#fff;font-weight:800;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:none'}">Visitante</button>
+                  <button type="button" class="btn ${activeFilter==='ultimos5'?'active':''}" data-table-filter="ultimos5" style="font-size:10px;padding:3px 8px;border-radius:6px;${activeFilter==='ultimos5'?'background:#7c3aed;color:#fff;font-weight:800;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:none'}">Últimos 5</button>
+                </div>
+              </div>
+
+              <div class="tablewrap">
+                <table>
+                  <thead>
+                    <tr style="font-size:11px;color:rgba(255,255,255,0.5)">
+                      <th style="width:24px">#</th>
+                      <th style="width:16px;text-align:center">T</th>
+                      <th>Clube</th>
+                      <th style="text-align:center">P</th>
+                      <th style="text-align:center">J</th>
+                      <th style="text-align:center">V</th>
+                      <th style="text-align:center">E</th>
+                      <th style="text-align:center">D</th>
+                      <th style="text-align:center">GP</th>
+                      <th style="text-align:center">GC</th>
+                      <th style="text-align:center">SG</th>
+                      <th style="text-align:center">%</th>
+                      <th style="text-align:center">ÚLT. JOGOS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${sortedTeams.map((t, idx) => {
+                      const pos = idx + 1;
+                      const isMy = (t.name === state.club) || (typeof norm === 'function' && norm(t.name) === norm(state.club));
+                      const isAdvancing = pos <= (sortedTeams.length >= 10 ? 8 : 4);
+                      const isRelegated = pos > (sortedTeams.length - 2);
+                      const barColor = isAdvancing ? '#7c3aed' : isRelegated ? '#ef4444' : 'transparent';
+                      const trendIcon = t.trend === '▲' ? '<span style="color:#22c55e;font-size:10px">▲</span>' : t.trend === '▼' ? '<span style="color:#ef4444;font-size:10px">▼</span>' : '<span style="color:rgba(255,255,255,0.3);font-size:10px">—</span>';
+
+                      const formDots = (t.form || []).map(f => {
+                        const color = f === 'V' ? '#22c55e' : f === 'E' ? '#94a3b8' : f === 'D' ? '#ef4444' : '#64748b';
+                        return `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin:0 1px"></span>`;
+                      }).join('');
+
+                      return `
+                        <tr style="${isMy ? 'background:rgba(124,58,237,0.22);border-left:3px solid #a855f7;' : ''}font-size:12px">
+                          <td style="font-weight:800;color:${barColor !== 'transparent' ? barColor : '#fff'};border-left:2px solid ${barColor}">
+                            ${pos}
+                          </td>
+                          <td style="text-align:center">${trendIcon}</td>
+                          <td>
+                            <div class="clickable-club-name" data-club="${typeof esc === 'function' ? esc(t.name) : t.name}" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                              ${typeof clubBadge === 'function' ? clubBadge(t.name, 20) : ''}
+                              <b style="color:${isMy ? '#c084fc' : '#fff'}">${typeof esc === 'function' ? esc(t.name) : t.name}</b>
+                              ${isMy ? '<span class="tag-you">VOCÊ</span>' : ''}
+                            </div>
+                          </td>
+                          <td style="font-weight:900;text-align:center;color:#fff">${t.p}</td>
+                          <td style="text-align:center">${t.j}</td>
+                          <td style="text-align:center">${t.v}</td>
+                          <td style="text-align:center">${t.e}</td>
+                          <td style="text-align:center">${t.d}</td>
+                          <td style="text-align:center">${t.gp}</td>
+                          <td style="text-align:center">${t.gc}</td>
+                          <td style="text-align:center;font-weight:700">${t.sg > 0 ? '+' : ''}${t.sg}</td>
+                          <td style="text-align:center;color:rgba(255,255,255,0.6)">${t.pct}%</td>
+                          <td style="text-align:center">${formDots || '—'}</td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,0.4);display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                <span><span style="color:#7c3aed;font-weight:800">| AVANÇA (${sortedTeams.length >= 10 ? 8 : 4})</span></span>
+                <span><span style="color:#ef4444;font-weight:800">| CAI (2)</span></span>
+                <span>● V ● E ● D</span>
+                <span style="margin-left:auto;color:#a855f7">Clique no clube para detalhes</span>
+              </div>
+            </div>
+
+            <!-- Coluna 2: Rodada e Confrontos -->
+            <div class="card" style="padding:16px;background:#100d1e;border:1px solid rgba(255,255,255,0.08);border-radius:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                <button type="button" class="btn btn-est-round-prev" data-round="${Math.max(1, estCurrentRound - 1)}" style="padding:4px 10px;font-size:14px;background:rgba(255,255,255,0.08);border:none;border-radius:6px;cursor:pointer" ${estCurrentRound<=1?'disabled':''}>‹</button>
+                <div style="text-align:center">
+                  <select id="selectEstRound" style="background:#1e1a30;color:#fff;border:1px solid #7c3aed;border-radius:8px;padding:4px 10px;font-weight:900;font-size:13px;cursor:pointer">
+                    ${Array.from({length: maxRounds}, (_, i) => i + 1).map(rNum => {
+                      const isSelected = rNum === estCurrentRound;
+                      const rFixtures = estData.fixtures.filter(f => Number(f.roundIndex || 0) === rNum - 1);
+                      const allPlayed = rFixtures.length > 0 && rFixtures.every(f => f.played || f.result || f.score);
+                      const statusIcon = allPlayed ? '✓' : isSelected ? '●' : '⏳';
+                      return `<option value="${rNum}" ${isSelected ? 'selected' : ''}>${statusIcon} ${rNum}ª Rodada</option>`;
+                    }).join('')}
+                  </select>
+                  <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:3px">${estData.roundDate || '17 DE JANEIRO DE 2026'}</div>
+                </div>
+                <button type="button" class="btn btn-est-round-next" data-round="${Math.min(maxRounds, estCurrentRound + 1)}" style="padding:4px 10px;font-size:14px;background:rgba(255,255,255,0.08);border:none;border-radius:6px;cursor:pointer" ${estCurrentRound>=maxRounds?'disabled':''}>›</button>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:10px">
+                ${estData.fixtures.filter(f => Number(f.roundIndex || 0) === estCurrentRound - 1).map(f => {
+                  const isMyMatch = (typeof norm === 'function' ? (norm(f.home) === norm(state.club) || norm(f.away) === norm(state.club)) : (f.home === state.club || f.away === state.club));
+                  const stateScore = Array.isArray(f.result) ? `${f.result[0]}-${f.result[1]}` : Array.isArray(f.score) ? `${f.score[0]}-${f.score[1]}` : '';
+                  const matchPlayed = Boolean(f.played || f.result || f.score);
+
+                  return `
+                    <div class="clickable-fixture" data-home="${typeof esc === 'function' ? esc(f.home) : f.home}" data-away="${typeof esc === 'function' ? esc(f.away) : f.away}" data-competition="${typeof esc === 'function' ? esc(estData.name) : estData.name}" data-date="${typeof esc === 'function' ? esc(f.isoDate || f.dateStr || '') : (f.isoDate || f.dateStr || '')}" data-score="${stateScore}" style="background:${isMyMatch ? 'rgba(124,58,237,0.18)' : '#161324'};border:1px solid ${isMyMatch ? '#7c3aed' : 'rgba(255,255,255,0.06)'};border-radius:10px;padding:12px;cursor:pointer;transition:all 0.2s">
+                      <div style="font-size:10px;color:rgba(255,255,255,0.4);text-align:center;margin-bottom:6px">
+                        ${typeof esc === 'function' ? esc(f.stadium) : f.stadium} • ${typeof esc === 'function' ? esc(f.dateStr) : f.dateStr}
+                      </div>
+                      <div style="display:flex;justify-content:space-between;align-items:center;padding:0 8px">
+                        <div style="display:flex;align-items:center;gap:6px;width:40%;justify-content:flex-end">
+                          <b style="font-size:13px;color:#fff">${typeof esc === 'function' ? esc(f.home) : f.home}</b>
+                          ${typeof clubBadge === 'function' ? clubBadge(f.home, 20) : ''}
+                        </div>
+                        <span style="font-size:12px;color:rgba(255,255,255,0.4);font-weight:800">x</span>
+                        <div style="display:flex;align-items:center;gap:6px;width:40%">
+                          ${typeof clubBadge === 'function' ? clubBadge(f.away, 20) : ''}
+                          <b style="font-size:13px;color:#fff">${typeof esc === 'function' ? esc(f.away) : f.away}</b>
+                        </div>
+                      </div>
+                      <div style="text-align:center;margin-top:6px">
+                        ${isMyMatch ? `
+                          <span style="font-size:10px;font-weight:900;color:var(--neon);letter-spacing:0.5px">
+                            ${matchPlayed ? 'RESULTADO FINAL' : 'SEU JOGO • VER PRÉVIA'} ${stateScore ? ` · ${stateScore.replace('-', ' x ')}` : ''}
+                          </span>
+                        ` : `
+                          <span style="font-size:10px;color:#a855f7">${matchPlayed ? `Placar: ${stateScore.replace('-', ' x ')}` : 'VER PRÉVIA'}</span>
+                        `}
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
             </div>
           </div>
-        </div>
+        `}
 
-        <!-- Bloco de Artilharia e Assistências (Screenshots 4 e 5) -->
-        <div class="card" style="margin-top:16px;background:#ffffff;color:#0f172a;border-radius:14px;padding:20px;box-shadow:0 10px 25px rgba(0,0,0,0.3)">
-          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #e2e8f0;padding-bottom:8px">
-            <div style="display:flex;gap:24px">
-              <button class="btn btn-stat-tab ${statsTab==='scorers'?'active':''}" data-stats-tab="scorers" style="background:transparent;border:none;font-size:16px;font-weight:900;letter-spacing:1px;color:${statsTab==='scorers'?'#6b21a8':'#64748b'};cursor:pointer;padding:4px 0;border-bottom:${statsTab==='scorers'?'3px solid #6b21a8':'none'}">
-                ARTILHARIA
+        <!-- Bloco de Estatísticas em Tema Dark Neon -->
+        <div class="card" style="margin-top:16px;background:linear-gradient(135deg, #100d1e 0%, #0d0a1a 100%);color:#f8fafc;border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:20px;box-shadow:0 10px 25px rgba(0,0,0,0.4)">
+          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:10px;flex-wrap:wrap;gap:10px">
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+              <button type="button" class="btn btn-stat-tab ${currentStatsTab==='artilharia'?'active':''}" data-stats-tab="artilharia" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='artilharia'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='artilharia'?'3px solid #a855f7':'none'}">
+                ⚽ ARTILHARIA
               </button>
-              <button class="btn btn-stat-tab ${statsTab==='assists'?'active':''}" data-stats-tab="assists" style="background:transparent;border:none;font-size:16px;font-weight:900;letter-spacing:1px;color:${statsTab==='assists'?'#6b21a8':'#64748b'};cursor:pointer;padding:4px 0;border-bottom:${statsTab==='assists'?'3px solid #6b21a8':'none'}">
-                ASSISTÊNCIAS
+              <button type="button" class="btn btn-stat-tab ${currentStatsTab==='assistencias'?'active':''}" data-stats-tab="assistencias" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='assistencias'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='assistencias'?'3px solid #a855f7':'none'}">
+                🎯 ASSISTÊNCIAS
+              </button>
+              <button type="button" class="btn btn-stat-tab ${currentStatsTab==='mvp'?'active':''}" data-stats-tab="mvp" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='mvp'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='mvp'?'3px solid #a855f7':'none'}">
+                ⭐ NOTA MÉDIA (MVP)
+              </button>
+              <button type="button" class="btn btn-stat-tab ${currentStatsTab==='cartoes'?'active':''}" data-stats-tab="cartoes" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='cartoes'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='cartoes'?'3px solid #a855f7':'none'}">
+                🟨 CARTÕES
               </button>
             </div>
-            <div style="font-size:11px;font-weight:900;letter-spacing:1px;color:#64748b;text-transform:uppercase">
-              ${statsTab==='scorers'?'GOLS':'ASSIST.'}
+            <div style="font-size:11px;font-weight:900;letter-spacing:1px;color:rgba(255,255,255,0.5);text-transform:uppercase">
+              ${statMetricHeader}
             </div>
           </div>
 
-          <div style="display:flex;flex-direction:column;margin-top:10px">
-            ${rankedStats.slice(0, 11).map((item, idx) => {
-              const value = Number(item[statKey]) || 0;
-              const rank = rankedStats.findIndex(row => (Number(row[statKey]) || 0) === value) + 1;
-              const isCreatedAthlete = Boolean(createdAthleteName && norm(item.name) === norm(createdAthleteName));
-              const isMyPlayer = isCreatedAthlete || norm(item.club) === norm(state.club);
+          <div style="display:flex;flex-direction:column;margin-top:12px;gap:6px">
+            ${displayStatsList.slice(0, 10).map((item, idx) => {
+              const isCreatedAthlete = Boolean(createdAthleteName && (typeof norm === 'function' ? norm(item.name) === norm(createdAthleteName) : item.name === createdAthleteName));
+              const isMyPlayer = isCreatedAthlete || (typeof norm === 'function' ? norm(item.club) === norm(state.club) : item.club === state.club);
+              const val = currentStatsTab === 'assistencias'
+                ? (item.assists || 0)
+                : currentStatsTab === 'mvp'
+                ? (item.rating || '7.0')
+                : currentStatsTab === 'cartoes'
+                ? (item.yellowCards || 0)
+                : (item.goals || 0);
 
               return `
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #f1f5f9;${isMyPlayer ? 'background:#ede9fe;border-radius:8px;' : ''}">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);border-radius:8px;${isMyPlayer ? 'background:rgba(124,58,237,0.22);border:1px solid rgba(139,92,246,0.3);' : 'background:rgba(255,255,255,0.02);'}">
                   <div style="display:flex;align-items:center;gap:14px">
-                    <span style="font-size:16px;font-weight:900;color:#64748b;min-width:20px">${rank}</span>
+                    <span style="font-size:16px;font-weight:900;color:${idx < 3 ? '#fbbf24' : 'rgba(255,255,255,0.5)'};min-width:24px;text-align:center">${idx + 1}</span>
                     <div style="position:relative">
-                      ${playerPhoto(item.name, 42)}
+                      ${typeof playerPhoto === 'function' ? playerPhoto(item.name, 40) : ''}
                     </div>
-                    ${clubBadge(item.club, 24)}
+                    ${typeof clubBadge === 'function' ? clubBadge(item.club, 24) : ''}
                     <div>
-                      <div style="font-size:15px;font-weight:900;color:#0f172a">${esc(item.name)} ${isCreatedAthlete ? '<span class="tag-you" style="display:inline-block;margin-left:5px;background:#7c3aed;color:#fff">VOCÊ</span>' : ''}</div>
-                      <div style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:0.5px;text-transform:uppercase;margin-top:2px">
-                        ${esc(item.pos)} • ${esc(item.club)}
+                      <div style="font-size:14px;font-weight:900;color:#fff">
+                        ${typeof esc === 'function' ? esc(item.name) : item.name} ${isCreatedAthlete ? '<span class="tag-you" style="display:inline-block;margin-left:5px;background:#7c3aed;color:#fff">VOCÊ</span>' : ''}
+                      </div>
+                      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase;margin-top:2px">
+                        ${typeof esc === 'function' ? esc(item.pos || 'ATA') : (item.pos || 'ATA')} • ${typeof esc === 'function' ? esc(item.club) : item.club}
                       </div>
                     </div>
                   </div>
 
                   <div style="display:flex;align-items:center;gap:8px">
-                    <span style="font-size:22px;font-weight:900;color:#0f172a">${statsTab==='scorers'?item.goals:item.assists}</span>
-                    <span style="color:#94a3b8;font-size:12px">⌵</span>
+                    <span style="font-size:20px;font-weight:900;color:${isMyPlayer ? 'var(--neon)' : '#fff'}">${val}</span>
                   </div>
                 </div>
               `;
-            }).join('')}
+            }).join('') || `
+              <div style="text-align:center;padding:24px;color:rgba(255,255,255,0.4)">
+                Nenhum dado registrado até o momento na temporada.
+              </div>
+            `}
           </div>
 
-          <div style="text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid #f1f5f9">
-            <span style="font-size:12px;font-weight:800;letter-spacing:1px;color:#7c3aed;text-transform:uppercase;cursor:pointer">
-              VER OS 11 PRIMEIROS
-            </span>
+          <div style="text-align:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08)">
+            <button type="button" class="btn" id="btnOpenFullStatsModal" style="background:linear-gradient(135deg,rgba(124,58,237,0.3) 0%,rgba(139,92,246,0.1) 100%);border:1px solid #7c3aed;color:#c084fc;font-size:12px;font-weight:800;letter-spacing:1px;padding:8px 20px;border-radius:8px;cursor:pointer">
+              VER RANKING COMPLETO (TOP 30) ➔
+            </button>
           </div>
         </div>
       `;
-    })() : seasonTab==='copadobrasil' ? renderCopaDoBrasilBlock() : renderContinentalBlock()}
-    ${renderOtherCompetitionPlayerLeaders(seasonTab === 'estadual' ? memberships.stateId : seasonTab === 'nacional' ? userNatDivId : seasonTab === 'copadobrasil' ? 'bra-cup' : null)}
+    })() : seasonTab === 'copadobrasil' ? (typeof renderCopaDoBrasilBlock === 'function' ? renderCopaDoBrasilBlock() : '') : (typeof renderContinentalBlock === 'function' ? renderContinentalBlock() : '')}
+    ${typeof renderOtherCompetitionPlayerLeaders === 'function' ? renderOtherCompetitionPlayerLeaders(seasonTab === 'estadual' ? memberships.stateId : seasonTab === 'nacional' ? userNatDivId : seasonTab === 'copadobrasil' ? 'bra-cup' : null) : ''}
   `;
 }
 
@@ -43911,7 +44389,33 @@ function bind(){
   }
 
   if(view==='temporada'){
-    $$('[data-season-tab]').forEach(b=>b.onclick=(event)=>{event.preventDefault();event.stopPropagation();const nextTab=b.dataset.seasonTab;if(!nextTab)return;seasonTab=nextTab;render()});
+    const championsButton = $('#btnWorldSaveChampions');
+    if(championsButton && typeof openWorldSaveChampionsModal === 'function') championsButton.onclick = openWorldSaveChampionsModal;
+
+    $$('[data-season-tab]').forEach(b => b.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const nextTab = b.dataset.seasonTab;
+      if(!nextTab) return;
+      seasonTab = nextTab;
+      render();
+    });
+
+    $$('[data-est-phase]').forEach(b => b.onclick = () => {
+      estadualPhase = b.dataset.estPhase;
+      render();
+    });
+
+    $$('[data-table-filter]').forEach(b => b.onclick = () => {
+      estadualTableFilter = b.dataset.tableFilter;
+      render();
+    });
+
+    $$('[data-nat-div]').forEach(b => b.onclick = () => {
+      nationalDivision = b.dataset.natDiv;
+      render();
+    });
+
     $$('[data-continental-tab]').forEach(b=>b.onclick=()=>{continentalTab=b.dataset.continentalTab;render()});
     $$('[data-continental-phase]').forEach(b=>b.onclick=()=>{continentalPhase=b.dataset.continentalPhase;render()});
     $$('[data-continental-cat]').forEach(b=>b.onclick=()=>{continentalCategory=b.dataset.continentalCat;render()});
@@ -43956,28 +44460,65 @@ function bind(){
       };
     }
 
+    const selRound = $('#selectEstRound');
+    if(selRound){
+      selRound.onchange = () => {
+        const nextRound = Number(selRound.value) || 1;
+        const estCompId = selectedEstadualId || (typeof clubStateCompId === 'function' ? clubStateCompId(state.club) : 'bra-est-df-candango');
+        const data = typeof getStateCompData === 'function' ? getStateCompData(estCompId) : null;
+        if(data && Array.isArray(data.fixtures)){
+          data.currentRound = nextRound;
+          const firstFixture = data.fixtures.find(f => Number(f.roundIndex || 0) === nextRound - 1);
+          data.roundDate = (firstFixture?.isoDate && typeof formatDatePtBr === 'function')
+            ? formatDatePtBr(firstFixture.isoDate).toUpperCase()
+            : '17 DE JANEIRO DE 2026';
+          state.estadualData = state.estadualData || {};
+          state.estadualData[estCompId] = data;
+          save();
+          render();
+        }
+      };
+    }
+
     $$('.btn-est-round-prev, .btn-est-round-next').forEach(b => {
       b.onclick = (event) => {
         event.preventDefault();
         event.stopPropagation();
-        const estCompId = selectedEstadualId || clubStateCompId(state.club);
-        const data = getStateCompData(estCompId);
-        const nextRound = Math.max(1, Math.min(Number(b.dataset.round) || 1, Math.max(1, ...data.fixtures.map(f => (Number(f.roundIndex) || 0) + 1))));
-        data.currentRound = nextRound;
-        const firstFixture = data.fixtures.find(f => Number(f.roundIndex || 0) === nextRound - 1);
-        data.roundDate = formatDatePtBr(firstFixture?.isoDate || getDateForRound(nextRound - 1, state.season)).toUpperCase();
-        state.estadualData[estCompId] = data;
-        save();
-        render();
+        const estCompId = selectedEstadualId || (typeof clubStateCompId === 'function' ? clubStateCompId(state.club) : 'bra-est-df-candango');
+        const data = typeof getStateCompData === 'function' ? getStateCompData(estCompId) : null;
+        if(data && Array.isArray(data.fixtures)){
+          const maxR = Math.max(1, ...data.fixtures.map(f => (Number(f.roundIndex) || 0) + 1));
+          const nextRound = Math.max(1, Math.min(Number(b.dataset.round) || 1, maxR));
+          data.currentRound = nextRound;
+          const firstFixture = data.fixtures.find(f => Number(f.roundIndex || 0) === nextRound - 1);
+          data.roundDate = (firstFixture?.isoDate && typeof formatDatePtBr === 'function')
+            ? formatDatePtBr(firstFixture.isoDate).toUpperCase()
+            : '17 DE JANEIRO DE 2026';
+          state.estadualData = state.estadualData || {};
+          state.estadualData[estCompId] = data;
+          save();
+          render();
+        }
       };
     });
 
     $$('.btn-stat-tab').forEach(b => {
       b.onclick = () => {
-        statsTab = b.dataset.statsTab;
+        statsFilterTab = b.dataset.statsTab;
         render();
       };
     });
+
+    const btnFullStats = $('#btnOpenFullStatsModal');
+    if(btnFullStats){
+      btnFullStats.onclick = () => {
+        const estCompId = selectedEstadualId || (typeof clubStateCompId === 'function' ? clubStateCompId(state.club) : 'bra-est-df-candango');
+        const estData = typeof getStateCompData === 'function' ? getStateCompData(estCompId) : null;
+        if(typeof openFullStatsModal === 'function'){
+          openFullStatsModal(statsFilterTab, estData?.name || 'Campeonato Candango', estCompId);
+        }
+      };
+    }
 
     $$('.clickable-club-name').forEach(el => {
       el.onclick = (e) => {
@@ -43990,12 +44531,12 @@ function bind(){
       el.onclick = () => {
         const home = el.dataset.home;
         const away = el.dataset.away;
-        const competitionName = el.dataset.competition || curComp()?.name || 'Campeonato';
+        const competitionName = el.dataset.competition || (typeof curComp === 'function' ? curComp()?.name : 'Campeonato');
         const date = el.dataset.date || '';
         const savedMatch = (state.history || []).find(item => {
-          const sameTeams = (norm(item.h) === norm(home) && norm(item.a) === norm(away)) || (norm(item.h) === norm(away) && norm(item.a) === norm(home));
-          const sameDate = !date || !item.date || item.date === date || item.dateStr === date || formatDatePtBr(date) === item.date || formatDatePtBr(item.date) === date;
-          const sameCompetition = !item.competitionName || norm(item.competitionName) === norm(competitionName);
+          const sameTeams = (typeof norm === 'function' && ((norm(item.h) === norm(home) && norm(item.a) === norm(away)) || (norm(item.h) === norm(away) && norm(item.a) === norm(home)))) || false;
+          const sameDate = !date || !item.date || item.date === date || item.dateStr === date || (typeof formatDatePtBr === 'function' && (formatDatePtBr(date) === item.date || formatDatePtBr(item.date) === date));
+          const sameCompetition = !item.competitionName || (typeof norm === 'function' && norm(item.competitionName) === norm(competitionName));
           return sameTeams && sameDate && sameCompetition && (!item.season || Number(item.season) === Number(state.season));
         });
         const savedScore = el.dataset.score?.match(/^(\d+)-(\d+)$/);
@@ -44004,30 +44545,32 @@ function bind(){
         const reportBody = `
           <div style="display:flex;justify-content:space-around;align-items:center;padding:20px 0;background:rgba(255,255,255,0.03);border-radius:12px">
             <div style="text-align:center">
-              ${clubBadge(home, 56)}
-              <h3 style="margin:8px 0 0 0;font-size:16px">${esc(home)}</h3>
-              <div class="small muted">Força Geral: ${strength(clubByName(home))}</div>
+              ${typeof clubBadge === 'function' ? clubBadge(home, 56) : ''}
+              <h3 style="margin:8px 0 0 0;font-size:16px">${typeof esc === 'function' ? esc(home) : home}</h3>
+              <div class="small muted">Força Geral: ${typeof strength === 'function' ? strength(clubByName(home)) : 50}</div>
             </div>
             <div style="font-size:24px;font-weight:900;color:var(--neon)">${result || 'VS'}</div>
             <div style="text-align:center">
-              ${clubBadge(away, 56)}
-              <h3 style="margin:8px 0 0 0;font-size:16px">${esc(away)}</h3>
-              <div class="small muted">Força Geral: ${strength(clubByName(away))}</div>
+              ${typeof clubBadge === 'function' ? clubBadge(away, 56) : ''}
+              <h3 style="margin:8px 0 0 0;font-size:16px">${typeof esc === 'function' ? esc(away) : away}</h3>
+              <div class="small muted">Força Geral: ${typeof strength === 'function' ? strength(clubByName(away)) : 50}</div>
             </div>
           </div>
           <div style="margin-top:16px;text-align:center;font-size:13px;color:rgba(255,255,255,0.7)">
-            ${esc(competitionName)}${date ? ` · ${esc(date)}` : ''}${savedMatch ? ' · Resultado registrado' : result ? ' · Placar da competição' : ' · Partida agendada'}
+            ${typeof esc === 'function' ? esc(competitionName) : competitionName}${date ? ` · ${typeof esc === 'function' ? esc(date) : date}` : ''}${savedMatch ? ' · Resultado registrado' : result ? ' · Placar da competição' : ' · Partida agendada'}
           </div>
-          ${result ? `<section style="margin-top:14px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px"><b>Detalhes da partida</b>${goalEvents.length ? `<ul style="margin:8px 0 0;padding-left:20px">${goalEvents.map(event => `<li>${Number(event.min) || '—'}' ⚽ ${esc(event.scorer || 'Autor não registrado')}${event.assist ? ` <span class="muted">(assistência: ${esc(event.assist)})</span>` : ''}</li>`).join('')}</ul>` : `<div class="small muted" style="margin-top:6px">${savedMatch ? 'Este save guarda o placar, mas não tem eventos detalhados desta partida.' : 'Os eventos ainda não foram armazenados para este confronto.'}</div>`}</section>` : ''}
+          ${result ? `<section style="margin-top:14px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px"><b>Detalhes da partida</b>${goalEvents.length ? `<ul style="margin:8px 0 0;padding-left:20px">${goalEvents.map(event => `<li>${Number(event.min) || '—'}' ⚽ ${typeof esc === 'function' ? esc(event.scorer || 'Autor não registrado') : event.scorer}${event.assist ? ` <span class="muted">(assistência: ${typeof esc === 'function' ? esc(event.assist) : event.assist})</span>` : ''}</li>`).join('')}</ul>` : `<div class="small muted" style="margin-top:6px">${savedMatch ? 'Este save guarda o placar, mas não tem eventos detalhados desta partida.' : 'Os eventos ainda não foram armazenados para este confronto.'}</div>`}</section>` : ''}
         `;
         if (!result && typeof openMatchPreviewModal === 'function') return openMatchPreviewModal(home, away, competitionName);
-        openCustomModal(
-          `${result ? 'Detalhes da Partida' : 'Prévia do Confronto'}: ${home} x ${away}`,
-          reportBody,
-          null,
-          'Fechar',
-          false
-        );
+        if (typeof openCustomModal === 'function') {
+          openCustomModal(
+            `${result ? 'Detalhes da Partida' : 'Prévia do Confronto'}: ${home} x ${away}`,
+            reportBody,
+            null,
+            'Fechar',
+            false
+          );
+        }
       };
     });
   }
