@@ -637,6 +637,7 @@
       let icon = "📰";
       let tagColor = "#60a5fa";
       let borderColor = "#3b82f6";
+      let category = "match";
 
       if (
         text.includes("🔥") ||
@@ -651,6 +652,7 @@
         icon = "⚽";
         tagColor = "#4ade80";
         borderColor = "#22c55e";
+        category = "match";
       } else if (
         text.includes("⚡") ||
         text.includes("CT") ||
@@ -661,6 +663,7 @@
         icon = "⚡";
         tagColor = "#facc15";
         borderColor = "#eab308";
+        category = "training";
       } else if (
         text.includes("📈") ||
         text.includes("📉") ||
@@ -672,6 +675,7 @@
         icon = "📋";
         tagColor = "#38bdf8";
         borderColor = "#0284c7";
+        category = "staff";
       } else if (
         text.includes("💼") ||
         text.includes("FINANÇAS") ||
@@ -684,6 +688,7 @@
         icon = "💎";
         tagColor = "#c084fc";
         borderColor = "#a855f7";
+        category = "market";
       } else if (
         text.includes("🗣️") ||
         text.includes("TORCIDA") ||
@@ -694,6 +699,7 @@
         icon = "🗣️";
         tagColor = "#fb7185";
         borderColor = "#f43f5e";
+        category = "media";
       }
 
       formattedList.push({
@@ -702,11 +708,12 @@
         icon,
         tagColor,
         borderColor,
+        category,
         time: idx === 0 ? "Hoje" : idx === 1 ? "Ontem" : `Há ${idx + 1} dias`,
       });
     });
 
-    // 2. Se a lista ainda for pequena, complementa com notícias dinâmicas e contextuais da vida do atleta e time
+    // 2. Se a lista ainda for pequena, complementa com notícias dinâmicas e contextuais
     if (formattedList.length < 4) {
       const focusLabels = {
         finalizacao: "Finalização & Chutes",
@@ -725,6 +732,7 @@
           icon: "⚡",
           tagColor: "#facc15",
           borderColor: "#eab308",
+          category: "training",
           time: "Há 1 dia",
         },
         {
@@ -733,6 +741,7 @@
           icon: "📋",
           tagColor: "#38bdf8",
           borderColor: "#0284c7",
+          category: "staff",
           time: "Há 2 dias",
         },
         {
@@ -741,6 +750,7 @@
           icon: "🗣️",
           tagColor: "#fb7185",
           borderColor: "#f43f5e",
+          category: "media",
           time: "Há 3 dias",
         },
         {
@@ -749,6 +759,7 @@
           icon: "💎",
           tagColor: "#c084fc",
           borderColor: "#a855f7",
+          category: "market",
           time: "Há 4 dias",
         },
       ];
@@ -763,26 +774,46 @@
       });
     }
 
-    return formattedList.slice(0, 5);
+    return formattedList.slice(0, 6);
   }
 
   // =========================================================================
-  // ABA 1: HUB CENTRAL DO ATLETA
+  // VIEWMODEL DO HUB CENTRAL DO ATLETA (AFM_PlayerHubViewModel)
   // =========================================================================
-  function renderPlayerHub(state) {
-    const pState = getCareerState(state);
-    const athlete = getControlledPlayer(state) || { ovr: 45, wage: 1500, attributes: {} };
-    if (!pState || !athlete)
-      return `<div class="card" style="padding:24px;color:#fff"><h2>Perfil do atleta indisponível</h2><p>Os dados deste atleta não vieram neste save. Tente restaurar a carreira pela nuvem.</p><button class="btn primary" onclick="window.AFM_PlayerMode.restorePlayerProfile()">☁️ Tentar restaurar save</button></div>`;
-
+  function buildPlayerHubViewModel(state) {
+    const pState = getCareerState(state) || {};
+    const athlete = getControlledPlayer(state) || {
+      ovr: 45,
+      wage: 1500,
+      attributes: {},
+      name: "Atleta",
+      pos: "ATA",
+      number: 10,
+    };
     const eng = window.AFM_PlayerEngine;
+    const trustVal = Number(pState.managerTrust ?? 45);
     const trustRole = eng
-      ? eng.getTrustRole(pState.managerTrust)
-      : { role: "Reserva", color: "#f59e0b", desc: "" };
+      ? eng.getTrustRole(trustVal)
+      : {
+          role: trustVal >= 60 ? "Titular" : trustVal >= 35 ? "Reserva Imediato" : "Fora dos Planos",
+          color: trustVal >= 60 ? "#10b981" : trustVal >= 35 ? "#f59e0b" : "#ef4444",
+          desc: trustVal >= 60 ? "Titular absoluto da equipe" : "Opção regular no banco de reservas",
+        };
+
     const ovr = athlete.ovr || athlete.overall || 35;
-    const energy = athlete.energy ?? athlete.fitness ?? 95;
+    const energy = Number(athlete.energy ?? athlete.fitness ?? 95);
     const canPlayMatch =
       eng?.isPlayerAvailableForMatch?.(state) ?? Number(energy) >= 50;
+
+    // Nível, XP e Pontos Livres
+    const level = Number(pState.level) || 1;
+    const xp = Number(pState.xp) || 0;
+    const xpNext = Number(pState.xpToNextLevel) || 400;
+    const xpPercent = Math.min(
+      100,
+      Math.max(0, Math.round((xp / (xpNext || 1)) * 100)),
+    );
+    const skillPoints = Number(pState.skillPoints) || 0;
 
     // Próximo jogo do clube
     const activeMatch =
@@ -792,143 +823,594 @@
     const comp = typeof window.curComp === "function" ? window.curComp() : null;
     const opp = activeMatch?.opponent || "Adversário";
     const isHome = activeMatch ? activeMatch.isHome : true;
-    const matchDate = activeMatch ? activeMatch.date : state.date;
+    const matchDate = activeMatch ? activeMatch.date : (state.date || state.currentDate || "2026-01-17");
     const compName =
       activeMatch?.competitionName ||
       comp?.name ||
       state.competition ||
       "Campeonato";
     const isMatchToday =
-      String(state.date || "").slice(0, 10) ===
+      String(state.date || state.currentDate || "").slice(0, 10) ===
       String(matchDate || "").slice(0, 10);
+    const matchDateFormatted = formatDatePtBr(matchDate);
+
+    const homeClub = isHome ? (state.club || "Meu Clube") : opp;
+    const awayClub = isHome ? opp : (state.club || "Meu Clube");
+    const homeBadge =
+      typeof window.clubBadge === "function"
+        ? window.clubBadge(homeClub, 36)
+        : "⚽";
+    const awayBadge =
+      typeof window.clubBadge === "function"
+        ? window.clubBadge(awayClub, 36)
+        : "⚽";
+    const clubBadgeSmall =
+      typeof window.clubBadge === "function"
+        ? window.clubBadge(state.club || "Meu Clube", 22)
+        : "⚽";
+    const oppStrength =
+      typeof window.teamStrengthByName === "function"
+        ? window.teamStrengthByName(opp)
+        : 55;
+
+    // Estatísticas da temporada atual
+    const history = Array.isArray(pState.matchRatingHistory)
+      ? pState.matchRatingHistory
+      : [];
+    const currentSeason = Number(state.season) || 2026;
+    const seasonMatchesList = history.filter(
+      (m) => !m.date || String(m.date).startsWith(String(currentSeason)),
+    );
+    const sStats = pState.seasonStats || {};
+    const historyGoals = seasonMatchesList.reduce(
+      (sum, m) => sum + (Number(m.goals) || 0),
+      0,
+    );
+    const historyAssists = seasonMatchesList.reduce(
+      (sum, m) => sum + (Number(m.assists) || 0),
+      0,
+    );
+    const seasonGoals = Math.max(Number(sStats.goals) || 0, historyGoals);
+    const seasonAssists = Math.max(Number(sStats.assists) || 0, historyAssists);
+    const seasonMatches = Math.max(
+      Number(sStats.matches) || 0,
+      seasonMatchesList.length,
+      seasonGoals || seasonAssists ? 1 : 0,
+    );
+    const seasonStarter = Math.max(
+      Number(sStats.starterCount) || 0,
+      seasonMatchesList.filter((m) => (Number(m.minutes) || 0) >= 60).length,
+    );
+    const seasonBench = Math.max(
+      Number(sStats.benchCount) || 0,
+      seasonMatchesList.filter(
+        (m) => (Number(m.minutes) || 0) > 0 && (Number(m.minutes) || 0) < 60,
+      ).length,
+    );
+    const hasSeasonMatches = seasonMatches > 0;
+    const seasonHistoryRating = seasonMatchesList.length
+      ? seasonMatchesList.reduce(
+          (sum, m) => sum + (Number(m.rating) || 0),
+          0,
+        ) / seasonMatchesList.length
+      : 0;
+    const seasonAvgRating = hasSeasonMatches
+      ? (seasonHistoryRating
+          ? seasonHistoryRating.toFixed(2)
+          : (Number(sStats.avgRating) || 6.5).toFixed(2))
+      : "—";
+
+    // Forma recente (últimos 5 jogos)
+    const recentMatches = seasonMatchesList.slice(-5);
+    const formDots = recentMatches.map((m) => {
+      const r = Number(m.rating) || 6.0;
+      const color = r >= 7.5 ? "#22c55e" : r >= 6.5 ? "#38bdf8" : "#f59e0b";
+      return {
+        rating: r.toFixed(1),
+        color,
+        goals: Number(m.goals) || 0,
+        assists: Number(m.assists) || 0,
+      };
+    });
+
+    // Convocação Nacional
+    const isCalledUp = Boolean(
+      pState.internationalDuty ||
+        pState.onInternationalDuty ||
+        pState.nationalCallUp?.isUserCalledUp ||
+        pState.fifaFixture?.userIsCalledUp,
+    );
+    const natName = String(
+      pState.nationality || athlete.nationality || "Brasil",
+    );
+    const natFlag = natName.toLowerCase().includes("arg")
+      ? "🇦🇷"
+      : natName.toLowerCase().includes("port")
+        ? "🇵🇹"
+        : natName.toLowerCase().includes("urug")
+          ? "🇺🇾"
+          : "🇧🇷";
+    const nationalStatusText = isCalledUp
+      ? `${natFlag} Convocado para a Seleção`
+      : `${natFlag} Observado pela Seleção`;
+
+    // Valor de mercado
+    const marketValueText = formatPlayerMarketValueShort(athlete);
+
+    // Metas do Treinador (Match Objectives) contextuais por posição
+    const pos = String(athlete.pos || athlete.position || "ATA").toUpperCase();
+    let objectives = [];
+    if (pos === "GOL") {
+      objectives = [
+        {
+          text: "Manter a Baliza Inviolada (Clean Sheet)",
+          reward: "+40 XP · +6% Confiança",
+          icon: "🧤",
+        },
+        {
+          text: "Nota de atuação 7.0+",
+          reward: "+20 XP · +4% Confiança",
+          icon: "⭐",
+        },
+        {
+          text: "Realizar 3+ intervenções decisivas",
+          reward: "+25 XP · +4% Confiança",
+          icon: "🛑",
+        },
+      ];
+    } else if (["ZAG", "LE", "LD"].includes(pos)) {
+      objectives = [
+        {
+          text: "Nota defensiva e tática 6.8+",
+          reward: "+15 XP · +3% Confiança",
+          icon: "⭐",
+        },
+        {
+          text: "Baliza Segura (Não sofrer mais de 1 gol)",
+          reward: "+25 XP · +4% Confiança",
+          icon: "🛡️",
+        },
+        {
+          text: "4+ Desarmes limpos e interceptações",
+          reward: "+20 XP · +3% Confiança",
+          icon: "⚔️",
+        },
+      ];
+    } else if (["MC", "MEI", "VOL", "ME", "MD"].includes(pos)) {
+      objectives = [
+        {
+          text: "Nota de meio-campo 6.8+",
+          reward: "+15 XP · +3% Confiança",
+          icon: "⭐",
+        },
+        {
+          text: "Distribuir 1 assistência ou passe decisivo",
+          reward: "+30 XP · +5% Confiança",
+          icon: "🎯",
+        },
+        {
+          text: "Ajudar na transição e recuperação de posse",
+          reward: "+20 XP · +3% Confiança",
+          icon: "⚡",
+        },
+      ];
+    } else {
+      objectives = [
+        {
+          text: "Nota ofensiva 6.8+",
+          reward: "+15 XP · +3% Confiança",
+          icon: "⭐",
+        },
+        {
+          text: "1 Participação em Gol (Gol ou Assistência)",
+          reward: "+35 XP · +5% Confiança",
+          icon: "⚽",
+        },
+        {
+          text: "Finalizar no alvo e buscar a vitória",
+          reward: "+25 XP · +4% Confiança",
+          icon: "🏆",
+        },
+      ];
+    }
+
+    // Saldo pessoal
+    const ls =
+      window.AFM_Lifestyle?.ensurePlayerLifestyleState(pState) ||
+      pState.lifestyle;
+    const personalBank = Number(
+      ls?.cash ?? pState.personalBank ?? athlete.personalBank ?? 0,
+    );
+
     const playerNews = getPlayerModeNewsList(state);
+
+    return {
+      athlete,
+      pState,
+      trustRole,
+      trustVal,
+      ovr,
+      energy,
+      canPlayMatch,
+      level,
+      xp,
+      xpNext,
+      xpPercent,
+      skillPoints,
+      activeMatch,
+      opp,
+      isHome,
+      matchDate,
+      matchDateFormatted,
+      compName,
+      isMatchToday,
+      homeClub,
+      awayClub,
+      homeBadge,
+      awayBadge,
+      clubBadgeSmall,
+      oppStrength,
+      seasonMatches,
+      seasonStarter,
+      seasonBench,
+      seasonGoals,
+      seasonAssists,
+      seasonAvgRating,
+      hasSeasonMatches,
+      formDots,
+      isCalledUp,
+      nationalStatusText,
+      marketValueText,
+      objectives,
+      personalBank,
+      playerNews,
+    };
+  }
+
+  // =========================================================================
+  // ABA 1: HUB CENTRAL DO ATLETA (AFM_PlayerHub)
+  // =========================================================================
+  function renderPlayerHub(state) {
+    const pState = getCareerState(state);
+    const athlete = getControlledPlayer(state) || { ovr: 45, wage: 1500, attributes: {} };
+    if (!pState || !athlete)
+      return `<div class="card" style="padding:24px;color:#fff"><h2>Perfil do atleta indisponível</h2><p>Os dados deste atleta não vieram neste save. Tente restaurar a carreira pela nuvem.</p><button class="btn primary" onclick="window.AFM_PlayerMode.restorePlayerProfile()">☁️ Tentar restaurar save</button></div>`;
+
+    const vm = buildPlayerHubViewModel(state);
+    const activeNewsFilter = window.__afmHubNewsFilter || "all";
 
     return `
       <div class="afm-player-hub-container" style="display:flex;flex-direction:column;gap:18px">
-        
-        <!-- CARD PRINCIPAL DO ATLETA (HEADER) -->
+        <style>
+          .afm-player-hub-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 18px;
+          }
+          @media (min-width: 960px) {
+            .afm-player-hub-grid {
+              grid-template-columns: 1.15fr 0.85fr;
+            }
+          }
+          .afm-stat-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+          }
+          .afm-hub-quick-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+          }
+          .afm-news-filter-pill {
+            cursor: pointer;
+            border-radius: 9999px;
+            padding: 4px 11px;
+            font-size: 11px;
+            font-weight: 800;
+            transition: all 0.2s ease;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.05);
+            color: #94a3b8;
+          }
+          .afm-news-filter-pill:hover {
+            border-color: #a855f7;
+            color: #fff;
+          }
+          .afm-news-filter-pill.active {
+            background: #7c3aed;
+            color: #ffffff;
+            border-color: #a855f7;
+            box-shadow: 0 2px 10px rgba(124,58,237,0.4);
+          }
+          .afm-hub-quick-btn {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            color: #fff;
+          }
+          .afm-hub-quick-btn:hover {
+            background: rgba(168,85,247,0.12);
+            border-color: rgba(168,85,247,0.4);
+            transform: translateY(-2px);
+          }
+        </style>
+
+        <!-- CARD PRINCIPAL DO ATLETA (HEADER COM ESCUDO, VALOR E BARRA DE XP) -->
         <div class="card" style="background:linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);border:2px solid rgba(168,85,247,0.4);border-radius:20px;padding:22px;box-shadow:0 12px 36px rgba(0,0,0,0.6)">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
             
             <div style="display:flex;align-items:center;gap:18px">
               <div style="width:84px;height:84px;border-radius:18px;overflow:hidden;border:3px solid #a855f7;background:#1e293b;flex-shrink:0;box-shadow:0 6px 20px rgba(168,85,247,0.3)">
-                <img src="${athlete.photo || pState.appearance?.customFacePhoto || pState.appearance?.facePhoto || "img/player_avatars/young_01.webp"}" alt="${esc(athlete.name)}" style="width:100%;height:100%;object-fit:cover" onerror="this.src='img/player_avatars/young_01.webp'">
+                <img src="${vm.athlete.photo || vm.pState.appearance?.customFacePhoto || vm.pState.appearance?.facePhoto || "img/player_avatars/young_01.webp"}" alt="${esc(vm.athlete.name)}" style="width:100%;height:100%;object-fit:cover" onerror="this.src='img/player_avatars/young_01.webp'">
               </div>
               <div>
-                <div style="display:flex;align-items:center;gap:10px">
-                  <h1 style="margin:0;font-size:24px;font-weight:900;letter-spacing:0.5px;color:#fff">${esc(athlete.name.toUpperCase())}</h1>
-                  <span style="font-size:18px;color:#c084fc;font-weight:900">#${athlete.number}</span>
-                  <span class="pill" style="background:#7c3aed;color:#fff;font-size:10px;font-weight:900">${athlete.pos}</span>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <h1 style="margin:0;font-size:24px;font-weight:900;letter-spacing:0.5px;color:#fff">${esc(vm.athlete.name.toUpperCase())}</h1>
+                  <span style="font-size:18px;color:#c084fc;font-weight:900">#${vm.athlete.number || 10}</span>
+                  <span class="pill" style="background:#7c3aed;color:#fff;font-size:10px;font-weight:900">${vm.athlete.pos}</span>
                 </div>
-                <div style="font-size:13px;color:#94a3b8;margin-top:4px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-                  <span>🏟️ <b>${esc(state.club)}</b></span>
-                  <span>🎂 ${pState.age} anos</span>
-                  <span>📍 ${esc(pState.city)}/${pState.stateUf}</span>
-                  <span>💵 Salário: <b>R$ ${(athlete.wage || 1500).toLocaleString("pt-BR")}/mês</b></span>
+                <div style="font-size:13px;color:#94a3b8;margin-top:6px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                  <span style="display:inline-flex;align-items:center;gap:6px">
+                    ${vm.clubBadgeSmall}
+                    <b style="color:#f8fafc">${esc(state.club)}</b>
+                  </span>
+                  <span>🎂 ${vm.pState.age} anos</span>
+                  <span>📍 ${esc(vm.pState.city)}/${vm.pState.stateUf}</span>
+                  <span>💵 Salário: <b>R$ ${(vm.athlete.wage || 1500).toLocaleString("pt-BR")}/mês</b></span>
+                  <span>💎 Valor: <b style="color:#10b981">${vm.marketValueText}</b></span>
+                  <span style="color:#38bdf8">${vm.nationalStatusText}</span>
                 </div>
               </div>
             </div>
 
-            <!-- OVERALL & NÍVEL -->
+            <!-- OVERALL & NÍVEL DO ATLETA -->
             <div style="display:flex;align-items:center;gap:14px">
-              <div style="background:rgba(0,0,0,0.5);border:1px solid #10b981;border-radius:14px;padding:8px 18px;text-align:center">
-                <span style="font-size:28px;font-weight:900;color:#10b981;line-height:1">${ovr}</span>
+              <div style="background:rgba(0,0,0,0.5);border:1px solid #10b981;border-radius:14px;padding:8px 18px;text-align:center;min-width:76px">
+                <span style="font-size:28px;font-weight:900;color:#10b981;line-height:1">${vm.ovr}</span>
                 <div style="font-size:10px;font-weight:800;color:#94a3b8;letter-spacing:0.5px">OVERALL</div>
               </div>
-              <div style="background:rgba(0,0,0,0.5);border:1px solid #a855f7;border-radius:14px;padding:8px 18px;text-align:center">
-                <span style="font-size:28px;font-weight:900;color:#c084fc;line-height:1">Nv. ${pState.level || 1}</span>
-                <div style="font-size:10px;font-weight:800;color:#94a3b8;letter-spacing:0.5px">${pState.skillPoints || 0} PTS LIVRES</div>
+              <div style="background:rgba(0,0,0,0.5);border:1px solid #a855f7;border-radius:14px;padding:8px 18px;text-align:center;min-width:88px">
+                <span style="font-size:28px;font-weight:900;color:#c084fc;line-height:1">Nv. ${vm.level}</span>
+                <div style="font-size:10px;font-weight:800;color:#94a3b8;letter-spacing:0.5px">${vm.skillPoints} PTS LIVRES</div>
               </div>
             </div>
 
           </div>
 
-          <!-- BARRAS DE STATUS: CONFIANÇA DO TÉCNICO & FÍSICO -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
+          <!-- BARRA DE PROGRESSO DE XP & EVOLUÇÃO (DINÂMICA) -->
+          <div style="margin-top:16px;background:rgba(0,0,0,0.35);border:1px solid rgba(168,85,247,0.25);border-radius:12px;padding:10px 14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:800;margin-bottom:6px">
+              <span style="color:#c084fc;display:inline-flex;align-items:center;gap:6px">
+                ⭐ PROGRESSO PARA NÍVEL ${vm.level + 1}
+              </span>
+              <span style="color:#cbd5e1">
+                ${vm.xp} / ${vm.xpNext} XP (<b style="color:#a855f7">${vm.xpPercent}%</b>)
+              </span>
+            </div>
+            <div style="width:100%;height:8px;background:#334155;border-radius:4px;overflow:hidden">
+              <div style="width:${vm.xpPercent}%;height:100%;background:linear-gradient(90deg, #7c3aed, #c084fc);border-radius:4px;transition:width 0.4s ease"></div>
+            </div>
+          </div>
+
+          <!-- BARRAS DE STATUS: CONFIANÇA DO TÉCNICO & CONDIÇÃO FÍSICA -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
             
             <!-- Confiança do Treinador -->
             <div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                 <span style="font-size:12px;font-weight:800;color:#cbd5e1">CONFIANÇA DO TÉCNICO:</span>
-                <span style="font-size:12px;font-weight:900;color:${trustRole.color}">${pState.managerTrust}% · ${trustRole.role}</span>
+                <span style="font-size:12px;font-weight:900;color:${vm.trustRole.color}">${vm.trustVal}% · ${vm.trustRole.role}</span>
               </div>
               <div style="width:100%;height:10px;background:#334155;border-radius:5px;overflow:hidden">
-                <div style="width:${pState.managerTrust}%;height:100%;background:${trustRole.color};border-radius:5px;transition:width 0.3s ease"></div>
+                <div style="width:${vm.trustVal}%;height:100%;background:${vm.trustRole.color};border-radius:5px;transition:width 0.3s ease"></div>
               </div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:4px">${trustRole.desc}</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:4px">${vm.trustRole.desc}</div>
             </div>
 
             <!-- Condição Física / Energia -->
             <div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                 <span style="font-size:12px;font-weight:800;color:#cbd5e1">CONDIÇÃO FÍSICA:</span>
-                <span style="font-size:12px;font-weight:900;color:${energy >= 80 ? "#10b981" : energy >= 60 ? "#f59e0b" : "#ef4444"}">${energy}% ${canPlayMatch ? (energy >= 85 ? "Pronto para jogar" : "Recuperando · relacionado") : "Fora dos relacionados"}</span>
+                <span style="font-size:12px;font-weight:900;color:${vm.energy >= 80 ? "#10b981" : vm.energy >= 60 ? "#f59e0b" : "#ef4444"}">${vm.energy}% ${vm.canPlayMatch ? (vm.energy >= 85 ? "Pronto para jogar" : "Recuperando · relacionado") : "Fora dos relacionados"}</span>
               </div>
               <div style="width:100%;height:10px;background:#334155;border-radius:5px;overflow:hidden">
-                <div style="width:${energy}%;height:100%;background:${energy >= 80 ? "#10b981" : energy >= 60 ? "#f59e0b" : "#ef4444"};border-radius:5px;transition:width 0.3s ease"></div>
+                <div style="width:${vm.energy}%;height:100%;background:${vm.energy >= 80 ? "#10b981" : vm.energy >= 60 ? "#f59e0b" : "#ef4444"};border-radius:5px;transition:width 0.3s ease"></div>
               </div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:4px">${canPlayMatch ? "Abaixo de 50%, o atleta não é relacionado. Sem jogar, recupera 8 pontos por dia (11 com fisioterapeuta), até 100%." : "Abaixo de 50%, o atleta não é relacionado. Simule a partida para descansar; recupera 8 pontos por dia (11 com fisioterapeuta), até 100%."}</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:4px">${vm.canPlayMatch ? "Abaixo de 50%, o atleta não é relacionado. Sem jogar, recupera 8 pontos por dia (11 com fisioterapeuta), até 100%." : "Abaixo de 50%, o atleta não é relacionado. Simule a partida para descansar; recupera 8 pontos por dia (11 com fisioterapeuta), até 100%."}</div>
             </div>
 
           </div>
         </div>
 
+        <!-- FAIXA DE DESEMPENHO NA TEMPORADA (4 MINI-CARDS + FORMA RECENTE) -->
+        <div class="card" style="background:#0b1120;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:16px 20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <span style="font-size:12px;font-weight:900;letter-spacing:1px;color:#94a3b8;text-transform:uppercase">
+              📊 DESEMPENHO NA TEMPORADA (${state.season || 2026})
+            </span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:11px;color:#64748b">Forma Recente:</span>
+              <div style="display:flex;align-items:center;gap:5px">
+                ${
+                  vm.formDots.length > 0
+                    ? vm.formDots.map(d => `<span title="Nota ${d.rating} · ${d.goals}G/${d.assists}A" style="width:10px;height:10px;border-radius:50%;background:${d.color};display:inline-block"></span>`).join('')
+                    : `<span style="font-size:11px;color:#cbd5e1;background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:6px">Início de Temporada</span>`
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="afm-stat-strip">
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 14px;text-align:center">
+              <div style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase">👕 Jogos Disputados</div>
+              <div style="font-size:22px;font-weight:900;color:#fff;margin:4px 0">${vm.seasonMatches}</div>
+              <div style="font-size:10px;color:#64748b">${vm.seasonStarter} Titular · ${vm.seasonBench} Reserva</div>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 14px;text-align:center">
+              <div style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase">⚽ Gols Marcados</div>
+              <div style="font-size:22px;font-weight:900;color:#10b981;margin:4px 0">${vm.seasonGoals}</div>
+              <div style="font-size:10px;color:#64748b">${vm.seasonMatches > 0 ? (vm.seasonGoals / vm.seasonMatches).toFixed(2) : "0.00"} por jogo</div>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 14px;text-align:center">
+              <div style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase">🎯 Assistências</div>
+              <div style="font-size:22px;font-weight:900;color:#38bdf8;margin:4px 0">${vm.seasonAssists}</div>
+              <div style="font-size:10px;color:#64748b">${vm.seasonMatches > 0 ? (vm.seasonAssists / vm.seasonMatches).toFixed(2) : "0.00"} por jogo</div>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 14px;text-align:center">
+              <div style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase">⭐ Nota Média</div>
+              <div style="font-size:22px;font-weight:900;color:#facc15;margin:4px 0">${vm.seasonAvgRating}</div>
+              <div style="font-size:10px;color:#64748b">${vm.hasSeasonMatches ? "Temporada Oficial" : "Aguardando estreia"}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CENTRAL DE AÇÕES RÁPIDAS DIÁRIAS (ROTINA PRÉ-JOGO) -->
+        <div class="card" style="background:#090d16;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:16px 20px">
+          <div style="font-size:12px;font-weight:900;letter-spacing:1px;color:#94a3b8;text-transform:uppercase;margin-bottom:12px">
+            ⚡ ROTINA & PREPARAÇÃO DIÁRIA
+          </div>
+          <div class="afm-hub-quick-bar">
+            <button type="button" class="afm-hub-quick-btn" data-hub-action="goto_training" data-view="player_evolution">
+              <span style="font-size:22px">🏋️</span>
+              <div>
+                <div style="font-weight:900;font-size:12px">Treinar Atleta</div>
+                <div style="font-size:10px;color:#94a3b8">XP e Minigames</div>
+              </div>
+            </button>
+
+            <button type="button" class="afm-hub-quick-btn" data-hub-action="quick_physio">
+              <span style="font-size:22px">💆</span>
+              <div>
+                <div style="font-weight:900;font-size:12px">Fisioterapia</div>
+                <div style="font-size:10px;color:#10b981">+10% Físico · R$ 150</div>
+              </div>
+            </button>
+
+            <button type="button" class="afm-hub-quick-btn" data-hub-action="goto_social" data-view="player_social">
+              <span style="font-size:22px">📱</span>
+              <div>
+                <div style="font-weight:900;font-size:12px">FootGram</div>
+                <div style="font-size:10px;color:#94a3b8">Postar & Fama</div>
+              </div>
+            </button>
+
+            <button type="button" class="afm-hub-quick-btn" data-hub-action="goto_agent" data-view="player_agent">
+              <span style="font-size:22px">💼</span>
+              <div>
+                <div style="font-weight:900;font-size:12px">Empresário</div>
+                <div style="font-size:10px;color:#94a3b8">Contratos & Mercado</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
         <!-- GRID DE 2 COLUNAS: PRÓXIMO JOGO + NOTÍCIAS RECENTES -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+        <div class="afm-player-hub-grid">
           
           <!-- CARD DO PRÓXIMO JOGO -->
-          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
               <span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">⚽ PRÓXIMO COMPROMISSO</span>
-              <span class="pill" style="background:rgba(56,189,248,0.15);color:#38bdf8;font-size:10px;font-weight:800">${esc(compName)}</span>
+              <span class="pill" style="background:rgba(56,189,248,0.15);color:#38bdf8;font-size:10px;font-weight:800">${esc(vm.compName)}</span>
             </div>
 
-            <div style="background:#090d16;border-radius:14px;padding:16px;text-align:center;margin-bottom:14px">
-              <div style="font-size:12px;color:#94a3b8;margin-bottom:8px">Data: ${window.formatDatePtBr ? window.formatDatePtBr(matchDate) : matchDate}</div>
-              <div style="display:flex;align-items:center;justify-content:center;gap:16px">
-                <div style="font-size:16px;font-weight:900;color:#fff">${esc(isHome ? state.club : opp)}</div>
-                <span style="font-size:18px;font-weight:900;color:#a855f7">VS</span>
-                <div style="font-size:16px;font-weight:900;color:#fff">${esc(isHome ? opp : state.club)}</div>
+            <!-- BOX DE CONFRONTO COM ESCUDOS OFICIAIS -->
+            <div style="background:#090d16;border-radius:14px;padding:16px;text-align:center;border:1px solid rgba(255,255,255,0.04)">
+              <div style="font-size:12px;color:#94a3b8;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:6px">
+                <span>📅 ${vm.matchDateFormatted}</span>
+                <span>·</span>
+                <span>⏰ 16:00</span>
               </div>
-              <div style="font-size:11px;color:#64748b;margin-top:8px">${isHome ? "Partida em Casa" : "Partida Fora de Casa"}</div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:14px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  ${vm.homeBadge}
+                  <span style="font-size:16px;font-weight:900;color:#fff">${esc(vm.homeClub)}</span>
+                </div>
+                <span style="font-size:18px;font-weight:900;color:#a855f7">VS</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:16px;font-weight:900;color:#fff">${esc(vm.awayClub)}</span>
+                  ${vm.awayBadge}
+                </div>
+              </div>
+              <div style="font-size:11px;color:#64748b;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:10px">
+                <span>${vm.isHome ? "Partida em Casa 🏟️" : "Partida Fora de Casa ✈️"}</span>
+                <span>·</span>
+                <span>Força do Adversário: <b style="color:#cbd5e1">${vm.oppStrength} OVR</b></span>
+              </div>
             </div>
 
+            <!-- SITUAÇÃO / PROJEÇÃO PARA ESTE JOGO -->
             <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px">
               <span style="font-size:20px">📋</span>
               <div style="font-size:12px;color:#cbd5e1">
-                ${canPlayMatch ? "Sua projeção para este jogo:" : "Situação para este jogo:"} <b style="color:${canPlayMatch ? trustRole.color : "#ef4444"}">${canPlayMatch ? trustRole.role : "Fora dos relacionados · condição abaixo de 50%"}</b>
+                ${vm.canPlayMatch ? "Sua projeção para este jogo:" : "Situação para este jogo:"} <b style="color:${vm.canPlayMatch ? vm.trustRole.color : "#ef4444"}">${vm.canPlayMatch ? vm.trustRole.role : "Fora dos relacionados · condição abaixo de 50%"}</b>
               </div>
             </div>
 
-            <!-- BOTÕES DE JOGO / AVANÇO DE CALENDÁRIO (EM TEMPO REAL) -->
-            <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
+            <!-- PAINEL DE METAS DO TREINADOR (MATCH OBJECTIVES ESTILO EA FC) -->
+            <div style="background:rgba(56,189,248,0.04);border:1px solid rgba(56,189,248,0.2);border-radius:12px;padding:12px 14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <span style="font-size:11px;font-weight:900;letter-spacing:0.5px;color:#38bdf8;text-transform:uppercase">
+                  🎯 METAS DO TREINADOR PARA ESTE JOGO
+                </span>
+                <span style="font-size:10px;color:#64748b">Posição: ${vm.athlete.pos}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                ${vm.objectives.map((obj, i) => `
+                  <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,0.3);border-radius:8px;padding:6px 10px;font-size:11px">
+                    <span style="color:#e2e8f0;display:inline-flex;align-items:center;gap:6px">
+                      <span>${obj.icon}</span> ${esc(obj.text)}
+                    </span>
+                    <span style="font-size:10px;font-weight:800;color:#c084fc">${obj.reward}</span>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+
+            <!-- BOTÕES DE JOGO / AVANÇO DE CALENDÁRIO COM DATA-HUB-ACTION -->
+            <div style="display:flex;flex-direction:column;gap:8px">
               ${
-                isMatchToday
+                vm.isMatchToday
                   ? `
                 ${
-                  canPlayMatch
+                  vm.canPlayMatch
                     ? `
-                <button type="button" class="btn primary btn-player-play-live" style="width:100%;padding:13px;font-size:13px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 18px rgba(124,58,237,0.4)">
+                <button type="button" class="btn primary btn-player-play-live" data-hub-action="play_live" style="width:100%;padding:13px;font-size:13px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 18px rgba(124,58,237,0.4)">
                   ▶ JOGAR AO VIVO (EM TEMPO REAL)
                 </button>
                 `
                     : ""
                 }
-                <button type="button" class="btn btn-player-play-quick" style="width:100%;padding:10px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:10px;cursor:pointer">
-                  ⚡ ${canPlayMatch ? "Simular Rápido" : "Simular Partida · descansar"}
+                <button type="button" class="btn btn-player-play-quick" data-hub-action="play_quick" style="width:100%;padding:10px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:10px;cursor:pointer">
+                  ⚡ ${vm.canPlayMatch ? "Simular Rápido" : "Simular Partida · descansar"}
                 </button>
               `
                   : `
-                <button type="button" class="btn primary btn-player-advance-to-match" style="width:100%;padding:13px;font-size:13px;font-weight:900;background:linear-gradient(135deg,#06b6d4,#0891b2);border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 18px rgba(6,182,212,0.4)">
-                  ⏩ AVANÇAR ATÉ O DIA DO JOGO (${window.formatDatePtBr ? window.formatDatePtBr(matchDate) : matchDate})
+                <button type="button" class="btn primary btn-player-advance-to-match" data-hub-action="advance_to_match" style="width:100%;padding:13px;font-size:13px;font-weight:900;background:linear-gradient(135deg,#06b6d4,#0891b2);border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 18px rgba(6,182,212,0.4)">
+                  ⏩ AVANÇAR ATÉ O DIA DO JOGO (${vm.matchDateFormatted})
                 </button>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                  <button type="button" class="btn btn-player-advance-1day" style="padding:10px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:8px;cursor:pointer">
+                  <button type="button" class="btn btn-player-advance-1day" data-hub-action="advance_1day" style="padding:10px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:8px;cursor:pointer">
                     📅 Avançar 1 Dia
                   </button>
                   ${
-                    canPlayMatch
-                      ? `<button type="button" class="btn primary btn-player-play-live" style="padding:10px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:8px;cursor:pointer">
+                    vm.canPlayMatch
+                      ? `<button type="button" class="btn primary btn-player-play-live" data-hub-action="play_live" style="padding:10px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:8px;cursor:pointer">
                     ▶ Jogar Direto
                   </button>`
                       : `<div style="padding:10px;font-size:11px;text-align:center;color:#ef4444">🩺 Descanso até o jogo</div>`
@@ -939,18 +1421,27 @@
             </div>
           </div>
 
-          <!-- FEED DE NOTÍCIAS DO ATLETA E CLUBE -->
-          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">📰 NOTÍCIAS & IMPRENSA DO ATLETA</span>
+          <!-- FEED DE NOTÍCIAS DO ATLETA E CLUBE COM FILTROS DE CATEGORIA -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+              <span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">📰 NOTÍCIAS & IMPRENSA</span>
               <span style="font-size:11px;color:#64748b">Vida do Atleta & Clube</span>
             </div>
 
-            <div style="display:flex;flex-direction:column;gap:10px;max-height:240px;overflow-y:auto;padding-right:4px">
-              ${playerNews
+            <!-- FILTROS POR PÍLULA -->
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span class="afm-news-filter-pill ${activeNewsFilter === 'all' ? 'active' : ''}" data-hub-news-filter="all">Todas</span>
+              <span class="afm-news-filter-pill ${activeNewsFilter === 'training' ? 'active' : ''}" data-hub-news-filter="training">⚡ CT & Treino</span>
+              <span class="afm-news-filter-pill ${activeNewsFilter === 'staff' ? 'active' : ''}" data-hub-news-filter="staff">📋 Comissão</span>
+              <span class="afm-news-filter-pill ${activeNewsFilter === 'media' ? 'active' : ''}" data-hub-news-filter="media">🗣️ Torcida</span>
+              <span class="afm-news-filter-pill ${activeNewsFilter === 'market' ? 'active' : ''}" data-hub-news-filter="market">💎 Mercado</span>
+            </div>
+
+            <div id="afmHubNewsContainer" style="display:flex;flex-direction:column;gap:10px;max-height:290px;overflow-y:auto;padding-right:4px">
+              ${vm.playerNews
                 .map(
                   (n) => `
-                <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-left:4px solid ${n.borderColor};border-radius:8px;padding:10px 14px;transition:all 0.2s">
+                <div class="afm-hub-news-item" data-news-category="${n.category || 'match'}" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-left:4px solid ${n.borderColor};border-radius:8px;padding:10px 14px;transition:all 0.2s;${activeNewsFilter !== 'all' && n.category !== activeNewsFilter ? 'display:none;' : ''}">
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
                     <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:900;color:${n.tagColor};letter-spacing:0.5px;text-transform:uppercase">
                       <span>${n.icon}</span> ${n.tag}
@@ -973,7 +1464,7 @@
     `;
   }
 
-  // =========================================================================
+    // =========================================================================
   // SISTEMA CENTRAL: MEU ATLETA & TREINO (AFM_PLAYER_EVOLUTION)
   // =========================================================================
   const AFM_PLAYER_EVOLUTION = {
@@ -7782,6 +8273,187 @@
     if (!s || s.gameMode !== "player") return;
     const pState = s.playerCareerState;
     const athlete = getControlledPlayer(s);
+    // Listener delegado seguro para ações do Hub Central (data-hub-action & data-hub-news-filter)
+    if (!window.__afmHubEventsBound) {
+      window.__afmHubEventsBound = true;
+      document.addEventListener("click", function (e) {
+        const hubBtn = e.target.closest("[data-hub-action]");
+        const curState = (typeof state !== "undefined" && state) || (typeof window !== "undefined" && window.state);
+        if (hubBtn && curState && curState.gameMode === "player") {
+          const action = hubBtn.getAttribute("data-hub-action");
+          const curPState = curState.playerCareerState;
+          const curAthlete = getControlledPlayer(curState);
+
+          if (action === "advance_to_match") {
+            if (
+              window.AFM_CalendarFix &&
+              typeof window.AFM_CalendarFix.advanceToNextMatchGuaranteed === "function"
+            ) {
+              window.AFM_CalendarFix.advanceToNextMatchGuaranteed(curState);
+            } else if (typeof window.advanceCalendarDays === "function") {
+              window.advanceCalendarDays(3, true);
+            }
+            if (window.AFM_PlayerEngine) {
+              window.AFM_PlayerEngine.processWeeklyTraining(curState);
+            }
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          } else if (action === "advance_1day") {
+            if (typeof window.advanceDay === "function") {
+              window.advanceDay();
+            } else if (typeof window.advanceCalendarDays === "function") {
+              window.advanceCalendarDays(1, true);
+            }
+            if (window.AFM_PlayerEngine) {
+              window.AFM_PlayerEngine.processWeeklyTraining(curState);
+            }
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+          } else if (action === "play_live") {
+            if (typeof window.startLiveMatch === "function") {
+              const activeMatch =
+                typeof window.getActualCurrentMatch === "function"
+                  ? window.getActualCurrentMatch(curState)
+                  : null;
+              if (activeMatch && activeMatch.date) {
+                curState.date = activeMatch.date;
+                curState.currentDate = activeMatch.date;
+              }
+              window.startLiveMatch();
+            }
+          } else if (action === "play_quick") {
+            const activeMatch =
+              typeof window.getActualCurrentMatch === "function"
+                ? window.getActualCurrentMatch(curState)
+                : null;
+            if (activeMatch && activeMatch.date) {
+              curState.date = activeMatch.date;
+              curState.currentDate = activeMatch.date;
+            }
+            const eligibleAtKickoff =
+              window.AFM_PlayerEngine?.isPlayerAvailableForMatch?.(curState) ??
+              Number(curAthlete?.energy ?? curAthlete?.fitness ?? 100) >= 50;
+            if (typeof window.simulateQuickRound === "function") {
+              window.simulateQuickRound();
+            }
+            const pEng = window.AFM_PlayerEngine;
+            if (pEng) {
+              const trust = curPState?.managerTrust || 35;
+              const played = eligibleAtKickoff && trust >= 30;
+              const isStarter = played && trust >= 60;
+              const goals = played && Math.random() < 0.35 ? 1 : 0;
+              const assists = played && Math.random() < 0.25 ? 1 : 0;
+              const rating = played
+                ? Number(
+                    (6.0 + goals * 1.5 + assists * 0.8 + Math.random() * 1.2).toFixed(1),
+                  )
+                : 0;
+              const rep = pEng.processMatchPerformance(curState, {
+                goals,
+                assists,
+                rating,
+                played,
+                eligibleForMatch: eligibleAtKickoff,
+                status: eligibleAtKickoff
+                  ? "Reserva não utilizado"
+                  : "Não relacionado por condição física",
+                reason: eligibleAtKickoff
+                  ? undefined
+                  : "Condição abaixo de 50%; a partida foi simulada enquanto o atleta descansava.",
+                playedMinutes: isStarter ? 90 : played ? 30 : 0,
+              });
+              showPostMatchSummaryModal(curState, rep);
+            }
+          } else if (action === "goto_training") {
+            if (typeof window.setGameView === "function") window.setGameView("player_evolution");
+            else { window.view = "player_evolution"; curState.view = "player_evolution"; }
+            if (typeof window.render === "function") window.render();
+          } else if (action === "goto_social") {
+            if (typeof window.setGameView === "function") window.setGameView("player_social");
+            else { window.view = "player_social"; curState.view = "player_social"; }
+            if (typeof window.render === "function") window.render();
+          } else if (action === "goto_agent") {
+            if (typeof window.setGameView === "function") window.setGameView("player_agent");
+            else { window.view = "player_agent"; curState.view = "player_agent"; }
+            if (typeof window.render === "function") window.render();
+          } else if (action === "quick_physio") {
+            const cost = 150;
+            const curEnergy = Number(curAthlete?.energy ?? curAthlete?.fitness ?? 95);
+            if (curEnergy >= 100) {
+              showCustomAlert({
+                title: "Energia no Máximo!",
+                message: "Você já está com 100% de energia e fôlego pleno. Economize seu dinheiro para as partidas!",
+                type: "info",
+              });
+              return;
+            }
+            const curDate = String(curState.date || curState.currentDate || "2026-01-01").slice(0, 10);
+            if (curPState?.lastQuickPhysioDate === curDate) {
+              showCustomAlert({
+                title: "Sessão já Realizada",
+                message: "Você já realizou a sessão diária de fisioterapia hoje. O corpo precisa descansar para assimilar o tratamento!",
+                type: "warning",
+              });
+              return;
+            }
+            const ls = window.AFM_Lifestyle?.ensurePlayerLifestyleState(curPState) || curPState?.lifestyle;
+            const currentCash = Number(ls?.cash ?? curPState?.personalBank ?? curAthlete?.personalBank ?? 0);
+            if (currentCash < cost) {
+              showCustomAlert({
+                title: "Saldo Insuficiente",
+                message: `A sessão de fisioterapia custa R$ ${cost.toLocaleString("pt-BR")}, mas você possui apenas R$ ${currentCash.toLocaleString("pt-BR")}.`,
+                type: "warning",
+              });
+              return;
+            }
+            if (window.AFM_Lifestyle && typeof window.AFM_Lifestyle.addPlayerTransaction === "function") {
+              window.AFM_Lifestyle.addPlayerTransaction(curPState, curDate, "Sessão de Fisioterapia Pré-Jogo (+10% Físico)", cost, "out");
+            } else {
+              if (curPState) {
+                curPState.personalBank = Math.max(0, currentCash - cost);
+                if (curPState.lifestyle) curPState.lifestyle.cash = curPState.personalBank;
+              }
+              if (curAthlete) curAthlete.personalBank = curPState?.personalBank;
+            }
+            const newEnergy = Math.min(100, curEnergy + 10);
+            if (curAthlete) {
+              curAthlete.energy = newEnergy;
+              curAthlete.fitness = newEnergy;
+            }
+            if (curPState) curPState.lastQuickPhysioDate = curDate;
+
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
+            showCustomAlert({
+              title: "Tratamento Concluído! 💆",
+              message: `Sessão de fisioterapia realizada com sucesso!\n+10% de energia recuperada (Físico: ${newEnergy}%).\nCusto: R$ ${cost.toLocaleString("pt-BR")}.`,
+              type: "success",
+            });
+          }
+        }
+
+        const filterBtn = e.target.closest("[data-hub-news-filter]");
+        if (filterBtn) {
+          const filter = filterBtn.getAttribute("data-hub-news-filter") || "all";
+          window.__afmHubNewsFilter = filter;
+          document.querySelectorAll("[data-hub-news-filter]").forEach((el) => {
+            if (el.getAttribute("data-hub-news-filter") === filter) {
+              el.classList.add("active");
+            } else {
+              el.classList.remove("active");
+            }
+          });
+          document.querySelectorAll(".afm-hub-news-item").forEach((item) => {
+            const cat = item.getAttribute("data-news-category");
+            if (filter === "all" || cat === filter) {
+              item.style.display = "block";
+            } else {
+              item.style.display = "none";
+            }
+          });
+        }
+      });
+    }
 
     document.querySelectorAll(".btn-player-club-subtab").forEach((btn) => {
       btn.onclick = () => {
@@ -12621,6 +13293,8 @@
   // Exportação Global
   window.AFM_PlayerMode = {
     renderPage,
+    renderPlayerHub,
+    buildPlayerHubViewModel,
     renderPlayerEvolution,
     restorePlayerProfile,
     renderPlayerSocialMedia,
