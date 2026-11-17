@@ -25,6 +25,20 @@
           return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
         };
 
+  function resolvePlayerPosGroup(rawPos) {
+    if (window.AFM_PlayerEngine?.normalizePlayerPosGroup) {
+      return window.AFM_PlayerEngine.normalizePlayerPosGroup(rawPos);
+    }
+    const p = String(rawPos || "ATA").trim().toUpperCase();
+    if (["GOL", "GK", "GL", "GOAL"].includes(p)) return "GOL";
+    if (["ZAG", "CB", "DF", "ZG", "ZAGU"].includes(p)) return "ZAG";
+    if (["LAT", "LB", "RB", "LE", "LD", "LWB", "RWB"].includes(p)) return "LAT";
+    if (["VOL", "DM", "CDM", "CM", "MC", "MF"].includes(p)) return "VOL";
+    if (["MEI", "AM", "CAM", "LM", "RM", "ME", "MD"].includes(p)) return "MEI";
+    if (["PON", "LW", "RW", "PE", "PD"].includes(p)) return "PON";
+    return "ATA";
+  }
+
   function calculateAthleteInitialMarketValue(ovr, age) {
     if (window.AFM_PlayerEngine?.calculateAthleteInitialMarketValue) {
       return window.AFM_PlayerEngine.calculateAthleteInitialMarketValue(ovr, age);
@@ -215,8 +229,14 @@
           pState.appearance?.customFacePhoto ||
           pState.appearance?.facePhoto ||
           null,
-        wage: Number(pState.weeklySalary) || 0,
+        wage:
+          Number(
+            pState.salary ||
+              pState.wage ||
+              (pState.weeklySalary ? pState.weeklySalary * 4 : 1045),
+          ) || 1045,
         isControlled: true,
+        isControlledAthlete: true,
         club: state.club || "",
       };
       state.controlledPlayerId = id;
@@ -242,10 +262,17 @@
       return;
     athlete.ovr = engine.calculatePlayerOverall(
       engine.getPlayerEffectiveAttributes(state, athlete),
-      athlete.pos,
+      athlete.pos || athlete.position,
     );
     athlete.overall = athlete.ovr;
+    athlete.fc = athlete.ovr;
+    athlete.pes = athlete.ovr;
     state.playerCareerState.athleteOvr = athlete.ovr;
+    state.playerCareerState.overall = athlete.ovr;
+    if (state.player) {
+      state.player.ovr = athlete.ovr;
+      state.player.overall = athlete.ovr;
+    }
   }
 
   function getCareerState(state) {
@@ -322,7 +349,7 @@
     window.AFM_PlayerEngine?.normalizePlayerProgression?.(pState);
     pState.weeklyTrainingFocus =
       pState.weeklyTrainingFocus ||
-      ((athlete?.pos === "GOL" || athlete?.position === "GOL")
+      (resolvePlayerPosGroup(athlete?.pos || athlete?.position) === "GOL"
         ? "gk_reflexes"
         : "finalizacao");
     // Migração idempotente: se o save estava no nível 1 com 0 XP e ainda tinha pontos livres
@@ -941,9 +968,9 @@
     const marketValueText = formatPlayerMarketValueShort(athlete);
 
     // Metas do Treinador (Match Objectives) contextuais por posição
-    const pos = String(athlete.pos || athlete.position || "ATA").toUpperCase();
+    const posGroup = resolvePlayerPosGroup(athlete.pos || athlete.position || "ATA");
     let objectives = [];
-    if (pos === "GOL") {
+    if (posGroup === "GOL") {
       objectives = [
         {
           text: "Manter a Baliza Inviolada (Clean Sheet)",
@@ -961,7 +988,7 @@
           icon: "🛑",
         },
       ];
-    } else if (["ZAG", "LE", "LD"].includes(pos)) {
+    } else if (posGroup === "ZAG" || posGroup === "LAT") {
       objectives = [
         {
           text: "Nota defensiva e tática 6.8+",
@@ -979,7 +1006,7 @@
           icon: "⚔️",
         },
       ];
-    } else if (["MC", "MEI", "VOL", "ME", "MD"].includes(pos)) {
+    } else if (posGroup === "VOL" || posGroup === "MEI") {
       objectives = [
         {
           text: "Nota de meio-campo 6.8+",
@@ -1633,46 +1660,43 @@
       }
     ],
 
-    recalculateOvr: function (athlete) {
+    recalculateOvr: function (athlete, state) {
       if (!athlete) return 35;
-      const attrs = athlete.attributes || {};
-      const v = Math.min(99, Math.max(1, Number(attrs.vel ?? attrs.pace) || 35));
-      const c = Math.min(99, Math.max(1, Number(attrs.chu ?? attrs.shooting) || 35));
-      const p = Math.min(99, Math.max(1, Number(attrs.pas ?? attrs.passing) || 35));
-      const d = Math.min(99, Math.max(1, Number(attrs.dri ?? attrs.dribbling) || 35));
-      const df = Math.min(99, Math.max(1, Number(attrs.def ?? attrs.defending) || 35));
-      const f = Math.min(99, Math.max(1, Number(attrs.fis ?? attrs.physical) || 35));
+      const effAttrs =
+        state && window.AFM_PlayerEngine?.getPlayerEffectiveAttributes
+          ? window.AFM_PlayerEngine.getPlayerEffectiveAttributes(state, athlete)
+          : athlete.attributes || {};
+      const v = Math.min(99, Math.max(1, Number(effAttrs.vel ?? effAttrs.pace) || 35));
+      const c = Math.min(99, Math.max(1, Number(effAttrs.chu ?? effAttrs.shooting) || 35));
+      const p = Math.min(99, Math.max(1, Number(effAttrs.pas ?? effAttrs.passing) || 35));
+      const d = Math.min(99, Math.max(1, Number(effAttrs.dri ?? effAttrs.dribbling) || 35));
+      const df = Math.min(99, Math.max(1, Number(effAttrs.def ?? effAttrs.defending) || 35));
+      const f = Math.min(99, Math.max(1, Number(effAttrs.fis ?? effAttrs.physical) || 35));
 
-      const pos = (athlete.pos || athlete.position || "ATA").toUpperCase();
-      let ovr = 35;
-      switch (pos) {
-        case "GOL":
-          ovr = Math.round(df * 0.45 + f * 0.35 + p * 0.20);
-          break;
-        case "ZAG":
-          ovr = Math.round(df * 0.45 + f * 0.35 + v * 0.12 + p * 0.08);
-          break;
-        case "LAT":
-          ovr = Math.round(v * 0.30 + df * 0.25 + p * 0.25 + d * 0.20);
-          break;
-        case "VOL":
-          ovr = Math.round(df * 0.35 + p * 0.30 + f * 0.25 + d * 0.10);
-          break;
-        case "MEI":
-          ovr = Math.round(p * 0.40 + d * 0.30 + c * 0.20 + v * 0.10);
-          break;
-        case "PON":
-          ovr = Math.round(v * 0.40 + d * 0.35 + c * 0.15 + p * 0.10);
-          break;
-        case "ATA":
-          ovr = Math.round(c * 0.45 + d * 0.20 + v * 0.20 + f * 0.15);
-          break;
-        default:
-          ovr = Math.round((v + c + p + d + df + f) / 6);
+      const rawPos = athlete.pos || athlete.position || "ATA";
+      let ovr;
+      if (window.AFM_PlayerEngine?.calculatePlayerOverall) {
+        ovr = window.AFM_PlayerEngine.calculatePlayerOverall(
+          { vel: v, chu: c, pas: p, dri: d, def: df, fis: f },
+          rawPos,
+        );
+      } else {
+        const group = resolvePlayerPosGroup(rawPos);
+        let w = { v: 0.16, c: 0.16, p: 0.16, d: 0.16, df: 0.16, f: 0.20 };
+        if (group === "ATA") w = { v: 0.22, c: 0.34, p: 0.10, d: 0.18, df: 0.04, f: 0.12 };
+        else if (group === "PON") w = { v: 0.32, c: 0.20, p: 0.16, d: 0.24, df: 0.03, f: 0.05 };
+        else if (group === "MEI") w = { v: 0.14, c: 0.16, p: 0.34, d: 0.24, df: 0.04, f: 0.08 };
+        else if (group === "VOL") w = { v: 0.14, c: 0.08, p: 0.24, d: 0.14, df: 0.26, f: 0.14 };
+        else if (group === "LAT") w = { v: 0.28, c: 0.08, p: 0.20, d: 0.18, df: 0.16, f: 0.10 };
+        else if (group === "ZAG") w = { v: 0.16, c: 0.04, p: 0.12, d: 0.08, df: 0.36, f: 0.24 };
+        else if (group === "GOL") w = { v: 0.05, c: 0.02, p: 0.15, d: 0.05, df: 0.45, f: 0.28 };
+        ovr = Math.round(v * w.v + c * w.c + p * w.p + d * w.d + df * w.df + f * w.f);
       }
       ovr = Math.min(99, Math.max(1, ovr));
       athlete.ovr = ovr;
       athlete.overall = ovr;
+      athlete.fc = ovr;
+      athlete.pes = ovr;
       return ovr;
     },
 
@@ -1690,6 +1714,9 @@
       const athlete = getControlledPlayer(state) || { ovr: 45, wage: 1500, attributes: {} };
       if (!pState || !athlete) return null;
 
+      if ((!athlete.attributes || Object.keys(athlete.attributes).length === 0) && pState.attributes && Object.keys(pState.attributes).length > 0) {
+        athlete.attributes = pState.attributes;
+      }
       athlete.attributes = athlete.attributes || {};
       const pairs = [
         ["vel", "pace"],
@@ -1708,9 +1735,15 @@
         athlete.attributes[en] = val;
       });
 
-      const ovr = AFM_PLAYER_EVOLUTION.recalculateOvr(athlete);
+      pState.attributes = athlete.attributes;
+      const ovr = AFM_PLAYER_EVOLUTION.recalculateOvr(athlete, state);
       pState.athleteOvr = ovr;
       pState.overall = ovr;
+      if (state.player) {
+        state.player.ovr = ovr;
+        state.player.overall = ovr;
+        state.player.attributes = athlete.attributes;
+      }
 
       // Sincronização da trava diária via calendário interno do jogo
       const curDate = state.date || state.currentDate || "2026-01-01";
@@ -1742,9 +1775,10 @@
       athlete.fitness = athlete.energy;
       pState.energy = athlete.energy;
 
-      // Foco semanal padrão com suporte a goleiros
-      if (!pState.weeklyTrainingFocus || ((athlete.pos === "GOL" || athlete.position === "GOL") && pState.weeklyTrainingFocus === "finalizacao")) {
-        pState.weeklyTrainingFocus = (athlete.pos === "GOL" || athlete.position === "GOL") ? "gk_reflexes" : "finalizacao";
+      // Foco semanal padrão com suporte a goleiros (GOL / GK)
+      const isGk = resolvePlayerPosGroup(athlete.pos || athlete.position) === "GOL";
+      if (!pState.weeklyTrainingFocus || (isGk && pState.weeklyTrainingFocus === "finalizacao")) {
+        pState.weeklyTrainingFocus = isGk ? "gk_reflexes" : "finalizacao";
       }
 
       // Desafios mensais do técnico
@@ -1752,7 +1786,7 @@
         pState.monthlyCoachObjectives = [
           { id: "obj_train_ct", title: "Dedicação no CT", desc: "Realizar 6 treinamentos práticos em campo", target: 6, current: 0, xp: 150, completed: false, claimed: false },
           { id: "obj_maintain_stamina", title: "Atleta Exemplar", desc: "Manter energia e fôlego acima de 75%", target: 75, current: athlete.energy, xp: 100, completed: athlete.energy >= 75, claimed: false },
-          { id: "obj_upgrade_skill", title: "Foco no Domínio", desc: "Elevar atributo principal (" + (athlete.pos === 'GOL' ? 'Defesa' : 'Chute') + ")", target: 1, current: 0, xp: 200, completed: false, claimed: false }
+          { id: "obj_upgrade_skill", title: "Foco no Domínio", desc: "Elevar atributo principal (" + (isGk ? 'Defesa' : 'Chute') + ")", target: 1, current: 0, xp: 200, completed: false, claimed: false }
         ];
       }
 
@@ -1875,6 +1909,10 @@
     },
 
     generateFutCardHtml: function (athlete, state) {
+      const effAttrs =
+        state && window.AFM_PlayerEngine?.getPlayerEffectiveAttributes
+          ? window.AFM_PlayerEngine.getPlayerEffectiveAttributes(state, athlete)
+          : athlete.attributes || {};
       const ovr = Number(athlete.ovr || athlete.overall) || 35;
       let tierClass = "fut-card-bronze";
       let tierName = "Bronze";
@@ -1883,17 +1921,21 @@
       else if (ovr >= 75) { tierClass = "fut-card-gold"; tierName = "Ouro"; }
       else if (ovr >= 65) { tierClass = "fut-card-silver"; tierName = "Prata"; }
 
-      const attrs = athlete.attributes || {};
-      const v = Math.min(99, Math.max(1, Number(attrs.vel ?? attrs.pace) || 35));
-      const c = Math.min(99, Math.max(1, Number(attrs.chu ?? attrs.shooting) || 35));
-      const p = Math.min(99, Math.max(1, Number(attrs.pas ?? attrs.passing) || 35));
-      const d = Math.min(99, Math.max(1, Number(attrs.dri ?? attrs.dribbling) || 35));
-      const df = Math.min(99, Math.max(1, Number(attrs.def ?? attrs.defending) || 35));
-      const f = Math.min(99, Math.max(1, Number(attrs.fis ?? attrs.physical) || 35));
+      const v = Math.min(99, Math.max(1, Number(effAttrs.vel ?? effAttrs.pace) || 35));
+      const c = Math.min(99, Math.max(1, Number(effAttrs.chu ?? effAttrs.shooting) || 35));
+      const p = Math.min(99, Math.max(1, Number(effAttrs.pas ?? effAttrs.passing) || 35));
+      const d = Math.min(99, Math.max(1, Number(effAttrs.dri ?? effAttrs.dribbling) || 35));
+      const df = Math.min(99, Math.max(1, Number(effAttrs.def ?? effAttrs.defending) || 35));
+      const f = Math.min(99, Math.max(1, Number(effAttrs.fis ?? effAttrs.physical) || 35));
 
-      const photoUri = (typeof window.generateYoungAthletePortraitUri === 'function' && state?.playerCareerState?.appearance)
-        ? window.generateYoungAthletePortraitUri(state.playerCareerState.appearance, { width: 96, height: 96 })
-        : (athlete.photo || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><circle cx='48' cy='36' r='20' fill='%23a855f7'/><ellipse cx='48' cy='80' rx='32' ry='22' fill='%236366f1'/></svg>");
+      const appCfg = state?.playerCareerState?.appearance;
+      const shirtNumber = Number(athlete.number || state?.playerCareerState?.shirtNumber || appCfg?.shirtNumber) || 10;
+      const customPhoto = appCfg?.customFacePhoto || athlete.customFacePhoto || null;
+      const photoUri = customPhoto
+        ? customPhoto
+        : (typeof window.generateYoungAthletePortraitUri === "function" && appCfg && Object.keys(appCfg).length > 0)
+          ? window.generateYoungAthletePortraitUri({ appearance: appCfg, shirtNumber })
+          : (athlete.photo || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><circle cx='48' cy='36' r='20' fill='%23a855f7'/><ellipse cx='48' cy='80' rx='32' ry='22' fill='%236366f1'/></svg>");
 
       const pos = (athlete.pos || athlete.position || "ATA").toUpperCase();
       const name = athlete.nickname || athlete.name || "Atleta";
@@ -2131,9 +2173,10 @@
     const sp = Math.max(0, (pState.skillPoints || 0) - pendingTotal);
     const xpPercent = Math.min(100, Math.round(((pState.xp || 0) / (pState.xpToNextLevel || 400)) * 100));
 
-    // Opções de treino (com foco específico para goleiros)
+    // Opções de treino (com foco específico para goleiros GOL / GK)
+    const isGkPos = resolvePlayerPosGroup(athlete.pos || athlete.position) === "GOL";
     const trainingOptions = [
-      ...(athlete.pos === "GOL" || athlete.position === "GOL"
+      ...(isGkPos
         ? [{ id: "gk_reflexes", label: "Reflexos & Defesas Difíceis", icon: "🧤", desc: "Foco em tempo de reação, posicionamento e segurança na trave" }]
         : [{ id: "finalizacao", label: "Finalização & Chutes", icon: "🎯", desc: "Foco em pontaria, chutes colocados e frieza" }]),
       { id: "passe", label: "Passe & Criação", icon: "📐", desc: "Foco em lançamentos, visão e passes curtos" },
@@ -2424,7 +2467,7 @@
               ${AFM_PLAYER_EVOLUTION.PLAYSTYLES_CATALOG.map(ps => {
                 const isEquipped = equippedStyles.includes(ps.id);
                 const attrVal = Number(athlete.attributes?.[ps.reqAttr] ?? attrs[ps.reqAttr]) || 35;
-                const isUnlocked = attrVal >= ps.reqVal || (athlete.pos === 'GOL' && ps.id === 'muralha');
+                const isUnlocked = attrVal >= ps.reqVal || (isGkPos && ps.id === 'muralha');
                 return `
                   <div style="background:${isEquipped ? 'rgba(124,58,237,0.25)' : '#090d16'};border:1.5px solid ${isEquipped ? '#a855f7' : (isUnlocked ? '#334155' : '#1e293b')};border-radius:10px;padding:10px;display:flex;flex-direction:column;justify-content:space-between;gap:6px">
                     <div style="display:flex;align-items:center;gap:6px">
@@ -4826,7 +4869,7 @@
                 </div>
                 <h2 style="margin:2px 0 6px 0;font-size:22px;font-weight:900;color:#fff;display:flex;align-items:center;gap:10px">
                   ${esc(athlete?.name || "Seu Craque")} 
-                  <span style="font-size:12px;color:#38bdf8;background:rgba(56,189,248,0.15);padding:3px 10px;border-radius:8px;border:1px solid rgba(56,189,248,0.3)">#${athlete?.num || 10} • ${athlete?.pos || "ATA"}</span>
+                  <span style="font-size:12px;color:#38bdf8;background:rgba(56,189,248,0.15);padding:3px 10px;border-radius:8px;border:1px solid rgba(56,189,248,0.3)">#${athlete?.number || athlete?.num || pState?.shirtNumber || 10} • ${athlete?.pos || "ATA"}</span>
                 </h2>
                 <div style="font-size:13px;color:#cbd5e1;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                   <span>Defendendo as cores do: <b style="color:#fff">${esc(currentClub)}</b></span>
@@ -8809,10 +8852,17 @@
         pState.availablePoints = pState.skillPoints;
         pState.pendingAttributePoints = {};
 
-        // Recálculo do OVR ponderado por posição
-        const newOvr = AFM_PLAYER_EVOLUTION.recalculateOvr(athlete);
+        // Recálculo do OVR ponderado por posição (usando atributos efetivos unificados)
+        pState.attributes = athlete.attributes;
+        const newOvr = AFM_PLAYER_EVOLUTION.recalculateOvr(athlete, s);
         pState.athleteOvr = newOvr;
         pState.overall = newOvr;
+        if (s.player) {
+          s.player.ovr = newOvr;
+          s.player.overall = newOvr;
+          s.player.attributes = athlete.attributes;
+          s.player.attributePoints = pState.skillPoints;
+        }
 
         // Atualização imediata do OVR no topo (DOM)
         const strengthValEl = document.querySelector(".sm-badge-strength .sm-res-val");

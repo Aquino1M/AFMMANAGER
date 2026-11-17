@@ -297,9 +297,13 @@
     },
   ];
 
-  // =========================================================================
-  // 4. HELPER DE RESOLUÇÃO DE CONTEXTO DO SAVE
-  // =========================================================================
+  // Mapeia o bônus da chuteira inicial escolhida no Criador 3D para boots_basic (sem duplicar nem perder o +1)
+  function getStarterBootBonusStats(starterBootId) {
+    if (starterBootId === "boot_classic") return { passing: 1, pas: 1 };
+    if (starterBootId === "boot_crimson") return { shooting: 1, chu: 1 };
+    if (starterBootId === "boot_royal") return { dribbling: 1, dri: 1 };
+    return { pace: 1, vel: 1 };
+  }
   function resolveContext(target) {
     const defaultState =
       typeof window !== "undefined" && window.state ? window.state : {};
@@ -1756,6 +1760,7 @@
     AFM_BOOTS_CATALOG,
     AFM_STAFF_CATALOG,
     AFM_ASSETS_CATALOG,
+    getStarterBootBonusStats,
     resolveContext,
     ensurePlayerLifestyleState,
     getPlayerTotalPatrimony,

@@ -258,61 +258,148 @@
     },
   };
 
-  // Arquétipos e atributos base CALIBRADOS PARA OVERALL ~35 (Início humilde aos 15 anos)
+  // Arquétipos e atributos base CALIBRADOS PARA OVERALL ~35-42 (Sincronizados 1:1 com window.AFM_CREATOR_CATALOG + aliases legados)
   const ARCHETYPES = {
+    // 21 Arquétipos Oficiais do Criador 3D (3 por posição)
+    gk_reflex: { name: "Goleiro de Reflexo", description: "Defesas à queima-roupa e especialista em pênaltis.", pos: "GOL", attrs: { vel: 32, chu: 22, pas: 34, dri: 30, def: 42, fis: 38 } },
+    gk_sweeper: { name: "Goleiro-Líbero", description: "Sai bem do gol e inicia contra-ataques rápidos.", pos: "GOL", attrs: { vel: 36, chu: 25, pas: 40, dri: 35, def: 39, fis: 36 } },
+    gk_wall: { name: "Muralha Aérea", description: "Domina cruzamentos e bolas paradas na área.", pos: "GOL", attrs: { vel: 29, chu: 22, pas: 32, dri: 28, def: 41, fis: 44 } },
+    cb_stopper: { name: "Xerife de Contenção", description: "Marcação implacável, desarme firme e jogo aéreo.", pos: "ZAG", attrs: { vel: 33, chu: 25, pas: 31, dri: 30, def: 41, fis: 42 } },
+    cb_ballplaying: { name: "Zagueiro Construtor", description: "Saída de bola limpa e passes longos precisos.", pos: "ZAG", attrs: { vel: 35, chu: 27, pas: 39, dri: 35, def: 39, fis: 37 } },
+    cb_fast: { name: "Zagueiro de Cobertura", description: "Velocidade alta para recuperar bolas nas costas.", pos: "ZAG", attrs: { vel: 40, chu: 24, pas: 33, dri: 33, def: 39, fis: 38 } },
+    fb_offensive: { name: "Ala Ofensivo", description: "Apoia o ataque com velocidade, dribles e cruzamentos.", pos: "LAT", attrs: { vel: 41, chu: 31, pas: 37, dri: 38, def: 34, fis: 34 } },
+    fb_defensive: { name: "Lateral Defensivo", description: "Fecha o corredor e neutraliza pontas rápidos.", pos: "LAT", attrs: { vel: 37, chu: 27, pas: 34, dri: 33, def: 40, fis: 38 } },
+    fb_inverted: { name: "Lateral Construtor", description: "Entra por dentro para armar o jogo no meio-campo.", pos: "LAT", attrs: { vel: 36, chu: 30, pas: 40, dri: 38, def: 36, fis: 34 } },
+    cdm_destroyer: { name: "Cão de Guarda", description: "Interceptações, desarmes e proteção total à zaga.", pos: "VOL", attrs: { vel: 34, chu: 28, pas: 35, dri: 33, def: 41, fis: 41 } },
+    cdm_regista: { name: "Primeiro Volante Armador", description: "Dita o ritmo do jogo com lançamentos e visão.", pos: "VOL", attrs: { vel: 33, chu: 31, pas: 42, dri: 37, def: 37, fis: 35 } },
+    cdm_box: { name: "Volante Box-to-Box", description: "Fôlego incansável para defender e pisar na área.", pos: "VOL", attrs: { vel: 37, chu: 34, pas: 37, dri: 36, def: 37, fis: 39 } },
+    cam_maestro: { name: "Camisa 10 Clássico", description: "Passes decisivos, visão de jogo e bolas paradas.", pos: "MEI", attrs: { vel: 34, chu: 37, pas: 43, dri: 41, def: 26, fis: 31 } },
+    cam_shadow: { name: "Segundo Atacante", description: "Infiltra na área para finalizar e criar tabelas.", pos: "MEI", attrs: { vel: 38, chu: 40, pas: 37, dri: 40, def: 25, fis: 32 } },
+    cam_dribbler: { name: "Meia Driblador", description: "Quebra linhas no 1x1 com agilidade e condução curta.", pos: "MEI", attrs: { vel: 39, chu: 35, pas: 38, dri: 44, def: 25, fis: 30 } },
+    rw_speedster: { name: "Ponta Velocista", description: "Explosão pura na linha de fundo e contra-ataques letais.", pos: "PON", attrs: { vel: 44, chu: 36, pas: 35, dri: 41, def: 24, fis: 31 } },
+    rw_inside: { name: "Ponta Corta-pra-Dentro", description: "Corta para o pé bom e busca finalizações colocadas.", pos: "PON", attrs: { vel: 40, chu: 41, pas: 36, dri: 42, def: 24, fis: 31 } },
+    rw_playmaker: { name: "Ponta Criador", description: "Especialista em assistências, cruzamentos e drible curto.", pos: "PON", attrs: { vel: 39, chu: 35, pas: 41, dri: 42, def: 26, fis: 30 } },
+    st_poacher: { name: "Matador de Área", description: "Faro de gol, posicionamento e finalização letal.", pos: "ATA", attrs: { vel: 37, chu: 43, pas: 32, dri: 37, def: 22, fis: 38 } },
+    st_false9: { name: "Falso 9 Técnico", description: "Recua para armar jogadas, driblar e servir os pontas.", pos: "ATA", attrs: { vel: 37, chu: 38, pas: 40, dri: 42, def: 24, fis: 33 } },
+    st_target: { name: "Centroavante Pivô", description: "Força física, jogo aéreo dominante e proteção de bola.", pos: "ATA", attrs: { vel: 33, chu: 41, pas: 33, dri: 33, def: 23, fis: 44 } },
+    // Aliases legados
     finalizador: {
       name: "Finalizador Letal",
       description:
         "Oportunista dentro da área, pontaria calibrada e frieza no mano a mano.",
       pos: "ATA",
-      attrs: { vel: 34, chu: 38, pas: 28, dri: 32, def: 18, fis: 30 }, // OVR ~35
+      attrs: { vel: 34, chu: 38, pas: 28, dri: 32, def: 18, fis: 30 },
     },
     maestro: {
       name: "Maestro / Camisa 10",
       description:
         "Visão de jogo periférica, lançamentos cirúrgicos e controle de ritmo.",
       pos: "MEI",
-      attrs: { vel: 30, chu: 30, pas: 40, dri: 36, def: 22, fis: 26 }, // OVR ~35
+      attrs: { vel: 30, chu: 30, pas: 40, dri: 36, def: 22, fis: 26 },
     },
     velocista: {
       name: "Velocista / Ponta Agudo",
       description:
         "Arranque explosivo nas pontas, drible em velocidade e cruzamentos venenosos.",
       pos: "PON",
-      attrs: { vel: 40, chu: 30, pas: 28, dri: 36, def: 18, fis: 26 }, // OVR ~35
+      attrs: { vel: 40, chu: 30, pas: 28, dri: 36, def: 18, fis: 26 },
     },
     xerife: {
       name: "Zagueiro Xerife",
       description:
         "Imposição física, antecipação implacável e liderança na linha de defesa.",
       pos: "ZAG",
-      attrs: { vel: 28, chu: 18, pas: 24, dri: 20, def: 40, fis: 38 }, // OVR ~35
+      attrs: { vel: 28, chu: 18, pas: 24, dri: 20, def: 40, fis: 38 },
     },
     motorzinho: {
       name: "Volante Box-to-Box",
       description:
         "Fôlego inesgotável, desarme limpo e chegada surpresa no ataque.",
       pos: "VOL",
-      attrs: { vel: 32, chu: 26, pas: 34, dri: 30, def: 38, fis: 38 }, // OVR ~35
+      attrs: { vel: 32, chu: 26, pas: 34, dri: 30, def: 38, fis: 38 },
     },
     lateral_ofensivo: {
       name: "Lateral Moderno",
       description:
         "Apoio constante pelas alas, cruzamentos precisos e recomposição veloz.",
       pos: "LAT",
-      attrs: { vel: 38, chu: 24, pas: 32, dri: 34, def: 32, fis: 30 }, // OVR ~35
+      attrs: { vel: 38, chu: 24, pas: 32, dri: 34, def: 32, fis: 30 },
     },
     muralha: {
       name: "Goleiro Paredão",
       description:
         "Reflexos debaixo das traves e segurança nas saídas pelo alto.",
       pos: "GOL",
-      attrs: { vel: 26, chu: 18, pas: 26, dri: 18, def: 42, fis: 36 }, // OVR ~35
+      attrs: { vel: 26, chu: 18, pas: 26, dri: 18, def: 42, fis: 36 },
     },
   };
 
-  // Os 3 Tipos de Peneira Inicial
+  // Níveis de Peneira Inicial (4 níveis do Criador 3D + 3 aliases legados)
   const PENEIRA_TIERS = {
+    varzea_local: {
+      id: "varzea_local",
+      name: "Peneira de Várzea & Clube Local",
+      subtitle: "Clubes Estaduais / Série D",
+      description: "Teste aberto na sua cidade natal com alta chance de aprovação.",
+      approvalBaseChance: 0.9,
+      wageRange: [950, 1350],
+      initialTrust: 45,
+      defaultRole: "Reserva Imediato",
+      badgeClass: "good",
+      difficultyBadge: "Fácil · Base Regional",
+      difficultyColor: "#10b981",
+      icon: "🏘️",
+      scoutCommentSuccess: "Aprovado com louvor! O treinador viu potencial para ser lapidado na equipe principal rapidamente.",
+      scoutCommentFail: "O teste foi equilibrado, mas o clube tem poucas vagas para alojamento neste semestre.",
+    },
+    estadual_federada: {
+      id: "estadual_federada",
+      name: "Peneira Federada Estadual",
+      subtitle: "1ª Divisão Estadual & Série D",
+      description: "Olheiros de clubes tradicionais do seu estado acompanham o coletivo.",
+      approvalBaseChance: 0.7,
+      wageRange: [1400, 2400],
+      initialTrust: 40,
+      defaultRole: "Reserva Imediato",
+      badgeClass: "good",
+      difficultyBadge: "Moderada · Vitrine Estadual",
+      difficultyColor: "#38bdf8",
+      icon: "🏟️",
+      scoutCommentSuccess: "Excelente atuação na vitrine estadual! Você garantiu contrato profissional.",
+      scoutCommentFail: "Boa tentativa, mas faltou regularidade durante os 30 minutos.",
+    },
+    nacional_cb: {
+      id: "nacional_cb",
+      name: "Seletiva Nacional Séries C & B",
+      subtitle: "Clubes Nacionais (Séries C e B)",
+      description: "Peneira disputada com jovens promessas de todo o país.",
+      approvalBaseChance: 0.5,
+      wageRange: [2800, 5200],
+      initialTrust: 35,
+      defaultRole: "Reserva (2º Tempo)",
+      badgeClass: "warning",
+      difficultyBadge: "Difícil · Séries C e B",
+      difficultyColor: "#f59e0b",
+      icon: "⭐",
+      scoutCommentSuccess: "Atuação decisiva! Você conquistou vaga em um clube de divisão nacional.",
+      scoutCommentFail: "Faltou ritmo contra atletas mais velhos. Tente uma vitrine regional.",
+    },
+    elite_serie_a: {
+      id: "elite_serie_a",
+      name: "Peneira de Gigantes (Série A)",
+      subtitle: "Clubes da Elite Nacional",
+      description: "Apenas os melhores talentos passam para a base de um gigante do Brasil.",
+      approvalBaseChance: 0.25,
+      wageRange: [6000, 12000],
+      initialTrust: 25,
+      defaultRole: "Aspirante / Sub-20",
+      badgeClass: "danger",
+      difficultyBadge: "Extrema · Gigantes da Série A",
+      difficultyColor: "#ef4444",
+      icon: "🔥",
+      scoutCommentSuccess: "Sensacional! Entre centenas de garotos, você encheu os olhos do coordenador da base.",
+      scoutCommentFail: "Concorrência feroz na Série A. Uma passagem por divisão regional ajudará na maturação.",
+    },
     basica: {
       id: "basica",
       name: "Peneira Básica / Regional",
@@ -1344,35 +1431,76 @@
   ];
 
   /**
-   * Calcula o Overall médio a partir dos 6 atributos
+   * Normaliza qualquer código de posição (PT ou EN tático: ATA/ST/CF, GOL/GK, ZAG/CB, LAT/LB/RB, VOL/DM/CM, MEI/AM, PON/LW/RW)
+   * para um dos 7 grupos posicionais canônicos do Modo Jogador.
+   */
+  function normalizePlayerPosGroup(rawPos) {
+    const p = String(rawPos || "ATA").trim().toUpperCase();
+    if (["GOL", "GK", "GL", "GOAL"].includes(p)) return "GOL";
+    if (["ZAG", "CB", "DF", "ZG", "ZAGU"].includes(p)) return "ZAG";
+    if (["LAT", "LB", "RB", "LE", "LD", "LWB", "RWB"].includes(p)) return "LAT";
+    if (["VOL", "DM", "CDM", "CM", "MC", "MF"].includes(p)) return "VOL";
+    if (["MEI", "AM", "CAM", "LM", "RM", "ME", "MD"].includes(p)) return "MEI";
+    if (["PON", "LW", "RW", "PE", "PD"].includes(p)) return "PON";
+    return "ATA"; // ATA, ST, CF, CA, SA, FW
+  }
+
+  /**
+   * Sincroniza bidirecionalmente todas as 6 chaves de atributos PT <-> EN com clamp [1, 99]
+   */
+  function syncBidirectionalAttributes(attrs, fallbackVal = 35) {
+    const target = attrs && typeof attrs === "object" ? attrs : {};
+    const pairs = [
+      ["vel", "pace"],
+      ["chu", "shooting"],
+      ["pas", "passing"],
+      ["dri", "dribbling"],
+      ["def", "defending"],
+      ["fis", "physical"],
+    ];
+    pairs.forEach(([pt, en]) => {
+      let raw = target[pt] !== undefined ? target[pt] : target[en];
+      if (raw === undefined || raw === null || !Number.isFinite(Number(raw))) {
+        raw = fallbackVal;
+      }
+      const clamped = Math.min(99, Math.max(1, Math.round(Number(raw))));
+      target[pt] = clamped;
+      target[en] = clamped;
+    });
+    return target;
+  }
+
+  /**
+   * Fórmula Oficial Única de Overall Ponderado por Posição (100% idêntica entre Criador 3D, Motor, Evolução e Save)
    */
   function calculatePlayerOverall(attrs, pos) {
     if (!attrs) return 35;
-    const v = Number(attrs.vel ?? attrs.pace) || 35;
-    const c = Number(attrs.chu ?? attrs.shooting) || 35;
-    const p = Number(attrs.pas ?? attrs.passing) || 35;
-    const d = Number(attrs.dri ?? attrs.dribbling) || 35;
-    const df = Number(attrs.def ?? attrs.defending) || 35;
-    const f = Number(attrs.fis ?? attrs.physical) || 35;
+    const v = Math.min(99, Math.max(1, Number(attrs.vel ?? attrs.pace) || 35));
+    const c = Math.min(99, Math.max(1, Number(attrs.chu ?? attrs.shooting) || 35));
+    const p = Math.min(99, Math.max(1, Number(attrs.pas ?? attrs.passing) || 35));
+    const d = Math.min(99, Math.max(1, Number(attrs.dri ?? attrs.dribbling) || 35));
+    const df = Math.min(99, Math.max(1, Number(attrs.def ?? attrs.defending) || 35));
+    const f = Math.min(99, Math.max(1, Number(attrs.fis ?? attrs.physical) || 35));
 
-    switch ((pos || "ATA").toUpperCase()) {
-      case "GOL":
-        return Math.round(df * 0.45 + f * 0.35 + p * 0.2);
-      case "ZAG":
-        return Math.round(df * 0.45 + f * 0.35 + v * 0.12 + p * 0.08);
-      case "LAT":
-        return Math.round(v * 0.3 + df * 0.25 + p * 0.25 + d * 0.2);
-      case "VOL":
-        return Math.round(df * 0.35 + p * 0.3 + f * 0.25 + d * 0.1);
-      case "MEI":
-        return Math.round(p * 0.4 + d * 0.3 + c * 0.2 + v * 0.1);
-      case "PON":
-        return Math.round(v * 0.4 + d * 0.35 + c * 0.15 + p * 0.1);
-      case "ATA":
-        return Math.round(c * 0.45 + d * 0.2 + v * 0.2 + f * 0.15);
-      default:
-        return Math.round((v + c + p + d + df + f) / 6);
-    }
+    const group = normalizePlayerPosGroup(pos);
+    let weights = { v: 0.16, c: 0.16, p: 0.16, d: 0.16, df: 0.16, f: 0.20 };
+    if (group === "ATA") weights = { v: 0.22, c: 0.34, p: 0.10, d: 0.18, df: 0.04, f: 0.12 };
+    else if (group === "PON") weights = { v: 0.32, c: 0.20, p: 0.16, d: 0.24, df: 0.03, f: 0.05 };
+    else if (group === "MEI") weights = { v: 0.14, c: 0.16, p: 0.34, d: 0.24, df: 0.04, f: 0.08 };
+    else if (group === "VOL") weights = { v: 0.14, c: 0.08, p: 0.24, d: 0.14, df: 0.26, f: 0.14 };
+    else if (group === "LAT") weights = { v: 0.28, c: 0.08, p: 0.20, d: 0.18, df: 0.16, f: 0.10 };
+    else if (group === "ZAG") weights = { v: 0.16, c: 0.04, p: 0.12, d: 0.08, df: 0.36, f: 0.24 };
+    else if (group === "GOL") weights = { v: 0.05, c: 0.02, p: 0.15, d: 0.05, df: 0.45, f: 0.28 };
+
+    const ovr = Math.round(
+      v * weights.v +
+      c * weights.c +
+      p * weights.p +
+      d * weights.d +
+      df * weights.df +
+      f * weights.f
+    );
+    return Math.min(99, Math.max(1, ovr));
   }
 
   function getSponsorBootBonus(sponsor) {
@@ -1526,31 +1654,32 @@
       if (bootData.durability > 0) {
         const catalog = window.AFM_Lifestyle?.AFM_BOOTS_CATALOG || [];
         const boot = catalog.find((b) => b.id === ls.equippedBootsId);
-        if (boot && boot.stats) {
-          const p = boot.stats.pace || boot.stats.vel || 0;
-          const s = boot.stats.shooting || boot.stats.chu || 0;
-          const ps = boot.stats.passing || boot.stats.pas || 0;
-          const d = boot.stats.dribbling || boot.stats.dri || 0;
-          if (p)
-            attrs.vel = Math.min(
-              99,
-              Math.max(1, (Number(attrs.vel) || 35) + p),
-            );
-          if (s)
-            attrs.chu = Math.min(
-              99,
-              Math.max(1, (Number(attrs.chu) || 35) + s),
-            );
-          if (ps)
-            attrs.pas = Math.min(
-              99,
-              Math.max(1, (Number(attrs.pas) || 35) + ps),
-            );
-          if (d)
-            attrs.dri = Math.min(
-              99,
-              Math.max(1, (Number(attrs.dri) || 35) + d),
-            );
+        const starterBootStats =
+          ls.equippedBootsId === "boots_basic" && pState?.starterBoot
+            ? (window.AFM_Lifestyle?.getStarterBootBonusStats
+                ? window.AFM_Lifestyle.getStarterBootBonusStats(pState.starterBoot)
+                : (pState.starterBoot === "boot_classic"
+                    ? { pas: 1 }
+                    : pState.starterBoot === "boot_crimson"
+                      ? { chu: 1 }
+                      : pState.starterBoot === "boot_royal"
+                        ? { dri: 1 }
+                        : { vel: 1 }))
+            : null;
+        const activeStats = starterBootStats || boot?.stats || (ls.equippedBootsId === "boots_basic" ? { vel: 1 } : null);
+        if (activeStats) {
+          const p = activeStats.pace || activeStats.vel || 0;
+          const s = activeStats.shooting || activeStats.chu || 0;
+          const ps = activeStats.passing || activeStats.pas || 0;
+          const d = activeStats.dribbling || activeStats.dri || 0;
+          const baseVel = Number(attrs.vel ?? attrs.pace) || 35;
+          const baseChu = Number(attrs.chu ?? attrs.shooting) || 35;
+          const basePas = Number(attrs.pas ?? attrs.passing) || 35;
+          const baseDri = Number(attrs.dri ?? attrs.dribbling) || 35;
+          if (p) attrs.vel = Math.min(99, Math.max(1, baseVel + p));
+          if (s) attrs.chu = Math.min(99, Math.max(1, baseChu + s));
+          if (ps) attrs.pas = Math.min(99, Math.max(1, basePas + ps));
+          if (d) attrs.dri = Math.min(99, Math.max(1, baseDri + d));
         }
       }
     } else {
@@ -1611,53 +1740,66 @@
     const h = Number(height) || 1.78;
     const mods = { vel: 0, chu: 0, pas: 0, dri: 0, def: 0, fis: 0, texts: [] };
 
-    if (h < 1.7) {
-      mods.vel += 2;
+    if (bodyBuild === "Magro") {
+      mods.vel += 4;
+      mods.dri += 3;
+      mods.fis -= 4;
+      mods.texts.push({
+        type: "good",
+        text: "Porte Magro: +4 Velocidade & +3 Drible",
+      });
+      mods.texts.push({
+        type: "bad",
+        text: "Porte Magro: -4 Força Física",
+      });
+    } else if (bodyBuild === "Forte") {
+      mods.fis += 5;
+      mods.chu += 2;
+      mods.vel -= 3;
+      mods.texts.push({
+        type: "good",
+        text: "Porte Forte: +5 Físico & +2 Potência de Chute",
+      });
+      mods.texts.push({
+        type: "bad",
+        text: "Porte Forte: -3 Arrancada",
+      });
+    } else {
+      mods.pas += 2;
       mods.dri += 2;
-      mods.def -= 1;
+      mods.texts.push({
+        type: "good",
+        text: "Porte Médio: +2 Passe & +2 Controle de Bola",
+      });
+    }
+
+    if (h >= 1.88) {
+      mods.fis += 2;
+      mods.vel -= 2;
+      mods.texts.push({
+        type: "good",
+        text: "Estatura Alta: +2 Físico & Jogo Aéreo",
+      });
+      mods.texts.push({
+        type: "bad",
+        text: "Estatura Alta: -2 Aceleração curta",
+      });
+    } else if (h <= 1.7) {
+      mods.vel += 2;
+      mods.dri += 1;
       mods.fis -= 1;
       mods.texts.push({
         type: "good",
-        text: "Baixo: Centro de gravidade baixo, maior arranque e agilidade (+2 Vel, +2 Dri)",
+        text: "Baixo Centro de Gravidade: +2 Arranque & +1 Drible",
       });
       mods.texts.push({
         type: "bad",
-        text: "Baixo: Menor alcance nas bolas aéreas e divididas corporais (-1 Def, -1 Fís)",
-      });
-    } else if (h > 1.88) {
-      mods.fis += 2;
-      mods.def += 1;
-      mods.chu += 1;
-      mods.vel -= 1;
-      mods.dri -= 2;
-      mods.texts.push({
-        type: "good",
-        text: "Alto: Imponente pelo alto, força em divididas e cabeceio (+2 Fís, +1 Def, +1 Chu)",
-      });
-      mods.texts.push({
-        type: "bad",
-        text: "Alto: Menor agilidade em espaços curtos e mudança de direção (-1 Vel, -2 Dri)",
+        text: "Baixa Estatura: -1 Força e Jogo Aéreo",
       });
     } else {
       mods.texts.push({
         type: "neutral",
-        text: "Altura equilibrada: excelente balanço entre mobilidade e presença física",
-      });
-    }
-
-    if (bodyBuild === "Forte") {
-      mods.fis += 2;
-      mods.vel -= 1;
-      mods.texts.push({
-        type: "good",
-        text: "Porte Forte: Ganho de massa muscular (+2 Físico)",
-      });
-    } else if (bodyBuild === "Magro") {
-      mods.vel += 1;
-      mods.fis -= 1;
-      mods.texts.push({
-        type: "good",
-        text: "Porte Leve: Maior leveza e passadas rápidas (+1 Velocidade)",
+        text: "Estatura equilibrada: excelente balanço entre mobilidade e presença física",
       });
     }
 
@@ -2078,80 +2220,96 @@
       window.GameState = s;
     }
 
-    // 3. Monta os atributos finais aplicando modificadores de corpo e pontos distribuídos
-    const archKey = playerData.archetype || "finalizador";
-    const baseAttrs = {
-      ...(ARCHETYPES[archKey]?.attrs || {
-        vel: 35,
-        chu: 35,
-        pas: 35,
-        dri: 35,
-        def: 35,
-        fis: 35,
-      }),
+    // 3. Monta os atributos BASE (arquétipo + biotipo/altura + origem + pontos distribuídos) sincronizados PT <-> EN
+    const archKey = playerData.archetype || "st_poacher";
+    let catalogArchAttrs = ARCHETYPES[archKey]?.attrs || null;
+    if (!catalogArchAttrs && typeof window !== "undefined" && window.AFM_CREATOR_CATALOG?.archetypesByPos) {
+      for (const list of Object.values(window.AFM_CREATOR_CATALOG.archetypesByPos)) {
+        const found = Array.isArray(list) ? list.find((a) => a.id === archKey) : null;
+        if (found?.stats) {
+          catalogArchAttrs = {
+            vel: found.stats.pace,
+            chu: found.stats.shooting,
+            pas: found.stats.passing,
+            dri: found.stats.dribbling,
+            def: found.stats.defending,
+            fis: found.stats.physical,
+          };
+          break;
+        }
+      }
+    }
+    const rawArchAttrs = catalogArchAttrs || {
+      vel: 35,
+      chu: 35,
+      pas: 35,
+      dri: 35,
+      def: 35,
+      fis: 35,
     };
+
+    const originBonusMap = {
+      terrao: { dri: 2 },
+      futsal: { pas: 2 },
+      legacy: { chu: 2 },
+      school: { vel: 2 },
+    };
+    const originMods = originBonusMap[playerData.origin] || {};
     const bodyMods = calculateBodyModifiers(
       playerData.height,
       playerData.bodyBuild,
     );
     const distributed = playerData.pointsDistributed || {};
 
-    const finalAttrs = {
-      vel: Math.max(
-        25,
-        Math.min(
-          99,
-          baseAttrs.vel + (bodyMods.vel || 0) + (distributed.vel || 0),
-        ),
-      ),
-      chu: Math.max(
-        25,
-        Math.min(
-          99,
-          baseAttrs.chu + (bodyMods.chu || 0) + (distributed.chu || 0),
-        ),
-      ),
-      pas: Math.max(
-        25,
-        Math.min(
-          99,
-          baseAttrs.pas + (bodyMods.pas || 0) + (distributed.pas || 0),
-        ),
-      ),
-      dri: Math.max(
-        25,
-        Math.min(
-          99,
-          baseAttrs.dri + (bodyMods.dri || 0) + (distributed.dri || 0),
-        ),
-      ),
-      def: Math.max(
-        25,
-        Math.min(
-          99,
-          baseAttrs.def + (bodyMods.def || 0) + (distributed.def || 0),
-        ),
-      ),
-      fis: Math.max(
-        25,
-        Math.min(
-          99,
-          baseAttrs.fis + (bodyMods.fis || 0) + (distributed.fis || 0),
-        ),
-      ),
-    };
+    const computedBaseAttrs = playerData.baseAttributes
+      ? { ...playerData.baseAttributes }
+      : {
+          vel: Math.max(20, Math.min(99, rawArchAttrs.vel + (bodyMods.vel || 0) + (originMods.vel || 0) + (distributed.vel ?? distributed.pace ?? 0))),
+          chu: Math.max(20, Math.min(99, rawArchAttrs.chu + (bodyMods.chu || 0) + (originMods.chu || 0) + (distributed.chu ?? distributed.shooting ?? 0))),
+          pas: Math.max(20, Math.min(99, rawArchAttrs.pas + (bodyMods.pas || 0) + (originMods.pas || 0) + (distributed.pas ?? distributed.passing ?? 0))),
+          dri: Math.max(20, Math.min(99, rawArchAttrs.dri + (bodyMods.dri || 0) + (originMods.dri || 0) + (distributed.dri ?? distributed.dribbling ?? 0))),
+          def: Math.max(20, Math.min(99, rawArchAttrs.def + (bodyMods.def || 0) + (originMods.def || 0) + (distributed.def ?? distributed.defending ?? 0))),
+          fis: Math.max(20, Math.min(99, rawArchAttrs.fis + (bodyMods.fis || 0) + (originMods.fis || 0) + (distributed.fis ?? distributed.physical ?? 0))),
+        };
+    const baseAttrsSynced = syncBidirectionalAttributes(computedBaseAttrs, 35);
 
-    const athleteOvr = calculatePlayerOverall(finalAttrs, playerData.position);
+    const starterBootId = playerData.appearance?.starterBoot || playerData.starterBoot || "boot_black_classic";
+    const bootBonusPreview = { ...baseAttrsSynced };
+    if (starterBootId === "boot_classic") bootBonusPreview.pas = Math.min(99, bootBonusPreview.pas + 1);
+    else if (starterBootId === "boot_crimson") bootBonusPreview.chu = Math.min(99, bootBonusPreview.chu + 1);
+    else if (starterBootId === "boot_royal") bootBonusPreview.dri = Math.min(99, bootBonusPreview.dri + 1);
+    else bootBonusPreview.vel = Math.min(99, bootBonusPreview.vel + 1);
+    syncBidirectionalAttributes(bootBonusPreview, 35);
+
+    const naturalPosPt = normalizePlayerPosGroup(playerData.position || "ATA");
+    const athleteOvr = calculatePlayerOverall(bootBonusPreview, naturalPosPt);
     const controlledId = `player_user_${Date.now()}`;
 
     // Determina o salário e a confiança inicial a partir da Peneira escolhida
     const tier =
-      PENEIRA_TIERS[playerData.peneiraTier || "basica"] ||
+      PENEIRA_TIERS[playerData.peneiraTier || "varzea_local"] ||
+      PENEIRA_TIERS["varzea_local"] ||
       PENEIRA_TIERS["basica"];
-    const startingWage =
-      playerData.tryoutWage ||
-      Math.floor((tier.wageRange[0] + tier.wageRange[1]) / 2);
-    const startingTrust = tier.initialTrust || 45;
+    const startingWage = Math.max(
+      500,
+      Math.round(
+        Number(playerData.tryoutWage) ||
+          Math.floor((tier.wageRange[0] + tier.wageRange[1]) / 2),
+      ),
+    );
+    const startingTrust = Number(tier.initialTrust) || 45;
+    const chosenNumber = Math.max(1, Math.min(99, Number(playerData.shirtNumber) || 10));
+    const playerAge = Number(playerData.age) || 15;
+    const initialMarketValue = calculateAthleteInitialMarketValue(athleteOvr, playerAge);
+    const resolvedPhoto =
+      playerData.appearance?.customFacePhoto ||
+      playerData.appearance?.facePhoto ||
+      (typeof window !== "undefined" && typeof window.generateYoungAthletePortraitUri === "function"
+        ? window.generateYoungAthletePortraitUri({
+            appearance: playerData.appearance,
+            shirtNumber: chosenNumber,
+          })
+        : null);
 
     // 4. Cria o objeto do atleta real para inserir no elenco do clube
     const athletePlayer = {
@@ -2160,53 +2318,71 @@
       nickname: (playerData.nickname || "").trim() || playerData.name.trim(),
       nationality: playerData.nationality || "Brasil",
       country: playerData.nationality || "Brasil",
-      age: Number(playerData.age) || 15,
-      pos: playerData.position || "ATA",
-      position: playerData.position || "ATA",
-      number: Number(playerData.shirtNumber) || 10,
+      age: playerAge,
+      pos: playerData.position || naturalPosPt,
+      position: playerData.position || naturalPosPt,
+      naturalPosPt: naturalPosPt,
+      number: chosenNumber,
       ovr: athleteOvr,
       overall: athleteOvr,
-      attributes: finalAttrs,
+      fc: athleteOvr,
+      pes: athleteOvr,
+      potential: Number(playerData.potential) || 90,
+      preferredFoot: playerData.preferredFoot || "Direito",
+      height: Number(playerData.height) || 1.78,
+      bodyBuild: playerData.bodyBuild || "Médio",
+      origin: playerData.origin || "terrao",
+      archetype: archKey,
+      attributes: baseAttrsSynced,
       wage: startingWage,
+      salary: startingWage,
+      cash: startingWage,
+      personalBank: startingWage,
+      personalCash: startingWage,
       contractUntil: (Number(s.season) || 2026) + 3,
       club: clubName,
       isControlled: true,
+      isControlledAthlete: true,
       energy: 100,
       fitness: 100,
-      photo:
-        playerData.appearance?.customFacePhoto ||
-        playerData.appearance?.facePhoto ||
-        null,
-      marketValueMi: Math.max(0.1, Number((athleteOvr * 0.02).toFixed(2))),
-      photo:
-        playerData.appearance?.customFacePhoto ||
-        playerData.appearance?.facePhoto ||
-        null,
-      marketValue: calculateAthleteInitialMarketValue(
-        athleteOvr,
-        playerData.age || 15,
-      ),
-      marketValueMi: Number(
-        (
-          calculateAthleteInitialMarketValue(athleteOvr, playerData.age || 15) /
-          1000000
-        ).toFixed(3),
-      ),
-      value: Number(
-        (
-          calculateAthleteInitialMarketValue(athleteOvr, playerData.age || 15) /
-          1000000
-        ).toFixed(3),
-      ),
+      photo: resolvedPhoto,
+      customFacePhoto: playerData.appearance?.customFacePhoto || null,
+      marketValue: initialMarketValue,
+      marketValueMi: Number((initialMarketValue / 1000000).toFixed(3)),
+      value: Number((initialMarketValue / 1000000).toFixed(3)),
     };
 
-    // 5. Injeta no elenco do clube escolhido
+    // 5. Injeta no elenco do clube escolhido e garante exclusividade do número da camisa escolhido
     s.squad = Array.isArray(s.squad) ? s.squad : [];
-    s.squad = s.squad.filter((p) => p.id !== controlledId);
+    s.squad = s.squad.filter((p) => p.id !== controlledId && !p.isControlled);
     s.squad.unshift(athletePlayer);
     s.controlledPlayerId = controlledId;
+    if (typeof window !== "undefined" && typeof window.ensureSquadShirtNumbers === "function") {
+      window.ensureSquadShirtNumbers(s);
+    }
 
     // 6. Estrutura de Estado Exclusiva do Modo Jogador
+    const appearanceObj = Object.assign(
+      {
+        skinTone: "skin_3",
+        hairColor: "hc_black",
+        hairStyle: "fade_quiff",
+        eyeColor: "ec_dark",
+        face: "smile",
+        avatarMode: "mirror",
+        facePhoto: resolvedPhoto,
+        customFacePhoto: null,
+        starterBoot: starterBootId,
+        sockStyle: "Meião baixo",
+      },
+      playerData.appearance || {},
+      {
+        shirtNumber: athletePlayer.number,
+        facePhoto: resolvedPhoto,
+        starterBoot: starterBootId,
+      },
+    );
+
     s.playerCareerState = {
       athleteName: athletePlayer.name,
       nickname: athletePlayer.nickname,
@@ -2224,38 +2400,40 @@
       birthYear: (Number(s.season) || 2026) - athletePlayer.age,
       lastAgingYear: Number(s.season) || 2026,
       pos: athletePlayer.pos,
-      position: athletePlayer.position,
+      position: naturalPosPt,
+      naturalPosPt: naturalPosPt,
       overall: athleteOvr,
       athleteOvr: athleteOvr,
+      potential: athletePlayer.potential,
       attributes: athletePlayer.attributes,
       city: playerData.city || "Brasília",
       stateUf: playerData.stateUf || "DF",
-      position: athletePlayer.pos,
       archetype: archKey,
+      origin: playerData.origin || "terrao",
+      inspiration: playerData.inspiration || "ronaldo",
+      creatorPlaystyle: playerData.playstyle || "frieza_letal",
       preferredFoot: playerData.preferredFoot || "Direito",
       height: Number(playerData.height) || 1.78,
       bodyBuild: playerData.bodyBuild || "Médio",
       shirtNumber: athletePlayer.number,
       peneiraTier: tier.id,
-      starterBoot: playerData.appearance?.starterBoot || "boot_black_classic",
-      appearance: playerData.appearance || {
-        skinTone: "#c68642",
-        hairColor: "#1a1a1a",
-        hairStyle: "Curto",
-        facePhoto: null,
-        customFacePhoto: null,
-        starterBoot: "boot_black_classic",
-        sockStyle: "Meião alto",
-      },
+      squadRole: playerData.squadRole || tier.defaultRole || "Reserva Imediato",
+      starterBoot: starterBootId,
+      appearance: appearanceObj,
       xp: 0,
       xpToNextLevel: 400,
       level: 1,
       skillPoints: Math.max(0, Number(playerData.remainingSkillPoints) || 0),
+      availablePoints: Math.max(0, Number(playerData.remainingSkillPoints) || 0),
       _startingPointsNormalized: true,
       managerTrust: startingTrust,
+      salary: startingWage,
+      wage: startingWage,
       personalBank: startingWage, // Primeira mesada / ajuda de custo da família
+      personalCash: startingWage,
+      cash: startingWage,
       weeklySalary: Math.round(startingWage / 4),
-      weeklyTrainingFocus: "finalizacao",
+      weeklyTrainingFocus: naturalPosPt === "GOL" ? "gk_reflexes" : "finalizacao",
       careerStats: {
         matches: 0,
         minutesPlayed: 0,
@@ -2308,9 +2486,50 @@
       matchRatingHistory: [],
     };
 
+    // Inicializa lifestyle e sincroniza s.player (Fonte Única de Verdade)
+    if (typeof window !== "undefined" && window.AFM_Lifestyle?.ensurePlayerLifestyleState) {
+      window.AFM_Lifestyle.ensurePlayerLifestyleState(s.playerCareerState);
+    }
+    const syncedEffectiveAttrs = getPlayerEffectiveAttributes(s, athletePlayer);
+    const syncedInitialOvr = calculatePlayerOverall(syncedEffectiveAttrs, athletePlayer.pos || naturalPosPt);
+    athletePlayer.ovr = syncedInitialOvr;
+    athletePlayer.overall = syncedInitialOvr;
+    athletePlayer.fc = syncedInitialOvr;
+    athletePlayer.pes = syncedInitialOvr;
+    s.playerCareerState.athleteOvr = syncedInitialOvr;
+    s.playerCareerState.overall = syncedInitialOvr;
+
+    s.player = {
+      id: controlledId,
+      isUserPlayer: true,
+      name: athletePlayer.name,
+      nickname: athletePlayer.nickname,
+      nationality: athletePlayer.nationality,
+      pos: athletePlayer.pos,
+      position: naturalPosPt,
+      naturalPosPt: naturalPosPt,
+      shirtNumber: athletePlayer.number,
+      number: athletePlayer.number,
+      age: athletePlayer.age,
+      ovr: syncedInitialOvr,
+      overall: syncedInitialOvr,
+      potential: athletePlayer.potential,
+      attributes: athletePlayer.attributes,
+      cash: s.playerCareerState.personalBank,
+      personalBank: s.playerCareerState.personalBank,
+      salary: startingWage,
+      wage: startingWage,
+      energy: 100,
+      fitness: 100,
+      xp: 0,
+      attributePoints: s.playerCareerState.skillPoints,
+      avatarUrl: resolvedPhoto,
+      photo: resolvedPhoto,
+    };
+
     // Gera proposta de patrocínio inicial regional humilde
     s.playerCareerState.agentOffers.push(
-      createStarterSponsorOffer(athleteOvr, s.date),
+      createStarterSponsorOffer(syncedInitialOvr, s.date),
     );
 
     s.news = Array.isArray(s.news) ? s.news : [];
@@ -2605,15 +2824,16 @@
     let assistsGiven =
       typeof matchResult?.assists === "number" ? matchResult.assists : 0;
     const pos = (playerObj.pos || pState.position || "ATA").toUpperCase();
+    const posGroup = normalizePlayerPosGroup(pos);
 
     if (typeof matchResult?.goals !== "number") {
       const goalChanceFactor = Math.min(
         1,
-        (pos === "ATA"
+        (posGroup === "ATA"
           ? 0.35
-          : pos === "PON"
+          : posGroup === "PON"
             ? 0.25
-            : pos === "MEI"
+            : posGroup === "MEI"
               ? 0.18
               : 0.05) *
           (playedMinutes / 90) *
@@ -2628,11 +2848,11 @@
     if (typeof matchResult?.assists !== "number") {
       const assistChanceFactor = Math.min(
         1,
-        (pos === "MEI"
+        (posGroup === "MEI"
           ? 0.32
-          : pos === "PON"
+          : posGroup === "PON"
             ? 0.28
-            : pos === "LAT"
+            : posGroup === "LAT"
               ? 0.2
               : 0.1) *
           (playedMinutes / 90) *
@@ -2645,7 +2865,7 @@
     if (assistsGiven > 0) baseRating += assistsGiven * 0.8;
 
     if (
-      (pos === "ZAG" || pos === "GOL" || pos === "VOL") &&
+      (posGroup === "ZAG" || posGroup === "GOL" || posGroup === "VOL") &&
       goalsAgainst === 0
     ) {
       baseRating += 1.0;
@@ -5878,6 +6098,8 @@
     startManagerCareerFromPlayerRetirement,
     LIFESTYLE_CATALOG,
     getClubPrimaryCompetitionId,
+    normalizePlayerPosGroup,
+    syncBidirectionalAttributes,
     calculatePlayerOverall,
     normalizePlayerProgression,
     syncDailyTrainingLimit,

@@ -54,5 +54,10 @@ Você é o engenheiro-chefe responsável pelo AFM Manager 2026/2027. Antes de al
     - `detectSaveMode`, `getSaveGameMode`, `isPlayerCareerActive` e `database.js` (`getSavedGameMode`) devem reconhecer `manager === 'Treinador da IA'`, `coachName === 'Treinador da IA'` e `aiCoachControlled === true` (sem `retiredPlayerCareer`) como Modo Jogador mesmo em cabeçalhos reduzidos ou wrappers dessincronizados.
     - `syncUser`, `restoreSaves` e `saveAndConfirmCloud` devem preservar `gameMode`, `isPlayerMode`, `playerCareerState` e `controlledPlayerId` no resumo de `account.saves`, gravando a cópia local principal antes de descartar backups.
 
+11. **FONTE ÚNICA DE VERDADE DO ATLETA CRIADO (CRIADOR 3D ➔ MOTOR ➔ UI ➔ MIGRAÇÃO DE SAVE):**
+    - O OVR exibido na Etapa 5 do Criador 3D DEVE permanecer 100% idêntico após assinar o contrato, na Topbar (`sm-topbar`), no Hub, no Mini-Card FUT, no Radar Hexagonal, no Elenco e após salvar/recarregar (`migrate()` / `normalizeSquadState()`).
+    - `calculatePlayerOverall`, `AFM_PLAYER_EVOLUTION.recalculateOvr(athlete, state)` e `playerOverall` compartilham uma única tabela de pesos posicionais via `normalizePlayerPosGroup(pos)` compatível com códigos PT e EN (`GOL`/`GK`, `ZAG`/`CB`, `LAT`/`LB`/`RB`, `VOL`/`DM`/`CM`, `MEI`/`AM`, `PON`/`LW`/`RW`, `ATA`/`ST`/`CF`).
+    - `startPlayerCareer` preserva os 21 arquétipos e 4 peneiras do `AFM_CREATOR_CATALOG`, aplica o bônus `+1` de `starterBoot` via `boots_basic` sem duplicidade, sincroniza `shirtNumber` no retrato SVG 1:1 (Criador, FUT Card, FootGram e Estatísticas), blinda `controlledPlayerId` contra colisão de nomes em `LIVE_PLAYERS` e mantém paridade total entre `athlete`, `state.playerCareerState` e `state.player`.
+
 
 

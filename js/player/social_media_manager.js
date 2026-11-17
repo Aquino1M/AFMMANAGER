@@ -92,9 +92,20 @@
         s.liveDoneThisMonth = false;
       }
 
-      // Garante foto válida sem círculo vazio
-      if (!s.avatarUrl && typeof window.generateYoungAthletePortraitUri === "function") {
-        s.avatarUrl = window.generateYoungAthletePortraitUri(athlete);
+      // Garante foto válida sem círculo vazio (sincronizada 1:1 com o retrato 3D e número da camisa do atleta)
+      if (!s.avatarUrl) {
+        if (pState.appearance?.customFacePhoto || athlete.customFacePhoto) {
+          s.avatarUrl = pState.appearance?.customFacePhoto || athlete.customFacePhoto;
+        } else if (typeof window.generateYoungAthletePortraitUri === "function" && pState.appearance && Object.keys(pState.appearance).length > 0) {
+          s.avatarUrl = window.generateYoungAthletePortraitUri({
+            appearance: pState.appearance,
+            shirtNumber: Number(athlete.number || pState.shirtNumber) || 10
+          });
+        } else if (athlete.photo) {
+          s.avatarUrl = athlete.photo;
+        } else if (typeof window.generateYoungAthletePortraitUri === "function") {
+          s.avatarUrl = window.generateYoungAthletePortraitUri(athlete);
+        }
       }
       if (state.player && !state.player.avatarUrl) {
         state.player.avatarUrl = s.avatarUrl;

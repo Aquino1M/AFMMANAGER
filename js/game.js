@@ -362,52 +362,133 @@ window.migrateAndSanitizeSaveState = function(targetState) {
       targetState.view = "player_hub";
     }
     targetState.playerCareerState = targetState.playerCareerState || {};
-    targetState.player = targetState.player || targetState.playerCareerState.player || {};
-    targetState.player.name = targetState.player.name || targetState.playerCareerState.athleteName || "Atleta";
-    targetState.player.ovr = Number(targetState.player.ovr || targetState.playerCareerState.athleteOvr || 50);
-    targetState.player.age = Number(targetState.player.age || targetState.playerCareerState.age || 16);
-    targetState.player.cash = Number(targetState.player.cash ?? targetState.playerCareerState.personalBank ?? 1000);
-    targetState.player.salary = Number(targetState.player.salary ?? targetState.playerCareerState.salary ?? 1045);
-    targetState.player.energy = Number(targetState.player.energy ?? targetState.playerCareerState.fitness ?? 100);
-    targetState.player.xp = Number(targetState.player.xp ?? targetState.playerCareerState.xp ?? 0);
-    targetState.player.attributePoints = Number(targetState.player.attributePoints ?? targetState.playerCareerState.availablePoints ?? 0);
+    const pState = targetState.playerCareerState;
+    targetState.player = targetState.player || pState.player || {};
+    const pAlias = targetState.player;
 
-    targetState.playerCareerState.athleteName = targetState.playerCareerState.athleteName || targetState.player.name;
-    targetState.playerCareerState.athleteOvr = targetState.playerCareerState.athleteOvr || targetState.player.ovr;
-    targetState.playerCareerState.personalBank = Number(targetState.playerCareerState.personalBank ?? targetState.player.cash ?? 1000);
-    targetState.playerCareerState.salary = Number(targetState.playerCareerState.salary ?? targetState.player.salary ?? 1045);
-    targetState.playerCareerState.availablePoints = Number(targetState.playerCareerState.availablePoints ?? targetState.player.attributePoints ?? 0);
+    const squadList = Array.isArray(targetState.squad) ? targetState.squad : [];
+    const athlete =
+      squadList.find((p) => p && targetState.controlledPlayerId && String(p.id) === String(targetState.controlledPlayerId)) ||
+      squadList.find((p) => p && (p.isControlled || p.isControlledAthlete)) ||
+      (pState.athleteName ? squadList.find((p) => p && String(p.name || "").toLowerCase() === String(pState.athleteName).toLowerCase()) : null) ||
+      null;
+    if (athlete) {
+      targetState.controlledPlayerId = athlete.id;
+      athlete.isControlled = true;
+      athlete.isControlledAthlete = true;
+    }
 
-    targetState.player.seasonStats = Object.assign({
-      games: 0, starts: 0, minutes: 0, goals: 0, assists: 0, mvp: 0, yellowCards: 0, redCards: 0, totalRating: 0
-    }, targetState.player.seasonStats || targetState.playerCareerState.seasonStats || {});
-    targetState.playerCareerState.seasonStats = targetState.player.seasonStats;
+    // Sincroniza atributos PT <-> EN entre athlete, playerCareerState e player
+    const rawAttrs = athlete?.attributes || pState.attributes || pAlias.attributes || null;
+    if (rawAttrs && typeof rawAttrs === "object") {
+      if (window.AFM_PlayerEngine?.syncBidirectionalAttributes) {
+        window.AFM_PlayerEngine.syncBidirectionalAttributes(rawAttrs, 35);
+      }
+      if (athlete) athlete.attributes = rawAttrs;
+      pState.attributes = rawAttrs;
+      pAlias.attributes = rawAttrs;
+    }
 
-    targetState.player.careerHistory = Object.assign({
-      totals: { games: 0, starts: 0, minutes: 0, goals: 0, assists: 0, mvp: 0, yellowCards: 0, redCards: 0, ratingSum: 0 },
-      seasons: [],
-      bestMatch: null
-    }, targetState.player.careerHistory || targetState.playerCareerState.careerHistory || {});
-    targetState.playerCareerState.careerHistory = targetState.player.careerHistory;
-
-    targetState.player.agentCooldowns = Object.assign({
-      wage_increase: 0, demand_starter: 0, request_loan: 0, request_transfer: 0, scout_market: 0
-    }, targetState.player.agentCooldowns || targetState.playerCareerState.agentCooldowns || {});
-    targetState.playerCareerState.agentCooldowns = targetState.player.agentCooldowns;
-
-    targetState.player.lifestyle = Object.assign({
+    // Inicializa lifestyle dando autoridade a playerCareerState.lifestyle sobre cópias antigas de player.lifestyle
+    pState.lifestyle = Object.assign({
       investments: { cdbBalance: 0 },
       assets: [],
       staff: []
-    }, targetState.player.lifestyle || targetState.playerCareerState.lifestyle || {});
-    if (!targetState.player.lifestyle.investments) {
-      targetState.player.lifestyle.investments = { cdbBalance: 0 };
+    }, pAlias.lifestyle || {}, pState.lifestyle || {});
+    if (!pState.lifestyle.investments) {
+      pState.lifestyle.investments = { cdbBalance: 0 };
     }
-    targetState.playerCareerState.lifestyle = targetState.player.lifestyle;
-
     if (typeof window.AFM_Lifestyle?.ensurePlayerLifestyleState === "function") {
-      window.AFM_Lifestyle.ensurePlayerLifestyleState(targetState.playerCareerState);
+      window.AFM_Lifestyle.ensurePlayerLifestyleState(pState);
     }
+    pAlias.lifestyle = pState.lifestyle;
+
+    // Recalcula OVR autoritativo a partir dos atributos efetivos quando disponíveis (sem sobrescrever 35-40 com default 50)
+    let resolvedOvr = 0;
+    if (athlete?.attributes && window.AFM_PlayerEngine?.calculatePlayerOverall) {
+      const effAttrs = window.AFM_PlayerEngine.getPlayerEffectiveAttributes
+        ? window.AFM_PlayerEngine.getPlayerEffectiveAttributes(targetState, athlete)
+        : athlete.attributes;
+      resolvedOvr = window.AFM_PlayerEngine.calculatePlayerOverall(effAttrs, athlete.pos || athlete.position || pState.position || "ATA");
+    } else {
+      resolvedOvr = Number(athlete?.ovr || athlete?.overall || pState.athleteOvr || pState.overall || pAlias.ovr || 35);
+    }
+    resolvedOvr = Math.min(99, Math.max(1, Math.round(resolvedOvr || 35)));
+
+    const resolvedName = athlete?.name || pState.athleteName || pAlias.name || "Atleta";
+    const resolvedAge = Number(athlete?.age || pState.age || pAlias.age || 15);
+    const resolvedNumber = Number(athlete?.number || pState.shirtNumber || pAlias.shirtNumber || 10);
+    const resolvedCash = Number(pState.lifestyle?.cash ?? pState.personalBank ?? athlete?.cash ?? pAlias.cash ?? 1000);
+    const resolvedSalary = Number(athlete?.wage || pState.salary || pAlias.salary || (pState.weeklySalary ? pState.weeklySalary * 4 : 1045));
+    const resolvedEnergy = Number(athlete?.energy ?? pState.energy ?? pState.fitness ?? pAlias.energy ?? 100);
+    const resolvedXp = Number(pState.xp ?? pAlias.xp ?? 0);
+    const resolvedPts = Number(pState.skillPoints ?? pState.availablePoints ?? pAlias.attributePoints ?? 0);
+
+    if (athlete) {
+      athlete.ovr = resolvedOvr;
+      athlete.overall = resolvedOvr;
+      athlete.fc = resolvedOvr;
+      athlete.pes = resolvedOvr;
+      athlete.wage = resolvedSalary;
+      athlete.salary = resolvedSalary;
+      athlete.cash = resolvedCash;
+      athlete.personalBank = resolvedCash;
+      athlete.number = resolvedNumber;
+      athlete.energy = resolvedEnergy;
+      athlete.fitness = resolvedEnergy;
+    }
+
+    pState.athleteName = resolvedName;
+    pState.athleteOvr = resolvedOvr;
+    pState.overall = resolvedOvr;
+    pState.age = resolvedAge;
+    pState.shirtNumber = resolvedNumber;
+    if (pState.appearance && typeof pState.appearance === "object") {
+      pState.appearance.shirtNumber = resolvedNumber;
+    }
+    pState.personalBank = resolvedCash;
+    pState.personalCash = resolvedCash;
+    pState.cash = resolvedCash;
+    if (pState.lifestyle) pState.lifestyle.cash = resolvedCash;
+    pState.salary = resolvedSalary;
+    pState.wage = resolvedSalary;
+    pState.weeklySalary = Math.round(resolvedSalary / 4);
+    pState.skillPoints = resolvedPts;
+    pState.availablePoints = resolvedPts;
+    pState.energy = resolvedEnergy;
+    pState.fitness = resolvedEnergy;
+
+    pAlias.name = resolvedName;
+    pAlias.ovr = resolvedOvr;
+    pAlias.overall = resolvedOvr;
+    pAlias.age = resolvedAge;
+    pAlias.shirtNumber = resolvedNumber;
+    pAlias.number = resolvedNumber;
+    pAlias.cash = resolvedCash;
+    pAlias.personalBank = resolvedCash;
+    pAlias.salary = resolvedSalary;
+    pAlias.wage = resolvedSalary;
+    pAlias.energy = resolvedEnergy;
+    pAlias.fitness = resolvedEnergy;
+    pAlias.xp = resolvedXp;
+    pAlias.attributePoints = resolvedPts;
+
+    pState.seasonStats = Object.assign({
+      games: 0, starts: 0, minutes: 0, goals: 0, assists: 0, mvp: 0, yellowCards: 0, redCards: 0, totalRating: 0
+    }, pAlias.seasonStats || {}, pState.seasonStats || {});
+    pAlias.seasonStats = pState.seasonStats;
+
+    pState.careerHistory = Object.assign({
+      totals: { games: 0, starts: 0, minutes: 0, goals: 0, assists: 0, mvp: 0, yellowCards: 0, redCards: 0, ratingSum: 0 },
+      seasons: [],
+      bestMatch: null
+    }, pAlias.careerHistory || {}, pState.careerHistory || {});
+    pAlias.careerHistory = pState.careerHistory;
+
+    pState.agentCooldowns = Object.assign({
+      wage_increase: 0, demand_starter: 0, request_loan: 0, request_transfer: 0, scout_market: 0
+    }, pAlias.agentCooldowns || {}, pState.agentCooldowns || {});
+    pAlias.agentCooldowns = pState.agentCooldowns;
   } else {
     if (!targetState.view || playerViews.includes(targetState.view)) {
       targetState.view = "central";
@@ -11324,6 +11405,31 @@ function strength(c){return Math.round(((c?.atk||68)+(c?.mid||68)+(c?.def||68))/
 function playerOverall(p){
   if (!p) return 60;
   if (typeof p === 'number') return Math.max(40, Math.min(99, Math.round(p)));
+  let activeState = null;
+  try { activeState = state || null; } catch (_) {}
+  if (!activeState && typeof window !== 'undefined') activeState = window.state || null;
+  const isControlledAthlete = Boolean(
+    p.isControlled ||
+    p.isControlledAthlete ||
+    (activeState?.controlledPlayerId && String(p.id) === String(activeState.controlledPlayerId))
+  );
+  if (isControlledAthlete) {
+    let userOvr = 0;
+    if (p.attributes && typeof window !== 'undefined' && window.AFM_PlayerEngine?.calculatePlayerOverall) {
+      const effAttrs = (activeState && window.AFM_PlayerEngine.getPlayerEffectiveAttributes)
+        ? window.AFM_PlayerEngine.getPlayerEffectiveAttributes(activeState, p)
+        : p.attributes;
+      userOvr = window.AFM_PlayerEngine.calculatePlayerOverall(effAttrs, p.pos || p.position || activeState?.playerCareerState?.position || 'ATA');
+    } else {
+      userOvr = Number(p.ovr || p.overall || activeState?.playerCareerState?.athleteOvr || 35);
+    }
+    userOvr = Math.max(1, Math.min(99, Math.round(userOvr || 35)));
+    p.ovr = userOvr;
+    p.overall = userOvr;
+    p.fc = userOvr;
+    p.pes = userOvr;
+    return userOvr;
+  }
   const direct = +p?.overall || +p?.ovr || 0;
   let val = 0;
   const pes = +p?.pes || 0;
@@ -13413,8 +13519,21 @@ function restorePlayerCareerSquad(gameState){
 
 function stablePlayer(p){
   const o = playerOverall(p);
-  const wage = (typeof p?.wage === 'number' && p.wage > 0) ? Math.round(p.wage) : playerSalary(p, typeof state !== 'undefined' ? state : null);
+  let activeState = null;
+  try { activeState = state || null; } catch (_) {}
+  if (!activeState && typeof window !== 'undefined') activeState = window.state || null;
+  const wage = (typeof p?.wage === 'number' && p.wage > 0) ? Math.round(p.wage) : playerSalary(p, activeState);
   const contractUntil = playerContractUntil(p);
+  const isControlledAthlete = Boolean(
+    p?.isControlled ||
+    p?.isControlledAthlete ||
+    (activeState?.controlledPlayerId && String(p?.id) === String(activeState.controlledPlayerId))
+  );
+  if (isControlledAthlete && typeof window !== 'undefined' && window.AFM_PlayerEngine?.calculateAthleteInitialMarketValue) {
+    const mvBrl = window.AFM_PlayerEngine.calculateAthleteInitialMarketValue(o, p.age || 15);
+    const mvMi = Number((mvBrl / 1000000).toFixed(3));
+    return {...p, marketKey:playerKey(p), ovr:o, overall:o, fc:o, pes:o, marketValue:mvBrl, marketValueMi:mvMi, value:mvMi, wage, contractUntil};
+  }
   return {...p, marketKey:playerKey(p), ovr:o, overall:o, value:calcValueMi(p), wage, contractUntil};
 }
 function calcClubMonthlySquadWages(club, targetState = (typeof state !== 'undefined' ? state : null)){
@@ -17445,6 +17564,12 @@ function migrate(s){
     const isInitSeason = (s.season === 1 || s.season === 2026);
     s.squad.forEach(p => {
       if(p && p.name){
+        const isControlledAthlete = Boolean(
+          p.isControlled ||
+          p.isControlledAthlete ||
+          (s.controlledPlayerId && String(p.id) === String(s.controlledPlayerId))
+        );
+        if(isControlledAthlete) return;
         const userClub = s.club || p.club || '';
         const isAmbiguous = window.AMBIGUOUS_PLAYER_NAMES && window.AMBIGUOUS_PLAYER_NAMES.has(norm(p.name));
         const clubMatch = userClub ? liveClubMap.get(norm(userClub) + '::' + norm(p.name)) : null;
@@ -17468,6 +17593,7 @@ function migrate(s){
     if(s.salaryModelVersion >= 2 && isInitSeason && (Number(s.round) || 0) <= 2 && s.club){
       s.squad = s.squad.filter(p => {
         if(!p || !p.name) return true;
+        if(p.isControlled || p.isControlledAthlete || (s.controlledPlayerId && String(p.id) === String(s.controlledPlayerId))) return true;
         const isAmbiguous = window.AMBIGUOUS_PLAYER_NAMES && window.AMBIGUOUS_PLAYER_NAMES.has(norm(p.name));
         if (isAmbiguous) {
           const clubMatch = liveClubMap.get(norm(s.club) + '::' + norm(p.name));
@@ -31614,8 +31740,8 @@ function render() {
     const nestedScroll = [...app.querySelectorAll('.tablewrap, .tactics-bench-wrapper > div[style*="overflow-y:auto"]')].map(el => el.scrollTop);
     const restore = () => requestAnimationFrame(() => {
       if(app.dataset) app.dataset.renderedView = view;
-      if(!restoreScroll){ window.scrollTo(0, 0); return; }
-      window.scrollTo(0, windowScroll);
+      if(!restoreScroll){ if(typeof window.scrollTo === 'function') window.scrollTo(0, 0); return; }
+      if(typeof window.scrollTo === 'function') window.scrollTo(0, windowScroll);
       const main = app.querySelector('.main');
       if(main) main.scrollTop = mainScroll;
       app.querySelectorAll('.tablewrap, .tactics-bench-wrapper > div[style*="overflow-y:auto"]').forEach((el, i) => { el.scrollTop = nestedScroll[i] || 0; });

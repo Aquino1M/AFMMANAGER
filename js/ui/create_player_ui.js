@@ -249,7 +249,7 @@
     const eyeColorId = draft?.appearance?.eyeColor || draft?.eyeColor || "ec_dark";
     const hairStyleId = draft?.appearance?.hairStyle || draft?.hairStyle || "fade_quiff";
     const faceId = draft?.appearance?.face || draft?.face || "smile";
-    const num = draft?.shirtNumber || 10;
+    const num = draft?.shirtNumber || draft?.number || draft?.appearance?.shirtNumber || 10;
 
     const skinObj = cat.skinTones.find(s => s.id === skinToneId || s.hex === skinToneId) || cat.skinTones[2];
     const skin = skinObj.hex;
@@ -460,40 +460,62 @@
     `;
   }
 
-  // Retorna os atributos totais atuais do atleta
-  function getCurrentAttributes(){
+  // Retorna os atributos BASE do atleta (arquétipo + biotipo/altura + origem + pontos distribuídos, sem bônus temporário de chuteira)
+  function getBaseAttributes(){
     const posArchetypes = window.AFM_CREATOR_CATALOG.archetypesByPos[wizardState.position] || window.AFM_CREATOR_CATALOG.archetypesByPos['ATA'];
     const activeArch = posArchetypes.find(a => a.id === wizardState.archetype) || posArchetypes[0];
     const mods = getBodyModifiers(wizardState.height, wizardState.bodyBuild);
     const originObj = window.AFM_CREATOR_CATALOG.origins.find(o => o.id === wizardState.origin);
-    const bootObj = window.AFM_CREATOR_CATALOG.starterBoots.find(b => b.id === wizardState.appearance.starterBoot);
     const dist = wizardState.pointsDistributed;
 
     const base = activeArch.stats;
-    const attrs = {
-      pace: Math.max(20, Math.min(99, base.pace + mods.pace + (dist.pace || 0) + (originObj?.bonusStat === 'pace' ? originObj.bonusVal : 0) + (bootObj?.stat === 'pace' ? 1 : 0))),
-      shooting: Math.max(20, Math.min(99, base.shooting + mods.shooting + (dist.shooting || 0) + (originObj?.bonusStat === 'shooting' ? originObj.bonusVal : 0) + (bootObj?.stat === 'shooting' ? 1 : 0))),
-      passing: Math.max(20, Math.min(99, base.passing + mods.passing + (dist.passing || 0) + (originObj?.bonusStat === 'passing' ? originObj.bonusVal : 0) + (bootObj?.stat === 'passing' ? 1 : 0))),
-      dribbling: Math.max(20, Math.min(99, base.dribbling + mods.dribbling + (dist.dribbling || 0) + (originObj?.bonusStat === 'dribbling' ? originObj.bonusVal : 0) + (bootObj?.stat === 'dribbling' ? 1 : 0))),
-      defending: Math.max(20, Math.min(99, base.defending + mods.defending + (dist.defending || 0) + (originObj?.bonusStat === 'defending' ? originObj.bonusVal : 0) + (bootObj?.stat === 'defending' ? 1 : 0))),
-      physical: Math.max(20, Math.min(99, base.physical + mods.physical + (dist.physical || 0) + (originObj?.bonusStat === 'physical' ? originObj.bonusVal : 0) + (bootObj?.stat === 'physical' ? 1 : 0)))
+    return {
+      pace: Math.max(20, Math.min(99, base.pace + mods.pace + (dist.pace || 0) + (originObj?.bonusStat === 'pace' ? originObj.bonusVal : 0))),
+      shooting: Math.max(20, Math.min(99, base.shooting + mods.shooting + (dist.shooting || 0) + (originObj?.bonusStat === 'shooting' ? originObj.bonusVal : 0))),
+      passing: Math.max(20, Math.min(99, base.passing + mods.passing + (dist.passing || 0) + (originObj?.bonusStat === 'passing' ? originObj.bonusVal : 0))),
+      dribbling: Math.max(20, Math.min(99, base.dribbling + mods.dribbling + (dist.dribbling || 0) + (originObj?.bonusStat === 'dribbling' ? originObj.bonusVal : 0))),
+      defending: Math.max(20, Math.min(99, base.defending + mods.defending + (dist.defending || 0) + (originObj?.bonusStat === 'defending' ? originObj.bonusVal : 0))),
+      physical: Math.max(20, Math.min(99, base.physical + mods.physical + (dist.physical || 0) + (originObj?.bonusStat === 'physical' ? originObj.bonusVal : 0)))
     };
-    return attrs;
   }
 
-  // Calcula o Overall Inicial (calibrado em ~35 OVR)
-  function getCurrentOverall(){
-    const a = getCurrentAttributes();
-    const pos = wizardState.position;
+  // Retorna os atributos totais efetivos atuais do atleta (incluindo +1 da chuteira inicial escolhida)
+  function getCurrentAttributes(){
+    const baseAttrs = getBaseAttributes();
+    const bootObj = window.AFM_CREATOR_CATALOG.starterBoots.find(b => b.id === wizardState.appearance.starterBoot);
+    return {
+      pace: Math.max(20, Math.min(99, baseAttrs.pace + (bootObj?.stat === 'pace' ? 1 : 0))),
+      shooting: Math.max(20, Math.min(99, baseAttrs.shooting + (bootObj?.stat === 'shooting' ? 1 : 0))),
+      passing: Math.max(20, Math.min(99, baseAttrs.passing + (bootObj?.stat === 'passing' ? 1 : 0))),
+      dribbling: Math.max(20, Math.min(99, baseAttrs.dribbling + (bootObj?.stat === 'dribbling' ? 1 : 0))),
+      defending: Math.max(20, Math.min(99, baseAttrs.defending + (bootObj?.stat === 'defending' ? 1 : 0))),
+      physical: Math.max(20, Math.min(99, baseAttrs.physical + (bootObj?.stat === 'physical' ? 1 : 0)))
+    };
+  }
+
+  // Fórmula Oficial Única de Overall Ponderado por Posição (compartilhada com motor, evolução e migração)
+  function calculateOverallForPosition(attrs, rawPos){
+    if (window.AFM_PlayerEngine?.calculatePlayerOverall) {
+      return window.AFM_PlayerEngine.calculatePlayerOverall(attrs, rawPos);
+    }
+    const a = {
+      pace: Number(attrs?.pace ?? attrs?.vel) || 35,
+      shooting: Number(attrs?.shooting ?? attrs?.chu) || 35,
+      passing: Number(attrs?.passing ?? attrs?.pas) || 35,
+      dribbling: Number(attrs?.dribbling ?? attrs?.dri) || 35,
+      defending: Number(attrs?.defending ?? attrs?.def) || 35,
+      physical: Number(attrs?.physical ?? attrs?.fis) || 35
+    };
+    const p = String(rawPos || 'ATA').toUpperCase().trim();
     let weights = { pace: 0.16, shooting: 0.16, passing: 0.16, dribbling: 0.16, defending: 0.16, physical: 0.20 };
 
-    if(pos === 'ATA') weights = { pace: 0.22, shooting: 0.34, passing: 0.10, dribbling: 0.18, defending: 0.04, physical: 0.12 };
-    else if(pos === 'PON') weights = { pace: 0.32, shooting: 0.20, passing: 0.16, dribbling: 0.24, defending: 0.03, physical: 0.05 };
-    else if(pos === 'MEI') weights = { pace: 0.14, shooting: 0.16, passing: 0.34, dribbling: 0.24, defending: 0.04, physical: 0.08 };
-    else if(pos === 'VOL') weights = { pace: 0.14, shooting: 0.08, passing: 0.24, dribbling: 0.14, defending: 0.26, physical: 0.14 };
-    else if(pos === 'LAT') weights = { pace: 0.28, shooting: 0.08, passing: 0.20, dribbling: 0.18, defending: 0.16, physical: 0.10 };
-    else if(pos === 'ZAG') weights = { pace: 0.16, shooting: 0.04, passing: 0.12, dribbling: 0.08, defending: 0.36, physical: 0.24 };
-    else if(pos === 'GOL') weights = { pace: 0.05, shooting: 0.02, passing: 0.15, dribbling: 0.05, defending: 0.45, physical: 0.28 };
+    if(['ATA', 'ST', 'CF', 'CA', 'SA', 'FW'].includes(p)) weights = { pace: 0.22, shooting: 0.34, passing: 0.10, dribbling: 0.18, defending: 0.04, physical: 0.12 };
+    else if(['PON', 'LW', 'RW', 'PE', 'PD'].includes(p)) weights = { pace: 0.32, shooting: 0.20, passing: 0.16, dribbling: 0.24, defending: 0.03, physical: 0.05 };
+    else if(['MEI', 'AM', 'CAM', 'LM', 'RM', 'ME', 'MD'].includes(p)) weights = { pace: 0.14, shooting: 0.16, passing: 0.34, dribbling: 0.24, defending: 0.04, physical: 0.08 };
+    else if(['VOL', 'DM', 'CDM', 'CM', 'MC'].includes(p)) weights = { pace: 0.14, shooting: 0.08, passing: 0.24, dribbling: 0.14, defending: 0.26, physical: 0.14 };
+    else if(['LAT', 'LB', 'RB', 'LE', 'LD', 'LWB', 'RWB'].includes(p)) weights = { pace: 0.28, shooting: 0.08, passing: 0.20, dribbling: 0.18, defending: 0.16, physical: 0.10 };
+    else if(['ZAG', 'CB', 'DF', 'ZG'].includes(p)) weights = { pace: 0.16, shooting: 0.04, passing: 0.12, dribbling: 0.08, defending: 0.36, physical: 0.24 };
+    else if(['GOL', 'GK', 'GL'].includes(p)) weights = { pace: 0.05, shooting: 0.02, passing: 0.15, dribbling: 0.05, defending: 0.45, physical: 0.28 };
 
     const ovr = Math.round(
       a.pace * weights.pace +
@@ -503,7 +525,12 @@
       a.defending * weights.defending +
       a.physical * weights.physical
     );
-    return Math.max(30, Math.min(99, ovr));
+    return Math.max(1, Math.min(99, ovr));
+  }
+
+  // Calcula o Overall Inicial (calibrado em ~35-42 OVR)
+  function getCurrentOverall(){
+    return calculateOverallForPosition(getCurrentAttributes(), wizardState.position);
   }
 
   // =========================================================================
@@ -1605,6 +1632,9 @@
       if(e.target.closest('#btnNumMinus')){
         if(wizardState.shirtNumber > 1){
           wizardState.shirtNumber--;
+          if(!wizardState.appearance.customFacePhoto){
+            wizardState.appearance.facePhoto = window.generateYoungAthletePortraitUri(wizardState);
+          }
           const el = root.querySelector('#wizShirtNumVal');
           if(el) el.textContent = wizardState.shirtNumber;
           updateAvatarOnly();
@@ -1614,6 +1644,9 @@
       if(e.target.closest('#btnNumPlus')){
         if(wizardState.shirtNumber < 99){
           wizardState.shirtNumber++;
+          if(!wizardState.appearance.customFacePhoto){
+            wizardState.appearance.facePhoto = window.generateYoungAthletePortraitUri(wizardState);
+          }
           const el = root.querySelector('#wizShirtNumVal');
           if(el) el.textContent = wizardState.shirtNumber;
           updateAvatarOnly();
@@ -1685,6 +1718,9 @@
       const faceBtn = e.target.closest('.btn-face[data-face]');
       if(faceBtn){
         wizardState.appearance.face = faceBtn.dataset.face;
+        if(!wizardState.appearance.customFacePhoto){
+          wizardState.appearance.facePhoto = window.generateYoungAthletePortraitUri(wizardState);
+        }
         renderCreatePlayerScreen(container, activeUser);
         return;
       }
@@ -1709,7 +1745,7 @@
             wizardState.appearance.hairColor = found.hairColor;
             wizardState.appearance.eyeColor = found.eyeColor;
             wizardState.appearance.face = found.face;
-            wizardState.appearance.facePhoto = window.generateYoungAthletePortraitUri(found);
+            wizardState.appearance.facePhoto = window.generateYoungAthletePortraitUri({ ...found, shirtNumber: wizardState.shirtNumber });
           }
         }
         renderCreatePlayerScreen(container, activeUser);
@@ -2170,17 +2206,38 @@
     }
 
     try {
-      const attrs = getCurrentAttributes();
+      const baseAttrs = getBaseAttributes();
+      const effAttrs = getCurrentAttributes();
+      const initialOvr = getCurrentOverall();
+      const shirtNum = Number(wizardState.shirtNumber) || 10;
+      const freshFacePhoto = wizardState.appearance.customFacePhoto || window.generateYoungAthletePortraitUri(wizardState);
+      const syncAttrObj = (src) => ({
+        vel: src.pace,
+        chu: src.shooting,
+        pas: src.passing,
+        dri: src.dribbling,
+        def: src.defending,
+        fis: src.physical,
+        pace: src.pace,
+        shooting: src.shooting,
+        passing: src.passing,
+        dribbling: src.dribbling,
+        defending: src.defending,
+        physical: src.physical
+      });
       const playerData = {
         name: wizardState.name.trim(),
         nickname: (wizardState.nickname || wizardState.name).trim(),
         nationality: wizardState.nationality || 'Brasil',
-        shirtNumber: wizardState.shirtNumber || 10,
+        age: 15,
+        potential: 90,
+        shirtNumber: shirtNum,
         stateUf: wizardState.stateUf || 'DF',
         city: wizardState.city || 'Brasília',
         clubName: wizardState.clubName || 'Brasília',
         peneiraTier: wizardState.peneiraTier || 'varzea_local',
         tryoutWage: wizardState.tryoutResult?.wageOffered || 1000,
+        squadRole: wizardState.tryoutResult?.squadRole || null,
         position: wizardState.position || 'ATA',
         archetype: wizardState.archetype || 'st_poacher',
         height: wizardState.height || 1.78,
@@ -2188,6 +2245,10 @@
         preferredFoot: wizardState.preferredFoot || 'Direito',
         origin: wizardState.origin || 'terrao',
         playstyle: wizardState.playstyle || 'frieza_letal',
+        inspiration: wizardState.inspiration || 'ronaldo',
+        initialOvr: initialOvr,
+        baseAttributes: syncAttrObj(baseAttrs),
+        finalAttributes: syncAttrObj(effAttrs),
         pointsDistributed: {
           vel: wizardState.pointsDistributed.pace || 0,
           chu: wizardState.pointsDistributed.shooting || 0,
@@ -2204,7 +2265,8 @@
           eyeColor: wizardState.appearance.eyeColor,
           face: wizardState.appearance.face,
           avatarMode: wizardState.appearance.avatarMode,
-          facePhoto: wizardState.appearance.customFacePhoto || wizardState.appearance.facePhoto || window.generateYoungAthletePortraitUri(wizardState),
+          shirtNumber: shirtNum,
+          facePhoto: freshFacePhoto,
           customFacePhoto: wizardState.appearance.customFacePhoto || null,
           starterBoot: wizardState.appearance.starterBoot,
           sockStyle: wizardState.appearance.sockStyle
@@ -2268,6 +2330,11 @@
     renderCreatePlayerScreen,
     getWizardState: () => wizardState,
     setWizardState: (st) => { wizardState = Object.assign(wizardState, st); },
+    getBaseAttributes,
+    getCurrentAttributes,
+    getCurrentOverall,
+    calculateOverallForPosition,
+    finalizePlayerCareerStart,
     rollRandomCraque
   };
 
