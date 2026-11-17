@@ -71,7 +71,7 @@ window.COMPETITION_TEAMS = {
     'River Plate','Boca Juniors','Racing Club','Independiente','San Lorenzo','Estudiantes','Vélez Sarsfield','Lanús','Talleres','Rosario Central','Newell\'s Old Boys','Argentinos Juniors','Belgrano','Godoy Cruz','Huracán','Defensa y Justicia','Banfield','Gimnasia La Plata','Unión','Platense','Atlético Tucumán','Barracas Central','Tigre','Sarmiento','Instituto','Deportivo Riestra','Independiente Rivadavia','Central Córdoba','Aldosivi','San Martín de San Juan'
   ],
   'arg-2': [
-    'Quilmes','Ferro Carril Oeste','Chacarita Juniors','All Boys','San Martín de Tucumán','Nueva Chicago','Colón','Arsenal de Sarandí','Almirante Brown','Atlanta','Deportivo Morón','Temperley','Defensores de Belgrano','Gimnasia y Esgrima de Mendoza','Estudiantes de Río Cuarto','Patronato','Agropecuario','Alvarado','Chaco For Ever','Mitre'
+    'Acassuso','Agropecuario','All Boys','Almagro','Almirante Brown','Atlanta','Atletico Rafaela','Central Norte','Chacarita Juniors','Chaco For Ever','Ciudad de Bolívar','Colegiales','Colón (Santa Fe)','Defensores de Belgrano','Deportivo Madryn','Deportivo Maipú','Deportivo Morón','Estudiantes (Buenos Aires)','Ferro Carril Oeste','Gimnasia y Esgrima (Jujuy)','Gimnasia y Tiro (Salta)','Godoy Cruz Antonio Tomba','Güemes','Los Andes','Midland','Mitre (Santiago del Estero)','Nueva Chicago','Patronato','Quilmes','Racing (Córdoba)','San Martín (San Juan)','San Martín (Tucumán)','San Miguel','San Telmo','Temperley','Tristán Suárez'
   ],
   'chi-1': [
     'Colo-Colo','Universidad de Chile','Universidad Católica','Palestino','Everton','Unión Española','Coquimbo Unido','Ñublense','Cobreloa','Cobresal','O\'Higgins','Audax Italiano','Huachipato','Deportes Iquique','Deportes Copiapó','Deportes La Serena'
@@ -141,7 +141,7 @@ window.COMPETITION_TEAMS = {
     'Vitesse','Excelsior','Volendam','Roda JC','Dordrecht','ADO Den Haag','De Graafschap','Emmen','MVV Maastricht','Cambuur','Jong AZ','Helmond Sport','VVV-Venlo','TOP Oss','FC Eindhoven','Den Bosch','Jong Ajax','Jong PSV','Jong FC Utrecht','Telstar'
   ],
   'bel-1': [
-    'Club Brugge','Union Saint-Gilloise','Anderlecht','Genk','Antwerp','Gent','Cercle Brugge','Mechelen','Sint-Truiden','Standard Liège','Westerlo','Charleroi','OH Leuven','Kortrijk','Dender','Beerschot'
+    'Anderlecht','Antwerp','Cercle Brugge KSV','Club Brugge','KAA Gent','KV Kortrijk','KV Mechelen','KVC Westerlo','Lommel SK','OH Leuven','RAAL La Louvière','Racing Genk','Royal Charleroi SC','Sint-Truidense','Standard Liege','Union St.-Gilloise','Waasland-Beveren','Zulte-Waregem'
   ],
   'tur-1': [
     'Galatasaray','Fenerbahçe','Beşiktaş','Trabzonspor','Başakşehir','Kasımpaşa','Alanyaspor','Rizespor','Antalyaspor','Gaziantep','Samsunspor','Kayserispor','Konyaspor','Eyüpspor','Göztepe','Kocaelispor','Gençlerbirliği','Fatih Karagümrük'

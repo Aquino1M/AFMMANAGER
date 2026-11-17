@@ -498,7 +498,8 @@ window.CLUB_BADGES = {
   "Yunnan Yukun": "yunnan_yukun.png",
   "Zhejiang": "zhejiang.png",
   "Água Santa": "agua_santa.svg",
-  "Águia de Marabá": "aguia_de_maraba.png"
+  "Águia de Marabá": "aguia_de_maraba.png",
+  "Central Coast Mariners": "world/espn-5325.png"
 };
 
 function normClub(s) {

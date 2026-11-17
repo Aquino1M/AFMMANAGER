@@ -192,5 +192,6 @@ window.CLUB_BADGES_VERIFIED_WORLD_BY_NAME = Object.freeze(Object.assign({}, wind
   "qarabag": "world/tsdb-135702.png",
   "dynamokyiv": "world/tsdb-133944.png",
   "rfs": "world/tsdb-137985.png",
-  "ludogorets": "world/tsdb-133981.png"
+  "ludogorets": "world/tsdb-133981.png",
+  "centralcoastmariners": "world/espn-5325.png"
 }));

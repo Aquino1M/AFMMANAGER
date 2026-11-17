@@ -59,5 +59,9 @@ Você é o engenheiro-chefe responsável pelo AFM Manager 2026/2027. Antes de al
     - `calculatePlayerOverall`, `AFM_PLAYER_EVOLUTION.recalculateOvr(athlete, state)` e `playerOverall` compartilham uma única tabela de pesos posicionais via `normalizePlayerPosGroup(pos)` compatível com códigos PT e EN (`GOL`/`GK`, `ZAG`/`CB`, `LAT`/`LB`/`RB`, `VOL`/`DM`/`CM`, `MEI`/`AM`, `PON`/`LW`/`RW`, `ATA`/`ST`/`CF`).
     - `startPlayerCareer` preserva os 21 arquétipos e 4 peneiras do `AFM_CREATOR_CATALOG`, aplica o bônus `+1` de `starterBoot` via `boots_basic` sem duplicidade, sincroniza `shirtNumber` no retrato SVG 1:1 (Criador, FUT Card, FootGram e Estatísticas), blinda `controlledPlayerId` contra colisão de nomes em `LIVE_PLAYERS` e mantém paridade total entre `athlete`, `state.playerCareerState` e `state.player`.
 
+12. **INTEGRIDADE DE ELENCOS, ESCUDOS E TÉCNICOS ATUAIS (17/11/2026):**
+    - `AFM_NATIONAL_TEAM.NATIONS_DB` é a Fonte Única de Verdade das 38 seleções nacionais (`NATIONAL_TEAMS_CATALOG` deriva diretamente de `NATIONS_DB`), mantendo técnicos atuais verificados (ex.: Brasil `Carlo Ancelotti`, França `Zinédine Zidane`, Portugal `Jorge Jesus`, Alemanha `Jürgen Klopp`, Itália `Roberto Mancini`, Holanda `Xavi Hernández`, Uruguai `Diego Forlán`, Equador `Marcelo Gallardo`, Suécia `Graham Potter`) e atualizando caches legados em `ensureNationalData(state)`.
+    - `data/players_live.js` e `REAL_COACHES_DB` devem manter zero `tmId` duplicado, zero atleta repetido no mesmo clube, 100% de clubes mapeados em `CLUB_BADGES` e aprovação integral em `node scripts/audit-football-data.js` (`0 erros`).
+
 
 

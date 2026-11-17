@@ -6056,7 +6056,7 @@
                   </span>
                 </div>
                 <div style="font-size:13px;color:#94a3b8;margin-top:6px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-                  <span>👔 Treinador: <b style="color:#fff">${esc(meta.coach || 'Dorival Júnior')}</b></span>
+                  <span>👔 Treinador: <b style="color:#fff">${esc(meta.coach || 'Carlo Ancelotti')}</b></span>
                   <span>🏟️ Estádio Principal: <b style="color:#fff">${esc(meta.stadium || 'Maracanã')}</b></span>
                   <span>⚽ Rival Histórico: <b style="color:#fff">${esc(Array.isArray(meta.rivals) ? meta.rivals.join(', ') : (meta.rivals || 'Argentina'))}</b></span>
                 </div>
@@ -6200,7 +6200,7 @@
                 <span>📋</span> ESQUEMA TÁTICO & 11 TITULARES DA SELEÇÃO (4-3-3)
               </h3>
               <div style="font-size:12px;color:#94a3b8;margin-top:2px">
-                Configuração titular adotada pelo técnico <b>${esc(meta.coach || 'Dorival Júnior')}</b> para o próximo desafio internacional.
+                Configuração titular adotada pelo técnico <b>${esc(meta.coach || 'Carlo Ancelotti')}</b> para o próximo desafio internacional.
               </div>
             </div>
             <span style="background:rgba(250,204,21,0.12);border:1px solid rgba(250,204,21,0.3);color:#facc15;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:900">

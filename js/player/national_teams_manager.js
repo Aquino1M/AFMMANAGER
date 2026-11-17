@@ -35,7 +35,7 @@
         confed: "CONMEBOL • CBF",
         federation: "CBF",
         confederation: "CONMEBOL",
-        coach: "Dorival Júnior",
+        coach: "Carlo Ancelotti",
         stadium: "Maracanã",
         rivals: ["Argentina", "Uruguai", "França", "Alemanha"],
         primaryColor: "#facc15",
@@ -74,7 +74,7 @@
         secondaryColor: "#ffffff",
         formation: "4-3-3",
         legends: [
-          { name: "Lionel Messi", caps: 187, goals: 109 },
+          { name: "Lionel Messi", caps: 191, goals: 112 },
           { name: "Gabriel Batistuta", caps: 78, goals: 56 },
           { name: "Sergio Agüero", caps: 101, goals: 41 },
           { name: "Diego Maradona", caps: 91, goals: 34 },
@@ -98,14 +98,14 @@
         confed: "UEFA • FPF",
         federation: "FPF",
         confederation: "UEFA",
-        coach: "Roberto Martínez",
+        coach: "Jorge Jesus",
         stadium: "Estádio da Luz",
         rivals: ["Espanha", "França", "Brasil"],
         primaryColor: "#ef4444",
         secondaryColor: "#16a34a",
         formation: "4-3-3",
         legends: [
-          { name: "Cristiano Ronaldo", caps: 212, goals: 130 },
+          { name: "Cristiano Ronaldo", caps: 217, goals: 135 },
           { name: "Pauleta", caps: 88, goals: 47 },
           { name: "Eusébio", caps: 64, goals: 41 },
           { name: "Luís Figo", caps: 127, goals: 32 },
@@ -126,7 +126,7 @@
         confed: "UEFA • FFF",
         federation: "FFF",
         confederation: "UEFA",
-        coach: "Didier Deschamps",
+        coach: "Zinédine Zidane",
         stadium: "Stade de France",
         rivals: ["Brasil", "Argentina", "Itália", "Inglaterra", "Alemanha"],
         primaryColor: "#3b82f6",
@@ -134,9 +134,9 @@
         formation: "4-2-3-1",
         legends: [
           { name: "Olivier Giroud", caps: 137, goals: 57 },
+          { name: "Kylian Mbappé", caps: 92, goals: 52 },
           { name: "Thierry Henry", caps: 123, goals: 51 },
-          { name: "Kylian Mbappé", caps: 84, goals: 48 },
-          { name: "Antoine Griezmann", caps: 135, goals: 44 },
+          { name: "Antoine Griezmann", caps: 137, goals: 44 },
           { name: "Michel Platini", caps: 72, goals: 41 },
           { name: "Hugo Lloris", caps: 145, goals: 0 }
         ],
@@ -184,7 +184,7 @@
         confed: "UEFA • DFB",
         federation: "DFB",
         confederation: "UEFA",
-        coach: "Julian Nagelsmann",
+        coach: "Jürgen Klopp",
         stadium: "Allianz Arena",
         rivals: ["Holanda", "Itália", "França", "Inglaterra", "Brasil"],
         primaryColor: "#ffffff",
@@ -218,7 +218,7 @@
         secondaryColor: "#dc2626",
         formation: "4-2-3-1",
         legends: [
-          { name: "Harry Kane", caps: 98, goals: 68 },
+          { name: "Harry Kane", caps: 103, goals: 71 },
           { name: "Wayne Rooney", caps: 120, goals: 53 },
           { name: "Bobby Charlton", caps: 106, goals: 49 },
           { name: "Peter Shilton", caps: 125, goals: 0 }
@@ -238,7 +238,7 @@
         confed: "UEFA • FIGC",
         federation: "FIGC",
         confederation: "UEFA",
-        coach: "Luciano Spalletti",
+        coach: "Roberto Mancini",
         stadium: "Stadio Olimpico",
         rivals: ["França", "Alemanha", "Espanha", "Brasil"],
         primaryColor: "#2563eb",
@@ -266,7 +266,7 @@
         confed: "CONMEBOL • AUF",
         federation: "AUF",
         confederation: "CONMEBOL",
-        coach: "Marcelo Bielsa",
+        coach: "Diego Forlán",
         stadium: "Centenario",
         rivals: ["Brasil", "Argentina", "Chile"],
         primaryColor: "#38bdf8",
@@ -296,7 +296,7 @@
         confed: "UEFA • KNVB",
         federation: "KNVB",
         confederation: "UEFA",
-        coach: "Ronald Koeman",
+        coach: "Xavi Hernández",
         stadium: "Johan Cruijff Arena",
         rivals: ["Alemanha", "Bélgica", "Argentina"],
         primaryColor: "#f97316",
@@ -304,6 +304,7 @@
         formation: "4-3-3",
         legends: [
           { name: "Robin van Persie", caps: 102, goals: 50 },
+          { name: "Memphis Depay", caps: 98, goals: 46 },
           { name: "Klaas-Jan Huntelaar", caps: 76, goals: 42 },
           { name: "Dennis Bergkamp", caps: 79, goals: 37 }
         ],
@@ -321,7 +322,7 @@
         confed: "UEFA • HNS",
         federation: "HNS",
         confederation: "UEFA",
-        coach: "Zlatko Dalić",
+        coach: "Slaven Bilić",
         stadium: "Maksimir",
         rivals: ["Sérvia", "França", "Brasil"],
         primaryColor: "#ef4444",
@@ -330,7 +331,7 @@
         legends: [
           { name: "Davor Šuker", caps: 69, goals: 45 },
           { name: "Mario Mandžukić", caps: 89, goals: 33 },
-          { name: "Luka Modrić", caps: 178, goals: 26 }
+          { name: "Luka Modrić", caps: 184, goals: 27 }
         ],
         qualifiers: [
           { rank: 1, team: "Croácia", flag: "🇭🇷", pts: 20, p: 8, gd: +11, zone: "Copa 2026" },
@@ -346,16 +347,16 @@
         confed: "UEFA • RBFA",
         federation: "RBFA",
         confederation: "UEFA",
-        coach: "Domenico Tedesco",
+        coach: "Mark van Bommel",
         stadium: "Rei Balduíno",
         rivals: ["França", "Holanda", "Inglaterra"],
         primaryColor: "#dc2626",
         secondaryColor: "#000000",
         formation: "4-3-3",
         legends: [
-          { name: "Romelu Lukaku", caps: 119, goals: 85 },
+          { name: "Romelu Lukaku", caps: 120, goals: 85 },
           { name: "Eden Hazard", caps: 126, goals: 33 },
-          { name: "Kevin De Bruyne", caps: 105, goals: 28 },
+          { name: "Kevin De Bruyne", caps: 109, goals: 30 },
           { name: "Jan Vertonghen", caps: 157, goals: 10 }
         ],
         qualifiers: [
@@ -380,7 +381,7 @@
         formation: "4-3-3",
         legends: [
           { name: "Radamel Falcao", caps: 105, goals: 36 },
-          { name: "James Rodríguez", caps: 104, goals: 29 },
+          { name: "James Rodríguez", caps: 112, goals: 29 },
           { name: "David Ospina", caps: 128, goals: 0 }
         ],
         qualifiers: [
@@ -388,6 +389,160 @@
           { rank: 2, team: "Uruguai", flag: "🇺🇾", pts: 20, p: 10, gd: +8, zone: "Copa 2026" },
           { rank: 3, team: "Brasil", flag: "🇧🇷", pts: 19, p: 10, gd: +7, zone: "Copa 2026" },
           { rank: 4, team: "Colômbia", flag: "🇨🇴", pts: 18, p: 10, gd: +5, zone: "Copa 2026" }
+        ]
+      },
+      "Paraguai": {
+        name: "Paraguai",
+        officialName: "SELEÇÃO PARAGUAIA",
+        prepIn: "no Paraguai",
+        code: "PAR",
+        flag: "🇵🇾",
+        confed: "CONMEBOL • APF",
+        federation: "APF",
+        confederation: "CONMEBOL",
+        coach: "Gustavo Alfaro",
+        stadium: "Defensores del Chaco",
+        rivals: ["Brasil", "Argentina", "Uruguai"],
+        primaryColor: "#dc2626",
+        secondaryColor: "#1d4ed8",
+        formation: "4-3-3",
+        legends: [
+          { name: "Roque Santa Cruz", caps: 112, goals: 32 },
+          { name: "José Saturnino Cardozo", caps: 82, goals: 25 },
+          { name: "Paulo da Silva", caps: 148, goals: 3 },
+          { name: "José Luis Chilavert", caps: 74, goals: 8 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Argentina", flag: "🇦🇷", pts: 25, p: 10, gd: +12, zone: "Copa 2026" },
+          { rank: 6, team: "Paraguai", flag: "🇵🇾", pts: 13, p: 10, gd: 0, zone: "Copa 2026" }
+        ]
+      },
+      "Equador": {
+        name: "Equador",
+        officialName: "SELEÇÃO EQUATORIANA",
+        prepIn: "no Equador",
+        code: "ECU",
+        flag: "🇪🇨",
+        confed: "CONMEBOL • FEF",
+        federation: "FEF",
+        confederation: "CONMEBOL",
+        coach: "Marcelo Gallardo",
+        stadium: "Rodrigo Paz Delgado",
+        rivals: ["Colômbia", "Peru", "Brasil"],
+        primaryColor: "#facc15",
+        secondaryColor: "#1d4ed8",
+        formation: "4-3-3",
+        legends: [
+          { name: "Enner Valencia", caps: 95, goals: 44 },
+          { name: "Agustín Delgado", caps: 71, goals: 31 },
+          { name: "Iván Hurtado", caps: 168, goals: 5 },
+          { name: "Antonio Valencia", caps: 99, goals: 11 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Argentina", flag: "🇦🇷", pts: 25, p: 10, gd: +12, zone: "Copa 2026" },
+          { rank: 5, team: "Equador", flag: "🇪🇨", pts: 16, p: 10, gd: +3, zone: "Copa 2026" }
+        ]
+      },
+      "Chile": {
+        name: "Chile",
+        officialName: "SELEÇÃO CHILENA",
+        prepIn: "no Chile",
+        code: "CHI",
+        flag: "🇨🇱",
+        confed: "CONMEBOL • FFCh",
+        federation: "FFCh",
+        confederation: "CONMEBOL",
+        coach: "Nicolás Córdova",
+        stadium: "Estadio Nacional de Chile",
+        rivals: ["Peru", "Argentina", "Uruguai"],
+        primaryColor: "#dc2626",
+        secondaryColor: "#1d4ed8",
+        formation: "4-3-3",
+        legends: [
+          { name: "Alexis Sánchez", caps: 166, goals: 51 },
+          { name: "Eduardo Vargas", caps: 118, goals: 45 },
+          { name: "Marcelo Salas", caps: 70, goals: 37 },
+          { name: "Arturo Vidal", caps: 144, goals: 34 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Argentina", flag: "🇦🇷", pts: 25, p: 10, gd: +12, zone: "Copa 2026" },
+          { rank: 9, team: "Chile", flag: "🇨🇱", pts: 8, p: 10, gd: -10, zone: "Eliminado" }
+        ]
+      },
+      "Peru": {
+        name: "Peru",
+        officialName: "SELEÇÃO PERUANA",
+        prepIn: "no Peru",
+        code: "PER",
+        flag: "🇵🇪",
+        confed: "CONMEBOL • FPF",
+        federation: "FPF",
+        confederation: "CONMEBOL",
+        coach: "Mano Menezes",
+        stadium: "Estadio Nacional de Lima",
+        rivals: ["Chile", "Equador", "Colômbia"],
+        primaryColor: "#ffffff",
+        secondaryColor: "#dc2626",
+        formation: "4-3-3",
+        legends: [
+          { name: "Paolo Guerrero", caps: 124, goals: 40 },
+          { name: "Jefferson Farfán", caps: 102, goals: 27 },
+          { name: "Teófilo Cubillas", caps: 81, goals: 26 },
+          { name: "Roberto Palacios", caps: 128, goals: 19 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Argentina", flag: "🇦🇷", pts: 25, p: 10, gd: +12, zone: "Copa 2026" },
+          { rank: 8, team: "Peru", flag: "🇵🇪", pts: 9, p: 10, gd: -8, zone: "Eliminado" }
+        ]
+      },
+      "Venezuela": {
+        name: "Venezuela",
+        officialName: "SELEÇÃO VENEZUELANA",
+        prepIn: "na Venezuela",
+        code: "VEN",
+        flag: "🇻🇪",
+        confed: "CONMEBOL • FVF",
+        federation: "FVF",
+        confederation: "CONMEBOL",
+        coach: "Oswaldo Vizcarrondo",
+        stadium: "Monumental de Maturín",
+        rivals: ["Colômbia", "Bolívia", "Equador"],
+        primaryColor: "#7f1d1d",
+        secondaryColor: "#facc15",
+        formation: "4-3-3",
+        legends: [
+          { name: "Salomón Rondón", caps: 114, goals: 45 },
+          { name: "Juan Arango", caps: 129, goals: 23 },
+          { name: "Tomás Rincón", caps: 139, goals: 1 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Argentina", flag: "🇦🇷", pts: 25, p: 10, gd: +12, zone: "Copa 2026" },
+          { rank: 7, team: "Venezuela", flag: "🇻🇪", pts: 12, p: 10, gd: -2, zone: "Repescagem" }
+        ]
+      },
+      "Bolívia": {
+        name: "Bolívia",
+        officialName: "SELEÇÃO BOLIVIANA",
+        prepIn: "na Bolívia",
+        code: "BOL",
+        flag: "🇧🇴",
+        confed: "CONMEBOL • FBF",
+        federation: "FBF",
+        confederation: "CONMEBOL",
+        coach: "Óscar Villegas",
+        stadium: "Hernando Siles",
+        rivals: ["Peru", "Chile", "Paraguai"],
+        primaryColor: "#15803d",
+        secondaryColor: "#ffffff",
+        formation: "4-3-3",
+        legends: [
+          { name: "Marcelo Moreno", caps: 108, goals: 31 },
+          { name: "Joaquín Botero", caps: 48, goals: 20 },
+          { name: "Marco Etcheverry", caps: 71, goals: 13 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Argentina", flag: "🇦🇷", pts: 25, p: 10, gd: +12, zone: "Copa 2026" },
+          { rank: 7, team: "Bolívia", flag: "🇧🇴", pts: 12, p: 10, gd: -5, zone: "Repescagem" }
         ]
       },
       "Japão": {
@@ -416,6 +571,81 @@
           { rank: 2, team: "Austrália", flag: "🇦🇺", pts: 16, p: 8, gd: +8, zone: "Copa 2026" }
         ]
       },
+      "Coreia do Sul": {
+        name: "Coreia do Sul",
+        officialName: "SELEÇÃO SUL-COREANA",
+        prepIn: "na Coreia do Sul",
+        code: "KOR",
+        flag: "🇰🇷",
+        confed: "AFC • KFA",
+        federation: "KFA",
+        confederation: "AFC",
+        coach: "Robert Moreno",
+        stadium: "Seoul World Cup Stadium",
+        rivals: ["Japão", "Austrália", "Irã"],
+        primaryColor: "#ef4444",
+        secondaryColor: "#1e293b",
+        formation: "4-2-3-1",
+        legends: [
+          { name: "Cha Bum-kun", caps: 136, goals: 58 },
+          { name: "Heung-min Son", caps: 134, goals: 51 },
+          { name: "Park Ji-sung", caps: 100, goals: 13 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Coreia do Sul", flag: "🇰🇷", pts: 22, p: 8, gd: +16, zone: "Copa 2026" },
+          { rank: 2, team: "Jordânia", flag: "🇯🇴", pts: 15, p: 8, gd: +6, zone: "Copa 2026" }
+        ]
+      },
+      "Arábia Saudita": {
+        name: "Arábia Saudita",
+        officialName: "SELEÇÃO SAUDITA",
+        prepIn: "na Arábia Saudita",
+        code: "KSA",
+        flag: "🇸🇦",
+        confed: "AFC • SAFF",
+        federation: "SAFF",
+        confederation: "AFC",
+        coach: "Georgios Donis",
+        stadium: "King Fahd Sports City",
+        rivals: ["Japão", "Austrália", "Catar"],
+        primaryColor: "#16a34a",
+        secondaryColor: "#ffffff",
+        formation: "4-3-3",
+        legends: [
+          { name: "Majed Abdullah", caps: 117, goals: 72 },
+          { name: "Sami Al-Jaber", caps: 156, goals: 46 },
+          { name: "Salem Al-Dawsari", caps: 92, goals: 24 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Japão", flag: "🇯🇵", pts: 24, p: 8, gd: +22, zone: "Copa 2026" },
+          { rank: 2, team: "Arábia Saudita", flag: "🇸🇦", pts: 16, p: 8, gd: +5, zone: "Copa 2026" }
+        ]
+      },
+      "Austrália": {
+        name: "Austrália",
+        officialName: "SELEÇÃO AUSTRALIANA",
+        prepIn: "na Austrália",
+        code: "AUS",
+        flag: "🇦🇺",
+        confed: "AFC • FA",
+        federation: "FA",
+        confederation: "AFC",
+        coach: "Tony Popovic",
+        stadium: "Stadium Australia",
+        rivals: ["Japão", "Coreia do Sul", "Arábia Saudita"],
+        primaryColor: "#facc15",
+        secondaryColor: "#15803d",
+        formation: "4-2-3-1",
+        legends: [
+          { name: "Tim Cahill", caps: 108, goals: 50 },
+          { name: "Mark Schwarzer", caps: 109, goals: 0 },
+          { name: "Harry Kewell", caps: 58, goals: 17 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Japão", flag: "🇯🇵", pts: 24, p: 8, gd: +22, zone: "Copa 2026" },
+          { rank: 2, team: "Austrália", flag: "🇦🇺", pts: 16, p: 8, gd: +8, zone: "Copa 2026" }
+        ]
+      },
       "Estados Unidos": {
         name: "Estados Unidos",
         officialName: "SELEÇÃO NORTE-AMERICANA",
@@ -434,19 +664,362 @@
         legends: [
           { name: "Clint Dempsey", caps: 141, goals: 57 },
           { name: "Landon Donovan", caps: 157, goals: 57 },
-          { name: "Christian Pulisic", caps: 71, goals: 31 }
+          { name: "Christian Pulisic", caps: 76, goals: 32 }
         ],
         qualifiers: [
           { rank: 1, team: "Estados Unidos", flag: "🇺🇸", pts: 25, p: 10, gd: +15, zone: "País-Sede 2026" },
           { rank: 2, team: "México", flag: "🇲🇽", pts: 22, p: 10, gd: +10, zone: "País-Sede 2026" }
         ]
+      },
+      "México": {
+        name: "México",
+        officialName: "SELEÇÃO MEXICANA",
+        prepIn: "no México",
+        code: "MEX",
+        flag: "🇲🇽",
+        confed: "CONCACAF • FMF",
+        federation: "FMF",
+        confederation: "CONCACAF",
+        coach: "Rafael Márquez",
+        stadium: "Estadio Azteca",
+        rivals: ["Estados Unidos", "Canadá", "Argentina"],
+        primaryColor: "#15803d",
+        secondaryColor: "#dc2626",
+        formation: "4-3-3",
+        legends: [
+          { name: "Javier Hernández", caps: 109, goals: 52 },
+          { name: "Jared Borgetti", caps: 89, goals: 46 },
+          { name: "Rafael Márquez", caps: 147, goals: 17 },
+          { name: "Guillermo Ochoa", caps: 151, goals: 0 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Estados Unidos", flag: "🇺🇸", pts: 25, p: 10, gd: +15, zone: "País-Sede 2026" },
+          { rank: 2, team: "México", flag: "🇲🇽", pts: 22, p: 10, gd: +10, zone: "País-Sede 2026" }
+        ]
+      },
+      "Canadá": {
+        name: "Canadá",
+        officialName: "SELEÇÃO CANADENSE",
+        prepIn: "no Canadá",
+        code: "CAN",
+        flag: "🇨🇦",
+        confed: "CONCACAF • CSA",
+        federation: "CSA",
+        confederation: "CONCACAF",
+        coach: "Jesse Marsch",
+        stadium: "BMO Field",
+        rivals: ["Estados Unidos", "México"],
+        primaryColor: "#dc2626",
+        secondaryColor: "#ffffff",
+        formation: "4-4-2",
+        legends: [
+          { name: "Jonathan David", caps: 62, goals: 32 },
+          { name: "Cyle Larin", caps: 79, goals: 30 },
+          { name: "Alphonso Davies", caps: 58, goals: 15 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Estados Unidos", flag: "🇺🇸", pts: 25, p: 10, gd: +15, zone: "País-Sede 2026" },
+          { rank: 3, team: "Canadá", flag: "🇨🇦", pts: 20, p: 10, gd: +8, zone: "País-Sede 2026" }
+        ]
+      },
+      "Marrocos": {
+        name: "Marrocos",
+        officialName: "SELEÇÃO MARROQUINA",
+        prepIn: "no Marrocos",
+        code: "MAR",
+        flag: "🇲🇦",
+        confed: "CAF • FRMF",
+        federation: "FRMF",
+        confederation: "CAF",
+        coach: "Mohamed Ouahbi",
+        stadium: "Complexe Prince Moulay Abdellah",
+        rivals: ["Espanha", "Egito", "Senegal"],
+        primaryColor: "#dc2626",
+        secondaryColor: "#15803d",
+        formation: "4-3-3",
+        legends: [
+          { name: "Ahmed Faras", caps: 94, goals: 36 },
+          { name: "Hakim Ziyech", caps: 64, goals: 25 },
+          { name: "Achraf Hakimi", caps: 85, goals: 10 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Marrocos", flag: "🇲🇦", pts: 24, p: 8, gd: +18, zone: "Copa 2026" }
+        ]
+      },
+      "Senegal": {
+        name: "Senegal",
+        officialName: "SELEÇÃO SENEGALESA",
+        prepIn: "no Senegal",
+        code: "SEN",
+        flag: "🇸🇳",
+        confed: "CAF • FSF",
+        federation: "FSF",
+        confederation: "CAF",
+        coach: "Patrick Vieira",
+        stadium: "Stade Abdoulaye Wade",
+        rivals: ["Marrocos", "Egito", "Nigéria"],
+        primaryColor: "#16a34a",
+        secondaryColor: "#facc15",
+        formation: "4-3-3",
+        legends: [
+          { name: "Sadio Mané", caps: 111, goals: 45 },
+          { name: "Henri Camara", caps: 99, goals: 29 },
+          { name: "Idrissa Gueye", caps: 118, goals: 7 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Senegal", flag: "🇸🇳", pts: 22, p: 8, gd: +14, zone: "Copa 2026" }
+        ]
+      },
+      "Nigéria": {
+        name: "Nigéria",
+        officialName: "SELEÇÃO NIGERIANA",
+        prepIn: "na Nigéria",
+        code: "NGA",
+        flag: "🇳🇬",
+        confed: "CAF • NFF",
+        federation: "NFF",
+        confederation: "CAF",
+        coach: "Éric Chelle",
+        stadium: "Moshood Abiola Stadium",
+        rivals: ["Camarões", "Gana", "Senegal"],
+        primaryColor: "#16a34a",
+        secondaryColor: "#ffffff",
+        formation: "4-3-3",
+        legends: [
+          { name: "Rashidi Yekini", caps: 62, goals: 37 },
+          { name: "Victor Osimhen", caps: 41, goals: 26 },
+          { name: "Jay-Jay Okocha", caps: 73, goals: 14 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Nigéria", flag: "🇳🇬", pts: 19, p: 8, gd: +10, zone: "Copa 2026" }
+        ]
+      },
+      "Egito": {
+        name: "Egito",
+        officialName: "SELEÇÃO EGÍPCIA",
+        prepIn: "no Egito",
+        code: "EGY",
+        flag: "🇪🇬",
+        confed: "CAF • EFA",
+        federation: "EFA",
+        confederation: "CAF",
+        coach: "Ali Maher",
+        stadium: "Cairo International Stadium",
+        rivals: ["Marrocos", "Senegal", "Argélia"],
+        primaryColor: "#dc2626",
+        secondaryColor: "#000000",
+        formation: "4-3-3",
+        legends: [
+          { name: "Hossam Hassan", caps: 176, goals: 68 },
+          { name: "Mohamed Salah", caps: 105, goals: 60 },
+          { name: "Ahmed Hassan", caps: 184, goals: 33 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Egito", flag: "🇪🇬", pts: 22, p: 8, gd: +15, zone: "Copa 2026" }
+        ]
+      },
+      "Suíça": {
+        name: "Suíça",
+        officialName: "SELEÇÃO SUÍÇA",
+        prepIn: "na Suíça",
+        code: "SUI",
+        flag: "🇨🇭",
+        confed: "UEFA • SFV",
+        federation: "SFV",
+        confederation: "UEFA",
+        coach: "Murat Yakin",
+        stadium: "St. Jakob-Park",
+        rivals: ["Áustria", "Alemanha", "França"],
+        primaryColor: "#dc2626",
+        secondaryColor: "#ffffff",
+        formation: "3-4-2-1",
+        legends: [
+          { name: "Alexander Frei", caps: 84, goals: 42 },
+          { name: "Xherdan Shaqiri", caps: 125, goals: 32 },
+          { name: "Granit Xhaka", caps: 135, goals: 14 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Suíça", flag: "🇨🇭", pts: 19, p: 8, gd: +11, zone: "Copa 2026" }
+        ]
+      },
+      "Dinamarca": {
+        name: "Dinamarca",
+        officialName: "SELEÇÃO DINAMARQUESA",
+        prepIn: "na Dinamarca",
+        code: "DEN",
+        flag: "🇩🇰",
+        confed: "UEFA • DBU",
+        federation: "DBU",
+        confederation: "UEFA",
+        coach: "Brian Riemer",
+        stadium: "Parken",
+        rivals: ["Suécia", "Noruega", "Alemanha"],
+        primaryColor: "#dc2626",
+        secondaryColor: "#ffffff",
+        formation: "4-3-3",
+        legends: [
+          { name: "Poul Nielsen", caps: 38, goals: 52 },
+          { name: "Christian Eriksen", caps: 140, goals: 43 },
+          { name: "Peter Schmeichel", caps: 129, goals: 1 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Dinamarca", flag: "🇩🇰", pts: 20, p: 8, gd: +12, zone: "Copa 2026" }
+        ]
+      },
+      "Noruega": {
+        name: "Noruega",
+        officialName: "SELEÇÃO NORUEGUESA",
+        prepIn: "na Noruega",
+        code: "NOR",
+        flag: "🇳🇴",
+        confed: "UEFA • NFF",
+        federation: "NFF",
+        confederation: "UEFA",
+        coach: "Ståle Solbakken",
+        stadium: "Ullevaal Stadion",
+        rivals: ["Suécia", "Dinamarca"],
+        primaryColor: "#dc2626",
+        secondaryColor: "#1d4ed8",
+        formation: "4-3-3",
+        legends: [
+          { name: "Erling Haaland", caps: 41, goals: 40 },
+          { name: "Jørgen Juve", caps: 45, goals: 33 },
+          { name: "John Arne Riise", caps: 110, goals: 16 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Noruega", flag: "🇳🇴", pts: 19, p: 8, gd: +13, zone: "Copa 2026" }
+        ]
+      },
+      "Suécia": {
+        name: "Suécia",
+        officialName: "SELEÇÃO SUECA",
+        prepIn: "na Suécia",
+        code: "SWE",
+        flag: "🇸🇪",
+        confed: "UEFA • SvFF",
+        federation: "SvFF",
+        confederation: "UEFA",
+        coach: "Graham Potter",
+        stadium: "Strawberry Arena",
+        rivals: ["Dinamarca", "Noruega"],
+        primaryColor: "#facc15",
+        secondaryColor: "#1d4ed8",
+        formation: "4-3-3",
+        legends: [
+          { name: "Zlatan Ibrahimović", caps: 122, goals: 62 },
+          { name: "Sven Rydell", caps: 43, goals: 49 },
+          { name: "Henrik Larsson", caps: 106, goals: 37 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Suécia", flag: "🇸🇪", pts: 18, p: 8, gd: +11, zone: "Copa 2026" }
+        ]
+      },
+      "Polônia": {
+        name: "Polônia",
+        officialName: "SELEÇÃO POLONESA",
+        prepIn: "na Polônia",
+        code: "POL",
+        flag: "🇵🇱",
+        confed: "UEFA • PZPN",
+        federation: "PZPN",
+        confederation: "UEFA",
+        coach: "Jan Urban",
+        stadium: "PGE Narodowy",
+        rivals: ["Alemanha", "Ucrânia", "Tchéquia"],
+        primaryColor: "#ffffff",
+        secondaryColor: "#dc2626",
+        formation: "3-5-2",
+        legends: [
+          { name: "Robert Lewandowski", caps: 158, goals: 85 },
+          { name: "Włodzimierz Lubański", caps: 75, goals: 48 },
+          { name: "Grzegorz Lato", caps: 100, goals: 45 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Alemanha", flag: "🇩🇪", pts: 24, p: 8, gd: +23, zone: "Copa 2026" },
+          { rank: 2, team: "Polônia", flag: "🇵🇱", pts: 16, p: 8, gd: +7, zone: "Repescagem" }
+        ]
+      },
+      "Turquia": {
+        name: "Turquia",
+        officialName: "SELEÇÃO TURCA",
+        prepIn: "na Turquia",
+        code: "TUR",
+        flag: "🇹🇷",
+        confed: "UEFA • TFF",
+        federation: "TFF",
+        confederation: "UEFA",
+        coach: "Sergen Yalçın",
+        stadium: "Atatürk Olympic Stadium",
+        rivals: ["Grécia", "Croácia"],
+        primaryColor: "#dc2626",
+        secondaryColor: "#ffffff",
+        formation: "4-2-3-1",
+        legends: [
+          { name: "Hakan Şükür", caps: 112, goals: 51 },
+          { name: "Burak Yılmaz", caps: 77, goals: 31 },
+          { name: "Rüştü Reçber", caps: 120, goals: 0 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Turquia", flag: "🇹🇷", pts: 19, p: 8, gd: +10, zone: "Copa 2026" }
+        ]
+      },
+      "Áustria": {
+        name: "Áustria",
+        officialName: "SELEÇÃO AUSTRÍACA",
+        prepIn: "na Áustria",
+        code: "AUT",
+        flag: "🇦🇹",
+        confed: "UEFA • ÖFB",
+        federation: "ÖFB",
+        confederation: "UEFA",
+        coach: "Ralf Rangnick",
+        stadium: "Ernst-Happel-Stadion",
+        rivals: ["Alemanha", "Suíça"],
+        primaryColor: "#dc2626",
+        secondaryColor: "#ffffff",
+        formation: "4-2-3-1",
+        legends: [
+          { name: "Toni Polster", caps: 95, goals: 44 },
+          { name: "Marko Arnautović", caps: 121, goals: 39 },
+          { name: "David Alaba", caps: 105, goals: 15 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Áustria", flag: "🇦🇹", pts: 19, p: 8, gd: +11, zone: "Copa 2026" }
+        ]
+      },
+      "Sérvia": {
+        name: "Sérvia",
+        officialName: "SELEÇÃO SÉRVIA",
+        prepIn: "na Sérvia",
+        code: "SRB",
+        flag: "🇷🇸",
+        confed: "UEFA • FSS",
+        federation: "FSS",
+        confederation: "UEFA",
+        coach: "Veljko Paunović",
+        stadium: "Rajko Mitić",
+        rivals: ["Croácia", "Suíça"],
+        primaryColor: "#dc2626",
+        secondaryColor: "#1d4ed8",
+        formation: "3-4-2-1",
+        legends: [
+          { name: "Aleksandar Mitrović", caps: 98, goals: 59 },
+          { name: "Dušan Tadić", caps: 111, goals: 23 },
+          { name: "Branislav Ivanović", caps: 105, goals: 13 }
+        ],
+        qualifiers: [
+          { rank: 1, team: "Sérvia", flag: "🇷🇸", pts: 18, p: 8, gd: +8, zone: "Copa 2026" }
+        ]
       }
     },
 
     getNationProfile: function(countryName) {
-      const clean = String(countryName || "Brasil").trim();
-      if (this.NATIONS_DB[clean]) return this.NATIONS_DB[clean];
+      const cleanRaw = String(countryName || "Brasil").trim();
+      const norm = typeof normalizeNationality === 'function' ? normalizeNationality(cleanRaw) : cleanRaw;
+      if (this.NATIONS_DB[norm]) return this.NATIONS_DB[norm];
+      if (this.NATIONS_DB[cleanRaw]) return this.NATIONS_DB[cleanRaw];
 
+      const clean = norm || cleanRaw || "Brasil";
       const upper = clean.toUpperCase();
       let prep = `em ${clean}`;
       let official = `SELEÇÃO ${upper}`;
@@ -501,7 +1074,7 @@
       const pState = state.playerCareerState || state.player || {};
       const athlete = state.player || (pState.athlete) || {};
 
-      pState.nationality = pState.nationality || athlete.nationality || "Brasil";
+      pState.nationality = normalizeNationality(pState.nationality || athlete.nationality || "Brasil");
       pState.internationalCaps = Number(pState.internationalCaps || pState.internationalStats?.caps || 0);
       pState.internationalGoals = Number(pState.internationalGoals || pState.internationalStats?.goals || 0);
       pState.internationalAssists = Number(pState.internationalAssists || pState.internationalStats?.assists || 0);
@@ -534,6 +1107,19 @@
         competition: nextFifaRound % 12 === 0 ? "Eliminatórias da Copa" : "Amistoso Internacional FIFA"
       };
 
+      // Atualiza snapshots cacheados em saves existentes para refletir o técnico atual da seleção
+      if (pState.lastCallUpData && pState.lastCallUpData.meta) {
+        pState.lastCallUpData.meta = Object.assign({}, pState.lastCallUpData.meta, getNationalTeamMeta(pState.lastCallUpData.country || pState.nationality));
+      }
+      if (pState.fifaFixture) {
+        if (pState.fifaFixture.userCallUp?.meta) {
+          pState.fifaFixture.userCallUp.meta = Object.assign({}, pState.fifaFixture.userCallUp.meta, getNationalTeamMeta(pState.fifaFixture.homeCountry || pState.nationality));
+        }
+        if (pState.fifaFixture.oppCallUp?.meta) {
+          pState.fifaFixture.oppCallUp.meta = Object.assign({}, pState.fifaFixture.oppCallUp.meta, getNationalTeamMeta(pState.fifaFixture.awayCountry));
+        }
+      }
+
       if (state.player) {
         state.player.nationality = pState.nationality;
         state.player.internationalCaps = pState.internationalCaps;
@@ -549,226 +1135,16 @@
 
 
   // =========================================================================
-  // 1. CATÁLOGO OFICIAL DE SELEÇÕES NACIONAIS (CONFEDERAÇÃO, BANDEIRA, CORES)
+  // 1. CATÁLOGO OFICIAL DE SELEÇÕES NACIONAIS (FONTE ÚNICA DE VERDADE = NATIONS_DB)
   // =========================================================================
-  const NATIONAL_TEAMS_CATALOG = {
-    'Brasil': {
-      name: 'Brasil',
-      code: 'BRA',
-      flag: '🇧🇷',
-      confederation: 'CONMEBOL',
-      coach: 'Dorival Júnior',
-      primaryColor: '#facc15',
-      secondaryColor: '#1d4ed8',
-      textBadge: 'CBF',
-      stadium: 'Maracanã',
-      rivals: ['Argentina', 'Uruguai', 'França', 'Alemanha']
-    },
-    'Argentina': {
-      name: 'Argentina',
-      code: 'ARG',
-      flag: '🇦🇷',
-      confederation: 'CONMEBOL',
-      coach: 'Lionel Scaloni',
-      primaryColor: '#7dd3fc',
-      secondaryColor: '#ffffff',
-      textBadge: 'AFA',
-      stadium: 'Monumental de Núñez',
-      rivals: ['Brasil', 'Uruguai', 'França', 'Inglaterra']
-    },
-    'França': {
-      name: 'França',
-      code: 'FRA',
-      flag: '🇫🇷',
-      confederation: 'UEFA',
-      coach: 'Didier Deschamps',
-      primaryColor: '#1e3a8a',
-      secondaryColor: '#ffffff',
-      textBadge: 'FFF',
-      stadium: 'Stade de France',
-      rivals: ['Alemanha', 'Espanha', 'Inglaterra', 'Argentina']
-    },
-    'Portugal': {
-      name: 'Portugal',
-      code: 'POR',
-      flag: '🇵🇹',
-      confederation: 'UEFA',
-      coach: 'Roberto Martínez',
-      primaryColor: '#dc2626',
-      secondaryColor: '#15803d',
-      textBadge: 'FPF',
-      stadium: 'Estádio da Luz',
-      rivals: ['Espanha', 'França', 'Alemanha']
-    },
-    'Inglaterra': {
-      name: 'Inglaterra',
-      code: 'ENG',
-      flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-      confederation: 'UEFA',
-      coach: 'Thomas Tuchel',
-      primaryColor: '#ffffff',
-      secondaryColor: '#dc2626',
-      textBadge: 'FA',
-      stadium: 'Wembley',
-      rivals: ['Alemanha', 'França', 'Argentina', 'Escócia']
-    },
-    'Espanha': {
-      name: 'Espanha',
-      code: 'ESP',
-      flag: '🇪🇸',
-      confederation: 'UEFA',
-      coach: 'Luis de la Fuente',
-      primaryColor: '#dc2626',
-      secondaryColor: '#facc15',
-      textBadge: 'RFEF',
-      stadium: 'Santiago Bernabéu',
-      rivals: ['Portugal', 'França', 'Itália', 'Alemanha']
-    },
-    'Uruguai': {
-      name: 'Uruguai',
-      code: 'URU',
-      flag: '🇺🇾',
-      confederation: 'CONMEBOL',
-      coach: 'Marcelo Bielsa',
-      primaryColor: '#38bdf8',
-      secondaryColor: '#000000',
-      textBadge: 'AUF',
-      stadium: 'Estádio Centenário',
-      rivals: ['Brasil', 'Argentina', 'Colômbia']
-    },
-    'Alemanha': {
-      name: 'Alemanha',
-      code: 'GER',
-      flag: '🇩🇪',
-      confederation: 'UEFA',
-      coach: 'Julian Nagelsmann',
-      primaryColor: '#ffffff',
-      secondaryColor: '#000000',
-      textBadge: 'DFB',
-      stadium: 'Allianz Arena',
-      rivals: ['Inglaterra', 'França', 'Itália', 'Holanda']
-    },
-    'Itália': {
-      name: 'Itália',
-      code: 'ITA',
-      flag: '🇮🇹',
-      confederation: 'UEFA',
-      coach: 'Luciano Spalletti',
-      primaryColor: '#1d4ed8',
-      secondaryColor: '#ffffff',
-      textBadge: 'FIGC',
-      stadium: 'San Siro',
-      rivals: ['Alemanha', 'França', 'Espanha', 'Brasil']
-    },
-    'Holanda': {
-      name: 'Holanda',
-      code: 'NED',
-      flag: '🇳🇱',
-      confederation: 'UEFA',
-      coach: 'Ronald Koeman',
-      primaryColor: '#ea580c',
-      secondaryColor: '#ffffff',
-      textBadge: 'KNVB',
-      stadium: 'Johan Cruyff Arena',
-      rivals: ['Alemanha', 'Bélgica', 'Argentina']
-    },
-    'Colômbia': {
-      name: 'Colômbia',
-      code: 'COL',
-      flag: '🇨🇴',
-      confederation: 'CONMEBOL',
-      coach: 'Néstor Lorenzo',
-      primaryColor: '#facc15',
-      secondaryColor: '#1d4ed8',
-      textBadge: 'FCF',
-      stadium: 'Metropolitano de Barranquilla',
-      rivals: ['Brasil', 'Argentina', 'Uruguai']
-    },
-    'Paraguai': {
-      name: 'Paraguai',
-      code: 'PAR',
-      flag: '🇵🇾',
-      confederation: 'CONMEBOL',
-      coach: 'Gustavo Alfaro',
-      primaryColor: '#dc2626',
-      secondaryColor: '#1d4ed8',
-      textBadge: 'APF',
-      stadium: 'Defensores del Chaco',
-      rivals: ['Brasil', 'Argentina', 'Uruguai']
-    },
-    'Equador': {
-      name: 'Equador',
-      code: 'ECU',
-      flag: '🇪🇨',
-      confederation: 'CONMEBOL',
-      coach: 'Sebastián Beccacece',
-      primaryColor: '#facc15',
-      secondaryColor: '#1d4ed8',
-      textBadge: 'FEF',
-      stadium: 'Estadio Rodrigo Paz Delgado',
-      rivals: ['Peru', 'Colômbia', 'Brasil']
-    },
-    'Chile': {
-      name: 'Chile',
-      code: 'CHI',
-      flag: '🇨🇱',
-      confederation: 'CONMEBOL',
-      coach: 'Ricardo Gareca',
-      primaryColor: '#dc2626',
-      secondaryColor: '#1d4ed8',
-      textBadge: 'FFCh',
-      stadium: 'Estadio Nacional de Chile',
-      rivals: ['Peru', 'Argentina', 'Bolívia']
-    },
-    'Estados Unidos': {
-      name: 'Estados Unidos',
-      code: 'USA',
-      flag: '🇺🇸',
-      confederation: 'CONCACAF',
-      coach: 'Mauricio Pochettino',
-      primaryColor: '#ffffff',
-      secondaryColor: '#1e3a8a',
-      textBadge: 'USSF',
-      stadium: 'Mercedes-Benz Stadium',
-      rivals: ['México', 'Canadá']
-    },
-    'Japão': {
-      name: 'Japão',
-      code: 'JPN',
-      flag: '🇯🇵',
-      confederation: 'AFC',
-      coach: 'Hajime Moriyasu',
-      primaryColor: '#1d4ed8',
-      secondaryColor: '#ffffff',
-      textBadge: 'JFA',
-      stadium: 'Saitama Stadium',
-      rivals: ['Coreia do Sul', 'Austrália']
-    },
-    'Bélgica': {
-      name: 'Bélgica',
-      code: 'BEL',
-      flag: '🇧🇪',
-      confederation: 'UEFA',
-      coach: 'Domenico Tedesco',
-      primaryColor: '#dc2626',
-      secondaryColor: '#000000',
-      textBadge: 'RBFA',
-      stadium: 'King Baudouin Stadium',
-      rivals: ['Holanda', 'França']
-    },
-    'Croácia': {
-      name: 'Croácia',
-      code: 'CRO',
-      flag: '🇭🇷',
-      confederation: 'UEFA',
-      coach: 'Zlatko Dalić',
-      primaryColor: '#dc2626',
-      secondaryColor: '#ffffff',
-      textBadge: 'HNS',
-      stadium: 'Stadion Maksimir',
-      rivals: ['Sérvia', 'França']
-    }
-  };
+  const NATIONAL_TEAMS_CATALOG = Object.fromEntries(
+    Object.entries(AFM_NATIONAL_TEAM.NATIONS_DB).map(([key, item]) => [
+      key,
+      Object.assign({}, item, {
+        textBadge: item.federation || item.code
+      })
+    ])
+  );
 
   // Mapeamento de sinônimos e nomes comuns para o catálogo padrão
   const NATIONALITY_SYNONYMS = {
@@ -794,6 +1170,7 @@
     'espanhol': 'Espanha',
     'uruguay': 'Uruguai',
     'uruguai': 'Uruguai',
+    'uruguaio': 'Uruguai',
     'germany': 'Alemanha',
     'alemanha': 'Alemanha',
     'alemao': 'Alemanha',
@@ -802,27 +1179,89 @@
     'italia': 'Itália',
     'italiano': 'Itália',
     'netherlands': 'Holanda',
+    'the netherlands': 'Holanda',
+    'países baixos': 'Holanda',
+    'paises baixos': 'Holanda',
     'holanda': 'Holanda',
     'holandes': 'Holanda',
     'holandês': 'Holanda',
     'colombia': 'Colômbia',
     'colômbia': 'Colômbia',
+    'colombiano': 'Colômbia',
     'paraguay': 'Paraguai',
     'paraguai': 'Paraguai',
+    'paraguaio': 'Paraguai',
     'ecuador': 'Equador',
     'equador': 'Equador',
+    'equatoriano': 'Equador',
     'chile': 'Chile',
     'chileno': 'Chile',
+    'peru': 'Peru',
+    'peruano': 'Peru',
+    'venezuela': 'Venezuela',
+    'venezuelano': 'Venezuela',
+    'bolivia': 'Bolívia',
+    'bolívia': 'Bolívia',
+    'boliviano': 'Bolívia',
     'united states': 'Estados Unidos',
-    'estados unidos': 'Estados Unidos',
     'usa': 'Estados Unidos',
+    'estados unidos': 'Estados Unidos',
+    'eua': 'Estados Unidos',
+    'mexico': 'México',
+    'méxico': 'México',
+    'mexicano': 'México',
+    'canada': 'Canadá',
+    'canadá': 'Canadá',
+    'canadense': 'Canadá',
     'japan': 'Japão',
     'japao': 'Japão',
     'japão': 'Japão',
+    'japones': 'Japão',
+    'japonês': 'Japão',
+    'south korea': 'Coreia do Sul',
+    'korea republic': 'Coreia do Sul',
+    'republic of korea': 'Coreia do Sul',
+    'coreia do sul': 'Coreia do Sul',
+    'saudi arabia': 'Arábia Saudita',
+    'arabia saudita': 'Arábia Saudita',
+    'arábia saudita': 'Arábia Saudita',
+    'australia': 'Austrália',
+    'austrália': 'Austrália',
+    'morocco': 'Marrocos',
+    'marrocos': 'Marrocos',
+    'senegal': 'Senegal',
+    'nigeria': 'Nigéria',
+    'nigéria': 'Nigéria',
+    'egypt': 'Egito',
+    'egito': 'Egito',
     'belgium': 'Bélgica',
     'belgica': 'Bélgica',
+    'bélgica': 'Bélgica',
     'croatia': 'Croácia',
-    'croacia': 'Croácia'
+    'croacia': 'Croácia',
+    'croácia': 'Croácia',
+    'switzerland': 'Suíça',
+    'suica': 'Suíça',
+    'suíça': 'Suíça',
+    'denmark': 'Dinamarca',
+    'dinamarca': 'Dinamarca',
+    'norway': 'Noruega',
+    'noruega': 'Noruega',
+    'sweden': 'Suécia',
+    'suecia': 'Suécia',
+    'suécia': 'Suécia',
+    'poland': 'Polônia',
+    'polonia': 'Polônia',
+    'polônia': 'Polônia',
+    'turkey': 'Turquia',
+    'türkiye': 'Turquia',
+    'turkiye': 'Turquia',
+    'turquia': 'Turquia',
+    'austria': 'Áustria',
+    'áustria': 'Áustria',
+    'serbia': 'Sérvia',
+    'servia': 'Sérvia',
+    'sérvia': 'Sérvia'
   };
 
   // =========================================================================

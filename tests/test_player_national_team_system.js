@@ -47,11 +47,11 @@ const natMgr = window.AFM_NationalTeams;
 assert(natTeam, 'window.AFM_NATIONAL_TEAM deve estar definido');
 assert(natMgr, 'window.AFM_NationalTeams deve estar definido');
 
-// 1. Dicionário de seleções e gramática correta
+// 1. Dicionário de seleções e gramática correta (17/11/2026)
 const bra = natTeam.getNationProfile('Brasil');
 assert.strictEqual(bra.officialName, 'SELEÇÃO BRASILEIRA', 'Nome oficial do Brasil deve ser SELEÇÃO BRASILEIRA');
 assert.strictEqual(bra.prepIn, 'no Brasil', 'Preposição deve ser no Brasil');
-assert.strictEqual(bra.coach, 'Dorival Júnior', 'Treinador deve ser Dorival Júnior');
+assert.strictEqual(bra.coach, 'Carlo Ancelotti', 'Treinador do Brasil deve ser Carlo Ancelotti');
 assert(bra.legends.length >= 4, 'Brasil deve ter pelo menos 4 lendas históricas');
 assert(bra.qualifiers.length >= 6, 'Brasil deve ter tabela das eliminatórias');
 
@@ -63,10 +63,19 @@ assert.strictEqual(arg.coach, 'Lionel Scaloni', 'Treinador deve ser Lionel Scalo
 const por = natTeam.getNationProfile('Portugal');
 assert.strictEqual(por.officialName, 'SELEÇÃO PORTUGUESA', 'Nome oficial de Portugal deve ser SELEÇÃO PORTUGUESA');
 assert.strictEqual(por.prepIn, 'em Portugal', 'Preposição deve ser em Portugal');
+assert.strictEqual(por.coach, 'Jorge Jesus', 'Treinador de Portugal deve ser Jorge Jesus');
 
 const fra = natTeam.getNationProfile('França');
 assert.strictEqual(fra.officialName, 'SELEÇÃO FRANCESA', 'Nome oficial da França deve ser SELEÇÃO FRANCESA');
 assert.strictEqual(fra.prepIn, 'na França', 'Preposição deve ser na França');
+assert.strictEqual(fra.coach, 'Zinédine Zidane', 'Treinador da França deve ser Zinédine Zidane');
+
+assert.strictEqual(natTeam.getNationProfile('Alemanha').coach, 'Jürgen Klopp');
+assert.strictEqual(natTeam.getNationProfile('Itália').coach, 'Roberto Mancini');
+assert.strictEqual(natTeam.getNationProfile('Holanda').coach, 'Xavi Hernández');
+assert.strictEqual(natTeam.getNationProfile('Uruguai').coach, 'Diego Forlán');
+assert.strictEqual(natTeam.getNationProfile('Equador').coach, 'Marcelo Gallardo');
+assert.strictEqual(natTeam.getNationProfile('Suécia').coach, 'Graham Potter');
 
 console.log('  ✅ 1. Dicionário de seleções e gramática por país validados com sucesso');
 
