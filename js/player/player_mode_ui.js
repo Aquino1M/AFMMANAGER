@@ -178,7 +178,7 @@
     const squad = Array.isArray(state.squad) ? state.squad : (state.squad = []);
     const pState = state.playerCareerState;
     const athlete =
-      squad.find((p) => p.id === state.controlledPlayerId) ||
+      squad.find((p) => String(p.id) === String(state.controlledPlayerId)) ||
       squad.find((p) => p.isControlled || p.isControlledAthlete) ||
       (pState?.athleteName &&
         squad.find(
@@ -226,6 +226,9 @@
     return state.gameMode === "player" || state.controlledPlayerId
       ? null
       : squad[0] || null;
+  }
+  if (typeof window !== "undefined") {
+    window.getControlledPlayer = getControlledPlayer;
   }
 
   function syncControlledPlayerOverall(state) {

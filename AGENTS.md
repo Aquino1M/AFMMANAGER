@@ -139,6 +139,14 @@
   - Topbar Exclusiva por Modo (`resolveModeContext(state)`):
     * No Modo Carreira Jogador (`resolveModeContext(state).isPlayer === true`): A barra superior (`sm-topbar`) exibe 4 painéis dedicados do atleta: Força Geral (`⭐ ${athleteOvr} OVR`, atalho para `player_evolution`), Nível do Atleta (`🏅 Nv. ${pLevel}`, atalho para `player_evolution`), Saldo da Conta Pessoal (`💵 R$ ...`, atalho para `player_lifestyle`) e Saldo Investido no CDB (`🏦 CDB R$ ...`, atalho para `player_lifestyle`). O botão circular `#btnTopQuickCash` e demais botões circulares exibem estritamente apenas o símbolo `+`, eliminando sobreposições ou vazamentos de texto sobre os valores numéricos.
     * No Modo Treinador (`resolveModeContext(state).isManager === true`): Mantém rigorosamente os 3 painéis de gestão do clube: Força do Elenco (`⭐ ${teamOvr} OVR`), Prestígio do Treinador (`🎖️ ${coachPrestige} pts`) e Caixa do Clube (`💵 ${clubCash}`).
+- REGRA IRRESTRITA ESPECIAL — ESCALAÇÃO POR POSIÇÃO & PROTAGONISMO NA PARTIDA (MODO JOGADOR):
+  1. PROTEÇÃO ABSOLUTA DO ÍNDICE 0 (GOLEIRO):
+     - Na escalação titular de 11 jogadores (`lineup[0..10]`), o índice `0` é EXCLUSIVO para Goleiro (`GK` / `GOL`).
+     - É TERMINANTEMENTE PROIBIDO usar `lineup.unshift(userPlayer)` ou colocar o atleta do usuário no índice `0` se a posição escolhida na criação não for `GK` ou `GOL`.
+     - Toda inserção do atleta do usuário na escalação titular ou substituição no 2º tempo DEVE passar por `placeUserPlayerInCorrectSlot(lineup, userPlayer)`, mapeando a posição criada (`ST/ATA/CA`, `PE/LW/PD/RW`, `MEI/CAM/MC/CM/VOL/CDM`, `ZAG/CB/LE/LB/LD/RB`, `GOL/GK`) para o slot tático correspondente no campo 2D/3D.
+  2. PROTAGONISMO & PARTICIPAÇÃO NO MODO JOGADOR (`isPlayer === true`):
+     - Em partidas ao vivo do Modo Jogador, o motor de posse de bola DEVE aplicar peso prioritário para acionar o atleta do usuário no terço ofensivo/setor correspondente, garantindo participação ativa e disparando o painel interativo 'Momento Decisivo do Craque' em lances-chave e nos botões 'Comandos do Craque'.
+     - Nenhuma alteração desta regra deve afetar o motor tático do Modo Treinador (`isManager === true`).
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis

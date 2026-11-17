@@ -21273,6 +21273,143 @@ function restorePrimaryLeagueAfterCopaMatch(){
   return true;
 }
 
+
+// =========================================================================
+// NORMALIZADOR DE POSIÇÕES & ALOCAÇÃO SEGURA NA ESCALAÇÃO (MODO JOGADOR)
+// =========================================================================
+function normalizePlayerPositionCode(rawPos) {
+  const p = String(rawPos || 'ST').trim().toUpperCase();
+  if (['GK', 'GOL', 'GOLEIRO'].includes(p)) return 'GK';
+  if (['CB', 'ZAG', 'ZAGUEIRO'].includes(p)) return 'CB';
+  if (['LB', 'LE', 'LATERAL ESQUERDO'].includes(p)) return 'LB';
+  if (['RB', 'LD', 'LATERAL DIREITO'].includes(p)) return 'RB';
+  if (['CDM', 'VOL', 'VOLANTE'].includes(p)) return 'CDM';
+  if (['CM', 'MC', 'MEIA CENTRAL'].includes(p)) return 'CM';
+  if (['CAM', 'MEI', 'MEIA ATACANTE', 'MO'].includes(p)) return 'CAM';
+  if (['LW', 'PE', 'PONTA ESQUERDA', 'ME'].includes(p)) return 'LW';
+  if (['RW', 'PD', 'PONTA DIREITA', 'MD'].includes(p)) return 'RW';
+  if (['ST', 'CA', 'ATA', 'CF', 'SA', 'ATACANTE', 'CENTROAVANTE'].includes(p)) return 'ST';
+  return 'ST';
+}
+window.normalizePlayerPositionCode = normalizePlayerPositionCode;
+
+function getPreferredLineupSlots(normPos) {
+  // Índices padrão de um time 11 jogadores (0 = GK, 1..4 = DEF, 5..8 = MID, 9..10 = ATT)
+  const map = {
+    GK: [0],
+    RB: [1, 4],
+    CB: [2, 3, 1],
+    LB: [4, 1],
+    CDM: [5, 6],
+    CM: [6, 7, 5],
+    CAM: [7, 8, 9],
+    RW: [8, 9, 10],
+    LW: [7, 10, 9],
+    ST: [9, 10, 8]
+  };
+  return map[normPos] || [9, 10];
+}
+window.getPreferredLineupSlots = getPreferredLineupSlots;
+
+function placeUserPlayerInCorrectSlot(lineup, userPlayer, squadPool = []) {
+  if (!Array.isArray(lineup) || !userPlayer) return lineup;
+  const normPos = normalizePlayerPositionCode(userPlayer.pos || userPlayer.position);
+  userPlayer.isUserPlayer = true;
+  userPlayer.normalizedPos = normPos;
+
+  // 1. Remove qualquer duplicata do atleta do usuário na escalação
+  const userId = userPlayer.id || userPlayer.name;
+  for (let i = lineup.length - 1; i >= 0; i--) {
+    const item = lineup[i];
+    if (item && (item.isUserPlayer || String(item.id) === String(userId) || item.name === userPlayer.name)) {
+      lineup.splice(i, 1);
+    }
+  }
+
+  // 2. Garante que o índice 0 SEMPRE tenha um Goleiro real se o usuário NÃO for GK
+  if (normPos !== 'GK') {
+    const firstIsGk = lineup[0] && normalizePlayerPositionCode(lineup[0].pos || lineup[0].position) === 'GK';
+    if (!firstIsGk) {
+      const gkIdx = lineup.findIndex(pl => pl && normalizePlayerPositionCode(pl.pos || pl.position) === 'GK');
+      if (gkIdx > 0) {
+        const [gk] = lineup.splice(gkIdx, 1);
+        lineup.unshift(gk);
+      } else {
+        const reserveGk = (squadPool || []).find(pl => String(pl?.id) !== String(userId) && normalizePlayerPositionCode(pl.pos || pl.position) === 'GK');
+        if (reserveGk) {
+          lineup.unshift({ ...reserveGk });
+        } else {
+          lineup.unshift({
+            id: `emergency-gk-${userPlayer.club || 'club'}`,
+            name: 'Goleiro Titular',
+            pos: 'GK',
+            position: 'GK',
+            fc: 65,
+            pes: 65,
+            isGK: true
+          });
+        }
+      }
+    }
+  }
+
+  // 3. Encontra o slot tático exato da posição do usuário (nunca slot 0 se normPos !== 'GK')
+  const preferredSlots = getPreferredLineupSlots(normPos);
+  let targetSlot = preferredSlots.find(idx => {
+    if (normPos !== 'GK' && idx === 0) return false;
+    return idx < lineup.length && normalizePlayerPositionCode(lineup[idx]?.pos) === normPos;
+  });
+
+  if (targetSlot === undefined) {
+    targetSlot = preferredSlots.find(idx => (normPos === 'GK' || idx > 0) && idx < lineup.length);
+  }
+  if (targetSlot === undefined) {
+    targetSlot = normPos === 'GK' ? 0 : Math.min(10, Math.max(1, lineup.length - 1));
+  }
+
+  // 4. Substitui o jogador daquele slot mantendo exatos 11 atletas
+  if (lineup.length >= 11) {
+    lineup[targetSlot] = userPlayer;
+  } else {
+    lineup.splice(targetSlot, 0, userPlayer);
+  }
+
+  // 5. Preenche até 11 se necessário
+  while (lineup.length < 11) {
+    const extra = (squadPool || []).find(pl => pl && String(pl.id) !== String(userId) && !lineup.some(l => String(l.id) === String(pl.id)));
+    if (extra) {
+      lineup.push(extra);
+    } else {
+      const idx = lineup.length;
+      lineup.push({
+        id: `emergency-${idx}-${userPlayer.club || 'club'}`,
+        name: `Atleta ${idx + 1}`,
+        pos: 'CM',
+        fc: 60,
+        fitness: 100
+      });
+    }
+  }
+
+  // 6. Trava absoluta de segurança: se normPos !== 'GK', slot 0 NUNCA pode ser userPlayer
+  if (normPos !== 'GK') {
+    if (lineup[0] === userPlayer || String(lineup[0]?.id) === String(userId) || normalizePlayerPositionCode(lineup[0]?.pos) !== 'GK') {
+      const actualGkIdx = lineup.findIndex((pl, idx) => idx > 0 && normalizePlayerPositionCode(pl?.pos) === 'GK');
+      if (actualGkIdx > 0) {
+        [lineup[0], lineup[actualGkIdx]] = [lineup[actualGkIdx], lineup[0]];
+      }
+    }
+    const finalUserIdx = lineup.findIndex(pl => pl === userPlayer || String(pl?.id) === String(userId));
+    if (finalUserIdx === 0) {
+      const safeSlot = targetSlot > 0 ? targetSlot : (preferredSlots.find(s => s > 0) || 9);
+      [lineup[0], lineup[safeSlot]] = [lineup[safeSlot], lineup[0]];
+    }
+  }
+
+  return lineup.slice(0, 11);
+}
+window.placeUserPlayerInCorrectSlot = placeUserPlayerInCorrectSlot;
+
 let isStartingLiveMatch = false;
 function alignPlayerCareerStarter(starters, formation, athlete, squad = starters){
   const gkIndex = formation.findIndex(slot => isGoalkeeperPosition(slot?.r));
@@ -21504,15 +21641,17 @@ function startLiveMatch(){
     if(isUser){
       const lineupKeys = state.lineup || [];
       const controlledAthlete = state.gameMode === 'player'
-        ? (state.squad || []).find(p => p.id === state.controlledPlayerId)
+        ? ((typeof window.getControlledPlayer === 'function' ? window.getControlledPlayer(state) : null) ||
+           (state.squad || []).find(p => String(p.id) === String(state.controlledPlayerId) || p.isControlled || p.isControlledAthlete || p.isUserPlayer))
         : null;
       const playerTooTired = Boolean(controlledAthlete && !window.AFM_PlayerEngine?.isPlayerAvailableForMatch?.(state));
-      const selectedStarters = lineupKeys.map(k => findSquadPlayerByKey(k)).filter(p => p && !(playerTooTired && p.id === controlledAthlete.id));
-      const starters = [...selectedStarters.slice(0, 11)];
-      alignPlayerCareerStarter(starters, formDef, playerTooTired ? null : controlledAthlete, state.squad);
+      const selectedStarters = lineupKeys.map(k => findSquadPlayerByKey(k)).filter(p => p && !(playerTooTired && String(p.id) === String(controlledAthlete?.id)));
+      let starters = [...selectedStarters.slice(0, 11)];
+
+      // 1. Preenche até 11 titulares usando o elenco disponível
       const usedStarterKeys = new Set(starters.map(p => playerKey(p)));
       while(starters.length < 11){
-        const extra = state.squad.find(p => !usedStarterKeys.has(playerKey(p)) && !(playerTooTired && p.id === controlledAthlete.id));
+        const extra = (state.squad || []).find(p => !usedStarterKeys.has(playerKey(p)) && !(playerTooTired && String(p.id) === String(controlledAthlete?.id)));
         if(extra){ starters.push(extra); usedStarterKeys.add(playerKey(extra)); }
         else break;
       }
@@ -21527,10 +21666,45 @@ function startLiveMatch(){
           fc: 60, pes: 60, morale: 70, fitness: 100
         });
       }
+
+      // 2. No Modo Jogador, aloca com proteção absoluta do slot 0 (goleiro)
+      if(state.gameMode === 'player' && controlledAthlete && !playerTooTired){
+        const pTrust = Number(state.playerCareerState?.managerTrust || state.playerCareerState?.trust || 45);
+        const isStarterRole = state.playerCareerState?.role === 'Titular' || pTrust >= 60 || starters.some(p => String(p.id) === String(controlledAthlete.id));
+        if(isStarterRole){
+          starters = placeUserPlayerInCorrectSlot(starters, controlledAthlete, state.squad);
+        } else {
+          // Começa no banco (Reserva Imediato): remove da titularidade inicial se tiver sido inserido
+          const userIdx = starters.findIndex(p => String(p.id) === String(controlledAthlete.id));
+          if(userIdx >= 0){
+            const subCand = (state.squad || []).find(p => String(p.id) !== String(controlledAthlete.id) && !starters.some(st => String(st.id) === String(p.id)));
+            if(subCand) starters[userIdx] = subCand;
+          }
+          if(normalizePlayerPositionCode(starters[0]?.pos) !== 'GK'){
+            const realGk = starters.find(p => normalizePlayerPositionCode(p.pos) === 'GK') || (state.squad || []).find(p => normalizePlayerPositionCode(p.pos) === 'GK');
+            if(realGk){
+              const gIdx = starters.indexOf(realGk);
+              if(gIdx > 0){ [starters[0], starters[gIdx]] = [starters[gIdx], starters[0]]; }
+              else { starters[0] = realGk; }
+            }
+          }
+        }
+      } else {
+        alignPlayerCareerStarter(starters, formDef, playerTooTired ? null : controlledAthlete, state.squad);
+      }
+
       for(let i=0; i<11; i++){
-        const isGoalkeeper = formDef[i]?.r === 'GK' || (i === 0 && !formDef.some(slot => slot.r === 'GK'));
-        const p = starters[i] || { name: `Jogador ${i+1}`, pos: formDef[i]?.r || (isGoalkeeper ? 'GK' : 'CM'), fc: 65 };
-        const slot = formDef[i] || { r: isGoalkeeper ? 'GK' : (p.pos || 'CM'), x: 50, y: isGoalkeeper ? 89 : 50 };
+        const p = starters[i] || { name: `Jogador ${i+1}`, pos: formDef[i]?.r || (i === 0 ? 'GK' : 'CM'), fc: 65 };
+        const isUserAthlete = Boolean(state.gameMode === 'player' && controlledAthlete && (String(p.id) === String(controlledAthlete.id) || p.isControlledAthlete || p.isUserPlayer));
+        const normPos = normalizePlayerPositionCode(isUserAthlete ? (controlledAthlete.pos || controlledAthlete.position || p.pos) : p.pos);
+        const isGoalkeeper = isUserAthlete
+          ? (normPos === 'GK')
+          : (i === 0 || formDef[i]?.r === 'GK' || normPos === 'GK');
+        let slot = formDef[i] || { r: isGoalkeeper ? 'GK' : (normPos || 'CM'), x: 50, y: isGoalkeeper ? 89 : 50 };
+        if (isUserAthlete && normPos !== 'GK' && (slot.r === 'GK' || i === 0)) {
+          const fwdSlot = formDef.slice().reverse().find(s => s && s.r !== 'GK') || { r: normPos, x: 50, y: 25 };
+          slot = fwdSlot;
+        }
         const effectiveOvr = (typeof getPlayerEffectiveOverall === 'function') ? getPlayerEffectiveOverall(p, isGoalkeeper ? 'GK' : slot.r) : (playerOverall(p) || 65);
         const ovr = effectiveOvr || playerOverall(p) || 65;
         const attrs = calcPlayerAttrs(p.name, isGoalkeeper ? 'GK' : slot.r, ovr);
@@ -21568,7 +21742,7 @@ function startLiveMatch(){
           key: playerKey(p),
           name: p.name.split(' ').pop() || p.name,
           fullName: p.name,
-          pos: isGoalkeeper ? 'GK' : (slot.r || p.pos || 'CM'),
+          pos: isGoalkeeper ? 'GK' : (normPos || slot.r || p.pos || 'CM'),
           roleId: role.id,
           roleName: role.role || role.name,
           roleFocus: role.focus,
@@ -21597,8 +21771,8 @@ function startLiveMatch(){
           teamId: isHomeSide ? 'home' : 'away',
           isUser: true,
           careerPlayerId: p.id,
-          isControlledAthlete: state.gameMode === 'player' && String(p.id) === String(state.controlledPlayerId),
-          wasStarter: state.gameMode === 'player' && String(p.id) === String(state.controlledPlayerId),
+          isControlledAthlete: Boolean(isUserAthlete),
+          wasStarter: Boolean(isUserAthlete),
           enteredMinute: 0,
           photo: resolvePlayerPhotoUrl(p) || null,
           x: baseXPct,
@@ -22196,15 +22370,28 @@ function selectLivePassTarget(players, passer, minForward = 1.5, maxDistance = 2
   if(!passer) return null;
   const direction = passer.team === 'home' ? 1 : -1;
   const px = Number(passer.x) || 50, py = Number(passer.y) || 50;
+  const isPlayerMode = Boolean(state?.gameMode === 'player' || state?.playerCareerState);
+  const now = Date.now();
+  const callActive = liveMatchState && liveMatchState.craqueCallBallUntil && now < liveMatchState.craqueCallBallUntil;
+
   const choices = (players || []).filter(p => p && p !== passer && !p.isGK && !p.redCard && p.team === passer.team).map(player => {
     const dx = ((Number(player.x) || 50) - px) * direction;
     const dy = Math.abs((Number(player.y) || 50) - py);
     const distance = Math.hypot(dx, dy);
-    const score = dx * 1.35 - dy * 0.32 - distance * 0.12 + (Number(player.depthRuns) || 0) * 0.025 + (Number(player.creativePassing) || 0) * 0.004;
+    let score = dx * 1.35 - dy * 0.32 - distance * 0.12 + (Number(player.depthRuns) || 0) * 0.025 + (Number(player.creativePassing) || 0) * 0.004;
+
+    if(isPlayerMode && player.isControlledAthlete){
+      if(callActive){
+        score += 180; // 85%+ de chance se pediu a bola
+      } else {
+        score += 38; // 45% a 60% de peso prioritário para acionar o craque do usuário
+      }
+    }
     return { player, forward: dx, distance, score };
-  }).filter(row => row.forward >= minForward && row.distance <= maxDistance).sort((a, b) => b.score - a.score);
+  }).filter(row => (callActive && row.player.isControlledAthlete) || (row.forward >= (minForward - 1.2) && row.distance <= (maxDistance + 14))).sort((a, b) => b.score - a.score);
   return choices[0]?.player || null;
 }
+window.selectLivePassTarget = selectLivePassTarget;
 
 function startLivePass(s, passer, receiver, options = {}) {
   if(!s || !s.ball || !passer || !receiver || passer === receiver || passer.team !== receiver.team || passer.isGK || passer.redCard || receiver.isGK || receiver.redCard) return false;
@@ -23835,6 +24022,13 @@ function simulateMinute(s, min){
   // 2. IA do Treinador: ajustes aos 60', 75' e reação ao placar
   evaluateAiCoachAdjustments(s, min);
 
+  // Modo Jogador: entrada garantida do atleta reserva no 2º tempo (58')
+  if((state?.gameMode === 'player' || state?.playerCareerState) && !s.controlledAthleteOnPitch && min >= 58 && min <= 65){
+    if(typeof triggerPlayerCareerSubstitution === 'function'){
+      triggerPlayerCareerSubstitution(s);
+    }
+  }
+
   // 3. Força e posse de bola relativa
   const homeCrowdBonus = Math.min(5, Math.max(0, Number(s.attendanceForceBonus ?? (norm(s.home) === norm(state?.club) ? attendanceProjection(s.away)?.attendanceForceBonus : stadiumAttendanceStrengthBonus(s.stadium?.attendance, s.stadium?.capacity))) || 0));
   const hs = (teamStrengthByName(s.home) + homeCrowdBonus) * 1.08;
@@ -23975,8 +24169,30 @@ function simulateMinute(s, min){
       ? previousCarrier
       : null;
     const lineAtt = attPlayers.filter(p => p && !p.isGK && !p.redCard);
-    s.ball.carrier = continuingAttacker || (topOptions.length ? topOptions[Math.floor(s.prng() * topOptions.length)] : (lineAtt[Math.floor(s.prng() * lineAtt.length)] || attPlayers[0] || { name: 'Atacante', pos: 'ST' }));
+    const isPlayerCareerActive = Boolean(state?.gameMode === 'player' || state?.playerCareerState);
+    const userIsHomeTeam = (typeof norm === 'function' ? norm(s.home) === norm(state?.club) : s.home === state?.club);
+    const isUserTeamAttacking = isHome === userIsHomeTeam;
+    const userAthlete = isPlayerCareerActive && isUserTeamAttacking
+      ? attPlayers.find(p => p.isControlledAthlete && !p.redCard && !p.isGK)
+      : null;
+    const isCallBallActive = s.craqueCallBallUntil && Date.now() < s.craqueCallBallUntil;
+
+    if(userAthlete && (isCallBallActive || s.prng() < 0.52)){
+      s.ball.carrier = userAthlete;
+    } else {
+      s.ball.carrier = continuingAttacker || (topOptions.length ? topOptions[Math.floor(s.prng() * topOptions.length)] : (lineAtt[Math.floor(s.prng() * lineAtt.length)] || attPlayers[0] || { name: 'Atacante', pos: 'ST' }));
+    }
     s.ball.isHomeAttacking = isHome;
+
+    // Se a bola estiver com o atleta do usuário no ataque, chance de disparar o Momento Decisivo
+    if(userAthlete && s.ball.carrier === userAthlete && !s.craqueDecisionActive && (!s.lastCraqueMomentMin || (min - s.lastCraqueMomentMin) >= 9)){
+      s.lastCraqueMomentMin = min;
+      setTimeout(() => {
+        if(!s.done && typeof triggerCraqueDecisionMoment === 'function'){
+          triggerCraqueDecisionMoment(s, userAthlete);
+        }
+      }, 100);
+    }
 
     const shootZoneProgress = 68;
     let carrierProgress = goalProgressOf(s.ball.carrier);
@@ -24244,6 +24460,7 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
     : selectPlayPattern(s, attCfg, isHomeAttacking, shooter, assist);
 
   if(isHomeAttacking) s.stats.shotsH++; else s.stats.shotsA++;
+  if(shooter) shooter.shots = (shooter.shots || 0) + 1;
   if(pattern.id === 'crossing'){
     if(isHomeAttacking) s.stats.crossesH++; else s.stats.crossesA++;
   }
@@ -24698,6 +24915,403 @@ function updateLiveSidebarEvents(){
   if(count) count.textContent = s.events.length;
 }
 
+
+// =========================================================================
+// SISTEMA DE MOMENTOS DECISIVOS & STATUS AO VIVO DO CRAQUE (MODO JOGADOR)
+// =========================================================================
+function triggerCraqueDecisionMoment(s = liveMatchState, ath = null) {
+  if (!s || s.done || s.craqueDecisionActive) return;
+  const userIsHome = (typeof norm === 'function' ? norm(s.home) === norm(state?.club) : s.home === state?.club);
+  const myTeam = userIsHome ? s.homePlayers : s.awayPlayers;
+  const userAth = ath || (myTeam || []).find(p => p.isControlledAthlete && !p.redCard);
+  if (!userAth) return;
+
+  s.craqueDecisionActive = true;
+  s.paused = true;
+
+  const container = document.getElementById('matchModalContainer') || document.body;
+  let overlay = document.getElementById('craqueDecisionOverlay');
+  if (overlay) overlay.remove();
+
+  overlay = document.createElement('div');
+  overlay.id = 'craqueDecisionOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:100050;background:rgba(10,15,29,0.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeInCraque 0.25s ease-out;';
+
+  const normPos = normalizePlayerPositionCode(userAth.pos || 'ST');
+  const isAttacker = ['ST', 'CF', 'LW', 'RW', 'CAM', 'CM'].includes(normPos);
+  const isDefender = ['CB', 'LB', 'RB', 'CDM'].includes(normPos);
+
+  const attrs = userAth.attrs || {};
+  const fin = Number(attrs.finishing || userAth.overall || 65);
+  const sho = Number(attrs.shooting || userAth.overall || 65);
+  const dri = Number(attrs.dribbling || userAth.overall || 65);
+  const pas = Number(attrs.passing || userAth.overall || 65);
+  const pac = Number(attrs.pace || userAth.overall || 65);
+  const def = Number(attrs.defending || attrs.tackling || userAth.overall || 65);
+  const str = Number(attrs.strength || userAth.overall || 65);
+
+  let options = [];
+  if (isAttacker) {
+    options = [
+      {
+        id: 'placed_shot',
+        icon: '🎯',
+        title: 'Chute Colocado no Canto',
+        desc: `Finalização com curva e precisão (Fin: ${fin} · OVR ${userAth.overall || 65})`,
+        chance: Math.min(85, Math.max(30, Math.round(fin * 0.75 + 15))),
+        color: '#10b981'
+      },
+      {
+        id: 'power_shot',
+        icon: '💥',
+        title: 'Bomba de Primeira',
+        desc: `Chute forte no ângulo (Força/Chute: ${sho})`,
+        chance: Math.min(80, Math.max(25, Math.round(sho * 0.72 + 12))),
+        color: '#ef4444'
+      },
+      {
+        id: 'dribble_box',
+        icon: '⚡',
+        title: 'Driblar e Invadir a Área',
+        desc: `Finta no marcador para ficar cara a cara (Drible: ${dri} · Vel: ${pac})`,
+        chance: Math.min(85, Math.max(28, Math.round((dri + pac) * 0.38 + 15))),
+        color: '#f59e0b'
+      },
+      {
+        id: 'assist_pass',
+        icon: '🤝',
+        title: 'Passe na Medida (Assistência)',
+        desc: `Deixar o companheiro livre na cara do gol (Passe: ${pas})`,
+        chance: Math.min(88, Math.max(35, Math.round(pas * 0.78 + 14))),
+        color: '#38bdf8'
+      }
+    ];
+  } else if (isDefender) {
+    options = [
+      {
+        id: 'tackle_clean',
+        icon: '🛡️',
+        title: 'Desarme Limpo & Saída',
+        desc: `Bote certeiro sem falta (Desarme: ${def})`,
+        chance: Math.min(85, Math.max(30, Math.round(def * 0.76 + 15))),
+        color: '#10b981'
+      },
+      {
+        id: 'long_counter',
+        icon: '🚀',
+        title: 'Lançamento em Contra-Golpe',
+        desc: `Passe longo nas costas da zaga (Passe: ${pas})`,
+        chance: Math.min(82, Math.max(28, Math.round(pas * 0.74 + 12))),
+        color: '#38bdf8'
+      },
+      {
+        id: 'shield_ball',
+        icon: '💪',
+        title: 'Proteção de Corpo & Giro',
+        desc: `Impor físico e reter a posse (Físico: ${str})`,
+        chance: Math.min(86, Math.max(32, Math.round(str * 0.76 + 14))),
+        color: '#f59e0b'
+      },
+      {
+        id: 'long_shot',
+        icon: '💥',
+        title: 'Bomba de Longe',
+        desc: `Finalização de média distância (Chute: ${sho})`,
+        chance: Math.min(65, Math.max(20, Math.round(sho * 0.60 + 8))),
+        color: '#ef4444'
+      }
+    ];
+  } else {
+    options = [
+      { id: 'gk_left', icon: '🧤', title: 'Salto no Canto Esquerdo', desc: 'Fechar ângulo esquerdo', chance: 68, color: '#10b981' },
+      { id: 'gk_center', icon: '🧤', title: 'Segurar Firme no Centro', desc: 'Espalmar ou encaixar no meio', chance: 75, color: '#38bdf8' },
+      { id: 'gk_right', icon: '🧤', title: 'Salto no Canto Direito', desc: 'Fechar ângulo direito', chance: 68, color: '#f59e0b' },
+      { id: 'gk_counter', icon: '⚡', title: 'Reposição Rápida', desc: 'Armar contra-ataque rápido', chance: 80, color: '#a855f7' }
+    ];
+  }
+
+  overlay.innerHTML = `
+    <div style="background:#0f172a;border:2px solid #38bdf8;box-shadow:0 0 35px rgba(56,189,248,0.45);border-radius:16px;max-width:540px;width:100%;padding:22px;color:#fff;font-family:'Inter',sans-serif;position:relative">
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:12px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:24px">⚡</span>
+          <div>
+            <div style="font-size:15px;font-weight:900;color:#38bdf8;letter-spacing:0.5px">MOMENTO DECISIVO DO CRAQUE</div>
+            <div style="font-size:11px;color:#94a3b8">${esc(userAth.fullName || userAth.name)} (#${userAth.num || 10}) · ${normPos} · ${s.minute || 0}' min</div>
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:900;background:rgba(56,189,248,0.15);border:1px solid #38bdf8;padding:4px 10px;border-radius:8px;color:#38bdf8">
+          ${s.hg} x ${s.ag}
+        </div>
+      </div>
+      <p style="font-size:12px;color:#cbd5e1;margin-bottom:14px;line-height:1.4">
+        A jogada clama pela sua liderança! Escolha como o seu craque vai resolver o lance:
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        ${options.map(opt => `
+          <button type="button" class="btn-craque-decision-opt" data-opt-id="${opt.id}" style="background:rgba(30,41,59,0.85);border:1px solid ${opt.color};padding:12px;border-radius:10px;text-align:left;cursor:pointer;transition:all 0.15s ease">
+            <div style="font-size:13px;font-weight:900;color:#fff;margin-bottom:3px">${opt.icon} ${opt.title}</div>
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">${opt.desc}</div>
+            <div style="font-size:11px;font-weight:900;color:${opt.color}">Chance estimada: ${opt.chance}%</div>
+          </button>
+        `).join('')}
+      </div>
+      <div style="text-align:center">
+        <button type="button" id="btnCancelCraqueDecision" style="background:none;border:none;color:#64748b;font-size:11px;cursor:pointer;text-decoration:underline">
+          Deixar a jogada correr normalmente
+        </button>
+      </div>
+    </div>
+  `;
+
+  container.appendChild(overlay);
+
+  overlay.querySelectorAll('.btn-craque-decision-opt').forEach(btn => {
+    btn.onclick = () => {
+      const optId = btn.getAttribute('data-opt-id');
+      const opt = options.find(o => o.id === optId);
+      overlay.remove();
+      s.craqueDecisionActive = false;
+      resolveCraqueDecision(s, userAth, opt);
+    };
+  });
+
+  const btnCancel = overlay.querySelector('#btnCancelCraqueDecision');
+  if (btnCancel) {
+    btnCancel.onclick = () => {
+      overlay.remove();
+      s.craqueDecisionActive = false;
+      s.paused = false;
+    };
+  }
+}
+window.triggerCraqueDecisionMoment = triggerCraqueDecisionMoment;
+
+function resolveCraqueDecision(s, userAth, opt) {
+  if (!s || !userAth || !opt) {
+    if (s) s.paused = false;
+    return;
+  }
+  const isHome = userAth.team === 'home';
+  const oppGk = (isHome ? s.awayPlayers : s.homePlayers).find(p => p.isGK) || { name: 'Goleiro' };
+  const roll = Math.random() * 100;
+  const isSuccess = roll <= opt.chance;
+  const curMin = s.minute || 1;
+
+  if (opt.id === 'placed_shot' || opt.id === 'power_shot' || opt.id === 'long_shot') {
+    userAth.shots = (userAth.shots || 0) + 1;
+    if (isHome) s.stats.shotsH = (s.stats.shotsH || 0) + 1;
+    else s.stats.shotsA = (s.stats.shotsA || 0) + 1;
+
+    if (isSuccess) {
+      if (isHome) s.hg++; else s.ag++;
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'gol',
+        playerId: userAth.id || userAth.careerPlayerId,
+        scorer: userAth.fullName || userAth.name,
+        text: `⚽ GOOOOOOL DO CRAQUE! ${userAth.fullName || userAth.name} executa um ${opt.title.toLowerCase()} indefensável e estufa as redes no ângulo!`
+      });
+      userAth.matchRating = Math.min(10.0, +(Number(userAth.matchRating || 6.5) + 0.8).toFixed(1));
+      userAth.goals = (userAth.goals || 0) + 1;
+      if (typeof showLiveBalloon === 'function') showLiveBalloon(userAth.x, userAth.y, '⚽ GOOOOOL!', '#22c55e');
+      if (typeof showLiveBanner === 'function') showLiveBanner(`⚽ GOOOOOOL DE ${userAth.fullName || userAth.name}!`, 'goal', 4000);
+      if (window.afmAudio) window.afmAudio.playSFX('goal_cheer');
+    } else {
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'shot',
+        text: `🧤 QUASE! ${userAth.fullName || userAth.name} arrisca ${opt.title.toLowerCase()}, mas ${oppGk.name} faz uma grande defesa!`
+      });
+      userAth.matchRating = Math.min(10.0, +(Number(userAth.matchRating || 6.5) + 0.2).toFixed(1));
+      if (typeof showLiveBalloon === 'function') showLiveBalloon(userAth.x, userAth.y, '🧤 DEFESA DO GOLEIRO!', '#38bdf8');
+    }
+  } else if (opt.id === 'assist_pass' || opt.id === 'long_counter') {
+    const companions = (isHome ? s.homePlayers : s.awayPlayers).filter(p => p !== userAth && !p.isGK && !p.redCard);
+    const companion = companions[Math.floor(Math.random() * companions.length)] || { name: 'Companheiro' };
+
+    if (isSuccess) {
+      if (isHome) s.hg++; else s.ag++;
+      if (isHome) s.stats.shotsH = (s.stats.shotsH || 0) + 1;
+      else s.stats.shotsA = (s.stats.shotsA || 0) + 1;
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'gol',
+        playerId: companion.id,
+        relatedPlayerId: userAth.id || userAth.careerPlayerId,
+        scorer: companion.name,
+        assist: userAth.fullName || userAth.name,
+        text: `⚽ GOL DO ${userAth.clubId || (isHome ? s.home : s.away)}! Assistência mágica de ${userAth.fullName || userAth.name} para a finalização certeira de ${companion.name}!`
+      });
+      userAth.matchRating = Math.min(10.0, +(Number(userAth.matchRating || 6.5) + 0.6).toFixed(1));
+      userAth.assists = (userAth.assists || 0) + 1;
+      if (typeof showLiveBanner === 'function') showLiveBanner(`🎯 ASSISTÊNCIA DE ${userAth.name}!`, 'goal', 3500);
+      if (window.afmAudio) window.afmAudio.playSFX('goal_cheer');
+    } else {
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'foul',
+        text: `🛡️ A zaga adversária antecipou o passe de ${userAth.name} e cortou o perigo.`
+      });
+      userAth.matchRating = Math.min(10.0, +(Number(userAth.matchRating || 6.5) + 0.1).toFixed(1));
+    }
+  } else if (opt.id === 'dribble_box' || opt.id === 'shield_ball') {
+    if (isSuccess) {
+      userAth.x = clamp(userAth.x + (isHome ? 12 : -12), 4, 96);
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'sub',
+        text: `⚡ DRIBLE DESCONCERTANTE! ${userAth.fullName || userAth.name} limpa o lance com categoria e avança livre!`
+      });
+      userAth.matchRating = Math.min(10.0, +(Number(userAth.matchRating || 6.5) + 0.4).toFixed(1));
+      if (typeof showLiveBalloon === 'function') showLiveBalloon(userAth.x, userAth.y, '⚡ QUE DRIBLE!', '#f59e0b');
+    } else {
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'sub',
+        text: `🛡️ O marcador travou a arrancada de ${userAth.name} e afastou o perigo.`
+      });
+    }
+  } else if (opt.id === 'tackle_clean') {
+    if (isSuccess) {
+      if (isHome) s.stats.tacklesH = (s.stats.tacklesH || 0) + 1;
+      else s.stats.tacklesA = (s.stats.tacklesA || 0) + 1;
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'sub',
+        text: `🛡️ DESARME MONSTRUOSO! ${userAth.fullName || userAth.name} dá o bote limpo e retoma a posse!`
+      });
+      userAth.matchRating = Math.min(10.0, +(Number(userAth.matchRating || 6.5) + 0.4).toFixed(1));
+      s.ball.carrier = userAth;
+      if (typeof showLiveBalloon === 'function') showLiveBalloon(userAth.x, userAth.y, '🛡️ DESARME!', '#10b981');
+    } else {
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'foul',
+        text: `⚠️ Falta cometida por ${userAth.name} ao tentar o bote na intermediária.`
+      });
+    }
+  }
+
+  if (typeof updateScoreDisplay === 'function') updateScoreDisplay();
+  if (typeof updateLiveSidebarEvents === 'function') updateLiveSidebarEvents();
+  s.paused = false;
+}
+window.resolveCraqueDecision = resolveCraqueDecision;
+
+function showCraqueLiveStatusModal(s = liveMatchState) {
+  if (!s) return;
+  const userIsHome = (typeof norm === 'function' ? norm(s.home) === norm(state?.club) : s.home === state?.club);
+  const myTeam = userIsHome ? s.homePlayers : s.awayPlayers;
+  const ath = (myTeam || []).find(p => p.isControlledAthlete) || (state?.squad || []).find(p => String(p.id) === String(state?.controlledPlayerId));
+  if (!ath) return;
+
+  const container = document.getElementById('matchModalContainer') || document.body;
+  let modal = document.getElementById('craqueLiveStatusModal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'craqueLiveStatusModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:100060;background:rgba(10,15,29,0.85);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeInCraque 0.2s ease-out;';
+
+  const rating = Number(ath.matchRating || 6.5).toFixed(1);
+  const goals = Number(ath.goals || 0);
+  const assists = Number(ath.assists || 0);
+  const shots = Number(ath.shots || ath.fin || 0);
+  const stam = Math.round(Number(ath.stamina || 100));
+  const normPos = normalizePlayerPositionCode(ath.pos || 'ST');
+
+  const goalsDone = goals >= 1;
+  const ratingDone = Number(rating) >= 7.0;
+  const passDone = (s.stats?.passAccH || 82) >= 75;
+
+  modal.innerHTML = `
+    <div style="background:#0f172a;border:2px solid #10b981;box-shadow:0 0 30px rgba(16,185,129,0.35);border-radius:16px;max-width:500px;width:100%;padding:20px;color:#fff;font-family:'Inter',sans-serif;position:relative">
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:12px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:26px">⭐</span>
+          <div>
+            <div style="font-size:16px;font-weight:900;color:#6ee7b7">${esc(ath.fullName || ath.name)}</div>
+            <div style="font-size:11px;color:#94a3b8">#${ath.num || 10} · ${normPos} · ${esc(state?.club || '')}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:20px;font-weight:900;color:#facc15">${rating}</div>
+          <div style="font-size:10px;color:#94a3b8">NOTA AO VIVO</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px">
+        <div style="background:rgba(30,41,59,0.7);padding:8px 4px;border-radius:8px;text-align:center">
+          <div style="font-size:10px;color:#94a3b8">⚽ GOLS</div>
+          <div style="font-size:15px;font-weight:900;color:#22c55e">${goals}</div>
+        </div>
+        <div style="background:rgba(30,41,59,0.7);padding:8px 4px;border-radius:8px;text-align:center">
+          <div style="font-size:10px;color:#94a3b8">🎯 ASSIST</div>
+          <div style="font-size:15px;font-weight:900;color:#38bdf8">${assists}</div>
+        </div>
+        <div style="background:rgba(30,41,59,0.7);padding:8px 4px;border-radius:8px;text-align:center">
+          <div style="font-size:10px;color:#94a3b8">🚀 CHUTES</div>
+          <div style="font-size:15px;font-weight:900;color:#f59e0b">${shots}</div>
+        </div>
+        <div style="background:rgba(30,41,59,0.7);padding:8px 4px;border-radius:8px;text-align:center">
+          <div style="font-size:10px;color:#94a3b8">⚡ FÔLEGO</div>
+          <div style="font-size:15px;font-weight:900;color:#facc15">${stam}%</div>
+        </div>
+        <div style="background:rgba(30,41,59,0.7);padding:8px 4px;border-radius:8px;text-align:center">
+          <div style="font-size:10px;color:#94a3b8">STATUS</div>
+          <div style="font-size:11px;font-weight:900;color:#10b981">${ath.wasStarter ? 'Titular' : 'Em Campo'}</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+          <span style="color:#94a3b8">Desgaste Físico:</span>
+          <span style="font-weight:800;color:${stam > 50 ? '#10b981' : '#ef4444'}">${stam}% Restante</span>
+        </div>
+        <div style="background:#1e293b;border-radius:6px;height:8px;overflow:hidden">
+          <div style="width:${stam}%;height:100%;background:linear-gradient(90deg, #10b981, #facc15)"></div>
+        </div>
+      </div>
+
+      <div style="background:rgba(30,41,59,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:900;color:#38bdf8;margin-bottom:8px">📋 METAS DO TREINADOR NA PARTIDA:</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:11px">
+          <div style="color:${goalsDone ? '#10b981' : '#94a3b8'}">
+            ${goalsDone ? '✅' : '⏳'} Participar de 1 gol (Marcado ou Assistência)
+          </div>
+          <div style="color:${ratingDone ? '#10b981' : '#94a3b8'}">
+            ${ratingDone ? '✅' : '⏳'} Obter nota média individual de 7.0+ (Atual: ${rating})
+          </div>
+          <div style="color:${passDone ? '#10b981' : '#94a3b8'}">
+            ${passDone ? '✅' : '⏳'} Manter precisão de passes da equipe acima de 75%
+          </div>
+        </div>
+      </div>
+
+      <button type="button" id="btnCloseCraqueLiveStatus" style="width:100%;background:#10b981;color:#000;font-weight:900;padding:10px;border-radius:8px;border:none;cursor:pointer;font-size:12px">
+        VOLTAR AO JOGO
+      </button>
+    </div>
+  `;
+
+  container.appendChild(modal);
+
+  const btnClose = modal.querySelector('#btnCloseCraqueLiveStatus');
+  if (btnClose) {
+    btnClose.onclick = () => modal.remove();
+  }
+}
+window.showCraqueLiveStatusModal = showCraqueLiveStatusModal;
+
 function bindLiveMatchEvents(){
   const s = liveMatchState;
   if(!s) return;
@@ -24949,14 +25563,18 @@ function bindLiveMatchEvents(){
     if(btnCall){
       btnCall.onclick = () => {
         const ath = findMyAthlete();
-        if(!ath) return toast('Aguarde sua entrada em campo no 2º tempo para comandar as jogadas!');
+        if(!ath) return toast('Aguarde sua entrada em campo para comandar as jogadas!');
+        s.craqueCallBallUntil = Date.now() + 6000;
         if(s.ball && s.ball.carrier && s.ball.carrier.team === ath.team && s.ball.carrier !== ath){
-          startLivePass(s, s.ball.carrier, ath, { logEvent: true, cooldownFrames: 60 });
+          startLivePass(s, s.ball.carrier, ath, { logEvent: true, cooldownFrames: 30 });
           showLiveBanner('⚽ VOCÊ RECEBEU O PASSE!', 'tactics', 2500);
-          toast('⚽ Passe recebido com sucesso!');
+          toast('⚽ Companheiro tocou a bola para você!');
         } else {
           showLiveBanner('🗣️ PEDINDO A BOLA!', 'tactics', 2000);
-          toast('🗣️ Você gesticulou pedindo a bola no pé!');
+          toast('🗣️ Você gesticulou pedindo a bola! Companheiros procurando o craque.');
+        }
+        if(s.ball && s.ball.carrier === ath && !s.craqueDecisionActive){
+          triggerCraqueDecisionMoment(s, ath);
         }
       };
     }
@@ -24967,12 +25585,11 @@ function bindLiveMatchEvents(){
         const ath = findMyAthlete();
         if(!ath) return toast('Aguarde sua entrada em campo para finalizar a gol!');
         if(s.ball && s.ball.carrier === ath){
-          startLiveShot(s, ath);
-          showLiveBanner('🎯 FINALIZAÇÃO DO CRAQUE!', 'goal', 3000);
-          toast('🎯 Você soltou uma bomba em direção ao gol!');
+          triggerCraqueDecisionMoment(s, ath);
         } else {
-          showLiveBanner('🎯 PREPARADO PARA CHUTAR!', 'tactics', 2000);
-          toast('🎯 Você engatilhou o chute na próxima oportunidade!');
+          s.craqueCallBallUntil = Date.now() + 5000;
+          showLiveBanner('🎯 PREPARADO PARA FINALIZAR!', 'tactics', 2000);
+          toast('🎯 Preparado para o chute! Pedindo a bola na área...');
         }
       };
     }
@@ -24984,9 +25601,9 @@ function bindLiveMatchEvents(){
         if(!ath) return toast('Aguarde sua entrada em campo!');
         ath.stamina = Math.max(10, (ath.stamina || 100) - 2);
         const dir = ath.team === 'home' ? 1 : -1;
-        ath.x = clamp((ath.x || 50) + dir * 6, 4, 96);
+        ath.x = clamp((ath.x || 50) + dir * 8, 4, 96);
         showLiveBanner('⚡ ARRANCADA EXPLOSIVA!', 'tactics', 2000);
-        toast('⚡ Arrancada em velocidade! Espaço aberto no ataque!');
+        toast('⚡ Arrancada em velocidade (+35%)! Infiltração aberta no ataque!');
       };
     }
 
@@ -24996,18 +25613,26 @@ function bindLiveMatchEvents(){
         const ath = findMyAthlete();
         if(!ath) return toast('Aguarde sua entrada em campo!');
         if(s.ball){
-          ath.x = clamp((ath.x * 0.7) + (s.ball.x * 0.3), 4, 96);
-          ath.y = clamp((ath.y * 0.7) + (s.ball.y * 0.3), 4, 96);
+          ath.x = clamp((ath.x * 0.6) + (s.ball.x * 0.4), 4, 96);
+          ath.y = clamp((ath.y * 0.6) + (s.ball.y * 0.4), 4, 96);
+          if(s.ball.carrier && s.ball.carrier.team !== ath.team && Math.hypot(ath.x - s.ball.carrier.x, ath.y - s.ball.carrier.y) < 12){
+            if(Math.random() < 0.55){
+              s.ball.carrier = ath;
+              s.events = s.events || [];
+              s.events.unshift({ min: s.minute || 1, type: 'sub', text: `🛡️ ROUBADA DE BOLA! ${ath.name} pressiona e recupera a posse no ataque!` });
+              showLiveBalloon(ath.x, ath.y, '🛡️ BOLA RECUPERADA!', '#10b981');
+            }
+          }
         }
         showLiveBanner('🛡️ PRESSÃO NA MARCAÇÃO!', 'tactics', 2000);
-        toast('🛡️ Você fechou os espaços e pressionou a saída de bola!');
+        toast('🛡️ Você fechou os espaços e pressionou a saída adversária!');
       };
     }
 
     const btnStamina = $('#btnCraqueStaminaStatus');
     if(btnStamina){
       btnStamina.onclick = () => {
-        openHalftimeModal(true);
+        showCraqueLiveStatusModal(s);
       };
     }
   }
@@ -25017,15 +25642,18 @@ function bindLiveMatchEvents(){
 // SUBSTITUIÇÃO DO ATLETA CONTROLADO NO MODO JOGADOR (BE A PRO)
 // -------------------------------------------------------------
 function triggerPlayerCareerSubstitution(s = liveMatchState){
-  if(!s || !state) return false;
-  const isPlayerMode = Boolean(state.gameMode === 'player' || state.playerCareerState || state.controlledPlayerId);
+  const st = (typeof state !== 'undefined' && state) || (typeof window !== 'undefined' && window.state);
+  if(!s || !st) return false;
+  const isPlayerMode = Boolean(st.gameMode === 'player' || st.playerCareerState || st.controlledPlayerId);
   if(!isPlayerMode) return false;
   if(Number(s.subsLeft) <= 0 || s.playerCareerAvailableForMatch === false) return false;
 
-  const athlete = (state.squad || []).find(p => String(p.id) === String(state.controlledPlayerId)) || (state.squad || [])[0];
+  const athlete = ((typeof window.getControlledPlayer === 'function' ? window.getControlledPlayer(st) : null) ||
+                   (st.squad || []).find(p => String(p.id) === String(st.controlledPlayerId)) ||
+                   (st.squad || [])[0]);
   if(!athlete) return false;
 
-  const userIsHome = (typeof norm === 'function' ? norm(s.home) === norm(state.club) : (s.home === state.club));
+  const userIsHome = (typeof norm === 'function' ? norm(s.home) === norm(st.club) : (s.home === st.club));
   const myTeam = userIsHome ? s.homePlayers : s.awayPlayers;
   if(!Array.isArray(myTeam) || myTeam.length === 0) return false;
 
@@ -25056,7 +25684,7 @@ function triggerPlayerCareerSubstitution(s = liveMatchState){
   const outName = subbedOut.name || 'Titular';
   const outNum = subbedOut.num || 11;
   const replacedPlayerId = subbedOut.id;
-  const athleteName = athlete.name || state.playerCareerState?.athleteName || 'Diogenes Aquino';
+  const athleteName = athlete.name || st.playerCareerState?.athleteName || 'Carlos Henrique';
   const athleteNum = athlete.number || 10;
   const curMin = Math.max(45, Number(s.minute) || 45);
 
@@ -25066,6 +25694,7 @@ function triggerPlayerCareerSubstitution(s = liveMatchState){
   subbedOut.fullName = athlete.fullName || athleteName;
   subbedOut.num = athleteNum;
   subbedOut.pos = athletePos;
+  subbedOut.isGK = false;
   subbedOut.ovr = athlete.ovr || 40;
   subbedOut.stamina = 100;
   subbedOut.careerPlayerId = athlete.id;
