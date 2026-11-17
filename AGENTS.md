@@ -176,6 +176,18 @@
      - Todas as variáveis de filtro de view (`window.seasonTab`, `window.seasonTableFilter`, `window.estPhase`, `window.statsTab`, `window.statsOnlyMyClub`, `window.changelogFilter`, `window.changelogSearch`, `window.newsCategoryFilter`, `window.calendarFilter`) DEVEM ser inicializadas no escopo `window.*` antes de `render()`.
   3. SANITIZAÇÃO E DINAMISMO EM NOVIDADES & CORREÇÕES:
      - Nunca renderizar crases literais (`...`) como texto cru na aba `novidades`; converter automaticamente em `<code>...</code>` e substituir nomes hardcoded pelo nome do treinador ativo.
+- REGRA IRRESTRITA ESPECIAL — BLINDAGEM DE INSTALAÇÕES, ESTÁDIO E SUB-ABAS:
+  1. HIDRATAÇÃO OBRIGATÓRIA DA ESTRUTURA DO CLUBE (`ensureClubStructureHydrated`):
+     - Antes de renderizar `estrutura` ou abrir qualquer sub-aba (`facilities`, `stadium`, `arena`, `museum`, `house`) ou modal interativo, executar `window.ensureClubStructureHydrated(state)` garantindo:
+       * `state.facilities` como objeto válido com níveis numéricos inteiros (`stadium`, `parking`, `training`, `academy`, `medical`, `admin`, `store`, `museum`, `press`, `marketing`, `bank`);
+       * `Array.isArray(state.bankLoans)` sempre verdadeiro (convertendo `{}` ou `null` em `[]`);
+       * `Array.isArray(state.trophies)` e `Array.isArray(state.clubTrophies)` sempre verdadeiros;
+       * `state.stadiumCapacity >= 5000` (nunca `0` ou `NaN`) e `state.ticketPrice` / `state.parkingPrice` numéricos válidos.
+  2. UNIFICAÇÃO DE SELETORES E AÇÕES DE MODAIS DA ESTRUTURA:
+     - Todo botão de ação na aba `estrutura` (incluindo `VER EM 3D (360°)`, `Inspecionar 3D Interativo`, `Setores & Obras`, `Obras do Estacionamento`, `Concessão & Parcerias`, `Loja Oficial & Preços`, `Centro de Treinamento` e `Banco & Empréstimos`) DEVE possuir `data-struct-action="..."` e ser tratado por delegação global no container principal, sem depender exclusivamente de `id` único quando houver botões duplicados nos cards.
+  3. PROTEÇÃO CONTRA CLIQUE DUPLO E Z-INDEX DE MODAIS:
+     - Toda evolução de instalação (`upgradeFacility`) DEVE usar trava temporal (`window.__afmFacilityLock`) para impedir desconto duplo do caixa.
+     - Modais visuais da estrutura (`#stadiumVisualModalContainer`, `#parkingConcessionModalContainer`, `#parkingVisualModalContainer`) devem fechar com `Esc` ou clique no backdrop, limpando o DOM residual.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis

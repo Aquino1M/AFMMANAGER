@@ -88,6 +88,8 @@ if (typeof window !== 'undefined') {
   window.statsOnlyMyClub = Boolean(window.statsOnlyMyClub);
   window.changelogFilter = window.changelogFilter || 'all';
   window.changelogSearch = window.changelogSearch || '';
+  window.structActiveTab = window.structActiveTab || 'facilities';
+  window.__afmFacilityLock = false;
 }
 const STORAGE='aquino_futebol_manager_2026_v1';
 const fmtMoney=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(Number(v)||0);
@@ -12979,6 +12981,118 @@ function ensureManagerEconomyHydrated(state) {
   }
 }
 window.ensureManagerEconomyHydrated = ensureManagerEconomyHydrated;
+
+function ensureClubStructureHydrated(state) {
+  const s = state || (typeof window !== 'undefined' ? window.state : null);
+  if (!s) return;
+
+  // 1. Garante arrays válidos (previne .reduce / .some / .map is not a function)
+  if (!Array.isArray(s.bankLoans)) {
+    s.bankLoans = Array.isArray(s.bankLoans?.activeLoans) ? s.bankLoans.activeLoans : [];
+  }
+  if (!Array.isArray(s.trophies)) s.trophies = [];
+  if (!Array.isArray(s.clubTrophies)) s.clubTrophies = [];
+  if (!Array.isArray(s.youthPlayers)) s.youthPlayers = [];
+  if (!Array.isArray(s.titles)) s.titles = [];
+
+  // 2. Garante níveis válidos das 11 estruturas
+  const defaultFacilities = {
+    stadium: 2,
+    parking: 0,
+    training: 1,
+    academy: 1,
+    medical: 1,
+    admin: 1,
+    store: 1,
+    museum: 1,
+    press: 1,
+    marketing: 1,
+    bank: 1
+  };
+  if (!s.facilities || typeof s.facilities !== 'object' || Array.isArray(s.facilities)) {
+    s.facilities = { ...defaultFacilities };
+  } else {
+    for (const [k, defVal] of Object.entries(defaultFacilities)) {
+      if (typeof s.facilities[k] !== 'number' || Number.isNaN(s.facilities[k])) {
+        s.facilities[k] = defVal;
+      }
+    }
+  }
+
+  if (!s.infrastructure || typeof s.infrastructure !== 'object' || Array.isArray(s.infrastructure)) {
+    s.infrastructure = {};
+  }
+  for (const [k, defVal] of Object.entries(defaultFacilities)) {
+    if (!s.infrastructure[k] || typeof s.infrastructure[k] !== 'object') {
+      s.infrastructure[k] = { level: s.facilities[k] ?? defVal };
+    } else {
+      if (typeof s.infrastructure[k].level !== 'number' || Number.isNaN(s.infrastructure[k].level)) {
+        s.infrastructure[k].level = s.facilities[k] ?? defVal;
+      }
+    }
+    s.facilities[k] = s.infrastructure[k].level;
+  }
+
+  // 3. Garante capacidade mínima do estádio (evita divisão por zero / NaN% na ocupação)
+  const cap = Number(s.infrastructure.stadium?.capacity || s.stadiumCapacity || s.club?.stadiumCapacity || 18000);
+  s.stadiumCapacity = cap >= 5000 ? cap : 18000;
+  if (s.infrastructure.stadium) {
+    s.infrastructure.stadium.capacity = s.stadiumCapacity;
+  }
+
+  // 4. Garante preços de ingresso e estacionamento persistidos no state
+  if (typeof s.ticketPrice !== 'number' || Number.isNaN(s.ticketPrice) || s.ticketPrice < 10) {
+    s.ticketPrice = 25;
+  }
+  if (typeof s.parkingPrice !== 'number' || Number.isNaN(s.parkingPrice) || s.parkingPrice < 10) {
+    s.parkingPrice = 25;
+  }
+
+  // Sincroniza vagas do estacionamento
+  if (typeof parkingSpots === 'function' && s.infrastructure.parking) {
+    s.infrastructure.parking.spots = parkingSpots(s.infrastructure.parking.level);
+  }
+
+  // 5. Sincroniza economia pessoal caso o usuário abra a sub-aba "Sua Casa & Bens Pessoais"
+  if (typeof window !== 'undefined' && typeof window.ensureManagerEconomyHydrated === 'function') {
+    window.ensureManagerEconomyHydrated(s);
+  } else if (typeof ensureManagerEconomyHydrated === 'function') {
+    ensureManagerEconomyHydrated(s);
+  }
+
+  if (typeof syncStadiumCapacityAndLevel === 'function') {
+    syncStadiumCapacityAndLevel(s);
+  }
+}
+window.ensureClubStructureHydrated = ensureClubStructureHydrated;
+
+function safeUpgradeFacility(facilityKey, upgradeFn) {
+  if (window.__afmFacilityLock) return;
+  window.__afmFacilityLock = true;
+  try {
+    if (typeof upgradeFn === 'function') upgradeFn(facilityKey);
+    else if (typeof upgradeFacility === 'function') upgradeFacility(facilityKey);
+  } finally {
+    setTimeout(() => { window.__afmFacilityLock = false; }, 350);
+  }
+}
+window.safeUpgradeFacility = safeUpgradeFacility;
+
+window.openStadiumVisualModal = function(tab) {
+  if (typeof openStadiumModal === 'function') return openStadiumModal(tab === 'expansion' ? 'expansion' : 'upgrades');
+};
+window.openParkingVisualModal = function() {
+  if (typeof openParkingModal === 'function') return openParkingModal();
+};
+window.openStadium3DModal = function() {
+  if (window.AFMStadium3D && typeof window.AFMStadium3D.openStadium3DViewerModal === 'function') {
+    return window.AFMStadium3D.openStadium3DViewerModal(null, (window.state && window.state.club) || '');
+  }
+  if (typeof openStadiumModal === 'function') return openStadiumModal('upgrades');
+};
+window.openTrainingModal = function() {
+  if (typeof openTrainingCenterModal === 'function') return openTrainingCenterModal();
+};
 
 function playersForClub(club,worldGenerated){
   const live=livePlayers.filter(p=>norm(p.club)===norm(club)).map((p,i)=>({...p,id:p.id||`live-${hashStr(playerKey(p))}`,marketKey:playerKey(p),morale:p.morale??70,fitness:p.fitness??100,owned:true,value:calcValueMi(p)}));
@@ -30415,6 +30529,10 @@ function openWorldSaveChampionsModal(){
 }
 
 function upgradeFacility(key){
+  if (window.__afmFacilityLock) return;
+  window.__afmFacilityLock = true;
+  setTimeout(() => { window.__afmFacilityLock = false; }, 350);
+
   const f=state.infrastructure[key],d=FACILITIES[key];
   if(!f||!d)return;
   if(f.level>=d.max){toast('Estrutura no nível máximo.');return}
@@ -30424,6 +30542,7 @@ function upgradeFacility(key){
   state.balance-=cost;
   state.expense+=cost;
   f.level++;
+  if(state.facilities) state.facilities[key] = f.level;
   if(key==='stadium'){
     state.stadiumRingData = state.stadiumRingData || { ring: 1, maxRings: 6, sides: { norte: false, sul: false, leste: false, oeste: false }, rings: {}, purchasedSectors: [] };
     state.stadiumRingData.maxUnlockedRing = Math.min(6, Math.max(state.stadiumRingData.maxUnlockedRing || 1, f.level));
@@ -37231,6 +37350,8 @@ function renderMarketScout(){
 // ESTRUTURA COM DASHBOARD VISUAL DE RENDA EM CASA
 // -------------------------------------------------------------
 function structurePage(){
+  if(typeof window.ensureClubStructureHydrated === 'function') window.ensureClubStructureHydrated(state);
+  structureSubTab = window.structActiveTab = window.structActiveTab || structureSubTab || 'facilities';
   if(typeof syncStadiumCapacityAndLevel === 'function') syncStadiumCapacityAndLevel(state);
   if (!Array.isArray(state.bankLoans)) state.bankLoans = Array.isArray(state.bankLoans?.activeLoans) ? state.bankLoans.activeLoans : [];
   const f = userFixture(), opp = f && f[0] === state.club ? f[1] : null;
@@ -37284,19 +37405,19 @@ function structurePage(){
     ${structureSubTab==='facilities' ? `
       <!-- Atalhos Rápidos Interativos dos Screenshots -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:16px">
-      <button class="btn" id="btnOpenParkingInteractive" style="background:#26180f;border:1px solid #f97316;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:6px">
+      <button class="btn" id="btnOpenParkingInteractive" data-struct-action="parking-modal" style="background:#26180f;border:1px solid #f97316;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:6px">
         <span>🚗</span> <span style="font-size:11px">ESTACIONAMENTO INTERATIVO</span>
       </button>
-      <button class="btn" id="btnOpenStadiumInteractive" style="background:#1c1335;border:1px solid #7c3aed;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px">
+      <button class="btn" id="btnOpenStadiumInteractive" data-struct-action="stadium-interactive" style="background:#1c1335;border:1px solid #7c3aed;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px">
         <span>🏟️</span> <span>VER ESTÁDIO INTERATIVO & MELHORIAS</span>
       </button>
-      <button class="btn" id="btnOpenStoreInteractive" style="background:#131c35;border:1px solid #0284c7;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px">
+      <button class="btn" id="btnOpenStoreInteractive" data-struct-action="store-modal" style="background:#131c35;border:1px solid #0284c7;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px">
         <span>🛍️</span> <span>LOJA OFICIAL & PREÇOS</span>
       </button>
-      <button class="btn" id="btnOpenTrainingInteractive" style="background:#132e22;border:1px solid #10b981;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px">
+      <button class="btn" id="btnOpenTrainingInteractive" data-struct-action="training-modal" style="background:#132e22;border:1px solid #10b981;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px">
         <span>⚽</span> <span>CENTRO DE TREINAMENTO & FOCO</span>
       </button>
-      <button class="btn" id="btnOpenBankInteractive" style="background:linear-gradient(135deg, #102a1c, #0d3824);border:1px solid #10b981;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px;color:#fff">
+      <button class="btn" id="btnOpenBankInteractive" data-struct-action="bank-modal" style="background:linear-gradient(135deg, #102a1c, #0d3824);border:1px solid #10b981;padding:12px;border-radius:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px;color:#fff">
         <span>🏦</span> <span>BANCO & EMPRÉSTIMOS</span>
       </button>
     </div>
@@ -37377,6 +37498,30 @@ function structurePage(){
                     <span class="facility-stat-val"><b>+${trainingBonusPct(x.level)}%</b> ${!max ? `<span class="muted" style="margin-left:3px;font-size:10px">(Próx: +${trainingBonusPct(x.level + 1)}%)</span>` : ''}</span>
                   </div>
                 `:''}
+                ${k==='medical'?`
+                  <div class="facility-stat" style="color:#10b981">
+                    <span class="facility-stat-label">Recuperação Física:</span>
+                    <span class="facility-stat-val"><b>-${x.level * 8}% tempo de lesão</b> ${!max ? `<span class="muted" style="margin-left:3px;font-size:10px">(Próx: -${(x.level + 1) * 8}%)</span>` : ''}</span>
+                  </div>
+                `:''}
+                ${k==='admin'?`
+                  <div class="facility-stat" style="color:var(--cyan)">
+                    <span class="facility-stat-label">Bônus Contratos:</span>
+                    <span class="facility-stat-val"><b>+${x.level * 4}% receita patrocínios</b> ${!max ? `<span class="muted" style="margin-left:3px;font-size:10px">(Próx: +${(x.level + 1) * 4}%)</span>` : ''}</span>
+                  </div>
+                `:''}
+                ${k==='press'?`
+                  <div class="facility-stat" style="color:#c084fc">
+                    <span class="facility-stat-label">Moral & Imprensa:</span>
+                    <span class="facility-stat-val"><b>+${x.level * 5}% impacto confiança</b> ${!max ? `<span class="muted" style="margin-left:3px;font-size:10px">(Próx: +${(x.level + 1) * 5}%)</span>` : ''}</span>
+                  </div>
+                `:''}
+                ${k==='store'?`
+                  <div class="facility-stat" style="color:var(--neon)">
+                    <span class="facility-stat-label">Receita Merchandising:</span>
+                    <span class="facility-stat-val"><b>+${x.level * 10}% por jogo</b> ${!max ? `<span class="muted" style="margin-left:3px;font-size:10px">(Próx: +${(x.level + 1) * 10}%)</span>` : ''}</span>
+                  </div>
+                `:''}
                 ${k==='marketing'?`
                   <div class="facility-stat" style="color:var(--cyan)">
                     <span class="facility-stat-label">Aporte Semanal:</span>
@@ -37384,32 +37529,34 @@ function structurePage(){
                   </div>
                 `:''}
                 ${k==='bank'?`
-                  <div class="facility-stat" style="color:${(state.bankLoans||[]).some(l=>l.overdue)?'#ef4444':'#f59e0b'}">
+                  <div class="facility-stat" style="color:${(Array.isArray(state.bankLoans)?state.bankLoans:[]).some(l=>l.overdue)?'#ef4444':'#f59e0b'}">
                     <span class="facility-stat-label">Dívida Ativa:</span>
-                    <span class="facility-stat-val"><b>${fmtMoney(totalBankDebt())}</b> <span class="muted" style="margin-left:2px;font-size:10px">(${(state.bankLoans||[]).length})</span></span>
+                    <span class="facility-stat-val"><b>${fmtMoney(totalBankDebt())}</b> <span class="muted" style="margin-left:2px;font-size:10px">(${(Array.isArray(state.bankLoans)?state.bankLoans:[]).length})</span></span>
                   </div>
                   <div class="facility-stat" style="color:var(--neon)">
                     <span class="facility-stat-label">Limite Disponível:</span>
                     <span class="facility-stat-val"><b>${fmtMoney(bankAvailableCredit())}</b></span>
                   </div>
-                  ${(state.bankLoans||[]).some(l=>l.overdue)?`<div class="facility-stat" style="color:#ef4444;font-weight:900">🚨 PARCELA VENCIDA COM JUROS!</div>`:''}
+                  ${(Array.isArray(state.bankLoans)?state.bankLoans:[]).some(l=>l.overdue)?`<div class="facility-stat" style="color:#ef4444;font-weight:900">🚨 PARCELA VENCIDA COM JUROS!</div>`:''}
                 `:''}
                 <div class="facility-actions">
                   <button class="btn ${!max&&state.balance>=cost?'primary':''} upgrade" data-facility="${k}" ${max||state.balance<cost?'disabled':''}>
                     ${max?'Nível Máximo':`Evoluir • ${fmtMoney(cost)}`}
                   </button>
                   ${k==='parking'?`
-                    <button class="btn btnOpenParkingConcession" style="background:linear-gradient(135deg, #8b5cf6, #6366f1);color:#fff;border:none;font-weight:800;display:inline-flex;align-items:center;gap:6px" title="Gerenciar parcerias e concessão empresarial de estacionamento">
+                    <button class="btn btnOpenParkingConcession" data-struct-action="parking-concession" style="background:linear-gradient(135deg, #8b5cf6, #6366f1);color:#fff;border:none;font-weight:800;display:inline-flex;align-items:center;gap:6px" title="Gerenciar parcerias e concessão empresarial de estacionamento">
                       🤝 ${state.parkingConcession ? `Concessão: ${esc(state.parkingConcession.companyName)}` : 'Concessão & Parcerias'}
                     </button>
-                    <button class="btn btnOpenParkingInteractive" style="background:#2563eb;color:#fff;border:none;font-weight:800;display:inline-flex;align-items:center;gap:6px" title="Painel visual e obras do estacionamento">
+                    <button class="btn btnOpenParkingInteractive" data-struct-action="parking-modal" style="background:#2563eb;color:#fff;border:none;font-weight:800;display:inline-flex;align-items:center;gap:6px" title="Painel visual e obras do estacionamento">
                       🚗 Obras do Estacionamento
                     </button>
                   `:''}
-                  ${k==='academy'?`<button class="btn btnOpenAcademy" style="background:#059669;color:#fff;border:none">🌱 Ver Jogadores da Base</button>`:''}
-                  ${k==='marketing'?`<button class="btn btnOpenMarketing" style="background:#0284c7;color:#fff;border:none">📢 Gerenciar Marketing</button>`:''}
-                  ${k==='bank'?`<button class="btn btnOpenBank" style="background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;font-weight:900">🏦 Gerenciar Empréstimos</button>`:''}
-                  ${k==='museum'?`<button class="btn btnOpenMuseumFromFacility" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;font-weight:800">🏛️ Abrir Museu do Clube</button>`:''}
+                  ${k==='training'?`<button type="button" class="btn" data-struct-action="training-modal" style="background:#059669;color:#fff;border:none;font-weight:800;display:inline-flex;align-items:center;gap:6px">⚽ Foco de Treino</button>`:''}
+                  ${k==='store'?`<button type="button" class="btn" data-struct-action="store-modal" style="background:#0284c7;color:#fff;border:none;font-weight:800;display:inline-flex;align-items:center;gap:6px">🛍️ Preços & Loja</button>`:''}
+                  ${k==='academy'?`<button class="btn btnOpenAcademy" data-struct-action="academy-modal" style="background:#059669;color:#fff;border:none">🌱 Ver Jogadores da Base</button>`:''}
+                  ${k==='marketing'?`<button class="btn btnOpenMarketing" data-struct-action="marketing-modal" style="background:#0284c7;color:#fff;border:none">📢 Gerenciar Marketing</button>`:''}
+                  ${k==='bank'?`<button class="btn btnOpenBank" data-struct-action="bank-modal" style="background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;font-weight:900">🏦 Gerenciar Empréstimos</button>`:''}
+                  ${k==='museum'?`<button class="btn btnOpenMuseumFromFacility" data-struct-action="museum-tab" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;font-weight:800">🏛️ Abrir Museu do Clube</button>`:''}
                 </div>
               </div>
             </div>
@@ -37875,11 +38022,14 @@ function structurePage(){
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button id="btnGoToManagerCareerFromHouse" type="button" data-view="carreira" class="btn" style="background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px">
+              💼 Ir para Carreira & Negócios
+            </button>
             <button id="btnOpenCbfLicensesFromHouse" type="button" style="background:rgba(15,23,42,0.85);color:#38bdf8;border:1px solid rgba(56,189,248,0.45);border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
               🎓 CURSOS & LICENÇAS (CBF & UEFA)
             </button>
             <span class="pill" style="background:#059669;color:#fff;font-weight:800">
-              🏦 Saldo no Banco: ${fmtMoney(state.managerMoney||57000)}
+              🏦 Saldo no Banco: ${fmtMoney(state.personalCash || state.managerMoney || (state.managerPersonal && state.managerPersonal.personalBalance) || 57000)}
             </span>
           </div>
         </div>
@@ -44941,11 +45091,11 @@ function bind(){
     if(bCardTrain) bCardTrain.onclick = openTrainingCenterModal;
     $$('.btn-struct-tab').forEach(b => {
       b.onclick = () => {
-        structureSubTab = b.dataset.structTab;
+        structureSubTab = window.structActiveTab = b.dataset.structTab;
         render();
       };
     });
-    $$('.btnOpenMuseumFromFacility').forEach(b => { b.onclick = () => { structureSubTab = 'museum'; render(); }; });
+    $$('.btnOpenMuseumFromFacility').forEach(b => { b.onclick = () => { structureSubTab = window.structActiveTab = 'museum'; render(); }; });
     $$('.btnBuildSide').forEach(b => {
       b.onclick = () => {
         buildStadiumSide(b.dataset.side, b.dataset.mode);
@@ -45927,7 +46077,7 @@ function bind(){
       });
     });
   }if(view==='estrutura'){
-    $$('.upgrade').forEach(b=>b.onclick=()=>upgradeFacility(b.dataset.facility));
+    $$('.upgrade').forEach(b=>b.onclick=()=>safeUpgradeFacility(b.dataset.facility));
     $$('.btnOpenAcademy').forEach(b=>b.onclick=openYouthAcademyModal);
     $$('.btnOpenMarketing').forEach(b=>b.onclick=openMarketingModal);
     $$('.btnOpenBank').forEach(b=>b.onclick=openBankLoansModal);
@@ -47299,6 +47449,103 @@ try {
       return;
     }
   }, true);
+} catch(e) {}
+
+// Roteamento unificado para botões de ação da estrutura, persistência de sliders e fechamento de modais
+try {
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('input', function(e) {
+      const target = e.target;
+      const s = typeof state !== 'undefined' ? state : (typeof window !== 'undefined' ? window.state : null);
+      if (!target || !s) return;
+      if (target.id === 'ticketPrice') {
+        s.ticketPrice = Math.max(10, Math.min(150, Number(target.value) || 25));
+      } else if (target.id === 'parkingPrice') {
+        s.parkingPrice = Math.max(10, Math.min(60, Number(target.value) || 25));
+      }
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        const mod1 = document.getElementById('stadiumVisualModalContainer');
+        if (mod1) mod1.remove();
+        const mod2 = document.getElementById('parkingVisualModalContainer');
+        if (mod2) mod2.remove();
+        const mod3 = document.getElementById('parkingConcessionModalContainer');
+        if (mod3) mod3.remove();
+        const mod4 = document.getElementById('afmStadium3DModal');
+        if (mod4) mod4.remove();
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      const overlay = e.target;
+      if (overlay && overlay.classList && (overlay.classList.contains('visual-modal-overlay') || overlay.classList.contains('afm-modal-backdrop'))) {
+        const parent = overlay.closest('#stadiumVisualModalContainer, #parkingVisualModalContainer, #parkingConcessionModalContainer, #afmStadium3DModal');
+        if (parent) parent.remove();
+      }
+
+      const actionBtn = e.target && e.target.closest ? e.target.closest('[data-struct-action]') : null;
+      if (!actionBtn) return;
+      const action = actionBtn.getAttribute('data-struct-action');
+      const curState = typeof state !== 'undefined' ? state : (typeof window !== 'undefined' ? window.state : null);
+      if (typeof window !== 'undefined' && typeof window.ensureClubStructureHydrated === 'function') {
+        window.ensureClubStructureHydrated(curState);
+      }
+
+      if (action === 'stadium-3d') {
+        const trigger = document.getElementById('btnOpenStadium3DModal') || document.getElementById('btnOpenStadiumInteractive');
+        if (trigger && trigger !== actionBtn) trigger.click();
+        else if (typeof window.openStadium3DModal === 'function') window.openStadium3DModal();
+        else if (window.AFMStadium3D && typeof window.AFMStadium3D.openStadium3DViewerModal === 'function') {
+          window.AFMStadium3D.openStadium3DViewerModal(null, curState?.club || '');
+        } else if (typeof window.openStadiumVisualModal === 'function') window.openStadiumVisualModal('3d');
+      } else if (action === 'stadium-interactive' || action === 'stadium-expansion') {
+        const trigger = document.getElementById('btnOpenStadiumInteractive');
+        if (trigger && trigger !== actionBtn) trigger.click();
+        else if (typeof window.openStadiumVisualModal === 'function') window.openStadiumVisualModal(action === 'stadium-expansion' ? 'expansion' : 'upgrades');
+        else if (typeof window.openStadiumModal === 'function') window.openStadiumModal(action === 'stadium-expansion' ? 'expansion' : 'upgrades');
+        else if (typeof openStadiumModal === 'function') openStadiumModal(action === 'stadium-expansion' ? 'expansion' : 'upgrades');
+      } else if (action === 'parking-modal') {
+        const trigger = document.getElementById('btnOpenParkingInteractive');
+        if (trigger && trigger !== actionBtn) trigger.click();
+        else if (typeof window.openParkingVisualModal === 'function') window.openParkingVisualModal();
+        else if (typeof window.openParkingModal === 'function') window.openParkingModal();
+        else if (typeof openParkingModal === 'function') openParkingModal();
+      } else if (action === 'parking-concession') {
+        if (typeof window.openParkingConcessionModal === 'function') window.openParkingConcessionModal();
+        else if (typeof openParkingConcessionModal === 'function') openParkingConcessionModal();
+      } else if (action === 'store-modal') {
+        const trigger = document.getElementById('btnOpenStoreInteractive');
+        if (trigger && trigger !== actionBtn) trigger.click();
+        else if (typeof window.openOfficialStoreModal === 'function') window.openOfficialStoreModal();
+        else if (typeof openOfficialStoreModal === 'function') openOfficialStoreModal();
+      } else if (action === 'training-modal') {
+        const trigger = document.getElementById('btnOpenTrainingInteractive');
+        if (trigger && trigger !== actionBtn) trigger.click();
+        else if (typeof window.openTrainingModal === 'function') window.openTrainingModal();
+        else if (typeof window.openTrainingCenterModal === 'function') window.openTrainingCenterModal();
+        else if (typeof openTrainingCenterModal === 'function') openTrainingCenterModal();
+      } else if (action === 'bank-modal') {
+        const trigger = document.getElementById('btnOpenBankInteractive');
+        if (trigger && trigger !== actionBtn) trigger.click();
+        else if (typeof window.openBankLoansModal === 'function') window.openBankLoansModal();
+        else if (typeof openBankLoansModal === 'function') openBankLoansModal();
+      } else if (action === 'academy-modal') {
+        if (typeof window.openYouthAcademyModal === 'function') window.openYouthAcademyModal();
+        else if (typeof openYouthAcademyModal === 'function') openYouthAcademyModal();
+      } else if (action === 'marketing-modal') {
+        if (typeof window.openMarketingModal === 'function') window.openMarketingModal();
+        else if (typeof openMarketingModal === 'function') openMarketingModal();
+      } else if (action === 'museum-tab') {
+        if (typeof window !== 'undefined') window.structActiveTab = 'museum';
+        structureSubTab = 'museum';
+        if (typeof render === 'function') render();
+        const tabBtn = document.querySelector('.btn-struct-tab[data-struct-tab="museum"]');
+        if (tabBtn) tabBtn.click();
+      }
+    });
+  }
 } catch(e) {}
 
 ;(function(){

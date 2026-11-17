@@ -54,7 +54,7 @@ function extractSnippet(source, startMarker, endMarker) {
 const globalsSnippet = extractSnippet(
   gameCode,
   '// Fallback seguro caso algum script chame $(...).forEach(...)',
-  'window.changelogSearch = window.changelogSearch || \'\';\n}'
+  'window.__afmFacilityLock = false;\n}'
 );
 eval(globalsSnippet);
 

@@ -424,7 +424,7 @@
               <span class="badge ${model.id === 'arena_coliseu' ? 'purple' : (model.id === 'arena_moderna' ? 'success' : (model.id === 'arena_monumental' || model.id === 'arena_classica' ? 'warning' : 'info'))}" style="font-size:11px;padding:4px 10px;font-weight:800">
                 ${model.badge}
               </span>
-              <button class="btn btn-sm btn-outline-info" onclick="window.AFMStadium3D.openStadium3DViewerModal('${model.id}', '${clubName}')" style="font-size:11px;padding:4px 10px;font-weight:900;border-radius:6px;cursor:pointer">
+              <button class="btn btn-sm btn-outline-info" id="btnOpenStadium3DTop" data-struct-action="stadium-3d" onclick="window.AFMStadium3D.openStadium3DViewerModal('${model.id}', '${clubName}')" style="font-size:11px;padding:4px 10px;font-weight:900;border-radius:6px;cursor:pointer">
                 🎮 VER EM 3D (360°)
               </button>
             </div>
@@ -498,10 +498,10 @@
               </div>
 
               <div style="display:flex;gap:8px;width:100%;justify-content:center;margin-top:6px;flex-wrap:wrap">
-                <button class="btn btn-sm btn-primary" onclick="window.AFMStadium3D.openStadium3DViewerModal('${model.id}', '${clubName}')" style="font-size:11px;padding:6px 14px;background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;font-weight:900;border:none;border-radius:6px;cursor:pointer">
+                <button class="btn btn-sm btn-primary" id="btnInspectStadium3D" data-struct-action="stadium-3d" onclick="window.AFMStadium3D.openStadium3DViewerModal('${model.id}', '${clubName}')" style="font-size:11px;padding:6px 14px;background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;font-weight:900;border:none;border-radius:6px;cursor:pointer">
                   🎮 Inspecionar 3D Interativo
                 </button>
-                <button class="btn btn-sm btn-open-stadium-expansion" data-stadium-action="expansion" onclick="if(typeof window.openStadiumModal==='function'){ window.openStadiumModal('expansion'); } else if(typeof openStadiumModal==='function'){ openStadiumModal('expansion'); }" style="font-size:11px;padding:6px 14px;background:rgba(255,255,255,0.08);color:#fff;border-radius:6px;cursor:pointer">
+                <button class="btn btn-sm btn-open-stadium-expansion" data-stadium-action="expansion" data-struct-action="stadium-expansion" onclick="if(typeof window.openStadiumModal==='function'){ window.openStadiumModal('expansion'); } else if(typeof openStadiumModal==='function'){ openStadiumModal('expansion'); }" style="font-size:11px;padding:6px 14px;background:rgba(255,255,255,0.08);color:#fff;border-radius:6px;cursor:pointer">
                   🔍 Setores & Obras
                 </button>
               </div>
