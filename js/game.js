@@ -12325,13 +12325,321 @@ function buildWorldGenerated(){
   const out=[];for(const c of clubs){const liveCount=counts.get(norm(c.name))||0;if(liveCount>=11)continue;const need=Math.max(4,22-liveCount);out.push(...generatedRosterForClub(c.name).slice(0,need));}return out;
 }
 
+// =========================================================================
+// NORMALIZAÇÃO & HIDRATAÇÃO GARANTIDA DE ELENCO (MODO TREINADOR)
+// =========================================================================
+function normalizeClubLookupKey(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+window.normalizeClubLookupKey = normalizeClubLookupKey;
+
+function generateFallbackSquadForClub(clubName, targetOvr = 56, count = 22) {
+  const firstNames = [
+    'Lucas', 'Gabriel', 'Matheus', 'Rafael', 'Bruno', 'Felipe', 'Gustavo', 'Pedro',
+    'Vinícius', 'Caio', 'Diego', 'Thiago', 'Leonardo', 'Rodrigo', 'Eduardo', 'Henrique',
+    'Igor', 'Renan', 'André', 'Marcelo', 'Daniel', 'Guilherme', 'João', 'Vitor'
+  ];
+  const lastNames = [
+    'Silva', 'Santos', 'Oliveira', 'Souza', 'Pereira', 'Costa', 'Rodrigues', 'Almeida',
+    'Nascimento', 'Lima', 'Araújo', 'Fernandes', 'Carvalho', 'Gomes', 'Martins', 'Rocha',
+    'Ribeiro', 'Alves', 'Monteiro', 'Mendes', 'Barros', 'Freitas', 'Barbosa', 'Cardoso'
+  ];
+  const templatePositions = [
+    'GK', 'GK',
+    'RB', 'CB', 'CB', 'CB', 'LB', 'RB', 'LB',
+    'DM', 'DM', 'CM', 'CM', 'AM', 'AM',
+    'RW', 'LW', 'ST', 'ST', 'ST', 'RW', 'LW'
+  ];
+
+  const baseOvr = Math.max(48, Math.min(88, Number(targetOvr) || 56));
+  const generated = [];
+  const cName = String(clubName || 'Clube');
+  const normKey = normalizeClubLookupKey(cName);
+
+  for (let i = 0; i < count; i++) {
+    const pos = templatePositions[i % templatePositions.length];
+    const fn = firstNames[(i * 7 + baseOvr) % firstNames.length];
+    const ln = lastNames[(i * 11 + baseOvr) % lastNames.length];
+    const variation = (i % 5) - 2; // -2 a +2
+    const ovr = Math.max(46, Math.min(92, baseOvr + variation));
+    const age = 19 + ((i * 3) % 15);
+    const pot = Math.min(94, ovr + (age <= 22 ? 8 : age <= 26 ? 4 : 1));
+    const marketValue = Math.round(Math.pow(Math.max(1, ovr - 40), 2.35) * 4500);
+    const salary = Math.max(4500, Math.round(marketValue * 0.018));
+    const id = `gen_${normKey}_${i + 1}`;
+    const name = `${fn} ${ln}`;
+
+    generated.push({
+      id,
+      name,
+      club: cName,
+      pos,
+      position: pos,
+      age,
+      ovr,
+      overall: ovr,
+      pot,
+      potential: pot,
+      salary,
+      wage: salary,
+      value: Math.round((marketValue / 1e6) * 100) / 100 || 0.15,
+      marketValue,
+      contractUntil: 2028,
+      contractYears: 1 + (i % 3),
+      fitness: 96,
+      stamina: 96,
+      morale: 80,
+      shirtNumber: i + 1,
+      number: i + 1,
+      nationality: 'Brasil',
+      transferListed: false,
+      loanListed: false,
+      injuredWeeks: 0,
+      suspendedMatches: 0,
+      marketKey: `${name}_${cName}_${pos}`,
+      owned: true
+    });
+  }
+  return generated;
+}
+window.generateFallbackSquadForClub = generateFallbackSquadForClub;
+
+function syncLineupFromSquad(state) {
+  if (!state || !Array.isArray(state.squad) || state.squad.length === 0) return;
+  const squad = state.squad;
+
+  const validKeys = new Set(squad.map(p => playerKey(p)));
+  const validIds = new Set(squad.map(p => String(p.id || p.name)));
+
+  let lineup = Array.isArray(state.lineup)
+    ? state.lineup.filter(k => {
+        if (!k) return false;
+        if (typeof k === 'object') return validIds.has(String(k.id)) || validKeys.has(playerKey(k));
+        return validKeys.has(String(k)) || validIds.has(String(k));
+      }).map(k => typeof k === 'object' ? playerKey(k) : String(k))
+    : [];
+
+  if (lineup.length < 11) {
+    const sorted = [...squad].sort((a, b) => (playerOverall(b) || b.ovr || 50) - (playerOverall(a) || a.ovr || 50));
+    const used = new Set();
+    const pickByPos = (positions) => {
+      const found = sorted.find(p => !used.has(playerKey(p)) && positions.includes(String(p.pos || p.position || '').toUpperCase()));
+      if (found) {
+        used.add(playerKey(found));
+        return playerKey(found);
+      }
+      const any = sorted.find(p => !used.has(playerKey(p)));
+      if (any) {
+        used.add(playerKey(any));
+        return playerKey(any);
+      }
+      return null;
+    };
+
+    lineup = [
+      pickByPos(['GK', 'GOL']),
+      pickByPos(['LB', 'LE']),
+      pickByPos(['CB', 'ZAG']),
+      pickByPos(['CB', 'ZAG']),
+      pickByPos(['RB', 'LD']),
+      pickByPos(['CM', 'MC', 'AM', 'MEI']),
+      pickByPos(['DM', 'VOL', 'CM']),
+      pickByPos(['CM', 'MC', 'AM', 'MEI']),
+      pickByPos(['LW', 'PE', 'LM', 'ME']),
+      pickByPos(['ST', 'CA', 'ATA', 'CF']),
+      pickByPos(['RW', 'PD', 'RM', 'MD'])
+    ].filter(Boolean);
+
+    // Garante que o slot 0 seja GK se tiver algum GK no squad
+    const gkInSquad = squad.find(p => ['GK', 'GOL'].includes(String(p.pos || p.position || '').toUpperCase()));
+    if (gkInSquad) {
+      const gkKey = playerKey(gkInSquad);
+      if (lineup[0] !== gkKey) {
+        const existingIdx = lineup.indexOf(gkKey);
+        if (existingIdx > 0) {
+          [lineup[0], lineup[existingIdx]] = [lineup[existingIdx], lineup[0]];
+        } else {
+          lineup[0] = gkKey;
+        }
+      }
+    }
+
+    state.lineup = lineup;
+  }
+
+  // Preenche cobradores e capitão
+  const starters = state.lineup.map(k => squad.find(p => playerKey(p) === k || String(p.id) === k)).filter(Boolean);
+  if (starters.length > 0) {
+    state.setPieces = state.setPieces || {};
+    state.setPieceTakers = state.setPieceTakers || {};
+    state.captains = Array.isArray(state.captains) ? state.captains : [];
+
+    if (!state.captainId || !validIds.has(String(state.captainId))) {
+      const cap = [...starters].sort((a, b) => (Number(b.age) || 24) - (Number(a.age) || 24))[0];
+      state.captainId = cap ? (cap.id || playerKey(cap)) : null;
+      if (cap) {
+        state.setPieces.captain = playerKey(cap);
+        state.captains[0] = cap.name;
+      }
+    }
+    if (!state.penaltyTakerId || !validIds.has(String(state.penaltyTakerId))) {
+      const pen = [...starters].sort((a, b) => (playerOverall(b) || b.ovr || 50) - (playerOverall(a) || a.ovr || 50))[0];
+      state.penaltyTakerId = pen ? (pen.id || playerKey(pen)) : null;
+      if (pen) {
+        state.setPieces.penalty = playerKey(pen);
+        state.setPieceTakers.penalties = playerKey(pen);
+      }
+    }
+    if (!state.freekickTakerId || !validIds.has(String(state.freekickTakerId))) {
+      const fk = starters.find(p => ['AM', 'MEI', 'CM', 'LW', 'RW', 'ST', 'ATA'].includes(String(p.pos || '').toUpperCase())) || starters[0];
+      state.freekickTakerId = fk ? (fk.id || playerKey(fk)) : null;
+      if (fk) {
+        state.setPieces.freekick = playerKey(fk);
+        state.setPieceTakers.freekicks = playerKey(fk);
+      }
+    }
+  }
+}
+window.syncLineupFromSquad = syncLineupFromSquad;
+
+function ensureManagerSquadHydrated(targetState = state) {
+  if (!targetState || targetState.gameMode === 'player') return (targetState?.squad || []);
+
+  // Limpeza de resíduos de sessões do Modo Jogador
+  if (typeof document !== 'undefined') {
+    const oldDayAdv = document.getElementById('afmDayAdvanceNewsModal');
+    if (oldDayAdv) oldDayAdv.remove();
+    const oldPostHub = document.getElementById('afmPostMatchHubModal');
+    if (oldPostHub) oldPostHub.remove();
+  }
+  if (targetState.playerCareer || targetState.playerCareerState || targetState.controlledPlayerId) {
+    targetState.playerCareer = null;
+    targetState.playerCareerState = null;
+    targetState.controlledPlayerId = null;
+  }
+  if (Array.isArray(targetState.news)) {
+    targetState.news = targetState.news.filter(n => typeof n === 'string' && !n.includes('treinamentos do') && !n.includes('atleta do usuário'));
+  }
+
+  const clubObj = typeof targetState.club === 'object' && targetState.club !== null ? targetState.club : (typeof targetState.userClub === 'object' ? targetState.userClub : {});
+  const clubName = typeof targetState.club === 'string' ? targetState.club : (clubObj.name || targetState.clubName || targetState.userClub || 'Clube');
+  const clubId = clubObj.id || clubObj.clubId || targetState.clubId;
+  const normTarget = normalizeClubLookupKey(clubName);
+
+  // 1. Verifica fontes existentes de elenco no state
+  let currentSquad = Array.isArray(targetState.squad) && targetState.squad.length > 0
+    ? targetState.squad.filter(Boolean)
+    : (Array.isArray(clubObj.squad) && clubObj.squad.length > 0 ? clubObj.squad.filter(Boolean) : []);
+
+  // 2. Se estiver com menos de 11 atletas, busca na base de jogadores
+  if (currentSquad.length < 11) {
+    const globalPools = [
+      (typeof livePlayers !== 'undefined' && Array.isArray(livePlayers) ? livePlayers : null),
+      (typeof PLAYERS_DB !== 'undefined' && Array.isArray(PLAYERS_DB) ? PLAYERS_DB : null),
+      (typeof ALL_PLAYERS !== 'undefined' && Array.isArray(ALL_PLAYERS) ? ALL_PLAYERS : null),
+      (typeof AFM_PLAYERS !== 'undefined' && Array.isArray(AFM_PLAYERS) ? AFM_PLAYERS : null),
+      (Array.isArray(targetState.playersDb) ? targetState.playersDb : null),
+      (Array.isArray(targetState.allPlayers) ? targetState.allPlayers : null),
+      (Array.isArray(targetState.worldGenerated) ? targetState.worldGenerated : null)
+    ].filter(Boolean);
+
+    for (const pool of globalPools) {
+      const matched = pool.filter(p => {
+        if (!p) return false;
+        if (clubId && (p.clubId === clubId || p.teamId === clubId)) return true;
+        const pClubNorm = normalizeClubLookupKey(p.club || p.team || p.clubName);
+        return pClubNorm && pClubNorm === normTarget;
+      });
+      if (matched.length >= 11) {
+        currentSquad = matched.map((p, idx) => ({
+          ...p,
+          id: p.id || `pl_${normTarget}_${idx + 1}`,
+          club: clubName,
+          pos: (p.pos || p.position || 'CM').toUpperCase(),
+          position: (p.pos || p.position || 'CM').toUpperCase(),
+          ovr: Number(p.ovr || p.overall || playerOverall(p) || 56),
+          overall: Number(p.ovr || p.overall || playerOverall(p) || 56),
+          pot: Number(p.pot || p.potential || (Number(p.ovr || 56) + 4)),
+          age: Number(p.age || 24),
+          salary: Number(p.salary || p.wage || 8000),
+          wage: Number(p.wage || p.salary || 8000),
+          value: Number(p.value || p.marketValue || calcValueMi(p) || 0.2),
+          marketValue: Number(p.marketValue || p.value || 150000),
+          fitness: Number(p.fitness ?? p.stamina ?? 95),
+          stamina: Number(p.stamina ?? p.fitness ?? 95),
+          morale: Number(p.morale ?? 78),
+          contractYears: Number(p.contractYears ?? 2),
+          contractUntil: p.contractUntil || 2028,
+          shirtNumber: Number(p.shirtNumber || p.number || (idx + 1)),
+          number: Number(p.number || p.shirtNumber || (idx + 1)),
+          marketKey: playerKey(p),
+          owned: true
+        }));
+        break;
+      }
+    }
+  }
+
+  // 3. Se ainda estiver insuficiente (< 14 atletas), gera plantel completo calibrado (ex: Ceilândia Série D)
+  if (currentSquad.length < 14) {
+    const clubOvr = Number(clubObj.ovr || clubObj.overall || clubObj.atk || targetState.teamOvr || 55);
+    const needed = Math.max(22 - currentSquad.length, 14);
+    const fallback = generateFallbackSquadForClub(clubName, clubOvr, needed);
+    currentSquad = [...currentSquad, ...fallback];
+  }
+
+  // 4. Sincroniza em todos os pontos de leitura do estado
+  targetState.squad = currentSquad;
+  if (typeof clubObj === 'object' && clubObj !== null) {
+    clubObj.squad = currentSquad;
+  }
+
+  // 5. Garante 11 titulares válidos na tática (slot 0 = GK) e cobradores
+  syncLineupFromSquad(targetState);
+
+  return currentSquad;
+}
+window.ensureManagerSquadHydrated = ensureManagerSquadHydrated;
+
+function autoNumberSquad(targetState = state) {
+  if (!targetState || !Array.isArray(targetState.squad)) return;
+  const starters = (targetState.lineup || []).map(k => targetState.squad.find(p => playerKey(p) === k || String(p.id) === k)).filter(Boolean);
+  const others = targetState.squad.filter(p => !starters.includes(p));
+
+  let starterGk = starters.find(p => ['GK','GOL'].includes(String(p.pos||'').toUpperCase()));
+  if (starterGk) starterGk.number = 1;
+  let sNum = 2;
+  starters.forEach(p => {
+    if (p !== starterGk) {
+      p.number = sNum++;
+    }
+  });
+  let rNum = 12;
+  others.forEach(p => {
+    p.number = rNum++;
+  });
+  targetState.squad.forEach(p => {
+    p.shirtNumber = p.number;
+  });
+  if (typeof save === 'function') save();
+  if (typeof toast === 'function') toast('🔢 Elenco numerado com sucesso (1 a 25)!');
+  if (typeof render === 'function') render();
+}
+window.autoNumberSquad = autoNumberSquad;
+
 function playersForClub(club,worldGenerated){
   const live=livePlayers.filter(p=>norm(p.club)===norm(club)).map((p,i)=>({...p,id:p.id||`live-${hashStr(playerKey(p))}`,marketKey:playerKey(p),morale:p.morale??70,fitness:p.fitness??100,owned:true,value:calcValueMi(p)}));
   if(live.length >= 11){
     return live.map(p=>({...p,club,owned:true,marketKey:playerKey(p)}));
   }
   const gen=(worldGenerated||[]).filter(p=>norm(p.club)===norm(club));
-  return [...live,...gen].slice(0,25).map(p=>({...p,club,owned:true,marketKey:playerKey(p)}));
+  const res = [...live,...gen].slice(0,25).map(p=>({...p,club,owned:true,marketKey:playerKey(p)}));
+  if(res.length >= 11) return res;
+  return generateFallbackSquadForClub(club, 55, 22);
 }
 
 function restorePlayerCareerSquad(gameState){
@@ -14094,6 +14402,9 @@ if(typeof window !== "undefined") window.purgeAllStorageSavesOfExploitPlayers = 
 function normalizeSquadState(targetState = state){
   if(!targetState) return 0;
   purgeBuggedExploitPlayers(targetState);
+  if(targetState.gameMode !== 'player' && (!Array.isArray(targetState.squad) || targetState.squad.length < 14) && (targetState.club || targetState.team || targetState.clubName)){
+    if(typeof ensureManagerSquadHydrated === 'function') ensureManagerSquadHydrated(targetState);
+  }
   if(Array.isArray(targetState.squad)){
     targetState.squad.forEach(player => {
       if(!player || typeof player !== "object") return;
@@ -14143,6 +14454,9 @@ function normalizeSquadState(targetState = state){
     for(const key of ['penalty', 'freekick', 'corner', 'captain']){
       if(targetState.setPieces[key] && !validKeys.has(targetState.setPieces[key])) delete targetState.setPieces[key];
     }
+  }
+  if(targetState.gameMode !== 'player' && targetState.squad.length >= 11 && targetState.lineup.filter(Boolean).length < 11){
+    if(typeof syncLineupFromSquad === 'function') syncLineupFromSquad(targetState);
   }
   return initialLength - targetState.squad.length;
 }
@@ -28549,6 +28863,9 @@ function openTransferNegotiationModal(key){
           state.playerMoves[key] = state.club;
           state.playerMoves[norm(p.name)] = state.club;
           state.squad.push(signedPlayer);
+          if (state && state.gameMode !== 'player' && typeof ensureManagerSquadHydrated === 'function') {
+            ensureManagerSquadHydrated(state);
+          }
           state.transfers.unshift({ type: 'in', name: p.name, from, to: state.club, value: offerBid, date: state.date });
           state.news.unshift(`⭐ CONTRATAÇÃO DE PESO: O ${state.club} superou a concorrência do ${highestRivalClub} e fechou a compra de ${p.name} por ${fmtMoney(offerBid)}!`);
           toast(`🎉 ${p.name} contratado com sucesso! Contrato assinado por ${contractYears} anos.`);
@@ -28984,6 +29301,9 @@ function openLoanNegotiationModal(key){
           state.playerMoves[key] = state.club;
           state.playerMoves[norm(p.name)] = state.club;
           state.squad.push(loanedPlayer);
+          if (state && state.gameMode !== 'player' && typeof ensureManagerSquadHydrated === 'function') {
+            ensureManagerSquadHydrated(state);
+          }
           state.loans.unshift({ type: 'loan_in', name: p.name, from, to: state.club, fee: offeredFee, date: state.date, endDate: loanedPlayer.loanEndDate, durationMonths: loanDurationMonths, buyOptionPrice: loanedPlayer.loanBuyOptionPrice });
           state.news.unshift(`⇄ EMPRÉSTIMO FECHADO: ${p.name} chegou do ${from} por ${loanDurationMonths} meses, até ${formatDatePtBr(loanedPlayer.loanEndDate)}.${hasBuyOption ? ` Opção de compra: ${fmtMoney(buyOptionPrice)}.` : ''}`);
           toast(`🎉 ${p.name} chegou por ${loanDurationMonths} meses, com retorno previsto para ${formatDatePtBr(loanedPlayer.loanEndDate)}.`);
@@ -34141,6 +34461,9 @@ function calendarPage(){
   `;
 }
 function myTeamPage(){
+  if (state?.gameMode !== 'player') {
+    if (typeof ensureManagerSquadHydrated === 'function') ensureManagerSquadHydrated(state);
+  }
   ensureTacticsState(state);
   // Normalize partially migrated/legacy saves before the tactical renderer touches arrays.
   normalizeSquadState(state);
@@ -34165,6 +34488,7 @@ function myTeamPage(){
     return pk ? state.squad.find(q => q && playerKey(q) === pk) || null : null;
   });
   const validStarters = startingPlayers.filter(Boolean);
+  const hasEmptySlot = startingPlayers.some(p => !p);
   // Todos os seletores de bolas paradas consomem jogadores reais, nunca slots vazios.
   const setPieceCandidates = (validStarters.length ? validStarters : state.squad).filter(p => p && typeof p === 'object' && (p.name || p.id || p.marketKey));
   const overallTitulares = validStarters.length > 0
@@ -34210,6 +34534,19 @@ function myTeamPage(){
         <span>⚡ Sinergia Tática:</span> <span style="background:rgba(34,197,94,0.15);padding:3px 8px;border-radius:6px;border:1px solid #22c55e">+3 OVR Ativo</span>
       </div>
     </div>
+
+    ${hasEmptySlot ? `
+      <!-- Alerta de Escalação Incompleta com Ação Direta -->
+      <div id="lineupWarningBanner" style="background:linear-gradient(135deg,rgba(239,68,68,0.18),rgba(153,27,27,0.28));border:1px solid #ef4444;border-radius:10px;padding:10px 16px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px;color:#fca5a5;font-size:12px;font-weight:700">
+          <span style="font-size:16px">⚠️</span>
+          <span>Atenção: Há posições vagas no time titular! O elenco do clube está disponível.</span>
+        </div>
+        <button id="btnFixLineupImmediate" class="btn" style="background:#22c55e;color:#000;font-weight:900;padding:6px 14px;border-radius:6px;border:none;font-size:11px;cursor:pointer;box-shadow:0 2px 8px rgba(34,197,94,0.35)">
+          ⚡ Auto-Preencher 11 Titulares
+        </button>
+      </div>
+    ` : ''}
 
     <!-- Barra de Ações e Atalhos Táticos -->
     <div class="tactics-actions-bar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 10px 0">
@@ -34796,6 +35133,9 @@ function myTeamPage(){
 // ELENCO (SEM AS COLUNAS PES E EA FC)
 // -------------------------------------------------------------
 function squadPage(){
+  if (state?.gameMode !== 'player') {
+    if (typeof ensureManagerSquadHydrated === 'function') ensureManagerSquadHydrated(state);
+  }
   normalizeSquadState(state);
   let ps=state.squad.filter(Boolean).slice();
   if(squadFilter === 'GK') ps = ps.filter(p=>p.pos==='GK');
@@ -35017,17 +35357,23 @@ function squadPage(){
       <button class="btn ${squadFilter==='TRANSFER'?'primary':''}" data-squad-filter="TRANSFER" style="${squadFilter==='TRANSFER'?'background:rgba(249,115,22,0.9);color:#fff;border:none':''}">🏷️ À Venda (${state.squad.filter(p=>isPlayerTransferListed(p)).length})</button>
       <button class="btn ${squadFilter==='LOAN'?'primary':''}" data-squad-filter="LOAN" style="${squadFilter==='LOAN'?'background:rgba(14,165,233,0.9);color:#fff;border:none':''}">🤝 Empréstimo (${state.squad.filter(p=>isPlayerLoanListed(p)).length})</button>
     </div>
-    <div class="squad-sort-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;background:rgba(15,23,42,.72);border:1px solid var(--line,#263244);border-radius:10px">
-      <label for="squadRosterSort" style="color:var(--muted,#94a3b8);font-size:12px;font-weight:800;white-space:nowrap">ORDENAR ELENCO</label>
-      <select id="squadRosterSort" aria-label="Organizar elenco" style="min-width:220px;max-width:100%;padding:9px 12px;border:1px solid var(--line,#263244);border-radius:9px;background:#111827;color:#e2e8f0">
-        <option value="position" ${squadRosterSort==='position'?'selected':''}>Por Posição (GOL, ZAG, MEI, ATA)</option>
-            <option value="overall" ${squadRosterSort==='overall'?'selected':''}>Maior overall</option>
-            <option value="morale" ${squadRosterSort==='morale'?'selected':''}>Maior moral</option>
-            <option value="fitness" ${squadRosterSort==='fitness'?'selected':''}>Melhor forma física</option>
-        <option value="age" ${squadRosterSort==='age'?'selected':''}>Mais jovens</option>
-        <option value="salary" ${squadRosterSort==='salary'?'selected':''}>Maior salário</option>
-        <option value="value" ${squadRosterSort==='value'?'selected':''}>Maior valor de mercado</option>
-      </select>
+    <div class="squad-sort-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;background:rgba(15,23,42,.72);border:1px solid var(--line,#263244);border-radius:10px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:1;min-width:280px">
+        <label for="squadRosterSort" style="color:var(--muted,#94a3b8);font-size:12px;font-weight:800;white-space:nowrap">ORDENAR ELENCO</label>
+        <select id="squadRosterSort" aria-label="Organizar elenco" style="min-width:180px;padding:7px 10px;border:1px solid var(--line,#263244);border-radius:8px;background:#111827;color:#e2e8f0;font-size:12px">
+          <option value="position" ${squadRosterSort==='position'?'selected':''}>Por Posição (GOL, ZAG, MEI, ATA)</option>
+          <option value="overall" ${squadRosterSort==='overall'?'selected':''}>Maior overall</option>
+          <option value="morale" ${squadRosterSort==='morale'?'selected':''}>Maior moral</option>
+          <option value="fitness" ${squadRosterSort==='fitness'?'selected':''}>Melhor forma física</option>
+          <option value="age" ${squadRosterSort==='age'?'selected':''}>Mais jovens</option>
+          <option value="salary" ${squadRosterSort==='salary'?'selected':''}>Maior salário</option>
+          <option value="value" ${squadRosterSort==='value'?'selected':''}>Maior valor de mercado</option>
+        </select>
+        <input id="squadSearchInput" type="text" placeholder="🔍 Buscar atleta por nome ou posição..." style="flex:1;min-width:200px;padding:7px 12px;border:1px solid var(--line,#263244);border-radius:8px;background:#111827;color:#e2e8f0;font-size:12px">
+      </div>
+      <button id="btnAutoNumberSquad" class="btn" style="background:#1e1838;color:#38bdf8;border:1px solid rgba(56,189,248,0.4);font-size:11px;font-weight:900;padding:7px 12px;border-radius:8px;cursor:pointer" title="Numerar automaticamente os jogadores de 1 a 25">
+        🔢 Numerar Elenco (1-25)
+      </button>
     </div>
 
     <div class="card" style="margin-top:10px">
@@ -35049,7 +35395,7 @@ function squadPage(){
               <th>Ação</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="squadTableBody">
             ${ps.map(p=>`
               <tr>
                 <td style="width:46px;text-align:center;cursor:pointer" class="btn-lupa-details" data-key="${esc(playerKey(p))}" onclick="if(window.AFM_MarketLupaAndAging)window.AFM_MarketLupaAndAging.openPlayerDetails(this)" title="Ver ficha técnica de ${esc(p.name)}">${playerPhoto(p, 36)}</td>
@@ -35108,6 +35454,9 @@ function squadPage(){
 // MERCADO (COM FILTROS DE REGIÃO, PAÍS, COMPETIÇÃO E CLUBE)
 // -------------------------------------------------------------
 function marketPage(){
+  if (state?.gameMode !== 'player') {
+    if (typeof ensureManagerSquadHydrated === 'function') ensureManagerSquadHydrated(state);
+  }
   const winInfo = getTransferWindowInfo(state.date);
   const totalSquadVal = state.squad.reduce((acc, p) => acc + (calcValueMi(p) * 1e6), 0);
 
@@ -35271,6 +35620,22 @@ function marketPage(){
           </div>
         </div>
       ` : ''}
+
+      <!-- Chips de Atalho Rápido do Mercado -->
+      <div class="market-quick-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 6px 0">
+        <button class="btn btn-market-chip ${window.marketQuickFilter==='affordable'?'active':''}" data-chip="affordable" style="font-size:11px;font-weight:800;padding:6px 12px;border-radius:20px;background:${window.marketQuickFilter==='affordable'?'#22c55e':'#1e1838'};color:${window.marketQuickFilter==='affordable'?'#000':'#fff'};border:1px solid rgba(34,197,94,0.4);cursor:pointer">
+          💰 Alvos no Meu Caixa
+        </button>
+        <button class="btn btn-market-chip ${window.marketQuickFilter==='free'?'active':''}" data-chip="free" style="font-size:11px;font-weight:800;padding:6px 12px;border-radius:20px;background:${window.marketQuickFilter==='free'?'#38bdf8':'#1e1838'};color:${window.marketQuickFilter==='free'?'#000':'#fff'};border:1px solid rgba(56,189,248,0.4);cursor:pointer">
+          🆓 Fim de Contrato / Passe Livre
+        </button>
+        <button class="btn btn-market-chip ${window.marketQuickFilter==='u21'?'active':''}" data-chip="u21" style="font-size:11px;font-weight:800;padding:6px 12px;border-radius:20px;background:${window.marketQuickFilter==='u21'?'#facc15':'#1e1838'};color:${window.marketQuickFilter==='u21'?'#000':'#fff'};border:1px solid rgba(250,204,21,0.4);cursor:pointer">
+          🌟 Jovens Sub-21
+        </button>
+        <button class="btn btn-market-chip ${window.marketQuickFilter==='loan'?'active':''}" data-chip="loan" style="font-size:11px;font-weight:800;padding:6px 12px;border-radius:20px;background:${window.marketQuickFilter==='loan'?'#c084fc':'#1e1838'};color:${window.marketQuickFilter==='loan'?'#000':'#fff'};border:1px solid rgba(192,132,252,0.4);cursor:pointer">
+          🤝 Disponíveis p/ Empréstimo
+        </button>
+      </div>
 
       <div id="buyList" style="margin-top:10px"></div>
     ` : marketTab==='loan' ? `
@@ -35606,6 +35971,7 @@ function renderMarketBuy(){
   const clubValNorm = clubVal ? norm(clubVal) : '';
   const countryValNorm = countryVal ? norm(countryVal) : '';
   const regCountriesSet = regVal ? new Set(regionCountries(regVal)) : null;
+  const quickChip = window.marketQuickFilter || '';
 
   let ps=marketUniverse().filter(p=>{
     if(q && !(p.searchStr || '').includes(q)) return false;
@@ -35614,6 +35980,10 @@ function renderMarketBuy(){
     if(ovr < min) return false;
     const val = p.value != null ? p.value : calcValueMi(p);
     if(aff && val*1e6 > state.balance) return false;
+    if(quickChip === 'affordable' && val*1e6 > state.balance) return false;
+    if(quickChip === 'free' && !((p.contractYears <= 0) || (p.contractUntil && p.contractUntil <= (state.season || 2026)) || !p.club || p.club === 'Sem Clube' || p.club === 'Livre' || (val === 0) || p.freeAgent)) return false;
+    if(quickChip === 'u21' && (p.age || 25) > 21) return false;
+    if(quickChip === 'loan' && !(p.loanListed || p.transferListed || (p.club && p.club !== state.club && ((p.age || 25) <= 23 || ovr <= 74)))) return false;
     if(clubValNorm && (p.clubNorm || norm(p.club)) !== clubValNorm) return false;
     if(compClubSet && !compClubSet.has(p.clubNorm || norm(p.club))) return false;
 
@@ -44572,6 +44942,13 @@ function bind(){
 
     const saveBtn = $('#btnSaveLineup');
     if(saveBtn) saveBtn.onclick = () => { if(save()) toast('Escalação salva com sucesso!'); };
+    const btnFixLineup = $('#btnFixLineupImmediate');
+    if(btnFixLineup) btnFixLineup.onclick = () => {
+      if(typeof syncLineupFromSquad === 'function') syncLineupFromSquad(state);
+      save();
+      render();
+      toast('⚡ 11 Titulares escalados e organizados com sucesso!');
+    };
     const btnOpenRepTeam = $('#btnOpenSquadReportsMyTeam');
     if(btnOpenRepTeam) btnOpenRepTeam.onclick = () => {
       if(typeof window.openSquadReportsModal === 'function') window.openSquadReportsModal('geral');
@@ -44837,6 +45214,24 @@ function bind(){
       squadRosterSort = squadSortSelect.value;
       render();
     };
+    const autoNumBtn = $('#btnAutoNumberSquad');
+    if(autoNumBtn) autoNumBtn.onclick = () => {
+      if(typeof autoNumberSquad === 'function') autoNumberSquad(state);
+    };
+    const squadSearch = $('#squadSearchInput');
+    if(squadSearch) {
+      squadSearch.oninput = () => {
+        const query = (squadSearch.value || '').toLowerCase().trim();
+        const tbody = document.getElementById('squadTableBody');
+        if(tbody){
+          const rows = tbody.querySelectorAll('tr');
+          rows.forEach(r => {
+            const text = (r.textContent || '').toLowerCase();
+            r.style.display = (!query || text.includes(query)) ? '' : 'none';
+          });
+        }
+      };
+    }
     const sdb = $('#btnSearchAllDb');
     if(sdb) sdb.onclick = showGlobalDatabaseModal;
     const yBtn = $('#btnOpenYouthFromSquad');
@@ -44920,9 +45315,28 @@ function bind(){
         if($('#marketPos')) $('#marketPos').value = '';
         if($('#marketMin')) $('#marketMin').value = '0';
         if($('#onlyAffordable')) $('#onlyAffordable').checked = false;
+        window.marketQuickFilter = '';
+        $$('.btn-market-chip').forEach(c => {
+          c.classList.remove('active');
+          c.style.background = '#1e1838';
+          c.style.color = '#fff';
+        });
         bindMarketFilters();
         renderMarketBuy();
       };
+      $$('.btn-market-chip').forEach(b => {
+        b.onclick = () => {
+          const chip = b.dataset.chip;
+          window.marketQuickFilter = window.marketQuickFilter === chip ? '' : chip;
+          renderMarketBuy();
+          $$('.btn-market-chip').forEach(c => {
+            const isActive = c.dataset.chip === window.marketQuickFilter;
+            c.classList.toggle('active', isActive);
+            c.style.background = isActive ? (c.dataset.chip === 'affordable' ? '#22c55e' : c.dataset.chip === 'free' ? '#38bdf8' : c.dataset.chip === 'u21' ? '#facc15' : '#c084fc') : '#1e1838';
+            c.style.color = isActive ? '#000' : '#fff';
+          });
+        };
+      });
       const mq = $('#marketQ');
       if(mq) mq.onkeydown = (e) => { if(e.key === 'Enter') renderMarketBuy(); };
     } else if(marketTab==='loan'){

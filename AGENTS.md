@@ -147,6 +147,15 @@
   2. PROTAGONISMO & PARTICIPAÇÃO NO MODO JOGADOR (`isPlayer === true`):
      - Em partidas ao vivo do Modo Jogador, o motor de posse de bola DEVE aplicar peso prioritário para acionar o atleta do usuário no terço ofensivo/setor correspondente, garantindo participação ativa e disparando o painel interativo 'Momento Decisivo do Craque' em lances-chave e nos botões 'Comandos do Craque'.
      - Nenhuma alteração desta regra deve afetar o motor tático do Modo Treinador (`isManager === true`).
+- REGRA IRRESTRITA ESPECIAL — INTEGRIDADE DE ELENCO, TÁTICA E MERCADO (MODO TREINADOR):
+  1. GARANTIA DE ELENCO NÃO-VAZIO (`ensureManagerSquadHydrated`):
+     - Em qualquer tela do Modo Treinador (`meutime`, `elenco`, `mercado`, `central`, `calendario`), o elenco do clube controlado pelo usuário (`state.squad`) JAMAIS pode permanecer vazio (`length === 0`).
+     - A resolução de jogadores do clube DEVE normalizar acentos, espaços e caixa (`normalizeClubLookupKey`) e, caso o clube não possua elenco suficiente na base de dados (ex: clubes da Série D, estaduais ou customizados), DEVE gerar automaticamente um plantel completo de 22 atletas calibrado pelo Overall do clube (`club.ovr || 55`) e persistir no `state` antes de renderizar.
+  2. SINCRONIZAÇÃO ENTRE ELENCO, CAMPO TÁTICO E MERCADO:
+     - Toda vez que `state.squad` for hidratado ou alterado (contratação, venda, empréstimo ou promoção da base), os 11 titulares (`lineup[0..10]`), o Banco de Reservas, os cobradores de bola parada e os contadores do Mercado (`ELENCO`, `FOLHA MENSAL`, `MÉDIA OVR`) DEVEM ser sincronizados automaticamente.
+     - O slot `0` da tática (`pitchSlot_0`) é sempre reservado ao Goleiro (`GK`).
+  3. ISOLAMENTO DE SESSÃO ENTRE MODOS:
+     - Ao iniciar ou carregar um save de Treinador (`MODE_MANAGER`), limpar qualquer resíduo visual ou de dados do Modo Jogador (`playerCareer`, modais de notícias anteriores, eventos de atleta).
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis
