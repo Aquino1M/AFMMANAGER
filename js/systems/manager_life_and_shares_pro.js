@@ -113,6 +113,10 @@
       if (!targetClub) return false;
       const targetNorm = typeof norm === 'function' ? norm(targetClub) : String(targetClub).toLowerCase().trim();
 
+      if (typeof window !== 'undefined' && window.AFMCareerFix && typeof window.AFMCareerFix.isClubSaf === 'function') {
+        return window.AFMCareerFix.isClubSaf(state, targetClub);
+      }
+
       // Se for o clube do treinador no save ativo e houver flag explicita
       if (state && state.club && (typeof norm === 'function' ? norm(state.club) : String(state.club).toLowerCase().trim()) === targetNorm) {
         if (state.clubIsSaf === true) return true;
@@ -1343,14 +1347,18 @@
       const { totalValuation } = this.getClubValuationAndSharePrice(state);
       const { managerDividendShare } = this.calculateMonthlyClubDividendExpense(state);
 
-      // Sincroniza visibilidade do wrapper do modo X1 em game.js
+      // Sincroniza visibilidade do wrapper do modo X1 em game.js (sempre acessível em todas as sub-abas)
       const x1Wrapper = document.getElementById('afm-x1-card-wrapper') || document.querySelector('.card:has(#btnExportMyX1Token)');
       if (x1Wrapper) {
-        x1Wrapper.style.display = (this.activeTab === 'trainer') ? 'block' : 'none';
+        x1Wrapper.style.display = 'block';
       }
 
-      // Finanças Pessoais do Treinador
-      const personalBalance = mp.personalBalance || 0;
+      // Finanças Pessoais do Treinador sincronizadas com AFMCareerFix
+      let careerEco = null;
+      if (typeof window !== 'undefined' && window.AFMCareerFix && typeof window.AFMCareerFix.calculateCareerEconomy === 'function') {
+        careerEco = window.AFMCareerFix.calculateCareerEconomy(state);
+      }
+      const personalBalance = careerEco ? careerEco.cash : (mp.personalBalance || 0);
       const propertiesTotal = (mp.properties || []).reduce((acc, p) => acc + (p.currentValue || p.cost || 0), 0);
       const vehiclesTotal = (mp.vehicles || []).reduce((acc, v) => acc + (v.cost || 0), 0);
       const businessesTotal = (mp.businesses || []).reduce((acc, b) => acc + (b.investedCapital || b.cost || 0), 0);
@@ -1370,9 +1378,9 @@
         }
       });
 
-      const totalNetWorth = personalBalance + propertiesTotal + vehiclesTotal + businessesTotal + clubSharesValue + safPortfolioValue;
+      const totalNetWorth = careerEco ? careerEco.netWorth : (personalBalance + propertiesTotal + vehiclesTotal + businessesTotal + clubSharesValue + safPortfolioValue);
 
-      const monthlySalary = mp.salary || 18000;
+      const monthlySalary = careerEco ? careerEco.effectiveSalary : (mp.salary || 18000);
       const curYearSeason = state.year || state.season || 2026;
       const previousSeason = Number(curYearSeason) - 1;
       const previousSalaryEntries = (state.managerFinanceHistory || []).filter(item => {
@@ -1396,10 +1404,12 @@
       const monthlyRent = (mp.properties || []).reduce((acc, p) => acc + (p.rentedOut ? (p.monthlyRent || 0) : 0), 0);
       const monthlyBiz = (mp.businesses || []).reduce((acc, b) => acc + (b.monthlyProfit || 0), 0);
       const monthlyClubDividend = mp.lastDividendReceivedByManager || managerDividendShare || 0;
-      const totalMonthlyGains = monthlySalary + monthlyRent + monthlyBiz + monthlyClubDividend + safPortfolioDividends;
+      const totalMonthlyGains = careerEco ? careerEco.monthlyIncome : (monthlySalary + monthlyRent + monthlyBiz + monthlyClubDividend + safPortfolioDividends);
 
       const userClubName = state.club || 'Meu Clube';
-      const isAlreadySaf = this.isClubSaf(state, userClubName);
+      const isAlreadySaf = (typeof window !== 'undefined' && window.AFMCareerFix && typeof window.AFMCareerFix.isClubSaf === 'function')
+        ? window.AFMCareerFix.isClubSaf(state, userClubName)
+        : this.isClubSaf(state, userClubName);
 
       this.generateSafP2POffers(state);
       const p2pOffers = state.safP2POffers || [];
@@ -1541,19 +1551,33 @@
               </div>
               <div style="display:flex;flex-direction:row;gap:14px;overflow-x:auto;padding-bottom:10px;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
                 ${REAL_ESTATE_CATALOG.map((prop) => {
-                  const owned = (mp.properties || []).some((p) => p.id === prop.id);
+                  const careerProps = state.career?.properties || {};
+                  const fixItem = (typeof window !== 'undefined' && window.AFMCareerFix) ? window.AFMCareerFix.PROPERTIES_CATALOG.find(p => p.id === prop.id || (p.aliases && p.aliases.includes(prop.id))) : null;
+                  const cProp = fixItem ? careerProps[fixItem.id] : careerProps[prop.id];
+                  const propCount = (typeof cProp === 'number') ? cProp : (cProp?.count || ((mp.properties || []).some(p => p.id === prop.id) ? 1 : 0));
+                  const owned = propCount > 0;
                   return `
                     <div style="flex:0 0 260px;min-width:260px;background:#1f2937;border:1px solid ${owned ? '#10b981' : '#374151'};border-radius:10px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;">
                       <div>
-                        <div style="font-size:24px;margin-bottom:4px;">${prop.icon}</div>
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                          <div style="font-size:24px;margin-bottom:4px;">${prop.icon}</div>
+                          ${owned ? `<span class="pill" style="background:#065f46;color:#6ee7b7;font-weight:900;font-size:10px;">✓ POSSUI (${propCount})</span>` : ''}
+                        </div>
                         <div style="font-size:13px;font-weight:900;color:#fff;">${prop.name}</div>
                         <div style="font-size:12px;color:#4ade80;font-weight:800;margin-top:2px;">R$ ${prop.cost.toLocaleString('pt-BR')}</div>
                         <div style="font-size:11px;color:#38bdf8;margin-top:4px;">+R$ ${prop.monthlyRent.toLocaleString('pt-BR')}/mês de aluguel</div>
                         <div style="font-size:10px;color:#9ca3af;margin-top:2px;">★ +${prop.prestige} Prestígio | Valorização: +${Math.round(prop.appreciationRate * 100)}%/ano</div>
                       </div>
-                      <button class="btn btnBuyProp" data-prop-id="${prop.id}" ${owned ? 'disabled' : ''} style="margin-top:12px;background:${owned ? '#065f46' : '#7c3aed'};color:#fff;border:none;font-weight:800;padding:8px 12px;border-radius:6px;font-size:11px;cursor:${owned?'default':'pointer'};">
-                        ${owned ? '✓ Imóvel Adquirido' : '🔑 Comprar Imóvel'}
-                      </button>
+                      <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px;">
+                        <button class="btn btnBuyProp" data-prop-id="${prop.id}" style="background:${owned ? '#059669' : '#7c3aed'};color:#fff;border:none;font-weight:800;padding:8px 12px;border-radius:6px;font-size:11px;cursor:pointer;">
+                          ${owned ? '➕ Comprar Mais (+1 Unidade)' : '🔑 Comprar Imóvel'}
+                        </button>
+                        ${owned ? `
+                          <button class="btn btnSellProp" data-prop-id="${prop.id}" style="background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444;font-weight:800;padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;">
+                            💰 Vender (85% do valor)
+                          </button>
+                        ` : ''}
+                      </div>
                     </div>
                   `;
                 }).join('')}
@@ -1570,19 +1594,25 @@
               </div>
               <div style="display:flex;flex-direction:row;gap:14px;overflow-x:auto;padding-bottom:10px;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
                 ${LIFE_BUSINESS_CATALOG.map((biz) => {
+                  const careerBiz = state.career?.businesses || {};
+                  const fixBiz = (typeof window !== 'undefined' && window.AFMCareerFix) ? window.AFMCareerFix.BUSINESSES_CATALOG.find(b => b.id === biz.id || (b.aliases && b.aliases.includes(biz.id))) : null;
+                  const cLvl = fixBiz ? Number(careerBiz[fixBiz.id] || 0) : Number(careerBiz[biz.id] || 0);
                   const existing = (mp.businesses || []).find((b) => b.id === biz.id || b.typeId === biz.id);
-                  const lvl = existing?.level || 0;
+                  const lvl = Math.max(cLvl, existing?.level || 0);
                   return `
                     <div style="flex:0 0 250px;min-width:250px;background:#1f2937;border:1px solid ${lvl > 0 ? '#38bdf8' : '#374151'};border-radius:10px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;">
                       <div>
-                        <div style="font-size:24px;margin-bottom:4px;">${biz.icon}</div>
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                          <div style="font-size:24px;margin-bottom:4px;">${biz.icon}</div>
+                          ${lvl > 0 ? `<span class="pill" style="background:#0369a1;color:#7dd3fc;font-weight:900;font-size:10px;">NÍVEL ${lvl}/5</span>` : ''}
+                        </div>
                         <div style="font-size:13px;font-weight:900;color:#fff;">${biz.name}</div>
                         <div style="font-size:11px;color:#c084fc;font-weight:800;margin-top:2px;">${biz.bonusText}</div>
                         <div style="font-size:12px;color:#4ade80;font-weight:800;margin-top:4px;">Lucro est.: R$ ${(existing?.monthlyProfit || biz.monthlyProfit).toLocaleString('pt-BR')}/mês</div>
-                        <div style="font-size:10px;color:#9ca3af;margin-top:2px;">Nível: ${lvl > 0 ? `Nível ${lvl}/5` : 'Não inaugurado'}</div>
+                        <div style="font-size:10px;color:#9ca3af;margin-top:2px;">Status: ${lvl > 0 ? `Nível ${lvl}/5` : 'Não inaugurado'}</div>
                       </div>
-                      <button class="btn btnBuyBiz" data-biz-id="${biz.id}" style="margin-top:12px;background:${lvl > 0 ? '#0284c7' : '#2563eb'};color:#fff;border:none;font-weight:800;padding:8px 12px;border-radius:6px;font-size:11px;cursor:pointer;">
-                        ${lvl === 0 ? `🚀 Abrir (R$ ${biz.cost.toLocaleString('pt-BR')})` : lvl >= 5 ? '★ Nível Máximo' : `⚡ Expandir Nível ${lvl + 1}`}
+                      <button class="btn btnBuyBiz" data-biz-id="${biz.id}" style="margin-top:12px;background:${lvl > 0 ? '#0284c7' : '#2563eb'};color:#fff;border:none;font-weight:800;padding:8px 12px;border-radius:6px;font-size:11px;cursor:${lvl >= 5 ? 'default' : 'pointer'};" ${lvl >= 5 ? 'disabled' : ''}>
+                        ${lvl === 0 ? `🚀 Abrir (R$ ${biz.cost.toLocaleString('pt-BR')})` : lvl >= 5 ? '★ Nível Máximo (5/5)' : `⚡ Expandir Nível ${lvl + 1}`}
                       </button>
                     </div>
                   `;
@@ -1600,18 +1630,31 @@
               </div>
               <div style="display:flex;flex-direction:row;gap:14px;overflow-x:auto;padding-bottom:10px;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
                 ${LUXURY_GARAGE_CATALOG.map((veh) => {
-                  const owned = (mp.vehicles || []).some((v) => v.id === veh.id);
+                  const careerVeh = state.career?.vehicles || {};
+                  const fixVeh = (typeof window !== 'undefined' && window.AFMCareerFix) ? window.AFMCareerFix.VEHICLES_CATALOG.find(v => v.id === veh.id || (v.aliases && v.aliases.includes(veh.id))) : null;
+                  const cOwned = fixVeh ? Boolean(careerVeh[fixVeh.id]) : Boolean(careerVeh[veh.id]);
+                  const owned = cOwned || (mp.vehicles || []).some((v) => v.id === veh.id);
                   return `
                     <div style="flex:1 0 280px;min-width:280px;background:#1f2937;border:1px solid ${owned ? '#f59e0b' : '#374151'};border-radius:10px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;">
                       <div>
-                        <div style="font-size:24px;margin-bottom:4px;">${veh.icon}</div>
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                          <div style="font-size:24px;margin-bottom:4px;">${veh.icon}</div>
+                          ${owned ? `<span class="pill" style="background:#78350f;color:#fde68a;font-weight:900;font-size:10px;">✓ NA GARAGEM</span>` : ''}
+                        </div>
                         <div style="font-size:13px;font-weight:900;color:#fff;">${veh.name}</div>
                         <div style="font-size:12px;color:#facc15;font-weight:800;margin-top:2px;">R$ ${veh.cost.toLocaleString('pt-BR')}</div>
                         <div style="font-size:11px;color:#cbd5e1;margin-top:4px;">★ +${veh.prestige} Prestígio | ${veh.bonusText}</div>
                       </div>
-                      <button class="btn btnBuyVeh" data-veh-id="${veh.id}" ${owned ? 'disabled' : ''} style="margin-top:12px;background:${owned ? '#78350f' : '#d97706'};color:#fff;border:none;font-weight:800;padding:8px 12px;border-radius:6px;font-size:11px;cursor:${owned?'default':'pointer'};">
-                        ${owned ? '✓ Na Garagem' : '🏎️ Comprar'}
-                      </button>
+                      <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px;">
+                        <button class="btn btnBuyVeh" data-veh-id="${veh.id}" ${owned ? 'disabled' : ''} style="background:${owned ? '#78350f' : '#d97706'};color:#fff;border:none;font-weight:800;padding:8px 12px;border-radius:6px;font-size:11px;cursor:${owned?'default':'pointer'};">
+                          ${owned ? '✓ Na Garagem VIP' : '🏎️ Comprar'}
+                        </button>
+                        ${owned ? `
+                          <button class="btn btnSellVeh" data-veh-id="${veh.id}" style="background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444;font-weight:800;padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;">
+                            💰 Vender (75% do valor)
+                          </button>
+                        ` : ''}
+                      </div>
                     </div>
                   `;
                 }).join('')}

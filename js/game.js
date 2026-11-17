@@ -45362,10 +45362,12 @@ function bind(){
   }
 
   const btnGenX1 = $('#btnExportMyX1Token');
-  if(btnGenX1 && window.AFM_X1System){
+  if(btnGenX1){
     btnGenX1.onclick = () => {
       try {
-        const token = window.AFM_X1System.exportSquadX1Token(state);
+        const token = (window.AFMCareerFix && typeof window.AFMCareerFix.generateSafeX1Token === 'function')
+          ? window.AFMCareerFix.generateSafeX1Token(state)
+          : (window.AFM_X1System ? window.AFM_X1System.exportSquadX1Token(state) : '');
         const inp = $('#inputOpponentX1Token');
         if(navigator.clipboard && navigator.clipboard.writeText){
           navigator.clipboard.writeText(token);
@@ -45386,7 +45388,7 @@ function bind(){
   }
 
   const btnDuelX1 = $('#btnSimulateX1Duel');
-  if(btnDuelX1 && window.AFM_X1System){
+  if(btnDuelX1){
     btnDuelX1.onclick = () => {
       const inp = $('#inputOpponentX1Token');
       const token = inp ? inp.value.trim() : '';
@@ -45400,7 +45402,9 @@ function bind(){
         return;
       }
       try {
-        const res = window.AFM_X1System.importAndSimulateX1Challenge(state, token);
+        const res = (window.AFMCareerFix && typeof window.AFMCareerFix.simulateX1Duel === 'function')
+          ? window.AFMCareerFix.simulateX1Duel(state, token)
+          : (window.AFM_X1System ? window.AFM_X1System.importAndSimulateX1Challenge(state, token) : null);
         if(resContainer){
           resContainer.style.display = 'block';
           if(!res || !res.ok){
@@ -45408,13 +45412,17 @@ function bind(){
           } else {
             const win = res.myGoals > res.oppGoals;
             const draw = res.myGoals === res.oppGoals;
+            const oppName = res.opponent ? (res.opponent.club || 'Rival') : 'Rival';
+            const oppCoach = res.opponent ? (res.opponent.manager || res.opponent.coach || 'Adversário') : 'Adversário';
+            const oppPosture = res.opponent ? (res.opponent.posture || res.opponent.formation || 'Equilibrada') : 'Equilibrada';
+            const myClubName = typeof state.club === 'object' ? state.club.name : (state.club || 'Seu Clube');
             resContainer.innerHTML = `
               <div style="background:#090d16;border:1px solid #10b981;border-radius:10px;padding:14px;text-align:center;">
                 <div style="font-size:12px;color:#a78bfa;font-weight:800;">RESULTADO DO DUELO X1</div>
                 <div style="font-size:24px;font-weight:900;margin:8px 0;color:#fff;">
-                  ${esc(state.club)} <span style="color:#10b981;">${res.myGoals}</span> x <span style="color:#ef4444;">${res.oppGoals}</span> ${esc(res.opponent.club || 'Rival')}
+                  ${esc(myClubName)} <span style="color:#10b981;">${res.myGoals}</span> x <span style="color:#ef4444;">${res.oppGoals}</span> ${esc(oppName)}
                 </div>
-                <div style="font-size:12px;color:#cbd5e1;">Técnico Rival: <b>${esc(res.opponent.manager || 'Adversário')}</b> | Postura: <b>${esc(res.opponent.posture || 'Equilibrada')}</b></div>
+                <div style="font-size:12px;color:#cbd5e1;">Técnico Rival: <b>${esc(oppCoach)}</b> | Postura: <b>${esc(oppPosture)}</b></div>
                 <div style="margin-top:8px;font-weight:800;color:${win ? '#22c55e' : draw ? '#facc15' : '#ef4444'};">
                   ${win ? '🏆 VITÓRIA DO SEU TIME NO DUELO TÁTICO!' : draw ? '⚖️ EMPATE DISPUTADO!' : '❌ O ADVERSÁRIO VENCEU O CONFRONTO!'}
                 </div>

@@ -120,8 +120,8 @@
      - É terminantemente proibido vazar dados do Modo Carreira (`state.career.player`, `state.career.club`) para dentro de um save do Modo Treinador, e vice-versa.
   3. TRAVA DE SEGURANÇA NA SIMULAÇÃO & BOTÕES DE AÇÃO:
      - Todo botão de ação dentro de uma aba compartilhada (`Jogar Partida`, `Simular`, `Ver Elenco`, `Analisar Adversário`) DEVE validar `ctx.mode` no momento do clique:
-       * Em `MODE_MANAGER`: libera ações de técnico (escalar, negociar, preparar tática, simular partida como treinador).
-       * Em `MODE_PLAYER`: bloqueia ações de técnico (modo somente-leitura para elenco/finanças) e redireciona partidas exclusivamente para o motor do atleta (`startCareerMatch`).
+       - Em `MODE_MANAGER`: libera ações de técnico (escalar, negociar, preparar tática, simular partida como treinador).
+       - Em `MODE_PLAYER`: bloqueia ações de técnico (modo somente-leitura para elenco/finanças) e redireciona partidas exclusivamente para o motor do atleta (`startCareerMatch`).
   4. SINCRONIA DE DADOS & VISUAL DARK NEON:
      - Todas as abas compartilhadas devem usar `ensureCompetitionFixturesIntegrity` (zero times fantasmas fora de `comp.teams`, clube do usuário presente em todas as rodadas), datas sincronizadas entre cabeçalho e cards, botões sem dead-links (`data-*` delegation) e tema Dark Neon (`#100d1e` / `#161324`, nunca fundo branco `#ffffff`).
 - REGRA IRRESTRITA DE INTEGRIDADE DA ABA TEMPORADA & CLASSIFICAÇÃO (DATA-VIEW="TEMPORADA"):
@@ -143,8 +143,8 @@
 - REGRA IRRESTRITA ESPECIAL — INTEGRIDADE FINANCEIRA DO ATLETA (CDB) & TOPBAR POR MODO:
   - Conservação Monetária Estrita no CDB: Toda aplicação no CDB Esportivo deduz atomicamente o valor (`amount`, padrão R$ 500) da Conta Pessoal (`personalCash`, `personalBank`, `cash`), sincronizando todas as propriedades e o livro-razão (`ledger`/`transactions`). Se o saldo da Conta Pessoal for inferior a R$ 500, a aplicação é estritamente bloqueada, exibindo botão desabilitado com o texto `🔒 Saldo Insuficiente` e cursor `not-allowed`. O Patrimônio Total do atleta (`Patrimônio`) é a soma exata e conservada: `Saldo Conta Pessoal + Saldo CDB + Valor de Bens/Imóveis`. Nenhuma operação de aplicação ou resgate pode alterar o Patrimônio Total no instante da transação (conservação estrita de carteira). O resgate do CDB credita integralmente o valor de volta na Conta Pessoal e zera o saldo do CDB no save, atualizando instantaneamente a DOM e disparando autosave idempotente com trava anti-reentrância.
   - Topbar Exclusiva por Modo (`resolveModeContext(state)`):
-    * No Modo Carreira Jogador (`resolveModeContext(state).isPlayer === true`): A barra superior (`sm-topbar`) exibe 4 painéis dedicados do atleta: Força Geral (`⭐ ${athleteOvr} OVR`, atalho para `player_evolution`), Nível do Atleta (`🏅 Nv. ${pLevel}`, atalho para `player_evolution`), Saldo da Conta Pessoal (`💵 R$ ...`, atalho para `player_lifestyle`) e Saldo Investido no CDB (`🏦 CDB R$ ...`, atalho para `player_lifestyle`). O botão circular `#btnTopQuickCash` e demais botões circulares exibem estritamente apenas o símbolo `+`, eliminando sobreposições ou vazamentos de texto sobre os valores numéricos.
-    * No Modo Treinador (`resolveModeContext(state).isManager === true`): Mantém rigorosamente os 3 painéis de gestão do clube: Força do Elenco (`⭐ ${teamOvr} OVR`), Prestígio do Treinador (`🎖️ ${coachPrestige} pts`) e Caixa do Clube (`💵 ${clubCash}`).
+    - No Modo Carreira Jogador (`resolveModeContext(state).isPlayer === true`): A barra superior (`sm-topbar`) exibe 4 painéis dedicados do atleta: Força Geral (`⭐ ${athleteOvr} OVR`, atalho para `player_evolution`), Nível do Atleta (`🏅 Nv. ${pLevel}`, atalho para `player_evolution`), Saldo da Conta Pessoal (`💵 R$ ...`, atalho para `player_lifestyle`) e Saldo Investido no CDB (`🏦 CDB R$ ...`, atalho para `player_lifestyle`). O botão circular `#btnTopQuickCash` e demais botões circulares exibem estritamente apenas o símbolo `+`, eliminando sobreposições ou vazamentos de texto sobre os valores numéricos.
+    - No Modo Treinador (`resolveModeContext(state).isManager === true`): Mantém rigorosamente os 3 painéis de gestão do clube: Força do Elenco (`⭐ ${teamOvr} OVR`), Prestígio do Treinador (`🎖️ ${coachPrestige} pts`) e Caixa do Clube (`💵 ${clubCash}`).
 - REGRA IRRESTRITA ESPECIAL — ESCALAÇÃO POR POSIÇÃO & PROTAGONISMO NA PARTIDA (MODO JOGADOR):
   1. PROTEÇÃO ABSOLUTA DO ÍNDICE 0 (GOLEIRO):
      - Na escalação titular de 11 jogadores (`lineup[0..10]`), o índice `0` é EXCLUSIVO para Goleiro (`GK` / `GOL`).
@@ -185,10 +185,10 @@
 - REGRA IRRESTRITA ESPECIAL — BLINDAGEM DE INSTALAÇÕES, ESTÁDIO E SUB-ABAS:
   1. HIDRATAÇÃO OBRIGATÓRIA DA ESTRUTURA DO CLUBE (`ensureClubStructureHydrated`):
      - Antes de renderizar `estrutura` ou abrir qualquer sub-aba (`facilities`, `stadium`, `arena`, `museum`, `house`) ou modal interativo, executar `window.ensureClubStructureHydrated(state)` garantindo:
-       * `state.facilities` como objeto válido com níveis numéricos inteiros (`stadium`, `parking`, `training`, `academy`, `medical`, `admin`, `store`, `museum`, `press`, `marketing`, `bank`);
-       * `Array.isArray(state.bankLoans)` sempre verdadeiro (convertendo `{}` ou `null` em `[]`);
-       * `Array.isArray(state.trophies)` e `Array.isArray(state.clubTrophies)` sempre verdadeiros;
-       * `state.stadiumCapacity >= 5000` (nunca `0` ou `NaN`) e `state.ticketPrice` / `state.parkingPrice` numéricos válidos.
+       - `state.facilities` como objeto válido com níveis numéricos inteiros (`stadium`, `parking`, `training`, `academy`, `medical`, `admin`, `store`, `museum`, `press`, `marketing`, `bank`);
+       - `Array.isArray(state.bankLoans)` sempre verdadeiro (convertendo `{}` ou `null` em `[]`);
+       - `Array.isArray(state.trophies)` e `Array.isArray(state.clubTrophies)` sempre verdadeiros;
+       - `state.stadiumCapacity >= 5000` (nunca `0` ou `NaN`) e `state.ticketPrice` / `state.parkingPrice` numéricos válidos.
   2. UNIFICAÇÃO DE SELETORES E AÇÕES DE MODAIS DA ESTRUTURA:
      - Todo botão de ação na aba `estrutura` (incluindo `VER EM 3D (360°)`, `Inspecionar 3D Interativo`, `Setores & Obras`, `Obras do Estacionamento`, `Concessão & Parcerias`, `Loja Oficial & Preços`, `Centro de Treinamento` e `Banco & Empréstimos`) DEVE possuir `data-struct-action="..."` e ser tratado por delegação global no container principal, sem depender exclusivamente de `id` único quando houver botões duplicados nos cards.
   3. PROTEÇÃO CONTRA CLIQUE DUPLO E Z-INDEX DE MODAIS:

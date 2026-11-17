@@ -453,18 +453,29 @@
     var old = document.getElementById('afm-rk-modal');
     if (old) old.remove();
 
+    var st = (typeof state !== 'undefined' ? state : (typeof window !== 'undefined' ? window.state : {}));
     var allCoaches = buildCompleteCoachesAndTeamsList();
+    if (typeof window !== 'undefined' && window.AFMCareerFix && typeof window.AFMCareerFix.normalizeAndSortRanking === 'function') {
+      var rkObj = window.AFMCareerFix.normalizeAndSortRanking(allCoaches, st);
+      allCoaches = rkObj.all;
+    }
+
     var currentMode = initialTab || 'WORLD';
     if (currentMode !== 'BR' && currentMode !== 'WORLD' && currentMode !== 'ALL_TEAMS') currentMode = 'WORLD';
 
     // Identificação do treinador do usuário e posições exatas no ranking
     var userCoach = allCoaches.find(function(x) { return x.isUser; }) || {
-      coach: (typeof state !== 'undefined' ? (state.managerName || state.manager || 'Aquino') : 'Aquino'),
-      club: (typeof state !== 'undefined' ? (state.club || 'Corinthians') : 'Corinthians'),
-      prestige: (typeof state !== 'undefined' && state.managerPersonal?.prestigeScore) ? state.managerPersonal.prestigeScore : 5,
-      pts: 54
+      coach: (typeof st !== 'undefined' ? (st.managerName || st.manager || 'Aquino') : 'Aquino'),
+      displayCoachName: 'Aquino',
+      club: (typeof st !== 'undefined' ? (st.club || 'Ceilândia') : 'Ceilândia'),
+      prestige: (typeof st !== 'undefined' && st.managerPersonal?.prestigeScore) ? st.managerPersonal.prestigeScore : 6,
+      pts: 210
     };
-    var brCoaches = allCoaches.filter(function(x) { return x.scope === 'BR'; });
+    var cleanCoach = (typeof window !== 'undefined' && window.AFMCareerFix && typeof window.AFMCareerFix.sanitizeCoachName === 'function')
+      ? window.AFMCareerFix.sanitizeCoachName(userCoach.displayCoachName || userCoach.coach)
+      : String(userCoach.displayCoachName || userCoach.coach || 'Treinador').replace(/^(Téc\.\s*)+/gi, '').replace(/\(VOCÊ\)/gi, '').trim();
+
+    var brCoaches = allCoaches.filter(function(x) { return x.scope === 'BR' || x.country === 'Brasil'; });
     var userPosBr = brCoaches.findIndex(function(x) { return x.isUser; }) + 1;
     var userPosWorld = allCoaches.findIndex(function(x) { return x.isUser; }) + 1;
 
@@ -476,7 +487,7 @@
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(5,5,15,0.85);backdrop-filter:blur(6px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,-apple-system,sans-serif;';
 
     modal.innerHTML =
-      '<div style="width:100%;max-width:980px;max-height:88vh;background:#0f172a;border:1px solid rgba(168,85,247,0.5);border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.8);">' +
+      '<div style="width:100%;max-width:980px;max-height:90vh;background:#0f172a;border:1px solid rgba(168,85,247,0.5);border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.8);">' +
         '<div style="padding:16px 22px;background:linear-gradient(90deg,#1e1b4b,#0f172a);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;justify-content:space-between;align-items:center;">' +
           '<div>' +
             '<div style="font-size:10px;font-weight:800;color:#cbd5e1;letter-spacing:0.8px;">PONTUAÇÃO POR TÍTULOS (+160), VITÓRIAS (+14), EMPATES (+4) E DERROTAS (-6) · TOTAL: ' + allCoaches.length + ' CLUBES & TÉCNICOS</div>' +
@@ -494,8 +505,8 @@
               '<div style="font-size:14px;font-weight:900;color:#fff;margin-top:2px;">' +
                 '<span style="color:#facc15;">#' + (userPosBr > 0 ? userPosBr : '1') + ' no Brasil</span> · ' +
                 '<span style="color:#38bdf8;">#' + (userPosWorld > 0 ? userPosWorld : '1') + ' no Mundo</span> | ' +
-                '<span>Téc. ' + userCoach.coach + '</span> · <span style="color:#a78bfa;">' + userCoach.club + '</span> · ' +
-                '<span style="color:#fde047;">★ Prestígio ' + userCoach.prestige + '</span> · <span style="color:#34d399;">' + userCoach.pts + ' pts</span>' +
+                '<span>Téc. ' + cleanCoach + ' (VOCÊ)</span> · <span style="color:#a78bfa;">' + (userCoach.club || userCoach.clubName) + '</span> · ' +
+                '<span style="color:#fde047;">★ Prestígio ' + userCoach.prestige + '</span> · <span style="color:#34d399;">' + (userCoach.points ?? userCoach.pts) + ' pts</span>' +
               '</div>' +
             '</div>' +
           '</div>' +
@@ -555,20 +566,21 @@
     function getFilteredList() {
       var q = norm(document.getElementById('afm-rk-search').value || '');
       var filtered = allCoaches.filter(function(item) {
-        if (currentMode === 'BR' && item.scope !== 'BR') return false;
+        if (currentMode === 'BR' && item.scope !== 'BR' && item.country !== 'Brasil') return false;
         if (q) {
-          var hay = norm(item.coach + ' ' + item.club + ' ' + item.division + ' ' + item.country);
+          var hay = norm((item.coach || '') + ' ' + (item.displayCoachName || '') + ' ' + (item.club || '') + ' ' + (item.division || '') + ' ' + (item.country || ''));
           if (hay.indexOf(q) === -1) return false;
         }
         return true;
       });
 
-      if (currentMode === 'ALL_TEAMS') {
-        filtered = filtered.slice().sort(function(a, b) {
-          return a.club.localeCompare(b.club, 'pt-BR');
-        });
-      }
-      return filtered;
+      // Mantém ordenação numérica por pontos decrescente
+      return filtered.slice().sort(function(a, b) {
+        var ptA = (typeof a.points === 'number') ? a.points : (a.pts || 0);
+        var ptB = (typeof b.points === 'number') ? b.points : (b.pts || 0);
+        if (ptB !== ptA) return ptB - ptA;
+        return (b.titles || 0) - (a.titles || 0);
+      });
     }
 
     function renderRows() {
@@ -593,18 +605,20 @@
       var tbody = document.getElementById('afm-rk-tbody');
       tbody.innerHTML = pageItems.map(function(c, i) {
         var idx = startIndex + i;
+        var posNum = (currentMode === 'BR' && c.nationalPos) ? c.nationalPos : (c.worldPos || (idx + 1));
         var rowBg = c.isUser ? 'background:rgba(124,58,237,0.22);border-left:4px solid #a855f7;' : 'border-bottom:1px solid rgba(255,255,255,0.05);';
-        var posColor = idx < 3 ? '#facc15' : (c.isUser ? '#c084fc' : '#94a3b8');
-        var coachColor = c.isUser ? '#c084fc' : '#ffffff';
-        return '<tr style="' + rowBg + '">' +
-          '<td style="padding:10px 6px;font-weight:900;color:' + posColor + ';">#' + (idx + 1) + '</td>' +
-          '<td style="padding:10px 6px;font-weight:800;color:' + coachColor + ';">' + (c.isUser ? '⭐ ' : '') + c.coach + '</td>' +
-          '<td style="padding:10px 6px;font-weight:700;color:#38bdf8;">🛡️ ' + c.club + '</td>' +
-          '<td style="padding:10px 6px;font-size:11px;color:#cbd5e1;">' + c.division + ' · ' + c.country + '</td>' +
+        var posColor = posNum <= 3 ? '#facc15' : (c.isUser ? '#c084fc' : '#94a3b8');
+        var coachNameDisp = c.displayCoachName ? `Téc. ${c.displayCoachName}${c.isUser ? ' (VOCÊ)' : ''}` : c.coach;
+        var rowClass = c.isUser ? 'afm-rk-user-row' : '';
+        return '<tr class="' + rowClass + '" style="' + rowBg + '">' +
+          '<td style="padding:10px 6px;font-weight:900;color:' + posColor + ';">#' + posNum + '</td>' +
+          '<td style="padding:10px 6px;font-weight:800;color:' + (c.isUser ? '#c084fc' : '#ffffff') + ';">' + (c.isUser ? '⭐ ' : '') + coachNameDisp + '</td>' +
+          '<td style="padding:10px 6px;font-weight:700;color:#38bdf8;">🛡️ ' + (c.club || c.clubName) + '</td>' +
+          '<td style="padding:10px 6px;font-size:11px;color:#cbd5e1;">' + (c.division || c.league) + ' · ' + c.country + '</td>' +
           '<td style="padding:10px 6px;"><span style="background:rgba(124,58,237,0.28);border:1px solid rgba(168,85,247,0.45);color:#e9d5ff;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;">⭐ Prestígio ' + c.prestige + '</span></td>' +
           '<td style="padding:10px 6px;font-weight:800;color:#facc15;">🏆 ' + c.titles + '</td>' +
-          '<td style="padding:10px 6px;font-size:12px;color:#cbd5e1;">' + c.w + 'V · ' + c.d + 'E · ' + c.l + 'D</td>' +
-          '<td style="padding:10px 6px;text-align:right;font-weight:900;color:#34d399;">' + c.pts + ' pts</td>' +
+          '<td style="padding:10px 6px;font-size:12px;color:#cbd5e1;">' + (c.wins ?? c.w) + 'V · ' + (c.draws ?? c.d) + 'E · ' + (c.losses ?? c.l) + 'D</td>' +
+          '<td style="padding:10px 6px;text-align:right;font-weight:900;color:#34d399;">' + (c.points ?? c.pts) + ' pts</td>' +
         '</tr>';
       }).join('');
 
@@ -684,9 +698,12 @@
     var st = window.state || window.gameState || {};
     var licData = getCoachLicensesData(st);
     var currentLicId = licData.currentLicId;
-    var userPrestige = (st.managerPersonal && st.managerPersonal.prestigeScore) || st.coachPrestige || (user && user.prestige) || (user && user.level) || 5;
-    var userMoney = (typeof st.managerMoney === 'number') ? st.managerMoney : ((st.managerPersonal && typeof st.managerPersonal.personalBalance === 'number') ? st.managerPersonal.personalBalance : 57000);
-    var baseSal = licData.baseSalary;
+    var userPrestige = (st.managerPersonal && st.managerPersonal.prestigeScore) || st.coachPrestige || (user && user.prestige) || (user && user.level) || 6;
+    var careerEco = (typeof window !== 'undefined' && window.AFMCareerFix && typeof window.AFMCareerFix.calculateCareerEconomy === 'function')
+      ? window.AFMCareerFix.calculateCareerEconomy(st)
+      : null;
+    var userMoney = careerEco ? careerEco.cash : ((typeof st.managerMoney === 'number') ? st.managerMoney : ((st.managerPersonal && typeof st.managerPersonal.personalBalance === 'number') ? st.managerPersonal.personalBalance : 104250));
+    var baseSal = careerEco ? (st.career?.baseSalary || 45000) : licData.baseSalary;
 
     var modal = document.createElement('div');
     modal.id = 'afm-lic-modal';
@@ -723,7 +740,7 @@
     }).join('');
 
     modal.innerHTML =
-      '<div style="width:100%;max-width:760px;background:#0f172a;border:1px solid rgba(56,189,248,0.45);border-radius:18px;padding:20px;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,0.85);">' +
+      '<div style="width:100%;max-width:760px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;background:#0f172a;border:1px solid rgba(56,189,248,0.45);border-radius:18px;padding:20px;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,0.85);">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">' +
           '<div>' +
             '<h2 style="margin:0;font-size:18px;font-weight:900;">🎓 Academia de Licenças de Treinador (CBF & UEFA)</h2>' +
@@ -740,7 +757,7 @@
           '</div>' +
           '<button id="close-lic" type="button" style="background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,0.2);padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:800;">✕ Fechar</button>' +
         '</div>' +
-        '<div style="max-height:65vh;overflow-y:auto;padding-right:4px;">' + cardsHtml + '</div>' +
+        '<div style="flex:1 1 auto;overflow-y:auto;padding-right:6px;">' + cardsHtml + '</div>' +
       '</div>';
 
     document.body.appendChild(modal);
@@ -770,8 +787,14 @@
           return;
         }
 
-        // Dedução financeira
+        btn.disabled = true;
+
+        // Dedução financeira isolada em state.career.cash / personalBalance
         if (cost > 0) {
+          if (st.career) {
+            st.career.cash = (typeof st.career.cash === 'number' ? st.career.cash : userMoney) - cost;
+            st.career.personalCash = st.career.cash;
+          }
           if (typeof st.managerMoney === 'number') st.managerMoney -= cost;
           if (st.managerPersonal && typeof st.managerPersonal.personalBalance === 'number') st.managerPersonal.personalBalance -= cost;
         }
@@ -780,6 +803,11 @@
         if (!st.manager) st.manager = {};
         st.manager.license = id;
         if (st.managerPersonal) st.managerPersonal.licenseId = id;
+        if (st.career) {
+          st.career.licenseId = id;
+          if (!st.career.unlockedLicenses) st.career.unlockedLicenses = [];
+          if (!st.career.unlockedLicenses.includes(id)) st.career.unlockedLicenses.push(id);
+        }
 
         // Registra na lista de licenças concluídas
         st.completedLicenses = Array.isArray(st.completedLicenses) ? st.completedLicenses : [];
@@ -792,6 +820,9 @@
 
         // Sincroniza salário do treinador com o novo bônus acumulado
         var newTotalSalary = syncCoachSalaryWithLicenses(st);
+        if (typeof window.AFMCareerFix !== 'undefined' && typeof window.AFMCareerFix.calculateCareerEconomy === 'function') {
+          window.AFMCareerFix.calculateCareerEconomy(st);
+        }
 
         if (typeof window.save === 'function') window.save();
         if (typeof window.toast === 'function') {
