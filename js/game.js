@@ -90,6 +90,7 @@ if (typeof window !== 'undefined') {
   window.changelogSearch = window.changelogSearch || '';
   window.structActiveTab = window.structActiveTab || 'facilities';
   window.__afmFacilityLock = false;
+  window.__afmOfficeActionLock = false;
 }
 const STORAGE='aquino_futebol_manager_2026_v1';
 const fmtMoney=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(Number(v)||0);
@@ -13133,8 +13134,48 @@ function stablePlayer(p){
   const contractUntil = playerContractUntil(p);
   return {...p, marketKey:playerKey(p), ovr:o, overall:o, value:calcValueMi(p), wage, contractUntil};
 }
-function totalMonthlyPayroll(){
-  return (state?.squad || []).reduce((acc, p) => acc + ((typeof p?.wage === 'number' && p.wage > 0) ? p.wage : playerSalary(p, state)), 0);
+function calcClubMonthlySquadWages(club, targetState = (typeof state !== 'undefined' ? state : null)){
+  const st = targetState || (typeof state !== 'undefined' ? state : null);
+  const clubName = typeof club === 'string' ? club : (club?.name || st?.club || '');
+
+  // 1. Prioriza elenco do targetState se tiver atletas
+  if(st?.squad && Array.isArray(st.squad) && st.squad.length > 0 && (!clubName || norm(st.club) === norm(clubName))){
+    const sum = st.squad.reduce((acc, p) => acc + ((typeof p?.wage === 'number' && p.wage > 0) ? p.wage : playerSalary(p, st)), 0);
+    if(sum > 0) return Math.round(sum);
+  }
+
+  // 2. Se o clube passado possui elenco
+  if(club && Array.isArray(club.players) && club.players.length > 0){
+    const sum = club.players.reduce((acc, p) => acc + ((typeof p?.wage === 'number' && p.wage > 0) ? p.wage : playerSalary(p, st)), 0);
+    if(sum > 0) return Math.round(sum);
+  }
+
+  // 3. Tenta buscar via playersForClub
+  if(clubName && typeof playersForClub === 'function'){
+    try {
+      const generated = playersForClub(clubName, st?.worldGenerated || (typeof buildWorldGenerated === 'function' ? buildWorldGenerated() : []));
+      if(Array.isArray(generated) && generated.length > 0){
+        const sum = generated.reduce((acc, p) => acc + ((typeof p?.wage === 'number' && p.wage > 0) ? p.wage : playerSalary(p, st)), 0);
+        if(sum > 0) return Math.round(sum);
+      }
+    } catch(e){}
+  }
+
+  // 4. Fallback calibrado pelo OVR da divisão para 22 atletas
+  const ovr = (typeof clubByName === 'function' && typeof strength === 'function' && clubName) ? strength(clubByName(clubName)) : 55;
+  const avgWage = ovr >= 80 ? 250000 : ovr >= 70 ? 45000 : ovr >= 60 ? 12000 : 3500;
+  return Math.round(avgWage * 22);
+}
+
+function totalMonthlyPayroll(targetState = (typeof state !== 'undefined' ? state : null)){
+  const st = targetState || (typeof state !== 'undefined' ? state : null);
+  const c = (typeof clubByName === 'function' && st?.club) ? clubByName(st.club) : null;
+  return calcClubMonthlySquadWages(c, st);
+}
+
+if(typeof window !== 'undefined'){
+  window.calcClubMonthlySquadWages = calcClubMonthlySquadWages;
+  window.totalMonthlyPayroll = totalMonthlyPayroll;
 }
 function payrollPerRound(){
   return Math.round(totalMonthlyPayroll() / 4);
@@ -19387,8 +19428,7 @@ function totalSponsorMonthly(targetState = state){
   if(st.sponsors?.master) sum += Number(st.sponsors.master.monthly) || 0;
   if(st.sponsors?.sleeves) sum += Number(st.sponsors.sleeves.monthly) || 0;
   if(st.sponsors?.back) sum += Number(st.sponsors.back.monthly) || 0;
-  const multiplier = typeof marketingBenefits === 'function' ? (marketingBenefits().sponsorMultiplier || 1) : 1;
-  return Math.round((sum || 50000) * multiplier);
+  return sum || 50000;
 }
 
 function totalSponsorWinBonus(targetState = state){
@@ -19511,6 +19551,11 @@ function monthlyFinancialProjection(socioData = null){
     matchSales: monthlyMatchSales,
     winBonuses: sponsorWinEstimate
   };
+  const isClubSaf = typeof window.isClubSaf === 'function' ? window.isClubSaf(state) : (Boolean(state.clubIsSaf) || Boolean((state.club || '').match(/\bsaf\b/i)));
+  const divExpense = isClubSaf && typeof window !== 'undefined' && window.AFM_LifeAndSharesPro?.calculateMonthlyClubDividendExpense
+    ? window.AFM_LifeAndSharesPro.calculateMonthlyClubDividendExpense(state).totalClubDividendExpense
+    : 0;
+
   const expenses = {
     payroll: totalMonthlyPayroll(),
     facilities: totalFacilitiesMonthlyExpense(state),
@@ -19519,6 +19564,7 @@ function monthlyFinancialProjection(socioData = null){
     bankRepayments: bankInstallments,
     stadiumRepayments: stadiumInstallment
   };
+  if(divExpense > 0) expenses.dividends = divExpense;
   const monthlyRevenue = Object.values(revenue).reduce((sum, value) => sum + value, 0);
   const monthlyExpenses = Object.values(expenses).reduce((sum, value) => sum + value, 0);
   const monthlyBalance = monthlyRevenue - monthlyExpenses;
@@ -38372,13 +38418,102 @@ function renderTvBroadcastCard(st){
   `;
 }
 
+function ensureReadableBrandColor(hexColor, fallback = '#38bdf8') {
+  if (!hexColor || typeof hexColor !== 'string') return fallback;
+  let hex = hexColor.trim().replace(/^#/, '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  if (hex.length !== 6) return hexColor;
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return fallback;
+
+  function getLuminance(rVal, gVal, bVal) {
+    const a = [rVal, gVal, bVal].map(v => {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+  }
+
+  const lum = getLuminance(r, g, b);
+  if (lum >= 0.35) return '#' + hex;
+
+  // Clareia proporcionalmente preservando a matiz para contraste confortável em fundo escuro
+  let curR = r, curG = g, curB = b;
+  for (let t = 0.05; t <= 1.0; t += 0.05) {
+    curR = Math.round(r + (255 - r) * t);
+    curG = Math.round(g + (255 - g) * t);
+    curB = Math.round(b + (255 - b) * t);
+    if (getLuminance(curR, curG, curB) >= 0.38) break;
+  }
+  const toHex = v => Math.min(255, Math.max(0, v)).toString(16).padStart(2, '0');
+  return '#' + toHex(curR) + toHex(curG) + toHex(curB);
+}
+
+function reconcileOfficeFinances(targetState = (typeof state !== 'undefined' ? state : null), club = null){
+  const st = targetState || (typeof state !== 'undefined' ? state : null);
+  if (!st) return null;
+
+  if (typeof ensureManagerSquadHydrated === 'function') {
+    try { ensureManagerSquadHydrated(st); } catch(e){}
+  }
+  if (typeof ensureClubSponsors === 'function') {
+    try { ensureClubSponsors(st); } catch(e){}
+  }
+  if (typeof ensureTvBroadcastContract === 'function') {
+    try { ensureTvBroadcastContract(st); } catch(e){}
+  }
+
+  const targetClub = club || (typeof clubByName === 'function' && st.club ? clubByName(st.club) : null);
+  const socioData = typeof getSocioTorcedorMeta === 'function' ? getSocioTorcedorMeta() : null;
+  const finance = monthlyFinancialProjection(socioData);
+
+  // Soma mensal real dos patrocinadores oficiais ativos
+  const fixedSponsorsMonthly = (Number(st.sponsors?.master?.monthly) || 0) +
+                               (Number(st.sponsors?.sleeves?.monthly) || 0) +
+                               (Number(st.sponsors?.back?.monthly) || 0);
+  const squadWagesMonthly = typeof calcClubMonthlySquadWages === 'function'
+    ? calcClubMonthlySquadWages(targetClub, st)
+    : (typeof totalMonthlyPayroll === 'function' ? totalMonthlyPayroll(st) : 0);
+
+  finance.revenue.sponsors = fixedSponsorsMonthly;
+  finance.expenses.payroll = squadWagesMonthly;
+
+  const isClubSaf = typeof window.isClubSaf === 'function' ? window.isClubSaf(st) : (Boolean(st.clubIsSaf) || Boolean((st.club || '').match(/\bsaf\b/i)));
+  const divExpense = isClubSaf && typeof window !== 'undefined' && window.AFM_LifeAndSharesPro?.calculateMonthlyClubDividendExpense
+    ? window.AFM_LifeAndSharesPro.calculateMonthlyClubDividendExpense(st).totalClubDividendExpense
+    : 0;
+  if (divExpense > 0) {
+    finance.expenses.dividends = divExpense;
+  }
+
+  const totalRevenue = Object.values(finance.revenue).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  const totalExpenses = Object.values(finance.expenses).reduce((sum, v) => sum + (Number(v) || 0), 0);
+
+  finance.monthlyRevenue = totalRevenue;
+  finance.monthlyExpenses = totalExpenses;
+  finance.monthlyBalance = totalRevenue - totalExpenses;
+  finance.projectedClosingBalance = (Number(st.balance) || 0) + finance.monthlyBalance;
+
+  return { finance, socioData, fixedSponsorsMonthly, squadWagesMonthly };
+}
+
+if(typeof window !== 'undefined'){
+  window.ensureReadableBrandColor = ensureReadableBrandColor;
+  window.reconcileOfficeFinances = reconcileOfficeFinances;
+}
+
 function officePage(){
+  if(typeof ensureManagerSquadHydrated === 'function') ensureManagerSquadHydrated(state);
   ensureClubSponsors(state);
   ensureTvBroadcastContract(state);
   if(typeof processClubMonthlyFinances === 'function') processClubMonthlyFinances(state, state.date);
   if (!Array.isArray(state.bankLoans)) state.bankLoans = Array.isArray(state.bankLoans?.activeLoans) ? state.bankLoans.activeLoans : [];
-  const socioData = getSocioTorcedorMeta();
-  const finance = monthlyFinancialProjection(socioData);
+
+  const rec = reconcileOfficeFinances(state, typeof clubByName === 'function' ? clubByName(state.club) : null);
+  const socioData = rec ? rec.socioData : getSocioTorcedorMeta();
+  const finance = rec ? rec.finance : monthlyFinancialProjection(socioData);
   const bankDebt = totalBankDebt();
   const stadiumDebt = Math.max(0, Number(state.stadiumRingData?.debt?.remaining) || 0);
   const loanPrincipalDue = (state.bankLoans || []).reduce((sum, loan) => sum + (Number(loan.remainingInstallments) > 0 ? Math.max(0, Number(loan.installmentValue) || 0) * 2 : 0), 0);
@@ -38395,10 +38530,11 @@ function officePage(){
     const contractYears = Math.max(1, Number(sponsor?.contractYears || sponsor?.years) || 1);
     const monthsRemaining = active ? Math.max(0, Number(sponsor?.monthsRemaining ?? sponsor?.contractMonthsRemaining ?? (contractYears * 12))) : 0;
     const remainingVal = active ? Math.round((Number(sponsor.monthly) || 0) * monthsRemaining) : 0;
+    const displayColor = ensureReadableBrandColor(sponsor?.color || '#fff');
     return `<div class="card sponsor-card">
       <div>
         <span class="sponsor-badge" style="background:${badgeBg};color:${badgeColor}">${label}</span>
-        <div class="sponsor-logo" style="color:${sponsor?.color || '#fff'}">${esc(active ? (sponsor.brand || sponsor.name) : 'Sem Patrocínio')}</div>
+        <div class="sponsor-logo" style="color:${displayColor}">${esc(active ? (sponsor.brand || sponsor.name) : 'Sem Patrocínio')}</div>
         <div class="small muted">${esc(active ? (sponsor.desc || '') : 'Espaço disponível. Escolha uma proposta abaixo.')}</div>
       </div>
       <div style="margin-top:14px">
@@ -38502,7 +38638,7 @@ function officePage(){
           <div class="sponsor-card">
             <div>
               <span class="sponsor-badge">${esc(o.category)}</span>
-              <div class="sponsor-logo" style="color:${o.color}">${esc(o.brand)}</div>
+              <div class="sponsor-logo" style="color:${ensureReadableBrandColor(o.color || '#fff')}">${esc(o.brand)}</div>
               <div class="small muted">${esc(o.desc)}</div>
             </div>
             <div style="margin-top:12px">
@@ -38603,7 +38739,7 @@ function officePage(){
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <h2 style="margin:0;font-size:15px;font-weight:900;letter-spacing:0.5px;color:#fff;text-transform:uppercase">💼 SEU CONTRATO</h2>
               <span class="pill" style="font-size:11px;padding:2px 8px;background:rgba(255,255,255,0.06)">Treinador: <b>${esc(state.manager)}</b></span>
-              <button type="button" class="btn btn-sm" onclick="if(typeof openLicensesModal==='function')openLicensesModal();" style="border:none;background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer;">🎓 ${esc(coachLicData.currentLic?.name || 'Licença CBF')}</button>
+              <button type="button" class="btn btn-sm" id="btnOpenCbfLicensesFromOffice" data-office-action="cbf-licenses" onclick="if(typeof openLicensesModal==='function')openLicensesModal();" style="border:none;background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:800;cursor:pointer;">🎓 ${esc(coachLicData.currentLic?.name || 'Licença CBF')}</button>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn" id="btnOpenCareerEconomyFromOffice" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);border:1px solid #a855f7;color:#fff;font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
@@ -46153,31 +46289,55 @@ function bind(){
 
   if(view==='escritorio'){
     const bnkOfficeBtn = $('#btnOpenBankFromOffice');
-    if(bnkOfficeBtn) bnkOfficeBtn.onclick = openBankLoansModal;
+    if(bnkOfficeBtn) bnkOfficeBtn.onclick = () => openBankLoansModal();
     const mktOfficeBtn = $('#btnOpenMarketingFromOffice');
-    if(mktOfficeBtn) mktOfficeBtn.onclick = openMarketingModal;
+    if(mktOfficeBtn) mktOfficeBtn.onclick = () => openMarketingModal();
+
     $$('.btnSignSponsor').forEach(b=>{
       b.onclick=()=>{
+        if(window.__afmOfficeActionLock) return;
+        window.__afmOfficeActionLock = true;
+        setTimeout(() => { window.__afmOfficeActionLock = false; }, 1000);
         signSponsorOffer(+b.dataset.offerIndex);
       };
     });
 
     const btnReqMgr = $('#btnRequestManagerRenewal');
-    if(btnReqMgr) btnReqMgr.onclick = openManagerContractRenewalModal;
+    if(btnReqMgr) btnReqMgr.onclick = () => openManagerContractRenewalModal();
     const btnExtrato = $('#btnOpenManagerExtrato');
-    if(btnExtrato) btnExtrato.onclick = openManagerHistoryModal;
+    if(btnExtrato) btnExtrato.onclick = () => openManagerHistoryModal();
+
+    const btnCbfLic = $('#btnOpenCbfLicensesFromOffice');
+    if(btnCbfLic) btnCbfLic.onclick = () => {
+      if(typeof openLicensesModal === 'function') openLicensesModal();
+      else if(typeof window.AFM_LicensesModal?.open === 'function') window.AFM_LicensesModal.open();
+    };
 
     $$('.socio-plan-card').forEach(b => {
       b.onclick = () => {
         state.socioTorcedor = state.socioTorcedor || {};
-        state.socioTorcedor.plan = b.dataset.plan;
+        const chosenPlan = String(b.dataset.plan || '').toLowerCase();
+        if (state.socioTorcedor.plan === chosenPlan) {
+          toast(`ℹ️ O plano ${chosenPlan.toUpperCase()} já está ativo no clube.`);
+          return;
+        }
+        state.socioTorcedor.plan = chosenPlan;
         save();
         render();
-        toast(`Plano de Sócio-Torcedor alterado para ${b.dataset.plan.toUpperCase()}!`);
+        toast(`Plano de Sócio-Torcedor alterado para ${chosenPlan.toUpperCase()}!`);
       };
     });
     $$('.btnOpenTvBreakModal').forEach(btn => {
       btn.onclick = () => {
+        const act = state.tvContract1Year || {};
+        const annualTotal = Number(act.annualTotal) || 80000000;
+        const breakFee30 = Math.round(annualTotal * 0.30);
+        const advAmount = Math.max(0, Number(act.advancedAmount) || (act.advancedTaken ? Math.round(annualTotal * 0.45) : 0));
+        const advPaid = Math.max(0, Number(act.advancedPaid) || 0);
+        const totalCost = breakFee30 + Math.max(0, advAmount - advPaid);
+        if (Number(state.balance) < totalCost) {
+          toast(`⚠️ Atenção: Caixa insuficiente! A multa de rescisão + adiantamento exigem ${fmtMoney(totalCost)} e o clube tem ${fmtMoney(state.balance)}.`);
+        }
         openTvBreakModal({
           id: btn.dataset.tvid,
           name: btn.dataset.name,

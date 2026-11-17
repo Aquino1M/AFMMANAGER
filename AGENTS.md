@@ -188,6 +188,16 @@
   3. PROTEÇÃO CONTRA CLIQUE DUPLO E Z-INDEX DE MODAIS:
      - Toda evolução de instalação (`upgradeFacility`) DEVE usar trava temporal (`window.__afmFacilityLock`) para impedir desconto duplo do caixa.
      - Modais visuais da estrutura (`#stadiumVisualModalContainer`, `#parkingConcessionModalContainer`, `#parkingVisualModalContainer`) devem fechar com `Esc` ou clique no backdrop, limpando o DOM residual.
+- REGRA IRRESTRITA ESPECIAL — RECONCILIAÇÃO CONTÁBIL E CONTRASTE EM ESCRITÓRIO & FINANÇAS:
+  1. RECONCILIAÇÃO OBRIGATÓRIA ENTRE KPIS E DETALHAMENTO MENSAL:
+     - Na aba `escritorio`, `Entradas previstas por mês` DEVE ser exatamente a soma dos itens exibidos em `Previsão de Receitas Mensais`, usando os valores mensais reais dos contratos ativos (`activeSponsors.reduce((sum, s) => sum + s.monthly, 0)`), nunca pools anuais ou valores base da divisão.
+     - `Salários do elenco` em `Despesas e Parcelas Mensais` DEVE ser calculado dinamicamente a partir dos jogadores do clube (`calcClubMonthlySquadWages(club)` / `state.squad`), nunca exibindo `R$ 0/mês` quando houver atletas contratados.
+     - `Resultado mensal estimado` = `Entradas previstas - Saídas previstas`, e `Saldo previsto no fim do mês` = `Caixa atual + Resultado mensal estimado`.
+  2. CONTRASTE GARANTIDO PARA MARCAS E PATROCINADORES:
+     - Toda cor de texto de patrocinador (`sponsor.color`) renderizada sobre card escuro DEVE passar por `ensureReadableBrandColor(hex)` (luminância mínima >= 0.35/0.38), impedindo texto roxo/azul escuro ilegível como `Fatal Model` (#6b21a8) e `FedEx` (#4d148c).
+  3. VALIDAÇÃO DE MULTAS, SLOTS E CLIQUE DUPLO:
+     - Assinatura de patrocínio e rescisão de contrato de TV DEVEM validar caixa disponível para multa rescisória e usar trava anti-duplo clique (`window.__afmOfficeActionLock`).
+     - Botão da Licença CBF em `SEU CONTRATO` deve conter `id="btnOpenCbfLicensesFromOffice"` e `data-office-action="cbf-licenses"`, e card de Sócio-Torcedor deve dar feedback informativo ao clicar no plano já ativo.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis

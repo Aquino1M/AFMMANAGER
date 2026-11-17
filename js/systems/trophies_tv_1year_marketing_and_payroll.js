@@ -958,7 +958,7 @@
           else if (cardTxt.includes('COSTAS') || cardTxt.includes('OMOPLATA')) sp = activeSponsors[2];
 
           h.textContent = sp.name;
-          h.style.color = sp.color || '#fff';
+          h.style.color = (typeof window.ensureReadableBrandColor === 'function' ? window.ensureReadableBrandColor(sp.color) : (sp.color || '#fff'));
 
           // Atualiza o texto de R$ 0/mês e + R$ 0 por vitória dentro do card
           card.querySelectorAll('div, span, p, strong').forEach((node) => {
@@ -974,8 +974,16 @@
         }
       }
 
-      // Atualiza "Patrocínios fixos" em PREVISÃO DE RECEITAS MENSAIS com a soma dos 3 patrocinadores
-      const totalSponsorMonthly = (activeSponsors[0]?.baseMonthly || 0) + (activeSponsors[1]?.baseMonthly || 0) + (activeSponsors[2]?.baseMonthly || 0);
+      // Atualiza "Patrocínios fixos" em PREVISÃO DE RECEITAS MENSAIS com a soma real dos 3 patrocinadores ativos
+      let totalSponsorMonthly = 0;
+      if (state && state.sponsors) {
+        totalSponsorMonthly = (Number(state.sponsors.master?.monthly) || 0) +
+                              (Number(state.sponsors.sleeves?.monthly) || 0) +
+                              (Number(state.sponsors.back?.monthly) || 0);
+      }
+      if (!totalSponsorMonthly) {
+        totalSponsorMonthly = (activeSponsors[0]?.baseMonthly || 0) + (activeSponsors[1]?.baseMonthly || 0) + (activeSponsors[2]?.baseMonthly || 0);
+      }
       app.querySelectorAll('div, span').forEach((el) => {
         if (el.children.length === 0 && (el.textContent || '').trim() === 'Patrocínios fixos') {
           const next = el.nextElementSibling;
