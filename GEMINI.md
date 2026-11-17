@@ -32,3 +32,9 @@ Você é o engenheiro-chefe responsável pelo AFM Manager 2026/2027. Antes de al
    - Rode `node --check` em todos os arquivos `.js` modificados antes de commitar.
    - Nunca faça commit com erro de sintaxe ou console error.
 
+7. **INTEGRIDADE DE COMPETIÇÕES & NAVEGAÇÃO NA TEMPORADA:**
+   - A seleção de divisões no Brasileirão (Séries A/B/C/D) não pode ser sobrescrita pela divisão do clube do usuário.
+   - A Copa do Brasil opera com 126 clubes, 5 fases preliminares e avanço estruturado até as Oitavas, Quartas, Semifinal e Final com campeão salvo.
+   - A Série D possui 96 clubes e 6 acessos à Série C, com ordenação por critérios esportivos e indicação de PROJEÇÃO ATUAL vs CONFIRMADO.
+   - Competições Continentais e Mundial não podem exibir confrontos simulados em 01/01 nem times fixos antes do término dos grupos; 3º colocado da Libertadores migra para os Playoffs da Sul-Americana e o campeão do Mundial de Clubes FIFA é persistido em `state.worldSaveChampions`.
+

@@ -12387,3 +12387,19 @@ body.theme-emerald {
   border-left: 3px solid #eab308 !important;
   font-weight: 700 !important;
 }
+
+/* Fix Flexbox Truncation nos Cards de Confrontos (Copa do Brasil e Continentais) */
+.clickable-fixture > div {
+  min-width: 0;
+}
+.clickable-fixture > div > div {
+  min-width: 0;
+  overflow: hidden;
+}
+.clickable-fixture span {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

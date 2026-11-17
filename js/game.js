@@ -8438,21 +8438,38 @@ function initCopaDoBrasilData(){
       isoDate: phaseDates[index], score: null, winner: null
     }))
   });
-  // 28 clubes abrem a competição; 74 entram na 2ª fase, 4 na 3ª e a Série A na 5ª.
-  const opening = nonA.slice(0, 28);
-  const phase2 = nonA.slice(28, 102);
-  const phase3 = nonA.slice(102, 106);
+  // 126 clubes na Copa do Brasil estruturados em 5 fases preliminares
+  // 1ª Fase: 56 clubes (28 jogos)
+  // 2ª Fase: 28 vencedores + 36 clubes = 64 clubes (32 jogos)
+  // 3ª Fase: 32 vencedores + 16 clubes = 48 clubes (24 jogos)
+  // 4ª Fase: 24 vencedores + 8 clubes = 32 clubes (16 jogos)
+  // 5ª Fase: 16 vencedores + 16 clubes da Série A = 32 clubes (16 jogos)
+  const opening = nonA.slice(0, 56);
+  if(state?.club && !opening.includes(state.club) && !serieA.includes(state.club) && nonA.includes(state.club)){
+    opening[opening.length - 1] = state.club;
+  }
+  const phase2 = nonA.slice(56, 92);
+  const phase3 = nonA.slice(92, 108);
+  const phase4 = nonA.slice(108, 116);
+  const phase5 = serieA.slice(0, 16);
+
   const phases = Object.fromEntries(phaseNames.map((name, index) => [name, makePhase(index,
-    index === 0 ? opening : index === 1 ? phase2 : index === 2 ? phase3 : index === 4 ? serieA : []
+    index === 0 ? opening : index === 1 ? phase2 : index === 2 ? phase3 : index === 3 ? phase4 : index === 4 ? phase5 : []
   )]));
   return {
     name: 'Copa do Brasil',
-    version: 3,
+    version: 4,
     season,
-    totalTeams: entrants.length,
+    totalTeams: 126,
     activePhase: '1ª Fase',
-    entrants,
-    phases
+    entrants: [...opening, ...phase2, ...phase3, ...phase4, ...phase5],
+    phases,
+    bracket: {
+      oitavas: Array.from({length: 8}, (_, i) => ({ home: `Classificado ${i*2+1}`, away: `Classificado ${i*2+2}`, date: 'A definir', played: false, winner: null })),
+      quartas: Array.from({length: 4}, (_, i) => ({ home: `Vencedor Oitavas ${i*2+1}`, away: `Vencedor Oitavas ${i*2+2}`, date: 'A definir', played: false, winner: null })),
+      semifinal: Array.from({length: 2}, (_, i) => ({ home: `Vencedor Quartas ${i*2+1}`, away: `Vencedor Quartas ${i*2+2}`, date: 'A definir', played: false, winner: null })),
+      final: [{ home: 'Finalista A', away: 'Finalista B', date: 'A definir', played: false, winner: null }]
+    }
   };
 }
 
@@ -8867,7 +8884,7 @@ function renderCopaDoBrasilBlock(){
             COPA DO BRASIL
           </h1>
           <div style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:800;letter-spacing:1px;margin-top:4px">
-            ${state.season} · ${copa.totalTeams || 92} CLUBES · EM DISPUTA
+            ${state.season} · ${copa.totalTeams || 126} CLUBES · EM DISPUTA
           </div>
         </div>
         <div style="font-size:14px;color:rgba(255,255,255,0.7);font-style:italic">
@@ -39100,14 +39117,17 @@ function getTournamentGroupTopTeams(compKey){
   const groupsData = (window.AFM_CONTINENTAL_2026?.groups?.[compKey]) || {};
   const groupKeys = Object.keys(groupsData).sort();
   const res = {};
+  const reqMatches = compKey === 'cwc' ? 3 : 6;
   groupKeys.forEach(g => {
     const standingsRows = t?.standings?.[g];
-    const hasPlayed = Array.isArray(standingsRows) && standingsRows.some(row => (row.played || 0) > 0);
-    if(hasPlayed && standingsRows.length >= 2){
-      res[g] = [standingsRows[0].name, standingsRows[1].name];
+    const hasFinished = Array.isArray(standingsRows) && standingsRows.length >= 2 && standingsRows.every(row => (row.played || 0) >= reqMatches);
+    if(hasFinished){
+      const sorted = (window.AFM_CompetitionsSync && typeof window.AFM_CompetitionsSync.getSortedDivisionStandings === 'function')
+        ? window.AFM_CompetitionsSync.getSortedDivisionStandings(standingsRows)
+        : [...standingsRows].sort((a,b) => (b.points || 0) - (a.points || 0));
+      res[g] = [sorted[0].name, sorted[1].name];
     } else {
-      const defaultTeams = groupsData[g] || [];
-      res[g] = [defaultTeams[0] || `1º Grupo ${g}`, defaultTeams[1] || `2º Grupo ${g}`];
+      res[g] = [`1º Grupo ${g}`, `2º Grupo ${g}`];
     }
   });
   return res;
@@ -39435,8 +39455,10 @@ function renderContinentalPrePhase(competitionId, phaseKey){
       <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(290px, 1fr));gap:12px;margin-top:16px">
         ${ties.map((t, idx) => {
           const isUserMatch = norm(t.home) === norm(state.club) || norm(t.away) === norm(state.club);
-          const scoreDisplay = t.agg ? `${t.agg}` : (t.score || '- × -');
-          const details = t.leg1 ? `Ida: <b>${t.leg1}</b> • Volta: <b>${t.leg2}</b>` : 'Jogo Único';
+          const isFinished = Boolean(t.played || (state.date && state.date >= '2026-03-15' && t.winner));
+          const scoreDisplay = isFinished ? (t.agg ? `${t.agg}` : (t.score || '- × -')) : 'A DISPUTAR';
+          const details = isFinished ? (t.leg1 ? `Ida: <b>${t.leg1}</b> • Volta: <b>${t.leg2}</b>` : 'Jogo Único') : 'Aguardando Rodada';
+          const winnerText = isFinished && t.winner ? `✔ Classificado: ${esc(t.winner)}` : '⏳ Confronto Agendado';
           return `
             <div style="background:${isUserMatch ? 'rgba(124,58,237,0.25)' : '#161324'};border:1px solid ${isUserMatch ? '#a855f7' : 'rgba(255,255,255,0.08)'};border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
               <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:rgba(255,255,255,0.5)">
@@ -39445,7 +39467,7 @@ function renderContinentalPrePhase(competitionId, phaseKey){
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
                 <div style="display:flex;align-items:center;gap:6px;width:42%;justify-content:flex-end">
-                  <span style="font-size:12px;font-weight:${t.winner === t.home ? '900' : '600'};color:${t.winner === t.home ? '#4ade80' : '#fff'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.home)}</span>
+                  <span style="font-size:12px;font-weight:${isFinished && t.winner === t.home ? '900' : '600'};color:${isFinished && t.winner === t.home ? '#4ade80' : '#fff'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.home)}</span>
                   ${clubBadge(t.home, 20)}
                 </div>
                 <div style="font-size:13px;font-weight:900;color:#facc15;padding:2px 8px;background:rgba(0,0,0,0.3);border-radius:6px;white-space:nowrap">
@@ -39453,11 +39475,11 @@ function renderContinentalPrePhase(competitionId, phaseKey){
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;width:42%">
                   ${clubBadge(t.away, 20)}
-                  <span style="font-size:12px;font-weight:${t.winner === t.away ? '900' : '600'};color:${t.winner === t.away ? '#4ade80' : '#fff'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.away)}</span>
+                  <span style="font-size:12px;font-weight:${isFinished && t.winner === t.away ? '900' : '600'};color:${isFinished && t.winner === t.away ? '#4ade80' : '#fff'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.away)}</span>
                 </div>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px">
-                <span style="color:#4ade80;font-weight:800">✔ Classificado: ${esc(t.winner)}</span>
+                <span style="color:${isFinished ? '#4ade80' : '#94a3b8'};font-weight:800">${winnerText}</span>
                 ${t.dest ? `<span class="pill" style="font-size:9px;background:rgba(124,58,237,0.25);color:#c084fc">${esc(t.dest)}</span>` : ''}
               </div>
             </div>
@@ -39532,10 +39554,14 @@ function getDivisionStandingsList(divId){
 }
 
 function renderPiramideAcessosERebaixamentos(){
-  const serieA = getDivisionStandingsList('bra-a');
-  const serieB = getDivisionStandingsList('bra-b');
-  const serieC = getDivisionStandingsList('bra-c');
-  const serieD = getDivisionStandingsList('bra-d');
+  const sortFn = (list) => (window.AFM_CompetitionsSync && typeof window.AFM_CompetitionsSync.getSortedDivisionStandings === 'function')
+    ? window.AFM_CompetitionsSync.getSortedDivisionStandings(list)
+    : (Array.isArray(list) ? list : []);
+
+  const serieA = sortFn(getDivisionStandingsList('bra-a'));
+  const serieB = sortFn(getDivisionStandingsList('bra-b'));
+  const serieC = sortFn(getDivisionStandingsList('bra-c'));
+  const serieD = sortFn(getDivisionStandingsList('bra-d'));
 
   const aLib = serieA.slice(0, 6);
   const aSud = serieA.slice(6, 12);
@@ -39547,7 +39573,12 @@ function renderPiramideAcessosERebaixamentos(){
   const cPromoted = serieC.slice(0, 4);
   const cZ4 = serieC.slice(16, 20);
 
-  const dPromoted = serieD.slice(0, 4);
+  const dPromoted = serieD.slice(0, 6);
+
+  const isConfirmed = Boolean(state.seasonFinished || (state.round && state.totalRounds && state.round >= state.totalRounds));
+  const statusBadge = isConfirmed
+    ? '<span class="pill" style="background:#22c55e;color:#000;font-weight:900;font-size:11px">CONFIRMADO</span>'
+    : '<span class="pill" style="background:#eab308;color:#000;font-weight:900;font-size:11px">PROJEÇÃO ATUAL</span>';
 
   const renderTeamPillCard = (t, idx, tag, tagColor, borderColor) => {
     const isUser = state && state.club && norm(state.club) === norm(t.name);
@@ -39575,14 +39606,17 @@ function renderPiramideAcessosERebaixamentos(){
             <span style="font-size:28px">🇧🇷</span>
             <div>
               <h2 style="margin:0;font-size:20px;font-weight:900;color:#4ade80;text-transform:uppercase">
-                PIRÂMIDE OFICIAL DE ACESSOS & REBAIXAMENTOS (CBF ${state.season})
+                PIRÂMIDE OFICIAL DE ACESSOS & REBAIXAMENTOS (CBF ${state.seasonYear || state.season || 2026})
               </h2>
               <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:2px">
                 Clubes promovidos, rebaixados e classificados para as competições continentais
               </div>
             </div>
           </div>
-          <span class="pill" style="background:#22c55e;color:#000;font-weight:900;font-size:11px">SISTEMA INTEGRADO SÉRIES A, B, C, D</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            ${statusBadge}
+            <span class="pill" style="background:#22c55e;color:#000;font-weight:900;font-size:11px">SISTEMA INTEGRADO SÉRIES A, B, C, D</span>
+          </div>
         </div>
       </div>
 
@@ -39700,14 +39734,17 @@ function renderPiramideAcessosERebaixamentos(){
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
           <div style="display:flex;align-items:center;gap:8px">
             <span class="pill" style="background:#0284c7;color:#fff;font-weight:900;font-size:11px">DIVISÃO 4</span>
-            <h3 style="margin:0;font-size:17px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE D (64 CLUBES)</h3>
+            <h3 style="margin:0;font-size:17px;font-weight:900;color:#fff;text-transform:uppercase">BRASILEIRÃO SÉRIE D (96 CLUBES)</h3>
           </div>
-          <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">4 Acessos · Conexão com os Estaduais</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${statusBadge}
+            <span class="pill" style="background:rgba(255,255,255,0.06);font-size:11px">6 Acessos · Conexão com os Estaduais</span>
+          </div>
         </div>
 
         <div style="background:#16132b;border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:12px">
           <div style="font-size:12px;font-weight:900;color:#4ade80;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-            🟢 PROMOVIDOS PARA A SÉRIE C (4 SEMIFINALISTAS DO MATA-MATA)
+            🟢 PROMOVIDOS PARA A SÉRIE C (4 SEMIFINALISTAS + 2 VENCEDORES DE PLAYOFFS)
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:6px">
             ${dPromoted.map((t, i) => renderTeamPillCard(t, i, 'ACESSO À SÉRIE C', '#16a34a', 'rgba(34,197,94,0.35)')).join('')}
@@ -40535,6 +40572,15 @@ function seasonPage(){
     selectedEstadualId = clubStateCompId(state.club);
   }
 
+  // Sincroniza abas e seleções com o estado global da view de temporada
+  if (typeof window.afmSeasonUIState !== 'undefined' && window.afmSeasonUIState) {
+    if (window.afmSeasonUIState.activeMainTab) seasonTab = window.afmSeasonUIState.activeMainTab;
+    if (window.afmSeasonUIState.selectedDivision) nationalDivision = window.afmSeasonUIState.selectedDivision;
+    if (window.afmSeasonUIState.continentalCategory) continentalCategory = window.afmSeasonUIState.continentalCategory;
+    if (window.afmSeasonUIState.continentalTab) continentalTab = window.afmSeasonUIState.continentalTab;
+    if (window.afmSeasonUIState.selectedCopaPhase) copaCurrentPhase = window.afmSeasonUIState.selectedCopaPhase;
+  }
+
   const rawComp = typeof curComp === 'function' ? curComp() : { name: 'Campeonato', country: 'Brasil', id: 'bra-a' };
   const isBrazil = (rawComp.country === 'Brasil' || rawComp.id?.startsWith('bra-'));
   const memberships = typeof getSavedSeasonMemberships === 'function' ? getSavedSeasonMemberships(state.club) : {};
@@ -40555,19 +40601,42 @@ function seasonPage(){
     seasonTab = seasonTabs[0].id;
   }
 
-  const currentNatId = (typeof nationalDivision !== 'undefined' && nationalDivision) || userNatDivId || 'bra-a';
+  const currentNatId = (window.AFMSeasonView && typeof window.AFMSeasonView.normalizeDivisionKey === 'function')
+    ? window.AFMSeasonView.normalizeDivisionKey(window.afmSeasonUIState?.selectedDivision || (typeof nationalDivision !== 'undefined' && nationalDivision) || userNatDivId || 'bra-a')
+    : ((typeof nationalDivision !== 'undefined' && nationalDivision) || userNatDivId || 'bra-a');
   const comp = seasonTab === 'estadual' && estCompObj ? estCompObj : (typeof compById === 'function' ? compById(currentNatId) : rawComp) || rawComp;
+
+  let heroCompName = comp.name;
+  let heroCompId = comp.id;
+  if (seasonTab === 'copadobrasil') {
+    heroCompName = 'Copa do Brasil';
+    heroCompId = 'bra-copa';
+  } else if (seasonTab === 'continental') {
+    if (typeof continentalCategory !== 'undefined' && continentalCategory === 'nacional') {
+      heroCompName = 'Pirâmide Nacional CBF';
+      heroCompId = 'bra-cbf-piramide';
+    } else {
+      const activeContKey = (typeof continentalTab !== 'undefined' && continentalTab) || 'lib';
+      const cObj = (window.AFM_CONTINENTAL_2026 && window.AFM_CONTINENTAL_2026.tournaments && window.AFM_CONTINENTAL_2026.tournaments[activeContKey]);
+      heroCompName = cObj?.name || 'Competições Internacionais';
+      heroCompId = activeContKey;
+    }
+  } else if (seasonTab === 'nacional') {
+    const natComp = typeof compById === 'function' ? compById(currentNatId) : null;
+    heroCompName = natComp?.name || comp.name;
+    heroCompId = currentNatId;
+  }
 
   return `
     <div class="hero">
       <div style="display:flex;align-items:center;gap:14px">
-        ${typeof window.renderCompetitionLogo === 'function' ? window.renderCompetitionLogo(comp.id, 44) : ''}
+        ${typeof window.renderCompetitionLogo === 'function' ? window.renderCompetitionLogo(heroCompId, 44) : ''}
         <div>
-          <h1 style="margin:0">Temporada ${state.season}</h1>
+          <h1 style="margin:0">Temporada ${state.seasonYear || state.season || 2026}</h1>
           <div class="muted">Tabela de classificação oficial e calendário das competições</div>
         </div>
       </div>
-      <span class="pill" style="font-size:13px;font-weight:800">${typeof esc === 'function' ? esc(comp.name) : comp.name}</span>
+      <span class="pill" style="font-size:13px;font-weight:800">${typeof esc === 'function' ? esc(heroCompName) : heroCompName}</span>
     </div>
 
     <div style="display:flex;justify-content:flex-end;margin-top:10px">
@@ -40595,9 +40664,9 @@ function seasonPage(){
     ` : ''}
 
     ${seasonTab === 'nacional' ? (() => {
-      const activeNatId = (typeof nationalDivision !== 'undefined' && nationalDivision && nationalDivision !== 'bra-a')
-        ? nationalDivision
-        : (userNatDivId || nationalDivision || 'bra-a');
+      const activeNatId = (window.AFMSeasonView && typeof window.AFMSeasonView.normalizeDivisionKey === 'function')
+        ? window.AFMSeasonView.normalizeDivisionKey(window.afmSeasonUIState?.selectedDivision || (typeof nationalDivision !== 'undefined' && nationalDivision) || userNatDivId || 'bra-a')
+        : ((typeof nationalDivision !== 'undefined' && nationalDivision) || userNatDivId || 'bra-a');
       const natComp = typeof compById === 'function' ? compById(activeNatId) : { name: 'Série A', rule: '' };
       const isSérieA = activeNatId === 'bra-a';
       const natStandings = typeof getNationalCompetitionStandings === 'function' ? getNationalCompetitionStandings(activeNatId) : [];
@@ -40623,6 +40692,7 @@ function seasonPage(){
               <button type="button" class="btn ${activeNatId==='bra-b'?'active':''}" data-nat-div="bra-b" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;${activeNatId==='bra-b'?'background:#3b82f6;color:#fff;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)'}">🔵 Série B (20)</button>
               <button type="button" class="btn ${activeNatId==='bra-c'?'active':''}" data-nat-div="bra-c" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;${activeNatId==='bra-c'?'background:#f97316;color:#fff;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)'}">🟠 Série C (20)</button>
               <button type="button" class="btn ${activeNatId==='bra-d'?'active':''}" data-nat-div="bra-d" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;${activeNatId==='bra-d'?'background:#a855f7;color:#fff;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)'}">🟣 Série D (96)</button>
+              <button type="button" class="btn" id="btnQuickGoPiramideCBF" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;background:linear-gradient(135deg,#eab308,#ca8a04);color:#000;border:none;cursor:pointer">🇧🇷 Pirâmide CBF</button>
             </div>
           </div>
 

@@ -60,9 +60,9 @@
           aliasIds: ['bra-d', 'bra_d', 'BRA_D'],
           name: 'Brasileirão Série D',
           tier: 4,
-          teamsCount: 64,
+          teamsCount: 96,
           rounds: 14,
-          promotedCount: 4, // Os 4 semifinalistas sobem para a Série C
+          promotedCount: 6, // 4 semifinalistas + 2 vencedores dos playoffs sobem para a Série C
           promotedTo: 'BRA_SERIE_C',
           relegatedCount: 0
         }

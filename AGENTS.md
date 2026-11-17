@@ -212,6 +212,22 @@
   3. NORMALIZAÇÃO DE CONTRATOS E CHAVES DE JOGADOR:
      - A ordenação por `CONTRATO` deve usar `getPlayerContractYear(player, currentYear)` para evitar `NaN` entre números e strings ISO.
      - O clique para renovação deve resolver o atleta por `data-player-id` primeiro e normalizar acentos (`NFD`) no fallback por `data-player-key`, com trava anti-duplo clique (`window.__afmContractModalLock`).
+- REGRA IRRESTRITA ESPECIAL — INTEGRIDADE DE COMPETIÇÕES E NAVEGAÇÃO (AFM MANAGER):
+  1. NAVEGAÇÃO DE DIVISÕES DO BRASILEIRÃO (SÉRIE A/B/C/D):
+     - Ao clicar nas divisões (Série A/B/C/D), a interface DEVE persistir a escolha em `window.afmSeasonUIState.selectedDivision`, impedindo que a divisão do clube ativo (ex.: Série D do Ceilândia) reverta a escolha do usuário no re-render.
+     - O badge do Hero da Temporada e os títulos de exibição devem refletir dinamicamente a divisão/copa ativa e o ano dinâmico `state.seasonYear || state.season || 2026` (proibido "2026" hardcoded).
+  2. COPA DO BRASIL COM 126 CLUBES:
+     - Inicialização e chaveamento estruturados com 126 clubes e 5 fases preliminares (1ª: 56 clubes/28 confrontos; 2ª: 36 entrantes; 3ª: 16 entrantes; 4ª: 8 entrantes; 5ª: 16 entrantes da Série A).
+     - A progressão deve alimentar as Oitavas de Final (8 confrontos), Quartas, Semifinal e Final, gravando o campeão oficial no save.
+     - Containers de confrontos da Copa devem conter `min-width: 0` e `text-overflow: ellipsis` para eliminar truncamento indevido de nomes de clubes.
+  3. PIRÂMIDE NACIONAL CBF (SÉRIE D COM 96 CLUBES E 6 ACESSOS):
+     - A Série D possui oficialmente 96 clubes e 6 acessos para a Série C.
+     - As classificações e cards de acessos devem ser ordenados por critérios esportivos oficiais (Pontos, Vitórias, Saldo de Gols, Gols Pró) via `getSortedDivisionStandings`, proibindo ordenação alfabética quando há partidas disputadas.
+     - Exibir badges dinâmicos `PROJEÇÃO ATUAL` vs `CONFIRMADO` conforme a rodada da temporada e oferecer atalho rápido `🇧🇷 Pirâmide CBF` na barra de divisões.
+  4. INTEGRIDADE DOS TORNEIOS CONTINENTAIS E MUNDIAL:
+     - No início da temporada (`01/01/2026`), nenhum resultado ou clube fixo deve constar como simulado prematuramente nas fases preliminares ou no mata-mata (`sanitizeContinentalInitialState`).
+     - Fases eliminatórias antes do término dos grupos devem exibir placeholders dinâmicos (`1º Grupo A`, etc.).
+     - Handoff dos 3º colocados da Libertadores para os Playoffs da Sul-Americana, e avanço dos grupos do Mundial de Clubes FIFA para as Oitavas até a grande Final, registrando campeão mundial em `state.worldSaveChampions`.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis
