@@ -215,4 +215,12 @@ assert(calHtml.includes('afm-calendar-windows'), 'Deve conter cards de janelas')
 assert(calHtml.includes('btnCalPreviewNow'), 'Deve conter botões de prévia');
 console.log('✅ calendarPage() executada sem qualquer erro.');
 
+// Teste 9: Posicionamento do badge de clássico na coluna de confronto (sem colisão com mando de campo)
+console.log('9. Testando posicionamento de badge de clássico na coluna do adversário...');
+assert(gameCode.includes('<b>vs ${esc(opponent)}</b>\n                  ${derbyBadgeHtml}'), 'Badge de clássico deve estar agrupado junto ao nome do adversário');
+assert(!gameCode.includes('<b>${dateFormatted}</b>\n                ${derbyBadgeHtml}'), 'Badge de clássico não deve estar na coluna de data para evitar colisão visual');
+const cssCode = fs.readFileSync('css/app.css', 'utf8');
+assert(cssCode.includes('minmax(125px, auto) minmax(95px, auto) 1fr 140px minmax(230px, auto)'), 'CSS da calendar-card deve usar colunas flexíveis');
+console.log('✅ Posicionamento de clássico e layout de calendar-card validados com sucesso.');
+
 console.log('🎉 TODOS OS TESTES DE CALENDÁRIO E NOTÍCIAS PASSARAM COM 100% DE SUCESSO!');

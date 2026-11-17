@@ -102,7 +102,7 @@
   - Bloqueio cronológico estrito de partidas: Somente a primeira partida pendente do calendário da temporada (`nextUnplayedMatch`) pode exibir os botões ativos `▶ Jogar` e `⚡ Simular`. Partidas futuras exibem estritamente o badge `🔒 Aguardando Rodada` com apenas `📋 Prévia` disponível, impedindo saltos arbitrários de rodadas ou dessincronização da tabela de classificação. Partidas já disputadas exibem o placar oficial, badge de resultado (`V` / `E` / `D`), botão `📊 Súmula` e `📋 Prévia`.
   - Trava anti-glitch e disparo duplo: Todas as ações de simulação ou jogo via calendário são submetidas à trava global `window.__afmCalActionLock = true` (com timeout seguro de 1.5s), prevenindo disparos múltiplos por cliques rápidos.
   - Cálculo oficial e preciso de janelas de transferência: `AFM_CALENDAR_HUB.getTransferWindowStatus` calcula as janelas oficiais da temporada: Janela de Verão (01/Jan a 31/Mar = 90 dias) e Janela de Inverno (10/Jul a 02/Set = 55 dias), corrigindo badges de contagem de eventos de pré-temporada e exibindo os dias corridos e restantes com precisão matemática.
-  - Radar de clássicos e rivalidades históricas: Detecção automática de confrontos clássicos através de `AFM_CALENDAR_HUB.isDerbyMatch`, destacando as partidas com badge `🔥 CLÁSSICO (+50% XP)` e linha lateral vermelha no card.
+  - Radar de clássicos e rivalidades históricas: Detecção automática de confrontos clássicos através de `AFM_CALENDAR_HUB.isDerbyMatch`, destacando as partidas com badge `🔥 CLÁSSICO (+50% XP)` agrupado junto ao nome do adversário (coluna de confronto) e linha lateral vermelha no card, prevenindo qualquer sobreposição ou colisão visual com a coluna de mando de campo (`🏠 EM CASA` / `✈️ FORA`).
   - Modais globais `openMatchPreviewModal` e `openMatchSummaryModal`: Disponíveis globalmente para raio-x do confronto (comparação de força OVR, probabilidades de vitória/empate/derrota e histórico de confrontos diretos no save) e súmula detalhada (com nota, minutos, gols e assistências do atleta no Modo Carreira Jogador).
   - Filtros multifuncionais e busca em tempo real: Suporte a filtros (`📅 Todos`, `⏳ Próximos`, `✅ Disputados`, `🔥 Clássicos`, abas por torneio, `🏠 Em Casa`, `✈️ Fora`) e campo de busca por adversário sem perda de foco do teclado.
 - REGRA IRRESTRITA ESPECIAL — ISOLAMENTO DE MODOS & PROTEÇÃO DE ABAS COMPARTILHADAS:
@@ -198,6 +198,14 @@
   3. VALIDAÇÃO DE MULTAS, SLOTS E CLIQUE DUPLO:
      - Assinatura de patrocínio e rescisão de contrato de TV DEVEM validar caixa disponível para multa rescisória e usar trava anti-duplo clique (`window.__afmOfficeActionLock`).
      - Botão da Licença CBF em `SEU CONTRATO` deve conter `id="btnOpenCbfLicensesFromOffice"` e `data-office-action="cbf-licenses"`, e card de Sócio-Torcedor deve dar feedback informativo ao clicar no plano já ativo.
+- REGRA IRRESTRITA ESPECIAL — INTEGRIDADE DA ABA CONTRATOS & SALÁRIOS:
+  1. CONSISTÊNCIA ENTRE CONTADORES E LISTA DE ELENCO:
+     - Na aba `Contratos & Salários`, a contagem total de atletas e a contagem de `caros para o nível` DEVEM ser calculadas exclusivamente sobre o mesmo array `squadPlayers` renderizado na tela, usando uma única função `isPlayerWageExpensive(player, divisionTier)`. Nunca exibir `expensiveCount > squadPlayers.length`.
+  2. INTEGRIDADE ESTRUTURAL DO DOM NA LISTA SALARIAL:
+     - Todo item `.salary-item-clickable` DEVE possuir tags `<div>` rigorosamente balanceadas, agrupando `[Posição + Nome/Badge + Subtítulo]` à esquerda e `[Valor Salarial + Clique p/ renovar]` à direita dentro de um container flex único.
+  3. NORMALIZAÇÃO DE CONTRATOS E CHAVES DE JOGADOR:
+     - A ordenação por `CONTRATO` deve usar `getPlayerContractYear(player, currentYear)` para evitar `NaN` entre números e strings ISO.
+     - O clique para renovação deve resolver o atleta por `data-player-id` primeiro e normalizar acentos (`NFD`) no fallback por `data-player-key`, com trava anti-duplo clique (`window.__afmContractModalLock`).
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis

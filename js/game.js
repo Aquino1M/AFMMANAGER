@@ -90,6 +90,10 @@ if (typeof window !== 'undefined') {
   window.changelogSearch = window.changelogSearch || '';
   window.structActiveTab = window.structActiveTab || 'facilities';
   window.__afmFacilityLock = false;
+  window.contractsSubTab = window.contractsSubTab || 'squad';
+  window.contractsSortBy = window.contractsSortBy || 'salary';
+  window.contractsFilterBy = window.contractsFilterBy || 'all';
+  window.__afmContractModalLock = false;
   window.__afmOfficeActionLock = false;
 }
 const STORAGE='aquino_futebol_manager_2026_v1';
@@ -11869,15 +11873,116 @@ function calcSalary(p){
   return playerSalary(p);
 }
 
+// 1. Teto salarial mensal justo por Overall e Divisão do Clube
+function getExpectedPlayerMonthlyWage(player, club) {
+  const ovr = Math.max(40, Number(player?.overall || player?.ovr || 60));
+  const st = typeof state !== 'undefined' ? state : null;
+  const compId = String(club?.division || club?.tier || club?.compId || st?.compId || '').toLowerCase();
+  let tierMult = 1.0;
+  if (compId.includes('bra-a') || compId.includes('bra_a') || compId === '1') tierMult = 4.5;
+  else if (compId.includes('bra-b') || compId.includes('bra_b') || compId === '2') tierMult = 2.2;
+  else if (compId.includes('bra-c') || compId.includes('bra_c') || compId === '3') tierMult = 1.35;
+  const base = Math.max(3500, Math.round((Math.pow(Math.max(1, ovr - 45), 2.15) * 42) * tierMult));
+  return base;
+}
+
+// 2. Salário mensal normalizado do atleta
+function getPlayerMonthlyWageNormalized(player) {
+  if (!player) return 0;
+  const monthly = Number(player?.monthlyWage || player?.salarioMensal || 0);
+  if (monthly > 0) return Math.round(monthly);
+  let raw = Number(player?.wage || player?.salary || player?.salario || 0);
+  if (raw <= 0 && typeof playerSalary === 'function') {
+    raw = playerSalary(player);
+  }
+  if (raw <= 0) return 0;
+  const isWeekly = player?.wagePeriod === 'weekly';
+  return Math.round(isWeekly ? raw * 4 : raw);
+}
+
+// 3. Regra única para definir se o atleta está "caro para o nível"
+function isPlayerWageExpensive(player, club) {
+  const wage = getPlayerMonthlyWageNormalized(player);
+  const expected = getExpectedPlayerMonthlyWage(player, club);
+  return wage > Math.round(expected * 1.35);
+}
+
+// 4. Ano final de contrato normalizado (evita NaN na ordenação)
+function getPlayerContractYear(player, currentYear = 2026) {
+  const raw = player?.contractUntil ?? player?.contratoAte ?? player?.contractEnd;
+  if (typeof raw === 'number' && !Number.isNaN(raw)) return raw;
+  if (typeof raw === 'string') {
+    const match = raw.match(/(\d{4})/);
+    if (match) return Number(match[1]);
+  }
+  const yearsLeft = Number(player?.contractYears || player?.years || 1);
+  return Number(currentYear || 2026) + Math.max(0, yearsLeft);
+}
+
+// 5. Snapshot completo e reconciliado do elenco para Contratos & Salários
+function getSquadContractsSnapshot(targetState = state, targetClub = null) {
+  const s = targetState || (typeof state !== 'undefined' ? state : null) || {};
+  const c = targetClub || (typeof clubByName === 'function' && s.club ? clubByName(s.club) : s.club) || {};
+  const currentYear = Number(s.year || s.season || 2026);
+
+  let rawPlayers = [];
+  if (Array.isArray(s.squad) && s.squad.length > 0) {
+    rawPlayers = s.squad.filter(Boolean);
+  } else if (Array.isArray(c.players) && c.players.length > 0) {
+    rawPlayers = c.players.filter(Boolean);
+  } else if (typeof playersForClub === 'function' && s.club) {
+    try {
+      rawPlayers = playersForClub(s.club, s.worldGenerated || []);
+    } catch(e){}
+  }
+
+  const enriched = rawPlayers.map((p, idx) => {
+    const monthlyWage = getPlayerMonthlyWageNormalized(p);
+    const contractYear = getPlayerContractYear(p, currentYear);
+    const expensive = isPlayerWageExpensive(p, c);
+    const expiringSoon = contractYear <= currentYear;
+    return {
+      ...p,
+      _idx: idx,
+      _monthlyWage: monthlyWage,
+      _contractYear: contractYear,
+      _expensive: expensive,
+      _expiringSoon: expiringSoon
+    };
+  });
+
+  const totalMonthlyPayroll = enriched.reduce((sum, p) => sum + p._monthlyWage, 0);
+  const expensiveCount = enriched.filter((p) => p._expensive).length;
+  const expiringCount = enriched.filter((p) => p._expiringSoon).length;
+  const maxSquadLimit = Number(c.squadLimit || (typeof squadCapacity === 'function' ? squadCapacity() : 25));
+
+  const avgOvr = enriched.length ? Math.round(enriched.reduce((acc, p) => acc + (Number(p.ovr || p.overall) || 60), 0) / enriched.length) : 60;
+  const recommendedTierCap = getExpectedPlayerMonthlyWage({ overall: avgOvr }, c);
+
+  return {
+    players: enriched,
+    totalCount: enriched.length,
+    maxSquadLimit,
+    expensiveCount,
+    expiringCount,
+    totalMonthlyPayroll,
+    totalAnnualPayroll: totalMonthlyPayroll * 12,
+    recommendedTierCap
+  };
+}
+
 function isExpensiveForTier(p){
-  const n = norm(p?.name || '');
-  if(n === 'kaua oliveira' || n === 'romo') return true;
-  const o = playerOverall(p);
-  const w = playerSalary(p);
-  if(o <= 60 && w >= 5500) return true;
-  if(o <= 65 && w >= 20000) return true;
-  if(o <= 70 && w >= 65000) return true;
-  return false;
+  const club = (typeof clubByName === 'function' && state?.club) ? clubByName(state.club) : null;
+  return isPlayerWageExpensive(p, club);
+}
+
+if(typeof window !== 'undefined'){
+  window.getExpectedPlayerMonthlyWage = getExpectedPlayerMonthlyWage;
+  window.getPlayerMonthlyWageNormalized = getPlayerMonthlyWageNormalized;
+  window.isPlayerWageExpensive = isPlayerWageExpensive;
+  window.getPlayerContractYear = getPlayerContractYear;
+  window.getSquadContractsSnapshot = getSquadContractsSnapshot;
+  window.isExpensiveForTier = isExpensiveForTier;
 }
 
 const CLUB_TO_STATE_COMP = {
@@ -34952,7 +35057,6 @@ function calendarPage(){
               <div style="display:flex;align-items:center;gap:6px">
                 <span class="pill" style="font-size:9px;font-weight:900;padding:1px 5px;background:${isMidweek?'rgba(56,189,248,0.25);color:#38bdf8':'rgba(34,197,94,0.25);color:#4ade80'}">${dayBadge}</span>
                 <b>${dateFormatted}</b>
-                ${derbyBadgeHtml}
               </div>
               <div class="small muted" style="margin-top:2px">${esc(match.round||'')}</div>
             </div>
@@ -34962,7 +35066,10 @@ function calendarPage(){
             <div style="display:flex;align-items:center;gap:12px">
               ${clubBadge(opponent,32)}
               <div>
-                <b>vs ${esc(opponent)}</b>
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  <b>vs ${esc(opponent)}</b>
+                  ${derbyBadgeHtml}
+                </div>
                 <div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div>
               </div>
             </div>
@@ -35669,33 +35776,46 @@ function squadPage(){
   const expensiveCount = expensiveList.length;
 
   if(squadViewMode === 'salaries'){
-    // Ordenação da tela de Salários (Screenshot 1)
-    if(salarySort === 'salary'){
-      ps.sort((a,b)=>playerSalary(b)-playerSalary(a));
-    } else if(salarySort === 'overall'){
-      ps.sort((a,b)=>playerOverall(b)-playerOverall(a));
-    } else if(salarySort === 'contract'){
-      ps.sort((a,b)=>playerContractUntil(a)-playerContractUntil(b));
-    }
+    const clubObj = typeof clubByName === 'function' ? clubByName(state.club) : null;
+    const snap = getSquadContractsSnapshot(state, clubObj);
+    const loanPlayers = snap.players.filter(player => player?.isLoan);
+    const loanedOut = Array.isArray(state.loanedOut) ? state.loanedOut : [];
+    const totalLoans = loanPlayers.length + loanedOut.length;
 
-    const maxWage = Math.max(...ps.map(playerSalary), 25000);
-    const loanPlayers = (state.squad || []).filter(player => player?.isLoan);
     const contractTabs = `
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
         <button class="btn contract-view-tab" data-tab="squad" style="${salaryViewTab==='squad'?'background:#7c3aed;color:#fff;border:0':''}">💰 Salários do Elenco</button>
-        <button class="btn contract-view-tab" data-tab="loans" style="${salaryViewTab==='loans'?'background:#7c3aed;color:#fff;border:0':''}">🤝 Empréstimos (${loanPlayers.length})</button>
+        <button class="btn contract-view-tab" data-tab="loans" style="${salaryViewTab==='loans'?'background:#7c3aed;color:#fff;border:0':''}">🤝 Empréstimos (${totalLoans})</button>
       </div>`;
 
     if(salaryViewTab === 'loans'){
+      const nIn = loanPlayers.length;
+      const inText = nIn === 0
+        ? 'Nenhum jogador emprestado ao seu clube.'
+        : nIn === 1
+          ? '1 jogador emprestado ao seu clube. Ao vencer o prazo, o atleta retorna automaticamente ao clube de origem.'
+          : `${nIn} jogadores emprestados ao seu clube. Ao vencer o prazo, os atletas retornam automaticamente ao clube de origem.`;
+
+      const nOut = loanedOut.length;
+      const outText = nOut === 0
+        ? 'Nenhum atleta do seu elenco está emprestado a outros clubes no momento.'
+        : nOut === 1
+          ? '1 atleta do seu elenco está cedido por empréstimo.'
+          : `${nOut} atletas do seu elenco estão cedidos por empréstimo a outras equipes.`;
+
       return `
         <div class="hero">
           <div><h1>Contratos & Salários</h1><div class="muted">Acompanhe os contratos temporários e a data de retorno dos jogadores emprestados</div></div>
           <button class="btn" id="btnToggleSquadView" style="background:#7c3aed;color:#fff;border:none">👥 Visualização de Elenco</button>
         </div>
         ${contractTabs}
+
+        <!-- 1. EMPRÉSTIMOS RECEBIDOS -->
         <div class="card" style="margin-top:14px;padding:24px;background:#120f20;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
-          <h2 style="margin:0 0 6px;font-size:22px;color:#fff;text-transform:uppercase">EMPRÉSTIMOS RECEBIDOS</h2>
-          <div class="muted" style="margin-bottom:16px">${loanPlayers.length} jogador(es) emprestado(s) ao clube. Ao vencer o prazo, o atleta retorna automaticamente ao clube de origem.</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+            <h2 style="margin:0;font-size:20px;color:#fff;text-transform:uppercase">📥 EMPRÉSTIMOS RECEBIDOS (${nIn})</h2>
+          </div>
+          <div class="muted" style="margin-bottom:16px">${inText}</div>
           ${loanPlayers.length ? `<div class="tablewrap"><table><thead><tr><th>JOGADOR</th><th>CLUBE DE ORIGEM</th><th>FIM DO EMPRÉSTIMO</th><th>TEMPO RESTANTE</th><th>OPÇÃO DE COMPRA</th><th>AÇÃO</th></tr></thead><tbody>
             ${loanPlayers.map(player => {
               const remainingDays = getLoanRemainingDays(player, state.date);
@@ -35710,9 +35830,51 @@ function squadPage(){
                 <td><button class="btn btnManageSalaryLoan" data-key="${esc(playerKey(player))}" style="padding:6px 10px;font-size:11px">Gerenciar contrato</button></td>
               </tr>`;
             }).join('')}
-          </tbody></table></div>` : '<div class="empty" style="padding:24px;text-align:center">Nenhum jogador emprestado ao seu clube.</div>'}
-        </div>`;
+          </tbody></table></div>` : `<div class="empty" style="padding:24px;text-align:center">${inText}</div>`}
+        </div>
+
+        <!-- 2. EMPRÉSTIMOS CONCEDIDOS (CEDIDOS A OUTROS CLUBES) -->
+        <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(255,255,255,0.08);border-radius:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+            <h2 style="margin:0;font-size:20px;color:#fff;text-transform:uppercase">📤 EMPRÉSTIMOS CONCEDIDOS (${nOut})</h2>
+          </div>
+          <div class="muted" style="margin-bottom:16px">${outText}</div>
+          ${loanedOut.length ? `<div class="tablewrap"><table><thead><tr><th>JOGADOR</th><th>DESTINO</th><th>POS</th><th>NOTA</th><th>SALÁRIO</th><th>AÇÃO</th></tr></thead><tbody>
+            ${loanedOut.map((p, idx) => `
+              <tr>
+                <td><b>${esc(p.name)}</b></td>
+                <td><div class="club-cell">${clubBadge(p.loanTo, 18)} ${esc(p.loanTo||'-')}</div></td>
+                <td><span class="pill" style="font-size:11px">${esc(p.pos||'-')}</span></td>
+                <td><span class="rating-pill ${ratingClass(playerOverall(p))}">${playerOverall(p)}</span></td>
+                <td><span style="color:#38bdf8;font-weight:700">${fmtMoney(p.wage || playerSalary(p))}/mês</span></td>
+                <td>
+                  <button class="btn btnRecallLoanedPlayer" data-idx="${idx}" style="padding:5px 12px;font-size:11px">
+                    Requisitar Retorno
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody></table></div>` : `<div class="empty" style="padding:24px;text-align:center">${outText}</div>`}
+        </div>
+      `;
     }
+
+    // Sub-aba: Salários do Elenco
+    const maxWage = Math.max(1, ...snap.players.map(p => p._monthlyWage), 10000);
+
+    // Filtros rápidos
+    let list = [...snap.players];
+    const filterBy = window.contractsFilterBy || 'all';
+    if(filterBy === 'expensive') list = list.filter(p => p._expensive);
+    else if(filterBy === 'expiring') list = list.filter(p => p._expiringSoon);
+
+    // Ordenação segura
+    const sortBy = window.contractsSortBy || salarySort || 'salary';
+    list.sort((a, b) => {
+      if(sortBy === 'overall') return (Number(b.overall || b.ovr || 0) - Number(a.overall || a.ovr || 0));
+      if(sortBy === 'contract') return (a._contractYear - b._contractYear) || (b._monthlyWage - a._monthlyWage);
+      return b._monthlyWage - a._monthlyWage;
+    });
 
     return `
       <div class="hero">
@@ -35729,11 +35891,11 @@ function squadPage(){
       ${contractTabs}
 
       <div class="card" style="margin-top:14px;padding:24px;background:#120f20;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
           <div>
             <h2 style="margin:0;font-size:24px;font-weight:900;letter-spacing:0.5px;color:#fff;text-transform:uppercase">SALÁRIOS DO ELENCO</h2>
             <div style="margin-top:6px;font-size:14px;color:rgba(255,255,255,0.7)">
-              ${ps.length} jogadores · Limite ${squadCapacity()} vagas · <span style="color:#fbbf24;font-weight:800">${expensiveCount} caros para o nível</span>
+              ${snap.totalCount} jogadores · Limite ${snap.maxSquadLimit} vagas · <span style="color:#fbbf24;font-weight:800">${snap.expensiveCount} caros para o nível</span>
             </div>
           </div>
           <button class="btn" id="btnToggleSquadViewLink" style="background:transparent;border:none;color:#c084fc;font-weight:700;font-size:15px;cursor:pointer;padding:4px 8px">
@@ -35741,49 +35903,100 @@ function squadPage(){
           </button>
         </div>
 
-        <div style="display:flex;align-items:center;gap:10px;margin-top:20px">
-          <span style="font-size:13px;color:rgba(255,255,255,0.5)">Ordem:</span>
-          <button class="btn salary-sort-btn ${salarySort==='salary'?'active':''}" data-sort="salary" style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:20px;${salarySort==='salary'?'background:#fff;color:#000;border:none':''}">SALÁRIO</button>
-          <button class="btn salary-sort-btn ${salarySort==='overall'?'active':''}" data-sort="overall" style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:20px;${salarySort==='overall'?'background:#fff;color:#000;border:none':''}">OVERALL</button>
-          <button class="btn salary-sort-btn ${salarySort==='contract'?'active':''}" data-sort="contract" style="padding:4px 14px;font-size:12px;font-weight:800;border-radius:20px;${salarySort==='contract'?'background:#fff;color:#000;border:none':''}">CONTRATO</button>
+        <!-- 4 CARDS DE RESUMO FINANCEIRO COMPACTOS -->
+        <div class="grid g4" style="margin-top:16px;gap:10px">
+          <div style="background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
+            <div class="small muted" style="font-size:11px">💰 Folha Mensal Total</div>
+            <b style="color:#22c55e;font-size:16px;display:block;margin-top:2px">R$ ${snap.totalMonthlyPayroll.toLocaleString('pt-BR')}/mês</b>
+            <div class="small muted" style="font-size:10px;margin-top:2px">Salários somados do plantel</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
+            <div class="small muted" style="font-size:11px">📅 Projeção Anual (12x)</div>
+            <b style="color:#38bdf8;font-size:16px;display:block;margin-top:2px">R$ ${snap.totalAnnualPayroll.toLocaleString('pt-BR')}/ano</b>
+            <div class="small muted" style="font-size:10px;margin-top:2px">Custo anual projetado</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
+            <div class="small muted" style="font-size:11px">🎯 Teto Salarial do Nível</div>
+            <b style="color:#fbbf24;font-size:16px;display:block;margin-top:2px">~R$ ${snap.recommendedTierCap.toLocaleString('pt-BR')}/mês</b>
+            <div class="small muted" style="font-size:10px;margin-top:2px">Recomendado p/ divisão</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);padding:12px 14px;border-radius:12px;border:1px solid ${snap.expiringCount > 0 ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.06)'}">
+            <div class="small muted" style="font-size:11px">⏳ Contratos Vencendo</div>
+            <b style="color:${snap.expiringCount > 0 ? '#ef4444' : '#4ade80'};font-size:16px;display:block;margin-top:2px">${snap.expiringCount} atleta(s) em ${state.season || 2026}</b>
+            <div class="small muted" style="font-size:10px;margin-top:2px">${snap.expiringCount > 0 ? 'Atenção para renovações' : 'Contratos sob controle'}</div>
+          </div>
         </div>
 
-        <div class="salary-list" style="margin-top:20px;display:flex;flex-direction:column;gap:16px">
-          ${ps.map(p => {
-            const wage = playerSalary(p);
-            const ovr = playerOverall(p);
-            const until = p.isLoan && p.loanEndDate ? formatDatePtBr(p.loanEndDate) : playerContractUntil(p);
-            const isExp = isExpensiveForTier(p);
-            const barPct = clamp(Math.round((wage / maxWage) * 100), 10, 100);
+        <!-- FILTROS RÁPIDOS E ORDENAÇÃO -->
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-top:18px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:12px;color:rgba(255,255,255,0.5)">Filtrar:</span>
+            <button class="btn salary-filter-btn ${(window.contractsFilterBy || 'all') === 'all' ? 'active' : ''}" data-filter="all" style="padding:4px 12px;font-size:11px;font-weight:800;border-radius:16px;${(window.contractsFilterBy || 'all') === 'all' ? 'background:#7c3aed;color:#fff;border:none' : 'background:rgba(255,255,255,0.06);color:#ccc;border:1px solid rgba(255,255,255,0.1)'}">Todos (${snap.totalCount})</button>
+            <button class="btn salary-filter-btn ${window.contractsFilterBy === 'expensive' ? 'active' : ''}" data-filter="expensive" style="padding:4px 12px;font-size:11px;font-weight:800;border-radius:16px;${window.contractsFilterBy === 'expensive' ? 'background:#f59e0b;color:#000;border:none' : 'background:rgba(255,255,255,0.06);color:#ccc;border:1px solid rgba(255,255,255,0.1)'}">Caros p/ o nível (${snap.expensiveCount})</button>
+            <button class="btn salary-filter-btn ${window.contractsFilterBy === 'expiring' ? 'active' : ''}" data-filter="expiring" style="padding:4px 12px;font-size:11px;font-weight:800;border-radius:16px;${window.contractsFilterBy === 'expiring' ? 'background:#ef4444;color:#fff;border:none' : 'background:rgba(255,255,255,0.06);color:#ccc;border:1px solid rgba(255,255,255,0.1)'}">Vencendo em ${state.season || 2026} (${snap.expiringCount})</button>
+          </div>
 
-            return `
-              <div class="salary-item-clickable" data-player-key="${esc(playerKey(p))}" role="button" tabindex="0" style="cursor:pointer;padding:6px 0;transition:all 0.2s">
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <div style="display:flex;align-items:center;gap:12px">
-                    <span class="pill" style="font-size:11px;font-weight:800;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);min-width:32px;text-align:center">${esc(p.pos||'-')}</span>
-                      <div style="font-size:15px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                        <span>${esc(p.name)}</span>
-                        ${(typeof renderPendingTransferTag === 'function') ? renderPendingTransferTag(p, true) : ''}
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px;color:rgba(255,255,255,0.5)">Ordem:</span>
+            <button class="btn salary-sort-btn ${sortBy === 'salary' ? 'active' : ''}" data-sort="salary" style="padding:4px 12px;font-size:11px;font-weight:800;border-radius:16px;${sortBy === 'salary' ? 'background:#fff;color:#000;border:none' : ''}">SALÁRIO</button>
+            <button class="btn salary-sort-btn ${sortBy === 'overall' ? 'active' : ''}" data-sort="overall" style="padding:4px 12px;font-size:11px;font-weight:800;border-radius:16px;${sortBy === 'overall' ? 'background:#fff;color:#000;border:none' : ''}">OVERALL</button>
+            <button class="btn salary-sort-btn ${sortBy === 'contract' ? 'active' : ''}" data-sort="contract" style="padding:4px 12px;font-size:11px;font-weight:800;border-radius:16px;${sortBy === 'contract' ? 'background:#fff;color:#000;border:none' : ''}">CONTRATO</button>
+          </div>
+        </div>
+
+        <div class="salary-list" style="margin-top:20px;display:flex;flex-direction:column;gap:12px">
+          ${list.length === 0
+            ? `<div class="empty" style="padding:24px;text-align:center;color:#94a3b8">Nenhum atleta encontrado para o filtro selecionado.</div>`
+            : list.map(p => {
+                const wage = p._monthlyWage;
+                const ovr = playerOverall(p);
+                const until = p.isLoan && p.loanEndDate ? formatDatePtBr(p.loanEndDate) : p._contractYear;
+                const isExp = p._expensive;
+                const barPct = clamp(Math.round((wage / maxWage) * 100), 8, 100);
+                const pKey = playerKey(p);
+
+                return `
+                  <div class="salary-item-clickable"
+                       data-player-id="${esc(p.id ?? '')}"
+                       data-player-key="${esc(pKey)}"
+                       role="button"
+                       tabindex="0"
+                       style="cursor:pointer;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);transition:all 0.2s">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                      <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1">
+                        <span class="pill" style="font-size:11px;font-weight:800;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.85);min-width:36px;text-align:center;flex-shrink:0">
+                          ${esc(p.pos || '-')}
+                        </span>
+                        <div style="min-width:0;flex:1">
+                          <div style="font-size:15px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                            <span>${esc(p.name)}</span>
+                            ${(typeof renderPendingTransferTag === 'function') ? renderPendingTransferTag(p, true) : ''}
+                            ${isExp ? `<span class="badge-expensive" style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:900;letter-spacing:0.5px">CARO P/ O NÍVEL</span>` : ''}
+                            ${p._expiringSoon ? `<span class="pill" style="font-size:10px;padding:1px 6px;background:rgba(239,68,68,0.18);border:1px solid rgba(239,68,68,0.45);color:#fca5a5;font-weight:800">VENCE ESTE ANO</span>` : ''}
+                            ${p.isLoan ? `<span style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:900;letter-spacing:0.5px">EMPRESTADO</span>` : ''}
+                          </div>
+                          <div style="font-size:12px;color:rgba(255,255,255,0.55);margin-top:3px">
+                            ${ovr} OVR · ${p.age || 22} anos · até ${until}
+                          </div>
+                        </div>
                       </div>
-                      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;display:flex;align-items:center;flex-wrap:wrap;gap:6px">
-                        <span>${ovr} · ${p.age||22} anos · até ${until}</span>
-                        ${p.isLoan ? `<span style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:900;letter-spacing:0.5px">EMPRESTADO (${esc(p.loanFrom||'ORIGEM')})</span>` : ''}
-                        ${isExp ? `<span style="background:rgba(245,158,11,0.18);color:#fbbf24;border:1px solid rgba(245,158,11,0.4);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:900;letter-spacing:0.5px">CARO PARA O NÍVEL</span>` : ''}
+
+                      <div style="text-align:right;flex-shrink:0">
+                        <div style="font-size:17px;font-weight:900;color:#fff;letter-spacing:0.4px">
+                          R$ ${wage.toLocaleString('pt-BR')}
+                        </div>
+                        <div style="font-size:11px;color:${p.isLoan ? '#fbbf24' : '#a855f7'};font-weight:700">
+                          ${p.isLoan ? 'Negociar c/ detentor ➔' : 'Clique p/ renovar ➔'}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div style="text-align:right">
-                    <div style="font-size:17px;font-weight:900;color:#fff;letter-spacing:0.5px">R$ ${wage.toLocaleString('pt-BR')}</div>
-                    <div style="font-size:11px;color:${p.isLoan?'#fbbf24':'#a855f7'}">${p.isLoan ? 'Negociar c/ detentor ➔' : 'Clique p/ renovar ➔'}</div>
-                  </div>
-                </div>
 
-                <div style="margin-top:10px;width:100%;height:4px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">
-                  <div style="height:100%;width:${barPct}%;background:${isExp ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #7c3aed, #a855f7)'};border-radius:4px"></div>
-                </div>
-              </div>
-            `;
-          }).join('')}
+                    <div style="margin-top:10px;width:100%;height:4px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">
+                      <div style="height:100%;width:${barPct}%;background:${isExp ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #7c3aed, #a855f7)'};border-radius:4px"></div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
         </div>
       </div>
     `;
@@ -45959,11 +46172,26 @@ function bind(){
     if(btnRos2) btnRos2.onclick = () => { squadViewMode = 'roster'; render(); };
 
     $$('.contract-view-tab').forEach(b => {
-      b.onclick = () => { salaryViewTab = b.dataset.tab === 'loans' ? 'loans' : 'squad'; render(); };
+      b.onclick = () => {
+        salaryViewTab = b.dataset.tab === 'loans' ? 'loans' : 'squad';
+        window.contractsSubTab = salaryViewTab;
+        render();
+      };
     });
 
     $$('.salary-sort-btn').forEach(b => {
-      b.onclick = () => { salarySort = b.dataset.sort; render(); };
+      b.onclick = () => {
+        salarySort = b.dataset.sort;
+        window.contractsSortBy = b.dataset.sort;
+        render();
+      };
+    });
+
+    $$('.salary-filter-btn').forEach(b => {
+      b.onclick = () => {
+        window.contractsFilterBy = b.dataset.filter || 'all';
+        render();
+      };
     });
 
     $$('.btnManageSalaryLoan').forEach(b => b.onclick = () => {
@@ -45971,9 +46199,41 @@ function bind(){
       if(player) openBorrowedPlayerManagementModal(player);
     });
 
+    $$('.btnRecallLoanedPlayer').forEach(b => b.onclick = () => {
+      const idx = Number(b.dataset.idx);
+      if(Array.isArray(state.loanedOut) && state.loanedOut[idx]){
+        const p = state.loanedOut.splice(idx, 1)[0];
+        p.isLoanedOut = false;
+        p.loanTo = null;
+        state.squad = state.squad || [];
+        state.squad.push(p);
+        save();
+        render();
+        toast(`Atleta ${p.name} retornou ao elenco principal!`);
+      }
+    });
+
     $$('.salary-item-clickable').forEach(el => {
       const openPlayerTerms = () => {
-        const player = findSquadPlayerByKey(el.dataset.playerKey);
+        if(window.__afmContractModalLock) return;
+        window.__afmContractModalLock = true;
+        setTimeout(() => { window.__afmContractModalLock = false; }, 800);
+
+        let player = null;
+        const pId = el.dataset.playerId;
+        if(pId && state?.squad) {
+          player = state.squad.find(x => String(x.id) === String(pId));
+        }
+        if(!player && el.dataset.playerKey) {
+          player = findSquadPlayerByKey(el.dataset.playerKey);
+        }
+        if(!player && el.dataset.playerKey) {
+          const rawKey = el.dataset.playerKey;
+          const namePart = rawKey.startsWith('n:') ? rawKey.slice(2).split('|')[0] : rawKey;
+          const cleanName = norm(namePart).replace(/[\u0300-\u036f]/g, '');
+          player = (state?.squad || []).find(x => norm(x.name).replace(/[\u0300-\u036f]/g, '') === cleanName);
+        }
+
         if(!player){ toast('Jogador não encontrado no elenco. Atualize a tela e tente novamente.'); return; }
         if(player.isLoan) openBorrowedPlayerManagementModal(player);
         else openPlayerContractRenewalModal(playerKey(player));
