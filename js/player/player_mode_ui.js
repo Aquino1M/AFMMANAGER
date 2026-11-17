@@ -4474,13 +4474,18 @@
                 </div>
               </div>
               <div style="display:flex;gap:6px">
-                ${
-                  bank >= 500
-                    ? `<button type="button" class="btn success btn-cdb-deposit" style="flex:1;background:#10b981;color:#000;font-weight:900;padding:8px;border-radius:8px;border:none;cursor:pointer;font-size:11px">+ R$ 500</button>`
-                    : `<button type="button" class="btn" disabled style="flex:1;background:#1e293b;color:#94a3b8;font-size:10px;padding:8px;border-radius:8px">🔒 Faltam R$ ${(500 - bank).toLocaleString("pt-BR")}</button>`
-                }
-                <button type="button" class="btn btn-cdb-withdraw" ${(Number(ls?.investments?.cdbBalance) || 0) <= 0 ? "disabled" : ""} style="flex:1;background:#1e293b;border:1px solid #38bdf8;color:#38bdf8;font-weight:900;padding:8px;border-radius:8px;cursor:${(Number(ls?.investments?.cdbBalance) || 0) > 0 ? "pointer" : "not-allowed"};font-size:11px">
-                  Resgatar
+                <button type="button"
+                  class="btn ${bank >= 500 ? 'success btn-cdb-deposit' : ''}"
+                  data-cdb-action="deposit"
+                  data-amount="500"
+                  ${bank < 500 ? 'disabled style="flex:1;background:#1e293b;color:#94a3b8;font-weight:800;padding:8px;border-radius:8px;font-size:11px;cursor:not-allowed;"' : 'style="flex:1;background:#10b981;color:#000;font-weight:900;padding:8px;border-radius:8px;border:none;cursor:pointer;font-size:11px"'}>
+                  ${bank >= 500 ? '+ R$ 500' : '🔒 Saldo Insuficiente'}
+                </button>
+                <button type="button"
+                  class="btn btn-cdb-withdraw"
+                  data-cdb-action="withdraw"
+                  ${(Number(ls?.investments?.cdbBalance) || 0) <= 0 ? 'disabled style="flex:1;background:#1e293b;border:1px solid #334155;color:#64748b;font-weight:800;padding:8px;border-radius:8px;cursor:not-allowed;font-size:11px"' : 'style="flex:1;background:#1e293b;border:1px solid #38bdf8;color:#38bdf8;font-weight:900;padding:8px;border-radius:8px;cursor:pointer;font-size:11px"'}>
+                  ${(Number(ls?.investments?.cdbBalance) || 0) > 0 ? `Resgatar (R$ ${(Number(ls?.investments?.cdbBalance) || 0).toLocaleString('pt-BR')})` : 'Resgatar'}
                 </button>
               </div>
             </div>
@@ -8277,6 +8282,30 @@
     if (!window.__afmHubEventsBound) {
       window.__afmHubEventsBound = true;
       document.addEventListener("click", function (e) {
+        const cdbBtn = e.target.closest("[data-cdb-action]");
+        if (cdbBtn && curState && curState.gameMode === "player") {
+          const action = cdbBtn.getAttribute("data-cdb-action");
+          if (action === "deposit") {
+            const amt = Number(cdbBtn.getAttribute("data-amount")) || 500;
+            if (typeof window.depositToPlayerCdb === "function") {
+              window.depositToPlayerCdb(curState, amt);
+            } else if (window.AFM_Lifestyle?.depositToPlayerCdb) {
+              window.AFM_Lifestyle.depositToPlayerCdb(curState, amt);
+            } else if (window.AFM_Lifestyle?.depositCdb) {
+              window.AFM_Lifestyle.depositCdb(curState, amt);
+            }
+          } else if (action === "withdraw") {
+            if (typeof window.withdrawFromPlayerCdb === "function") {
+              window.withdrawFromPlayerCdb(curState);
+            } else if (window.AFM_Lifestyle?.withdrawFromPlayerCdb) {
+              window.AFM_Lifestyle.withdrawFromPlayerCdb(curState);
+            } else if (window.AFM_Lifestyle?.withdrawCdb) {
+              window.AFM_Lifestyle.withdrawCdb(curState);
+            }
+          }
+          return;
+        }
+
         const hubBtn = e.target.closest("[data-hub-action]");
         const curState = (typeof state !== "undefined" && state) || (typeof window !== "undefined" && window.state);
         if (hubBtn && curState && curState.gameMode === "player") {
@@ -10106,48 +10135,26 @@
     // Depósito CDB
     document.querySelectorAll(".btn-cdb-deposit").forEach((btn) => {
       btn.onclick = () => {
-        const res = window.AFM_Lifestyle?.depositCdb
-          ? window.AFM_Lifestyle.depositCdb(s, 500)
-          : { success: false, message: "Erro ao aplicar no CDB." };
-        if (window.AFM_Lifestyle?.updatePlayerFinancialDisplay) {
-          window.AFM_Lifestyle.updatePlayerFinancialDisplay(s);
+        if (typeof window.depositToPlayerCdb === "function") {
+          window.depositToPlayerCdb(s, 500);
+        } else if (window.AFM_Lifestyle?.depositToPlayerCdb) {
+          window.AFM_Lifestyle.depositToPlayerCdb(s, 500);
+        } else if (window.AFM_Lifestyle?.depositCdb) {
+          window.AFM_Lifestyle.depositCdb(s, 500);
         }
-        showCustomAlert({
-          title: res.success ? "Aplicação Realizada! 🏦" : "Saldo Insuficiente ❌",
-          message: res.message,
-          type: res.success ? "success" : "warning",
-          onConfirm: () => {
-            if (window.AFM_Lifestyle?.updatePlayerFinancialDisplay) {
-              window.AFM_Lifestyle.updatePlayerFinancialDisplay(s);
-            }
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
-        });
       };
     });
 
     // Resgate CDB
     document.querySelectorAll(".btn-cdb-withdraw").forEach((btn) => {
       btn.onclick = () => {
-        const res = window.AFM_Lifestyle?.withdrawCdb
-          ? window.AFM_Lifestyle.withdrawCdb(s)
-          : { success: false, message: "Erro ao resgatar CDB." };
-        if (window.AFM_Lifestyle?.updatePlayerFinancialDisplay) {
-          window.AFM_Lifestyle.updatePlayerFinancialDisplay(s);
+        if (typeof window.withdrawFromPlayerCdb === "function") {
+          window.withdrawFromPlayerCdb(s);
+        } else if (window.AFM_Lifestyle?.withdrawFromPlayerCdb) {
+          window.AFM_Lifestyle.withdrawFromPlayerCdb(s);
+        } else if (window.AFM_Lifestyle?.withdrawCdb) {
+          window.AFM_Lifestyle.withdrawCdb(s);
         }
-        showCustomAlert({
-          title: res.success ? "Resgate Concluído! 💰" : "Aviso ⚠️",
-          message: res.message,
-          type: res.success ? "success" : "warning",
-          onConfirm: () => {
-            if (window.AFM_Lifestyle?.updatePlayerFinancialDisplay) {
-              window.AFM_Lifestyle.updatePlayerFinancialDisplay(s);
-            }
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
-        });
       };
     });
 

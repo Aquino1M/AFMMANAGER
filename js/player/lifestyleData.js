@@ -460,7 +460,118 @@
   // =========================================================================
   // 6. ADIÇÃO DE TRANSAÇÕES NO LIVRO-RAZÃO & SINCRONIZAÇÃO DE SALDO
   // =========================================================================
-  function getPlayerTotalPatrimony(player) {
+
+  // =========================================================================
+  // CARTEIRA UNIFICADA E CONSERVAÇÃO MONETÁRIA DO ATLETA (ZERO DINHEIRO INFINITO)
+  // =========================================================================
+  function getPlayerWallet(state) {
+    const curState = state || (typeof window !== "undefined" ? window.state : null) || {};
+    let pState = curState?.playerCareerState || curState?.career;
+    let athlete = null;
+
+    if (!pState && (curState?.lifestyle || curState?.personalBank !== undefined || curState?.personalCash !== undefined || curState?.cash !== undefined || curState?.athleteName)) {
+      pState = curState;
+      athlete = curState;
+    } else {
+      pState = pState || curState;
+      athlete = (typeof getControlledPlayer === 'function' && curState && curState.squad)
+        ? getControlledPlayer(curState)
+        : ((curState?.squad || []).find(p => p.id === curState?.controlledPlayerId || p.isControlled) || curState?.userPlayer || pState);
+    }
+
+    const ls = ensurePlayerLifestyleState(pState) || (pState.lifestyle = { cash: 0, investments: { cdbBalance: 0 } });
+
+    // Lê o saldo unificado dando prioridade a saldos válidos
+    const candidates = [
+      pState.personalCash,
+      pState.personalBank,
+      pState.cash,
+      athlete.personalCash,
+      athlete.personalBank,
+      athlete.cash,
+      ls?.cash
+    ];
+    let rawCash = 0;
+    for (const c of candidates) {
+      if (c !== undefined && c !== null && Number.isFinite(Number(c))) {
+        rawCash = Number(c);
+        break;
+      }
+    }
+    const personalCash = Math.max(0, Math.round(rawCash));
+
+    // Lê o saldo unificado de CDB
+    const rawCdb = ls?.investments?.cdbBalance ?? pState.cdbBalance ?? pState.cdb ?? athlete.cdbBalance ?? 0;
+    const cdbBalance = Math.max(0, Math.round(Number(rawCdb) || 0));
+
+    // Sincroniza todas as aliases
+    pState.personalCash = personalCash;
+    pState.personalBank = personalCash;
+    pState.cash = personalCash;
+    pState.money = personalCash;
+    pState.cdbBalance = cdbBalance;
+    pState.cdb = cdbBalance;
+
+    if (athlete) {
+      athlete.personalCash = personalCash;
+      athlete.personalBank = personalCash;
+      athlete.cash = personalCash;
+      athlete.money = personalCash;
+      athlete.cdbBalance = cdbBalance;
+      athlete.cdb = cdbBalance;
+    }
+
+    if (ls) {
+      ls.cash = personalCash;
+      if (!ls.investments) ls.investments = {};
+      ls.investments.cdbBalance = cdbBalance;
+    }
+
+    if (curState.career) {
+      curState.career.cash = personalCash;
+    }
+
+    return { athlete, pState, ls, personalCash, cdbBalance };
+  }
+
+  function syncPlayerWallet(state, nextPersonalCash, nextCdbBalance) {
+    const curState = state || (typeof window !== "undefined" ? window.state : null);
+    const { athlete, pState, ls } = getPlayerWallet(curState);
+    const safeCash = Math.max(0, Math.round(Number(nextPersonalCash) || 0));
+    const safeCdb = Math.max(0, Math.round(Number(nextCdbBalance) || 0));
+
+    pState.personalCash = safeCash;
+    pState.personalBank = safeCash;
+    pState.cash = safeCash;
+    pState.money = safeCash;
+    pState.cdbBalance = safeCdb;
+    pState.cdb = safeCdb;
+
+    if (athlete) {
+      athlete.personalCash = safeCash;
+      athlete.personalBank = safeCash;
+      athlete.cash = safeCash;
+      athlete.money = safeCash;
+      athlete.cdbBalance = safeCdb;
+      athlete.cdb = safeCdb;
+    }
+
+    if (ls) {
+      ls.cash = safeCash;
+      if (!ls.investments) ls.investments = {};
+      ls.investments.cdbBalance = safeCdb;
+    }
+
+    if (curState?.career) {
+      curState.career.cash = safeCash;
+    }
+
+    updatePlayerFinancialDisplay(pState);
+
+    return { personalCash: safeCash, cdbBalance: safeCdb };
+  }
+
+    function getPlayerTotalPatrimony(player) {
     if (!player) return 0;
     const ls = ensurePlayerLifestyleState(player);
     const liquidCash = Number(
@@ -545,16 +656,28 @@
         const formattedLiquid = `R$ ${liquidCash.toLocaleString("pt-BR")}`;
         const formattedPatrimony = `R$ ${totalPatrimony.toLocaleString("pt-BR")}`;
 
-        // Atualiza elementos da UI do Topo e Painéis
+        // Atualiza elementos da UI de saldo sem atingir botões circulares (+)
         if (typeof document.querySelectorAll === "function") {
           try {
-            document.querySelectorAll('.sm-badge-cash .sm-res-val, [id*="Cash"], [id*="Saldo"]').forEach(el => {
-              if (el && typeof el.matches === 'function' && !el.matches('input, textarea, select')) {
+            document.querySelectorAll('.sm-badge-cash .sm-res-val, #drawerPersonalCashVal, #personalBankBalanceCard, #athleteCashDisplay').forEach(el => {
+              if (el && !el.classList.contains('sm-res-add') && !el.id?.startsWith('btnTopQuick')) {
                 el.textContent = `R$ ${liquidCash.toLocaleString('pt-BR')}`;
               }
             });
           } catch (_) {}
         }
+
+        // Garante que os botões circulares (+) NUNCA tenham texto sobreposto
+        try {
+          const quickCashBtn = document.getElementById("btnTopQuickCash");
+          if (quickCashBtn) quickCashBtn.textContent = "+";
+          const quickPrestigeBtn = document.getElementById("btnTopQuickPrestige");
+          if (quickPrestigeBtn) quickPrestigeBtn.textContent = "+";
+          const quickStrengthBtn = document.getElementById("btnTopQuickTeamStrength");
+          if (quickStrengthBtn) quickStrengthBtn.textContent = "+";
+          const quickCdbBtn = document.getElementById("btnTopQuickCdb");
+          if (quickCdbBtn) quickCdbBtn.textContent = "+";
+        } catch (_) {}
 
         // Badge Topbar
         if (typeof document.querySelector === "function") {
@@ -589,6 +712,16 @@
             const cdbInvestedEl = document.getElementById("cdbInvestedBalanceVal");
             if (cdbInvestedEl) {
               cdbInvestedEl.textContent = `R$ ${totalInvested.toLocaleString("pt-BR")}`;
+            }
+
+            // Topbar CDB
+            const topCdbValEl = document.querySelector("#btnTopCdbCard .sm-res-val");
+            if (topCdbValEl) {
+              topCdbValEl.textContent = `CDB R$ ${totalInvested.toLocaleString("pt-BR")}`;
+            }
+            const topCdbCardEl = document.getElementById("btnTopCdbCard");
+            if (topCdbCardEl) {
+              topCdbCardEl.title = `Saldo Investido no CDB (1.1%/mês): R$ ${totalInvested.toLocaleString("pt-BR")}`;
             }
           } catch (_) {}
         }
@@ -982,70 +1115,150 @@
   }
 
   // =========================================================================
-  // 10. AÇÕES DE NEGÓCIOS, INVESTIMENTOS & MÍDIA
+  // 10. AÇÕES DE NEGÓCIOS, INVESTIMENTOS & MÍDIA COM TRAVA ATÔMICA
   // =========================================================================
-  function depositCdb(gameState, amount = 500) {
-    const { pState, state } = resolveContext(gameState);
-    if (!pState) return { success: false, message: "Estado inválido." };
-    const ls = ensurePlayerLifestyleState(pState);
-    const amt = Math.max(100, Math.round(Number(amount) || 500));
+  let _cdbTxLock = false;
 
-    if (ls.cash < amt) {
-      const shortfall = amt - ls.cash;
-      return {
-        success: false,
-        message: `Saldo insuficiente para aplicar no CDB! Faltam R$ ${shortfall.toLocaleString("pt-BR")}.`,
-      };
+  function depositToPlayerCdb(state, amount = 500) {
+    if (_cdbTxLock) return false;
+    _cdbTxLock = true;
+    try {
+      const curState = state || (typeof window !== "undefined" ? window.state : null);
+      const { pState, ls, personalCash, cdbBalance } = getPlayerWallet(curState);
+      const amt = Math.max(100, Math.round(Number(amount) || 500));
+
+      if (personalCash < amt) {
+        const msg = `Saldo pessoal insuficiente! Você precisa de R$ ${amt.toLocaleString("pt-BR")}.`;
+        if (typeof showCustomAlert === "function") {
+          showCustomAlert({ title: "Saldo Insuficiente ❌", message: msg, type: "warning" });
+        } else if (typeof showToast === "function") {
+          showToast(msg, "warn");
+        } else if (typeof window.toast === "function") {
+          window.toast(msg);
+        }
+        return false;
+      }
+
+      const updated = syncPlayerWallet(curState, personalCash - amt, cdbBalance + amt);
+
+      // Registra no extrato financeiro (ledger / transactions)
+      const curDate = curState?.date || curState?.currentDate || "2026-01-01";
+      if (ls) {
+        ls.transactions = Array.isArray(ls.transactions) ? ls.transactions : [];
+        ls.transactions.unshift({
+          date: curDate,
+          desc: "Aplicação em CDB Esportivo",
+          amount: amt,
+          type: "out"
+        });
+        if (ls.transactions.length > 20) ls.transactions = ls.transactions.slice(0, 20);
+      }
+      pState.ledger = Array.isArray(pState.ledger) ? pState.ledger : [];
+      pState.ledger.unshift({
+        date: curDate,
+        desc: "Aplicação em CDB Esportivo",
+        amount: -amt
+      });
+
+      const msg = `✅ R$ ${amt.toLocaleString("pt-BR")} aplicados no CDB! Saldo pessoal: R$ ${updated.personalCash.toLocaleString("pt-BR")}`;
+      if (typeof showCustomAlert === "function") {
+        showCustomAlert({ title: "Aplicação Realizada! 🏦", message: msg, type: "success" });
+      } else if (typeof showToast === "function") {
+        showToast(msg, "good");
+      } else if (typeof window.toast === "function") {
+        window.toast(msg);
+      }
+
+      if (typeof window.save === "function") window.save();
+      if (typeof window.render === "function") window.render();
+      return true;
+    } finally {
+      _cdbTxLock = false;
     }
+  }
 
-    const curDate = state?.date || state?.currentDate || "2026-01-01";
-    addPlayerTransaction(
-      pState,
-      curDate,
-      `Aplicação em CDB Esportivo`,
-      amt,
-      "out",
-    );
-    ls.investments.cdbBalance = (ls.investments.cdbBalance || 0) + amt;
-    updatePlayerFinancialDisplay(pState);
+  function withdrawFromPlayerCdb(state, amount = null) {
+    if (_cdbTxLock) return false;
+    _cdbTxLock = true;
+    try {
+      const curState = state || (typeof window !== "undefined" ? window.state : null);
+      const { pState, ls, personalCash, cdbBalance } = getPlayerWallet(curState);
+      if (cdbBalance <= 0) {
+        const msg = "Você não possui saldo investido no CDB para resgatar.";
+        if (typeof showCustomAlert === "function") {
+          showCustomAlert({ title: "Aviso ⚠️", message: msg, type: "warning" });
+        } else if (typeof showToast === "function") {
+          showToast(msg, "warn");
+        } else if (typeof window.toast === "function") {
+          window.toast(msg);
+        }
+        return false;
+      }
 
+      const withdrawVal = amount === null ? cdbBalance : Math.min(cdbBalance, Math.max(0, Math.round(Number(amount) || 0)));
+      if (withdrawVal <= 0) return false;
+
+      const updated = syncPlayerWallet(curState, personalCash + withdrawVal, cdbBalance - withdrawVal);
+
+      // Registra no extrato financeiro (ledger / transactions)
+      const curDate = curState?.date || curState?.currentDate || "2026-01-01";
+      if (ls) {
+        ls.transactions = Array.isArray(ls.transactions) ? ls.transactions : [];
+        ls.transactions.unshift({
+          date: curDate,
+          desc: withdrawVal === cdbBalance ? "Resgate Total CDB Esportivo" : "Resgate Parcial CDB Esportivo",
+          amount: withdrawVal,
+          type: "in"
+        });
+        if (ls.transactions.length > 20) ls.transactions = ls.transactions.slice(0, 20);
+      }
+      pState.ledger = Array.isArray(pState.ledger) ? pState.ledger : [];
+      pState.ledger.unshift({
+        date: curDate,
+        desc: withdrawVal === cdbBalance ? "Resgate Total CDB Esportivo" : "Resgate Parcial CDB Esportivo",
+        amount: +withdrawVal
+      });
+
+      const msg = `💰 Resgate de R$ ${withdrawVal.toLocaleString("pt-BR")} creditado na Conta Pessoal!`;
+      if (typeof showCustomAlert === "function") {
+        showCustomAlert({ title: "Resgate Concluído! 💰", message: msg, type: "success" });
+      } else if (typeof showToast === "function") {
+        showToast(msg, "good");
+      } else if (typeof window.toast === "function") {
+        window.toast(msg);
+      }
+
+      if (typeof window.save === "function") window.save();
+      if (typeof window.render === "function") window.render();
+      return true;
+    } finally {
+      _cdbTxLock = false;
+    }
+  }
+
+  function depositCdb(gameState, amount = 500) {
+    const ok = depositToPlayerCdb(gameState, amount);
+    const { personalCash, cdbBalance } = getPlayerWallet(gameState);
     return {
-      success: true,
-      message: `R$ ${amt.toLocaleString("pt-BR")} aplicados no CDB Esportivo! Saldo total no CDB: R$ ${ls.investments.cdbBalance.toLocaleString("pt-BR")}.`,
+      success: Boolean(ok),
+      message: ok
+        ? `R$ ${amount.toLocaleString("pt-BR")} aplicados no CDB! Saldo total no CDB: R$ ${cdbBalance.toLocaleString("pt-BR")}.`
+        : "Saldo insuficiente para aplicar no CDB."
     };
   }
 
   function withdrawCdb(gameState) {
-    const { pState, state } = resolveContext(gameState);
-    if (!pState) return { success: false, message: "Estado inválido." };
-    const ls = ensurePlayerLifestyleState(pState);
-    const balance = Number(ls.investments.cdbBalance) || 0;
-
-    if (balance <= 0) {
-      return {
-        success: false,
-        message: "Você não possui saldo investido no CDB para resgatar.",
-      };
-    }
-
-    const curDate = state?.date || state?.currentDate || "2026-01-01";
-    ls.investments.cdbBalance = 0;
-    addPlayerTransaction(
-      pState,
-      curDate,
-      `Resgate Total CDB Esportivo`,
-      balance,
-      "in",
-    );
-    updatePlayerFinancialDisplay(pState);
-
+    const { cdbBalance: prevBalance } = getPlayerWallet(gameState);
+    const ok = withdrawFromPlayerCdb(gameState);
     return {
-      success: true,
-      message: `Resgate de R$ ${balance.toLocaleString("pt-BR")} creditado na sua conta com sucesso!`,
+      success: Boolean(ok),
+      message: ok
+        ? `Resgate de R$ ${prevBalance.toLocaleString("pt-BR")} creditado na sua conta com sucesso!`
+        : "Você não possui saldo investido no CDB para resgatar."
     };
   }
 
-  function buyRentalUnit(gameState) {
+    function buyRentalUnit(gameState) {
     const { pState, state } = resolveContext(gameState);
     if (!pState) return { success: false, message: "Estado inválido." };
     const ls = ensurePlayerLifestyleState(pState);
@@ -1555,6 +1768,10 @@
     dismissStaffMember,
     buyAssetCash,
     financeAsset,
+    getPlayerWallet,
+    syncPlayerWallet,
+    depositToPlayerCdb,
+    withdrawFromPlayerCdb,
     depositCdb,
     withdrawCdb,
     buyRentalUnit,
@@ -1567,6 +1784,10 @@
 
   if (typeof window !== "undefined") {
     window.AFM_Lifestyle = AFM_Lifestyle;
+    window.getPlayerWallet = getPlayerWallet;
+    window.syncPlayerWallet = syncPlayerWallet;
+    window.depositToPlayerCdb = depositToPlayerCdb;
+    window.withdrawFromPlayerCdb = withdrawFromPlayerCdb;
     if (window.AFM_PlayerEngine) {
       window.AFM_PlayerEngine.lifestyle = AFM_Lifestyle;
     }

@@ -31019,6 +31019,10 @@ function shell(main){
 
   // Força Geral do Elenco e Prestígio do Treinador (ou Atleta no Modo Jogador)
   const isPlayerMode = Boolean(state?.gameMode === 'player' || state?.playerCareerState || state?.controlledPlayerId);
+  const modeCtx = (typeof resolveModeContext === 'function')
+    ? resolveModeContext(state)
+    : { isPlayer: isPlayerMode, isManager: !isPlayerMode };
+  const isPlayer = Boolean(modeCtx.isPlayer);
   const pState = state?.playerCareerState;
   const athlete = (typeof getControlledPlayer === 'function')
     ? getControlledPlayer(state)
@@ -31099,23 +31103,57 @@ function shell(main){
           </button>
         </div>
 
-        <!-- BLOCO CENTRAL: RECURSOS (FORÇA DO TIME, PRESTÍGIO DO TREINADOR, DINHEIRO) -->
+        <!-- BLOCO CENTRAL: RECURSOS (FORÇA DO TIME, PRESTÍGIO DO TREINADOR, DINHEIRO / CARREIRA ATLETA) -->
         <div class="sm-top-center">
-          <div class="sm-res-badge sm-badge-strength" id="btnTopQuickTeamStrengthCard" title="${strengthTitle}" style="cursor:pointer">
-            <span class="sm-res-icon">⭐</span>
-            <span class="sm-res-val">${teamOvr} OVR</span>
-            <span class="sm-res-add" id="btnTopQuickTeamStrength" title="${strengthAddTitle}">+</span>
-          </div>
-          <div class="sm-res-badge sm-badge-prestige" id="btnTopQuickPrestigeCard" title="${prestigeTitle}" style="cursor:pointer">
-            <span class="sm-res-icon">🎖️</span>
-            <span class="sm-res-val">${coachPrestige} pts</span>
-            <span class="sm-res-add" id="btnTopQuickPrestige" title="${prestigeAddTitle}">+</span>
-          </div>
-          <div class="sm-res-badge sm-badge-cash" title="${displayCashTitle}">
-            <span class="sm-res-icon">💵</span>
-            <span class="sm-res-val">${displayCashVal}</span>
-            <span class="sm-res-add" id="btnTopQuickCash" title="${cashAddTitle}">+</span>
-          </div>
+          ${isPlayer ? (function(){
+            const wallet = (typeof getPlayerWallet === 'function')
+              ? getPlayerWallet(state)
+              : (window.AFM_Lifestyle?.getPlayerWallet ? window.AFM_Lifestyle.getPlayerWallet(state) : { personalCash: personalBank, cdbBalance: Number(pState?.lifestyle?.investments?.cdbBalance || 0) });
+            const pCash = wallet.personalCash;
+            const pCdb = wallet.cdbBalance;
+            const pLevel = Number(pState?.level || 1);
+            const freePts = Number(pState?.skillPoints ?? pState?.availablePoints ?? 0);
+            const fmtMoney = (v) => `R$ ${Math.round(v).toLocaleString('pt-BR')}`;
+
+            return `
+              <div class="sm-res-badge sm-badge-strength" id="btnTopQuickTeamStrengthCard" data-view="player_evolution" title="Overall do Atleta: ${athleteOvr}" style="cursor:pointer">
+                <span class="sm-res-icon">⭐</span>
+                <span class="sm-res-val">${athleteOvr} OVR</span>
+                <span class="sm-res-add" id="btnTopQuickTeamStrength" title="Meu Atleta & Treino">+</span>
+              </div>
+              <div class="sm-res-badge sm-badge-prestige" id="btnTopQuickPrestigeCard" data-view="player_evolution" title="Nível ${pLevel} · ${freePts} pts livres para atributos" style="cursor:pointer">
+                <span class="sm-res-icon">🏅</span>
+                <span class="sm-res-val">Nv. ${pLevel}</span>
+                <span class="sm-res-add" id="btnTopQuickPrestige" title="Evolução & Nível">+</span>
+              </div>
+              <div class="sm-res-badge sm-badge-cash" id="btnTopPersonalCashCard" data-view="player_lifestyle" title="Saldo Disponível na Conta Pessoal: ${fmtMoney(pCash)}" style="cursor:pointer">
+                <span class="sm-res-icon">💵</span>
+                <span class="sm-res-val">${fmtMoney(pCash)}</span>
+                <span class="sm-res-add" id="btnTopQuickCash" title="Conta Pessoal">+</span>
+              </div>
+              <div class="sm-res-badge sm-badge-energy" id="btnTopCdbCard" data-view="player_lifestyle" title="Saldo Investido no CDB (1.1%/mês): ${fmtMoney(pCdb)}" style="cursor:pointer;border-color:rgba(56,189,248,0.45)">
+                <span class="sm-res-icon">🏦</span>
+                <span class="sm-res-val" style="color:#38bdf8">CDB ${fmtMoney(pCdb)}</span>
+                <span class="sm-res-add" id="btnTopQuickCdb" title="Investir / Resgatar CDB">+</span>
+              </div>
+            `;
+          })() : `
+            <div class="sm-res-badge sm-badge-strength" id="btnTopQuickTeamStrengthCard" title="${strengthTitle}" style="cursor:pointer">
+              <span class="sm-res-icon">⭐</span>
+              <span class="sm-res-val">${teamOvr} OVR</span>
+              <span class="sm-res-add" id="btnTopQuickTeamStrength" title="${strengthAddTitle}">+</span>
+            </div>
+            <div class="sm-res-badge sm-badge-prestige" id="btnTopQuickPrestigeCard" title="${prestigeTitle}" style="cursor:pointer">
+              <span class="sm-res-icon">🎖️</span>
+              <span class="sm-res-val">${coachPrestige} pts</span>
+              <span class="sm-res-add" id="btnTopQuickPrestige" title="${prestigeAddTitle}">+</span>
+            </div>
+            <div class="sm-res-badge sm-badge-cash" title="${displayCashTitle}">
+              <span class="sm-res-icon">💵</span>
+              <span class="sm-res-val">${displayCashVal}</span>
+              <span class="sm-res-add" id="btnTopQuickCash" title="${cashAddTitle}">+</span>
+            </div>
+          `}
         </div>
 
         <!-- BLOCO DIREITO: AÇÕES + BOTÃO CONTINUAR VERDE NEON -->
@@ -43609,10 +43647,21 @@ function bind(){
   const bQuickPrestige = $('#btnTopQuickPrestige');
   if(bQuickPrestige) bQuickPrestige.onclick = () => { setGameView('carreira'); render(); };
   const bQuickPrestigeCard = $('#btnTopQuickPrestigeCard');
-  if(bQuickPrestigeCard) bQuickPrestigeCard.onclick = () => { setGameView('carreira'); render(); };
+  if(bQuickPrestigeCard) bQuickPrestigeCard.onclick = () => {
+    const isPl = (typeof resolveModeContext === 'function' && resolveModeContext(state)?.isPlayer) || state?.gameMode === 'player';
+    setGameView(isPl ? 'player_evolution' : 'carreira');
+    render();
+  };
 
   const bQuickCash = $('#btnTopQuickCash');
-  if(bQuickCash) bQuickCash.onclick = () => { setGameView('escritorio'); render(); };
+  if(bQuickCash) bQuickCash.onclick = () => {
+    const isPl = (typeof resolveModeContext === 'function' && resolveModeContext(state)?.isPlayer) || state?.gameMode === 'player';
+    setGameView(isPl ? 'player_lifestyle' : 'escritorio');
+    render();
+  };
+
+  const bQuickCdb = $('#btnTopQuickCdb');
+  if(bQuickCdb) bQuickCdb.onclick = () => { setGameView('player_lifestyle'); render(); };
   const dSearch=$('#drawerQuickSearch'); if(dSearch) dSearch.onkeydown=(e)=>{ if(e.key==='Enter'){ setGameView('mercado'); render(); } };
 
   const bToggleSnd = $('#btnToggleSoundTop');
