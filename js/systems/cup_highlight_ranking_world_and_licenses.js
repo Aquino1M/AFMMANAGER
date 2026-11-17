@@ -420,10 +420,14 @@
       }
     }
 
+    var pInfo = (typeof window.getUnifiedManagerPrestige === 'function')
+      ? window.getUnifiedManagerPrestige(st)
+      : { pts: user.pts, level: user.level, titlesCount: user.titles, license: user.license.name };
+
     existingTopSlot.innerHTML =
       '<div style="background:rgba(15,23,42,0.75);border:1px solid rgba(168,85,247,0.55);border-radius:12px;padding:8px 14px;text-align:left;">' +
-        '<div style="font-size:9px;font-weight:800;color:#cbd5e1;letter-spacing:0.6px;text-transform:uppercase;">NÍVEL DE PRESTÍGIO NO SAVE · ' + user.license.name.toUpperCase() + '</div>' +
-        '<div style="font-size:13px;font-weight:900;color:#facc15;margin-top:2px;">⭐ Nível ' + user.level + '/99 (' + user.pts + ' pts · ' + user.titles + ' Títulos)</div>' +
+        '<div style="font-size:9px;font-weight:800;color:#cbd5e1;letter-spacing:0.6px;text-transform:uppercase;">NÍVEL DE PRESTÍGIO NO SAVE · ' + pInfo.license.toUpperCase() + '</div>' +
+        '<div style="font-size:13px;font-weight:900;color:#facc15;margin-top:2px;">⭐ Nível ' + pInfo.level + '/99 (' + pInfo.pts + ' pts · ' + pInfo.titlesCount + (pInfo.titlesCount === 1 ? ' Título' : ' Títulos') + ')</div>' +
       '</div>' +
       '<button id="btn-open-save-coaches-rk" type="button" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.45);white-space:nowrap;">' +
         '🏆 VER RANKING & TODOS OS TÉCNICOS' +

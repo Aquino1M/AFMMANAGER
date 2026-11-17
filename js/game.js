@@ -81,6 +81,13 @@ if (typeof window !== 'undefined') {
   window.newsOnlyMyClub = Boolean(window.newsOnlyMyClub);
   window.calendarFilter = window.calendarFilter || 'ALL';
   window.calendarCompFilter = window.calendarCompFilter || 'ALL';
+  window.seasonTab = window.seasonTab || 'estadual';
+  window.seasonTableFilter = window.seasonTableFilter || 'geral';
+  window.estPhase = window.estPhase || 'primeira_fase';
+  window.statsTab = window.statsTab || 'artilharia';
+  window.statsOnlyMyClub = Boolean(window.statsOnlyMyClub);
+  window.changelogFilter = window.changelogFilter || 'all';
+  window.changelogSearch = window.changelogSearch || '';
 }
 const STORAGE='aquino_futebol_manager_2026_v1';
 const fmtMoney=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(Number(v)||0);
@@ -1907,6 +1914,9 @@ let continentalCategory='internacional';
 let continentalPhase='';
 let configTab='save';
 let auditCompFilter='all';
+let statsOnlyMyClub=false;
+let changelogFilter='all';
+let changelogSearch='';
 
 function getAuditClubsList(filter){
   const tMap = window.COMPETITION_TEAMS || {};
@@ -6472,6 +6482,16 @@ function openScoutPromiseModal(){
 // -------------------------------------------------------------
 // ABA NOVIDADES E CORREÇÕES (SCREENSHOT 2)
 // -------------------------------------------------------------
+function formatChangelogText(rawText, managerName) {
+  if (!rawText) return '';
+  let text = String(rawText);
+  const mName = (managerName || (typeof state !== 'undefined' && (state?.managerName || state?.manager)) || 'TÉC. AQUINO').toUpperCase();
+  text = text.replace(/TÉC\.\s+AQUINO/gi, mName);
+  text = text.replace(/`([^`]+)`/g, '<code style="background:rgba(139,92,246,0.2);color:#c4b5fd;padding:1px 6px;border-radius:5px;font-family:monospace;font-size:11.5px;">$1</code>');
+  return text;
+}
+window.formatChangelogText = formatChangelogText;
+
 function changelogPage(){
   if (typeof window !== 'undefined' && window.AFM_Changelog14Out && typeof window.AFM_Changelog14Out.renderChangelogMarkup === 'function') {
     return window.AFM_Changelog14Out.renderChangelogMarkup();
@@ -12899,6 +12919,66 @@ function ensureManagerNewsHydrated(targetState = state) {
   return list;
 }
 window.ensureManagerNewsHydrated = ensureManagerNewsHydrated;
+
+// -------------------------------------------------------------
+// UNIFICAÇÃO DE PRESTÍGIO, DATAS E ECONOMIA DO TREINADOR
+// -------------------------------------------------------------
+function parseSafeLocalDate(rawDate) {
+  if (!rawDate) return new Date(2026, 0, 1, 12, 0, 0);
+  if (rawDate instanceof Date) return rawDate;
+  const str = String(rawDate).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d, 12, 0, 0);
+  }
+  const parsed = new Date(str);
+  return Number.isNaN(parsed.getTime()) ? new Date(2026, 0, 1, 12, 0, 0) : parsed;
+}
+window.parseSafeLocalDate = parseSafeLocalDate;
+
+function getUnifiedManagerPrestige(state) {
+  const s = state || window.state || {};
+  const pts = Math.max(0, Number(s.managerPrestige ?? s.coachPrestige ?? s.prestige ?? 5) || 0);
+  const titlesList = Array.isArray(s.managerTitles)
+    ? s.managerTitles
+    : (Array.isArray(s.trophies) ? s.trophies : (Array.isArray(s.titles) ? s.titles : []));
+  const titlesCount = typeof s.titlesCount === 'number' ? s.titlesCount : titlesList.length;
+  const level = Math.min(99, Math.max(1, Math.floor(pts / 15) + 1));
+  let license = 'LICENÇA CBF D (INICIANTE)';
+  if (level >= 60) license = 'LICENÇA UEFA PRO (LENDA)';
+  else if (level >= 40) license = 'LICENÇA CBF PRO (ELITE)';
+  else if (level >= 25) license = 'LICENÇA CBF A (NACIONAL)';
+  else if (level >= 12) license = 'LICENÇA CBF B (REGIONAL)';
+  else if (level >= 5) license = 'LICENÇA CBF C (FORMAÇÃO)';
+  return { pts, level, titlesCount, license };
+}
+window.getUnifiedManagerPrestige = getUnifiedManagerPrestige;
+
+function ensureManagerEconomyHydrated(state) {
+  const s = state || window.state;
+  if (!s) return;
+  if (typeof s.personalCash !== 'number' || Number.isNaN(s.personalCash)) {
+    s.personalCash = Number(s.managerCash ?? s.managerMoney ?? 104250) || 104250;
+  }
+  if (!s.managerPersonal) s.managerPersonal = {};
+  if (typeof s.managerPersonal.personalBalance !== 'number') {
+    s.managerPersonal.personalBalance = s.personalCash;
+  }
+  if (!Array.isArray(s.ownedProperties)) s.ownedProperties = [];
+  if (!Array.isArray(s.ownedBusinesses)) s.ownedBusinesses = [];
+  if (!Array.isArray(s.ownedVehicles)) s.ownedVehicles = [];
+  if (!Array.isArray(s.safShares)) s.safShares = [];
+  if (!Array.isArray(s.salaryHistory)) s.salaryHistory = [];
+  if (!s.careerSubTab) s.careerSubTab = 'trainer';
+
+  if (!Array.isArray(s.managerPersonal.properties)) s.managerPersonal.properties = s.ownedProperties;
+  if (!Array.isArray(s.managerPersonal.businesses)) s.managerPersonal.businesses = s.ownedBusinesses;
+  if (!Array.isArray(s.managerPersonal.vehicles)) s.managerPersonal.vehicles = s.ownedVehicles;
+  if (!s.managerPersonal.safPortfolio || typeof s.managerPersonal.safPortfolio !== 'object') {
+    s.managerPersonal.safPortfolio = {};
+  }
+}
+window.ensureManagerEconomyHydrated = ensureManagerEconomyHydrated;
 
 function playersForClub(club,worldGenerated){
   const live=livePlayers.filter(p=>norm(p.club)===norm(club)).map((p,i)=>({...p,id:p.id||`live-${hashStr(playerKey(p))}`,marketKey:playerKey(p),morale:p.morale??70,fitness:p.fitness??100,owned:true,value:calcValueMi(p)}));
@@ -32603,6 +32683,7 @@ function page(){
 // CENTRAL
 // -------------------------------------------------------------
 function careerPage(){
+  if (typeof ensureManagerEconomyHydrated === 'function') ensureManagerEconomyHydrated(state);
   return `
     <div class="hero">
       <div>
@@ -39937,7 +40018,9 @@ function seasonPage(){
     ` : ''}
 
     ${seasonTab === 'nacional' ? (() => {
-      const activeNatId = (typeof nationalDivision !== 'undefined' && nationalDivision) || 'bra-a';
+      const activeNatId = (typeof nationalDivision !== 'undefined' && nationalDivision && nationalDivision !== 'bra-a')
+        ? nationalDivision
+        : (userNatDivId || nationalDivision || 'bra-a');
       const natComp = typeof compById === 'function' ? compById(activeNatId) : { name: 'Série A', rule: '' };
       const isSérieA = activeNatId === 'bra-a';
       const natStandings = typeof getNationalCompetitionStandings === 'function' ? getNationalCompetitionStandings(activeNatId) : [];
@@ -40183,6 +40266,14 @@ function seasonPage(){
         displayStatsList = Array.isArray(estStats.scorers) ? estStats.scorers : [];
       }
 
+      if (window.statsOnlyMyClub) {
+        const myClubNorm = (typeof norm === 'function' ? norm(state?.club) : String(state?.club || '').toLowerCase());
+        displayStatsList = displayStatsList.filter(item => {
+          const cNorm = (typeof norm === 'function' ? norm(item.club) : String(item.club || '').toLowerCase());
+          return cNorm === myClubNorm;
+        });
+      }
+
       return `
         <!-- Seletor Global de Campeonatos Estaduais -->
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px;background:rgba(255,255,255,0.03);padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.08)">
@@ -40318,7 +40409,7 @@ function seasonPage(){
                   ` : ''}
                   ${ctx.isManager ? `
                     <div style="padding-left:12px;border-left:1px solid rgba(255,255,255,0.1)">
-                      <button type="button" class="btn primary" onclick="view='meutime';render();" style="font-size:11px;font-weight:900;padding:6px 14px;border-radius:8px">
+                      <button type="button" id="btnSeasonGoToTactics" data-view="meutime" class="btn primary" style="font-size:11px;font-weight:900;padding:6px 14px;border-radius:8px">
                         ⚡ Ir para Meu Time & Tática
                       </button>
                     </div>
@@ -40490,8 +40581,13 @@ function seasonPage(){
                 🟨 CARTÕES
               </button>
             </div>
-            <div style="font-size:11px;font-weight:900;letter-spacing:1px;color:rgba(255,255,255,0.5);text-transform:uppercase">
-              ${statMetricHeader}
+            <div style="display:flex;align-items:center;gap:10px">
+              <button type="button" id="btnToggleStatsOnlyClub" class="btn" style="font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px;cursor:pointer;${window.statsOnlyMyClub ? 'background:#7c3aed;color:#fff;border:none' : 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)'}">
+                ${window.statsOnlyMyClub ? '🛡️ Meu Clube' : '🏆 Todos'}
+              </button>
+              <div style="font-size:11px;font-weight:900;letter-spacing:1px;color:rgba(255,255,255,0.5);text-transform:uppercase">
+                ${statMetricHeader}
+              </div>
             </div>
           </div>
 
@@ -44691,12 +44787,23 @@ function bind(){
   const btnGenX1 = $('#btnExportMyX1Token');
   if(btnGenX1 && window.AFM_X1System){
     btnGenX1.onclick = () => {
-      const token = window.AFM_X1System.exportSquadX1Token(state);
-      if(navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(token);
-        toast('📋 Código X1 copiado para a área de transferência! Envie para o adversário.');
-      } else {
-        prompt('Copie seu código X1:', token);
+      try {
+        const token = window.AFM_X1System.exportSquadX1Token(state);
+        const inp = $('#inputOpponentX1Token');
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(token);
+          toast('📋 Código X1 copiado com sucesso! Envie para o adversário.');
+        } else if (inp) {
+          inp.value = token;
+          toast('📋 Código X1 gerado e preenchido!');
+        } else {
+          prompt('Copie seu código X1:', token);
+        }
+        const oldText = btnGenX1.innerHTML;
+        btnGenX1.textContent = '✅ Código X1 Copiado!';
+        setTimeout(() => { if(btnGenX1) btnGenX1.innerHTML = oldText; }, 2500);
+      } catch(e) {
+        toast('⚠️ Erro ao gerar código X1.');
       }
     };
   }
@@ -44706,31 +44813,42 @@ function bind(){
     btnDuelX1.onclick = () => {
       const inp = $('#inputOpponentX1Token');
       const token = inp ? inp.value.trim() : '';
+      const resContainer = $('#afm-x1-result-container');
       if(!token){
         toast('⚠️ Cole o código X1 do adversário antes de simular!');
+        if(resContainer){
+          resContainer.style.display = 'block';
+          resContainer.innerHTML = `<div style="background:#7f1d1d;color:#fecaca;padding:10px;border-radius:8px;font-weight:700;">⚠️ Cole o código X1 do adversário no campo acima antes de disputar o duelo!</div>`;
+        }
         return;
       }
-      const res = window.AFM_X1System.importAndSimulateX1Challenge(state, token);
-      const resContainer = $('#afm-x1-result-container');
-      if(resContainer){
-        resContainer.style.display = 'block';
-        if(!res.ok){
-          resContainer.innerHTML = `<div style="background:#7f1d1d;color:#fecaca;padding:10px;border-radius:8px;font-weight:700;">${res.message}</div>`;
-        } else {
-          const win = res.myGoals > res.oppGoals;
-          const draw = res.myGoals === res.oppGoals;
-          resContainer.innerHTML = `
-            <div style="background:#090d16;border:1px solid #10b981;border-radius:10px;padding:14px;text-align:center;">
-              <div style="font-size:12px;color:#a78bfa;font-weight:800;">RESULTADO DO DUELO X1</div>
-              <div style="font-size:24px;font-weight:900;margin:8px 0;color:#fff;">
-                ${esc(state.club)} <span style="color:#10b981;">${res.myGoals}</span> x <span style="color:#ef4444;">${res.oppGoals}</span> ${esc(res.opponent.club || 'Rival')}
+      try {
+        const res = window.AFM_X1System.importAndSimulateX1Challenge(state, token);
+        if(resContainer){
+          resContainer.style.display = 'block';
+          if(!res || !res.ok){
+            resContainer.innerHTML = `<div style="background:#7f1d1d;color:#fecaca;padding:10px;border-radius:8px;font-weight:700;">${(res && res.message) || 'Código X1 inválido ou corrompido! Peça um novo código ao adversário.'}</div>`;
+          } else {
+            const win = res.myGoals > res.oppGoals;
+            const draw = res.myGoals === res.oppGoals;
+            resContainer.innerHTML = `
+              <div style="background:#090d16;border:1px solid #10b981;border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:12px;color:#a78bfa;font-weight:800;">RESULTADO DO DUELO X1</div>
+                <div style="font-size:24px;font-weight:900;margin:8px 0;color:#fff;">
+                  ${esc(state.club)} <span style="color:#10b981;">${res.myGoals}</span> x <span style="color:#ef4444;">${res.oppGoals}</span> ${esc(res.opponent.club || 'Rival')}
+                </div>
+                <div style="font-size:12px;color:#cbd5e1;">Técnico Rival: <b>${esc(res.opponent.manager || 'Adversário')}</b> | Postura: <b>${esc(res.opponent.posture || 'Equilibrada')}</b></div>
+                <div style="margin-top:8px;font-weight:800;color:${win ? '#22c55e' : draw ? '#facc15' : '#ef4444'};">
+                  ${win ? '🏆 VITÓRIA DO SEU TIME NO DUELO TÁTICO!' : draw ? '⚖️ EMPATE DISPUTADO!' : '❌ O ADVERSÁRIO VENCEU O CONFRONTO!'}
+                </div>
               </div>
-              <div style="font-size:12px;color:#cbd5e1;">Técnico Rival: <b>${esc(res.opponent.manager || 'Adversário')}</b> | Postura: <b>${esc(res.opponent.posture || 'Equilibrada')}</b></div>
-              <div style="margin-top:8px;font-weight:800;color:${win ? '#22c55e' : draw ? '#facc15' : '#ef4444'};">
-                ${win ? '🏆 VITÓRIA DO SEU TIME NO DUELO TÁTICO!' : draw ? '⚖️ EMPATE DISPUTADO!' : '❌ O ADVERSÁRIO VENCEU O CONFRONTO!'}
-              </div>
-            </div>
-          `;
+            `;
+          }
+        }
+      } catch (err) {
+        if(resContainer){
+          resContainer.style.display = 'block';
+          resContainer.innerHTML = `<div style="background:#7f1d1d;color:#fecaca;padding:10px;border-radius:8px;font-weight:700;">⚠️ Código X1 inválido ou formato incorreto. Certifique-se de copiar o código completo.</div>`;
         }
       }
     };
@@ -46111,6 +46229,46 @@ function bind(){
         }
       };
     });
+
+    const bToggleStatsClub = $('#btnToggleStatsOnlyClub');
+    if(bToggleStatsClub){
+      bToggleStatsClub.onclick = () => {
+        window.statsOnlyMyClub = !window.statsOnlyMyClub;
+        render();
+      };
+    }
+
+    const bSeasonGoTactics = $('#btnSeasonGoToTactics');
+    if(bSeasonGoTactics){
+      bSeasonGoTactics.onclick = (e) => {
+        e.preventDefault();
+        view = 'meutime';
+        render();
+      };
+    }
+  }
+
+  if(view==='novidades'){
+    $$('.btn-changelog-cat').forEach(b => {
+      b.onclick = () => {
+        window.changelogFilter = b.dataset.cat || 'all';
+        render();
+      };
+    });
+    const inputSearch = $('#inputChangelogSearch');
+    if(inputSearch){
+      inputSearch.oninput = (e) => {
+        window.changelogSearch = e.target.value;
+        const q = (e.target.value || '').toLowerCase().trim();
+        $$('.changelog-day-card').forEach(card => {
+          const text = (card.textContent || '').toLowerCase();
+          card.style.display = (!q || text.includes(q)) ? '' : 'none';
+        });
+      };
+      inputSearch.onkeydown = (e) => {
+        if(e.key === 'Enter') render();
+      };
+    }
   }
 
   if(view==='config'){

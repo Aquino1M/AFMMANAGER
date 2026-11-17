@@ -1331,6 +1331,9 @@
     renderLifeAndSharesUI(containerId, state) {
       const container = (typeof document !== 'undefined' && typeof containerId === 'string') ? document.getElementById(containerId) : containerId;
       if (!container) return;
+      if (typeof window.ensureManagerEconomyHydrated === 'function') {
+        window.ensureManagerEconomyHydrated(state);
+      }
       const careerDataNeedsMigration = !state?.managerPersonal || state.managerPersonal.balanceMigrationV2 !== true ||
         (Number(state.managerMoney) > 0 && Number(state.managerPersonal?.personalBalance) === 0) ||
         (Number(state.coachPrestige) > Number(state.managerPersonal?.prestigeScore || 0));
@@ -1370,16 +1373,26 @@
       const totalNetWorth = personalBalance + propertiesTotal + vehiclesTotal + businessesTotal + clubSharesValue + safPortfolioValue;
 
       const monthlySalary = mp.salary || 18000;
-      const previousSeason = Number(state.season) - 1;
+      const curYearSeason = state.year || state.season || 2026;
+      const previousSeason = Number(curYearSeason) - 1;
       const previousSalaryEntries = (state.managerFinanceHistory || []).filter(item => {
         const entryYear = String(item.date || '').match(/(?:^|\D)(\d{4})(?:\D|$)/)?.[1];
-        return Number(entryYear) === previousSeason && /salário mensal de técnico/i.test(String(item.desc || ''));
+        return Number(entryYear) === curYearSeason && /salário mensal de técnico/i.test(String(item.desc || ''));
       });
-      const previousSeasonRecord = (state.managerCareerHistory || []).find(item => Number(item.season) === previousSeason);
+      const previousSeasonRecord = (state.managerCareerHistory || []).find(item => Number(item.season) === curYearSeason);
       const previousSalary = previousSeasonRecord
         ? Number(previousSeasonRecord.salaryReceived) || 0
         : previousSalaryEntries.reduce((total, item) => total + Math.max(0, Number(item.amount) || 0), 0);
-      const currentPrestige = Math.min(99, Math.max(5, Number(mp.prestigeScore) || Number(state.coachPrestige) || 5));
+
+      const pInfo = (typeof window.getUnifiedManagerPrestige === 'function')
+        ? window.getUnifiedManagerPrestige(state)
+        : { pts: Math.min(99, Math.max(5, Number(mp.prestigeScore) || Number(state.coachPrestige) || 5)), level: 1, titlesCount: (state.titles || []).length, license: 'LICENÇA CBF D (INICIANTE)' };
+      const currentPrestige = pInfo.pts;
+      const userPts = pInfo.pts;
+      const userTitles = pInfo.titlesCount;
+      const userLevel = pInfo.level;
+      const userLicense = pInfo.license;
+
       const monthlyRent = (mp.properties || []).reduce((acc, p) => acc + (p.rentedOut ? (p.monthlyRent || 0) : 0), 0);
       const monthlyBiz = (mp.businesses || []).reduce((acc, b) => acc + (b.monthlyProfit || 0), 0);
       const monthlyClubDividend = mp.lastDividendReceivedByManager || managerDividendShare || 0;
@@ -1387,14 +1400,6 @@
 
       const userClubName = state.club || 'Meu Clube';
       const isAlreadySaf = this.isClubSaf(state, userClubName);
-
-      const userPts = (state.history || []).reduce((acc, h) => {
-        const isH = h.h === state.club;
-        const gf = isH ? h.hg : h.ag;
-        const ga = isH ? h.ag : h.hg;
-        return acc + (gf > ga ? 14 : gf === ga ? 4 : -6);
-      }, 54);
-      const userTitles = (state.titles || []).length;
 
       this.generateSafP2POffers(state);
       const p2pOffers = state.safP2POffers || [];
@@ -1473,7 +1478,7 @@
                 </div>
                 <h2 style="margin:4px 0 2px 0;font-size:22px;color:#fff;font-weight:900;">Téc. ${esc(mp.name || 'Aquino')}</h2>
                 <div style="font-size:12px;color:#cbd5e1;">
-                  Prestígio Social: <b style="color:#facc15;">★ ${currentPrestige} Pontos</b> | Clube: <b>${esc(userClubName)}</b>
+                  Prestígio Social: <b style="color:#facc15;">★ ${userPts} Pontos</b> | Clube: <b>${esc(userClubName)}</b>
                 </div>
               </div>
             </div>
@@ -1481,8 +1486,8 @@
             <!-- SLOT CENTRAL: PRESTÍGIO + BOTÕES DE RANKING E CURSOS -->
             <div id="afm-top-prestige-center-panel" style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;">
               <div style="background:rgba(15,23,42,0.75);border:1px solid rgba(168,85,247,0.55);border-radius:12px;padding:8px 14px;text-align:left;">
-                <div style="font-size:9px;font-weight:800;color:#cbd5e1;letter-spacing:0.6px;text-transform:uppercase;">NÍVEL DE PRESTÍGIO NO SAVE · ${this.getLicenseTitle(currentPrestige).toUpperCase()}</div>
-                <div style="font-size:13px;font-weight:900;color:#facc15;margin-top:2px;">⭐ Nível ${currentPrestige}/99 (${userPts} pts · ${userTitles} Títulos)</div>
+                <div style="font-size:9px;font-weight:800;color:#cbd5e1;letter-spacing:0.6px;text-transform:uppercase;">NÍVEL DE PRESTÍGIO NO SAVE · ${userLicense.toUpperCase()}</div>
+                <div style="font-size:13px;font-weight:900;color:#facc15;margin-top:2px;">⭐ Nível ${userLevel}/99 (${userPts} pts · ${userTitles} ${userTitles === 1 ? 'Título' : 'Títulos'})</div>
               </div>
               <button id="btn-open-save-coaches-rk" type="button" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.45);white-space:nowrap;">
                 🏆 VER RANKING & TODOS OS TÉCNICOS
@@ -1502,13 +1507,13 @@
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:-8px">
             <div style="background:#111827;border:1px solid rgba(56,189,248,.25);border-radius:10px;padding:12px 14px">
-              <div style="font-size:10px;font-weight:800;color:#7dd3fc;letter-spacing:.5px;text-transform:uppercase">Salário recebido na temporada ${previousSeason}</div>
+              <div style="font-size:10px;font-weight:800;color:#7dd3fc;letter-spacing:.5px;text-transform:uppercase">Salário recebido na temporada ${curYearSeason}</div>
               <div style="font-size:18px;font-weight:900;color:#fff;margin-top:4px">${previousSalaryEntries.length || previousSeasonRecord ? fmtMoney(previousSalary) : 'Sem registro'}</div>
               <div style="font-size:10px;color:#94a3b8;margin-top:3px">${previousSeasonRecord?.salaryMonths ?? previousSalaryEntries.length} pagamento(s) mensal(is) registrado(s)</div>
             </div>
             <div style="background:#111827;border:1px solid rgba(250,204,21,.25);border-radius:10px;padding:12px 14px">
               <div style="font-size:10px;font-weight:800;color:#facc15;letter-spacing:.5px;text-transform:uppercase">Prestígio atual</div>
-              <div style="font-size:18px;font-weight:900;color:#fff;margin-top:4px">★ ${currentPrestige} pontos</div>
+              <div style="font-size:18px;font-weight:900;color:#fff;margin-top:4px">★ ${userPts} pontos</div>
               <div style="font-size:10px;color:#94a3b8;margin-top:3px">${previousSeasonRecord ? `Na temporada ${previousSeasonRecord.season}: nível ${previousSeasonRecord.prestigeScore}` : 'Atualizado pelo desempenho da carreira'}</div>
             </div>
           </div>

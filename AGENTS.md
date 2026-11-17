@@ -165,6 +165,17 @@
      - Toda variável de filtro de UI (`window.newsCategoryFilter`, `window.newsSearchQuery`, `window.newsOnlyMyClub`, `window.calendarFilter`, `window.calendarCompFilter`, `window.marketFilterState`) DEVE ser inicializada no escopo global (`window.*`) antes de qualquer `render()`. Nunca referenciar filtros como variáveis implícitas não declaradas.
   3. HIDRATAÇÃO GARANTIDA DE CALENDÁRIO E NOTÍCIAS NO MODO TREINADOR:
      - Ao abrir `calendario` ou `noticias` (inclusive no Dia 1 `01/01/2026`), garantir que `state.schedule` / `state.fixtures` e `state.news` estejam populados com dados válidos do clube atual e livres de resíduos do `Modo Jogador`.
+- REGRA IRRESTRITA ESPECIAL — BLINDAGEM DAS ABAS CARREIRA, TEMPORADA, NOVIDADES E ESTADO GLOBAL:
+  1. UNIFICAÇÃO DE PRESTÍGIO E ECONOMIA DO TREINADOR:
+     - O prestígio (`state.managerPrestige`), nível (`calcManagerLevel(prestige)`) e títulos (`state.managerTitles`) DEVEM usar uma única função `getUnifiedManagerPrestige(state)` em todas as áreas (topbar, banner central da Carreira, card de Prestígio Atual e modais). É proibido exibir valores divergentes entre o cabeçalho e o painel central.
+     - Todo ano exibido na Carreira (`Salário recebido na temporada ${year}`) deve ser dinâmico (`state.year || state.season || 2026`), nunca hardcoded.
+     - `ensureManagerEconomyHydrated(state)` deve ser executado antes de renderizar `carreira` ou processar compras de imóveis, empresas, veículos, ações SAF ou duelos X1.
+  2. SINCRONIZAÇÃO DE DATAS E ROTAS NA ABA TEMPORADA:
+     - Toda string ISO `YYYY-MM-DD` deve ser parseada com `T12:00:00` (`parseSafeLocalDate`) para evitar recuo de 1 dia no fuso UTC-3.
+     - Todos os botões de atalho entre abas (incluindo `Ir para Meu Time & Tática` na Temporada) DEVEM conter `data-view="meutime"` e responder à delegação global de cliques.
+     - Todas as variáveis de filtro de view (`window.seasonTab`, `window.seasonTableFilter`, `window.estPhase`, `window.statsTab`, `window.statsOnlyMyClub`, `window.changelogFilter`, `window.changelogSearch`, `window.newsCategoryFilter`, `window.calendarFilter`) DEVEM ser inicializadas no escopo `window.*` antes de `render()`.
+  3. SANITIZAÇÃO E DINAMISMO EM NOVIDADES & CORREÇÕES:
+     - Nunca renderizar crases literais (`...`) como texto cru na aba `novidades`; converter automaticamente em `<code>...</code>` e substituir nomes hardcoded pelo nome do treinador ativo.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis

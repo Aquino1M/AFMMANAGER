@@ -7,12 +7,37 @@
 (function (window) {
   'use strict';
 
+  function formatChangelogText(rawText, managerName) {
+    if (!rawText) return '';
+    let text = String(rawText);
+    const mName = (managerName || (typeof window.state !== 'undefined' && (window.state?.managerName || window.state?.manager)) || 'TÉC. AQUINO').toUpperCase();
+    text = text.replace(/TÉC\.\s+AQUINO/gi, mName);
+    // Converte `...` em <code>...</code> com estilo consistente
+    text = text.replace(/`([^`]+)`/g, '<code style="background:rgba(139,92,246,0.2);color:#c4b5fd;padding:1px 6px;border-radius:5px;font-family:monospace;font-size:11.5px;">$1</code>');
+    return text;
+  }
+  window.formatChangelogText = formatChangelogText;
+
   const CHANGELOG_DAYS = [
+    {
+      date: '20 de Outubro de 2026',
+      version: 'v3.9.16 — Blindagem de Carreira, Sincronização da Temporada e Modernização do Changelog',
+      badge: 'ATUAL · BLINDAGEM GERAL',
+      badgeColor: '#10b981',
+      category: 'critical',
+      items: [
+        '⭐ [UNIFICAÇÃO DE PRESTÍGIO & ANO DINÂMICO] Topbar, banner central da Carreira e card de Prestígio 100% sincronizados via `getUnifiedManagerPrestige()`, exibindo o ano dinâmico da temporada ativa no extrato salarial.',
+        '🏆 [TEMPORADA & ROTEAMENTO BLINDADO] Botão "⚡ Ir para Meu Time & Tática" com roteamento explícito `data-view="meutime"`, datas sincronizadas com fuso local (`T12:00:00`) e filtro rápido "Meu Clube / Todos os Clubes" nas estatísticas.',
+        '⚔️ [BLINDAGEM DO MODO X1 & ECONOMIA DO TÉCNICO] Validação segura com `try/catch` contra códigos X1 corrompidos ou vazios, feedback visual ao copiar token e hidratação preventiva de bens, empresas e ações SAF.',
+        '📢 [NOVIDADES SANITIZADAS COM BUSCA & FILTROS] Renderização automática de tags `<code>` em trechos técnicos, substituição dinâmica pelo nome do treinador ativo e sistema de busca em tempo real com filtros por categoria.'
+      ]
+    },
     {
       date: '20 de Outubro de 2026',
       version: 'v3.9.15 — Retorno Fluido da Prévia, Coletiva Pós-Jogo na Central, Motor 3D Realista, Fim do Bug 901:57 & Copinha Sub-20',
       badge: 'HOJE · 20 DE OUTUBRO',
       badgeColor: '#10b981',
+      category: 'critical',
       items: [
         '🔙 [RETORNO DA PRÉVIA AO POPUP DA PARTIDA] Fechar a tela de Prévia Oficial (pelo botão [✕], "Fechar", clique externo ou tecla Esc) agora retorna com precisão para a janela de decisão da partida (Jogar ao Vivo, Simular ou Prévia), mantendo o fluxo contínuo de comando.',
         '🎙️ [COLETIVA DE IMPRENSA PÓS-JOGO NA CENTRAL] Entrevista com repórteres e coletiva obrigatória ao fim de qualquer jogo do clube com impacto na moral e redirecionamento 100% automático para o menu Central.',
@@ -30,6 +55,7 @@
       version: 'v3.9.12 — Sistema Oficial de XP e Evolução em Campo, Resumo Mensal, Botão Único Tático e Filtro Estrito de Competições',
       badge: 'EVOLUÇÃO & INTERFACE',
       badgeColor: '#8b5cf6',
+      category: 'ui',
       items: [
         '⚡ [SISTEMA OFICIAL DE XP EM CAMPO] Progressão por minutagem em campo, notas de atuação (5.0 a 10.0) e bônus expressivos por gols (+40 XP), assistências (+25 XP), clean sheets (+35 XP) e vitórias (+15 XP).',
         '🚀 [MECÂNICA "IR ALÉM" / BREAKTHROUGH] Jovens prodígios (≤ 24 anos) com médias altas superam o teto de potencial inicial (+1 a +2 POT), rompendo limites com celebração da torcida.',
@@ -46,6 +72,7 @@
       version: 'v3.9.10 — Otimização Desktop/Mobile, Auto-Save no X, Força do Time & Prestígio no Topo e Decisão Interativa no Continuar',
       badge: 'LAYOUT & NAVEGAÇÃO',
       badgeColor: '#3b82f6',
+      category: 'ui',
       items: [
         '💻 [OCULTAÇÃO DO MENU NO PC] O botão de menu hambúrguer ☰ foi ocultado no desktop onde a barra lateral já é permanente, permanecendo ativo e responsivo em smartphones e tablets.',
         '💾 [BOTÃO "X" COM AUTO-SAVE] Clicar no botão [✕] de saída salva automaticamente o progresso da carreira no armazenamento local antes de redirecionar para a tela inicial.',
@@ -60,6 +87,7 @@
       version: 'v3.0.0 — Super Atualização: Motor de Jogo 3D Realista, VAR na TV, Alternador Copa/Libertadores & Blindagem Total de Avanço',
       badge: 'MOTOR 3D & BLINDAGEM',
       badgeColor: '#64748b',
+      category: '3d',
       items: [
         '🛡️ [REGRA CRÍTICA: BLINDAGEM DE AVANÇO] Correção definitiva dos botões "Avançar Dia (1 de 4)", "Avançar 6 Horas" (Deadline Day), "Pular Janela / Pré-Temporada" e "+1 Dia". Criada a função advanceTransferWindow(), amarração direta na bind(), fallback delegado global no documento e sincronização instantânea de data no topo da tela.',
         '⚽ [MOTOR DE JOGO REALISTA 3D] Carrinhos e desarmes deslizantes no chão com rastro/marcas físicas na grama (skid marks) e queda natural de atletas.',
@@ -78,6 +106,7 @@
       version: 'v2.8.0 — Hotfix Geral de Abas, Simulador de Vida, Cotas Realistas & Fotos',
       badge: 'HOTFIX GERAL & SIMULADOR',
       badgeColor: '#6366f1',
+      category: 'career',
       items: [
         '🛠️ [CORREÇÃO CRÍTICA] Resolvido o erro `(state.bankLoans || []).reduce is not a function` que bloqueava a abertura da aba 🏢 Escritório.',
         '🛠️ [CORREÇÃO CRÍTICA] Resolvido o erro `(state.bankLoans || []).some is not a function` que bloqueava a abertura da aba 🏗️ Estrutura & Estádio.',
@@ -93,6 +122,7 @@
       version: 'v2.7.0 — Organização Mundial de Ligas, Pirâmide Real & Save Isolado',
       badge: 'LIGAS & SAVE INDIVIDUAL',
       badgeColor: '#8b5cf6',
+      category: 'career',
       items: [
         '⚽ [CAMPEONATOS 100% FIÉIS] Divisões exatas no Brasil (Séries A, B, C, D e Estaduais), América do Sul, Europa e Ásia.',
         '🔄 [PROMOÇÃO E REBAIXAMENTO] Subidas, descidas, playoffs e vagas continentais operando 100% isolados no save individual de cada utilizador.',
@@ -104,6 +134,7 @@
       version: 'v2.6.0 — Auxiliar Técnico, Estrelas em 3 Camadas & Tríplice Confiança',
       badge: 'ELENCO & GESTÃO',
       badgeColor: '#3b82f6',
+      category: 'ui',
       items: [
         '⭐ [ESTRELAS EM 3 CAMADAS] Nível Atual (Dourado), Potencial Garantido (Violeta) e Teto Máximo (Lilás Transparente).',
         '🧠 [AUXILIAR TÉCNICO] Botão "Trocas Sugeridas" para rodar atletas fatigados, suspensos ou lesionados.',
@@ -115,6 +146,7 @@
       version: 'v2.5.0 — Motor Ao Vivo 2.5D/3D, Área Técnica & Disputa de Pênaltis',
       badge: 'PARTIDA AO VIVO',
       badgeColor: '#f59e0b',
+      category: '3d',
       items: [
         '🏟️ [ÁREA TÉCNICA] Bancos de reservas no gramado com o boneco `TÉC. AQUINO` na beira do campo.',
         '⏩ [CONTROLO DE VELOCIDADE] Velocidades 1x, 20x e 40x + saltos rápidos (+1 MIN, INTERVALO e IR AO FIM).',
@@ -126,6 +158,7 @@
       version: 'v2.4.0 — Economia Pessoal do Treinador & Primeiros Negócios',
       badge: 'CARREIRA',
       badgeColor: '#ec4899',
+      category: 'career',
       items: [
         '💼 [PATRIMÓNIO SEPARADO] Conta bancária pessoal do treinador independente do caixa do clube.',
         '🏪 [NEGÓCIOS PRÓPRIOS] Sistema inicial de investimentos extracampo com balanço todo dia 1º.'
@@ -136,6 +169,7 @@
       version: 'v2.3.0 — Empréstimos Bancários, Cláusula de Revenda & Filtros do Mercado',
       badge: 'FINANÇAS & MERCADO',
       badgeColor: '#14b8a6',
+      category: 'career',
       items: [
         '🏦 [SISTEMA BANCÁRIO] Empréstimos com parcelas mensais e antecipação com abatimento de juros.',
         '🤝 [CLÁUSULA DE REVENDA %] Percentagem de venda futura e expiração automática de propostas pendentes.'
@@ -146,6 +180,7 @@
       version: 'v2.2.0 — Motor Tático de 4 Fases & Áudio de Estádio',
       badge: 'FUNDAÇÃO',
       badgeColor: '#6366f1',
+      category: '3d',
       items: [
         '📋 [4 FASES TÁTICAS] Construção, progressão, transição defensiva e finalização com IA de goleiros aprimorada.',
         '🔊 [SOM AMBIENTE] Efeitos de jogo (`sounds/sfx`) e torcida (`sounds/crowd`).'
@@ -154,18 +189,59 @@
   ];
 
   function renderChangelogMarkup() {
+    const curFilter = (typeof window !== 'undefined' && window.changelogFilter) || 'all';
+    const curSearch = (typeof window !== 'undefined' && window.changelogSearch) ? window.changelogSearch.toLowerCase().trim() : '';
+    const mName = (typeof window.state !== 'undefined' && (window.state?.managerName || window.state?.manager)) || 'TÉC. AQUINO';
+
+    let filtered = CHANGELOG_DAYS;
+    if (curFilter !== 'all') {
+      filtered = filtered.filter(d => d.category === curFilter || (d.badge && d.badge.toLowerCase().includes(curFilter)));
+    }
+    if (curSearch) {
+      filtered = filtered.filter(d => {
+        const fullText = (d.date + ' ' + d.version + ' ' + d.badge + ' ' + d.items.join(' ')).toLowerCase();
+        return fullText.includes(curSearch);
+      });
+    }
+
     return `
       <div class="hero">
         <div>
           <h1>📢 Novidades & Correções Oficiais</h1>
           <div class="muted">Histórico cronológico detalhado dia a dia — AFM MANAGER 2027</div>
         </div>
-        <span class="pill good">Atualizado em 20 de Outubro de 2026</span>
+        <span class="pill good">Atualizado em 20 de Outubro de 2026 · v3.9.16</span>
+      </div>
+
+      <!-- Barra de Filtros e Busca Rápida -->
+      <div style="display:flex;gap:10px;margin-top:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.6);margin-right:2px">CATEGORIA:</span>
+          <button type="button" class="btn btn-changelog-cat ${curFilter==='all'?'active primary':''}" data-cat="all" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+            📰 Todas (${CHANGELOG_DAYS.length})
+          </button>
+          <button type="button" class="btn btn-changelog-cat ${curFilter==='critical'?'active primary':''}" data-cat="critical" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+            🛡️ Correções Críticas
+          </button>
+          <button type="button" class="btn btn-changelog-cat ${curFilter==='3d'?'active primary':''}" data-cat="3d" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+            ⚽ Motor 3D
+          </button>
+          <button type="button" class="btn btn-changelog-cat ${curFilter==='career'?'active primary':''}" data-cat="career" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+            💼 Carreira & Mercado
+          </button>
+          <button type="button" class="btn btn-changelog-cat ${curFilter==='ui'?'active primary':''}" data-cat="ui" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+            🎨 Interface
+          </button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="text" id="inputChangelogSearch" placeholder="🔍 Buscar atualização..." value="${typeof window.esc === 'function' ? window.esc(window.changelogSearch || '') : (window.changelogSearch || '')}" style="font-size:11px;padding:6px 12px;border-radius:8px;background:#111827;border:1px solid rgba(255,255,255,0.15);color:#fff;min-width:180px">
+        </div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:18px;margin-top:16px;">
-        ${CHANGELOG_DAYS.map((day) => `
-          <div class="card" style="padding:18px;border-radius:14px;background:#111827;border:1px solid rgba(255,255,255,0.08);">
+        ${filtered.length ? filtered.map((day) => `
+          <div class="card changelog-day-card" style="padding:18px;border-radius:14px;background:#111827;border:1px solid rgba(255,255,255,0.08);">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:10px;">
               <div>
                 <span class="pill" style="background:${day.badgeColor};color:#fff;font-weight:900;font-size:10px;text-transform:uppercase;">${day.badge}</span>
@@ -175,17 +251,22 @@
             </div>
             <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;">
               ${day.items.map((it) => `
-                <li style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5;">${it}</li>
+                <li style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.5;">${formatChangelogText(it, mName)}</li>
               `).join('')}
             </ul>
           </div>
-        `).join('')}
+        `).join('') : `
+          <div class="card" style="padding:32px;text-align:center;color:rgba(255,255,255,0.5);border-radius:14px;background:#111827;">
+            Nenhuma atualização encontrada para este filtro ou busca.
+          </div>
+        `}
       </div>
     `;
   }
 
   window.AFM_Changelog14Out = {
     days: CHANGELOG_DAYS,
-    renderChangelogMarkup: renderChangelogMarkup
+    renderChangelogMarkup: renderChangelogMarkup,
+    formatChangelogText: formatChangelogText
   };
 })(typeof window !== 'undefined' ? window : global);
