@@ -217,10 +217,38 @@ console.log('✅ calendarPage() executada sem qualquer erro.');
 
 // Teste 9: Posicionamento do badge de clássico na coluna de confronto (sem colisão com mando de campo)
 console.log('9. Testando posicionamento de badge de clássico na coluna do adversário...');
-assert(gameCode.includes('<b>vs ${esc(opponent)}</b>\n                  ${derbyBadgeHtml}'), 'Badge de clássico deve estar agrupado junto ao nome do adversário');
+assert(gameCode.includes('calendar-derby-badge'), 'Badge de clássico com classe calendar-derby-badge deve existir');
+assert(gameCode.includes('vs ${esc(opponent)}</b>${isDerby ? `<span class="calendar-derby-badge">🔥 CLÁSSICO (+50% XP)</span>` : \'\'}'), 'Badge de clássico deve estar agrupado junto ao nome do adversário');
 assert(!gameCode.includes('<b>${dateFormatted}</b>\n                ${derbyBadgeHtml}'), 'Badge de clássico não deve estar na coluna de data para evitar colisão visual');
 const cssCode = fs.readFileSync('css/app.css', 'utf8');
-assert(cssCode.includes('minmax(125px, auto) minmax(95px, auto) 1fr 140px minmax(230px, auto)'), 'CSS da calendar-card deve usar colunas flexíveis');
+assert(cssCode.includes('.calendar-derby-badge'), 'CSS deve definir .calendar-derby-badge com flex e nowrap');
+assert(cssCode.includes('minmax(138px, 150px) minmax(118px, 130px) minmax(200px, 1.4fr) minmax(150px, 0.9fr) minmax(220px, auto)'), 'CSS da calendar-card deve usar colunas proporcionais');
 console.log('✅ Posicionamento de clássico e layout de calendar-card validados com sucesso.');
+
+// Teste 10: Resolução de múltiplos jogos no mesmo dia (resolveSameDayFixtureConflicts)
+console.log('10. Testando resolveSameDayFixtureConflicts...');
+const fixturesSnippet = extractSnippet(
+  gameCode,
+  'function resolveSameDayFixtureConflicts(fixtures, userClubName)',
+  'window.applyCalendarFiltersAndSearch = applyCalendarFiltersAndSearch;\n}'
+);
+eval(fixturesSnippet);
+
+const testFixtures = [
+  { competitionId: 'bra-d', home: 'Ceilândia', away: 'Água Santa', date: '2026-02-18', round: 'Rodada 1' },
+  { competitionId: 'bra-cup', home: 'Ceilândia', away: 'Paranoá', date: '2026-02-18', round: 'Fase 1' }
+];
+
+const resolved = resolveSameDayFixtureConflicts(testFixtures, 'Ceilândia');
+assert.strictEqual(resolved.length, 2, 'Deve manter os 2 jogos');
+assert.strictEqual(resolved[0].date, '2026-02-18', 'Primeiro jogo permanece no dia 18');
+assert.strictEqual(resolved[1].date, '2026-02-19', 'Segundo jogo conflitante deve ser deslocado para 2026-02-19');
+console.log('✅ resolveSameDayFixtureConflicts validado com sucesso.');
+
+// Teste 11: applyCalendarFiltersAndSearch e contador no botão Apenas Meu Clube
+console.log('11. Testando applyCalendarFiltersAndSearch e filtros do calendário...');
+assert(calHtml.includes('⭐ Apenas Meu Clube ('), 'Deve conter contador dinâmico de jogos do clube no botão');
+assert(typeof applyCalendarFiltersAndSearch === 'function', 'applyCalendarFiltersAndSearch deve ser função');
+console.log('✅ applyCalendarFiltersAndSearch e filtros validados com sucesso.');
 
 console.log('🎉 TODOS OS TESTES DE CALENDÁRIO E NOTÍCIAS PASSARAM COM 100% DE SUCESSO!');

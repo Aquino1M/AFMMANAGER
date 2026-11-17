@@ -94,6 +94,8 @@ if (typeof window !== 'undefined') {
   window.contractsSortBy = window.contractsSortBy || 'salary';
   window.contractsFilterBy = window.contractsFilterBy || 'all';
   window.__afmContractModalLock = false;
+  window.activeCalFilter = window.activeCalFilter || 'ALL';
+  window.activeCalSearch = window.activeCalSearch || '';
   window.__afmOfficeActionLock = false;
 }
 const STORAGE='aquino_futebol_manager_2026_v1';
@@ -34781,6 +34783,78 @@ window.openMatchSummaryModal = function(info) {
 };
 
 // -------------------------------------------------------------
+// RESOLUÇÃO DE CONFLITOS DE JOGOS NO MESMO DIA & FILTROS UNIFICADOS
+// -------------------------------------------------------------
+function resolveSameDayFixtureConflicts(fixtures, userClubName) {
+  if (!Array.isArray(fixtures) || !userClubName) return fixtures || [];
+  const normFn = (typeof norm === 'function') ? norm : (str => String(str || '').trim().toLowerCase());
+  const target = normFn(userClubName);
+  const usedDates = new Set();
+
+  // Ordena cronologicamente antes de validar datas
+  fixtures.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+
+  for (const fx of fixtures) {
+    const isUserMatch = normFn(fx.home) === target || normFn(fx.away) === target;
+    if (!isUserMatch || !fx.date) continue;
+
+    let curDateStr = String(fx.date).slice(0, 10);
+    let guard = 0;
+    while (usedDates.has(curDateStr) && guard < 14) {
+      const [y, m, d] = curDateStr.split('-').map(Number);
+      const dt = new Date(y, m - 1, d + 1, 12, 0, 0);
+      const ny = dt.getFullYear();
+      const nm = String(dt.getMonth() + 1).padStart(2, '0');
+      const nd = String(dt.getDate()).padStart(2, '0');
+      curDateStr = `${ny}-${nm}-${nd}`;
+      guard++;
+    }
+    fx.date = curDateStr;
+    usedDates.add(curDateStr);
+  }
+  return fixtures;
+}
+
+function applyCalendarFiltersAndSearch() {
+  const filter = window.activeCalFilter || window.calendarFilter || 'ALL';
+  const query = String(window.activeCalSearch || window.__calSearchQuery || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  if (typeof document === 'undefined') return;
+  document.querySelectorAll('.calendar-view .calendar-card').forEach((card) => {
+    const opp = String(card.getAttribute('data-opponent') || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const cardText = String(card.textContent || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const isDerby = Boolean(card.querySelector('.calendar-derby-badge') || cardText.includes('clássico') || cardText.includes('classico'));
+    const isHome = cardText.includes('em casa');
+    const isAway = cardText.includes('fora');
+    const isPlayed = card.classList.contains('played') || card.getAttribute('data-played') === '1';
+
+    let matchFilter = true;
+    if (filter === 'UPCOMING') matchFilter = !isPlayed;
+    else if (filter === 'PLAYED') matchFilter = isPlayed;
+    else if (filter === 'DERBY') matchFilter = isDerby;
+    else if (filter === 'HOME') matchFilter = isHome;
+    else if (filter === 'AWAY') matchFilter = isAway;
+    else if (filter === 'MYCLUB' || filter === 'ALL') matchFilter = true;
+    else {
+      const compAttr = String(card.getAttribute('data-comp-id') || cardText).toLowerCase();
+      matchFilter = compAttr.includes(filter.toLowerCase());
+    }
+
+    const matchSearch = !query || opp.includes(query) || cardText.includes(query);
+    card.style.display = (matchFilter && matchSearch) ? '' : 'none';
+  });
+}
+
+if(typeof window !== 'undefined'){
+  window.resolveSameDayFixtureConflicts = resolveSameDayFixtureConflicts;
+  window.applyCalendarFiltersAndSearch = applyCalendarFiltersAndSearch;
+}
+
+// -------------------------------------------------------------
 // ABA CALENDÁRIO COM DATAS OFICIAIS E JANELAS DE TRANSFERÊNCIA
 // -------------------------------------------------------------
 function calendarPage(){
@@ -34870,6 +34944,9 @@ function calendarPage(){
   for(const [id,label] of cupFilters){const matches=extraMatches.filter(m=>m.competitionId===id);if(matches.length)competitionTabs.push({id,name:matches[0].name,label,matches});}
 
   const allMatches = competitionTabs.flatMap(tab=>tab.matches);
+  if (typeof window.resolveSameDayFixtureConflicts === 'function') {
+    window.resolveSameDayFixtureConflicts(allMatches, myClub);
+  }
 
   // Ordem cronológica oficial da temporada para determinar estritamente a próxima partida jogável
   const chronologicalMatches = allMatches.slice().sort((a,b)=>a.date.localeCompare(b.date)||(a.competitionId==='COMP'?-1:1));
@@ -34885,8 +34962,9 @@ function calendarPage(){
   const upcomingCount = allMatches.filter(m => { const r = resolveCalendarMatchResult(m, state); return !(Array.isArray(r) && r.length >= 2); }).length;
   const playedCount = allMatches.length - upcomingCount;
   const derbyCount = allMatches.filter(m => window.AFM_CALENDAR_HUB && window.AFM_CALENDAR_HUB.isDerbyMatch(m.home, m.away)).length;
+  const myClubMatches = allMatches.filter(m => (typeof norm === 'function' && (norm(m.home) === norm(myClub) || norm(m.away) === norm(myClub))));
 
-  const activeCalendarFilter = competitionTabs.some(tab=>tab.id===calendarFilter) || ['ALL','UPCOMING','PLAYED','DERBY','HOME','AWAY'].includes(calendarFilter) ? calendarFilter : 'ALL';
+  const activeCalendarFilter = competitionTabs.some(tab=>tab.id===calendarFilter) || ['ALL','UPCOMING','PLAYED','DERBY','HOME','AWAY','MYCLUB'].includes(calendarFilter) ? calendarFilter : 'ALL';
 
   const calendarMatches = allMatches.filter(match => {
     const res = resolveCalendarMatchResult(match, state);
@@ -34959,7 +35037,7 @@ function calendarPage(){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:10px">
       <div class="filters" style="margin-top:0">
         <button type="button" class="btn ${activeCalendarFilter==='ALL'?'primary':''}" data-cal-filter="ALL">📅 Todos (${allMatches.length})</button>
-        <button type="button" class="btn ${activeCalendarFilter==='MYCLUB'?'primary':''}" data-cal-filter="MYCLUB">⭐ Apenas Meu Clube</button>
+        <button type="button" class="btn ${activeCalendarFilter==='MYCLUB'?'primary':''}" data-cal-filter="MYCLUB">⭐ Apenas Meu Clube (${myClubMatches.length})</button>
         <button type="button" class="btn ${activeCalendarFilter==='UPCOMING'?'primary':''}" data-cal-filter="UPCOMING">⏳ Próximos (${upcomingCount})</button>
         <button type="button" class="btn ${activeCalendarFilter==='PLAYED'?'primary':''}" data-cal-filter="PLAYED">✅ Disputados (${playedCount})</button>
         ${derbyCount > 0 ? `<button type="button" class="btn ${activeCalendarFilter==='DERBY'?'primary':''}" data-cal-filter="DERBY">🔥 Clássicos (${derbyCount})</button>` : ''}
@@ -34968,7 +35046,7 @@ function calendarPage(){
         <button type="button" class="btn ${activeCalendarFilter==='AWAY'?'primary':''}" data-cal-filter="AWAY">✈️ Fora</button>
       </div>
       <div>
-        <input type="text" id="calSearchOpponentInput" placeholder="🔍 Filtrar adversário..." value="${esc(window.__calSearchQuery || '')}" class="input" style="max-width:220px;padding:5px 10px;font-size:11px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#fff">
+        <input type="text" id="calSearchOpponentInput" placeholder="🔍 Filtrar adversário..." value="${esc(window.activeCalSearch || window.__calSearchQuery || '')}" class="input" style="max-width:220px;padding:5px 10px;font-size:11px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#fff">
       </div>
     </div>
 
@@ -35046,31 +35124,31 @@ function calendarPage(){
           }
         }
 
-        const derbyBadgeHtml = isDerby ? `<span class="pill" style="font-size:9px;font-weight:900;padding:1px 6px;background:rgba(239,68,68,0.25);color:#f87171;border:1px solid rgba(239,68,68,0.4)">🔥 CLÁSSICO (+50% XP)</span>` : '';
-        const cardClass = `calendar-card ${isNextPlayable ? 'current' : ''}`;
+        const cardClass = `calendar-card ${isNextPlayable ? 'current' : ''} ${isCompleted ? 'played' : ''}`;
         const cardBorder = isDerby ? 'border-left: 4px solid #ef4444 !important;' : (isNextPlayable ? 'border-left: 4px solid var(--neon) !important;' : '');
 
         return `
           ${milestoneDivider}
-          <div class="${cardClass}" data-opponent="${esc(opponent)}" style="${cardBorder}">
+          <div class="${cardClass}" data-opponent="${esc(opponent)}" data-comp-id="${esc(match.competitionId)}" data-played="${isCompleted ? '1' : '0'}" style="${cardBorder}">
             <div>
-              <div style="display:flex;align-items:center;gap:6px">
+              <div style="display:flex;align-items:center;gap:6px;white-space:nowrap">
                 <span class="pill" style="font-size:9px;font-weight:900;padding:1px 5px;background:${isMidweek?'rgba(56,189,248,0.25);color:#38bdf8':'rgba(34,197,94,0.25);color:#4ade80'}">${dayBadge}</span>
                 <b>${dateFormatted}</b>
               </div>
-              <div class="small muted" style="margin-top:2px">${esc(match.round||'')}</div>
+              <div class="small muted" style="margin-top:3px">${esc(match.round||'')}</div>
             </div>
             <div>
               <span class="pill" style="font-size:11px">${match.isHome?'🏠 EM CASA':'✈️ FORA'}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:12px">
+            <div style="display:flex;align-items:center;gap:12px;min-width:0">
               ${clubBadge(opponent,32)}
-              <div>
-                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                  <b>vs ${esc(opponent)}</b>
-                  ${derbyBadgeHtml}
+              <div style="min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <b>vs ${esc(opponent)}</b>${isDerby ? `<span class="calendar-derby-badge">🔥 CLÁSSICO (+50% XP)</span>` : ''}
                 </div>
-                <div class="small muted">Força estimada ${teamStrengthByName(opponent)}</div>
+                <div class="small muted" style="margin-top:2px">
+                  Força estimada ${teamStrengthByName(opponent)}${isDerby ? ' · <span style="color:#f87171;font-weight:700">Rivalidade Regional</span>' : ''}
+                </div>
               </div>
             </div>
             <div>
@@ -46349,16 +46427,20 @@ function bind(){
   }
 
   if(view==='calendario'){
+    if(typeof window.applyCalendarFiltersAndSearch === 'function'){
+      window.applyCalendarFiltersAndSearch();
+    }
+
     // Filtro instantâneo por texto de adversário
     const searchInp = $('#calSearchOpponentInput');
     if(searchInp){
+      if(window.activeCalSearch && !searchInp.value) searchInp.value = window.activeCalSearch;
       searchInp.oninput = (e) => {
-        const val = (e.target.value || '').toLowerCase().trim();
+        window.activeCalSearch = e.target.value;
         window.__calSearchQuery = e.target.value;
-        $$('.calendar-card').forEach(card => {
-          const opp = (card.dataset.opponent || '').toLowerCase();
-          card.style.display = (!val || opp.includes(val)) ? '' : 'none';
-        });
+        if(typeof window.applyCalendarFiltersAndSearch === 'function'){
+          window.applyCalendarFiltersAndSearch();
+        }
       };
     }
 
@@ -46367,7 +46449,11 @@ function bind(){
       const nextFilter=b.dataset.calFilter;
       if(!nextFilter)return;
       calendarFilter=nextFilter;
-      render();
+      window.activeCalFilter=nextFilter;
+      $$('[data-cal-filter]').forEach(btn => btn.classList.toggle('primary', btn.dataset.calFilter === nextFilter));
+      if(typeof window.applyCalendarFiltersAndSearch === 'function'){
+        window.applyCalendarFiltersAndSearch();
+      }
     });
 
     const runCalendarAction = (actionFn) => {
@@ -47882,6 +47968,14 @@ try {
         s.ticketPrice = Math.max(10, Math.min(150, Number(target.value) || 25));
       } else if (target.id === 'parkingPrice') {
         s.parkingPrice = Math.max(10, Math.min(60, Number(target.value) || 25));
+      } else if (target.id === 'calSearchOpponentInput') {
+        if (typeof window !== 'undefined') {
+          window.activeCalSearch = target.value;
+          window.__calSearchQuery = target.value;
+          if (typeof window.applyCalendarFiltersAndSearch === 'function') {
+            window.applyCalendarFiltersAndSearch();
+          }
+        }
       }
     });
 
