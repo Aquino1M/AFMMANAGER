@@ -2,6 +2,10 @@
   'use strict';
 
   const REAL_CLUB_TROPHIES_DB = window.REAL_CLUB_TROPHIES_DB = {
+    'ceilandia': [
+      { name: 'Campeonato Candango (3x)', year: '2010, 2012 e 2024', badge: 'HISTÓRICO OFICIAL DO CEILÂNDIA', icon: '🥇' },
+      { name: 'Tradição & Campanhas Nacionais (Copa do Brasil)', year: 'Clube Fundado em 1979', badge: 'HISTÓRICO OFICIAL DO CEILÂNDIA', icon: '🏆' }
+    ],
     'ceara': [
       { name: 'Copa do Nordeste (3x · Campeão Invicto)', year: '2015, 2020 e 2023', badge: 'HISTÓRICO OFICIAL DO CEARÁ', icon: '🏆' },
       { name: 'Torneio Norte-Nordeste', year: '1969', badge: 'HISTÓRICO OFICIAL DO CEARÁ', icon: '🥇' },
@@ -446,9 +450,8 @@
     }
     const upperClub = clubName.toUpperCase();
     return [
-      { name: 'Campeonato Estadual / Regional (' + clubName + ')', year: 'Conquistas Históricas Oficiais', badge: 'HISTÓRICO OFICIAL DO ' + upperClub, icon: '🥇' },
-      { name: 'Taça de Tradição & Acesso Nacional (' + clubName + ')', year: 'Acervo Oficial Reconhecido', badge: 'HISTÓRICO OFICIAL DO ' + upperClub, icon: '🏆' },
-      { name: 'Torneio Regional & Copa Estadual', year: 'Galeria Histórica de Troféus', badge: 'HISTÓRICO OFICIAL DO ' + upperClub, icon: '🎖️' }
+      { name: 'Tradição Estadual / Regional (' + clubName + ')', year: 'Acervo Histórico Anterior à Carreira', badge: 'HISTÓRICO OFICIAL DO ' + upperClub, icon: '🥇' },
+      { name: 'Memória & Fundação do Clube (' + clubName + ')', year: 'História Pré-Carreira Reconhecida', badge: 'HISTÓRICO OFICIAL DO ' + upperClub, icon: '🏆' }
     ];
   }
 
@@ -729,13 +732,21 @@
         }
       }
 
-      // B) Se estiver na sub-aba "🏆 MUSEU DO CLUBE", exibe a galeria histórica e títulos no comando
+      // B) Se renderUnifiedMuseumTab estiver ativo, não injeta box duplicado nem quebra o header flex;
+      // mantém injeção apenas como fallback legado se não houver #afm-unified-museum-card
+      const unifiedCard = app.querySelector('#afm-unified-museum-card');
+      const existingCustomBox = document.getElementById('afm-club-own-museum-box');
+      if (unifiedCard) {
+        if (existingCustomBox) existingCustomBox.remove();
+        return;
+      }
+
       const allEls = app.querySelectorAll('h2, h3, h4, div, span');
       for (let i = 0; i < allEls.length; i++) {
         const el = allEls[i];
         const txt = (el.textContent || '').trim();
         if (el.children.length <= 1 && txt.toUpperCase().includes('MUSEU DO CLUBE:')) {
-          const parentCard = el.parentElement;
+          const parentCard = el.closest('.card') || el.parentElement;
           if (parentCard && parentCard.id !== 'app') {
             let customBox = document.getElementById('afm-club-own-museum-box');
             if (!customBox) {

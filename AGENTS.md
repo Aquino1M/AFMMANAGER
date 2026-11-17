@@ -196,9 +196,11 @@
      - Escala unificada de 16 níveis (`Nível 1/16` a `Nível 16/16`) com custo inicial R$ 50.000 e capacidade 2 a 32+ taças (`getMuseumConfig`).
      - O card do Museu em `Instalações Gerais` deve obrigatoriamente exibir as linhas `.facility-stat` de capacidade da vitrine e impacto na torcida (+3% por nível).
      - Alerta visual no card de Estacionamento quando o clube tiver 0 vagas (`0 vagas • Requer ampliação`).
-  4. PRIORIDADE DE TAÇAS DO SAVE NO MUSEU DO CLUBE:
+  4. PRIORIDADE DE TAÇAS DO SAVE NO MUSEU DO CLUBE & ZERO TÍTULOS FANTASMA NO DIA 1:
      - Unificação do acervo (`totalCount = saveCount + historyCount`) via `getUnifiedMuseumData(state)`.
-     - Taças conquistadas durante o save (`saveTrophies`) possuem prioridade estrita nos slots da vitrine oficial antes de títulos históricos, impedindo penalização indevida da torcida no início da carreira.
+     - Taças conquistadas durante o save (`saveTrophies`) possuem prioridade estrita nos slots da vitrine oficial antes de títulos históricos; quando `saveCount === 0`, `hasOverflowPenalty` DEVE ser `false` (proibido penalizar a felicidade da torcida pela metade no início da carreira por relíquias históricas ou fallback).
+     - É estritamente PROIBIDO fabricar títulos no save no Dia 1 ou em temporada em andamento sem conquista comprovada (`AFM_TitlesAndHistoryService.syncAndRepairAll` nunca pode conceder `Campeonato Candango 2026` apenas porque o clube é do DF e disputa Série A/B/C/D; saves de abertura em `2026` sem partidas/histórico/copas devem ter títulos fantasma purgados automaticamente).
+     - Renderização única via `#afm-unified-museum-card` (`renderUnifiedMuseumTab`), proibindo injeção duplicada de `#afm-club-own-museum-box` dentro do flex header; `upgradeMuseum()` e `#btnSkipUpgradeMuseum` DEVEM atualizar juntos `infrastructure.museum.level`, `facilities.museum` e `museumData.level` usando `getMuseumConfig()` e trava temporal contra duplo clique.
      - Botão `#btnSkipUpgradeMuseum` exibe o custo e o nível necessário calculados dinamicamente para acomodar todo o acervo.
   5. TRAVAS DE CARREIRA E SALDO BANCÁRIO EM SUA CASA & BENS PESSOAIS:
      - Validação dupla (`evaluatePersonalAssetStatus`): exige requisitos de carreira (`seasonsCompleted` e `titlesCount`) E saldo bancário pessoal disponível.

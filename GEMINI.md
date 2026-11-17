@@ -41,7 +41,7 @@ Você é o engenheiro-chefe responsável pelo AFM Manager 2026/2027. Antes de al
 8. **INTEGRIDADE DA ABA INSTALAÇÕES & ESTÁDIO (AFM MANAGER):**
    - Unificação estrutural das sub-abas Estádio e Nova Arena em 4 abas oficiais (`facilities`, `stadium`, `museum`, `house`), com mapeamento retrocompatível de `arena` para `stadium` (submodo `new-arena`).
    - Card 3D único exibindo dados reais do estádio do clube ativo (`state.stadium.name`, `state.stadium.capacity`, `state.stadium.ring`), proibido "Bezerrão 15k" ou outro fallback estático no clube do usuário.
-   - Sincronização em 16 níveis para o Museu (custo inicial R$ 50.000, capacidade 2 a 32+ taças) e prioridade estrita de taças conquistadas no save na vitrine oficial antes de títulos históricos.
+   - Sincronização em 16 níveis para o Museu (custo inicial R$ 50.000, capacidade 2 a 32+ taças), prioridade estrita de taças conquistadas no save antes de títulos históricos, proibição absoluta de fabricar títulos fantasma no Dia 1 (`Candango 2026` ou similares sem conquista comprovada), proibição de penalidade `hasOverflowPenalty` com `saveCount === 0`, renderização única em `#afm-unified-museum-card` (sem injeção duplicada de `#afm-club-own-museum-box`) e evolução sincronizada (`infrastructure.museum.level` + `facilities.museum` + `museumData.level`).
    - Validação dupla em Bens Pessoais (`evaluatePersonalAssetStatus`) com bloqueio visual/funcional de carreira e saldo bancário pessoal.
 
 9. **BLINDAGEM DA ABA CARREIRA DO TREINADOR & BOLSA SAF/P2P:**

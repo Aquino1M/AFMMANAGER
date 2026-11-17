@@ -88,6 +88,9 @@
    * 2. Ordenação e Contagem Unificada do Museu do Clube (Prioriza Taças do Save!)
    */
   function getUnifiedMuseumData(state) {
+    if (state && typeof window !== 'undefined' && window.AFM_TitlesAndHistoryService && typeof window.AFM_TitlesAndHistoryService.syncAndRepairAll === 'function') {
+      window.AFM_TitlesAndHistoryService.syncAndRepairAll(state);
+    }
     const museumLvl = Number(state?.infrastructure?.museum?.level || state?.facilities?.museum || state?.museumData?.level || 1);
     const cfg = getMuseumConfig(museumLvl);
     const nextCfg = getMuseumConfig(Math.min(16, museumLvl + 1));
@@ -132,9 +135,10 @@
       });
     }
 
-    // Taças históricas do clube
+    // Taças históricas do clube (pré-carreira)
     const historicalTrophies = [];
     const clubName = state?.club || 'Clube';
+    const isCustomClub = Boolean(state?.customClub?.isCustom || state?.customClubStateCompId);
     if (Array.isArray(state?.historicalTitles) && state.historicalTitles.length > 0) {
       state.historicalTitles.forEach(h => {
         historicalTrophies.push({
@@ -145,7 +149,7 @@
           icon: h.icon || '🏆'
         });
       });
-    } else if (typeof window.getClubOwnHistoricalTrophies === 'function') {
+    } else if (!isCustomClub && typeof window.getClubOwnHistoricalTrophies === 'function') {
       const hList = window.getClubOwnHistoricalTrophies(clubName, state);
       (Array.isArray(hList) ? hList : []).forEach(h => {
         historicalTrophies.push({
@@ -156,11 +160,10 @@
           icon: h.icon || '🏆'
         });
       });
-    } else {
+    } else if (!isCustomClub) {
       historicalTrophies.push(
-        { name: `Campeonato Estadual / Regional (${clubName})`, year: 'Conquistas Históricas Oficiais', badge: 'HISTÓRICO OFICIAL', source: 'history', icon: '🥇' },
-        { name: `Taça de Tradição & Acesso Nacional (${clubName})`, year: 'Acervo Oficial Reconhecido', badge: 'HISTÓRICO OFICIAL', source: 'history', icon: '🏆' },
-        { name: 'Torneio Regional & Copa Estadual', year: 'Galeria Histórica de Troféus', badge: 'HISTÓRICO OFICIAL', source: 'history', icon: '🎖️' }
+        { name: `Tradição Estadual / Regional (${clubName})`, year: 'Acervo Histórico Anterior à Carreira', badge: 'HISTÓRICO OFICIAL', source: 'history', icon: '🥇' },
+        { name: `Memória & Fundação do Clube (${clubName})`, year: 'História Pré-Carreira Reconhecida', badge: 'HISTÓRICO OFICIAL', source: 'history', icon: '🏆' }
       );
     }
 
@@ -186,10 +189,12 @@
       saveCount: saveTrophies.length,
       historyCount: historicalTrophies.length,
       totalCount: allTrophies.length,
+      saveTrophies,
+      historicalTrophies,
       allTrophies,
       showcased,
       storedOut,
-      hasOverflowPenalty: storedOut.length > 0,
+      hasOverflowPenalty: storedOut.length > 0 && saveTrophies.length > 0,
       neededLevel,
       skipCost
     };
@@ -568,17 +573,19 @@
   function renderUnifiedMuseumTab(state) {
     const uMuseum = getUnifiedMuseumData(state);
     const clubName = state?.club || 'Clube';
+    const currentSeason = Number(state?.season) || 2026;
+    const managerName = state?.managerPersonal?.name || state?.manager?.name || state?.manager || 'Treinador';
 
     return `
       <!-- MUSEU DO CLUBE: SINCRONIZADO EM 16 NÍVEIS COM TAÇAS DO SAVE PRIORIZADAS -->
-      <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(245,158,11,0.3);border-radius:18px">
+      <div class="card" id="afm-unified-museum-card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(245,158,11,0.3);border-radius:18px">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-          <div>
+          <div style="min-width:0;">
             <h2 style="margin:0;font-size:22px;font-weight:900;color:#fff;text-transform:uppercase">
               MUSEU DO CLUBE: ESTANTE DE TROFÉUS (NÍVEL ${uMuseum.level}/16)
             </h2>
             <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
-              Capacidade da Vitrine: <b>${uMuseum.capacity} taças</b> • Total no acervo: <b>${uMuseum.totalCount} títulos</b>
+              Capacidade da Vitrine: <b>${uMuseum.capacity} taças</b> • Conquistados no save: <b style="color:${uMuseum.saveCount > 0 ? '#34d399' : '#cbd5e1'}">${uMuseum.saveCount}</b> • Acervo histórico: <b>${uMuseum.historyCount}</b>
             </div>
           </div>
           <button class="btn primary btnUpgradeMuseum" data-facility="museum" style="background:#f59e0b;color:#000;font-weight:900;padding:8px 18px;border:none">
@@ -594,6 +601,28 @@
             <button class="btn danger" id="btnSkipUpgradeMuseum" style="font-weight:900;font-size:12px;padding:8px 14px;cursor:pointer">
               ⚡ Oferta: Ampliar para Nível ${uMuseum.neededLevel} (${formatBRL(uMuseum.skipCost)})
             </button>
+          </div>
+        ` : (uMuseum.storedOut.length > 0 ? `
+          <div style="margin-top:16px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div style="color:#fde68a;font-size:12px">
+              📜 <b>Acervo Histórico Extenso:</b> ${uMuseum.storedOut.length} marco(s) histórico(s) antigos estão no arquivo. Sem penalidade à torcida no início da carreira!
+            </div>
+            <button class="btn" id="btnSkipUpgradeMuseum" style="font-weight:900;font-size:12px;padding:8px 14px;cursor:pointer;background:#78350f;color:#fde68a;border:1px solid #f59e0b;">
+              🏛️ Ampliar Vitrine (Nível ${uMuseum.neededLevel} • ${formatBRL(uMuseum.skipCost)})
+            </button>
+          </div>
+        ` : '')}
+
+        <!-- Status da Carreira no Save Atual -->
+        <h3 style="margin:20px 0 10px 0;font-size:14px;color:#c4b5fd;display:flex;align-items:center;gap:8px;text-transform:uppercase;">
+          <span>👑</span> <span>Títulos Conquistados no Comando do ${safeEsc(clubName)} (No Save: ${uMuseum.saveCount})</span>
+        </h3>
+        ${uMuseum.saveCount === 0 ? `
+          <div style="background:#1e1b4b;border:1px dashed #7c3aed;border-radius:12px;padding:16px;text-align:center;margin-bottom:14px;">
+            <div style="font-size:26px;margin-bottom:4px;">🎯</div>
+            <div style="font-size:13px;font-weight:900;color:#fff;">Em busca da 1ª Taça no Comando do ${safeEsc(clubName)}</div>
+            <div style="font-size:11px;color:#c4b5fd;margin-top:4px;">Temporada ${currentSeason} • Comando Téc. ${safeEsc(managerName)}</div>
+            <div style="font-size:11px;color:#a78bfa;margin-top:4px;">Nenhum título conquistado no save ainda. Dispute estaduais, ligas e copas para erguer troféus na carreira!</div>
           </div>
         ` : ''}
 
@@ -612,20 +641,20 @@
                 <div style="font-size:9px;color:${isSave ? '#34d399' : '#f59e0b'};font-weight:900;margin-top:6px">${safeEsc(t.badge)}</div>
               </div>
             `;
-          }).join('') : '<div style="grid-column:1/-1;padding:18px;text-align:center;color:#94a3b8;background:#1c1730;border:1px dashed #475569;border-radius:10px">Nenhuma taça conquistada ainda. Sua história começa nesta carreira.</div>'}
+          }).join('') : '<div style="grid-column:1/-1;padding:18px;text-align:center;color:#94a3b8;background:#1c1730;border:1px dashed #475569;border-radius:10px">Nenhuma taça na vitrine ainda. Sua história começa nesta carreira.</div>'}
         </div>
 
         ${uMuseum.storedOut.length > 0 ? `
-          <h3 style="margin:20px 0 10px 0;font-size:15px;color:#ef4444;display:flex;align-items:center;gap:8px">
-            <span>📦</span> <span>Guardadas Fora da Vitrine (Falta Espaço)</span>
+          <h3 style="margin:20px 0 10px 0;font-size:15px;color:${uMuseum.hasOverflowPenalty ? '#ef4444' : '#f59e0b'};display:flex;align-items:center;gap:8px">
+            <span>📦</span> <span>${uMuseum.hasOverflowPenalty ? 'Guardadas Fora da Vitrine (Falta Espaço)' : 'Acervo Histórico no Arquivo do Clube'}</span>
           </h3>
           <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:10px">
             ${uMuseum.storedOut.map(t => `
-              <div style="background:#181428;border:1px dashed rgba(239,68,68,0.5);border-radius:10px;padding:12px;text-align:center;opacity:0.7">
-                <div style="font-size:28px;filter:grayscale(1)">${t.icon || '🏆'}</div>
-                <div style="font-size:12px;font-weight:800;color:#fff;margin-top:4px">${t.name}</div>
-                <div style="font-size:11px;color:#94a3b8;margin-top:2px">(${t.year})</div>
-                <div style="font-size:9px;color:#ef4444;font-weight:800;margin-top:6px">GUARDADA FORA</div>
+              <div style="background:#181428;border:1px dashed rgba(239,68,68,0.5);border-radius:10px;padding:12px;text-align:center;opacity:0.78">
+                <div style="font-size:28px;filter:grayscale(${uMuseum.hasOverflowPenalty ? '1' : '0.4'})">${t.icon || '🏆'}</div>
+                <div style="font-size:12px;font-weight:800;color:#fff;margin-top:4px">${safeEsc(t.name)}</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px">(${safeEsc(t.year)})</div>
+                <div style="font-size:9px;color:${uMuseum.hasOverflowPenalty ? '#ef4444' : '#f59e0b'};font-weight:800;margin-top:6px">${uMuseum.hasOverflowPenalty ? 'GUARDADA FORA' : safeEsc(t.badge || 'ARQUIVO HISTÓRICO')}</div>
               </div>
             `).join('')}
           </div>
@@ -790,6 +819,9 @@
       const skipMuseumBtn = e.target.closest('#btnSkipUpgradeMuseum');
       if (skipMuseumBtn && window.state) {
         e.preventDefault();
+        e.stopImmediatePropagation();
+        if (window.__afmFacilityLock && Date.now() - window.__afmFacilityLock < 300) return;
+        window.__afmFacilityLock = Date.now();
         const mData = getUnifiedMuseumData(window.state);
         if (window.state.balance < mData.skipCost) {
           if (typeof window.toast === 'function') window.toast(`Caixa insuficiente! Necessário ${formatBRL(mData.skipCost)}`);
@@ -799,6 +831,7 @@
         if (!window.state.infrastructure) window.state.infrastructure = {};
         if (!window.state.infrastructure.museum) window.state.infrastructure.museum = { level: 1 };
         window.state.infrastructure.museum.level = mData.neededLevel;
+        if (window.state.facilities && typeof window.state.facilities === 'object') window.state.facilities.museum = mData.neededLevel;
         if (window.state.museumData) window.state.museumData.level = mData.neededLevel;
         if (typeof window.save === 'function') window.save();
         if (typeof window.render === 'function') window.render();

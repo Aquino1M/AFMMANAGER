@@ -6169,45 +6169,68 @@ window.startNewArenaProject = startNewArenaProject;
 // SISTEMA DO MUSEU DO CLUBE (16 NÍVEIS & VITRINE DE TAÇAS)
 // =========================================================================
 function upgradeMuseum(){
+  if(window.__afmFacilityLock && Date.now() - window.__afmFacilityLock < 300) return;
+  window.__afmFacilityLock = Date.now();
   const m = getMuseumData();
-  if(state.museumData.level >= 16){
+  state.museumData = state.museumData || { level: 1, skipOfferUsed: false };
+  const currentLvl = Math.max(
+    1,
+    Number(state.infrastructure?.museum?.level || state.facilities?.museum || state.museumData.level || 1)
+  );
+  state.museumData.level = currentLvl;
+  if(currentLvl >= 16){
     toast('O Museu do Clube já atingiu o nível máximo: Panteão do Clube!');
     return;
   }
-  const nextLvl = MUSEUM_LEVELS.find(x => x.level === state.museumData.level + 1);
-  if(!nextLvl) return;
+  const nextLevel = currentLvl + 1;
+  const nextLvlMeta = MUSEUM_LEVELS.find(x => x.level === nextLevel) || { level: nextLevel, name: `Nível ${nextLevel}`, cost: 50000 };
+  const cfgCost = typeof getMuseumConfig === 'function' ? Number(getMuseumConfig(currentLvl)?.cost || 0) : 0;
+  const upgradeCost = cfgCost > 0 ? cfgCost : nextLvlMeta.cost;
 
-  if(state.balance < nextLvl.cost){
-    toast(`Saldo insuficiente! Custo para evoluir ao nível ${nextLvl.level}: ${fmtMoney(nextLvl.cost)}`);
+  if(state.balance < upgradeCost){
+    toast(`Saldo insuficiente! Custo para evoluir ao nível ${nextLevel}: ${fmtMoney(upgradeCost)}`);
     return;
   }
 
-  state.balance -= nextLvl.cost;
-  state.expense = (state.expense || 0) + nextLvl.cost;
-  state.museumData.level = nextLvl.level;
+  state.balance -= upgradeCost;
+  state.expense = (state.expense || 0) + upgradeCost;
+  state.museumData.level = nextLevel;
+  if(!state.infrastructure) state.infrastructure = {};
+  if(!state.infrastructure.museum) state.infrastructure.museum = { level: nextLevel };
+  state.infrastructure.museum.level = nextLevel;
+  if(state.facilities && typeof state.facilities === 'object') state.facilities.museum = nextLevel;
   state.trust = state.trust || {};
   state.trust.fans = Math.min(100, (state.trust.fans || 70) + 8);
 
-  toast(`🏆 Museu inaugurado no nível ${nextLvl.name}! A torcida está em festa com o novo espaço das taças!`);
+  toast(`🏆 Museu inaugurado no nível ${nextLevel}/16 (${nextLvlMeta.name})! A torcida está em festa com o novo espaço das taças!`);
   save();
   render();
 }
 
 function skipUpgradeMuseum(){
+  if(window.__afmFacilityLock && Date.now() - window.__afmFacilityLock < 300) return;
+  window.__afmFacilityLock = Date.now();
+  const uMus = typeof getUnifiedMuseumData === 'function' ? getUnifiedMuseumData(state) : null;
   const m = getMuseumData();
-  const neededCap = m.allTitles.length;
-  const targetLvlObj = MUSEUM_LEVELS.find(x => x.capacity >= neededCap) || MUSEUM_LEVELS[MUSEUM_LEVELS.length - 1];
+  state.museumData = state.museumData || { level: 1, skipOfferUsed: false };
+  const currentLvl = uMus ? uMus.level : Math.max(1, Number(state.infrastructure?.museum?.level || state.facilities?.museum || state.museumData.level || 1));
+  const neededCap = uMus ? uMus.totalCount : m.allTitles.length;
+  const targetLevel = uMus ? uMus.neededLevel : (MUSEUM_LEVELS.find(x => x.capacity >= neededCap) || MUSEUM_LEVELS[MUSEUM_LEVELS.length - 1]).level;
+  const targetLvlObj = MUSEUM_LEVELS.find(x => x.level === targetLevel) || MUSEUM_LEVELS[MUSEUM_LEVELS.length - 1];
 
-  if(targetLvlObj.level <= state.museumData.level){
+  if(targetLevel <= currentLvl){
     toast('Todas as taças já cabem na vitrine atual!');
     return;
   }
 
-  // Soma os custos dos níveis pulados
   let totalCost = 0;
-  for(let i = state.museumData.level + 1; i <= targetLvlObj.level; i++){
-    const lvl = MUSEUM_LEVELS.find(x => x.level === i);
-    if(lvl) totalCost += lvl.cost;
+  if(uMus && typeof uMus.skipCost === 'number' && uMus.skipCost > 0){
+    totalCost = uMus.skipCost;
+  } else {
+    for(let i = currentLvl + 1; i <= targetLevel; i++){
+      const lvl = MUSEUM_LEVELS.find(x => x.level === i);
+      if(lvl) totalCost += lvl.cost;
+    }
   }
 
   if(state.balance < totalCost){
@@ -6217,12 +6240,17 @@ function skipUpgradeMuseum(){
 
   state.balance -= totalCost;
   state.expense = (state.expense || 0) + totalCost;
-  state.museumData.level = targetLvlObj.level;
+  state.museumData.level = targetLevel;
   state.museumData.skipOfferUsed = true;
+  if(!state.infrastructure) state.infrastructure = {};
+  if(!state.infrastructure.museum) state.infrastructure.museum = { level: targetLevel };
+  state.infrastructure.museum.level = targetLevel;
+  if(state.facilities && typeof state.facilities === 'object') state.facilities.museum = targetLevel;
   state.trust = state.trust || {};
   state.trust.fans = Math.min(100, (state.trust.fans || 70) + 15);
 
-  toast(`⚡ Oferta acionada! O museu foi direto para ${targetLvlObj.name} (${targetLvlObj.capacity} vagas)! Todas as taças voltaram para a vitrine!`);
+  const newCap = uMus && typeof getMuseumConfig === 'function' ? getMuseumConfig(targetLevel).capacity : targetLvlObj.capacity;
+  toast(`⚡ Oferta acionada! O museu foi direto para Nível ${targetLevel}/16 (${newCap} vagas)! Todas as taças voltaram para a vitrine!`);
   save();
   render();
 }
@@ -7418,15 +7446,11 @@ const AFM_TitlesAndHistoryService = {
           if(!comp.champion) comp.champion = 'Brasiliense';
         }
 
-        // Corrige Campeão do Candango/Estadual para alinhar com o Hall da Fama oficial do save
+        // Corrige Campeão do Candango/Estadual apenas pelo Hall da Fama real do save (nunca inventa campeão)
         if(comp.id === 'bra-est-df' || (comp.name && comp.name.includes('Candango'))){
-          const sh = gameState.seasonHistory.find(s => Number(s.season) === rSeason);
+          const sh = gameState.seasonHistory.find(s => Number(s.season) === rSeason && ((s.compName && s.compName.includes('Candango')) || s.compId === 'bra-est-df'));
           if(sh && sh.champion && sh.champion !== 'ARUC'){
             comp.champion = sh.champion;
-          } else if(rSeason === 2026 && comp.champion === 'ARUC'){
-            comp.champion = 'Ceilândia';
-          } else if(rSeason === 2027 && (!comp.champion || comp.champion === 'ARUC')){
-            comp.champion = 'Brasiliense';
           }
         }
       });
@@ -7484,16 +7508,55 @@ const AFM_TitlesAndHistoryService = {
       s.titlesWon = Array.isArray(s.titlesWon) ? s.titlesWon : [];
     });
 
-    // 4. Sincroniza Museu do Clube: todas as taças disputadas e ganhas na carreira vão para state.titles
-    // 4.1 Restauração do Candango 2026 para carreiras originárias do DF que subiram para Série D
-    const isCandangoCareer = gameState.customClubStateCompId === 'bra-est-df'
-      || gameState.competitionPromotionRecovery?.from === 'bra-est-df'
-      || (typeof clubStateCompId === 'function' && clubStateCompId(gameState.club) === 'bra-est-df')
-      || (Array.isArray(gameState.history) && gameState.history.some(h => h.competitionId === 'bra-est-df'))
-      || gameState.seasonHistory.some(s => (s.compName && s.compName.includes('Candango')) || s.compId === 'bra-est-df');
+    // 4.0 Purga títulos fantasma de saves recém-iniciados (Dia 1 / 0 partidas e sem conquistas reais)
+    const hasNoMatchesYet = !(Array.isArray(gameState.history) && gameState.history.length > 0);
+    const hasNoSeasonHist = !(gameState.seasonHistory && gameState.seasonHistory.length > 0);
+    const hasNoWorldHist = !(gameState.worldChampionHistory && gameState.worldChampionHistory.length > 0);
+    const hasNoCompHist = !(Array.isArray(gameState.competitionHistory) && gameState.competitionHistory.length > 0);
+    const hasNoEstadualArchive = !(gameState.estadualArchive && Object.keys(gameState.estadualArchive).length > 0);
+    const hasNoCupWin = !gameState.copaData?.champion && !gameState.copinhaSub20?.champion && !gameState.copaDoBrasil?.champion
+      && !Object.values(gameState.tournaments || {}).some(t => t && (t.champion || t.winner));
+    const hasOpeningContext = Boolean(gameState.date || gameState.currentDate || gameState.isPreSeason !== undefined);
+    const isOpeningSave2026 = hasOpeningContext
+      && Number(gameState.season || 2026) <= 2026
+      && Number(gameState.round || 0) <= 1
+      && hasNoMatchesYet && hasNoSeasonHist && hasNoWorldHist && hasNoCompHist && hasNoEstadualArchive && hasNoCupWin;
 
-    if(isCandangoCareer && (Number(gameState.season) >= 2027 || ['bra-d','bra-c','bra-b','bra-a'].includes(gameState.compId))){
+    if(isOpeningSave2026){
+      gameState.titles = [];
+      if(Array.isArray(gameState.trophies)) gameState.trophies = [];
+      if(Array.isArray(gameState.clubTrophies)) gameState.clubTrophies = [];
+    }
+
+    // 4. Sincroniza Museu do Clube: apenas taças comprovadamente vencidas na carreira vão para state.titles
+    // 4.1 Restauração do Candango 2026 SOMENTE quando a temporada 2026 já terminou (>= 2027) e há evidência real de título no Candango 2026
+    const candango2026Sh = gameState.seasonHistory.find(s => Number(s.season) === 2026 && ((s.compName && s.compName.includes('Candango')) || s.compId === 'bra-est-df'));
+    const candango2026World = gameState.worldChampionHistory.find(w => Number(w?.season) === 2026)?.competitions?.find(c => c.id === 'bra-est-df' || (c.name && c.name.includes('Candango')));
+    const candango2026Arch = (Array.isArray(gameState.estadualArchive?.['bra-est-df']) ? gameState.estadualArchive['bra-est-df'] : (gameState.estadualArchive?.['bra-est-df'] ? [gameState.estadualArchive['bra-est-df']] : []))
+      .find(a => Number(a?.season) === 2026);
+    const archLeader = Array.isArray(candango2026Arch?.teams)
+      ? candango2026Arch.teams.slice().sort((a,b) => (Number(b.p ?? b.points)||0)-(Number(a.p ?? a.points)||0))[0]
+      : null;
+
+    const wonCandango2026InRecords = Boolean(
+      (candango2026Sh && (this.isUserClub(candango2026Sh.champion, gameState) || (Array.isArray(candango2026Sh.titlesWon) && candango2026Sh.titlesWon.some(tw => String(tw?.name || tw).includes('Candango')))))
+      || (candango2026World && this.isUserClub(candango2026World.champion || candango2026World.winner, gameState))
+      || (archLeader && Number(archLeader.j || 0) > 0 && this.isUserClub(archLeader.name, gameState))
+    );
+    const anotherClubWonCandango2026 = Boolean(
+      (candango2026Sh?.champion && !this.isUserClub(candango2026Sh.champion, gameState))
+      || (candango2026World?.champion && !this.isUserClub(candango2026World.champion, gameState))
+    );
+
+    if(Number(gameState.season) >= 2027 && wonCandango2026InRecords && !anotherClubWonCandango2026){
       registerTrophyInMuseum(gameState, 'Campeonato Candango', 2026, 'CAMPEÃO ESTADUAL', '🏆');
+    } else if(Number(gameState.season || 2026) <= 2026 && !wonCandango2026InRecords && Array.isArray(gameState.titles)){
+      // Remove Candango 2026 fantasma em saves de 2026 que nunca venceram o Candango (ex.: clubes do DF que começaram na Série D)
+      gameState.titles = gameState.titles.filter(t => {
+        const tName = typeof t === 'string' ? t : (t?.name || t?.title || '');
+        const tYear = typeof t === 'object' ? Number(t?.year || t?.season || gameState.season || 2026) : Number(gameState.season || 2026);
+        return !(this.normalizeClub(tName).includes('candango') && tYear === 2026);
+      });
     }
 
     // 4.2 Títulos do Hall da Fama (seasonHistory)
@@ -7542,9 +7605,11 @@ const AFM_TitlesAndHistoryService = {
       });
     }
 
-    // 4.5 Atualização da Vitrine e Estante do Museu
+    // 4.5 Atualização da Vitrine e Estante do Museu (taças do save sempre têm prioridade na vitrine)
     gameState.museumData = gameState.museumData || { level: 1, skipOfferUsed: false };
-    const curLvlObj = (typeof MUSEUM_LEVELS !== 'undefined' ? MUSEUM_LEVELS : []).find(m => m.level === gameState.museumData.level) || { level: 1, name: 'Estante de Troféus', capacity: 2 };
+    const effectiveMuseumLevel = Math.max(1, Number(gameState.infrastructure?.museum?.level || gameState.facilities?.museum || gameState.museumData.level || 1));
+    gameState.museumData.level = effectiveMuseumLevel;
+    const curLvlObj = (typeof MUSEUM_LEVELS !== 'undefined' ? MUSEUM_LEVELS : []).find(m => m.level === effectiveMuseumLevel) || { level: 1, name: 'Estante de Troféus', capacity: effectiveMuseumLevel * 2 };
     const historicalTitles = (typeof getMuseumHistoricalTitles === 'function') ? getMuseumHistoricalTitles(gameState) : [];
     const careerTitles = (gameState.titles || []).map(t => {
       if(typeof t === 'string') return `${t} (${gameState.season || 2026})`;
@@ -7552,7 +7617,7 @@ const AFM_TitlesAndHistoryService = {
       const titleYear = t?.year || t?.season || gameState.season || 2026;
       return `${titleName} (${titleYear})`;
     });
-    const allTitles = [...new Set([...historicalTitles, ...careerTitles])];
+    const allTitles = [...new Set([...careerTitles, ...historicalTitles])];
     gameState.museumData.allTitles = allTitles;
     gameState.museumData.inVitrine = allTitles.slice(0, curLvlObj.capacity);
     gameState.museumData.overflow = allTitles.slice(curLvlObj.capacity);
@@ -7599,7 +7664,7 @@ const AFM_TitlesAndHistoryService = {
       allTitles: gameState.museumData.allTitles,
       inVitrine: gameState.museumData.inVitrine,
       overflow: gameState.museumData.overflow,
-      isUnhappy: gameState.museumData.overflow.length > 0
+      isUnhappy: gameState.museumData.overflow.length > 0 && (gameState.titles || []).length > 0
     };
   }
 };
@@ -45316,7 +45381,7 @@ function bind(){
       b.onclick = upgradeMuseum;
     });
     const btnSkipMus = $('#btnSkipUpgradeMuseum');
-    if(btnSkipMus){
+    if(btnSkipMus && (!window.AFM_StructureStadium || typeof window.AFM_StructureStadium.renderUnifiedMuseumTab !== 'function')){
       btnSkipMus.onclick = skipUpgradeMuseum;
     }
     const btnOpenLicHouse = $('#btnOpenCbfLicensesFromHouse');
