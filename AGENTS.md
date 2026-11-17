@@ -182,18 +182,30 @@
      - Todas as variáveis de filtro de view (`window.seasonTab`, `window.seasonTableFilter`, `window.estPhase`, `window.statsTab`, `window.statsOnlyMyClub`, `window.changelogFilter`, `window.changelogSearch`, `window.newsCategoryFilter`, `window.calendarFilter`) DEVEM ser inicializadas no escopo `window.*` antes de `render()`.
   3. SANITIZAÇÃO E DINAMISMO EM NOVIDADES & CORREÇÕES:
      - Nunca renderizar crases literais (`...`) como texto cru na aba `novidades`; converter automaticamente em `<code>...</code>` e substituir nomes hardcoded pelo nome do treinador ativo.
-- REGRA IRRESTRITA ESPECIAL — BLINDAGEM DE INSTALAÇÕES, ESTÁDIO E SUB-ABAS:
-  1. HIDRATAÇÃO OBRIGATÓRIA DA ESTRUTURA DO CLUBE (`ensureClubStructureHydrated`):
-     - Antes de renderizar `estrutura` ou abrir qualquer sub-aba (`facilities`, `stadium`, `arena`, `museum`, `house`) ou modal interativo, executar `window.ensureClubStructureHydrated(state)` garantindo:
-       - `state.facilities` como objeto válido com níveis numéricos inteiros (`stadium`, `parking`, `training`, `academy`, `medical`, `admin`, `store`, `museum`, `press`, `marketing`, `bank`);
-       - `Array.isArray(state.bankLoans)` sempre verdadeiro (convertendo `{}` ou `null` em `[]`);
-       - `Array.isArray(state.trophies)` e `Array.isArray(state.clubTrophies)` sempre verdadeiros;
-       - `state.stadiumCapacity >= 5000` (nunca `0` ou `NaN`) e `state.ticketPrice` / `state.parkingPrice` numéricos válidos.
-  2. UNIFICAÇÃO DE SELETORES E AÇÕES DE MODAIS DA ESTRUTURA:
-     - Todo botão de ação na aba `estrutura` (incluindo `VER EM 3D (360°)`, `Inspecionar 3D Interativo`, `Setores & Obras`, `Obras do Estacionamento`, `Concessão & Parcerias`, `Loja Oficial & Preços`, `Centro de Treinamento` e `Banco & Empréstimos`) DEVE possuir `data-struct-action="..."` e ser tratado por delegação global no container principal, sem depender exclusivamente de `id` único quando houver botões duplicados nos cards.
-  3. PROTEÇÃO CONTRA CLIQUE DUPLO E Z-INDEX DE MODAIS:
-     - Toda evolução de instalação (`upgradeFacility`) DEVE usar trava temporal (`window.__afmFacilityLock`) para impedir desconto duplo do caixa.
-     - Modais visuais da estrutura (`#stadiumVisualModalContainer`, `#parkingConcessionModalContainer`, `#parkingVisualModalContainer`) devem fechar com `Esc` ou clique no backdrop, limpando o DOM residual.
+- REGRA IRRESTRITA ESPECIAL — INTEGRIDADE DA ABA INSTALAÇÕES & ESTÁDIO (AFM MANAGER):
+  1. UNIFICAÇÃO DE SUB-ABAS (ESTÁDIO & NOVA ARENA):
+     - Redução estrutural de 5 para 4 sub-abas oficiais: `[1]` `🏢 INSTALAÇÕES GERAIS` (`facilities`), `[2]` `🏟️ ESTÁDIO & NOVA ARENA` (`stadium`), `[3]` `🏆 MUSEU DO CLUBE` (`museum`), `[4]` `🏠 SUA CASA & BENS PESSOAIS` (`house`).
+     - Retrocompatibilidade total: qualquer link ou evento para `data-struct-tab="arena"` redireciona automaticamente para `stadium` com o submodo `new-arena` ativo (`window.afmStructureUIState.stadiumSubMode = 'new-arena'`).
+     - Renderizar UM ÚNICO card 3D no topo com os dados reais do estádio do clube (`state.stadium.name`, `state.stadium.capacity`, `state.stadium.ring`), proibindo "Bezerrão 15k" ou outro fallback estático no clube do usuário.
+     - Seletor segmentado com dois modos claros: `🔨 Ampliar Estádio Atual (Anéis até 100k)` e `🏛️ Construir Nova Arena Monumental`.
+  2. CALCULADORA DINÂMICA DA NOVA ARENA:
+     - Recálculo reativo em tempo real via `updateNewArenaCalculatorUI(state)` ao alterar os seletores de capacidade (15k, 30k, 50k, 80k, 100k) e de financiamento (à vista, 4, 6 ou 8 anos), atualizando custo de obra, total do projeto, prazo em meses e valor da parcela.
+  3. SINCRONIZAÇÃO DAS INSTALAÇÕES GERAIS E MUSEU (16 NÍVEIS):
+     - Escala unificada de 16 níveis (`Nível 1/16` a `Nível 16/16`) com custo inicial R$ 50.000 e capacidade 2 a 32+ taças (`getMuseumConfig`).
+     - O card do Museu em `Instalações Gerais` deve obrigatoriamente exibir as linhas `.facility-stat` de capacidade da vitrine e impacto na torcida (+3% por nível).
+     - Alerta visual no card de Estacionamento quando o clube tiver 0 vagas (`0 vagas • Requer ampliação`).
+  4. PRIORIDADE DE TAÇAS DO SAVE NO MUSEU DO CLUBE:
+     - Unificação do acervo (`totalCount = saveCount + historyCount`) via `getUnifiedMuseumData(state)`.
+     - Taças conquistadas durante o save (`saveTrophies`) possuem prioridade estrita nos slots da vitrine oficial antes de títulos históricos, impedindo penalização indevida da torcida no início da carreira.
+     - Botão `#btnSkipUpgradeMuseum` exibe o custo e o nível necessário calculados dinamicamente para acomodar todo o acervo.
+  5. TRAVAS DE CARREIRA E SALDO BANCÁRIO EM SUA CASA & BENS PESSOAIS:
+     - Validação dupla (`evaluatePersonalAssetStatus`): exige requisitos de carreira (`seasonsCompleted` e `titlesCount`) E saldo bancário pessoal disponível.
+     - Itens bloqueados por carreira exibem borda vermelha, badge `🔒 BLOQUEADO` e botão desabilitado mesmo que o usuário tenha saldo em conta.
+     - Resumo superior exibindo Patrimônio Pessoal Total, Bens Adquiridos e Bônus de Prestígio Social.
+     - Botão `#btnOpenCbfLicensesFromHouse` integrado diretamente com o modal de Licenças CBF/UEFA.
+  6. HIDRATAÇÃO SEGURA DO ESTÁDIO E INFRAESTRUTURA:
+     - Antes de renderizar `estrutura`, executar `window.ensureClubStructureHydrated(state)` garantindo `state.infrastructure` válido, `state.bankLoans` como array e `state.stadiumCapacity >= 5000`.
+     - Toda evolução de instalação (`upgradeFacility`) DEVE usar trava temporal (`window.__afmFacilityLock`) para impedir desconto duplo do caixa. Modais visuais devem fechar com `Esc` ou backdrop.
 - REGRA IRRESTRITA ESPECIAL — RECONCILIAÇÃO CONTÁBIL E CONTRASTE EM ESCRITÓRIO & FINANÇAS:
   1. RECONCILIAÇÃO OBRIGATÓRIA ENTRE KPIS E DETALHAMENTO MENSAL:
      - Na aba `escritorio`, `Entradas previstas por mês` DEVE ser exatamente a soma dos itens exibidos em `Previsão de Receitas Mensais`, usando os valores mensais reais dos contratos ativos (`activeSponsors.reduce((sum, s) => sum + s.monthly, 0)`), nunca pools anuais ou valores base da divisão.

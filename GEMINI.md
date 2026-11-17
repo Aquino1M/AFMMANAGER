@@ -38,3 +38,9 @@ Você é o engenheiro-chefe responsável pelo AFM Manager 2026/2027. Antes de al
    - A Série D possui 96 clubes e 6 acessos à Série C, com ordenação por critérios esportivos e indicação de PROJEÇÃO ATUAL vs CONFIRMADO.
    - Competições Continentais e Mundial não podem exibir confrontos simulados em 01/01 nem times fixos antes do término dos grupos; 3º colocado da Libertadores migra para os Playoffs da Sul-Americana e o campeão do Mundial de Clubes FIFA é persistido em `state.worldSaveChampions`.
 
+8. **INTEGRIDADE DA ABA INSTALAÇÕES & ESTÁDIO (AFM MANAGER):**
+   - Unificação estrutural das sub-abas Estádio e Nova Arena em 4 abas oficiais (`facilities`, `stadium`, `museum`, `house`), com mapeamento retrocompatível de `arena` para `stadium` (submodo `new-arena`).
+   - Card 3D único exibindo dados reais do estádio do clube ativo (`state.stadium.name`, `state.stadium.capacity`, `state.stadium.ring`), proibido "Bezerrão 15k" ou outro fallback estático no clube do usuário.
+   - Sincronização em 16 níveis para o Museu (custo inicial R$ 50.000, capacidade 2 a 32+ taças) e prioridade estrita de taças conquistadas no save na vitrine oficial antes de títulos históricos.
+   - Validação dupla em Bens Pessoais (`evaluatePersonalAssetStatus`) com bloqueio visual/funcional de carreira e saldo bancário pessoal.
+

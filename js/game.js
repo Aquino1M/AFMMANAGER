@@ -1806,7 +1806,7 @@ const FACILITIES={
  medical:{name:'Departamento médico',icon:'✚',base:450000,max:8,effect:'Acelera recuperação e reduz impacto físico.'},
  admin:{name:'Sede administrativa',icon:'🏢',base:400000,max:8,effect:'Melhora contratos, patrocínio e gestão.'},
  store:{name:'Loja oficial',icon:'🛍️',base:350000,max:8,effect:'Gera receita extra em jogos e por mês.'},
- museum:{name:'Museu do clube',icon:'🏆',base:500000,max:8,effect:'Aumenta vínculo e alegria da torcida.'},
+ museum:{name:'Museu do clube',icon:'🏆',base:50000,max:16,effect:'Aumenta vínculo e alegria da torcida.'},
  press:{name:'Sala de imprensa',icon:'🎙️',base:300000,max:8,effect:'Ajuda a imagem do clube e confiança.'},
    marketing:{name:'Departamento de marketing',icon:'📢',base:540000,max:8,effect:'Alavanca patrocínios, atrai público aos jogos e valoriza a marca.'},
  bank:{name:'Banco & Financiamento',icon:'🏦',base:500000,max:8,effect:'Linhas de crédito para o clube, antecipação com bônus e controle de dívidas.'}
@@ -6240,26 +6240,48 @@ function buyHouseItem(itemId){
     return;
   }
 
-  const pMoney = state.managerMoney || 57000;
-  if(pMoney < item.cost){
-    toast('Seu patrimônio pessoal é insuficiente para adquirir este item!');
-    return;
-  }
-
-  // Validação de requisitos
-  if(!item.unlocked){
-    if(item.reqType === 'seasons' && (state.historySeasons || 1) < item.reqVal){
-      toast(`Requisito não atingido: ${item.reqText}`);
+  // Validação dupla (Carreira + Saldo Bancário Pessoal)
+  if (typeof evaluatePersonalAssetStatus === 'function') {
+    const status = evaluatePersonalAssetStatus(item, state);
+    if (!status.unlocked) {
+      toast(`🔒 Bloqueado: ${status.reqLabel || item.reqText}`);
       return;
     }
-    if(item.reqType === 'titles' && (state.titles || []).length < item.reqVal){
-      toast(`Requisito não atingido: ${item.reqText}`);
+    if (!status.canAfford) {
+      toast(`Saldo bancário insuficiente! Você possui ${fmtMoney(status.cash)}, mas o item custa ${fmtMoney(item.cost)}.`);
       return;
+    }
+  } else {
+    const pMoney = state.managerMoney || (state.career && state.career.cash) || 57000;
+    if(pMoney < item.cost){
+      toast('Seu patrimônio pessoal é insuficiente para adquirir este item!');
+      return;
+    }
+
+    // Validação de requisitos
+    if(!item.unlocked){
+      const seasons = Number(state.career?.seasonsCompleted ?? state.historySeasons ?? 0);
+      if(item.reqType === 'seasons' && seasons < item.reqVal){
+        toast(`Requisito não atingido: ${item.reqText}`);
+        return;
+      }
+      if(item.reqType === 'titles' && (state.titles || []).length < item.reqVal){
+        toast(`Requisito não atingido: ${item.reqText}`);
+        return;
+      }
     }
   }
 
-  state.managerMoney = pMoney - item.cost;
+  // Deduz estritamente do patrimônio pessoal do treinador
+  if (state.career && typeof state.career.cash === 'number') state.career.cash -= item.cost;
+  if (typeof state.personalCash === 'number') state.personalCash -= item.cost;
+  if (typeof state.managerMoney === 'number') state.managerMoney -= item.cost;
+  if (state.managerPersonal && typeof state.managerPersonal.personalBalance === 'number') state.managerPersonal.personalBalance -= item.cost;
+
   state.housePurchases.push(itemId);
+  if (window.AFMCareerFix && typeof window.AFMCareerFix.calculateCareerEconomy === 'function') {
+    window.AFMCareerFix.calculateCareerEconomy(state);
+  }
   toast(`🎉 Parabéns! Você adquiriu ${item.name} por ${fmtMoney(item.cost)}!`);
   save();
   render();
@@ -7620,8 +7642,14 @@ window.getMuseumData = getMuseumData;
 // -------------------------------------------------------------
 // ABA NOTÍCIAS & MÍDIA (G1, CAZÉTV, TWITTER, LÉO DIAS)
 // -------------------------------------------------------------
-newsChannelFilter = newsChannelFilter || 'ALL';
-newsCategoryFilter = newsCategoryFilter || 'ALL';
+if (typeof window !== 'undefined') {
+  window.newsChannelFilter = window.newsChannelFilter || 'ALL';
+  window.newsCategoryFilter = window.newsCategoryFilter || 'ALL';
+}
+try {
+  if (typeof newsChannelFilter !== 'undefined') newsChannelFilter = newsChannelFilter || 'ALL';
+  if (typeof newsCategoryFilter !== 'undefined') newsCategoryFilter = newsCategoryFilter || 'ALL';
+} catch (_) {}
 
 function generateSimWorldNews(){
   const clubName = state.club || 'Corinthians';
@@ -30585,6 +30613,10 @@ function facilityCost(key){
     const nextObj = PARKING_LEVELS[curLvl + 1];
     if(nextObj && typeof nextObj.cost === 'number') return nextObj.cost;
   }
+  if(key === 'museum' && typeof getMuseumConfig === 'function'){
+    const curLvl = Math.max(1, Number(state?.infrastructure?.museum?.level || state?.museumData?.level) || 1);
+    return getMuseumConfig(curLvl).cost;
+  }
   const f=state.infrastructure[key]||{level:1},d=FACILITIES[key];
   const level = Math.max(0, Number(f.level) || 0);
   return Math.round(Number(d.base || 0) * Math.pow(FACILITY_LEVEL_MULTIPLIER, level) * Math.pow(FACILITY_COST_INCREASE, level + 1));
@@ -30735,6 +30767,10 @@ function upgradeFacility(key){
   }
   if(key==='training') state.news.unshift(`⚽ CENTRO DE TREINAMENTO NÍVEL ${f.level}: elenco ampliado para ${squadCapacity(f.level)} vagas e bônus de treino elevado para +${trainingBonusPct(f.level)}% no desenvolvimento dos atletas!`);
   if(key==='museum'||key==='stadium') state.trust.fans=clamp(state.trust.fans+4,0,100);
+  if(key==='museum'){
+    state.museumData = state.museumData || { level: 1 };
+    state.museumData.level = f.level;
+  }
   if(key==='press') state.trust.board=clamp(state.trust.board+1,0,100);
   if(key==='academy') boostYouthAcademyOnUpgrade(f.level);
   if(key==='bank') state.news.unshift(`🏦 Banco & Financiamento evoluído para o nível ${f.level}! Limite de crédito ampliado e taxas de juros reduzidas.`);
@@ -37706,6 +37742,11 @@ function renderMarketScout(){
 function structurePage(){
   if(typeof window.ensureClubStructureHydrated === 'function') window.ensureClubStructureHydrated(state);
   structureSubTab = window.structActiveTab = window.structActiveTab || structureSubTab || 'facilities';
+  if(structureSubTab === 'arena') {
+    structureSubTab = 'stadium';
+    window.structActiveTab = 'stadium';
+    if(window.afmStructureUIState) window.afmStructureUIState.stadiumSubMode = 'new-arena';
+  }
   if(typeof syncStadiumCapacityAndLevel === 'function') syncStadiumCapacityAndLevel(state);
   if (!Array.isArray(state.bankLoans)) state.bankLoans = Array.isArray(state.bankLoans?.activeLoans) ? state.bankLoans.activeLoans : [];
   const f = userFixture(), opp = f && f[0] === state.club ? f[1] : null;
@@ -37737,19 +37778,16 @@ function structurePage(){
       </div>
     </div>
 
-    <!-- Sub-Abas de Estrutura -->
+    <!-- Sub-Abas de Estrutura Unificadas (4 Sub-Abas) -->
     <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
       <button class="btn btn-struct-tab ${structureSubTab==='facilities'?'primary':''}" data-struct-tab="facilities" style="font-weight:900;padding:8px 18px;border-radius:10px">
         🏢 INSTALAÇÕES GERAIS
       </button>
       <button class="btn btn-struct-tab ${structureSubTab==='stadium'?'primary':''}" data-struct-tab="stadium" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #7c3aed">
-        🏟️ EXPANSÃO (ANÉIS ATÉ 100K)
-      </button>
-      <button class="btn btn-struct-tab ${structureSubTab==='arena'?'primary':''}" data-struct-tab="arena" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #0284c7">
-        🏛️ CONSTRUIR NOVA ARENA
+        🏟️ ESTÁDIO & NOVA ARENA
       </button>
       <button class="btn btn-struct-tab ${structureSubTab==='museum'?'primary':''}" data-struct-tab="museum" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #f59e0b">
-        🏆 MUSEU DO CLUBE (${musData.levelObj.name})
+        🏆 MUSEU DO CLUBE (Estante de Troféus)
       </button>
       <button class="btn btn-struct-tab ${structureSubTab==='house'?'primary':''}" data-struct-tab="house" style="font-weight:900;padding:8px 18px;border-radius:10px;border-left:4px solid #10b981">
         🏠 SUA CASA & BENS PESSOAIS
@@ -37776,12 +37814,7 @@ function structurePage(){
       </button>
     </div>
 
-    <!-- Card Oficial do Estádio 3D -->
-    ${(typeof window.AFMStadium3D !== 'undefined' && window.AFMStadium3D.renderStadium3DCardHTML)
-      ? window.AFMStadium3D.renderStadium3DCardHTML(state.club, state)
-      : ''}
-
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;padding:10px 14px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.16);border-radius:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:14px;padding:10px 14px;background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.16);border-radius:10px">
       <div style="font-size:12px;color:rgba(255,255,255,0.72)">
         🏟️ <b style="color:#38bdf8">Anéis liberados: ${Math.min(Number(stadiumFacility.level) || 1, FACILITIES.stadium.max)}/${FACILITIES.stadium.max}</b>
         <span style="margin-left:6px">${stadiumFacilityMax ? 'Todos os anéis estão disponíveis para obras.' : 'Evolua para liberar o próximo anel de arquibancadas.'}</span>
@@ -37818,6 +37851,16 @@ function structurePage(){
                     ${!max ? `<span class="muted" style="margin-left:3px;font-size:10px">(Próx: ${fmtMoney(facilityMonthlyCost(k, x.level + 1))})</span>` : ''}
                   </span>
                 </div>
+                ${k==='museum'?`
+                  <div class="facility-stat" style="color:#f59e0b">
+                    <span class="facility-stat-label">Capacidade da vitrine:</span>
+                    <span class="facility-stat-val"><b>${typeof getMuseumConfig === 'function' ? getMuseumConfig(x.level).capacity : (x.level*2)} taças</b> ${!max ? `<span class="muted" style="margin-left:3px;font-size:10px">(Próx: ${typeof getMuseumConfig === 'function' ? getMuseumConfig(x.level+1).capacity : ((x.level+1)*2)} taças)</span>` : ''}</span>
+                  </div>
+                  <div class="facility-stat" style="color:#10b981">
+                    <span class="facility-stat-label">Impacto na torcida:</span>
+                    <span class="facility-stat-val"><b>+${typeof getMuseumConfig === 'function' ? getMuseumConfig(x.level).fanBonusPct : (x.level*3)}% alegria</b> ${!max ? `<span class="muted" style="margin-left:3px;font-size:10px">(Próx: +${typeof getMuseumConfig === 'function' ? getMuseumConfig(x.level+1).fanBonusPct : ((x.level+1)*3)}%)</span>` : ''}</span>
+                  </div>
+                `:''}
                 ${k==='stadium'?`
                   <div class="facility-stat">
                     <span class="facility-stat-label">Capacidade:</span>
@@ -37827,7 +37870,7 @@ function structurePage(){
                 ${k==='parking'?`
                   <div class="facility-stat">
                     <span class="facility-stat-label">Vagas:</span>
-                    <span class="facility-stat-val"><b>${(parkingSpots(x.level) + (state.parkingConcession?.bonusInvestedSpaces || 0)).toLocaleString('pt-BR')}</b> ${state.parkingConcession ? `<span class="pill good" style="font-size:9px;margin-left:2px">🤝 ${esc(state.parkingConcession.companyName)}</span>` : ''}</span>
+                    <span class="facility-stat-val"><b>${(parkingSpots(x.level) + (state.parkingConcession?.bonusInvestedSpaces || 0)).toLocaleString('pt-BR')}</b> ${parkingSpots(x.level) === 0 ? '<span class="pill warning" style="font-size:9px;margin-left:2px">0 vagas • Requer ampliação</span>' : ''} ${state.parkingConcession ? `<span class="pill good" style="font-size:9px;margin-left:2px">🤝 ${esc(state.parkingConcession.companyName)}</span>` : ''}</span>
                   </div>
                   ${state.parkingConcession ? `
                     <div class="facility-stat" style="color:var(--neon)">
@@ -38037,388 +38080,17 @@ function structurePage(){
         </div>
       </div>
     ` : structureSubTab==='stadium' ? `
-      <!-- AMPLIAÇÃO ANEL POR ANEL ATÉ 100 MIL LUGARES -->
-      <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(139,92,246,0.3);border-radius:18px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-          <div>
-            <h2 style="margin:0;font-size:22px;font-weight:900;color:#fff;text-transform:uppercase">
-              AMPLIAÇÃO ANEL POR ANEL: ANEL ${stData.ring} DE ${stData.maxRings}
-            </h2>
-            <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
-              O seu estádio pode crescer até 100 mil lugares, anel por anel. Cada anel tem 4 lados (Norte, Sul, Leste e Oeste). O próximo anel abre quando os 4 lados do anterior ficam prontos.
-            </div>
-          </div>
-          <span class="pill good" style="font-size:14px;padding:6px 14px">
-            Capacidade Atual: <b>${(state.infrastructure.stadium.capacity||18000).toLocaleString('pt-BR')} lugares</b>
-          </span>
-        </div>
-
-        <!-- Card Oficial do Estádio 3D -->
-        ${(typeof window.AFMStadium3D !== 'undefined' && window.AFMStadium3D.renderStadium3DCardHTML)
-          ? window.AFMStadium3D.renderStadium3DCardHTML(state.club, state)
-          : ''}
-
-        <!-- 4 Lados do Anel Atual -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-top:20px">
-          ${['norte','sul','leste','oeste'].map(side => {
-            const isDone = stData.sides[side];
-            const sideName = side.toUpperCase();
-            const seatsGain = 3500;
-            const cost = Math.round(850000 * 1.30);
-            const sideWork = stadiumWork && stadiumWork.ring === stData.ring && stadiumWork.side === side ? stadiumWork : null;
-
-            return `
-              <div style="background:#181428;border:1px solid ${isDone ? '#22c55e' : 'rgba(255,255,255,0.08)'};border-radius:14px;padding:16px;text-align:center">
-                <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);letter-spacing:1px">LADO ${sideName}</div>
-                <div style="font-size:22px;font-weight:900;color:${isDone ? '#22c55e' : '#fff'};margin-top:6px">
-                  ${isDone ? 'CONCLUÍDO' : `+${seatsGain.toLocaleString('pt-BR')}`}
-                </div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">
-                  ${isDone ? 'Obra entregue' : `+${seatsGain.toLocaleString('pt-BR')} lugares • custo de ${fmtMoney(cost)}`}
-                </div>
-                ${sideWork ? `
-                  <div style="margin-top:12px;text-align:left;font-size:11px;color:#fbbf24;font-weight:800">OBRA EM ANDAMENTO · ${stadiumWorkDays} dias restantes</div>
-                  <div style="height:8px;background:rgba(255,255,255,.09);border-radius:6px;overflow:hidden;margin-top:6px"><div style="width:${stadiumWorkProgress}%;height:100%;background:linear-gradient(90deg,#f59e0b,#22c55e)"></div></div>
-                  <div style="font-size:10px;color:rgba(255,255,255,.55);margin-top:4px">${stadiumWorkProgress}% concluído</div>
-                ` : ''}
-
-                ${!isDone && !stadiumWork ? `
-                  <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
-                    <button class="btn primary btnBuildSide" data-side="${side}" data-mode="cash" style="padding:6px;font-size:11px;font-weight:800">
-                      À Vista: ${fmtMoney(cost)}
-                    </button>
-                    <button class="btn btnBuildSide" data-side="${side}" data-mode="6x" style="padding:6px;font-size:10px;background:rgba(124,58,237,0.2);border:1px solid #7c3aed">
-                      6x de ${fmtMoney(Math.round(cost*1.06/6))}
-                    </button>
-                    <button class="btn btnBuildSide" data-side="${side}" data-mode="12x" style="padding:6px;font-size:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1)">
-                      12x de ${fmtMoney(Math.round(cost*1.12/12))}
-                    </button>
-                  </div>
-                ` : (isDone ? `
-                  <div style="margin-top:16px;font-size:12px;color:#22c55e;font-weight:800">
-                    ✓ 100% Liberado
-                  </div>
-                ` : `<div style="margin-top:12px;padding:10px;background:rgba(245,158,11,.08);border-radius:8px;font-size:11px;color:#fbbf24">Outra obra precisa ser concluída antes de iniciar um novo setor.</div>`)}
-              </div>
-            `;
-          }).join('')}
-        </div>
-
-        <div style="margin-top:18px;background:rgba(255,255,255,0.03);padding:14px;border-radius:10px;font-size:12px;color:rgba(255,255,255,0.6);line-height:1.5">
-          💡 <b>Regras de Engenharia & Finanças:</b> Dá para pagar à vista ou parcelar em 6 ou 12 vezes (20% de entrada e parcelas com juros de 1% ao mês cobradas no dia 1º). As parcelas somadas não podem ultrapassar 30% da receita mensal do clube. Durante a obra, cerca de 3.500 lugares ficam interditados por segurança.
-        </div>
-      </div>
-    ` : structureSubTab==='arena' ? `
-      <!-- CONSTRUIR NOVA ARENA DO CLUBE -->
-      ${arenaData.underConstruction ? `
-        <!-- CASO JÁ ESTEJA EM OBRAS -->
-        <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(34,197,94,0.4);border-radius:18px">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-            <div>
-              <span class="pill good" style="font-size:11px;font-weight:900">🏗️ OBRAS EM ANDAMENTO A TODO VAPOR</span>
-              <h2 style="margin:6px 0 0 0;font-size:24px;font-weight:900;color:#fff">${esc(arenaData.name)}</h2>
-              <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
-                Capacidade: <b style="color:#facc15">${(arenaData.capacity||45000).toLocaleString('pt-BR')} lugares</b> · Faltam <b>${arenaData.roundsRemaining} meses / rodadas</b> para a grande inauguração!
-              </div>
-            </div>
-            <span class="pill" style="background:#22c55e;color:#000;font-weight:900">Em Construção</span>
-          </div>
-
-          <div style="margin-top:20px;background:#181428;padding:18px;border-radius:14px;border:1px solid rgba(255,255,255,0.08)">
-            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:rgba(255,255,255,0.7);margin-bottom:8px">
-              <span>Progresso Físico da Obra:</span>
-              <span>${Math.round(((arenaData.roundsTotal - arenaData.roundsRemaining) / (arenaData.roundsTotal || 1)) * 100)}% Concluído</span>
-            </div>
-            <div style="width:100%;height:14px;background:rgba(255,255,255,0.06);border-radius:7px;overflow:hidden">
-              <div style="width:${Math.max(5, Math.round(((arenaData.roundsTotal - arenaData.roundsRemaining) / (arenaData.roundsTotal || 1)) * 100))}%;height:100%;background:linear-gradient(90deg, #0284c7, #22c55e);border-radius:7px"></div>
-            </div>
-
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin-top:16px">
-              <div style="background:#110e1d;padding:12px;border-radius:10px">
-                <span class="muted" style="font-size:11px">Lote & Terreno:</span>
-                <div style="font-size:13px;font-weight:800;color:#22c55e;margin-top:2px">✓ Escriturado & Registrado</div>
-              </div>
-              <div style="background:#110e1d;padding:12px;border-radius:10px">
-                <span class="muted" style="font-size:11px">Alvará & Licenças:</span>
-                <div style="font-size:13px;font-weight:800;color:#22c55e;margin-top:2px">✓ Licença Municipal Aprovada</div>
-              </div>
-              <div style="background:#110e1d;padding:12px;border-radius:10px">
-                <span class="muted" style="font-size:11px">Forma de Pagamento:</span>
-                <div style="font-size:13px;font-weight:800;color:#facc15;margin-top:2px">${arenaData.monthly ? `${fmtMoney(arenaData.monthly)}/mês` : 'Quitado 100% à vista'}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ` : `
-        <!-- PLANEJAMENTO E CONSTRUÇÃO DA NOVA ARENA -->
-        <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(2,132,199,0.3);border-radius:18px">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-            <div>
-              <h2 style="margin:0;font-size:22px;font-weight:900;color:#fff;text-transform:uppercase">
-                CONSTRUIR UMA NOVA ARENA DO CLUBE
-              </h2>
-              <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
-                Erga um estádio novo monumental para o seu clube de 15 mil até 100 mil lugares.
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px">
-              <span class="pill good" style="font-size:12px;font-weight:900">💰 Saldo em Caixa: ${fmtMoney(state.balance)}</span>
-              <span class="pill" style="background:#0284c7;color:#fff;font-weight:800">Projeto Megalomaníaco</span>
-            </div>
-          </div>
-
-          <!-- Prévia Conceitual do Modelo 3D da Nova Arena -->
-          ${(typeof window.AFMStadium3D !== 'undefined' && window.AFMStadium3D.renderStadium3DCardHTML)
-            ? window.AFMStadium3D.renderStadium3DCardHTML(selectedArenaName || state.club, {
-                ...state,
-                stadiumName: selectedArenaName || 'Nova Arena',
-                stadiumCapacity: selectedArenaCapacity,
-                infrastructure: { ...(state.infrastructure||{}), stadium: { level: selectedArenaCapacity >= 40000 ? 5 : 3, capacity: selectedArenaCapacity } }
-              })
-            : ''}
-
-          <!-- ======================================================== -->
-          <!-- ETAPA 1: REGULARIZAÇÃO LEGAL E AQUISIÇÃO DO LOTE/ALVARÁ  -->
-          <!-- ======================================================== -->
-          <div style="margin-top:20px;background:#161224;padding:18px;border-radius:14px;border:1px solid rgba(139,92,246,0.35)">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-              <div style="font-size:13px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:1px">
-                📋 ETAPA 1: PRÉ-REQUISITOS LEGAIS (OBRIGATÓRIO PARA APROVAÇÃO DO PROJETO)
-              </div>
-              <span class="pill ${state.arenaLandBought && state.arenaPermitBought ? 'good' : 'warning'}" style="font-size:11px;font-weight:900">
-                ${state.arenaLandBought && state.arenaPermitBought ? '✓ REQUISITOS QUITADOS · LIBERADO PARA CONSTRUIR' : '⚠️ REGULARIZE O LOTE E O ALVARÁ ABAIXO'}
-              </span>
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-              <!-- CARD 1: LOTE URBANO -->
-              <div style="background:#110e1d;padding:14px;border-radius:12px;border:1px solid ${state.arenaLandBought?'rgba(34,197,94,0.4)':'rgba(255,255,255,0.1)'}">
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <b style="font-size:12px;color:#fff">🏙️ Lote Urbano (Terreno Comercial)</b>
-                  <span class="pill ${state.arenaLandBought?'good':'warning'}" style="font-size:10px;font-weight:900">
-                    ${state.arenaLandBought ? 'ESCRITURADO ✓' : 'PENDENTE'}
-                  </span>
-                </div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px;line-height:1.4">
-                  ${state.arenaLandBought ? 'Área de 180.000 m² escriturada e averbada em cartório no nome do clube.' : 'Aquisição do terreno para o complexo, arquibancadas e estacionamento.'}
-                </div>
-                ${state.arenaLandBought ? `
-                  <div style="margin-top:10px;font-size:12px;color:#22c55e;font-weight:900">✓ Quitado & Regularizado (${fmtMoney(arenaLandCost(arenaCapacity))})</div>
-                ` : `
-                  <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
-                    <button class="btn primary" id="btnBuyArenaLandPage" style="background:#0284c7;font-weight:900;font-size:11px;padding:8px 12px;border-radius:8px;cursor:pointer">
-                      🛒 Comprar Lote à Vista • ${fmtMoney(arenaLandCost(arenaCapacity))}
-                    </button>
-                    <button class="btn" id="btnFinanceArenaLandPage" style="background:rgba(2,132,199,0.18);border:1px solid #0284c7;color:#38bdf8;font-weight:800;font-size:10px;padding:6px 10px;border-radius:8px;cursor:pointer" title="Entrada de 10% (${fmtMoney(Math.round(arenaLandCost(arenaCapacity)*0.1))}) e 24 parcelas">
-                      🏛️ Financiamento Municipal (10% entrada: ${fmtMoney(Math.round(arenaLandCost(arenaCapacity)*0.1))})
-                    </button>
-                  </div>
-                `}
-              </div>
-
-              <!-- CARD 2: ALVARÁ DA PREFEITURA -->
-              <div style="background:#110e1d;padding:14px;border-radius:12px;border:1px solid ${state.arenaPermitBought?'rgba(34,197,94,0.4)':'rgba(255,255,255,0.1)'}">
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <b style="font-size:12px;color:#fff">🏛️ Alvará de Construção & Licenças</b>
-                  <span class="pill ${state.arenaPermitBought?'good':'warning'}" style="font-size:10px;font-weight:900">
-                    ${state.arenaPermitBought ? 'EMITIDO ✓' : 'PENDENTE'}
-                  </span>
-                </div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px;line-height:1.4">
-                  ${state.arenaPermitBought ? 'Licença ambiental, trânsito e Corpo de Bombeiros totalmente autorizados.' : 'Estudo de impacto de vizinhança (EIV) e taxas de aprovação civil na Prefeitura.'}
-                </div>
-                ${state.arenaPermitBought ? `
-                  <div style="margin-top:10px;font-size:12px;color:#22c55e;font-weight:900">✓ Aprovado & Emitido (${fmtMoney(arenaPermitCost(arenaCapacity))})</div>
-                ` : `
-                  <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
-                    <button class="btn primary" id="btnBuyArenaPermitPage" style="background:#7c3aed;font-weight:900;font-size:11px;padding:8px 12px;border-radius:8px;cursor:pointer">
-                      🏛️ Emitir Alvará à Vista • ${fmtMoney(arenaPermitCost(arenaCapacity))}
-                    </button>
-                    <button class="btn" id="btnFinanceArenaPermitPage" style="background:rgba(124,58,237,0.18);border:1px solid #7c3aed;color:#c084fc;font-weight:800;font-size:10px;padding:6px 10px;border-radius:8px;cursor:pointer" title="Entrada de 10% (${fmtMoney(Math.round(arenaPermitCost(arenaCapacity)*0.1))}) e 24 parcelas">
-                      📋 Parcelar Taxas e Alvará (10% entrada: ${fmtMoney(Math.round(arenaPermitCost(arenaCapacity)*0.1))})
-                    </button>
-                  </div>
-                `}
-              </div>
-            </div>
-
-            ${(!state.arenaLandBought && !state.arenaPermitBought) ? `
-              <div style="margin-top:10px">
-                <button class="btn" id="btnBuyBothArenaReqsPage" style="width:100%;background:linear-gradient(135deg, #0284c7 0%, #7c3aed 100%);color:#fff;font-weight:900;font-size:12px;padding:10px;border-radius:10px;border:none;cursor:pointer">
-                  ⚡ Regularizar Terreno e Alvará Juntos (Pacote Completo) • ${fmtMoney(arenaLandCost(arenaCapacity)+arenaPermitCost(arenaCapacity))}
-                </button>
-              </div>
-            ` : ''}
-          </div>
-
-          <!-- ======================================================== -->
-          <!-- ETAPA 2: PROJETO ARQUITETÔNICO, CAPACIDADE & FINANCIAMENTO-->
-          <!-- ======================================================== -->
-          <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:20px;margin-top:20px">
-            <div style="background:#181428;padding:20px;border-radius:14px;border:1px solid rgba(255,255,255,0.08)">
-              <label style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.7)">1. ESCOLHA O NOME DA SUA NOVA ARENA:</label>
-              <select id="selectArenaName" class="btn" style="width:100%;margin-top:6px;background:#120f20;border:1px solid #0284c7;color:#fff;font-size:13px;font-weight:800;padding:10px">
-                <option value="Arena ${esc(state.club)}">Arena ${esc(state.club)}</option>
-                <option value="Novo ${esc(clubByName(state.club)?.stadium || state.club)}">Novo ${esc(clubByName(state.club)?.stadium || state.club)} Monumental</option>
-                <option value="Estádio ${esc(state.club)} Park">${esc(state.club)} Park</option>
-                <option value="Coliseu do ${esc(state.club)}">Coliseu do ${esc(state.club)}</option>
-                <option value="Arena Real">Arena Real</option>
-                <option value="Arena do Cerrado">Arena do Cerrado</option>
-              </select>
-
-              <label style="display:block;margin-top:16px;font-size:12px;font-weight:800;color:rgba(255,255,255,0.7)">2. ESCOLHA O TAMANHO DO ESTÁDIO (CAPACIDADE PROJETADA):</label>
-              <select id="selectArenaCap" class="btn" style="width:100%;margin-top:6px;background:#120f20;border:1px solid #0284c7;color:#fff;font-size:13px;font-weight:800;padding:10px">
-                <option value="15000" ${arenaCapacity===15000?'selected':''}>15.000 lugares (Arena Regional) • ${fmtMoney(calcArenaTotalCost(15000))}</option>
-                <option value="30000" ${arenaCapacity===30000?'selected':''}>30.000 lugares (Caldeirão de Médio Porte) • ${fmtMoney(calcArenaTotalCost(30000))}</option>
-                <option value="50000" ${arenaCapacity===50000?'selected':''}>50.000 lugares (Super Arena Série A) • ${fmtMoney(calcArenaTotalCost(50000))}</option>
-                <option value="80000" ${arenaCapacity===80000?'selected':''}>80.000 lugares (Templo Monumental Mundial) • ${fmtMoney(calcArenaTotalCost(80000))}</option>
-                <option value="100000" ${arenaCapacity===100000?'selected':''}>100.000 lugares (Mega Arena Monumental) • ${fmtMoney(calcArenaTotalCost(100000))}</option>
-              </select>
-
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:10px">
-                <div class="card" style="padding:10px"><div class="small muted">Terreno</div><b>${fmtMoney(arenaLandCost(arenaCapacity))}</b></div>
-                <div class="card" style="padding:10px"><div class="small muted">Alvará e licenças</div><b>${fmtMoney(arenaPermitCost(arenaCapacity))}</b></div>
-                <div class="card" style="padding:10px"><div class="small muted">Obra</div><b>${fmtMoney(calcArenaTotalCost(arenaCapacity))}</b></div>
-                <div class="card" style="padding:10px;border-color:rgba(34,197,94,.35)"><div class="small muted">Total do projeto</div><b style="color:#4ade80">${fmtMoney(arenaLandCost(arenaCapacity)+arenaPermitCost(arenaCapacity)+calcArenaTotalCost(arenaCapacity))}</b></div>
-              </div>
-
-              <label style="display:block;margin-top:16px;font-size:12px;font-weight:800;color:rgba(255,255,255,0.7)">3. FORMA DE PAGAMENTO DA OBRA:</label>
-              <select id="selectArenaFinancing" class="btn" style="width:100%;margin-top:6px;background:#120f20;border:1px solid #0284c7;color:#fff;font-size:13px;font-weight:800;padding:10px">
-                <option value="cash">Pagamento à Vista (Sem juros e desconto imediato)</option>
-                <option value="4years">Financiamento em 4 anos (20% de entrada + 48 parcelas mensais)</option>
-                <option value="6years">Financiamento em 6 anos (20% de entrada + 72 parcelas mensais)</option>
-                <option value="8years">Financiamento em 8 anos (20% de entrada + 96 parcelas mensais)</option>
-              </select>
-
-              <div style="margin-top:20px">
-                <button class="btn ${state.arenaLandBought && state.arenaPermitBought ? 'success' : 'primary'}" id="btnStartNewArenaProject" style="width:100%;padding:14px;background:${state.arenaLandBought && state.arenaPermitBought ? '#22c55e' : '#0284c7'};border:none;font-weight:900;font-size:14px;border-radius:10px;cursor:pointer;box-shadow:${state.arenaLandBought && state.arenaPermitBought ? '0 4px 18px rgba(34,197,94,0.4)' : 'none'}">
-                  ${state.arenaLandBought && state.arenaPermitBought ? '🚀 Iniciar Construção da Nova Arena (Liberado ✓)' : '🏛️ Iniciar Construção da Nova Arena'}
-                </button>
-              </div>
-            </div>
-
-            <div style="background:#181428;padding:20px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;justify-content:center">
-              <h3 style="margin:0 0 10px 0;font-size:16px;color:#fff">Como funciona a Nova Arena:</h3>
-              <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.7);line-height:1.6">
-                <li>A obra leva de <b>1.5 a 3 anos de jogo</b> dependendo da capacidade.</li>
-                <li>Até lá, o clube <b>continua jogando no estádio atual sem fechar nenhum lugar</b>.</li>
-                <li>Na inauguração, o clube se muda com grande festa da torcida e novo público recorde.</li>
-                <li>Dá para pagar à vista ou financiado em 4, 6 ou 8 anos com 20% de entrada.</li>
-                <li><b>Lote Urbano e Alvará</b> são obrigatórios para licenciar o canteiro de obras.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      `}
+      ${(typeof renderUnifiedStadiumAndArenaTab === 'function')
+        ? renderUnifiedStadiumAndArenaTab(state)
+        : '<div class="card" style="padding:24px;color:#fff">Carregando Estádio & Nova Arena...</div>'}
     ` : structureSubTab==='museum' ? `
-      <!-- MUSEU DO CLUBE (16 NÍVEIS E VITRINE DE TAÇAS) -->
-      <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(245,158,11,0.3);border-radius:18px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-          <div>
-            <h2 style="margin:0;font-size:22px;font-weight:900;color:#fff;text-transform:uppercase">
-              MUSEU DO CLUBE: ${musData.levelObj.name.toUpperCase()} (NÍVEL ${musData.levelObj.level}/16)
-            </h2>
-            <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
-              Capacidade da Vitrine: <b>${musData.levelObj.capacity} taças</b> • Total no acervo: <b>${musData.allTitles.length} títulos</b>
-            </div>
-          </div>
-          <button class="btn primary btnUpgradeMuseum" style="background:#f59e0b;color:#000;font-weight:900;padding:8px 18px;border:none">
-            Evoluir Museu • ${fmtMoney(musData.levelObj.cost)}
-          </button>
-        </div>
-
-        ${musData.isUnhappy ? `
-          <div style="margin-top:16px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <div style="color:#fca5a5;font-size:13px">
-              ⚠️ <b>Falta espaço na vitrine!</b> Há <b>${musData.overflow.length} taça(s) guardada(s) fora da vitrine</b>. Enquanto houver taça no chão, a felicidade da torcida fica reduzida pela metade!
-            </div>
-            <button class="btn danger" id="btnSkipUpgradeMuseum" style="font-weight:900;font-size:12px;padding:8px 14px">
-              ⚡ Oferta: Ampliar de Uma Vez
-            </button>
-          </div>
-        ` : ''}
-
-        <!-- Vitrine Oficial -->
-        <h3 style="margin:20px 0 10px 0;font-size:15px;color:#fff">🏆 Taças em Exibição na Vitrine (${musData.inVitrine.length}/${musData.levelObj.capacity})</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:10px">
-          ${musData.inVitrine.length ? musData.inVitrine.map(t => `
-            <div style="background:#1c1730;border:1px solid #f59e0b;border-radius:10px;padding:12px;text-align:center">
-              <div style="font-size:28px">🏆</div>
-              <div style="font-size:12px;font-weight:800;color:#fff;margin-top:4px">${esc(t)}</div>
-              <div style="font-size:9px;color:#f59e0b;margin-top:2px">NA VITRINE OFICIAL</div>
-            </div>
-          `).join('') : '<div style="grid-column:1/-1;padding:18px;text-align:center;color:#94a3b8;background:#1c1730;border:1px dashed #475569;border-radius:10px">Nenhuma taça conquistada ainda. Sua história começa nesta carreira.</div>'}
-        </div>
-
-        ${musData.overflow.length > 0 ? `
-          <h3 style="margin:20px 0 10px 0;font-size:15px;color:#ef4444">📦 Guardadas Fora da Vitrine (Falta Espaço)</h3>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:10px">
-            ${musData.overflow.map(t => `
-              <div style="background:#181428;border:1px dashed rgba(239,68,68,0.5);border-radius:10px;padding:12px;text-align:center;opacity:0.6">
-                <div style="font-size:28px;filter:grayscale(1)">🏆</div>
-                <div style="font-size:12px;font-weight:800;color:#fff;margin-top:4px">${esc(t)}</div>
-                <div style="font-size:9px;color:#ef4444;margin-top:2px">GUARDADA FORA</div>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
-      </div>
+      ${(typeof renderUnifiedMuseumTab === 'function')
+        ? renderUnifiedMuseumTab(state)
+        : '<div class="card" style="padding:24px;color:#fff">Carregando Museu do Clube...</div>'}
     ` : `
-      <!-- SUA CASA & BENS PESSOAIS DO TREINADOR -->
-      <div class="card" style="margin-top:16px;padding:24px;background:#120f20;border:1px solid rgba(16,185,129,0.3);border-radius:18px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-          <div>
-            <h2 style="margin:0;font-size:22px;font-weight:900;color:#fff;text-transform:uppercase">
-              SUA CASA & PATRIMÔNIO PESSOAL
-            </h2>
-            <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px">
-              Imóveis de alto padrão, veículos esportivos, coleções e bens de luxo adquiridos na carreira.
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <button id="btnGoToManagerCareerFromHouse" type="button" data-view="carreira" class="btn" style="background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px">
-              💼 Ir para Carreira & Negócios
-            </button>
-            <button id="btnOpenCbfLicensesFromHouse" type="button" style="background:rgba(15,23,42,0.85);color:#38bdf8;border:1px solid rgba(56,189,248,0.45);border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
-              🎓 CURSOS & LICENÇAS (CBF & UEFA)
-            </button>
-            <span class="pill" style="background:#059669;color:#fff;font-weight:800">
-              🏦 Saldo no Banco: ${fmtMoney(state.personalCash || state.managerMoney || (state.managerPersonal && state.managerPersonal.personalBalance) || 57000)}
-            </span>
-          </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:14px;margin-top:20px">
-          ${HOUSE_ITEMS.filter(item => !item.isLicense && item.category !== 'Curso').map(item => {
-            const hasBought = (state.housePurchases || []).includes(item.id);
-            let canBuy = item.unlocked;
-            if(!canBuy){
-              if(item.reqType === 'seasons') canBuy = (state.historySeasons || 1) >= item.reqVal;
-              else if(item.reqType === 'titles') canBuy = (state.titles || []).length >= item.reqVal;
-            }
-
-            return `
-              <div style="background:#181428;border:1px solid ${hasBought ? '#10b981' : canBuy ? 'rgba(255,255,255,0.1)' : 'rgba(239,68,68,0.3)'};border-radius:14px;padding:16px">
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <span class="pill" style="font-size:10px;background:rgba(255,255,255,0.06)">${item.category}</span>
-                  ${hasBought ? '<span style="color:#10b981;font-weight:900;font-size:11px">ADQUIRIDO ✓</span>' : ''}
-                </div>
-                <h3 style="margin:8px 0 4px 0;font-size:15px;color:#fff">${item.name}</h3>
-                <div style="font-size:14px;font-weight:900;color:#22c55e">${fmtMoney(item.cost)}</div>
-                <div style="font-size:11px;color:${canBuy ? 'rgba(255,255,255,0.5)' : '#fca5a5'};margin-top:6px;min-height:30px">
-                  ${canBuy ? item.reqText : `🔒 Bloqueado: ${item.reqText}`}
-                </div>
-
-                ${!hasBought ? `
-                  <button class="btn ${canBuy && (state.managerMoney||0)>=item.cost ? 'primary' : ''} btnBuyHouseItem" data-item-id="${item.id}" ${!canBuy || (state.managerMoney||0)<item.cost ? 'disabled' : ''} style="width:100%;margin-top:10px;padding:8px;font-size:12px;font-weight:800">
-                    ${(state.managerMoney||0)<item.cost ? 'Saldo Insuficiente no Banco' : 'Comprar com Saldo Bancário'}
-                  </button>
-                ` : ''}
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
+      ${(typeof renderUnifiedHouseTab === 'function')
+        ? renderUnifiedHouseTab(state)
+        : '<div class="card" style="padding:24px;color:#fff">Carregando Bens Pessoais...</div>'}
     `}
   `;
 }
