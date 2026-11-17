@@ -56,6 +56,32 @@ window.__afmAsRoundArray = window.__afmAsRoundArray || function(r) {
 'use strict';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+
+// Fallback seguro caso algum script chame $(...).forEach(...)
+if (typeof Element !== 'undefined' && !Element.prototype.forEach) {
+  Object.defineProperty(Element.prototype, 'forEach', {
+    value: function (callback, thisArg) {
+      if (typeof callback === 'function') {
+        callback.call(thisArg, this, 0, [this]);
+      }
+    },
+    configurable: true,
+    writable: true
+  });
+}
+if (typeof NodeList !== 'undefined' && !NodeList.prototype.forEach) {
+  NodeList.prototype.forEach = Array.prototype.forEach;
+}
+
+// Inicialização explícita de todos os filtros globais das abas (evita ReferenceError)
+if (typeof window !== 'undefined') {
+  window.newsCategoryFilter = window.newsCategoryFilter || 'ALL';
+  window.newsChannelFilter = window.newsChannelFilter || 'ALL';
+  window.newsSearchQuery = window.newsSearchQuery || '';
+  window.newsOnlyMyClub = Boolean(window.newsOnlyMyClub);
+  window.calendarFilter = window.calendarFilter || 'ALL';
+  window.calendarCompFilter = window.calendarCompFilter || 'ALL';
+}
 const STORAGE='aquino_futebol_manager_2026_v1';
 const fmtMoney=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(Number(v)||0);
 window.fmtMoney = fmtMoney;
@@ -2302,6 +2328,11 @@ if(typeof window !== 'undefined'){
 
 let squadFilter='ALL';
 let calendarFilter='ALL';
+let calendarCompFilter='ALL';
+let newsChannelFilter='ALL';
+let newsCategoryFilter='ALL';
+let newsSearchQuery='';
+let newsOnlyMyClub=false;
 let squadViewMode='roster';
 let salarySort='salary';
 let salaryViewTab='squad';
@@ -7560,7 +7591,8 @@ window.getMuseumData = getMuseumData;
 // -------------------------------------------------------------
 // ABA NOTÍCIAS & MÍDIA (G1, CAZÉTV, TWITTER, LÉO DIAS)
 // -------------------------------------------------------------
-let newsChannelFilter = 'ALL';
+newsChannelFilter = newsChannelFilter || 'ALL';
+newsCategoryFilter = newsCategoryFilter || 'ALL';
 
 function generateSimWorldNews(){
   const clubName = state.club || 'Corinthians';
@@ -7714,12 +7746,39 @@ function generateSimWorldNews(){
 }
 
 function newsMediaPage(){
+  if (state && state.gameMode !== 'player') {
+    if (typeof ensureManagerNewsHydrated === 'function') ensureManagerNewsHydrated(state);
+  }
   const ctx = (typeof resolveModeContext === 'function') ? resolveModeContext(state) : { isManager: true, isPlayer: false, clubName: state?.club || '' };
 
-  const careerNews = (ctx.isPlayer && Array.isArray(state.news))
-    ? state.news.slice(0, 15).map(item => {
+  const catFilter = (typeof newsCategoryFilter !== 'undefined' ? newsCategoryFilter : (window.newsCategoryFilter || 'ALL'));
+  const chanFilter = (typeof newsChannelFilter !== 'undefined' ? newsChannelFilter : (window.newsChannelFilter || 'ALL'));
+  const searchQ = (typeof window.newsSearchQuery === 'string' ? window.newsSearchQuery.toLowerCase().trim() : '');
+  const onlyClub = Boolean(window.newsOnlyMyClub);
+
+  const careerNews = Array.isArray(state?.news)
+    ? state.news.slice(0, 25).filter(item => {
+        if (!item) return false;
+        if (ctx.isPlayer) return true;
+        // No modo Treinador, filtra noticias pessoais de atleta para evitar vazamentos
+        const t = String(typeof item === 'string' ? item : (item.text || item.title || item.message || '')).toLowerCase();
+        if (t.includes('foto pessoal') || t.includes('minha foto') || t.includes('meu atleta') || t.includes('atleta do usuário') || t.includes('rumo ao estrelato')) return false;
+        if (typeof item === 'object' && item.source === 'Notícias da carreira') return false;
+        return true;
+      }).map(item => {
         const entry = typeof item === 'string' ? { text: item } : (item || {});
-        return { channel: 'G1', badgeColor: '#c4170c', source: entry.source || 'Notícias da carreira', time: entry.date || formatDatePtBr(state.date), title: entry.title || entry.headline || 'Atualização da carreira', text: entry.text || entry.message || String(item || ''), likes: 0, comments: 0, category: 'MYCLUB' };
+        const cat = entry.category || (entry.title && entry.title.includes('Janela') ? 'MARKET' : 'MYCLUB');
+        return {
+          channel: entry.channel || 'G1',
+          badgeColor: entry.badgeColor || '#c4170c',
+          source: entry.source || (ctx.isManager ? 'Sala de Imprensa Oficial' : 'Notícias da carreira'),
+          time: entry.date || formatDatePtBr(state.date),
+          title: entry.title || entry.headline || 'Comunicado Oficial do Clube',
+          text: entry.text || entry.message || String(item || ''),
+          likes: 0,
+          comments: 0,
+          category: cat
+        };
       }).filter(item => item.text)
     : [];
 
@@ -7727,24 +7786,38 @@ function newsMediaPage(){
     const textLower = ((n.title || '') + ' ' + (n.text || '')).toLowerCase();
     const myClubNorm = (typeof norm === 'function' ? norm(ctx.clubName) : String(ctx.clubName).toLowerCase());
     const isMyClub = textLower.includes(myClubNorm);
-    const isMarket = textLower.includes('transferência') || textLower.includes('contrat') || textLower.includes('mercado') || textLower.includes('reforço') || textLower.includes('proposta');
-    const isComp = textLower.includes('rodada') || textLower.includes('classificação') || textLower.includes('campeonato') || textLower.includes('título') || textLower.includes('goleada') || textLower.includes('vitória');
+    const isMarket = textLower.includes('transferência') || textLower.includes('contrat') || textLower.includes('mercado') || textLower.includes('reforço') || textLower.includes('proposta') || textLower.includes('janela');
+    const isComp = textLower.includes('rodada') || textLower.includes('classificação') || textLower.includes('campeonato') || textLower.includes('título') || textLower.includes('goleada') || textLower.includes('vitória') || textLower.includes('tabela');
+    const isDM = textLower.includes('lesão') || textLower.includes('lesionad') || textLower.includes('departamento médico') || textLower.includes('suspenso') || textLower.includes('cartão') || textLower.includes('fadiga');
+    const assignedCategory = isDM ? 'DM' : (isMyClub ? 'MYCLUB' : (isMarket ? 'MARKET' : (isComp ? 'COMPETITION' : 'ALL')));
     return {
       ...n,
-      category: isMyClub ? 'MYCLUB' : isMarket ? 'MARKET' : isComp ? 'COMPETITION' : 'ALL'
+      category: assignedCategory
     };
   });
 
   const allNews = [...careerNews, ...rawSimNews];
 
-  const channelFiltered = newsChannelFilter === 'ALL' ? allNews : allNews.filter(n => n.channel === newsChannelFilter);
-  const filtered = newsCategoryFilter === 'ALL' ? channelFiltered : channelFiltered.filter(n => {
-    if (newsCategoryFilter === 'MYCLUB') {
-      const myClubNorm = (typeof norm === 'function' ? norm(ctx.clubName) : String(ctx.clubName).toLowerCase());
-      return n.category === 'MYCLUB' || ((n.title || '') + ' ' + (n.text || '')).toLowerCase().includes(myClubNorm);
-    }
-    return n.category === newsCategoryFilter;
-  });
+  let filtered = allNews;
+  if (chanFilter !== 'ALL') {
+    filtered = filtered.filter(n => n.channel === chanFilter);
+  }
+  if (catFilter !== 'ALL') {
+    filtered = filtered.filter(n => {
+      if (catFilter === 'MYCLUB') {
+        const myClubNorm = (typeof norm === 'function' ? norm(ctx.clubName) : String(ctx.clubName).toLowerCase());
+        return n.category === 'MYCLUB' || ((n.title || '') + ' ' + (n.text || '')).toLowerCase().includes(myClubNorm);
+      }
+      return n.category === catFilter;
+    });
+  }
+  if (onlyClub) {
+    const myClubNorm = (typeof norm === 'function' ? norm(ctx.clubName) : String(ctx.clubName).toLowerCase());
+    filtered = filtered.filter(n => n.category === 'MYCLUB' || ((n.title || '') + ' ' + (n.text || '')).toLowerCase().includes(myClubNorm));
+  }
+  if (searchQ) {
+    filtered = filtered.filter(n => ((n.title || '') + ' ' + (n.text || '') + ' ' + (n.source || '')).toLowerCase().includes(searchQ));
+  }
 
   return `
     <div class="hero">
@@ -7755,38 +7828,50 @@ function newsMediaPage(){
       <span class="pill good">${ctx.isManager ? 'Sala de Imprensa do Treinador' : 'Mundo Vivo em Tempo Real'}</span>
     </div>
 
-    <!-- Filtros de Categorias Principais (Todas / Meu Clube / Mercado / Competições) -->
-    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
-      <span style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.6);align-self:center;margin-right:4px">CATEGORIA:</span>
-      <button type="button" class="btn btn-news-cat ${newsCategoryFilter==='ALL'?'active primary':''}" data-news-cat="ALL" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
-        📰 Todas as Notícias
-      </button>
-      <button type="button" class="btn btn-news-cat ${newsCategoryFilter==='MYCLUB'?'active primary':''}" data-news-cat="MYCLUB" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
-        ⭐ Apenas Meu Clube
-      </button>
-      <button type="button" class="btn btn-news-cat ${newsCategoryFilter==='MARKET'?'active primary':''}" data-news-cat="MARKET" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
-        🔁 Mercado & Transferências
-      </button>
-      <button type="button" class="btn btn-news-cat ${newsCategoryFilter==='COMPETITION'?'active primary':''}" data-news-cat="COMPETITION" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
-        🏆 Competições & Rodadas
-      </button>
+    <!-- Filtros de Categorias Principais (Todas / Meu Clube / Mercado / Competições / DM) + Busca -->
+    <div style="display:flex;gap:8px;margin-top:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:800;color:rgba(255,255,255,0.6);margin-right:2px">CATEGORIA:</span>
+        <button type="button" class="btn btn-news-cat ${catFilter==='ALL'?'active primary':''}" data-news-cat="ALL" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+          📰 Todas (${allNews.length})
+        </button>
+        <button type="button" class="btn btn-news-cat ${catFilter==='MYCLUB'?'active primary':''}" data-news-cat="MYCLUB" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+          ⭐ Apenas Meu Clube
+        </button>
+        <button type="button" class="btn btn-news-cat ${catFilter==='MARKET'?'active primary':''}" data-news-cat="MARKET" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+          🔁 Mercado
+        </button>
+        <button type="button" class="btn btn-news-cat ${catFilter==='COMPETITION'?'active primary':''}" data-news-cat="COMPETITION" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+          🏆 Competições
+        </button>
+        <button type="button" class="btn btn-news-cat ${catFilter==='DM'?'active primary':''}" data-news-cat="DM" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px">
+          🏥 DM & Lesões
+        </button>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <input type="text" id="inputNewsSearch" placeholder="🔍 Buscar notícia..." value="${esc(window.newsSearchQuery || '')}" style="font-size:11px;padding:5px 10px;border-radius:8px;background:#111827;border:1px solid rgba(255,255,255,0.15);color:#fff;min-width:160px">
+        <label style="font-size:11px;color:rgba(255,255,255,0.7);display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" id="chkNewsOnlyMyClub" ${onlyClub ? 'checked' : ''}> Apenas Meu Clube
+        </label>
+      </div>
     </div>
 
     <!-- Filtros de Canais de Mídia -->
     <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
-      <button class="btn btn-news-channel ${newsChannelFilter==='ALL'?'primary':''}" data-channel="ALL" style="font-weight:900;padding:7px 16px;border-radius:10px;font-size:12px">
+      <button class="btn btn-news-channel ${chanFilter==='ALL'?'primary':''}" data-channel="ALL" style="font-weight:900;padding:7px 16px;border-radius:10px;font-size:12px">
         🌐 TODOS OS CANAIS
       </button>
-      <button class="btn btn-news-channel ${newsChannelFilter==='G1'?'primary':''}" data-channel="G1" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #c4170c;font-size:12px">
+      <button class="btn btn-news-channel ${chanFilter==='G1'?'primary':''}" data-channel="G1" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #c4170c;font-size:12px">
         🔴 G1 / GLOBO ESPORTE
       </button>
-      <button class="btn btn-news-channel ${newsChannelFilter==='CAZETV'?'primary':''}" data-channel="CAZETV" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #eab308;font-size:12px">
+      <button class="btn btn-news-channel ${chanFilter==='CAZETV'?'primary':''}" data-channel="CAZETV" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #eab308;font-size:12px">
         🟡 CAZÉTV
       </button>
-      <button class="btn btn-news-channel ${newsChannelFilter==='TWITTER'?'primary':''}" data-channel="TWITTER" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #1d9bf0;font-size:12px">
+      <button class="btn btn-news-channel ${chanFilter==='TWITTER'?'primary':''}" data-channel="TWITTER" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #1d9bf0;font-size:12px">
         🔵 TWITTER / X
       </button>
-      <button class="btn btn-news-channel ${newsChannelFilter==='LEODIAS'?'primary':''}" data-channel="LEODIAS" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #ec4899;font-size:12px">
+      <button class="btn btn-news-channel ${chanFilter==='LEODIAS'?'primary':''}" data-channel="LEODIAS" style="font-weight:900;padding:7px 16px;border-radius:10px;border-left:4px solid #ec4899;font-size:12px">
         🟣 LÉO DIAS (BASTIDORES)
       </button>
     </div>
@@ -7794,7 +7879,7 @@ function newsMediaPage(){
     <!-- Feed de Matérias -->
     <div style="display:flex;flex-direction:column;gap:16px;margin-top:14px">
       ${filtered.length ? filtered.map((item, idx) => `
-        <div class="card" style="padding:18px;background:linear-gradient(135deg,#131024 0%,#0e0c1a 100%);border:1px solid rgba(255,255,255,0.08);border-radius:14px;box-shadow:0 4px 15px rgba(0,0,0,0.3)">
+        <div class="card news-article-card" style="padding:18px;background:linear-gradient(135deg,#131024 0%,#0e0c1a 100%);border:1px solid rgba(255,255,255,0.08);border-radius:14px;box-shadow:0 4px 15px rgba(0,0,0,0.3)">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
             <span class="pill" style="background:${item.badgeColor || '#7c3aed'};color:#fff;font-weight:900;font-size:11px">${esc(item.source)}</span>
             <span class="small muted" style="font-size:11px">⏱️ ${esc(item.time)}</span>
@@ -7804,7 +7889,7 @@ function newsMediaPage(){
           ${(typeof renderNewsLikesAndComments === 'function') ? renderNewsLikesAndComments(item, idx) : ''}
         </div>
       `).join('') : `
-        <div class="card" style="padding:32px;text-align:center;background:#100d1e;border-radius:14px">
+        <div class="card" style="padding:32px;text-align:center;background:#100d1e;border-radius:14px;border:1px dashed rgba(255,255,255,0.15)">
           <div style="font-size:24px;margin-bottom:8px">📰</div>
           <div style="font-size:15px;font-weight:800;color:#fff">Nenhuma notícia encontrada nesta categoria.</div>
           <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:4px">Avance o calendário em CONTINUAR para ver novas coberturas da imprensa esportiva.</div>
@@ -12630,6 +12715,190 @@ function autoNumberSquad(targetState = state) {
   if (typeof render === 'function') render();
 }
 window.autoNumberSquad = autoNumberSquad;
+
+// =========================================================================
+// BLINDAGEM DE SESSÃO, CALENDÁRIO & NOTÍCIAS (MODO TREINADOR)
+// =========================================================================
+function cleanManagerSessionModals() {
+  if (typeof document === 'undefined') return;
+  const dayAdv = document.getElementById('afmDayAdvanceNewsModal');
+  if (dayAdv) {
+    dayAdv.innerHTML = '';
+    dayAdv.style.display = 'none';
+    if (typeof dayAdv.remove === 'function') dayAdv.remove();
+  }
+  const postHub = document.getElementById('afmPostMatchHubModal');
+  if (postHub) {
+    postHub.innerHTML = '';
+    postHub.style.display = 'none';
+    if (typeof postHub.remove === 'function') postHub.remove();
+  }
+}
+window.cleanManagerSessionModals = cleanManagerSessionModals;
+
+function formatSafeMatchDate(rawDate, fallbackIndex = 0) {
+  if (!rawDate) {
+    const base = new Date(2026, 0, 18 + fallbackIndex * 4);
+    return base.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  if (typeof rawDate === 'number') {
+    const base = new Date(2026, 0, 1 + rawDate);
+    return base.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  const str = String(rawDate);
+  const parsed = new Date(str.includes('T') ? str : `${str}T12:00:00`);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  return str;
+}
+window.formatSafeMatchDate = formatSafeMatchDate;
+
+function ensureManagerCalendarHydrated(targetState = state) {
+  if (!targetState) return [];
+  cleanManagerSessionModals();
+  const clubObj = typeof targetState.club === 'object' && targetState.club !== null ? targetState.club : (typeof targetState.userClub === 'object' ? targetState.userClub : {});
+  const clubName = typeof targetState.club === 'string' ? targetState.club : (clubObj.name || targetState.clubName || 'Meu Clube');
+  const compName = clubObj.league || clubObj.competition || targetState.competitionName || 'Campeonato Brasileiro Série D';
+  const normTarget = typeof normalizeClubLookupKey === 'function' ? normalizeClubLookupKey(clubName) : String(clubName).toLowerCase();
+
+  const existingSchedule = Array.isArray(targetState.schedule) ? targetState.schedule : [];
+  const existingFixtures = Array.isArray(targetState.fixtures) ? targetState.fixtures : [];
+
+  let hasMatches = false;
+  if (existingSchedule.length > 0) {
+    hasMatches = existingSchedule.some(round => {
+      if (!Array.isArray(round)) return false;
+      return round.some(match => {
+        if (Array.isArray(match)) {
+          return match.some(team => (typeof normalizeClubLookupKey === 'function' ? normalizeClubLookupKey(team) : String(team).toLowerCase()) === normTarget);
+        }
+        if (match && typeof match === 'object') {
+          const hNorm = typeof normalizeClubLookupKey === 'function' ? normalizeClubLookupKey(match.home) : String(match.home).toLowerCase();
+          const aNorm = typeof normalizeClubLookupKey === 'function' ? normalizeClubLookupKey(match.away) : String(match.away).toLowerCase();
+          return hNorm === normTarget || aNorm === normTarget;
+        }
+        return false;
+      });
+    });
+  }
+
+  if (!hasMatches && existingFixtures.length > 0) {
+    hasMatches = existingFixtures.some(f => {
+      if (!f || typeof f !== 'object') return false;
+      const hNorm = typeof normalizeClubLookupKey === 'function' ? normalizeClubLookupKey(f.home) : String(f.home).toLowerCase();
+      const aNorm = typeof normalizeClubLookupKey === 'function' ? normalizeClubLookupKey(f.away) : String(f.away).toLowerCase();
+      return hNorm === normTarget || aNorm === normTarget;
+    });
+  }
+
+  if (hasMatches && existingSchedule.length > 0) {
+    return existingSchedule;
+  }
+
+  const rivals = [
+    'Brasiliense', 'Anápolis', 'Mixto', 'Real Brasília', 'Capital-DF',
+    'Gama', 'Aparecidense', 'CRAC', 'Iporá', 'Operário-VG', 'Samambaia', 'Paranoá'
+  ].filter(r => (typeof normalizeClubLookupKey === 'function' ? normalizeClubLookupKey(r) : r.toLowerCase()) !== normTarget);
+
+  const generatedSchedule = [];
+  const generatedFixtures = [];
+
+  for (let round = 0; round < 14; round++) {
+    const opp = rivals[round % rivals.length];
+    const isHome = round % 2 === 0;
+    const matchDate = new Date(2026, 0, 18 + round * 7);
+    const isoDate = matchDate.toISOString().slice(0, 10);
+    const homeTeam = isHome ? clubName : opp;
+    const awayTeam = isHome ? opp : clubName;
+
+    generatedFixtures.push({
+      id: `fix_${round + 1}`,
+      round: round + 1,
+      date: isoDate,
+      competition: round < 4 ? 'Torneio Início / Estadual' : compName,
+      home: homeTeam,
+      away: awayTeam,
+      stadium: isHome ? (clubObj.stadium || 'Estádio Mandante') : `Estádio do ${opp}`,
+      played: false,
+      homeGoals: null,
+      awayGoals: null
+    });
+
+    generatedSchedule.push([[homeTeam, awayTeam]]);
+  }
+
+  targetState.schedule = generatedSchedule;
+  targetState.fixtures = generatedFixtures;
+  return generatedSchedule;
+}
+window.ensureManagerCalendarHydrated = ensureManagerCalendarHydrated;
+
+function ensureManagerNewsHydrated(targetState = state) {
+  if (!targetState) return [];
+  cleanManagerSessionModals();
+  const clubObj = typeof targetState.club === 'object' && targetState.club !== null ? targetState.club : (typeof targetState.userClub === 'object' ? targetState.userClub : {});
+  const clubName = typeof targetState.club === 'string' ? targetState.club : (clubObj.name || targetState.clubName || 'Clube');
+  const managerName = targetState.manager || targetState.managerName || targetState.coachName || 'Novo Treinador';
+  const currentDate = targetState.currentDate || targetState.date || '01/01/2026';
+
+  let list = Array.isArray(targetState.news) ? targetState.news : [];
+
+  if (targetState.gameMode !== 'player') {
+    const pName = targetState.playerCareer?.name ? String(targetState.playerCareer.name).toLowerCase() : '';
+    list = list.filter(n => {
+      const text = String(typeof n === 'string' ? n : (n.title || n.text || n.headline || '')).toLowerCase();
+      if (pName && text.includes(pName)) return false;
+      if (text.includes('treinamentos do') || text.includes('atleta do usuário') || text.includes('rumo ao estrelato')) return false;
+      return true;
+    });
+  }
+
+  if (list.length === 0) {
+    list = [
+      {
+        id: 'news_init_1',
+        date: currentDate,
+        category: 'MYCLUB',
+        channel: 'G1',
+        source: 'G1 Esporte',
+        badgeColor: '#c4170c',
+        time: 'Hoje',
+        club: clubName,
+        title: `${clubName} anuncia ${managerName} como novo comandante para a temporada 2026`,
+        text: `A diretoria oficializou a contratação e definiu o planejamento esportivo e financeiro para a disputa da temporada.`
+      },
+      {
+        id: 'news_init_2',
+        date: currentDate,
+        category: 'MARKET',
+        channel: 'CAZETV',
+        source: 'CazéTV',
+        badgeColor: '#eab308',
+        time: 'Hoje',
+        club: clubName,
+        title: `Janela de transferências aberta: ${clubName} mapeia reforços dentro do orçamento`,
+        text: `Com comissão técnica definida, o departamento de futebol avalia oportunidades de mercado e jogadores em fim de contrato.`
+      },
+      {
+        id: 'news_init_3',
+        date: currentDate,
+        category: 'COMPETITION',
+        channel: 'TWITTER',
+        source: 'Twitter / X',
+        badgeColor: '#1d9bf0',
+        time: 'Hoje',
+        club: clubName,
+        title: `Tabela base da temporada 2026 divulgada pela federação`,
+        text: `Comissão técnica já pode consultar todos os confrontos, mandos de campo e datas na aba Calendário de Jogos.`
+      }
+    ];
+  }
+
+  targetState.news = list;
+  return list;
+}
+window.ensureManagerNewsHydrated = ensureManagerNewsHydrated;
 
 function playersForClub(club,worldGenerated){
   const live=livePlayers.filter(p=>norm(p.club)===norm(club)).map((p,i)=>({...p,id:p.id||`live-${hashStr(playerKey(p))}`,marketKey:playerKey(p),morale:p.morale??70,fitness:p.fitness??100,owned:true,value:calcValueMi(p)}));
@@ -34164,6 +34433,9 @@ window.openMatchSummaryModal = function(info) {
 // ABA CALENDÁRIO COM DATAS OFICIAIS E JANELAS DE TRANSFERÊNCIA
 // -------------------------------------------------------------
 function calendarPage(){
+  if (state && state.gameMode !== 'player') {
+    if (typeof ensureManagerCalendarHydrated === 'function') ensureManagerCalendarHydrated(state);
+  }
   const ctx = (typeof resolveModeContext === 'function') ? resolveModeContext(state) : { isManager: true, isPlayer: false, clubName: state?.club || '' };
   const comp = curComp(), schedule = state.schedule || [], myClub = ctx.clubName || state.club;
   const calendarClubKey = name => ({'red bull bragantino':'bragantino'}[norm(name)] || norm(name));
@@ -44306,18 +44578,45 @@ function bind(){
 
   // Listeners de Notícias
   if(view==='noticias'){
-    $('.btn-news-channel').forEach(b => {
+    $$('.btn-news-channel').forEach(b => {
       b.onclick = () => {
         newsChannelFilter = b.dataset.channel;
+        window.newsChannelFilter = newsChannelFilter;
         render();
       };
     });
-    $('.btn-news-cat').forEach(b => {
+    $$('.btn-news-cat').forEach(b => {
       b.onclick = () => {
         newsCategoryFilter = b.dataset.newsCat;
+        window.newsCategoryFilter = newsCategoryFilter;
         render();
       };
     });
+    const newsSearch = $('#inputNewsSearch');
+    if(newsSearch){
+      newsSearch.oninput = (e) => {
+        window.newsSearchQuery = e.target.value;
+        const q = (e.target.value || '').toLowerCase().trim();
+        $$('.news-article-card').forEach(card => {
+          const text = (card.textContent || '').toLowerCase();
+          card.style.display = (!q || text.includes(q)) ? '' : 'none';
+        });
+      };
+      newsSearch.onkeydown = (e) => {
+        if(e.key === 'Enter') render();
+      };
+    }
+    const chkClub = $('#chkNewsOnlyMyClub');
+    if(chkClub){
+      chkClub.onchange = (e) => {
+        window.newsOnlyMyClub = e.target.checked;
+        if(e.target.checked) {
+          newsCategoryFilter = 'MYCLUB';
+          window.newsCategoryFilter = 'MYCLUB';
+        }
+        render();
+      };
+    }
   }
 
   // Listeners de Central
@@ -45419,7 +45718,7 @@ function bind(){
       }
     };
 
-    $('.btnCalPlayNow, .btnCalStatePlay, .btnCalCopaPlay, .btnCalTournamentPlay').forEach(b=>b.onclick=()=>{
+    $$('.btnCalPlayNow, .btnCalStatePlay, .btnCalCopaPlay, .btnCalTournamentPlay').forEach(b=>b.onclick=()=>{
       runCalendarAction(() => {
         const ctx = (typeof resolveModeContext === 'function') ? resolveModeContext(state) : { isPlayer: false };
         const mDate = b.dataset.date;

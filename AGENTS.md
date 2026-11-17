@@ -156,6 +156,15 @@
      - O slot `0` da tática (`pitchSlot_0`) é sempre reservado ao Goleiro (`GK`).
   3. ISOLAMENTO DE SESSÃO ENTRE MODOS:
      - Ao iniciar ou carregar um save de Treinador (`MODE_MANAGER`), limpar qualquer resíduo visual ou de dados do Modo Jogador (`playerCareer`, modais de notícias anteriores, eventos de atleta).
+- REGRA IRRESTRITA ESPECIAL — BLINDAGEM DE HELPERS DOM, FILTROS DE TELA, CALENDÁRIO E NOTÍCIAS:
+  1. SEGURANÇA DE SELETORES DOM (`$` vs `$$`):
+     - `$` retorna apenas UM elemento (`querySelector`) e `$$` retorna um Array (`Array.from(querySelectorAll)`).
+     - É PROIBIDO chamar `$(...).forEach(...)` ou `$(...).map(...)` em qualquer arquivo `.js`; sempre use `$$(...).forEach(...)`.
+     - `Element.prototype.forEach` deve possuir fallback seguro não-enumerável para impedir crash fatal caso algum módulo legado chame `.forEach` em um nó único.
+  2. ESTADO GLOBAL EXPLÍCITO PARA FILTROS DE VIEW:
+     - Toda variável de filtro de UI (`window.newsCategoryFilter`, `window.newsSearchQuery`, `window.newsOnlyMyClub`, `window.calendarFilter`, `window.calendarCompFilter`, `window.marketFilterState`) DEVE ser inicializada no escopo global (`window.*`) antes de qualquer `render()`. Nunca referenciar filtros como variáveis implícitas não declaradas.
+  3. HIDRATAÇÃO GARANTIDA DE CALENDÁRIO E NOTÍCIAS NO MODO TREINADOR:
+     - Ao abrir `calendario` ou `noticias` (inclusive no Dia 1 `01/01/2026`), garantir que `state.schedule` / `state.fixtures` e `state.news` estejam populados com dados válidos do clube atual e livres de resíduos do `Modo Jogador`.
 - Mantenha abas acessíveis e com o design system. Mudanças em abas exigem teste de renderização e alternância.
 
 ## Renderização e dados confiáveis
