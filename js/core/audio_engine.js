@@ -157,6 +157,7 @@ class AFMAudioManager {
   }
 
   _bindAutoResumeOnUserGesture() {
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
     const unlock = () => {
       if (this.audioContext && this.audioContext.state === 'suspended') {
         this.audioContext.resume().catch(e => window.AFMErrorLog?.recordHandled(e, 'audio.resume'));
@@ -214,7 +215,7 @@ class AFMAudioManager {
     if (!this.sfxEnabled) return;
     if (window.liveMatchState && window.liveMatchState.soundMuted) return;
 
-    const now = performance.now();
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     this._sfxCooldown = this._sfxCooldown || new Map();
     const last = this._sfxCooldown.get(sfxKey) || 0;
     if (now - last < 180) return; // Cooldown de 180ms para velocidades 20x e 40x
@@ -223,7 +224,7 @@ class AFMAudioManager {
     const vol = (customVolume !== null ? customVolume : this.sfxVolume);
     const audioPath = this.SFX_FILES[sfxKey];
 
-    if (audioPath) {
+    if (audioPath && typeof Audio !== 'undefined') {
       const audio = new Audio(audioPath);
       audio.volume = vol;
       const playPromise = audio.play();
@@ -570,6 +571,10 @@ class AFMAudioManager {
 
     this._ambientCancelled = false;
     let curIdx = 0;
+    if (typeof Audio === 'undefined') {
+      this._startProceduralCrowdDrone();
+      return;
+    }
     const audio = new Audio();
     audio.loop = true;
     audio.volume = this.crowdVolume;

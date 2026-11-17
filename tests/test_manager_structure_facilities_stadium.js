@@ -52,6 +52,7 @@ global.clamp = (val, min, max) => Math.max(min, Math.min(max, val));
 
 // 1. Carregar módulos
 require('../js/competitions.js');
+require('../js/structure_stadium_unified_fix.js');
 const gameCode = fs.readFileSync('js/game.js', 'utf8');
 
 function extractSnippet(source, startMarker, endMarker) {
@@ -208,12 +209,22 @@ eval(fullStructureSnippet);
 
 const structHtml = structurePage();
 
-// Sub-abas
+// Sub-abas unificadas (4 abas oficiais)
 assert.ok(structHtml.includes('data-struct-tab="facilities"'));
 assert.ok(structHtml.includes('data-struct-tab="stadium"'));
-assert.ok(structHtml.includes('data-struct-tab="arena"'));
+assert.ok(structHtml.includes('ESTÁDIO & NOVA ARENA'));
 assert.ok(structHtml.includes('data-struct-tab="museum"'));
 assert.ok(structHtml.includes('data-struct-tab="house"'));
+
+// Retrocompatibilidade de 'arena' -> 'stadium' com modo new-arena
+window.structActiveTab = 'arena';
+structureSubTab = 'arena';
+const arenaRedirectHtml = structurePage();
+assert.strictEqual(window.structActiveTab, 'stadium', 'Sub-aba arena deve redirecionar para stadium');
+assert.strictEqual(window.afmStructureUIState.stadiumSubMode, 'new-arena', 'Modo da arena deve ativar new-arena');
+assert.ok(arenaRedirectHtml.includes('data-stadium-submode="new-arena"'), 'Deve renderizar seletor segmentado da Nova Arena');
+window.structActiveTab = 'facilities';
+structureSubTab = 'facilities';
 
 // Atalhos rápidos
 assert.ok(structHtml.includes('data-struct-action="parking-modal"'), 'Atalho de estacionamento com data-struct-action');

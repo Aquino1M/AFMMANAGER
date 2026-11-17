@@ -287,16 +287,20 @@
       const body = document.body;
       
       if (isMob) {
-        root.classList.remove('platform-pc');
-        root.classList.add('platform-mobile');
-        if (body) {
+        if (root && root.classList) {
+          root.classList.remove('platform-pc');
+          root.classList.add('platform-mobile');
+        }
+        if (body && body.classList) {
           body.classList.remove('platform-pc');
           body.classList.add('platform-mobile');
         }
       } else {
-        root.classList.remove('platform-mobile');
-        root.classList.add('platform-pc');
-        if (body) {
+        if (root && root.classList) {
+          root.classList.remove('platform-mobile');
+          root.classList.add('platform-pc');
+        }
+        if (body && body.classList) {
           body.classList.remove('platform-mobile');
           body.classList.add('platform-pc');
         }

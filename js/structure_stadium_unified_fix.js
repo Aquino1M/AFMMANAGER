@@ -42,6 +42,11 @@
     return 'R$ ' + Math.round(Number(val) || 0).toLocaleString('pt-BR');
   }
 
+  function safeEsc(str) {
+    if (typeof window.esc === 'function') return window.esc(str);
+    return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   /**
    * 1. Sincroniza os valores da Nova Arena dinamicamente ao trocar Capacidade ou Financiamento
    */
@@ -248,7 +253,7 @@
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
               <div>
                 <h2 style="margin:0;font-size:20px;font-weight:900;color:#fff;">
-                  🏟️ ${realStadiumName} • Anel ${realStadiumRing} de 6
+                  🏟️ ${safeEsc(realStadiumName)} • Anel ${realStadiumRing} de 6
                 </h2>
                 <div class="muted" style="font-size:12px;margin-top:4px;">
                   Capacidade Atual Oficial: <b style="color:#a7ff3f;">${realStadiumCap.toLocaleString('pt-BR')} lugares</b>
@@ -602,9 +607,9 @@
             return `
               <div style="background:${isSave ? '#1e1b4b' : '#1c1730'};border:1px solid ${isSave ? '#a855f7' : '#f59e0b'};border-radius:10px;padding:12px;text-align:center;box-shadow:${isSave ? '0 4px 14px rgba(168,85,247,0.3)' : 'none'}">
                 <div style="font-size:28px">${t.icon || '🏆'}</div>
-                <div style="font-size:12px;font-weight:800;color:#fff;margin-top:4px">${t.name}</div>
-                <div style="font-size:11px;color:${isSave ? '#c4b5fd' : '#cbd5e1'};margin-top:2px">(${t.year})</div>
-                <div style="font-size:9px;color:${isSave ? '#34d399' : '#f59e0b'};font-weight:900;margin-top:6px">${t.badge}</div>
+                <div style="font-size:12px;font-weight:800;color:#fff;margin-top:4px">${safeEsc(t.name)}</div>
+                <div style="font-size:11px;color:${isSave ? '#c4b5fd' : '#cbd5e1'};margin-top:2px">(${safeEsc(t.year)})</div>
+                <div style="font-size:9px;color:${isSave ? '#34d399' : '#f59e0b'};font-weight:900;margin-top:6px">${safeEsc(t.badge)}</div>
               </div>
             `;
           }).join('') : '<div style="grid-column:1/-1;padding:18px;text-align:center;color:#94a3b8;background:#1c1730;border:1px dashed #475569;border-radius:10px">Nenhuma taça conquistada ainda. Sua história começa nesta carreira.</div>'}
@@ -630,7 +635,7 @@
   }
 
   function renderUnifiedHouseTab(state) {
-    const bankBalance = Number(state?.managerMoney ?? state?.personalCash ?? state?.manager?.bankBalance ?? 57000);
+    const bankBalance = Number(state?.career?.cash ?? state?.managerMoney ?? state?.personalCash ?? state?.manager?.bankBalance ?? state?.personalBank ?? 57000);
     const houseItems = (typeof window.HOUSE_ITEMS !== 'undefined' ? window.HOUSE_ITEMS : []).filter(item => !item.isLicense && item.category !== 'Curso');
     const ownedIds = state?.housePurchases || state?.manager?.ownedAssets || [];
     const ownedItems = houseItems.filter(i => ownedIds.includes(i.id));
@@ -652,7 +657,7 @@
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <button id="btnGoToManagerCareerFromHouse" type="button" class="btn" style="background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px">
+            <button id="btnGoToManagerCareerFromHouse" type="button" data-view="carreira" class="btn" style="background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px">
               💼 Ir para Carreira & Negócios
             </button>
             <button id="btnOpenCbfLicensesFromHouse" type="button" style="background:rgba(15,23,42,0.85);color:#38bdf8;border:1px solid rgba(56,189,248,0.45);border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
@@ -725,9 +730,11 @@
           window.afmStructureUIState.activeSubTab = 'stadium';
           window.afmStructureUIState.stadiumSubMode = 'new-arena';
           window.structureSubTab = 'stadium';
+          window.structActiveTab = 'stadium';
         } else {
           window.afmStructureUIState.activeSubTab = targetTab;
           window.structureSubTab = targetTab;
+          window.structActiveTab = targetTab;
         }
         if (typeof window.render === 'function') window.render();
         return;
@@ -749,6 +756,7 @@
         window.afmStructureUIState.activeSubTab = 'stadium';
         window.afmStructureUIState.stadiumSubMode = 'expand';
         window.structureSubTab = 'stadium';
+        window.structActiveTab = 'stadium';
         if (typeof window.render === 'function') window.render();
         return;
       }
