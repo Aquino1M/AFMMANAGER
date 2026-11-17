@@ -139,9 +139,14 @@
       if (!state) return;
       if (window.AFM_NormalizeBankLoans) window.AFM_NormalizeBankLoans(state);
       const isUserClubSaf = this.isClubSaf(state);
+      const initialCashCandidate = Number.isFinite(Number(state.career?.cash))
+        ? Number(state.career.cash)
+        : (Number.isFinite(Number(state.career?.personalCash))
+          ? Number(state.career.personalCash)
+          : (Number.isFinite(Number(state.managerMoney)) ? Number(state.managerMoney) : 120000));
       state.managerPersonal = state.managerPersonal || {
         name: state.managerName || state.manager || 'Aquino',
-        personalBalance: Number.isFinite(Number(state.managerMoney)) ? Math.max(0, Number(state.managerMoney)) : 120000,
+        personalBalance: Math.max(0, initialCashCandidate),
         salary: 18000,
         clubSharesPct: state.managerPersonal?.clubShares || 0,
         externalShareholdersPct: isUserClubSaf ? 22 : 0,
@@ -210,6 +215,35 @@
       if (!Array.isArray(state.safCorporateNews) || state.safCorporateNews.length === 0) {
         state.safCorporateNews = this.getInitialCorporateNews();
       }
+      if (state.career && typeof state.career === 'object') {
+        if (typeof state.career.cash === 'number' && !Number.isNaN(state.career.cash) && mp.personalBalance === state.career.cash) {
+          state.career.personalCash = state.career.cash;
+        }
+        if (state.career.safPortfolio && typeof state.career.safPortfolio === 'object' && Object.keys(mp.safPortfolio).length === 0 && Object.keys(state.career.safPortfolio).length > 0) {
+          Object.assign(mp.safPortfolio, state.career.safPortfolio);
+        }
+      }
+    },
+
+    // Mantém caixa pessoal e carteira SAF 100% sincronizados entre managerPersonal e state.career
+    syncCareerWallet(state, newCash) {
+      if (!state) return 0;
+      const mp = state.managerPersonal || (state.managerPersonal = {});
+      const cash = Math.max(0, Math.round(Number(newCash !== undefined ? newCash : mp.personalBalance) || 0));
+      mp.personalBalance = cash;
+      state.managerMoney = cash;
+      if (state.career && typeof state.career === 'object') {
+        state.career.cash = cash;
+        state.career.personalCash = cash;
+        state.career.safPortfolio = JSON.parse(JSON.stringify(mp.safPortfolio || {}));
+      }
+      if (typeof this.getSafMarketList === 'function') {
+        state.safMarket = this.getSafMarketList(state);
+      }
+      if (typeof window !== 'undefined' && window.AFMCareerFix && typeof window.AFMCareerFix.calculateCareerEconomy === 'function') {
+        window.AFMCareerFix.calculateCareerEconomy(state);
+      }
+      return cash;
     },
 
     payMonthlyCoachSalary(state) {
@@ -235,6 +269,7 @@
       mp.personalBalance = (Number(mp.personalBalance) || 0) + salary;
       mp.lastSalaryPaidMonth = monthKey;
       state.managerMoney = mp.personalBalance;
+      this.syncCareerWallet(state, mp.personalBalance);
       state.balance = (Number(state.balance) || 0) - salary;
       state.clubBalance = state.balance;
       state.managerFinanceHistory = Array.isArray(state.managerFinanceHistory) ? state.managerFinanceHistory : [];
@@ -349,6 +384,7 @@
         time: `Rodada ${state.round || 1}`
       });
       if (state.safMarketTrades.length > 20) state.safMarketTrades.length = 20;
+      this.syncCareerWallet(state, mp.personalBalance);
 
       return {
         ok: true,
@@ -388,6 +424,7 @@
         time: `Rodada ${state.round || 1}`
       });
       if (state.safMarketTrades.length > 20) state.safMarketTrades.length = 20;
+      this.syncCareerWallet(state, mp.personalBalance);
 
       return {
         ok: true,
@@ -659,9 +696,14 @@
         };
       }
 
+      function onSafModalKeyDown(ev) {
+        if (ev.key === 'Escape') closeModal();
+      }
       function closeModal() {
+        document.removeEventListener('keydown', onSafModalKeyDown);
         overlay.remove();
       }
+      document.addEventListener('keydown', onSafModalKeyDown);
 
       closeBtn.onclick = closeModal;
       cancelBtn.onclick = closeModal;
@@ -670,8 +712,10 @@
       };
 
       confirmBtn.onclick = () => {
+        if (confirmBtn.disabled) return;
         const count = parseInt(qtyInput.value, 10);
         if (isNaN(count) || count <= 0) return;
+        confirmBtn.disabled = true;
 
         let res;
         if (isBuy) {
@@ -685,6 +729,8 @@
           if (window.save) window.save();
           closeModal();
           this.renderLifeAndSharesUI('afm-career-economy-container', state);
+        } else {
+          confirmBtn.disabled = false;
         }
       };
     },
@@ -858,6 +904,7 @@
         if (state.safMarketTrades.length > 20) state.safMarketTrades.length = 20;
 
         state.safP2POffers.splice(idx, 1);
+        this.syncCareerWallet(state, mp.personalBalance);
         return {
           ok: true,
           message: `🎉 Negócio fechado! Você comprou o lote de ${offer.sharesCount.toLocaleString('pt-BR')} ações de ${offer.clubName} com ${offer.discountPct}% de desconto por R$ ${offer.offerPrice.toLocaleString('pt-BR')}!`
@@ -890,6 +937,7 @@
         if (state.safMarketTrades.length > 20) state.safMarketTrades.length = 20;
 
         state.safP2POffers.splice(idx, 1);
+        this.syncCareerWallet(state, mp.personalBalance);
         return {
           ok: true,
           message: `🤝 Negócio P2P fechado! Você vendeu ${offer.sharesCount.toLocaleString('pt-BR')} ações para ${offer.magnateName} e recebeu R$ ${offer.offerPrice.toLocaleString('pt-BR')} com ágio!`
@@ -943,6 +991,7 @@
         time: `Rodada ${state.round || 1}`
       };
       state.userSafSellOrders.unshift(order);
+      this.syncCareerWallet(state, mp.personalBalance);
 
       return {
         ok: true,
@@ -963,6 +1012,7 @@
       mp.safPortfolio[order.clubId].sharesCount += order.sharesCount;
 
       state.userSafSellOrders.splice(idx, 1);
+      this.syncCareerWallet(state, mp.personalBalance);
       return {
         ok: true,
         message: `Ordem cancelada. As ${order.sharesCount.toLocaleString('pt-BR')} ações de ${order.clubName} retornaram para sua carteira.`
@@ -997,6 +1047,7 @@
       if (state.safMarketTrades.length > 25) state.safMarketTrades.length = 25;
 
       state.userSafSellOrders.splice(idx, 1);
+      this.syncCareerWallet(state, mp.personalBalance);
       return {
         ok: true,
         message: `🎉 Negócio fechado! ${buyer.name} (${buyer.entity}) comprou sua oferta de ${order.sharesCount.toLocaleString('pt-BR')} ações de ${order.clubName} e pagou R$ ${order.totalAskingPrice.toLocaleString('pt-BR')} à vista na sua conta!`
@@ -1143,6 +1194,7 @@
         title: `Subscrição de Cotas (+${pctToBuy}% por Téc. ${mp.name})`,
         amount: cost
       });
+      this.syncCareerWallet(state, mp.personalBalance);
 
       return {
         ok: true,
@@ -1161,6 +1213,7 @@
       mp.clubSharesPct = Number((mp.clubSharesPct - pctToSell).toFixed(2));
       mp.clubShares = mp.clubSharesPct;
       mp.personalBalance += payout;
+      this.syncCareerWallet(state, mp.personalBalance);
       return {
         ok: true,
         message: `Você vendeu ${pctToSell}% de cotas e recebeu R$ ${payout.toLocaleString('pt-BR')} na sua conta pessoal.`
@@ -1317,6 +1370,7 @@
 
       mp.personalBalance += managerDividendShare + rentIncome + businessIncome + safDividends;
       state.managerMoney = mp.personalBalance;
+      this.syncCareerWallet(state, mp.personalBalance);
 
       this.generateSafP2POffers(state);
 
@@ -1353,6 +1407,10 @@
         x1Wrapper.style.display = 'block';
       }
 
+      // Garante cotações SAF atualizadas no state antes do cálculo unificado de patrimônio
+      const safList = this.getSafMarketList(state);
+      state.safMarket = safList;
+
       // Finanças Pessoais do Treinador sincronizadas com AFMCareerFix
       let careerEco = null;
       if (typeof window !== 'undefined' && window.AFMCareerFix && typeof window.AFMCareerFix.calculateCareerEconomy === 'function') {
@@ -1367,7 +1425,6 @@
       let safPortfolioValue = 0;
       let safPortfolioDividends = 0;
       mp.safPortfolio = mp.safPortfolio || {};
-      const safList = this.getSafMarketList(state);
       Object.keys(mp.safPortfolio).forEach(clubId => {
         const holding = mp.safPortfolio[clubId];
         const saf = safList.find(s => s.id === clubId);
@@ -1430,18 +1487,19 @@
       ].sort((a, b) => b.netWorth - a.netWorth);
 
       container.innerHTML = `
-        <div class="life-shares-container" style="display:flex;flex-direction:column;gap:18px;width:100%;">
+        <div class="life-shares-container" style="display:block;width:100%;box-sizing:border-box;">
+          <div style="display:flex;flex-direction:column;gap:18px;width:100%;box-sizing:border-box;">
           
-          <!-- PAINEL SUPERIOR TRIPLO DE FINANÇAS PESSOAIS (100% HORIZONTAL LADO A LADO) -->
-          <div style="display:flex;flex-direction:row;gap:14px;width:100%;box-sizing:border-box;">
+          <!-- PAINEL SUPERIOR TRIPLO DE FINANÇAS PESSOAIS (RESPONSIVO) -->
+          <div class="afm-career-kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;width:100%;box-sizing:border-box;">
             <!-- CARD 1: PATRIMÔNIO TOTAL ACUMULADO -->
-            <div style="flex:1 1 0;min-width:0;background:linear-gradient(135deg,rgba(124,58,237,0.25),rgba(15,23,42,0.95));border:1px solid rgba(168,85,247,0.5);border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                <div>
+            <div style="min-width:0;box-sizing:border-box;background:linear-gradient(135deg,rgba(124,58,237,0.25),rgba(15,23,42,0.95));border:1px solid rgba(168,85,247,0.5);border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+                <div style="min-width:0;">
                   <div style="font-size:11px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.5px;">💎 Patrimônio Total Acumulado</div>
                   <div style="font-size:24px;font-weight:900;color:#fff;margin-top:6px;">R$ ${totalNetWorth.toLocaleString('pt-BR')}</div>
                 </div>
-                <span style="font-size:24px;">💎</span>
+                <span style="font-size:24px;flex-shrink:0;">💎</span>
               </div>
               <div style="font-size:11px;color:#cbd5e1;margin-top:8px;line-height:1.4;">
                 Caixa + Imóveis + Empresas + Garagem + Ações SAF
@@ -1449,13 +1507,13 @@
             </div>
 
             <!-- CARD 2: DINHEIRO EM CAIXA (CONTA PESSOAL) -->
-            <div style="flex:1 1 0;min-width:0;background:linear-gradient(135deg,rgba(16,185,129,0.2),rgba(15,23,42,0.95));border:1px solid rgba(16,185,129,0.5);border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                <div>
+            <div style="min-width:0;box-sizing:border-box;background:linear-gradient(135deg,rgba(16,185,129,0.2),rgba(15,23,42,0.95));border:1px solid rgba(16,185,129,0.5);border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+                <div style="min-width:0;">
                   <div style="font-size:11px;font-weight:900;color:#6ee7b7;text-transform:uppercase;letter-spacing:0.5px;">💵 Dinheiro em Caixa (Pessoal)</div>
                   <div style="font-size:24px;font-weight:900;color:#4ade80;margin-top:6px;">R$ ${personalBalance.toLocaleString('pt-BR')}</div>
                 </div>
-                <span style="font-size:24px;">💵</span>
+                <span style="font-size:24px;flex-shrink:0;">💵</span>
               </div>
               <div style="font-size:11px;color:#cbd5e1;margin-top:8px;line-height:1.4;">
                 Saldo líquido para Bolsa SAF, bens e cursos CBF/UEFA
@@ -1463,13 +1521,13 @@
             </div>
 
             <!-- CARD 3: GANHOS MENSAIS DE TUDO QUE É INVESTIDO -->
-            <div style="flex:1 1 0;min-width:0;background:linear-gradient(135deg,rgba(56,189,248,0.2),rgba(15,23,42,0.95));border:1px solid rgba(56,189,248,0.5);border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                <div>
+            <div style="min-width:0;box-sizing:border-box;background:linear-gradient(135deg,rgba(56,189,248,0.2),rgba(15,23,42,0.95));border:1px solid rgba(56,189,248,0.5);border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+                <div style="min-width:0;">
                   <div style="font-size:11px;font-weight:900;color:#7dd3fc;text-transform:uppercase;letter-spacing:0.5px;">📊 Ganhos Mensais de Tudo</div>
                   <div style="font-size:24px;font-weight:900;color:#38bdf8;margin-top:6px;">+R$ ${totalMonthlyGains.toLocaleString('pt-BR')}/mês</div>
                 </div>
-                <span style="font-size:24px;">📊</span>
+                <span style="font-size:24px;flex-shrink:0;">📊</span>
               </div>
               <div style="font-size:11px;color:#cbd5e1;margin-top:8px;line-height:1.4;">
                 Salário (R$ ${monthlySalary.toLocaleString('pt-BR')}) + Aluguéis + Negócios + SAF
@@ -1549,7 +1607,7 @@
                   <div style="font-size:11px;color:#9ca3af;">Imóveis de alto padrão que valorizam todo mês e geram renda passiva de aluguel.</div>
                 </div>
               </div>
-              <div style="display:flex;flex-direction:row;gap:14px;overflow-x:auto;padding-bottom:10px;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
+              <div class="afm-career-catalog-grid">
                 ${REAL_ESTATE_CATALOG.map((prop) => {
                   const careerProps = state.career?.properties || {};
                   const fixItem = (typeof window !== 'undefined' && window.AFMCareerFix) ? window.AFMCareerFix.PROPERTIES_CATALOG.find(p => p.id === prop.id || (p.aliases && p.aliases.includes(prop.id))) : null;
@@ -1557,13 +1615,13 @@
                   const propCount = (typeof cProp === 'number') ? cProp : (cProp?.count || ((mp.properties || []).some(p => p.id === prop.id) ? 1 : 0));
                   const owned = propCount > 0;
                   return `
-                    <div style="flex:0 0 260px;min-width:260px;background:#1f2937;border:1px solid ${owned ? '#10b981' : '#374151'};border-radius:10px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;">
+                    <div style="min-width:0;box-sizing:border-box;background:#1f2937;border:1px solid ${owned ? '#10b981' : '#374151'};border-radius:10px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;">
                       <div>
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                           <div style="font-size:24px;margin-bottom:4px;">${prop.icon}</div>
                           ${owned ? `<span class="pill" style="background:#065f46;color:#6ee7b7;font-weight:900;font-size:10px;">✓ POSSUI (${propCount})</span>` : ''}
                         </div>
-                        <div style="font-size:13px;font-weight:900;color:#fff;">${prop.name}</div>
+                        <div style="font-size:13px;font-weight:900;color:#fff;">${esc(prop.name)}</div>
                         <div style="font-size:12px;color:#4ade80;font-weight:800;margin-top:2px;">R$ ${prop.cost.toLocaleString('pt-BR')}</div>
                         <div style="font-size:11px;color:#38bdf8;margin-top:4px;">+R$ ${prop.monthlyRent.toLocaleString('pt-BR')}/mês de aluguel</div>
                         <div style="font-size:10px;color:#9ca3af;margin-top:2px;">★ +${prop.prestige} Prestígio | Valorização: +${Math.round(prop.appreciationRate * 100)}%/ano</div>
@@ -1592,7 +1650,7 @@
                   <div style="font-size:11px;color:#9ca3af;">Monte sua rede comercial extracampo com lucros mensais e bônus reais para o seu clube.</div>
                 </div>
               </div>
-              <div style="display:flex;flex-direction:row;gap:14px;overflow-x:auto;padding-bottom:10px;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
+              <div class="afm-career-catalog-grid">
                 ${LIFE_BUSINESS_CATALOG.map((biz) => {
                   const careerBiz = state.career?.businesses || {};
                   const fixBiz = (typeof window !== 'undefined' && window.AFMCareerFix) ? window.AFMCareerFix.BUSINESSES_CATALOG.find(b => b.id === biz.id || (b.aliases && b.aliases.includes(biz.id))) : null;
@@ -1600,14 +1658,14 @@
                   const existing = (mp.businesses || []).find((b) => b.id === biz.id || b.typeId === biz.id);
                   const lvl = Math.max(cLvl, existing?.level || 0);
                   return `
-                    <div style="flex:0 0 250px;min-width:250px;background:#1f2937;border:1px solid ${lvl > 0 ? '#38bdf8' : '#374151'};border-radius:10px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;">
+                    <div style="min-width:0;box-sizing:border-box;background:#1f2937;border:1px solid ${lvl > 0 ? '#38bdf8' : '#374151'};border-radius:10px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;">
                       <div>
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                           <div style="font-size:24px;margin-bottom:4px;">${biz.icon}</div>
                           ${lvl > 0 ? `<span class="pill" style="background:#0369a1;color:#7dd3fc;font-weight:900;font-size:10px;">NÍVEL ${lvl}/5</span>` : ''}
                         </div>
-                        <div style="font-size:13px;font-weight:900;color:#fff;">${biz.name}</div>
-                        <div style="font-size:11px;color:#c084fc;font-weight:800;margin-top:2px;">${biz.bonusText}</div>
+                        <div style="font-size:13px;font-weight:900;color:#fff;">${esc(biz.name)}</div>
+                        <div style="font-size:11px;color:#c084fc;font-weight:800;margin-top:2px;">${esc(biz.bonusText)}</div>
                         <div style="font-size:12px;color:#4ade80;font-weight:800;margin-top:4px;">Lucro est.: R$ ${(existing?.monthlyProfit || biz.monthlyProfit).toLocaleString('pt-BR')}/mês</div>
                         <div style="font-size:10px;color:#9ca3af;margin-top:2px;">Status: ${lvl > 0 ? `Nível ${lvl}/5` : 'Não inaugurado'}</div>
                       </div>
@@ -1628,22 +1686,22 @@
                   <div style="font-size:11px;color:#9ca3af;">Veículos de alta cilindrada e aviação executiva que elevam seu prestígio mundial.</div>
                 </div>
               </div>
-              <div style="display:flex;flex-direction:row;gap:14px;overflow-x:auto;padding-bottom:10px;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;">
+              <div class="afm-career-catalog-grid">
                 ${LUXURY_GARAGE_CATALOG.map((veh) => {
                   const careerVeh = state.career?.vehicles || {};
                   const fixVeh = (typeof window !== 'undefined' && window.AFMCareerFix) ? window.AFMCareerFix.VEHICLES_CATALOG.find(v => v.id === veh.id || (v.aliases && v.aliases.includes(veh.id))) : null;
                   const cOwned = fixVeh ? Boolean(careerVeh[fixVeh.id]) : Boolean(careerVeh[veh.id]);
                   const owned = cOwned || (mp.vehicles || []).some((v) => v.id === veh.id);
                   return `
-                    <div style="flex:1 0 280px;min-width:280px;background:#1f2937;border:1px solid ${owned ? '#f59e0b' : '#374151'};border-radius:10px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;">
+                    <div style="min-width:0;box-sizing:border-box;background:#1f2937;border:1px solid ${owned ? '#f59e0b' : '#374151'};border-radius:10px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;">
                       <div>
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                           <div style="font-size:24px;margin-bottom:4px;">${veh.icon}</div>
                           ${owned ? `<span class="pill" style="background:#78350f;color:#fde68a;font-weight:900;font-size:10px;">✓ NA GARAGEM</span>` : ''}
                         </div>
-                        <div style="font-size:13px;font-weight:900;color:#fff;">${veh.name}</div>
+                        <div style="font-size:13px;font-weight:900;color:#fff;">${esc(veh.name)}</div>
                         <div style="font-size:12px;color:#facc15;font-weight:800;margin-top:2px;">R$ ${veh.cost.toLocaleString('pt-BR')}</div>
-                        <div style="font-size:11px;color:#cbd5e1;margin-top:4px;">★ +${veh.prestige} Prestígio | ${veh.bonusText}</div>
+                        <div style="font-size:11px;color:#cbd5e1;margin-top:4px;">★ +${veh.prestige} Prestígio | ${esc(veh.bonusText)}</div>
                       </div>
                       <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px;">
                         <button class="btn btnBuyVeh" data-veh-id="${veh.id}" ${owned ? 'disabled' : ''} style="background:${owned ? '#78350f' : '#d97706'};color:#fff;border:none;font-weight:800;padding:8px 12px;border-radius:6px;font-size:11px;cursor:${owned?'default':'pointer'};">
@@ -2250,6 +2308,7 @@
             </div>
           `}
 
+          </div>
         </div>
       `;
 
@@ -2454,33 +2513,36 @@
         };
       });
 
-      // Event Listeners da Aba 1 (Imóveis, Negócios, Veículos)
-      container.querySelectorAll('.btnBuyProp').forEach((btn) => {
-        btn.onclick = () => {
-          const res = this.buyProperty(state, btn.dataset.propId);
-          if (window.toast) window.toast(res.message);
-          if (window.save) window.save();
-          this.renderLifeAndSharesUI(containerId, state);
-        };
-      });
+      // Event Listeners da Aba 1 (apenas fallback quando AFMCareerFix não está carregado;
+      // quando AFMCareerFix está ativo, a delegação global única no document já executa e evita cobrança dupla)
+      if (typeof window === 'undefined' || !window.AFMCareerFix) {
+        container.querySelectorAll('.btnBuyProp').forEach((btn) => {
+          btn.onclick = () => {
+            const res = this.buyProperty(state, btn.dataset.propId);
+            if (window.toast) window.toast(res.message);
+            if (window.save) window.save();
+            this.renderLifeAndSharesUI(containerId, state);
+          };
+        });
 
-      container.querySelectorAll('.btnBuyBiz').forEach((btn) => {
-        btn.onclick = () => {
-          const res = this.buyOrUpgradeBusiness(state, btn.dataset.bizId);
-          if (window.toast) window.toast(res.message);
-          if (window.save) window.save();
-          this.renderLifeAndSharesUI(containerId, state);
-        };
-      });
+        container.querySelectorAll('.btnBuyBiz').forEach((btn) => {
+          btn.onclick = () => {
+            const res = this.buyOrUpgradeBusiness(state, btn.dataset.bizId);
+            if (window.toast) window.toast(res.message);
+            if (window.save) window.save();
+            this.renderLifeAndSharesUI(containerId, state);
+          };
+        });
 
-      container.querySelectorAll('.btnBuyVeh').forEach((btn) => {
-        btn.onclick = () => {
-          const res = this.buyVehicle(state, btn.dataset.vehId);
-          if (window.toast) window.toast(res.message);
-          if (window.save) window.save();
-          this.renderLifeAndSharesUI(containerId, state);
-        };
-      });
+        container.querySelectorAll('.btnBuyVeh').forEach((btn) => {
+          btn.onclick = () => {
+            const res = this.buyVehicle(state, btn.dataset.vehId);
+            if (window.toast) window.toast(res.message);
+            if (window.save) window.save();
+            this.renderLifeAndSharesUI(containerId, state);
+          };
+        });
+      }
     },
 
     calculateManagerTotalNetWorth(state) {

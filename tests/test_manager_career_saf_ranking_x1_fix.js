@@ -213,4 +213,129 @@ assert(typeof duel.oppGoals === 'number' && duel.oppGoals >= 0);
 
 console.log(`✅ Duelo X1 simulado com sucesso: Placar ${duel.myGoals} x ${duel.oppGoals} contra ${duel.opponent.club}`);
 
+// ------------------------------------------------------------------------------
+// TESTE 8: Blindagem Layout CSS (Sem grid espremido em #afm-career-economy-container)
+// ------------------------------------------------------------------------------
+console.log('\n--- 6. Layout Carreira: Regra CSS Anti-Squish & Paridade Legacy Array ---');
+const fs = require('fs');
+const path = require('path');
+const appCss = fs.readFileSync(path.join(__dirname, '../css/app.css'), 'utf8');
+assert(
+  /#afm-career-economy-container,\s*\.life-shares-container\s*\{[^}]*display:\s*block\s*!important;/s.test(appCss),
+  '#afm-career-economy-container deve usar display: block !important para não espremer em 1 coluna'
+);
+assert(appCss.includes('.afm-career-kpi-grid'), 'css/app.css deve definir .afm-career-kpi-grid responsivo');
+assert(appCss.includes('.afm-career-catalog-grid'), 'css/app.css deve definir .afm-career-catalog-grid');
+
+// Verifica sincronia dos arrays de managerPersonal em compra/venda de ativos
+const syncState = {
+  money: 9999999,
+  club: 'Ceilândia',
+  career: {
+    cash: 2000000,
+    prestige: 10,
+    salary: 45000,
+    licenses: ['cbf_d'],
+    properties: {},
+    businesses: {},
+    vehicles: {},
+    safPortfolio: {}
+  },
+  managerPersonal: {
+    name: 'Aquino',
+    personalBalance: 2000000,
+    properties: [],
+    businesses: [],
+    vehicles: [],
+    safPortfolio: {}
+  }
+};
+AFMCareerFix.handleBuyOrSellProperty(syncState, 'apt_studio', 'buy');
+assert.strictEqual(syncState.managerPersonal.properties.length, 1, 'mp.properties deve receber imóvel comprado para gerar aluguel mensal');
+AFMCareerFix.handleBuyOrUpgradeBusiness(syncState, 'barbearia_vip');
+assert.strictEqual(syncState.managerPersonal.businesses.length, 1, 'mp.businesses deve sincronizar empreendimento');
+assert.strictEqual(syncState.managerPersonal.businesses[0].level, 1);
+AFMCareerFix.handleBuyOrSellVehicle(syncState, 'suv_blindado', 'buy');
+assert.strictEqual(syncState.managerPersonal.vehicles.length, 1, 'mp.vehicles deve sincronizar veículo comprado');
+AFMCareerFix.handleBuyOrSellVehicle(syncState, 'suv_blindado', 'sell');
+assert.strictEqual(syncState.managerPersonal.vehicles.length, 0, 'mp.vehicles deve remover veículo vendido');
+AFMCareerFix.handleBuyOrSellProperty(syncState, 'apt_studio', 'sell');
+assert.strictEqual(syncState.managerPersonal.properties.length, 0, 'mp.properties deve remover imóvel vendido');
+console.log('✅ Layout CSS anti-squish e sincronia de arrays managerPersonal validados.');
+
+// ------------------------------------------------------------------------------
+// TESTE 9: Conservação de Caixa SAF / P2P / Escrow vs AFMCareerFix (Sem Dinheiro Infinito)
+// ------------------------------------------------------------------------------
+console.log('\n--- 7. Pregão SAF, P2P, Escrow e Re-render sem Reversão de Saldo ---');
+global.window = global;
+global.window.AFMCareerFix = AFMCareerFix;
+require('../js/systems/manager_life_and_shares_pro.js');
+const LifePro = global.window.AFM_LifeAndSharesPro;
+assert(LifePro, 'AFM_LifeAndSharesPro deve inicializar em window');
+
+const lifeProSrc = fs.readFileSync(path.join(__dirname, '../js/systems/manager_life_and_shares_pro.js'), 'utf8');
+assert(
+  lifeProSrc.includes('if (typeof window === \'undefined\' || !window.AFMCareerFix)'),
+  'Handlers inline de .btnBuyProp/.btnBuyBiz/.btnBuyVeh só podem rodar como fallback sem AFMCareerFix'
+);
+
+const safState = {
+  club: 'Ceilândia',
+  season: 2026,
+  round: 2,
+  balance: 1000000,
+  clubBalance: 1000000,
+  career: {
+    cash: 100000,
+    prestige: 12,
+    salary: 45000,
+    licenses: ['cbf_d'],
+    properties: {},
+    businesses: {},
+    vehicles: {},
+    safPortfolio: {}
+  }
+};
+LifePro.ensureState(safState);
+const buySafRes = LifePro.buySafShares(safState, 'botafogo', 100); // R$ 34.50 * 100 = R$ 3.450
+assert.strictEqual(buySafRes.ok, true, 'Compra SAF deve funcionar');
+const expectedCashAfterBuy = 100000 - 3450;
+assert.strictEqual(safState.managerPersonal.personalBalance, expectedCashAfterBuy);
+assert.strictEqual(safState.career.cash, expectedCashAfterBuy, 'state.career.cash deve refletir débito imediato da compra SAF');
+
+// Simula re-render chamando AFMCareerFix.calculateCareerEconomy(safState): saldo NÃO pode reverter para 100k!
+const ecoAfterSafBuy = AFMCareerFix.calculateCareerEconomy(safState);
+assert.strictEqual(ecoAfterSafBuy.cash, expectedCashAfterBuy, 'Re-render não pode reverter saldo da compra SAF (anti-glitch dinheiro infinito)');
+assert.strictEqual(safState.managerPersonal.personalBalance, expectedCashAfterBuy);
+assert(ecoAfterSafBuy.safValue >= 3400, 'Valor da carteira SAF deve compor o patrimônio líquido');
+
+// Ordem P2P em Escrow (anunciar 50, cancelar -> devolve 50, anunciar 50 e executar venda P2P)
+const pub1 = LifePro.publishUserSafSellOrder(safState, 'botafogo', 50, 20);
+assert.strictEqual(pub1.ok, true);
+assert.strictEqual(safState.managerPersonal.safPortfolio.botafogo.sharesCount, 50, '50 ações devem ir para escrow');
+assert.strictEqual(safState.career.safPortfolio.botafogo.sharesCount, 50, 'state.career.safPortfolio deve espelhar escrow');
+
+const orderId = safState.userSafSellOrders[0].id;
+const cancelRes = LifePro.cancelUserSafSellOrder(safState, orderId);
+assert.strictEqual(cancelRes.ok, true);
+assert.strictEqual(safState.managerPersonal.safPortfolio.botafogo.sharesCount, 100, 'Cancelamento deve restituir 50 ações');
+
+const pub2 = LifePro.publishUserSafSellOrder(safState, 'botafogo', 50, 20);
+assert.strictEqual(pub2.ok, true);
+const execOrderId = safState.userSafSellOrders[0].id;
+const execAskingPrice = safState.userSafSellOrders[0].totalAskingPrice;
+const execRes = LifePro.instantExecuteUserSellOrder(safState, execOrderId);
+assert.strictEqual(execRes.ok, true);
+assert.strictEqual(safState.career.cash, expectedCashAfterBuy + execAskingPrice, 'Venda instantânea P2P deve creditar state.career.cash');
+const ecoAfterP2P = AFMCareerFix.calculateCareerEconomy(safState);
+assert.strictEqual(ecoAfterP2P.cash, expectedCashAfterBuy + execAskingPrice, 'Saldo após venda P2P deve persistir em calculateCareerEconomy');
+
+// Vender as 50 ações restantes no pregão
+const sellSafRes = LifePro.sellSafShares(safState, 'botafogo', 50);
+assert.strictEqual(sellSafRes.ok, true);
+assert.strictEqual(safState.career.cash, safState.managerPersonal.personalBalance);
+assert.strictEqual(safState.managerMoney, safState.career.cash);
+
+console.log('✅ Conservação de caixa SAF, P2P, Escrow e consistência após calculateCareerEconomy aprovadas.');
+
 console.log('\n🎉 TODOS OS TESTES PASSARAM COM 100% DE SUCESSO!\n');

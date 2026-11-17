@@ -44,3 +44,9 @@ Você é o engenheiro-chefe responsável pelo AFM Manager 2026/2027. Antes de al
    - Sincronização em 16 níveis para o Museu (custo inicial R$ 50.000, capacidade 2 a 32+ taças) e prioridade estrita de taças conquistadas no save na vitrine oficial antes de títulos históricos.
    - Validação dupla em Bens Pessoais (`evaluatePersonalAssetStatus`) com bloqueio visual/funcional de carreira e saldo bancário pessoal.
 
+9. **BLINDAGEM DA ABA CARREIRA DO TREINADOR & BOLSA SAF/P2P:**
+   - `#afm-career-economy-container` e `.life-shares-container` DEVEM usar `display: block; width: 100%` (nunca `display: grid`, que espreme a tela inteira em uma faixa estreita à esquerda); utilize `.afm-career-kpi-grid` para os 3 KPIs do topo e `.afm-career-catalog-grid` para os catálogos.
+   - Proibido anexar `.onclick` em `.btnBuyProp`, `.btnBuyBiz` ou `.btnBuyVeh` quando `window.AFMCareerFix` estiver ativo — apenas a delegação única no `document` executa compras/vendas e sincroniza arrays legados de `managerPersonal`.
+   - Toda operação em `Pregão SAF`, `Mesa P2P`, `Ordens P2P em Escrow`, `Cotas do Clube` e virada mensal DEVE invocar `syncCareerWallet()` + `calculateCareerEconomy()` (com `state.safMarket` populado) para impedir reversão de saldo ou dinheiro infinito ao re-renderizar.
+
+

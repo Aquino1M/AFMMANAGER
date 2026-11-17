@@ -171,14 +171,23 @@
     state.managerMoney = c.cash;
 
     if (typeof c.baseSalary !== 'number' || c.baseSalary <= 0) c.baseSalary = mp.salary || 45000;
-    if (typeof c.prestige !== 'number') c.prestige = mp.prestigeScore || state.coachPrestige || 6;
+    const syncedPrestige = Math.max(
+      typeof c.prestige === 'number' && !Number.isNaN(c.prestige) ? c.prestige : 0,
+      Number(mp.prestigeScore) || 0,
+      Number(state.coachPrestige) || 0,
+      5
+    );
+    c.prestige = Math.min(99, syncedPrestige);
     if (!c.licenseId) c.licenseId = c.license || mp.licenseId || (typeof localStorage !== 'undefined' ? localStorage.getItem('afm_user_license_id') : null) || 'cbf_d';
     if (!Array.isArray(c.unlockedLicenses)) c.unlockedLicenses = Array.isArray(c.licenses) ? c.licenses : (mp.unlockedLicenses || ['cbf_d']);
     c.licenses = c.unlockedLicenses;
     if (!c.properties || typeof c.properties !== 'object') c.properties = {};
     if (!c.businesses || typeof c.businesses !== 'object') c.businesses = {};
     if (!c.vehicles || typeof c.vehicles !== 'object') c.vehicles = {};
-    if (!c.safPortfolio || typeof c.safPortfolio !== 'object') c.safPortfolio = mp.safPortfolio || {};
+    if (!c.safPortfolio || typeof c.safPortfolio !== 'object') c.safPortfolio = {};
+    if (Object.keys(c.safPortfolio).length === 0 && mp.safPortfolio && Object.keys(mp.safPortfolio).length > 0) {
+      c.safPortfolio = JSON.parse(JSON.stringify(mp.safPortfolio));
+    }
     if (!Array.isArray(c.p2pMyListings)) c.p2pMyListings = [];
     if (!Array.isArray(c.x1History)) c.x1History = [];
     if (!c.activeSubTab) c.activeSubTab = 'trainer'; // 'trainer' | 'saf' | 'x1'
@@ -250,7 +259,7 @@
     // 4. Carteira SAF
     let safValue = 0;
     let monthlySafDividends = 0;
-    const market = Array.isArray(state?.safMarket) ? state.safMarket : (Array.isArray(state?.safMarketList) ? state.safMarketList : []);
+    const market = Array.isArray(state?.safMarket) ? state.safMarket : (Array.isArray(state?.safMarketList) ? state.safMarketList : (Array.isArray(state?.safMarketClubs) ? state.safMarketClubs : []));
     Object.entries(c.safPortfolio).forEach(([safId, shares]) => {
       const qty = typeof shares === 'number' ? shares : (shares?.sharesCount || 0);
       if (qty > 0) {
@@ -274,7 +283,11 @@
       state.managerPersonal.salary = effectiveSalary;
       state.managerPersonal.totalNetWorth = netWorth;
       state.managerPersonal.prestigeScore = c.prestige;
+      state.managerPersonal.licenseId = c.licenseId;
+      state.managerPersonal.unlockedLicenses = c.unlockedLicenses;
+      state.managerPersonal.safPortfolio = c.safPortfolio;
     }
+    state.coachPrestige = Math.max(Number(state.coachPrestige) || 0, c.prestige);
     state.managerMoney = c.cash;
 
     return {
@@ -452,6 +465,68 @@
     }
   }
 
+  function syncLegacyAssetsToManagerPersonal(state, c) {
+    if (!state || !state.managerPersonal || !c) return;
+    const mp = state.managerPersonal;
+
+    // Imóveis -> array para cálculo mensal de aluguel em processMonthlyLifeAndDividendsTurn
+    const nextProps = [];
+    PROPERTIES_CATALOG.forEach(p => {
+      const owned = c.properties[p.id];
+      const count = typeof owned === 'number' ? owned : (owned?.count || 0);
+      const val = owned?.currentValue || p.price;
+      for (let i = 0; i < count; i++) {
+        nextProps.push({
+          id: p.id,
+          name: p.name,
+          cost: p.price,
+          currentValue: val,
+          monthlyRent: p.rent,
+          appreciationRate: (p.appreciationYear || 10) / 100,
+          prestige: p.prestige,
+          icon: p.icon
+        });
+      }
+    });
+    mp.properties = nextProps;
+
+    // Negócios -> array
+    const nextBiz = [];
+    BUSINESSES_CATALOG.forEach(b => {
+      const lvl = Number(c.businesses[b.id] || 0);
+      if (lvl > 0) {
+        const profit = Math.round(b.baseProfit * (1 + (lvl - 1) * 0.35));
+        const invested = Math.round(b.price * (1 + (lvl - 1) * 0.65));
+        nextBiz.push({
+          id: b.id,
+          typeId: b.id,
+          name: b.name,
+          level: lvl,
+          monthlyProfit: profit,
+          investedCapital: invested,
+          cost: b.price,
+          managementScore: 100
+        });
+      }
+    });
+    mp.businesses = nextBiz;
+
+    // Garagem -> array
+    const nextVeh = [];
+    VEHICLES_CATALOG.forEach(v => {
+      if (c.vehicles[v.id]) {
+        nextVeh.push({
+          id: v.id,
+          name: v.name,
+          cost: v.price,
+          prestige: v.prestige,
+          icon: v.icon
+        });
+      }
+    });
+    mp.vehicles = nextVeh;
+  }
+
   function handleBuyOrSellProperty(state, propId, action = 'buy') {
     const c = ensureCareerState(state);
     const prop = findPropertyItem(propId);
@@ -478,6 +553,7 @@
       notify(`💰 Imóvel vendido por ${formatBRL(sellValue)} (85% do valor de mercado).`);
     }
 
+    syncLegacyAssetsToManagerPersonal(state, c);
     calculateCareerEconomy(state);
     if (typeof window !== 'undefined' && typeof window.save === 'function') window.save();
     if (typeof window !== 'undefined' && typeof window.render === 'function') window.render();
@@ -506,6 +582,7 @@
       c.prestige = Math.min(99, c.prestige + 15);
     }
 
+    syncLegacyAssetsToManagerPersonal(state, c);
     calculateCareerEconomy(state);
     notify(
       currentLvl === 0
@@ -543,6 +620,7 @@
       notify(`💰 ${veh.name} vendido por ${formatBRL(refund)}.`);
     }
 
+    syncLegacyAssetsToManagerPersonal(state, c);
     calculateCareerEconomy(state);
     if (typeof window !== 'undefined' && typeof window.save === 'function') window.save();
     if (typeof window !== 'undefined' && typeof window.render === 'function') window.render();
@@ -555,8 +633,15 @@
 
     if (c.unlockedLicenses.includes(lic.id)) {
       c.licenseId = lic.id;
+      if (!state.manager) state.manager = {};
+      state.manager.license = lic.id;
+      if (typeof localStorage !== 'undefined') {
+        try { localStorage.setItem('afm_user_license_id', lic.id); } catch (e) {}
+      }
       calculateCareerEconomy(state);
       notify(`🎓 Licença ${lic.name} ativada!`);
+      if (typeof window !== 'undefined' && typeof window.save === 'function') window.save();
+      if (typeof window !== 'undefined' && typeof window.render === 'function') window.render();
       return;
     }
 
@@ -592,6 +677,8 @@
 
     if (typeof document === 'undefined') return;
 
+    let __afmCareerLastActionAt = 0;
+
     document.addEventListener('click', function (ev) {
       const state = (typeof window !== 'undefined') ? (window.state || window.GameState || window.STATE || window.appState) : null;
       if (!state) return;
@@ -600,9 +687,13 @@
       const btnProp = ev.target.closest ? ev.target.closest('.btnBuyProp, .btnSellProp') : null;
       if (btnProp) {
         ev.preventDefault();
+        const now = Date.now();
+        if (btnProp.disabled || now - __afmCareerLastActionAt < 180) return;
+        __afmCareerLastActionAt = now;
+        btnProp.disabled = true;
         const propId = btnProp.getAttribute('data-prop-id');
         const action = btnProp.classList.contains('btnSellProp') ? 'sell' : 'buy';
-        handleBuyOrSellProperty(state, propId, action);
+        try { handleBuyOrSellProperty(state, propId, action); } finally { btnProp.disabled = false; }
         return;
       }
 
@@ -610,7 +701,11 @@
       const btnBiz = ev.target.closest ? ev.target.closest('.btnBuyBiz') : null;
       if (btnBiz) {
         ev.preventDefault();
-        handleBuyOrUpgradeBusiness(state, btnBiz.getAttribute('data-biz-id'));
+        const now = Date.now();
+        if (btnBiz.disabled || now - __afmCareerLastActionAt < 180) return;
+        __afmCareerLastActionAt = now;
+        btnBiz.disabled = true;
+        try { handleBuyOrUpgradeBusiness(state, btnBiz.getAttribute('data-biz-id')); } finally { btnBiz.disabled = false; }
         return;
       }
 
@@ -618,9 +713,13 @@
       const btnVeh = ev.target.closest ? ev.target.closest('.btnBuyVeh, .btnSellVeh') : null;
       if (btnVeh) {
         ev.preventDefault();
+        const now = Date.now();
+        if (btnVeh.disabled || now - __afmCareerLastActionAt < 180) return;
+        __afmCareerLastActionAt = now;
+        btnVeh.disabled = true;
         const vehId = btnVeh.getAttribute('data-veh-id');
         const action = btnVeh.classList.contains('btnSellVeh') ? 'sell' : 'buy';
-        handleBuyOrSellVehicle(state, vehId, action);
+        try { handleBuyOrSellVehicle(state, vehId, action); } finally { btnVeh.disabled = false; }
         return;
       }
 
@@ -628,6 +727,9 @@
       const btnLic = ev.target.closest ? ev.target.closest('.btn-buy-lic') : null;
       if (btnLic && !btnLic.disabled) {
         ev.preventDefault();
+        const now = Date.now();
+        if (now - __afmCareerLastActionAt < 180) return;
+        __afmCareerLastActionAt = now;
         btnLic.disabled = true; // trava duplo clique
         handleBuyLicense(state, btnLic.getAttribute('data-id'));
         return;

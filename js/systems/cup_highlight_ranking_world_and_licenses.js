@@ -12,6 +12,15 @@
   ];
   window.AFM_COACH_LICENSES = LICENSES;
 
+  function escapeHtml(val) {
+    return String(val == null ? '' : val)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   function getCoachLicensesData(state) {
     const st = state || (typeof window !== 'undefined' ? (window.state || window.gameState) : null) || {};
     const currentLicId = (st.manager && st.manager.license) || (st.managerPersonal && st.managerPersonal.licenseId) || (typeof localStorage !== 'undefined' && localStorage.getItem('afm_user_license_id')) || 'cbf_d';
@@ -612,11 +621,11 @@
         var rowClass = c.isUser ? 'afm-rk-user-row' : '';
         return '<tr class="' + rowClass + '" style="' + rowBg + '">' +
           '<td style="padding:10px 6px;font-weight:900;color:' + posColor + ';">#' + posNum + '</td>' +
-          '<td style="padding:10px 6px;font-weight:800;color:' + (c.isUser ? '#c084fc' : '#ffffff') + ';">' + (c.isUser ? '⭐ ' : '') + coachNameDisp + '</td>' +
-          '<td style="padding:10px 6px;font-weight:700;color:#38bdf8;">🛡️ ' + (c.club || c.clubName) + '</td>' +
-          '<td style="padding:10px 6px;font-size:11px;color:#cbd5e1;">' + (c.division || c.league) + ' · ' + c.country + '</td>' +
-          '<td style="padding:10px 6px;"><span style="background:rgba(124,58,237,0.28);border:1px solid rgba(168,85,247,0.45);color:#e9d5ff;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;">⭐ Prestígio ' + c.prestige + '</span></td>' +
-          '<td style="padding:10px 6px;font-weight:800;color:#facc15;">🏆 ' + c.titles + '</td>' +
+          '<td style="padding:10px 6px;font-weight:800;color:' + (c.isUser ? '#c084fc' : '#ffffff') + ';">' + (c.isUser ? '⭐ ' : '') + escapeHtml(coachNameDisp) + '</td>' +
+          '<td style="padding:10px 6px;font-weight:700;color:#38bdf8;">🛡️ ' + escapeHtml(c.club || c.clubName) + '</td>' +
+          '<td style="padding:10px 6px;font-size:11px;color:#cbd5e1;">' + escapeHtml(c.division || c.league) + ' · ' + escapeHtml(c.country) + '</td>' +
+          '<td style="padding:10px 6px;"><span style="background:rgba(124,58,237,0.28);border:1px solid rgba(168,85,247,0.45);color:#e9d5ff;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;">⭐ Prestígio ' + Number(c.prestige || 0) + '</span></td>' +
+          '<td style="padding:10px 6px;font-weight:800;color:#facc15;">🏆 ' + Number(c.titles || 0) + '</td>' +
           '<td style="padding:10px 6px;font-size:12px;color:#cbd5e1;">' + (c.wins ?? c.w) + 'V · ' + (c.draws ?? c.d) + 'E · ' + (c.losses ?? c.l) + 'D</td>' +
           '<td style="padding:10px 6px;text-align:right;font-weight:900;color:#34d399;">' + (c.points ?? c.pts) + ' pts</td>' +
         '</tr>';
@@ -646,7 +655,16 @@
       }
     }
 
-    document.getElementById('close-rk').onclick = function() { modal.remove(); };
+    function closeRkModal() {
+      document.removeEventListener('keydown', onRkEsc);
+      modal.remove();
+    }
+    function onRkEsc(e) {
+      if (e.key === 'Escape') closeRkModal();
+    }
+    document.addEventListener('keydown', onRkEsc);
+
+    document.getElementById('close-rk').onclick = closeRkModal;
     document.getElementById('btn-rk-nac').onclick = function() { currentMode = 'BR'; currentPage = 1; renderRows(); };
     document.getElementById('btn-rk-mun').onclick = function() { currentMode = 'WORLD'; currentPage = 1; renderRows(); };
     document.getElementById('btn-rk-all').onclick = function() { currentMode = 'ALL_TEAMS'; currentPage = 1; renderRows(); };
@@ -682,7 +700,7 @@
       };
     }
 
-    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    modal.onclick = function(e) { if (e.target === modal) closeRkModal(); };
 
     renderRows();
   }
@@ -722,11 +740,11 @@
       return '<div style="background:#1e293b;border:1px solid ' + (isCompleted ? '#22c55e' : (hasPrestige ? 'rgba(255,255,255,0.1)' : 'rgba(239,68,68,0.3)')) + ';border-radius:14px;padding:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap;">' +
         '<div style="flex:1;min-width:280px;">' +
           '<div style="font-size:14px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-            '<span>🎓 ' + lic.name + '</span>' +
+            '<span>🎓 ' + escapeHtml(lic.name) + '</span>' +
             (isCurrent ? '<span style="color:#22c55e;font-size:11px;font-weight:900;background:rgba(34,197,94,0.15);padding:2px 7px;border-radius:4px;border:1px solid rgba(34,197,94,0.4);">(ATUAL)</span>' : (isCompleted ? '<span style="color:#38bdf8;font-size:11px;font-weight:800;background:rgba(56,189,248,0.15);padding:2px 7px;border-radius:4px;">(CONCLUÍDA)</span>' : '')) +
           '</div>' +
           '<div style="font-size:12px;color:#38bdf8;margin-top:5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-            '<span>Bônus Especial: <b>' + lic.bonus + '</b></span>' +
+            '<span>Bônus Especial: <b>' + escapeHtml(lic.bonus) + '</b></span>' +
             '<span style="color:' + (isCompleted ? '#4ade80' : '#86efac') + ';font-weight:800;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.3);padding:2px 7px;border-radius:5px;">' +
               '💵 ' + lic.salaryBonusLabel + ' (+R$ ' + licBonusVal.toLocaleString('pt-BR') + '/mês)' + (isCompleted ? ' ✓ Ativo' : '') +
             '</span>' +
@@ -761,11 +779,20 @@
       '</div>';
 
     document.body.appendChild(modal);
-    document.getElementById('close-lic').onclick = function() { modal.remove(); };
-    modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
+    function closeLicModal() {
+      document.removeEventListener('keydown', onLicEsc);
+      modal.remove();
+    }
+    function onLicEsc(e) {
+      if (e.key === 'Escape') closeLicModal();
+    }
+    document.addEventListener('keydown', onLicEsc);
+    document.getElementById('close-lic').onclick = closeLicModal;
+    modal.onclick = function(e) { if (e.target === modal) closeLicModal(); };
 
     modal.querySelectorAll('.btn-buy-lic').forEach(function(btn) {
-      btn.onclick = function() {
+      btn.onclick = function(ev) {
+        if (ev && ev.stopPropagation) ev.stopPropagation();
         var id = btn.getAttribute('data-id');
         var cost = Number(btn.getAttribute('data-cost')) || 0;
         var targetLic = LICENSES.find(function(l) { return l.id === id; });
@@ -829,7 +856,7 @@
           window.toast('🎓 Parabéns! Você obteve ' + targetLic.name + '! Salário atualizado: R$ ' + newTotalSalary.toLocaleString('pt-BR') + '/mês (+' + targetLic.salaryBonusPct + '% de bônus salarial)!');
         }
 
-        modal.remove();
+        closeLicModal();
         injectTopPrestigeAndButtons();
         openLicensesModal();
         if (typeof window.render === 'function') window.render();

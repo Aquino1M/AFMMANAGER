@@ -12348,6 +12348,22 @@ body.theme-emerald {
    CARREIRA DO TREINADOR: IMÓVEIS, NEGÓCIOS, SAF E GARAGEM (DESKTOP GRID)
    ========================================================================== */
 #afm-career-economy-container,
+.life-shares-container {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.afm-career-kpi-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
+  gap: 14px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
 .afm-career-catalog-grid {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
@@ -12355,7 +12371,6 @@ body.theme-emerald {
 }
 
 @media (min-width: 1200px) {
-  #afm-career-economy-container,
   .afm-career-catalog-grid {
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
   }
