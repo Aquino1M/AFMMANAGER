@@ -570,7 +570,37 @@ window.AFM30 = (function(){
     let old = document.getElementById(modalId);
     if(old) old.remove();
 
-    const bestPlayer = (state.squad || []).reduce((max, p) => (p.ovr > (max?.ovr || 0) ? p : max), state.squad?.[0]);
+    const compId = state?.compId || 'bra-a';
+    const compName = state?.competition || 'Campeonato';
+    const official = typeof window.computeCompetitionAwards === 'function'
+      ? window.computeCompetitionAwards(compId, compName)
+      : null;
+    const calc = typeof window.calculateSeasonAwards === 'function'
+      ? window.calculateSeasonAwards(compId)
+      : null;
+    const fallbackBest = (state?.squad || []).reduce((max, p) => ((p?.ovr || 0) > (max?.ovr || 0) ? p : max), state?.squad?.[0]);
+
+    const mvpTitle = official?.mvp?.title || calc?.bestPlayer?.title || `Craque — ${compName}`;
+    const mvpName = official?.mvp?.hasWinner ? official.mvp.winnerName : (calc?.bestPlayer?.name || fallbackBest?.name || 'A definir');
+    const mvpClub = official?.mvp?.hasWinner ? official.mvp.winnerClub : (calc?.bestPlayer?.club || state?.club || '—');
+    const mvpMetric = official?.mvp?.hasWinner ? official.mvp.metricText : (calc?.bestPlayer?.rating ? `Nota ${Number(calc.bestPlayer.rating).toFixed(2)}` : 'Desempenho na Temporada');
+
+    const scorerTitle = official?.topScorer?.title || 'Chuteira de Ouro';
+    const scorerText = official?.topScorer?.hasWinner
+      ? `${official.topScorer.winnerName} (${official.topScorer.winnerClub}) · ${official.topScorer.metricText}`
+      : (calc?.topScorer?.goals > 0 ? `${calc.topScorer.name} (${calc.topScorer.club}) · ${calc.topScorer.goals} gols` : 'A definir');
+
+    const assistText = official?.assistLeader?.hasWinner
+      ? `${official.assistLeader.winnerName} (${official.assistLeader.winnerClub}) · ${official.assistLeader.metricText}`
+      : (calc?.assistLeader?.assists > 0 ? `${calc.assistLeader.name} (${calc.assistLeader.club}) · ${calc.assistLeader.assists} assist.` : 'A definir');
+
+    const gloveText = official?.goldenGlove?.hasWinner
+      ? `${official.goldenGlove.winnerName} (${official.goldenGlove.winnerClub}) · ${official.goldenGlove.metricText}`
+      : (calc?.goldenGlove?.name ? `${calc.goldenGlove.name} (${calc.goldenGlove.club || state?.club})` : 'A definir');
+
+    const youngText = official?.youngPlayer?.hasWinner
+      ? `${official.youngPlayer.winnerName} (${official.youngPlayer.winnerClub}) · ${official.youngPlayer.metricText}`
+      : (calc?.youngPlayer?.name ? `${calc.youngPlayer.name} (${calc.youngPlayer.club || state?.club})` : 'A definir');
 
     const m = document.createElement('div');
     m.id = modalId;
@@ -578,32 +608,34 @@ window.AFM30 = (function(){
     m.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99999';
 
     m.innerHTML = `
-      <div style="background:radial-gradient(circle,#231b42,#0d0a1a);border:2px solid #eab308;box-shadow:0 0 40px rgba(234,179,8,0.3);border-radius:24px;padding:26px;max-width:580px;width:92%;text-align:center;color:#fff">
-        <div style="font-size:12px;font-weight:900;letter-spacing:2px;color:#eab308;text-transform:uppercase">🏆 PRÊMIO BOLA DE OURO & SELEÇÃO DO ANO</div>
-        <h2 style="margin:10px 0 16px 0;font-size:26px;font-weight:900">NOITE DE GALA DO FUTEBOL 🌟</h2>
+      <div style="background:radial-gradient(circle,#231b42,#0d0a1a);border:2px solid #eab308;box-shadow:0 0 40px rgba(234,179,8,0.3);border-radius:24px;padding:26px;max-width:620px;width:92%;max-height:90vh;display:flex;flex-direction:column;text-align:center;color:#fff">
+        <div style="flex:1 1 auto;overflow-y:auto">
+          <div style="font-size:12px;font-weight:900;letter-spacing:2px;color:#eab308;text-transform:uppercase">🏆 PREMIAÇÃO OFICIAL — ${(window.esc ? window.esc(compName) : compName)}</div>
+          <h2 style="margin:10px 0 16px 0;font-size:26px;font-weight:900">NOITE DE GALA DO FUTEBOL 🌟</h2>
 
-        <div style="background:#1b1533;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:16px;margin-bottom:16px">
-          <div style="font-size:11px;font-weight:800;color:#facc15">👑 CRAQUE DO BRASILEIRÃO (BOLA DE OURO)</div>
-          <div style="font-size:22px;font-weight:900;color:#fff;margin-top:4px">${bestPlayer ? bestPlayer.name : 'Craque da Temporada'}</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:2px">Clube: <b>${state.club}</b> · Desempenho Impecável</div>
-        </div>
+          <div style="background:#1b1533;border:1px solid rgba(250,204,21,0.3);border-radius:16px;padding:16px;margin-bottom:16px">
+            <div style="font-size:11px;font-weight:800;color:#facc15;text-transform:uppercase">👑 ${(window.esc ? window.esc(mvpTitle) : mvpTitle)}</div>
+            <div style="font-size:22px;font-weight:900;color:#fff;margin-top:4px">${(window.esc ? window.esc(mvpName) : mvpName)}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px">Clube: <b>${(window.esc ? window.esc(mvpClub) : mvpClub)}</b> · ${(window.esc ? window.esc(mvpMetric) : mvpMetric)}</div>
+          </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;text-align:left;font-size:12px">
-          <div style="background:#16122b;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
-            <b style="color:#f59e0b">⚽ Chuteira de Ouro:</b>
-            <div style="color:rgba(255,255,255,0.8);font-size:11px;margin-top:2px">Artilheiro do Campeonato</div>
-          </div>
-          <div style="background:#16122b;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
-            <b style="color:#38bdf8">🧤 Luva de Ouro:</b>
-            <div style="color:rgba(255,255,255,0.8);font-size:11px;margin-top:2px">Melhor Goleiro do Ano</div>
-          </div>
-          <div style="background:#16122b;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
-            <b style="color:#a855f7">⭐ Revelação da Base:</b>
-            <div style="color:rgba(255,255,255,0.8);font-size:11px;margin-top:2px">Jovem Talento Sub-20</div>
-          </div>
-          <div style="background:#16122b;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
-            <b style="color:#22c55e">👔 Treinador do Ano:</b>
-            <div style="color:rgba(255,255,255,0.8);font-size:11px;margin-top:2px">${state.manager || 'Você'}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;text-align:left;font-size:12px">
+            <div style="background:#16122b;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+              <b style="color:#f59e0b">⚽ ${(window.esc ? window.esc(scorerTitle) : scorerTitle)}:</b>
+              <div style="color:rgba(255,255,255,0.85);font-size:11px;margin-top:3px">${(window.esc ? window.esc(scorerText) : scorerText)}</div>
+            </div>
+            <div style="background:#16122b;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+              <b style="color:#60a5fa">🎯 Líder de Assistências:</b>
+              <div style="color:rgba(255,255,255,0.85);font-size:11px;margin-top:3px">${(window.esc ? window.esc(assistText) : assistText)}</div>
+            </div>
+            <div style="background:#16122b;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+              <b style="color:#38bdf8">🧤 Luva de Ouro:</b>
+              <div style="color:rgba(255,255,255,0.85);font-size:11px;margin-top:3px">${(window.esc ? window.esc(gloveText) : gloveText)}</div>
+            </div>
+            <div style="background:#16122b;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+              <b style="color:#a855f7">🌟 Revelação Sub-21:</b>
+              <div style="color:rgba(255,255,255,0.85);font-size:11px;margin-top:3px">${(window.esc ? window.esc(youngText) : youngText)}</div>
+            </div>
           </div>
         </div>
 

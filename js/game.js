@@ -8830,17 +8830,23 @@ function playCopaDoBrasilFixture(fixtureIndex, phaseName = copaCurrentPhase){
   fixture.score = [hg, ag];
   fixture.winner = winner;
   const userGoals = norm(fixture.home) === norm(state.club) ? hg : ag;
+  const oppGoals = norm(fixture.home) === norm(state.club) ? ag : hg;
+  const oppClub = norm(fixture.home) === norm(state.club) ? fixture.away : fixture.home;
   const events = simulateUserGoalEvents(state.club, userGoals);
   addPlayerMatchStats('bra-cup', state.club, events);
+  if(oppGoals > 0){
+    addPlayerMatchStats('bra-cup', oppClub, simulateClubGoalEvents(oppClub, oppGoals, 'bra-cup'));
+  }
+  const userWon = norm(winner) === norm(state.club);
   if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
-    window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: fixture.home, a: fixture.away, hg, ag, gf: userGoals, ga: (norm(fixture.home) === norm(state.club) ? ag : hg), won: userWon, events });
+    window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: fixture.home, a: fixture.away, hg, ag, gf: userGoals, ga: oppGoals, won: userWon, events });
   }
   const result = { h: fixture.home, a: fixture.away, hg, ag, winner, events, round: phase.name, season: Number(state.season), date: state.date, competitionId: 'bra-cup', competitionName: 'Copa do Brasil' };
   state.history = [result, ...(state.history || [])].slice(0, 100);
   fixture.played = true;
-  state.lastMatchSummary = { h: fixture.home, a: fixture.away, hg, ag, isHome: norm(fixture.home) === norm(state.club), won: norm(winner) === norm(state.club) };
+  if(typeof syncCompetitionStatsComprehensive === 'function') syncCompetitionStatsComprehensive('bra-cup');
+  state.lastMatchSummary = { h: fixture.home, a: fixture.away, hg, ag, isHome: norm(fixture.home) === norm(state.club), won: userWon };
   state.news = state.news || [];
-  const userWon = norm(winner) === norm(state.club);
   const isFinalPhase = phase.name.includes('Final') && !phase.name.includes('Semi') && !phase.name.includes('Quartas') && !phase.name.includes('Oitavas');
   const copaPrize = typeof calculateCupPhasePrize === 'function' ? calculateCupPhasePrize('bra-cup', phase.name, userWon, userWon && isFinalPhase) : 0;
   if(copaPrize > 0){
@@ -15731,7 +15737,13 @@ window.computeStandingsFromFixtures = computeStandingsFromFixtures;
 
 function openFullStatsModal(statsTab = 'artilharia', compName = 'Campeonato Candango', compId = null) {
   const estCompId = compId || (typeof selectedEstadualId !== 'undefined' && selectedEstadualId) || (state && state.club && typeof clubStateCompId === 'function' ? clubStateCompId(state.club) : 'bra-est-df-candango');
-  const estStats = typeof getStateCompStats === 'function' ? getStateCompStats(estCompId) : { scorers: [], assists: [] };
+  if (typeof syncCompetitionStatsComprehensive === 'function' && estCompId && !(state?.competitionStats?.[estCompId]?.scorers?.length && !state?.teams)) {
+    try { syncCompetitionStatsComprehensive(estCompId); } catch (_) {}
+  }
+  const directStats = state?.competitionStats?.[estCompId];
+  const estStats = (directStats && ((directStats.scorers && directStats.scorers.length) || (directStats.assists && directStats.assists.length)))
+    ? directStats
+    : (typeof getStateCompStats === 'function' ? getStateCompStats(estCompId) : (directStats || { scorers: [], assists: [] }));
   
   let title = 'Ranking Completo de Estatísticas';
   let metricLabel = 'Gols';
@@ -15741,11 +15753,15 @@ function openFullStatsModal(statsTab = 'artilharia', compName = 'Campeonato Cand
     title = `Top 30 Garçons — ${compName}`;
     metricLabel = 'Assistências';
     list = Array.isArray(estStats.assists) ? estStats.assists : [];
+  } else if (statsTab === 'luva' || statsTab === 'cleansheets') {
+    title = `Top 30 Luvas de Ouro — ${compName}`;
+    metricLabel = 'Jogos sem Sofrer Gols';
+    list = Array.isArray(estStats.cleanSheets) ? estStats.cleanSheets : [];
   } else if (statsTab === 'mvp') {
     title = `Top 30 Craques (MVP) — ${compName}`;
     metricLabel = 'Nota Média';
     list = Array.isArray(estStats.mvp) ? estStats.mvp : [];
-    if (!list.length && Array.isArray(estStats.scorers)) {
+    if (!list.length && Array.isArray(estStats.scorers) && estStats.scorers.length) {
       list = estStats.scorers.map(s => ({
         ...s,
         rating: (7.2 + Math.min(2.0, (Number(s.goals) || 0) * 0.25)).toFixed(1)
@@ -15755,7 +15771,7 @@ function openFullStatsModal(statsTab = 'artilharia', compName = 'Campeonato Cand
     title = `Disciplina & Cartões — ${compName}`;
     metricLabel = 'Amarelos / Vermelhos';
     list = Array.isArray(estStats.cards) ? estStats.cards : [];
-    if (!list.length && Array.isArray(estStats.scorers)) {
+    if (!list.length && Array.isArray(estStats.scorers) && estStats.scorers.length) {
       list = estStats.scorers.slice().reverse().map((s, idx) => ({
         ...s,
         yellowCards: ((idx % 3) + 1),
@@ -15775,12 +15791,14 @@ function openFullStatsModal(statsTab = 'artilharia', compName = 'Campeonato Cand
   const rowsHtml = list.slice(0, 30).map((item, idx) => {
     const isMe = createdAthleteName && (typeof norm === 'function' ? norm(item.name) === norm(createdAthleteName) : item.name === createdAthleteName);
     const value = (statsTab === 'assistencias' || statsTab === 'assists')
-      ? (item.assists || 0)
+      ? `${item.assists || 0}${item.matches ? ` <small style="font-size:10px;color:rgba(255,255,255,0.45)">(${item.matches}J)</small>` : ''}`
+      : (statsTab === 'luva' || statsTab === 'cleansheets')
+      ? `${item.cleanSheets || 0}🧤${item.matches ? ` <small style="font-size:10px;color:rgba(255,255,255,0.45)">(${item.matches}J)</small>` : ''}`
       : statsTab === 'mvp'
-      ? (item.rating || '7.0')
+      ? `${Number(item.rating || 7.0).toFixed(2)}${item.matches ? ` <small style="font-size:10px;color:rgba(255,255,255,0.45)">(${item.matches}J)</small>` : ''}`
       : statsTab === 'cartoes'
       ? `${item.yellowCards || 0}🟨 ${item.redCards || 0}🟥`
-      : (item.goals || 0);
+      : `${item.goals || 0}${item.matches ? ` <small style="font-size:10px;color:rgba(255,255,255,0.45)">(${item.matches}J)</small>` : ''}`;
 
     return `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);background:${isMe ? 'rgba(124,58,237,0.25)' : idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'};border-radius:8px;margin-bottom:4px">
@@ -15790,7 +15808,7 @@ function openFullStatsModal(statsTab = 'artilharia', compName = 'Campeonato Cand
           ${typeof clubBadge === 'function' ? clubBadge(item.club, 22) : ''}
           <div>
             <div style="font-weight:800;color:#fff;font-size:13px">${typeof esc === 'function' ? esc(item.name) : item.name} ${isMe ? '<span class="tag-you" style="margin-left:4px">VOCÊ</span>' : ''}</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.5)">${typeof esc === 'function' ? esc(item.pos || 'ATA') : (item.pos || 'ATA')} · ${typeof esc === 'function' ? esc(item.club) : item.club}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.5)">${typeof esc === 'function' ? esc(item.pos || 'ATA') : (item.pos || 'ATA')}${item.age ? ` · ${item.age}a` : ''} · ${typeof esc === 'function' ? esc(item.club) : item.club}</div>
           </div>
         </div>
         <div style="font-weight:900;font-size:16px;color:#a855f7">
@@ -15810,8 +15828,11 @@ function openFullStatsModal(statsTab = 'artilharia', compName = 'Campeonato Cand
     </div>
   `;
 
-  if (typeof openCustomModal === 'function') {
-    openCustomModal(title, modalBody, null, 'Fechar', false, '560px');
+  const modalFn = (typeof window !== 'undefined' && typeof window.openCustomModal === 'function')
+    ? window.openCustomModal
+    : (typeof openCustomModal === 'function' ? openCustomModal : null);
+  if (modalFn) {
+    modalFn(title, modalBody, null, 'Fechar', false, '560px');
   }
 }
 window.openFullStatsModal = openFullStatsModal;
@@ -15904,44 +15925,72 @@ function getStateCompData(cId){
   ensureCompetitionFixturesIntegrity(data, clubForState);
   return data;
 }
+function normalizeCompStatsId(cId){
+  const raw = String(cId || '').trim();
+  if(!raw) return state?.compId || 'bra-est-df';
+  const aliasMap = {
+    'bra-copa': 'bra-cup',
+    'copa-do-brasil': 'bra-cup',
+    'libertadores': 'lib',
+    'sulamericana': 'sud',
+    'mundial': 'cwc',
+    'afc_el': 'afc-el',
+    'afc_two': 'afc2',
+    'bra-est-df-candango': 'bra-est-df'
+  };
+  return aliasMap[raw] || raw;
+}
+window.normalizeCompStatsId = normalizeCompStatsId;
+
 function getStateCompStats(cId){
   state.competitionStats = state.competitionStats || {};
-  if(state.competitionStats[cId] && (Number(state.competitionStats[cId].season) === Number(state.season) || (!state.competitionStats[cId].season && Number(state.season) === 2026))){
-    state.competitionStats[cId].season = Number(state.season);
-    state.competitionStats[cId].scorers = Array.isArray(state.competitionStats[cId].scorers) ? state.competitionStats[cId].scorers : [];
-    state.competitionStats[cId].assists = Array.isArray(state.competitionStats[cId].assists) ? state.competitionStats[cId].assists : [];
-    return state.competitionStats[cId];
-  }
-  state.competitionStats[cId] = { season: Number(state.season), scorers: [], assists: [] };
-  return state.competitionStats[cId];
-}
+  const rawKey = String(cId || '').trim();
+  const normId = normalizeCompStatsId(rawKey);
+  const curSeason = Number(state?.season) || 2026;
 
-function renderOtherCompetitionPlayerLeaders(excludedCompetitionId = null){
-  if(state?.gameMode !== 'player') return '';
-  const athleteName = state.playerCareerState?.athleteName || state.squad?.find(player => player.isControlled)?.name;
-  if(!athleteName) return '';
-  return Object.entries(state.competitionStats || {}).filter(([id, stats]) =>
-    id !== excludedCompetitionId && Number(stats?.season || state.season) === Number(state.season) && ((stats.scorers || []).length || (stats.assists || []).length)
-  ).map(([id, stats]) => {
-    const competitionName = compById(id)?.name || id;
-    const renderList = (list, key, label) => {
-      const rows = (list || []).slice().sort((a,b) => (Number(b[key]) || 0) - (Number(a[key]) || 0)).slice(0, 10);
-      if(!rows.length) return '';
-      return `<div style="flex:1;min-width:280px"><h4 style="margin:0 0 8px;color:#94a3b8;font-size:11px">${label}</h4>${rows.map((row, index) => {
-        const isUser = norm(row.name) === norm(athleteName);
-        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 9px;border-top:1px solid rgba(255,255,255,.06);${isUser ? 'background:rgba(124,58,237,.18);border-radius:6px' : ''}"><span style="color:#cbd5e1">${index + 1}. ${esc(row.name)} ${isUser ? '<b style="color:#c084fc">VOCÊ</b>' : ''}<small style="color:#64748b"> · ${esc(row.club || '')}</small></span><b style="color:#fff">${Number(row[key]) || 0}</b></div>`;
-      }).join('')}</div>`;
-    };
-    return `<section class="card" style="margin-top:14px;padding:16px"><h3 style="margin:0 0 12px;color:#fff">🏅 Artilharia e assistências · ${esc(competitionName)}</h3><div style="display:flex;flex-wrap:wrap;gap:22px">${renderList(stats.scorers, 'goals', 'ARTILHARIA · GOLS')}${renderList(stats.assists, 'assists', 'ASSISTÊNCIAS')}</div></section>`;
-  }).join('');
+  const ensureShape = (entry) => {
+    entry.season = curSeason;
+    entry.scorers = Array.isArray(entry.scorers) ? entry.scorers : [];
+    entry.assists = Array.isArray(entry.assists) ? entry.assists : [];
+    entry.mvp = Array.isArray(entry.mvp) ? entry.mvp : [];
+    entry.cleanSheets = Array.isArray(entry.cleanSheets) ? entry.cleanSheets : [];
+    entry.cards = Array.isArray(entry.cards) ? entry.cards : [];
+    entry._syncedTeamMatches = (entry._syncedTeamMatches && typeof entry._syncedTeamMatches === 'object') ? entry._syncedTeamMatches : {};
+    entry._syncedFixtureKeys = (entry._syncedFixtureKeys && typeof entry._syncedFixtureKeys === 'object') ? entry._syncedFixtureKeys : {};
+    return entry;
+  };
+
+  // Preserva chave legada caso testes isolados ou saves antigos tenham gravado o alias diretamente
+  if(rawKey && rawKey !== normId && state.competitionStats[rawKey] && !state.competitionStats[normId]){
+    const legacy = state.competitionStats[rawKey];
+    if(Number(legacy.season) === curSeason || (!legacy.season && curSeason === 2026)){
+      state.competitionStats[normId] = ensureShape(legacy);
+      return state.competitionStats[normId];
+    }
+  }
+
+  const existing = state.competitionStats[normId];
+  if(existing && (Number(existing.season) === curSeason || (!existing.season && curSeason === 2026))){
+    return ensureShape(existing);
+  }
+
+  state.competitionStats[normId] = ensureShape({ season: curSeason });
+  return state.competitionStats[normId];
+}
+window.getStateCompStats = getStateCompStats;
+
+function renderOtherCompetitionPlayerLeaders(){
+  // Todas as abas de competição (Estadual, Ligas Nacionais/Internacionais, Copa do Brasil e Continentais/Mundial)
+  // agora renderizam diretamente seus próprios Títulos Individuais Oficiais + Ranking Dark Neon completo.
+  return '';
 }
 
 function getClubSquadForStats(clubName){
   if(!clubName) return [];
-  if(norm(clubName) === norm(state.club) && Array.isArray(state.squad) && state.squad.length){
+  if(state?.club && norm(clubName) === norm(state.club) && Array.isArray(state.squad) && state.squad.length){
     return state.squad;
   }
-  let squad = (typeof playersForClub === 'function') ? playersForClub(clubName, state.worldGenerated || []) : [];
+  let squad = (typeof playersForClub === 'function') ? playersForClub(clubName, state?.worldGenerated || []) : [];
   if(!squad.length && typeof generatedRosterForClub === 'function'){
     squad = generatedRosterForClub(clubName);
   }
@@ -15952,19 +16001,34 @@ function simulateClubGoalEvents(clubName, goals, compId){
   const count = Math.max(0, Number(goals) || 0);
   if(count <= 0) return [];
 
-  // Se for o clube do usuário, utiliza os atletas reais do elenco
-  if(norm(clubName) === norm(state.club)){
-    const eligible = (state.squad || []).filter(player => !/^(GK|GOLEIRO)$/i.test(player.pos || ''));
+  // Se for o clube do usuário, utiliza os atletas reais e elegíveis do elenco
+  if(state?.club && norm(clubName) === norm(state.club)){
+    const isPlayerMode = state.gameMode === 'player' && Boolean(state.playerCareerState);
+    const controlledId = state.controlledPlayerId;
+    const controlledAvailable = !isPlayerMode || (
+      (window.AFM_PlayerEngine?.isPlayerAvailableForMatch?.(state) ?? true) &&
+      Number(state.playerCareerState?.managerTrust ?? 35) >= 30
+    );
+    const eligible = (state.squad || []).filter(player => {
+      if(/^(GK|GOL|GOLEIRO)$/i.test(player.pos || '')) return false;
+      if(isPlayerMode && !controlledAvailable && (player.isControlled || (controlledId != null && player.id === controlledId))) return false;
+      return true;
+    });
     if(!eligible.length) return [];
+    const sortedByOvr = eligible.slice().sort((a, b) => (typeof playerOverall === 'function' ? playerOverall(b) - playerOverall(a) : (b.ovr || 60) - (a.ovr || 60)));
     return Array.from({length: count}, (_, index) => {
-      const attackers = eligible.filter(p => /^(ST|CF|RW|LW|CA|ATA|PD|PE)$/i.test(p.pos || ''));
-      const midfielders = eligible.filter(p => /^(AM|CM|CAM|MEI|MC)$/i.test(p.pos || ''));
-      const pool = attackers.length && Math.random() < 0.65 
-        ? attackers 
-        : (midfielders.length && Math.random() < 0.70 ? midfielders : eligible);
-      const scorer = pool[rnd(0, pool.length - 1)];
-      const helpers = eligible.filter(p => p !== scorer);
-      const assist = helpers.length && Math.random() < 0.72 ? helpers[rnd(0, helpers.length - 1)] : null;
+      const attackers = sortedByOvr.filter(p => /^(ST|CF|RW|LW|CA|ATA|PON|PD|PE)$/i.test(p.pos || ''));
+      const midfielders = sortedByOvr.filter(p => /^(AM|CM|CAM|MEI|MC)$/i.test(p.pos || ''));
+      const pool = attackers.length && Math.random() < 0.68
+        ? attackers
+        : (midfielders.length && Math.random() < 0.72 ? midfielders : sortedByOvr);
+      const topSlice = pool.slice(0, Math.max(1, Math.min(4, pool.length)));
+      const chosenPool = Math.random() < 0.70 ? topSlice : pool;
+      const scorer = chosenPool[rnd(0, chosenPool.length - 1)];
+      const helpers = sortedByOvr.filter(p => p !== scorer);
+      const assistMid = helpers.filter(p => /^(AM|CM|CAM|MEI|MC|RW|LW|PON|LB|RB|LAT)$/i.test(p.pos || ''));
+      const assistPool = assistMid.length && Math.random() < 0.75 ? assistMid : helpers;
+      const assist = assistPool.length && Math.random() < 0.72 ? assistPool[rnd(0, assistPool.length - 1)] : null;
       return {
         type: 'gol',
         teamId: clubName,
@@ -15979,20 +16043,24 @@ function simulateClubGoalEvents(clubName, goals, compId){
 
   // Clubes da CPU (outros clubes da liga/competição)
   const squad = getClubSquadForStats(clubName);
-  const outfield = squad.filter(p => !/^(GK|GOLEIRO)$/i.test(p.pos || ''));
-  const eligible = outfield.length ? outfield : squad;
+  const outfield = squad.filter(p => !/^(GK|GOL|GOLEIRO)$/i.test(p.pos || ''));
+  const eligible = (outfield.length ? outfield : squad).slice().sort((a, b) => (typeof playerOverall === 'function' ? playerOverall(b) - playerOverall(a) : (b.ovr || 60) - (a.ovr || 60)));
   if(!eligible.length) return [];
 
-  const attackers = eligible.filter(p => /^(ST|CF|RW|LW|CA|ATA|PD|PE)$/i.test(p.pos || ''));
+  const attackers = eligible.filter(p => /^(ST|CF|RW|LW|CA|ATA|PON|PD|PE)$/i.test(p.pos || ''));
   const midfielders = eligible.filter(p => /^(AM|CM|CAM|MEI|MC)$/i.test(p.pos || ''));
 
   return Array.from({length: count}, (_, index) => {
     const pool = attackers.length && Math.random() < 0.68
       ? attackers
       : (midfielders.length && Math.random() < 0.75 ? midfielders : eligible);
-    const scorer = pool[rnd(0, pool.length - 1)];
+    const topSlice = pool.slice(0, Math.max(1, Math.min(3, pool.length)));
+    const chosenPool = Math.random() < 0.68 ? topSlice : pool;
+    const scorer = chosenPool[rnd(0, chosenPool.length - 1)];
     const helpers = eligible.filter(p => p !== scorer);
-    const assist = helpers.length && Math.random() < 0.72 ? helpers[rnd(0, helpers.length - 1)] : null;
+    const assistMid = helpers.filter(p => /^(AM|CM|CAM|MEI|MC|RW|LW|PON|LB|RB|LAT)$/i.test(p.pos || ''));
+    const assistPool = assistMid.length && Math.random() < 0.75 ? assistMid : helpers;
+    const assist = assistPool.length && Math.random() < 0.72 ? assistPool[rnd(0, assistPool.length - 1)] : null;
     return {
       type: 'gol',
       teamId: clubName,
@@ -16008,26 +16076,29 @@ function simulateClubGoalEvents(clubName, goals, compId){
 function addPlayerMatchStats(competitionId, clubName, events){
   if(!competitionId || !clubName || !Array.isArray(events)) return;
   const stats = getStateCompStats(competitionId);
-  const isUserClub = norm(clubName) === norm(state.club);
+  const isUserClub = Boolean(state?.club && norm(clubName) === norm(state.club));
+  const clubSquad = getClubSquadForStats(clubName);
 
   const add = (list, playerName, key, pos) => {
     if(!playerName) return;
     const player = isUserClub ? state.squad?.find(p => norm(p.name) === norm(playerName)) : null;
-    let resolvedPos = pos;
-    if(!resolvedPos && isUserClub){
-      resolvedPos = player?.pos;
-    }
-    if(!resolvedPos){
-      const clubSquad = getClubSquadForStats(clubName);
-      const found = clubSquad.find(p => norm(p.name) === norm(playerName));
-      resolvedPos = found?.pos || (key === 'goals' ? 'ST' : 'CM');
-    }
+    const found = player || clubSquad.find(p => norm(p.name) === norm(playerName));
+    const resolvedPos = pos || found?.pos || (key === 'goals' ? 'ST' : 'CM');
+    const resolvedAge = Number(found?.age) || undefined;
+    const resolvedOvr = found ? (typeof playerOverall === 'function' ? playerOverall(found) : Number(found.ovr) || 65) : undefined;
 
     const row = list.find(item => norm(item.name) === norm(playerName) && norm(item.club) === norm(clubName)) || {
-      name: playerName, club: clubName, pos: resolvedPos || 'AT', [key]: 0
+      name: playerName,
+      club: clubName,
+      pos: resolvedPos || 'ATA',
+      ...(resolvedAge ? { age: resolvedAge } : {}),
+      ...(resolvedOvr ? { ovr: resolvedOvr } : {}),
+      [key]: 0
     };
     if(!list.includes(row)) list.push(row);
     if(resolvedPos && (!row.pos || row.pos === 'JOGADOR')) row.pos = resolvedPos;
+    if(resolvedAge && !row.age) row.age = resolvedAge;
+    if(resolvedOvr && !row.ovr) row.ovr = resolvedOvr;
     row[key] = (Number(row[key]) || 0) + 1;
     if(player) player[key] = (Number(player[key]) || 0) + 1;
   };
@@ -16044,72 +16115,927 @@ function simulateUserGoalEvents(clubName, goals){
   return simulateClubGoalEvents(clubName, goals);
 }
 
-function syncCompetitionStatsWithLeagueTeams(competitionId, teamsList){
-  if(!competitionId || !Array.isArray(teamsList) || !teamsList.length) return;
-  const stats = getStateCompStats(competitionId);
-  stats.scorers = Array.isArray(stats.scorers) ? stats.scorers : [];
-  stats.assists = Array.isArray(stats.assists) ? stats.assists : [];
+function collectCompetitionClubSummaries(competitionId){
+  const normId = normalizeCompStatsId(competitionId);
+  const summaryMap = new Map();
+  if(!state) return summaryMap;
+  const curSeason = Number(state.season) || 2026;
 
-  for(const team of teamsList){
-    const clubName = team.name;
-    if(!clubName) continue;
-    const isUser = norm(clubName) === norm(state.club);
-    const targetGoals = Math.max(0, Number(team.gp) || 0);
-    if(targetGoals <= 0) continue;
+  const addMatchToSummary = (home, away, hgRaw, agRaw) => {
+    if(!home || !away) return;
+    const hg = Math.max(0, Number(hgRaw) || 0);
+    const ag = Math.max(0, Number(agRaw) || 0);
+    const pairs = [
+      [home, hg, ag],
+      [away, ag, hg]
+    ];
+    for(const [club, gf, ga] of pairs){
+      const key = norm(club);
+      if(!key) continue;
+      const cur = summaryMap.get(key) || { name: club, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, pts: 0, cs: 0 };
+      cur.j += 1;
+      cur.gp += gf;
+      cur.gc += ga;
+      if(gf > ga){ cur.v += 1; cur.pts += 3; }
+      else if(gf === ag && gf === ga){ cur.e += 1; cur.pts += 1; }
+      else { cur.d += 1; }
+      if(ga === 0) cur.cs += 1;
+      summaryMap.set(key, cur);
+    }
+  };
 
-    // Gols atualmente registrados para este clube na competição
-    const currentClubScorers = stats.scorers.filter(s => norm(s.club) === norm(clubName));
+  // 1. Copa do Brasil ('bra-cup')
+  if(normId === 'bra-cup'){
+    const copa = (state.copaData && Number(state.copaData.season) === curSeason) ? state.copaData : null;
+    if(copa && copa.phases){
+      Object.values(copa.phases).forEach(phase => {
+        (phase?.fixtures || []).forEach(f => {
+          if(Array.isArray(f?.score) && f.score.length >= 2){
+            addMatchToSummary(f.home, f.away, f.score[0], f.score[1]);
+          } else if(Array.isArray(f?.result) && f.result.length >= 2){
+            addMatchToSummary(f.home, f.away, f.result[0], f.result[1]);
+          }
+        });
+      });
+    }
+    return summaryMap;
+  }
+
+  // 2. Torneios Continentais & Mundial FIFA ('lib', 'sud', 'ucl', 'uel', 'uecl', 'afc-el', 'afc2', 'cwc')
+  if(['lib', 'sud', 'ucl', 'uel', 'uecl', 'afc-el', 'afc2', 'cwc'].includes(normId)){
+    const tourn = state.tournaments?.[normId];
+    if(tourn && (!tourn.season || Number(tourn.season) === curSeason)){
+      (tourn.matches || []).forEach(m => {
+        if(!m) return;
+        if(Array.isArray(m.result) && m.result.length >= 2){
+          addMatchToSummary(m.home, m.away, m.result[0], m.result[1]);
+        } else if(Array.isArray(m.score) && m.score.length >= 2){
+          addMatchToSummary(m.home, m.away, m.score[0], m.score[1]);
+        } else if(m.status === 'played' && m.homeGoals != null && m.awayGoals != null){
+          addMatchToSummary(m.home, m.away, m.homeGoals, m.awayGoals);
+        }
+      });
+    }
+    return summaryMap;
+  }
+
+  // 3. Campeonatos Estaduais ('bra-est-*')
+  if(normId.startsWith('bra-est-')){
+    const estData = (state.estadualData?.[normId] && Number(state.estadualData[normId].season) === curSeason)
+      ? state.estadualData[normId]
+      : (typeof getStateCompData === 'function' ? getStateCompData(normId) : null);
+    const playedFixtures = (estData?.fixtures || []).filter(f => f && (Array.isArray(f.result) || Array.isArray(f.score)));
+    if(playedFixtures.length > 0){
+      playedFixtures.forEach(f => {
+        const sc = Array.isArray(f.result) ? f.result : f.score;
+        addMatchToSummary(f.home, f.away, sc[0], sc[1]);
+      });
+      return summaryMap;
+    }
+    (estData?.teams || []).forEach(t => {
+      const j = Math.max(0, Number(t?.j) || 0);
+      if(j <= 0 || !t?.name) return;
+      const v = Math.max(0, Number(t.v) || 0);
+      const e = Math.max(0, Number(t.e) || 0);
+      const d = Math.max(0, Number(t.d) || 0);
+      const gp = Math.max(0, Number(t.gp) || 0);
+      const gc = Math.max(0, Number(t.gc) || 0);
+      const maxPossibleCs = gc === 0 ? j : Math.min(v + e, Math.max(0, j - 1));
+      const estCs = gc === 0 ? j : Math.min(maxPossibleCs, Math.max(0, Math.round(j * Math.exp(-gc / Math.max(1, j * 1.05)))));
+      summaryMap.set(norm(t.name), { name: t.name, j, v, e, d, gp, gc, pts: Number(t.p) || (v * 3 + e), cs: estCs });
+    });
+    return summaryMap;
+  }
+
+  // 4. Ligas Nacionais e Internacionais ('bra-a'..'bra-d', 'eng-1', 'esp-1', 'ita-1', 'ger-1', 'fra-1', 'por-1', 'arg-1', 'usa-1', 'ksa-1', etc.)
+  let rows = [];
+  if(normalizeCompStatsId(state.compId) === normId && Array.isArray(state.teams) && state.teams.length){
+    rows = state.teams;
+  } else if(typeof getNationalCompetitionStandings === 'function'){
+    rows = getNationalCompetitionStandings(normId) || [];
+  } else if(Array.isArray(state.nationalCompetitionStandings?.[normId])){
+    rows = state.nationalCompetitionStandings[normId];
+  }
+
+  const userHistoryMatches = (state.history || []).filter(h =>
+    normalizeCompStatsId(h?.competitionId) === normId &&
+    (!h?.season || Number(h.season) === curSeason)
+  );
+
+  rows.forEach(t => {
+    const j = Math.max(0, Number(t?.j) || 0);
+    if(j <= 0 || !t?.name) return;
+    const v = Math.max(0, Number(t.v) || 0);
+    const e = Math.max(0, Number(t.e) || 0);
+    const d = Math.max(0, Number(t.d) || 0);
+    const gp = Math.max(0, Number(t.gp) || 0);
+    const gc = Math.max(0, Number(t.gc) || 0);
+    const pts = Number(t.p) || (v * 3 + e);
+    let cs = 0;
+    if(state.club && norm(t.name) === norm(state.club) && userHistoryMatches.length > 0){
+      cs = userHistoryMatches.reduce((acc, m) => {
+        const homeMatch = norm(m.h) === norm(state.club);
+        const ga = homeMatch ? (Number(m.ag) || 0) : (Number(m.hg) || 0);
+        return acc + (ga === 0 ? 1 : 0);
+      }, 0);
+    } else {
+      const maxPossibleCs = gc === 0 ? j : Math.min(v + e, Math.max(0, j - 1));
+      cs = gc === 0 ? j : Math.min(maxPossibleCs, Math.max(0, Math.round(j * Math.exp(-gc / Math.max(1, j * 1.05)))));
+    }
+    summaryMap.set(norm(t.name), { name: t.name, j, v, e, d, gp, gc, pts, cs });
+  });
+
+  return summaryMap;
+}
+
+function syncCompetitionStatsComprehensive(competitionId, explicitTeamsList = null){
+  if(!state || !competitionId) return null;
+  const normId = normalizeCompStatsId(competitionId);
+  const stats = getStateCompStats(normId);
+  const summaryMap = collectCompetitionClubSummaries(normId);
+
+  // Permite reconciliar também uma lista explícita de equipes quando invocada diretamente
+  if(Array.isArray(explicitTeamsList) && explicitTeamsList.length){
+    explicitTeamsList.forEach(t => {
+      const j = Math.max(0, Number(t?.j) || 0);
+      const gp = Math.max(0, Number(t?.gp) || 0);
+      if((j <= 0 && gp <= 0) || !t?.name) return;
+      const key = norm(t.name);
+      if(!summaryMap.has(key)){
+        const v = Math.max(0, Number(t.v) || 0);
+        const e = Math.max(0, Number(t.e) || 0);
+        const d = Math.max(0, Number(t.d) || 0);
+        const gc = Math.max(0, Number(t.gc) || 0);
+        const effectiveJ = Math.max(1, j || (v + e + d));
+        const maxCs = gc === 0 ? effectiveJ : Math.min(v + e, Math.max(0, effectiveJ - 1));
+        const cs = gc === 0 ? effectiveJ : Math.min(maxCs, Math.max(0, Math.round(effectiveJ * Math.exp(-gc / Math.max(1, effectiveJ * 1.05)))));
+        summaryMap.set(key, { name: t.name, j: effectiveJ, v, e, d, gp, gc, pts: Number(t.p) || (v * 3 + e), cs });
+      }
+    });
+  }
+
+  // REGRA ZERO-FABRICAÇÃO: Se nenhuma partida foi disputada na competição, não gera nenhum dado fictício!
+  if(summaryMap.size === 0){
+    return stats;
+  }
+
+  const isPlayerMode = state.gameMode === 'player' && Boolean(state.playerCareerState);
+  const controlledAthlete = isPlayerMode
+    ? ((state.squad || []).find(p => p.isControlled || (state.controlledPlayerId != null && p.id === state.controlledPlayerId)) || null)
+    : null;
+  const controlledNameNorm = controlledAthlete?.name ? norm(controlledAthlete.name) : null;
+
+  for(const [clubKey, summary] of summaryMap.entries()){
+    const clubName = summary.name;
+    const isUser = Boolean(state.club && clubKey === norm(state.club));
+    const squad = getClubSquadForStats(clubName);
+    if(!squad.length) continue;
+
+    const getOvr = p => (typeof playerOverall === 'function' ? playerOverall(p) : (Number(p?.ovr ?? p?.overall) || 62));
+    const sortedSquad = squad.slice().sort((a, b) => getOvr(b) - getOvr(a));
+    const outfield = sortedSquad.filter(p => !/^(GK|GOL|GOLEIRO)$/i.test(p.pos || ''));
+    const eligibleOutfield = (outfield.length ? outfield : sortedSquad).filter(p => {
+      if(isUser && isPlayerMode && controlledNameNorm && norm(p.name) === controlledNameNorm) return false;
+      return true;
+    });
+
+    // 1. Reconciliação de Gols e Assistências da equipe com os gols reais marcados na competição (summary.gp)
+    const currentClubScorers = stats.scorers.filter(s => norm(s.club) === clubKey);
     const currentGoals = currentClubScorers.reduce((acc, s) => acc + (Number(s.goals) || 0), 0);
-
-    // Se for clube da CPU e tiver menos gols registrados que os gols pró na tabela da liga:
-    if(!isUser && currentGoals < targetGoals){
-      const needed = targetGoals - currentGoals;
-      const squad = getClubSquadForStats(clubName);
-      const eligible = squad.filter(p => !/^(GK|GOLEIRO)$/i.test(p.pos || ''));
-      if(!eligible.length) continue;
-
-      const attackers = eligible.filter(p => /^(ST|CF|RW|LW|CA|ATA|PD|PE)$/i.test(p.pos || ''));
-      const midfielders = eligible.filter(p => /^(AM|CM|CAM|MEI|MC)$/i.test(p.pos || ''));
-      
-      const mainStriker = attackers[0] || eligible[0];
+    if((!isUser || currentGoals === 0) && currentGoals < summary.gp && eligibleOutfield.length){
+      const needed = summary.gp - currentGoals;
+      const attackers = eligibleOutfield.filter(p => /^(ST|CF|RW|LW|CA|ATA|PON|PD|PE)$/i.test(p.pos || ''));
+      const midfielders = eligibleOutfield.filter(p => /^(AM|CM|CAM|MEI|MC)$/i.test(p.pos || ''));
+      const mainStriker = attackers[0] || eligibleOutfield[0];
       const secondaryAttackers = attackers.slice(1);
 
       for(let g = 0; g < needed; g++){
+        const seed = (hashStr(`${normId}|${clubName}|goal|${currentGoals + g}`) >>> 0);
         let scorer;
-        if(Math.random() < 0.55 && mainStriker){
+        if((seed % 100) < 48 && mainStriker){
           scorer = mainStriker;
-        } else if(secondaryAttackers.length && Math.random() < 0.65){
-          scorer = secondaryAttackers[hashStr(clubName + g) % secondaryAttackers.length];
-        } else if(midfielders.length && Math.random() < 0.70){
-          scorer = midfielders[hashStr(clubName + 'm' + g) % midfielders.length];
+        } else if(secondaryAttackers.length && (seed % 100) < 76){
+          scorer = secondaryAttackers[seed % secondaryAttackers.length];
+        } else if(midfielders.length && (seed % 100) < 92){
+          scorer = midfielders[seed % midfielders.length];
         } else {
-          scorer = eligible[hashStr(clubName + 'e' + g) % eligible.length];
+          scorer = eligibleOutfield[seed % eligibleOutfield.length];
         }
+        if(!scorer) continue;
 
-        let row = stats.scorers.find(item => norm(item.name) === norm(scorer.name) && norm(item.club) === norm(clubName));
+        let row = stats.scorers.find(item => norm(item.name) === norm(scorer.name) && norm(item.club) === clubKey);
         if(!row){
-          row = { name: scorer.name, club: clubName, pos: scorer.pos || 'ST', goals: 0 };
+          row = {
+            name: scorer.name,
+            club: clubName,
+            pos: scorer.pos || 'ST',
+            age: Number(scorer.age) || 24,
+            ovr: getOvr(scorer),
+            goals: 0,
+            matches: summary.j
+          };
           stats.scorers.push(row);
         }
         row.goals = (Number(row.goals) || 0) + 1;
+        row.matches = summary.j;
+        if(!row.age && scorer.age) row.age = Number(scorer.age);
+        if(!row.ovr) row.ovr = getOvr(scorer);
 
-        if(Math.random() < 0.72){
-          const assistPool = eligible.filter(p => norm(p.name) !== norm(scorer.name));
+        if(((seed >>> 3) % 100) < 72){
+          const assistPool = eligibleOutfield.filter(p => norm(p.name) !== norm(scorer.name));
           if(assistPool.length){
-            const assistMid = assistPool.filter(p => /^(AM|CM|CAM|MEI|MC|RW|LW|LB|RB)$/i.test(p.pos || ''));
-            const assister = assistMid.length ? assistMid[hashStr(clubName + 'a' + g) % assistMid.length] : assistPool[0];
-            let aRow = stats.assists.find(item => norm(item.name) === norm(assister.name) && norm(item.club) === norm(clubName));
-            if(!aRow){
-              aRow = { name: assister.name, club: clubName, pos: assister.pos || 'CM', assists: 0 };
-              stats.assists.push(aRow);
+            const assistMid = assistPool.filter(p => /^(AM|CM|CAM|MEI|MC|RW|LW|PON|LB|RB|LAT)$/i.test(p.pos || ''));
+            const assister = assistMid.length ? assistMid[(seed >>> 5) % assistMid.length] : assistPool[seed % assistPool.length];
+            if(assister){
+              let aRow = stats.assists.find(item => norm(item.name) === norm(assister.name) && norm(item.club) === clubKey);
+              if(!aRow){
+                aRow = {
+                  name: assister.name,
+                  club: clubName,
+                  pos: assister.pos || 'CM',
+                  age: Number(assister.age) || 24,
+                  ovr: getOvr(assister),
+                  assists: 0,
+                  matches: summary.j
+                };
+                stats.assists.push(aRow);
+              }
+              aRow.assists = (Number(aRow.assists) || 0) + 1;
+              aRow.matches = summary.j;
             }
-            aRow.assists = (Number(aRow.assists) || 0) + 1;
           }
         }
       }
     }
+
+    // Atualiza contagem de partidas e metadados nos artilheiros e garçons existentes do clube
+    stats.scorers.forEach(s => {
+      if(norm(s.club) === clubKey && (!controlledNameNorm || norm(s.name) !== controlledNameNorm)){
+        s.matches = summary.j;
+        if(!s.age || !s.ovr){
+          const p = squad.find(pl => norm(pl.name) === norm(s.name));
+          if(p){ s.age = Number(p.age) || 24; s.ovr = getOvr(p); }
+        }
+      }
+    });
+    stats.assists.forEach(a => {
+      if(norm(a.club) === clubKey && (!controlledNameNorm || norm(a.name) !== controlledNameNorm)){
+        a.matches = summary.j;
+        if(!a.age || !a.ovr){
+          const p = squad.find(pl => norm(pl.name) === norm(a.name));
+          if(p){ a.age = Number(p.age) || 24; a.ovr = getOvr(p); }
+        }
+      }
+    });
+
+    // 2. Luva de Ouro (Clean Sheets de Goleiros Titulares) — Idempotente por clube
+    const gks = sortedSquad.filter(p => /^(GK|GOL|GOLEIRO)$/i.test(p.pos || ''));
+    const mainGk = gks[0] || sortedSquad[sortedSquad.length - 1];
+    if(mainGk && !(isUser && isPlayerMode && controlledNameNorm && norm(mainGk.name) === controlledNameNorm)){
+      let csRow = stats.cleanSheets.find(item => norm(item.name) === norm(mainGk.name) && norm(item.club) === clubKey);
+      if(!csRow){
+        csRow = {
+          name: mainGk.name,
+          club: clubName,
+          pos: 'GK',
+          age: Number(mainGk.age) || 26,
+          ovr: getOvr(mainGk),
+          cleanSheets: 0,
+          matches: summary.j,
+          goalsAgainst: summary.gc
+        };
+        stats.cleanSheets.push(csRow);
+      }
+      csRow.cleanSheets = summary.cs;
+      csRow.matches = summary.j;
+      csRow.goalsAgainst = summary.gc;
+      csRow.ovr = getOvr(mainGk);
+    }
+
+    // 3. Cartões & Disciplina — Idempotente por summary.j
+    if(stats._syncedTeamMatches[clubKey] !== summary.j && eligibleOutfield.length){
+      const defPool = eligibleOutfield.filter(p => /^(DM|VOL|CB|ZAG|LB|RB|LAT|LE|LD|CM|MC)$/i.test(p.pos || ''));
+      const cardCandidates = (defPool.length >= 2 ? defPool : eligibleOutfield).slice(0, 4);
+      cardCandidates.forEach((p, idx) => {
+        const seed = (hashStr(`${normId}|${clubName}|card|${p.name}`) >>> 0);
+        const yellowRate = idx === 0 ? 0.34 : idx === 1 ? 0.25 : 0.18;
+        const yellows = Math.floor(summary.j * yellowRate + ((seed % 10) / 16));
+        const reds = (summary.j >= 4 && ((seed % 13) === 0)) ? Math.max(1, Math.floor(summary.j / 14)) : 0;
+        let cRow = stats.cards.find(item => norm(item.name) === norm(p.name) && norm(item.club) === clubKey);
+        if(yellows > 0 || reds > 0){
+          if(!cRow){
+            cRow = { name: p.name, club: clubName, pos: p.pos || 'VOL', age: Number(p.age) || 25, ovr: getOvr(p), yellowCards: 0, redCards: 0, matches: summary.j };
+            stats.cards.push(cRow);
+          }
+          cRow.yellowCards = yellows;
+          cRow.redCards = reds;
+          cRow.matches = summary.j;
+        }
+      });
+    }
+
+    // 4. Nota Média (MVP) & Candidatos Sub-21 (Revelação) — Idempotente por clube
+    const topStarters = sortedSquad.slice(0, 6);
+    const topU21 = sortedSquad.filter(p => (Number(p.age) || 25) <= 21).slice(0, 2);
+    const goalOrAssistPlayers = sortedSquad.filter(p =>
+      stats.scorers.some(s => norm(s.club) === clubKey && norm(s.name) === norm(p.name)) ||
+      stats.assists.some(a => norm(a.club) === clubKey && norm(a.name) === norm(p.name))
+    );
+    const mvpCandidatesMap = new Map();
+    [...topStarters, ...topU21, ...goalOrAssistPlayers].forEach(p => {
+      if(!p?.name) return;
+      if(isUser && isPlayerMode && controlledNameNorm && norm(p.name) === controlledNameNorm) return;
+      mvpCandidatesMap.set(norm(p.name), p);
+    });
+
+    const ppgRatio = summary.j > 0 ? (summary.pts / (summary.j * 3)) : 0.45; // 0.0 a 1.0
+    for(const p of mvpCandidatesMap.values()){
+      const pGoals = Number(stats.scorers.find(s => norm(s.club) === clubKey && norm(s.name) === norm(p.name))?.goals) || 0;
+      const pAssists = Number(stats.assists.find(a => norm(a.club) === clubKey && norm(a.name) === norm(p.name))?.assists) || 0;
+      const isGkOrDef = /^(GK|GOL|GOLEIRO|CB|ZAG|LB|RB|LAT|LE|LD|DM|VOL)$/i.test(p.pos || '');
+      const csRatio = isGkOrDef && summary.j > 0 ? (summary.cs / summary.j) : 0;
+      const ovrVal = getOvr(p);
+      const seedJitter = (((hashStr(`${normId}|${clubName}|mvp|${p.name}`) >>> 0) % 21) - 10) * 0.015;
+      const rawRating = 6.55
+        + (ovrVal - 68) * 0.022
+        + (summary.j > 0 ? (pGoals / summary.j) * 0.78 : 0)
+        + (summary.j > 0 ? (pAssists / summary.j) * 0.55 : 0)
+        + csRatio * 0.48
+        + (ppgRatio - 0.45) * 0.65
+        + seedJitter;
+      const clampedRating = Math.max(5.90, Math.min(9.20, Number(rawRating.toFixed(2))));
+
+      let mRow = stats.mvp.find(item => norm(item.name) === norm(p.name) && norm(item.club) === clubKey);
+      if(!mRow){
+        mRow = {
+          name: p.name,
+          club: clubName,
+          pos: p.pos || 'MEI',
+          age: Number(p.age) || 24,
+          ovr: ovrVal,
+          rating: clampedRating.toFixed(2),
+          matches: summary.j,
+          goals: pGoals,
+          assists: pAssists
+        };
+        stats.mvp.push(mRow);
+      } else {
+        mRow.rating = clampedRating.toFixed(2);
+        mRow.matches = summary.j;
+        mRow.goals = pGoals;
+        mRow.assists = pAssists;
+        mRow.age = Number(p.age) || mRow.age || 24;
+        mRow.ovr = ovrVal;
+      }
+    }
+
+    stats._syncedTeamMatches[clubKey] = summary.j;
   }
+
+  // 5. Autoridade Exata do Atleta Controlado (Modo Carreira Jogador)
+  if(isPlayerMode && controlledAthlete && state.club){
+    const pState = state.playerCareerState;
+    const byComp = pState.competitionStatsByComp?.[normId];
+    const fallbackPrimary = (!pState.competitionStatsByComp && normalizeCompStatsId(state.compId) === normId && Number(pState.seasonStats?.season || state.season) === Number(state.season))
+      ? pState.seasonStats
+      : null;
+    const cStats = byComp || fallbackPrimary;
+    const userClubName = state.club;
+    const userClubKey = norm(userClubName);
+    const userAge = Number(controlledAthlete.age ?? pState.age ?? 18);
+    const userOvr = typeof playerOverall === 'function' ? playerOverall(controlledAthlete) : (Number(controlledAthlete.ovr) || 60);
+    const userPos = controlledAthlete.pos || pState.position || 'ATA';
+
+    // Remove entradas residuais do atleta controlado antes de aplicar os números exatos da súmula dele
+    const stripControlled = arr => arr.filter(item => !(norm(item.name) === controlledNameNorm && norm(item.club) === userClubKey));
+    if(cStats && Number(cStats.matches) > 0){
+      const uMatches = Number(cStats.matches) || 0;
+      const uGoals = Number(cStats.goals) || 0;
+      const uAssists = Number(cStats.assists) || 0;
+      const uCs = Number(cStats.cleanSheets) || 0;
+      const uYellow = Number(cStats.yellowCards) || 0;
+      const uRed = Number(cStats.redCards) || 0;
+      const uRating = Number(cStats.avgRating ?? cStats.averageRating ?? 6.5);
+
+      stats.scorers = stripControlled(stats.scorers);
+      if(uGoals > 0){
+        stats.scorers.push({ name: controlledAthlete.name, club: userClubName, pos: userPos, age: userAge, ovr: userOvr, goals: uGoals, matches: uMatches, isUser: true });
+      }
+
+      stats.assists = stripControlled(stats.assists);
+      if(uAssists > 0){
+        stats.assists.push({ name: controlledAthlete.name, club: userClubName, pos: userPos, age: userAge, ovr: userOvr, assists: uAssists, matches: uMatches, isUser: true });
+      }
+
+      stats.mvp = stripControlled(stats.mvp);
+      stats.mvp.push({
+        name: controlledAthlete.name,
+        club: userClubName,
+        pos: userPos,
+        age: userAge,
+        ovr: userOvr,
+        rating: uRating.toFixed(2),
+        matches: uMatches,
+        goals: uGoals,
+        assists: uAssists,
+        mvpCount: Number(cStats.mvpCount) || 0,
+        isUser: true
+      });
+
+      if(/^(GK|GOL|GOLEIRO)$/i.test(userPos)){
+        stats.cleanSheets = stripControlled(stats.cleanSheets);
+        if(uCs > 0){
+          stats.cleanSheets.push({ name: controlledAthlete.name, club: userClubName, pos: 'GK', age: userAge, ovr: userOvr, cleanSheets: uCs, matches: uMatches, goalsAgainst: Number(cStats.goalsAgainst) || 0, isUser: true });
+        }
+      }
+
+      stats.cards = stripControlled(stats.cards);
+      if(uYellow > 0 || uRed > 0){
+        stats.cards.push({ name: controlledAthlete.name, club: userClubName, pos: userPos, age: userAge, ovr: userOvr, yellowCards: uYellow, redCards: uRed, matches: uMatches, isUser: true });
+      }
+    } else if(pState.competitionStatsByComp) {
+      // Se o atleta tem 0 partidas nesta competição específica, garante que não receba gols aleatórios do time
+      stats.scorers = stripControlled(stats.scorers);
+      stats.assists = stripControlled(stats.assists);
+      stats.mvp = stripControlled(stats.mvp);
+      stats.cleanSheets = stripControlled(stats.cleanSheets);
+      stats.cards = stripControlled(stats.cards);
+    }
+  }
+
+  // 6. Ordenação Oficial com Critérios de Desempate da Vida Real (FIFA / UEFA / CBF / CONMEBOL)
+  const assistMap = new Map(stats.assists.map(a => [`${norm(a.name)}|${norm(a.club)}`, Number(a.assists) || 0]));
+  const goalMap = new Map(stats.scorers.map(s => [`${norm(s.name)}|${norm(s.club)}`, Number(s.goals) || 0]));
+
+  stats.scorers = stats.scorers
+    .filter(s => (Number(s.goals) || 0) > 0)
+    .sort((a, b) => {
+      const gDiff = (Number(b.goals) || 0) - (Number(a.goals) || 0);
+      if(gDiff !== 0) return gDiff;
+      const aAst = assistMap.get(`${norm(a.name)}|${norm(a.club)}`) || 0;
+      const bAst = assistMap.get(`${norm(b.name)}|${norm(b.club)}`) || 0;
+      if(bAst !== aAst) return bAst - aAst;
+      return (Number(a.matches) || 99) - (Number(b.matches) || 99); // Maior eficiência (menos jogos)
+    });
+
+  stats.assists = stats.assists
+    .filter(a => (Number(a.assists) || 0) > 0)
+    .sort((a, b) => {
+      const aDiff = (Number(b.assists) || 0) - (Number(a.assists) || 0);
+      if(aDiff !== 0) return aDiff;
+      const aG = goalMap.get(`${norm(a.name)}|${norm(a.club)}`) || 0;
+      const bG = goalMap.get(`${norm(b.name)}|${norm(b.club)}`) || 0;
+      if(bG !== aG) return bG - aG;
+      return (Number(a.matches) || 99) - (Number(b.matches) || 99);
+    });
+
+  stats.cleanSheets = stats.cleanSheets
+    .filter(c => (Number(c.cleanSheets) || 0) > 0)
+    .sort((a, b) =>
+      (Number(b.cleanSheets) || 0) - (Number(a.cleanSheets) || 0) ||
+      (Number(a.goalsAgainst) ?? 99) - (Number(b.goalsAgainst) ?? 99) ||
+      (Number(b.ovr) || 0) - (Number(a.ovr) || 0)
+    );
+
+  stats.mvp = stats.mvp
+    .filter(m => (Number(m.matches) || 0) > 0)
+    .sort((a, b) =>
+      (Number(b.rating) || 0) - (Number(a.rating) || 0) ||
+      ((Number(b.goals) || 0) + (Number(b.assists) || 0)) - ((Number(a.goals) || 0) + (Number(a.assists) || 0)) ||
+      (Number(b.ovr) || 0) - (Number(a.ovr) || 0)
+    );
+
+  stats.cards = stats.cards
+    .filter(c => ((Number(c.yellowCards) || 0) + (Number(c.redCards) || 0)) > 0)
+    .sort((a, b) =>
+      ((Number(b.redCards) || 0) * 3 + (Number(b.yellowCards) || 0)) - ((Number(a.redCards) || 0) * 3 + (Number(a.yellowCards) || 0)) ||
+      (Number(b.yellowCards) || 0) - (Number(a.yellowCards) || 0)
+    );
+
+  return stats;
 }
+window.syncCompetitionStatsComprehensive = syncCompetitionStatsComprehensive;
+
+function syncCompetitionStatsWithLeagueTeams(competitionId, teamsList){
+  return syncCompetitionStatsComprehensive(competitionId, teamsList);
+}
+window.syncCompetitionStatsWithLeagueTeams = syncCompetitionStatsWithLeagueTeams;
+
+function getCompetitionAwardsMeta(compId, fallbackName = null){
+  const normId = normalizeCompStatsId(compId);
+  const compObj = typeof compById === 'function' ? compById(normId) : null;
+  const name = fallbackName || compObj?.name || (normId === 'bra-cup' ? 'Copa do Brasil' : normId === 'lib' ? 'Copa Libertadores' : normId === 'sud' ? 'Copa Sul-Americana' : normId === 'cwc' ? 'Mundial de Clubes FIFA' : 'Competição');
+
+  const presets = {
+    'bra-a': {
+      mvp: 'Craque do Brasileirão (Bola de Ouro)',
+      topScorer: 'Troféu Roberto Dinamite (Artilheiro)',
+      assistLeader: 'Garçom do Brasileirão',
+      goldenGlove: 'Luva de Ouro CBF (Goleiro)',
+      youngPlayer: 'Revelação do Brasileirão (Sub-21)'
+    },
+    'bra-b': {
+      mvp: 'Craque da Série B',
+      topScorer: 'Artilheiro da Série B',
+      assistLeader: 'Garçom da Série B',
+      goldenGlove: 'Luva de Ouro da Série B',
+      youngPlayer: 'Revelação da Série B (Sub-21)'
+    },
+    'bra-c': {
+      mvp: 'Craque da Série C',
+      topScorer: 'Artilheiro da Série C',
+      assistLeader: 'Garçom da Série C',
+      goldenGlove: 'Luva de Ouro da Série C',
+      youngPlayer: 'Revelação da Série C (Sub-21)'
+    },
+    'bra-d': {
+      mvp: 'Craque da Série D',
+      topScorer: 'Artilheiro da Série D',
+      assistLeader: 'Garçom da Série D',
+      goldenGlove: 'Paredão da Série D',
+      youngPlayer: 'Revelação da Série D (Sub-21)'
+    },
+    'bra-cup': {
+      mvp: 'Bola de Ouro da Copa do Brasil',
+      topScorer: 'Artilheiro da Copa do Brasil',
+      assistLeader: 'Garçom da Copa do Brasil',
+      goldenGlove: 'Luva de Ouro da Copa do Brasil',
+      youngPlayer: 'Revelação da Copa do Brasil'
+    },
+    'lib': {
+      mvp: 'Rei da América / Craque da Libertadores',
+      topScorer: 'Artilheiro da Libertadores',
+      assistLeader: 'Líder de Assistências CONMEBOL',
+      goldenGlove: 'Luva de Ouro da Libertadores',
+      youngPlayer: 'Revelação da Libertadores (Sub-21)'
+    },
+    'sud': {
+      mvp: 'Craque da Sul-Americana',
+      topScorer: 'Artilheiro da Sul-Americana',
+      assistLeader: 'Líder de Assistências da Sul-Americana',
+      goldenGlove: 'Luva de Ouro da Sul-Americana',
+      youngPlayer: 'Revelação da Sul-Americana (Sub-21)'
+    },
+    'ucl': {
+      mvp: 'UEFA Champions League Player of the Season',
+      topScorer: 'Champions League Top Scorer',
+      assistLeader: 'Líder de Assistências da Champions',
+      goldenGlove: 'Melhor Goleiro da Champions',
+      youngPlayer: 'Jovem da Temporada UEFA (Sub-21)'
+    },
+    'uel': {
+      mvp: 'UEFA Europa League Player of the Season',
+      topScorer: 'Artilheiro da Europa League',
+      assistLeader: 'Líder de Assistências da Europa League',
+      goldenGlove: 'Luva de Ouro da Europa League',
+      youngPlayer: 'Jovem da Temporada Europa League'
+    },
+    'cwc': {
+      mvp: 'Bola de Ouro FIFA do Mundial',
+      topScorer: 'Chuteira de Ouro FIFA',
+      assistLeader: 'Garçom do Mundial FIFA',
+      goldenGlove: 'Luva de Ouro FIFA',
+      youngPlayer: 'Prêmio Jovem Talento FIFA'
+    },
+    'esp-1': {
+      mvp: 'MVP Oficial de LaLiga',
+      topScorer: 'Troféu Pichichi (Artilheiro)',
+      assistLeader: 'Líder de Assistências LaLiga',
+      goldenGlove: 'Troféu Zamora (Melhor Goleiro)',
+      youngPlayer: 'Melhor Sub-21 de LaLiga'
+    },
+    'eng-1': {
+      mvp: 'Premier League Player of the Season',
+      topScorer: 'Premier League Golden Boot',
+      assistLeader: 'Premier League Playmaker',
+      goldenGlove: 'Premier League Golden Glove',
+      youngPlayer: 'Premier League Young Player (Sub-21)'
+    },
+    'ita-1': {
+      mvp: 'MVP della Serie A',
+      topScorer: 'Capocannoniere (Artilheiro)',
+      assistLeader: 'Líder de Assistências Serie A',
+      goldenGlove: 'Melhor Goleiro da Serie A',
+      youngPlayer: 'Melhor Sub-21 da Serie A'
+    },
+    'ger-1': {
+      mvp: 'Spieler der Saison (Bundesliga)',
+      topScorer: 'Torjägerkanone (Artilheiro)',
+      assistLeader: 'Líder de Assistências Bundesliga',
+      goldenGlove: 'Luva de Ouro Bundesliga',
+      youngPlayer: 'Rookie of the Season (Sub-21)'
+    },
+    'fra-1': {
+      mvp: 'Melhor Jogador da Ligue 1 (UNFP)',
+      topScorer: 'Bota de Ouro da Ligue 1',
+      assistLeader: 'Líder de Assistências Ligue 1',
+      goldenGlove: 'Melhor Goleiro da Ligue 1',
+      youngPlayer: 'Melhor Jovem da Ligue 1'
+    },
+    'por-1': {
+      mvp: 'Melhor Jogador da Liga Portugal',
+      topScorer: 'Bola de Prata (Artilheiro)',
+      assistLeader: 'Líder de Assistências Liga Portugal',
+      goldenGlove: 'Melhor Guarda-Redes',
+      youngPlayer: 'Jovem do Ano da Liga Portugal'
+    }
+  };
+
+  if(presets[normId]) return { compId: normId, compName: name, ...presets[normId] };
+  if(normId.startsWith('bra-est-')){
+    return {
+      compId: normId,
+      compName: name,
+      mvp: `Craque do ${name}`,
+      topScorer: `Artilheiro do ${name}`,
+      assistLeader: `Garçom do ${name}`,
+      goldenGlove: `Melhor Goleiro do ${name}`,
+      youngPlayer: `Revelação do ${name} (Sub-21)`
+    };
+  }
+  return {
+    compId: normId,
+    compName: name,
+    mvp: `Craque — ${name}`,
+    topScorer: `Bota de Ouro — ${name}`,
+    assistLeader: `Líder de Assistências — ${name}`,
+    goldenGlove: `Luva de Ouro — ${name}`,
+    youngPlayer: `Revelação Sub-21 — ${name}`
+  };
+}
+window.getCompetitionAwardsMeta = getCompetitionAwardsMeta;
+
+function computeCompetitionAwards(compId, fallbackName = null){
+  const normId = normalizeCompStatsId(compId);
+  const meta = getCompetitionAwardsMeta(normId, fallbackName);
+  const stats = syncCompetitionStatsComprehensive(normId) || getStateCompStats(normId);
+  const summaries = collectCompetitionClubSummaries(normId);
+  const maxMatches = summaries.size ? Math.max(...[...summaries.values()].map(s => s.j || 0)) : 0;
+  const isKnockoutCup = normId === 'bra-cup' || normId.endsWith('-cup') || normId === 'eng-fa' || normId === 'eng-efl';
+  const minMatchesRequired = maxMatches <= 2
+    ? 1
+    : Math.max(2, Math.ceil(maxMatches * (isKnockoutCup ? 0.34 : 0.40)));
+
+  const createdAthleteName = state?.gameMode === 'player'
+    ? (state.playerCareerState?.athleteName || state.squad?.find(p => p.isControlled)?.name)
+    : null;
+  const isMe = (name, club) => Boolean(
+    createdAthleteName &&
+    norm(name) === norm(createdAthleteName) &&
+    (!state?.club || !club || norm(club) === norm(state.club))
+  );
+
+  const emptyAward = (title, icon) => ({
+    title,
+    icon,
+    hasWinner: false,
+    winnerName: 'A definir',
+    winnerClub: '—',
+    metricText: 'Aguardando jogos',
+    value: 0,
+    isUser: false,
+    isMyClub: false
+  });
+
+  const hasRealData = maxMatches > 0 || (stats.scorers?.length > 0) || (stats.assists?.length > 0);
+  if(!hasRealData){
+    return {
+      compId: normId,
+      compName: meta.compName,
+      hasPlayedMatches: false,
+      maxMatches: 0,
+      minMatchesRequired: 1,
+      mvp: emptyAward(meta.mvp, '👑'),
+      topScorer: emptyAward(meta.topScorer, '⚽'),
+      assistLeader: emptyAward(meta.assistLeader, '🎯'),
+      goldenGlove: emptyAward(meta.goldenGlove, '🧤'),
+      youngPlayer: emptyAward(meta.youngPlayer, '🌟')
+    };
+  }
+
+  // 1. Craque / MVP (exige amostragem mínima de partidas na competição + peso por impacto)
+  const eligibleMvpPool = (stats.mvp || []).filter(p => (Number(p.matches) || 1) >= minMatchesRequired);
+  const mvpSource = eligibleMvpPool.length ? eligibleMvpPool : (stats.mvp || []);
+  const mvpWinner = mvpSource.slice().sort((a, b) => {
+    const scoreA = (Number(a.rating) || 6.5) + Math.min(0.65, ((Number(a.goals) || 0) * 0.035 + (Number(a.assists) || 0) * 0.025));
+    const scoreB = (Number(b.rating) || 6.5) + Math.min(0.65, ((Number(b.goals) || 0) * 0.035 + (Number(b.assists) || 0) * 0.025));
+    return scoreB - scoreA || (Number(b.rating) || 0) - (Number(a.rating) || 0);
+  })[0] || null;
+
+  // 2. Artilheiro (Gols > Assistências > Menos Partidas)
+  const scorerWinner = (stats.scorers || [])[0] || null;
+
+  // 3. Garçom (Assistências > Gols > Menos Partidas)
+  const assistWinner = (stats.assists || [])[0] || null;
+
+  // 4. Luva de Ouro (Clean Sheets > Menos Gols Sofridos)
+  const gloveWinner = (stats.cleanSheets || [])[0] || null;
+
+  // 5. Revelação Sub-21 (idade <= 21 + amostragem mínima)
+  const eligibleU21 = eligibleMvpPool.filter(p => (Number(p.age) || 24) <= 21);
+  const fallbackU21 = (stats.mvp || []).filter(p => (Number(p.age) || 24) <= 21);
+  const u21Pool = eligibleU21.length ? eligibleU21 : fallbackU21;
+  const youngWinner = u21Pool[0] || null;
+
+  const buildAward = (title, icon, row, valKey, fmtMetric) => {
+    if(!row) return emptyAward(title, icon);
+    const val = Number(row[valKey]) || 0;
+    return {
+      title,
+      icon,
+      hasWinner: true,
+      winnerName: row.name,
+      winnerClub: row.club || '—',
+      pos: row.pos || '',
+      age: row.age || null,
+      matches: row.matches || maxMatches || 1,
+      value: val,
+      metricText: fmtMetric(row),
+      isUser: isMe(row.name, row.club),
+      isMyClub: Boolean(state?.club && row.club && norm(row.club) === norm(state.club))
+    };
+  };
+
+  return {
+    compId: normId,
+    compName: meta.compName,
+    hasPlayedMatches: true,
+    maxMatches,
+    minMatchesRequired,
+    mvp: buildAward(meta.mvp, '👑', mvpWinner, 'rating', r => `Nota ${Number(r.rating || 7.0).toFixed(2)} (${r.matches || 1}J)`),
+    topScorer: buildAward(meta.topScorer, '⚽', scorerWinner, 'goals', r => `${Number(r.goals) || 0} gol${Number(r.goals) === 1 ? '' : 's'}${r.matches ? ` (${r.matches}J)` : ''}`),
+    assistLeader: buildAward(meta.assistLeader, '🎯', assistWinner, 'assists', r => `${Number(r.assists) || 0} assist.${r.matches ? ` (${r.matches}J)` : ''}`),
+    goldenGlove: buildAward(meta.goldenGlove, '🧤', gloveWinner, 'cleanSheets', r => `${Number(r.cleanSheets) || 0} sem sofrer gol${r.matches ? ` (${r.matches}J)` : ''}`),
+    youngPlayer: buildAward(meta.youngPlayer, '🌟', youngWinner, 'rating', r => `Nota ${Number(r.rating || 7.0).toFixed(2)}${r.age ? ` · ${r.age} anos` : ''}`)
+  };
+}
+window.computeCompetitionAwards = computeCompetitionAwards;
+
+function renderCompetitionStatsAndAwardsBlock(compId, compName = null){
+  const normId = normalizeCompStatsId(compId);
+  const resolvedName = compName || (typeof compById === 'function' ? compById(normId)?.name : null) || 'Competição Oficial';
+  const awards = computeCompetitionAwards(normId, resolvedName);
+  const compStats = getStateCompStats(normId);
+  const currentStatsTab = (typeof statsFilterTab !== 'undefined' && statsFilterTab) || 'artilharia';
+  const createdAthleteName = state?.gameMode === 'player'
+    ? (state.playerCareerState?.athleteName || state.squad?.find(p => p.isControlled)?.name)
+    : null;
+
+  let displayStatsList = [];
+  let statMetricHeader = 'Gols';
+  if (currentStatsTab === 'assistencias') {
+    statMetricHeader = 'Assistências';
+    displayStatsList = Array.isArray(compStats.assists) ? compStats.assists : [];
+  } else if (currentStatsTab === 'luva') {
+    statMetricHeader = 'Jogos s/ Sofrer Gols';
+    displayStatsList = Array.isArray(compStats.cleanSheets) ? compStats.cleanSheets : [];
+  } else if (currentStatsTab === 'mvp') {
+    statMetricHeader = 'Nota Média';
+    displayStatsList = Array.isArray(compStats.mvp) ? compStats.mvp : [];
+    if (!displayStatsList.length && Array.isArray(compStats.scorers) && compStats.scorers.length) {
+      displayStatsList = compStats.scorers.map(s => ({ ...s, rating: (7.2 + Math.min(2.0, (Number(s.goals) || 0) * 0.25)).toFixed(2) }));
+    }
+  } else if (currentStatsTab === 'cartoes') {
+    statMetricHeader = 'Amarelos / Vermelhos';
+    displayStatsList = Array.isArray(compStats.cards) ? compStats.cards : [];
+    if (!displayStatsList.length && Array.isArray(compStats.scorers) && compStats.scorers.length) {
+      displayStatsList = compStats.scorers.slice().reverse().map((s, idx) => ({ ...s, yellowCards: ((idx % 3) + 1), redCards: 0 }));
+    }
+  } else {
+    statMetricHeader = 'Gols';
+    displayStatsList = Array.isArray(compStats.scorers) ? compStats.scorers : [];
+  }
+
+  if (window.statsOnlyMyClub) {
+    const myClubNorm = typeof norm === 'function' ? norm(state?.club) : String(state?.club || '').toLowerCase();
+    displayStatsList = displayStatsList.filter(item => {
+      const cNorm = typeof norm === 'function' ? norm(item.club) : String(item.club || '').toLowerCase();
+      return cNorm === myClubNorm;
+    });
+  }
+
+  const awardCards = [awards.mvp, awards.topScorer, awards.assistLeader, awards.goldenGlove, awards.youngPlayer];
+
+  return `
+    <!-- TÍTULOS INDIVIDUAIS OFICIAIS DA COMPETIÇÃO -->
+    <div class="card afm-comp-individual-awards-card" data-awards-comp="${esc(normId)}" style="margin-top:16px;background:linear-gradient(135deg, #151029 0%, #0b0917 100%);border:1px solid rgba(250,204,21,0.28);border-radius:14px;padding:18px 20px;box-shadow:0 8px 22px rgba(0,0,0,0.35)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:20px">🏅</span>
+          <div>
+            <div style="font-size:13px;font-weight:900;letter-spacing:0.8px;color:#facc15;text-transform:uppercase">
+              Títulos Individuais Oficiais — ${esc(resolvedName)}
+            </div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.55)">
+              ${awards.hasPlayedMatches ? `Corrida oficial em tempo real (${awards.maxMatches}J disputados · mínimo ${awards.minMatchesRequired}J p/ Craque & Sub-21)` : 'Os candidatos aparecerão assim que a bola rolar na competição'}
+            </div>
+          </div>
+        </div>
+        <span class="pill" style="font-size:10px;font-weight:900;background:${awards.hasPlayedMatches ? 'rgba(250,204,21,0.16)' : 'rgba(255,255,255,0.06)'};color:${awards.hasPlayedMatches ? '#fde047' : 'rgba(255,255,255,0.6)'};border:1px solid ${awards.hasPlayedMatches ? 'rgba(250,204,21,0.35)' : 'rgba(255,255,255,0.1)'}">
+          ${awards.hasPlayedMatches ? '🔥 CORRIDA PELOS TROFÉUS' : '⏳ AGUARDANDO INÍCIO'}
+        </span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(195px, 1fr));gap:10px">
+        ${awardCards.map(aw => `
+          <div style="background:${aw.isUser ? 'linear-gradient(135deg,rgba(16,185,129,0.2),rgba(15,23,42,0.9))' : aw.isMyClub ? 'linear-gradient(135deg,rgba(124,58,237,0.18),rgba(15,23,42,0.9))' : 'rgba(255,255,255,0.025)'};border:1px solid ${aw.isUser ? '#10b981' : aw.isMyClub ? 'rgba(168,85,247,0.45)' : 'rgba(255,255,255,0.07)'};border-radius:12px;padding:12px;position:relative">
+            ${aw.isUser ? `<span style="position:absolute;top:8px;right:8px;background:#10b981;color:#000;font-size:9px;font-weight:900;padding:2px 6px;border-radius:4px">⭐ VOCÊ</span>` : aw.isMyClub ? `<span style="position:absolute;top:8px;right:8px;background:#7c3aed;color:#fff;font-size:9px;font-weight:900;padding:2px 6px;border-radius:4px">SEU CLUBE</span>` : ''}
+            <div style="font-size:10px;font-weight:800;color:#eab308;text-transform:uppercase;letter-spacing:0.4px;padding-right:${aw.isUser || aw.isMyClub ? '58px' : '0'}">${aw.icon} ${esc(aw.title)}</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+              ${aw.hasWinner && typeof clubBadge === 'function' ? clubBadge(aw.winnerClub, 22) : ''}
+              <div style="min-width:0">
+                <div style="font-size:14px;font-weight:900;color:${aw.hasWinner ? '#fff' : 'rgba(255,255,255,0.45)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(aw.winnerName)}</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${aw.hasWinner ? `${esc(aw.winnerClub)} · <b style="color:#c084fc">${esc(aw.metricText)}</b>` : esc(aw.metricText)}</div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- BLOCO DE ESTATÍSTICAS EM TEMA DARK NEON (UNIVERSAL PARA TODAS AS LIGAS E COPAS) -->
+    <div class="card afm-comp-stats-neon-card" data-stats-comp="${esc(normId)}" style="margin-top:14px;background:linear-gradient(135deg, #100d1e 0%, #0d0a1a 100%);color:#f8fafc;border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:20px;box-shadow:0 10px 25px rgba(0,0,0,0.4)">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:10px;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button type="button" class="btn btn-stat-tab ${currentStatsTab==='artilharia'?'active':''}" data-stats-tab="artilharia" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='artilharia'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='artilharia'?'3px solid #a855f7':'none'}">
+            ⚽ ARTILHARIA
+          </button>
+          <button type="button" class="btn btn-stat-tab ${currentStatsTab==='assistencias'?'active':''}" data-stats-tab="assistencias" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='assistencias'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='assistencias'?'3px solid #a855f7':'none'}">
+            🎯 ASSISTÊNCIAS
+          </button>
+          <button type="button" class="btn btn-stat-tab ${currentStatsTab==='mvp'?'active':''}" data-stats-tab="mvp" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='mvp'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='mvp'?'3px solid #a855f7':'none'}">
+            ⭐ NOTA MÉDIA (MVP)
+          </button>
+          <button type="button" class="btn btn-stat-tab ${currentStatsTab==='luva'?'active':''}" data-stats-tab="luva" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='luva'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='luva'?'3px solid #a855f7':'none'}">
+            🧤 LUVA DE OURO
+          </button>
+          <button type="button" class="btn btn-stat-tab ${currentStatsTab==='cartoes'?'active':''}" data-stats-tab="cartoes" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='cartoes'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='cartoes'?'3px solid #a855f7':'none'}">
+            🟨 CARTÕES
+          </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button type="button" id="btnToggleStatsOnlyClub" class="btn" style="font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px;cursor:pointer;${window.statsOnlyMyClub ? 'background:#7c3aed;color:#fff;border:none' : 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)'}">
+            ${window.statsOnlyMyClub ? '🛡️ Meu Clube' : '🏆 Todos'}
+          </button>
+          <div style="font-size:11px;font-weight:900;letter-spacing:1px;color:rgba(255,255,255,0.5);text-transform:uppercase">
+            ${statMetricHeader}
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;margin-top:12px;gap:6px">
+        ${displayStatsList.slice(0, 10).map((item, idx) => {
+          const isCreatedAthlete = Boolean(createdAthleteName && (typeof norm === 'function' ? norm(item.name) === norm(createdAthleteName) : item.name === createdAthleteName));
+          const isMyPlayer = isCreatedAthlete || (typeof norm === 'function' ? norm(item.club) === norm(state?.club) : item.club === state?.club);
+          const val = currentStatsTab === 'assistencias'
+            ? (item.assists || 0)
+            : currentStatsTab === 'luva'
+            ? `${item.cleanSheets || 0} 🧤`
+            : currentStatsTab === 'mvp'
+            ? Number(item.rating || 7.0).toFixed(2)
+            : currentStatsTab === 'cartoes'
+            ? `${item.yellowCards || 0}🟨${item.redCards ? ` ${item.redCards}🟥` : ''}`
+            : (item.goals || 0);
+
+          return `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);border-radius:8px;${isMyPlayer ? 'background:rgba(124,58,237,0.22);border:1px solid rgba(139,92,246,0.3);' : 'background:rgba(255,255,255,0.02);'}">
+              <div style="display:flex;align-items:center;gap:14px">
+                <span style="font-size:16px;font-weight:900;color:${idx < 3 ? '#fbbf24' : 'rgba(255,255,255,0.5)'};min-width:24px;text-align:center">${idx + 1}</span>
+                <div style="position:relative">
+                  ${typeof playerPhoto === 'function' ? playerPhoto(item.name, 40) : ''}
+                </div>
+                ${typeof clubBadge === 'function' ? clubBadge(item.club, 24) : ''}
+                <div>
+                  <div style="font-size:14px;font-weight:900;color:#fff">
+                    ${typeof esc === 'function' ? esc(item.name) : item.name} ${isCreatedAthlete ? '<span class="tag-you" style="display:inline-block;margin-left:5px;background:#7c3aed;color:#fff">VOCÊ</span>' : ''}
+                  </div>
+                  <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase;margin-top:2px">
+                    ${typeof esc === 'function' ? esc(item.pos || 'ATA') : (item.pos || 'ATA')}${item.age ? ` • ${item.age}A` : ''} • ${typeof esc === 'function' ? esc(item.club) : item.club}${item.matches ? ` • ${item.matches}J` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:20px;font-weight:900;color:${isMyPlayer ? 'var(--neon)' : '#fff'}">${val}</span>
+              </div>
+            </div>
+          `;
+        }).join('') || `
+          <div style="text-align:center;padding:24px;color:rgba(255,255,255,0.4)">
+            Nenhum dado registrado até o momento na temporada.
+          </div>
+        `}
+      </div>
+
+      <div style="text-align:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08)">
+        <button type="button" class="btn" id="btnOpenFullStatsModal" data-comp-id="${esc(normId)}" data-comp-name="${esc(resolvedName)}" style="background:linear-gradient(135deg,rgba(124,58,237,0.3) 0%,rgba(139,92,246,0.1) 100%);border:1px solid #7c3aed;color:#c084fc;font-size:12px;font-weight:800;letter-spacing:1px;padding:8px 20px;border-radius:8px;cursor:pointer">
+          VER RANKING COMPLETO (TOP 30) ➔
+        </button>
+      </div>
+    </div>
+  `;
+}
+window.renderCompetitionStatsAndAwardsBlock = renderCompetitionStatsAndAwardsBlock;
 
 
 function openClubInfoModal(clubName){
@@ -18704,42 +19630,77 @@ function calculateCupPhasePrize(compOrId, phaseName = '', isWinner = false, isCh
 }
 if(typeof window !== 'undefined') window.calculateCupPhasePrize = calculateCupPhasePrize;
 
-function calculateSeasonAwards(){
+function calculateSeasonAwards(targetCompId = null){
   const allSquad = state.squad || [];
-  const stats = getStateCompStats(curComp()?.id);
+  const activeComp = targetCompId ? (compById(targetCompId) || { id: targetCompId, name: targetCompId }) : curComp();
+  const compId = activeComp?.id || state?.compId || 'bra-est-df';
+  const official = typeof computeCompetitionAwards === 'function' ? computeCompetitionAwards(compId, activeComp?.name) : null;
+  const stats = getStateCompStats(compId);
   const scorer = stats.scorers.slice().sort((a,b)=>(Number(b.goals)||0)-(Number(a.goals)||0))[0];
   const assister = stats.assists.slice().sort((a,b)=>(Number(b.assists)||0)-(Number(a.assists)||0))[0];
-  const topScorer = allSquad.find(p => norm(p.name) === norm(scorer?.name)) || allSquad.slice().sort((a,b)=>(Number(b.goals)||0)-(Number(a.goals)||0))[0] || allSquad[0];
-  const assistLeader = allSquad.find(p => norm(p.name) === norm(assister?.name)) || allSquad.slice().sort((a,b)=>(Number(b.assists)||0)-(Number(a.assists)||0))[0] || allSquad[0];
-  const bestPlayer = allSquad.slice().sort((a,b)=>playerOverall(b)-playerOverall(a))[0] || allSquad[0];
-  const goldenGlove = allSquad.filter(p=>p.pos==='GK').sort((a,b)=>playerOverall(b)-playerOverall(a))[0] || allSquad[0];
+  const fallbackScorer = allSquad.find(p => norm(p.name) === norm(scorer?.name)) || allSquad.slice().sort((a,b)=>(Number(b.goals)||0)-(Number(a.goals)||0))[0] || allSquad[0];
+  const fallbackAssister = allSquad.find(p => norm(p.name) === norm(assister?.name)) || allSquad.slice().sort((a,b)=>(Number(b.assists)||0)-(Number(a.assists)||0))[0] || allSquad[0];
+  const fallbackBest = allSquad.slice().sort((a,b)=>playerOverall(b)-playerOverall(a))[0] || allSquad[0];
+  const fallbackGk = allSquad.filter(p=>/^(GK|GOL|GOLEIRO)$/i.test(p.pos || '')).sort((a,b)=>playerOverall(b)-playerOverall(a))[0] || allSquad[0];
+  const fallbackYoung = allSquad.filter(p=>(Number(p.age)||25)<=21).sort((a,b)=>playerOverall(b)-playerOverall(a))[0] || fallbackBest;
+
   return {
-    topScorer: { name: scorer?.name || topScorer?.name || 'Artilheiro', club: scorer?.club || state.club, goals: Number(scorer?.goals ?? topScorer?.goals) || 0 },
-    assistLeader: { name: assister?.name || assistLeader?.name || 'Líder de assistências', club: assister?.club || state.club, assists: Number(assister?.assists ?? assistLeader?.assists) || 0 },
-    bestPlayer: { name: bestPlayer?.name || 'Craque do Ano', club: state.club, ovr: playerOverall(bestPlayer) },
-    goldenGlove: { name: goldenGlove?.name || 'Paredão', club: state.club, ovr: playerOverall(goldenGlove) }
+    compId,
+    compName: official?.compName || activeComp?.name || 'Campeonato',
+    topScorer: official?.topScorer?.hasWinner
+      ? { title: official.topScorer.title, name: official.topScorer.winnerName, club: official.topScorer.winnerClub, goals: Number(official.topScorer.value) || 0 }
+      : { title: official?.topScorer?.title || 'Artilheiro', name: scorer?.name || fallbackScorer?.name || 'A definir', club: scorer?.club || (scorer ? state.club : '—'), goals: Number(scorer?.goals ?? fallbackScorer?.goals) || 0 },
+    assistLeader: official?.assistLeader?.hasWinner
+      ? { title: official.assistLeader.title, name: official.assistLeader.winnerName, club: official.assistLeader.winnerClub, assists: Number(official.assistLeader.value) || 0 }
+      : { title: official?.assistLeader?.title || 'Garçom', name: assister?.name || fallbackAssister?.name || 'A definir', club: assister?.club || (assister ? state.club : '—'), assists: Number(assister?.assists ?? fallbackAssister?.assists) || 0 },
+    bestPlayer: official?.mvp?.hasWinner
+      ? { title: official.mvp.title, name: official.mvp.winnerName, club: official.mvp.winnerClub, rating: Number(official.mvp.value) || 7.5, ovr: playerOverall(allSquad.find(p=>norm(p.name)===norm(official.mvp.winnerName)) || fallbackBest) }
+      : { title: official?.mvp?.title || 'Craque do Campeonato', name: fallbackBest?.name || 'A definir', club: state.club, ovr: playerOverall(fallbackBest) },
+    goldenGlove: official?.goldenGlove?.hasWinner
+      ? { title: official.goldenGlove.title, name: official.goldenGlove.winnerName, club: official.goldenGlove.winnerClub, cleanSheets: Number(official.goldenGlove.value) || 0, ovr: playerOverall(fallbackGk) }
+      : { title: official?.goldenGlove?.title || 'Luva de Ouro', name: fallbackGk?.name || 'A definir', club: state.club, ovr: playerOverall(fallbackGk) },
+    youngPlayer: official?.youngPlayer?.hasWinner
+      ? { title: official.youngPlayer.title, name: official.youngPlayer.winnerName, club: official.youngPlayer.winnerClub, rating: Number(official.youngPlayer.value) || 7.2, age: official.youngPlayer.age || 20 }
+      : { title: official?.youngPlayer?.title || 'Revelação Sub-21', name: fallbackYoung?.name || 'A definir', club: state.club, age: fallbackYoung?.age || 20 }
   };
 }
+window.calculateSeasonAwards = calculateSeasonAwards;
 
 function applyScoringAwardUpgrades(awards){
   state.awardUpgrades = state.awardUpgrades || {};
-  const seasonKey = `${state.season}:${curComp()?.id || 'competition'}`;
+  const seasonKey = `${state.season}:${awards?.compId || curComp()?.id || 'competition'}`;
   const awarded = state.awardUpgrades[seasonKey] || (state.awardUpgrades[seasonKey] = []);
-  [['topScorer', awards.topScorer, 'goals'], ['assistLeader', awards.assistLeader, 'assists']].forEach(([awardId, award, stat]) => {
+  const checks = [
+    ['bestPlayer', awards.bestPlayer, 'rating', 'o prêmio de Craque do Campeonato'],
+    ['topScorer', awards.topScorer, 'goals', 'a artilharia'],
+    ['assistLeader', awards.assistLeader, 'assists', 'o prêmio de líder em assistências'],
+    ['goldenGlove', awards.goldenGlove, 'cleanSheets', 'a Luva de Ouro'],
+    ['youngPlayer', awards.youngPlayer, 'rating', 'o prêmio de Revelação Sub-21']
+  ];
+  checks.forEach(([awardId, award, stat, label]) => {
     if(!award || !award[stat] || awarded.includes(awardId)) return;
     const player = state.squad?.find(item => norm(item.name) === norm(award.name) && norm(award.club) === norm(state.club));
     if(!player) return;
-    const next = Math.min(99, playerOverall(player) + 1);
-    if(Number(player.overall) > 0) player.overall = next;
-    else if(Number(player.ovr) > 0) player.ovr = next;
-    else {
-      player.fc = Math.min(99, (Number(player.fc) || playerOverall(player)) + 1);
-      player.pes = Math.min(99, (Number(player.pes) || playerOverall(player)) + 1);
-    }
+    const playerOnceKey = `player:${norm(player.name)}`;
     awarded.push(awardId);
-    state.news.unshift(`⭐ DESTAQUE DA TEMPORADA: ${player.name} venceu ${awardId === 'topScorer' ? 'a artilharia' : 'o prêmio de líder em assistências'} e recebeu +1 OVR (${playerOverall(player)}).`);
+    if(!awarded.includes(playerOnceKey)){
+      const next = Math.min(99, playerOverall(player) + 1);
+      if(Number(player.overall) > 0 || Number(player.ovr) > 0){
+        player.overall = next;
+        player.ovr = next;
+      } else {
+        player.fc = Math.min(99, (Number(player.fc) || playerOverall(player)) + 1);
+        player.pes = Math.min(99, (Number(player.pes) || playerOverall(player)) + 1);
+      }
+      awarded.push(playerOnceKey);
+      state.news.unshift(`⭐ DESTAQUE DA TEMPORADA: ${player.name} venceu ${label} (${award.title || label}) e recebeu +1 OVR (${playerOverall(player)}).`);
+    } else {
+      state.news.unshift(`🏅 DUPLA COROA INDIVIDUAL: ${player.name} também conquistou ${label} (${award.title || label})!`);
+    }
   });
 }
+window.applyScoringAwardUpgrades = applyScoringAwardUpgrades;
+window.playerOverall = playerOverall;
 
 function curComp(){
   if(!state) return null;
@@ -20373,6 +21334,11 @@ function finalizeRound(userRes, winners, isKO){
     }
     userRes.events = Array.isArray(userRes.events) ? userRes.events.filter(event => event?.type === 'gol').slice(0, 20) : [];
     addPlayerMatchStats(comp.id, state.club, userRes.events);
+    const oppClubRound = isHome ? userRes.a : userRes.h;
+    if(ga > 0 && oppClubRound){
+      const oppRecorded = userRes.events.filter(event => event?.type === 'gol' && norm(event.teamId) === norm(oppClubRound));
+      addPlayerMatchStats(comp.id, oppClubRound, oppRecorded.length ? oppRecorded : simulateClubGoalEvents(oppClubRound, ga, comp.id));
+    }
     state.history.unshift({
       ...userRes, round:state.round+1, season:Number(state.season), date:state.date,
       competitionId:comp.id, competitionName:comp.name,
@@ -20380,6 +21346,7 @@ function finalizeRound(userRes, winners, isKO){
       parkRevenue:isHome?parkingRev:null, shop:isHome?shop:null, sponsorBonus:bonus, isHome, won:win
     });
     state.history = state.history.slice(0, 100);
+    if(typeof syncCompetitionStatsComprehensive === 'function') syncCompetitionStatsComprehensive(comp.id);
     if(isKO&&!advanced){
       state.eliminated=true;
       state.knockoutEliminations = Array.isArray(state.knockoutEliminations) ? state.knockoutEliminations : [];
@@ -22230,6 +23197,7 @@ function simulateQuickStateLeagueRound(competitionId, roundIndex){
     const oppEvents = simulateClubGoalEvents(oppClub, oppGoals, competitionId);
     addPlayerMatchStats(competitionId, oppClub, oppEvents);
   }
+  if(typeof syncCompetitionStatsComprehensive === 'function') syncCompetitionStatsComprehensive(competitionId);
   if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
     window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: home, a: away, hg: uHg, ag: uAg, gf: userGoals, ga, won: gf > ga, events });
   }
@@ -27552,6 +28520,20 @@ function finalizeMatchRound(){
     const shotsOnTarget = matchAthlete ? (s.events || []).filter(event => eventBelongsToAthlete(event) && ['gol', 'save'].includes(event.type)).length : 0;
     const enteredMinute = matchAthlete ? Number(matchAthlete.enteredMinute) || 0 : 0;
     const playedMinutes = matchAthlete ? Math.max(0, Math.min(120, (Number(s.minute) || 90) - enteredMinute)) : 0;
+    const liveCompId = finishingStateLeagueMatch
+      ? stateLeagueMatchSession?.competitionId
+      : finishingContinentalMatch
+      ? continentalMatchSession?.competitionId
+      : finishingCopaMatch
+      ? 'bra-cup'
+      : (curComp()?.id || state.compId);
+    const liveCompName = finishingStateLeagueMatch
+      ? stateLeagueMatchSession?.data?.name
+      : finishingContinentalMatch
+      ? continentalMatchSession?.compName
+      : finishingCopaMatch
+      ? 'Copa do Brasil'
+      : (curComp()?.name || state.competition);
     playerPerformanceReport = window.AFM_PlayerEngine?.processMatchPerformance(state, {
       h: s.home,
       a: s.away,
@@ -27566,6 +28548,8 @@ function finalizeMatchRound(){
       rating: Number(matchAthlete?.firstHalfRating) || undefined,
       playedMinutes,
       started: Boolean(matchAthlete?.wasStarter),
+      competitionId: liveCompId,
+      competitionName: liveCompName,
       eligibleForMatch: s.playerCareerAvailableForMatch !== false,
       status: s.playerCareerAvailableForMatch === false ? 'Não relacionado por condição física' : 'Reserva não utilizado',
       reason: s.playerCareerAvailableForMatch === false ? 'Você estava com condição abaixo de 50% e ficou fora dos relacionados.' : 'Você ficou no banco e não entrou nesta partida.'
@@ -27645,6 +28629,7 @@ function finalizeMatchRound(){
       state.history=state.history.slice(0,100);
       data.currentRound=Math.max(Number(data.currentRound)||1,session.roundIndex+2);
       state.estadualData[session.competitionId]=data;
+      if(typeof syncCompetitionStatsComprehensive === 'function') syncCompetitionStatsComprehensive(session.competitionId);
     }
     advanceDateAfterMatch(state);
     restorePrimaryLeagueAfterStateMatch();
@@ -27668,6 +28653,11 @@ function finalizeMatchRound(){
       window.AFM_TOURNAMENT_ENGINE.recordResult(tournament, match.id, s.hg, s.ag);
       const events = (s.events || []).filter(e => e?.type === 'gol');
       addPlayerMatchStats(competitionId, state.club, events);
+      const oppContClub = isHome ? match.away : match.home;
+      if(oppGoals > 0 && oppContClub){
+        const oppContEv = events.filter(e => norm(e.teamId) === norm(oppContClub));
+        addPlayerMatchStats(competitionId, oppContClub, oppContEv.length ? oppContEv : simulateClubGoalEvents(oppContClub, oppGoals, competitionId));
+      }
       const historyItem = {
         h: match.home, a: match.away, hg: s.hg, ag: s.ag, events,
         round: match.round, season: Number(state.season), date: match.date || state.date,
@@ -27686,7 +28676,10 @@ function finalizeMatchRound(){
       for(const om of otherDateMatches){
         const [ohg, oag] = simulateScore(om.home, om.away);
         window.AFM_TOURNAMENT_ENGINE.recordResult(tournament, om.id, ohg, oag);
+        if(ohg > 0) addPlayerMatchStats(competitionId, om.home, simulateClubGoalEvents(om.home, ohg, competitionId));
+        if(oag > 0) addPlayerMatchStats(competitionId, om.away, simulateClubGoalEvents(om.away, oag, competitionId));
       }
+      if(typeof syncCompetitionStatsComprehensive === 'function') syncCompetitionStatsComprehensive(competitionId);
     }
     advanceDateAfterMatch(state);
     restorePrimaryLeagueAfterContinentalMatch();
@@ -27707,6 +28700,12 @@ function finalizeMatchRound(){
     fixture.played = true;
     const events = (s.events || []).filter(e => e?.type === 'gol');
     addPlayerMatchStats('bra-cup', state.club, events);
+    const oppCopaClub = isHome ? fixture.away : fixture.home;
+    if(oppGoals > 0 && oppCopaClub){
+      const oppCopaEv = events.filter(e => norm(e.teamId) === norm(oppCopaClub));
+      addPlayerMatchStats('bra-cup', oppCopaClub, oppCopaEv.length ? oppCopaEv : simulateClubGoalEvents(oppCopaClub, oppGoals, 'bra-cup'));
+    }
+    if(typeof syncCompetitionStatsComprehensive === 'function') syncCompetitionStatsComprehensive('bra-cup');
     const result = { h: fixture.home, a: fixture.away, hg: s.hg, ag: s.ag, winner, events, round: phase.name, season: Number(state.season), date: state.date, competitionId: 'bra-cup', competitionName: 'Copa do Brasil' };
     state.history = [result, ...(state.history || [])].slice(0, 100);
     state.lastMatchSummary = { h: fixture.home, a: fixture.away, hg: s.hg, ag: s.ag, isHome, won: norm(winner) === norm(state.club) };
@@ -34581,12 +35580,21 @@ function playContinentalFixture(competitionId, matchId){
     const [homeGoals, awayGoals] = simulateScore(fixture.home, fixture.away);
     window.AFM_TOURNAMENT_ENGINE.recordResult(tournament, fixture.id, homeGoals, awayGoals);
     if(norm(fixture.home) === norm(state.club) || norm(fixture.away) === norm(state.club)){
-      const events = simulateUserGoalEvents(state.club, norm(fixture.home) === norm(state.club) ? homeGoals : awayGoals);
+      const isHomeCont = norm(fixture.home) === norm(state.club);
+      const uGoals = isHomeCont ? homeGoals : awayGoals;
+      const oGoals = isHomeCont ? awayGoals : homeGoals;
+      const oClub = isHomeCont ? fixture.away : fixture.home;
+      const events = simulateUserGoalEvents(state.club, uGoals);
       addPlayerMatchStats(competitionId, state.club, events);
+      if(oGoals > 0) addPlayerMatchStats(competitionId, oClub, simulateClubGoalEvents(oClub, oGoals, competitionId));
       const compLabel = compById(competitionId)?.name || (competitionId === 'lib' ? 'Copa Libertadores' : competitionId === 'sud' ? 'Copa Sul-Americana' : competitionId);
       userResult = { h: fixture.home, a: fixture.away, hg: homeGoals, ag: awayGoals, events, round: fixture.round, season: Number(state.season), date: state.date, competitionId, competitionName: compLabel };
+    } else {
+      if(homeGoals > 0) addPlayerMatchStats(competitionId, fixture.home, simulateClubGoalEvents(fixture.home, homeGoals, competitionId));
+      if(awayGoals > 0) addPlayerMatchStats(competitionId, fixture.away, simulateClubGoalEvents(fixture.away, awayGoals, competitionId));
     }
   }
+  if(typeof syncCompetitionStatsComprehensive === 'function') syncCompetitionStatsComprehensive(competitionId);
   if(userResult){
     state.history = [userResult, ...(state.history || [])].slice(0, 100);
     if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
@@ -40435,11 +41443,9 @@ function getNationalCompetitionStandings(natId){
   const teamList = (Array.isArray(savedRoster) && savedRoster.length)
     ? savedRoster
     : ((window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[natId]) || []);
-  const expectedSize = natId === 'bra-d' ? 96 : 20;
   const activeCompetition = state?.compId === natId;
   const activeTeams = activeCompetition && Array.isArray(state?.teams) ? state.teams : null;
-  const activeByName = new Map((activeTeams || []).map(team => [norm(team?.name), team]));
-  const rows = teamList.map(name => activeByName.get(norm(name))).filter(Boolean);
+  const expectedSize = natId === 'bra-d' ? 96 : Math.max(8, teamList.length || activeTeams?.length || 16);
 
   if(natId === 'bra-d'){
     const dRoster = (activeCompetition && activeTeams?.length >= 96)
@@ -40448,9 +41454,10 @@ function getNationalCompetitionStandings(natId){
     return Object.values(getSeriesDGroupStandings(dRoster, activeCompetition ? activeTeams : null)).flat();
   }
 
-  // Só usa resultados reais do save para a liga ativa. Não apresenta pontos fictícios de outra divisão.
-  if(activeCompetition && activeTeams && activeTeams.length >= expectedSize){
-    const activeSorted = ranking().slice(0, expectedSize);
+  // Só usa resultados reais do save para a liga ativa (suportando ligas de 10, 12, 16, 18, 20, 24, 30 ou 36 clubes).
+  if(activeCompetition && activeTeams && activeTeams.length >= Math.min(8, expectedSize)){
+    const limit = teamList.length || activeTeams.length || expectedSize;
+    const activeSorted = ranking().slice(0, limit);
     return activeSorted.map(team => ({ ...team, form: Array.isArray(team.form) ? team.form : [] }));
   }
   const cache = state?.nationalCompetitionStandings?.[natId];
@@ -40462,6 +41469,7 @@ function getNationalCompetitionStandings(natId){
   }
   return teamList.map(name => ({ name, p: 0, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, form: [], _unplayed: true }));
 }
+window.getNationalCompetitionStandings = getNationalCompetitionStandings;
 
 function getSavedSeasonMemberships(clubName = state?.club){
   if(!state || !clubName) return { nationalId:null, stateId:null, copa:false, continentalIds:[] };
@@ -40514,7 +41522,9 @@ function seasonPage(){
   const rawComp = typeof curComp === 'function' ? curComp() : { name: 'Campeonato', country: 'Brasil', id: 'bra-a' };
   const isBrazil = (rawComp.country === 'Brasil' || rawComp.id?.startsWith('bra-'));
   const memberships = typeof getSavedSeasonMemberships === 'function' ? getSavedSeasonMemberships(state.club) : {};
-  const userNatDivId = memberships.nationalId || (['bra-a','bra-b','bra-c','bra-d'].includes(state.compId) ? state.compId : null);
+  const userNatDivId = !isBrazil
+    ? (rawComp?.id || state.compId || 'bra-a')
+    : (memberships.nationalId || (['bra-a','bra-b','bra-c','bra-d'].includes(state.compId) ? state.compId : null));
   const natCompObj = userNatDivId && typeof compById === 'function' ? compById(userNatDivId) : null;
   const estCompId = memberships.stateId || selectedEstadualId;
   const estCompObj = estCompId && typeof compById === 'function' ? compById(estCompId) : null;
@@ -40522,14 +41532,64 @@ function seasonPage(){
   // Abas oficiais sempre disponíveis para livre exploração
   const seasonTabs = [
     { id: 'estadual', label: `🏆 ${estCompObj?.name || 'Campeonato Estadual'}` },
-    { id: 'nacional', label: '🇧🇷 Brasileirão (Séries A/B/C/D)' },
+    { id: 'nacional', label: isBrazil ? '🇧🇷 Brasileirão (Séries A/B/C/D)' : `🏆 ${rawComp?.name || 'Liga Nacional'} & Ligas` },
     { id: 'copadobrasil', label: '🏅 Copa do Brasil' },
     { id: 'continental', label: '🌎 Continentais & Mundial' }
   ];
 
+  if (!isBrazil && !window.afmSeasonUIState?.activeMainTab && seasonTab === 'estadual') {
+    seasonTab = 'nacional';
+  }
   if (!seasonTabs.some(tab => tab.id === seasonTab)) {
     seasonTab = seasonTabs[0].id;
   }
+
+  // Renderizador universal dos Títulos Individuais Oficiais + Ranking Dark Neon (com fallback isolado p/ testes de snippet)
+  const renderUniversalStatsWidget = (targetCompId, targetCompName) => {
+    if (typeof renderCompetitionStatsAndAwardsBlock === 'function') {
+      return renderCompetitionStatsAndAwardsBlock(targetCompId, targetCompName);
+    }
+    const currentStatsTab = (typeof statsFilterTab !== 'undefined' && statsFilterTab) || 'artilharia';
+    const fallbackStats = typeof getStateCompStats === 'function' ? getStateCompStats(targetCompId) : { scorers: [], assists: [] };
+    const createdAthleteName = state?.gameMode === 'player'
+      ? (state.playerCareerState?.athleteName || state.squad?.find(p => p.isControlled)?.name)
+      : null;
+    let displayStatsList = currentStatsTab === 'assistencias'
+      ? (fallbackStats.assists || [])
+      : currentStatsTab === 'luva'
+      ? (fallbackStats.cleanSheets || [])
+      : currentStatsTab === 'mvp'
+      ? (fallbackStats.mvp || [])
+      : currentStatsTab === 'cartoes'
+      ? (fallbackStats.cards || [])
+      : (fallbackStats.scorers || []);
+    if (window.statsOnlyMyClub) {
+      const myClubNorm = typeof norm === 'function' ? norm(state?.club) : String(state?.club || '').toLowerCase();
+      displayStatsList = displayStatsList.filter(item => (typeof norm === 'function' ? norm(item.club) : String(item.club || '').toLowerCase()) === myClubNorm);
+    }
+    return `
+      <div class="card" style="margin-top:16px;background:linear-gradient(135deg, #100d1e 0%, #0d0a1a 100%);color:#f8fafc;border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:10px;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <button type="button" class="btn btn-stat-tab" data-stats-tab="artilharia">⚽ ARTILHARIA</button>
+            <button type="button" class="btn btn-stat-tab" data-stats-tab="assistencias">🎯 ASSISTÊNCIAS</button>
+            <button type="button" class="btn btn-stat-tab" data-stats-tab="mvp">⭐ NOTA MÉDIA (MVP)</button>
+            <button type="button" class="btn btn-stat-tab" data-stats-tab="luva">🧤 LUVA DE OURO</button>
+            <button type="button" class="btn btn-stat-tab" data-stats-tab="cartoes">🟨 CARTÕES</button>
+          </div>
+          <button type="button" id="btnToggleStatsOnlyClub" class="btn">${window.statsOnlyMyClub ? '🛡️ Meu Clube' : '🏆 Todos'}</button>
+        </div>
+        <div style="display:flex;flex-direction:column;margin-top:12px;gap:6px">
+          ${displayStatsList.slice(0, 10).map((item, idx) => {
+            const isCreatedAthlete = Boolean(createdAthleteName && (typeof norm === 'function' ? norm(item.name) === norm(createdAthleteName) : item.name === createdAthleteName));
+            const val = currentStatsTab === 'assistencias' ? (item.assists || 0) : currentStatsTab === 'luva' ? (item.cleanSheets || 0) : currentStatsTab === 'mvp' ? (item.rating || '7.0') : currentStatsTab === 'cartoes' ? (item.yellowCards || 0) : (item.goals || 0);
+            return `<div><span>${idx + 1}</span> <b>${typeof esc === 'function' ? esc(item.name) : item.name}</b> ${isCreatedAthlete ? 'VOCÊ' : ''} · ${typeof esc === 'function' ? esc(item.club) : item.club} <span>${val}</span></div>`;
+          }).join('') || '<div>Nenhum dado registrado até o momento na temporada.</div>'}
+        </div>
+        <button type="button" class="btn" id="btnOpenFullStatsModal" data-comp-id="${typeof esc === 'function' ? esc(targetCompId) : targetCompId}" data-comp-name="${typeof esc === 'function' ? esc(targetCompName) : targetCompName}">VER RANKING COMPLETO (TOP 30) ➔</button>
+      </div>
+    `;
+  };
 
   const currentNatId = (window.AFMSeasonView && typeof window.AFMSeasonView.normalizeDivisionKey === 'function')
     ? window.AFMSeasonView.normalizeDivisionKey(window.afmSeasonUIState?.selectedDivision || (typeof nationalDivision !== 'undefined' && nationalDivision) || userNatDivId || 'bra-a')
@@ -40618,6 +41678,9 @@ function seasonPage(){
               <div class="small muted">${typeof esc === 'function' ? esc(natComp.rule || 'Pirâmide Oficial do Futebol Brasileiro') : natComp.rule}</div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${(!isBrazil && rawComp?.id && !['bra-a','bra-b','bra-c','bra-d'].includes(rawComp.id)) ? `
+                <button type="button" class="btn ${activeNatId===rawComp.id?'active':''}" data-nat-div="${typeof esc === 'function' ? esc(rawComp.id) : rawComp.id}" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;${activeNatId===rawComp.id?'background:#10b981;color:#000;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)'}">⭐ ${typeof esc === 'function' ? esc(rawComp.name) : rawComp.name}</button>
+              ` : ''}
               <button type="button" class="btn ${activeNatId==='bra-a'?'active':''}" data-nat-div="bra-a" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;${activeNatId==='bra-a'?'background:#22c55e;color:#000;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)'}">🟢 Série A (20)</button>
               <button type="button" class="btn ${activeNatId==='bra-b'?'active':''}" data-nat-div="bra-b" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;${activeNatId==='bra-b'?'background:#3b82f6;color:#fff;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)'}">🔵 Série B (20)</button>
               <button type="button" class="btn ${activeNatId==='bra-c'?'active':''}" data-nat-div="bra-c" style="font-size:11px;font-weight:800;padding:5px 12px;border-radius:8px;${activeNatId==='bra-c'?'background:#f97316;color:#fff;border:none':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7)'}">🟠 Série C (20)</button>
@@ -40639,8 +41702,12 @@ function seasonPage(){
             ` : activeNatId === 'bra-c' ? `
               <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px"></span> Avança à 2ª Fase (G8)</span>
               <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ef4444;border-radius:2px"></span> Rebaixamento à Série D (Z4)</span>
-            ` : `
+            ` : activeNatId === 'bra-d' ? `
               <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px"></span> Avançam ao Mata-Mata (G4 de cada grupo)</span>
+            ` : `
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#22c55e;border-radius:2px"></span> Torneio Continental Principal (G4)</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#06b6d4;border-radius:2px"></span> Vagas Continentais (G6)</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ef4444;border-radius:2px"></span> Zona de Rebaixamento</span>
             `}
           </div>
 
@@ -40774,6 +41841,7 @@ function seasonPage(){
             </div>
           `}
         </div>
+        ${renderUniversalStatsWidget(activeNatId, natComp?.name || 'Liga Nacional')}
       `;
     })() : seasonTab === 'estadual' ? (() => {
       const activeEstId = selectedEstadualId || (typeof clubStateCompId === 'function' ? clubStateCompId(state.club) : 'bra-est-df-candango');
@@ -41141,86 +42209,34 @@ function seasonPage(){
           </div>
         `}
 
-        <!-- Bloco de Estatísticas em Tema Dark Neon -->
-        <div class="card" style="margin-top:16px;background:linear-gradient(135deg, #100d1e 0%, #0d0a1a 100%);color:#f8fafc;border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:20px;box-shadow:0 10px 25px rgba(0,0,0,0.4)">
-          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:10px;flex-wrap:wrap;gap:10px">
-            <div style="display:flex;gap:12px;flex-wrap:wrap">
-              <button type="button" class="btn btn-stat-tab ${currentStatsTab==='artilharia'?'active':''}" data-stats-tab="artilharia" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='artilharia'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='artilharia'?'3px solid #a855f7':'none'}">
-                ⚽ ARTILHARIA
-              </button>
-              <button type="button" class="btn btn-stat-tab ${currentStatsTab==='assistencias'?'active':''}" data-stats-tab="assistencias" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='assistencias'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='assistencias'?'3px solid #a855f7':'none'}">
-                🎯 ASSISTÊNCIAS
-              </button>
-              <button type="button" class="btn btn-stat-tab ${currentStatsTab==='mvp'?'active':''}" data-stats-tab="mvp" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='mvp'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='mvp'?'3px solid #a855f7':'none'}">
-                ⭐ NOTA MÉDIA (MVP)
-              </button>
-              <button type="button" class="btn btn-stat-tab ${currentStatsTab==='cartoes'?'active':''}" data-stats-tab="cartoes" style="background:transparent;border:none;font-size:14px;font-weight:900;letter-spacing:0.5px;color:${currentStatsTab==='cartoes'?'#a855f7':'rgba(255,255,255,0.5)'};cursor:pointer;padding:4px 8px;border-bottom:${currentStatsTab==='cartoes'?'3px solid #a855f7':'none'}">
-                🟨 CARTÕES
-              </button>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px">
-              <button type="button" id="btnToggleStatsOnlyClub" class="btn" style="font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px;cursor:pointer;${window.statsOnlyMyClub ? 'background:#7c3aed;color:#fff;border:none' : 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)'}">
-                ${window.statsOnlyMyClub ? '🛡️ Meu Clube' : '🏆 Todos'}
-              </button>
-              <div style="font-size:11px;font-weight:900;letter-spacing:1px;color:rgba(255,255,255,0.5);text-transform:uppercase">
-                ${statMetricHeader}
-              </div>
-            </div>
-          </div>
-
-          <div style="display:flex;flex-direction:column;margin-top:12px;gap:6px">
-            ${displayStatsList.slice(0, 10).map((item, idx) => {
-              const isCreatedAthlete = Boolean(createdAthleteName && (typeof norm === 'function' ? norm(item.name) === norm(createdAthleteName) : item.name === createdAthleteName));
-              const isMyPlayer = isCreatedAthlete || (typeof norm === 'function' ? norm(item.club) === norm(state.club) : item.club === state.club);
-              const val = currentStatsTab === 'assistencias'
-                ? (item.assists || 0)
-                : currentStatsTab === 'mvp'
-                ? (item.rating || '7.0')
-                : currentStatsTab === 'cartoes'
-                ? (item.yellowCards || 0)
-                : (item.goals || 0);
-
-              return `
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);border-radius:8px;${isMyPlayer ? 'background:rgba(124,58,237,0.22);border:1px solid rgba(139,92,246,0.3);' : 'background:rgba(255,255,255,0.02);'}">
-                  <div style="display:flex;align-items:center;gap:14px">
-                    <span style="font-size:16px;font-weight:900;color:${idx < 3 ? '#fbbf24' : 'rgba(255,255,255,0.5)'};min-width:24px;text-align:center">${idx + 1}</span>
-                    <div style="position:relative">
-                      ${typeof playerPhoto === 'function' ? playerPhoto(item.name, 40) : ''}
-                    </div>
-                    ${typeof clubBadge === 'function' ? clubBadge(item.club, 24) : ''}
-                    <div>
-                      <div style="font-size:14px;font-weight:900;color:#fff">
-                        ${typeof esc === 'function' ? esc(item.name) : item.name} ${isCreatedAthlete ? '<span class="tag-you" style="display:inline-block;margin-left:5px;background:#7c3aed;color:#fff">VOCÊ</span>' : ''}
-                      </div>
-                      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase;margin-top:2px">
-                        ${typeof esc === 'function' ? esc(item.pos || 'ATA') : (item.pos || 'ATA')} • ${typeof esc === 'function' ? esc(item.club) : item.club}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <span style="font-size:20px;font-weight:900;color:${isMyPlayer ? 'var(--neon)' : '#fff'}">${val}</span>
-                  </div>
-                </div>
-              `;
-            }).join('') || `
-              <div style="text-align:center;padding:24px;color:rgba(255,255,255,0.4)">
-                Nenhum dado registrado até o momento na temporada.
-              </div>
-            `}
-          </div>
-
-          <div style="text-align:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08)">
-            <button type="button" class="btn" id="btnOpenFullStatsModal" style="background:linear-gradient(135deg,rgba(124,58,237,0.3) 0%,rgba(139,92,246,0.1) 100%);border:1px solid #7c3aed;color:#c084fc;font-size:12px;font-weight:800;letter-spacing:1px;padding:8px 20px;border-radius:8px;cursor:pointer">
-              VER RANKING COMPLETO (TOP 30) ➔
-            </button>
-          </div>
-        </div>
+        ${renderUniversalStatsWidget(activeEstId, estData?.name || 'Campeonato Estadual')}
       `;
-    })() : seasonTab === 'copadobrasil' ? (typeof renderCopaDoBrasilBlock === 'function' ? renderCopaDoBrasilBlock() : '') : (typeof renderContinentalBlock === 'function' ? renderContinentalBlock() : '')}
+    })() : seasonTab === 'copadobrasil' ? (() => {
+      const copaHtml = typeof renderCopaDoBrasilBlock === 'function' ? renderCopaDoBrasilBlock() : '';
+      return `${copaHtml}${renderUniversalStatsWidget('bra-cup', 'Copa do Brasil')}`;
+    })() : (() => {
+      const contHtml = typeof renderContinentalBlock === 'function' ? renderContinentalBlock() : '';
+      const isNationalPyramid = typeof continentalCategory !== 'undefined' && continentalCategory === 'nacional';
+      if (isNationalPyramid) return contHtml;
+      const rawContTab = (typeof continentalTab !== 'undefined' && continentalTab) || 'lib';
+      const contMap = { libertadores: 'lib', sulamericana: 'sud', mundial: 'cwc', afc_el: 'afc-el', afc_two: 'afc2' };
+      const activeContCompId = contMap[rawContTab] || rawContTab;
+      const activeContCompName = (typeof compById === 'function' ? compById(activeContCompId)?.name : null)
+        || (activeContCompId === 'lib' ? 'Copa Libertadores' : activeContCompId === 'sud' ? 'Copa Sul-Americana' : activeContCompId === 'cwc' ? 'Copa do Mundo de Clubes FIFA' : heroCompName);
+      return `${contHtml}${renderUniversalStatsWidget(activeContCompId, activeContCompName)}`;
+    })()}
     ${typeof renderOtherCompetitionPlayerLeaders === 'function' ? renderOtherCompetitionPlayerLeaders(seasonTab === 'estadual' ? memberships.stateId : seasonTab === 'nacional' ? userNatDivId : seasonTab === 'copadobrasil' ? 'bra-cup' : null) : ''}
   `;
 }
+window.seasonPage = seasonPage;
+window.configureSeasonView = function(opts = {}){
+  if(opts.seasonTab !== undefined) seasonTab = opts.seasonTab;
+  if(opts.nationalDivision !== undefined) nationalDivision = opts.nationalDivision;
+  if(opts.continentalCategory !== undefined) continentalCategory = opts.continentalCategory;
+  if(opts.continentalTab !== undefined) continentalTab = opts.continentalTab;
+  if(opts.selectedEstadualId !== undefined) selectedEstadualId = opts.selectedEstadualId;
+  if(opts.statsFilterTab !== undefined) statsFilterTab = opts.statsFilterTab;
+};
 
 // -------------------------------------------------------------
 // REFORMULAÇÃO E IDENTIDADE VISUAL DO CLUBE CRIADO (R$ 200.000)
@@ -46826,10 +47842,13 @@ function bind(){
     const btnFullStats = $('#btnOpenFullStatsModal');
     if(btnFullStats){
       btnFullStats.onclick = () => {
-        const estCompId = selectedEstadualId || (typeof clubStateCompId === 'function' ? clubStateCompId(state.club) : 'bra-est-df-candango');
-        const estData = typeof getStateCompData === 'function' ? getStateCompData(estCompId) : null;
+        const targetCompId = btnFullStats.dataset.compId || selectedEstadualId || (typeof clubStateCompId === 'function' ? clubStateCompId(state.club) : 'bra-est-df');
+        const targetCompName = btnFullStats.dataset.compName
+          || (typeof compById === 'function' ? compById(targetCompId)?.name : null)
+          || (typeof getStateCompData === 'function' && String(targetCompId).startsWith('bra-est-') ? getStateCompData(targetCompId)?.name : null)
+          || 'Competição Oficial';
         if(typeof openFullStatsModal === 'function'){
-          openFullStatsModal(statsFilterTab, estData?.name || 'Campeonato Candango', estCompId);
+          openFullStatsModal(statsFilterTab, targetCompName, targetCompId);
         }
       };
     }

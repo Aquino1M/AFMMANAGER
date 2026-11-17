@@ -5126,27 +5126,27 @@
                 </div>
                 <div style="background:#090d16;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);text-align:center">
                   <div style="font-size:22px">🌟</div>
-                  <div style="font-size:18px;font-weight:900;color:#a855f7">${(pState.individualAwards || []).filter((a) => a.id.startsWith("golden_boy")).length}</div>
-                  <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Golden Boy</div>
+                  <div style="font-size:18px;font-weight:900;color:#a855f7">${(pState.individualAwards || []).filter((a) => a.id.startsWith("golden_boy") || a.id.startsWith("league_young") || a.id.startsWith("comp_young")).length}</div>
+                  <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Golden Boy / Sub-21</div>
                 </div>
                 <div style="background:#090d16;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);text-align:center">
                   <div style="font-size:22px">🏅</div>
-                  <div style="font-size:18px;font-weight:900;color:#10b981">${(pState.individualAwards || []).filter((a) => a.id.startsWith("league_mvp")).length}</div>
-                  <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">MVP da Liga</div>
+                  <div style="font-size:18px;font-weight:900;color:#10b981">${(pState.individualAwards || []).filter((a) => a.id.startsWith("league_mvp") || a.id.startsWith("comp_mvp")).length}</div>
+                  <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Craque (Ligas/Copas)</div>
                 </div>
                 <div style="background:#090d16;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);text-align:center">
                   <div style="font-size:22px">⚽</div>
-                  <div style="font-size:18px;font-weight:900;color:#38bdf8">${(pState.individualAwards || []).filter((a) => a.id.startsWith("league_top_scorer")).length}</div>
-                  <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Bota de Ouro Liga</div>
+                  <div style="font-size:18px;font-weight:900;color:#38bdf8">${(pState.individualAwards || []).filter((a) => a.id.startsWith("league_top_scorer") || a.id.startsWith("comp_top_scorer")).length}</div>
+                  <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Artilharias Oficiais</div>
                 </div>
                 <div style="background:#090d16;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);text-align:center">
                   <div style="font-size:22px">🎯</div>
-                  <div style="font-size:18px;font-weight:900;color:#60a5fa">${(pState.individualAwards || []).filter((a) => a.id.startsWith("league_assists")).length}</div>
-                  <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Garçom da Liga</div>
+                  <div style="font-size:18px;font-weight:900;color:#60a5fa">${(pState.individualAwards || []).filter((a) => a.id.startsWith("league_assists") || a.id.startsWith("comp_assists")).length}</div>
+                  <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Garçom (Ligas/Copas)</div>
                 </div>
                 <div style="background:#090d16;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);text-align:center">
                   <div style="font-size:22px">🧤</div>
-                  <div style="font-size:18px;font-weight:900;color:#34d399">${(pState.individualAwards || []).filter((a) => a.id.startsWith("league_clean_sheets")).length}</div>
+                  <div style="font-size:18px;font-weight:900;color:#34d399">${(pState.individualAwards || []).filter((a) => a.id.startsWith("league_clean_sheets") || a.id.startsWith("comp_clean_sheets")).length}</div>
                   <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Muralha / Luva</div>
                 </div>
                 <div style="background:#090d16;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);text-align:center">
@@ -8143,51 +8143,58 @@
           </div>
         `;
       } else if (activeTab === "league") {
+        const compPacks = Array.isArray(galaData?.allCompetitionAwards) && galaData.allCompetitionAwards.length
+          ? galaData.allCompetitionAwards
+          : [leg];
         tabBodyHtml = `
-          <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;flex-direction:column;gap:18px">
             <div style="font-size:12px;color:#94a3b8;text-align:center">
-              Premiações oficiais concedidas pela federação para os melhores da competição que você disputou (${esc(leg.compName || "Liga")}).
+              Premiações individuais oficiais de todas as ligas e copas disputadas nesta temporada (${compPacks.length} competiç${compPacks.length === 1 ? "ão" : "ões"}).
             </div>
-            
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              
-              <!-- 1. MVP DA LIGA -->
-              <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),#090d16);border:1.5px solid ${leg.mvp?.isUser ? "#10b981" : "rgba(255,255,255,0.1)"};border-radius:14px;padding:16px;position:relative">
-                ${leg.mvp?.isUser ? `<span style="position:absolute;top:10px;right:10px;background:#10b981;color:#000;font-size:9px;font-weight:900;padding:2px 6px;border-radius:4px">⭐ VOCÊ!</span>` : ""}
-                <div style="font-size:24px">🏅</div>
-                <div style="font-size:11px;color:#10b981;font-weight:800;text-transform:uppercase;margin-top:4px">MELHOR DA COMPETIÇÃO (MVP)</div>
-                <div style="font-size:16px;font-weight:900;color:#fff;margin:4px 0">${esc(leg.mvp?.winnerName || "Craque")}</div>
-                <div style="font-size:11px;color:#94a3b8">Clube: <b>${esc(leg.mvp?.winnerClub || "Clube")}</b> • Nota Média: <b>${leg.mvp?.score}</b></div>
-              </div>
+            ${compPacks.map((pack) => `
+              <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:14px">
+                <div style="font-size:12px;font-weight:900;color:#fde047;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px">
+                  🏆 ${esc(pack?.compName || "Competição Oficial")}
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <!-- 1. MVP -->
+                  <div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),#090d16);border:1.5px solid ${pack?.mvp?.isUser ? "#10b981" : "rgba(255,255,255,0.1)"};border-radius:14px;padding:14px;position:relative">
+                    ${pack?.mvp?.isUser ? `<span style="position:absolute;top:10px;right:10px;background:#10b981;color:#000;font-size:9px;font-weight:900;padding:2px 6px;border-radius:4px">⭐ VOCÊ!</span>` : ""}
+                    <div style="font-size:22px">🏅</div>
+                    <div style="font-size:10px;color:#10b981;font-weight:800;text-transform:uppercase;margin-top:4px">${esc(pack?.mvp?.title || "MELHOR DA COMPETIÇÃO")}</div>
+                    <div style="font-size:15px;font-weight:900;color:#fff;margin:4px 0">${esc(pack?.mvp?.winnerName || "A definir")}</div>
+                    <div style="font-size:11px;color:#94a3b8">Clube: <b>${esc(pack?.mvp?.winnerClub || "—")}</b> • Nota: <b>${pack?.mvp?.score || "—"}</b></div>
+                  </div>
 
-              <!-- 2. BOTA DE OURO DA LIGA -->
-              <div style="background:linear-gradient(135deg,rgba(245,158,11,0.1),#090d16);border:1.5px solid ${leg.topScorer?.isUser ? "#facc15" : "rgba(255,255,255,0.1)"};border-radius:14px;padding:16px;position:relative">
-                ${leg.topScorer?.isUser ? `<span style="position:absolute;top:10px;right:10px;background:#facc15;color:#000;font-size:9px;font-weight:900;padding:2px 6px;border-radius:4px">⭐ VOCÊ!</span>` : ""}
-                <div style="font-size:24px">⚽</div>
-                <div style="font-size:11px;color:#facc15;font-weight:800;text-transform:uppercase;margin-top:4px">BOTA DE OURO (ARTILHEIRO)</div>
-                <div style="font-size:16px;font-weight:900;color:#fff;margin:4px 0">${esc(leg.topScorer?.winnerName || "Artilheiro")}</div>
-                <div style="font-size:11px;color:#94a3b8">Clube: <b>${esc(leg.topScorer?.winnerClub || "Clube")}</b> • Gols: <b>${leg.topScorer?.goals} gols</b></div>
-              </div>
+                  <!-- 2. ARTILHEIRO -->
+                  <div style="background:linear-gradient(135deg,rgba(245,158,11,0.1),#090d16);border:1.5px solid ${pack?.topScorer?.isUser ? "#facc15" : "rgba(255,255,255,0.1)"};border-radius:14px;padding:14px;position:relative">
+                    ${pack?.topScorer?.isUser ? `<span style="position:absolute;top:10px;right:10px;background:#facc15;color:#000;font-size:9px;font-weight:900;padding:2px 6px;border-radius:4px">⭐ VOCÊ!</span>` : ""}
+                    <div style="font-size:22px">⚽</div>
+                    <div style="font-size:10px;color:#facc15;font-weight:800;text-transform:uppercase;margin-top:4px">${esc(pack?.topScorer?.title || "BOTA DE OURO")}</div>
+                    <div style="font-size:15px;font-weight:900;color:#fff;margin:4px 0">${esc(pack?.topScorer?.winnerName || "A definir")}</div>
+                    <div style="font-size:11px;color:#94a3b8">Clube: <b>${esc(pack?.topScorer?.winnerClub || "—")}</b> • Gols: <b>${pack?.topScorer?.goals ?? 0} gols</b></div>
+                  </div>
 
-              <!-- 3. GARÇOM DA TEMPORADA -->
-              <div style="background:linear-gradient(135deg,rgba(56,189,248,0.1),#090d16);border:1.5px solid ${leg.assistLeader?.isUser ? "#38bdf8" : "rgba(255,255,255,0.1)"};border-radius:14px;padding:16px;position:relative">
-                ${leg.assistLeader?.isUser ? `<span style="position:absolute;top:10px;right:10px;background:#38bdf8;color:#000;font-size:9px;font-weight:900;padding:2px 6px;border-radius:4px">⭐ VOCÊ!</span>` : ""}
-                <div style="font-size:24px">🎯</div>
-                <div style="font-size:11px;color:#38bdf8;font-weight:800;text-transform:uppercase;margin-top:4px">GARÇOM DA TEMPORADA</div>
-                <div style="font-size:16px;font-weight:900;color:#fff;margin:4px 0">${esc(leg.assistLeader?.winnerName || "Líder")}</div>
-                <div style="font-size:11px;color:#94a3b8">Clube: <b>${esc(leg.assistLeader?.winnerClub || "Clube")}</b> • Assistências: <b>${leg.assistLeader?.assists}</b></div>
-              </div>
+                  <!-- 3. GARÇOM -->
+                  <div style="background:linear-gradient(135deg,rgba(56,189,248,0.1),#090d16);border:1.5px solid ${pack?.assistLeader?.isUser ? "#38bdf8" : "rgba(255,255,255,0.1)"};border-radius:14px;padding:14px;position:relative">
+                    ${pack?.assistLeader?.isUser ? `<span style="position:absolute;top:10px;right:10px;background:#38bdf8;color:#000;font-size:9px;font-weight:900;padding:2px 6px;border-radius:4px">⭐ VOCÊ!</span>` : ""}
+                    <div style="font-size:22px">🎯</div>
+                    <div style="font-size:10px;color:#38bdf8;font-weight:800;text-transform:uppercase;margin-top:4px">${esc(pack?.assistLeader?.title || "GARÇOM DA TEMPORADA")}</div>
+                    <div style="font-size:15px;font-weight:900;color:#fff;margin:4px 0">${esc(pack?.assistLeader?.winnerName || "A definir")}</div>
+                    <div style="font-size:11px;color:#94a3b8">Clube: <b>${esc(pack?.assistLeader?.winnerClub || "—")}</b> • Assist.: <b>${pack?.assistLeader?.assists ?? 0}</b></div>
+                  </div>
 
-              <!-- 4. MURALHA / LUVA DE OURO -->
-              <div style="background:linear-gradient(135deg,rgba(168,85,247,0.1),#090d16);border:1.5px solid ${leg.goldenGlove?.isUser ? "#c084fc" : "rgba(255,255,255,0.1)"};border-radius:14px;padding:16px;position:relative">
-                ${leg.goldenGlove?.isUser ? `<span style="position:absolute;top:10px;right:10px;background:#c084fc;color:#000;font-size:9px;font-weight:900;padding:2px 6px;border-radius:4px">⭐ VOCÊ!</span>` : ""}
-                <div style="font-size:24px">🧤</div>
-                <div style="font-size:11px;color:#c084fc;font-weight:800;text-transform:uppercase;margin-top:4px">LUVA DE OURO / MURALHA</div>
-                <div style="font-size:16px;font-weight:900;color:#fff;margin:4px 0">${esc(leg.goldenGlove?.winnerName || "Goleiro")}</div>
-                <div style="font-size:11px;color:#94a3b8">Clube: <b>${esc(leg.goldenGlove?.winnerClub || "Clube")}</b> • Clean Sheets: <b>${leg.goldenGlove?.cleanSheets}</b></div>
+                  <!-- 4. LUVA DE OURO -->
+                  <div style="background:linear-gradient(135deg,rgba(168,85,247,0.1),#090d16);border:1.5px solid ${pack?.goldenGlove?.isUser ? "#c084fc" : "rgba(255,255,255,0.1)"};border-radius:14px;padding:14px;position:relative">
+                    ${pack?.goldenGlove?.isUser ? `<span style="position:absolute;top:10px;right:10px;background:#c084fc;color:#000;font-size:9px;font-weight:900;padding:2px 6px;border-radius:4px">⭐ VOCÊ!</span>` : ""}
+                    <div style="font-size:22px">🧤</div>
+                    <div style="font-size:10px;color:#c084fc;font-weight:800;text-transform:uppercase;margin-top:4px">${esc(pack?.goldenGlove?.title || "LUVA DE OURO")}</div>
+                    <div style="font-size:15px;font-weight:900;color:#fff;margin:4px 0">${esc(pack?.goldenGlove?.winnerName || "A definir")}</div>
+                    <div style="font-size:11px;color:#94a3b8">Clube: <b>${esc(pack?.goldenGlove?.winnerClub || "—")}</b> • Clean Sheets: <b>${pack?.goldenGlove?.cleanSheets ?? 0}</b></div>
+                  </div>
+                </div>
               </div>
-
-            </div>
+            `).join("")}
           </div>
         `;
       } else {
@@ -8416,14 +8423,34 @@
               const trust = curPState?.managerTrust || 35;
               const played = eligibleAtKickoff && trust >= 30;
               const isStarter = played && trust >= 60;
-              const goals = played && Math.random() < 0.35 ? 1 : 0;
-              const assists = played && Math.random() < 0.25 ? 1 : 0;
+              const latestMatch = (curState.history || [])[0] || null;
+              const normStr = (v) => (typeof window.norm === "function" ? window.norm(v) : String(v || "").trim().toLowerCase());
+              const athNameNorm = normStr(curAthlete?.name || curPState?.athleteName);
+              const isHome = latestMatch ? normStr(latestMatch.h) === normStr(curState.club) : true;
+              const gf = latestMatch ? (isHome ? Number(latestMatch.hg) || 0 : Number(latestMatch.ag) || 0) : 0;
+              const ga = latestMatch ? (isHome ? Number(latestMatch.ag) || 0 : Number(latestMatch.hg) || 0) : 0;
+              const goalEvents = Array.isArray(latestMatch?.events) ? latestMatch.events.filter((ev) => ev?.type === "gol") : [];
+              const goals = played && latestMatch
+                ? goalEvents.filter((ev) => athNameNorm && normStr(ev.scorer) === athNameNorm).length
+                : 0;
+              const assists = played && latestMatch
+                ? goalEvents.filter((ev) => athNameNorm && normStr(ev.assist) === athNameNorm).length
+                : 0;
               const rating = played
                 ? Number(
-                    (6.0 + goals * 1.5 + assists * 0.8 + Math.random() * 1.2).toFixed(1),
+                    Math.max(4.5, Math.min(10.0, 6.1 + goals * 1.3 + assists * 0.8 + (gf > ga ? 0.5 : gf < ga ? -0.35 : 0.1) + Math.random() * 0.9)).toFixed(1),
                   )
                 : 0;
               const rep = pEng.processMatchPerformance(curState, {
+                h: latestMatch?.h || curState.club,
+                a: latestMatch?.a || "Adversário",
+                hg: Number(latestMatch?.hg) || 0,
+                ag: Number(latestMatch?.ag) || 0,
+                goalsFor: gf,
+                goalsAgainst: ga,
+                date: latestMatch?.date || curState.date,
+                competitionId: latestMatch?.competitionId || activeMatch?.competitionId || curState.compId,
+                competitionName: latestMatch?.competitionName || curState.competition,
                 goals,
                 assists,
                 rating,
@@ -8699,19 +8726,35 @@
           const trust = pState?.managerTrust || 35;
           const played = eligibleAtKickoff && trust >= 30;
           const isStarter = played && trust >= 60;
-          const goals = played && Math.random() < 0.35 ? 1 : 0;
-          const assists = played && Math.random() < 0.25 ? 1 : 0;
+          const latestMatch = (s.history || [])[0] || null;
+          const normStr = (v) => (typeof window.norm === "function" ? window.norm(v) : String(v || "").trim().toLowerCase());
+          const athObj = getControlledPlayer(s);
+          const athNameNorm = normStr(athObj?.name || pState?.athleteName);
+          const isHome = latestMatch ? normStr(latestMatch.h) === normStr(s.club) : true;
+          const gf = latestMatch ? (isHome ? Number(latestMatch.hg) || 0 : Number(latestMatch.ag) || 0) : 0;
+          const ga = latestMatch ? (isHome ? Number(latestMatch.ag) || 0 : Number(latestMatch.hg) || 0) : 0;
+          const goalEvents = Array.isArray(latestMatch?.events) ? latestMatch.events.filter((ev) => ev?.type === "gol") : [];
+          const goals = played && latestMatch
+            ? goalEvents.filter((ev) => athNameNorm && normStr(ev.scorer) === athNameNorm).length
+            : 0;
+          const assists = played && latestMatch
+            ? goalEvents.filter((ev) => athNameNorm && normStr(ev.assist) === athNameNorm).length
+            : 0;
           const rating = played
             ? Number(
-                (
-                  6.0 +
-                  goals * 1.5 +
-                  assists * 0.8 +
-                  Math.random() * 1.2
-                ).toFixed(1),
+                Math.max(4.5, Math.min(10.0, 6.1 + goals * 1.3 + assists * 0.8 + (gf > ga ? 0.5 : gf < ga ? -0.35 : 0.1) + Math.random() * 0.9)).toFixed(1),
               )
             : 0;
           const rep = pEng.processMatchPerformance(s, {
+            h: latestMatch?.h || s.club,
+            a: latestMatch?.a || "Adversário",
+            hg: Number(latestMatch?.hg) || 0,
+            ag: Number(latestMatch?.ag) || 0,
+            goalsFor: gf,
+            goalsAgainst: ga,
+            date: latestMatch?.date || s.date,
+            competitionId: latestMatch?.competitionId || activeMatch?.competitionId || s.compId,
+            competitionName: latestMatch?.competitionName || s.competition,
             goals,
             assists,
             rating,

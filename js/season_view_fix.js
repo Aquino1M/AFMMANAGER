@@ -27,7 +27,14 @@
       'c': 'bra-c', 'serie_c': 'bra-c', 'serie-c': 'bra-c', 'bra_c': 'bra-c', 'bra-c': 'bra-c',
       'd': 'bra-d', 'serie_d': 'bra-d', 'serie-d': 'bra-d', 'bra_d': 'bra-d', 'bra-d': 'bra-d'
     };
-    return map[raw] || 'bra-a';
+    if (map[raw]) return map[raw];
+    if (raw && Array.isArray(window.COMPETITIONS)) {
+      const found = window.COMPETITIONS.find(c => c && c.id === raw);
+      if (found && !raw.startsWith('bra-est-') && !['bra-cup','lib','sud','ucl','uel','uecl','afc-el','afc2','cwc'].includes(raw)) {
+        return raw;
+      }
+    }
+    return 'bra-a';
   }
 
   function getActiveDivisionForSeasonView(state) {

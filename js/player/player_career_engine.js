@@ -3180,10 +3180,61 @@
       sStats.redCards = (sStats.redCards || 0) + 1;
     }
 
+    // Estatísticas detalhadas por competição disputada na temporada (Estadual, Liga, Copa do Brasil, Libertadores, Champions, Mundial)
+    const rawMatchCompId = matchResult?.competitionId || gameState.compId || "bra-est-df";
+    const matchCompId = typeof window !== "undefined" && typeof window.normalizeCompStatsId === "function"
+      ? window.normalizeCompStatsId(rawMatchCompId)
+      : String(rawMatchCompId).trim();
+    const matchCompName = matchResult?.competitionName || gameState.competition || matchCompId;
+
+    pState.competitionStatsByComp = (pState.competitionStatsByComp && typeof pState.competitionStatsByComp === "object")
+      ? pState.competitionStatsByComp
+      : {};
+    Object.keys(pState.competitionStatsByComp).forEach((k) => {
+      if (Number(pState.competitionStatsByComp[k]?.season) !== currentSeasonYear) {
+        delete pState.competitionStatsByComp[k];
+      }
+    });
+    if (!pState.competitionStatsByComp[matchCompId]) {
+      pState.competitionStatsByComp[matchCompId] = {
+        season: currentSeasonYear,
+        compId: matchCompId,
+        compName: matchCompName,
+        club: gameState.club || "Clube",
+        matches: 0,
+        minutesPlayed: 0,
+        goals: 0,
+        assists: 0,
+        cleanSheets: 0,
+        goalsAgainst: 0,
+        mvpCount: 0,
+        yellowCards: 0,
+        redCards: 0,
+        ratingSum: 0,
+        avgRating: 6.5,
+      };
+    }
+    const compEntry = pState.competitionStatsByComp[matchCompId];
+    compEntry.club = gameState.club || compEntry.club || "Clube";
+    compEntry.compName = matchCompName || compEntry.compName;
+    compEntry.matches = (compEntry.matches || 0) + 1;
+    compEntry.minutesPlayed = (compEntry.minutesPlayed || 0) + playedMinutes;
+    compEntry.goals = (compEntry.goals || 0) + goalsScored;
+    compEntry.assists = (compEntry.assists || 0) + assistsGiven;
+    if (cleanSheet) compEntry.cleanSheets = (compEntry.cleanSheets || 0) + 1;
+    compEntry.goalsAgainst = (compEntry.goalsAgainst || 0) + Math.max(0, Number(goalsAgainst) || 0);
+    if (isMvp) compEntry.mvpCount = (compEntry.mvpCount || 0) + 1;
+    if (yellowCard) compEntry.yellowCards = (compEntry.yellowCards || 0) + 1;
+    if (redCard) compEntry.redCards = (compEntry.redCards || 0) + 1;
+    compEntry.ratingSum = Number(((compEntry.ratingSum || 0) + finalRating).toFixed(2));
+    compEntry.avgRating = Number((compEntry.ratingSum / compEntry.matches).toFixed(2));
+
     // Histórico de atuações
     pState.matchRatingHistory = pState.matchRatingHistory || [];
     pState.matchRatingHistory.unshift({
       date: gameState.date,
+      competitionId: matchCompId,
+      competitionName: matchCompName,
       opponent: isHome ? matchResult?.a : matchResult?.h,
       score: `${goalsFor} x ${goalsAgainst}`,
       rating: finalRating,
@@ -3199,6 +3250,12 @@
       won: won,
     });
     pState.matchRatingHistory = pState.matchRatingHistory.slice(0, 30);
+
+    if (typeof window !== "undefined" && typeof window.syncCompetitionStatsComprehensive === "function") {
+      try {
+        window.syncCompetitionStatsComprehensive(matchCompId);
+      } catch (_) {}
+    }
 
     const performanceReport = {
       played: true,
@@ -4736,26 +4793,41 @@
         ? 12
         : 0;
 
-    const topTierComps = [
-      "bra-a",
-      "eng-1",
-      "esp-1",
-      "ita-1",
-      "ger-1",
-      "fra-1",
-      "ucl",
-    ];
-    const midHighTierComps = ["bra-b", "por-1", "ned-1", "lib", "uel", "arg-1"];
-    const midTierComps = ["bra-c", "esp-2", "eng-2", "ita-2", "ger-2", "sud"];
-    const userLeagueMultiplier = topTierComps.includes(userCompId)
+    const normCompIdFn = (id) =>
+      typeof window !== "undefined" && typeof window.normalizeCompStatsId === "function"
+        ? window.normalizeCompStatsId(id)
+        : String(id || "").trim();
+    const primaryCompId = normCompIdFn(userCompId || "bra-est-df");
+
+    const euroEliteComps = ["eng-1", "esp-1", "ita-1", "ger-1", "fra-1", "ucl", "cwc"];
+    const topTierComps = [...euroEliteComps, "bra-a", "lib"];
+    const midHighTierComps = ["bra-b", "por-1", "ned-1", "uel", "arg-1", "ksa-1", "usa-1"];
+    const midTierComps = ["bra-c", "esp-2", "eng-2", "ita-2", "ger-2", "sud", "bra-cup"];
+
+    const userLeagueMultiplier = topTierComps.includes(primaryCompId)
       ? 2.0
-      : midHighTierComps.includes(userCompId)
-        ? 1.8
-        : midTierComps.includes(userCompId)
-          ? 1.4
-          : userCompId === "bra-d"
-            ? 1.2
+      : midHighTierComps.includes(primaryCompId)
+        ? 1.5
+        : midTierComps.includes(primaryCompId)
+          ? 1.35
+          : primaryCompId === "bra-d"
+            ? 1.1
             : 1.0;
+
+    // Peso realista de prestígio internacional da competição para votação da Bola de Ouro (Ballon d'Or)
+    const wonContinentalOrWorld = titlesThisSeason.some((t) => {
+      const tName = ((typeof t === "object" ? t.name : t) || "").toLowerCase();
+      return tName.includes("libertadores") || tName.includes("champions") || tName.includes("mundial");
+    });
+    const userCompPrestigeFactor = euroEliteComps.includes(primaryCompId) || wonContinentalOrWorld
+      ? 1.0
+      : primaryCompId === "bra-a" || primaryCompId === "lib" || primaryCompId === "por-1" || primaryCompId === "ned-1" || primaryCompId === "uel"
+        ? 0.88
+        : midHighTierComps.includes(primaryCompId) || primaryCompId === "sud" || primaryCompId === "bra-cup"
+          ? 0.72
+          : primaryCompId === "bra-c"
+            ? 0.58
+            : 0.48;
 
     // Candidato Usuário
     const userCandidate = {
@@ -4772,6 +4844,7 @@
       mvpCount: userMvpCount,
       teamTrophiesBonus: userTrophiesBonus,
       leagueMultiplier: userLeagueMultiplier,
+      compPrestigeFactor: userCompPrestigeFactor,
       isUser: true,
       photo:
         athlete?.photo ||
@@ -4780,217 +4853,232 @@
         null,
     };
 
-    // Pack Mundial de Atletas da IA (com variabilidade controlada por temporada)
+    // Pack Mundial de Atletas da IA — Elencos Reais Atualizados (17/11/2026)
     const baseWorldStars = [
       {
         name: "Vinícius Jr",
         club: "Real Madrid",
-        age: 24,
-        ovr: 90,
-        pos: "PON",
-        baseGoals: 25,
-        baseAssists: 12,
-        cleanSheets: 0,
-        baseRating: 8.24,
-        mvpCount: 8,
-        teamTrophiesBonus: 25,
-        leagueMultiplier: 2.0,
-      },
-      {
-        name: "Erling Haaland",
-        club: "Manchester City",
-        age: 24,
+        age: 26,
         ovr: 91,
-        pos: "ATA",
-        baseGoals: 36,
-        baseAssists: 6,
+        pos: "PON",
+        baseGoals: 26,
+        baseAssists: 13,
         cleanSheets: 0,
-        baseRating: 8.22,
-        mvpCount: 9,
-        teamTrophiesBonus: 25,
+        baseRating: 8.26,
+        mvpCount: 8,
+        teamTrophiesBonus: 22,
         leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
       },
       {
         name: "Kylian Mbappé",
         club: "Real Madrid",
+        age: 27,
+        ovr: 92,
+        pos: "ATA",
+        baseGoals: 33,
+        baseAssists: 9,
+        cleanSheets: 0,
+        baseRating: 8.27,
+        mvpCount: 8,
+        teamTrophiesBonus: 22,
+        leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
+      },
+      {
+        name: "Lamine Yamal",
+        club: "FC Barcelona",
+        age: 19,
+        ovr: 90,
+        pos: "PON",
+        baseGoals: 19,
+        baseAssists: 19,
+        cleanSheets: 0,
+        baseRating: 8.28,
+        mvpCount: 8,
+        teamTrophiesBonus: 22,
+        leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
+      },
+      {
+        name: "Erling Haaland",
+        club: "Manchester City",
         age: 26,
         ovr: 91,
         pos: "ATA",
-        baseGoals: 32,
-        baseAssists: 9,
+        baseGoals: 35,
+        baseAssists: 6,
         cleanSheets: 0,
-        baseRating: 8.25,
+        baseRating: 8.20,
         mvpCount: 8,
-        teamTrophiesBonus: 25,
+        teamTrophiesBonus: 20,
         leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
       },
       {
         name: "Rodri",
-        club: "Manchester City",
-        age: 28,
-        ovr: 91,
+        club: "FC Barcelona",
+        age: 30,
+        ovr: 90,
         pos: "VOL",
-        baseGoals: 8,
-        baseAssists: 14,
-        cleanSheets: 18,
-        baseRating: 8.36,
+        baseGoals: 7,
+        baseAssists: 12,
+        cleanSheets: 16,
+        baseRating: 8.24,
         mvpCount: 6,
-        teamTrophiesBonus: 25,
+        teamTrophiesBonus: 22,
         leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
       },
       {
-        name: "Jude Bellingham",
-        club: "Real Madrid",
-        age: 22,
+        name: "Ousmane Dembélé",
+        club: "Paris Saint-Germain",
+        age: 29,
         ovr: 90,
-        pos: "MEI",
-        baseGoals: 19,
-        baseAssists: 14,
+        pos: "PON",
+        baseGoals: 24,
+        baseAssists: 15,
         cleanSheets: 0,
-        baseRating: 8.12,
-        mvpCount: 6,
-        teamTrophiesBonus: 25,
+        baseRating: 8.22,
+        mvpCount: 7,
+        teamTrophiesBonus: 22,
         leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
       },
       {
         name: "Harry Kane",
-        club: "Bayern de Munique",
-        age: 31,
+        club: "Bayern München",
+        age: 33,
         ovr: 90,
         pos: "ATA",
         baseGoals: 34,
         baseAssists: 9,
         cleanSheets: 0,
-        baseRating: 8.16,
+        baseRating: 8.18,
         mvpCount: 7,
         teamTrophiesBonus: 20,
         leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
       },
       {
-        name: "Lamine Yamal",
-        club: "Barcelona",
-        age: 18,
-        ovr: 86,
-        pos: "PON",
-        baseGoals: 16,
-        baseAssists: 18,
-        cleanSheets: 0,
-        baseRating: 8.19,
-        mvpCount: 7,
-        teamTrophiesBonus: 20,
-        leagueMultiplier: 2.0,
-      },
-      {
-        name: "Mohamed Salah",
-        club: "Liverpool",
-        age: 32,
+        name: "Raphinha",
+        club: "FC Barcelona",
+        age: 29,
         ovr: 89,
         pos: "PON",
-        baseGoals: 25,
-        baseAssists: 14,
+        baseGoals: 23,
+        baseAssists: 15,
         cleanSheets: 0,
-        baseRating: 8.1,
-        mvpCount: 6,
-        teamTrophiesBonus: 15,
+        baseRating: 8.17,
+        mvpCount: 7,
+        teamTrophiesBonus: 22,
         leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
+      },
+      {
+        name: "Jude Bellingham",
+        club: "Real Madrid",
+        age: 23,
+        ovr: 90,
+        pos: "MEI",
+        baseGoals: 17,
+        baseAssists: 13,
+        cleanSheets: 0,
+        baseRating: 8.12,
+        mvpCount: 6,
+        teamTrophiesBonus: 22,
+        leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
       },
       {
         name: "Florian Wirtz",
-        club: "Bayer Leverkusen",
-        age: 22,
-        ovr: 88,
+        club: "Liverpool",
+        age: 23,
+        ovr: 89,
         pos: "MEI",
         baseGoals: 16,
         baseAssists: 17,
         cleanSheets: 0,
-        baseRating: 8.12,
-        mvpCount: 5,
+        baseRating: 8.14,
+        mvpCount: 6,
         teamTrophiesBonus: 20,
         leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
       },
       {
-        name: "Pedro",
-        club: "Flamengo",
-        age: 27,
-        ovr: 82,
-        pos: "ATA",
-        baseGoals: 26,
-        baseAssists: 6,
+        name: "Mohamed Salah",
+        club: "Liverpool",
+        age: 34,
+        ovr: 89,
+        pos: "PON",
+        baseGoals: 24,
+        baseAssists: 14,
         cleanSheets: 0,
-        baseRating: 7.78,
-        mvpCount: 5,
-        teamTrophiesBonus: 18,
+        baseRating: 8.08,
+        mvpCount: 6,
+        teamTrophiesBonus: 20,
         leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
       },
       {
         name: "Estêvão",
-        club: "Palmeiras",
-        age: 18,
-        ovr: 80,
+        club: "Chelsea",
+        age: 19,
+        ovr: 84,
         pos: "PON",
         baseGoals: 15,
-        baseAssists: 9,
+        baseAssists: 11,
         cleanSheets: 0,
-        baseRating: 7.72,
+        baseRating: 7.86,
         mvpCount: 4,
-        teamTrophiesBonus: 15,
+        teamTrophiesBonus: 16,
         leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
       },
       {
         name: "Endrick",
         club: "Real Madrid",
-        age: 19,
-        ovr: 81,
-        pos: "ATA",
-        baseGoals: 14,
-        baseAssists: 5,
-        cleanSheets: 0,
-        baseRating: 7.62,
-        mvpCount: 3,
-        teamTrophiesBonus: 25,
-        leagueMultiplier: 2.0,
-      },
-      {
-        name: "Arda Güler",
-        club: "Real Madrid",
         age: 20,
-        ovr: 81,
-        pos: "MEI",
-        baseGoals: 12,
-        baseAssists: 8,
+        ovr: 82,
+        pos: "ATA",
+        baseGoals: 15,
+        baseAssists: 5,
         cleanSheets: 0,
         baseRating: 7.68,
         mvpCount: 3,
-        teamTrophiesBonus: 25,
+        teamTrophiesBonus: 22,
         leagueMultiplier: 2.0,
-      },
-      {
-        name: "Kobbie Mainoo",
-        club: "Manchester United",
-        age: 20,
-        ovr: 82,
-        pos: "VOL",
-        baseGoals: 6,
-        baseAssists: 8,
-        cleanSheets: 10,
-        baseRating: 7.65,
-        mvpCount: 3,
-        teamTrophiesBonus: 10,
-        leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
       },
       {
         name: "Pau Cubarsí",
-        club: "Barcelona",
-        age: 18,
-        ovr: 81,
+        club: "FC Barcelona",
+        age: 19,
+        ovr: 84,
         pos: "ZAG",
         baseGoals: 2,
         baseAssists: 3,
-        cleanSheets: 16,
-        baseRating: 7.82,
+        cleanSheets: 17,
+        baseRating: 7.88,
         mvpCount: 3,
-        teamTrophiesBonus: 20,
+        teamTrophiesBonus: 22,
         leagueMultiplier: 2.0,
+        compPrestigeFactor: 1.0,
+      },
+      {
+        name: "Pedro",
+        club: "Flamengo",
+        age: 29,
+        ovr: 83,
+        pos: "ATA",
+        baseGoals: 26,
+        baseAssists: 6,
+        cleanSheets: 0,
+        baseRating: 7.82,
+        mvpCount: 5,
+        teamTrophiesBonus: 18,
+        leagueMultiplier: 2.0,
+        compPrestigeFactor: 0.88,
       },
     ];
 
@@ -5010,17 +5098,19 @@
 
     const allGlobalCandidates = [userCandidate, ...worldCandidates];
 
-    // Fórmula da Bola de Ouro (Ballon d'Or)
+    // Fórmula Realista da Bola de Ouro (ponderada pelo prestígio internacional da competição disputada)
     function calcBallonScore(p) {
       const ovr = Number(p.ovr) || 50;
-      const g = Number(p.goals) || 0;
-      const a = Number(p.assists) || 0;
-      const cs = Number(p.cleanSheets) || 0;
-      const r = Number(p.averageRating) || 6.5;
-      const mvp = Number(p.mvpCount) || 0;
-      const bonus = Number(p.teamTrophiesBonus) || 0;
+      const prestige = Number(p.compPrestigeFactor) || 1.0;
+      const g = (Number(p.goals) || 0) * prestige;
+      const a = (Number(p.assists) || 0) * prestige;
+      const cs = (Number(p.cleanSheets) || 0) * prestige;
+      const rawR = Number(p.averageRating) || 6.5;
+      const effectiveR = 6.0 + Math.max(0, rawR - 6.0) * (0.45 + 0.55 * prestige);
+      const mvp = (Number(p.mvpCount) || 0) * prestige;
+      const bonus = (Number(p.teamTrophiesBonus) || 0) * prestige;
       return (
-        ovr * 1.2 + g * 1.5 + a * 1.2 + cs * 0.8 + r * 8.0 + mvp * 2.0 + bonus
+        ovr * 1.2 + g * 1.5 + a * 1.2 + cs * 0.8 + effectiveR * 8.0 + mvp * 2.0 + bonus
       );
     }
 
@@ -5055,27 +5145,7 @@
     const goldenBoyTop3 = sortedGoldenBoy.slice(0, 3);
     const userWonGoldenBoy = goldenBoyTop3[0]?.isUser === true;
 
-    // 4. PRÊMIOS DA LIGA DO ATLETA (COMPETIÇÃO ATUAL)
-    const compStats =
-      typeof getStateCompStats === "function"
-        ? getStateCompStats(userCompId)
-        : null;
-    const leagueTopScorerObj = [...(compStats?.scorers || [])].sort(
-      (a, b) => (Number(b.goals) || 0) - (Number(a.goals) || 0),
-    )[0];
-    const leagueTopAssistObj = [...(compStats?.assists || [])].sort(
-      (a, b) => (Number(b.assists) || 0) - (Number(a.assists) || 0),
-    )[0];
-
-    const userWonLeagueTopScorer =
-      userGoals > 0 && userGoals >= (leagueTopScorerObj?.goals || 0);
-
-    const userWonLeagueAssists =
-      userAssists > 0 && userAssists >= (leagueTopAssistObj?.assists || 0);
-
-    const userWonLeagueMvp =
-      userAvgRating >= 7.6 &&
-      (userGoals >= 5 || userAssists >= 4 || userMvpCount >= 3);
+    // 4. PRÊMIOS INDIVIDUAIS OFICIAIS EM TODAS AS LIGAS E COPAS DISPUTADAS NA TEMPORADA
     const isDefenderOrGk = [
       "GOL",
       "GK",
@@ -5088,62 +5158,133 @@
       "LD",
       "VOL",
       "DM",
-    ].includes(athlete?.pos || pState.position);
-    const userWonLeagueCleanSheets = isDefenderOrGk && userCleanSheets >= 5;
+    ].includes(String(athlete?.pos || pState.position || "").toUpperCase());
 
-    const leagueAwards = {
-      compName: userCompName,
-      mvp: {
-        title: `Melhor Jogador do ${userCompName} (MVP da Liga)`,
-        winnerName: userWonLeagueMvp
-          ? userCandidate.name
-          : compStats?.mvp?.name || "A definir",
-        winnerClub: userWonLeagueMvp ? userClub : compStats?.mvp?.club || "—",
-        isUser: userWonLeagueMvp,
-        score: userWonLeagueMvp
-          ? userAvgRating.toFixed(2)
-          : Number(compStats?.mvp?.rating) || "—",
-      },
-      topScorer: {
-        title: `Bota de Ouro do ${userCompName} (Artilheiro)`,
-        winnerName: userWonLeagueTopScorer
-          ? userCandidate.name
-          : leagueTopScorerObj?.name || "A definir",
-        winnerClub: userWonLeagueTopScorer
-          ? userClub
-          : leagueTopScorerObj?.club || "—",
-        isUser: userWonLeagueTopScorer,
-        goals: userWonLeagueTopScorer
-          ? userGoals
-          : Number(leagueTopScorerObj?.goals) || 0,
-      },
-      assistLeader: {
-        title: `Garçom da Temporada (Líder em Passes Decisivos)`,
-        winnerName: userWonLeagueAssists
-          ? userCandidate.name
-          : leagueTopAssistObj?.name || "A definir",
-        winnerClub: userWonLeagueAssists
-          ? userClub
-          : leagueTopAssistObj?.club || "—",
-        isUser: userWonLeagueAssists,
-        assists: userWonLeagueAssists
-          ? userAssists
-          : Number(leagueTopAssistObj?.assists) || 0,
-      },
-      goldenGlove: {
-        title: `Luva de Ouro / Muralha (Clean Sheets)`,
-        winnerName: userWonLeagueCleanSheets
-          ? userCandidate.name
-          : compStats?.cleanSheets?.name || "A definir",
-        winnerClub: userWonLeagueCleanSheets
-          ? userClub
-          : compStats?.cleanSheets?.club || "—",
-        isUser: userWonLeagueCleanSheets,
-        cleanSheets: userWonLeagueCleanSheets
-          ? userCleanSheets
-          : Number(compStats?.cleanSheets?.count) || 0,
-      },
+    const contestedCompIds = new Set([primaryCompId]);
+    if (pState.competitionStatsByComp && typeof pState.competitionStatsByComp === "object") {
+      Object.entries(pState.competitionStatsByComp).forEach(([cid, entry]) => {
+        if ((!entry?.season || Number(entry.season) === targetSeason) && Number(entry?.matches || 0) > 0) {
+          contestedCompIds.add(normCompIdFn(cid));
+        }
+      });
+    }
+    if (gameState.competitionStats && typeof gameState.competitionStats === "object") {
+      Object.entries(gameState.competitionStats).forEach(([cid, cSt]) => {
+        if (Number(cSt?.season || targetSeason) === targetSeason) {
+          const hasData = (cSt?.scorers?.length > 0) || (cSt?.assists?.length > 0) || (cSt?.mvp?.length > 0) || (cSt?.cleanSheets?.length > 0);
+          if (hasData) contestedCompIds.add(normCompIdFn(cid));
+        }
+      });
+    }
+
+    const evaluateCompetitionPack = (cid) => {
+      const normCid = normCompIdFn(cid);
+      const isPrimary = normCid === primaryCompId;
+      const official = typeof window !== "undefined" && typeof window.computeCompetitionAwards === "function"
+        ? window.computeCompetitionAwards(normCid, isPrimary ? userCompName : null)
+        : null;
+      const cStatsObj = typeof getStateCompStats === "function" ? getStateCompStats(normCid) : gameState.competitionStats?.[normCid];
+      const resolvedCompName = official?.compName
+        || pState.competitionStatsByComp?.[normCid]?.compName
+        || (typeof window !== "undefined" && typeof window.compById === "function" ? window.compById(normCid)?.name : null)
+        || (isPrimary ? userCompName : normCid);
+
+      const userByComp = pState.competitionStatsByComp?.[normCid];
+      const hasExplicitByComp = Boolean(pState.competitionStatsByComp && Object.keys(pState.competitionStatsByComp).length > 0);
+      const uCompGoals = userByComp ? (Number(userByComp.goals) || 0) : (!hasExplicitByComp && isPrimary ? userGoals : 0);
+      const uCompAssists = userByComp ? (Number(userByComp.assists) || 0) : (!hasExplicitByComp && isPrimary ? userAssists : 0);
+      const uCompCs = userByComp ? (Number(userByComp.cleanSheets) || 0) : (!hasExplicitByComp && isPrimary ? userCleanSheets : 0);
+      const uCompMvpCount = userByComp ? (Number(userByComp.mvpCount) || 0) : (!hasExplicitByComp && isPrimary ? userMvpCount : 0);
+      const uCompRating = userByComp ? (Number(userByComp.avgRating) || 6.5) : (!hasExplicitByComp && isPrimary ? userAvgRating : 0);
+      const uCompMatches = userByComp ? (Number(userByComp.matches) || 0) : (!hasExplicitByComp && isPrimary ? Math.max(1, Number(sStats.matches || pState.careerStats?.matches || (uCompGoals || uCompAssists ? 1 : 0))) : 0);
+
+      const topScorerRow = [...(cStatsObj?.scorers || [])].sort((a, b) => (Number(b.goals) || 0) - (Number(a.goals) || 0))[0];
+      const topAssistRow = [...(cStatsObj?.assists || [])].sort((a, b) => (Number(b.assists) || 0) - (Number(a.assists) || 0))[0];
+      const topGloveRow = [...(cStatsObj?.cleanSheets || [])].sort((a, b) => (Number(b.cleanSheets) || 0) - (Number(a.cleanSheets) || 0))[0];
+
+      const wonScorer = Boolean(
+        official?.topScorer?.isUser ||
+        (uCompGoals > 0 && uCompGoals >= (Number(official?.topScorer?.value ?? topScorerRow?.goals) || 0))
+      );
+      const wonAssist = Boolean(
+        official?.assistLeader?.isUser ||
+        (uCompAssists > 0 && uCompAssists >= (Number(official?.assistLeader?.value ?? topAssistRow?.assists) || 0))
+      );
+      const minGamesForMvp = official?.minMatchesRequired || 2;
+      const wonMvp = Boolean(
+        official?.mvp?.isUser ||
+        (!official?.mvp?.hasWinner && uCompMatches >= minGamesForMvp && uCompRating >= 7.6 && (uCompGoals >= 5 || uCompAssists >= 4 || uCompMvpCount >= 3))
+      );
+      const wonGlove = Boolean(
+        (isDefenderOrGk && official?.goldenGlove?.isUser) ||
+        (isDefenderOrGk && uCompCs >= 4 && uCompCs >= (Number(official?.goldenGlove?.value ?? topGloveRow?.cleanSheets) || 0))
+      );
+      const wonYoung = Boolean(
+        userAge <= 21 && (
+          official?.youngPlayer?.isUser ||
+          (wonMvp && userAge <= 21)
+        )
+      );
+
+      const metaTitles = typeof window !== "undefined" && typeof window.getCompetitionAwardsMeta === "function"
+        ? window.getCompetitionAwardsMeta(normCid, resolvedCompName)
+        : {
+            mvp: `Craque do ${resolvedCompName} (MVP)`,
+            topScorer: `Bota de Ouro do ${resolvedCompName} (Artilheiro)`,
+            assistLeader: `Garçom do ${resolvedCompName}`,
+            goldenGlove: `Luva de Ouro do ${resolvedCompName}`,
+            youngPlayer: `Revelação Sub-21 do ${resolvedCompName}`,
+          };
+
+      return {
+        compId: normCid,
+        compName: resolvedCompName,
+        isPrimary,
+        mvp: {
+          title: metaTitles.mvp,
+          winnerName: wonMvp ? userCandidate.name : (official?.mvp?.hasWinner ? official.mvp.winnerName : "A definir"),
+          winnerClub: wonMvp ? userClub : (official?.mvp?.hasWinner ? official.mvp.winnerClub : "—"),
+          isUser: wonMvp,
+          score: wonMvp ? uCompRating.toFixed(2) : (official?.mvp?.hasWinner ? Number(official.mvp.value || 7.5).toFixed(2) : "—"),
+        },
+        topScorer: {
+          title: metaTitles.topScorer,
+          winnerName: wonScorer ? userCandidate.name : (official?.topScorer?.hasWinner ? official.topScorer.winnerName : (topScorerRow?.name || "A definir")),
+          winnerClub: wonScorer ? userClub : (official?.topScorer?.hasWinner ? official.topScorer.winnerClub : (topScorerRow?.club || "—")),
+          isUser: wonScorer,
+          goals: wonScorer ? uCompGoals : (Number(official?.topScorer?.value ?? topScorerRow?.goals) || 0),
+        },
+        assistLeader: {
+          title: metaTitles.assistLeader,
+          winnerName: wonAssist ? userCandidate.name : (official?.assistLeader?.hasWinner ? official.assistLeader.winnerName : (topAssistRow?.name || "A definir")),
+          winnerClub: wonAssist ? userClub : (official?.assistLeader?.hasWinner ? official.assistLeader.winnerClub : (topAssistRow?.club || "—")),
+          isUser: wonAssist,
+          assists: wonAssist ? uCompAssists : (Number(official?.assistLeader?.value ?? topAssistRow?.assists) || 0),
+        },
+        goldenGlove: {
+          title: metaTitles.goldenGlove,
+          winnerName: wonGlove ? userCandidate.name : (official?.goldenGlove?.hasWinner ? official.goldenGlove.winnerName : (topGloveRow?.name || "A definir")),
+          winnerClub: wonGlove ? userClub : (official?.goldenGlove?.hasWinner ? official.goldenGlove.winnerClub : (topGloveRow?.club || "—")),
+          isUser: wonGlove,
+          cleanSheets: wonGlove ? uCompCs : (Number(official?.goldenGlove?.value ?? topGloveRow?.cleanSheets) || 0),
+        },
+        youngPlayer: {
+          title: metaTitles.youngPlayer,
+          winnerName: wonYoung ? userCandidate.name : (official?.youngPlayer?.hasWinner ? official.youngPlayer.winnerName : "A definir"),
+          winnerClub: wonYoung ? userClub : (official?.youngPlayer?.hasWinner ? official.youngPlayer.winnerClub : "—"),
+          isUser: wonYoung,
+          score: wonYoung ? uCompRating.toFixed(2) : (official?.youngPlayer?.hasWinner ? Number(official.youngPlayer.value || 7.2).toFixed(2) : "—"),
+        },
+      };
     };
+
+    const allCompetitionAwards = [...contestedCompIds].map((cid) => evaluateCompetitionPack(cid));
+    const leagueAwards = allCompetitionAwards.find((pack) => pack.isPrimary) || allCompetitionAwards[0];
+
+    const userWonLeagueTopScorer = allCompetitionAwards.some((p) => p.topScorer?.isUser);
+    const userWonLeagueAssists = allCompetitionAwards.some((p) => p.assistLeader?.isUser);
+    const userWonLeagueMvp = allCompetitionAwards.some((p) => p.mvp?.isUser);
+    const userWonLeagueCleanSheets = allCompetitionAwards.some((p) => p.goldenGlove?.isUser);
 
     // 5. VERIFICADOR DE RECORDES HISTÓRICOS DA COMPETIÇÃO
     gameState.competitionRecords = gameState.competitionRecords || {};
@@ -5423,75 +5564,108 @@
       );
     }
 
-    if (userWonLeagueMvp) {
-      wonAnyAward = true;
-      pState.individualAwards.push({
-        id: "league_mvp_" + targetSeason,
-        title: `Craque do ${userCompName} (MVP)`,
-        year: targetSeason,
-        icon: "🏅",
-        badge: "CRAQUE DO CAMPEONATO",
-        desc: `Eleito o melhor atleta da competição com média ${userAvgRating.toFixed(2)}!`,
-      });
-      if (athlete)
-        athlete.marketValueMi = Number(
-          ((athlete.marketValueMi || 0.5) * 1.15).toFixed(2),
-        );
-      pState.personality.virtuoso = (pState.personality.virtuoso || 40) + 25;
-      pState.clubVisibility = Math.max(pState.clubVisibility || 50, 80);
-    }
+    // Premiação Individual em TODAS as ligas e copas disputadas pelo atleta na temporada
+    allCompetitionAwards.forEach((pack) => {
+      const idSuffix = pack.isPrimary ? targetSeason : `${pack.compId}_${targetSeason}`;
+      const idPrefix = pack.isPrimary ? "league_" : "comp_";
 
-    if (userWonLeagueTopScorer) {
-      wonAnyAward = true;
-      pState.individualAwards.push({
-        id: "league_top_scorer_" + targetSeason,
-        title: `Bota de Ouro do ${userCompName}`,
-        year: targetSeason,
-        icon: "⚽",
-        badge: "ARTILHEIRO DA LIGA",
-        desc: `Artilheiro máximo da competição com ${userGoals} gols!`,
-      });
-      if (athlete)
-        athlete.marketValueMi = Number(
-          ((athlete.marketValueMi || 0.5) * 1.15).toFixed(2),
-        );
-      pState.personality.maverick = (pState.personality.maverick || 30) + 30;
-      pState.clubVisibility = Math.max(pState.clubVisibility || 50, 80);
-    }
+      if (pack.mvp?.isUser) {
+        wonAnyAward = true;
+        pState.individualAwards.push({
+          id: `${idPrefix}mvp_${idSuffix}`,
+          compId: pack.compId,
+          compName: pack.compName,
+          title: pack.mvp.title,
+          year: targetSeason,
+          icon: "🏅",
+          badge: "CRAQUE DA COMPETIÇÃO",
+          desc: `Eleito o melhor atleta de ${pack.compName} com média ${pack.mvp.score}!`,
+        });
+        if (athlete) {
+          athlete.marketValueMi = Number(((athlete.marketValueMi || 0.5) * 1.12).toFixed(2));
+        }
+        pState.xp = (pState.xp || 0) + 350;
+        pState.personality.virtuoso = (pState.personality.virtuoso || 40) + 25;
+        pState.clubVisibility = Math.max(pState.clubVisibility || 50, 82);
+        gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+        gameState.news.unshift(`🏅 ${pack.mvp.title.toUpperCase()}! ${userCandidate.name} é eleito o melhor jogador de ${pack.compName}!`);
+      }
 
-    if (userWonLeagueAssists) {
-      wonAnyAward = true;
-      pState.individualAwards.push({
-        id: "league_assists_" + targetSeason,
-        title: `Garçom do ${userCompName}`,
-        year: targetSeason,
-        icon: "🎯",
-        badge: "LÍDER DE ASSISTÊNCIAS",
-        desc: `Líder em passes decisivos da competição com ${userAssists} assistências!`,
-      });
-      pState.personality.heartbeat = (pState.personality.heartbeat || 30) + 30;
-      pState.relationships.teammatesRelation = Math.min(
-        100,
-        (pState.relationships.teammatesRelation || 75) + 15,
-      );
-    }
+      if (pack.topScorer?.isUser) {
+        wonAnyAward = true;
+        pState.individualAwards.push({
+          id: `${idPrefix}top_scorer_${idSuffix}`,
+          compId: pack.compId,
+          compName: pack.compName,
+          title: pack.topScorer.title,
+          year: targetSeason,
+          icon: "⚽",
+          badge: "ARTILHEIRO OFICIAL",
+          desc: `Artilheiro máximo de ${pack.compName} com ${pack.topScorer.goals} gols!`,
+        });
+        if (athlete) {
+          athlete.marketValueMi = Number(((athlete.marketValueMi || 0.5) * 1.12).toFixed(2));
+        }
+        pState.xp = (pState.xp || 0) + 300;
+        pState.personality.maverick = (pState.personality.maverick || 30) + 25;
+        pState.clubVisibility = Math.max(pState.clubVisibility || 50, 80);
+        gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+        gameState.news.unshift(`⚽ ${pack.topScorer.title.toUpperCase()}! ${userCandidate.name} conquista a artilharia de ${pack.compName} com ${pack.topScorer.goals} gols!`);
+      }
 
-    if (userWonLeagueCleanSheets) {
-      wonAnyAward = true;
-      pState.individualAwards.push({
-        id: "league_clean_sheets_" + targetSeason,
-        title: `Luva de Ouro / Muralha do ${userCompName}`,
-        year: targetSeason,
-        icon: "🧤",
-        badge: "PAREDÃO DO CAMPEONATO",
-        desc: `Defesa menos vazada com ${userCleanSheets} jogos sem sofrer gols!`,
-      });
-      pState.personality.heartbeat = (pState.personality.heartbeat || 30) + 30;
-      pState.relationships.teammatesRelation = Math.min(
-        100,
-        (pState.relationships.teammatesRelation || 75) + 15,
-      );
-    }
+      if (pack.assistLeader?.isUser) {
+        wonAnyAward = true;
+        pState.individualAwards.push({
+          id: `${idPrefix}assists_${idSuffix}`,
+          compId: pack.compId,
+          compName: pack.compName,
+          title: pack.assistLeader.title,
+          year: targetSeason,
+          icon: "🎯",
+          badge: "LÍDER DE ASSISTÊNCIAS",
+          desc: `Líder em passes decisivos de ${pack.compName} com ${pack.assistLeader.assists} assistências!`,
+        });
+        pState.xp = (pState.xp || 0) + 250;
+        pState.personality.heartbeat = (pState.personality.heartbeat || 30) + 25;
+        pState.relationships.teammatesRelation = Math.min(100, (pState.relationships.teammatesRelation || 75) + 12);
+        gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+        gameState.news.unshift(`🎯 ${pack.assistLeader.title.toUpperCase()}! ${userCandidate.name} termina como maior garçom de ${pack.compName} (${pack.assistLeader.assists} assist.)!`);
+      }
+
+      if (pack.goldenGlove?.isUser) {
+        wonAnyAward = true;
+        pState.individualAwards.push({
+          id: `${idPrefix}clean_sheets_${idSuffix}`,
+          compId: pack.compId,
+          compName: pack.compName,
+          title: pack.goldenGlove.title,
+          year: targetSeason,
+          icon: "🧤",
+          badge: "LUVA DE OURO",
+          desc: `Muralha defensiva de ${pack.compName} com ${pack.goldenGlove.cleanSheets} jogos sem sofrer gols!`,
+        });
+        pState.xp = (pState.xp || 0) + 250;
+        pState.personality.heartbeat = (pState.personality.heartbeat || 30) + 25;
+        pState.relationships.teammatesRelation = Math.min(100, (pState.relationships.teammatesRelation || 75) + 12);
+      }
+
+      if (pack.youngPlayer?.isUser) {
+        wonAnyAward = true;
+        pState.individualAwards.push({
+          id: `${idPrefix}young_${idSuffix}`,
+          compId: pack.compId,
+          compName: pack.compName,
+          title: pack.youngPlayer.title,
+          year: targetSeason,
+          icon: "🌟",
+          badge: "REVELAÇÃO SUB-21",
+          desc: `Eleito a grande revelação Sub-21 de ${pack.compName}!`,
+        });
+        pState.xp = (pState.xp || 0) + 250;
+        pState.personality.virtuoso = (pState.personality.virtuoso || 40) + 20;
+      }
+    });
+    normalizePlayerProgression(pState);
 
     if (recordsBroken.length > 0) wonAnyAward = true;
 
@@ -5548,6 +5722,7 @@
       goldenBootTop3: goldenBootTop3,
       goldenBoyTop3: goldenBoyTop3,
       leagueAwards: leagueAwards,
+      allCompetitionAwards: allCompetitionAwards,
       recordsBroken: recordsBroken,
       competitionRecords: gameState.competitionRecords[compKey],
       userCandidate: userCandidate,

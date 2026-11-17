@@ -63,5 +63,11 @@ Você é o engenheiro-chefe responsável pelo AFM Manager 2026/2027. Antes de al
     - `AFM_NATIONAL_TEAM.NATIONS_DB` é a Fonte Única de Verdade das 38 seleções nacionais (`NATIONAL_TEAMS_CATALOG` deriva diretamente de `NATIONS_DB`), mantendo técnicos atuais verificados (ex.: Brasil `Carlo Ancelotti`, França `Zinédine Zidane`, Portugal `Jorge Jesus`, Alemanha `Jürgen Klopp`, Itália `Roberto Mancini`, Holanda `Xavi Hernández`, Uruguai `Diego Forlán`, Equador `Marcelo Gallardo`, Suécia `Graham Potter`) e atualizando caches legados em `ensureNationalData(state)`.
     - `data/players_live.js` e `REAL_COACHES_DB` devem manter zero `tmId` duplicado, zero atleta repetido no mesmo clube, 100% de clubes mapeados em `CLUB_BADGES` e aprovação integral em `node scripts/audit-football-data.js` (`0 erros`).
 
+13. **ESTATÍSTICAS DARK NEON & TÍTULOS INDIVIDUAIS OFICIAIS EM TODAS AS LIGAS E COPAS:**
+    - Todas as abas de `seasonPage()` (`estadual`, `nacional` [Séries A/B/C/D + ligas internacionais de 10 a 36 clubes], `copadobrasil` e `continental` [Libertadores, Sul-Americana, Champions League, Europa League, AFC, Mundial FIFA]) DEVEM exibir tanto o painel de **Títulos Individuais Oficiais** (`computeCompetitionAwards`) quanto o widget **Dark Neon de Estatísticas** (`⚽ ARTILHARIA`, `🎯 ASSISTÊNCIAS`, `⭐ NOTA MÉDIA (MVP)`, `🧤 LUVA DE OURO`, `🟨 CARTÕES` + `VER RANKING COMPLETO (TOP 30)` com `data-comp-id` próprio).
+    - `syncCompetitionStatsComprehensive(compId)` é estritamente idempotente e respeita a **Regra Zero-Fabricação**: com `0` partidas disputadas na competição, exibe `"A definir"` / `"Nenhum dado registrado"`, nunca gols, notas ou clean sheets fictícios.
+    - No Modo Jogador, `processMatchPerformance` rastreia estatísticas por competição (`competitionStatsByComp[compId]`), a simulação rápida lê o placar e eventos reais de `state.history[0]`, `processEndOfSeasonAwards` premia conquistas individuais em **todas** as ligas e copas disputadas no ano (`league_*` e `comp_*`), e `calcBallonScore` pondera desempenho pelo prestígio internacional da competição (`compPrestigeFactor`). No Modo Treinador, `calculateSeasonAwards` usa os vencedores reais da competição e limita o bônus `+1 OVR` a uma vez por atleta por temporada.
+
+
 
 
