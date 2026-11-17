@@ -239,4 +239,68 @@ console.log('--- EXECUTANDO TESTES DE SETUP GUARD E PROTEÇÃO DE SAVES ---');
   console.log('✅ Teste 5: enterSetupCleanly isolou o ambiente de setup e pausou auto-saves.');
 }
 
-console.log('\n🎉 TODOS OS 5 TESTES DO SETUP GUARD E ISOLAMENTO DE SAVES PASSARAM COM SUCESSO!');
+// Test 6: Validação real em js/game.js e js/database.js contra reversão Jogador -> Treinador e cabeçalho do Setup
+{
+  const fs = require('fs');
+  const path = require('path');
+  const gameSrc = fs.readFileSync(path.join(__dirname, '../js/game.js'), 'utf8').replace(/\r\n/g, '\n');
+  const dbSrc = fs.readFileSync(path.join(__dirname, '../js/database.js'), 'utf8').replace(/\r\n/g, '\n');
+
+  // Extrai AFM_SETUP_GUARD e isPlayerCareerActive reais de js/game.js
+  const guardStart = gameSrc.indexOf('window.AFM_SETUP_GUARD = {');
+  const guardEnd = gameSrc.indexOf('window.migrateAndSanitizeSaveState =', guardStart);
+  assert(guardStart !== -1 && guardEnd > guardStart, 'AFM_SETUP_GUARD deve existir em js/game.js');
+  eval(gameSrc.slice(guardStart, guardEnd));
+
+  // 6a. enterSetupCleanly NÃO pode sobrescrever state.gameMode='player' com 'setup'
+  window.__afmSetupScreenActive = false;
+  window.state = { view: 'player_hub', gameMode: 'player', club: 'Gama' };
+  window.AFM_SETUP_GUARD.enterSetupCleanly();
+  assert.strictEqual(window.state.gameMode, 'player', 'enterSetupCleanly nunca pode destruir state.gameMode da carreira');
+  assert.strictEqual(window.__afmSetupScreenActive, true);
+
+  // 6b. Save de Modo Jogador com manager='Treinador da IA' (ex.: header da nuvem ou wrapper corrompido) NUNCA vira manager
+  const headerWithAiCoach = {
+    slot: 2,
+    club: 'Gama',
+    manager: 'Treinador da IA',
+    gameMode: 'manager', // simulando wrapper envenenado
+    balance: 1031740,
+    date: '2026-01-01'
+  };
+  assert.strictEqual(window.AFM_SETUP_GUARD.detectSaveMode(headerWithAiCoach), 'player', 'Save com Treinador da IA (sem retiredPlayerCareer) deve ser detectado como player');
+  assert.strictEqual(window.isPlayerCareerActive({ club: 'Gama', manager: 'Treinador da IA' }), true, 'isPlayerCareerActive deve proteger save com Treinador da IA');
+
+  const sanitizedPlayer = window.AFM_SETUP_GUARD.sanitizeLoadedSave({
+    club: 'Gama',
+    manager: 'Treinador da IA',
+    gameMode: 'manager',
+    playerCareerState: { athleteName: 'João' },
+    controlledPlayerId: 'pl_1'
+  }, 2);
+  assert.strictEqual(sanitizedPlayer.gameMode, 'player', 'sanitizeLoadedSave não pode converter save de Jogador com Treinador da IA para manager');
+  assert.ok(sanitizedPlayer.playerCareerState, 'playerCareerState não pode ser deletado quando manager é Treinador da IA');
+
+  // 6c. Ex-jogador aposentado que virou técnico com nome próprio e retiredPlayerCareer deve ser manager
+  const retiredPlayer = {
+    club: 'Gama',
+    manager: 'Aquino',
+    gameMode: 'manager',
+    retiredPlayerCareer: { athleteName: 'Aquino', games: 120 }
+  };
+  assert.strictEqual(window.AFM_SETUP_GUARD.detectSaveMode(retiredPlayer), 'manager', 'Ex-jogador aposentado convertido para treinador deve continuar manager');
+
+  // 6d. Cabeçalho do Setup não deve exibir '⚽ Treinador' nem 'Prof.' no chip do usuário
+  assert(!gameSrc.includes("?'🛡️ Admin':'⚽ Treinador'"), 'Setup header não pode fixar badge ⚽ Treinador no usuário');
+  assert(!gameSrc.includes('👤 Prof. ${esc(activeUser.name)}'), 'Setup header não pode prefixar Prof. no usuário');
+
+  // 6e. database.js (syncUser, restoreSaves, getSavedGameMode) preserva metadados do Modo Jogador e Treinador da IA
+  assert(dbSrc.includes("data?.manager === 'Treinador da IA'"), 'database.js getSavedGameMode deve reconhecer Treinador da IA');
+  assert(dbSrc.includes('gameMode: detectedEntryMode'), 'database.js syncUser deve gravar gameMode no entry de account.saves');
+  assert(dbSrc.includes('gameMode: detectedRowMode'), 'database.js restoreSaves deve gravar gameMode no entry de account.saves');
+  assert(gameSrc.includes('gameMode: detectedMode'), 'saveAndConfirmCloud deve incluir gameMode no saveEntry');
+
+  console.log('✅ Teste 6: Isolamento definitivo Jogador vs Treinador, database.js e setup header validados.');
+}
+
+console.log('\n🎉 TODOS OS 6 TESTES DO SETUP GUARD E ISOLAMENTO DE SAVES PASSARAM COM SUCESSO!');

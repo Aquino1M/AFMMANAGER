@@ -95,9 +95,14 @@
   2. window.isPlayerCareerActive(state) é a única fonte de verdade para diferenciar Modo Atleta e Modo Treinador. No Modo Atleta, renderCentral() e views exclusivas de treinador são estritamente proibidas.
   3. A navegação por [data-view] deve usar delegação global em document (fase de captura), e window.render() deve sempre usar try/catch/finally resetando travas de renderização para que as abas jamais fiquem inclicáveis.
 - REGRA IRRESTRITA DA TELA INICIAL, MODOS E SLOTS DE SAVE (ANTI-CONFLITO):
-  1. Ao entrar na tela inicial (`.setup-container`), o jogo deve pausar auto-saves (`window.__afmAutoSavePaused = true`) e marcar `#app` com `data-rendered-game-mode="setup"`.
+  1. Ao entrar na tela inicial (`.setup-container`), o jogo deve pausar auto-saves (`window.__afmAutoSavePaused = true`), ativar `window.__afmSetupScreenActive = true` e marcar `#app` com `data-rendered-game-mode="setup"`, **sem jamais sobrescrever `state.gameMode` para `'setup'`** em uma carreira carregada.
   2. Toda nova carreira (Treinador, Carreira Jogador ou Criar Seu Time) deve selecionar automaticamente um slot vazio por padrão, pedir confirmação explícita caso o jogador escolha um slot ocupado, e inicializar um objeto `state` 100% limpo sem resíduos de campanhas anteriores.
   3. Todo carregamento de save (local, arquivo JSON ou nuvem Supabase) deve passar obrigatoriamente por `AFM_SETUP_GUARD.sanitizeLoadedSave()` com deep-clone antes do primeiro `render()`, garantindo que um save de Treinador jamais abra no Modo Jogador e vice-versa.
+  4. **Blindagem Definitiva de Identificação do Modo Jogador vs Treinador:**
+     - O cabeçalho da conta na tela inicial (`renderSetup`) NÃO deve exibir os rótulos `'Prof.'` nem `'⚽ Treinador'` (pois a plataforma possui ambos os modos: Jogador e Treinador).
+     - `AFM_SETUP_GUARD.detectSaveMode()`, `getSaveGameMode()`, `isPlayerCareerActive()` e `AFM_DB.getSavedGameMode()` devem considerar `manager === 'Treinador da IA'`, `coachName === 'Treinador da IA'` e `aiCoachControlled === true` (quando não houver `retiredPlayerCareer`) como assinatura exclusiva do Modo Jogador, mesmo que um cabeçalho reduzido ou wrapper legado traga `gameMode: 'manager'` ou sem `playerCareerState`.
+     - `save()`, `saveAndConfirmCloud()`, `database.js` (`syncUser`, `restoreSaves`) e `account.saves` DEVEM sempre gravar e preservar `gameMode`, `isPlayerMode`, `aiCoachControlled`, `controlledPlayerId` e `playerCareerState` no resumo do slot. Limpeza de cópias locais (`cleanupConfirmedLocalSaveCopies` e `syncUser`) só pode remover chaves redundantes após confirmar a gravação da cópia principal.
+     - Cards de slot do Modo Jogador jamais exibem `👔 Prof. Treinador da IA` ou `Orçamento`.
 - REGRA IRRESTRITA ESPECIAL — LAYOUT DE CLÁSSICOS, DATAS ÚNICAS E FILTROS NO CALENDÁRIO:
   1. POSICIONAMENTO E BLINDAGEM DA TAG DE CLÁSSICO (`.calendar-derby-badge`):
      - É PROIBIDO renderizar a tag `🔥 CLÁSSICO (+50% XP)` dentro da coluna estreita de data (`120px`) de `.calendar-card`.

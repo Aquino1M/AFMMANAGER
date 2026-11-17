@@ -153,7 +153,7 @@ const isPlayerModeNow = (s) => (typeof window.isPlayerCareerActive === 'function
 window.AFM_SETUP_GUARD = {
   isSetupActive: function() {
     const curState = (typeof state !== 'undefined' && state) || (typeof window !== 'undefined' && window.state);
-    if (curState && curState.club && curState.view && curState.view !== 'setup') {
+    if (curState && curState.club && curState.view && curState.view !== 'setup' && !window.__afmSetupScreenActive) {
       return false;
     }
     const appEl = (typeof document !== 'undefined') ? (document.getElementById("app") || document.querySelector('#app')) : null;
@@ -161,13 +161,15 @@ window.AFM_SETUP_GUARD = {
       return true;
     }
     return Boolean(
+      window.__afmSetupScreenActive ||
       (typeof document !== 'undefined' && document.querySelector(".setup-container")) ||
-      (curState && (curState.view === "setup" || curState.gameMode === "setup"))
+      (curState && curState.view === "setup")
     );
   },
 
   enterSetupCleanly: function() {
     window.__afmAutoSavePaused = true;
+    window.__afmSetupScreenActive = true;
     window.__afmIsRendering = false;
     const app = typeof document !== 'undefined' ? (document.getElementById("app") || document.querySelector?.("#app")) : null;
     if (app) {
@@ -179,39 +181,55 @@ window.AFM_SETUP_GUARD = {
         app.dataset.renderedView = "setup";
       }
     }
+    // REGRA INVIOLÁVEL: Nunca mutar state.gameMode para 'setup' em uma carreira carregada
+    // para impedir que um save de Modo Jogador perca seu gameMode ao voltar ao menu.
     if (typeof state !== 'undefined' && state) {
       state.view = "setup";
-      state.gameMode = "setup";
     }
     if (typeof window !== 'undefined' && window.state) {
       window.state.view = "setup";
-      window.state.gameMode = "setup";
     }
   },
 
   detectSaveMode: function(saveData) {
     if (!saveData || typeof saveData !== "object") return "manager";
     const data = saveData.data && typeof saveData.data === "object" ? saveData.data : saveData;
+    const isRetiredToManager = Boolean(data.retiredPlayerCareer || saveData.retiredPlayerCareer);
+    const hasAiCoachMarker = !isRetiredToManager && Boolean(
+      saveData.aiCoachControlled === true ||
+      data.aiCoachControlled === true ||
+      saveData.manager === "Treinador da IA" ||
+      saveData.coachName === "Treinador da IA" ||
+      saveData.coach?.name === "Treinador da IA" ||
+      data.manager === "Treinador da IA" ||
+      data.coachName === "Treinador da IA" ||
+      data.coach?.name === "Treinador da IA"
+    );
 
-    // Regra AGENTS.md: gameMode persistido é a autoridade; use isPlayerMode/campos legados só quando ele faltar
-    if (saveData.gameMode === "player" || data.gameMode === "player") return "player";
+    // Marcadores positivos de Modo Jogador têm prioridade absoluta sobre qualquer wrapper corrompido
+    if (
+      saveData.gameMode === "player" ||
+      data.gameMode === "player" ||
+      saveData.mode === "player" ||
+      data.mode === "player" ||
+      saveData.isPlayerMode === true ||
+      data.isPlayerMode === true ||
+      saveData.playerCareer?.active ||
+      data.playerCareer?.active ||
+      saveData.player?.isUserPlayer ||
+      data.player?.isUserPlayer ||
+      hasAiCoachMarker
+    ) {
+      return "player";
+    }
+
     if (saveData.gameMode === "manager" || data.gameMode === "manager") return "manager";
 
     const isPlayer = Boolean(
-      saveData.playerCareer?.active ||
-      saveData.player?.isUserPlayer ||
-      saveData.mode === "player" ||
-      saveData.isPlayerMode === true ||
       saveData.playerCareerState ||
       saveData.controlledPlayerId ||
-      data.playerCareer?.active ||
-      data.player?.isUserPlayer ||
-      data.mode === "player" ||
-      data.isPlayerMode === true ||
       data.playerCareerState ||
-      data.controlledPlayerId ||
-      ((data.coach?.name === "Treinador da IA" || data.coachName === "Treinador da IA" || data.manager === "Treinador da IA") &&
-       (data.player || data.playerCareerState || data.controlledPlayerId))
+      data.controlledPlayerId
     );
     return isPlayer ? "player" : "manager";
   },
@@ -306,6 +324,13 @@ window.AFM_SETUP_GUARD = {
 window.isPlayerCareerActive = function(st) {
   const targetState = st || (typeof window !== 'undefined' && window.state ? window.state : (typeof state !== 'undefined' && state ? state : null));
   if (!targetState || typeof targetState !== 'object') return false;
+  const isRetired = Boolean(targetState.retiredPlayerCareer);
+  const hasAiCoachMarker = !isRetired && Boolean(
+    targetState.aiCoachControlled === true ||
+    targetState.manager === "Treinador da IA" ||
+    targetState.coachName === "Treinador da IA" ||
+    targetState.coach?.name === "Treinador da IA"
+  );
   const hasPlayerObj = Boolean(
     targetState.playerCareer?.active ||
     targetState.player?.isUserPlayer ||
@@ -314,8 +339,7 @@ window.isPlayerCareerActive = function(st) {
     targetState.gameMode === "player" ||
     targetState.mode === "player" ||
     targetState.isPlayerMode === true ||
-    ((targetState.coach?.name === "Treinador da IA" || targetState.coachName === "Treinador da IA" || targetState.manager === "Treinador da IA") &&
-     (targetState.player || targetState.playerCareerState || targetState.controlledPlayerId))
+    hasAiCoachMarker
   );
   if (hasPlayerObj) {
     targetState.gameMode = "player";
@@ -9400,13 +9424,29 @@ function parseSaveTimestamp(val){
 window.parseSaveTimestamp = parseSaveTimestamp;
 
 function getSaveGameMode(entry){
+  if(!entry || typeof entry !== 'object') return null;
+  if(window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.detectSaveMode === 'function'){
+    const data = entry?.data && typeof entry.data === 'object' ? entry.data : entry;
+    const hasExplicitMode = Boolean(
+      entry.gameMode === 'player' || entry.gameMode === 'manager' ||
+      data.gameMode === 'player' || data.gameMode === 'manager' ||
+      typeof entry.isPlayerMode === 'boolean' || typeof data.isPlayerMode === 'boolean' ||
+      data.playerCareerState || data.controlledPlayerId || entry.playerCareerState || entry.controlledPlayerId ||
+      data.playerCareer?.active || entry.playerCareer?.active ||
+      data.player?.isUserPlayer || entry.player?.isUserPlayer ||
+      data.aiCoachControlled === true || entry.aiCoachControlled === true ||
+      data.manager === 'Treinador da IA' || entry.manager === 'Treinador da IA' ||
+      data.coachName === 'Treinador da IA' || entry.coachName === 'Treinador da IA'
+    );
+    if(hasExplicitMode) return window.AFM_SETUP_GUARD.detectSaveMode(entry);
+  }
   const data = entry?.data && typeof entry.data === 'object' ? entry.data : entry;
   if(typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(data)) return 'player';
   if(data?.gameMode === 'player' || data?.gameMode === 'manager') return data.gameMode;
   if(typeof data?.isPlayerMode === 'boolean') return data.isPlayerMode ? 'player' : 'manager';
   if(entry?.gameMode === 'player' || entry?.gameMode === 'manager') return entry.gameMode;
   if(typeof entry?.isPlayerMode === 'boolean') return entry.isPlayerMode ? 'player' : 'manager';
-  return data?.playerCareerState || data?.controlledPlayerId || entry?.playerCareerState || entry?.controlledPlayerId ? 'player' : null;
+  return (data?.playerCareerState || data?.controlledPlayerId || entry?.playerCareerState || entry?.controlledPlayerId || entry?.manager === 'Treinador da IA' || data?.manager === 'Treinador da IA') ? 'player' : null;
 }
 window.getSaveGameMode = getSaveGameMode;
 
@@ -9534,8 +9574,12 @@ async function activateAuthenticatedUser(user){
     activeSlot = Number(newestSave?.slot) || 0;
   }
   if(synced.ok && activeSlot >= 1 && activeSlot <= 3){
+    const setupActiveNow = (typeof window !== 'undefined' && (window.__afmSetupScreenActive || setupViewMode === 'create_player' || setupViewMode === 'create_club'));
+    const hasCurrentCareer = Boolean((typeof state !== 'undefined' && state?.club && !window.__afmSetupScreenActive) || (typeof window !== 'undefined' && window.state?.club && !window.__afmSetupScreenActive));
     rememberActiveSaveSlot(userIdentifier, activeSlot);
-    loadUserSlot(activeSlot, userIdentifier);
+    if(!setupActiveNow && !hasCurrentCareer){
+      loadUserSlot(activeSlot, userIdentifier);
+    }
   }
   // syncUser já compara os saves locais com os remotos e importa o mais recente.
   // Não reenviar todos os slots aqui: isso pode sobrescrever uma versão remota nova
@@ -9617,8 +9661,12 @@ function getUserSaveSlots(username){
         if(parsed && parsed.club && (!parsed.owner || parsed.owner.toLowerCase() === cleanU || parsed.owner.toLowerCase() === 'local' || cleanU === 'aquino')){
           const existingTime = parseSaveTimestamp(s?.updatedAt || '');
           const sharedTime = parseSaveTimestamp(parsed.updatedAt || '');
-          const modesMatch = !s || !getSaveGameMode(s) || !getSaveGameMode(parsed) || getSaveGameMode(s) === getSaveGameMode(parsed);
-          if(modesMatch && (!s || (!s.data && !s.club) || (sharedTime > existingTime))){
+          const sHasData = Boolean(s?.data && (s.data.squad || s.data.club));
+          const parsedHasData = Boolean((parsed.data && parsed.data.squad) || parsed.squad);
+          const sMode = sHasData ? getSaveGameMode(s) : null;
+          const pMode = getSaveGameMode(parsed);
+          const modesMatch = !sHasData || !sMode || !pMode || sMode === pMode;
+          if(modesMatch && (!s || !sHasData || (parsedHasData && sharedTime >= existingTime) || (sharedTime > existingTime))){
             s = s ? { ...s, ...parsed } : parsed;
           }
         }
@@ -9671,27 +9719,24 @@ function getUserSaveSlots(username){
 
     // 4. REGRA INVIOLÁVEL: Identificação e Preservação Exclusiva do Modo Jogador
     if(s){
-      const isPlayerSave = Boolean(
-        s.gameMode === 'player' ||
-        s.isPlayerMode ||
-        s.playerCareerState ||
-        s.controlledPlayerId ||
-        s.data?.gameMode === 'player' ||
-        s.data?.playerCareerState ||
-        s.data?.controlledPlayerId
-      );
+      const detectedSlotMode = (window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.detectSaveMode === 'function')
+        ? window.AFM_SETUP_GUARD.detectSaveMode(s)
+        : (getSaveGameMode(s) || 'manager');
+      const isPlayerSave = detectedSlotMode === 'player';
       if(isPlayerSave){
         s.gameMode = 'player';
+        s.mode = 'player';
         s.isPlayerMode = true;
         if(!s.playerCareerState && s.data?.playerCareerState){
           s.playerCareerState = clone(s.data.playerCareerState);
         }
-        s.manager = s.coachName || s.data?.coachName || 'Treinador da IA';
+        s.manager = s.coachName || s.data?.coachName || s.manager || 'Treinador da IA';
         if(!s.controlledPlayerId && s.data?.controlledPlayerId){
           s.controlledPlayerId = s.data.controlledPlayerId;
         }
       } else {
         s.gameMode = 'manager';
+        s.mode = 'manager';
         s.isPlayerMode = false;
       }
     }
@@ -9749,16 +9794,19 @@ function cleanupConfirmedLocalSaveCopies(username, slotNum, saveEntry, entryStr)
     `afm2027_individual_save_slot_${slot}_backup`
   ];
   if(slot === 1) candidates.push('aquino_futebol_manager_2026_v1');
+  try {
+    // Grava primeiro na chave canônica; se falhar por cota, NÃO apaga as cópias redundantes existentes
+    localStorage.setItem(`afm_save_slot_${slot}`, entryStr);
+  } catch(e){
+    return false;
+  }
   candidates.forEach(key => {
     try {
       const raw = localStorage.getItem(key);
       if(raw && belongsToOwner(raw)) localStorage.removeItem(key);
     } catch(e){}
   });
-  try {
-    localStorage.setItem(`afm_save_slot_${slot}`, entryStr);
-    return true;
-  } catch(e){ return false; }
+  return true;
 }
 
 function rememberActiveSaveSlot(username, slotNum){
@@ -9830,6 +9878,8 @@ function save(options = {}){
     club: state.club,
     gameMode: state.gameMode,
     isPlayerMode: isPlayerMode,
+    aiCoachControlled: isPlayerMode ? true : false,
+    playerCareer: isPlayerMode ? { active: true } : null,
     playerCareerState: isPlayerMode ? {
       athleteName: athleteName,
       position: athletePos,
@@ -10033,10 +10083,25 @@ async function saveAndConfirmCloud(){
 
   if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
     try {
+      const detectedMode = getSaveGameMode(state) || 'manager';
+      const isPlayerMode = detectedMode === 'player';
+      state.gameMode = detectedMode;
+      state.isPlayerMode = isPlayerMode;
+      const pState = state.playerCareerState || {};
+      const athletePlayer = isPlayerMode ? ((state.squad || []).find(p => p.id === state.controlledPlayerId) || null) : null;
       const saveEntry = {
         slot: slotNum,
         club: state.club,
-        manager: state.manager || 'Treinador',
+        gameMode: detectedMode,
+        isPlayerMode,
+        aiCoachControlled: isPlayerMode,
+        controlledPlayerId: state.controlledPlayerId || null,
+        playerCareerState: isPlayerMode ? {
+          athleteName: pState.athleteName || athletePlayer?.name || 'Atleta',
+          position: pState.position || athletePlayer?.pos || 'ATA',
+          personalBank: Number(pState.personalBank || 0)
+        } : null,
+        manager: isPlayerMode ? (state.coachName || 'Treinador da IA') : (state.manager || 'Treinador'),
         season: state.season || 2026,
         round: state.round || 0,
         balance: state.balance || 0,
@@ -10174,6 +10239,7 @@ function loadUserSlot(slotNum, ownerUsername = null){
   state.userOwner = username;
   if(typeof window !== 'undefined'){
     window.__afmAutoSavePaused = false;
+    window.__afmSetupScreenActive = false;
     window.state = state;
   }
   if(typeof window.migrateAndSanitizeSaveState === 'function'){
@@ -16672,6 +16738,7 @@ function newCareer(data){
   ensureTvBroadcastContract(state);
   if(typeof window !== 'undefined'){
     window.__afmAutoSavePaused = false;
+    window.__afmSetupScreenActive = false;
     window.state = state;
   }
   if(!data.deferInitialSave) save({ allowModeReplace: true });
@@ -42326,7 +42393,7 @@ function renderSetup(app){
 
   try {
     const rawActiveUser = getActiveAccount();
-    const activeUser = rawActiveUser || { username: 'treinador', name: 'Treinador', role: 'player' };
+    const activeUser = rawActiveUser || { username: 'visitante', name: 'Conta', role: 'player' };
 
     // Regra: O jogador só entra no jogo (saves e times) após efetuar login
     if(!rawActiveUser && (setupViewMode === 'select' || setupViewMode === 'create_club' || setupViewMode === 'create_player')){
@@ -43354,10 +43421,8 @@ function renderSetup(app){
           </button>
           ${rawActiveUser ? `
             <span class="pill" style="background:rgba(255,255,255,0.08);color:#fff;padding:6px 14px;font-weight:800;border:1px solid rgba(255,255,255,0.12)">
-              👤 Prof. ${esc(activeUser.name)} <span class="muted">(@${esc(activeUser.username)})</span>
-              <span class="pill ${activeUser.role==='admin' && activeUser.username.toLowerCase()==='admin'?'good':'muted'}" style="font-size:10px;margin-left:6px">
-                ${activeUser.role==='admin' && activeUser.username.toLowerCase()==='admin'?'🛡️ Admin':'⚽ Treinador'}
-              </span>
+              👤 ${esc(activeUser.name)} <span class="muted">(@${esc(activeUser.username)})</span>
+              ${activeUser.role==='admin' && activeUser.username.toLowerCase()==='admin' ? `<span class="pill good" style="font-size:10px;margin-left:6px">🛡️ Admin</span>` : ''}
             </span>
             ${activeUser.role==='admin' && activeUser.username.toLowerCase()==='admin' ? `
               <button class="btn primary" id="btnOpenAdminPanelFromTop" style="padding:7px 14px;font-size:12px;font-weight:900">
@@ -43403,19 +43468,15 @@ function renderSetup(app){
           ${[1, 2, 3].map(slotNum => {
             const s = userSlots[slotNum - 1];
             if(s){
-              const isPlayerSave = Boolean(
-                s.gameMode === 'player' ||
-                s.isPlayerMode ||
-                s.playerCareerState ||
-                s.controlledPlayerId ||
-                s.data?.gameMode === 'player' ||
-                s.data?.playerCareerState ||
-                s.data?.controlledPlayerId
-              );
+              const detectedCardMode = (window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.detectSaveMode === 'function')
+                ? window.AFM_SETUP_GUARD.detectSaveMode(s)
+                : (getSaveGameMode(s) || 'manager');
+              const isPlayerSave = detectedCardMode === 'player';
               const pCareer = s.playerCareerState || s.data?.playerCareerState || {};
-              const athleteName = pCareer.athleteName || (s.manager && s.manager.includes('(') ? s.manager.split('(')[0].trim() : s.manager) || 'Craque';
-              const athletePos = pCareer.position || (s.manager && s.manager.includes('(') ? (s.manager.match(/\(([^)]+)\)/)?.[1] || 'ATA') : 'ATA');
-              const athletePersonalBank = Number(pCareer.personalBank || 0);
+              const rawAthleteName = pCareer.athleteName || s.player?.name || s.data?.player?.name || (s.manager && s.manager !== 'Treinador da IA' ? (s.manager.includes('(') ? s.manager.split('(')[0].trim() : s.manager) : '');
+              const athleteName = rawAthleteName || 'Carreira Jogador';
+              const athletePos = pCareer.position || s.player?.pos || s.data?.player?.pos || (s.manager && s.manager.includes('(') ? (s.manager.match(/\(([^)]+)\)/)?.[1] || 'ATA') : 'ATA');
+              const athletePersonalBank = Number(pCareer.personalBank ?? s.player?.cash ?? s.data?.player?.cash ?? 0);
               const isLastActive = (slotNum === lastActiveSlot);
               return `
                 <div class="save-slot-card active-save" style="${isPlayerSave ? 'border-color:#10b981;box-shadow:0 0 18px rgba(16,185,129,0.2);' : ''}">
@@ -43436,7 +43497,7 @@ function renderSetup(app){
                           ${esc(clubDisplayName(s.club))}
                         </div>
                         <div style="font-size:12px;font-weight:800;color:${isPlayerSave ? '#38bdf8' : '#a855f7'}">
-                          ${isPlayerSave ? `⚽ Atleta: ${esc(athleteName)} (${esc(athletePos)})` : `👔 Prof. ${esc(s.manager)}`}
+                          ${isPlayerSave ? (rawAthleteName ? `⚽ Atleta: ${esc(athleteName)} (${esc(athletePos)})` : '⚽ Carreira Modo Jogador') : `👔 Prof. ${esc(s.manager)}`}
                         </div>
                       </div>
                     </div>

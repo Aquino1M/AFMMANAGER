@@ -2065,12 +2065,17 @@
 
     // 2. Define o modo de jogo como 'player' e sincroniza o slot selecionado
     s.gameMode = "player";
+    s.mode = "player";
     s.isPlayerMode = true;
+    s.playerCareer = Object.assign({ active: true }, s.playerCareer || {});
     s.userSlot = targetSlot ? Number(targetSlot) : s.userSlot || 1;
     s.aiCoachControlled = true; // O time do jogador é gerido pela IA do treinador
     if (typeof window !== "undefined") {
+      window.__afmSetupScreenActive = false;
+      window.__afmAutoSavePaused = false;
       if (typeof window.setState === "function") window.setState(s);
       else window.state = s;
+      window.GameState = s;
     }
 
     // 3. Monta os atributos finais aplicando modificadores de corpo e pontos distribuídos
@@ -3716,6 +3721,9 @@
 
     // Limpeza de variáveis residuais do Modo Jogador para evitar qualquer NaN ou tela preta
     delete gameState.controlledPlayerId;
+    delete gameState.aiCoachControlled;
+    delete gameState.playerCareer;
+    delete gameState.player;
     gameState.retiredPlayerCareer = pState;
     delete gameState.playerCareerState;
 

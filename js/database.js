@@ -448,6 +448,9 @@ const AFM_DB = (function(){
     if(!cli) return { ok: false, localOnly: true, error: 'Supabase indisponível ou não configurado.' };
 
     try {
+      const incomingMode = getSavedGameMode(state) || 'manager';
+      state.gameMode = incomingMode;
+      state.isPlayerMode = (incomingMode === 'player');
       if(options.allowModeReplace !== true){
         let timeoutId;
         const timeoutP = new Promise((_, reject) => { timeoutId = setTimeout(() => reject(new Error('Timeout ao validar o modo do save na nuvem.')), 5000); });
@@ -458,7 +461,6 @@ const AFM_DB = (function(){
         } finally { clearTimeout(timeoutId); }
         const { data: existing, error: readError } = existingResult;
         if(readError) throw readError;
-        const incomingMode = getSavedGameMode(state) || 'manager';
         const existingMode = existing ? (getSavedGameMode(existing.save_data) || 'manager') : null;
         if(existingMode && existingMode !== incomingMode){
           return { ok: false, localOnly: true, modeConflict: true, error: 'O slot da nuvem pertence a outro modo de carreira. Inicie uma nova carreira no slot para substituí-lo.' };
@@ -576,10 +578,33 @@ const AFM_DB = (function(){
   }
 
   function getSavedGameMode(entry){
+    if(!entry || typeof entry !== 'object') return null;
     const data = entry?.data && typeof entry.data === 'object' ? entry.data : entry;
-    if(data?.gameMode === 'player' || data?.gameMode === 'manager') return data.gameMode;
+    const isRetired = Boolean(data?.retiredPlayerCareer || entry?.retiredPlayerCareer);
+    const hasAiCoachMarker = !isRetired && Boolean(
+      data?.aiCoachControlled === true ||
+      entry?.aiCoachControlled === true ||
+      data?.manager === 'Treinador da IA' ||
+      entry?.manager === 'Treinador da IA' ||
+      data?.coachName === 'Treinador da IA' ||
+      entry?.coachName === 'Treinador da IA' ||
+      data?.coach?.name === 'Treinador da IA'
+    );
+    if(
+      data?.gameMode === 'player' ||
+      entry?.gameMode === 'player' ||
+      data?.mode === 'player' ||
+      entry?.mode === 'player' ||
+      data?.isPlayerMode === true ||
+      entry?.isPlayerMode === true ||
+      data?.playerCareer?.active ||
+      entry?.playerCareer?.active ||
+      data?.player?.isUserPlayer ||
+      entry?.player?.isUserPlayer ||
+      hasAiCoachMarker
+    ) return 'player';
+    if(data?.gameMode === 'manager' || entry?.gameMode === 'manager') return 'manager';
     if(typeof data?.isPlayerMode === 'boolean') return data.isPlayerMode ? 'player' : 'manager';
-    if(entry?.gameMode === 'player' || entry?.gameMode === 'manager') return entry.gameMode;
     if(typeof entry?.isPlayerMode === 'boolean') return entry.isPlayerMode ? 'player' : 'manager';
     return data?.playerCareerState || data?.controlledPlayerId || entry?.playerCareerState || entry?.controlledPlayerId ? 'player' : null;
   }
@@ -645,13 +670,27 @@ const AFM_DB = (function(){
           continue;
         }
 
+        const cloudSaveObj = row.save_data || {};
+        const detectedEntryMode = cloudMode || getSavedGameMode({ manager: row.manager, ...cloudSaveObj }) || 'manager';
+        const isPlayerRow = detectedEntryMode === 'player';
+        const pCareerRow = cloudSaveObj.playerCareerState || null;
         const entry = {
           slot,
           id: `save_${cleanUser}_slot${slot}_${row.club}`,
           owner: cleanUser,
           club: row.club,
-          manager: row.manager,
+          gameMode: detectedEntryMode,
+          isPlayerMode: isPlayerRow,
+          aiCoachControlled: isPlayerRow,
+          controlledPlayerId: cloudSaveObj.controlledPlayerId || null,
+          playerCareerState: isPlayerRow && pCareerRow ? {
+            athleteName: pCareerRow.athleteName,
+            position: pCareerRow.position,
+            personalBank: Number(pCareerRow.personalBank || 0)
+          } : null,
+          manager: isPlayerRow ? (cloudSaveObj.coachName || row.manager || 'Treinador da IA') : row.manager,
           season: row.season,
+          date: cloudSaveObj.date || '2026-01-01',
           round: row.round,
           balance: row.balance,
           updatedAt: row.updated_at || new Date().toISOString(),
@@ -671,22 +710,49 @@ const AFM_DB = (function(){
         const shared = sharedRaw ? JSON.parse(sharedRaw) : null;
         const sharedOwner = String(shared?.owner || shared?.data?.userOwner || '').trim().toLowerCase();
         const sharedAvailable = !shared || !sharedOwner || sharedOwner === cleanUser;
-        // A cloud-confirmed row is the recovery copy; discard only this user's redundant copies.
-        for(const key of [
-          `afm_save_${cleanUser}_slot_${slot}`,
-          `afm_save_${cleanUser}_slot_${slot}_backup`,
-          `afm_save_slot_${slot}_backup`,
-          `afm2027_individual_save_slot_${slot}`,
-          `afm2027_individual_save_slot_${slot}_backup`,
-          ...(slot === 1 ? ['aquino_futebol_manager_2026_v1'] : [])
-        ]){
-          try {
-            const raw = localStorage.getItem(key);
-            if(raw && (key.startsWith(`afm_save_${cleanUser}_`) || ownedByUser(raw))) localStorage.removeItem(key);
-          } catch(e){}
-        }
         // Keep one full local copy so tight browser quotas don't abort cloud recovery.
-        localStorage.setItem(sharedAvailable ? sharedKey : `afm_save_${cleanUser}_slot_${slot}`, entryJson);
+        const targetLocalKey = sharedAvailable ? sharedKey : `afm_save_${cleanUser}_slot_${slot}`;
+        let wroteLocalCopy = false;
+        try {
+          localStorage.setItem(targetLocalKey, entryJson);
+          wroteLocalCopy = true;
+        } catch(quotaErr){
+          // Só descarta cópias redundantes para liberar espaço se a primeira tentativa falhou
+          for(const key of [
+            `afm_save_${cleanUser}_slot_${slot}`,
+            `afm_save_${cleanUser}_slot_${slot}_backup`,
+            `afm_save_slot_${slot}_backup`,
+            `afm2027_individual_save_slot_${slot}`,
+            `afm2027_individual_save_slot_${slot}_backup`,
+            ...(slot === 1 ? ['aquino_futebol_manager_2026_v1'] : [])
+          ]){
+            if(key === targetLocalKey) continue;
+            try {
+              const raw = localStorage.getItem(key);
+              if(raw && (key.startsWith(`afm_save_${cleanUser}_`) || ownedByUser(raw))) localStorage.removeItem(key);
+            } catch(e){}
+          }
+          try {
+            localStorage.setItem(targetLocalKey, entryJson);
+            wroteLocalCopy = true;
+          } catch(e2){}
+        }
+        if(wroteLocalCopy){
+          for(const key of [
+            `afm_save_${cleanUser}_slot_${slot}`,
+            `afm_save_${cleanUser}_slot_${slot}_backup`,
+            `afm_save_slot_${slot}_backup`,
+            `afm2027_individual_save_slot_${slot}`,
+            `afm2027_individual_save_slot_${slot}_backup`,
+            ...(slot === 1 ? ['aquino_futebol_manager_2026_v1'] : [])
+          ]){
+            if(key === targetLocalKey) continue;
+            try {
+              const raw = localStorage.getItem(key);
+              if(raw && (key.startsWith(`afm_save_${cleanUser}_`) || ownedByUser(raw))) localStorage.removeItem(key);
+            } catch(e){}
+          }
+        }
         if(idx < 0) account.saves.push({ ...entry, data: undefined });
         else account.saves[idx] = { ...entry, data: undefined };
         pulledFromCloud++;
@@ -847,13 +913,27 @@ const AFM_DB = (function(){
 
       for(const row of saves){
         const slot = Number(row.slot) || 1;
+        const rowData = row.save_data || {};
+        const detectedRowMode = getSavedGameMode({ manager: row.manager, ...rowData }) || 'manager';
+        const isPlayerRow = detectedRowMode === 'player';
+        const pCareerRow = rowData.playerCareerState || null;
         const entry = {
           slot,
           id: `save_${cleanUser}_slot${slot}_${row.club}`,
           owner: cleanUser,
           club: row.club,
-          manager: row.manager || 'Treinador',
+          gameMode: detectedRowMode,
+          isPlayerMode: isPlayerRow,
+          aiCoachControlled: isPlayerRow,
+          controlledPlayerId: rowData.controlledPlayerId || null,
+          playerCareerState: isPlayerRow && pCareerRow ? {
+            athleteName: pCareerRow.athleteName,
+            position: pCareerRow.position,
+            personalBank: Number(pCareerRow.personalBank || 0)
+          } : null,
+          manager: isPlayerRow ? (rowData.coachName || row.manager || 'Treinador da IA') : (row.manager || 'Treinador'),
           season: Number(row.season) || 2026,
+          date: rowData.date || '2026-01-01',
           round: Number(row.round) || 0,
           balance: Number(row.balance) || 0,
           updatedAt: row.updated_at || new Date().toISOString(),

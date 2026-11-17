@@ -2216,6 +2216,7 @@
       else window.setupViewMode = null;
       if (typeof setupViewMode !== 'undefined') setupViewMode = null;
       window.__afmAutoSavePaused = false;
+      window.__afmSetupScreenActive = false;
 
       // 2. Remove o container do criador do DOM imediatamente
       const appEl = container || document.querySelector('#app');

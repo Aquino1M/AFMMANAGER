@@ -49,4 +49,10 @@ Você é o engenheiro-chefe responsável pelo AFM Manager 2026/2027. Antes de al
    - Proibido anexar `.onclick` em `.btnBuyProp`, `.btnBuyBiz` ou `.btnBuyVeh` quando `window.AFMCareerFix` estiver ativo — apenas a delegação única no `document` executa compras/vendas e sincroniza arrays legados de `managerPersonal`.
    - Toda operação em `Pregão SAF`, `Mesa P2P`, `Ordens P2P em Escrow`, `Cotas do Clube` e virada mensal DEVE invocar `syncCareerWallet()` + `calculateCareerEconomy()` (com `state.safMarket` populado) para impedir reversão de saldo ou dinheiro infinito ao re-renderizar.
 
+10. **BLINDAGEM DEFINITIVA DE ISOLAMENTO MODO JOGADOR vs MODO TREINADOR (TELA INICIAL, LOCALSTORAGE & NUVEM):**
+    - `renderSetup()` não deve exibir `'Prof.'` nem a tag `'⚽ Treinador'` no badge do usuário logado na tela inicial; e `enterSetupCleanly()` nunca pode mutar `state.gameMode = 'setup'`.
+    - `detectSaveMode`, `getSaveGameMode`, `isPlayerCareerActive` e `database.js` (`getSavedGameMode`) devem reconhecer `manager === 'Treinador da IA'`, `coachName === 'Treinador da IA'` e `aiCoachControlled === true` (sem `retiredPlayerCareer`) como Modo Jogador mesmo em cabeçalhos reduzidos ou wrappers dessincronizados.
+    - `syncUser`, `restoreSaves` e `saveAndConfirmCloud` devem preservar `gameMode`, `isPlayerMode`, `playerCareerState` e `controlledPlayerId` no resumo de `account.saves`, gravando a cópia local principal antes de descartar backups.
+
+
 
