@@ -252,8 +252,10 @@ const htmlHubNews = w.AFM_PlayerMode.renderPlayerHub(stateCandango);
 assert.ok(htmlHubNews.includes('id="afmHubNewsContainer"'), 'Deve conter o container de notícias');
 assert.ok(htmlHubNews.includes('data-hub-right-tab="news"'), 'Deve conter botão de toggle notícias');
 assert.ok(htmlHubNews.includes('data-hub-right-tab="standings"'), 'Deve conter botão de toggle classificação');
+assert.ok(htmlHubNews.includes('CLIMA NO CLUBE & IMPRENSA'), 'Deve conter o rodapé de clima no clube e imprensa preenchendo o painel');
+assert.ok(htmlHubNews.includes('FootGram'), 'Deve conter atalho para o FootGram no rodapé do painel');
 assert.ok(!htmlHubNews.includes('id="afmHubStandingsContainer"'), 'Não deve conter container de classificação quando tab for news');
-console.log('✅ renderPlayerHub com tab "news" renderiza notícias e botões de toggle.');
+console.log('✅ renderPlayerHub com tab "news" renderiza notícias, botões de toggle e rodapé de clima.');
 
 // Alternar para classificação
 w.__afmHubRightTab = 'standings';

@@ -1072,6 +1072,41 @@
 
     const playerNews = getPlayerModeNewsList(state);
 
+    let mediaStatus = "🌟 JOIA DA BASE";
+    let mediaColor = "#a855f7";
+    let mediaSubtext = "Aguardando estreia oficial · Alta expectativa da comissão técnica.";
+    let mediaIcon = "📢";
+
+    if (seasonMatches > 0) {
+      const lastRating = Number(history[0]?.rating) || (seasonAvgRating !== "—" ? Number(seasonAvgRating) : 7.0);
+      const isMvp = Boolean(history[0]?.isMvp || pState.careerHistory?.totals?.mvp > 0);
+      if (lastRating >= 8.5 || (lastRating >= 8.0 && isMvp)) {
+        mediaStatus = "🔥 CRAQUE EM ALTA";
+        mediaColor = "#10b981";
+        mediaIcon = "⭐";
+        mediaSubtext = history[0]?.isMvp
+          ? "Eleito Craque do Jogo! Elogios entusiasmados da imprensa e torcida."
+          : "Grande atuação recente! Elogios nos principais portais esportivos.";
+      } else if (lastRating >= 7.0) {
+        mediaStatus = "🟢 POSITIVO";
+        mediaColor = "#38bdf8";
+        mediaIcon = "👍";
+        mediaSubtext = "Rendimento consistente! Comissão técnica e torcida aprovam atuações.";
+      } else {
+        mediaStatus = "👀 EM OBSERVAÇÃO";
+        mediaColor = "#f59e0b";
+        mediaIcon = "🔍";
+        mediaSubtext = "Foco total nos treinamentos diários para retomar protagonismo.";
+      }
+    }
+
+    const followers = Number(pState?.socialMedia?.followers || 500);
+    const followersFormatted = followers >= 1000000
+      ? `${(followers / 1000000).toFixed(1)}M`
+      : followers >= 1000
+        ? `${(followers / 1000).toFixed(1)}k`
+        : String(followers);
+
     return {
       athlete,
       pState,
@@ -1112,6 +1147,11 @@
       objectives,
       personalBank,
       playerNews,
+      mediaStatus,
+      mediaColor,
+      mediaSubtext,
+      mediaIcon,
+      followersFormatted,
     };
   }
 
@@ -1306,9 +1346,9 @@
       const fixtures = Array.isArray(compData.fixtures) ? compData.fixtures : [];
       const userMatch = compData.userMatchup;
       return `
-        <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;flex-direction:column;gap:10px;height:100%;justify-content:space-between">
           <!-- Banner da Fase da Copa -->
-          <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+          <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
             <div>
               <div style="font-size:12px;font-weight:900;color:#38bdf8">${esc(compData.compName.toUpperCase())}</div>
               <div style="font-size:10px;color:#94a3b8">${esc(compData.phaseName)} · Mata-Mata Eliminatório</div>
@@ -1318,7 +1358,7 @@
 
           <!-- Confronto do Clube do Usuário -->
           ${userMatch ? `
-            <div style="background:rgba(124,58,237,0.14);border:1.5px solid rgba(124,58,237,0.4);border-radius:12px;padding:12px;text-align:center">
+            <div style="background:rgba(124,58,237,0.14);border:1.5px solid rgba(124,58,237,0.4);border-radius:12px;padding:12px;text-align:center;flex-shrink:0">
               <div style="font-size:10px;font-weight:900;color:#c084fc;text-transform:uppercase;margin-bottom:6px">Seu Confronto nesta Fase</div>
               <div style="display:flex;align-items:center;justify-content:center;gap:12px;font-size:14px;font-weight:900">
                 <span style="color:${(typeof norm === "function" ? norm(userMatch.home) === myClubNorm : userMatch.home === myClub) ? "#c084fc" : "#fff"}">${esc(userMatch.home)} ${(typeof norm === "function" ? norm(userMatch.home) === myClubNorm : userMatch.home === myClub) ? '<span class="tag-you">VOCÊ</span>' : ""}</span>
@@ -1328,13 +1368,13 @@
               <div style="font-size:10px;color:#94a3b8;margin-top:4px">${userMatch.dateStr || userMatch.date || "Partida Decisiva"}</div>
             </div>
           ` : `
-            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px;text-align:center;font-size:11px;color:#94a3b8">
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px;text-align:center;font-size:11px;color:#94a3b8;flex-shrink:0">
               Aguardando definição do adversário na próxima fase.
             </div>
           `}
 
           <!-- Lista de Outros Confrontos da Fase -->
-          <div style="max-height:165px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:4px">
+          <div style="max-height:230px;min-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:4px;flex:1 1 auto">
             ${fixtures.slice(0, 10).map((f) => {
               const isMine = (typeof norm === "function" ? norm(f.home) === myClubNorm || norm(f.away) === myClubNorm : f.home === myClub || f.away === myClub);
               const scoreText = (Array.isArray(f.result) && f.result.length >= 2) ? `${f.result[0]} x ${f.result[1]}` : (Array.isArray(f.score) && f.score.length >= 2) ? `${f.score[0]} x ${f.score[1]}` : "x";
@@ -1349,7 +1389,7 @@
           </div>
 
           <!-- Botão de Acesso Rápido à Temporada -->
-          <button type="button" class="btn btn-hub-goto-season" data-hub-goto-season="${compData.compId}" data-comp-type="${compData.type}" style="width:100%;padding:9px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.35);color:#c084fc;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+          <button type="button" class="btn btn-hub-goto-season" data-hub-goto-season="${compData.compId}" data-comp-type="${compData.type}" style="width:100%;padding:10px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.35);color:#c084fc;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:auto;flex-shrink:0">
             <span>🔍 Ver Chaveamento Completo da Copa</span>
             <span>➔</span>
           </button>
@@ -1364,9 +1404,9 @@
     const myRow = myIdx >= 0 ? standings[myIdx] : null;
 
     return `
-      <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;flex-direction:column;gap:10px;height:100%;justify-content:space-between">
         <!-- Banner Resumo do Clube -->
-        <div style="background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:9px 14px;display:flex;justify-content:space-between;align-items:center">
+        <div style="background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:9px 14px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-size:20px;font-weight:900;color:#c084fc;line-height:1">#${myPos || "—"}</span>
             <div>
@@ -1384,7 +1424,7 @@
         </div>
 
         <!-- Tabela Compacta de Classificação com Scroll -->
-        <div style="max-height:190px;overflow-y:auto;border:1px solid rgba(255,255,255,0.06);border-radius:10px;background:rgba(0,0,0,0.25)">
+        <div style="max-height:260px;min-height:200px;overflow-y:auto;border:1px solid rgba(255,255,255,0.06);border-radius:10px;background:rgba(0,0,0,0.25);flex:1 1 auto">
           <table style="width:100%;border-collapse:collapse;font-size:11px">
             <thead>
               <tr style="border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);color:rgba(255,255,255,0.5);font-size:10px;text-transform:uppercase">
@@ -1434,7 +1474,7 @@
         </div>
 
         <!-- Botão de Acesso Rápido à Temporada -->
-        <button type="button" class="btn btn-hub-goto-season" data-hub-goto-season="${compData.compId}" data-comp-type="${compData.type}" style="width:100%;padding:9px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.35);color:#c084fc;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s">
+        <button type="button" class="btn btn-hub-goto-season" data-hub-goto-season="${compData.compId}" data-comp-type="${compData.type}" style="width:100%;padding:10px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.35);color:#c084fc;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;margin-top:auto;flex-shrink:0">
           <span>🔍 Abrir Temporada Completa & Artilharia Oficial</span>
           <span>➔</span>
         </button>
@@ -1813,8 +1853,8 @@
           </div>
 
           <!-- FEED DE NOTÍCIAS OU CLASSIFICAÇÃO DA COMPETIÇÃO -->
-          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:12px;height:100%;box-sizing:border-box">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0">
               <div style="display:inline-flex;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:3px;gap:3px">
                 <button type="button" class="afm-hub-toggle-btn ${activeHubRightTab === 'news' ? 'active' : ''}" data-hub-right-tab="news">
                   📰 Notícias & Imprensa
@@ -1828,12 +1868,12 @@
 
             ${activeHubRightTab === 'standings' ? `
               <!-- VISÃO DE CLASSIFICAÇÃO DA COMPETIÇÃO DO DIA -->
-              <div id="afmHubStandingsContainer">
+              <div id="afmHubStandingsContainer" style="display:flex;flex-direction:column;gap:10px;flex:1 1 auto;min-height:0;height:100%">
                 ${renderHubCompetitionStandingsHtml(compStandingsData, state)}
               </div>
             ` : `
               <!-- FILTROS POR PÍLULA -->
-              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0">
                 <span class="afm-news-filter-pill ${activeNewsFilter === 'all' ? 'active' : ''}" data-hub-news-filter="all">Todas</span>
                 <span class="afm-news-filter-pill ${activeNewsFilter === 'training' ? 'active' : ''}" data-hub-news-filter="training">⚡ CT & Treino</span>
                 <span class="afm-news-filter-pill ${activeNewsFilter === 'staff' ? 'active' : ''}" data-hub-news-filter="staff">📋 Comissão</span>
@@ -1841,7 +1881,7 @@
                 <span class="afm-news-filter-pill ${activeNewsFilter === 'market' ? 'active' : ''}" data-hub-news-filter="market">💎 Mercado</span>
               </div>
 
-              <div id="afmHubNewsContainer" style="display:flex;flex-direction:column;gap:10px;max-height:290px;overflow-y:auto;padding-right:4px">
+              <div id="afmHubNewsContainer" style="display:flex;flex-direction:column;gap:10px;flex:1 1 auto;min-height:220px;max-height:330px;overflow-y:auto;padding-right:4px">
                 ${vm.playerNews
                   .map(
                     (n) => `
@@ -1859,6 +1899,29 @@
                 `,
                   )
                   .join("")}
+              </div>
+
+              <!-- RADAR DE CLIMA NO CLUBE & REPERCUSSÃO DA IMPRENSA (RODAPÉ INTEGRADO) -->
+              <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;flex-shrink:0">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                  <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,rgba(124,58,237,0.25),rgba(6,182,212,0.25));border:1px solid rgba(168,85,247,0.3);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">
+                    ${vm.mediaIcon}
+                  </div>
+                  <div style="min-width:0">
+                    <div style="font-size:11px;font-weight:900;color:#fff;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                      <span>CLIMA NO CLUBE & IMPRENSA</span>
+                      <span class="pill" style="font-size:9px;background:${vm.mediaColor};color:#fff;padding:1px 7px;font-weight:800;border-radius:9999px">${vm.mediaStatus}</span>
+                    </div>
+                    <div style="font-size:10px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                      ${esc(vm.mediaSubtext)}
+                    </div>
+                  </div>
+                </div>
+                <button type="button" class="btn afm-hub-quick-btn" data-hub-action="goto_social" data-view="player_social" style="padding:8px 12px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.18);border:1px solid rgba(124,58,237,0.4);color:#c084fc;border-radius:10px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;flex-shrink:0">
+                  <span>📱 FootGram</span>
+                  <span style="font-size:9px;color:rgba(255,255,255,0.5)">(${vm.followersFormatted})</span>
+                  <span>➔</span>
+                </button>
               </div>
             `}
           </div>

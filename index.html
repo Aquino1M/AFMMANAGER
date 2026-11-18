@@ -1,93 +1,206 @@
 <!doctype html>
 <html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no,maximum-scale=1">
-<title>AFM Manager 2026</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0d0a1d">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="screen-orientation" content="landscape">
-<meta name="x5-orientation" content="landscape">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<script>
-  window.esc = function(s) {
-    return String(s ?? '').replace(/[&<>"']/g, function(m) {
-      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
-    });
-  };
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no,maximum-scale=1"
+    />
+    <title>AFM Manager 2026</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0d0a1d" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="screen-orientation" content="landscape" />
+    <meta name="x5-orientation" content="landscape" />
+    <meta
+      http-equiv="Cache-Control"
+      content="no-cache, no-store, must-revalidate"
+    />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <script>
+      window.esc = function (s) {
+        return String(s ?? "").replace(/[&<>"']/g, function (m) {
+          return {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;",
+          }[m];
+        });
+      };
 
-  // ==========================================================================
-  // CORREÇÃO DEFINITIVA DO BUG DE DATA PRESA EM 18 DE JANEIRO DE 2026 (FUSO UTC-3)
-  // No Brasil (GMT-3), new Date("2026-01-18") virava 17/01 às 21h, e ao somar +1 dia
-  // voltava para 18/01! Forçando T12:00:00, os botões "+1 DIA", "ATÉ O JOGO" e
-  // "JOGAR PARTIDA" do próprio jogo avançam e iniciam a partida imediatamente!
-  // ==========================================================================
-  (function() {
-    const NativeDate = window.Date;
-    function SafeBrazilDate(...args) {
-      if (args.length === 1 && typeof args[0] === 'string') {
-        const s = args[0].trim();
-        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-          args[0] = s + 'T12:00:00';
+      // ==========================================================================
+      // CORREÇÃO DEFINITIVA DO BUG DE DATA PRESA EM 18 DE JANEIRO DE 2026 (FUSO UTC-3)
+      // No Brasil (GMT-3), new Date("2026-01-18") virava 17/01 às 21h, e ao somar +1 dia
+      // voltava para 18/01! Forçando T12:00:00, os botões "+1 DIA", "ATÉ O JOGO" e
+      // "JOGAR PARTIDA" do próprio jogo avançam e iniciam a partida imediatamente!
+      // ==========================================================================
+      (function () {
+        const NativeDate = window.Date;
+        function SafeBrazilDate(...args) {
+          if (args.length === 1 && typeof args[0] === "string") {
+            const s = args[0].trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+              args[0] = s + "T12:00:00";
+            }
+          }
+          if (!new.target) return NativeDate(...args);
+          return new NativeDate(...args);
+        }
+        Object.setPrototypeOf(SafeBrazilDate, NativeDate);
+        SafeBrazilDate.prototype = NativeDate.prototype;
+        SafeBrazilDate.now = NativeDate.now;
+        SafeBrazilDate.UTC = NativeDate.UTC;
+        SafeBrazilDate.parse = function (str) {
+          if (
+            typeof str === "string" &&
+            /^\d{4}-\d{2}-\d{2}$/.test(str.trim())
+          ) {
+            return NativeDate.parse(str.trim() + "T12:00:00");
+          }
+          return NativeDate.parse(str);
+        };
+        window.Date = SafeBrazilDate;
+      })();
+
+      // Bloqueia apenas MutationObservers infinitos de módulos externos
+      window.MutationObserver = function () {
+        return {
+          observe: function () {},
+          disconnect: function () {},
+          takeRecords: function () {
+            return [];
+          },
+        };
+      };
+    </script>
+    <link rel="stylesheet" href="css/app.css?v=20261118_v141" />
+    <style>
+      @keyframes afmPulse {
+        0% {
+          transform: translateX(-100%);
+        }
+        50% {
+          transform: translateX(50%);
+        }
+        100% {
+          transform: translateX(250%);
         }
       }
-      if (!new.target) return NativeDate(...args);
-      return new NativeDate(...args);
-    }
-    Object.setPrototypeOf(SafeBrazilDate, NativeDate);
-    SafeBrazilDate.prototype = NativeDate.prototype;
-    SafeBrazilDate.now = NativeDate.now;
-    SafeBrazilDate.UTC = NativeDate.UTC;
-    SafeBrazilDate.parse = function(str) {
-      if (typeof str === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(str.trim())) {
-        return NativeDate.parse(str.trim() + 'T12:00:00');
-      }
-      return NativeDate.parse(str);
-    };
-    window.Date = SafeBrazilDate;
-  })();
-
-  // Bloqueia apenas MutationObservers infinitos de módulos externos
-  window.MutationObserver = function() {
-    return {
-      observe: function() {},
-      disconnect: function() {},
-      takeRecords: function() { return []; }
-    };
-  };
-</script>
-<link rel="stylesheet" href="css/app.css?v=20261118_v141">
-<style>
-@keyframes afmPulse {
-  0% { transform: translateX(-100%); }
-  50% { transform: translateX(50%); }
-  100% { transform: translateX(250%); }
-}
-</style>
-</head>
-<body>
-<div id="app">
-  <div id="afmLoadingScreen" style="position:fixed;inset:0;background:radial-gradient(circle at center, #1b143a 0%, #0a0714 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999999;font-family:system-ui,-apple-system,sans-serif;color:#fff;">
-    <div style="margin-bottom:24px;text-align:center;">
-      <div style="width:84px;height:84px;margin:0 auto 16px auto;background:linear-gradient(135deg, #7c3aed, #2563eb);border-radius:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 35px rgba(124,58,237,0.6);border:2px solid rgba(255,255,255,0.2);">
-        <span style="font-size:42px;">⚽</span>
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div
+        id="afmLoadingScreen"
+        style="
+          position: fixed;
+          inset: 0;
+          background: radial-gradient(
+            circle at center,
+            #1b143a 0%,
+            #0a0714 100%
+          );
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          z-index: 999999;
+          font-family:
+            system-ui,
+            -apple-system,
+            sans-serif;
+          color: #fff;
+        "
+      >
+        <div style="margin-bottom: 24px; text-align: center">
+          <div
+            style="
+              width: 84px;
+              height: 84px;
+              margin: 0 auto 16px auto;
+              background: linear-gradient(135deg, #7c3aed, #2563eb);
+              border-radius: 24px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 0 35px rgba(124, 58, 237, 0.6);
+              border: 2px solid rgba(255, 255, 255, 0.2);
+            "
+          >
+            <span style="font-size: 42px">⚽</span>
+          </div>
+          <h1
+            style="
+              margin: 0;
+              font-size: 26px;
+              font-weight: 900;
+              letter-spacing: 1.5px;
+              background: linear-gradient(90deg, #fff, #a855f7, #38bdf8);
+              -webkit-background-clip: text;
+              background-clip: text;
+              -webkit-text-fill-color: transparent;
+            "
+          >
+            AFM MANAGER 2027
+          </h1>
+          <p
+            style="
+              margin: 6px 0 0 0;
+              font-size: 12px;
+              color: #94a3b8;
+              letter-spacing: 3px;
+              font-weight: 700;
+              text-transform: uppercase;
+            "
+          >
+            Aquino Futebol Manager
+          </p>
+        </div>
+        <div
+          style="
+            width: 280px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 0 15px rgba(124, 58, 237, 0.3);
+          "
+        >
+          <div
+            id="afmLoadingBar"
+            style="
+              width: 45%;
+              height: 100%;
+              background: linear-gradient(90deg, #7c3aed, #38bdf8, #22c55e);
+              border-radius: 999px;
+              animation: afmPulse 1.8s infinite ease-in-out;
+            "
+          ></div>
+        </div>
+        <div
+          id="afmLoadingText"
+          style="
+            margin-top: 14px;
+            font-size: 12px;
+            color: #cbd5e1;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+          "
+        >
+          Carregando banco de dados & táticas...
+        </div>
       </div>
-      <h1 style="margin:0;font-size:26px;font-weight:900;letter-spacing:1.5px;background:linear-gradient(90deg,#fff,#a855f7,#38bdf8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">AFM MANAGER 2027</h1>
-      <p style="margin:6px 0 0 0;font-size:12px;color:#94a3b8;letter-spacing:3px;font-weight:700;text-transform:uppercase;">Aquino Futebol Manager</p>
     </div>
-    <div style="width:280px;height:8px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;position:relative;border:1px solid rgba(255,255,255,0.12);box-shadow:0 0 15px rgba(124,58,237,0.3);">
-      <div id="afmLoadingBar" style="width:45%;height:100%;background:linear-gradient(90deg, #7c3aed, #38bdf8, #22c55e);border-radius:999px;animation:afmPulse 1.8s infinite ease-in-out;"></div>
-    </div>
-    <div id="afmLoadingText" style="margin-top:14px;font-size:12px;color:#cbd5e1;font-weight:600;letter-spacing:0.5px;">
-      Carregando banco de dados & táticas...
-    </div>
-  </div>
-</div>
 
 <!-- 1. Bancos de Dados e Motores Base -->
 <script src="js/core/error_log.js"></script>
@@ -133,10 +246,10 @@
 <script src="js/ui/training_center_modal.js?v=20261112_training_v109"></script>
 <script src="js/player/social_media_manager.js?v=20261118_v141"></script>
 <script src="js/player/national_teams_manager.js?v=20261118_v141"></script>
-<script src="js/player/lifestyleData.js?v=20261118_v149"></script>
-<script src="js/player/player_career_engine.js?v=20261118_v149"></script>
+<script src="js/player/lifestyleData.js?v=20261118_v150"></script>
+<script src="js/player/player_career_engine.js?v=20261118_v150"></script>
 <script src="js/ui/create_player_ui.js?v=20261118_v141"></script>
-<script src="js/player/player_mode_ui.js?v=20261118_v149"></script>
+<script src="js/player/player_mode_ui.js?v=20261118_v150"></script>
 <script src="js/career-economy-fix.js?v=20261118_v141"></script>
 <script src="js/season_view_fix.js?v=20261118_v141"></script>
 <script src="js/competitions_sync_fix.js?v=20261118_v141"></script>
@@ -145,90 +258,108 @@
 <!-- 2. Motor Principal do Jogo (Sem bloqueio de window.render) -->
 <script src="js/game.js?v=20261118_v149" charset="utf-8"></script>
 
-<!-- 3. Espaçador de setIntervals para os scripts secundários não pesarem na CPU -->
-<script>
-  (function() {
-    var origSetInterval = window.setInterval;
-    window.__afmNativeSetInterval = origSetInterval;
-    window.setInterval = function(fn, delay) {
-      var safeDelay = (typeof delay === 'number' && delay >= 400 && delay < 2500) ? 3500 : delay;
-      return origSetInterval(function() {
-        try {
-          if (typeof window.AFM_EnsureSafeState === 'function') window.AFM_EnsureSafeState();
-          fn();
-        } catch (e) {}
-      }, safeDelay);
-    };
-  })();
-</script>
+    <!-- 3. Espaçador de setIntervals para os scripts secundários não pesarem na CPU -->
+    <script>
+      (function () {
+        var origSetInterval = window.setInterval;
+        window.__afmNativeSetInterval = origSetInterval;
+        window.setInterval = function (fn, delay) {
+          var safeDelay =
+            typeof delay === "number" && delay >= 400 && delay < 2500
+              ? 3500
+              : delay;
+          return origSetInterval(function () {
+            try {
+              if (typeof window.AFM_EnsureSafeState === "function")
+                window.AFM_EnsureSafeState();
+              fn();
+            } catch (e) {}
+          }, safeDelay);
+        };
+      })();
+    </script>
 
-<!-- 4. Sistemas Modulares e Expansões -->
-<script src="js/core/isolated_save_manager.js?v=20261017_anti_blackscreen_v11"></script>
-<script src="js/core/player_photos_manager.js"></script>
-<script src="js/core/calendar_and_day_advance_fix.js?v=20261118_v141"></script>
-<script src="js/systems/real_world_leagues_and_pyramid.js?v=20261017_anti_blackscreen_v11"></script>
-<script src="js/systems/manager_economy.js?v=20261022_youth_academy_capacity_v2"></script>
-<script src="js/systems/squad_assistant_and_stars.js"></script>
-<script src="js/systems/global_ranking_and_confidence.js"></script>
-<script src="js/systems/coach_ranking_pix.js?v=20261114_ranking_load_fix_v1"></script>
-<script src="js/systems/club_finance_and_stadium.js?v=20261118_v141"></script>
-<script src="js/systems/manager_life_and_shares_pro.js?v=20261118_v141"></script>
-<script src="js/systems/transfer_market_pro.js?v=20261017_anti_blackscreen_v11"></script>
-<script src="js/match/tactical_4phases_enhancer.js?v=20261025_tactic_v89"></script>
-<script src="js/match/live_match_hud.js?v=20261025_hud_v89"></script>
-<script src="js/systems/competitions_and_awards.js"></script>
-<script src="js/systems/press_and_boardroom.js"></script>
-<script src="js/systems/global_ranking_and_x1.js"></script>
-<script src="js/systems/trophies_tv_1year_marketing_and_payroll.js?v=20261022_custom_club_trophies_v57"></script>
-<script src="js/systems/cup_highlight_ranking_world_and_licenses.js?v=20261118_v141"></script>
-<script src="js/systems/market_lupa_aging_and_regens.js?v=20261118_v141"></script>
-<script src="js/systems/scouting_radar_and_heatmap.js?v=20261026_radar_heatmap_v1"></script>
-<script src="js/systems/player_xp_evolution.js?v=20261118_v141"></script>
-<script src="js/systems/copinha_sub20_engine.js?v=20261022_youth_academy_capacity_v2"></script>
-<script src="js/systems/market_favorites_wishlist.js?v=20261020_favs_v1"></script>
-<script src="js/systems/interactive_set_pieces.js?v=20261111_penalties_v1"></script>
-<script src="js/ui/changelog_14outubro.js"></script>
-<script src="js/ui/global_shortcuts_and_theme.js"></script>
-<script src="js/systems/match_preview_pro.js?v=20261017_anti_blackscreen_v11"></script>
+    <!-- 4. Sistemas Modulares e Expansões -->
+    <script src="js/core/isolated_save_manager.js?v=20261017_anti_blackscreen_v11"></script>
+    <script src="js/core/player_photos_manager.js"></script>
+    <script src="js/core/calendar_and_day_advance_fix.js?v=20261118_v141"></script>
+    <script src="js/systems/real_world_leagues_and_pyramid.js?v=20261017_anti_blackscreen_v11"></script>
+    <script src="js/systems/manager_economy.js?v=20261022_youth_academy_capacity_v2"></script>
+    <script src="js/systems/squad_assistant_and_stars.js"></script>
+    <script src="js/systems/global_ranking_and_confidence.js"></script>
+    <script src="js/systems/coach_ranking_pix.js?v=20261114_ranking_load_fix_v1"></script>
+    <script src="js/systems/club_finance_and_stadium.js?v=20261118_v141"></script>
+    <script src="js/systems/manager_life_and_shares_pro.js?v=20261118_v141"></script>
+    <script src="js/systems/transfer_market_pro.js?v=20261017_anti_blackscreen_v11"></script>
+    <script src="js/match/tactical_4phases_enhancer.js?v=20261025_tactic_v89"></script>
+    <script src="js/match/live_match_hud.js?v=20261025_hud_v89"></script>
+    <script src="js/systems/competitions_and_awards.js"></script>
+    <script src="js/systems/press_and_boardroom.js"></script>
+    <script src="js/systems/global_ranking_and_x1.js"></script>
+    <script src="js/systems/trophies_tv_1year_marketing_and_payroll.js?v=20261022_custom_club_trophies_v57"></script>
+    <script src="js/systems/cup_highlight_ranking_world_and_licenses.js?v=20261118_v141"></script>
+    <script src="js/systems/market_lupa_aging_and_regens.js?v=20261118_v141"></script>
+    <script src="js/systems/scouting_radar_and_heatmap.js?v=20261026_radar_heatmap_v1"></script>
+    <script src="js/systems/player_xp_evolution.js?v=20261118_v141"></script>
+    <script src="js/systems/copinha_sub20_engine.js?v=20261022_youth_academy_capacity_v2"></script>
+    <script src="js/systems/market_favorites_wishlist.js?v=20261020_favs_v1"></script>
+    <script src="js/systems/interactive_set_pieces.js?v=20261111_penalties_v1"></script>
+    <script src="js/ui/changelog_14outubro.js"></script>
+    <script src="js/ui/global_shortcuts_and_theme.js"></script>
+    <script src="js/systems/match_preview_pro.js?v=20261017_anti_blackscreen_v11"></script>
 
-<!-- 5. Salvaguarda de Descongelamento Imediato da Splash Screen -->
-<script id="afmAutoDismissSplash">
-  (function() {
-    function dismissSplash() {
-      var loader = document.getElementById('afmLoadingScreen');
-      var app = document.getElementById('app');
-      if (typeof window.render === 'function') {
-        try { window.render(); } catch(e) {}
-      }
-      // Garante que o loader só suma se o app tiver conteúdo ou após timeout absoluto
-      if (loader) {
-        var hasContent = app && app.children.length > 0 && (app.children[0] !== loader || app.children.length > 1 || (app.innerText && app.innerText.trim().length > 0));
-        if (hasContent) {
-          loader.style.transition = 'opacity 0.25s ease';
-          loader.style.opacity = '0';
-          setTimeout(function() { if (loader && loader.parentNode) loader.remove(); }, 250);
+    <!-- 5. Salvaguarda de Descongelamento Imediato da Splash Screen -->
+    <script id="afmAutoDismissSplash">
+      (function () {
+        function dismissSplash() {
+          var loader = document.getElementById("afmLoadingScreen");
+          var app = document.getElementById("app");
+          if (typeof window.render === "function") {
+            try {
+              window.render();
+            } catch (e) {}
+          }
+          // Garante que o loader só suma se o app tiver conteúdo ou após timeout absoluto
+          if (loader) {
+            var hasContent =
+              app &&
+              app.children.length > 0 &&
+              (app.children[0] !== loader ||
+                app.children.length > 1 ||
+                (app.innerText && app.innerText.trim().length > 0));
+            if (hasContent) {
+              loader.style.transition = "opacity 0.25s ease";
+              loader.style.opacity = "0";
+              setTimeout(function () {
+                if (loader && loader.parentNode) loader.remove();
+              }, 250);
+            }
+          }
         }
-      }
-    }
-    if (document.readyState === 'complete') {
-      setTimeout(dismissSplash, 150);
-    } else {
-      window.addEventListener('load', function() { setTimeout(dismissSplash, 150); });
-      var timer = setInterval(function() {
-        dismissSplash();
-        if (!document.getElementById('afmLoadingScreen')) clearInterval(timer);
-      }, 250);
-      setTimeout(function() {
-        clearInterval(timer);
-        var loader = document.getElementById('afmLoadingScreen');
-        if (loader) {
-          loader.style.transition = 'opacity 0.25s ease';
-          loader.style.opacity = '0';
-          setTimeout(function() { if (loader && loader.parentNode) loader.remove(); }, 250);
+        if (document.readyState === "complete") {
+          setTimeout(dismissSplash, 150);
+        } else {
+          window.addEventListener("load", function () {
+            setTimeout(dismissSplash, 150);
+          });
+          var timer = setInterval(function () {
+            dismissSplash();
+            if (!document.getElementById("afmLoadingScreen"))
+              clearInterval(timer);
+          }, 250);
+          setTimeout(function () {
+            clearInterval(timer);
+            var loader = document.getElementById("afmLoadingScreen");
+            if (loader) {
+              loader.style.transition = "opacity 0.25s ease";
+              loader.style.opacity = "0";
+              setTimeout(function () {
+                if (loader && loader.parentNode) loader.remove();
+              }, 250);
+            }
+          }, 3000);
         }
-      }, 3000);
-    }
-  })();
-</script>
-</body>
+      })();
+    </script>
+  </body>
 </html>
