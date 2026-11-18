@@ -598,10 +598,11 @@
         if(nearestDef && minDist <= 4.2){
           const carrierDribble = carrier.attrs?.dribbling || carrier.overall || 70;
           const defTackle = nearestDef.attrs?.tackling || nearestDef.overall || 70;
-          const isStarDribbler = carrierDribble >= 74 || ['ST','CF','LW','RW','AM'].includes(carrier.pos);
+          const isCtrlCarrier = Boolean(carrier.isControlledAthlete);
+          const isStarDribbler = isCtrlCarrier || carrierDribble >= 74 || ['ST','CF','LW','RW','AM'].includes(carrier.pos);
 
           // CENÁRIO A: ATACANTE DRIBLA O ADVERSÁRIO E PARTE SOZINHO PRO GOL!
-          if(isStarDribbler && (carrier.dribbleCooldown || 0) <= 0 && Math.random() < 0.58){
+          if(isStarDribbler && (carrier.dribbleCooldown || 0) <= 0 && Math.random() < (isCtrlCarrier ? 0.72 : 0.58)){
             carrier.dribbling = true;
             carrier.dribbleTimer = 0.95;
             carrier.dribbleCooldown = 55;
@@ -680,10 +681,12 @@
         if((ball.liveDecisionCooldown || 0) <= 0 && passFn){
           const isHome = carrier.team === 'home';
           const distToGoal = isHome ? (100 - carrier.x) : carrier.x;
+          const isCtrlCarrier = Boolean(carrier.isControlledAthlete);
           const shotTendency = Number(carrier.shotTendency) || 0;
           const shootingRangeChance = distToGoal <= 13 ? 0.30 : distToGoal <= 22 ? 0.15 : distToGoal <= 30 ? 0.04 : 0;
+          const ctrlShotBoost = (isCtrlCarrier && distToGoal <= 25) ? 0.24 : 0;
           const anglePenalty = Math.max(0, Math.abs((Number(carrier.y) || 50) - 50) - 22) * 0.006;
-          const shotChance = Math.max(0, shootingRangeChance + shotTendency * 0.001 - anglePenalty);
+          const shotChance = Math.max(0, shootingRangeChance + ctrlShotBoost + shotTendency * 0.001 - anglePenalty);
 
           // O ciclo de animação precisa finalizar ataques por conta própria:
           // antes, o callback de chute nunca era chamado e a jogada só circulava.
@@ -692,16 +695,25 @@
             return;
           }
 
-          // Busca passe progressivo (triangulação / infiltração)
+          // Busca passe progressivo (priorizando o atleta controlado do usuário em 78% das jogadas quando desmarcado!)
           const teammates = (isHome ? s.homePlayers : s.awayPlayers);
-          const receiver = teammates.find(tm => {
+          const ctrlMate = teammates.find(tm => {
+            if(!tm || !tm.isControlledAthlete || tm === carrier || tm.isGK || tm.redCard) return false;
+            const forward = isHome ? (tm.x - carrier.x) : (carrier.x - tm.x);
+            const dist = Math.hypot(tm.x - carrier.x, tm.y - carrier.y);
+            const offsideLine = isHome ? offsideX_top : offsideX_bottom;
+            const isOff = isHome ? (tm.x > offsideLine && tm.x > 50) : (tm.x < offsideLine && tm.x < 50);
+            return !isOff && forward > -2 && forward < 36 && dist < 42;
+          });
+          const receiver = (ctrlMate && Math.random() < 0.78) ? ctrlMate : teammates.find(tm => {
             if(!tm || tm === carrier || tm.isGK || tm.redCard) return false;
             const forward = isHome ? (tm.x - carrier.x) : (carrier.x - tm.x);
             const dist = Math.hypot(tm.x - carrier.x, tm.y - carrier.y);
             return forward > 3 && forward < 26 && dist < 32;
           });
 
-          if(receiver && Math.random() < 0.68){
+          const passProb = (isCtrlCarrier && distToGoal <= 26) ? 0.28 : 0.68;
+          if(receiver && Math.random() < passProb){
             // VERIFICA SE RECEBEDOR ESTÁ EM IMPEDIMENTO!
             const offsideLine = isHome ? offsideX_top : offsideX_bottom;
             const isOffside = isHome ? (receiver.x > offsideLine && receiver.x > 50) : (receiver.x < offsideLine && receiver.x < 50);

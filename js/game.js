@@ -24235,21 +24235,61 @@ function normalizePlayerPositionCode(rawPos) {
 }
 window.normalizePlayerPositionCode = normalizePlayerPositionCode;
 
-function getPreferredLineupSlots(normPos) {
-  // Índices padrão de um time 11 jogadores (0 = GK, 1..4 = DEF, 5..8 = MID, 9..10 = ATT)
+function getPreferredLineupSlots(normPos, formationName = null) {
+  if (normPos === 'GK') return [0];
+  const activeFormKey = formationName || (typeof state !== 'undefined' && state?.formation) || '4-3-3';
+  const formArr = (typeof FORMATIONS !== 'undefined' && (FORMATIONS[activeFormKey] || FORMATIONS['4-3-3'])) || null;
+  if (Array.isArray(formArr) && formArr.length === 11) {
+    const roleEquiv = {
+      RB: ['RB', 'RWB'],
+      LB: ['LB', 'LWB'],
+      CB: ['CB'],
+      CDM: ['DM', 'CDM'],
+      CM: ['CM', 'DM', 'AM'],
+      CAM: ['AM', 'CAM', 'CM'],
+      RW: ['RW', 'RM'],
+      LW: ['LW', 'LM'],
+      ST: ['ST', 'CF']
+    };
+    const exactRoles = roleEquiv[normPos] || [normPos];
+    const scored = [];
+    for (let idx = 1; idx < 11; idx++) {
+      const slot = formArr[idx] || {};
+      const r = String(slot.r || '').toUpperCase();
+      let score = 0;
+      if (exactRoles[0] === r) score += 100;
+      else if (exactRoles.includes(r)) score += 75;
+      else if (normPos === 'ST' && ['LW', 'RW', 'AM'].includes(r)) score += 40;
+      else if ((normPos === 'LW' || normPos === 'RW') && ['ST', 'AM', 'LM', 'RM'].includes(r)) score += 45;
+      else if (normPos === 'CAM' && ['CM', 'LW', 'RW', 'ST'].includes(r)) score += 45;
+      else if (normPos === 'CDM' && ['CM', 'CB'].includes(r)) score += 45;
+      else if ((normPos === 'LB' || normPos === 'RB') && r === 'CB') score += 35;
+
+      // Alinhamento estrito de corredor lateral (Esquerda x < 40, Direita x > 60, Centro próximo de 50)
+      const sx = Number(slot.x ?? 50);
+      if ((normPos === 'LB' || normPos === 'LW') && sx < 40) score += 20;
+      else if ((normPos === 'RB' || normPos === 'RW') && sx > 60) score += 20;
+      else if (['CB', 'CDM', 'CM', 'CAM', 'ST'].includes(normPos)) score += Math.max(0, 15 - Math.abs(sx - 50) * 0.3);
+
+      scored.push({ idx, score });
+    }
+    scored.sort((a, b) => b.score - a.score || a.idx - b.idx);
+    return scored.map(s => s.idx);
+  }
+  // Fallback alinhado ao 4-3-3 canônico (0=GK, 1=LB, 2=CB, 3=CB, 4=RB, 5=CM, 6=DM, 7=CM, 8=LW, 9=ST, 10=RW)
   const map = {
     GK: [0],
-    RB: [1, 4],
-    CB: [2, 3, 1],
-    LB: [4, 1],
-    CDM: [5, 6],
-    CM: [6, 7, 5],
-    CAM: [7, 8, 9],
-    RW: [8, 9, 10],
-    LW: [7, 10, 9],
-    ST: [9, 10, 8]
+    LB: [1, 4],
+    CB: [2, 3, 1, 4],
+    RB: [4, 1],
+    CDM: [6, 5, 7],
+    CM: [5, 7, 6],
+    CAM: [7, 5, 9],
+    LW: [8, 9, 10],
+    ST: [9, 8, 10],
+    RW: [10, 9, 8]
   };
-  return map[normPos] || [9, 10];
+  return map[normPos] || [9, 10, 8];
 }
 window.getPreferredLineupSlots = getPreferredLineupSlots;
 
@@ -25589,6 +25629,11 @@ function updateLiveCanvasPositions(s){
     const isHome = (p.team === 'home');
     const teamHasBall = carrier ? (carrier.team === p.team) : (ball.isHomeAttacking === isHome);
 
+    if(p.isControlledAthlete && Number.isFinite(Number(p.lockedCanonicalBaseX)) && Number.isFinite(Number(p.lockedCanonicalBaseY))){
+      p.baseX = p.lockedCanonicalBaseX;
+      p.baseY = p.lockedCanonicalBaseY;
+    }
+
     let tX = Number.isFinite(Number(p.baseX)) ? Number(p.baseX) : (Number(p.x) || 50);
     let tY = Number.isFinite(Number(p.baseY)) ? Number(p.baseY) : (Number(p.y) || 50);
 
@@ -25621,9 +25666,11 @@ function updateLiveCanvasPositions(s){
         tY = clamp(p.baseY + halfSpaceShift, 12, 88);
       }
     } else {
-      // Time defendendo: recua e compacta
-      const drop = isHome ? -7 : 7;
-      const followBallY = (ball.y - p.baseY) * 0.25;
+      // Time defendendo: recua e compacta (atacante controlado permanece avançado como referência de contra-ataque, nunca caindo atrás dos volantes!)
+      const isCtrlForward = Boolean(p.isControlledAthlete && (p.posGroup === 'ATA' || p.posGroup === 'PON' || ['ST', 'CF', 'LW', 'RW'].includes(p.pos)));
+      const dropMag = isCtrlForward ? 2.5 : 7;
+      const drop = isHome ? -dropMag : dropMag;
+      const followBallY = (ball.y - p.baseY) * (isCtrlForward ? 0.15 : 0.25);
 
       if(!p.isGK){
         tX = clamp(p.baseX + drop, 10, 90);
@@ -27074,6 +27121,10 @@ function simulateMinute(s, min){
   const defTacPress = isHome ? (s.awayTac?.pressIntensity || 65) : (s.homeTac?.pressIntensity || 65);
   const defPressBonus = (defCfg.posture === 'Pressão total' ? 0.08 : defCfg.posture === 'Ofensiva' ? 0.04 : 0) + ((defTacPress - 65) * 0.0018);
   const buildUpRoll = s.prng();
+  const hasUserControlledOnAttack = Boolean(
+    (state?.gameMode === 'player' || state?.playerCareerState) &&
+    attPlayers.some(p => p && p.isControlledAthlete && !p.isGK && !p.redCard)
+  );
   if(buildUpRoll < 0.08 + defPressBonus){
     // TURNOVER: Perda de bola pressionada na zaga gerando contra-ataque veloz!
     if(isHome) s.stats.interceptionsA++; else s.stats.interceptionsH++;
@@ -27096,7 +27147,7 @@ function simulateMinute(s, min){
     s.events.unshift({ min, type: 'whistle', text: `⚠️ Falta tática de ${defP.name || 'Defensor'} (${defTeam}) travando o início da jogada do ${attTeam}.` });
     if(window.afmAudio) window.afmAudio.playSFX('whistle_foul');
     possessionPhase = 'RESTART';
-  } else if(buildUpRoll < 0.52){
+  } else if(buildUpRoll < (hasUserControlledOnAttack ? 0.36 : 0.52)){
     // Circulação paciente de bola entre zagueiros e laterais (manutenção de posse)
     if(isHome) s.stats.passesH += 4; else s.stats.passesA += 4;
     possessionPhase = 'RESTART';
@@ -27107,14 +27158,15 @@ function simulateMinute(s, min){
   // FASE 2: PROGRESSION (Meio de Campo / Transição)
   if(possessionPhase === 'PROGRESSION'){
     const midRoll = s.prng();
-    if(midRoll < 0.32){
+    const midFailCutoff = hasUserControlledOnAttack ? 0.54 : 0.72;
+    if(midRoll < 0.26){
       // Interceptação ou desarme da zaga no meio-campo
       if(isHome) { s.stats.interceptionsA++; s.stats.tacklesA++; }
       else { s.stats.interceptionsH++; s.stats.tacklesH++; }
-    } else if(midRoll < 0.54){
+    } else if(midRoll < 0.42){
       // RECYCLE_POSSESSION: Meio-campo recua e inverte o corredor pacientemente
       if(isHome) s.stats.passesH += 5; else s.stats.passesA += 5;
-    } else if(midRoll < 0.72){
+    } else if(midRoll < midFailCutoff){
       // Falta no meio-campo com possível cartão amarelo
       if(isHome) s.stats.foulsA++; else s.stats.foulsH++;
       const nonGkDef = defPlayers.filter(p => p && !p.isGK && !p.redCard);
@@ -27163,16 +27215,16 @@ function simulateMinute(s, min){
       : null;
     const isCallBallActive = s.craqueCallBallUntil && Date.now() < s.craqueCallBallUntil;
 
-    // Protagonismo ampliado do atleta do usuário no terço final (72% normal / 100% ao pedir bola)
-    if(userAthlete && (isCallBallActive || s.prng() < 0.72)){
+    // Protagonismo ampliado do atleta do usuário no terço final (78% normal / 100% ao pedir bola)
+    if(userAthlete && (isCallBallActive || s.prng() < 0.78)){
       s.ball.carrier = userAthlete;
     } else {
       s.ball.carrier = continuingAttacker || (topOptions.length ? topOptions[Math.floor(s.prng() * topOptions.length)] : (lineAtt[Math.floor(s.prng() * lineAtt.length)] || attPlayers[0] || { name: 'Atacante', pos: 'ST' }));
     }
     s.ball.isHomeAttacking = isHome;
 
-    // Se a bola estiver com o atleta do usuário no ataque, chance maior de disparar o Momento Decisivo (a cada 6 min)
-    if(userAthlete && s.ball.carrier === userAthlete && !s.craqueDecisionActive && (!s.lastCraqueMomentMin || (min - s.lastCraqueMomentMin) >= 6)){
+    // Se a bola estiver com o atleta do usuário no ataque, chance maior de disparar o Momento Decisivo (a cada 5 min)
+    if(userAthlete && s.ball.carrier === userAthlete && !s.craqueDecisionActive && (!s.lastCraqueMomentMin || (min - s.lastCraqueMomentMin) >= 5)){
       s.lastCraqueMomentMin = min;
       setTimeout(() => {
         if(!s.done && typeof triggerCraqueDecisionMoment === 'function'){
@@ -27184,10 +27236,10 @@ function simulateMinute(s, min){
     const shootZoneProgress = 68;
     let carrierProgress = goalProgressOf(s.ball.carrier);
     if(carrierProgress < shootZoneProgress){
-      // Cada chegada ao terço final avança a jogada no campo, em vez de repetir
-      // passes na mesma coordenada. A próxima etapa pode então concluir em chute.
+      // O atleta controlado conduz até a zona de finalização sem travar em 67.5 < 68!
       const dir = isHome ? 1 : -1;
-      const advance = Math.min(18, shootZoneProgress - carrierProgress);
+      const maxBurst = (userAthlete && s.ball.carrier === userAthlete) ? 26 : 18;
+      const advance = Math.min(maxBurst, (shootZoneProgress + 2) - carrierProgress);
       s.ball.carrier.x = clamp((Number(s.ball.carrier.x) || 50) + dir * advance, 4, 96);
       s.ball.x = s.ball.carrier.x;
       s.ball.y = s.ball.carrier.y;
@@ -28673,22 +28725,22 @@ function resolveCanonicalTacticalCodeForGroup(posGroup, rawPos = ''){
 
 function getCanonicalSlotProfileForGroup(posGroup, tacticalCode, isHomeSide){
   // Coordenadas base exatas por grupo posicional (Home ataca p/ direita x: 3.5 -> 96.5; Away ataca p/ esquerda x: 96.5 -> 3.5)
-  let homeBaseX = 48.5, baseY = 50, depthRuns = 85, boxPresence = 90, shotTendency = 88, creativePassing = 65, halfSpaceOcc = 0, pressIntensity = 60, roleName = 'Advanced Forward';
+  let homeBaseX = 54.0, baseY = 50, depthRuns = 88, boxPresence = 92, shotTendency = 92, creativePassing = 68, halfSpaceOcc = 0, pressIntensity = 62, roleName = 'Advanced Forward';
   if(posGroup === 'GOL'){
     homeBaseX = 3.5; baseY = 50; depthRuns = 0; boxPresence = 0; shotTendency = 0; creativePassing = 40; pressIntensity = 10; roleName = 'Goalkeeper';
   } else if(posGroup === 'ZAG'){
     homeBaseX = 18.5; baseY = 38; depthRuns = 8; boxPresence = 20; shotTendency = 15; creativePassing = 50; pressIntensity = 65; roleName = 'Ball-Playing Defender';
   } else if(posGroup === 'LAT'){
-    homeBaseX = 24.5; baseY = tacticalCode === 'LB' ? 15 : 85; depthRuns = 55; boxPresence = 25; shotTendency = 30; creativePassing = 68; pressIntensity = 68; roleName = 'Wing-Back';
+    homeBaseX = 25.0; baseY = tacticalCode === 'LB' ? 14 : 86; depthRuns = 55; boxPresence = 25; shotTendency = 30; creativePassing = 68; pressIntensity = 68; roleName = 'Wing-Back';
   } else if(posGroup === 'VOL'){
-    homeBaseX = tacticalCode === 'DM' ? 28.5 : 34.0; baseY = 50; depthRuns = tacticalCode === 'DM' ? 22 : 45; boxPresence = 35; shotTendency = 42; creativePassing = 78; pressIntensity = 75; roleName = tacticalCode === 'DM' ? 'Deep-Lying Playmaker' : 'Box-to-Box';
+    homeBaseX = tacticalCode === 'DM' ? 30.0 : 36.0; baseY = 50; depthRuns = tacticalCode === 'DM' ? 22 : 45; boxPresence = 35; shotTendency = 42; creativePassing = 78; pressIntensity = 75; roleName = tacticalCode === 'DM' ? 'Deep-Lying Playmaker' : 'Box-to-Box';
   } else if(posGroup === 'MEI'){
-    homeBaseX = 41.5; baseY = 50; depthRuns = 68; boxPresence = 65; shotTendency = 74; creativePassing = 90; halfSpaceOcc = 1; pressIntensity = 58; roleName = 'Playmaker';
+    homeBaseX = 43.5; baseY = 50; depthRuns = 70; boxPresence = 68; shotTendency = 78; creativePassing = 92; halfSpaceOcc = 1; pressIntensity = 58; roleName = 'Playmaker';
   } else if(posGroup === 'PON'){
-    homeBaseX = 46.5; baseY = tacticalCode === 'RW' ? 80 : 20; depthRuns = 82; boxPresence = 78; shotTendency = 80; creativePassing = 76; halfSpaceOcc = 1; pressIntensity = 62; roleName = 'Inside Forward';
+    homeBaseX = 49.0; baseY = tacticalCode === 'RW' ? 82 : 18; depthRuns = 85; boxPresence = 80; shotTendency = 84; creativePassing = 78; halfSpaceOcc = 1; pressIntensity = 62; roleName = 'Inside Forward';
   } else {
-    // ATA / ST / CF: Centroavante de referência na linha mais avançada do time!
-    homeBaseX = 49.5; baseY = 50; depthRuns = 88; boxPresence = 92; shotTendency = 90; creativePassing = 68; halfSpaceOcc = 0; pressIntensity = 62; roleName = 'Advanced Forward';
+    // ATA / ST / CF: Centroavante de referência na linha mais avançada do time (sempre à frente de volantes/meias)!
+    homeBaseX = 54.0; baseY = 50; depthRuns = 92; boxPresence = 95; shotTendency = 92; creativePassing = 68; halfSpaceOcc = 0; pressIntensity = 62; roleName = 'Advanced Forward';
   }
   const baseX = isHomeSide ? homeBaseX : Number((100 - homeBaseX).toFixed(1));
   return { baseX, baseY, depthRuns, boxPresence, shotTendency, creativePassing, halfSpaceOcc, pressIntensity, roleName };
@@ -28755,6 +28807,16 @@ function syncControlledAthletePitchSlotAndCoords(s = liveMatchState, snapCurrent
   pitchEntity.pressIntensity = slotProfile.pressIntensity;
   pitchEntity.baseX = slotProfile.baseX;
   pitchEntity.baseY = slotProfile.baseY;
+  pitchEntity.lockedCanonicalBaseX = slotProfile.baseX;
+  pitchEntity.lockedCanonicalBaseY = slotProfile.baseY;
+
+  // Se outro NPC ficou com baseX/baseY colidente na mesma vaga após substituição, desloca o NPC suavemente para manter separação tática
+  myTeam.forEach(mate => {
+    if(!mate || mate === pitchEntity || mate.isGK) return;
+    if(Math.abs((Number(mate.baseX) || 50) - slotProfile.baseX) < 3 && Math.abs((Number(mate.baseY) || 50) - slotProfile.baseY) < 6){
+      mate.baseY = slotProfile.baseY <= 50 ? Math.min(82, slotProfile.baseY + 18) : Math.max(18, slotProfile.baseY - 18);
+    }
+  });
   pitchEntity.attrs = {
     ...(pitchEntity.attrs || {}),
     pace: Number(effAttrs.vel ?? effAttrs.pace) || effOvr,

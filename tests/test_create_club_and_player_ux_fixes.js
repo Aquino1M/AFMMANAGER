@@ -438,11 +438,21 @@ console.log('🧪 [TESTE 3/6] Modo Jogador — Posição Exata em Campo (Titular
   assert.ok(controlledOnPitch.depthRuns >= 0.70 && controlledOnPitch.shotTendency >= 0.75, 'Atacante deve ter depthRuns e shotTendency de centroavante');
   assert.notEqual(myTeamArr[0].careerPlayerId, controlledOnPitch.careerPlayerId, 'Atleta de linha NUNCA pode ocupar o slot 0 (GK)');
 
-  // Simula alguns minutos para garantir que simulateMinute preserva a posição exata
+  // Valida mapeamento dinâmico de slots por formação (sem inversão LB/RB ou LW/RW e ST exato em 4-3-3 e 4-2-3-1)
+  assert.equal(window.getPreferredLineupSlots('LB', '4-3-3')[0], 1, 'LB em 4-3-3 deve mapear para slot 1 (esquerda)');
+  assert.equal(window.getPreferredLineupSlots('RB', '4-3-3')[0], 4, 'RB em 4-3-3 deve mapear para slot 4 (direita)');
+  assert.equal(window.getPreferredLineupSlots('CDM', '4-3-3')[0], 6, 'CDM/VOL em 4-3-3 deve mapear para slot 6 (DM central)');
+  assert.equal(window.getPreferredLineupSlots('LW', '4-3-3')[0], 8, 'LW/PE em 4-3-3 deve mapear para slot 8 (ponta esquerda)');
+  assert.equal(window.getPreferredLineupSlots('ST', '4-3-3')[0], 9, 'ST/ATA em 4-3-3 deve mapear para slot 9 (centroavante)');
+  assert.equal(window.getPreferredLineupSlots('RW', '4-3-3')[0], 10, 'RW/PD em 4-3-3 deve mapear para slot 10 (ponta direita)');
+  assert.equal(window.getPreferredLineupSlots('ST', '4-2-3-1')[0], 10, 'ST/ATA em 4-2-3-1 deve mapear para slot 10 (centroavante isolado)');
+
+  // Simula alguns minutos para garantir que simulateMinute preserva a posição exata e lockedCanonicalBaseX
   lms.phase = 'SECOND_HALF';
   lms.paused = false;
-  window.simulateMinute(lms);
+  window.simulateMinute(lms, 62);
   assert.equal(controlledOnPitch.pos, 'ST');
+  assert.equal(controlledOnPitch.lockedCanonicalBaseX, userIsHome ? 54.0 : 46.0, 'lockedCanonicalBaseX deve travar o centroavante na linha mais avançada');
   window.liveMatchState = null;
   console.log('   ✅ Teste 3 aprovado!');
 }
