@@ -1699,40 +1699,21 @@
       }
     ],
 
-    STAFF_CATALOG: [
-      {
-        id: "personal_trainer",
-        name: "Preparador Físico Pessoal",
-        icon: "🏋️",
-        salary: 800,
-        benefit: "+15% XP em treinos físicos e -15% fadiga pós-jogo",
-        xpBonusPct: 15
-      },
-      {
-        id: "video_analyst",
-        name: "Analista Tático de Vídeo",
-        icon: "📹",
-        salary: 1000,
-        benefit: "+15% XP em visão/passe (+1 Passe no motor)",
-        xpBonusPct: 15
-      },
-      {
-        id: "nutritionist",
-        name: "Nutricionista de Alto Rendimento",
-        icon: "🥗",
-        salary: 600,
-        benefit: "+10% recuperação de estamina diária no calendário",
-        staminaBonusPct: 10
-      },
-      {
-        id: "vip_team",
-        name: "Equipe Multidisciplinar VIP",
-        icon: "⭐",
-        salary: 2500,
-        benefit: "+25% XP geral em todos os treinos e recuperação acelerada",
-        xpBonusPct: 25
+    get STAFF_CATALOG() {
+      if (window.AFM_Lifestyle && Array.isArray(window.AFM_Lifestyle.AFM_STAFF_CATALOG)) {
+        return window.AFM_Lifestyle.AFM_STAFF_CATALOG;
       }
-    ],
+      return [
+        { id: "personal_trainer", name: "Personal Trainer de Alta Performance", icon: "🏋️‍♂️", monthlyCostBase: 1000, hireCost: 3500, bonusText: "+20% de ganho de XP semanal/pós-jogos e menor perda de físico", xpBonusPct: 20 },
+        { id: "physio", name: "Fisioterapeuta & Recovery Exclusivo", icon: "🩺", monthlyCostBase: 1200, hireCost: 4500, bonusText: "Recupera estamina 35% mais rápido entre jogos e previne fadiga crônica" },
+        { id: "nutritionist", name: "Nutricionista Esportivo & Chef Particular", icon: "🥗", monthlyCostBase: 1100, hireCost: 4000, bonusText: "+5% de precisão nos chutes, energia máxima e consistência nas notas", staminaBonusPct: 10 },
+        { id: "marketing_team", name: "Equipe de Marketing & Social Media (FootGram)", icon: "📱", monthlyCostBase: 1500, hireCost: 5500, bonusText: "Crescimento orgânico contínuo no FootGram (+50 a +350 seg/semana)" },
+        { id: "mental_coach", name: "Psicólogo Esportivo & Mental Coach", icon: "🧠", monthlyCostBase: 950, hireCost: 3800, bonusText: "Moral blindada em derrotas e bônus de frieza em clássicos, finais e pênaltis" },
+        { id: "security_driver", name: "Segurança Pessoal & Motorista Executivo", icon: "🛡️", monthlyCostBase: 1800, hireCost: 6000, bonusText: "Proteção contra assédio da torcida/mídia e pontualidade 100% garantida" },
+        { id: "video_analyst", name: "Analista de Desempenho Tático Individual", icon: "📹", monthlyCostBase: 1050, hireCost: 4200, bonusText: "+1 em Passe/Visão de Jogo (visão tática avançada de posicionamento)", xpBonusPct: 15 },
+        { id: "accountant", name: "Consultor Financeiro & Contador Pessoal", icon: "💼", monthlyCostBase: 1300, hireCost: 5000, bonusText: "Reduz em 15% a manutenção de bens/veículos e aumenta rendimentos do CDB de 1.1% para 1.5%/mês" }
+      ];
+    },
 
     recalculateOvr: function (athlete, state) {
       if (!athlete) return 35;
@@ -1874,7 +1855,11 @@
       if (!pState) return { effectiveXp: 0, levelUps: 0 };
 
       let mult = 1.0;
-      if (pState.hiredStaff?.personal_trainer) mult += 0.15;
+      const hasPT = Boolean(
+        pState.lifestyle?.hiredStaff?.includes("personal_trainer") ||
+        pState.hiredStaff?.personal_trainer
+      );
+      if (hasPT) mult += 0.20;
       if (pState.hiredStaff?.vip_team) mult += 0.25;
       const effectiveXp = Math.round((Number(amount) || 0) * mult);
 
@@ -2617,15 +2602,21 @@
                     ${activeMembers.map((st) => {
                       const monthly = Math.round(st.monthlyCostBase * ovrFactor);
                       return `
-                        <div style="background:rgba(16,185,129,0.08);border:1px solid #10b981;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px">
-                          <div style="display:flex;align-items:center;gap:8px">
+                        <div style="background:rgba(16,185,129,0.08);border:1px solid #10b981;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                          <div style="display:flex;align-items:center;gap:8px;min-width:160px;flex:1">
                             <span style="font-size:18px">${st.icon}</span>
                             <div>
-                              <div style="font-size:12px;font-weight:900;color:#fff">${esc(st.name)}</div>
+                              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                                <span style="font-size:12px;font-weight:900;color:#fff">${esc(st.name)}</span>
+                                <span class="pill good" style="font-size:8px;font-weight:900;padding:1px 6px">✅ CONTRATADO</span>
+                              </div>
                               <div style="font-size:10px;color:#a7f3d0">${esc(st.bonusText || st.benefitText || "")}</div>
                             </div>
                           </div>
-                          <span style="font-size:10px;font-weight:900;color:#fca5a5;white-space:nowrap">-R$ ${monthly.toLocaleString("pt-BR")}/mês</span>
+                          <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:10px;font-weight:900;color:#fca5a5;white-space:nowrap">-R$ ${monthly.toLocaleString("pt-BR")}/mês</span>
+                            <button type="button" class="btn danger btn-dismiss-staff" data-staff-id="${st.id}" style="background:#ef4444;color:#fff;font-weight:900;font-size:10px;padding:5px 9px;border-radius:7px;border:none;cursor:pointer;white-space:nowrap">❌ Demitir</button>
+                          </div>
                         </div>
                       `;
                     }).join("")}
@@ -3987,15 +3978,18 @@
         <!-- BANCO PESSOAL & FLUXO FINANCEIRO MENSAL DO ATLETA -->
         ${(function () {
           const athlete = getControlledPlayer(state) || { ovr: 45, wage: 1500, attributes: {} };
-          const wage = Number(athlete?.wage) || 1500;
-          const spIncome = Number(activeSp?.monthlyStipend) || 0;
+          const preview = window.AFM_Lifestyle?.getMonthlyCashflowPreview
+            ? window.AFM_Lifestyle.getMonthlyCashflowPreview(state)
+            : null;
+          const wage = preview ? preview.wage : (Number(athlete?.wage) || 1500);
+          const spIncome = preview ? preview.spIncome : (Number(activeSp?.monthlyStipend) || 0);
           const hasAccountant = ls?.hiredStaff?.includes("accountant");
-          const cdbYield = Math.round((Number(ls?.investments?.cdbBalance) || 0) * (hasAccountant ? 0.015 : 0.011));
-          const rentalIncome = (Number(ls?.investments?.rentalUnits) || 0) * 650;
-          const academyIncome = ls?.investments?.academyOwned ? 2100 : 0;
-          const brandIncome = ls?.investments?.brandOwned ? 5400 : 0;
-          const businessIncome = rentalIncome + academyIncome + brandIncome;
-          const expIncome = wage + spIncome + cdbYield + businessIncome;
+          const cdbYield = preview ? preview.cdbYield : Math.round((Number(ls?.investments?.cdbBalance) || 0) * (hasAccountant ? 0.015 : 0.011));
+          const rentalIncome = preview ? preview.rentalIncome : ((Number(ls?.investments?.rentalUnits) || 0) * 650);
+          const academyIncome = preview ? preview.academyIncome : (ls?.investments?.academyOwned ? 2100 : 0);
+          const brandIncome = preview ? preview.brandIncome : (ls?.investments?.brandOwned ? 5400 : 0);
+          const businessIncome = preview ? preview.businessIncome : (rentalIncome + academyIncome + brandIncome);
+          const expIncome = preview ? preview.expIncome : (wage + spIncome + cdbYield + businessIncome);
 
           const agent = window.AFM_PlayerEngine?.getPlayerAgent
             ? window.AFM_PlayerEngine.getPlayerAgent(pState)
@@ -4007,9 +4001,9 @@
                   spIncome * ((Number(agent.sponsorCommissionPct) || 5) / 100),
                 )
               : 0;
-          const agentCost = agentWage + agentSponsorCut;
-          
-          const staffCost = (function () {
+          const agentCost = preview ? preview.agentCost : (agentWage + agentSponsorCut);
+
+          const staffCost = preview ? preview.staffCost : (function () {
             let total = 0;
             const staffCatalog = window.AFM_Lifestyle?.AFM_STAFF_CATALOG || [];
             const ovrFactor = Math.max(1, 1 + (Number(athlete?.ovr || 45) - 45) * 0.03);
@@ -4020,15 +4014,14 @@
             return total;
           })();
 
-          const lifeCost = window.AFM_PlayerEngine?.calculatePlayerLifestyleCost
-            ? window.AFM_PlayerEngine.calculatePlayerLifestyleCost(
-                pState,
-                athlete?.ovr,
-              )
-            : 350;
+          const lifeCost = preview
+            ? preview.lifeCost
+            : (window.AFM_Lifestyle?.getBaseLifestyleCost
+                ? window.AFM_Lifestyle.getBaseLifestyleCost(athlete?.ovr)
+                : 350);
 
           // Manutenção de Bens e Parcelas de Financiamento
-          const assetsUpkeep = (function () {
+          const assetsUpkeep = preview ? preview.assetsUpkeep : (function () {
             let total = 0;
             const assetsCatalog = window.AFM_Lifestyle?.AFM_ASSETS_CATALOG || [];
             const allHeld = [...(ls?.ownedAssets || []), ...(ls?.financedAssets || []).map((f) => f.id)];
@@ -4039,7 +4032,7 @@
             return hasAccountant ? Math.round(total * 0.85) : total;
           })();
 
-          const financingCost = (function () {
+          const financingCost = preview ? preview.financingCost : (function () {
             let total = 0;
             (ls?.financedAssets || []).forEach((f) => {
               total += Number(f.monthlyPayment) || 0;
@@ -4047,8 +4040,8 @@
             return total;
           })();
 
-          const expExpenses = agentCost + staffCost + lifeCost + assetsUpkeep + financingCost;
-          const netExp = expIncome - expExpenses;
+          const expExpenses = preview ? preview.expExpenses : (agentCost + staffCost + lifeCost + assetsUpkeep + financingCost);
+          const netExp = preview ? preview.netExp : (expIncome - expExpenses);
 
           const ovr = Number(athlete?.ovr || pState?.athleteOvr || 45);
           let lifestyleLabel = "Aspirante / Base 🥉";
@@ -9337,33 +9330,7 @@
       };
     });
 
-    // Contratação de Staff Pessoal de Performance
-    document.querySelectorAll(".btn-hire-evolution-staff").forEach((btn) => {
-      btn.onclick = () => {
-        const staffId = btn.dataset.staff;
-        const staff = AFM_PLAYER_EVOLUTION.STAFF_CATALOG.find(x => x.id === staffId);
-        if (!pState || !staff) return;
-        pState.hiredStaff = pState.hiredStaff || {};
-        const isHired = !!pState.hiredStaff[staffId];
-        if (isHired) {
-          delete pState.hiredStaff[staffId];
-          showCustomAlert({
-            title: "Contrato Encerrado",
-            message: `${staff.name} foi dispensado da sua comissão pessoal.`,
-            type: "info"
-          });
-        } else {
-          pState.hiredStaff[staffId] = true;
-          showCustomAlert({
-            title: "Profissional Contratado! 🤝",
-            message: `${staff.name} integrado ao seu estafe! Salário mensal: R$ ${staff.salary}.`,
-            type: "success"
-          });
-        }
-        if (typeof window.save === "function") window.save();
-        if (typeof window.render === "function") window.render();
-      };
-    });
+    // Staff Pessoal de Alta Performance é gerenciado exclusivamente via .btn-hire-staff / .btn-dismiss-staff (AFM_Lifestyle unificado)
 
     // Resgate de Recompensa de Objetivos do Treinador
     document.querySelectorAll(".btn-claim-coach-objective").forEach((btn) => {

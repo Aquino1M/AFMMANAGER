@@ -4340,17 +4340,21 @@
       months: 0,
       claim: null,
     });
-    const clubCash = Number(gameState.balance);
-    const lateChance = !Number.isFinite(clubCash)
-      ? 0.02
+    const hasClubBalance =
+      gameState.balance !== undefined &&
+      gameState.balance !== null &&
+      Number.isFinite(Number(gameState.balance));
+    const clubCash = hasClubBalance ? Number(gameState.balance) : Infinity;
+    const lateChance = !hasClubBalance
+      ? 0
       : clubCash < 0
         ? 0.3
         : clubCash < salary
           ? 0.15
           : clubCash < salary * 3
-            ? 0.07
-            : 0.02;
-    const salaryDelayed = Math.random() < lateChance;
+            ? 0.06
+            : 0;
+    const salaryDelayed = lateChance > 0 && Math.random() < lateChance;
     let arrearsPayment = 0;
     if (salaryDelayed) {
       arrears.amount = Math.round((Number(arrears.amount) || 0) + salary);

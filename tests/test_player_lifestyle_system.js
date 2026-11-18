@@ -312,4 +312,65 @@ console.log("Iniciando testes do Sistema de Estilo de Vida & Finanças do Atleta
   console.log("✔ 9. Renderização Completa da View player_lifestyle (UI): PASSOU");
 }
 
+// 10. Teste de Unificação do Staff Pessoal (8 Profissionais), ✅ CONTRATADO + ❌ Demitir e Paridade 100% de Despesas/Receitas Previstas vs Virada Mensal
+{
+  const pState = {
+    athleteName: "Diógenes Aquino",
+    personalBank: 80000,
+    athleteOvr: 55,
+    agent: { id: "agent_regional" }, // R$ 350/mês + 6% sobre patrocínio
+    sponsorContract: {
+      id: "sp_test",
+      name: "Penalty Pro",
+      brand: "Penalty",
+      monthlyStipend: 1000,
+      daysRemaining: 120,
+      totalDays: 180
+    },
+    hiredStaff: { fitness_coach: true, tactical_analyst: true }, // Chaves legadas que devem migrar sem duplicar
+    attributes: { vel: 55, chu: 60, pas: 55, dri: 55, def: 42, fis: 54 }
+  };
+  const athlete = { id: 1, name: "Diógenes Aquino", pos: "ATA", ovr: 55, wage: 3000, attributes: { ...pState.attributes } };
+  const state = {
+    gameMode: "player",
+    playerCareerState: pState,
+    controlledPlayerId: 1,
+    squad: [athlete],
+    date: "2026-05-01"
+  };
+  global.window.state = state;
+
+  const ls = window.AFM_Lifestyle.ensurePlayerLifestyleState(pState);
+  assert(ls.hiredStaff.includes("personal_trainer") && ls.hiredStaff.includes("video_analyst"), "Chaves legadas devem migrar automaticamente para o catálogo único de 8 profissionais");
+  assert(!pState.hiredStaff.fitness_coach && !pState.hiredStaff.tactical_analyst, "Chaves legadas antigas devem ser limpas após migração");
+
+  // Contrata Contador e adquire Kitnet + Relógio à vista + Carro financiado 12x
+  window.AFM_Lifestyle.hireStaffMember(state, "accountant");
+  window.AFM_Lifestyle.buyRentalUnit(state);
+  window.AFM_Lifestyle.buyAssetCash(state, "swiss_watch");
+  window.AFM_Lifestyle.financeAsset(state, "sport_hatch");
+  window.AFM_Lifestyle.depositCdb(state, 10000);
+
+  // Verifica UI de Vida & Patrocínios e Meu Atleta & Treino
+  const htmlLifestyle = window.AFM_PlayerMode.renderPage("player_lifestyle");
+  const htmlTraining = window.AFM_PlayerModeUI.renderPlayerEvolution(state);
+  assert(htmlLifestyle.includes("✅ CONTRATADO"), "Staff contratado deve exibir badge ✅ CONTRATADO em Vida & Patrocínios");
+  assert(htmlLifestyle.includes("btn-dismiss-staff"), "Staff contratado deve exibir botão ❌ Demitir em Vida & Patrocínios");
+  assert(htmlTraining.includes("✅ CONTRATADO") && htmlTraining.includes("btn-dismiss-staff"), "Resumo unificado em Meu Atleta & Treino deve exibir ✅ CONTRATADO e ❌ Demitir");
+  assert(!htmlTraining.includes("btn-hire-evolution-staff"), "Proibido existir sistema duplicado de contratação em Meu Atleta & Treino");
+
+  // Verifica paridade exata de R$ 1 entre getMonthlyCashflowPreview e processMonthlyPlayerFinances
+  const preview = window.AFM_Lifestyle.getMonthlyCashflowPreview(state);
+  assert(htmlLifestyle.includes(`- R$ ${preview.expExpenses.toLocaleString("pt-BR")}/mês`), "UI deve exibir exatamente expExpenses em 🔴 DESPESAS PREVISTAS");
+  assert(htmlLifestyle.includes(`+ R$ ${preview.expIncome.toLocaleString("pt-BR")}/mês`), "UI deve exibir exatamente expIncome em 🟢 ENTRADAS PREVISTAS");
+
+  const cashBefore = ls.cash;
+  const finMonth = window.AFM_Lifestyle.processMonthlyPlayerFinances(state, "2026-05-01");
+  assert.strictEqual(finMonth.totalIncome, preview.expIncome, "Receitas processadas no mês devem bater 100% com 🟢 ENTRADAS PREVISTAS");
+  assert.strictEqual(finMonth.totalExpenses, preview.expExpenses, "Despesas processadas no mês devem bater 100% com 🔴 DESPESAS PREVISTAS");
+  const liquidIncome = preview.wage + preview.spIncome + preview.businessIncome;
+  assert.strictEqual(ls.cash, cashBefore + liquidIncome - preview.expExpenses, "Saldo líquido bancário pós-virada deve refletir exatamente entradas líquidas menos todas as despesas");
+  console.log("✔ 10. Staff Unificado (✅ CONTRATADO / ❌ Demitir) e Paridade 100% do Fluxo Mensal: PASSOU");
+}
+
 console.log("\nTODOS OS TESTES DO SISTEMA DE ESTILO DE VIDA PASSARAM COM 100% DE SUCESSO! ⭐");

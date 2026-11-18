@@ -394,7 +394,7 @@
       }
     });
 
-    // Normaliza hiredStaff (array de IDs)
+    // Normaliza hiredStaff (array de IDs) e migra chaves legadas do treino unificado
     if (!Array.isArray(ls.hiredStaff)) {
       if (
         player.hiredStaff &&
@@ -408,6 +408,27 @@
         ls.hiredStaff = [];
       }
     }
+    const legacyStaffAlias = {
+      fitness_coach: "personal_trainer",
+      tactical_analyst: "video_analyst",
+      vip_team: "personal_trainer",
+    };
+    const migratedStaffSet = new Set();
+    ls.hiredStaff.forEach((id) => {
+      const mapped = legacyStaffAlias[id] || id;
+      if (AFM_STAFF_CATALOG.some((s) => s.id === mapped)) {
+        migratedStaffSet.add(mapped);
+      }
+    });
+    if (player.hiredStaff && typeof player.hiredStaff === "object" && !Array.isArray(player.hiredStaff)) {
+      Object.keys(legacyStaffAlias).forEach((oldKey) => {
+        if (player.hiredStaff[oldKey]) {
+          migratedStaffSet.add(legacyStaffAlias[oldKey]);
+          delete player.hiredStaff[oldKey];
+        }
+      });
+    }
+    ls.hiredStaff = Array.from(migratedStaffSet);
 
     // Normaliza ownedAssets (array de IDs)
     if (!Array.isArray(ls.ownedAssets)) {
@@ -624,9 +645,13 @@
         const item = AFM_ASSETS_CATALOG.find(a => a.id === fin.id);
         if (item && item.price) {
           const downPayment = Math.round(item.price * 0.3);
-          const paidInstallments =
-            (12 - (Number(fin.installmentsRemaining) || 12)) *
-            (Number(fin.monthlyInstallment) || 0);
+          const remInst = Number(
+            fin.remainingInstallments ?? fin.installmentsRemaining ?? 12,
+          );
+          const mPay = Number(
+            fin.monthlyPayment ?? fin.monthlyInstallment ?? 0,
+          );
+          const paidInstallments = Math.max(0, 12 - remInst) * mPay;
           assetsVal += downPayment + Math.max(0, paidInstallments);
         }
       });
@@ -1723,15 +1748,36 @@
     }
 
     // -----------------------------------------------------------------------
-    // SAÍDAS E DESPESAS DO MÊS
+    // SAÍDAS E DESPESAS DO MÊS (100% PARIDADE COM DESPESAS PREVISTAS NA UI)
     // -----------------------------------------------------------------------
-    // Custo de Vida Base do Atleta (Aspirante / Moradia)
-    let baseLifestyleCost = 350;
-    if (athleteOvr >= 85) baseLifestyleCost = 65000;
-    else if (athleteOvr >= 78) baseLifestyleCost = 28000;
-    else if (athleteOvr >= 70) baseLifestyleCost = 10000;
-    else if (athleteOvr >= 62) baseLifestyleCost = 3500;
-    else if (athleteOvr >= 52) baseLifestyleCost = 1200;
+    // 1. Empresário (mensalidade fixa + comissão sobre patrocínio ativo)
+    const agent =
+      typeof window !== "undefined" &&
+      window.AFM_PlayerEngine &&
+      typeof window.AFM_PlayerEngine.getPlayerAgent === "function"
+        ? window.AFM_PlayerEngine.getPlayerAgent(pState)
+        : { name: "Familiar", monthlySalary: 0, sponsorCommissionPct: 5 };
+    const agentSalary = Math.round(Number(agent?.monthlySalary) || 0);
+    const agentSponsorComm =
+      sponsorMonthly > 0
+        ? Math.round(
+            sponsorMonthly *
+              ((Number(agent?.sponsorCommissionPct) || 5) / 100),
+          )
+        : 0;
+    const totalAgentExpenses = agentSalary + agentSponsorComm;
+    if (totalAgentExpenses > 0) {
+      addPlayerTransaction(
+        pState,
+        curDate,
+        `Honorários & Comissão Empresário (${agent?.name || "Agente"})`,
+        totalAgentExpenses,
+        "out",
+      );
+    }
+
+    // 2. Custo de Vida Base do Atleta (Aspirante / Moradia)
+    const baseLifestyleCost = getBaseLifestyleCost(athleteOvr);
 
     addPlayerTransaction(
       pState,
@@ -1741,7 +1787,7 @@
       "out",
     );
 
-    // Manutenção de Bens de Luxo e Veículos (-15% se tiver Contador)
+    // 3. Manutenção de Bens de Luxo e Veículos (-15% se tiver Contador)
     let totalUpkeep = 0;
     const allHeldAssetIds = [
       ...ls.ownedAssets,
@@ -1765,14 +1811,17 @@
       );
     }
 
-    // Parcelas de Financiamento (12x)
+    // 4. Parcelas de Financiamento (12x)
+    let totalFinancingPaid = 0;
     const financedToRemove = [];
     ls.financedAssets.forEach((item, idx) => {
+      const instAmt = Math.round(Number(item.monthlyPayment) || 0);
+      totalFinancingPaid += instAmt;
       addPlayerTransaction(
         pState,
         curDate,
         `Parcela Financiamento: ${item.name}`,
-        item.monthlyPayment,
+        instAmt,
         "out",
       );
       item.remainingInstallments = Math.max(
@@ -1797,7 +1846,7 @@
       ls.financedAssets.splice(financedToRemove[i], 1);
     }
 
-    // Folha de Pagamento do Staff Pessoal
+    // 5. Folha de Pagamento do Staff Pessoal (8 Profissionais Unificados)
     let totalStaffPayroll = 0;
     ls.hiredStaff.forEach((staffId) => {
       const st = AFM_STAFF_CATALOG.find((s) => s.id === staffId);
@@ -1857,17 +1906,31 @@
     pState.financialHistory = Array.isArray(pState.financialHistory)
       ? pState.financialHistory
       : [];
+    const salaryPaid = salaryDelayed ? 0 : salary;
     const totalMonthIncome =
-      salary + sponsorMonthly + cdbYield + totalBusinessIncome;
+      salaryPaid + arrearsPayment + sponsorMonthly + cdbYield + totalBusinessIncome;
     const totalMonthExpenses =
-      baseLifestyleCost + totalUpkeep + totalStaffPayroll;
+      totalAgentExpenses +
+      baseLifestyleCost +
+      totalUpkeep +
+      totalFinancingPaid +
+      totalStaffPayroll;
     pState.financialHistory.unshift({
       date: curDate,
       month: monthKey,
-      salary,
+      salary: salaryPaid,
+      salaryDue: salary,
+      salaryDelayed,
+      salaryArrearsPaid: arrearsPayment,
       sponsorMonthly,
+      cdbYield,
+      businessIncome: totalBusinessIncome,
       totalIncome: totalMonthIncome,
+      agentSalary,
+      agentSponsorComm,
+      totalAgentExpenses,
       staffExpenses: totalStaffPayroll,
+      financingExpenses: totalFinancingPaid,
       lifestyleCost: baseLifestyleCost + totalUpkeep,
       totalExpenses: totalMonthExpenses,
       netBalance: totalMonthIncome - totalMonthExpenses,
@@ -1879,13 +1942,146 @@
     return {
       monthKey,
       finalCash: ls.cash,
-      salary,
+      salary: salaryPaid,
       sponsorMonthly,
       cdbYield,
       totalBusinessIncome,
+      agentSalary,
+      agentSponsorComm,
+      totalAgentExpenses,
       baseLifestyleCost,
       totalUpkeep,
+      totalFinancingPaid,
       totalStaffPayroll,
+      totalExpenses: totalMonthExpenses,
+      totalIncome: totalMonthIncome,
+    };
+  }
+
+  function getBaseLifestyleCost(athleteOvr) {
+    const ovr = Number(athleteOvr || 45);
+    if (ovr >= 85) return 65000;
+    if (ovr >= 78) return 28000;
+    if (ovr >= 70) return 10000;
+    if (ovr >= 62) return 3500;
+    if (ovr >= 52) return 1200;
+    return 350;
+  }
+
+  function getMonthlyCashflowPreview(gameState) {
+    const { pState, athlete } = resolveContext(gameState);
+    if (!pState) {
+      return {
+        wage: 1500,
+        spIncome: 0,
+        cdbYield: 0,
+        rentalIncome: 0,
+        academyIncome: 0,
+        brandIncome: 0,
+        businessIncome: 0,
+        expIncome: 1500,
+        agentWage: 0,
+        agentSponsorCut: 0,
+        agentCost: 0,
+        staffCount: 0,
+        staffCost: 0,
+        lifeCost: 350,
+        assetsUpkeep: 0,
+        financingCost: 0,
+        expExpenses: 350,
+        netExp: 1150,
+      };
+    }
+    const ls = ensurePlayerLifestyleState(pState);
+    const athleteOvr = Number(athlete?.ovr || pState?.athleteOvr || 45);
+    const wage = Math.round(
+      Number(
+        athlete?.wage || (pState.weeklySalary ? pState.weeklySalary * 4 : 1500),
+      ),
+    );
+    const spIncome = Math.round(
+      Number(
+        pState.sponsorContract?.monthlyStipend ||
+          pState.sponsorContract?.monthly ||
+          0,
+      ),
+    );
+    const hasAccountant = ls.hiredStaff.includes("accountant");
+    const cdbYield = Math.round(
+      (Number(ls.investments?.cdbBalance) || 0) *
+        (hasAccountant ? 0.015 : 0.011),
+    );
+    const rentalIncome = (Number(ls.investments?.rentalUnits) || 0) * 650;
+    const academyIncome = ls.investments?.academyOwned ? 2100 : 0;
+    const brandIncome = ls.investments?.brandOwned ? 5400 : 0;
+    const businessIncome = rentalIncome + academyIncome + brandIncome;
+    const expIncome = wage + spIncome + cdbYield + businessIncome;
+
+    const agent =
+      typeof window !== "undefined" &&
+      window.AFM_PlayerEngine &&
+      typeof window.AFM_PlayerEngine.getPlayerAgent === "function"
+        ? window.AFM_PlayerEngine.getPlayerAgent(pState)
+        : { monthlySalary: 0, sponsorCommissionPct: 5 };
+    const agentWage = Math.round(Number(agent?.monthlySalary) || 0);
+    const agentSponsorCut =
+      spIncome > 0
+        ? Math.round(
+            spIncome * ((Number(agent?.sponsorCommissionPct) || 5) / 100),
+          )
+        : 0;
+    const agentCost = agentWage + agentSponsorCut;
+
+    let staffCost = 0;
+    const ovrFactor = Math.max(1, 1 + (athleteOvr - 45) * 0.03);
+    ls.hiredStaff.forEach((stId) => {
+      const st = AFM_STAFF_CATALOG.find((s) => s.id === stId);
+      if (st) staffCost += Math.round(st.monthlyCostBase * ovrFactor);
+    });
+
+    const lifeCost = getBaseLifestyleCost(athleteOvr);
+
+    let assetsUpkeep = 0;
+    const allHeld = [
+      ...(ls.ownedAssets || []),
+      ...(ls.financedAssets || []).map((f) => f.id),
+    ];
+    allHeld.forEach((aId) => {
+      const a = AFM_ASSETS_CATALOG.find((item) => item.id === aId);
+      if (a) assetsUpkeep += a.monthlyUpkeep;
+    });
+    if (hasAccountant && assetsUpkeep > 0) {
+      assetsUpkeep = Math.round(assetsUpkeep * 0.85);
+    }
+
+    let financingCost = 0;
+    (ls.financedAssets || []).forEach((f) => {
+      financingCost += Math.round(Number(f.monthlyPayment) || 0);
+    });
+
+    const expExpenses =
+      agentCost + staffCost + lifeCost + assetsUpkeep + financingCost;
+    const netExp = expIncome - expExpenses;
+
+    return {
+      wage,
+      spIncome,
+      cdbYield,
+      rentalIncome,
+      academyIncome,
+      brandIncome,
+      businessIncome,
+      expIncome,
+      agentWage,
+      agentSponsorCut,
+      agentCost,
+      staffCount: ls.hiredStaff.length,
+      staffCost,
+      lifeCost,
+      assetsUpkeep,
+      financingCost,
+      expExpenses,
+      netExp,
     };
   }
 
@@ -1897,6 +2093,8 @@
     AFM_STAFF_CATALOG,
     AFM_ASSETS_CATALOG,
     getStarterBootBonusStats,
+    getBaseLifestyleCost,
+    getMonthlyCashflowPreview,
     resolveContext,
     ensurePlayerLifestyleState,
     getPlayerTotalPatrimony,
