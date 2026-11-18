@@ -18323,8 +18323,8 @@ function newCareer(data){
     date: '2026-01-01',
     currentDate: '2026-01-01',
     currentDateFormatted: formatDatePtBr('2026-01-01'),
-    isPreSeason: true,
-    preSeasonDays: 4,
+    isPreSeason: !isPlayerMode,
+    preSeasonDays: isPlayerMode ? 0 : 4,
     round: 0,
     balance: isPlayerMode ? budget : (
       isCustom ? customStartCash
@@ -18378,6 +18378,9 @@ function newCareer(data){
       `🏟️ O estádio ${club.stadium} foi inaugurado com capacidade para ${customStadiumCap.toLocaleString('pt-BR')} torcedores (${data.pitchType === 'hybrid' ? 'Gramado Híbrido' : data.pitchType === 'synthetic' ? 'Sintético FIFA' : 'Grama Natural'}).`,
       `💰 A diretoria estabeleceu o caixa inicial do clube em ${fmtMoney(customStartCash)} (${data.clubModel === 'saf' ? 'Modelo SAF' : 'Modelo Associativo'}).`,
       `🏖️ Início da Pré-Temporada 2026! Janela de transferências aberta por 4 dias para reforçar o plantel.`
+    ] : isPlayerMode ? [
+      `⚽ APRESENTAÇÃO NO CT: Elenco do ${club.name} inicia preparação oficial para a estreia em ${comp.name}!`,
+      `📋 COMISSÃO TÉCNICA: O treinador definiu a rotina de treinos e observará os jovens talentos nos trabalhos da semana.`
     ] : [
       `💼 PATROCÍNIOS: Contratos comerciais ativados! Receita inicial de ${fmtMoney((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0))} creditada no caixa.`,
       `🏖️ Início da Pré-Temporada 2026 no ${club.name}! Janela de transferências aberta por 4 dias para reforçar o elenco.`,
@@ -20826,13 +20829,12 @@ function getActualCurrentMatch(gameState = state){
 
   if(!candidates.length) return null;
 
-  // Prioridade: se houver partidas pendentes hoje ou com data já vencida, joga a devida; senão, a próxima no futuro
+  // Prioridade estritamente cronológica: se houver partidas pendentes vencidas ou hoje, joga sempre a mais antiga primeiro (due[0])
   const today = gameState.date;
   const sorted = candidates.slice().sort((a,b) => String(a.date || '').localeCompare(String(b.date || '')));
   const due = sorted.filter(c => c.date <= today);
   if(due.length){
-    const todayMatch = due.find(c => c.date === today);
-    return todayMatch || due[0];
+    return due[0];
   }
   return sorted[0];
 }

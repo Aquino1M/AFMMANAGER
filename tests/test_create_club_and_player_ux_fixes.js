@@ -399,6 +399,7 @@ console.log('🧪 [TESTE 2/6] Modo Jogador — Anti-Overshoot (17/01 vs 20/01), 
   const gateLegacy = window.canStartMatch(null, st);
   assert.equal(gateLegacy.canStart, true, 'Save legado em 20/01 com jogo pendente em 17/01 deve liberar canStart=true imediatamente');
   window.render();
+  assert.equal(st.date, firstMatch.date, 'Save legado em 20/01 com jogo pendente em 17/01 deve auto-curar a data para 17/01');
   assert.ok(document.querySelector('.btn-player-play-live'), 'Save em 20/01 com jogo de 17/01 deve exibir JOGAR PARTIDA AO VIVO para destravar imediatamente');
 
   // Restaura data exata do jogo

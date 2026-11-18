@@ -859,15 +859,28 @@
       comp?.name ||
       state.competition ||
       "Campeonato";
-    const curIsoDate = String(state.date || state.currentDate || "2026-01-01").slice(0, 10);
+    if (state.isPreSeason) {
+      state.isPreSeason = false;
+      state.preSeasonDays = 0;
+    }
+    if (state.transferWindowActive) {
+      state.transferWindowActive = false;
+    }
+    let curIsoDate = String(state.date || state.currentDate || "2026-01-01").slice(0, 10);
     const matchIsoDate = String(matchDate || curIsoDate).slice(0, 10);
+    // Auto-cura de saves legados que haviam avançado além da data de jogo não disputado (ex.: 20/01 com jogo em 17/01)
+    if (activeMatch && activeMatch.date && curIsoDate > matchIsoDate) {
+      state.date = matchIsoDate;
+      state.currentDate = matchIsoDate;
+      if (typeof window.formatDatePtBr === "function") {
+        state.currentDateFormatted = window.formatDatePtBr(matchIsoDate);
+      }
+      curIsoDate = matchIsoDate;
+    }
     const isMatchToday = activeMatch
       ? curIsoDate >= matchIsoDate
       : curIsoDate === matchIsoDate;
-    const isOverdueMatch = Boolean(activeMatch && curIsoDate > matchIsoDate);
-    const matchDateFormatted = isOverdueMatch
-      ? `${formatDatePtBr(matchDate)} · HOJE (Pendente)`
-      : formatDatePtBr(matchDate);
+    const matchDateFormatted = formatDatePtBr(matchDate);
 
     const homeClub = isHome ? (state.club || "Meu Clube") : opp;
     const awayClub = isHome ? opp : (state.club || "Meu Clube");
