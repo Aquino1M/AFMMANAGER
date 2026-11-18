@@ -544,5 +544,58 @@ console.log('🧪 [TESTE 6/6] Modo Jogador — Propostas de Material Esportivo c
   console.log('   ✅ Teste 6 aprovado!');
 }
 
-console.log('\n🎉 TODOS OS 6 BLOCOS DE NOVAS FUNCIONALIDADES E CORREÇÕES PASSARAM 100% SEM ERROS!');
+console.log('🧪 [TESTE 7/7] Modo Jogador — PlayStyles & Especialidades exigem OVR 50+ progressivo e higienizam saves legados...');
+{
+  const st = window.getState();
+  const ath = st.squad.find(p => String(p.id) === String(st.controlledPlayerId));
+  // Simula save legado onde atleta < 50 OVR estava com 3 PlayStyles equipados
+  ath.attributes = { vel: 42, chu: 43, pas: 38, dri: 41, def: 32, fis: 40, pace: 42, shooting: 43, passing: 38, dribbling: 41, defending: 32, physical: 40 };
+  ath.ovr = 41;
+  ath.overall = 41;
+  st.playerCareerState.athleteOvr = 41;
+  st.playerCareerState.overall = 41;
+  st.playerCareerState.equippedPlayStyles = ['chute_colocado', 'velocidade_pura', 'drible_espetacular'];
+
+  // 1) AFM_SAVE_VERIFIER deve limpar automaticamente equippedPlayStyles quando OVR < 50
+  const verLow = window.AFM_SAVE_VERIFIER.verifyAndHealState(st, { slot: st.userSlot || 1 });
+  assert.equal(verLow.ok, true);
+  assert.equal(st.playerCareerState.equippedPlayStyles.length, 0, 'AFM_SAVE_VERIFIER deve remover PlayStyles equipados se OVR < 50');
+
+  window.setGameView('player_evolution');
+  window.render();
+  assert.ok(appEl.innerHTML.includes('0/3 Equipados'), 'Com 41 OVR deve exibir 0/3 Equipados');
+  assert.equal(document.querySelectorAll('.btn-playstyle-toggle').length, 0, 'Com 41 OVR nenhum PlayStyle pode ter botão Equipar liberado');
+  assert.ok(appEl.innerHTML.includes('Requer 50 OVR'), 'Deve mostrar requisito mínimo de 50 OVR');
+
+  // 2) Evolui atleta para ~57 OVR (vel 60, chu 64, fis 58, dri 56, pas 50, def 40) -> libera Tier 1 e Chute Colocado, mantém Maestro/Pé de Canhão bloqueados
+  ath.attributes = { vel: 60, chu: 64, pas: 50, dri: 56, def: 40, fis: 58, pace: 60, shooting: 64, passing: 50, dribbling: 56, defending: 40, physical: 58 };
+  window.render();
+  const unlockedBtns = document.querySelectorAll('.btn-playstyle-toggle');
+  assert.equal(unlockedBtns.length, 3, 'Com ~58 OVR (vel 60, chu 64, fis 58) devem destravar exatamente Velocidade Pura, Fôlego de Aço e Chute Colocado');
+  unlockedBtns[0].click();
+  unlockedBtns[1].click();
+  assert.equal(st.playerCareerState.equippedPlayStyles.length, 2, 'Deve permitir equipar PlayStyles legitimamente desbloqueados (OVR >= 50)');
+
+  // 3) Evolui para 68 OVR e todos atributos 72 -> destrava todos os 8 e trava em no máximo 3/3 equipados
+  ath.attributes = { vel: 72, chu: 72, pas: 72, dri: 72, def: 72, fis: 72, pace: 72, shooting: 72, passing: 72, dribbling: 72, defending: 72, physical: 72 };
+  window.render();
+  const allBtns = document.querySelectorAll('.btn-playstyle-toggle');
+  assert.equal(allBtns.length, 8, 'Com 72 OVR e atributos 72 todos os 8 PlayStyles devem estar desbloqueados');
+  // Equipa o 3º e tenta equipar o 4º
+  for (const b of allBtns) {
+    if (st.playerCareerState.equippedPlayStyles.length < 3 && !st.playerCareerState.equippedPlayStyles.includes(b.dataset.playstyle)) {
+      b.click();
+      break;
+    }
+  }
+  assert.equal(st.playerCareerState.equippedPlayStyles.length, 3, 'Deve atingir 3/3 equipados');
+  const fourthBtn = Array.from(document.querySelectorAll('.btn-playstyle-toggle')).find(
+    b => !st.playerCareerState.equippedPlayStyles.includes(b.dataset.playstyle)
+  );
+  fourthBtn.click();
+  assert.equal(st.playerCareerState.equippedPlayStyles.length, 3, 'Trava rigorosa deve impedir equipar um 4º PlayStyle');
+  console.log('   ✅ Teste 7 aprovado!');
+}
+
+console.log('\n🎉 TODOS OS 7 BLOCOS DE NOVAS FUNCIONALIDADES E CORREÇÕES PASSARAM 100% SEM ERROS!');
 process.exit(0);

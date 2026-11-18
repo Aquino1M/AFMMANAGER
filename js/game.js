@@ -10149,6 +10149,25 @@ window.AFM_SAVE_VERIFIER = (function(){
           pcs.lifestyle.cash = pcs.personalBank;
           healedCount++;
         }
+        if(Array.isArray(pcs.equippedPlayStyles)){
+          const beforeLen = pcs.equippedPlayStyles.length;
+          const curAthlete = Array.isArray(targetState.squad)
+            ? targetState.squad.find(p => p && (String(p.id) === String(targetState.controlledPlayerId) || p.isControlled))
+            : null;
+          const curOvrCheck = Number(curAthlete?.ovr ?? pcs.athleteOvr ?? pcs.overall) || 35;
+          if(curOvrCheck < 50){
+            if(beforeLen > 0){
+              pcs.equippedPlayStyles = [];
+              healedCount++;
+            }
+          } else if(window.AFM_PLAYER_EVOLUTION && typeof window.AFM_PLAYER_EVOLUTION.sanitizeEquippedPlayStyles === 'function'){
+            window.AFM_PLAYER_EVOLUTION.sanitizeEquippedPlayStyles(targetState, curAthlete);
+            if(pcs.equippedPlayStyles.length !== beforeLen) healedCount++;
+          } else if(beforeLen > 3){
+            pcs.equippedPlayStyles = pcs.equippedPlayStyles.slice(0, 3);
+            healedCount++;
+          }
+        }
       }
 
       // Garante que o atleta controlado exista no elenco antes de persistir

@@ -1508,8 +1508,9 @@
         id: "chute_colocado",
         name: "Chute Colocado",
         icon: "🎯",
+        reqOvr: 55,
         reqAttr: "chu",
-        reqVal: 40,
+        reqVal: 62,
         desc: "Chutes com curva e precisão cirúrgica na gaveta.",
         effect: "+15% precisão em chutes colocados"
       },
@@ -1517,8 +1518,9 @@
         id: "passe_longo",
         name: "Passe Milimétrico",
         icon: "📐",
+        reqOvr: 55,
         reqAttr: "pas",
-        reqVal: 40,
+        reqVal: 62,
         desc: "Lançamentos e inversões precisas que quebram as linhas.",
         effect: "+15% acerto em lançamentos longos"
       },
@@ -1526,8 +1528,9 @@
         id: "velocidade_pura",
         name: "Velocidade Pura",
         icon: "⚡",
+        reqOvr: 50,
         reqAttr: "vel",
-        reqVal: 40,
+        reqVal: 58,
         desc: "Arrancadas fulminantes em transição e contra-ataques.",
         effect: "+10% velocidade máxima em campo aberto"
       },
@@ -1535,8 +1538,9 @@
         id: "drible_espetacular",
         name: "Drible Espetacular",
         icon: "🌀",
+        reqOvr: 58,
         reqAttr: "dri",
-        reqVal: 40,
+        reqVal: 65,
         desc: "Fintas desconcertantes e agilidade extrema no 1x1.",
         effect: "+20% chance de sucesso em fintas e dribles"
       },
@@ -1544,8 +1548,9 @@
         id: "muralha",
         name: "Muralha Defensiva",
         icon: "🛡️",
+        reqOvr: 52,
         reqAttr: "def",
-        reqVal: 40,
+        reqVal: 58,
         desc: "Botes firmes, interceptações cirúrgicas e combate físico.",
         effect: "+20% desarme limpo sem cometer faltas"
       },
@@ -1553,8 +1558,9 @@
         id: "pe_de_canhao",
         name: "Pé de Canhão",
         icon: "🚀",
+        reqOvr: 62,
         reqAttr: "chu",
-        reqVal: 45,
+        reqVal: 68,
         desc: "Bombas indefensáveis de fora da área com força máxima.",
         effect: "+25% força e velocidade em chutes de longe"
       },
@@ -1562,8 +1568,9 @@
         id: "maestro",
         name: "Maestro de Jogo",
         icon: "👑",
+        reqOvr: 65,
         reqAttr: "pas",
-        reqVal: 45,
+        reqVal: 70,
         desc: "Visão periférica e passes que deixam atacantes na cara do gol.",
         effect: "+20% passes decisivos que geram xG alto"
       },
@@ -1571,12 +1578,70 @@
         id: "folego_de_aco",
         name: "Fôlego de Aço",
         icon: "🫁",
+        reqOvr: 50,
         reqAttr: "fis",
-        reqVal: 40,
+        reqVal: 56,
         desc: "Resistência inesgotável para pressionar os 90 minutos.",
         effect: "-30% perda de estamina ao longo da partida"
       }
     ],
+
+    evaluatePlayStyleUnlock: function (psOrId, athlete, state) {
+      const ps =
+        typeof psOrId === "string"
+          ? this.PLAYSTYLES_CATALOG.find((item) => item.id === psOrId)
+          : psOrId;
+      if (!ps) {
+        return { unlocked: false, curOvr: 35, reqOvr: 50, attrVal: 35, reqVal: 56, reqAttr: "fis" };
+      }
+      const reqOvr = Math.max(50, Number(ps.reqOvr) || 50);
+      const reqVal = Math.max(50, Number(ps.reqVal) || 56);
+      const effAttrs =
+        state && window.AFM_PlayerEngine?.getPlayerEffectiveAttributes
+          ? window.AFM_PlayerEngine.getPlayerEffectiveAttributes(state, athlete)
+          : athlete?.attributes || {};
+      const curOvr = Math.min(
+        99,
+        Math.max(
+          1,
+          Number(
+            athlete?.ovr ??
+              athlete?.overall ??
+              state?.playerCareerState?.athleteOvr ??
+              state?.playerCareerState?.overall
+          ) || 35
+        )
+      );
+      const attrVal = Math.min(
+        99,
+        Math.max(1, Number(effAttrs[ps.reqAttr] ?? athlete?.attributes?.[ps.reqAttr]) || 35)
+      );
+      return {
+        unlocked: curOvr >= reqOvr && attrVal >= reqVal,
+        curOvr,
+        reqOvr,
+        attrVal,
+        reqVal,
+        reqAttr: ps.reqAttr
+      };
+    },
+
+    sanitizeEquippedPlayStyles: function (state, athleteArg) {
+      const pState = getCareerState(state);
+      if (!pState) return [];
+      const athlete = athleteArg || getControlledPlayer(state);
+      const raw = Array.isArray(pState.equippedPlayStyles) ? pState.equippedPlayStyles : [];
+      const clean = [];
+      for (const id of raw) {
+        if (typeof id !== "string" || clean.includes(id)) continue;
+        if (this.evaluatePlayStyleUnlock(id, athlete, state).unlocked) {
+          clean.push(id);
+          if (clean.length >= 3) break;
+        }
+      }
+      pState.equippedPlayStyles = clean;
+      return clean;
+    },
 
     EXTRA_SESSIONS_CATALOG: [
       {
@@ -1761,6 +1826,7 @@
       pState.availablePoints = pState.skillPoints;
       pState.pendingAttributePoints = pState.pendingAttributePoints || {};
       pState.equippedPlayStyles = Array.isArray(pState.equippedPlayStyles) ? pState.equippedPlayStyles : [];
+      AFM_PLAYER_EVOLUTION.sanitizeEquippedPlayStyles(state, athlete);
       pState.evolutionLog = Array.isArray(pState.evolutionLog) ? pState.evolutionLog : [];
       pState.hiredStaff = pState.hiredStaff || {};
       pState.extraSessions = pState.extraSessions || {};
@@ -2456,7 +2522,7 @@
 
           <!-- COLUNA 2: PLAYSTYLES / ESPECIALIDADES (ESTILO EA FC) -->
           <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
               <h3 style="margin:0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
                 ✨ PLAYSTYLES & ESPECIALIDADES
               </h3>
@@ -2464,12 +2530,15 @@
                 ${equippedStyles.length}/3 Equipados
               </span>
             </div>
+            <div style="font-size:10px;color:#94a3b8;margin-bottom:12px">
+              Especialidades técnicas liberadas progressivamente a partir de <strong style="color:#e2e8f0">50+ OVR</strong> conforme sua evolução.
+            </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
               ${AFM_PLAYER_EVOLUTION.PLAYSTYLES_CATALOG.map(ps => {
-                const isEquipped = equippedStyles.includes(ps.id);
-                const attrVal = Number(athlete.attributes?.[ps.reqAttr] ?? attrs[ps.reqAttr]) || 35;
-                const isUnlocked = attrVal >= ps.reqVal || (isGkPos && ps.id === 'muralha');
+                const psCheck = AFM_PLAYER_EVOLUTION.evaluatePlayStyleUnlock(ps, athlete, state);
+                const isUnlocked = psCheck.unlocked;
+                const isEquipped = isUnlocked && equippedStyles.includes(ps.id);
                 return `
                   <div style="background:${isEquipped ? 'rgba(124,58,237,0.25)' : '#090d16'};border:1.5px solid ${isEquipped ? '#a855f7' : (isUnlocked ? '#334155' : '#1e293b')};border-radius:10px;padding:10px;display:flex;flex-direction:column;justify-content:space-between;gap:6px">
                     <div style="display:flex;align-items:center;gap:6px">
@@ -2477,15 +2546,15 @@
                       <div style="font-size:11px;font-weight:900;color:#fff">${ps.name}</div>
                     </div>
                     <div style="font-size:9px;color:#94a3b8;line-height:1.3">${ps.desc}</div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-top:2px">
                       <span style="font-size:9px;font-weight:800;color:${isUnlocked ? '#34d399' : '#f87171'}">
-                        ${isUnlocked ? "✓ Desbloqueado" : `🔒 Requer ${ps.reqVal} ${ps.reqAttr.toUpperCase()}`}
+                        ${isUnlocked ? "✓ Desbloqueado" : `🔒 Requer ${psCheck.reqOvr} OVR · ${psCheck.reqVal} ${ps.reqAttr.toUpperCase()}`}
                       </span>
                       ${isUnlocked ? `
                         <button type="button" class="btn btn-playstyle-toggle" data-playstyle="${ps.id}" style="padding:3px 8px;border-radius:6px;border:none;font-size:9px;font-weight:900;background:${isEquipped ? '#10b981' : '#7c3aed'};color:#fff;cursor:pointer">
                           ${isEquipped ? "Equipado" : "Equipar"}
                         </button>
-                      ` : ""}
+                      ` : `<span style="font-size:8px;color:#64748b;font-weight:700;white-space:nowrap">${psCheck.curOvr}/${psCheck.reqOvr} · ${psCheck.attrVal}/${psCheck.reqVal}</span>`}
                     </div>
                   </div>
                 `;
@@ -9158,16 +9227,25 @@
       };
     }
 
-    // Toggle de PlayStyles & Especialidades (até 3 equipados)
+    // Toggle de PlayStyles & Especialidades (até 3 equipados, exige OVR 50+ e atributo mínimo)
     document.querySelectorAll(".btn-playstyle-toggle").forEach((btn) => {
       btn.onclick = () => {
         const psId = btn.dataset.playstyle;
         if (!pState || !psId) return;
-        pState.equippedPlayStyles = Array.isArray(pState.equippedPlayStyles) ? pState.equippedPlayStyles : [];
+        AFM_PLAYER_EVOLUTION.sanitizeEquippedPlayStyles(s, athlete);
         const idx = pState.equippedPlayStyles.indexOf(psId);
         if (idx >= 0) {
           pState.equippedPlayStyles.splice(idx, 1);
         } else {
+          const check = AFM_PLAYER_EVOLUTION.evaluatePlayStyleUnlock(psId, athlete, s);
+          if (!check.unlocked) {
+            showCustomAlert({
+              title: "PlayStyle Bloqueado 🔒",
+              message: `Esta especialidade exige pelo menos ${check.reqOvr} OVR e ${check.reqVal} ${check.reqAttr.toUpperCase()} (atual: ${check.curOvr} OVR e ${check.attrVal} ${check.reqAttr.toUpperCase()}).`,
+              type: "warning"
+            });
+            return;
+          }
           if (pState.equippedPlayStyles.length >= 3) {
             showCustomAlert({
               title: "Limite de PlayStyles Atingido ⚠️",

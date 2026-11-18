@@ -216,24 +216,58 @@ console.log("\n5. Testando 3º minigame (Drible & 1x1) e bônus de combo streak.
   console.log("✔ 3º Minigame de Drible 1x1 com streak e XP validado com sucesso!");
 }
 
-// 6. Catálogo de PlayStyles e Trava de 3 Equipados
-console.log("\n6. Testando sistema de PlayStyles / Especialidades (máx 3 equipados)...");
+// 6. Catálogo de PlayStyles (OVR 50+ Progressivo) e Trava de 3 Equipados
+console.log("\n6. Testando sistema de PlayStyles / Especialidades (OVR 50+ progressivo e máx 3 equipados)...");
 {
   const evo = window.AFM_PLAYER_EVOLUTION;
-  assert(evo.PLAYSTYLES_CATALOG.length >= 8, "Catálogo de PlayStyles deve conter pelo menos 8 especialidades");
+  assert.strictEqual(evo.PLAYSTYLES_CATALOG.length, 8, "Catálogo de PlayStyles deve conter exatamente 8 especialidades");
+  evo.PLAYSTYLES_CATALOG.forEach((ps) => {
+    assert(ps.reqOvr >= 50, `PlayStyle ${ps.id} deve exigir pelo menos 50 OVR (atual: ${ps.reqOvr})`);
+    assert(ps.reqVal >= 56, `PlayStyle ${ps.id} deve exigir atributo >= 56 (atual: ${ps.reqVal})`);
+  });
 
-  const pState = {
-    equippedPlayStyles: ["chute_colocado", "velocidade_pura"]
+  // Atleta iniciante (OVR < 50, mesmo goleiro ou atacante com 45 de chute) deve ter 0 desbloqueados e higienizar equipados legados
+  const rookieState = {
+    gameMode: "player",
+    playerCareerState: {
+      athleteOvr: 41,
+      overall: 41,
+      equippedPlayStyles: ["chute_colocado", "velocidade_pura", "muralha"]
+    },
+    squad: [
+      {
+        id: "p_rookie_gk",
+        pos: "GOL",
+        ovr: 41,
+        isControlledAthlete: true,
+        attributes: { vel: 45, chu: 45, pas: 45, dri: 45, def: 48, fis: 46 }
+      }
+    ]
   };
+  evo.sanitizeEquippedPlayStyles(rookieState);
+  assert.strictEqual(rookieState.playerCareerState.equippedPlayStyles.length, 0, "Atleta < 50 OVR deve ter 0 PlayStyles equipados após higienização");
 
-  // Tenta equipar o 3º
-  pState.equippedPlayStyles.push("drible_espacial");
-  assert.strictEqual(pState.equippedPlayStyles.length, 3);
-
-  // Tenta equipar o 4º (deve ser limitado a 3)
-  const canEquip4 = pState.equippedPlayStyles.length < 3;
-  assert(!canEquip4, "Não deve permitir equipar mais de 3 PlayStyles simultâneos");
-  console.log("✔ Trava de PlayStyles (máximo 3 equipados) aprovada!");
+  // Atleta 66 OVR com 72 em todos os atributos desbloqueia todos e respeita limite de 3
+  const eliteState = {
+    gameMode: "player",
+    playerCareerState: {
+      athleteOvr: 66,
+      overall: 66,
+      equippedPlayStyles: ["chute_colocado", "velocidade_pura", "drible_espetacular", "maestro"]
+    },
+    squad: [
+      {
+        id: "p_elite",
+        pos: "ATA",
+        ovr: 66,
+        isControlledAthlete: true,
+        attributes: { vel: 72, chu: 72, pas: 72, dri: 72, def: 72, fis: 72 }
+      }
+    ]
+  };
+  evo.sanitizeEquippedPlayStyles(eliteState);
+  assert.strictEqual(eliteState.playerCareerState.equippedPlayStyles.length, 3, "Não deve permitir mais de 3 PlayStyles simultâneos");
+  console.log("✔ Progressão OVR 50+ e trava de 3 PlayStyles aprovadas!");
 }
 
 // 7. Sessões Extras de Treino no CT & Academia
@@ -354,12 +388,19 @@ console.log("\n11. Testando renderização da view 'player_evolution' com todos 
   assert(html.includes("btn-train-penalty"), "Deve renderizar botão de Treino de Pênaltis");
   assert(html.includes("btn-train-freekick"), "Deve renderizar botão de Treino de Faltas");
   assert(html.includes("btn-train-dribble"), "Deve renderizar botão de Treino de Drible 1x1");
-  assert(html.includes("btn-playstyle-toggle"), "Deve renderizar botões de PlayStyles");
+  assert(!html.includes("btn-playstyle-toggle"), "Com OVR < 50 nenhum botão de equipar PlayStyle pode estar liberado");
+  assert(html.includes("Requer 50 OVR"), "Deve exibir o requisito de OVR 50+ nos PlayStyles bloqueados");
   assert(html.includes("btn-extra-session"), "Deve renderizar botões de Sessões Extras");
-  assert(html.includes("btn-hire-evolution-staff"), "Deve renderizar botões de Staff de Performance");
+  assert(html.includes("COMISSÃO PESSOAL ATIVA"), "Deve renderizar card unificado de Staff Pessoal");
   assert(html.includes("RADAR HEXAGONAL DE ATRIBUTOS"), "Deve renderizar container do gráfico radar");
   assert(html.includes("fut-card"), "Deve renderizar card estilo FUT");
   assert(html.includes("HISTÓRICO DE EVOLUÇÃO"), "Deve renderizar log histórico de evolução");
+
+  // Eleva o atleta para 58 OVR com atributos compatíveis e valida que os botões de PlayStyles destravam progressivamente
+  state.squad[0].attributes = { vel: 60, chu: 64, pas: 52, dri: 55, def: 42, fis: 58 };
+  const htmlUnlocked = window.AFM_PlayerModeUI.renderPlayerEvolution(state);
+  assert(htmlUnlocked.includes("btn-playstyle-toggle"), "Com OVR >= 55 e atributos >= 62 deve liberar botões de PlayStyles compatíveis");
+  assert(htmlUnlocked.includes("Requer 65 OVR · 70 PAS"), "PlayStyle de elite (Maestro) deve permanecer bloqueado abaixo de 65 OVR");
   console.log("✔ Aba '⚡ Meu Atleta & Treino' renderizou todos os 10 sistemas sem falhas!");
 }
 
