@@ -7732,7 +7732,7 @@ const AFM_TitlesAndHistoryService = {
     });
 
     // 4.4 Copas e Torneios
-    const cdb = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState() : gameState.copaData;
+    const cdb = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState(gameState) : gameState.copaData;
     if(cdb && this.isUserClub(cdb.champion, gameState)){
       registerTrophyInMuseum(gameState, 'Copa do Brasil', Number(cdb.season) || Number(gameState.season) || 2026, 'CAMPEÃO DA COPA', '🏆');
     }
@@ -8807,35 +8807,37 @@ function processCopaDoBrasilCalendar(currentDate = state?.date){
   }
 }
 
-function getCopaDoBrasilState(){
-  state.copaData = state.copaData || initCopaDoBrasilData();
-  if(Number(state.copaData.season) !== Number(state.season)) state.copaData = initCopaDoBrasilData();
-  if((Number(state.copaData.version) || 0) < 4){
-    const previous = state.copaData;
+function getCopaDoBrasilState(customState){
+  const st = customState || (typeof state !== 'undefined' && state ? state : (typeof window !== 'undefined' ? window.state : null));
+  if(!st) return null;
+  st.copaData = st.copaData || initCopaDoBrasilData();
+  if(Number(st.copaData.season) !== Number(st.season)) st.copaData = initCopaDoBrasilData();
+  if((Number(st.copaData.version) || 0) < 4){
+    const previous = st.copaData;
     const upgraded = initCopaDoBrasilData();
     const oldResults = Object.values(previous.phases || {}).flatMap(phase => phase.fixtures || []).filter(f => f.score && f.winner);
     if(oldResults.length) upgraded.legacyResults = oldResults;
-    Object.keys(previous.phases || {}).forEach(k => { if(upgraded.phases[k] && previous.phases[k]?.status === 'CONCLUÍDO'){ upgraded.phases[k].status = 'CONCLUÍDO'; if(Array.isArray(previous.phases[k].fixtures) && previous.phases[k].fixtures.length) upgraded.phases[k].fixtures = previous.phases[k].fixtures; } }); state.copaData = upgraded;
+    Object.keys(previous.phases || {}).forEach(k => { if(upgraded.phases[k] && previous.phases[k]?.status === 'CONCLUÍDO'){ upgraded.phases[k].status = 'CONCLUÍDO'; if(Array.isArray(previous.phases[k].fixtures) && previous.phases[k].fixtures.length) upgraded.phases[k].fixtures = previous.phases[k].fixtures; } }); st.copaData = upgraded;
   }
   // Migrate existing version-2 saves whose Copa phases were scheduled too late
   // or belong to another year. Preserve played fixtures and only reschedule games
   // that have not been completed yet.
-  const preferredDates = ['02-04','02-18','03-18','04-08','05-06','06-10','07-08','08-12','09-16'].map(day => `${Number(state.season)}-${day}`);
+  const preferredDates = ['02-04','02-18','03-18','04-08','05-06','06-10','07-08','08-12','09-16'].map(day => `${Number(st.season)}-${day}`);
   const keys = ['1ª Fase','2ª Fase','3ª Fase','4ª Fase','5ª Fase','Oitavas de Final','Quartas de Final','Semifinais','Final'];
   keys.forEach((key,index)=>{
-    const phase = state.copaData.phases?.[key];
+    const phase = st.copaData.phases?.[key];
     if(!phase) return;
     const unplayed = (phase.fixtures || []).filter(f => !f.score && !f.winner);
     if(!unplayed.length || phase.status === 'CONCLUÍDO') return;
     const intendedDate = preferredDates[index];
-    const staleDate = !phase.isoDate || !String(phase.isoDate).startsWith(`${state.season}-`);
+    const staleDate = !phase.isoDate || !String(phase.isoDate).startsWith(`${st.season}-`);
     if(staleDate){
       phase.isoDate = intendedDate;
       phase.dateStr = formatDatePtBr(intendedDate);
       unplayed.forEach(f=>{ f.isoDate = intendedDate; f.date = formatDatePtBr(intendedDate); });
     }
   });
-  return state.copaData;
+  return st.copaData;
 }
 
 // A inscrição da carreira precisa existir no estado salvo da Copa e ter um
@@ -20888,7 +20890,7 @@ function getActualCurrentMatch(gameState = state){
   }
 
   // 2. Copa do Brasil
-  const copa = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState() : gameState.copaData;
+  const copa = typeof getCopaDoBrasilState === 'function' ? getCopaDoBrasilState(gameState) : gameState.copaData;
   if(copa && copa.phases){
     Object.entries(copa.phases).forEach(([phaseName, phase]) => {
       (phase.fixtures || []).forEach((fix, fixIdx) => {
@@ -20952,8 +20954,8 @@ function getActualCurrentMatch(gameState = state){
   }
 
   // 4. Torneios Estaduais
-  const stateCompId = typeof clubStateCompId === 'function' ? clubStateCompId(myClub) : null;
-  if(stateCompId && stateCompId !== gameState.compId){
+  const stateCompId = (typeof clubStateCompId === 'function' ? clubStateCompId(myClub) : null) || (gameState.compId?.startsWith('bra-est-') ? gameState.compId : null);
+  if(stateCompId){
     const estComp = compById(stateCompId) || { id: stateCompId, name: 'Campeonato Estadual' };
     const estData = typeof getStateCompData === 'function' ? getStateCompData(stateCompId) : null;
     if(estData && Array.isArray(estData.fixtures)){

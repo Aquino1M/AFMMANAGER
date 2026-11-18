@@ -80,6 +80,13 @@
   - Sincronização salarial no card de status lê o salário oficial do atleta (`athlete.wage`), mantendo paridade com Vida & Patrocínios.
   - Quebra de recordes históricos em tempo real (+15 gols em um ano, +9 assistências, +12 jogos invicto) concede +500 XP, premiação financeira no banco e troféu individual na galeria.
   - Sub-aba 4 `📈 Carreira Total` cataloga a linha do tempo completa de clubes e temporadas e alimenta a biografia esportiva de legado para quando o atleta se aposentar e virar treinador.
+- Central do Atleta (Aba ⭐ Hub Central):
+  - REGRA IRRESTRITA DO ALTERNADOR NOTÍCIAS & CLASSIFICAÇÃO NO HUB (`getHubMatchCompetitionStandings` & `renderHubCompetitionStandingsHtml`):
+    - O cabeçalho do card de Notícias no Hub Central possui alternador dinâmico de duas abas: `📰 Notícias & Imprensa` e `📊 Classificação (Competição)`.
+    - Ao ativar a aba de classificação, exibe em tempo real a tabela ou chaveamento da exata competição da próxima partida que o atleta disputará no dia (`activeMatch`), sem necessidade de transitar para a tela de Temporada.
+    - Reutiliza 100% dos dados canônicos de `seasonPage()` (`computeStandingsFromFixtures` em estaduais, `getNationalCompetitionStandings` em ligas nacionais e internacionais, `getCopaDoBrasilState` em copas e `getContinentalTournament` em torneios continentais), garantindo paridade total de pontos, jogos, vitórias, saldo de gols e forma.
+    - Destaca o clube do atleta com `#Pos`, nome do clube, badge `VOCÊ`, pontos acumulados e resumo (`J · V · E · D`), oferecendo atalho direto `🔍 Abrir Temporada Completa & Artilharia Oficial ➔` para a competição em `seasonPage()`.
+    - `getActualCurrentMatch(state)` e `getStateCompData` devem sempre suportar clubes em estaduais independentemente de `stateCompId === state.compId`, priorizando cronologicamente a partida pendente mais antiga e impedindo saltos indevidos de calendário para Copas futuras.
 - Gestão de Elenco, Finanças e Vestiário (Aba 👥 Clube & Elenco):
   - REGRA IRRESTRITA DE ELENCO E REFERÊNCIAS: Os indicadores de 'Referências do Elenco' (Maior Valor e Maior Salário) devem ser sempre calculados dinamicamente a partir do array real do elenco do clube (`getSquadReferences`), proibindo valores estáticos ou nomes nulos ('—'). O valor de mercado do atleta do usuário deve seguir a mesma curva proporcional de OVR e idade dos demais jogadores.
   - Hierarquia de status do elenco distingue 11 Titulares (🟢 Titular), 7 Reservas imediatos (🟡 Reserva) e Plantel restante (⚪ Plantel), com badge dourado de Capitão (© CAPITÃO) para a liderança do grupo.

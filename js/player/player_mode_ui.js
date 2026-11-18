@@ -1116,6 +1116,333 @@
   }
 
   // =========================================================================
+  // HELPER: CLASSIFICAÇÃO DA COMPETIÇÃO ATIVA NO HUB DO JOGADOR
+  // =========================================================================
+  function getHubMatchCompetitionStandings(state, vm) {
+    if (!state) return null;
+    const activeMatch = vm?.activeMatch || (typeof window.getActualCurrentMatch === "function" ? window.getActualCurrentMatch(state) : null);
+    const myClub = state.club || "Meu Clube";
+    const myClubNorm = typeof norm === "function" ? norm(myClub) : String(myClub).toLowerCase().trim();
+
+    let compType = activeMatch?.type || null;
+    let compId = activeMatch?.competitionId || state.compId || "bra-a";
+    let compName = activeMatch?.competitionName || vm?.compName || state.competition || "Campeonato";
+
+    if (!compType) {
+      if (compId && (compId.startsWith("bra-est-") || compId.includes("-est-"))) compType = "estadual";
+      else if (compId === "bra-cup" || compId === "copa-do-brasil") compType = "copa";
+      else if (["libertadores", "sulamericana", "champions", "europa_league", "mundial"].includes(compId)) compType = "continental";
+      else compType = "league";
+    }
+
+    // 1. ESTADUAL (ex.: Campeonato Candango, Paulistão, Carioca, etc.)
+    if (compType === "estadual" || (compId && compId.startsWith("bra-est-"))) {
+      const estId = compId || (typeof window.clubStateCompId === "function" ? window.clubStateCompId(myClub) : "bra-est-df");
+      const estData = typeof window.getStateCompData === "function" ? window.getStateCompData(estId) : null;
+      let rawTeams = (estData && Array.isArray(estData.teams)) ? estData.teams : [];
+      const isActiveComp = Boolean(state.compId === estId || (state.compId?.startsWith("bra-est-") && typeof window.clubStateCompId === "function" && window.clubStateCompId(myClub) === estId));
+      if (isActiveComp && Array.isArray(state.teams) && state.teams.some((t) => Number(t?.j) > 0)) {
+        rawTeams = state.teams;
+      }
+      let standings = (typeof window.computeStandingsFromFixtures === "function" && estData)
+        ? window.computeStandingsFromFixtures(rawTeams, estData.fixtures, "geral")
+        : rawTeams.slice().sort((a, b) => (b.p - a.p) || (b.v - a.v) || (b.sg - a.sg) || (b.gp - a.gp));
+
+      let shortLabel = "Estadual";
+      const cName = estData?.name || compName;
+      if (/candango/i.test(cName)) shortLabel = "Candangão";
+      else if (/paulist/i.test(cName)) shortLabel = "Paulistão";
+      else if (/carioca/i.test(cName)) shortLabel = "Carioca";
+      else if (/mineir/i.test(cName)) shortLabel = "Mineiro";
+      else if (/ga[uú]cho/i.test(cName)) shortLabel = "Gaúcho";
+      else if (/baiano/i.test(cName)) shortLabel = "Baiano";
+      else if (/parana/i.test(cName)) shortLabel = "Paranaense";
+      else if (/catarin/i.test(cName)) shortLabel = "Catarinense";
+      else if (/cearense/i.test(cName)) shortLabel = "Cearense";
+      else if (/goiano/i.test(cName)) shortLabel = "Goiano";
+      else if (/pernambuc/i.test(cName)) shortLabel = "Pernambucano";
+      else if (cName.length > 12) shortLabel = cName.slice(0, 10) + "...";
+      else shortLabel = cName;
+
+      return {
+        kind: "table",
+        type: "estadual",
+        compId: estId,
+        compName: cName,
+        shortLabel,
+        roundLabel: activeMatch?.roundLabel || (estData?.currentRound ? `Rodada ${estData.currentRound}` : "Fase de Grupos"),
+        standings,
+      };
+    }
+
+    // 2. LIGA NACIONAL (Séries A, B, C, D e Ligas Internacionais)
+    if (compType === "league") {
+      const natId = compId || state.compId || "bra-a";
+
+      // Série D (Grupos A, B, C, D)
+      if (natId === "bra-d") {
+        const dRoster = (state.compId === "bra-d" && Array.isArray(state.teams) && state.teams.length >= 96)
+          ? state.teams.map((t) => t.name)
+          : (state.competitionTeams?.["bra-d"] || window.COMPETITION_TEAMS?.["bra-d"] || []);
+        const dGroups = typeof window.getSeriesDGroupStandings === "function"
+          ? window.getSeriesDGroupStandings(dRoster, state.compId === "bra-d" ? state.teams : (state.nationalCompetitionStandings?.["bra-d"] || null))
+          : null;
+        const myGroupKey = ["A", "B", "C", "D"].find((g) => dGroups && dGroups[g]?.some((t) => (typeof norm === "function" ? norm(t.name) === myClubNorm : t.name === myClub))) || "A";
+        const groupStandings = dGroups ? (dGroups[myGroupKey] || []) : [];
+
+        return {
+          kind: "table",
+          type: "league",
+          compId: natId,
+          compName: `Série D • Grupo ${myGroupKey}`,
+          shortLabel: `Série D (${myGroupKey})`,
+          roundLabel: activeMatch?.roundLabel || (state.round != null ? `Rodada ${state.round + 1}` : "Fase de Grupos"),
+          standings: groupStandings,
+        };
+      }
+
+      // Séries A, B, C ou Ligas Internacionais
+      let natStandings = typeof window.getNationalCompetitionStandings === "function" ? window.getNationalCompetitionStandings(natId) : [];
+      if (state.compId === natId && Array.isArray(state.teams) && (!natStandings || natStandings.length === 0)) {
+        natStandings = state.teams.slice().sort((a, b) => (b.p - a.p) || (b.v - a.v) || (b.sg - a.sg) || (b.gp - a.gp));
+      }
+
+      const shortLabel = natId === "bra-a" ? "Série A" : natId === "bra-b" ? "Série B" : natId === "bra-c" ? "Série C" : (compName.length > 12 ? compName.slice(0, 10) + "..." : compName);
+
+      return {
+        kind: "table",
+        type: "league",
+        compId: natId,
+        compName,
+        shortLabel,
+        roundLabel: activeMatch?.roundLabel || (state.round != null ? `Rodada ${state.round + 1}` : "Turno Único"),
+        standings: natStandings,
+      };
+    }
+
+    // 3. COPA DO BRASIL (Eliminatória / Mata-Mata)
+    if (compType === "copa" || compId === "bra-cup" || compId === "copa-do-brasil") {
+      const copa = typeof window.getCopaDoBrasilState === "function" ? window.getCopaDoBrasilState(state) : null;
+      const phaseName = copa?.currentPhase || activeMatch?.phaseName || "Fase Eliminatória";
+      const fixtures = Array.isArray(copa?.fixtures) ? copa.fixtures : [];
+      const userMatchup = fixtures.find((f) => (typeof norm === "function" ? norm(f.home) === myClubNorm || norm(f.away) === myClubNorm : f.home === myClub || f.away === myClub));
+
+      return {
+        kind: "cup",
+        type: "copa",
+        compId: "bra-cup",
+        compName: "Copa do Brasil",
+        shortLabel: "Copa",
+        phaseName,
+        roundLabel: phaseName,
+        fixtures,
+        userMatchup,
+      };
+    }
+
+    // 4. CONTINENTAIS & MUNDIAL (Libertadores, Sul-Americana, Champions, Mundial)
+    if (compType === "continental") {
+      const cat = (compId === "libertadores" || compId === "sulamericana" || compId === "champions" || compId === "mundial") ? compId : "libertadores";
+      const tourn = typeof window.getContinentalTournament === "function" ? window.getContinentalTournament(cat, state) : null;
+      if (tourn && tourn.phase === "groups" && tourn.groups) {
+        let userGroup = null;
+        let userGroupName = "";
+        for (const [gName, gData] of Object.entries(tourn.groups)) {
+          if (gData.teams?.some((t) => (typeof norm === "function" ? norm(t.name || t) === myClubNorm : t === myClub))) {
+            userGroup = gData;
+            userGroupName = gName;
+            break;
+          }
+        }
+        if (userGroup) {
+          return {
+            kind: "table",
+            type: "continental",
+            compId,
+            compName: `${compName} • Grupo ${userGroupName}`,
+            shortLabel: `Grupo ${userGroupName}`,
+            roundLabel: "Fase de Grupos",
+            standings: userGroup.table || userGroup.teams || [],
+          };
+        }
+      }
+
+      // Mata-Mata Continental
+      const phaseName = tourn?.phaseName || tourn?.phase || "Mata-Mata";
+      const matches = tourn?.matches || [];
+      const userMatchup = matches.find((m) => (typeof norm === "function" ? norm(m.home) === myClubNorm || norm(m.away) === myClubNorm : m.home === myClub || m.away === myClub));
+      const shortLabel = cat === "libertadores" ? "Libertadores" : cat === "sulamericana" ? "Sula" : cat === "champions" ? "Champions" : "Mundial";
+
+      return {
+        kind: "cup",
+        type: "continental",
+        compId,
+        compName,
+        shortLabel,
+        phaseName,
+        roundLabel: phaseName,
+        fixtures: matches,
+        userMatchup,
+      };
+    }
+
+    return null;
+  }
+
+  function renderHubCompetitionStandingsHtml(compData, state) {
+    if (!compData) {
+      return `
+        <div style="text-align:center;padding:30px 16px;color:#94a3b8;font-size:12px">
+          <div style="font-size:24px;margin-bottom:8px">📊</div>
+          <div>Nenhuma competição oficial ativa nesta data.</div>
+        </div>
+      `;
+    }
+
+    const myClub = state?.club || "Meu Clube";
+    const myClubNorm = typeof norm === "function" ? norm(myClub) : String(myClub).toLowerCase().trim();
+
+    if (compData.kind === "cup") {
+      const fixtures = Array.isArray(compData.fixtures) ? compData.fixtures : [];
+      const userMatch = compData.userMatchup;
+      return `
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <!-- Banner da Fase da Copa -->
+          <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:12px;font-weight:900;color:#38bdf8">${esc(compData.compName.toUpperCase())}</div>
+              <div style="font-size:10px;color:#94a3b8">${esc(compData.phaseName)} · Mata-Mata Eliminatório</div>
+            </div>
+            <span class="pill" style="background:#0284c7;color:#fff;font-size:10px;font-weight:800">Copa Oficial</span>
+          </div>
+
+          <!-- Confronto do Clube do Usuário -->
+          ${userMatch ? `
+            <div style="background:rgba(124,58,237,0.14);border:1.5px solid rgba(124,58,237,0.4);border-radius:12px;padding:12px;text-align:center">
+              <div style="font-size:10px;font-weight:900;color:#c084fc;text-transform:uppercase;margin-bottom:6px">Seu Confronto nesta Fase</div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:12px;font-size:14px;font-weight:900">
+                <span style="color:${(typeof norm === "function" ? norm(userMatch.home) === myClubNorm : userMatch.home === myClub) ? "#c084fc" : "#fff"}">${esc(userMatch.home)} ${(typeof norm === "function" ? norm(userMatch.home) === myClubNorm : userMatch.home === myClub) ? '<span class="tag-you">VOCÊ</span>' : ""}</span>
+                <span style="color:#fbbf24;font-size:12px">VS</span>
+                <span style="color:${(typeof norm === "function" ? norm(userMatch.away) === myClubNorm : userMatch.away === myClub) ? "#c084fc" : "#fff"}">${esc(userMatch.away)} ${(typeof norm === "function" ? norm(userMatch.away) === myClubNorm : userMatch.away === myClub) ? '<span class="tag-you">VOCÊ</span>' : ""}</span>
+              </div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:4px">${userMatch.dateStr || userMatch.date || "Partida Decisiva"}</div>
+            </div>
+          ` : `
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px;text-align:center;font-size:11px;color:#94a3b8">
+              Aguardando definição do adversário na próxima fase.
+            </div>
+          `}
+
+          <!-- Lista de Outros Confrontos da Fase -->
+          <div style="max-height:165px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:4px">
+            ${fixtures.slice(0, 10).map((f) => {
+              const isMine = (typeof norm === "function" ? norm(f.home) === myClubNorm || norm(f.away) === myClubNorm : f.home === myClub || f.away === myClub);
+              const scoreText = (Array.isArray(f.result) && f.result.length >= 2) ? `${f.result[0]} x ${f.result[1]}` : (Array.isArray(f.score) && f.score.length >= 2) ? `${f.score[0]} x ${f.score[1]}` : "x";
+              return `
+                <div style="display:flex;justify-content:space-between;align-items:center;background:${isMine ? "rgba(124,58,237,0.15)" : "rgba(255,255,255,0.02)"};border:1px solid ${isMine ? "rgba(124,58,237,0.3)" : "rgba(255,255,255,0.05)"};border-radius:8px;padding:6px 10px;font-size:11px">
+                  <span style="font-weight:700;color:${isMine ? "#c084fc" : "#e2e8f0"}">${esc(f.home)}</span>
+                  <span style="font-weight:900;color:#fbbf24;padding:0 6px">${scoreText}</span>
+                  <span style="font-weight:700;color:${isMine ? "#c084fc" : "#e2e8f0"}">${esc(f.away)}</span>
+                </div>
+              `;
+            }).join("")}
+          </div>
+
+          <!-- Botão de Acesso Rápido à Temporada -->
+          <button type="button" class="btn btn-hub-goto-season" data-hub-goto-season="${compData.compId}" data-comp-type="${compData.type}" style="width:100%;padding:9px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.35);color:#c084fc;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+            <span>🔍 Ver Chaveamento Completo da Copa</span>
+            <span>➔</span>
+          </button>
+        </div>
+      `;
+    }
+
+    // Tabela de Pontos Corridos / Grupos
+    const standings = Array.isArray(compData.standings) ? compData.standings : [];
+    const myIdx = standings.findIndex((t) => (typeof norm === "function" ? norm(t.name) === myClubNorm : t.name === myClub));
+    const myPos = myIdx >= 0 ? myIdx + 1 : null;
+    const myRow = myIdx >= 0 ? standings[myIdx] : null;
+
+    return `
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <!-- Banner Resumo do Clube -->
+        <div style="background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.3);border-radius:12px;padding:9px 14px;display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:20px;font-weight:900;color:#c084fc;line-height:1">#${myPos || "—"}</span>
+            <div>
+              <div style="font-size:13px;font-weight:900;color:#fff;display:flex;align-items:center;gap:6px">
+                <span>${esc(myClub)}</span>
+                <span class="tag-you" style="font-size:9px">VOCÊ</span>
+              </div>
+              <div style="font-size:10px;color:#94a3b8">${esc(compData.compName)} · ${esc(compData.roundLabel || "Turno Único")}</div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:15px;font-weight:900;color:#10b981;line-height:1">${myRow ? `${myRow.p} Pts` : "0 Pts"}</div>
+            <div style="font-size:10px;color:#94a3b8">${myRow ? `${myRow.j}J · ${myRow.v}V · ${myRow.e}E · ${myRow.d}D` : "Aguardando rodada"}</div>
+          </div>
+        </div>
+
+        <!-- Tabela Compacta de Classificação com Scroll -->
+        <div style="max-height:190px;overflow-y:auto;border:1px solid rgba(255,255,255,0.06);border-radius:10px;background:rgba(0,0,0,0.25)">
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);color:rgba(255,255,255,0.5);font-size:10px;text-transform:uppercase">
+                <th style="padding:6px 4px;text-align:center;width:26px">#</th>
+                <th style="padding:6px 6px;text-align:left">Clube</th>
+                <th style="padding:6px 4px;text-align:center;font-weight:900;color:#c084fc">P</th>
+                <th style="padding:6px 4px;text-align:center">J</th>
+                <th style="padding:6px 4px;text-align:center">V</th>
+                <th style="padding:6px 4px;text-align:center">SG</th>
+                <th style="padding:6px 6px;text-align:center">Forma</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${standings.map((t, i) => {
+                const pos = i + 1;
+                const isMy = (typeof norm === "function" ? norm(t.name) === myClubNorm : t.name === myClub);
+                let posColor = "#cbd5e1";
+                if (pos <= 4) posColor = "#22c55e";
+                else if (pos > standings.length - 2) posColor = "#ef4444";
+
+                const badge = typeof window.clubBadge === "function" ? window.clubBadge(t.name, 18) : "";
+                const formDots = (Array.isArray(t.form) ? t.form.slice(-3) : []).map((f) => {
+                  const color = f === "V" ? "#22c55e" : f === "E" ? "#94a3b8" : "#ef4444";
+                  return `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${color};margin:0 1px"></span>`;
+                }).join("");
+
+                return `
+                  <tr style="${isMy ? "background:rgba(124,58,237,0.22);font-weight:800;border-left:3px solid #a855f7;" : i % 2 === 0 ? "background:rgba(255,255,255,0.01);" : "background:transparent;"}border-bottom:1px solid rgba(255,255,255,0.03)">
+                    <td style="padding:5px 4px;text-align:center;font-weight:900;color:${posColor}">${pos}</td>
+                    <td style="padding:5px 6px;text-align:left">
+                      <div style="display:flex;align-items:center;gap:6px">
+                        ${badge}
+                        <span style="color:${isMy ? "#c084fc" : "#e2e8f0"};font-weight:${isMy ? "900" : "600"}">${esc(t.name)}</span>
+                        ${isMy ? '<span class="tag-you" style="font-size:9px">VOCÊ</span>' : ""}
+                      </div>
+                    </td>
+                    <td style="padding:5px 4px;text-align:center;font-weight:900;color:#fff">${t.p}</td>
+                    <td style="padding:5px 4px;text-align:center;color:#94a3b8">${t.j}</td>
+                    <td style="padding:5px 4px;text-align:center;color:#94a3b8">${t.v}</td>
+                    <td style="padding:5px 4px;text-align:center;color:#94a3b8;font-weight:700">${t.sg > 0 ? "+" : ""}${t.sg}</td>
+                    <td style="padding:5px 6px;text-align:center">${formDots || "—"}</td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Botão de Acesso Rápido à Temporada -->
+        <button type="button" class="btn btn-hub-goto-season" data-hub-goto-season="${compData.compId}" data-comp-type="${compData.type}" style="width:100%;padding:9px;font-size:11px;font-weight:800;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.35);color:#c084fc;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s">
+          <span>🔍 Abrir Temporada Completa & Artilharia Oficial</span>
+          <span>➔</span>
+        </button>
+      </div>
+    `;
+  }
+
+  // =========================================================================
   // ABA 1: HUB CENTRAL DO ATLETA (AFM_PlayerHub)
   // =========================================================================
   function renderPlayerHub(state) {
@@ -1126,6 +1453,8 @@
 
     const vm = buildPlayerHubViewModel(state);
     const activeNewsFilter = window.__afmHubNewsFilter || "all";
+    const activeHubRightTab = window.__afmHubRightTab || "news";
+    const compStandingsData = getHubMatchCompetitionStandings(state, vm);
 
     return `
       <div class="afm-player-hub-container" style="display:flex;flex-direction:column;gap:18px">
@@ -1192,6 +1521,29 @@
             background: rgba(168,85,247,0.12);
             border-color: rgba(168,85,247,0.4);
             transform: translateY(-2px);
+          }
+          .afm-hub-toggle-btn {
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            padding: 5px 12px;
+            font-size: 11px;
+            font-weight: 800;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+          }
+          .afm-hub-toggle-btn:hover {
+            color: #fff;
+          }
+          .afm-hub-toggle-btn.active {
+            background: linear-gradient(135deg, #7c3aed, #9333ea);
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.4);
           }
         </style>
 
@@ -1460,41 +1812,55 @@
             </div>
           </div>
 
-          <!-- FEED DE NOTÍCIAS DO ATLETA E CLUBE COM FILTROS DE CATEGORIA -->
+          <!-- FEED DE NOTÍCIAS OU CLASSIFICAÇÃO DA COMPETIÇÃO -->
           <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:12px">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-              <span style="font-size:13px;font-weight:900;letter-spacing:1px;color:#fff;text-transform:uppercase">📰 NOTÍCIAS & IMPRENSA</span>
-              <span style="font-size:11px;color:#64748b">Vida do Atleta & Clube</span>
+              <div style="display:inline-flex;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:3px;gap:3px">
+                <button type="button" class="afm-hub-toggle-btn ${activeHubRightTab === 'news' ? 'active' : ''}" data-hub-right-tab="news">
+                  📰 Notícias & Imprensa
+                </button>
+                <button type="button" class="afm-hub-toggle-btn ${activeHubRightTab === 'standings' ? 'active' : ''}" data-hub-right-tab="standings">
+                  📊 Classificação (${esc(compStandingsData?.shortLabel || 'Tabela')})
+                </button>
+              </div>
+              <span style="font-size:11px;color:#64748b">${activeHubRightTab === 'news' ? 'Vida do Atleta & Clube' : esc(compStandingsData?.compName || 'Tabela Oficial')}</span>
             </div>
 
-            <!-- FILTROS POR PÍLULA -->
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-              <span class="afm-news-filter-pill ${activeNewsFilter === 'all' ? 'active' : ''}" data-hub-news-filter="all">Todas</span>
-              <span class="afm-news-filter-pill ${activeNewsFilter === 'training' ? 'active' : ''}" data-hub-news-filter="training">⚡ CT & Treino</span>
-              <span class="afm-news-filter-pill ${activeNewsFilter === 'staff' ? 'active' : ''}" data-hub-news-filter="staff">📋 Comissão</span>
-              <span class="afm-news-filter-pill ${activeNewsFilter === 'media' ? 'active' : ''}" data-hub-news-filter="media">🗣️ Torcida</span>
-              <span class="afm-news-filter-pill ${activeNewsFilter === 'market' ? 'active' : ''}" data-hub-news-filter="market">💎 Mercado</span>
-            </div>
+            ${activeHubRightTab === 'standings' ? `
+              <!-- VISÃO DE CLASSIFICAÇÃO DA COMPETIÇÃO DO DIA -->
+              <div id="afmHubStandingsContainer">
+                ${renderHubCompetitionStandingsHtml(compStandingsData, state)}
+              </div>
+            ` : `
+              <!-- FILTROS POR PÍLULA -->
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span class="afm-news-filter-pill ${activeNewsFilter === 'all' ? 'active' : ''}" data-hub-news-filter="all">Todas</span>
+                <span class="afm-news-filter-pill ${activeNewsFilter === 'training' ? 'active' : ''}" data-hub-news-filter="training">⚡ CT & Treino</span>
+                <span class="afm-news-filter-pill ${activeNewsFilter === 'staff' ? 'active' : ''}" data-hub-news-filter="staff">📋 Comissão</span>
+                <span class="afm-news-filter-pill ${activeNewsFilter === 'media' ? 'active' : ''}" data-hub-news-filter="media">🗣️ Torcida</span>
+                <span class="afm-news-filter-pill ${activeNewsFilter === 'market' ? 'active' : ''}" data-hub-news-filter="market">💎 Mercado</span>
+              </div>
 
-            <div id="afmHubNewsContainer" style="display:flex;flex-direction:column;gap:10px;max-height:290px;overflow-y:auto;padding-right:4px">
-              ${vm.playerNews
-                .map(
-                  (n) => `
-                <div class="afm-hub-news-item" data-news-category="${n.category || 'match'}" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-left:4px solid ${n.borderColor};border-radius:8px;padding:10px 14px;transition:all 0.2s;${activeNewsFilter !== 'all' && n.category !== activeNewsFilter ? 'display:none;' : ''}">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-                    <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:900;color:${n.tagColor};letter-spacing:0.5px;text-transform:uppercase">
-                      <span>${n.icon}</span> ${n.tag}
-                    </span>
-                    <span style="font-size:10px;color:rgba(255,255,255,0.4)">${n.time || "Recente"}</span>
+              <div id="afmHubNewsContainer" style="display:flex;flex-direction:column;gap:10px;max-height:290px;overflow-y:auto;padding-right:4px">
+                ${vm.playerNews
+                  .map(
+                    (n) => `
+                  <div class="afm-hub-news-item" data-news-category="${n.category || 'match'}" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-left:4px solid ${n.borderColor};border-radius:8px;padding:10px 14px;transition:all 0.2s;${activeNewsFilter !== 'all' && n.category !== activeNewsFilter ? 'display:none;' : ''}">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+                      <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:900;color:${n.tagColor};letter-spacing:0.5px;text-transform:uppercase">
+                        <span>${n.icon}</span> ${n.tag}
+                      </span>
+                      <span style="font-size:10px;color:rgba(255,255,255,0.4)">${n.time || "Recente"}</span>
+                    </div>
+                    <div style="font-size:12px;color:#e2e8f0;line-height:1.45;font-weight:500">
+                      ${esc(n.text)}
+                    </div>
                   </div>
-                  <div style="font-size:12px;color:#e2e8f0;line-height:1.45;font-weight:500">
-                    ${esc(n.text)}
-                  </div>
-                </div>
-              `,
-                )
-                .join("")}
-            </div>
+                `,
+                  )
+                  .join("")}
+              </div>
+            `}
           </div>
 
         </div>
@@ -8712,6 +9078,40 @@
             }
           });
         }
+
+        const tabToggleBtn = e.target.closest("[data-hub-right-tab]");
+        if (tabToggleBtn) {
+          const targetTab = tabToggleBtn.getAttribute("data-hub-right-tab") || "news";
+          window.__afmHubRightTab = targetTab;
+          if (typeof window.render === "function") {
+            window.render();
+          }
+          return;
+        }
+
+        const gotoSeasonBtn = e.target.closest("[data-hub-goto-season]");
+        if (gotoSeasonBtn) {
+          const targetCompId = gotoSeasonBtn.getAttribute("data-hub-goto-season");
+          const targetCompType = gotoSeasonBtn.getAttribute("data-comp-type");
+          if (typeof window.configureSeasonView === "function") {
+            if (targetCompType === "estadual") {
+              window.configureSeasonView({ seasonTab: "estadual", selectedEstadualId: targetCompId });
+            } else if (targetCompType === "copa") {
+              window.configureSeasonView({ seasonTab: "copadobrasil" });
+            } else if (targetCompType === "continental") {
+              window.configureSeasonView({ seasonTab: "continental", continentalCategory: targetCompId });
+            } else {
+              window.configureSeasonView({ seasonTab: "nacional", nationalDivision: targetCompId });
+            }
+          }
+          if (typeof window.switchView === "function") {
+            window.switchView("season");
+          } else if (typeof window.render === "function") {
+            if (window.state) window.state.view = "season";
+            window.render();
+          }
+          return;
+        }
       });
     }
 
@@ -13553,6 +13953,8 @@
     renderPage,
     renderPlayerHub,
     buildPlayerHubViewModel,
+    getHubMatchCompetitionStandings,
+    renderHubCompetitionStandingsHtml,
     renderPlayerEvolution,
     restorePlayerProfile,
     renderPlayerSocialMedia,
