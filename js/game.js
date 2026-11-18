@@ -189,13 +189,17 @@ window.AFM_SETUP_GUARD = {
     if (typeof window !== 'undefined' && window.state) {
       window.state.view = "setup";
     }
+    if (typeof window !== 'undefined' && window.AFM_SAVE_VERIFIER && typeof window.AFM_SAVE_VERIFIER.clearActiveSessionLock === 'function') {
+      window.AFM_SAVE_VERIFIER.clearActiveSessionLock();
+    }
   },
 
   detectSaveMode: function(saveData) {
     if (!saveData || typeof saveData !== "object") return "manager";
     const data = saveData.data && typeof saveData.data === "object" ? saveData.data : saveData;
     const isRetiredToManager = Boolean(data.retiredPlayerCareer || saveData.retiredPlayerCareer);
-    const hasAiCoachMarker = !isRetiredToManager && Boolean(
+    if (isRetiredToManager) return "manager";
+    const hasAiCoachMarker = Boolean(
       saveData.aiCoachControlled === true ||
       data.aiCoachControlled === true ||
       saveData.manager === "Treinador da IA" ||
@@ -325,7 +329,8 @@ window.isPlayerCareerActive = function(st) {
   const targetState = st || (typeof window !== 'undefined' && window.state ? window.state : (typeof state !== 'undefined' && state ? state : null));
   if (!targetState || typeof targetState !== 'object') return false;
   const isRetired = Boolean(targetState.retiredPlayerCareer);
-  const hasAiCoachMarker = !isRetired && Boolean(
+  if (isRetired) return false;
+  const hasAiCoachMarker = Boolean(
     targetState.aiCoachControlled === true ||
     targetState.manager === "Treinador da IA" ||
     targetState.coachName === "Treinador da IA" ||
@@ -2496,8 +2501,40 @@ function initStoredGameState(){
     }
     state = load();
     if(state){
+      const bootSlot = Math.max(1, Math.min(3, Number(state.userSlot || state.slot || 1)));
+      if(window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.sanitizeLoadedSave === 'function'){
+        state = window.AFM_SETUP_GUARD.sanitizeLoadedSave(state, bootSlot);
+      }
+      if(typeof window !== 'undefined') window.state = state;
+      if(typeof window.migrateAndSanitizeSaveState === 'function'){
+        state = window.migrateAndSanitizeSaveState(state);
+      }
       state = migrate(state);
       if(state){
+        const isBootPlayer = typeof window.isPlayerCareerActive === 'function'
+          ? window.isPlayerCareerActive(state)
+          : (state.gameMode === 'player' || state.isPlayerMode === true);
+        if(isBootPlayer){
+          state.gameMode = 'player';
+          state.mode = 'player';
+          state.isPlayerMode = true;
+          state.coachName = state.coachName || 'Treinador da IA';
+          state.manager = 'Treinador da IA';
+          view = 'player_hub';
+          state.view = 'player_hub';
+          if(typeof window !== 'undefined') window.view = 'player_hub';
+          restorePlayerCareerSquad(state);
+          if(window.AFM_SAVE_VERIFIER) window.AFM_SAVE_VERIFIER.lockSlotMode(bootSlot, 'player', { club: state.club });
+        } else {
+          state.gameMode = 'manager';
+          state.mode = 'manager';
+          state.isPlayerMode = false;
+          view = 'central';
+          state.view = 'central';
+          if(typeof window !== 'undefined') window.view = 'central';
+          if(window.AFM_SAVE_VERIFIER) window.AFM_SAVE_VERIFIER.lockSlotMode(bootSlot, 'manager', { club: state.club });
+        }
+        if(typeof window !== 'undefined') window.state = state;
         try {
           ensureTacticsState(state);
           repairSaveIfCorrupted(state);
@@ -9760,24 +9797,32 @@ function getUserSaveSlots(username){
       }
     } catch(e){ recordAFMError('save-slot-read', e); }
 
-    // 2. Fallback Crítico para o Slot 1: procurar no save primário STORAGE ('aquino_futebol_manager_2026_v1')
+    // 2. Fallback Crítico para o Slot 1: procurar no save primário STORAGE ('aquino_futebol_manager_2026_v1'),
+    // mas SOMENTE se pertencer a este usuário e não conflitar com o modo já registrado na conta!
     if(slotNum === 1 && (!s || (!s.data && !s.club))){
       try {
         const legacyRaw = localStorage.getItem(STORAGE);
         if(legacyRaw){
           const leg = JSON.parse(legacyRaw);
-          if(leg && leg.club){
+          const legOwner = String(leg?.userOwner || leg?.owner || '').trim().toLowerCase();
+          const legMode = getSaveGameMode(leg);
+          const accSlot1Mode = s ? getSaveGameMode(s) : null;
+          const ownerOk = !legOwner || legOwner === cleanU || cleanU === 'aquino';
+          const modeOk = !accSlot1Mode || !legMode || accSlot1Mode === legMode;
+          if(leg && leg.club && ownerOk && modeOk){
             s = {
               slot: 1,
               id: `save_${cleanU}_slot1_${norm(leg.club)}`,
               owner: cleanU,
               club: leg.club,
-              manager: leg.manager || 'Treinador',
+              gameMode: legMode || 'manager',
+              isPlayerMode: legMode === 'player',
+              manager: legMode === 'player' ? (leg.coachName || 'Treinador da IA') : (leg.manager || 'Treinador'),
               season: leg.season || 2026,
               date: leg.date || '2026-01-01',
               round: Number(leg.round) || 0,
               balance: Number(leg.balance) || 0,
-              updatedAt: new Date().toISOString(),
+              updatedAt: leg.updatedAt || new Date().toISOString(),
               data: leg
             };
             try { localStorage.setItem('afm_save_slot_1', JSON.stringify(s)); } catch(e){ recordAFMError('save-slot-migration', e); }
@@ -9865,11 +9910,12 @@ function cleanupConfirmedLocalSaveCopies(username, slotNum, saveEntry, entryStr)
   const owner = String(username || '').toLowerCase().trim();
   const slot = Number(slotNum);
   if(!owner || !Number.isInteger(slot) || !saveEntry?.data) return false;
-  const belongsToOwner = raw => {
+  const belongsToOwner = (raw, keyName) => {
     try {
       const parsed = JSON.parse(raw);
       const data = parsed?.data || parsed;
       const savedOwner = String(parsed?.owner || data?.userOwner || '').toLowerCase().trim();
+      if(keyName === 'aquino_futebol_manager_2026_v1' && !savedOwner) return true;
       return savedOwner === owner;
     } catch(e){ return false; }
   };
@@ -9890,7 +9936,7 @@ function cleanupConfirmedLocalSaveCopies(username, slotNum, saveEntry, entryStr)
   candidates.forEach(key => {
     try {
       const raw = localStorage.getItem(key);
-      if(raw && belongsToOwner(raw)) localStorage.removeItem(key);
+      if(raw && belongsToOwner(raw, key)) localStorage.removeItem(key);
     } catch(e){}
   });
   return true;
@@ -9904,6 +9950,470 @@ function rememberActiveSaveSlot(username, slotNum){
   catch(e){ return false; }
 }
 
+// =========================================================================
+// SISTEMA AUTOMÁTICO DE VERIFICAÇÃO ANTI-BUG DO SAVE & BLINDAGEM SUPABASE
+// =========================================================================
+window.AFM_SAVE_VERIFIER = (function(){
+  let activeSessionMode = null;
+  let activeSessionSlot = null;
+  const slotModeLocks = {};
+  let lastLocalVerification = null;
+  let lastCloudSyncResult = null;
+  let lastDiagnosticReport = null;
+
+  function fnv1a32(str){
+    let h = 0x811c9dc5;
+    const s = String(str || '');
+    for(let i = 0; i < s.length; i++){
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+
+  function computeChecksum(data){
+    if(!data || typeof data !== 'object') return '00000000';
+    const summary = [
+      String(data.club || ''),
+      String(data.gameMode || ''),
+      String(Boolean(data.isPlayerMode)),
+      String(Number(data.season) || 2026),
+      String(Number(data.round) || 0),
+      String(data.date || ''),
+      String(Math.round(Number(data.balance) || 0)),
+      String(data.controlledPlayerId || ''),
+      String(data.playerCareerState?.athleteName || ''),
+      String(Array.isArray(data.squad) ? data.squad.length : 0)
+    ].join('|');
+    return fnv1a32(summary);
+  }
+
+  function lockSlotMode(slot, mode, meta = {}){
+    const s = Math.max(1, Math.min(3, Number(slot) || 1));
+    const cleanMode = mode === 'player' ? 'player' : 'manager';
+    slotModeLocks[s] = {
+      mode: cleanMode,
+      club: meta.club || null,
+      lockedAt: new Date().toISOString()
+    };
+    activeSessionSlot = s;
+    activeSessionMode = cleanMode;
+    return cleanMode;
+  }
+
+  function clearActiveSessionLock(){
+    activeSessionMode = null;
+    activeSessionSlot = null;
+  }
+
+  function getLockedModeForState(targetState, options = {}){
+    if(!targetState || typeof targetState !== 'object') return 'manager';
+    const slot = Math.max(1, Math.min(3, Number(options.slot || targetState.userSlot || 1)));
+    const detected = getSaveGameMode(targetState) || 'manager';
+
+    // Transição legítima de aposentadoria Jogador -> Treinador
+    if(targetState.retiredPlayerCareer){
+      lockSlotMode(slot, 'manager', { club: targetState.club });
+      return 'manager';
+    }
+
+    // Nova carreira ou importação explícita autorizada pelo usuário
+    if(options.allowModeReplace === true){
+      const explicitMode = (targetState.gameMode === 'player' || targetState.isPlayerMode === true || detected === 'player') ? 'player' : 'manager';
+      lockSlotMode(slot, explicitMode, { club: targetState.club });
+      return explicitMode;
+    }
+
+    const hasPlayerPayload = Boolean(
+      targetState.playerCareerState ||
+      targetState.player ||
+      targetState.controlledPlayerId ||
+      targetState.playerCareer?.active
+    );
+
+    // Se a sessão ativa já possui trava imutável para este slot, preserva o modo mesmo após transferências de clube!
+    // (Mas nunca mascara um save puro de Treinador sem playerCareerState como se fosse Jogador!)
+    if(activeSessionMode && activeSessionSlot === slot && !(typeof window !== 'undefined' && window.__afmSetupScreenActive)){
+      if(activeSessionMode === 'player' && !hasPlayerPayload && targetState.gameMode === 'manager'){
+        return 'manager';
+      }
+      return activeSessionMode;
+    }
+
+    if(slotModeLocks[slot]?.mode && !(typeof window !== 'undefined' && window.__afmSetupScreenActive)){
+      if(slotModeLocks[slot].mode === 'player' && !hasPlayerPayload && targetState.gameMode === 'manager'){
+        return 'manager';
+      }
+      return slotModeLocks[slot].mode;
+    }
+
+    return detected;
+  }
+
+  function verifyAndHealState(targetState, options = {}){
+    const issues = [];
+    let healedCount = 0;
+    if(!targetState || typeof targetState !== 'object'){
+      return { ok: false, healedCount: 0, issues: ['Estado nulo ou inválido'], mode: null, checksum: '00000000' };
+    }
+
+    const slot = Math.max(1, Math.min(3, Number(options.slot || targetState.userSlot || 1)));
+    targetState.userSlot = slot;
+
+    // 1. BLINDAGEM INVIOLÁVEL CONTRA TROCA ACIDENTAL DE MODO AO SALVAR
+    const authoritativeMode = getLockedModeForState(targetState, options);
+    if(targetState.gameMode !== authoritativeMode){
+      issues.push(`gameMode divergente ('${targetState.gameMode}') restaurado para '${authoritativeMode}'`);
+      targetState.gameMode = authoritativeMode;
+      healedCount++;
+    }
+    const isPlayer = authoritativeMode === 'player';
+    if(targetState.isPlayerMode !== isPlayer){
+      targetState.isPlayerMode = isPlayer;
+      healedCount++;
+    }
+    targetState.mode = authoritativeMode;
+
+    if(isPlayer){
+      delete targetState.isManagerOnly;
+      if(!targetState.retiredPlayerCareer){
+        targetState.aiCoachControlled = true;
+        if(targetState.coachName !== 'Treinador da IA'){
+          targetState.coachName = 'Treinador da IA';
+          healedCount++;
+        }
+        if(targetState.manager !== 'Treinador da IA'){
+          issues.push(`manager divergente ('${targetState.manager}') restaurado para 'Treinador da IA'`);
+          targetState.manager = 'Treinador da IA';
+          healedCount++;
+        }
+      }
+      targetState.playerCareer = Object.assign({ active: true }, targetState.playerCareer || {});
+      targetState.playerCareer.active = true;
+
+      // Garante integridade de playerCareerState e atributos [1, 99]
+      if(!targetState.playerCareerState && targetState.player){
+        targetState.playerCareerState = {
+          athleteName: targetState.player.name || 'Atleta',
+          position: targetState.player.position || targetState.player.pos || 'ATA',
+          overall: Number(targetState.player.ovr || targetState.player.overall) || 40,
+          athleteOvr: Number(targetState.player.ovr || targetState.player.overall) || 40,
+          personalBank: Math.max(0, Number(targetState.player.personalBank ?? targetState.player.cash) || 0),
+          managerTrust: 45
+        };
+        issues.push('playerCareerState reconstruído a partir de state.player');
+        healedCount++;
+      }
+      if(targetState.playerCareerState){
+        const pcs = targetState.playerCareerState;
+        const clamp99 = v => Math.max(1, Math.min(99, Math.round(Number.isFinite(Number(v)) ? Number(v) : 40)));
+        if(pcs.overall !== undefined && (!Number.isFinite(Number(pcs.overall)) || Number(pcs.overall) < 1 || Number(pcs.overall) > 99)){
+          pcs.overall = clamp99(pcs.overall);
+          healedCount++;
+        }
+        if(pcs.athleteOvr !== undefined && (!Number.isFinite(Number(pcs.athleteOvr)) || Number(pcs.athleteOvr) < 1 || Number(pcs.athleteOvr) > 99)){
+          pcs.athleteOvr = clamp99(pcs.athleteOvr);
+          healedCount++;
+        }
+        if(pcs.potential !== undefined && (!Number.isFinite(Number(pcs.potential)) || Number(pcs.potential) < 1 || Number(pcs.potential) > 99)){
+          pcs.potential = clamp99(pcs.potential);
+          healedCount++;
+        }
+        if(pcs.attributes && typeof pcs.attributes === 'object'){
+          for(const k of Object.keys(pcs.attributes)){
+            const v = Number(pcs.attributes[k]);
+            if(!Number.isFinite(v) || v < 1 || v > 99){
+              pcs.attributes[k] = clamp99(v);
+              healedCount++;
+            }
+          }
+        }
+        if(targetState.player && typeof targetState.player === 'object'){
+          if(targetState.player.ovr !== undefined && (!Number.isFinite(Number(targetState.player.ovr)) || Number(targetState.player.ovr) < 1 || Number(targetState.player.ovr) > 99)){
+            targetState.player.ovr = clamp99(pcs.overall || targetState.player.ovr);
+            healedCount++;
+          }
+          if(targetState.player.overall !== undefined && (!Number.isFinite(Number(targetState.player.overall)) || Number(targetState.player.overall) < 1 || Number(targetState.player.overall) > 99)){
+            targetState.player.overall = clamp99(pcs.overall || targetState.player.overall);
+            healedCount++;
+          }
+        }
+        if(!Number.isFinite(Number(pcs.managerTrust))){ pcs.managerTrust = 45; healedCount++; }
+        else pcs.managerTrust = Math.max(0, Math.min(100, Number(pcs.managerTrust)));
+
+        if(!Number.isFinite(Number(pcs.personalBank))){
+          pcs.personalBank = Math.max(0, Number(pcs.lifestyle?.cash ?? targetState.player?.personalBank) || 0);
+          healedCount++;
+        }
+        if(pcs.lifestyle && typeof pcs.lifestyle === 'object' && !Number.isFinite(Number(pcs.lifestyle.cash))){
+          pcs.lifestyle.cash = pcs.personalBank;
+          healedCount++;
+        }
+      }
+
+      // Garante que o atleta controlado exista no elenco antes de persistir
+      if(Array.isArray(targetState.squad) && targetState.controlledPlayerId != null){
+        const hasControlled = targetState.squad.some(p => p && (String(p.id) === String(targetState.controlledPlayerId) || p.isControlled));
+        if(!hasControlled){
+          const pcs = targetState.playerCareerState || {};
+          const pAlias = targetState.player || {};
+          const restoredOvr = Math.max(1, Math.min(99, Number(pcs.overall || pAlias.ovr || pAlias.overall) || 40));
+          const restoredPos = pAlias.pos || pAlias.position || pcs.position || 'ATA';
+          targetState.squad.unshift({
+            ...pAlias,
+            id: targetState.controlledPlayerId,
+            name: pcs.athleteName || pAlias.name || 'Atleta',
+            pos: restoredPos,
+            position: restoredPos,
+            ovr: restoredOvr,
+            overall: restoredOvr,
+            age: Number(pcs.age || pAlias.age) || 15,
+            number: Number(pcs.shirtNumber || pAlias.number) || 9,
+            wage: Number(pAlias.wage || pcs.wage) || 1500,
+            club: targetState.club,
+            attributes: pcs.attributes || pAlias.attributes || undefined,
+            isControlled: true,
+            isControlledAthlete: true,
+            owned: true
+          });
+          issues.push('Atleta controlado restaurado no elenco antes de salvar');
+          healedCount++;
+        }
+        if(targetState.squad.length < 11 && typeof restorePlayerCareerSquad === 'function'){
+          try { restorePlayerCareerSquad(targetState); } catch(_){}
+        }
+      }
+
+      const forbiddenManagerViews = ['setup', 'central', 'meutime', 'tatica', 'elenco', 'mercado', 'financas', 'estrutura', 'escritorio', 'treinos', 'carreira'];
+      if(!targetState.view || forbiddenManagerViews.includes(targetState.view)){
+        targetState.view = 'player_hub';
+        healedCount++;
+      }
+    } else {
+      // Modo Treinador puro: limpa qualquer resíduo acidental do Modo Jogador
+      if(targetState.playerCareer || targetState.player || targetState.playerCareerState || targetState.controlledPlayerId || targetState.aiCoachControlled){
+        delete targetState.playerCareer;
+        delete targetState.player;
+        delete targetState.playerCareerState;
+        delete targetState.controlledPlayerId;
+        delete targetState.aiCoachControlled;
+        issues.push('Resíduos do Modo Jogador removidos de save do Modo Treinador');
+        healedCount++;
+      }
+      if(!targetState.retiredPlayerCareer && targetState.manager === 'Treinador da IA'){
+        targetState.manager = getActiveAccount()?.name || 'Treinador';
+        healedCount++;
+      }
+      const forbiddenPlayerViews = ['setup', 'player_hub', 'player_evolution', 'player_club', 'player_social', 'player_agent', 'player_lifestyle', 'player_stats', 'player_national', 'player_creator'];
+      if(!targetState.view || forbiddenPlayerViews.includes(targetState.view)){
+        targetState.view = 'central';
+        healedCount++;
+      }
+    }
+
+    // 2. Sanitização Financeira e Temporal (Zero NaN / Datas Inválidas)
+    const ensureFinite = (val, fallback = 0) => (Number.isFinite(Number(val)) ? Number(val) : fallback);
+    if(!Number.isFinite(Number(targetState.balance))){ targetState.balance = 0; issues.push('balance NaN reparado'); healedCount++; }
+    if(targetState.money !== undefined && !Number.isFinite(Number(targetState.money))){ targetState.money = targetState.balance; healedCount++; }
+    targetState.income = ensureFinite(targetState.income, 0);
+    targetState.expense = ensureFinite(targetState.expense, 0);
+    if(targetState.managerMoney !== undefined) targetState.managerMoney = ensureFinite(targetState.managerMoney, 57000);
+    if(targetState.career && typeof targetState.career === 'object' && targetState.career.cash !== undefined){
+      targetState.career.cash = ensureFinite(targetState.career.cash, 0);
+    }
+
+    targetState.season = Math.max(2026, Math.round(ensureFinite(targetState.season, 2026)));
+    targetState.round = Math.max(0, Math.round(ensureFinite(targetState.round, 0)));
+    if(typeof targetState.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(targetState.date.trim())){
+      targetState.date = `${targetState.season}-01-01`;
+      issues.push('Data inválida reparada para ISO YYYY-MM-DD');
+      healedCount++;
+    }
+
+    // 3. Limites de coleções persistidas (AGENTS.md)
+    if(Array.isArray(targetState.news) && targetState.news.length > 50) targetState.news = targetState.news.slice(0, 50);
+    if(Array.isArray(targetState.marketWorldFeed) && targetState.marketWorldFeed.length > 30) targetState.marketWorldFeed = targetState.marketWorldFeed.slice(0, 30);
+    if(Array.isArray(targetState.seasonHistory) && targetState.seasonHistory.length > 20) targetState.seasonHistory = targetState.seasonHistory.slice(0, 20);
+    if(Array.isArray(targetState.history) && targetState.history.length > 50) targetState.history = targetState.history.slice(0, 50);
+    if(Array.isArray(targetState.socialMedia?.feedPosts) && targetState.socialMedia.feedPosts.length > 25){
+      targetState.socialMedia.feedPosts = targetState.socialMedia.feedPosts.slice(0, 25);
+    }
+
+    const checksum = computeChecksum(targetState);
+    targetState._saveIntegrity = {
+      version: 2,
+      checksum,
+      lockedMode: authoritativeMode,
+      slot,
+      owner: String(options.owner || targetState.userOwner || '').toLowerCase() || null,
+      club: String(targetState.club || ''),
+      season: targetState.season,
+      round: targetState.round,
+      healedCount,
+      verifiedAt: new Date().toISOString()
+    };
+
+    const report = {
+      ok: Boolean(targetState.club),
+      healedCount,
+      issues,
+      mode: authoritativeMode,
+      slot,
+      club: targetState.club,
+      checksum,
+      verifiedAt: targetState._saveIntegrity.verifiedAt
+    };
+    lastLocalVerification = report;
+    return report;
+  }
+
+  function verifySerializedJson(jsonStr, expectedMode){
+    try {
+      if(typeof jsonStr !== 'string' || jsonStr.length < 100){
+        return { ok: false, error: 'Payload JSON vazio ou truncado.' };
+      }
+      const parsed = JSON.parse(jsonStr);
+      const data = parsed?.data || parsed;
+      if(!data || !data.club){
+        return { ok: false, error: 'Payload JSON sem clube válido.' };
+      }
+      const modeInJson = getSaveGameMode(parsed) || data.gameMode;
+      if(expectedMode && modeInJson !== expectedMode){
+        return { ok: false, error: `Modo serializado ('${modeInJson}') diverge do modo esperado ('${expectedMode}').` };
+      }
+      const expectedChecksum = data._saveIntegrity?.checksum;
+      const actualChecksum = computeChecksum(data);
+      if(expectedChecksum && expectedChecksum !== actualChecksum){
+        return { ok: false, error: 'Checksum de integridade divergente após serialização.' };
+      }
+      return { ok: true, bytes: jsonStr.length, checksum: actualChecksum, mode: modeInJson };
+    } catch(err){
+      return { ok: false, error: err?.message || 'Erro de sintaxe no JSON do save.' };
+    }
+  }
+
+  function recordCloudSyncResult(info){
+    lastCloudSyncResult = {
+      ...(info || {}),
+      recordedAt: new Date().toISOString()
+    };
+  }
+
+  async function auditActiveSaveAndCloud(){
+    const cur = (typeof state !== 'undefined' && state) || (typeof window !== 'undefined' ? window.state : null);
+    if(!cur || !cur.club){
+      return { ok: false, error: 'Nenhuma carreira ativa carregada para verificar.' };
+    }
+    const slot = Math.max(1, Math.min(3, Number(cur.userSlot) || 1));
+    const owner = String(cur.userOwner || getActiveAccount()?.username || 'aquino').toLowerCase().trim();
+    const memCheck = verifyAndHealState(cur, { slot, owner });
+
+    // Verifica cópia local
+    let localRaw = null;
+    try {
+      localRaw = localStorage.getItem(`afm_save_${owner}_slot_${slot}`) || localStorage.getItem(`afm_save_slot_${slot}`);
+    } catch(_){}
+    const localCheck = localRaw ? verifySerializedJson(localRaw, memCheck.mode) : { ok: false, error: 'Slot local ainda não gravado.' };
+
+    // Verifica cópia no Supabase Cloud
+    let cloudOk = false;
+    let cloudReachable = false;
+    let cloudDetail = 'Supabase offline ou não verificado';
+    let cloudMode = null;
+    let cloudUpdatedAt = null;
+
+    if(window.AFM_DB && typeof window.AFM_DB.getSaves === 'function'){
+      try {
+        const res = await window.AFM_DB.getSaves(owner);
+        if(res?.ok){
+          cloudReachable = true;
+          const row = (res.data || []).find(r => Number(r.slot) === slot);
+          if(row && row.save_data){
+            cloudMode = window.AFM_DB.getSavedGameMode ? window.AFM_DB.getSavedGameMode({ manager: row.manager, ...row.save_data }) : getSaveGameMode(row.save_data);
+            cloudUpdatedAt = row.updated_at;
+            const sameMode = cloudMode === memCheck.mode;
+            const sameClub = norm(row.club || row.save_data.club) === norm(cur.club);
+            cloudOk = Boolean(sameMode && sameClub);
+            cloudDetail = cloudOk
+              ? `Confirmado no Supabase (${row.club} · Modo ${cloudMode === 'player' ? 'Jogador' : 'Treinador'})`
+              : (!sameMode ? `Conflito de modo na nuvem (Nuvem: ${cloudMode} vs Ativo: ${memCheck.mode})` : `Clube na nuvem (${row.club}) ainda não sincronizado com ${cur.club}`);
+          } else {
+            cloudDetail = `Slot ${slot} ainda não existe na tabela afm_saves (clique em Salvar para enviar).`;
+          }
+        } else {
+          cloudDetail = res?.error || 'Sem resposta da nuvem Supabase.';
+        }
+      } catch(err){
+        cloudDetail = err?.message || 'Erro ao consultar Supabase.';
+      }
+    }
+
+    const modeHuman = memCheck.mode === 'player' ? 'Modo Jogador' : 'Modo Treinador';
+    const checks = [
+      {
+        label: 'Memória Ativa',
+        ok: Boolean(memCheck.ok),
+        detail: `${cur.club} • Temp. ${cur.season || 2026} • ${cur.squad?.length || 0} atletas`
+      },
+      {
+        label: 'Trava de Modo',
+        ok: Boolean(cur.gameMode === memCheck.mode),
+        detail: `${modeHuman} blindado no Slot ${slot}`
+      },
+      {
+        label: 'LocalStorage & Checksum',
+        ok: Boolean(localCheck.ok),
+        detail: localCheck.ok ? `FNV-1a ${memCheck.checksum} (${Math.round((localCheck.bytes || 0) / 1024)} KB)` : (localCheck.error || 'Falha local')
+      },
+      {
+        label: 'Supabase Cloud (afm_saves)',
+        ok: Boolean(!cloudReachable || cloudOk),
+        detail: cloudDetail
+      }
+    ];
+
+    lastDiagnosticReport = {
+      ok: Boolean(memCheck.ok && localCheck.ok && (!cloudReachable || cloudOk)),
+      memoryOk: memCheck.ok,
+      localOk: localCheck.ok,
+      cloudReachable,
+      cloudOk,
+      cloudDetail,
+      cloudMode,
+      cloudUpdatedAt,
+      slot,
+      owner,
+      club: cur.club,
+      gameMode: memCheck.mode,
+      checksum: memCheck.checksum,
+      payloadKB: localCheck.bytes ? Math.round(localCheck.bytes / 1024) : 0,
+      healedCount: memCheck.healedCount,
+      checks,
+      issues: [
+        ...memCheck.issues,
+        ...(localCheck.ok ? [] : [`Local: ${localCheck.error}`]),
+        ...(cloudReachable && !cloudOk ? [`Supabase: ${cloudDetail}`] : [])
+      ],
+      checkedAt: new Date().toISOString()
+    };
+    return lastDiagnosticReport;
+  }
+
+  return {
+    fnv1a32,
+    computeChecksum,
+    lockSlotMode,
+    clearActiveSessionLock,
+    verifyAndHealState,
+    verifySerializedJson,
+    recordCloudSyncResult,
+    auditActiveSaveAndCloud,
+    getLastLocalVerification: () => lastLocalVerification,
+    getLastCloudSyncResult: () => lastCloudSyncResult,
+    getLastReport: () => lastDiagnosticReport
+  };
+})();
+
 function save(options = {}){
   if(typeof window !== 'undefined' && (window.__afmAutoSavePaused || window.AFM_SETUP_GUARD?.isSetupActive())){
     if(!options?.allowModeReplace && !options?.force && !options?.manual) return false;
@@ -9911,7 +10421,7 @@ function save(options = {}){
   if(!state && typeof window !== 'undefined' && window.state){
     state = window.state;
   }
-  if(!state) return false;
+  if(!state || !state.club) return false;
   processContinentalFixturesBefore(state.date);
   if(Array.isArray(state.news) && state.news.length > 40){
     state.news = state.news.slice(0, 40);
@@ -9934,12 +10444,30 @@ function save(options = {}){
   const slotNum = Math.max(1, Math.min(3, Number(state.userSlot) || 1));
   state.userSlot = slotNum;
 
-  // REGRA INVIOLÁVEL: IDENTIFICAÇÃO E ISOLAMENTO ESTRITO DO MODO DE JOGO AO SALVAR
-  const isPlayerMode = getSaveGameMode(state) === 'player';
+  const user = getActiveAccount() || { username: state.userOwner || 'aquino', name: state.manager || 'Treinador' };
+  state.userOwner = String(user.username || 'aquino').toLowerCase().trim();
+
+  // VERIFICAÇÃO ANTI-BUG E BLINDAGEM IMUTÁVEL DO MODO ANTES DE SERIALIZAR
+  const verifyRes = window.AFM_SAVE_VERIFIER.verifyAndHealState(state, {
+    slot: slotNum,
+    owner: state.userOwner,
+    allowModeReplace
+  });
+  const isPlayerMode = verifyRes.mode === 'player';
   state.gameMode = isPlayerMode ? 'player' : 'manager';
   state.isPlayerMode = isPlayerMode;
 
-  // Prepara payload compacto omitindo catálogos estáticos pesados para economizar 95% da cota do navegador
+  const nowIso = new Date().toISOString();
+  state.updatedAt = nowIso;
+  if(allowModeReplace){
+    state.modeReplacedAt = nowIso;
+    window.AFM_SAVE_VERIFIER.lockSlotMode(slotNum, state.gameMode, { club: state.club });
+  }
+
+  const saveId = `save_${state.userOwner}_slot${slotNum}_${norm(state.club)}`;
+  state.saveId = saveId;
+
+  // Prepara payload compacto omitindo catálogos estáticos pesados para economizar 95% da cota do navegador e acelerar o Supabase
   const savePayload = clone(state);
   delete savePayload.worldGenerated;
   if(savePayload.isolatedWorld){
@@ -9947,14 +10475,19 @@ function save(options = {}){
     delete savePayload.isolatedWorld.clubs;
     delete savePayload.isolatedWorld.competitions;
   }
-
-  const user = getActiveAccount() || { username: state.userOwner || 'aquino', name: state.manager || 'Treinador' };
-  state.userOwner = user.username;
-  const saveId = `save_${state.userOwner}_slot${slotNum}_${norm(state.club)}`;
-  state.saveId = saveId;
+  savePayload.updatedAt = nowIso;
+  if(state.modeReplacedAt) savePayload.modeReplacedAt = state.modeReplacedAt;
+  savePayload._saveIntegrity = {
+    ...(state._saveIntegrity || {}),
+    checksum: window.AFM_SAVE_VERIFIER.computeChecksum(savePayload),
+    lockedMode: state.gameMode,
+    slot: slotNum,
+    owner: state.userOwner,
+    verifiedAt: nowIso
+  };
 
   const pState = state.playerCareerState || {};
-  const athletePlayer = isPlayerMode ? ((state.squad || []).find(p => p.id === state.controlledPlayerId) || null) : null;
+  const athletePlayer = isPlayerMode ? ((state.squad || []).find(p => p.id === state.controlledPlayerId || p.isControlled) || null) : null;
   const athleteName = pState.athleteName || athletePlayer?.name || state.manager || 'Craque';
   const athletePos = pState.position || athletePlayer?.pos || 'ATA';
 
@@ -9972,13 +10505,14 @@ function save(options = {}){
       position: athletePos,
       personalBank: Number(pState.personalBank || 0)
     } : null,
-    controlledPlayerId: state.controlledPlayerId || null,
+    controlledPlayerId: isPlayerMode ? (state.controlledPlayerId || null) : null,
     manager: isPlayerMode ? (state.coachName || 'Treinador da IA') : (state.manager || user.name || 'Treinador'),
     season: state.season,
     date: state.date,
     round: state.round,
     balance: state.balance,
-    updatedAt: new Date().toISOString()
+    updatedAt: nowIso,
+    ...(state.modeReplacedAt ? { modeReplacedAt: state.modeReplacedAt } : {})
   };
 
   const saveEntry = {
@@ -9989,29 +10523,39 @@ function save(options = {}){
   let localSaved = false;
   const entryStr = JSON.stringify(saveEntry);
   const payloadStr = JSON.stringify(savePayload);
-  let preserveConflictingSlot = false;
-  if(!allowModeReplace){
-    const owner = String(state.userOwner).toLowerCase();
-    const keys = [
-      `afm_save_slot_${slotNum}`, `afm_save_slot_${slotNum}_backup`,
-      `afm_save_${owner}_slot_${slotNum}`, `afm_save_${owner}_slot_${slotNum}_backup`,
-      ...(slotNum === 1 ? [STORAGE] : [])
-    ];
-    for(const key of keys){
-      try {
-        const entry = JSON.parse(localStorage.getItem(key) || 'null');
-        const savedOwner = String(entry?.owner || entry?.data?.userOwner || '').trim().toLowerCase();
-        const savedMode = getSaveGameMode(entry);
-        if(entry && ((savedOwner && savedOwner !== owner) || (savedMode && savedMode !== state.gameMode))){
-          preserveConflictingSlot = true;
-          break;
-        }
-      } catch(e){ recordAFMError('save-slot-mode-check', e); }
-    }
+  const jsonCheck = window.AFM_SAVE_VERIFIER.verifySerializedJson(entryStr, state.gameMode);
+  if(!jsonCheck.ok){
+    recordAFMError('save-integrity-check', new Error(jsonCheck.error));
+    return false;
   }
 
-  // 1. Salvar no slot primário dedicado no localStorage com recuperação de cota inteligente
-  if(!preserveConflictingSlot){
+  // Verifica conflito isolando slot compartilhado vs slot individual do usuário (sem jamais bloquear por STORAGE legado antigo!)
+  let preserveSharedSlot = false;
+  let preserveUserSlot = false;
+  if(!allowModeReplace){
+    const owner = String(state.userOwner).toLowerCase();
+    const checkConflict = (raw) => {
+      if(!raw) return false;
+      try {
+        const entry = JSON.parse(raw);
+        const savedOwner = String(entry?.owner || entry?.data?.userOwner || '').trim().toLowerCase();
+        const savedMode = getSaveGameMode(entry);
+        return Boolean(entry && ((savedOwner && savedOwner !== owner) || (savedMode && savedMode !== state.gameMode)));
+      } catch(e){ recordAFMError('save-slot-mode-check', e); return false; }
+    };
+    const userSlotRaw = localStorage.getItem(`afm_save_${owner}_slot_${slotNum}`);
+    const indivSlotRaw = localStorage.getItem(`afm2027_individual_save_slot_${slotNum}`);
+    const sharedSlotRaw = localStorage.getItem(`afm_save_slot_${slotNum}`);
+    if(userSlotRaw || indivSlotRaw){
+      preserveUserSlot = checkConflict(userSlotRaw) || checkConflict(indivSlotRaw);
+    } else {
+      preserveUserSlot = checkConflict(sharedSlotRaw);
+    }
+    preserveSharedSlot = preserveUserSlot || checkConflict(sharedSlotRaw);
+  }
+
+  // 1. Salvar no slot primário dedicado no localStorage com Dual-Slot Backup e recuperação de cota inteligente
+  if(!preserveSharedSlot){
     try {
       localStorage.setItem(`afm_save_slot_${slotNum}`, entryStr);
       localSaved = true;
@@ -10029,7 +10573,7 @@ function save(options = {}){
   }
 
   // 1b. Salvar cópia no slot individual do usuário se houver cota disponível
-  if(state.userOwner && !preserveConflictingSlot){
+  if(state.userOwner && !preserveUserSlot){
     try {
       localStorage.setItem(`afm_save_${state.userOwner.toLowerCase()}_slot_${slotNum}`, entryStr);
       localStorage.setItem(`afm_save_${state.userOwner.toLowerCase()}_slot_${slotNum}_backup`, entryStr);
@@ -10041,7 +10585,7 @@ function save(options = {}){
   rememberActiveSaveSlot(state.userOwner, slotNum);
 
   // 2. Salvar no STORAGE legado apenas se for Slot 1
-  if(slotNum === 1 && !preserveConflictingSlot){
+  if(slotNum === 1 && !preserveSharedSlot){
     try {
       localStorage.setItem(STORAGE, payloadStr);
       localSaved = true;
@@ -10071,8 +10615,8 @@ function save(options = {}){
 
   // 3. Salvar na lista de contas do sistema (armazena cabeçalho leve para economizar 95% de quota)
   const accs = getStoredAccounts();
-  let acc = accs.find(a => a.username === state.userOwner);
-  if(acc && !preserveConflictingSlot){
+  let acc = accs.find(a => (a.username || '').toLowerCase() === state.userOwner);
+  if(acc && !preserveUserSlot){
     acc.saves = acc.saves || [];
     const existingIdx = acc.saves.findIndex(s => s.slot === slotNum);
     const lightweightHeader = { ...saveHeader };
@@ -10085,22 +10629,21 @@ function save(options = {}){
     saveStoredAccounts(accs);
   }
 
-  // 4. REGRA CRÍTICA INVIOLÁVEL: Sincronização obrigatória com o Supabase Cloud (afm_saves)
-  if(cloudSaveAvailable){
+  // 4. REGRA CRÍTICA INVIOLÁVEL: Sincronização verificada com o Supabase Cloud (afm_saves)
+  if(cloudSaveAvailable && !preserveUserSlot){
     window.__afmLastSaveSyncPromise = window.AFM_DB.saveSlot(state.userOwner, slotNum, saveEntry, { allowModeReplace })
       .then(result => {
         if(!result?.ok) {
           window.AFMErrorLog?.record('save-sync', result?.error || 'Falha ao sincronizar save no Supabase');
           if(!localSaved) toast('A nuvem não confirmou o save. Sua carreira não está garantida; conecte-se e tente salvar novamente.', 7000);
         } else if(!localSaved){
+          // Só remove backups redundantes quando o armazenamento local falhou por falta de cota
           localSaved = cleanupConfirmedLocalSaveCopies(saveEntry.owner, slotNum, saveEntry, entryStr);
           rememberActiveSaveSlot(saveEntry.owner, slotNum);
           window.__afmStorageWarning = !localSaved;
           toast(localSaved
             ? '✅ Save confirmado no Supabase; cópias redundantes removidas e cópia local restaurada.'
             : '✅ Carreira salva no Supabase. Ainda não há espaço para a cópia local.', 5000);
-        } else {
-          cleanupConfirmedLocalSaveCopies(saveEntry.owner, slotNum, saveEntry, entryStr);
         }
         return result;
       })
@@ -10155,47 +10698,63 @@ async function syncCloudWithLocal(showToasts = true){
 window.syncCloudWithLocal = syncCloudWithLocal;
 
 async function saveAndConfirmCloud(){
+  if(!state && typeof window !== 'undefined' && window.state){
+    state = window.state;
+  }
   if(!state) return false;
-  state.updatedAt = new Date().toISOString();
-  if(!save()) return false;
 
   const slotNum = Math.max(1, Math.min(3, Number(state.userSlot) || 1));
   const activeUser = getActiveAccount();
   const username = (state.userOwner || activeUser?.username || 'aquino').toLowerCase().trim();
 
-  toast('☁️ Gravando no dispositivo e sincronizando com o Supabase...', 2000);
+  toast('☁️ Verificando integridade, gravando localmente e sincronizando com o Supabase...', 2000);
+
+  if(!save({ manual: true, force: true })) return false;
 
   let cloudSuccess = false;
   let cloudError = null;
 
   if(window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function'){
     try {
-      const detectedMode = getSaveGameMode(state) || 'manager';
-      const isPlayerMode = detectedMode === 'player';
-      state.gameMode = detectedMode;
-      state.isPlayerMode = isPlayerMode;
-      const pState = state.playerCareerState || {};
-      const athletePlayer = isPlayerMode ? ((state.squad || []).find(p => p.id === state.controlledPlayerId) || null) : null;
-      const saveEntry = {
-        slot: slotNum,
-        club: state.club,
-        gameMode: detectedMode,
-        isPlayerMode,
-        aiCoachControlled: isPlayerMode,
-        controlledPlayerId: state.controlledPlayerId || null,
-        playerCareerState: isPlayerMode ? {
-          athleteName: pState.athleteName || athletePlayer?.name || 'Atleta',
-          position: pState.position || athletePlayer?.pos || 'ATA',
-          personalBank: Number(pState.personalBank || 0)
-        } : null,
-        manager: isPlayerMode ? (state.coachName || 'Treinador da IA') : (state.manager || 'Treinador'),
-        season: state.season || 2026,
-        round: state.round || 0,
-        balance: state.balance || 0,
-        updatedAt: state.updatedAt,
-        data: state
-      };
-      const res = await window.AFM_DB.saveSlot(username, slotNum, saveEntry);
+      // Aguarda a promessa única já disparada por save() com payload compacto e checksum verificado (sem duplicar upsert!)
+      let res = window.__afmLastSaveSyncPromise ? await window.__afmLastSaveSyncPromise : null;
+      if(!res){
+        const detectedMode = getSaveGameMode(state) || 'manager';
+        const isPlayerMode = detectedMode === 'player';
+        state.gameMode = detectedMode;
+        state.isPlayerMode = isPlayerMode;
+        const pState = state.playerCareerState || {};
+        const athletePlayer = isPlayerMode ? ((state.squad || []).find(p => p.id === state.controlledPlayerId || p.isControlled) || null) : null;
+        const cleanClone = clone(state);
+        delete cleanClone.worldGenerated;
+        if(cleanClone.isolatedWorld){
+          delete cleanClone.isolatedWorld.players;
+          delete cleanClone.isolatedWorld.clubs;
+          delete cleanClone.isolatedWorld.competitions;
+        }
+        const saveEntry = {
+          slot: slotNum,
+          owner: username,
+          club: state.club,
+          gameMode: detectedMode,
+          isPlayerMode,
+          aiCoachControlled: isPlayerMode,
+          controlledPlayerId: isPlayerMode ? (state.controlledPlayerId || null) : null,
+          playerCareerState: isPlayerMode ? {
+            athleteName: pState.athleteName || athletePlayer?.name || 'Atleta',
+            position: pState.position || athletePlayer?.pos || 'ATA',
+            personalBank: Number(pState.personalBank || 0)
+          } : null,
+          manager: isPlayerMode ? (state.coachName || 'Treinador da IA') : (state.manager || 'Treinador'),
+          season: state.season || 2026,
+          round: state.round || 0,
+          balance: state.balance || 0,
+          updatedAt: state.updatedAt,
+          ...(state.modeReplacedAt ? { modeReplacedAt: state.modeReplacedAt } : {}),
+          data: cleanClone
+        };
+        res = await window.AFM_DB.saveSlot(username, slotNum, saveEntry);
+      }
       if(res?.ok && !res.localOnly){
         cloudSuccess = true;
       } else {
@@ -10207,14 +10766,16 @@ async function saveAndConfirmCloud(){
   }
 
   if(cloudSuccess){
-    toast('✅ Jogo salvo no Supabase e neste dispositivo! Carreira sincronizada entre PC e Celular.', 4500);
+    const modeLabel = state.gameMode === 'player' ? 'Modo Jogador' : 'Modo Treinador';
+    toast(`✅ Save verificado e salvo no Supabase (Slot ${slotNum} · ${modeLabel})! PC e Celular sincronizados.`, 4500);
     return true;
   }
 
   const detail = cloudError ? ` (${cloudError})` : '';
-  toast(`💾 Save local gravado com sucesso! Nuvem pendente${detail}`, 6000);
+  toast(`💾 Save local verificado e gravado com sucesso! Nuvem pendente${detail}`, 6000);
   return true;
 }
+window.saveAndConfirmCloud = saveAndConfirmCloud;
 
 function load(){
   try {
@@ -10263,36 +10824,48 @@ function loadUserSlot(slotNum, ownerUsername = null){
 
   let saveEntry = null;
 
-  // 1. Carrega do slot dedicado isolado do usuário
+  // 1. Carrega do slot dedicado isolado do usuário (com fallback imediato p/ _backup se corrompido)
   try {
-    const uRaw = localStorage.getItem(`afm_save_${username}_slot_${slotNum}`);
+    const uRaw = localStorage.getItem(`afm_save_${username}_slot_${slotNum}`) || localStorage.getItem(`afm_save_${username}_slot_${slotNum}_backup`);
     if(uRaw) saveEntry = JSON.parse(uRaw);
-  } catch(e){ recordAFMError('save-slot-read', e); }
+  } catch(e){
+    recordAFMError('save-slot-read', e);
+    try {
+      const bRaw = localStorage.getItem(`afm_save_${username}_slot_${slotNum}_backup`);
+      if(bRaw) saveEntry = JSON.parse(bRaw);
+    } catch(_){}
+  }
 
   const hasCompleteData = (e) => e && ((e.data && e.data.squad) || (e.squad && e.club));
 
-  // 1b. Fallback legado: nunca substitua um save individual por outro slot/owner.
+  // 1b. Fallback compartilhado: nunca substitua um save individual por outro slot/owner ou modo.
   try {
-    const raw = localStorage.getItem(`afm_save_slot_${slotNum}`);
+    const raw = localStorage.getItem(`afm_save_slot_${slotNum}`) || localStorage.getItem(`afm_save_slot_${slotNum}_backup`);
     if(raw){
       const sharedEntry = JSON.parse(raw);
       const sharedOwner = String(sharedEntry?.owner || '').toLowerCase();
       const belongsToUser = sharedEntry && (!sharedOwner || sharedOwner === username);
       const modesMatch = !saveEntry || !getSaveGameMode(saveEntry) || !getSaveGameMode(sharedEntry) || getSaveGameMode(saveEntry) === getSaveGameMode(sharedEntry);
-      if(belongsToUser && modesMatch && (!hasCompleteData(saveEntry) || (sharedEntry?.updatedAt && Date.parse(sharedEntry.updatedAt) > Date.parse(saveEntry?.updatedAt || '')))){
+      if(belongsToUser && modesMatch && (!hasCompleteData(saveEntry) || (parseSaveTimestamp(sharedEntry?.updatedAt) > parseSaveTimestamp(saveEntry?.updatedAt)))){
         saveEntry = sharedEntry;
       }
     }
   } catch(e){ recordAFMError('save-slot-read', e); }
 
-  // 2. Se o slot dedicado não possuir payload completo e for slot 1, consulta STORAGE
+  // 2. Se o slot dedicado não possuir payload completo e for slot 1, consulta STORAGE apenas se compatível com a conta
+  const accSaveHeader = (acc?.saves || []).find(s => s.slot === slotNum);
   if(!hasCompleteData(saveEntry) && slotNum === 1){
     try {
       const legRaw = localStorage.getItem(STORAGE);
       if(legRaw){
         const leg = JSON.parse(legRaw);
-        if(leg && leg.club && Array.isArray(leg.squad)) {
-          saveEntry = { data: leg, club: leg.club, userSlot: 1 };
+        const legOwner = String(leg?.userOwner || leg?.owner || '').trim().toLowerCase();
+        const legMode = getSaveGameMode(leg);
+        const expectedHeaderMode = accSaveHeader ? getSaveGameMode(accSaveHeader) : (saveEntry ? getSaveGameMode(saveEntry) : null);
+        const ownerOk = !legOwner || legOwner === username;
+        const modeOk = !expectedHeaderMode || !legMode || expectedHeaderMode === legMode;
+        if(leg && leg.club && Array.isArray(leg.squad) && ownerOk && modeOk) {
+          saveEntry = { data: leg, club: leg.club, userSlot: 1, gameMode: legMode || 'manager' };
         }
       }
     } catch(e){ recordAFMError('legacy-save-read', e); }
@@ -10300,11 +10873,10 @@ function loadUserSlot(slotNum, ownerUsername = null){
 
   // 3. Se ainda não encontrado, busca na conta
   if(!hasCompleteData(saveEntry)){
-    const accSave = (acc?.saves || []).find(s => s.slot === slotNum);
-    if(accSave && hasCompleteData(accSave)){
-      saveEntry = accSave;
-    } else if(accSave && !saveEntry){
-      saveEntry = accSave;
+    if(accSaveHeader && hasCompleteData(accSaveHeader)){
+      saveEntry = accSaveHeader;
+    } else if(accSaveHeader && !saveEntry){
+      saveEntry = accSaveHeader;
     }
   }
 
@@ -10336,7 +10908,7 @@ function loadUserSlot(slotNum, ownerUsername = null){
   state = migrate(state);
   purgeBuggedExploitPlayers(state);
 
-  // REGRA INVIOLÁVEL: IDENTIFICAÇÃO E ISOLAMENTO ESTRITO DO MODO DE JOGO
+  // REGRA INVIOLÁVEL: IDENTIFICAÇÃO E TRAVA IMUTÁVEL DO MODO DE JOGO NA SESSÃO
   const isPlayerMode = typeof window.isPlayerCareerActive === 'function' ? window.isPlayerCareerActive(state) : (savedMode === 'player');
   if(isPlayerMode){
     state.gameMode = 'player';
@@ -10354,6 +10926,7 @@ function loadUserSlot(slotNum, ownerUsername = null){
     state.view = 'player_hub';
     if(typeof window !== 'undefined') window.view = 'player_hub';
     restorePlayerCareerSquad(state);
+    window.AFM_SAVE_VERIFIER.lockSlotMode(slotNum, 'player', { club: state.club });
   } else {
     state.gameMode = 'manager';
     state.mode = 'manager';
@@ -10361,6 +10934,7 @@ function loadUserSlot(slotNum, ownerUsername = null){
     view = 'central';
     state.view = 'central';
     if(typeof window !== 'undefined') window.view = 'central';
+    window.AFM_SAVE_VERIFIER.lockSlotMode(slotNum, 'manager', { club: state.club });
   }
   if(typeof window.migrateAndSanitizeSaveState === 'function'){
     state = window.migrateAndSanitizeSaveState(state);
@@ -10431,7 +11005,14 @@ function deleteUserSlot(slotNum, ownerUsername = null){
 
   toast(`Campanha do Slot ${slotNum} excluída com sucesso.`);
   if(state && Number(state.userSlot) === slotNum){
+    if(window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.enterSetupCleanly === 'function'){
+      window.AFM_SETUP_GUARD.enterSetupCleanly();
+    }
     state = null;
+    if(typeof window !== 'undefined'){
+      window.state = null;
+      window.GameState = null;
+    }
     render();
   } else if(state){
     render();
@@ -17781,20 +18362,32 @@ function newCareer(data){
 
   optimizeLineup();
   ensureTvBroadcastContract(state);
+  if(data && (data.gameMode === 'player' || data.isPlayerMode)){
+    view = 'player_hub';
+    state.view = 'player_hub';
+    state.gameMode = 'player';
+    state.mode = 'player';
+    state.isPlayerMode = true;
+    state.aiCoachControlled = true;
+    state.coachName = 'Treinador da IA';
+    state.manager = 'Treinador da IA';
+  } else {
+    view = 'central';
+    state.view = 'central';
+    state.gameMode = 'manager';
+    state.mode = 'manager';
+    state.isPlayerMode = false;
+    toast(`Carreira iniciada com o ${club.name}! Caixa inicial: ${fmtMoney(budget)}.`);
+  }
   if(typeof window !== 'undefined'){
     window.__afmAutoSavePaused = false;
     window.__afmSetupScreenActive = false;
     window.state = state;
+    if(window.AFM_SAVE_VERIFIER && typeof window.AFM_SAVE_VERIFIER.lockSlotMode === 'function'){
+      window.AFM_SAVE_VERIFIER.lockSlotMode(state.userSlot || 1, state.gameMode, { club: club.name });
+    }
   }
   if(!data.deferInitialSave) save({ allowModeReplace: true });
-  if(data && (data.gameMode === 'player' || data.isPlayerMode)){
-    view = 'player_hub';
-    state.gameMode = 'player';
-    state.isPlayerMode = true;
-  } else {
-    view = 'central';
-    toast(`Carreira iniciada com o ${club.name}! Caixa inicial: ${fmtMoney(budget)}.`);
-  }
   if(!data.deferInitialSave) render();
 }
 
@@ -32974,7 +33567,10 @@ function handleExitGameAction(){
         const customModal = document.getElementById('appCustomModal');
         if (customModal) customModal.remove();
 
-        // Limpa estado ativo e direciona infalivelmente para a tela de saves e seleção de times
+        // Limpa estado ativo, pausa auto-saves e libera trava de modo da sessão antes do menu
+        if (window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.enterSetupCleanly === 'function') {
+          window.AFM_SETUP_GUARD.enterSetupCleanly();
+        }
         state = null;
         window.state = null;
         window.GameState = null;
@@ -42498,12 +43094,15 @@ function configPage(){
               💾 Gerenciador de Gravações (Slots 1, 2 e 3)
             </h2>
             <div class="muted small" style="margin-top:4px">
-              Treinador: <b>${esc(activeUser.name || activeUser.username)}</b> • Cada slot salva uma carreira 100% independente no seu navegador.
+              Conta: <b>${esc(activeUser.name || activeUser.username)}</b> • Cada slot salva uma carreira 100% independente e blindada contra troca de modo.
             </div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn success" id="btnSaveCurrentSlotNow" style="font-weight:800;padding:8px 14px;border-radius:8px">
               💾 Salvar no Slot ${currentSlot}
+            </button>
+            <button class="btn" id="btnVerifySaveIntegrityNow" style="font-weight:800;padding:8px 14px;border-radius:8px;background:linear-gradient(135deg, #10b981, #059669);border:1px solid #34d399;color:#fff;box-shadow:0 0 12px rgba(16,185,129,0.28);display:flex;align-items:center;gap:6px" title="Verifica integridade do save em memória, LocalStorage, trava de modo e tabela afm_saves no Supabase">
+              <span>🛡️</span> Verificar Save & Supabase
             </button>
             <button class="btn primary" id="btnSyncCloudSlotsNow" style="font-weight:800;padding:8px 14px;border-radius:8px;background:linear-gradient(135deg, #0284c7, #0369a1);border:1px solid #38bdf8;box-shadow:0 0 12px rgba(56,189,248,0.3);display:flex;align-items:center;gap:6px" title="Sincroniza os saves entre PC, Celular e Supabase automaticamente">
               <span>🔄</span> Sincronizar Nuvem (PC ⇄ Celular)
@@ -42514,29 +43113,67 @@ function configPage(){
           </div>
         </div>
 
+        ${(() => {
+          const isActivePlayer = (typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(state)) || state?.gameMode === 'player';
+          const checksum = state?._saveIntegrity?.checksum || '—';
+          const lastCloud = window.AFM_SAVE_VERIFIER?.getLastCloudSyncResult?.() || null;
+          const cloudPill = lastCloud
+            ? (lastCloud.ok
+              ? `<span style="color:#4ade80;font-weight:800">☁️ Supabase OK (Slot ${lastCloud.slot} · ${esc(lastCloud.mode)})</span>`
+              : `<span style="color:#fbbf24;font-weight:800">⚠️ Último envio nuvem: ${esc(lastCloud.error || 'Pendente')}</span>`)
+            : `<span style="color:#38bdf8;font-weight:700">☁️ Clique em "Verificar Save & Supabase" para auditar ao vivo</span>`;
+          return `
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 14px;margin-bottom:14px;border-radius:10px;background:rgba(16,185,129,0.08);border:1px solid rgba(52,211,153,0.28);font-size:12px">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="font-weight:900;color:#34d399">🛡️ Escudo Anti-Bug Ativo:</span>
+                <span class="badge" style="background:${isActivePlayer ? 'rgba(168,85,247,0.22)' : 'rgba(59,130,246,0.22)'};border:1px solid ${isActivePlayer ? '#c084fc' : '#60a5fa'};color:#fff;font-weight:800;font-size:11px;padding:2px 8px">
+                  ${isActivePlayer ? '⭐ Modo Jogador Travado' : '👔 Modo Treinador Travado'}
+                </span>
+                <span class="muted">Checksum FNV-1a: <code style="color:#e2e8f0">${esc(checksum)}</code></span>
+              </div>
+              <div>${cloudPill}</div>
+            </div>
+          `;
+        })()}
+
         <div class="grid g3" style="gap:14px">
           ${[1, 2, 3].map(slotNum => {
             const s = userSlots[slotNum - 1];
             const isCurrent = (currentSlot === slotNum);
             if(s && s.data){
+              const slotMode = getSaveGameMode(s) || getSaveGameMode(s.data) || 'manager';
+              const isSlotPlayer = slotMode === 'player';
+              const athleteName = s.data?.playerCareerState?.athleteName || s.playerCareerState?.athleteName || s.data?.player?.name || 'Atleta';
+              const athleteOvr = s.data?.playerCareerState?.overall || s.data?.player?.ovr || '';
+              const slotSubtitle = isSlotPlayer
+                ? `⭐ ${athleteName}${athleteOvr ? ` (${athleteOvr} OVR)` : ''} • Temp. ${s.season || 2026}`
+                : `👔 ${s.manager || 'Treinador'} • Temp. ${s.season || 2026}`;
+              const displayMoney = isSlotPlayer
+                ? Number(s.data?.playerCareerState?.personalBank ?? s.data?.player?.personalBank ?? s.data?.player?.cash ?? 0)
+                : Number(s.balance || 0);
               return `
                 <div class="card" style="margin:0;background:${isCurrent ? 'rgba(34,197,94,0.07)' : 'rgba(255,255,255,0.02)'};border:${isCurrent ? '2px solid rgba(34,197,94,0.5)' : '1px solid rgba(255,255,255,0.08)'};border-radius:12px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
                   <div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:6px;flex-wrap:wrap">
                       <span style="font-size:11px;font-weight:900;letter-spacing:1px;color:${isCurrent ? '#4ade80' : '#94a3b8'};text-transform:uppercase">SLOT ${slotNum}</span>
-                      ${isCurrent ? '<span class="badge success" style="font-size:10px;padding:2px 8px;font-weight:800">● ATIVO AGORA</span>' : '<span class="badge" style="font-size:10px;padding:2px 8px;opacity:0.7">Salvo</span>'}
+                      <div style="display:flex;gap:5px;align-items:center">
+                        <span class="badge" style="font-size:10px;padding:2px 7px;font-weight:800;background:${isSlotPlayer ? 'rgba(168,85,247,0.22)' : 'rgba(59,130,246,0.2)'};color:${isSlotPlayer ? '#e9d5ff' : '#bfdbfe'};border:1px solid ${isSlotPlayer ? 'rgba(192,132,252,0.45)' : 'rgba(96,165,250,0.45)'}">
+                          ${isSlotPlayer ? '⭐ Jogador' : '👔 Treinador'}
+                        </span>
+                        ${isCurrent ? '<span class="badge success" style="font-size:10px;padding:2px 8px;font-weight:800">● ATIVO</span>' : '<span class="badge" style="font-size:10px;padding:2px 8px;opacity:0.7">Salvo</span>'}
+                      </div>
                     </div>
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
                       ${typeof renderClubBadge === 'function' ? renderClubBadge(s.club, 38) : ''}
                       <div style="overflow:hidden">
                         <div style="font-size:15px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(clubDisplayName(s.club))}</div>
-                        <div class="muted small">${esc(s.manager || 'Técnico')} • Temp. ${esc(s.season || 2026)}</div>
+                        <div class="muted small">${esc(slotSubtitle)}</div>
                       </div>
                     </div>
                     <div class="small muted" style="line-height:1.6;background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:8px;margin-bottom:12px">
                       <div>🏆 <b>Fase:</b> ${s.round > 0 ? `Rodada ${s.round}` : 'Pré-temporada'}</div>
                       <div>📅 <b>Data:</b> ${esc(s.date || '2026-01-01')}</div>
-                      <div>💰 <b>Caixa:</b> ${fmtMoney(s.balance || 0)}</div>
+                      <div>💰 <b>${isSlotPlayer ? 'Conta Pessoal:' : 'Caixa do Clube:'}</b> ${fmtMoney(displayMoney)}</div>
                       <div style="font-size:10px;color:#94a3b8;margin-top:4px">🕒 <b>Atualizado:</b> ${esc(formatSaveTimestamp(s.updatedAt || 'Recentemente'))}</div>
                       <div style="font-size:10px;color:#38bdf8;margin-top:3px;display:flex;align-items:center;gap:4px">
                         <span>☁️</span> <b>Nuvem Supabase:</b> <span>Sincronizada (PC ⇄ Celular)</span>
@@ -45415,14 +46052,52 @@ function duplicateSaveSlot(sourceSlotNum){
   }
 
   const cleanPayload = JSON.parse(JSON.stringify(raw.data || raw));
+  delete cleanPayload.worldGenerated;
+  if (cleanPayload.isolatedWorld && typeof cleanPayload.isolatedWorld === 'object') {
+    delete cleanPayload.isolatedWorld.players;
+    delete cleanPayload.isolatedWorld.clubs;
+    delete cleanPayload.isolatedWorld.competitions;
+  }
+  const nowIso = new Date().toISOString();
   cleanPayload.userSlot = freeSlot;
   cleanPayload.slot = freeSlot;
   cleanPayload.slotId = freeSlot;
-  cleanPayload.updatedAt = new Date().toISOString();
+  cleanPayload.userOwner = username;
+  cleanPayload.updatedAt = nowIso;
+  cleanPayload.modeReplacedAt = nowIso;
+  const dupMode = getSaveGameMode(raw) || getSaveGameMode(cleanPayload) || 'manager';
+  cleanPayload.gameMode = dupMode;
+  cleanPayload.isPlayerMode = (dupMode === 'player');
+  if (window.AFM_SAVE_VERIFIER) {
+    window.AFM_SAVE_VERIFIER.verifyAndHealState(cleanPayload, { slot: freeSlot, allowModeReplace: true });
+    if (window.__afmSetupScreenActive) window.AFM_SAVE_VERIFIER.clearActiveSessionLock();
+  }
+
+  const dupEntry = {
+    slot: freeSlot,
+    id: `save_${username}_slot${freeSlot}_${norm(cleanPayload.club || 'clube')}`,
+    owner: username,
+    club: cleanPayload.club?.name || cleanPayload.club || 'Clube',
+    gameMode: cleanPayload.gameMode,
+    isPlayerMode: cleanPayload.isPlayerMode,
+    aiCoachControlled: Boolean(cleanPayload.aiCoachControlled),
+    playerCareerState: cleanPayload.playerCareerState || null,
+    controlledPlayerId: cleanPayload.controlledPlayerId || null,
+    manager: cleanPayload.isPlayerMode && !cleanPayload.retiredPlayerCareer ? 'Treinador da IA' : (cleanPayload.manager || cleanPayload.coachName || 'Treinador'),
+    season: cleanPayload.season || 2026,
+    date: cleanPayload.date || '01 de janeiro de 2026',
+    round: cleanPayload.round || 0,
+    balance: cleanPayload.balance || 0,
+    updatedAt: nowIso,
+    modeReplacedAt: nowIso,
+    data: cleanPayload
+  };
 
   try {
-    localStorage.setItem(`afm_save_${username}_slot_${freeSlot}`, JSON.stringify(cleanPayload));
-    localStorage.setItem(`afm_save_slot_${freeSlot}`, JSON.stringify(cleanPayload));
+    const entryJson = JSON.stringify(dupEntry);
+    localStorage.setItem(`afm_save_${username}_slot_${freeSlot}`, entryJson);
+    localStorage.setItem(`afm_save_slot_${freeSlot}`, entryJson);
+    localStorage.setItem(`afm_save_slot_${freeSlot}_backup`, entryJson);
     if (freeSlot === 1) {
       localStorage.setItem(STORAGE, JSON.stringify(cleanPayload));
     }
@@ -45438,20 +46113,30 @@ function duplicateSaveSlot(sourceSlotNum){
     acc.saves = acc.saves.filter(s => s.slot !== freeSlot);
     acc.saves.push({
       slot: freeSlot,
-      id: `save_${username}_slot${freeSlot}_${Date.now()}`,
-      club: cleanPayload.club?.name || cleanPayload.club || 'Clube',
-      manager: cleanPayload.manager || cleanPayload.coachName || 'Treinador',
-      season: cleanPayload.season || 2026,
-      round: cleanPayload.round || 0,
-      balance: cleanPayload.balance || 0,
-      date: cleanPayload.date || '01 de janeiro de 2026',
-      updatedAt: cleanPayload.updatedAt,
-      gameMode: cleanPayload.gameMode || 'manager'
+      id: dupEntry.id,
+      club: dupEntry.club,
+      manager: dupEntry.manager,
+      season: dupEntry.season,
+      round: dupEntry.round,
+      balance: dupEntry.balance,
+      date: dupEntry.date,
+      updatedAt: nowIso,
+      modeReplacedAt: nowIso,
+      gameMode: dupEntry.gameMode,
+      isPlayerMode: dupEntry.isPlayerMode,
+      aiCoachControlled: dupEntry.aiCoachControlled,
+      playerCareerState: dupEntry.playerCareerState,
+      controlledPlayerId: dupEntry.controlledPlayerId
     });
     saveStoredAccounts(accs);
   }
 
-  toast(`📋 Save do Slot ${sourceSlotNum} duplicado para o Slot ${freeSlot}!`);
+  if (window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function') {
+    window.AFM_DB.saveSlot(username, freeSlot, dupEntry, { allowModeReplace: true })
+      .catch(err => recordAFMError('save-duplicate-cloud', err));
+  }
+
+  toast(`📋 Save do Slot ${sourceSlotNum} duplicado para o Slot ${freeSlot} (${dupEntry.gameMode === 'player' ? 'Modo Jogador' : 'Modo Treinador'})!`);
   renderSetup($('#app'));
 }
 window.duplicateSaveSlot = duplicateSaveSlot;
@@ -45471,19 +46156,58 @@ function importSaveJsonFile(file, targetSlot){
         toast('Arquivo JSON de save inválido.');
         return;
       }
+      const rawPayload = (parsed.data && typeof parsed.data === 'object' && parsed.data.club) ? parsed.data : parsed;
       const sanitized = (window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.sanitizeLoadedSave === 'function')
-        ? window.AFM_SETUP_GUARD.sanitizeLoadedSave(parsed, destSlot)
-        : parsed;
+        ? window.AFM_SETUP_GUARD.sanitizeLoadedSave(rawPayload, destSlot)
+        : JSON.parse(JSON.stringify(rawPayload));
 
+      delete sanitized.worldGenerated;
+      if (sanitized.isolatedWorld && typeof sanitized.isolatedWorld === 'object') {
+        delete sanitized.isolatedWorld.players;
+        delete sanitized.isolatedWorld.clubs;
+        delete sanitized.isolatedWorld.competitions;
+      }
+      const nowIso = new Date().toISOString();
       sanitized.userSlot = destSlot;
       sanitized.slot = destSlot;
       sanitized.slotId = destSlot;
-      sanitized.updatedAt = new Date().toISOString();
+      sanitized.userOwner = username;
+      sanitized.updatedAt = nowIso;
+      sanitized.modeReplacedAt = nowIso;
+      const impMode = sanitized.gameMode || getSaveGameMode(parsed) || getSaveGameMode(sanitized) || 'manager';
+      sanitized.gameMode = impMode;
+      sanitized.isPlayerMode = (impMode === 'player');
+      if (window.AFM_SAVE_VERIFIER) {
+        window.AFM_SAVE_VERIFIER.verifyAndHealState(sanitized, { slot: destSlot, allowModeReplace: true });
+        if (window.__afmSetupScreenActive) window.AFM_SAVE_VERIFIER.clearActiveSessionLock();
+      }
 
       const proceedImport = () => {
+        const impEntry = {
+          slot: destSlot,
+          id: `save_${username}_slot${destSlot}_${norm(sanitized.club || 'clube')}`,
+          owner: username,
+          club: sanitized.club?.name || sanitized.club || 'Clube',
+          gameMode: sanitized.gameMode,
+          isPlayerMode: sanitized.isPlayerMode,
+          aiCoachControlled: Boolean(sanitized.aiCoachControlled),
+          playerCareerState: sanitized.playerCareerState || null,
+          controlledPlayerId: sanitized.controlledPlayerId || null,
+          manager: sanitized.isPlayerMode && !sanitized.retiredPlayerCareer ? 'Treinador da IA' : (sanitized.manager || sanitized.coachName || 'Treinador'),
+          season: sanitized.season || 2026,
+          date: sanitized.date || '01 de janeiro de 2026',
+          round: sanitized.round || 0,
+          balance: sanitized.balance || 0,
+          updatedAt: nowIso,
+          modeReplacedAt: nowIso,
+          data: sanitized
+        };
+
         try {
-          localStorage.setItem(`afm_save_${username}_slot_${destSlot}`, JSON.stringify(sanitized));
-          localStorage.setItem(`afm_save_slot_${destSlot}`, JSON.stringify(sanitized));
+          const entryJson = JSON.stringify(impEntry);
+          localStorage.setItem(`afm_save_${username}_slot_${destSlot}`, entryJson);
+          localStorage.setItem(`afm_save_slot_${destSlot}`, entryJson);
+          localStorage.setItem(`afm_save_slot_${destSlot}_backup`, entryJson);
           if (destSlot === 1) {
             localStorage.setItem(STORAGE, JSON.stringify(sanitized));
           }
@@ -45499,20 +46223,30 @@ function importSaveJsonFile(file, targetSlot){
           acc.saves = acc.saves.filter(s => s.slot !== destSlot);
           acc.saves.push({
             slot: destSlot,
-            id: `save_${username}_slot${destSlot}_${Date.now()}`,
-            club: sanitized.club?.name || sanitized.club || 'Clube',
-            manager: sanitized.manager || sanitized.coachName || 'Treinador',
-            season: sanitized.season || 2026,
-            round: sanitized.round || 0,
-            balance: sanitized.balance || 0,
-            date: sanitized.date || '01 de janeiro de 2026',
-            updatedAt: sanitized.updatedAt,
-            gameMode: sanitized.gameMode || 'manager'
+            id: impEntry.id,
+            club: impEntry.club,
+            manager: impEntry.manager,
+            season: impEntry.season,
+            round: impEntry.round,
+            balance: impEntry.balance,
+            date: impEntry.date,
+            updatedAt: nowIso,
+            modeReplacedAt: nowIso,
+            gameMode: impEntry.gameMode,
+            isPlayerMode: impEntry.isPlayerMode,
+            aiCoachControlled: impEntry.aiCoachControlled,
+            playerCareerState: impEntry.playerCareerState,
+            controlledPlayerId: impEntry.controlledPlayerId
           });
           saveStoredAccounts(accs);
         }
 
-        toast(`📤 Save importado com sucesso no Slot ${destSlot}!`);
+        if (window.AFM_DB && typeof window.AFM_DB.saveSlot === 'function') {
+          window.AFM_DB.saveSlot(username, destSlot, impEntry, { allowModeReplace: true })
+            .catch(err => recordAFMError('save-import-cloud', err));
+        }
+
+        toast(`📤 Save importado com sucesso no Slot ${destSlot} (${impEntry.gameMode === 'player' ? 'Modo Jogador' : 'Modo Treinador'})!`);
         renderSetup($('#app'));
       };
 
@@ -46651,29 +47385,47 @@ function bind(){
   const btnDrawerSet=$('#btnDrawerSettings'); if(btnDrawerSet) btnDrawerSet.onclick=()=>{ if(typeof openSettingsModal==='function') openSettingsModal(); };
 
   const bQuickStrength = $('#btnTopQuickTeamStrength');
-  if(bQuickStrength) bQuickStrength.onclick = () => { setGameView('meutime'); render(); };
+  if(bQuickStrength) bQuickStrength.onclick = () => {
+    const isPl = (typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(state)) || state?.gameMode === 'player';
+    setGameView(isPl ? 'player_evolution' : 'meutime');
+    render();
+  };
   const bQuickStrengthCard = $('#btnTopQuickTeamStrengthCard');
-  if(bQuickStrengthCard) bQuickStrengthCard.onclick = () => { setGameView('meutime'); render(); };
+  if(bQuickStrengthCard) bQuickStrengthCard.onclick = () => {
+    const isPl = (typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(state)) || state?.gameMode === 'player';
+    setGameView(isPl ? 'player_evolution' : 'meutime');
+    render();
+  };
 
   const bQuickPrestige = $('#btnTopQuickPrestige');
-  if(bQuickPrestige) bQuickPrestige.onclick = () => { setGameView('carreira'); render(); };
+  if(bQuickPrestige) bQuickPrestige.onclick = () => {
+    const isPl = (typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(state)) || state?.gameMode === 'player';
+    setGameView(isPl ? 'player_evolution' : 'carreira');
+    render();
+  };
   const bQuickPrestigeCard = $('#btnTopQuickPrestigeCard');
   if(bQuickPrestigeCard) bQuickPrestigeCard.onclick = () => {
-    const isPl = (typeof resolveModeContext === 'function' && resolveModeContext(state)?.isPlayer) || state?.gameMode === 'player';
+    const isPl = (typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(state)) || state?.gameMode === 'player';
     setGameView(isPl ? 'player_evolution' : 'carreira');
     render();
   };
 
   const bQuickCash = $('#btnTopQuickCash');
   if(bQuickCash) bQuickCash.onclick = () => {
-    const isPl = (typeof resolveModeContext === 'function' && resolveModeContext(state)?.isPlayer) || state?.gameMode === 'player';
+    const isPl = (typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(state)) || state?.gameMode === 'player';
     setGameView(isPl ? 'player_lifestyle' : 'escritorio');
     render();
   };
 
   const bQuickCdb = $('#btnTopQuickCdb');
   if(bQuickCdb) bQuickCdb.onclick = () => { setGameView('player_lifestyle'); render(); };
-  const dSearch=$('#drawerQuickSearch'); if(dSearch) dSearch.onkeydown=(e)=>{ if(e.key==='Enter'){ setGameView('mercado'); render(); } };
+  const dSearch=$('#drawerQuickSearch'); if(dSearch) dSearch.onkeydown=(e)=>{
+    if(e.key==='Enter'){
+      const isPl = (typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(state)) || state?.gameMode === 'player';
+      setGameView(isPl ? 'player_agent' : 'mercado');
+      render();
+    }
+  };
 
   const bToggleSnd = $('#btnToggleSoundTop');
   if(bToggleSnd && window.AFM30){
@@ -47975,7 +48727,37 @@ function bind(){
     const imp=$('#importSaveInput'); if(imp) imp.onchange=importSave;
 
     const curSlotBtn = $('#btnSaveCurrentSlotNow');
-    if(curSlotBtn) curSlotBtn.onclick = () => { void saveAndConfirmCloud(); render(); };
+    if(curSlotBtn) curSlotBtn.onclick = () => { void saveAndConfirmCloud().then(() => render()); };
+
+    const verifyBtn = $('#btnVerifySaveIntegrityNow');
+    if(verifyBtn) verifyBtn.onclick = async () => {
+      verifyBtn.disabled = true;
+      try {
+        await saveAndConfirmCloud();
+        const report = await window.AFM_SAVE_VERIFIER?.auditActiveSaveAndCloud();
+        if(!report) return;
+        const rowsHtml = (report.checks || []).map(c => `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,0.28);border:1px solid ${c.ok ? 'rgba(52,211,153,0.28)' : 'rgba(248,113,113,0.4)'};margin-bottom:6px;font-size:12px">
+            <div style="font-weight:800;color:${c.ok ? '#4ade80' : '#f87171'};white-space:nowrap">${c.ok ? '✅' : '⚠️'} ${esc(c.label)}</div>
+            <div style="color:#e2e8f0;text-align:right">${esc(c.detail)}</div>
+          </div>
+        `).join('');
+        openCustomModal(
+          '🛡️ Auditoria Anti-Bug do Save & Supabase',
+          `<div style="padding:4px 0">
+            <div style="padding:10px 12px;border-radius:10px;background:${report.ok ? 'rgba(16,185,129,0.14)' : 'rgba(245,158,11,0.14)'};border:1px solid ${report.ok ? '#10b981' : '#f59e0b'};margin-bottom:12px;font-size:13px;font-weight:800;color:#fff">
+              ${report.ok ? '✅ 100% ÍNTEGRO: Save Local + Modo Travado + Supabase Confirmados!' : '⚠️ Atenção: Verifique os itens sinalizados abaixo'}
+            </div>
+            ${rowsHtml}
+          </div>`,
+          () => { render(); },
+          'Fechar Diagnóstico',
+          false
+        );
+      } finally {
+        verifyBtn.disabled = false;
+      }
+    };
 
     const syncCloudBtn = $('#btnSyncCloudSlotsNow');
     if(syncCloudBtn) syncCloudBtn.onclick = () => { void syncCloudWithLocal(true); };
@@ -48002,8 +48784,15 @@ function bind(){
     $$('.btnConfigStartNewInSlot').forEach(b => {
       b.onclick = () => {
         save();
+        if(window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.enterSetupCleanly === 'function'){
+          window.AFM_SETUP_GUARD.enterSetupCleanly();
+        }
         setupSelectedSlot = Number(b.dataset.slot) || 1;
         state = null;
+        if(typeof window !== 'undefined'){
+          window.state = null;
+          window.GameState = null;
+        }
         render();
       };
     });
@@ -48608,13 +49397,35 @@ function importSave(ev){
   const r=new FileReader();
   r.onload=()=>{
     try{
-      const x=JSON.parse(r.result);
-      if(!x.club||!x.teams) throw Error();
-      state=migrate(x);
-      save();
-      view='central';
+      const parsed=JSON.parse(r.result);
+      const raw=(parsed&&typeof parsed==='object'&&parsed.data&&parsed.data.club)?parsed.data:parsed;
+      if(!raw||!raw.club||(!raw.teams&&!raw.squad)) throw Error('Save inválido');
+      const targetSlot=Math.max(1,Math.min(3,Number(state?.userSlot||raw.userSlot||1)));
+      let nextState=(window.AFM_SETUP_GUARD&&typeof window.AFM_SETUP_GUARD.sanitizeLoadedSave==='function')
+        ?window.AFM_SETUP_GUARD.sanitizeLoadedSave(raw,targetSlot)
+        :clone(raw);
+      nextState.userSlot=targetSlot;
+      if(typeof window.migrateAndSanitizeSaveState==='function'){
+        nextState=window.migrateAndSanitizeSaveState(nextState);
+      }
+      state=migrate(nextState);
+      if(typeof window!=='undefined') window.state=state;
+      const isPl=(typeof window.isPlayerCareerActive==='function'&&window.isPlayerCareerActive(state))||state.gameMode==='player';
+      state.gameMode=isPl?'player':'manager';
+      state.mode=state.gameMode;
+      state.isPlayerMode=isPl;
+      if(isPl&&!state.retiredPlayerCareer){
+        state.coachName='Treinador da IA';
+        state.manager='Treinador da IA';
+        restorePlayerCareerSquad(state);
+      }
+      if(window.AFM_SAVE_VERIFIER) window.AFM_SAVE_VERIFIER.lockSlotMode(targetSlot,state.gameMode,{club:state.club});
+      view=isPl?'player_hub':'central';
+      state.view=view;
+      if(typeof window!=='undefined'){ window.view=view; window.state=state; }
+      save({allowModeReplace:true,manual:true,force:true});
       render();
-      toast('Save importado com sucesso!');
+      toast(`Save importado com sucesso (${isPl?'Modo Jogador':'Modo Treinador'})!`);
     }catch{
       alert('Arquivo de save inválido.');
     }
@@ -48755,17 +49566,17 @@ window.getStadiumLevelByCapacity = getStadiumLevelByCapacity;
 window.syncStadiumCapacityAndLevel = syncStadiumCapacityAndLevel;
 window.calcArenaTotalCost = calcArenaTotalCost;
 window.getState = () => state;
-window.setState = (s) => { state = s; if(window.AFM) window.AFM.state = s; };
+window.setState = (s) => { state = s; window.state = s; if(window.AFM) window.AFM.state = s; return state; };
 try {
   Object.defineProperty(window, 'GameState', {
     get() { return state; },
-    set(s) { state = s; if(window.AFM) window.AFM.state = s; },
+    set(s) { state = s; window.state = s; if(window.AFM) window.AFM.state = s; },
     configurable: true
   });
 } catch(e) { window.GameState = state; }
 window.AFM = window.AFM || {};
 window.AFM.getState = () => state;
-window.AFM.setState = (s) => { state = s; window.AFM.state = s; };
+window.AFM.setState = (s) => { state = s; window.state = s; window.AFM.state = s; return state; };
 window.AFM.state = state;
 window.getStadiumSelectedSide = () => stadiumSelectedSide;
 window.setStadiumSelectedSide = (s) => { stadiumSelectedSide = s; };

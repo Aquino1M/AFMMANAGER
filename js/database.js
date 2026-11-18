@@ -430,87 +430,171 @@ const AFM_DB = (function(){
     }
   }
 
-  // Salvar Carreira / Slot no Supabase (Upsert direto na tabela afm_saves)
+  const slotSaveChains = {};
+  const slotSaveSeq = {};
+
+  // Salvar Carreira / Slot no Supabase (Upsert serializado por slot na tabela afm_saves — imune a race conditions)
   async function saveSlot(username, slotNum, saveEntry, options = {}){
     if(!saveEntry) return { ok: false, error: 'Save inválido.' };
-    const state = saveEntry.data || saveEntry;
+    const rawState = saveEntry.data || saveEntry;
     const slot = Number(slotNum);
-    if(!Number.isInteger(slot) || slot < 1 || slot > 3 || !state.club) return { ok: false, error: 'Save inválido.' };
+    if(!Number.isInteger(slot) || slot < 1 || slot > 3 || !rawState?.club) return { ok: false, error: 'Save inválido.' };
 
-    if(typeof window !== "undefined" && typeof window.purgeBuggedExploitPlayers === "function") window.purgeBuggedExploitPlayers(state);
-    const cleanUser = getSaveOwner(username || state.userOwner);
+    const cleanUser = getSaveOwner(username || saveEntry.owner || rawState.userOwner);
     if(!cleanUser) return { ok: false, error: 'Sessão inválida para salvar este jogo.' };
 
-    await init();
-    const cli = getClient();
+    // Clona sincronamente e remove catálogos estáticos pesados (~450 KB) sem mutar memória
+    const state = JSON.parse(JSON.stringify(rawState));
+    const entrySnap = { ...saveEntry, data: undefined };
+    delete state.worldGenerated;
+    if(state.isolatedWorld){
+      delete state.isolatedWorld.players;
+      delete state.isolatedWorld.clubs;
+      delete state.isolatedWorld.competitions;
+    }
+    if(typeof window !== "undefined" && typeof window.purgeBuggedExploitPlayers === "function") window.purgeBuggedExploitPlayers(state);
 
-    // O caller já grava uma cópia local; não informe sucesso remoto sem cliente.
-    if(!cli) return { ok: false, localOnly: true, error: 'Supabase indisponível ou não configurado.' };
+    // Captura o modo genuíno antes de auto-cura para bloquear sobrescrita acidental entre modos distintos
+    const rawIncomingMode = getSavedGameMode(saveEntry) || getSavedGameMode(state) || 'manager';
+    if(typeof window !== "undefined" && window.AFM_SAVE_VERIFIER && typeof window.AFM_SAVE_VERIFIER.verifyAndHealState === "function"){
+      window.AFM_SAVE_VERIFIER.verifyAndHealState(state, { slot, owner: cleanUser, allowModeReplace: options.allowModeReplace === true });
+    }
 
-    try {
-      const incomingMode = getSavedGameMode(state) || 'manager';
-      state.gameMode = incomingMode;
-      state.isPlayerMode = (incomingMode === 'player');
-      if(options.allowModeReplace !== true){
-        let timeoutId;
-        const timeoutP = new Promise((_, reject) => { timeoutId = setTimeout(() => reject(new Error('Timeout ao validar o modo do save na nuvem.')), 5000); });
-        let existingResult;
-        try {
-          const existingQuery = cli.from('afm_saves').select('save_data').ilike('username', cleanUser).eq('slot', slot).maybeSingle();
-          existingResult = await Promise.race([existingQuery, timeoutP]);
-        } finally { clearTimeout(timeoutId); }
-        const { data: existing, error: readError } = existingResult;
-        if(readError) throw readError;
-        const existingMode = existing ? (getSavedGameMode(existing.save_data) || 'manager') : null;
-        if(existingMode && existingMode !== incomingMode){
-          return { ok: false, localOnly: true, modeConflict: true, error: 'O slot da nuvem pertence a outro modo de carreira. Inicie uma nova carreira no slot para substituí-lo.' };
-        }
+    const slotKey = `${cleanUser}::${slot}`;
+    const mySeq = (slotSaveSeq[slotKey] = (slotSaveSeq[slotKey] || 0) + 1);
+
+    const runQueuedSave = async () => {
+      if(mySeq < slotSaveSeq[slotKey]){
+        return { ok: true, superseded: true, slot };
+      }
+      await init();
+      if(mySeq < slotSaveSeq[slotKey]){
+        return { ok: true, superseded: true, slot };
+      }
+      const cli = getClient();
+
+      // O caller já grava uma cópia local; não informe sucesso remoto sem cliente.
+      if(!cli) {
+        window.AFM_SAVE_VERIFIER?.recordCloudSyncResult?.({ ok: false, localOnly: true, slot, username: cleanUser, error: 'Supabase indisponível ou não configurado.' });
+        return { ok: false, localOnly: true, error: 'Supabase indisponível ou não configurado.' };
       }
 
-      const payload = {
-        username: cleanUser,
-        slot,
-        club: saveEntry.club || state.club,
-        manager: saveEntry.manager || state.manager || 'Treinador',
-        season: Number(saveEntry.season || state.season) || 2026,
-        round: Number(saveEntry.round || state.round) || 0,
-        balance: Number(saveEntry.balance ?? state.balance) || 0,
-        stadium_capacity: Number(state.infrastructure?.stadium?.capacity || state.stadium?.capacity || 18000),
-        stadium_ring: Number(state.stadiumRingData?.ring || 1),
-        stadium_sectors_count: Number(state.stadiumRingData?.purchasedSectors?.length || 0),
-        manager_money: Number(state.managerMoney || 57000),
-        division: state.competition || 'Série A',
-        save_data: state,
-        updated_at: new Date().toISOString()
-      };
-
-      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      let timeoutId;
-      const timeoutP = new Promise((_, reject) => {
-        timeoutId = setTimeout(() => {
-          reject(new Error('Supabase demorou mais de 15 segundos para confirmar o save.'));
-          controller?.abort();
-        }, 15000);
-      });
-      let writeQuery = cli.from('afm_saves').upsert(payload, { onConflict: 'username,slot' });
-      if(controller && typeof writeQuery.abortSignal === 'function') writeQuery = writeQuery.abortSignal(controller.signal);
-      let result;
       try {
-        result = await Promise.race([writeQuery, timeoutP]);
-      } finally {
-        clearTimeout(timeoutId);
-      }
-      const { error } = result;
-      if(error){
+        const incomingMode = getSavedGameMode(state) || rawIncomingMode || 'manager';
+        const isPlayerMode = incomingMode === 'player';
+        state.gameMode = incomingMode;
+        state.mode = incomingMode;
+        state.isPlayerMode = isPlayerMode;
+        if(isPlayerMode && !state.retiredPlayerCareer){
+          state.aiCoachControlled = true;
+          state.coachName = state.coachName || 'Treinador da IA';
+          state.manager = state.coachName;
+        } else {
+          delete state.playerCareer;
+          delete state.player;
+          delete state.playerCareerState;
+          delete state.controlledPlayerId;
+          delete state.aiCoachControlled;
+        }
+
+        if(options.allowModeReplace !== true){
+          let timeoutId;
+          const timeoutP = new Promise((_, reject) => { timeoutId = setTimeout(() => reject(new Error('Timeout ao validar o modo do save na nuvem.')), 5000); });
+          let existingResult;
+          try {
+            const existingQuery = cli.from('afm_saves').select('save_data, updated_at, manager').ilike('username', cleanUser).eq('slot', slot).maybeSingle();
+            existingResult = await Promise.race([existingQuery, timeoutP]);
+          } finally { clearTimeout(timeoutId); }
+          if(mySeq < slotSaveSeq[slotKey]){
+            return { ok: true, superseded: true, slot };
+          }
+          const { data: existing, error: readError } = existingResult;
+          if(readError) throw readError;
+          const existingMode = existing ? (getSavedGameMode({ manager: existing.manager, ...(existing.save_data || {}) }) || 'manager') : null;
+          const modeReplacedTs = parseSaveTimestamp(state.modeReplacedAt || entrySnap.modeReplacedAt);
+          const cloudTs = parseSaveTimestamp(existing?.updated_at);
+          const explicitlyReplacedAfterCloud = modeReplacedTs > 0 && modeReplacedTs > cloudTs;
+
+          if(existingMode && (existingMode !== incomingMode || existingMode !== rawIncomingMode) && !explicitlyReplacedAfterCloud){
+            const isHealedRealPlayer = existingMode === 'player' && incomingMode === 'player' && Boolean(state.playerCareerState || state.controlledPlayerId);
+            if(!isHealedRealPlayer){
+              const conflictErr = 'O slot da nuvem pertence a outro modo de carreira. Inicie uma nova carreira no slot para substituí-lo.';
+              window.AFM_SAVE_VERIFIER?.recordCloudSyncResult?.({ ok: false, localOnly: true, modeConflict: true, slot, username: cleanUser, error: conflictErr });
+              return { ok: false, localOnly: true, modeConflict: true, error: conflictErr };
+            }
+          }
+          if(existingMode === 'player' && existing?.save_data?.playerCareerState && !state.playerCareerState && !explicitlyReplacedAfterCloud){
+            const incompleteErr = 'Bloqueado: tentativa de sobrescrever carreira de jogador completa na nuvem com estado incompleto.';
+            window.AFM_SAVE_VERIFIER?.recordCloudSyncResult?.({ ok: false, localOnly: true, modeConflict: true, slot, username: cleanUser, error: incompleteErr });
+            return { ok: false, localOnly: true, modeConflict: true, error: incompleteErr };
+          }
+        }
+
+        const nowIso = entrySnap.updatedAt || state.updatedAt || new Date().toISOString();
+        state.updatedAt = nowIso;
+        state.userSlot = slot;
+        state.userOwner = cleanUser;
+
+        const payload = {
+          username: cleanUser,
+          slot,
+          club: entrySnap.club || state.club,
+          manager: isPlayerMode ? (state.coachName || 'Treinador da IA') : (entrySnap.manager || state.manager || 'Treinador'),
+          season: Number(entrySnap.season || state.season) || 2026,
+          round: Number(entrySnap.round ?? state.round) || 0,
+          balance: Number(entrySnap.balance ?? state.balance) || 0,
+          stadium_capacity: Number(state.infrastructure?.stadium?.capacity || state.stadium?.capacity || 18000),
+          stadium_ring: Number(state.stadiumRingData?.ring || 1),
+          stadium_sectors_count: Number(state.stadiumRingData?.purchasedSectors?.length || 0),
+          manager_money: Number(isPlayerMode ? (state.playerCareerState?.personalBank || 0) : (state.career?.cash ?? state.managerMoney ?? 57000)),
+          division: state.competition || 'Série A',
+          save_data: state,
+          updated_at: nowIso
+        };
+
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        let timeoutId;
+        const timeoutP = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error('Supabase demorou mais de 15 segundos para confirmar o save.'));
+            controller?.abort();
+          }, 15000);
+        });
+        let writeQuery = cli.from('afm_saves').upsert(payload, { onConflict: 'username,slot' });
+        if(controller && typeof writeQuery.abortSignal === 'function') writeQuery = writeQuery.abortSignal(controller.signal);
+        let result;
+        try {
+          result = await Promise.race([writeQuery, timeoutP]);
+        } finally {
+          clearTimeout(timeoutId);
+        }
+        const { error } = result;
+        if(error){
+          recordHandledError('save-sync-write', error);
+          window.AFM_SAVE_VERIFIER?.recordCloudSyncResult?.({ ok: false, localOnly: true, slot, username: cleanUser, error: error.message });
+          return { ok: false, localOnly: true, error: error.message };
+        }
+        cloudAvailable = true;
+        window.AFM_SAVE_VERIFIER?.recordCloudSyncResult?.({
+          ok: true,
+          slot,
+          username: cleanUser,
+          club: payload.club,
+          gameMode: incomingMode,
+          updatedAt: nowIso,
+          payloadBytes: JSON.stringify(state).length
+        });
+        return { ok: true, slot, gameMode: incomingMode, updatedAt: nowIso };
+      } catch(error){
         recordHandledError('save-sync-write', error);
+        window.AFM_SAVE_VERIFIER?.recordCloudSyncResult?.({ ok: false, localOnly: true, slot, username: cleanUser, error: error.message });
         return { ok: false, localOnly: true, error: error.message };
       }
-      cloudAvailable = true;
-      return { ok: true };
-    } catch(error){
-      recordHandledError('save-sync-write', error);
-      return { ok: false, localOnly: true, error: error.message };
-    }
+    };
+
+    const nextPromise = (slotSaveChains[slotKey] || Promise.resolve()).then(runQueuedSave, runQueuedSave);
+    slotSaveChains[slotKey] = nextPromise.catch(() => {});
+    return nextPromise;
   }
 
   // Excluir Carreira / Slot no Supabase
@@ -581,7 +665,8 @@ const AFM_DB = (function(){
     if(!entry || typeof entry !== 'object') return null;
     const data = entry?.data && typeof entry.data === 'object' ? entry.data : entry;
     const isRetired = Boolean(data?.retiredPlayerCareer || entry?.retiredPlayerCareer);
-    const hasAiCoachMarker = !isRetired && Boolean(
+    if(isRetired) return 'manager';
+    const hasAiCoachMarker = Boolean(
       data?.aiCoachControlled === true ||
       entry?.aiCoachControlled === true ||
       data?.manager === 'Treinador da IA' ||
@@ -654,14 +739,19 @@ const AFM_DB = (function(){
         const localTime = parseSaveTimestamp(local?.updatedAt || local?.data?.updatedAt);
         const cloudTime = parseSaveTimestamp(row.updated_at);
         const localMode = getSavedGameMode(local);
-        const cloudMode = getSavedGameMode(row.save_data);
+        const cloudMode = getSavedGameMode({ manager: row.manager, ...(row.save_data || {}) });
+        const localModeReplacedTs = parseSaveTimestamp(local?.data?.modeReplacedAt || local?.modeReplacedAt);
         const activeSave = typeof window !== 'undefined' ? window.state : null;
+        const isSetupNow = Boolean(typeof window !== 'undefined' && (window.__afmSetupScreenActive || window.AFM_SETUP_GUARD?.isSetupActive?.()));
         const activeSlot = Number(activeSave?.userSlot) || 1;
         const activeOwner = String(activeSave?.userOwner || '').trim().toLowerCase();
-        const activeMode = getSavedGameMode(activeSave);
-        const activeModeConflict = activeSave && slot === activeSlot && (!activeOwner || activeOwner === cleanUser) && activeMode && cloudMode && activeMode !== cloudMode;
+        const activeMode = !isSetupNow ? getSavedGameMode(activeSave) : null;
+        const activeModeConflict = !isSetupNow && activeSave && slot === activeSlot && (!activeOwner || activeOwner === cleanUser) && activeMode && cloudMode && activeMode !== cloudMode;
         if((local && localMode && cloudMode && localMode !== cloudMode) || activeModeConflict){
-          modeConflicts++;
+          // Se o save local é uma nova carreira iniciada explicitamente após a data da nuvem, deixa a etapa 2 enviá-lo
+          if(!(localModeReplacedTs > 0 && localModeReplacedTs > cloudTime)){
+            modeConflicts++;
+          }
           continue;
         }
 
@@ -757,21 +847,26 @@ const AFM_DB = (function(){
         else account.saves[idx] = { ...entry, data: undefined };
         pulledFromCloud++;
 
-        // REGRA CRÍTICA INVIOLÁVEL: Se a carreira ativa em memória é deste slot e deste usuário,
-        // sincroniza imediatamente a memória (state) para que o celular ou o PC nunca fique desatualizado!
-        if(typeof window !== "undefined" && window.state){
+        // REGRA CRÍTICA INVIOLÁVEL: Se a carreira ativa em memória é deste slot e deste usuário (e NÃO estamos na tela inicial),
+        // sincroniza a memória (state + window.state) com sanitização completa sem jamais trocar de modo!
+        const setupActiveInSync = Boolean(typeof window !== "undefined" && (window.__afmSetupScreenActive || window.AFM_SETUP_GUARD?.isSetupActive?.()));
+        if(typeof window !== "undefined" && window.state && !setupActiveInSync){
           const currentSlot = Number(window.state.userSlot) || 1;
           const currentOwner = String(window.state.userOwner || '').trim().toLowerCase();
           const activeMode = getSavedGameMode(window.state);
           if(slot === currentSlot && (!currentOwner || currentOwner === cleanUser) && (!activeMode || !cloudMode || activeMode === cloudMode)){
             const activeTime = parseSaveTimestamp(window.state.updatedAt || local?.updatedAt);
             if(cloudTime > activeTime){
-              let freshData = typeof window.clone === 'function' ? window.clone(row.save_data) : JSON.parse(JSON.stringify(row.save_data));
+              let freshData = (window.AFM_SETUP_GUARD && typeof window.AFM_SETUP_GUARD.sanitizeLoadedSave === 'function')
+                ? window.AFM_SETUP_GUARD.sanitizeLoadedSave(row.save_data, slot)
+                : (typeof window.clone === 'function' ? window.clone(row.save_data) : JSON.parse(JSON.stringify(row.save_data)));
               freshData.userSlot = slot;
               freshData.userOwner = cleanUser;
               freshData.updatedAt = row.updated_at;
               if(typeof window.purgeBuggedExploitPlayers === 'function') window.purgeBuggedExploitPlayers(freshData);
+              if(typeof window.migrateAndSanitizeSaveState === 'function') freshData = window.migrateAndSanitizeSaveState(freshData);
               if(typeof window.migrate === 'function') freshData = window.migrate(freshData);
+              if(typeof window.setState === 'function') window.setState(freshData);
               window.state = freshData;
               window.GameState = freshData;
               updatedActiveState = true;
@@ -800,20 +895,22 @@ const AFM_DB = (function(){
         }
         const cloudRow = (result.data || []).find(row => Number(row.slot) === s);
         const localMode = getSavedGameMode(loc);
-        const cloudMode = getSavedGameMode(cloudRow?.save_data);
-        if(loc && localMode && cloudMode && localMode !== cloudMode){
+        const cloudMode = cloudRow ? getSavedGameMode({ manager: cloudRow.manager, ...(cloudRow.save_data || {}) }) : null;
+        const localTime = parseSaveTimestamp(loc?.updatedAt || loc?.data?.updatedAt);
+        const cloudTime = parseSaveTimestamp(cloudRow?.updated_at);
+        const localReplacedTs = parseSaveTimestamp(loc?.data?.modeReplacedAt || loc?.modeReplacedAt);
+        const allowReplaceFromNewCareer = Boolean(localReplacedTs > 0 && localReplacedTs > cloudTime);
+        if(loc && localMode && cloudMode && localMode !== cloudMode && !allowReplaceFromNewCareer){
           modeConflicts++;
           continue;
         }
-        const localTime = parseSaveTimestamp(loc?.updatedAt || loc?.data?.updatedAt);
-        const cloudTime = parseSaveTimestamp(cloudRow?.updated_at);
-        const localIsNewer = (loc?.data?.club || loc?.club) && (!cloudRow || localTime > cloudTime);
+        const localIsNewer = (loc?.data?.club || loc?.club) && (!cloudRow || localTime > cloudTime || allowReplaceFromNewCareer);
         if(localIsNewer){
           const entry = { ...loc, owner: cleanUser, updatedAt: loc.updatedAt || new Date().toISOString() };
-          const saved = await saveSlot(cleanUser, s, entry);
+          const saved = await saveSlot(cleanUser, s, entry, { allowModeReplace: allowReplaceFromNewCareer });
           if(saved.ok) {
-            localStorage.setItem(`afm_save_${cleanUser}_slot_${s}`, JSON.stringify(entry));
-            localStorage.setItem(`afm2027_individual_save_slot_${s}`, JSON.stringify(entry));
+            try { localStorage.setItem(`afm_save_${cleanUser}_slot_${s}`, JSON.stringify(entry)); } catch(_){}
+            try { localStorage.setItem(`afm2027_individual_save_slot_${s}`, JSON.stringify(entry)); } catch(_){}
             pushedToCloud++;
           }
         }
@@ -965,8 +1062,13 @@ const AFM_DB = (function(){
         role: account.role || (cleanUser === 'admin' ? 'admin' : 'player')
       };
 
-      if(primarySaveData && typeof window !== 'undefined'){
-        window.state = primarySaveData;
+      // Não mutar window.state diretamente durante restauração na tela inicial para impedir
+      // contaminação de modo (ex.: Slot 1 Treinador sobrescrevendo memória do Slot 2 Jogador).
+      const isSetupRestore = Boolean(typeof window !== 'undefined' && (window.__afmSetupScreenActive || window.AFM_SETUP_GUARD?.isSetupActive?.()));
+      if(primarySaveData && typeof window !== 'undefined' && !isSetupRestore && !window.state){
+        const cleanPrimary = window.AFM_SETUP_GUARD?.sanitizeLoadedSave ? window.AFM_SETUP_GUARD.sanitizeLoadedSave(primarySaveData, 1) : primarySaveData;
+        if(typeof window.setState === 'function') window.setState(cleanPrimary);
+        window.state = cleanPrimary;
       }
 
       return {
@@ -1220,6 +1322,7 @@ const AFM_DB = (function(){
     getConfig,
     setCustomConfig,
     isCloudAvailable,
+    getSavedGameMode,
     parseSaveTimestamp,
     keepAlive: startCloudKeepAlive
   };

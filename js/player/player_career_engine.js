@@ -2568,6 +2568,9 @@
       delete appEl.dataset.renderedGameMode;
       delete appEl.dataset.renderedView;
     }
+    if (typeof window !== "undefined" && window.AFM_SAVE_VERIFIER && typeof window.AFM_SAVE_VERIFIER.lockSlotMode === "function") {
+      window.AFM_SAVE_VERIFIER.lockSlotMode(s.userSlot || targetSlot || 1, "player", { club: clubName });
+    }
     if (typeof window !== "undefined" && typeof window.save === "function")
       window.save({ allowModeReplace: true });
     if (typeof window !== "undefined" && typeof window.render === "function") window.render();
@@ -4003,6 +4006,9 @@
     delete gameState.player;
     gameState.retiredPlayerCareer = pState;
     delete gameState.playerCareerState;
+    gameState.gameMode = "manager";
+    gameState.mode = "manager";
+    gameState.isPlayerMode = false;
 
     // Salário com +10% de bônus
     const clubObj =
@@ -4031,6 +4037,9 @@
     gameState.view = "central";
     if (typeof window !== "undefined") window.view = "central";
 
+    if (typeof window !== "undefined" && window.AFM_SAVE_VERIFIER && typeof window.AFM_SAVE_VERIFIER.lockSlotMode === "function") {
+      window.AFM_SAVE_VERIFIER.lockSlotMode(gameState.userSlot || 1, "manager", { club: clubName });
+    }
     if (typeof window.save === "function")
       window.save({ allowModeReplace: true });
     if (typeof window.render === "function") window.render();
