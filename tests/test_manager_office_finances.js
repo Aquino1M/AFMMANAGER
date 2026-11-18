@@ -51,7 +51,7 @@ global.toast = () => {};
 global.clamp = (val, min, max) => Math.max(min, Math.min(max, val));
 
 // Carregar código do js/game.js
-const gameCode = fs.readFileSync('js/game.js', 'utf8');
+const gameCode = fs.readFileSync('js/game.js', 'utf8').replace(/\r\n/g, '\n');
 
 function extractSnippet(source, startMarker, endMarker) {
   const startIdx = source.indexOf(startMarker);

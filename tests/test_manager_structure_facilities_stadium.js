@@ -53,7 +53,7 @@ global.clamp = (val, min, max) => Math.max(min, Math.min(max, val));
 // 1. Carregar módulos
 require('../js/competitions.js');
 require('../js/structure_stadium_unified_fix.js');
-const gameCode = fs.readFileSync('js/game.js', 'utf8');
+const gameCode = fs.readFileSync('js/game.js', 'utf8').replace(/\r\n/g, '\n');
 
 function extractSnippet(source, startMarker, endMarker) {
   const startIdx = source.indexOf(startMarker);

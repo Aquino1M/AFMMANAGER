@@ -275,7 +275,7 @@ assert(LifePro, 'AFM_LifeAndSharesPro deve inicializar em window');
 
 const lifeProSrc = fs.readFileSync(path.join(__dirname, '../js/systems/manager_life_and_shares_pro.js'), 'utf8');
 assert(
-  lifeProSrc.includes('if (typeof window === \'undefined\' || !window.AFMCareerFix)'),
+  /if\s*\(\s*typeof window === ['"]undefined['"]\s*\|\|\s*!window\.AFMCareerFix\s*\)/.test(lifeProSrc),
   'Handlers inline de .btnBuyProp/.btnBuyBiz/.btnBuyVeh só podem rodar como fallback sem AFMCareerFix'
 );
 

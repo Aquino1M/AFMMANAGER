@@ -597,5 +597,49 @@ console.log('🧪 [TESTE 7/7] Modo Jogador — PlayStyles & Especialidades exige
   console.log('   ✅ Teste 7 aprovado!');
 }
 
-console.log('\n🎉 TODOS OS 7 BLOCOS DE NOVAS FUNCIONALIDADES E CORREÇÕES PASSARAM 100% SEM ERROS!');
+console.log('🧪 [TESTE 8/8] Modo Jogador — Imunidade do Atleta Controlado contra rotinas NPC (processFitness, processDevelopment, AFM_PlayerXPEvolution e SAF)...');
+{
+  const vm = require('vm');
+  // Carrega também player_xp_evolution.js e manager_life_and_shares_pro.js para validar imunidade total
+  for (const extraRel of ['js/systems/player_xp_evolution.js', 'js/systems/manager_life_and_shares_pro.js']) {
+    const code = fs.readFileSync(path.join(__dirname, '..', extraRel), 'utf8');
+    new vm.Script(code, { filename: extraRel }).runInThisContext();
+  }
+
+  const st = window.getState();
+  const ath = st.squad.find(p => String(p.id) === String(st.controlledPlayerId));
+  ath.attributes = { vel: 39, chu: 40, pas: 35, dri: 38, def: 30, fis: 37, pace: 39, shooting: 40, passing: 35, dribbling: 38, defending: 30, physical: 37 };
+  ath.ovr = 38;
+  ath.overall = 38;
+  ath.fc = 38;
+  ath.pes = 38;
+  ath.potential = 90;
+  ath.age = 16;
+  ath.energy = 35;
+  ath.fitness = 35;
+  st.playerCareerState.athleteOvr = 38;
+  st.playerCareerState.overall = 38;
+  st.round = 4; // Múltiplo de 4 para acionar o ciclo de evolução de NPCs em processDevelopment()
+  delete st.safMarket;
+  delete st.managerPersonal;
+
+  // 1) AFM_PlayerXPEvolution jamais pode alterar ovr/xp do atleta controlado
+  window.AFM_PlayerXPEvolution.processMatchXP(st, { h: st.club, a: 'Rival FC', hg: 3, ag: 0, won: true, events: [{ type: 'gol', scorer: ath.name }] });
+  window.AFM_PlayerXPEvolution.processMonthlyTrainingXP(st);
+  assert.equal(ath.ovr, 38, 'AFM_PlayerXPEvolution JAMAIS pode inflar ovr do atleta controlado fora de attributes');
+
+  // 2) processFitness e processDevelopment jamais podem forçar fitness >= 55 ou fc >= 40 no atleta controlado
+  if (typeof window.processFitness === 'function') window.processFitness();
+  if (typeof window.processDevelopment === 'function') window.processDevelopment();
+  assert.equal(ath.fitness, 35, 'processFitness deve preservar fitness === energy (35%) do atleta controlado sem forçar piso 55%');
+  assert.equal(ath.fc, 38, 'processDevelopment jamais pode aplicar piso 40 ou evoluir fc do atleta controlado');
+
+  // 3) AFM_LifeAndSharesPro.processRoundTurn jamais pode injetar safMarket/managerPersonal em Modo Jogador
+  window.AFM_LifeAndSharesPro.processRoundTurn(st);
+  assert.equal(st.safMarket, undefined, 'processRoundTurn não pode injetar safMarket no Modo Jogador');
+  assert.equal(st.managerPersonal, undefined, 'processRoundTurn não pode injetar managerPersonal no Modo Jogador');
+  console.log('   ✅ Teste 8 aprovado!');
+}
+
+console.log('\n🎉 TODOS OS 8 BLOCOS DE NOVAS FUNCIONALIDADES E CORREÇÕES PASSARAM 100% SEM ERROS!');
 process.exit(0);

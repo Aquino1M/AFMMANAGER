@@ -55,7 +55,7 @@ global.render = () => {};
 global.toast = () => {};
 
 // Carregar código do js/game.js
-const gameCode = fs.readFileSync('js/game.js', 'utf8');
+const gameCode = fs.readFileSync('js/game.js', 'utf8').replace(/\r\n/g, '\n');
 
 // Teste 1: Element.prototype.forEach fallback
 console.log('1. Testando Element.prototype.forEach fallback...');

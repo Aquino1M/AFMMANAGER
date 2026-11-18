@@ -44,9 +44,16 @@
     return 2200; // Superestrelas 90+ exigem consistência excepcional
   }
 
+  function isControlledUserAthlete(p, state) {
+    if (!p) return false;
+    if (p.isControlled || p.isControlledAthlete) return true;
+    if (state?.controlledPlayerId != null && String(p.id) === String(state.controlledPlayerId)) return true;
+    return false;
+  }
+
   // Inicialização segura e aditiva dos dados de XP no atleta
   function initPlayerXP(p, state) {
-    if (!p) return;
+    if (!p || isControlledUserAthlete(p, state)) return;
     const curOvr = typeof window.playerOverall === 'function' ? window.playerOverall(p) : (Number(p.overall || p.ovr) || 65);
     
     if (typeof p.xp !== 'number' || isNaN(p.xp)) p.xp = 0;
@@ -191,7 +198,7 @@
 
   // Verifica e executa Level Up de OVR e a mecânica "Ir Além" (Breakthrough de Potencial)
   function checkLevelUp(p, state, eventsLog = []) {
-    if (!p) return;
+    if (!p || isControlledUserAthlete(p, state)) return;
     initPlayerXP(p, state);
 
     let curOvr = typeof window.playerOverall === 'function' ? window.playerOverall(p) : (Number(p.overall || p.ovr) || 65);
@@ -344,8 +351,9 @@
       const updatedPlayers = [];
       const levelUps = [];
 
-      // 1. Processa titulares e reservas que entraram
+      // 1. Processa titulares e reservas que entraram (exceto atleta controlado no Modo Jogador, que usa AFM_PlayerEngine)
       starters.forEach(p => {
+        if (isControlledUserAthlete(p, state)) return;
         initPlayerXP(p, state);
         const pk = typeof window.playerKey === 'function' ? window.playerKey(p) : p.name;
         const wasSubbedOut = subbedOutKeys.includes(pk);
@@ -385,6 +393,7 @@
 
       // 2. Quem ficou no banco não ganha XP de jogo nesta rodada, apenas treina
       state.squad.forEach(p => {
+        if (isControlledUserAthlete(p, state)) return;
         const pk = typeof window.playerKey === 'function' ? window.playerKey(p) : p.name;
         if (!starters.some(s => (typeof window.playerKey === 'function' ? window.playerKey(s) : s.name) === pk)) {
           initPlayerXP(p, state);
@@ -408,6 +417,7 @@
       const levelUps = [];
 
       state.squad.forEach(p => {
+        if (isControlledUserAthlete(p, state)) return;
         initPlayerXP(p, state);
         const age = Number(p.age) || 24;
         const ageMult = age <= 20 ? 1.35 : (age <= 23 ? 1.20 : (age <= 27 ? 1.0 : (age <= 30 ? 0.75 : 0.45)));

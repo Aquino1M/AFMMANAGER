@@ -1663,7 +1663,7 @@
 
     // Atualização dinâmica da Bolsa a cada rodada / avanço de dia (Turnos)
     processRoundTurn(state) {
-      if (!state) return;
+      if (!state || state.gameMode === "player" || (typeof window !== "undefined" && window.isPlayerCareerActive?.(state))) return;
       this.ensureState(state);
       const safList = this.getSafMarketList(state);
       if (!Array.isArray(safList) || safList.length === 0) return;

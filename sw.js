@@ -1,5 +1,5 @@
 // Service Worker do AFM Manager 2027
-const CACHE_NAME = 'afm-2027-cache-v132';
+const CACHE_NAME = 'afm-2027-cache-v141';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -75,17 +75,29 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  if (new URL(event.request.url).origin !== self.location.origin) return;
+  const reqUrl = new URL(event.request.url);
+  if (reqUrl.origin !== self.location.origin) return;
+  const isCodeOrDoc = event.request.mode === 'navigate' || /\.(?:html|js|css|json)(?:$|\?)/i.test(reqUrl.pathname);
   event.respondWith(
-    fetch(event.request).catch(async () => {
-      const cached = await caches.match(event.request);
-      if(cached) return cached;
-      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      for(const client of clients) client.postMessage({ type: 'AFM_OFFLINE_CACHE_MISS', url: event.request.url });
-      return new Response('Este arquivo não está disponível no cache offline. Reconecte-se e recarregue o jogo.', {
-        status: 503,
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-      });
-    })
+    fetch(event.request, isCodeOrDoc ? { cache: 'no-cache' } : undefined)
+      .then(async response => {
+        if (response && response.ok && response.status === 200) {
+          try {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(event.request, response.clone());
+          } catch {}
+        }
+        return response;
+      })
+      .catch(async () => {
+        const cached = await caches.match(event.request, { ignoreSearch: false }) || await caches.match(event.request, { ignoreSearch: true });
+        if(cached) return cached;
+        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        for(const client of clients) client.postMessage({ type: 'AFM_OFFLINE_CACHE_MISS', url: event.request.url });
+        return new Response('Este arquivo não está disponível no cache offline. Reconecte-se e recarregue o jogo.', {
+          status: 503,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+        });
+      })
   );
 });

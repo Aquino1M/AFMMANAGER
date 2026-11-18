@@ -10077,6 +10077,8 @@ window.AFM_SAVE_VERIFIER = (function(){
     if(isPlayer){
       delete targetState.isManagerOnly;
       if(!targetState.retiredPlayerCareer){
+        delete targetState.safMarket;
+        delete targetState.managerPersonal;
         targetState.aiCoachControlled = true;
         if(targetState.coachName !== 'Treinador da IA'){
           targetState.coachName = 'Treinador da IA';
@@ -20372,6 +20374,7 @@ function applyScoringAwardUpgrades(awards){
     if(!award || !award[stat] || awarded.includes(awardId)) return;
     const player = state.squad?.find(item => norm(item.name) === norm(award.name) && norm(award.club) === norm(state.club));
     if(!player) return;
+    if(player.isControlled || player.isControlledAthlete || (state.controlledPlayerId != null && String(player.id) === String(state.controlledPlayerId))) return;
     const playerOnceKey = `player:${norm(player.name)}`;
     awarded.push(awardId);
     if(!awarded.includes(playerOnceKey)){
@@ -21855,35 +21858,41 @@ if(typeof window !== 'undefined'){
 function processFitness(){
   const starters=new Set(state.lineup||[]);
   for(const p of state.squad){
-    const med=state.infrastructure?.medical?.level||1;
-    const isStarter = starters.has(playerKey(p));
+    if(!p) continue;
+    const isCtrl = Boolean(p.isControlled || p.isControlledAthlete || (state.controlledPlayerId != null && String(p.id) === String(state.controlledPlayerId)));
+    if(!isCtrl){
+      const med=state.infrastructure?.medical?.level||1;
+      const isStarter = starters.has(playerKey(p));
 
-    // Recuperação ou Desgaste Físico
-    p.fitness = clamp((p.fitness??100) + (isStarter ? -(rnd(3,7)) + med : 5 + med), 55, 100);
+      // Recuperação ou Desgaste Físico
+      p.fitness = clamp((p.fitness??100) + (isStarter ? -(rnd(3,7)) + med : 5 + med), 55, 100);
 
-    // Fadiga acumulada se jogar muitas rodadas seguidas
-    if(isStarter){
-      p.consecutiveStarts = (p.consecutiveStarts || 0) + 1;
-      if(p.consecutiveStarts >= 3){
-        p.fitness = clamp(p.fitness - 4, 45, 100);
+      // Fadiga acumulada se jogar muitas rodadas seguidas
+      if(isStarter){
+        p.consecutiveStarts = (p.consecutiveStarts || 0) + 1;
+        if(p.consecutiveStarts >= 3){
+          p.fitness = clamp(p.fitness - 4, 45, 100);
+        }
+      } else {
+        p.consecutiveStarts = 0;
       }
-    } else {
-      p.consecutiveStarts = 0;
-    }
 
-    // Veteranos de 34+ anos recuperam físico mais devagar
-    if((p.age || 25) >= 34){
-      p.fitness = clamp(p.fitness - 2, 45, 100);
-    }
-
-    // Moral do jogador
-    p.morale = p.morale || 75;
-    if(isStarter){
-      p.morale = clamp(p.morale + rnd(1, 3), 35, 100);
-    } else {
-      if(playerOverall(p) >= 72){
-        p.morale = clamp(p.morale - 2, 25, 100);
+      // Veteranos de 34+ anos recuperam físico mais devagar
+      if((p.age || 25) >= 34){
+        p.fitness = clamp(p.fitness - 2, 45, 100);
       }
+
+      // Moral do jogador
+      p.morale = p.morale || 75;
+      if(isStarter){
+        p.morale = clamp(p.morale + rnd(1, 3), 35, 100);
+      } else {
+        if(playerOverall(p) >= 72){
+          p.morale = clamp(p.morale - 2, 25, 100);
+        }
+      }
+    } else if(typeof p.energy === 'number' && Number.isFinite(p.energy)){
+      p.fitness = clamp(Math.round(p.energy), 0, 100);
     }
 
     // Recuperação de Lesões
@@ -21911,9 +21920,10 @@ function processDevelopment(){
     window.AFM_PlayerXPEvolution.processMonthlyTrainingXP(state);
   }
   if(state.round%4!==0)return;
+  const isCtrl = p => Boolean(p && (p.isControlled || p.isControlledAthlete || (state.controlledPlayerId != null && String(p.id) === String(state.controlledPlayerId))));
   const lvl=state.infrastructure?.training?.level||1;
   const starters = new Set(state.lineup || []);
-  const candidates=state.squad.filter(p=>(+p.age||25)<=25&&(p.potential||playerOverall(p))>playerOverall(p));
+  const candidates=state.squad.filter(p=>!isCtrl(p)&&(+p.age||25)<=25&&(p.potential||playerOverall(p))>playerOverall(p));
   const ctBonus = typeof trainingBonusPct === 'function' ? trainingBonusPct(lvl) : lvl;
   for(const p of candidates){
     const starterBonus = starters.has(playerKey(p)) ? 8 : 0;
@@ -21932,7 +21942,7 @@ function processDevelopment(){
   if(state.activeMentorship && state.activeMentorship.menteeKey){
     const mentee = state.squad.find(p => playerKey(p) === state.activeMentorship.menteeKey);
     const mentor = state.squad.find(p => playerKey(p) === state.activeMentorship.mentorKey);
-    if(mentee && mentor && Math.random() < 0.50 && playerOverall(mentee) < (mentee.potential || 90)){
+    if(mentee && !isCtrl(mentee) && mentor && Math.random() < 0.50 && playerOverall(mentee) < (mentee.potential || 90)){
       const old = playerOverall(mentee);
       mentee.fc = clamp(playerOverall(mentee) + 1, 40, mentee.potential || 94);
       mentee.pes = mentee.fc;
@@ -21942,6 +21952,10 @@ function processDevelopment(){
       }
     }
   }
+}
+if(typeof window !== 'undefined'){
+  window.processFitness = processFitness;
+  window.processDevelopment = processDevelopment;
 }
 
 function finalizeRound(userRes, winners, isKO){

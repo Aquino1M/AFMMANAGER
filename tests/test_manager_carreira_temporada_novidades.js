@@ -39,7 +39,7 @@ global.toast = () => {};
 
 // 1. Carregar módulos
 require('../js/competitions.js');
-const gameCode = fs.readFileSync('js/game.js', 'utf8');
+const gameCode = fs.readFileSync('js/game.js', 'utf8').replace(/\r\n/g, '\n');
 
 // Extrair helpers
 function extractSnippet(source, startMarker, endMarker) {
