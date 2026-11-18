@@ -879,6 +879,9 @@
     );
 
     const usedAttrs = new Set();
+    if (pState.sponsorContract?.bootBonusAttr && BOOT_BONUS_ATTR_META[pState.sponsorContract.bootBonusAttr]) {
+      usedAttrs.add(pState.sponsorContract.bootBonusAttr);
+    }
     const seasonOffers = picked.map((sp, idx) => {
       const monthly = Math.round(sp.monthlyBase * ovrMultiplier);
       const bonusGoal = Math.round(sp.bonusGoalBase * ovrMultiplier);
@@ -903,7 +906,7 @@
 
     pState.availableSponsorOffers = seasonOffers;
     pState.lastSponsorSeasonGenerated = curYear;
-    pState.sponsorOfferBalanceVersion = 4;
+    pState.sponsorOfferBalanceVersion = 5;
     return seasonOffers;
   }
 
@@ -955,11 +958,14 @@
         ),
         { isRead: starterOffer.isRead === true },
       );
+    const hasDuplicateAttrs = Array.isArray(pState.availableSponsorOffers) &&
+      new Set(pState.availableSponsorOffers.map((o) => o.bootBonusAttr).filter(Boolean)).size !== pState.availableSponsorOffers.length;
     if (
       !Array.isArray(pState.availableSponsorOffers) ||
       pState.availableSponsorOffers.length === 0 ||
       pState.lastSponsorSeasonGenerated !== curYear ||
-      pState.sponsorOfferBalanceVersion !== 4 ||
+      pState.sponsorOfferBalanceVersion !== 5 ||
+      hasDuplicateAttrs ||
       pState.availableSponsorOffers.some((offer) => Number(offer.minOvr) > ovr || !offer.bootBonusAttr || !offer.bootBonusVal)
     ) {
       return generateSeasonSponsorOffers(gameState);
@@ -1587,6 +1593,16 @@
     return Math.min(99, Math.max(1, ovr));
   }
 
+  function inferLegacySponsorAttr(sponsor) {
+    const bLower = `${sponsor?.brand || ""} ${sponsor?.name || ""}`.toLowerCase();
+    if (bLower.includes("nike") || bLower.includes("new balance")) return "vel";
+    if (bLower.includes("puma") || bLower.includes("umbro")) return "dri";
+    if (bLower.includes("penalty") || bLower.includes("mizuno")) return "pas";
+    if (bLower.includes("kanxa")) return "fis";
+    if (bLower.includes("topper")) return "def";
+    return "chu";
+  }
+
   function getSponsorBootBonus(sponsor) {
     if (!sponsor) return 0;
     if (Number.isFinite(Number(sponsor.bootBonusVal)) && Number(sponsor.bootBonusVal) >= 1) {
@@ -1605,7 +1621,7 @@
               ? "aspirante"
               : "base");
     return (
-      { base: 1, aspirante: 2, nacional: 3, internacional: 4, superstar: 5 }[
+      { base: 1, aspirante: 2, nacional: 2, internacional: 3, superstar: 3 }[
         tier
       ] || 1
     );
@@ -1613,8 +1629,10 @@
 
   function getSponsorBootBonusInfo(sponsor) {
     if (!sponsor) return { attr: "chu", val: 0, label: "", icon: "👟", attrName: "Finalização & Chute" };
-    const attr = BOOT_BONUS_ATTR_META[sponsor.bootBonusAttr] ? sponsor.bootBonusAttr : "chu";
-    const meta = BOOT_BONUS_ATTR_META[attr];
+    const attr = BOOT_BONUS_ATTR_META[sponsor.bootBonusAttr]
+      ? sponsor.bootBonusAttr
+      : inferLegacySponsorAttr(sponsor);
+    const meta = BOOT_BONUS_ATTR_META[attr] || BOOT_BONUS_ATTR_META.chu;
     const val = getSponsorBootBonus(sponsor);
     return {
       attr,
@@ -1684,9 +1702,24 @@
         terminationFee,
         "out",
       );
-    } else {
+    } else if (terminationFee > 0) {
       pState.personalBank = balance - terminationFee;
       if (pState.lifestyle) pState.lifestyle.cash = pState.personalBank;
+    }
+    const renewalBonusAmt = Math.max(0, Math.round(Number(offer.renewalBonus) || 0));
+    if (renewalBonusAmt > 0) {
+      if (window.AFM_Lifestyle?.addPlayerTransaction) {
+        window.AFM_Lifestyle.addPlayerTransaction(
+          pState,
+          startDate,
+          `Luvas de Assinatura (${offer.brand || "Patrocínio"})`,
+          renewalBonusAmt,
+          "in",
+        );
+      } else {
+        pState.personalBank = (Number(pState.personalBank) || 0) + renewalBonusAmt;
+        if (pState.lifestyle) pState.lifestyle.cash = pState.personalBank;
+      }
     }
     if (typeof window !== "undefined" && window.state?.player && window.state?.playerCareerState === pState) {
       window.state.player.personalBank = pState.personalBank;
@@ -4895,6 +4928,28 @@
       const newMonthly = Math.round((sp.monthlyStipend || 1500) * multiplier);
       const newBonusGoal = Math.round((sp.bonusGoal || 500) * multiplier);
       const newBonusWin = Math.round((sp.bonusWin || 500) * multiplier);
+      const posGroup = normalizePlayerPosGroup(pState.position || "ATA");
+      const baseRenewRoll = rollUniqueSponsorBootBonus(
+        sp.brand || "Penalty",
+        sp.tier || "aspirante",
+        posGroup,
+        new Set(),
+      );
+      if (sp.bootBonusAttr && BOOT_BONUS_ATTR_META[sp.bootBonusAttr]) {
+        const meta = BOOT_BONUS_ATTR_META[sp.bootBonusAttr];
+        const upgradedVal = Math.min(
+          3,
+          Math.max(
+            Number(baseRenewRoll.bootBonusVal) || 1,
+            (Number(sp.bootBonusVal) || 1) + (multiplier > 1.2 ? 1 : 0),
+          ),
+        );
+        baseRenewRoll.bootBonusAttr = sp.bootBonusAttr;
+        baseRenewRoll.bootBonusVal = upgradedVal;
+        baseRenewRoll.bootBonusIcon = meta.icon;
+        baseRenewRoll.bootBonusAttrName = meta.label;
+        baseRenewRoll.bootBonusLabel = `+${upgradedVal} ${meta.label}`;
+      }
 
       pState.agentOffers = pState.agentOffers || [];
       const renewOffer = {
@@ -4907,9 +4962,11 @@
         isRenewal: true,
         isRead: false,
         brand: sp.brand,
+        tier: sp.tier || "aspirante",
+        ...baseRenewRoll,
         clubOrBrand: sp.name || `${sp.brand} Sports`,
         title: `✨ Proposta de Renovação: ${sp.name}`,
-        details: `Vínculo de ${renewalDuration} Dias • Mensalidade: R$ ${newMonthly.toLocaleString("pt-BR")}/mês • Bônus Gol: R$ ${newBonusGoal.toLocaleString("pt-BR")}${renewalBonus > 0 ? ` • Luvas: R$ ${renewalBonus.toLocaleString("pt-BR")}` : ""}`,
+        details: `Vínculo de ${renewalDuration} Dias • Chuteira: ${baseRenewRoll.bootBonusIcon} ${baseRenewRoll.bootBonusLabel} • Mensalidade: R$ ${newMonthly.toLocaleString("pt-BR")}/mês • Bônus Gol: R$ ${newBonusGoal.toLocaleString("pt-BR")}${renewalBonus > 0 ? ` • Luvas: R$ ${renewalBonus.toLocaleString("pt-BR")}` : ""}`,
         monthly: newMonthly,
         monthlyStipend: newMonthly,
         bonusGoal: newBonusGoal,

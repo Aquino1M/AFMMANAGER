@@ -4254,6 +4254,7 @@
                       <div style="color:#38bdf8;font-weight:800;margin-bottom:4px">📅 Duração do Vínculo: <b>${sp.durationDays || 180} Dias</b></div>
                       <div>Mensalidade Fixa: <b style="color:#10b981">R$ ${(sp.monthlyStipend || 1000).toLocaleString("pt-BR")}</b>/mês</div>
                       <div>Bônus por Gol: <b>R$ ${(sp.bonusGoal || 500).toLocaleString("pt-BR")}</b> · Vitória: <b>R$ ${(sp.bonusWin || 500).toLocaleString("pt-BR")}</b></div>
+                      <div style="margin-top:3px;color:#fde047;font-weight:800">👟 Chuteira Oficial: <b>${bootBonusInfo.icon || "⚡"} +${bootBonusInfo.val} em ${esc(bootBonusInfo.label)}</b></div>
                     </div>
                   </div>`;
                   }
@@ -9921,16 +9922,16 @@
               });
               return;
             }
-            if (offer.renewalBonus && offer.renewalBonus > 0) {
-              pState.personalBank =
-                (pState.personalBank || 0) + offer.renewalBonus;
-            }
             pState.availableSponsorOffers = (
               pState.availableSponsorOffers || []
             ).filter((item) => item.id !== offer.id);
             sponsorTerms = signed;
           }
           pState.agentOffers.splice(idx, 1);
+          syncControlledPlayerOverall(s);
+          if (typeof window.syncGlobalFinancialDOM === "function") window.syncGlobalFinancialDOM(s);
+          if (typeof window.save === "function") window.save();
+          if (typeof window.render === "function") window.render();
           showCustomAlert({
             title: offer.isRenewal
               ? "Renovação Concluída! ✍️"
@@ -10119,6 +10120,10 @@
             label: "Finalização & Chute",
             icon: "🎯"
           };
+          syncControlledPlayerOverall(s);
+          if (typeof window.syncGlobalFinancialDOM === "function") window.syncGlobalFinancialDOM(s);
+          if (typeof window.save === "function") window.save();
+          if (typeof window.render === "function") window.render();
           showCustomAlert({
             title: wasSwitch
               ? `Fornecedor Atualizado para ${sp.brand}! 👟`
@@ -10150,6 +10155,10 @@
             });
             return;
           }
+          syncControlledPlayerOverall(s);
+          if (typeof window.syncGlobalFinancialDOM === "function") window.syncGlobalFinancialDOM(s);
+          if (typeof window.save === "function") window.save();
+          if (typeof window.render === "function") window.render();
           showCustomAlert({
             title: "Contrato Rescindido 👟",
             message: `O contrato com a ${oldBrand} foi encerrado. Multa paga: R$ ${result.terminationFee.toLocaleString("pt-BR")}.\nVocê está livre no mercado para assinar com outra marca ou aguardar novas propostas.`,
@@ -12409,15 +12418,15 @@
             }
             const totalDays = signed.durationDays;
             const endDate = signed.endDate;
-            if (offer.renewalBonus && offer.renewalBonus > 0) {
-              pState.personalBank =
-                (pState.personalBank || 0) + offer.renewalBonus;
-            }
             pState.availableSponsorOffers = (
               pState.availableSponsorOffers || []
             ).filter((item) => item.id !== offer.id);
             pState.agentOffers.splice(originalIndex, 1);
             closeActionModal();
+            syncControlledPlayerOverall(state);
+            if (typeof window.syncGlobalFinancialDOM === "function") window.syncGlobalFinancialDOM(state);
+            if (typeof window.save === "function") window.save();
+            if (typeof window.render === "function") window.render();
             showCustomAlert({
               title: isRenewal
                 ? "Renovação Concluída! ✍️"

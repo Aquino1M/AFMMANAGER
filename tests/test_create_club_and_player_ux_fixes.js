@@ -560,6 +560,25 @@ console.log('🧪 [TESTE 6/6] Modo Jogador — Propostas de Material Esportivo c
     Math.min(99, effBefore[bInfo.attr] + bInfo.val),
     `Assinar patrocínio ${chosenSp.brand} deve somar +${bInfo.val} exatamente em ${bInfo.attr}`
   );
+
+  // Valida contratos legados sem bootBonusAttr/Val (clamp [1, 3] e atributo específico da marca) + luvas em renovação
+  const legacySuperstar = window.AFM_PlayerEngine.getSponsorBootBonusInfo({ brand: 'Nike', tier: 'superstar' });
+  assert.equal(legacySuperstar.attr, 'vel', 'Nike legado deve mapear para Velocidade');
+  assert.ok(legacySuperstar.val >= 1 && legacySuperstar.val <= 3, 'Contrato legado superstar nunca deve ultrapassar +3');
+
+  const bankBeforeRenew = st.playerCareerState.personalBank;
+  const renewRes = window.AFM_PlayerEngine.signSponsorContract(
+    st.playerCareerState,
+    { id: 'sp_renew_test', brand: 'Puma', name: 'Puma Pro', bootBonusAttr: 'dri', bootBonusVal: 3, monthlyStipend: 800, renewalBonus: 1200, durationDays: 180 },
+    st.date
+  );
+  assert.equal(renewRes.ok, true);
+  assert.equal(
+    st.playerCareerState.personalBank,
+    bankBeforeRenew - renewRes.terminationFee + 1200,
+    'Assinar oferta com renewalBonus deve creditar luvas com paridade de saldo'
+  );
+  assert.equal(st.playerCareerState.lifestyle.cash, st.playerCareerState.personalBank, 'lifestyle.cash deve manter 100% de paridade');
   console.log('   ✅ Teste 6 aprovado!');
 }
 
