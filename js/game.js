@@ -16290,6 +16290,34 @@ function ensureCompetitionFixturesIntegrity(comp, userClubName) {
 window.ensureCompetitionFixturesIntegrity = ensureCompetitionFixturesIntegrity;
 
 function computeStandingsFromFixtures(teams, fixtures, filter = 'geral') {
+  const playedFixtures = (fixtures || []).filter(f => f && (f.played || (Array.isArray(f.result) && f.result.length >= 2) || (Array.isArray(f.score) && f.score.length >= 2)));
+
+  // Se não há fixtures completas mas o array de equipes já possui partidas disputadas válidas (ex.: sincronizado do save/state.teams),
+  // preserva a integridade da tabela oficial sem zerar a classificação nem perder pontos dos clubes da CPU!
+  const totalGamesInTeams = Array.isArray(teams) ? teams.reduce((acc, t) => acc + (Number(t?.j) || 0), 0) : 0;
+  const isPartialFixtures = playedFixtures.length === 0 || (totalGamesInTeams > 0 && playedFixtures.length < Math.floor(totalGamesInTeams / 2));
+
+  if((filter === 'geral' || isPartialFixtures) && Array.isArray(teams) && teams.some(t => Number(t?.j) > 0)){
+    const preserved = teams.map(t => {
+      const name = typeof t === 'string' ? t : t.name;
+      const j = Math.max(0, Number(t?.j) || 0);
+      const p = Math.max(0, Number(t?.p) || 0);
+      const v = Math.max(0, Number(t?.v) || 0);
+      const e = Math.max(0, Number(t?.e) || 0);
+      const d = Math.max(0, Number(t?.d) || 0);
+      const gp = Math.max(0, Number(t?.gp) || 0);
+      const gc = Math.max(0, Number(t?.gc) || 0);
+      const sg = gp - gc;
+      const pct = j > 0 ? Math.round((p / (j * 3)) * 100) : 0;
+      const form = Array.isArray(t?.form) ? t.form.slice(-5) : [];
+      const last = form.length ? form[form.length - 1] : null;
+      const trend = last === 'V' ? '▲' : last === 'D' ? '▼' : '—';
+      return { ...t, name, j, p, v, e, d, gp, gc, sg, pct, form, trend };
+    });
+    preserved.sort((a,b) => (b.p - a.p) || (b.v - a.v) || (b.sg - a.sg) || (b.gp - a.gp) || (typeof norm === 'function' ? norm(a.name).localeCompare(norm(b.name)) : a.name.localeCompare(b.name)));
+    return preserved;
+  }
+
   const standings = teams.map(t => {
     const name = typeof t === 'string' ? t : t.name;
     return {
@@ -16301,7 +16329,6 @@ function computeStandingsFromFixtures(teams, fixtures, filter = 'geral') {
   });
 
   const nameMap = new Map(standings.map(s => [(typeof norm === 'function' ? norm(s.name) : String(s.name).toLowerCase().trim()), s]));
-  const playedFixtures = (fixtures || []).filter(f => f.played || (Array.isArray(f.result) && f.result.length >= 2) || (Array.isArray(f.score) && f.score.length >= 2));
 
   playedFixtures.forEach(f => {
     const res = Array.isArray(f.result) ? f.result : f.score;
@@ -16481,15 +16508,45 @@ function getStateCompData(cId){
     nationalDate.setDate(nationalDate.getDate() + 4);
     return nationalDate.toISOString().slice(0, 10);
   });
+  const normCId = typeof normalizeCompStatsId === 'function' ? normalizeCompStatsId(cId) : cId;
   const previousFixtures = Array.isArray(currentSaved?.fixtures) ? currentSaved.fixtures : [];
-  const archivedHistory = (state.history || []).filter(item => (item?.competitionId === cId || (!item?.competitionId && norm(item.competitionName) === norm(comp.name))) && Number(item.season || state.season) === Number(state.season));
+  const archivedHistory = (state.history || []).filter(item => (
+    item?.competitionId === cId ||
+    (typeof normalizeCompStatsId === 'function' && normalizeCompStatsId(item?.competitionId) === normCId) ||
+    (!item?.competitionId && norm(item.competitionName) === norm(comp.name))
+  ) && Number(item.season || state.season) === Number(state.season));
   const usedPreviousFixtures = new Set();
+  const usedArchivedHistory = new Set();
   const fixtures = stateRounds.flatMap((games, roundIndex) => games.map(([home,away]) => {
     let previousIndex = previousFixtures.findIndex((f,index) => !usedPreviousFixtures.has(index) && norm(f.home)===norm(home) && norm(f.away)===norm(away) && Number(f.roundIndex)===roundIndex);
     if(previousIndex < 0) previousIndex = previousFixtures.findIndex((f,index) => !usedPreviousFixtures.has(index) && norm(f.home)===norm(home) && norm(f.away)===norm(away));
     const previous = previousIndex >= 0 ? previousFixtures[previousIndex] : null;
     if(previousIndex >= 0) usedPreviousFixtures.add(previousIndex);
-    const history = archivedHistory.find(item => norm(item.h) === norm(home) && norm(item.a) === norm(away) && (!item.date || !previous?.isoDate || item.date === previous.isoDate));
+    let history = null;
+    let isReversedHistory = false;
+    const historyIndex = archivedHistory.findIndex((item, hIdx) => {
+      if (usedArchivedHistory.has(hIdx)) return false;
+      const matchExact = norm(item.h) === norm(home) && norm(item.a) === norm(away);
+      if (!matchExact) return false;
+      return Number(item.round) === roundIndex + 1 || (item.date && (item.date === previous?.isoDate || item.date === roundDates[roundIndex]));
+    });
+    if (historyIndex >= 0) {
+      usedArchivedHistory.add(historyIndex);
+      history = archivedHistory[historyIndex];
+    } else {
+      const revIndex = archivedHistory.findIndex((item, hIdx) => {
+        if (usedArchivedHistory.has(hIdx)) return false;
+        const matchReversed = norm(item.h) === norm(away) && norm(item.a) === norm(home);
+        if (!matchReversed) return false;
+        return Number(item.round) === roundIndex + 1 || (item.date && (item.date === previous?.isoDate || item.date === roundDates[roundIndex]));
+      });
+      if (revIndex >= 0) {
+        usedArchivedHistory.add(revIndex);
+        history = archivedHistory[revIndex];
+        isReversedHistory = true;
+      }
+    }
+    const histResult = history ? (isReversedHistory ? [Number(history.ag)||0, Number(history.hg)||0] : [Number(history.hg)||0, Number(history.ag)||0]) : null;
     const isoDate = (previous?.played || previous?.result || previous?.score || history) ? (previous?.isoDate || history?.date || roundDates[roundIndex]) : roundDates[roundIndex];
     return {
       stadium:(clubByName(home)||{}).stadium || `Estádio do ${home}`,
@@ -16498,10 +16555,12 @@ function getStateCompData(cId){
       ...(previous?.result ? {result:Array.isArray(previous.result) ? [...previous.result] : previous.result,played:true} : {}),
       ...(previous?.score ? {score:Array.isArray(previous.score) ? [...previous.score] : previous.score,played:true} : {}),
       ...(previous?.played || history ? {played:true} : {}),
-      ...(history && !previous?.result && !previous?.score ? {result:[Number(history.hg)||0,Number(history.ag)||0],played:true} : {})
+      ...(histResult && !previous?.result && !previous?.score ? {result:histResult,played:true} : {})
     };
   }));
-  const savedTeams = Array.isArray(currentSaved?.teams) ? currentSaved.teams : [];
+  const isActiveSaveStateComp = Boolean(state?.compId === cId || (state?.compId?.startsWith('bra-est-') && typeof clubStateCompId === 'function' && clubStateCompId(state.club) === cId));
+  const stateTeamsSource = (isActiveSaveStateComp && Array.isArray(state?.teams) && state.teams.some(team => Number(team.j) > 0)) ? state.teams : [];
+  const savedTeams = stateTeamsSource.length ? stateTeamsSource : (Array.isArray(currentSaved?.teams) ? currentSaved.teams : []);
   const teamStats = teams.map(name => {
     const previous = savedTeams.find(team=>norm(team.name)===norm(name));
     return previous ? {...previous,name} : {name,p:0,j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,pct:0,form:[]};
@@ -16790,6 +16849,11 @@ function collectCompetitionClubSummaries(competitionId){
         });
       });
     }
+    if(summaryMap.size === 0){
+      (state.history || []).filter(h => (h?.competitionId === 'bra-cup' || normalizeCompStatsId(h?.competitionId) === 'bra-cup') && (!h?.season || Number(h.season) === curSeason)).forEach(h => {
+        addMatchToSummary(h.h, h.a, h.hg, h.ag);
+      });
+    }
     return summaryMap;
   }
 
@@ -16808,11 +16872,32 @@ function collectCompetitionClubSummaries(competitionId){
         }
       });
     }
+    if(summaryMap.size === 0){
+      (state.history || []).filter(h => normalizeCompStatsId(h?.competitionId) === normId && (!h?.season || Number(h.season) === curSeason)).forEach(h => {
+        addMatchToSummary(h.h, h.a, h.hg, h.ag);
+      });
+    }
     return summaryMap;
   }
 
   // 3. Campeonatos Estaduais ('bra-est-*')
   if(normId.startsWith('bra-est-')){
+    // Se for a competição ativa do save e state.teams já tiver partidas disputadas, prioriza os dados oficiais do save
+    if(normalizeCompStatsId(state.compId) === normId && Array.isArray(state.teams) && state.teams.some(t => Number(t?.j) > 0)){
+      state.teams.forEach(t => {
+        const j = Math.max(0, Number(t?.j) || 0);
+        if(j <= 0 || !t?.name) return;
+        const v = Math.max(0, Number(t.v) || 0);
+        const e = Math.max(0, Number(t.e) || 0);
+        const d = Math.max(0, Number(t.d) || 0);
+        const gp = Math.max(0, Number(t.gp) || 0);
+        const gc = Math.max(0, Number(t.gc) || 0);
+        const maxPossibleCs = gc === 0 ? j : Math.min(v + e, Math.max(0, j - 1));
+        const estCs = gc === 0 ? j : Math.min(maxPossibleCs, Math.max(0, Math.round(j * Math.exp(-gc / Math.max(1, j * 1.05)))));
+        summaryMap.set(norm(t.name), { name: t.name, j, v, e, d, gp, gc, pts: Number(t.p) || (v * 3 + e), cs: estCs });
+      });
+      return summaryMap;
+    }
     const estData = (state.estadualData?.[normId] && Number(state.estadualData[normId].season) === curSeason)
       ? state.estadualData[normId]
       : (typeof getStateCompData === 'function' ? getStateCompData(normId) : null);
@@ -16836,6 +16921,11 @@ function collectCompetitionClubSummaries(competitionId){
       const estCs = gc === 0 ? j : Math.min(maxPossibleCs, Math.max(0, Math.round(j * Math.exp(-gc / Math.max(1, j * 1.05)))));
       summaryMap.set(norm(t.name), { name: t.name, j, v, e, d, gp, gc, pts: Number(t.p) || (v * 3 + e), cs: estCs });
     });
+    if(summaryMap.size === 0){
+      (state.history || []).filter(h => normalizeCompStatsId(h?.competitionId) === normId && (!h?.season || Number(h.season) === curSeason)).forEach(h => {
+        addMatchToSummary(h.h, h.a, h.hg, h.ag);
+      });
+    }
     return summaryMap;
   }
 
@@ -16906,16 +16996,67 @@ function syncCompetitionStatsComprehensive(competitionId, explicitTeamsList = nu
     });
   }
 
-  // REGRA ZERO-FABRICAÇÃO: Se nenhuma partida foi disputada na competição, não gera nenhum dado fictício!
-  if(summaryMap.size === 0){
-    return stats;
-  }
-
   const isPlayerMode = state.gameMode === 'player' && Boolean(state.playerCareerState);
   const controlledAthlete = isPlayerMode
     ? ((state.squad || []).find(p => p.isControlled || (state.controlledPlayerId != null && p.id === state.controlledPlayerId)) || null)
     : null;
   const controlledNameNorm = controlledAthlete?.name ? norm(controlledAthlete.name) : null;
+  const pState = isPlayerMode ? state.playerCareerState : null;
+  const isPrimaryComp = normalizeCompStatsId(state.compId) === normId;
+  const byComp = pState?.competitionStatsByComp?.[normId];
+
+  // Atleta controlado: calcula gols, assistências e partidas reais acumuladas nesta competição
+  const userHistoryMatches = (isPlayerMode && controlledNameNorm)
+    ? (state.history || []).filter(h =>
+        normalizeCompStatsId(h?.competitionId) === normId &&
+        (!h?.season || Number(h.season) === Number(state.season))
+      )
+    : [];
+  const userGoalsFromHistory = userHistoryMatches.reduce((sum, h) => {
+    const events = Array.isArray(h.events) ? h.events : [];
+    return sum + events.filter(e => e?.type === 'gol' && controlledNameNorm && norm(e.scorer) === controlledNameNorm).length;
+  }, 0);
+  const userAssistsFromHistory = userHistoryMatches.reduce((sum, h) => {
+    const events = Array.isArray(h.events) ? h.events : [];
+    return sum + events.filter(e => e?.assist && controlledNameNorm && norm(e.assist) === controlledNameNorm).length;
+  }, 0);
+
+  const controlledGoalsInComp = (isPlayerMode && controlledAthlete)
+    ? Math.max(
+        Number(byComp?.goals) || 0,
+        isPrimaryComp ? (Number(pState?.seasonStats?.goals) || 0) : 0,
+        userGoalsFromHistory
+      )
+    : 0;
+  const controlledAssistsInComp = (isPlayerMode && controlledAthlete)
+    ? Math.max(
+        Number(byComp?.assists) || 0,
+        isPrimaryComp ? (Number(pState?.seasonStats?.assists) || 0) : 0,
+        userAssistsFromHistory
+      )
+    : 0;
+  const controlledMatchesInComp = (isPlayerMode && controlledAthlete)
+    ? Math.max(
+        Number(byComp?.matches) || 0,
+        isPrimaryComp ? (Number(pState?.seasonStats?.matches) || 0) : 0,
+        userHistoryMatches.length,
+        controlledGoalsInComp > 0 ? 1 : 0
+      )
+    : 0;
+
+  const userHasPlayedInThisComp = isPlayerMode && (controlledMatchesInComp > 0 || controlledGoalsInComp > 0);
+
+  // REGRA ZERO-FABRICAÇÃO: Se nenhuma partida foi disputada na competição, não gera nenhum dado fictício!
+  if(summaryMap.size === 0 && !userHasPlayedInThisComp){
+    return stats;
+  }
+
+  // Se summaryMap estava vazio mas o atleta controlado jogou na competição, assegura a entrada do clube do usuário
+  if(summaryMap.size === 0 && userHasPlayedInThisComp){
+    const userClub = state.club || 'Clube';
+    const effectiveGp = Math.max(controlledGoalsInComp, 1);
+    summaryMap.set(norm(userClub), { name: userClub, j: Math.max(1, controlledMatchesInComp), v: 1, e: 0, d: 0, gp: effectiveGp, gc: 0, pts: 3, cs: 1 });
+  }
 
   for(const [clubKey, summary] of summaryMap.entries()){
     const clubName = summary.name;
@@ -16932,17 +17073,31 @@ function syncCompetitionStatsComprehensive(competitionId, explicitTeamsList = nu
     });
 
     // 1. Reconciliação de Gols e Assistências da equipe com os gols reais marcados na competição (summary.gp)
-    const currentClubScorers = stats.scorers.filter(s => norm(s.club) === clubKey);
-    const currentGoals = currentClubScorers.reduce((acc, s) => acc + (Number(s.goals) || 0), 0);
-    if((!isUser || currentGoals === 0) && currentGoals < summary.gp && eligibleOutfield.length){
-      const needed = summary.gp - currentGoals;
+    const currentClubScorers = stats.scorers.filter(s => norm(s.club) === clubKey && (!controlledNameNorm || norm(s.name) !== controlledNameNorm));
+    const currentTeammateGoals = currentClubScorers.reduce((acc, s) => acc + (Number(s.goals) || 0), 0);
+    const accountedGoals = (isUser && isPlayerMode) ? (currentTeammateGoals + controlledGoalsInComp) : currentTeammateGoals;
+
+    // Se companheiros receberam gols sintéticos ou residuais que excedem o saldo da equipe descontando os gols do usuário, apara o excesso
+    if(isUser && isPlayerMode && (currentTeammateGoals + controlledGoalsInComp) > summary.gp){
+      let excess = (currentTeammateGoals + controlledGoalsInComp) - summary.gp;
+      for(const scorer of currentClubScorers){
+        if(excess <= 0) break;
+        const deduct = Math.min(excess, Number(scorer.goals) || 0);
+        scorer.goals -= deduct;
+        excess -= deduct;
+      }
+      stats.scorers = stats.scorers.filter(s => (Number(s.goals) || 0) > 0);
+    }
+
+    if(accountedGoals < summary.gp && eligibleOutfield.length){
+      const needed = summary.gp - accountedGoals;
       const attackers = eligibleOutfield.filter(p => /^(ST|CF|RW|LW|CA|ATA|PON|PD|PE)$/i.test(p.pos || ''));
       const midfielders = eligibleOutfield.filter(p => /^(AM|CM|CAM|MEI|MC)$/i.test(p.pos || ''));
       const mainStriker = attackers[0] || eligibleOutfield[0];
       const secondaryAttackers = attackers.slice(1);
 
       for(let g = 0; g < needed; g++){
-        const seed = (hashStr(`${normId}|${clubName}|goal|${currentGoals + g}`) >>> 0);
+        const seed = (hashStr(`${normId}|${clubName}|goal|${accountedGoals + g}`) >>> 0);
         let scorer;
         if((seed % 100) < 48 && mainStriker){
           scorer = mainStriker;
@@ -17126,12 +17281,6 @@ function syncCompetitionStatsComprehensive(competitionId, explicitTeamsList = nu
 
   // 5. Autoridade Exata do Atleta Controlado (Modo Carreira Jogador)
   if(isPlayerMode && controlledAthlete && state.club){
-    const pState = state.playerCareerState;
-    const byComp = pState.competitionStatsByComp?.[normId];
-    const fallbackPrimary = (!pState.competitionStatsByComp && normalizeCompStatsId(state.compId) === normId && Number(pState.seasonStats?.season || state.season) === Number(state.season))
-      ? pState.seasonStats
-      : null;
-    const cStats = byComp || fallbackPrimary;
     const userClubName = state.club;
     const userClubKey = norm(userClubName);
     const userAge = Number(controlledAthlete.age ?? pState.age ?? 18);
@@ -17140,14 +17289,19 @@ function syncCompetitionStatsComprehensive(competitionId, explicitTeamsList = nu
 
     // Remove entradas residuais do atleta controlado antes de aplicar os números exatos da súmula dele
     const stripControlled = arr => arr.filter(item => !(norm(item.name) === controlledNameNorm && norm(item.club) === userClubKey));
-    if(cStats && Number(cStats.matches) > 0){
-      const uMatches = Number(cStats.matches) || 0;
-      const uGoals = Number(cStats.goals) || 0;
-      const uAssists = Number(cStats.assists) || 0;
-      const uCs = Number(cStats.cleanSheets) || 0;
-      const uYellow = Number(cStats.yellowCards) || 0;
-      const uRed = Number(cStats.redCards) || 0;
-      const uRating = Number(cStats.avgRating ?? cStats.averageRating ?? 6.5);
+    if(controlledMatchesInComp > 0 || controlledGoalsInComp > 0){
+      const uMatches = Math.max(1, controlledMatchesInComp);
+      const uGoals = controlledGoalsInComp;
+      const uAssists = controlledAssistsInComp;
+      const uCs = Number(byComp?.cleanSheets ?? pState?.seasonStats?.cleanSheets ?? 0);
+      const uYellow = Number(byComp?.yellowCards ?? pState?.seasonStats?.yellowCards ?? 0);
+      const uRed = Number(byComp?.redCards ?? pState?.seasonStats?.redCards ?? 0);
+      const uRating = Number(byComp?.avgRating ?? pState?.seasonStats?.avgRating ?? 7.5);
+      const uMvp = Math.max(
+        Number(byComp?.mvpCount) || 0,
+        Number(pState?.careerHistory?.totals?.mvp) || 0,
+        Number(pState?.seasonStats?.mvpCount) || 0
+      );
 
       stats.scorers = stripControlled(stats.scorers);
       if(uGoals > 0){
@@ -17170,14 +17324,14 @@ function syncCompetitionStatsComprehensive(competitionId, explicitTeamsList = nu
         matches: uMatches,
         goals: uGoals,
         assists: uAssists,
-        mvpCount: Number(cStats.mvpCount) || 0,
+        mvpCount: uMvp,
         isUser: true
       });
 
       if(/^(GK|GOL|GOLEIRO)$/i.test(userPos)){
         stats.cleanSheets = stripControlled(stats.cleanSheets);
         if(uCs > 0){
-          stats.cleanSheets.push({ name: controlledAthlete.name, club: userClubName, pos: 'GK', age: userAge, ovr: userOvr, cleanSheets: uCs, matches: uMatches, goalsAgainst: Number(cStats.goalsAgainst) || 0, isUser: true });
+          stats.cleanSheets.push({ name: controlledAthlete.name, club: userClubName, pos: 'GK', age: userAge, ovr: userOvr, cleanSheets: uCs, matches: uMatches, goalsAgainst: Number(byComp?.goalsAgainst ?? pState?.seasonStats?.goalsAgainst ?? 0), isUser: true });
         }
       }
 
@@ -17185,7 +17339,7 @@ function syncCompetitionStatsComprehensive(competitionId, explicitTeamsList = nu
       if(uYellow > 0 || uRed > 0){
         stats.cards.push({ name: controlledAthlete.name, club: userClubName, pos: userPos, age: userAge, ovr: userOvr, yellowCards: uYellow, redCards: uRed, matches: uMatches, isUser: true });
       }
-    } else if(pState.competitionStatsByComp) {
+    } else if(pState?.competitionStatsByComp) {
       // Se o atleta tem 0 partidas nesta competição específica, garante que não receba gols aleatórios do time
       stats.scorers = stripControlled(stats.scorers);
       stats.assists = stripControlled(stats.assists);
@@ -43004,19 +43158,27 @@ function seasonPage(){
       }
 
       // Sincronização em tempo real caso seja a competição ativa do save
-      if ((activeEstId === state.compId || (state.compId && state.compId.startsWith('bra-est-') && activeEstId === myStateComp)) && Array.isArray(state.teams) && state.teams.length > 0) {
+      const isMyActiveStateComp = Boolean(activeEstId === state.compId || (state.compId && state.compId.startsWith('bra-est-') && activeEstId === myStateComp));
+      if (isMyActiveStateComp && Array.isArray(state.teams) && state.teams.length > 0) {
         estData.season = Number(state.season);
         estData.currentRound = Math.min((state.round || 0) + 1, Math.max(1, ...estData.fixtures.map(f => (Number(f.roundIndex) || 0) + 1)));
         const activeFirstFixture = estData.fixtures.find(f => Number(f.roundIndex || 0) === Number(estData.currentRound - 1));
         estData.roundDate = (activeFirstFixture?.isoDate && typeof formatDatePtBr === 'function')
           ? formatDatePtBr(activeFirstFixture.isoDate).toUpperCase()
           : (typeof getDateForRound === 'function' ? formatDatePtBr(getDateForRound(state.round || 0, state.season)).toUpperCase() : '17 DE JANEIRO DE 2026');
+        if (state.teams.some(t => Number(t?.j) > 0)) {
+          estData.teams = state.teams.slice().map(t => ({ ...t, form: Array.isArray(t?.form) ? t.form : [] }));
+        }
       }
 
       const activeFilter = (typeof estadualTableFilter !== 'undefined' && estadualTableFilter) || 'geral';
-      const sortedTeams = (typeof computeStandingsFromFixtures === 'function')
+      let sortedTeams = (typeof computeStandingsFromFixtures === 'function')
         ? computeStandingsFromFixtures(estData.teams, estData.fixtures, activeFilter)
         : estData.teams;
+
+      if (activeFilter === 'geral' && isMyActiveStateComp && Array.isArray(state.teams) && state.teams.some(t => Number(t?.j) > 0)) {
+        sortedTeams = state.teams.slice().sort((a,b) => (b.p - a.p) || (b.v - a.v) || (b.sg - a.sg) || (b.gp - a.gp) || (typeof norm === 'function' ? norm(a.name).localeCompare(norm(b.name)) : a.name.localeCompare(b.name)));
+      }
 
       // Dados para o card "Meu Clube na Competição"
       const myTeamRow = sortedTeams.find(t => (typeof norm === 'function' ? norm(t.name) === norm(state.club) : t.name === state.club));
@@ -43034,6 +43196,9 @@ function seasonPage(){
 
       // Estatísticas
       const currentStatsTab = (typeof statsFilterTab !== 'undefined' && statsFilterTab) || 'artilharia';
+      if (typeof syncCompetitionStatsComprehensive === 'function') {
+        try { syncCompetitionStatsComprehensive(activeEstId); } catch (_) {}
+      }
       const estStats = typeof getStateCompStats === 'function' ? getStateCompStats(activeEstId) : { scorers: [], assists: [] };
       const createdAthleteName = state?.gameMode === 'player'
         ? (state.playerCareerState?.athleteName || state.squad?.find(p => p.isControlled)?.name)
@@ -43380,11 +43545,41 @@ function seasonPage(){
 }
 window.seasonPage = seasonPage;
 window.configureSeasonView = function(opts = {}){
-  if(opts.seasonTab !== undefined) seasonTab = opts.seasonTab;
-  if(opts.nationalDivision !== undefined) nationalDivision = opts.nationalDivision;
-  if(opts.continentalCategory !== undefined) continentalCategory = opts.continentalCategory;
-  if(opts.continentalTab !== undefined) continentalTab = opts.continentalTab;
-  if(opts.selectedEstadualId !== undefined) selectedEstadualId = opts.selectedEstadualId;
+  if(opts.seasonTab !== undefined){
+    seasonTab = opts.seasonTab;
+    if(typeof window !== 'undefined'){
+      window.afmSeasonUIState = window.afmSeasonUIState || {};
+      window.afmSeasonUIState.activeMainTab = opts.seasonTab;
+    }
+  }
+  if(opts.nationalDivision !== undefined){
+    nationalDivision = opts.nationalDivision;
+    if(typeof window !== 'undefined'){
+      window.afmSeasonUIState = window.afmSeasonUIState || {};
+      window.afmSeasonUIState.selectedDivision = opts.nationalDivision;
+    }
+  }
+  if(opts.continentalCategory !== undefined){
+    continentalCategory = opts.continentalCategory;
+    if(typeof window !== 'undefined'){
+      window.afmSeasonUIState = window.afmSeasonUIState || {};
+      window.afmSeasonUIState.continentalCategory = opts.continentalCategory;
+    }
+  }
+  if(opts.continentalTab !== undefined){
+    continentalTab = opts.continentalTab;
+    if(typeof window !== 'undefined'){
+      window.afmSeasonUIState = window.afmSeasonUIState || {};
+      window.afmSeasonUIState.continentalTab = opts.continentalTab;
+    }
+  }
+  if(opts.selectedEstadualId !== undefined){
+    selectedEstadualId = opts.selectedEstadualId;
+    if(typeof window !== 'undefined'){
+      window.afmSeasonUIState = window.afmSeasonUIState || {};
+      window.afmSeasonUIState.selectedEstadualId = opts.selectedEstadualId;
+    }
+  }
   if(opts.statsFilterTab !== undefined) statsFilterTab = opts.statsFilterTab;
 };
 
