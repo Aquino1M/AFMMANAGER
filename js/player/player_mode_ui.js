@@ -5288,7 +5288,7 @@
                 </div>
                 <div style="background:#090d16;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);text-align:center">
                   <div style="font-size:22px">⭐</div>
-                  <div style="font-size:18px;font-weight:900;color:#facc15">${stats.mvpCount || stats.manOfTheMatch || 0}</div>
+                  <div style="font-size:18px;font-weight:900;color:#facc15">${Math.max(Number(sStats.mvpCount) || 0, Number(sStats.manOfTheMatch) || 0, Number(stats.mvpCount) || 0, Number(stats.manOfTheMatch) || 0, Number(ch?.totals?.mvp) || 0)}</div>
                   <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Melhor em Campo</div>
                 </div>
               </div>
@@ -5816,7 +5816,26 @@
               const assists = totals.assists || 0;
               const ga = goals + assists;
               const avgRating = games > 0 ? (totals.ratingSum / games).toFixed(2) : "—";
-              const mvp = totals.mvp || 0;
+              const cStats = pState.careerStats || {};
+              const sStats = pState.seasonStats || {};
+              const historyMvpCount = (pState.matchRatingHistory || []).filter(
+                (m) =>
+                  m &&
+                  (m.isMvp ||
+                    Number(m.rating) >= 8.5 ||
+                    (Number(m.rating) >= 8.0 &&
+                      (Number(m.goals) >= 1 ||
+                        Number(m.assists) >= 1 ||
+                        Boolean(m.cleanSheet)))),
+              ).length;
+              const mvp = Math.max(
+                Number(totals.mvp) || 0,
+                Number(cStats.mvpCount) || 0,
+                Number(cStats.manOfTheMatch) || 0,
+                Number(sStats.mvpCount) || 0,
+                Number(sStats.manOfTheMatch) || 0,
+                historyMvpCount,
+              );
               const yellows = totals.yellowCards || 0;
               const reds = totals.redCards || 0;
 

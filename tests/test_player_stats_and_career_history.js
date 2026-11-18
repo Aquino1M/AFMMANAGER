@@ -238,6 +238,91 @@ assert.doesNotThrow(() => {
 assert(lifestyleHtml.includes('VIDA & PATROCÍNIOS') || lifestyleHtml.includes('CHUTEIRAS') || lifestyleHtml.includes('STAFF'), 'player_lifestyle renderizou com sucesso');
 console.log('✔ Trava de segurança contra ReferenceError em player_lifestyle validada!');
 
+// =========================================================================
+// 7. TESTE DE SINCRONIZAÇÃO E CURA DE PRÊMIOS MVP (CARREIRA TOTAL & DADOS DA TEMPORADA)
+// =========================================================================
+console.log('\n--- 7. Testando Sincronização e Cura Retroativa de Prêmios MVP ---');
+
+// Cenário A: Partida com hat-trick e nota 10 (caso exato do usuário contra o Paranoá)
+const mvpTestState = {
+  gameMode: 'player',
+  controlledPlayerId: 'atleta_teste_99',
+  club: 'Brasília',
+  league: 'Campeonato Candango',
+  season: 2026,
+  date: '2026-01-19',
+  squad: [mockAthlete],
+  titles: [],
+  playerCareerState: {
+    athleteName: 'D.,Aquino',
+    position: 'ATA',
+    seasonStats: { matches: 0, goals: 0, mvpCount: 0, manOfTheMatch: 0 },
+    careerStats: { matches: 0, goals: 0, mvpCount: 0, manOfTheMatch: 0 },
+    careerHistory: { totals: { games: 0, goals: 0, mvp: 0 }, seasons: [] },
+    matchRatingHistory: []
+  }
+};
+
+const mvpPerf = engine.processMatchPerformance(mvpTestState, {
+  h: 'Brasília',
+  a: 'Paranoá',
+  goalsFor: 3,
+  goalsAgainst: 0,
+  goals: 3,
+  assists: 0,
+  rating: 10,
+  playedMinutes: 90,
+  started: true,
+  won: true
+}, { showSummary: false });
+
+assert.strictEqual(mvpPerf.isMvp, true, 'Atuação com 3 gols e nota 10 deve ser premiada com MVP');
+assert.strictEqual(mvpTestState.playerCareerState.seasonStats.mvpCount, 1, 'seasonStats.mvpCount deve ser incrementado para 1');
+assert.strictEqual(mvpTestState.playerCareerState.careerStats.mvpCount, 1, 'careerStats.mvpCount deve ser incrementado para 1');
+assert.strictEqual(mvpTestState.playerCareerState.careerHistory.totals.mvp, 1, 'careerHistory.totals.mvp deve ser incrementado para 1');
+assert.strictEqual(mvpTestState.playerCareerState.matchRatingHistory[0].isMvp, true, 'matchRatingHistory deve registrar isMvp: true');
+
+// Cenário B: Cura retroativa de save legado desincronizado (totals.mvp estava 0 mas tinha partida nota 10 no histórico)
+const desyncedSaveState = {
+  gameMode: 'player',
+  controlledPlayerId: 'atleta_teste_99',
+  club: 'Brasília',
+  league: 'Campeonato Candango',
+  season: 2026,
+  date: '2026-01-20',
+  squad: [mockAthlete],
+  titles: [],
+  playerCareerState: {
+    athleteName: 'D.,Aquino',
+    position: 'ATA',
+    seasonStats: { matches: 3, goals: 3, mvpCount: 0, manOfTheMatch: 0 },
+    careerStats: { matches: 3, goals: 3, mvpCount: 0, manOfTheMatch: 0 },
+    careerHistory: {
+      totals: { games: 3, starts: 1, minutes: 166, goals: 3, assists: 0, mvp: 0, yellowCards: 0, redCards: 0, ratingSum: 25 },
+      seasons: [],
+      bestMatch: { opponent: 'Paranoá', rating: 10, goals: 3, assists: 0, date: '2026-01-19' }
+    },
+    matchRatingHistory: [
+      { opponent: 'Paranoá', rating: 10, goals: 3, assists: 0, date: '2026-01-19', minutes: 90 },
+      { opponent: 'Samambaia', rating: 7.5, goals: 0, assists: 0, date: '2026-01-17', minutes: 46 },
+      { opponent: 'Sobradinho', rating: 7.5, goals: 0, assists: 0, date: '2026-01-15', minutes: 30 }
+    ]
+  }
+};
+
+// Executa cura via ensurePlayerCareerHistory
+const healedCh = engine.ensurePlayerCareerHistory(desyncedSaveState.playerCareerState, desyncedSaveState);
+assert.strictEqual(healedCh.totals.mvp, 1, 'ensurePlayerCareerHistory deve curar totals.mvp retroativamente para 1');
+assert.strictEqual(desyncedSaveState.playerCareerState.careerStats.mvpCount, 1, 'careerStats.mvpCount deve ser sincronizado com o MVP curado');
+assert.strictEqual(desyncedSaveState.playerCareerState.seasonStats.mvpCount, 1, 'seasonStats.mvpCount deve ser sincronizado com o MVP curado');
+
+// Cenário C: Renderização da sub-aba Carreira Total no UI
+desyncedSaveState.playerCareerState.activeStatsSubTab = 'career_total';
+const renderedUiHtml = window.AFM_PlayerMode.renderPage('player_stats', desyncedSaveState);
+assert(renderedUiHtml.includes('Prêmios MVP da Partida'), 'UI deve conter seção Prêmios MVP da Partida');
+assert(renderedUiHtml.includes('<div style="font-size:28px;font-weight:900;color:#facc15">1</div>'), 'UI de Carreira Total deve exibir 1 para MVP');
+console.log('✔ Sincronização, Cura Retroativa e UI de Prêmios MVP validadas com sucesso!');
+
 console.log('\n======================================================');
 console.log('🎉 TODOS OS TESTES PASSARAM COM 100% DE SUCESSO! 🎉');
 console.log('======================================================');

@@ -2784,28 +2784,89 @@
       ch.bestMatch = null;
     }
 
-    // Sincronização retroativa com careerStats caso totals.games esteja zerado mas já existam partidas no save
     const cStats = pState.careerStats || {};
-    if (ch.totals.games === 0 && (cStats.matches > 0 || (pState.matchRatingHistory || []).length > 0)) {
-      ch.totals.games = cStats.matches || (pState.matchRatingHistory || []).length || 0;
+    const sStats = pState.seasonStats || {};
+    const history = Array.isArray(pState.matchRatingHistory) ? pState.matchRatingHistory : [];
+
+    // 1. Retrofit e cura de partidas no histórico que foram MVP / tiveram cartões
+    let historyMvpCount = 0;
+    let historyYellowCount = 0;
+    let historyRedCount = 0;
+    history.forEach(m => {
+      if (!m) return;
+      const r = Number(m.rating) || 0;
+      const g = Number(m.goals) || 0;
+      const a = Number(m.assists) || 0;
+      const cs = Boolean(m.cleanSheet);
+      const isMvpCalculated = Boolean(m.isMvp) || r >= 8.5 || (r >= 8.0 && (g >= 1 || a >= 1 || cs));
+      if (isMvpCalculated) {
+        m.isMvp = true;
+        historyMvpCount++;
+      }
+      if (m.yellowCard) historyYellowCount++;
+      if (m.redCard) historyRedCount++;
+    });
+
+    // 2. Sincronização inicial com careerStats caso totals.games esteja zerado mas já existam partidas no save
+    if (ch.totals.games === 0 && (cStats.matches > 0 || history.length > 0)) {
+      ch.totals.games = cStats.matches || history.length || 0;
       ch.totals.starts = cStats.starterCount || 0;
       ch.totals.minutes = cStats.minutesPlayed || 0;
       ch.totals.goals = cStats.goals || 0;
       ch.totals.assists = cStats.assists || 0;
-      ch.totals.mvp = cStats.mvpCount || cStats.manOfTheMatch || 0;
-      ch.totals.yellowCards = cStats.yellowCards || 0;
-      ch.totals.redCards = cStats.redCards || 0;
+      ch.totals.mvp = Math.max(cStats.mvpCount || 0, cStats.manOfTheMatch || 0, sStats.mvpCount || 0, historyMvpCount);
+      ch.totals.yellowCards = Math.max(cStats.yellowCards || 0, historyYellowCount);
+      ch.totals.redCards = Math.max(cStats.redCards || 0, historyRedCount);
       ch.totals.ratingSum = Number(((cStats.avgRating || 6.5) * ch.totals.games).toFixed(2));
     }
 
-    // Sincroniza bestMatch se ainda for nulo
-    if (!ch.bestMatch && Array.isArray(pState.matchRatingHistory) && pState.matchRatingHistory.length > 0) {
-      let best = null;
-      pState.matchRatingHistory.forEach(m => {
+    // 3. REGRA ZERO-BUG DE RECONCILIAÇÃO PERMANENTE:
+    // Garante que totals.mvp, cStats.mvpCount e sStats.mvpCount nunca fiquem desatualizados ou menores que o real
+    const seasonsMvpSum = (ch.seasons || []).reduce((sum, s) => sum + (Number(s.mvp) || 0), 0);
+    const resolvedMvp = Math.max(
+      Number(ch.totals.mvp) || 0,
+      seasonsMvpSum + (Number(sStats.mvpCount || sStats.manOfTheMatch) || 0),
+      Number(cStats.mvpCount) || 0,
+      Number(cStats.manOfTheMatch) || 0,
+      Number(sStats.mvpCount) || 0,
+      Number(sStats.manOfTheMatch) || 0,
+      historyMvpCount
+    );
+    ch.totals.mvp = resolvedMvp;
+    cStats.mvpCount = Math.max(Number(cStats.mvpCount) || 0, resolvedMvp);
+    cStats.manOfTheMatch = cStats.mvpCount;
+    if (sStats && typeof sStats === 'object') {
+      sStats.mvpCount = Math.max(Number(sStats.mvpCount) || 0, resolvedMvp);
+      sStats.manOfTheMatch = sStats.mvpCount;
+    }
+
+    // Disciplina histórica (cartões amarelos e vermelhos)
+    const seasonsYellowSum = (ch.seasons || []).reduce((sum, s) => sum + (Number(s.yellowCards) || 0), 0);
+    const seasonsRedSum = (ch.seasons || []).reduce((sum, s) => sum + (Number(s.redCards) || 0), 0);
+    ch.totals.yellowCards = Math.max(
+      Number(ch.totals.yellowCards) || 0,
+      seasonsYellowSum + (Number(sStats.yellowCards) || 0),
+      Number(cStats.yellowCards) || 0,
+      Number(sStats.yellowCards) || 0,
+      historyYellowCount
+    );
+    ch.totals.redCards = Math.max(
+      Number(ch.totals.redCards) || 0,
+      seasonsRedSum + (Number(sStats.redCards) || 0),
+      Number(cStats.redCards) || 0,
+      Number(sStats.redCards) || 0,
+      historyRedCount
+    );
+
+    // Sincroniza bestMatch se ainda for nulo ou se o histórico tiver partida com nota superior
+    if (history.length > 0) {
+      let best = ch.bestMatch ? { ...ch.bestMatch } : null;
+      history.forEach(m => {
+        if (!m) return;
         const r = Number(m.rating) || 0;
         if (!best || r > (Number(best.rating) || 0)) {
           best = {
-            date: m.date || '2026-01-01',
+            date: m.date || (gameState && gameState.date) || '2026-01-01',
             opponent: m.opponent || 'Adversário',
             score: m.score || '1 x 0',
             goals: Number(m.goals) || 0,
@@ -3343,16 +3404,22 @@
 
     // 3. Avaliação de Prêmio de Melhor em Campo (MVP Pós-Partida)
     const isMvp =
-      playedMinutes >= 20 &&
-      ((finalRating >= 8.0 && (goalsScored >= 1 || assistsGiven >= 1)) ||
-        finalRating >= 8.5 ||
-        (finalRating >= 8.0 && cleanSheet));
+      Boolean(matchResult?.isMvp) ||
+      (playedMinutes >= 20 &&
+        ((finalRating >= 8.0 && (goalsScored >= 1 || assistsGiven >= 1)) ||
+          finalRating >= 8.5 ||
+          (finalRating >= 8.0 && cleanSheet)));
 
     if (isMvp) {
       stats.mvpCount = (stats.mvpCount || 0) + 1;
       sStats.mvpCount = (sStats.mvpCount || 0) + 1;
       stats.manOfTheMatch = (stats.manOfTheMatch || 0) + 1;
       sStats.manOfTheMatch = (sStats.manOfTheMatch || 0) + 1;
+
+      // REGRA IRRESTRITA: Sincronização simultânea imediata de MVP em careerHistory.totals
+      if (pState.careerHistory && pState.careerHistory.totals) {
+        pState.careerHistory.totals.mvp = (pState.careerHistory.totals.mvp || 0) + 1;
+      }
 
       // Bônus imediato de XP por MVP
       const mvpXpBonus = 100;
@@ -3415,11 +3482,17 @@
       yellowCard = true;
       stats.yellowCards = (stats.yellowCards || 0) + 1;
       sStats.yellowCards = (sStats.yellowCards || 0) + 1;
+      if (pState.careerHistory && pState.careerHistory.totals) {
+        pState.careerHistory.totals.yellowCards = (pState.careerHistory.totals.yellowCards || 0) + 1;
+      }
     }
     if (yellowCard && Math.random() < 0.04) {
       redCard = true;
       stats.redCards = (stats.redCards || 0) + 1;
       sStats.redCards = (sStats.redCards || 0) + 1;
+      if (pState.careerHistory && pState.careerHistory.totals) {
+        pState.careerHistory.totals.redCards = (pState.careerHistory.totals.redCards || 0) + 1;
+      }
     }
 
     // Estatísticas detalhadas por competição disputada na temporada (Estadual, Liga, Copa do Brasil, Libertadores, Champions, Mundial)

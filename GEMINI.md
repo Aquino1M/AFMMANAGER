@@ -93,6 +93,11 @@ Você é o engenheiro-chefe responsável pelo AFM Manager 2026/2027. Antes de al
     - **Atualização Garantida de Cache HTTP / Service Worker (`sw.js` + `index.html` + `vercel.json`):** Sempre que módulos core `.js`/`.css` forem atualizados, a versão de cache (`CACHE_NAME` em `sw.js` e `?v=...` em `index.html`) deve avançar em conjunto, operando com `fetch(..., { cache: 'no-cache' })` para `.html`/`.js`/`.css` online com fallback offline seguro.
     - **Escudo Pré-Commit Obrigatório (`node scripts/verify-repo-integrity.js` + `.git/hooks/pre-commit`):** Nenhum commit ou push é permitido se qualquer arquivo core estiver truncado abaixo do tamanho seguro ou se qualquer `.js` falhar em `node --check`. Todas as 55+ suítes em `tests/` devem normalizar CRLF (`\r\n` ➔ `\n`) ao extrair trechos de `js/game.js`.
 
+18. **SINCRONIZAÇÃO ABSOLUTA E RETROATIVA DE PRÊMIOS MVP / MELHOR EM CAMPO (MODO CARREIRA JOGADOR):**
+    - **Registro Simultâneo Imediato (`processMatchPerformance`):** Em toda atuação (ao vivo ou simulada) em que o atleta atingir critérios de Craque do Jogo (`rating >= 8.5`, `rating >= 8.0` com gol/assistência/clean sheet ou `matchResult.isMvp === true`), os contadores `careerHistory.totals.mvp`, `careerStats.mvpCount`, `seasonStats.mvpCount`, `matchRatingHistory[0].isMvp` e `competitionStatsByComp[compId].mvpCount` DEVEM ser incrementados simultaneamente, e `yellowCards`/`redCards` devem sincronizar de forma idêntica em `careerHistory.totals`.
+    - **Auto-Cura Retroativa e Idempotente (`ensurePlayerCareerHistory`):** `ensurePlayerCareerHistory` e `AFM_SAVE_VERIFIER.verifyAndHealState` DEVEM reconciliar saves existentes varrendo `matchRatingHistory` e `careerHistory.seasons`, curando qualquer `totals.mvp === 0` ou descompasso para o valor real máximo (`Math.max(totals.mvp, seasonsMvpSum + curSeasonMvp, careerStats.mvpCount, seasonStats.mvpCount, historyMvpCount)`).
+    - **Exibição Blindada na Interface (`player_mode_ui.js`):** As sub-abas `Carreira Total` (`totals.mvp` com fallback integrado) e `Dados da Temporada` (`sStats.mvpCount` com fallback de `manOfTheMatch`/`totals.mvp`) nunca podem exibir `0` quando o atleta já conquistou o prêmio de Melhor em Campo.
+
 
 
 

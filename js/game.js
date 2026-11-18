@@ -10170,6 +10170,11 @@ window.AFM_SAVE_VERIFIER = (function(){
             healedCount++;
           }
         }
+
+        // Garante integridade e reconciliação contínua do histórico de carreira e prêmios MVP
+        if(window.AFM_PlayerEngine && typeof window.AFM_PlayerEngine.ensurePlayerCareerHistory === 'function'){
+          window.AFM_PlayerEngine.ensurePlayerCareerHistory(pcs, targetState);
+        }
       }
 
       // Garante que o atleta controlado exista no elenco antes de persistir

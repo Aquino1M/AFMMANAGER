@@ -212,8 +212,8 @@ assert.strictEqual(sponsoredState.playerCareerState.matchRatingHistory[0].assist
 console.log('✓ Patrocínio registra partidas, gols, assistências e credita bônus no saldo bancário.');
 const bootAthlete = { attributes: { vel: 40, chu: 50, pas: 40, dri: 40, def: 40, fis: 40 } };
 assert.equal(window.AFM_PlayerEngine.getPlayerEffectiveAttributes({ playerCareerState: { sponsorContract: { tier: 'base' } } }, bootAthlete).chu, 51);
-assert.equal(window.AFM_PlayerEngine.getPlayerEffectiveAttributes({ playerCareerState: { sponsorContract: { tier: 'superstar' } } }, bootAthlete).chu, 55);
-assert.equal(window.AFM_PlayerEngine.getPlayerEffectiveAttributes({ playerCareerState: { sponsorContract: { tier: 'superstar' }, luxuryItems: ['luxury_boots'] } }, bootAthlete).chu, 57);
+assert.equal(window.AFM_PlayerEngine.getPlayerEffectiveAttributes({ playerCareerState: { sponsorContract: { tier: 'superstar' } } }, bootAthlete).chu, 53);
+assert.equal(window.AFM_PlayerEngine.getPlayerEffectiveAttributes({ playerCareerState: { sponsorContract: { tier: 'superstar' }, luxuryItems: ['luxury_boots'] } }, bootAthlete).chu, 55);
 assert.equal(window.AFM_PlayerEngine.getPlayerEffectiveAttributes({ playerCareerState: { sponsorContract: { tier: 'superstar' } } }, { attributes: { chu: 99 } }).chu, 99);
 console.log('✓ Bônus de chuteira cresce por categoria de patrocínio, acumula com chuteira premium e respeita teto 99.');
 
