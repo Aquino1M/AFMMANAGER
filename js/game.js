@@ -28131,6 +28131,27 @@ function updateLiveSidebarEvents(){
 // =========================================================================
 // SISTEMA DE MOMENTOS DECISIVOS & STATUS AO VIVO DO CRAQUE (MODO JOGADOR)
 // =========================================================================
+function calcCraqueDecisionChance({
+  attrVal,
+  athleteOvr,
+  attrWeight = 0.65,
+  baseChance = 16,
+  slope = 0.88,
+  minChance = 15,
+  maxChance = 75
+}) {
+  const ovr = Math.max(30, Math.min(99, Number(athleteOvr || 50)));
+  const attr = Math.max(15, Math.min(99, Number(attrVal || ovr)));
+  const skill = (attr * attrWeight) + (ovr * (1 - attrWeight));
+  // Progressão suave e realista calibrada por OVR e atributos chave:
+  // - Iniciante/Joia da Base (OVR 40-45): chances desafiadoras em 18% a 27% (sem facilidade excessiva)
+  // - Conforme o atleta treina e evolui (OVR 55, 65, 75, 85), as chances sobem gradativamente
+  // - Teto rigoroso (maxChance <= 75%) impede que o momento fique fácil demais mesmo para lendas mundiais
+  const rawChance = baseChance + (skill - 35) * slope;
+  return Math.max(minChance, Math.min(maxChance, Math.round(rawChance)));
+}
+window.calcCraqueDecisionChance = calcCraqueDecisionChance;
+
 function triggerCraqueDecisionMoment(s = liveMatchState, ath = null) {
   if (!s || s.done || s.craqueDecisionActive) return;
   const userIsHome = (typeof norm === 'function' ? norm(s.home) === norm(state?.club) : s.home === state?.club);
@@ -28153,14 +28174,29 @@ function triggerCraqueDecisionMoment(s = liveMatchState, ath = null) {
   const isAttacker = ['ST', 'CF', 'LW', 'RW', 'CAM', 'CM'].includes(normPos);
   const isDefender = ['CB', 'LB', 'RB', 'CDM'].includes(normPos);
 
+  const controlledCareerAth = (state?.gameMode === 'player')
+    ? (state?.playerCareerState?.athlete || (state?.squad || []).find(p => String(p.id) === String(state?.controlledPlayerId)))
+    : null;
+  const careerAttrs = (controlledCareerAth && window.AFM_PlayerEngine?.getPlayerEffectiveAttributes)
+    ? window.AFM_PlayerEngine.getPlayerEffectiveAttributes(state, controlledCareerAth)
+    : (controlledCareerAth?.attributes || {});
+
+  const athleteOvr = Math.round(Number(
+    userAth.overall ||
+    userAth.ovr ||
+    controlledCareerAth?.ovr ||
+    state?.player?.ovr ||
+    45
+  ));
+
   const attrs = userAth.attrs || {};
-  const fin = Number(attrs.finishing || userAth.overall || 65);
-  const sho = Number(attrs.shooting || userAth.overall || 65);
-  const dri = Number(attrs.dribbling || userAth.overall || 65);
-  const pas = Number(attrs.passing || userAth.overall || 65);
-  const pac = Number(attrs.pace || userAth.overall || 65);
-  const def = Number(attrs.defending || attrs.tackling || userAth.overall || 65);
-  const str = Number(attrs.strength || userAth.overall || 65);
+  const fin = Math.round(Number(attrs.finishing || attrs.shooting || careerAttrs.chu || careerAttrs.shooting || athleteOvr));
+  const sho = Math.round(Number(attrs.shooting || attrs.finishing || careerAttrs.chu || careerAttrs.shooting || athleteOvr));
+  const dri = Math.round(Number(attrs.dribbling || careerAttrs.dri || careerAttrs.dribbling || athleteOvr));
+  const pas = Math.round(Number(attrs.passing || careerAttrs.pas || careerAttrs.passing || athleteOvr));
+  const pac = Math.round(Number(attrs.pace || careerAttrs.vel || careerAttrs.pace || athleteOvr));
+  const def = Math.round(Number(attrs.defending || attrs.tackling || careerAttrs.def || careerAttrs.defending || athleteOvr));
+  const str = Math.round(Number(attrs.strength || careerAttrs.fis || careerAttrs.physical || athleteOvr));
 
   let options = [];
   if (isAttacker) {
@@ -28169,32 +28205,32 @@ function triggerCraqueDecisionMoment(s = liveMatchState, ath = null) {
         id: 'placed_shot',
         icon: '🎯',
         title: 'Chute Colocado no Canto',
-        desc: `Finalização com curva e precisão (Fin: ${fin} · OVR ${userAth.overall || 65})`,
-        chance: Math.min(85, Math.max(30, Math.round(fin * 0.75 + 15))),
+        desc: `Finalização com curva e precisão (Fin: ${fin} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: fin, athleteOvr, attrWeight: 0.65, baseChance: 17, slope: 0.86, minChance: 15, maxChance: 75 }),
         color: '#10b981'
       },
       {
         id: 'power_shot',
         icon: '💥',
         title: 'Bomba de Primeira',
-        desc: `Chute forte no ângulo (Força/Chute: ${sho})`,
-        chance: Math.min(80, Math.max(25, Math.round(sho * 0.72 + 12))),
+        desc: `Chute forte no ângulo (Força/Chute: ${sho} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: sho, athleteOvr, attrWeight: 0.65, baseChance: 13, slope: 0.84, minChance: 12, maxChance: 72 }),
         color: '#ef4444'
       },
       {
         id: 'dribble_box',
         icon: '⚡',
         title: 'Driblar e Invadir a Área',
-        desc: `Finta no marcador para ficar cara a cara (Drible: ${dri} · Vel: ${pac})`,
-        chance: Math.min(85, Math.max(28, Math.round((dri + pac) * 0.38 + 15))),
+        desc: `Finta no marcador para ficar cara a cara (Drible: ${dri} · Vel: ${pac} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: (dri + pac) / 2, athleteOvr, attrWeight: 0.65, baseChance: 14, slope: 0.85, minChance: 12, maxChance: 73 }),
         color: '#f59e0b'
       },
       {
         id: 'assist_pass',
         icon: '🤝',
         title: 'Passe na Medida (Assistência)',
-        desc: `Deixar o companheiro livre na cara do gol (Passe: ${pas})`,
-        chance: Math.min(88, Math.max(35, Math.round(pas * 0.78 + 14))),
+        desc: `Deixar o companheiro livre na cara do gol (Passe: ${pas} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: pas, athleteOvr, attrWeight: 0.65, baseChance: 15, slope: 0.86, minChance: 14, maxChance: 75 }),
         color: '#38bdf8'
       }
     ];
@@ -28204,41 +28240,69 @@ function triggerCraqueDecisionMoment(s = liveMatchState, ath = null) {
         id: 'tackle_clean',
         icon: '🛡️',
         title: 'Desarme Limpo & Saída',
-        desc: `Bote certeiro sem falta (Desarme: ${def})`,
-        chance: Math.min(85, Math.max(30, Math.round(def * 0.76 + 15))),
+        desc: `Bote certeiro sem falta (Desarme: ${def} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: def, athleteOvr, attrWeight: 0.65, baseChance: 16, slope: 0.86, minChance: 14, maxChance: 74 }),
         color: '#10b981'
       },
       {
         id: 'long_counter',
         icon: '🚀',
         title: 'Lançamento em Contra-Golpe',
-        desc: `Passe longo nas costas da zaga (Passe: ${pas})`,
-        chance: Math.min(82, Math.max(28, Math.round(pas * 0.74 + 12))),
+        desc: `Passe longo nas costas da zaga (Passe: ${pas} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: pas, athleteOvr, attrWeight: 0.65, baseChance: 15, slope: 0.85, minChance: 14, maxChance: 73 }),
         color: '#38bdf8'
       },
       {
         id: 'shield_ball',
         icon: '💪',
         title: 'Proteção de Corpo & Giro',
-        desc: `Impor físico e reter a posse (Físico: ${str})`,
-        chance: Math.min(86, Math.max(32, Math.round(str * 0.76 + 14))),
+        desc: `Impor físico e reter a posse (Físico: ${str} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: str, athleteOvr, attrWeight: 0.65, baseChance: 16, slope: 0.86, minChance: 14, maxChance: 75 }),
         color: '#f59e0b'
       },
       {
         id: 'long_shot',
         icon: '💥',
         title: 'Bomba de Longe',
-        desc: `Finalização de média distância (Chute: ${sho})`,
-        chance: Math.min(65, Math.max(20, Math.round(sho * 0.60 + 8))),
+        desc: `Finalização de média distância (Chute: ${sho} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: sho, athleteOvr, attrWeight: 0.65, baseChance: 10, slope: 0.75, minChance: 8, maxChance: 58 }),
         color: '#ef4444'
       }
     ];
   } else {
     options = [
-      { id: 'gk_left', icon: '🧤', title: 'Salto no Canto Esquerdo', desc: 'Fechar ângulo esquerdo', chance: 68, color: '#10b981' },
-      { id: 'gk_center', icon: '🧤', title: 'Segurar Firme no Centro', desc: 'Espalmar ou encaixar no meio', chance: 75, color: '#38bdf8' },
-      { id: 'gk_right', icon: '🧤', title: 'Salto no Canto Direito', desc: 'Fechar ângulo direito', chance: 68, color: '#f59e0b' },
-      { id: 'gk_counter', icon: '⚡', title: 'Reposição Rápida', desc: 'Armar contra-ataque rápido', chance: 80, color: '#a855f7' }
+      {
+        id: 'gk_left',
+        icon: '🧤',
+        title: 'Salto no Canto Esquerdo',
+        desc: `Fechar ângulo esquerdo (Defesa/Reflexo: ${def} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: def, athleteOvr, attrWeight: 0.65, baseChance: 16, slope: 0.86, minChance: 15, maxChance: 74 }),
+        color: '#10b981'
+      },
+      {
+        id: 'gk_center',
+        icon: '🧤',
+        title: 'Segurar Firme no Centro',
+        desc: `Espalmar ou encaixar no meio (Defesa/Reflexo: ${def} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: def, athleteOvr, attrWeight: 0.65, baseChance: 19, slope: 0.86, minChance: 18, maxChance: 76 }),
+        color: '#38bdf8'
+      },
+      {
+        id: 'gk_right',
+        icon: '🧤',
+        title: 'Salto no Canto Direito',
+        desc: `Fechar ângulo direito (Defesa/Reflexo: ${def} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: def, athleteOvr, attrWeight: 0.65, baseChance: 16, slope: 0.86, minChance: 15, maxChance: 74 }),
+        color: '#f59e0b'
+      },
+      {
+        id: 'gk_counter',
+        icon: '⚡',
+        title: 'Reposição Rápida',
+        desc: `Armar contra-ataque rápido (Passe: ${pas} · OVR ${athleteOvr})`,
+        chance: calcCraqueDecisionChance({ attrVal: pas, athleteOvr, attrWeight: 0.65, baseChance: 17, slope: 0.86, minChance: 16, maxChance: 75 }),
+        color: '#a855f7'
+      }
     ];
   }
 
@@ -28409,6 +28473,45 @@ function resolveCraqueDecision(s, userAth, opt) {
         min: curMin,
         type: 'foul',
         text: `⚠️ Falta cometida por ${userAth.name} ao tentar o bote na intermediária.`
+      });
+    }
+  } else if (opt.id === 'gk_left' || opt.id === 'gk_center' || opt.id === 'gk_right') {
+    if (isSuccess) {
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'shot',
+        text: `🧤 DEFESA ESPETACULAR! ${userAth.fullName || userAth.name} se estica todo e salva o gol com uma intervenção milagrosa!`
+      });
+      userAth.matchRating = Math.min(10.0, +(Number(userAth.matchRating || 6.5) + 0.6).toFixed(1));
+      s.ball.carrier = userAth;
+      if (typeof showLiveBalloon === 'function') showLiveBalloon(userAth.x, userAth.y, '🧤 MILAGRE!', '#10b981');
+      if (typeof showLiveBanner === 'function') showLiveBanner(`🧤 DEFESAÇA DE ${userAth.name}!`, 'save', 3000);
+      if (window.afmAudio) window.afmAudio.playSFX('cheer');
+    } else {
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'shot',
+        text: `⚡ O atacante adversário finalizou no contrapé de ${userAth.name} e levou muito perigo ao gol!`
+      });
+    }
+  } else if (opt.id === 'gk_counter') {
+    if (isSuccess) {
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'sub',
+        text: `🚀 REPOSIÇÃO PERFEITA! ${userAth.fullName || userAth.name} aciona o contra-ataque rápido com visão privilegiada!`
+      });
+      userAth.matchRating = Math.min(10.0, +(Number(userAth.matchRating || 6.5) + 0.3).toFixed(1));
+      if (typeof showLiveBalloon === 'function') showLiveBalloon(userAth.x, userAth.y, '🚀 CONTRA-ATAQUE!', '#a855f7');
+    } else {
+      s.events = s.events || [];
+      s.events.unshift({
+        min: curMin,
+        type: 'sub',
+        text: `⚠️ A reposição rápida de ${userAth.name} saiu forte demais e foi direto pela linha lateral.`
       });
     }
   }

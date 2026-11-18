@@ -171,6 +171,7 @@
      - Toda inserção do atleta do usuário na escalação titular ou substituição no 2º tempo DEVE passar por `placeUserPlayerInCorrectSlot(lineup, userPlayer)`, mapeando a posição criada (`ST/ATA/CA`, `PE/LW/PD/RW`, `MEI/CAM/MC/CM/VOL/CDM`, `ZAG/CB/LE/LB/LD/RB`, `GOL/GK`) para o slot tático correspondente no campo 2D/3D.
   2. PROTAGONISMO & PARTICIPAÇÃO NO MODO JOGADOR (`isPlayer === true`):
      - Em partidas ao vivo do Modo Jogador, o motor de posse de bola DEVE aplicar peso prioritário para acionar o atleta do usuário no terço ofensivo/setor correspondente, garantindo participação ativa e disparando o painel interativo 'Momento Decisivo do Craque' em lances-chave e nos botões 'Comandos do Craque'.
+     - O Momento Decisivo do Craque (`calcCraqueDecisionChance`) calibra as chances de sucesso ponderando o atributo específico (65%) e o OVR geral (35%): iniciantes (OVR 40–49) possuem chances desafiadoras entre 18% e 27% (proibido 44%–52%), que crescem gradualmente conforme o atleta treina e evolui, com teto rigoroso de 72%–76% para impedir facilidade excessiva em qualquer nível.
      - Nenhuma alteração desta regra deve afetar o motor tático do Modo Treinador (`isManager === true`).
 - REGRA IRRESTRITA ESPECIAL — INTEGRIDADE DE ELENCO, TÁTICA E MERCADO (MODO TREINADOR):
   1. GARANTIA DE ELENCO NÃO-VAZIO (`ensureManagerSquadHydrated`):

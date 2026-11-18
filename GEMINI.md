@@ -109,6 +109,14 @@ Você é o engenheiro-chefe responsável pelo AFM Manager 2026/2027. Antes de al
     - **Preenchimento Simétrico & Radar da Mídia/Torcida:** O card lateral direito do Hub opera com `height: 100%; box-sizing: border-box; justify-content: space-between` em paridade com o card do confronto. O feed de notícias expande com `flex: 1 1 auto; max-height: 330px` e o rodapé integra o widget dinâmico **CLIMA NO CLUBE & IMPRENSA** (`mediaStatus`, `mediaSubtext` e botão `📱 FootGram` com contador de seguidores), eliminando vazios e mantendo simetria visual absoluta entre os dois painéis.
     - **Blindagem de Calendário e Resolução de Partidas:** `getActualCurrentMatch(state)` e `getStateCompData` devem sempre suportar clubes em estaduais independentemente de `stateCompId === state.compId`, priorizando cronologicamente a partida pendente mais antiga e impedindo saltos indevidos de calendário para Copas futuras.
 
+21. **CALIBRAÇÃO PROGRESSIVA E REALISTA DO MOMENTO DECISIVO DO CRAQUE (`triggerCraqueDecisionMoment` & `calcCraqueDecisionChance`):**
+    - **Progressão Ponderada por OVR e Atributos Reais:** O cálculo de chance estimada de sucesso no Momento Decisivo do Craque (`calcCraqueDecisionChance`) DEVE ponderar tanto o atributo específico da jogada (65%) quanto o OVR geral do atleta (35%), com progressão suave a partir de `skill = 35`.
+    - **Proibição de Chances Excessivas para Iniciantes (OVR 40–49):** Jovens atletas da base ou em início de carreira (OVR 40–49, atributos ~38–50) recebem chances desafiadoras e realistas entre 18% e 27% para chutes, passes e dribles, sendo estritamente proibido iniciar em 44%–52% ou com pisos artificiais que tornem o lance fácil demais.
+    - **Crescimento Gradual com a Evolução do Atleta:** Conforme o atleta treina, ganha XP e sobe de OVR, as chances escalam suavemente: Candango/Série D (~30%–38%), Série B (~38%–46%), Série A (~48%–56%) e Craque Internacional (~58%–66%).
+    - **Teto Rigoroso Anti-Trivialidade (Máximo 72%–76%):** Mesmo para atletas lendários ou com 90+ de OVR/atributos, o sucesso nunca pode ser garantido ou banalizado: o teto máximo absoluto é limitado a 75% para chutes colocados e passes, 72% para bomba de primeira, 73% para dribles e 74%–76% para defensores e goleiros.
+    - **Suporte Abrangente a Todas as Posições (ATA, DEF, GOL):** Atacantes, defensores e goleiros possuem opções táticas próprias com fórmulas calibradas e resolução completa em `resolveCraqueDecision` (incluindo defesas difíceis e reposição rápida de contra-ataque para goleiros).
+
+
 
 
 
