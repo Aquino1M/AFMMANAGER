@@ -1,24 +1,63 @@
 /**
  * =========================================================================
- * AFM MANAGER 2027 - MODO CRIAR SEU TIME (CREATE-A-CLUB)
+ * AFM MANAGER 2027 - MODO CRIAR SEU TIME (CREATE-A-CLUB PRO STUDIO)
  * =========================================================================
- * Sistema oficial para criação e personalização de clube do zero:
- * - Nome do clube, Sigla (até 4 letras) e Nome do Estádio
- * - Emblema (Escudo): 6 Formatos de Brasão, Paleta de Cores, 10 Estampagens e Sigla
- * - Uniformes (Kit Casa e Fora): Estilos (Liso, Listras, Faixa, Meio a Meio), Cores 2D
- * - Começa em 1 dos 11 Campeonatos Estaduais com 1 vaga oficial
- * - Orçamento inicial: R$ 300.000 (R$ 300 mil em caixa)
- * - Estádio (5.000 lugares) e Instalações todas no Nível 1
- * - Elenco inicial de 20 atletas formados da região (OVR 54-64)
+ * Sistema oficial para criação e personalização completa de clube do zero:
+ * - Identidade completa: Nome, Sigla, Apelido da Torcida, Mascote e Maior Rival Estadual
+ * - Emblema Vetorial 12 formatos + 20 estampas + PNG/URL externo (estampado em todos os uniformes)
+ * - 4 Uniformes Oficiais (Casa, Fora, 3º Alternativo e Goleiro) com 12 estilos, 3 golas, cor de número e patrocinador no peito
+ * - Modelo Institucional (Associativo vs SAF), Pacote de Projeto (Raiz R$ 300k / Estruturado R$ 650k / Investidor R$ 1,2M), Tipo de Gramado e Patrocinador Master
+ * - Editor de Elenco de 20 Atletas com Nome, Posição, Nacionalidade, Camisa sem duplicidade, Idade e Braçadeira de Capitão (©)
+ * - Exportação/Importação de Template JSON, Sorteio Completo 1-Clique e Validação Anti-Colisão de Nomes/Cores
  */
 
 (function(window){
   'use strict';
 
+  const MASTER_SPONSORS_CATALOG = [
+    { id: 'sp_construtora', name: 'Vértice Engenharia', shirtLabel: 'VÉRTICE', monthly: 38000, winBonus: 4500, profile: 'Fixo Estável' },
+    { id: 'sp_banco', name: 'NeoBank Digital', shirtLabel: 'NEOBANK', monthly: 32000, winBonus: 8500, profile: 'Equilibrado' },
+    { id: 'sp_varejo', name: 'SuperRede Brasil', shirtLabel: 'SUPERREDE', monthly: 42000, winBonus: 2500, profile: 'Maior Fixo Mensal' },
+    { id: 'sp_bet', name: 'ArenaBet Esportes', shirtLabel: 'ARENABET', monthly: 26000, winBonus: 13500, profile: 'Foco em Vitórias' }
+  ];
+
+  const PROJECT_TIERS = [
+    { id: 'raiz', label: '🌱 Desafio Raiz (Clássico)', cash: 300000, desc: 'R$ 300 mil em caixa · Gestão austera da base ao topo' },
+    { id: 'estruturado', label: '🏗️ Projeto Estruturado', cash: 650000, desc: 'R$ 650 mil em caixa · Fôlego extra para reforços pontuais' },
+    { id: 'ambicioso', label: '💎 Investidor / SAF Forte', cash: 1200000, desc: 'R$ 1,2 milhão em caixa · Meta imediata de título estadual' }
+  ];
+
+  const PITCH_TYPES = [
+    { id: 'natural', label: '🌿 Grama Natural Tradicional', desc: 'Custo baixo de manutenção e bola clássica' },
+    { id: 'hybrid', label: '⚡ Gramado Híbrido Europeu', desc: 'Drenagem superior e toque rápido de bola' },
+    { id: 'synthetic', label: '🏟️ Sintético FIFA Pro', desc: 'Resistência máxima a chuvas e eventos na arena' }
+  ];
+
+  const MASCOTS_CATALOG = [
+    '🦁 Leão', '🦅 Águia', '🦈 Tubarão', '🐺 Lobo-Guará', '🐆 Pantera',
+    '🐉 Dragão', '🔥 Fênix', '🐂 Touro', '⚡ Trovão', '🛡️ Guerreiro'
+  ];
+
+  const KIT_PRESETS = [
+    { id: 'tricolor', label: 'Tricolor Clássico', home: { style: 'stripes_v', shirtColor: '#1e3a8a', secondaryColor: '#dc2626', shortsColor: '#ffffff', socksColor: '#1e3a8a', collar: 'v', numberColor: '#ffffff' }, away: { style: 'solid', shirtColor: '#ffffff', secondaryColor: '#1e3a8a', shortsColor: '#1e3a8a', socksColor: '#ffffff', collar: 'crew', numberColor: '#1e3a8a' }, third: { style: 'sash_diagonal', shirtColor: '#0f172a', secondaryColor: '#facc15', shortsColor: '#0f172a', socksColor: '#facc15', collar: 'polo', numberColor: '#facc15' } },
+    { id: 'rubronegro', label: 'Rubro-Negro', home: { style: 'stripes_h', shirtColor: '#dc2626', secondaryColor: '#0f172a', shortsColor: '#ffffff', socksColor: '#0f172a', collar: 'v', numberColor: '#ffffff' }, away: { style: 'sleeves', shirtColor: '#ffffff', secondaryColor: '#dc2626', shortsColor: '#0f172a', socksColor: '#ffffff', collar: 'polo', numberColor: '#0f172a' }, third: { style: 'pinstripes', shirtColor: '#0f172a', secondaryColor: '#d97706', shorts: '#0f172a', shortsColor: '#0f172a', socksColor: '#0f172a', collar: 'v', numberColor: '#facc15' } },
+    { id: 'alvinegro', label: 'Alvinegro Tradicional', home: { style: 'stripes_v', shirtColor: '#0f172a', secondaryColor: '#ffffff', shortsColor: '#0f172a', socksColor: '#ffffff', collar: 'crew', numberColor: '#facc15' }, away: { style: 'pinstripes', shirtColor: '#ffffff', secondaryColor: '#0f172a', shortsColor: '#ffffff', socksColor: '#0f172a', collar: 'v', numberColor: '#0f172a' }, third: { style: 'gradient', shirtColor: '#7c3aed', secondaryColor: '#0f172a', shortsColor: '#0f172a', socksColor: '#7c3aed', collar: 'v', numberColor: '#ffffff' } },
+    { id: 'alviverde', label: 'Alviverde Imperial', home: { style: 'checkers', shirtColor: '#16a34a', secondaryColor: '#14532d', shortsColor: '#ffffff', socksColor: '#16a34a', collar: 'polo', numberColor: '#ffffff' }, away: { style: 'chest_band', shirtColor: '#ffffff', secondaryColor: '#16a34a', shortsColor: '#16a34a', socksColor: '#ffffff', collar: 'v', numberColor: '#16a34a' }, third: { style: 'solid', shirtColor: '#facc15', secondaryColor: '#16a34a', shortsColor: '#16a34a', socksColor: '#facc15', collar: 'crew', numberColor: '#0f172a' } },
+    { id: 'celeste', label: 'Celeste Real', home: { style: 'solid', shirtColor: '#0284c7', secondaryColor: '#ffffff', shortsColor: '#ffffff', socksColor: '#0284c7', collar: 'polo', numberColor: '#ffffff' }, away: { style: 'sash_diagonal', shirtColor: '#ffffff', secondaryColor: '#0284c7', shortsColor: '#0284c7', socksColor: '#ffffff', collar: 'v', numberColor: '#0f172a' }, third: { style: 'cross', shirtColor: '#0f172a', secondaryColor: '#0284c7', shortsColor: '#0f172a', socksColor: '#0284c7', collar: 'crew', numberColor: '#ffffff' } }
+  ];
+
   const customClubDraft = {
     name: 'Valência Futebol Clube',
     shortName: 'VFC',
     stadiumName: 'Arena dos Sonhos',
+    nickname: 'Trovão Azul',
+    mascot: '🦅 Águia',
+    rivalClub: '',
+    pitchType: 'natural',
+    clubModel: 'associativo',
+    projectTier: 'raiz',
+    masterSponsorId: 'sp_construtora',
+    showSponsorOnKit: true,
     stateCompId: 'bra-est-sp',
     badgeImage: null,
     badge: {
@@ -39,20 +78,42 @@
       shirtColor: '#1e3a8a',
       secondaryColor: '#ffffff',
       shortsColor: '#1e3a8a',
-      socksColor: '#ffffff'
+      socksColor: '#ffffff',
+      collar: 'v',
+      numberColor: '#facc15'
     },
     awayKit: {
       style: 'solid',
       shirtColor: '#ffffff',
       secondaryColor: '#1e3a8a',
       shortsColor: '#ffffff',
-      socksColor: '#1e3a8a'
+      socksColor: '#1e3a8a',
+      collar: 'crew',
+      numberColor: '#1e3a8a'
+    },
+    thirdKit: {
+      style: 'sash_diagonal',
+      shirtColor: '#0f172a',
+      secondaryColor: '#facc15',
+      shortsColor: '#0f172a',
+      socksColor: '#facc15',
+      collar: 'polo',
+      numberColor: '#facc15'
+    },
+    gkKit: {
+      style: 'chevron_chest',
+      shirtColor: '#16a34a',
+      secondaryColor: '#0f172a',
+      shortsColor: '#0f172a',
+      socksColor: '#16a34a',
+      collar: 'crew',
+      numberColor: '#ffffff'
     },
     squad: null,
     squadCustomized: false
   };
 
-  const PALETTE = ['#0f172a', '#ffffff', '#1e3a8a', '#dc2626', '#16a34a', '#facc15', '#7c3aed', '#831843', '#ea580c', '#0284c7', '#78350f', '#d97706'];
+  const PALETTE = ['#0f172a', '#ffffff', '#1e3a8a', '#dc2626', '#16a34a', '#facc15', '#7c3aed', '#831843', '#ea580c', '#0284c7', '#14b8a6', '#d97706'];
 
   const SHAPES = [
     { id: 'classic', label: 'Clássico 🛡️' },
@@ -93,14 +154,93 @@
   ];
 
   const KIT_STYLES = [
-    { id: 'solid', label: 'Liso' },
+    { id: 'solid', label: 'Liso Clássico' },
     { id: 'stripes_v', label: 'Listras Verticais' },
     { id: 'stripes_h', label: 'Listras Horizontais' },
+    { id: 'pinstripes', label: 'Pinstripes Finas' },
     { id: 'half', label: 'Meio a Meio' },
     { id: 'sash_diagonal', label: 'Faixa Diagonal' },
+    { id: 'chest_band', label: 'Faixa Horizontal' },
+    { id: 'checkers', label: 'Xadrez' },
+    { id: 'cross', label: 'Cruz Peitoral' },
+    { id: 'gradient', label: 'Degradê Moderno' },
     { id: 'sleeves', label: 'Mangas Contrastantes' },
     { id: 'v_neck', label: 'Chevron / V' }
   ];
+
+  const COLLAR_STYLES = [
+    { id: 'v', label: 'Gola V' },
+    { id: 'crew', label: 'Gola Careca' },
+    { id: 'polo', label: 'Gola Polo' }
+  ];
+
+  const SQUAD_POSITIONS = ['GK', 'RB', 'CB', 'LB', 'DM', 'CM', 'AM', 'RW', 'LW', 'ST'];
+  const SQUAD_NATIONS = ['Brasil', 'Argentina', 'Uruguai', 'Colômbia', 'Paraguai', 'Chile', 'Equador', 'Portugal'];
+
+  const DEFAULT_ESTADUAIS = [
+    { id: "bra-est-df", name: "Candangão DF", state: "Distrito Federal", clubsCount: 10, trophy: "🏛️", color: "#a7ff3f", clubs: ["Brasília", "Gama", "Brasiliense", "Capital-DF", "Ceilândia", "Real Brasília", "Samambaia", "Paranoá", "Planaltina", "Santa Maria"] },
+    { id: "bra-est-sp", name: "Paulistão SP", state: "São Paulo", clubsCount: 16, trophy: "⚽", color: "#38bdf8", clubs: ["Corinthians", "Palmeiras", "São Paulo", "Santos", "Red Bull Bragantino", "Ponte Preta", "Guarani", "Novorizontino", "Mirassol", "Botafogo-SP", "São Bernardo", "Ituano", "Inter de Limeira", "Água Santa", "Noroeste", "Velo Clube"] },
+    { id: "bra-est-rj", name: "Carioca RJ", state: "Rio de Janeiro", clubsCount: 12, trophy: "🌴", color: "#f43f5e", clubs: ["Flamengo", "Fluminense", "Vasco da Gama", "Botafogo", "Volta Redonda", "Nova Iguaçu", "Boavista", "Bangu", "Madureira", "Portuguesa-RJ", "Sampaio Corrêa-RJ", "Maricá"] },
+    { id: "bra-est-mg", name: "Mineiro MG", state: "Minas Gerais", clubsCount: 12, trophy: "⛰️", color: "#facc15", clubs: ["Atlético-MG", "Cruzeiro", "América-MG", "Athletic Club", "Tombense", "Pouso Alegre", "Villa Nova", "Democrata-GV", "Ipatinga", "Uberlândia", "Itabirito", "Betim"] },
+    { id: "bra-est-rs", name: "Gaúcho RS", state: "Rio Grande do Sul", clubsCount: 12, trophy: "🧉", color: "#06b6d4", clubs: ["Grêmio", "Internacional", "Juventude", "Caxias", "Brasil de Pelotas", "Ypiranga", "São José-RS", "Novo Hamburgo", "Avenida", "São Luiz", "Monsoon", "Guarany de Bagé"] },
+    { id: "bra-est-pr", name: "Paranaense PR", state: "Paraná", clubsCount: 10, trophy: "🌲", color: "#10b981", clubs: ["Athletico-PR", "Coritiba", "Operário-PR", "Maringá", "Londrina", "FC Cascavel", "Cianorte", "Azuriz", "São-Joseense", "Andraus"] },
+    { id: "bra-est-sc", name: "Catarinense SC", state: "Santa Catarina", clubsCount: 10, trophy: "🏖️", color: "#a855f7", clubs: ["Criciúma", "Chapecoense", "Avaí", "Figueirense", "Brusque", "Marcílio Dias", "Joinville", "Concórdia", "Barra-SC", "Hercílio Luz"] },
+    { id: "bra-est-ba", name: "Baiano BA", state: "Bahia", clubsCount: 10, trophy: "☀️", color: "#f97316", clubs: ["Bahia", "Vitória", "Jacuipense", "Juazeirense", "Barcelona de Ilhéus", "Jequié", "Atlético de Alagoinhas", "Bahia de Feira", "Porto-BA", "Jacobina"] },
+    { id: "bra-est-ce", name: "Cearense CE", state: "Ceará", clubsCount: 10, trophy: "🌊", color: "#ec4899", clubs: ["Fortaleza", "Ceará", "Ferroviário", "Iguatu", "Floresta", "Maracanã-CE", "Atlético-CE", "Caucaia", "Horizonte", "Barbalha"] },
+    { id: "bra-est-go", name: "Goiano GO", state: "Goiás", clubsCount: 10, trophy: "🌾", color: "#84cc16", clubs: ["Goiás", "Atlético-GO", "Vila Nova", "Aparecidense", "Anápolis", "CRAC", "Goianésia", "Goiatuba", "Iporá", "Morrinhos"] },
+    { id: "bra-est-pe", name: "Pernambucano PE", state: "Pernambuco", clubsCount: 10, trophy: "🦁", color: "#e11d48", clubs: ["Sport Recife", "Náutico", "Santa Cruz", "Retrô", "Central de Caruaru", "Maguary", "Petrolina", "Afogados", "Porto-PE", "Flamengo de Arcoverde"] }
+  ];
+
+  function escText(t) {
+    if (typeof window.esc === 'function') return window.esc(t);
+    return String(t || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+  }
+
+  function normStr(s) {
+    if (typeof window.norm === 'function') return window.norm(s);
+    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  }
+
+  function hexToRgb(hex) {
+    const clean = String(hex || '#000000').replace('#', '').trim();
+    const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean.padEnd(6, '0');
+    const num = parseInt(full.slice(0, 6), 16) || 0;
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+  }
+
+  function areColorsTooSimilar(hexA, hexB) {
+    const a = hexToRgb(hexA);
+    const b = hexToRgb(hexB);
+    const dist = Math.sqrt(Math.pow(a.r - b.r, 2) + Math.pow(a.g - b.g, 2) + Math.pow(a.b - b.b, 2));
+    return dist < 68;
+  }
+
+  function isOfficialClubNameCollision(candidateName) {
+    const key = normStr(candidateName);
+    if (!key) return false;
+    const estList = (window.AFM_ESTADUAIS_DATA && window.AFM_ESTADUAIS_DATA.length) ? window.AFM_ESTADUAIS_DATA : DEFAULT_ESTADUAIS;
+    for (const est of estList) {
+      if ((est.clubs || []).some(c => normStr(c) === key)) return true;
+    }
+    if (Array.isArray(window.BASE_CLUBS) && window.BASE_CLUBS.some(c => normStr(c?.name || c) === key)) {
+      return true;
+    }
+    return false;
+  }
+
+  function getActiveBadgeDataUri() {
+    if (customClubDraft.badgeImage) return customClubDraft.badgeImage;
+    const svg = generateBadgeSvg(customClubDraft.badge, 48);
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  }
+
+  function getSelectedMasterSponsor() {
+    return MASTER_SPONSORS_CATALOG.find(sp => sp.id === customClubDraft.masterSponsorId) || MASTER_SPONSORS_CATALOG[0];
+  }
+
+  function getSelectedProjectTier() {
+    return PROJECT_TIERS.find(t => t.id === customClubDraft.projectTier) || PROJECT_TIERS[0];
+  }
 
   function processUploadedImageFile(file, callback) {
     if (!file) return;
@@ -157,25 +297,6 @@
       return `<img src="${badgeImage}" class="crest crest-img custom-badge-preview-img" style="width:${size}px;height:${size}px;object-fit:contain;filter:drop-shadow(0 4px 14px rgba(0,0,0,0.6));border-radius:6px;" alt="Logo do Clube" />`;
     }
     return generateBadgeSvg(badgeConfig || customClubDraft.badge, size);
-  }
-
-  const DEFAULT_ESTADUAIS = [
-    { id: "bra-est-df", name: "Candangão DF", state: "Distrito Federal", clubsCount: 10, trophy: "🏛️", color: "#a7ff3f", clubs: ["Brasília", "Gama", "Brasiliense", "Capital-DF", "Ceilândia", "Real Brasília", "Samambaia", "Paranoá", "Planaltina", "Santa Maria"] },
-    { id: "bra-est-sp", name: "Paulistão SP", state: "São Paulo", clubsCount: 16, trophy: "⚽", color: "#38bdf8", clubs: ["Corinthians", "Palmeiras", "São Paulo", "Santos", "Red Bull Bragantino", "Ponte Preta", "Guarani", "Novorizontino", "Mirassol", "Botafogo-SP", "São Bernardo", "Ituano", "Inter de Limeira", "Água Santa", "Noroeste", "Velo Clube"] },
-    { id: "bra-est-rj", name: "Carioca RJ", state: "Rio de Janeiro", clubsCount: 12, trophy: "🌴", color: "#f43f5e", clubs: ["Flamengo", "Fluminense", "Vasco da Gama", "Botafogo", "Volta Redonda", "Nova Iguaçu", "Boavista", "Bangu", "Madureira", "Portuguesa-RJ", "Sampaio Corrêa-RJ", "Maricá"] },
-    { id: "bra-est-mg", name: "Mineiro MG", state: "Minas Gerais", clubsCount: 12, trophy: "⛰️", color: "#facc15", clubs: ["Atlético-MG", "Cruzeiro", "América-MG", "Athletic Club", "Tombense", "Pouso Alegre", "Villa Nova", "Democrata-GV", "Ipatinga", "Uberlândia", "Itabirito", "Betim"] },
-    { id: "bra-est-rs", name: "Gaúcho RS", state: "Rio Grande do Sul", clubsCount: 12, trophy: "🧉", color: "#06b6d4", clubs: ["Grêmio", "Internacional", "Juventude", "Caxias", "Brasil de Pelotas", "Ypiranga", "São José-RS", "Novo Hamburgo", "Avenida", "São Luiz", "Monsoon", "Guarany de Bagé"] },
-    { id: "bra-est-pr", name: "Paranaense PR", state: "Paraná", clubsCount: 10, trophy: "🌲", color: "#10b981", clubs: ["Athletico-PR", "Coritiba", "Operário-PR", "Maringá", "Londrina", "FC Cascavel", "Cianorte", "Azuriz", "São-Joseense", "Andraus"] },
-    { id: "bra-est-sc", name: "Catarinense SC", state: "Santa Catarina", clubsCount: 10, trophy: "🏖️", color: "#a855f7", clubs: ["Criciúma", "Chapecoense", "Avaí", "Figueirense", "Brusque", "Marcílio Dias", "Joinville", "Concórdia", "Barra-SC", "Hercílio Luz"] },
-    { id: "bra-est-ba", name: "Baiano BA", state: "Bahia", clubsCount: 10, trophy: "☀️", color: "#f97316", clubs: ["Bahia", "Vitória", "Jacuipense", "Juazeirense", "Barcelona de Ilhéus", "Jequié", "Atlético de Alagoinhas", "Bahia de Feira", "Porto-BA", "Jacobina"] },
-    { id: "bra-est-ce", name: "Cearense CE", state: "Ceará", clubsCount: 10, trophy: "🌊", color: "#ec4899", clubs: ["Fortaleza", "Ceará", "Ferroviário", "Iguatu", "Floresta", "Maracanã-CE", "Atlético-CE", "Caucaia", "Horizonte", "Barbalha"] },
-    { id: "bra-est-go", name: "Goiano GO", state: "Goiás", clubsCount: 10, trophy: "🌾", color: "#84cc16", clubs: ["Goiás", "Atlético-GO", "Vila Nova", "Aparecidense", "Anápolis", "CRAC", "Goianésia", "Goiatuba", "Iporá", "Morrinhos"] },
-    { id: "bra-est-pe", name: "Pernambucano PE", state: "Pernambuco", clubsCount: 10, trophy: "🦁", color: "#e11d48", clubs: ["Sport Recife", "Náutico", "Santa Cruz", "Retrô", "Central de Caruaru", "Maguary", "Petrolina", "Afogados", "Porto-PE", "Flamengo de Arcoverde"] }
-  ];
-
-  function escText(t) {
-    if (typeof window.esc === 'function') return window.esc(t);
-    return String(t || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
   }
 
   function generateBadgeSvg(b, size = 120) {
@@ -273,39 +394,71 @@
     `</svg>`;
   }
 
-  function generateKitSvg(kit, badgeSvg = '', size = 150) {
+  function generateKitSvg(kit, badgeSrc = '', size = 150, sponsorLabel = '') {
     const s = size;
-    const style = kit.style || 'solid';
-    const cShirt = kit.shirtColor || '#1e3a8a';
-    const cSec = kit.secondaryColor || '#ffffff';
-    const cShorts = kit.shortsColor || '#1e3a8a';
-    const cSocks = kit.socksColor || '#ffffff';
+    const style = kit?.style || 'solid';
+    const cShirt = kit?.shirtColor || '#1e3a8a';
+    const cSec = kit?.secondaryColor || '#ffffff';
+    const cShorts = kit?.shortsColor || '#1e3a8a';
+    const cSocks = kit?.socksColor || '#ffffff';
+    const collar = kit?.collar || 'v';
+    const cNum = kit?.numberColor || cSec;
+    const effectiveBadge = badgeSrc || getActiveBadgeDataUri();
+    const effSponsor = sponsorLabel !== '' ? sponsorLabel : (customClubDraft.showSponsorOnKit ? (getSelectedMasterSponsor()?.shirtLabel || '') : '');
+
+    const clipId = 'shirt_clip_' + Math.random().toString(36).slice(2, 8);
+    const gradId = 'shirt_grad_' + clipId;
 
     let torsoPattern = '';
     if (style === 'stripes_v') {
       torsoPattern = `<rect x="42" y="16" width="7" height="48" fill="${cSec}" /><rect x="56" y="16" width="8" height="48" fill="${cSec}" /><rect x="71" y="16" width="7" height="48" fill="${cSec}" />`;
     } else if (style === 'stripes_h') {
       torsoPattern = `<rect x="36" y="26" width="48" height="6" fill="${cSec}" /><rect x="36" y="38" width="48" height="6" fill="${cSec}" /><rect x="36" y="50" width="48" height="6" fill="${cSec}" />`;
+    } else if (style === 'pinstripes') {
+      torsoPattern = `<line x1="42" y1="16" x2="42" y2="64" stroke="${cSec}" stroke-width="1.4"/><line x1="50" y1="16" x2="50" y2="64" stroke="${cSec}" stroke-width="1.4"/><line x1="58" y1="16" x2="58" y2="64" stroke="${cSec}" stroke-width="1.4"/><line x1="66" y1="16" x2="66" y2="64" stroke="${cSec}" stroke-width="1.4"/><line x1="74" y1="16" x2="74" y2="64" stroke="${cSec}" stroke-width="1.4"/>`;
     } else if (style === 'half') {
       torsoPattern = `<rect x="60" y="16" width="24" height="48" fill="${cSec}" />`;
     } else if (style === 'sash_diagonal') {
       torsoPattern = `<polygon points="36,16 48,16 84,52 84,64 72,64 36,28" fill="${cSec}" />`;
-    } else if (style === 'v_neck') {
+    } else if (style === 'chest_band') {
+      torsoPattern = `<rect x="36" y="34" width="48" height="12" fill="${cSec}" />`;
+    } else if (style === 'checkers') {
+      const cells = [];
+      for (let rx = 36; rx < 84; rx += 8) {
+        for (let ry = 16; ry < 64; ry += 8) {
+          if (((rx - 36) / 8 + (ry - 16) / 8) % 2 === 1) {
+            cells.push(`<rect x="${rx}" y="${ry}" width="8" height="8" fill="${cSec}" opacity="0.88" />`);
+          }
+        }
+      }
+      torsoPattern = cells.join('');
+    } else if (style === 'cross') {
+      torsoPattern = `<rect x="55" y="16" width="10" height="48" fill="${cSec}" /><rect x="36" y="33" width="48" height="9" fill="${cSec}" />`;
+    } else if (style === 'gradient') {
+      torsoPattern = `<rect x="36" y="16" width="48" height="48" fill="url(#${gradId})" />`;
+    } else if (style === 'v_neck' || style === 'chevron_chest') {
       torsoPattern = `<polygon points="36,16 60,38 84,16 76,16 60,30 44,16" fill="${cSec}" />`;
     }
 
+    let collarSvg = `<path d="M 48 16 Q 60 25 72 16 Z" fill="#0f172a" /><path d="M 48 16 Q 60 25 72 16" fill="none" stroke="${cSec}" stroke-width="2" />`;
+    if (collar === 'crew') {
+      collarSvg = `<path d="M 48 16 A 12 6 0 0 0 72 16 Z" fill="#0f172a" /><path d="M 48 16 A 12 6 0 0 0 72 16" fill="none" stroke="${cSec}" stroke-width="2.2" />`;
+    } else if (collar === 'polo') {
+      collarSvg = `<path d="M 50 16 L 60 23 L 70 16 Z" fill="#0f172a" /><polygon points="46,15 53,16 50,22 44,19" fill="${cSec}" /><polygon points="74,15 67,16 70,22 76,19" fill="${cSec}" />`;
+    }
+
     const sleeveColor = style === 'sleeves' ? cSec : cShirt;
-    const clipId = 'shirt_clip_' + Math.random().toString(36).slice(2, 8);
 
     return `<svg viewBox="0 0 120 140" width="${s}" height="${Math.round(s * 1.16)}" xmlns="http://www.w3.org/2000/svg">` +
       `<defs>` +
         `<clipPath id="${clipId}"><path d="M 36 16 L 84 16 L 84 64 L 36 64 Z" /></clipPath>` +
-        `<filter id="kitShadow" x="-10%" y="-10%" width="120%" height="120%">` +
+        `<linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${cShirt}" stop-opacity="0.1" /><stop offset="100%" stop-color="${cSec}" stop-opacity="0.95" /></linearGradient>` +
+        `<filter id="kitShadow_${clipId}" x="-10%" y="-10%" width="120%" height="120%">` +
           `<feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.35"/>` +
         `</filter>` +
       `</defs>` +
 
-      `<g filter="url(#kitShadow)">` +
+      `<g filter="url(#kitShadow_${clipId})">` +
         `<polygon points="36,16 12,34 22,46 36,34" fill="${sleeveColor}" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>` +
         `<polygon points="84,16 108,34 98,46 84,34" fill="${sleeveColor}" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>` +
         `<polygon points="12,34 16,37 26,49 22,46" fill="${cSec}" />` +
@@ -314,17 +467,19 @@
         `<rect x="36" y="16" width="48" height="48" rx="2" fill="${cShirt}" stroke="rgba(0,0,0,0.2)" stroke-width="1" />` +
         `<g clip-path="url(#${clipId})">${torsoPattern}</g>` +
 
-        `<path d="M 48 16 Q 60 25 72 16 Z" fill="#0f172a" />` +
-        `<path d="M 48 16 Q 60 25 72 16" fill="none" stroke="${cSec}" stroke-width="2" />` +
+        collarSvg +
 
-        (badgeSvg && (badgeSvg.startsWith('data:') || badgeSvg.startsWith('http') || badgeSvg.endsWith('.png') || badgeSvg.endsWith('.jpg') || badgeSvg.endsWith('.webp')) ?
-          `<image href="${badgeSvg}" x="44" y="24" width="9" height="9" preserveAspectRatio="xMidYMid meet" />` :
-          `<circle cx="48" cy="28" r="4.5" fill="${cSec}" /><circle cx="48" cy="28" r="3" fill="${cShirt}" />`
+        (effectiveBadge && (effectiveBadge.startsWith('data:') || effectiveBadge.startsWith('http') || effectiveBadge.endsWith('.png') || effectiveBadge.endsWith('.jpg') || effectiveBadge.endsWith('.webp')) ?
+          `<image href="${effectiveBadge}" x="66" y="23" width="10" height="10" preserveAspectRatio="xMidYMid meet" />` :
+          `<circle cx="71" cy="28" r="4.5" fill="${cSec}" /><circle cx="71" cy="28" r="3" fill="${cShirt}" />`
         ) +
+
+        (effSponsor ? `<rect x="41" y="40" width="38" height="7.5" rx="1.5" fill="rgba(0,0,0,0.42)" /><text x="60" y="45.5" text-anchor="middle" font-family="'Segoe UI',sans-serif" font-weight="900" font-size="5.1" fill="#ffffff" letter-spacing="0.4">${escText(effSponsor.slice(0, 10))}</text>` : '') +
 
         `<polygon points="38,68 58,68 56,95 36,95" fill="${cShorts}" stroke="rgba(0,0,0,0.2)" stroke-width="1" />` +
         `<polygon points="62,68 82,68 84,95 64,95" fill="${cShorts}" stroke="rgba(0,0,0,0.2)" stroke-width="1" />` +
         `<rect x="38" y="67" width="44" height="2" fill="${cSec}" />` +
+        `<text x="73" y="89" text-anchor="middle" font-family="'Segoe UI',sans-serif" font-weight="900" font-size="6.5" fill="${cNum}" stroke="rgba(0,0,0,0.45)" stroke-width="0.3">10</text>` +
         `<line x1="36" y1="94" x2="56" y2="94" stroke="${cSec}" stroke-width="2" />` +
         `<line x1="64" y1="94" x2="84" y2="94" stroke="${cSec}" stroke-width="2" />` +
 
@@ -358,11 +513,9 @@
   function generateCustomClubSquad(clubName) {
     const rnd = window.rnd || ((min, max) => Math.floor(Math.random() * (max - min + 1)) + min);
     const clamp = window.clamp || ((v, min, max) => Math.max(min, Math.min(max, v)));
-    const norm = window.norm || (s => String(s||'').toLowerCase());
-
     const positionsNeeded = ['GK','GK','RB','RB','CB','CB','CB','CB','LB','LB','DM','DM','CM','CM','AM','AM','RW','LW','ST','ST'];
     const usedNames = new Set();
-    return positionsNeeded.map((pos, idx) => {
+    const squad = positionsNeeded.map((pos, idx) => {
       const name = getRandomPlayerName(usedNames);
       const age = rnd(19, 31);
       const ovr = rnd(54, 64);
@@ -370,9 +523,11 @@
       const value = Math.round(clamp(0.04 + (ovr - 54) * 0.02 + (30 - age) * 0.01, 0.03, 0.35) * 100) / 100;
       const num = DEFAULT_SQUAD_NUMBERS[idx] || (idx + 1);
       return {
-        id: `custom_${norm(clubName)}_${idx}_${Date.now()}`,
+        id: `custom_${normStr(clubName)}_${idx}_${Date.now()}`,
         name,
         pos,
+        nationality: idx === 14 ? 'Argentina' : 'Brasil',
+        isCustomCaptain: idx === 4,
         number: num,
         age,
         ovr,
@@ -388,6 +543,119 @@
         marketKey: `${name}_${clubName}_${pos}`
       };
     });
+    return squad;
+  }
+
+  function randomizeCompleteClubIdentity() {
+    const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const cities = ['Atlético Valência', 'Real Aurora FC', 'Sporting Imperial', 'União Metropolitana', 'Ferroviária do Sul', 'Estrela Dourada EC', ' Desportivo Atlântico', 'Vila Real SAF', 'Império da Serra FC', ' Aliança Nacional'];
+    const stadiums = ['Arena Imperial', 'Estádio Parque do Sol', 'Arena Vento Sul', 'Coliseu Dourado', 'Estádio Nova Era', 'Arena Centenário'];
+    const nicknames = ['Trovão Imortal', 'Esquadrão de Aço', 'Fúria Real', 'Gigante da Colina Sul', 'Legião Dourada', 'Guerreiros da Arena'];
+
+    let pickedName = cities[rnd(0, cities.length - 1)].trim();
+    if (isOfficialClubNameCollision(pickedName)) pickedName += ' 2026';
+    const words = pickedName.split(/\s+/).filter(Boolean);
+    const sigla = words.map(w => w[0]).join('').slice(0, 4).toUpperCase() || 'AFC';
+
+    const preset = KIT_PRESETS[rnd(0, KIT_PRESETS.length - 1)];
+    const shape = SHAPES[rnd(0, SHAPES.length - 1)].id;
+    const pat = PATTERNS[rnd(1, PATTERNS.length - 1)].id;
+
+    customClubDraft.name = pickedName;
+    customClubDraft.shortName = sigla;
+    customClubDraft.stadiumName = stadiums[rnd(0, stadiums.length - 1)];
+    customClubDraft.nickname = nicknames[rnd(0, nicknames.length - 1)];
+    customClubDraft.mascot = MASCOTS_CATALOG[rnd(0, MASCOTS_CATALOG.length - 1)];
+    customClubDraft.badgeImage = null;
+    customClubDraft.badge = {
+      ...customClubDraft.badge,
+      shape,
+      pattern: pat,
+      primaryColor: preset.home.shirtColor,
+      secondaryColor: preset.home.secondaryColor,
+      patternColor: '#facc15',
+      motto: sigla,
+      mottoColor: '#ffffff',
+      starsCount: rnd(0, 3),
+      year: '2026'
+    };
+    customClubDraft.homeKit = { ...customClubDraft.homeKit, ...preset.home };
+    customClubDraft.awayKit = { ...customClubDraft.awayKit, ...preset.away };
+    customClubDraft.thirdKit = { ...customClubDraft.thirdKit, ...preset.third };
+    customClubDraft.gkKit = {
+      style: 'v_neck',
+      shirtColor: preset.home.shirtColor === '#16a34a' ? '#ea580c' : '#16a34a',
+      secondaryColor: '#0f172a',
+      shortsColor: '#0f172a',
+      socksColor: preset.home.shirtColor === '#16a34a' ? '#ea580c' : '#16a34a',
+      collar: 'crew',
+      numberColor: '#ffffff'
+    };
+  }
+
+  function exportClubTemplateJson() {
+    const payload = {
+      afmCustomClubTemplateVersion: 2,
+      exportedAt: new Date().toISOString(),
+      draft: {
+        ...customClubDraft,
+        squad: customClubDraft.squadCustomized ? customClubDraft.squad : null
+      }
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clube_${normStr(customClubDraft.shortName || customClubDraft.name || 'afm').replace(/[^a-z0-9]/g, '_')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    window.toast?.('💾 Template JSON do clube exportado com sucesso!');
+  }
+
+  function importClubTemplateJsonFile(file, app, activeUser) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(String(e.target.result || '{}'));
+        const d = parsed?.draft || parsed;
+        if (!d || typeof d !== 'object' || (!d.name && !d.badge && !d.homeKit)) {
+          window.toast?.('⚠️ Arquivo JSON inválido para template de clube.');
+          return;
+        }
+        Object.assign(customClubDraft, {
+          name: String(d.name || customClubDraft.name).slice(0, 32),
+          shortName: String(d.shortName || customClubDraft.shortName).slice(0, 4).toUpperCase(),
+          stadiumName: String(d.stadiumName || customClubDraft.stadiumName).slice(0, 36),
+          nickname: String(d.nickname || customClubDraft.nickname).slice(0, 28),
+          mascot: String(d.mascot || customClubDraft.mascot),
+          rivalClub: String(d.rivalClub || ''),
+          pitchType: PITCH_TYPES.some(p => p.id === d.pitchType) ? d.pitchType : 'natural',
+          clubModel: d.clubModel === 'saf' ? 'saf' : 'associativo',
+          projectTier: PROJECT_TIERS.some(t => t.id === d.projectTier) ? d.projectTier : 'raiz',
+          masterSponsorId: MASTER_SPONSORS_CATALOG.some(s => s.id === d.masterSponsorId) ? d.masterSponsorId : 'sp_construtora',
+          showSponsorOnKit: d.showSponsorOnKit !== false,
+          stateCompId: String(d.stateCompId || customClubDraft.stateCompId),
+          badgeImage: d.badgeImage || null,
+          badge: { ...customClubDraft.badge, ...(d.badge || {}) },
+          homeKit: { ...customClubDraft.homeKit, ...(d.homeKit || {}) },
+          awayKit: { ...customClubDraft.awayKit, ...(d.awayKit || {}) },
+          thirdKit: { ...customClubDraft.thirdKit, ...(d.thirdKit || {}) },
+          gkKit: { ...customClubDraft.gkKit, ...(d.gkKit || {}) }
+        });
+        if (Array.isArray(d.squad) && d.squad.length === 20) {
+          customClubDraft.squad = d.squad;
+          customClubDraft.squadCustomized = true;
+        }
+        renderCreateClubScreen(app, activeUser);
+        window.toast?.('✅ Template do clube importado com sucesso!');
+      } catch (err) {
+        window.toast?.('⚠️ Falha ao ler o arquivo JSON do clube.');
+      }
+    };
+    reader.readAsText(file);
   }
 
   function renderCreateClubScreen(app, activeUser) {
@@ -404,18 +672,31 @@
           state: compObj.country || 'Brasil',
           clubsCount: compObj.teamsCount || (compObj.teams ? compObj.teams.length : (window.COMPETITION_TEAMS && window.COMPETITION_TEAMS[compObj.id] ? window.COMPETITION_TEAMS[compObj.id].length : 20)),
           trophy: compObj.id.startsWith('bra-') ? '🇧🇷' : '🏆',
-          color: '#38bdf8'
+          color: '#38bdf8',
+          clubs: compObj.teams || []
         });
       }
     }
-    const curEst = estData.find(e => e.id === customClubDraft.stateCompId) || estData[0] || { id: 'bra-est-sp', name: 'Paulistão SP', clubsCount: 16 };
+    const curEst = estData.find(e => e.id === customClubDraft.stateCompId) || estData[0] || { id: 'bra-est-sp', name: 'Paulistão SP', clubsCount: 16, clubs: [] };
+    const rivalPool = Array.isArray(curEst.clubs) && curEst.clubs.length
+      ? curEst.clubs
+      : ((DEFAULT_ESTADUAIS.find(e => e.id === curEst.id)?.clubs) || ['Corinthians', 'Palmeiras', 'São Paulo', 'Santos']);
+    if (!customClubDraft.rivalClub || !rivalPool.includes(customClubDraft.rivalClub)) {
+      customClubDraft.rivalClub = rivalPool[0] || '';
+    }
+
     const userSlots = typeof window.getUserSaveSlots === 'function' ? window.getUserSaveSlots(activeUser?.username) : [null, null, null];
     const selSlot = window.setupSelectedSlot || 1;
+    const badgeUri = getActiveBadgeDataUri();
+    const curTier = getSelectedProjectTier();
+    const curSponsor = getSelectedMasterSponsor();
+    const hasKitClash = areColorsTooSimilar(customClubDraft.homeKit.shirtColor, customClubDraft.awayKit.shirtColor);
+    const hasNameCollision = isOfficialClubNameCollision(customClubDraft.name);
 
     app.innerHTML = `
       <div class="create-club-wrapper">
         
-        <!-- TOPBAR SUPERIOR -->
+        <!-- TOPBAR SUPERIOR COM AÇÕES RÁPIDAS E TEMPLATE JSON -->
         <div class="create-club-topbar">
           <div class="create-club-title-group">
             <button type="button" class="btn" id="btnBackFromCreateClub" style="font-size:12px;font-weight:800;padding:8px 16px;border-radius:10px;background:rgba(255,255,255,0.08);color:#fff;cursor:pointer">
@@ -424,12 +705,23 @@
             <div>
               <h1>🎨 CRIAR SEU PRÓPRIO CLUBE</h1>
               <div style="font-size:12px;color:#94a3b8;margin-top:2px">
-                Monte seu clube do zero, personalize o visual e comece sua jornada no futebol estadual
+                Estúdio completo: 4 uniformes, escudo no peito, rivalidade estadual, modelo SAF/Associativo, gramado e patrocinador master
               </div>
             </div>
           </div>
 
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn" id="btnRandomizeFullClub" style="padding:7px 12px;font-size:11px;font-weight:900;border-radius:9px;background:rgba(168,85,247,0.18);border:1px solid rgba(168,85,247,0.45);color:#e9d5ff;cursor:pointer" title="Sorteia nome inédito, escudo e 4 uniformes harmônicos">
+              🎲 Sortear Tudo
+            </button>
+            <button type="button" class="btn" id="btnExportClubJson" style="padding:7px 11px;font-size:11px;font-weight:800;border-radius:9px;background:rgba(56,189,248,0.14);border:1px solid rgba(56,189,248,0.38);color:#7dd3fc;cursor:pointer" title="Baixar arquivo JSON deste clube">
+              💾 Salvar JSON
+            </button>
+            <label class="btn" style="padding:7px 11px;font-size:11px;font-weight:800;border-radius:9px;background:rgba(16,185,129,0.14);border:1px solid rgba(16,185,129,0.38);color:#6ee7b7;cursor:pointer;margin:0" title="Carregar um clube salvo em JSON">
+              📂 Importar JSON
+              <input type="file" id="inputImportClubJson" accept="application/json,.json" style="display:none">
+            </label>
+
             <!-- SELETOR DE SLOT -->
             <div style="display:flex;align-items:center;gap:6px;background:#0d1527;padding:5px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.1)">
               <span style="font-size:11px;font-weight:800;color:#94a3b8">SLOT:</span>
@@ -446,7 +738,7 @@
 
             <label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:#94a3b8">
               Treinador:
-              <input id="customManagerNameInput" class="saas-input" value="${escText(activeUser?.name || 'Prof. Aquino')}" style="padding:4px 10px;font-size:12px;width:130px">
+              <input id="customManagerNameInput" class="saas-input" value="${escText((activeUser?.name || 'Aquino').replace(/^Prof\.\s*/i, ''))}" style="padding:4px 10px;font-size:12px;width:125px">
             </label>
 
             <button type="button" class="btn primary" id="btnTopLaunchCreateClub" style="padding:9px 18px;font-size:12px;font-weight:900;border-radius:10px;background:linear-gradient(135deg,#a855f7,#38bdf8);box-shadow:0 4px 14px rgba(168,85,247,0.4);cursor:pointer">
@@ -455,8 +747,18 @@
           </div>
         </div>
 
-        <!-- SEÇÃO 1: INPUTS SUPERIORES (NOME, SIGLA, ESTÁDIO) -->
-        <div class="create-club-top-inputs">
+        ${hasNameCollision || hasKitClash ? `
+          <div style="display:flex;flex-wrap:wrap;gap:10px;padding:10px 16px;border-radius:12px;background:rgba(245,158,11,0.14);border:1px solid rgba(245,158,11,0.45);color:#fde68a;font-size:12px;font-weight:800;align-items:center;justify-content:space-between">
+            <div>
+              ${hasNameCollision ? `⚠️ Já existe um clube oficial chamado "${escText(customClubDraft.name)}". Escolha um nome autoral para evitar conflito na tabela! ` : ''}
+              ${hasKitClash ? `👕 Atenção: As camisas de Casa e Fora possuem cores principais muito parecidas (risco de confusão visual em campo).` : ''}
+            </div>
+            ${hasKitClash ? `<button type="button" class="btn" id="btnAutoFixKitClash" style="padding:4px 10px;font-size:11px;font-weight:900;background:#f59e0b;color:#000;border:none;border-radius:7px;cursor:pointer">✨ Corrigir Contraste</button>` : ''}
+          </div>
+        ` : ''}
+
+        <!-- SEÇÃO 1: IDENTIDADE DO CLUBE (NOME, SIGLA, ESTÁDIO, APELIDO, MASCOTE E RIVAL) -->
+        <div class="create-club-top-inputs" style="grid-template-columns:repeat(auto-fit, minmax(200px, 1fr))">
           <label class="field" style="margin:0">
             <span class="create-club-field-label">⚽ Nome do Clube</span>
             <input id="customClubNameInput" class="saas-input" value="${escText(customClubDraft.name)}" placeholder="Ex: Valência Futebol Clube" maxlength="32">
@@ -471,35 +773,71 @@
             <span class="create-club-field-label">🏟️ Nome do Estádio</span>
             <input id="customClubStadiumInput" class="saas-input" value="${escText(customClubDraft.stadiumName)}" placeholder="Ex: Arena dos Sonhos" maxlength="36">
           </label>
+
+          <label class="field" style="margin:0">
+            <span class="create-club-field-label">📣 Apelido da Torcida</span>
+            <input id="customClubNicknameInput" class="saas-input" value="${escText(customClubDraft.nickname)}" placeholder="Ex: Trovão Azul" maxlength="28">
+          </label>
+
+          <label class="field" style="margin:0">
+            <span class="create-club-field-label">🦁 Mascote Oficial</span>
+            <select id="customClubMascotSelect" class="saas-input" style="cursor:pointer">
+              ${MASCOTS_CATALOG.map(m => `<option value="${escText(m)}" ${customClubDraft.mascot === m ? 'selected' : ''}>${escText(m)}</option>`).join('')}
+            </select>
+          </label>
+
+          <label class="field" style="margin:0">
+            <span class="create-club-field-label">🔥 Maior Rival (Clássico Estadual)</span>
+            <select id="customClubRivalSelect" class="saas-input" style="cursor:pointer">
+              ${rivalPool.map(r => `<option value="${escText(r)}" ${customClubDraft.rivalClub === r ? 'selected' : ''}>⚔️ ${escText(r)}</option>`).join('')}
+            </select>
+          </label>
         </div>
 
-        <!-- SEÇÃO 2: PREVIEWS LADO A LADO (EMBLEMA, KIT CASA, KIT FORA) -->
-        <div class="create-club-previews-grid">
+        <!-- BARRA RÁPIDA DE PRESETS DE CORES & PATROCINADOR NA CAMISA -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;background:#0d1527;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:10px 16px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:900;color:#94a3b8;text-transform:uppercase">🎨 Presets Clássicos:</span>
+            ${KIT_PRESETS.map(pr => `
+              <button type="button" class="btn btnApplyKitPreset" data-preset="${pr.id}" style="padding:5px 10px;font-size:11px;font-weight:800;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#e2e8f0;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                <span style="width:10px;height:10px;border-radius:50%;background:${pr.home.shirtColor};border:1px solid ${pr.home.secondaryColor};display:inline-block"></span>
+                ${escText(pr.label)}
+              </button>
+            `).join('')}
+          </div>
+          <label style="display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:800;color:#cbd5e1;cursor:pointer">
+            <input type="checkbox" id="chkShowSponsorOnKit" ${customClubDraft.showSponsorOnKit ? 'checked' : ''}>
+            Estampar Patrocinador Master (${escText(curSponsor.shirtLabel)}) nos uniformes
+          </label>
+        </div>
+
+        <!-- SEÇÃO 2: VITRINE DE 5 CARDS (EMBLEMA + CASA + FORA + 3º UNIFORME + GOLEIRO) -->
+        <div class="create-club-previews-grid" style="grid-template-columns:repeat(auto-fit, minmax(205px, 1fr))">
           <!-- CARD 1: EMBLEMA -->
           <div class="create-club-preview-card">
             <div class="create-club-preview-header">
               <div style="display:flex;align-items:center;gap:6px">
                 <span>🛡️</span> EMBLEMA DO CLUBE
               </div>
-              ${customClubDraft.badgeImage ? '<span class="pill good" style="font-size:9px;padding:2px 6px;font-weight:900">PNG ATIVO</span>' : ''}
+              ${customClubDraft.badgeImage ? '<span class="pill good" style="font-size:9px;padding:2px 6px;font-weight:900">PNG ATIVO</span>' : '<span class="pill primary" style="font-size:9px;padding:2px 6px;font-weight:900">VETOR HD</span>'}
             </div>
             <div class="create-club-preview-box" id="customBadgePreviewBox">
-              ${renderBadgePreviewHtml(customClubDraft.badgeImage, customClubDraft.badge, 120)}
+              ${renderBadgePreviewHtml(customClubDraft.badgeImage, customClubDraft.badge, 114)}
             </div>
             
             <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;width:100%">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%">
-                <button type="button" class="btn primary" id="btnOpenBadgeModal" style="font-weight:900;padding:10px 6px;font-size:11px;border-radius:10px;background:linear-gradient(135deg,#a855f7,#6366f1);cursor:pointer;white-space:nowrap" title="Editar formato, cores e sigla do brasão">
-                  🎨 EDITAR VETORIAL
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%">
+                <button type="button" class="btn primary" id="btnOpenBadgeModal" style="font-weight:900;padding:9px 4px;font-size:10px;border-radius:10px;background:linear-gradient(135deg,#a855f7,#6366f1);cursor:pointer;white-space:nowrap">
+                  🎨 VETORIAL
                 </button>
-                <label class="btn" style="font-weight:900;padding:10px 6px;font-size:11px;border-radius:10px;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px;text-align:center;margin:0;white-space:nowrap" title="Importar logo em PNG, JPG ou WebP">
-                  📁 IMPORTAR PNG
+                <label class="btn" style="font-weight:900;padding:9px 4px;font-size:10px;border-radius:10px;background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px;text-align:center;margin:0;white-space:nowrap">
+                  📁 PNG
                   <input type="file" id="inputImportLogoDirect" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none">
                 </label>
               </div>
               ${customClubDraft.badgeImage ? `
-                <button type="button" class="btn" id="btnRemoveCustomLogoDirect" style="width:100%;font-size:11px;font-weight:800;padding:6px 10px;border-radius:8px;background:rgba(239,68,68,0.18);color:#fca5a5;border:1px solid rgba(239,68,68,0.35);cursor:pointer">
-                  🗑️ Remover Imagem (Usar Brasão Vetorial)
+                <button type="button" class="btn" id="btnRemoveCustomLogoDirect" style="width:100%;font-size:10px;font-weight:800;padding:5px 8px;border-radius:8px;background:rgba(239,68,68,0.18);color:#fca5a5;border:1px solid rgba(239,68,68,0.35);cursor:pointer">
+                  🗑️ Usar Brasão Vetorial
                 </button>
               ` : ''}
             </div>
@@ -508,27 +846,95 @@
           <!-- CARD 2: KIT CASA -->
           <div class="create-club-preview-card">
             <div class="create-club-preview-header">
-              <span>👕</span> EQUIPAMENTO DA CASA
+              <span>👕</span> UNIFORME 1 (CASA)
             </div>
             <div class="create-club-preview-box" id="customHomeKitPreviewBox">
-              ${generateKitSvg(customClubDraft.homeKit, customClubDraft.badgeImage || '', 110)}
+              ${generateKitSvg(customClubDraft.homeKit, badgeUri, 106)}
             </div>
-            <button type="button" class="btn primary" id="btnOpenHomeKitModal" style="width:100%;font-weight:900;padding:10px 14px;border-radius:10px;margin-top:14px;background:linear-gradient(135deg,#38bdf8,#2563eb);cursor:pointer">
-              👕 DEFINIR O EQUIPAMENTO
+            <button type="button" class="btn primary" id="btnOpenHomeKitModal" style="width:100%;font-weight:900;padding:9px 10px;font-size:11px;border-radius:10px;margin-top:14px;background:linear-gradient(135deg,#38bdf8,#2563eb);cursor:pointer">
+              👕 EDITAR CASA
             </button>
           </div>
 
           <!-- CARD 3: KIT FORA -->
           <div class="create-club-preview-card">
             <div class="create-club-preview-header">
-              <span>🎽</span> EQUIPAMENTO DE FORA
+              <span>🎽</span> UNIFORME 2 (FORA)
             </div>
             <div class="create-club-preview-box" id="customAwayKitPreviewBox">
-              ${generateKitSvg(customClubDraft.awayKit, customClubDraft.badgeImage || '', 110)}
+              ${generateKitSvg(customClubDraft.awayKit, badgeUri, 106)}
             </div>
-            <button type="button" class="btn primary" id="btnOpenAwayKitModal" style="width:100%;font-weight:900;padding:10px 14px;border-radius:10px;margin-top:14px;background:linear-gradient(135deg,#f43f5e,#be123c);cursor:pointer">
-              🎽 DEFINIR O EQUIPAMENTO
+            <button type="button" class="btn primary" id="btnOpenAwayKitModal" style="width:100%;font-weight:900;padding:9px 10px;font-size:11px;border-radius:10px;margin-top:14px;background:linear-gradient(135deg,#f43f5e,#be123c);cursor:pointer">
+              🎽 EDITAR FORA
             </button>
+          </div>
+
+          <!-- CARD 4: 3º UNIFORME ALTERNATIVO -->
+          <div class="create-club-preview-card">
+            <div class="create-club-preview-header">
+              <span>✨</span> 3º UNIFORME (ALT.)
+            </div>
+            <div class="create-club-preview-box" id="customThirdKitPreviewBox">
+              ${generateKitSvg(customClubDraft.thirdKit, badgeUri, 106)}
+            </div>
+            <button type="button" class="btn primary" id="btnOpenThirdKitModal" style="width:100%;font-weight:900;padding:9px 10px;font-size:11px;border-radius:10px;margin-top:14px;background:linear-gradient(135deg,#eab308,#ca8a04);color:#000;cursor:pointer">
+              ✨ EDITAR 3º KIT
+            </button>
+          </div>
+
+          <!-- CARD 5: UNIFORME DE GOLEIRO -->
+          <div class="create-club-preview-card">
+            <div class="create-club-preview-header">
+              <span>🧤</span> GOLEIRO OFICIAL
+            </div>
+            <div class="create-club-preview-box" id="customGkKitPreviewBox">
+              ${generateKitSvg(customClubDraft.gkKit, badgeUri, 106)}
+            </div>
+            <button type="button" class="btn primary" id="btnOpenGkKitModal" style="width:100%;font-weight:900;padding:9px 10px;font-size:11px;border-radius:10px;margin-top:14px;background:linear-gradient(135deg,#10b981,#059669);color:#000;cursor:pointer">
+              🧤 EDITAR GOLEIRO
+            </button>
+          </div>
+        </div>
+
+        <!-- SEÇÃO 2.5: PROJETO INSTITUCIONAL, GRAMADO & PATROCINADOR MASTER -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:14px;background:#111827;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px 20px">
+          <div>
+            <span class="create-club-field-label">🏛️ Modelo Institucional</span>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+              <button type="button" class="option-pill-btn btnPickClubModel ${customClubDraft.clubModel === 'associativo' ? 'active' : ''}" data-model="associativo" style="padding:8px;font-size:11px;font-weight:800">
+                🗳️ Associativo
+              </button>
+              <button type="button" class="option-pill-btn btnPickClubModel ${customClubDraft.clubModel === 'saf' ? 'active' : ''}" data-model="saf" style="padding:8px;font-size:11px;font-weight:800">
+                💼 SAF Empresa
+              </button>
+            </div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:5px">
+              ${customClubDraft.clubModel === 'saf' ? 'Habilita ações na Bolsa SAF e governança corporativa.' : 'Clube tradicional de sócios com conselho deliberativo.'}
+            </div>
+          </div>
+
+          <div>
+            <span class="create-club-field-label">💰 Aporte & Nível do Projeto</span>
+            <select id="customProjectTierSelect" class="saas-input" style="margin-top:4px;cursor:pointer">
+              ${PROJECT_TIERS.map(t => `<option value="${t.id}" ${customClubDraft.projectTier === t.id ? 'selected' : ''}>${escText(t.label)} — R$ ${t.cash.toLocaleString('pt-BR')}</option>`).join('')}
+            </select>
+            <div style="font-size:10px;color:#6ee7b7;margin-top:5px">${escText(curTier.desc)}</div>
+          </div>
+
+          <div>
+            <span class="create-club-field-label">🌿 Tipo de Gramado da Arena</span>
+            <select id="customPitchTypeSelect" class="saas-input" style="margin-top:4px;cursor:pointer">
+              ${PITCH_TYPES.map(p => `<option value="${p.id}" ${customClubDraft.pitchType === p.id ? 'selected' : ''}>${escText(p.label)}</option>`).join('')}
+            </select>
+            <div style="font-size:10px;color:#94a3b8;margin-top:5px">${escText((PITCH_TYPES.find(p => p.id === customClubDraft.pitchType) || PITCH_TYPES[0]).desc)}</div>
+          </div>
+
+          <div>
+            <span class="create-club-field-label">🤝 Patrocinador Master Inicial</span>
+            <select id="customMasterSponsorSelect" class="saas-input" style="margin-top:4px;cursor:pointer">
+              ${MASTER_SPONSORS_CATALOG.map(sp => `<option value="${sp.id}" ${customClubDraft.masterSponsorId === sp.id ? 'selected' : ''}>${escText(sp.name)} (R$ ${(sp.monthly / 1000).toFixed(0)}k/mês + R$ ${(sp.winBonus / 1000).toFixed(1)}k/vit)</option>`).join('')}
+            </select>
+            <div style="font-size:10px;color:#38bdf8;margin-top:5px">Perfil: ${escText(curSponsor.profile)} · Estampa "${escText(curSponsor.shirtLabel)}"</div>
           </div>
         </div>
 
@@ -540,7 +946,7 @@
                 🏆 ESCOLHA O CAMPEONATO DE INÍCIO
               </div>
               <div style="font-size:11px;color:#94a3b8;margin-top:2px">
-                Seu clube ocupará 1 vaga oficial na competição escolhida, disputará a tabela oficial de 2026 e buscará a glória!
+                Seu clube ocupará 1 vaga oficial na competição escolhida, disputará a tabela oficial de 2026 e terá clássico contra <b>${escText(customClubDraft.rivalClub)}</b>!
               </div>
             </div>
             <span class="pill good" style="font-size:10px;padding:4px 10px;font-weight:900">
@@ -569,14 +975,14 @@
           </div>
         </div>
 
-        <!-- SEÇÃO 4: RESUMO DAS CONDIÇÕES INICIAIS (DESAFIO REALISTA) -->
+        <!-- SEÇÃO 4: RESUMO DAS CONDIÇÕES INICIAIS -->
         <div class="create-club-challenge-box">
           <div class="create-club-challenge-item">
             <div class="icon">💰</div>
             <div>
-              <div class="title">Caixa Inicial</div>
-              <div class="val" style="color:#22c55e">R$ 300.000</div>
-              <div class="small muted" style="font-size:10px">Saldo reservado para o início da temporada</div>
+              <div class="title">Caixa Inicial (${customClubDraft.clubModel === 'saf' ? 'SAF' : 'Associativo'})</div>
+              <div class="val" style="color:#22c55e" id="customInitialCashVal">R$ ${curTier.cash.toLocaleString('pt-BR')}</div>
+              <div class="small muted" style="font-size:10px">+ Master R$ ${curSponsor.monthly.toLocaleString('pt-BR')}/mês</div>
             </div>
           </div>
 
@@ -585,7 +991,7 @@
             <div>
               <div class="title">Estádio Inicial</div>
               <div class="val" style="color:#38bdf8">Nível 1 (5.000 lugares)</div>
-              <div class="small muted" style="font-size:10px">Expansível até 100.000 conforme seu sucesso</div>
+              <div class="small muted" style="font-size:10px">Piso: ${customClubDraft.pitchType === 'hybrid' ? 'Híbrido' : customClubDraft.pitchType === 'synthetic' ? 'Sintético FIFA' : 'Natural'}</div>
             </div>
           </div>
 
@@ -594,7 +1000,7 @@
             <div>
               <div class="title">Instalações</div>
               <div class="val" style="color:#c084fc">Todas no Nível 1</div>
-              <div class="small muted" style="font-size:10px">CT, Base, DM, Loja, Finanças e Marketing</div>
+              <div class="small muted" style="font-size:10px">CT, Base, DM, Loja, Museu e Marketing</div>
             </div>
           </div>
 
@@ -607,11 +1013,11 @@
                   ${customClubDraft.squadCustomized ? '20 Atletas (Personalizado ✓)' : '20 Atletas (OVR 54-64)'}
                 </div>
                 <div class="small muted" style="font-size:10px" id="customSquadDetailsText">
-                  ${customClubDraft.squad && customClubDraft.squad.length ? `Média: ${Math.round(customClubDraft.squad.reduce((a,b)=>a+(Number(b.age)||23),0)/customClubDraft.squad.length)} anos · Folha: R$ ${customClubDraft.squad.reduce((a,b)=>a+(Number(b.wage)||0),0).toLocaleString('pt-BR')}/mês` : 'Folha salarial equilibrada e competitiva'}
+                  ${customClubDraft.squad && customClubDraft.squad.length ? `Capitão: ${(customClubDraft.squad.find(p => p.isCustomCaptain) || customClubDraft.squad[0]).name} · Folha: R$ ${customClubDraft.squad.reduce((a,b)=>a+(Number(b.wage)||0),0).toLocaleString('pt-BR')}/mês` : 'Posição, nacionalidade e © Capitão editáveis'}
                 </div>
               </div>
             </div>
-            <button type="button" class="btn primary" id="btnOpenSquadModal" style="align-self:center;font-size:11px;font-weight:900;padding:7px 12px;border-radius:9px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;box-shadow:0 3px 12px rgba(245,158,11,0.35);border:none" title="Editar nome, número da camisa e idade dos jogadores">
+            <button type="button" class="btn primary" id="btnOpenSquadModal" style="align-self:center;font-size:11px;font-weight:900;padding:7px 12px;border-radius:9px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;box-shadow:0 3px 12px rgba(245,158,11,0.35);border:none" title="Editar nome, posição, nacionalidade, camisa, idade e capitão">
               ✏️ EDITAR ELENCO
             </button>
           </div>
@@ -619,40 +1025,143 @@
 
         <!-- BOTÃO DE INICIAR CARREIRA -->
         <button type="button" class="btn primary saas-launch-btn" id="btnBottomLaunchCreateClub" style="padding:16px 28px;font-size:15px;font-weight:900;border-radius:14px;background:linear-gradient(135deg,#22c55e,#16a34a);box-shadow:0 6px 25px rgba(34,197,94,0.4);cursor:pointer;width:100%">
-          🚀 INICIAR CARREIRA COM O ${escText(customClubDraft.name.toUpperCase())} NO ${escText(curEst.name.toUpperCase())} (SALVAR NO SLOT ${selSlot}) ➔
+          🚀 INICIAR CARREIRA COM O ${escText((customClubDraft.name || 'MEU CLUBE').toUpperCase())} NO ${escText(curEst.name.toUpperCase())} (SALVAR NO SLOT ${selSlot}) ➔
         </button>
 
       </div>
     `;
 
-    bindCreateClubEvents(app, activeUser);
+    bindCreateClubEvents(app, activeUser, curEst, userSlots);
   }
 
-  function bindCreateClubEvents(app, activeUser) {
+  function bindCreateClubEvents(app, activeUser, curEst, userSlots) {
     const $ = sel => document.querySelector(sel);
     const $$ = sel => document.querySelectorAll(sel);
-    const syncBadgePreview = () => {
+    const syncAllVisualPreviews = () => {
       const bBox = $('#customBadgePreviewBox');
-      if (bBox) bBox.innerHTML = renderBadgePreviewHtml(customClubDraft.badgeImage, customClubDraft.badge, 120);
+      if (bBox) bBox.innerHTML = renderBadgePreviewHtml(customClubDraft.badgeImage, customClubDraft.badge, 114);
+      const uri = getActiveBadgeDataUri();
+      const hBox = $('#customHomeKitPreviewBox');
+      if (hBox) hBox.innerHTML = generateKitSvg(customClubDraft.homeKit, uri, 106);
+      const aBox = $('#customAwayKitPreviewBox');
+      if (aBox) aBox.innerHTML = generateKitSvg(customClubDraft.awayKit, uri, 106);
+      const tBox = $('#customThirdKitPreviewBox');
+      if (tBox) tBox.innerHTML = generateKitSvg(customClubDraft.thirdKit, uri, 106);
+      const gBox = $('#customGkKitPreviewBox');
+      if (gBox) gBox.innerHTML = generateKitSvg(customClubDraft.gkKit, uri, 106);
+      const botBtn = $('#btnBottomLaunchCreateClub');
+      if (botBtn) {
+        const slot = window.setupSelectedSlot || 1;
+        botBtn.textContent = `🚀 INICIAR CARREIRA COM O ${(customClubDraft.name || 'MEU CLUBE').toUpperCase()} NO ${(curEst?.name || 'ESTADUAL').toUpperCase()} (SALVAR NO SLOT ${slot}) ➔`;
+      }
     };
 
     const nameInp = $('#customClubNameInput');
     if (nameInp) nameInp.oninput = () => {
       customClubDraft.name = nameInp.value;
-      syncBadgePreview();
+      syncAllVisualPreviews();
     };
 
     const shortInp = $('#customClubShortNameInput');
     if (shortInp) shortInp.oninput = () => {
       customClubDraft.shortName = shortInp.value.toUpperCase();
-      if (customClubDraft.badge.motto.length <= 4) {
+      if ((customClubDraft.badge.motto || '').length <= 4) {
         customClubDraft.badge.motto = customClubDraft.shortName;
       }
-      syncBadgePreview();
+      syncAllVisualPreviews();
     };
 
     const stdInp = $('#customClubStadiumInput');
     if (stdInp) stdInp.oninput = () => { customClubDraft.stadiumName = stdInp.value; };
+
+    const nickInp = $('#customClubNicknameInput');
+    if (nickInp) nickInp.oninput = () => { customClubDraft.nickname = nickInp.value; };
+
+    const mascotSel = $('#customClubMascotSelect');
+    if (mascotSel) mascotSel.onchange = () => { customClubDraft.mascot = mascotSel.value; };
+
+    const rivalSel = $('#customClubRivalSelect');
+    if (rivalSel) rivalSel.onchange = () => {
+      customClubDraft.rivalClub = rivalSel.value;
+      renderCreateClubScreen(app, activeUser);
+    };
+
+    $$('.btnPickClubModel').forEach(btn => {
+      btn.onclick = () => {
+        customClubDraft.clubModel = btn.dataset.model === 'saf' ? 'saf' : 'associativo';
+        renderCreateClubScreen(app, activeUser);
+      };
+    });
+
+    const tierSel = $('#customProjectTierSelect');
+    if (tierSel) tierSel.onchange = () => {
+      customClubDraft.projectTier = tierSel.value;
+      renderCreateClubScreen(app, activeUser);
+    };
+
+    const pitchSel = $('#customPitchTypeSelect');
+    if (pitchSel) pitchSel.onchange = () => {
+      customClubDraft.pitchType = pitchSel.value;
+      renderCreateClubScreen(app, activeUser);
+    };
+
+    const spSel = $('#customMasterSponsorSelect');
+    if (spSel) spSel.onchange = () => {
+      customClubDraft.masterSponsorId = spSel.value;
+      renderCreateClubScreen(app, activeUser);
+    };
+
+    const chkSp = $('#chkShowSponsorOnKit');
+    if (chkSp) chkSp.onchange = () => {
+      customClubDraft.showSponsorOnKit = Boolean(chkSp.checked);
+      syncAllVisualPreviews();
+    };
+
+    $$('.btnApplyKitPreset').forEach(btn => {
+      btn.onclick = () => {
+        const pr = KIT_PRESETS.find(p => p.id === btn.dataset.preset);
+        if (!pr) return;
+        customClubDraft.homeKit = { ...customClubDraft.homeKit, ...pr.home };
+        customClubDraft.awayKit = { ...customClubDraft.awayKit, ...pr.away };
+        customClubDraft.thirdKit = { ...customClubDraft.thirdKit, ...pr.third };
+        customClubDraft.badge.primaryColor = pr.home.shirtColor;
+        customClubDraft.badge.secondaryColor = pr.home.secondaryColor;
+        renderCreateClubScreen(app, activeUser);
+        window.toast?.(`🎨 Paleta "${pr.label}" aplicada aos uniformes e brasão!`);
+      };
+    });
+
+    const btnAutoFixClash = $('#btnAutoFixKitClash');
+    if (btnAutoFixClash) {
+      btnAutoFixClash.onclick = () => {
+        const homeDark = areColorsTooSimilar(customClubDraft.homeKit.shirtColor, '#0f172a');
+        customClubDraft.awayKit.shirtColor = homeDark ? '#ffffff' : '#0f172a';
+        customClubDraft.awayKit.secondaryColor = customClubDraft.homeKit.shirtColor;
+        customClubDraft.awayKit.numberColor = homeDark ? '#0f172a' : '#ffffff';
+        renderCreateClubScreen(app, activeUser);
+        window.toast?.('✨ Contraste entre Uniforme 1 e Uniforme 2 ajustado!');
+      };
+    }
+
+    const btnRandAll = $('#btnRandomizeFullClub');
+    if (btnRandAll) {
+      btnRandAll.onclick = () => {
+        randomizeCompleteClubIdentity();
+        renderCreateClubScreen(app, activeUser);
+        window.toast?.('🎲 Identidade completa sorteada com sucesso!');
+      };
+    }
+
+    const btnExpJson = $('#btnExportClubJson');
+    if (btnExpJson) btnExpJson.onclick = exportClubTemplateJson;
+
+    const inpImpJson = $('#inputImportClubJson');
+    if (inpImpJson) {
+      inpImpJson.onchange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) importClubTemplateJsonFile(file, app, activeUser);
+      };
+    }
 
     const btnBack = $('#btnBackFromCreateClub');
     if (btnBack) btnBack.onclick = () => {
@@ -671,6 +1180,7 @@
     $$('.create-club-estadual-card').forEach(card => {
       card.onclick = () => {
         customClubDraft.stateCompId = card.dataset.stateId;
+        customClubDraft.rivalClub = '';
         renderCreateClubScreen(app, activeUser);
       };
     });
@@ -707,30 +1217,60 @@
     const btnAwayKit = $('#btnOpenAwayKitModal');
     if (btnAwayKit) btnAwayKit.onclick = () => openCustomKitModal('away', app, activeUser);
 
+    const btnThirdKit = $('#btnOpenThirdKitModal');
+    if (btnThirdKit) btnThirdKit.onclick = () => openCustomKitModal('third', app, activeUser);
+
+    const btnGkKit = $('#btnOpenGkKitModal');
+    if (btnGkKit) btnGkKit.onclick = () => openCustomKitModal('gk', app, activeUser);
+
     const btnSquad = $('#btnOpenSquadModal');
     if (btnSquad) btnSquad.onclick = () => openCustomSquadModal(app, activeUser);
 
     function launchCreatedClubCareer() {
       const finalName = (customClubDraft.name || '').trim();
-      if (!finalName) {
-        if (typeof window.toast === 'function') window.toast('Digite o nome do seu clube antes de iniciar.');
+      if (!finalName || finalName.length < 3) {
+        window.toast?.('Digite um nome válido (mínimo 3 letras) para o seu clube.');
         return;
       }
+      if (isOfficialClubNameCollision(finalName)) {
+        window.toast?.(`⚠️ Já existe o clube oficial "${finalName}". Adicione um sufixo ou crie um nome inédito!`);
+        return;
+      }
+
+      const finalSlot = window.setupSelectedSlot || 1;
+      const existingSlotData = Array.isArray(userSlots) ? userSlots[finalSlot - 1] : null;
+      if (existingSlotData && typeof window !== 'undefined' && typeof window.confirm === 'function' && !window.__AFM_HEADLESS_TEST__) {
+        const existingLabel = existingSlotData.club || existingSlotData.athleteName || 'Carreira Salva';
+        const okOverwrite = window.confirm(`O Slot ${finalSlot} já possui um save (${existingLabel}). Deseja substituir este slot pelo novo clube "${finalName}"?`);
+        if (!okOverwrite) return;
+      }
+
       const finalShort = (customClubDraft.shortName || '').trim().toUpperCase() || (typeof window.initials === 'function' ? window.initials(finalName) : finalName.slice(0, 3).toUpperCase());
       const finalStadium = (customClubDraft.stadiumName || '').trim() || `Arena ${finalName}`;
       const mgrInput = $('#customManagerNameInput');
       const curUser = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : activeUser;
-      const finalMgr = (mgrInput ? mgrInput.value.trim() : (curUser?.name || 'Prof. Aquino')) || 'Prof. Aquino';
-      const finalSlot = window.setupSelectedSlot || 1;
+      const finalMgr = (mgrInput ? mgrInput.value.trim() : (curUser?.name || 'Aquino')) || 'Aquino';
       const finalBadgeSvg = generateBadgeSvg(customClubDraft.badge, 64);
+      const curTier = getSelectedProjectTier();
+      const curSponsor = getSelectedMasterSponsor();
 
       if (!customClubDraft.squad || !customClubDraft.squad.length) {
         customClubDraft.squad = generateCustomClubSquad(finalName);
+      }
+      if (!customClubDraft.squad.some(p => p.isCustomCaptain) && customClubDraft.squad[0]) {
+        customClubDraft.squad[0].isCustomCaptain = true;
       }
       const finalSquad = customClubDraft.squad.map(p => ({
         ...p,
         club: finalName
       }));
+
+      // CRÍTICO: Desativa o setup antes de invocar newCareer para garantir transição limpa sem ficar preso na tela inicial!
+      window.setupViewMode = null;
+      window.__afmSetupScreenActive = false;
+      window.__afmAutoSavePaused = false;
+      const modalEl = document.querySelector('#customClubModalContainer');
+      if (modalEl) modalEl.innerHTML = '';
 
       if (typeof window.newCareer === 'function') {
         window.newCareer({
@@ -738,15 +1278,26 @@
           clubName: finalName,
           shortName: finalShort,
           stadiumName: finalStadium,
+          nickname: (customClubDraft.nickname || '').trim() || 'Esquadrão',
+          mascot: customClubDraft.mascot || '🦅 Águia',
+          rivalClub: customClubDraft.rivalClub || '',
+          pitchType: customClubDraft.pitchType || 'natural',
+          clubModel: customClubDraft.clubModel || 'associativo',
+          projectTier: curTier.id,
+          initialCash: curTier.cash,
+          masterSponsor: { ...curSponsor },
           stateCompId: customClubDraft.stateCompId || 'bra-est-sp',
           badgeConfig: { ...customClubDraft.badge },
           badgeSvg: finalBadgeSvg,
           badgeImage: customClubDraft.badgeImage || null,
           homeKit: { ...customClubDraft.homeKit },
           awayKit: { ...customClubDraft.awayKit },
+          thirdKit: { ...customClubDraft.thirdKit },
+          gkKit: { ...customClubDraft.gkKit },
           customSquad: finalSquad,
           manager: finalMgr,
-          slot: finalSlot
+          slot: finalSlot,
+          allowModeReplace: true
         });
       }
     }
@@ -779,7 +1330,7 @@
                 <span style="font-size:22px">🛡️</span>
                 <div>
                   <div style="font-size:15px;font-weight:900;color:#fff;letter-spacing:0.5px">EMBLEMA DO CLUBE</div>
-                  <div style="font-size:11px;color:#c084fc;font-weight:700">Importe sua logo PNG externa ou crie um brasão vetorial</div>
+                  <div style="font-size:11px;color:#c084fc;font-weight:700">Importe sua logo PNG externa ou crie um brasão vetorial estampado nos 4 uniformes</div>
                 </div>
               </div>
               <button type="button" class="btn" id="btnCloseBadgeModal" style="background:rgba(255,255,255,0.08);color:#fff;border:none;padding:6px 12px;font-size:12px;border-radius:8px;cursor:pointer">
@@ -798,7 +1349,6 @@
               </div>
 
               <div style="display:flex;flex-direction:column;gap:14px">
-                <!-- SELETOR DE ABAS: IMPORTAR OU VETORIAL -->
                 <div class="create-club-badge-tabs">
                   <button type="button" class="create-club-badge-tab-btn ${badgeTab === 'import' ? 'active' : ''}" id="tabBtnBadgeImport">
                     📁 Importar Logo (PNG/JPG)
@@ -847,7 +1397,6 @@
                     ` : ''}
                   </div>
                 ` : `
-                  <!-- FORMA DO EMBLEMA -->
                   <div>
                     <label class="create-club-field-label">Forma do Emblema</label>
                     <div class="option-picker-grid">
@@ -859,7 +1408,6 @@
                     </div>
                   </div>
 
-                  <!-- COR PRIMÁRIA -->
                   <div>
                     <label class="create-club-field-label">Cor Primária (Fundo do Escudo)</label>
                     <div class="color-swatches-grid">
@@ -870,7 +1418,6 @@
                     </div>
                   </div>
 
-                  <!-- COR SECUNDÁRIA -->
                   <div>
                     <label class="create-club-field-label">Cor Secundária (Bordas & Detalhes)</label>
                     <div class="color-swatches-grid">
@@ -881,7 +1428,6 @@
                     </div>
                   </div>
 
-                  <!-- ESTAMPAGEM / SÍMBOLO -->
                   <div>
                     <label class="create-club-field-label">Estampagem / Símbolo Central</label>
                     <div class="option-picker-grid">
@@ -893,7 +1439,6 @@
                     </div>
                   </div>
 
-                  <!-- COR DA ESTAMPAGEM -->
                   <div>
                     <label class="create-club-field-label">Cor da Estampagem / Símbolo</label>
                     <div class="color-swatches-grid">
@@ -904,7 +1449,6 @@
                     </div>
                   </div>
 
-                  <!-- ESTRELAS DOURADAS NO TOPO -->
                   <div>
                     <label class="create-club-field-label">⭐ Estrelas Douradas no Topo (Títulos / Tradição)</label>
                     <div class="option-picker-grid">
@@ -916,7 +1460,6 @@
                     </div>
                   </div>
 
-                  <!-- ESTILO DA BORDA -->
                   <div>
                     <label class="create-club-field-label">🛡️ Estilo da Borda do Escudo</label>
                     <div class="option-picker-grid">
@@ -932,7 +1475,6 @@
                     </div>
                   </div>
 
-                  <!-- ANO DE FUNDAÇÃO & EFEITO BRILHO 3D -->
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:flex-end">
                     <label class="field" style="margin:0">
                       <span class="create-club-field-label">📅 Ano de Fundação (Ex: 2026)</span>
@@ -949,7 +1491,6 @@
                     </div>
                   </div>
 
-                  <!-- LEMA / SIGLA -->
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:flex-end">
                     <label class="field" style="margin:0">
                       <span class="create-club-field-label">Lema / Sigla no Escudo</span>
@@ -1022,13 +1563,8 @@
 
       const dropzone = $('#badgeModalDropzone');
       if (dropzone) {
-        dropzone.ondragover = (e) => {
-          e.preventDefault();
-          dropzone.classList.add('dragover');
-        };
-        dropzone.ondragleave = () => {
-          dropzone.classList.remove('dragover');
-        };
+        dropzone.ondragover = (e) => { e.preventDefault(); dropzone.classList.add('dragover'); };
+        dropzone.ondragleave = () => { dropzone.classList.remove('dragover'); };
         dropzone.ondrop = (e) => {
           e.preventDefault();
           dropzone.classList.remove('dragover');
@@ -1061,109 +1597,38 @@
         };
       }
 
-      $$('.shape-btn').forEach(b => {
-        b.onclick = () => {
-          tempBadge.shape = b.dataset.shape;
-          renderModalHtml();
-        };
-      });
-
-      $$('.color-primary-btn').forEach(b => {
-        b.onclick = () => {
-          tempBadge.primaryColor = b.dataset.color;
-          renderModalHtml();
-        };
-      });
+      $$('.shape-btn').forEach(b => { b.onclick = () => { tempBadge.shape = b.dataset.shape; renderModalHtml(); }; });
+      $$('.color-primary-btn').forEach(b => { b.onclick = () => { tempBadge.primaryColor = b.dataset.color; renderModalHtml(); }; });
       const natPrim = $('#badgeNativePrimary');
-      if (natPrim) natPrim.oninput = () => {
-        tempBadge.primaryColor = natPrim.value;
-        updateLivePreview();
-      };
+      if (natPrim) natPrim.oninput = () => { tempBadge.primaryColor = natPrim.value; updateLivePreview(); };
 
-      $$('.color-secondary-btn').forEach(b => {
-        b.onclick = () => {
-          tempBadge.secondaryColor = b.dataset.color;
-          renderModalHtml();
-        };
-      });
+      $$('.color-secondary-btn').forEach(b => { b.onclick = () => { tempBadge.secondaryColor = b.dataset.color; renderModalHtml(); }; });
       const natSec = $('#badgeNativeSecondary');
-      if (natSec) natSec.oninput = () => {
-        tempBadge.secondaryColor = natSec.value;
-        updateLivePreview();
-      };
+      if (natSec) natSec.oninput = () => { tempBadge.secondaryColor = natSec.value; updateLivePreview(); };
 
-      $$('.pattern-btn').forEach(b => {
-        b.onclick = () => {
-          tempBadge.pattern = b.dataset.pattern;
-          renderModalHtml();
-        };
-      });
-
-      $$('.color-pattern-btn').forEach(b => {
-        b.onclick = () => {
-          tempBadge.patternColor = b.dataset.color;
-          renderModalHtml();
-        };
-      });
+      $$('.pattern-btn').forEach(b => { b.onclick = () => { tempBadge.pattern = b.dataset.pattern; renderModalHtml(); }; });
+      $$('.color-pattern-btn').forEach(b => { b.onclick = () => { tempBadge.patternColor = b.dataset.color; renderModalHtml(); }; });
       const natPat = $('#badgeNativePattern');
-      if (natPat) natPat.oninput = () => {
-        tempBadge.patternColor = natPat.value;
-        updateLivePreview();
-      };
+      if (natPat) natPat.oninput = () => { tempBadge.patternColor = natPat.value; updateLivePreview(); };
 
       const mottoInp = $('#badgeMottoInput');
-      if (mottoInp) mottoInp.oninput = () => {
-        tempBadge.motto = mottoInp.value.toUpperCase();
-        updateLivePreview();
-      };
+      if (mottoInp) mottoInp.oninput = () => { tempBadge.motto = mottoInp.value.toUpperCase(); updateLivePreview(); };
 
-      $$('.color-motto-btn').forEach(b => {
-        b.onclick = () => {
-          tempBadge.mottoColor = b.dataset.color;
-          renderModalHtml();
-        };
-      });
+      $$('.color-motto-btn').forEach(b => { b.onclick = () => { tempBadge.mottoColor = b.dataset.color; renderModalHtml(); }; });
       const natMotto = $('#badgeNativeMotto');
-      if (natMotto) natMotto.oninput = () => {
-        tempBadge.mottoColor = natMotto.value;
-        updateLivePreview();
-      };
+      if (natMotto) natMotto.oninput = () => { tempBadge.mottoColor = natMotto.value; updateLivePreview(); };
 
-      $$('.stars-btn').forEach(b => {
-        b.onclick = () => {
-          tempBadge.starsCount = Number(b.dataset.stars);
-          renderModalHtml();
-        };
-      });
-
-      $$('.border-style-btn').forEach(b => {
-        b.onclick = () => {
-          tempBadge.borderStyle = b.dataset.border;
-          renderModalHtml();
-        };
-      });
+      $$('.stars-btn').forEach(b => { b.onclick = () => { tempBadge.starsCount = Number(b.dataset.stars); renderModalHtml(); }; });
+      $$('.border-style-btn').forEach(b => { b.onclick = () => { tempBadge.borderStyle = b.dataset.border; renderModalHtml(); }; });
 
       const yearInp = $('#badgeYearInput');
-      if (yearInp) yearInp.oninput = () => {
-        tempBadge.year = yearInp.value;
-        updateLivePreview();
-      };
+      if (yearInp) yearInp.oninput = () => { tempBadge.year = yearInp.value; updateLivePreview(); };
 
       const btnToggleYear = $('#btnToggleYearEst');
-      if (btnToggleYear) {
-        btnToggleYear.onclick = () => {
-          tempBadge.year = tempBadge.year ? '' : '2026';
-          renderModalHtml();
-        };
-      }
+      if (btnToggleYear) btnToggleYear.onclick = () => { tempBadge.year = tempBadge.year ? '' : '2026'; renderModalHtml(); };
 
       const btnToggleShine = $('#btnToggleBadgeShine');
-      if (btnToggleShine) {
-        btnToggleShine.onclick = () => {
-          tempBadge.shine = (tempBadge.shine === false);
-          renderModalHtml();
-        };
-      }
+      if (btnToggleShine) btnToggleShine.onclick = () => { tempBadge.shine = (tempBadge.shine === false); renderModalHtml(); };
 
       const btnConfirm = $('#btnConfirmBadgeModal');
       if (btnConfirm) btnConfirm.onclick = () => {
@@ -1171,14 +1636,14 @@
         customClubDraft.badge = { ...tempBadge };
         close();
         renderCreateClubScreen(app, activeUser);
-        if (typeof window.toast === 'function') window.toast('✓ Emblema atualizado com sucesso!');
+        if (typeof window.toast === 'function') window.toast('✓ Emblema atualizado e aplicado aos 4 uniformes!');
       };
     }
 
     renderModalHtml();
   }
 
-    function openCustomKitModal(kitType = 'home', app, activeUser) {
+  function openCustomKitModal(kitType = 'home', app, activeUser) {
     let container = document.querySelector('#customClubModalContainer');
     if (!container) {
       container = document.createElement('div');
@@ -1186,7 +1651,15 @@
       document.body.appendChild(container);
     }
 
-    let tempKit = { ...(kitType === 'home' ? customClubDraft.homeKit : customClubDraft.awayKit) };
+    const kitMap = {
+      home: { key: 'homeKit', title: 'UNIFORME 1 (CASA)', icon: '👕' },
+      away: { key: 'awayKit', title: 'UNIFORME 2 (FORA)', icon: '🎽' },
+      third: { key: 'thirdKit', title: '3º UNIFORME (ALTERNATIVO)', icon: '✨' },
+      gk: { key: 'gkKit', title: 'UNIFORME DE GOLEIRO', icon: '🧤' }
+    };
+    const meta = kitMap[kitType] || kitMap.home;
+    let tempKit = { ...(customClubDraft[meta.key] || customClubDraft.homeKit) };
+    const badgeUri = getActiveBadgeDataUri();
 
     function renderModalHtml() {
       container.innerHTML = `
@@ -1194,12 +1667,12 @@
           <div class="create-club-modal-card">
             <div class="create-club-modal-header">
               <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:22px">${kitType === 'home' ? '👕' : '🎽'}</span>
+                <span style="font-size:22px">${meta.icon}</span>
                 <div>
                   <div style="font-size:15px;font-weight:900;color:#fff;letter-spacing:0.5px">
-                    CRIAR O EQUIPAMENTO (${kitType === 'home' ? 'EQUIPA DA CASA' : 'EQUIPA DE FORA'})
+                    ESTÚDIO DE UNIFORME — ${meta.title}
                   </div>
-                  <div style="font-size:11px;color:#38bdf8;font-weight:700">Configure camisola, estampagem, calções e meias oficiais</div>
+                  <div style="font-size:11px;color:#38bdf8;font-weight:700">Personalize estampa, gola, camisa, calção, meião e numeração</div>
                 </div>
               </div>
               <button type="button" class="btn" id="btnCloseKitModal" style="background:rgba(255,255,255,0.08);color:#fff;border:none;padding:6px 12px;font-size:12px;border-radius:8px;cursor:pointer">
@@ -1209,18 +1682,17 @@
 
             <div class="create-club-modal-body">
               <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
-                <div id="modalKitPreview" style="width:100%;min-height:220px;background:radial-gradient(circle,rgba(255,255,255,0.06) 0%,rgba(0,0,0,0.5) 100%);border:1px solid rgba(255,255,255,0.1);border-radius:16px;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
-                  ${generateKitSvg(tempKit, customClubDraft.badgeImage || '', 140)}
+                <div id="modalKitPreview" style="width:100%;min-height:240px;background:radial-gradient(circle,rgba(255,255,255,0.06) 0%,rgba(0,0,0,0.5) 100%);border:1px solid rgba(255,255,255,0.1);border-radius:16px;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
+                  ${generateKitSvg(tempKit, badgeUri, 150)}
                 </div>
                 <div style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">
-                  VISUALIZAÇÃO COMPLETA (2D)
+                  VISUALIZAÇÃO COMPLETA COM ESCUDO NO PEITO
                 </div>
               </div>
 
-              <div style="display:flex;flex-direction:column;gap:14px">
-                
+              <div style="display:flex;flex-direction:column;gap:12px">
                 <div>
-                  <label class="create-club-field-label">Estilo de Camisola</label>
+                  <label class="create-club-field-label">Estilo da Camisa (12 Modelos)</label>
                   <div class="option-picker-grid">
                     ${KIT_STYLES.map(s => `
                       <button type="button" class="option-pill-btn kit-style-btn ${tempKit.style === s.id ? 'active' : ''}" data-style="${s.id}">
@@ -1231,45 +1703,67 @@
                 </div>
 
                 <div>
-                  <label class="create-club-field-label">Cor da Camisola (Principal)</label>
+                  <label class="create-club-field-label">Tipo de Gola</label>
+                  <div class="option-picker-grid">
+                    ${COLLAR_STYLES.map(col => `
+                      <button type="button" class="option-pill-btn kit-collar-btn ${(tempKit.collar || 'v') === col.id ? 'active' : ''}" data-collar="${col.id}">
+                        ${col.label}
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+
+                <div>
+                  <label class="create-club-field-label">Cor Principal da Camisa</label>
                   <div class="color-swatches-grid">
                     ${PALETTE.map(c => `
                       <button type="button" class="color-swatch-circle color-shirt-btn ${tempKit.shirtColor === c ? 'active' : ''}" data-color="${c}" style="background:${c}"></button>
                     `).join('')}
-                    <input type="color" id="kitNativeShirt" class="color-picker-native" value="${tempKit.shirtColor}" title="Cor personalizada">
+                    <input type="color" id="kitNativeShirt" class="color-picker-native" value="${tempKit.shirtColor}">
                   </div>
                 </div>
 
                 <div>
-                  <label class="create-club-field-label">Cor Secundária (Listras / Mangas / Gola)</label>
+                  <label class="create-club-field-label">Cor Secundária (Listras / Mangas / Punhos)</label>
                   <div class="color-swatches-grid">
                     ${PALETTE.map(c => `
                       <button type="button" class="color-swatch-circle color-sec-btn ${tempKit.secondaryColor === c ? 'active' : ''}" data-color="${c}" style="background:${c}"></button>
                     `).join('')}
-                    <input type="color" id="kitNativeSec" class="color-picker-native" value="${tempKit.secondaryColor}" title="Cor personalizada">
+                    <input type="color" id="kitNativeSec" class="color-picker-native" value="${tempKit.secondaryColor}">
+                  </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <div>
+                    <label class="create-club-field-label">Cor do Calção</label>
+                    <div class="color-swatches-grid">
+                      ${PALETTE.slice(0, 8).map(c => `
+                        <button type="button" class="color-swatch-circle color-shorts-btn ${tempKit.shortsColor === c ? 'active' : ''}" data-color="${c}" style="background:${c}"></button>
+                      `).join('')}
+                      <input type="color" id="kitNativeShorts" class="color-picker-native" value="${tempKit.shortsColor}">
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="create-club-field-label">Cor das Meias</label>
+                    <div class="color-swatches-grid">
+                      ${PALETTE.slice(0, 8).map(c => `
+                        <button type="button" class="color-swatch-circle color-socks-btn ${tempKit.socksColor === c ? 'active' : ''}" data-color="${c}" style="background:${c}"></button>
+                      `).join('')}
+                      <input type="color" id="kitNativeSocks" class="color-picker-native" value="${tempKit.socksColor}">
+                    </div>
                   </div>
                 </div>
 
                 <div>
-                  <label class="create-club-field-label">Cor dos Calções</label>
+                  <label class="create-club-field-label">Cor da Numeração</label>
                   <div class="color-swatches-grid">
-                    ${PALETTE.map(c => `
-                      <button type="button" class="color-swatch-circle color-shorts-btn ${tempKit.shortsColor === c ? 'active' : ''}" data-color="${c}" style="background:${c}"></button>
+                    ${PALETTE.slice(0, 8).map(c => `
+                      <button type="button" class="color-swatch-circle color-num-btn ${(tempKit.numberColor || tempKit.secondaryColor) === c ? 'active' : ''}" data-color="${c}" style="background:${c}"></button>
                     `).join('')}
-                    <input type="color" id="kitNativeShorts" class="color-picker-native" value="${tempKit.shortsColor}" title="Cor personalizada">
+                    <input type="color" id="kitNativeNum" class="color-picker-native" value="${tempKit.numberColor || tempKit.secondaryColor || '#ffffff'}">
                   </div>
                 </div>
-
-                <div>
-                  <label class="create-club-field-label">Cor das Meias</label>
-                  <div class="color-swatches-grid">
-                    ${PALETTE.map(c => `
-                      <button type="button" class="color-swatch-circle color-socks-btn ${tempKit.socksColor === c ? 'active' : ''}" data-color="${c}" style="background:${c}"></button>
-                    `).join('')}
-                    <input type="color" id="kitNativeSocks" class="color-picker-native" value="${tempKit.socksColor}" title="Cor personalizada">
-                  </div>
-                </div>
-
               </div>
             </div>
 
@@ -1278,7 +1772,7 @@
                 Cancelar
               </button>
               <button type="button" class="btn primary" id="btnConfirmKitModal" style="font-weight:900;padding:8px 22px;border-radius:10px;background:linear-gradient(135deg,#38bdf8,#2563eb);cursor:pointer">
-                ✓ Confirmar Equipamento
+                ✓ Salvar ${meta.title}
               </button>
             </div>
           </div>
@@ -1290,7 +1784,7 @@
 
     function updateLivePreview() {
       const prev = document.querySelector('#modalKitPreview');
-      if (prev) prev.innerHTML = generateKitSvg(tempKit, customClubDraft.badgeImage || '', 140);
+      if (prev) prev.innerHTML = generateKitSvg(tempKit, badgeUri, 150);
     }
 
     function bindKitModalEvents() {
@@ -1303,73 +1797,34 @@
       const btnCancel = $('#btnCancelKitModal');
       if (btnCancel) btnCancel.onclick = close;
 
-      $$('.kit-style-btn').forEach(b => {
-        b.onclick = () => {
-          tempKit.style = b.dataset.style;
-          renderModalHtml();
-        };
-      });
-
-      $$('.color-shirt-btn').forEach(b => {
-        b.onclick = () => {
-          tempKit.shirtColor = b.dataset.color;
-          renderModalHtml();
-        };
-      });
+      $$('.kit-style-btn').forEach(b => { b.onclick = () => { tempKit.style = b.dataset.style; renderModalHtml(); }; });
+      $$('.kit-collar-btn').forEach(b => { b.onclick = () => { tempKit.collar = b.dataset.collar; renderModalHtml(); }; });
+      $$('.color-shirt-btn').forEach(b => { b.onclick = () => { tempKit.shirtColor = b.dataset.color; renderModalHtml(); }; });
       const natShirt = $('#kitNativeShirt');
-      if (natShirt) natShirt.oninput = () => {
-        tempKit.shirtColor = natShirt.value;
-        updateLivePreview();
-      };
+      if (natShirt) natShirt.oninput = () => { tempKit.shirtColor = natShirt.value; updateLivePreview(); };
 
-      $$('.color-sec-btn').forEach(b => {
-        b.onclick = () => {
-          tempKit.secondaryColor = b.dataset.color;
-          renderModalHtml();
-        };
-      });
+      $$('.color-sec-btn').forEach(b => { b.onclick = () => { tempKit.secondaryColor = b.dataset.color; renderModalHtml(); }; });
       const natSec = $('#kitNativeSec');
-      if (natSec) natSec.oninput = () => {
-        tempKit.secondaryColor = natSec.value;
-        updateLivePreview();
-      };
+      if (natSec) natSec.oninput = () => { tempKit.secondaryColor = natSec.value; updateLivePreview(); };
 
-      $$('.color-shorts-btn').forEach(b => {
-        b.onclick = () => {
-          tempKit.shortsColor = b.dataset.color;
-          renderModalHtml();
-        };
-      });
+      $$('.color-shorts-btn').forEach(b => { b.onclick = () => { tempKit.shortsColor = b.dataset.color; renderModalHtml(); }; });
       const natShorts = $('#kitNativeShorts');
-      if (natShorts) natShorts.oninput = () => {
-        tempKit.shortsColor = natShorts.value;
-        updateLivePreview();
-      };
+      if (natShorts) natShorts.oninput = () => { tempKit.shortsColor = natShorts.value; updateLivePreview(); };
 
-      $$('.color-socks-btn').forEach(b => {
-        b.onclick = () => {
-          tempKit.socksColor = b.dataset.color;
-          renderModalHtml();
-        };
-      });
+      $$('.color-socks-btn').forEach(b => { b.onclick = () => { tempKit.socksColor = b.dataset.color; renderModalHtml(); }; });
       const natSocks = $('#kitNativeSocks');
-      if (natSocks) natSocks.oninput = () => {
-        tempKit.socksColor = natSocks.value;
-        updateLivePreview();
-      };
+      if (natSocks) natSocks.oninput = () => { tempKit.socksColor = natSocks.value; updateLivePreview(); };
+
+      $$('.color-num-btn').forEach(b => { b.onclick = () => { tempKit.numberColor = b.dataset.color; renderModalHtml(); }; });
+      const natNum = $('#kitNativeNum');
+      if (natNum) natNum.oninput = () => { tempKit.numberColor = natNum.value; updateLivePreview(); };
 
       const btnConfirm = $('#btnConfirmKitModal');
       if (btnConfirm) btnConfirm.onclick = () => {
-        if (kitType === 'home') {
-          customClubDraft.homeKit = { ...tempKit };
-          const prevBox = document.querySelector('#customHomeKitPreviewBox');
-          if (prevBox) prevBox.innerHTML = generateKitSvg(customClubDraft.homeKit, customClubDraft.badgeImage || '', 110);
-        } else {
-          customClubDraft.awayKit = { ...tempKit };
-          const prevBox = document.querySelector('#customAwayKitPreviewBox');
-          if (prevBox) prevBox.innerHTML = generateKitSvg(customClubDraft.awayKit, customClubDraft.badgeImage || '', 110);
-        }
+        customClubDraft[meta.key] = { ...tempKit };
         close();
+        renderCreateClubScreen(app, activeUser);
+        window.toast?.(`✓ ${meta.title} atualizado!`);
       };
     }
 
@@ -1389,6 +1844,9 @@
     }
 
     let tempSquad = customClubDraft.squad.map(p => ({ ...p }));
+    if (!tempSquad.some(p => p.isCustomCaptain) && tempSquad[0]) {
+      tempSquad[0].isCustomCaptain = true;
+    }
 
     function getPosPillStyle(pos) {
       if (pos === 'GK') return 'background:rgba(245,158,11,0.22);color:#fbbf24;border:1px solid rgba(245,158,11,0.45);font-weight:900';
@@ -1403,7 +1861,7 @@
 
       container.innerHTML = `
         <div class="create-club-modal-overlay">
-          <div class="create-club-modal-card custom-squad-modal-card" style="max-width:920px">
+          <div class="create-club-modal-card custom-squad-modal-card" style="max-width:1020px">
             <div class="create-club-modal-header">
               <div style="display:flex;align-items:center;gap:10px">
                 <span style="font-size:24px">👥</span>
@@ -1412,7 +1870,7 @@
                     EDITAR ELENCO INICIAL (20 ATLETAS)
                   </div>
                   <div style="font-size:11px;color:#facc15;font-weight:700">
-                    Personalize o nome, número da camisa e idade dos jogadores do seu clube
+                    Personalize nome, posição, nacionalidade, camisa (sem repetição), idade e eleja o © Capitão Oficial
                   </div>
                 </div>
               </div>
@@ -1421,62 +1879,66 @@
               </button>
             </div>
 
-            <!-- TOOLBAR DE AÇÕES RÁPIDAS -->
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 22px;background:#0d1527;border-bottom:1px solid rgba(255,255,255,0.08)">
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <button type="button" class="btn" id="btnRandomizeSquadNames" style="font-size:11px;font-weight:800;padding:6px 12px;border-radius:8px;background:rgba(168,85,247,0.2);color:#c084fc;border:1px solid rgba(168,85,247,0.4);cursor:pointer;display:inline-flex;align-items:center;gap:5px" title="Gera novos nomes brasileiros autênticos para todo o elenco">
+                <button type="button" class="btn" id="btnRandomizeSquadNames" style="font-size:11px;font-weight:800;padding:6px 12px;border-radius:8px;background:rgba(168,85,247,0.2);color:#c084fc;border:1px solid rgba(168,85,247,0.4);cursor:pointer;display:inline-flex;align-items:center;gap:5px">
                   🎲 Gerar Novos Nomes
                 </button>
-                <button type="button" class="btn" id="btnResetSquadNumbers" style="font-size:11px;font-weight:800;padding:6px 12px;border-radius:8px;background:rgba(56,189,248,0.2);color:#38bdf8;border:1px solid rgba(56,189,248,0.4);cursor:pointer;display:inline-flex;align-items:center;gap:5px" title="Aplica numeração clássica padrão para as posições">
+                <button type="button" class="btn" id="btnResetSquadNumbers" style="font-size:11px;font-weight:800;padding:6px 12px;border-radius:8px;background:rgba(56,189,248,0.2);color:#38bdf8;border:1px solid rgba(56,189,248,0.4);cursor:pointer;display:inline-flex;align-items:center;gap:5px">
                   🔢 Numeração Padrão (1 a 20)
                 </button>
               </div>
 
               <div style="font-size:11px;color:#94a3b8;font-weight:700">
-                <span>⚡ Titulares: #1 ao #11</span> · <span>Reservas: #12 ao #20</span>
+                <span>⚡ Clique em <b>©</b> para definir o Capitão Oficial do time</span>
               </div>
             </div>
 
-            <!-- CORPO DA TABELA DE ATLETAS -->
             <div class="custom-squad-table-container" style="padding:14px 22px;overflow-y:auto;max-height:56vh">
               <table class="custom-squad-table" style="width:100%;border-collapse:collapse;font-size:12px">
                 <thead>
                   <tr style="border-bottom:1.5px solid rgba(255,255,255,0.12);text-align:left;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:0.5px">
-                    <th style="padding:8px 6px;width:34px;text-align:center">#</th>
-                    <th style="padding:8px 6px;width:55px;text-align:center">Pos</th>
-                    <th style="padding:8px 10px">Nome do Atleta</th>
-                    <th style="padding:8px 8px;width:75px;text-align:center">Camisa</th>
-                    <th style="padding:8px 8px;width:75px;text-align:center">Idade</th>
-                    <th style="padding:8px 8px;width:65px;text-align:center">OVR</th>
-                    <th style="padding:8px 10px;width:95px;text-align:right">Salário</th>
+                    <th style="padding:8px 4px;width:44px;text-align:center">Cap.</th>
+                    <th style="padding:8px 6px;width:82px;text-align:center">Posição</th>
+                    <th style="padding:8px 8px">Nome do Atleta</th>
+                    <th style="padding:8px 6px;width:118px;text-align:center">País</th>
+                    <th style="padding:8px 6px;width:68px;text-align:center">Camisa</th>
+                    <th style="padding:8px 6px;width:68px;text-align:center">Idade</th>
+                    <th style="padding:8px 6px;width:62px;text-align:center">OVR</th>
+                    <th style="padding:8px 8px;width:90px;text-align:right">Salário</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${tempSquad.map((p, idx) => `
-                    <tr style="border-bottom:1px solid rgba(255,255,255,0.06);transition:background 0.15s ease" class="squad-edit-row">
-                      <td style="padding:7px 6px;text-align:center;color:#64748b;font-weight:900;font-size:11px">
-                        ${idx + 1}
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.06);background:${p.isCustomCaptain ? 'rgba(250,204,21,0.06)' : 'transparent'}" class="squad-edit-row">
+                      <td style="padding:6px 4px;text-align:center">
+                        <button type="button" class="btn-pick-captain" data-idx="${idx}" title="Definir como Capitão Oficial" style="width:28px;height:28px;border-radius:50%;border:1.5px solid ${p.isCustomCaptain ? '#facc15' : '#475569'};background:${p.isCustomCaptain ? '#facc15' : 'rgba(255,255,255,0.04)'};color:${p.isCustomCaptain ? '#000' : '#94a3b8'};font-weight:900;font-size:12px;cursor:pointer">
+                          ©
+                        </button>
                       </td>
-                      <td style="padding:7px 6px;text-align:center">
-                        <span class="pill" style="${getPosPillStyle(p.pos)};font-size:10px;padding:3px 7px;border-radius:6px">
-                          ${p.pos}
-                        </span>
+                      <td style="padding:6px">
+                        <select class="saas-input squad-select-pos" data-idx="${idx}" style="${getPosPillStyle(p.pos)};padding:4px 6px;font-size:11px;border-radius:6px;cursor:pointer;width:72px">
+                          ${SQUAD_POSITIONS.map(posOpt => `<option value="${posOpt}" ${p.pos === posOpt ? 'selected' : ''} style="background:#0f172a;color:#fff">${posOpt}</option>`).join('')}
+                        </select>
                       </td>
-                      <td style="padding:7px 10px">
-                        <input type="text" class="saas-input squad-input-name" data-idx="${idx}" value="${escText(p.name)}" maxlength="26" style="padding:6px 10px;font-size:12px;font-weight:800;width:100%;box-sizing:border-box" placeholder="Nome do jogador">
+                      <td style="padding:6px 8px">
+                        <input type="text" class="saas-input squad-input-name" data-idx="${idx}" value="${escText(p.name)}" maxlength="26" style="padding:6px 10px;font-size:12px;font-weight:800;width:100%;box-sizing:border-box">
                       </td>
-                      <td style="padding:7px 8px;text-align:center">
-                        <input type="number" min="1" max="99" class="saas-input squad-input-number" data-idx="${idx}" value="${p.number || (idx + 1)}" style="padding:6px 4px;font-size:12px;font-weight:900;width:58px;text-align:center;box-sizing:border-box">
+                      <td style="padding:6px">
+                        <select class="saas-input squad-select-nat" data-idx="${idx}" style="padding:5px 6px;font-size:11px;width:110px;cursor:pointer">
+                          ${SQUAD_NATIONS.map(nat => `<option value="${nat}" ${(p.nationality || 'Brasil') === nat ? 'selected' : ''}>${nat}</option>`).join('')}
+                        </select>
                       </td>
-                      <td style="padding:7px 8px;text-align:center">
-                        <input type="number" min="16" max="40" class="saas-input squad-input-age" data-idx="${idx}" value="${p.age || 23}" style="padding:6px 4px;font-size:12px;font-weight:700;width:58px;text-align:center;box-sizing:border-box">
+                      <td style="padding:6px;text-align:center">
+                        <input type="number" min="1" max="99" class="saas-input squad-input-number" data-idx="${idx}" value="${p.number || (idx + 1)}" style="padding:6px 4px;font-size:12px;font-weight:900;width:56px;text-align:center;box-sizing:border-box">
                       </td>
-                      <td style="padding:7px 8px;text-align:center">
-                        <span class="pill good" style="font-size:10px;font-weight:900;padding:3px 7px">
-                          ${p.ovr} OVR
-                        </span>
+                      <td style="padding:6px;text-align:center">
+                        <input type="number" min="16" max="40" class="saas-input squad-input-age" data-idx="${idx}" value="${p.age || 23}" style="padding:6px 4px;font-size:12px;font-weight:700;width:56px;text-align:center;box-sizing:border-box">
                       </td>
-                      <td style="padding:7px 10px;text-align:right;color:#cbd5e1;font-weight:700;font-size:11px;white-space:nowrap">
+                      <td style="padding:6px;text-align:center">
+                        <span class="pill good" style="font-size:10px;font-weight:900;padding:3px 7px">${p.ovr}</span>
+                      </td>
+                      <td style="padding:6px 8px;text-align:right;color:#cbd5e1;font-weight:700;font-size:11px;white-space:nowrap">
                         R$ ${(Number(p.wage) || 2200).toLocaleString('pt-BR')}
                       </td>
                     </tr>
@@ -1485,7 +1947,6 @@
               </table>
             </div>
 
-            <!-- RODAPÉ COM RESUMO E BOTÕES -->
             <div class="create-club-modal-footer" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
               <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:11px;font-weight:800;color:#94a3b8">
                 <span>Plantel: <b style="color:#fff">20 Atletas</b></span>
@@ -1511,12 +1972,37 @@
       bindSquadModalEvents();
     }
 
-    function updateFooterStats() {
-      const avgSpan = container.querySelector('#squadModalAvgAge');
-      if (avgSpan) {
-        const avg = Math.round(tempSquad.reduce((sum, p) => sum + (Number(p.age) || 23), 0) / tempSquad.length);
-        avgSpan.textContent = `${avg} anos`;
-      }
+    function syncDraftInputsFromDom() {
+      container.querySelectorAll('.squad-input-name').forEach(inp => {
+        const idx = Number(inp.dataset.idx);
+        if (tempSquad[idx]) tempSquad[idx].name = inp.value.trim() || tempSquad[idx].name || `Jogador ${idx + 1}`;
+      });
+      container.querySelectorAll('.squad-select-pos').forEach(sel => {
+        const idx = Number(sel.dataset.idx);
+        if (tempSquad[idx]) tempSquad[idx].pos = sel.value;
+      });
+      container.querySelectorAll('.squad-select-nat').forEach(sel => {
+        const idx = Number(sel.dataset.idx);
+        if (tempSquad[idx]) tempSquad[idx].nationality = sel.value;
+      });
+      container.querySelectorAll('.squad-input-number').forEach(inp => {
+        const idx = Number(inp.dataset.idx);
+        if (tempSquad[idx]) {
+          let n = parseInt(inp.value, 10);
+          if (isNaN(n) || n < 1) n = 1;
+          if (n > 99) n = 99;
+          tempSquad[idx].number = n;
+        }
+      });
+      container.querySelectorAll('.squad-input-age').forEach(inp => {
+        const idx = Number(inp.dataset.idx);
+        if (tempSquad[idx]) {
+          let a = parseInt(inp.value, 10);
+          if (isNaN(a) || a < 16) a = 16;
+          if (a > 40) a = 40;
+          tempSquad[idx].age = a;
+        }
+      });
     }
 
     function bindSquadModalEvents() {
@@ -1529,99 +2015,61 @@
       const btnCancel = $('#btnCancelSquadModal');
       if (btnCancel) btnCancel.onclick = close;
 
-      $$('.squad-input-name').forEach(inp => {
-        inp.oninput = () => {
-          const idx = Number(inp.dataset.idx);
-          if (tempSquad[idx]) {
-            tempSquad[idx].name = inp.value;
-          }
-        };
-      });
-
-      $$('.squad-input-number').forEach(inp => {
-        inp.oninput = () => {
-          const idx = Number(inp.dataset.idx);
-          if (tempSquad[idx]) {
-            let n = parseInt(inp.value, 10);
-            if (isNaN(n) || n < 1) n = 1;
-            if (n > 99) n = 99;
-            tempSquad[idx].number = n;
-          }
-        };
-      });
-
-      $$('.squad-input-age').forEach(inp => {
-        inp.oninput = () => {
-          const idx = Number(inp.dataset.idx);
-          if (tempSquad[idx]) {
-            let a = parseInt(inp.value, 10);
-            if (isNaN(a) || a < 16) a = 16;
-            if (a > 40) a = 40;
-            tempSquad[idx].age = a;
-            updateFooterStats();
-          }
+      $$('.btn-pick-captain').forEach(btn => {
+        btn.onclick = () => {
+          syncDraftInputsFromDom();
+          const idx = Number(btn.dataset.idx);
+          tempSquad.forEach((p, i) => { p.isCustomCaptain = (i === idx); });
+          renderModalHtml();
         };
       });
 
       const btnRand = $('#btnRandomizeSquadNames');
       if (btnRand) {
         btnRand.onclick = () => {
+          syncDraftInputsFromDom();
           const used = new Set();
-          tempSquad.forEach((p, idx) => {
-            p.name = getRandomPlayerName(used);
-            const inp = $(`input.squad-input-name[data-idx="${idx}"]`);
-            if (inp) inp.value = p.name;
-          });
-          if (typeof window.toast === 'function') window.toast('🎲 Novos nomes autênticos gerados para o elenco!');
+          tempSquad.forEach(p => { p.name = getRandomPlayerName(used); });
+          renderModalHtml();
+          window.toast?.('🎲 Novos nomes autênticos gerados para o elenco!');
         };
       }
 
       const btnResetNum = $('#btnResetSquadNumbers');
       if (btnResetNum) {
         btnResetNum.onclick = () => {
-          tempSquad.forEach((p, idx) => {
-            p.number = DEFAULT_SQUAD_NUMBERS[idx] || (idx + 1);
-            const inp = $(`input.squad-input-number[data-idx="${idx}"]`);
-            if (inp) inp.value = p.number;
-          });
-          if (typeof window.toast === 'function') window.toast('🔢 Numeração oficial (1 a 20) restaurada!');
+          syncDraftInputsFromDom();
+          tempSquad.forEach((p, idx) => { p.number = DEFAULT_SQUAD_NUMBERS[idx] || (idx + 1); });
+          renderModalHtml();
+          window.toast?.('🔢 Numeração oficial (1 a 20) restaurada!');
         };
       }
 
       const btnConfirm = $('#btnConfirmSquadModal');
       if (btnConfirm) {
         btnConfirm.onclick = () => {
-          $$('.squad-input-name').forEach(inp => {
-            const idx = Number(inp.dataset.idx);
-            if (tempSquad[idx]) {
-              const val = inp.value.trim();
-              tempSquad[idx].name = val || tempSquad[idx].name || `Jogador ${idx + 1}`;
+          syncDraftInputsFromDom();
+          if (!tempSquad.some(p => p.pos === 'GK')) {
+            window.toast?.('⚠️ O elenco precisa ter pelo menos 1 Goleiro (GK)!');
+            return;
+          }
+          // Deduplica números de camisa automaticamente se houver colisão
+          const usedNums = new Set();
+          tempSquad.forEach(p => {
+            let n = Number(p.number) || 1;
+            while (usedNums.has(n) && n < 99) n++;
+            if (usedNums.has(n)) {
+              for (let k = 1; k <= 99; k++) { if (!usedNums.has(k)) { n = k; break; } }
             }
-          });
-          $$('.squad-input-number').forEach(inp => {
-            const idx = Number(inp.dataset.idx);
-            if (tempSquad[idx]) {
-              let n = parseInt(inp.value, 10);
-              if (isNaN(n) || n < 1) n = 1;
-              if (n > 99) n = 99;
-              tempSquad[idx].number = n;
-            }
-          });
-          $$('.squad-input-age').forEach(inp => {
-            const idx = Number(inp.dataset.idx);
-            if (tempSquad[idx]) {
-              let a = parseInt(inp.value, 10);
-              if (isNaN(a) || a < 16) a = 16;
-              if (a > 40) a = 40;
-              tempSquad[idx].age = a;
-            }
+            usedNums.add(n);
+            p.number = n;
           });
 
           customClubDraft.squad = tempSquad;
           customClubDraft.squadCustomized = true;
           close();
           renderCreateClubScreen(app, activeUser);
-          if (typeof window.toast === 'function') window.toast('✓ Elenco de 20 atletas personalizado com sucesso!');
+          window.toast?.('✓ Elenco de 20 atletas personalizado com sucesso!');
         };
       }
     }
@@ -1629,10 +2077,9 @@
     renderModalHtml();
   }
 
-  // Exportar para o escopo global
   function openCreateClubModal(targetCompId) {
     const account = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
-    if(!account){
+    if (!account) {
       window.toast?.('Entre ou crie uma conta para criar e salvar seu time.');
       return;
     }
@@ -1643,11 +2090,14 @@
   }
 
   window.AFM_ESTADUAIS_DATA = (window.AFM_ESTADUAIS_DATA && window.AFM_ESTADUAIS_DATA.length) ? window.AFM_ESTADUAIS_DATA : DEFAULT_ESTADUAIS;
+  window.MASTER_SPONSORS_CATALOG = MASTER_SPONSORS_CATALOG;
+  window.PROJECT_TIERS = PROJECT_TIERS;
   window.customClubDraft = customClubDraft;
   window.generateBadgeSvg = generateBadgeSvg;
   window.generateKitSvg = generateKitSvg;
   window.generateCustomClubSquad = generateCustomClubSquad;
   window.AFM_generateCustomClubSquad = generateCustomClubSquad;
+  window.randomizeCompleteClubIdentity = randomizeCompleteClubIdentity;
   window.renderCreateClubScreen = renderCreateClubScreen;
   window.openCustomBadgeModal = openCustomBadgeModal;
   window.openCustomKitModal = openCustomKitModal;
@@ -1655,7 +2105,9 @@
   window.openCreateClubModal = openCreateClubModal;
   window.AFM_CreateClubUI = {
     open: openCreateClubModal,
-    render: renderCreateClubScreen
+    render: renderCreateClubScreen,
+    randomize: randomizeCompleteClubIdentity,
+    exportJson: exportClubTemplateJson
   };
 
 })(typeof window !== 'undefined' ? window : globalThis);

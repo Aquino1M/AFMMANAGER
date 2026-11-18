@@ -23,7 +23,12 @@
 
   function getCoachLicensesData(state) {
     const st = state || (typeof window !== 'undefined' ? (window.state || window.gameState) : null) || {};
-    const currentLicId = (st.manager && st.manager.license) || (st.managerPersonal && st.managerPersonal.licenseId) || (typeof localStorage !== 'undefined' && localStorage.getItem('afm_user_license_id')) || 'cbf_d';
+    const currentLicId =
+      (st.career && st.career.licenseId) ||
+      st.managerLicenseId ||
+      (st.manager && typeof st.manager === 'object' ? st.manager.license : null) ||
+      (st.managerPersonal && st.managerPersonal.licenseId) ||
+      'cbf_d';
 
     const currIdx = LICENSES.findIndex(function(l) { return l.id === currentLicId; });
     const targetIdx = currIdx >= 0 ? currIdx : 0;
@@ -52,6 +57,7 @@
     return {
       currentLicId: currentLicId,
       currentLic: currentLic,
+      currentLicense: currentLic,
       completedSet: completedSet,
       completedList: completedList,
       totalBonusPct: totalBonusPct,
@@ -246,8 +252,8 @@
       personal.careerPoints = Math.max(careerPoints, pts);
       st.coachPrestige = Math.max(Number(st.coachPrestige) || 0, personal.prestigeScore);
     }
-    var licId = localStorage.getItem('afm_user_license_id') || 'cbf_d';
-    var licObj = LICENSES.find(function(x) { return x.id === licId; }) || LICENSES[0];
+    var licData = getCoachLicensesData(st);
+    var licObj = licData.currentLicense || LICENSES[0];
     return { managerName: managerName, clubName: clubName, w: wins, d: draws, l: losses, titles: titles, pts: pts, level: level, license: licObj, division: resolveUserDivision(st) };
   }
 
@@ -828,9 +834,8 @@
           if (st.managerPersonal && typeof st.managerPersonal.personalBalance === 'number') st.managerPersonal.personalBalance -= cost;
         }
 
-        localStorage.setItem('afm_user_license_id', id);
-        if (!st.manager) st.manager = {};
-        st.manager.license = id;
+        st.managerLicenseId = id;
+        if (st.manager && typeof st.manager === 'object') st.manager.license = id;
         if (st.managerPersonal) st.managerPersonal.licenseId = id;
         if (st.career) {
           st.career.licenseId = id;

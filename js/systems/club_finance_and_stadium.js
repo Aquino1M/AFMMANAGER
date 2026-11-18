@@ -4,37 +4,47 @@
   const ClubFinanceAndStadium = {
     // #041 a #044: Empréstimos com Score de Crédito e Antecipação com Desconto de Juros
     takeLoan(state, amount, installments = 12) {
-      if (window.AFM_Guards && typeof window.AFM_Guards.migrateSaveState === 'function') {
-        window.AFM_Guards.migrateSaveState(state);
+      if (!state || amount <= 0 || installments <= 0) return { ok: false, message: 'Valores inválidos.' };
+      if (!Array.isArray(state.bankLoans)) {
+        state.bankLoans = Array.isArray(state.bankLoans?.activeLoans) ? state.bankLoans.activeLoans : [];
       }
-      const loans = state.bankLoans;
-      const interestMonthly = loans.creditScore === 'AAA' ? 0.009 : loans.creditScore === 'AA' ? 0.014 : 0.022;
+      const score = state.bankCreditScore || 'AA';
+      const interestMonthly = score === 'AAA' ? 0.009 : score === 'AA' ? 0.014 : 0.022;
       const totalWithInterest = Math.round(amount * (1 + interestMonthly * installments));
       const installmentValue = Math.round(totalWithInterest / installments);
-
-      loans.activeLoans = Array.isArray(loans.activeLoans) ? loans.activeLoans : [];
-      loans.activeLoans.push({
-        id: `loan_${Date.now()}`,
+      const loanObj = {
+        id: `loan_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
         principal: amount,
-        interestRate: interestMonthly,
+        remainingPrincipal: amount,
+        interestRate: Number((interestMonthly * 100).toFixed(2)),
+        totalDebt: totalWithInterest,
+        remainingDebt: totalWithInterest,
+        remainingBalance: totalWithInterest,
         totalInstallments: installments,
+        paidInstallments: 0,
         remainingInstallments: installments,
+        createdSeason: Number(state.season) || 2026,
         installmentValue,
-        remainingBalance: totalWithInterest
-      });
+        nextDueRound: (Number(state.round) || 0) + 2,
+        overdue: false,
+        penalty: 0
+      };
+      state.bankLoans.push(loanObj);
       state.balance = (Number(state.balance) || 0) + amount;
       state.clubBalance = state.balance;
-      return { ok: true, installmentValue, totalWithInterest };
+      state.financingInflow = (Number(state.financingInflow) || 0) + amount;
+      return { ok: true, loanId: loanObj.id, installmentValue, totalWithInterest };
     },
 
     anticipateLoanInstallments(state, loanId, countToPay = 1) {
-      const loans = state.bankLoans;
-      const loanList = Array.isArray(loans) ? loans : (loans?.activeLoans || []);
-      const loan = loanList.find((l) => l.id === loanId);
-      if (!loan || loan.remainingInstallments < countToPay) return { ok: false, message: 'Parcelas inválidas.' };
+      if (!Array.isArray(state?.bankLoans)) {
+        state.bankLoans = Array.isArray(state?.bankLoans?.activeLoans) ? state.bankLoans.activeLoans : [];
+      }
+      const loan = state.bankLoans.find((l) => l.id === loanId);
+      if (!loan || loan.remainingInstallments < countToPay || countToPay <= 0) return { ok: false, message: 'Parcelas inválidas.' };
 
-      // Desconto de 35% sobre os juros embutidos nas parcelas antecipadas
-      const discountFactor = 1 - ((loan.interestRate || 0.014) * 0.35 * countToPay);
+      const monthlyRateFrac = (Number(loan.interestRate) > 0.2 ? Number(loan.interestRate) / 100 : (Number(loan.interestRate) || 0.014));
+      const discountFactor = 1 - (monthlyRateFrac * 0.35 * countToPay);
       const costToPay = Math.round(loan.installmentValue * countToPay * Math.max(0.75, discountFactor));
 
       const curBal = Number(state.balance) || 0;
@@ -42,14 +52,17 @@
 
       state.balance = curBal - costToPay;
       state.clubBalance = state.balance;
-      loan.remainingInstallments -= countToPay;
-      loan.remainingBalance = Math.max(0, loan.remainingInstallments * loan.installmentValue);
-      if (loan.remainingInstallments <= 0) {
-        if (Array.isArray(loans)) {
-          state.bankLoans = loans.filter((l) => l.id !== loanId);
-        } else if (loans?.activeLoans) {
-          loans.activeLoans = loans.activeLoans.filter((l) => l.id !== loanId);
-        }
+      loan.paidInstallments = (Number(loan.paidInstallments) || 0) + countToPay;
+      loan.remainingInstallments = Math.max(0, loan.remainingInstallments - countToPay);
+      loan.remainingDebt = Math.max(0, loan.remainingInstallments * loan.installmentValue);
+      loan.remainingBalance = loan.remainingDebt;
+      loan.overdue = false;
+      loan.penalty = 0;
+      if (loan.remainingInstallments <= 0 || loan.remainingDebt <= 0) {
+        state.bankLoans = state.bankLoans.filter((l) => l.id !== loanId);
+      }
+      if (!state.bankLoans.some(l => l.overdue)) {
+        state.transferBan = false;
       }
       return { ok: true, savedMoney: (loan.installmentValue * countToPay) - costToPay };
     },

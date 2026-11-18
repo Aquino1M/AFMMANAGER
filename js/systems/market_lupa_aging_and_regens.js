@@ -801,13 +801,29 @@
 
     processAgingDeclineAndGeneticRegens(state) {
       if (!state) return [];
+      const curSeason = Number(state.season) || 2026;
+      if (Number(state.lastGeneticAgingSeason) === curSeason) return [];
+      state.lastGeneticAgingSeason = curSeason;
 
+      const squadAlreadyAged = Number(state.lastSquadAgingSeason) === curSeason;
       const players = state?.isolatedWorld?.players || state?.players || state?.squad || [];
+      const squadRef = Array.isArray(state?.squad) ? new Set(state.squad) : new Set();
       const regensLog = [];
 
       players.forEach((p, idx) => {
         if (!p) return;
-        p.age = (Number(p.age) || 23) + 1;
+        const isControlled = Boolean(
+          p.isControlled ||
+          p.isControlledAthlete ||
+          (state.controlledPlayerId != null && String(p.id) === String(state.controlledPlayerId))
+        );
+        // O atleta controlado pelo usuário possui motor próprio (AFM_PlayerEngine.processPlayerAging)
+        if (isControlled) return;
+
+        // Impede envelhecimento duplo se advanceSeasonYear já somou +1 ano em state.squad nesta virada
+        if (!(squadAlreadyAged && squadRef.has(p))) {
+          p.age = (Number(p.age) || 23) + 1;
+        }
         const isGk = ["GK", "GOL"].includes(p.position || p.pos);
         const oldAge = isGk ? 34 : 31;
 

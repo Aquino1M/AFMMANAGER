@@ -525,6 +525,18 @@
       athlete.cdb = cdbBalance;
     }
 
+    if (curState.player && typeof curState.player === "object") {
+      curState.player.personalCash = personalCash;
+      curState.player.personalBank = personalCash;
+      curState.player.cash = personalCash;
+      curState.player.money = personalCash;
+      curState.player.cdbBalance = cdbBalance;
+      curState.player.cdb = cdbBalance;
+      if (curState.player.lifestyle && typeof curState.player.lifestyle === "object") {
+        curState.player.lifestyle.cash = personalCash;
+      }
+    }
+
     if (ls) {
       ls.cash = personalCash;
       if (!ls.investments) ls.investments = {};
@@ -558,6 +570,18 @@
       athlete.money = safeCash;
       athlete.cdbBalance = safeCdb;
       athlete.cdb = safeCdb;
+    }
+
+    if (curState?.player && typeof curState.player === "object") {
+      curState.player.personalCash = safeCash;
+      curState.player.personalBank = safeCash;
+      curState.player.cash = safeCash;
+      curState.player.money = safeCash;
+      curState.player.cdbBalance = safeCdb;
+      curState.player.cdb = safeCdb;
+      if (curState.player.lifestyle && typeof curState.player.lifestyle === "object") {
+        curState.player.lifestyle.cash = safeCash;
+      }
     }
 
     if (ls) {
@@ -741,7 +765,10 @@
 
   function addPlayerTransaction(player, date, desc, amount, type = "in") {
     if (!player) return 0;
-    const ls = ensurePlayerLifestyleState(player);
+    const targetObj = player.playerCareerState && typeof player.playerCareerState === "object"
+      ? player.playerCareerState
+      : player;
+    const ls = ensurePlayerLifestyleState(targetObj);
     const amt = Math.max(0, Math.round(Number(amount) || 0));
 
     if (type === "in") {
@@ -749,8 +776,36 @@
     } else {
       ls.cash = Math.round((Number(ls.cash) || 0) - amt);
     }
-    player.personalBank = ls.cash;
-    player.cash = ls.cash;
+    targetObj.personalBank = ls.cash;
+    targetObj.personalCash = ls.cash;
+    targetObj.cash = ls.cash;
+
+    // Espelha com 100% de paridade entre playerCareerState, state.player e atleta controlado
+    const gs = player.playerCareerState
+      ? player
+      : (typeof window !== "undefined" ? (window.state || (typeof window.getState === "function" ? window.getState() : null)) : null);
+    if (gs && (gs.playerCareerState === targetObj || gs.player === targetObj || gs === player)) {
+      if (gs.playerCareerState && typeof gs.playerCareerState === "object") {
+        gs.playerCareerState.personalBank = ls.cash;
+        gs.playerCareerState.personalCash = ls.cash;
+        gs.playerCareerState.cash = ls.cash;
+        if (gs.playerCareerState.lifestyle) gs.playerCareerState.lifestyle.cash = ls.cash;
+      }
+      if (gs.player && typeof gs.player === "object") {
+        gs.player.personalBank = ls.cash;
+        gs.player.personalCash = ls.cash;
+        gs.player.cash = ls.cash;
+        if (gs.player.lifestyle) gs.player.lifestyle.cash = ls.cash;
+      }
+      const ctrlAth = Array.isArray(gs.squad)
+        ? gs.squad.find((p) => String(p.id) === String(gs.controlledPlayerId) || p.isControlled)
+        : null;
+      if (ctrlAth) {
+        ctrlAth.personalBank = ls.cash;
+        ctrlAth.personalCash = ls.cash;
+        ctrlAth.cash = ls.cash;
+      }
+    }
 
     ls.transactions = Array.isArray(ls.transactions) ? ls.transactions : [];
     ls.transactions.unshift({
@@ -764,7 +819,7 @@
       ls.transactions = ls.transactions.slice(0, 20);
     }
 
-    updatePlayerFinancialDisplay(player);
+    updatePlayerFinancialDisplay(targetObj);
 
     return ls.cash;
   }
@@ -1251,13 +1306,15 @@
     };
   }
 
-  function withdrawCdb(gameState) {
+  function withdrawCdb(gameState, amount = null) {
     const { cdbBalance: prevBalance } = getPlayerWallet(gameState);
-    const ok = withdrawFromPlayerCdb(gameState);
+    const targetAmt = amount === null ? prevBalance : Math.min(prevBalance, Math.max(0, Math.round(Number(amount) || 0)));
+    const ok = withdrawFromPlayerCdb(gameState, amount);
     return {
       success: Boolean(ok),
+      ok: Boolean(ok),
       message: ok
-        ? `Resgate de R$ ${prevBalance.toLocaleString("pt-BR")} creditado na sua conta com sucesso!`
+        ? `Resgate de R$ ${targetAmt.toLocaleString("pt-BR")} creditado na sua conta com sucesso!`
         : "Você não possui saldo investido no CDB para resgatar."
     };
   }
@@ -1519,21 +1576,93 @@
     const hasAccountant = ls.hiredStaff.includes("accountant");
 
     // -----------------------------------------------------------------------
-    // ENTRADAS DO MÊS
+    // ENTRADAS DO MÊS (SALÁRIO + ATRASOS TRABALHISTAS + AÇÃO JUDICIAL)
     // -----------------------------------------------------------------------
-    // Salário do Clube
     const salary = Math.round(
       Number(
         athlete?.wage || (pState.weeklySalary ? pState.weeklySalary * 4 : 1500),
       ),
     );
-    addPlayerTransaction(
-      pState,
-      curDate,
-      `Salário Mensal do Clube`,
-      salary,
-      "in",
-    );
+    const arrears = (pState.clubSalaryArrears = pState.clubSalaryArrears || {
+      amount: 0,
+      months: 0,
+      claim: null,
+    });
+    const hasClubBalance = state && state.balance !== undefined && state.balance !== null && Number.isFinite(Number(state.balance));
+    const clubCash = hasClubBalance ? Number(state.balance) : Infinity;
+    const lateChance = !hasClubBalance
+      ? 0
+      : clubCash < 0
+        ? 0.30
+        : clubCash < salary
+          ? 0.15
+          : clubCash < salary * 3
+            ? 0.06
+            : 0;
+    const salaryDelayed = lateChance > 0 && Math.random() < lateChance;
+    let arrearsPayment = 0;
+    if (salaryDelayed) {
+      arrears.amount = Math.round((Number(arrears.amount) || 0) + salary);
+      arrears.months = (Number(arrears.months) || 0) + 1;
+      if (state) {
+        state.news = Array.isArray(state.news) ? state.news : [];
+        state.news.unshift(
+          `🚨 SALÁRIO ATRASADO: O ${state.club || "clube"} enfrenta dificuldade de caixa e atrasou R$ ${salary.toLocaleString("pt-BR")}. Dívida acumulada: R$ ${arrears.amount.toLocaleString("pt-BR")}.`,
+        );
+      }
+    } else {
+      addPlayerTransaction(
+        pState,
+        curDate,
+        `Salário Mensal do Clube`,
+        salary,
+        "in",
+      );
+      if (Number(arrears.amount) > 0 && arrears.claim?.status !== "pending") {
+        arrearsPayment = Math.min(Number(arrears.amount), salary);
+        arrears.amount = Math.max(0, Number(arrears.amount) - arrearsPayment);
+        if (arrears.amount === 0) arrears.months = 0;
+        arrears.lastPayment = { date: curDate, amount: arrearsPayment };
+        addPlayerTransaction(
+          pState,
+          curDate,
+          `Quitação de Salário Atrasado`,
+          arrearsPayment,
+          "in",
+        );
+      }
+    }
+
+    // Evolução de ação trabalhista pendente (julgamento em até 3 meses)
+    if (arrears.claim?.status === "pending") {
+      arrears.claim.monthsRemaining = Math.max(
+        0,
+        Number(arrears.claim.monthsRemaining || 0) - 1,
+      );
+      if (arrears.claim.monthsRemaining === 0) {
+        const recovered = Math.round(Number(arrears.amount) || 0);
+        if (recovered > 0) {
+          addPlayerTransaction(
+            pState,
+            curDate,
+            `Sentença Trabalhista Favorável (${state?.club || "Clube"})`,
+            recovered,
+            "in",
+          );
+        }
+        arrears.amount = 0;
+        arrears.months = 0;
+        arrears.claim.status = "won";
+        arrears.claim.resolvedDate = curDate;
+        arrears.claim.recovered = recovered;
+        if (state) {
+          state.news = Array.isArray(state.news) ? state.news : [];
+          state.news.unshift(
+            `⚖️ ACORDO TRABALHISTA: O processo contra ${state.club || "o clube"} foi julgado procedente! R$ ${recovered.toLocaleString("pt-BR")} foram creditados na conta do atleta.`,
+          );
+        }
+      }
+    }
 
     // Patrocínio Esportivo Ativo
     const sponsorMonthly = Math.round(
@@ -1553,20 +1682,27 @@
       );
     }
 
-    // Rendimento CDB Esportivo (1.1%/mês, ou 1.5% com Contador)
+    // Rendimento CDB Esportivo (1.1%/mês, ou 1.5% com Contador) — reinvestido exclusivamente em cdbBalance
     const cdbRate = hasAccountant ? 0.015 : 0.011;
     const cdbBalance = Number(ls.investments.cdbBalance) || 0;
     let cdbYield = 0;
     if (cdbBalance > 0) {
       cdbYield = Math.round(cdbBalance * cdbRate);
-      ls.investments.cdbBalance += cdbYield; // Reinveste juros compostos
-      addPlayerTransaction(
-        pState,
-        curDate,
-        `Rendimento CDB Esportivo (${hasAccountant ? "1.5%" : "1.1%"})`,
-        cdbYield,
-        "in",
-      );
+      ls.investments.cdbBalance += cdbYield;
+      pState.cdbBalance = ls.investments.cdbBalance;
+      pState.cdb = ls.investments.cdbBalance;
+      if (state?.player && typeof state.player === "object") {
+        state.player.cdbBalance = ls.investments.cdbBalance;
+        state.player.cdb = ls.investments.cdbBalance;
+      }
+      ls.transactions = Array.isArray(ls.transactions) ? ls.transactions : [];
+      ls.transactions.unshift({
+        date: curDate,
+        desc: `Rendimento CDB Reinvestido (${hasAccountant ? "1.5%" : "1.1%"})`,
+        amount: cdbYield,
+        type: "in",
+      });
+      if (ls.transactions.length > 20) ls.transactions = ls.transactions.slice(0, 20);
     }
 
     // Aluguéis e Negócios

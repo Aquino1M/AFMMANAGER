@@ -8810,7 +8810,7 @@ function processCopaDoBrasilCalendar(currentDate = state?.date){
 function getCopaDoBrasilState(){
   state.copaData = state.copaData || initCopaDoBrasilData();
   if(Number(state.copaData.season) !== Number(state.season)) state.copaData = initCopaDoBrasilData();
-  if(state.copaData.version !== 3){
+  if((Number(state.copaData.version) || 0) < 4){
     const previous = state.copaData;
     const upgraded = initCopaDoBrasilData();
     const oldResults = Object.values(previous.phases || {}).flatMap(phase => phase.fixtures || []).filter(f => f.score && f.winner);
@@ -10234,7 +10234,7 @@ window.AFM_SAVE_VERIFIER = (function(){
     if(Array.isArray(targetState.news) && targetState.news.length > 50) targetState.news = targetState.news.slice(0, 50);
     if(Array.isArray(targetState.marketWorldFeed) && targetState.marketWorldFeed.length > 30) targetState.marketWorldFeed = targetState.marketWorldFeed.slice(0, 30);
     if(Array.isArray(targetState.seasonHistory) && targetState.seasonHistory.length > 20) targetState.seasonHistory = targetState.seasonHistory.slice(0, 20);
-    if(Array.isArray(targetState.history) && targetState.history.length > 50) targetState.history = targetState.history.slice(0, 50);
+    if(Array.isArray(targetState.history) && targetState.history.length > 120) targetState.history = targetState.history.slice(0, 120);
     if(Array.isArray(targetState.socialMedia?.feedPosts) && targetState.socialMedia.feedPosts.length > 25){
       targetState.socialMedia.feedPosts = targetState.socialMedia.feedPosts.slice(0, 25);
     }
@@ -10432,8 +10432,8 @@ function save(options = {}){
   if(Array.isArray(state.seasonHistory) && state.seasonHistory.length > 15){
     state.seasonHistory = state.seasonHistory.slice(0, 15);
   }
-  if(Array.isArray(state.history) && state.history.length > 50){
-    state.history = state.history.slice(0, 50);
+  if(Array.isArray(state.history) && state.history.length > 120){
+    state.history = state.history.slice(0, 120);
   }
   if(Array.isArray(state.worldRegens) && state.worldRegens.length > 40){
     state.worldRegens = state.worldRegens.slice(0, 40);
@@ -13193,11 +13193,13 @@ function getPendingClubCompetitions(gameState = state){
   );
 
   // Campeonato principal que alimenta as tabelas da carreira.
+  const clubPrimaryRow = Array.isArray(gameState.teams) ? gameState.teams.find(t => norm(t?.name) === clubKey) : null;
   (Array.isArray(gameState.schedule) ? gameState.schedule : []).forEach((games, roundIndex) => {
     (Array.isArray(games) ? games : []).forEach(fixture => {
       if(!Array.isArray(fixture) || fixture.length < 2 || !fixture.some(team => norm(team) === clubKey)) return;
       const id = gameState.compId || 'primary';
-      const played = hasResult(id, fixture, roundIndex) || history.some(item => Number(item.season || season) === season && item.competitionId === id && Number(item.round) === roundIndex + 1 && (norm(item.h) === clubKey || norm(item.a) === clubKey));
+      const playedByRoundCounter = roundIndex < Number(gameState.round || 0) && (!clubPrimaryRow || Number(clubPrimaryRow.j || 0) >= roundIndex + 1);
+      const played = playedByRoundCounter || hasResult(id, fixture, roundIndex) || history.some(item => Number(item.season || season) === season && item.competitionId === id && Number(item.round) === roundIndex + 1 && (norm(item.h) === clubKey || norm(item.a) === clubKey));
       if(!played) push(id, compById(id)?.name || gameState.competition || 'Campeonato principal', getDateForRound(roundIndex, season), `Rodada ${roundIndex + 1}`);
     });
   });
@@ -13250,14 +13252,14 @@ function seasonCompetitionsComplete(gameState = state){
 
 function getNextClubFixtureDate(gameState = state){
   const pending = getPendingClubCompetitions(gameState);
-  return pending.find(item => item.date && item.date >= gameState.date)?.date || pending.find(item => item.date)?.date || null;
+  // Prioriza sempre o compromisso NÃO JOGADO mais antigo em ordem cronológica (nunca pula jogo pendente/atrasado)
+  return pending.find(item => item.date)?.date || null;
 }
 
 function getNextPendingClubFixture(gameState = state){
   if(!gameState) return null;
   const pending = getPendingClubCompetitions(gameState);
-  const future = pending.filter(item => item.date && item.date >= gameState.date);
-  const next = (future.length ? future : pending.filter(item => item.date)).sort((a,b)=>String(a.date).localeCompare(String(b.date)))[0] || null;
+  const next = pending.filter(item => item.date).sort((a,b)=>String(a.date).localeCompare(String(b.date)))[0] || null;
   if(!next) return null;
   const clubKey = norm(gameState.club);
 
@@ -13364,7 +13366,10 @@ function openNextPendingCompetitionFixture(nextFixture = getNextPendingClubFixtu
   }
   // Keep the user on the Central. Its match panel will render the pending
   // competition as the next commitment instead of redirecting to Calendar.
-  view = 'central';
+  const isPl = (typeof window !== 'undefined' && window.isPlayerCareerActive?.(state)) || state?.gameMode === 'player';
+  view = isPl ? 'player_hub' : 'central';
+  state.view = view;
+  if(typeof window !== 'undefined') window.view = view;
   save();
   render();
   toast(`Próximo confronto aberto: ${nextFixture.name}${nextFixture.detail ? ` (${nextFixture.detail})` : ''}. Data: ${formatDatePtBr(state.date)}.`);
@@ -16597,6 +16602,22 @@ function simulateClubGoalEvents(clubName, goals, compId){
     });
     if(!eligible.length) return [];
     const sortedByOvr = eligible.slice().sort((a, b) => (typeof playerOverall === 'function' ? playerOverall(b) - playerOverall(a) : (b.ovr || 60) - (a.ovr || 60)));
+    const controlledPl = isPlayerMode && controlledAvailable
+      ? eligible.find(p => p.isControlled || (controlledId != null && String(p.id) === String(controlledId)))
+      : null;
+    const controlledGroup = controlledPl && window.AFM_PlayerEngine?.normalizePlayerPosGroup
+      ? window.AFM_PlayerEngine.normalizePlayerPosGroup(controlledPl.pos || controlledPl.position)
+      : '';
+    const userGoalProb = controlledGroup === 'ATA' ? 0.54
+      : controlledGroup === 'PON' ? 0.42
+      : controlledGroup === 'MEI' ? 0.30
+      : (controlledGroup === 'VOL' || controlledGroup === 'LAT') ? 0.16
+      : controlledGroup === 'ZAG' ? 0.08 : 0;
+    const userAssistProb = controlledGroup === 'MEI' ? 0.48
+      : controlledGroup === 'PON' ? 0.38
+      : (controlledGroup === 'LAT' || controlledGroup === 'VOL') ? 0.34
+      : controlledGroup === 'ATA' ? 0.22 : 0.08;
+
     return Array.from({length: count}, (_, index) => {
       const attackers = sortedByOvr.filter(p => /^(ST|CF|RW|LW|CA|ATA|PON|PD|PE)$/i.test(p.pos || ''));
       const midfielders = sortedByOvr.filter(p => /^(AM|CM|CAM|MEI|MC)$/i.test(p.pos || ''));
@@ -16605,11 +16626,15 @@ function simulateClubGoalEvents(clubName, goals, compId){
         : (midfielders.length && Math.random() < 0.72 ? midfielders : sortedByOvr);
       const topSlice = pool.slice(0, Math.max(1, Math.min(4, pool.length)));
       const chosenPool = Math.random() < 0.70 ? topSlice : pool;
-      const scorer = chosenPool[rnd(0, chosenPool.length - 1)];
+      const scorer = (controlledPl && userGoalProb > 0 && Math.random() < userGoalProb)
+        ? controlledPl
+        : chosenPool[rnd(0, chosenPool.length - 1)];
       const helpers = sortedByOvr.filter(p => p !== scorer);
       const assistMid = helpers.filter(p => /^(AM|CM|CAM|MEI|MC|RW|LW|PON|LB|RB|LAT)$/i.test(p.pos || ''));
       const assistPool = assistMid.length && Math.random() < 0.75 ? assistMid : helpers;
-      const assist = assistPool.length && Math.random() < 0.72 ? assistPool[rnd(0, assistPool.length - 1)] : null;
+      const assist = (controlledPl && controlledPl !== scorer && Math.random() < userAssistProb)
+        ? controlledPl
+        : (assistPool.length && Math.random() < 0.72 ? assistPool[rnd(0, assistPool.length - 1)] : null);
       return {
         type: 'gol',
         teamId: clubName,
@@ -18194,9 +18219,12 @@ function newCareer(data){
   const sponsorOffers = generateSponsorOffers(budget, club.name, squad, { salaryModelVersion: 2, club: club.name, compId: comp.id });
   let activeSponsors;
   if(isCustom){
+    const customMaster = data.masterSponsor && data.masterSponsor.name
+      ? { name: data.masterSponsor.name, category: 'Master', monthly: Number(data.masterSponsor.monthly) || 28000, bonus: Number(data.masterSponsor.bonus) || 15000 }
+      : { name: 'SuperMercado Regional', category: 'Master', monthly: 28000, bonus: 15000 };
     // Patrocinadores calibrados para cobrir a folha do clube iniciante (~R$ 45k - R$ 55k)
     activeSponsors = {
-      master: { name: 'SuperMercado Regional', category: 'Master', monthly: 28000, bonus: 15000 },
+      master: customMaster,
       sleeves: { name: 'Auto Peças Express', category: 'Mangas', monthly: 12000, bonus: 8000 },
       back: { name: 'Drogaria Central', category: 'Costas', monthly: 10000, bonus: 6000 }
     };
@@ -18218,12 +18246,21 @@ function newCareer(data){
   const mgrName = data.manager || curUser?.name || 'Aquino';
   const saveId = `save_${targetOwner}_slot${targetSlot}_${norm(club.name)}`;
 
-  // REGRA DO USUÁRIO: "o estadio e as instalaçoes começa no nivel 1"
+  const customTier = isCustom ? (data.projectTier || 'raiz') : null;
+  const customStartCash = isCustom
+    ? (customTier === 'ambicioso' ? 1200000 : customTier === 'estruturado' ? 650000 : 300000)
+    : 300000;
+  const customStadiumCap = isCustom
+    ? (customTier === 'ambicioso' ? 10000 : customTier === 'estruturado' ? 7500 : 5000)
+    : 5000;
+  const customCtLevel = isCustom && customTier !== 'raiz' ? 2 : 1;
+
+  // REGRA DO USUÁRIO: "o estadio e as instalaçoes começa no nivel 1" (ou pacote estruturado escolhido)
   const infrastructure = isCustom ? {
-    stadium: { level: 1, capacity: 5000, name: club.stadium },
+    stadium: { level: 1, capacity: customStadiumCap, name: club.stadium },
     parking: { level: 1, spots: 80 },
-    training: { level: 1 },
-    academy: { level: 1 },
+    training: { level: customCtLevel },
+    academy: { level: customTier === 'ambicioso' ? 2 : 1 },
     medical: { level: 1 },
     admin: { level: 1 },
     store: { level: 1 },
@@ -18232,6 +18269,11 @@ function newCareer(data){
     marketing: { level: 1 },
     bank: { level: 1 }
   } : defaultInfrastructure(club);
+
+  const chosenCaptainPlayer = isCustom
+    ? (squad.find(p => p.isCustomCaptain) || squad[0])
+    : squad[0];
+  const defaultCaptainKey = chosenCaptainPlayer ? playerKey(chosenCaptainPlayer) : '';
 
   state = {
     saveId,
@@ -18247,6 +18289,8 @@ function newCareer(data){
     country: club.country,
     compId: comp.id,
     isCustomClub: isCustom,
+    isSafClub: isCustom ? (data.clubModel === 'saf') : undefined,
+    stadiumPitchType: isCustom ? (data.pitchType || 'natural') : 'natural',
     customClubStateCompId: isCustom ? targetCompId : null,
     competitionTeams: careerCompetitionTeams,
     competition: comp.name,
@@ -18258,12 +18302,12 @@ function newCareer(data){
     preSeasonDays: 4,
     round: 0,
     balance: isPlayerMode ? budget : (
-      isCustom ? 300000
+      isCustom ? customStartCash
         : (club && typeof club.budget === 'number') ? Math.round(club.budget * 1e6)
           : budget + ((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0))
     ),
     managerMoney: 57000,
-    trust: { board: initialTrustBoard, fans: initialTrustFans, squad: initialTrustSquad },
+    trust: { board: initialTrustBoard, fans: isCustom && data.clubModel === 'associativo' ? initialTrustFans + 8 : initialTrustFans, squad: initialTrustSquad },
     managerProfile: {
       nationality: mgrNationality,
       background: mgrBackground,
@@ -18274,10 +18318,10 @@ function newCareer(data){
     boardConfidence: 78,
     markingIntensity: 'equilibrada',
     setPieces: {
-      captain: squad[0] ? playerKey(squad[0]) : '',
-      penalty: squad[0] ? playerKey(squad[0]) : '',
-      freekick: squad[0] ? playerKey(squad[0]) : '',
-      corner: squad[0] ? playerKey(squad[0]) : ''
+      captain: defaultCaptainKey,
+      penalty: defaultCaptainKey,
+      freekick: defaultCaptainKey,
+      corner: defaultCaptainKey
     },
     formation: '4-3-3',
     mentality: 'Equilibrada',
@@ -18331,10 +18375,18 @@ function newCareer(data){
   };
 
   if(isCustom){
+    state.stadium = { name: club.stadium, capacity: customStadiumCap, level: 1, pitchType: data.pitchType || 'natural' };
     state.customClub = {
       isCustom: true,
       name: club.name,
       shortName: data.shortName || initials(club.name),
+      nickname: data.nickname || 'Esquadrão Tricolor',
+      mascot: data.mascot || '🦁 Leão',
+      rivalClub: data.rivalClub || null,
+      pitchType: data.pitchType || 'natural',
+      clubModel: data.clubModel || 'associativo',
+      projectTier: data.projectTier || 'raiz',
+      masterSponsor: data.masterSponsor || activeSponsors.master,
       stadium: club.stadium,
       stadiumName: club.stadium,
       country: 'Brasil',
@@ -18345,16 +18397,26 @@ function newCareer(data){
       badgeImage: data.badgeImage || null,
       homeKit: data.homeKit,
       awayKit: data.awayKit,
+      thirdKit: data.thirdKit || null,
+      gkKit: data.gkKit || null,
       atk: 58,
       mid: 58,
       def: 58,
-      budget: 0.3
+      budget: customStartCash / 1e6
     };
+    if(data.rivalClub){
+      state.news.unshift(`⚔️ RIVALIDADE DECLARADA: A torcida do ${club.name} (${data.nickname || 'Clube'}) elegeu o ${data.rivalClub} como grande arquirrival estadual!`);
+    }
     if(typeof window !== 'undefined'){
       window.CUSTOM_CLUB_BADGES = window.CUSTOM_CLUB_BADGES || {};
       window.CUSTOM_CLUB_BADGES[norm(club.name)] = data.badgeImage || data.badgeSvg;
       window.CUSTOM_CLUB_KITS = window.CUSTOM_CLUB_KITS || {};
-      window.CUSTOM_CLUB_KITS[norm(club.name)] = { home: data.homeKit, away: data.awayKit };
+      window.CUSTOM_CLUB_KITS[norm(club.name)] = {
+        home: data.homeKit,
+        away: data.awayKit,
+        third: data.thirdKit || null,
+        gk: data.gkKit || null
+      };
       window.CUSTOM_CLUBS = window.CUSTOM_CLUBS || {};
       window.CUSTOM_CLUBS[norm(club.name)] = state.customClub;
     }
@@ -19053,9 +19115,16 @@ function migrate(s){
     window.CUSTOM_CLUB_BADGES = window.CUSTOM_CLUB_BADGES || {};
     window.CUSTOM_CLUB_BADGES[norm(s.customClub.name)] = s.customClub.badgeImage || s.customClub.badgeSvg;
     window.CUSTOM_CLUB_KITS = window.CUSTOM_CLUB_KITS || {};
-    window.CUSTOM_CLUB_KITS[norm(s.customClub.name)] = { home: s.customClub.homeKit, away: s.customClub.awayKit };
+    window.CUSTOM_CLUB_KITS[norm(s.customClub.name)] = {
+      home: s.customClub.homeKit,
+      away: s.customClub.awayKit,
+      third: s.customClub.thirdKit || null,
+      gk: s.customClub.gkKit || null
+    };
     window.CUSTOM_CLUBS = window.CUSTOM_CLUBS || {};
     window.CUSTOM_CLUBS[norm(s.customClub.name)] = s.customClub;
+    if(s.customClub.pitchType && !s.stadiumPitchType) s.stadiumPitchType = s.customClub.pitchType;
+    if(s.customClub.clubModel === 'saf') s.isSafClub = true;
   }
   if(typeof s.salaryModelVersion !== 'number'){
     s.salaryModelVersion = 1; // Preserva saves existentes no modelo legado sem inflacionar salários ou alterar elencos
@@ -19300,6 +19369,16 @@ if(typeof window !== 'undefined'){
 function isRivalryMatch(teamA, teamB){
   if(!teamA || !teamB) return { isRivalry: false, derbyName: '' };
   const a = norm(teamA), b = norm(teamB);
+
+  const customRival = state?.customClub?.rivalClub;
+  const customOwner = state?.customClub?.name || state?.club;
+  if(customRival && customOwner){
+    const cOwner = norm(customOwner);
+    const cRival = norm(customRival);
+    if((a === cOwner && b === cRival) || (b === cOwner && a === cRival)){
+      return { isRivalry: true, derbyName: `Clássico ${customOwner} x ${customRival}` };
+    }
+  }
 
   const DERBIES = [
     { teams: ['corinthians', 'palmeiras'], name: 'Derby Paulista' },
@@ -20422,7 +20501,7 @@ function resolveCalendarMatchResult(m, gameState = state){
     return isHomeOrder ? [hg, ag] : [ag, hg];
   }
 
-  // 3. Fixture estadual
+  // 3. Fixture estadual (autoridade direta do objeto quando presente)
   if(m.stateFixture){
     if(Array.isArray(m.stateFixture.result) && m.stateFixture.result.length >= 2){
       return [Number(m.stateFixture.result[0]) || 0, Number(m.stateFixture.result[1]) || 0];
@@ -20430,15 +20509,19 @@ function resolveCalendarMatchResult(m, gameState = state){
     if(m.stateFixture.played && Array.isArray(m.stateFixture.result)){
       return [Number(m.stateFixture.result[0]) || 0, Number(m.stateFixture.result[1]) || 0];
     }
+    if(m.stateFixture.played === false || (!m.stateFixture.played && !m.stateFixture.result)){
+      return null;
+    }
   }
 
-  // 4. Torneio Continental
+  // 4. Torneio Continental (autoridade direta de tourn.matches para não confundir Jogo de Ida com Jogo de Volta!)
   if(m.matchId && m.competitionId){
     const tourn = typeof getContinentalTournament === 'function' ? getContinentalTournament(m.competitionId) : gameState.tournaments?.[m.competitionId];
     const found = tourn?.matches?.find(item => item.id === m.matchId);
     if(found){
       if(Array.isArray(found.result) && found.result.length >= 2) return [Number(found.result[0]) || 0, Number(found.result[1]) || 0];
       if(found.status === 'played' && Array.isArray(found.result)) return [Number(found.result[0]) || 0, Number(found.result[1]) || 0];
+      if(found.status === 'scheduled') return null;
     }
   }
 
@@ -20483,8 +20566,11 @@ function resolveCalendarMatchResult(m, gameState = state){
     const mRoundNum = Number.isFinite(Number(m.matchIndex)) ? (Number(m.matchIndex) + 1) : parseInt(String(m.round || '').replace(/\D+/g, ''), 10);
     const roundMatch = (Number.isFinite(hRoundNum) && Number.isFinite(mRoundNum) && hRoundNum === mRoundNum);
 
+    const hasBothRounds = Number.isFinite(hRoundNum) && Number.isFinite(mRoundNum);
+    const hasBothDates = Boolean(h.date && m.date);
+    // Só usa fallback sem rodada/data em registros legados que realmente não tenham nem round nem date
     if(clubsMatch || clubsReverse){
-      if(dateMatch || roundMatch || (!dateMatch && !roundMatch)){
+      if(roundMatch || dateMatch || (!hasBothRounds && !hasBothDates && clubsMatch)){
         const hg = Number(h.hg != null ? h.hg : h.homeGoals) || 0;
         const ag = Number(h.ag != null ? h.ag : h.awayGoals) || 0;
         return clubsMatch ? [hg, ag] : [ag, hg];
@@ -20932,21 +21018,20 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
     const activeCurrent = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
     const matchDate = (activeCurrent?.date && activeCurrent.date >= state.date)
       ? activeCurrent.date
-      : [primaryMatchDate, ...pendingDates].filter(date => date && date >= state.date).sort()[0] || primaryMatchDate;
+      : [primaryMatchDate, ...pendingDates].filter(date => date && date >= state.date).sort()[0] || null;
     let daysAdvanced = 0;
 
     if(stopAtMatch){
       const initialMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
-      if(initialMatch && initialMatch.date === state.date){
-        toast('⚽ Hoje é dia de jogo! Dispute a partida antes de avançar o calendário.');
+      if(initialMatch && initialMatch.date && initialMatch.date <= state.date){
+        toast('⚽ Hoje é dia de jogo! Dispute ou simule a partida antes de avançar o calendário.');
         return 0;
       }
     }
 
     for(let i = 0; i < Math.max(0, Number(days) || 0); i++){
-      // Só paramos ao chegar exatamente à data do jogo. Se a data salva já passou,
-      // esse fixture é tratado como atrasado e não pode congelar a simulação em 0 dias.
-      if(stopAtMatch && matchDate && state.date === matchDate) break;
+      // Trava estrita: nunca avança além de uma partida oficial não disputada
+      if(stopAtMatch && matchDate && state.date >= matchDate) break;
 
       // Preparador Físico: Se o técnico não treinou o dia atual manualmente, o preparador assume automaticamente
       if(typeof window !== 'undefined' && typeof window.processAutomaticFitnessCoachTraining === 'function'){
@@ -20965,6 +21050,7 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       state.currentDateFormatted = formatDatePtBr(nextDate);
       if(previousDate?.slice(0, 7) !== nextDate.slice(0, 7)){
         window.AFM_PlayerEngine?.processMonthlyPlayerFinances?.(state, nextDate);
+        if(typeof processClubMonthlyFinances === 'function') processClubMonthlyFinances(state, nextDate);
       }
       window.AFM_PlayerEngine?.recoverDailyEnergy?.(state, nextDate);
       window.AFM_NationalTeams?.processCalendarDay(state, nextDate);
@@ -20980,6 +21066,9 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
         const checkMatch = typeof getActualCurrentMatch === 'function' ? getActualCurrentMatch(state) : null;
         if(checkMatch && checkMatch.date === nextDate){
           break; // Para imediatamente no dia do jogo para o usuário disputar!
+        }
+        if(checkMatch && checkMatch.date && checkMatch.date < nextDate){
+          break;
         }
       }
 
@@ -21015,23 +21104,26 @@ function advanceCalendarDays(days = 1, stopAtMatch = true){
       }
       if(typeof processClubMonthlyFinances === 'function') processClubMonthlyFinances(state, nextDate);
       if((state.gameMode === 'player' || state.playerCareerState) && typeof window !== 'undefined' && window.AFM_PlayerEngine){
+        if(typeof window.AFM_PlayerEngine.recoverDailyEnergy === 'function'){
+          window.AFM_PlayerEngine.recoverDailyEnergy(state, nextDate);
+        }
+        if(typeof window.AFM_PlayerEngine.syncDailyTrainingLimit === 'function' && state.playerCareerState){
+          window.AFM_PlayerEngine.syncDailyTrainingLimit(state.playerCareerState, nextDate);
+        }
+        if(typeof window.AFM_PlayerEngine.processPlayerAging === 'function'){
+          window.AFM_PlayerEngine.processPlayerAging(state, nextDate);
+        }
         if(typeof window.AFM_PlayerEngine.processDailySponsorTurn === 'function'){
           window.AFM_PlayerEngine.processDailySponsorTurn(state);
         }
       }
       if(nextDate.endsWith('-01') && typeof processBankLoansOnRound === 'function') processBankLoansOnRound();
-      if(nextDate.endsWith('-01') && typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function') window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(state);
       processCopaDoBrasilCalendar(state.date);
       if(typeof window !== 'undefined' && window.AFM_WorldSimulation && typeof window.AFM_WorldSimulation.simulateWorldStepOnDayAdvance === 'function'){
         window.AFM_WorldSimulation.simulateWorldStepOnDayAdvance(state);
       }
-      if(typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
+      if(state.gameMode !== 'player' && !(typeof window !== 'undefined' && window.isPlayerCareerActive?.(state)) && typeof window !== 'undefined' && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function'){
         window.AFM_LifeAndSharesPro.processRoundTurn(state);
-      }
-      if(nextDate.endsWith('-12-31') || nextDate.endsWith('-01-01')){
-        if(typeof window !== 'undefined' && window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens === 'function'){
-          window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens(state);
-        }
       }
       if(stopAtMatch && matchDate && state.date === matchDate) break;
     }
@@ -21692,19 +21784,33 @@ function processClubMonthlyFinances(st, targetDate = st?.date){
       try { window.AFM_Guards.processMonthlyBankInstallments(st, ym); } catch(e){}
     }
 
-    // G. Dividendos aos Acionistas (SAF)
-    if(window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function'){
-      try { window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(st); } catch(e){}
-    }
-
-    // H. Salário do Treinador
-    if(window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.payMonthlyCoachSalary === 'function'){
-      try { window.AFM_LifeAndSharesPro.payMonthlyCoachSalary(st); } catch(e){}
+    // G & H. Economia Pessoal Mensal Isolada por Modo (Treinador vs Jogador)
+    const isPlayerCareerNow = Boolean(
+      st.gameMode === 'player' ||
+      st.isPlayerMode === true ||
+      (typeof window !== 'undefined' && window.isPlayerCareerActive?.(st))
+    );
+    if(isPlayerCareerNow){
+      if(typeof window !== 'undefined' && window.AFM_PlayerEngine){
+        if(typeof window.AFM_PlayerEngine.processMonthlyPlayerFinances === 'function'){
+          try { window.AFM_PlayerEngine.processMonthlyPlayerFinances(st, `${ym}-01`); } catch(e){}
+        }
+        if(typeof window.AFM_PlayerEngine.processMonthlyAttributeTraining === 'function'){
+          try { window.AFM_PlayerEngine.processMonthlyAttributeTraining(st, ym); } catch(e){}
+        }
+      }
     } else {
-      const salary = Math.max(0, Number(st.managerSalary) || 9500);
-      st.managerMoney = (Number(st.managerMoney) || 0) + salary;
-      st.managerFinanceHistory = Array.isArray(st.managerFinanceHistory) ? st.managerFinanceHistory : [];
-      st.managerFinanceHistory.unshift({ date: st.date, desc: `Salário mensal de técnico (${st.club})`, amount: salary });
+      if(window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function'){
+        try { window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(st, ym); } catch(e){}
+      } else if(window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.payMonthlyCoachSalary === 'function'){
+        try { window.AFM_LifeAndSharesPro.payMonthlyCoachSalary(st); } catch(e){}
+      } else {
+        const salary = Math.max(0, Number(st.managerSalary) || 9500);
+        st.managerMoney = (Number(st.managerMoney) || 0) + salary;
+        if(st.career) st.career.cash = st.managerMoney;
+        st.managerFinanceHistory = Array.isArray(st.managerFinanceHistory) ? st.managerFinanceHistory : [];
+        st.managerFinanceHistory.unshift({ date: st.date, desc: `Salário mensal de técnico (${st.club})`, amount: salary });
+      }
     }
 
     // I. Rotina de Treinamento CT e Desgaste
@@ -24749,12 +24855,37 @@ function startLiveMatch(){
 
   const hTac = getClubTacticalProfile(home, isUserHome);
   const aTac = getClubTacticalProfile(away, !isUserHome);
-  const homeKit = window.AFM_REAL_FOOTBALL ? window.AFM_REAL_FOOTBALL.getClubKit(home, false) : null;
-  const awayKit = window.AFM_REAL_FOOTBALL ? window.AFM_REAL_FOOTBALL.getClubKit(away, true) : null;
+  const resolveMatchClubKit = (clubNameStr, isAwaySide, opponentPrimaryHex = null) => {
+    const nClub = norm(clubNameStr);
+    const customEntry = (state?.customClub && norm(state.customClub.name) === nClub)
+      ? { home: state.customClub.homeKit, away: state.customClub.awayKit, third: state.customClub.thirdKit, gk: state.customClub.gkKit }
+      : (window.CUSTOM_CLUB_KITS && window.CUSTOM_CLUB_KITS[nClub] ? window.CUSTOM_CLUB_KITS[nClub] : null);
+    if(customEntry){
+      let chosen = isAwaySide ? (customEntry.away || customEntry.home) : (customEntry.home || customEntry.away);
+      if(opponentPrimaryHex && chosen?.shirtColor && String(chosen.shirtColor).toLowerCase() === String(opponentPrimaryHex).toLowerCase()){
+        chosen = customEntry.third || (isAwaySide ? customEntry.home : customEntry.away) || chosen;
+      }
+      if(chosen){
+        return {
+          primary: chosen.shirtColor || '#1e3a8a',
+          secondary: chosen.secondaryColor || '#ffffff',
+          shorts: chosen.shortsColor || chosen.shirtColor || '#1e3a8a',
+          socks: chosen.socksColor || '#ffffff',
+          numberColor: chosen.numberColor || '#ffffff',
+          style: chosen.style || 'solid',
+          gkPrimary: customEntry.gk?.shirtColor || '#10b981',
+          gkShorts: customEntry.gk?.shortsColor || '#064e3b'
+        };
+      }
+    }
+    return window.AFM_REAL_FOOTBALL ? window.AFM_REAL_FOOTBALL.getClubKit(clubNameStr, isAwaySide) : null;
+  };
+  const homeKit = resolveMatchClubKit(home, false, null);
+  const awayKit = resolveMatchClubKit(away, true, homeKit?.primary || null);
   const homePlayers = buildMatchTeam(home, isUserHome, true, hTac);
   const awayPlayers = buildMatchTeam(away, !isUserHome, false, aTac);
-  homePlayers.forEach(p => { p.kit = homeKit; p.clubName = home; });
-  awayPlayers.forEach(p => { p.kit = awayKit; p.clubName = away; });
+  homePlayers.forEach(p => { p.kit = p.isGK && homeKit?.gkPrimary ? { ...homeKit, primary: homeKit.gkPrimary, shorts: homeKit.gkShorts || homeKit.shorts } : homeKit; p.clubName = home; });
+  awayPlayers.forEach(p => { p.kit = p.isGK && awayKit?.gkPrimary ? { ...awayKit, primary: awayKit.gkPrimary, shorts: awayKit.gkShorts || awayKit.shorts } : awayKit; p.clubName = away; });
 
   const rivalry = isRivalryMatch(home, away);
   const matchSeed = (Date.now() ^ (Math.random() * 0x100000000)) >>> 0;
@@ -24789,7 +24920,7 @@ function startLiveMatch(){
     timeSec: 0, // 0 a 5400 segundos (90 min)
     minute: 0,
     playing: true,
-    speed: 1, // 1, 2, 5, 10, 20, 40
+    speed: state.simSpeed === 'fast' ? 2 : state.simSpeed === 'instant' ? 40 : 1, // 1, 2, 5, 10, 20, 40
     isNight: (Math.random() < 0.50) || (state.weather && state.weather.includes('Noite')),
     derby: rivalry?.isRivalry ? rivalry.derbyName : '',
     balloons: [],
@@ -24855,11 +24986,16 @@ function startLiveMatch(){
     winners,
     done: false
   };
+  if(typeof window !== 'undefined') window.liveMatchState = liveMatchState;
 
   if(state.gameMode === 'player'){
     const playerTeam = isUserHome ? liveMatchState.homePlayers : liveMatchState.awayPlayers;
     const controlledPlayer = playerTeam.find(p => p.isControlledAthlete);
+    liveMatchState.controlledAthleteOnPitch = Boolean(controlledPlayer);
     if(controlledPlayer){
+      if(typeof syncControlledAthletePitchSlotAndCoords === 'function'){
+        syncControlledAthletePitchSlotAndCoords(liveMatchState, true);
+      }
       liveMatchState.events.unshift({ min: 0, type: 'lineup', text: `✅ ${controlledPlayer.fullName || controlledPlayer.name} foi escalado como titular do ${state.club}.` });
     }
   }
@@ -25513,7 +25649,91 @@ function updateLiveCanvasPositions(s){
 
 let liveCanvasAnimId = null;
 
+let liveLoopGeneration = 0;
+
+function tickLiveMatchFrame(s, dtMsOverride = null){
+  if(!s) return;
+  s.renderTicks = (s.renderTicks || 0) + 1;
+
+  const stop1H = Number(s.stoppage1H) || 2;
+  const stop2H = Number(s.stoppage2H) || 4;
+  const maxAllowedMin = (s.phase === 'FIRST_HALF')
+    ? (45 + stop1H)
+    : (s.phase === 'EXTRA_TIME_1' ? 105 : (s.phase === 'EXTRA_TIME_2' ? 120 : (90 + stop2H)));
+  const maxAllowedTimeSec = maxAllowedMin * 60;
+
+  if(s.timeSec >= maxAllowedTimeSec && !s.done && s.phase !== 'HALF_TIME'){
+    s.timeSec = maxAllowedTimeSec;
+    s.minute = maxAllowedMin;
+    s.playing = false;
+    if(s.phase === 'FIRST_HALF'){
+      s.halftimeTriggered = true;
+      transitionMatchPhase('HALF_TIME');
+      if(window.afmAudio) window.afmAudio.playSFX('whistle_halftime'); else playWhistleSound();
+      s.events.unshift({ min: s.minute, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
+      updateScoreDisplay();
+      updateLiveSidebarEvents();
+      renderLiveMatchModal();
+      openHalftimeModal();
+    } else {
+      s.done = true;
+      transitionMatchPhase('FULL_TIME');
+      if(window.afmAudio) window.afmAudio.playSFX('whistle_end'); else playWhistleSound();
+      s.events.unshift({ min: s.minute, type: 'whistle', text: `🏁 Fim de partida! ${s.home} ${s.hg} x ${s.ag} ${s.away}. O árbitro apita o final do jogo!` });
+      updateScoreDisplay();
+      updateLiveSidebarEvents();
+      finishLiveMatch();
+      renderLiveMatchModal();
+    }
+  }
+
+  if(s.playing && !s.done && s.phase !== 'HALF_TIME'){
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if(!s.lastLoopTime) s.lastLoopTime = now;
+    const dtMs = dtMsOverride !== null ? Math.max(0, Math.min(Number(dtMsOverride) || 16.67, 250)) : Math.min(now - s.lastLoopTime, 250);
+    s.lastLoopTime = now;
+
+    const speed = Math.max(1, s.speed || 1);
+    const msPerSec = Math.max(0.1, (1000 / 60) / speed);
+    s.secAccumulator = (s.secAccumulator || 0) + dtMs;
+
+    let clockSteps = 0;
+    while(s.secAccumulator >= msPerSec && s.playing && !s.done && s.phase !== 'HALF_TIME' && clockSteps++ < 1200){
+      if(s.timeSec >= maxAllowedTimeSec){
+        s.timeSec = maxAllowedTimeSec;
+        s.minute = maxAllowedMin;
+        s.secAccumulator = 0;
+        break;
+      }
+
+      s.secAccumulator -= msPerSec;
+      s.liveSubSec = (s.liveSubSec || 0) + 1;
+      s.timeSec = (s.timeSec || 0) + 1;
+
+      if(s.liveSubSec >= 60){
+        s.liveSubSec = 0;
+        if(s.minute < maxAllowedMin){
+          simulateMinute(s, s.minute + 1);
+        }
+      }
+    }
+
+    if(s.playing || s.done){
+      const curMin = Math.min(maxAllowedMin, Math.floor((s.timeSec || 0) / 60));
+      const curSec = Math.floor((s.timeSec || 0) % 60);
+      const clk = $('#liveClockDisplay');
+      if(clk){
+        clk.textContent = `${String(curMin).padStart(2, '0')}:${String(curSec).padStart(2, '0')}`;
+      }
+    }
+  } else {
+    s.lastLoopTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  }
+}
+if(typeof window !== 'undefined') window.tickLiveMatchFrame = tickLiveMatchFrame;
+
 function setupLiveCanvasLoop(){
+  const myGen = ++liveLoopGeneration;
   if(liveCanvasAnimId) cancelAnimationFrame(liveCanvasAnimId);
   const canvas = $('#liveMatchCanvas');
   if(!canvas || typeof canvas.getContext !== 'function') return;
@@ -25521,6 +25741,7 @@ function setupLiveCanvasLoop(){
   if(!ctx) return;
 
   function loop(){
+    if(myGen !== liveLoopGeneration) return;
     const s = liveMatchState;
     if(!s || !$('#liveMatchCanvas')){
       cancelAnimationFrame(liveCanvasAnimId);
@@ -25528,86 +25749,8 @@ function setupLiveCanvasLoop(){
     }
 
     try {
-      s.renderTicks = (s.renderTicks || 0) + 1;
-
-      // Simulation Clock Step (Controle rigoroso com apito final e limite anti-travamento)
-      const stop1H = Number(s.stoppage1H) || 2;
-      const stop2H = Number(s.stoppage2H) || 4;
-      const maxAllowedMin = (s.phase === 'FIRST_HALF')
-        ? (45 + stop1H)
-        : (s.phase === 'EXTRA_TIME_1' ? 105 : (s.phase === 'EXTRA_TIME_2' ? 120 : (90 + stop2H)));
-      const maxAllowedTimeSec = maxAllowedMin * 60;
-
-      // Trava de segurança: se o tempo atingir o apito final, encerra imediatamente
-      if(s.timeSec >= maxAllowedTimeSec && !s.done && s.phase !== 'HALF_TIME'){
-        s.timeSec = maxAllowedTimeSec;
-        s.minute = maxAllowedMin;
-        s.playing = false;
-        if(s.phase === 'FIRST_HALF'){
-          s.halftimeTriggered = true;
-          transitionMatchPhase('HALF_TIME');
-          if(window.afmAudio) window.afmAudio.playSFX('whistle_halftime'); else playWhistleSound();
-          s.events.unshift({ min: s.minute, type: 'whistle', text: `⏱ Fim do 1º tempo! ${s.home} ${s.hg} x ${s.ag} ${s.away}. As equipes descem para o vestiário.` });
-          updateScoreDisplay();
-          updateLiveSidebarEvents();
-          renderLiveMatchModal();
-          openHalftimeModal();
-        } else {
-          s.done = true;
-          transitionMatchPhase('FULL_TIME');
-          if(window.afmAudio) window.afmAudio.playSFX('whistle_end'); else playWhistleSound();
-          s.events.unshift({ min: s.minute, type: 'whistle', text: `🏁 Fim de partida! ${s.home} ${s.hg} x ${s.ag} ${s.away}. O árbitro apita o final do jogo!` });
-          updateScoreDisplay();
-          updateLiveSidebarEvents();
-          finishLiveMatch();
-          renderLiveMatchModal();
-        }
-      }
-
-      if(s.playing && !s.done && s.phase !== 'HALF_TIME'){
-        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-        if(!s.lastLoopTime) s.lastLoopTime = now;
-        const dtMs = Math.min(now - s.lastLoopTime, 250);
-        s.lastLoopTime = now;
-
-        const speed = Math.max(1, s.speed || 1);
-        const msPerSec = Math.max(0.1, (1000 / 60) / speed);
-        s.secAccumulator = (s.secAccumulator || 0) + dtMs;
-
-        let clockSteps = 0;
-        while(s.secAccumulator >= msPerSec && s.playing && !s.done && s.phase !== 'HALF_TIME' && clockSteps++ < 1200){
-          if(s.timeSec >= maxAllowedTimeSec){
-            s.timeSec = maxAllowedTimeSec;
-            s.minute = maxAllowedMin;
-            s.secAccumulator = 0;
-            break;
-          }
-
-          s.secAccumulator -= msPerSec;
-          s.liveSubSec = (s.liveSubSec || 0) + 1;
-          s.timeSec = (s.timeSec || 0) + 1;
-
-          if(s.liveSubSec >= 60){
-            s.liveSubSec = 0;
-            if(s.minute < maxAllowedMin){
-              simulateMinute(s, s.minute + 1);
-            }
-          }
-        }
-
-        // Atualização fluida e precisa do relógio no placar (com trava garantida)
-        if(s.playing || s.done){
-          const curMin = Math.min(maxAllowedMin, Math.floor((s.timeSec || 0) / 60));
-          const curSec = Math.floor((s.timeSec || 0) % 60);
-          const clk = $('#liveClockDisplay');
-          if(clk){
-            clk.textContent = `${String(curMin).padStart(2, '0')}:${String(curSec).padStart(2, '0')}`;
-          }
-        }
-      } else {
-        s.lastLoopTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-      }
-
+      tickLiveMatchFrame(s);
+      if(myGen !== liveLoopGeneration) return;
       updateLiveCanvasPositions(s);
       drawLiveStadium(ctx, s);
     } catch(err){
@@ -25618,7 +25761,9 @@ function setupLiveCanvasLoop(){
       console.warn('Live match render loop error:', err);
     }
 
-    liveCanvasAnimId = requestAnimationFrame(loop);
+    if(myGen === liveLoopGeneration){
+      liveCanvasAnimId = requestAnimationFrame(loop);
+    }
   }
   liveCanvasAnimId = requestAnimationFrame(loop);
 }
@@ -26816,10 +26961,15 @@ function simulateMinute(s, min){
   // 2. IA do Treinador: ajustes aos 60', 75' e reação ao placar
   evaluateAiCoachAdjustments(s, min);
 
-  // Modo Jogador: entrada garantida do atleta reserva no 2º tempo (58')
-  if((state?.gameMode === 'player' || state?.playerCareerState) && !s.controlledAthleteOnPitch && min >= 58 && min <= 65){
-    if(typeof triggerPlayerCareerSubstitution === 'function'){
-      triggerPlayerCareerSubstitution(s);
+  // Modo Jogador: entrada garantida do atleta reserva no 2º tempo (58') + blindagem contínua de posição exata em campo
+  if(state?.gameMode === 'player' || state?.playerCareerState){
+    if(!s.controlledAthleteOnPitch && min >= 58 && min <= 65){
+      if(typeof triggerPlayerCareerSubstitution === 'function'){
+        triggerPlayerCareerSubstitution(s);
+      }
+    }
+    if(s.controlledAthleteOnPitch && typeof syncControlledAthletePitchSlotAndCoords === 'function'){
+      syncControlledAthletePitchSlotAndCoords(s, false);
     }
   }
 
@@ -26971,15 +27121,16 @@ function simulateMinute(s, min){
       : null;
     const isCallBallActive = s.craqueCallBallUntil && Date.now() < s.craqueCallBallUntil;
 
-    if(userAthlete && (isCallBallActive || s.prng() < 0.52)){
+    // Protagonismo ampliado do atleta do usuário no terço final (72% normal / 100% ao pedir bola)
+    if(userAthlete && (isCallBallActive || s.prng() < 0.72)){
       s.ball.carrier = userAthlete;
     } else {
       s.ball.carrier = continuingAttacker || (topOptions.length ? topOptions[Math.floor(s.prng() * topOptions.length)] : (lineAtt[Math.floor(s.prng() * lineAtt.length)] || attPlayers[0] || { name: 'Atacante', pos: 'ST' }));
     }
     s.ball.isHomeAttacking = isHome;
 
-    // Se a bola estiver com o atleta do usuário no ataque, chance de disparar o Momento Decisivo
-    if(userAthlete && s.ball.carrier === userAthlete && !s.craqueDecisionActive && (!s.lastCraqueMomentMin || (min - s.lastCraqueMomentMin) >= 9)){
+    // Se a bola estiver com o atleta do usuário no ataque, chance maior de disparar o Momento Decisivo (a cada 6 min)
+    if(userAthlete && s.ball.carrier === userAthlete && !s.craqueDecisionActive && (!s.lastCraqueMomentMin || (min - s.lastCraqueMomentMin) >= 6)){
       s.lastCraqueMomentMin = min;
       setTimeout(() => {
         if(!s.done && typeof triggerCraqueDecisionMoment === 'function'){
@@ -27232,21 +27383,33 @@ function executeShotSim(s, min, attPlayers, defPlayers, isHomeAttacking, attCfg,
   const forwards = attPlayers.filter(p => p && ['ST', 'CF', 'RW', 'LW', 'AM'].includes(p.pos) && !p.redCard && !p.isGK);
   const liveCarrier = s.ball?.carrier;
   const lineAtt = attPlayers.filter(p => p && !p.isGK && !p.redCard);
-  const shooter = (liveCarrier && attPlayers.includes(liveCarrier) && !liveCarrier.isGK && !liveCarrier.redCard)
-    ? liveCarrier
-    : ((forwards.length && s.prng() < 0.84)
-      ? forwards[Math.floor(s.prng() * forwards.length)]
-      : (lineAtt.length ? lineAtt[Math.floor(s.prng() * lineAtt.length)] : (attPlayers[0] || { name: 'Atacante', pos: 'ST' })));
+  const controlledAttacker = (state?.gameMode === 'player' || state?.playerCareerState)
+    ? attPlayers.find(p => p && p.isControlledAthlete && !p.isGK && !p.redCard)
+    : null;
+  const ctrlPosGroup = controlledAttacker && window.AFM_PlayerEngine?.normalizePlayerPosGroup
+    ? window.AFM_PlayerEngine.normalizePlayerPosGroup(controlledAttacker.naturalPos || controlledAttacker.pos)
+    : null;
+  const preferCtrlShooter = Boolean(controlledAttacker && ['ATA', 'PON', 'MEI'].includes(ctrlPosGroup) && s.prng() < 0.68);
+  const shooter = preferCtrlShooter
+    ? controlledAttacker
+    : ((liveCarrier && attPlayers.includes(liveCarrier) && !liveCarrier.isGK && !liveCarrier.redCard)
+      ? liveCarrier
+      : ((forwards.length && s.prng() < 0.84)
+        ? forwards[Math.floor(s.prng() * forwards.length)]
+        : (lineAtt.length ? lineAtt[Math.floor(s.prng() * lineAtt.length)] : (attPlayers[0] || { name: 'Atacante', pos: 'ST' }))));
 
   if(!validateMatchEntity(shooter, s) || shooter.isGK) return;
 
   const gk = defPlayers.find(p => p.isGK) || defPlayers[0] || { name: 'Goleiro', overall: 65, attrs: { reactions: 65, positioning: 65 } };
 
-  // Assistente em potencial
+  // Assistente em potencial (prioriza o atleta controlado caso outro companheiro finalize!)
   const assistCandidates = attPlayers.filter(p => !p.isGK && p !== shooter && !p.redCard);
-  let assist = (assistCandidates.length && s.prng() < 0.74)
-    ? assistCandidates[Math.floor(s.prng() * assistCandidates.length)]
-    : null;
+  const preferCtrlAssist = Boolean(controlledAttacker && controlledAttacker !== shooter && ['MEI', 'PON', 'VOL', 'LAT', 'ATA'].includes(ctrlPosGroup) && s.prng() < 0.58);
+  let assist = preferCtrlAssist
+    ? controlledAttacker
+    : ((assistCandidates.length && s.prng() < 0.74)
+      ? assistCandidates[Math.floor(s.prng() * assistCandidates.length)]
+      : null);
   if(assist && !validateAssist(assist, attTeam, s)) assist = null;
 
   const pattern = isCounterAttack
@@ -28163,26 +28326,44 @@ function bindLiveMatchEvents(){
     { speed: 40, btn: $('#btnLiveSpeed40') },
   ];
   function setSpeed(v){
-    s.speed = v;
+    const validSpeeds = [1, 2, 5, 10, 20, 40];
+    const cleanSpeed = validSpeeds.includes(Number(v)) ? Number(v) : 1;
+    s.speed = cleanSpeed;
+    s.secAccumulator = 0;
+    s.lastLoopTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if(window.AFM_LiveMatchHUD) window.AFM_LiveMatchHUD.speedMultiplier = cleanSpeed;
     speedButtons.forEach(({ speed, btn }) => {
       if(!btn) return;
-      btn.classList.toggle('active', speed === v);
+      btn.classList.toggle('active', speed === cleanSpeed);
     });
   }
   speedButtons.forEach(({ speed, btn }) => {
     if(btn) btn.onclick = () => setSpeed(speed);
   });
 
-  // Botões de avanço e retrocesso
+  // Botões de avanço e retrocesso sincronizados com a simulação real de minutos
   const btnRew10 = $('#btnLiveRewind10');
   if(btnRew10) btnRew10.onclick = () => {
-    s.timeSec = Math.max(0, s.timeSec - 10);
+    const minFloorSec = (s.minute || 0) * 60;
+    s.timeSec = Math.max(minFloorSec, (s.timeSec || 0) - 10);
+    s.liveSubSec = Math.max(0, (s.timeSec || 0) - minFloorSec);
     toast('Voltando 10 segundos!');
   };
 
   const btnFwd1 = $('#btnLiveForward1');
   if(btnFwd1) btnFwd1.onclick = () => {
-    s.timeSec = Math.min(5400, s.timeSec + 60);
+    if(s.done || s.phase === 'HALF_TIME') return;
+    const stop1H = Number(s.stoppage1H) || 2;
+    const stop2H = Number(s.stoppage2H) || 4;
+    const maxMin = s.phase === 'FIRST_HALF' ? (45 + stop1H) : (90 + stop2H);
+    if(s.minute < maxMin){
+      simulateMinute(s, s.minute + 1);
+      s.timeSec = Math.min(maxMin * 60, s.minute * 60);
+      s.liveSubSec = 0;
+      s.secAccumulator = 0;
+      updateScoreDisplay();
+      updateLiveSidebarEvents();
+    }
     toast('Avançando 1 minuto!');
   };
 
@@ -28317,6 +28498,8 @@ function bindLiveMatchEvents(){
       return;
     }
     if(confirm('Deseja realmente sair da transmissão ao vivo e avançar a rodada?')){
+      simulateMatchSegment(s.minute || 0, 90);
+      s.minute = 90;
       s.timeSec = 5400;
       finishLiveMatch();
       finalizeMatchRound();
@@ -28433,6 +28616,135 @@ function bindLiveMatchEvents(){
 }
 
 // -------------------------------------------------------------
+// BLINDAGEM PERMANENTE DE POSIÇÃO EXATA & COORDENADAS DO ATLETA (BE A PRO)
+// -------------------------------------------------------------
+function resolveCanonicalTacticalCodeForGroup(posGroup, rawPos = ''){
+  const raw = String(rawPos || '').trim().toUpperCase();
+  if(posGroup === 'GOL') return 'GK';
+  if(posGroup === 'ZAG') return 'CB';
+  if(posGroup === 'LAT') return (raw === 'LB' || raw === 'LE' || raw === 'LWB') ? 'LB' : (raw === 'RB' || raw === 'LD' || raw === 'RWB') ? 'RB' : 'RB';
+  if(posGroup === 'VOL') return (raw === 'DM' || raw === 'CDM' || raw === 'VOL') ? 'DM' : 'CM';
+  if(posGroup === 'MEI') return 'AM';
+  if(posGroup === 'PON') return (raw === 'RW' || raw === 'PD' || raw === 'RM') ? 'RW' : 'LW';
+  return 'ST'; // ATA, ST, CF, CA
+}
+
+function getCanonicalSlotProfileForGroup(posGroup, tacticalCode, isHomeSide){
+  // Coordenadas base exatas por grupo posicional (Home ataca p/ direita x: 3.5 -> 96.5; Away ataca p/ esquerda x: 96.5 -> 3.5)
+  let homeBaseX = 48.5, baseY = 50, depthRuns = 85, boxPresence = 90, shotTendency = 88, creativePassing = 65, halfSpaceOcc = 0, pressIntensity = 60, roleName = 'Advanced Forward';
+  if(posGroup === 'GOL'){
+    homeBaseX = 3.5; baseY = 50; depthRuns = 0; boxPresence = 0; shotTendency = 0; creativePassing = 40; pressIntensity = 10; roleName = 'Goalkeeper';
+  } else if(posGroup === 'ZAG'){
+    homeBaseX = 18.5; baseY = 38; depthRuns = 8; boxPresence = 20; shotTendency = 15; creativePassing = 50; pressIntensity = 65; roleName = 'Ball-Playing Defender';
+  } else if(posGroup === 'LAT'){
+    homeBaseX = 24.5; baseY = tacticalCode === 'LB' ? 15 : 85; depthRuns = 55; boxPresence = 25; shotTendency = 30; creativePassing = 68; pressIntensity = 68; roleName = 'Wing-Back';
+  } else if(posGroup === 'VOL'){
+    homeBaseX = tacticalCode === 'DM' ? 28.5 : 34.0; baseY = 50; depthRuns = tacticalCode === 'DM' ? 22 : 45; boxPresence = 35; shotTendency = 42; creativePassing = 78; pressIntensity = 75; roleName = tacticalCode === 'DM' ? 'Deep-Lying Playmaker' : 'Box-to-Box';
+  } else if(posGroup === 'MEI'){
+    homeBaseX = 41.5; baseY = 50; depthRuns = 68; boxPresence = 65; shotTendency = 74; creativePassing = 90; halfSpaceOcc = 1; pressIntensity = 58; roleName = 'Playmaker';
+  } else if(posGroup === 'PON'){
+    homeBaseX = 46.5; baseY = tacticalCode === 'RW' ? 80 : 20; depthRuns = 82; boxPresence = 78; shotTendency = 80; creativePassing = 76; halfSpaceOcc = 1; pressIntensity = 62; roleName = 'Inside Forward';
+  } else {
+    // ATA / ST / CF: Centroavante de referência na linha mais avançada do time!
+    homeBaseX = 49.5; baseY = 50; depthRuns = 88; boxPresence = 92; shotTendency = 90; creativePassing = 68; halfSpaceOcc = 0; pressIntensity = 62; roleName = 'Advanced Forward';
+  }
+  const baseX = isHomeSide ? homeBaseX : Number((100 - homeBaseX).toFixed(1));
+  return { baseX, baseY, depthRuns, boxPresence, shotTendency, creativePassing, halfSpaceOcc, pressIntensity, roleName };
+}
+
+function syncControlledAthletePitchSlotAndCoords(s = liveMatchState, snapCurrentPos = false){
+  const st = (typeof state !== 'undefined' && state) || (typeof window !== 'undefined' && window.state);
+  if(!s || !st || !(st.gameMode === 'player' || st.playerCareerState)) return false;
+  const athlete = ((typeof window.getControlledPlayer === 'function' ? window.getControlledPlayer(st) : null) ||
+                   (st.squad || []).find(p => String(p.id) === String(st.controlledPlayerId) || p.isControlled));
+  if(!athlete) return false;
+
+  const userIsHome = (typeof norm === 'function' ? norm(s.home) === norm(st.club) : (s.home === st.club));
+  const myTeam = userIsHome ? s.homePlayers : s.awayPlayers;
+  if(!Array.isArray(myTeam) || !myTeam.length) return false;
+
+  const pitchEntity = myTeam.find(p => p && (p.isControlledAthlete || (athlete.id != null && (String(p.id) === String(athlete.id) || String(p.careerPlayerId) === String(athlete.id)))));
+  if(!pitchEntity) return false;
+
+  const rawNatural = athlete.pos || athlete.position || st.playerCareerState?.position || 'ATA';
+  const posGroup = window.AFM_PlayerEngine?.normalizePlayerPosGroup
+    ? window.AFM_PlayerEngine.normalizePlayerPosGroup(rawNatural)
+    : (['GOL','GK'].includes(String(rawNatural).toUpperCase()) ? 'GOL' : 'ATA');
+  const tacticalCode = resolveCanonicalTacticalCodeForGroup(posGroup, rawNatural);
+  const slotProfile = getCanonicalSlotProfileForGroup(posGroup, tacticalCode, userIsHome);
+
+  // Proteção absoluta: atleta de linha JAMAIS fica no slot 0 / GK
+  if(posGroup !== 'GOL' && (pitchEntity.isGK || myTeam[0] === pitchEntity)){
+    const swapIdx = myTeam.findIndex((p, idx) => idx > 0 && p && !p.isGK);
+    if(swapIdx > 0){
+      const other = myTeam[swapIdx];
+      [myTeam[0], myTeam[swapIdx]] = [myTeam[swapIdx], myTeam[0]];
+      other.isGK = true;
+      other.pos = 'GK';
+      other.baseX = userIsHome ? 3.5 : 96.5;
+      other.baseY = 50;
+    }
+  }
+
+  // Sincroniza atributos reais efetivos do atleta criado (chuteira + patrocínio + staff)
+  const effAttrs = window.AFM_PlayerEngine?.getPlayerEffectiveAttributes
+    ? window.AFM_PlayerEngine.getPlayerEffectiveAttributes(st, athlete)
+    : (athlete.attributes || {});
+  const effOvr = window.AFM_PlayerEngine?.calculatePlayerOverall
+    ? window.AFM_PlayerEngine.calculatePlayerOverall(effAttrs, rawNatural)
+    : (Number(athlete.ovr || athlete.overall || st.playerCareerState?.overall) || 45);
+
+  pitchEntity.isControlledAthlete = true;
+  pitchEntity.naturalPos = rawNatural;
+  pitchEntity.posGroup = posGroup;
+  pitchEntity.pos = tacticalCode;
+  pitchEntity.isGK = (posGroup === 'GOL');
+  pitchEntity.canScore = (posGroup !== 'GOL');
+  pitchEntity.canShoot = (posGroup !== 'GOL');
+  pitchEntity.canAssist = true;
+  pitchEntity.overall = effOvr;
+  pitchEntity.ovr = effOvr;
+  pitchEntity.roleName = slotProfile.roleName;
+  pitchEntity.depthRuns = slotProfile.depthRuns;
+  pitchEntity.boxPresence = slotProfile.boxPresence;
+  pitchEntity.shotTendency = slotProfile.shotTendency;
+  pitchEntity.creativePassing = slotProfile.creativePassing;
+  pitchEntity.halfSpaceOcc = slotProfile.halfSpaceOcc;
+  pitchEntity.pressIntensity = slotProfile.pressIntensity;
+  pitchEntity.baseX = slotProfile.baseX;
+  pitchEntity.baseY = slotProfile.baseY;
+  pitchEntity.attrs = {
+    ...(pitchEntity.attrs || {}),
+    pace: Number(effAttrs.vel ?? effAttrs.pace) || effOvr,
+    acceleration: Number(effAttrs.vel ?? effAttrs.pace) || effOvr,
+    sprintSpeed: Number(effAttrs.vel ?? effAttrs.pace) || effOvr,
+    shooting: Number(effAttrs.chu ?? effAttrs.shooting) || effOvr,
+    finishing: Math.min(99, (Number(effAttrs.chu ?? effAttrs.shooting) || effOvr) + (posGroup === 'ATA' ? 4 : 2)),
+    passing: Number(effAttrs.pas ?? effAttrs.passing) || effOvr,
+    vision: Number(effAttrs.pas ?? effAttrs.passing) || effOvr,
+    shortPassing: Number(effAttrs.pas ?? effAttrs.passing) || effOvr,
+    dribbling: Number(effAttrs.dri ?? effAttrs.dribbling) || effOvr,
+    ballControl: Number(effAttrs.dri ?? effAttrs.dribbling) || effOvr,
+    defending: Number(effAttrs.def ?? effAttrs.defending) || effOvr,
+    tackling: Number(effAttrs.def ?? effAttrs.defending) || effOvr,
+    interceptions: Number(effAttrs.def ?? effAttrs.defending) || effOvr,
+    strength: Number(effAttrs.fis ?? effAttrs.physical) || effOvr,
+    composure: Math.min(99, Math.max(50, effOvr + 5)),
+    positioning: Math.min(99, Math.max(50, effOvr + 6)),
+    reactions: Math.min(99, Math.max(50, effOvr + 5))
+  };
+
+  if(snapCurrentPos || !Number.isFinite(Number(pitchEntity.x))){
+    pitchEntity.x = slotProfile.baseX;
+    pitchEntity.y = slotProfile.baseY;
+    pitchEntity.targetX = slotProfile.baseX;
+    pitchEntity.targetY = slotProfile.baseY;
+  }
+  return true;
+}
+if(typeof window !== 'undefined') window.syncControlledAthletePitchSlotAndCoords = syncControlledAthletePitchSlotAndCoords;
+
+// -------------------------------------------------------------
 // SUBSTITUIÇÃO DO ATLETA CONTROLADO NO MODO JOGADOR (BE A PRO)
 // -------------------------------------------------------------
 function triggerPlayerCareerSubstitution(s = liveMatchState){
@@ -28451,25 +28763,51 @@ function triggerPlayerCareerSubstitution(s = liveMatchState){
   const myTeam = userIsHome ? s.homePlayers : s.awayPlayers;
   if(!Array.isArray(myTeam) || myTeam.length === 0) return false;
 
-  // Verifica se o atleta já está em campo
+  // Verifica se o atleta já está em campo (garantindo sincronia de coordenadas!)
   const alreadyOnPitch = myTeam.find(p => p.isControlledAthlete || (athlete.id && (String(p.id) === String(athlete.id) || String(p.careerPlayerId) === String(athlete.id))) || (athlete.key && p.key === athlete.key));
   if(alreadyOnPitch){
     alreadyOnPitch.isControlledAthlete = true;
     s.controlledAthleteOnPitch = true;
+    syncControlledAthletePitchSlotAndCoords(s, false);
     return true;
   }
 
-  // Encontra um atleta para substituir (prioriza mesma posição, ou linha com menor stamina)
-  let subIndex = -1;
-  const athletePos = athlete.pos || 'ATA';
-  const outfieldPlayers = myTeam.map((p, idx) => ({ p, idx })).filter(item => !item.p.isGK && item.idx !== 0);
+  // Normaliza grupo posicional PT/EN (ATA == ST/CF, PON == LW/RW, MEI == AM, VOL == DM/CM, LAT == LB/RB, ZAG == CB, GOL == GK)
+  const rawAthletePos = athlete.pos || athlete.position || st.playerCareerState?.position || 'ATA';
+  const normGroupFn = window.AFM_PlayerEngine?.normalizePlayerPosGroup || (p => String(p || 'ATA').toUpperCase());
+  const athleteGroup = normGroupFn(rawAthletePos);
 
-  const samePos = outfieldPlayers.find(item => item.p.pos === athletePos);
-  if(samePos){
-    subIndex = samePos.idx;
+  let subIndex = -1;
+  if(athleteGroup === 'GOL'){
+    subIndex = myTeam.findIndex(p => p && p.isGK);
+    if(subIndex < 0) subIndex = 0;
   } else {
-    outfieldPlayers.sort((a, b) => (Number(a.p.stamina) || 100) - (Number(b.p.stamina) || 100));
-    subIndex = outfieldPlayers[0] ? outfieldPlayers[0].idx : (myTeam.length - 1);
+    const outfieldPlayers = myTeam.map((p, idx) => ({ p, idx, group: normGroupFn(p.naturalPos || p.pos) })).filter(item => !item.p.isGK && item.idx !== 0);
+    // 1º: Prioridade absoluta para companheiro do MESMO grupo posicional (ex: ATA entra no lugar de ST/CF!)
+    const exactGroupMatches = outfieldPlayers.filter(item => item.group === athleteGroup);
+    if(exactGroupMatches.length){
+      exactGroupMatches.sort((a, b) => (Number(a.p.stamina) || 100) - (Number(b.p.stamina) || 100));
+      subIndex = exactGroupMatches[0].idx;
+    } else {
+      // 2º: Grupo adjacente compatível (ex: PON <-> ATA/MEI, MEI <-> VOL/ATA) para manter equilíbrio tático do time
+      const adjacentMap = {
+        ATA: ['PON', 'MEI'],
+        PON: ['ATA', 'MEI'],
+        MEI: ['PON', 'VOL', 'ATA'],
+        VOL: ['MEI', 'LAT', 'ZAG'],
+        LAT: ['VOL', 'ZAG', 'PON'],
+        ZAG: ['VOL', 'LAT']
+      };
+      const adjGroups = adjacentMap[athleteGroup] || [];
+      const adjMatches = outfieldPlayers.filter(item => adjGroups.includes(item.group));
+      if(adjMatches.length){
+        adjMatches.sort((a, b) => (Number(a.p.stamina) || 100) - (Number(b.p.stamina) || 100));
+        subIndex = adjMatches[0].idx;
+      } else {
+        outfieldPlayers.sort((a, b) => (Number(a.p.stamina) || 100) - (Number(b.p.stamina) || 100));
+        subIndex = outfieldPlayers[0] ? outfieldPlayers[0].idx : (myTeam.length - 1);
+      }
+    }
   }
 
   const subbedOut = myTeam[subIndex];
@@ -28478,25 +28816,31 @@ function triggerPlayerCareerSubstitution(s = liveMatchState){
   const outName = subbedOut.name || 'Titular';
   const outNum = subbedOut.num || 11;
   const replacedPlayerId = subbedOut.id;
-  const athleteName = athlete.name || st.playerCareerState?.athleteName || 'Carlos Henrique';
-  const athleteNum = athlete.number || 10;
-  const curMin = Math.max(45, Number(s.minute) || 45);
+  const athleteName = athlete.name || st.playerCareerState?.athleteName || 'Atleta';
+  const athleteNum = athlete.number || st.playerCareerState?.shirtNumber || 10;
+  const curMin = Math.max(1, Number(s.minute) || 45);
+  const tacticalCode = resolveCanonicalTacticalCodeForGroup(athleteGroup, rawAthletePos);
 
-  // Substitui os dados preservando referências e coordenadas da formação
   subbedOut.id = athlete.id;
   subbedOut.name = athleteName;
+  subbedOut.shortName = athleteName.split(' ').pop() || athleteName;
   subbedOut.fullName = athlete.fullName || athleteName;
   subbedOut.num = athleteNum;
-  subbedOut.pos = athletePos;
-  subbedOut.isGK = false;
+  subbedOut.naturalPos = rawAthletePos;
+  subbedOut.pos = tacticalCode;
+  subbedOut.isGK = (athleteGroup === 'GOL');
   subbedOut.ovr = athlete.ovr || 40;
+  subbedOut.overall = athlete.ovr || 40;
   subbedOut.stamina = 100;
   subbedOut.careerPlayerId = athlete.id;
   subbedOut.enteredMinute = curMin;
   subbedOut.wasStarter = false;
   subbedOut.isControlledAthlete = true;
-  subbedOut.canScore = true;
-  subbedOut.canShoot = true;
+  subbedOut.canScore = (athleteGroup !== 'GOL');
+  subbedOut.canShoot = (athleteGroup !== 'GOL');
+
+  // Posiciona imediatamente na coordenada exata da posição natural do atleta!
+  syncControlledAthletePitchSlotAndCoords(s, true);
 
   if(s.subsLeft > 0) s.subsLeft--;
 
@@ -28506,14 +28850,14 @@ function triggerPlayerCareerSubstitution(s = liveMatchState){
     type: 'sub',
     playerId: athlete.id,
     replacedPlayerId,
-    text: `🟦 SUBSTITUIÇÃO NO ${userIsHome ? s.home : s.away}! Sai ${outName} (#${outNum}) e entra o jovem craque ${athleteName} (#${athleteNum}) sob muitos aplausos!`
+    text: `🟦 SUBSTITUIÇÃO NO ${userIsHome ? s.home : s.away}! Sai ${outName} (#${outNum}) e entra o jovem craque ${athleteName} (#${athleteNum}) na posição ${rawAthletePos}!`
   });
 
   s.controlledAthleteOnPitch = true;
   if(typeof updateScoreDisplay === 'function') updateScoreDisplay();
   if(typeof updateLiveSidebarEvents === 'function') updateLiveSidebarEvents();
-  if(typeof showLiveBanner === 'function') showLiveBanner(`⚽ VOCÊ ENTROU EM CAMPO! ${athleteName} (#${athleteNum})`, 'tactics', 4000);
-  if(typeof toast === 'function') toast(`⚽ Você entrou em campo aos ${curMin}'!`);
+  if(typeof showLiveBanner === 'function') showLiveBanner(`⚽ VOCÊ ENTROU EM CAMPO (${rawAthletePos})! ${athleteName} (#${athleteNum})`, 'tactics', 4000);
+  if(typeof toast === 'function') toast(`⚽ Você entrou em campo aos ${curMin}' (${rawAthletePos})!`);
   return true;
 }
 window.triggerPlayerCareerSubstitution = triggerPlayerCareerSubstitution;
@@ -28968,8 +29312,18 @@ function openHalftimeModal(isQuickTactics = false){
   if(btnResume){
     btnResume.onclick = () => {
       $('#halftimeModalContainer')?.remove();
-      applyCpuReactiveHalftimeTactics(s);
-      transitionMatchPhase('SECOND_HALF');
+      if(s.phase === 'HALF_TIME' && !isQuickTactics){
+        if((state?.gameMode === 'player' || state?.playerCareerState) && s.shouldSubPlayerAtHalftime && typeof window.triggerPlayerCareerSubstitution === 'function'){
+          window.triggerPlayerCareerSubstitution(s);
+        }
+        applyCpuReactiveHalftimeTactics(s);
+        transitionMatchPhase('SECOND_HALF');
+        s.phase = 'SECOND_HALF';
+        s.minute = Math.max(45, Number(s.minute) || 45);
+        s.timeSec = Math.max(2700, Number(s.timeSec) || 2700);
+      }
+      s.secAccumulator = 0;
+      s.lastLoopTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
       s.playing = true;
       const playBtn = $('#btnLivePlayToggle');
       if(playBtn) playBtn.textContent = '⏸';
@@ -28981,7 +29335,7 @@ function openHalftimeModal(isQuickTactics = false){
         playWhistleSound();
       }
       renderLiveMatchModal();
-      toast('Bola rolando para a etapa complementar!');
+      toast(isQuickTactics ? 'Partida retomada com os novos ajustes táticos!' : 'Bola rolando para a etapa complementar!');
     };
   }
 }
@@ -29326,12 +29680,14 @@ function finalizeMatchRound(){
   if(playerPerformanceReport && window.AFM_PlayerMode?.showPostMatchSummaryModal){
     window.AFM_PlayerMode.showPostMatchSummaryModal(playerPerformanceReport, null, () => {
       if(userRes) triggerPostMatchFlow(userRes);
-      else { view = 'central'; render(); }
+      else { view = 'player_hub'; if(typeof window !== 'undefined') window.view = 'player_hub'; render(); }
     });
   } else if(userRes){
     triggerPostMatchFlow(userRes);
   } else {
-    view = 'central';
+    const isPl = (typeof window !== 'undefined' && window.isPlayerCareerActive?.(state)) || state?.gameMode === 'player';
+    view = isPl ? 'player_hub' : 'central';
+    if(typeof window !== 'undefined') window.view = view;
     render();
   }
 }
@@ -30321,23 +30677,50 @@ function advanceSeasonYear(){
     }
   });
   state.sponsorOffers = uniqueAvailableSponsorOffers(state.sponsorOffers, state.sponsors);
+  const isPlayerCareerRollover = Boolean(
+    state.gameMode === 'player' ||
+    state.isPlayerMode === true ||
+    (typeof window !== 'undefined' && window.isPlayerCareerActive?.(state))
+  );
+
+  if(isPlayerCareerRollover && window.AFM_PlayerEngine?.processEndOfSeasonAwards){
+    try { window.AFM_PlayerEngine.processEndOfSeasonAwards(state, finishedYear); } catch(_){}
+  }
+
   (state.youthAcademy || []).forEach(p => {
     p.age = clamp((Number(p.age) || 16) + 1, 15, 18);
   });
-  (state.squad || []).forEach(p => {
-    p.age = (Number(p.age) || 24) + 1;
-    p.stamina = 100;
-    p.goals = 0;
-    p.assists = 0;
-    p.yellowCards = 0;
-    p.redCard = false;
-    if(p.age >= 35 && Math.random() < 0.35){
-      p.fc = Math.max(45, (p.fc || playerOverall(p)) - 1);
-    }
-  });
+  if(Number(state.lastSquadAgingSeason) !== Number(state.season)){
+    state.lastSquadAgingSeason = Number(state.season);
+    (state.squad || []).forEach(p => {
+      if(!p) return;
+      const isControlled = Boolean(
+        p.isControlled ||
+        p.isControlledAthlete ||
+        (state.controlledPlayerId != null && String(p.id) === String(state.controlledPlayerId))
+      );
+      p.stamina = 100;
+      p.goals = 0;
+      p.assists = 0;
+      p.yellowCards = 0;
+      p.redCard = false;
+      if(isControlled) return;
+      p.age = (Number(p.age) || 24) + 1;
+      if(p.age >= 35 && Math.random() < 0.35){
+        p.fc = Math.max(45, (p.fc || playerOverall(p)) - 1);
+      }
+    });
+  }
 
-  // 2. Geração Contínua de Regens / Novas Promessas da Base Mundial (16 a 18 anos)
-  generateWorldRegens();
+  if(isPlayerCareerRollover && window.AFM_PlayerEngine?.rolloverPlayerSeason){
+    try { window.AFM_PlayerEngine.rolloverPlayerSeason(state, finishedYear); } catch(e){ recordAFMError('player-season-rollover', e); }
+    restorePlayerCareerSquad(state);
+  }
+
+  if(Number(state.lastRegensSeason) !== Number(state.season)){
+    state.lastRegensSeason = Number(state.season);
+    generateWorldRegens();
+  }
   if(window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens === 'function'){
     window.AFM_MarketLupaAndAging.processAgingDeclineAndGeneticRegens(state);
   }
@@ -30392,8 +30775,14 @@ function changeUserClub(newClubName){
     desc: `Luvas de assinatura com o ${club.name}`,
     amount: state.managerSalary * 2
   });
-  state.managerMoney += state.managerSalary * 2;
-  if(state.managerPersonal) state.managerPersonal.personalBalance = (Number(state.managerPersonal.personalBalance) || 0) + state.managerSalary * 2;
+  const signBonus = state.managerSalary * 2;
+  state.managerMoney = (Number(state.managerMoney) || 0) + signBonus;
+  if(state.career && typeof state.career === 'object'){
+    state.career.cash = (Number(state.career.cash) || 0) + signBonus;
+    state.career.personalCash = state.career.cash;
+  }
+  if(state.managerPersonal) state.managerPersonal.personalBalance = (Number(state.managerPersonal.personalBalance) || 0) + signBonus;
+  if(window.AFMCareerFix?.calculateCareerEconomy) window.AFMCareerFix.calculateCareerEconomy(state);
   advanceSeasonYear();
   toast(`Você agora é o técnico do ${club.name}!`);
 }
@@ -32777,6 +33166,8 @@ function processBankLoansOnRound(){
     }
   });
   state.bankLoans = state.bankLoans.filter(l => l.remainingDebt > 0 && l.remainingInstallments > 0);
+  const severeOverdue = state.bankLoans.some(l => l.overdue && ((Number(state.round) || 0) - (Number(l.nextDueRound) || 0)) >= 4);
+  state.transferBan = Boolean(severeOverdue);
 }
 
 let activeBankModalTab = 'borrow';
@@ -33218,6 +33609,7 @@ function openBankLoansModal(initialTab = null){
         } else {
           toast(`Parcela regularizada por ${fmtMoney(amountDue)}${wasOverdue ? ' (incluindo juros de atraso)' : ''}.`);
         }
+        if(!state.bankLoans.some(l => l.overdue)) state.transferBan = false;
         save();
         renderModalContent();
         render();
@@ -33241,6 +33633,7 @@ function openBankLoansModal(initialTab = null){
         recordBankCreditPayment('completed');
         const savedMoney = loan.remainingDebt - bonusPayoff;
         state.bankLoans.splice(idx, 1);
+        if(!state.bankLoans.some(l => l.overdue)) state.transferBan = false;
         state.news.unshift(`🏦 QUITAÇÃO ANTECIPADA: Dívida quitada com sucesso! Economia de ${fmtMoney(savedMoney)} em bônus.`);
         save();
         toast(`🎉 Empréstimo quitado antecipadamente! Você economizou ${fmtMoney(savedMoney)}!`);
@@ -33286,8 +33679,16 @@ function triggerAFMSystemEnhancements(){
 }
 
 function processCoachSalaryOnFirstOfMonth(gameState = state){
+  if(!gameState) return false;
+  if((typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(gameState)) || gameState.gameMode === 'player' || gameState.isPlayerMode){
+    return false;
+  }
   const date = String(gameState?.date || '');
   if(date.length !== 10 || date[4] !== '-' || date[7] !== '-' || date.slice(8) !== '01') return false;
+  // Dia 1 de abertura de uma nova carreira (01/01/2026 sem jogos) não desconta salário mensal antecipado do caixa inicial!
+  if(date === '2026-01-01' && Number(gameState.season || 2026) === 2026 && (Number(gameState.round) || 0) === 0 && !(gameState.history || []).length){
+    return false;
+  }
   const payroll = window.AFM_LifeAndSharesPro;
   if(!payroll || typeof payroll.payMonthlyCoachSalary !== 'function') return false;
   const result = payroll.payMonthlyCoachSalary(gameState);
@@ -34277,16 +34678,60 @@ function handleHeaderContinueAction(){
   if(now - lastHeaderContinueActionTime < 350) return;
   lastHeaderContinueActionTime = now;
 
+  const isPlayerMode = (typeof window.isPlayerCareerActive === 'function' && window.isPlayerCareerActive(state)) ||
+    state?.gameMode === 'player' || Boolean(state?.playerCareerState);
+  const activeMatchNow = (typeof getActualCurrentMatch === 'function') ? getActualCurrentMatch(state) : null;
+  const hasPlayableMatchToday = Boolean(activeMatchNow && activeMatchNow.date && String(state.date || '') >= String(activeMatchNow.date));
+
+  // No Modo Jogador (ou quando já é Dia de Jogo), pré-temporada/janela de técnico NUNCA podem avançar a data passando por cima da partida!
+  if(isPlayerMode){
+    if(state.isPreSeason) { state.isPreSeason = false; state.preSeasonDays = 0; }
+    if(state.transferWindowActive) { state.transferWindowActive = false; }
+    if(hasPlayableMatchToday){
+      if(view !== 'player_hub'){
+        setGameView('player_hub');
+        render();
+      } else {
+        const liveBtn = document.querySelector('.btn-player-play-live, .btn-player-play-quick');
+        if(liveBtn && typeof liveBtn.scrollIntoView === 'function'){
+          liveBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        toast('⚽ Dia de Jogo! Escolha Jogar Partida Ao Vivo ou Simular Partida.');
+      }
+      return;
+    }
+    if(window.AFM_CalendarFix && typeof window.AFM_CalendarFix.advanceToNextMatchGuaranteed === 'function'){
+      window.AFM_CalendarFix.advanceToNextMatchGuaranteed(state);
+    } else if(typeof advanceCalendarDays === 'function'){
+      const gateP = (typeof canStartMatch === 'function') ? canStartMatch(null, state) : { daysDiff: 1 };
+      advanceCalendarDays(gateP.daysDiff || 1, true);
+    }
+    save();
+    render();
+    return;
+  }
+
+  // Se no Modo Treinador já chegou a data de jogo oficial, encerra pré-temporada/contagem de janela para não pular a partida
+  if(hasPlayableMatchToday){
+    if(state.isPreSeason) { state.isPreSeason = false; state.preSeasonDays = 0; }
+    if(state.transferWindowActive) { closeSeasonTransferWindow(state); }
+  }
+
   // 1. Janela de transferências ativa
   const tw = (typeof getTransferWindowState === 'function') ? getTransferWindowState() : { active: false };
   if(tw.active){
-    if(tw.isDeadlineDay){
-      if(typeof advanceTransferWindowHours === 'function') advanceTransferWindowHours(6);
-      else if(typeof advanceTransferWindowDay === 'function') advanceTransferWindowDay();
+    // Clampa avanço caso haja partida no dia seguinte/hoje
+    if(activeMatchNow && activeMatchNow.date && String(state.date || '') >= String(activeMatchNow.date)){
+      closeSeasonTransferWindow(state);
     } else {
-      if(typeof advanceTransferWindowDay === 'function') advanceTransferWindowDay();
+      if(tw.isDeadlineDay){
+        if(typeof advanceTransferWindowHours === 'function') advanceTransferWindowHours(6);
+        else if(typeof advanceTransferWindowDay === 'function') advanceTransferWindowDay();
+      } else {
+        if(typeof advanceTransferWindowDay === 'function') advanceTransferWindowDay();
+      }
+      return;
     }
-    return;
   }
 
   // 2. Pré-temporada ativa
@@ -49548,6 +49993,8 @@ try {
 } catch(e) { window.liveMatchState = liveMatchState; }
 
 window.newCareer = newCareer;
+window.isRivalryMatch = isRivalryMatch;
+window.isDerbyMatch = (a, b) => Boolean(isRivalryMatch(a, b)?.isRivalry);
 window.advanceSeasonYear = advanceSeasonYear;
 window.executeSeasonTransitions = executeSeasonTransitions;
 window.save = save;
@@ -49612,6 +50059,12 @@ window.getContinentalTournament = getContinentalTournament;
 window.clubStateCompId = clubStateCompId;
 window.getDateForRound = getDateForRound;
 window.showEndOfSeasonModal = showEndOfSeasonModal;
+window.advanceSeasonYear = advanceSeasonYear;
+window.processClubMonthlyFinances = processClubMonthlyFinances;
+window.processBankLoansOnRound = processBankLoansOnRound;
+window.bankAvailableCredit = bankAvailableCredit;
+window.totalBankDebt = totalBankDebt;
+window.quickSellSquadPlayer = typeof quickSellSquadPlayer === 'function' ? quickSellSquadPlayer : undefined;
 window.ensureTacticsState = ensureTacticsState;
 window.optimizeLineup = optimizeLineup;
 window.isTransferWindowOpen = isTransferWindowOpen;
@@ -49634,6 +50087,10 @@ window.playerKey = playerKey;
 window.calcValueMi = calcValueMi;
 window.fmtMi = fmtMi;
 window.buyPlayer = buyPlayer;
+window.getClubPrimaryCompetitionId = getClubPrimaryCompetitionId;
+window.openBankLoansModal = openBankLoansModal;
+window.marketUniverse = marketUniverse;
+window.playerKey = playerKey;
 window.marketUniverse = marketUniverse;
 window.findGlobalPlayerByKey = findGlobalPlayerByKey;
 
@@ -49723,11 +50180,17 @@ if (typeof window !== 'undefined' && window.AFM_DB && typeof window.AFM_DB.init 
   if (typeof playerSalary === 'function') { window.playerSalary = playerSalary; }
   if (typeof resolvePlayerPhotoUrl === 'function') { window.resolvePlayerPhotoUrl = resolvePlayerPhotoUrl; }
   if (typeof findGlobalPlayerByKey === 'function') { window.findGlobalPlayerByKey = findGlobalPlayerByKey; }
-  if (typeof buyPlayer === 'function') { window.buyPlayer = buyPlayer; }
+  if (typeof buyPlayer === 'function') { window.buyPlayer = buyPlayer;
+window.getClubPrimaryCompetitionId = getClubPrimaryCompetitionId;
+window.openBankLoansModal = openBankLoansModal;
+window.marketUniverse = marketUniverse;
+window.playerKey = playerKey; }
   if (typeof ensureTacticsState === 'function') { window.ensureTacticsState = ensureTacticsState; }
   if (typeof optimizeLineup === 'function') { window.optimizeLineup = optimizeLineup; }
   if (typeof isTransferWindowOpen === 'function') { window.isTransferWindowOpen = isTransferWindowOpen; }
-  if (typeof newCareer === 'function') { window.newCareer = newCareer; }
+  if (typeof newCareer === 'function') { window.newCareer = newCareer;
+window.isRivalryMatch = isRivalryMatch;
+window.isDerbyMatch = (a, b) => Boolean(isRivalryMatch(a, b)?.isRivalry); }
   if (typeof beginContinentalLiveMatch === 'function') { window.beginContinentalLiveMatch = beginContinentalLiveMatch; }
   if (typeof calendarPage === 'function') { window.calendarPage = calendarPage; }
   if (typeof finishLiveMatch === 'function') { window.finishLiveMatch = finishLiveMatch; }

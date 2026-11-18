@@ -149,8 +149,9 @@
 <script>
   (function() {
     var origSetInterval = window.setInterval;
+    window.__afmNativeSetInterval = origSetInterval;
     window.setInterval = function(fn, delay) {
-      var safeDelay = (typeof delay === 'number' && delay < 2500) ? 3500 : delay;
+      var safeDelay = (typeof delay === 'number' && delay >= 400 && delay < 2500) ? 3500 : delay;
       return origSetInterval(function() {
         try {
           if (typeof window.AFM_EnsureSafeState === 'function') window.AFM_EnsureSafeState();

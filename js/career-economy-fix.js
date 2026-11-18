@@ -130,7 +130,7 @@
 
   function isClubSaf(state, clubName) {
     const target = String(clubName || state?.club || '').toLowerCase().trim();
-    if (state?.clubIsSaf && target === String(state?.club || '').toLowerCase().trim()) return true;
+    if ((state?.clubIsSaf || state?.isSafClub || state?.customClub?.clubModel === 'saf') && target === String(state?.club || '').toLowerCase().trim()) return true;
     if (state?.club && typeof state.club === 'object' && state.club.isSaf) return true;
     return KNOWN_SAF_CLUBS.some(k => target.includes(k) || k.includes(target));
   }
@@ -178,8 +178,10 @@
       5
     );
     c.prestige = Math.min(99, syncedPrestige);
-    if (!c.licenseId) c.licenseId = c.license || mp.licenseId || (typeof localStorage !== 'undefined' ? localStorage.getItem('afm_user_license_id') : null) || 'cbf_d';
+    if (!c.licenseId) c.licenseId = c.license || mp.licenseId || (state.manager && typeof state.manager === 'object' ? state.manager.license : null) || 'cbf_d';
     if (!Array.isArray(c.unlockedLicenses)) c.unlockedLicenses = Array.isArray(c.licenses) ? c.licenses : (mp.unlockedLicenses || ['cbf_d']);
+    if (!c.unlockedLicenses.includes('cbf_d')) c.unlockedLicenses.unshift('cbf_d');
+    if (!c.unlockedLicenses.includes(c.licenseId)) c.unlockedLicenses.push(c.licenseId);
     c.licenses = c.unlockedLicenses;
     if (!c.properties || typeof c.properties !== 'object') c.properties = {};
     if (!c.businesses || typeof c.businesses !== 'object') c.businesses = {};
@@ -256,7 +258,7 @@
       }
     });
 
-    // 4. Carteira SAF
+    // 4. Carteira SAF + Ordens P2P em Escrow (evita queda aparente de patrimônio enquanto anunciadas)
     let safValue = 0;
     let monthlySafDividends = 0;
     const market = Array.isArray(state?.safMarket) ? state.safMarket : (Array.isArray(state?.safMarketList) ? state.safMarketList : (Array.isArray(state?.safMarketClubs) ? state.safMarketClubs : []));
@@ -271,6 +273,15 @@
         monthlySafDividends += Math.round(posVal * divYield);
       }
     });
+    if (Array.isArray(state?.userSafSellOrders)) {
+      state.userSafSellOrders.forEach(order => {
+        if (order && order.status !== 'closed' && Number(order.sharesCount) > 0) {
+          const stock = market.find(s => s.id === order.clubId || s.ticker === order.ticker);
+          const price = stock ? Number(stock.sharePrice || stock.price || order.basePrice || 25) : Number(order.basePrice || 25);
+          safValue += round2(Number(order.sharesCount) * price);
+        }
+      });
+    }
 
     const netWorth = Math.round(c.cash + propertiesValue + businessesValue + vehiclesValue + safValue);
     const monthlyIncome = Math.round(effectiveSalary + monthlyRent + monthlyBusinessProfit + monthlySafDividends);
@@ -482,6 +493,7 @@
           cost: p.price,
           currentValue: val,
           monthlyRent: p.rent,
+          rentedOut: true,
           appreciationRate: (p.appreciationYear || 10) / 100,
           prestige: p.prestige,
           icon: p.icon
@@ -633,11 +645,10 @@
 
     if (c.unlockedLicenses.includes(lic.id)) {
       c.licenseId = lic.id;
-      if (!state.manager) state.manager = {};
-      state.manager.license = lic.id;
-      if (typeof localStorage !== 'undefined') {
-        try { localStorage.setItem('afm_user_license_id', lic.id); } catch (e) {}
+      if (state.manager && typeof state.manager === 'object') {
+        state.manager.license = lic.id;
       }
+      state.managerLicenseId = lic.id;
       calculateCareerEconomy(state);
       notify(`🎓 Licença ${lic.name} ativada!`);
       if (typeof window !== 'undefined' && typeof window.save === 'function') window.save();
@@ -656,11 +667,18 @@
     }
 
     c.cash = round2(c.cash - lic.cost);
-    if (!c.unlockedLicenses.includes(lic.id)) c.unlockedLicenses.push(lic.id);
+    const licIdx = LICENSES_CATALOG.findIndex(l => l.id === lic.id);
+    for (let i = 0; i <= licIdx; i++) {
+      if (LICENSES_CATALOG[i] && !c.unlockedLicenses.includes(LICENSES_CATALOG[i].id)) {
+        c.unlockedLicenses.push(LICENSES_CATALOG[i].id);
+      }
+    }
     c.licenses = c.unlockedLicenses;
     c.licenseId = lic.id;
-    if (typeof localStorage !== 'undefined') {
-      try { localStorage.setItem('afm_user_license_id', lic.id); } catch (e) {}
+    state.managerLicenseId = lic.id;
+    state.completedLicenses = [...c.unlockedLicenses];
+    if (state.manager && typeof state.manager === 'object') {
+      state.manager.license = lic.id;
     }
     calculateCareerEconomy(state);
     notify(`🎓 Parabéns! Você conquistou a ${lic.name} (+${lic.salaryBonusPct}% no salário)!`);

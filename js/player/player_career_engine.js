@@ -740,12 +740,66 @@
     },
   ];
 
-  function createStarterSponsorOffer(ovr, date = "2026-01-01") {
+  const BOOT_BONUS_ATTR_META = {
+    vel: { key: "vel", label: "Velocidade & Arranque", shortLabel: "Velocidade", icon: "⚡" },
+    chu: { key: "chu", label: "Finalização & Chute", shortLabel: "Finalização", icon: "🎯" },
+    pas: { key: "pas", label: "Passe & Visão", shortLabel: "Passe & Visão", icon: "🧠" },
+    dri: { key: "dri", label: "Drible & Agilidade", shortLabel: "Drible", icon: "🌀" },
+    fis: { key: "fis", label: "Físico & Potência", shortLabel: "Físico", icon: "💪" },
+    def: { key: "def", label: "Defesa & Reflexos", shortLabel: "Defesa", icon: "🛡️" },
+  };
+
+  function rollUniqueSponsorBootBonus(brand = "", tier = "base", posGroup = "ATA", usedAttrs = new Set(), deterministicSeed = null) {
+    const bLower = String(brand || "").toLowerCase();
+    const preferredOrder = posGroup === "GOL"
+      ? ["def", "fis", "pas", "vel", "dri", "chu"]
+      : bLower.includes("nike") || bLower.includes("new balance")
+        ? ["vel", "dri", "chu", "pas", "fis", "def"]
+        : bLower.includes("adidas") || bLower.includes("comércio")
+          ? ["chu", "pas", "vel", "dri", "fis", "def"]
+          : bLower.includes("puma") || bLower.includes("umbro")
+            ? ["dri", "vel", "chu", "pas", "fis", "def"]
+            : bLower.includes("penalty") || bLower.includes("mizuno")
+              ? ["pas", "chu", "dri", "vel", "fis", "def"]
+              : bLower.includes("kanxa")
+                ? ["fis", "chu", "def", "vel", "pas", "dri"]
+                : bLower.includes("topper")
+                  ? ["def", "fis", "pas", "chu", "vel", "dri"]
+                  : ["chu", "vel", "dri", "pas", "fis", "def"];
+
+    const chosenAttr = preferredOrder.find((a) => !usedAttrs.has(a)) || preferredOrder[0] || "chu";
+    usedAttrs.add(chosenAttr);
+
+    // Sorteia de +1 a +3 pontos de bônus na chuteira, ponderado pelo tier da marca
+    const r = deterministicSeed != null ? ((Math.abs(deterministicSeed) % 100) / 100) : Math.random();
+    let val = 1;
+    if (tier === "superstar" || tier === "internacional") {
+      val = r < 0.50 ? 3 : r < 0.88 ? 2 : 1;
+    } else if (tier === "nacional") {
+      val = r < 0.30 ? 3 : r < 0.75 ? 2 : 1;
+    } else if (tier === "aspirante") {
+      val = r < 0.18 ? 3 : r < 0.55 ? 2 : 1;
+    } else {
+      val = r < 0.12 ? 3 : r < 0.42 ? 2 : 1;
+    }
+    const meta = BOOT_BONUS_ATTR_META[chosenAttr] || BOOT_BONUS_ATTR_META.chu;
+    return {
+      bootBonusAttr: chosenAttr,
+      bootBonusVal: val,
+      bootBonusIcon: meta.icon,
+      bootBonusAttrName: meta.label,
+      bootBonusLabel: `+${val} ${meta.label}`,
+    };
+  }
+
+  function createStarterSponsorOffer(ovr, date = "2026-01-01", posGroup = "ATA") {
     const overall = Math.max(1, Number(ovr) || 1);
     const multiplier = Math.max(1, (overall - 40) * 0.04);
     const monthly = Math.round(120 * multiplier);
     const bonusGoal = Math.round(60 * multiplier);
     const bonusWin = Math.round(40 * multiplier);
+    const attrKey = posGroup === "GOL" ? "def" : "chu";
+    const meta = BOOT_BONUS_ATTR_META[attrKey];
     return {
       id: "offer_sponsor_starter",
       type: "sponsor",
@@ -756,7 +810,12 @@
       tier: "base",
       minOvr: 30,
       isStarterSponsor: true,
-      details: `Chuteiras reserva, R$ ${monthly.toLocaleString("pt-BR")}/mês, R$ ${bonusGoal.toLocaleString("pt-BR")} por gol e R$ ${bonusWin.toLocaleString("pt-BR")} por vitória. Valores ajustados ao OVR ${overall}.`,
+      bootBonusAttr: attrKey,
+      bootBonusVal: 1,
+      bootBonusIcon: meta.icon,
+      bootBonusAttrName: meta.label,
+      bootBonusLabel: `+1 ${meta.label}`,
+      details: `Chuteira oficial (+1 ${meta.shortLabel}), R$ ${monthly.toLocaleString("pt-BR")}/mês, R$ ${bonusGoal.toLocaleString("pt-BR")} por gol e R$ ${bonusWin.toLocaleString("pt-BR")} por vitória. Valores ajustados ao OVR ${overall}.`,
       description:
         "Patrocínio regional de entrada com fornecimento de chuteiras reserva.",
       monthly,
@@ -791,6 +850,7 @@
       Number(pState.athleteOvr) ||
       Number(pState.overall) ||
       0;
+    const posGroup = normalizePlayerPosGroup(athlete.pos || athlete.position || pState.position || "ATA");
     const curYear =
       parseInt(
         String(gameState.date || gameState.currentDate || "2026").slice(0, 4),
@@ -818,15 +878,18 @@
         (followers > 50000 ? 0.35 : followers > 10000 ? 0.15 : 0),
     );
 
+    const usedAttrs = new Set();
     const seasonOffers = picked.map((sp, idx) => {
       const monthly = Math.round(sp.monthlyBase * ovrMultiplier);
       const bonusGoal = Math.round(sp.bonusGoalBase * ovrMultiplier);
       const bonusWin = Math.round(sp.bonusWinBase * ovrMultiplier);
+      const bootRoll = rollUniqueSponsorBootBonus(sp.brand, sp.tier, posGroup, usedAttrs);
       return {
         id: `${sp.id}_s${curYear}_${idx}`,
         name: `${sp.name}`,
         brand: sp.brand,
         tier: sp.tier,
+        ...bootRoll,
         monthlyStipend: monthly,
         bonusGoal: bonusGoal,
         bonusWin: bonusWin,
@@ -840,7 +903,7 @@
 
     pState.availableSponsorOffers = seasonOffers;
     pState.lastSponsorSeasonGenerated = curYear;
-    pState.sponsorOfferBalanceVersion = 3;
+    pState.sponsorOfferBalanceVersion = 4;
     return seasonOffers;
   }
 
@@ -881,12 +944,14 @@
               norm(value) === norm("Incentivo Esportivo Regional de Base"),
           )),
     );
+    const starterPosGroup = normalizePlayerPosGroup(athlete.pos || athlete.position || pState.position || "ATA");
     if (starterOffer)
       Object.assign(
         starterOffer,
         createStarterSponsorOffer(
           ovr,
           starterOffer.date || gameState.date || `${curYear}-01-01`,
+          starterPosGroup,
         ),
         { isRead: starterOffer.isRead === true },
       );
@@ -894,8 +959,8 @@
       !Array.isArray(pState.availableSponsorOffers) ||
       pState.availableSponsorOffers.length === 0 ||
       pState.lastSponsorSeasonGenerated !== curYear ||
-      pState.sponsorOfferBalanceVersion !== 3 ||
-      pState.availableSponsorOffers.some((offer) => Number(offer.minOvr) > ovr)
+      pState.sponsorOfferBalanceVersion !== 4 ||
+      pState.availableSponsorOffers.some((offer) => Number(offer.minOvr) > ovr || !offer.bootBonusAttr || !offer.bootBonusVal)
     ) {
       return generateSeasonSponsorOffers(gameState);
     }
@@ -1304,7 +1369,26 @@
       };
     }
 
-    pState.personalBank -= staff.hireCost;
+    if (window.AFM_Lifestyle?.addPlayerTransaction && staff.hireCost > 0) {
+      window.AFM_Lifestyle.addPlayerTransaction(
+        pState,
+        gameState.date || gameState.currentDate || "2026-01-01",
+        `Contratação Staff: ${staff.name}`,
+        staff.hireCost,
+        "out",
+      );
+      if (gameState.player) {
+        gameState.player.personalBank = pState.personalBank;
+        gameState.player.cash = pState.personalBank;
+      }
+    } else {
+      pState.personalBank -= staff.hireCost;
+      if (pState.lifestyle) pState.lifestyle.cash = pState.personalBank;
+      if (gameState.player) {
+        gameState.player.personalBank = pState.personalBank;
+        gameState.player.cash = pState.personalBank;
+      }
+    }
     pState.hiredStaff[staffId] = true;
 
     // Sincroniza retrocompatibilidade
@@ -1505,6 +1589,9 @@
 
   function getSponsorBootBonus(sponsor) {
     if (!sponsor) return 0;
+    if (Number.isFinite(Number(sponsor.bootBonusVal)) && Number(sponsor.bootBonusVal) >= 1) {
+      return Math.min(3, Math.max(1, Math.round(Number(sponsor.bootBonusVal))));
+    }
     const key = `${sponsor.id || ""} ${sponsor.brand || ""}`.toLowerCase();
     const tier =
       sponsor.tier ||
@@ -1522,6 +1609,21 @@
         tier
       ] || 1
     );
+  }
+
+  function getSponsorBootBonusInfo(sponsor) {
+    if (!sponsor) return { attr: "chu", val: 0, label: "", icon: "👟", attrName: "Finalização & Chute" };
+    const attr = BOOT_BONUS_ATTR_META[sponsor.bootBonusAttr] ? sponsor.bootBonusAttr : "chu";
+    const meta = BOOT_BONUS_ATTR_META[attr];
+    const val = getSponsorBootBonus(sponsor);
+    return {
+      attr,
+      val,
+      icon: sponsor.bootBonusIcon || meta.icon,
+      attrName: sponsor.bootBonusAttrName || meta.label,
+      label: sponsor.bootBonusAttrName || meta.label,
+      fullLabel: sponsor.bootBonusLabel || (val > 0 ? `+${val} ${meta.label}` : ""),
+    };
   }
 
   function getSponsorTerminationFee(contract, currentDate) {
@@ -1574,7 +1676,32 @@
       0,
       Math.round(Number(offer.monthlyStipend || offer.monthly) || 1000),
     );
-    pState.personalBank = balance - terminationFee;
+    if (terminationFee > 0 && window.AFM_Lifestyle?.addPlayerTransaction) {
+      window.AFM_Lifestyle.addPlayerTransaction(
+        pState,
+        startDate,
+        "Multa Rescisória de Patrocínio",
+        terminationFee,
+        "out",
+      );
+    } else {
+      pState.personalBank = balance - terminationFee;
+      if (pState.lifestyle) pState.lifestyle.cash = pState.personalBank;
+    }
+    if (typeof window !== "undefined" && window.state?.player && window.state?.playerCareerState === pState) {
+      window.state.player.personalBank = pState.personalBank;
+      window.state.player.cash = pState.personalBank;
+    }
+    const resolvedBonus = offer.bootBonusAttr && offer.bootBonusVal
+      ? {
+          bootBonusAttr: offer.bootBonusAttr,
+          bootBonusVal: Math.min(3, Math.max(1, Math.round(Number(offer.bootBonusVal) || 1))),
+          bootBonusIcon: offer.bootBonusIcon || BOOT_BONUS_ATTR_META[offer.bootBonusAttr]?.icon || "👟",
+          bootBonusAttrName: offer.bootBonusAttrName || BOOT_BONUS_ATTR_META[offer.bootBonusAttr]?.label || "Finalização & Chute",
+          bootBonusLabel: offer.bootBonusLabel || `+${Math.min(3, Math.max(1, Math.round(Number(offer.bootBonusVal) || 1)))} ${BOOT_BONUS_ATTR_META[offer.bootBonusAttr]?.label || "Finalização & Chute"}`,
+        }
+      : rollUniqueSponsorBootBonus(offer.brand || "Penalty", offer.tier || "base", normalizePlayerPosGroup(pState.position || "ATA"), new Set());
+
     pState.sponsorContract = {
       id: offer.id,
       name:
@@ -1593,6 +1720,7 @@
               : Number(offer.minOvr) >= 55
                 ? "aspirante"
                 : "base"),
+      ...resolvedBonus,
       minOvr: Number(offer.minOvr) || 0,
       monthlyStipend,
       bonusGoal: Math.max(0, Math.round(Number(offer.bonusGoal) || 500)),
@@ -1614,7 +1742,7 @@
       assistsDuringContract: 0,
       ratingsList: [],
     };
-    return { ok: true, terminationFee, durationDays, endDate };
+    return { ok: true, terminationFee, durationDays, endDate, bootBonus: resolvedBonus };
   }
 
   function terminateSponsorContract(pState, currentDate) {
@@ -1626,7 +1754,22 @@
     const balance = Math.max(0, Number(pState.personalBank) || 0);
     if (terminationFee > balance)
       return { ok: false, terminationFee, shortfall: terminationFee - balance };
-    pState.personalBank = balance - terminationFee;
+    if (terminationFee > 0 && window.AFM_Lifestyle?.addPlayerTransaction) {
+      window.AFM_Lifestyle.addPlayerTransaction(
+        pState,
+        currentDate || "2026-01-18",
+        "Multa Rescisória de Patrocínio",
+        terminationFee,
+        "out",
+      );
+    } else {
+      pState.personalBank = balance - terminationFee;
+      if (pState.lifestyle) pState.lifestyle.cash = pState.personalBank;
+    }
+    if (typeof window !== "undefined" && window.state?.player && window.state?.playerCareerState === pState) {
+      window.state.player.personalBank = pState.personalBank;
+      window.state.player.cash = pState.personalBank;
+    }
     pState.sponsorContract = null;
     return { ok: true, terminationFee };
   }
@@ -1694,13 +1837,16 @@
       }
     }
 
-    // 2. Bônus de Fornecedor Esportivo de Chuteiras (Patrocínio de Material Esportivo)
-    const sponsorBonus = getSponsorBootBonus(pState?.sponsorContract);
-    if (sponsorBonus) {
-      const baseShot = Number.isFinite(Number(attrs.chu))
-        ? Number(attrs.chu)
+    // 2. Bônus de Fornecedor Esportivo de Chuteiras (Patrocínio de Material Esportivo — atributo único +1 a +3)
+    const sponsorInfo = getSponsorBootBonusInfo(pState?.sponsorContract);
+    if (sponsorInfo.val > 0) {
+      const attrKey = sponsorInfo.attr || "chu";
+      const enMap = { vel: "pace", chu: "shooting", pas: "passing", dri: "dribbling", def: "defending", fis: "physical" };
+      const enKey = enMap[attrKey] || "shooting";
+      const baseVal = Number.isFinite(Number(attrs[attrKey] ?? attrs[enKey]))
+        ? Number(attrs[attrKey] ?? attrs[enKey])
         : 35;
-      attrs.chu = Math.min(99, Math.max(1, baseShot + sponsorBonus));
+      attrs[attrKey] = Math.min(99, Math.max(1, baseVal + sponsorInfo.val));
     }
 
     // 3. Bônus do Analista de Desempenho Tático Individual (+1 Passe & Visão)
@@ -2833,17 +2979,17 @@
       const goalChanceFactor = Math.min(
         1,
         (posGroup === "ATA"
-          ? 0.35
+          ? 0.52
           : posGroup === "PON"
-            ? 0.25
+            ? 0.40
             : posGroup === "MEI"
-              ? 0.18
-              : 0.05) *
+              ? 0.30
+              : 0.08) *
           (playedMinutes / 90) *
-          1.3,
+          1.35,
       );
       if (goalsFor > 0 && Math.random() < goalChanceFactor) {
-        goalsScored = Math.min(goalsFor, Math.random() < 0.2 ? 2 : 1);
+        goalsScored = Math.min(goalsFor, Math.random() < 0.28 ? 2 : 1);
       }
     }
     if (goalsScored > 0) baseRating += goalsScored * 1.2;
@@ -2852,17 +2998,19 @@
       const assistChanceFactor = Math.min(
         1,
         (posGroup === "MEI"
-          ? 0.32
+          ? 0.46
           : posGroup === "PON"
-            ? 0.28
+            ? 0.40
             : posGroup === "LAT"
-              ? 0.2
-              : 0.1) *
+              ? 0.28
+              : posGroup === "ATA"
+                ? 0.24
+                : 0.14) *
           (playedMinutes / 90) *
-          1.3,
+          1.35,
       );
       if (goalsFor > goalsScored && Math.random() < assistChanceFactor) {
-        assistsGiven = 1;
+        assistsGiven = Math.min(goalsFor - goalsScored, Math.random() < 0.22 ? 2 : 1);
       }
     }
     if (assistsGiven > 0) baseRating += assistsGiven * 0.8;
@@ -3044,7 +3192,19 @@
     // Quebra de recordes históricos em tempo real (+15 gols em um ano, +9 assistências, +12 jogos invicto)
     pState.competitionRecordsBroken = Array.isArray(pState.competitionRecordsBroken) ? pState.competitionRecordsBroken : [];
     pState.individualAwards = Array.isArray(pState.individualAwards) ? pState.individualAwards : [];
-    if (sStats.goals >= 15 && !pState.competitionRecordsBroken.some(r => r.type === 'mostGoalsSeason')) {
+    const creditRecordPrize = (amount, label) => {
+      if (window.AFM_Lifestyle?.addPlayerTransaction) {
+        window.AFM_Lifestyle.addPlayerTransaction(pState, matchDate || gameState?.date, label, amount, 'in');
+      } else {
+        pState.personalBank = (pState.personalBank || 0) + amount;
+        if (pState.lifestyle) pState.lifestyle.cash = pState.personalBank;
+      }
+      if (gameState.player) {
+        gameState.player.personalBank = pState.personalBank;
+        gameState.player.cash = pState.personalBank;
+      }
+    };
+    if (sStats.goals >= 15 && !pState.competitionRecordsBroken.some(r => r.type === 'mostGoalsSeason' && Number(r.year) === Number(currentSeasonYear))) {
       const recItem = {
         type: 'mostGoalsSeason',
         title: 'Maior Artilheiro em uma Única Edição',
@@ -3053,14 +3213,39 @@
       };
       pState.competitionRecordsBroken.push(recItem);
       pState.xp = (pState.xp || 0) + 500;
-      pState.personalBank = (pState.personalBank || 0) + 5000;
-      pState.individualAwards.push({
-        id: 'record_goals_' + currentSeasonYear,
-        title: 'Recordista Histórico: Artilharia da Competição',
-        year: currentSeasonYear,
-        icon: '📜',
-        desc: `Quebrou o recorde histórico com ${sStats.goals} gols!`
-      });
+      creditRecordPrize(5000, 'Prêmio Recorde Histórico: +15 Gols na Temporada');
+      const awId = 'record_goals_' + currentSeasonYear;
+      if (!pState.individualAwards.some(a => a.id === awId)) {
+        pState.individualAwards.push({
+          id: awId,
+          title: 'Recordista Histórico: Artilharia da Competição',
+          year: currentSeasonYear,
+          icon: '📜',
+          desc: `Quebrou o recorde histórico com ${sStats.goals} gols!`
+        });
+      }
+      levelUps += normalizePlayerProgression(pState);
+    }
+    if (sStats.assists >= 9 && !pState.competitionRecordsBroken.some(r => r.type === 'mostAssistsSeason' && Number(r.year) === Number(currentSeasonYear))) {
+      const recItem = {
+        type: 'mostAssistsSeason',
+        title: 'Maior Garçom em uma Única Edição',
+        value: sStats.assists,
+        year: currentSeasonYear
+      };
+      pState.competitionRecordsBroken.push(recItem);
+      pState.xp = (pState.xp || 0) + 500;
+      creditRecordPrize(4000, 'Prêmio Recorde Histórico: +9 Assistências na Temporada');
+      const awId = 'record_assists_' + currentSeasonYear;
+      if (!pState.individualAwards.some(a => a.id === awId)) {
+        pState.individualAwards.push({
+          id: awId,
+          title: 'Recordista Histórico: Líder de Assistências',
+          year: currentSeasonYear,
+          icon: '📜',
+          desc: `Quebrou o recorde histórico com ${sStats.assists} assistências!`
+        });
+      }
       levelUps += normalizePlayerProgression(pState);
     }
 
@@ -3098,6 +3283,27 @@
         sStats.unbeatenStreak = sStats.currentStreak;
       if (sStats.currentStreak > (stats.unbeatenStreak || 0))
         stats.unbeatenStreak = sStats.currentStreak;
+      if (sStats.currentStreak >= 12 && !pState.competitionRecordsBroken.some(r => r.type === 'longestUnbeatenStreak' && Number(r.year) === Number(currentSeasonYear))) {
+        pState.competitionRecordsBroken.push({
+          type: 'longestUnbeatenStreak',
+          title: 'Maior Sequência Invicta',
+          value: sStats.currentStreak,
+          year: currentSeasonYear
+        });
+        pState.xp = (pState.xp || 0) + 500;
+        creditRecordPrize(4500, 'Prêmio Recorde Histórico: +12 Jogos Invicto');
+        const awId = 'record_streak_' + currentSeasonYear;
+        if (!pState.individualAwards.some(a => a.id === awId)) {
+          pState.individualAwards.push({
+            id: awId,
+            title: 'Recordista Histórico: Sequência Invicta',
+            year: currentSeasonYear,
+            icon: '📜',
+            desc: `Incríveis ${sStats.currentStreak} jogos consecutivos sem derrota!`
+          });
+        }
+        levelUps += normalizePlayerProgression(pState);
+      }
     } else if (lost) {
       sStats.currentStreak = 0;
     }
@@ -3257,6 +3463,22 @@
     if (typeof window !== "undefined" && typeof window.syncCompetitionStatsComprehensive === "function") {
       try {
         window.syncCompetitionStatsComprehensive(matchCompId);
+      } catch (_) {}
+    }
+
+    // Notifica FootGram sobre a atuação para repercutir no feed e sortear propostas de Publipost após boas partidas
+    if (typeof window !== "undefined" && window.AFM_SocialMedia && typeof window.AFM_SocialMedia.processPostMatchSocialImpact === "function") {
+      try {
+        window.AFM_SocialMedia.processPostMatchSocialImpact(gameState, {
+          goals: goalsScored,
+          assists: assistsGiven,
+          rating: finalRating,
+          isMvp,
+          cleanSheet,
+          won,
+          playedMinutes,
+          opponent: isHome ? matchResult?.a : matchResult?.h,
+        });
       } catch (_) {}
     }
 
@@ -3889,15 +4111,28 @@
     pState.lastAgingYear = Math.max(lastYear, year);
     if (athlete) athlete.age = age;
     if (declined && athlete) {
+      if (athlete.attributes) {
+        syncBidirectionalAttributes(athlete.attributes, 35);
+        pState.attributes = athlete.attributes;
+        if (gameState.player) gameState.player.attributes = athlete.attributes;
+      }
       const effectiveAttrs = getPlayerEffectiveAttributes(gameState, athlete);
       athlete.ovr = calculatePlayerOverall(effectiveAttrs, athlete.pos);
       athlete.overall = athlete.ovr;
       pState.athleteOvr = athlete.ovr;
+      pState.overall = athlete.ovr;
+      if (gameState.player) {
+        gameState.player.ovr = athlete.ovr;
+        gameState.player.overall = athlete.ovr;
+        gameState.player.age = age;
+      }
       gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
       gameState.news.unshift(
         `📉 DECLÍNIO NATURAL: Aos ${age} anos, ${pState.athleteName || athlete.name} sofreu declínio natural de atributos físicos e técnicos (-${declined} pts). Foco em treinos físicos ajuda a atenuar.`,
       );
       gameState.news = gameState.news.slice(0, 50);
+    } else if (gameState.player) {
+      gameState.player.age = age;
     }
     if (oldAge < 30 && age >= 30) {
       gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
@@ -4251,7 +4486,26 @@
         ok: false,
         error: `Saldo insuficiente para contratar o advogado (R$ ${fee.toLocaleString("pt-BR")}).`,
       };
-    pState.personalBank = Math.round(Number(pState.personalBank) - fee);
+    if (window.AFM_Lifestyle?.addPlayerTransaction && fee > 0) {
+      window.AFM_Lifestyle.addPlayerTransaction(
+        pState,
+        gameState.date || "2026-01-01",
+        "Honorários Advocatícios (Ação Trabalhista)",
+        fee,
+        "out",
+      );
+      if (gameState.player) {
+        gameState.player.personalBank = pState.personalBank;
+        gameState.player.cash = pState.personalBank;
+      }
+    } else {
+      pState.personalBank = Math.round(Number(pState.personalBank) - fee);
+      if (pState.lifestyle) pState.lifestyle.cash = pState.personalBank;
+      if (gameState.player) {
+        gameState.player.personalBank = pState.personalBank;
+        gameState.player.cash = pState.personalBank;
+      }
+    }
     arrears.claim = {
       status: "pending",
       filedDate: gameState.date,
@@ -5411,14 +5665,18 @@
         year: targetSeason,
       };
       recordsBroken.push(recItem);
-      pState.competitionRecordsBroken.push(recItem);
-      pState.individualAwards.push({
-        id: "record_goals_" + targetSeason,
-        title: "Recordista Histórico: Artilharia da Competição",
-        year: targetSeason,
-        icon: "📜",
-        desc: `Novo recorde histórico de ${userGoals} gols em uma única temporada do ${cRec.compName}!`,
-      });
+      if (!pState.competitionRecordsBroken.some(r => r.type === "mostGoalsSeason" && Number(r.year) === Number(targetSeason))) {
+        pState.competitionRecordsBroken.push(recItem);
+      }
+      if (!pState.individualAwards.some(a => a.id === "record_goals_" + targetSeason)) {
+        pState.individualAwards.push({
+          id: "record_goals_" + targetSeason,
+          title: "Recordista Histórico: Artilharia da Competição",
+          year: targetSeason,
+          icon: "📜",
+          desc: `Novo recorde histórico de ${userGoals} gols em uma única temporada do ${cRec.compName}!`,
+        });
+      }
       pState.personality.maverick = (pState.personality.maverick || 30) + 40;
       pState.personality.virtuoso = (pState.personality.virtuoso || 40) + 30;
       pState.relationships.fansRelation = 100;
@@ -5450,14 +5708,18 @@
         year: targetSeason,
       };
       recordsBroken.push(recItem);
-      pState.competitionRecordsBroken.push(recItem);
-      pState.individualAwards.push({
-        id: "record_assists_" + targetSeason,
-        title: "Recordista Histórico: Líder de Assistências",
-        year: targetSeason,
-        icon: "📜",
-        desc: `Novo recorde de ${userAssists} assistências no ${cRec.compName}!`,
-      });
+      if (!pState.competitionRecordsBroken.some(r => r.type === "mostAssistsSeason" && Number(r.year) === Number(targetSeason))) {
+        pState.competitionRecordsBroken.push(recItem);
+      }
+      if (!pState.individualAwards.some(a => a.id === "record_assists_" + targetSeason)) {
+        pState.individualAwards.push({
+          id: "record_assists_" + targetSeason,
+          title: "Recordista Histórico: Líder de Assistências",
+          year: targetSeason,
+          icon: "📜",
+          desc: `Novo recorde de ${userAssists} assistências no ${cRec.compName}!`,
+        });
+      }
       pState.personality.heartbeat = (pState.personality.heartbeat || 30) + 40;
       pState.personality.virtuoso = (pState.personality.virtuoso || 40) + 30;
       pState.relationships.fansRelation = 100;
@@ -5490,14 +5752,18 @@
         year: targetSeason,
       };
       recordsBroken.push(recItem);
-      pState.competitionRecordsBroken.push(recItem);
-      pState.individualAwards.push({
-        id: "record_streak_" + targetSeason,
-        title: "Recordista Histórico: Sequência Invicta",
-        year: targetSeason,
-        icon: "📜",
-        desc: `Incríveis ${userStreak} jogos consecutivos sem derrota!`,
-      });
+      if (!pState.competitionRecordsBroken.some(r => r.type === "longestUnbeatenStreak" && Number(r.year) === Number(targetSeason))) {
+        pState.competitionRecordsBroken.push(recItem);
+      }
+      if (!pState.individualAwards.some(a => a.id === "record_streak_" + targetSeason)) {
+        pState.individualAwards.push({
+          id: "record_streak_" + targetSeason,
+          title: "Recordista Histórico: Sequência Invicta",
+          year: targetSeason,
+          icon: "📜",
+          desc: `Incríveis ${userStreak} jogos consecutivos sem derrota!`,
+        });
+      }
       pState.personality.virtuoso = (pState.personality.virtuoso || 40) + 40;
       pState.relationships.boardRelation = 100;
     }
@@ -6254,6 +6520,95 @@
     }
   }
 
+  /**
+   * Virada Oficial de Temporada do Modo Carreira Jogador (Multi-Temporadas 2026 -> 2031+)
+   * Apura premiações, arquiva a temporada encerrada em careerHistory.seasons, reseta seasonStats
+   * para "Aguardando estreia" (0 jogos) e aplica envelhecimento/declínio/carta de 35 anos na nova temporada.
+   */
+  function rolloverPlayerSeason(gameState, finishedYear) {
+    if (!gameState || gameState.gameMode !== "player" || !gameState.playerCareerState) {
+      return null;
+    }
+    const pState = gameState.playerCareerState;
+    const prevYear = Number(finishedYear) || (Number(gameState.season) - 1) || 2026;
+    const newSeasonYear = Number(gameState.season) > prevYear ? Number(gameState.season) : prevYear + 1;
+
+    // 1. Apura prêmios individuais da temporada encerrada (idempotente)
+    try {
+      processEndOfSeasonAwards(gameState, prevYear);
+    } catch (_) {}
+
+    // 2. Arquiva estatísticas da temporada encerrada em careerHistory.seasons (sem duplicar o ano)
+    ensurePlayerCareerHistory(pState, gameState);
+    const sStats = pState.seasonStats || {};
+    const athlete = (gameState.squad || []).find(p => String(p.id) === String(gameState.controlledPlayerId) || p.isControlled);
+    const curOvr = Number(athlete?.ovr || athlete?.overall || pState.overall || pState.athleteOvr || 45);
+
+    if (!pState.careerHistory.seasons.some(entry => Number(entry.season || entry.year) === prevYear)) {
+      const gamesPlayed = Number(sStats.games || sStats.matches || 0);
+      pState.careerHistory.seasons.unshift({
+        season: prevYear,
+        year: prevYear,
+        club: gameState.club || "Clube",
+        competition: gameState.competition || "Campeonato",
+        age: Number(pState.age || athlete?.age || 15),
+        ovr: curOvr,
+        games: gamesPlayed,
+        matches: gamesPlayed,
+        starts: Number(sStats.starterCount || sStats.starts || 0),
+        minutes: Number(sStats.minutesPlayed || 0),
+        goals: Number(sStats.goals || 0),
+        assists: Number(sStats.assists || 0),
+        cleanSheets: Number(sStats.cleanSheets || 0),
+        mvp: Number(sStats.mvpCount || sStats.manOfTheMatch || 0),
+        avgRating: gamesPlayed > 0 ? Number(sStats.avgRating || sStats.averageRating || 6.5) : 0,
+        titlesWon: (gameState.titles || [])
+          .filter(t => (typeof t === "object" ? Number(t.year) === prevYear : false))
+          .map(t => (typeof t === "object" ? t.name : String(t)))
+      });
+    }
+
+    // 3. Zera rigorosamente seasonStats para a nova temporada (REGRA ZERO-NOTA FICTÍCIA COM 0 JOGOS)
+    pState.seasonStats = {
+      season: newSeasonYear,
+      matches: 0,
+      games: 0,
+      starterCount: 0,
+      subCount: 0,
+      minutesPlayed: 0,
+      goals: 0,
+      assists: 0,
+      cleanSheets: 0,
+      mvpCount: 0,
+      manOfTheMatch: 0,
+      yellowCards: 0,
+      redCards: 0,
+      ratingSum: 0,
+      avgRating: 0,
+      averageRating: 0,
+      currentStreak: 0,
+      unbeatenStreak: 0,
+      shots: 0,
+      keyPasses: 0,
+      tackles: 0
+    };
+    pState.competitionStatsByComp = {};
+    if (gameState.player) {
+      gameState.player.seasonStats = pState.seasonStats;
+    }
+
+    // 4. Processa envelhecimento anual (+1 ano), declínio 30+ e carta de transição aos 35 anos
+    const newDateIso = `${newSeasonYear}-01-01`;
+    const agingReport = processPlayerAging(gameState, newDateIso);
+
+    // 5. Renova vitrine de patrocinadores da nova temporada
+    try {
+      pState.sponsorOffers = generateSeasonSponsorOffers(gameState);
+    } catch (_) {}
+
+    return { ok: true, archivedSeason: prevYear, newSeason: newSeasonYear, agingReport };
+  }
+
   // Exporta o motor global
   window.AFM_PlayerEngine = {
     BRAZILIAN_REGIONS_DATA,
@@ -6299,6 +6654,8 @@
     processMonthlyAttributeTraining,
     getPlayerEffectiveAttributes,
     getSponsorBootBonus,
+    getSponsorBootBonusInfo,
+    BOOT_BONUS_ATTR_META,
     processMonthlyPlayerFinances,
     filePlayerSalaryClaim,
     registerPlayerTransferListing,
@@ -6308,6 +6665,7 @@
     makeCounterOffer,
     processDailySponsorTurn,
     processEndOfSeasonAwards,
+    rolloverPlayerSeason,
     lifestyle: typeof window !== "undefined" ? window.AFM_Lifestyle : null,
     ensurePlayerCareerHistory,
     calculateAthleteInitialMarketValue,

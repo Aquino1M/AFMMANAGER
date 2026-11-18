@@ -96,9 +96,29 @@
       this._lastAdvanceTime = Date.now();
       isAdvancingNow = true;
       try {
-        const add = Math.max(1, Math.min(90, Number(days) || 1));
-        const activeDateStr = state.date || state.currentDate || '2026-01-01';
+        const rawAdd = Math.max(1, Math.min(90, Number(days) || 1));
+        const activeDateStr = String(state.date || state.currentDate || '2026-01-01').slice(0, 10);
         const currentObj = parseSafeLocalNoon(activeDateStr);
+
+        // Blindagem irrestrita: impede pular ou ultrapassar partida oficial pendente
+        const pendingMatch = (typeof window.getActualCurrentMatch === 'function')
+          ? window.getActualCurrentMatch(state)
+          : null;
+        let add = rawAdd;
+        if (pendingMatch && pendingMatch.date) {
+          const matchIso = String(pendingMatch.date).slice(0, 10);
+          if (activeDateStr >= matchIso) {
+            if (typeof window.toast === 'function') {
+              window.toast('⚽ Dia de jogo pendente! Escolha Jogar Ao Vivo ou Simular Partida antes de avançar o calendário.');
+            }
+            if (typeof window.render === 'function') window.render();
+            return { newIso: activeDateStr, newPtBr: toPtBr(currentObj), blockedByMatchDay: true };
+          }
+          const matchObj = parseSafeLocalNoon(matchIso);
+          const diffToMatch = Math.max(1, Math.round((matchObj.getTime() - currentObj.getTime()) / 86400000));
+          add = Math.min(rawAdd, diffToMatch);
+        }
+
         const oldMonth = currentObj.getMonth();
         const oldYear = currentObj.getFullYear();
 
@@ -151,9 +171,11 @@
           window.AFM_WorldSimulation.simulateWorldStepOnDayAdvance(state, newIso);
         }
 
-        if (state && state.gameMode !== 'player') {
-          if (monthChanged && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function') {
-            window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(state);
+        if (state && state.gameMode !== 'player' && !(typeof window !== 'undefined' && window.isPlayerCareerActive?.(state))) {
+          if (monthChanged && typeof window.processClubMonthlyFinances === 'function') {
+            crossedMonths.forEach(monthKey => window.processClubMonthlyFinances(state, `${monthKey}-01`));
+          } else if (monthChanged && window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn === 'function') {
+            crossedMonths.forEach(monthKey => window.AFM_LifeAndSharesPro.processMonthlyLifeAndDividendsTurn(state, monthKey));
           }
           if (window.AFM_LifeAndSharesPro && typeof window.AFM_LifeAndSharesPro.processRoundTurn === 'function') {
             window.AFM_LifeAndSharesPro.processRoundTurn(state);
@@ -259,7 +281,14 @@
           nextDate = parseSafeLocalNoon(nm.date);
         }
       }
-      if (!nextDate || nextDate <= curr) return this.advanceDaysGuaranteed(state, 1);
+      if (nextDate && nextDate <= curr) {
+        if (typeof window.toast === 'function') {
+          window.toast('⚽ Hoje é dia de jogo! Escolha Jogar Ao Vivo ou Simular Partida.');
+        }
+        if (typeof window.render === 'function') window.render();
+        return { newIso: state.date || state.currentDate, blockedByMatchDay: true };
+      }
+      if (!nextDate) return this.advanceDaysGuaranteed(state, 1);
       const diffDays = Math.min(90, Math.max(1, Math.round((nextDate.getTime() - curr.getTime()) / 86400000)));
       return this.advanceDaysGuaranteed(state, diffDays, true);
     },

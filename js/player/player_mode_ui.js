@@ -859,10 +859,15 @@
       comp?.name ||
       state.competition ||
       "Campeonato";
-    const isMatchToday =
-      String(state.date || state.currentDate || "").slice(0, 10) ===
-      String(matchDate || "").slice(0, 10);
-    const matchDateFormatted = formatDatePtBr(matchDate);
+    const curIsoDate = String(state.date || state.currentDate || "2026-01-01").slice(0, 10);
+    const matchIsoDate = String(matchDate || curIsoDate).slice(0, 10);
+    const isMatchToday = activeMatch
+      ? curIsoDate >= matchIsoDate
+      : curIsoDate === matchIsoDate;
+    const isOverdueMatch = Boolean(activeMatch && curIsoDate > matchIsoDate);
+    const matchDateFormatted = isOverdueMatch
+      ? `${formatDatePtBr(matchDate)} · HOJE (Pendente)`
+      : formatDatePtBr(matchDate);
 
     const homeClub = isHome ? (state.club || "Meu Clube") : opp;
     const awayClub = isHome ? opp : (state.club || "Meu Clube");
@@ -1420,32 +1425,23 @@
                 ${
                   vm.canPlayMatch
                     ? `
-                <button type="button" class="btn primary btn-player-play-live" data-hub-action="play_live" style="width:100%;padding:13px;font-size:13px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 18px rgba(124,58,237,0.4)">
-                  ▶ JOGAR AO VIVO (EM TEMPO REAL)
+                <button type="button" class="btn primary btn-player-play-live" data-hub-action="play_live" style="width:100%;padding:14px;font-size:13px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 18px rgba(124,58,237,0.45)">
+                  ⚽ JOGAR PARTIDA AO VIVO
                 </button>
                 `
-                    : ""
+                    : `<div style="padding:8px 12px;border-radius:10px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#fca5a5;font-size:11px;font-weight:800;text-align:center">🩺 Fora dos relacionados (Condição &lt; 50%)</div>`
                 }
-                <button type="button" class="btn btn-player-play-quick" data-hub-action="play_quick" style="width:100%;padding:10px;font-size:12px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:10px;cursor:pointer">
-                  ⚡ ${vm.canPlayMatch ? "Simular Rápido" : "Simular Partida · descansar"}
+                <button type="button" class="btn btn-player-play-quick" data-hub-action="play_quick" style="width:100%;padding:12px;font-size:12px;font-weight:900;background:rgba(16,185,129,0.12);border:1.5px solid #10b981;color:#6ee7b7;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+                  ⚡ ${vm.canPlayMatch ? "SIMULAR PARTIDA" : "Simular Partida · descansar"}
                 </button>
               `
                   : `
                 <button type="button" class="btn primary btn-player-advance-to-match" data-hub-action="advance_to_match" style="width:100%;padding:13px;font-size:13px;font-weight:900;background:linear-gradient(135deg,#06b6d4,#0891b2);border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 18px rgba(6,182,212,0.4)">
                   ⏩ AVANÇAR ATÉ O DIA DO JOGO (${vm.matchDateFormatted})
                 </button>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                  <button type="button" class="btn btn-player-advance-1day" data-hub-action="advance_1day" style="padding:10px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:8px;cursor:pointer">
-                    📅 Avançar 1 Dia
-                  </button>
-                  ${
-                    vm.canPlayMatch
-                      ? `<button type="button" class="btn primary btn-player-play-live" data-hub-action="play_live" style="padding:10px;font-size:11px;font-weight:900;background:linear-gradient(135deg,#7c3aed,#9333ea);border:none;border-radius:8px;cursor:pointer">
-                    ▶ Jogar Direto
-                  </button>`
-                      : `<div style="padding:10px;font-size:11px;text-align:center;color:#ef4444">🩺 Descanso até o jogo</div>`
-                  }
-                </div>
+                <button type="button" class="btn btn-player-advance-1day" data-hub-action="advance_1day" style="width:100%;padding:10px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:8px;cursor:pointer">
+                  📅 Avançar 1 Dia
+                </button>
               `
               }
             </div>
@@ -2167,7 +2163,13 @@
     };
 
     const bootsEquipped = (pState.luxuryItems || []).includes("luxury_boots") && pState.luxuryBootsEquipped !== false;
-    const sponsorBootBonus = window.AFM_PlayerEngine?.getSponsorBootBonus(pState.sponsorContract) || 0;
+    const sponsorBootInfo = window.AFM_PlayerEngine?.getSponsorBootBonusInfo?.(pState.sponsorContract) || {
+      attr: "chu",
+      val: window.AFM_PlayerEngine?.getSponsorBootBonus(pState.sponsorContract) || 0,
+      label: "Finalização & Chute",
+      icon: "🎯"
+    };
+    const sponsorBootBonus = sponsorBootInfo.val || 0;
     const pending = pState.pendingAttributePoints || (pState.pendingAttributePoints = {});
     const pendingTotal = Object.values(pending).reduce((sum, val) => sum + Math.max(0, Number(val) || 0), 0);
     const sp = Math.max(0, (pState.skillPoints || 0) - pendingTotal);
@@ -2296,7 +2298,7 @@
                 <div style="background:#090d16;border:1px solid #334155;border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
                   <div style="display:flex;align-items:center;gap:10px">
                     <span style="font-size:18px">${a.icon}</span>
-                    <span style="font-size:13px;font-weight:800;color:#fff">${a.label}${a.key === "chu" && (bootsEquipped || sponsorBootBonus) ? ` <small style="color:#facc15">(${bootsEquipped ? "+2 chuteiras" : ""}${bootsEquipped && sponsorBootBonus ? " · " : ""}${sponsorBootBonus ? `+${sponsorBootBonus} patrocínio` : ""})</small>` : ""}</span>
+                    <span style="font-size:13px;font-weight:800;color:#fff">${a.label}${(a.key === "chu" && bootsEquipped) || (sponsorBootBonus && a.key === sponsorBootInfo.attr) ? ` <small style="color:#facc15">(${a.key === "chu" && bootsEquipped ? "+2 chuteiras" : ""}${a.key === "chu" && bootsEquipped && sponsorBootBonus && a.key === sponsorBootInfo.attr ? " · " : ""}${sponsorBootBonus && a.key === sponsorBootInfo.attr ? `+${sponsorBootBonus} patrocínio` : ""})</small>` : ""}</span>
                   </div>
                   <div style="display:flex;align-items:center;gap:12px">
                     <span style="font-size:18px;font-weight:900;color:#10b981;min-width:30px;text-align:center">${Math.min(99, a.val + (pending[a.key] || 0))}</span>
@@ -2496,31 +2498,62 @@
         <!-- 5. STAFF PESSOAL DE ALTA PERFORMANCE + OBJETIVOS MENSAIS DO TÉCNICO -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
           
-          <!-- COLUNA 1: STAFF PESSOAL DE ALTA PERFORMANCE -->
-          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px">
-            <h3 style="margin:0 0 14px 0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
-              👥 STAFF PESSOAL DE ALTA PERFORMANCE
-            </h3>
-            <div style="display:flex;flex-direction:column;gap:10px">
-              ${AFM_PLAYER_EVOLUTION.STAFF_CATALOG.map(st => {
-                const isHired = !!pState.hiredStaff?.[st.id];
-                return `
-                  <div style="background:#090d16;border:1px solid ${isHired ? '#10b981' : '#334155'};border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between">
-                    <div style="display:flex;align-items:center;gap:10px">
-                      <span style="font-size:20px">${st.icon}</span>
-                      <div>
-                        <div style="font-size:12px;font-weight:900;color:#fff">${st.name}</div>
-                        <div style="font-size:10px;color:#94a3b8">${st.benefit}</div>
-                        <div style="font-size:10px;color:#38bdf8;font-weight:800;margin-top:2px">Salário: R$ ${st.salary}/mês</div>
-                      </div>
+          <!-- COLUNA 1: RESUMO DA COMISSÃO PESSOAL ATIVA (UNIFICADA COM 💎 VIDA & PATROCÍNIOS) -->
+          <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:20px;display:flex;flex-direction:column;justify-content:space-between">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px">
+                <h3 style="margin:0;font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+                  🩺 COMISSÃO PESSOAL ATIVA
+                </h3>
+                <span class="pill primary" style="font-size:9px;font-weight:900">SISTEMA UNIFICADO</span>
+              </div>
+              ${(function () {
+                const lsStaff = window.AFM_Lifestyle?.ensurePlayerLifestyleState(pState) || pState.lifestyle || { hiredStaff: [] };
+                // Migra chaves legadas de treino (se houver) para o catálogo único de 8 profissionais
+                const legacyMap = { fitness_coach: "personal_trainer", tactical_analyst: "video_analyst", nutritionist: "nutritionist", vip_team: "personal_trainer" };
+                Object.keys(legacyMap).forEach((oldKey) => {
+                  if (pState.hiredStaff?.[oldKey]) {
+                    const newKey = legacyMap[oldKey];
+                    if (!lsStaff.hiredStaff.includes(newKey)) lsStaff.hiredStaff.push(newKey);
+                    delete pState.hiredStaff[oldKey];
+                    pState.hiredStaff[newKey] = true;
+                  }
+                });
+                const catalog = window.AFM_Lifestyle?.AFM_STAFF_CATALOG || [];
+                const activeMembers = catalog.filter((item) => lsStaff.hiredStaff.includes(item.id));
+                const ovrFactor = Math.max(1, 1 + (Number(athlete?.ovr || 45) - 45) * 0.03);
+                if (!activeMembers.length) {
+                  return `
+                    <div style="background:#090d16;border:1px dashed rgba(255,255,255,0.12);border-radius:12px;padding:18px;text-align:center;color:#94a3b8;font-size:12px;margin-bottom:12px">
+                      Você ainda não contratou profissionais particulares (Personal Trainer, Fisioterapeuta, Analista de Vídeo, Contador...).<br>
+                      <span style="color:#67e8f9;font-size:11px;font-weight:700">Gerencie contratações, demissões e folha mensal na aba 💎 Vida & Patrocínios!</span>
                     </div>
-                    <button type="button" class="btn btn-hire-evolution-staff" data-staff="${st.id}" style="padding:6px 14px;border:none;border-radius:8px;font-size:11px;font-weight:900;background:${isHired ? '#dc2626' : '#10b981'};color:#fff;cursor:pointer">
-                      ${isHired ? "Dispensar" : "Contratar"}
-                    </button>
+                  `;
+                }
+                return `
+                  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+                    ${activeMembers.map((st) => {
+                      const monthly = Math.round(st.monthlyCostBase * ovrFactor);
+                      return `
+                        <div style="background:rgba(16,185,129,0.08);border:1px solid #10b981;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+                          <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:18px">${st.icon}</span>
+                            <div>
+                              <div style="font-size:12px;font-weight:900;color:#fff">${esc(st.name)}</div>
+                              <div style="font-size:10px;color:#a7f3d0">${esc(st.bonusText || st.benefitText || "")}</div>
+                            </div>
+                          </div>
+                          <span style="font-size:10px;font-weight:900;color:#fca5a5;white-space:nowrap">-R$ ${monthly.toLocaleString("pt-BR")}/mês</span>
+                        </div>
+                      `;
+                    }).join("")}
                   </div>
                 `;
-              }).join("")}
+              })()}
             </div>
+            <button type="button" class="btn primary" data-view="player_lifestyle" style="width:100%;padding:10px 14px;font-size:11px;font-weight:900;border-radius:10px;background:linear-gradient(135deg,#06b6d4,#2563eb);border:none;color:#fff;cursor:pointer">
+              💎 Gerenciar Staff em Vida & Patrocínios ➔
+            </button>
           </div>
 
           <!-- COLUNA 2: OBJETIVOS MENSAIS DO TREINADOR -->
@@ -3717,6 +3750,10 @@
                             <div>
                               <div style="font-size:15px;font-weight:900;color:#fff">${esc(o.title || o.clubOrBrand)}</div>
                               <div style="font-size:12px;color:#cbd5e1;margin-top:3px;line-height:1.4">${esc(o.details || "")}</div>
+                              ${o.type === "sponsor" ? (function () {
+                                const bInfo = window.AFM_PlayerEngine?.getSponsorBootBonusInfo?.(o) || { val: 1, label: "Finalização & Chute", icon: "🎯" };
+                                return `<div style="margin-top:5px"><span style="display:inline-flex;align-items:center;gap:5px;background:rgba(250,204,21,0.14);border:1px solid rgba(250,204,21,0.45);color:#fde047;font-size:11px;font-weight:900;padding:2px 8px;border-radius:6px">👟 Bônus Exclusivo na Chuteira: ${bInfo.icon || "⚡"} +${bInfo.val} ${esc(bInfo.label)}</span></div>`;
+                              })() : ""}
                               ${(o.type === "transfer" || o.type === "club_loan") && o.wage ? `
                                 <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11px">
                                   <span style="color:#94a3b8">Salário: <b style="color:#10b981">R$ ${Number(o.wage).toLocaleString("pt-BR")}/mês</b></span>
@@ -3975,7 +4012,7 @@
                 <div>
                   <div style="font-size:11px;color:#94a3b8;font-weight:700">🔴 DESPESAS PREVISTAS:</div>
                   <div style="font-size:17px;font-weight:900;color:#f87171">- R$ ${expExpenses.toLocaleString("pt-BR")}/mês</div>
-                  <div style="font-size:10px;color:#fca5a5">Empresário: R$ ${agentCost.toLocaleString("pt-BR")} · Staff: R$ ${staffCost.toLocaleString("pt-BR")} · Custo Vida: R$ ${lifeCost.toLocaleString("pt-BR")} ${assetsUpkeep > 0 ? `· Manutenção: R$ ${assetsUpkeep.toLocaleString("pt-BR")}` : ""} ${financingCost > 0 ? `· Financiamento: R$ ${financingCost.toLocaleString("pt-BR")}` : ""}</div>
+                  <div style="font-size:10px;color:#fca5a5">Empresário: R$ ${agentCost.toLocaleString("pt-BR")} · Staff (${(ls?.hiredStaff || []).length}): R$ ${staffCost.toLocaleString("pt-BR")}/mês · Custo Vida: R$ ${lifeCost.toLocaleString("pt-BR")} ${assetsUpkeep > 0 ? `· Manutenção: R$ ${assetsUpkeep.toLocaleString("pt-BR")}` : ""} ${financingCost > 0 ? `· Financiamento: R$ ${financingCost.toLocaleString("pt-BR")}` : ""}</div>
                 </div>
                 <div>
                   <div style="font-size:11px;color:#94a3b8;font-weight:700">💰 BALANÇO LÍQUIDO PREVISTO:</div>
@@ -4000,7 +4037,10 @@
                 <span style="font-size:26px">👟</span>
                 <div>
                   <h3 style="margin:0;font-size:18px;font-weight:900;color:#fff">${esc(activeSp.name)}</h3>
-                  <div style="font-size:11px;color:#67e8f9;font-weight:700">Fornecedor Oficial de Chuteiras · bônus de +${window.AFM_PlayerEngine?.getSponsorBootBonus(activeSp) || 0} em Finalização enquanto o contrato estiver ativo</div>
+                  ${(function () {
+                    const bInfo = window.AFM_PlayerEngine?.getSponsorBootBonusInfo?.(activeSp) || { val: window.AFM_PlayerEngine?.getSponsorBootBonus(activeSp) || 1, label: "Finalização & Chute", icon: "🎯" };
+                    return `<div style="font-size:11px;color:#67e8f9;font-weight:700">Fornecedor Oficial de Chuteiras · bônus ativo de <b style="color:#fde047">${bInfo.icon || "⚡"} +${bInfo.val} em ${esc(bInfo.label)}</b> enquanto o contrato estiver em vigor</div>`;
+                  })()}
                 </div>
               </div>
               <div style="display:flex;align-items:center;gap:8px">
@@ -4110,7 +4150,15 @@
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:14px">
               ${availableSponsors
                 .map(
-                  (sp) => `
+                  (sp) => {
+                    const bootBonusInfo = window.AFM_PlayerEngine?.getSponsorBootBonusInfo?.(sp) || {
+                      val: window.AFM_PlayerEngine?.getSponsorBootBonus?.(sp) || 1,
+                      label: "Finalização & Chute",
+                      icon: "🎯"
+                    };
+                    const bonusBadgeColor = bootBonusInfo.val >= 3 ? "#facc15" : bootBonusInfo.val === 2 ? "#38bdf8" : "#34d399";
+                    const bonusTierTag = bootBonusInfo.val >= 3 ? "RARO +3" : bootBonusInfo.val === 2 ? "ELITE +2" : "PADRÃO +1";
+                    return `
                 <div style="background:#090d16;border:1px solid #334155;border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;transition:border-color 0.2s">
                   <div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -4119,12 +4167,25 @@
                     </div>
                     <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;line-height:1.3">${esc(sp.description || "Fornecimento esportivo oficial")}</div>
                     
+                    <div style="background:linear-gradient(90deg, rgba(250,204,21,0.14), rgba(15,23,42,0.85));border:1px solid ${bonusBadgeColor};border-radius:9px;padding:8px 10px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+                      <div style="font-size:11px;font-weight:900;color:#fff;display:flex;align-items:center;gap:6px">
+                        <span>👟</span>
+                        <span>Bônus na Chuteira: <b style="color:${bonusBadgeColor}">${bootBonusInfo.icon || "⚡"} +${bootBonusInfo.val} ${esc(bootBonusInfo.label)}</b></span>
+                      </div>
+                      <span style="background:rgba(0,0,0,0.45);color:${bonusBadgeColor};border:1px solid ${bonusBadgeColor};font-size:9px;font-weight:900;padding:2px 6px;border-radius:5px;white-space:nowrap">${bonusTierTag}</span>
+                    </div>
+
                     <div style="font-size:11px;color:#cbd5e1;background:rgba(0,0,0,0.3);padding:10px;border-radius:8px;margin-bottom:12px;line-height:1.5">
                       <div style="color:#38bdf8;font-weight:800;margin-bottom:4px">📅 Duração do Vínculo: <b>${sp.durationDays || 180} Dias</b></div>
                       <div>Mensalidade Fixa: <b style="color:#10b981">R$ ${(sp.monthlyStipend || 1000).toLocaleString("pt-BR")}</b>/mês</div>
                       <div>Bônus por Gol: <b>R$ ${(sp.bonusGoal || 500).toLocaleString("pt-BR")}</b> · Vitória: <b>R$ ${(sp.bonusWin || 500).toLocaleString("pt-BR")}</b></div>
                     </div>
-                  </div>
+                  </div>`;
+                  }
+                )
+                .map((topHtml, idx) => {
+                  const sp = availableSponsors[idx];
+                  return `${topHtml}
 
                   <div>
                     <button type="button" class="btn btn-sponsor-details" data-sponsor-id="${esc(sp.id)}" style="width:100%;margin-bottom:7px;background:#182234;border:1px solid #38bdf8;color:#7dd3fc;font-weight:900;padding:8px;border-radius:8px;cursor:pointer;font-size:11px">🔍 Ver detalhes da proposta</button>
@@ -4143,8 +4204,8 @@
                     }
                   </div>
                 </div>
-              `,
-                )
+              `;
+                })
                 .join("")}
             </div>
           `
@@ -4297,7 +4358,7 @@
                           </div>
                           ${
                             isHired
-                              ? `<span class="pill good" style="font-size:9px;font-weight:900">CONTRATADO</span>`
+                              ? `<span class="pill good" style="font-size:9px;font-weight:900;background:rgba(16,185,129,0.22);border:1px solid #10b981;color:#6ee7b7">✅ CONTRATADO</span>`
                               : `<span class="pill muted" style="font-size:9px;font-weight:900">DISPONÍVEL</span>`
                           }
                         </div>
@@ -4313,8 +4374,8 @@
                           ${
                             isHired
                               ? `
-                            <div style="font-size:11px;color:#94a3b8">Honorários:</div>
-                            <div style="font-size:14px;font-weight:900;color:#f87171">R$ ${currentMonthly.toLocaleString("pt-BR")}/mês</div>
+                            <div style="font-size:10px;color:#6ee7b7;font-weight:800">Despesa Mensal Ativa:</div>
+                            <div style="font-size:14px;font-weight:900;color:#f87171">- R$ ${currentMonthly.toLocaleString("pt-BR")}/mês</div>
                           `
                               : `
                             <div style="font-size:10px;color:#94a3b8">Taxa de Contratação: <b>R$ ${st.hireCost.toLocaleString("pt-BR")}</b></div>
@@ -4327,7 +4388,7 @@
                             isHired
                               ? `
                             <button type="button" class="btn danger btn-dismiss-staff" data-staff-id="${st.id}" style="background:#ef4444;color:#fff;font-weight:900;font-size:11px;padding:8px 14px;border-radius:8px;border:none;cursor:pointer">
-                              Dispensar
+                              ❌ Demitir
                             </button>
                           `
                               : bank >= st.hireCost
@@ -6858,12 +6919,14 @@
         ${brandOffer ? `
           <div class="card" style="background:linear-gradient(135deg,#13112c 0%,#090d16 100%);border:1.5px solid #a855f7;border-radius:18px;padding:16px 20px;box-shadow:0 8px 30px rgba(168,85,247,0.25);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px">
             <div style="flex:1;min-width:260px">
-              <div style="display:flex;align-items:center;gap:8px">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <span style="font-size:16px">💰</span>
                 <span style="font-size:12px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:0.5px">CAMPANHA PATROCINADA DISPONÍVEL</span>
                 <span style="background:rgba(168,85,247,0.2);color:#c084fc;border:1px solid #a855f7;font-size:9px;font-weight:900;padding:1px 6px;border-radius:6px">PAGAMENTO DIRETO</span>
+                ${brandOffer.chancePct ? `<span style="background:rgba(16,185,129,0.18);color:#6ee7b7;border:1px solid #10b981;font-size:9px;font-weight:900;padding:1px 6px;border-radius:6px">🔥 CONVITE PÓS-JOGO (${brandOffer.chancePct}%)</span>` : ""}
               </div>
               <div style="font-size:14px;font-weight:900;color:#fff;margin-top:4px">${brandOffer.brand}</div>
+              ${brandOffer.triggerReason ? `<div style="font-size:11px;color:#6ee7b7;margin-top:2px;font-weight:700">⭐ Marcas interessadas após grande atuação: ${esc(brandOffer.triggerReason)}</div>` : ""}
               <div style="font-size:11px;color:#cbd5e1;margin-top:2px;font-style:italic">"${esc(brandOffer.caption)}"</div>
             </div>
 
@@ -9446,15 +9509,20 @@
 
         const payout = Number(offer.payout) || 800;
 
-        // Credita valor direto na conta pessoal do jogador
+        // Credita valor direto na conta pessoal do jogador (assinatura canônica: pState, dateStr, desc, amount, type)
+        const curDateStr = s.date || s.currentDate || "2026-01-18";
         if (typeof window.AFM_Lifestyle?.addPlayerTransaction === 'function') {
-          window.AFM_Lifestyle.addPlayerTransaction(pState, payout, "Publipost: " + offer.brand, "income");
+          window.AFM_Lifestyle.addPlayerTransaction(pState, curDateStr, "Publipost: " + offer.brand, payout, "in");
         } else {
           pState.personalBank = (pState.personalBank || 0) + payout;
           if (pState.lifestyle) pState.lifestyle.cash = pState.personalBank;
-          if (s.player) s.player.cash = pState.personalBank;
+          if (s.player) {
+            s.player.cash = pState.personalBank;
+            s.player.personalBank = pState.personalBank;
+          }
           pState.cash = pState.personalBank;
         }
+        if (typeof window.syncGlobalFinancialDOM === "function") window.syncGlobalFinancialDOM(s);
 
         // Atualiza badge de dinheiro na topbar
         const cashBadge = document.querySelector(".sm-badge-cash .sm-res-val");
@@ -9934,9 +10002,14 @@
               s.date || s.currentDate,
             ) || 0
           : 0;
+        const bInfo = window.AFM_PlayerEngine?.getSponsorBootBonusInfo?.(offer) || {
+          val: Number(window.AFM_PlayerEngine?.getSponsorBootBonus(offer) || 1),
+          label: "Finalização & Chute",
+          icon: "🎯"
+        };
         showCustomAlert({
           title: `Proposta ${offer.brand || offer.name} 👟`,
-          message: `Duração: ${offer.durationDays || 180} dias\nMensalidade: R$ ${Number(offer.monthlyStipend || 0).toLocaleString("pt-BR")}/mês\nBônus por gol: R$ ${Number(offer.bonusGoal || 0).toLocaleString("pt-BR")}\nBônus por assistência: R$ ${Number(offer.bonusAssist || 0).toLocaleString("pt-BR")}\nBônus por vitória: R$ ${Number(offer.bonusWin || 0).toLocaleString("pt-BR")}\nBônus de assinatura: R$ ${Number(offer.renewalBonus || 0).toLocaleString("pt-BR")}\nBônus atual nas chuteiras: +${Number(window.AFM_PlayerEngine?.getSponsorBootBonus(offer) || 0)} em finalização\nMulta estimada para trocar agora: R$ ${fee.toLocaleString("pt-BR")}\nSaldo pessoal: R$ ${Number(pState.personalBank || 0).toLocaleString("pt-BR")}`,
+          message: `Duração: ${offer.durationDays || 180} dias\nMensalidade: R$ ${Number(offer.monthlyStipend || 0).toLocaleString("pt-BR")}/mês\nBônus por gol: R$ ${Number(offer.bonusGoal || 0).toLocaleString("pt-BR")}\nBônus por assistência: R$ ${Number(offer.bonusAssist || 0).toLocaleString("pt-BR")}\nBônus por vitória: R$ ${Number(offer.bonusWin || 0).toLocaleString("pt-BR")}\nBônus de assinatura: R$ ${Number(offer.renewalBonus || 0).toLocaleString("pt-BR")}\n👟 Bônus exclusivo nas chuteiras: ${bInfo.icon || "⚡"} +${bInfo.val} em ${bInfo.label}\nMulta estimada para trocar agora: R$ ${fee.toLocaleString("pt-BR")}\nSaldo pessoal: R$ ${Number(pState.personalBank || 0).toLocaleString("pt-BR")}`,
           type: "info",
         });
       };
@@ -9983,11 +10056,16 @@
               (o) => o.id !== sp.id,
             );
 
+          const signedBootInfo = window.AFM_PlayerEngine?.getSponsorBootBonusInfo?.(pState.sponsorContract || sp) || {
+            val: Number(window.AFM_PlayerEngine?.getSponsorBootBonus(sp) || 1),
+            label: "Finalização & Chute",
+            icon: "🎯"
+          };
           showCustomAlert({
             title: wasSwitch
               ? `Fornecedor Atualizado para ${sp.brand}! 👟`
               : "Patrocínio Oficial Assinado! 👟",
-            message: `${wasSwitch ? `Fornecedor anterior: ${oldBrand}\nMulta de rescisão paga: R$ ${Number(signed.terminationFee || 0).toLocaleString("pt-BR")}\n` : ""}Novo fornecedor: ${sp.brand}\nVigência: ${totalDays} dias (até ${formatDatePtBr(endDate)})\nMensalidade: R$ ${Number(sp.monthlyStipend || 0).toLocaleString("pt-BR")}/mês\nBônus por gol: R$ ${Number(sp.bonusGoal || 0).toLocaleString("pt-BR")}\nBônus por assistência: R$ ${Number(sp.bonusAssist || 0).toLocaleString("pt-BR")}\nBônus por vitória: R$ ${Number(sp.bonusWin || 0).toLocaleString("pt-BR")}\nBônus em finalização: +${Number(window.AFM_PlayerEngine?.getSponsorBootBonus(sp) || 0)}\n${sp.renewalBonus ? `Luvas: R$ ${Number(sp.renewalBonus).toLocaleString("pt-BR")}\n` : ""}Efeito do contrato ativo já aplicado à carreira.`,
+            message: `${wasSwitch ? `Fornecedor anterior: ${oldBrand}\nMulta de rescisão paga: R$ ${Number(signed.terminationFee || 0).toLocaleString("pt-BR")}\n` : ""}Novo fornecedor: ${sp.brand}\nVigência: ${totalDays} dias (até ${formatDatePtBr(endDate)})\nMensalidade: R$ ${Number(sp.monthlyStipend || 0).toLocaleString("pt-BR")}/mês\nBônus por gol: R$ ${Number(sp.bonusGoal || 0).toLocaleString("pt-BR")}\nBônus por assistência: R$ ${Number(sp.bonusAssist || 0).toLocaleString("pt-BR")}\nBônus por vitória: R$ ${Number(sp.bonusWin || 0).toLocaleString("pt-BR")}\n👟 Bônus exclusivo nas chuteiras: ${signedBootInfo.icon || "⚡"} +${signedBootInfo.val} em ${signedBootInfo.label}\n${sp.renewalBonus ? `Luvas: R$ ${Number(sp.renewalBonus).toLocaleString("pt-BR")}\n` : ""}Efeito do contrato ativo já aplicado à carreira.`,
             type: "success",
             onConfirm: () => {
               if (typeof window.save === "function") window.save();
@@ -10077,6 +10155,13 @@
       };
     });
 
+    const persistAndRefreshLifestyleUi = () => {
+      syncControlledPlayerOverall(s);
+      if (typeof window.syncGlobalFinancialDOM === "function") window.syncGlobalFinancialDOM(s);
+      if (typeof window.save === "function") window.save();
+      if (typeof window.render === "function") window.render();
+    };
+
     // Comprar Chuteira
     document.querySelectorAll(".btn-buy-boot").forEach((btn) => {
       btn.onclick = () => {
@@ -10084,15 +10169,12 @@
         const res = window.AFM_Lifestyle?.buyBoot
           ? window.AFM_Lifestyle.buyBoot(s, bootId)
           : { success: false, message: "Erro ao comprar chuteira." };
-        syncControlledPlayerOverall(s);
+        if (res.success) persistAndRefreshLifestyleUi();
         showCustomAlert({
           title: res.success ? "Chuteira Nova! 👟" : "Saldo Insuficiente ❌",
           message: res.message,
           type: res.success ? "success" : "warning",
-          onConfirm: () => {
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
+          onConfirm: () => { if (res.success) persistAndRefreshLifestyleUi(); },
         });
       };
     });
@@ -10104,15 +10186,12 @@
         const res = window.AFM_Lifestyle?.repairBoot
           ? window.AFM_Lifestyle.repairBoot(s, bootId)
           : { success: false, message: "Erro ao reformar chuteira." };
-        syncControlledPlayerOverall(s);
+        if (res.success) persistAndRefreshLifestyleUi();
         showCustomAlert({
           title: res.success ? "Reforma Concluída! 🔧" : "Saldo Insuficiente ❌",
           message: res.message,
           type: res.success ? "success" : "warning",
-          onConfirm: () => {
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
+          onConfirm: () => { if (res.success) persistAndRefreshLifestyleUi(); },
         });
       };
     });
@@ -10121,12 +10200,8 @@
     document.querySelectorAll(".btn-equip-boot").forEach((btn) => {
       btn.onclick = () => {
         const bootId = btn.dataset.bootId;
-        const res = window.AFM_Lifestyle?.equipBoot
-          ? window.AFM_Lifestyle.equipBoot(s, bootId)
-          : { success: false, message: "Erro ao equipar chuteira." };
-        syncControlledPlayerOverall(s);
-        if (typeof window.save === "function") window.save();
-        if (typeof window.render === "function") window.render();
+        if (window.AFM_Lifestyle?.equipBoot) window.AFM_Lifestyle.equipBoot(s, bootId);
+        persistAndRefreshLifestyleUi();
       };
     });
 
@@ -10139,14 +10214,12 @@
           : window.AFM_PlayerEngine?.hireStaffMember
             ? window.AFM_PlayerEngine.hireStaffMember(s, staffId)
             : { success: false, message: "Erro ao contratar staff." };
+        if (res.success) persistAndRefreshLifestyleUi();
         showCustomAlert({
           title: res.success ? "Staff Contratado! ⭐" : "Saldo Insuficiente ❌",
           message: res.message,
           type: res.success ? "success" : "warning",
-          onConfirm: () => {
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
+          onConfirm: () => { if (res.success) persistAndRefreshLifestyleUi(); },
         });
       };
     });
@@ -10160,14 +10233,12 @@
           : window.AFM_PlayerEngine?.dismissStaffMember
             ? window.AFM_PlayerEngine.dismissStaffMember(s, staffId)
             : { success: false, message: "Erro ao dispensar staff." };
+        if (res.success) persistAndRefreshLifestyleUi();
         showCustomAlert({
           title: "Vínculo Encerrado 📋",
           message: res.message,
           type: "info",
-          onConfirm: () => {
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
+          onConfirm: () => { if (res.success) persistAndRefreshLifestyleUi(); },
         });
       };
     });
@@ -10179,14 +10250,12 @@
         const res = window.AFM_Lifestyle?.buyAssetCash
           ? window.AFM_Lifestyle.buyAssetCash(s, assetId)
           : { success: false, message: "Erro ao adquirir bem." };
+        if (res.success) persistAndRefreshLifestyleUi();
         showCustomAlert({
           title: res.success ? "Conquista Desbloqueada! 💎" : "Saldo Insuficiente ❌",
           message: res.message,
           type: res.success ? "success" : "warning",
-          onConfirm: () => {
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
+          onConfirm: () => { if (res.success) persistAndRefreshLifestyleUi(); },
         });
       };
     });
@@ -10198,14 +10267,12 @@
         const res = window.AFM_Lifestyle?.financeAsset
           ? window.AFM_Lifestyle.financeAsset(s, assetId)
           : { success: false, message: "Erro ao financiar bem." };
+        if (res.success) persistAndRefreshLifestyleUi();
         showCustomAlert({
           title: res.success ? "Financiamento Bancário Aprovado! 🚗" : "Não Autorizado ❌",
           message: res.message,
           type: res.success ? "success" : "warning",
-          onConfirm: () => {
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
+          onConfirm: () => { if (res.success) persistAndRefreshLifestyleUi(); },
         });
       };
     });
@@ -10216,14 +10283,12 @@
         const res = window.AFM_Lifestyle?.executeMediaGig
           ? window.AFM_Lifestyle.executeMediaGig(s)
           : { success: false, message: "Erro ao gravar comercial." };
+        if (res.success) persistAndRefreshLifestyleUi();
         showCustomAlert({
           title: res.success ? "Campanha de Sucesso! 📸" : "Aviso de Mídia ⚠️",
           message: res.message,
           type: res.success ? "success" : "warning",
-          onConfirm: () => {
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
+          onConfirm: () => { if (res.success) persistAndRefreshLifestyleUi(); },
         });
       };
     });
@@ -10235,8 +10300,10 @@
           window.depositToPlayerCdb(s, 500);
         } else if (window.AFM_Lifestyle?.depositToPlayerCdb) {
           window.AFM_Lifestyle.depositToPlayerCdb(s, 500);
+          persistAndRefreshLifestyleUi();
         } else if (window.AFM_Lifestyle?.depositCdb) {
           window.AFM_Lifestyle.depositCdb(s, 500);
+          persistAndRefreshLifestyleUi();
         }
       };
     });
@@ -10248,8 +10315,10 @@
           window.withdrawFromPlayerCdb(s);
         } else if (window.AFM_Lifestyle?.withdrawFromPlayerCdb) {
           window.AFM_Lifestyle.withdrawFromPlayerCdb(s);
+          persistAndRefreshLifestyleUi();
         } else if (window.AFM_Lifestyle?.withdrawCdb) {
           window.AFM_Lifestyle.withdrawCdb(s);
+          persistAndRefreshLifestyleUi();
         }
       };
     });
@@ -10260,14 +10329,12 @@
         const res = window.AFM_Lifestyle?.buyRentalUnit
           ? window.AFM_Lifestyle.buyRentalUnit(s)
           : { success: false, message: "Erro ao comprar imóvel." };
+        if (res.success) persistAndRefreshLifestyleUi();
         showCustomAlert({
           title: res.success ? "Imóvel Adquirido! 🏠" : "Saldo Insuficiente ❌",
           message: res.message,
           type: res.success ? "success" : "warning",
-          onConfirm: () => {
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
+          onConfirm: () => { if (res.success) persistAndRefreshLifestyleUi(); },
         });
       };
     });
@@ -10278,14 +10345,12 @@
         const res = window.AFM_Lifestyle?.buyAcademy
           ? window.AFM_Lifestyle.buyAcademy(s)
           : { success: false, message: "Erro ao abrir escolinha." };
+        if (res.success) persistAndRefreshLifestyleUi();
         showCustomAlert({
           title: res.success ? "Franquia Inaugurada! ⚽" : "Saldo Insuficiente ❌",
           message: res.message,
           type: res.success ? "success" : "warning",
-          onConfirm: () => {
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
+          onConfirm: () => { if (res.success) persistAndRefreshLifestyleUi(); },
         });
       };
     });
@@ -10296,14 +10361,12 @@
         const res = window.AFM_Lifestyle?.buyBrand
           ? window.AFM_Lifestyle.buyBrand(s)
           : { success: false, message: "Erro ao lançar marca." };
+        if (res.success) persistAndRefreshLifestyleUi();
         showCustomAlert({
           title: res.success ? "Marca Própria Lançada! ✨" : "Saldo Insuficiente ❌",
           message: res.message,
           type: res.success ? "success" : "warning",
-          onConfirm: () => {
-            if (typeof window.save === "function") window.save();
-            if (typeof window.render === "function") window.render();
-          },
+          onConfirm: () => { if (res.success) persistAndRefreshLifestyleUi(); },
         });
       };
     });
@@ -12110,6 +12173,10 @@
                     <div style="font-size:10px;color:#64748b">em partidas oficiais</div>
                   </div>
                 </div>
+                ${(function () {
+                  const bInfo = window.AFM_PlayerEngine?.getSponsorBootBonusInfo?.(offer) || { val: 1, label: "Finalização & Chute", icon: "🎯" };
+                  return `<div style="margin-top:10px;background:rgba(250,204,21,0.14);border:1px solid rgba(250,204,21,0.5);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:900;color:#fde047;display:flex;align-items:center;justify-content:space-between"><span>👟 Bônus Exclusivo na Chuteira:</span><span>${bInfo.icon || "⚡"} +${bInfo.val} ${esc(bInfo.label)}</span></div>`;
+                })()}
 
                 ${
                   offer.renewalBonus && offer.renewalBonus > 0
@@ -13344,27 +13411,29 @@
       btnResume.onclick = () => {
         modalEl.remove();
 
-        // Se o atleta estava no banco e o técnico marcou a entrada dele:
-        if (canAskCoach && s.shouldSubPlayerAtHalftime) {
-          if (typeof window.triggerPlayerCareerSubstitution === "function") {
-            const entered = window.triggerPlayerCareerSubstitution(s);
-            if (!entered && typeof window.toast === "function")
-              window.toast(
-                "A comissão não conseguiu realizar a substituição. Você permanece no banco.",
-              );
+        if (s.phase === "HALF_TIME" && !isQuickTactics) {
+          // Se o atleta estava no banco e o técnico marcou a entrada dele:
+          if (canAskCoach && s.shouldSubPlayerAtHalftime) {
+            if (typeof window.triggerPlayerCareerSubstitution === "function") {
+              const entered = window.triggerPlayerCareerSubstitution(s);
+              if (!entered && typeof window.toast === "function")
+                window.toast(
+                  "A comissão não conseguiu realizar a substituição. Você permanece no banco.",
+                );
+            }
           }
-        }
 
-        if (typeof window.applyCpuReactiveHalftimeTactics === "function") {
-          window.applyCpuReactiveHalftimeTactics(s);
-        }
+          if (typeof window.applyCpuReactiveHalftimeTactics === "function") {
+            window.applyCpuReactiveHalftimeTactics(s);
+          }
 
-        if (typeof window.transitionMatchPhase === "function") {
-          window.transitionMatchPhase("SECOND_HALF");
+          if (typeof window.transitionMatchPhase === "function") {
+            window.transitionMatchPhase("SECOND_HALF");
+          }
+          s.phase = "SECOND_HALF";
+          s.minute = Math.max(45, Number(s.minute) || 45);
+          s.timeSec = Math.max(2700, Number(s.timeSec) || 2700);
         }
-        s.phase = "SECOND_HALF";
-        s.minute = 45;
-        s.timeSec = 2700;
 
         s.playing = true;
         s.lastLoopTime =

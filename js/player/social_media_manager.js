@@ -111,20 +111,12 @@
         state.player.avatarUrl = s.avatarUrl;
       }
 
-      // Gera publi paga disponível conforme fama
-      const estValue = this.calculatePostValue(athlete, s);
-      if (!s.activeBrandOffer || s.activeBrandOffer.expiresDate !== gameDate) {
-        const brands = ["Volt Sports ⚡", "Arena Energy 🔋", "Chuteira Pro X 👟", "Isotônico Max 💧", "GameZone BR 🎮"];
-        const brandIndex = (s.feedPosts.length + (pState.level || 1)) % brands.length;
-        const brand = brands[brandIndex];
-        s.activeBrandOffer = {
-          id: "publi_" + gameDate,
-          brand: brand,
-          payout: Math.round(estValue * 0.85),
-          caption: "Parceria fechada com " + brand + "! Equipamento pronto para os próximos desafios em campo. 🚀🔥 #Publi #" + brand.split(" ")[0],
-          claimed: false,
-          expiresDate: gameDate
-        };
+      // Campanha patrocinada (Publipost) só permanece ativa se veio de boa atuação e dentro do prazo de validade
+      if (s.activeBrandOffer) {
+        const isExpired = s.activeBrandOffer.expiresDate && gameDate > s.activeBrandOffer.expiresDate;
+        if (!s.activeBrandOffer.triggeredByGoodMatch || isExpired) {
+          s.activeBrandOffer = null;
+        }
       }
 
       // Semeia DMs caso vazio
@@ -903,18 +895,23 @@
     };
   }
 
-  // Atualização de impacto de redes sociais após cada partida do atleta
+  // Atualização de impacto de redes sociais após cada partida do atleta (suporta 2 ou 3 argumentos de forma idempotente)
   function processPostMatchSocialImpact(gameState, matchResult, performanceReport){
     if(!gameState || !gameState.playerCareerState) return;
     const sm = initSocialMediaState(gameState);
     const pState = gameState.playerCareerState;
     const athleteName = pState.athleteName || 'Atleta';
     const club = gameState.club || 'Clube';
+    const perf = (performanceReport && typeof performanceReport === 'object')
+      ? performanceReport
+      : (matchResult && typeof matchResult === 'object' ? matchResult : {});
+    if (perf.matchKey && sm.lastProcessedSocialMatchKey === perf.matchKey) return;
+    if (perf.matchKey) sm.lastProcessedSocialMatchKey = perf.matchKey;
 
-    const goals = Number(performanceReport?.goals || 0);
-    const assists = Number(performanceReport?.assists || 0);
-    const rating = Number(performanceReport?.rating || 6.5);
-    const isMvp = Boolean(performanceReport?.isMvp);
+    const goals = Number(perf.goals || 0);
+    const assists = Number(perf.assists || 0);
+    const rating = Number(perf.rating || 6.5);
+    const isMvp = Boolean(perf.isMvp);
     const isIntMatch = Boolean(window.internationalMatchSession);
 
     let followerGains = 0;
@@ -953,11 +950,68 @@
 
     if(!sm.isVerified && sm.followers >= 50000){
       sm.isVerified = true;
+      sm.verified = true;
+    }
+
+    // =========================================================================
+    // SORTEIO CONDICIONAL DE CAMPANHA PATROCINADA (SÓ APÓS BOA PARTIDA + % CHANCE)
+    // =========================================================================
+    const curMatchDate = String(gameState.date || gameState.currentDate || "2026-01-18").slice(0, 10);
+    const hadGoodMatch = Boolean(rating >= 7.0 || goals >= 1 || assists >= 1 || isMvp || perf.cleanSheet);
+    if (hadGoodMatch && sm.lastBrandRollDate !== curMatchDate) {
+      sm.lastBrandRollDate = curMatchDate;
+      const hasMktStaff = Boolean(pState.lifestyle?.hiredStaff?.includes("marketing_team") || pState.hiredStaff?.marketing_team);
+      const brandChance = Math.min(
+        0.92,
+        Math.max(
+          0.35,
+          0.35 +
+            (rating >= 8.0 ? 0.22 : rating >= 7.5 ? 0.12 : 0) +
+            (goals > 0 ? 0.16 : 0) +
+            (assists > 0 ? 0.10 : 0) +
+            (isMvp ? 0.12 : 0) +
+            (hasMktStaff ? 0.18 : 0)
+        )
+      );
+      if (perf.forceBrandOffer === true || Math.random() < brandChance) {
+        const athleteObj = (gameState.squad || []).find((p) => String(p.id) === String(gameState.controlledPlayerId)) || { ovr: pState.overall || 45 };
+        const estVal = window.AFM_FOOTGRAM?.calculatePostValue
+          ? window.AFM_FOOTGRAM.calculatePostValue(athleteObj, sm)
+          : Math.max(400, Math.round((sm.followers || 1000) * 0.15 + (sm.celebrityLevel || 10) * 80));
+        const perfMult = rating >= 8.2 || goals >= 2 ? 1.25 : 1.0;
+        const brands = ["Volt Sports ⚡", "Arena Energy 🔋", "Chuteira Pro X 👟", "Isotônico Max 💧", "GameZone BR 🎮", "HyperFit Nutrition 🥤"];
+        const brand = brands[(sm.feedPosts.length + goals + Math.round(rating * 10)) % brands.length];
+        const expObj = new Date(`${curMatchDate}T12:00:00`);
+        expObj.setDate(expObj.getDate() + 3);
+        const expiresIso = Number.isFinite(expObj.getTime()) ? expObj.toISOString().slice(0, 10) : curMatchDate;
+        const reasonTxt = goals > 0
+          ? `Destaque com ${goals} gol(s) e nota ${rating.toFixed(1)}`
+          : assists > 0
+            ? `Boa atuação com ${assists} assistência(s) e nota ${rating.toFixed(1)}`
+            : `Boa atuação em campo (Nota ${rating.toFixed(1)})`;
+
+        sm.activeBrandOffer = {
+          id: `publi_${curMatchDate}_${Date.now()}`,
+          brand,
+          payout: Math.max(350, Math.round(estVal * 0.9 * perfMult)),
+          caption: `Grande jogo hoje! Parceria fechada com ${brand} rumo aos próximos desafios! 🚀🔥 #Publi #${brand.split(" ")[0]}`,
+          claimed: false,
+          triggeredByGoodMatch: true,
+          chancePct: Math.round(brandChance * 100),
+          triggerReason: reasonTxt,
+          createdDate: curMatchDate,
+          expiresDate: expiresIso,
+        };
+        gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
+        gameState.news.unshift(`💰 PROPOSTA NO FOOTGRAM: Após sua boa partida (${reasonTxt}), a marca ${brand} enviou uma campanha patrocinada de R$ ${sm.activeBrandOffer.payout.toLocaleString("pt-BR")}!`);
+      }
+    } else if (!hadGoodMatch && sm.activeBrandOffer && sm.activeBrandOffer.claimed) {
+      sm.activeBrandOffer = null;
     }
 
     // A imprensa repercute toda atuação; o texto usa o placar e os dados reais do relatório.
     {
-      const resultLine = `${club} ${performanceReport?.resultText || 'placar indisponível'} ${performanceReport?.opponent || 'Adversário'}`;
+      const resultLine = `${club} ${perf.resultText || 'placar indisponível'} ${perf.opponent || 'Adversário'}`;
       gameState.news = Array.isArray(gameState.news) ? gameState.news : [];
       gameState.news.unshift(`📰 PÓS-JOGO: ${resultLine}. ${athleteName} recebeu nota ${rating.toFixed(1)}, marcou ${goals} gol(s) e deu ${assists} assistência(s)${isMvp ? ' — eleito Craque do Jogo.' : '.'}`);
       gameState.news.length = Math.min(gameState.news.length, 50);
