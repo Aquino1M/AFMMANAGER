@@ -330,8 +330,16 @@ console.log('🧪 [TESTE 1/6] Estúdio Criar Seu Próprio Clube (10 melhorias + 
   assert.equal(stClub.stadium.pitchType, 'hybrid', 'Tipo de gramado escolhido deve persistir no estádio');
   assert.ok(stClub.customClub.thirdKit && stClub.customClub.gkKit, '3º Uniforme e Uniforme de Goleiro devem persistir em state.customClub');
   assert.equal(stClub.sponsors.master.name, 'NeoBank Digital', 'Patrocinador Master selecionado deve estar ativo no Dia 1');
+  assert.equal(stClub.sponsors.master.bonus, 8500, 'Bônus de vitória (winBonus) do Patrocinador Master escolhido DEVE ser preservado sem cair no fallback 15000');
+  assert.ok(stClub.news.some(n => JSON.stringify(n).includes('650.000')), 'Notícia inaugural deve refletir o caixa real (R$ 650.000) do pacote escolhido');
+  assert.ok(stClub.news.some(n => JSON.stringify(n).includes('7.500')), 'Notícia inaugural deve refletir a capacidade real (7.500 lugares) do pacote escolhido');
   assert.ok(String(stClub.setPieces.captain).includes(chosenCapName), 'Capitão escolhido no editor deve assumir a braçadeira em state.setPieces.captain');
   assert.equal(window.isDerbyMatch('Valência Imperial SAF', 'Palmeiras'), true, 'Confronto contra o Maior Rival escolhido DEVE ativar Clássico/Derby');
+
+  // 4) Testa fechamento financeiro mensal do clube criado: marketing deve cobrar R$ 20.000/mês (5k*4) e NUNCA R$ 144.000/mês!
+  const balBeforeMonth = stClub.balance;
+  window.processClubMonthlyFinances(stClub, '2026-01-15');
+  assert.ok(stClub.balance > balBeforeMonth - 60000, `Clube criado não pode sofrer cobrança abusiva de R$ 144k de marketing de Série A no mês 1 (saldo: ${balBeforeMonth} ➔ ${stClub.balance})`);
   console.log('   ✅ Teste 1 aprovado!');
 }
 

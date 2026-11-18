@@ -101,7 +101,7 @@
       numberColor: '#facc15'
     },
     gkKit: {
-      style: 'chevron_chest',
+      style: 'v_neck',
       shirtColor: '#16a34a',
       secondaryColor: '#0f172a',
       shortsColor: '#0f172a',
@@ -470,7 +470,7 @@
         collarSvg +
 
         (effectiveBadge && (effectiveBadge.startsWith('data:') || effectiveBadge.startsWith('http') || effectiveBadge.endsWith('.png') || effectiveBadge.endsWith('.jpg') || effectiveBadge.endsWith('.webp')) ?
-          `<image href="${effectiveBadge}" x="66" y="23" width="10" height="10" preserveAspectRatio="xMidYMid meet" />` :
+          `<image href="${escText(effectiveBadge)}" x="66" y="23" width="10" height="10" preserveAspectRatio="xMidYMid meet" />` :
           `<circle cx="71" cy="28" r="4.5" fill="${cSec}" /><circle cx="71" cy="28" r="3" fill="${cShirt}" />`
         ) +
 
@@ -794,7 +794,7 @@
           </label>
         </div>
 
-        <!-- BARRA RÁPIDA DE PRESETS DE CORES & PATROCINADOR NA CAMISA -->
+        <!-- BARRA RÁPIDA DE PRESETS DE CORES, PLACAR DE TV AO VIVO & PATROCINADOR NA CAMISA -->
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;background:#0d1527;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:10px 16px">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span style="font-size:11px;font-weight:900;color:#94a3b8;text-transform:uppercase">🎨 Presets Clássicos:</span>
@@ -804,6 +804,14 @@
                 ${escText(pr.label)}
               </button>
             `).join('')}
+          </div>
+          <div id="customBroadcastScoreboardPreview" style="display:inline-flex;align-items:center;gap:8px;background:#070b14;border:1px solid rgba(168,85,247,0.35);border-radius:999px;padding:4px 12px;font-size:11px;font-weight:900;color:#fff">
+            <span style="color:#a855f7">📺 PLACAR TV:</span>
+            <span style="display:inline-block;width:8px;height:14px;border-radius:2px;background:${customClubDraft.homeKit.shirtColor};border:1px solid ${customClubDraft.homeKit.secondaryColor}"></span>
+            <span>${escText((customClubDraft.shortName || 'CLB').toUpperCase())}</span>
+            <span style="background:rgba(34,197,94,0.2);color:#4ade80;padding:1px 7px;border-radius:6px">2 × 1</span>
+            <span style="color:#cbd5e1">${escText((customClubDraft.rivalClub || 'RIVAL').slice(0, 3).toUpperCase())}</span>
+            <span style="color:#64748b;font-weight:700;font-size:10px">· 🏟️ ${escText(customClubDraft.stadiumName || 'Arena')}</span>
           </div>
           <label style="display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:800;color:#cbd5e1;cursor:pointer">
             <input type="checkbox" id="chkShowSponsorOnKit" ${customClubDraft.showSponsorOnKit ? 'checked' : ''}>
@@ -990,7 +998,7 @@
             <div class="icon">🏟️</div>
             <div>
               <div class="title">Estádio Inicial</div>
-              <div class="val" style="color:#38bdf8">Nível 1 (5.000 lugares)</div>
+              <div class="val" style="color:#38bdf8">Nível 1 (${(curTier.id === 'ambicioso' ? 10000 : curTier.id === 'estruturado' ? 7500 : 5000).toLocaleString('pt-BR')} lugares)</div>
               <div class="small muted" style="font-size:10px">Piso: ${customClubDraft.pitchType === 'hybrid' ? 'Híbrido' : customClubDraft.pitchType === 'synthetic' ? 'Sintético FIFA' : 'Natural'}</div>
             </div>
           </div>
@@ -999,7 +1007,7 @@
             <div class="icon">🏗️</div>
             <div>
               <div class="title">Instalações</div>
-              <div class="val" style="color:#c084fc">Todas no Nível 1</div>
+              <div class="val" style="color:#c084fc">${curTier.id === 'ambicioso' ? 'CT & Base Nv. 2' : curTier.id === 'estruturado' ? 'CT Nv. 2 · Demais Nv. 1' : 'Todas no Nível 1'}</div>
               <div class="small muted" style="font-size:10px">CT, Base, DM, Loja, Museu e Marketing</div>
             </div>
           </div>
@@ -1054,6 +1062,10 @@
         const slot = window.setupSelectedSlot || 1;
         botBtn.textContent = `🚀 INICIAR CARREIRA COM O ${(customClubDraft.name || 'MEU CLUBE').toUpperCase()} NO ${(curEst?.name || 'ESTADUAL').toUpperCase()} (SALVAR NO SLOT ${slot}) ➔`;
       }
+      const tvBox = $('#customBroadcastScoreboardPreview');
+      if (tvBox) {
+        tvBox.innerHTML = `<span style="color:#a855f7">📺 PLACAR TV:</span><span style="display:inline-block;width:8px;height:14px;border-radius:2px;background:${customClubDraft.homeKit.shirtColor};border:1px solid ${customClubDraft.homeKit.secondaryColor}"></span><span>${escText((customClubDraft.shortName || 'CLB').toUpperCase())}</span><span style="background:rgba(34,197,94,0.2);color:#4ade80;padding:1px 7px;border-radius:6px">2 × 1</span><span style="color:#cbd5e1">${escText((customClubDraft.rivalClub || 'RIVAL').slice(0, 3).toUpperCase())}</span><span style="color:#64748b;font-weight:700;font-size:10px">· 🏟️ ${escText(customClubDraft.stadiumName || 'Arena')}</span>`;
+      }
     };
 
     const nameInp = $('#customClubNameInput');
@@ -1072,7 +1084,7 @@
     };
 
     const stdInp = $('#customClubStadiumInput');
-    if (stdInp) stdInp.oninput = () => { customClubDraft.stadiumName = stdInp.value; };
+    if (stdInp) stdInp.oninput = () => { customClubDraft.stadiumName = stdInp.value; syncAllVisualPreviews(); };
 
     const nickInp = $('#customClubNicknameInput');
     if (nickInp) nickInp.oninput = () => { customClubDraft.nickname = nickInp.value; };
@@ -2049,13 +2061,20 @@
       if (btnConfirm) {
         btnConfirm.onclick = () => {
           syncDraftInputsFromDom();
-          if (!tempSquad.some(p => p.pos === 'GK')) {
+          const gkCount = tempSquad.filter(p => p.pos === 'GK').length;
+          const outfieldCount = tempSquad.length - gkCount;
+          if (gkCount < 1) {
             window.toast?.('⚠️ O elenco precisa ter pelo menos 1 Goleiro (GK)!');
             return;
           }
-          // Deduplica números de camisa automaticamente se houver colisão
+          if (outfieldCount < 10) {
+            window.toast?.('⚠️ O elenco precisa ter pelo menos 10 atletas de linha para formar os 11 titulares!');
+            return;
+          }
+          // Deduplica números de camisa e nomes repetidos no mesmo clube automaticamente
           const usedNums = new Set();
-          tempSquad.forEach(p => {
+          const seenNames = new Map();
+          tempSquad.forEach((p, idx) => {
             let n = Number(p.number) || 1;
             while (usedNums.has(n) && n < 99) n++;
             if (usedNums.has(n)) {
@@ -2063,6 +2082,18 @@
             }
             usedNums.add(n);
             p.number = n;
+
+            const baseName = String(p.name || `Jogador ${idx + 1}`).trim();
+            const nKey = normStr(baseName);
+            const count = (seenNames.get(nKey) || 0) + 1;
+            seenNames.set(nKey, count);
+            if (count > 1) {
+              const roman = count === 2 ? 'II' : count === 3 ? 'III' : String(count);
+              p.name = `${baseName} ${roman}`.slice(0, 28);
+            } else {
+              p.name = baseName;
+            }
+            p.marketKey = `${p.name}_${customClubDraft.name || 'CustomClub'}_${p.pos}_${idx}`;
           });
 
           customClubDraft.squad = tempSquad;
@@ -2092,6 +2123,7 @@
   window.AFM_ESTADUAIS_DATA = (window.AFM_ESTADUAIS_DATA && window.AFM_ESTADUAIS_DATA.length) ? window.AFM_ESTADUAIS_DATA : DEFAULT_ESTADUAIS;
   window.MASTER_SPONSORS_CATALOG = MASTER_SPONSORS_CATALOG;
   window.PROJECT_TIERS = PROJECT_TIERS;
+  window.isOfficialClubNameCollision = isOfficialClubNameCollision;
   window.customClubDraft = customClubDraft;
   window.generateBadgeSvg = generateBadgeSvg;
   window.generateKitSvg = generateKitSvg;

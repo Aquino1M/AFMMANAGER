@@ -18212,11 +18212,15 @@ function newCareer(data){
 
   const startingPayroll = squad.reduce((sum, p) => sum + (Number(p.wage) || 0), 0);
   const budgetMultiplier = Number(data.budgetMultiplier) || 1.0;
-  // REGRA DO USUÁRIO: "so tem 300 mil no caixa"
+  const customTierPre = isCustom ? (data.projectTier || 'raiz') : null;
+  const customStartCashPre = isCustom
+    ? (customTierPre === 'ambicioso' ? 1200000 : customTierPre === 'estruturado' ? 650000 : 300000)
+    : 300000;
+  // REGRA DO USUÁRIO: respeita o pacote de projeto escolhido (R$ 300k Raiz / R$ 650k Estruturado / R$ 1,2M Investidor SAF)
   const rawBudget = isPlayerMode
     ? playerModeStartingBudget(comp, club, squad, isCustom)
-    : (isCustom ? 300000 : Math.max(250000, (club.budget || 5) * 1e6, Math.round(startingPayroll * 2.5)));
-  const budget = isPlayerMode ? rawBudget : Math.round(rawBudget * budgetMultiplier);
+    : (isCustom ? customStartCashPre : Math.max(250000, (club.budget || 5) * 1e6, Math.round(startingPayroll * 2.5)));
+  const budget = isPlayerMode ? rawBudget : (isCustom ? customStartCashPre : Math.round(rawBudget * budgetMultiplier));
 
   const mgrNationality = data.managerNationality || 'Brasil';
   const mgrBackground = data.managerBackground || 'ex_player';
@@ -18241,7 +18245,7 @@ function newCareer(data){
   let activeSponsors;
   if(isCustom){
     const customMaster = data.masterSponsor && data.masterSponsor.name
-      ? { name: data.masterSponsor.name, category: 'Master', monthly: Number(data.masterSponsor.monthly) || 28000, bonus: Number(data.masterSponsor.bonus) || 15000 }
+      ? { name: data.masterSponsor.name, category: 'Master', monthly: Number(data.masterSponsor.monthly) || 28000, bonus: Number(data.masterSponsor.winBonus ?? data.masterSponsor.bonus) || 4500 }
       : { name: 'SuperMercado Regional', category: 'Master', monthly: 28000, bonus: 15000 };
     // Patrocinadores calibrados para cobrir a folha do clube iniciante (~R$ 45k - R$ 55k)
     activeSponsors = {
@@ -18371,8 +18375,8 @@ function newCareer(data){
     titles: [],
     news: isCustom ? [
       `🎨 FUNDAÇÃO HISTÓRICA: O ${club.name} foi oficialmente criado e disputará o ${comp.name} em 2026!`,
-      `🏟️ O estádio ${club.stadium} foi inaugurado com capacidade para 5.000 torcedores e instalações nível 1.`,
-      `💰 A diretoria estabeleceu o caixa inicial do clube em ${fmtMoney(300000)}.`,
+      `🏟️ O estádio ${club.stadium} foi inaugurado com capacidade para ${customStadiumCap.toLocaleString('pt-BR')} torcedores (${data.pitchType === 'hybrid' ? 'Gramado Híbrido' : data.pitchType === 'synthetic' ? 'Sintético FIFA' : 'Grama Natural'}).`,
+      `💰 A diretoria estabeleceu o caixa inicial do clube em ${fmtMoney(customStartCash)} (${data.clubModel === 'saf' ? 'Modelo SAF' : 'Modelo Associativo'}).`,
       `🏖️ Início da Pré-Temporada 2026! Janela de transferências aberta por 4 dias para reforçar o plantel.`
     ] : [
       `💼 PATROCÍNIOS: Contratos comerciais ativados! Receita inicial de ${fmtMoney((activeSponsors.master?.monthly||0) + (activeSponsors.sleeves?.monthly||0) + (activeSponsors.back?.monthly||0))} creditada no caixa.`,
@@ -21780,8 +21784,11 @@ function processClubMonthlyFinances(st, targetDate = st?.date){
       monthTotalExpenses += scoutExp;
     }
 
-    // D. Marketing Mensal
-    const mktWeekly = Math.max(typeof MARKETING_MINIMUM_WEEKLY !== 'undefined' ? MARKETING_MINIMUM_WEEKLY : 36000, Number(st.marketingWeekly) || 36000);
+    // D. Marketing Mensal (respeita piso reduzido de R$ 5k/sem para clube criado iniciante)
+    const minMktWeekly = (st.isCustomClub || st.customClub?.isCustom)
+      ? 5000
+      : (typeof MARKETING_MINIMUM_WEEKLY !== 'undefined' ? MARKETING_MINIMUM_WEEKLY : 36000);
+    const mktWeekly = Math.max(minMktWeekly, Number(st.marketingWeekly) || minMktWeekly);
     const mktMonthly = mktWeekly * 4;
     if(mktMonthly > 0){
       st.balance = (Number(st.balance) || 0) - mktMonthly;
@@ -45857,7 +45864,7 @@ function renderSetup(app){
               <span class="pill" style="background:rgba(168,85,247,0.25);color:#c084fc;font-size:10px;padding:2px 8px;font-weight:800;border:1px solid #a855f7">SLOT ALVO ATIVO: Slot ${setupSelectedSlot}</span>
             </div>
             <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:2px">
-              Monte seu clube do zero: crie o escudo, desenhe os uniformes e comece no estadual com R$ 300 mil em caixa e instalações nível 1!
+              Monte seu clube completo: brasão HD nos 4 uniformes (Casa, Fora, 3º e Goleiro), rivalidade estadual, SAF ou Associativo, patrocinador master e aporte de R$ 300 mil a R$ 1,2 Mi!
             </div>
           </div>
         </div>
@@ -49426,6 +49433,10 @@ function bind(){
           toast('O nome do estádio deve ter pelo menos 3 caracteres.');
           return;
         }
+        if(norm(newName) !== norm(state.club) && typeof window !== 'undefined' && typeof window.isOfficialClubNameCollision === 'function' && window.isOfficialClubNameCollision(newName)){
+          toast(`⚠️ Já existe o clube oficial "${newName}". Escolha um nome inédito para evitar colisão nas tabelas!`);
+          return;
+        }
 
         // 1. Debitar taxa de registro de R$ 200.000
         state.balance = curBal - 200000;
@@ -49508,15 +49519,44 @@ function bind(){
             if(m && m.away === oldName) m.away = newName;
           });
         }
+        if(state.stateCompetitions && typeof state.stateCompetitions === 'object'){
+          Object.values(state.stateCompetitions).forEach(sc => {
+            if(!sc || typeof sc !== 'object') return;
+            if(Array.isArray(sc.clubs)){
+              const idx = sc.clubs.indexOf(oldName);
+              if(idx !== -1) sc.clubs[idx] = newName;
+            }
+            if(Array.isArray(sc.standings)){
+              sc.standings.forEach(row => {
+                if(row && row.name === oldName) row.name = newName;
+                if(row && row.club === oldName) row.club = newName;
+              });
+            }
+            if(Array.isArray(sc.fixtures)){
+              sc.fixtures.forEach(fx => {
+                if(fx && fx.home === oldName) fx.home = newName;
+                if(fx && fx.away === oldName) fx.away = newName;
+              });
+            }
+          });
+        }
 
         // 4. Atualização de Caches Globais do Navegador
         if(typeof window !== 'undefined'){
           window.CUSTOM_CLUB_BADGES = window.CUSTOM_CLUB_BADGES || {};
           window.CUSTOM_CLUB_BADGES[norm(newName)] = state.customClub.badgeImage || state.customClub.badgeSvg;
+          window.CUSTOM_CLUB_KITS = window.CUSTOM_CLUB_KITS || {};
+          window.CUSTOM_CLUB_KITS[norm(newName)] = {
+            home: state.customClub.homeKit,
+            away: state.customClub.awayKit,
+            third: state.customClub.thirdKit || null,
+            gk: state.customClub.gkKit || null
+          };
           window.CUSTOM_CLUBS = window.CUSTOM_CLUBS || {};
           window.CUSTOM_CLUBS[norm(newName)] = state.customClub;
           if(oldName !== newName){
             delete window.CUSTOM_CLUB_BADGES[norm(oldName)];
+            delete window.CUSTOM_CLUB_KITS[norm(oldName)];
             delete window.CUSTOM_CLUBS[norm(oldName)];
           }
         }
