@@ -1062,10 +1062,11 @@
       return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
     },
 
-    computeCallUpScore: function(ovr, apps, goals, assists, avgRating) {
-      const base = Number(ovr || 50) * 1.25;
-      const formBonus = (Number(avgRating || 6.5) - 6.0) * 8;
-      const prodBonus = Number(goals || 0) * 0.45 + Number(assists || 0) * 0.35 + Math.min(20, Number(apps || 0) * 0.25);
+    computeCallUpScore: function(ovr, apps, goals, assists, avgRating, compPrestige = 1.0) {
+      const base = Number(ovr || 50) * 1.0;
+      const prest = Math.max(0.2, Number(compPrestige) || 1.0);
+      const formBonus = (Number(avgRating || 6.5) - 6.0) * 8 * prest;
+      const prodBonus = (Number(goals || 0) * 0.45 + Number(assists || 0) * 0.35 + Math.min(20, Number(apps || 0) * 0.25)) * prest;
       return Number((base + formBonus + prodBonus).toFixed(1));
     },
 
@@ -1385,39 +1386,59 @@
 
   /**
    * 2. ALGORITMO DE CONVOCAÇÃO POR DESEMPENHO (calculateCallUpScore)
-   * Fórmula especificada pelo usuário:
-   * score = (overall * 1.0) + (averageRating * 5.0) + (goals * 0.8 + assists * 0.6) + (matchesPlayed * 0.3)
+   * Fórmula balanceada por OVR, desempenho da temporada e prestígio da competição
    */
   function calculateCallUpScore(player, gameState = null){
     if(!player) return 0;
     const ovr = Number(player.overall || player.ovr || player.fc || player.pes) || 60;
     
-    // Estatísticas da temporada
+    // Estatísticas da temporada ativa
     const pCareer = gameState?.playerCareerState;
     const isCareerAthlete = Boolean(pCareer && ((gameState.controlledPlayerId != null && player.id === gameState.controlledPlayerId) || player.isControlled || player.name === pCareer.athleteName));
     const sStats = isCareerAthlete ? (pCareer.seasonStats || player.seasonStats || {}) : (player.seasonStats || {});
-    const history = isCareerAthlete ? (pCareer.matchRatingHistory || []).filter(match => !match.date || String(match.date).startsWith(String(gameState.season || '').slice(0, 4))) : [];
-    const avgRating = Number(sStats.averageRating || sStats.avgRating || (history.length ? history.reduce((sum, match) => sum + (Number(match.rating) || 0), 0) / history.length : 0) || player.averageRating || player.rating || 6.2);
-    const goals = Math.max(Number(sStats.goals) || 0, history.reduce((sum, match) => sum + (Number(match.goals) || 0), 0), Number(player.goals) || 0);
-    const assists = Math.max(Number(sStats.assists) || 0, history.reduce((sum, match) => sum + (Number(match.assists) || 0), 0), Number(player.assists) || 0);
-    const matches = Math.max(Number(sStats.matches || sStats.matchesPlayed) || 0, history.length, Number(player.matches) || 0);
-    const cleanSheets = Number(sStats.cleanSheets || player.cleanSheets || 0);
-    const mvpCount = Number(sStats.mvpCount || player.mvpCount || 0);
+    const curSeasonStr = String(gameState?.season || '2026').slice(0, 4);
+    const history = isCareerAthlete ? (pCareer.matchRatingHistory || []).filter(match => match.date && String(match.date).startsWith(curSeasonStr)) : [];
+    
+    const matches = isCareerAthlete
+      ? Number(sStats.matches || sStats.games || history.length || 0)
+      : Math.max(Number(sStats.matches || sStats.matchesPlayed) || 0, Number(player.matches) || 0);
+
+    const goals = matches > 0
+      ? (isCareerAthlete ? Number(sStats.goals || 0) : Math.max(Number(sStats.goals) || 0, Number(player.goals) || 0))
+      : 0;
+
+    const assists = matches > 0
+      ? (isCareerAthlete ? Number(sStats.assists || 0) : Math.max(Number(sStats.assists) || 0, Number(player.assists) || 0))
+      : 0;
+
+    const avgRating = matches > 0
+      ? Number(sStats.averageRating || sStats.avgRating || (history.length ? history.reduce((sum, match) => sum + (Number(match.rating) || 0), 0) / history.length : 0) || player.averageRating || player.rating || 6.5)
+      : 6.5;
+
+    const cleanSheets = matches > 0 ? Number(sStats.cleanSheets || player.cleanSheets || 0) : 0;
+    const mvpCount = matches > 0 ? Number(sStats.mvpCount || player.mvpCount || 0) : 0;
+
+    // Fator de prestígio da competição do clube
+    let compPrestige = 1.0;
+    if(isCareerAthlete){
+      const currentCompId = String(gameState?.compId || '').toLowerCase();
+      if(currentCompId.startsWith('bra-est-')) compPrestige = 0.25;
+      else if(currentCompId === 'bra-d') compPrestige = 0.35;
+      else if(currentCompId === 'bra-c') compPrestige = 0.50;
+      else if(currentCompId === 'bra-b') compPrestige = 0.75;
+      else if(currentCompId === 'bra-a' || currentCompId === 'bra-cup') compPrestige = 1.0;
+      else if(['lib', 'sud'].includes(currentCompId)) compPrestige = 1.1;
+      else if(['ucl', 'uel'].includes(currentCompId)) compPrestige = 1.25;
+    }
 
     let score = (ovr * 1.0) +
-                (avgRating * 5.0) +
-                (goals * 0.8) +
-                (assists * 0.6) +
-                (matches * 0.3) +
-                (cleanSheets * 0.4) +
-                (mvpCount * 1.5);
+                ((avgRating - 6.0) * 8.0 * compPrestige) +
+                ((goals * 0.8 + assists * 0.6) * compPrestige) +
+                ((matches * 0.3 + cleanSheets * 0.4 + mvpCount * 1.5) * compPrestige);
 
-    // Bônus para atletas em alta com reputação de seleção
-    if(player.isControlled || (gameState?.controlledPlayerId != null && player.id === gameState.controlledPlayerId)){
-      const pCareer = gameState?.playerCareerState || {};
-      const trust = Number(pCareer.managerTrust) || 45;
-      score += Math.max(0, (trust - 50) * 0.15);
-      const caps = Number(pCareer.internationalStats?.caps) || 0;
+    // Bônus para atletas com convocações internacionais comprovadas
+    if(isCareerAthlete){
+      const caps = Number(pCareer.internationalStats?.caps || pCareer.internationalCaps || 0);
       if(caps > 0) score += Math.min(10, caps * 1.2);
     }
 
@@ -1444,25 +1465,32 @@
       const sector = getPlayerSector(p.pos || p.position);
       const isUser = Boolean(p.isControlled || (gameState?.controlledPlayerId != null && p.id === gameState.controlledPlayerId) || (gameState?.playerCareerState?.athleteName && p.name === gameState.playerCareerState.athleteName));
 
-      // Simulação viva de partidas e estatísticas para concorrentes na temporada
-      let pMatches = Number(p.matches || p.seasonStats?.matches || 0);
-      let pGoals = Number(p.goals || p.seasonStats?.goals || 0);
-      let pAssists = Number(p.assists || p.seasonStats?.assists || 0);
-      let pRating = Number(p.averageRating || p.rating || 6.5);
+      // Estatísticas da temporada: se matches for 0, goals e assists são rigorosamente 0
+      let pMatches = 0;
+      let pGoals = 0;
+      let pAssists = 0;
+      let pRating = 6.5;
 
-      if (!isUser && gameState && Number(gameState.round) > 1) {
+      if (isUser) {
+        const pCareer = gameState?.playerCareerState;
+        const sStats = pCareer?.seasonStats || {};
+        pMatches = Number(sStats.matches || sStats.games || p.matches || p.games || 0);
+        pGoals = pMatches > 0 ? Number(sStats.goals ?? p.goals ?? 0) : 0;
+        pAssists = pMatches > 0 ? Number(sStats.assists ?? p.assists ?? 0) : 0;
+        pRating = pMatches > 0 ? Number(sStats.avgRating || sStats.averageRating || p.averageRating || p.rating || 6.5) : 6.5;
+      } else if (gameState && Number(gameState.round) > 1) {
         const curRound = Number(gameState.round);
-        pMatches = Math.max(pMatches, Math.min(curRound - 1, Math.floor((curRound - 1) * (0.8 + (ovr % 10) * 0.02))));
+        pMatches = Math.max(0, Math.min(curRound - 1, Math.floor((curRound - 1) * (0.8 + (ovr % 10) * 0.02))));
         if (pMatches > 0) {
           if (sector === 'ATT') {
-            pGoals = Math.max(pGoals, Math.round(pMatches * (ovr / 95) * 0.45));
-            pAssists = Math.max(pAssists, Math.round(pMatches * (ovr / 95) * 0.25));
+            pGoals = Math.round(pMatches * (ovr / 95) * 0.45);
+            pAssists = Math.round(pMatches * (ovr / 95) * 0.25);
           } else if (sector === 'MID') {
-            pGoals = Math.max(pGoals, Math.round(pMatches * (ovr / 95) * 0.18));
-            pAssists = Math.max(pAssists, Math.round(pMatches * (ovr / 95) * 0.35));
+            pGoals = Math.round(pMatches * (ovr / 95) * 0.18);
+            pAssists = Math.round(pMatches * (ovr / 95) * 0.35);
           } else if (sector === 'DEF') {
-            pGoals = Math.max(pGoals, Math.round(pMatches * 0.05));
-            pAssists = Math.max(pAssists, Math.round(pMatches * 0.12));
+            pGoals = Math.round(pMatches * 0.05);
+            pAssists = Math.round(pMatches * 0.12);
           }
           const baseRating = 6.4 + ((ovr - 70) * 0.025);
           pRating = Number(Math.max(6.0, Math.min(8.6, baseRating + (pGoals * 0.04))).toFixed(1));
@@ -1553,17 +1581,31 @@
     const mids = pool.filter(p => p.sector === 'MID').sort((a,b) => b.score - a.score);
     const atts = pool.filter(p => p.sector === 'ATT').sort((a,b) => b.score - a.score);
 
-    // 23 convocados padrão
-    const calledGKs = gks.slice(0, 3);
-    const calledDefs = defs.slice(0, 8);
-    const calledMids = mids.slice(0, 6);
-    const calledAtts = atts.slice(0, 6);
+    // Regra de Piso de OVR para Convocação por Prestígio da Seleção Nacional (Regra 25):
+    // Brasil e potências mundiais (Tier 1): mínimo 75 OVR.
+    // Seleções médias (Tier 2): mínimo 68 OVR.
+    // Seleções menores (Tier 3): mínimo 60 OVR.
+    const tier1Nations = ['brasil', 'argentina', 'franca', 'espanha', 'inglaterra', 'alemanha', 'portugal', 'italia', 'holanda', 'belgica', 'uruguai'];
+    const normCountry = normalizeNationality(meta.name).toLowerCase();
+    const minCallUpOvr = tier1Nations.includes(normCountry) ? 75 : 68;
+
+    // Filtra convocados respeitando o piso de OVR da seleção
+    const eligibleGKs = gks.filter(p => Number(p.ovr) >= minCallUpOvr);
+    const eligibleDefs = defs.filter(p => Number(p.ovr) >= minCallUpOvr);
+    const eligibleMids = mids.filter(p => Number(p.ovr) >= minCallUpOvr);
+    const eligibleAtts = atts.filter(p => Number(p.ovr) >= minCallUpOvr);
+
+    const calledGKs = (eligibleGKs.length >= 3 ? eligibleGKs : gks).slice(0, 3);
+    const calledDefs = (eligibleDefs.length >= 8 ? eligibleDefs : defs).slice(0, 8);
+    const calledMids = (eligibleMids.length >= 6 ? eligibleMids : mids).slice(0, 6);
+    const calledAtts = (eligibleAtts.length >= 6 ? eligibleAtts : atts).slice(0, 6);
 
     const fullSquad23 = [...calledGKs, ...calledDefs, ...calledMids, ...calledAtts];
 
-    // Identifica se o usuário está entre os 23
+    // Identifica se o usuário está entre os 23 e cumpre o piso de OVR
     const userAthlete = fullSquad23.find(p => p.isUser);
-    const isUserCalledUp = Boolean(userAthlete);
+    const userMeetsOvr = userAthlete ? Number(userAthlete.ovr) >= minCallUpOvr : false;
+    const isUserCalledUp = Boolean(userAthlete && userMeetsOvr);
 
     // Status do usuário no país
     let userSectorRanking = 999;
@@ -1573,6 +1615,7 @@
     if(gameState && (gameState.gameMode === 'player' || gameState.playerCareerState)){
       const athlete = (gameState.squad || []).find(p => p.id === gameState.controlledPlayerId || p.isControlled);
       if(athlete){
+        const userOvr = Number(athlete.ovr || athlete.overall || 45);
         const userSector = getPlayerSector(athlete.pos);
         const sectorPool = userSector === 'GK' ? gks : (userSector === 'DEF' ? defs : (userSector === 'MID' ? mids : atts));
         const userIdx = sectorPool.findIndex(p => p.isUser || p.id === athlete.id || p.name === athlete.name);
@@ -1581,7 +1624,10 @@
         const sectorLimit = userSector === 'GK' ? 3 : (userSector === 'DEF' ? 8 : (userSector === 'MID' ? 6 : 6));
         const starterLimit = userSector === 'GK' ? 1 : (userSector === 'DEF' ? 4 : (userSector === 'MID' ? 3 : 3));
 
-        if(userSectorRanking <= starterLimit){
+        if(userOvr < minCallUpOvr){
+          userStatus = `🔴 Fora da Convocação (Mínimo ${minCallUpOvr} OVR p/ Seleção)`;
+          userStatusColor = '#f87171';
+        } else if(userSectorRanking <= starterLimit){
           userStatus = '⭐ Titular Absoluto da Seleção';
           userStatusColor = '#10b981';
         } else if(userSectorRanking <= sectorLimit){

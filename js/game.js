@@ -10318,6 +10318,37 @@ window.AFM_SAVE_VERIFIER = (function(){
         }
       }
 
+      // 1.4 Auto-Cura de Estatísticas e Títulos Individuais Contaminados (Regra 25)
+      if (targetState.competitionStats && typeof targetState.competitionStats === 'object') {
+        const curCompId = typeof normalizeCompStatsId === 'function' ? normalizeCompStatsId(targetState.compId) : String(targetState.compId || '').toLowerCase();
+        const compEntry = targetState.competitionStats[curCompId];
+        const isUnplayed = Number(targetState.round) === 0 || (Array.isArray(targetState.teams) && targetState.teams.every(t => (Number(t?.j) || 0) === 0));
+        if (isUnplayed && compEntry && (compEntry.scorers?.length > 0 || compEntry.assists?.length > 0)) {
+          targetState.competitionStats[curCompId] = {
+            season: Number(targetState.season) || 2026,
+            scorers: [],
+            assists: [],
+            mvp: [],
+            cleanSheets: [],
+            cards: [],
+            _syncedTeamMatches: {},
+            _syncedFixtureKeys: {}
+          };
+          issues.push(`Estatísticas e Títulos Individuais de ${curCompId} resetados para a nova temporada (zero jogos disputados)`);
+          healedCount++;
+        }
+      }
+      if (Number(targetState.round) === 0 && Array.isArray(targetState.squad)) {
+        const ath = targetState.squad.find(p => p.isControlled || p.id === targetState.controlledPlayerId);
+        if (ath && ((Number(ath.goals) || 0) > 0 || (Number(ath.matches) || 0) > 0 || (Number(ath.games) || 0) > 0)) {
+          ath.goals = 0;
+          ath.assists = 0;
+          ath.matches = 0;
+          ath.games = 0;
+          healedCount++;
+        }
+      }
+
       const forbiddenManagerViews = ['setup', 'central', 'meutime', 'tatica', 'elenco', 'mercado', 'financas', 'estrutura', 'escritorio', 'treinos', 'carreira'];
       if(!targetState.view || forbiddenManagerViews.includes(targetState.view)){
         targetState.view = 'player_hub';
@@ -17132,21 +17163,18 @@ function syncCompetitionStatsComprehensive(competitionId, explicitTeamsList = nu
   const controlledGoalsInComp = (isPlayerMode && controlledAthlete)
     ? Math.max(
         Number(byComp?.goals) || 0,
-        isPrimaryComp ? (Number(pState?.seasonStats?.goals) || 0) : 0,
         userGoalsFromHistory
       )
     : 0;
   const controlledAssistsInComp = (isPlayerMode && controlledAthlete)
     ? Math.max(
         Number(byComp?.assists) || 0,
-        isPrimaryComp ? (Number(pState?.seasonStats?.assists) || 0) : 0,
         userAssistsFromHistory
       )
     : 0;
   const controlledMatchesInComp = (isPlayerMode && controlledAthlete)
     ? Math.max(
         Number(byComp?.matches) || 0,
-        isPrimaryComp ? (Number(pState?.seasonStats?.matches) || 0) : 0,
         userHistoryMatches.length,
         controlledGoalsInComp > 0 ? 1 : 0
       )
@@ -17154,8 +17182,13 @@ function syncCompetitionStatsComprehensive(competitionId, explicitTeamsList = nu
 
   const userHasPlayedInThisComp = isPlayerMode && (controlledMatchesInComp > 0 || controlledGoalsInComp > 0);
 
-  // REGRA ZERO-FABRICAÇÃO: Se nenhuma partida foi disputada na competição, não gera nenhum dado fictício!
+  // REGRA ZERO-FABRICAÇÃO: Se nenhuma partida foi disputada na competição, zera e não gera nenhum dado fictício!
   if(summaryMap.size === 0 && !userHasPlayedInThisComp){
+    stats.scorers = [];
+    stats.assists = [];
+    stats.mvp = [];
+    stats.cleanSheets = [];
+    stats.cards = [];
     return stats;
   }
 
@@ -17691,7 +17724,7 @@ function computeCompetitionAwards(compId, fallbackName = null){
     isMyClub: false
   });
 
-  const hasRealData = maxMatches > 0 || (stats.scorers?.length > 0) || (stats.assists?.length > 0);
+  const hasRealData = maxMatches > 0 && ((stats.scorers?.length > 0) || (stats.assists?.length > 0) || (stats.cleanSheets?.length > 0) || (stats.mvp?.length > 0));
   if(!hasRealData){
     return {
       compId: normId,

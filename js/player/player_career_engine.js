@@ -7146,6 +7146,20 @@
     pState.competitionStatsByComp = {};
     if (gameState.player) {
       gameState.player.seasonStats = pState.seasonStats;
+      gameState.player.goals = 0;
+      gameState.player.assists = 0;
+      gameState.player.matches = 0;
+      gameState.player.games = 0;
+    }
+    if (Array.isArray(gameState.squad)) {
+      const athleteInSquad = gameState.squad.find(p => String(p.id) === String(gameState.controlledPlayerId) || p.isControlled);
+      if (athleteInSquad) {
+        athleteInSquad.goals = 0;
+        athleteInSquad.assists = 0;
+        athleteInSquad.matches = 0;
+        athleteInSquad.games = 0;
+        athleteInSquad.seasonStats = pState.seasonStats;
+      }
     }
 
     // 4. Processa envelhecimento anual (+1 ano), declínio 30+ e carta de transição aos 35 anos

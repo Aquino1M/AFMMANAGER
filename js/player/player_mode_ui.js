@@ -6581,15 +6581,29 @@
 
     // Termômetro de Convocação & Linha de Corte
     const userOvr = Number(athlete.ovr || athlete.overall || 45);
-    const userApps = Number(athlete.matches || athlete.seasonStats?.matches || (pState.matchRatingHistory || []).length || 0);
-    const userGoals = Number(athlete.goals || athlete.seasonStats?.goals || 0);
-    const userAssists = Number(athlete.assists || athlete.seasonStats?.assists || 0);
-    const userRating = Number(athlete.averageRating || athlete.rating || athlete.seasonStats?.averageRating || 6.5);
+    const userApps = Number(athlete.seasonStats?.matches || athlete.seasonStats?.games || 0);
+    const userGoals = userApps > 0 ? Number(athlete.seasonStats?.goals || 0) : 0;
+    const userAssists = userApps > 0 ? Number(athlete.seasonStats?.assists || 0) : 0;
+    const userRating = userApps > 0 ? Number(athlete.seasonStats?.avgRating || athlete.seasonStats?.averageRating || athlete.rating || 6.5) : 6.5;
+
+    let userCompPrestige = 1.0;
+    const currentCompId = String(state?.compId || '').toLowerCase();
+    if(currentCompId.startsWith('bra-est-')) userCompPrestige = 0.25;
+    else if(currentCompId === 'bra-d') userCompPrestige = 0.35;
+    else if(currentCompId === 'bra-c') userCompPrestige = 0.50;
+    else if(currentCompId === 'bra-b') userCompPrestige = 0.75;
+    else if(currentCompId === 'bra-a' || currentCompId === 'bra-cup') userCompPrestige = 1.0;
+    else if(['lib', 'sud'].includes(currentCompId)) userCompPrestige = 1.1;
+    else if(['ucl', 'uel'].includes(currentCompId)) userCompPrestige = 1.25;
     
-    const computeScoreFn = natHelper.computeCallUpScore || function(ovr, m, g, a, r) {
-      return Number(((ovr * 1.25) + ((r - 6.0) * 8) + (g * 0.45) + (a * 0.35) + Math.min(20, m * 0.25)).toFixed(1));
+    const computeScoreFn = natHelper.computeCallUpScore || function(ovr, m, g, a, r, prest = 1.0) {
+      return Number(((ovr * 1.0) + ((r - 6.0) * 8 * prest) + (g * 0.45 * prest) + (a * 0.35 * prest) + Math.min(20, m * 0.25 * prest)).toFixed(1));
     };
-    const userScore = computeScoreFn(userOvr, userApps, userGoals, userAssists, userRating);
+    const userScore = computeScoreFn(userOvr, userApps, userGoals, userAssists, userRating, userCompPrestige);
+
+    const tier1NationsList = ['brasil', 'argentina', 'franca', 'espanha', 'inglaterra', 'alemanha', 'portugal', 'italia', 'holanda', 'belgica', 'uruguai'];
+    const normCountryKey = String(userCountry || 'brasil').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const minCallUpOvr = tier1NationsList.includes(normCountryKey) ? 75 : 68;
 
     // Linha de corte baseada no último convocado do setor
     const sectorCalledList = (callUp.bySector && callUp.bySector[userSector]) || [];
@@ -6605,6 +6619,10 @@
       statusBorderColor = "#facc15";
       progressBarBg = "linear-gradient(90deg, #10b981, #facc15)";
       coachHint = "⭐ <b>Vaga conquistada!</b> O treinador conta com seu talento para a próxima Data FIFA.";
+    } else if (userOvr < minCallUpOvr) {
+      statusBorderColor = "#ef4444";
+      progressBarBg = "linear-gradient(90deg, #ef4444, #eab308)";
+      coachHint = `🎯 <b>Piso de Seleção:</b> Suba seu OVR para ${minCallUpOvr}+ e busque titularidade no seu clube para entrar no radar da Seleção ${meta.name || userCountry}.`;
     } else if (progressPct >= 75) {
       statusBorderColor = "#38bdf8";
       progressBarBg = "linear-gradient(90deg, #38bdf8, #22c55e)";
@@ -6612,7 +6630,7 @@
     } else {
       statusBorderColor = "#ef4444";
       progressBarBg = "linear-gradient(90deg, #ef4444, #eab308)";
-      coachHint = "🎯 Suba seu OVR para 75+ e busque titularidade no seu clube para alcançar a linha de corte.";
+      coachHint = `🎯 Suba seu OVR para ${minCallUpOvr}+ e busque titularidade no seu clube para alcançar a linha de corte.`;
     }
 
     const sectorLabel = userSector === "GK" ? "Goleiros" : userSector === "DEF" ? "Defensores" : userSector === "MID" ? "Meio-Campistas" : "Atacantes";
@@ -6878,8 +6896,8 @@
                   <th style="padding:10px 8px">Jogador</th>
                   <th style="padding:10px 8px">Clube Atual</th>
                   <th style="padding:10px 8px;text-align:center">OVR</th>
-                  <th style="padding:10px 8px;text-align:center">Jogos</th>
-                  <th style="padding:10px 8px;text-align:center">Gols / Ast</th>
+                  <th style="padding:10px 8px;text-align:center">Jogos (Clube)</th>
+                  <th style="padding:10px 8px;text-align:center">Gols / Ast (Clube)</th>
                   <th style="padding:10px 8px;text-align:center">Nota Média</th>
                   <th style="padding:10px 8px;text-align:center">Pontuação Convocação</th>
                   <th style="padding:10px 8px;text-align:center">Status</th>
@@ -6893,14 +6911,14 @@
                       p.id === athlete.id ||
                       p.name === athlete.name,
                     );
+                    const pOvrVal = Number(p.ovr) || Number(p.overall) || 75;
+                    const meetsMinOvr = pOvrVal >= minCallUpOvr;
                     const statusBadge =
-                      idx < (userSector === "GK" ? 1 : 3)
+                      meetsMinOvr && idx < (userSector === "GK" ? 1 : 3)
                         ? '<span style="background:rgba(16,185,129,0.2);color:#6ee7b7;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900">⭐ Titular</span>'
-                        : idx < (userSector === "GK" ? 3 : userSector === "DEF" ? 8 : 6)
+                        : meetsMinOvr && idx < (userSector === "GK" ? 3 : userSector === "DEF" ? 8 : 6)
                           ? '<span style="background:rgba(56,189,248,0.2);color:#7dd3fc;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:900">🟢 Convocado</span>'
                           : '<span style="background:rgba(239,68,68,0.2);color:#fca5a5;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:800">Fora</span>';
-
-                    const pOvrVal = Number(p.ovr) || Number(p.overall) || 75;
                     return `
                     <tr style="border-bottom:1px solid rgba(255,255,255,0.04);${isUser ? "background:rgba(250,204,21,0.12);font-weight:900" : ""}">
                       <td style="padding:10px 8px;text-align:center;color:${isUser ? "#facc15" : "#94a3b8"}">#${idx + 1}</td>

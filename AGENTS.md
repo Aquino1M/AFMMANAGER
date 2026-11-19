@@ -93,6 +93,10 @@
       - `repairEarnedStatePromotion` é proibido de sequestrar divisões durante o ano ativo via `s.nextSeasonCompId`; apenas `advanceSeasonYear()` oficializa acessos e incrementa `state.season` (2026 ➔ 2027), sincronizando a data com a Rodada 1 (`17 de janeiro` no Modo Jogador).
       - `window.getSeriesDGroupStandings` é a autoridade de grupos da Série D, resolvendo o grupo do atleta e garantindo renderização completa no Hub Central e na Classificação sem caixas vazias.
       - Saves com divisão prematura ou tabela contaminada no ano 2026 são auto-curados no `AFM_SAVE_VERIFIER.verifyAndHealState`, avançando o ano para 2027 e zerando a tabela.
+    - REGRA IRRESTRITA DE TÍTULOS INDIVIDUAIS NA VIRADA DE TEMPORADA & CALIBRAÇÃO DE CONVOCAÇÃO DA SELEÇÃO:
+      - Títulos Individuais Oficiais e artilharia pertencem estritamente à respectiva competição via `byComp` / `userHistoryMatches`; é terminantemente proibido herdar gols de `seasonStats` ou de estaduais anteriores na Série D ou nova temporada. Se `maxMatches === 0`, `computeCompetitionAwards` retorna `hasPlayedMatches: false` com `winnerName: 'A definir'`.
+      - Convocação para a Seleção Nacional exige piso mínimo de 75 OVR para o Brasil e potências mundiais (Tier 1). Atletas abaixo do piso (ex.: iniciante de 43 OVR) ficam rigorosamente como `🔴 Fora da Convocação`. O cálculo de pontuação (`callUpScore`) aplica fator de prestígio da competição do clube (`compPrestige`: estaduais 0.25, Série D 0.35, Série A 1.0, Champions 1.25).
+      - Com 0 partidas no clube, gols e assistências exibidos são rigorosamente 0 (proibido '0 Jogos' com '2 Gols'). Saves com estatísticas contaminadas na rodada 0 são curados no `AFM_SAVE_VERIFIER`.
 - Central do Atleta (Aba ⭐ Hub Central):
   - REGRA IRRESTRITA DO ALTERNADOR NOTÍCIAS & CLASSIFICAÇÃO NO HUB (`getHubMatchCompetitionStandings` & `renderHubCompetitionStandingsHtml`):
     - O cabeçalho do card de Notícias no Hub Central possui alternador dinâmico de duas abas: `📰 Notícias & Imprensa` e `📊 Classificação (Competição)`.
