@@ -82,8 +82,12 @@
   - Sub-aba 4 `📈 Carreira Total` cataloga a linha do tempo completa de clubes e temporadas e alimenta a biografia esportiva de legado para quando o atleta se aposentar e virar treinador.
   - REGRA IRRESTRITA DE ENCERRAMENTO DE COMPETIÇÕES, CERIMÔNIA E AUTO-CURA DE PRÊMIOS PREMATUROS:
     - Prêmios individuais e coletivos de qualquer campeonato (Artilheiro, Craque, Revelação Sub-21, Garçom, Luva de Ouro) só podem ser apurados e concedidos quando a respectiva competição estiver oficialmente encerrada (`isCompetitionFinished`), sendo terminantemente PROIBIDO conceder títulos no meio da temporada (ex.: rodada 2 ou 3).
-    - Ao concluir oficialmente a competição, dispara o modal festivo de cerimônia (`showPlayerCompetitionCeremonyModal`) apresentando a campanha do clube e os prêmios do atleta.
+    - Ao concluir oficialmente a competição, dispara o modal festivo de cerimônia (`showPlayerCompetitionCeremonyModal`) apresentando a campanha do clube e os prêmios do atleta com celebração de Bicampeonato/N-campeonato se aplicável.
     - Saves com prêmios prematuros no ano ativo são auto-curados na inicialização e verificação de integridade, expurgando prêmios indevidos de competições ainda em andamento.
+  - REGRA IRRESTRITA DE ENCERRAMENTO DE TEMPORADA & CERIMÔNIA DE CAMPEÃO DEDICADOS AO ATLETA:
+    - Coletiva de imprensa de treinador (`openPostMatchInterviewModal` e `openPressConferenceModal`) é estritamente proibida no Modo Jogador, bypassando imediatamente qualquer pergunta ao técnico.
+    - Cerimônia de campeão (`showChampionTrophyCeremonyModal`) exibe `★ CONQUISTA HISTÓRICA DO ATLETA ★`, o nome do jogador e a contagem cumulativa de títulos (`1º título`, `Bicampeonato`, `Tricampeonato`, etc.), sendo proibido exibir "Professor Treinador da IA".
+    - `showEndOfSeasonModal` redireciona para `showPlayerEndOfSeasonModal`, exibindo campanha do clube, estatísticas individuais do atleta (jogos, gols, assistências, nota média, MVPs, cartões), troféus oficiais do ano, contrato pessoal do atleta (salário, término, confiança, saldo) e radar de mercado do jogador, sem botões de renovar como treinador nem de assumir outros clubes.
 - Central do Atleta (Aba ⭐ Hub Central):
   - REGRA IRRESTRITA DO ALTERNADOR NOTÍCIAS & CLASSIFICAÇÃO NO HUB (`getHubMatchCompetitionStandings` & `renderHubCompetitionStandingsHtml`):
     - O cabeçalho do card de Notícias no Hub Central possui alternador dinâmico de duas abas: `📰 Notícias & Imprensa` e `📊 Classificação (Competição)`.

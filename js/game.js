@@ -8167,6 +8167,17 @@ function newsMediaPage(){
 // ENTREVISTA COLETIVA PÓS-PARTIDA (COM 3 PERGUNTAS OLHANDO O PLACAR)
 // -------------------------------------------------------------
 function openPostMatchInterviewModal(matchData, onComplete){
+  // No Modo Jogador, a coletiva de imprensa de treinador é estritamente proibida
+  const isPlayerMode = Boolean(
+    state?.gameMode === 'player' ||
+    state?.isPlayerMode === true ||
+    (typeof window !== 'undefined' && window.isPlayerCareerActive?.(state))
+  );
+  if(isPlayerMode){
+    if(typeof onComplete === 'function') onComplete();
+    return;
+  }
+
   const gf = matchData.gf;
   const ga = matchData.ga;
   const opp = matchData.opponent;
@@ -8318,7 +8329,7 @@ function openPostMatchInterviewModal(matchData, onComplete){
         </div>
 
         <div style="display:flex;flex-direction:column;gap:10px">
-          <label style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:700">Escolha a resposta do técnico ${esc(state.manager)}:</label>
+          <label style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:700">Escolha a resposta do técnico ${esc(state.manager === 'Treinador da IA' ? (state.coachName || 'Treinador') : (state.manager || 'Treinador'))}:</label>
           ${current.opts.map((opt, i) => `
             <button class="btn btn-interview-opt" data-opt-idx="${i}" style="padding:12px 16px;text-align:left;font-size:13px;font-weight:700;line-height:1.4;background:#181428;border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#fff;cursor:pointer;transition:all 0.2s">
               👉 ${esc(opt.text)}
@@ -19795,6 +19806,17 @@ function triggerPeneiraBaseEvent(){
 function openPressConferenceModal(type = 'post', context = null, onComplete = null){
   if(!state) return;
 
+  // No Modo Jogador, a coletiva de imprensa de treinador é estritamente proibida
+  const isPlayerMode = Boolean(
+    state?.gameMode === 'player' ||
+    state?.isPlayerMode === true ||
+    (typeof window !== 'undefined' && window.isPlayerCareerActive?.(state))
+  );
+  if(isPlayerMode){
+    if(typeof onComplete === 'function') onComplete();
+    return;
+  }
+
   const pressRoundKey = `${state.season || 2026}_${state.round || 0}_${type}_${context?.h || context?.home || ''}_${context?.a || context?.away || ''}`;
   if(state.answeredPressKey === pressRoundKey){
     toast('A coletiva de imprensa deste jogo já foi realizada!');
@@ -22714,8 +22736,13 @@ function finalizeRound(userRes, winners, isKO){
       }
     };
 
-    // Coletiva de imprensa pós-partida com 3 perguntas olhando o placar
-    if(userRes && typeof openPostMatchInterviewModal === 'function'){
+    // Coletiva de imprensa pós-partida com 3 perguntas olhando o placar (apenas Modo Treinador)
+    const isPlayerCareer = Boolean(
+      state?.gameMode === 'player' ||
+      state?.isPlayerMode === true ||
+      (typeof window !== 'undefined' && window.isPlayerCareerActive?.(state))
+    );
+    if(!isPlayerCareer && userRes && typeof openPostMatchInterviewModal === 'function'){
       const isHomeFinal = (userRes.h === state.club) || (typeof norm === 'function' && norm(userRes.h) === norm(state.club));
       setTimeout(()=>{
         openPostMatchInterviewModal({
@@ -30254,8 +30281,67 @@ function showChampionTrophyCeremonyModal(comp, onProceed){
   }
 
   const clubName = state.club || 'Clube';
-  const managerName = state.manager || 'Treinador';
   const compName = (comp?.name || 'CAMPEONATO').toUpperCase();
+
+  const isPlayerMode = Boolean(
+    state?.gameMode === 'player' ||
+    state?.isPlayerMode === true ||
+    (typeof window !== 'undefined' && window.isPlayerCareerActive?.(state))
+  );
+
+  let podiumText = '★ CAMPEÃO OFICIAL AFM ★';
+  let celebrationHtml = '';
+
+  if(isPlayerMode){
+    podiumText = '★ CONQUISTA HISTÓRICA DO ATLETA ★';
+    const athlete = (state.squad || []).find(p => String(p.id) === String(state.controlledPlayerId) || p.isControlled) || state.player || {};
+    const playerName = athlete.name || state.playerCareerState?.name || 'Seu Atleta';
+    const pState = state.playerCareerState || {};
+
+    const athleteTitles = Array.isArray(pState?.careerStats?.titles) ? pState.careerStats.titles : [];
+    const titleSet = new Set(athleteTitles.map(t => typeof t === 'object' ? `${t.name}_${t.year}` : String(t)));
+    if (Array.isArray(state?.titles)) {
+      state.titles.forEach(t => titleSet.add(typeof t === 'object' ? `${t.name}_${t.year}` : String(t)));
+    }
+    const curTitleKey = `${comp?.name || compName}_${state.season || 2026}`;
+    titleSet.add(curTitleKey);
+    const titlesCount = Math.max(1, titleSet.size);
+
+    let titleCelebrationBadge = '';
+    if (titlesCount === 1) {
+      titleCelebrationBadge = '🎉 Parabéns pelo seu 1º título oficial na carreira!';
+    } else if (titlesCount === 2) {
+      titleCelebrationBadge = '🏆 Parabéns pelo seu Bicampeonato na carreira!';
+    } else if (titlesCount === 3) {
+      titleCelebrationBadge = '🏆 Parabéns pelo seu Tricampeonato na carreira!';
+    } else if (titlesCount === 4) {
+      titleCelebrationBadge = '🏆 Parabéns pelo seu Tetracampeonato na carreira!';
+    } else if (titlesCount === 5) {
+      titleCelebrationBadge = '👑 Parabéns pelo seu Pentacampeonato na carreira!';
+    } else {
+      titleCelebrationBadge = `👑 Parabéns pela sua ${titlesCount}ª conquista oficial na carreira!`;
+    }
+
+    celebrationHtml = `
+      <div style="font-size:14px;color:rgba(255,255,255,0.9);max-width:540px;line-height:1.5;margin:8px 0 22px 0;font-weight:700">
+        Com atuação estelar e protagonismo de <b>${esc(playerName)}</b>, o <b>${esc(clubName)}</b> ergue a taça mais cobiçada e grava seu nome na história do futebol!<br>
+        <span style="color:#facc15;display:inline-block;margin-top:8px;font-size:15px;font-weight:900">✨ ${esc(titleCelebrationBadge)}</span>
+      </div>
+    `;
+  } else {
+    let cleanManagerName = state.manager || 'Treinador';
+    if(cleanManagerName === 'Treinador da IA' && state.coachName){
+      cleanManagerName = state.coachName;
+    }
+    if(cleanManagerName === 'Treinador da IA'){
+      cleanManagerName = 'Treinador';
+    }
+    celebrationHtml = `
+      <div style="font-size:14px;color:rgba(255,255,255,0.85);max-width:540px;line-height:1.5;margin:8px 0 22px 0;font-weight:700">
+        O <b>${esc(clubName)}</b> sob o comando tático do <b>Professor ${esc(cleanManagerName)}</b> ergue a taça mais cobiçada e grava seu nome na história do futebol! A torcida comemora em festa inesquecível!
+      </div>
+    `;
+  }
 
   // Gera pedaços de confete dourados e coloridos no DOM
   const confettis = Array.from({length: 36}).map((_, i) => {
@@ -30282,7 +30368,7 @@ function showChampionTrophyCeremonyModal(comp, onProceed){
           </div>
 
           <div class="trophy-podium">
-            ★ CAMPEÃO OFICIAL AFM ★
+            ${podiumText}
           </div>
         </div>
 
@@ -30298,9 +30384,7 @@ function showChampionTrophyCeremonyModal(comp, onProceed){
           <span>🙌</span> <span>🎉</span> <span>⭐</span> <span>🍾</span> <span>👑</span> <span>🔥</span> <span>🙌</span>
         </div>
 
-        <div style="font-size:14px;color:rgba(255,255,255,0.85);max-width:540px;line-height:1.5;margin:8px 0 22px 0;font-weight:700">
-          O <b>${esc(clubName)}</b> sob o comando tático do <b>Professor ${esc(managerName)}</b> ergue a taça mais cobiçada e grava seu nome na história do futebol! A torcida comemora em festa inesquecível!
-        </div>
+        ${celebrationHtml}
 
         <!-- BOTÃO DE CONTINUAR -->
         <button class="btn primary" id="btnClaimTrophyCeremony" style="font-size:15px;font-weight:900;padding:12px 36px;border-radius:12px;background:linear-gradient(135deg, #eab308, #ca8a04);color:#000;border:none;box-shadow:0 0 30px rgba(234,179,8,0.7);cursor:pointer;letter-spacing:0.5px">
@@ -30317,6 +30401,335 @@ function showChampionTrophyCeremonyModal(comp, onProceed){
 }
 
 // -------------------------------------------------------------
+// FIM DE TEMPORADA EXCLUSIVO DO MODO CARREIRA JOGADOR
+// -------------------------------------------------------------
+function showPlayerEndOfSeasonModal(){
+  const pendingCompetitions = typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(state) : [];
+  if(pendingCompetitions.length){
+    const next = pendingCompetitions[0];
+    toast(`⏳ A temporada continua aberta: termine ${next.name}${next.detail ? ` (${next.detail})` : ''}${next.date ? ` em ${formatDatePtBr(next.date)}` : ''} antes de virar o ano.`);
+    view = 'calendario';
+    render();
+    return;
+  }
+
+  const pos = position();
+  const comp = curComp();
+  const prize = typeof calculateSeasonPrizeMoney === 'function' ? calculateSeasonPrizeMoney(pos, comp) : 0;
+  if(prize > 0 && (!state.seasonPrizeClaimed || state.seasonPrizeClaimed !== state.season)){
+    state.balance = (Number(state.balance) || 0) + prize;
+    state.income = (Number(state.income) || 0) + prize;
+    state.seasonPrizeClaimed = state.season;
+  }
+
+  // Avalia prêmios de final de temporada de forma oficial para o atleta
+  if(window.AFM_PlayerEngine?.processEndOfSeasonAwards){
+    try { window.AFM_PlayerEngine.processEndOfSeasonAwards(state, state.season, { isSeasonEnd: true }); } catch(_){}
+  }
+
+  const athlete = (state.squad || []).find(p => String(p.id) === String(state.controlledPlayerId) || p.isControlled) || state.player || {};
+  const playerName = athlete.name || state.playerCareerState?.name || 'Seu Atleta';
+  const pState = state.playerCareerState || {};
+  const sStats = pState.seasonStats || {};
+
+  const games = Number(sStats.games || sStats.matches || 0);
+  const starterCount = Number(sStats.starterCount || sStats.starts || 0);
+  const goals = Number(sStats.goals || 0);
+  const assists = Number(sStats.assists || 0);
+  const mvps = Number(sStats.mvpCount || sStats.manOfTheMatch || 0);
+  const yellowCards = Number(sStats.yellowCards || 0);
+  const redCards = Number(sStats.redCards || 0);
+  const avgRating = games > 0 ? (Number(sStats.avgRating || sStats.averageRating || 6.5)).toFixed(2) : '—';
+  const athleteWage = Number(athlete.wage || pState.wage || 1500);
+  const coachTrust = Math.round(Number(pState.coachTrust ?? athlete.trust ?? 75));
+  const personalCash = Number(pState.personalBank ?? pState.lifestyle?.cash ?? state.player?.personalBank ?? 0);
+  const contractUntil = Number(pState.contractUntil || athlete.contractUntil || (state.season + 2));
+  const yearsLeft = Math.max(0, contractUntil - state.season);
+
+  // Lógica de Acesso e Rebaixamento do Clube
+  let promoInfo = null;
+  const isEstadual = comp?.id?.startsWith('bra-est-');
+  if(isEstadual){
+    const savedRosters = state.competitionTeams || window.COMPETITION_TEAMS || {};
+    const hasSuperiorSeries = ['bra-a','bra-b','bra-c'].some(id => (savedRosters[id] || []).some(c => norm(c) === norm(state.club)));
+    if(!hasSuperiorSeries && pos <= 2){
+      promoInfo = {
+        type: 'promote',
+        toCompId: 'bra-d',
+        title: '🎉 VAGA NA SÉRIE D DO BRASILEIRÃO CONQUISTADA!',
+        desc: `Pelo grande desempenho no campeonato estadual (${pos}º colocado), o ${state.club} conquistou a vaga oficial na Série D nacional!`
+      };
+      state.nextSeasonCompId = 'bra-d';
+    }
+  } else if(comp?.id === 'bra-d'){
+    const dGroups = typeof getSeriesDGroupStandings === 'function' ? getSeriesDGroupStandings() : null;
+    const myGroup = dGroups ? Object.values(dGroups).find(group => group.some(t => norm(t.name) === norm(state.club))) : null;
+    const myGroupPos = myGroup ? (myGroup.find(t => norm(t.name) === norm(state.club))?.groupPosition || 999) : 999;
+    const groupChampions = Array.isArray(state.competitionPlayoffWinners?.['bra-d']) ? state.competitionPlayoffWinners['bra-d'] : [];
+    const groupChampion = myGroupPos === 1 || groupChampions.some(name => norm(name) === norm(state.club));
+    if(groupChampion){
+      promoInfo = {
+        type: 'promote',
+        toCompId: 'bra-c',
+        title: '🚀 ACESSO CONQUISTADO À SÉRIE C!',
+        desc: `O ${state.club} venceu seu grupo e conquistou uma das vagas diretas de acesso à Série C nacional!`
+      };
+      state.nextSeasonCompId = 'bra-c';
+    }
+  } else if(comp?.id === 'bra-c'){
+    const persistedCFinalGroups = Array.isArray(state.competitionFinalGroups?.['bra-c']) ? state.competitionFinalGroups['bra-c'] : [];
+    const cAccessByFinalGroup = persistedCFinalGroups.some(group => Array.isArray(group) && group.slice().sort((a,b) => (Number(b.p)||0)-(Number(a.p)||0) || (Number(b.sg)||0)-(Number(a.sg)||0)).slice(0,2).some(row => norm(typeof row === 'string' ? row : row?.name) === norm(state.club)));
+    if(cAccessByFinalGroup || pos <= 4){
+      promoInfo = {
+        type: 'promote',
+        toCompId: 'bra-b',
+        title: '🚀 ACESSO CONQUISTADO À SÉRIE B!',
+        desc: `O ${state.club} terminou entre os primeiros colocados e subiu para a Série B!`
+      };
+      state.nextSeasonCompId = 'bra-b';
+    } else if(pos >= 17){
+      promoInfo = {
+        type: 'relegate',
+        toCompId: 'bra-d',
+        title: '📉 REBAIXAMENTO PARA A SÉRIE D',
+        desc: `Campanha abaixo do esperado (${pos}º lugar). O clube disputará a Série D no próximo ano.`
+      };
+      state.nextSeasonCompId = 'bra-d';
+    }
+  } else if(comp?.id === 'bra-b'){
+    const explicitBPlayoffWinners = Array.isArray(state.competitionPlayoffWinners?.['bra-b']) ? state.competitionPlayoffWinners['bra-b'] : [];
+    const bPromotedAutomatically = pos <= 2;
+    const bPromotedByPlayoff = explicitBPlayoffWinners.some(name => norm(name) === norm(state.club));
+    if(bPromotedAutomatically || bPromotedByPlayoff){
+      promoInfo = {
+        type: 'promote',
+        toCompId: 'bra-a',
+        title: '👑 ACESSO À ELITE! SÉRIE A DO BRASILEIRÃO!',
+        desc: bPromotedAutomatically
+          ? `Histórico! O ${state.club} terminou no G-2 e conquistou o acesso direto à Série A!`
+          : `O ${state.club} venceu o playoff e conquistou o acesso à Série A!`
+      };
+      state.nextSeasonCompId = 'bra-a';
+    } else if(pos >= 17){
+      promoInfo = {
+        type: 'relegate',
+        toCompId: 'bra-c',
+        title: '📉 REBAIXAMENTO PARA A SÉRIE C',
+        desc: `Terminou no Z-4 (${pos}º lugar) e disputará a Série C na próxima temporada.`
+      };
+      state.nextSeasonCompId = 'bra-c';
+    }
+  } else if(comp?.id === 'bra-a'){
+    if(pos >= 17){
+      promoInfo = {
+        type: 'relegate',
+        toCompId: 'bra-b',
+        title: '📉 REBAIXAMENTO PARA A SÉRIE B',
+        desc: `Terminou no Z-4 da Série A (${pos}º lugar) e jogará a Série B no ano que vem.`
+      };
+      state.nextSeasonCompId = 'bra-b';
+    }
+  }
+
+  // Qualificação Continental
+  let continentalPromo = null;
+  const cContinent = comp?.continent || (comp?.country === 'Brasil' ? 'América do Sul' : 'Outro');
+  if(cContinent === 'América do Sul' && comp?.id === 'bra-a'){
+    if(pos <= 4){
+      continentalPromo = { title: '🏆 VAGA NA FASE DE GRUPOS DA LIBERTADORES!', desc: `Classificação continental épica! Pelo ${pos}º lugar no Brasileirão, o ${state.club} disputará a Copa Libertadores!` };
+    } else if(pos <= 6){
+      continentalPromo = { title: '🔵 VAGA NA PRÉ-LIBERTADORES!', desc: `Pelo ${pos}º lugar na Série A, o ${state.club} disputará a fase preliminar da Copa Libertadores!` };
+    } else if(pos <= 12){
+      continentalPromo = { title: '🥈 VAGA NA COPA SUL-AMERICANA!', desc: `Vaga internacional garantida! O ${state.club} disputará a CONMEBOL Sul-Americana!` };
+    }
+  }
+
+  if(pos === 1){
+    registerTrophyInMuseum(state, comp?.name || 'Campeonato', state.season);
+    state.news = Array.isArray(state.news) ? state.news : [];
+    state.news.unshift(`🏆 TÍTULO HISTÓRICO: O ${state.club} sagrou-se CAMPEÃO do ${comp?.name || 'Campeonato'} na Temporada ${state.season}!`);
+  }
+
+  // Prêmios individuais oficiais do atleta na temporada ativa
+  const mySeasonAwards = (pState.individualAwards || []).filter(a => Number(a.year || a.season) === Number(state.season));
+
+  // Propostas de outros clubes pelo atleta ou rumores de mercado
+  const pendingAgentOffers = (pState.agentOffers || []).filter(o => !o.rejected && (o.type === 'transfer' || o.type === 'club_loan'));
+  const interestedClubsPool = (clubs || []).filter(c => norm(c.name) !== norm(state.club) && strength(c) >= strength(clubByName(state.club)) - 8 && strength(c) <= strength(clubByName(state.club)) + 12).slice(0, 3);
+
+  openCustomModal(
+    `🏆 Encerramento da Temporada Oficial ${state.season}`,
+    `
+      <div style="text-align:center;margin-bottom:14px">
+        <div style="font-size:18px;font-weight:900;color:#fff">${esc(playerName)} · ${esc(state.club)}</div>
+        <div class="muted" style="font-size:12px;margin-top:2px">Retrospectiva Completa e Balanço da Temporada do Atleta</div>
+      </div>
+
+      <!-- PAINEL 1: CAMPANHA DO CLUBE -->
+      <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,#18142e,#0f172a);border:1.5px solid #6366f1;border-radius:14px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:20px">🏟️</span>
+            <b style="color:#facc15;font-size:13px;text-transform:uppercase">Campanha do Seu Clube (${esc(state.club)})</b>
+          </div>
+          <span class="pill ${pos === 1 ? 'good' : 'primary'}" style="font-size:11px;font-weight:900">
+            ${pos === 1 ? '🏆 CAMPEÃO!' : `${pos}º Colocado`}
+          </span>
+        </div>
+        <div style="font-size:13px;color:#fff;font-weight:700">
+          ${esc(comp?.name || 'Campeonato')}: <b>${pos}º lugar na classificação geral</b>
+        </div>
+        ${promoInfo ? `
+          <div style="margin-top:8px;padding:8px 12px;background:${promoInfo.type==='promote'?'rgba(34,197,94,0.18)':'rgba(239,68,68,0.18)'};border:1.5px solid ${promoInfo.type==='promote'?'#22c55e':'#ef4444'};border-radius:10px;font-size:12px">
+            <b style="color:${promoInfo.type==='promote'?'#4ade80':'#f87171'}">${promoInfo.title}</b>
+            <div style="color:#cbd5e1;margin-top:2px">${promoInfo.desc}</div>
+          </div>
+        ` : ''}
+        ${continentalPromo ? `
+          <div style="margin-top:8px;padding:8px 12px;background:rgba(56,189,248,0.18);border:1.5px solid #38bdf8;border-radius:10px;font-size:12px">
+            <b style="color:#38bdf8">${continentalPromo.title}</b>
+            <div style="color:#cbd5e1;margin-top:2px">${continentalPromo.desc}</div>
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- PAINEL 2: ESTATÍSTICAS DO ATLETA -->
+      <div class="card" style="margin-bottom:12px;background:#141c26;padding:14px;border:1px solid rgba(255,255,255,0.08);border-radius:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:18px">📊</span>
+          <b style="color:#38bdf8;font-size:13px;text-transform:uppercase">Seu Desempenho em Campo (${state.season})</b>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;text-align:center">
+          <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
+            <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Jogos</div>
+            <div style="font-size:18px;font-weight:900;color:#fff">${games} <span style="font-size:10px;color:#38bdf8">(${starterCount}T)</span></div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
+            <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Gols</div>
+            <div style="font-size:18px;font-weight:900;color:#22c55e">${goals}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
+            <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Assistências</div>
+            <div style="font-size:18px;font-weight:900;color:#38bdf8">${assists}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
+            <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Nota Média</div>
+            <div style="font-size:18px;font-weight:900;color:#facc15">${avgRating}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
+            <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Melhor em Campo</div>
+            <div style="font-size:18px;font-weight:900;color:#c084fc">${mvps}x</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);padding:8px;border-radius:8px">
+            <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Cartões</div>
+            <div style="font-size:18px;font-weight:900;color:#fbbf24">${yellowCards} <span style="font-size:12px;color:#ef4444">/ ${redCards}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAINEL 3: PRÊMIOS INDIVIDUAIS DO ATLETA -->
+      <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(15,23,42,0.95));border:1px solid #f59e0b;padding:14px;border-radius:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:18px">🎖️</span>
+          <b style="color:#facc15;font-size:13px;text-transform:uppercase">Suas Premiações Oficiais (${mySeasonAwards.length})</b>
+        </div>
+        ${mySeasonAwards.length > 0 ? `
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${mySeasonAwards.map(a => `
+              <div style="display:flex;align-items:center;gap:10px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:8px 12px">
+                <span style="font-size:22px">${a.icon || '🏆'}</span>
+                <div>
+                  <b style="color:#fef08a;font-size:13px">${esc(a.title || a.name || 'Prêmio Individual')}</b>
+                  <div style="font-size:11px;color:#cbd5e1">${esc(a.desc || a.details || 'Conquista oficial na temporada')}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        ` : `
+          <div style="font-size:12px;color:#94a3b8;padding:6px 0">
+            Você disputou a temporada com dedicação! Treine e evolua seus atributos para conquistar os troféus individuais no próximo ano.
+          </div>
+        `}
+      </div>
+
+      <!-- PAINEL 4: VÍNCULO CONTRATUAL E MERCADO -->
+      <div class="grid g2" style="margin-bottom:14px;gap:12px">
+        <div class="card" style="background:#131b26;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+          <div style="font-size:11px;font-weight:800;color:#38bdf8;text-transform:uppercase;margin-bottom:6px">📋 Seu Contrato Atual</div>
+          <div style="font-size:14px;font-weight:900;color:#fff">${esc(state.club)}</div>
+          <div style="font-size:12px;color:#22c55e;font-weight:800;margin-top:2px">
+            Salário: R$ ${athleteWage.toLocaleString('pt-BR')}/mês
+          </div>
+          <div style="font-size:11px;margin-top:6px;line-height:1.4">
+            ${yearsLeft <= 0
+              ? '<b style="color:#ef4444">⚠️ Seu vínculo termina nesta virada! Procure seu empresário para renovar ou aceitar proposta.</b>'
+              : `<b style="color:#22c55e">✅ Vínculo ativo até 31/12/${contractUntil} (${yearsLeft} ${yearsLeft === 1 ? 'temporada garantida' : 'temporadas garantidas'}).</b>`}
+          </div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">
+            Confiança do Técnico: <b>${coachTrust}%</b> · Conta Pessoal: <b>R$ ${personalCash.toLocaleString('pt-BR')}</b>
+          </div>
+        </div>
+
+        <div class="card" style="background:#131b26;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:12px">
+          <div style="font-size:11px;font-weight:800;color:#facc15;text-transform:uppercase;margin-bottom:6px">📬 Radar de Mercado</div>
+          ${pendingAgentOffers.length > 0 ? `
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${pendingAgentOffers.slice(0, 2).map(o => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:rgba(255,255,255,0.04);border-radius:8px">
+                  <div>
+                    <b style="color:#fff;font-size:12px">${esc(o.clubOrBrand || o.newClub)}</b>
+                    <div style="font-size:10px;color:#38bdf8">${esc(o.clubLeague || 'Proposta de Transferência')}</div>
+                  </div>
+                  <span class="pill good" style="font-size:10px">R$ ${(Number(o.wage)||0).toLocaleString('pt-BR')}/m</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : `
+            <div style="font-size:11px;color:#cbd5e1;line-height:1.4">
+              Olheiros de clubes como <b>${interestedClubsPool.map(c => esc(c.name)).join(', ') || 'clubes nacionais'}</b> estão monitorando sua evolução para a próxima Janela de Transferências.
+            </div>
+          `}
+          <button class="btn" id="btnGoToAgentTabFromSeasonEnd" style="width:100%;margin-top:8px;padding:6px;font-size:11px;font-weight:800;background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;border-radius:6px;cursor:pointer">
+            💼 Abrir Central do Empresário ➔
+          </button>
+        </div>
+      </div>
+
+      <!-- BOTÕES DO RODAPÉ -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:10px">
+        <button class="btn" id="btnOpenBallonDorPlayer" style="padding:14px 22px;font-size:13px;font-weight:900;background:linear-gradient(135deg,#eab308,#ca8a04);color:#000;border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:8px">
+          <span>🏆 GALA DA BOLA DE OURO & SELEÇÃO DO ANO</span> <span>🌟</span>
+        </button>
+        <button class="btn primary" id="btnAdvanceSeasonPlayer" style="padding:16px 28px;font-size:14px;font-weight:900;background:linear-gradient(135deg, #10b981, #059669);color:#fff;border:none;border-radius:12px;box-shadow:0 8px 25px rgba(16,185,129,0.45);cursor:pointer;display:flex;align-items:center;gap:8px">
+          <span>🚀 VIRAR O ANO & INICIAR TEMPORADA ${state.season + 1}</span> <span>➔</span>
+        </button>
+      </div>
+    `,
+    () => {
+      advanceSeasonYear();
+    }
+  );
+
+  const bGala = $('#btnOpenBallonDorPlayer');
+  if(bGala) bGala.onclick = () => window.AFM30 && window.AFM30.openBallonDorGalaModal(state);
+
+  const bAdv = $('#btnAdvanceSeasonPlayer');
+  if(bAdv) bAdv.onclick = () => {
+    closeCustomModal();
+    advanceSeasonYear();
+  };
+
+  const bAgent = $('#btnGoToAgentTabFromSeasonEnd');
+  if(bAgent) bAgent.onclick = () => {
+    closeCustomModal();
+    view = 'player_agent';
+    save();
+    render();
+  };
+}
+window.showPlayerEndOfSeasonModal = showPlayerEndOfSeasonModal;
+
+// -------------------------------------------------------------
 // FIM DE TEMPORADA & MERCADO DE TÉCNICOS
 // -------------------------------------------------------------
 function showEndOfSeasonModal(){
@@ -30327,6 +30740,16 @@ function showEndOfSeasonModal(){
     view = 'calendario';
     render();
     return;
+  }
+
+  // No Modo Carreira Jogador, redireciona estritamente para o encerramento do atleta
+  const isPlayerMode = Boolean(
+    state?.gameMode === 'player' ||
+    state?.isPlayerMode === true ||
+    (typeof window !== 'undefined' && window.isPlayerCareerActive?.(state))
+  );
+  if(isPlayerMode){
+    return showPlayerEndOfSeasonModal();
   }
   const pos = position();
   const trust = state.trust.board;
@@ -30465,8 +30888,9 @@ function showEndOfSeasonModal(){
   }
 
   if(pos === 1){
-    registerTrophyInMuseum(state, comp.name, state.season);
-    state.news.unshift(`🏆 TÍTULO HISTÓRICO: O ${state.club} sagrou-se CAMPEÃO do ${comp.name} na Temporada ${state.season}!`);
+    registerTrophyInMuseum(state, comp?.name || 'Campeonato', state.season);
+    state.news = Array.isArray(state.news) ? state.news : [];
+    state.news.unshift(`🏆 TÍTULO HISTÓRICO: O ${state.club} sagrou-se CAMPEÃO do ${comp?.name || 'Campeonato'} na Temporada ${state.season}!`);
   }
 
   const userTitlesInSeason = [];

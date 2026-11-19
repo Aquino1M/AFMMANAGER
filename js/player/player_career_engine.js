@@ -2935,6 +2935,17 @@
     const clubRank = ceremonyData.clubRank || (isChamp ? "1º Lugar (Campeão)" : "Participação Concluída");
     const awardsWon = Array.isArray(ceremonyData.awardsWon) ? ceremonyData.awardsWon : [];
 
+    let titleBadgeText = "";
+    if (isChamp) {
+      const titlesCount = Math.max(1, Number(ceremonyData.titlesCount || 1));
+      if (titlesCount === 1) titleBadgeText = "🎉 Parabéns pelo seu 1º título oficial na carreira!";
+      else if (titlesCount === 2) titleBadgeText = "🏆 Parabéns pelo seu Bicampeonato na carreira!";
+      else if (titlesCount === 3) titleBadgeText = "🏆 Parabéns pelo seu Tricampeonato na carreira!";
+      else if (titlesCount === 4) titleBadgeText = "🏆 Parabéns pelo seu Tetracampeonato na carreira!";
+      else if (titlesCount === 5) titleBadgeText = "👑 Parabéns pelo seu Pentacampeonato na carreira!";
+      else titleBadgeText = `👑 Parabéns pela sua ${titlesCount}ª conquista oficial na carreira!`;
+    }
+
     const awardsHtml = awardsWon.length > 0
       ? `<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
           ${awardsWon.map((a) => `
@@ -2966,6 +2977,7 @@
           <div>
             <div style="font-size:11px;font-weight:800;color:${isChamp ? "#fde68a" : "#94a3b8"}">CAMPANHA DO SEU CLUBE:</div>
             <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">${clubName}</div>
+            ${titleBadgeText ? `<div style="font-size:12px;font-weight:900;color:#facc15;margin-top:4px">${titleBadgeText}</div>` : ""}
           </div>
           <div style="text-align:right">
             <span style="display:inline-block;background:${isChamp ? "#f59e0b" : "#3b82f6"};color:${isChamp ? "#000" : "#fff"};font-size:12px;font-weight:900;padding:4px 10px;border-radius:8px">
@@ -3075,6 +3087,17 @@
       return false;
     });
 
+    let titlesCount = 1;
+    if (isClubChampion) {
+      const athleteTitles = Array.isArray(pState?.careerStats?.titles) ? pState.careerStats.titles : [];
+      const titleSet = new Set(athleteTitles.map(t => typeof t === "object" ? `${t.name}_${t.year}` : String(t)));
+      if (Array.isArray(gameState.titles)) {
+        gameState.titles.forEach(t => titleSet.add(typeof t === "object" ? `${t.name}_${t.year}` : String(t)));
+      }
+      titleSet.add(`${normCid}_${currentSeason}`);
+      titlesCount = Math.max(1, titleSet.size);
+    }
+
     showPlayerCompetitionCeremonyModal({
       compId: normCid,
       compName: compPack?.compName || (typeof window !== "undefined" && typeof window.compById === "function" ? window.compById(normCid)?.name : null) || normCid,
@@ -3082,6 +3105,7 @@
       clubName: gameState.club,
       clubRank,
       isClubChampion,
+      titlesCount,
       awardsWon
     });
 

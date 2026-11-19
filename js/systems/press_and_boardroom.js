@@ -43,6 +43,11 @@
     },
 
     openPressConferenceModal(state, onComplete) {
+      if (state?.gameMode === 'player' || (typeof window !== 'undefined' && window.isPlayerCareerActive?.(state))) {
+        if (typeof onComplete === 'function') onComplete();
+        return;
+      }
+
       const qIdx = Math.floor(Math.random() * this.questions.length);
       const qObj = this.questions[qIdx];
 
