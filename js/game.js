@@ -10266,6 +10266,58 @@ window.AFM_SAVE_VERIFIER = (function(){
         }
       }
 
+      // 1.1 Cura de Tabela Contaminada / Não Zerada na Divisão Nacional (Regra 24)
+      if (['bra-a','bra-b','bra-c','bra-d'].includes(targetState.compId) && Array.isArray(targetState.teams) && targetState.teams.length > 0) {
+        const playedCount = targetState.teams.filter(t => (Number(t?.j) || 0) > 0).length;
+        const totalMatchesInComp = Array.isArray(targetState.history) ? targetState.history.filter(h => h.competitionId === targetState.compId && Number(h.season) === Number(targetState.season)).length : 0;
+        if (targetState.round === 0 && totalMatchesInComp === 0 && playedCount > 0) {
+          targetState.teams.forEach(t => {
+            t.j = 0; t.v = 0; t.e = 0; t.d = 0; t.gp = 0; t.gc = 0; t.sg = 0; t.p = 0; t.form = [];
+          });
+          issues.push(`Tabela de ${targetState.compId} resetada: pontos contaminados da competição anterior expurgados`);
+          healedCount++;
+        }
+      }
+
+      // 1.2 Cura de Promoção Prematura de Estadual para Série D sem Virada de Ano (Regra 24)
+      if (targetState.gameMode === 'player' && Number(targetState.season) === 2026 && targetState.compId === 'bra-d' && Array.isArray(targetState.history)) {
+        const estMatches = targetState.history.filter(h => Number(h.season) === 2026 && (h.competitionId === 'bra-est-df' || (h.competition && h.competition.includes('Candango'))));
+        const seriesDMatches = targetState.history.filter(h => h.competitionId === 'bra-d' && Number(h.season) === 2026);
+        if (estMatches.length >= 9 && seriesDMatches.length === 0 && (Number(targetState.round) === 0 || Number(targetState.round) <= 1)) {
+          targetState.season = 2027;
+          targetState.date = '2027-01-17';
+          targetState.currentDate = targetState.date;
+          targetState.currentDateFormatted = typeof formatDatePtBr === 'function' ? formatDatePtBr(targetState.date) : '17 de janeiro de 2027';
+          targetState.round = 0;
+          if (Array.isArray(targetState.teams)) {
+            targetState.teams.forEach(t => {
+              t.j = 0; t.v = 0; t.e = 0; t.d = 0; t.gp = 0; t.gc = 0; t.sg = 0; t.p = 0; t.form = [];
+            });
+          }
+          const compD = typeof compById === 'function' ? compById('bra-d') : null;
+          if (compD && typeof buildSchedule === 'function' && Array.isArray(targetState.teams) && targetState.teams.length >= 96) {
+            targetState.schedule = buildSchedule(compD, targetState.teams.map(t => t.name));
+          }
+          if (targetState.playerCareerState && window.AFM_PlayerEngine?.rolloverPlayerSeason) {
+            try { window.AFM_PlayerEngine.rolloverPlayerSeason(targetState, 2026); } catch(_) {}
+          }
+          issues.push('Save curado: avanço de temporada de Candangão 2026 para Série D 2027 com tabela zerada e calendário sincronizado');
+          healedCount++;
+        }
+      }
+
+      // 1.3 Alinhamento de Data e Calendário Inicial (Regra 24)
+      if (Number(targetState.round) === 0 && Array.isArray(targetState.schedule) && targetState.schedule.length > 0) {
+        const firstMatchDate = typeof getDateForRound === 'function' ? getDateForRound(0, targetState.season) : `${targetState.season}-01-17`;
+        if (targetState.date && targetState.date > firstMatchDate) {
+          targetState.date = firstMatchDate;
+          targetState.currentDate = firstMatchDate;
+          targetState.currentDateFormatted = typeof formatDatePtBr === 'function' ? formatDatePtBr(firstMatchDate) : firstMatchDate;
+          issues.push(`Data do calendário sincronizada com a Rodada 1 (${firstMatchDate})`);
+          healedCount++;
+        }
+      }
+
       const forbiddenManagerViews = ['setup', 'central', 'meutime', 'tatica', 'elenco', 'mercado', 'financas', 'estrutura', 'escritorio', 'treinos', 'carreira'];
       if(!targetState.view || forbiddenManagerViews.includes(targetState.view)){
         targetState.view = 'player_hub';
@@ -18760,7 +18812,8 @@ function repairLegacyNationalCompetitionRosters(s){
 function repairEarnedStatePromotion(s){
   if(!s || !s.club || ['bra-a','bra-b','bra-c','bra-d'].includes(s.compId)) return false;
   const clubNorm = norm(s.club);
-  const explicitlyRequested = s.nextSeasonCompId === 'bra-d' || s.pendingPromotion?.toCompId === 'bra-d';
+  // Regra 24: s.nextSeasonCompId é intenção futura e só transiciona via advanceSeasonYear().
+  const explicitlyRequested = Boolean(s.pendingPromotion?.toCompId === 'bra-d');
   const previousSeason = Number(s.season) - 1;
   let sourceCompId = null;
   const competitionEvidence = (Array.isArray(s.competitionHistory) ? s.competitionHistory : []).some(item => {
@@ -18813,10 +18866,13 @@ function repairEarnedStatePromotion(s){
   const comp = compById('bra-d');
   s.competition = comp?.name || 'Campeonato Brasileiro Série D';
   s.currentLeague = s.competition;
-  const previousTeams = new Map((Array.isArray(s.teams) ? s.teams : []).map(team => [norm(team?.name), team]));
-  s.teams = national['bra-d'].map(name => previousTeams.get(norm(name)) || ({name,strength:teamStrengthByName(name),j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,p:0,form:[]}));
+  // Regra 24: Ao ingressar na Série D, 100% dos clubes iniciam estritamente com 0 pontos e 0 jogos
+  s.teams = national['bra-d'].map(name => ({name,strength:teamStrengthByName(name),j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,p:0,form:[]}));
   s.schedule = buildSchedule(comp, s.teams.map(team => team.name));
   s.round = 0;
+  s.date = typeof getDateForRound === 'function' ? getDateForRound(0, s.season) : `${s.season}-01-17`;
+  s.currentDate = s.date;
+  s.currentDateFormatted = typeof formatDatePtBr === 'function' ? formatDatePtBr(s.date) : s.date;
   delete s.nextSeasonCompId;
   delete s.pendingPromotion;
   const finalSourceId = sourceCompId || s.customClubStateCompId || (typeof clubStateCompId === 'function' ? clubStateCompId(s.club) : null) || 'bra-est-df';
@@ -18966,6 +19022,11 @@ function repairSaveIfCorrupted(s){
       }
     }
     s.teams = cleanTeams.slice(0, expectedNationalTeamCount);
+    // Regra 24: Se a divisão nacional estiver iniciando (round === 0) ou se a quantidade anterior de times divergia da liga nacional (ex.: 10 times de estadual para 96 de Série D), NENHUM ponto da competição passada pode persistir
+    const isNewDivisionEntry = Number(s.round || 0) === 0 || s.teams.filter(t => (Number(t.j) || 0) > 0).length <= 2;
+    if(isNewDivisionEntry){
+      s.teams.forEach(t => { t.j = 0; t.v = 0; t.e = 0; t.d = 0; t.gp = 0; t.gc = 0; t.sg = 0; t.p = 0; t.form = []; });
+    }
     s.schedule = buildSchedule(activeCompObj, s.teams.map(t => t.name));
     s.round = Math.min(Number(s.round) || 0, Math.max(0, s.schedule.length - 1));
   }
@@ -30706,7 +30767,7 @@ function showPlayerEndOfSeasonModal(){
       </div>
     `,
     () => {
-      advanceSeasonYear();
+      advanceSeasonYear(true);
     }
   );
 
@@ -30716,7 +30777,7 @@ function showPlayerEndOfSeasonModal(){
   const bAdv = $('#btnAdvanceSeasonPlayer');
   if(bAdv) bAdv.onclick = () => {
     closeCustomModal();
-    advanceSeasonYear();
+    advanceSeasonYear(true);
   };
 
   const bAgent = $('#btnGoToAgentTabFromSeasonEnd');
@@ -31045,7 +31106,7 @@ function showEndOfSeasonModal(){
       </div>
     `,
     () => {
-      advanceSeasonYear();
+      advanceSeasonYear(true);
     }
   );
 
@@ -31063,7 +31124,7 @@ function showEndOfSeasonModal(){
     state.managerContractDate = `qui, 31 dez ${newYear}`;
     toast(`Contrato renovado até ${state.managerContractDate}! (+15% salário)`);
     closeCustomModal();
-    advanceSeasonYear();
+    advanceSeasonYear(true);
   };
 
   $$('.btnAcceptJob').forEach(btn => {
@@ -31083,7 +31144,7 @@ function showEndOfSeasonModal(){
 
   const closeBtn = $('#closeEndSeasonBtn');
   const btnWorldSaveModal = $('#btnOpenWorldSaveChampionsModalModal'); if(btnWorldSaveModal) btnWorldSaveModal.onclick = openWorldSaveChampionsModal;
-  if(closeBtn) closeBtn.onclick = () => { try { closeCustomModal(); advanceSeasonYear(); } catch(err) { console.error('[AFM closeEndSeasonBtn Error]', err); advanceSeasonYear(); } };
+  if(closeBtn) closeBtn.onclick = () => { try { closeCustomModal(); advanceSeasonYear(true); } catch(err) { console.error('[AFM closeEndSeasonBtn Error]', err); advanceSeasonYear(true); } };
 
 
 
@@ -31323,9 +31384,9 @@ function executeSeasonTransitions(finishedCompId = null, finishedRanking = null,
 
 
 
-function advanceSeasonYear(){
+function advanceSeasonYear(forced = false){
   try {
-  const pendingCompetitions = typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(state) : [];
+  const pendingCompetitions = !forced && typeof getPendingClubCompetitions === 'function' ? getPendingClubCompetitions(state) : [];
   if(pendingCompetitions.length){
     const next = pendingCompetitions[0];
     toast(`🚫 VIRADA DO ANO BLOQUEADA: ainda falta disputar ${next.name}${next.detail ? ` (${next.detail})` : ''}${next.date ? ` em ${formatDatePtBr(next.date)}` : ''}. Conclua todas as competições da temporada.`);
@@ -31473,7 +31534,9 @@ function advanceSeasonYear(){
   (state.bankLoans || []).forEach(loan => {
     if(loan.remainingDebt > 0 && loan.remainingInstallments > 0) loan.nextDueRound = 2;
   });
-  state.date = `${state.season}-01-01`;
+  // Regra 24: No Modo Jogador o calendário inicia no 1º jogo oficial (17/01); no Treinador, inicia em 01/01
+  const isPlayer = Boolean(state.gameMode === 'player' || state.playerCareerState);
+  state.date = isPlayer ? `${state.season}-01-17` : `${state.season}-01-01`;
   state.currentDate = state.date;
   state.currentDateFormatted = formatDatePtBr(state.date);
   startSeasonTransferWindow(state);
@@ -31503,6 +31566,7 @@ function advanceSeasonYear(){
   }
   refreshAnnualSponsorValues(finishedPosition, finishedTeamCount, comp?.id);
   state.financePeriodStartedDate = state.date;
+  state.news = Array.isArray(state.news) ? state.news : [];
   state.news.unshift(`🤝 PATROCÍNIOS REAJUSTADOS: contratos e novas propostas atualizados para ${comp?.name || 'a nova divisão'}, considerando a posição ${finishedPosition}ª de ${finishedTeamCount} na temporada anterior.`);
   state.news.unshift(`🎆 Feliz Ano Novo! Início da temporada ${state.season}! O ${state.club} disputará o ${comp?.name || 'Campeonato'} com pré-temporada aberta por 4 dias.`);
   state.news = state.news.slice(0, 50);
@@ -31510,7 +31574,7 @@ function advanceSeasonYear(){
   const cc = competitionClubs(comp, state.club);
   state.teams = cc.map(c => ({name:c.name, strength:strength(c), j:0, v:0, e:0, d:0, gp:0, gc:0, sg:0, p:0, form:[]}));
   state.schedule = buildSchedule(comp, cc.map(c=>c.name));
-  state.sponsorOffers = generateSponsorOffers(state.balance);
+  state.sponsorOffers = Array.isArray(generateSponsorOffers(state.balance)) ? generateSponsorOffers(state.balance) : [];
   expiredSponsorContracts.forEach(expired => {
     if(!state.sponsorOffers.some(offer => offer.renewalFor === expired.renewalFor)){
       state.sponsorOffers.unshift({ ...expired, renewal: true });
@@ -43313,11 +43377,18 @@ function getSeriesDGroupStandings(teamList = null, sourceRows = null){
     const names = roster.slice(index * 24, (index + 1) * 24);
     const rows = names.map(name => {
       const row = byName.get(norm(name));
+      // Regra 24: Se a liga está na rodada inicial sem partidas disputadas na Série D, zera pontos contaminados
+      const isUnplayedLeague = state?.compId === 'bra-d' && Number(state?.round || 0) === 0 && (!Array.isArray(state?.history) || !state.history.some(h => h.competitionId === 'bra-d' && Number(h.season) === Number(state.season)));
+      if (row && isUnplayedLeague && (Number(row.j) > 0 || Number(row.p) > 0)) {
+        return { ...row, name, p: 0, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, form: [], _unplayed: true };
+      }
       return row ? {...row,name,form:Array.isArray(row.form)?row.form:[]} : {name,p:0,j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,form:[],_unplayed:true};
     }).sort((a,b)=>(Number(b.p)||0)-(Number(a.p)||0)||(Number(b.v)||0)-(Number(a.v)||0)||((Number(b.gp)||0)-(Number(b.gc)||0))-((Number(a.gp)||0)-(Number(a.gc)||0))||norm(a.name).localeCompare(norm(b.name)));
     return [group, rows.map((row,rowIndex)=>({...row,group,groupPosition:rowIndex+1}))];
   }));
 }
+if(typeof window !== 'undefined') window.getSeriesDGroupStandings = getSeriesDGroupStandings;
+if(typeof global !== 'undefined') global.getSeriesDGroupStandings = getSeriesDGroupStandings;
 
 function getNationalCompetitionStandings(natId){
   const savedRoster = state?.competitionTeams?.[natId];

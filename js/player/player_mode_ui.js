@@ -1223,12 +1223,31 @@
       if (natId === "bra-d") {
         const dRoster = (state.compId === "bra-d" && Array.isArray(state.teams) && state.teams.length >= 96)
           ? state.teams.map((t) => t.name)
-          : (state.competitionTeams?.["bra-d"] || window.COMPETITION_TEAMS?.["bra-d"] || []);
-        const dGroups = typeof window.getSeriesDGroupStandings === "function"
-          ? window.getSeriesDGroupStandings(dRoster, state.compId === "bra-d" ? state.teams : (state.nationalCompetitionStandings?.["bra-d"] || null))
+          : (state.competitionTeams?.["bra-d"] || (typeof BASE_COMPETITION_TEAMS !== "undefined" ? BASE_COMPETITION_TEAMS?.["bra-d"] : null) || window.COMPETITION_TEAMS?.["bra-d"] || []);
+        const seriesDFn = typeof window.getSeriesDGroupStandings === "function" ? window.getSeriesDGroupStandings : (typeof getSeriesDGroupStandings === "function" ? getSeriesDGroupStandings : null);
+        const dGroups = seriesDFn
+          ? seriesDFn(dRoster, state.compId === "bra-d" ? state.teams : (state.nationalCompetitionStandings?.["bra-d"] || null))
           : null;
-        const myGroupKey = ["A", "B", "C", "D"].find((g) => dGroups && dGroups[g]?.some((t) => (typeof norm === "function" ? norm(t.name) === myClubNorm : t.name === myClub))) || "A";
-        const groupStandings = dGroups ? (dGroups[myGroupKey] || []) : [];
+        
+        let myGroupKey = ["A", "B", "C", "D"].find((g) => dGroups && dGroups[g]?.some((t) => (typeof norm === "function" ? norm(t.name) === myClubNorm : t.name === myClub)));
+        if (!myGroupKey) {
+          const clubIdx = dRoster.findIndex(name => (typeof norm === "function" ? norm(name) === myClubNorm : name === myClub));
+          const gIdx = clubIdx >= 0 ? Math.floor(clubIdx / 24) : 0;
+          myGroupKey = ["A", "B", "C", "D"][clamp(gIdx, 0, 3)] || "A";
+        }
+        let groupStandings = dGroups ? (dGroups[myGroupKey] || []) : [];
+        if (!groupStandings || groupStandings.length === 0) {
+          const gIdx = ["A", "B", "C", "D"].indexOf(myGroupKey);
+          const gNames = dRoster.slice(Math.max(0, gIdx) * 24, (Math.max(0, gIdx) + 1) * 24);
+          groupStandings = gNames.map((name, i) => ({
+            name,
+            p: 0, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0,
+            form: [],
+            group: myGroupKey,
+            groupPosition: i + 1,
+            _unplayed: true
+          }));
+        }
 
         return {
           kind: "table",
@@ -1399,6 +1418,15 @@
 
     // Tabela de Pontos Corridos / Grupos
     const standings = Array.isArray(compData.standings) ? compData.standings : [];
+    if (standings.length === 0) {
+      return `
+        <div style="text-align:center;padding:30px 16px;color:#94a3b8;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;height:100%">
+          <div style="font-size:28px">📊</div>
+          <div style="font-weight:700;color:#e2e8f0">${esc(compData.compName || "Tabela Oficial")}</div>
+          <div style="font-size:11px">Aguardando o início oficial da competição para consolidar a classificação.</div>
+        </div>
+      `;
+    }
     const myIdx = standings.findIndex((t) => (typeof norm === "function" ? norm(t.name) === myClubNorm : t.name === myClub));
     const myPos = myIdx >= 0 ? myIdx + 1 : null;
     const myRow = myIdx >= 0 ? standings[myIdx] : null;

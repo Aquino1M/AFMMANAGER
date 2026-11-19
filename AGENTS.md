@@ -88,6 +88,11 @@
     - Coletiva de imprensa de treinador (`openPostMatchInterviewModal` e `openPressConferenceModal`) é estritamente proibida no Modo Jogador, bypassando imediatamente qualquer pergunta ao técnico.
     - Cerimônia de campeão (`showChampionTrophyCeremonyModal`) exibe `★ CONQUISTA HISTÓRICA DO ATLETA ★`, o nome do jogador e a contagem cumulativa de títulos (`1º título`, `Bicampeonato`, `Tricampeonato`, etc.), sendo proibido exibir "Professor Treinador da IA".
     - `showEndOfSeasonModal` redireciona para `showPlayerEndOfSeasonModal`, exibindo campanha do clube, estatísticas individuais do atleta (jogos, gols, assistências, nota média, MVPs, cartões), troféus oficiais do ano, contrato pessoal do atleta (salário, término, confiança, saldo) e radar de mercado do jogador, sem botões de renovar como treinador nem de assumir outros clubes.
+    - REGRA IRRESTRITA DE TRANSIÇÃO DE TEMPORADA, TABELAS ZERADAS NA DIVISÃO NACIONAL & SINCRONIZAÇÃO DE CALENDÁRIO:
+      - Ao subir de divisão ou transicionar para um novo ano (Série A/B/C/D), 100% dos clubes iniciam obrigatoriamente com 0 pontos, 0 jogos, 0 vitórias e 0 gols (`p: 0, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0`), sendo terminantemente proibido carregar pontos de estaduais em `state.teams` ou `state.nationalCompetitionStandings`.
+      - `repairEarnedStatePromotion` é proibido de sequestrar divisões durante o ano ativo via `s.nextSeasonCompId`; apenas `advanceSeasonYear()` oficializa acessos e incrementa `state.season` (2026 ➔ 2027), sincronizando a data com a Rodada 1 (`17 de janeiro` no Modo Jogador).
+      - `window.getSeriesDGroupStandings` é a autoridade de grupos da Série D, resolvendo o grupo do atleta e garantindo renderização completa no Hub Central e na Classificação sem caixas vazias.
+      - Saves com divisão prematura ou tabela contaminada no ano 2026 são auto-curados no `AFM_SAVE_VERIFIER.verifyAndHealState`, avançando o ano para 2027 e zerando a tabela.
 - Central do Atleta (Aba ⭐ Hub Central):
   - REGRA IRRESTRITA DO ALTERNADOR NOTÍCIAS & CLASSIFICAÇÃO NO HUB (`getHubMatchCompetitionStandings` & `renderHubCompetitionStandingsHtml`):
     - O cabeçalho do card de Notícias no Hub Central possui alternador dinâmico de duas abas: `📰 Notícias & Imprensa` e `📊 Classificação (Competição)`.
