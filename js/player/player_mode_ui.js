@@ -5734,7 +5734,7 @@
                 </div>
                 <div style="background:#090d16;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);text-align:center">
                   <div style="font-size:22px">⚽</div>
-                  <div style="font-size:18px;font-weight:900;color:#38bdf8">${(pState.individualAwards || []).filter((a) => a.id.startsWith("league_top_scorer") || a.id.startsWith("comp_top_scorer")).length}</div>
+                  <div style="font-size:18px;font-weight:900;color:#38bdf8">${(pState.individualAwards || []).filter((a) => a.id.startsWith("league_top_scorer") || a.id.startsWith("comp_top_scorer") || a.id.startsWith("record_goals") || a.badge === "ARTILHEIRO OFICIAL" || (a.title && a.title.toLowerCase().includes("artilheir"))).length}</div>
                   <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">Artilharias Oficiais</div>
                 </div>
                 <div style="background:#090d16;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);text-align:center">
@@ -5797,24 +5797,49 @@
                 <span style="font-size:12px;color:#94a3b8;font-weight:700">Marcas lendárias eternizadas nos livros da liga</span>
               </div>
 
-              <!-- CARDS COM BARRAS DE PROGRESSO AO VIVO DOS 3 RECORDES -->
-              <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:14px;margin-bottom:16px">
-                
-                <!-- 1. RECORDE DE GOLS EM 1 ANO (META: 14 GOLS) -->
-                ${(function () {
-                  const goalsGoal = 14;
-                  const goalsPct = Math.min(100, Math.round((seasonGoals / goalsGoal) * 100));
-                  const isBroken = seasonGoals > goalsGoal;
-                  return `
-                    <div style="background:#090d16;border:1.5px solid ${isBroken ? "#facc15" : "rgba(245,158,11,0.3)"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+              <!-- CARDS COM BARRAS DE PROGRESSO AO VIVO DOS 3 RECORDES DA COMPETIÇÃO ATIVA (Regra 26) -->
+              ${(function () {
+                const compKey = state.compId || "bra-est-df";
+                const cRec = (window.AFM_PlayerEngine?.getCompetitionRecords
+                  ? window.AFM_PlayerEngine.getCompetitionRecords(compKey, state)
+                  : null) || {
+                    compName: state.competition || "Campeonato",
+                    mostGoalsSeason: { holder: "Goleador Histórico", club: "Clube Tradicional", value: 14, year: 2022 },
+                    mostAssistsSeason: { holder: "Maestro Histórico", club: "Clube Tradicional", value: 8, year: 2023 },
+                    longestUnbeatenStreak: { holder: "Clube Campeão", club: "Campeão", value: 11, year: 2024 },
+                  };
+
+                const goalsGoal = Number(cRec.mostGoalsSeason?.value || 14);
+                const goalsPct = Math.min(100, Math.round((seasonGoals / goalsGoal) * 100));
+                const isGoalsBroken = seasonGoals > goalsGoal;
+
+                const assistsGoal = Number(cRec.mostAssistsSeason?.value || 8);
+                const assistsPct = Math.min(100, Math.round((seasonAssists / assistsGoal) * 100));
+                const isAssistsBroken = seasonAssists > assistsGoal;
+
+                const streakGoal = Number(cRec.longestUnbeatenStreak?.value || 11);
+                const currentStreakVal = sStats.unbeatenStreak || sStats.currentStreak || 0;
+                const streakPct = Math.min(100, Math.round((currentStreakVal / streakGoal) * 100));
+                const isStreakBroken = currentStreakVal > streakGoal;
+
+                return `
+                  <div style="margin-bottom:12px;font-size:12px;color:#cbd5e1;display:flex;align-items:center;gap:8px">
+                    <span>🏆</span> Competição Vigente: <b style="color:#38bdf8">${esc(cRec.compName || state.competition || "Campeonato")}</b>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:14px;margin-bottom:16px">
+                    
+                    <!-- 1. RECORDE DE GOLS EM 1 ANO -->
+                    <div style="background:#090d16;border:1.5px solid ${isGoalsBroken ? "#facc15" : "rgba(245,158,11,0.3)"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
                       <div>
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                           <span style="font-size:11px;color:#f59e0b;font-weight:800;text-transform:uppercase">⚽ RECORDE DE GOLS EM 1 ANO:</span>
-                          <span class="pill ${isBroken ? "good" : "warning"}" style="font-size:9px;font-weight:900">${isBroken ? "🏆 QUEBRADO!" : "EM DISPUTA"}</span>
+                          <span class="pill ${isGoalsBroken ? "good" : "warning"}" style="font-size:9px;font-weight:900">${isGoalsBroken ? "🏆 QUEBRADO!" : "EM DISPUTA"}</span>
                         </div>
                         <div style="font-size:22px;font-weight:900;color:#fff">${seasonGoals} <span style="font-size:13px;color:#94a3b8">/ ${goalsGoal} gols</span></div>
-                        <div style="font-size:11px;color:#cbd5e1;margin:6px 0 10px 0">
-                          ${isBroken ? `⭐ Novo Recordista Oficial com ${seasonGoals} gols!` : `Marque ${goalsGoal + 1} gols na temporada para quebrar o recorde!`}
+                        <div style="font-size:11px;color:#cbd5e1;margin:6px 0 10px 0;line-height:1.4">
+                          ${isGoalsBroken
+                            ? `⭐ Novo Recordista Oficial: <b>${esc(athlete?.name || "Seu Atleta")}</b> com ${seasonGoals} gols!`
+                            : `<span style="color:#94a3b8">Recordista Atual:</span> <b style="color:#fff">${esc(cRec.mostGoalsSeason?.holder || "Goleador")}</b> (${esc(cRec.mostGoalsSeason?.club || "")} · ${goalsGoal} gols em ${cRec.mostGoalsSeason?.year || "—"})<br>Marque ${goalsGoal + 1} gols na temporada para quebrar o recorde!`}
                         </div>
                       </div>
                       <div>
@@ -5827,24 +5852,19 @@
                         </div>
                       </div>
                     </div>
-                  `;
-                })()}
 
-                <!-- 2. RECORDE DE ASSISTÊNCIAS EM 1 ANO (META: 8 PASSES) -->
-                ${(function () {
-                  const assistsGoal = 8;
-                  const assistsPct = Math.min(100, Math.round((seasonAssists / assistsGoal) * 100));
-                  const isBroken = seasonAssists > assistsGoal;
-                  return `
-                    <div style="background:#090d16;border:1.5px solid ${isBroken ? "#38bdf8" : "rgba(56,189,248,0.3)"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+                    <!-- 2. RECORDE DE ASSISTÊNCIAS EM 1 ANO -->
+                    <div style="background:#090d16;border:1.5px solid ${isAssistsBroken ? "#38bdf8" : "rgba(56,189,248,0.3)"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
                       <div>
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                           <span style="font-size:11px;color:#38bdf8;font-weight:800;text-transform:uppercase">🎯 RECORDE DE ASSISTÊNCIAS:</span>
-                          <span class="pill ${isBroken ? "good" : "warning"}" style="font-size:9px;font-weight:900">${isBroken ? "🏆 QUEBRADO!" : "EM DISPUTA"}</span>
+                          <span class="pill ${isAssistsBroken ? "good" : "warning"}" style="font-size:9px;font-weight:900">${isAssistsBroken ? "🏆 QUEBRADO!" : "EM DISPUTA"}</span>
                         </div>
                         <div style="font-size:22px;font-weight:900;color:#fff">${seasonAssists} <span style="font-size:13px;color:#94a3b8">/ ${assistsGoal} passes</span></div>
-                        <div style="font-size:11px;color:#cbd5e1;margin:6px 0 10px 0">
-                          ${isBroken ? `⭐ Novo Recordista Oficial com ${seasonAssists} assistências!` : `Dê ${assistsGoal + 1} assistências na temporada para bater a marca!`}
+                        <div style="font-size:11px;color:#cbd5e1;margin:6px 0 10px 0;line-height:1.4">
+                          ${isAssistsBroken
+                            ? `⭐ Novo Recordista Oficial: <b>${esc(athlete?.name || "Seu Atleta")}</b> com ${seasonAssists} assistências!`
+                            : `<span style="color:#94a3b8">Recordista Atual:</span> <b style="color:#fff">${esc(cRec.mostAssistsSeason?.holder || "Maestro")}</b> (${esc(cRec.mostAssistsSeason?.club || "")} · ${assistsGoal} passes em ${cRec.mostAssistsSeason?.year || "—"})<br>Dê ${assistsGoal + 1} assistências na temporada para bater a marca!`}
                         </div>
                       </div>
                       <div>
@@ -5857,25 +5877,19 @@
                         </div>
                       </div>
                     </div>
-                  `;
-                })()}
 
-                <!-- 3. SEQUÊNCIA INVICTA (META: 11 PARTIDAS) -->
-                ${(function () {
-                  const streakGoal = 11;
-                  const currentStreakVal = sStats.unbeatenStreak || sStats.currentStreak || 0;
-                  const streakPct = Math.min(100, Math.round((currentStreakVal / streakGoal) * 100));
-                  const isBroken = currentStreakVal > streakGoal;
-                  return `
-                    <div style="background:#090d16;border:1.5px solid ${isBroken ? "#10b981" : "rgba(16,185,129,0.3)"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+                    <!-- 3. SEQUÊNCIA INVICTA -->
+                    <div style="background:#090d16;border:1.5px solid ${isStreakBroken ? "#10b981" : "rgba(16,185,129,0.3)"};border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between">
                       <div>
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                           <span style="font-size:11px;color:#10b981;font-weight:800;text-transform:uppercase">🛡️ SEQUÊNCIA INVICTA:</span>
-                          <span class="pill ${isBroken ? "good" : "warning"}" style="font-size:9px;font-weight:900">${isBroken ? "🏆 QUEBRADO!" : "EM DISPUTA"}</span>
+                          <span class="pill ${isStreakBroken ? "good" : "warning"}" style="font-size:9px;font-weight:900">${isStreakBroken ? "🏆 QUEBRADO!" : "EM DISPUTA"}</span>
                         </div>
                         <div style="font-size:22px;font-weight:900;color:#fff">${currentStreakVal} <span style="font-size:13px;color:#94a3b8">/ ${streakGoal} partidas</span></div>
-                        <div style="font-size:11px;color:#cbd5e1;margin:6px 0 10px 0">
-                          ${isBroken ? `⭐ Novo Recordista com ${currentStreakVal} jogos invictos!` : `Alcance ${streakGoal + 1} jogos seguidos sem derrota!`}
+                        <div style="font-size:11px;color:#cbd5e1;margin:6px 0 10px 0;line-height:1.4">
+                          ${isStreakBroken
+                            ? `⭐ Novo Recordista: <b>${esc(athlete?.name || "Seu Atleta")} / ${esc(currentClub)}</b> com ${currentStreakVal} jogos invictos!`
+                            : `<span style="color:#94a3b8">Recordista Atual:</span> <b style="color:#fff">${esc(cRec.longestUnbeatenStreak?.holder || "Clube")}</b> (${streakGoal} jogos sem derrota em ${cRec.longestUnbeatenStreak?.year || "—"})<br>Alcance ${streakGoal + 1} jogos seguidos sem derrota!`}
                         </div>
                       </div>
                       <div>
@@ -5888,10 +5902,10 @@
                         </div>
                       </div>
                     </div>
-                  `;
-                })()}
 
-              </div>
+                  </div>
+                `;
+              })()}
 
               <!-- GALERIA DE RECORDES HISTÓRICOS OFICIALMENTE SUPERADOS -->
               ${
@@ -5909,8 +5923,8 @@
                       <h4 style="margin:0 0 4px 0;font-size:15px;font-weight:900;color:#fff">${esc(rec.title)}</h4>
                       <div style="font-size:22px;font-weight:900;color:#38bdf8;margin:6px 0">${rec.value} <span style="font-size:13px;color:#94a3b8">${rec.type === "mostGoalsSeason" ? "Gols" : rec.type === "mostAssistsSeason" ? "Assistências" : "Jogos Invicto"}</span></div>
                       <div style="font-size:11px;color:#cbd5e1;line-height:1.4">
-                        Competição: <b>${esc(rec.compName)}</b><br>
-                        Superou: <b>${esc(rec.previousHolder)}</b> na temporada ${rec.year}
+                        Competição: <b>${esc(rec.compName || (typeof window !== "undefined" && typeof window.compById === "function" ? window.compById(rec.compId)?.name : null) || state.competition || "Campeonato Candango")}</b><br>
+                        Superou: <b>${esc(rec.previousHolder || (rec.type === "mostGoalsSeason" ? "Tatu (Gama · 14 gols)" : rec.type === "mostAssistsSeason" ? "Romarinho (Brasiliense · 8 passes)" : "Ceilândia (11 jogos)"))}</b> na temporada ${rec.year || 2026}
                       </div>
                     </div>
                   `,
@@ -6458,21 +6472,21 @@
                         </span>
                       </td>
                       <td style="padding:12px 8px;text-align:center;color:#facc15">
-                        ${allTitles.filter((t) => t.year === currentSeason).map((t) => esc(t.name)).join(", ") || "—"}
+                        ${allTitles.filter((t) => Number(t.year) === currentSeason).map((t) => esc(t.name)).join(", ") || (ch?.seasons?.find(s => Number(s.year || s.season) === currentSeason)?.titlesWon?.join(", ")) || "—"}
                       </td>
                     </tr>
 
                     <!-- Linhas das Temporadas Anteriores -->
                     ${(ch?.seasons || [])
-                      .filter((s) => Number(s.year) !== currentSeason)
+                      .filter((s) => Number(s.year || s.season) !== currentSeason)
                       .map(
                         (s) => `
                         <tr style="border-bottom:1px solid rgba(255,255,255,0.04);color:#cbd5e1">
-                          <td style="padding:10px 8px;font-weight:800">${s.year}</td>
+                          <td style="padding:10px 8px;font-weight:800">${s.year || s.season}</td>
                           <td style="padding:10px 8px;color:#fff">
-                            ${esc(s.club || "Clube")} <span style="font-size:11px;color:#64748b">(${esc(s.division || "")})</span>
+                            ${esc(s.club || "Clube")} <span style="font-size:11px;color:#64748b">(${esc(s.division || s.competition || "")})</span>
                           </td>
-                          <td style="padding:10px 8px;text-align:center">${s.games || 0}</td>
+                          <td style="padding:10px 8px;text-align:center">${s.games || s.matches || 0}</td>
                           <td style="padding:10px 8px;text-align:center;font-weight:800;color:#10b981">${s.goals || 0}</td>
                           <td style="padding:10px 8px;text-align:center;font-weight:800;color:#38bdf8">${s.assists || 0}</td>
                           <td style="padding:10px 8px;text-align:center">
@@ -6481,7 +6495,7 @@
                             </span>
                           </td>
                           <td style="padding:10px 8px;text-align:center;color:#facc15">
-                            ${(s.titles || []).map((t) => esc(t)).join(", ") || "—"}
+                            ${(s.titlesWon && s.titlesWon.length ? s.titlesWon.map((t) => esc(t)).join(", ") : (s.titles && s.titles.length ? s.titles.map((t) => esc(t)).join(", ") : "—"))}
                           </td>
                         </tr>
                       `,

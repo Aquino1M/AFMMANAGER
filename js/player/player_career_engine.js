@@ -459,7 +459,125 @@
     },
   };
 
-  // Catálogo de Chuteiras Básicas de Entrada (Sem Patrocínio)
+  // Catálogo Oficial de Recordes Históricos por Competição (Regra 26)
+  const AFM_COMPETITION_RECORDS = {
+    "bra-a": {
+      compName: "Campeonato Brasileiro Série A",
+      mostGoalsSeason: { holder: "Washington (Coração Valente)", club: "Athletico-PR", value: 34, year: 2004 },
+      mostAssistsSeason: { holder: "Giorgian de Arrascaeta", club: "Flamengo", value: 14, year: 2019 },
+      longestUnbeatenStreak: { holder: "Flamengo", club: "Flamengo", value: 24, year: 2019 },
+    },
+    "bra-b": {
+      compName: "Campeonato Brasileiro Série B",
+      mostGoalsSeason: { holder: "Bruno Rangel", club: "Chapecoense", value: 31, year: 2013 },
+      mostAssistsSeason: { holder: "Camilo", club: "Chapecoense", value: 13, year: 2014 },
+      longestUnbeatenStreak: { holder: "Corinthians", club: "Corinthians", value: 19, year: 2008 },
+    },
+    "bra-c": {
+      compName: "Campeonato Brasileiro Série C",
+      mostGoalsSeason: { holder: "Tuta", club: "Brasiliense", value: 16, year: 2021 },
+      mostAssistsSeason: { holder: "Marcos Aurélio", club: "Brasiliense", value: 10, year: 2022 },
+      longestUnbeatenStreak: { holder: "Operário Ferroviário", club: "Operário-PR", value: 16, year: 2018 },
+    },
+    "bra-d": {
+      compName: "Campeonato Brasileiro Série D",
+      mostGoalsSeason: { holder: "Nino Guerreiro", club: "CRAC", value: 13, year: 2012 },
+      mostAssistsSeason: { holder: "Ciel", club: "Caucaia", value: 8, year: 2020 },
+      longestUnbeatenStreak: { holder: "Ferroviário", club: "Ferroviário-CE", value: 24, year: 2023 },
+    },
+    "bra-cup": {
+      compName: "Copa do Brasil",
+      mostGoalsSeason: { holder: "Fred", club: "Cruzeiro", value: 14, year: 2005 },
+      mostAssistsSeason: { holder: "Dudu", club: "Palmeiras", value: 6, year: 2015 },
+      longestUnbeatenStreak: { holder: "Palmeiras", club: "Palmeiras", value: 12, year: 2020 },
+    },
+    "bra-est-df": {
+      compName: "Campeonato Candango",
+      mostGoalsSeason: { holder: "Tatu", club: "Gama", value: 14, year: 2022 },
+      mostAssistsSeason: { holder: "Romarinho", club: "Brasiliense", value: 8, year: 2023 },
+      longestUnbeatenStreak: { holder: "Ceilândia", club: "Ceilândia", value: 11, year: 2024 },
+    },
+    "bra-est-sp": {
+      compName: "Campeonato Paulista",
+      mostGoalsSeason: { holder: "França", club: "São Paulo", value: 19, year: 2000 },
+      mostAssistsSeason: { holder: "Paulo Henrique Ganso", club: "Santos", value: 12, year: 2010 },
+      longestUnbeatenStreak: { holder: "Corinthians", club: "Corinthians", value: 28, year: 2017 },
+    },
+    "bra-est-rj": {
+      compName: "Campeonato Carioca",
+      mostGoalsSeason: { holder: "Romário", club: "Vasco da Gama", value: 19, year: 2000 },
+      mostAssistsSeason: { holder: "Giorgian de Arrascaeta", club: "Flamengo", value: 10, year: 2022 },
+      longestUnbeatenStreak: { holder: "Flamengo", club: "Flamengo", value: 22, year: 2024 },
+    },
+    "bra-est-mg": {
+      compName: "Campeonato Mineiro",
+      mostGoalsSeason: { holder: "Fred", club: "Atlético-MG", value: 14, year: 2017 },
+      mostAssistsSeason: { holder: "Ronaldinho Gaúcho", club: "Atlético-MG", value: 9, year: 2013 },
+      longestUnbeatenStreak: { holder: "Cruzeiro", club: "Cruzeiro", value: 18, year: 2003 },
+    },
+    "bra-est-rs": {
+      compName: "Campeonato Gaúcho",
+      mostGoalsSeason: { holder: "Sandro Sotilli", club: "Glória", value: 27, year: 2004 },
+      mostAssistsSeason: { holder: "Andrés D'Alessandro", club: "Internacional", value: 9, year: 2014 },
+      longestUnbeatenStreak: { holder: "Grêmio", club: "Grêmio", value: 17, year: 2019 },
+    },
+    "lib": {
+      compName: "Copa Libertadores",
+      mostGoalsSeason: { holder: "Daniel Onega", club: "River Plate", value: 17, year: 1966 },
+      mostAssistsSeason: { holder: "Rony", club: "Palmeiras", value: 9, year: 2021 },
+      longestUnbeatenStreak: { holder: "Palmeiras", club: "Palmeiras", value: 18, year: 2022 },
+    },
+    "sud": {
+      compName: "Copa Sul-Americana",
+      mostGoalsSeason: { holder: "Eduardo Vargas", club: "Universidad de Chile", value: 11, year: 2011 },
+      mostAssistsSeason: { holder: "Tomás Pochettino", club: "Fortaleza", value: 6, year: 2023 },
+      longestUnbeatenStreak: { holder: "São Paulo", club: "São Paulo", value: 10, year: 2012 },
+    },
+    "ucl": {
+      compName: "UEFA Champions League",
+      mostGoalsSeason: { holder: "Cristiano Ronaldo", club: "Real Madrid", value: 17, year: 2014 },
+      mostAssistsSeason: { holder: "James Milner", club: "Liverpool", value: 9, year: 2018 },
+      longestUnbeatenStreak: { holder: "Manchester City", club: "Manchester City", value: 26, year: 2024 },
+    },
+  };
+
+  function getCompetitionRecords(compId, gameState = null) {
+    const normKey = typeof window !== "undefined" && typeof window.normalizeCompStatsId === "function"
+      ? window.normalizeCompStatsId(compId)
+      : String(compId || "bra-est-df").toLowerCase().replace(/_/g, "-");
+
+    if (gameState?.competitionRecords?.[normKey]) {
+      return gameState.competitionRecords[normKey];
+    }
+    const def = AFM_COMPETITION_RECORDS[normKey];
+    if (def) {
+      return JSON.parse(JSON.stringify(def));
+    }
+    const isState = normKey.startsWith("bra-est-");
+    const isCup = normKey.includes("cup") || normKey.includes("copa");
+    const compName = (typeof window !== "undefined" && typeof window.compById === "function" ? window.compById(normKey)?.name : null) || (isState ? "Campeonato Estadual" : isCup ? "Copa" : "Campeonato");
+    return {
+      compName,
+      mostGoalsSeason: {
+        holder: isState ? "Tatu" : isCup ? "Goleador Histórico" : "Goleador Máximo",
+        club: isState ? "Gama" : "Clube Tradicional",
+        value: isState ? 14 : isCup ? 9 : 20,
+        year: 2022,
+      },
+      mostAssistsSeason: {
+        holder: isState ? "Romarinho" : "Maestro dos Passes",
+        club: isState ? "Brasiliense" : "Clube Tradicional",
+        value: isState ? 8 : isCup ? 5 : 10,
+        year: 2023,
+      },
+      longestUnbeatenStreak: {
+        holder: isState ? "Ceilândia" : "Clube Campeão",
+        club: isState ? "Ceilândia" : "Campeão",
+        value: isState ? 11 : isCup ? 8 : 15,
+        year: 2024,
+      },
+    };
+  }
   const STARTER_BOOTS = [
     {
       id: "boot_black_classic",
@@ -3677,9 +3795,18 @@
       }
     }
 
-    // Quebra de recordes históricos em tempo real (+15 gols em um ano, +9 assistências, +12 jogos invicto)
+    // Quebra de recordes históricos em tempo real por competição (Regra 26)
     pState.competitionRecordsBroken = Array.isArray(pState.competitionRecordsBroken) ? pState.competitionRecordsBroken : [];
     pState.individualAwards = Array.isArray(pState.individualAwards) ? pState.individualAwards : [];
+    gameState.competitionRecords = gameState.competitionRecords || {};
+
+    const activeCompKey = matchCompId || gameState.compId || "bra-est-df";
+    if (!gameState.competitionRecords[activeCompKey]) {
+      gameState.competitionRecords[activeCompKey] = getCompetitionRecords(activeCompKey, gameState);
+    }
+    const activeCompRec = gameState.competitionRecords[activeCompKey];
+    const compResolvedName = activeCompRec?.compName || (typeof window !== "undefined" && typeof window.compById === "function" ? window.compById(activeCompKey)?.name : null) || gameState.competition || "Campeonato";
+
     const creditRecordPrize = (amount, label) => {
       if (window.AFM_Lifestyle?.addPlayerTransaction) {
         window.AFM_Lifestyle.addPlayerTransaction(pState, matchDate || gameState?.date, label, amount, 'in');
@@ -3692,46 +3819,80 @@
         gameState.player.cash = pState.personalBank;
       }
     };
-    if (sStats.goals >= 15 && !pState.competitionRecordsBroken.some(r => r.type === 'mostGoalsSeason' && Number(r.year) === Number(currentSeasonYear))) {
+
+    // 1. Checagem dinâmica de Recorde de Gols da Competição
+    const goalTarget = Number(activeCompRec?.mostGoalsSeason?.value || 14);
+    if (sStats.goals > goalTarget && !pState.competitionRecordsBroken.some(r => r.type === 'mostGoalsSeason' && (r.compId === activeCompKey || r.compName === compResolvedName) && Number(r.year) === Number(currentSeasonYear))) {
+      const prev = { ...activeCompRec.mostGoalsSeason };
+      activeCompRec.mostGoalsSeason = {
+        holder: athlete.name,
+        club: gameState.club || "Clube",
+        value: sStats.goals,
+        year: currentSeasonYear
+      };
       const recItem = {
         type: 'mostGoalsSeason',
         title: 'Maior Artilheiro em uma Única Edição',
+        compName: compResolvedName,
+        compId: activeCompKey,
         value: sStats.goals,
+        holder: athlete.name,
+        previousHolder: `${prev.holder || 'Recordista Anterior'} (${prev.club ? prev.club + ' · ' : ''}${prev.value || goalTarget} gols)`,
         year: currentSeasonYear
       };
       pState.competitionRecordsBroken.push(recItem);
       pState.xp = (pState.xp || 0) + 500;
-      creditRecordPrize(5000, 'Prêmio Recorde Histórico: +15 Gols na Temporada');
-      const awId = 'record_goals_' + currentSeasonYear;
-      if (!pState.individualAwards.some(a => a.id === awId)) {
+      creditRecordPrize(5000, `Prêmio Recorde Histórico: Novo Recorde de Gols no ${compResolvedName}!`);
+      const awId = `record_goals_${activeCompKey}_${currentSeasonYear}`;
+      if (!pState.individualAwards.some(a => a.id === awId || a.id === `record_goals_${currentSeasonYear}`)) {
         pState.individualAwards.push({
           id: awId,
-          title: 'Recordista Histórico: Artilharia da Competição',
+          title: `Recordista Histórico: Artilharia do ${compResolvedName}`,
+          compId: activeCompKey,
+          compName: compResolvedName,
           year: currentSeasonYear,
           icon: '📜',
-          desc: `Quebrou o recorde histórico com ${sStats.goals} gols!`
+          badge: 'RECORDISTA OFICIAL',
+          desc: `Quebrou o recorde histórico com incríveis ${sStats.goals} gols no ${compResolvedName}!`
         });
       }
       levelUps += normalizePlayerProgression(pState);
     }
-    if (sStats.assists >= 9 && !pState.competitionRecordsBroken.some(r => r.type === 'mostAssistsSeason' && Number(r.year) === Number(currentSeasonYear))) {
+
+    // 2. Checagem dinâmica de Recorde de Assistências da Competição
+    const assistTarget = Number(activeCompRec?.mostAssistsSeason?.value || 8);
+    if (sStats.assists > assistTarget && !pState.competitionRecordsBroken.some(r => r.type === 'mostAssistsSeason' && (r.compId === activeCompKey || r.compName === compResolvedName) && Number(r.year) === Number(currentSeasonYear))) {
+      const prev = { ...activeCompRec.mostAssistsSeason };
+      activeCompRec.mostAssistsSeason = {
+        holder: athlete.name,
+        club: gameState.club || "Clube",
+        value: sStats.assists,
+        year: currentSeasonYear
+      };
       const recItem = {
         type: 'mostAssistsSeason',
         title: 'Maior Garçom em uma Única Edição',
+        compName: compResolvedName,
+        compId: activeCompKey,
         value: sStats.assists,
+        holder: athlete.name,
+        previousHolder: `${prev.holder || 'Recordista Anterior'} (${prev.club ? prev.club + ' · ' : ''}${prev.value || assistTarget} assistências)`,
         year: currentSeasonYear
       };
       pState.competitionRecordsBroken.push(recItem);
       pState.xp = (pState.xp || 0) + 500;
-      creditRecordPrize(4000, 'Prêmio Recorde Histórico: +9 Assistências na Temporada');
-      const awId = 'record_assists_' + currentSeasonYear;
-      if (!pState.individualAwards.some(a => a.id === awId)) {
+      creditRecordPrize(4000, `Prêmio Recorde Histórico: Mais Assistências no ${compResolvedName}!`);
+      const awId = `record_assists_${activeCompKey}_${currentSeasonYear}`;
+      if (!pState.individualAwards.some(a => a.id === awId || a.id === `record_assists_${currentSeasonYear}`)) {
         pState.individualAwards.push({
           id: awId,
-          title: 'Recordista Histórico: Líder de Assistências',
+          title: `Recordista Histórico: Líder de Assistências do ${compResolvedName}`,
+          compId: activeCompKey,
+          compName: compResolvedName,
           year: currentSeasonYear,
           icon: '📜',
-          desc: `Quebrou o recorde histórico com ${sStats.assists} assistências!`
+          badge: 'RECORDISTA OFICIAL',
+          desc: `Quebrou o recorde histórico com ${sStats.assists} assistências no ${compResolvedName}!`
         });
       }
       levelUps += normalizePlayerProgression(pState);
@@ -5993,12 +6154,25 @@
 
       const userByComp = pState.competitionStatsByComp?.[normCid];
       const hasExplicitByComp = Boolean(pState.competitionStatsByComp && Object.keys(pState.competitionStatsByComp).length > 0);
-      const uCompGoals = userByComp ? (Number(userByComp.goals) || 0) : (!hasExplicitByComp && isPrimary ? userGoals : 0);
-      const uCompAssists = userByComp ? (Number(userByComp.assists) || 0) : (!hasExplicitByComp && isPrimary ? userAssists : 0);
+
+      // Sincronização segura com histórico de partidas da temporada para competições disputadas (Regra 26)
+      const historyMatchesInComp = (pState.matchRatingHistory || []).filter((m) => {
+        const mYear = Number(String(m.date || "").slice(0, 4));
+        const mComp = typeof window !== "undefined" && typeof window.normalizeCompStatsId === "function"
+          ? window.normalizeCompStatsId(m.competitionId || m.compId || "")
+          : String(m.competitionId || m.compId || "").toLowerCase().replace(/_/g, "-");
+        return (!mYear || mYear === targetSeason) && (mComp === normCid || (!mComp && isPrimary));
+      });
+      const historyGoalsInComp = historyMatchesInComp.reduce((sum, m) => sum + (Number(m.goals) || 0), 0);
+      const historyAssistsInComp = historyMatchesInComp.reduce((sum, m) => sum + (Number(m.assists) || 0), 0);
+      const historyMatchesCount = historyMatchesInComp.length;
+
+      const uCompGoals = userByComp ? (Number(userByComp.goals) || 0) : (historyGoalsInComp > 0 ? historyGoalsInComp : (!hasExplicitByComp && isPrimary ? userGoals : 0));
+      const uCompAssists = userByComp ? (Number(userByComp.assists) || 0) : (historyAssistsInComp > 0 ? historyAssistsInComp : (!hasExplicitByComp && isPrimary ? userAssists : 0));
       const uCompCs = userByComp ? (Number(userByComp.cleanSheets) || 0) : (!hasExplicitByComp && isPrimary ? userCleanSheets : 0);
-      const uCompMvpCount = userByComp ? (Number(userByComp.mvpCount) || 0) : (!hasExplicitByComp && isPrimary ? userMvpCount : 0);
-      const uCompRating = userByComp ? (Number(userByComp.avgRating) || 6.5) : (!hasExplicitByComp && isPrimary ? userAvgRating : 0);
-      const uCompMatches = userByComp ? (Number(userByComp.matches) || 0) : (!hasExplicitByComp && isPrimary ? Math.max(1, Number(sStats.matches || pState.careerStats?.matches || (uCompGoals || uCompAssists ? 1 : 0))) : 0);
+      const uCompMvpCount = userByComp ? (Number(userByComp.mvpCount) || 0) : (historyMatchesInComp.filter((m) => m.isMvp || Number(m.rating) >= 8.5).length || (!hasExplicitByComp && isPrimary ? userMvpCount : 0));
+      const uCompRating = userByComp ? (Number(userByComp.avgRating) || 6.5) : (historyMatchesCount > 0 ? Number((historyMatchesInComp.reduce((sum, m) => sum + (Number(m.rating) || 0), 0) / historyMatchesCount).toFixed(2)) : (!hasExplicitByComp && isPrimary ? userAvgRating : 0));
+      const uCompMatches = userByComp ? (Number(userByComp.matches) || 0) : (historyMatchesCount > 0 ? historyMatchesCount : (!hasExplicitByComp && isPrimary ? Math.max(1, Number(sStats.matches || pState.careerStats?.matches || (uCompGoals || uCompAssists ? 1 : 0))) : 0));
 
       const topScorerRow = [...(cStatsObj?.scorers || [])].sort((a, b) => (Number(b.goals) || 0) - (Number(a.goals) || 0))[0];
       const topAssistRow = [...(cStatsObj?.assists || [])].sort((a, b) => (Number(b.assists) || 0) - (Number(a.assists) || 0))[0];
@@ -6006,11 +6180,13 @@
 
       const wonScorer = Boolean(
         official?.topScorer?.isUser ||
-        (uCompGoals > 0 && uCompGoals >= (Number(official?.topScorer?.value ?? topScorerRow?.goals) || 0))
+        (uCompGoals > 0 && uCompGoals >= (Number(official?.topScorer?.value ?? topScorerRow?.goals) || 0)) ||
+        (pState.competitionRecordsBroken || []).some((r) => r.type === "mostGoalsSeason" && (r.compId === normCid || r.compName === resolvedCompName) && Number(r.year) === targetSeason)
       );
       const wonAssist = Boolean(
         official?.assistLeader?.isUser ||
-        (uCompAssists > 0 && uCompAssists >= (Number(official?.assistLeader?.value ?? topAssistRow?.assists) || 0))
+        (uCompAssists > 0 && uCompAssists >= (Number(official?.assistLeader?.value ?? topAssistRow?.assists) || 0)) ||
+        (pState.competitionRecordsBroken || []).some((r) => r.type === "mostAssistsSeason" && (r.compId === normCid || r.compName === resolvedCompName) && Number(r.year) === targetSeason)
       );
       const minGamesForMvp = official?.minMatchesRequired || 2;
       const wonMvp = Boolean(
@@ -6088,105 +6264,17 @@
     const userWonLeagueMvp = allCompetitionAwards.some((p) => p.mvp?.isUser);
     const userWonLeagueCleanSheets = allCompetitionAwards.some((p) => p.goldenGlove?.isUser);
 
-    // 5. VERIFICADOR DE RECORDES HISTÓRICOS DA COMPETIÇÃO
+    // 5. VERIFICADOR DE RECORDES HISTÓRICOS DA COMPETIÇÃO (Regra 26)
     gameState.competitionRecords = gameState.competitionRecords || {};
     const compKey = userCompId || "bra-est-df";
     if (!gameState.competitionRecords[compKey]) {
-      if (compKey === "bra-a") {
-        gameState.competitionRecords[compKey] = {
-          compName: "Campeonato Brasileiro Série A",
-          mostGoalsSeason: {
-            holder: "Washington (Coração Valente)",
-            club: "Athletico-PR",
-            value: 34,
-            year: 2004,
-          },
-          mostAssistsSeason: {
-            holder: "Arrascaeta",
-            club: "Flamengo",
-            value: 14,
-            year: 2019,
-          },
-          longestUnbeatenStreak: {
-            holder: "Flamengo",
-            club: "Flamengo",
-            value: 24,
-            year: 2019,
-          },
-        };
-      } else if (compKey === "bra-b") {
-        gameState.competitionRecords[compKey] = {
-          compName: "Campeonato Brasileiro Série B",
-          mostGoalsSeason: {
-            holder: "Bruno Rangel",
-            club: "Chapecoense",
-            value: 31,
-            year: 2013,
-          },
-          mostAssistsSeason: {
-            holder: "Camilo",
-            club: "Chapecoense",
-            value: 13,
-            year: 2014,
-          },
-          longestUnbeatenStreak: {
-            holder: "Corinthians",
-            club: "Corinthians",
-            value: 19,
-            year: 2008,
-          },
-        };
-      } else if (compKey === "bra-c" || compKey === "bra-d") {
-        gameState.competitionRecords[compKey] = {
-          compName: compKey === "bra-c" ? "Série C" : "Série D",
-          mostGoalsSeason: {
-            holder: "Tuta",
-            club: "Brasiliense",
-            value: 16,
-            year: 2021,
-          },
-          mostAssistsSeason: {
-            holder: "Marcos Aurélio",
-            club: "Brasiliense",
-            value: 10,
-            year: 2022,
-          },
-          longestUnbeatenStreak: {
-            holder: "Ferroviário",
-            club: "Ferroviário",
-            value: 15,
-            year: 2023,
-          },
-        };
-      } else {
-        gameState.competitionRecords[compKey] = {
-          compName: userCompName || "Campeonato Candango",
-          mostGoalsSeason: {
-            holder: "Tatu",
-            club: "Gama",
-            value: 14,
-            year: 2022,
-          },
-          mostAssistsSeason: {
-            holder: "Romarinho",
-            club: "Brasiliense",
-            value: 8,
-            year: 2023,
-          },
-          longestUnbeatenStreak: {
-            holder: "Ceilândia",
-            club: "Ceilândia",
-            value: 11,
-            year: 2024,
-          },
-        };
-      }
+      gameState.competitionRecords[compKey] = getCompetitionRecords(compKey, gameState);
     }
 
-    const cRec = gameState.competitionRecords[compKey];
+    const cRec = gameState.competitionRecords[compKey] || getCompetitionRecords(compKey, gameState);
     const recordsBroken = [];
 
-    // Checagem de Recorde de Gols
+    // Checagem de Recorde de Gols da Competição
     if (userGoals > cRec.mostGoalsSeason.value) {
       const prev = { ...cRec.mostGoalsSeason };
       cRec.mostGoalsSeason = {
@@ -6199,20 +6287,26 @@
         type: "mostGoalsSeason",
         title: "Maior Artilheiro em uma Única Edição",
         compName: cRec.compName,
+        compId: compKey,
         value: userGoals,
-        previousHolder: `${prev.holder} (${prev.value} gols)`,
+        holder: userCandidate.name,
+        previousHolder: `${prev.holder || 'Recordista Anterior'} (${prev.club ? prev.club + ' · ' : ''}${prev.value} gols)`,
         year: targetSeason,
       };
       recordsBroken.push(recItem);
-      if (!pState.competitionRecordsBroken.some(r => r.type === "mostGoalsSeason" && Number(r.year) === Number(targetSeason))) {
+      if (!pState.competitionRecordsBroken.some(r => r.type === "mostGoalsSeason" && (r.compId === compKey || r.compName === cRec.compName) && Number(r.year) === Number(targetSeason))) {
         pState.competitionRecordsBroken.push(recItem);
       }
-      if (!pState.individualAwards.some(a => a.id === "record_goals_" + targetSeason)) {
+      const awId = `record_goals_${compKey}_${targetSeason}`;
+      if (!pState.individualAwards.some(a => a.id === awId || a.id === `record_goals_${targetSeason}`)) {
         pState.individualAwards.push({
-          id: "record_goals_" + targetSeason,
-          title: "Recordista Histórico: Artilharia da Competição",
+          id: awId,
+          title: `Recordista Histórico: Artilharia do ${cRec.compName}`,
+          compId: compKey,
+          compName: cRec.compName,
           year: targetSeason,
           icon: "📜",
+          badge: "RECORDISTA OFICIAL",
           desc: `Novo recorde histórico de ${userGoals} gols em uma única temporada do ${cRec.compName}!`,
         });
       }
@@ -6229,7 +6323,7 @@
       );
     }
 
-    // Checagem de Recorde de Assistências
+    // Checagem de Recorde de Assistências da Competição
     if (userAssists > cRec.mostAssistsSeason.value) {
       const prev = { ...cRec.mostAssistsSeason };
       cRec.mostAssistsSeason = {
@@ -6242,20 +6336,26 @@
         type: "mostAssistsSeason",
         title: "Maior Garçom em uma Única Edição",
         compName: cRec.compName,
+        compId: compKey,
         value: userAssists,
-        previousHolder: `${prev.holder} (${prev.value} assistências)`,
+        holder: userCandidate.name,
+        previousHolder: `${prev.holder || 'Recordista Anterior'} (${prev.club ? prev.club + ' · ' : ''}${prev.value} assistências)`,
         year: targetSeason,
       };
       recordsBroken.push(recItem);
-      if (!pState.competitionRecordsBroken.some(r => r.type === "mostAssistsSeason" && Number(r.year) === Number(targetSeason))) {
+      if (!pState.competitionRecordsBroken.some(r => r.type === "mostAssistsSeason" && (r.compId === compKey || r.compName === cRec.compName) && Number(r.year) === Number(targetSeason))) {
         pState.competitionRecordsBroken.push(recItem);
       }
-      if (!pState.individualAwards.some(a => a.id === "record_assists_" + targetSeason)) {
+      const awId = `record_assists_${compKey}_${targetSeason}`;
+      if (!pState.individualAwards.some(a => a.id === awId || a.id === `record_assists_${targetSeason}`)) {
         pState.individualAwards.push({
-          id: "record_assists_" + targetSeason,
-          title: "Recordista Histórico: Líder de Assistências",
+          id: awId,
+          title: `Recordista Histórico: Líder de Assistências do ${cRec.compName}`,
+          compId: compKey,
+          compName: cRec.compName,
           year: targetSeason,
           icon: "📜",
+          badge: "RECORDISTA OFICIAL",
           desc: `Novo recorde de ${userAssists} assistências no ${cRec.compName}!`,
         });
       }
@@ -6286,21 +6386,27 @@
         type: "longestUnbeatenStreak",
         title: "Maior Sequência Invicta",
         compName: cRec.compName,
+        compId: compKey,
         value: userStreak,
-        previousHolder: `${prev.holder} (${prev.value} jogos)`,
+        holder: `${userCandidate.name} / ${userClub}`,
+        previousHolder: `${prev.holder || 'Recordista Anterior'} (${prev.value} jogos)`,
         year: targetSeason,
       };
       recordsBroken.push(recItem);
-      if (!pState.competitionRecordsBroken.some(r => r.type === "longestUnbeatenStreak" && Number(r.year) === Number(targetSeason))) {
+      if (!pState.competitionRecordsBroken.some(r => r.type === "longestUnbeatenStreak" && (r.compId === compKey || r.compName === cRec.compName) && Number(r.year) === Number(targetSeason))) {
         pState.competitionRecordsBroken.push(recItem);
       }
-      if (!pState.individualAwards.some(a => a.id === "record_streak_" + targetSeason)) {
+      const awId = `record_streak_${compKey}_${targetSeason}`;
+      if (!pState.individualAwards.some(a => a.id === awId || a.id === `record_streak_${targetSeason}`)) {
         pState.individualAwards.push({
-          id: "record_streak_" + targetSeason,
-          title: "Recordista Histórico: Sequência Invicta",
+          id: awId,
+          title: `Recordista Histórico: Sequência Invicta no ${cRec.compName}`,
+          compId: compKey,
+          compName: cRec.compName,
           year: targetSeason,
           icon: "📜",
-          desc: `Incríveis ${userStreak} jogos consecutivos sem derrota!`,
+          badge: "RECORDISTA OFICIAL",
+          desc: `Incríveis ${userStreak} jogos consecutivos sem derrota no ${cRec.compName}!`,
         });
       }
       pState.personality.virtuoso = (pState.personality.virtuoso || 40) + 40;
@@ -7113,9 +7219,16 @@
         cleanSheets: Number(sStats.cleanSheets || 0),
         mvp: Number(sStats.mvpCount || sStats.manOfTheMatch || 0),
         avgRating: gamesPlayed > 0 ? Number(sStats.avgRating || sStats.averageRating || 6.5) : 0,
-        titlesWon: (gameState.titles || [])
-          .filter(t => (typeof t === "object" ? Number(t.year) === prevYear : false))
-          .map(t => (typeof t === "object" ? t.name : String(t)))
+        titlesWon: (function () {
+          const raw = (gameState.titles || [])
+            .filter((t) => (typeof t === "object" && t.year ? Number(t.year) === prevYear : true))
+            .map((t) => (typeof t === "object" ? t.name : String(t)));
+          if (raw.length > 0) return raw;
+          if (gameState.nextSeasonCompId === 'bra-d' || gameState.compId === 'bra-d') {
+            return ["Acesso à Série D (Vice-Campeão)"];
+          }
+          return [];
+        })(),
       });
     }
 
@@ -7238,10 +7351,13 @@
     isCompetitionFinished,
     showPlayerCompetitionCeremonyModal,
     checkAndTriggerCompetitionConclusion,
-    lifestyle: typeof window !== "undefined" ? window.AFM_Lifestyle : null,
+    AFM_COMPETITION_RECORDS,
+    getCompetitionRecords,
   };
   window.AFM_PlayerCareerEngine = window.AFM_PlayerEngine;
   if (typeof window !== "undefined") {
+    window.AFM_COMPETITION_RECORDS = AFM_COMPETITION_RECORDS;
+    window.getCompetitionRecords = getCompetitionRecords;
     window.getClubLeagueSummary = getClubLeagueSummary;
     window.isCompetitionFinished = isCompetitionFinished;
     window.showPlayerCompetitionCeremonyModal = showPlayerCompetitionCeremonyModal;

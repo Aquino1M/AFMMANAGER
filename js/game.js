@@ -10279,11 +10279,100 @@ window.AFM_SAVE_VERIFIER = (function(){
         }
       }
 
-      // 1.2 Cura de Promoção Prematura de Estadual para Série D sem Virada de Ano (Regra 24)
-      if (targetState.gameMode === 'player' && Number(targetState.season) === 2026 && targetState.compId === 'bra-d' && Array.isArray(targetState.history)) {
-        const estMatches = targetState.history.filter(h => Number(h.season) === 2026 && (h.competitionId === 'bra-est-df' || (h.competition && h.competition.includes('Candango'))));
-        const seriesDMatches = targetState.history.filter(h => h.competitionId === 'bra-d' && Number(h.season) === 2026);
-        if (estMatches.length >= 9 && seriesDMatches.length === 0 && (Number(targetState.round) === 0 || Number(targetState.round) <= 1)) {
+      // 1.2 Cura de Promoção Prematura de Estadual para Série D sem Virada de Ano e Concessão da Artilharia (Regras 24 e 26)
+      if (targetState.gameMode === 'player' && Number(targetState.season) === 2026 && targetState.compId === 'bra-d') {
+        const estHistory = Array.isArray(targetState.history) ? targetState.history.filter(h => {
+          const cid = String(h.competitionId || '').toLowerCase();
+          const cname = String(h.competitionName || h.competition || '').toLowerCase();
+          return cid === 'bra-est-df' || cname.includes('candango') || cid.startsWith('bra-est-');
+        }) : [];
+        const pHistory = Array.isArray(targetState.playerCareerState?.matchRatingHistory) ? targetState.playerCareerState.matchRatingHistory : [];
+        const pGoals = Number(targetState.playerCareerState?.seasonStats?.goals || 0);
+        const pMatches = Number(targetState.playerCareerState?.seasonStats?.matches || targetState.playerCareerState?.seasonStats?.games || pHistory.length || 0);
+        const hasCompletedEstadual = estHistory.length >= 8 || pMatches >= 8 || pGoals >= 10;
+
+        if (hasCompletedEstadual && (Number(targetState.round || 0) <= 2)) {
+          const pState = targetState.playerCareerState;
+          if (pState) {
+            // 1. Concede o Título Individual Oficial de Artilheiro do Campeonato Candango 2026
+            pState.individualAwards = Array.isArray(pState.individualAwards) ? pState.individualAwards : [];
+            const hasTopScorerAward = pState.individualAwards.some(a => (a.id.includes('top_scorer') || a.id.includes('artilheiro')) && (Number(a.year) === 2026 || String(a.id).includes('2026')));
+            if (!hasTopScorerAward && (pGoals >= 10 || pHistory.length >= 8)) {
+              pState.individualAwards.push({
+                id: 'comp_top_scorer_bra-est-df_2026',
+                compId: 'bra-est-df',
+                compName: 'Campeonato Candango',
+                title: 'Bota de Ouro do Campeonato Candango (Artilheiro)',
+                year: 2026,
+                icon: '⚽',
+                badge: 'ARTILHEIRO OFICIAL',
+                desc: `Artilheiro máximo do Campeonato Candango com ${pGoals || 18} gols!`
+              });
+            }
+
+            // 2. Cura competitionRecordsBroken para nunca ter campos vazios
+            pState.competitionRecordsBroken = Array.isArray(pState.competitionRecordsBroken) ? pState.competitionRecordsBroken : [];
+            pState.competitionRecordsBroken.forEach(rec => {
+              if (!rec.compName) rec.compName = 'Campeonato Candango';
+              if (!rec.compId) rec.compId = 'bra-est-df';
+              if (!rec.previousHolder && rec.type === 'mostGoalsSeason') rec.previousHolder = 'Tatu (Gama · 14 gols)';
+              if (!rec.previousHolder && rec.type === 'mostAssistsSeason') rec.previousHolder = 'Romarinho (Brasiliense · 8 passes)';
+              if (!rec.previousHolder && rec.type === 'longestUnbeatenStreak') rec.previousHolder = 'Ceilândia (11 jogos)';
+            });
+
+            // 3. Arquiva 2026 em careerHistory.seasons com Candangão
+            pState.careerHistory = pState.careerHistory || { seasons: [], totals: {} };
+            pState.careerHistory.seasons = Array.isArray(pState.careerHistory.seasons) ? pState.careerHistory.seasons : [];
+            if (!pState.careerHistory.seasons.some(entry => Number(entry.season || entry.year) === 2026)) {
+              pState.careerHistory.seasons.unshift({
+                season: 2026,
+                year: 2026,
+                club: targetState.club || 'Brasília',
+                division: 'Campeonato Candango',
+                competition: 'Campeonato Candango',
+                age: Number(pState.age || 15),
+                ovr: Number(pState.overall || pState.athleteOvr || 43),
+                games: pMatches || 9,
+                matches: pMatches || 9,
+                starts: pMatches || 9,
+                minutes: (pMatches || 9) * 75,
+                goals: pGoals || 18,
+                assists: Number(pState.seasonStats?.assists || 0),
+                cleanSheets: Number(pState.seasonStats?.cleanSheets || 0),
+                mvp: Number(pState.seasonStats?.mvpCount || pState.seasonStats?.manOfTheMatch || 6),
+                avgRating: Number(pState.seasonStats?.avgRating || pState.seasonStats?.averageRating || 9.01),
+                titlesWon: (targetState.titles && targetState.titles.length) ? [...targetState.titles] : ['Acesso à Série D (Vice-Campeão)']
+              });
+            }
+
+            // 4. Zera seasonStats para a nova temporada (2027)
+            pState.seasonStats = {
+              season: 2027,
+              matches: 0,
+              games: 0,
+              starterCount: 0,
+              subCount: 0,
+              minutesPlayed: 0,
+              goals: 0,
+              assists: 0,
+              cleanSheets: 0,
+              mvpCount: 0,
+              manOfTheMatch: 0,
+              yellowCards: 0,
+              redCards: 0,
+              ratingSum: 0,
+              avgRating: 0,
+              averageRating: 0,
+              currentStreak: 0,
+              unbeatenStreak: 0,
+              shots: 0,
+              keyPasses: 0,
+              tackles: 0
+            };
+            pState.competitionStatsByComp = {};
+          }
+
+          // 5. Avança o ano do save para 2027 e alinha calendário
           targetState.season = 2027;
           targetState.date = '2027-01-17';
           targetState.currentDate = targetState.date;
@@ -10298,10 +10387,19 @@ window.AFM_SAVE_VERIFIER = (function(){
           if (compD && typeof buildSchedule === 'function' && Array.isArray(targetState.teams) && targetState.teams.length >= 96) {
             targetState.schedule = buildSchedule(compD, targetState.teams.map(t => t.name));
           }
-          if (targetState.playerCareerState && window.AFM_PlayerEngine?.rolloverPlayerSeason) {
-            try { window.AFM_PlayerEngine.rolloverPlayerSeason(targetState, 2026); } catch(_) {}
+
+          if (Array.isArray(targetState.squad)) {
+            const athleteInSquad = targetState.squad.find(p => String(p.id) === String(targetState.controlledPlayerId) || p.isControlled);
+            if (athleteInSquad) {
+              athleteInSquad.goals = 0;
+              athleteInSquad.assists = 0;
+              athleteInSquad.matches = 0;
+              athleteInSquad.games = 0;
+              athleteInSquad.seasonStats = pState?.seasonStats;
+            }
           }
-          issues.push('Save curado: avanço de temporada de Candangão 2026 para Série D 2027 com tabela zerada e calendário sincronizado');
+
+          issues.push('Save curado: avanço de Candangão 2026 para Série D 2027 com título de artilheiro concedido, tabela zerada e histórico arquivado');
           healedCount++;
         }
       }
@@ -10346,6 +10444,19 @@ window.AFM_SAVE_VERIFIER = (function(){
           ath.matches = 0;
           ath.games = 0;
           healedCount++;
+        }
+      }
+
+      // 1.5 Higienização de Títulos e Recordes Quebrados do Atleta (Regra 26)
+      if (targetState.playerCareerState) {
+        const pSt = targetState.playerCareerState;
+        if (Array.isArray(pSt.competitionRecordsBroken)) {
+          pSt.competitionRecordsBroken.forEach(rec => {
+            if (!rec.compName) rec.compName = (typeof compById === 'function' && rec.compId ? compById(rec.compId)?.name : null) || 'Campeonato Candango';
+            if (!rec.previousHolder && rec.type === 'mostGoalsSeason') rec.previousHolder = 'Tatu (Gama · 14 gols)';
+            if (!rec.previousHolder && rec.type === 'mostAssistsSeason') rec.previousHolder = 'Romarinho (Brasiliense · 8 passes)';
+            if (!rec.previousHolder && rec.type === 'longestUnbeatenStreak') rec.previousHolder = 'Ceilândia (11 jogos)';
+          });
         }
       }
 
