@@ -80,6 +80,10 @@
   - Sincronização salarial no card de status lê o salário oficial do atleta (`athlete.wage`), mantendo paridade com Vida & Patrocínios.
   - Quebra de recordes históricos em tempo real (+15 gols em um ano, +9 assistências, +12 jogos invicto) concede +500 XP, premiação financeira no banco e troféu individual na galeria.
   - Sub-aba 4 `📈 Carreira Total` cataloga a linha do tempo completa de clubes e temporadas e alimenta a biografia esportiva de legado para quando o atleta se aposentar e virar treinador.
+  - REGRA IRRESTRITA DE ENCERRAMENTO DE COMPETIÇÕES, CERIMÔNIA E AUTO-CURA DE PRÊMIOS PREMATUROS:
+    - Prêmios individuais e coletivos de qualquer campeonato (Artilheiro, Craque, Revelação Sub-21, Garçom, Luva de Ouro) só podem ser apurados e concedidos quando a respectiva competição estiver oficialmente encerrada (`isCompetitionFinished`), sendo terminantemente PROIBIDO conceder títulos no meio da temporada (ex.: rodada 2 ou 3).
+    - Ao concluir oficialmente a competição, dispara o modal festivo de cerimônia (`showPlayerCompetitionCeremonyModal`) apresentando a campanha do clube e os prêmios do atleta.
+    - Saves com prêmios prematuros no ano ativo são auto-curados na inicialização e verificação de integridade, expurgando prêmios indevidos de competições ainda em andamento.
 - Central do Atleta (Aba ⭐ Hub Central):
   - REGRA IRRESTRITA DO ALTERNADOR NOTÍCIAS & CLASSIFICAÇÃO NO HUB (`getHubMatchCompetitionStandings` & `renderHubCompetitionStandingsHtml`):
     - O cabeçalho do card de Notícias no Hub Central possui alternador dinâmico de duas abas: `📰 Notícias & Imprensa` e `📊 Classificação (Competição)`.
@@ -102,6 +106,7 @@
     - O catálogo oficial de representação dispõe de 5 agências hierárquicas (`agent_family`, `agent_regional`, `agent_national`, `agent_euro`, `agent_global` com aliases suportados), aplicando bônus de barganha de 0% a 25% diretamente nas chances de aprovação dos modais.
     - O 'Radar de Interesse & Rumores' monitora sondagens de mercado em tempo real e permite solicitar proposta formal diretamente para a mesa de negociação.
     - O atleta pode submeter '🤝 Contraproposta (+15% Salário)' em propostas recebidas, limitando a uma renegociação por oferta.
+    - Toda proposta de clube (na mesa do empresário e no modal comparativo 'Vale a Pena?') deve resolver e exibir a liga e divisão onde o clube atua (`getClubLeagueSummary`), cobrindo divisões nacionais (Séries A/B/C/D), estaduais por UF e ligas internacionais de primeira divisão.
     - No modo atleta (`gameMode === 'player'`), a barra superior (`sm-topbar`) reflete o atleta: OVR em força, pontos livres em prestígio e conta bancária pessoal no saldo financeiro.
   - REGRA IRRESTRITA DE UI FINANCEIRA: No Modo Atleta, o topo esquerdo deve refletir o Patrimônio Total do Atleta (líquido + investimentos), enquanto o card central da aba Vida & Patrocínios exibe o Saldo Líquido Disponível. Toda aplicação em CDB ou resgate deve disparar a atualização global da DOM financeira.
 - REGRA IRRESTRITA DE ROTEAMENTO, SAVE E NAVEGAÇÃO (ANTI-TRAVAMENTO):

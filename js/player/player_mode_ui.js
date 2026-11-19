@@ -4251,6 +4251,10 @@
                             ${isClubOffer && typeof clubBadge === "function" ? clubBadge(o.newClub || o.clubOrBrand, 36) : `<span style="font-size:28px">${o.type === "sponsor" ? "👟" : (o.type === "coach_career" ? "🧑‍🏫" : "📄")}</span>`}
                             <div>
                               <div style="font-size:15px;font-weight:900;color:#fff">${esc(o.title || o.clubOrBrand)}</div>
+                              ${isClubOffer ? (function () {
+                                const lName = o.clubLeague || (window.AFM_PlayerEngine?.getClubLeagueSummary ? window.AFM_PlayerEngine.getClubLeagueSummary(o.newClub || o.clubOrBrand, state) : (window.getClubLeagueSummary ? window.getClubLeagueSummary(o.newClub || o.clubOrBrand, state) : ""));
+                                return lName ? `<div style="font-size:11px;font-weight:700;color:#38bdf8;margin-top:2px">🏆 ${esc(lName)}</div>` : "";
+                              })() : ""}
                               <div style="font-size:12px;color:#cbd5e1;margin-top:3px;line-height:1.4">${esc(o.details || "")}</div>
                               ${o.type === "sponsor" ? (function () {
                                 const bInfo = window.AFM_PlayerEngine?.getSponsorBootBonusInfo?.(o) || { val: 1, label: "Finalização & Chute", icon: "🎯" };
@@ -8603,7 +8607,10 @@
       s.gameMode === "player" &&
       window.AFM_PlayerEngine?.processEndOfSeasonAwards
     ) {
-      galaData = window.AFM_PlayerEngine.processEndOfSeasonAwards(s, s.season);
+      const isSeasonOver = Boolean(s.isSeasonFinished || (Number(s.round) >= 38 && s.phase === "finished"));
+      if (isSeasonOver) {
+        galaData = window.AFM_PlayerEngine.processEndOfSeasonAwards(s, s.season, { isSeasonEnd: true });
+      }
     }
     if (!galaData) return;
 
@@ -9280,10 +9287,21 @@
     document.querySelectorAll(".btn-open-gala-modal").forEach((btn) => {
       btn.onclick = () => {
         let gala = pState?.lastSeasonGalaAwards;
-        if (!gala && window.AFM_PlayerEngine?.processEndOfSeasonAwards) {
-          gala = window.AFM_PlayerEngine.processEndOfSeasonAwards(s, s.season);
+        if (!gala) {
+          const isSeasonOver = Boolean(s.isSeasonFinished || (Number(s.round) >= 38 && s.phase === "finished"));
+          if (isSeasonOver && window.AFM_PlayerEngine?.processEndOfSeasonAwards) {
+            gala = window.AFM_PlayerEngine.processEndOfSeasonAwards(s, s.season, { isSeasonEnd: true });
+          }
         }
-        openSeasonGalaAwardsModal(gala);
+        if (gala) {
+          openSeasonGalaAwardsModal(gala);
+        } else {
+          if (typeof window.toast === "function") {
+            window.toast("A Cerimônia de Gala e Melhores do Ano acontece exclusivamente no encerramento oficial da temporada (Dezembro/Janeiro). Disputa as competições até o fim!");
+          } else {
+            alert("A Cerimônia de Gala e Melhores do Ano acontece exclusivamente no encerramento oficial da temporada (Dezembro/Janeiro).");
+          }
+        }
       };
     });
 
@@ -12567,6 +12585,8 @@
     const currentClub = state.club || "Seu Clube";
     const proposedClub =
       offer.newClub || offer.clubOrBrand || "Clube Interessado";
+    const curLeague = window.AFM_PlayerEngine?.getClubLeagueSummary ? window.AFM_PlayerEngine.getClubLeagueSummary(currentClub, state) : (window.getClubLeagueSummary ? window.getClubLeagueSummary(currentClub, state) : "");
+    const proposedLeague = offer.clubLeague || (window.AFM_PlayerEngine?.getClubLeagueSummary ? window.AFM_PlayerEngine.getClubLeagueSummary(proposedClub, state) : (window.getClubLeagueSummary ? window.getClubLeagueSummary(proposedClub, state) : ""));
 
     let categoryBadge = "";
     let categoryIcon = "📄";
@@ -12663,6 +12683,7 @@
                 <div style="background:rgba(15,23,42,0.8);border:1px solid #334155;border-radius:10px;padding:12px">
                   <div style="font-size:11px;font-weight:800;color:#94a3b8;margin-bottom:6px">SITUAÇÃO ATUAL:</div>
                   <div style="font-size:14px;font-weight:900;color:#fff">${esc(currentClub)}</div>
+                  ${curLeague ? `<div style="font-size:11px;font-weight:700;color:#38bdf8;margin-top:3px">🏆 ${esc(curLeague)}</div>` : ""}
                   <div style="margin-top:8px;font-size:12px;color:#cbd5e1;line-height:1.6">
                     <div>💰 Salário: <b>R$ ${curWage.toLocaleString("pt-BR")}/mês</b></div>
                     <div>📅 Contrato: <b>Até ${athlete?.contractUntil || 2028}</b></div>
@@ -12675,6 +12696,7 @@
                 <div style="background:rgba(6,78,59,0.25);border:1.5px solid #10b981;border-radius:10px;padding:12px">
                   <div style="font-size:11px;font-weight:800;color:#6ee7b7;margin-bottom:6px">PROPOSTA DO CLUBE:</div>
                   <div style="font-size:14px;font-weight:900;color:#fff">${esc(proposedClub)}</div>
+                  ${proposedLeague ? `<div style="font-size:11px;font-weight:700;color:#34d399;margin-top:3px">🏆 ${esc(proposedLeague)}</div>` : ""}
                   <div style="margin-top:8px;font-size:12px;color:#cbd5e1;line-height:1.6">
                     <div>💰 Salário Proposto: <b style="color:#10b981">R$ ${offeredWage.toLocaleString("pt-BR")}/mês</b></div>
                     <div>📈 Variação: <span style="background:${wagePct >= 0 ? "#10b981" : "#ef4444"};color:#000;font-weight:900;padding:1px 6px;border-radius:4px;font-size:11px">${wagePct >= 0 ? "+" : ""}${wagePct}% (${wageDiff >= 0 ? "+R$ " : "-R$ "}${Math.abs(wageDiff).toLocaleString("pt-BR")})</span></div>

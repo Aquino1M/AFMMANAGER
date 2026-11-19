@@ -10212,6 +10212,49 @@ window.AFM_SAVE_VERIFIER = (function(){
         }
       }
 
+      // Sanitização de prêmios individuais prematuros no Modo Jogador
+      if (Array.isArray(targetState.playerCareerState?.individualAwards)) {
+        const curSeason = Number(targetState.season) || 2026;
+        const originalCount = targetState.playerCareerState.individualAwards.length;
+        targetState.playerCareerState.individualAwards = targetState.playerCareerState.individualAwards.filter(award => {
+          if (!award) return false;
+          if (Number(award.year) === curSeason) {
+            const compId = award.compId || (function(id, title, desc) {
+              const str = `${id || ''} ${title || ''} ${desc || ''}`.toLowerCase();
+              if (str.includes('candango') || str.includes('bra-est-df')) return 'bra-est-df';
+              if (str.includes('paulista') || str.includes('bra-est-sp')) return 'bra-est-sp';
+              if (str.includes('carioca') || str.includes('bra-est-rj')) return 'bra-est-rj';
+              if (str.includes('mineiro') || str.includes('bra-est-mg')) return 'bra-est-mg';
+              if (str.includes('gaucho') || str.includes('gaúcho') || str.includes('bra-est-rs')) return 'bra-est-rs';
+              if (str.includes('copa do brasil') || str.includes('bra-cup')) return 'bra-cup';
+              if (str.includes('libertadores') || str.includes('lib')) return 'lib';
+              if (str.includes('sul-americana') || str.includes('sud')) return 'sud';
+              if (str.includes('série a') || str.includes('serie a') || str.includes('bra-a')) return 'bra-a';
+              if (str.includes('série b') || str.includes('serie b') || str.includes('bra-b')) return 'bra-b';
+              if (str.includes('série c') || str.includes('serie c') || str.includes('bra-c')) return 'bra-c';
+              if (str.includes('série d') || str.includes('serie d') || str.includes('bra-d')) return 'bra-d';
+              return null;
+            })(award.id, award.title, award.desc);
+
+            const isCompFinFn = window.AFM_PlayerEngine?.isCompetitionFinished || window.isCompetitionFinished;
+            if (compId && typeof isCompFinFn === 'function' && !isCompFinFn(targetState, compId)) {
+              return false;
+            }
+            if (award.id && (award.id.startsWith('ballon_dor_') || award.id.startsWith('golden_boot_') || award.id.startsWith('golden_boy_'))) {
+              const isFullSeasonOver = Boolean(targetState.isSeasonFinished || targetState.phase === 'season_end' || (Number(targetState.round) >= 38 && targetState.phase === 'finished'));
+              if (!isFullSeasonOver) {
+                return false;
+              }
+            }
+          }
+          return true;
+        });
+        if (targetState.playerCareerState.individualAwards.length < originalCount) {
+          issues.push('Prêmios individuais prematuros de competições em andamento higienizados');
+          healedCount++;
+        }
+      }
+
       const forbiddenManagerViews = ['setup', 'central', 'meutime', 'tatica', 'elenco', 'mercado', 'financas', 'estrutura', 'escritorio', 'treinos', 'carreira'];
       if(!targetState.view || forbiddenManagerViews.includes(targetState.view)){
         targetState.view = 'player_hub';
@@ -22340,6 +22383,11 @@ function finalizeRound(userRes, winners, isKO){
   if(userRes && window.AFM_MarketLupaAndAging && typeof window.AFM_MarketLupaAndAging.processRoundMatchStats === 'function'){
     window.AFM_MarketLupaAndAging.processRoundMatchStats(state, { h: userRes.h, a: userRes.a, hg: userRes.hg, ag: userRes.ag, gf, ga, won: win, events: userRes.events });
   }
+  if(state.gameMode === 'player' && window.AFM_PlayerEngine?.checkAndTriggerCompetitionConclusion){
+    try {
+      window.AFM_PlayerEngine.checkAndTriggerCompetitionConclusion(state, comp?.id || state.compId);
+    } catch(_){}
+  }
   if(typeof processFitness === 'function') processFitness();
   if(typeof processDevelopment === 'function') processDevelopment();
   processYouthDevelopment();
@@ -31052,7 +31100,7 @@ function advanceSeasonYear(){
   );
 
   if(isPlayerCareerRollover && window.AFM_PlayerEngine?.processEndOfSeasonAwards){
-    try { window.AFM_PlayerEngine.processEndOfSeasonAwards(state, finishedYear); } catch(_){}
+    try { window.AFM_PlayerEngine.processEndOfSeasonAwards(state, finishedYear, { isSeasonEnd: true, isRollover: true }); } catch(_){}
   }
 
   (state.youthAcademy || []).forEach(p => {

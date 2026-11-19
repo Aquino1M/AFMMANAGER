@@ -2758,6 +2758,337 @@
   }
 
   /**
+   * Retorna a liga/divisão oficial de um clube para exibição clara em propostas e modais
+   */
+  function getClubLeagueSummary(clubName, gameState = null) {
+    if (!clubName) return "Liga Desconhecida";
+    const cNameNorm = norm(clubName);
+    const tMap = (typeof window !== "undefined" ? window.COMPETITION_TEAMS : null) || gameState?.competitionTeams || {};
+
+    const intlNames = {
+      "eng-1": "Premier League (Inglaterra)",
+      "eng-2": "Championship (Inglaterra)",
+      "esp-1": "LaLiga (Espanha)",
+      "esp-2": "LaLiga 2 (Espanha)",
+      "ita-1": "Serie A (Itália)",
+      "ita-2": "Serie B (Itália)",
+      "ger-1": "Bundesliga (Alemanha)",
+      "ger-2": "2. Bundesliga (Alemanha)",
+      "fra-1": "Ligue 1 (França)",
+      "por-1": "Liga Portugal",
+      "ned-1": "Eredivisie (Holanda)",
+      "ksa-1": "Saudi Pro League (Arábia)",
+      "usa-1": "MLS (EUA)",
+      "arg-1": "Liga Profesional (Argentina)",
+      "col-1": "Liga Colombiana",
+      "chi-1": "Liga Chilena",
+      "uru-1": "Liga Uruguaia"
+    };
+
+    for (const [compId, label] of Object.entries(intlNames)) {
+      if (Array.isArray(tMap[compId]) && tMap[compId].some((c) => norm(c) === cNameNorm)) {
+        return label;
+      }
+    }
+
+    let natDiv = "";
+    if (tMap["bra-a"]?.some((x) => norm(x) === cNameNorm)) natDiv = "Brasileirão Série A";
+    else if (tMap["bra-b"]?.some((x) => norm(x) === cNameNorm)) natDiv = "Brasileirão Série B";
+    else if (tMap["bra-c"]?.some((x) => norm(x) === cNameNorm)) natDiv = "Brasileirão Série C";
+    else if (tMap["bra-d"]?.some((x) => norm(x) === cNameNorm)) natDiv = "Brasileirão Série D";
+
+    if (!natDiv) {
+      const pyrA = ["Palmeiras", "Flamengo", "Botafogo", "Corinthians", "São Paulo", "Internacional", "Fluminense", "Bahia", "Cruzeiro", "Vasco da Gama", "Atlético-MG", "Grêmio", "Red Bull Bragantino", "Santos", "Athletico-PR", "Vitória", "Juventude", "Fortaleza", "Mirassol", "Ceará"];
+      const pyrB = ["Coritiba", "Goiás", "Novorizontino", "América-MG", "Vila Nova", "CRB", "Operário-PR", "Athletic Club", "Avaí", "Chapecoense", "Cuiabá", "Atlético-GO", "Criciúma", "Paysandu", "Remo", "Ferroviária", "Amazonas FC", "Volta Redonda", "Botafogo-SP", "Sport"];
+      const pyrC = ["Ponte Preta", "Guarani", "Figueirense", "CSA", "ABC", "Ituano", "Brusque", "Caxias", "Ypiranga-RS", "Londrina", "São Bernardo", "Confiança", "Botafogo-PB", "Floresta", "Anápolis", "Retrô", "Maringá", "Itabaiana", "Tombense", "Sampaio Corrêa"];
+      const pyrD = ["Ceilândia", "Brasiliense", "Gama", "Real Brasília", "Sobradinho", "Santa Cruz", "América-RN", "Treze", "Sousa", "Ferroviário", "Altos", "Manaus", "Tuna Luso", "Águia de Marabá", "Moto Club", "Imperatriz", "Tocantinópolis", "Aparecidense", "Goiatuba", "Crac", "Mixto", "União Rondonópolis", "Portuguesa-RJ", "Nova Iguaçu", "Boavista", "Água Santa", "Inter de Limeira", "Santo André", "Pouso Alegre", "Villa Nova", "Uberlândia", "Rio Branco-ES", "Cianorte", "Cascavel", "Hercílio Luz", "Joinville", "Marcílio Dias", "Brasil de Pelotas", "Novo Hamburgo", "Avenida"];
+      if (pyrA.some((x) => norm(x) === cNameNorm)) natDiv = "Brasileirão Série A";
+      else if (pyrB.some((x) => norm(x) === cNameNorm)) natDiv = "Brasileirão Série B";
+      else if (pyrC.some((x) => norm(x) === cNameNorm)) natDiv = "Brasileirão Série C";
+      else if (pyrD.some((x) => norm(x) === cNameNorm)) natDiv = "Brasileirão Série D";
+    }
+
+    const estMap = {
+      "bra-est-df": "Candango (DF)",
+      "bra-est-sp": "Paulista (SP)",
+      "bra-est-rj": "Carioca (RJ)",
+      "bra-est-mg": "Mineiro (MG)",
+      "bra-est-rs": "Gaúcho (RS)",
+      "bra-est-pr": "Paranaense (PR)",
+      "bra-est-sc": "Catarinense (SC)",
+      "bra-est-ba": "Baiano (BA)",
+      "bra-est-ce": "Cearense (CE)",
+      "bra-est-go": "Goiano (GO)",
+      "bra-est-pe": "Pernambucano (PE)"
+    };
+
+    let stateComp = "";
+    for (const [k, label] of Object.entries(estMap)) {
+      if (Array.isArray(tMap[k]) && tMap[k].some((x) => norm(x) === cNameNorm)) {
+        stateComp = label;
+        break;
+      }
+    }
+
+    if (!stateComp) {
+      if (cNameNorm.includes("brasilia") || cNameNorm.includes("gama") || cNameNorm.includes("taguatinga") || cNameNorm.includes("sobradinho") || cNameNorm.includes("aruc") || cNameNorm.includes("samambaia") || cNameNorm.includes("ceilandia") || cNameNorm.includes("paranoa") || cNameNorm.includes("capital-df")) {
+        stateComp = "Candango (DF)";
+      } else if (cNameNorm.includes("volta redonda") || cNameNorm.includes("flamengo") || cNameNorm.includes("vasco") || cNameNorm.includes("botafogo") || cNameNorm.includes("fluminense") || cNameNorm.includes("bangu") || cNameNorm.includes("madureira") || cNameNorm.includes("boavista") || cNameNorm.includes("nova iguacu")) {
+        stateComp = "Carioca (RJ)";
+      } else if (cNameNorm.includes("palmeiras") || cNameNorm.includes("santos") || cNameNorm.includes("corinthians") || cNameNorm.includes("sao paulo") || cNameNorm.includes("bragantino") || cNameNorm.includes("ponte preta") || cNameNorm.includes("guarani") || cNameNorm.includes("mirassol") || cNameNorm.includes("novorizontino")) {
+        stateComp = "Paulista (SP)";
+      }
+    }
+
+    if (natDiv && stateComp) return `${natDiv} · ${stateComp}`;
+    if (natDiv) return natDiv;
+    if (stateComp) return `Campeonato ${stateComp} · Sem Divisão Nacional`;
+    return "Liga Regional";
+  }
+
+  /**
+   * Avalia com precisão se uma competição já foi oficialmente encerrada na temporada ativa
+   */
+  function isCompetitionFinished(gameState, compId) {
+    if (!gameState || !compId) return false;
+    const currentSeason = Number(gameState.season) || 2026;
+    const normId = typeof window !== "undefined" && typeof window.normalizeCompStatsId === "function"
+      ? window.normalizeCompStatsId(compId)
+      : String(compId || "").toLowerCase().replace(/_/g, "-");
+
+    // 1. Estadual (bra-est-*)
+    if (normId.startsWith("bra-est-")) {
+      const estData = (typeof window !== "undefined" && typeof window.getStateCompData === "function")
+        ? window.getStateCompData(normId)
+        : gameState.estadualData?.[normId];
+      if (estData) {
+        if (estData.champion || estData.finished === true) return true;
+        if (Array.isArray(estData.fixtures) && estData.fixtures.length > 0) {
+          return estData.fixtures.every((f) => f.played || f.result || f.score);
+        }
+      }
+      if (!estData && !gameState.estadualData) return true;
+      return false;
+    }
+
+    // 2. Copa do Brasil (bra-cup)
+    if (normId === "bra-cup") {
+      const copa = (typeof window !== "undefined" && typeof window.getCopaDoBrasilState === "function")
+        ? window.getCopaDoBrasilState(gameState)
+        : null;
+      if (copa && (copa.champion || copa.finished === true)) return true;
+      if (gameState.cupWinnersBySeason?.[currentSeason]?.["bra-cup"]) return true;
+      if (!copa && !gameState.cupData && !gameState.copaDoBrasil) return true;
+      return false;
+    }
+
+    // 3. Torneios Continentais / Mundiais (lib, sud, ucl, uel, uecl, cwc, afc-el)
+    const contIds = ["lib", "sud", "ucl", "uel", "uecl", "cwc", "afc-el"];
+    if (contIds.includes(normId)) {
+      if (gameState.continentalChampionsBySeason?.[currentSeason]?.[normId]) return true;
+      const tourney = gameState.tournaments?.[normId];
+      if (tourney && (tourney.champion || tourney.finished === true)) return true;
+      if (!tourney && !gameState.tournaments) return true;
+      return false;
+    }
+
+    // 4. Ligas Nacionais (bra-a, bra-b, bra-c, bra-d, ligas internacionais)
+    if (normId === gameState.compId || normId === gameState.competitionId) {
+      const maxRounds = Number(gameState.maxRounds) || 38;
+      if (Number(gameState.round) >= maxRounds) return true;
+      if (gameState.phase === "finished") return true;
+      const compFixtures = gameState.competitionFixtures?.[normId];
+      if (Array.isArray(compFixtures) && compFixtures.length > 0) {
+        return compFixtures.every((f) => f.played || f.result || f.score);
+      }
+      if (!gameState.competitionFixtures && gameState.round === undefined) return true;
+      return false;
+    }
+
+    const compFixtures = gameState.competitionFixtures?.[normId];
+    if (Array.isArray(compFixtures) && compFixtures.length > 0) {
+      return compFixtures.every((f) => f.played || f.result || f.score);
+    }
+
+    if (gameState.isSeasonFinished || gameState.phase === "season_end") return true;
+
+    return true;
+  }
+
+  /**
+   * Modal celebrativo de encerramento oficial de competição e premiação de títulos
+   */
+  function showPlayerCompetitionCeremonyModal(ceremonyData) {
+    if (typeof document === "undefined" || !ceremonyData) return;
+    const oldModal = document.getElementById("afmCompetitionCeremonyModal");
+    if (oldModal) oldModal.remove();
+
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay active";
+    overlay.id = "afmCompetitionCeremonyModal";
+    overlay.style.cssText = "display:flex;align-items:center;justify-content:center;z-index:99999;pointer-events:auto;background:rgba(2,6,23,0.88);backdrop-filter:blur(8px);position:fixed;inset:0;";
+
+    const compName = ceremonyData.compName || "Campeonato Oficial";
+    const season = ceremonyData.season || 2026;
+    const clubName = ceremonyData.clubName || "Seu Clube";
+    const isChamp = Boolean(ceremonyData.isClubChampion);
+    const clubRank = ceremonyData.clubRank || (isChamp ? "1º Lugar (Campeão)" : "Participação Concluída");
+    const awardsWon = Array.isArray(ceremonyData.awardsWon) ? ceremonyData.awardsWon : [];
+
+    const awardsHtml = awardsWon.length > 0
+      ? `<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+          ${awardsWon.map((a) => `
+            <div style="background:linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(16,185,129,0.1) 100%);border:1.5px solid #f59e0b;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;box-shadow:0 0 16px rgba(245,158,11,0.2)">
+              <div style="font-size:32px;filter:drop-shadow(0 0 8px rgba(245,158,11,0.5))">${a.icon || "🏆"}</div>
+              <div style="flex:1">
+                <div style="font-size:11px;font-weight:900;color:#fde68a;text-transform:uppercase;letter-spacing:0.5px">${a.badge || "PRÊMIO OFICIAL"}</div>
+                <div style="font-size:15px;font-weight:900;color:#fff">${a.title || "Troféu Individual"}</div>
+                <div style="font-size:12px;color:#cbd5e1;margin-top:2px">${a.desc || ""}</div>
+              </div>
+            </div>
+          `).join("")}
+        </div>`
+      : `<div style="background:rgba(15,23,42,0.6);border:1px solid #334155;border-radius:10px;padding:14px;color:#94a3b8;font-size:13px;line-height:1.5;margin-top:14px;text-align:center">
+          ⚽ Você disputou a competição com dedicação até a última rodada! Continue focado nos treinos e partidas para buscar os troféus individuais na próxima edição.
+        </div>`;
+
+    overlay.innerHTML = `
+      <div style="background:linear-gradient(180deg, #0d1527 0%, #060913 100%);border:2px solid #f59e0b;border-radius:20px;max-width:540px;width:92%;padding:24px;box-shadow:0 0 35px rgba(245,158,11,0.3);position:relative;display:flex;flex-direction:column;max-height:90vh;overflow-y:auto;box-sizing:border-box">
+        
+        <div style="text-align:center;margin-bottom:18px">
+          <div style="font-size:46px;margin-bottom:6px;filter:drop-shadow(0 0 12px rgba(245,158,11,0.6))">🏆</div>
+          <div style="font-size:11px;font-weight:900;color:#f59e0b;text-transform:uppercase;letter-spacing:1px">CERIMÔNIA OFICIAL DE ENCERRAMENTO</div>
+          <h2 style="margin:4px 0 0;font-size:20px;font-weight:900;color:#fff">${compName} ${season}</h2>
+          <div style="font-size:12px;color:#94a3b8;margin-top:2px">Edição Oficial Concluída • Premiação e Classificação Final</div>
+        </div>
+
+        <div style="background:${isChamp ? "linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(217,119,6,0.1) 100%)" : "rgba(15,23,42,0.8)"};border:1.5px solid ${isChamp ? "#f59e0b" : "#334155"};border-radius:14px;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div>
+            <div style="font-size:11px;font-weight:800;color:${isChamp ? "#fde68a" : "#94a3b8"}">CAMPANHA DO SEU CLUBE:</div>
+            <div style="font-size:16px;font-weight:900;color:#fff;margin-top:2px">${clubName}</div>
+          </div>
+          <div style="text-align:right">
+            <span style="display:inline-block;background:${isChamp ? "#f59e0b" : "#3b82f6"};color:${isChamp ? "#000" : "#fff"};font-size:12px;font-weight:900;padding:4px 10px;border-radius:8px">
+              ${isChamp ? "🏆 CAMPEÃO!" : clubRank}
+            </span>
+          </div>
+        </div>
+
+        <div style="margin-top:16px">
+          <div style="font-size:12px;font-weight:900;color:#38bdf8;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;gap:6px">
+            <span>🎖️</span> SEUS PRÊMIOS E TÍTULOS CONQUISTADOS
+          </div>
+          ${awardsHtml}
+        </div>
+
+        <div style="margin-top:22px">
+          <button type="button" id="btnCloseCeremonyModal" style="width:100%;background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%);color:#000;font-size:14px;font-weight:900;padding:12px 18px;border:none;border-radius:10px;cursor:pointer;box-shadow:0 0 15px rgba(245,158,11,0.4);transition:all 0.2s ease">
+            Continuar Carreira ➔
+          </button>
+        </div>
+
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeBtn = document.getElementById("btnCloseCeremonyModal");
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        overlay.remove();
+        if (typeof window.render === "function") window.render();
+      };
+    }
+  }
+
+  /**
+   * Dispara a celebração e concessão de prêmios apenas quando a competição atinge seu encerramento oficial
+   */
+  function checkAndTriggerCompetitionConclusion(gameState, compId) {
+    if (!gameState || !compId || gameState.gameMode !== "player") return null;
+    const pState = gameState.playerCareerState;
+    if (!pState) return null;
+
+    const currentSeason = Number(gameState.season) || 2026;
+    pState.concludedComps = pState.concludedComps || {};
+    const normCid = typeof window !== "undefined" && typeof window.normalizeCompStatsId === "function"
+      ? window.normalizeCompStatsId(compId)
+      : String(compId || "").toLowerCase().replace(/_/g, "-");
+
+    const celebrationKey = `${normCid}_${currentSeason}`;
+    if (pState.concludedComps[celebrationKey]) return null;
+
+    if (!isCompetitionFinished(gameState, normCid)) return null;
+
+    pState.concludedComps[celebrationKey] = true;
+
+    // Apuração dos prêmios da competição concluída
+    const targetAwards = processEndOfSeasonAwards(gameState, currentSeason, { isSingleCompEnd: true, compId: normCid });
+    const allAwards = targetAwards?.allAwards || [];
+    const compPack = allAwards.find((p) => p.compId === normCid) || allAwards[0];
+
+    // Determina o ranking e se o clube foi campeão
+    let isClubChampion = false;
+    let clubRank = "Participação Concluída";
+    if (normCid.startsWith("bra-est-")) {
+      const estData = (typeof window !== "undefined" && typeof window.getStateCompData === "function")
+        ? window.getStateCompData(normCid)
+        : gameState.estadualData?.[normCid];
+      if (estData && Array.isArray(estData.teams)) {
+        const sorted = estData.teams.slice().sort((a, b) => (Number(b.p) || 0) - (Number(a.p) || 0) || (Number(b.sg) || 0) - (Number(a.sg) || 0) || (Number(b.gp) || 0) - (Number(a.gp) || 0));
+        const idx = sorted.findIndex((t) => norm(t.name) === norm(gameState.club));
+        if (idx === 0) {
+          isClubChampion = true;
+          clubRank = "1º Lugar (Campeão)";
+          gameState.titles = gameState.titles || [];
+          if (!gameState.titles.includes(estData.name)) gameState.titles.push(estData.name);
+        } else if (idx > 0) {
+          clubRank = `${idx + 1}º Lugar${idx === 1 ? " (Vice-Campeão)" : ""}`;
+        }
+      }
+    } else if (normCid === "bra-cup") {
+      const copa = (typeof window !== "undefined" && typeof window.getCopaDoBrasilState === "function")
+        ? window.getCopaDoBrasilState(gameState)
+        : null;
+      if (copa && norm(copa.champion) === norm(gameState.club)) {
+        isClubChampion = true;
+        clubRank = "1º Lugar (Campeão da Copa)";
+      }
+    } else if (normCid === gameState.compId) {
+      if (typeof window.position === "function") {
+        const pos = window.position();
+        if (pos === 1) {
+          isClubChampion = true;
+          clubRank = "1º Lugar (Campeão)";
+        } else {
+          clubRank = `${pos}º Lugar`;
+        }
+      }
+    }
+
+    // Filtra os prêmios individuais conquistados pelo usuário nesta competição
+    pState.individualAwards = Array.isArray(pState.individualAwards) ? pState.individualAwards : [];
+    const awardsWon = pState.individualAwards.filter((a) => {
+      if (Number(a.year) !== currentSeason) return false;
+      if (a.compId && a.compId === normCid) return true;
+      if (a.id && a.id.includes(normCid)) return true;
+      return false;
+    });
+
+    showPlayerCompetitionCeremonyModal({
+      compId: normCid,
+      compName: compPack?.compName || (typeof window !== "undefined" && typeof window.compById === "function" ? window.compById(normCid)?.name : null) || normCid,
+      season: currentSeason,
+      clubName: gameState.club,
+      clubRank,
+      isClubChampion,
+      awardsWon
+    });
+
+    return { compPack, awardsWon, isClubChampion, clubRank };
+  }
+
+  /**
    * Garante a inicialização e integridade do histórico acumulado da carreira
    */
   function ensurePlayerCareerHistory(pState, gameState) {
@@ -2876,6 +3207,45 @@
         }
       });
       if (best) ch.bestMatch = best;
+    }
+
+    // 4. CURA DE PRÊMIOS PREMATUROS:
+    // Títulos e prêmios individuais só podem ser concedidos ao término oficial da competição.
+    // Prêmios atribuídos prematuramente na temporada ativa para competições ainda em andamento são higienizados.
+    if (Array.isArray(pState.individualAwards) && gameState) {
+      const activeSeason = Number(gameState.season) || 2026;
+      pState.individualAwards = pState.individualAwards.filter((award) => {
+        if (!award) return false;
+        if (Number(award.year) === activeSeason) {
+          const compId = award.compId || (function (id, title, desc) {
+            const str = `${id || ""} ${title || ""} ${desc || ""}`.toLowerCase();
+            if (str.includes("candango") || str.includes("bra-est-df")) return "bra-est-df";
+            if (str.includes("paulista") || str.includes("bra-est-sp")) return "bra-est-sp";
+            if (str.includes("carioca") || str.includes("bra-est-rj")) return "bra-est-rj";
+            if (str.includes("mineiro") || str.includes("bra-est-mg")) return "bra-est-mg";
+            if (str.includes("gaucho") || str.includes("gaúcho") || str.includes("bra-est-rs")) return "bra-est-rs";
+            if (str.includes("copa do brasil") || str.includes("bra-cup")) return "bra-cup";
+            if (str.includes("libertadores") || str.includes("lib")) return "lib";
+            if (str.includes("sul-americana") || str.includes("sud")) return "sud";
+            if (str.includes("série a") || str.includes("serie a") || str.includes("bra-a")) return "bra-a";
+            if (str.includes("série b") || str.includes("serie b") || str.includes("bra-b")) return "bra-b";
+            if (str.includes("série c") || str.includes("serie c") || str.includes("bra-c")) return "bra-c";
+            if (str.includes("série d") || str.includes("serie d") || str.includes("bra-d")) return "bra-d";
+            return null;
+          })(award.id, award.title, award.desc);
+
+          if (compId && typeof isCompetitionFinished === "function" && !isCompetitionFinished(gameState, compId)) {
+            return false;
+          }
+          if (award.id && (award.id.startsWith("ballon_dor_") || award.id.startsWith("golden_boot_") || award.id.startsWith("golden_boy_"))) {
+            const isFullSeasonOver = Boolean(gameState.isSeasonFinished || gameState.phase === "season_end" || (Number(gameState.round) >= 38 && gameState.phase === "finished"));
+            if (!isFullSeasonOver) {
+              return false;
+            }
+          }
+        }
+        return true;
+      });
     }
 
     return ch;
@@ -3909,6 +4279,7 @@
               type: isLoan ? "club_loan" : "transfer",
               clubOrBrand: buyerClub,
               newClub: buyerClub,
+              clubLeague: getClubLeagueSummary(buyerClub, gameState),
               title: isLoan
                 ? `Empréstimo: ${buyerClub}`
                 : `Compra Definitiva: ${buyerClub}`,
@@ -3961,6 +4332,11 @@
     ) {
       window.AFM_PlayerMode.showPostMatchSummaryModal(performanceReport);
     }
+
+    // Checagem imediata de encerramento da competição disputada (com cerimônia e troféus oficiais)
+    try {
+      checkAndTriggerCompetitionConclusion(gameState, matchCompId);
+    } catch (_) {}
 
     return performanceReport;
   }
@@ -4847,6 +5223,7 @@
       type: isLoan ? "club_loan" : "transfer",
       clubOrBrand: buyerClub,
       newClub: buyerClub,
+      clubLeague: getClubLeagueSummary(buyerClub, gameState),
       title: isLoan
         ? `Empréstimo: ${buyerClub}`
         : `Compra Definitiva: ${buyerClub}`,
@@ -5077,7 +5454,7 @@
    * MOTOR DE PRÊMIOS DE FIM DE TEMPORADA (AWARDS ENGINE)
    * Apura os Melhores do Mundo, Chuteira de Ouro, Golden Boy, Prêmios da Liga e Recordes Históricos
    */
-  function processEndOfSeasonAwards(gameState, finishedYear) {
+  function processEndOfSeasonAwards(gameState, finishedYear, options = {}) {
     if (
       !gameState ||
       gameState.gameMode !== "player" ||
@@ -5087,9 +5464,13 @@
     const pState = gameState.playerCareerState;
     const targetSeason =
       Number(finishedYear) || Number(gameState.season) || 2026;
+    const isHistoricalSeason = targetSeason < Number(gameState.season);
+    const isExplicitSeasonEnd = Boolean(options && (options.isSeasonEnd || options.isRollover));
+    const isSingleCompEnd = Boolean(options && options.isSingleCompEnd);
 
-    // Idempotência: se os prêmios da temporada já foram apurados, reutiliza o registro
+    // Idempotência: se os prêmios da temporada já foram apurados, reutiliza o registro (apenas para gala geral)
     if (
+      !isSingleCompEnd &&
       pState.lastSeasonGalaAwards &&
       pState.lastSeasonGalaAwards.season === targetSeason
     ) {
@@ -5905,7 +6286,8 @@
     // 6. ATRIBUIÇÃO DE PRÊMIOS CONQUISTADOS PELO ATLETA
     let wonAnyAward = false;
 
-    if (userWonBallonDor) {
+    // Prêmios Mundiais (Bola de Ouro, Chuteira de Ouro, Golden Boy) só são concedidos na virada oficial da temporada
+    if (userWonBallonDor && (isHistoricalSeason || isExplicitSeasonEnd)) {
       wonAnyAward = true;
       pState.individualAwards.push({
         id: "ballon_dor_" + targetSeason,
@@ -5930,7 +6312,7 @@
       );
     }
 
-    if (userWonGoldenBoot) {
+    if (userWonGoldenBoot && (isHistoricalSeason || isExplicitSeasonEnd)) {
       wonAnyAward = true;
       pState.individualAwards.push({
         id: "golden_boot_" + targetSeason,
@@ -5951,7 +6333,7 @@
       );
     }
 
-    if (userWonGoldenBoy) {
+    if (userWonGoldenBoy && (isHistoricalSeason || isExplicitSeasonEnd)) {
       wonAnyAward = true;
       pState.individualAwards.push({
         id: "golden_boy_" + targetSeason,
@@ -5975,6 +6357,11 @@
 
     // Premiação Individual em TODAS as ligas e copas disputadas pelo atleta na temporada
     allCompetitionAwards.forEach((pack) => {
+      // Se for apuração de competição única específica (encerramento isolado de estadual/copa), processa apenas ela
+      if (isSingleCompEnd && options.compId && pack.compId !== options.compId) {
+        return;
+      }
+
       const idSuffix = pack.isPrimary ? targetSeason : `${pack.compId}_${targetSeason}`;
       const idPrefix = pack.isPrimary ? "league_" : "comp_";
 
@@ -6115,15 +6502,17 @@
       marketValue: athlete?.marketValueMi || pState.marketValue || 0,
     };
 
-    const existIdx = pState.careerStats.seasonHistory.findIndex(
-      (h) => Number(h.season) === targetSeason,
-    );
-    if (existIdx >= 0) {
-      pState.careerStats.seasonHistory[existIdx] = seasonSnapshot;
-    } else {
-      pState.careerStats.seasonHistory.push(seasonSnapshot);
+    if (isHistoricalSeason || isExplicitSeasonEnd) {
+      const existIdx = pState.careerStats.seasonHistory.findIndex(
+        (h) => Number(h.season) === targetSeason,
+      );
+      if (existIdx >= 0) {
+        pState.careerStats.seasonHistory[existIdx] = seasonSnapshot;
+      } else {
+        pState.careerStats.seasonHistory.push(seasonSnapshot);
+      }
+      pState.seasonHistory = pState.careerStats.seasonHistory;
     }
-    pState.seasonHistory = pState.careerStats.seasonHistory;
 
     const galaData = {
       season: targetSeason,
@@ -6132,6 +6521,7 @@
       goldenBoyTop3: goldenBoyTop3,
       leagueAwards: leagueAwards,
       allCompetitionAwards: allCompetitionAwards,
+      allAwards: allCompetitionAwards,
       recordsBroken: recordsBroken,
       competitionRecords: gameState.competitionRecords[compKey],
       userCandidate: userCandidate,
@@ -6145,13 +6535,15 @@
       userWonLeagueCleanSheets: userWonLeagueCleanSheets,
     };
 
-    pState.lastSeasonGalaAwards = galaData;
+    if (isHistoricalSeason || isExplicitSeasonEnd) {
+      pState.lastSeasonGalaAwards = galaData;
 
-    // Gera novas propostas dinâmicas de patrocínio esportivo para a nova temporada
-    try {
-      generateSeasonSponsorOffers(gameState);
-    } catch (err) {
-      console.warn("Aviso ao gerar patrocínios de fim de temporada:", err);
+      // Gera novas propostas dinâmicas de patrocínio esportivo para a nova temporada
+      try {
+        generateSeasonSponsorOffers(gameState);
+      } catch (err) {
+        console.warn("Aviso ao gerar patrocínios de fim de temporada:", err);
+      }
     }
 
     return galaData;
@@ -6568,6 +6960,7 @@
       type: isLoan ? "club_loan" : "transfer",
       clubOrBrand: radarClub,
       newClub: radarClub,
+      clubLeague: getClubLeagueSummary(radarClub, gameState),
       title: isLoan
         ? `Empréstimo: ${radarClub}`
         : `Compra Definitiva: ${radarClub}`,
@@ -6803,7 +7196,17 @@
     lifestyle: typeof window !== "undefined" ? window.AFM_Lifestyle : null,
     ensurePlayerCareerHistory,
     calculateAthleteInitialMarketValue,
+    getClubLeagueSummary,
+    isCompetitionFinished,
+    showPlayerCompetitionCeremonyModal,
+    checkAndTriggerCompetitionConclusion,
     lifestyle: typeof window !== "undefined" ? window.AFM_Lifestyle : null,
   };
   window.AFM_PlayerCareerEngine = window.AFM_PlayerEngine;
+  if (typeof window !== "undefined") {
+    window.getClubLeagueSummary = getClubLeagueSummary;
+    window.isCompetitionFinished = isCompetitionFinished;
+    window.showPlayerCompetitionCeremonyModal = showPlayerCompetitionCeremonyModal;
+    window.checkAndTriggerCompetitionConclusion = checkAndTriggerCompetitionConclusion;
+  }
 })(window);
