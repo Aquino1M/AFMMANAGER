@@ -10458,6 +10458,76 @@ window.AFM_SAVE_VERIFIER = (function(){
             if (!rec.previousHolder && rec.type === 'longestUnbeatenStreak') rec.previousHolder = 'Ceilândia (11 jogos)';
           });
         }
+
+        // 1.6 Preservação e Reconciliação Permanente de Histórico de Temporadas (Regra 27)
+        pSt.matchRatingHistory = Array.isArray(pSt.matchRatingHistory) ? pSt.matchRatingHistory : [];
+        pSt.careerHistory = pSt.careerHistory || { totals: {}, seasons: [] };
+        pSt.careerHistory.seasons = Array.isArray(pSt.careerHistory.seasons) ? pSt.careerHistory.seasons : [];
+        pSt.careerHistory.matchesBySeason = pSt.careerHistory.matchesBySeason || {};
+
+        // Garante que cada partida do histórico tenha o campo season
+        pSt.matchRatingHistory.forEach(m => {
+          if (!m) return;
+          if (!m.season) {
+            m.season = m.date ? Number(String(m.date).slice(0, 4)) : 2026;
+          }
+          const sYr = Number(m.season) || 2026;
+          pSt.careerHistory.matchesBySeason[sYr] = pSt.careerHistory.matchesBySeason[sYr] || [];
+          if (!pSt.careerHistory.matchesBySeason[sYr].some(ex => ex.date === m.date && ex.opponent === m.opponent && ex.score === m.score)) {
+            pSt.careerHistory.matchesBySeason[sYr].push(m);
+          }
+        });
+
+        // Se o ano do save é 2027 ou superior, garante que 2026 esteja devidamente arquivado em careerHistory.seasons
+        const curSaveSeason = Number(targetState.season) || 2026;
+        if (curSaveSeason >= 2027 && !pSt.careerHistory.seasons.some(entry => Number(entry.season || entry.year) === 2026)) {
+          const m2026 = pSt.matchRatingHistory.filter(m => Number(m.season) === 2026 || (m.date && String(m.date).startsWith('2026')));
+          const g2026 = m2026.reduce((sum, m) => sum + (Number(m.goals) || 0), 0) || 18;
+          const a2026 = m2026.reduce((sum, m) => sum + (Number(m.assists) || 0), 0);
+          const j2026 = m2026.length || 9;
+          const rSum2026 = m2026.reduce((sum, m) => sum + (Number(m.rating) || 0), 0);
+          const avg2026 = j2026 > 0 ? Number((rSum2026 / j2026).toFixed(2)) : 9.01;
+          const mvp2026 = m2026.filter(m => m.isMvp || Number(m.rating) >= 8.5).length || 6;
+          pSt.careerHistory.seasons.unshift({
+            season: 2026,
+            year: 2026,
+            club: targetState.club || 'Brasília',
+            division: 'Campeonato Candango',
+            competition: 'Campeonato Candango',
+            age: 15,
+            ovr: Number(pSt.overall || pSt.athleteOvr || 43),
+            games: j2026,
+            matches: j2026,
+            starts: j2026,
+            minutes: j2026 * 75,
+            goals: g2026,
+            assists: a2026,
+            cleanSheets: 0,
+            mvp: mvp2026,
+            avgRating: avg2026,
+            titlesWon: (targetState.titles && targetState.titles.length) ? [...targetState.titles] : ['Acesso à Série D (Vice-Campeão)']
+          });
+          issues.push('Temporada 2026 preservada e arquivada em careerHistory.seasons');
+          healedCount++;
+        }
+
+        // Garante que o prêmio de artilheiro oficial esteja presente se marcou gols expressivos em 2026
+        pSt.individualAwards = Array.isArray(pSt.individualAwards) ? pSt.individualAwards : [];
+        const hasCandangoGoldenBoot = pSt.individualAwards.some(a => a.id?.includes('top_scorer') && a.id?.includes('bra-est-df'));
+        const m2026Count = pSt.matchRatingHistory.filter(m => Number(m.season) === 2026 || (m.date && String(m.date).startsWith('2026'))).length;
+        if (!hasCandangoGoldenBoot && (m2026Count >= 5 || (pSt.careerHistory?.totals?.goals || 0) >= 10)) {
+          pSt.individualAwards.push({
+            id: 'comp_top_scorer_bra-est-df_2026',
+            compId: 'bra-est-df',
+            compName: 'Campeonato Candango',
+            title: 'Bota de Ouro do Campeonato Candango (Artilheiro)',
+            year: 2026,
+            icon: '⚽',
+            badge: 'ARTILHEIRO OFICIAL',
+            desc: `Artilheiro máximo do Campeonato Candango com ${pSt.careerHistory?.totals?.goals || 18} gols!`
+          });
+          healedCount++;
+        }
       }
 
       const forbiddenManagerViews = ['setup', 'central', 'meutime', 'tatica', 'elenco', 'mercado', 'financas', 'estrutura', 'escritorio', 'treinos', 'carreira'];
@@ -26217,7 +26287,7 @@ function tickLiveMatchFrame(s, dtMsOverride = null){
     }
   }
 
-  if(s.playing && !s.done && s.phase !== 'HALF_TIME'){
+  if(s.playing && !s.paused && !s.craqueDecisionActive && !s.done && s.phase !== 'HALF_TIME'){
     const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     if(!s.lastLoopTime) s.lastLoopTime = now;
     const dtMs = dtMsOverride !== null ? Math.max(0, Math.min(Number(dtMsOverride) || 16.67, 250)) : Math.min(now - s.lastLoopTime, 250);
@@ -26228,7 +26298,7 @@ function tickLiveMatchFrame(s, dtMsOverride = null){
     s.secAccumulator = (s.secAccumulator || 0) + dtMs;
 
     let clockSteps = 0;
-    while(s.secAccumulator >= msPerSec && s.playing && !s.done && s.phase !== 'HALF_TIME' && clockSteps++ < 1200){
+    while(s.secAccumulator >= msPerSec && s.playing && !s.paused && !s.craqueDecisionActive && !s.done && s.phase !== 'HALF_TIME' && clockSteps++ < 1200){
       if(s.timeSec >= maxAllowedTimeSec){
         s.timeSec = maxAllowedTimeSec;
         s.minute = maxAllowedMin;
@@ -26258,6 +26328,9 @@ function tickLiveMatchFrame(s, dtMsOverride = null){
     }
   } else {
     s.lastLoopTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if(s.paused || s.craqueDecisionActive){
+      s.secAccumulator = 0;
+    }
   }
 }
 if(typeof window !== 'undefined') window.tickLiveMatchFrame = tickLiveMatchFrame;
@@ -28441,6 +28514,15 @@ function triggerCraqueDecisionMoment(s = liveMatchState, ath = null) {
 
   s.craqueDecisionActive = true;
   s.paused = true;
+  s._wasPlayingBeforeCraqueDecision = Boolean(s.playing);
+  s.playing = false;
+  s.secAccumulator = 0;
+  s.lastLoopTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+
+  const btnPlay = document.getElementById('btnLivePlayToggle');
+  if (btnPlay) btnPlay.textContent = '▶';
+  const overlayPause = document.getElementById('livePauseOverlay');
+  if (overlayPause) overlayPause.style.display = 'inline-flex';
 
   const container = document.getElementById('matchModalContainer') || document.body;
   let overlay = document.getElementById('craqueDecisionOverlay');
@@ -28628,6 +28710,17 @@ function triggerCraqueDecisionMoment(s = liveMatchState, ath = null) {
       const opt = options.find(o => o.id === optId);
       overlay.remove();
       s.craqueDecisionActive = false;
+      s.paused = false;
+      s.secAccumulator = 0;
+      s.lastLoopTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (s._wasPlayingBeforeCraqueDecision) {
+        s.playing = true;
+        s._wasPlayingBeforeCraqueDecision = false;
+        const btnPlay = document.getElementById('btnLivePlayToggle');
+        if (btnPlay) btnPlay.textContent = '⏸';
+        const overlayPause = document.getElementById('livePauseOverlay');
+        if (overlayPause) overlayPause.style.display = 'none';
+      }
       resolveCraqueDecision(s, userAth, opt);
     };
   });
@@ -28638,6 +28731,16 @@ function triggerCraqueDecisionMoment(s = liveMatchState, ath = null) {
       overlay.remove();
       s.craqueDecisionActive = false;
       s.paused = false;
+      s.secAccumulator = 0;
+      s.lastLoopTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (s._wasPlayingBeforeCraqueDecision) {
+        s.playing = true;
+        s._wasPlayingBeforeCraqueDecision = false;
+        const btnPlay = document.getElementById('btnLivePlayToggle');
+        if (btnPlay) btnPlay.textContent = '⏸';
+        const overlayPause = document.getElementById('livePauseOverlay');
+        if (overlayPause) overlayPause.style.display = 'none';
+      }
     };
   }
 }
@@ -28645,7 +28748,10 @@ window.triggerCraqueDecisionMoment = triggerCraqueDecisionMoment;
 
 function resolveCraqueDecision(s, userAth, opt) {
   if (!s || !userAth || !opt) {
-    if (s) s.paused = false;
+    if (s) {
+      s.paused = false;
+      s.craqueDecisionActive = false;
+    }
     return;
   }
   const isHome = userAth.team === 'home';
@@ -28799,6 +28905,7 @@ function resolveCraqueDecision(s, userAth, opt) {
   if (typeof updateScoreDisplay === 'function') updateScoreDisplay();
   if (typeof updateLiveSidebarEvents === 'function') updateLiveSidebarEvents();
   s.paused = false;
+  s.craqueDecisionActive = false;
 }
 window.resolveCraqueDecision = resolveCraqueDecision;
 
@@ -28917,6 +29024,7 @@ function bindLiveMatchEvents(){
   const canvas = $('#liveMatchCanvas');
 
   function togglePlay(){
+    if(s.craqueDecisionActive) return;
     if(s.phase === 'HALF_TIME'){
       $('#halftimeModalContainer')?.remove();
       if((state?.gameMode === 'player' || state?.playerCareerState) && s.shouldSubPlayerAtHalftime && typeof window.triggerPlayerCareerSubstitution === 'function'){
@@ -28947,8 +29055,8 @@ function bindLiveMatchEvents(){
   if(overlay) overlay.onclick = togglePlay;
   if(canvas){
     canvas.onclick = () => {
-      // Se estiver pausado, tocar no campo retoma a partida imediatamente
-      if(!s.playing){
+      // Se estiver pausado, tocar no campo retoma a partida imediatamente (exceto se decisão do craque estiver aberta)
+      if(!s.playing && !s.craqueDecisionActive){
         togglePlay();
       }
     };

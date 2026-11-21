@@ -149,6 +149,14 @@ Você é o engenheiro-chefe responsável pelo AFM Manager 2026/2027. Antes de al
     - **Auto-Cura de Saves Presos em 2026 com Candangão Concluído (`AFM_SAVE_VERIFIER.verifyAndHealState`):** Saves que completaram o Campeonato Candango de 2026 (9 jogos, 18 gols) e foram indevidamente alterados para a Série D sem virada de ano são automaticamente curados: avança `state.season` de 2026 para 2027, ajusta a data para `2027-01-17`, concede a Bota de Ouro do Candangão 2026 em `individualAwards`, cura pergaminhos de recordes incompletos, arquiva a temporada 2026 com 18 gols em `careerHistory.seasons` e zera `seasonStats` para a estreia de 2027.
     - **Renderização de Títulos na Linha do Tempo de Carreira:** A tabela da Linha do Tempo & Clubes Defendidos processa confiavelmente títulos salvos como strings ou objetos (`allTitles` / `titlesWon`) e badges de acesso/vice-campeão, impedindo a exibição de `—` quando o atleta conquistou títulos oficiais no ano.
 
+27. **PAUSA NO MOMENTO DECISIVO DO CRAQUE E PRESERVAÇÃO DE HISTÓRICO MULTI-TEMPORADAS (REGRA 27):**
+    - **Pausa Estrita no Momento Decisivo:** Ao disparar o pop-up de 'Momento Decisivo do Craque' na partida ao vivo, a simulação e o relógio de jogo DEVEM ser imediatamente congelados (`s.playing = false; s.paused = true; s.craqueDecisionActive = true; s.secAccumulator = 0;`), exibindo o overlay de pausa e travando qualquer retomada via clique no canvas ou botão play/pause até que uma ação seja escolhida ou cancelada pelo atleta.
+    - **Preservação Permanente de Histórico de Temporadas:** Toda partida registrada em `matchRatingHistory` armazena explicitamente `season: matchSeason`. O histórico de partidas retém até 200 atuações e é arquivado de forma definitiva por ano em `careerHistory.matchesBySeason[year]`.
+    - **Navegação Multi-Temporada em Estatísticas:**
+        - Sub-aba 1 (Dados da Temporada): Dispõe de seletor dinâmico de temporadas (`[2026] [2027 ★ Atual] ...`), exibindo o balanço completo, jogos, gols, assistências, nota média, MVPs e títulos da temporada selecionada, seja ela ativa ou concluída.
+        - Sub-aba 3 (Histórico de Atuações em Campo): Dispõe de filtro por temporada (`[Todas as Temporadas] [2026] [2027] ...`), calcula o card de destaque 'Melhor Atuação' dinamicamente para a temporada filtrada (ou carreira all-time), identifica a temporada na coluna de data e garante que cliques na linha abram a súmula da partida correta.
+    - **Auto-Cura de Saves Existentes (`AFM_SAVE_VERIFIER.verifyAndHealState`):** Saves em 2027+ sem a temporada 2026 arquivada em `careerHistory.seasons` reconstroem automaticamente o ano de 2026 a partir do histórico de partidas, preservando jogos, gols e notas médias sem perda histórica.
+
 
 
 

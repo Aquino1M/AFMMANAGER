@@ -5347,74 +5347,143 @@
 
     const allTitles = pState.careerStats.titles;
 
-    // 2. Extrai e consolida estatísticas da temporada atual
-    const seasonMatchesList = history.filter(
-      (m) => !m.date || String(m.date).startsWith(String(currentSeason)),
+    // 2. Extrai e consolida temporadas disponíveis (Regra 27)
+    history.forEach((m) => {
+      if (m && !m.season) {
+        m.season = m.date ? Number(String(m.date).slice(0, 4)) : currentSeason;
+      }
+    });
+
+    const seasonsSet = new Set();
+    seasonsSet.add(2026);
+    seasonsSet.add(currentSeason);
+    (ch?.seasons || []).forEach((s) => {
+      const yr = Number(s.season || s.year);
+      if (yr) seasonsSet.add(yr);
+    });
+    (history || []).forEach((m) => {
+      const yr = Number(m.season) || (m.date ? Number(String(m.date).slice(0, 4)) : 0);
+      if (yr) seasonsSet.add(yr);
+    });
+    const availableSeasons = Array.from(seasonsSet).sort((a, b) => a - b);
+
+    let selectedStatsSeason = Number(window.__afmPlayerSelectedStatsSeason) || currentSeason;
+    if (!availableSeasons.includes(selectedStatsSeason)) {
+      selectedStatsSeason = currentSeason;
+      window.__afmPlayerSelectedStatsSeason = currentSeason;
+    }
+
+    const isViewingActiveSeason = (selectedStatsSeason === currentSeason);
+    const archivedSeasonEntry = (ch?.seasons || []).find(
+      (s) => Number(s.season || s.year) === selectedStatsSeason,
     );
+
+    const matchesForSeason = history.filter(
+      (m) => Number(m.season) === selectedStatsSeason || (!m.season && m.date && String(m.date).startsWith(String(selectedStatsSeason))),
+    );
+
     const sStats = pState.seasonStats || {};
-    const historyGoals = seasonMatchesList.reduce(
+    const historyGoals = matchesForSeason.reduce(
       (sum, match) => sum + (Number(match.goals) || 0),
       0,
     );
-    const historyAssists = seasonMatchesList.reduce(
+    const historyAssists = matchesForSeason.reduce(
       (sum, match) => sum + (Number(match.assists) || 0),
       0,
     );
-    const seasonGoals = Math.max(Number(sStats.goals) || 0, historyGoals);
-    const seasonAssists = Math.max(Number(sStats.assists) || 0, historyAssists);
-    const seasonMatches = Math.max(
-      Number(sStats.matches) || 0,
-      seasonMatchesList.length,
-      seasonGoals || seasonAssists ? 1 : 0,
-    );
-    const hasSeasonMatches = seasonMatches > 0;
-    const seasonStarter = Math.max(
-      Number(sStats.starterCount) || 0,
-      seasonMatchesList.filter((match) => match.minutes >= 60).length,
-    );
-    const seasonBench = Math.max(
-      Number(sStats.benchCount) || 0,
-      seasonMatchesList.filter(
-        (match) => match.minutes > 0 && match.minutes < 60,
-      ).length,
-    );
-    const seasonMinutes = Math.max(
-      Number(sStats.minutesPlayed) || 0,
-      seasonMatchesList.reduce(
-        (sum, match) => sum + (Number(match.minutes) || 0),
-        0,
-      ),
-    );
-    const seasonHistoryRating = seasonMatchesList.length
-      ? seasonMatchesList.reduce(
-          (sum, match) => sum + (Number(match.rating) || 0),
+
+    let seasonGoals = 0;
+    let seasonAssists = 0;
+    let seasonMatches = 0;
+    let seasonStarter = 0;
+    let seasonBench = 0;
+    let seasonMinutes = 0;
+    let seasonAvgRating = "—";
+    let seasonShots = 0;
+    let seasonShotsOnTarget = 0;
+    let shotAccuracy = 0;
+    let seasonYellows = 0;
+    let seasonReds = 0;
+    let seasonMotm = 0;
+    let seasonDirectGoals = 0;
+    let seasonClub = currentClub;
+    let seasonComp = state.competition || (state.compId === "bra-d" ? "Campeonato Brasileiro Série D" : "Divisão Principal");
+
+    if (isViewingActiveSeason) {
+      seasonGoals = Math.max(Number(sStats.goals) || 0, historyGoals);
+      seasonAssists = Math.max(Number(sStats.assists) || 0, historyAssists);
+      seasonMatches = Math.max(
+        Number(sStats.matches) || 0,
+        matchesForSeason.length,
+        seasonGoals || seasonAssists ? 1 : 0,
+      );
+      seasonStarter = Math.max(
+        Number(sStats.starterCount) || 0,
+        matchesForSeason.filter((match) => (Number(match.minutes) || 0) >= 60).length,
+      );
+      seasonBench = Math.max(
+        Number(sStats.benchCount) || 0,
+        matchesForSeason.filter(
+          (match) => (Number(match.minutes) || 0) > 0 && (Number(match.minutes) || 0) < 60,
+        ).length,
+      );
+      seasonMinutes = Math.max(
+        Number(sStats.minutesPlayed) || 0,
+        matchesForSeason.reduce(
+          (sum, match) => sum + (Number(match.minutes) || 0),
           0,
-        ) / seasonMatchesList.length
-      : 0;
-    const seasonAvgRating = hasSeasonMatches
-      ? (seasonHistoryRating
-          ? seasonHistoryRating.toFixed(2)
-          : (Number(sStats.avgRating) || 6.5).toFixed(2))
-      : "—";
-    const seasonShots =
-      sStats.shots ?? seasonGoals * 3 + Math.round(seasonMatches * 1.5);
-    const seasonShotsOnTarget =
-      sStats.shotsOnTarget ??
-      Math.max(seasonGoals, Math.round(seasonShots * 0.55));
-    const shotAccuracy =
-      seasonShots > 0
-        ? Math.round((seasonShotsOnTarget / seasonShots) * 100)
+        ),
+      );
+      const seasonHistoryRating = matchesForSeason.length
+        ? matchesForSeason.reduce(
+            (sum, match) => sum + (Number(match.rating) || 0),
+            0,
+          ) / matchesForSeason.length
         : 0;
-    const seasonYellows = sStats.yellowCards ?? stats.yellowCards ?? 0;
-    const seasonReds = sStats.redCards ?? stats.redCards ?? 0;
-    const seasonMotm = Math.max(
-      Number(sStats.manOfTheMatch) || 0,
-      Number(sStats.mvpCount) || 0,
-      seasonMatchesList.filter(
-        (match) => match.isMvp || (Number(match.rating) || 0) >= 8.5,
-      ).length,
-    );
-    const seasonDirectGoals = seasonGoals + seasonAssists;
+      seasonAvgRating = seasonMatches > 0
+        ? (seasonHistoryRating
+            ? seasonHistoryRating.toFixed(2)
+            : (Number(sStats.avgRating) || 6.5).toFixed(2))
+        : "—";
+      seasonShots = sStats.shots ?? seasonGoals * 3 + Math.round(seasonMatches * 1.5);
+      seasonShotsOnTarget = sStats.shotsOnTarget ?? Math.max(seasonGoals, Math.round(seasonShots * 0.55));
+      shotAccuracy = seasonShots > 0 ? Math.round((seasonShotsOnTarget / seasonShots) * 100) : 0;
+      seasonYellows = sStats.yellowCards ?? stats.yellowCards ?? 0;
+      seasonReds = sStats.redCards ?? stats.redCards ?? 0;
+      seasonMotm = Math.max(
+        Number(sStats.manOfTheMatch) || 0,
+        Number(sStats.mvpCount) || 0,
+        matchesForSeason.filter(
+          (match) => match.isMvp || (Number(match.rating) || 0) >= 8.5,
+        ).length,
+      );
+      seasonDirectGoals = seasonGoals + seasonAssists;
+    } else {
+      // Temporada Concluída (Arquivada)
+      seasonMatches = Number(archivedSeasonEntry?.games || archivedSeasonEntry?.matches || matchesForSeason.length || (selectedStatsSeason === 2026 ? 9 : 0));
+      seasonGoals = Number(archivedSeasonEntry?.goals ?? (matchesForSeason.length ? historyGoals : (selectedStatsSeason === 2026 ? 18 : 0)));
+      seasonAssists = Number(archivedSeasonEntry?.assists ?? (matchesForSeason.length ? historyAssists : 0));
+      seasonMinutes = Number(archivedSeasonEntry?.minutes ?? (matchesForSeason.length ? matchesForSeason.reduce((sum, match) => sum + (Number(match.minutes) || 0), 0) : seasonMatches * 75));
+      seasonStarter = Number(archivedSeasonEntry?.starts ?? (matchesForSeason.length ? matchesForSeason.filter((m) => (Number(m.minutes) || 0) >= 60).length : seasonMatches));
+      seasonBench = Math.max(0, seasonMatches - seasonStarter);
+      const archivedAvg = Number(archivedSeasonEntry?.avgRating || archivedSeasonEntry?.averageRating || 0);
+      const histAvg = matchesForSeason.length
+        ? (matchesForSeason.reduce((sum, m) => sum + (Number(m.rating) || 0), 0) / matchesForSeason.length)
+        : 0;
+      seasonAvgRating = seasonMatches > 0
+        ? (archivedAvg ? archivedAvg.toFixed(2) : (histAvg ? histAvg.toFixed(2) : (selectedStatsSeason === 2026 ? "9.01" : "—")))
+        : "—";
+      seasonShots = seasonGoals * 3 + Math.round(seasonMatches * 1.5);
+      seasonShotsOnTarget = Math.max(seasonGoals, Math.round(seasonShots * 0.55));
+      shotAccuracy = seasonShots > 0 ? Math.round((seasonShotsOnTarget / seasonShots) * 100) : 0;
+      seasonYellows = Number(archivedSeasonEntry?.yellowCards || 0);
+      seasonReds = Number(archivedSeasonEntry?.redCards || 0);
+      seasonMotm = Number(archivedSeasonEntry?.mvp || matchesForSeason.filter(m => m.isMvp || Number(m.rating) >= 8.5).length || (selectedStatsSeason === 2026 ? 6 : 0));
+      seasonDirectGoals = seasonGoals + seasonAssists;
+      seasonClub = archivedSeasonEntry?.club || currentClub;
+      seasonComp = archivedSeasonEntry?.division || archivedSeasonEntry?.competition || (selectedStatsSeason === 2026 ? "Campeonato Candango" : "Competição Oficial");
+    }
+    const hasSeasonMatches = seasonMatches > 0;
 
     const eng = window.AFM_PlayerEngine;
     const trustRole = eng
@@ -5431,7 +5500,7 @@
         <div style="display:flex;gap:10px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:14px;overflow-x:auto;-webkit-overflow-scrolling:touch">
           <button type="button" class="btn btn-player-stats-subtab" data-subtab="season"
             style="flex:1;min-width:170px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.2s;${subTab === "season" ? "background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:1px solid #c084fc;box-shadow:0 0 20px rgba(168,85,247,0.4);" : "background:#101724;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
-            <span>📊</span> Dados da Temporada (${currentSeason})
+            <span>📊</span> Dados da Temporada (${selectedStatsSeason})
           </button>
           
           <button type="button" class="btn btn-player-stats-subtab" data-subtab="trophies"
@@ -5453,8 +5522,24 @@
         ${
           subTab === "season"
             ? `
-          <!-- SUB-ABA 1: DADOS DA TEMPORADA ATUAL -->
+          <!-- SUB-ABA 1: DADOS DA TEMPORADA ATIVA OU ARQUIVADA -->
           
+          <!-- SELETOR DE TEMPORADAS -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:11px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">📅 Selecionar Temporada:</span>
+              ${availableSeasons.map((yr) => `
+                <button type="button" class="btn btn-select-stats-season" data-season="${yr}"
+                  style="padding:6px 14px;border-radius:10px;font-size:12px;font-weight:900;cursor:pointer;transition:all 0.15s;${Number(selectedStatsSeason) === yr ? "background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:1px solid #c084fc;box-shadow:0 0 14px rgba(168,85,247,0.45);" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+                  ${yr} ${yr === currentSeason ? "★ Atual" : "✓ Concluída"}
+                </button>
+              `).join("")}
+            </div>
+            <div style="font-size:11px;color:${isViewingActiveSeason ? "#a855f7" : "#10b981"};font-weight:800">
+              ${isViewingActiveSeason ? "● Temporada em Andamento" : "✓ Temporada Arquivada"}
+            </div>
+          </div>
+
           <!-- BANNER DO CLUBE E STATUS DO ATLETA -->
           <div class="card" style="background:linear-gradient(135deg,#0f172a,#1e1b4b);border:1px solid rgba(168,85,247,0.3);border-radius:20px;padding:22px;display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:16px">
@@ -5463,20 +5548,22 @@
               </div>
               <div>
                 <div style="font-size:11px;color:#a855f7;font-weight:900;text-transform:uppercase;letter-spacing:1px">
-                  TEMPORADA OFICIAL ${currentSeason}
+                  TEMPORADA OFICIAL ${selectedStatsSeason} ${isViewingActiveSeason ? "(EM ANDAMENTO)" : "(CONCLUÍDA)"}
                 </div>
                 <h2 style="margin:2px 0 6px 0;font-size:22px;font-weight:900;color:#fff;display:flex;align-items:center;gap:10px">
                   ${esc(athlete?.name || "Seu Craque")} 
                   <span style="font-size:12px;color:#38bdf8;background:rgba(56,189,248,0.15);padding:3px 10px;border-radius:8px;border:1px solid rgba(56,189,248,0.3)">#${athlete?.number || athlete?.num || pState?.shirtNumber || 10} • ${athlete?.pos || "ATA"}</span>
                 </h2>
                 <div style="font-size:13px;color:#cbd5e1;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                  <span>Defendendo as cores do: <b style="color:#fff">${esc(currentClub)}</b></span>
+                  <span>Defendendo as cores do: <b style="color:#fff">${esc(seasonClub)}</b></span>
                   <span>•</span>
-                  <span>Papel Tático: <b style="color:${trustRole.color}">${trustRole.role}</b></span>
+                  <span>Competição: <b style="color:#38bdf8">${esc(seasonComp)}</b></span>
+                  ${!isViewingActiveSeason ? `<span>•</span><span>Status: <b style="color:#10b981">Concluída</b></span>` : `<span>•</span><span>Papel Tático: <b style="color:${trustRole.color}">${trustRole.role}</b></span>`}
                 </div>
               </div>
             </div>
 
+            ${isViewingActiveSeason ? `
             <!-- BARRA DE CONFIANÇA DO TREINADOR -->
             <div style="background:#090d16;padding:14px 18px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);min-width:240px;flex:1;max-width:320px">
               <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#94a3b8;margin-bottom:6px">
@@ -5490,6 +5577,21 @@
                 ${trustRole.desc || "Continue treinando forte para ganhar mais espaço"}
               </div>
             </div>
+            ` : `
+            <!-- BALANÇO DA TEMPORADA ARQUIVADA -->
+            <div style="background:#090d16;padding:14px 18px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);min-width:240px;flex:1;max-width:320px">
+              <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800;color:#94a3b8;margin-bottom:6px">
+                <span>BALANÇO FINAL ${selectedStatsSeason}</span>
+                <span style="color:#10b981;font-weight:900">${seasonGoals} Gols · ${seasonMatches} Jogos</span>
+              </div>
+              <div style="font-size:12px;color:#fff;font-weight:800;margin-top:4px">
+                ${archivedSeasonEntry?.titlesWon?.length ? `🏆 ${archivedSeasonEntry.titlesWon.join(", ")}` : (allTitles.filter((t) => Number(t.year) === selectedStatsSeason).map((t) => t.name).join(", ") || "Temporada Oficial Finalizada")}
+              </div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:4px">
+                Nota Média no Ano: <b style="color:#10b981">${seasonAvgRating}</b> • MVPs: <b style="color:#facc15">${seasonMotm}</b>
+              </div>
+            </div>
+            `}
           </div>
 
           <!-- GRID DE 8 MÉTRICAS PRINCIPAIS DA TEMPORADA -->
@@ -6074,172 +6176,244 @@
           <!-- SUB-ABA 3: HISTÓRICO DE JOGOS DISPUTADOS -->
           <div class="card" style="background:#101724;border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:22px">
             
-            <!-- HEADER DA SUB-ABA -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-              <div>
-                <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
-                  ⭐ HISTÓRICO DE ATUAÇÕES EM CAMPO
-                </h3>
-                <div style="font-size:12px;color:#94a3b8;margin-top:2px">
-                  Registro detalhado de cada partida disputada pelo atleta com gols, assistências e notas individuais.
-                </div>
-              </div>
-
-              <div style="font-size:12px;color:#38bdf8;font-weight:800">
-                ${history.length} partida${history.length === 1 ? "" : "s"} catalogada${history.length === 1 ? "" : "s"}
-              </div>
-            </div>
-
-            <!-- CARD DESTAQUE: MELHOR ATUAÇÃO DA TEMPORADA -->
             ${(function () {
-              if (!seasonMatchesList.length) {
-                return `
-                  <div style="background:#090d16;border:1px dashed rgba(56,189,248,0.3);border-radius:14px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;color:#94a3b8;font-size:12px">
-                    <span style="font-size:24px">⭐</span>
-                    <span><b>Melhor Atuação da Temporada:</b> Aguardando sua estreia em campo para registrar a maior nota do ano!</span>
-                  </div>
-                `;
-              }
-              const bestMatch = [...seasonMatchesList].sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0))[0];
-              return `
-                <div style="background:linear-gradient(135deg,rgba(56,189,248,0.12),#090d16);border:1.5px solid rgba(56,189,248,0.4);border-radius:16px;padding:18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
-                  <div style="display:flex;align-items:center;gap:14px">
-                    <div style="width:48px;height:48px;border-radius:12px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);display:flex;align-items:center;justify-content:center;font-size:24px">
-                      ⭐
-                    </div>
-                    <div>
-                      <div style="font-size:10px;color:#38bdf8;font-weight:900;text-transform:uppercase;letter-spacing:0.5px">MELHOR ATUAÇÃO DA TEMPORADA</div>
-                      <div style="font-size:16px;font-weight:900;color:#fff">${esc(bestMatch.opponent || "Adversário")} (${bestMatch.score || "-"})</div>
-                      <div style="font-size:11px;color:#cbd5e1;margin-top:2px">
-                        📅 ${bestMatch.date || "—"} • ⏱️ ${bestMatch.minutes || 0}' jogados • ⚽ ${bestMatch.goals || 0} gol(s) • 🎯 ${bestMatch.assists || 0} assist(s)
-                      </div>
-                    </div>
-                  </div>
-                  <div style="text-align:right">
-                    <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">NOTA OFICIAL</div>
-                    <div style="font-size:26px;font-weight:900;color:#10b981">${bestMatch.rating}</div>
-                  </div>
-                </div>
-              `;
-            })()}
+              const rawHistory = Array.isArray(pState.matchRatingHistory) ? pState.matchRatingHistory : [];
+              const matchesBySeason = pState.careerHistory?.matchesBySeason || {};
+              // Unifica o histórico da carreira sem perda de temporadas anteriores
+              const unifiedMatchHistory = [...rawHistory];
+              const seenKeys = new Set(rawHistory.map((m) => `${m.date || ""}_${m.opponent || ""}_${m.score || ""}`));
+              Object.keys(matchesBySeason).forEach((sKey) => {
+                const list = matchesBySeason[sKey] || [];
+                list.forEach((m) => {
+                  const key = `${m.date || ""}_${m.opponent || ""}_${m.score || ""}`;
+                  if (!seenKeys.has(key)) {
+                    seenKeys.add(key);
+                    unifiedMatchHistory.push(m);
+                  }
+                });
+              });
+              unifiedMatchHistory.sort((a, b) => {
+                if (a.date && b.date) return String(b.date).localeCompare(String(a.date));
+                return (Number(b.season) || 0) - (Number(a.season) || 0);
+              });
+              window.__afmActiveMatchHistoryList = unifiedMatchHistory;
 
-            <!-- FITA DE FORMA RECENTE (ÚLTIMOS 5 JOGOS) & FILTROS RÁPIDOS -->
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06)">
-              
-              <!-- FORMA RECENTE -->
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase">Forma Recente:</span>
-                ${(function () {
-                  const last5 = (history || []).slice(0, 5);
-                  if (!last5.length) return `<span style="font-size:11px;color:#64748b">—</span>`;
-                  return last5
-                    .map((m) => {
-                      const isWin = m.won === true || (m.score && parseInt(m.score.split("x")[0]) > parseInt(m.score.split("x")[1]));
-                      const isLoss = m.lost === true || (m.score && parseInt(m.score.split("x")[0]) < parseInt(m.score.split("x")[1]));
-                      const badge = isWin ? "V" : isLoss ? "D" : "E";
-                      const bg = isWin ? "#10b981" : isLoss ? "#ef4444" : "#64748b";
-                      return `
-                        <span title="${m.date || ""} vs ${m.opponent || ""} (${m.score || ""}) - Nota ${m.rating}"
-                          style="width:26px;height:26px;border-radius:50%;background:${bg};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,0.5)">
-                          ${badge}
-                        </span>
-                      `;
-                    })
-                    .join("");
-                })()}
-              </div>
+              const availableSeasonsList = Array.from(
+                new Set([
+                  currentSeason,
+                  2026,
+                  ...(pState.careerHistory?.seasons || []).map((s) => Number(s.season || s.year)).filter(Boolean),
+                  ...unifiedMatchHistory.map((m) => Number(m.season || (m.date ? String(m.date).slice(0, 4) : 0))).filter(Boolean),
+                ])
+              ).sort((a, b) => b - a);
 
-              <!-- BOTÕES DE FILTRO -->
-              ${(function () {
-                const curFilter = window.__afmPlayerMatchesFilter || "all";
-                return `
-                  <div style="display:flex;gap:6px;flex-wrap:wrap">
-                    <button type="button" class="btn btn-player-match-filter" data-filter="all"
-                      style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "all" ? "background:#38bdf8;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
-                      Todos (${history.length})
-                    </button>
-                    <button type="button" class="btn btn-player-match-filter" data-filter="goals"
-                      style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "goals" ? "background:#10b981;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
-                      ⚽ Com Gol (${history.filter((m) => (Number(m.goals) || 0) > 0).length})
-                    </button>
-                    <button type="button" class="btn btn-player-match-filter" data-filter="assists"
-                      style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "assists" ? "background:#60a5fa;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
-                      🎯 Com Assistência (${history.filter((m) => (Number(m.assists) || 0) > 0).length})
-                    </button>
-                    <button type="button" class="btn btn-player-match-filter" data-filter="mvp"
-                      style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "mvp" ? "background:#facc15;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
-                      ⭐ Nota 8.0+ / MVP (${history.filter((m) => (Number(m.rating) || 0) >= 8.0 || m.isMvp).length})
-                    </button>
-                  </div>
-                `;
-              })()}
-            </div>
-
-            <!-- TABELA DE ATUAÇÕES -->
-            ${(function () {
-              const curFilter = window.__afmPlayerMatchesFilter || "all";
-              const filteredMatches = history.filter((m) => {
-                if (curFilter === "goals") return (Number(m.goals) || 0) > 0;
-                if (curFilter === "assists") return (Number(m.assists) || 0) > 0;
-                if (curFilter === "mvp") return (Number(m.rating) || 0) >= 8.0 || m.isMvp;
-                return true;
+              const curMatchSeasonFilter = window.__afmPlayerMatchSeasonFilter || "all";
+              const seasonFilteredMatches = unifiedMatchHistory.filter((m) => {
+                if (curMatchSeasonFilter === "all") return true;
+                const mSeason = Number(m.season || (m.date ? String(m.date).slice(0, 4) : 0));
+                return mSeason === Number(curMatchSeasonFilter);
               });
 
-              if (!filteredMatches.length) {
-                return `
-                  <div style="text-align:center;padding:36px 12px;color:#64748b;font-size:13px">
-                    ${history.length ? "Nenhuma partida corresponde ao filtro selecionado." : "Nenhuma partida oficial registrada ainda. Entre em campo na próxima rodada para inaugurar seu histórico!"}
-                  </div>
-                `;
-              }
+              const bestMatch = seasonFilteredMatches.length
+                ? [...seasonFilteredMatches].sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0))[0]
+                : null;
+              const bestSeasonYear = bestMatch ? (bestMatch.season || (bestMatch.date ? String(bestMatch.date).slice(0, 4) : "")) : "";
 
               return `
-                <div class="tablewrap" style="overflow-x:auto">
-                  <table class="table" style="width:100%;border-collapse:collapse;font-size:12px">
-                    <thead>
-                      <tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:#94a3b8;text-align:left">
-                        <th style="padding:10px 8px">Data</th>
-                        <th style="padding:10px 8px">Adversário</th>
-                        <th style="padding:10px 8px;text-align:center">Placar</th>
-                        <th style="padding:10px 8px;text-align:center">Minutos</th>
-                        <th style="padding:10px 8px;text-align:center">Gols</th>
-                        <th style="padding:10px 8px;text-align:center">Assists</th>
-                        <th style="padding:10px 8px;text-align:center">Cartões</th>
-                        <th style="padding:10px 8px;text-align:center">Nota</th>
-                        <th style="padding:10px 8px;text-align:center">Súmula Pop-up</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${filteredMatches
-                        .map(
-                          (m, idx) => `
-                        <tr class="btn-match-history-row" data-match-idx="${idx}" style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:background 0.2s" title="Clique para abrir a súmula e detalhes da partida">
-                          <td style="padding:10px 8px;color:#cbd5e1">${m.date || "—"}</td>
-                          <td style="padding:10px 8px;font-weight:700;color:#fff">${esc(m.opponent || "Adversário")}</td>
-                          <td style="padding:10px 8px;text-align:center;font-weight:800;color:#fff">${m.score || "-"}</td>
-                          <td style="padding:10px 8px;text-align:center;color:#94a3b8">${m.minutes || 0}'</td>
-                          <td style="padding:10px 8px;text-align:center;font-weight:900;color:#10b981">${m.goals ? `⚽ ${m.goals}` : "—"}</td>
-                          <td style="padding:10px 8px;text-align:center;font-weight:900;color:#38bdf8">${m.assists ? `👟 ${m.assists}` : "—"}</td>
-                          <td style="padding:10px 8px;text-align:center;font-size:13px">
-                            ${m.redCard ? "🟥" : m.yellowCard ? "🟨" : "—"}
-                          </td>
-                          <td style="padding:10px 8px;text-align:center">
-                            <span class="pill ${Number(m.rating) >= 7.5 ? "good" : Number(m.rating) >= 6.0 ? "primary" : "danger"}" style="font-weight:900;padding:3px 8px;border-radius:6px">
-                              ${m.rating}
-                            </span>
-                          </td>
-                          <td style="padding:10px 8px;text-align:center">
-                            <button type="button" class="btn btn-view-match-details" data-match-idx="${idx}" style="background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
-                              🔍 Súmula
-                            </button>
-                          </td>
-                        </tr>
-                      `,
-                        )
-                        .join("")}
-                    </tbody>
-                  </table>
+                <!-- HEADER DA SUB-ABA -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+                  <div>
+                    <h3 style="margin:0;font-size:16px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:0.5px">
+                      ⭐ HISTÓRICO DE ATUAÇÕES EM CAMPO
+                    </h3>
+                    <div style="font-size:12px;color:#94a3b8;margin-top:2px">
+                      Registro detalhado de cada partida disputada pelo atleta com gols, assistências e notas individuais.
+                    </div>
+                  </div>
+
+                  <div style="font-size:12px;color:#38bdf8;font-weight:800">
+                    ${seasonFilteredMatches.length} partida${seasonFilteredMatches.length === 1 ? "" : "s"} exibida${seasonFilteredMatches.length === 1 ? "" : "s"} (${unifiedMatchHistory.length} no total da carreira)
+                  </div>
                 </div>
+
+                <!-- SELETOR DE TEMPORADA DO HISTÓRICO -->
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap;background:rgba(255,255,255,0.02);padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.05)">
+                  <span style="font-size:11px;font-weight:900;color:#94a3b8;text-transform:uppercase">📅 Temporada:</span>
+                  <button type="button" class="btn btn-player-match-season-filter" data-season-filter="all"
+                    style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;transition:all 0.15s;${curMatchSeasonFilter === "all" ? "background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;box-shadow:0 2px 8px rgba(168,85,247,0.4);" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+                    Todas as Temporadas (${unifiedMatchHistory.length})
+                  </button>
+                  ${availableSeasonsList
+                    .map((yr) => {
+                      const countForYr = unifiedMatchHistory.filter((m) => Number(m.season || (m.date ? String(m.date).slice(0, 4) : 0)) === Number(yr)).length;
+                      const isSel = String(curMatchSeasonFilter) === String(yr);
+                      return `
+                        <button type="button" class="btn btn-player-match-season-filter" data-season-filter="${yr}"
+                          style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;transition:all 0.15s;${isSel ? "background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;box-shadow:0 2px 8px rgba(168,85,247,0.4);" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+                          ${yr} ${yr === currentSeason ? "★ Atual" : ""} (${countForYr})
+                        </button>
+                      `;
+                    })
+                    .join("")}
+                </div>
+
+                <!-- CARD DESTAQUE: MELHOR ATUAÇÃO -->
+                ${
+                  !bestMatch
+                    ? `
+                  <div style="background:#090d16;border:1px dashed rgba(56,189,248,0.3);border-radius:14px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;color:#94a3b8;font-size:12px">
+                    <span style="font-size:24px">⭐</span>
+                    <span><b>${curMatchSeasonFilter === "all" ? "Melhor Atuação da Carreira:" : `Melhor Atuação da Temporada ${curMatchSeasonFilter}:`}</b> ${curMatchSeasonFilter === "all" || Number(curMatchSeasonFilter) === currentSeason ? "Aguardando sua estreia em campo para registrar a maior nota do ano!" : "Nenhuma partida oficial disputada nesta temporada."}</span>
+                  </div>
+                `
+                    : `
+                  <div style="background:linear-gradient(135deg,rgba(56,189,248,0.12),#090d16);border:1.5px solid rgba(56,189,248,0.4);border-radius:16px;padding:18px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+                    <div style="display:flex;align-items:center;gap:14px">
+                      <div style="width:48px;height:48px;border-radius:12px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);display:flex;align-items:center;justify-content:center;font-size:24px">
+                        ⭐
+                      </div>
+                      <div>
+                        <div style="font-size:10px;color:#38bdf8;font-weight:900;text-transform:uppercase;letter-spacing:0.5px">
+                          ${curMatchSeasonFilter === "all" ? "MELHOR ATUAÇÃO DA CARREIRA" : `MELHOR ATUAÇÃO DA TEMPORADA ${curMatchSeasonFilter}`}
+                        </div>
+                        <div style="font-size:16px;font-weight:900;color:#fff">${esc(bestMatch.opponent || "Adversário")} (${bestMatch.score || "-"})</div>
+                        <div style="font-size:11px;color:#cbd5e1;margin-top:2px">
+                          📅 ${bestMatch.date || "—"} ${bestSeasonYear ? `• Temp. ${bestSeasonYear}` : ""} • ⏱️ ${bestMatch.minutes || 0}' jogados • ⚽ ${bestMatch.goals || 0} gol(s) • 🎯 ${bestMatch.assists || 0} assist(s)
+                        </div>
+                      </div>
+                    </div>
+                    <div style="text-align:right">
+                      <div style="font-size:10px;color:#94a3b8;font-weight:800;text-transform:uppercase">NOTA OFICIAL</div>
+                      <div style="font-size:26px;font-weight:900;color:#10b981">${bestMatch.rating}</div>
+                    </div>
+                  </div>
+                `
+                }
+
+                <!-- FITA DE FORMA RECENTE (ÚLTIMOS 5 JOGOS) & FILTROS RÁPIDOS -->
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.06)">
+                  
+                  <!-- FORMA RECENTE -->
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase">Forma Recente:</span>
+                    ${(function () {
+                      const last5 = (seasonFilteredMatches || []).slice(0, 5);
+                      if (!last5.length) return `<span style="font-size:11px;color:#64748b">—</span>`;
+                      return last5
+                        .map((m) => {
+                          const isWin = m.won === true || (m.score && parseInt(m.score.split("x")[0]) > parseInt(m.score.split("x")[1]));
+                          const isLoss = m.lost === true || (m.score && parseInt(m.score.split("x")[0]) < parseInt(m.score.split("x")[1]));
+                          const badge = isWin ? "V" : isLoss ? "D" : "E";
+                          const bg = isWin ? "#10b981" : isLoss ? "#ef4444" : "#64748b";
+                          return `
+                            <span title="${m.date || ""} vs ${m.opponent || ""} (${m.score || ""}) - Nota ${m.rating}"
+                              style="width:26px;height:26px;border-radius:50%;background:${bg};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,0.5)">
+                              ${badge}
+                            </span>
+                          `;
+                        })
+                        .join("");
+                    })()}
+                  </div>
+
+                  <!-- BOTÕES DE FILTRO -->
+                  ${(function () {
+                    const curFilter = window.__afmPlayerMatchesFilter || "all";
+                    return `
+                      <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        <button type="button" class="btn btn-player-match-filter" data-filter="all"
+                          style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "all" ? "background:#38bdf8;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+                          Todos (${seasonFilteredMatches.length})
+                        </button>
+                        <button type="button" class="btn btn-player-match-filter" data-filter="goals"
+                          style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "goals" ? "background:#10b981;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+                          ⚽ Com Gol (${seasonFilteredMatches.filter((m) => (Number(m.goals) || 0) > 0).length})
+                        </button>
+                        <button type="button" class="btn btn-player-match-filter" data-filter="assists"
+                          style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "assists" ? "background:#60a5fa;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+                          🎯 Com Assistência (${seasonFilteredMatches.filter((m) => (Number(m.assists) || 0) > 0).length})
+                        </button>
+                        <button type="button" class="btn btn-player-match-filter" data-filter="mvp"
+                          style="padding:5px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;${curFilter === "mvp" ? "background:#facc15;color:#000;border:none;" : "background:#090d16;color:#94a3b8;border:1px solid rgba(255,255,255,0.08);"}">
+                          ⭐ Nota 8.0+ / MVP (${seasonFilteredMatches.filter((m) => (Number(m.rating) || 0) >= 8.0 || m.isMvp).length})
+                        </button>
+                      </div>
+                    `;
+                  })()}
+                </div>
+
+                <!-- TABELA DE ATUAÇÕES -->
+                ${(function () {
+                  const curFilter = window.__afmPlayerMatchesFilter || "all";
+                  const filteredMatches = seasonFilteredMatches.filter((m) => {
+                    if (curFilter === "goals") return (Number(m.goals) || 0) > 0;
+                    if (curFilter === "assists") return (Number(m.assists) || 0) > 0;
+                    if (curFilter === "mvp") return (Number(m.rating) || 0) >= 8.0 || m.isMvp;
+                    return true;
+                  });
+
+                  if (!filteredMatches.length) {
+                    return `
+                      <div style="text-align:center;padding:36px 12px;color:#64748b;font-size:13px">
+                        ${seasonFilteredMatches.length ? "Nenhuma partida corresponde ao filtro selecionado." : "Nenhuma partida oficial registrada nesta temporada ainda. Entre em campo na próxima rodada para inaugurar seu histórico!"}
+                      </div>
+                    `;
+                  }
+
+                  return `
+                    <div class="tablewrap" style="overflow-x:auto">
+                      <table class="table" style="width:100%;border-collapse:collapse;font-size:12px">
+                        <thead>
+                          <tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:#94a3b8;text-align:left">
+                            <th style="padding:10px 8px">Data / Temp.</th>
+                            <th style="padding:10px 8px">Adversário</th>
+                            <th style="padding:10px 8px;text-align:center">Placar</th>
+                            <th style="padding:10px 8px;text-align:center">Minutos</th>
+                            <th style="padding:10px 8px;text-align:center">Gols</th>
+                            <th style="padding:10px 8px;text-align:center">Assists</th>
+                            <th style="padding:10px 8px;text-align:center">Cartões</th>
+                            <th style="padding:10px 8px;text-align:center">Nota</th>
+                            <th style="padding:10px 8px;text-align:center">Súmula Pop-up</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${filteredMatches
+                            .map((m) => {
+                              const globalIdx = unifiedMatchHistory.indexOf(m);
+                              const matchYr = m.season || (m.date ? String(m.date).slice(0, 4) : currentSeason);
+                              return `
+                            <tr class="btn-match-history-row" data-match-idx="${globalIdx >= 0 ? globalIdx : 0}" style="border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:background 0.2s" title="Clique para abrir a súmula e detalhes da partida">
+                              <td style="padding:10px 8px;color:#cbd5e1">
+                                <div>${m.date || "—"}</div>
+                                <div style="font-size:10px;color:#94a3b8;font-weight:700">Temp. ${matchYr}</div>
+                              </td>
+                              <td style="padding:10px 8px;font-weight:700;color:#fff">${esc(m.opponent || "Adversário")}</td>
+                              <td style="padding:10px 8px;text-align:center;font-weight:800;color:#fff">${m.score || "-"}</td>
+                              <td style="padding:10px 8px;text-align:center;color:#94a3b8">${m.minutes || 0}'</td>
+                              <td style="padding:10px 8px;text-align:center;font-weight:900;color:#10b981">${m.goals ? `⚽ ${m.goals}` : "—"}</td>
+                              <td style="padding:10px 8px;text-align:center;font-weight:900;color:#38bdf8">${m.assists ? `👟 ${m.assists}` : "—"}</td>
+                              <td style="padding:10px 8px;text-align:center;font-size:13px">
+                                ${m.redCard ? "🟥" : m.yellowCard ? "🟨" : "—"}
+                              </td>
+                              <td style="padding:10px 8px;text-align:center">
+                                <span class="pill ${Number(m.rating) >= 7.5 ? "good" : Number(m.rating) >= 6.0 ? "primary" : "danger"}" style="font-weight:900;padding:3px 8px;border-radius:6px">
+                                  ${m.rating}
+                                </span>
+                              </td>
+                              <td style="padding:10px 8px;text-align:center">
+                                <button type="button" class="btn btn-view-match-details" data-match-idx="${globalIdx >= 0 ? globalIdx : 0}" style="background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;cursor:pointer">
+                                  🔍 Súmula
+                                </button>
+                              </td>
+                            </tr>
+                          `;
+                            })
+                            .join("")}
+                        </tbody>
+                      </table>
+                    </div>
+                  `;
+                })()}
               `;
             })()}
 
@@ -9955,6 +10129,22 @@
       };
     });
 
+    // Seletor de Temporada em Dados da Temporada
+    document.querySelectorAll(".btn-select-stats-season").forEach((btn) => {
+      btn.onclick = () => {
+        window.__afmPlayerSelectedStatsSeason = Number(btn.dataset.season) || currentSeason;
+        if (typeof window.render === "function") window.render();
+      };
+    });
+
+    // Filtro de Temporada em Histórico de Jogos
+    document.querySelectorAll(".btn-player-match-season-filter").forEach((btn) => {
+      btn.onclick = () => {
+        window.__afmPlayerMatchSeasonFilter = btn.dataset.seasonFilter || "all";
+        if (typeof window.render === "function") window.render();
+      };
+    });
+
     // Filtros Rápidos de Partidas em Histórico de Jogos
     document.querySelectorAll(".btn-player-match-filter").forEach((btn) => {
       btn.onclick = () => {
@@ -9969,7 +10159,7 @@
       .forEach((el) => {
         el.onclick = (e) => {
           const idx = Number(el.dataset.matchIdx);
-          const historyList = pState.matchRatingHistory || [];
+          const historyList = window.__afmActiveMatchHistoryList || pState.matchRatingHistory || [];
           const match = historyList[idx];
           if (match) {
             openMatchDetailsPopup(match, s);

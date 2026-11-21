@@ -3265,8 +3265,17 @@
     let historyMvpCount = 0;
     let historyYellowCount = 0;
     let historyRedCount = 0;
+    ch.matchesBySeason = ch.matchesBySeason || {};
     history.forEach(m => {
       if (!m) return;
+      if (!m.season) {
+        m.season = m.date ? Number(String(m.date).slice(0, 4)) : (Number(gameState?.season) || 2026);
+      }
+      const sYr = Number(m.season) || 2026;
+      ch.matchesBySeason[sYr] = ch.matchesBySeason[sYr] || [];
+      if (!ch.matchesBySeason[sYr].some(ex => ex.date === m.date && ex.opponent === m.opponent && ex.score === m.score)) {
+        ch.matchesBySeason[sYr].push(m);
+      }
       const r = Number(m.rating) || 0;
       const g = Number(m.goals) || 0;
       const a = Number(m.assists) || 0;
@@ -3292,6 +3301,18 @@
       ch.totals.redCards = Math.max(cStats.redCards || 0, historyRedCount);
       ch.totals.ratingSum = Number(((cStats.avgRating || 6.5) * ch.totals.games).toFixed(2));
     }
+
+    // Garante que totals nunca seja menor que a soma das temporadas arquivadas
+    const seasonsGamesSum = (ch.seasons || []).reduce((sum, s) => sum + (Number(s.games || s.matches) || 0), 0);
+    const seasonsGoalsSum = (ch.seasons || []).reduce((sum, s) => sum + (Number(s.goals) || 0), 0);
+    const seasonsAssistsSum = (ch.seasons || []).reduce((sum, s) => sum + (Number(s.assists) || 0), 0);
+    const seasonsMinutesSum = (ch.seasons || []).reduce((sum, s) => sum + (Number(s.minutes) || 0), 0);
+    const seasonsStartsSum = (ch.seasons || []).reduce((sum, s) => sum + (Number(s.starts) || 0), 0);
+    ch.totals.games = Math.max(Number(ch.totals.games) || 0, seasonsGamesSum + (Number(sStats.matches || sStats.games) || 0), history.length);
+    ch.totals.goals = Math.max(Number(ch.totals.goals) || 0, seasonsGoalsSum + (Number(sStats.goals) || 0), history.reduce((s, m) => s + (Number(m.goals) || 0), 0));
+    ch.totals.assists = Math.max(Number(ch.totals.assists) || 0, seasonsAssistsSum + (Number(sStats.assists) || 0), history.reduce((s, m) => s + (Number(m.assists) || 0), 0));
+    ch.totals.minutes = Math.max(Number(ch.totals.minutes) || 0, seasonsMinutesSum + (Number(sStats.minutesPlayed) || 0), history.reduce((s, m) => s + (Number(m.minutes) || 0), 0));
+    ch.totals.starts = Math.max(Number(ch.totals.starts) || 0, seasonsStartsSum + (Number(sStats.starterCount) || 0));
 
     // 3. REGRA ZERO-BUG DE RECONCILIAÇÃO PERMANENTE:
     // Garante que totals.mvp, cStats.mvpCount e sStats.mvpCount nunca fiquem desatualizados ou menores que o real
@@ -3716,6 +3737,9 @@
       );
     }
 
+    // Garante inicialização e integridade do histórico antes de processar os novos dados da partida
+    ensurePlayerCareerHistory(pState, gameState);
+
     // Atualização das estatísticas da carreira
     const stats = (pState.careerStats = pState.careerStats || {});
     stats.matches = (stats.matches || 0) + 1;
@@ -3775,7 +3799,6 @@
     sStats.averageRating = sStats.avgRating;
 
     // REGRA IRRESTRITA: Sincronização simultânea com careerHistory.totals
-    ensurePlayerCareerHistory(pState, gameState);
     if (pState.careerHistory && pState.careerHistory.totals) {
       const chTotals = pState.careerHistory.totals;
       chTotals.games = (chTotals.games || 0) + 1;
@@ -3799,6 +3822,12 @@
     pState.competitionRecordsBroken = Array.isArray(pState.competitionRecordsBroken) ? pState.competitionRecordsBroken : [];
     pState.individualAwards = Array.isArray(pState.individualAwards) ? pState.individualAwards : [];
     gameState.competitionRecords = gameState.competitionRecords || {};
+
+    const rawMatchCompId = matchResult?.competitionId || gameState.compId || "bra-est-df";
+    const matchCompId = typeof window !== "undefined" && typeof window.normalizeCompStatsId === "function"
+      ? window.normalizeCompStatsId(rawMatchCompId)
+      : String(rawMatchCompId).trim();
+    const matchCompName = matchResult?.competitionName || gameState.competition || matchCompId;
 
     const activeCompKey = matchCompId || gameState.compId || "bra-est-df";
     if (!gameState.competitionRecords[activeCompKey]) {
@@ -4051,11 +4080,6 @@
     }
 
     // Estatísticas detalhadas por competição disputada na temporada (Estadual, Liga, Copa do Brasil, Libertadores, Champions, Mundial)
-    const rawMatchCompId = matchResult?.competitionId || gameState.compId || "bra-est-df";
-    const matchCompId = typeof window !== "undefined" && typeof window.normalizeCompStatsId === "function"
-      ? window.normalizeCompStatsId(rawMatchCompId)
-      : String(rawMatchCompId).trim();
-    const matchCompName = matchResult?.competitionName || gameState.competition || matchCompId;
 
     pState.competitionStatsByComp = (pState.competitionStatsByComp && typeof pState.competitionStatsByComp === "object")
       ? pState.competitionStatsByComp
@@ -4101,8 +4125,10 @@
 
     // Histórico de atuações
     pState.matchRatingHistory = pState.matchRatingHistory || [];
-    pState.matchRatingHistory.unshift({
+    const matchSeason = Number(gameState.season) || (gameState.date ? Number(String(gameState.date).slice(0, 4)) : 2026);
+    const matchRecord = {
       date: gameState.date,
+      season: matchSeason,
       competitionId: matchCompId,
       competitionName: matchCompName,
       opponent: isHome ? matchResult?.a : matchResult?.h,
@@ -4118,8 +4144,16 @@
       isMvp: isMvp,
       cleanSheet: cleanSheet,
       won: won,
-    });
-    pState.matchRatingHistory = pState.matchRatingHistory.slice(0, 30);
+    };
+    pState.matchRatingHistory.unshift(matchRecord);
+    pState.matchRatingHistory = pState.matchRatingHistory.slice(0, 200);
+
+    // Preservação permanente das partidas por temporada (Regra 27)
+    pState.careerHistory = pState.careerHistory || { totals: {}, seasons: [] };
+    pState.careerHistory.matchesBySeason = pState.careerHistory.matchesBySeason || {};
+    pState.careerHistory.matchesBySeason[matchSeason] = pState.careerHistory.matchesBySeason[matchSeason] || [];
+    pState.careerHistory.matchesBySeason[matchSeason].unshift(matchRecord);
+    pState.careerHistory.matchesBySeason[matchSeason] = pState.careerHistory.matchesBySeason[matchSeason].slice(0, 100);
 
     if (typeof window !== "undefined" && typeof window.syncCompetitionStatsComprehensive === "function") {
       try {
@@ -7187,7 +7221,8 @@
       return null;
     }
     const pState = gameState.playerCareerState;
-    const prevYear = Number(finishedYear) || (Number(gameState.season) - 1) || 2026;
+    const sStats = pState.seasonStats || {};
+    const prevYear = Number(finishedYear) || (sStats.season ? Number(sStats.season) : null) || (Number(gameState.season) > 2026 ? Number(gameState.season) - 1 : Number(gameState.season)) || 2026;
     const newSeasonYear = Number(gameState.season) > prevYear ? Number(gameState.season) : prevYear + 1;
 
     // 1. Apura prêmios individuais da temporada encerrada (idempotente)
@@ -7197,28 +7232,45 @@
 
     // 2. Arquiva estatísticas da temporada encerrada em careerHistory.seasons (sem duplicar o ano)
     ensurePlayerCareerHistory(pState, gameState);
-    const sStats = pState.seasonStats || {};
     const athlete = (gameState.squad || []).find(p => String(p.id) === String(gameState.controlledPlayerId) || p.isControlled);
     const curOvr = Number(athlete?.ovr || athlete?.overall || pState.overall || pState.athleteOvr || 45);
 
     if (!pState.careerHistory.seasons.some(entry => Number(entry.season || entry.year) === prevYear)) {
-      const gamesPlayed = Number(sStats.games || sStats.matches || 0);
+      const seasonMatches = (pState.matchRatingHistory || []).filter(m => Number(m.season) === prevYear || (m.date && String(m.date).startsWith(String(prevYear))));
+      const historyGames = seasonMatches.length;
+      const historyGoals = seasonMatches.reduce((sum, m) => sum + (Number(m.goals) || 0), 0);
+      const historyAssists = seasonMatches.reduce((sum, m) => sum + (Number(m.assists) || 0), 0);
+      const historyMinutes = seasonMatches.reduce((sum, m) => sum + (Number(m.minutes) || 0), 0);
+      const historyStarts = seasonMatches.filter(m => (Number(m.minutes) || 0) >= 60).length;
+      const historyMvp = seasonMatches.filter(m => m.isMvp || Number(m.rating) >= 8.5).length;
+      const historyRatingSum = seasonMatches.reduce((sum, m) => sum + (Number(m.rating) || 0), 0);
+      const historyAvgRating = historyGames > 0 ? Number((historyRatingSum / historyGames).toFixed(2)) : 0;
+
+      const gamesPlayed = Math.max(Number(sStats.games || sStats.matches || 0), historyGames);
+      const goalsScored = Math.max(Number(sStats.goals || 0), historyGoals);
+      const assistsGiven = Math.max(Number(sStats.assists || 0), historyAssists);
+      const minutesPlayed = Math.max(Number(sStats.minutesPlayed || 0), historyMinutes);
+      const startsCount = Math.max(Number(sStats.starterCount || sStats.starts || 0), historyStarts);
+      const mvpCount = Math.max(Number(sStats.mvpCount || sStats.manOfTheMatch || 0), historyMvp);
+      const avgRating = gamesPlayed > 0 ? (Number(sStats.avgRating || sStats.averageRating) || historyAvgRating || 6.5) : 0;
+
       pState.careerHistory.seasons.unshift({
         season: prevYear,
         year: prevYear,
         club: gameState.club || "Clube",
+        division: gameState.competition || "Campeonato",
         competition: gameState.competition || "Campeonato",
         age: Number(pState.age || athlete?.age || 15),
         ovr: curOvr,
         games: gamesPlayed,
         matches: gamesPlayed,
-        starts: Number(sStats.starterCount || sStats.starts || 0),
-        minutes: Number(sStats.minutesPlayed || 0),
-        goals: Number(sStats.goals || 0),
-        assists: Number(sStats.assists || 0),
+        starts: startsCount,
+        minutes: minutesPlayed,
+        goals: goalsScored,
+        assists: assistsGiven,
         cleanSheets: Number(sStats.cleanSheets || 0),
-        mvp: Number(sStats.mvpCount || sStats.manOfTheMatch || 0),
-        avgRating: gamesPlayed > 0 ? Number(sStats.avgRating || sStats.averageRating || 6.5) : 0,
+        mvp: mvpCount,
+        avgRating: avgRating,
         titlesWon: (function () {
           const raw = (gameState.titles || [])
             .filter((t) => (typeof t === "object" && t.year ? Number(t.year) === prevYear : true))
